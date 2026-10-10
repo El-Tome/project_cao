@@ -127,6 +127,18 @@
 //! drawn on `85a2d2e`, each a lean laid exactly beside an offset hair it had
 //! kept apart or beside a turn's walls: they are named last, under the same
 //! two keys.
+//!
+//! Round 5 names what round 4's measurement at `beaf75d` left first, under
+//! two keys. `decision-11-regressions`: the five seeds that held on
+//! `85a2d2e` and fail by decision 11's own turn, each holding with the turn
+//! switched off — a post, a wedge or a shaft about a world axis laid square
+//! to a turn about an axis leaning 1e-7°, and a face or a ring laid square
+//! to a block 4e-8° off a quarter turn beside a cut at 45°.
+//! `plain-pieces`: the shrunk cases with no hair, each failing on `85a2d2e`
+//! too — regions with no point inside them beside two walls of one radius,
+//! a stepped shaft turned 359.9°, a rod along a rounded block's side, a
+//! ruling of a cone left open; the crossings are in
+//! `what_the_exact_campaigns_found_in_the_triangles.rs`.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -7553,6 +7565,350 @@ fn seed_5543312609_a_turn_about_y_cut_by_one_about_x_then_joined_to_a_turn_of_15
                 Axis::second(-60.0).leaning(1e-7),
                 Section::bands(-90.0, &[[120.0, 60.0, 225.0]]),
                 150.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, decision 11's own, measured on fresh turned seeds on the
+/// exact kernel: a turn of 240° about an axis along Z leaning 1e-7° towards
+/// Y, joined to a post about Y across it. Decision 11 turns the post so that
+/// its ends lie exactly along the leaning axis, and its wall stands exactly
+/// square to the turn's, where the two were skew by the lean; the lines,
+/// the rims and the ellipse where the turn's end plane cuts the post are
+/// left with one face each: declined as unverified. Holds with decision 11
+/// switched off, and as drawn on `85a2d2e`, as 5543615040 does.
+#[test]
+#[ignore = "decision-11-regressions, #552's round 5: a post about Y laid along a turn's axis leaning 1e-7 degrees across it, the two walls made square; declined as unverified, holds as drawn on 85a2d2e"]
+fn seed_5544510380_a_turn_of_240_degrees_leaning_1e_7_degrees_joined_to_a_post_across_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::yz(0.0),
+            Axis::second(6.0).leaning(1e-7),
+            Section::bands(-3.0, &[[4.0, -2.0, 1.0]]),
+            240.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(5.0),
+            Axis::second(0.0),
+            Section::bands(2.0, &[[3.5, 0.0, 5.5]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// #552's round 5, decision 11's own, through the application's body: a
+/// disc turned about an axis leaning 1e-7° off Y, joined to a wedge of 15°
+/// turned about Y. Turned square to the leaning axis, the wedge's end
+/// planes and its axis line stand a few hundredths of a micron off where
+/// they cross the disc, and edges along them are left with one face each:
+/// declined as unverified. Holds with decision 11 switched off, and as drawn
+/// on `85a2d2e`.
+#[test]
+#[ignore = "decision-11-regressions, #552's round 5: a wedge of 15 degrees laid square to a disc leaning 1e-7 degrees; declined as unverified, holds as drawn on 85a2d2e"]
+fn seed_5544600162_a_disc_leaning_1e_7_degrees_joined_to_a_wedge_of_15_degrees_about_y() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::second(6.0).leaning(1e-7),
+            Section::bands(-3.0, &[[3.0, 0.0, 8.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::second(0.0),
+            Section::bands(-2.0, &[[7.0, 0.0, 4.0]]),
+            15.0,
+        ))],
+    ));
+}
+
+/// #552's round 5, decision 11's own, through the application's body: a
+/// disc turned about an axis leaning 1e-7° off X, joined to a shaft about Y
+/// that decision 11 lays square to it, cut by a post along Z, then by a
+/// stepped turn about Y laid square as well. Edges on the post's rims, its
+/// lines, and the curves where its wall meets the disc's and the shaft's
+/// are left with one face each: declined as unverified. Holds with
+/// decision 11 switched off, and as drawn on `85a2d2e`.
+#[test]
+#[ignore = "decision-11-regressions, #552's round 5: two turns about Y laid square to a disc leaning 1e-7 degrees, a post through them; declined as unverified, holds as drawn on 85a2d2e"]
+fn seed_5544600864_a_disc_leaning_1e_7_degrees_joined_to_a_shaft_then_cut_by_a_post_and_a_turn() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(0.0),
+            Axis::first(0.0).leaning(1e-7),
+            Section::bands(-10.0, &[[10.0, 0.0, 25.0]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::yz(2.5),
+                Axis::first(0.0).backwards(),
+                Section::bands(3.0, &[[20.0, 0.0, 8.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-18.0),
+                Outline::circle([2.5, -22.5], 7.5),
+                35.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(-3.0),
+                Axis::second(0.0).backwards(),
+                Section::bands(
+                    0.0,
+                    &[[3.0, 0.0, 20.0], [3.0, 0.0, 23.0], [15.0, 0.0, 10.0]],
+                ),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, decision 11's own, through the application's body: a
+/// cone about X cut at 45°, then by a block 4e-8° off a quarter turn whose
+/// face stands 3e-7 short of x = 225, at a reach of hundreds. Decision 11
+/// lays the face square to the cone's axis, which moves it a few tenths of
+/// a micron where it crosses the 45° cut; the cone's rim, the conic of the
+/// 45° cut and the line the two planes share are left with one face each:
+/// declined as unverified. Holds with decision 11 switched off, and as drawn
+/// on `85a2d2e`.
+#[test]
+#[ignore = "decision-11-regressions, #552's round 5: a face 4e-8 degrees off square to a cone laid square where it crosses a 45 degree cut; declined as unverified, holds as drawn on 85a2d2e"]
+fn seed_5544232904_a_cone_cut_at_45_degrees_then_by_a_face_4e_8_degrees_off_square_to_it() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(75.0),
+            Axis::first(0.0),
+            Section::bands(60.0, &[[165.0, 0.0, 120.0], [75.0, 0.0, 120.0]])
+                .sloping_to(&[[0.0, 120.0], [0.0, 195.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([263.0, 0.0, 75.0], [0.0, 45.0, 0.0]),
+                Outline::rectangle([-300.0, -225.0], [180.0, 225.0]),
+                -300.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([224.9999997, 120.0, 75.0], [90.0, 89.99999996, 0.0]),
+                Outline::rectangle([-345.0, -225.0], [105.0, 210.0]),
+                -180.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, decision 11's own, through the application's body: a
+/// block 4e-8° off a quarter turn, joined to a ring about X whose band
+/// starts 2e-8 off its face, the ring laid square to the block by decision
+/// 11, then cut at 45° a hair aside. The cut meets a tie in the star of the
+/// overlay (overlay/star.rs). Holds with decision 11 switched off, and as
+/// drawn on `85a2d2e`.
+#[test]
+#[ignore = "decision-11-regressions, #552's round 5: a ring laid square to a block 4e-8 degrees off a quarter turn, then cut at 45 degrees; declined as a tie in the overlay's star, holds as drawn on 85a2d2e"]
+fn seed_5544236192_a_block_4e_8_degrees_off_a_quarter_turn_joined_to_a_ring_then_cut_at_45_degrees()
+{
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::tilted([3.0, 4.0, 3.0], [90.0, -89.99999996, 0.0]),
+            Outline::rectangle([0.0, 0.0], [4.0, 8.0]),
+            3.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(4.5),
+                Axis::first(3.0).backwards(),
+                Section::bands(-1.9999999800000006, &[[0.5, 1.5, 3.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [0.49999998000000057, 2.5000000006981318, 4.5],
+                    [0.0, 45.0, 0.0],
+                ),
+                Outline::rectangle([-3.0, -4.0], [4.0, 4.0]),
+                3.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a piece with no hair, tilted on the exact kernel and
+/// failing on `85a2d2e` too: a tube along Z joined to a half tube of its
+/// axis whose bore is its own, then cut by a block at 60° about X. A region
+/// of the overlay has no point found inside it (overlay/partition.rs):
+/// declined as a tie, as 5543305067 and 5543616767.
+#[test]
+#[ignore = "plain-pieces, #552's round 5: a tube joined to a half tube of its own bore, cut at 60 degrees; a region with no point inside it, declined as a tie"]
+fn seed_5544100660_a_tube_joined_to_a_half_tube_of_its_bore_then_cut_at_60_degrees() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-30.0),
+            Outline::ring([240.0, 180.0], 120.0, 45.0),
+            105.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::yz(240.0),
+                Axis::second(180.0),
+                Section::bands(-90.0, &[[165.0, 45.0, 90.0]]),
+                180.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([240.0, 135.0, 75.0], [60.0, 0.0, 0.0]),
+                Outline::rectangle([-15.0, -195.0], [105.0, 90.0]),
+                225.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a piece with no hair, tilted through the application's
+/// body and failing on `85a2d2e` too: a disc and a turn of 270° about one
+/// axis along Y and of one radius, joined, then cut by a block at 45° about
+/// X. A region of
+/// the overlay has no point found inside it (overlay/partition.rs):
+/// declined as a tie.
+#[test]
+#[ignore = "plain-pieces, #552's round 5: two turns of one radius about one axis, cut at 45 degrees; a region with no point inside it, declined as a tie"]
+fn seed_5544229207_two_turns_about_one_axis_cut_at_45_degrees() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(25.0),
+            Axis::second(-15.0),
+            Section::bands(15.0, &[[17.5, -10.0, 7.5]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(25.0),
+                Axis::second(-15.0).backwards(),
+                Section::bands(-32.5, &[[25.0, 0.0, 10.0]]),
+                270.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([-15.0, 32.5, 15.0], [-45.0, 0.0, 0.0]),
+                Outline::rectangle([-13.0, -35.0], [13.0, 3.0]),
+                18.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a piece with no hair, slanted on the exact kernel and
+/// failing on `85a2d2e` too: a post along X joined to a rod of radius 0.5
+/// along Z touching its wall, then cut by a pin along X of the rod's radius
+/// whose axis meets the rod's at the touch: the two walls of one radius
+/// cross along two ellipses whose node lies on the post's wall
+/// (meet/pair.rs). A region of the overlay has no point found inside it
+/// (overlay/partition.rs): declined as a tie.
+#[test]
+#[ignore = "plain-pieces, #552's round 5: a rod touching a post, cut by a pin of its radius crossing it at the touch; a region with no point inside it, declined as a tie"]
+fn seed_5544320693_a_post_joined_to_a_rod_touching_it_then_cut_by_a_pin_of_its_radius() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(4.0), Outline::circle([5.0, 3.5], 5.5), -7.0),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xz(11.0),
+                Axis::second(0.0),
+                Section::bands(-3.0, &[[13.0, 0.0, 0.5]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-0.75),
+                Outline::circle([11.0, 3.5], 0.5),
+                3.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a piece with no hair, turned on the exact kernel and
+/// failing on `85a2d2e` too (#533's family of a nearly whole turn): a
+/// stepped shaft turned 359.9° about X, joined to a turn of 105° about an
+/// axis along Z crossing the shaft's wider band. Stretches traced on a wall
+/// stand off their chords (domain/traced.rs), and the lines of the 0.1°
+/// slit, the step's rims and the turn's own lines are left with one face
+/// each: declined as unverified.
+#[test]
+#[ignore = "plain-pieces, #552's round 5: a stepped shaft turned 359.9 degrees joined to a partial turn across it; the slit's lines left with one face each, declined as unverified"]
+fn seed_5544504441_a_stepped_shaft_turned_359_9_degrees_joined_to_a_turn_of_105_degrees() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(0.0),
+            Axis::first(0.0),
+            Section::bands(20.0, &[[7.5, 0.0, 20.0], [7.5, 0.0, 27.5]]),
+            359.9,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::yz(30.0),
+            Axis::second(20.0),
+            Section::bands(-15.0, &[[20.0, -2.5, 17.5]]),
+            105.0,
+        ))],
+    ));
+}
+
+/// #552's round 5, a piece with no hair, turned on the exact kernel and
+/// failing on `85a2d2e` too: a block along Z rounded by 0.5, joined to a
+/// rod of radius 0.5 along Y whose axis lies on the block's side, touching
+/// the rounded corners' walls, of its own radius, then cut by a post along
+/// Z. Edges on the curves where the rod meets the corners, and lines on the
+/// rod, are left with one face each: declined as unverified.
+#[test]
+#[ignore = "plain-pieces, #552's round 5: a rod along a rounded block's side meeting its corners of the same radius, then a hole; declined as unverified"]
+fn seed_5544515442_a_rounded_block_joined_to_a_rod_along_its_side_then_cut_by_a_post() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-2.0),
+            Outline::rounded([8.0, 3.0], [9.5, 10.5], 0.5),
+            7.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::yz(9.5),
+                Axis::first(0.0),
+                Section::bands(1.0, &[[11.5, 0.0, 0.5]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::circle([9.0, 4.0], 1.0),
+                -5.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a piece with no hair, slanted on the exact kernel and
+/// failing on `85a2d2e` too: three turns about one axis along Y, a solid
+/// turn of -150°, a half ring round it and a cone across the ring's end.
+/// The stretch of a ruling of the cone in the plane the turns end on, from
+/// radius 180 to the solid turn's wall at 210, is run one way only: left
+/// open. It was drawn with a hair of 3e-7, which shrinking took away.
+#[test]
+#[ignore = "plain-pieces, #552's round 5: a partial turn, a half ring and a cone about one axis; left open along a ruling of the cone"]
+fn seed_5544323650_a_partial_turn_a_half_ring_and_a_cone_about_one_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(150.0),
+            Axis::second(0.0),
+            Section::bands(30.0, &[[120.0, 0.0, 210.0]]),
+            -150.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::yz(0.0),
+                Axis::first(150.0).backwards(),
+                Section::bands(-150.0, &[[120.0, 210.0, 240.0]]),
+                180.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::yz(0.0),
+                Axis::first(150.0),
+                Section::bands(135.0, &[[30.0, -180.0, -0.0]]).sloping_to(&[[-240.0, -0.0]]),
+                360.0,
             )),
         ],
     ));

@@ -6,6 +6,11 @@
 //! written above it.
 //!
 //! The tangency band's findings are gathered in `the_tangency_band.rs`.
+//!
+//! #552's round 5 names its crossings with no hair under `plain-pieces`,
+//! the key `what_the_exact_campaigns_found_in_the_kernel.rs` gives the rest
+//! of them: two of them draw crossing at a node of the two ellipses two
+//! walls of one radius cross along, their axes meeting square.
 
 // The drawing and the checks are the campaign's; this file only builds cases
 // and holds them.
@@ -3449,6 +3454,182 @@ fn seed_5543610415_a_stepped_shaft_cut_by_a_post_then_joined_to_a_ring() {
                 Axis::first(0.0),
                 Section::bands(2.0, &[[8.0, 11.0, 13.0]]),
                 360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a piece with no hair, tilted through the application's
+/// body and failing on `85a2d2e` too: a shaft about X ending in a short
+/// cone, bored by a post of its axis wider than the shaft, then cut by a
+/// flat along the axis between the shaft's radius and the cone's widest,
+/// which cuts the cone along a hyperbola and the bore along two lines. Two
+/// triangles draw crossing where the hyperbola meets the bore.
+#[test]
+#[ignore = "plain-pieces, #552's round 5: a cone bored along its axis, cut by a flat along the axis along a hyperbola; drawn crossing"]
+fn seed_5544205878_a_bored_cone_cut_by_a_flat_along_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(8.0),
+            Axis::first(4.0),
+            Section::bands(-1.0, &[[3.0, 0.0, 5.0], [0.5, 0.0, 6.5]])
+                .sloping_to(&[[0.0, 5.0], [0.0, 5.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(2.0),
+                Outline::circle([4.0, 8.0], 6.0),
+                4.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(-1.8175629040418775),
+                Outline::rectangle([-2.0, 1.0], [6.0, 15.0]),
+                2.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a turned draw on the exact kernel, failing on `85a2d2e`
+/// too (#533's families): a rod about Y cut by a post along Z through its
+/// axis, then by a block, then joined to a wider post. Two triangles draw
+/// crossing.
+#[test]
+#[ignore = "plain-pieces, #552's round 5: a rod cut by a post through its axis and a block, then joined to a post; drawn crossing"]
+fn seed_5544518834_a_rod_cut_by_a_post_and_a_block_then_joined_to_a_wider_post() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(0.0),
+            Section::bands(-2.0, &[[6.0, -2.5, -0.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-3.0),
+                Outline::circle([0.0, 2.75], 2.0),
+                12.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::rectangle([0.0, 6.0], [6.0, 12.0]),
+                4.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([0.0, 6.0], 3.5),
+                4.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a turned draw on the exact kernel, failing on `85a2d2e`
+/// too (#533's families): a tube about X cut by a block, then joined to a
+/// rod and to two turns whose sections have holes, all three about one
+/// axis along Y. Two triangles draw crossing.
+#[test]
+#[ignore = "plain-pieces, #552's round 5: a tube about X cut by a block, joined to three turns about Y; drawn crossing"]
+fn seed_5544528726_a_tube_about_x_cut_by_a_block_then_joined_to_three_turns_about_y() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(0.0),
+            Section::bands(-1.0, &[[4.0, -4.0, -3.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([0.0, 3.0], [2.0, 5.0]),
+                8.5,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(1.0),
+                Axis::second(0.0),
+                Section::bands(-3.0, &[[3.5, -2.5, -0.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(-2.0),
+                Axis::second(0.0),
+                Section::bands(-2.0, &[[3.0, -3.0, 3.0]]).with_holes(&[([-1.5, 1.5], [0.0, 2.0])]),
+                180.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(3.0),
+                Axis::second(0.0),
+                Section::bands(1.0, &[[6.5, 0.0, 5.5]]).with_holes(&[([4.5, 4.0], [7.0, 4.5])]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a turned draw through the application's body, failing
+/// on `85a2d2e` too (#533's families): a turn of 255° about Z cut by a post
+/// along X of its radius whose axis meets its own, then by a block and a
+/// turn about Y. The two walls of one radius cross along two ellipses
+/// (meet/pair.rs); two triangles draw crossing at one of their nodes.
+#[test]
+#[ignore = "plain-pieces, #552's round 5: a turn cut by a post of its radius whose axis meets its own; drawn crossing at a node of the two ellipses"]
+fn seed_5544618545_a_turn_of_255_degrees_cut_by_a_post_of_its_radius_across_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(5.0),
+            Axis::second(0.0),
+            Section::bands(4.0, &[[3.0, 0.0, 2.5]]),
+            255.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(-4.0),
+                Outline::circle([5.0, 5.5], 2.5),
+                8.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(6.0),
+                Outline::rectangle([5.5, -1.5], [10.5, 3.5]),
+                6.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(2.0),
+                Axis::second(-2.0),
+                Section::bands(2.0, &[[1.0, 0.0, 3.5]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a turned draw through the application's body, failing
+/// on `85a2d2e` too (#533's families): a disc about Z cut by a pin along Y
+/// spanning it from rim to rim, then by a post along X of the disc's radius
+/// whose axis meets the disc's. The two walls of one radius cross along two
+/// ellipses (meet/pair.rs) whose nodes lie on the lines where the pin's
+/// end planes touch the disc's wall; two triangles draw crossing at one of
+/// them.
+#[test]
+#[ignore = "plain-pieces, #552's round 5: a disc cut by a pin from rim to rim and a post of its radius whose axis meets its own; drawn crossing at a node of the two ellipses"]
+fn seed_5544629222_a_disc_cut_by_a_pin_from_rim_to_rim_and_a_post_of_its_radius() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::yz(0.0),
+            Axis::second(8.0),
+            Section::bands(3.0, &[[3.0, 0.0, 6.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(14.0),
+                Outline::circle([0.0, 5.5], 1.0),
+                12.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-7.0),
+                Outline::circle([8.0, 4.25], 6.0),
+                14.0,
             )),
         ],
     ));

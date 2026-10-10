@@ -11,7 +11,8 @@ use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::surface::{Cone, Cylinder, Plane, Surface, canonical_direction, reference};
 
 impl Body {
-    /// The body turned by `turn` about `pivot`, each direction it turns to
+    /// The body turned by `turn` about `pivot` and moved by `shift`, each
+    /// direction it turns to
     /// within a sine of `within` of one of `anchors` laid on that one's
     /// bits, so that a pair the turn lays square or along compares exactly;
     /// none where a canonical direction would turn round, the way its curves
@@ -25,6 +26,7 @@ impl Body {
         &self,
         pivot: DVec3,
         turn: DQuat,
+        shift: DVec3,
         anchors: &[DVec3],
         within: f64,
     ) -> Option<Body> {
@@ -48,7 +50,7 @@ impl Body {
             turned.insert(key, canonical);
             Some(canonical)
         };
-        let place = |point: DVec3| pivot + turn * (point - pivot);
+        let place = |point: DVec3| pivot + turn * (point - pivot) + shift;
         let mut moved = self.clone();
         for (rank, surface) in self.surfaces.iter().enumerate() {
             moved.surfaces[rank] = match surface {

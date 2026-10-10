@@ -5,10 +5,12 @@
 //! tolerance of the rim or the lines beside it: the kernel answered it both
 //! ways, in different places.
 //!
-//! The second operand is turned about the middle of its box, rigidly, with
-//! its surfaces, curves and corners, so that its own decisions hold as it
-//! took them; decided once, before decision 8 reads it. The turn is made
-//! only where it moves no point of the operand further than `Scale::HAIR`
+//! The second operand is turned rigidly, with its surfaces, curves and
+//! corners, so that its own decisions hold as it took them; decided once,
+//! before decision 8 reads it. It is turned about the middle of where the
+//! two operands' boxes overlap, and set down where it lays exactly what it
+//! held against the first (`placed.rs`). The turn is made only where it
+//! moves no point of the operand further than `Scale::HAIR`
 //! tolerances — the furthest the kernel already moves an operand, and what
 //! it already takes for one place for two walls of one radius — where one
 //! turn lays every such pair exactly, keeps every pair of directions that
@@ -21,6 +23,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::{DQuat, DVec3};
 
+use super::placed::{Laying, placed};
 use crate::brep::Lean;
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
@@ -120,12 +123,30 @@ pub(in crate::brep) fn squared(first: &Body, second: &Body, scale: Scale) -> Opt
         .iter()
         .chain(&held)
         .all(|pair| pair.off(turn) <= LAID * exact);
-    if !kept_exact || angle(turn) * lever > Scale::HAIR * eps {
+    let met = met(first, low, high);
+    let swept = angle(turn) * (met - low).abs().max((high - met).abs()).length();
+    if !kept_exact || swept > Scale::HAIR * eps {
         return None;
     }
+    let laying = Laying {
+        turn,
+        met,
+        within: LAID * exact,
+        eps,
+        left: Scale::HAIR * eps - swept,
+    };
+    let shift = placed(first, second, &laying);
     let anchors: Vec<DVec3> = first.surfaces.iter().map(direction).collect();
-    let turned = second.rotated((low + high) / 2.0, turn, &anchors, exact)?;
+    let turned = second.rotated(met, turn, shift, &anchors, exact)?;
     kept(first, second, &turned, scale).then_some(turned)
+}
+
+/// The middle of where the boxes of the first operand and of the second,
+/// from `low` to `high`, overlap: where the two meet, and what the turn
+/// moves least.
+fn met(first: &Body, low: DVec3, high: DVec3) -> DVec3 {
+    let (one, other) = first.bounds().unwrap_or((low, high));
+    (low.max(one) + high.min(other)) / 2.0
 }
 
 /// The pairs of a direction of each operand whose faces stand in boxes that

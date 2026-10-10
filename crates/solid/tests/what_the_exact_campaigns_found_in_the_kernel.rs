@@ -7056,3 +7056,29 @@ fn seed_5543226572_a_cone_cut_at_45_degrees_through_its_apex_on_the_end_planes_o
         ],
     ));
 }
+
+/// #552's round 4, through the application's body: a stepped wedge turned a
+/// hundredth of a degree about X, cut by a post along Y whose bottom
+/// touches the wedge's first end plane, its axis in the wedge's end disc.
+/// On the post, the curve it meets the wedge's wall along leaves the corner
+/// where the post starts along the post's rim, both straight there, parting
+/// as the fourth power of the way run: a tenth of the shorter, their chords
+/// stood 8e-10 apart, under what tells two chords apart, and the corner was
+/// declined as a tie. Halfway along the shorter, where it still crosses
+/// nothing, they stand far enough apart.
+#[test]
+fn seed_5543224272_a_wedge_of_a_hundredth_of_a_degree_cut_by_a_post_touching_its_end_plane() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(1.0),
+            Axis::first(0.0),
+            Section::bands(-1.0, &[[2.0, 0.0, 4.0], [2.0, 0.0, 5.0], [3.0, 0.0, 1.0]]),
+            0.01,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xz(1.0),
+            Outline::circle([6.0, 2.0], 1.0),
+            8.0,
+        ))],
+    ));
+}

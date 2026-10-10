@@ -266,8 +266,11 @@ fn chord(leaving: &Leaving) -> f64 {
 /// from rounding only by a corner standing off them, they come in the order
 /// they stand in as they run; set off together from rounding alone, the
 /// one bending further left comes after, and of two bending alike, the one
-/// whose chord turns further left; two that are gathered only through a
-/// third part by where they head.
+/// whose chord turns further left — or, where their chords a tenth along
+/// are too near to tell, the one standing further left as they run: a curve
+/// two cylinders meet along leaves a rim it touches to the fourth power of
+/// the way run, its chord 8e-10 off the rim's a tenth along (5543224272);
+/// two that are gathered only through a third part by where they head.
 fn counterclockwise(left: &Leaving, right: &Leaving) -> Option<Ordering> {
     let touching = together(left, right) && !tied(left, right);
     if let Some([one, other]) = touching.then(|| sides(left, right)).flatten() {
@@ -277,7 +280,8 @@ fn counterclockwise(left: &Leaving, right: &Leaving) -> Option<Ordering> {
         (false, _) => Some(left.bend.total_cmp(&right.bend)),
         (true, false) => Some(left.angle.total_cmp(&right.angle)),
         (true, true) => ((chord(right) - chord(left)).abs() > CHORD_TIE)
-            .then(|| chord(left).total_cmp(&chord(right))),
+            .then(|| chord(left).total_cmp(&chord(right)))
+            .or_else(|| sides(left, right).map(|[one, other]| one.total_cmp(&other))),
     }
 }
 

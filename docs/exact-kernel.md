@@ -960,13 +960,18 @@ covered once from each side.
    operand on two of its surfaces, or inside faces of either on two surfaces
    decided to touch (9); kept arcs that are one are one (6).
 5. **Overlay** per surface. At each vertex the arcs are ordered by tangent
-   angle, ties broken by signed curvature — a second tie declines. Cycles are
-   traced, then grouped into regions by a ray up the second parameter from
-   each cycle's top. Each region gets an interior point. On a cone each arc
-   ending at the apex ends at a vertex of its own, at the angle it arrives
-   at, since the apex's own angle is rounding; the floor joins them, and
-   closes below a face holding the apex within it, so that the region at the
-   tip is bounded. No region keeps a stretch of the floor.
+   angle, ties broken by signed curvature, then by the chord a tenth along,
+   then by where each stands halfway along the shorter, which neither
+   crosses the other before: a curve two cylinders meet along leaves a rim
+   it touches to the fourth power of the way run, and its chord a tenth
+   along stood 8e-10 off the rim's (5543224272) — a last tie declines.
+   Cycles are traced, then grouped into regions by a ray up the second
+   parameter from each cycle's top. Each region gets an interior point. On
+   a cone each arc ending at the apex ends at a vertex of its own, at the
+   angle it arrives at, since the apex's own angle is rounding; the floor
+   joins them, and closes below a face holding the apex within it, so that
+   the region at the tip is bounded. No region keeps a stretch of the
+   floor.
 6. **Winding.** For each operand, a region is covered with the surface's
    normal, against it, or not at all. Covered gives the winding on each side
    of it; not covered gives the same winding on both, from an exact ray cast

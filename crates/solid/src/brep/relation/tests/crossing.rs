@@ -7,6 +7,7 @@ use crate::brep::meet::Meeting;
 mod conic;
 mod grazed;
 mod lying;
+mod section;
 
 /// The crossings found, each checked to lie on the curve at its parameter and
 /// on the surface, and the list sorted.

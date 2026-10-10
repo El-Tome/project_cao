@@ -18,6 +18,7 @@ use glam::DVec3;
 use super::super::cylinders::cylinders;
 use super::super::revolved::in_the_box;
 use super::super::{Relation, parallel, relation, square};
+use super::section::ROUNDING;
 use super::{Solved, Touches, circle_through, line_and_cylinder, touches};
 use crate::brep::curve::{Circle, Line};
 use crate::brep::scale::Scale;
@@ -71,16 +72,6 @@ pub(super) fn line_and_cone(line: &Line, cone: &Cone, scale: Scale, touching: &T
     }
     Solved::At(roots.into_iter().flatten().map(|at| (at, false)).collect())
 }
-
-/// How far inside a cone's section, as a share of the tolerance, a line
-/// square to the axis stands by rounding alone, and only touches the cone:
-/// the line two planes share, one square to the axis and one touching the
-/// cone exactly where it crosses it, found a femtometre inside, whose two
-/// roots `√(2rδ)` apart stand a few tolerances from each other with a sliver
-/// between them no face agrees on (#552, 5543231406). A cylinder's own lines
-/// keep crossing twice however thin they stand inside it: real walls rely
-/// on that, and moving this into `touches` broke them.
-const ROUNDING: f64 = 1e-6;
 
 /// How far a line passes from a point.
 fn passing(line: &Line, point: DVec3) -> f64 {

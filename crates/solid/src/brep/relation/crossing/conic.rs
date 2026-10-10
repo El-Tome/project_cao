@@ -22,6 +22,7 @@ use super::super::planar::{plane_and_cylinder, planes};
 use super::super::{Relation, relation, square};
 use super::grazed::grazed;
 use super::lying::{STEEP, leans};
+use super::section;
 use super::{Crossing, Crossings, Touches, crossings_given};
 use crate::brep::conic::{Conic, Round};
 use crate::brep::curve::Curve;
@@ -80,8 +81,24 @@ pub(super) fn conic_and_surface(
     };
     let mut kept = Vec::new();
     for curve in &curves {
-        let Crossings::At(found) = crossings_given(curve, &across, scale, touching) else {
-            return Crossings::Unsupported;
+        let touched = match (curve, surface, conic.round) {
+            (Curve::Line(line), Surface::Plane(plane), Round::Cylinder(cylinder))
+                if across == wall =>
+            {
+                section::touched(line, [&conic.plane, plane], &cylinder, scale)
+            }
+            _ => None,
+        };
+        let found = match touched {
+            Some(at) => vec![Crossing {
+                parameter: at,
+                point: curve.point(at),
+                tangent: true,
+            }],
+            None => match crossings_given(curve, &across, scale, touching) {
+                Crossings::At(found) => found,
+                Crossings::Along | Crossings::Unsupported => return Crossings::Unsupported,
+            },
         };
         let decided = match surface {
             Surface::Plane(plane) if across == wall => {

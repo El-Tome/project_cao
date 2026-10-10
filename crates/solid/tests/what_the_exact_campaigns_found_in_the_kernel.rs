@@ -5703,9 +5703,11 @@ fn seed_9303477_a_cut_past_a_frustum_s_tip_is_joined_to_a_block_clear_of_it() {
 /// The line the plane cuts the end along passes that rim a femtometre
 /// inside, as rounding left it, and crossed the shaft twice a tenth of a
 /// micron apart: the end held a sliver between that chord and the rim no
-/// column could find a point in. Declined as a tie.
+/// column could find a point in, declined as a tie. It holds since that
+/// line, square to the shaft's axis and shared with a plane crossing it
+/// steeply, touches the shaft where it stands inside its section by
+/// rounding alone (5544100660).
 #[test]
-#[ignore = "kernel-declines, #552: the corners a tenth of a micron apart are what a line a hair inside a rim crosses it at too (a_circle_a_hair_under_a_round_touching_its_wall_inside_crosses_it_twice); the sliver between them is one unit in the last place wide, and no column of the end's overlay finds a point in it"]
 fn seed_9304992_an_ellipse_touching_a_shaft_s_far_rim_is_cut_with_one_corner_there() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -7737,11 +7739,15 @@ fn seed_5544236192_a_block_4e_8_degrees_off_a_quarter_turn_joined_to_a_ring_then
 
 /// #552's round 5, a piece with no hair, tilted on the exact kernel and
 /// failing on `85a2d2e` too: a tube along Z joined to a half tube of its
-/// axis whose bore is its own, then cut by a block at 60° about X. A region
-/// of the overlay has no point found inside it (overlay/partition.rs):
-/// declined as a tie, as 5543305067 and 5543616767.
+/// axis whose bore is its own, then cut by a block at 60° about X through
+/// the bore's lowest line at the tube's end. The line the cut shares with
+/// the end, found 3e-14 inside the bore's section, crossed the bore twice
+/// 3.2e-6 apart, where the cut's ellipse touches the end once, at its
+/// vertex: a sliver of the end with no point found inside it
+/// (overlay/partition.rs), declined as a tie. A line square to a wall's
+/// axis, shared by a plane square to it and one crossing it steeply,
+/// touches the wall where it stands inside its section by rounding alone.
 #[test]
-#[ignore = "plain-pieces, #552's round 5: a tube joined to a half tube of its own bore, cut at 60 degrees; a region with no point inside it, declined as a tie"]
 fn seed_5544100660_a_tube_joined_to_a_half_tube_of_its_bore_then_cut_at_60_degrees() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -7768,11 +7774,12 @@ fn seed_5544100660_a_tube_joined_to_a_half_tube_of_its_bore_then_cut_at_60_degre
 /// #552's round 5, a piece with no hair, tilted through the application's
 /// body and failing on `85a2d2e` too: a disc and a turn of 270° about one
 /// axis along Y and of one radius, joined, then cut by a block at 45° about
-/// X. A region of
-/// the overlay has no point found inside it (overlay/partition.rs):
-/// declined as a tie.
+/// X through the wall's lowest line at the disc's end. A region of the
+/// overlay had no point found inside it (overlay/partition.rs), declined
+/// as a tie. It holds since a line square to a wall's axis, shared by a
+/// plane square to it and one crossing it steeply, touches the wall where
+/// it stands inside its section by rounding alone (5544100660).
 #[test]
-#[ignore = "plain-pieces, #552's round 5: two turns of one radius about one axis, cut at 45 degrees; a region with no point inside it, declined as a tie"]
 fn seed_5544229207_two_turns_about_one_axis_cut_at_45_degrees() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(

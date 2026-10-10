@@ -20,12 +20,15 @@
 //! that far apart (5541100672).
 //!
 //! A line or a circle of a triple of two planes and a wall, where the line
-//! the planes share grazes the wall, is crossed as `grazed.rs` decides.
+//! the planes share grazes the wall, is crossed as `grazed.rs` decides; a
+//! line square to the wall's axis inside its section by rounding alone, as
+//! `section.rs` decides.
 
 use glam::DVec3;
 
 use super::super::{Relation, at_a_slant};
 use super::grazed::grazed;
+use super::section;
 use super::{Crossing, Crossings, Solved, Touches, crossings_given, line_and_plane};
 use crate::brep::curve::{Curve, Line};
 use crate::brep::scale::Scale;
@@ -57,6 +60,16 @@ pub fn crossings_lying(
     scale: Scale,
     touching: &Touches,
 ) -> Crossings {
+    if let (Curve::Line(line), Surface::Cylinder(cylinder), [one, other]) = (curve, surface, lying)
+        && let (Surface::Plane(first), Surface::Plane(second)) = (one.surface, other.surface)
+        && let Some(at) = section::touched(line, [first, second], cylinder, scale)
+    {
+        return Crossings::At(vec![Crossing {
+            parameter: at,
+            point: line.point(at),
+            tangent: true,
+        }]);
+    }
     through_lines(curve, lying, surface, scale).unwrap_or_else(|| {
         let found = crossings_given(curve, surface, scale, touching);
         let (Some((planes, wall)), Crossings::At(list)) = (triple(lying, surface), &found) else {

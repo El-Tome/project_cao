@@ -15,7 +15,9 @@
 //! against a cone is solved in `cone.rs`, and the conic a plane cuts a wall
 //! along at a slant through its triple's other pair in `conic.rs`. A triple
 //! of two planes and a wall one of them stands a hair from tangent to is
-//! decided on the hairpin that plane cuts, in `grazed.rs`.
+//! decided on the hairpin that plane cuts, in `grazed.rs`. The line a plane
+//! square to a wall's axis shares with a plane crossing it steeply, inside
+//! the wall's section by rounding alone, only touches it, in `section.rs`.
 
 mod cone;
 mod conic;
@@ -23,6 +25,7 @@ mod cut;
 mod grazed;
 mod lying;
 mod scan;
+mod section;
 
 use glam::DVec3;
 
@@ -135,6 +138,12 @@ fn circle_and_surface(
 ) -> Solved {
     let (own_plane, _) = Plane::through(circle.center, circle.axis);
     let own_cylinder = Cylinder::about(circle.center, circle.axis, circle.radius);
+    if let Surface::Plane(plane) = surface
+        && let Relation::Line(line) = planes(&own_plane, plane, scale)
+        && let Some(at) = section::touched(&line, [&own_plane, plane], &own_cylinder, scale)
+    {
+        return Solved::At(vec![(circle.parameter(line.point(at)), true)]);
+    }
     let (relation, across, cut) = match surface {
         Surface::Plane(plane) => (planes(&own_plane, plane, scale), true, None),
         Surface::Cylinder(cylinder) if parallel(circle.axis, cylinder.axis, scale) => {

@@ -369,21 +369,32 @@ The decisions, in the order taken, once per operation:
    other curve through either; a ruling through a node only touches the
    other cylinder, whatever rounding leaves of the touch. A circle against a
    plane or a perpendicular wall is read the same way, through the lines
-   their planes share. A line meets a cone (#536) along a ruling; square to
-   the axis, where it crosses the cylinder of the cone's section at its
-   height, the corner the circle of that plane gives — a line inside that
-   cylinder by rounding alone, a millionth of `EPS`, touches it, where it
+   their planes share. One more touch (`relation/crossing/section.rs`): the
+   line a plane square to a wall's axis shares with a plane crossing that
+   axis steeply, at a cosine of a tenth or more, standing inside the wall's
+   section by rounding alone, a millionth of `EPS`, only touches the wall,
+   where it passes nearest the axis — the line, the circle the square plane
+   cuts and the conic the steep one cuts each reach that touch. A cut at
+   60° through a bore's lowest line at a tube's end shares a line with the
+   end found 3e-14 inside the bore, which crossed it twice 3.2e-6 apart
+   where the cut's ellipse touches the end once, a sliver between them no
+   face agreed on (5544100660). A plane leaning along the axis is left to
+   cross twice: its hairpin's vertex stands where rounding over its lean
+   puts it, and its arms pass the square plane where the line's two roots
+   do (5549116996). A line found on its own keeps crossing twice however
+   thin the hair, as real walls rely on. A line meets a cone (#536) along
+   a ruling; square to the axis, where it crosses the cylinder of the
+   cone's section at its height, the corner the circle of that plane gives
+   — a line inside that cylinder by rounding alone touches it, where it
    passes nearest the axis: the line a plane square to the axis shares with
    a plane touching the cone exactly where it crosses it, found a femtometre
-   inside, crossed it twice four tolerances apart, a sliver between no face
-   agreed on (5543231406), while a wall's own lines keep crossing twice
-   however thin the hair, as real walls rely on; through the apex, once,
-   or touching there where it stays outside on both sides; and otherwise at
-   the roots of the cone's quadric kept on its own nappe, touching it once
-   where it passes within `EPS` of it at its closest, as a wall. A circle in
-   a plane holding the axis crosses the two rulings that plane cuts; any
-   other circle off the axis is unsupported, as the pair it lies on is
-   (`relation/crossing/cone.rs`). A conic, its plane `P` cut by its wall
+   inside, crossed it twice four tolerances apart (5543231406); through the
+   apex, once, or touching there where it stays outside on both sides; and
+   otherwise at the roots of the cone's quadric kept on its own nappe,
+   touching it once where it passes within `EPS` of it at its closest, as
+   a wall. A circle in a plane holding the axis crosses the two rulings
+   that plane cuts; any other circle off the axis is unsupported, as the
+   pair it lies on is (`relation/crossing/cone.rs`). A conic, its plane `P` cut by its wall
    `Q`, meets a third surface `S` where the other curve of that corner does,
    by the very same call (`relation/crossing/conic.rs`): against a plane,
    the line `P` and `S` share crossing `Q`; against a wall, the lines, the

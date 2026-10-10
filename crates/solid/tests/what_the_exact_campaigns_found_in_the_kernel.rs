@@ -99,6 +99,23 @@
 //! the hairpin ellipse decided just past `square`, and the faces along a
 //! cone's rulings standing a hair off: the issue's second default, named,
 //! with no band and no decline added.
+//!
+//! Round 4 also names the twelve shrunk cases of round 3 with no hair in
+//! their inputs, which come first (#552, the decision of 10 October). Five
+//! hold: a face touching a cone along a ruling at exactly its slope, the
+//! apex beyond the box (5543214149, 5543216778), since such a plane holds
+//! the ruling as through an apex; the line a floor shares with a cut
+//! touching a cone exactly, found inside the cone's section by rounding
+//! (5543231406), since such a line only touches the cone; a slant through a
+//! cone's apex on the end planes of two quarter turns (5543226572), since a
+//! corner found along a ruling past the apex is not on the cone; and a
+//! wedge of a hundredth of a degree cut by a post touching its end plane
+//! (5543224272), since two arcs leaving a corner straight together are
+//! told apart where they run. Left, ignored with their reason: the edge of
+//! the tangency band with a hyperbola at the touch (5543307115), and two
+//! regions with no point inside them inherited from #533 and #536
+//! (5543305067, 5543616767); the crossings are in
+//! `what_the_exact_campaigns_found_in_the_triangles.rs`.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -5795,10 +5812,11 @@ fn seed_9519300_a_slanted_cut_touching_a_shaft_s_ruling_at_the_next_cut_s_floor(
 
 /// #552: a quarter turn of a shaft and a frustum cut by a plane leaning
 /// atan ¼ about X, then by a block square to the axis: the block's side
-/// leaves an arc of no length between two corners a rounding apart, which
-/// the face's arcs cannot be ordered round.
+/// left an arc of no length between two corners a rounding apart, which
+/// the face's arcs could not be ordered round. It holds since a corner found
+/// along a ruling through a cone's apex is on the cone only on its own
+/// nappe (5543226572).
 #[test]
-#[ignore = "kernel-declines, #552: two corners a rounding apart left unmerged by a cut along a conic, an arc of no length between them; declined as a tie"]
 fn seed_9507403_a_quarter_turn_cut_at_a_slant_then_square_leaves_an_arc_of_no_length() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -6928,5 +6946,241 @@ fn seed_5543103909_a_rounded_block_cut_by_a_half_cylinder_leaning_1e_7_degrees()
             Section::bands(1.5, &[[3.5, 0.0, 5.5]]),
             180.0,
         ))],
+    ));
+}
+
+/// #552's round 4, through the application's body: a half cone about X,
+/// sloping at atan(1/8), cut by a block whose face touches it along a ruling
+/// at exactly its slope, the apex beyond the box. The face was cut along the
+/// conic, which is nothing for a doubled ruling, and the ruling's corners,
+/// found once by the half turn's end plane and once by the face, were kept
+/// apart: the body was refused. The face holds the ruling now, read at its
+/// foot as through an apex beyond the box.
+#[test]
+fn seed_5543214149_a_half_cone_cut_by_a_block_whose_face_touches_it_along_a_ruling_beyond_its_apex()
+{
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(4.0),
+            Axis::first(1.0),
+            Section::bands(4.0, &[[2.5, 3.0, 7.0], [5.5, 2.6875, 7.0]])
+                .sloping_to(&[[3.0, 7.0], [2.0, 7.0]]),
+            180.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([28.0, 1.0, 4.0], [90.0, 7.125016348901798, 0.0]),
+            Outline::rectangle([-26.0, -8.0], [-15.0, 1.0]),
+            6.0,
+        ))],
+    ));
+}
+
+/// #552's round 4, through the application's body: a cone about Y sloping
+/// at atan(2/7), cut by a block whose face touches it along a ruling at
+/// exactly its slope, the apex beyond the box: refused, a tie left where the
+/// ruling was cut as a conic. It holds as the seed before it.
+#[test]
+fn seed_5543216778_a_cone_cut_by_a_block_whose_face_touches_it_along_a_ruling_beyond_its_apex() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(20.0),
+            Axis::second(30.0),
+            Section::bands(-10.0, &[[17.5, -20.0, 17.5]]).sloping_to(&[[-15.0, 17.5]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([30.0, 60.0, 20.0], [15.945395900922854, 0.0, 0.0]),
+            Outline::rectangle([-23.0, -78.0], [23.0, -40.0]),
+            43.0,
+        ))],
+    ));
+}
+
+/// #552's round 4, through the application's body: a half cone about Y cut
+/// at 30°, then at 45°, then by a floor square to its axis. The 30° cut and
+/// the floor share a line square to the axis, which touches the cone exactly
+/// at the vertex of the hyperbola the floor cuts; found a femtometre inside
+/// the cone's section there, it crossed it twice four tolerances apart,
+/// across a sliver no face agreed on, and the body was refused. A line
+/// inside the section by rounding alone touches the cone now.
+#[test]
+fn seed_5543231406_a_half_cone_cut_at_30_and_45_degrees_whose_floor_s_line_touches_it_at_a_hyperbola_s_vertex()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(240.0),
+            Axis::second(0.0),
+            Section::bands(0.0, &[[52.0, -75.0, 15.0]]).sloping_to(&[[-75.0, 45.0]]),
+            180.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([0.0, 25.98076211353316, 240.0], [-30.0, 0.0, 0.0]),
+                Outline::rectangle([-90.0, -75.0], [90.0, 135.0]),
+                -105.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([-15.0, -0.0, 240.0], [90.0, 45.0, 0.0]),
+                Outline::rectangle([-45.0, -90.0], [165.0, 90.0]),
+                -135.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(255.0),
+                Outline::rectangle([-90.0, -15.0], [90.0, 135.0]),
+                60.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 4, through the application's body: cones and cylinders
+/// about X joined to a quarter turn, cut at 45° by a plane through the
+/// cone's apex on the axis, touching the cone along the ruling the quarter
+/// turn's end plane holds, then joined to a second quarter turn. Past the
+/// apex the ruling runs over the cone's other nappe, where the second quarter
+/// turn's end corner stands; found along the ruling, that corner was counted
+/// on the cone, kept apart from the same corner found by the other curves
+/// through it on a plane apart from the cone, and the body was refused.
+#[test]
+fn seed_5543226572_a_cone_cut_at_45_degrees_through_its_apex_on_the_end_planes_of_two_quarter_turns()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-45.0),
+            Axis::first(-30.0).backwards(),
+            Section::bands(30.0, &[[90.0, 30.0, 60.0], [15.0, 30.0, 60.0]])
+                .sloping_to(&[[30.0, 60.0], [30.0, 75.0]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xz(-30.0),
+                Axis::first(-45.0),
+                Section::bands(-195.0, &[[165.0, 0.0, 30.0]]),
+                90.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([-60.0, -30.0, -45.0], [90.0, -45.0, 0.0]),
+                Outline::rectangle([-180.0, -150.0], [135.0, 150.0]),
+                -135.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(-45.0),
+                Axis::first(-30.0),
+                Section::bands(-195.0, &[[210.0, -30.0, -0.0]]),
+                90.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 4, through the application's body: a stepped wedge turned a
+/// hundredth of a degree about X, cut by a post along Y whose bottom
+/// touches the wedge's first end plane, its axis in the wedge's end disc.
+/// On the post, the curve it meets the wedge's wall along leaves the corner
+/// where the post starts along the post's rim, both straight there, parting
+/// as the fourth power of the way run: a tenth of the shorter, their chords
+/// stood 8e-10 apart, under what tells two chords apart, and the corner was
+/// declined as a tie. Halfway along the shorter, where it still crosses
+/// nothing, they stand far enough apart.
+#[test]
+fn seed_5543224272_a_wedge_of_a_hundredth_of_a_degree_cut_by_a_post_touching_its_end_plane() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(1.0),
+            Axis::first(0.0),
+            Section::bands(-1.0, &[[2.0, 0.0, 4.0], [2.0, 0.0, 5.0], [3.0, 0.0, 1.0]]),
+            0.01,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xz(1.0),
+            Outline::circle([6.0, 2.0], 1.0),
+            8.0,
+        ))],
+    ));
+}
+
+/// #552's round 4, a slanted draw on the exact kernel: a rounded block cut
+/// by a turn of a hundredth of a degree about Y, a wall and a cone of one
+/// axis with the corner's wall. The block's side touches its corner's wall
+/// along x = 8, and the cone cuts the side along a hyperbola whose vertex
+/// sits on that line of touch; the turn's far end plane crosses the side
+/// 1.75e-4 from the touch, where the side and the cone stand 1.52e-8 apart
+/// at a tolerance of 1.6e-8. Two corners that far apart, on the same four
+/// surfaces, are kept apart: the side and the cone cross along the
+/// hyperbola, 3e-8 from both. The edge of the tangency band, with a conic at
+/// the touch, where no band is laid (decision 7).
+#[test]
+#[ignore = "kernel-declines, #552's round 4: a hyperbola's vertex on a line of touch, a hundredth of a degree's end plane crossing the side at the band's edge; two corners within the tolerance parted by the hyperbola; declined as unverified"]
+fn seed_5543307115_a_rounded_block_cut_by_a_turn_of_a_hundredth_of_a_degree_whose_cone_s_hyperbola_starts_on_a_line_of_touch()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::rounded([7.0, 1.0], [10.0, 5.0], 1.0),
+            10.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(8.0),
+            Axis::second(2.0),
+            Section::bands(12.0, &[[2.0, 1.0, 3.0], [2.0, 0.0, 3.0]])
+                .sloping_to(&[[0.0, 3.0], [0.0, 3.0]]),
+            0.01,
+        ))],
+    ));
+}
+
+/// #552's round 4, a slanted draw on the exact kernel, failing at `9e54a71`
+/// too, before conics: a post, a turned ring whose axis meets the post's,
+/// and a second post. A region of a face is found with no column to put a
+/// point inside it, and the step is declined as a tie
+/// (`overlay/partition.rs`).
+#[test]
+#[ignore = "kernel-declines, inherited from #533 and #536: a region with no point inside it between a post, a ring turned about an axis meeting its own and a second post; declined as a tie"]
+fn seed_5543305067_two_posts_and_a_ring_turned_about_an_axis_meeting_the_first() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([6.0, 9.5], 1.5), -4.0),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(-4.0),
+                Axis::second(8.5),
+                Section::bands(7.0, &[[5.0, 0.0, 1.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-6.0),
+                Outline::circle([8.5, 9.5], 1.0),
+                4.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 4, a turned draw through the application's body, failing
+/// at `9e54a71` too: a ring along Y cut by a turn about X, then by a post
+/// along Y. A region of a face is found with no column to put a point
+/// inside it, and the step is declined as a tie (`overlay/partition.rs`).
+#[test]
+#[ignore = "kernel-declines, inherited from #533 and #536: a region with no point inside it after a ring is cut by a turn and a post; declined as a tie"]
+fn seed_5543616767_a_ring_cut_by_a_turn_about_x_then_by_a_post() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xz(-15.0),
+            Outline::ring([225.0, 270.0], 105.0, 30.0),
+            240.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(315.0),
+                Axis::first(-135.0),
+                Section::bands(120.0, &[[210.0, 0.0, 15.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(-75.0),
+                Outline::circle([225.0, 315.0], 15.0),
+                120.0,
+            )),
+        ],
     ));
 }

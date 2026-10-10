@@ -307,7 +307,12 @@ The decisions, in the order taken, once per operation:
    where it runs along the cone (`Relation::Rulings`) when it is steeper
    than the slope by more than the angle `parallel` reads, touches the cone
    along one ruling (`Relation::Ruling`, its apex with it) when it is within
-   that angle of the slope, and meets it at its apex alone when flatter; a
+   that angle of the slope, and meets it at its apex alone when flatter;
+   with the apex beyond the box, the same two rulings or ruling of touch,
+   with no apex, where they stand within `EPS` of the plane at their feet
+   and run along it across the box — cut as a conic, a doubled ruling is
+   nothing, and a face touching a cone along a ruling at exactly its slope
+   was refused (5543214149, 5543216778); a
    cut within `EPS` of the axis all round is the point of the axis on the
    plane, as a circle within `EPS` of it is; otherwise the conic on the
    cone's own nappe — an ellipse, a parabola, a branch of a hyperbola, the
@@ -360,7 +365,13 @@ The decisions, in the order taken, once per operation:
    plane or a perpendicular wall is read the same way, through the lines
    their planes share. A line meets a cone (#536) along a ruling; square to
    the axis, where it crosses the cylinder of the cone's section at its
-   height, the corner the circle of that plane gives; through the apex, once,
+   height, the corner the circle of that plane gives — a line inside that
+   cylinder by rounding alone, a millionth of `EPS`, touches it, where it
+   passes nearest the axis: the line a plane square to the axis shares with
+   a plane touching the cone exactly where it crosses it, found a femtometre
+   inside, crossed it twice four tolerances apart, a sliver between no face
+   agreed on (5543231406), while a wall's own lines keep crossing twice
+   however thin the hair, as real walls rely on; through the apex, once,
    or touching there where it stays outside on both sides; and otherwise at
    the roots of the cone's quadric kept on its own nappe, touching it once
    where it passes within `EPS` of it at its closest, as a wall. A circle in
@@ -403,6 +414,15 @@ The decisions, in the order taken, once per operation:
    unless the two touch or graze (decision 2): within `EPS` of both far
    from their lines, a corner one of two grazing walls carries near their
    crossing and the node a band puts on the other there are one corner.
+   A corner found along a ruling through a cone's apex is on that cone
+   only where it stands on its own nappe: past the apex, the ruling the
+   cone shares with a plane holding its axis is that plane's line alone,
+   and a plane apart from the cone, square to its axis over the other
+   nappe, may cross it there. Counted on the cone, the corner was kept
+   apart from the one the other curves through that place found, and the
+   step was refused (5543226572: a slant through the apex of a cone
+   joined to two quarter turns, touching it along the ruling one of their
+   end planes holds).
    No corner lies on a curve on a surface apart from one of its own. Each
    corner is measured where it stands (below, where planes fix it): one
    whose three planes fix a place stands there, though an operand put it
@@ -940,13 +960,18 @@ covered once from each side.
    operand on two of its surfaces, or inside faces of either on two surfaces
    decided to touch (9); kept arcs that are one are one (6).
 5. **Overlay** per surface. At each vertex the arcs are ordered by tangent
-   angle, ties broken by signed curvature — a second tie declines. Cycles are
-   traced, then grouped into regions by a ray up the second parameter from
-   each cycle's top. Each region gets an interior point. On a cone each arc
-   ending at the apex ends at a vertex of its own, at the angle it arrives
-   at, since the apex's own angle is rounding; the floor joins them, and
-   closes below a face holding the apex within it, so that the region at the
-   tip is bounded. No region keeps a stretch of the floor.
+   angle, ties broken by signed curvature, then by the chord a tenth along,
+   then by where each stands halfway along the shorter, which neither
+   crosses the other before: a curve two cylinders meet along leaves a rim
+   it touches to the fourth power of the way run, and its chord a tenth
+   along stood 8e-10 off the rim's (5543224272) — a last tie declines.
+   Cycles are traced, then grouped into regions by a ray up the second
+   parameter from each cycle's top. Each region gets an interior point. On
+   a cone each arc ending at the apex ends at a vertex of its own, at the
+   angle it arrives at, since the apex's own angle is rounding; the floor
+   joins them, and closes below a face holding the apex within it, so that
+   the region at the tip is bounded. No region keeps a stretch of the
+   floor.
 6. **Winding.** For each operand, a region is covered with the surface's
    normal, against it, or not at all. Covered gives the winding on each side
    of it; not covered gives the same winding on both, from an exact ray cast

@@ -384,3 +384,73 @@ fn skew_walls_and_a_wall_off_a_cone_s_axis_stay_unsupported() {
         assert_eq!(decided(one, other), Relation::Unsupported, "{other:?}");
     }
 }
+
+/// A taper about the Z axis whose apex stands at height 50, beyond the box:
+/// its base of radius 5 on the XY plane, its slope a tenth.
+fn taper() -> Surface {
+    Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(0.0, 5.0), DVec2::new(50.0, 0.0)],
+    ))
+}
+
+const BEYOND: DVec3 = DVec3::new(0.0, 0.0, 50.0);
+
+/// The normal of a plane holding the taper's ruling at `+X`, outwards.
+fn along_the_taper_s_ruling() -> DVec3 {
+    DVec3::new(10.0, 0.0, 1.0).normalize()
+}
+
+/// Each line runs along the taper and in the plane across the box.
+fn assert_rulings_of_the_taper_in(lines: &[Line], side: &Surface) {
+    let Surface::Cone(cone) = taper() else {
+        unreachable!()
+    };
+    for line in lines {
+        assert!(cone.rules(line, scale()), "{line:?} along the taper");
+        for t in [-2.0 * REACH, 0.0, 2.0 * REACH] {
+            let off = side.distance(line.point(line.parameter(DVec3::ZERO) + t));
+            assert!(off.abs() <= scale().eps(), "{line:?} {off} off the plane");
+        }
+    }
+}
+
+#[test]
+fn a_plane_touching_a_cone_along_a_ruling_whose_apex_stands_outside_the_box_is_that_ruling() {
+    let normal = along_the_taper_s_ruling();
+    for off in [0.0, 0.5 * scale().eps(), -0.5 * scale().eps()] {
+        let touching = plane(BEYOND + normal * off, normal);
+        let found = decided(&taper(), &touching);
+        let Relation::Ruling { line, apex } = found else {
+            panic!("the ruling of touch expected at {off}, got {found:?}");
+        };
+        assert_eq!(apex, None);
+        assert_rulings_of_the_taper_in(&[line], &touching);
+        let foot = DVec3::new(5.0, 0.0, 0.0);
+        assert!(distance(&Curve::Line(line), foot) <= scale().eps());
+    }
+}
+
+#[test]
+fn a_plane_through_a_cone_s_apex_outside_the_box_steeper_than_its_slope_holds_its_two_rulings() {
+    let steep = plane(BEYOND, leaning(DVec3::X, DVec3::Z, 0.03));
+    assert!(at_a_slant(&taper(), &steep, scale()));
+    let found = decided(&taper(), &steep);
+    let Relation::Rulings { lines, apex } = found else {
+        panic!("two rulings expected, got {found:?}");
+    };
+    assert_eq!(apex, None);
+    assert_rulings_of_the_taper_in(&lines, &steep);
+    assert!(lines[0].direction.cross(lines[1].direction).length() > 0.01);
+}
+
+#[test]
+fn a_plane_a_hair_off_a_ruling_whose_apex_stands_outside_the_box_still_cuts_a_conic() {
+    let normal = along_the_taper_s_ruling();
+    let outside = plane(BEYOND + normal * (2.0 * scale().eps()), normal);
+    assert_eq!(decided(&taper(), &outside), Relation::Apart);
+    let inside = plane(BEYOND - normal * (2.0 * scale().eps()), normal);
+    let found = decided(&taper(), &inside);
+    assert_cut_on_both(&found, &taper(), &inside);
+}

@@ -3,13 +3,15 @@
 //! A line or a circle square to the axis crosses the cone where it crosses
 //! the cylinder of the cone's section at its height, which is the very
 //! cylinder a plane square to the axis cuts the cone along: the corner is
-//! the one the circle they meet along gives. Through the apex, a line
-//! crosses once, or only touches where it stays outside on both sides. Any
-//! other line crosses at the roots of the cone's quadric kept on its own
-//! nappe, and touches it once where it passes within the tolerance of it at
-//! its closest, as decided for a cylinder. A circle in a plane holding the
-//! axis crosses the two rulings that plane cuts; any other circle is
-//! unsupported, as the pair of surfaces it lies on is.
+//! the one the circle they meet along gives — but a line inside that
+//! cylinder by rounding alone touches the cone, where it passes nearest the
+//! axis. Through the apex, a line crosses once, or only touches where it
+//! stays outside on both sides. Any other line crosses at the roots of the
+//! cone's quadric kept on its own nappe, and touches it once where it passes
+//! within the tolerance of it at its closest, as decided for a cylinder. A
+//! circle in a plane holding the axis crosses the two rulings that plane
+//! cuts; any other circle is unsupported, as the pair of surfaces it lies on
+//! is.
 
 use glam::DVec3;
 
@@ -35,6 +37,11 @@ pub(super) fn line_and_cone(line: &Line, cone: &Cone, scale: Scale, touching: &T
         let radius = cone.section(height);
         if radius > eps {
             let section = Cylinder::about(cone.origin, cone.axis, radius);
+            let nearest = nearest_the_axis(line, cone);
+            let inside = -section.distance(nearest);
+            if inside > 0.0 && inside <= ROUNDING * eps {
+                return Solved::At(vec![(line.parameter(nearest), true)]);
+            }
             return line_and_cylinder(line, &section, scale, touching, None);
         }
         if radius < -eps || !through {
@@ -64,6 +71,16 @@ pub(super) fn line_and_cone(line: &Line, cone: &Cone, scale: Scale, touching: &T
     }
     Solved::At(roots.into_iter().flatten().map(|at| (at, false)).collect())
 }
+
+/// How far inside a cone's section, as a share of the tolerance, a line
+/// square to the axis stands by rounding alone, and only touches the cone:
+/// the line two planes share, one square to the axis and one touching the
+/// cone exactly where it crosses it, found a femtometre inside, whose two
+/// roots `√(2rδ)` apart stand a few tolerances from each other with a sliver
+/// between them no face agrees on (#552, 5543231406). A cylinder's own lines
+/// keep crossing twice however thin they stand inside it: real walls rely
+/// on that, and moving this into `touches` broke them.
+const ROUNDING: f64 = 1e-6;
 
 /// How far a line passes from a point.
 fn passing(line: &Line, point: DVec3) -> f64 {

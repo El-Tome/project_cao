@@ -629,6 +629,43 @@ fn corners_within_the_tolerance_on_two_surfaces_decided_apart_are_two_corners() 
     assert_eq!(supports[1], vec![other, side, floor]);
 }
 
+/// A point about Z, its apex at height 10, a plane holding its axis and a
+/// plane square to it above the apex, which meets only the other nappe and
+/// is apart from the cone: a ruling the holding plane shares with the cone
+/// runs on past the apex, and crosses that plane at `(−2, 0, 14)`, where a
+/// third plane crosses it too.
+#[test]
+fn a_corner_found_along_a_ruling_past_its_apex_is_one_with_a_corner_there_on_a_surface_apart_from_the_cone()
+ {
+    let surfaces = [
+        Surface::Cone(Cone::through(
+            DVec3::ZERO,
+            DVec3::Z,
+            [DVec2::new(0.0, 5.0), DVec2::new(10.0, 0.0)],
+        )),
+        Surface::Plane(Plane::through(DVec3::ZERO, DVec3::Y).0),
+        plane_at(14.0, DVec3::Z),
+        plane_at(-2.0, DVec3::X),
+    ];
+    let apart = Apart::of(&surfaces, |_| scale());
+    let [cone, holding, above, across] = [0, 1, 2, 3].map(SurfaceId);
+    assert!(apart.pair(cone, above));
+    let mut registry = Registry::new(scale(), apart, Planes::of(&surfaces));
+    let ruling = registry.register(
+        Curve::Line(Line::through(
+            DVec3::new(-5.0, 0.0, 0.0),
+            DVec3::new(1.0, 0.0, 2.0).normalize(),
+        )),
+        &[cone, holding],
+    );
+    let mut pool = Pool::new(scale().eps());
+    let past = DVec3::new(-2.0, 0.0, 14.0);
+    let along = pool.add(past, [above], [ruling], &registry);
+    let found = pool.add(past, [holding, above, across], [], &registry);
+    assert_eq!((along, found), (0, 0));
+    assert_eq!(pool.supports(&registry)[0], vec![holding, above, across]);
+}
+
 /// Seed 5001541 of the campaign: two blocks whose sides and bottoms stand
 /// within the tolerance of each other's, three tenths of a micron apart each
 /// way, at a reach of 420. Each plane is one, and the corner of each block

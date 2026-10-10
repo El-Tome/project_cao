@@ -23,6 +23,11 @@ use super::navigation::Drag;
 /// finer than anyone aims.
 pub(crate) const PICK_PIXELS: f64 = 18.0;
 
+/// How far, in pixels, the cursor has to pass the line between two quarters
+/// of an angle before the angle being put down turns to face the other one.
+/// Less than that, and a hand wavering on the line flicks it back and forth.
+pub(crate) const HOLD_PIXELS: f64 = 8.0;
+
 /// What the canvas is showing: the bare world axes, or a work plane with its
 /// grid. Landing on a plane shows the grid; orbiting leaves it, since the view
 /// is no longer aligned with any plane.

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::angle_between::RUN_THE_SAME_WAY;
 use crate::arc::ArcId;
 use crate::axis_angle::AxisToward;
+use crate::corner_angle::Along;
 use crate::ellipse::EllipseId;
 use crate::laid_from::LaidFrom;
 use crate::sketch::{CircleId, Element, PointId, SegmentId};
@@ -56,14 +57,19 @@ pub enum DimensionTarget {
     /// segment. Measuring from the sketch origin is how a drawing gets pinned
     /// without having to sit exactly on it.
     Distance { from: PointId, to: PointId },
-    /// Angle at the point two segments share.
-    Angle { first: SegmentId, second: SegmentId },
+    /// Angle at the end two segments share, each arm along its trait or past it.
+    Angle {
+        first: SegmentId,
+        first_along: Along,
+        second: SegmentId,
+        second_along: Along,
+    },
     /// Angle between two segments that meet without sharing an end — where
     /// they cross, or where one ends on the middle of the other.
     ///
-    /// A shared end names a corner's one angle; two traits crossing name four,
-    /// two of them acute and two obtuse. Which way each arm runs along its trait
-    /// is what says which of the four this is.
+    /// Two traits crossing make four angles, two acute and two obtuse, as a
+    /// corner does. Which way each arm runs along its trait, towards its end or
+    /// its start, is what says which of the four this is.
     AngleBetween {
         first: SegmentId,
         first_toward: Toward,

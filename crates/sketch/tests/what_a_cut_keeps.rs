@@ -128,14 +128,7 @@ fn an_angle_at_a_corner_follows_the_piece_that_still_reaches_it() {
     let cut = sketch.add_segment(corner, away);
     let up = sketch.add_point(DVec2::new(0.0, 15.0));
     let other = sketch.add_segment(corner, up);
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: cut,
-            second: other,
-        },
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(cut, other), 90.0, false);
     let first = sketch.add_point(DVec2::new(4.0, 5.0));
     let second = sketch.add_point(DVec2::new(6.0, 5.0));
 
@@ -151,7 +144,7 @@ fn an_angle_at_a_corner_follows_the_piece_that_still_reaches_it() {
             sketch.dimensions().iter().any(|value| {
                 matches!(
                     value.target,
-                    DimensionTarget::Angle { first, second }
+                    DimensionTarget::Angle { first, second, .. }
                         if first == *piece || second == *piece
                 )
             })

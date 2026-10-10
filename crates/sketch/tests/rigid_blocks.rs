@@ -23,13 +23,13 @@ fn a_shape_turned_four_hundred_times_is_the_same_size_as_when_it_started() {
     let second = sketch.add_segment(corner, c);
     sketch.add_segment(c, d);
 
-    sketch.set_dimension(DimensionTarget::Angle { first, second }, 90.0, false);
+    sketch.set_dimension(DimensionTarget::corner(first, second), 90.0, false);
     sketch.resolve(SCALE);
     let side = sketch.point(o).distance(sketch.point(a));
 
     for turn in 0..400 {
         let angle = 30.0 + f64::from((turn * 37) % 91);
-        sketch.set_dimension(DimensionTarget::Angle { first, second }, angle, false);
+        sketch.set_dimension(DimensionTarget::corner(first, second), angle, false);
         sketch.resolve(SCALE);
     }
 

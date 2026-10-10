@@ -1,5 +1,6 @@
-//! The equation an angle between two traits that share no end asks of the
-//! solver, kept apart so it does not crowd out `solver.rs`.
+//! The equations an angle between two traits asks of the solver, at a corner
+//! or where they share no end, kept apart so they do not crowd out
+//! `solver.rs`.
 
 use glam::DVec2;
 
@@ -8,6 +9,43 @@ use crate::equation::Equation;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
 impl Sketch {
+    /// The angle at the corner two segments share, between the two arms it
+    /// names: each trait's own way out of the corner, or its prolongation's.
+    ///
+    /// The wanted value keeps the sign the corner currently has, so asking for
+    /// 30° on a corner that opens one way does not flip it to the other. An arm
+    /// run along a prolongation turns with its trait all the same: only the
+    /// angle read between the arms is another, not how a point moving turns it.
+    pub(super) fn angle_equation(&self, target: DimensionTarget, degrees: f64) -> Option<Equation> {
+        let DimensionTarget::Angle { first, second, .. } = target else {
+            return None;
+        };
+        let (pivot, far_first, far_second) = self.shared_corner(first, second)?;
+        let (_, one, other) = self.corner_arms(target)?;
+        let a = self.point(far_first) - self.point(pivot);
+        let b = self.point(far_second) - self.point(pivot);
+        let (length_a, length_b) = (a.length_squared(), b.length_squared());
+        if length_a < 1e-12 || length_b < 1e-12 {
+            return None;
+        }
+
+        let signed = one.perp_dot(other).atan2(one.dot(other));
+        let sign = if signed < 0.0 { -1.0 } else { 1.0 };
+
+        // Turning a point about the pivot changes the angle by the component
+        // perpendicular to its arm, scaled by how far out it sits.
+        let from_first = DVec2::new(-a.y, a.x) / length_a;
+        let from_second = DVec2::new(-b.y, b.x) / length_b;
+
+        let mut equation = Equation::new(self.variables());
+        equation.error = signed.abs() - degrees.to_radians();
+        equation.angular = true;
+        equation.add(far_second, from_second * sign);
+        equation.add(far_first, -from_first * sign);
+        equation.add(pivot, (from_first - from_second) * sign);
+        Some(equation)
+    }
+
     /// Two traits held at an angle to each other, with no shared end to turn
     /// them about.
     ///

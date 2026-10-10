@@ -37,10 +37,7 @@ fn a_trait_leaning_on_an_arm() -> Operation {
         },
         Operation::SetDimension {
             sketch: 0,
-            target: DimensionTarget::Angle {
-                first: SegmentId(1),
-                second: SegmentId(0),
-            },
+            target: DimensionTarget::corner(SegmentId(1), SegmentId(0)),
             value: 26.565.into(),
             placement: None,
         },

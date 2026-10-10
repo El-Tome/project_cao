@@ -188,10 +188,8 @@ impl Sketch {
             sides,
             lengths: sides.map(|side| self.dimension_of(DimensionTarget::Length(side)).cloned()),
             opening: self
-                .dimension_of(DimensionTarget::Angle {
-                    first: sides[0],
-                    second: sides[1],
-                })
+                .angle_already_at(sides[0], sides[1])
+                .and_then(|laid| self.dimension_of(laid))
                 .cloned(),
         }
     }
@@ -223,16 +221,29 @@ impl Sketch {
                 },
             );
         }
-        if let Some(opening) = held.opening {
+        if let Some(opening) = held.opening
+            && let DimensionTarget::Angle {
+                first,
+                first_along,
+                second_along,
+                ..
+            } = opening.target
+        {
             // The stretch standing for the trait the angle was typed from comes
-            // first, so the angle retyped still turns the other one.
-            let [first, second] = match opening.target {
-                DimensionTarget::Angle { first, .. } if first == held.sides[1] => {
-                    [stretches[1], stretches[0]]
-                }
-                _ => stretches,
+            // first, so the angle retyped still turns the other one. Each
+            // stretch runs out from the corner the way its trait did, and its
+            // arm runs the same way along it.
+            let [first, second] = match first == held.sides[1] {
+                true => [stretches[1], stretches[0]],
+                false => stretches,
             };
-            saved += self.rewrite(opening, DimensionTarget::Angle { first, second });
+            let onto = DimensionTarget::Angle {
+                first,
+                first_along,
+                second,
+                second_along,
+            };
+            saved += self.rewrite(opening, onto);
         }
         saved
     }

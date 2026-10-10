@@ -68,7 +68,7 @@ pub fn spans(lang: &Catalogue, target: &DimensionTarget) -> String {
             "dimension.spans.segment",
             &[("segment", &segment.0.to_string())],
         ),
-        DimensionTarget::Angle { first, second }
+        DimensionTarget::Angle { first, second, .. }
         | DimensionTarget::AngleBetween { first, second, .. } => lang.t_with(
             "dimension.spans.segments",
             &[

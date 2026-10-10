@@ -134,10 +134,7 @@ fn a_round_says_both_the_radius_and_the_diameter() {
 fn an_angle_is_said_in_degrees() {
     let Said::Beside(lines) = says(
         &french(),
-        Measured::Of(DimensionTarget::Angle {
-            first: SegmentId(0),
-            second: SegmentId(1),
-        }),
+        Measured::Of(DimensionTarget::corner(SegmentId(0), SegmentId(1))),
         Reading::Opening { degrees: 37.25 },
         millimetres(),
         FIGURES,
@@ -174,10 +171,7 @@ fn a_measure_is_held_to_the_figures_the_reader_asked_for() {
 
     let Said::Beside(lines) = says(
         &french(),
-        Measured::Of(DimensionTarget::Angle {
-            first: SegmentId(0),
-            second: SegmentId(1),
-        }),
+        Measured::Of(DimensionTarget::corner(SegmentId(0), SegmentId(1))),
         Reading::Opening {
             degrees: 37.249_998_3,
         },

@@ -315,10 +315,7 @@ fn a_fixed_trait_stays_although_it_was_clicked_second() {
 }
 
 fn type_the_angle(sketch: &mut Sketch, first: usize, second: usize, degrees: f64) {
-    let target = DimensionTarget::Angle {
-        first: SegmentId(first),
-        second: SegmentId(second),
-    };
+    let target = DimensionTarget::corner(SegmentId(first), SegmentId(second));
     sketch.set_dimension(target, degrees, false);
     let outcome = sketch.land_value(target, SCALE);
     assert_eq!(outcome, LengthOutcome::Exact, "the angle did not land");

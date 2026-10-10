@@ -235,22 +235,8 @@ fn a_triangle_with_two_typed_angles_grows_without_turning() {
         sketch.add_segment(q, r),
         sketch.add_segment(r, p),
     ];
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: sides[0],
-            second: sides[1],
-        },
-        45.0,
-        false,
-    );
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: sides[1],
-            second: sides[2],
-        },
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(sides[0], sides[1]), 45.0, false);
+    sketch.set_dimension(DimensionTarget::corner(sides[1], sides[2]), 90.0, false);
     sketch.resolve(1.0);
     let was = sides.map(|side| direction(&sketch, side));
     let size = sketch.segment_length(sides[0]);

@@ -20,13 +20,18 @@
 //!   touches the cone along the ruling where `|D|` is least when it is
 //!   within that angle of the slope; it meets the cone at its apex alone
 //!   when flatter;
+//! - the apex beyond the box, the plane steeper than the slope or within
+//!   that angle of it: the two rulings, or the ruling of touch, where they
+//!   stand within the tolerance of the plane at their feet and run along it
+//!   across the box — the conic cut there is a pair of lines a hair apart,
+//!   which `Conic::cut` cannot build;
 //! - the cut on the cone's own nappe all within the tolerance of the axis, a
 //!   ring a hair across: the point of the axis on the plane, as `revolved.rs`
 //!   reads a circle within the tolerance of the axis;
 //! - otherwise the conic on the own nappe, whole or in arms, and nothing
 //!   where the plane meets only the other nappe.
 
-use glam::DVec2;
+use glam::{DVec2, DVec3};
 
 use super::revolved::in_the_box;
 use super::{Relation, sorted};
@@ -47,28 +52,21 @@ pub(super) fn plane_and_cone(cone: &Cone, plane: &Plane, scale: Scale) -> Relati
     let (a, b) = (rise * w_h, w_rho * across.length());
     let phi = across.y.atan2(across.x);
     let apex = cone.apex();
+    let tol = eps / (2.0 * scale.reach());
+    let gap = a.abs() - b;
+    let through = |apex| through_the_apex(cone, [a, b, phi], gap < -tol, apex);
     if in_the_box(apex, scale) && plane.distance(apex).abs() <= eps {
-        let tol = eps / (2.0 * scale.reach());
-        let gap = a.abs() - b;
-        if gap > tol {
-            return Relation::Apex(apex);
-        }
-        if gap >= -tol {
-            let least = if a >= 0.0 {
-                phi + std::f64::consts::PI
-            } else {
-                phi
-            };
-            return Relation::Ruling {
-                line: ruling(cone, least),
-                apex: Some(apex),
-            };
-        }
-        let psi = (-a / b).acos();
-        return Relation::Rulings {
-            lines: sorted([ruling(cone, phi - psi), ruling(cone, phi + psi)]),
-            apex: Some(apex),
+        return if gap > tol {
+            Relation::Apex(apex)
+        } else {
+            through(Some(apex))
         };
+    }
+    if !in_the_box(apex, scale) && gap <= tol {
+        let held = through(None);
+        if lies_in(&held, plane, scale) {
+            return held;
+        }
     }
     let [h, rho] = cone.foot.to_array();
     let below = plane.normal.dot(cone.origin) + rise * h - plane.offset();
@@ -84,6 +82,46 @@ pub(super) fn plane_and_cone(cone: &Cone, plane: &Plane, scale: Scale) -> Relati
         };
     }
     built(Conic::cut(plane, &Round::Cone(*cone), scale))
+}
+
+/// The two rulings where the plane cuts the cone through its apex, when it
+/// is steeper than the slope, or else the ruling it touches the cone along.
+fn through_the_apex(
+    cone: &Cone,
+    [a, b, phi]: [f64; 3],
+    steeper: bool,
+    apex: Option<DVec3>,
+) -> Relation {
+    if steeper {
+        let psi = (-a / b).acos();
+        return Relation::Rulings {
+            lines: sorted([ruling(cone, phi - psi), ruling(cone, phi + psi)]),
+            apex,
+        };
+    }
+    let least = if a >= 0.0 {
+        phi + std::f64::consts::PI
+    } else {
+        phi
+    };
+    Relation::Ruling {
+        line: ruling(cone, least),
+        apex,
+    }
+}
+
+/// Whether every line of the relation stands within the tolerance of the
+/// plane at its foot and runs along it across the box.
+fn lies_in(relation: &Relation, plane: &Plane, scale: Scale) -> bool {
+    let held = |line: &Line| {
+        plane.distance(line.origin).abs() <= scale.eps()
+            && line.direction.dot(plane.normal).abs() * 2.0 * scale.reach() <= scale.eps()
+    };
+    match relation {
+        Relation::Rulings { lines, .. } => lines.iter().all(held),
+        Relation::Ruling { line, .. } => held(line),
+        _ => false,
+    }
 }
 
 /// The ruling at the angle `theta`, through its foot rather than through the

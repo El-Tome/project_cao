@@ -6930,3 +6930,50 @@ fn seed_5543103909_a_rounded_block_cut_by_a_half_cylinder_leaning_1e_7_degrees()
         ))],
     ));
 }
+
+/// #552's round 4, through the application's body: a half cone about X,
+/// sloping at atan(1/8), cut by a block whose face touches it along a ruling
+/// at exactly its slope, the apex beyond the box. The face was cut along the
+/// conic, which is nothing for a doubled ruling, and the ruling's corners,
+/// found once by the half turn's end plane and once by the face, were kept
+/// apart: the body was refused. The face holds the ruling now, read at its
+/// foot as through an apex beyond the box.
+#[test]
+fn seed_5543214149_a_half_cone_cut_by_a_block_whose_face_touches_it_along_a_ruling_beyond_its_apex()
+{
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(4.0),
+            Axis::first(1.0),
+            Section::bands(4.0, &[[2.5, 3.0, 7.0], [5.5, 2.6875, 7.0]])
+                .sloping_to(&[[3.0, 7.0], [2.0, 7.0]]),
+            180.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([28.0, 1.0, 4.0], [90.0, 7.125016348901798, 0.0]),
+            Outline::rectangle([-26.0, -8.0], [-15.0, 1.0]),
+            6.0,
+        ))],
+    ));
+}
+
+/// #552's round 4, through the application's body: a cone about Y sloping
+/// at atan(2/7), cut by a block whose face touches it along a ruling at
+/// exactly its slope, the apex beyond the box: refused, a tie left where the
+/// ruling was cut as a conic. It holds as the seed before it.
+#[test]
+fn seed_5543216778_a_cone_cut_by_a_block_whose_face_touches_it_along_a_ruling_beyond_its_apex() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(20.0),
+            Axis::second(30.0),
+            Section::bands(-10.0, &[[17.5, -20.0, 17.5]]).sloping_to(&[[-15.0, 17.5]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([30.0, 60.0, 20.0], [15.945395900922854, 0.0, 0.0]),
+            Outline::rectangle([-23.0, -78.0], [23.0, -40.0]),
+            43.0,
+        ))],
+    ));
+}

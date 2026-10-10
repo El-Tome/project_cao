@@ -10,7 +10,9 @@
 //! #552's round 5 names its crossings with no hair under `plain-pieces`,
 //! the key `what_the_exact_campaigns_found_in_the_kernel.rs` gives the rest
 //! of them: two of them draw crossing at a node of the two ellipses two
-//! walls of one radius cross along, their axes meeting square.
+//! walls of one radius cross along, their axes meeting square. All five
+//! stay ignored: three are drawn crossing only at the application's finer
+//! tolerance, the exact kernel's own triangles holding.
 
 // The drawing and the checks are the campaign's; this file only builds cases
 // and holds them.
@@ -3464,7 +3466,9 @@ fn seed_5543610415_a_stepped_shaft_cut_by_a_post_then_joined_to_a_ring() {
 /// cone, bored by a post of its axis wider than the shaft, then cut by a
 /// flat along the axis between the shaft's radius and the cone's widest,
 /// which cuts the cone along a hyperbola and the bore along two lines. Two
-/// triangles draw crossing where the hyperbola meets the bore.
+/// triangles draw crossing where the hyperbola meets the bore: a cone face
+/// and a bore face, drawn as the application draws, at a fifth of a
+/// thousandth of the reach; the exact kernel's own triangles hold.
 #[test]
 #[ignore = "plain-pieces, #552's round 5: a cone bored along its axis, cut by a flat along the axis along a hyperbola; drawn crossing"]
 fn seed_5544205878_a_bored_cone_cut_by_a_flat_along_its_axis() {
@@ -3571,7 +3575,11 @@ fn seed_5544528726_a_tube_about_x_cut_by_a_block_then_joined_to_three_turns_abou
 /// on `85a2d2e` too (#533's families): a turn of 255° about Z cut by a post
 /// along X of its radius whose axis meets its own, then by a block and a
 /// turn about Y. The two walls of one radius cross along two ellipses
-/// (meet/pair.rs); two triangles draw crossing at one of their nodes.
+/// (meet/pair.rs); two triangles draw crossing at one of their nodes. The
+/// two walls are tangent there, and the sliver faces either side of the
+/// ellipses stand closer than a chord sags at a fifth of a thousandth of
+/// the reach, the application's drawing; the exact kernel's own triangles
+/// hold (#552's round 5).
 #[test]
 #[ignore = "plain-pieces, #552's round 5: a turn cut by a post of its radius whose axis meets its own; drawn crossing at a node of the two ellipses"]
 fn seed_5544618545_a_turn_of_255_degrees_cut_by_a_post_of_its_radius_across_its_axis() {
@@ -3609,7 +3617,10 @@ fn seed_5544618545_a_turn_of_255_degrees_cut_by_a_post_of_its_radius_across_its_
 /// whose axis meets the disc's. The two walls of one radius cross along two
 /// ellipses (meet/pair.rs) whose nodes lie on the lines where the pin's
 /// end planes touch the disc's wall; two triangles draw crossing at one of
-/// them.
+/// them: the sliver faces either side of the ellipses, on the disc's wall
+/// and the post's, stand 0.004 apart where their chords sag 0.003 at a
+/// fifth of a thousandth of the reach, the application's drawing. The
+/// exact kernel's own triangles hold (#552's round 5).
 #[test]
 #[ignore = "plain-pieces, #552's round 5: a disc cut by a pin from rim to rim and a post of its radius whose axis meets its own; drawn crossing at a node of the two ellipses"]
 fn seed_5544629222_a_disc_cut_by_a_pin_from_rim_to_rim_and_a_post_of_its_radius() {

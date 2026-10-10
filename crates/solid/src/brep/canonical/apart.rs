@@ -151,14 +151,17 @@ impl Apart {
             .map_or(&[], Vec::as_slice)
     }
 
-    /// The surfaces `support` lacks that were decided to touch one of its
-    /// own at a point within `eps` of `point`: a corner standing there is on
-    /// both. Two walls of one operand touching at a point leave no edge
-    /// there, and the curves a third surface cuts each of them along, one
-    /// crossing the line the other touches it along, meet there with no
-    /// edge to find the corner through: a rod touching a post, both cut by
-    /// a pin of the rod's radius whose axis meets the rod's at the touch
-    /// (5544320693).
+    /// The walls `support` lacks that were decided to touch one of its own
+    /// walls at a point within `eps` of `point`, the node or the contact of
+    /// two perpendicular cylinders: a corner standing there is on both. Two
+    /// walls of one operand touching at a point leave no edge there, and the
+    /// curves a third surface cuts each of them along, one crossing the line
+    /// the other touches it along, meet there with no edge to find the
+    /// corner through: a rod touching a post, both cut by a pin of the rod's
+    /// radius whose axis meets the rod's at the touch (5544320693). Not a
+    /// cone's apex: a plane a hair off it at the cone's slope, taken onto
+    /// every surface through it, cut curves there that pass it by
+    /// (5545235515).
     pub fn touching(
         &self,
         support: &BTreeSet<SurfaceId>,
@@ -167,7 +170,14 @@ impl Apart {
     ) -> Vec<SurfaceId> {
         self.points
             .iter()
-            .filter(|(_, at)| at.iter().any(|at| at.distance(point) <= eps))
+            .filter(|(pair, at)| {
+                pair.iter().all(|surface| {
+                    matches!(
+                        self.surfaces.get(surface.0 as usize),
+                        Some(Surface::Cylinder(_))
+                    )
+                }) && at.iter().any(|at| at.distance(point) <= eps)
+            })
             .filter_map(|([one, other], _)| {
                 match (support.contains(one), support.contains(other)) {
                     (true, false) => Some(*other),

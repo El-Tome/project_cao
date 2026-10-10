@@ -138,7 +138,10 @@
 //! too — regions with no point inside them beside two walls of one radius,
 //! a stepped shaft turned 359.9°, a rod along a rounded block's side, a
 //! ruling of a cone left open; the crossings are in
-//! `what_the_exact_campaigns_found_in_the_triangles.rs`.
+//! `what_the_exact_campaigns_found_in_the_triangles.rs`. Round 5 holds the
+//! regions with no point inside them, the rod along the rounded block, and
+//! a seed its first reading of a rim inside a cut broke (5545108465); the
+//! stepped shaft and the cone's ruling stay ignored, with what was found.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -7771,6 +7774,46 @@ fn seed_5544100660_a_tube_joined_to_a_half_tube_of_its_bore_then_cut_at_60_degre
     ));
 }
 
+/// #552's round 5, a tilted draw through the application's body that held
+/// on `f57a5ca`: a rounded block cut by a block, then by a 270° turn whose
+/// inner wall is a cone with its apex on the turn's axis, then by a plane
+/// at 45° through a hair off that apex, at the cone's slope. Read as on
+/// every surface through the apex, corners within the tolerance of it cut
+/// curves that pass it by. Only two walls touching at a point put a corner
+/// there on both.
+#[test]
+fn seed_5545235515_a_turn_with_a_cone_inside_cut_a_hair_off_its_apex_at_its_slope() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::yz(-60.0),
+            Outline::rounded([120.0, 60.0], [225.0, 90.0], 15.0),
+            45.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(135.0),
+                Outline::rectangle([210.0, 30.0], [420.0, 60.0]),
+                285.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(75.0),
+                Axis::first(135.0),
+                Section::bands(-30.0, &[[15.0, -30.0, -15.0], [15.0, -30.0, -0.0]])
+                    .sloping_to(&[[-30.0, -0.0], [-30.0, -0.0]]),
+                270.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-14.999999787867965, 135.00000021213202, 75.0],
+                    [90.0, -45.0, 0.0],
+                ),
+                Outline::rectangle([-60.0, -45.0], [60.0, 45.0]),
+                -60.0,
+            )),
+        ],
+    ));
+}
+
 /// #552's round 5, a tilted draw on the exact kernel that held on
 /// `f57a5ca`: a shaft turned about X, its narrow band giving way to a cone
 /// whose apex stands at the shaft's end, cut by a plane at 45° through that
@@ -7871,10 +7914,15 @@ fn seed_5544320693_a_post_joined_to_a_rod_touching_it_then_cut_by_a_pin_of_its_r
 /// #552's round 5, a piece with no hair, turned on the exact kernel and
 /// failing on `85a2d2e` too (#533's family of a nearly whole turn): a
 /// stepped shaft turned 359.9° about X, joined to a turn of 105° about an
-/// axis along Z crossing the shaft's wider band. Stretches traced on a wall
-/// stand off their chords (domain/traced.rs), and the lines of the 0.1°
-/// slit, the step's rims and the turn's own lines are left with one face
-/// each: declined as unverified.
+/// axis along Z crossing the shaft's wider band. The turn's inner wall
+/// touches the shaft's step along a line through the step's inner rim
+/// exactly at the slit, where the curve the shaft's wall meets that inner
+/// wall along leaves the rim touching it to the fourth order, within the
+/// tolerance of it across the whole slit. The step's face is lost: the
+/// lines of the 0.1° slit, the step's rims and the turn's own lines are
+/// left with one face each, declined as unverified. Reading the meeting
+/// curve on the step's plane as the rim (domain/traced.rs) removed a
+/// decline there and changed nothing else (#552's round 5).
 #[test]
 #[ignore = "plain-pieces, #552's round 5: a stepped shaft turned 359.9 degrees joined to a partial turn across it; the slit's lines left with one face each, declined as unverified"]
 fn seed_5544504441_a_stepped_shaft_turned_359_9_degrees_joined_to_a_turn_of_105_degrees() {
@@ -7934,7 +7982,11 @@ fn seed_5544515442_a_rounded_block_joined_to_a_rod_along_its_side_then_cut_by_a_
 /// turn of -150°, a half ring round it and a cone across the ring's end.
 /// The stretch of a ruling of the cone in the plane the turns end on, from
 /// radius 180 to the solid turn's wall at 210, is run one way only: left
-/// open. It was drawn with a hair of 3e-7, which shrinking took away.
+/// open. It was drawn with a hair of 3e-7, which shrinking took away. The
+/// body is verified; the cone's face, whose wall runs on above and below
+/// the circle where the half ring's top and inner wall end, is not cut
+/// into triangles: its loop runs along that circle and back, and the sweep
+/// in the cone's parameters gives up (tessellation/sweep.rs).
 #[test]
 #[ignore = "plain-pieces, #552's round 5: a partial turn, a half ring and a cone about one axis; left open along a ruling of the cone"]
 fn seed_5544323650_a_partial_turn_a_half_ring_and_a_cone_about_one_axis() {

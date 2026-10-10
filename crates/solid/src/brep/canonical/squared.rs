@@ -14,8 +14,8 @@
 //! turn lays every such pair exactly, keeps every pair of directions that
 //! was exact, and changes the kind of no exact relation the operand had
 //! with the first — a face lying on the first's, a wall touching a plane, a
-//! plane holding a cone's axis — nor lays two skew walls square, nor a
-//! plane a hair beside a cone's apex. Otherwise nothing turns.
+//! plane holding a cone's axis — nor lays a plane a hair beside a cone's
+//! apex. Otherwise nothing turns.
 
 use std::f64::consts::{PI, TAU};
 
@@ -269,13 +269,10 @@ fn facing(first: &Body, second: &Body, eps: f64) -> Vec<(SurfaceId, SurfaceId)> 
 /// laid a hair beside a cone's apex, but only exactly through it: the plane
 /// through a point's apex a hair off its axis, turned about the middle of
 /// its box along the axis, stood a hair beside the apex and was cut along
-/// two rulings it does not hold (5543232861). Nor are two walls laid
-/// square that stood skew: the rule is a plane's, and a turn about an axis
-/// leaning 1e-7°, laid square to another turn's end, met that turn's wall
-/// along the curve of two perpendicular cylinders (5543615040). A face laid
-/// on the body's, a wall laid touching or parallel to another: these are
-/// what the turn is for, and refused, they left a tool at its lean beside
-/// another drawn at that lean and turned.
+/// two rulings it does not hold (5543232861). A face laid on the body's, a
+/// wall laid touching, parallel or square to another: these are what the
+/// turn is for, and refused, they left a tool at its lean beside another
+/// drawn at that lean and turned the step before (5543215175).
 pub(super) fn kept(first: &Body, before: &Body, after: &Body, scale: Scale) -> bool {
     let apex = |relation: &Relation| {
         matches!(
@@ -292,8 +289,6 @@ pub(super) fn kept(first: &Body, before: &Body, after: &Body, scale: Scale) -> b
             let exact = apex(&was) || matches!(was, Relation::Same { .. } | Relation::Tangent(_));
             if exact {
                 std::mem::discriminant(&was) == std::mem::discriminant(&is)
-            } else if let Relation::Meet(_) = is {
-                matches!(was, Relation::Meet(_))
             } else {
                 !apex(&is) || through_the_apex(known, tool, scale)
             }

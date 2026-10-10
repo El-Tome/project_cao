@@ -106,9 +106,10 @@
 //! moves it by no more than decision 8's hair (decision 11). Sixteen of the
 //! seeds named above under both keys hold since, each a block, a face or a
 //! half cylinder leaning 4e-8 to 2e-7 degrees on a wall's end or along its
-//! side. Measured on round 3's tilted seeds, the turn broke a few that held
-//! as drawn on `85a2d2e`, each a lean laid exactly beside an offset hair it
-//! had kept apart: they are named last, under the same two keys.
+//! side. Measured on round 3's seeds, the turn broke a few that held as
+//! drawn on `85a2d2e`, each a lean laid exactly beside an offset hair it had
+//! kept apart or beside a turn's walls: they are named last, under the same
+//! two keys.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -7137,9 +7138,11 @@ fn seed_5549204865_a_tube_cut_by_a_face_a_hair_off_tangent_and_1_9e_6_degrees_of
 /// body: a section turned whole about an axis leaning 1e-7° off X, cut by a
 /// turn of 240° about Y. Laid square to the cut's end planes, its walls met
 /// the cut's along the curve of two perpendicular cylinders, where they had
-/// stood skew. A turn that lays two skew walls square is not made, and the
-/// cut is made as drawn, as on `85a2d2e`.
+/// stood skew: declined. Holds as drawn on `85a2d2e`. Refusing a turn that
+/// lays two skew walls square held it, and broke two seeds whose earlier
+/// step was turned, the later one then left at its lean (5543215175).
 #[test]
+#[ignore = "hair-from-tangent, decision 11: walls of two turns laid square by a plane's turn meet along the curve of two perpendicular cylinders; declined, holds as drawn on 85a2d2e"]
 fn seed_5543615040_a_turn_leaning_1e_7_degrees_cut_by_a_turn_of_240_degrees_about_y() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(

@@ -253,25 +253,6 @@ fn a_turn_that_would_lay_a_plane_a_hair_beside_a_cone_s_apex_is_not_made() {
 }
 
 #[test]
-fn a_turn_that_would_lay_two_skew_walls_square_is_not_made() {
-    let body = post([0.0, 0.0], 5.0, 0.0, 10.0);
-    let frame = Frame {
-        origin: DVec3::new(-10.0, 0.0, 5.0),
-        u: DVec3::Y,
-        v: DVec3::Z,
-    };
-    let across = Body::raised(
-        &Contour::circle(DVec2::ZERO, 3.0),
-        &[],
-        frame,
-        DVec3::X * 20.0,
-    )
-    .expect("a bar raises");
-    let skew = leaning(across.clone(), DQuat::from_rotation_y(1e-6));
-    assert!(!kept(&body, &skew, &across, scale()));
-}
-
-#[test]
 fn a_tool_turned_twice_from_the_same_operands_has_the_same_bits() {
     let body = post([0.0, 0.0], 5.0, 0.0, 10.0);
     let tool = leaning(

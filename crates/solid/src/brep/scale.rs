@@ -22,7 +22,7 @@ impl Scale {
     /// one radius may stand and still be one surface (decision 8): the
     /// kernel's one tolerance wider than [`Scale::eps`], and the furthest it
     /// moves an operand, the second taken onto the first's wall with
-    /// everything it built on it.
+    /// everything it built on it, and the furthest decision 11 turns one.
     pub const HAIR: f64 = 20.0;
 
     pub fn of(reach: f64) -> Scale {

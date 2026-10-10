@@ -19,7 +19,7 @@ use glam::DVec3;
 
 use super::Declined;
 use super::assembly::assembled;
-use super::canonical::{Apart, Place, Planes, Pool, Registry, closed, flush};
+use super::canonical::{Apart, Place, Planes, Pool, Registry, closed, flush, squared};
 use super::selection::selected;
 use super::topology::{Body, SurfaceId};
 pub(super) use operands::Operands;
@@ -66,6 +66,8 @@ impl Body {
 
 pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Result<Body, Declined> {
     let scale = first.scale().joined(second.scale());
+    let squared = squared(first, second, scale);
+    let second = squared.as_ref().unwrap_or(second);
     let closed = closed(first, second, scale);
     let second = closed.as_ref().unwrap_or(second);
     let flush = flush(first, second, scale);

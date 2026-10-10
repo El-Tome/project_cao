@@ -13,6 +13,7 @@ use super::surface::Surface;
 
 mod apex;
 mod numbers;
+mod rotated;
 
 pub(super) use numbers::ascending;
 
@@ -230,6 +231,23 @@ impl Body {
             let (low, high) = reached.unwrap_or((point, point));
             Some((low.min(point), high.max(point)))
         })
+    }
+
+    /// The box round a face, from the extremes of its edges and the apex it
+    /// holds within it, grown by `eps`.
+    pub(in crate::brep) fn boxed(&self, face: FaceId, eps: f64) -> [DVec3; 2] {
+        let mut low = DVec3::INFINITY;
+        let mut high = DVec3::NEG_INFINITY;
+        if let Some(apex) = self.apex_held(face) {
+            (low, high) = (apex, apex);
+        }
+        for coedge in self.face(face).loops.iter().flatten() {
+            for point in self.extremes(self.edge(coedge.edge)) {
+                low = low.min(point);
+                high = high.max(point);
+            }
+        }
+        [low - DVec3::splat(eps), high + DVec3::splat(eps)]
     }
 
     /// The points of an edge where a coordinate is largest or smallest.

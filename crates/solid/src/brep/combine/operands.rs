@@ -57,7 +57,7 @@ impl<'a> Operands<'a> {
         });
         let boxes: [Vec<[DVec3; 2]>; 2] = bodies.map(|body| {
             body.face_ids()
-                .map(|face| boxed(body, face, scale.eps()))
+                .map(|face| body.boxed(face, scale.eps()))
                 .collect()
         });
         let near = |one: SurfaceId, other: SurfaceId, within: [DVec3; 2]| {
@@ -258,21 +258,4 @@ const NAPPE: f64 = 2.0;
 /// Whether two boxes meet.
 fn meet(one: [DVec3; 2], other: [DVec3; 2]) -> bool {
     one[0].cmple(other[1]).all() && other[0].cmple(one[1]).all()
-}
-
-/// The box round a face, from the extremes of its edges and the apex it
-/// holds within it, grown by `eps`.
-fn boxed(body: &Body, face: FaceId, eps: f64) -> [DVec3; 2] {
-    let mut low = DVec3::INFINITY;
-    let mut high = DVec3::NEG_INFINITY;
-    if let Some(apex) = body.apex_held(face) {
-        (low, high) = (apex, apex);
-    }
-    for coedge in body.face(face).loops.iter().flatten() {
-        for point in body.extremes(body.edge(coedge.edge)) {
-            low = low.min(point);
-            high = high.max(point);
-        }
-    }
-    [low - DVec3::splat(eps), high + DVec3::splat(eps)]
 }

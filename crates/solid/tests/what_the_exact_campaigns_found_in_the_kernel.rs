@@ -63,24 +63,27 @@
 //! added.
 //!
 //! Round 3 sorts the tilted draws measured at `cf9093b`, and the three seeds
-//! that held at `7411e98` and fail there, under the same two keys, read
-//! wider: `hair-from-tangent` now holds every plane a hair off along a
-//! wall's axis or off its tangent, the conic it cuts a hair from a ruling,
-//! a rim or an apex, the hairpin that decides its corners
-//! (relation/crossing/grazed.rs) and the conic kept for an arc it shares
-//! with a line (combine/identified.rs) — all three regressions are of it;
-//! `near-parallel-planes` keeps the planes alone, two too near parallel to
-//! fix their line, their faces drawn through each other or their corners
-//! parted (canonical/planes.rs, canonical/corners.rs). Part of it holds
-//! since such a line is fixed across only to rounding over the sine of the
-//! planes' angle, and a place within rounding of both is on it. Left: two
-//! corners found on the same three planes, two of them so, more than the
-//! tolerance apart along that line; corners found on such a line, each
-//! within rounding of both planes, standing off the line as computed by
-//! more than the tolerance; two whole curves within the tolerance of each
-//! other all round, a rim and the ellipse a plane a hair off its own cuts
-//! the wall along; and the two planes of one lean, one pair decided to
-//! graze and the next not.
+//! that held at `7411e98` and fail there, under the same two keys, read wider:
+//! `hair-from-tangent` now holds every plane a hair off along a wall's axis or
+//! off its tangent, the conic it cuts a hair from a ruling, a rim or an apex,
+//! the hairpin that decides its corners (relation/crossing/grazed.rs) and the
+//! conic kept for an arc it shares with a line (combine/identified.rs) — all
+//! three regressions are of it, and hold since two crossings the line finds
+//! apart stay two where the hairpin would make them one, and the conic goes
+//! before a rim the arc is one with too. Left, most of it: planes within the
+//! tolerance of tangent across the whole box at a lean just past the one read
+//! as square, which only a band would hold, the issue's second default;
+//! `near-parallel-planes` keeps the planes alone, two too near parallel to fix
+//! their line, their faces drawn through each other or their corners parted
+//! (canonical/planes.rs, canonical/corners.rs). Part of it holds since such a
+//! line is fixed across only to rounding over the sine of the planes' angle,
+//! and a place within rounding of both is on it. Left: two corners found on the
+//! same three planes, two of them so, more than the tolerance apart along that
+//! line; corners found on such a line, each within rounding of both planes,
+//! standing off the line as computed by more than the tolerance; two whole
+//! curves within the tolerance of each other all round, a rim and the ellipse a
+//! plane a hair off its own cuts the wall along; and the two planes of one
+//! lean, one pair decided to graze and the next not.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -6483,12 +6486,13 @@ fn seed_5541109790_a_frustum_cut_along_its_axis_1e_7_inside_its_wide_rim() {
 }
 
 /// #552's round 3, through the application's body: a post along X cut by a
-/// block whose face leans 4e-8° off parallel to the post's axis. A circle
-/// and a conic are left with one face each. Holds on `7411e98` and
-/// `0d019ac`, fails since the hairpin decides the corner (`cbf3c3c`), and
-/// holds once the hairpin re-decides nothing (relation/crossing/grazed.rs).
+/// block whose face leans 4e-8° off parallel to the post's axis. Held on
+/// `7411e98` and `0d019ac`; from `cbf3c3c` the hairpin moved the two places
+/// the block's edge crosses the post, a dozen tolerances apart, within the
+/// tolerance of each other, one corner, and a circle and a conic were left
+/// with one face each. The edge's two crossings stay two
+/// (relation/crossing/grazed.rs).
 #[test]
-#[ignore = "hair-from-tangent, #552's round 3 triage: holds on 7411e98 and fails since the hairpin decides the corner (cbf3c3c); declined as unverified"]
 fn seed_5542230229_a_post_cut_by_a_block_whose_face_leans_4e_8_degrees_off_its_axis() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(Plane::yz(5.0), Outline::circle([6.0, 2.0], 5.5), 10.0),
@@ -6502,12 +6506,12 @@ fn seed_5542230229_a_post_cut_by_a_block_whose_face_leans_4e_8_degrees_off_its_a
 
 /// #552's round 3 on the exact kernel: a double cone about Y whose first
 /// band starts 2e-8 off its axis, cut by a block leaning 45°, the cones'
-/// own slope: a stretch traced on a wall stands off its chord, declined as
-/// unsupported (domain/traced.rs). Holds on `7411e98` and `0d019ac`, fails
-/// since a conic goes before a line it is one arc with (`cbf3c3c`), and
-/// holds once the line is kept again (combine/identified.rs).
+/// own slope, a tolerance under a rim. Held on `7411e98` and `0d019ac`;
+/// from `cbf3c3c`, where the cone did not see the line the block shares
+/// with the rim's flat straight, the rim's arc was kept for the arc the
+/// three are, and the block's face saw it only as its chord, declined as
+/// unsupported (domain/traced.rs). The conic is kept (combine/identified.rs).
 #[test]
-#[ignore = "hair-from-tangent, #552's round 3 triage: holds on 7411e98 and fails since a conic goes before the line it is one arc with (cbf3c3c); declined as unsupported"]
 fn seed_5542125645_a_double_cone_2e_8_off_its_axis_cut_by_a_block_leaning_45_degrees() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -6529,13 +6533,12 @@ fn seed_5542125645_a_double_cone_2e_8_off_its_axis_cut_by_a_block_leaning_45_deg
 }
 
 /// #552's round 3, through the application's body: a cone about Y cut by a
-/// block leaning 45° whose corner stands 2e-7 off the lattice: a stretch
-/// traced on a wall stands off its chord, declined as unsupported
-/// (domain/traced.rs). Holds on `7411e98` and `0d019ac`, fails since a
-/// conic goes before a line it is one arc with (`cbf3c3c`), and holds once
-/// the line is kept again (combine/identified.rs).
+/// block leaning 45° whose corner stands 2e-7 off the lattice. Held on
+/// `7411e98` and `0d019ac`; from `cbf3c3c` a rim's arc was kept for the arc
+/// it is with a line and a conic, as in 5542125645, and declined as
+/// unsupported where the block's face saw it (domain/traced.rs). The conic
+/// is kept (combine/identified.rs).
 #[test]
-#[ignore = "hair-from-tangent, #552's round 3 triage: holds on 7411e98 and fails since a conic goes before the line it is one arc with (cbf3c3c); declined as unsupported"]
 fn seed_5542217385_a_cone_cut_by_a_block_leaning_45_degrees_whose_corner_stands_2e_7_off() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(

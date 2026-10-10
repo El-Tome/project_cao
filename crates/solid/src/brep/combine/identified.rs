@@ -16,7 +16,10 @@
 //! curves — a frustum's rim, cut a hair inside, two tolerances off the
 //! chord the plane leaves there — while a plane sees the conic as that very
 //! chord. Where the wall sees the line, the line is kept, and the curve the
-//! next operation crosses is still the one its planes cross.
+//! next operation crosses is still the one its planes cross. That conic
+//! goes before a circle the arc is one with too: the circle's arc leans on
+//! the plane the line and the conic lie on, which sees it only as its
+//! chord, as far off it as the line is off the wall (5542125645).
 
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
@@ -114,18 +117,20 @@ fn laid_once(
             _ => None,
         })
         .collect();
+    let unseen = |edge: &Edge| match &curves[edge.curve.0 as usize] {
+        Curve::Line(line) => conics
+            .iter()
+            .any(|conic| !seen_straight(conic, line, edge, eps)),
+        _ => false,
+    };
+    let bent = ranks.iter().any(|&rank| unseen(&edges[rank]));
     let kind = |edge: &Edge| match &curves[edge.curve.0 as usize] {
-        Curve::Line(line)
-            if conics
-                .iter()
-                .any(|conic| !seen_straight(conic, line, edge, eps)) =>
-        {
-            3
-        }
+        Curve::Line(_) if unseen(edge) => 4,
         Curve::Line(_) => 0,
-        Curve::Circle(_) => 1,
-        Curve::Conic(_) => 2,
-        Curve::Meet(_) => 4,
+        Curve::Conic(_) if bent => 1,
+        Curve::Circle(_) => 2,
+        Curve::Conic(_) => 3,
+        Curve::Meet(_) => 5,
     };
     let kept = ranks
         .iter()

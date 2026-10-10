@@ -1,9 +1,9 @@
-use std::f64::consts::TAU;
+use std::f64::consts::{FRAC_1_SQRT_2, TAU};
 
 use glam::{DVec2, DVec3};
 
 use super::*;
-use crate::brep::curve::Curve;
+use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Plane, Surface};
@@ -405,6 +405,89 @@ fn a_line_and_a_conic_one_arc_between_two_corners_are_kept_as_the_conic_its_wall
         vec![
             vec![SurfaceId(1), SurfaceId(2)],
             vec![SurfaceId(0), SurfaceId(2)],
+        ],
+        &curves,
+        &Apart::of(&surfaces, |_| scale),
+        scale.eps(),
+    );
+    let [kept] = edges.as_slice() else {
+        panic!("one arc expected, got {edges:?}");
+    };
+    assert!(
+        matches!(curves[kept.curve.0 as usize], Curve::Conic(_)),
+        "kept as {:?}",
+        curves[kept.curve.0 as usize]
+    );
+    assert_eq!(lying[0], [SurfaceId(0), SurfaceId(1), SurfaceId(2)]);
+}
+
+/// Seed 5542125645 of #552's round 3: a cone about Y of the slope 45°, its
+/// rim of radius 1.5 on a flat a hair from the cone, cut by a plane at 45°
+/// passing a tolerance under the rim's top. The line the plane shares with
+/// the flat, the conic it cuts the cone along and the rim's own arc are one
+/// arc between the two corners where the line crosses the cone, and the
+/// cone does not see the line straight. Kept as the rim, the arc leaned on
+/// the plane, which sees it only as its chord, a tolerance off it, and was
+/// declined there: it is kept as the conic, which every one of the three
+/// surfaces sees.
+#[test]
+fn a_rim_one_arc_with_a_line_and_a_conic_its_wall_sees_bend_is_kept_as_the_conic() {
+    let scale = Scale::of(9.681980515339465);
+    let cone = Cone {
+        origin: DVec3::new(6.0, 0.0, -1.0),
+        axis: DVec3::Y,
+        u: DVec3::X,
+        v: DVec3::NEG_Z,
+        foot: DVec2::new(1.7499999799999988, -1.7499999975000002),
+        ruling: DVec2::new(0.7071067847220815, 0.7071067776510136),
+    };
+    let flat = Plane::through(DVec3::new(0.0, 5.00000001, 0.0), DVec3::Y).0;
+    let cut = Plane {
+        origin: DVec3::new(0.0, 2.750000000000001, 2.7500000000000004),
+        normal: DVec3::new(0.0, FRAC_1_SQRT_2, 0.7071067811865475),
+        u: DVec3::X,
+        v: DVec3::new(0.0, 0.7071067811865475, -FRAC_1_SQRT_2),
+    };
+    let surfaces = [
+        Surface::Cone(cone),
+        Surface::Plane(flat),
+        Surface::Plane(cut),
+    ];
+    let Relation::Conic(conic) = relation(&surfaces[0], &surfaces[2], scale) else {
+        panic!("the cut meets the cone at a slant");
+    };
+    let line = Line {
+        origin: DVec3::new(0.0, 5.00000001, 0.49999999000000106),
+        direction: DVec3::X,
+    };
+    let rim = Circle {
+        center: DVec3::new(6.0, 5.00000001, -1.0),
+        axis: DVec3::Y,
+        radius: 1.5,
+        u: DVec3::X,
+        v: DVec3::NEG_Z,
+    };
+    let curves = [
+        Curve::Circle(rim),
+        Curve::Conic(conic[0]),
+        Curve::Line(line),
+    ];
+    let corners = [5.99982679492775, 6.00017320507225].map(|x| line.point(x));
+    let arc = |rank: usize| {
+        let [from, to] = corners.map(|corner| curves[rank].parameter(corner));
+        Edge {
+            curve: CurveId(rank as u32),
+            ends: Some([VertexId(0), VertexId(1)]),
+            from,
+            to,
+        }
+    };
+    let (edges, lying) = identified::identified(
+        vec![arc(0), arc(1), arc(2)],
+        vec![
+            vec![SurfaceId(0), SurfaceId(1)],
+            vec![SurfaceId(0), SurfaceId(2)],
+            vec![SurfaceId(1), SurfaceId(2)],
         ],
         &curves,
         &Apart::of(&surfaces, |_| scale),

@@ -150,3 +150,57 @@ fn a_top_a_hair_under_a_hairpin_s_vertex_is_touched_where_the_line_touches_the_p
     let alone: Vec<DVec3> = found.iter().map(|crossing| crossing.point).collect();
     assert_eq!(bits(&by_the_line), bits(&alone));
 }
+
+/// 5542230229: a post along X of radius 5.5, a block's face leaning 4e-8°
+/// off along its axis and touching the post's top a hair from the block's
+/// side, square to the axis. The face's hairpin turns on a fifth of the
+/// tolerance, its vertex within the tolerance of the side, which it crosses
+/// at two places closer than the tolerance. The block's edge the side and
+/// the face share stands a rounding inside the post and crosses it at two
+/// places a dozen tolerances apart: moved onto the hairpin, the two were one
+/// corner, and the circle and the conic through it were left without one.
+#[test]
+fn a_side_a_hair_from_a_sharp_hairpin_s_vertex_keeps_the_edge_s_two_crossings_apart() {
+    let scale = Scale::of(17.0);
+    let post = cylinder(DVec3::new(0.0, 6.0, 2.0), DVec3::X, 5.5);
+    let side = Plane::through(
+        DVec3::new(7.999999997905605, -5.585053307258781e-9, 0.0),
+        DVec3::new(1.0, -6.98131663590118e-10, 1.5501636942752264e-25),
+    );
+    let face = Plane::through(
+        DVec3::new(
+            8.02851413518546e-9,
+            11.500000005585052,
+            -2.9183005232891327e-15,
+        ),
+        DVec3::new(6.98131663590118e-10, 1.0, -2.537652627714644e-16),
+    );
+    let [side, face] = [side, face].map(|(plane, _)| Surface::Plane(plane));
+    let edge = Line {
+        origin: DVec3::new(
+            8.000000005934119,
+            11.499999999999998,
+            -2.6645352591003757e-15,
+        ),
+        direction: DVec3::new(0.0, 2.537652627714644e-16, 1.0),
+    };
+    let lying = [&side, &face].map(|own| Lying {
+        surface: own,
+        with: relation(own, &post, scale),
+    });
+    let found = crossings_lying(
+        &Curve::Line(edge),
+        &lying,
+        &post,
+        scale,
+        &Touches::default(),
+    );
+    let Crossings::At(found) = found else {
+        panic!("points expected, got {found:?}");
+    };
+    let [one, other] = found[..] else {
+        panic!("two crossings expected, got {found:?}");
+    };
+    assert!(!one.tangent && !other.tangent, "{found:?}");
+    assert!(one.point.distance(other.point) > scale.eps(), "{found:?}");
+}

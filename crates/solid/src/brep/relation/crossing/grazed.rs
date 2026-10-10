@@ -19,7 +19,13 @@
 //! tenth of the tolerance: its vertex stands where the rounding of its
 //! plane's offset over the plane's lean puts it — a plane a ten-millionth of
 //! a degree off a block's side, a few hundred tolerances along the wall —
-//! and its crossings are no better than the line's.
+//! and its crossings are no better than the line's. And the line decides
+//! how many crossings there are: two it finds further apart than the
+//! tolerance stay two, as it found them, where the hairpin would put them
+//! within it of each other — a face leaning 4e-8° along a post's axis, its
+//! hairpin's vertex within the tolerance of a block's side, where two
+//! corners the line keeps a dozen tolerances apart were otherwise one, and
+//! the curves through them were left without a corner (5542230229).
 
 use glam::DVec3;
 
@@ -59,13 +65,13 @@ pub(super) fn grazed(
             .min_by(|one, other| one.1.total_cmp(&other.1))
             .map(|(rank, _)| rank)
     };
-    let mut decided = Vec::new();
-    let mut redecided = false;
-    for (index, crossing) in found.iter().enumerate() {
-        let routed = (!crossing.tangent)
-            .then(|| route(planes, wall, crossing.point, scale))
-            .flatten();
-        let on_the_hairpin = routed.and_then(|own| {
+    let mut redecided: Vec<Option<Vec<(DVec3, bool)>>> = found
+        .iter()
+        .enumerate()
+        .map(|(index, crossing)| {
+            let own = (!crossing.tangent)
+                .then(|| route(planes, wall, crossing.point, scale))
+                .flatten()?;
             let other = planes[1 - own];
             let hairpins = Conic::cut(planes[own], &round, scale);
             if !turns_wide(&hairpins, scale) {
@@ -77,16 +83,51 @@ pub(super) fn grazed(
                 .filter(|(hairpin, t)| nearest(hairpin.point(*t)) == Some(index))
                 .collect();
             on_the_hairpin(&roots, other, scale)
-        });
-        match on_the_hairpin {
-            Some(points) => {
-                redecided = true;
-                decided.extend(points);
-            }
-            None => decided.push((crossing.point, crossing.tangent)),
+        })
+        .collect();
+    while let Some(merged) = merging(found, &redecided, scale) {
+        for index in merged {
+            redecided[index] = None;
         }
     }
-    redecided.then_some(decided)
+    if redecided.iter().all(Option::is_none) {
+        return None;
+    }
+    Some(
+        found
+            .iter()
+            .zip(redecided)
+            .flat_map(|(crossing, points)| {
+                points.unwrap_or_else(|| vec![(crossing.point, crossing.tangent)])
+            })
+            .collect(),
+    )
+}
+
+/// Two of the line's crossings, further apart than the tolerance, that the
+/// hairpin would put within it of each other, one of them at least
+/// re-decided: the line decided they are two, and one corner would end
+/// neither. Both are left as the line found them.
+fn merging(
+    found: &[Crossing],
+    redecided: &[Option<Vec<(DVec3, bool)>>],
+    scale: Scale,
+) -> Option<[usize; 2]> {
+    let points = |index: usize| -> Vec<DVec3> {
+        match &redecided[index] {
+            Some(points) => points.iter().map(|(point, _)| *point).collect(),
+            None => vec![found[index].point],
+        }
+    };
+    (0..found.len())
+        .flat_map(|one| (one + 1..found.len()).map(move |other| [one, other]))
+        .find(|&[one, other]| {
+            (redecided[one].is_some() || redecided[other].is_some())
+                && found[one].point.distance(found[other].point) > scale.eps()
+                && points(one)
+                    .iter()
+                    .any(|a| points(other).iter().any(|b| a.distance(*b) <= scale.eps()))
+        })
 }
 
 /// Whether no hairpin turns on a radius under [`SHARP`] of the tolerance: a

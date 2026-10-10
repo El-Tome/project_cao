@@ -295,7 +295,14 @@ fn an_axis_angle_measures_from_the_sketch_direction() {
     let b = sketch.add_point(DVec2::new(10.0, 10.0));
     let segment = sketch.add_segment(a, b);
 
-    let angle = sketch.angle_with_axis(segment, SketchAxis::U).unwrap();
+    let angle = sketch
+        .opening(DimensionTarget::AxisAngle {
+            segment,
+            segment_toward: Toward::End,
+            axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
+        })
+        .unwrap();
     assert!((angle - 45.0).abs() < 1e-3, "got {angle}°");
 }
 

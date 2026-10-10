@@ -72,7 +72,9 @@ fn an_angle_to_an_axis_replaces_the_implicit_one() {
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
             segment: base,
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         0.0,
         false,
@@ -94,7 +96,9 @@ fn a_drawing_that_is_not_pinned_is_never_complete() {
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
             segment,
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         0.0,
         false,

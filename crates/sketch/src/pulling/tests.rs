@@ -107,7 +107,8 @@
 use glam::DVec2;
 
 use super::*;
-use crate::constraints::{Constraint, DimensionTarget};
+use crate::axis_angle::AxisToward;
+use crate::constraints::{Constraint, DimensionTarget, Toward};
 use crate::laid_from::LaidFrom;
 use crate::length::LengthOutcome;
 use crate::plane::WorkPlane;
@@ -1080,7 +1081,9 @@ fn a_shape_with_an_axis_angle_or_two_fixed_points_has_nowhere_to_turn_about() {
     angled.set_dimension(
         DimensionTarget::AxisAngle {
             segment: sides[0],
+            segment_toward: Toward::End,
             axis: crate::constraints::SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         0.0,
         false,

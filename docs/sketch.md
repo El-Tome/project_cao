@@ -182,6 +182,16 @@ dimension transforms it: another trait makes it an angle, a point makes it a
 distance to the line. That is what one expects of a dimension called smart, and
 it saves having to name the kind beforehand.
 
+An angle between a trait and a sketch axis is read about the **middle of the
+trait**: a line running the way the axis runs goes through it, and with the
+trait it cuts the plane into four quarters, two acute and two obtuse. The
+quarter the dimension is put down in is the angle measured, and the preview
+follows the cursor until the click. Which way round the trait was drawn says
+nothing. The quarter is chosen then and only then: dragging the dimension
+afterwards moves its value, never what it measures. To measure another quarter,
+delete it and put it down again. A trait and an axis carry one angle between
+them; clicking the pair again opens it.
+
 A dimension from a point to a line reads as if a perpendicular segment came
 down from the point to the line. It really is the **line** that is measured,
 not the drawn stretch of trait: when the foot falls beyond the end, a thin
@@ -1173,10 +1183,10 @@ dimension, which follow the geometry when it moves and stay crisp at any zoom.
 An image would have to be redone for every value and every angle.
 
 An angle read against a sketch axis traces one thing more: a short line out of
-the trait's own start, along the axis, as far as the arc. The axis itself is
-drawn through the origin, which can be nowhere near that vertex — without the
-line the arc would open from nothing. A trait that already starts on the axis
-gets no such line: the axis runs right through the vertex, and a second line on
+the trait's middle, the way the axis runs, as far as the arc. The axis itself is
+drawn through the origin, which can be nowhere near that middle — without the
+line the arc would open from nothing. A trait whose middle already lies on the
+axis gets no such line: the axis runs right through it, and a second line on
 top of it says nothing.
 
 A read-only dimension is traced more discreetly, in grey: it reports, it does

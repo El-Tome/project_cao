@@ -185,3 +185,38 @@ fn a_point_off_the_line_then_the_trait_still_measures_the_distance_to_it() {
         "a point standing off the line has a distance to it, and the tool lays it: {pick:?}",
     );
 }
+
+#[test]
+fn an_axis_then_a_trait_reads_the_acute_angle_whichever_way_the_trait_was_drawn() {
+    let (left, right) = (DVec2::new(20.0, 30.0), DVec2::new(120.0, 50.0));
+    for (start, end) in [(left, right), (right, left)] {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let from = sketch.add_point(start);
+        let to = sketch.add_point(end);
+        sketch.add_segment(from, to);
+
+        let (picks, _) = measure_pick(
+            &sketch,
+            DimensionMode::Auto,
+            DimensionPicks::default(),
+            DVec2::new(0.0, 150.0),
+            2.0,
+        );
+        let (_, pick) = measure_pick(
+            &sketch,
+            DimensionMode::Auto,
+            picks,
+            DVec2::new(70.0, 40.0),
+            2.0,
+        );
+
+        let DimensionPick::Target(target) = pick else {
+            panic!("an axis then a trait makes an angle, got {pick:?}");
+        };
+        let read = sketch.opening(target).expect("it reads");
+        assert!(
+            (read - 78.690_067_525_979_8).abs() < 1e-9,
+            "drawn from {start:?}, it reads {read}°",
+        );
+    }
+}

@@ -112,13 +112,9 @@ impl Sketch {
                     degrees: self.angle_between(first, second)?,
                 }
             }
-            DimensionTarget::AngleBetween { .. } => Reading::Opening {
-                degrees: self.opening(target)?,
-            },
-            DimensionTarget::AxisAngle { segment, axis } => {
-                self.segments().get(segment.0)?;
+            DimensionTarget::AngleBetween { .. } | DimensionTarget::AxisAngle { .. } => {
                 Reading::Opening {
-                    degrees: self.angle_with_axis(segment, axis)?,
+                    degrees: self.opening(target)?,
                 }
             }
             DimensionTarget::ArcSweep(arc) => Reading::Opening {

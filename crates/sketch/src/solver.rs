@@ -756,8 +756,8 @@ impl Sketch {
             DimensionTarget::AngleBetween { .. } => {
                 self.angle_between_equation(dimension.target, dimension.value)?
             }
-            DimensionTarget::AxisAngle { segment, axis } => {
-                self.axis_angle_equation(segment, axis, dimension.value)?
+            DimensionTarget::AxisAngle { .. } => {
+                self.axis_angle_equation(dimension.target, dimension.value)?
             }
             DimensionTarget::PointToSegment { point, segment } => {
                 self.point_to_segment_equation(point, segment, dimension.value / scale)?

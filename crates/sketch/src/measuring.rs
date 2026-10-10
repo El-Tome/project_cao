@@ -177,10 +177,7 @@ pub fn measure_pick(
                     first_angle_segment: None,
                     ..picks
                 },
-                DimensionPick::Target(DimensionTarget::AxisAngle {
-                    segment: first,
-                    axis,
-                }),
+                DimensionPick::Target(sketch.angle_to_axis(first, axis)),
             ),
             None => (picks, DimensionPick::Unchanged),
         };
@@ -210,7 +207,7 @@ pub fn measure_pick(
                     first_axis: None,
                     ..picks
                 },
-                DimensionPick::Target(DimensionTarget::AxisAngle { segment, axis }),
+                DimensionPick::Target(sketch.angle_to_axis(segment, axis)),
             );
         }
         if mode == DimensionMode::Angle {

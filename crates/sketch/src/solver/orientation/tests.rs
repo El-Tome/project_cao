@@ -32,7 +32,8 @@
 
 use super::*;
 
-use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::axis_angle::AxisToward;
+use crate::constraints::{Constraint, DimensionTarget, SketchAxis, Toward};
 use crate::laid_from::LaidFrom;
 use crate::plane::WorkPlane;
 use crate::sketch::{Element, SegmentId};
@@ -242,7 +243,9 @@ fn a_slanted_square_held_by_one_fixed_point_is_not_settled_without_an_angle() {
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
             segment: sides[0],
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         20.0,
         false,
@@ -296,7 +299,9 @@ fn an_angle_typed_turns_a_square_held_by_one_fixed_point() {
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
             segment: sides[0],
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         30.0,
         false,

@@ -22,15 +22,18 @@ const SLANT_DEGREES: f64 = 0.5;
 impl Sketch {
     /// Which reading of a dimension the cursor is asking for, where there is
     /// more than one: the side an angle between two crossing traits opens
-    /// towards, or one of the three readings of a slanted trait.
+    /// towards, the quarter an angle to an axis measures, or one of the three
+    /// readings of a slanted trait.
     ///
     /// For a slanted trait, the two ends box off the plane: above or below that
     /// box the cursor asks for the width, left or right of it the height, and
     /// inside it — the triangle the trait closes — or out past a corner, the
     /// length itself.
     pub fn oriented(&self, target: DimensionTarget, cursor: DVec2) -> DimensionTarget {
-        if let DimensionTarget::AngleBetween { .. } = target {
-            return self.opening_toward(target, cursor);
+        match target {
+            DimensionTarget::AngleBetween { .. } => return self.opening_toward(target, cursor),
+            DimensionTarget::AxisAngle { .. } => return self.facing_axis(target, cursor),
+            _ => {}
         }
         let Some((from, to)) = self.ends_of(target).filter(|_| self.is_slanted(target)) else {
             return target;
@@ -157,10 +160,7 @@ impl Sketch {
         if self.nearest_segment(cursor, snap).is_none()
             && let Some(axis) = axis_under(cursor, snap)
         {
-            return Some(DimensionTarget::AxisAngle {
-                segment: first,
-                axis,
-            });
+            return Some(self.angle_to_axis(first, axis));
         }
         None
     }

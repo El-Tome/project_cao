@@ -10,7 +10,7 @@ use super::{AnnotationMetrics, Moved, arrow};
 
 /// An angle's first arm, and whether the drawing already holds a line along it.
 /// Two traits meeting each draw their own; an angle read against a sketch axis
-/// opens from a direction taken at the trait's own start, where the axis line —
+/// opens from a direction taken at the trait's middle, where the axis line —
 /// drawn through the origin — is not.
 #[derive(Clone, Copy)]
 pub(super) enum Arm {

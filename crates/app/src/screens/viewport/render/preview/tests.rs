@@ -1,9 +1,14 @@
 //! What app · screens/viewport/render/preview.rs is held to.
+//!
+//! Closes #484.
+//! - the preview before the click shows the angle the click lays: the quarter
+//!   under the cursor, about the middle of the trait —
+//!   `an_angle_to_an_axis_is_previewed_in_the_quarter_under_the_cursor`
 
-use cao_part::PartDocument;
+use cao_part::{Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_render::camera::OrbitCamera;
-use cao_sketch::{ToolState, WorkPlane};
+use cao_sketch::{SegmentId, SketchAxis, ToolState, WorkPlane};
 use chrono::Utc;
 use glam::Vec3;
 
@@ -190,4 +195,51 @@ fn the_point_tool_shows_where_the_point_would_land() {
         middle.distance(cursor) < TOLERANCE,
         "the mark is drawn around {middle:?} rather than around the cursor at {cursor:?}",
     );
+}
+
+#[test]
+fn an_angle_to_an_axis_is_previewed_in_the_quarter_under_the_cursor() {
+    let (acute, obtuse) = (78.690_067_525_979_8, 101.309_932_474_020_2);
+    for (cursor, expected) in [
+        (DVec2::new(40.0, 80.0), obtuse),
+        (DVec2::new(100.0, 80.0), acute),
+        (DVec2::new(40.0, 0.0), acute),
+        (DVec2::new(100.0, 0.0), obtuse),
+    ] {
+        let mut document = PartDocument::new("part", Utc::now());
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        });
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(DVec2::new(20.0, 30.0)),
+            end: PointRef::New(DVec2::new(120.0, 50.0)),
+            construction: false,
+        });
+        let chosen = document.sketches()[0].angle_to_axis(SegmentId(0), SketchAxis::V);
+        let mut editor = SketchEditor::default();
+        let mut extrusion = ExtrusionState::default();
+        let lang = Catalogue::french();
+        editor.tool = Tool::Dimension;
+        editor.tool_state = ToolState::Dimension {
+            placing: Some(chosen),
+            picks: Default::default(),
+        };
+        let context = SketchContext {
+            document: &mut document,
+            editor: &mut editor,
+            extrusion: &mut extrusion,
+            lang: &lang,
+        };
+
+        let (shown, _) =
+            pending_annotation(&context, 0, cursor, 1.0, 0.05).expect("an angle is shown");
+
+        let reads = context.document.measured(0, shown).expect("it reads");
+        assert!(
+            (reads - expected).abs() < 1e-6,
+            "under {cursor:?} the preview shows {reads}°, not {expected}°",
+        );
+    }
 }

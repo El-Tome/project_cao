@@ -1,6 +1,6 @@
 //! What app · wording/dimension.rs is held to.
 
-use cao_sketch::{ArcId, CircleId, PointId, SegmentId};
+use cao_sketch::{ArcId, AxisToward, CircleId, PointId, SegmentId, Toward};
 
 use super::*;
 
@@ -37,7 +37,9 @@ fn a_dimension_is_named_after_what_it_measures() {
         (
             DimensionTarget::AxisAngle {
                 segment: SEGMENT,
+                segment_toward: Toward::End,
                 axis: SketchAxis::U,
+                axis_toward: AxisToward::Positive,
             },
             "Angle 60° / axe horizontal",
         ),
@@ -100,7 +102,9 @@ fn a_dimension_says_what_it_was_taken_across() {
         (
             DimensionTarget::AxisAngle {
                 segment: SEGMENT,
+                segment_toward: Toward::End,
                 axis: SketchAxis::U,
+                axis_toward: AxisToward::Positive,
             },
             "trait 0 / axe horizontal",
         ),

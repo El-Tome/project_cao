@@ -15,6 +15,7 @@ mod arc_regions;
 mod arc_rules;
 mod arcing;
 mod axis;
+mod axis_angle;
 mod banding;
 mod chain;
 mod chamfer;
@@ -78,6 +79,7 @@ pub use arc_placing::{
 };
 pub use arcing::{ArcDraft, places_along, steps_along, sweep_of};
 pub use axis::ChosenAxis;
+pub use axis_angle::AxisToward;
 pub use chain::{ChainClick, chain_click};
 pub use chamfer::{Chamfer, ChamferMode, Chamfered};
 pub use circling::{CircleProgress, Found, circle_from, circle_progress, rim_of};

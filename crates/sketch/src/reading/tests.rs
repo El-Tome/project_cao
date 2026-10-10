@@ -9,7 +9,8 @@
 
 use super::*;
 
-use crate::constraints::SketchAxis;
+use crate::axis_angle::AxisToward;
+use crate::constraints::{SketchAxis, Toward};
 use crate::plane::WorkPlane;
 
 const TOLERANCE: f64 = 1e-9;
@@ -142,7 +143,9 @@ fn a_trait_against_an_axis_reads_how_far_it_leans() {
 
     let opening = degrees(sketch.read(DimensionTarget::AxisAngle {
         segment,
+        segment_toward: Toward::End,
         axis: SketchAxis::U,
+        axis_toward: AxisToward::Positive,
     }));
 
     assert!(
@@ -187,7 +190,9 @@ fn a_reading_of_something_the_drawing_no_longer_has_is_no_reading_at_all() {
         },
         DimensionTarget::AxisAngle {
             segment: gone,
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
     ] {
         assert_eq!(

@@ -11,7 +11,9 @@
 //! corner on two surfaces, one from each, whose curves all stand further
 //! than the tolerance from it: each within the tolerance of the other, the
 //! two corners would still not be within it of one place on all their
-//! surfaces.
+//! surfaces. A corner found along a ruling through a cone's apex is on the
+//! cone only where it stands on its own nappe: past the apex, the ruling is
+//! the line of the curve's other surfaces alone.
 
 use std::collections::BTreeSet;
 
@@ -92,11 +94,17 @@ impl Pool {
     ) -> usize {
         let surfaces: BTreeSet<SurfaceId> = surfaces.into_iter().collect();
         let curves: BTreeSet<usize> = curves.into_iter().collect();
-        let found_on = on(&surfaces, &curves, registry);
+        let found_on = on(&surfaces, &curves, point, registry, self.eps);
         let built = built.then(|| surfaces.iter().copied().collect::<Vec<_>>());
         let here = placed(point, built.as_deref(), &found_on, registry, self.eps);
         let found = self.corners.iter().position(|corner| {
-            let known = on(&corner.surfaces, &corner.curves, registry);
+            let known = on(
+                &corner.surfaces,
+                &corner.curves,
+                corner.point,
+                registry,
+                self.eps,
+            );
             let there = corner.standing(&known, registry, self.eps);
             (there.distance(here) <= self.eps
                 && !parted(there, &known, &found_on, registry, self.eps)
@@ -315,15 +323,23 @@ fn parted(
 }
 
 /// The surfaces a place was found on and those of the curves it was found
-/// along, sorted.
+/// along it stands on, sorted: not a cone it stands off the own nappe of,
+/// past the apex of a ruling it was found along ([`on_the_nappe`]).
 fn on(
     surfaces: &BTreeSet<SurfaceId>,
     curves: &BTreeSet<usize>,
+    point: DVec3,
     registry: &Registry,
+    eps: f64,
 ) -> Vec<SurfaceId> {
     let mut on = surfaces.clone();
     for curve in curves {
-        on.extend(registry.list[*curve].support.iter().copied());
+        on.extend(on_the_nappe(
+            &registry.list[*curve].support,
+            point,
+            registry,
+            eps,
+        ));
     }
     on.into_iter().collect()
 }

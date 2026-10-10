@@ -5795,10 +5795,11 @@ fn seed_9519300_a_slanted_cut_touching_a_shaft_s_ruling_at_the_next_cut_s_floor(
 
 /// #552: a quarter turn of a shaft and a frustum cut by a plane leaning
 /// atan ¼ about X, then by a block square to the axis: the block's side
-/// leaves an arc of no length between two corners a rounding apart, which
-/// the face's arcs cannot be ordered round.
+/// left an arc of no length between two corners a rounding apart, which
+/// the face's arcs could not be ordered round. It holds since a corner found
+/// along a ruling through a cone's apex is on the cone only on its own
+/// nappe (5543226572).
 #[test]
-#[ignore = "kernel-declines, #552: two corners a rounding apart left unmerged by a cut along a conic, an arc of no length between them; declined as a tie"]
 fn seed_9507403_a_quarter_turn_cut_at_a_slant_then_square_leaves_an_arc_of_no_length() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -7010,6 +7011,47 @@ fn seed_5543231406_a_half_cone_cut_at_30_and_45_degrees_whose_floor_s_line_touch
                 Plane::xy(255.0),
                 Outline::rectangle([-90.0, -15.0], [90.0, 135.0]),
                 60.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 4, through the application's body: cones and cylinders
+/// about X joined to a quarter turn, cut at 45° by a plane through the
+/// cone's apex on the axis, touching the cone along the ruling the quarter
+/// turn's end plane holds, then joined to a second quarter turn. Past the
+/// apex the ruling runs over the cone's other nappe, where the second quarter
+/// turn's end corner stands; found along the ruling, that corner was counted
+/// on the cone, kept apart from the same corner found by the other curves
+/// through it on a plane apart from the cone, and the body was refused.
+#[test]
+fn seed_5543226572_a_cone_cut_at_45_degrees_through_its_apex_on_the_end_planes_of_two_quarter_turns()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-45.0),
+            Axis::first(-30.0).backwards(),
+            Section::bands(30.0, &[[90.0, 30.0, 60.0], [15.0, 30.0, 60.0]])
+                .sloping_to(&[[30.0, 60.0], [30.0, 75.0]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xz(-30.0),
+                Axis::first(-45.0),
+                Section::bands(-195.0, &[[165.0, 0.0, 30.0]]),
+                90.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([-60.0, -30.0, -45.0], [90.0, -45.0, 0.0]),
+                Outline::rectangle([-180.0, -150.0], [135.0, 150.0]),
+                -135.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(-45.0),
+                Axis::first(-30.0),
+                Section::bands(-195.0, &[[210.0, -30.0, -0.0]]),
+                90.0,
             )),
         ],
     ));

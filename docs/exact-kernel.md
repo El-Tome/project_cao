@@ -414,6 +414,15 @@ The decisions, in the order taken, once per operation:
    unless the two touch or graze (decision 2): within `EPS` of both far
    from their lines, a corner one of two grazing walls carries near their
    crossing and the node a band puts on the other there are one corner.
+   A corner found along a ruling through a cone's apex is on that cone
+   only where it stands on its own nappe: past the apex, the ruling the
+   cone shares with a plane holding its axis is that plane's line alone,
+   and a plane apart from the cone, square to its axis over the other
+   nappe, may cross it there. Counted on the cone, the corner was kept
+   apart from the one the other curves through that place found, and the
+   step was refused (5543226572: a slant through the apex of a cone
+   joined to two quarter turns, touching it along the ruling one of their
+   end planes holds).
    No corner lies on a curve on a surface apart from one of its own. Each
    corner is measured where it stands (below, where planes fix it): one
    whose three planes fix a place stands there, though an operand put it

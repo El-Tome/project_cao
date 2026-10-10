@@ -1893,9 +1893,10 @@ fn seed_6521564_a_wall_touching_two_planes_a_hair_apart_from_one_side() {
 // A ruling of a perpendicular wall crossing exactly the line two parallel
 // walls touch along inside (1-12).
 
-/// Campaign 6a, the square draw: Answers.
+/// Campaign 6a, the square draw: Answers. Holds since #552's round 5: two
+/// arcs leaving a corner together are read first where each stands at one
+/// run, the same distance along both (5544515442).
 #[test]
-#[ignore = "band: two curves touching to the fourth order at a ruling crossing a line of touch (1-12)"]
 fn seed_6128869_a_square_ruling_crossing_the_line_two_walls_touch_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(5.0), Outline::circle([2.0, 1.0], 4.5), 8.0),

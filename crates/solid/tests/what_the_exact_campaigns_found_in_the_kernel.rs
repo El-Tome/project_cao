@@ -7865,10 +7865,14 @@ fn seed_5544504441_a_stepped_shaft_turned_359_9_degrees_joined_to_a_turn_of_105_
 /// failing on `85a2d2e` too: a block along Z rounded by 0.5, joined to a
 /// rod of radius 0.5 along Y whose axis lies on the block's side, touching
 /// the rounded corners' walls, of its own radius, then cut by a post along
-/// Z. Edges on the curves where the rod meets the corners, and lines on the
-/// rod, are left with one face each: declined as unverified.
+/// Z, touching the block's front where the corner's wall does. On the rod,
+/// the curves the post and the corner's wall meet it along leave their
+/// common corner together, flat, touching to the fourth order; read by
+/// their chords a tenth along, the shorter one's below the longer though it
+/// runs above, the rod's cycles were traced across each other, and edges
+/// were left with one face, or three: declined as unverified. Two arcs
+/// leaving together are read first where each stands at one run.
 #[test]
-#[ignore = "plain-pieces, #552's round 5: a rod along a rounded block's side meeting its corners of the same radius, then a hole; declined as unverified"]
 fn seed_5544515442_a_rounded_block_joined_to_a_rod_along_its_side_then_cut_by_a_post() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

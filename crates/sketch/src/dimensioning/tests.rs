@@ -1,5 +1,11 @@
 //! What sketch · dimensioning.rs is held to.
 //!
+//! Closes #485.
+//! - the quarter an angle being put down faces is held through a small margin:
+//!   a cursor wavering across the line between two quarters keeps the one
+//!   shown until it is clearly past it —
+//!   `a_quarter_shown_is_held_until_the_cursor_is_clearly_past_its_line`
+//!
 //! Closes #405.
 //! - a trait, then a point lying on its line, is never turned into a zero
 //!   distance: the click puts the trait's length down there instead —
@@ -268,4 +274,46 @@ fn a_second_trait_at_a_corner_already_carrying_an_angle_gives_that_one() {
 
     assert_eq!(fresh, Some(DimensionTarget::corner(along, slanted)));
     assert_eq!(again, Some(read_past));
+}
+
+#[test]
+fn a_quarter_shown_is_held_until_the_cursor_is_clearly_past_its_line() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let crossing = DVec2::new(50.0, 0.0);
+    let thirty = DVec2::from_angle(30.0_f64.to_radians());
+    let west = sketch.add_point(DVec2::ZERO);
+    let east = sketch.add_point(DVec2::new(100.0, 0.0));
+    let low = sketch.add_point(crossing - thirty * 40.0);
+    let high = sketch.add_point(crossing + thirty * 40.0);
+    let level = sketch.add_segment(west, east);
+    let slanted = sketch.add_segment(low, high);
+    let margin = 2.0;
+    let above = crossing + DVec2::new(30.0, 3.0);
+    let shown = sketch.oriented(sketch.angle_between_traits(level, slanted), above);
+    let narrow = sketch.opening(shown).expect("it reads");
+    assert!(
+        (narrow - 30.0).abs() < 1e-9,
+        "above the horizontal, the narrow quarter: {narrow}°"
+    );
+
+    let a_hair_under = crossing + DVec2::new(30.0, -1.0);
+    let held = sketch.oriented_holding(shown, a_hair_under, margin);
+    let clearly_under = crossing + DVec2::new(30.0, -3.0);
+    let let_go = sketch.oriented_holding(shown, clearly_under, margin);
+
+    assert_eq!(
+        held, shown,
+        "a hair under the line, the quarter shown stays"
+    );
+    let wide = sketch.opening(let_go).expect("it reads");
+    assert!(
+        (wide - 150.0).abs() < 1e-9,
+        "clearly under it, the wide quarter: {wide}°"
+    );
+    let a_hair_above = crossing + DVec2::new(30.0, 1.0);
+    assert_eq!(
+        sketch.oriented_holding(let_go, a_hair_above, margin),
+        let_go,
+        "and coming back a hair above the line keeps the wide one",
+    );
 }

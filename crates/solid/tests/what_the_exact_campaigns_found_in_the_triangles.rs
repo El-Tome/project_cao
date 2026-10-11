@@ -24,7 +24,8 @@
 //! it, and two conics leaving a node of two crossing walls are sampled on
 //! each other's places. Three seeds the first versions of those broke in
 //! the round's campaigns are named last, and hold. The decision 11
-//! regression stays ignored.
+//! regression holds too: the circle and the conic bounding the wall's strip
+//! between the two faces drop the same grid angle beside the end they share.
 
 // The drawing and the checks are the campaign's; this file only builds cases
 // and holds them.
@@ -3735,14 +3736,15 @@ fn seed_5550106720_a_stepped_turn_cut_by_a_face_at_22_degrees() {
 /// axis, 2e-6 under z = 0, then by one leaning 9.4e-6°, 1e-5 under it. The
 /// two faces leave a sliver a few microns thick that they cross inside.
 /// Decision 11 lays the first face square to the turn's axis and leaves the
-/// second, past the hair, as drawn; the line where the two cross lands
-/// where two triangles of the sliver are drawn crossing. Holds with
-/// decision 11 switched off, and on `f57a5ca`, whose turn was made about
-/// the middle of the cut's box; the first cut alone holds, and the
-/// application's finer triangles hold. Two planes a hair apart crossing
-/// where a turn happens to put them, as 5547225260 and 5548213817.
+/// second, past the hair, as drawn; where the two cross, the inner wall's
+/// strip between them ends 0.2° short of a grid angle. Its top rim, a
+/// circle, kept that angle while its bottom rim, the conic, dropped it as
+/// lying within a fifth of the tolerance of the face the circle is on, and
+/// the strip's one triangle across the step lay on the leaning face beside
+/// it. Held with decision 11 switched off, two conics dropping the angle
+/// alike, and on `f57a5ca`, whose turn put the crossing elsewhere. Holds
+/// since a circle drops a grid angle beside a plane as the conic does.
 #[test]
-#[ignore = "decision-11-regressions, #552's round 6: a half turn cut by two faces leaning 1.1e-6 and 9.4e-6 degrees off square to its axis a few microns apart, the first laid square; drawn crossing, holds with decision 11 off and on f57a5ca"]
 fn seed_5550133356_a_half_turn_cut_twice_by_faces_leaning_a_hair_off_one_plane() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3769,6 +3771,32 @@ fn seed_5550133356_a_half_turn_cut_twice_by_faces_leaning_a_hair_off_one_plane()
                 -120.0,
             )),
         ],
+    ));
+}
+
+/// #552's round 6, measuring the fix of 5550133356, tilted on the exact
+/// kernel: a block whose face stands 2e-8° off square to X, on the circle
+/// where two bands of a quarter turn about X meet. The circle stands a
+/// hair off that plane all along; a first fix, dropping a circle's grid
+/// angle beside an end wherever it stood within a fifth of the tolerance of
+/// any plane the end lies on, dropped one by each end, and the drawing
+/// enclosed less than the case promises. A plane drops it only where its
+/// conic on the circle's wall ends there too.
+#[test]
+fn seed_5561366633_a_block_a_hair_off_square_to_a_turn_s_rim_keeps_its_matter() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::tilted([6.0, 6.0, 3.0], [0.0, -89.99999998, 0.0]),
+            Outline::rectangle([-4.0, 5.0], [-1.0, 8.0]),
+            2.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(-2.0),
+            Axis::first(0.0),
+            Section::bands(5.0, &[[1.0, 0.0, 8.0], [3.0, 0.0, 10.0]])
+                .sloping_to(&[[0.0, 10.0], [0.0, 10.0]]),
+            90.0,
+        ))],
     ));
 }
 

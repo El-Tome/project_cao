@@ -61,13 +61,14 @@ use touches::{Places, on_the_line};
 
 /// How far from another surface, as a share of the kernel's tolerance, a
 /// place of the grid a step or less from an end lying on that surface must
-/// stand to be kept: far over the rounding of a point, a ten-millionth of
-/// the tolerance, so that exact signs tell it from the other surface, and
-/// far under what the arc covers in a step, so that dropping it lengthens
-/// no chord by much. Two circles of one radius crossing a hair apart stand
-/// within the rounding of each other a long way round from the vertex they
-/// cross at, and a place there on each, not on a ray the two share, has the
-/// arcs cross back and forth between them.
+/// stand to be kept — from a plane whose conic on the circle's wall ends
+/// there too, as far as a ray must: far over the rounding of a point, a
+/// ten-millionth of the tolerance, so that exact signs tell it from the
+/// other surface, and far under what the arc covers in a step, so that
+/// dropping it lengthens no chord by much. Two circles of one radius
+/// crossing a hair apart stand within the rounding of each other a long way
+/// round from the vertex they cross at, and a place there on each, not on a
+/// ray the two share, has the arcs cross back and forth between them.
 const TOLD: f64 = 1e-3;
 
 const LEAST: usize = 16;

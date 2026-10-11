@@ -1390,7 +1390,17 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   of their own wall: sampled each on its own wall's angles, one chord of
   one crossed the other's samples by the node, and the horn of face
   between them could not be cut (5550117749). Not on two parallel walls,
-  sampled on the rays they share already (5551609285).
+  sampled on the rays they share already (5551609285). A circle and a
+  conic ending at one vertex on the circle's own wall are the two rims of
+  a strip of that wall pinching there, and drop the same grid angles beside
+  it: within a fifth of `EPS` of the conic's plane, as the conic drops its
+  own, where the circle drops one only within a thousandth of `EPS` of any
+  other surface. Kept by the circle and dropped by the conic, the angle
+  left the strip's one triangle across the step lying on the leaning face
+  beside it — a half turn cut by a face decision 11 laid square and one
+  leaning 9.4e-6° past the hair (5550133356). Not every plane an end lies
+  on: a circle a hair off a block's face all along lost a grid angle by
+  each end, and the drawing lost matter (5561366633).
 - **Contact.** Chords sag towards their own cylinder's axis, so against a plane
   or a convex neighbour they retreat. Where two curved faces face each other on
   their hollow side closer than a chord's sag — an internal tangency, a near

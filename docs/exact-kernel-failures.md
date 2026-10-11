@@ -2047,6 +2047,21 @@ broke it:
   the meet came to lie on the plane, which saw it only as a chord. It is
   seen as the plane's conic now.
 
+The one seed round 5 broke (`decision-11-regressions`, 5550133356, tilted,
+exact kernel) holds too, by a lane of its own merged after this one: a half
+turn cut by a face decision 11 lays square and by one leaning 9.4e-6° past
+the hair leaves a sliver whose inner wall is a strip between a circle and a
+conic ending at one corner, 0.2° short of a grid angle. The circle kept
+that angle, dropping one beside an end only within a thousandth of `EPS`
+of another surface, while the conic dropped it within a fifth, and the
+strip's one triangle across the step lay on the leaning face. A circle now
+drops a grid angle within a fifth of `EPS` of a plane whose conic on its
+own wall ends at the same vertex (`tessellation/sampling/ends.rs`,
+`pinching`). A first version giving the fifth to every plane an end lies
+on broke 5561366633 (tilted, exact kernel, volume): a circle a hair off a
+block's face all along lost a grid angle by each end. It is named and
+holds.
+
 Left, ignored with what was found:
 
 - **A turn of 359.9° whose slit opens at a line of touch** (5550232595,

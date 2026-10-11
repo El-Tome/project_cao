@@ -1,6 +1,6 @@
 //! Decision 11 (#552): a plane of one operand leaning a hair off square to,
 //! or along, the axis of a wall of the other is laid exactly so, the second
-//! operand turned rigidly about the middle of its box, where the turn moves
+//! operand turned rigidly about where the two meet, where the turn moves
 //! none of it further than `Scale::HAIR` tolerances.
 
 use glam::DQuat;
@@ -15,7 +15,7 @@ fn degrees(angle: f64) -> f64 {
 /// The body turned about the middle of its box.
 fn leaning(body: Body, turn: DQuat) -> Body {
     let (low, high) = body.bounds().expect("a body has a box");
-    body.rotated((low + high) / 2.0, turn, &[], 0.0)
+    body.rotated((low + high) / 2.0, turn, DVec3::ZERO, &[], 0.0)
         .expect("a hair of a turn is made")
 }
 
@@ -226,6 +226,7 @@ fn a_turn_that_would_take_a_wall_off_a_plane_it_touches_is_not_made() {
         .rotated(
             DVec3::new(15.0, 0.0, 1000.0),
             DQuat::from_rotation_y(degrees(1e-8)),
+            DVec3::ZERO,
             &[],
             0.0,
         )
@@ -242,6 +243,7 @@ fn a_turn_that_would_lay_a_plane_a_hair_beside_a_cone_s_apex_is_not_made() {
         tool.rotated(
             DVec3::new(0.0, 1000.0, 0.0),
             DQuat::from_rotation_z(angle),
+            DVec3::ZERO,
             &[],
             0.0,
         )
@@ -267,7 +269,7 @@ fn a_tool_turned_twice_from_the_same_operands_has_the_same_bits() {
 
 #[test]
 fn a_lean_of_a_ten_millionth_of_a_degree_is_turned_by_that_angle_and_not_by_none() {
-    let body = post([0.0, 0.0], 5.0, 0.0, 10.0);
+    let body = post([0.0, 0.0], 5.0, 0.0, 12.0);
     let drawn = block([-10.0, -10.0, 8.0], [10.0, 10.0, 12.0]);
     let tool = leaning(drawn.clone(), DQuat::from_rotation_x(degrees(1e-7)));
     let squared = squared(&body, &tool, scale()).expect("the block is turned");
@@ -284,4 +286,80 @@ fn a_lean_of_a_ten_millionth_of_a_degree_is_turned_by_that_angle_and_not_by_none
         "the block stands {} off square",
         off(&squared)
     );
+}
+
+#[test]
+fn a_floor_laid_square_to_a_leaning_post_lies_exactly_on_the_end_it_was_drawn_on() {
+    let body = leaning(
+        post([0.0, 0.0], 5.0, 0.0, 10.0),
+        DQuat::from_rotation_x(degrees(1e-7)),
+    );
+    let tool = block([-10.0, 2.0, 10.0], [10.0, 30.0, 14.0]);
+    let end = planes(&body)
+        .into_iter()
+        .find(|plane| plane.offset() > 5.0)
+        .expect("the post's upper end");
+    let squared = squared(&body, &tool, scale()).expect("the block is turned");
+    let floor = planes(&squared)
+        .into_iter()
+        .find(|plane| (plane.offset().abs() - 10.0).abs() < 1e-6)
+        .expect("the block's floor");
+    let apart = floor.offset() * floor.normal.dot(end.normal).signum() - end.offset();
+    assert!(apart.abs() < 1e-12, "the floor stands {apart} off the end");
+}
+
+#[test]
+fn a_side_laid_along_a_leaning_post_keeps_its_distance_to_the_axis_halfway_up_where_they_meet() {
+    let body = leaning(
+        post([0.0, 0.0], 5.0, 0.0, 10.0),
+        DQuat::from_rotation_x(degrees(1e-7)),
+    );
+    let tool = block([-10.0, 3.0, 2.0], [10.0, 20.0, 30.0]);
+    let Some(Surface::Cylinder(wall)) = body
+        .surfaces
+        .iter()
+        .find(|surface| matches!(surface, Surface::Cylinder(_)))
+    else {
+        panic!("the post has a wall");
+    };
+    let from_the_axis = |plane: &Plane, height: f64| {
+        let on_the_axis = wall.origin + wall.axis * (height - wall.origin.z) / wall.axis.z;
+        plane.distance(on_the_axis).abs()
+    };
+    let side = |body: &Body| {
+        planes(body)
+            .into_iter()
+            .find(|plane| plane.normal.y.abs() > 0.5 && (plane.offset().abs() - 3.0).abs() < 1e-6)
+            .expect("the block's side by the post")
+    };
+    let squared = squared(&body, &tool, scale()).expect("the block is turned");
+    let drawn = from_the_axis(&side(&tool), 6.0);
+    let laid = from_the_axis(&side(&squared), 6.0);
+    assert!(
+        (laid - drawn).abs() < 1e-12,
+        "the side moved {} off the axis",
+        laid - drawn
+    );
+}
+
+#[test]
+fn a_face_laid_along_a_leaning_half_shaft_holds_the_edge_of_its_flat_side_it_was_drawn_through() {
+    let body = leaning(half_shaft(), DQuat::from_rotation_z(degrees(1e-7)));
+    let tool = block([0.0, 5.0, -5.0], [30.0, 20.0, 5.0]);
+    let edge: Vec<DVec3> = body
+        .vertices
+        .iter()
+        .map(|vertex| vertex.point)
+        .filter(|point| point.y > 4.0 && point.z.abs() < 1e-6)
+        .collect();
+    assert_eq!(edge.len(), 2, "the edge of the flat side at y = 5");
+    let squared = squared(&body, &tool, scale()).expect("the block is turned");
+    let face = planes(&squared)
+        .into_iter()
+        .find(|plane| plane.normal.y.abs() > 0.5 && (plane.offset().abs() - 5.0).abs() < 1e-6)
+        .expect("the block's face at y = 5");
+    for corner in edge {
+        let off = face.distance(corner);
+        assert!(off.abs() < 1e-12, "the edge stands {off} off the face");
+    }
 }

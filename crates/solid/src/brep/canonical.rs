@@ -13,6 +13,7 @@ mod corners;
 mod crescent;
 mod curves;
 mod flush;
+mod placed;
 mod planes;
 mod squared;
 mod surfaces;

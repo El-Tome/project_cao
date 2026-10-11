@@ -142,6 +142,15 @@
 //! regions with no point inside them, the rod along the rounded block, and
 //! a seed its first reading of a rim inside a cut broke (5545108465); the
 //! stepped shaft and the cone's ruling stay ignored, with what was found.
+//! Four of decision 11's regressions hold since it turns about where the
+//! operands meet and sets the second down on what it held against the first
+//! within the tolerance, rather than about the middle of its box, and with
+//! them three seeds named under the earlier keys (5543120314, 5543235780,
+//! 5543615040).
+//! The fifth is a lean the turn moves onto a pair the kernel fails as
+//! drawn, named under its family: a ring's end laid 7e-10 off a line a
+//! later cut shares with a floor. Two seeds the first way of setting down
+//! broke on the campaign are named last.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -7372,9 +7381,10 @@ fn seed_5543232861_a_point_cut_by_a_face_through_its_apex_leaning_1e_7_degrees_o
 /// shaft leaning 1e-7° off X joined to a point whose end plane stands a
 /// hair past the shaft's end. Turned square to the shaft, the point's end is
 /// laid on the shaft's, which it crossed at its lean, and its walls about
-/// the shaft's axis: declined. Holds as drawn on `85a2d2e`.
+/// the shaft's axis: declined. Holds as drawn on `85a2d2e`, and since
+/// round 5, the point turned about where the two meet and set down on the
+/// shaft's end it was drawn past.
 #[test]
-#[ignore = "near-parallel-planes, decision 11: a point's end laid on a leaning shaft's end it crossed a hair off; declined, holds as drawn on 85a2d2e"]
 fn seed_5543120314_a_shaft_leaning_1e_7_degrees_joined_to_a_point_a_hair_past_its_end() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -7467,9 +7477,9 @@ fn seed_5543218891_a_wall_at_30_degrees_cut_by_two_blocks_leaning_1e_7_degrees_w
 /// then by a slot leaning 2e-8° whose face stands 6e-8 short of it. Turned
 /// square, the slot's face is parallel to the block's, a few tolerances
 /// apart, and the ring's walls cross both: the triangles of the two faces
-/// cross. Holds as drawn on `85a2d2e`.
+/// cross. Holds as drawn on `85a2d2e`, and since round 5, the slot turned
+/// about where it meets the body and set down on what it held there.
 #[test]
-#[ignore = "near-parallel-planes, decision 11: a face laid exactly parallel to another a few tolerances off, the ring's walls crossing both; drawn crossing, holds as drawn on 85a2d2e"]
 fn seed_5543235780_a_ring_cut_by_a_block_then_by_a_slot_leaning_2e_8_degrees_a_hair_short_of_its_face()
  {
     random_solids::holds_through_the_application(&Case::new(
@@ -7524,8 +7534,9 @@ fn seed_5549204865_a_tube_cut_by_a_face_a_hair_off_tangent_and_1_9e_6_degrees_of
 /// stood skew: declined. Holds as drawn on `85a2d2e`. Refusing a turn that
 /// lays two skew walls square held it, and broke two seeds whose earlier
 /// step was turned, the later one then left at its lean (5543215175).
+/// Holds since round 5: the cut turned about where the two meet, and set
+/// down on what it held there, rather than about the middle of its box.
 #[test]
-#[ignore = "hair-from-tangent, decision 11: walls of two turns laid square by a plane's turn meet along the curve of two perpendicular cylinders; declined, holds as drawn on 85a2d2e"]
 fn seed_5543615040_a_turn_leaning_1e_7_degrees_cut_by_a_turn_of_240_degrees_about_y() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -7582,10 +7593,11 @@ fn seed_5543312609_a_turn_about_y_cut_by_one_about_x_then_joined_to_a_turn_of_15
 /// its ends lie exactly along the leaning axis, and its wall stands exactly
 /// square to the turn's, where the two were skew by the lean; the lines,
 /// the rims and the ellipse where the turn's end plane cuts the post are
-/// left with one face each: declined as unverified. Holds with decision 11
-/// switched off, and as drawn on `85a2d2e`, as 5543615040 does.
+/// left with one face each: declined as unverified. Turned about the middle
+/// of its box, the post's end stood 9e-9 off a line of the turn it held,
+/// where the turn's end plane cuts its wall of radius one; turned about the
+/// middle of where the two meet and set down on that line, it holds.
 #[test]
-#[ignore = "decision-11-regressions, #552's round 5: a post about Y laid along a turn's axis leaning 1e-7 degrees across it, the two walls made square; declined as unverified, holds as drawn on 85a2d2e"]
 fn seed_5544510380_a_turn_of_240_degrees_leaning_1e_7_degrees_joined_to_a_post_across_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -7608,10 +7620,10 @@ fn seed_5544510380_a_turn_of_240_degrees_leaning_1e_7_degrees_joined_to_a_post_a
 /// turned about Y. Turned square to the leaning axis, the wedge's end
 /// planes and its axis line stand a few hundredths of a micron off where
 /// they cross the disc, and edges along them are left with one face each:
-/// declined as unverified. Holds with decision 11 switched off, and as drawn
-/// on `85a2d2e`.
+/// declined as unverified. The wedge's side, drawn on the disc's end, was
+/// turned about the middle of its box and stood 1.2e-8 off it, its corners
+/// at the wedge's axis four times further; set down on the end, it holds.
 #[test]
-#[ignore = "decision-11-regressions, #552's round 5: a wedge of 15 degrees laid square to a disc leaning 1e-7 degrees; declined as unverified, holds as drawn on 85a2d2e"]
 fn seed_5544600162_a_disc_leaning_1e_7_degrees_joined_to_a_wedge_of_15_degrees_about_y() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -7634,10 +7646,10 @@ fn seed_5544600162_a_disc_leaning_1e_7_degrees_joined_to_a_wedge_of_15_degrees_a
 /// that decision 11 lays square to it, cut by a post along Z, then by a
 /// stepped turn about Y laid square as well. Edges on the post's rims, its
 /// lines, and the curves where its wall meets the disc's and the shaft's
-/// are left with one face each: declined as unverified. Holds with
-/// decision 11 switched off, and as drawn on `85a2d2e`.
+/// are left with one face each: declined as unverified. The stepped turn's
+/// axis, drawn in the disc's end, was turned about the middle of its box and
+/// stood 2e-8 off it; set down in it, and its end on the shaft's, it holds.
 #[test]
-#[ignore = "decision-11-regressions, #552's round 5: two turns about Y laid square to a disc leaning 1e-7 degrees, a post through them; declined as unverified, holds as drawn on 85a2d2e"]
 fn seed_5544600864_a_disc_leaning_1e_7_degrees_joined_to_a_shaft_then_cut_by_a_post_and_a_turn() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -7678,9 +7690,12 @@ fn seed_5544600864_a_disc_leaning_1e_7_degrees_joined_to_a_shaft_then_cut_by_a_p
 /// a micron where it crosses the 45° cut; the cone's rim, the conic of the
 /// 45° cut and the line the two planes share are left with one face each:
 /// declined as unverified. Holds with decision 11 switched off, and as drawn
-/// on `85a2d2e`.
+/// on `85a2d2e`. Laid square, the face stands 3.84e-7 short of the circle at
+/// x = 225 where the cone's wall meets the shaft's, at a tolerance of
+/// 3.90e-7, wherever the turn is made about; drawn exactly square that far
+/// short, with no lean to lay, it fails the same way. Set down on the plane
+/// of that circle, which it stood within the tolerance of, it holds.
 #[test]
-#[ignore = "decision-11-regressions, #552's round 5: a face 4e-8 degrees off square to a cone laid square where it crosses a 45 degree cut; declined as unverified, holds as drawn on 85a2d2e"]
 fn seed_5544232904_a_cone_cut_at_45_degrees_then_by_a_face_4e_8_degrees_off_square_to_it() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -7710,9 +7725,13 @@ fn seed_5544232904_a_cone_cut_at_45_degrees_then_by_a_face_4e_8_degrees_off_squa
 /// starts 2e-8 off its face, the ring laid square to the block by decision
 /// 11, then cut at 45° a hair aside. The cut meets a tie in the star of the
 /// overlay (overlay/star.rs). Holds with decision 11 switched off, and as
-/// drawn on `85a2d2e`.
+/// drawn on `85a2d2e`. The cut's 45° face crosses the block's floor along a
+/// line the ring's end holds exactly as drawn; laid square to the block, the
+/// ring's end leans 7e-10 off that line, wherever the turn is made about.
+/// Drawn with the ring and the block exact and the cut leaning 4e-8° about
+/// Z instead, decision 11 turning nothing, it meets the same tie.
 #[test]
-#[ignore = "decision-11-regressions, #552's round 5: a ring laid square to a block 4e-8 degrees off a quarter turn, then cut at 45 degrees; declined as a tie in the overlay's star, holds as drawn on 85a2d2e"]
+#[ignore = "near-parallel-planes, #552's round 5: a ring laid square to a block 4e-8 degrees off a quarter turn, its end then 7e-10 off the line a later 45 degree cut shares with the floor; a tie in the overlay's star, as when the cut is drawn leaning"]
 fn seed_5544236192_a_block_4e_8_degrees_off_a_quarter_turn_joined_to_a_ring_then_cut_at_45_degrees()
 {
     random_solids::holds_through_the_application(&Case::new(
@@ -8043,5 +8062,60 @@ fn seed_5544323650_a_partial_turn_a_half_ring_and_a_cone_about_one_axis() {
                 360.0,
             )),
         ],
+    ));
+}
+
+/// #552's round 5, measuring decision 11 set down where it meets, tilted
+/// through the application's body: a shaft about an axis leaning 1e-5° off
+/// X, cut at 75°, then by a face leaning 4° about X, a hair off along the
+/// shaft's axis. Set down on every pair standing within `Scale::HAIR`
+/// tolerances, the face was moved three tolerances onto what it only
+/// passed near: declined as unverified. Only pairs within the tolerance are
+/// laid. Holds on `f57a5ca`.
+#[test]
+fn seed_5545209574_a_shaft_leaning_1e_5_degrees_cut_at_75_degrees_then_by_a_face_4_degrees_off() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(60.0),
+            Axis::first(-1.8e-6).backwards().leaning(-1e-5),
+            Section::bands(-30.0, &[[105.0, -30.0, -0.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([-30.0, 0.0, 60.0], [0.0, 75.0, 0.0]),
+                Outline::rectangle([-60.0, -60.0], [60.0, 60.0]),
+                90.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([0.0, 0.0, 60.0], [-4.0, 0.0, 0.0]),
+                Outline::rectangle([-75.0, -90.0], [90.0, 90.0]),
+                -90.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, measuring decision 11 set down where it meets, tilted
+/// through the application's body: a cone and a shaft about an axis leaning
+/// 1e-7° off X, joined to a block whose end stands on the circle where the
+/// cone meets the shaft. Turned square about where the two meet, the end
+/// stood a hair off that circle, and the triangles crossed. The plane of a
+/// circle is laid on as a plane is. Holds on `f57a5ca`.
+#[test]
+fn seed_5545217348_a_cone_leaning_1e_7_degrees_joined_to_a_block_ending_where_it_meets_its_shaft() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(3.0).leaning(1e-7),
+            Section::bands(-2.0, &[[1.5, -1.0, 2.0], [0.5, -1.0, 3.5]])
+                .sloping_to(&[[-1.0, 3.5], [-1.0, 3.5]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(5.0),
+            Outline::rectangle([6.0, 0.0], [9.0, 8.0]),
+            -5.5,
+        ))],
     ));
 }

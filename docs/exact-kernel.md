@@ -779,9 +779,10 @@ The decisions, in the order taken, once per operation:
 11. **A plane a hair off square to, or along, a wall's axis** (#552). A
     plane of one operand and a cylinder or a cone of the other, their faces
     in boxes that meet, the plane leaning off square to the wall's axis or
-    off along it: the second operand is turned about the middle of its box
-    so that the plane lies exactly square or along, where that turn moves
-    none of its points further than `G`. The conic such a plane cuts the
+    off along it: the second operand is turned so that the plane lies
+    exactly square or along, about where the two operands meet and set down
+    on what it held against the first (below), where that turn moves none
+    of its points further than `G`. The conic such a plane cuts the
     wall along divides by the lean: a cut a ten-millionth of a degree off
     square to a post cuts an ellipse within the tolerance of the rim beside
     it, a side as far off along a bore cuts a hyperbola within it of the
@@ -795,6 +796,9 @@ The decisions, in the order taken, once per operation:
     operand's box, the furthest any of its points moves under a turn about
     its middle. A pair is turned where `s·L` stands between rounding — a
     millionth of the tolerance, under which it is exact already — and `G`.
+    The turn as made must move no point further than `G` either: its angle
+    times the furthest corner of the box from the point it is made about,
+    with the shift that sets it down.
     For a tool as large as the part, `G` turns up to some 1e-8 radians,
     about 6e-7 degrees; for a tool a tenth of the reach, ten times that.
 
@@ -814,7 +818,32 @@ The decisions, in the order taken, once per operation:
     first operand's is laid on that one's bits, so that a circle and its
     wall share their axis, and identity, decisions 1 and 8 then compare
     exactly. A tool turned 1e-7 degrees off a bore of its radius is then
-    merged onto it by decision 8. The turn is solved one degree of freedom
+    merged onto it by decision 8.
+
+    Where the turn is made about decides where the operand ends up, a hair
+    either way, and a hair parts what the second held against the first.
+    Turned about the middle of its box, a wedge's side drawn on a disc's
+    end stood 1.2e-8 off it, its corners at the wedge's axis four times
+    further (5544600162); a post's end stood a hair off a line of a turn it
+    held (5544510380); a stepped turn's axis stood 2e-8 off a disc's end it
+    lay in (5544600864); a face laid square to a cone stood 0.98 of the
+    tolerance short of the circle where the cone meets a shaft
+    (5544232904): each declined as unverified, each held as drawn on
+    `85a2d2e`. The operand is turned about the middle of where the boxes of
+    the two operands overlap, then shifted square to the turn's axis — the
+    shift a turn about another point makes — so that each pair the turn
+    lays parallel lies on the other exactly wherever the two stood within
+    `EPS` of each other, taken for one place already: two flats, a plane or
+    the plane of a circle of each; a line of either, a straight edge or a
+    wall's axis, in a flat of the other. Laying pairs from as far as `G`
+    moved a cut's face three tolerances onto what it only passed near, and
+    it was refused (5545209574). The pairs nearest to lying come first; a
+    pair the shift cannot lay without taking an earlier one off, or past
+    `G`, is left as it stands. A turn about a point has two such degrees of
+    freedom, and they are spent on what was drawn together
+    (`canonical/placed.rs`).
+
+    The turn is solved one degree of freedom
     at a time: a pair of directions exactly parallel locks the axis it
     turns about, the pairs off square come first, and each next one is laid
     by a turn about the axis locked. It is not made where no one turn lays

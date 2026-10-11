@@ -952,6 +952,29 @@ campaigns at a time on five threads each, and the same seeds run on
   at `85a2d2e` and 33.3 s at `9e54a71`, the tip of #536: about 2.3 s over
   it, inside the 3 s allowed.
 
+## 10 October: round 5 of #552, decision 11's own regressions
+
+The five seeds round 4 found broken by decision 11's own turn all came from
+where the turn was made. About the middle of the second operand's box, the
+operand landed a hair off what it had held against the first: a face on an
+end, a line in a face, an axis in a face, a face on the plane of a circle.
+The turn is now made about the middle of where the operands' boxes overlap,
+then shifted square to its axis to lay those pairs exactly where they stood
+within the tolerance. Four of the five hold, and so do three seeds named in
+earlier rounds. The fifth, 5544236192, is a lean the turn moves onto a line
+a later cut shares with a floor, and fails with no turn made too.
+
+- The first way of setting down laid pairs standing as far as `G` apart,
+  and only planes and lines. A fifteen-minute tilted campaign against
+  `f57a5ca` found two seeds it broke (5545209574, 5545217348). Laying only
+  within the tolerance, and laying on the plane of a circle, held both, and
+  5544232904 with them.
+- Measured with fresh seeds against `f57a5ca` in their own target
+  directories: tilted through the body, 87 failures in 32 263 cases where
+  the base had 90; turned through the body, 3 in 17 776 where it had 4;
+  turned on the exact kernel, 6 in 8 383 on both. No seed that held
+  fails.
+
 ## 11 October: round 5 of #552, the pieces with no hair
 
 The lane of round 5 that takes the eleven shrunk cases with no hair round

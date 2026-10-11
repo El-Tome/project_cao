@@ -1849,3 +1849,58 @@ measurements before this one broke three seeds (5545108465, 5545235515,
 named, and the rules are narrowed to hold them. Every named-case file
 with `--include-ignored`: nothing that passed at `f57a5ca` fails, and
 6128869 and 9304992, ignored before, hold.
+
+### Round 5: decision 11 set down where it meets
+
+Round 4's measurement left five seeds that held on `85a2d2e` and fail by
+decision 11's own turn (`decision-11-regressions`). The turn was made about
+the middle of the second operand's box. Its directions came out exact, but
+the operand landed a hair off what it had held against the first, up to
+the lean times the distance from the middle of the box. The turn is now
+made about the middle of where the two operands' boxes overlap. The
+operand is then shifted square to the turn's axis, so that each pair the
+turn lays parallel lies exactly where the two stood within the tolerance
+(`canonical/placed.rs`, decision 11 in `exact-kernel.md`).
+
+- **Held, four of the five:**
+  - a wedge's side drawn on a disc's end (5544600162);
+  - a post's end holding a line of a turn (5544510380);
+  - a stepped turn's axis lying in a disc's end (5544600864);
+  - a face laid square to a cone 0.98 of the tolerance short of the
+    circle where the cone meets a shaft (5544232904). Drawn exactly
+    square, that face fails as well.
+
+  Three seeds named under the earlier keys hold with them:
+  - 5543120314, a point's end on a leaning shaft's end;
+  - 5543235780, a slot's face parallel to a block's;
+  - 5543615040, two turns' walls laid square, the one refusing the turn
+    for skew walls held before it broke two others.
+- **Left, one.** 5544236192 is named under `near-parallel-planes`. A ring
+  is laid square to a block 4e-8° off a quarter turn. Its end then leans
+  7e-10 off the line a later 45° cut shares with the block's floor, a line
+  the ring held exactly as drawn. A shift cannot lay a lean, wherever the
+  turn is made about. Drawn with the ring and the block exact and the cut
+  leaning 4e-8° about Z, with no turn made, the kernel meets the same tie
+  in the overlay's star.
+- **Laying from as far as `G` broke two seeds**, on the first
+  measurement:
+  - 5545209574: a cut's face was moved three tolerances onto something it
+    only passed near;
+  - 5545217348: a block's end was not laid on the plane of a circle it
+    stood on.
+
+  Pairs are now laid only within the tolerance, and the plane of a circle
+  is laid on as a plane is. Both are named and hold.
+
+Fresh seeds, release, against `f57a5ca` built in its own target directory,
+counted over the seeds both reached:
+
+| Draw | First seed | Cases | `f57a5ca` | Branch | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- |
+| tilted, application's body | 5545200000 | 32 263 | 90 (2.79) | 87 (2.70) | 3 | 0 |
+| turned, application's body | 5545600000 | 17 776 | 4 (0.23) | 3 (0.17) | 1 | 0 |
+| turned, exact kernel | 5545500000 | 8 383 | 6 (0.72) | 6 (0.72) | 0 | 0 |
+
+In the named-case files with `--include-ignored`, the seven cases above
+that fail on `f57a5ca` hold on the branch, the two new ones hold, and
+nothing that held there fails.

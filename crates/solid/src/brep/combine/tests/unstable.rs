@@ -12,7 +12,7 @@ use crate::brep::{Lean, Unstable};
 fn leaning(body: Body, axis: DVec3, degrees: f64) -> Body {
     let (low, high) = body.bounds().expect("a body has a box");
     let turn = DQuat::from_axis_angle(axis, degrees.to_radians());
-    body.rotated((low + high) / 2.0, turn, &[], 0.0)
+    body.rotated((low + high) / 2.0, turn, DVec3::ZERO, &[], 0.0)
         .expect("a small turn is made")
 }
 

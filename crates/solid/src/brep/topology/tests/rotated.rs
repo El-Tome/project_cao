@@ -86,7 +86,7 @@ fn a_body_turned_rigidly_keeps_each_corner_on_its_surfaces_and_each_edge_between
         let pivot = middle(&body);
         let turn = skew_turn(1e-7);
         let turned = body
-            .rotated(pivot, turn, &[], 0.0)
+            .rotated(pivot, turn, DVec3::ZERO, &[], 0.0)
             .expect("a small turn is made");
         for (before, after) in body.vertices.iter().zip(&turned.vertices) {
             let placed = pivot + turn * (before.point - pivot);
@@ -114,7 +114,7 @@ fn a_body_turned_rigidly_keeps_each_corner_on_its_surfaces_and_each_edge_between
 fn a_body_turned_keeps_its_volume() {
     for body in [slot(), chamfered()] {
         let turned = body
-            .rotated(middle(&body), skew_turn(1e-7), &[], 0.0)
+            .rotated(middle(&body), skew_turn(1e-7), DVec3::ZERO, &[], 0.0)
             .expect("a small turn is made");
         let (before, after) = (body.volume(), turned.volume());
         assert!(
@@ -128,7 +128,7 @@ fn a_body_turned_keeps_its_volume() {
 fn a_circle_turned_with_its_wall_reads_its_angle_as_the_wall_does() {
     for body in [slot(), chamfered()] {
         let turned = body
-            .rotated(middle(&body), skew_turn(1e-7), &[], 0.0)
+            .rotated(middle(&body), skew_turn(1e-7), DVec3::ZERO, &[], 0.0)
             .expect("a small turn is made");
         let walls: Vec<(DVec3, DVec3)> = turned
             .surfaces
@@ -156,7 +156,13 @@ fn a_circle_turned_with_its_wall_reads_its_angle_as_the_wall_does() {
 fn a_direction_turned_within_rounding_of_an_anchor_is_laid_on_its_bits() {
     let body = slot();
     let turned = body
-        .rotated(middle(&body), skew_turn(1e-15), &[DVec3::Z], 1e-12)
+        .rotated(
+            middle(&body),
+            skew_turn(1e-15),
+            DVec3::ZERO,
+            &[DVec3::Z],
+            1e-12,
+        )
         .expect("a hair of a turn is made");
     let normals: Vec<DVec3> = turned
         .surfaces
@@ -186,8 +192,14 @@ fn a_turn_that_would_turn_a_canonical_direction_round_is_refused() {
     let body = Body::raised(&diamond, &[], ground(), DVec3::Z * 10.0).expect("it raises");
     let refused: Vec<bool> = [1e-6, -1e-6]
         .map(|angle| {
-            body.rotated(middle(&body), DQuat::from_rotation_z(angle), &[], 0.0)
-                .is_none()
+            body.rotated(
+                middle(&body),
+                DQuat::from_rotation_z(angle),
+                DVec3::ZERO,
+                &[],
+                0.0,
+            )
+            .is_none()
         })
         .to_vec();
     assert_eq!(

@@ -41,14 +41,7 @@ fn a_shape_leaning_has_to_say_which_way_up_it_is() {
     let across = sketch.add_segment(corner, far);
     sketch.set_dimension(DimensionTarget::Length(along), 90.0, false);
     sketch.set_dimension(DimensionTarget::Length(across), 60.0, false);
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: along,
-            second: across,
-        },
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(along, across), 90.0, false);
     sketch.resolve(1.0);
     assert_eq!(
         sketch.freedom(1.0).degrees_of_freedom,
@@ -145,10 +138,7 @@ fn a_whole_figure_moved_at_once_keeps_its_shape() {
         .collect();
     for pair in 0..3 {
         sketch.set_dimension(
-            DimensionTarget::Angle {
-                first: sides[pair],
-                second: sides[pair + 1],
-            },
+            DimensionTarget::corner(sides[pair], sides[pair + 1]),
             90.0,
             false,
         );

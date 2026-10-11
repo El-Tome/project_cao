@@ -159,14 +159,7 @@ fn holding_the_arms_length_is_what_pins_the_drawing_down() {
         segment: arm,
         axis: SketchAxis::U,
     });
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: arm,
-            second: drawn,
-        },
-        150.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(arm, drawn), 150.0, false);
     sketch.set_dimension(DimensionTarget::Length(drawn), 10.0, false);
 
     assert!(
@@ -190,14 +183,7 @@ fn erasing_either_of_the_two_takes_the_reading_and_leaves_the_other() {
         let drawn = sketch.add_segment(Sketch::ORIGIN, end);
         let far = sketch.add_point(DVec2::new(9.0, 0.0));
         let arm = sketch.add_construction_segment(Sketch::ORIGIN, far);
-        sketch.set_dimension(
-            DimensionTarget::Angle {
-                first: arm,
-                second: drawn,
-            },
-            150.0,
-            false,
-        );
+        sketch.set_dimension(DimensionTarget::corner(arm, drawn), 150.0, false);
         (sketch, drawn, arm)
     };
 

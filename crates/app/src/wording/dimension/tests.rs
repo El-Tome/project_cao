@@ -28,10 +28,7 @@ fn across(target: &DimensionTarget) -> String {
 fn a_dimension_is_named_after_what_it_measures() {
     let measured = [
         (
-            DimensionTarget::Angle {
-                first: SegmentId(0),
-                second: SegmentId(1),
-            },
+            DimensionTarget::corner(SegmentId(0), SegmentId(1)),
             "Angle 60°",
         ),
         (
@@ -93,10 +90,7 @@ fn a_dimension_says_what_it_was_taken_across() {
         ),
         (DimensionTarget::Length(SEGMENT), "trait 0"),
         (
-            DimensionTarget::Angle {
-                first: SegmentId(0),
-                second: SegmentId(1),
-            },
+            DimensionTarget::corner(SegmentId(0), SegmentId(1)),
             "traits 0 et 1",
         ),
         (

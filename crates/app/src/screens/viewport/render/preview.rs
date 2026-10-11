@@ -14,7 +14,7 @@ use crate::screens::sketch::{DimensionMode, Tool};
 use crate::screens::viewport::input::{
     annotation_position, circle_from, measure_preview, rectangle_corner, refine,
 };
-use crate::screens::viewport::{PICK_PIXELS, ViewScale};
+use crate::screens::viewport::{HOLD_PIXELS, PICK_PIXELS, ViewScale};
 
 /// The annotation the dimension tool is showing in advance: the one a click
 /// would choose, or the one already chosen and looking for its place.
@@ -37,7 +37,9 @@ pub(crate) fn pending_annotation(
             .document
             .sketches()
             .get(index)
-            .map_or(target, |sketch| sketch.oriented(target, cursor));
+            .map_or(target, |sketch| {
+                sketch.oriented_holding(target, cursor, pixel * HOLD_PIXELS)
+            });
         // The preview is nudged from where the annotation stands today, not
         // moved to an absolute offset: `push` adds a nudge on top of whatever
         // the dimension already carries.

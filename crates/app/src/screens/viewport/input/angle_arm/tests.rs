@@ -250,10 +250,7 @@ fn ninety_typed_on_a_chained_trait_lays_the_corner_and_no_arm() {
         (to - from).normalize().distance(-DVec2::Y) < 1e-9,
         "the mouse below, the square corner turns down: {from} to {to}",
     );
-    let corner = DimensionTarget::Angle {
-        first: SegmentId(0),
-        second: SegmentId(1),
-    };
+    let corner = DimensionTarget::corner(SegmentId(0), SegmentId(1));
     let laid = sketch
         .dimension_of(corner)
         .expect("the corner's angle is laid");
@@ -354,7 +351,7 @@ fn a_symmetric_line_drawn_at_a_typed_angle_gets_its_reading() {
 
     let (arm, trait_drawn) = (SegmentId(1), SegmentId(0));
     let names_both = |target: &DimensionTarget| match *target {
-        DimensionTarget::Angle { first, second } => (first, second) == (arm, trait_drawn),
+        DimensionTarget::Angle { first, second, .. } => (first, second) == (arm, trait_drawn),
         DimensionTarget::AngleBetween { first, second, .. } => {
             (first, second) == (arm, trait_drawn) || (first, second) == (trait_drawn, arm)
         }

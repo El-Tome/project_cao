@@ -203,6 +203,15 @@ afterwards moves its value, never what it measures. To measure another quarter,
 delete it and put it down again. A trait and an axis carry one angle between
 them; clicking the pair again opens it.
 
+An angle between **two traits** follows the same rule everywhere. Their two
+lines cut four quarters where they cross, and the dimension measures the one it
+is put down in, cut by the lines themselves — right beside a trait included.
+At a **corner**, the quarters lie between the two traits, between one trait and
+the other's prolongation past the corner, or between the two prolongations. A
+**T** opens four ways like an **X**, its stem prolonged past its foot. A
+prolongation an angle opens from is drawn thin, out to the arc. A corner, like
+a pair of traits, carries one angle.
+
 A dimension from a point to a line reads as if a perpendicular segment came
 down from the point to the line. It really is the **line** that is measured,
 not the drawn stretch of trait: when the foot falls beyond the end, a thin

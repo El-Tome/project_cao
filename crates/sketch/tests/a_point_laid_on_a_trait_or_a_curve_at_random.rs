@@ -107,7 +107,7 @@ fn measured(sketch: &Sketch, target: DimensionTarget) -> Vec<PointId> {
         DimensionTarget::Distance { from, to } | DimensionTarget::Projected { from, to, .. } => {
             vec![Element::Point(from), Element::Point(to)]
         }
-        DimensionTarget::Angle { first, second }
+        DimensionTarget::Angle { first, second, .. }
         | DimensionTarget::AngleBetween { first, second, .. } => {
             vec![Element::Segment(first), Element::Segment(second)]
         }

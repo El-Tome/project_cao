@@ -249,9 +249,16 @@ impl DimensionTarget {
     pub fn normalised(self) -> Self {
         match self {
             Self::Distance { from, to } if to.0 < from.0 => Self::Distance { from: to, to: from },
-            Self::Angle { first, second } if second.0 < first.0 => Self::Angle {
+            Self::Angle {
+                first,
+                first_along,
+                second,
+                second_along,
+            } if second.0 < first.0 => Self::Angle {
                 first: second,
+                first_along: second_along,
                 second: first,
+                second_along: first_along,
             },
             Self::AngleBetween {
                 first,

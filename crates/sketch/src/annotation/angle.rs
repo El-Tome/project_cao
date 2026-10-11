@@ -8,10 +8,11 @@ use glam::DVec2;
 
 use super::{AnnotationMetrics, Moved, arrow};
 
-/// An angle's first arm, and whether the drawing already holds a line along it.
+/// An arm of an angle, and whether the drawing already holds a line along it.
 /// Two traits meeting each draw their own; an angle read against a sketch axis
 /// opens from a direction taken at the trait's middle, where the axis line —
-/// drawn through the origin — is not.
+/// drawn through the origin — is not, and a corner's angle may open along a
+/// trait's prolongation past the corner, which nothing draws either.
 #[derive(Clone, Copy)]
 pub(super) enum Arm {
     Drawn(DVec2),
@@ -34,13 +35,14 @@ pub(super) fn angular(
     out: &mut Vec<(DVec2, DVec2)>,
     pivot: DVec2,
     first: Arm,
-    second: DVec2,
+    second: Arm,
     by: Moved,
     metrics: AnnotationMetrics,
 ) -> (DVec2, DVec2) {
     let (Arm::Drawn(from) | Arm::Reference(from)) = first;
+    let (Arm::Drawn(to) | Arm::Reference(to)) = second;
     let start = (from - pivot).to_angle();
-    let mut sweep = (second - pivot).to_angle() - start;
+    let mut sweep = (to - pivot).to_angle() - start;
     // Always draw the smaller way round: that is the angle being talked
     // about.
     while sweep > PI {
@@ -77,6 +79,9 @@ pub(super) fn angular(
     let at_end = pivot + DVec2::from_angle(start + sweep) * radius;
     if let Arm::Reference(_) = first {
         out.push((pivot, at_start));
+    }
+    if let Arm::Reference(_) = second {
+        out.push((pivot, at_end));
     }
     arrow(out, at_start, tangent(start, sweep.signum()), metrics);
     arrow(

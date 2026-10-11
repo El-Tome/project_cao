@@ -281,7 +281,7 @@ fn an_angle_typed_for_an_ellipse_leans_on_an_arm_from_its_centre() {
             DimensionTarget::AngleBetween { first, second, .. } => {
                 (first, second) == (arm, oval.first) || (first, second) == (oval.first, arm)
             }
-            DimensionTarget::Angle { first, second } => {
+            DimensionTarget::Angle { first, second, .. } => {
                 (first, second) == (arm, oval.first) || (first, second) == (oval.first, arm)
             }
             _ => false,

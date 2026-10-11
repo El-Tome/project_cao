@@ -284,7 +284,9 @@ impl Sketch {
     /// angle, since that is where it was read.
     fn corner_of_an_angle_on(&self, segment: SegmentId, values: &[Dimension]) -> Option<PointId> {
         values.iter().find_map(|value| match value.target {
-            DimensionTarget::Angle { first, second } if first == segment || second == segment => {
+            DimensionTarget::Angle { first, second, .. }
+                if first == segment || second == segment =>
+            {
                 let other = match first == segment {
                     true => second,
                     false => first,

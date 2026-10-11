@@ -16,10 +16,31 @@ pub(super) struct Piece {
     pub(super) reaches_the_corner: bool,
 }
 
+/// How near one of its own ends a trait may be met and still be met at that
+/// end, as a fraction of its length: the foot of a T. Far wider than rounding,
+/// since a solver leaves a foot held on the other trait a hair off it.
+const AT_AN_END: f64 = 1e-4;
+
 impl Piece {
     /// Whether a place on the trait fell on this piece.
     pub(super) fn holds(&self, place: f64) -> bool {
         (self.spans.0..=self.spans.1).contains(&place)
+    }
+
+    /// Whether this piece carries an arm of an angle read where two traits
+    /// meet: the piece running on from that place the way the arm heads, or,
+    /// for an arm running past the trait's own end — a T's stem prolonged past
+    /// its foot — the piece still reaching that end, since no piece runs on
+    /// there and the prolongation is the line of whichever stays.
+    pub(super) fn carries_an_arm(&self, place: f64, toward: Toward) -> bool {
+        let past_its_end = match toward {
+            Toward::End => place >= 1.0 - AT_AN_END,
+            Toward::Start => place <= AT_AN_END,
+        };
+        match past_its_end {
+            true => self.spans.0 - AT_AN_END <= place && place <= self.spans.1 + AT_AN_END,
+            false => self.runs_on_from(place, toward),
+        }
     }
 
     /// Whether this piece runs on from a place on the trait the way an arm
@@ -30,14 +51,14 @@ impl Piece {
     /// bounds come from another; at a T's foot, or where a division cut, the
     /// two should agree and need not to the last bit. A T's foot comes out a
     /// few parts in 10¹⁶ *before* the stem's start about one time in five, and
-    /// read exactly that drops the angle off the only piece that carries it.
-    /// So the place is taken a hair along the way the arm heads, where the
-    /// stretch it measures truly lies.
-    pub(super) fn runs_on_from(&self, place: f64, toward: Toward) -> bool {
-        const PAST: f64 = 1e-9;
+    /// a foot a rule holds on the bar a few parts in 10⁸ wherever the solver
+    /// left it; read exactly, either drops the angle off the only piece that
+    /// carries it. So the place is taken a little along the way the arm heads,
+    /// where the stretch it measures truly lies.
+    fn runs_on_from(&self, place: f64, toward: Toward) -> bool {
         let past = match toward {
-            Toward::End => place + PAST,
-            Toward::Start => place - PAST,
+            Toward::End => place + AT_AN_END,
+            Toward::Start => place - AT_AN_END,
         };
         self.spans.0 < past && past < self.spans.1
     }
@@ -201,12 +222,17 @@ pub(super) fn still_measured(
             axis,
             axis_toward,
         }),
-        DimensionTarget::Angle { first, second }
-            if (first == cut || second == cut) && piece.reaches_the_corner =>
-        {
+        DimensionTarget::Angle {
+            first,
+            first_along,
+            second,
+            second_along,
+        } if (first == cut || second == cut) && piece.reaches_the_corner => {
             Some(DimensionTarget::Angle {
                 first: moved(first),
+                first_along,
                 second: moved(second),
+                second_along,
             })
         }
         DimensionTarget::PointToSegment { point, segment }
@@ -232,7 +258,7 @@ pub(super) fn still_measured(
                 false => second_toward,
             };
             place
-                .is_some_and(|meet| piece.runs_on_from(meet, toward))
+                .is_some_and(|meet| piece.carries_an_arm(meet, toward))
                 .then_some(DimensionTarget::AngleBetween {
                     first: moved(first),
                     first_toward,

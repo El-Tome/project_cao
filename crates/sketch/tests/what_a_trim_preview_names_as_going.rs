@@ -74,14 +74,7 @@ fn a_square_corner_with_its_angle_typed() -> (Sketch, [SegmentId; 2], [[PointId;
     let north = sketch.add_point(DVec2::new(1.0, 11.0));
     let across = sketch.add_segment(corner, east);
     let up = sketch.add_segment(corner, north);
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: across,
-            second: up,
-        },
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(across, up), 90.0, false);
     let on_across = [
         sketch.add_point(DVec2::new(5.0, 1.0)),
         sketch.add_point(DVec2::new(8.0, 1.0)),

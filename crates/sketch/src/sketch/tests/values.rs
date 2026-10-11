@@ -113,7 +113,7 @@ fn changing_an_angle_turns_the_far_shape_instead_of_bending_it() {
     let second = sketch.add_segment(corner, c);
     sketch.add_segment(c, d);
 
-    sketch.set_dimension(DimensionTarget::Angle { first, second }, 90.0, false);
+    sketch.set_dimension(DimensionTarget::corner(first, second), 90.0, false);
     sketch.resolve(1.0);
 
     let shape_of = |sketch: &Sketch| {
@@ -125,7 +125,7 @@ fn changing_an_angle_turns_the_far_shape_instead_of_bending_it() {
     };
     let (was_anchored, was_far) = (sketch.point(a), shape_of(&sketch));
 
-    sketch.set_dimension(DimensionTarget::Angle { first, second }, 60.0, false);
+    sketch.set_dimension(DimensionTarget::corner(first, second), 60.0, false);
     assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 
     // The side hanging off the origin has not budged...
@@ -161,14 +161,7 @@ fn a_rectangle_does_not_turn_when_one_of_its_sides_changes() {
         sketch.add_segment(top, corner),
     ];
     for pair in sides.windows(2) {
-        sketch.set_dimension(
-            DimensionTarget::Angle {
-                first: pair[0],
-                second: pair[1],
-            },
-            90.0,
-            false,
-        );
+        sketch.set_dimension(DimensionTarget::corner(pair[0], pair[1]), 90.0, false);
     }
     sketch.set_dimension(DimensionTarget::Length(sides[0]), 100.0, false);
     sketch.set_dimension(DimensionTarget::Length(sides[1]), 50.0, false);
@@ -190,14 +183,8 @@ fn a_rectangle_does_not_turn_when_one_of_its_sides_changes() {
 
 #[test]
 fn the_two_ways_of_naming_a_pair_are_one_target() {
-    let first = DimensionTarget::Angle {
-        first: SegmentId(3),
-        second: SegmentId(1),
-    };
-    let second = DimensionTarget::Angle {
-        first: SegmentId(1),
-        second: SegmentId(3),
-    };
+    let first = DimensionTarget::corner(SegmentId(3), SegmentId(1));
+    let second = DimensionTarget::corner(SegmentId(1), SegmentId(3));
     assert_eq!(first.normalised(), second.normalised());
 
     let there = DimensionTarget::Distance {
@@ -218,14 +205,7 @@ fn the_two_ways_of_naming_a_pair_are_one_target() {
 fn an_angle_still_holds_after_a_length_is_changed() {
     let (mut sketch, [base, side, _]) = triangle();
 
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: base,
-            second: side,
-        },
-        60.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(base, side), 60.0, false);
     sketch.resolve(1.0);
     assert!((sketch.angle_between(base, side).unwrap() - 60.0).abs() < 0.1);
 
@@ -243,14 +223,7 @@ fn every_value_holds_at_once() {
     let (mut sketch, [base, side, _]) = triangle();
     sketch.set_dimension(DimensionTarget::Length(base), 50.0, false);
     sketch.set_dimension(DimensionTarget::Length(side), 20.0, false);
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: base,
-            second: side,
-        },
-        45.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(base, side), 45.0, false);
 
     assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 

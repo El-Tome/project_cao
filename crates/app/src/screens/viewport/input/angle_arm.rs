@@ -79,15 +79,7 @@ pub(crate) fn lean_on_an_arm(
     let sketch = &context.document.sketches()[index];
     let Some((target, opened)) = sketch
         .angle_between(arm, drawn)
-        .map(|opened| {
-            (
-                DimensionTarget::Angle {
-                    first: arm,
-                    second: drawn,
-                },
-                opened,
-            )
-        })
+        .map(|opened| (DimensionTarget::corner(arm, drawn), opened))
         .or_else(|| {
             let target = sketch.angle_between_traits(arm, drawn);
             Some((target, sketch.opening(target)?))
@@ -131,10 +123,7 @@ fn lean_on_the_trait_before(
     pixel: f64,
 ) {
     let typed = context.editor.live.typed_as_written(1);
-    let target = DimensionTarget::Angle {
-        first: before,
-        second: drawn,
-    };
+    let target = DimensionTarget::corner(before, drawn);
     let Some(opened) = context
         .document
         .sketches()

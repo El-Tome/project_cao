@@ -9,14 +9,7 @@ fn the_third_side_of_a_settled_triangle_is_redundant() {
     let (mut sketch, [base, side, hypotenuse]) = triangle();
     sketch.set_dimension(DimensionTarget::Length(base), 40.0, false);
     sketch.set_dimension(DimensionTarget::Length(side), 30.0, false);
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: base,
-            second: side,
-        },
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(base, side), 90.0, false);
     sketch.resolve(1.0);
 
     assert!(
@@ -39,14 +32,7 @@ fn a_drawing_needs_no_angle_to_the_axes_to_be_complete() {
     let (mut sketch, [base, side, _]) = triangle();
     sketch.set_dimension(DimensionTarget::Length(base), 40.0, false);
     sketch.set_dimension(DimensionTarget::Length(side), 30.0, false);
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: base,
-            second: side,
-        },
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(base, side), 90.0, false);
     sketch.resolve(1.0);
 
     // Which way up the drawing sits is implicit, like its origin point.
@@ -61,14 +47,7 @@ fn an_angle_to_an_axis_replaces_the_implicit_one() {
     let (mut sketch, [base, side, _]) = triangle();
     sketch.set_dimension(DimensionTarget::Length(base), 40.0, false);
     sketch.set_dimension(DimensionTarget::Length(side), 30.0, false);
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: base,
-            second: side,
-        },
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(base, side), 90.0, false);
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
             segment: base,

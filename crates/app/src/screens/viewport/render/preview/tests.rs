@@ -4,6 +4,11 @@
 //! - the preview before the click shows the angle the click lays: the quarter
 //!   under the cursor, about the middle of the trait —
 //!   `an_angle_to_an_axis_is_previewed_in_the_quarter_under_the_cursor`
+//!
+//! Closes #485.
+//! - the preview before the click shows the angle the click lays: at a corner,
+//!   the quarter under the cursor —
+//!   `an_angle_at_a_corner_is_previewed_in_the_quarter_under_the_cursor`
 
 use cao_part::{Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
@@ -232,6 +237,62 @@ fn an_angle_to_an_axis_is_previewed_in_the_quarter_under_the_cursor() {
             extrusion: &mut extrusion,
             lang: &lang,
         };
+
+        let (shown, _) =
+            pending_annotation(&context, 0, cursor, 1.0, 0.05).expect("an angle is shown");
+
+        let reads = context.document.measured(0, shown).expect("it reads");
+        assert!(
+            (reads - expected).abs() < 1e-6,
+            "under {cursor:?} the preview shows {reads}°, not {expected}°",
+        );
+    }
+}
+
+#[test]
+fn an_angle_at_a_corner_is_previewed_in_the_quarter_under_the_cursor() {
+    let acute = 50.0_f64.atan2(40.0).to_degrees();
+    let corner = DVec2::new(60.0, 20.0);
+    for (offset, expected) in [
+        (DVec2::new(-20.0, 30.0), 180.0 - acute),
+        (DVec2::new(40.0, 20.0), acute),
+        (DVec2::new(20.0, -30.0), 180.0 - acute),
+        (DVec2::new(-30.0, -10.0), acute),
+    ] {
+        let mut document = PartDocument::new("part", Utc::now());
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        });
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(DVec2::new(0.0, 20.0)),
+            end: PointRef::New(corner),
+            construction: false,
+        });
+        let pivot = document.sketches()[0].segments()[0].end;
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::Existing(pivot),
+            end: PointRef::New(DVec2::new(100.0, 70.0)),
+            construction: false,
+        });
+        let chosen = document.sketches()[0].corner_angle(SegmentId(0), SegmentId(1));
+        let mut editor = SketchEditor::default();
+        let mut extrusion = ExtrusionState::default();
+        let lang = Catalogue::french();
+        editor.tool = Tool::Dimension;
+        editor.tool_state = ToolState::Dimension {
+            placing: Some(chosen),
+            picks: Default::default(),
+        };
+        let context = SketchContext {
+            document: &mut document,
+            editor: &mut editor,
+            extrusion: &mut extrusion,
+            lang: &lang,
+        };
+        let cursor = corner + offset;
 
         let (shown, _) =
             pending_annotation(&context, 0, cursor, 1.0, 0.05).expect("an angle is shown");

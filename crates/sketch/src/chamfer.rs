@@ -234,10 +234,7 @@ impl Chamfered {
             Chamfer::Angled { along, degrees } => vec![
                 (from_corner(on_first), along),
                 (
-                    DimensionTarget::Angle {
-                        first: self.stretches[0],
-                        second: self.cut,
-                    },
+                    DimensionTarget::corner(self.stretches[0], self.cut),
                     degrees,
                 ),
             ],

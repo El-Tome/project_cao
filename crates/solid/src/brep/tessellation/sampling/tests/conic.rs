@@ -1,14 +1,15 @@
 use std::f64::consts::TAU;
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use super::super::super::tests::{fixtures, slanted};
 use super::super::conic::on_conic;
 use super::super::{Samples, divisions};
-use crate::brep::conic::{Conic, On};
+use crate::brep::conic::{Conic, On, Round};
 use crate::brep::curve::Curve;
-use crate::brep::surface::Surface;
-use crate::brep::topology::{Body, EdgeId, SurfaceId};
+use crate::brep::surface::{Cylinder, Surface};
+use crate::brep::topology::{Body, EdgeId, SurfaceId, VertexId};
+use crate::profile::{Contour, Frame, Run};
 
 /// How close to a grid angle a sample must stand for the outline to cut a
 /// face going round there.
@@ -220,4 +221,93 @@ fn a_conic_on_a_cone_widens_the_cone_s_grid() {
             assert!(divisions(widest, tolerance) > divisions(rim, tolerance));
         }
     }
+}
+
+/// A shaft of radius `SHAFT` about Z, its top at z = 0, cut below a plane
+/// through the line y = `across` of its top leaning `lean` off square to Z:
+/// what is left is a wedge whose two rims on the wall, the top's circle and
+/// the plane's conic, end together on that line.
+fn wedge_of_a_shaft(across: f64, lean: f64) -> Body {
+    let shaft = Contour {
+        corners: vec![DVec2::X * SHAFT],
+        runs: vec![Run::Round {
+            center: DVec2::ZERO,
+            turn: TAU,
+        }],
+    };
+    let ground = Frame {
+        origin: DVec3::NEG_Z * 30.0,
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    let body = Body::raised(&shaft, &[], ground, DVec3::Z * 30.0).expect("a shaft raises");
+    let v = DVec3::new(0.0, lean.cos(), lean.sin());
+    let normal = DVec3::X.cross(v);
+    let leaning = Frame {
+        origin: DVec3::Y * across - normal * 50.0,
+        u: DVec3::X,
+        v,
+    };
+    let block = Contour::rectangle(DVec2::splat(-200.0), DVec2::splat(200.0));
+    let tool = Body::raised(&block, &[], leaning, normal * 50.0).expect("a block raises");
+    body.cut_by(&tool).expect("the wedge is cut")
+}
+
+const SHAFT: f64 = 60.0;
+
+/// The circle and the conic of `wall` ending together at `vertex`, if two
+/// such edges do.
+fn rims_ending_at(body: &Body, vertex: VertexId) -> Option<(EdgeId, EdgeId, Cylinder)> {
+    let ending = body.edge_ids().filter(|id| {
+        body.edge(*id)
+            .ends
+            .is_some_and(|ends| ends.contains(&vertex))
+    });
+    let (mut circle, mut conic) = (None, None);
+    for id in ending {
+        match body.curve(body.edge(id).curve) {
+            Curve::Circle(_) => circle = Some(id),
+            Curve::Conic(Conic {
+                round: Round::Cylinder(wall),
+                ..
+            }) => conic = Some((id, *wall)),
+            _ => {}
+        }
+    }
+    let (circle, (conic, wall)) = (circle?, conic?);
+    Some((circle, conic, wall))
+}
+
+#[test]
+fn a_circle_and_a_conic_ending_together_on_one_wall_take_the_same_grid_angles_beside_their_end() {
+    let tolerance = 0.15;
+    let step = TAU / divisions(SHAFT, tolerance) as f64;
+    let grid = (TAU / 3.0 / step).round() * step;
+    let body = wedge_of_a_shaft(SHAFT * (grid - 0.2_f64.to_radians()).sin(), 1.6e-7);
+    let samples = Samples::of(&body, tolerance);
+    let mut ends = 0;
+    for vertex in body.vertex_ids() {
+        let Some((circle, conic, wall)) = rims_ending_at(&body, vertex) else {
+            continue;
+        };
+        ends += 1;
+        let at = wall.parameters(body.vertex(vertex).point).x;
+        let beside = |edge: EdgeId| -> Vec<i64> {
+            samples
+                .edge(edge)
+                .iter()
+                .map(|id| wall.parameters(samples.point(*id)).x)
+                .filter(|angle| apart(*angle, at) <= step)
+                .filter(|angle| apart(*angle, (angle / step).round() * step) <= CLEAR)
+                .map(|angle| (angle / step).round() as i64)
+                .collect()
+        };
+        assert_eq!(
+            beside(circle),
+            beside(conic),
+            "the rims ending at {:?} take other grid angles beside it",
+            body.vertex(vertex).point
+        );
+    }
+    assert_eq!(ends, 2, "the circle and the conic end together twice");
 }

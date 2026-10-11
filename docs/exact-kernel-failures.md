@@ -1752,3 +1752,100 @@ design and the bound are in `exact-kernel.md`, step 10 of the boolean.
   degree (5543224272, 5543227890) are built with the notice where the
   kernel builds them, and broken with their reason where it declines.
 
+
+### Round 5: the pieces with no hair
+
+Round 4's measurement at `beaf75d` left eleven shrunk cases with no hair,
+each failing on `85a2d2e` too. Three causes are fixed, each decided once,
+and with them the two regions with no point inside them inherited from
+#533 and #536 and two cases ignored since earlier campaigns:
+
+- **A corner where two walls touch at a point** (5544320693): a rod joined
+  to a post it touches, cut by a pin of the rod's radius whose axis meets
+  the rod's at the touch. The node of the pin and the rod is that touch,
+  and the line the pin touches the post along runs through it; the union
+  left no edge there, so the node, found on the pin and the rod alone,
+  never cut the line, and a region of the pin had no point inside it. A
+  corner standing where two walls were decided to touch at a point — the
+  node or the contact of two perpendicular cylinders — now lies on both
+  (`canonical/apart.rs`, decision 5). It holds 5543305067 and 5543616767
+  too. Read at a cone's apex as well, it broke 5545235515 in the round's
+  own campaign, a plane at a cone's slope a hair off its apex, and taken
+  onto a wall decided apart from the corner's, 5545618519, a post across
+  two rods of one axis a hair apart in radius; both seeds are named.
+- **A line inside a wall's section by rounding** (5544100660, 5544229207):
+  a cut at 60°, or at 45°, through a wall's lowest line at its end. The
+  line the cut shares with the end, 3e-14 inside the section, crossed the
+  wall twice 3.2e-6 apart where the cut's ellipse touches the end once.
+  Round 4 decided it for a cone's section alone; the line a plane square
+  to a wall's axis shares with a plane crossing it steeply now touches any
+  wall it stands inside by rounding alone, and the line, the circle and
+  the conic of that corner reach the one touch
+  (`relation/crossing/section.rs`, decision 4). Not beside a plane leaning
+  along the axis: there the rule broke 5549116996, a hairpin whose vertex
+  stands where rounding over its lean puts it. Nor for a circle no plane of
+  the triple holds: read for any circle, it broke 5545108465 in the
+  round's own campaign, a rim where a shaft gives way to a cone cut
+  through the cone's apex a hair off its slope, whose hairpin crosses the
+  rim twice; the touch is now read only for the edges lying on the
+  triple's surfaces, and that seed is named. It holds 9304992 too.
+- **Two arcs leaving a corner together** (5544515442): a rod along a
+  rounded block's side, cut by a post touching the block's front where its
+  corner's wall does. On the rod, the curves the post and the corner's
+  wall meet it along leave their corner flat, touching to the fourth
+  order; their chords a tenth along were drawn to places at different
+  distances, the shorter one's reading below though it runs above, and
+  the rod's cycles were traced across each other. Two such arcs are now
+  ordered first by where each stands at one run, half the shorter (the
+  overlay, step 5). It holds 6128869 too, ignored since campaign 6.
+
+Left, each ignored with what was found:
+
+- **A turn of 359.9° whose slit meets a tangent line at a rim**
+  (5544504441): the 105° turn's inner wall touches the shaft's step along
+  a line through the step's inner rim exactly at the slit, where the
+  curve the shaft's wall meets that inner wall along leaves the rim
+  touching it to the fourth order, within the tolerance of it across the
+  whole slit. The step's face is lost: its rims, the slit's lines and the
+  curves at the touch are left with one face each, declined as
+  unverified. Reading the meeting curve on the step's plane as the rim, as
+  a circle is read on a wall as the meeting curve (`domain/traced.rs`),
+  removed a decline there and changed nothing else.
+- **A cone face meeting itself along a circle** (5544323650): the body is
+  verified, but the cone's face, whose wall runs on above and below the
+  circle where the half ring's top and inner wall end — an edge with four
+  uses — is not cut into triangles: its loop runs along that circle and
+  back, and the sweep in the cone's parameters gives up
+  (`tessellation/sweep.rs`). Left open.
+- **Two walls of one radius tangent at a node** (5544618545, 5544629222):
+  the body holds, and so do the exact kernel's own triangles. Drawn as the
+  application draws, at a fifth of a thousandth of the reach, the sliver
+  faces either side of the two ellipses, between the node and a pin's or
+  a post's curves, stand 0.004 apart where their chords sag 0.003, and
+  their triangles cross. The strips the contact of two perpendicular
+  walls is cut in follow the rays of their circles, not those curves.
+- **Crossings at a rim** (5544205878, 5544518834, 5544528726): a cone face
+  and a bore face where a hyperbola meets the bore's rim, drawn as the
+  application draws; a post's face and a floor at its rim, and two walls
+  of the turned families of #533, at the exact kernel's own tolerance.
+  Not diagnosed further.
+
+Measured at `54aed83` against `f57a5ca`, release, fifteen minutes a draw
+on fresh seeds, the two trees side by side on five threads each, counted
+over the seeds both reached:
+
+| Draw | First seed | Seeds | `f57a5ca` | Round 5 | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5545100000 | 40 756 | 106 | 105 | 1 | 0 |
+| tilted, application's body | 5545200000 | 58 733 | 159 | 159 | 0 | 0 |
+| slanted, exact kernel | 5545300000 | 39 459 | 26 | 25 | 1 | 0 |
+| turned, exact kernel | 5545500000 | 30 545 | 19 | 19 | 0 | 0 |
+| turned, application's body | 5545600000 | 39 087 | 17 | 16 | 1 | 0 |
+
+The plain pieces are rare in fresh draws, so the counts barely move;
+what the round measures is that no seed that held breaks. The two
+measurements before this one broke three seeds (5545108465, 5545235515,
+5545618519), each a reading wider than its cause asked for; each is
+named, and the rules are narrowed to hold them. Every named-case file
+with `--include-ignored`: nothing that passed at `f57a5ca` fails, and
+6128869 and 9304992, ignored before, hold.

@@ -951,3 +951,26 @@ campaigns at a time on five threads each, and the same seeds run on
 - The gate's tests, built and warm, take about 35.5 s at `beaf75d`, 35.2 s
   at `85a2d2e` and 33.3 s at `9e54a71`, the tip of #536: about 2.3 s over
   it, inside the 3 s allowed.
+
+## 11 October: round 5 of #552, the pieces with no hair
+
+The lane of round 5 that takes the eleven shrunk cases with no hair round
+4 left, on top of `f57a5ca`. Four hold, by three causes each decided once
+(`79c4793`, `734316b`, `8da8ad5`): a corner where two walls touch at a
+point lies on both; the line a plane square to a wall's axis shares with
+a steep plane, inside the wall's section by rounding alone, touches it;
+two arcs leaving a corner together are ordered first where each stands
+at one run. With them hold the two inherited regions with no point
+inside them (5543305067, 5543616767) and two cases ignored since earlier
+campaigns (6128869, 9304992). Seven stay ignored, with what was found of
+them, in `exact-kernel-failures.md`.
+
+The round's campaigns broke three seeds that held on `f57a5ca`, each
+found, shrunk, named and held by narrowing the rule that broke it
+(`cc979c8`, `a615a92`, `54aed83`): the touch of a line inside a section
+is read only for the edges of the triple's own surfaces; the points two
+surfaces touch at are only those of two cylinders; a corner is never
+taken onto a wall decided apart from its own. Measured at `54aed83`,
+fifteen minutes a draw on fresh seeds from 5545100000 to 5545600000,
+five draws and some 208 000 seeds against `f57a5ca`: four repaired, none
+broken.

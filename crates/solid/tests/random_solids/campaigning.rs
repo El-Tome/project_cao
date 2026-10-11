@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant, SystemTime};
 
-use cao_solid::soundness::{Check, Flaw, Random, Report, answer, campaign_across, shrink};
+use cao_solid::soundness::{Check, Flaw, Random, Report, Rerun, campaign_across, shrunk_across};
 
 use super::Case;
 
@@ -92,6 +92,15 @@ pub fn from_the_environment(name: &str) -> Option<u64> {
     std::env::var(name).ok()?.parse().ok()
 }
 
+/// How many threads a campaign and its shrinks run on: `CAO_FUZZ_THREADS`,
+/// or every core of the machine.
+fn threads() -> usize {
+    from_the_environment("CAO_FUZZ_THREADS").map_or_else(
+        || std::thread::available_parallelism().map_or(1, |cores| cores.get()),
+        |threads| threads as usize,
+    )
+}
+
 /// A campaign over the cases `draw` gives, held by `check` on the kernel
 /// `answering` names, for as long as the environment says, and its report.
 pub fn campaign_over(
@@ -109,10 +118,7 @@ pub fn campaign_over(
     });
     let cases = from_the_environment("CAO_FUZZ_CASES").unwrap_or(u64::MAX);
     let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
-    let threads = from_the_environment("CAO_FUZZ_THREADS").map_or_else(
-        || std::thread::available_parallelism().map_or(1, |cores| cores.get()),
-        |threads| threads as usize,
-    );
+    let threads = threads();
     let deadline = Instant::now() + Duration::from_secs(seconds);
     println!(
         "campaign of {what} {} from seed {first}, for {seconds} s, on {threads} threads",
@@ -143,37 +149,39 @@ pub fn campaign_over(
 }
 
 /// Each seed run again, shrunk while it still breaks the same rule, and
-/// printed as a test: what a campaign's failures are sorted into distinct
-/// ones from.
+/// printed as a test in seed order: what a campaign's failures are sorted
+/// into distinct ones from. The seeds are shrunk each on its own, on as many
+/// threads as the campaign ran on.
 pub fn shrunk_one_by_one(seeds: Vec<u64>, draw: fn(u64) -> Case, check: Check<Case>) {
     let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
+    let threads = threads();
+    println!("{} seeds shrunk on {threads} threads", seeds.len());
     let quiet = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
-    for seed in seeds {
-        let drawn = draw(seed);
-        let Err(flaw) = answer(drawn.clone(), &check, patience) else {
-            println!("\n── holds, seed {seed} ──");
-            continue;
-        };
-        let mut last = flaw.clone();
-        let shrunk = shrink(
-            drawn.clone(),
-            Case::smaller,
-            |candidate| match answer(candidate.clone(), &check, patience) {
-                Err(broken) if broken.is_like(&flaw) => {
-                    last = broken;
-                    true
-                }
-                _ => false,
-            },
-            || true,
-        );
-        println!(
-            "\n── {:?}, seed {seed} ──\nas drawn: {flaw:?}\nshrunk:   {last:?}\n{}",
-            flaw.rule(),
-            shrunk.to_string().replace('\n', "\n    "),
-        );
-    }
+    shrunk_across(
+        threads,
+        seeds,
+        draw,
+        check,
+        Case::smaller,
+        patience,
+        |rerun| match rerun {
+            Rerun::Holds(seed) => println!("\n── holds, seed {seed} ──"),
+            Rerun::Breaks { finding, hung } => println!(
+                "\n── {:?}, seed {} ──\nas drawn: {:?}\nshrunk:   {:?}{}\n{}",
+                finding.flaw.rule(),
+                finding.seed,
+                finding.flaw,
+                finding.shrunk_flaw,
+                if hung {
+                    "\nhung:     a check never came back, the shrink stopped there"
+                } else {
+                    ""
+                },
+                finding.shrunk.to_string().replace('\n', "\n    "),
+            ),
+        },
+    );
     std::panic::set_hook(quiet);
 }
 

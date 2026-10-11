@@ -10,7 +10,7 @@ use super::{Flaw, Rule, Silence, shrink};
 
 mod across;
 
-pub use across::campaign_across;
+pub use across::{Rerun, campaign_across, shrunk_across};
 
 /// What a check is: a case in, a rule it broke out.
 pub type Check<C> = Arc<dyn Fn(&C) -> Result<(), Flaw> + Send + Sync>;

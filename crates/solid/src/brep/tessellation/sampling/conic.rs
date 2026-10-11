@@ -123,24 +123,38 @@ pub(super) fn rays_along(
     tolerance: f64,
 ) -> BTreeMap<SurfaceId, Vec<DVec3>> {
     let eps = body.scale().eps();
+    let sampled: Vec<(&Edge, &Conic, Vec<DVec3>)> = body
+        .edge_ids()
+        .filter_map(|id| {
+            let edge = body.edge(id);
+            let Curve::Conic(conic) = body.curve(edge.curve) else {
+                return None;
+            };
+            let rays = rays_about(conic, walls, contacts, eps);
+            let ends = edge
+                .ends
+                .into_iter()
+                .flatten()
+                .map(|end| body.vertex(end).point);
+            let points = of_edge(body, edge, conic, zones, grids, &rays, tolerance)
+                .into_iter()
+                .chain(ends)
+                .collect();
+            Some((edge, conic, points))
+        })
+        .collect();
     let mut along: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
-    for id in body.edge_ids() {
-        let edge = body.edge(id);
-        let Curve::Conic(conic) = body.curve(edge.curve) else {
-            continue;
-        };
+    for (edge, conic, points) in &sampled {
         let (origin, axis) = about(&conic.round);
-        let rays = rays_about(conic, walls, contacts, eps);
-        let ends = edge
-            .ends
-            .into_iter()
-            .flatten()
-            .map(|end| body.vertex(end).point);
-        let ways: Vec<DVec3> = of_edge(body, edge, conic, zones, grids, &rays, tolerance)
-            .into_iter()
-            .chain(ends)
+        let beside = sampled
+            .iter()
+            .filter(|(other, theirs, _)| leaving_together([edge, other], [conic, theirs]))
+            .flat_map(|(_, _, theirs)| theirs.iter());
+        let ways: Vec<DVec3> = points
+            .iter()
+            .chain(beside)
             .filter_map(|point| {
-                let from = point - origin;
+                let from = *point - origin;
                 (from - axis * axis.dot(from)).try_normalize()
             })
             .collect();
@@ -152,6 +166,44 @@ pub(super) fn rays_along(
         }
     }
     along
+}
+
+/// The sine under which two curves leaving a vertex are read as leaving it
+/// together.
+const TOGETHER: f64 = 1e-3;
+
+/// Whether two conics of one plane, cut on walls about axes across each
+/// other, leave a vertex they share together: where the two walls touch at
+/// a node, a plane through it cuts both along curves tangent there, parting
+/// as the square of the distance from it. Sampled each on its own wall's
+/// angles, their chords cross near the node, and the face between them, a
+/// horn, cannot be cut (5550117749); each then takes the other's samples as
+/// its wall's rays. Not on two parallel walls: touching along a line, they
+/// are sampled on the rays they share already, which another wall's would
+/// put out of order (5551609285).
+fn leaving_together([one, other]: [&Edge; 2], [first, second]: [&Conic; 2]) -> bool {
+    let (Some(ends), Some(theirs)) = (one.ends, other.ends) else {
+        return false;
+    };
+    let [(_, one_axis), (_, other_axis)] = [first, second].map(|conic| about(&conic.round));
+    if one_axis.cross(other_axis).length() <= Scale::RELATIVE
+        || first.plane.normal.cross(second.plane.normal).length() > Scale::RELATIVE
+    {
+        return false;
+    }
+    let tangent = |conic: &Conic, edge: &Edge, at: DVec3| {
+        let [from, to] = [edge.from, edge.to].map(|t| conic.point(t).distance(at));
+        conic
+            .derivative(if from <= to { edge.from } else { edge.to })
+            .normalize()
+    };
+    ends.iter().filter(|end| theirs.contains(end)).any(|end| {
+        let at = first.point(if ends[0] == *end { one.from } else { one.to });
+        tangent(first, one, at)
+            .cross(tangent(second, other, at))
+            .length()
+            <= TOGETHER
+    })
 }
 
 /// The angles, about the conic's wall from its own `u`, of every ray the

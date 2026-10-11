@@ -4032,3 +4032,34 @@ fn seed_5551409953_a_post_joined_to_a_pin_touching_it_ending_a_hair_past_its_axi
         ))],
     ));
 }
+
+/// #552's round 6, found by its own turned campaign through the
+/// application's body: a turn of 225° about a line along Y, cut by a ring
+/// along X and by a cylinder along X inside it, touching its bore along a
+/// line. The turn's end plane cuts the two walls along conics tangent where
+/// it crosses that line; a first version gave each the other's samples as
+/// rays, which put the two walls' shared rays out of order, and their
+/// triangles crossed. Two parallel walls are left to the rays they share.
+#[test]
+fn seed_5551609285_a_turn_cut_by_a_ring_and_a_cylinder_touching_its_bore() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(20.0),
+            Axis::second(13.0),
+            Section::bands(20.0, &[[20.0, -13.0, -0.0]]),
+            225.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(15.0),
+                Outline::ring([35.0, 20.0], 20.0, 12.5),
+                -8.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-22.5),
+                Outline::circle([32.5, 20.0], 10.0),
+                70.0,
+            )),
+        ],
+    ));
+}

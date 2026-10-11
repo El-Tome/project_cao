@@ -8415,8 +8415,12 @@ fn seed_5548213817_a_wedge_of_0_01_degrees_cut_by_a_face_1e_7_degrees_off_its_ow
 /// 150, the edge held by one face only; through the application's body the
 /// step is refused. As drawn, the seed fails on `f57a5ca` too; not
 /// diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a half turn cut by a cylinder,
+/// a turn and a block leaning 15 degrees; the triangles leave it open along a
+/// line. Holds since two conics of one plane leaving a node of two crossing
+/// walls together are sampled on each other's places, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: a half turn cut by a cylinder, a turn and a block leaning 15 degrees; the triangles leave it open along a line"]
 fn seed_5550117749_a_half_turn_cut_by_a_cylinder_a_turn_and_a_block_leaning_15_degrees() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

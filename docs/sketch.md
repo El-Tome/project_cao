@@ -165,11 +165,53 @@ that would quietly give the trait another length.
 
 Drawing on from a trait, coming within 4° of the perpendicular **sets the trait
 at exactly 90°**, shows the little square of technical drawing in the corner,
-and places the angle constraint on validation.
+and lays « Perpendiculaire » between the two on validation — as the rectangle
+lays its corners. With the option below off, it is an angle of 90° instead.
 
 The square is shown **before** validating: a constraint that appears without
 warning is a nasty surprise. The band is wide enough to be easy to aim at,
 narrow enough not to steal an angle genuinely meant to be 80°.
+
+## 0°, 90° and 180° are rules
+
+An angle of exactly 0° or 180° says two things run the same way, and 90° that
+they stand square: that is « Parallèle » and « Perpendiculaire », with no
+number to them (#537). Typed into an angle, those three values lay the rule
+**in place of** the dimension:
+
+- against a sketch axis, 0° and 180° lay « Parallèle » to it, 90°
+  « Perpendiculaire »;
+- between two traits — at a corner, in a T, crossing or apart — 0° and 180° lay
+  « Parallèle » between them, 90° « Perpendiculaire », in the order the angle
+  was clicked;
+- in the angle of a trait drawn at a typed angle, read against its arm, the
+  rule is to the horizontal axis, and the arm goes with the dimension;
+- a trait **drawn** at 0°, 90° or 180° typed gets the rule straight away, with
+  no arm and no angle: to the horizontal axis when drawn from no trait, to the
+  trait before when drawn on from one. -90°, 270° and 360° hold it along the
+  same line as 90° and 0°. A trait drawn from an axis, along it, keeps
+  « Colinéaire » to that axis.
+
+The dimension goes, and the rule shows its mark. It is one step, named after
+the rule, and one undo gives the dimension back. To get 5° afterwards, delete
+the rule and dimension the angle again.
+
+Only those exact values, typed as a plain number: 0.01° or 89.99° is an angle
+someone meant and stays a dimension, and so does a value written from a
+variable — « pente » worth 0 — which would otherwise lose its link with it, or
+a calculation like « 45*2 ». Between two traits such a value is still refused,
+as 0° and 180° always were for a dimension there. A rule that cannot hold is
+refused like any rule (#467), and the dimension keeps its value.
+
+Once the rule between two traits apart is deleted, they still run the same
+way, and the dimension tool refuses an angle between them: one has to be moved
+first.
+
+The option « Poser une règle pour 0°, 90° et 180° », in the « Esquisse »
+section of the settings, is on by default. Turned off, those values are
+dimensions as before, in the field and in the line tool alike — and a trait
+drawn at 0° typed gets an arm lying along it, with an angle of 0 the part
+refuses.
 
 ## The smart dimension
 

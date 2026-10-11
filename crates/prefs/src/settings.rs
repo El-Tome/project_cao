@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::config::ViewportConfig;
 use crate::ports::Files;
 use crate::shortcuts::Shortcuts;
+use crate::sketching::SketchingConfig;
 use crate::storage::StorageError;
 use crate::theme::Theme;
 use crate::toolbar::ToolbarLayout;
@@ -24,6 +25,7 @@ pub const SETTINGS_VERSION: u32 = 2;
 #[serde(default)]
 pub struct Settings {
     pub viewport: ViewportConfig,
+    pub sketching: SketchingConfig,
     pub theme: Theme,
     pub shortcuts: Shortcuts,
     pub toolbar: ToolbarLayout,
@@ -36,6 +38,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             viewport: ViewportConfig::default(),
+            sketching: SketchingConfig::default(),
             theme: Theme::default(),
             shortcuts: Shortcuts::default(),
             toolbar: ToolbarLayout::default(),

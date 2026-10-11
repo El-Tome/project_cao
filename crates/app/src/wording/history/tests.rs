@@ -215,3 +215,20 @@ fn a_side_moved_and_a_shape_turned_say_so_and_unfold_into_what_they_did() {
         "Esquisse 0 · 4 points tournés de 30.0° autour de (70.0, 52.5)"
     );
 }
+
+#[test]
+fn a_rule_laid_in_place_of_a_dimension_is_named_after_the_rule() {
+    let in_place = Operation::Gesture(vec![
+        scrubbed(
+            Vec::new(),
+            vec![DimensionTarget::Length(SEGMENT)],
+            Vec::new(),
+        ),
+        Operation::Constrain {
+            sketch: 0,
+            constraint: RULE,
+        },
+    ]);
+
+    assert_eq!(said(&in_place), "Parallèle");
+}

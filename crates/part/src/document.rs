@@ -18,6 +18,7 @@ use crate::state::PartState;
 mod design;
 mod geometry_cache;
 mod matter;
+mod rule_in_place;
 mod variables;
 
 pub use variables::{Refused, Use};

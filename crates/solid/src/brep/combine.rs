@@ -92,7 +92,7 @@ pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
     let (special, done) = related::related(operands, &mut registry)?;
     let found = crossed::crossed(operands, &mut registry, &held)?;
     related::completed(operands, &mut registry, &done);
-    let candidates = candidates(operands, &registry, &ending, &special, &found);
+    let candidates = candidates(operands, &registry, &ending, &special, &found)?;
     let places: Vec<Place> = candidates
         .iter()
         .map(|candidate| {
@@ -142,7 +142,8 @@ struct Candidate {
 
 /// Every corner candidate in the fixed order they are merged in — the first
 /// operand's vertices, the second's, the relations' special points, the
-/// crossings three planes fix, the other crossings. A place three planes
+/// points where two walls of one operand touch a surface of the other
+/// passes through, the crossings three planes fix, the other crossings. A place three planes
 /// fix is exact, and the crossings a curve makes nearby are merged into it
 /// rather than into each other: a post's rim crossing the two sides of a
 /// box whose corner line stands a hair inside the wall crosses them past
@@ -153,7 +154,7 @@ fn candidates(
     ending: &held::Ending,
     special: &[Special],
     found: &[crossed::Found],
-) -> Vec<Candidate> {
+) -> Result<Vec<Candidate>, Declined> {
     let mut candidates = Vec::new();
     for (operand, body) in operands.bodies.iter().enumerate() {
         for id in body.vertex_ids() {
@@ -181,6 +182,7 @@ fn candidates(
             built: false,
         });
     }
+    candidates.extend(touched(operands, registry)?);
     let fixed = |crossing: &&crossed::Found| {
         let mut on = registry.list[crossing.curve].support.clone();
         on.push(crossing.surface);
@@ -199,7 +201,44 @@ fn candidates(
             built: false,
         });
     }
-    candidates
+    Ok(candidates)
+}
+
+/// Where two walls of one operand touch at a point a face of the other
+/// operand reaches across: a corner on the three. The operand leaves no
+/// edge where its own walls only touch, and the curves the third surface
+/// cuts them along, each touching the other wall there, meet with no edge
+/// to find the corner through: a rod and a post touching at a point, joined
+/// to a disc whose floor passes through it (5550316656).
+fn touched(operands: &Operands, registry: &Registry) -> Result<Vec<Candidate>, Declined> {
+    let list = &operands.surfaces.list;
+    let mut found = Vec::new();
+    for ([one, other], point) in registry.apart.walls_touching() {
+        for operand in 0..2 {
+            if !operands.touched(operand, one, point)?
+                || !operands.touched(operand, other, point)?
+            {
+                continue;
+            }
+            for (rank, surface) in list.iter().enumerate() {
+                let third = SurfaceId(rank as u32);
+                if third == one
+                    || third == other
+                    || surface.distance(point).abs() > operands.eps()
+                    || !operands.touched(1 - operand, third, point)?
+                {
+                    continue;
+                }
+                found.push(Candidate {
+                    point,
+                    surfaces: vec![one, other, third],
+                    curves: Vec::new(),
+                    built: false,
+                });
+            }
+        }
+    }
+    Ok(found)
 }
 
 #[cfg(test)]

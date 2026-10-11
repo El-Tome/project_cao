@@ -8457,8 +8457,13 @@ fn seed_5550223366_a_block_at_45_degrees_cut_by_a_cone_s_wedge_of_0_01_degrees()
 /// face are left run twice one way and once the other: declined as
 /// unverified, on the exact kernel too. As drawn, the seed fails on
 /// `f57a5ca` too.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a slot joined to a turn and
+/// cut by a block turned a quarter, its face holding the turn's axis; declined
+/// as unverified. Holds since two walls of one operand touching at a point that
+/// a face of the other passes through put a corner there on the three: the
+/// slot's round end touches the turn on the block's face, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: a slot joined to a turn and cut by a block turned a quarter, its face holding the turn's axis; declined as unverified"]
 fn seed_5550230611_a_slot_joined_to_a_turn_and_cut_by_a_block_turned_a_quarter() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -8544,8 +8549,12 @@ fn seed_5550232928_a_wedge_of_45_degrees_bored_and_given_a_pin_across() {
 /// with no point inside it (overlay/partition.rs, `gather`): declined as a
 /// tie, through the application's body too. As drawn, the seed fails on
 /// `f57a5ca` too.
+///
+/// Was ignored as: plain-pieces, #552's round 6: an arc's prism joined to two
+/// turns; declined as a tie in the overlay of the plane its top stands on.
+/// Holds since two walls of one operand touching at a point that a face of the
+/// other passes through put a corner there on the three, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: an arc's prism joined to two turns; declined as a tie in the overlay of the plane its top stands on"]
 fn seed_5550316656_an_arc_s_prism_joined_to_two_turns() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

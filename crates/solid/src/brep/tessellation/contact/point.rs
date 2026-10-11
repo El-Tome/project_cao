@@ -5,7 +5,8 @@ use glam::DVec3;
 use super::{Wall, bears};
 use crate::brep::domain::Location;
 use crate::brep::scale::Scale;
-use crate::brep::topology::{Body, SurfaceId};
+use crate::brep::surface::Surface;
+use crate::brep::topology::{Body, SurfaceId, Vertex};
 
 /// Under this share of the tolerance, a vertex stands on a wall.
 const ROUNDING: f64 = 1e-3;
@@ -22,7 +23,12 @@ const ROUNDING: f64 = 1e-3;
 /// (5550629812). A vertex standing on a wall anchors its samples there
 /// still: a post's floor 1e-7 under the point it touches a lying cylinder
 /// at puts a corner on both, and the cylinder's samples stand at it, where
-/// the floor's line leaves the cylinder (5551116747).
+/// the floor's line leaves the cylinder (5551116747). Nor does a vertex on
+/// a plane holding the wall's ruling through it, whatever it stands off the
+/// wall: a face of that plane ends there, and the ruling anchored at the
+/// point would run through it — a cylinder 1e-7 too wide to touch a post,
+/// ending square to its axis through the post's, whose end face the post's
+/// ruling crossed 5e-8 short of the rim's corner (5564306306).
 ///
 /// The kernel decides such a pair to touch when its axes stand the sum of
 /// the radii apart within its tolerance, and leaves no curve and no vertex:
@@ -46,6 +52,7 @@ pub(super) fn anchors(body: &Body, walls: &[Wall]) -> Vec<(SurfaceId, DVec3, Vec
                         .vertex_ids()
                         .map(|id| body.vertex(id))
                         .filter(|vertex| bears(body, vertex, one) && bears(body, vertex, other))
+                        .filter(|vertex| !holds_its_ruling(body, vertex, wall))
                         .map(|vertex| vertex.point)
                         .filter(|at| wall.1.distance(*at).abs() > eps * ROUNDING)
                         .collect();
@@ -55,6 +62,20 @@ pub(super) fn anchors(body: &Body, walls: &[Wall]) -> Vec<(SurfaceId, DVec3, Vec
         }
     }
     anchors
+}
+
+/// Whether the vertex lies on a plane holding the wall's ruling through it:
+/// a face there ends at the vertex, and the ruling moved off it in that
+/// plane runs through the face.
+fn holds_its_ruling(body: &Body, vertex: &Vertex, (_, cylinder): &Wall) -> bool {
+    vertex
+        .on
+        .iter()
+        .filter_map(|id| body.surfaces.get(id.0 as usize))
+        .any(|surface| match surface {
+            Surface::Plane(plane) => plane.normal.dot(cylinder.axis).abs() <= Scale::RELATIVE,
+            Surface::Cylinder(_) | Surface::Cone(_) => false,
+        })
 }
 
 /// The point two perpendicular walls touch at, side by side, halfway

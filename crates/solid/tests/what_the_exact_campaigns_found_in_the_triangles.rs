@@ -4040,6 +4040,35 @@ fn seed_5551409953_a_post_joined_to_a_pin_touching_it_ending_a_hair_past_its_axi
     ));
 }
 
+/// #552's round 6, found measuring its merge, slanted on the exact kernel:
+/// a post joined to a cylinder lying along X, 1e-7 wider than where it
+/// would touch the post, ending square to X through the post's axis. The
+/// lying cylinder's rim stands 1e-7 inside the post at the corner it puts
+/// on both walls, on its end face's plane, which holds the post's ruling
+/// there; anchored at the touch, 5e-8 short of that corner in that plane,
+/// the post's ruling ran through the end face. A corner on a plane holding
+/// a wall's ruling anchors that wall's samples, whatever it stands off it.
+#[test]
+fn seed_5564306306_a_post_joined_to_a_cylinder_a_hair_too_wide_ending_on_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(30.0),
+            Outline::circle([150.0, 210.0], 90.0),
+            195.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(180.0),
+            Axis::first(0.0),
+            Section::bands(
+                150.0,
+                &[[120.0, 0.0, 120.0], [14.9999997, 0.0, 120.0000003]],
+            )
+            .sloping_to(&[[0.0, 120.0], [0.0, 135.0]]),
+            360.0,
+        ))],
+    ));
+}
+
 /// #552's round 6, found by its own turned campaign through the
 /// application's body: a turn of 225° about a line along Y, cut by a ring
 /// along X and by a cylinder along X inside it, touching its bore along a

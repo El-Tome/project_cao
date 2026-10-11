@@ -1470,7 +1470,13 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   the wedge's edges crossing the pin's ruling 7.6e-9 outside it
   (5550629812). A vertex standing on a wall anchors its samples there
   still: a floor 1e-7 under the touch leaves a line on the other wall
-  there (5551116747, 5551409953). A
+  there (5551116747, 5551409953). So does a vertex on a plane holding the
+  wall's ruling through it, however far it stands off the wall: a face of
+  that plane ends at the vertex, and the ruling anchored at the point runs
+  through it — a cylinder 1e-7 too wide to touch a post, ending square to
+  its axis on a plane through the post's, whose rim stands inside the post
+  at the corner and whose end face the post's ruling crossed 5e-8 short of
+  it (5564306306). A
   curve two perpendicular cylinders meet along is sampled on every ray the
   circles of either take: a wall a hair inside one of them takes the rays of
   that one's other curves, and its chords, shallower between two samples of

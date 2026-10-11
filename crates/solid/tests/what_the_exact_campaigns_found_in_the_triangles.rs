@@ -13,6 +13,11 @@
 //! walls of one radius cross along, their axes meeting square. All five
 //! stay ignored: three are drawn crossing only at the application's finer
 //! tolerance, the exact kernel's own triangles holding.
+//!
+//! #552's round 6 names round 5's crossings with no hair under
+//! `plain-pieces`, and under `decision-11-regressions` the one seed round 5
+//! broke: two faces a hair off square to a turn's axis, the first laid
+//! square by decision 11, crossing where its turn puts their line.
 
 // The drawing and the checks are the campaign's; this file only builds cases
 // and holds them.
@@ -3641,6 +3646,271 @@ fn seed_5544629222_a_disc_cut_by_a_pin_from_rim_to_rim_and_a_post_of_its_radius(
                 Plane::yz(-7.0),
                 Outline::circle([8.0, 4.25], 6.0),
                 14.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, tilted on the exact kernel, no hair: a stepped turn of
+/// three bands about a line along X, cut by a face turned 22° about Y. Two
+/// triangles are drawn crossing on the exact kernel's own triangles and
+/// through the application's body alike. As drawn, the seed fails on
+/// `f57a5ca` too; not diagnosed further.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a stepped turn cut by a face at 22 degrees; drawn crossing on both kernels"]
+fn seed_5550106720_a_stepped_turn_cut_by_a_face_at_22_degrees() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(15.0),
+            Axis::first(25.0),
+            Section::bands(
+                5.0,
+                &[[7.5, 0.0, 10.0], [12.5, 0.0, 17.5], [2.5, 0.0, 22.5]],
+            ),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([30.0, 25.0, 5.0], [0.0, -22.0, 0.0]),
+            Outline::rectangle([-2.5, -12.5], [15.0, 12.5]),
+            22.5,
+        ))],
+    ));
+}
+
+/// #552's round 6, the one seed round 5 broke, tilted on the exact kernel:
+/// a half turn about Z cut by a face leaning 1.1e-6° off square to its
+/// axis, 2e-6 under z = 0, then by one leaning 9.4e-6°, 1e-5 under it. The
+/// two faces leave a sliver a few microns thick that they cross inside.
+/// Decision 11 lays the first face square to the turn's axis and leaves the
+/// second, past the hair, as drawn; the line where the two cross lands
+/// where two triangles of the sliver are drawn crossing. Holds with
+/// decision 11 switched off, and on `f57a5ca`, whose turn was made about
+/// the middle of the cut's box; the first cut alone holds, and the
+/// application's finer triangles hold. Two planes a hair apart crossing
+/// where a turn happens to put them, as 5547225260 and 5548213817.
+#[test]
+#[ignore = "decision-11-regressions, #552's round 6: a half turn cut by two faces leaning 1.1e-6 and 9.4e-6 degrees off square to its axis a few microns apart, the first laid square; drawn crossing, holds with decision 11 off and on f57a5ca"]
+fn seed_5550133356_a_half_turn_cut_twice_by_faces_leaning_a_hair_off_one_plane() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(90.0),
+            Axis::second(0.0),
+            Section::bands(-90.0, &[[15.0, 30.0, 120.0], [75.0, 60.0, 120.0]]),
+            -180.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-30.0, 90.00000000000004, -1.9499999964004017e-6],
+                    [1.1459155899729012e-6, 0.0, 0.0],
+                ),
+                Outline::rectangle([-135.0, -30.0], [120.0, 135.0]),
+                30.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-30.0, 90.00000000000165, -1.0149999996400269e-5],
+                    [9.427042215293113e-6, 0.0, 0.0],
+                ),
+                Outline::rectangle([-135.0, -30.0], [120.0, 135.0]),
+                -120.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, slanted on the exact kernel, no hair: a ring along Y
+/// joined to a ring along X and a disc along X standing square to it. Two
+/// triangles are drawn crossing at the exact kernel's own tolerance; the
+/// application's finer triangles hold. As drawn, the seed fails on
+/// `f57a5ca` too; not diagnosed further.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a ring joined to a ring and a disc square to it; drawn crossing on the exact kernel's own triangles"]
+fn seed_5550316166_a_ring_joined_to_a_ring_and_a_disc_square_to_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(3.5), Outline::ring([5.0, 2.5], 4.0, 3.5), 5.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(4.5),
+                Outline::ring([2.0, 0.0], 6.0, 4.0),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(4.5),
+                Outline::circle([9.0, 6.0], 6.0),
+                2.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, slanted through the application's body, no hair: a block
+/// cut by a turn about X whose two bands slope into a cone, then joined to
+/// a turn about another line along X. Drawn as the application draws, two
+/// triangles cross; the exact kernel's own triangles hold. As drawn, the
+/// seed fails on `f57a5ca` too; not diagnosed further.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a block cut by a two-band cone and joined to a turn; drawn crossing at the application's finer tolerance"]
+fn seed_5550409179_a_block_cut_by_a_two_band_cone_and_joined_to_a_turn() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xz(120.0),
+            Outline::rectangle([30.0, 180.0], [135.0, 390.0]),
+            165.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(240.0),
+                Axis::first(0.0),
+                Section::bands(-45.0, &[[59.0, 60.0, 90.0], [52.0, 60.0, 90.0]])
+                    .sloping_to(&[[60.0, 90.0], [60.0, 60.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(-45.0),
+                Axis::first(390.0),
+                Section::bands(-30.0, &[[225.0, 0.0, 30.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, slanted through the application's body, no hair: a turn
+/// about X joined to a turn about Y crossing it, then bored by a post along
+/// Z. Two triangles are drawn crossing, on the exact kernel's own triangles
+/// too. As drawn, the seed fails on `f57a5ca` too; not diagnosed further.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a turn joined to a turn about a crossing axis and bored; drawn crossing on both kernels"]
+fn seed_5550412859_a_turn_joined_to_a_turn_about_a_crossing_axis_and_bored() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(60.0),
+            Axis::first(0.0),
+            Section::bands(105.0, &[[180.0, 0.0, 45.0]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(-30.0),
+                Axis::second(-90.0).backwards(),
+                Section::bands(0.0, &[[75.0, -285.0, 0.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-15.0),
+                Outline::circle([195.0, 0.0], 45.0),
+                150.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, slanted through the application's body, no hair: a turn
+/// about Z cut by a cylinder along Y, then joined to a turn about a line
+/// along X crossing it. Two triangles are drawn crossing, on the exact
+/// kernel's own triangles too. As drawn, the seed fails on `f57a5ca` too;
+/// not diagnosed further.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a turn cut by a cylinder and joined to a turn about a crossing axis; drawn crossing on both kernels"]
+fn seed_5550427782_a_turn_cut_by_a_cylinder_and_joined_to_a_turn_about_a_crossing_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(20.0),
+            Axis::second(0.0),
+            Section::bands(15.0, &[[10.0, 0.0, 37.5]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(62.5),
+                Outline::circle([0.0, 21.5], 37.5),
+                85.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(5.0),
+                Axis::first(10.0),
+                Section::bands(25.0, &[[28.0, 20.0, 38.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, turned through the application's body, no hair: a turn
+/// about X given a post along Z and cut by a short hole beside it. Drawn as
+/// the application draws, two triangles cross; the exact kernel's own
+/// triangles hold. As drawn, the seed fails on `f57a5ca` too; not diagnosed
+/// further.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a turn given a post and a short hole beside it; drawn crossing at the application's finer tolerance"]
+fn seed_5550629622_a_turn_given_a_post_and_a_short_hole_beside_it() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(6.0),
+            Axis::first(1.0),
+            Section::bands(0.0, &[[4.5, 0.0, 7.5]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(-3.0),
+                Outline::circle([2.25, 1.0], 0.5),
+                18.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-4.0),
+                Outline::circle([2.25, 1.5], 0.5),
+                2.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, turned through the application's body, no hair: a pin
+/// along Y joined to a wedge of 0.01° turned about a line along Z beside
+/// it. Two triangles are drawn crossing, on the exact kernel's own
+/// triangles too. As drawn, the seed fails on `f57a5ca` too; not diagnosed
+/// further.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a pin joined to a wedge of 0.01 degrees; drawn crossing on both kernels"]
+fn seed_5550629812_a_pin_joined_to_a_wedge_of_0_01_degrees() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xz(6.0), Outline::circle([10.0, 5.0], 0.5), 4.0),
+        vec![Step::add(Leaf::turned(
+            Plane::xz(4.0),
+            Axis::second(11.0),
+            Section::bands(3.5, &[[4.0, 0.0, 0.5]]),
+            0.01,
+        ))],
+    ));
+}
+
+/// #552's round 6, the square draw on the exact kernel, no hair: a post
+/// along Z joined to a cylinder along X across it, cut by a wider cylinder
+/// along X, then joined to a pin along Z. Two triangles are drawn crossing
+/// at the exact kernel's own tolerance; the application's finer triangles
+/// hold. As drawn, the seed fails on `f57a5ca` too; not diagnosed further.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a post given a cylinder across it, cut by another and given a pin; drawn crossing on the exact kernel's own triangles"]
+fn seed_5550709462_a_post_given_a_cylinder_across_it_cut_by_another_and_a_pin() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(15.0), Outline::circle([27.5, 35.0], 17.5), 25.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(20.0),
+                Outline::circle([35.0, 0.0], 22.5),
+                50.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(20.0),
+                Outline::circle([20.0, 35.0], 30.0),
+                100.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(15.0),
+                Outline::circle([15.0, 45.0], 8.0),
+                18.0,
             )),
         ],
     ));

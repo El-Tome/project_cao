@@ -162,6 +162,14 @@
 //! drawn on a 0.01° wedge's face 1e-7° off it, held on `f57a5ca` by where
 //! its turn happened to put the line; they are named last under
 //! `near-parallel-planes`.
+//!
+//! Round 6 names what round 5's measurement at `784c69e` left first:
+//! `plain-pieces`, the shrunk cases with no hair, each failing as drawn on
+//! `f57a5ca` too — two ties in a plane's overlay, a block's face holding a
+//! turn's axis, a turn of 359.9°, two walls of one radius whose axes meet
+//! square, and a body left open along a line. The crossings, and the one
+//! seed the round broke (`decision-11-regressions`), are in
+//! `what_the_exact_campaigns_found_in_the_triangles.rs`.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -8378,5 +8386,186 @@ fn seed_5548213817_a_wedge_of_0_01_degrees_cut_by_a_face_1e_7_degrees_off_its_ow
             Outline::rectangle([-17.5, -10.0], [15.0, 10.0]),
             5.0,
         ))],
+    ));
+}
+
+/// #552's round 6, tilted on the exact kernel, no hair: a half turn about X
+/// cut by a cylinder along Y, by a turn about a line along Z, then by a
+/// block leaning 15°. The triangles leave the body open along a line at x =
+/// 150, the edge held by one face only; through the application's body the
+/// step is refused. As drawn, the seed fails on `f57a5ca` too; not
+/// diagnosed further.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a half turn cut by a cylinder, a turn and a block leaning 15 degrees; the triangles leave it open along a line"]
+fn seed_5550117749_a_half_turn_cut_by_a_cylinder_a_turn_and_a_block_leaning_15_degrees() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-30.0),
+            Axis::first(0.0),
+            Section::bands(150.0, &[[30.0, -30.0, 75.0]]),
+            180.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(120.0),
+                Outline::circle([165.0, -30.0], 30.0),
+                240.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xz(210.0),
+                Axis::second(150.0),
+                Section::bands(-60.0, &[[60.0, -210.0, 0.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([165.0, 0.0, -30.0], [90.0, 15.0, 0.0]),
+                Outline::rectangle([-90.0, -60.0], [90.0, 60.0]),
+                150.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, tilted through the application's body, no hair: a block
+/// turned 45° about X, cut by a cone's wedge of 0.01° turned about Y. The
+/// wedge's two faces stand 8.7e-5 apart where they cross the block's side
+/// at x = 3, and that side's overlay finds a region with no point inside it
+/// (overlay/partition.rs, `gather`): declined as a tie, on the exact kernel
+/// too. As drawn, the seed fails on `f57a5ca` too.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a block at 45 degrees cut by a cone's wedge of 0.01 degrees; declined as a tie in the overlay of the block's side"]
+fn seed_5550223366_a_block_at_45_degrees_cut_by_a_cone_s_wedge_of_0_01_degrees() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::tilted([0.0, 6.0, 3.5], [-45.0, 0.0, 0.0]),
+            Outline::rectangle([2.0, -1.0], [3.0, 2.0]),
+            3.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(2.5),
+            Section::bands(5.5, &[[1.5, -0.5, -0.0], [1.5, -0.5, -0.0]])
+                .sloping_to(&[[-0.5, -0.0], [-2.0, -0.0]]),
+            0.01,
+        ))],
+    ));
+}
+
+/// #552's round 6, tilted through the application's body, no hair: a slot
+/// joined to a turn about a line along X at y = 7.5, then cut by a block
+/// turned a quarter about X whose face holds that line. Four lines on that
+/// face are left run twice one way and once the other: declined as
+/// unverified, on the exact kernel too. As drawn, the seed fails on
+/// `f57a5ca` too.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a slot joined to a turn and cut by a block turned a quarter, its face holding the turn's axis; declined as unverified"]
+fn seed_5550230611_a_slot_joined_to_a_turn_and_cut_by_a_block_turned_a_quarter() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xz(30.0),
+            Outline::slot([45.0, 40.0], [45.0, 62.5], 15.0),
+            45.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(90.0),
+                Axis::first(7.5),
+                Section::bands(30.0, &[[30.0, 0.0, 12.5]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([45.0, 7.5, 90.0], [90.0, 0.0, 0.0]),
+                Outline::rectangle([-20.0, -18.0], [20.0, 18.0]),
+                18.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, tilted through the application's body, no hair: a turn
+/// about Z joined to a turn of 359.9° about a line along X crossing it. The
+/// trace of a curve is declined as unsupported (domain/traced.rs, `chord`),
+/// and the slit's lines and the rims are left with one face each: declined
+/// as unverified, on the exact kernel too. A turn of 359.9° as 5544504441.
+/// As drawn, the seed fails on `f57a5ca` too.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a turn joined to a turn of 359.9 degrees about a crossing axis; its slit's lines and rims are left with one face each, declined as unverified"]
+fn seed_5550232595_a_turn_joined_to_a_turn_of_359_9_degrees_about_a_crossing_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(0.0),
+            Axis::second(0.0),
+            Section::bands(-5.0, &[[15.0, -8.0, 15.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(5.0),
+            Axis::first(10.0).backwards(),
+            Section::bands(15.0, &[[10.0, 10.0, 23.0]]),
+            359.9,
+        ))],
+    ));
+}
+
+/// #552's round 6, tilted through the application's body, no hair: a wedge
+/// of 45° turned about Y, bored along Z, then given a pin along X of the
+/// bore's radius whose axis meets the bore's. The two walls of one radius
+/// whose axes meet square cross along two ellipses, which the kernel
+/// declines as unsupported (combine/crossed.rs), on the exact kernel too.
+/// As drawn, the seed fails on `f57a5ca` too.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: a wedge of 45 degrees bored and given a pin of the bore's radius whose axis meets its own; declined as unsupported"]
+fn seed_5550232928_a_wedge_of_45_degrees_bored_and_given_a_pin_across() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(0.0),
+            Axis::second(0.0),
+            Section::bands(5.0, &[[4.0, 0.0, 5.0]]),
+            45.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-9.0),
+                Outline::circle([0.0, 8.0], 1.5),
+                17.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(-8.0),
+                Outline::circle([8.0, 0.0], 1.5),
+                16.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, slanted on the exact kernel, no hair: the prism of an
+/// arc of 280° along X, joined to two turns about lines along Z. The
+/// overlay of the plane z = 8.5, through the arc's centre, finds a region
+/// with no point inside it (overlay/partition.rs, `gather`): declined as a
+/// tie, through the application's body too. As drawn, the seed fails on
+/// `f57a5ca` too.
+#[test]
+#[ignore = "plain-pieces, #552's round 6: an arc's prism joined to two turns; declined as a tie in the overlay of the plane its top stands on"]
+fn seed_5550316656_an_arc_s_prism_joined_to_two_turns() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-2.0),
+            Outline::circle_from([0.0, 8.5], 1.0, 279.77494960142656),
+            3.5,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::yz(-0.25),
+                Axis::second(3.0).backwards(),
+                Section::bands(-11.0, &[[4.0, 0.0, 2.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xz(3.0),
+                Axis::second(0.0),
+                Section::bands(8.5, &[[1.0, 0.0, 3.5]]),
+                360.0,
+            )),
+        ],
     ));
 }

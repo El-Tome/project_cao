@@ -161,7 +161,9 @@ impl Apart {
     /// radius whose axis meets the rod's at the touch (5544320693). Not a
     /// cone's apex: a plane a hair off it at the cone's slope, taken onto
     /// every surface through it, cut curves there that pass it by
-    /// (5545235515).
+    /// (5545235515). Nor a wall decided apart from one of the support's,
+    /// as no corner is on two such (decision 5): a post across two rods of
+    /// one axis a hair apart in radius has a node with each (5545618519).
     pub fn touching(
         &self,
         support: &BTreeSet<SurfaceId>,
@@ -185,6 +187,7 @@ impl Apart {
                     _ => None,
                 }
             })
+            .filter(|&touched| !support.iter().any(|&own| self.pair(own, touched)))
             .collect()
     }
 

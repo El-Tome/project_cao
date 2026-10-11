@@ -456,7 +456,9 @@ The decisions, in the order taken, once per operation:
    line was not cut there (5544320693). Not at a cone's apex: a plane at
    the cone's slope a hair off it, taken onto every surface through the
    apex, had corners within `EPS` of it cut curves that pass it by
-   (5545235515).
+   (5545235515). Nor onto a wall decided apart from one the corner is on:
+   a post across two rods of one axis a hair apart in radius has a node
+   with each, and the two stay two (5545618519).
    No corner lies on a curve on a surface apart from one of its own. Each
    corner is measured where it stands (below, where planes fix it): one
    whose three planes fix a place stands there, though an operand put it

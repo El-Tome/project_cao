@@ -7774,6 +7774,38 @@ fn seed_5544100660_a_tube_joined_to_a_half_tube_of_its_bore_then_cut_at_60_degre
     ));
 }
 
+/// #552's round 5, a turned draw through the application's body that held
+/// on `f57a5ca`: a rod along X joined to a turned rod of one axis a hair
+/// thinner, to a block, then to a post along Z of the rod's radius whose
+/// axis meets theirs. The post has a node with each rod, a hair apart; read
+/// as on both rods, decided apart, the corner left an edge on one of the
+/// curves the post meets them along with no face against it. A wall
+/// decided apart from one a corner stands on is not taken onto it.
+#[test]
+fn seed_5545618519_a_post_across_two_rods_of_one_axis_a_hair_apart_in_radius() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::yz(4.0), Outline::circle([3.0, 0.0], 0.5), 3.0),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(0.0),
+                Axis::first(3.0),
+                Section::bands(4.0, &[[4.0, -0.49999999, 0.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::rectangle([8.0, 0.0], [14.0, 1.0]),
+                7.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([6.0, 3.0], 0.5),
+                4.0,
+            )),
+        ],
+    ));
+}
+
 /// #552's round 5, a tilted draw through the application's body that held
 /// on `f57a5ca`: a rounded block cut by a block, then by a 270° turn whose
 /// inner wall is a cone with its apex on the turn's axis, then by a plane

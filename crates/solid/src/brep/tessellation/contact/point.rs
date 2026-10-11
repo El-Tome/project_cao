@@ -2,14 +2,27 @@
 
 use glam::DVec3;
 
-use super::Wall;
+use super::{Wall, bears};
 use crate::brep::domain::Location;
 use crate::brep::scale::Scale;
 use crate::brep::topology::{Body, SurfaceId};
 
+/// Under this share of the tolerance, a vertex stands on a wall.
+const ROUNDING: f64 = 1e-3;
+
 /// For each wall touching a perpendicular one at a point, where both hold a
 /// face, that point: a sample of its circles at its angle is put square to
-/// the axis from it, as from a vertex.
+/// the axis from it, as from a vertex. With it, for each wall, the vertices
+/// lying on both walls that stand off that one by more than rounding, which
+/// the point stands for there: decided on both within the tolerance, such a
+/// vertex may stand a hair off one, and that wall's samples put square to
+/// its axis from it would lean its ruling a hair over the other wall's
+/// faces — a pin touching a wedge of a hundredth of a degree, whose two
+/// edges cross the pin's ruling 8.7e-5 apart, one 7.6e-9 outside the pin
+/// (5550629812). A vertex standing on a wall anchors its samples there
+/// still: a post's floor 1e-7 under the point it touches a lying cylinder
+/// at puts a corner on both, and the cylinder's samples stand at it, where
+/// the floor's line leaves the cylinder (5551116747).
 ///
 /// The kernel decides such a pair to touch when its axes stand the sum of
 /// the radii apart within its tolerance, and leaves no curve and no vertex:
@@ -19,7 +32,7 @@ use crate::brep::topology::{Body, SurfaceId};
 /// pass through the other's triangles. Put halfway between the two walls'
 /// rulings there, both rulings lie in one plane and meet at the point, as
 /// two walls touching exactly do.
-pub(super) fn anchors(body: &Body, walls: &[Wall]) -> Vec<(SurfaceId, DVec3)> {
+pub(super) fn anchors(body: &Body, walls: &[Wall]) -> Vec<(SurfaceId, DVec3, Vec<DVec3>)> {
     let eps = body.scale().eps();
     let mut anchors = Vec::new();
     for (at, one) in walls.iter().enumerate() {
@@ -28,7 +41,16 @@ pub(super) fn anchors(body: &Body, walls: &[Wall]) -> Vec<(SurfaceId, DVec3)> {
                 continue;
             };
             if holds(body, one, point, eps) && holds(body, other, point, eps) {
-                anchors.extend([(one.0, point), (other.0, point)]);
+                for wall in [one, other] {
+                    let off: Vec<DVec3> = body
+                        .vertex_ids()
+                        .map(|id| body.vertex(id))
+                        .filter(|vertex| bears(body, vertex, one) && bears(body, vertex, other))
+                        .map(|vertex| vertex.point)
+                        .filter(|at| wall.1.distance(*at).abs() > eps * ROUNDING)
+                        .collect();
+                    anchors.push((wall.0, point, off));
+                }
             }
         }
     }

@@ -3378,8 +3378,12 @@ fn seed_9412210_half_a_shaft_leaning_a_hair_joined_to_a_rounded_block() {
 /// the sum of the radii apart. The slot's wall takes no sample at the point
 /// of contact: one of its triangles, from its floor to its top, crosses
 /// the turn's end face there by 1e-7.
+///
+/// Was ignored as: triangles, #552's round 4: a wall touching a turn of a
+/// hundredth of a degree at a point; the wall's triangle crosses the turn's end
+/// face at the contact. Holds since the point two walls touch at anchors the
+/// samples of either for the vertices on both standing off it, round 6 of #552.
 #[test]
-#[ignore = "triangles, #552's round 4: a wall touching a turn of a hundredth of a degree at a point; the wall's triangle crosses the turn's end face at the contact"]
 fn seed_5543227890_a_slot_joined_to_a_turn_of_a_hundredth_of_a_degree_touching_its_round_end() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -3872,8 +3876,12 @@ fn seed_5550629622_a_turn_given_a_post_and_a_short_hole_beside_it() {
 /// it. Two triangles are drawn crossing, on the exact kernel's own
 /// triangles too. As drawn, the seed fails on `f57a5ca` too; not diagnosed
 /// further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a pin joined to a wedge of
+/// 0.01 degrees; drawn crossing on both kernels. Holds since the point two
+/// walls touch at anchors the samples of either for the vertices on both
+/// standing off it, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: a pin joined to a wedge of 0.01 degrees; drawn crossing on both kernels"]
 fn seed_5550629812_a_pin_joined_to_a_wedge_of_0_01_degrees() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(Plane::xz(6.0), Outline::circle([10.0, 5.0], 0.5), 4.0),
@@ -3913,5 +3921,48 @@ fn seed_5550709462_a_post_given_a_cylinder_across_it_cut_by_another_and_a_pin() 
                 18.0,
             )),
         ],
+    ));
+}
+
+/// #552's round 6, found by its own tilted campaign on the exact kernel: a
+/// post floored 1e-7 under the point a cylinder lying along Y touches it
+/// at. The floor's line leaves the cylinder at a corner on both walls,
+/// standing on the cylinder; anchored at the touch instead, the cylinder's
+/// samples stood 1e-7 above that line, and its sliver crossed the post's
+/// wall. A vertex standing on a wall anchors its samples there still.
+#[test]
+fn seed_5551116747_a_post_floored_a_hair_under_where_a_lying_cylinder_touches_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(2.0), Outline::circle([9.5, 7.5], 4.5), -6.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([9.5, 7.5, -0.7500001], [0.0, 0.0, 0.0]),
+                Outline::rectangle([-5.0, -6.0], [5.0, 6.0]),
+                -4.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::yz(16.0),
+                Axis::first(-0.75),
+                Section::bands(2.0, &[[12.0, 0.0, 2.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, found by its own slanted campaign through the
+/// application's body: a post joined to a pin along Y touching it at a
+/// point, the pin's end 6e-8 past the post's axis. As
+/// 5551116747, a corner on both walls standing on the pin anchors the
+/// pin's samples there, not the touch.
+#[test]
+fn seed_5551409953_a_post_joined_to_a_pin_touching_it_ending_a_hair_past_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([6.0, 1.0], 3.5), 3.0),
+        vec![Step::add(Leaf::prism(
+            Plane::xz(1.00000006),
+            Outline::circle([2.0, 0.0], 0.5),
+            3.0,
+        ))],
     ));
 }

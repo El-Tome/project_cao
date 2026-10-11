@@ -1120,3 +1120,17 @@ release, the two trees side by side on five threads each:
 No seed that held on `22df52e` fails. Every named-case file with
 `--include-ignored`: twenty-nine cases that fail on `22df52e` hold, the
 four new ones hold, and nothing that held there fails.
+
+## 12 October: round 6's two lanes merged
+
+The pieces with no hair went in first, then `decision-11-regressions`, each
+measured against `22df52e` on fresh seeds, ten minutes a draw of the tilted
+and slanted draws. The first merge broke one seed, 5564306306: a cylinder
+1e-7 too wide to touch a post, ending on a plane through the post's axis,
+whose rim's corner the touch of the two walls stood for; the post's ruling,
+anchored at the touch in that plane, ran through the end face. A corner on
+a plane parallel to a wall's axis anchors that wall's samples still. With
+that, no seed that held on `22df52e` fails in the eight draws run after
+it, four before the second merge and four after, and fifteen are repaired;
+the table is in `exact-kernel-failures.md`. 5550133356 holds, and the turn
+of 359.9° is the one case of the round left ignored.

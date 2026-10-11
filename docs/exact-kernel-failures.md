@@ -2094,3 +2094,43 @@ The plain pieces are rare in fresh draws, so the counts barely move: what
 the measurement holds is that no seed that held on `22df52e` fails. The
 slanted draws lose about one failure in seven, the tilted draw through the
 body two in a hundred and twenty-eight; the others are unchanged.
+
+### Round 6: the two lanes merged
+
+The pieces with no hair were merged first, then `decision-11-regressions`,
+each measured on its own against `22df52e`: the gate, every named-case file
+with `--include-ignored`, and ten minutes a draw of the tilted and slanted
+draws on fresh seeds, release, the two trees side by side on five threads
+each, each in its own target directory, counted over the seeds both reached.
+
+The first merge broke one seed, 5564306306 (slanted, exact kernel, drawn
+crossing): a post joined to a cylinder lying along X, 1e-7 wider than where
+it would touch the post, ending square to X on a plane through the post's
+axis. The rim puts a corner on both walls 1e-7 inside the post, on the end
+face's plane, which holds the post's ruling there. The touch of the two
+walls stood for that corner, as for the pin's and the slot's above, and the
+post's ruling anchored 5e-8 short of it in that plane ran through the end
+face. A corner on a plane parallel to a wall's axis anchors that wall's
+samples still, whatever it stands off it (`tessellation/contact/point.rs`);
+the seed is named and holds, and the measurement was run again.
+
+| Tree | Draw | First seed | Cases | `22df52e` | Tree's | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| pieces with no hair | tilted, exact kernel | 5564100000 | 23 941 | 55 | 53 | 2 | 0 |
+| | tilted, application's body | 5564200000 | 24 146 | 58 | 56 | 2 | 0 |
+| | slanted, exact kernel | 5564300000 | 19 710 | 16 | 14 | 3 | 1 |
+| | slanted, application's body | 5564400000 | 26 346 | 12 | 10 | 2 | 0 |
+| with the corner on a plane | tilted, exact kernel | 5566100000 | 17 573 | 44 | 43 | 1 | 0 |
+| | tilted, application's body | 5566200000 | 36 003 | 81 | 80 | 1 | 0 |
+| | slanted, exact kernel | 5566300000 | 25 995 | 9 | 9 | 0 | 0 |
+| | slanted, application's body | 5566400000 | 29 585 | 14 | 13 | 1 | 0 |
+| with decision 11's regression | tilted, exact kernel | 5565100000 | 28 225 | 69 | 67 | 2 | 0 |
+| | tilted, application's body | 5565200000 | 36 569 | 95 | 88 | 7 | 0 |
+| | slanted, exact kernel | 5565300000 | 25 976 | 16 | 14 | 2 | 0 |
+| | slanted, application's body | 5565400000 | 29 718 | 23 | 22 | 1 | 0 |
+
+In every named-case file with `--include-ignored`, after both merges, the
+twenty-nine cases of the pieces with no hair and 5550133356 hold, as do the
+six new named cases, and nothing that held on `22df52e` fails; #498's
+eighteen cases hold. The turn of 359.9° (5550232595) is the one case of
+the round left ignored.

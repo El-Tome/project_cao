@@ -3699,8 +3699,11 @@ fn seed_5544629222_a_disc_cut_by_a_pin_from_rim_to_rim_and_a_post_of_its_radius(
 /// triangles are drawn crossing on the exact kernel's own triangles and
 /// through the application's body alike. As drawn, the seed fails on
 /// `f57a5ca` too; not diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a stepped turn cut by a face
+/// at 22 degrees; drawn crossing on both kernels. Holds since a rim is sampled
+/// where a line edge leaves its wall's face a hair inside it, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: a stepped turn cut by a face at 22 degrees; drawn crossing on both kernels"]
 fn seed_5550106720_a_stepped_turn_cut_by_a_face_at_22_degrees() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

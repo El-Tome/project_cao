@@ -8611,3 +8611,35 @@ fn seed_5550316656_an_arc_s_prism_joined_to_two_turns() {
         ],
     ));
 }
+
+/// #552's round 6, found by its own tilted campaign on the exact kernel: a
+/// turn about Z cut by a cylinder along X of its radius whose axis meets
+/// its own, then by a plane at 45° holding one of the two ellipses the
+/// walls meet along. Read as one curve with the conic the plane cuts, the
+/// ellipse came to lie on the plane as the curve two walls meet along,
+/// which a plane saw only as a chord: declined as unsupported. A meet lying
+/// on a plane is seen there as the conic the plane cuts its first wall
+/// along.
+#[test]
+fn seed_5552120815_a_turn_cut_by_a_cylinder_of_its_radius_and_a_plane_holding_their_ellipse() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(5.0),
+            Axis::second(0.0),
+            Section::bands(5.0, &[[3.5, -6.5, 0.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(-7.5),
+                Outline::circle([5.0, 6.75], 6.5),
+                15.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([0.0, 5.0, 6.75], [0.0, -45.0, 0.0]),
+                Outline::rectangle([-10.0, -7.0], [10.0, 7.0]),
+                11.0,
+            )),
+        ],
+    ));
+}

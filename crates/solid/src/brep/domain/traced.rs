@@ -24,7 +24,10 @@ use crate::brep::trace::Trace;
 /// cylinder along (decision 6), and sees it as that curve; where no stretch
 /// of that curve stands within `eps` of it, it sees the curve in its own
 /// angles, not in its own wall's. A conic is seen on its own plane and its
-/// own wall as the graph it is there (#552).
+/// own wall as the graph it is there (#552). The curve two walls of one
+/// radius whose axes meet square meet along lies on a plane at 45° through
+/// both axes, and is seen there as the conic that plane cuts its first
+/// wall along (5552120815).
 ///
 /// A curve a surface does not carry — a line across a cylinder's axis, a
 /// circle whose centre stands further than `eps` off it or square to
@@ -170,9 +173,13 @@ pub(in crate::brep) fn traced(
                 to: DVec2::new(start + turn * to, length),
             })
         }
-        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_), _) => {
-            chord(curve, surface, from, to, eps)
+        (Surface::Plane(plane), Curve::Meet(meet)) => {
+            let round = Round::Cylinder(meet.first);
+            chord(curve, surface, from, to, eps).or_else(|declined| {
+                beside(curve, (plane, &round), surface, [from, to], eps).ok_or(declined)
+            })
         }
+        (Surface::Cylinder(_) | Surface::Cone(_), _) => chord(curve, surface, from, to, eps),
     }
 }
 

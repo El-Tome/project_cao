@@ -14,6 +14,11 @@
 //! `Q` more grazingly still, the corner is decided on that plane's hairpin
 //! instead, as the line's own crossing is (`grazed.rs`).
 //!
+//! A curve `Q` and `S` meet along that lies on `P` is the conic itself, `P`
+//! cutting `Q` along one curve: the conic lies on `S` — a plane at 45°
+//! through where the axes of two walls of one radius meet square holds one
+//! of the two ellipses they meet along (9501873).
+//!
 //! A point found is kept where it stands within the tolerance of the conic,
 //! on its arm's side of the plane of symmetry when it is an arm. Where `Q`
 //! and `S` meet in a way the kernel does not build, so does the conic.
@@ -97,6 +102,7 @@ pub(super) fn conic_and_surface(
             }],
             None => match crossings_given(curve, &across, scale, touching) {
                 Crossings::At(found) => found,
+                Crossings::Along if across == own_plane => return Crossings::Along,
                 Crossings::Along | Crossings::Unsupported => return Crossings::Unsupported,
             },
         };

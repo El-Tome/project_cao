@@ -5816,8 +5816,13 @@ fn seed_9300728_a_shaft_cut_at_its_end_by_a_plane_a_hair_off_square_to_its_axis(
 /// joined to that shaft. The two meet along two ellipses, and one of them
 /// lies in the plane: the conic the plane cuts the first shaft along is
 /// that very curve, which crossing the second shaft finds lying along it.
+///
+/// Was ignored as: kernel-declines, #552: a conic one with a component of the
+/// curve two perpendicular cylinders of one radius meet along is declined as
+/// unsupported; a conic is never read as one with a meet. Holds since a
+/// component of the curve two walls meet along that lies in a conic's plane is
+/// read as that conic, round 6 of #552.
 #[test]
-#[ignore = "kernel-declines, #552: a conic one with a component of the curve two perpendicular cylinders of one radius meet along is declined as unsupported; a conic is never read as one with a meet"]
 fn seed_9501873_a_plane_holding_the_ellipse_two_equal_shafts_meet_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -8523,8 +8528,12 @@ fn seed_5550232595_a_turn_joined_to_a_turn_of_359_9_degrees_about_a_crossing_axi
 /// whose axes meet square cross along two ellipses, which the kernel
 /// declines as unsupported (combine/crossed.rs), on the exact kernel too.
 /// As drawn, the seed fails on `f57a5ca` too.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a wedge of 45 degrees bored
+/// and given a pin of the bore's radius whose axis meets its own; declined as
+/// unsupported. Holds since a component of the curve two walls meet along that
+/// lies in a conic's plane is read as that conic, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: a wedge of 45 degrees bored and given a pin of the bore's radius whose axis meets its own; declined as unsupported"]
 fn seed_5550232928_a_wedge_of_45_degrees_bored_and_given_a_pin_across() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(

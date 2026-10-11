@@ -159,8 +159,31 @@ pub(in crate::brep) fn within(one: &Curve, other: &Curve, scale: Scale, eps: f64
                 && alike(&one.second, &other.second, scale, eps)
         }
         (Curve::Conic(one), Curve::Conic(other)) => conics_within(one, other, scale, eps),
+        (Curve::Meet(meet), Curve::Conic(conic)) | (Curve::Conic(conic), Curve::Meet(meet)) => {
+            meet_within_conic(meet, conic, eps)
+        }
         _ => false,
     }
+}
+
+/// How many places along the curve two cylinders meet along are read to
+/// tell whether it lies in a conic's plane.
+const PLACES: usize = 16;
+
+/// A component of the curve two walls meet along is a conic when that conic
+/// is cut whole on one of the two walls and the component lies in its plane
+/// all round: a plane cuts a wall along one curve. Two walls of one radius
+/// whose axes meet square meet along two ellipses, each in a plane at 45°.
+fn meet_within_conic(meet: &Meet, conic: &Conic, eps: f64) -> bool {
+    let (Round::Cylinder(wall), Arm::Whole, Some(period)) = (conic.round, conic.arm, meet.period())
+    else {
+        return false;
+    };
+    meet.own(&wall, eps).is_some()
+        && (0..PLACES).all(|place| {
+            let at = meet.point(period * place as f64 / PLACES as f64);
+            (at - conic.plane.origin).dot(conic.plane.normal).abs() <= eps
+        })
 }
 
 /// Two conics are one when their planes are one, their walls are one, and

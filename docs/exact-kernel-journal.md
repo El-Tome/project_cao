@@ -997,3 +997,26 @@ taken onto a wall decided apart from its own. Measured at `54aed83`,
 fifteen minutes a draw on fresh seeds from 5545100000 to 5545600000,
 five draws and some 208 000 seeds against `f57a5ca`: four repaired, none
 broken.
+
+## 11 October: round 5 of #552, the two lanes merged
+
+The two lanes of round 5 merged with no production file in common
+(`afd06dd`). Measured merged, decision 11's setting down broke three
+seeds the turn about where the operands meet left a fraction of the
+tolerance off: two straight edges drawn on a wall, laid on it now, and a
+flat near several lines that part, laid on none of them now; a first
+version of that fix, laying flats on walls too, broke a fourth. Measured
+again, two cuts reaching far past the body would have moved past the hair
+turned about where the operands meet and were left as drawn; the turn now
+falls back on the middle of the cut's box. Two seeds that held on
+`f57a5ca` by where its turn left a line two planes a hair apart cross on
+are named under `near-parallel-planes`.
+
+- Measured at the end, ten minutes a draw on fresh seeds from 5548100000
+  to 5548600000, against `f57a5ca` side by side: tilted on the exact
+  kernel 69 in 29 115 where the base had 71; tilted through the body 105
+  in 40 735 where it had 109, one broken (5548213817); slanted 15 in
+  26 639 on both; turned on the exact kernel 13 in 19 888 on both; turned
+  through the body 11 in 28 138 where it had 12.
+- Every named-case file with `--include-ignored`: fifteen cases that fail
+  on `f57a5ca` hold, nothing that held there fails.

@@ -9,7 +9,10 @@
 //! corners, so that its own decisions hold as it took them; decided once,
 //! before decision 8 reads it. It is turned about the middle of where the
 //! two operands' boxes overlap, and set down where it lays exactly what it
-//! held against the first (`placed.rs`). The turn is made only where it
+//! held against the first (`placed.rs`); about the middle of its own box
+//! where, turned about where they meet, it would move past the hair: a cut
+//! reaching far past a turn, drawn on its slit's face, was left as drawn
+//! and refused (5547227649). The turn is made only where it
 //! moves no point of the operand further than `Scale::HAIR`
 //! tolerances — the furthest the kernel already moves an operand, and what
 //! it already takes for one place for two walls of one radius — where one
@@ -123,11 +126,14 @@ pub(in crate::brep) fn squared(first: &Body, second: &Body, scale: Scale) -> Opt
         .iter()
         .chain(&held)
         .all(|pair| pair.off(turn) <= LAID * exact);
-    let met = met(first, low, high);
-    let swept = angle(turn) * (met - low).abs().max((high - met).abs()).length();
-    if !kept_exact || swept > Scale::HAIR * eps {
+    if !kept_exact {
         return None;
     }
+    let sweep = |about: DVec3| angle(turn) * (about - low).abs().max((high - about).abs()).length();
+    let met = [met(first, low, high), (low + high) / 2.0]
+        .into_iter()
+        .find(|about| sweep(*about) <= Scale::HAIR * eps)?;
+    let swept = sweep(met);
     let laying = Laying {
         turn,
         met,

@@ -1904,3 +1904,69 @@ counted over the seeds both reached:
 In the named-case files with `--include-ignored`, the seven cases above
 that fail on `f57a5ca` hold on the branch, the two new ones hold, and
 nothing that held there fails.
+
+### Round 5: the two lanes merged
+
+The pieces with no hair and decision 11's setting down share no
+production file, and merged as they stood (`afd06dd`). Measured merged,
+ten minutes a draw against `f57a5ca`, the two trees side by side on five
+threads each, they broke three seeds, all by decision 11's setting down,
+and a version of the fix broke a fourth:
+
+- **A straight edge touching a wall** (5546322326, 5546607658): a slot's
+  side drawn on a leaning disc's wall, a rounded block's seam on a leaning
+  ring's bore. Turned about where the operands meet, each stood a
+  fraction of the tolerance off the wall, and was refused. A straight edge
+  of either operand square to a cylinder's axis of the other, touching it
+  within the tolerance, is now laid on it by the shift.
+- **A flat near several lines that part** (5546116488): a cut drawn
+  through a point a hair from a turn's axis, its slit's line and an
+  earlier cut's corner, each a fraction of the tolerance from the others.
+  It was laid on the axis, the nearest, and refused; as turned, between
+  them, it held. A flat passing within the tolerance of lines that part
+  by more than a thousandth of it now lies on none of them.
+- **A flat laid on a wall it touches** (5546111832), by the first version
+  of that fix: a face drawn on a turn's wall, a hair inside a second wall
+  a hair larger, was laid on that one and refused. A flat is not laid on
+  a wall.
+
+Measured again on fresh seeds, decision 11 left two cuts reaching far
+past the body as drawn: turned about where the operands meet, their far
+ends would have moved past `G` (5547227649, a cut along a 270° turn's slit
+face 1.4e-6° off; 5547233090, a face 9.5e-7° off square to a tube a hair
+inside its end, which failed in release alone). The turn now falls back on
+the middle of the cut's box where the meeting would move it past `G`, as
+`f57a5ca` turned it; both are named and hold.
+
+Left, two seeds named under `near-parallel-planes`, each held on
+`f57a5ca` by where its turn happened to leave a line two planes a hair
+apart cross on:
+
+- 5547225260: a face 2e-8° off square to a ring's axis leaning 1e-5°,
+  drawn through a point of its end. The two planes lean 1.7e-7 apart and
+  cross along a line through the end's inner rim near its lowest point;
+  decision 11 lays the face's sides along the axis, a turn of 3.5e-10
+  radian, and about where the two meet the line lands 0.004 from that
+  point instead of 0.001, and the triangles cross.
+- 5548213817: a face drawn on a 0.01° wedge's face, 1e-7° off it. Laid
+  along the wedge's axis, it still leans 1.5e-9 radian off that face, and
+  the step is refused.
+
+No pair of the two lies within the tolerance for the shift to lay.
+
+Fresh seeds, release, the merged branch with its fixes against
+`f57a5ca` built in its own target directory, counted over the seeds both
+reached:
+
+| Draw | First seed | Cases | `f57a5ca` | Branch | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5548100000 | 29 115 | 71 (2.44) | 69 (2.37) | 2 | 0 |
+| tilted, application's body | 5548200000 | 40 735 | 109 (2.68) | 105 (2.58) | 5 | 1 |
+| slanted, exact kernel | 5548300000 | 26 639 | 15 (0.56) | 15 (0.56) | 0 | 0 |
+| turned, exact kernel | 5548500000 | 19 888 | 13 (0.65) | 13 (0.65) | 0 | 0 |
+| turned, application's body | 5548600000 | 28 138 | 12 (0.43) | 11 (0.39) | 1 | 0 |
+
+The one broken is 5548213817, above. In every named-case file with
+`--include-ignored`, the fifteen cases above that fail on `f57a5ca` hold
+on the branch, the round's eleven new seeds hold but the two ignored, and
+nothing that held there fails; #498's eighteen cases hold.

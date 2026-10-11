@@ -830,23 +830,38 @@ The decisions, in the order taken, once per operation:
     tolerance short of the circle where the cone meets a shaft
     (5544232904): each declined as unverified, each held as drawn on
     `85a2d2e`. The operand is turned about the middle of where the boxes of
-    the two operands overlap, then shifted square to the turn's axis — the
+    the two operands overlap — or about the middle of its own box where,
+    turned about where they meet, a part of it reaching far past the other would
+    move past `G`: a cut reaching past a turn, drawn on its slit's face 1.4e-6
+    degrees off, was then left as drawn and refused (5547227649) — then
+    shifted square to the turn's axis — the
     shift a turn about another point makes — so that each pair the turn
     lays parallel lies on the other exactly wherever the two stood within
     `EPS` of each other, taken for one place already: two flats, a plane or
     the plane of a circle of each; a line of either, a straight edge or a
-    wall's axis, in a flat of the other. Laying pairs from as far as `G`
-    moved a cut's face three tolerances onto what it only passed near, and
-    it was refused (5545209574). The pairs nearest to lying come first; a
-    pair the shift cannot lay without taking an earlier one off, or past
-    `G`, is left as it stands. A turn about a point has two such degrees of
-    freedom, and they are spent on what was drawn together
-    (`canonical/placed.rs`).
+    wall's axis, in a flat of the other; a straight edge of either
+    touching a cylinder of the other across its axis. Turned about where
+    the operands meet, a slot's side drawn on a disc's wall and a rounded
+    block's seam drawn on a ring's stood a fraction of `EPS` off, and were
+    refused (5546322326, 5546607658); their edges lay them. A flat is not
+    laid on a wall it touches: a face drawn on a turn's wall, a hair inside
+    a second wall of the turn a hair larger, was laid on that one, further
+    off the first, and refused (5546111832). A flat passing
+    within `EPS` of several lines of the other that part by more than a
+    thousandth of it lies on none of them: a cut drawn through a point a
+    hair from a turn's axis, its slit's line and an earlier cut's corner
+    was laid on the nearest, the axis, and refused, where as turned it held
+    (5546116488). Laying pairs from as far as `G` moved a cut's face three
+    tolerances onto what it only passed near, and it was refused
+    (5545209574). The pairs nearest to lying come first; a pair the shift
+    cannot lay without taking an earlier one off, or past `G`, is left as
+    it stands. A turn about a point has two such degrees of freedom, and
+    they are spent on what was drawn together (`canonical/placed.rs`).
 
-    The turn is solved one degree of freedom
-    at a time: a pair of directions exactly parallel locks the axis it
-    turns about, the pairs off square come first, and each next one is laid
-    by a turn about the axis locked. It is not made where no one turn lays
+    The turn is solved one degree of freedom at a time: a pair of
+    directions exactly parallel locks the axis it turns about, the pairs off
+    square come first, and each next one is laid by a turn about the axis
+    locked. It is not made where no one turn lays
     every pair exactly; where it would take a pair of directions of the two
     operands, plane or wall, off exactly square or along; where it would
     change the kind of an exact relation the operand had with the first —

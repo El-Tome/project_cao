@@ -363,3 +363,80 @@ fn a_face_laid_along_a_leaning_half_shaft_holds_the_edge_of_its_flat_side_it_was
         assert!(off.abs() < 1e-12, "the edge stands {off} off the face");
     }
 }
+
+#[test]
+fn a_side_drawn_tangent_to_a_leaning_post_is_laid_along_it_still_tangent() {
+    let body = leaning(
+        post([0.0, 0.0], 5.0, 0.0, 10.0),
+        DQuat::from_rotation_x(degrees(1e-7)),
+    );
+    let tool = block([-10.0, 5.0, 2.0], [10.0, 20.0, 30.0]);
+    let Some(Surface::Cylinder(wall)) = body
+        .surfaces
+        .iter()
+        .find(|surface| matches!(surface, Surface::Cylinder(_)))
+    else {
+        panic!("the post has a wall");
+    };
+    let squared = squared(&body, &tool, scale()).expect("the block is turned");
+    let side = planes(&squared)
+        .into_iter()
+        .find(|plane| plane.normal.y.abs() > 0.5 && (plane.offset().abs() - 5.0).abs() < 1e-6)
+        .expect("the block's side on the post");
+    let off = side.distance(wall.origin).abs() - wall.radius;
+    assert!(off.abs() < 1e-12, "the side stands {off} off the wall");
+}
+
+#[test]
+fn an_edge_drawn_touching_a_leaning_post_s_wall_is_laid_across_it_still_touching() {
+    let body = leaning(
+        post([0.0, 0.0], 5.0, 0.0, 10.0),
+        DQuat::from_rotation_x(degrees(1e-7)),
+    );
+    let outline = Contour {
+        corners: vec![
+            DVec2::new(5.0, 6.0),
+            DVec2::new(15.0, 6.0),
+            DVec2::new(15.0, 10.0),
+        ],
+        runs: vec![Run::Straight, Run::Straight, Run::Straight],
+    };
+    let frame = Frame {
+        origin: DVec3::new(-10.0, 0.0, 0.0),
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let wedge = Body::raised(&outline, &[], frame, DVec3::X * 20.0).expect("a wedge raises");
+    let Some(Surface::Cylinder(wall)) = body
+        .surfaces
+        .iter()
+        .find(|surface| matches!(surface, Surface::Cylinder(_)))
+    else {
+        panic!("the post has a wall");
+    };
+    let squared = squared(&body, &wedge, scale()).expect("the wedge is turned");
+    let edge = squared
+        .edges
+        .iter()
+        .filter_map(|edge| match squared.curve(edge.curve) {
+            Curve::Line(line) if line.direction.x.abs() > 0.5 => Some(*line),
+            _ => None,
+        })
+        .min_by(|one, other| one.origin.y.total_cmp(&other.origin.y))
+        .expect("the wedge's edge on the post");
+    let across = edge.direction.cross(wall.axis).normalize();
+    let off = (edge.origin - wall.origin).dot(across).abs() - wall.radius;
+    assert!(off.abs() < 1e-12, "the edge stands {off} off the wall");
+}
+
+#[test]
+fn a_tool_reaching_far_past_the_body_is_turned_about_its_own_middle_where_turned_about_the_meeting_it_would_move_past_the_hair()
+ {
+    let body = post([0.0, 0.0], 5.0, 0.0, 10.0);
+    let tool = leaning(
+        block([-10.0, -10.0, 8.0], [10.0, 190.0, 12.0]),
+        DQuat::from_rotation_x(degrees(5e-7)),
+    );
+    let squared = squared(&body, &tool, scale()).expect("the block is turned");
+    assert!(square_or_along(&squared, DVec3::Z));
+}

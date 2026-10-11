@@ -29,6 +29,7 @@ use glam::DVec2;
 use crate::brep::canonical::{Apart, parting};
 use crate::brep::conic::{Conic, Round};
 use crate::brep::curve::{Curve, Line};
+use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Edge, SurfaceId, VertexId};
 
@@ -83,7 +84,12 @@ fn root(group: &[usize], mut rank: usize) -> usize {
 
 /// Whether two arcs between the same corners, on different curves sharing a
 /// surface, part by no more than the tolerance anywhere, their surfaces
-/// together holding none decided apart.
+/// together holding none decided apart. Two arcs both lying on two surfaces
+/// decided to touch are where a third surface crosses their band, the
+/// curve it cuts on each: each stands within the tolerance of both, and
+/// they part by as much as the tolerance over the sine of the angle the
+/// third crosses at, up to the hair — a cone's wall crossing a wedge's
+/// wall a hair inside a block's side, at 45° (5550223366).
 fn one_arc(
     [(one, on_one), (other, on_other)]: [(&Edge, &[SurfaceId]); 2],
     curves: &[Curve],
@@ -99,7 +105,25 @@ fn one_arc(
             [one.from, one.to],
             &curves[second],
             [other.from, other.to],
-        ) <= eps
+        ) <= if banded(on_one, on_other, apart) {
+            Scale::HAIR * eps
+        } else {
+            eps
+        }
+}
+
+/// Whether two surfaces decided to touch are among those both arcs lie on.
+fn banded(on_one: &[SurfaceId], on_other: &[SurfaceId], apart: &Apart) -> bool {
+    let shared: Vec<SurfaceId> = on_one
+        .iter()
+        .copied()
+        .filter(|surface| on_other.contains(surface))
+        .collect();
+    shared.iter().enumerate().any(|(index, &one)| {
+        shared[index + 1..]
+            .iter()
+            .any(|&other| apart.touch(one, other))
+    })
 }
 
 /// A group of arcs as one: the kept arc, lying on the surfaces of all.

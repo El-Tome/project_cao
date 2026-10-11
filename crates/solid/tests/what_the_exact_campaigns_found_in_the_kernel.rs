@@ -8432,8 +8432,13 @@ fn seed_5550117749_a_half_turn_cut_by_a_cylinder_a_turn_and_a_block_leaning_15_d
 /// at x = 3, and that side's overlay finds a region with no point inside it
 /// (overlay/partition.rs, `gather`): declined as a tie, on the exact kernel
 /// too. As drawn, the seed fails on `f57a5ca` too.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a block at 45 degrees cut by a
+/// cone's wedge of 0.01 degrees; declined as a tie in the overlay of the
+/// block's side. Holds since two arcs between the same corners that both lie on
+/// two surfaces decided to touch are one arc when they part by up to the hair,
+/// round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: a block at 45 degrees cut by a cone's wedge of 0.01 degrees; declined as a tie in the overlay of the block's side"]
 fn seed_5550223366_a_block_at_45_degrees_cut_by_a_cone_s_wedge_of_0_01_degrees() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(

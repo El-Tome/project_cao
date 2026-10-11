@@ -2,6 +2,7 @@ mod appearance;
 mod navigation;
 mod profiles;
 mod shortcuts;
+mod sketching;
 mod toolbar;
 mod viewport;
 
@@ -15,6 +16,7 @@ enum Section {
     #[default]
     Profiles,
     Viewport,
+    Sketching,
     Navigation,
     Appearance,
     Shortcuts,
@@ -22,9 +24,10 @@ enum Section {
 }
 
 impl Section {
-    const ALL: [Self; 6] = [
+    const ALL: [Self; 7] = [
         Self::Profiles,
         Self::Viewport,
+        Self::Sketching,
         Self::Navigation,
         Self::Appearance,
         Self::Shortcuts,
@@ -35,6 +38,7 @@ impl Section {
         lang.t(match self {
             Self::Profiles => "settings.section.profiles",
             Self::Viewport => "settings.section.viewport",
+            Self::Sketching => "settings.section.sketching",
             Self::Navigation => "settings.section.navigation",
             Self::Appearance => "settings.section.appearance",
             Self::Shortcuts => "settings.section.shortcuts",
@@ -85,6 +89,7 @@ pub fn show(
     match editor.section {
         Section::Profiles => touched |= profiles::section(ui, profiles, editor, lang),
         Section::Viewport => touched |= viewport::section(ui, profiles, lang),
+        Section::Sketching => touched |= sketching::section(ui, profiles, lang),
         Section::Navigation => touched |= navigation::section(ui, profiles, lang),
         Section::Appearance => touched |= appearance::section(ui, profiles, lang),
         Section::Shortcuts => touched |= shortcuts::section(ui, profiles, editor, lang),

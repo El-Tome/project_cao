@@ -4,7 +4,7 @@ use cao_part::formula::Operator;
 use cao_part::history::PointRef;
 use cao_part::{Formula, Operation};
 use cao_sketch::{
-    AngleArm, Constraint, DimensionTarget, PointId, SegmentId, SketchAxis, angle_arm,
+    AngleArm, Constraint, DimensionTarget, ExactAngle, PointId, SegmentId, SketchAxis, angle_arm,
 };
 
 use super::annotation_position;
@@ -54,6 +54,13 @@ pub(crate) fn lean_on_an_arm(
         }
         AngleArm::Arm(reaches) => reaches,
     };
+    if let Some(exact) = exactly(context, typed.as_ref()) {
+        context.document.apply(Operation::Constrain {
+            sketch: index,
+            constraint: exact.to_axis(drawn, SketchAxis::U),
+        });
+        return;
+    }
 
     context.document.apply(Operation::AddSegment {
         sketch: index,
@@ -123,6 +130,13 @@ fn lean_on_the_trait_before(
     pixel: f64,
 ) {
     let typed = context.editor.live.typed_as_written(1);
+    if let Some(exact) = exactly(context, typed.as_ref()) {
+        context.document.apply(Operation::Constrain {
+            sketch: index,
+            constraint: exact.between(before, drawn),
+        });
+        return;
+    }
     let target = DimensionTarget::corner(before, drawn);
     let Some(opened) = context
         .document
@@ -139,6 +153,19 @@ fn lean_on_the_trait_before(
         placement: annotation_position(context, index, target, pixel)
             .map(|placement| placement.offset),
     });
+}
+
+/// The rule a trait drawn at a typed angle carries instead of an angle, when
+/// the option says so and the angle is a straight or a right one, typed as a
+/// plain number.
+fn exactly(context: &SketchContext<'_>, typed: Option<&(Formula, f64)>) -> Option<ExactAngle> {
+    let (written, value) = typed?;
+    written.as_number()?;
+    context
+        .editor
+        .sketching
+        .exact_angles_lay_rules
+        .then(|| ExactAngle::drawn(*value))?
 }
 
 /// The angle typed, written so that it comes to the angle the drawing opened.

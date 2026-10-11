@@ -173,6 +173,7 @@ impl CaoApp {
         viewport.config = settings.viewport;
         viewport.theme = settings.theme.clone();
         viewport.let_go = settings.shortcuts.let_go;
+        editor.sketching = settings.sketching;
 
         let mut back_to_menu = false;
         let mut changed = false;

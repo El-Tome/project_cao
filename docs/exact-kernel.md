@@ -459,6 +459,14 @@ The decisions, in the order taken, once per operation:
    (5545235515). Nor onto a wall decided apart from one the corner is on:
    a post across two rods of one axis a hair apart in radius has a node
    with each, and the two stay two (5545618519).
+   Where two walls of one operand touch at a point that a surface of the
+   other passes through, reaching it with a face, that point is a corner
+   candidate on the three, merged after the special points: the curves
+   the surface cuts the two walls along each touch the other wall there,
+   and with no edge of the operand there, no crossing finds it — a rod and
+   a post side by side joined to a disc whose floor passes through the
+   touch (5550316656), a slot's round end touching a turn cut by a block
+   whose face holds the touch (5550230611).
    No corner lies on a curve on a surface apart from one of its own. Each
    corner is measured where it stands (below, where planes fix it): one
    whose three planes fix a place stands there, though an operand put it
@@ -518,6 +526,13 @@ The decisions, in the order taken, once per operation:
    meet along is carried all along by its own two walls only, not by a wall
    of one radius a hair beside one of them: there it lies over its stretch
    alone, and is seen there as below, under "Everything else is derived".
+   Two arcs between the same corners that both lie on two surfaces decided
+   to touch are one when they part by no more than the hair, `HAIR`
+   tolerances: they are where a third surface crosses the band, each the
+   curve it cuts on one of the two, standing within `EPS` of both, and they
+   part by `EPS` over the sine of the angle the third crosses at — a cone's
+   wall crossing a wedge's wall a hair inside a block's side at 45°, 1.08e-8
+   apart at a tolerance of 9.5e-9 (5550223366).
    Nor is a line carried all along by a plane it crosses at a grazing
    angle: a cut's corner line beside a block's side leaning 1e-3° off the
    cut's face lies on that side over the 1.5e-4 of its edge alone, and laid
@@ -1228,6 +1243,15 @@ point of the cut on the ruling at that angle, which is where its triangles
 take their samples. It is listed by its fields, and soundness evaluates it
 by a formula of its own, apart from the kernel's.
 
+A plane at 45° through where the axes of two walls of one radius meet
+square holds one of the two ellipses they meet along, and cuts each wall
+along it: the conic is that component of the meet. It is read so where it
+is asked — one curve within the other when the conic is cut whole on one
+of the meet's walls and the component lies in its plane all round, and,
+crossing the conic with the other wall, a curve of that wall and its own
+lying on the conic's plane is the conic, along the surface (9501873,
+5550232928). It was declined as unsupported before round 6 of #552.
+
 ## The curve two perpendicular cylinders meet
 
 In a frame whose third axis is the first cylinder's and whose first axis is the
@@ -1298,6 +1322,11 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   however little inside, as for a vertex: the kernel puts no vertex where
   the rim passes the line the cap's plane leaves on the wall by `EPS`, and
   seen from the wall's axis the rim stands inside by less than that.
+  So does the point where a line across the wall's axis passes through the
+  plane of one of its rims, standing inside it as close: a pocket's side
+  leaving a step's plane 6e-4 inside its inner rim passed under the step's
+  triangles, which reach as far inside as the rim's chords sag
+  (5550106720). Not a line along the axis, whose ends are vertices.
   The edges are then sampled a second time, on those rays. An
   arc ending where a plane touches its wall takes no sample so near that end
   that it would stand on the plane's edge, and no circle of the wall takes a
@@ -1326,6 +1355,13 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   Inside a strip the arcs are graphs that do not cross, so each piece of face
   is a band between two of them, zipped into triangles. No triangle spans more
   than one grid step, so none leaves the cylinder by more than the tolerance.
+  Each face is cut alone, and a triangle of one lying on a triangle of
+  another across an edge they share, or passing through one beside a
+  corner they share, is cut the other way with a neighbour where the flip
+  makes neither: at a corner where a face turns into the matter, a wall's
+  triangle cut across the corner, true to the region in the wall's
+  parameters, sags by its chord through the face beyond — a post's wall
+  where a hole cut into its foot leaves its ceiling (5550629622).
 - **Cones.** A cone has one grid, cut for the furthest from its axis any
   circle or vertex on it stands, and every circle lying on it is sampled on
   that grid as well as on its own: the narrow rim and the wide one then
@@ -1347,7 +1383,14 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   chord would stand further from it than the tolerance, halved: seen on its
   plane the conic bends more than its wall's grid allows for, by as much as
   the plane leans from square to the axis. A cone's grid is cut for the
-  widest any conic on it reaches, a ring with no vertex included.
+  widest any conic on it reaches, a ring with no vertex included. Two
+  conics of one plane cut on walls whose axes cross, leaving a vertex they
+  share together — a plane through a node of two walls of one radius cuts
+  both along curves tangent there — each take the other's samples as rays
+  of their own wall: sampled each on its own wall's angles, one chord of
+  one crossed the other's samples by the node, and the horn of face
+  between them could not be cut (5550117749). Not on two parallel walls,
+  sampled on the rays they share already (5551609285).
 - **Contact.** Chords sag towards their own cylinder's axis, so against a plane
   or a convex neighbour they retreat. Where two curved faces face each other on
   their hollow side closer than a chord's sag — an internal tangency, a near
@@ -1420,7 +1463,14 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   their axes from it, so that both rulings lie in one plane and meet there,
   as two walls touching exactly do. Withholding the step instead would
   leave a coarse wall's chord across two steps the whole length of the
-  ruling. A
+  ruling. The point stands too for a vertex lying on both walls that stands
+  off one of them by more than a thousandth of `EPS`: that one's samples
+  are anchored at the point, not at the vertex, whose ruling would lean a
+  hair over the other wall — a pin touching a 0.01° wedge's wall, one of
+  the wedge's edges crossing the pin's ruling 7.6e-9 outside it
+  (5550629812). A vertex standing on a wall anchors its samples there
+  still: a floor 1e-7 under the touch leaves a line on the other wall
+  there (5551116747, 5551409953). A
   curve two perpendicular cylinders meet along is sampled on every ray the
   circles of either take: a wall a hair inside one of them takes the rays of
   that one's other curves, and its chords, shallower between two samples of

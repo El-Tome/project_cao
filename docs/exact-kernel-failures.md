@@ -1970,3 +1970,112 @@ The one broken is 5548213817, above. In every named-case file with
 `--include-ignored`, the fifteen cases above that fail on `f57a5ca` hold
 on the branch, the round's eleven new seeds hold but the two ignored, and
 nothing that held there fails; #498's eighteen cases hold.
+
+### Round 6: the pieces with no hair
+
+Round 5's measurement at `784c69e` left fourteen shrunk cases with no hair
+(`plain-pieces`, named at `22df52e`), each failing as drawn on `f57a5ca`
+too. Thirteen hold, by seven causes each decided once, and with them sixteen
+cases ignored since earlier rounds:
+
+- **Two walls of one operand touching at a point** (5550316656,
+  5550230611): a rod beside a post it touches, or a slot's round end
+  beside a turn, then a face of the other operand passing through the
+  touch — a disc's floor, a block's side. Each wall's curve on that face
+  touches the other wall there, and with no edge of the operand there no
+  crossing found the corner: a tie in the face's overlay, or lines run
+  the wrong number of times. The touch, kept in `Apart` (decision 2), is a
+  corner candidate on the two walls and every surface of the other
+  operand through it (`combine.rs`, `touched`).
+- **A third surface crossing a band** (5550223366): a cone's wall crosses
+  at 45° the band of a block's side and a 0.01° wedge's wall a hair
+  inside it, leaving the circle it meets the wall along and the conic it
+  cuts the side along between the same corners, 1.08e-8 apart at a
+  tolerance of 9.5e-9. Two arcs both lying on two surfaces decided to
+  touch are one up to the hair (`combine/identified.rs`, decision 6).
+- **A plane holding one of the two ellipses** two walls of one radius meet
+  along, their axes meeting square (5550232928, and 9501873, ignored as
+  `kernel-declines` since #552's first rounds): the conic and the meet's
+  component are read as one curve (`canonical/curves.rs`), and a curve of
+  the conic's wall and the surface it crosses lying on its plane is the
+  conic (`relation/crossing/conic.rs`). Where the component came first,
+  as an operand's edge, it lay on the plane as a meet, and a plane is now
+  told to see it as its conic (`domain/traced.rs`, 5552120815, below).
+- **A triangle passing through another face's beside a corner they
+  share** (5550316166, 5550409179, 5550412859, 5550427782, 5550629622,
+  5550709462): at a corner where a face turns into the matter, a wall's
+  triangle cut across it, true to the region in the wall's parameters,
+  sags through the face beyond. The folds pass, which undid a triangle
+  lying on another face across an edge, now undoes these too
+  (`tessellation/folds.rs`). With them hold round 5's 5544205878,
+  5544518834, 5544528726 and the two walls of one radius tangent at a
+  node, 5544618545 and 5544629222, and from earlier rounds 3202168,
+  533779006, 5364102153, 5365231546, 5365239260, 8515799, 8550600,
+  8585454 and 8587307.
+- **A corner at a point contact standing off one wall** (5550629812, and
+  round 4's 5543227890): a pin touching a 0.01° wedge's wall has a vertex
+  of the wedge 7.6e-9 outside it, decided on the pin, and the pin's
+  samples anchored at it leaned its ruling across the wedge's end face.
+  The touch point anchors a wall's samples for every vertex on both
+  walls standing off that one (`tessellation/contact/point.rs`).
+- **A rim passed a hair inside by a line** (5550106720): a pocket's side
+  leaves a stepped turn's step 6e-4 inside its inner rim, whose chords sag
+  0.06; the rim takes a sample there (`tessellation/sampling/beneath.rs`).
+- **Two conics leaving a node together** (5550117749): a 15° face through
+  a node of a turn's wall and a cylinder of its radius cuts both along
+  conics tangent there, sampled on different walls' angles until one's
+  chord crossed the other's samples and the horn of face between them
+  could not be cut. Two conics of one plane on walls whose axes cross
+  take each other's samples as rays (`tessellation/sampling/conic.rs`).
+
+The round's own campaigns, run against `22df52e` while the round went,
+broke four seeds, each found, shrunk, named and held by narrowing what
+broke it:
+
+- 5551116747 (tilted, exact kernel) and 5551409953 (slanted, through the
+  body): a post floored 1e-7 under where a lying cylinder touches it, a
+  pin touching a post whose end stands 6e-8 past the post's axis. A first
+  version had the touch stand for every vertex on both walls; one standing
+  on a wall anchors that wall's samples still.
+- 5551609285 (turned, through the body): a ring and a cylinder inside it
+  touching along a line a turn's end plane crosses. A first version gave
+  any two tangent conics each other's samples; two parallel walls are
+  sampled on the rays they share already.
+- 5552120815 (tilted, exact kernel), open on `22df52e` as drawn and
+  refused at `576396a`: a turn cut by a cylinder of its radius whose axis
+  meets its own, then by a plane at 45° holding one of their ellipses —
+  the meet came to lie on the plane, which saw it only as a chord. It is
+  seen as the plane's conic now.
+
+Left, ignored with what was found:
+
+- **A turn of 359.9° whose slit opens at a line of touch** (5550232595,
+  as 5544504441): a tube's end face lies on the plane x = -15 a post
+  touches along y = 0, and the tube's inner wall passes through that line
+  at z = 5, its rim tangent to it, where the slit opens. The band lays the
+  rim's arc across the slit on the post and a stretch of the curve the
+  inner wall meets the post along on the end plane; neither is seen there
+  but as a chord, the end face is lost, and the step is declined as
+  unverified.
+
+Every named-case file with `--include-ignored`: the twenty-nine cases
+above that fail on `22df52e` hold, the four new ones hold, and nothing
+that held there fails; #498's eighteen cases hold.
+
+Measured at the round's tip on fresh seeds, release, fifteen minutes a
+draw, the branch and `22df52e` side by side on five threads each, each
+tree in its own target directory, counted over the seeds both reached:
+
+| Draw | First seed | Cases | `22df52e` | Branch | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5553100000 | 41 295 | 112 (2.71) | 112 (2.71) | 0 | 0 |
+| tilted, application's body | 5553200000 | 55 533 | 128 (2.30) | 126 (2.27) | 2 | 0 |
+| slanted, exact kernel | 5553300000 | 39 366 | 17 (0.43) | 14 (0.36) | 3 | 0 |
+| slanted, application's body | 5553400000 | 44 607 | 27 (0.61) | 24 (0.54) | 3 | 0 |
+| turned, application's body | 5553600000 | 33 673 | 17 (0.50) | 17 (0.50) | 0 | 0 |
+| square | 5553700000 | 94 491 | 6 (0.06) | 6 (0.06) | 0 | 0 |
+
+The plain pieces are rare in fresh draws, so the counts barely move: what
+the measurement holds is that no seed that held on `22df52e` fails. The
+slanted draws lose about one failure in seven, the tilted draw through the
+body two in a hundred and twenty-eight; the others are unchanged.

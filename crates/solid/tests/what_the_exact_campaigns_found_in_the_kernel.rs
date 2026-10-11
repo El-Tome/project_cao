@@ -169,7 +169,12 @@
 //! turn's axis, a turn of 359.9°, two walls of one radius whose axes meet
 //! square, and a body left open along a line. The crossings, and the one
 //! seed the round broke (`decision-11-regressions`), are in
-//! `what_the_exact_campaigns_found_in_the_triangles.rs`.
+//! `what_the_exact_campaigns_found_in_the_triangles.rs`. All but the turn of
+//! 359.9° hold, by four causes each decided once; so do 9501873, ignored
+//! since #552's first rounds, and round 2's 5365231546, 5365239260 and
+//! 533779006. The turn of 359.9° stays ignored with what was found of it.
+//! The seed the round's own campaign found refused, a plane at 45° holding
+//! the ellipse two walls of one radius meet along, is named last and holds.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -8522,6 +8527,16 @@ fn seed_5550230611_a_slot_joined_to_a_turn_and_cut_by_a_block_turned_a_quarter()
 /// and the slit's lines and the rims are left with one face each: declined
 /// as unverified, on the exact kernel too. A turn of 359.9° as 5544504441.
 /// As drawn, the seed fails on `f57a5ca` too.
+///
+/// Round 6 found where: the tube lies beside the post, its end face on the
+/// plane x = -15 the post touches along the line y = 0, and its inner wall
+/// of radius 10 about y = 10 passes through that line at z = 5, its rim
+/// there tangent to it — where the 0.1° slit opens. The two declined traces
+/// are the rim's arc across the slit, laid on the post by the band and seen
+/// there as no chord, and a stretch of the curve the inner wall meets the
+/// post along, laid on the end plane by the band. The end face is then lost
+/// with its rims, the slit's lines and the band's two lines. Left: a line
+/// of touch, a tangent rim and a slit at one place.
 #[test]
 #[ignore = "plain-pieces, #552's round 6: a turn joined to a turn of 359.9 degrees about a crossing axis; its slit's lines and rims are left with one face each, declined as unverified"]
 fn seed_5550232595_a_turn_joined_to_a_turn_of_359_9_degrees_about_a_crossing_axis() {

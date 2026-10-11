@@ -1083,3 +1083,40 @@ target directory:
   229 in the turned ones, none in the square and profile draws.
 - The gate's tests, built and warm, take about 35.3 s at `784c69e` and
   34.8 s at `f57a5ca`, the best of three runs each.
+
+## 11 October: round 6 of #552, the pieces with no hair
+
+Round 6 took the fourteen shrunk cases with no hair round 5's measurement
+left (`plain-pieces`). Thirteen hold, by seven causes each decided once, and
+so do sixteen cases ignored since earlier rounds: two walls of one operand
+touching at a point a face of the other passes through put a corner there;
+two arcs where a third surface crosses a band are one up to the hair; a
+plane holding one of the two ellipses two walls of one radius meet along
+cuts that very curve; a triangle passing through another face's beside a
+corner they share is cut the other way; a corner at a point contact
+standing off one wall no longer anchors its samples; a rim is sampled
+where a line leaves its wall's face a hair inside it; two conics leaving a
+node of two crossing walls are sampled on each other's places. The turn of
+359.9° whose slit opens at a line of touch (5550232595) is left, with what
+was found, in `exact-kernel-failures.md`.
+
+Three campaigns ran against `22df52e` as the round went. The first broke
+three seeds, each by a first version of a fix that read too wide
+(5551116747, 5551409953, 5551609285); the second, at `576396a`, changed
+one seed from open to refused (5552120815), where the curve two walls meet
+along came to lie on a plane that could not see it. Each is named and
+holds. The third, at the tip, fifteen minutes a draw on fresh seeds,
+release, the two trees side by side on five threads each:
+
+| Draw | First seed | Cases | `22df52e` | Branch | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5553100000 | 41 295 | 112 (2.71) | 112 (2.71) | 0 | 0 |
+| tilted, application's body | 5553200000 | 55 533 | 128 (2.30) | 126 (2.27) | 2 | 0 |
+| slanted, exact kernel | 5553300000 | 39 366 | 17 (0.43) | 14 (0.36) | 3 | 0 |
+| slanted, application's body | 5553400000 | 44 607 | 27 (0.61) | 24 (0.54) | 3 | 0 |
+| turned, application's body | 5553600000 | 33 673 | 17 (0.50) | 17 (0.50) | 0 | 0 |
+| square | 5553700000 | 94 491 | 6 (0.06) | 6 (0.06) | 0 | 0 |
+
+No seed that held on `22df52e` fails. Every named-case file with
+`--include-ignored`: twenty-nine cases that fail on `22df52e` hold, the
+four new ones hold, and nothing that held there fails.

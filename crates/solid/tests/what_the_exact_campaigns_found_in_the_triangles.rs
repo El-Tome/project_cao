@@ -11,13 +11,20 @@
 //! the key `what_the_exact_campaigns_found_in_the_kernel.rs` gives the rest
 //! of them: two of them draw crossing at a node of the two ellipses two
 //! walls of one radius cross along, their axes meeting square. All five
-//! stay ignored: three are drawn crossing only at the application's finer
-//! tolerance, the exact kernel's own triangles holding.
+//! stayed ignored then, and hold since round 6.
 //!
 //! #552's round 6 names round 5's crossings with no hair under
 //! `plain-pieces`, and under `decision-11-regressions` the one seed round 5
 //! broke: two faces a hair off square to a turn's axis, the first laid
-//! square by decision 11, crossing where its turn puts their line.
+//! square by decision 11, crossing where its turn puts their line. Every
+//! plain piece holds since, with the round's own: a triangle passing through
+//! another face's beside a corner they share is cut the other way, the
+//! touch of two walls anchors their samples only for a corner standing off
+//! one, a rim is sampled where a line leaves its wall's face a hair inside
+//! it, and two conics leaving a node of two crossing walls are sampled on
+//! each other's places. Three seeds the first versions of those broke in
+//! the round's campaigns are named last, and hold. The decision 11
+//! regression stays ignored.
 
 // The drawing and the checks are the campaign's; this file only builds cases
 // and holds them.

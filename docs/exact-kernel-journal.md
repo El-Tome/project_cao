@@ -1020,3 +1020,66 @@ are named under `near-parallel-planes`.
   through the body 11 in 28 138 where it had 12.
 - Every named-case file with `--include-ignored`: fifteen cases that fail
   on `f57a5ca` hold, nothing that held there fails.
+
+## 11 October: round 5 of #552, measured
+
+Round 5 measured at `784c69e` as round 4 was at `beaf75d`: every draw on
+fresh seeds, release, two campaigns at a time on five threads each, and
+the same seeds run on `f57a5ca`, round 4's tip, each tree built in its own
+target directory:
+
+| Draw | First seed | Cases | `f57a5ca` | `784c69e` | Per thousand | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5550100000 | 40 000 | 99 | 97 | 2.42 | 3 | 1 |
+| tilted, application's body | 5550200000 | 40 000 | 119 | 113 | 2.83 | 6 | 0 |
+| slanted, exact kernel | 5550300000 | 30 000 | 21 | 18 | 0.60 | 3 | 0 |
+| slanted, application's body | 5550400000 | 30 000 | 25 | 25 | 0.83 | 0 | 0 |
+| turned, exact kernel | 5550500000 | 30 000 | 19 | 17 | 0.57 | 2 | 0 |
+| turned, application's body | 5550600000 | 30 000 | 16 | 14 | 0.47 | 2 | 0 |
+| square | 5550700000 | 30 000 | 5 | 4 | 0.13 | 1 | 0 |
+| profiles, exact kernel | 5550800000 | 20 000 | 1 | 1 | 0.05 | 0 | 0 |
+| profiles, application's body | 5550900000 | 20 000 | 6 | 6 | 0.30 | 0 | 0 |
+
+- The tilted draws stay over the bar of one failure in a thousand, at 2.4
+  and 2.8, where round 4 left them at 2.5 and 2.6 on other seeds. Every
+  other draw is under it, as at `f57a5ca`. Seventeen seeds are repaired,
+  and no seed changed the rule it breaks.
+- **One seed that holds on `f57a5ca` fails on the tip**, alone as well,
+  on every run: 5550133356, tilted on the exact kernel, drawn crossing
+  (`Uncrossed`). Shrunk, it is a half turn about Y cut twice by faces
+  leaning 1.1e-6° and 9.4e-6° off the same plane, 2e-6 and 1e-5 off it:
+  the core fails on the tip and holds on `f57a5ca`, and the first cut
+  alone holds on both. Two planes leaning a hair off each other, as in
+  the two seeds round 5 named under `near-parallel-planes`; it was not
+  looked into further.
+- **Shrunk, all 295 failures.** One, 5550206527 through the body, is late
+  past the 30 s patience as drawn and shrunk alike.
+- **No hair, 14**, none of them broken by the round:
+  - drawn crossing, 8: a stepped turn cut by a face at 22° (5550106720);
+    a ring joined to a ring and a disc square to it (5550316166); a block
+    cut by a two-band cone and joined to a turn (5550409179); a turn
+    joined to a turn about a crossing axis and bored (5550412859); a turn
+    cut by a cylinder and joined to a turn about a crossing axis
+    (5550427782); a pin and a wedge of 0.01° (5550629812); a turn given a
+    post and a short hole beside it (5550629622); a post, a cylinder
+    joined across it and one cut across it, and a pin (5550709462,
+    square);
+  - refused, 5: a block at 45° cut by a cone's wedge of 0.01°
+    (5550223366); a turn of 359.9° joined to a turn (5550232595); a
+    wedge of 45° bored and given a pin across (5550232928); a slot joined
+    to a turn and cut by a block turned a quarter (5550230611); an arc's
+    prism and two turns (5550316656);
+  - left open, 1: a half turn cut by a cylinder, a turn and a block
+    leaning 15° (5550117749).
+- **A hair, 281**: by an offset, 173; a lean between 2e-7° and 1e-3°, in
+  the warning's band, 85; a lean of 1e-7° or less that decision 11 does
+  not lay, 23.
+- By the rule broken, over all 295: refused (`Answers`) 207, drawn
+  crossing (`Uncrossed`) 75, left open (`Closed`) 9, listed off
+  (`Listed`) 2, a span (`Spans`) 1, a volume (`Volume`) 1.
+- **The warning, counted** in the campaign's own report: the steps built
+  at an unstable lean, 3 540 and 3 730 in the tilted draws on the exact
+  kernel and through the body, 132 and 160 in the slanted ones, 223 and
+  229 in the turned ones, none in the square and profile draws.
+- The gate's tests, built and warm, take about 35.3 s at `784c69e` and
+  34.8 s at `f57a5ca`, the best of three runs each.

@@ -3665,8 +3665,13 @@ fn seed_533647113_a_turned_cylinder_lying_along_a_post_s_wall_is_drawn_closed() 
     ));
 }
 
+///
+/// Was ignored as: kernel-drawing: a cylinder turned whole, cut by a post and
+/// joined to a disc; the exact kernel's own triangles hold, the application's
+/// finer ones are drawn crossing (body/drawn.rs), as 533666445. Holds since a
+/// triangle passing through another face's beside a corner the two share is cut
+/// the other way, round 6 of #552.
 #[test]
-#[ignore = "kernel-drawing: a cylinder turned whole, cut by a post and joined to a disc; the exact kernel's own triangles hold, the application's finer ones are drawn crossing (body/drawn.rs), as 533666445"]
 fn seed_533779006_a_turned_cylinder_cut_and_joined_is_drawn_crossing_through_the_body_alone() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -5097,8 +5102,13 @@ fn seed_5365227506_a_cone_2e_8_under_a_cylinder_whose_axis_stands_1e_8_off() {
 
 /// A post cut by another and by a cylinder turned about an axis 2e-8 above its
 /// top: two faces drawn crossing. No cone.
+///
+/// Was ignored as: triangles, found by round 2's triage: a post cut by a post
+/// and by a cylinder whose axis stands 2e-8 above its top, no cone; the exact
+/// body lists itself on its geometry and holds every line's promise, and two of
+/// its faces are drawn crossing. Holds since a triangle passing through another
+/// face's beside a corner the two share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "triangles, found by round 2's triage: a post cut by a post and by a cylinder whose axis stands 2e-8 above its top, no cone; the exact body lists itself on its geometry and holds every line's promise, and two of its faces are drawn crossing"]
 fn seed_5365231546_a_post_cut_by_a_cylinder_whose_axis_stands_2e_8_above_its_top() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(3.0), Outline::circle([6.0, 7.0], 4.5), 8.5),
@@ -5175,8 +5185,13 @@ fn seed_5365237361_a_stepped_cone_cut_by_a_quarter_turn_about_a_parallel_axis() 
 
 /// A rounded block cut by a block, by a cylinder turned whole and by a slot:
 /// two faces drawn crossing. No cone.
+///
+/// Was ignored as: triangles, found by round 2's triage: a rounded block cut by
+/// a block, a cylinder and a slot, no cone; the exact body lists itself on its
+/// geometry and holds every line's promise, and two of its faces are drawn
+/// crossing. Holds since a triangle passing through another face's beside a
+/// corner the two share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "triangles, found by round 2's triage: a rounded block cut by a block, a cylinder and a slot, no cone; the exact body lists itself on its geometry and holds every line's promise, and two of its faces are drawn crossing"]
 fn seed_5365239260_a_rounded_block_cut_by_a_block_a_cylinder_and_a_slot() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

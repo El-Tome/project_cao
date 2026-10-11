@@ -2529,8 +2529,12 @@ fn seed_3157560_a_boss_a_hair_across_a_bore_and_the_stock_it_touches_leaves_the_
 /// of fifty tolerances. The hair is twenty, which no line of measure can
 /// see the merge through, and thirty tolerances are left two walls again:
 /// the sliver is back.
+///
+/// Was ignored as: triangles: a step withheld where a wall faces another over
+/// part of its height (1-1, 1-3). Holds since a triangle passing through
+/// another face's beside a corner the two share is cut the other way, round 6
+/// of #552.
 #[test]
-#[ignore = "triangles: a step withheld where a wall faces another over part of its height (1-1, 1-3)"]
 fn seed_3202168_a_post_hollowed_a_hair_off_its_axis_below_a_lying_cut_stays_uncrossed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

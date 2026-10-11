@@ -75,6 +75,7 @@ pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64) {
         samples,
         eps,
         edges: BTreeMap::new(),
+        around: BTreeMap::new(),
     };
     for face in 0..folds.drawn.len() {
         for triangle in 0..folds.drawn[face].triangles.len() {
@@ -83,10 +84,10 @@ pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64) {
     }
     for face in 0..folds.drawn.len() {
         for triangle in 0..folds.drawn[face].triangles.len() {
-            let Some(other) = folds.lying((face, triangle)) else {
+            let Some(other) = folds.folded((face, triangle)) else {
                 continue;
             };
-            if folds.unfold((face, triangle), DEPTH).is_none() && folds.lying(other).is_some() {
+            if folds.unfold((face, triangle), DEPTH).is_none() && folds.folded(other).is_some() {
                 folds.unfold(other, DEPTH);
             }
         }
@@ -99,6 +100,8 @@ struct Folds<'a> {
     eps: f64,
     /// Each edge between two samples, and the triangles along it.
     edges: BTreeMap<[usize; 2], Vec<At>>,
+    /// Each sample, and the triangles with a corner there.
+    around: BTreeMap<usize, Vec<At>>,
 }
 
 impl Folds<'_> {
@@ -114,17 +117,21 @@ impl Folds<'_> {
         let Some(corners) = self.corners(at) else {
             return;
         };
+        let keep = |list: &mut Vec<At>| {
+            if adding {
+                list.push(at);
+            } else {
+                list.retain(|each| *each != at);
+            }
+        };
         for side in 0..3 {
             let (one, other) = (corners[side], corners[(side + 1) % 3]);
-            let along = self
-                .edges
-                .entry([one.min(other), one.max(other)])
-                .or_default();
-            if adding {
-                along.push(at);
-            } else {
-                along.retain(|each| *each != at);
-            }
+            keep(
+                self.edges
+                    .entry([one.min(other), one.max(other)])
+                    .or_default(),
+            );
+            keep(self.around.entry(one).or_default());
         }
     }
 
@@ -147,14 +154,36 @@ impl Folds<'_> {
                         let (from, to) = reach(theirs);
                         low.cmple(to).all()
                             && from.cmple(high).all()
-                            && through(
-                                corners.map(|id| self.samples.point(id)),
-                                theirs.map(|id| self.samples.point(id)),
-                                self.eps * CLEAR,
-                            )
+                            && self.pass_through(corners, theirs)
                     })
                 })
         })
+    }
+
+    /// A triangle of another face the triangle at `at` lies on, or passes
+    /// through beside a corner the two share: where a face turns into the
+    /// matter at a corner — a post's wall where a hole cut into it leaves
+    /// its ceiling — a chord of the wall cut across the corner, true to the
+    /// region in the wall's parameters, sags through the face beyond it
+    /// (5550629622).
+    fn folded(&self, at: At) -> Option<At> {
+        self.lying(at).or_else(|| {
+            let corners = self.corners(at)?;
+            corners.iter().find_map(|corner| {
+                self.around.get(corner)?.iter().copied().find(|beside| {
+                    beside.0 != at.0
+                        && self
+                            .corners(*beside)
+                            .is_some_and(|theirs| self.pass_through(corners, theirs))
+                })
+            })
+        })
+    }
+
+    /// Whether the triangles on two sets of samples pass through each other.
+    fn pass_through(&self, one: [usize; 3], other: [usize; 3]) -> bool {
+        let points = |corners: [usize; 3]| corners.map(|id| self.samples.point(id));
+        through(points(one), points(other), self.eps * CLEAR)
     }
 
     /// A triangle of another face the triangle at `at` lies on, if any. Its

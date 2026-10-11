@@ -2225,8 +2225,12 @@ fn seed_8018367_a_right_body_drawn_crossing_at_some_finenesses_only() {
 /// the pin's strip between them pokes through the wall's chord at the
 /// application's fineness and finer: two walls a hair apart crossed by a
 /// third surface.
+///
+/// Was ignored as: band: a pin across a crescent 1e-5 thick, its two meets
+/// sampled on rays a hair apart, at 2e-4 and finer. Holds since a triangle
+/// passing through another face's beside a corner the two share is cut the
+/// other way, round 6 of #552.
 #[test]
-#[ignore = "band: a pin across a crescent 1e-5 thick, its two meets sampled on rays a hair apart, at 2e-4 and finer"]
 fn seed_8515799_a_right_body_drawn_crossing_at_some_finenesses_only() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -2355,8 +2359,12 @@ fn seed_8538687_a_corner_a_hair_off_a_plane_its_own_was_taken_for_stands_on_it()
 /// and the disc's triangle from its rim up to the curve they meet along
 /// pokes through it, at a thousandth of the reach and coarser; from half
 /// that on, the two hold.
+///
+/// Was ignored as: triangles: two perpendicular walls touching at a node, the
+/// bore's strip from the node crossed by the disc's, at 1e-3 and coarser. Holds
+/// since a triangle passing through another face's beside a corner the two
+/// share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "triangles: two perpendicular walls touching at a node, the bore's strip from the node crossed by the disc's, at 1e-3 and coarser"]
 fn seed_8550600_a_right_body_drawn_crossing_at_some_finenesses_only() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3027,8 +3035,19 @@ fn seed_5361304914_a_quarter_point_beside_a_quarter_turn_a_hair_off_its_axis_and
     ));
 }
 
+///
+/// Was ignored as: triangles: a ring left between two coaxial cones crossing at
+/// a shallow angle is drawn crossing along the circle they cross on. The seed's
+/// cone stood a hair off the frustum's axis and was declined as unsupported
+/// until decision 8 took it about one axis; shrunk, the case is exactly coaxial
+/// and fails at 3286cee too. Round 2 of #536: each cone's rim stands 0.104
+/// across the axis from the other cone, a little over the twice a chord's sag
+/// (0.094) within which a circle is sampled with a cone; read along the cone's
+/// normal, 0.081, it held, but so read, a cone all but square to its axis took
+/// the circles of a plane a hair from it and broke 5365213844. Holds since a
+/// triangle passing through another face's beside a corner the two share is cut
+/// the other way, round 6 of #552.
 #[test]
-#[ignore = "triangles: a ring left between two coaxial cones crossing at a shallow angle is drawn crossing along the circle they cross on. The seed's cone stood a hair off the frustum's axis and was declined as unsupported until decision 8 took it about one axis; shrunk, the case is exactly coaxial and fails at 3286cee too. Round 2 of #536: each cone's rim stands 0.104 across the axis from the other cone, a little over the twice a chord's sag (0.094) within which a circle is sampled with a cone; read along the cone's normal, 0.081, it held, but so read, a cone all but square to its axis took the circles of a plane a hair from it and broke 5365213844"]
 fn seed_5364102153_a_ring_left_between_two_coaxial_cones_crossing_at_a_shallow_angle() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3478,8 +3497,12 @@ fn seed_5543610415_a_stepped_shaft_cut_by_a_post_then_joined_to_a_ring() {
 /// triangles draw crossing where the hyperbola meets the bore: a cone face
 /// and a bore face, drawn as the application draws, at a fifth of a
 /// thousandth of the reach; the exact kernel's own triangles hold.
+///
+/// Was ignored as: plain-pieces, #552's round 5: a cone bored along its axis,
+/// cut by a flat along the axis along a hyperbola; drawn crossing. Holds since
+/// a triangle passing through another face's beside a corner the two share is
+/// cut the other way, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 5: a cone bored along its axis, cut by a flat along the axis along a hyperbola; drawn crossing"]
 fn seed_5544205878_a_bored_cone_cut_by_a_flat_along_its_axis() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3508,8 +3531,12 @@ fn seed_5544205878_a_bored_cone_cut_by_a_flat_along_its_axis() {
 /// too (#533's families): a rod about Y cut by a post along Z through its
 /// axis, then by a block, then joined to a wider post. Two triangles draw
 /// crossing.
+///
+/// Was ignored as: plain-pieces, #552's round 5: a rod cut by a post through
+/// its axis and a block, then joined to a post; drawn crossing. Holds since a
+/// triangle passing through another face's beside a corner the two share is cut
+/// the other way, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 5: a rod cut by a post through its axis and a block, then joined to a post; drawn crossing"]
 fn seed_5544518834_a_rod_cut_by_a_post_and_a_block_then_joined_to_a_wider_post() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3542,8 +3569,12 @@ fn seed_5544518834_a_rod_cut_by_a_post_and_a_block_then_joined_to_a_wider_post()
 /// too (#533's families): a tube about X cut by a block, then joined to a
 /// rod and to two turns whose sections have holes, all three about one
 /// axis along Y. Two triangles draw crossing.
+///
+/// Was ignored as: plain-pieces, #552's round 5: a tube about X cut by a block,
+/// joined to three turns about Y; drawn crossing. Holds since a triangle
+/// passing through another face's beside a corner the two share is cut the
+/// other way, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 5: a tube about X cut by a block, joined to three turns about Y; drawn crossing"]
 fn seed_5544528726_a_tube_about_x_cut_by_a_block_then_joined_to_three_turns_about_y() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3589,8 +3620,12 @@ fn seed_5544528726_a_tube_about_x_cut_by_a_block_then_joined_to_three_turns_abou
 /// ellipses stand closer than a chord sags at a fifth of a thousandth of
 /// the reach, the application's drawing; the exact kernel's own triangles
 /// hold (#552's round 5).
+///
+/// Was ignored as: plain-pieces, #552's round 5: a turn cut by a post of its
+/// radius whose axis meets its own; drawn crossing at a node of the two
+/// ellipses. Holds since a triangle passing through another face's beside a
+/// corner the two share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 5: a turn cut by a post of its radius whose axis meets its own; drawn crossing at a node of the two ellipses"]
 fn seed_5544618545_a_turn_of_255_degrees_cut_by_a_post_of_its_radius_across_its_axis() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3630,8 +3665,12 @@ fn seed_5544618545_a_turn_of_255_degrees_cut_by_a_post_of_its_radius_across_its_
 /// and the post's, stand 0.004 apart where their chords sag 0.003 at a
 /// fifth of a thousandth of the reach, the application's drawing. The
 /// exact kernel's own triangles hold (#552's round 5).
+///
+/// Was ignored as: plain-pieces, #552's round 5: a disc cut by a pin from rim
+/// to rim and a post of its radius whose axis meets its own; drawn crossing at
+/// a node of the two ellipses. Holds since a triangle passing through another
+/// face's beside a corner the two share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 5: a disc cut by a pin from rim to rim and a post of its radius whose axis meets its own; drawn crossing at a node of the two ellipses"]
 fn seed_5544629222_a_disc_cut_by_a_pin_from_rim_to_rim_and_a_post_of_its_radius() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3728,8 +3767,12 @@ fn seed_5550133356_a_half_turn_cut_twice_by_faces_leaning_a_hair_off_one_plane()
 /// triangles are drawn crossing at the exact kernel's own tolerance; the
 /// application's finer triangles hold. As drawn, the seed fails on
 /// `f57a5ca` too; not diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a ring joined to a ring and a
+/// disc square to it; drawn crossing on the exact kernel's own triangles. Holds
+/// since a triangle passing through another face's beside a corner the two
+/// share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: a ring joined to a ring and a disc square to it; drawn crossing on the exact kernel's own triangles"]
 fn seed_5550316166_a_ring_joined_to_a_ring_and_a_disc_square_to_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xz(3.5), Outline::ring([5.0, 2.5], 4.0, 3.5), 5.0),
@@ -3753,8 +3796,12 @@ fn seed_5550316166_a_ring_joined_to_a_ring_and_a_disc_square_to_it() {
 /// a turn about another line along X. Drawn as the application draws, two
 /// triangles cross; the exact kernel's own triangles hold. As drawn, the
 /// seed fails on `f57a5ca` too; not diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a block cut by a two-band cone
+/// and joined to a turn; drawn crossing at the application's finer tolerance.
+/// Holds since a triangle passing through another face's beside a corner the
+/// two share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: a block cut by a two-band cone and joined to a turn; drawn crossing at the application's finer tolerance"]
 fn seed_5550409179_a_block_cut_by_a_two_band_cone_and_joined_to_a_turn() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -3784,8 +3831,12 @@ fn seed_5550409179_a_block_cut_by_a_two_band_cone_and_joined_to_a_turn() {
 /// about X joined to a turn about Y crossing it, then bored by a post along
 /// Z. Two triangles are drawn crossing, on the exact kernel's own triangles
 /// too. As drawn, the seed fails on `f57a5ca` too; not diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a turn joined to a turn about
+/// a crossing axis and bored; drawn crossing on both kernels. Holds since a
+/// triangle passing through another face's beside a corner the two share is cut
+/// the other way, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: a turn joined to a turn about a crossing axis and bored; drawn crossing on both kernels"]
 fn seed_5550412859_a_turn_joined_to_a_turn_about_a_crossing_axis_and_bored() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3815,8 +3866,12 @@ fn seed_5550412859_a_turn_joined_to_a_turn_about_a_crossing_axis_and_bored() {
 /// along X crossing it. Two triangles are drawn crossing, on the exact
 /// kernel's own triangles too. As drawn, the seed fails on `f57a5ca` too;
 /// not diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a turn cut by a cylinder and
+/// joined to a turn about a crossing axis; drawn crossing on both kernels.
+/// Holds since a triangle passing through another face's beside a corner the
+/// two share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: a turn cut by a cylinder and joined to a turn about a crossing axis; drawn crossing on both kernels"]
 fn seed_5550427782_a_turn_cut_by_a_cylinder_and_joined_to_a_turn_about_a_crossing_axis() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3846,8 +3901,12 @@ fn seed_5550427782_a_turn_cut_by_a_cylinder_and_joined_to_a_turn_about_a_crossin
 /// the application draws, two triangles cross; the exact kernel's own
 /// triangles hold. As drawn, the seed fails on `f57a5ca` too; not diagnosed
 /// further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a turn given a post and a
+/// short hole beside it; drawn crossing at the application's finer tolerance.
+/// Holds since a triangle passing through another face's beside a corner the
+/// two share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: a turn given a post and a short hole beside it; drawn crossing at the application's finer tolerance"]
 fn seed_5550629622_a_turn_given_a_post_and_a_short_hole_beside_it() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3899,8 +3958,12 @@ fn seed_5550629812_a_pin_joined_to_a_wedge_of_0_01_degrees() {
 /// along X, then joined to a pin along Z. Two triangles are drawn crossing
 /// at the exact kernel's own tolerance; the application's finer triangles
 /// hold. As drawn, the seed fails on `f57a5ca` too; not diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a post given a cylinder across
+/// it, cut by another and given a pin; drawn crossing on the exact kernel's own
+/// triangles. Holds since a triangle passing through another face's beside a
+/// corner the two share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "plain-pieces, #552's round 6: a post given a cylinder across it, cut by another and given a pin; drawn crossing on the exact kernel's own triangles"]
 fn seed_5550709462_a_post_given_a_cylinder_across_it_cut_by_another_and_a_pin() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(15.0), Outline::circle([27.5, 35.0], 17.5), 25.0),

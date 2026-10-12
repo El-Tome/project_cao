@@ -314,3 +314,35 @@ fn a_circle_or_an_ellipse_touching_an_elliptic_boss_from_inside_holds_its_volume
     let u = boss.first.normalize();
     cut_and_joined(Section::ellipse(on_the_boss(3.5, 0.0), u * 3.5, 1.5));
 }
+
+#[test]
+fn an_ellipse_a_hair_from_round_cut_by_the_circle_inscribed_in_it_leaves_two_crescents() {
+    let oval = Section::ellipse([3.0, 7.0], DVec2::X * 2.5, 2.49975);
+    let circle = Section::circle([3.0, 7.0], 2.49975);
+    let cut = raised(oval, 8.0, 12.0)
+        .cut_by(&raised(circle, 9.0, 17.0))
+        .expect("the circle is cut out of the ellipse, touching it across its minor axis");
+    held(&cut, oval.area() * 4.0 - circle.area() * 3.0);
+}
+
+#[test]
+fn a_round_post_a_hair_off_touching_an_elliptic_boss_is_moved_onto_the_touch() {
+    let boss = boss();
+    let body = raised(boss, 0.0, 4.0);
+    let eps = body.scale().joined(Scale::of(13.0)).eps();
+    for hair in [eps / 3.0, -eps / 3.0] {
+        let post = Section::circle(on_the_boss(9.0 + hair, 0.0), 2.0);
+        let joined = body
+            .joined(&raised(post, 0.0, 4.0))
+            .expect("the post is joined along the ruling it touches");
+        held(&joined, (boss.area() + post.area()) * 4.0);
+        let [round, oval] = [
+            |surface: &&Surface| matches!(surface, Surface::Cylinder(_)),
+            |surface: &&Surface| matches!(surface, Surface::Elliptic(_)),
+        ]
+        .map(|kind| *joined.surfaces.iter().find(kind).expect("both walls stand"));
+        let off = crate::brep::relation::off_the_touches(&round, &oval, joined.scale())
+            .expect("the two walls touch");
+        assert!(off <= 1e-12 * 13.0, "the touch stands {off} off exact");
+    }
+}

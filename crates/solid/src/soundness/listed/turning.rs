@@ -338,17 +338,30 @@ fn section(origin: DVec3, axis: DVec3, circle: &Circle, room: f64) -> bool {
 /// two axes, a circle may stand and still be a cross-section.
 const SQUARE: f64 = 1e-9;
 
-/// What a curve sweeps on a plane, along chords in the plane's parameters.
+/// What a curve sweeps on a plane, along chords in the plane's parameters,
+/// each with the sliver between it and the curve, read through the place
+/// half way along it as a parabola's is: four thirds of the triangle the
+/// chord makes with that place. The chords alone fall short by the
+/// slivers, as much as a whole crescent a hair wide between an arc of an
+/// ellipse and one of a circle touching it at both ends sweeps, which then
+/// read as turning the wrong way.
 fn chords(edge: &ListedEdge, flat: impl Fn(DVec3) -> (f64, f64)) -> (f64, f64) {
-    let places: Vec<(f64, f64)> = (0..=CHORDS)
-        .map(|piece| {
-            let at = edge.from + (edge.to - edge.from) * piece as f64 / CHORDS as f64;
+    let places: Vec<(f64, f64)> = (0..=2 * CHORDS)
+        .map(|half| {
+            let at = edge.from + (edge.to - edge.from) * half as f64 / (2 * CHORDS) as f64;
             flat(point(&edge.curve, at))
         })
         .collect();
+    let cross = |one: (f64, f64), other: (f64, f64)| one.0 * other.1 - other.0 * one.1;
     let area = places
-        .windows(2)
-        .map(|pair| (pair[0].0 * pair[1].1 - pair[1].0 * pair[0].1) / 2.0)
+        .windows(3)
+        .step_by(2)
+        .map(|piece| {
+            let (start, middle, end) = (piece[0], piece[1], piece[2]);
+            let along = (end.0 - start.0, end.1 - start.1);
+            let bulge = (middle.0 - start.0, middle.1 - start.1);
+            cross(start, end) / 2.0 + 2.0 / 3.0 * cross(bulge, along)
+        })
         .sum();
     (area, 0.0)
 }

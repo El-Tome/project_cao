@@ -146,19 +146,72 @@ ellipse, is drawn at once at the scale the first one gives. See
 Emptying a field takes the decision back. `Entrée` validates the shape without
 having to find the canvas again with the mouse.
 
-The sign follows the cursor: 30° typed means the 30° one is pointing at, not
-the ones underneath. And as long as a value is fixed, a neighbouring point is
-no longer snapped to — that would quietly give the trait another length.
+An angle typed is the angle drawn: -90 goes straight down even with the cursor
+above, and 30 leaves up and to the right wherever the cursor is. The cursor
+still gives the length, as far as it reaches along that line on either side.
+
+A trait **drawn on from another** reads its angle at the corner the two make,
+the way the dimension laid there reads it: 90 is a square corner, 180 carries
+straight on, 30 is a sharp point turning back. The trait before is the one just
+drawn in the chain, or the only trait ending where the new one starts; where
+several end, the angle goes back to the horizontal. There the cursor chooses
+the side: the field reads **+** with the new trait on the left of the one
+before, **−** on its right, and a number typed takes the sign of the side the
+cursor is on. Validated, the trait gets the angle at the corner, and no arm.
+And as long as a value is fixed, a neighbouring point is no longer snapped to —
+that would quietly give the trait another length.
 
 ## Right angles place themselves
 
 Drawing on from a trait, coming within 4° of the perpendicular **sets the trait
 at exactly 90°**, shows the little square of technical drawing in the corner,
-and places the angle constraint on validation.
+and lays « Perpendiculaire » between the two on validation — as the rectangle
+lays its corners. With the option below off, it is an angle of 90° instead.
 
 The square is shown **before** validating: a constraint that appears without
 warning is a nasty surprise. The band is wide enough to be easy to aim at,
 narrow enough not to steal an angle genuinely meant to be 80°.
+
+## 0°, 90° and 180° are rules
+
+An angle of exactly 0° or 180° says two things run the same way, and 90° that
+they stand square: that is « Parallèle » and « Perpendiculaire », with no
+number to them (#537). Typed into an angle, those three values lay the rule
+**in place of** the dimension:
+
+- against a sketch axis, 0° and 180° lay « Parallèle » to it, 90°
+  « Perpendiculaire »;
+- between two traits — at a corner, in a T, crossing or apart — 0° and 180° lay
+  « Parallèle » between them, 90° « Perpendiculaire », in the order the angle
+  was clicked;
+- in the angle of a trait drawn at a typed angle, read against its arm, the
+  rule is to the horizontal axis, and the arm goes with the dimension;
+- a trait **drawn** at 0°, 90° or 180° typed gets the rule straight away, with
+  no arm and no angle: to the horizontal axis when drawn from no trait, to the
+  trait before when drawn on from one. -90°, 270° and 360° hold it along the
+  same line as 90° and 0°. A trait drawn from an axis, along it, keeps
+  « Colinéaire » to that axis.
+
+The dimension goes, and the rule shows its mark. It is one step, named after
+the rule, and one undo gives the dimension back. To get 5° afterwards, delete
+the rule and dimension the angle again.
+
+Only those exact values, typed as a plain number: 0.01° or 89.99° is an angle
+someone meant and stays a dimension, and so does a value written from a
+variable — « pente » worth 0 — which would otherwise lose its link with it, or
+a calculation like « 45*2 ». Between two traits such a value is still refused,
+as 0° and 180° always were for a dimension there. A rule that cannot hold is
+refused like any rule (#467), and the dimension keeps its value.
+
+Once the rule between two traits apart is deleted, they still run the same
+way, and the dimension tool refuses an angle between them: one has to be moved
+first.
+
+The option « Poser une règle pour 0°, 90° et 180° », in the « Esquisse »
+section of the settings, is on by default. Turned off, those values are
+dimensions as before, in the field and in the line tool alike — and a trait
+drawn at 0° typed gets an arm lying along it, with an angle of 0 the part
+refuses.
 
 ## The smart dimension
 
@@ -181,6 +234,25 @@ own** — the length of a trait. Clicking a second entity before placing the
 dimension transforms it: another trait makes it an angle, a point makes it a
 distance to the line. That is what one expects of a dimension called smart, and
 it saves having to name the kind beforehand.
+
+An angle between a trait and a sketch axis is read about the **middle of the
+trait**: a line running the way the axis runs goes through it, and with the
+trait it cuts the plane into four quarters, two acute and two obtuse. The
+quarter the dimension is put down in is the angle measured, and the preview
+follows the cursor until the click. Which way round the trait was drawn says
+nothing. The quarter is chosen then and only then: dragging the dimension
+afterwards moves its value, never what it measures. To measure another quarter,
+delete it and put it down again. A trait and an axis carry one angle between
+them; clicking the pair again opens it.
+
+An angle between **two traits** follows the same rule everywhere. Their two
+lines cut four quarters where they cross, and the dimension measures the one it
+is put down in, cut by the lines themselves — right beside a trait included.
+At a **corner**, the quarters lie between the two traits, between one trait and
+the other's prolongation past the corner, or between the two prolongations. A
+**T** opens four ways like an **X**, its stem prolonged past its foot. A
+prolongation an angle opens from is drawn thin, out to the arc. A corner, like
+a pair of traits, carries one angle.
 
 A dimension from a point to a line reads as if a perpendicular segment came
 down from the point to the line. It really is the **line** that is measured,
@@ -501,16 +573,17 @@ The **Contraintes** menu, in the Dessin row, offers nine:
 | **Perpendicular** | Two traits | They stay square |
 | **Parallel** | Two traits | They keep the same direction |
 | **Equal** | Two traits, or two circles | The second takes the size of the first |
-| **Coincident** | A point and a trait, or two points | The point stays on the line; two points become one; a point laid on a circle stays on its rim |
+| **Coincident** | A point and a trait, a point and a curve, or two points | The point stays on the line, or on the curve — an arc on its whole circle; two points become one |
 | **Collinear** | Two traits, or a trait and an axis of the frame | They rest on the same line |
 | **Tangent** | A circle and a trait | The trait grazes the circle, and the contact point is placed |
 | **Midpoint** | A point and a trait | The point stays halfway along |
 | **Fixed** | Anything: a point, a trait, a circle | It no longer moves from its place (its size is not fixed for all that) |
 | **Concentric** | Two circles | They share one single centre |
 
-The order of the clicks is free: a point and a trait make the same coincidence
-either way round. What counts is **what** was clicked, so the rule is built
-from the types gathered and not from their order.
+The order of the clicks does not change the rule: a point and a trait make the
+same coincidence either way round. What counts is **what** was clicked, so the
+rule is built from the types gathered. The order says only which of the two
+stays while it lands — "What gives way first" has it.
 
 Between the first click and the last, **what the rule has already been shown is
 drawn in a colour of its own**, set in the appearance settings like the rest.
@@ -886,12 +959,15 @@ as far off the axis as along it.
 
 ### A point held keeps its place along what holds it
 
-A point held on a trait, a circle or an arc keeps its place along it while a
-gesture, a value typed or a rule laid moves what holds it: its share of the trait from the trait's start, its
-angle about the circle's centre, its share of the arc's sweep from the arc's
-start. At 70 of a trait it stays at 70 however the trait stretches; at 40° on a
-circle it stays at 40° wherever the circle goes; halfway round an arc it stays
-halfway round as the arc opens. The place is read as the gesture starts and put
+A point held on a trait, a circle, an arc or an ellipse keeps its place along
+it while a gesture, a value typed or a rule laid moves what holds it: its share
+of the trait from the trait's start, its angle about the circle's centre, its
+share of the arc's sweep from the arc's start, its share of what is drawn of an
+ellipse — or its turn round a whole one. At 70 of a trait it stays at 70
+however the trait stretches; at 40° on a circle it stays at 40° wherever the
+circle goes; halfway round an arc it stays halfway round as the arc opens. On
+half an ellipse, which holds it on the whole curve, it would otherwise slide
+round to the half that is not drawn as soon as the curve moved (#531). The place is read as the gesture starts and put
 back once the drawing has settled, so nothing is kept in the file for it.
 
 A point a value places along what holds it — a distance typed from the trait's
@@ -1032,7 +1108,11 @@ From what never gives to what gives first:
    leaves the point nearest the origin where it is and moves the other, and
    changes no size nobody typed on the way: the other point is taken where
    the value says, what lies beyond it goes the whole way, what lies between
-   the two stretches, and the solver only mends what is left (#455). Of two
+   the two stretches, and the solver only mends what is left (#455). Where
+   that stretch breaks something already decided — a side typed beside the
+   one it stretches — and the other point going alone breaks nothing, it goes
+   alone: mending the stretch would move a corner nobody asked to move
+   (#530). Of two
    points as near the origin, the one drawn first stays. Construction
    geometry is ordinary here: it settles like the profile, and gives neither
    first nor last (#452 tried otherwise, and was turned down in use).
@@ -1050,10 +1130,35 @@ From what never gives to what gives first:
 A rule laid, or an angle typed, between two things the order ranks alike leaves
 **the first one clicked** where it is and brings the second to it — the
 length of a trait for **Equal**, the direction of a trait for a square, a
-parallel or an angle, a circle's place and size for a tangency. A point is the
-exception: it comes onto the trait or the curve it is laid on whichever was
-clicked first. The order decides before the clicks do: where holding the first
-leaves the rule no way to hold — the second is fixed — the first gives.
+parallel or an angle, a circle's place and size for a tangency. A free point
+— one that belongs to nothing — is the exception: it comes onto the trait or
+the curve it is laid on whichever was clicked first. A point that belongs to
+something follows the clicks like the rest (#548): with « Coïncidence », the
+point clicked first stays and the trait comes to it, turning about one of its
+ends when sliding it across would squeeze its own shape; the trait clicked
+first stays and the point comes onto it, an arc a point was placed on
+reshaping to bring it, an arc whose centre it is travelling whole with it.
+Only the second one moves, with what it belongs to: nothing else in the
+drawing does. The order decides before the clicks do: where holding the first
+leaves the rule no way to hold — the second is fixed — the first gives, and
+where neither can come the rule is refused.
+
+A point and an arc, a circle or an ellipse land the same way (#554). The point
+clicked first stays, and the curve comes to it whole, keeping its size and the
+way it is turned, until it passes through the point. When the point then falls
+beyond what is drawn — of an arc, or of half an ellipse a cut left — the curve
+lengthens a little past it, its opening growing and its radius kept; a circle
+only moves. A fillet lengthens too, the trait it is tangent to turning with its
+end. Half an ellipse drawn by its ends ends on its own axis, which no end can
+slide off without turning the curve: it does not lengthen, and moves until what
+is drawn reaches the point — as does an arc whose shape cannot follow it
+lengthening. When the curve alone would bend what it is joined to, its whole
+shape comes with it. The curve clicked first stays, and the
+point comes onto what is drawn of it, at the nearest place, its shape
+following. Either way the point stands a little inside the end — five degrees
+round the curve — never on top of it nor made one with it, so as never to read
+as a corner it is not. Where the point lands is all that is new: the curve
+still holds it on the whole of itself afterwards, an arc on its whole circle.
 
 The first one clicked is held only while the rule lands. Afterwards the two are
 as free as the rule leaves them: a length typed later on the second of two
@@ -1088,12 +1193,14 @@ when none decides it.
 | Drag a side already selected | — | Not the order's to say: which gesture the press means is #442 | — |
 | Move a selection | A side of a rectangle whose sizes are typed, moved where they forbid | Nothing: the hand stops short | Same (#472); the right angles were left untrue, and every later drag refused |
 | Move what holds a point | A point held on a trait, a circle or an arc | It keeps its place along what holds it | Same (#446) |
+| Lay a rule | A point held on half an ellipse drawn by its ends, a rule elsewhere moving the curve | The point keeps its place on the half drawn | Same (#531); it slid round to the half not drawn, and seemed to come off the curve until touched again |
 | Type a value | A rectangle, its two bottom corners fixed, its width changed | One fixed corner, chosen as rank 4 says | Same (#453): the corner nearest the origin stays |
 | Type a value | A rectangle, three corners fixed, its width changed | The one fixed corner that can answer alone, its free neighbour following | Same (#453) |
 | Lay a rule | A fixed trait laid along a sketch axis | The trait comes onto the axis and stays fixed there | Same (#453); the rule was kept and left untrue |
 | Lay a rule | Two traits of typed lengths made equal | Nothing: the rule is refused, as a value is | Same (#467); the rule was kept and left untrue |
 | Type a value | A trait alone, both ends free | The end nearest the origin stays, the other moves | Same (#455); both ends moved by half |
 | Type a value | Four traits made square, only the width typed | The side nearest the origin stays, and the height with it | Same (#455); both sides moved, and the height changed |
+| Type a value | Four traits from a corner held on V, nothing square, the left side typed, then the right one | The far corner of the right side alone: the held corner, the left side and the bottom stay | Same (#530); the left side grew with the right one and was brought back by sliding the corner along V, the bottom leaning and growing — and before #547, by turning the corner off V while the value answered exact |
 | Type a value | An angle between two free traits | The second trait clicked turns, the first stays | Same (#451) |
 | Type a value | A shape squared by its rules, held by a single fixed point or corner of the part | Nothing turns | Same for a fixed point (#456); a corner of the part waits on #359 |
 | Lay a rule | Two free traits made square | The second clicked turns onto the first | Same (#451) |
@@ -1105,7 +1212,21 @@ when none decides it.
 | Type a value | A length on the second of two traits made equal | Both take it | Same since #451; it was refused, Equal only ever moving the second |
 | Drag a point | An end of the second of two traits made equal | It follows the hand, and the first trait stretches with it | Same since #451; the end stopped short, Equal only ever moving the second |
 | Cut a corner | A chamfer or a fillet on a corner carrying an angle | The angle, read between the stretches, still turns the trait it was typed from | Same (#451) |
-| Lay a rule | A point on a trait | The point comes onto the trait | Same |
+| Lay a rule | A free point on a trait | The point comes onto the trait, whichever was clicked first | Same |
+| Lay a rule | « Coïncidence », a trait clicked first, then a point placed on an arc the trait does not reach | The arc reshapes to bring the point onto the trait; the trait stays | Same (#548); the rule was refused |
+| Lay a rule | The same, the point clicked first | The trait comes to the point; the arc stays | Same (#548); the rule was refused |
+| Lay a rule | « Coïncidence », a trait clicked first, then the centre of an arc | The arc travels whole with its centre onto the trait | Same (#548); the arc opened by 118° and the trait moved |
+| Lay a rule | « Coïncidence », a trait clicked first, then an end of an arc | The end comes onto the trait and the arc reshapes; the trait stays | Same (#548); the trait moved too |
+| Lay a rule | « Coïncidence », the end of a trait clicked first, then a fixed trait | The fixed trait cannot come: the point comes onto it instead | Same (#548) |
+| Lay a rule | « Coïncidence », the end of a free trait and another free trait, either clicked first | The first stays; only the second moves, with what it belongs to | Same (#548); both traits travelled several squares and turned |
+| Lay a rule | « Coïncidence », a free point and an arc, a circle or an ellipse, either clicked first | The point comes onto what is drawn of the curve; the curve stays | Same (#554); the rule was refused |
+| Lay a rule | « Coïncidence », the end of a trait clicked first, then an arc it does not reach | The arc comes whole, its radius kept, until its circle passes through the point, and lengthens a little past it when the point falls beyond its ends; the trait stays | Same (#554); the rule was refused |
+| Lay a rule | The same with a circle | The circle comes whole, its radius kept | Same (#554); the rule was refused |
+| Lay a rule | The same with half an ellipse a cut left | It comes whole, its axes kept, and lengthens a little past the point | Same (#554); the rule was refused |
+| Lay a rule | The same with half an ellipse drawn by its ends | It comes whole until what is drawn reaches the point, a little inside its end; it does not lengthen | Same (#554); the rule was refused |
+| Lay a rule | The same with the fillet of two free traits | It comes whole and lengthens, the trait it is tangent to turning with its end | Same (#554); the rule was refused |
+| Lay a rule | « Coïncidence », an arc or half an ellipse clicked first, then the end of a trait | The point comes onto what is drawn, at the nearest place — a little short of an end when the nearest place on the whole curve is past it; the curve stays | Same (#554); the rule was refused |
+| Lay a rule | « Coïncidence », the end of a trait clicked first, then a fixed curve | The curve cannot come: the point comes onto it | Same (#554); the rule was refused |
 | Lay a rule | A point at the middle of a trait | The point comes to the middle; the trait stays | Same (#479); the trait moved a third of the way to the point |
 | Lay a rule | « Coïncidence », a free corner clicked first, then a point held on an arc | The corner stays and keeps the point's rule; the arc moves to pass through it | Same (#539); the point went, its rule stayed on it, and the corner never came onto the curve |
 | Lay a rule | « Concentrique », a free circle clicked first, then a circle sharing its centre with an arc | The circle and the arc travel together onto the first circle's centre, each keeping its size, opening and way round | Same (#539); the arc stayed round a centre that no longer existed |
@@ -1124,10 +1245,10 @@ dimension, which follow the geometry when it moves and stay crisp at any zoom.
 An image would have to be redone for every value and every angle.
 
 An angle read against a sketch axis traces one thing more: a short line out of
-the trait's own start, along the axis, as far as the arc. The axis itself is
-drawn through the origin, which can be nowhere near that vertex — without the
-line the arc would open from nothing. A trait that already starts on the axis
-gets no such line: the axis runs right through the vertex, and a second line on
+the trait's middle, the way the axis runs, as far as the arc. The axis itself is
+drawn through the origin, which can be nowhere near that middle — without the
+line the arc would open from nothing. A trait whose middle already lies on the
+axis gets no such line: the axis runs right through it, and a second line on
 top of it says nothing.
 
 A read-only dimension is traced more discreetly, in grey: it reports, it does

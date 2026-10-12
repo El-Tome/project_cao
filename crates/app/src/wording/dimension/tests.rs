@@ -1,6 +1,6 @@
 //! What app · wording/dimension.rs is held to.
 
-use cao_sketch::{ArcId, CircleId, PointId, SegmentId};
+use cao_sketch::{ArcId, AxisToward, CircleId, PointId, SegmentId, Toward};
 
 use super::*;
 
@@ -28,16 +28,15 @@ fn across(target: &DimensionTarget) -> String {
 fn a_dimension_is_named_after_what_it_measures() {
     let measured = [
         (
-            DimensionTarget::Angle {
-                first: SegmentId(0),
-                second: SegmentId(1),
-            },
+            DimensionTarget::corner(SegmentId(0), SegmentId(1)),
             "Angle 60°",
         ),
         (
             DimensionTarget::AxisAngle {
                 segment: SEGMENT,
+                segment_toward: Toward::End,
                 axis: SketchAxis::U,
+                axis_toward: AxisToward::Positive,
             },
             "Angle 60° / axe horizontal",
         ),
@@ -91,16 +90,15 @@ fn a_dimension_says_what_it_was_taken_across() {
         ),
         (DimensionTarget::Length(SEGMENT), "trait 0"),
         (
-            DimensionTarget::Angle {
-                first: SegmentId(0),
-                second: SegmentId(1),
-            },
+            DimensionTarget::corner(SegmentId(0), SegmentId(1)),
             "traits 0 et 1",
         ),
         (
             DimensionTarget::AxisAngle {
                 segment: SEGMENT,
+                segment_toward: Toward::End,
                 axis: SketchAxis::U,
+                axis_toward: AxisToward::Positive,
             },
             "trait 0 / axe horizontal",
         ),

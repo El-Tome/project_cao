@@ -27,6 +27,15 @@
 //! Decided on the way: a value typed ends the gesture, so the next trait
 //! clicked gets its own length —
 //! `a_trait_clicked_after_a_length_was_retyped_gets_its_own_length`.
+//!
+//! Closes #484.
+//! - a trait dimensioned against an axis measures the quarter the click puts
+//!   it down in, around the middle of the trait —
+//!   `a_trait_then_an_axis_then_a_place_lays_the_angle_of_that_quarter`
+//!
+//! Closes #485.
+//! - a hand wavering on the line between two quarters keeps the one shown, and
+//!   the click lays it — `a_hand_wavering_on_the_line_keeps_the_quarter_it_shows`
 
 use cao_part::history::PointRef;
 use cao_part::{Formula, Operation, PartDocument, VariableChange};
@@ -389,10 +398,7 @@ fn a_trait_carrying_its_length_then_a_second_trait_gives_the_angle() {
 
     assert_eq!(
         placing(&editor),
-        Some(DimensionTarget::Angle {
-            first: SegmentId(0),
-            second: SegmentId(1),
-        }),
+        Some(DimensionTarget::corner(SegmentId(0), SegmentId(1))),
         "the second trait turned the first into an angle"
     );
     assert!(editor.editing.is_none(), "the length's field stayed open");
@@ -461,4 +467,106 @@ fn a_trait_clicked_after_a_length_was_retyped_gets_its_own_length() {
     click(&mut context, halfway);
 
     assert_eq!(placing(&editor), Some(OTHER_SIDE));
+}
+
+#[test]
+fn a_trait_then_an_axis_then_a_place_lays_the_angle_of_that_quarter() {
+    for (place, expected) in [
+        (DVec2::new(40.0, 80.0), 101.309_932_474_020_2),
+        (DVec2::new(100.0, 80.0), 78.690_067_525_979_8),
+    ] {
+        let mut document = PartDocument::new("part", Utc::now());
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        });
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(DVec2::new(20.0, 30.0)),
+            end: PointRef::New(DVec2::new(120.0, 50.0)),
+            construction: false,
+        });
+        let mut editor = SketchEditor::default();
+        let mut extrusion = ExtrusionState::default();
+        let lang = Catalogue::french();
+        let mut context = SketchContext {
+            document: &mut document,
+            editor: &mut editor,
+            extrusion: &mut extrusion,
+            lang: &lang,
+        };
+
+        click(&mut context, DVec2::new(70.0, 40.0));
+        click(&mut context, DVec2::new(0.0, 150.0));
+        click(&mut context, place);
+
+        let laid: Vec<_> = document.sketches()[0]
+            .dimensions()
+            .iter()
+            .map(|dimension| (dimension.target, dimension.value))
+            .collect();
+        let [(DimensionTarget::AxisAngle { .. }, value)] = laid[..] else {
+            panic!("one angle to the axis laid at {place:?}, got {laid:?}");
+        };
+        assert!(
+            (value - expected).abs() < 1e-6,
+            "put down at {place:?} it reads {value}°, not {expected}°",
+        );
+    }
+}
+
+#[test]
+fn a_hand_wavering_on_the_line_keeps_the_quarter_it_shows() {
+    let crossing = DVec2::new(50.0, 0.0);
+    let thirty = DVec2::from_angle(30.0_f64.to_radians());
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for (start, end) in [
+        (DVec2::ZERO, DVec2::new(100.0, 0.0)),
+        (crossing - thirty * 40.0, crossing + thirty * 40.0),
+    ] {
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(start),
+            end: PointRef::New(end),
+            construction: false,
+        });
+    }
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let pixel = 0.05;
+    let follow = super::super::following::follow_the_cursor;
+
+    click(&mut context, DVec2::new(20.0, 0.0));
+    click(&mut context, crossing + thirty * 30.0);
+    follow(&mut context, 0, crossing + DVec2::new(30.0, 0.3), pixel);
+    let a_hair_under = crossing + DVec2::new(30.0, -0.1);
+    follow(&mut context, 0, a_hair_under, pixel);
+    follow(&mut context, 0, crossing + DVec2::new(30.0, 0.1), pixel);
+    follow(&mut context, 0, a_hair_under, pixel);
+    click(&mut context, a_hair_under);
+
+    let sketch = &document.sketches()[0];
+    let laid: Vec<_> = sketch
+        .dimensions()
+        .iter()
+        .map(|dimension| sketch.opening(dimension.target))
+        .collect();
+    let [Some(opening)] = laid[..] else {
+        panic!("one angle laid, got {laid:?}");
+    };
+    assert!(
+        (opening - 30.0).abs() < 1e-6,
+        "a hair under the line, the narrow quarter shown above it stays: {opening}°",
+    );
 }

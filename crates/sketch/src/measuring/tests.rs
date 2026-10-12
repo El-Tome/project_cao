@@ -185,3 +185,80 @@ fn a_point_off_the_line_then_the_trait_still_measures_the_distance_to_it() {
         "a point standing off the line has a distance to it, and the tool lays it: {pick:?}",
     );
 }
+
+#[test]
+fn an_axis_then_a_trait_reads_the_acute_angle_whichever_way_the_trait_was_drawn() {
+    let (left, right) = (DVec2::new(20.0, 30.0), DVec2::new(120.0, 50.0));
+    for (start, end) in [(left, right), (right, left)] {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let from = sketch.add_point(start);
+        let to = sketch.add_point(end);
+        sketch.add_segment(from, to);
+
+        let (picks, _) = measure_pick(
+            &sketch,
+            DimensionMode::Auto,
+            DimensionPicks::default(),
+            DVec2::new(0.0, 150.0),
+            2.0,
+        );
+        let (_, pick) = measure_pick(
+            &sketch,
+            DimensionMode::Auto,
+            picks,
+            DVec2::new(70.0, 40.0),
+            2.0,
+        );
+
+        let DimensionPick::Target(target) = pick else {
+            panic!("an axis then a trait makes an angle, got {pick:?}");
+        };
+        let read = sketch.opening(target).expect("it reads");
+        assert!(
+            (read - 78.690_067_525_979_8).abs() < 1e-9,
+            "drawn from {start:?}, it reads {read}°",
+        );
+    }
+}
+
+#[test]
+fn a_corner_already_carrying_an_angle_is_read_in_that_angles_quarter() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let left = sketch.add_point(DVec2::new(0.0, 20.0));
+    let pivot = sketch.add_point(DVec2::new(60.0, 20.0));
+    let up_right = sketch.add_point(DVec2::new(100.0, 70.0));
+    let along = sketch.add_segment(left, pivot);
+    let slanted = sketch.add_segment(pivot, up_right);
+    let read_past = DimensionTarget::Angle {
+        first: along,
+        first_along: crate::Along::Prolongation,
+        second: slanted,
+        second_along: crate::Along::Trait,
+    };
+
+    let picked = |sketch: &Sketch| {
+        let (picks, _) = measure_pick(
+            sketch,
+            DimensionMode::Angle,
+            DimensionPicks::default(),
+            DVec2::new(30.0, 20.0),
+            2.0,
+        );
+        measure_pick(
+            sketch,
+            DimensionMode::Angle,
+            picks,
+            DVec2::new(80.0, 45.0),
+            2.0,
+        )
+        .1
+    };
+
+    assert_eq!(
+        picked(&sketch),
+        DimensionPick::Target(DimensionTarget::corner(along, slanted)),
+        "a corner carrying nothing is read between its traits",
+    );
+    sketch.set_dimension(read_past, 51.3, false);
+    assert_eq!(picked(&sketch), DimensionPick::Target(read_past));
+}

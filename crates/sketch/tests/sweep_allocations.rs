@@ -59,10 +59,7 @@ fn a_drawing_that_cannot_be_satisfied() -> Sketch {
         sketch.set_dimension(DimensionTarget::Length(*side), wanted, false);
     }
     for pair in sides.windows(2) {
-        let target = DimensionTarget::Angle {
-            first: pair[0],
-            second: pair[1],
-        };
+        let target = DimensionTarget::corner(pair[0], pair[1]);
         sketch.set_dimension(target, 90.0, false);
     }
 

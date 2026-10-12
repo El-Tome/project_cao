@@ -82,6 +82,7 @@ use glam::DVec2;
 
 use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
 use crate::element::Element;
+use crate::laid_from::LaidFrom;
 use crate::plane::WorkPlane;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
@@ -234,22 +235,8 @@ fn a_triangle_with_two_typed_angles_grows_without_turning() {
         sketch.add_segment(q, r),
         sketch.add_segment(r, p),
     ];
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: sides[0],
-            second: sides[1],
-        },
-        45.0,
-        false,
-    );
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: sides[1],
-            second: sides[2],
-        },
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(sides[0], sides[1]), 45.0, false);
+    sketch.set_dimension(DimensionTarget::corner(sides[1], sides[2]), 90.0, false);
     sketch.resolve(1.0);
     let was = sides.map(|side| direction(&sketch, side));
     let size = sketch.segment_length(sides[0]);
@@ -322,7 +309,11 @@ fn a_circle_dragged_by_its_centre_is_carried_at_its_size() {
     let centre = sketch.add_point(DVec2::new(40.0, 40.0));
     let circle = sketch.add_circle(centre, 15.0);
     let rim = sketch.add_point(DVec2::new(55.0, 40.0));
-    sketch.add_constraint(Constraint::OnCircle { point: rim, circle });
+    sketch.add_constraint(Constraint::OnCircle {
+        point: rim,
+        circle,
+        from: LaidFrom::Nowhere,
+    });
 
     sketch.settle_around(centre, DVec2::new(70.0, 20.0), 1.0);
 
@@ -856,6 +847,7 @@ fn a_point_held_on_a_trait_leaves_the_far_end_whichever_way_the_trait_was_drawn(
         sketch.add_constraint(Constraint::OnSegment {
             point: held,
             segment: side,
+            from: LaidFrom::Nowhere,
         });
 
         sketch.settle_around(near, DVec2::new(100.0, 30.0), 1.0);
@@ -1146,7 +1138,11 @@ fn a_rectangle_whose_far_corner_sits_on_a_circle_still_follows_the_hand() {
     let (mut sketch, [a, b, c, _], _) = upright();
     let centre = sketch.add_point(DVec2::new(160.0, 100.0));
     let circle = sketch.add_circle(centre, 50.0);
-    sketch.add_constraint(Constraint::OnCircle { point: c, circle });
+    sketch.add_constraint(Constraint::OnCircle {
+        point: c,
+        circle,
+        from: LaidFrom::Nowhere,
+    });
 
     sketch.settle_around(a, DVec2::new(5.0, 45.0), 1.0);
 
@@ -1175,6 +1171,7 @@ fn a_rectangle_with_a_square_trait() -> (Sketch, PointId, PointId) {
     sketch.add_constraint(Constraint::OnSegment {
         point: foot,
         segment: sides[2],
+        from: LaidFrom::Nowhere,
     });
     let tip = sketch.add_point(DVec2::new(90.0, 110.0));
     let square = sketch.add_segment(foot, tip);

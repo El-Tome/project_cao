@@ -41,6 +41,7 @@ fn an_arc_of_ellipse_whose_two_ends_become_one_is_taken_away() {
         sketch.add_constraint(Constraint::OnEllipse {
             point,
             ellipse: oval,
+            from: crate::LaidFrom::Nowhere,
         });
     }
     sketch.draw_the_stretch(oval, to, from);

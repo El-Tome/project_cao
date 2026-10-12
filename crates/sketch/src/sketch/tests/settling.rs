@@ -41,14 +41,7 @@ fn a_shape_leaning_has_to_say_which_way_up_it_is() {
     let across = sketch.add_segment(corner, far);
     sketch.set_dimension(DimensionTarget::Length(along), 90.0, false);
     sketch.set_dimension(DimensionTarget::Length(across), 60.0, false);
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: along,
-            second: across,
-        },
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(along, across), 90.0, false);
     sketch.resolve(1.0);
     assert_eq!(
         sketch.freedom(1.0).degrees_of_freedom,
@@ -60,7 +53,9 @@ fn a_shape_leaning_has_to_say_which_way_up_it_is() {
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
             segment: along,
+            segment_toward: Toward::End,
             axis: crate::constraints::SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         0.0,
         false,
@@ -143,10 +138,7 @@ fn a_whole_figure_moved_at_once_keeps_its_shape() {
         .collect();
     for pair in 0..3 {
         sketch.set_dimension(
-            DimensionTarget::Angle {
-                first: sides[pair],
-                second: sides[pair + 1],
-            },
+            DimensionTarget::corner(sides[pair], sides[pair + 1]),
             90.0,
             false,
         );
@@ -181,7 +173,11 @@ fn a_point_on_the_rim_resizes_the_circle_when_it_is_pulled() {
     let center = sketch.add_point(DVec2::new(0.0, 0.0));
     let circle = sketch.add_circle(center, 10.0);
     let rim = sketch.add_point(DVec2::new(10.0, 0.0));
-    sketch.add_constraint(Constraint::OnCircle { point: rim, circle });
+    sketch.add_constraint(Constraint::OnCircle {
+        point: rim,
+        circle,
+        from: crate::LaidFrom::Nowhere,
+    });
 
     sketch.settle_around(rim, DVec2::new(30.0, 0.0), 1.0);
 

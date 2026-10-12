@@ -157,7 +157,7 @@ impl Sketch {
             }
         }
         for dimension in self.dimensions() {
-            if let DimensionTarget::Angle { first, second }
+            if let DimensionTarget::Angle { first, second, .. }
             | DimensionTarget::AngleBetween { first, second, .. } = dimension.target
             {
                 tied.extend([first, second]);

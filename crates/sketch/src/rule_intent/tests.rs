@@ -36,7 +36,8 @@ fn the_order_of_the_clicks_does_not_change_the_rule() {
         forward,
         Some(RuleIntent::Constrain(Constraint::OnSegment {
             point,
-            segment
+            segment,
+            from: LaidFrom::Nowhere
         })),
     );
 }

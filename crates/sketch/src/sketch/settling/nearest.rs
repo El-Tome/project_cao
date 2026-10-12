@@ -6,6 +6,7 @@ use glam::DVec2;
 use super::{LengthOutcome, PointId, Sketch};
 use crate::constraints::DimensionTarget;
 use crate::sketch::Element;
+use crate::solver::TOLERANCE;
 
 impl Sketch {
     /// The free point a value typed leaves where it is, for as long as it
@@ -48,7 +49,7 @@ impl Sketch {
             // place along the trait before the value, not after it (#446).
             let shares = self.shares(&still, millimeters_per_unit);
             if let Some((point, position)) = far {
-                self.stretch_to_the_value(near, point, position);
+                self.stretch_to_the_value(near, point, position, millimeters_per_unit);
             }
             self.held.stays = vec![near];
             let landed = self.settle_held(held, Vec::new(), millimeters_per_unit);
@@ -68,8 +69,19 @@ impl Sketch {
     /// part of it. A far side goes with its corner, and a height stays a
     /// height. Another shape the value reaches travels whole.
     ///
+    /// Where that stretch breaks something already decided — a side typed
+    /// beside the one the value stretches — the far point goes alone instead,
+    /// if that leaves the solver nothing to mend. Mending the stretch would
+    /// move a corner nobody asked to move (#530).
+    ///
     /// What stays for good does not move, and the solver takes it from there.
-    fn stretch_to_the_value(&mut self, near: PointId, far: PointId, to: DVec2) {
+    fn stretch_to_the_value(
+        &mut self,
+        near: PointId,
+        far: PointId,
+        to: DVec2,
+        millimeters_per_unit: f64,
+    ) {
         let (from, shift) = (self.point(near), to - self.point(far));
         let reach = self.point(far) - from;
         let way = shift.try_normalize().unwrap_or(DVec2::ZERO);
@@ -82,6 +94,7 @@ impl Sketch {
         let groups = self.shapes_joined();
         let apart = groups[near.0] != groups[far.0];
         let stays = self.points_that_stay();
+        let drawn = self.shapes_now();
         for index in 0..self.points().len() {
             let point = PointId(index);
             if stays[index] || point == near || self.out_of_play(point) {
@@ -96,6 +109,20 @@ impl Sketch {
             };
             self.place_point(point, self.point(point) + shift * share);
         }
+        if apart || self.leaves_nothing_to_mend(millimeters_per_unit) {
+            return;
+        }
+
+        let stretched = self.shapes_now();
+        self.give_back(drawn);
+        self.move_point(far, to);
+        if !self.leaves_nothing_to_mend(millimeters_per_unit) {
+            self.give_back(stretched);
+        }
+    }
+
+    fn leaves_nothing_to_mend(&self, millimeters_per_unit: f64) -> bool {
+        self.worst_error(millimeters_per_unit, self.characteristic_size()) < TOLERANCE
     }
 
     /// Which shape each point belongs to, as `point_groups` reads them, with

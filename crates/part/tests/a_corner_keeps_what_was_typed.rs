@@ -393,11 +393,7 @@ fn an_angle_the_corner_carried_survives_the_cut_that_took_the_corner() {
     let mut state = replay(&a_right_angle());
     state.apply(&Operation::SetDimension {
         sketch: 0,
-        target: DimensionTarget::Angle {
-            first: EAST,
-            second: NORTH,
-        }
-        .normalised(),
+        target: DimensionTarget::corner(EAST, NORTH).normalised(),
         value: 90.0.into(),
         placement: None,
     });

@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::angle_between::RUN_THE_SAME_WAY;
 use crate::arc::ArcId;
+use crate::axis_angle::AxisToward;
+use crate::corner_angle::Along;
 use crate::ellipse::EllipseId;
 use crate::laid_from::LaidFrom;
 use crate::sketch::{CircleId, Element, PointId, SegmentId};
@@ -55,24 +57,33 @@ pub enum DimensionTarget {
     /// segment. Measuring from the sketch origin is how a drawing gets pinned
     /// without having to sit exactly on it.
     Distance { from: PointId, to: PointId },
-    /// Angle at the point two segments share.
-    Angle { first: SegmentId, second: SegmentId },
+    /// Angle at the end two segments share, each arm along its trait or past it.
+    Angle {
+        first: SegmentId,
+        first_along: Along,
+        second: SegmentId,
+        second_along: Along,
+    },
     /// Angle between two segments that meet without sharing an end — where
     /// they cross, or where one ends on the middle of the other.
     ///
-    /// A shared end names a corner's one angle; two traits crossing name four,
-    /// two of them acute and two obtuse. Which way each arm runs along its trait
-    /// is what says which of the four this is.
+    /// Two traits crossing make four angles, two acute and two obtuse, as a
+    /// corner does. Which way each arm runs along its trait, towards its end or
+    /// its start, is what says which of the four this is.
     AngleBetween {
         first: SegmentId,
         first_toward: Toward,
         second: SegmentId,
         second_toward: Toward,
     },
-    /// Angle between a segment and one of the sketch axes.
+    /// Angle between a segment and one of the sketch axes, read about the
+    /// segment's middle. A line along the axis cuts four quarters there with
+    /// the trait, and which way each arm runs says which of them this is.
     AxisAngle {
         segment: SegmentId,
+        segment_toward: Toward,
         axis: SketchAxis,
+        axis_toward: AxisToward,
     },
     /// Distance from a point to the line a segment lies on, taken square to
     /// that line — as if a perpendicular segment ran from the point down to it.
@@ -196,6 +207,11 @@ pub enum Constraint {
     OnSegment {
         point: PointId,
         segment: SegmentId,
+        /// Which of the two was clicked first, and so stays where it is — for
+        /// a point that belongs to something. A free point, or one born on the
+        /// trait, comes onto it whichever was clicked first, and keeps none.
+        #[serde(default)]
+        from: LaidFrom,
     },
     /// Two traits lying on one and the same line.
     Collinear {
@@ -232,6 +248,11 @@ pub enum Constraint {
     OnCircle {
         point: PointId,
         circle: CircleId,
+        /// Which of the two was clicked first, as for a point laid on a trait:
+        /// the curve for a free point, which comes onto it, and none for one
+        /// laid down on the rim (#554).
+        #[serde(default)]
+        from: LaidFrom,
     },
     /// A point held on the circle an arc is a piece of, wherever the arc goes
     /// and whatever size it takes. The whole circle, not the stretch drawn:
@@ -240,6 +261,8 @@ pub enum Constraint {
     OnArc {
         point: PointId,
         arc: ArcId,
+        #[serde(default)]
+        from: LaidFrom,
     },
     /// An ellipse brushing a line: the line grazes it and no more.
     EllipseTangent {
@@ -258,6 +281,8 @@ pub enum Constraint {
     OnEllipse {
         point: PointId,
         ellipse: EllipseId,
+        #[serde(default)]
+        from: LaidFrom,
     },
     /// A point held on one of the sketch's own axes, which is a line nothing
     /// can move.

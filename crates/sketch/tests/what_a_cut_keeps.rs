@@ -6,7 +6,8 @@
 //! there.
 
 use cao_sketch::{
-    CircleId, Constraint, DimensionTarget, PointId, SegmentId, Sketch, SketchAxis, WorkPlane,
+    AxisToward, CircleId, Constraint, DimensionTarget, PointId, SegmentId, Sketch, SketchAxis,
+    Toward, WorkPlane,
 };
 use glam::DVec2;
 
@@ -97,7 +98,9 @@ fn an_angle_to_an_axis_is_still_read_on_both_pieces() {
     let (mut sketch, cut, _, [first, second]) = a_trait_alongside_another();
     let target = DimensionTarget::AxisAngle {
         segment: cut,
+        segment_toward: Toward::End,
         axis: SketchAxis::U,
+        axis_toward: AxisToward::Positive,
     };
     sketch.set_dimension(target, 30.0, false);
 
@@ -109,7 +112,9 @@ fn an_angle_to_an_axis_is_still_read_on_both_pieces() {
     for piece in pieces {
         let kept = sketch.dimension_of(DimensionTarget::AxisAngle {
             segment: piece,
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         });
         assert_eq!(kept.map(|value| value.value), Some(30.0), "{piece:?}");
     }
@@ -123,14 +128,7 @@ fn an_angle_at_a_corner_follows_the_piece_that_still_reaches_it() {
     let cut = sketch.add_segment(corner, away);
     let up = sketch.add_point(DVec2::new(0.0, 15.0));
     let other = sketch.add_segment(corner, up);
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: cut,
-            second: other,
-        },
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(cut, other), 90.0, false);
     let first = sketch.add_point(DVec2::new(4.0, 5.0));
     let second = sketch.add_point(DVec2::new(6.0, 5.0));
 
@@ -146,7 +144,7 @@ fn an_angle_at_a_corner_follows_the_piece_that_still_reaches_it() {
             sketch.dimensions().iter().any(|value| {
                 matches!(
                     value.target,
-                    DimensionTarget::Angle { first, second }
+                    DimensionTarget::Angle { first, second, .. }
                         if first == *piece || second == *piece
                 )
             })

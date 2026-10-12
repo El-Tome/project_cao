@@ -59,9 +59,16 @@ pub(super) fn remap_target(target: DimensionTarget, map: &SketchIdMap) -> Dimens
             from: map.points[&from],
             to: map.points[&to],
         },
-        DimensionTarget::Angle { first, second } => DimensionTarget::Angle {
+        DimensionTarget::Angle {
+            first,
+            first_along,
+            second,
+            second_along,
+        } => DimensionTarget::Angle {
             first: map.segments[&first],
+            first_along,
             second: map.segments[&second],
+            second_along,
         },
         DimensionTarget::AngleBetween {
             first,
@@ -74,9 +81,16 @@ pub(super) fn remap_target(target: DimensionTarget, map: &SketchIdMap) -> Dimens
             second: map.segments[&second],
             second_toward,
         },
-        DimensionTarget::AxisAngle { segment, axis } => DimensionTarget::AxisAngle {
-            segment: map.segments[&segment],
+        DimensionTarget::AxisAngle {
+            segment,
+            segment_toward,
             axis,
+            axis_toward,
+        } => DimensionTarget::AxisAngle {
+            segment: map.segments[&segment],
+            segment_toward,
+            axis,
+            axis_toward,
         },
         DimensionTarget::PointToSegment { point, segment } => DimensionTarget::PointToSegment {
             point: map.points[&point],
@@ -91,6 +105,18 @@ pub(super) fn remap_target(target: DimensionTarget, map: &SketchIdMap) -> Dimens
         DimensionTarget::Diameter(circle) => DimensionTarget::Diameter(map.circles[&circle]),
         DimensionTarget::ArcRadius(arc) => DimensionTarget::ArcRadius(map.arcs[&arc]),
         DimensionTarget::ArcSweep(arc) => DimensionTarget::ArcSweep(map.arcs[&arc]),
+    }
+}
+
+/// A rule as it is laid again. A point held on a curve keeps no order of the
+/// clicks: laid in one on a drawing that already holds it, it would be brought
+/// back onto what is drawn of the curve from wherever a drag left it (#554).
+pub(super) fn without_order(rule: Constraint) -> Constraint {
+    match rule {
+        Constraint::OnCircle { .. } | Constraint::OnArc { .. } | Constraint::OnEllipse { .. } => {
+            rule.normalised()
+        }
+        other => other,
     }
 }
 
@@ -120,9 +146,14 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
             arc: map.arcs[&arc],
             circle: map.circles[&circle],
         },
-        Constraint::OnSegment { point, segment } => Constraint::OnSegment {
+        Constraint::OnSegment {
+            point,
+            segment,
+            from,
+        } => Constraint::OnSegment {
             point: map.points[&point],
             segment: map.segments[&segment],
+            from,
         },
         Constraint::Collinear { first, second } => Constraint::Collinear {
             first: map.segments[&first],
@@ -161,17 +192,28 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
             at: at.map(|point| map.points[&point]),
             from,
         },
-        Constraint::OnCircle { point, circle } => Constraint::OnCircle {
+        Constraint::OnCircle {
+            point,
+            circle,
+            from,
+        } => Constraint::OnCircle {
             point: map.points[&point],
             circle: map.circles[&circle],
+            from,
         },
-        Constraint::OnArc { point, arc } => Constraint::OnArc {
+        Constraint::OnArc { point, arc, from } => Constraint::OnArc {
             point: map.points[&point],
             arc: map.arcs[&arc],
+            from,
         },
-        Constraint::OnEllipse { point, ellipse } => Constraint::OnEllipse {
+        Constraint::OnEllipse {
+            point,
+            ellipse,
+            from,
+        } => Constraint::OnEllipse {
             point: map.points[&point],
             ellipse: map.ellipses[&ellipse],
+            from,
         },
         Constraint::OnAxis { point, axis } => Constraint::OnAxis {
             point: map.points[&point],

@@ -34,7 +34,9 @@ use glam::DVec2;
 use super::*;
 use crate::arc::ArcId;
 use crate::arcing::sweep_of;
-use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::axis_angle::AxisToward;
+use crate::constraints::{Constraint, DimensionTarget, SketchAxis, Toward};
+use crate::laid_from::LaidFrom;
 use crate::plane::WorkPlane;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
@@ -92,7 +94,9 @@ fn a_value_a_piece_inherits_is_not_said_to_be_going() {
     let (mut sketch, segment, [_, near, far, _]) = a_trait_with_two_points_on_it();
     let angle = DimensionTarget::AxisAngle {
         segment,
+        segment_toward: Toward::End,
         axis: SketchAxis::U,
+        axis_toward: AxisToward::Positive,
     };
     sketch.set_dimension(angle, 0.0, false);
 
@@ -114,6 +118,7 @@ fn a_rule_the_cut_would_take_with_it_is_named() {
     let held = Constraint::OnSegment {
         point: middle,
         segment,
+        from: LaidFrom::Nowhere,
     };
     sketch.add_constraint(held);
 
@@ -240,6 +245,7 @@ fn a_point_held_on_the_stretch_that_goes_loses_what_held_it() {
     let held = Constraint::OnArc {
         point: between,
         arc,
+        from: LaidFrom::Nowhere,
     };
     sketch.add_constraint(held);
 

@@ -3,6 +3,7 @@ use glam::DVec2;
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
 use crate::holding::Support;
+use crate::laid_from::LaidFrom;
 use crate::plane::WorkPlane;
 use crate::sketch::{CircleId, SegmentId, Sketch};
 
@@ -14,7 +15,11 @@ fn a_point_held_on_an_arc_keeps_its_reach_when_the_arc_grows() {
     let end = sketch.add_point(DVec2::new(20.0, 40.0));
     let arc = sketch.add_arc(centre, start, end);
     let point = sketch.add_point(DVec2::new(20.0, 30.0) + DVec2::splat(10.0 / 2.0_f64.sqrt()));
-    sketch.add_constraint(Constraint::OnArc { point, arc });
+    sketch.add_constraint(Constraint::OnArc {
+        point,
+        arc,
+        from: LaidFrom::Nowhere,
+    });
 
     sketch.set_dimension(DimensionTarget::ArcRadius(arc), 20.0, false);
     sketch.resolve(1.0);
@@ -57,6 +62,7 @@ fn a_trait_dragged_carries_the_point_it_holds_without_being_bent_by_it() {
     sketch.add_constraint(Constraint::OnSegment {
         point,
         segment: side,
+        from: LaidFrom::Nowhere,
     });
 
     sketch.settle_around(start, DVec2::new(10.0, 30.0), 1.0);
@@ -85,6 +91,7 @@ fn a_point_held_where_two_traits_cross_follows_it_when_one_of_them_moves() {
         sketch.add_constraint(Constraint::OnSegment {
             point: crossing,
             segment,
+            from: LaidFrom::Nowhere,
         });
     }
 
@@ -183,6 +190,7 @@ fn a_point_held_on_a_trait_slides_along_it_when_it_is_pulled_off() {
     sketch.add_constraint(Constraint::OnSegment {
         point,
         segment: side,
+        from: LaidFrom::Nowhere,
     });
 
     let slid = sketch.slide(point, DVec2::new(35.0, 25.0));
@@ -202,6 +210,7 @@ fn a_point_held_on_a_circle_slides_round_its_rim() {
     sketch.add_constraint(Constraint::OnCircle {
         point,
         circle: round,
+        from: LaidFrom::Nowhere,
     });
 
     let slid = sketch.slide(point, DVec2::new(20.0, 45.0));
@@ -223,7 +232,11 @@ fn a_point_held_at_a_crossing_stays_there_however_it_is_pulled() {
     let up = sketch.add_segment(south, north);
     let point = sketch.add_point(DVec2::new(20.0, 20.0));
     for segment in [across, up] {
-        sketch.add_constraint(Constraint::OnSegment { point, segment });
+        sketch.add_constraint(Constraint::OnSegment {
+            point,
+            segment,
+            from: LaidFrom::Nowhere,
+        });
     }
 
     let slid = sketch.slide(point, DVec2::new(35.0, 35.0));

@@ -126,6 +126,8 @@ pub struct SketchEditor {
     /// How far the shape, dimension or rule the tool in hand is drawing has
     /// gotten. See `cao_sketch::ToolState`.
     pub tool_state: ToolState,
+    /// Copied from the profile in use every frame, as the viewport's config is.
+    pub sketching: cao_prefs::SketchingConfig,
 }
 
 /// What the cursor is offering to sketch on.

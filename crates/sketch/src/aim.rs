@@ -30,6 +30,21 @@ pub struct Aim {
     pub position: DVec2,
     /// The trait this one has just been squared up against.
     pub square_with: Option<SegmentId>,
+    /// The trait this one is drawn on from, which an angle typed for it is
+    /// read against. Asked before it is laid: once it is, two traits end where
+    /// it starts.
+    pub drawn_on: Option<SegmentId>,
+}
+
+impl Aim {
+    /// The cursor itself, with nothing decided about it.
+    pub fn at(position: DVec2) -> Self {
+        Self {
+            position,
+            square_with: None,
+            drawn_on: None,
+        }
+    }
 }
 
 /// Half the width of the band, in degrees, inside which a corner is taken as
@@ -69,12 +84,8 @@ impl Sketch {
         locked: LockedInput,
         scale: f64,
     ) -> Aim {
-        let nowhere = Aim {
-            position: cursor,
-            square_with: None,
-        };
         let Some(from) = self.anchor_position(anchor) else {
-            return nowhere;
+            return Aim::at(cursor);
         };
 
         let scale = scale.max(1e-9);
@@ -82,28 +93,34 @@ impl Sketch {
         let mut direction = span.normalize_or(DVec2::X);
         let mut square_with = None;
 
-        if let Some(degrees) = locked.second {
-            // The sign follows the cursor: 30 degrees typed means the 30 the
-            // user is pointing at, not the one below the axis they are not.
-            let wanted = DVec2::from_angle(degrees.to_radians());
-            direction = if wanted.dot(direction) >= 0.0 {
-                wanted
-            } else {
-                -wanted
-            };
-        } else if let Some(squared) = previous.and_then(|id| self.right_angle(id, from, span)) {
-            direction = squared;
-            square_with = previous;
-        }
+        // An angle typed is a decision the cursor no longer turns: -90 goes
+        // down even with the cursor above. Its reach along that line, on
+        // either side, is still the length.
+        let along = match locked.second {
+            Some(degrees) => {
+                direction = self
+                    .turned_at_the_corner(anchor, previous, degrees, cursor)
+                    .unwrap_or_else(|| DVec2::from_angle(degrees.to_radians()));
+                span.dot(direction).abs()
+            }
+            None => {
+                if let Some(squared) = previous.and_then(|id| self.right_angle(id, from, span)) {
+                    direction = squared;
+                    square_with = previous;
+                }
+                span.dot(direction).max(0.0)
+            }
+        };
 
         let length = match locked.first {
             Some(millimeters) => millimeters / scale,
-            None => span.dot(direction).max(0.0),
+            None => along,
         };
 
         Aim {
             position: from + direction * length.max(1e-6),
             square_with,
+            drawn_on: self.drawn_on_from(anchor, previous),
         }
     }
 

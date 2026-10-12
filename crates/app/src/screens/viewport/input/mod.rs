@@ -8,7 +8,7 @@
 use cao_part::Outcome;
 use cao_part::history::{Operation, PointRef};
 use cao_sketch::{
-    Aim, ChainAnchor, DimensionTarget, PointId, Rule, RuleIntent, SegmentId, Selection, ToolState,
+    ChainAnchor, DimensionTarget, PointId, Rule, RuleIntent, SegmentId, Selection, ToolState,
     rule_intent,
 };
 use glam::DVec2;
@@ -43,7 +43,7 @@ mod split;
 use split::split;
 
 mod angle_arm;
-pub(super) use angle_arm::lean_on_an_arm;
+pub(super) use angle_arm::{hold_the_typed_angle, lean_on_an_arm};
 
 mod line;
 use line::dimension_the_line;
@@ -85,7 +85,9 @@ use resizing::drag_curve;
 mod selection_drag;
 mod sides;
 
+mod following;
 mod landing;
+use following::follow_the_cursor;
 pub(crate) use landing::{born_at, held_at_drop, landed_on, point_ref_at};
 
 pub(crate) fn handle_sketch_input(
@@ -144,12 +146,7 @@ pub(crate) fn handle_sketch_input(
         .then(|| pick(context, index, cursor, snap, scale.units_per_pixel))
         .flatten();
 
-    // Worked out once a frame and shown as the preview, so that what is drawn
-    // on screen is exactly what a click would record.
-    context.editor.aimed = match context.editor.tool_state {
-        ToolState::Line { anchor, previous } => Some(aim(context, index, anchor, previous, cursor)),
-        _ => None,
-    };
+    follow_the_cursor(context, index, cursor, scale.units_per_pixel);
 
     // Dragging a point is a gesture, not a click, so it comes before the
     // click-based tools.
@@ -443,7 +440,7 @@ pub(crate) fn draw_line_point(
             });
 
             if locked.second.is_some() {
-                lean_on_an_arm(context, index, drawn, sprung_from, pixel);
+                hold_the_typed_angle(context, index, aimed.drawn_on, (drawn, sprung_from), pixel);
             }
             dimension_the_line(context, index, drawn, aimed, pixel);
             context.document.history.fold_into_one_gesture(opened);
@@ -455,31 +452,6 @@ pub(crate) fn draw_line_point(
             true
         }
     }
-}
-
-/// Applies to the cursor everything the user has already decided. The rules are
-/// the drawing's; what this adds is the state the tool is holding.
-fn aim(
-    context: &SketchContext<'_>,
-    index: usize,
-    anchor: ChainAnchor,
-    previous: Option<SegmentId>,
-    cursor: DVec2,
-) -> Aim {
-    let nowhere = Aim {
-        position: cursor,
-        square_with: None,
-    };
-    let Some(sketch) = context.document.sketches().get(index) else {
-        return nowhere;
-    };
-    sketch.aim(
-        anchor,
-        previous,
-        cursor,
-        context.editor.live.locked(),
-        super::values::shape_scale(context),
-    )
 }
 
 /// How much of the plane to show when a sketch has no geometry to frame yet.

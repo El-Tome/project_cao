@@ -122,7 +122,7 @@ impl Sketch {
         let held_on_it = |point: PointId| {
             self.constraints().iter().any(|rule| {
                 matches!(rule,
-                    Constraint::OnSegment { point: held, segment }
+                    Constraint::OnSegment { point: held, segment, .. }
                     | Constraint::Midpoint { point: held, segment }
                     if *held == point && *segment == side)
             })

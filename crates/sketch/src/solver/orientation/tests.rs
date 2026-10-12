@@ -32,7 +32,9 @@
 
 use super::*;
 
-use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::axis_angle::AxisToward;
+use crate::constraints::{Constraint, DimensionTarget, SketchAxis, Toward};
+use crate::laid_from::LaidFrom;
 use crate::plane::WorkPlane;
 use crate::sketch::{Element, SegmentId};
 
@@ -241,7 +243,9 @@ fn a_slanted_square_held_by_one_fixed_point_is_not_settled_without_an_angle() {
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
             segment: sides[0],
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         20.0,
         false,
@@ -295,7 +299,9 @@ fn an_angle_typed_turns_a_square_held_by_one_fixed_point() {
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
             segment: sides[0],
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         30.0,
         false,
@@ -503,10 +509,12 @@ fn a_leaning_square_does_not_borrow_a_way_up_from_a_level_trait_tied_to_it() {
     sketch.add_constraint(Constraint::OnSegment {
         point: s_point,
         segment: sides[1],
+        from: LaidFrom::Nowhere,
     });
     sketch.add_constraint(Constraint::OnSegment {
         point: t_point,
         segment: sides[3],
+        from: LaidFrom::Nowhere,
     });
     sketch.set_dimension(DimensionTarget::Length(chord), 62.5, false);
     sketch.solve(SCALE);
@@ -577,7 +585,11 @@ fn an_arc_tied_to_a_held_point_is_not_turned_back_off_the_rule_that_ties_it() {
     let corner = sketch.add_point(DVec2::new(40.0, 0.0));
     let top = sketch.add_point(DVec2::new(40.0, 10.0));
     sketch.add_segment(corner, top);
-    sketch.add_constraint(Constraint::OnArc { point: corner, arc });
+    sketch.add_constraint(Constraint::OnArc {
+        point: corner,
+        arc,
+        from: LaidFrom::Nowhere,
+    });
 
     let landed = sketch.settle_held(vec![corner], Vec::new(), SCALE);
 

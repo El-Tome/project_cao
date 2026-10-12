@@ -107,7 +107,9 @@
 use glam::DVec2;
 
 use super::*;
-use crate::constraints::{Constraint, DimensionTarget};
+use crate::axis_angle::AxisToward;
+use crate::constraints::{Constraint, DimensionTarget, Toward};
+use crate::laid_from::LaidFrom;
 use crate::length::LengthOutcome;
 use crate::plane::WorkPlane;
 
@@ -297,6 +299,7 @@ fn a_lone_trait_carries_the_point_held_on_it() {
     sketch.add_constraint(Constraint::OnSegment {
         point: held,
         segment: line,
+        from: LaidFrom::Nowhere,
     });
 
     let drag = sketch.side_drag(
@@ -1078,7 +1081,9 @@ fn a_shape_with_an_axis_angle_or_two_fixed_points_has_nowhere_to_turn_about() {
     angled.set_dimension(
         DimensionTarget::AxisAngle {
             segment: sides[0],
+            segment_toward: Toward::End,
             axis: crate::constraints::SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         0.0,
         false,
@@ -1296,6 +1301,7 @@ fn a_point_held_on_the_opposite_side_does_not_take_the_place_of_its_middle() {
     sketch.add_constraint(Constraint::OnSegment {
         point: held,
         segment: sides[2],
+        from: LaidFrom::Nowhere,
     });
 
     let drag = sketch.side_drag(
@@ -1503,6 +1509,7 @@ fn a_triangle_with_a_construction_height_still_turns_about_its_far_corner() {
     sketch.add_constraint(Constraint::OnSegment {
         point: foot,
         segment: sides[0],
+        from: LaidFrom::Nowhere,
     });
     let height = sketch.add_construction_segment(foot, corners[2]);
     sketch.add_constraint(Constraint::Perpendicular {

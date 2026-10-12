@@ -28,7 +28,8 @@
 use glam::DVec2;
 
 use super::*;
-use crate::constraints::{DimensionTarget, SketchAxis};
+use crate::axis_angle::AxisToward;
+use crate::constraints::{DimensionTarget, SketchAxis, Toward};
 use crate::holding::Support;
 use crate::plane::WorkPlane;
 use crate::resizing::Curved;
@@ -310,7 +311,9 @@ fn an_axis_end_dragged_against_the_values_given_carries_the_ellipse_whole() {
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
             segment: first,
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         30.0,
         false,

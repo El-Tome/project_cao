@@ -23,44 +23,57 @@
 //! taken for a disc's wall at just under the tolerance left the slot's side,
 //! which its operand made touch the cap, just over it from the disc, and the
 //! side crossed the wall it should have touched (533613392).
+//!
+//! A cone is decided against a surface of revolution about one axis only
+//! (#536): a cone and a cylinder or another cone whose axes stand a hair
+//! apart meet along a curve the kernel does not build, and two circles of
+//! theirs, read about each axis, stand a hair apart where they should be
+//! one. So a cone and any wall or cone, one of each operand, whose axes
+//! stand within `Scale::HAIR` tolerances are taken about one axis, whatever
+//! their radii: the second operand is moved onto the first's axis the same
+//! way (5361108529, 5361110937).
 
 use glam::DVec3;
 
 use super::carried::carried_along;
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Surface};
+use crate::brep::surface::Surface;
 use crate::brep::topology::Body;
 
 /// The second operand with each of its cylinders standing within `Scale::HAIR`
-/// tolerances of one of the first's, of one radius, moved onto it; none
-/// when nothing moves.
+/// tolerances of one of the first's, of one radius, moved onto it; each of
+/// its cones whose axis stands as near a cylinder's or a cone's of the
+/// first, and each of its cylinders whose axis stands as near a cone's of
+/// the first, moved about that axis; none when nothing moves.
 pub(in crate::brep) fn closed(first: &Body, second: &Body, scale: Scale) -> Option<Body> {
     carried_along(first, second, scale, |current, rank| {
-        let Surface::Cylinder(cylinder) = current.surfaces[rank] else {
-            return None;
-        };
-        offset(first, &cylinder, scale)
+        offset(first, &current.surfaces[rank], scale)
     })
 }
 
-/// The move square to the axes that lays `cylinder` on the nearest of the
-/// first operand's cylinders of its radius whose axis stands within `Scale::HAIR`
-/// tolerances of its own; none where it stands on one already, but for
-/// rounding.
-fn offset(first: &Body, cylinder: &Cylinder, scale: Scale) -> Option<DVec3> {
+/// The move square to the axes that lays `surface` about the axis of the
+/// nearest of the first operand's surfaces of revolution decided about one
+/// axis with it whose axis stands within `Scale::HAIR` tolerances of its
+/// own; none where it stands about one already, but for rounding.
+fn offset(first: &Body, surface: &Surface, scale: Scale) -> Option<DVec3> {
     let eps = scale.eps();
+    let (origin, axis) = axis_of(surface)?;
     let mut nearest: Option<(f64, DVec3)> = None;
     for known in &first.surfaces {
-        let Surface::Cylinder(known) = known else {
+        let Some((known_origin, known_axis)) = axis_of(known) else {
             continue;
         };
-        if known.axis.cross(cylinder.axis).length() * 2.0 * scale.reach() > eps
-            || (known.radius - cylinder.radius).abs() > eps
-        {
+        let one = match (known, surface) {
+            (Surface::Cylinder(known), Surface::Cylinder(other)) => {
+                (known.radius - other.radius).abs() <= eps
+            }
+            _ => true,
+        };
+        if known_axis.cross(axis).length() * 2.0 * scale.reach() > eps || !one {
             continue;
         }
-        let between = known.origin - cylinder.origin;
-        let across = between - known.axis * known.axis.dot(between);
+        let between = known_origin - origin;
+        let across = between - known_axis * known_axis.dot(between);
         let distance = across.length();
         if distance <= Scale::HAIR * eps && nearest.is_none_or(|(least, _)| distance < least) {
             nearest = Some((distance, across));
@@ -69,6 +82,16 @@ fn offset(first: &Body, cylinder: &Cylinder, scale: Scale) -> Option<DVec3> {
     nearest
         .filter(|&(distance, _)| distance > ROUNDING * eps)
         .map(|(_, across)| across)
+}
+
+/// A point of the axis of a cylinder or a cone, and its direction; none for
+/// a plane.
+fn axis_of(surface: &Surface) -> Option<(DVec3, DVec3)> {
+    match surface {
+        Surface::Cylinder(cylinder) => Some((cylinder.origin, cylinder.axis)),
+        Surface::Cone(cone) => Some((cone.origin, cone.axis)),
+        Surface::Plane(_) => None,
+    }
 }
 
 /// Under this share of the tolerance, a wall already stands on the first's.

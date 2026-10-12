@@ -35,7 +35,7 @@ pub use meet::{Configuration, Meeting, Node};
 pub use overlay::{Arc, Overlay, Region};
 pub use relation::{Crossing, Crossings, Relation, crossings, relation};
 pub use scale::Scale;
-pub use surface::{Cylinder, Plane, Surface};
+pub use surface::{Cone, Cylinder, Plane, Surface};
 pub use topology::{
     Body, Coedge, CurveId, Edge, EdgeId, Face, FaceId, SurfaceId, Vertex, VertexId,
 };
@@ -56,7 +56,9 @@ pub enum Declined {
     /// whole: this is the kernel's own net.
     Travel,
     /// Two surfaces meet in a way the kernel does not build: a plane oblique
-    /// to a cylinder's axis, two cylinders at a skew angle.
+    /// to a cylinder's axis or a cone's, or parallel to a cone's without
+    /// holding it; two cylinders at a skew angle, a cone and a cylinder or a
+    /// cone not of its axis.
     Unsupported,
     /// Two curves touch more closely than their curvatures can order.
     Tie,

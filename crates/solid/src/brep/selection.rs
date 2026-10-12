@@ -24,6 +24,7 @@ use glam::{DVec2, DVec3};
 
 use super::Declined;
 use super::combine::{Arena, Operands, Operation};
+use super::domain::floor;
 use super::overlay::{Arc, Overlay, Region};
 use super::surface::Surface;
 use super::topology::{Coedge, EdgeId, Face, SurfaceId, VertexId};
@@ -42,7 +43,7 @@ pub(super) fn selected(
         .collect();
     let parted = carried
         .iter()
-        .map(|surface| parted(arena, *surface))
+        .map(|surface| parted(arena, *surface, holds_an_apex(operands, *surface)))
         .collect::<Result<Vec<_>, _>>()?;
     let seen: Vec<(&Surface, &[EdgeId], &Overlay)> = carried
         .iter()
@@ -117,6 +118,16 @@ pub(super) fn selected(
     Ok(faces)
 }
 
+/// Whether a face of either operand lying on `surface` holds its cone's apex
+/// within it.
+fn holds_an_apex(operands: &Operands, surface: SurfaceId) -> bool {
+    (0..2).any(|operand| {
+        operands.lying[operand][surface.0 as usize]
+            .iter()
+            .any(|&face| operands.bodies[operand].face(face).apex.is_some())
+    })
+}
+
 /// A region to be decided, and whether its surface's normal points the other
 /// way from the first's.
 struct Member<'a> {
@@ -162,7 +173,10 @@ impl Place<'_> {
 /// is the same. So it is where the point stands on a corner of the surface:
 /// a corner inside a region is where another surface touches it at a point,
 /// a post made to touch a bar's wall, and a ray from there is taken on
-/// whichever side of the post rounding leaves it.
+/// whichever side of the post rounding leaves it. Last, it is read either
+/// side of the chord: a region thinner than the tolerance may have an
+/// operand's own edge, which stands within the tolerance of the arc it was
+/// laid on, all along its chord (5365202020).
 fn wraps(operands: &Operands, members: &[Member]) -> Result<Option<[Wrapped; 2]>, Declined> {
     let on_a_corner = members.iter().any(|member| {
         let point = member.geometry.point(member.region.inside);
@@ -171,18 +185,19 @@ fn wraps(operands: &Operands, members: &[Member]) -> Result<Option<[Wrapped; 2]>
             .iter()
             .any(|corner| corner.distance(point) <= operands.eps())
     });
-    for share in [None, Some(0.25), Some(0.75)] {
-        if share.is_none() && on_a_corner {
-            continue;
-        }
+    for read in usize::from(on_a_corner)..5 {
         let places: Vec<Place> = members
             .iter()
             .map(|member| {
                 let region = member.region;
                 let [low, high] = region.chord;
-                let at = share.map_or(region.inside, |share| {
-                    DVec2::new(region.inside.x, low + (high - low) * share)
-                });
+                let at = match read {
+                    0 => region.inside,
+                    1 | 2 => {
+                        DVec2::new(region.inside.x, low + (high - low) * [0.25, 0.75][read - 1])
+                    }
+                    _ => region.aside[read - 3],
+                };
                 Place {
                     surface: member.surface,
                     geometry: member.geometry,
@@ -257,9 +272,16 @@ fn wrapped_at(operands: &Operands, places: &[Place]) -> Result<Option<[Wrapped; 
 
 /// The arcs lying on a surface, by the edge each is, and the regions they
 /// part the surface into.
+///
+/// On a cone, each arc's end at the apex is a vertex of its own, at the
+/// angle the arc arrives at, since the apex's own angle is rounding; the
+/// floor joins them ([`floor::arcs`]), and closes below the face that
+/// `holds` the apex within it, so that the region at the tip is bounded.
+/// No region keeps a stretch of the floor.
 pub(super) fn parted(
     arena: &Arena,
     surface: SurfaceId,
+    holds: bool,
 ) -> Result<(Vec<EdgeId>, Overlay), Declined> {
     let body = &arena.body;
     let geometry = body.surface(surface);
@@ -271,7 +293,15 @@ pub(super) fn parted(
                 .is_ok()
         })
         .collect();
+    let apex = match geometry {
+        Surface::Cone(cone) => Some(cone.apex()),
+        Surface::Plane(_) | Surface::Cylinder(_) => None,
+    };
+    let at_the_apex = |vertex: VertexId| {
+        apex.is_some_and(|apex| body.vertex(vertex).point.distance(apex) <= body.scale().eps())
+    };
     let mut local: BTreeMap<VertexId, usize> = BTreeMap::new();
+    let mut tips: BTreeMap<u64, usize> = BTreeMap::new();
     let mut vertices = Vec::new();
     let mut arcs = Vec::with_capacity(edges.len());
     for &edge in &edges {
@@ -279,11 +309,20 @@ pub(super) fn parted(
         let ends = match body.edge(edge).ends {
             Some(ends) => {
                 let mut ranks = [0; 2];
-                for (rank, vertex) in ranks.iter_mut().zip(ends) {
-                    *rank = *local.entry(vertex).or_insert_with(|| {
-                        vertices.push(geometry.parameters(body.vertex(vertex).point));
-                        vertices.len() - 1
-                    });
+                for ((rank, vertex), at) in
+                    ranks.iter_mut().zip(ends).zip([trace.start(), trace.end()])
+                {
+                    let (slot, at) = if at_the_apex(vertex) {
+                        (tips.entry(at.x.to_bits()).or_insert(usize::MAX), at)
+                    } else {
+                        let at = geometry.parameters(body.vertex(vertex).point);
+                        (local.entry(vertex).or_insert(usize::MAX), at)
+                    };
+                    if *slot == usize::MAX {
+                        vertices.push(at);
+                        *slot = vertices.len() - 1;
+                    }
+                    *rank = *slot;
                 }
                 Some(ranks)
             }
@@ -291,7 +330,20 @@ pub(super) fn parted(
         };
         arcs.push(Arc { trace, ends });
     }
-    let overlay = Overlay::of(&vertices, &arcs, geometry.period())?;
+    if let Surface::Cone(cone) = geometry {
+        let ends: Vec<(usize, DVec2)> = tips
+            .into_values()
+            .map(|rank| (rank, vertices[rank]))
+            .collect();
+        arcs.extend(floor::arcs(cone, &ends, holds));
+    }
+    let mut overlay = Overlay::of(&vertices, &arcs, geometry.period())?;
+    for region in &mut overlay.regions {
+        region.cycles.retain_mut(|cycle| {
+            cycle.retain(|&(arc, _)| arc < edges.len());
+            !cycle.is_empty()
+        });
+    }
     Ok((edges, overlay))
 }
 
@@ -332,6 +384,7 @@ fn face(
         flipped,
         loops,
         numbers,
+        apex: None,
     }
 }
 

@@ -174,6 +174,14 @@ impl Display for Section {
             write!(out, "{separator}[{length:?}, {low:?}, {high:?}]")?;
         }
         write!(out, "])")?;
+        if !self.sloping_to.is_empty() {
+            write!(out, ".sloping_to(&[")?;
+            for (index, [low, high]) in self.sloping_to.iter().enumerate() {
+                let separator = if index == 0 { "" } else { ", " };
+                write!(out, "{separator}[{low:?}, {high:?}]")?;
+            }
+            write!(out, "])")?;
+        }
         if !self.holes.is_empty() {
             write!(out, ".with_holes(&[")?;
             for (index, [low, high]) in self.holes.iter().enumerate() {

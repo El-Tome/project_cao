@@ -1,6 +1,7 @@
 //! A face's loops laid out in its surface's parameters, the region on the
 //! left of every segment: what the sweep cuts.
 
+mod cone;
 mod cylinder;
 
 use std::collections::BTreeMap;
@@ -75,6 +76,12 @@ impl Outline {
             Surface::Cylinder(cylinder) => {
                 let steps = divisions(cylinder.radius, tolerance);
                 outline.round(cylinder, samples, &laps, steps)?;
+            }
+            Surface::Cone(cone) => {
+                let steps = samples.steps(face.surface)?;
+                let apex = face.apex.map(|vertex| vertex.0 as usize);
+                let eps = body.scale().eps();
+                outline.conical(cone, samples, &laps, steps, apex, eps)?;
             }
         }
         Some(outline)

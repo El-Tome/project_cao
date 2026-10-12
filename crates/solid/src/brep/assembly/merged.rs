@@ -164,6 +164,7 @@ fn traced(faces: &[Face], members: &[usize], twin: &BTreeMap<Use, Use>) -> Optio
         flipped: first.flipped,
         loops,
         numbers,
+        apex: None,
     })
 }
 

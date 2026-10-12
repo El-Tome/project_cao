@@ -48,7 +48,7 @@ fn translation(before: &Surface, after: &Surface) -> Option<DVec3> {
         (Surface::Plane(one), Surface::Plane(other)) if one.normal == other.normal => {
             one.normal * (other.offset() - one.offset())
         }
-        _ => return None,
+        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_), _) => return None,
     };
     (by != DVec3::ZERO).then_some(by)
 }

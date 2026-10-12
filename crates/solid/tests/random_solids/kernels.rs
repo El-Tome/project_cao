@@ -258,7 +258,10 @@ impl Flats {
             .leaves()
             .filter_map(Leaf::as_turned)
             .flat_map(|turned| turned.section.pieces())
-            .map(|piece| piece.away[1] * (1.0 - (std::f64::consts::PI / TURN_STEPS).cos()))
+            .map(|piece| {
+                piece.away[1].max(piece.ending[1])
+                    * (1.0 - (std::f64::consts::PI / TURN_STEPS).cos())
+            })
             .fold(0.0, f64::max);
         let sagitta = sagitta.max(turned);
         Flats {

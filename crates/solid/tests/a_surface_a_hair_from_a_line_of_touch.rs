@@ -184,8 +184,12 @@ fn seed_8554524_a_rim_grazing_the_line_a_plane_touches_a_wall_along() {
 // winding a region (selection.rs).
 
 /// Campaign 8a, the square draw: Answers.
+///
+/// Was ignored as: line-of-touch: a third surface a hair from a line of touch,
+/// declined at a tie winding a region (selection.rs). Holds since the triangles
+/// of two faces folded onto each other across an edge are cut the other way,
+/// round 3 of #536.
 #[test]
-#[ignore = "line-of-touch: a third surface a hair from a line of touch, declined at a tie winding a region (selection.rs)"]
 fn seed_8004524_a_rim_grazing_the_line_a_plane_touches_a_wall_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -213,8 +217,12 @@ fn seed_8004524_a_rim_grazing_the_line_a_plane_touches_a_wall_along() {
 
 /// Campaigns 8b and 8c, the profile draw, on the kernel and through the
 /// application's body: Uncrossed.
+///
+/// Was ignored as: line-of-touch: a third surface a hair from a line of touch,
+/// two faces drawn crossing at every fineness. Holds since the triangles of two
+/// faces folded onto each other across an edge are cut the other way, round 3
+/// of #536.
 #[test]
-#[ignore = "line-of-touch: a third surface a hair from a line of touch, two faces drawn crossing at every fineness"]
 fn seed_8516406_a_rim_grazing_the_line_a_plane_touches_a_wall_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -239,8 +247,12 @@ fn seed_8516406_a_rim_grazing_the_line_a_plane_touches_a_wall_along() {
 
 /// Campaign 8c, the profile draw through the application's body: Uncrossed.
 /// Shrunk through the application's body.
+///
+/// Was ignored as: line-of-touch: a third surface a hair from a line of touch,
+/// two faces drawn crossing at every fineness. Holds since the triangles of two
+/// faces folded onto each other across an edge are cut the other way, round 3
+/// of #536.
 #[test]
-#[ignore = "line-of-touch: a third surface a hair from a line of touch, two faces drawn crossing at every fineness"]
 fn seed_8569565_a_rim_grazing_the_line_a_plane_touches_a_wall_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -288,8 +300,12 @@ fn seed_8582887_a_third_surface_a_hair_from_a_line_of_touch() {
 // every fineness.
 
 /// Campaign 8a, the square draw: Uncrossed.
+///
+/// Was ignored as: line-of-touch: a third surface a hair from a line of touch,
+/// two faces drawn crossing at every fineness. Holds since the triangles of two
+/// faces folded onto each other across an edge are cut the other way, round 3
+/// of #536.
 #[test]
-#[ignore = "line-of-touch: a third surface a hair from a line of touch, two faces drawn crossing at every fineness"]
 fn seed_8019535_a_third_surface_a_hair_from_a_line_of_touch() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -436,8 +452,12 @@ fn seed_8010399_a_wall_a_hair_from_the_line_two_walls_touch_along() {
 }
 
 /// Campaign 8a, the square draw: Uncrossed.
+///
+/// Was ignored as: line-of-touch: two walls crossing at a grazing angle along
+/// two rulings closer than a grid step, each drawn by the one chord between
+/// them (the triangles). Holds since the triangles of two faces folded onto
+/// each other across an edge are cut the other way, round 3 of #536.
 #[test]
-#[ignore = "line-of-touch: two walls crossing at a grazing angle along two rulings closer than a grid step, each drawn by the one chord between them (the triangles)"]
 fn seed_8039443_a_wall_a_hair_from_the_line_two_walls_touch_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(6.0), Outline::circle([5.9999998, 6.5], 1.5), 3.0),
@@ -476,8 +496,12 @@ fn seed_8530908_a_wall_a_hair_from_the_line_two_walls_touch_along() {
 
 /// Campaign 8c, the profile draw through the application's body: Uncrossed.
 /// Shrunk through the application's body.
+///
+/// Was ignored as: line-of-touch: a third surface a hair from a line of touch,
+/// two faces drawn crossing at every fineness. Holds since the triangles of two
+/// faces folded onto each other across an edge are cut the other way, round 3
+/// of #536.
 #[test]
-#[ignore = "line-of-touch: a third surface a hair from a line of touch, two faces drawn crossing at every fineness"]
 fn seed_8565786_a_wall_a_hair_from_the_line_two_walls_touch_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(35.0), Outline::circle([10.0, 45.0], 12.5), 25.0),
@@ -498,8 +522,12 @@ fn seed_8565786_a_wall_a_hair_from_the_line_two_walls_touch_along() {
 
 /// Campaign 8c, the profile draw through the application's body: Uncrossed.
 /// Shrunk through the application's body.
+///
+/// Was ignored as: line-of-touch: a third surface a hair from a line of touch,
+/// two faces drawn crossing at every fineness. Holds since the triangles of two
+/// faces folded onto each other across an edge are cut the other way, round 3
+/// of #536.
 #[test]
-#[ignore = "line-of-touch: a third surface a hair from a line of touch, two faces drawn crossing at every fineness"]
 fn seed_8580382_a_wall_a_hair_from_the_line_two_walls_touch_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -524,8 +552,12 @@ fn seed_8580382_a_wall_a_hair_from_the_line_two_walls_touch_along() {
 
 /// Campaign 8c, the profile draw through the application's body: Uncrossed.
 /// Shrunk through the application's body.
+///
+/// Was ignored as: line-of-touch: a third surface a hair from a line of touch,
+/// two faces drawn crossing at every fineness. Holds since the triangles of two
+/// faces folded onto each other across an edge are cut the other way, round 3
+/// of #536.
 #[test]
-#[ignore = "line-of-touch: a third surface a hair from a line of touch, two faces drawn crossing at every fineness"]
 fn seed_8586895_a_wall_a_hair_from_the_line_two_walls_touch_along() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -555,8 +587,12 @@ fn seed_8586895_a_wall_a_hair_from_the_line_two_walls_touch_along() {
 
 /// Campaign 8c, the profile draw through the application's body: Uncrossed.
 /// Shrunk through the application's body.
+///
+/// Was ignored as: line-of-touch: a third surface a hair from a line of touch,
+/// two faces drawn crossing at every fineness. Holds since the triangles of two
+/// faces folded onto each other across an edge are cut the other way, round 3
+/// of #536.
 #[test]
-#[ignore = "line-of-touch: a third surface a hair from a line of touch, two faces drawn crossing at every fineness"]
 fn seed_8587802_a_wall_a_hair_from_the_line_two_walls_touch_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xz(8.0), Outline::circle([6.0, 3.0], 2.5), -9.0),

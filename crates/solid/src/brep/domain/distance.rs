@@ -1,16 +1,46 @@
 //! How far a point of a surface stands from a trace, measured on the surface:
 //! straight in a plane's parameters, which are lengths; on a cylinder with its
 //! angle unrolled at the radius and taken the nearest way round, which is a
-//! length on the surface too since a cylinder unrolls flat.
+//! length on the surface too since a cylinder unrolls flat; on a cone with its
+//! angle unrolled at the point's own distance from the axis, nought at the
+//! apex and never less, which is a length across a ruling to first order and
+//! exact along one.
 
 use std::f64::consts::TAU;
 
 use glam::DVec2;
 
+use crate::brep::surface::Cone;
 use crate::brep::trace::Trace;
 
-/// `radius` is the cylinder's the parameters are read on, none on a plane.
-pub(super) fn distance(trace: &Trace, at: DVec2, radius: Option<f64>) -> f64 {
+/// How a surface's parameters unroll into lengths.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Unrolling {
+    /// A plane's, which are lengths already.
+    Flat,
+    /// A cylinder's of this radius.
+    Round(f64),
+    Cone(Cone),
+}
+
+impl Unrolling {
+    /// Whether the first parameter is an angle, read modulo a turn.
+    pub(super) fn periodic(self) -> bool {
+        !matches!(self, Unrolling::Flat)
+    }
+
+    /// The radius the angle unrolls at, at `at`; none on a plane.
+    fn radius_at(self, at: DVec2) -> Option<f64> {
+        match self {
+            Unrolling::Flat => None,
+            Unrolling::Round(radius) => Some(radius),
+            Unrolling::Cone(cone) => Some(cone.radius_at(at.y).max(0.0)),
+        }
+    }
+}
+
+pub(super) fn distance(trace: &Trace, at: DVec2, unrolling: Unrolling) -> f64 {
+    let radius = unrolling.radius_at(at);
     match (*trace, radius) {
         (Trace::Segment { from, to }, None) => to_segment(at, from, to),
         (Trace::Segment { from, to }, Some(radius)) => {

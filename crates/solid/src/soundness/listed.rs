@@ -12,6 +12,7 @@ use std::f64::consts::TAU;
 use crate::brep::{Curve, Listing};
 
 mod lying;
+mod nappe;
 mod turning;
 
 /// What a listing says that its geometry does not bear out, and where: faces,
@@ -23,6 +24,8 @@ pub enum Mislisted {
     NoSuchEdge { face: usize, edge: usize },
     /// An edge naming a vertex the listing does not hold.
     NoSuchVertex { edge: usize, vertex: usize },
+    /// A face holding within it a vertex the listing does not hold.
+    NoSuchApex { face: usize, vertex: usize },
     /// An edge naming, beside it, a face the listing does not hold.
     NoSuchFace { edge: usize, face: usize },
     /// An edge whose sides are not the faces whose loops use it.
@@ -44,7 +47,8 @@ pub enum Mislisted {
     Unclosed { face: usize, lap: usize, at: usize },
     /// An edge with no vertex that is not a whole closed curve.
     Endless { edge: usize },
-    /// A vertex standing off the surface of a face around it.
+    /// A vertex standing off the surface of a face around it, or of the face
+    /// holding it within it.
     VertexOffFace {
         vertex: usize,
         face: usize,
@@ -66,6 +70,17 @@ pub enum Mislisted {
         at: f64,
         distance: f64,
     },
+    /// A face said to hold within it, as its apex, a vertex standing off the
+    /// apex of its cone — infinitely far from a surface with no apex.
+    ApexAway {
+        face: usize,
+        vertex: usize,
+        distance: f64,
+    },
+    /// A cone face pointed at its apex — its loops winding once round its
+    /// axis, closed there — holding no vertex at its apex, or one holding a
+    /// vertex there that is not pointed.
+    Pointed { face: usize },
     /// A loop keeping its face on its right seen from outside the matter:
     /// run the wrong way round, or on a face said to look the wrong way.
     Backwards { face: usize, lap: usize },
@@ -114,6 +129,12 @@ fn ranked(listing: &Listing) -> Result<(), Mislisted> {
             .find(|(edge, _)| *edge >= listing.edges.len())
         {
             return Err(Mislisted::NoSuchEdge { face, edge });
+        }
+        if let Some(vertex) = listed
+            .apex
+            .filter(|vertex| *vertex >= listing.vertices.len())
+        {
+            return Err(Mislisted::NoSuchApex { face, vertex });
         }
     }
     for (edge, listed) in listing.edges.iter().enumerate() {

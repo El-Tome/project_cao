@@ -1,9 +1,9 @@
 use std::f64::consts::PI;
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use super::*;
-use crate::brep::{Circle, Curve, Cylinder, Line, ListedEdge, ListedFace, Plane, Surface};
+use crate::brep::{Circle, Cone, Curve, Cylinder, Line, ListedEdge, ListedFace, Plane, Surface};
 use crate::soundness::{Flaw, Rule};
 
 #[test]
@@ -89,6 +89,7 @@ fn block(low: DVec3, high: DVec3) -> Listing {
                         .map(|index| edge_between(around[index], around[(index + 1) % 4]))
                         .collect(),
                 ],
+                apex: None,
             });
         }
     }
@@ -117,16 +118,19 @@ fn round(center: DVec3, radius: f64, height: f64) -> Listing {
                 surface: Surface::Plane(disc(height)),
                 outward: true,
                 loops: vec![vec![(1, true)]],
+                apex: None,
             },
             ListedFace {
                 surface: Surface::Plane(disc(0.0)),
                 outward: false,
                 loops: vec![vec![(0, false)]],
+                apex: None,
             },
             ListedFace {
                 surface: Surface::Cylinder(cylinder),
                 outward: true,
                 loops: vec![vec![(0, true)], vec![(1, false)]],
+                apex: None,
             },
         ],
         edges: vec![rim(0.0), rim(height)],
@@ -154,6 +158,7 @@ fn bored(low: DVec3, high: DVec3, center: DVec3, radius: f64) -> Listing {
         surface: Surface::Cylinder(cylinder),
         outward: false,
         loops: vec![vec![(top, true)], vec![(bottom, false)]],
+        apex: None,
     });
     with_sides(listing)
 }
@@ -278,6 +283,7 @@ fn a_face_bounded_by_no_loop_is_found() {
         surface: listing.faces[0].surface,
         outward: true,
         loops: Vec::new(),
+        apex: None,
     });
     assert_eq!(
         listed(&listing, REACH),
@@ -558,6 +564,7 @@ fn half_round() -> Listing {
         surface,
         outward,
         loops: vec![uses],
+        apex: None,
     };
     with_sides(Listing {
         faces: vec![
@@ -787,6 +794,7 @@ fn a_wall_bounded_over_a_hair_by_the_rim_of_a_wall_touching_it_outside_turns_its
             surface: Surface::Cylinder(wall),
             outward: true,
             loops: vec![vec![(0, true), (1, true), (2, true), (3, true)]],
+            apex: None,
         }],
         edges,
         vertices,
@@ -795,5 +803,364 @@ fn a_wall_bounded_over_a_hair_by_the_rim_of_a_wall_touching_it_outside_turns_its
     assert_eq!(
         turning::turning(&turned_round(listing), ON * REACH),
         Err(Mislisted::Backwards { face: 0, lap: 0 })
+    );
+}
+
+/// A round stock whose top disc is said to hold a vertex within it, where
+/// `point` stands.
+fn stock_holding(point: DVec3) -> Listing {
+    let mut listing = stock();
+    listing.vertices.push(point);
+    listing.faces[0].apex = Some(0);
+    listing
+}
+
+#[test]
+fn a_flat_face_said_to_hold_an_apex_is_found_holding_one_it_has_not() {
+    assert_eq!(
+        listed(&stock_holding(DVec3::new(3.0, -2.0, 10.0)), REACH),
+        Err(Mislisted::ApexAway {
+            face: 0,
+            vertex: 0,
+            distance: f64::INFINITY
+        })
+    );
+}
+
+#[test]
+fn a_vertex_a_face_holds_within_it_off_its_surface_is_found_off_the_face() {
+    let found = listed(&stock_holding(DVec3::new(3.0, -2.0, 10.001)), REACH);
+    assert!(
+        matches!(
+            found,
+            Err(Mislisted::VertexOffFace {
+                vertex: 0,
+                face: 0,
+                ..
+            })
+        ),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn a_face_holding_a_vertex_the_listing_does_not_hold_is_found() {
+    let mut listing = stock();
+    listing.faces[2].apex = Some(4);
+    assert_eq!(
+        listed(&listing, REACH),
+        Err(Mislisted::NoSuchApex { face: 2, vertex: 4 })
+    );
+}
+
+/// The cone of a point of radius 5 standing on the XY plane, its tip 10 up
+/// the Z axis.
+fn point_cone() -> Cone {
+    Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(0.0, 5.0), DVec2::new(10.0, 0.0)],
+    )
+}
+
+/// A point of radius 5 standing on the XY plane, its tip 10 up the Z axis,
+/// `tip` the place its cone is said to hold within it: a disc underneath,
+/// and the cone bounded by the rim alone.
+fn whole_point(tip: DVec3) -> Listing {
+    let cone = point_cone();
+    with_sides(Listing {
+        faces: vec![
+            ListedFace {
+                surface: Surface::Plane(Plane::through(DVec3::ZERO, DVec3::Z).0),
+                outward: false,
+                loops: vec![vec![(0, false)]],
+                apex: None,
+            },
+            ListedFace {
+                surface: Surface::Cone(cone),
+                outward: false,
+                loops: vec![vec![(0, true)]],
+                apex: Some(0),
+            },
+        ],
+        edges: vec![ListedEdge {
+            curve: Curve::Circle(cone.circle(0.0, 5.0)),
+            from: -PI,
+            to: PI,
+            ends: None,
+            sides: Vec::new(),
+        }],
+        vertices: vec![tip],
+    })
+}
+
+const TIP: DVec3 = DVec3::new(0.0, 0.0, 10.0);
+
+/// An edge along the line between two vertices, from the first to the
+/// second.
+fn segment(vertices: &[DVec3], from: usize, to: usize) -> ListedEdge {
+    let line = Line::through(vertices[from], vertices[to] - vertices[from]);
+    ListedEdge {
+        curve: Curve::Line(line),
+        from: line.parameter(vertices[from]),
+        to: line.parameter(vertices[to]),
+        ends: Some([from, to]),
+        sides: Vec::new(),
+    }
+}
+
+/// An edge along a circle between two vertices, from the first to the
+/// second the way the circle turns.
+fn arc(circle: Circle, vertices: &[DVec3], from: usize, to: usize) -> ListedEdge {
+    let start = circle.parameter(vertices[from]);
+    let mut end = circle.parameter(vertices[to]);
+    while end <= start {
+        end += 2.0 * PI;
+    }
+    ListedEdge {
+        curve: Curve::Circle(circle),
+        from: start,
+        to: end,
+        ends: Some([from, to]),
+        sides: Vec::new(),
+    }
+}
+
+/// The cone of the point turned by `angle` from the X axis, alone: its rim
+/// from where the turn starts to where it ends, up the ruling there to the
+/// tip, and down the ruling where it started.
+fn partial_point(angle: f64) -> Listing {
+    let cone = point_cone();
+    let rim = cone.circle(0.0, 5.0);
+    let vertices = vec![TIP, rim.point(0.0), rim.point(angle)];
+    with_sides(Listing {
+        faces: vec![ListedFace {
+            surface: Surface::Cone(cone),
+            outward: false,
+            loops: vec![vec![(0, true), (1, true), (2, true)]],
+            apex: None,
+        }],
+        edges: vec![
+            arc(rim, &vertices, 1, 2),
+            segment(&vertices, 2, 0),
+            segment(&vertices, 0, 1),
+        ],
+        vertices,
+    })
+}
+
+/// A quarter of the side of a frustum about the Z axis between two corners
+/// `(h, r)`, alone, its matter towards the axis: its lower rim, up the
+/// ruling at a quarter turn, back along its upper rim, and down the ruling
+/// it started from.
+fn quarter_frustum(lower: DVec2, upper: DVec2) -> Listing {
+    let cone = Cone::through(DVec3::ZERO, DVec3::Z, [lower, upper]);
+    let [low, high] = [lower, upper].map(|corner| cone.circle(corner.x, corner.y));
+    let vertices = vec![
+        low.point(0.0),
+        low.point(PI / 2.0),
+        high.point(PI / 2.0),
+        high.point(0.0),
+    ];
+    with_sides(Listing {
+        faces: vec![ListedFace {
+            surface: Surface::Cone(cone),
+            outward: cone.ruling.x > 0.0,
+            loops: vec![vec![(0, true), (1, true), (2, false), (3, true)]],
+            apex: None,
+        }],
+        edges: vec![
+            arc(low, &vertices, 0, 1),
+            segment(&vertices, 1, 2),
+            arc(high, &vertices, 3, 2),
+            segment(&vertices, 3, 0),
+        ],
+        vertices,
+    })
+}
+
+#[test]
+fn a_cone_s_listing_holds_to_its_own_formula() {
+    assert_eq!(listed(&whole_point(TIP), REACH), Ok(()));
+}
+
+#[test]
+fn an_edge_a_hair_off_a_cone_is_found_off_it() {
+    let mut listing = whole_point(TIP);
+    let Curve::Circle(rim) = &mut listing.edges[0].curve else {
+        panic!("the rim is a circle");
+    };
+    rim.radius += 1e-9;
+    assert_eq!(listed(&listing, REACH), Ok(()));
+    let Curve::Circle(rim) = &mut listing.edges[0].curve else {
+        panic!("the rim is a circle");
+    };
+    rim.radius += 1e-6;
+    let found = listed(&listing, REACH);
+    assert!(
+        matches!(
+            found,
+            Err(Mislisted::OffFace {
+                edge: 0,
+                face: 1,
+                ..
+            })
+        ),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn a_point_of_the_other_nappe_is_found_off_the_cone() {
+    let found = listed(&whole_point(DVec3::new(5.0, 0.0, 20.0)), REACH);
+    let Err(Mislisted::VertexOffFace {
+        vertex: 0,
+        face: 1,
+        distance,
+    }) = found
+    else {
+        panic!("{found:?}");
+    };
+    assert!(
+        (distance - 125f64.sqrt()).abs() <= 1e-9,
+        "{distance} from the tip"
+    );
+}
+
+#[test]
+fn a_tip_a_cone_holds_away_from_its_apex_is_found_away_from_it() {
+    let found = listed(&whole_point(DVec3::new(2.5, 0.0, 5.0)), REACH);
+    let Err(Mislisted::ApexAway {
+        face: 1,
+        vertex: 0,
+        distance,
+    }) = found
+    else {
+        panic!("{found:?}");
+    };
+    assert!(
+        (distance - 31.25f64.sqrt()).abs() <= 1e-9,
+        "{distance} from the tip"
+    );
+}
+
+#[test]
+fn a_cone_closed_at_its_apex_holding_no_vertex_there_is_found() {
+    let mut listing = whole_point(TIP);
+    listing.faces[1].apex = None;
+    assert_eq!(listed(&listing, REACH), Err(Mislisted::Pointed { face: 1 }));
+}
+
+#[test]
+fn a_cone_holding_its_apex_while_winding_round_nothing_is_found() {
+    let mut listing = partial_point(PI / 2.0);
+    listing.faces[0].apex = Some(0);
+    assert_eq!(
+        turning::turning(&listing, ON * REACH),
+        Err(Mislisted::Pointed { face: 0 })
+    );
+}
+
+#[test]
+fn a_point_closed_by_its_apex_turns_the_right_way() {
+    let listing = whole_point(TIP);
+    assert_eq!(turning::turning(&listing, ON * REACH), Ok(()));
+    assert_eq!(
+        turning::turning(&turned_round(listing.clone()), ON * REACH),
+        Err(Mislisted::Backwards { face: 0, lap: 0 })
+    );
+    let mut inside_out = listing;
+    inside_out.faces[1].outward = true;
+    assert_eq!(
+        turning::turning(&inside_out, ON * REACH),
+        Err(Mislisted::Backwards { face: 1, lap: 0 })
+    );
+}
+
+#[test]
+fn a_cone_s_rim_run_the_wrong_way_is_backwards() {
+    let mut listing = whole_point(TIP);
+    listing.faces[1].loops[0][0].1 = false;
+    assert_eq!(
+        turning::turning(&listing, ON * REACH),
+        Err(Mislisted::Backwards { face: 1, lap: 0 })
+    );
+}
+
+#[test]
+fn a_partial_point_turns_the_right_way_through_its_apex() {
+    for degrees in [30.0, 90.0, 180.0, 270.0, 340.0] {
+        let listing = partial_point(f64::to_radians(degrees));
+        assert_eq!(turning::turning(&listing, ON * REACH), Ok(()), "{degrees}°");
+        assert_eq!(
+            turning::turning(&turned_round(listing), ON * REACH),
+            Err(Mislisted::Backwards { face: 0, lap: 0 }),
+            "{degrees}°"
+        );
+    }
+}
+
+#[test]
+fn a_frustum_turned_part_way_turns_the_right_way() {
+    for (lower, upper) in [
+        (DVec2::new(0.0, 5.0), DVec2::new(4.0, 3.0)),
+        (DVec2::new(0.0, 3.0), DVec2::new(4.0, 5.0)),
+    ] {
+        let listing = quarter_frustum(lower, upper);
+        assert_eq!(turning::turning(&listing, ON * REACH), Ok(()), "{upper}");
+        assert_eq!(
+            turning::turning(&turned_round(listing), ON * REACH),
+            Err(Mislisted::Backwards { face: 0, lap: 0 }),
+            "{upper}"
+        );
+    }
+}
+
+#[test]
+fn a_cone_a_hair_from_a_cylinder_keeps_its_rims_on_it_and_turns_the_right_way() {
+    let (radius, hair) = (5.0, 1e-7);
+    let cone = Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(0.0, radius), DVec2::new(10.0, radius + hair)],
+    );
+    let rim = |h: f64, r: f64| ListedEdge {
+        curve: Curve::Circle(cone.circle(h, r)),
+        from: -PI,
+        to: PI,
+        ends: None,
+        sides: Vec::new(),
+    };
+    let disc = |h: f64| Plane::through(DVec3::Z * h, DVec3::Z).0;
+    let listing = with_sides(Listing {
+        faces: vec![
+            ListedFace {
+                surface: Surface::Plane(disc(10.0)),
+                outward: true,
+                loops: vec![vec![(1, true)]],
+                apex: None,
+            },
+            ListedFace {
+                surface: Surface::Plane(disc(0.0)),
+                outward: false,
+                loops: vec![vec![(0, false)]],
+                apex: None,
+            },
+            ListedFace {
+                surface: Surface::Cone(cone),
+                outward: true,
+                loops: vec![vec![(0, true)], vec![(1, false)]],
+                apex: None,
+            },
+        ],
+        edges: vec![rim(0.0, radius), rim(10.0, radius + hair)],
+        vertices: Vec::new(),
+    });
+    assert_eq!(listed(&listing, REACH), Ok(()));
+    let mut inside_out = listing;
+    inside_out.faces[2].outward = false;
+    assert_eq!(
+        turning::turning(&inside_out, ON * REACH),
+        Err(Mislisted::Backwards { face: 2, lap: 0 })
     );
 }

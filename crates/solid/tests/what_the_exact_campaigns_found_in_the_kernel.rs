@@ -15,6 +15,29 @@
 //! laying makes such a wall nothing, and the exact kernel turns the
 //! section; `rounded-a-hair` holds since a straight run of no length is
 //! left out of a raise.
+//!
+//! The second round of #536 sorts the slanted campaign through the
+//! application's body the same way, every seed of it named: `laying-declines`
+//! where laying gives up a section with a run a hair long and the flats it
+//! falls back on break, `triangles` where a body that lists itself on its
+//! geometry and holds every line is drawn open, crossing or short, and
+//! `kernel-declines` where the boolean declines or mislists. Most of
+//! `laying-declines` holds since a section laid to no area is nothing, and a
+//! slant whose end a run brings back to within the tolerance of it ends where
+//! that run does.
+//!
+//! The third round of #536 names the seeds that held at `ae20fa9` and fail
+//! after round 2, each the case as drawn where its shrunk core fails at
+//! `ae20fa9` too, sorted by the place in the code at fault:
+//! `carried-one-with` where a slide is refused for carrying a wall one with
+//! the first operand's onto it, `cone-axis-unmet` where a wall is refused a
+//! move for a coaxial cone it never meets, and `triangles-sliver` where two
+//! triangles cross across a sliver a hair wide. All three hold after round 3:
+//! `carried-one-with` since a carried surface that stays one with the first
+//! operand's and ends no further from it is allowed, `cone-axis-unmet` since a
+//! cone holds a wall about its axis only where faces of the two meet on the
+//! circle they cross along, and `triangles-sliver` since the triangles of two
+//! faces folded onto each other across an edge are cut the other way.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -3054,8 +3077,12 @@ fn seed_533400107_a_wall_a_hair_thin_turned_part_way_on_the_flats() {
     ));
 }
 
+/// Was ignored as: plane-a-hair: a block's side 1.8e-6 from the axis of a
+/// cylinder turned before it cuts the cylinder a hair from its widest rulings;
+/// two faces drawn crossing, as with the cylinder raised. Holds since the
+/// triangles of two faces folded onto each other across an edge are cut the
+/// other way, round 3 of #536.
 #[test]
-#[ignore = "plane-a-hair: a block's side 1.8e-6 from the axis of a cylinder turned before it cuts the cylinder a hair from its widest rulings; two faces drawn crossing, as with the cylinder raised"]
 fn seed_533300839_a_block_s_side_a_hair_from_a_turned_cylinder_s_axis() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3135,8 +3162,11 @@ fn seed_533341432_a_turned_bore_and_a_post_ending_a_hair_from_a_face() {
     ));
 }
 
+/// Was ignored as: kernel: a stepped shaft turned about an axis leaning 1e-7,
+/// cut by a cylinder square to it; two faces drawn crossing where the shaft's
+/// shoulder meets the cut. Holds since the triangles of two faces folded onto
+/// each other across an edge are cut the other way, round 3 of #536.
 #[test]
-#[ignore = "kernel: a stepped shaft turned about an axis leaning 1e-7, cut by a cylinder square to it; two faces drawn crossing where the shaft's shoulder meets the cut"]
 fn seed_533335255_a_shaft_turned_about_an_axis_leaning_a_hair() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3208,8 +3238,11 @@ fn seed_533413234_a_turned_cylinder_touching_a_post_at_a_point() {
     ));
 }
 
+/// A sector turned 270 degrees cut about the axis of a cylinder turned
+/// before it; the ends of the cut, planes holding that axis, meet the
+/// cylinder along its rulings, and every read of one region along its chord
+/// was a tie. It is settled read either side of the chord, as 5365202020 is.
 #[test]
-#[ignore = "kernel: a sector turned 270 degrees cut about the axis of a cylinder turned before it; the ends of the cut, planes holding that axis, meet the cylinder along its rulings and the kernel declines a tie"]
 fn seed_533328889_a_partial_turn_cut_about_the_axis_of_a_turned_cylinder() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(4.0), Outline::circle([6.0, 4.0], 1.0), 3.0),
@@ -3230,8 +3263,13 @@ fn seed_533328889_a_partial_turn_cut_about_the_axis_of_a_turned_cylinder() {
     ));
 }
 
+/// Was ignored as: kernel: a sector turned a hundredth of a degree about the
+/// axis of a cylinder raised along it; the sector's ends, planes holding that
+/// axis 1.7e-4 rad apart, meet the cylinder along its rulings and two faces are
+/// drawn crossing, alike with the cylinder turned; at a degree it holds. Holds
+/// since the triangles of two faces folded onto each other across an edge are
+/// cut the other way, round 3 of #536.
 #[test]
-#[ignore = "kernel: a sector turned a hundredth of a degree about the axis of a cylinder raised along it; the sector's ends, planes holding that axis 1.7e-4 rad apart, meet the cylinder along its rulings and two faces are drawn crossing, alike with the cylinder turned; at a degree it holds"]
 fn seed_533603007_a_sliver_turned_about_the_axis_of_a_cylinder() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3422,8 +3460,14 @@ fn seed_533698627_a_wall_a_hair_thin_below_the_axis_turned_whole_then_cut_on_the
     ));
 }
 
+/// Was ignored as: kernel-drawing: a cylinder turned whole, cut by a post whose
+/// axis passes 1e-8 from the cylinder's; two faces drawn crossing, on the exact
+/// kernel too: the kernel's hair families, reached by turned cylinders as by
+/// raised ones: 70 of the 1 071 failures through the application's body, two
+/// faces crossing or the body declined as undrawn. Holds since the triangles of
+/// two faces folded onto each other across an edge are cut the other way, round
+/// 3 of #536.
 #[test]
-#[ignore = "kernel-drawing: a cylinder turned whole, cut by a post whose axis passes 1e-8 from the cylinder's; two faces drawn crossing, on the exact kernel too: the kernel's hair families, reached by turned cylinders as by raised ones: 70 of the 1 071 failures through the application's body, two faces crossing or the body declined as undrawn"]
 fn seed_533695958_a_turned_cylinder_cut_by_a_post_whose_axis_passes_a_hair_from_its_own() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3440,8 +3484,11 @@ fn seed_533695958_a_turned_cylinder_cut_by_a_post_whose_axis_passes_a_hair_from_
     ));
 }
 
+/// Was ignored as: kernel-drawing: a tube turned about an axis leaning 1e-3
+/// degrees, joined to a ring raised across it; two faces drawn crossing, on the
+/// exact kernel too. Holds since the triangles of two faces folded onto each
+/// other across an edge are cut the other way, round 3 of #536.
 #[test]
-#[ignore = "kernel-drawing: a tube turned about an axis leaning 1e-3 degrees, joined to a ring raised across it; two faces drawn crossing, on the exact kernel too"]
 fn seed_533719875_a_turned_tube_whose_axis_leans_a_thousandth_of_a_degree_joined_to_a_ring() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3511,8 +3558,12 @@ fn seed_533779006_a_turned_cylinder_cut_and_joined_is_drawn_crossing_through_the
     ));
 }
 
+/// Was ignored as: kernel-drawing: a ring raised from a plane 1e-8 off the
+/// round numbers, by 4.50000002, cut by a lying post; shrunk to prisms alone,
+/// two faces drawn crossing on the exact kernel: the kernel's own hair family,
+/// not turning's. Holds since the triangles of two faces folded onto each other
+/// across an edge are cut the other way, round 3 of #536.
 #[test]
-#[ignore = "kernel-drawing: a ring raised from a plane 1e-8 off the round numbers, by 4.50000002, cut by a lying post; shrunk to prisms alone, two faces drawn crossing on the exact kernel: the kernel's own hair family, not turning's"]
 fn seed_533751095_a_ring_raised_a_hair_off_round_numbers_cut_by_a_lying_post() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -3528,9 +3579,17 @@ fn seed_533751095_a_ring_raised_a_hair_off_round_numbers_cut_by_a_lying_post() {
     ));
 }
 
+/// A slot whose floor stands 1e-7 from the point where its lower cap touches
+/// a turned cylinder inside, the cap a perpendicular wall. The slot's corner
+/// there was taken onto the cylinder, the curve the cap and the cylinder meet
+/// along passed 5e-8 from it, was not cut there, and ran on to the point of
+/// touch under the floor; the body was declined as unverified. A line a
+/// plane cuts the cap along, a hair inside the cylinder by less than a
+/// coordinate holds, was rounded onto it and taken to touch it: it is
+/// measured from the two radii now, as for 5365239969, and the curve is cut
+/// where it crosses.
 #[test]
-#[ignore = "kernel-declines: a slot whose floor stands 1e-7 from the point where its lower cap touches a turned cylinder inside, the cap a perpendicular wall: the slot's corner there is taken onto the cylinder, the curve the cap and the cylinder meet along passes 5e-8 from it, is not cut there, and runs on to the point of touch under the floor, a hair the cap's face cannot close (brep/combine/cut.rs, decision 4 at a contact); declined as unverified (brep/assembly.rs). 32 of the 1 071 failures through the application's body were declined as unverified or as a tie; 4 now hold"]
-fn seed_533631663_a_slot_a_hair_off_a_turned_cylinder_s_axis_plane_is_declined_as_unverified() {
+fn seed_533631663_a_slot_a_hair_off_a_turned_cylinder_s_axis_plane_is_cut_where_its_cap_crosses() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
             Plane::xz(2.0000001),
@@ -3659,5 +3718,1798 @@ fn seed_533684645_a_large_rounded_rectangle_a_hair_wider_than_a_slot_is_raised()
             -210.0,
         ),
         vec![],
+    ));
+}
+
+#[test]
+fn seed_536211029_a_point_whose_tip_a_partial_turn_cuts_away_but_for_a_sector() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::yz(7.0),
+            Axis::second(0.0),
+            Section::bands(3.0, &[[2.0, 0.0, 4.0]]).sloping_to(&[[0.0, 0.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(7.0),
+            Axis::second(0.0).backwards(),
+            Section::bands(-10.0, &[[8.0, -3.0, -0.0]]),
+            270.0,
+        ))],
+    ));
+}
+
+/// A partial turn with a slanted run about an axis 1e-8 off a disc's, cut
+/// into it: its cone was read about the disc's axis within the tolerance,
+/// its end planes holding its own a hair off. It is moved onto the disc's
+/// axis (decision 8).
+#[test]
+fn seed_536202582_a_partial_turn_a_hair_off_the_axis_of_a_disc_it_cuts() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xz(5.0), Outline::circle([8.0, 5.0], 4.5), 5.0),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(5.0),
+            Axis::second(8.00000001).backwards(),
+            Section::bands(-0.0, &[[0.5, 0.0, 4.5]]).sloping_to(&[[0.0, 4.0]]),
+            270.0,
+        ))],
+    ));
+}
+
+/// A quarter turn with slanted runs joined to a cylinder of its axis: two
+/// of its cones are each other's mirror, of one apex, as 5361118847.
+#[test]
+fn seed_536210335_a_slanted_quarter_turn_joined_to_a_cylinder_of_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(0.0),
+            Section::bands(4.0, &[[1.0, 0.0, 2.0], [2.0, 0.0, 1.0], [1.0, 0.0, 1.0]])
+                .sloping_to(&[[0.0, 1.0], [0.0, 1.0], [0.0, 2.0]]),
+            90.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(0.0),
+            Section::bands(10.0, &[[1.0, 0.0, 1.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_536101211_a_shaft_whose_top_slants_in_over_a_hair_of_height() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(0.0),
+            Axis::second(0.0),
+            Section::bands(1.0, &[[1.0, 0.0, 4.5], [2e-7, 0.0, 4.5]])
+                .sloping_to(&[[0.0, 4.5], [0.0, 1.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+fn seed_536104721_a_shaft_whose_top_slants_in_over_a_hair_its_roots_rounded_into_one() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::yz(4.0),
+            Axis::second(0.0),
+            Section::bands(-2.0, &[[2.4999998, 0.0, 4.5], [2e-7, 0.0, 4.5]])
+                .sloping_to(&[[0.0, 4.5], [0.0, 2.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// Was ignored as: kernel: a shaft whose top slants out, turned whole, cut by a
+/// half turn about the same axis whose wall has the radius the slant starts
+/// from; the ends of the half turn, planes holding that axis, meet the cone
+/// along its rulings, and the body comes out open along the rim the wall rests
+/// on. Not traced: the family of 533328889, which #533 left for the cones, or
+/// the rim's touch. Holds since a face of a cone meeting a sample twice is laid
+/// out on one angle for it, round 2 of #536.
+#[test]
+fn seed_536112193_a_half_turn_cut_about_the_axis_of_a_frustum() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::yz(-2.0),
+            Axis::second(0.0).backwards(),
+            Section::bands(4.0, &[[2.0, 0.0, 6.0], [2.0, 0.0, 6.5]])
+                .sloping_to(&[[0.0, 6.5], [0.0, 7.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::second(-2.0),
+            Section::bands(-7.0, &[[1.0, 0.0, 6.5]]),
+            180.0,
+        ))],
+    ));
+}
+
+/// A fin 1e-8 thick on the narrow end of a cone: laid onto the cone's end,
+/// the profile turned back on itself and was declined, slanted, where a
+/// straight one is bounded; the matter as laid is the cone alone.
+#[test]
+fn seed_5361100533_a_disc_a_hair_thick_on_the_narrow_end_of_a_cone() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::first(0.0),
+            Section::bands(5.0, &[[3.49999999, 0.0, 5.0], [1e-8, 0.0, 5.0]])
+                .sloping_to(&[[0.0, 3.0], [0.0, 5.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// 5361100533's fin, its far side slanting from its rim back to the cone's
+/// end over 2e-8: laid square, the corner it ends on is the cone's end.
+#[test]
+fn seed_5361134707_a_disc_a_hair_thick_on_the_narrow_end_of_a_cone_its_far_side_slanting() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(0.0),
+            Section::bands(4.0, &[[3.99999998, 0.0, 3.0], [2e-8, 0.0, 3.0]])
+                .sloping_to(&[[0.0, 2.0], [0.0, 2.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A shaft slanting in by 1e-7, a hair past the tolerance, before a cone:
+/// the shoulder between them stands on a level of its own, and a corner a
+/// run longer than the tolerance from a slant's end is not near it.
+#[test]
+fn seed_5361126605_a_shaft_slanting_in_by_a_hair_before_a_cone() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(0.0),
+            Section::bands(0.5, &[[1.0, 0.0, 2.0], [1.0, 0.0, 2.0]])
+                .sloping_to(&[[0.0, 1.9999999], [0.0, 1.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// The same as 5361126605 before a point, the shaft slanting in by 2e-7.
+#[test]
+fn seed_5361120170_a_point_whose_shaft_slants_in_by_a_hair_before_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(7.0),
+            Axis::second(0.0),
+            Section::bands(-1.0, &[[0.5, 0.0, 1.5], [1.5, 0.0, 1.5]])
+                .sloping_to(&[[0.0, 1.4999998], [0.0, 0.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A section 2e-7 long altogether, a wall a hair thin with no hole, which
+/// laying makes nothing: declined, and counted apart as such a wall.
+#[test]
+fn seed_5361101048_a_cone_a_hair_long() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::second(0.0),
+            Section::bands(-2.0, &[[2e-7, -1.0, -0.0]]).sloping_to(&[[-5.0, -0.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// 5361100533's fin, 2e-7 thick, through the application's body: the exact
+/// kernel turns the cone, where the flats left it open along its rim.
+#[test]
+fn seed_5361217405_a_disc_a_hair_thick_on_the_narrow_end_of_a_cone_turned_on_the_flats() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(4.0),
+            Axis::first(0.0),
+            Section::bands(3.0, &[[3.9999998, 0.0, 8.5], [2e-7, 0.0, 8.5]])
+                .sloping_to(&[[0.0, 7.5], [0.0, 8.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A hole 6e-8 under the rim of a shaft past a cone: laid onto the rim, it
+/// opens onto it beside the slant as beside a square corner, where the flats
+/// left the cut open.
+#[test]
+fn seed_5361201830_a_hole_a_hair_under_the_rim_of_a_shaft_past_a_cone_cut_by_a_block() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::second(0.0),
+            Section::bands(-0.5, &[[1.5, -5.0, -0.0], [3.0, -3.5, -0.0]])
+                .sloping_to(&[[-3.5, -0.0], [-3.5, -0.0]])
+                .with_holes(&[([1.5, -3.49999994], [2.0, -2.0])]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(1.0),
+            Outline::rectangle([2.5, -1.5], [7.5, 3.5]),
+            3.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "not a cone: the reading lays the slope of 3e-7 level, onto the radius of the wide band, and the cutter, a wall 2.25e-7 wider about an axis 3e-7 off, is slid onto an inside touch along the line where the start plane of the turn passes; the straight form, a 240 degree turn of radius 25.000000075 cut so, is refused as unverified the same way. A hair of #533's cylinders"]
+fn seed_5361130486_a_partial_turn_of_cones_cut_by_a_cylinder_a_hair_off_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(30.0),
+            Axis::first(0.0),
+            Section::bands(
+                25.0,
+                &[
+                    [12.5, 0.0, 25.0],
+                    [17.5, 0.0, 5.0],
+                    [20.0, 0.0, 5.0],
+                    [2.5, 0.0, 25.0],
+                ],
+            )
+            .sloping_to(&[[0.0, 25.0], [0.0, 5.0], [0.0, 5.0], [0.0, 25.0000003]]),
+            240.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(30.0),
+            Axis::first(3e-7),
+            Section::bands(62.5, &[[15.0, -25.0000003, -0.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// A ring cut by a quarter turn of a cone about an axis 3e-7 off the
+/// ring's: decided about the cone's axis within the tolerance, the corner where
+/// the cone leaves the ring's wall was found twice, a hair apart along the
+/// slope. The cone is now moved onto the ring's axis (decision 8).
+#[test]
+fn seed_5361108529_a_ring_cut_by_a_quarter_turn_of_a_cone_a_hair_off_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-45.0),
+            Outline::ring([210.0, 150.0], 120.0, 105.0),
+            120.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(210.0),
+            Axis::first(150.0000003),
+            Section::bands(45.0, &[[30.0, 120.0, 180.0]]).sloping_to(&[[90.0, 180.0]]),
+            90.0,
+        ))],
+    ));
+}
+
+/// A point standing on a disc 6e-8 off the axis of the ring it was raised
+/// on: decision 8 took the disc onto the ring's axis, and the point, turned
+/// about the disc's, met the ring a hair off its axis. It is moved onto it.
+#[test]
+fn seed_5361110937_a_point_on_a_disc_a_hair_off_the_axis_of_a_ring() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(2.0), Outline::ring([8.0, 9.0], 6.0, 2.0), 7.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([7.99999994, 9.0], 2.0),
+                9.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::yz(7.99999994),
+                Axis::second(9.0),
+                Section::bands(10.0, &[[1.0, 0.0, 2.0]]).sloping_to(&[[0.0, 0.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// A half turn of stepped cones joined to a block: two of its cones are
+/// each other's mirror, of one apex, and a ruling the slit's plane cut from
+/// one was laid on the other's, which it shares as a whole line. The corners
+/// on the first then stood on the second, apart from the plane past its
+/// apex, and fell off their rims.
+#[test]
+fn seed_5361118847_a_half_turn_of_stepped_cones_joined_to_a_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::second(0.0),
+            Section::bands(
+                -3.5,
+                &[
+                    [0.5, -2.0, -0.0],
+                    [2.0, -1.5, -0.0],
+                    [1.5, -1.5, -0.0],
+                    [1.0, -3.0, -0.0],
+                    [0.5, -3.0, -0.0],
+                ],
+            )
+            .sloping_to(&[
+                [-1.5, -0.0],
+                [-1.5, -0.0],
+                [-1.5, -0.0],
+                [-3.0, -0.0],
+                [-3.5, -0.0],
+            ]),
+            180.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(6.0),
+            Outline::rectangle([3.0, 9.0], [11.0, 17.0]),
+            5.0,
+        ))],
+    ));
+}
+
+/// A block cut by a quarter turn of stepped cones, two of them each
+/// other's mirror, as 5361118847.
+#[test]
+fn seed_5361135092_a_block_cut_by_a_quarter_turn_of_stepped_cones() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::rectangle([4.0, 5.0], [6.0, 12.0]),
+            8.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(1.0),
+            Axis::second(0.0),
+            Section::bands(
+                2.0,
+                &[
+                    [2.5, 0.0, 7.0],
+                    [2.0, 0.0, 4.5],
+                    [1.5, 0.0, 5.0],
+                    [2.5, 0.0, 1.5],
+                    [1.5, 0.0, 3.5],
+                    [0.5, 0.0, 3.0],
+                ],
+            )
+            .sloping_to(&[
+                [0.0, 4.5],
+                [0.0, 4.5],
+                [0.0, 5.0],
+                [0.0, 1.5],
+                [0.0, 3.5],
+                [0.0, 3.5],
+            ]),
+            90.0,
+        ))],
+    ));
+}
+
+/// A quarter turn of cones about a leaning axis, cut by a cylinder, two
+/// of its cones each other's mirror, as 5361118847.
+#[test]
+fn seed_5361102829_a_quarter_turn_of_cones_about_a_leaning_axis_cut_by_a_cylinder() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(5.0),
+            Axis::first(0.0).leaning(60.0),
+            Section::bands(
+                1.0,
+                &[[1.0, -2.0, -0.0], [3.0, -1.0, -0.0], [3.0, -2.0, -0.0]],
+            )
+            .sloping_to(&[[-1.0, -0.0], [-1.0, -0.0], [-5.0, -0.0]]),
+            90.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(7.0),
+            Axis::second(0.0).backwards(),
+            Section::bands(2.0, &[[3.0, 0.0, 5.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// A half turn of stepped cones, two of them each other's mirror, joined
+/// to a point of its axis it does not reach, as 5361118847.
+#[test]
+fn seed_5361201784_a_half_turn_of_stepped_cones_joined_to_a_point_of_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(10.0),
+            Axis::second(0.0),
+            Section::bands(-15.0, &[[8.0, 0.0, 0.0]]).sloping_to(&[[0.0, 10.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(20.0),
+            Axis::second(0.0),
+            Section::bands(
+                10.0,
+                &[
+                    [2.5, 0.0, 17.5],
+                    [12.5, 0.0, 5.0],
+                    [7.5, 0.0, 5.0],
+                    [2.5, 0.0, 5.0],
+                ],
+            )
+            .sloping_to(&[[0.0, 15.0], [0.0, 5.0], [0.0, 5.0], [0.0, 7.5]]),
+            180.0,
+        ))],
+    ));
+}
+
+/// A cylinder pocketed a hair off its axis, then cut by a ring of its axis
+/// whose bore widens along a cone onto its wall: decision 8 moved the bore,
+/// of the pocket's radius, onto the pocket's axis, and took the cone a hair
+/// off the wall it meets. A move that takes a cone off a surface it was
+/// decided with about one axis is not made.
+#[test]
+fn seed_5361127255_a_ring_whose_bore_widens_onto_a_wall_pocketed_a_hair_off_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(25.0), Outline::circle([40.0, 35.0], 27.5), 48.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(29.99999995),
+                Outline::circle([39.9999999, 35.0], 17.5),
+                8.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::yz(40.0),
+                Axis::first(35.0).backwards(),
+                Section::bands(12.5, &[[10.0, 27.5, 30.0], [2.5, 17.5, 30.0]])
+                    .sloping_to(&[[17.5, 30.0], [17.5, 30.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean, the grazing coaxial family: a cone of slope 5e-8 cut by a wall of its axis whose radius it crosses, the two within the tolerance of each other over a band a quarter of the length wide; declined as unverified. Left for Tom's word (the plan's 6.1)"]
+fn seed_5361134935_a_cone_a_hair_from_a_wall_of_its_axis_cut_by_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-0.5),
+            Axis::first(4.5),
+            Section::bands(-3.0, &[[3.5, 0.0, 2.5], [4.0, 0.0, 2.49999998]])
+                .sloping_to(&[[0.0, 2.5], [0.0, 2.49999978]]),
+            90.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::yz(0.5),
+            Outline::circle([4.5, -0.5], 2.49999998),
+            8.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean, a rim a hair off: the cutter's cone starts 5e-8 outside the shaft's wall at its shoulder; its rim is laid on the shaft's circle there (decision 3), and the cone crosses the wall 1e-7 further along (decision 2), two circles on one pair; declined as a tie. Left for Tom's word with the grazing coaxial family"]
+fn seed_5361120549_a_shaft_cut_by_a_quarter_turn_of_a_cone_whose_rim_stands_a_hair_off_its_shoulder()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(12.5),
+            Axis::first(0.0),
+            Section::bands(
+                -10.0,
+                &[
+                    [5.0, 0.0, 7.5],
+                    [2.5, 0.0, 12.5],
+                    [5.0, 0.0, 15.0],
+                    [20.0, 0.0, 12.5],
+                    [12.5, 0.0, 7.5],
+                ],
+            )
+            .sloping_to(&[
+                [0.0, 7.5],
+                [0.0, 15.0],
+                [0.0, 15.0],
+                [0.0, 12.5],
+                [0.0, 7.5],
+            ]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::first(12.5),
+            Section::bands(-2.5, &[[5.0, 0.0, 15.00000005]]).sloping_to(&[[0.0, 12.50000005]]),
+            90.0,
+        ))],
+    ));
+}
+
+/// A pointed cone cut away by a coaxial cone a hair wider whose tip stands
+/// 1e-8 off the axis, at the first one's apex. The two meet at the apex
+/// alone, their slopes a hair apart, and stand within the tolerance of each
+/// other all along their faces; from eba1fa2 on, no curve was laid on both,
+/// and the rim of one at the cylinder's end stood beside the other's, 1e-8
+/// apart, a region between them thinner than the tolerance: a tie. Only a
+/// line, a ruling of a mirror, is kept off two such cones now.
+#[test]
+fn seed_5365211513_a_pointed_cone_cut_away_by_a_cone_of_its_apex_a_hair_wider() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(5.0),
+            Axis::second(-3.0),
+            Section::bands(2.0, &[[3.0, 0.0, 0.0], [3.0, 0.0, 4.5], [3.5, 0.0, 4.5]])
+                .sloping_to(&[[0.0, 2.5], [0.0, 4.5], [0.0, 0.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(5.0),
+            Axis::second(-3.0),
+            Section::bands(8.0, &[[3.5, 0.0, 4.50000001]]).sloping_to(&[[0.0, 1e-8]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// A slot whose round end stands 1e-5 off a cone's axis, its arc a hair off the
+/// wall of a rounded cut the cone's rim stands on: was drawn open along the
+/// slot's side. The cone's group gathered a ray its rim took in contact, the
+/// cut's wall took it, and the slot's arc, close to that wall, did not: the
+/// sliver between the two was sampled apart and left uncut. The gathered rays
+/// are now shared once more (round 2 of #536).
+#[test]
+fn seed_5365114896_a_slot_a_hair_off_a_cone_s_axis_is_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(240.0),
+            Outline::slot([270.00001, 60.0], [270.00001, 150.0], 180.0),
+            75.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(210.0),
+                Outline::rounded([90.0, -120.0], [450.0, 240.0], 180.0),
+                240.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(60.0),
+                Axis::second(270.0),
+                Section::bands(0.0, &[[30.0, 180.0, 195.0]]).sloping_to(&[[150.0, 195.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// A turned shaft whose last band is 2e-8 long, laid as its end a tolerance
+/// short of the wall of a cylinder about the axis of a quarter cone the body
+/// was cut by. Decision 2 moved that cylinder onto the touch with the end, a
+/// tolerance off the axis it shares with the cone, and the two, still
+/// decided about one axis, met along a circle the moved wall stood off: the
+/// step was declined as unverified. A wall about a cone's axis is no longer
+/// moved off it.
+#[test]
+fn seed_5365205368_a_shaft_ending_on_a_band_a_hair_long_joined_to_a_quarter_cone() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(-1.0), Outline::circle([3.0, 4.0], 3.0), -10.0),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::yz(3.0),
+                Axis::first(4.0),
+                Section::bands(7.0, &[[2.0, -5.0, -3.0]]).sloping_to(&[[-5.0, -1.0]]),
+                90.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(5.0),
+                Axis::first(0.0),
+                Section::bands(
+                    -2.0,
+                    &[[2.0, 0.0, 3.5], [0.99999998, 0.0, 2.5], [2e-8, 0.0, 2.5]],
+                ),
+                360.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(4.0),
+                Axis::second(3.0),
+                Section::bands(-3.0, &[[13.0, -2.0, -0.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// A disc 1e-6 thick and 25 across turned about its edge: laid, it bounds no
+/// area, and it was turned on the flats, which left its rim open. It is now
+/// nothing.
+#[test]
+fn seed_5365201759_a_disc_a_hair_thick_turned_whole_is_nothing() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(40.0),
+            Axis::first(0.0),
+            Section::bands(27.499999, &[[1.0000000010279564e-6, 0.0, 25.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A tube whose outer wall tapers from 30 to 10, then a band 1e-7 long, then a
+/// tube 15 to 27.5 across: laying declines the section, and the flats leave it
+/// open along a rim.
+#[test]
+#[ignore = "laying-declines, found by round 2's triage: the band 1e-7 long is the only thing joining the tube before it to the tube after it, which do not overlap across it; laid to nothing, it leaves the matter in two pieces, which laying declines (turning/straight/bounded.rs, `contours`), and the application turns the section on the flats, which leave it open along a rim. Whether a section laying parts in two is turned as two pieces is Tom's to decide"]
+fn seed_5365202888_a_band_1e_7_long_between_a_tapered_tube_and_a_wider_one() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(20.0),
+            Axis::second(0.0),
+            Section::bands(
+                0.0,
+                &[
+                    [4.9999999, 5.0, 30.0],
+                    [1.0000000000000001e-7, 5.0, 30.0],
+                    [12.5, 15.0, 27.5],
+                ],
+            )
+            .sloping_to(&[[5.0, 10.0], [5.0, 30.0], [15.0, 27.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A disc 6e-8 thick, as 5365201759.
+#[test]
+fn seed_5365205927_a_disc_6e_8_thick_is_nothing() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(1.0),
+            Axis::first(0.0),
+            Section::bands(-3.0000000000000004, &[[6.000000007944095e-8, 0.0, 8.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A shaft tapering by 1e-5, ending on a band 1e-5 long whose wall falls from
+/// 40 to 25, a slope a hair from square: laying declined it, and the flats drew
+/// it crossing at the rim. The slant now ends where the run back along it does,
+/// and the section is turned exactly.
+#[test]
+fn seed_5365208537_a_shaft_tapering_by_1e_5_ending_on_a_band_1e_5_long_sloping_to_its_end() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(10.0),
+            Axis::first(0.0),
+            Section::bands(25.0, &[[4.99999, 0.0, 40.0], [1e-5, 0.0, 40.0]])
+                .sloping_to(&[[0.0, 39.99999], [0.0, 25.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// As 5365208537, 4.5 across.
+#[test]
+fn seed_5365208894_a_short_shaft_tapering_by_1e_5_ending_on_a_band_1e_5_long() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(1.0),
+            Axis::second(0.0),
+            Section::bands(4.0, &[[1.99999, 0.0, 4.5], [1e-5, 0.0, 4.5]])
+                .sloping_to(&[[0.0, 4.49999], [0.0, 3.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A shaft whose wall slopes by 6e-6 over 45, then a cone whose tip stands
+/// 1.8e-6 off the axis: laying declined the section, and the flats left it
+/// open. The slant now ends where the run back along it does, and the section
+/// is turned exactly.
+#[test]
+fn seed_5365210847_a_shaft_sloping_by_6e_6_before_a_point_1_8e_6_off_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-30.0),
+            Axis::second(0.0),
+            Section::bands(-90.0, &[[45.0, -105.0, -0.0], [60.0, -105.0, -0.0]])
+                .sloping_to(&[[-104.999994, -0.0], [-1.8e-6, -0.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A disc 2e-8 thick drawn below its axis, as 5365201759.
+#[test]
+fn seed_5365213065_a_disc_2e_8_thick_below_its_axis_is_nothing() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(1.0),
+            Axis::first(0.0),
+            Section::bands(7.49999998, &[[1.999999987845058e-8, -6.5, -0.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A disc 3e-7 thick and 135 in radius, as 5365201759.
+#[test]
+fn seed_5365214883_a_disc_3e_7_thick_and_wide_is_nothing() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(240.0),
+            Axis::first(0.0),
+            Section::bands(89.9999997, &[[2.9999999640040187e-7, -135.0, -0.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// As 5365208537, 6 across.
+#[test]
+fn seed_5365216402_a_shaft_six_across_tapering_by_1e_5_ending_on_a_band_1e_5_long() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(1.0),
+            Axis::second(0.0),
+            Section::bands(0.0, &[[2.49999, 0.0, 6.0], [1e-5, 0.0, 6.0]])
+                .sloping_to(&[[0.0, 5.99999], [0.0, 5.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A tube whose outer wall falls from 135 to 120, then a band 6e-6 long whose
+/// outer wall falls by 30, a slope a hair from square: laying declined it, and
+/// the flats left it open. The slant now ends where the run back along it does,
+/// and the section is turned exactly.
+#[test]
+fn seed_5365218392_a_tube_ending_on_a_band_6e_6_long_whose_top_falls_by_thirty() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(150.0),
+            Axis::second(0.0),
+            Section::bands(30.0, &[[14.999994, 90.0, 135.0], [6e-6, 90.0, 135.0]])
+                .sloping_to(&[[90.0, 120.0], [90.0, 105.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// As 5365208537, 8 across.
+#[test]
+fn seed_5365219857_a_shaft_eight_across_tapering_by_1e_5_ending_on_a_band_1e_5_long() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(6.0),
+            Axis::first(0.0),
+            Section::bands(4.0, &[[1.49999, 0.0, 8.0], [1e-5, 0.0, 8.0]])
+                .sloping_to(&[[0.0, 7.99999], [0.0, 6.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A disc 2e-8 thick turned about the plane's second axis, as 5365201759.
+#[test]
+fn seed_5365221239_a_disc_2e_8_thick_about_the_second_axis_is_nothing() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(0.0),
+            Section::bands(-3.0, &[[1.999999987845058e-8, 0.0, 3.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A shaft tapering by 2e-7 into a cone, joined to a coaxial stepped shaft:
+/// laying declined the first section, and the flats it fell back on, joined to
+/// the exact shaft, were drawn crossing. The slant now ends where the run back
+/// along it does, and the section is turned exactly.
+#[test]
+fn seed_5365224843_a_shaft_tapering_by_2e_7_into_a_cone_joined_to_a_stepped_shaft() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-2.0),
+            Axis::second(0.0),
+            Section::bands(
+                -2.0,
+                &[[0.922649730810374, 0.0, 2.0], [0.577350269189626, 0.0, 2.0]],
+            )
+            .sloping_to(&[[0.0, 2.0000002], [0.0, 3.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(0.0),
+            Section::bands(-1.0, &[[1.0, -1.5, 2.5], [2.0, -2.5, 3.5]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// As 5365208537, drawn below its axis.
+#[test]
+fn seed_5365227230_a_shaft_below_its_axis_tapering_by_1e_5_ending_on_a_band_1e_5_long() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(8.0),
+            Axis::first(0.0),
+            Section::bands(3.0, &[[4.99999, -6.0, 0.0], [1e-5, -6.0, 0.0]])
+                .sloping_to(&[[-5.99999, 0.0], [-4.0, 0.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A disc 6e-7 thick and 75 in radius, as 5365201759.
+#[test]
+fn seed_5365227767_a_disc_6e_7_thick_is_nothing() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(210.0),
+            Axis::first(0.0),
+            Section::bands(-120.0, &[[6.000000070116585e-7, 0.0, 75.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A disc 2e-8 thick and 7 in radius about the second axis, as 5365201759.
+#[test]
+fn seed_5365228671_a_disc_2e_8_thick_seven_across_is_nothing() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-3.0),
+            Axis::second(0.0),
+            Section::bands(-3.0, &[[1.999999987845058e-8, 0.0, 7.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A disc 6e-7 thick standing 270 along its axis, as 5365201759.
+#[test]
+fn seed_5365229905_a_disc_6e_7_thick_far_along_its_axis_is_nothing() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(30.0),
+            Axis::first(0.0),
+            Section::bands(269.9999994, &[[6.000000212225132e-7, 0.0, 105.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A pointed shaft of four bands whose steps stand 3e-7 and 1e-5 off their
+/// neighbours: laying declined it, and the flats left it open. The slant now
+/// ends where the run back along it does, and the section is turned exactly.
+#[test]
+fn seed_5365230087_a_shaft_whose_steps_stand_3e_7_and_1e_5_off_their_neighbours() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-60.0),
+            Axis::first(0.0),
+            Section::bands(
+                60.0,
+                &[
+                    [15.0, 0.0, 150.0],
+                    [104.9999997, 0.0, 149.9999997],
+                    [15.000000299999996, 0.0, 45.0],
+                    [15.0, 0.0, 45.00001],
+                ],
+            )
+            .sloping_to(&[[0.0, 150.0], [0.0, 149.9999997], [0.0, 45.0], [0.0, 0.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A disc 1e-7 thick and 30 in radius, as 5365201759.
+#[test]
+fn seed_5365233246_a_disc_1e_7_thick_is_nothing() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-10.0),
+            Axis::first(0.0),
+            Section::bands(-35.0, &[[1.0000000116860974e-7, 0.0, 30.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A ring whose inner wall slants out by a half, then a band 2e-7 long whose
+/// outer wall falls by one: laying declines it, and the flats leave it open.
+#[test]
+#[ignore = "laying-declines, found by round 2's triage: the band's falling top passes 1e-7 from the corner where the ring's slanted inner wall ends, two runs away from its own end, and the band below that corner is a fin 1e-7 to 2e-7 thick, from under to over the tolerance of 1.6e-7: no wall wholly thinner than the tolerance to take away, so laying declines the corner near the slant (turning/straight/contacts.rs, `a_slant_is_met`), and the application turns the section on the flats, which leave it open along a rim"]
+fn seed_5365236403_a_ring_ending_on_a_band_2e_7_long_whose_top_falls_by_one() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(4.0),
+            Axis::first(0.0),
+            Section::bands(-1.0, &[[2.9999998, 3.0, 4.0], [2e-7, 3.0, 4.0]])
+                .sloping_to(&[[3.5, 4.0], [3.0, 3.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A disc 5e-8 thick about the second axis, as 5365201759.
+#[test]
+fn seed_5365236670_a_disc_5e_8_thick_about_the_second_axis_is_nothing() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(40.0),
+            Axis::second(0.0),
+            Section::bands(27.49999995, &[[5.000000058430487e-8, 0.0, 30.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A disc 6e-8 thick and 3.5 in radius, as 5365201759.
+#[test]
+fn seed_5365237332_a_disc_6e_8_thick_three_and_a_half_across_is_nothing() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(1.0),
+            Axis::first(0.0),
+            Section::bands(-6.0, &[[5.999999963535174e-8, 0.0, 3.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A stepped cone joined to a lying cylinder 2e-8 narrower than its rim, cut by
+/// a block and by a cylinder about a third axis: was drawn open along an arc.
+///
+/// The body keeps two coaxial walls of radii 1.3e-8 apart, under its
+/// tolerance, and a ring that wide between a circle of each. Only one of them
+/// took the rays of the curve the bore meets it along, and the ring's two
+/// rims were sampled apart: its chords crossed and it was left uncut. Walls
+/// at one place now take each other's rays (round 2 of #536).
+#[test]
+fn seed_5365207818_a_cone_joined_to_a_cylinder_a_hair_inside_its_rim_cut_twice() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(5.0),
+            Axis::first(0.0),
+            Section::bands(
+                3.0,
+                &[
+                    [2.8452994731677537, 0.0, 4.5],
+                    [1.1547005268322466, 0.0, 4.5],
+                    [0.5, 0.0, 6.5],
+                ],
+            )
+            .sloping_to(&[[0.0, 4.5], [0.0, 6.49999998], [0.0, 6.5]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(7.0),
+                Outline::circle([0.0, 5.0], 6.49999998),
+                -3.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([-3.0, 1.0], [3.0, 7.0]),
+                15.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::yz(4.0),
+                Axis::second(0.0),
+                Section::bands(-3.0, &[[2.0, -3.0, 2.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// A cylinder ending on a cone, joined to a coaxial ring turned 315 degrees the
+/// other way: was drawn open along an arc.
+///
+/// A face of a cone that meets a sample twice — along an edge it runs out and
+/// back along, or at a corner it passes twice — was laid out by angles summed
+/// step by step, and its two passes stood a rounding apart and crossed: the face
+/// was left uncut. Each angle is now the sample's own, a whole number of turns
+/// on (round 2 of #536).
+#[test]
+fn seed_5365207903_a_cylinder_and_cone_joined_to_a_coaxial_turn_of_315_degrees() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-5.0),
+            Axis::first(-10.0),
+            Section::bands(10.0, &[[2.5, 0.0, 27.5], [2.5, 0.0, 37.5]])
+                .sloping_to(&[[0.0, 27.5], [0.0, 27.5]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(-5.0),
+            Axis::first(-10.0).backwards(),
+            Section::bands(-17.5, &[[3.75, -40.0, -32.5]]),
+            315.0,
+        ))],
+    ));
+}
+
+/// Stepped cones cut by a half turn of a cone about a square axis whose ends
+/// stand 2e-7 off their steps: two faces were drawn crossing.
+///
+/// A face of a cone that meets a sample twice — along an edge it runs out and
+/// back along, or at a corner it passes twice — was laid out by angles summed
+/// step by step, and its two passes stood a rounding apart and crossed: the face
+/// was left uncut. Each angle is now the sample's own, a whole number of turns
+/// on (round 2 of #536).
+#[test]
+fn seed_5365210781_stepped_cones_cut_by_a_half_cone_2e_7_off_their_steps() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(0.0),
+            Section::bands(
+                4.0,
+                &[
+                    [1.0, 0.0, 3.0],
+                    [1.5, 0.0, 3.5],
+                    [0.5, 0.0, 3.5],
+                    [1.0, 0.0, 4.0],
+                ],
+            )
+            .sloping_to(&[[0.0, 3.0], [0.0, 3.5], [0.0, 4.0], [0.0, 4.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(0.0),
+            Axis::first(3.0),
+            Section::bands(6.500000200000001, &[[2.4999997999999994, -3.5, -0.0]])
+                .sloping_to(&[[-5.999999799999998, -0.0]]),
+            180.0,
+        ))],
+    ));
+}
+
+/// Prisms alone: a block joined to a post, then to a post whose centre stands
+/// 6e-6 off the block's side: two faces drawn crossing, the kernel's hair
+/// family of #533 and no turn's.
+///
+/// Was ignored as: triangles, found by round 2's triage: prisms alone, a block
+/// joined to a post and to a post 6e-6 off its side; the exact body lists
+/// itself on its geometry and holds every line's promise, and two of its faces
+/// are drawn crossing: the hair family of #533, no turn's. Holds since the
+/// triangles of two faces folded onto each other across an edge are cut the
+/// other way, round 3 of #536.
+#[test]
+fn seed_5365212787_a_block_joined_to_a_post_and_to_a_post_6e_6_off_its_side() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::rectangle([-30.0, 60.0], [225.0, 150.0]),
+            420.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([60.0, 0.0], 60.0),
+                840.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-30.0),
+                Outline::circle([59.999994, 45.0], 14.9999997),
+                3360.0,
+            )),
+        ],
+    ));
+}
+
+/// A cone of a section across its axis joined to a half turn about a square
+/// axis: was drawn open along an arc.
+///
+/// A face of a cone that meets a sample twice — along an edge it runs out and
+/// back along, or at a corner it passes twice — was laid out by angles summed
+/// step by step, and its two passes stood a rounding apart and crossed: the face
+/// was left uncut. Each angle is now the sample's own, a whole number of turns
+/// on (round 2 of #536).
+#[test]
+fn seed_5365216755_a_cone_across_its_axis_joined_to_a_half_turn_about_another() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(0.0),
+            Axis::second(0.0).backwards(),
+            Section::bands(-3.0, &[[2.0, -1.0, 1.5]]).sloping_to(&[[-1.0, 3.5]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::yz(0.0),
+            Axis::first(0.0),
+            Section::bands(1.5, &[[1.0, 3.0, 5.5]]),
+            180.0,
+        ))],
+    ));
+}
+
+/// A funnel joined to a coaxial post whose top rim stands 3e-7 inside the
+/// funnel's cone, between its rims: the application's finer triangles were
+/// drawn crossing (body/drawn.rs). The cone's triangles reach from rim to rim,
+/// and the post's rim, sampled on angles of its own, poked through them. A
+/// coaxial circle within a sag of a cone's face now stands in the cone's
+/// group, sampled on the rays its rims take (round 2 of #536).
+#[test]
+fn seed_5365223411_a_cone_joined_to_a_post_3e_7_inside_its_rim() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(0.0),
+            Axis::second(0.0),
+            Section::bands(0.0, &[[15.0, -165.0, -90.0], [45.0, -165.0, -82.5]])
+                .sloping_to(&[[-165.0, -82.5], [-165.0, -60.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(15.0),
+            Outline::circle([0.0, 0.0], 82.4999997),
+            -45.0,
+        ))],
+    ));
+}
+
+/// A cone whose tip stands 1e-7 past its axis, cut by a cylinder about a square
+/// axis and by a coaxial one: two faces drawn crossing.
+#[test]
+#[ignore = "triangles, found by round 2's triage: a cone pointed 1e-7 past its axis cut by a cylinder about a square axis and by a coaxial one; the exact body lists itself on its geometry and holds every line's promise, and two of its faces are drawn crossing"]
+fn seed_5365223651_a_cone_pointed_1e_7_off_its_axis_cut_by_two_cylinders() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(4.0),
+            Axis::first(0.0),
+            Section::bands(-2.0, &[[5.0, -4.5, 0.0]]).sloping_to(&[[-4.5000001, 0.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(4.0),
+                Axis::second(0.0),
+                Section::bands(1.0, &[[7.0, 1.0, 4.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xz(4.0),
+                Axis::first(0.0),
+                Section::bands(0.0, &[[2.0, 0.0, 4.5]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// A cylinder cut by a ring turned 359.9 degrees about a square axis, then by a
+/// coaxial pointed cone: was drawn open along an arc.
+///
+/// A face of a cone that meets a sample twice — along an edge it runs out and
+/// back along, or at a corner it passes twice — was laid out by angles summed
+/// step by step, and its two passes stood a rounding apart and crossed: the face
+/// was left uncut. Each angle is now the sample's own, a whole number of turns
+/// on (round 2 of #536).
+#[test]
+fn seed_5365226551_a_cylinder_cut_by_a_turn_of_359_9_degrees_and_by_a_coaxial_point() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(6.5),
+            Axis::second(0.0),
+            Section::bands(3.0, &[[2.0, -4.0, 3.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::yz(0.0),
+                Axis::first(6.5),
+                Section::bands(3.5, &[[0.5, -5.5, -2.5]]),
+                359.9,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(6.5),
+                Axis::second(0.0),
+                Section::bands(2.5, &[[3.0, -1.5, -0.0]]).sloping_to(&[[-3.5, -0.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// The grazing coaxial family: a cone whose rim stands 2e-8 under a cylinder
+/// whose axis stands 1e-8 off the cone's: the triangles enclose less than the
+/// exact body.
+#[test]
+#[ignore = "triangles, found by round 2's triage: the grazing coaxial family, a cone whose rim stands 2e-8 under a cylinder 1e-8 off its axis; the exact body lists itself on its geometry and holds every line's promise, and its triangles enclose less than the body along a line (Volume). Left for Tom's word if a fix needs a fall-back or a decline"]
+fn seed_5365227506_a_cone_2e_8_under_a_cylinder_whose_axis_stands_1e_8_off() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(0.0),
+            Axis::second(5.0),
+            Section::bands(5.0, &[[1.0, 0.0, 4.5]]).sloping_to(&[[0.0, 4.49999998]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::second(5.00000001),
+            Section::bands(6.0, &[[3.0, 0.0, 4.5]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// A post cut by another and by a cylinder turned about an axis 2e-8 above its
+/// top: two faces drawn crossing. No cone.
+#[test]
+#[ignore = "triangles, found by round 2's triage: a post cut by a post and by a cylinder whose axis stands 2e-8 above its top, no cone; the exact body lists itself on its geometry and holds every line's promise, and two of its faces are drawn crossing"]
+fn seed_5365231546_a_post_cut_by_a_cylinder_whose_axis_stands_2e_8_above_its_top() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(3.0), Outline::circle([6.0, 7.0], 4.5), 8.5),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::circle([0.0, 8.0], 2.5),
+                17.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::yz(4.99999999),
+                Axis::first(11.50000002),
+                Section::bands(5.5, &[[5.0, 0.0, 2.5]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// A stepped shaft turned about an axis leaning 1e-7, cut by a cylinder about a
+/// square axis: two faces drawn crossing. No cone.
+///
+/// Was ignored as: triangles, found by round 2's triage: a stepped shaft about
+/// an axis leaning 1e-7 cut by a cylinder about a square axis, no cone; the
+/// exact body lists itself on its geometry and holds every line's promise, and
+/// two of its faces are drawn crossing. Holds since the triangles of two faces
+/// folded onto each other across an edge are cut the other way, round 3 of
+/// #536.
+#[test]
+fn seed_5365232431_a_stepped_shaft_leaning_1e_7_cut_by_a_cylinder_about_a_square_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(5.0),
+            Axis::first(0.0).leaning(1e-7),
+            Section::bands(5.0, &[[3.0, -1.0, 3.0], [1.0, -2.0, 2.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(1.0),
+            Axis::second(0.0),
+            Section::bands(1.0, &[[3.0, 0.0, 7.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// A stepped cone cut by a quarter turn of a band about a parallel axis, whose
+/// end touches the cone along an arc and leaves it there as an edge the cone's
+/// face runs out and back along: was drawn open along the cone's rim.
+///
+/// A face of a cone that meets a sample twice — along an edge it runs out and
+/// back along, or at a corner it passes twice — was laid out by angles summed
+/// step by step, and its two passes stood a rounding apart and crossed: the face
+/// was left uncut. Each angle is now the sample's own, a whole number of turns
+/// on (round 2 of #536).
+#[test]
+fn seed_5365237361_a_stepped_cone_cut_by_a_quarter_turn_about_a_parallel_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::first(0.0),
+            Section::bands(-3.0, &[[3.5, 0.0, 5.0], [1.0, 2.0, 5.0], [3.0, 2.0, 5.0]])
+                .sloping_to(&[[0.0, 5.0], [2.0, 5.0], [5.0, 5.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::first(-1.0).backwards(),
+            Section::bands(-3.5, &[[3.5, 4.0, 6.0]]),
+            90.0,
+        ))],
+    ));
+}
+
+/// A rounded block cut by a block, by a cylinder turned whole and by a slot:
+/// two faces drawn crossing. No cone.
+#[test]
+#[ignore = "triangles, found by round 2's triage: a rounded block cut by a block, a cylinder and a slot, no cone; the exact body lists itself on its geometry and holds every line's promise, and two of its faces are drawn crossing"]
+fn seed_5365239260_a_rounded_block_cut_by_a_block_a_cylinder_and_a_slot() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-60.0),
+            Outline::rounded([180.0, 0.0], [240.0, 165.0], 15.0),
+            135.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::rectangle([135.0, -75.0], [405.0, 195.0]),
+                150.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xz(90.0),
+                Axis::first(7.5),
+                Section::bands(180.0, &[[60.0, 0.0, 90.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(30.0),
+                Outline::slot([270.0, 90.0], [210.0, 90.0], 60.0),
+                180.0,
+            )),
+        ],
+    ));
+}
+
+/// A block cut by a cylinder that leaves a strip of its top 2e-8 wide at the
+/// rim, then joined to a block whose side stands 1e-8 off the cylinder's
+/// wall, in the middle of the strip. That side was taken for the first
+/// block's, 1e-8 off, and the strip was a region between the cylinder's line
+/// and that side's, its middle on the second block's own edge all along its
+/// chord: read there and further along, a tie. The region is read either side
+/// of its chord now. No cone.
+#[test]
+fn seed_5365202020_a_block_cut_by_a_cylinder_joined_to_a_block_1e_8_off_its_wall() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(5.0),
+            Outline::rectangle([-1.5, 5.5], [7.5, 14.5]),
+            5.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(10.0),
+                Axis::second(3.0).backwards(),
+                Section::bands(-11.0, &[[7.5, -4.49999998, -0.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::rectangle([7.49999999, 9.0], [7.99999998, 11.0]),
+                6.0,
+            )),
+        ],
+    ));
+}
+
+/// 5365202020 as drawn, shrunk again once the block above held: a round post
+/// in place of the block.
+#[test]
+#[ignore = "kernel-declines, found by round 2's lane: a round post cut by a cylinder whose top line stands 2e-8 inside the post's wall, joined to a block whose side stands between the two. The post's rim and the cylinder's line, both laid on the block's side, cross there 8.5e-4 apart and run as one in its parameters between: two arcs leave a corner along one another (overlay/star.rs), a tie. The band's family, decisions 7 and 9; the seed as drawn fails at ae20fa9 too"]
+fn seed_5365202020_as_drawn_a_round_post_whose_rim_grazes_a_cylinder_s_line_on_a_joined_side() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(5.0), Outline::circle([3.0, 10.0], 4.5), 5.0),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(10.0),
+                Axis::second(3.0).backwards(),
+                Section::bands(-11.0, &[[7.5, -4.49999998, -0.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::rectangle([7.49999999, 9.0], [7.99999998, 11.0]),
+                6.0,
+            )),
+        ],
+    ));
+}
+
+/// The grazing coaxial family: a turned tube joined to a coaxial cone that
+/// stands 1e-7 off the tube's bore. Decision 2 moved a wall of the bore's
+/// radius onto a touch, 2.5e-8 off the axis it shares with the cone, and the
+/// two, still decided about one axis, met along a circle the moved wall stood
+/// off: an edge listed itself 6e-8 off its face. A wall about a cone's axis
+/// is no longer moved off it; no fall-back and no decline.
+#[test]
+fn seed_5365208585_a_tube_whose_bore_stands_1e_7_off_a_coaxial_cone_s_tip() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-10.0),
+            Axis::second(0.0),
+            Section::bands(20.0, &[[25.0, 0.0, 25.0]])
+                .with_holes(&[([25.0, 12.5], [32.5, 24.9999999])]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::second(0.0),
+            Section::bands(
+                -5.0,
+                &[[12.5, 0.0, 25.0], [9.99999, 0.0, 25.0], [1e-5, 0.0, 25.0]],
+            )
+            .sloping_to(&[[0.0, 24.9999999], [0.0, 25.0], [0.0, 20.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// A cone cut by a block whose side, parallel to its axis, stands 5e-8 past
+/// its widest rim, a tolerance and a tenth: the kernel tells a face clear of
+/// another only four tolerances off it, and declines the step as
+/// unsupported, a hyperbola it may cut. The harness took the side for clear
+/// past 1e-12 of the reach, and counted the decline as no answer; it counts
+/// a plane that near the rim as asking for a conic now.
+#[test]
+fn seed_5365216226_a_cone_cut_by_a_block_whose_side_grazes_its_rim() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(35.0),
+            Axis::first(-15.0).backwards(),
+            Section::bands(-5.0, &[[2.5, -2.5, 2.5]]).sloping_to(&[[-2.5, 5.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::yz(2.5),
+            Outline::rectangle([-9.99999995, 25.0], [-5.0, 45.0]),
+            20.0,
+        ))],
+    ));
+}
+
+/// A rounded block cut by a turn of a hundredth of a degree lying on its
+/// side, the turn's axis on the line the block's corner round touches that
+/// side along. The turn's other end grazes the round within the tolerance,
+/// and was moved onto it with the whole turn, carried a hair off the side:
+/// the end lying on it was still read as the block's side, the other went,
+/// and the line the two ends meet along stood ninety microns along it. The
+/// body was declined as unverified. A move now carries nothing off a surface
+/// of the first operand it is one with, nor a plane its operand drew corners
+/// on further than the tolerance off the line it crosses another along. No
+/// cone.
+#[test]
+fn seed_5365230254_a_rounded_block_cut_by_a_turn_of_a_hundredth_of_a_degree() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(1.0),
+            Outline::rounded([9.0, 0.0], [16.0, 4.0], 1.0),
+            3.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(4.0),
+            Axis::second(10.0).backwards(),
+            Section::bands(-5.0, &[[2.0, 0.0, 3.0]]),
+            0.01,
+        ))],
+    ));
+}
+
+/// A rounded block joined to a cylinder whose last band is 6e-8 long, laid
+/// as its end 3e-8 short of where the block's corner round touches the
+/// cylinder's wall from inside. The end's rim crosses the round twice, 8.5e-8
+/// either side of the block's bottom, but the line the end's plane cuts the
+/// round along stands 4.5e-16 inside the wall, less than a coordinate holds:
+/// rounded onto it, the rim was taken to touch the round at the bottom, the
+/// curve the round and the wall meet along was not cut where the rim crosses
+/// it, and the body was declined as unverified. The line is now measured
+/// from the two radii. No cone.
+#[test]
+fn seed_5365239969_a_rounded_block_joined_to_a_cylinder_ending_on_a_band_6e_8_long() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(5.0),
+            Outline::rounded([3.0, 2.0], [8.0, 5.0], 1.0),
+            -5.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(0.0),
+            Axis::second(0.0),
+            Section::bands(-1.0, &[[3.99999994, 0.0, 8.0], [6e-8, 0.0, 8.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// A block cut by a circle, then by a rounded block whose sides stand 5e-8
+/// past the block's. Holds at ae20fa9 and fails since 8a008ea.
+#[test]
+fn seed_5366611312_a_block_cut_by_a_circle_and_by_a_rounded_block_5e_8_off_its_sides() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(5.0),
+            Outline::rectangle([35.0, 40.0], [50.0, 52.5]),
+            15.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([40.0, 30.0], 22.5),
+                30.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rounded([35.00000005, 40.0], [50.00000005, 52.5], 5.0),
+                30.0,
+            )),
+        ],
+    ));
+}
+
+/// A block joined to a rounded block whose sides stand 1e-8 and whose base
+/// stands 2e-7 off its own, then cut by a circle. Holds at ae20fa9 and fails
+/// since 8a008ea.
+#[test]
+fn seed_5366614710_a_block_joined_to_a_rounded_block_2e_7_off_then_cut_by_a_circle() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(5.5),
+            Outline::rectangle([9.0, 8.0], [13.0, 14.0]),
+            1.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(5.5000002),
+                Outline::rounded([9.00000001, 8.0], [13.00000001, 13.5], 1.0),
+                2.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::circle([9.0, 8.0], 5.5),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+/// A block joined to a cylinder across it, then to a rounded block whose
+/// sides stand 3e-7 past the block's. Holds at ae20fa9 and fails since
+/// 8a008ea, on the exact kernel too.
+#[test]
+fn seed_5366205754_a_block_joined_to_a_cylinder_and_to_a_rounded_block_3e_7_off_its_sides() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(150.0),
+            Outline::rectangle([225.0, 120.0], [435.0, 360.0]),
+            300.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::yz(435.0),
+                Axis::first(60.0),
+                Section::bands(120.0, &[[240.0, 0.0, 90.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::rounded([225.0000003, 120.0], [435.0000003, 360.0], 90.0),
+                135.0,
+            )),
+        ],
+    ));
+}
+
+/// 5365110795 as drawn. Holds at ae20fa9 and fails since 8a008ea; its
+/// shrunk core, below, fails at ae20fa9 too.
+#[test]
+fn seed_5365110795_as_drawn_a_slide_carrying_a_wall_onto_the_first_s() {
+    random_solids::holds_exactly(&Case::drawn_slanted_off_the_lattice(5365110795));
+}
+
+/// 5366215526 as drawn. Holds at ae20fa9 and fails since 8a008ea, its
+/// triangles crossing; its shrunk core, below, fails at ae20fa9 too.
+///
+/// Was ignored as: carried-one-with, found by round 3's triage: drawn crossing
+/// through the application's body since 8a008ea (canonical/carried.rs, `kept`).
+/// Round 3 of #536 holds it twice over, each fix alone enough: a carried
+/// surface that stays one with the first's and ends no further from it is
+/// allowed, and the triangles of two faces folded onto each other across an
+/// edge are cut the other way.
+#[test]
+fn seed_5366215526_as_drawn_a_slide_carrying_a_wall_onto_the_first_s() {
+    random_solids::holds_through_the_application(&Case::drawn_slanted_off_the_lattice(5366215526));
+}
+
+/// A stepped section about Z cutting a cylinder about X, radius 240, whose
+/// axis stands 90 below its own: the step of radius 150 touches the cylinder
+/// from inside, and the next, 6e-7 narrower, is laid with it as one wall of
+/// 149.9999997. The section ends on a cone pointed on its axis, which that
+/// wall never meets. Held at ae20fa9 and failed since beb95aa: decision 2
+/// moved the wall 3e-7 across its axis onto the touch, and the pointed cone,
+/// crossing it along a circle 60 below the section, held it on the axis; the
+/// step was declined as unverified. A cone holds a wall about its axis only
+/// where faces of the two meet on the circle they cross along.
+#[test]
+fn seed_5365100952_a_wall_touching_a_cylinder_inside_coaxial_with_a_cone_it_never_meets() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(0.0),
+            Axis::first(90.0),
+            Section::bands(-90.0, &[[30.0, 0.0, 240.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(180.0),
+            Axis::second(0.0),
+            Section::bands(
+                0.0,
+                &[
+                    [75.0, 0.0, 45.0],
+                    [30.0, 0.0, 150.0],
+                    [15.0, 0.0, 149.9999994],
+                    [45.0, 0.0, 30.0],
+                ],
+            )
+            .sloping_to(&[[0.0, 45.0], [0.0, 150.0], [0.0, 149.9999994], [0.0, 0.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// 5366415073 as drawn. Holds at ae20fa9 and fails since af8e71a.
+///
+/// Was ignored as: triangles-sliver, found by round 3's triage: drawn crossing
+/// through the application's body since af8e71a (relation/crossing/cut.rs), two
+/// triangles of one plane's face crossing across a sliver 1e-8 wide; its shrunk
+/// core below. Holds since the triangles of two faces folded onto each other
+/// across an edge are cut the other way, and a skin of no thickness two faces
+/// are drawn on is left out, round 3 of #536.
+#[test]
+fn seed_5366415073_as_drawn_a_post_cut_by_a_post_1e_8_past_its_axis() {
+    random_solids::holds_through_the_application(&Case::drawn_turned_off_the_lattice(5366415073));
+}
+
+/// A post along X cut by a post along Z whose top stands 1e-8 above the
+/// first's axis, and whose wall passes through the first's end on the line
+/// the first's wall touches it along. On the exact kernel it holds with
+/// af8e71a undone at the tip; through the application's body it fails at
+/// ae20fa9 too.
+///
+/// Was ignored as: triangles-sliver, found by round 3's triage: two triangles
+/// cross across a sliver 1e-8 wide where the second post's top, the first's end
+/// and the line the first's wall touches the second's along meet; the sweep
+/// (tessellation/sweep.rs) cuts a region exactly only while its boundaries do
+/// not cross, not traced further. Holds since the triangles of two faces folded
+/// onto each other across an edge are cut the other way, and a skin of no
+/// thickness two faces are drawn on is left out, round 3 of #536.
+#[test]
+fn seed_5366415073_a_post_cut_by_a_post_whose_top_stands_1e_8_past_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(2.0), Outline::circle([4.0, 9.5], 0.5), 1.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(5.49999999),
+            Outline::circle([2.0, 4.0], 0.5),
+            4.00000002,
+        ))],
+    ));
+}
+
+/// 5366116515 as drawn. Holds at ae20fa9 and fails since 6fd4c2a.
+///
+/// Was ignored as: triangles-sliver, found by round 3's triage: drawn crossing
+/// on the exact kernel since 6fd4c2a (tessellation/outline/cone.rs), the end
+/// face of a turn of 315 degrees crossing itself across a sliver 5e-8 wide; its
+/// shrunk core below. Holds since the triangles of two faces folded onto each
+/// other across an edge are cut the other way, and a skin of no thickness two
+/// faces are drawn on is left out, round 3 of #536.
+#[test]
+fn seed_5366116515_as_drawn_a_stepped_cone_joined_to_a_turn_of_315_degrees() {
+    random_solids::holds_exactly(&Case::drawn_slanted_off_the_lattice(5366116515));
+}
+
+/// A stepped section about Y whose steps of 5 and 4.9999999 end on a cone
+/// pointed on its axis, joined to a turn of 315 degrees about the same axis,
+/// of radius 4.9999999, whose end planes meet the cone's tip. Fails at
+/// ae20fa9 too; with 6fd4c2a undone at the tip, on two triangles of the
+/// turn's start face instead.
+///
+/// Was ignored as: triangles-sliver, found by round 3's triage: two triangles
+/// of the turn's end face, one reaching the cone's tip, cross across a sliver
+/// 5e-8 wide at the cone's rim, where the steps of 5 and 4.9999999 end
+/// (tessellation/sweep.rs), not traced further. Holds since the triangles of
+/// two faces folded onto each other across an edge are cut the other way, and a
+/// skin of no thickness two faces are drawn on is left out, round 3 of #536.
+#[test]
+fn seed_5366116515_a_stepped_cone_joined_to_a_coaxial_turn_of_315_degrees() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(1.0),
+            Axis::second(0.0),
+            Section::bands(
+                3.0,
+                &[
+                    [3.5, 0.0, 3.5],
+                    [1.0, 0.0, 3.0],
+                    [1.5, 0.0, 5.0],
+                    [0.5, 0.0, 4.9999999],
+                    [1.0, 0.0, 4.9999999],
+                ],
+            )
+            .sloping_to(&[
+                [0.0, 3.5],
+                [0.0, 3.0],
+                [0.0, 5.0],
+                [0.0, 4.9999999],
+                [0.0, 0.0],
+            ]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::yz(0.0),
+            Axis::first(1.0),
+            Section::bands(9.5, &[[3.0, -4.9999999, -0.0]]),
+            315.0,
+        ))],
+    ));
+}
+
+/// 5366215526 shrunk: a turn of a hundredth of a degree cut by a quarter
+/// turn about a parallel axis 6e-8 off, both sections in one plane. Fails at
+/// ae20fa9 too.
+///
+/// Was ignored as: triangles-sliver, found by round 3's triage: the two turns'
+/// start faces lie in one plane, and two triangles of it cross across the
+/// sliver 6e-8 wide between the two axes (tessellation/sweep.rs). Holds since
+/// the triangles of two faces folded onto each other across an edge are cut the
+/// other way, and a skin of no thickness two faces are drawn on is left out,
+/// round 3 of #536.
+#[test]
+fn seed_5366215526_a_hundredth_of_a_degree_s_turn_cut_by_a_quarter_turn_6e_8_off_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(8.0),
+            Axis::second(-2.0),
+            Section::bands(2.0, &[[3.0, -9.0, -0.0]]),
+            0.01,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(8.0),
+            Axis::second(-1.99999994).backwards(),
+            Section::bands(-2.0, &[[1.0, 0.0, 7.0]]),
+            90.0,
+        ))],
+    ));
+}
+
+/// 5365110795 shrunk: a quarter turn of a solid cylinder about X joined to
+/// a cone turned 270 degrees about Y, its axis passing 3e-7 from the
+/// cylinder's. Fails at ae20fa9 too.
+#[test]
+#[ignore = "kernel-declines, found by round 3's triage: declined as unverified at ae20fa9 too; a cone's axis crossing a square cylinder's 3e-7 off it, not traced"]
+fn seed_5365110795_a_quarter_turn_joined_to_a_cone_whose_axis_passes_3e_7_off_its_own() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(60.0),
+            Axis::first(0.0),
+            Section::bands(60.0, &[[255.0, -105.0, -0.0]]),
+            90.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::yz(210.0),
+            Axis::first(59.9999997),
+            Section::bands(135.0, &[[45.0, -30.0, -0.0]]).sloping_to(&[[-0.0, -0.0]]),
+            270.0,
+        ))],
     ));
 }

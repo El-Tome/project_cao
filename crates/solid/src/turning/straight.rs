@@ -1,9 +1,11 @@
-//! A profile of straight runs laid square to its axis: every run parallel to
-//! the axis or square to it, exactly, ready for the exact kernel to turn.
+//! A profile of straight runs laid against its axis: every run within the
+//! tolerance of parallel or square to the axis laid so, exactly, and every
+//! other slanted as drawn, ready for the exact kernel to turn.
 
 mod bounded;
 mod contacts;
 mod levels;
+mod slivers;
 
 use std::ops::Range;
 
@@ -13,15 +15,17 @@ use super::Turn;
 use crate::brep::Scale;
 use crate::profile::{Contour, Frame, Run};
 
-/// A profile whose every run is parallel or square to its axis, read along
-/// the axis and away from it.
+/// A profile whose every run is parallel, square or slanted to its axis,
+/// read along the axis and away from it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Straight {
     /// `+1.0` or `-1.0`: a corner's distance from the axis, signed as
     /// [`super::Axis::side`] reads it, is `side` times its distance away.
     pub side: f64,
     /// The outline, then each hole in the profile's order, as the corners
-    /// they run through; a run laid to no length is left out.
+    /// they run through; a run laid to no length is left out, and so is a
+    /// hole laid to no area. None at all when the profile is laid to no area:
+    /// turned, it is nothing.
     pub contours: Vec<Vec<Corner>>,
     /// How many runs the profile has, the outline's first and then each
     /// hole's: what its faces are numbered by.
@@ -30,7 +34,7 @@ pub struct Straight {
     pub last_off_the_axis: Option<u32>,
 }
 
-/// A corner of a profile laid square to its axis.
+/// A corner of a profile laid against its axis.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Corner {
     /// How far along the axis, and how far away from it, never below nought.
@@ -40,20 +44,27 @@ pub struct Corner {
 }
 
 impl Straight {
-    /// The profile laid square to the axis of `turn`, or `None` when a run is
-    /// round, or leans at the drawing's resolution: the flats turn it then.
+    /// The profile laid against the axis of `turn`, or `None` when a run is
+    /// round, or the profile cannot be laid as the exact kernel turns it: the
+    /// flats turn it then.
     ///
     /// A corner within the turn's band of the axis is laid on it. Every run
     /// within the tolerance of parallel or square to the axis is laid so,
     /// exactly, and levels closer than the tolerance anywhere in the profile
-    /// are one. The tolerance is the drawing's resolution, never finer than
-    /// the kernel can tell apart over the profile turned and `part_reach`.
-    /// A profile is not straight when laying it would move a corner by more
-    /// than twice the tolerance. Where laying makes it touch itself where it
-    /// does not, a wall or a gap thinner than the tolerance is not there: the
-    /// profile is the matter it bounds as laid, declined when that is not one
-    /// piece or touches itself at a corner. A run laid to no length keeps its
-    /// number and names no face.
+    /// are one; a run leaning further slants between the levels of its two
+    /// corners, its angle never snapped. The tolerance is the drawing's
+    /// resolution, never finer than the kernel can tell apart over the
+    /// profile turned and `part_reach`. A profile is not straight when laying
+    /// it would move a corner by more than twice the tolerance. Where laying
+    /// makes it touch itself where it does not, a wall or a gap thinner than
+    /// the tolerance is not there: the profile is the matter it bounds as
+    /// laid, nothing when it bounds none, declined when that is not one
+    /// piece or touches itself at a corner. Nor is a sliver between a slanted
+    /// run and the run bringing its end back to within the tolerance of it
+    /// there: the slant ends where the run back does. Any other corner within
+    /// the tolerance of a slanted run it does not end, a run across a slant,
+    /// or a corner on the axis between two runs that both leave it is not
+    /// straight. A run laid to no length keeps its number and names no face.
     pub fn of(
         outline: &Contour,
         holes: &[Contour],
@@ -76,9 +87,10 @@ impl Straight {
             .collect();
         let scale = scale(&contours, frame, &read, part_reach);
         let tolerance = turn.resolution.max(Scale::HAIR * scale.eps());
-        let laid = levels::laid(&read, &runs, tolerance)?;
+        let mut laid = levels::laid(&read, &runs, tolerance)?;
+        slivers::cut_short(&mut laid, &rings, tolerance);
 
-        let kept: Vec<Vec<usize>> = rings
+        let mut kept: Vec<Vec<usize>> = rings
             .iter()
             .map(|ring| {
                 ring.clone()
@@ -86,9 +98,10 @@ impl Straight {
                     .collect()
             })
             .collect();
-        if kept.iter().any(|corners| corners.len() < 3) {
-            return None;
+        if kept[0].len() < 3 {
+            kept.clear();
         }
+        kept.retain(|corners| corners.len() >= 3);
         let laid_runs: Vec<Vec<contacts::Run>> = kept
             .iter()
             .map(|corners| {
@@ -97,7 +110,7 @@ impl Straight {
                     .collect()
             })
             .collect();
-        let contours = if contacts::are_drawn(&laid, &read, &laid_runs, scale.eps()) {
+        let contours = if contacts::are_drawn(&laid, &read, &laid_runs, scale.eps(), tolerance) {
             kept.iter()
                 .map(|corners| {
                     corners
@@ -110,8 +123,11 @@ impl Straight {
                 })
                 .collect()
         } else {
-            bounded::contours(&laid, &laid_runs)?
+            bounded::contours(&laid, &laid_runs, tolerance)?
         };
+        if contacts::pinched(&contours) {
+            return None;
+        }
 
         let last_off_the_axis = runs
             .iter()
@@ -188,6 +204,14 @@ fn next(ring: &Range<usize>, corner: usize) -> usize {
         ring.start
     } else {
         corner + 1
+    }
+}
+
+fn previous(ring: &Range<usize>, corner: usize) -> usize {
+    if corner == ring.start {
+        ring.end - 1
+    } else {
+        corner - 1
     }
 }
 

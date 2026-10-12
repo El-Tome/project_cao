@@ -30,8 +30,9 @@ impl Operands<'_> {
         let eps = self.eps();
         let mut finer = BTreeMap::new();
         for (rank, wall) in list.iter().enumerate() {
-            let Surface::Cylinder(wall) = wall else {
-                continue;
+            let wall = match wall {
+                Surface::Cylinder(wall) => wall,
+                Surface::Plane(_) | Surface::Cone(_) => continue,
             };
             let wall_id = SurfaceId(rank as u32);
             let planes: Vec<(SurfaceId, Plane)> = list
@@ -41,7 +42,7 @@ impl Operands<'_> {
                     Surface::Plane(plane) if off(wall, plane, self.scale) <= eps => {
                         Some((SurfaceId(other as u32), *plane))
                     }
-                    _ => None,
+                    Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => None,
                 })
                 .collect();
             for (index, &(one, first)) in planes.iter().enumerate() {

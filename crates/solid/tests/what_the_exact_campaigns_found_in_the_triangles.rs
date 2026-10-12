@@ -2797,3 +2797,435 @@ fn seed_533600448_a_slot_whose_round_end_touches_a_block_s_side_is_drawn_closed(
         ],
     ));
 }
+
+/// Was ignored as: triangles, through the application's body: the body declined
+/// as undrawn. A ring turned 270 degrees about a frustum's axis, its inner rim
+/// resting on the frustum's cone along an arc of 270 degrees: the kernel keeps
+/// that arc on the cone's face as a slit, an edge run both ways, which the
+/// cone's chart cannot lay out. Holds since a face of a cone meeting a sample
+/// twice is laid out on one angle for it, round 2 of #536.
+#[test]
+fn seed_536212654_a_partial_ring_whose_rim_rests_on_a_cone_of_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(6.0),
+            Axis::first(0.0),
+            Section::bands(2.0, &[[2.5, 3.5, 3.5]]).sloping_to(&[[1.0, 3.5]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(6.0),
+            Axis::first(0.0).backwards(),
+            Section::bands(-4.0, &[[1.0, 2.5, 4.5]]),
+            270.0,
+        ))],
+    ));
+}
+
+/// Was ignored as: triangles, through the application's body: the body declined
+/// as undrawn. A ring turned half way about a cone's axis and joined to it, not
+/// traced further. Holds since a face of a cone meeting a sample twice is laid
+/// out on one angle for it, round 2 of #536.
+#[test]
+fn seed_536215029_a_half_turn_joined_to_a_cone_of_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(60.0),
+            Axis::second(0.0),
+            Section::bands(-75.0, &[[90.0, -45.0, 75.0]]).sloping_to(&[[-90.0, 105.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::yz(0.0),
+            Axis::second(60.0).backwards(),
+            Section::bands(30.0, &[[23.0, 90.0, 135.0]]),
+            180.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_536203669_a_shaft_stepping_in_by_a_hair_before_its_slant() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(4.0),
+            Axis::first(0.0),
+            Section::bands(-1.0, &[[3.0, 0.0, 2.0], [2.0, 0.0, 1.99999]])
+                .sloping_to(&[[0.0, 2.0], [0.0, 4.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+fn seed_5361115564_a_cone_ending_a_hair_wide_of_the_next_cone_s_rim() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(4.0),
+            Axis::first(0.0),
+            Section::bands(1.0, &[[3.5, 0.0, 2.0], [3.5, 0.0, 2.0]])
+                .sloping_to(&[[0.0, 2.00001], [0.0, 4.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+fn seed_5361201524_a_cone_ending_a_hair_wide_of_the_next_cone_s_rim_is_drawn() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(4.0),
+            Axis::second(0.0),
+            Section::bands(-2.0, &[[4.0, 0.0, 3.0], [2.0, 0.0, 3.0]])
+                .sloping_to(&[[0.0, 3.00001], [0.0, 5.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+fn seed_5361107843_a_point_joined_to_a_disc_a_hair_wider_than_its_rim() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(8.0),
+            Axis::first(0.0),
+            Section::bands(-3.0, &[[3.5, -0.0, 0.0], [1.0, -4.0, 0.0]])
+                .sloping_to(&[[-4.0, 0.0], [-5.0, 0.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(0.5),
+            Outline::circle([0.0, 8.0], 4.00001),
+            10.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_5361100037_a_cone_cut_by_a_coaxial_cone_a_hair_inside_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(0.0),
+            Axis::first(0.0),
+            Section::bands(
+                0.0,
+                &[[5.0, -5.0, -0.0], [2.5, -5.0, -0.0], [2.5, -5.0, -0.0]],
+            )
+            .sloping_to(&[[-5.0, -0.0], [-5.0, -0.0], [-2.5, -0.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(0.0),
+            Axis::first(0.0),
+            Section::bands(7.5, &[[2.5, 0.0, 4.99999995]]).sloping_to(&[[0.0, 2.49999995]]),
+            360.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_5361104857_a_cone_cut_by_three_quarters_of_a_coaxial_cone_a_hair_inside_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::first(0.0).backwards(),
+            Section::bands(5.0, &[[1.0, -4.5, 0.0], [1.0, -4.5, 0.0]])
+                .sloping_to(&[[-4.5, 0.0], [-3.5, 0.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::first(3.0),
+            Section::bands(-7.0, &[[1.0, -3.49999994, -0.0]]).sloping_to(&[[-4.49999994, -0.0]]),
+            270.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_5361220159_a_frustum_cut_by_a_coaxial_frustum_a_hair_inside_it() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::yz(0.0),
+            Axis::second(0.0),
+            Section::bands(15.0, &[[12.99038105676658, 0.0, 20.0]]).sloping_to(&[[0.0, 27.5]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::second(0.0),
+            Section::bands(15.0, &[[12.99038105676658, -19.9999999, -0.0]])
+                .sloping_to(&[[-27.4999999, -0.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// Was ignored as: cone-triangles, not a matter of common rays: the cut's floor
+/// stands 3e-7 up the cone, where the cone is 6.7e-8 narrower than the cut, and
+/// the kernel ends the floor on the cut's radius; the cone's edge at the cut's
+/// end is an upright line 3e-7 long to that corner, the cone's triangle from it
+/// to its rim's sample on the same ray stands in the end's plane, and the
+/// floor's radial edge runs 6.7e-8 into it. Holds since a face of a cone
+/// meeting a sample twice is laid out on one angle for it, round 2 of #536.
+#[test]
+fn seed_5361110015_a_shaft_with_a_cone_cut_by_a_coaxial_partial_turn() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(30.0),
+            Axis::second(60.0),
+            Section::bands(-90.0, &[[75.0, 0.0, 105.0], [60.0, 0.0, 88.33333333333333]])
+                .sloping_to(&[[0.0, 105.0], [0.0, 75.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(60.0),
+            Axis::first(30.0),
+            Section::bands(-74.9999997, &[[60.0, -88.33333333333333, -0.0]]),
+            345.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_5361304914_a_quarter_point_beside_a_quarter_turn_a_hair_off_its_axis_and_a_coaxial_bore() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.5),
+            Axis::first(0.0),
+            Section::bands(3.0, &[[2.0, -3.0, -0.0]]).sloping_to(&[[-2.0, -0.0]]),
+            90.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xz(0.0),
+                Axis::first(3.5000002).backwards(),
+                Section::bands(-4.5, &[[0.5, -2.5, -0.0]]),
+                90.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(4.0),
+                Outline::circle([0.0, 3.5], 2.5),
+                1.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "triangles: a ring left between two coaxial cones crossing at a shallow angle is drawn crossing along the circle they cross on. The seed's cone stood a hair off the frustum's axis and was declined as unsupported until decision 8 took it about one axis; shrunk, the case is exactly coaxial and fails at 3286cee too. Round 2 of #536: each cone's rim stands 0.104 across the axis from the other cone, a little over the twice a chord's sag (0.094) within which a circle is sampled with a cone; read along the cone's normal, 0.081, it held, but so read, a cone all but square to its axis took the circles of a plane a hair from it and broke 5365213844"]
+fn seed_5364102153_a_ring_left_between_two_coaxial_cones_crossing_at_a_shallow_angle() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(7.5),
+            Axis::first(0.0),
+            Section::bands(0.0, &[[7.5, -5.0, 0.0], [2.5, -10.5, 0.0]])
+                .sloping_to(&[[-5.0, 0.0], [-12.5, 0.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(7.5),
+                Axis::first(0.0),
+                Section::bands(0.0, &[[15.0, -5.312499625, -0.0]])
+                    .sloping_to(&[[-15.937498875, -0.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(35.0),
+                Outline::rectangle([25.0, -10.0], [47.5, 10.0]),
+                5.0,
+            )),
+        ],
+    ));
+}
+
+/// Was ignored as: triangles: a frustum joined inside a partial ring of its
+/// axis, its narrow rim on the ring's step, is left open along that rim where
+/// the turn ends. The seed's frustum stood a hair off the ring's axis and was
+/// declined as unsupported until decision 8 took it about one axis; shrunk, the
+/// case is exactly coaxial and fails at 3286cee too. Holds since a face of a
+/// cone meeting a sample twice is laid out on one angle for it, round 2 of
+/// #536.
+#[test]
+fn seed_5363104867_a_frustum_joined_inside_a_partial_ring_of_its_axis_is_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(6.0),
+            Axis::first(4.0),
+            Section::bands(5.0, &[[0.5, 4.0, 5.0], [0.5, 4.0, 5.0]])
+                .sloping_to(&[[4.0, 5.0], [4.5, 5.0]]),
+            315.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(6.0),
+            Axis::first(4.0),
+            Section::bands(5.5, &[[1.0, -3.0, -0.0]]).sloping_to(&[[-6.0, -0.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// A ring 1e-5 thick whose outer wall narrows from 165 to 135 across that
+/// thickness, turned 315 degrees: a cone all but square to its axis, a hair
+/// from the planes of the ring's faces. Grouped with their circles, as a
+/// circle a hair from a cone's face, the cone's grid and theirs merged and a
+/// face was drawn crossing the cone's triangles: a circle stands with a cone
+/// only where it is close to it across the axis.
+#[test]
+fn seed_5365213844_a_ring_a_hair_thick_whose_outer_wall_narrows_across_it_turned_315_degrees() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(150.0),
+            Axis::second(0.0),
+            Section::bands(60.0, &[[1e-5, 45.0, 165.0]]).sloping_to(&[[45.0, 135.0]]),
+            315.0,
+        ),
+        vec![],
+    ));
+}
+
+/// The same, 6e-6 thick, turned 270 degrees about a reversed axis.
+#[test]
+fn seed_5365214000_a_ring_6e_6_thick_whose_outer_wall_narrows_across_it_turned_270_degrees() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-60.0),
+            Axis::first(60.0).backwards(),
+            Section::bands(-30.0, &[[6e-6, 30.0, 165.0]]).sloping_to(&[[30.0, 135.0]]),
+            270.0,
+        ),
+        vec![],
+    ));
+}
+
+/// The same seed shrunk again once the first was held: a long cone narrowing
+/// from 165 to 135 ended by a second one 6e-6 long all but square to the axis,
+/// whose narrow rim stands a hair beyond the first's and close to it across
+/// the axis. Grouped with the long cone, the short one's grid merged with the
+/// long one's and a face was drawn crossing: a circle stands with a cone only
+/// between the heights of its rims, where the cone has triangles to cross.
+#[test]
+fn seed_5365214000_a_long_cone_ended_by_a_cone_6e_6_long_all_but_square_to_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-60.0),
+            Axis::first(60.0).backwards(),
+            Section::bands(-30.0, &[[164.999994, 0.0, 165.0], [6e-6, 0.0, 165.0]])
+                .sloping_to(&[[0.0, 135.0], [0.0, 135.0]]),
+            270.0,
+        ),
+        vec![],
+    ));
+}
+
+/// Round 3 of #536, a regression: holds at a344fdb, breaks from 82eec7b.
+/// The fan from the cone's tip to two samples of the ruling the post's end
+/// plane holds is collinear in space, and is taken for a fold lying on that
+/// plane's triangle; the flip makes a triangle whose side runs along the
+/// ruling past the sample between them. Round 4 held it by taking a triangle
+/// whose third corner sits on the edge's line but for rounding for no fold,
+/// and broke 5370402053, where only that flip keeps a sliver from crossing:
+/// the sign of a rounding 1e-15 off the line decides both.
+#[test]
+#[ignore = "folds: a fan triangle collinear along a ruling the end plane holds is taken for a fold, and the flip runs a side past a sample of the ruling"]
+fn seed_5365104153_a_stepped_post_ending_in_a_point_joined_to_a_sixth_of_a_coaxial_post() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(-2.0),
+            Axis::first(2.0),
+            Section::bands(
+                2.0,
+                &[[1.0, -1.0, -0.0], [1.0, -3.0, -0.0], [3.0, -3.0, -0.0]],
+            )
+            .sloping_to(&[[-1.0, -0.0], [-3.0, -0.0], [-0.0, -0.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(-2.0),
+            Section::bands(2.0, &[[6.0, 0.0, 1.0]]),
+            60.0,
+        ))],
+    ));
+}
+
+/// Round 3 of #536, a regression: holds at a344fdb, breaks from 82eec7b.
+/// The same fan from the tip, collinear along the ruling the turns' shared
+/// start plane holds, flipped past the sample where the post meets the cone.
+/// Held and let go with 5365104153 in round 4.
+#[test]
+#[ignore = "folds: a fan triangle collinear along a ruling the end plane holds is taken for a fold, and the flip runs a side past a sample of the ruling"]
+fn seed_5369119536_three_quarters_of_a_point_cut_by_three_quarters_of_a_coaxial_post() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-10.0),
+            Axis::first(20.0),
+            Section::bands(-8.0, &[[18.0, -0.0, -0.0]]).sloping_to(&[[-23.0, -0.0]]),
+            -270.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(-10.0),
+            Axis::first(20.0).backwards(),
+            Section::bands(-8.0, &[[73.0, 0.0, 3.0]]),
+            -270.0,
+        ))],
+    ));
+}
+
+/// Round 3 of #536, a regression: holds at a344fdb, breaks from 82eec7b.
+/// The bore's wall and the cone are each a strip 6e-7 wide, under the
+/// tolerance the reach of the block gives: every triangle of the wall lies
+/// on the cone's, and the flips that follow cut a triangle of the cone
+/// across three samples of its rim, collinear in its parameters but for
+/// rounding, so that its neighbour skips the middle one. Holds since a flip
+/// is taken only where each triangle it makes opens by more than a thousand
+/// roundings of its parameters, round 4 of #536.
+#[test]
+fn seed_5369239472_a_cone_bored_as_wide_as_its_narrow_end_joined_to_a_block_6e_7_off_it() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(150.0),
+            Axis::first(-90.0).backwards(),
+            Section::bands(0.0, &[[15.0, -60.0, -0.0]]).sloping_to(&[[-75.0, -0.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(-0.0),
+                Outline::circle([-90.0, 150.0], 60.0),
+                -240.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(-6.000000000000001e-7),
+                Outline::rectangle([-195.0, 45.0], [15.0, 255.0]),
+                -480.0,
+            )),
+        ],
+    ));
+}
+
+/// Round 4 of #536, a regression of the lane that took a triangle whose
+/// third corner sits on the edge's line but for rounding for no fold: the
+/// post is tangent to the bar's end along a line, the post's triangles along
+/// it include fans of collinear samples, and only their flip keeps a sliver
+/// of the post from crossing the bar's end.
+#[test]
+fn seed_5370402053_a_post_touching_along_a_line_the_end_of_a_bar_leaning_a_thousandth() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(2e-8).leaning(0.001),
+            Section::bands(0.0, &[[2.0, -3.0, 0.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(-2.0),
+            Outline::circle([4.0, 0.0], 2.0),
+            6.0,
+        ))],
+    ));
+}

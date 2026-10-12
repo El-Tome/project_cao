@@ -55,8 +55,7 @@ pub(super) fn beside(
     others
         .filter(|&other| {
             let surface = body.surface(other);
-            let curved =
-                matches!(own, Surface::Cylinder(_)) || matches!(surface, Surface::Cylinder(_));
+            let curved = !matches!((own, surface), (Surface::Plane(_), Surface::Plane(_)));
             if !curved || surface.distance(inside).abs() > eps {
                 return false;
             }

@@ -63,7 +63,14 @@ impl Laying {
                             + (known.radius - cylinder.radius).abs()
                             <= eps
                 }
-                _ => false,
+                (Surface::Cone(known), Surface::Cone(cone)) => {
+                    known.axis.dot(cone.axis) > 0.0
+                        && known.axis.cross(cone.axis).length() <= Scale::RELATIVE
+                        && known.ruling.perp_dot(cone.ruling).abs() <= Scale::RELATIVE
+                }
+                (Surface::Plane(_), Surface::Cylinder(_) | Surface::Cone(_))
+                | (Surface::Cylinder(_), Surface::Plane(_) | Surface::Cone(_))
+                | (Surface::Cone(_), Surface::Plane(_) | Surface::Cylinder(_)) => false,
             };
             alike
                 && corners

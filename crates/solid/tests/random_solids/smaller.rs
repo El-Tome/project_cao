@@ -308,16 +308,34 @@ impl Axis {
 }
 
 impl Section {
-    /// The section with a band or a hole fewer, its edges nearest the axis
-    /// laid on it, gathered into the one band that bounds it, and on round
-    /// numbers.
+    /// The section with a band levelled, or every band, a band or a hole
+    /// fewer, its edges nearest the axis laid on it, gathered into the one
+    /// level band that bounds it, and on round numbers. None of them slopes
+    /// more bands than the section did, which is what keeps levelling and
+    /// the rest from undoing each other.
     fn simpler(&self) -> Vec<Section> {
         let mut simpler = Vec::new();
+        let sloping = (0..self.bands.len()).filter(|&index| self.slopes_at(index));
+        for index in sloping.clone() {
+            let mut level = self.clone();
+            let [_, low, high] = level.bands[index];
+            level.sloping_to[index] = [low, high];
+            simpler.push(level.canonical());
+        }
+        if sloping.count() > 1 {
+            simpler.push(Section {
+                sloping_to: Vec::new(),
+                ..self.clone()
+            });
+        }
         if self.bands.len() > 1 {
             for index in 0..self.bands.len() {
                 let mut fewer = self.clone();
                 fewer.bands.remove(index);
-                simpler.push(fewer);
+                if fewer.slopes() {
+                    fewer.sloping_to.remove(index);
+                }
+                simpler.push(fewer.canonical());
             }
         }
         for index in 0..self.holes.len() {
@@ -335,36 +353,45 @@ impl Section {
             for band in &mut on_the_axis.bands {
                 band[nearest] = 0.0;
             }
-            simpler.push(on_the_axis);
+            for end in &mut on_the_axis.sloping_to {
+                end[nearest - 1] = 0.0;
+            }
+            simpler.push(on_the_axis.canonical());
         }
         if self.bands.len() > 1 || !self.holes.is_empty() {
             let length = self.bands.iter().map(|band| band[0]).sum();
-            let low = self
-                .bands
-                .iter()
-                .map(|band| band[1])
-                .fold(f64::MAX, f64::min);
-            let high = self
-                .bands
-                .iter()
-                .map(|band| band[2])
-                .fold(f64::MIN, f64::max);
+            let edges = |edge: usize| {
+                (0..self.bands.len()).flat_map(move |index| {
+                    let (start, end) = self.edges(index);
+                    [start[edge], end[edge]]
+                })
+            };
+            let low = edges(0).fold(f64::MAX, f64::min);
+            let high = edges(1).fold(f64::MIN, f64::max);
             simpler.push(Section::bands(self.from, &[[length, low, high]]));
         }
         for step in [1.0, 0.5] {
-            simpler.push(Section {
-                from: rounded(self.from, step),
-                bands: self
-                    .bands
-                    .iter()
-                    .map(|band| band.map(|value| rounded(value, step)))
-                    .collect(),
-                holes: self
-                    .holes
-                    .iter()
-                    .map(|hole| hole.map(|corner| rounded_point(corner, step)))
-                    .collect(),
-            });
+            simpler.push(
+                Section {
+                    from: rounded(self.from, step),
+                    bands: self
+                        .bands
+                        .iter()
+                        .map(|band| band.map(|value| rounded(value, step)))
+                        .collect(),
+                    sloping_to: self
+                        .sloping_to
+                        .iter()
+                        .map(|end| end.map(|value| rounded(value, step)))
+                        .collect(),
+                    holes: self
+                        .holes
+                        .iter()
+                        .map(|hole| hole.map(|corner| rounded_point(corner, step)))
+                        .collect(),
+                }
+                .canonical(),
+            );
         }
         simpler.retain(|candidate| candidate != self);
         simpler

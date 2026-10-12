@@ -175,7 +175,7 @@ impl Build {
     pub(crate) fn meeting(&mut self, one: SurfaceId, other: SurfaceId, reach: f64) -> Meeting {
         let cylinder = |build: &Build, id: SurfaceId| match *build.body.surface(id) {
             Surface::Cylinder(cylinder) => cylinder,
-            Surface::Plane(_) => panic!("a meeting is of two cylinders"),
+            Surface::Plane(_) | Surface::Cone(_) => panic!("a meeting is of two cylinders"),
         };
         let (first, second) = (cylinder(self, one), cylinder(self, other));
         let meeting = Meeting::of(&first, &second, Scale::of(reach));
@@ -204,7 +204,7 @@ impl Build {
     pub(crate) fn meet(&mut self, first: SurfaceId, second: SurfaceId) -> EdgeId {
         let cylinder = |id| match *self.body.surface(id) {
             Surface::Cylinder(cylinder) => cylinder,
-            Surface::Plane(_) => panic!("the curve is where two cylinders meet"),
+            Surface::Plane(_) | Surface::Cone(_) => panic!("the curve is where two cylinders meet"),
         };
         let meet = Meet {
             first: cylinder(first),
@@ -234,6 +234,7 @@ impl Build {
             flipped,
             loops,
             numbers: Vec::new(),
+            apex: None,
         });
         FaceId(self.body.faces.len() as u32 - 1)
     }

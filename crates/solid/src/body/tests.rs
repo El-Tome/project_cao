@@ -681,14 +681,16 @@ fn about_v(area: &Profile, angle: f64) -> Turn {
 fn a_profile_the_exact_kernel_does_not_turn_is_the_flats_revolution() {
     let ring = Contour::rectangle(DVec2::new(30.0, 0.0), DVec2::new(34.0, 4.0)).corners;
     let ring_triangles = fan(&ring);
-    let slanted = [
-        DVec2::new(30.0, 0.0),
-        DVec2::new(34.0, 0.0),
-        DVec2::new(33.0, 4.0),
-        DVec2::new(30.0, 4.0),
-    ];
-    let slanted_triangles = fan(&slanted);
     let straight_on_flats = (ring_turned_about_y(), straight(&ring, &ring_triangles));
+    let mut bulging = Contour::straight(ring.clone());
+    bulging.runs[1] = Run::Round {
+        center: DVec2::new(32.0, 2.0),
+        turn: 1e-6,
+    };
+    let rounded = Profile {
+        exact: Some((bulging, vec![])),
+        ..straight(&ring, &ring_triangles)
+    };
     let sampled_only = Profile {
         exact: None,
         ..straight(&ring, &ring_triangles)
@@ -698,7 +700,7 @@ fn a_profile_the_exact_kernel_does_not_turn_is_the_flats_revolution() {
         Body::default(),
         block(DVec2::ZERO, DVec2::splat(10.0), 10.0),
     ] {
-        cases.push((part.clone(), straight(&slanted, &slanted_triangles)));
+        cases.push((part.clone(), rounded.clone()));
         cases.push((part, sampled_only.clone()));
     }
     for (part, profile) in cases {
@@ -729,18 +731,30 @@ fn a_profile_the_exact_kernel_does_not_turn_is_the_flats_revolution() {
 #[test]
 fn a_straight_profile_turned_on_an_exact_part_never_comes_back_as_flats() {
     let ring = Contour::rectangle(DVec2::new(30.0, 0.0), DVec2::new(34.0, 4.0)).corners;
-    let triangles = fan(&ring);
-    let profile = straight(&ring, &triangles);
-    for part in [
-        Body::default(),
-        block(DVec2::ZERO, DVec2::splat(10.0), 10.0),
+    let ring_triangles = fan(&ring);
+    let slanted = [
+        DVec2::new(30.0, 0.0),
+        DVec2::new(34.0, 0.0),
+        DVec2::new(33.0, 4.0),
+        DVec2::new(30.0, 4.0),
+    ];
+    let slanted_triangles = fan(&slanted);
+    for profile in [
+        straight(&ring, &ring_triangles),
+        straight(&slanted, &slanted_triangles),
     ] {
-        for angle in [TAU, -TAU, PI / 2.0, -PI] {
-            let turned = part.tool_turned(&profile, FLAT, &about_v(&profile, angle));
-            assert!(
-                turned.as_ref().map_or(true, Body::is_exact),
-                "turned {angle} rad: {turned:?}",
-            );
+        for part in [
+            Body::default(),
+            block(DVec2::ZERO, DVec2::splat(10.0), 10.0),
+        ] {
+            for angle in [TAU, -TAU, PI / 2.0, -PI] {
+                let turned = part.tool_turned(&profile, FLAT, &about_v(&profile, angle));
+                assert!(
+                    turned.as_ref().map_or(true, Body::is_exact),
+                    "{:?} turned {angle} rad: {turned:?}",
+                    profile.sampled.points,
+                );
+            }
         }
     }
 }
@@ -762,6 +776,27 @@ fn an_area_across_its_axis_is_declined_and_a_turn_too_short_makes_nothing() {
         .tool_turned(&profile, FLAT, &about_v(&profile, 1e-5))
         .expect("nothing is no decline");
     assert!(nothing.is_empty());
+}
+
+#[test]
+fn a_disc_a_hair_thick_turned_on_an_exact_part_is_nothing_counted_past_its_numbers() {
+    let disc = [
+        DVec2::new(0.0, 0.0),
+        DVec2::new(5.0, 0.0),
+        DVec2::new(5.0, 1e-8),
+        DVec2::new(0.0, 1e-8),
+    ];
+    let triangles = fan(&disc);
+    let profile = straight(&disc, &triangles);
+    let turn = about_v(&profile, TAU);
+    let nothing = Body::default()
+        .tool_turned(&profile, FLAT, &turn)
+        .expect("nothing is no decline");
+    assert!(nothing.is_exact() && nothing.is_empty(), "{nothing:?}");
+    assert_eq!(
+        nothing.faces_end(),
+        numbers_turned_whole(&profile, FLAT, &turn).expect("a whole turn") as usize,
+    );
 }
 
 #[test]

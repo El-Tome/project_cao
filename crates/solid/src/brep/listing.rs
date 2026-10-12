@@ -20,13 +20,15 @@ pub struct Listing {
 }
 
 /// A face: its exact surface, whether the surface's own normal points out of
-/// the matter, and its loops as edges by rank, each run along its own way or
-/// against it.
+/// the matter, its loops as edges by rank, each run along its own way or
+/// against it, and the vertex it holds within it that no loop reaches — a
+/// whole point's tip — by rank.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ListedFace {
     pub surface: Surface,
     pub outward: bool,
     pub loops: Vec<Vec<(usize, bool)>>,
+    pub apex: Option<usize>,
 }
 
 /// An edge: its exact curve and the stretch of its parameter it runs over,
@@ -59,6 +61,7 @@ impl Body {
                                 .collect()
                         })
                         .collect(),
+                    apex: face.apex.map(|vertex| vertex.0 as usize),
                 })
                 .collect(),
             edges: self

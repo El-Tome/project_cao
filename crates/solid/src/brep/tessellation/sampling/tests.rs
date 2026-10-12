@@ -164,7 +164,7 @@ fn no_sample_of_two_walls_touching_stands_closer_to_the_other_than_a_fifth_of_th
             .iter()
             .filter_map(|surface| match surface {
                 Surface::Cylinder(cylinder) => Some(*cylinder),
-                Surface::Plane(_) => None,
+                Surface::Plane(_) | Surface::Cone(_) => None,
             })
             .collect();
         for tolerance in [1e-6, 0.02, 10.0] {
@@ -711,7 +711,7 @@ fn a_wall_takes_no_ray_passed_on_by_one_partner_where_it_all_but_lies_on_another
     let eps = body.scale().eps();
     let walls = [bore, boss].map(|wall| match body.surface(wall) {
         Surface::Cylinder(cylinder) => *cylinder,
-        Surface::Plane(_) => unreachable!("a bore and a boss are cylinders"),
+        Surface::Plane(_) | Surface::Cone(_) => unreachable!("a bore and a boss are cylinders"),
     });
     let across = (fixtures::HOLE_RADIUS.powi(2) - off * off / 4.0).sqrt();
     let lines = [-1.0, 1.0].map(|side| center + DVec3::new(off / 2.0, side * across, 0.0));

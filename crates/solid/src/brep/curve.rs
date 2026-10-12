@@ -17,7 +17,7 @@ pub struct Line {
 }
 
 /// The circle about `center` in the plane square to `axis`, its angle read
-/// from `u` towards `v` as on the cylinder it lies on.
+/// from `u` towards `v` as on the cylinder or the cone it lies on.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Circle {
     pub center: DVec3,

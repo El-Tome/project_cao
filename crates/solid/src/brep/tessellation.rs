@@ -6,17 +6,24 @@
 //! by construction. No point is added inside a face: on a plane none is
 //! needed, and on a cylinder every curve has a sample at every angle of the
 //! grid, so that no triangle spans more than one step of it — but beside a
-//! line where two walls touch, whose nearest steps [`contact`] withholds.
+//! line where two walls touch, whose nearest steps [`contact`] withholds. So
+//! too on a cone, whose rims share its grid, and whose apex stands for every
+//! angle: a face reaching it is a fan from it. Each face is cut alone, so two
+//! faces standing within the tolerance of each other can fold onto each other
+//! across their edge; [`folds`] cuts them the other way once all are cut.
 
 mod contact;
+mod folds;
 mod orientation;
 mod outline;
 mod sampling;
+mod skins;
 mod sweep;
 
 use glam::DVec3;
 
 use super::topology::{Body, FaceId};
+use folds::Drawn;
 use outline::Outline;
 use sampling::Samples;
 
@@ -34,8 +41,7 @@ impl Body {
     /// other.
     pub fn triangles_by_face(&self, tolerance: f64) -> Cut {
         let samples = Samples::of(self, tolerance);
-        let mut triangles = Vec::new();
-        let mut faces = Vec::new();
+        let mut drawn = Vec::new();
         let mut uncut = Vec::new();
         for id in self.face_ids() {
             let Some(outline) = Outline::of(self, &samples, id, tolerance) else {
@@ -46,20 +52,41 @@ impl Body {
                 uncut.push(id);
                 continue;
             };
+            drawn.push(Drawn {
+                face: id,
+                outline,
+                triangles: cut,
+            });
+        }
+        folds::unfolded(&mut drawn, &samples, self.scale().eps());
+        let mut oriented = Vec::new();
+        for Drawn {
+            face: id,
+            outline,
+            triangles: cut,
+        } in drawn
+        {
             for corners in cut {
                 let [a, b, c] = corners.map(|corner| outline.samples[corner]);
                 if a == b || b == c || c == a {
                     continue;
                 }
-                let [a, b, c] = [a, b, c].map(|sample| samples.point(sample));
-                triangles.push(if self.face(id).flipped {
-                    [a, c, b]
-                } else {
-                    [a, b, c]
-                });
-                faces.push(id);
+                oriented.push((
+                    id,
+                    if self.face(id).flipped {
+                        [a, c, b]
+                    } else {
+                        [a, b, c]
+                    },
+                ));
             }
         }
+        skins::cancelled(&mut oriented);
+        let faces = oriented.iter().map(|(id, _)| *id).collect();
+        let triangles = oriented
+            .into_iter()
+            .map(|(_, corners)| corners.map(|sample| samples.point(sample)))
+            .collect();
         Cut {
             triangles,
             faces,

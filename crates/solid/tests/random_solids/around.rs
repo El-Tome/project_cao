@@ -5,13 +5,15 @@
 //! by a wedge: a line lies inside it where it lies between the two planes
 //! square to the axis at the rectangle's ends, between the two cylinders of
 //! its radii, and on the near side of the two planes through the axis the
-//! turn starts and ends on. The leaf holds the union of its rectangles.
+//! turn starts and ends on. A trapezoid whose edges slope (#536) is the same
+//! slab between two cones rather than two cylinders. The leaf holds the
+//! union of its pieces.
 
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 use glam::{DVec2, DVec3};
 
-use super::along::{Crossing, Seen, Stretch, far, ring, slab, union};
+use super::along::{Crossing, Seen, Stretch, cone, far, meet, outside, ring, slab, union};
 use super::sections::{Axis, Piece, Section};
 use super::{Leaf, Plane};
 
@@ -119,15 +121,16 @@ impl Turned {
     }
 
     /// The stretches of the line through `origin` along `direction` inside
-    /// the leaf grown by `by`, or shrunk when `by` is negative: each
-    /// rectangle's ends moved out by `by`, its radii apart by `by` either
-    /// way and the planes its turn starts and ends on moved out by `by`.
+    /// the leaf grown by `by`, or shrunk when `by` is negative: each piece's
+    /// ends moved out by `by`, each of its walls moved out by `by` along its
+    /// normal, and the planes its turn starts and ends on moved out by `by`.
     pub fn along_grown(&self, origin: DVec3, direction: DVec3, by: f64) -> Vec<Stretch> {
         self.along_pieces(&self.section.pieces(), origin, direction, by)
     }
 
     /// The same for other pieces than the section's own, turned as the leaf
-    /// is.
+    /// is. Where a sloped piece's wall and one of its ends meet the line at
+    /// one place — a point's tip on its end — the wall's crossing is kept.
     pub fn along_pieces(
         &self,
         pieces: &[Piece],
@@ -155,8 +158,13 @@ impl Turned {
                 let Some(slab) = slab(&seen, piece.along[0] - by, piece.along[1] + by) else {
                     continue;
                 };
-                let annulus = ring(&seen, DVec2::ZERO, piece.away[1] + by, piece.away[0] - by);
-                stretches.extend(meet(&meet(&[slab], &annulus), &wedge));
+                let within = if piece.is_level() {
+                    let annulus = ring(&seen, DVec2::ZERO, piece.away[1] + by, piece.away[0] - by);
+                    meet(&[slab], &annulus)
+                } else {
+                    meet(&shell(&seen, piece, by), &[slab])
+                };
+                stretches.extend(meet(&within, &wedge));
             }
         }
         union(stretches)
@@ -183,9 +191,9 @@ impl Turned {
     }
 
     /// The lowest and the highest corner of the box the leaf spans: each
-    /// rectangle's outer radius at both ends of the turn and wherever in
-    /// between it goes furthest along a world axis, and its inner radius at
-    /// both ends.
+    /// piece's outer radius at both of its ends, at both ends of the turn
+    /// and wherever in between it goes furthest along a world axis, and its
+    /// inner radius at both of its ends and both ends of the turn.
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
         let mut points = Vec::new();
         for piece in self.section.pieces() {
@@ -207,11 +215,13 @@ impl Turned {
                     }
                 }
             }
-            for along in piece.along {
+            for (along, [inner, outer]) in
+                [(piece.along[0], piece.away), (piece.along[1], piece.ending)]
+            {
                 for &(turn, end) in &turns {
-                    points.push(self.point(piece.side, along, piece.away[1], turn));
+                    points.push(self.point(piece.side, along, outer, turn));
                     if end {
-                        points.push(self.point(piece.side, along, piece.away[0], turn));
+                        points.push(self.point(piece.side, along, inner, turn));
                     }
                 }
             }
@@ -222,17 +232,12 @@ impl Turned {
             .reduce(|(low, high), (other, _)| (low.min(other), high.max(other)))
     }
 
-    /// The volume the leaf encloses: half the turn times what each rectangle
+    /// The volume the leaf encloses: half the turn times what each piece
     /// sweeps per radian, less, past half a turn, what the two sides of a
     /// section across its axis sweep twice.
     pub fn volume(&self) -> f64 {
         let pieces = self.section.pieces();
-        let swept: f64 = pieces
-            .iter()
-            .map(|piece| {
-                (piece.away[1].powi(2) - piece.away[0].powi(2)) * (piece.along[1] - piece.along[0])
-            })
-            .sum();
+        let swept: f64 = pieces.iter().map(Piece::swept).sum();
         let twice: f64 = pieces
             .iter()
             .filter(|piece| piece.side > 0.0)
@@ -247,19 +252,90 @@ impl Turned {
     }
 }
 
-/// What two rectangles of either side of the axis sweep per radian in
-/// common, halved twice over: the length they share times the difference of
-/// the squares of the radii they share.
+/// Where the line lies inside a piece whose walls slope, each wall moved
+/// out by `by` along its normal: inside the outer cone and outside the inner
+/// one. Grown, it is held besides to the annulus its radii span moved out by
+/// `by`, which keeps the mitred corner of a wall a hair from square from
+/// running out along the axis.
+fn shell(seen: &Seen, piece: &Piece, by: f64) -> Vec<Stretch> {
+    let [inner_slope, outer_slope] = piece.slopes();
+    let normal = |slope: f64| by * (1.0 + slope * slope).sqrt();
+    let at = piece.along[0];
+    let outer = cone(seen, at, piece.away[1] + normal(outer_slope), outer_slope);
+    let inner_at = piece.away[0] - normal(inner_slope);
+    let inner_end = piece.ending[0] - normal(inner_slope);
+    let walls = if inner_at <= 0.0 && inner_end <= 0.0 {
+        outer
+    } else {
+        meet(&outer, &outside(&cone(seen, at, inner_at, inner_slope)))
+    };
+    if by <= 0.0 {
+        return walls;
+    }
+    let (nearest, furthest) = (
+        piece.away[0].min(piece.ending[0]),
+        piece.away[1].max(piece.ending[1]),
+    );
+    meet(
+        &walls,
+        &ring(seen, DVec2::ZERO, furthest + by, nearest - by),
+    )
+}
+
+/// What two pieces of either side of the axis sweep per radian in common,
+/// halved twice over: along the length they share, the square of the outer
+/// radius they share less the square of the inner one, where the first is
+/// the larger. Each of those is a quadratic between the places where two
+/// of the four radii cross, where Simpson's rule is exact.
 fn overlap(one: &Piece, other: &Piece) -> f64 {
     let length = one.along[1].min(other.along[1]) - one.along[0].max(other.along[0]);
-    let (inner, outer) = (
-        one.away[0].max(other.away[0]),
-        one.away[1].min(other.away[1]),
-    );
-    if length <= 0.0 || outer <= inner {
+    if one.is_level() && other.is_level() {
+        let (inner, outer) = (
+            one.away[0].max(other.away[0]),
+            one.away[1].min(other.away[1]),
+        );
+        if length <= 0.0 || outer <= inner {
+            return 0.0;
+        }
+        return length * (outer * outer - inner * inner);
+    }
+    if length <= 0.0 {
         return 0.0;
     }
-    length * (outer * outer - inner * inner)
+    let (from, to) = (
+        one.along[0].max(other.along[0]),
+        one.along[1].min(other.along[1]),
+    );
+    let shared = |along: f64| {
+        let ([one_inner, one_outer], [other_inner, other_outer]) = (one.at(along), other.at(along));
+        let (inner, outer) = (one_inner.max(other_inner), one_outer.min(other_outer));
+        if outer <= inner {
+            0.0
+        } else {
+            outer * outer - inner * inner
+        }
+    };
+    let radii = |along: f64| {
+        let ([a, b], [c, d]) = (one.at(along), other.at(along));
+        [a, b, c, d]
+    };
+    let (start, end) = (radii(from), radii(to));
+    let mut cuts = vec![from, to];
+    for first in 0..4 {
+        for second in first + 1..4 {
+            let (before, after) = (start[first] - start[second], end[first] - end[second]);
+            if before * after < 0.0 {
+                cuts.push(from + (to - from) * before / (before - after));
+            }
+        }
+    }
+    cuts.sort_by(f64::total_cmp);
+    cuts.windows(2)
+        .map(|pair| {
+            let (low, high) = (pair[0], pair[1]);
+            (high - low) / 6.0 * (shared(low) + 4.0 * shared((low + high) / 2.0) + shared(high))
+        })
+        .sum()
 }
 
 /// Where the line, seen across the axis, lies on the side of the line
@@ -292,27 +368,4 @@ fn beyond(seen: &Seen, normal: DVec2, by: f64) -> Vec<Stretch> {
             to: crossing,
         }
     }]
-}
-
-/// Where the line lies inside both of two sets of stretches.
-fn meet(one: &[Stretch], other: &[Stretch]) -> Vec<Stretch> {
-    let mut met = Vec::new();
-    for first in one {
-        for second in other {
-            let from = if second.from.at > first.from.at {
-                second.from
-            } else {
-                first.from
-            };
-            let to = if second.to.at < first.to.at {
-                second.to
-            } else {
-                first.to
-            };
-            if from.at < to.at {
-                met.push(Stretch { from, to });
-            }
-        }
-    }
-    met
 }

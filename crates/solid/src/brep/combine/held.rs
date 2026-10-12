@@ -174,7 +174,8 @@ const MOVED: f64 = 2.0;
 /// stands square to it and about its axis, the curve two cylinders meet along
 /// runs round one of its own two — not round a wall of one radius a hair
 /// beside one of them, which carries it only over the stretch an arc of it
-/// was taken for (decision 6).
+/// was taken for (decision 6). A cone carries its rulings and its circles
+/// about its axis.
 fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
     let eps = scale.eps();
     let parallel =
@@ -193,6 +194,9 @@ fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
         }
         (Surface::Cylinder(cylinder), Curve::Meet(meet)) => meet.own(cylinder, eps).is_some(),
         (Surface::Plane(_), Curve::Meet(_)) => false,
+        (Surface::Cone(cone), Curve::Line(line)) => cone.rules(line, scale),
+        (Surface::Cone(cone), Curve::Circle(circle)) => cone.holds(circle, eps),
+        (Surface::Cone(_), Curve::Meet(_)) => false,
     }
 }
 

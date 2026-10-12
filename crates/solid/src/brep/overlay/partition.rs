@@ -5,7 +5,7 @@
 
 use glam::DVec2;
 
-use super::column::{Columns, reach};
+use super::column::{Column, Columns, Crossing, reach};
 use super::piece::Piece;
 use super::star::{Cycles, half};
 use super::{Arc, Region};
@@ -180,7 +180,8 @@ impl Layout<'_> {
         bottom: usize,
         widest: Option<usize>,
     ) -> Result<Vec<Region>, Declined> {
-        let mut best: Vec<Option<(f64, DVec2, [f64; 2])>> = vec![None; self.cycles.list.len() + 2];
+        let mut best: Vec<Option<(f64, &Column, [Crossing; 2])>> =
+            vec![None; self.cycles.list.len() + 2];
         for column in &self.columns.list {
             for pair in column.crossings.windows(2) {
                 let (low, high) = (pair[0], pair[1]);
@@ -189,13 +190,8 @@ impl Layout<'_> {
                     continue;
                 }
                 let score = (high.height - low.height).min(column.width);
-                if best[root].is_none_or(|(kept, _, _)| score > kept) {
-                    let middle = 0.5 * (low.height + high.height);
-                    best[root] = Some((
-                        score,
-                        DVec2::new(self.principal(column.x), middle),
-                        [low.height, high.height],
-                    ));
+                if best[root].is_none_or(|(kept, ..)| score > kept) {
+                    best[root] = Some((score, column, [low, high]));
                 }
             }
         }
@@ -208,19 +204,25 @@ impl Layout<'_> {
             let place = match roots.iter().position(|&known| known == root) {
                 Some(place) => place,
                 None => {
-                    let (inside, chord) = if root == top {
-                        (far_above, [far_above.y; 2])
+                    let (inside, chord, aside) = if root == top {
+                        (far_above, [far_above.y; 2], [far_above; 2])
                     } else if root == bottom {
-                        (far_below, [far_below.y; 2])
+                        (far_below, [far_below.y; 2], [far_below; 2])
                     } else {
-                        let (_, inside, chord) = best[root].ok_or(Declined::Tie)?;
-                        (inside, chord)
+                        let (_, column, [low, high]) = best[root].ok_or(Declined::Tie)?;
+                        let middle = 0.5 * (low.height + high.height);
+                        (
+                            DVec2::new(self.principal(column.x), middle),
+                            [low.height, high.height],
+                            [-0.25, 0.25].map(|share| self.between(column, [low, high], share)),
+                        )
                     };
                     roots.push(root);
                     regions.push(Region {
                         cycles: Vec::new(),
                         inside,
                         chord,
+                        aside,
                         unbounded: root == top || root == bottom,
                     });
                     regions.len() - 1
@@ -253,6 +255,20 @@ impl Layout<'_> {
             DVec2::new(x, low.y - margin),
             DVec2::new(x, high.y + margin),
         ]
+    }
+
+    /// The point `share` of a column's gap from the column, midway between
+    /// two pieces it crosses one above the other: between the same two all
+    /// across the gap, where no piece ends and none crosses another.
+    fn between(&self, column: &Column, pair: [Crossing; 2], share: f64) -> DVec2 {
+        let x = column.x + column.width * share;
+        let [low, high] = pair.map(|crossing| {
+            let piece = &self.pieces[crossing.piece];
+            reach(piece, x, self.columns.period).map_or(crossing.height, |at| {
+                piece.height(&self.arcs[piece.arc].trace, at)
+            })
+        });
+        DVec2::new(self.principal(x), 0.5 * (low + high))
     }
 
     /// An abscissa brought into the turn about nought, as a cylinder reads

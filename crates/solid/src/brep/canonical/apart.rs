@@ -20,8 +20,9 @@
 //! within the tolerance of each other far from either, and the pair is
 //! decided to graze once, here. And the points
 //! where two perpendicular cylinders touch — the node of the curve they meet
-//! along, or the one point they share — where a line on one passing through
-//! the point only touches the other.
+//! along, or the one point they share — and a cone's apex where a plane
+//! holding its axis or a surface touching it there meets it, where a line on
+//! one passing through the point only touches the other.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -37,6 +38,7 @@ pub(in crate::brep) struct Apart {
     pairs: BTreeSet<[SurfaceId; 2]>,
     touching: BTreeSet<[SurfaceId; 2]>,
     grazing: BTreeSet<[SurfaceId; 2]>,
+    pointed: BTreeSet<[SurfaceId; 2]>,
     points: BTreeMap<[SurfaceId; 2], Vec<DVec3>>,
     surfaces: Vec<Surface>,
 }
@@ -50,6 +52,7 @@ impl Apart {
         let mut pairs = BTreeSet::new();
         let mut touching = BTreeSet::new();
         let mut grazing = BTreeSet::new();
+        let mut pointed = BTreeSet::new();
         let mut points = BTreeMap::new();
         for (one, first) in surfaces.iter().enumerate() {
             for (other, second) in surfaces.iter().enumerate().skip(one + 1) {
@@ -78,7 +81,20 @@ impl Apart {
                             points.insert(pair, at);
                         }
                     }
-                    _ => {}
+                    Relation::Rulings {
+                        apex: Some(apex), ..
+                    } => {
+                        points.insert(pair, vec![apex]);
+                    }
+                    Relation::Apex(apex) => {
+                        pointed.insert(pair);
+                        points.insert(pair, vec![apex]);
+                    }
+                    Relation::Line(_)
+                    | Relation::Lines(_)
+                    | Relation::Circle(_)
+                    | Relation::Rulings { apex: None, .. }
+                    | Relation::Unsupported => {}
                 }
             }
         }
@@ -86,6 +102,7 @@ impl Apart {
             pairs,
             touching,
             grazing,
+            pointed,
             points,
             surfaces: surfaces.to_vec(),
         }
@@ -106,7 +123,21 @@ impl Apart {
         self.grazing.contains(&[one.min(other), one.max(other)])
     }
 
-    /// The points where two perpendicular cylinders were decided to touch.
+    /// Whether a surface of `one` and a surface of `other` were decided to
+    /// meet at a cone's apex alone, so that no line lies on both: a ruling
+    /// of one, read as a whole line, may still be one of the other's, two
+    /// cones of one apex each the other's mirror.
+    pub fn pointed(&self, one: &[SurfaceId], other: &[SurfaceId]) -> bool {
+        one.iter().any(|&first| {
+            other.iter().any(|&second| {
+                self.pointed
+                    .contains(&[first.min(second), first.max(second)])
+            })
+        })
+    }
+
+    /// The points where two perpendicular cylinders, or a cone at its apex
+    /// and another surface, were decided to touch.
     pub fn points(&self, one: SurfaceId, other: SurfaceId) -> &[DVec3] {
         self.points
             .get(&[one.min(other), one.max(other)])
@@ -136,8 +167,11 @@ const GRAZING: f64 = 1e-2;
 /// `on` meet there at a grazing angle: their axes a hair apart, the crescent
 /// between them a cusp at each line.
 fn grazes(one: &Surface, other: &Surface, on: DVec3, eps: f64) -> bool {
-    let (Surface::Cylinder(one), Surface::Cylinder(other)) = (one, other) else {
-        return false;
+    let (one, other) = match (one, other) {
+        (Surface::Cylinder(one), Surface::Cylinder(other)) => (one, other),
+        (Surface::Plane(_) | Surface::Cone(_), _) | (_, Surface::Plane(_) | Surface::Cone(_)) => {
+            return false;
+        }
     };
     if (one.radius - other.radius).abs() > eps {
         return false;

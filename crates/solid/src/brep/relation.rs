@@ -23,7 +23,7 @@ pub use crossing::{
 };
 pub(in crate::brep) use revolved::apart_by;
 pub use walls::Ruled;
-pub(in crate::brep) use walls::{abreast, off_the_touches, onto_a_touch, standing_above};
+pub(in crate::brep) use walls::{abreast, closest, off_the_touches, onto_a_touch, standing_above};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Relation {

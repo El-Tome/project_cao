@@ -286,3 +286,31 @@ fn the_same_ellipse_a_hair_off_in_its_centre_its_half_axes_or_its_turn_is_one_wa
         held(&joined, boss.area() * 4.0);
     }
 }
+
+#[test]
+fn a_round_pin_in_an_elliptic_pocket_touching_it_across_its_minor_axis_holds_its_volume() {
+    let boss = boss();
+    let stock = block([-10.0, -10.0, 0.0], [15.0, 10.0, 4.0]);
+    let pocket = stock
+        .cut_by(&raised(boss, 2.0, 5.0))
+        .expect("the pocket is cut");
+    let pin = Section::circle(on_the_boss(0.0, 0.0), 3.0);
+    let pinned = pocket
+        .joined(&raised(pin, 2.0, 4.0))
+        .expect("the pin is joined in the pocket along the two rulings it touches");
+    held(&pinned, 500.0 * 4.0 - boss.area() * 2.0 + pin.area() * 2.0);
+}
+
+#[test]
+fn a_circle_or_an_ellipse_touching_an_elliptic_boss_from_inside_holds_its_volume() {
+    let boss = boss();
+    let curvature = 3.0 * 3.0 / 7.0;
+    let tighter = curvature / 2.0;
+    cut_and_joined(Section::circle(on_the_boss(7.0 - tighter, 0.0), tighter));
+    cut_and_joined(Section::circle(
+        on_the_boss(7.0 - curvature, 0.0),
+        curvature,
+    ));
+    let u = boss.first.normalize();
+    cut_and_joined(Section::ellipse(on_the_boss(3.5, 0.0), u * 3.5, 1.5));
+}

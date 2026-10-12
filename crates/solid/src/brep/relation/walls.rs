@@ -83,24 +83,7 @@ pub(in crate::brep) fn feet_of_touches(
     other: &Surface,
     scale: Scale,
 ) -> Vec<[DVec3; 2]> {
-    let (met, swapped) = match (one, other) {
-        (Surface::Cylinder(round), Surface::Elliptic(wall)) => {
-            (met_round(round, wall, scale), true)
-        }
-        (Surface::Elliptic(wall), Surface::Cylinder(round)) => {
-            (met_round(round, wall, scale), false)
-        }
-        (Surface::Elliptic(first), Surface::Elliptic(second))
-            if parallel(first.axis, second.axis, scale) =>
-        {
-            match met_ovals(first, second, scale) {
-                Some((met, walked_first)) => (Some(met), !walked_first),
-                None => (None, false),
-            }
-        }
-        _ => (None, false),
-    };
-    met.map_or_else(Vec::new, |met| {
+    read(one, other, scale).map_or_else(Vec::new, |(met, swapped)| {
         met.feet
             .into_iter()
             .map(|[walked, other]| {
@@ -112,6 +95,41 @@ pub(in crate::brep) fn feet_of_touches(
             })
             .collect()
     })
+}
+
+/// How near two parallel walls, an elliptic one among them, come where they
+/// cross nowhere: the least of their gaps at the feet of the normals one
+/// sends through the other. None where they cross, or for any other pair.
+pub(in crate::brep) fn closest(one: &Surface, other: &Surface, scale: Scale) -> Option<f64> {
+    let (met, _) = read(one, other, scale)?;
+    met.rulings
+        .iter()
+        .all(|ruled| ruled.touching)
+        .then_some(met.nearest)
+}
+
+/// The pair read round its elliptic wall, or the less round of two, and
+/// whether that wall is `other`.
+fn read(one: &Surface, other: &Surface, scale: Scale) -> Option<(Met, bool)> {
+    match (one, other) {
+        (Surface::Cylinder(round), Surface::Elliptic(wall))
+            if parallel(round.axis, wall.axis, scale) =>
+        {
+            Some((met_round(round, wall, scale)?, true))
+        }
+        (Surface::Elliptic(wall), Surface::Cylinder(round))
+            if parallel(round.axis, wall.axis, scale) =>
+        {
+            Some((met_round(round, wall, scale)?, false))
+        }
+        (Surface::Elliptic(first), Surface::Elliptic(second))
+            if parallel(first.axis, second.axis, scale) =>
+        {
+            let (met, walked_first) = met_ovals(first, second, scale)?;
+            Some((met, !walked_first))
+        }
+        _ => None,
+    }
 }
 
 /// The rulings a circular wall and an elliptic one meet along, read round
@@ -230,11 +248,13 @@ impl Other<'_> {
     }
 }
 
-/// The rulings two walls meet along, and the feet of the normal they share
-/// at each touch: on the wall the pair is read round, and on the other.
+/// The rulings two walls meet along, the feet of the normal they share at
+/// each touch — on the wall the pair is read round, and on the other — and
+/// the least gap between them at the feet of the normals.
 struct Met {
     rulings: Vec<Ruled>,
     feet: Vec<[DVec3; 2]>,
+    nearest: f64,
 }
 
 /// The rulings `walked` meets `other` along, from the angles of `walked`
@@ -258,6 +278,10 @@ fn met(walked: &EllipticCylinder, other: Other, angles: Vec<f64>, scale: Scale) 
     let mut found = Met {
         rulings: Vec::new(),
         feet: Vec::new(),
+        nearest: gaps
+            .iter()
+            .map(|gap| gap.abs())
+            .fold(f64::INFINITY, f64::min),
     };
     let mut index = 0;
     while index < count {

@@ -109,7 +109,7 @@ pub(super) fn of_edge(
             let own = [plane, Surface::Elliptic(wall)];
             let grazing = grazed(body, edge, &own, step);
             let clear = |point: DVec3| !grazing(point, eps * contact::APART);
-            let rays: Vec<f64> = on_the_wall(body, &wall)
+            let rays: Vec<f64> = on_the_wall(body, &wall, steps)
                 .into_iter()
                 .chain(reached_by_planes(body, &wall))
                 .chain(rays.iter().copied())

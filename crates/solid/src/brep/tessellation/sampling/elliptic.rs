@@ -1,7 +1,7 @@
 //! The angles an elliptic wall's rims take besides its grid (#571), and
 //! where a whole one starts.
 
-use std::f64::consts::TAU;
+use std::f64::consts::{PI, TAU};
 
 use crate::brep::conic::{Conic, On};
 use crate::brep::scale::Scale;
@@ -9,19 +9,24 @@ use crate::brep::surface::{EllipticCylinder, Surface};
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
 /// The angles about an elliptic wall of every vertex lying on it, where a
-/// ruling leaves that every rim of the wall takes a sample on.
-pub(super) fn on_the_wall(body: &Body, wall: &EllipticCylinder) -> Vec<f64> {
-    let Some(rank) = body
+/// ruling leaves that every rim of the wall takes a sample on, and of every
+/// vertex standing inside it closer than twice the sag of a chord across a
+/// step of its grid of `steps` steps a turn: a chord across that angle
+/// would pass inside the vertex, as a circular wall's would
+/// (`contact/own.rs`).
+pub(super) fn on_the_wall(body: &Body, wall: &EllipticCylinder, steps: usize) -> Vec<f64> {
+    let id = body
         .surfaces
         .iter()
         .position(|surface| *surface == Surface::Elliptic(*wall))
-    else {
-        return Vec::new();
-    };
-    let id = SurfaceId(rank as u32);
+        .map(|rank| SurfaceId(rank as u32));
+    let sag = wall.major * (1.0 - (PI / steps as f64).cos());
     body.vertices
         .iter()
-        .filter(|vertex| vertex.on.contains(&id))
+        .filter(|vertex| {
+            id.is_some_and(|id| vertex.on.contains(&id))
+                || (-2.0 * sag..0.0).contains(&wall.distance(vertex.point))
+        })
         .map(|vertex| wall.parameters(vertex.point).x)
         .collect()
 }

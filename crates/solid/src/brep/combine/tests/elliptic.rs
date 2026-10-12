@@ -322,3 +322,42 @@ fn a_side_a_hair_inside_an_elliptic_boss_s_support_point_leaves_a_strip_drawn_of
         drawn(&body.expect("the boss and the block are joined and cut"));
     }
 }
+
+#[test]
+fn a_tilted_slot_with_elliptic_ends_cut_by_a_block_is_drawn_closed_and_uncrossed() {
+    let center = DVec2::new(-2.0, -1.0);
+    let along = DVec2::from_angle(PI / 4.0);
+    let across = along.perp() * 1.5;
+    let [left, right] = [center - along * 5.0, center + along * 5.0];
+    let slot = Contour {
+        corners: vec![left - across, right - across, right + across, left + across],
+        runs: vec![
+            Run::Straight,
+            Run::Oval {
+                center: right,
+                first: -across,
+                second: 1.0,
+                turn: PI,
+            },
+            Run::Straight,
+            Run::Oval {
+                center: left,
+                first: across,
+                second: 0.7,
+                turn: PI,
+            },
+        ],
+    };
+    let normal = DVec3::new(0.3_f64.sin(), 0.0, 0.3_f64.cos());
+    let u = normal.cross(DVec3::Y).normalize();
+    let frame = Frame {
+        origin: DVec3::ZERO,
+        u,
+        v: normal.cross(u),
+    };
+    let boss = Body::raised(&slot, &[], frame, normal * 3.0).expect("the slot raises");
+    let cut = boss
+        .cut_by(&block([-2.0, -2.0, 1.0], [4.0, 1.0, 3.0]))
+        .expect("the slot is cut");
+    drawn(&cut);
+}

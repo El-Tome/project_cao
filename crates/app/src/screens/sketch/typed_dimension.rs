@@ -26,16 +26,35 @@ pub(crate) fn apply_dimension_value(
             return false;
         }
     };
+    let rules = editor.sketching.exact_angles_lay_rules;
+    // Only a number typed as such: a value written from a variable would lose
+    // its link to it, and stays a dimension.
+    if rules
+        && written.as_number().is_some()
+        && let Some(in_place) = document.sketches()[index].rule_in_place_of(target, value)
+    {
+        end_the_gesture(editor);
+        let rule = in_place.rule;
+        if !document.lay_in_place_of(index, target, in_place) {
+            editor.message = Some(crate::wording::constraints::impossible(lang));
+            return false;
+        }
+        editor.message = Some(lang.t_with(
+            "sketch.rule_in_place_of_dimension",
+            &[("rule", &crate::wording::constraints::label(lang, rule))],
+        ));
+        return true;
+    }
     if !target.takes(value) {
-        editor.message = Some(lang.t("sketch.angle_would_lay_parallel"));
+        editor.message = Some(lang.t(if rules {
+            "sketch.angle_would_lay_parallel_but_exactly"
+        } else {
+            "sketch.angle_would_lay_parallel"
+        }));
         return false;
     }
 
-    // A value typed ends the gesture: the trait it was typed on stops being the
-    // first half of an angle the next click would complete.
-    if let ToolState::Dimension { picks, .. } = &mut editor.tool_state {
-        picks.first_angle_segment = None;
-    }
+    end_the_gesture(editor);
 
     // The same value twice must not repeat an identical step in the history —
     // though the same number written from a variable, or no longer from one,
@@ -79,6 +98,14 @@ pub(crate) fn apply_dimension_value(
             editor.message = Some(lang.t("sketch.no_dimension_here"));
             false
         }
+    }
+}
+
+/// A value typed ends the gesture: the trait it was typed on stops being the
+/// first half of an angle the next click would complete.
+fn end_the_gesture(editor: &mut SketchEditor) {
+    if let ToolState::Dimension { picks, .. } = &mut editor.tool_state {
+        picks.first_angle_segment = None;
     }
 }
 

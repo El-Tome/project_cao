@@ -20,7 +20,8 @@
 
 use glam::DVec2;
 
-use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::axis_angle::AxisToward;
+use crate::constraints::{Constraint, DimensionTarget, SketchAxis, Toward};
 use crate::plane::WorkPlane;
 use crate::sketch::{Element, LengthOutcome, PointId, SegmentId, Sketch};
 
@@ -214,17 +215,14 @@ fn a_value_only_the_origin_stands_in_the_way_of_is_still_refused() {
         axis: SketchAxis::V,
     });
     sketch.set_dimension(DimensionTarget::Length(line), 100.0, false);
-    let slope = sketch
-        .angle_with_axis(line, SketchAxis::U)
-        .expect("the trait leans");
-    sketch.set_dimension(
-        DimensionTarget::AxisAngle {
-            segment: line,
-            axis: SketchAxis::U,
-        },
-        slope,
-        false,
-    );
+    let slope = DimensionTarget::AxisAngle {
+        segment: line,
+        segment_toward: Toward::End,
+        axis: SketchAxis::U,
+        axis_toward: AxisToward::Positive,
+    };
+    let leans = sketch.opening(slope).expect("the trait leans");
+    sketch.set_dimension(slope, leans, false);
     fix(&mut sketch, across);
     fix(&mut sketch, up);
     assert_eq!(sketch.resolve(SCALE), LengthOutcome::Exact);

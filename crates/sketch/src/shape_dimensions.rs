@@ -56,13 +56,7 @@ pub fn line_dimensions(
         wanted.push((DimensionTarget::Length(segment), length));
     }
     if let Some(first) = square_with {
-        wanted.push((
-            DimensionTarget::Angle {
-                first,
-                second: segment,
-            },
-            90.0,
-        ));
+        wanted.push((DimensionTarget::corner(first, segment), 90.0));
     }
     settled(sketch, wanted, scale)
 }

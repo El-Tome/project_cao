@@ -11,11 +11,14 @@ mod kept;
 mod landing;
 mod nearest;
 mod onto_axis;
+mod point_on_curve;
+mod point_on_trait;
 mod pull;
 mod shape;
 mod share;
 
 pub(crate) use kept::Kept;
+pub use point_on_curve::CLEAR_OF_AN_END;
 pub use pull::PointPull;
 
 /// What the user is holding while a drag lasts: points the solver reads as
@@ -32,6 +35,9 @@ pub(crate) struct Held {
     pub(crate) sizes: Vec<super::CircleId>,
     pub(crate) released: Vec<PointId>,
     pub(crate) stays: Vec<PointId>,
+    /// Points held on two things that cannot follow either alone: what holds
+    /// them gives as well, rather than the point alone (#548).
+    pub(crate) loosened: Vec<PointId>,
 }
 
 impl Sketch {

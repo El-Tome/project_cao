@@ -2,6 +2,8 @@
 use crate::plane::WorkPlane;
 
 use super::*;
+use crate::axis_angle::AxisToward;
+use crate::constraints::Toward;
 
 #[test]
 fn the_points_sitting_on_a_trait_come_in_order_from_its_start() {
@@ -131,6 +133,7 @@ fn a_point_held_on_a_trait_is_held_on_the_piece_it_lands_on() {
     sketch.add_constraint(Constraint::OnSegment {
         point: held,
         segment,
+        from: LaidFrom::Nowhere,
     });
     let from = sketch.add_point(DVec2::new(5.0, 1.0));
     let to = sketch.add_point(DVec2::new(8.0, 1.0));
@@ -144,6 +147,7 @@ fn a_point_held_on_a_trait_is_held_on_the_piece_it_lands_on() {
         sketch.constraints().contains(&Constraint::OnSegment {
             point: held,
             segment: pieces[0],
+            from: LaidFrom::Nowhere
         }),
         "held on {:?}, and the rules standing are {:?}",
         pieces[0],
@@ -276,6 +280,7 @@ fn a_point_a_rule_holds_on_a_trait_sits_on_it_wherever_the_solver_left_it() {
     sketch.add_constraint(Constraint::OnSegment {
         point: held,
         segment,
+        from: LaidFrom::Nowhere,
     });
 
     assert_eq!(
@@ -293,6 +298,7 @@ fn the_origin_a_rule_holds_on_a_trait_does_cut_it() {
     sketch.add_constraint(Constraint::OnSegment {
         point: Sketch::ORIGIN,
         segment,
+        from: LaidFrom::Nowhere,
     });
 
     assert_eq!(
@@ -331,6 +337,7 @@ fn a_trait_cut_beyond_where_an_ellipse_brushes_it_keeps_the_tangency() {
     sketch.add_constraint(Constraint::OnSegment {
         point: corner,
         segment,
+        from: LaidFrom::Nowhere,
     });
 
     let pieces = sketch
@@ -364,7 +371,9 @@ fn a_value_carried_onto_the_pieces_keeps_what_it_was_written_as() {
     let (mut sketch, segment, [_, near, far, _]) = a_trait_with_two_points_on_it();
     let level = DimensionTarget::AxisAngle {
         segment,
+        segment_toward: Toward::End,
         axis: crate::constraints::SketchAxis::U,
+        axis_toward: AxisToward::Positive,
     };
     sketch.set_dimension(level, 0.0, false);
     sketch.write_dimension_as(level, Some("#0 * 2".to_string()));
@@ -377,7 +386,9 @@ fn a_value_carried_onto_the_pieces_keeps_what_it_was_written_as() {
     for piece in trimmed.pieces {
         let carried = DimensionTarget::AxisAngle {
             segment: piece,
+            segment_toward: Toward::End,
             axis: crate::constraints::SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         };
         let value = sketch
             .dimension_of(carried)

@@ -34,6 +34,7 @@ fn a_point_held_on_a_circle_follows_it_to_its_new_size() {
     sketch.add_constraint(Constraint::OnCircle {
         point: on_rim,
         circle: round,
+        from: crate::LaidFrom::Nowhere,
     });
 
     sketch.resize_circle(round, 16.0, 1.0);

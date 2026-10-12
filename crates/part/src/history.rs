@@ -335,7 +335,7 @@ impl History {
         )
     }
 
-    fn drop_what_was_undone(&mut self) {
+    pub(crate) fn drop_what_was_undone(&mut self) {
         if self.applied == self.operations.len() {
             return;
         }

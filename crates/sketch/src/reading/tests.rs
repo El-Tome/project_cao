@@ -9,7 +9,8 @@
 
 use super::*;
 
-use crate::constraints::SketchAxis;
+use crate::axis_angle::AxisToward;
+use crate::constraints::{SketchAxis, Toward};
 use crate::plane::WorkPlane;
 
 const TOLERANCE: f64 = 1e-9;
@@ -125,7 +126,7 @@ fn two_traits_sharing_an_end_read_the_corner_they_make() {
     let first = sketch.add_segment(corner, along);
     let second = sketch.add_segment(corner, up);
 
-    let opening = degrees(sketch.read(DimensionTarget::Angle { first, second }));
+    let opening = degrees(sketch.read(DimensionTarget::corner(first, second)));
 
     assert!(
         (opening - 90.0).abs() < TOLERANCE,
@@ -142,7 +143,9 @@ fn a_trait_against_an_axis_reads_how_far_it_leans() {
 
     let opening = degrees(sketch.read(DimensionTarget::AxisAngle {
         segment,
+        segment_toward: Toward::End,
         axis: SketchAxis::U,
+        axis_toward: AxisToward::Positive,
     }));
 
     assert!(
@@ -181,13 +184,12 @@ fn a_reading_of_something_the_drawing_no_longer_has_is_no_reading_at_all() {
         DimensionTarget::Diameter(circle),
         DimensionTarget::ArcRadius(arc),
         DimensionTarget::ArcSweep(arc),
-        DimensionTarget::Angle {
-            first: gone,
-            second: gone,
-        },
+        DimensionTarget::corner(gone, gone),
         DimensionTarget::AxisAngle {
             segment: gone,
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
     ] {
         assert_eq!(

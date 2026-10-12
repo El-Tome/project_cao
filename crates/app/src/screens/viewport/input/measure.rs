@@ -7,6 +7,7 @@ use cao_sketch::{DimensionMode, DimensionTarget, ToolState};
 use glam::DVec2;
 
 use crate::screens::SketchContext;
+use crate::screens::viewport::HOLD_PIXELS;
 use crate::wording::{constraints, dimension, outcome};
 
 use super::{annotation_position, nearest_annotation, refine};
@@ -127,7 +128,9 @@ pub(super) fn place_dimension(
         .document
         .sketches()
         .get(index)
-        .map_or(target, |sketch| sketch.oriented(target, cursor));
+        .map_or(target, |sketch| {
+            sketch.oriented_holding(target, cursor, pixel * HOLD_PIXELS)
+        });
 
     // The reading asked for is already on the drawing: show its value rather
     // than lay a second copy over it.

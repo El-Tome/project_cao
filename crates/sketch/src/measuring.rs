@@ -7,7 +7,7 @@
 
 use glam::DVec2;
 
-use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::constraints::{DimensionTarget, SketchAxis};
 use crate::dimensioning::axis_under;
 use crate::sketch::{PointId, SegmentId, Sketch};
 use crate::trimming::ON_THE_TRAIT;
@@ -150,7 +150,7 @@ pub fn measure_pick(
             if sketch.angle_between(first, second).is_some() {
                 return (
                     cleared,
-                    DimensionPick::Target(DimensionTarget::Angle { first, second }),
+                    DimensionPick::Target(sketch.corner_angle(first, second)),
                 );
             }
             // No shared end: crossing, one ending on the other, or lying apart.
@@ -177,10 +177,7 @@ pub fn measure_pick(
                     first_angle_segment: None,
                     ..picks
                 },
-                DimensionPick::Target(DimensionTarget::AxisAngle {
-                    segment: first,
-                    axis,
-                }),
+                DimensionPick::Target(sketch.angle_to_axis(first, axis)),
             ),
             None => (picks, DimensionPick::Unchanged),
         };
@@ -210,7 +207,7 @@ pub fn measure_pick(
                     first_axis: None,
                     ..picks
                 },
-                DimensionPick::Target(DimensionTarget::AxisAngle { segment, axis }),
+                DimensionPick::Target(sketch.angle_to_axis(segment, axis)),
             );
         }
         if mode == DimensionMode::Angle {
@@ -270,8 +267,8 @@ pub(crate) fn no_distance_to(
     let place = sketch.point(point);
     let along = (place - start).dot(span) / reach;
     let held = sketch
-        .constraints()
-        .contains(&Constraint::OnSegment { point, segment });
+        .holds_on(point)
+        .contains(&crate::holding::Support::Segment(segment));
     if !held && place.distance(start + span * along) > ON_THE_TRAIT {
         return None;
     }

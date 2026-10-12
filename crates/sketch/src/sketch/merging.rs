@@ -147,14 +147,16 @@ impl Sketch {
                 let side = self.segments[segment.0];
                 !same(side.start, side.end) && (same(point, side.start) || same(point, side.end))
             }
-            Constraint::OnCircle { point, circle } => same(point, self.circles[circle.0].center),
-            Constraint::OnArc { point, arc } => {
+            Constraint::OnCircle { point, circle, .. } => {
+                same(point, self.circles[circle.0].center)
+            }
+            Constraint::OnArc { point, arc, .. } => {
                 let curve = self.arcs[arc.0];
                 same(point, curve.center)
                     && !same(curve.center, curve.start)
                     && !same(curve.center, curve.end)
             }
-            Constraint::OnEllipse { point, ellipse } => {
+            Constraint::OnEllipse { point, ellipse, .. } => {
                 same(point, self.ellipses[ellipse.0].center)
             }
             Constraint::Tangent {
@@ -183,7 +185,7 @@ impl Sketch {
     /// Not a curve that stands on a fixed point, nor one that ends on one of
     /// the two points being joined: a fixed point is never the one that moves,
     /// and the settle reshapes that curve about it instead.
-    fn carry_curves_about(
+    pub(in crate::sketch) fn carry_curves_about(
         &mut self,
         centre: PointId,
         step: DVec2,
@@ -230,15 +232,19 @@ impl Sketch {
     }
 
     /// The points a rule holds on a curve.
-    fn points_held_on(&self, curve: Element) -> Vec<PointId> {
+    pub(in crate::sketch) fn points_held_on(&self, curve: Element) -> Vec<PointId> {
         self.constraints
             .iter()
             .filter_map(|rule| match (*rule, curve) {
-                (Constraint::OnCircle { point, circle }, Element::Circle(on)) if circle == on => {
+                (Constraint::OnCircle { point, circle, .. }, Element::Circle(on))
+                    if circle == on =>
+                {
                     Some(point)
                 }
-                (Constraint::OnArc { point, arc }, Element::Arc(on)) if arc == on => Some(point),
-                (Constraint::OnEllipse { point, ellipse }, Element::Ellipse(on))
+                (Constraint::OnArc { point, arc, .. }, Element::Arc(on)) if arc == on => {
+                    Some(point)
+                }
+                (Constraint::OnEllipse { point, ellipse, .. }, Element::Ellipse(on))
                     if ellipse == on =>
                 {
                     Some(point)
@@ -279,15 +285,15 @@ impl Sketch {
     /// those ends are on it only because a rule holds them there.
     fn holds_by_itself(&self, rule: Constraint) -> bool {
         match rule {
-            Constraint::OnSegment { point, segment } => {
+            Constraint::OnSegment { point, segment, .. } => {
                 let side = self.segments[segment.0];
                 point == side.start || point == side.end
             }
-            Constraint::OnArc { point, arc } => {
+            Constraint::OnArc { point, arc, .. } => {
                 let curve = self.arcs[arc.0];
                 point == curve.start || point == curve.end
             }
-            Constraint::OnEllipse { point, ellipse } => {
+            Constraint::OnEllipse { point, ellipse, .. } => {
                 self.ellipse_points(ellipse)[1..].contains(&point)
                     && point != self.ellipses[ellipse.0].center
             }

@@ -108,17 +108,14 @@ const NO_NET_HEADING: &str = "## What has no net";
 /// coverage report — it says a change here is caught by nothing local, which a
 /// test driving the whole application from outside does not make false.
 /// `docs/code-map.md` carries the argument beside the list.
-const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 15] = [
+const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 12] = [
     "crates/app/src/screens/annotations.rs",
     "crates/app/src/screens/extrusion_row.rs",
     "crates/app/src/screens/history_tree.rs",
     "crates/app/src/screens/mod.rs",
     "crates/app/src/screens/settings/",
     "crates/app/src/screens/start_menu.rs",
-    "crates/app/src/screens/viewport/input/arcs.rs",
-    "crates/app/src/screens/viewport/input/circles.rs",
     "crates/app/src/screens/viewport/input/mod.rs",
-    "crates/app/src/screens/viewport/input/rectangle.rs",
     "crates/app/src/screens/viewport/input/resizing.rs",
     "crates/app/src/screens/viewport/input/symmetric_line.rs",
     "crates/app/src/screens/viewport/navigation.rs",
@@ -191,10 +188,10 @@ const FILES_STILL_NAMING_THE_INSIDES_OF_THE_MATTER: [&str; 0] = [];
 const LINE_BUDGET: usize = 400;
 
 const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 4] = [
-    ("crates/app/src/screens/viewport/input/mod.rs", 486),
+    ("crates/app/src/screens/viewport/input/mod.rs", 458),
     ("crates/render/src/renderer.rs", 426),
     ("crates/sketch/src/sketch.rs", 570),
-    ("crates/sketch/src/solver.rs", 877),
+    ("crates/sketch/src/solver.rs", 842),
 ];
 
 /// Sweeps of the whole drawing, each with the test that walks the exhaustive

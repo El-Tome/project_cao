@@ -217,11 +217,15 @@ impl Sketch {
                     from,
                 })
             }
-            Constraint::OnCircle { point, circle } if circle == cut => {
+            Constraint::OnCircle {
+                point,
+                circle,
+                from,
+            } if circle == cut => {
                 let place = self.points().get(point.0).copied()?;
                 let stands = self.round_the_circle(cut, place)?;
                 kept.holds(stands)
-                    .then_some(Constraint::OnArc { point, arc })
+                    .then_some(Constraint::OnArc { point, arc, from })
             }
             _ => None,
         }

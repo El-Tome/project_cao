@@ -2,7 +2,8 @@
 
 use glam::DVec2;
 
-use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::axis_angle::AxisToward;
+use crate::constraints::{Constraint, DimensionTarget, SketchAxis, Toward};
 use crate::plane::WorkPlane;
 use crate::sketch::{CircleId, Element, PointId, SegmentId, Sketch};
 
@@ -18,7 +19,9 @@ fn part_of_a_drawing_can_be_settled_while_the_rest_floats() {
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
             segment: fixed,
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         0.0,
         false,
@@ -166,7 +169,12 @@ fn a_drawing_edited_every_way_never_answers_from_a_reading_it_has_outlived() {
                             _ => rng.range(360) as f64,
                         };
                         sketch.set_dimension(
-                            DimensionTarget::AxisAngle { segment, axis },
+                            DimensionTarget::AxisAngle {
+                                segment,
+                                segment_toward: Toward::End,
+                                axis,
+                                axis_toward: AxisToward::Positive,
+                            },
                             angle,
                             rng.range(6) == 0,
                         );

@@ -22,15 +22,19 @@ const SLANT_DEGREES: f64 = 0.5;
 impl Sketch {
     /// Which reading of a dimension the cursor is asking for, where there is
     /// more than one: the side an angle between two crossing traits opens
-    /// towards, or one of the three readings of a slanted trait.
+    /// towards, the quarter an angle to an axis measures, or one of the three
+    /// readings of a slanted trait.
     ///
     /// For a slanted trait, the two ends box off the plane: above or below that
     /// box the cursor asks for the width, left or right of it the height, and
     /// inside it — the triangle the trait closes — or out past a corner, the
     /// length itself.
     pub fn oriented(&self, target: DimensionTarget, cursor: DVec2) -> DimensionTarget {
-        if let DimensionTarget::AngleBetween { .. } = target {
-            return self.opening_toward(target, cursor);
+        match target {
+            DimensionTarget::Angle { .. } => return self.facing_the_corner(target, cursor),
+            DimensionTarget::AngleBetween { .. } => return self.opening_toward(target, cursor),
+            DimensionTarget::AxisAngle { .. } => return self.facing_axis(target, cursor),
+            _ => {}
         }
         let Some((from, to)) = self.ends_of(target).filter(|_| self.is_slanted(target)) else {
             return target;
@@ -50,6 +54,32 @@ impl Sketch {
             _ => return target,
         };
         DimensionTarget::Projected { from, to, axis }.normalised()
+    }
+
+    /// The quarter an angle being put down faces, held through a margin: while
+    /// the cursor stays within `margin` of the quarter already shown, that one
+    /// stays, so that a hand wavering on the line between two quarters does not
+    /// flick the angle from one to the other. Past the margin, the quarter the
+    /// cursor is in. Anything but an angle is read afresh.
+    pub fn oriented_holding(
+        &self,
+        shown: DimensionTarget,
+        cursor: DVec2,
+        margin: f64,
+    ) -> DimensionTarget {
+        let fresh = self.oriented(shown, cursor);
+        if fresh == shown || !shown.is_angle() {
+            return fresh;
+        }
+        const AROUND: usize = 8;
+        let still_within_reach = (0..AROUND).any(|step| {
+            let turn = std::f64::consts::TAU * step as f64 / AROUND as f64;
+            self.oriented(shown, cursor + DVec2::from_angle(turn) * margin) == shown
+        });
+        match still_within_reach {
+            true => shown,
+            false => fresh,
+        }
     }
 
     /// Whether a point is one of a segment's own ends — measuring a segment to
@@ -130,7 +160,7 @@ impl Sketch {
             && second != first
         {
             if self.angle_between(first, second).is_some() {
-                return Some(DimensionTarget::Angle { first, second });
+                return Some(self.corner_angle(first, second));
             }
             // No shared end: crossing, one ending on the other, or lying
             // apart. Any two that do not run the same way make an angle, and
@@ -157,10 +187,7 @@ impl Sketch {
         if self.nearest_segment(cursor, snap).is_none()
             && let Some(axis) = axis_under(cursor, snap)
         {
-            return Some(DimensionTarget::AxisAngle {
-                segment: first,
-                axis,
-            });
+            return Some(self.angle_to_axis(first, axis));
         }
         None
     }

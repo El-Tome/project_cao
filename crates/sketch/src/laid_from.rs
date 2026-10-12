@@ -9,32 +9,44 @@
 use serde::{Deserialize, Serialize};
 
 use crate::constraints::{Constraint, DimensionTarget};
-use crate::sketch::{Element, Sketch};
+use crate::sketch::{Element, PointId, Sketch};
 
-/// Which of the two things a tangency was laid between was clicked first.
+/// Which of the two things a tangency, or a point laid on a trait or a curve,
+/// was laid between was clicked first.
 ///
 /// A trait and a curve have no order of their own the way two traits do, where
-/// the pair itself says which came first. Without this the rule would have to
-/// guess, and a tangency laid one way round would land differently from the
-/// same one laid the other.
+/// the pair itself says which came first, and nor do a point and a trait, or a
+/// point and a curve.
+/// Without this the rule would have to guess, and one laid one way round
+/// would land differently from the same one laid the other.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LaidFrom {
-    /// Nothing was clicked: the drawing laid the tangency for itself — a
-    /// fillet, what a cut leaves of a circle — and there is no order to read.
+    /// Nothing was clicked: the drawing laid the rule for itself — a fillet,
+    /// what a cut leaves of a circle, a point born on a trait or a curve, a
+    /// rule a compaction lays again — or the point was a free one, which comes
+    /// onto the trait whichever was clicked first (#548). There is no order to
+    /// read.
     #[default]
     Nowhere,
-    /// The curve came first: the trait moves to graze it.
+    /// The curve came first: the trait moves to graze it, or the point comes
+    /// onto it — as a free point laid on a curve does, whichever was clicked
+    /// first (#554).
     Curve,
-    /// The trait came first: the curve moves, and resizes, to touch it.
+    /// The trait came first: the curve moves, and resizes, to touch it, or
+    /// the point comes onto it.
     Trait,
+    /// The point came first: the trait or the curve it is laid on comes to it.
+    Point,
 }
 
 impl Constraint {
     /// What the rule was laid from: the thing clicked first, which the rule
     /// never moves. `None` for a rule that has no order to it.
     ///
-    /// A point laid on a trait or a curve has none on purpose: the point comes
-    /// onto what holds it whichever was clicked first.
+    /// A free point laid on a trait has none on purpose: the point comes onto
+    /// the trait whichever was clicked first. One laid on a curve is taken as
+    /// laid from the curve, for the same reason. A point that belongs to
+    /// something keeps the order (#548, #554).
     pub(crate) fn laid_from(self) -> Option<Element> {
         match self {
             Self::Perpendicular { first, .. }
@@ -58,11 +70,23 @@ impl Constraint {
                 from,
                 ..
             } => from.element(Element::Ellipse(ellipse), segment),
+            Self::OnSegment {
+                point,
+                segment,
+                from,
+            } => from.element(Element::Point(point), segment),
+            Self::OnCircle {
+                point,
+                circle,
+                from,
+            } => from.of_a_point_and(point, Element::Circle(circle)),
+            Self::OnArc { point, arc, from } => from.of_a_point_and(point, Element::Arc(arc)),
+            Self::OnEllipse {
+                point,
+                ellipse,
+                from,
+            } => from.of_a_point_and(point, Element::Ellipse(ellipse)),
             Self::EqualRadiusArcCircle { .. }
-            | Self::OnSegment { .. }
-            | Self::OnCircle { .. }
-            | Self::OnArc { .. }
-            | Self::OnEllipse { .. }
             | Self::OnAxis { .. }
             | Self::Midpoint { .. }
             | Self::AxisCollinear { .. }
@@ -132,6 +156,26 @@ impl Constraint {
                 at,
                 from: LaidFrom::Nowhere,
             },
+            Self::OnSegment { point, segment, .. } => Self::OnSegment {
+                point,
+                segment,
+                from: LaidFrom::Nowhere,
+            },
+            Self::OnCircle { point, circle, .. } => Self::OnCircle {
+                point,
+                circle,
+                from: LaidFrom::Nowhere,
+            },
+            Self::OnArc { point, arc, .. } => Self::OnArc {
+                point,
+                arc,
+                from: LaidFrom::Nowhere,
+            },
+            Self::OnEllipse { point, ellipse, .. } => Self::OnEllipse {
+                point,
+                ellipse,
+                from: LaidFrom::Nowhere,
+            },
             other @ (Self::Perpendicular { .. }
             | Self::Parallel { .. }
             | Self::Equal { .. }
@@ -139,10 +183,6 @@ impl Constraint {
             | Self::EqualRadiusArc { .. }
             | Self::Collinear { .. }
             | Self::EqualRadiusArcCircle { .. }
-            | Self::OnSegment { .. }
-            | Self::OnCircle { .. }
-            | Self::OnArc { .. }
-            | Self::OnEllipse { .. }
             | Self::OnAxis { .. }
             | Self::Midpoint { .. }
             | Self::AxisCollinear { .. }
@@ -160,11 +200,22 @@ impl Constraint {
 }
 
 impl LaidFrom {
-    fn element(self, curve: Element, segment: crate::sketch::SegmentId) -> Option<Element> {
+    /// The thing clicked first, of the trait and the other one — a curve for
+    /// a tangency, a point for a point laid on the trait.
+    fn element(self, other: Element, segment: crate::sketch::SegmentId) -> Option<Element> {
         match self {
             Self::Nowhere => None,
-            Self::Curve => Some(curve),
+            Self::Curve | Self::Point => Some(other),
             Self::Trait => Some(Element::Segment(segment)),
+        }
+    }
+
+    /// The thing clicked first, of a point and the curve it is laid on.
+    fn of_a_point_and(self, point: PointId, curve: Element) -> Option<Element> {
+        match self {
+            Self::Nowhere | Self::Trait => None,
+            Self::Point => Some(Element::Point(point)),
+            Self::Curve => Some(curve),
         }
     }
 }
@@ -198,9 +249,16 @@ impl DimensionTarget {
     pub fn normalised(self) -> Self {
         match self {
             Self::Distance { from, to } if to.0 < from.0 => Self::Distance { from: to, to: from },
-            Self::Angle { first, second } if second.0 < first.0 => Self::Angle {
+            Self::Angle {
+                first,
+                first_along,
+                second,
+                second_along,
+            } if second.0 < first.0 => Self::Angle {
                 first: second,
+                first_along: second_along,
                 second: first,
+                second_along: first_along,
             },
             Self::AngleBetween {
                 first,

@@ -11,6 +11,30 @@
 //!   `a_symmetric_lines_arm_reaches_its_end_and_not_twice_that`
 //! - and it gets the reading, like a plain trait —
 //!   `a_symmetric_line_drawn_at_a_typed_angle_gets_its_reading`
+//!
+//! Closes #560.
+//! - the reading laid with the trait measures what was typed, wherever the
+//!   click lands — `a_line_typed_at_thirty_and_clicked_behind_runs_and_reads_thirty`
+//!
+//! Closes #561.
+//! - 90 typed on the second trait of a chain draws a square corner on the side
+//!   of the mouse, and lays a 90° angle at the corner, with no construction arm
+//!   — `ninety_typed_on_a_chained_trait_lays_the_corner_and_no_arm`
+//!
+//! Closes #537.
+//! - a trait drawn from no trait, off the axes, at 0°, 90° or 180° typed
+//!   carries the rule to the horizontal axis, with no arm and no angle, in one
+//!   step — `a_trait_typed_straight_or_square_carries_the_rule_to_the_horizontal`
+//! - a trait drawn on from another at 90° typed carries « Perpendiculaire » to
+//!   the trait before, and at 180° « Parallèle », with no angle at the corner,
+//!   in one step — `a_chained_trait_typed_square_or_straight_carries_the_rule_to_the_one_before`
+//! - 0 typed in the angle of a trait drawn at 30° lays « Parallèle » to the
+//!   horizontal axis, and its arm goes in the same step —
+//!   `zero_typed_against_the_arm_of_a_trait_lays_the_rule_to_the_axis_and_the_arm_goes`
+//! - with the option off, the line tool behaves as today —
+//!   `ninety_typed_on_a_chained_trait_lays_the_corner_and_no_arm`, which holds
+//!   with the option off, and
+//!   `with_the_option_off_a_trait_typed_square_gets_its_arm_and_its_angle`
 
 use cao_part::PartDocument;
 use cao_part::history::PointRef;
@@ -165,6 +189,93 @@ fn a_line_drawn_at_a_typed_angle_is_one_step_of_the_history() {
 }
 
 #[test]
+fn a_line_typed_at_thirty_and_clicked_behind_runs_and_reads_thirty() {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let start = DVec2::new(3.0, 4.0);
+    let behind = start - DVec2::from_angle(30.0_f64.to_radians()) * 8.0;
+
+    crate::screens::viewport::input::draw_line_point(&mut context, 0, start, 0.1, 0.05);
+    context.editor.live.open_on(&[None, Some(30.0)]);
+    crate::screens::viewport::input::draw_line_point(&mut context, 0, behind, 0.1, 0.05);
+
+    let sketch = &document.sketches()[0];
+    let (from, to) = sketch.endpoints(SegmentId(0));
+    let runs = (to - from).normalize();
+    assert!(
+        runs.distance(DVec2::from_angle(30.0_f64.to_radians())) < 1e-9,
+        "30° typed, the trait runs towards {runs}",
+    );
+    let reading = sketch
+        .dimensions()
+        .iter()
+        .find(|value| matches!(value.target, DimensionTarget::Angle { .. }))
+        .expect("the angle between the arm and the trait is written down");
+    assert!(
+        (reading.value - 30.0).abs() < 1e-6,
+        "the reading says {} where 30 was typed",
+        reading.value,
+    );
+}
+
+#[test]
+fn ninety_typed_on_a_chained_trait_lays_the_corner_and_no_arm() {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let mut editor = SketchEditor {
+        sketching: dimensions_at_exact_angles(),
+        ..SketchEditor::default()
+    };
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let draw = crate::screens::viewport::input::draw_line_point;
+
+    draw(&mut context, 0, DVec2::new(2.0, 3.0), 0.1, 0.05);
+    draw(&mut context, 0, DVec2::new(12.0, 3.0), 0.1, 0.05);
+    context.editor.live.open_on(&[None, Some(90.0)]);
+    draw(&mut context, 0, DVec2::new(13.0, -5.0), 0.1, 0.05);
+
+    let sketch = &document.sketches()[0];
+    assert_eq!(
+        sketch.live_segments().count(),
+        2,
+        "the two traits, and no arm: {:?}",
+        sketch.segments(),
+    );
+    let (from, to) = sketch.endpoints(SegmentId(1));
+    assert!(
+        (to - from).normalize().distance(-DVec2::Y) < 1e-9,
+        "the mouse below, the square corner turns down: {from} to {to}",
+    );
+    let corner = DimensionTarget::corner(SegmentId(0), SegmentId(1));
+    let laid = sketch
+        .dimension_of(corner)
+        .expect("the corner's angle is laid");
+    assert!((laid.value - 90.0).abs() < 1e-6, "it reads {}", laid.value);
+}
+
+#[test]
 fn a_symmetric_line_drawn_at_a_typed_angle_leans_on_an_arm_from_its_middle() {
     let mut document = PartDocument::new("part", Utc::now());
     document.apply(Operation::CreateSketch {
@@ -258,7 +369,7 @@ fn a_symmetric_line_drawn_at_a_typed_angle_gets_its_reading() {
 
     let (arm, trait_drawn) = (SegmentId(1), SegmentId(0));
     let names_both = |target: &DimensionTarget| match *target {
-        DimensionTarget::Angle { first, second } => (first, second) == (arm, trait_drawn),
+        DimensionTarget::Angle { first, second, .. } => (first, second) == (arm, trait_drawn),
         DimensionTarget::AngleBetween { first, second, .. } => {
             (first, second) == (arm, trait_drawn) || (first, second) == (trait_drawn, arm)
         }
@@ -318,5 +429,253 @@ fn a_plain_angle_typed_is_the_number_the_drawing_opens() {
     assert_eq!(
         as_opened(Some((Formula::Number(30.0), 30.0)), 150.0),
         Formula::Number(150.0)
+    );
+}
+
+fn dimensions_at_exact_angles() -> cao_prefs::SketchingConfig {
+    cao_prefs::SketchingConfig {
+        exact_angles_lay_rules: false,
+    }
+}
+
+/// Draws a trait from `start` towards `towards` with `typed` in the angle's
+/// field — after `before`, when a trait is drawn first to chain on from.
+fn draw_typed(
+    document: &mut PartDocument,
+    editor: &mut SketchEditor,
+    before: Option<DVec2>,
+    start: DVec2,
+    typed: f64,
+    towards: DVec2,
+) {
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document,
+        editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let draw = crate::screens::viewport::input::draw_line_point;
+    if let Some(before) = before {
+        draw(&mut context, 0, before, 0.1, 0.05);
+    }
+    draw(&mut context, 0, start, 0.1, 0.05);
+    context.editor.live.open_on(&[None, Some(typed)]);
+    draw(&mut context, 0, towards, 0.1, 0.05);
+}
+
+fn a_drawing() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document
+}
+
+#[test]
+fn a_trait_typed_straight_or_square_carries_the_rule_to_the_horizontal() {
+    let start = DVec2::new(3.0, 4.0);
+    for (typed, towards, rule) in [
+        (
+            0.0,
+            DVec2::new(9.0, 5.0),
+            Constraint::AxisParallel {
+                segment: SegmentId(0),
+                axis: SketchAxis::U,
+            },
+        ),
+        (
+            180.0,
+            DVec2::new(-4.0, 5.0),
+            Constraint::AxisParallel {
+                segment: SegmentId(0),
+                axis: SketchAxis::U,
+            },
+        ),
+        (
+            90.0,
+            DVec2::new(4.0, 12.0),
+            Constraint::AxisPerpendicular {
+                segment: SegmentId(0),
+                axis: SketchAxis::U,
+            },
+        ),
+        (
+            -90.0,
+            DVec2::new(4.0, -6.0),
+            Constraint::AxisPerpendicular {
+                segment: SegmentId(0),
+                axis: SketchAxis::U,
+            },
+        ),
+    ] {
+        let mut document = a_drawing();
+        let mut editor = SketchEditor::default();
+
+        draw_typed(&mut document, &mut editor, None, start, typed, towards);
+
+        let sketch = &document.sketches()[0];
+        assert_eq!(sketch.live_segments().count(), 1, "{typed}: no arm");
+        assert_eq!(sketch.constraints(), &[rule], "{typed}");
+        assert!(
+            sketch.dimensions().is_empty(),
+            "{typed}: no angle, {:?}",
+            sketch.dimensions(),
+        );
+        assert_eq!(document.history.operations().len(), 2, "{typed}: one step");
+    }
+}
+
+#[test]
+fn a_chained_trait_typed_square_or_straight_carries_the_rule_to_the_one_before() {
+    let first = SegmentId(0);
+    let second = SegmentId(1);
+    for (typed, towards, rule) in [
+        (
+            90.0,
+            DVec2::new(13.0, -5.0),
+            Constraint::Perpendicular { first, second },
+        ),
+        (
+            180.0,
+            DVec2::new(20.0, 3.5),
+            Constraint::Parallel { first, second },
+        ),
+        (
+            0.0,
+            DVec2::new(5.0, 3.5),
+            Constraint::Parallel { first, second },
+        ),
+    ] {
+        let mut document = a_drawing();
+        let mut editor = SketchEditor::default();
+
+        draw_typed(
+            &mut document,
+            &mut editor,
+            Some(DVec2::new(2.0, 3.0)),
+            DVec2::new(12.0, 3.0),
+            typed,
+            towards,
+        );
+
+        let sketch = &document.sketches()[0];
+        assert_eq!(sketch.live_segments().count(), 2, "{typed}: no arm");
+        assert!(
+            sketch.constraints().contains(&rule),
+            "{typed}: {:?}",
+            sketch.constraints(),
+        );
+        assert!(
+            sketch
+                .dimension_of(DimensionTarget::corner(first, second))
+                .is_none(),
+            "{typed}: no angle at the corner",
+        );
+        assert_eq!(document.history.operations().len(), 3, "{typed}: one step");
+    }
+}
+
+#[test]
+fn with_the_option_off_a_trait_typed_square_gets_its_arm_and_its_angle() {
+    let mut document = a_drawing();
+    let mut editor = SketchEditor {
+        sketching: dimensions_at_exact_angles(),
+        ..SketchEditor::default()
+    };
+
+    draw_typed(
+        &mut document,
+        &mut editor,
+        None,
+        DVec2::new(3.0, 4.0),
+        90.0,
+        DVec2::new(4.0, 12.0),
+    );
+
+    let sketch = &document.sketches()[0];
+    assert_eq!(sketch.live_segments().count(), 2, "the trait and its arm");
+    let reading = sketch
+        .dimensions()
+        .iter()
+        .find(|value| matches!(value.target, DimensionTarget::Angle { .. }))
+        .expect("the angle is read against the arm");
+    assert!((reading.value - 90.0).abs() < 1e-6, "{}", reading.value);
+}
+
+#[test]
+fn zero_typed_against_the_arm_of_a_trait_lays_the_rule_to_the_axis_and_the_arm_goes() {
+    let mut document = a_drawing();
+    let mut editor = SketchEditor::default();
+    draw_typed(
+        &mut document,
+        &mut editor,
+        None,
+        DVec2::new(2.0, 3.0),
+        30.0,
+        DVec2::new(10.0, 8.0),
+    );
+    let target = document.sketches()[0]
+        .dimensions()
+        .iter()
+        .map(|value| value.target)
+        .find(|target| target.is_angle())
+        .expect("the trait is read against its arm");
+    let steps = document.history.applied();
+    let mut editor = SketchEditor {
+        editing: Some(crate::screens::sketch::DimensionEdit {
+            target,
+            input: "0".to_string(),
+            focus: false,
+            placed_the_scale: false,
+        }),
+        ..SketchEditor::default()
+    };
+
+    assert!(crate::screens::sketch::apply_dimension_value(
+        &mut document,
+        &mut editor,
+        0,
+        target,
+        &Catalogue::french(),
+    ));
+
+    let sketch = &document.sketches()[0];
+    assert_eq!(
+        sketch.constraints(),
+        &[Constraint::AxisParallel {
+            segment: SegmentId(0),
+            axis: SketchAxis::U,
+        }],
+    );
+    assert_eq!(sketch.live_segments().count(), 1, "the arm goes");
+    assert!(sketch.dimensions().is_empty(), "{:?}", sketch.dimensions());
+    assert_eq!(document.history.applied(), steps + 1, "in the same step");
+    let (from, to) = sketch.endpoints(SegmentId(0));
+    assert!((from.y - to.y).abs() < 1e-6, "level: {from} to {to}");
+}
+
+#[test]
+fn a_symmetric_line_typed_square_carries_the_rule_and_no_arm() {
+    let document = a_symmetric_line_at(90.0);
+
+    let sketch = &document.sketches()[0];
+    assert_eq!(sketch.live_segments().count(), 1, "no arm");
+    assert!(
+        sketch
+            .constraints()
+            .contains(&Constraint::AxisPerpendicular {
+                segment: SegmentId(0),
+                axis: SketchAxis::U,
+            }),
+        "{:?}",
+        sketch.constraints(),
+    );
+    assert!(
+        !sketch.dimensions().iter().any(|it| it.target.is_angle()),
+        "{:?}",
+        sketch.dimensions(),
     );
 }

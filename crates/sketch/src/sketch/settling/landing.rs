@@ -6,7 +6,7 @@ use crate::constraints::{Constraint, DimensionTarget};
 use crate::equation::Equation;
 use crate::laid_from::LaidFrom;
 use crate::resizing::Curved;
-use crate::sketch::Element;
+use crate::sketch::{Element, PointId};
 
 impl Sketch {
     /// Lays a rule down and settles the drawing into it, the thing it was laid
@@ -17,7 +17,23 @@ impl Sketch {
             self.turn_onto_the_axis(rule);
         }
         self.add_constraint(rule);
+        if let Some(landed) = self.meet_in_order(rule, millimeters_per_unit) {
+            return landed;
+        }
         self.land(rule.laid_from(), None, millimeters_per_unit)
+    }
+
+    /// Every point held on two things or more.
+    pub(super) fn held_twice(&self) -> Vec<PointId> {
+        self.live_points()
+            .map(|(point, _)| point)
+            .filter(|point| self.holds_on(*point).len() > 1)
+            .collect()
+    }
+
+    /// Whether a point held on two things gives on both while a rule lands.
+    pub(crate) fn is_loosened(&self, point: PointId) -> bool {
+        self.held.loosened.contains(&point)
     }
 
     /// A curve beside the end of a trait touches the trait's line, never the
@@ -68,7 +84,7 @@ impl Sketch {
         let (moving, shift) = match from {
             LaidFrom::Trait => (element, -span * past),
             LaidFrom::Curve => (Element::Segment(segment), span * past),
-            LaidFrom::Nowhere => return,
+            LaidFrom::Nowhere | LaidFrom::Point => return,
         };
         for point in self.points_it_leans_on(moving) {
             self.move_point(point, self.point(point) + shift);
@@ -109,7 +125,7 @@ impl Sketch {
         })
     }
 
-    fn land_held(
+    pub(in crate::sketch) fn land_held(
         &mut self,
         from: Option<Element>,
         target: Option<DimensionTarget>,

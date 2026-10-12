@@ -55,6 +55,7 @@ pub(crate) fn draw_arc(
     let end = point_ref_at(context, index, drawn.end, snap);
 
     context.editor.tool_state = ToolState::None;
+    let opened = context.document.history.mark();
     context.document.apply(Operation::AddArc {
         sketch: index,
         center,
@@ -76,6 +77,7 @@ pub(crate) fn draw_arc(
     if mode == ArcMode::ByCenter && second_typed {
         construct_the_sector(context, index, arc);
     }
+    context.document.history.fold_into_one_gesture(opened);
     context.editor.live.clear();
     context.editor.message = Some(asks_for);
     true
@@ -158,3 +160,6 @@ pub(crate) fn aimed(context: &SketchContext<'_>, places: &[DVec2], cursor: DVec2
         shape_scale(context),
     )
 }
+
+#[cfg(test)]
+mod tests;

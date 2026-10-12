@@ -9,7 +9,8 @@ mod what_is_left_to_pin;
 
 pub(crate) use super::*;
 pub(crate) use crate::annotation::AnnotationMetrics;
-pub(crate) use crate::constraints::SketchAxis;
+pub(crate) use crate::axis_angle::AxisToward;
+pub(crate) use crate::constraints::{SketchAxis, Toward};
 
 /// The smallest drawing there is: two traits leaving the same corner.
 fn corner() -> (Sketch, SegmentId, SegmentId) {

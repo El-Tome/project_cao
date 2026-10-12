@@ -23,9 +23,13 @@ use crate::wording::{constraints, dimension, formula, plane};
 pub fn label(lang: &Catalogue, variables: &Variables, operation: &Operation) -> String {
     match operation {
         // Named by what it laid first: a gesture's headline is the thing the
-        // user meant to draw, and the rest is what that thing leans on.
+        // user meant to draw, and the rest is what that thing leans on. A rule
+        // laid in place of a dimension erases it first, and is named by the
+        // rule.
         Operation::Gesture(done) => done
-            .first()
+            .iter()
+            .find(|operation| !matches!(operation, Operation::EraseMany { .. }))
+            .or(done.first())
             .map(|first| label(lang, variables, first))
             .unwrap_or_default(),
         Operation::Variable(change) => variable(lang, variables, change),

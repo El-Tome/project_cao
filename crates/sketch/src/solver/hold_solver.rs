@@ -22,12 +22,14 @@ impl Sketch {
     /// moment of the correction: see [`Sketch::held_alone`].
     pub(super) fn hold_equations(&self, constraint: Constraint, into: &mut Vec<Equation>) {
         match constraint {
-            Constraint::OnSegment { point, segment } => {
+            Constraint::OnSegment { point, segment, .. } => {
                 into.extend(self.on_line_equation(point, segment, 0.0))
             }
-            Constraint::OnCircle { point, circle } => into.extend(self.rim_equation(point, circle)),
-            Constraint::OnArc { point, arc } => into.extend(self.on_arc_equation(point, arc)),
-            Constraint::OnEllipse { point, ellipse } => {
+            Constraint::OnCircle { point, circle, .. } => {
+                into.extend(self.rim_equation(point, circle))
+            }
+            Constraint::OnArc { point, arc, .. } => into.extend(self.on_arc_equation(point, arc)),
+            Constraint::OnEllipse { point, ellipse, .. } => {
                 into.extend(self.on_ellipse_equation(point, ellipse))
             }
             Constraint::OnAxis { point, axis } => into.extend(self.on_axis_equation(point, axis)),
@@ -85,7 +87,9 @@ impl Sketch {
     /// which points does not change while the drawing settles, only how far
     /// off they are.
     pub(super) fn pulled_elsewhere(&self, millimeters_per_unit: f64, pinned: &[bool]) -> Vec<bool> {
-        let mut pulled = vec![false; self.points().len()];
+        let mut pulled: Vec<bool> = (0..self.points().len())
+            .map(|point| self.is_loosened(PointId(point)))
+            .collect();
         let mut entry: Vec<Equation> = Vec::new();
         for index in 0..self.equation_count() {
             if self.held_by_a_rule(index).is_some() {
@@ -109,7 +113,11 @@ impl Sketch {
     /// each axis, as a share of that axis's reach — and brought back to a
     /// length by how fast that measure changes under the point, which is its
     /// distance to the curve to first order. The axes are read off their own
-    /// traits, both of them: the ellipse's own rows keep them square.
+    /// traits, both of them: the ellipse's own rows keep them square. An axis
+    /// laid out from the centre — the second one of half an ellipse placed by
+    /// its ends — reaches as far as the whole of it, where one laid across the
+    /// curve reaches half its length: read as the other, a point on the curve
+    /// is pulled onto an ellipse half as high (#531).
     pub(super) fn on_ellipse_equation(
         &self,
         point: PointId,
@@ -126,16 +134,21 @@ impl Sketch {
         let reach = self.point(point) - self.point(oval.center);
         // How far out along one axis, as a share of its reach, and how that
         // share answers to the place and to the axis itself.
-        let share = |from: PointId, to: PointId| {
-            let span = self.point(to) - self.point(from);
+        let share = |axis: SegmentId| {
+            let held = self.segments()[axis.0];
+            let span = self.point(held.end) - self.point(held.start);
             let squared = span.length_squared();
-            let out = 2.0 * reach.dot(span) / squared;
-            let by_place = span * (2.0 / squared);
-            let by_span = reach * (2.0 / squared) - span * (2.0 * out / squared);
+            let length_over_reach = match self.axis_stands_on_the_centre(oval.center, axis) {
+                true => 1.0,
+                false => 2.0,
+            };
+            let out = length_over_reach * reach.dot(span) / squared;
+            let by_place = span * (length_over_reach / squared);
+            let by_span = reach * (length_over_reach / squared) - span * (2.0 * out / squared);
             (squared, out, by_place, by_span)
         };
-        let (first_squared, s, s_place, s_span) = share(first.start, first.end);
-        let (second_squared, t, t_place, t_span) = share(second.start, second.end);
+        let (first_squared, s, s_place, s_span) = share(oval.first);
+        let (second_squared, t, t_place, t_span) = share(oval.second);
         if first_squared < 1e-18 || second_squared < 1e-18 {
             return None;
         }

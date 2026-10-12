@@ -19,7 +19,7 @@ fn corner_of_a_drawing(size: f64) -> f64 {
     let first = sketch.add_segment(Sketch::ORIGIN, corner);
     let second = sketch.add_segment(corner, far);
 
-    sketch.set_dimension(DimensionTarget::Angle { first, second }, WANTED, false);
+    sketch.set_dimension(DimensionTarget::corner(first, second), WANTED, false);
     sketch.resolve(SCALE);
 
     let one = sketch.point(corner) - sketch.point(Sketch::ORIGIN);

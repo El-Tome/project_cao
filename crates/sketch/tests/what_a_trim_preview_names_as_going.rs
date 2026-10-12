@@ -27,6 +27,7 @@
 //!   `a_reach_a_piece_of_the_arc_keeps_is_not_said_to_be_going_and_a_sweep_is`
 //!   and `a_point_held_on_the_stretch_that_goes_loses_what_held_it`
 
+use cao_sketch::LaidFrom;
 use cao_sketch::{Constraint, DimensionTarget, PointId, SegmentId, Sketch, WorkPlane};
 use glam::DVec2;
 
@@ -49,6 +50,7 @@ fn a_point_held_on_the_piece_that_stays_is_not_said_to_be_going() {
     sketch.add_constraint(Constraint::OnSegment {
         point: beside_the_cut,
         segment,
+        from: LaidFrom::Nowhere,
     });
 
     let going = sketch
@@ -72,14 +74,7 @@ fn a_square_corner_with_its_angle_typed() -> (Sketch, [SegmentId; 2], [[PointId;
     let north = sketch.add_point(DVec2::new(1.0, 11.0));
     let across = sketch.add_segment(corner, east);
     let up = sketch.add_segment(corner, north);
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: across,
-            second: up,
-        },
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(across, up), 90.0, false);
     let on_across = [
         sketch.add_point(DVec2::new(5.0, 1.0)),
         sketch.add_point(DVec2::new(8.0, 1.0)),

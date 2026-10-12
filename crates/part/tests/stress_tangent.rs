@@ -5,7 +5,9 @@
 //! a solver fed contradictory values is apt to do.
 
 use cao_part::{Operation, PartDocument, PointRef};
-use cao_sketch::{Constraint, DimensionTarget, PointId, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{
+    AxisToward, Constraint, DimensionTarget, PointId, SegmentId, SketchAxis, Toward, WorkPlane,
+};
 use glam::DVec2;
 
 /// Random enough to shuffle the order of the changes, and repeatable so a
@@ -120,7 +122,9 @@ fn a_tangent_circle_hammered_with_values_never_goes_to_pieces() {
                         sketch: 0,
                         target: DimensionTarget::AxisAngle {
                             segment: SegmentId(rng.range(segments)),
+                            segment_toward: Toward::End,
                             axis: SketchAxis::U,
+                            axis_toward: AxisToward::Positive,
                         },
                         value: (rng.unit() * 180.0).into(),
                         placement: None,

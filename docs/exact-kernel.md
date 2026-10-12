@@ -797,8 +797,8 @@ The decisions, in the order taken, once per operation:
     as decision 8's, they are left two too.
 
 11. **A plane a hair off square to, or along, a wall's axis** (#552). A
-    plane of one operand and a cylinder or a cone of the other, their faces
-    in boxes that meet, the plane leaning off square to the wall's axis or
+    plane of one operand and a cylinder, a cone or an elliptic wall (#571)
+    of the other, their faces in boxes that meet, the plane leaning off square to the wall's axis or
     off along it: the second operand is turned so that the plane lies
     exactly square or along, about where the two operands meet and set down
     on what it held against the first (below), where that turn moves none
@@ -838,7 +838,12 @@ The decisions, in the order taken, once per operation:
     first operand's is laid on that one's bits, so that a circle and its
     wall share their axis, and identity, decisions 1 and 8 then compare
     exactly. A tool turned 1e-7 degrees off a bore of its radius is then
-    merged onto it by decision 8.
+    merged onto it by decision 8. An elliptic wall (#571) turns its axis
+    and its half-axes together, their lengths kept to the bit, and the
+    section a plane cuts it along, its rim, is cut again on the turned
+    plane and wall; its major half-axis turned within rounding of an
+    elliptic wall's of the first is laid on that one's bits too, so that
+    decision 1 compares the two ellipses exactly.
 
     Where the turn is made about decides where the operand ends up, a hair
     either way, and a hair parts what the second held against the first.
@@ -863,7 +868,9 @@ The decisions, in the order taken, once per operation:
     touching a cylinder of the other across its axis. Turned about where
     the operands meet, a slot's side drawn on a disc's wall and a rounded
     block's seam drawn on a ring's stood a fraction of `EPS` off, and were
-    refused (5546322326, 5546607658); their edges lay them. A flat is not
+    refused (5546322326, 5546607658); their edges lay them. An elliptic
+    wall is touched across its axis where an edge stands as far from it as
+    its support reaches across the edge. A flat is not
     laid on a wall it touches: a face drawn on a turn's wall, a hair inside
     a second wall of the turn a hair larger, was laid on that one, further
     off the first, and refused (5546111832). A flat passing
@@ -893,8 +900,8 @@ The decisions, in the order taken, once per operation:
     and was cut along two rulings it does not hold (5543232861); where a
     canonical direction would
     turn round, the way its curves run with it; nor where the operand holds
-    a conic or the curve two perpendicular cylinders meet along, which a
-    leaf never does. The pair is then built as drawn.
+    a conic other than an elliptic wall's whole section, or the curve two
+    perpendicular cylinders meet along, which a leaf never does. The pair is then built as drawn.
 
     Only a plane against a wall's axis, as #552 decided. Turning for any
     pair of directions — two planes, two walls — held fourteen more of the
@@ -1188,8 +1195,8 @@ covered once from each side.
 9. **Verification.** The listing is checked before the body is handed back.
    What the kernel cannot verify it does not answer.
 10. **A lean read unstably** (#552, `combine/unstable.rs`). Once decision 11
-    has turned the second operand, a plane of one operand and a cylinder or
-    a cone of the other, their faces near enough to meet and not standing
+    has turned the second operand, a plane of one operand and a cylinder, a
+    cone or an elliptic wall (#571) of the other, their faces near enough to meet and not standing
     clear, may still lean off square to the wall's axis, or off along it,
     by more than decision 11 lays exactly and by a sine under a thousandth.
     The conic it cuts divides by that lean, so the step's rounding is

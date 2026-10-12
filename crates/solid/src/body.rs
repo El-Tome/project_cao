@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::brep::{Declined, Unstable};
 use crate::mesh::{Mesh, Polygon};
-use crate::profile::{Frame, Profile};
+use crate::profile::{Contour, Frame, Profile};
 use crate::sweep;
 use crate::turning::{Lie, Straight, Turn};
 use exact::Exact;
@@ -84,7 +84,11 @@ impl Body {
         frame: Frame,
         travel: DVec3,
     ) -> Result<Body, Declined> {
-        if let (Matter::Exact(_), Some((outline, holes))) = (&self.matter, &profile.exact) {
+        if let (Matter::Exact(_), Some((outline, holes))) = (&self.matter, &profile.exact)
+            && !std::iter::once(outline)
+                .chain(holes)
+                .any(Contour::follows_an_ellipse)
+        {
             return Ok(Body::of_exact(Exact::raised(
                 outline, holes, frame, travel,
             )?));

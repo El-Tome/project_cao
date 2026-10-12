@@ -11,7 +11,7 @@ use glam::DVec2;
 pub(crate) fn profile<'a>(region: &'a Region, triangles: &'a [[DVec2; 3]]) -> Profile<'a> {
     let (sampled, sampled_holes) = loops(region);
     Profile {
-        exact: exact(region),
+        exact: Some(exact(region)),
         sampled,
         sampled_holes,
         triangles,
@@ -34,19 +34,15 @@ fn loops(region: &Region) -> (Loop<'_>, Vec<Loop<'_>>) {
     )
 }
 
-/// The outline and the holes as runs, or nothing when one of them follows an
-/// ellipse, which the exact kernel has no surface for.
-fn exact(region: &Region) -> Option<(Contour, Vec<Contour>)> {
-    let outline = contour(&region.outline)?;
-    let holes = region
-        .holes
-        .iter()
-        .map(contour)
-        .collect::<Option<Vec<_>>>()?;
-    Some((outline, holes))
+/// The outline and the holes as runs.
+fn exact(region: &Region) -> (Contour, Vec<Contour>) {
+    (
+        contour(&region.outline),
+        region.holes.iter().map(contour).collect(),
+    )
 }
 
-fn contour(outline: &Outline) -> Option<Contour> {
+fn contour(outline: &Outline) -> Contour {
     let (corners, runs) = outline
         .runs()
         .into_iter()
@@ -57,10 +53,20 @@ fn contour(outline: &Outline) -> Option<Contour> {
                     center: centre,
                     turn: turned,
                 },
-                Leg::Oval => return None,
+                Leg::Oval {
+                    centre,
+                    first,
+                    second,
+                    turned,
+                } => Run::Oval {
+                    center: centre,
+                    first,
+                    second,
+                    turn: turned,
+                },
             };
-            Some((corner, run))
+            (corner, run)
         })
-        .collect::<Option<(Vec<_>, Vec<_>)>>()?;
-    Some(Contour { corners, runs })
+        .unzip();
+    Contour { corners, runs }
 }

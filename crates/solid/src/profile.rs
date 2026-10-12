@@ -11,9 +11,8 @@ use crate::sweep::Loop;
 /// one raises it is the body's business ([`crate::Body::tool_raised`]).
 #[derive(Clone, Debug)]
 pub struct Profile<'a> {
-    /// The outline and the holes as runs, or `None` when a run follows a
-    /// curve the exact kernel has no surface for, an ellipse: the area is then
-    /// raised by the flats.
+    /// The outline and the holes as runs, or `None` when the drawing hands
+    /// none: the area is then raised by the flats.
     pub exact: Option<(Contour, Vec<Contour>)>,
     pub sampled: Loop<'a>,
     pub sampled_holes: Vec<Loop<'a>>,
@@ -30,6 +29,16 @@ pub enum Run {
         center: DVec2,
         turn: f64,
     },
+    /// Along the ellipse about `center` whose first semi-axis is `first`, its
+    /// second reaching `second` a quarter turn counter-clockwise from it,
+    /// `turn` radians of the turn round it measured from the first axis,
+    /// signed as the turn goes.
+    Oval {
+        center: DVec2,
+        first: DVec2,
+        second: f64,
+        turn: f64,
+    },
 }
 
 /// A closed loop of a profile: `corners[i]` runs to `corners[i + 1]` as
@@ -41,6 +50,12 @@ pub struct Contour {
 }
 
 impl Contour {
+    /// Whether a run of the loop follows an ellipse, which the exact kernel
+    /// does not raise yet: the area goes to the flats (#571).
+    pub(crate) fn follows_an_ellipse(&self) -> bool {
+        self.runs.iter().any(|run| matches!(run, Run::Oval { .. }))
+    }
+
     pub fn straight(corners: Vec<DVec2>) -> Self {
         let runs = vec![Run::Straight; corners.len()];
         Self { corners, runs }

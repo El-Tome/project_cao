@@ -236,6 +236,7 @@ fn read(from: DVec2, to: DVec2, run: Run, eps: f64) -> Result<Option<Piece>, Dec
                 sweep: turn,
             }))
         }
+        Run::Oval { .. } => Err(Declined::Unfinished),
     }
 }
 

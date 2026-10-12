@@ -75,8 +75,15 @@ struct Walls {
 struct Side {
     surface: SurfaceId,
     flipped: bool,
-    cylinder: Option<Cylinder>,
-    oval: Option<EllipticCylinder>,
+    wall: Wall,
+}
+
+/// What a side's wall is, as its piece built it.
+#[derive(Clone, Copy)]
+enum Wall {
+    Flat,
+    Round(Cylinder),
+    Oval(EllipticCylinder),
 }
 
 impl Walls {
@@ -95,7 +102,7 @@ impl Walls {
         if let ([piece @ Piece::Arc { center, sweep, .. }], [side]) = (contour, sides.as_slice())
             && piece.is_ring()
             && parted.touches[0].is_none()
-            && let Some(cylinder) = side.cylinder
+            && let Wall::Round(cylinder) = side.wall
         {
             let center = self.frame.at(*center);
             let below = self.laying.ring(&cylinder, center, *sweep, self.up);
@@ -114,7 +121,7 @@ impl Walls {
         if let ([piece @ Piece::Oval { sweep, .. }], [side]) = (contour, sides.as_slice())
             && piece.is_ring()
             && parted.touches[0].is_none()
-            && let Some(wall) = side.oval
+            && let Wall::Oval(wall) = side.wall
         {
             let [below, above] = self
                 .caps()
@@ -146,8 +153,8 @@ impl Walls {
         let (mut below, mut above) = (Vec::new(), Vec::new());
         for (index, piece) in contour.iter().enumerate() {
             let (start, end) = (corners[index], corners[(index + 1) % count]);
-            let (bottom, top) = match (*piece, sides[index].cylinder, sides[index].oval) {
-                (Piece::Oval { sweep, .. }, _, Some(wall)) => {
+            let (bottom, top) = match (*piece, sides[index].wall) {
+                (Piece::Oval { sweep, .. }, Wall::Oval(wall)) => {
                     let [floor, top] = self.caps();
                     (
                         self.laying
@@ -156,7 +163,7 @@ impl Walls {
                             .oval_arc(&wall, &top, [start.1, end.1], sweep, self.up),
                     )
                 }
-                (Piece::Arc { center, sweep, .. }, Some(cylinder), _) => {
+                (Piece::Arc { center, sweep, .. }, Wall::Round(cylinder)) => {
                     let center = self.frame.at(center);
                     (
                         self.laying
@@ -206,8 +213,7 @@ impl Walls {
                 Side {
                     surface,
                     flipped,
-                    cylinder: None,
-                    oval: None,
+                    wall: Wall::Flat,
                 }
             }
             Piece::Arc {
@@ -220,8 +226,7 @@ impl Walls {
                 Side {
                     surface: self.laying.surface(Surface::Cylinder(cylinder), &corners),
                     flipped: sweep < 0.0,
-                    cylinder: Some(cylinder),
-                    oval: None,
+                    wall: Wall::Round(cylinder),
                 }
             }
             Piece::Oval {
@@ -236,8 +241,7 @@ impl Walls {
                 Side {
                     surface: self.laying.surface(Surface::Elliptic(wall), &corners),
                     flipped: sweep < 0.0,
-                    cylinder: None,
-                    oval: Some(wall),
+                    wall: Wall::Oval(wall),
                 }
             }
         }

@@ -2266,5 +2266,32 @@ two crossing walls (`conics-at-a-node`, above).
 **The gate.** Built and warm, best of three runs each, side by side on
 12 October: 37.4 s at the tip, 33.1 s at `9e54a71`, the tip of #536 the
 branch stands on. That is 4.3 s over it, past the 3 s the issue's fourth
-default allows, and that default says to cut gate seeds first; it is left
-to the pull request.
+default allows, and that default says to cut gate seeds first; it was
+left to the pull request, and Tom accepted it as it stands (below).
+
+### Merged as it stands
+
+**Tom's word of 2026-10-12**, after trying the branch in the application:
+merge it, knowing it is not perfect, and keep a written trace of what is
+not. What went to `main` short of what was aimed at:
+
+- **The tilted draws are not under one failure in a thousand.** They end
+  at 2.02 and 2.17, nearly every failure a hair; every other draw is under
+  the bar. The families above are why, and each is named.
+- **One seed the branch broke**, 5570235757 (`conics-at-a-node`), named
+  and ignored rather than fixed.
+- **A plane touching a frustum along a ruling, the apex outside the
+  part,** is listed as two arcs of ellipse 4e-7 apart with a ribbon of cone
+  between them, not as the ruling. The body is closed, uncrossed, at the
+  right volume, and nothing shows on screen; a fillet or a dimension on
+  that edge would meet it. The plane drawn tangent passes a hair inside
+  the cone, and no band is laid along a conic. With the apex inside the
+  part, the same gesture gives the ruling.
+- **The notice writes its angle with a point**, « 0.01° », where French
+  writes « 0,01° ». Left as it is.
+- **The gate is 4.3 s slower than at #536's tip**, past the 3 s the issue
+  allowed, with no gate seed cut. Tom accepted it, and a little more if a
+  later step needs it.
+- **The follow-ups are not opened**: a band laid along a conic, decision
+  11 for every pair of directions, #514's grid, exact predicates where
+  floating point cannot tell. They are opened on Tom's word.

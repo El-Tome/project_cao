@@ -1290,6 +1290,10 @@ lying on the conic's plane is the conic, along the surface (9501873,
   unverified or as a tie: about two tilted random parts in a thousand,
   hairs nearly all of them, named in `exact-kernel-failures.md`, "#552:
   conics".
+- **Merged short of the bar.** Tom had it merged on 2026-10-12 knowing
+  it is not perfect: the tilted draws above one in a thousand, one seed
+  broken, a frustum's line of touch read as two arcs, a slower gate. The
+  list is in `exact-kernel-failures.md`, "Merged as it stands".
 
 ## The curve two perpendicular cylinders meet
 

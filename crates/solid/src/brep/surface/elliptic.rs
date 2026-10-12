@@ -101,6 +101,19 @@ impl EllipticCylinder {
         }
     }
 
+    /// Whether another elliptic wall about a parallel axis is this one within
+    /// `eps`: the offset of its axis, each difference of its half-axes, and
+    /// how far the turn of its major half-axis moves the ends of this one's,
+    /// each within it, as a cylinder's axis and radius are.
+    pub fn within(&self, other: &EllipticCylinder, eps: f64) -> bool {
+        let between = other.origin - self.origin;
+        let across = between - self.axis * self.axis.dot(between);
+        across.length() <= eps
+            && (self.major - other.major).abs() <= eps
+            && (self.minor - other.minor).abs() <= eps
+            && self.u.cross(other.u).length() * self.major <= eps
+    }
+
     /// How far another elliptic wall about a parallel axis stands from this
     /// one: the offset of its axis, the differences of its half-axes, and how
     /// far the turn of its major half-axis moves the ends of this one's.
@@ -118,7 +131,7 @@ impl EllipticCylinder {
     /// from a point to an ellipse", 2013) — the place folded into the first
     /// quadrant, the foot's multiplier found by halving on the stretch where
     /// it is the one root, a place on an axis of the section read apart.
-    pub fn foot(&self, at: DVec2) -> (DVec2, f64) {
+    fn foot(&self, at: DVec2) -> (DVec2, f64) {
         let (a, b) = (self.major, self.minor);
         let (y0, y1) = (at.x.abs(), at.y.abs());
         let (x0, x1) = if y1 > 0.0 {

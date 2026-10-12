@@ -18,7 +18,7 @@ pub(super) use way::{signed_area, turned};
 /// How many roundings of its radius a point of a circle carries once it is
 /// computed from a centre that far away: an arc so large that they reach the
 /// tolerance cannot keep its own points on its surface.
-pub(super) const ROUNDINGS: f64 = 16.0;
+const ROUNDINGS: f64 = 16.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum Piece {

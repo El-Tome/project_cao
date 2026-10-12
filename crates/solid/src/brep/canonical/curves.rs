@@ -207,7 +207,7 @@ fn conics_within(one: &Conic, other: &Conic, scale: Scale, eps: f64) -> bool {
             facing(mine.axis, theirs.axis),
         ),
         (Round::Elliptic(mine), Round::Elliptic(theirs)) => (
-            parallel(mine.axis, theirs.axis, scale) && mine.gap(&theirs) <= eps,
+            parallel(mine.axis, theirs.axis, scale) && mine.within(&theirs, eps),
             facing(mine.axis, theirs.axis),
         ),
         (Round::Cylinder(_), Round::Cone(_) | Round::Elliptic(_))

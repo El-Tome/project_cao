@@ -170,7 +170,7 @@ fn oval_turning(
     }
     let start = oval::angle(center, axes, corner);
     let (from, to) = (
-        start.min(start + turn),
+        start.min(start + turn).max(start - TAU),
         start.max(start + turn).min(start + TAU),
     );
     let [along, across] = [axes.0, axes.0.perp().normalize() * axes.1]

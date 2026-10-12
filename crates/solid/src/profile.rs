@@ -50,8 +50,9 @@ pub struct Contour {
 }
 
 impl Contour {
-    /// Whether a run of the loop follows an ellipse, which the exact kernel
-    /// does not raise yet: the area goes to the flats (#571).
+    /// Whether a run of the loop follows an ellipse, which `Body` still sends
+    /// to the flats: the exact kernel raises it, but is not yet trusted with
+    /// every pair of surfaces an elliptic wall meets (#571).
     pub(crate) fn follows_an_ellipse(&self) -> bool {
         self.runs.iter().any(|run| matches!(run, Run::Oval { .. }))
     }

@@ -6,6 +6,7 @@
 
 use super::*;
 use crate::brep::conic::{Arm, Conic, Round};
+use crate::brep::surface::EllipticCylinder;
 use crate::brep::tessellation::tests::fixtures;
 
 fn slanted(through: DVec3, lean: f64) -> Plane {
@@ -45,6 +46,22 @@ fn one(plane: &Plane, round: &Round) -> Curve {
         panic!("one conic expected of {plane:?} on {round:?}");
     };
     Curve::Conic(conic)
+}
+
+#[test]
+fn two_conics_of_one_plane_on_elliptic_walls_the_relation_finds_one_are_one_curve() {
+    let hair = 0.6 * scale().eps();
+    let wall = EllipticCylinder::about(DVec3::ZERO, DVec3::Z, DVec3::X * 7.0, 3.0);
+    let beside = EllipticCylinder::about(DVec3::X * hair, DVec3::Z, DVec3::X * (7.0 + hair), 3.0);
+    let found = relation(
+        &Surface::Elliptic(wall),
+        &Surface::Elliptic(beside),
+        scale(),
+    );
+    assert_eq!(found, Relation::Same { agree: true });
+    let plane = slanted(DVec3::new(0.0, 0.0, 4.0), 0.4);
+    let [curve, near] = [wall, beside].map(|round| one(&plane, &Round::Elliptic(round)));
+    assert!(same(&curve, &near, scale()), "{curve:?} and {near:?}");
 }
 
 #[test]

@@ -26,12 +26,13 @@ use glam::DVec3;
 
 use super::chords::halved;
 use super::cone::Grid;
-use super::ends::grazed;
+use super::elliptic::{a_step_apart, between_steps, on_the_wall, reached_by_planes};
+use super::ends::{grazed, grazed_near};
 use super::{divisions, on_a_plane, touching_planes};
 use crate::brep::conic::{Conic, On, Round};
 use crate::brep::curve::Curve;
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, EllipticCylinder, Surface};
+use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::tessellation::contact::{self, Contact, Wall, Zones};
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
@@ -104,15 +105,16 @@ pub(super) fn of_edge(
         Round::Elliptic(wall) => {
             let steps = divisions(wall.major, tolerance);
             let grid = turn(steps);
-            let step = TAU * wall.major / steps as f64;
             let own = [plane, Surface::Elliptic(wall)];
-            let grazing = grazed(body, edge, &own, step);
+            let grazing = grazed_near(body, edge, &own, a_step_apart(wall, steps));
             let clear = |point: DVec3| !grazing(point, eps * contact::APART);
-            let rays: Vec<f64> = on_the_wall(body, &wall)
+            let rays: Vec<f64> = on_the_wall(body, &wall, steps)
                 .into_iter()
+                .chain(reached_by_planes(body, &wall))
                 .chain(rays.iter().copied())
                 .collect();
-            on_conic(conic, edge, tolerance, eps, [&grid, &rays], &clear)
+            let edge = between_steps(conic, edge, steps);
+            on_conic(conic, &edge, tolerance, eps, [&grid, &rays], &clear)
         }
     }
 }
@@ -250,24 +252,6 @@ fn about(round: &Round) -> (DVec3, DVec3) {
         Round::Cone(cone) => (cone.origin, cone.axis),
         Round::Elliptic(wall) => (wall.origin, wall.axis),
     }
-}
-
-/// The angles about an elliptic wall of every vertex lying on it, where a
-/// ruling leaves that every rim of the wall takes a sample on.
-fn on_the_wall(body: &Body, wall: &EllipticCylinder) -> Vec<f64> {
-    let Some(rank) = body
-        .surfaces
-        .iter()
-        .position(|surface| *surface == Surface::Elliptic(*wall))
-    else {
-        return Vec::new();
-    };
-    let id = SurfaceId(rank as u32);
-    body.vertices
-        .iter()
-        .filter(|vertex| vertex.on.contains(&id))
-        .map(|vertex| wall.parameters(vertex.point).x)
-        .collect()
 }
 
 /// Whether a wall turns about the line through `origin` along `axis`.

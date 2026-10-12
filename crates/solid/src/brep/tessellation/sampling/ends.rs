@@ -141,6 +141,23 @@ pub(super) fn grazed<'a>(
     own: &[Surface],
     step: f64,
 ) -> impl Fn(DVec3, f64) -> bool + use<'a> {
+    grazed_near(body, edge, own, move |point: DVec3, end: DVec3| {
+        (point - end).length() <= step
+    })
+}
+
+/// Whether a place of an edge stands within `room` of a surface one of its
+/// ends lies on and none of the curve's `own` surfaces is, where `near` says
+/// the place stands near that end.
+pub(super) fn grazed_near<'a, Near>(
+    body: &'a Body,
+    edge: &'a Edge,
+    own: &[Surface],
+    near: Near,
+) -> impl Fn(DVec3, f64) -> bool + use<'a, Near>
+where
+    Near: Fn(DVec3, DVec3) -> bool + 'a,
+{
     let ends: Vec<(DVec3, Vec<Surface>)> = edge
         .ends
         .into_iter()
@@ -158,7 +175,7 @@ pub(super) fn grazed<'a>(
         .collect();
     move |point: DVec3, room: f64| {
         ends.iter().any(|(end, surfaces)| {
-            (point - *end).length() <= step
+            near(point, *end)
                 && surfaces
                     .iter()
                     .any(|surface| surface.distance(point).abs() < room)

@@ -1,10 +1,12 @@
 //! Joins and cuts on an elliptic wall (#571): the planes of a block square
 //! to its axis, along it — crossing it along two rulings, or touching it
 //! along one at its support point — and at a slant, and the same ellipse
-//! twice. Each held to its listing, to the arithmetic's volume, and drawn
-//! closed.
+//! twice; then the cases the stresses of `stress_elliptic.rs` found drawn
+//! wrong. Each held to its listing, to the arithmetic's volume where it is
+//! simple, and drawn closed and uncrossed from a fine tolerance to a coarse
+//! one.
 
-use std::f64::consts::{PI, TAU};
+use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 use glam::{DVec2, DVec3};
 
@@ -23,13 +25,19 @@ fn first(turned: f64) -> DVec2 {
 /// The ellipse about `center` whose major half-axis is `first`, raised from
 /// `from` to `to`.
 fn oval(center: [f64; 2], first: DVec2, from: f64, to: f64) -> Body {
+    ellipse(center, first, MINOR, from, to)
+}
+
+/// The ellipse about `center` whose major half-axis is `first` and whose
+/// minor one is `minor` long, raised from `from` to `to`.
+fn ellipse(center: [f64; 2], first: DVec2, minor: f64, from: f64, to: f64) -> Body {
     let center = DVec2::from(center);
     let outline = Contour {
         corners: vec![center + first],
         runs: vec![Run::Oval {
             center,
             first,
-            second: MINOR,
+            second: minor,
             turn: TAU,
         }],
     };
@@ -42,15 +50,23 @@ fn area() -> f64 {
 }
 
 fn held(body: &Body, volume: f64) {
-    assert_eq!(listed(&body.listing(), body.scale().reach()), Ok(()));
     assert!(
         (body.volume() - volume).abs() <= 1e-9 * volume,
         "the body holds {}, the arithmetic {volume}",
         body.volume()
     );
-    let triangles = body.triangles(1e-3 * body.scale().reach());
-    closed(&triangles).expect("the triangles close");
-    uncrossed(&triangles).expect("no triangle crosses another");
+    drawn(body);
+}
+
+/// The body's listing, and its triangles closed and uncrossed from a fine
+/// tolerance to a coarse one.
+fn drawn(body: &Body) {
+    assert_eq!(listed(&body.listing(), body.scale().reach()), Ok(()));
+    for share in [1e-4, 1e-3, 2e-2] {
+        let triangles = body.triangles(share * body.scale().reach());
+        assert_eq!(closed(&triangles).map_err(|_| share), Ok(()), "open");
+        assert_eq!(uncrossed(&triangles).map_err(|_| share), Ok(()), "crossed");
+    }
 }
 
 #[test]
@@ -219,6 +235,27 @@ fn the_same_ellipse_cut_twice_is_one_surface() {
     assert_eq!(walls, 1);
 }
 
+#[test]
+fn an_ellipse_a_hair_off_another_in_centre_and_half_axis_is_joined_into_one_boss() {
+    let boss = oval([3.0, -1.0], first(0.4), 0.0, 4.0);
+    let hair = 0.6 * boss.scale().eps();
+    let off = ellipse(
+        [3.0 + hair, -1.0],
+        first(0.4) * (1.0 + hair / MAJOR),
+        MINOR,
+        0.0,
+        4.0,
+    );
+    let joined = boss.joined(&off).expect("the two are one boss");
+    held(&joined, area() * 4.0);
+    let rims = joined
+        .curves
+        .iter()
+        .filter(|curve| matches!(curve, Curve::Conic(_)))
+        .count();
+    assert_eq!(rims, 2);
+}
+
 /// A slab above the plane through `origin` whose normal is `normal`, wide
 /// enough to cover every boss below.
 fn slab(origin: DVec3, normal: DVec3) -> Body {
@@ -250,4 +287,88 @@ fn a_plane_at_a_slant_through_an_elliptic_boss_cuts_it_along_a_conic() {
         .filter(|curve| matches!(curve, Curve::Conic(_)))
         .count();
     assert!(conics >= 2, "{conics} conics");
+}
+
+#[test]
+fn a_side_a_hair_inside_the_end_of_an_elliptic_boss_s_major_axis_leaves_a_strip_drawn_off_it() {
+    let boss = ellipse(
+        [3.0, 0.0],
+        DVec2::from_angle(FRAC_PI_2) * 2.0,
+        1.5,
+        -1.0,
+        4.0,
+    );
+    let side = 2.0 - 2e-8 / 3.0;
+    let cut = boss
+        .cut_by(&block([-1.5, -4.0, 1.0], [4.0, side, 2.5]))
+        .expect("the boss is cut");
+    drawn(&cut);
+}
+
+#[test]
+fn a_side_a_hair_inside_an_elliptic_boss_s_support_point_leaves_a_strip_drawn_off_it() {
+    let boss = ellipse([-2.0, 2.0], DVec2::from_angle(0.4) * 2.0, 1.6, 0.0, 4.0);
+    let Some(Surface::Elliptic(wall)) = boss
+        .surfaces
+        .iter()
+        .find(|surface| matches!(surface, Surface::Elliptic(_)))
+    else {
+        panic!("the boss stands on an elliptic wall");
+    };
+    let reach = wall.support(DVec3::X);
+    let tool = block(
+        [-2.0 - reach + 2e-8 / 3.0, 1.0, 2.0],
+        [1.0 + reach, 2.5, 2.5],
+    );
+    for body in [boss.joined(&tool), boss.cut_by(&tool), tool.cut_by(&boss)] {
+        drawn(&body.expect("the boss and the block are joined and cut"));
+    }
+}
+
+#[test]
+fn a_tilted_slot_with_elliptic_ends_cut_by_a_block_is_drawn_closed_and_uncrossed() {
+    let center = DVec2::new(-2.0, -1.0);
+    let along = DVec2::from_angle(PI / 4.0);
+    let across = along.perp() * 1.5;
+    let [left, right] = [center - along * 5.0, center + along * 5.0];
+    let slot = Contour {
+        corners: vec![left - across, right - across, right + across, left + across],
+        runs: vec![
+            Run::Straight,
+            Run::Oval {
+                center: right,
+                first: -across,
+                second: 1.0,
+                turn: PI,
+            },
+            Run::Straight,
+            Run::Oval {
+                center: left,
+                first: across,
+                second: 0.7,
+                turn: PI,
+            },
+        ],
+    };
+    let normal = DVec3::new(0.3_f64.sin(), 0.0, 0.3_f64.cos());
+    let u = normal.cross(DVec3::Y).normalize();
+    let frame = Frame {
+        origin: DVec3::ZERO,
+        u,
+        v: normal.cross(u),
+    };
+    let boss = Body::raised(&slot, &[], frame, normal * 3.0).expect("the slot raises");
+    let cut = boss
+        .cut_by(&block([-2.0, -2.0, 1.0], [4.0, 1.0, 3.0]))
+        .expect("the slot is cut");
+    drawn(&cut);
+}
+
+#[test]
+fn a_flat_elliptic_boss_cut_along_its_minor_axis_is_drawn_closed_and_uncrossed() {
+    let boss = ellipse([1.5, -1.0], DVec2::new(7.0, 0.0), 1.0, 1.0, 3.0);
+    let cut = boss
+        .cut_by(&block([1.5, -1.999999, 1.0], [11.5, 0.000001, 3.0]))
+        .expect("the boss is cut");
+    drawn(&cut);
 }

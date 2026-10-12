@@ -38,6 +38,7 @@ mod chords;
 mod circle;
 mod cone;
 mod conic;
+mod elliptic;
 mod ends;
 mod meet;
 mod planes;

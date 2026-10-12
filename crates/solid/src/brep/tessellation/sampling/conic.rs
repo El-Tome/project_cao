@@ -26,12 +26,13 @@ use glam::DVec3;
 
 use super::chords::halved;
 use super::cone::Grid;
+use super::elliptic::on_the_wall;
 use super::ends::grazed;
 use super::{divisions, on_a_plane, touching_planes};
 use crate::brep::conic::{Conic, On, Round};
 use crate::brep::curve::Curve;
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, EllipticCylinder, Surface};
+use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::tessellation::contact::{self, Contact, Wall, Zones};
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
@@ -250,24 +251,6 @@ fn about(round: &Round) -> (DVec3, DVec3) {
         Round::Cone(cone) => (cone.origin, cone.axis),
         Round::Elliptic(wall) => (wall.origin, wall.axis),
     }
-}
-
-/// The angles about an elliptic wall of every vertex lying on it, where a
-/// ruling leaves that every rim of the wall takes a sample on.
-fn on_the_wall(body: &Body, wall: &EllipticCylinder) -> Vec<f64> {
-    let Some(rank) = body
-        .surfaces
-        .iter()
-        .position(|surface| *surface == Surface::Elliptic(*wall))
-    else {
-        return Vec::new();
-    };
-    let id = SurfaceId(rank as u32);
-    body.vertices
-        .iter()
-        .filter(|vertex| vertex.on.contains(&id))
-        .map(|vertex| wall.parameters(vertex.point).x)
-        .collect()
 }
 
 /// Whether a wall turns about the line through `origin` along `axis`.

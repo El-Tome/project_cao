@@ -507,7 +507,11 @@ impl Drawing {
             Outline::Rounded { low, radius, .. } => {
                 self.on_a_rim(plane.to_world(*low + *radius), normal, *radius, ends)
             }
-            Outline::Star { .. } => return self.fresh_turned(),
+            Outline::Star { .. }
+            | Outline::Ellipse { .. }
+            | Outline::Chorded { .. }
+            | Outline::OvalSlot { .. }
+            | Outline::OvalRing { .. } => return self.fresh_turned(),
         };
         self.or_fresh(leaf)
     }
@@ -573,7 +577,13 @@ impl Drawing {
     /// to `ends[1]`: a ring whose inner edge chamfers the circle's rim at
     /// `ends[1]`, or a cone standing on that end whose rim is the circle's;
     /// in a campaign now and then a hair off the circle's axis.
-    fn on_a_rim(&mut self, center: DVec3, normal: DVec3, radius: f64, ends: [DVec3; 2]) -> Leaf {
+    pub(super) fn on_a_rim(
+        &mut self,
+        center: DVec3,
+        normal: DVec3,
+        radius: f64,
+        ends: [DVec3; 2],
+    ) -> Leaf {
         let line = Line {
             point: center,
             axis: world_axis(normal),

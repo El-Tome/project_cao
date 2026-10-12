@@ -2064,6 +2064,28 @@ fn the_draws_before_conics_still_give_each_seed_its_case() {
 }
 
 #[test]
+fn the_draws_before_ellipses_still_give_each_seed_its_case() {
+    assert_eq!(fingerprint(Case::drawn_tilted), 0x39f1_3da1_b1a0_af34);
+    assert_eq!(
+        fingerprint(Case::drawn_tilted_off_the_lattice),
+        0xda6e_019c_3e1a_2a60
+    );
+}
+
+#[test]
+fn the_draws_of_ellipses_give_each_seed_its_case() {
+    assert_eq!(fingerprint(Case::drawn_ellipses), 0x7e99_3b64_802f_dfc2);
+    assert_eq!(
+        fingerprint(Case::drawn_ellipses_crossed),
+        0x24e1_4fd7_5e78_dd65
+    );
+    assert_eq!(
+        fingerprint(Case::drawn_ellipses_tilted),
+        0x29e9_3933_e05a_8940
+    );
+}
+
+#[test]
 fn the_same_seed_draws_the_same_slanted_case_and_not_one_of_the_other_draws() {
     for seed in 0..200 {
         assert_eq!(

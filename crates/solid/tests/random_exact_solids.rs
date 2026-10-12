@@ -24,7 +24,33 @@
 //! thousand square cases, when it was written — and breaks every one they
 //! break.
 //!
-//! A campaign is run by hand, the square one or the one of profiles:
+//! Ellipses come in three draws of their own (#571), each with a seed space
+//! of its own, so that no draw before them changes for any seed: prisms of a
+//! whole ellipse, one cut by one trait or two, a slot with elliptic ends or
+//! an elliptic ring, its axes on the plane's or turned, among blocks,
+//! circles and the other profiles, all raised along one normal
+//! (`Case::drawn_ellipses`), weighted towards the same ellipse a hair off, a
+//! block's side at its reach, a circle across its minor axis or at one of
+//! its vertices, two ellipses touching and half-axes a hair apart; walls
+//! square to each other, round through elliptic, elliptic through round and
+//! through elliptic, weighted towards equal half-widths and axes meeting
+//! (`Case::drawn_ellipses_crossed`); and planes leaning through elliptic
+//! walls, elliptic holes square to a slanted face, leans in decision 11's
+//! band and in the band the kernel warns of, bores at a skew angle and now
+//! and then a cone about an elliptic wall's axis
+//! (`Case::drawn_ellipses_tilted`).
+//! An ellipse is handed to the exact kernel as its arcs (`Run::Oval`) and to
+//! the flats as the application samples it, and held along every line to
+//! the true curve, the flats within the sagitta of the 48-gon. A case with
+//! an ellipse may be declined as unsupported only where an elliptic wall
+//! meets a cone or a wall at a skew angle (`Case::asks_beyond_the_conics`).
+//! Until the kernel raises an ellipse, every case of these draws is declined
+//! as unfinished, which is a failure. The flats answered 199, 280 and 272 of
+//! the first 300 cases of the three draws by their own rules when they were
+//! written, and the arithmetic held every one.
+//!
+//! A campaign is run by hand, the square one, the one of profiles, or one of
+//! ellipses:
 //!
 //! ```text
 //! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid --features campaigns \
@@ -33,11 +59,18 @@
 //! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid --features campaigns \
 //!     --test random_exact_solids -- --ignored --nocapture \
 //!     a_campaign_of_random_profiles_on
+//! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid --features campaigns \
+//!     --test random_exact_solids -- --ignored --nocapture \
+//!     a_campaign_of_random_ellipses_crossed_on
 //! ```
 //!
 //! `a_campaign_of_random_profiles_through_the_application_s_body` runs the
 //! profiles through `cao_solid::Body`, as the application computes them: the
 //! face numbers, the drawing as each body is built, the declines it adds.
+//! The campaigns of ellipses run either way too:
+//! `a_campaign_of_random_ellipses_…`, `…_ellipses_crossed_…` and
+//! `…_ellipses_tilted_…`, each `on_the_exact_kernel` or
+//! `through_the_application_s_body`.
 //!
 //! `CAO_FUZZ_SEED` starts it from a given seed rather than from the clock,
 //! `CAO_FUZZ_CASES` stops it after that many seeds, so that two campaigns on
@@ -45,9 +78,10 @@
 //! `CAO_FUZZ_PATIENCE` is how many seconds one case may take before it counts
 //! as no answer. The seeds it names are shrunk one by one by
 //! `the_seeds_a_campaign_named_are_shrunk_one_by_one`, given in
-//! `CAO_TRIAGE_SEEDS` with `CAO_TRIAGE_DRAW=profiles` for the profiles, and
-//! `CAO_TRIAGE_KERNEL=application` for the seeds the campaign through the
-//! application's body named.
+//! `CAO_TRIAGE_SEEDS` with `CAO_TRIAGE_DRAW=profiles` for the profiles,
+//! `ellipses`, `ellipses_crossed` or `ellipses_tilted` for the draws of
+//! ellipses, and `CAO_TRIAGE_KERNEL=application` for the seeds a campaign
+//! through the application's body named.
 
 // The drawing, the promise and the checks are shared with the flats'
 // campaign; each file uses its own part of them.
@@ -62,7 +96,8 @@ use cao_solid::profile::Run;
 use cao_solid::soundness::{Flaw, Lines, Mislisted, Silence, Spans, Triangle, shrink};
 use glam::{DVec2, DVec3};
 use random_solids::{
-    Application, Case, Exact, Flats, Kernel, Leaf, Mode, Outline, Plane, Step, Stretch,
+    Application, Axis, Case, Exact, Flats, Kernel, Leaf, Mode, Outline, Oval, Plane, Section, Step,
+    Stretch,
 };
 
 /// A bundle of lines laid over the box a leaf's flats span, and how far that
@@ -1530,6 +1565,35 @@ fn area(outline: &Outline) -> f64 {
         Outline::Slot { from, to, radius } => {
             2.0 * radius * from.distance(*to) + PI * radius * radius
         }
+        Outline::Ellipse { first, second, .. } => PI * first.length() * second,
+        Outline::Chorded {
+            first,
+            second,
+            arcs,
+            ..
+        } => {
+            let gaps: f64 = (0..arcs.len())
+                .map(|index| {
+                    let next = arcs[(index + 1) % arcs.len()][0]
+                        + if index + 1 == arcs.len() { 360.0 } else { 0.0 };
+                    let gap = (next - arcs[index][1]).to_radians();
+                    (gap - gap.sin()) / 2.0
+                })
+                .sum();
+            first.length() * second * (PI - gaps)
+        }
+        Outline::OvalSlot {
+            from,
+            to,
+            across,
+            along,
+        } => 2.0 * across * from.distance(*to) + PI * across * along,
+        Outline::OvalRing {
+            first,
+            second,
+            hole,
+            ..
+        } => PI * (first.length() * second - hole.x * hole.y),
         Outline::Star { .. } => unreachable!("a star is not raised by the exact kernel"),
     }
 }
@@ -1633,6 +1697,1827 @@ fn a_block_bored_across_and_given_a_boss_on_its_side_by_the_exact_kernel_keeps_e
     random_solids::holds_exactly(&bored_across());
 }
 
+#[test]
+fn a_line_through_an_ellipse_is_told_where_it_crosses_its_wall_and_how_squarely() {
+    let crossed = |leaf: &Leaf, origin: [f64; 3], direction: DVec3, by: f64| {
+        let stretches = leaf
+            .along_grown(DVec3::from(origin), direction, by)
+            .expect("a prism");
+        let [stretch] = stretches[..] else {
+            panic!("one stretch across {leaf}: {stretches:?}");
+        };
+        stretch
+    };
+    let close = |found: f64, expected: f64| (found - expected).abs() < 1e-12;
+
+    let oval = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::ellipse([1.0, 2.0], [3.0, 0.0], 2.0),
+        4.0,
+    );
+    let along = crossed(&oval, [-5.0, 2.0, 1.0], DVec3::X, 0.0);
+    assert!(
+        close(along.from.at, 3.0) && close(along.to.at, 9.0),
+        "{along:?}"
+    );
+    for end in [along.from, along.to] {
+        assert!(end.curved && close(end.cosine, 1.0), "{end:?}");
+    }
+    let across = crossed(&oval, [2.5, 0.0, 1.0], DVec3::Y, 0.0);
+    let half = 3.0_f64.sqrt();
+    assert!(
+        close(across.from.at, 2.0 - half) && close(across.to.at, 2.0 + half),
+        "{across:?}"
+    );
+    for end in [across.from, across.to] {
+        assert!(close(end.cosine, (27.0_f64 / 31.0).sqrt()), "{end:?}");
+    }
+
+    let turned = Leaf::prism(
+        Plane::xz(1.0),
+        Outline::ellipse_from([0.0, 0.0], [3.0, 4.0], 2.0, 40.0),
+        -2.0,
+    );
+    let way = DVec3::new(0.6, 0.0, 0.8);
+    let diagonal = crossed(&turned, [-6.0, 1.5, -8.0], way, 0.0);
+    assert!(
+        close(diagonal.from.at, 5.0) && close(diagonal.to.at, 15.0),
+        "{diagonal:?}"
+    );
+
+    let flat = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::ellipse([0.0, 0.0], [4.0, 0.0], 1.0),
+        4.0,
+    );
+    for (by, major, minor) in [(0.5, 24.75_f64.sqrt(), 1.5), (-0.5, 7.75_f64.sqrt(), 0.5)] {
+        let long = crossed(&flat, [-10.0, 0.0, 2.0], DVec3::X, by);
+        assert!(
+            close(long.from.at, 10.0 - major) && close(long.to.at, 10.0 + major),
+            "grown by {by}: {long:?}"
+        );
+        let short = crossed(&flat, [0.0, -10.0, 2.0], DVec3::Y, by);
+        assert!(
+            close(short.from.at, 10.0 - minor) && close(short.to.at, 10.0 + minor),
+            "grown by {by}: {short:?}"
+        );
+    }
+    let gone = flat
+        .along_grown(DVec3::new(0.0, -10.0, 2.0), DVec3::Y, -1.0)
+        .expect("a prism");
+    assert!(gone.is_empty(), "{gone:?}");
+}
+
+/// The distance from a place to the nearest place of an ellipse's wall: the
+/// nearest of many places round it, then the turn about it narrowed down.
+fn distance_to_the_wall(oval: Oval, place: DVec2) -> f64 {
+    let distance = |angle: f64| oval.at(angle).distance(place);
+    let count = 1024;
+    let step = std::f64::consts::TAU / count as f64;
+    let nearest = (0..count)
+        .map(|index| index as f64 * step)
+        .min_by(|one, other| distance(*one).total_cmp(&distance(*other)))
+        .expect("places round the ellipse");
+    let (mut low, mut high) = (nearest - step, nearest + step);
+    for _ in 0..100 {
+        let (one, other) = (low + (high - low) / 3.0, high - (high - low) / 3.0);
+        if distance(one) < distance(other) {
+            high = other;
+        } else {
+            low = one;
+        }
+    }
+    distance((low + high) / 2.0)
+}
+
+#[test]
+fn an_ellipse_grown_holds_every_place_within_reach_of_it_and_shrunk_none_nearer_its_wall() {
+    let mut random = cao_solid::soundness::Random::seeded(571);
+    let mut shrunk_ones = 0;
+    for _ in 0..200 {
+        let first = DVec2::from_angle(random.between(0.0, 6.3)) * random.between(0.2, 8.0);
+        let oval = Oval::new(
+            DVec2::new(random.between(-3.0, 3.0), random.between(-3.0, 3.0)),
+            first,
+            random.between(0.2, 8.0),
+        );
+        let by = random.between(0.0, 1.5) * oval.minor();
+        let grown = oval.grown(by).expect("an ellipse grows");
+        for step in 0..720 {
+            let angle = step as f64 / 720.0 * std::f64::consts::TAU;
+            let reached = oval.at(angle) + oval.normal_at(angle) * by;
+            assert!(
+                grown.level(reached) <= 1e-12,
+                "{oval:?} grown by {by} leaves out {reached}, {} past it",
+                grown.level(reached)
+            );
+        }
+        let Some(shrunk) = oval.grown(-by) else {
+            assert!(by >= oval.minor(), "{oval:?} shrunk by {by} is gone");
+            continue;
+        };
+        shrunk_ones += 1;
+        for step in 0..90 {
+            let place = shrunk.at(step as f64 / 90.0 * std::f64::consts::TAU);
+            assert!(oval.level(place) < 0.0, "{oval:?} shrunk by {by}: {place}");
+            let distance = distance_to_the_wall(oval, place);
+            assert!(
+                distance >= by - 1e-9 * oval.major(),
+                "{oval:?} shrunk by {by} holds {place}, {distance} from the wall"
+            );
+        }
+    }
+    assert!(shrunk_ones > 60, "{shrunk_ones} ellipses shrunk");
+}
+
+#[test]
+fn an_outline_an_ellipse_bounds_is_handed_to_the_exact_kernel_as_its_arcs_among_its_straight_runs()
+{
+    use std::f64::consts::{PI, TAU};
+    let near = |one: DVec2, other: [f64; 2]| one.distance(DVec2::from(other)) < 1e-12;
+    let arc = |run: &Run| match *run {
+        Run::Oval {
+            center,
+            first,
+            second,
+            turn,
+        } => Some((center, first, second, turn)),
+        _ => None,
+    };
+
+    let (whole, holes) = Outline::ellipse_from([1.0, 2.0], [3.0, 0.0], 2.0, 90.0)
+        .oval_contours()
+        .expect("an ellipse");
+    assert!(holes.is_empty() && whole.corners.len() == 1, "{whole:?}");
+    assert!(near(whole.corners[0], [1.0, 4.0]), "{whole:?}");
+    assert_eq!(
+        arc(&whole.runs[0]),
+        Some((DVec2::new(1.0, 2.0), DVec2::new(3.0, 0.0), 2.0, TAU))
+    );
+
+    let (cut, _) = Outline::chorded(
+        [0.0, 0.0],
+        [2.0, 0.0],
+        1.0,
+        &[[-60.0, 60.0], [120.0, 240.0]],
+    )
+    .oval_contours()
+    .expect("an ellipse cut twice");
+    let half = 3.0_f64.sqrt() / 2.0;
+    for (corner, expected) in
+        cut.corners
+            .iter()
+            .zip([[1.0, -half], [1.0, half], [-1.0, half], [-1.0, -half]])
+    {
+        assert!(near(*corner, expected), "{cut:?}");
+    }
+    for (index, run) in cut.runs.iter().enumerate() {
+        match arc(run) {
+            Some((_, _, _, turn)) => {
+                assert!(
+                    index % 2 == 0 && (turn - 2.0 * PI / 3.0).abs() < 1e-12,
+                    "{cut:?}"
+                )
+            }
+            None => assert!(index % 2 == 1 && *run == Run::Straight, "{cut:?}"),
+        }
+    }
+    let (_, curves) = random_solids::sampled(&cut);
+    let arcs: Vec<usize> = curves.iter().flatten().copied().collect();
+    assert!(
+        !arcs.is_empty() && arcs.iter().all(|curve| *curve == arcs[0]),
+        "two arcs of one ellipse sampled as several curves: {curves:?}"
+    );
+
+    let (slot, _) = Outline::oval_slot([0.0, 0.0], [4.0, 0.0], 1.0, 2.0)
+        .oval_contours()
+        .expect("a slot with elliptic ends");
+    for (corner, expected) in
+        slot.corners
+            .iter()
+            .zip([[0.0, -1.0], [4.0, -1.0], [4.0, 1.0], [0.0, 1.0]])
+    {
+        assert!(near(*corner, expected), "{slot:?}");
+    }
+    assert_eq!(
+        slot.runs.iter().map(arc).collect::<Vec<_>>(),
+        [
+            None,
+            Some((DVec2::new(4.0, 0.0), DVec2::new(2.0, 0.0), 1.0, PI)),
+            None,
+            Some((DVec2::ZERO, DVec2::new(2.0, 0.0), 1.0, PI)),
+        ]
+    );
+
+    let (rim, bores) = Outline::oval_ring([1.0, 1.0], [0.0, 3.0], 2.0, [1.0, 1.0])
+        .oval_contours()
+        .expect("an elliptic ring");
+    assert!(near(rim.corners[0], [1.0, 4.0]), "{rim:?}");
+    let [bore] = bores.as_slice() else {
+        panic!("one hole: {bores:?}");
+    };
+    assert!(near(bore.corners[0], [1.0, 2.0]), "{bore:?}");
+    assert!(
+        matches!(bore.runs.as_slice(), [Run::Round { center, turn }] if *center == DVec2::ONE && *turn == TAU),
+        "a round hole is a whole circle: {bore:?}"
+    );
+    let (_, bores) = Outline::oval_ring([1.0, 1.0], [0.0, 3.0], 2.0, [1.5, 0.5])
+        .oval_contours()
+        .expect("an elliptic ring");
+    assert!(near(bores[0].corners[0], [1.0, 2.5]), "{bores:?}");
+    assert_eq!(
+        arc(&bores[0].runs[0]),
+        Some((DVec2::ONE, DVec2::new(0.0, 1.5), 0.5, TAU))
+    );
+    assert_eq!(Outline::circle([0.0, 0.0], 1.0).oval_contours(), None);
+}
+
+/// The area of the polygon a unit circle's arcs are sampled into, each arc
+/// from one angle to a larger one in degrees, the next one's start joined to
+/// each one's end: as many steps as its share of a whole turn's, and never
+/// fewer than two.
+fn sampled_unit_area(arcs: &[[f64; 2]]) -> f64 {
+    let steps = random_solids::CIRCLE_STEPS as f64;
+    (0..arcs.len())
+        .map(|index| {
+            let [from, to] = arcs[index];
+            let sweep = (to - from).to_radians();
+            let count = (sweep / std::f64::consts::TAU * steps).ceil().max(2.0);
+            let next = arcs[(index + 1) % arcs.len()][0]
+                + if index + 1 == arcs.len() { 360.0 } else { 0.0 };
+            count / 2.0 * (sweep / count).sin() + (next - to).to_radians().sin() / 2.0
+        })
+        .sum()
+}
+
+#[test]
+fn the_flats_of_an_outline_an_ellipse_bounds_enclose_the_polygon_its_places_are_sampled_on() {
+    let whole = sampled_unit_area(&[[0.0, 360.0]]);
+    let leaves = [
+        (Outline::ellipse([1.0, 2.0], [3.0, 0.0], 2.0), 6.0 * whole),
+        (
+            Outline::ellipse_from([0.0, -1.0], [1.2, -1.6], 4.5, 33.0),
+            9.0 * whole,
+        ),
+        (
+            Outline::chorded([2.0, 2.0], [0.0, 3.0], 1.5, &[[-60.0, 60.0]]),
+            4.5 * sampled_unit_area(&[[-60.0, 60.0]]),
+        ),
+        (
+            Outline::chorded([2.0, 2.0], [3.0, 0.0], 1.5, &[[-20.0, 20.0]]),
+            4.5 * sampled_unit_area(&[[-20.0, 20.0]]),
+        ),
+        (
+            Outline::chorded(
+                [0.0, 0.0],
+                [2.0, 2.0],
+                1.0,
+                &[[-60.0, 60.0], [120.0, 240.0]],
+            ),
+            8.0_f64.sqrt() * sampled_unit_area(&[[-60.0, 60.0], [120.0, 240.0]]),
+        ),
+        (
+            Outline::oval_slot([0.0, 0.0], [3.0, 4.0], 1.0, 2.0),
+            2.0 * 5.0 + 2.0 * whole,
+        ),
+        (
+            Outline::oval_ring([1.0, 1.0], [0.0, 3.0], 2.0, [1.0, 1.0]),
+            5.0 * whole,
+        ),
+        (
+            Outline::oval_ring([1.0, 1.0], [2.0, 2.0], 2.0, [2.0, 1.0]),
+            (8.0_f64.sqrt() * 2.0 - 2.0) * whole,
+        ),
+    ];
+    for (outline, area) in leaves {
+        for plane in [
+            Plane::xy(1.0),
+            Plane::xz(-2.0),
+            Plane::tilted([1.0, 0.0, 2.0], [30.0, 15.0, 0.0]),
+        ] {
+            let leaf = Leaf::prism(plane, outline.clone(), -2.5);
+            assert!(leaf.is_solid(), "{leaf}");
+            let (promised, _) = leaf.promise();
+            assert!(
+                (promised - 2.5 * area).abs() < 1e-12 * promised,
+                "{leaf}: {promised} against {}",
+                2.5 * area
+            );
+            let flats = leaf.solid().expect("a leaf the flats raise");
+            random_solids::kept_its_promise(&leaf, &flats.triangles())
+                .unwrap_or_else(|flaw| panic!("{leaf}: {flaw:?}"));
+            random_solids::check(&Case::new(leaf.clone(), vec![]))
+                .unwrap_or_else(|flaw| panic!("{leaf}: {flaw:?}"));
+        }
+    }
+}
+
+/// Prisms of every outline an ellipse bounds, on every kind of plane, drawn
+/// from a seed of their own: axes on the plane's and turned, the first
+/// semi-axis the major or the minor, one trait or two, a slot either way, a
+/// round hole or an elliptic one.
+fn elliptic_prisms(count: usize) -> Vec<Leaf> {
+    use std::f64::consts::TAU;
+    let mut random = cao_solid::soundness::Random::seeded(5_571);
+    (0..count)
+        .map(|_| {
+            let plane = match random.below(4) {
+                0 => Plane::xy(random.between(-2.0, 2.0)),
+                1 => Plane::xz(random.between(-2.0, 2.0)),
+                2 => Plane::yz(random.between(-2.0, 2.0)),
+                _ => Plane::tilted(
+                    [random.between(-2.0, 2.0), 0.0, random.between(-2.0, 2.0)],
+                    [
+                        random.between(-80.0, 80.0),
+                        random.between(-80.0, 80.0),
+                        0.0,
+                    ],
+                ),
+            };
+            let center = DVec2::new(random.between(-4.0, 4.0), random.between(-4.0, 4.0));
+            let direction = if random.chance(0.5) {
+                *random.pick(&[DVec2::X, DVec2::Y, DVec2::NEG_X, DVec2::NEG_Y])
+            } else {
+                DVec2::from_angle(random.between(0.0, TAU))
+            };
+            let (length, second) = (random.between(0.5, 5.0), random.between(0.5, 5.0));
+            let first = direction * length;
+            let outline = match random.below(4) {
+                0 => Outline::Ellipse {
+                    center,
+                    first,
+                    second,
+                    from: if random.chance(0.5) {
+                        0.0
+                    } else {
+                        random.between(0.0, 360.0)
+                    },
+                },
+                1 => {
+                    let start = random.between(-180.0, 180.0);
+                    let arcs = if random.chance(0.5) {
+                        vec![[start, start + random.between(20.0, 340.0)]]
+                    } else {
+                        let ends =
+                            [10.0, 10.0, 10.0].map(|least| least + random.between(0.0, 70.0));
+                        vec![
+                            [start, start + ends[0]],
+                            [
+                                start + ends[0] + ends[1],
+                                start + ends[0] + ends[1] + ends[2],
+                            ],
+                        ]
+                    };
+                    Outline::Chorded {
+                        center,
+                        first,
+                        second,
+                        arcs,
+                    }
+                }
+                2 => Outline::OvalSlot {
+                    from: center,
+                    to: center + direction * random.between(0.5, 6.0),
+                    across: second,
+                    along: length,
+                },
+                _ => {
+                    let least = length.min(second);
+                    let hole = if random.chance(0.5) {
+                        DVec2::splat(least * random.between(0.1, 0.9))
+                    } else {
+                        DVec2::new(length, second) * random.between(0.1, 0.9)
+                    };
+                    Outline::OvalRing {
+                        center,
+                        first,
+                        second,
+                        hole,
+                    }
+                }
+            };
+            let height = random.between(1.0, 6.0) * if random.chance(0.3) { -1.0 } else { 1.0 };
+            Leaf::prism(plane, outline, height)
+        })
+        .collect()
+}
+
+/// How far a place stands outside an ellipse, or inside it when negative,
+/// to the first order: its level over the level's slope, which is the
+/// distance itself near the wall; and the wall's outward normal there.
+fn off_an_ellipse(oval: Oval, place: DVec2) -> (f64, DVec2) {
+    let unit = oval.first.normalize();
+    let away = place - oval.center;
+    let (a, b) = (oval.first.length(), oval.second);
+    let (x, y) = (away.dot(unit), away.dot(unit.perp()));
+    let level = (x / a).powi(2) + (y / b).powi(2) - 1.0;
+    let slope = unit * (2.0 * x / (a * a)) + unit.perp() * (2.0 * y / (b * b));
+    if slope.length() == 0.0 {
+        return (-a.min(b), DVec2::ZERO);
+    }
+    (level / slope.length(), slope.normalize())
+}
+
+/// The wall of an outline an ellipse bounds, grown by `by`, nearest a place,
+/// read off the true curves and the traits through the corners the outline
+/// is handed over by, rather than off the line arithmetic: inside every
+/// piece of an intersection, inside some piece of a union. `near` is how
+/// close two walls are taken to meet at a corner.
+fn oval_wall_of(outline: &Outline, place: DVec2, by: f64, near: f64) -> Wall {
+    let nothing = Wall {
+        outside: f64::INFINITY,
+        normal: None,
+        curved: None,
+    };
+    let curve = |oval: Option<Oval>, inward: bool| match oval {
+        Some(oval) => {
+            let (outside, normal) = off_an_ellipse(oval, place);
+            if inward {
+                (-outside, -normal, true)
+            } else {
+                (outside, normal, true)
+            }
+        }
+        None if inward => (f64::NEG_INFINITY, DVec2::ZERO, true),
+        None => (f64::INFINITY, DVec2::ZERO, true),
+    };
+    let decided = |mut walls: Vec<(f64, DVec2, bool)>, deepest: bool| {
+        walls.sort_by(|one, other| one.0.total_cmp(&other.0));
+        if !deepest {
+            walls.reverse();
+        }
+        let Some(&(outside, normal, curved)) = walls.last() else {
+            return nothing;
+        };
+        let alone = walls.len() < 2 || (walls[walls.len() - 2].0 - outside).abs() > near;
+        Wall {
+            outside,
+            normal: alone.then_some(normal),
+            curved: alone.then_some(curved),
+        }
+    };
+    let oval = outline.oval().expect("an outline an ellipse bounds");
+    match outline {
+        Outline::Ellipse { .. } => decided(vec![curve(oval.grown(by), false)], true),
+        Outline::Chorded { arcs, .. } => {
+            let mut walls = vec![curve(oval.grown(by), false)];
+            for index in 0..arcs.len() {
+                let start = oval.at(arcs[(index + 1) % arcs.len()][0].to_radians());
+                let end = oval.at(arcs[index][1].to_radians());
+                let normal = (start - end).perp().normalize() * -1.0;
+                walls.push(((place - end).dot(normal) - by, normal, false));
+            }
+            decided(walls, true)
+        }
+        Outline::OvalSlot {
+            from, to, across, ..
+        } => {
+            let way = (*to - *from).normalize();
+            let (along, aside) = ((place - *from).dot(way), (place - *from).dot(way.perp()));
+            let length = from.distance(*to);
+            let side = aside.abs() - (across + by);
+            let band = if side >= -along && side >= along - length {
+                (side, way.perp() * aside.signum(), false)
+            } else {
+                ((-along).max(along - length), way, false)
+            };
+            let band = if *across + by <= 0.0 {
+                (f64::INFINITY, DVec2::ZERO, false)
+            } else {
+                band
+            };
+            let mut walls = vec![band];
+            walls.extend(
+                outline
+                    .ovals()
+                    .iter()
+                    .map(|end| curve(end.grown(by), false)),
+            );
+            decided(walls, false)
+        }
+        Outline::OvalRing { .. } => decided(
+            vec![
+                curve(oval.grown(by), false),
+                curve(outline.oval_hole().and_then(|hole| hole.grown(-by)), true),
+            ],
+            true,
+        ),
+        _ => unreachable!("only outlines an ellipse bounds"),
+    }
+}
+
+/// Lines through the places an outline an ellipse bounds changes wall or
+/// turns most — its centres, the ends of its axes, its corners — along the
+/// plane, square to it and slanted, some a hair off square or off the plane.
+fn lines_through_an_oval(leaf: &Leaf) -> Vec<(DVec3, DVec3)> {
+    let Leaf::Prism {
+        plane,
+        outline,
+        height,
+    } = leaf
+    else {
+        unreachable!("only prisms are measured")
+    };
+    let (base, u, v) = plane.frame();
+    let normal = u.cross(v);
+    let mut places: Vec<DVec2> = outline
+        .ovals()
+        .iter()
+        .flat_map(|oval| {
+            [
+                oval.center,
+                oval.center + oval.first,
+                oval.center - oval.across(),
+                oval.at(1.0),
+            ]
+        })
+        .collect();
+    if let Some((contour, holes)) = outline.oval_contours() {
+        places.extend(contour.corners);
+        places.extend(holes.iter().flat_map(|hole| hole.corners.clone()));
+    }
+    let ways = [
+        u,
+        v,
+        u + v,
+        u - v * 0.3,
+        normal,
+        u * 0.1 + v - normal * 0.3,
+        u + v * 1e-9,
+        v - u * 1e-7,
+        normal + u * 1e-9,
+        DVec3::new(std::f64::consts::FRAC_1_PI, 5f64.sqrt() - 2.0, 1.0),
+    ];
+    places
+        .iter()
+        .flat_map(|place| {
+            [0.0, height / 2.0, *height]
+                .map(|level| base + u * place.x + v * place.y + normal * level)
+        })
+        .flat_map(|origin| ways.map(|way| (origin, way)))
+        .collect()
+}
+
+#[test]
+fn an_outline_an_ellipse_bounds_grown_or_shrunk_holds_along_any_line_the_places_within_it_and_ends_at_the_slant_of_its_wall()
+ {
+    let leaves = elliptic_prisms(60);
+    let ends: usize = random_solids::on_every_core(&leaves, |leaf| {
+        let mut ends = 0;
+        let Leaf::Prism {
+            plane,
+            outline,
+            height,
+        } = leaf
+        else {
+            unreachable!("only prisms were drawn")
+        };
+        let (base, u, v) = plane.frame();
+        let normal = u.cross(v);
+        let (low, high) = leaf.bounds().expect("a prism");
+        let reach = low.abs().max(high.abs()).max_element().max(1.0);
+        let size = (high - low).max_element();
+        let near = 1e-9 * reach;
+        let measured = |point: DVec3, by: f64| {
+            let offset = point - base;
+            let level = offset.dot(normal);
+            let slab = (height.min(0.0) - by - level).max(level - height.max(0.0) - by);
+            let place = DVec2::new(offset.dot(u), offset.dot(v));
+            (slab, oval_wall_of(outline, place, by, 1e3 * near))
+        };
+        for (origin, way) in lines_through_an_oval(leaf) {
+            for by in [0.0, 0.03, -0.03, 0.2, -0.2].map(|share| share * size) {
+                let stretches = leaf.along_grown(origin, way, by).expect("a prism");
+                let held = |at: f64| {
+                    stretches
+                        .iter()
+                        .any(|stretch| stretch.from.at <= at && at <= stretch.to.at)
+                };
+                let span = 4.0 * (reach + size) / way.length();
+                for step in 0..=600 {
+                    let at = span * (step as f64 / 300.0 - 1.0) + 1e-3;
+                    let (slab, wall) = measured(origin + way * at, by);
+                    let depth = slab.max(wall.outside);
+                    if depth.abs() > 1e3 * near {
+                        assert_eq!(
+                            held(at),
+                            depth < 0.0,
+                            "{leaf} grown by {by}, at {at} along {way} from {origin}: {stretches:?}"
+                        );
+                    }
+                }
+                let step = DVec2::new(way.dot(u), way.dot(v));
+                for end in stretches
+                    .iter()
+                    .flat_map(|stretch| [stretch.from, stretch.to])
+                    .filter(|end| end.at.is_finite())
+                {
+                    let (slab, wall) = measured(origin + way * end.at, by);
+                    let on_wall = wall.outside.abs() < 1e3 * near;
+                    let (cosine, curved) = if slab.abs() < 1e3 * near && !on_wall {
+                        (way.dot(normal).abs() / way.length(), false)
+                    } else if let (Some(wall_normal), Some(curved)) = (wall.normal, wall.curved)
+                        && on_wall
+                        && slab < -1e3 * near
+                    {
+                        (wall_normal.dot(step).abs() / way.length(), curved)
+                    } else {
+                        continue;
+                    };
+                    if cosine < 1e-6 {
+                        continue;
+                    }
+                    ends += 1;
+                    assert!(
+                        (end.cosine - cosine).abs() < 1e-6 && end.curved == curved,
+                        "{leaf} grown by {by}, along {way} from {origin}: {end:?} crosses at {cosine}, curved {curved}"
+                    );
+                }
+            }
+        }
+        ends
+    })
+    .into_iter()
+    .sum();
+    assert!(ends > 5_000, "{ends} ends");
+}
+
+#[test]
+fn a_prism_an_ellipse_bounds_holds_along_every_line_what_its_flats_hold_but_for_their_sagitta() {
+    let inscribed = (std::f64::consts::PI / random_solids::CIRCLE_STEPS as f64).cos();
+    let leaves = elliptic_prisms(120);
+    random_solids::on_every_core(&leaves, |leaf| {
+        let Leaf::Prism {
+            plane,
+            outline,
+            height,
+        } = leaf
+        else {
+            unreachable!("only prisms were drawn")
+        };
+        let sagitta = |oval: Oval| oval.major() * (1.0 - inscribed);
+        let deepest = outline.ovals().into_iter().map(sagitta).fold(0.0, f64::max);
+        let most = match outline {
+            Outline::OvalRing {
+                center,
+                first,
+                second,
+                ..
+            } => {
+                let hole = outline.oval_hole().expect("a ring's hole");
+                let shrunk = hole.grown(-sagitta(hole)).expect("a hole a sagitta wide");
+                Leaf::prism(
+                    *plane,
+                    Outline::OvalRing {
+                        center: *center,
+                        first: *first,
+                        second: *second,
+                        hole: DVec2::new(shrunk.first.length(), shrunk.second),
+                    },
+                    *height,
+                )
+            }
+            _ => leaf.clone(),
+        };
+        let (lines, measured, reach) = lines_over(leaf);
+        for (index, measure) in measured.iter().enumerate() {
+            let (origin, direction) = lines.line(index);
+            let least = spans_of(
+                &leaf
+                    .along_grown(origin, direction, -deepest)
+                    .expect("a prism"),
+            );
+            let most = spans_of(&most.along(origin, direction).expect("a prism"));
+            let short = least.without(measure).length();
+            let over = measure.without(&most).length();
+            assert!(
+                short <= 1e-9 * reach && over <= 1e-9 * reach,
+                "line {index} across {leaf}: {measure:?} between {least:?} and {most:?}"
+            );
+        }
+    });
+}
+
+#[test]
+fn the_box_a_prism_an_ellipse_bounds_spans_is_the_box_its_flats_span() {
+    let inscribed = (std::f64::consts::PI / random_solids::CIRCLE_STEPS as f64).cos();
+    for leaf in elliptic_prisms(200) {
+        let Leaf::Prism { outline, .. } = &leaf else {
+            unreachable!("only prisms were drawn")
+        };
+        let (low, high) = leaf.bounds().expect("a prism has a box");
+        let flats = leaf.solid().expect("a leaf the flats raise");
+        let (flat_low, flat_high) = flats.bounds().expect("a solid with a box");
+        let reach = flat_low.abs().max(flat_high.abs()).max_element().max(1.0);
+        let sagitta = outline
+            .ovals()
+            .iter()
+            .map(|oval| oval.major() * (1.0 - inscribed))
+            .fold(0.0, f64::max);
+        let near = 1e-9 * reach;
+        let within =
+            |one: DVec3, other: DVec3, room: f64| (one - other).abs().max_element() <= room;
+        assert!(
+            flat_low.cmpge(low - near).all() && flat_high.cmple(high + near).all(),
+            "{leaf}: the flats span {flat_low}..{flat_high} beyond {low}..{high}"
+        );
+        assert!(
+            within(low, flat_low, sagitta + near) && within(high, flat_high, sagitta + near),
+            "{leaf}: {low}..{high} against the flats' {flat_low}..{flat_high}"
+        );
+    }
+}
+
+#[test]
+fn a_case_of_ellipses_prints_as_the_rust_that_builds_it_again() {
+    let pasted = Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::ellipse([0.0, 0.0], [5.0, 0.0], 3.0),
+            4.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-1.0),
+                Outline::ellipse_from([1.0, 0.5], [0.6, 0.8], 1.5, 30.0),
+                6.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(-1.0),
+                Outline::chorded(
+                    [2.0, 1.0],
+                    [0.0, 2.0],
+                    1.0,
+                    &[[-60.0, 60.0], [120.0, 240.0]],
+                ),
+                -8.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(2.0),
+                Outline::oval_slot([0.0, 0.0], [3.0, 4.0], 1.0, 2.5),
+                2.5,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::oval_ring([5.0, 3.0], [2.5, 0.0], 2.0, [1.0, 1.0]),
+                2.0,
+            )),
+        ],
+    );
+    assert_eq!(
+        pasted.to_string(),
+        "Case::new(
+    Leaf::prism(Plane::xy(0.0), Outline::ellipse([0.0, 0.0], [5.0, 0.0], 3.0), 4.0),
+    vec![
+        Step::cut(Leaf::prism(Plane::xy(-1.0), Outline::ellipse_from([1.0, 0.5], [0.6, 0.8], 1.5, 30.0), 6.0)),
+        Step::add(Leaf::prism(Plane::xz(-1.0), Outline::chorded([2.0, 1.0], [0.0, 2.0], 1.0, &[[-60.0, 60.0], [120.0, 240.0]]), -8.0)),
+        Step::cut(Leaf::prism(Plane::yz(2.0), Outline::oval_slot([0.0, 0.0], [3.0, 4.0], 1.0, 2.5), 2.5)),
+        Step::add(Leaf::prism(Plane::xy(4.0), Outline::oval_ring([5.0, 3.0], [2.5, 0.0], 2.0, [1.0, 1.0]), 2.0)),
+    ],
+)"
+    );
+}
+
+#[test]
+fn an_ellipse_shrinks_into_a_circle_onto_the_plane_s_axes_and_into_round_numbers() {
+    let first = DVec2::new(2.6, 1.5);
+    let length = first.length();
+    let ellipse = shrunk_outlines(Outline::ellipse_from([0.3, 0.7], [2.6, 1.5], 1.7, 25.0));
+    for expected in [
+        Outline::circle([0.3, 0.7], 1.7),
+        Outline::ellipse([0.3, 0.7], [2.6, 1.5], 1.7),
+        Outline::Ellipse {
+            center: DVec2::new(0.3, 0.7),
+            first: DVec2::X * length,
+            second: 1.7,
+            from: 25.0,
+        },
+        Outline::Ellipse {
+            center: DVec2::new(0.3, 0.7),
+            first,
+            second: length,
+            from: 25.0,
+        },
+        Outline::Ellipse {
+            center: DVec2::new(0.0, 1.0),
+            first: first.normalize() * 3.0,
+            second: 2.0,
+            from: 25.0,
+        },
+    ] {
+        assert!(ellipse.contains(&expected), "{expected} among {ellipse:?}");
+    }
+    let turned = ellipse
+        .iter()
+        .filter_map(|outline| match outline {
+            Outline::Ellipse { first, .. } => Some(first.to_angle().to_degrees()),
+            _ => None,
+        })
+        .any(|degrees| (degrees - 30.0).abs() < 1e-9);
+    assert!(
+        turned,
+        "no ellipse turned onto 30 degrees among {ellipse:?}"
+    );
+
+    let chorded = shrunk_outlines(Outline::chorded(
+        [0.0, 0.0],
+        [3.0, 0.0],
+        2.0,
+        &[[-61.0, 59.0], [118.0, 241.0]],
+    ));
+    for expected in [
+        Outline::ellipse([0.0, 0.0], [3.0, 0.0], 2.0),
+        Outline::chorded([0.0, 0.0], [3.0, 0.0], 2.0, &[[-61.0, 59.0]]),
+        Outline::chorded(
+            [0.0, 0.0],
+            [3.0, 0.0],
+            2.0,
+            &[[-60.0, 60.0], [120.0, 240.0]],
+        ),
+    ] {
+        assert!(chorded.contains(&expected), "{expected} among {chorded:?}");
+    }
+
+    let slot = shrunk_outlines(Outline::oval_slot([0.2, 0.0], [3.2, 4.0], 1.0, 2.5));
+    let (way, span) = {
+        let between = DVec2::new(3.2, 4.0) - DVec2::new(0.2, 0.0);
+        (between.normalize(), between.length())
+    };
+    for expected in [
+        Outline::slot([0.2, 0.0], [3.2, 4.0], 1.0),
+        Outline::Ellipse {
+            center: DVec2::new(0.2, 0.0),
+            first: way * 2.5,
+            second: 1.0,
+            from: 0.0,
+        },
+        Outline::oval_slot([0.2, 0.0], [3.2, 4.0], 1.0, 1.0),
+        Outline::OvalSlot {
+            from: DVec2::new(0.2, 0.0),
+            to: DVec2::new(0.2, 0.0) + DVec2::Y * span,
+            across: 1.0,
+            along: 2.5,
+        },
+        Outline::oval_slot([0.0, 0.0], [3.0, 4.0], 1.0, 3.0),
+    ] {
+        assert!(slot.contains(&expected), "{expected} among {slot:?}");
+    }
+
+    let ring = shrunk_outlines(Outline::oval_ring([1.0, 1.0], [0.0, 3.2], 2.0, [1.6, 1.2]));
+    for expected in [
+        Outline::ellipse([1.0, 1.0], [0.0, 3.2], 2.0),
+        Outline::ring([1.0, 1.0], 2.0, 1.2),
+        Outline::oval_ring([1.0, 1.0], [0.0, 3.2], 2.0, [1.2, 1.2]),
+        Outline::oval_ring([1.0, 1.0], [0.0, 3.2], 2.0, [2.0, 1.0]),
+    ] {
+        assert!(ring.contains(&expected), "{expected} among {ring:?}");
+    }
+}
+
+#[test]
+fn an_elliptic_wall_asks_beyond_the_conics_only_against_a_cone_or_a_wall_at_a_skew_angle_near_it() {
+    let oval = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::ellipse([0.0, 0.0], [4.0, 0.0], 2.0),
+        5.0,
+    );
+    let cone = |axis: Axis| {
+        Leaf::turned(
+            Plane::xz(0.0),
+            axis,
+            Section::bands(1.0, &[[3.0, 0.0, 2.0]]).sloping_to(&[[0.0, 1.0]]),
+            360.0,
+        )
+    };
+    let skew = |at: [f64; 3]| {
+        Leaf::prism(
+            Plane::tilted(at, [30.0, 0.0, 0.0]),
+            Outline::circle([0.0, 0.0], 1.0),
+            4.0,
+        )
+    };
+    let told = [
+        (
+            "a plate under it",
+            Leaf::prism(
+                Plane::xy(-1.0),
+                Outline::rectangle([-5.0, -5.0], [5.0, 5.0]),
+                1.0,
+            ),
+            false,
+        ),
+        (
+            "a block's side along its axis",
+            Leaf::prism(
+                Plane::xz(3.0),
+                Outline::rectangle([-5.0, 1.0], [5.0, 4.0]),
+                6.0,
+            ),
+            false,
+        ),
+        (
+            "a slanted cut",
+            Leaf::prism(
+                Plane::tilted([0.0, 0.0, 3.0], [20.0, 0.0, 0.0]),
+                Outline::rectangle([-6.0, -6.0], [6.0, 6.0]),
+                6.0,
+            ),
+            false,
+        ),
+        (
+            "a round bore parallel to it",
+            Leaf::prism(Plane::xy(-1.0), Outline::circle([1.0, 0.0], 1.5), 7.0),
+            false,
+        ),
+        (
+            "an elliptic boss parallel to it",
+            Leaf::prism(
+                Plane::xy(5.0),
+                Outline::ellipse([2.0, 1.0], [0.0, 3.0], 1.0),
+                2.0,
+            ),
+            false,
+        ),
+        (
+            "a round hole from the side",
+            Leaf::prism(Plane::xz(-5.0), Outline::circle([0.0, 2.5], 1.0), -10.0),
+            false,
+        ),
+        (
+            "an elliptic hole from the side",
+            Leaf::prism(
+                Plane::yz(-5.0),
+                Outline::ellipse([0.0, 2.5], [1.0, 1.0], 0.5),
+                10.0,
+            ),
+            false,
+        ),
+        ("a round bore at a skew angle", skew([0.0, 0.0, 0.0]), true),
+        (
+            "an elliptic bore at a skew angle",
+            Leaf::prism(
+                Plane::tilted([0.0, 0.0, 0.0], [0.0, 45.0, 0.0]),
+                Outline::ellipse([0.0, 0.0], [1.0, 0.0], 2.0),
+                4.0,
+            ),
+            true,
+        ),
+        (
+            "a round bore at a skew angle far off",
+            skew([40.0, 40.0, 40.0]),
+            false,
+        ),
+        ("a cone about its axis", cone(Axis::second(0.0)), true),
+        ("a cone beside its axis", cone(Axis::second(3.0)), true),
+        ("a cone far off", cone(Axis::second(30.0)), false),
+        (
+            "a cylinder turned about its axis",
+            Leaf::turned(
+                Plane::xz(0.0),
+                Axis::second(0.0),
+                Section::bands(1.0, &[[3.0, 0.0, 2.0]]),
+                360.0,
+            ),
+            false,
+        ),
+    ];
+    for (what, tool, asks) in told {
+        for case in [
+            Case::new(oval.clone(), vec![Step::cut(tool.clone())]),
+            Case::new(tool.clone(), vec![Step::add(oval.clone())]),
+        ] {
+            assert_eq!(case.asks_beyond_the_conics(), asks, "{what}:\n{case}");
+        }
+    }
+    let ring = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::oval_ring([0.0, 0.0], [4.0, 0.0], 3.0, [2.0, 2.0]),
+        5.0,
+    );
+    let cylinder = Leaf::turned(
+        Plane::xz(0.0),
+        Axis::second(0.0),
+        Section::bands(1.0, &[[3.0, 0.0, 1.0]]),
+        360.0,
+    );
+    assert!(
+        !Case::new(ring, vec![Step::add(cylinder)]).asks_beyond_the_conics(),
+        "a ring's round hole is a cylinder to the rule"
+    );
+}
+
+#[test]
+fn the_slices_of_an_elliptic_leaf_cut_by_a_plane_add_up_to_the_closed_forms() {
+    use std::f64::consts::PI;
+    let tan30 = 30f64.to_radians().tan();
+    let slanted = DVec3::new(0.0, -tan30, 1.0);
+    let shaft = |outline: Outline| Leaf::prism(Plane::xy(0.0), outline, 30.0);
+    let kept = [
+        (
+            "an elliptic shaft cut at a slant across its walls",
+            shaft(Outline::ellipse([0.0, 0.0], [5.0, 0.0], 3.0))
+                .kept_by_a_half_space(slanted, 15.0),
+            225.0 * PI,
+        ),
+        (
+            "an elliptic ring cut at a slant across its walls",
+            shaft(Outline::oval_ring([0.0, 0.0], [5.0, 0.0], 3.0, [2.0, 1.0]))
+                .kept_by_a_half_space(slanted, 15.0),
+            195.0 * PI,
+        ),
+        (
+            "an elliptic shaft turned, cut by a plane holding neither axis",
+            shaft(Outline::ellipse_from([1.0, -2.0], [2.4, 1.8], 2.0, 70.0))
+                .kept_by_a_half_space(DVec3::new(0.3, -0.5, 1.0), 15.0),
+            6.0 * PI * (15.0 - 0.3 * 1.0 - 0.5 * 2.0),
+        ),
+        (
+            "an elliptic ungula through its major axis",
+            shaft(Outline::ellipse([0.0, 0.0], [5.0, 0.0], 3.0))
+                .kept_by_a_half_space(DVec3::new(0.0, -2.0, 1.0), 0.0),
+            60.0,
+        ),
+        (
+            "an elliptic ungula through its minor axis",
+            shaft(Outline::ellipse([0.0, 0.0], [0.0, 5.0], 3.0))
+                .kept_by_a_half_space(DVec3::new(0.0, -2.0, 1.0), 0.0),
+            100.0,
+        ),
+        (
+            "an elliptic shaft cut square to its axis",
+            shaft(Outline::ellipse([0.0, 0.0], [5.0, 0.0], 3.0))
+                .kept_by_a_half_space(DVec3::Z, 12.0),
+            180.0 * PI,
+        ),
+        (
+            "an elliptic ring cut along its axis through its centre",
+            shaft(Outline::oval_ring([0.0, 0.0], [5.0, 0.0], 3.0, [2.0, 1.0]))
+                .kept_by_a_half_space(DVec3::X, 0.0),
+            195.0 * PI,
+        ),
+    ];
+    for (what, found, expected) in kept {
+        let found = found.expect("an elliptic leaf");
+        assert!(
+            (found - expected).abs() <= 1e-12 * expected,
+            "{what}: {found} against {expected}"
+        );
+    }
+    for normal in [
+        slanted,
+        DVec3::new(0.3, -0.5, 1.0),
+        DVec3::new(1.0, 0.2, 0.05),
+    ] {
+        let round = shaft(Outline::circle([1.0, 0.0], 4.0)).kept_by_a_half_space(normal, 10.0);
+        let oval = shaft(Outline::ellipse_from([1.0, 0.0], [0.0, 4.0], 4.0, 15.0))
+            .kept_by_a_half_space(normal, 10.0);
+        let (round, oval) = (round.expect("a circle"), oval.expect("an ellipse"));
+        assert!(
+            (round - oval).abs() <= 1e-12 * round,
+            "{normal}: a circle keeps {round}, an ellipse of equal half-axes {oval}"
+        );
+    }
+}
+
+/// The three draws of ellipses (#571), each by the name a campaign gives it.
+/// A draw of cases, one to a seed.
+type Draw = fn(u64) -> Case;
+
+const ELLIPSE_DRAWS: [(&str, Draw); 3] = [
+    ("ellipses", Case::drawn_ellipses),
+    ("ellipses crossed", Case::drawn_ellipses_crossed),
+    ("ellipses tilted", Case::drawn_ellipses_tilted),
+];
+
+/// Every draw a seed names a case of.
+const EVERY_DRAW: [Draw; 12] = [
+    Case::drawn,
+    Case::drawn_square,
+    Case::drawn_profiles,
+    Case::drawn_turned,
+    Case::drawn_turned_off_the_lattice,
+    Case::drawn_slanted,
+    Case::drawn_slanted_off_the_lattice,
+    Case::drawn_tilted,
+    Case::drawn_tilted_off_the_lattice,
+    Case::drawn_ellipses,
+    Case::drawn_ellipses_crossed,
+    Case::drawn_ellipses_tilted,
+];
+
+#[test]
+fn the_same_seed_draws_the_same_ellipse_case_and_none_another_draw_gives_it() {
+    for (index, (name, draw)) in ELLIPSE_DRAWS.iter().enumerate() {
+        for seed in 0..200 {
+            assert_eq!(draw(seed), draw(seed), "{name}, seed {seed}");
+        }
+        let distinct: std::collections::BTreeSet<String> =
+            (0..200).map(|seed| draw(seed).to_string()).collect();
+        assert!(
+            distinct.len() > 190,
+            "{name}: {} distinct cases",
+            distinct.len()
+        );
+        for seed in 0..200 {
+            let case = draw(seed);
+            for (other, drawn) in EVERY_DRAW.iter().enumerate() {
+                if other != 9 + index {
+                    assert_ne!(drawn(seed), case, "{name}, seed {seed}, draw {other}");
+                }
+            }
+        }
+    }
+}
+
+/// Whether a leaf is a prism of an outline an ellipse bounds.
+fn elliptic(leaf: &Leaf) -> bool {
+    outline_of(leaf).is_some_and(|outline| outline.oval().is_some())
+}
+
+#[test]
+fn every_seed_draws_a_case_of_solid_prisms_holding_an_ellipse_and_now_and_then_a_cone_beside_it() {
+    for (name, draw) in ELLIPSE_DRAWS {
+        for seed in 0..3000 {
+            let case = draw(seed);
+            assert!(case.leaves().any(elliptic), "{name}, seed {seed}:\n{case}");
+            for leaf in case.leaves() {
+                let turned = name == "ellipses tilted"
+                    && leaf
+                        .as_turned()
+                        .is_some_and(|turned| turned.section.slopes());
+                assert!(
+                    (matches!(leaf, Leaf::Prism { .. }) || turned) && leaf.is_solid(),
+                    "{name}, seed {seed}: {leaf}\n{case}"
+                );
+            }
+            if name != "ellipses tilted" {
+                assert!(
+                    case.leaves()
+                        .all(|leaf| !matches!(leaf.plane(), Plane::Tilted { .. })),
+                    "{name}, seed {seed}:\n{case}"
+                );
+            }
+            if name == "ellipses" {
+                let normal = case.start.plane().normal();
+                assert!(
+                    case.leaves()
+                        .all(|leaf| leaf.plane().normal().cross(normal).length() == 0.0),
+                    "{name}, seed {seed}: not all raised along one normal\n{case}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn every_seed_draws_an_ellipse_case_though_no_leaf_before_it_has_room_for_one() {
+    for (name, draw) in ELLIPSE_DRAWS {
+        for seed in 0..20_000 {
+            let drawn = std::panic::catch_unwind(|| draw(seed));
+            assert!(drawn.is_ok(), "{name}: seed {seed} draws no case");
+        }
+    }
+}
+
+/// How far a case reaches, to read its hairs against.
+fn reach_of(case: &Case) -> f64 {
+    case.leaves()
+        .filter_map(Leaf::bounds)
+        .map(|(low, high)| low.abs().max(high.abs()).max_element())
+        .fold(1.0, f64::max)
+}
+
+/// The ellipse of a prism of the planes of the origin and the world axis it
+/// runs along, or the circle of a round one as an ellipse.
+fn round_wall_of(leaf: &Leaf) -> Option<(Oval, usize, Plane)> {
+    let Leaf::Prism { plane, outline, .. } = leaf else {
+        return None;
+    };
+    if matches!(plane, Plane::Tilted { .. }) {
+        return None;
+    }
+    let oval = match outline {
+        Outline::Circle { center, radius, .. }
+        | Outline::Ring {
+            center,
+            outer: radius,
+            ..
+        } => Oval::new(*center, DVec2::X * *radius, *radius),
+        _ => outline.oval()?,
+    };
+    Some((oval, plane.normal().abs().max_position(), *plane))
+}
+
+/// The ends of the axes of an ellipse.
+fn vertices(oval: Oval) -> [DVec2; 4] {
+    let (major, minor) = (oval.major_direction(), oval.major_direction().perp());
+    [
+        oval.center + major * oval.major(),
+        oval.center - major * oval.major(),
+        oval.center + minor * oval.minor(),
+        oval.center - minor * oval.minor(),
+    ]
+}
+
+/// The relations a tool of the draw of ellipses on one normal stands in to
+/// an ellipse drawn before it, read off the two leaves, within `hair`.
+fn related_to_an_ellipse(earlier: Oval, later: &Outline, hair: f64) -> Vec<&'static str> {
+    let mut found = Vec::new();
+    let close = |one: f64, other: f64| (one - other).abs() <= hair;
+    let same = |one: DVec2, other: DVec2| one.distance(other) <= hair;
+    if let Some(oval) = later.oval() {
+        if oval == earlier {
+            found.push("the very same ellipse");
+        } else if same(oval.center, earlier.center)
+            && same(oval.first, earlier.first)
+            && close(oval.second, earlier.second)
+        {
+            found.push("the same ellipse a hair off");
+        }
+        if !same(oval.center, earlier.center)
+            && vertices(earlier)
+                .iter()
+                .any(|vertex| oval.level(*vertex).abs() <= hair / oval.minor())
+        {
+            found.push("two ellipses touching at a vertex");
+        }
+        if same(oval.center, earlier.center)
+            && oval != earlier
+            && (oval.first.length() - oval.second).abs() <= 1e-3 * oval.first.length()
+        {
+            found.push("an ellipse a hair from a circle about the same centre");
+        }
+    }
+    match later {
+        Outline::Rectangle { low, high } => {
+            let reach = DVec2::new(earlier.support(DVec2::X), earlier.support(DVec2::Y));
+            let touches = (0..2).any(|axis| {
+                [low[axis], high[axis]].iter().any(|side| {
+                    close(*side, earlier.center[axis] + reach[axis])
+                        || close(*side, earlier.center[axis] - reach[axis])
+                })
+            });
+            if touches {
+                found.push("a block's side at the ellipse's reach");
+            }
+        }
+        Outline::Circle { center, radius, .. } => {
+            if same(*center, earlier.center) && close(*radius, earlier.minor()) {
+                found.push("a circle across the minor axis");
+            }
+            let at_a_vertex = vertices(earlier).iter().any(|vertex| {
+                let out = (*vertex - earlier.center).normalize();
+                close(center.distance(*vertex), *radius)
+                    && (*center - *vertex).perp_dot(out).abs() <= hair
+                    && !same(*center, earlier.center)
+            });
+            if at_a_vertex {
+                let inside = earlier.level(*center) < 0.0;
+                found.push(if inside {
+                    "a circle inside at a vertex"
+                } else {
+                    "a circle outside at a vertex"
+                });
+            }
+        }
+        Outline::Slot { radius, .. } if close(*radius, earlier.minor()) => {
+            found.push("a slot hugging the ellipse");
+        }
+        Outline::OvalRing { .. }
+            if later.oval_hole().is_some_and(|hole| {
+                same(hole.center, earlier.center)
+                    && same(hole.first, earlier.first)
+                    && close(hole.second, earlier.second)
+            }) =>
+        {
+            found.push("a ring about the very ellipse");
+        }
+        _ => {}
+    }
+    found
+}
+
+/// What the outline of a leaf an ellipse bounds is, and how its axes lie.
+fn kinds_of_ellipse(outline: &Outline) -> Vec<&'static str> {
+    let mut found = vec![match outline {
+        Outline::Ellipse { .. } => "a whole ellipse",
+        Outline::Chorded { arcs, .. } if arcs.len() == 1 => "an ellipse cut by a trait",
+        Outline::Chorded { .. } => "an ellipse cut by two traits",
+        Outline::OvalSlot { .. } => "a slot with elliptic ends",
+        Outline::OvalRing { hole, .. } if hole.x == hole.y => "an elliptic ring bored round",
+        Outline::OvalRing { .. } => "an elliptic ring bored elliptic",
+        _ => return Vec::new(),
+    }];
+    for oval in outline.ovals() {
+        let direction = oval.first.normalize();
+        found.push(if direction.x == 0.0 || direction.y == 0.0 {
+            "axes on the plane's"
+        } else {
+            "axes turned"
+        });
+        if oval.first.length() < oval.second {
+            found.push("the first semi-axis the minor");
+        }
+        if oval.first.length() == oval.second {
+            found.push("half-axes equal");
+        } else if (oval.first.length() - oval.second).abs() <= 1e-3 * oval.first.length() {
+            found.push("half-axes a hair apart");
+        }
+    }
+    if let Outline::Ellipse { from, .. } = outline
+        && *from != 0.0
+    {
+        found.push("a corner off the first semi-axis");
+    }
+    found
+}
+
+/// How two walls square to each other stand across the direction both run
+/// square to: their half-widths and their centres along it, read within
+/// `hair`.
+fn crossing(one: &Leaf, other: &Leaf, hair: f64) -> Option<&'static str> {
+    let (first, first_axis, first_plane) = round_wall_of(one)?;
+    let (second, second_axis, second_plane) = round_wall_of(other)?;
+    if first_axis == second_axis {
+        return None;
+    }
+    let shared = 3 - first_axis - second_axis;
+    let across = |oval: Oval, plane: Plane| {
+        let (_, u, v) = plane.frame();
+        let direction = DVec2::new(DVec3::AXES[shared].dot(u), DVec3::AXES[shared].dot(v));
+        (oval.support(direction), plane.to_world(oval.center)[shared])
+    };
+    let ((width, at), (other_width, other_at)) =
+        (across(first, first_plane), across(second, second_plane));
+    let apart = (at - other_at).abs();
+    Some(if (width - other_width).abs() <= hair && apart <= hair {
+        "a node: equal half-widths, the axes meeting"
+    } else if (width - other_width).abs() > hair
+        && (apart - (width - other_width).abs()).abs() <= hair
+    {
+        "a touch inside"
+    } else if (apart - (width + other_width)).abs() <= hair {
+        "a touch outside"
+    } else if (width - other_width).abs() <= hair {
+        "equal half-widths, the axes apart"
+    } else {
+        "a crossing"
+    })
+}
+
+/// The sine of the least lean of a leaning plane off square to, or along,
+/// the axis of an elliptic wall: nothing when it stands square or along
+/// but for the rounding of the angles it is turned by.
+fn lean_off(plane: Plane, axis: usize) -> Option<f64> {
+    let normal = plane.normal().normalize();
+    let along = normal[axis].abs();
+    let across = normal.cross(DVec3::AXES[axis]).length();
+    let least = along.min(across);
+    (least > 1e-12).then_some(least)
+}
+
+/// What a case of the draws of ellipses holds, kind by kind, each kind
+/// counted once a case.
+fn kinds_in(case: &Case) -> std::collections::BTreeSet<&'static str> {
+    let mut found = std::collections::BTreeSet::new();
+    let hair = 2e-4 * reach_of(case);
+    let leaves: Vec<&Leaf> = case.leaves().collect();
+    for (index, leaf) in leaves.iter().enumerate() {
+        if let Some(outline) = outline_of(leaf) {
+            found.extend(kinds_of_ellipse(outline));
+        }
+        for earlier in &leaves[..index] {
+            if let (Some((oval, axis, _)), Some(outline)) =
+                (round_wall_of(earlier), outline_of(leaf))
+                && elliptic(earlier)
+                && round_wall_of(leaf).is_none_or(|(_, other, _)| other == axis)
+            {
+                found.extend(related_to_an_ellipse(oval, outline, hair));
+            }
+            if let Some(kind) = crossing(earlier, leaf, hair)
+                && (elliptic(earlier) || elliptic(leaf))
+            {
+                found.insert(kind);
+                found.insert(match (elliptic(earlier), elliptic(leaf)) {
+                    (true, true) => "an elliptic wall through an elliptic one",
+                    (true, false) => "a round wall through an elliptic one",
+                    _ => "an elliptic wall through a round one",
+                });
+            }
+            if let (Some((_, axis, _)), Plane::Tilted { .. }) =
+                (round_wall_of(earlier), leaf.plane())
+                && elliptic(earlier)
+                && let Some(lean) = lean_off(*leaf.plane(), axis)
+            {
+                found.insert(if lean <= 1e-8 {
+                    "a lean in decision 11's band"
+                } else if lean <= 1e-3 {
+                    "a lean in the band the kernel warns of"
+                } else {
+                    "a plane at a slant through an elliptic wall"
+                });
+                if elliptic(leaf) || matches!(outline_of(leaf), Some(Outline::Circle { .. })) {
+                    found.insert("a bore at a slant through an elliptic wall");
+                }
+            }
+            if let (Some((oval, axis, plane)), Leaf::Prism { plane: cut, .. }) =
+                (round_wall_of(earlier), leaf)
+                && elliptic(earlier)
+                && !matches!(cut, Plane::Tilted { .. })
+                && cut.normal()[axis] == 0.0
+                && matches!(outline_of(leaf), Some(Outline::Rectangle { .. }))
+            {
+                let across = cut.normal().abs().max_position();
+                let (_, u, v) = plane.frame();
+                let direction = DVec2::new(DVec3::AXES[across].dot(u), DVec3::AXES[across].dot(v));
+                let center = plane.to_world(oval.center)[across];
+                let level = cut.frame().0[across];
+                if ((level - center).abs() - oval.support(direction)).abs() <= hair {
+                    found.insert("a plane along an elliptic wall at its reach");
+                }
+            }
+        }
+        if let Leaf::Prism {
+            plane: Plane::Tilted { turn, .. },
+            outline,
+            ..
+        } = leaf
+            && outline.oval().is_some()
+            && leaves[..index].iter().any(|earlier| {
+                matches!(earlier, Leaf::Prism { plane: Plane::Tilted { turn: face, .. }, outline: Outline::Rectangle { .. }, .. } if face == turn)
+            })
+        {
+            found.insert("an elliptic hole or boss square to a slanted face");
+        }
+    }
+    if case.asks_beyond_the_conics() {
+        found.insert("asking beyond the conics");
+    }
+    if case.leaves().any(|leaf| leaf.as_turned().is_some()) {
+        found.insert("a cone beside an elliptic wall");
+    }
+    found
+}
+
+/// What a draw of ellipses is asked for: its name, each kind it draws
+/// with the least share of its cases that hold it, and the largest share
+/// that may ask beyond the conics.
+type Wanted = (&'static str, &'static [(&'static str, f64)], f64);
+
+#[test]
+fn the_ellipse_generators_draw_every_kind_they_keep() {
+    let wanted: [Wanted; 3] = [
+        (
+            "ellipses",
+            &[
+                ("a whole ellipse", 0.6),
+                ("an ellipse cut by a trait", 0.08),
+                ("an ellipse cut by two traits", 0.03),
+                ("a slot with elliptic ends", 0.1),
+                ("an elliptic ring bored round", 0.04),
+                ("an elliptic ring bored elliptic", 0.05),
+                ("axes on the plane's", 0.4),
+                ("axes turned", 0.3),
+                ("the first semi-axis the minor", 0.3),
+                ("half-axes equal", 0.1),
+                ("half-axes a hair apart", 0.08),
+                ("a corner off the first semi-axis", 0.1),
+                ("the very same ellipse", 0.03),
+                ("the same ellipse a hair off", 0.06),
+                ("a block's side at the ellipse's reach", 0.07),
+                ("a circle across the minor axis", 0.05),
+                ("a circle inside at a vertex", 0.025),
+                ("a circle outside at a vertex", 0.04),
+                ("two ellipses touching at a vertex", 0.06),
+                (
+                    "an ellipse a hair from a circle about the same centre",
+                    0.05,
+                ),
+                ("a slot hugging the ellipse", 0.015),
+                ("a ring about the very ellipse", 0.01),
+            ],
+            0.0,
+        ),
+        (
+            "ellipses crossed",
+            &[
+                ("a node: equal half-widths, the axes meeting", 0.3),
+                ("a touch inside", 0.12),
+                ("a touch outside", 0.08),
+                ("equal half-widths, the axes apart", 0.15),
+                ("a crossing", 0.2),
+                ("a round wall through an elliptic one", 0.25),
+                ("an elliptic wall through a round one", 0.25),
+                ("an elliptic wall through an elliptic one", 0.25),
+                ("half-axes a hair apart", 0.04),
+            ],
+            0.0,
+        ),
+        (
+            "ellipses tilted",
+            &[
+                ("a plane at a slant through an elliptic wall", 0.3),
+                ("a lean in decision 11's band", 0.08),
+                ("a lean in the band the kernel warns of", 0.08),
+                ("an elliptic hole or boss square to a slanted face", 0.025),
+                ("a plane along an elliptic wall at its reach", 0.06),
+                ("a bore at a slant through an elliptic wall", 0.07),
+                ("a block's side at the ellipse's reach", 0.06),
+                ("a cone beside an elliptic wall", 0.01),
+            ],
+            0.2,
+        ),
+    ];
+    for ((name, draw), (named, kinds, asking)) in ELLIPSE_DRAWS.iter().zip(wanted) {
+        assert_eq!(*name, named);
+        let cases: Vec<Case> = (0..1000).map(draw).collect();
+        let found: Vec<_> = cases.iter().map(kinds_in).collect();
+        let share = |kind: &str| {
+            found.iter().filter(|kinds| kinds.contains(kind)).count() as f64 / cases.len() as f64
+        };
+        for (kind, least) in kinds {
+            assert!(
+                share(kind) >= *least,
+                "{name}: {kind} in {} of the cases, under {least}",
+                share(kind)
+            );
+        }
+        assert!(
+            share("asking beyond the conics") <= asking,
+            "{name}: {} of the cases ask beyond the conics",
+            share("asking beyond the conics")
+        );
+    }
+}
+
+#[test]
+fn a_case_of_any_draw_of_ellipses_prints_as_numbers_rust_reads_back() {
+    for (name, draw) in ELLIPSE_DRAWS {
+        for seed in 0..300 {
+            let printed = draw(seed).to_string();
+            assert!(
+                !printed.contains("NaN") && !printed.contains("inf"),
+                "{name}, seed {seed} prints a number Rust cannot read back: {printed}"
+            );
+        }
+    }
+}
+
+#[test]
+fn shrinking_any_drawn_ellipse_case_comes_to_an_end() {
+    for (name, draw) in ELLIPSE_DRAWS {
+        for seed in 0..100 {
+            let mut rounds = 0;
+            let shrunk = shrink(
+                draw(seed),
+                Case::smaller,
+                |_| true,
+                || {
+                    rounds += 1;
+                    rounds < 100_000
+                },
+            );
+            assert!(rounds < 100_000, "{name}, seed {seed} was still shrinking");
+            assert!(
+                shrunk.smaller().is_empty(),
+                "{name}, seed {seed} stopped short: {shrunk}"
+            );
+        }
+    }
+}
+
+#[test]
+fn ellipse_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_arithmetic() {
+    for (name, draw) in ELLIPSE_DRAWS {
+        let seeds: Vec<u64> = (0..40).collect();
+        let weighed = random_solids::on_every_core(&seeds, |seed| {
+            let case = draw(*seed);
+            random_solids::check(&case).ok()?;
+            let measured = random_solids::held_to_arithmetic(&case, &Flats::for_case(&case));
+            Some((measured, case))
+        });
+        let mut held = 0;
+        for (seed, (measured, case)) in seeds
+            .iter()
+            .zip(weighed)
+            .filter_map(|(seed, one)| Some((seed, one?)))
+        {
+            held += 1;
+            assert!(
+                measured.is_ok(),
+                "{name}, seed {seed}: {measured:?}\n{case}"
+            );
+        }
+        assert!(held > 15, "{name}: {held} cases held");
+    }
+}
+
+/// Every case of `draw` among `seeds` keeps every rule on the exact kernel,
+/// declined only where it asks beyond the conics.
+fn ellipse_cases_keep_every_rule_on_the_exact_kernel(
+    name: &str,
+    draw: fn(u64) -> Case,
+    seeds: std::ops::Range<u64>,
+) {
+    let seeds: Vec<u64> = seeds.collect();
+    let weighed = random_solids::on_every_core(&seeds, |seed| {
+        let case = draw(*seed);
+        (random_solids::held_to_arithmetic(&case, &Exact), case)
+    });
+    for (seed, (measured, case)) in seeds.iter().zip(weighed) {
+        assert!(
+            measured.is_ok(),
+            "{name}, seed {seed}: {measured:?}\n{case}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "#571: the exact kernel does not raise an ellipse yet"]
+fn random_ellipse_cases_keep_every_rule_on_the_exact_kernel() {
+    for (name, draw) in ELLIPSE_DRAWS {
+        ellipse_cases_keep_every_rule_on_the_exact_kernel(name, draw, 0..16);
+    }
+}
+
+#[test]
+#[ignore = "#571: the exact kernel does not raise an ellipse yet"]
+fn ellipse_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact() {
+    for (name, draw) in ELLIPSE_DRAWS {
+        let seeds: Vec<u64> = (0..12).collect();
+        let weighed = random_solids::on_every_core(&seeds, |seed| {
+            let case = draw(*seed);
+            let kept = random_solids::held_to_arithmetic(&case, &Exact).ok()?;
+            if kept.declined > 0 {
+                return None;
+            }
+            let leaves: Vec<cao_solid::Body> = case
+                .leaves()
+                .map(|leaf| Application.raised(leaf))
+                .collect::<Result<_, _>>()
+                .ok()?;
+            let mut exact = leaves.iter().all(cao_solid::Body::is_exact);
+            let mut body = leaves[0].clone();
+            for (step, tool) in case.steps.iter().zip(&leaves[1..]) {
+                match Application.combined(&body, tool, step.mode) {
+                    Ok(next) => body = next,
+                    Err(_) => break,
+                }
+                exact &= body.is_exact();
+            }
+            Some((
+                random_solids::held_to_arithmetic(&case, &Application),
+                exact,
+                case,
+            ))
+        });
+        let mut held = 0;
+        for (seed, (measured, exact, case)) in seeds
+            .iter()
+            .zip(weighed)
+            .filter_map(|(seed, one)| Some((seed, one?)))
+        {
+            held += 1;
+            assert!(
+                measured.is_ok(),
+                "{name}, seed {seed}: {measured:?}\n{case}"
+            );
+            assert!(exact, "{name}, seed {seed} left the exact kernel:\n{case}");
+        }
+        assert!(held > 4, "{name}: {held} cases held");
+    }
+}
+
+#[test]
+#[ignore = "#571: the exact kernel does not raise an ellipse yet"]
+fn every_elliptic_profile_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_its_area_times_its_height()
+ {
+    let leaves: Vec<Leaf> = (0..120)
+        .flat_map(|seed| {
+            ELLIPSE_DRAWS
+                .iter()
+                .flat_map(|(_, draw)| draw(seed).leaves().cloned().collect::<Vec<_>>())
+                .collect::<Vec<_>>()
+        })
+        .filter(elliptic)
+        .chain(elliptic_prisms(60))
+        .collect();
+    assert!(leaves.len() > 200, "{} leaves", leaves.len());
+    let weighed = random_solids::on_every_core(&leaves, |leaf| {
+        let alone = Case::new(leaf.clone(), vec![]);
+        let held = random_solids::held_to_arithmetic(&alone, &Exact);
+        (held, Exact.raised(leaf).map(|body| body.volume()))
+    });
+    for (leaf, (held, volume)) in leaves.iter().zip(weighed) {
+        assert!(held.is_ok(), "{leaf}: {held:?}");
+        let Leaf::Prism {
+            outline, height, ..
+        } = leaf
+        else {
+            unreachable!("only prisms were kept")
+        };
+        let promised = area(outline) * height.abs();
+        let volume = volume.unwrap_or_else(|declined| panic!("{leaf}: {declined:?}"));
+        assert!(
+            (volume - promised).abs() <= 1e-9 * promised,
+            "{leaf}: {volume} against {promised}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "#571: the exact kernel does not raise an ellipse yet"]
+fn an_elliptic_leaf_names_its_faces_as_the_flats_name_them() {
+    let leaves: Vec<Leaf> = (0..60)
+        .flat_map(|seed| {
+            ELLIPSE_DRAWS
+                .iter()
+                .flat_map(|(_, draw)| draw(seed).leaves().cloned().collect::<Vec<_>>())
+                .collect::<Vec<_>>()
+        })
+        .filter(elliptic)
+        .chain(elliptic_prisms(40))
+        .collect();
+    for leaf in &leaves {
+        let exact = Application
+            .raised(leaf)
+            .unwrap_or_else(|declined| panic!("{leaf}: {declined:?}"));
+        assert!(exact.is_exact(), "{leaf} raised on the flats");
+        let flats = leaf.solid().expect("a leaf the flats raise");
+        assert_eq!(exact.faces_end(), flats.faces_end(), "{leaf}");
+        for face in 0..flats.faces_end() {
+            assert_eq!(
+                exact.has_face(face),
+                flats.has_face(face),
+                "{leaf}: face {face}"
+            );
+        }
+    }
+}
+
+#[test]
+#[ignore = "#571: the exact kernel does not raise an ellipse yet"]
+fn a_lone_elliptic_leaf_cut_by_a_slanted_half_space_encloses_the_volume_of_its_slices() {
+    let leaves: Vec<Leaf> = elliptic_prisms(400)
+        .into_iter()
+        .filter(|leaf| leaf.kept_by_a_half_space(DVec3::Z, 0.0).is_some())
+        .filter(|leaf| !matches!(leaf.plane(), Plane::Tilted { .. }))
+        .take(36)
+        .collect();
+    assert_eq!(leaves.len(), 36);
+    let cut: Vec<(Case, DVec3, f64)> = leaves
+        .iter()
+        .enumerate()
+        .map(|(index, leaf)| {
+            let (low, high) = leaf.bounds().expect("a leaf with a box");
+            let middle = (low + high) / 2.0;
+            let holds = index % 3;
+            let degrees = [20.0, 35.0, 50.0, 65.0][index / 3 % 4];
+            let plane = [degrees, -degrees]
+                .into_iter()
+                .map(|degrees| Plane::leaning(holds, degrees, middle))
+                .find(|plane| random_solids::clear_of_the_lines(*plane))
+                .expect("a leaning clear of the lines");
+            let normal = plane.normal();
+            let reach = (high - low).length() + 1.0;
+            let tool = Leaf::prism(
+                plane,
+                Outline::rectangle([-reach, -reach], [reach, reach]),
+                reach,
+            );
+            (
+                Case::new(leaf.clone(), vec![Step::cut(tool)]),
+                normal,
+                normal.dot(middle),
+            )
+        })
+        .collect();
+    let weighed = random_solids::on_every_core(&cut, |(case, _, _)| {
+        let held = random_solids::held_to_arithmetic(case, &Exact);
+        let volume = Exact
+            .raised(&case.start)
+            .and_then(|leaf| {
+                let tool = Exact.raised(&case.steps[0].tool)?;
+                Exact.combined(&leaf, &tool, Mode::Cut)
+            })
+            .map(|body| body.volume());
+        (held, volume)
+    });
+    for ((case, normal, offset), (held, volume)) in cut.iter().zip(weighed) {
+        let measured = held.unwrap_or_else(|flaw| panic!("{flaw:?}\n{case}"));
+        assert_eq!(measured.declined, 0, "declined:\n{case}");
+        let volume = volume.unwrap_or_else(|declined| panic!("{declined:?}\n{case}"));
+        let sliced = case
+            .start
+            .kept_by_a_half_space(*normal, *offset)
+            .expect("an elliptic leaf");
+        assert!(
+            (volume - sliced).abs() <= 1e-9 * sliced,
+            "{volume} against {sliced} by slices\n{case}"
+        );
+    }
+}
+
 /// The campaign itself, compiled only when asked for — `--features
 /// campaigns` — so that work on any other issue never pays for it.
 #[cfg(feature = "campaigns")]
@@ -1643,6 +3528,7 @@ mod campaign {
     use cao_solid::soundness::Check;
     use random_solids::campaigning::{
         Answering, DECLINED, GRAZING, HELD, UNSTABLE, campaign_over, shrunk_one_by_one,
+        tally_conics,
     };
 
     use super::*;
@@ -1700,12 +3586,144 @@ mod campaign {
         Ok(())
     }
 
+    /// A case of ellipses held on the exact kernel, and the conics its
+    /// planes meet its walls along tallied (#571).
+    fn ellipses_exactly(case: &Case) -> Result<(), Flaw> {
+        exactly(case)?;
+        tally_conics(case);
+        Ok(())
+    }
+
+    /// The same, through the application's body.
+    fn ellipses_through_the_application(case: &Case) -> Result<(), Flaw> {
+        through_the_application(case)?;
+        tally_conics(case);
+        Ok(())
+    }
+
+    /// The same, among the draws of ellipses (#571).
+    fn drawn_ellipse(seed: u64) -> Case {
+        eprint!("\rseed {seed} ");
+        Case::drawn_ellipses(seed)
+    }
+
+    fn drawn_ellipse_crossed(seed: u64) -> Case {
+        eprint!("\rseed {seed} ");
+        Case::drawn_ellipses_crossed(seed)
+    }
+
+    fn drawn_ellipse_tilted(seed: u64) -> Case {
+        eprint!("\rseed {seed} ");
+        Case::drawn_ellipses_tilted(seed)
+    }
+
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_random_ellipses_on_the_exact_kernel_keeps_every_rule() {
+        campaign_over(
+            "ellipses",
+            Answering::Exactly,
+            drawn_ellipse,
+            ellipses_exactly,
+        );
+    }
+
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_random_ellipses_through_the_application_s_body_keeps_every_rule() {
+        campaign_over(
+            "ellipses",
+            Answering::ThroughTheApplication,
+            drawn_ellipse,
+            ellipses_through_the_application,
+        );
+    }
+
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_random_ellipses_crossed_on_the_exact_kernel_keeps_every_rule() {
+        campaign_over(
+            "ellipses crossed",
+            Answering::Exactly,
+            drawn_ellipse_crossed,
+            ellipses_exactly,
+        );
+    }
+
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_random_ellipses_crossed_through_the_application_s_body_keeps_every_rule() {
+        campaign_over(
+            "ellipses crossed",
+            Answering::ThroughTheApplication,
+            drawn_ellipse_crossed,
+            ellipses_through_the_application,
+        );
+    }
+
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_random_ellipses_tilted_on_the_exact_kernel_keeps_every_rule() {
+        campaign_over(
+            "ellipses tilted",
+            Answering::Exactly,
+            drawn_ellipse_tilted,
+            ellipses_exactly,
+        );
+    }
+
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_random_ellipses_tilted_through_the_application_s_body_keeps_every_rule() {
+        campaign_over(
+            "ellipses tilted",
+            Answering::ThroughTheApplication,
+            drawn_ellipse_tilted,
+            ellipses_through_the_application,
+        );
+    }
+
+    /// How many of the cases each draw of ellipses gives the first 300
+    /// seeds the flats answer by their own rules, each of them asserted
+    /// answered by the arithmetic too: the arithmetic of ellipses held to
+    /// the flats before the exact kernel raises one (#571), the flats owing
+    /// the draws nothing.
+    #[test]
+    #[ignore = "a campaign, run by hand once: see the head of this file"]
+    fn ellipse_cases_the_flats_answer_by_their_own_rules_on_300_seeds_keep_every_rule_held_to_the_arithmetic()
+     {
+        for (name, draw) in ELLIPSE_DRAWS {
+            let seeds: Vec<u64> = (0..300).collect();
+            let weighed = random_solids::on_every_core(&seeds, |seed| {
+                let case = draw(*seed);
+                random_solids::check(&case).ok()?;
+                let measured = random_solids::held_to_arithmetic(&case, &Flats::for_case(&case));
+                Some((measured, case))
+            });
+            let mut held = 0;
+            for (seed, (measured, case)) in seeds
+                .iter()
+                .zip(weighed)
+                .filter_map(|(seed, one)| Some((seed, one?)))
+            {
+                held += 1;
+                assert!(
+                    measured.is_ok(),
+                    "{name}, seed {seed}: {measured:?}\n{case}"
+                );
+            }
+            println!("{name}: {held} cases of {} held", seeds.len());
+        }
+    }
+
     /// Each seed named in `CAO_TRIAGE_SEEDS`, commas between them, run again,
     /// shrunk while it still breaks the same rule, and printed as a test: what a
     /// campaign's failures are sorted into distinct ones from. The seeds name
-    /// square cases, or profiles when `CAO_TRIAGE_DRAW` is `profiles`; they are
-    /// run on the exact kernel, or through the application's body when
-    /// `CAO_TRIAGE_KERNEL` is `application`.
+    /// square cases, or profiles when `CAO_TRIAGE_DRAW` is `profiles`, or
+    /// cases of the draws of ellipses when it is `ellipses`,
+    /// `ellipses_crossed` or `ellipses_tilted`; they are run on the exact
+    /// kernel, or through the application's body when `CAO_TRIAGE_KERNEL` is
+    /// `application`.
     #[test]
     #[ignore = "run by hand on the seeds a campaign named"]
     fn the_seeds_a_campaign_named_are_shrunk_one_by_one() {
@@ -1716,6 +3734,9 @@ mod campaign {
             .collect();
         let draw: fn(u64) -> Case = match std::env::var("CAO_TRIAGE_DRAW").as_deref() {
             Ok("profiles") => Case::drawn_profiles,
+            Ok("ellipses") => Case::drawn_ellipses,
+            Ok("ellipses_crossed") => Case::drawn_ellipses_crossed,
+            Ok("ellipses_tilted") => Case::drawn_ellipses_tilted,
             _ => Case::drawn_square,
         };
         let check: Check<Case> = match std::env::var("CAO_TRIAGE_KERNEL").as_deref() {

@@ -7,7 +7,14 @@
 //! the conics a case's planes meet its cylinders and cones along, told kind
 //! by kind. The kernel builds the conics, so only the first excuses a
 //! decline.
+//!
+//! An elliptic wall (#571) is a cylinder to the rule: it asks against a wall
+//! at a skew angle, circular or elliptic, and against a cone about any
+//! axis, its own included, where their leaves' boxes meet. Nothing else it
+//! meets asks — a plane at any angle, a wall parallel or square to it — so a
+//! case with an ellipse is built or failed but there.
 
+use cao_solid::profile::Run;
 use glam::{DVec2, DVec3};
 
 use super::{Case, Leaf, Outline};
@@ -16,14 +23,19 @@ use super::{Case, Leaf, Outline};
 type Spanned = Option<(DVec3, DVec3)>;
 
 /// A surface a leaf is bounded by, as the scope rule reads it: a plane by its
-/// normal and a point of it, a cylinder or a cone by its axis and a point of
-/// the axis, a cone besides by the furthest its leaf reaches from the axis.
+/// normal and a point of it, a cylinder, an elliptic cylinder or a cone by
+/// its axis and a point of the axis, a cone besides by the furthest its leaf
+/// reaches from the axis.
 enum Wall {
     Plane {
         normal: DVec3,
         point: DVec3,
     },
     Cylinder {
+        axis: DVec3,
+        point: DVec3,
+    },
+    Elliptic {
         axis: DVec3,
         point: DVec3,
     },
@@ -50,7 +62,8 @@ impl Wall {
     /// reaches `radius` from the axis, in a curve the kernel does not build:
     /// anything but a plane square to the axis, holding it or parallel to it
     /// further off than the leaf reaches by more than the kernel tells
-    /// clear, or a cylinder or a cone about the same line.
+    /// clear, or a cylinder or a cone about the same line. An elliptic wall
+    /// always does, about the cone's axis or off it (#571).
     fn asks_of_a_cone(&self, axis: DVec3, point: DVec3, radius: f64, reach: f64) -> bool {
         let axis = axis.normalize();
         match *self {
@@ -75,6 +88,7 @@ impl Wall {
                 let off = (on - point) - axis * (on - point).dot(axis);
                 !parallel || off.length() > ALIGNED * reach
             }
+            Wall::Elliptic { .. } => true,
         }
     }
 }
@@ -83,7 +97,7 @@ impl Wall {
 /// planes square to its axis at each end of its section and, short of a
 /// whole turn, the two it starts and ends on; its cylinder, and its cone
 /// when an edge of its section slopes; a prism's two ends, its sides and
-/// the cylinders of its arcs.
+/// the cylinders of its arcs, circular or elliptic.
 fn walls(leaf: &Leaf) -> Vec<Wall> {
     if let Some(turned) = leaf.as_turned() {
         let swept = turned.swept(1.0);
@@ -182,6 +196,34 @@ fn walls(leaf: &Leaf) -> Vec<Wall> {
                     point: at(corners[index]),
                 }
             }));
+        }
+        Outline::Ellipse { .. }
+        | Outline::Chorded { .. }
+        | Outline::OvalSlot { .. }
+        | Outline::OvalRing { .. } => {
+            let (contour, holes) = outline
+                .oval_contours()
+                .expect("an outline an ellipse bounds");
+            for contour in std::iter::once(&contour).chain(&holes) {
+                for (index, run) in contour.runs.iter().enumerate() {
+                    let corner = contour.corners[index];
+                    walls.push(match *run {
+                        Run::Straight => {
+                            let next = contour.corners[(index + 1) % contour.corners.len()];
+                            let side = next - corner;
+                            Wall::Plane {
+                                normal: u * side.y - v * side.x,
+                                point: at(corner),
+                            }
+                        }
+                        Run::Round { center, .. } => round(center),
+                        Run::Oval { center, .. } => Wall::Elliptic {
+                            axis: normal,
+                            point: at(center),
+                        },
+                    });
+                }
+            }
         }
     }
     walls
@@ -301,10 +343,10 @@ struct Walled {
     reach: f64,
 }
 
-/// The axes of the cylinders among a leaf's walls.
+/// The axes of the cylinders among a leaf's walls, circular or elliptic.
 fn cylinders_among(walls: &[Wall]) -> impl Iterator<Item = DVec3> + '_ {
     walls.iter().filter_map(|wall| match wall {
-        Wall::Cylinder { axis, .. } => Some(*axis),
+        Wall::Cylinder { axis, .. } | Wall::Elliptic { axis, .. } => Some(*axis),
         _ => None,
     })
 }
@@ -374,10 +416,11 @@ impl Walled {
 impl Case {
     /// Whether the case may ask the exact kernel for a curve that is no
     /// conic (#552): two cylinders whose axes are neither parallel nor
-    /// square, a skew meeting; or a cone meeting a cylinder or a cone not
-    /// about its very axis; each where their leaves' boxes meet. A plane
-    /// never asks. The kernel may decline such a case as unsupported; it
-    /// may also hold it, the leaves never meeting there.
+    /// square, a skew meeting, either of them elliptic; or a cone meeting a
+    /// cylinder or a cone not about its very axis, or an elliptic wall about
+    /// any (#571); each where their leaves' boxes meet. A plane never asks.
+    /// The kernel may decline such a case as unsupported; it may also hold
+    /// it, the leaves never meeting there.
     pub fn asks_beyond_the_conics(&self) -> bool {
         let walled = Walled::of(self);
         let skew = walled.leaves.iter().any(|(walls, bounds, _)| {

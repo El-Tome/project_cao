@@ -13,6 +13,7 @@ use glam::{DVec2, DVec3};
 
 use super::{Case, Leaf, Mode, Outline, Plane, Step};
 
+mod ovals;
 mod slants;
 mod tilts;
 mod turns;
@@ -142,6 +143,71 @@ impl Case {
         )
     }
 
+    /// The case a seed stands for among prisms of ellipses (#571), on the
+    /// planes of the origin and all raised along one of their normals: an
+    /// ellipse whole, cut by one trait or two, ending a slot or bored by a
+    /// smaller one, joined and cut with blocks, circles, rings, rounded
+    /// rectangles, slots and other ellipses parallel to it, the tools drawn
+    /// from a leaf before them weighted towards hairs and tangencies — the
+    /// same ellipse a hair off, a block's side at its reach, a circle across
+    /// its minor axis or at one of its vertices, two ellipses touching, half
+    /// axes a hair apart. A seed space of its own: none of the cases another
+    /// draw gives the same seed.
+    pub fn drawn_ellipses(seed: u64) -> Case {
+        Case::drawn_ovals(seed, Ovals::Square)
+    }
+
+    /// The case a seed stands for among prisms of ellipses and circles on
+    /// two planes of the origin square to each other (#571): round holes and
+    /// bosses from the side through elliptic prisms, elliptic ones through
+    /// round shafts, elliptic through elliptic, weighted towards equal half
+    /// widths across and axes meeting, where the curve two walls square to
+    /// each other meet along has its nodes and its touches. A seed space of
+    /// its own.
+    pub fn drawn_ellipses_crossed(seed: u64) -> Case {
+        Case::drawn_ovals(seed, Ovals::Crossed)
+    }
+
+    /// The case a seed stands for among planes leaning through elliptic
+    /// walls (#571), as `drawn_tilted` draws them through round ones: blocks
+    /// on leaning planes cutting elliptic bosses through their middle, about
+    /// a rim's tangent, along their axis at their reach or inside it,
+    /// elliptic holes and bosses square to the face a slanted cut left,
+    /// bores at a slant, now and then a cone about an elliptic wall's axis,
+    /// leans on the lattice, by a degree's step, by a real angle, and a hair
+    /// from square or from along — in decision 11's band and in the band the
+    /// kernel warns of. A seed space of its own.
+    pub fn drawn_ellipses_tilted(seed: u64) -> Case {
+        Case::drawn_ovals(seed, Ovals::Tilted)
+    }
+
+    /// The case a seed stands for in one of the draws of ellipses: their
+    /// numbers come from the seed's generator once it has thrown away more
+    /// than any other draw does, a count of its own to each, so that no
+    /// draw of ellipses shares a seed's stream with another draw.
+    fn drawn_ovals(seed: u64, ovals: Ovals) -> Case {
+        let mut random = Random::seeded(seed);
+        let thrown = match ovals {
+            Ovals::Square => 3,
+            Ovals::Crossed => 4,
+            Ovals::Tilted => 5,
+        };
+        for _ in 0..thrown {
+            random.number();
+        }
+        let scale = *random.pick(&[1.0, 1.0, 1.0, 5.0, 30.0]);
+        let mut drawing = Drawing {
+            random,
+            scale,
+            among: Among::Ellipses,
+        };
+        match ovals {
+            Ovals::Square => drawing.ellipses_square(),
+            Ovals::Crossed => drawing.ellipses_crossed(),
+            Ovals::Tilted => drawing.ellipses_tilted(),
+        }
+    }
+
     /// The case a seed stands for among some kinds of solid, by drawing among
     /// fewer kinds rather than drawing again: the cases `drawn` and
     /// `drawn_square` give are the ones a seed has always named. A slanted
@@ -218,6 +284,17 @@ enum Among {
         slanted: bool,
         tilted: bool,
     },
+    /// Prisms of ellipses among the profiles, on the planes of the origin
+    /// and, in the draw of leaning tools, on planes leaning off them.
+    Ellipses,
+}
+
+/// The three draws of ellipses (#571).
+#[derive(Clone, Copy, PartialEq)]
+enum Ovals {
+    Square,
+    Crossed,
+    Tilted,
 }
 
 struct Drawing {
@@ -309,7 +386,7 @@ impl Drawing {
         let kinds = match self.among {
             Among::Every => 20,
             Among::Square => 15,
-            Among::Profiles | Among::Turned { .. } => 30,
+            Among::Profiles | Among::Turned { .. } | Among::Ellipses => 30,
         };
         match (self.random.below(kinds), self.among) {
             (0..=8, _) => {
@@ -465,7 +542,9 @@ impl Drawing {
             _ => self.height(),
         };
         let outline = match self.among {
-            Among::Profiles | Among::Turned { .. } => self.related_profile(earlier),
+            Among::Profiles | Among::Turned { .. } | Among::Ellipses => {
+                self.related_profile(earlier)
+            }
             Among::Every | Among::Square => self.related_outline(earlier),
         };
         Leaf::Prism {

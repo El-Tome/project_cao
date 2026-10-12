@@ -165,8 +165,10 @@ impl Kernel for Application {
 /// A rectangle as the profile's own rectangle, a circle as one whole turn
 /// from the angle its flats start at, a ring as two whole turns from nought,
 /// the outer one with the inner one as its hole, a rounded rectangle and a
-/// slot as their contour of straight runs and arcs; the plane as the frame it
-/// is drawn in, and the prism's height along the plane's normal.
+/// slot as their contour of straight runs and arcs, an outline an ellipse
+/// bounds as its arcs of ellipse among its straight runs (#571); the plane
+/// as the frame it is drawn in, and the prism's height along the plane's
+/// normal.
 fn exact_prism(leaf: &Leaf) -> Option<(Contour, Vec<Contour>, Frame, DVec3)> {
     let Leaf::Prism {
         plane,
@@ -192,6 +194,10 @@ fn exact_prism(leaf: &Leaf) -> Option<(Contour, Vec<Contour>, Frame, DVec3)> {
             vec![whole_circle(*center, *inner, 0.0)],
         ),
         Outline::Rounded { .. } | Outline::Slot { .. } => (outline.contour()?, Vec::new()),
+        Outline::Ellipse { .. }
+        | Outline::Chorded { .. }
+        | Outline::OvalSlot { .. }
+        | Outline::OvalRing { .. } => outline.oval_contours()?,
         Outline::Star { .. } => return None,
     };
     let (origin, u, v) = plane.frame();
@@ -226,9 +232,11 @@ pub fn whole_circle(center: DVec2, radius: f64, from: f64) -> Contour {
     }
 }
 
-/// The flats written before the exact kernel: circles laid as the flats the
-/// application samples them into, held to the true circles within the
-/// deepest of their sagittas.
+/// The flats written before the exact kernel: circles and ellipses laid as
+/// the flats the application samples them into, held to the true curves
+/// within the deepest of their sagittas — an ellipse's no deeper than a
+/// circle's of its major half-axis, its flats the images of a circle's
+/// under a map that stretches no length further.
 pub struct Flats {
     tolerance: f64,
 }
@@ -264,6 +272,11 @@ impl Flats {
                     outline: Outline::Rounded { radius, .. } | Outline::Slot { radius, .. },
                     ..
                 } => Some(*radius),
+                Leaf::Prism { outline, .. } => outline
+                    .ovals()
+                    .iter()
+                    .map(|oval| oval.major())
+                    .reduce(f64::max),
                 _ => None,
             })
             .map(|radius| radius * (1.0 - (std::f64::consts::PI / CIRCLE_STEPS as f64).cos()))

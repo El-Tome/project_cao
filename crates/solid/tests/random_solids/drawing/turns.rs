@@ -364,7 +364,12 @@ impl Drawing {
             } => Some((*center, *self.random.pick(&[*outer, *inner]))),
             Outline::Slot { from, to, radius } => Some((*self.random.pick(&[*from, *to]), *radius)),
             Outline::Rounded { low, radius, .. } => Some((*low + *radius, *radius)),
-            Outline::Rectangle { .. } | Outline::Star { .. } => None,
+            Outline::Rectangle { .. }
+            | Outline::Star { .. }
+            | Outline::Ellipse { .. }
+            | Outline::Chorded { .. }
+            | Outline::OvalSlot { .. }
+            | Outline::OvalRing { .. } => None,
         };
         let ends = [
             plane.to_world(DVec2::ZERO),
@@ -685,5 +690,9 @@ fn outline_box(outline: &Outline) -> (DVec2, DVec2) {
             (DVec2::splat(f64::MAX), DVec2::splat(f64::MIN)),
             |(low, high), corner| (low.min(*corner), high.max(*corner)),
         ),
+        Outline::Ellipse { .. }
+        | Outline::Chorded { .. }
+        | Outline::OvalSlot { .. }
+        | Outline::OvalRing { .. } => outline.oval_box().expect("an outline an ellipse bounds"),
     }
 }

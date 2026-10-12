@@ -35,20 +35,20 @@ const OFF_THE_LINES: f64 = 0.05;
 /// when it holds the axis's direction, and how far it stands from square to
 /// it, each written so a hair off either keeps its digits.
 #[derive(Clone, Copy, Debug)]
-struct Lean {
+pub(super) struct Lean {
     with_the_axis: f64,
     off_square: f64,
 }
 
 impl Lean {
-    fn at(with_the_axis: f64) -> Lean {
+    pub(super) fn at(with_the_axis: f64) -> Lean {
         Lean {
             with_the_axis,
             off_square: 90.0 - with_the_axis,
         }
     }
 
-    fn off_square(by: f64) -> Lean {
+    pub(super) fn off_square(by: f64) -> Lean {
         Lean {
             with_the_axis: 90.0 - by,
             off_square: by,
@@ -253,7 +253,7 @@ impl Drawing {
     /// A plane through `origin` holding `holds`, leaning against the world
     /// axis `axis` square to it by `lean`, either way; nothing when it, and
     /// the same leaning the other way, stand square to the lines of measure.
-    fn leaning_against(
+    pub(super) fn leaning_against(
         &mut self,
         axis: usize,
         holds: usize,
@@ -273,14 +273,14 @@ impl Drawing {
     }
 
     /// A world axis square to `axis`, drawn.
-    fn square_to(&mut self, axis: usize) -> usize {
+    pub(super) fn square_to(&mut self, axis: usize) -> usize {
         let others = [(axis + 1) % 3, (axis + 2) % 3];
         *self.random.pick(&others)
     }
 
     /// A plane through `origin` leaning about any world axis, now and then
     /// about two, clear of the lines of measure.
-    fn generic(&mut self, origin: DVec3) -> Option<Plane> {
+    pub(super) fn generic(&mut self, origin: DVec3) -> Option<Plane> {
         if self.random.chance(0.1) {
             let turn = DVec3::new(
                 self.random.on_lattice(-75.0, 75.0, 15.0),
@@ -338,7 +338,7 @@ impl Drawing {
 
     /// A cut through `target` along `plane`, moved off it by a hair now and
     /// then; nothing when no plane was drawn.
-    fn cut_along(&mut self, plane: Option<Plane>, target: &Leaf) -> Option<Step> {
+    pub(super) fn cut_along(&mut self, plane: Option<Plane>, target: &Leaf) -> Option<Step> {
         let plane = shifted(plane?, self.nudge());
         Some(Step::cut(self.covering(plane, target)))
     }
@@ -417,7 +417,7 @@ impl Drawing {
     }
 
     /// A point on the lattice inside a box.
-    fn inside(&mut self, low: DVec3, high: DVec3) -> DVec3 {
+    pub(super) fn inside(&mut self, low: DVec3, high: DVec3) -> DVec3 {
         let unit = self.scale;
         let mut along =
             |from: f64, to: f64| self.random.on_lattice(from / unit, to / unit, 0.5) * unit;
@@ -677,7 +677,7 @@ impl Drawing {
 }
 
 /// The plane of the origin square to world axis `axis` through `at`.
-fn square_through(axis: usize, at: DVec3) -> Plane {
+pub(super) fn square_through(axis: usize, at: DVec3) -> Plane {
     match axis {
         0 => Plane::Yz(at.x),
         1 => Plane::Xz(at.y),
@@ -688,7 +688,12 @@ fn square_through(axis: usize, at: DVec3) -> Plane {
 /// How far the ray from `from` along `direction` runs inside the box from
 /// `low` to `high` before it leaves it, and the world axis of the side it
 /// leaves through; nothing when it starts outside.
-fn leaving(from: DVec3, direction: DVec3, low: DVec3, high: DVec3) -> Option<(f64, usize)> {
+pub(super) fn leaving(
+    from: DVec3,
+    direction: DVec3,
+    low: DVec3,
+    high: DVec3,
+) -> Option<(f64, usize)> {
     (0..3)
         .filter(|&axis| direction[axis] != 0.0)
         .map(|axis| {

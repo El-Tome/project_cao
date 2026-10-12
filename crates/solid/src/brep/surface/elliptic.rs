@@ -101,6 +101,19 @@ impl EllipticCylinder {
         }
     }
 
+    /// Whether another elliptic wall about a parallel axis is this one within
+    /// `eps`: the offset of its axis, each difference of its half-axes, and
+    /// how far the turn of its major half-axis moves the ends of this one's,
+    /// each within it, as a cylinder's axis and radius are.
+    pub fn within(&self, other: &EllipticCylinder, eps: f64) -> bool {
+        let between = other.origin - self.origin;
+        let across = between - self.axis * self.axis.dot(between);
+        across.length() <= eps
+            && (self.major - other.major).abs() <= eps
+            && (self.minor - other.minor).abs() <= eps
+            && self.u.cross(other.u).length() * self.major <= eps
+    }
+
     /// How far another elliptic wall about a parallel axis stands from this
     /// one: the offset of its axis, the differences of its half-axes, and how
     /// far the turn of its major half-axis moves the ends of this one's.

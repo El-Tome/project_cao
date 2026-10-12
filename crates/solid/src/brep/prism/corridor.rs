@@ -152,7 +152,7 @@ fn back_along(one: &Piece, other: &Piece, eps: f64) -> bool {
         ) => {
             let wall = oval::wall(center, (first, second));
             let theirs = oval::wall(other_center, (other_first, other_second));
-            if !oval::alike(&wall, &theirs, eps) || sweep * other_sweep >= 0.0 {
+            if !wall.within(&theirs, eps) || sweep * other_sweep >= 0.0 {
                 return false;
             }
             let read = |piece: &Piece| match *piece {

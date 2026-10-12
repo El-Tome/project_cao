@@ -235,6 +235,27 @@ fn the_same_ellipse_cut_twice_is_one_surface() {
     assert_eq!(walls, 1);
 }
 
+#[test]
+fn an_ellipse_a_hair_off_another_in_centre_and_half_axis_is_joined_into_one_boss() {
+    let boss = oval([3.0, -1.0], first(0.4), 0.0, 4.0);
+    let hair = 0.6 * boss.scale().eps();
+    let off = ellipse(
+        [3.0 + hair, -1.0],
+        first(0.4) * (1.0 + hair / MAJOR),
+        MINOR,
+        0.0,
+        4.0,
+    );
+    let joined = boss.joined(&off).expect("the two are one boss");
+    held(&joined, area() * 4.0);
+    let rims = joined
+        .curves
+        .iter()
+        .filter(|curve| matches!(curve, Curve::Conic(_)))
+        .count();
+    assert_eq!(rims, 2);
+}
+
 /// A slab above the plane through `origin` whose normal is `normal`, wide
 /// enough to cover every boss below.
 fn slab(origin: DVec3, normal: DVec3) -> Body {

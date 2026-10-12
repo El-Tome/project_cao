@@ -35,16 +35,6 @@ pub(in crate::brep) fn wall(center: DVec2, (first, second): (DVec2, f64)) -> Ell
     EllipticCylinder::about(center.extend(0.0), DVec3::Z, first.extend(0.0), second)
 }
 
-/// Whether two ellipses of a profile, as their walls stand on its plane, are
-/// one within `eps`: their centres, their half-axes, and the ends of their
-/// major half-axes.
-pub(in crate::brep) fn alike(one: &EllipticCylinder, other: &EllipticCylinder, eps: f64) -> bool {
-    one.origin.distance(other.origin) <= eps
-        && (one.major - other.major).abs() <= eps
-        && (one.minor - other.minor).abs() <= eps
-        && one.u.cross(other.u).length() * one.major <= eps
-}
-
 /// How far `point` stands from the ellipse.
 pub(super) fn off(center: DVec2, first: DVec2, second: f64, point: DVec2) -> f64 {
     wall(center, (first, second))
@@ -137,7 +127,7 @@ pub(super) fn joined(first: &Piece, second: &Piece, eps: f64) -> Result<Option<P
         wall(center, (axis, reach)),
         wall(other_center, (other_axis, other_reach)),
     ];
-    if !alike(&one, &other, eps) {
+    if !one.within(&other, eps) {
         return Ok(None);
     }
     let total = sweep + other_sweep;

@@ -26,8 +26,8 @@ use glam::DVec3;
 
 use super::chords::halved;
 use super::cone::Grid;
-use super::elliptic::{between_steps, on_the_wall, reached_by_planes};
-use super::ends::grazed;
+use super::elliptic::{a_step_apart, between_steps, on_the_wall, reached_by_planes};
+use super::ends::{grazed, grazed_near};
 use super::{divisions, on_a_plane, touching_planes};
 use crate::brep::conic::{Conic, On, Round};
 use crate::brep::curve::Curve;
@@ -105,9 +105,8 @@ pub(super) fn of_edge(
         Round::Elliptic(wall) => {
             let steps = divisions(wall.major, tolerance);
             let grid = turn(steps);
-            let step = TAU * wall.major / steps as f64;
             let own = [plane, Surface::Elliptic(wall)];
-            let grazing = grazed(body, edge, &own, step);
+            let grazing = grazed_near(body, edge, &own, a_step_apart(wall, steps));
             let clear = |point: DVec3| !grazing(point, eps * contact::APART);
             let rays: Vec<f64> = on_the_wall(body, &wall, steps)
                 .into_iter()

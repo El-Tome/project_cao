@@ -361,3 +361,12 @@ fn a_tilted_slot_with_elliptic_ends_cut_by_a_block_is_drawn_closed_and_uncrossed
         .expect("the slot is cut");
     drawn(&cut);
 }
+
+#[test]
+fn a_flat_elliptic_boss_cut_along_its_minor_axis_is_drawn_closed_and_uncrossed() {
+    let boss = ellipse([1.5, -1.0], DVec2::new(7.0, 0.0), 1.0, 1.0, 3.0);
+    let cut = boss
+        .cut_by(&block([1.5, -1.999999, 1.0], [11.5, 0.000001, 3.0]))
+        .expect("the boss is cut");
+    drawn(&cut);
+}

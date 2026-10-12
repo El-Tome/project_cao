@@ -149,7 +149,7 @@ pub(super) fn grazed<'a>(
 /// Whether a place of an edge stands within `room` of a surface one of its
 /// ends lies on and none of the curve's `own` surfaces is, where `near` says
 /// the place stands near that end.
-fn grazed_near<'a, Near>(
+pub(super) fn grazed_near<'a, Near>(
     body: &'a Body,
     edge: &'a Edge,
     own: &[Surface],

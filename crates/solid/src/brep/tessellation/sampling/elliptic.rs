@@ -1,7 +1,11 @@
-//! The angles an elliptic wall's rims take besides its grid (#571), and
-//! where a whole one starts.
+//! How an elliptic wall's rims are sampled besides on its grid (#571): the
+//! angles of the vertices on it or just inside it and of the planes
+//! reaching it, where a whole rim starts, and how near an end a sample
+//! grazes.
 
 use std::f64::consts::{PI, TAU};
+
+use glam::DVec3;
 
 use crate::brep::conic::{Conic, On};
 use crate::brep::scale::Scale;
@@ -73,5 +77,18 @@ pub(super) fn between_steps(conic: &Conic, edge: &Edge, steps: usize) -> Edge {
         from: edge.from + shift,
         to: edge.to + shift,
         ..edge.clone()
+    }
+}
+
+/// Whether two places stand a step or less apart round an elliptic wall, on
+/// its grid of `steps` steps a turn: the window in which a sample grazing a
+/// surface an end lies on is dropped, as a circle's is a step or less from
+/// the end in a straight line. A straight line across a flat ellipse finds
+/// its far side within a step, half a turn away.
+pub(super) fn a_step_apart(wall: EllipticCylinder, steps: usize) -> impl Fn(DVec3, DVec3) -> bool {
+    let step = TAU / steps as f64;
+    move |one: DVec3, other: DVec3| {
+        let turned = wall.parameters(one).x - wall.parameters(other).x;
+        ((turned + PI).rem_euclid(TAU) - PI).abs() <= step
     }
 }

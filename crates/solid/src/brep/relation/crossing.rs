@@ -12,11 +12,20 @@
 //! two cylinders where it makes any, and numerically otherwise, in `scan.rs`.
 //! A line a plane cuts a cylinder along, crossed with a circle or a cylinder
 //! square to it, is measured from the radii (`cut.rs`). A line or a circle
-//! against a cone is solved in `cone.rs`.
+//! against a cone is solved in `cone.rs`, and the conic a plane cuts a wall
+//! along at a slant through its triple's other pair in `conic.rs`. A triple
+//! of two planes and a wall one of them stands a hair from tangent to is
+//! decided on the hairpin that plane cuts, in `grazed.rs`. The line a plane
+//! square to a wall's axis shares with a plane crossing it steeply, inside
+//! the wall's section by rounding alone, only touches it, in `section.rs`.
 
 mod cone;
+mod conic;
 mod cut;
+mod grazed;
+mod lying;
 mod scan;
+mod section;
 
 use glam::DVec3;
 
@@ -27,6 +36,7 @@ use crate::brep::curve::{Circle, Curve, Line, Meet};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use cut::Cut;
+pub use lying::{Lying, crossings_lying};
 
 /// A point where a curve meets a surface, at its parameter on the curve.
 /// `tangent` when the curve touches the surface there without passing through.
@@ -45,7 +55,8 @@ pub enum Crossings {
     Along,
     /// A circle against a cylinder at a skew angle, or against a cone
     /// unless about an axis parallel to the cone's or in a plane holding
-    /// it; the curve two cylinders meet along against a cone.
+    /// it; the curve two cylinders meet along against a cone; a conic
+    /// against a surface its wall meets in a way the kernel does not build.
     Unsupported,
 }
 
@@ -95,6 +106,9 @@ pub fn crossings_given(
         }
         (Curve::Circle(circle), Surface::Cone(cone)) => {
             cone::circle_and_cone(circle, cone, scale, touching)
+        }
+        (Curve::Conic(conic), surface) => {
+            return conic::conic_and_surface(conic, surface, scale, touching);
         }
         (Curve::Meet(_), Surface::Cone(_)) => Solved::Unsupported,
         (Curve::Line(line), Surface::Plane(plane)) => line_and_plane(line, plane, scale),
@@ -158,11 +172,12 @@ fn circle_through(
         Relation::Apart => Vec::new(),
         Relation::Line(line) => vec![(*line, false, None)],
         Relation::Lines(lines) => lines.map(|line| (line, false, cut.as_ref())).to_vec(),
-        Relation::Tangent(line) => vec![(*line, true, None)],
+        Relation::Tangent(line) | Relation::Ruling { line, .. } => vec![(*line, true, None)],
         Relation::Circle(_)
         | Relation::Meet(_)
         | Relation::Rulings { .. }
         | Relation::Apex(_)
+        | Relation::Conic(_)
         | Relation::Unsupported => {
             return Solved::Unsupported;
         }

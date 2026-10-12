@@ -41,6 +41,12 @@ pub trait Kernel {
         None
     }
 
+    /// Whether the step that made a body is one the kernel built though it
+    /// reads it unstably (#552): never, for a kernel that notes nothing.
+    fn unstable(&self, _body: &Self::Body) -> bool {
+        false
+    }
+
     /// Where the line through `origin` along `direction` passes through the
     /// exact body, each crossing with one going into the matter and minus one
     /// coming out: nothing, for a kernel that keeps no exact body, or where
@@ -89,6 +95,10 @@ impl Kernel for Exact {
         Some((body.listing(), body.scale().reach()))
     }
 
+    fn unstable(&self, body: &Body) -> bool {
+        body.unstable().is_some()
+    }
+
     fn crossings(&self, body: &Body, origin: DVec3, direction: DVec3) -> Option<Vec<(f64, i32)>> {
         body.crossings_along(origin, direction, body.scale().eps())
             .ok()
@@ -133,6 +143,10 @@ impl Kernel for Application {
             Mode::Add => body.union(tool),
             Mode::Cut => body.difference(tool),
         }
+    }
+
+    fn unstable(&self, body: &cao_solid::Body) -> bool {
+        body.unstable().is_some()
     }
 
     /// The triangles the application draws, held to the room the exact

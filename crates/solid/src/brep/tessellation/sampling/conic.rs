@@ -1,0 +1,349 @@
+//! Where an edge along the conic a plane cuts a wall at a slant is sampled:
+//! the meet's way, with one wall.
+//!
+//! At every grid angle of its wall, each sample the point of the cut on the
+//! ruling at that angle, so that on the wall it has a point at every grid
+//! angle as a circle has, and the outline cuts a face going round at one of
+//! its own samples; at every ray the wall's circles take, the angles of the
+//! vertices on it among them, so that a ruling from a vertex meets a sample
+//! of it; at its ends. On a cylinder the grid is the cylinder's own, on a
+//! cone the cone's, read at its widest. The curve runs one way in its wall's
+//! angle, so between two of those it never turns back on the wall. Then,
+//! between two of them, wherever the chord would stand further from the
+//! curve than the tolerance: seen on its plane the curve bends more than its
+//! wall's grid allows for, by as much as the plane leans from square to the
+//! axis, and a hyperbola's arms run ever faster.
+//!
+//! No place on the grid or on a ray is kept where the cylinder all but lies
+//! on a wall facing it, or on a plane touching it off the line they touch
+//! along, nor a step or less from an end where the curve all but lies on a
+//! surface that end lies on, as for a meet.
+
+use std::collections::BTreeMap;
+use std::f64::consts::{PI, TAU};
+
+use glam::DVec3;
+
+use super::chords::halved;
+use super::cone::Grid;
+use super::ends::grazed;
+use super::{divisions, on_a_plane, touching_planes};
+use crate::brep::conic::{Conic, On, Round};
+use crate::brep::curve::Curve;
+use crate::brep::scale::Scale;
+use crate::brep::surface::Cylinder;
+use crate::brep::surface::Surface;
+use crate::brep::tessellation::contact::{self, Contact, Wall, Zones};
+use crate::brep::topology::{Body, Edge, SurfaceId};
+
+/// How many turns of its wall a stretch may run before its angles are given
+/// up on: a whole ellipse runs one, an arm less.
+const TURNS: f64 = 4.0;
+
+/// How near an end's own angle on the wall a grid angle or a ray stands at
+/// that end, as the outline reads a sample on a grid angle. An arm all but
+/// along the wall's rulings turns by a hair across the box: read back off an
+/// angle that close to an end's, the place along it is the end's only to
+/// rounding times the arm's length, and may land beyond the end.
+const AT_AN_END: f64 = 1e-9;
+
+/// Why a parameter is a sample, the stronger reason first: of two places
+/// closer than the kernel's tolerance, the one kept is the stronger.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum Reason {
+    End,
+    Grid,
+    Ray,
+}
+
+/// The points of an edge along a conic between its ends, as [`on_conic`]
+/// places them, on the grid of its wall in `body` and, on a cylinder, on the
+/// angles `rays` its circles take.
+pub(super) fn of_edge(
+    body: &Body,
+    edge: &Edge,
+    conic: &Conic,
+    zones: &Zones,
+    grids: &BTreeMap<SurfaceId, Grid>,
+    rays: &[f64],
+    tolerance: f64,
+) -> Vec<DVec3> {
+    let eps = body.scale().eps();
+    let plane = Surface::Plane(conic.plane);
+    match conic.round {
+        Round::Cylinder(cylinder) => {
+            let steps = divisions(cylinder.radius, tolerance);
+            let grid = turn(steps);
+            let planes = touching_planes(body, cylinder.origin, cylinder.axis, cylinder.radius);
+            let step = TAU * cylinder.radius / steps as f64;
+            let own = [plane, Surface::Cylinder(cylinder)];
+            let grazing = grazed(body, edge, &own, step);
+            let clear = |point: DVec3| {
+                !grazing(point, eps * contact::APART)
+                    && !zones.crowded(&cylinder, point)
+                    && !planes
+                        .iter()
+                        .any(|plane| on_a_plane(plane, cylinder.origin, cylinder.axis, point, eps))
+            };
+            on_conic(conic, edge, tolerance, eps, [&grid, rays], &clear)
+        }
+        Round::Cone(cone) => {
+            let (grid, vertices) = match grids.values().find(|grid| grid.cone == cone) {
+                Some(grid) => (turn(grid.steps), grid.vertex_angles().to_vec()),
+                None => {
+                    let widest = conic.widest(edge.from, edge.to);
+                    (turn(divisions(widest, tolerance)), Vec::new())
+                }
+            };
+            let step = TAU * conic.widest(edge.from, edge.to) / grid.len() as f64;
+            let own = [plane, Surface::Cone(cone)];
+            let grazing = grazed(body, edge, &own, step);
+            let clear = |point: DVec3| !grazing(point, eps * contact::APART);
+            let rays: Vec<f64> = vertices.iter().chain(rays).copied().collect();
+            on_conic(conic, edge, tolerance, eps, [&grid, &rays], &clear)
+        }
+    }
+}
+
+/// The rays through every sample of every conic, and through its ends, for
+/// each wall about its wall's axis: what their circles, and the curve a
+/// cylinder meets a perpendicular wall along, take for the conic, as the
+/// walls of a meet take its samples. A conic halved between the rays of its
+/// wall where a chord would leave it, beside a circle, a meet or another
+/// conic sampled on other angles about the same axis, has its chords cross
+/// theirs where the two touch or meet at a sharp angle, parting as the
+/// square of the distance from there: on the same rays, each strip between
+/// two holds both curves' chords in their order.
+pub(super) fn rays_along(
+    body: &Body,
+    walls: &[Wall],
+    zones: &Zones,
+    grids: &BTreeMap<SurfaceId, Grid>,
+    contacts: &BTreeMap<SurfaceId, Contact>,
+    tolerance: f64,
+) -> BTreeMap<SurfaceId, Vec<DVec3>> {
+    let eps = body.scale().eps();
+    let sampled: Vec<(&Edge, &Conic, Vec<DVec3>)> = body
+        .edge_ids()
+        .filter_map(|id| {
+            let edge = body.edge(id);
+            let Curve::Conic(conic) = body.curve(edge.curve) else {
+                return None;
+            };
+            let rays = rays_about(conic, walls, contacts, eps);
+            let ends = edge
+                .ends
+                .into_iter()
+                .flatten()
+                .map(|end| body.vertex(end).point);
+            let points = of_edge(body, edge, conic, zones, grids, &rays, tolerance)
+                .into_iter()
+                .chain(ends)
+                .collect();
+            Some((edge, conic, points))
+        })
+        .collect();
+    let mut along: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
+    for (edge, conic, points) in &sampled {
+        let (origin, axis) = about(&conic.round);
+        let beside = sampled
+            .iter()
+            .filter(|(other, theirs, _)| leaving_together([edge, other], [conic, theirs]))
+            .flat_map(|(_, _, theirs)| theirs.iter());
+        let ways: Vec<DVec3> = points
+            .iter()
+            .chain(beside)
+            .filter_map(|point| {
+                let from = *point - origin;
+                (from - axis * axis.dot(from)).try_normalize()
+            })
+            .collect();
+        for (wall, _) in walls
+            .iter()
+            .filter(|(_, wall)| coaxial(wall, origin, axis, eps))
+        {
+            along.entry(*wall).or_default().extend(ways.iter().copied());
+        }
+    }
+    along
+}
+
+/// The sine under which two curves leaving a vertex are read as leaving it
+/// together.
+const TOGETHER: f64 = 1e-3;
+
+/// Whether two conics of one plane, cut on walls about axes across each
+/// other, leave a vertex they share together: where the two walls touch at
+/// a node, a plane through it cuts both along curves tangent there, parting
+/// as the square of the distance from it. Sampled each on its own wall's
+/// angles, their chords cross near the node, and the face between them, a
+/// horn, cannot be cut (5550117749); each then takes the other's samples as
+/// its wall's rays. Not on two parallel walls: touching along a line, they
+/// are sampled on the rays they share already, which another wall's would
+/// put out of order (5551609285).
+fn leaving_together([one, other]: [&Edge; 2], [first, second]: [&Conic; 2]) -> bool {
+    let (Some(ends), Some(theirs)) = (one.ends, other.ends) else {
+        return false;
+    };
+    let [(_, one_axis), (_, other_axis)] = [first, second].map(|conic| about(&conic.round));
+    if one_axis.cross(other_axis).length() <= Scale::RELATIVE
+        || first.plane.normal.cross(second.plane.normal).length() > Scale::RELATIVE
+    {
+        return false;
+    }
+    let tangent = |conic: &Conic, edge: &Edge, at: DVec3| {
+        let [from, to] = [edge.from, edge.to].map(|t| conic.point(t).distance(at));
+        conic
+            .derivative(if from <= to { edge.from } else { edge.to })
+            .normalize()
+    };
+    ends.iter().filter(|end| theirs.contains(end)).any(|end| {
+        let at = first.point(if ends[0] == *end { one.from } else { one.to });
+        tangent(first, one, at)
+            .cross(tangent(second, other, at))
+            .length()
+            <= TOGETHER
+    })
+}
+
+/// The angles, about the conic's wall from its own `u`, of every ray the
+/// walls about the same axis take in `contacts`.
+pub(super) fn rays_about(
+    conic: &Conic,
+    walls: &[Wall],
+    contacts: &BTreeMap<SurfaceId, Contact>,
+    eps: f64,
+) -> Vec<f64> {
+    let (origin, axis) = about(&conic.round);
+    let (u, v) = match conic.round {
+        Round::Cylinder(cylinder) => (cylinder.u, cylinder.v),
+        Round::Cone(cone) => (cone.u, cone.v),
+    };
+    walls
+        .iter()
+        .filter(|(_, wall)| coaxial(wall, origin, axis, eps))
+        .filter_map(|(id, _)| contacts.get(id))
+        .flat_map(|contact| contact.rays.iter())
+        .map(|way| way.dot(v).atan2(way.dot(u)))
+        .collect()
+}
+
+fn about(round: &Round) -> (DVec3, DVec3) {
+    match round {
+        Round::Cylinder(cylinder) => (cylinder.origin, cylinder.axis),
+        Round::Cone(cone) => (cone.origin, cone.axis),
+    }
+}
+
+/// Whether a wall turns about the line through `origin` along `axis`.
+fn coaxial(wall: &Cylinder, origin: DVec3, axis: DVec3, eps: f64) -> bool {
+    let from = wall.origin - origin;
+    wall.axis.cross(axis).length() <= Scale::RELATIVE
+        && (from - axis * axis.dot(from)).length() <= eps
+}
+
+/// The angles of a grid of `steps` steps a turn.
+fn turn(steps: usize) -> Vec<f64> {
+    (0..steps)
+        .map(|step| TAU * step as f64 / steps as f64)
+        .collect()
+}
+
+/// The points of an edge along a conic between its ends, in the way the edge
+/// runs. A whole ellipse's points start at its first angle of the grid or of
+/// a ray and do not come back to it. `angles` are its wall's grid, then the
+/// rays its circles take; a place on either is kept only where `clear` says
+/// so.
+pub(in crate::brep::tessellation) fn on_conic(
+    conic: &Conic,
+    edge: &Edge,
+    tolerance: f64,
+    eps: f64,
+    [grid, rays]: [&[f64]; 2],
+    clear: &dyn Fn(DVec3) -> bool,
+) -> Vec<DVec3> {
+    let whole = edge.ends.is_none();
+    let (low, high) = match (whole, conic.period()) {
+        (true, Some(period)) => (edge.from, edge.from + period),
+        (true, None) => return Vec::new(),
+        (false, _) => (edge.from.min(edge.to), edge.from.max(edge.to)),
+    };
+    let angle = |t: f64| conic.seen_on(On::Wall, t)[0].x;
+    let (start, end) = (angle(low), angle(high));
+    let (first, last) = (start.min(end), start.max(end));
+    let mut marks: Vec<(f64, Reason, DVec3)> = if whole {
+        Vec::new()
+    } else {
+        vec![
+            (low, Reason::End, conic.point(low)),
+            (high, Reason::End, conic.point(high)),
+        ]
+    };
+    let at_an_end = |angle: f64| {
+        !whole
+            && [start, end]
+                .iter()
+                .any(|end| ((angle - end + PI).rem_euclid(TAU) - PI).abs() <= AT_AN_END)
+    };
+    for (reason, angles) in [(Reason::Grid, grid), (Reason::Ray, rays)] {
+        for at in angles.iter().filter(|at| !at_an_end(**at)) {
+            let (from, to) = (((first - at) / TAU).ceil(), ((last - at) / TAU).floor());
+            if !(to - from).is_finite() || to - from > TURNS {
+                continue;
+            }
+            for turns in from as i64..=to as i64 {
+                let (t, point) = conic.at_angle(at + TAU * turns as f64);
+                let inside = if whole {
+                    low <= t && t < high
+                } else {
+                    low < t && t < high
+                };
+                if inside && point.is_finite() {
+                    marks.push((t, reason, point));
+                }
+            }
+        }
+    }
+    marks.sort_by(|one, other| one.0.total_cmp(&other.0).then(one.1.cmp(&other.1)));
+
+    let mut kept: Vec<(f64, Reason, DVec3)> = Vec::with_capacity(marks.len());
+    for (t, reason, point) in marks {
+        if reason >= Reason::Grid && !clear(point) {
+            continue;
+        }
+        match kept.last_mut() {
+            Some(last) if (last.2 - point).length() <= eps => {
+                if reason < last.1 {
+                    *last = (t, reason, point);
+                }
+            }
+            _ => kept.push((t, reason, point)),
+        }
+    }
+    if whole && let (Some(first), Some(period)) = (kept.first().copied(), conic.period()) {
+        if kept.len() > 1 && (kept[kept.len() - 1].2 - first.2).length() <= eps {
+            kept.pop();
+        }
+        kept.push((first.0 + period, first.1, first.2));
+    }
+    if kept.len() < 2 {
+        return Vec::new();
+    }
+
+    let point = |t: f64| conic.point(t);
+    let mut points = vec![kept[0].2];
+    for pair in kept.windows(2) {
+        let mut places = Vec::new();
+        halved(&point, pair[0].0, pair[1].0, tolerance, &mut places);
+        points.extend(places.into_iter().map(point));
+        points.push(pair[1].2);
+    }
+    points.pop();
+    if !whole {
+        points.remove(0);
+    }
+    if edge.to < edge.from {
+        points.reverse();
+    }
+    points
+}

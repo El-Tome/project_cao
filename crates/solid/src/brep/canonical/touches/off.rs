@@ -29,7 +29,7 @@ pub(super) fn off(
     {
         let about = match relation(one, other, scale) {
             Relation::Circle(circle) => meet(boxed(&circle)),
-            Relation::Unsupported => false,
+            Relation::Conic(_) | Relation::Ruling { .. } | Relation::Unsupported => false,
             Relation::Apart
             | Relation::Same { .. }
             | Relation::Line(_)
@@ -76,6 +76,8 @@ pub(super) fn off(
         | Relation::Meet(_)
         | Relation::Rulings { .. }
         | Relation::Apex(_)
+        | Relation::Conic(_)
+        | Relation::Ruling { .. }
         | Relation::Unsupported => None,
     }
 }

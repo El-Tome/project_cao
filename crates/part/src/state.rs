@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 
 use cao_sketch::{LengthOutcome, Sketch, Support};
-use cao_solid::{Body, Declined};
+use cao_solid::{Body, Declined, Unstable};
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
@@ -59,6 +59,10 @@ pub struct PartState {
     /// matter, so the cache carries it.
     #[serde(default)]
     pub(crate) declined: BTreeMap<u32, Declined>,
+    /// The steps of matter the kernel built though it reads them unstably,
+    /// by number, each with its lean: cached for the reason `declined` is.
+    #[serde(default)]
+    pub(crate) unstable: BTreeMap<u32, Unstable>,
     /// What the replay noted on the way: what a change to the variables is
     /// held to, and the values it froze.
     #[serde(skip)]

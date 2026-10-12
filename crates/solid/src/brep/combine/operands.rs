@@ -57,7 +57,7 @@ impl<'a> Operands<'a> {
         });
         let boxes: [Vec<[DVec3; 2]>; 2] = bodies.map(|body| {
             body.face_ids()
-                .map(|face| boxed(body, face, scale.eps()))
+                .map(|face| body.boxed(face, scale.eps()))
                 .collect()
         });
         let near = |one: SurfaceId, other: SurfaceId, within: [DVec3; 2]| {
@@ -181,6 +181,25 @@ impl<'a> Operands<'a> {
             .fold(Scale::of(1.0), Scale::joined)
     }
 
+    /// Where a face on one of two shared surfaces and a face on the other,
+    /// of either operand, may meet: the box each two whose boxes meet share.
+    pub fn meeting(&self, pair: [SurfaceId; 2]) -> Vec<[DVec3; 2]> {
+        let faces = |surface: SurfaceId| {
+            (0..2).flat_map(move |operand| {
+                self.lying[operand][surface.0 as usize]
+                    .iter()
+                    .map(move |face| self.boxes[operand][face.0 as usize])
+            })
+        };
+        faces(pair[0])
+            .flat_map(|one| {
+                faces(pair[1])
+                    .filter(move |other| meet(one, *other))
+                    .map(move |other| [one[0].max(other[0]), one[1].min(other[1])])
+            })
+            .collect()
+    }
+
     /// Whether the boxes round two faces, one of each operand, meet.
     pub fn near(&self, first: FaceId, second: FaceId) -> bool {
         meet(
@@ -239,21 +258,4 @@ const NAPPE: f64 = 2.0;
 /// Whether two boxes meet.
 fn meet(one: [DVec3; 2], other: [DVec3; 2]) -> bool {
     one[0].cmple(other[1]).all() && other[0].cmple(one[1]).all()
-}
-
-/// The box round a face, from the extremes of its edges and the apex it
-/// holds within it, grown by `eps`.
-fn boxed(body: &Body, face: FaceId, eps: f64) -> [DVec3; 2] {
-    let mut low = DVec3::INFINITY;
-    let mut high = DVec3::NEG_INFINITY;
-    if let Some(apex) = body.apex_held(face) {
-        (low, high) = (apex, apex);
-    }
-    for coedge in body.face(face).loops.iter().flatten() {
-        for point in body.extremes(body.edge(coedge.edge)) {
-            low = low.min(point);
-            high = high.max(point);
-        }
-    }
-    [low - DVec3::splat(eps), high + DVec3::splat(eps)]
 }

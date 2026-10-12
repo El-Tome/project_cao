@@ -6,6 +6,31 @@
 //! written above it.
 //!
 //! The tangency band's findings are gathered in `the_tangency_band.rs`.
+//!
+//! #552's round 5 names its crossings with no hair under `plain-pieces`,
+//! the key `what_the_exact_campaigns_found_in_the_kernel.rs` gives the rest
+//! of them: two of them draw crossing at a node of the two ellipses two
+//! walls of one radius cross along, their axes meeting square. All five
+//! stayed ignored then, and hold since round 6.
+//!
+//! #552's round 6 names round 5's crossings with no hair under
+//! `plain-pieces`, and under `decision-11-regressions` the one seed round 5
+//! broke: two faces a hair off square to a turn's axis, the first laid
+//! square by decision 11, crossing where its turn puts their line. Every
+//! plain piece holds since, with the round's own: a triangle passing through
+//! another face's beside a corner they share is cut the other way, the
+//! touch of two walls anchors their samples only for a corner standing off
+//! one, a rim is sampled where a line leaves its wall's face a hair inside
+//! it, and two conics leaving a node of two crossing walls are sampled on
+//! each other's places. Three seeds the first versions of those broke in
+//! the round's campaigns are named last, and hold. The decision 11
+//! regression holds too: the circle and the conic bounding the wall's strip
+//! between the two faces drop the same grid angle beside the end they share.
+//!
+//! The measurement that closes round 6 broke one seed, named last under
+//! `conics-at-a-node` and ignored: two conics a face cuts through a node of
+//! two crossing walls, sampled on each other's places, where the face leans
+//! a hair off the plane holding one wall's axis.
 
 // The drawing and the checks are the campaign's; this file only builds cases
 // and holds them.
@@ -2213,8 +2238,12 @@ fn seed_8018367_a_right_body_drawn_crossing_at_some_finenesses_only() {
 /// the pin's strip between them pokes through the wall's chord at the
 /// application's fineness and finer: two walls a hair apart crossed by a
 /// third surface.
+///
+/// Was ignored as: band: a pin across a crescent 1e-5 thick, its two meets
+/// sampled on rays a hair apart, at 2e-4 and finer. Holds since a triangle
+/// passing through another face's beside a corner the two share is cut the
+/// other way, round 6 of #552.
 #[test]
-#[ignore = "band: a pin across a crescent 1e-5 thick, its two meets sampled on rays a hair apart, at 2e-4 and finer"]
 fn seed_8515799_a_right_body_drawn_crossing_at_some_finenesses_only() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -2343,8 +2372,12 @@ fn seed_8538687_a_corner_a_hair_off_a_plane_its_own_was_taken_for_stands_on_it()
 /// and the disc's triangle from its rim up to the curve they meet along
 /// pokes through it, at a thousandth of the reach and coarser; from half
 /// that on, the two hold.
+///
+/// Was ignored as: triangles: two perpendicular walls touching at a node, the
+/// bore's strip from the node crossed by the disc's, at 1e-3 and coarser. Holds
+/// since a triangle passing through another face's beside a corner the two
+/// share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "triangles: two perpendicular walls touching at a node, the bore's strip from the node crossed by the disc's, at 1e-3 and coarser"]
 fn seed_8550600_a_right_body_drawn_crossing_at_some_finenesses_only() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3015,8 +3048,19 @@ fn seed_5361304914_a_quarter_point_beside_a_quarter_turn_a_hair_off_its_axis_and
     ));
 }
 
+///
+/// Was ignored as: triangles: a ring left between two coaxial cones crossing at
+/// a shallow angle is drawn crossing along the circle they cross on. The seed's
+/// cone stood a hair off the frustum's axis and was declined as unsupported
+/// until decision 8 took it about one axis; shrunk, the case is exactly coaxial
+/// and fails at 3286cee too. Round 2 of #536: each cone's rim stands 0.104
+/// across the axis from the other cone, a little over the twice a chord's sag
+/// (0.094) within which a circle is sampled with a cone; read along the cone's
+/// normal, 0.081, it held, but so read, a cone all but square to its axis took
+/// the circles of a plane a hair from it and broke 5365213844. Holds since a
+/// triangle passing through another face's beside a corner the two share is cut
+/// the other way, round 6 of #552.
 #[test]
-#[ignore = "triangles: a ring left between two coaxial cones crossing at a shallow angle is drawn crossing along the circle they cross on. The seed's cone stood a hair off the frustum's axis and was declined as unsupported until decision 8 took it about one axis; shrunk, the case is exactly coaxial and fails at 3286cee too. Round 2 of #536: each cone's rim stands 0.104 across the axis from the other cone, a little over the twice a chord's sag (0.094) within which a circle is sampled with a cone; read along the cone's normal, 0.081, it held, but so read, a cone all but square to its axis took the circles of a plane a hair from it and broke 5365213844"]
 fn seed_5364102153_a_ring_left_between_two_coaxial_cones_crossing_at_a_shallow_angle() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3227,5 +3271,895 @@ fn seed_5370402053_a_post_touching_along_a_line_the_end_of_a_bar_leaning_a_thous
             Outline::circle([4.0, 0.0], 2.0),
             6.0,
         ))],
+    ));
+}
+
+/// #552: a tube cut by a plane through its axis, leaning 6e-8 rad off it,
+/// along arms that all but run along its rulings. The ray at an end's own
+/// angle met the arm, read back off that angle, beyond the end by more than
+/// the tolerance — an angle that close to a ruling's is a place along the
+/// arm only to rounding times its length — and the cut face's outline
+/// doubled back on itself there.
+#[test]
+fn seed_9312005_a_tube_cut_through_its_axis_leaning_a_hair_is_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(22.5),
+            Axis::second(0.0).backwards(),
+            Section::bands(-12.5, &[[5.0, 20.0, 32.5]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([-15.0, 10.0, 22.5], [3.4377468109587785e-6, 0.0, 0.0]),
+            Outline::rectangle([-38.0, -8.0], [38.0, 8.0]),
+            -38.0,
+        ))],
+    ));
+}
+
+/// #552: a shaft along X, a post standing across its end, and a plane
+/// leaning 45° about Z cut through both, touching the curve the shaft and
+/// the post meet along on the shaft's wall where it crosses it. The ellipse
+/// was halved between the rays the wall's circles take, the meet beside it
+/// was not, and their chords crossed by the tangency, where the two curves
+/// part only as the square of the distance: the shaft's wall could not be
+/// cut. Each sample of a conic on a cylinder is a ray of its wall, as each
+/// of a meet's is.
+#[test]
+fn seed_9314220_a_plane_touching_a_shaft_s_meet_with_a_post_on_its_wall_is_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(1.0),
+            Axis::first(9.0),
+            Section::bands(4.5, &[[7.0, 0.0, 1.5]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::circle([8.5, 1.0], 2.5),
+                9.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([12.0, 1.0, 9.0], [90.0, 45.0, 0.0]),
+                Outline::rectangle([-8.0, -4.0], [3.0, 4.0]),
+                3.0,
+            )),
+        ],
+    ));
+}
+
+/// #552: a ring whose inner wall is a shaft and whose outer wall a cone
+/// meeting it at a sharp rim, cut by a plane leaning 15° that crosses that
+/// rim. The plane's face runs between the two conics into the wedge at the
+/// rim, where they part as the distance from it; each was sampled on its own
+/// wall's angles, and the chords of one crossed the other's triangles. The
+/// samples of a conic are rays of every wall about its axis, cone or shaft.
+#[test]
+fn seed_9512340_a_plane_across_the_sharp_rim_of_a_cone_on_a_shaft_is_drawn_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(5.0),
+            Axis::first(0.0).backwards(),
+            Section::bands(-15.0, &[[10.0, 15.0, 15.0]]).sloping_to(&[[15.0, 25.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([15.0, 5.0, 20.0], [0.0, -15.0, 0.0]),
+            Outline::rectangle([-20.0, -28.0], [8.0, 3.0]),
+            18.0,
+        ))],
+    ));
+}
+
+/// #552: a frustum cut by a plane through a point of its narrow rim,
+/// leaning about the rim's tangent there, then a shaft of that rim's radius
+/// joined on its axis. The conics the plane cuts the frustum and the shaft
+/// along touch at the rim, and the plane's face between them could not be
+/// cut where their chords, taken at angles of their own walls, crossed.
+#[test]
+fn seed_9311810_two_conics_touching_at_a_frustum_s_rim_are_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::first(2.0).backwards(),
+            Section::bands(4.0, &[[0.5, -1.5, 0.5]]).sloping_to(&[[-2.0, 0.5]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([-4.75, 2.0, -1.0], [0.0, -63.43494882292201, 0.0]),
+                Outline::rectangle([-3.0, -3.0], [3.0, 3.0]),
+                2.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(-4.5),
+                Outline::circle([2.0, -1.0], 1.5),
+                4.0,
+            )),
+        ],
+    ));
+}
+
+/// #552, one of the review's reproducers: a rounded block joined to half a
+/// shaft whose axis leans 1e-7° off the block's, so that the block's faces
+/// cut its wall along ellipses a hair from its rulings. Two triangles of it
+/// crossed where those ellipses run beside the rounded corners' walls,
+/// until the shaft's flat side and the block's face it leans a hair off
+/// were decided to graze.
+#[test]
+fn seed_9412210_half_a_shaft_leaning_a_hair_joined_to_a_rounded_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-2.0),
+            Outline::rounded([0.0, 3.0], [6.0, 8.0], 2.5),
+            8.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(0.0).leaning(1e-7),
+            Section::bands(3.0, &[[2.0, 0.0, 4.0]]),
+            180.0,
+        ))],
+    ));
+}
+
+/// #552's round 4, through the application's body: a slot whose round end
+/// touches, at one point, the wall of a turn of a hundredth of a degree
+/// joined to it — the slot's wall about Z, the turn's about X, their axes
+/// the sum of the radii apart. The slot's wall takes no sample at the point
+/// of contact: one of its triangles, from its floor to its top, crosses
+/// the turn's end face there by 1e-7.
+///
+/// Was ignored as: triangles, #552's round 4: a wall touching a turn of a
+/// hundredth of a degree at a point; the wall's triangle crosses the turn's end
+/// face at the contact. Holds since the point two walls touch at anchors the
+/// samples of either for the vertices on both standing off it, round 6 of #552.
+#[test]
+fn seed_5543227890_a_slot_joined_to_a_turn_of_a_hundredth_of_a_degree_touching_its_round_end() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(60.0),
+            Outline::slot([150.0, 0.0], [150.0, 60.0], 90.0),
+            105.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(113.0),
+            Axis::first(165.0).backwards(),
+            Section::bands(-285.0, &[[270.0, 0.0, 15.0]]),
+            0.01,
+        ))],
+    ));
+}
+
+/// #552's round 4, a slanted draw on the exact kernel, failing at
+/// `9e54a71` too: a turned ring joined to a rounded block, a turn about X,
+/// a second rounded block, then cut by a ring turned about X. Two
+/// triangles draw crossing.
+#[test]
+#[ignore = "triangles, inherited from #533 and #536: rounded blocks and rings turned about X, joined then cut; drawn crossing"]
+fn seed_5543304420_rounded_blocks_and_rings_turned_about_x_draw_crossing() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(65.0),
+            Axis::first(40.0).backwards(),
+            Section::bands(-60.0, &[[43.0, 0.0, 15.0]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(15.0),
+                Outline::rounded([10.0, 40.0], [27.5, 57.5], 7.5),
+                50.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(13.0),
+                Axis::first(15.0),
+                Section::bands(20.0, &[[5.0, 0.0, 30.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(10.0),
+                Outline::rounded([45.0, 35.0], [70.0, 60.0], 12.5),
+                50.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xz(40.0),
+                Axis::first(55.0),
+                Section::bands(15.0, &[[48.0, 0.0, 5.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 4, a turned draw through the application's body, failing
+/// at `9e54a71` too: a stepped shaft about X cut by a post along Y, then
+/// joined to a wider ring about X. Two triangles draw crossing.
+#[test]
+#[ignore = "triangles, inherited from #533 and #536: a stepped shaft cut by a post, then joined to a ring of its axis; drawn crossing"]
+fn seed_5543610415_a_stepped_shaft_cut_by_a_post_then_joined_to_a_ring() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(5.0),
+            Axis::first(5.0),
+            Section::bands(2.0, &[[3.5, 0.0, 9.0], [4.0, 0.0, 11.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(2.5),
+                Outline::circle([8.0, 4.0], 4.0),
+                5.5,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(5.0),
+                Axis::first(0.0),
+                Section::bands(2.0, &[[8.0, 11.0, 13.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a piece with no hair, tilted through the application's
+/// body and failing on `85a2d2e` too: a shaft about X ending in a short
+/// cone, bored by a post of its axis wider than the shaft, then cut by a
+/// flat along the axis between the shaft's radius and the cone's widest,
+/// which cuts the cone along a hyperbola and the bore along two lines. Two
+/// triangles draw crossing where the hyperbola meets the bore: a cone face
+/// and a bore face, drawn as the application draws, at a fifth of a
+/// thousandth of the reach; the exact kernel's own triangles hold.
+///
+/// Was ignored as: plain-pieces, #552's round 5: a cone bored along its axis,
+/// cut by a flat along the axis along a hyperbola; drawn crossing. Holds since
+/// a triangle passing through another face's beside a corner the two share is
+/// cut the other way, round 6 of #552.
+#[test]
+fn seed_5544205878_a_bored_cone_cut_by_a_flat_along_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(8.0),
+            Axis::first(4.0),
+            Section::bands(-1.0, &[[3.0, 0.0, 5.0], [0.5, 0.0, 6.5]])
+                .sloping_to(&[[0.0, 5.0], [0.0, 5.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(2.0),
+                Outline::circle([4.0, 8.0], 6.0),
+                4.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(-1.8175629040418775),
+                Outline::rectangle([-2.0, 1.0], [6.0, 15.0]),
+                2.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a turned draw on the exact kernel, failing on `85a2d2e`
+/// too (#533's families): a rod about Y cut by a post along Z through its
+/// axis, then by a block, then joined to a wider post. Two triangles draw
+/// crossing.
+///
+/// Was ignored as: plain-pieces, #552's round 5: a rod cut by a post through
+/// its axis and a block, then joined to a post; drawn crossing. Holds since a
+/// triangle passing through another face's beside a corner the two share is cut
+/// the other way, round 6 of #552.
+#[test]
+fn seed_5544518834_a_rod_cut_by_a_post_and_a_block_then_joined_to_a_wider_post() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(0.0),
+            Section::bands(-2.0, &[[6.0, -2.5, -0.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-3.0),
+                Outline::circle([0.0, 2.75], 2.0),
+                12.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::rectangle([0.0, 6.0], [6.0, 12.0]),
+                4.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([0.0, 6.0], 3.5),
+                4.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a turned draw on the exact kernel, failing on `85a2d2e`
+/// too (#533's families): a tube about X cut by a block, then joined to a
+/// rod and to two turns whose sections have holes, all three about one
+/// axis along Y. Two triangles draw crossing.
+///
+/// Was ignored as: plain-pieces, #552's round 5: a tube about X cut by a block,
+/// joined to three turns about Y; drawn crossing. Holds since a triangle
+/// passing through another face's beside a corner the two share is cut the
+/// other way, round 6 of #552.
+#[test]
+fn seed_5544528726_a_tube_about_x_cut_by_a_block_then_joined_to_three_turns_about_y() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(0.0),
+            Section::bands(-1.0, &[[4.0, -4.0, -3.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([0.0, 3.0], [2.0, 5.0]),
+                8.5,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(1.0),
+                Axis::second(0.0),
+                Section::bands(-3.0, &[[3.5, -2.5, -0.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(-2.0),
+                Axis::second(0.0),
+                Section::bands(-2.0, &[[3.0, -3.0, 3.0]]).with_holes(&[([-1.5, 1.5], [0.0, 2.0])]),
+                180.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(3.0),
+                Axis::second(0.0),
+                Section::bands(1.0, &[[6.5, 0.0, 5.5]]).with_holes(&[([4.5, 4.0], [7.0, 4.5])]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a turned draw through the application's body, failing
+/// on `85a2d2e` too (#533's families): a turn of 255° about Z cut by a post
+/// along X of its radius whose axis meets its own, then by a block and a
+/// turn about Y. The two walls of one radius cross along two ellipses
+/// (meet/pair.rs); two triangles draw crossing at one of their nodes. The
+/// two walls are tangent there, and the sliver faces either side of the
+/// ellipses stand closer than a chord sags at a fifth of a thousandth of
+/// the reach, the application's drawing; the exact kernel's own triangles
+/// hold (#552's round 5).
+///
+/// Was ignored as: plain-pieces, #552's round 5: a turn cut by a post of its
+/// radius whose axis meets its own; drawn crossing at a node of the two
+/// ellipses. Holds since a triangle passing through another face's beside a
+/// corner the two share is cut the other way, round 6 of #552.
+#[test]
+fn seed_5544618545_a_turn_of_255_degrees_cut_by_a_post_of_its_radius_across_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(5.0),
+            Axis::second(0.0),
+            Section::bands(4.0, &[[3.0, 0.0, 2.5]]),
+            255.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(-4.0),
+                Outline::circle([5.0, 5.5], 2.5),
+                8.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(6.0),
+                Outline::rectangle([5.5, -1.5], [10.5, 3.5]),
+                6.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(2.0),
+                Axis::second(-2.0),
+                Section::bands(2.0, &[[1.0, 0.0, 3.5]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 5, a turned draw through the application's body, failing
+/// on `85a2d2e` too (#533's families): a disc about Z cut by a pin along Y
+/// spanning it from rim to rim, then by a post along X of the disc's radius
+/// whose axis meets the disc's. The two walls of one radius cross along two
+/// ellipses (meet/pair.rs) whose nodes lie on the lines where the pin's
+/// end planes touch the disc's wall; two triangles draw crossing at one of
+/// them: the sliver faces either side of the ellipses, on the disc's wall
+/// and the post's, stand 0.004 apart where their chords sag 0.003 at a
+/// fifth of a thousandth of the reach, the application's drawing. The
+/// exact kernel's own triangles hold (#552's round 5).
+///
+/// Was ignored as: plain-pieces, #552's round 5: a disc cut by a pin from rim
+/// to rim and a post of its radius whose axis meets its own; drawn crossing at
+/// a node of the two ellipses. Holds since a triangle passing through another
+/// face's beside a corner the two share is cut the other way, round 6 of #552.
+#[test]
+fn seed_5544629222_a_disc_cut_by_a_pin_from_rim_to_rim_and_a_post_of_its_radius() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::yz(0.0),
+            Axis::second(8.0),
+            Section::bands(3.0, &[[3.0, 0.0, 6.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(14.0),
+                Outline::circle([0.0, 5.5], 1.0),
+                12.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-7.0),
+                Outline::circle([8.0, 4.25], 6.0),
+                14.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, tilted on the exact kernel, no hair: a stepped turn of
+/// three bands about a line along X, cut by a face turned 22° about Y. Two
+/// triangles are drawn crossing on the exact kernel's own triangles and
+/// through the application's body alike. As drawn, the seed fails on
+/// `f57a5ca` too; not diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a stepped turn cut by a face
+/// at 22 degrees; drawn crossing on both kernels. Holds since a rim is sampled
+/// where a line edge leaves its wall's face a hair inside it, round 6 of #552.
+#[test]
+fn seed_5550106720_a_stepped_turn_cut_by_a_face_at_22_degrees() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(15.0),
+            Axis::first(25.0),
+            Section::bands(
+                5.0,
+                &[[7.5, 0.0, 10.0], [12.5, 0.0, 17.5], [2.5, 0.0, 22.5]],
+            ),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([30.0, 25.0, 5.0], [0.0, -22.0, 0.0]),
+            Outline::rectangle([-2.5, -12.5], [15.0, 12.5]),
+            22.5,
+        ))],
+    ));
+}
+
+/// #552's round 6, the one seed round 5 broke, tilted on the exact kernel:
+/// a half turn about Z cut by a face leaning 1.1e-6° off square to its
+/// axis, 2e-6 under z = 0, then by one leaning 9.4e-6°, 1e-5 under it. The
+/// two faces leave a sliver a few microns thick that they cross inside.
+/// Decision 11 lays the first face square to the turn's axis and leaves the
+/// second, past the hair, as drawn; where the two cross, the inner wall's
+/// strip between them ends 0.2° short of a grid angle. Its top rim, a
+/// circle, kept that angle while its bottom rim, the conic, dropped it as
+/// lying within a fifth of the tolerance of the face the circle is on, and
+/// the strip's one triangle across the step lay on the leaning face beside
+/// it. Held with decision 11 switched off, two conics dropping the angle
+/// alike, and on `f57a5ca`, whose turn put the crossing elsewhere. Holds
+/// since a circle drops a grid angle beside a plane as the conic does.
+#[test]
+fn seed_5550133356_a_half_turn_cut_twice_by_faces_leaning_a_hair_off_one_plane() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(90.0),
+            Axis::second(0.0),
+            Section::bands(-90.0, &[[15.0, 30.0, 120.0], [75.0, 60.0, 120.0]]),
+            -180.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-30.0, 90.00000000000004, -1.9499999964004017e-6],
+                    [1.1459155899729012e-6, 0.0, 0.0],
+                ),
+                Outline::rectangle([-135.0, -30.0], [120.0, 135.0]),
+                30.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-30.0, 90.00000000000165, -1.0149999996400269e-5],
+                    [9.427042215293113e-6, 0.0, 0.0],
+                ),
+                Outline::rectangle([-135.0, -30.0], [120.0, 135.0]),
+                -120.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, measuring the fix of 5550133356, tilted on the exact
+/// kernel: a block whose face stands 2e-8° off square to X, on the circle
+/// where two bands of a quarter turn about X meet. The circle stands a
+/// hair off that plane all along; a first fix, dropping a circle's grid
+/// angle beside an end wherever it stood within a fifth of the tolerance of
+/// any plane the end lies on, dropped one by each end, and the drawing
+/// enclosed less than the case promises. A plane drops it only where its
+/// conic on the circle's wall ends there too.
+#[test]
+fn seed_5561366633_a_block_a_hair_off_square_to_a_turn_s_rim_keeps_its_matter() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::tilted([6.0, 6.0, 3.0], [0.0, -89.99999998, 0.0]),
+            Outline::rectangle([-4.0, 5.0], [-1.0, 8.0]),
+            2.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(-2.0),
+            Axis::first(0.0),
+            Section::bands(5.0, &[[1.0, 0.0, 8.0], [3.0, 0.0, 10.0]])
+                .sloping_to(&[[0.0, 10.0], [0.0, 10.0]]),
+            90.0,
+        ))],
+    ));
+}
+
+/// #552's round 6, slanted on the exact kernel, no hair: a ring along Y
+/// joined to a ring along X and a disc along X standing square to it. Two
+/// triangles are drawn crossing at the exact kernel's own tolerance; the
+/// application's finer triangles hold. As drawn, the seed fails on
+/// `f57a5ca` too; not diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a ring joined to a ring and a
+/// disc square to it; drawn crossing on the exact kernel's own triangles. Holds
+/// since a triangle passing through another face's beside a corner the two
+/// share is cut the other way, round 6 of #552.
+#[test]
+fn seed_5550316166_a_ring_joined_to_a_ring_and_a_disc_square_to_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(3.5), Outline::ring([5.0, 2.5], 4.0, 3.5), 5.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(4.5),
+                Outline::ring([2.0, 0.0], 6.0, 4.0),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(4.5),
+                Outline::circle([9.0, 6.0], 6.0),
+                2.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, slanted through the application's body, no hair: a block
+/// cut by a turn about X whose two bands slope into a cone, then joined to
+/// a turn about another line along X. Drawn as the application draws, two
+/// triangles cross; the exact kernel's own triangles hold. As drawn, the
+/// seed fails on `f57a5ca` too; not diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a block cut by a two-band cone
+/// and joined to a turn; drawn crossing at the application's finer tolerance.
+/// Holds since a triangle passing through another face's beside a corner the
+/// two share is cut the other way, round 6 of #552.
+#[test]
+fn seed_5550409179_a_block_cut_by_a_two_band_cone_and_joined_to_a_turn() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xz(120.0),
+            Outline::rectangle([30.0, 180.0], [135.0, 390.0]),
+            165.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(240.0),
+                Axis::first(0.0),
+                Section::bands(-45.0, &[[59.0, 60.0, 90.0], [52.0, 60.0, 90.0]])
+                    .sloping_to(&[[60.0, 90.0], [60.0, 60.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(-45.0),
+                Axis::first(390.0),
+                Section::bands(-30.0, &[[225.0, 0.0, 30.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, slanted through the application's body, no hair: a turn
+/// about X joined to a turn about Y crossing it, then bored by a post along
+/// Z. Two triangles are drawn crossing, on the exact kernel's own triangles
+/// too. As drawn, the seed fails on `f57a5ca` too; not diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a turn joined to a turn about
+/// a crossing axis and bored; drawn crossing on both kernels. Holds since a
+/// triangle passing through another face's beside a corner the two share is cut
+/// the other way, round 6 of #552.
+#[test]
+fn seed_5550412859_a_turn_joined_to_a_turn_about_a_crossing_axis_and_bored() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(60.0),
+            Axis::first(0.0),
+            Section::bands(105.0, &[[180.0, 0.0, 45.0]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(-30.0),
+                Axis::second(-90.0).backwards(),
+                Section::bands(0.0, &[[75.0, -285.0, 0.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-15.0),
+                Outline::circle([195.0, 0.0], 45.0),
+                150.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, slanted through the application's body, no hair: a turn
+/// about Z cut by a cylinder along Y, then joined to a turn about a line
+/// along X crossing it. Two triangles are drawn crossing, on the exact
+/// kernel's own triangles too. As drawn, the seed fails on `f57a5ca` too;
+/// not diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a turn cut by a cylinder and
+/// joined to a turn about a crossing axis; drawn crossing on both kernels.
+/// Holds since a triangle passing through another face's beside a corner the
+/// two share is cut the other way, round 6 of #552.
+#[test]
+fn seed_5550427782_a_turn_cut_by_a_cylinder_and_joined_to_a_turn_about_a_crossing_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(20.0),
+            Axis::second(0.0),
+            Section::bands(15.0, &[[10.0, 0.0, 37.5]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(62.5),
+                Outline::circle([0.0, 21.5], 37.5),
+                85.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(5.0),
+                Axis::first(10.0),
+                Section::bands(25.0, &[[28.0, 20.0, 38.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, turned through the application's body, no hair: a turn
+/// about X given a post along Z and cut by a short hole beside it. Drawn as
+/// the application draws, two triangles cross; the exact kernel's own
+/// triangles hold. As drawn, the seed fails on `f57a5ca` too; not diagnosed
+/// further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a turn given a post and a
+/// short hole beside it; drawn crossing at the application's finer tolerance.
+/// Holds since a triangle passing through another face's beside a corner the
+/// two share is cut the other way, round 6 of #552.
+#[test]
+fn seed_5550629622_a_turn_given_a_post_and_a_short_hole_beside_it() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(6.0),
+            Axis::first(1.0),
+            Section::bands(0.0, &[[4.5, 0.0, 7.5]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(-3.0),
+                Outline::circle([2.25, 1.0], 0.5),
+                18.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-4.0),
+                Outline::circle([2.25, 1.5], 0.5),
+                2.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, turned through the application's body, no hair: a pin
+/// along Y joined to a wedge of 0.01° turned about a line along Z beside
+/// it. Two triangles are drawn crossing, on the exact kernel's own
+/// triangles too. As drawn, the seed fails on `f57a5ca` too; not diagnosed
+/// further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a pin joined to a wedge of
+/// 0.01 degrees; drawn crossing on both kernels. Holds since the point two
+/// walls touch at anchors the samples of either for the vertices on both
+/// standing off it, round 6 of #552.
+#[test]
+fn seed_5550629812_a_pin_joined_to_a_wedge_of_0_01_degrees() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xz(6.0), Outline::circle([10.0, 5.0], 0.5), 4.0),
+        vec![Step::add(Leaf::turned(
+            Plane::xz(4.0),
+            Axis::second(11.0),
+            Section::bands(3.5, &[[4.0, 0.0, 0.5]]),
+            0.01,
+        ))],
+    ));
+}
+
+/// #552's round 6, the square draw on the exact kernel, no hair: a post
+/// along Z joined to a cylinder along X across it, cut by a wider cylinder
+/// along X, then joined to a pin along Z. Two triangles are drawn crossing
+/// at the exact kernel's own tolerance; the application's finer triangles
+/// hold. As drawn, the seed fails on `f57a5ca` too; not diagnosed further.
+///
+/// Was ignored as: plain-pieces, #552's round 6: a post given a cylinder across
+/// it, cut by another and given a pin; drawn crossing on the exact kernel's own
+/// triangles. Holds since a triangle passing through another face's beside a
+/// corner the two share is cut the other way, round 6 of #552.
+#[test]
+fn seed_5550709462_a_post_given_a_cylinder_across_it_cut_by_another_and_a_pin() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(15.0), Outline::circle([27.5, 35.0], 17.5), 25.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(20.0),
+                Outline::circle([35.0, 0.0], 22.5),
+                50.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(20.0),
+                Outline::circle([20.0, 35.0], 30.0),
+                100.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(15.0),
+                Outline::circle([15.0, 45.0], 8.0),
+                18.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, found by its own tilted campaign on the exact kernel: a
+/// post floored 1e-7 under the point a cylinder lying along Y touches it
+/// at. The floor's line leaves the cylinder at a corner on both walls,
+/// standing on the cylinder; anchored at the touch instead, the cylinder's
+/// samples stood 1e-7 above that line, and its sliver crossed the post's
+/// wall. A vertex standing on a wall anchors its samples there still.
+#[test]
+fn seed_5551116747_a_post_floored_a_hair_under_where_a_lying_cylinder_touches_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(2.0), Outline::circle([9.5, 7.5], 4.5), -6.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([9.5, 7.5, -0.7500001], [0.0, 0.0, 0.0]),
+                Outline::rectangle([-5.0, -6.0], [5.0, 6.0]),
+                -4.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::yz(16.0),
+                Axis::first(-0.75),
+                Section::bands(2.0, &[[12.0, 0.0, 2.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, found by its own slanted campaign through the
+/// application's body: a post joined to a pin along Y touching it at a
+/// point, the pin's end 6e-8 past the post's axis. As
+/// 5551116747, a corner on both walls standing on the pin anchors the
+/// pin's samples there, not the touch.
+#[test]
+fn seed_5551409953_a_post_joined_to_a_pin_touching_it_ending_a_hair_past_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([6.0, 1.0], 3.5), 3.0),
+        vec![Step::add(Leaf::prism(
+            Plane::xz(1.00000006),
+            Outline::circle([2.0, 0.0], 0.5),
+            3.0,
+        ))],
+    ));
+}
+
+/// #552's round 6, found measuring its merge, slanted on the exact kernel:
+/// a post joined to a cylinder lying along X, 1e-7 wider than where it
+/// would touch the post, ending square to X through the post's axis. The
+/// lying cylinder's rim stands 1e-7 inside the post at the corner it puts
+/// on both walls, on its end face's plane, which holds the post's ruling
+/// there; anchored at the touch, 5e-8 short of that corner in that plane,
+/// the post's ruling ran through the end face. A corner on a plane holding
+/// a wall's ruling anchors that wall's samples, whatever it stands off it.
+#[test]
+fn seed_5564306306_a_post_joined_to_a_cylinder_a_hair_too_wide_ending_on_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(30.0),
+            Outline::circle([150.0, 210.0], 90.0),
+            195.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(180.0),
+            Axis::first(0.0),
+            Section::bands(
+                150.0,
+                &[[120.0, 0.0, 120.0], [14.9999997, 0.0, 120.0000003]],
+            )
+            .sloping_to(&[[0.0, 120.0], [0.0, 135.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// #552's round 6, found by its own turned campaign through the
+/// application's body: a turn of 225° about a line along Y, cut by a ring
+/// along X and by a cylinder along X inside it, touching its bore along a
+/// line. The turn's end plane cuts the two walls along conics tangent where
+/// it crosses that line; a first version gave each the other's samples as
+/// rays, which put the two walls' shared rays out of order, and their
+/// triangles crossed. Two parallel walls are left to the rays they share.
+#[test]
+fn seed_5551609285_a_turn_cut_by_a_ring_and_a_cylinder_touching_its_bore() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(20.0),
+            Axis::second(13.0),
+            Section::bands(20.0, &[[20.0, -13.0, -0.0]]),
+            225.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(15.0),
+                Outline::ring([35.0, 20.0], 20.0, 12.5),
+                -8.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-22.5),
+                Outline::circle([32.5, 20.0], 10.0),
+                70.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, found by its measurement, tilted through the
+/// application's body, the one seed that holds on `22df52e` and fails on the
+/// tip: a post joined to a half turn about a line along X, the two walls
+/// meeting at one point, cut by a block whose face passes through that
+/// point leaning 1e-5° off the plane holding the turn's axis. The face cuts
+/// the post along an ellipse all but a circle and the turn along a
+/// hyperbola all but two lines, and the two leave the point together;
+/// sampled on each other's places since `576396a`, their triangles cross.
+/// It holds on the exact kernel's own triangles, with the face square, and
+/// with any two of the three leaves. Shrinking leaves it whole.
+#[test]
+#[ignore = "conics-at-a-node, #552's round 6 measurement: a face 1e-5 degrees off the plane holding a half turn's axis cuts it and a post through the point their walls meet at; two conics leaving that node sampled on each other's places are drawn crossing; holds on 22df52e, broken at 576396a"]
+fn seed_5570235757_a_post_and_a_half_turn_meeting_at_a_point_cut_through_it_1e_5_degrees_off() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(35.0), Outline::circle([22.5, 5.0], 10.0), 43.0),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(56.25),
+                Axis::first(27.5),
+                Section::bands(7.5, &[[30.0, 0.0, 12.5]]),
+                -180.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([22.5, 5.0, 56.25], [0.0, 1e-5, 0.0]),
+                Outline::rectangle([-15.0, -13.0], [15.0, 13.0]),
+                25.0,
+            )),
+        ],
     ));
 }

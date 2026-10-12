@@ -1,10 +1,13 @@
-//! What the ends of a circle's edge lie on besides the circle.
+//! What the ends of an edge lie on besides its curve: for a circle, read
+//! once for its sampling; for any curve, to tell a place grazing such a
+//! surface a step from an end.
 
 use glam::DVec3;
 
+use crate::brep::conic::Round;
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Surface};
+use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::tessellation::contact;
 use crate::brep::topology::{Body, Edge, VertexId};
 
@@ -20,6 +23,9 @@ pub(super) struct Ends {
     pub(super) through: [Vec<Surface>; 2],
     /// The other circles ending at each end.
     pub(super) meeting: [Vec<Circle>; 2],
+    /// The planes cutting the circle's own wall along a conic ending at
+    /// each end: the other rim of a strip of that wall pinching there.
+    pub(super) pinching: [Vec<Plane>; 2],
 }
 
 impl Ends {
@@ -53,18 +59,37 @@ impl Ends {
                 touched: [false; 2],
                 through: [Vec::new(), Vec::new()],
                 meeting: [Vec::new(), Vec::new()],
+                pinching: [Vec::new(), Vec::new()],
             };
         };
-        let meeting = |vertex: VertexId| {
+        let ending = |vertex: VertexId| {
             body.edge_ids()
                 .map(|id| body.edge(id))
                 .filter(|other| !std::ptr::eq(*other, edge))
-                .filter(|other| other.ends.is_some_and(|both| both.contains(&vertex)))
-                .filter_map(|other| match body.curve(other.curve) {
+                .filter(move |other| other.ends.is_some_and(|both| both.contains(&vertex)))
+                .map(|other| body.curve(other.curve))
+        };
+        let meeting = |vertex: VertexId| {
+            ending(vertex)
+                .filter_map(|curve| match curve {
                     Curve::Circle(circle) => Some(*circle),
                     _ => None,
                 })
                 .collect::<Vec<Circle>>()
+        };
+        let pinching = |vertex: VertexId| {
+            ending(vertex)
+                .filter_map(|curve| match curve {
+                    Curve::Conic(conic) => {
+                        let on_the_wall = match &conic.round {
+                            Round::Cylinder(cylinder) => contact::lies_on(circle, cylinder, own),
+                            Round::Cone(cone) => cone.holds(circle, own),
+                        };
+                        on_the_wall.then_some(conic.plane)
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<Plane>>()
         };
         Ends {
             touched: ends.map(|end| surfaces(end).iter().any(touches)),
@@ -75,6 +100,7 @@ impl Ends {
                     .collect()
             }),
             meeting: ends.map(meeting),
+            pinching: ends.map(pinching),
         }
     }
 }
@@ -99,5 +125,39 @@ impl Ends {
             }
             Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => true,
         }
+    }
+}
+
+/// Whether a place of an edge stands within `room` of a surface one of its
+/// ends lies on and none of the curve's `own` surfaces is, `step` or less
+/// from that end.
+pub(super) fn grazed<'a>(
+    body: &'a Body,
+    edge: &'a Edge,
+    own: &[Surface],
+    step: f64,
+) -> impl Fn(DVec3, f64) -> bool + use<'a> {
+    let ends: Vec<(DVec3, Vec<Surface>)> = edge
+        .ends
+        .into_iter()
+        .flatten()
+        .map(|end| {
+            let vertex = body.vertex(end);
+            let surfaces = vertex
+                .on
+                .iter()
+                .map(|id| *body.surface(*id))
+                .filter(|surface| !own.contains(surface))
+                .collect();
+            (vertex.point, surfaces)
+        })
+        .collect();
+    move |point: DVec3, room: f64| {
+        ends.iter().any(|(end, surfaces)| {
+            (point - *end).length() <= step
+                && surfaces
+                    .iter()
+                    .any(|surface| surface.distance(point).abs() < room)
+        })
     }
 }

@@ -25,15 +25,18 @@
 //! flips stand or fall together. Two faces whose triangles end up on the same
 //! three samples are a skin of no thickness ([`super::skins`]).
 
+mod through;
+
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
-use glam::{DVec2, DVec3};
+use glam::DVec2;
 
 use super::orientation::turn;
 use super::outline::Outline;
 use super::sampling::Samples;
 use crate::brep::topology::FaceId;
+use through::through;
 
 /// A face cut into triangles in its surface's parameters, each corner a point
 /// of its outline.
@@ -72,6 +75,7 @@ pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64) {
         samples,
         eps,
         edges: BTreeMap::new(),
+        around: BTreeMap::new(),
     };
     for face in 0..folds.drawn.len() {
         for triangle in 0..folds.drawn[face].triangles.len() {
@@ -80,10 +84,10 @@ pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64) {
     }
     for face in 0..folds.drawn.len() {
         for triangle in 0..folds.drawn[face].triangles.len() {
-            let Some(other) = folds.lying((face, triangle)) else {
+            let Some(other) = folds.folded((face, triangle)) else {
                 continue;
             };
-            if folds.unfold((face, triangle), DEPTH).is_none() && folds.lying(other).is_some() {
+            if folds.unfold((face, triangle), DEPTH).is_none() && folds.folded(other).is_some() {
                 folds.unfold(other, DEPTH);
             }
         }
@@ -96,6 +100,8 @@ struct Folds<'a> {
     eps: f64,
     /// Each edge between two samples, and the triangles along it.
     edges: BTreeMap<[usize; 2], Vec<At>>,
+    /// Each sample, and the triangles with a corner there.
+    around: BTreeMap<usize, Vec<At>>,
 }
 
 impl Folds<'_> {
@@ -111,17 +117,21 @@ impl Folds<'_> {
         let Some(corners) = self.corners(at) else {
             return;
         };
+        let keep = |list: &mut Vec<At>| {
+            if adding {
+                list.push(at);
+            } else {
+                list.retain(|each| *each != at);
+            }
+        };
         for side in 0..3 {
             let (one, other) = (corners[side], corners[(side + 1) % 3]);
-            let along = self
-                .edges
-                .entry([one.min(other), one.max(other)])
-                .or_default();
-            if adding {
-                along.push(at);
-            } else {
-                along.retain(|each| *each != at);
-            }
+            keep(
+                self.edges
+                    .entry([one.min(other), one.max(other)])
+                    .or_default(),
+            );
+            keep(self.around.entry(one).or_default());
         }
     }
 
@@ -144,14 +154,36 @@ impl Folds<'_> {
                         let (from, to) = reach(theirs);
                         low.cmple(to).all()
                             && from.cmple(high).all()
-                            && through(
-                                corners.map(|id| self.samples.point(id)),
-                                theirs.map(|id| self.samples.point(id)),
-                                self.eps * CLEAR,
-                            )
+                            && self.pass_through(corners, theirs)
                     })
                 })
         })
+    }
+
+    /// A triangle of another face the triangle at `at` lies on, or passes
+    /// through beside a corner the two share: where a face turns into the
+    /// matter at a corner — a post's wall where a hole cut into it leaves
+    /// its ceiling — a chord of the wall cut across the corner, true to the
+    /// region in the wall's parameters, sags through the face beyond it
+    /// (5550629622).
+    fn folded(&self, at: At) -> Option<At> {
+        self.lying(at).or_else(|| {
+            let corners = self.corners(at)?;
+            corners.iter().find_map(|corner| {
+                self.around.get(corner)?.iter().copied().find(|beside| {
+                    beside.0 != at.0
+                        && self
+                            .corners(*beside)
+                            .is_some_and(|theirs| self.pass_through(corners, theirs))
+                })
+            })
+        })
+    }
+
+    /// Whether the triangles on two sets of samples pass through each other.
+    fn pass_through(&self, one: [usize; 3], other: [usize; 3]) -> bool {
+        let points = |corners: [usize; 3]| corners.map(|id| self.samples.point(id));
+        through(points(one), points(other), self.eps * CLEAR)
     }
 
     /// A triangle of another face the triangle at `at` lies on, if any. Its
@@ -342,48 +374,6 @@ fn opens(a: DVec2, b: DVec2, e: DVec2) -> bool {
     let size = a.abs().max(b.abs()).max(e.abs()).max_element();
     turn(a, b, e) == Ordering::Greater
         && (b - a).perp_dot(e - a) > ROUNDINGS * f64::EPSILON * size * longest
-}
-
-/// Whether two triangles pass through each other: each stands across the
-/// other's plane, and the stretches they cut each other's plane along
-/// overlap by more than `clear`, as two sharing a corner do not where
-/// they leave it on either side of the line their planes meet along.
-fn through(one: [DVec3; 3], other: [DVec3; 3], clear: f64) -> bool {
-    let normal = |[a, b, c]: [DVec3; 3]| (b - a).cross(c - a).try_normalize();
-    let (Some(mine), Some(theirs)) = (normal(one), normal(other)) else {
-        return false;
-    };
-    let Some(along) = mine.cross(theirs).try_normalize() else {
-        return false;
-    };
-    let stretch = |corners: [DVec3; 3], normal: DVec3, base: DVec3| {
-        let heights = corners.map(|corner| normal.dot(corner - base));
-        let above = heights.iter().any(|height| *height > clear);
-        let below = heights.iter().any(|height| *height < -clear);
-        if !(above && below) {
-            return None;
-        }
-        let mut reach: Vec<f64> = Vec::with_capacity(3);
-        for here in 0..3 {
-            let next = (here + 1) % 3;
-            let (height, onward) = (heights[here], heights[next]);
-            if height.abs() <= clear {
-                reach.push(along.dot(corners[here]));
-            } else if onward.abs() > clear && (height > 0.0) != (onward > 0.0) {
-                let point = corners[here].lerp(corners[next], height / (height - onward));
-                reach.push(along.dot(point));
-            }
-        }
-        let low = reach.iter().copied().fold(f64::INFINITY, f64::min);
-        let high = reach.iter().copied().fold(f64::NEG_INFINITY, f64::max);
-        Some((low, high))
-    };
-    let (Some(first), Some(second)) =
-        (stretch(other, mine, one[0]), stretch(one, theirs, other[0]))
-    else {
-        return false;
-    };
-    first.1.min(second.1) - first.0.max(second.0) > clear
 }
 
 #[cfg(test)]

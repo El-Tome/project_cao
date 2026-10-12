@@ -4,6 +4,11 @@ use super::*;
 use crate::brep::curve::Meet;
 use crate::brep::meet::Meeting;
 
+mod conic;
+mod grazed;
+mod lying;
+mod section;
+
 /// The crossings found, each checked to lie on the curve at its parameter and
 /// on the surface, and the list sorted.
 fn found(curve: &Curve, surface: &Surface, within: f64) -> Vec<Crossing> {
@@ -497,6 +502,32 @@ fn a_line_square_to_the_axis_grazing_a_cone_touches_it_once() {
         tangents(&found_touching(&at(3.0 - eps / 2.0), &point(), eps)),
         [true]
     );
+}
+
+#[test]
+fn a_line_square_to_a_cone_s_axis_inside_its_section_by_rounding_alone_touches_it_once() {
+    let eps = scale().eps();
+    let inside = line([0.0, 3.0 - 2.5e-7 * eps, 4.0], [1.0, 0.0, 0.0]);
+    let touch = found(&inside, &point(), 1e-12 * REACH);
+    assert_eq!(tangents(&touch), [true]);
+    assert!(touch[0].point.x.abs() < 1e-12 * REACH, "{touch:?}");
+}
+
+#[test]
+fn a_line_square_to_a_cone_s_axis_a_hair_inside_its_section_still_crosses_it_twice() {
+    let eps = scale().eps();
+    let inside = line([0.0, 3.0 - 1e-4 * eps, 4.0], [1.0, 0.0, 0.0]);
+    let twice = found(&inside, &point(), 1e-12 * REACH);
+    assert_eq!(tangents(&twice), [false, false]);
+}
+
+#[test]
+fn a_line_inside_a_wall_by_rounding_still_crosses_it_twice() {
+    let eps = scale().eps();
+    let hole = cylinder(DVec3::new(15.0, 0.0, 0.0), DVec3::Z, 5.0);
+    let inside = line([20.0 - 2.5e-7 * eps, 0.0, 4.0], [0.0, 1.0, 0.0]);
+    let twice = found(&inside, &hole, 1e-12 * REACH);
+    assert_eq!(tangents(&twice), [false, false]);
 }
 
 #[test]

@@ -32,7 +32,15 @@ use crate::brep::topology::Edge;
 /// but lying on it is read at the place and halfway back to the end: a
 /// circle crossing the surface again a step from the end stands on the line
 /// of that second crossing, off the surface's face, and keeps the ray its
-/// partner in contact takes too.
+/// partner in contact takes too. A grid angle is dropped there within a
+/// thousandth of `eps` of the surface, but within a fifth of it of a plane
+/// whose conic on the circle's wall ends there too, as that conic drops its
+/// own: the two rims of a strip of wall pinching at that end are sampled on
+/// the same angles. The circle kept one the conic dropped, and the strip's
+/// one triangle across that step lay on the leaning face beside it
+/// (5550133356). Not of every plane: a circle a hair off a plane all along
+/// lost a grid angle by each end, and the drawing lost matter
+/// (5561366633).
 pub(super) fn on_circle(
     circle: &Circle,
     edge: &Edge,
@@ -77,10 +85,11 @@ pub(super) fn on_circle(
             .iter()
             .any(|plane| on_a_plane(plane, circle.center, circle.axis, point, eps))
     };
-    let grazed = |at: f64, room: f64, closing: bool| {
+    let grazed = |at: f64, room: &dyn Fn(usize, &Surface) -> f64, closing: bool| {
         ends.iter().enumerate().any(|(side, end)| {
-            let lies =
-                |surface: &Surface, place: f64| surface.distance(circle.point(place)).abs() < room;
+            let lies = |surface: &Surface, place: f64| {
+                surface.distance(circle.point(place)).abs() < room(side, surface)
+            };
             (end - at).abs() <= step
                 && ends_of.through[side].iter().any(|surface| {
                     lies(surface, at)
@@ -90,7 +99,7 @@ pub(super) fn on_circle(
         })
     };
     let by_an_end = |at: f64| {
-        grazed(at, eps * contact::APART, true)
+        grazed(at, &|_, _| eps * contact::APART, true)
             || contact.beside.iter().any(|other| {
                 let partner = other.1.other(&other.0);
                 beside(at, other)
@@ -102,6 +111,10 @@ pub(super) fn on_circle(
             })
     };
 
+    let on_the_grid = |side: usize, surface: &Surface| match surface {
+        Surface::Plane(plane) if ends_of.pinching[side].contains(plane) => eps * contact::APART,
+        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => eps * TOLD,
+    };
     let on_the_turn = |at: f64| {
         let round = low + (at - low).rem_euclid(TAU);
         if round < high { round } else { low }
@@ -116,7 +129,7 @@ pub(super) fn on_circle(
         (low / step).floor() as i64..=(high / step).ceil() as i64
     };
     let mut places: Vec<(f64, bool, f64)> = ranks
-        .filter(|rank| inside(at_rank(*rank)) && !grazed(at_rank(*rank), eps * TOLD, false))
+        .filter(|rank| inside(at_rank(*rank)) && !grazed(at_rank(*rank), &on_the_grid, false))
         .filter(|rank| {
             let step = rank.rem_euclid(steps as i64) as usize;
             !contact.withheld.iter().any(|(withheld, [low, high])| {

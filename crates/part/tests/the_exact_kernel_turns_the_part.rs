@@ -22,14 +22,14 @@
 //!   `a_drawing_after_a_turn_keeps_its_face_when_a_size_slants_a_run_into_a_cone`,
 //!   `a_drawing_on_the_end_of_a_chamfered_shaft_rides_it_when_the_chamfer_grows`
 //! - what a cone meets at a slant or across is a broken step, with its reason kept —
-//!   `a_flat_milled_on_a_cone_is_a_broken_step_with_its_reason` (hyperbola),
-//!   `a_plane_at_a_slant_across_a_cone_is_a_broken_step_with_its_reason` (ellipse),
 //!   `a_radial_hole_through_a_cone_is_a_broken_step_with_its_reason`,
 //!   `a_cone_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_reason`,
 //!   `a_cone_of_another_axis_through_a_cone_is_a_broken_step_with_its_reason`
 //!   (each, its tool meeting the frustum's cone alone:
 //!   `declined_because(step) == Some(Declined::Unsupported)`, volume unchanged,
 //!   part still exact), `a_step_after_a_declined_cone_numbers_its_faces_as_if_it_had_stood`
+//!   (the flat and the slanted plane are built since #552, in
+//!   `the_exact_kernel_cuts_at_a_slant.rs`)
 //! - #448's harness draws turns with slanted runs before the kernel code — no test:
 //!   held in `cao_solid` by `random_turned_solids.rs` (`Case::drawn_slanted`, its draw
 //!   tests `the_slanted_generator_draws_every_kind_it_keeps` and
@@ -38,7 +38,9 @@
 //!   `every_sloped_leaf_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_pappus_s_volume`,
 //!   `a_sloped_leaf_names_its_faces_as_the_flats_name_them`,
 //!   `sloped_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact`,
-//!   `a_case_asking_for_a_conic_is_declined_as_unsupported_or_held`). Read against the
+//!   `a_case_asking_for_a_conic_is_declined_as_unsupported_or_held`, which #552 split into
+//!   `a_case_that_asked_for_a_conic_is_built_now` and
+//!   `a_case_asking_beyond_the_conics_is_declined_as_unsupported_or_held`). Read against the
 //!   history, the draw came after the kernel's first lanes rather than before them, and
 //!   `836bf70` narrowed it: no tool is built from a slant shorter than a quarter, and a
 //!   cone steeper than 45° grows away from its axis rather than along it
@@ -1600,48 +1602,6 @@ fn declined_on_the_frustum(history: &History, what: &str) {
         "the frustum, as it stood before",
     );
     assert!(part.body().is_exact(), "the part stays exact");
-}
-
-#[test]
-fn a_flat_milled_on_a_cone_is_a_broken_step_with_its_reason() {
-    let history = a_frustum_then(|history| {
-        sketch_on(
-            history,
-            WorkPlane {
-                origin: DVec3::Z * 6.0,
-                ..WorkPlane::XY
-            },
-        );
-        rectangle(history, 1, DVec2::new(-15.0, 2.0), DVec2::new(15.0, 18.0));
-        raise(history, 1, DVec2::new(0.0, 10.0), 5.0, ExtrusionMode::Cut);
-    });
-
-    declined_on_the_frustum(
-        &history,
-        "a plane parallel to the cone's axis meets it along a hyperbola",
-    );
-}
-
-#[test]
-fn a_plane_at_a_slant_across_a_cone_is_a_broken_step_with_its_reason() {
-    let history = a_frustum_then(|history| {
-        let (sin, cos) = (PI / 6.0).sin_cos();
-        sketch_on(
-            history,
-            WorkPlane {
-                origin: DVec3::Y * 10.0,
-                u: DVec3::X,
-                v: DVec3::new(0.0, sin, cos),
-            },
-        );
-        rectangle(history, 1, DVec2::splat(-20.0), DVec2::splat(20.0));
-        raise(history, 1, DVec2::ZERO, 4.0, ExtrusionMode::Cut);
-    });
-
-    declined_on_the_frustum(
-        &history,
-        "a plane at 30° from square to the cone's axis meets it along an ellipse",
-    );
 }
 
 #[test]

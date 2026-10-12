@@ -1642,7 +1642,7 @@ mod campaign {
 
     use cao_solid::soundness::Check;
     use random_solids::campaigning::{
-        Answering, DECLINED, GRAZING, HELD, campaign_over, shrunk_one_by_one,
+        Answering, DECLINED, GRAZING, HELD, UNSTABLE, campaign_over, shrunk_one_by_one,
     };
 
     use super::*;
@@ -1651,6 +1651,7 @@ mod campaign {
         HELD.fetch_add(measured.held, Ordering::Relaxed);
         GRAZING.fetch_add(measured.grazing, Ordering::Relaxed);
         DECLINED.fetch_add(measured.declined, Ordering::Relaxed);
+        UNSTABLE.fetch_add(measured.unstable, Ordering::Relaxed);
     }
 
     fn exactly(case: &Case) -> Result<(), Flaw> {

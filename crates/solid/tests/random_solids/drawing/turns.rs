@@ -611,7 +611,7 @@ impl Drawing {
 
 impl Line {
     /// The line a leaf on `plane` turns about, along a world axis.
-    fn of(plane: Plane, axis: Axis) -> Line {
+    pub(super) fn of(plane: Plane, axis: Axis) -> Line {
         let line = axis.line();
         let point = plane.to_world(line.origin);
         let direction = plane.to_world(line.origin + line.direction) - point;

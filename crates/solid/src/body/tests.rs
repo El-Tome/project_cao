@@ -328,24 +328,77 @@ fn a_disc_s_box_reaches_its_rim_exactly() {
     );
 }
 
-#[test]
-fn a_slant_across_a_bore_is_handed_back_as_a_decline() {
-    let part = block(DVec2::ZERO, DVec2::splat(20.0), 10.0);
+/// A bore of radius three raised twenty from `origin` along the normal of a
+/// plane leaning thirty degrees about X.
+fn slanted_bore(part: &Body, origin: DVec3) -> Body {
     let (sin, cos) = (30.0f64).to_radians().sin_cos();
     let slanted = Frame {
-        origin: DVec3::new(10.0, 10.0, -5.0),
+        origin,
         u: DVec3::X,
         v: DVec3::new(0.0, cos, sin),
     };
-    let bore = part
-        .tool_raised(
-            &exact(disc(DVec2::ZERO, 3.0), vec![]),
-            slanted,
-            slanted.normal() * 20.0,
-        )
-        .expect("a bore stands on its own");
+    part.tool_raised(
+        &exact(disc(DVec2::ZERO, 3.0), vec![]),
+        slanted,
+        slanted.normal() * 20.0,
+    )
+    .expect("a bore stands on its own")
+}
 
-    assert_eq!(part.difference(&bore), Err(Declined::Unsupported));
+#[test]
+fn a_slant_across_a_post_is_handed_back_as_a_decline() {
+    let post = raised(
+        &Body::default(),
+        &exact(disc(DVec2::splat(10.0), 8.0), vec![]),
+        10.0,
+    );
+    let bore = slanted_bore(&post, DVec3::new(10.0, 10.0, -5.0));
+
+    assert_eq!(post.difference(&bore), Err(Declined::Unsupported));
+}
+
+#[test]
+fn a_slant_through_a_block_s_floor_and_top_is_cut_exactly() {
+    let part = block(DVec2::ZERO, DVec2::splat(20.0), 10.0);
+    let bore = slanted_bore(&part, DVec3::new(10.0, 14.0, -5.0));
+
+    let cut = part.difference(&bore).expect("the kernel cuts it");
+
+    assert!(cut.is_exact());
+    let arithmetic = 4000.0 - 60.0 * 3f64.sqrt() * PI;
+    assert!(
+        (cut.volume() - arithmetic).abs() <= 1e-9 * arithmetic,
+        "{} against {arithmetic}",
+        cut.volume()
+    );
+}
+
+#[test]
+fn a_slant_through_a_block_s_floor_and_out_through_its_side_is_cut_exactly() {
+    let part = block(DVec2::ZERO, DVec2::splat(20.0), 10.0);
+    let bore = slanted_bore(&part, DVec3::new(10.0, 10.0, -5.0));
+
+    let cut = part.difference(&bore).expect("the kernel cuts it");
+
+    assert!(cut.is_exact());
+    let (half, slope) = (
+        3.0 / (30.0f64).to_radians().cos(),
+        (30.0f64).to_radians().tan(),
+    );
+    let level = |z: f64| (10.0 - slope * (z + 5.0)) / half;
+    let swept =
+        |c: f64| PI * c - (c * c.acos() - (1.0 - c * c).sqrt()) - (1.0 - c * c).powf(1.5) / 3.0;
+    let whole = (10.0 - half) / slope - 5.0;
+    let bored = 3.0 * half * (PI * whole + (swept(level(10.0)) - swept(1.0)) / (-slope / half));
+    let arithmetic = 4000.0 - bored;
+    assert!(
+        (cut.volume() - arithmetic).abs() <= 1e-9 * arithmetic,
+        "{} against {arithmetic}",
+        cut.volume()
+    );
+    let triangles = cut.triangles();
+    assert_eq!(crate::soundness::closed(&triangles), Ok(()));
+    assert_eq!(crate::soundness::uncrossed(&triangles), Ok(()));
 }
 
 #[test]
@@ -834,4 +887,56 @@ fn a_body_tells_whether_the_exact_kernel_computed_it() {
             .expect("the flats never decline")
             .is_exact()
     );
+}
+
+/// A shaft of radius five about Z, thirty high, cut by a block whose floor
+/// leans a ten-thousandth of a degree off square to it: a step the kernel
+/// builds and reads unstably (#552).
+fn shaft_cut_a_ten_thousandth_of_a_degree_off_square() -> Body {
+    let shaft = raised(
+        &Body::default(),
+        &exact(disc(DVec2::ZERO, 5.0), vec![]),
+        30.0,
+    );
+    let (sin, cos) = (1e-4f64).to_radians().sin_cos();
+    let leaning = Frame {
+        origin: DVec3::new(0.0, 0.0, 20.0),
+        u: DVec3::X,
+        v: DVec3::new(0.0, cos, sin),
+    };
+    let tool = shaft
+        .tool_raised(
+            &exact(
+                Contour::rectangle(DVec2::splat(-10.0), DVec2::splat(10.0)),
+                vec![],
+            ),
+            leaning,
+            leaning.normal() * 20.0,
+        )
+        .expect("a block raises");
+    shaft.difference(&tool).expect("the kernel cuts it")
+}
+
+#[test]
+fn a_cut_at_an_unstable_lean_is_handed_up_with_its_note() {
+    let cut = shaft_cut_a_ten_thousandth_of_a_degree_off_square();
+
+    let unstable = cut.unstable().expect("the step is noted");
+    assert_eq!(unstable.lean, crate::Lean::Square);
+    assert!(
+        (unstable.degrees - 1e-4).abs() <= 1e-10,
+        "{}°",
+        unstable.degrees
+    );
+}
+
+#[test]
+fn a_tool_that_takes_nothing_hands_back_the_part_without_a_note() {
+    let cut = shaft_cut_a_ten_thousandth_of_a_degree_off_square();
+
+    let again = cut
+        .difference(&Body::default())
+        .expect("nothing to take is taken");
+
+    assert_eq!(again.unstable(), None);
 }

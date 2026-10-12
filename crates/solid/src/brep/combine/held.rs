@@ -24,8 +24,9 @@ use glam::DVec3;
 
 use super::operands::Operands;
 use crate::brep::canonical::{Registry, distance, within};
+use crate::brep::conic::Round;
 use crate::brep::curve::Curve;
-use crate::brep::relation::relation;
+use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::topology::{CurveId, EdgeId, SurfaceId, VertexId};
@@ -170,18 +171,28 @@ fn shared(
 const MOVED: f64 = 2.0;
 
 /// Whether a surface carries a curve all along it, within the tolerance: a
-/// line on a cylinder runs along its axis, a circle on a plane or a cylinder
-/// stands square to it and about its axis, the curve two cylinders meet along
-/// runs round one of its own two — not round a wall of one radius a hair
-/// beside one of them, which carries it only over the stretch an arc of it
-/// was taken for (decision 6). A cone carries its rulings and its circles
-/// about its axis.
-fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
+/// line on a plane stands square to its normal and within the tolerance of
+/// it, a line on a cylinder runs along its axis, a circle on a plane or a
+/// cylinder stands square to it and about its axis, the curve two cylinders
+/// meet along runs round one of its own two — not round a wall of one
+/// radius a hair beside one of them, which carries it only over the stretch
+/// an arc of it was taken for (decision 6). Nor does a plane a line crosses
+/// at a grazing angle, within the tolerance of it over the stretch an edge
+/// beside it covers: a block's side leaning 1e-3° off a cut's face carries
+/// the cut's corner line over the 1.5e-4 between their crossing and the
+/// block's top, and stands twenty tolerances off it at the cut's floor
+/// (5541239472). A cone carries its rulings and its circles about its axis.
+/// A conic is carried by a surface decided one with its plane or with its
+/// wall, and by nothing else.
+pub(super) fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
     let eps = scale.eps();
     let parallel =
         |one: DVec3, other: DVec3| one.cross(other).length() * 2.0 * scale.reach() <= eps;
+    let square = |one: DVec3, other: DVec3| one.dot(other).abs() * 2.0 * scale.reach() <= eps;
     match (surface, curve) {
-        (Surface::Plane(_), Curve::Line(_)) => true,
+        (Surface::Plane(plane), Curve::Line(line)) => {
+            square(line.direction, plane.normal) && plane.distance(line.origin).abs() <= eps
+        }
         (Surface::Plane(plane), Curve::Circle(circle)) => {
             parallel(circle.axis, plane.normal) && plane.distance(circle.center).abs() <= eps
         }
@@ -197,23 +208,35 @@ fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
         (Surface::Cone(cone), Curve::Line(line)) => cone.rules(line, scale),
         (Surface::Cone(cone), Curve::Circle(circle)) => cone.holds(circle, eps),
         (Surface::Cone(_), Curve::Meet(_)) => false,
+        (_, Curve::Conic(conic)) => {
+            let own = match (surface, conic.round) {
+                (Surface::Plane(_), _) => Surface::Plane(conic.plane),
+                (Surface::Cylinder(_), Round::Cylinder(cylinder)) => Surface::Cylinder(cylinder),
+                (Surface::Cone(_), Round::Cone(cone)) => Surface::Cone(cone),
+                (Surface::Cylinder(_), Round::Cone(_)) | (Surface::Cone(_), Round::Cylinder(_)) => {
+                    return false;
+                }
+            };
+            matches!(relation(surface, &own, scale), Relation::Same { .. })
+        }
     }
 }
 
-/// Where an operand's corner stands in the arena: where the operand built
-/// it, or, where a surface it lies on was taken for another or moved onto a
-/// touch, where a line of the edges ending there now crosses a plane it lies
-/// on, square enough to it to fix the place. Its edges are laid on the
-/// curves the surfaces now share; left where it was built, the corner would
-/// stand a hair off them, and off the place the next operation finds them
-/// crossing at.
+/// Where an operand's corner stands in the arena, and whether it stands
+/// where the operand built it, on the surfaces it built it on: or, where a
+/// surface it lies on was taken for another or moved onto a touch, where a
+/// line of the edges ending there now crosses a plane it lies on, square
+/// enough to it to fix the place. Its edges are laid on the curves the
+/// surfaces now share; left where it was built, the corner would stand a
+/// hair off them, and off the place the next operation finds them crossing
+/// at.
 pub(super) fn laid(
     operands: &Operands,
     registry: &Registry,
     operand: usize,
     vertex: VertexId,
     curves: &[usize],
-) -> DVec3 {
+) -> (DVec3, bool) {
     let body = operands.bodies[operand];
     let own = body.vertex(vertex);
     let list = &operands.surfaces.list;
@@ -228,7 +251,7 @@ pub(super) fn laid(
         .zip(&shared)
         .any(|(surface, taken)| list[taken.0 as usize] != *body.surface(*surface));
     if !moved {
-        return own.point;
+        return (own.point, true);
     }
     let mut crossings = curves.iter().flat_map(|&curve| {
         let registered = &registry.list[curve];
@@ -247,9 +270,10 @@ pub(super) fn laid(
             })
             .collect()
     });
-    crossings
+    let point = crossings
         .find(|place| place.distance(own.point) <= MOVED * operands.eps())
-        .unwrap_or(own.point)
+        .unwrap_or(own.point);
+    (point, false)
 }
 
 /// How square to a plane a line must stand, in the cosine of their angle,

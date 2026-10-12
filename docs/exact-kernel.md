@@ -46,9 +46,12 @@ It can:
   countersink, a taper (#536) — and a partial turn ends on two planes holding
   the axis (`brep/turned.rs`). The section [Turning](#turning) says how.
 - surfaces: planes, circular cylinders parallel or square to each other, and
-  circular cones against planes square to their axis or holding it and
-  against cylinders and cones of their axis; curves: lines, circles, and the
-  curve two perpendicular cylinders meet along.
+  circular cones against cylinders and cones of their axis; a plane against
+  a cylinder or a cone at any angle (#552); curves: lines, circles, the
+  conics a plane cuts a wall along at a slant — an ellipse, a parabola, a
+  branch of a hyperbola — and the curve two perpendicular cylinders meet
+  along. The section [The conic a plane cuts a wall
+  along](#the-conic-a-plane-cuts-a-wall-along) says how a conic is held.
 - **number its faces as the flats do**, so a drawing laid on a face keeps it
   when a size changes: 0 for the floor of a raise, 1 for its top, one per run
   for the walls — two runs on one line, or two arcs of one circle, make one
@@ -68,9 +71,11 @@ It can:
   built: one with a face the triangles cannot cover is declined too
   (`Declined::Undrawn`). The face counter only goes up, on the flats as well
   once a part has gone to them, so a number is never given twice.
-- **tell faces at a slant that never touch from faces that cross**: a plane
-  against a cylinder patch, two skew cylinders, are decided apart on the faces
-  themselves before the kernel declines (`combine/clear.rs`).
+- **tell faces at a slant that never touch from faces that cross**: two skew
+  cylinders, a cylinder or a cone off a cone's axis, are decided apart on the
+  faces themselves before the kernel declines (`combine/clear.rs`); a plane
+  at a slant to a wall is asked the same first, so that the conic it cuts
+  is registered only where two faces may meet along it.
 - hand a revolution of a profile with an arc, or an area bounded by an
   ellipse, **to the flats**, from that step on: it has no sphere, torus or
   ellipse. So does a profile of straight runs the reading cannot lay against
@@ -81,11 +86,10 @@ Left, in the order #497 set:
 
 - revolutions of arcs: spheres, tori. Those of straight runs are done:
   parallel or square to the axis (#533), slanted (#536);
-- ellipses: a plane crossing a cylinder at a slant, and an ellipse drawn in a
-  profile; and the conics a plane cuts a cone along when it is neither square
-  to its axis nor holding it — a flat milled on a cone, a plane across it at
-  a slant — and a cone against a cylinder or a cone of another axis, such as
-  a radial hole through it;
+- an ellipse drawn in a profile, raised: the elliptic cylinder. A plane
+  crossing a cylinder or a cone at a slant is done (#552);
+- a cone against a cylinder or a cone of another axis, such as a radial hole
+  through it, and two cylinders at a skew angle;
 - an exact STEP;
 - chamfers and fillets on a straight edge, then on a circular one, then where
   fillets meet at a corner;
@@ -102,19 +106,40 @@ Known and still open:
   with a cone and a cone beside prisms, under one failure in a thousand
   random parts; `exact-kernel-failures.md` counts them by family;
 - a face bounded by the curve two perpendicular cylinders meet is never
-  decided clear of a face at a slant, so such a pair still declines.
+  decided clear of a face at a slant, so such a pair still declines;
+- the conics (#552): a plane a hair off square to, or along, a wall's
+  axis is laid exactly so where that moves the tool by no more than `G`
+  (decision 11); past that, up to a sine of a thousandth, it is built as
+  drawn and the user is told the step is unstable (step 10 of the
+  boolean). A lean in that band, a lean of a hair between two planes or
+  two walls, which decision 11 leaves, and a plane or a conic a hair from
+  tangent by an offset, held by no band, decline or draw crossing about
+  twice in a thousand random parts of the tilted draws, a draw weighted
+  towards such hairs; a handful with no hair are left too, a turn of
+  359.9° whose slit opens at a line of touch and cone bands of a wedge of
+  0.01° among them. `exact-kernel-failures.md` names them, with the rates
+  of every round. Two planes at a few times the angle read as parallel
+  graze, and hold, where their corners allow it. The slanted and turned
+  draws are under one in a thousand;
+- a face standing inside a cylinder's hollow is not decided clear of a
+  cylinder at a skew angle to it: a boss raised, or a hole cut, square to
+  the elliptic face a slanted cut leaves on a shaft declines, though the
+  tool never reaches the shaft's wall.
 
 ## Scope
 
 - **Surfaces:** planes, circular cylinders and circular cones, nothing else.
-- **Curves:** lines, circles, and the curve where two perpendicular cylinders
+- **Curves:** lines, circles, the conics a plane cuts a cylinder or a cone
+  along at a slant (#552), and the curve where two perpendicular cylinders
   meet. A cone meets a plane square to its axis, a cylinder or a cone of its
-  axis along circles or at its apex, and a plane holding its axis along two
-  rulings. Two cylinders at any other angle than parallel or square, a plane
-  oblique to a cylinder's axis — an ellipse —, a plane meeting a cone any
-  other way, and a cone against a cylinder or a cone of another axis are
-  declined where their faces cross: the operation gives no answer, which the harness counts as such
-  rather than as a wrong solid. Where the faces stand clear of each other — a
+  axis along circles or at its apex, a plane holding its axis along two
+  rulings, and any other plane along an ellipse, a parabola, a branch of a
+  hyperbola, two rulings through its apex, the ruling it touches along, or
+  its apex alone. Two cylinders at any other angle than parallel or square,
+  a cone against a cylinder or a cone of another axis, and a cone within the
+  tolerance of a plane or a cylinder of its axis all across the box are
+  declined where their faces may cross: the operation gives no answer, which
+  the harness counts as such rather than as a wrong solid. Where the faces stand clear of each other — a
   bore square into one side of a hexagonal prism, beside the next side, or
   drilled right through it past the far side's slanted neighbours — the pair
   is passed over, decided on the faces themselves rather than on the boxes
@@ -145,10 +170,12 @@ There is one tolerance, `EPS = 1e-9 · reach`, `reach` being the largest
 coordinate a body or its operands have reached, never less than one. It is ten
 times the harness's `NEAR`, so what the kernel keeps apart the rules see apart,
 and a thousand times below `ALONG_A_LINE`, so a merge never shows as a volume.
-Three configurations alone are read wider, at twenty times it, each as ill
+Four configurations alone are read wider, at twenty times it, each as ill
 conditioned as the others: two parallel walls of one radius (decision 8), a
-wall touching one of two parallel planes (decision 10), and a wall touching
-one of two planes it stands between (decision 2). The result of an operation carries the larger reach of its operands. A pair
+wall touching one of two parallel planes (decision 10), a wall touching
+one of two planes it stands between (decision 2), and a plane a hair off
+square to, or along, a wall's axis (decision 11), which turns the second
+operand before decision 1 reads it. The result of an operation carries the larger reach of its operands. A pair
 of surfaces one operand alone carries is decided at the tolerance it was
 decided at when the later of the two came into that operand: a body keeps,
 for each of its surfaces, the scale of the operation that brought it in —
@@ -263,9 +290,9 @@ The decisions, in the order taken, once per operation:
    two rulings (`Relation::Rulings`), each built through its meridian line's
    foot, never through the apex, which a cone a hair from a cylinder holds a
    hundred million reaches away; the apex goes with them where it stands in
-   the box. Any other pair with a cone is unsupported, and declines unless
-   `clear` stands the two faces apart. No pair with a cone grazes and none is
-   moved onto a touch: a cone a hair from a cylinder of its axis meets it
+   the box. A cylinder or a cone off its axis is unsupported, and declines
+   unless `clear` stands the two faces apart. No pair with a cone grazes and
+   none is moved onto a touch: a cone a hair from a cylinder of its axis meets it
    along one exact circle, whatever the band the two stand within `EPS` of
    each other over; nor is a cylinder about a cone's axis moved off it onto
    a touch with a third surface. Two surfaces meeting at the apex alone
@@ -277,6 +304,38 @@ The decisions, in the order taken, once per operation:
    apart in slope stand within it of each other all along their faces.
    A cone whose axis stands a hair off the other's is taken about one axis
    by decision 8.
+   A plane at a slant to a wall (#552) — neither square to a cylinder's
+   axis nor along it, neither square to a cone's axis nor holding it — is
+   decided by `relation/sliced.rs` alone, once the rows above have passed
+   it over (`at_a_slant`). Against a cylinder it cuts one ellipse, never
+   apart and never touching: a plane along a ruling is square to the axis,
+   and reads as before. Against a cone the rows are read in order, space
+   before angle, as a cylinder is decided by its gap first: with the apex in
+   the box and within `EPS` of the plane, the plane holds the two rulings
+   where it runs along the cone (`Relation::Rulings`) when it is steeper
+   than the slope by more than the angle `parallel` reads, touches the cone
+   along one ruling (`Relation::Ruling`, its apex with it) when it is within
+   that angle of the slope, and meets it at its apex alone when flatter;
+   with the apex beyond the box, within that angle of the slope, and no
+   conic cut, the ruling of touch, with no apex, where it stands within
+   `EPS` of the plane at its foot and runs along it across the box — cut as
+   a conic, a doubled ruling is nothing, and a face touching a cone along a
+   ruling at exactly its slope was refused (5543214149, 5543216778). Where
+   a conic is cut, or the plane is steeper, the conic is kept: the rulings
+   held there instead broke three bodies the hyperbola held (5543114315,
+   5543213205, 5543216548); a
+   cut within `EPS` of the axis all round is the point of the axis on the
+   plane, as a circle within `EPS` of it is; otherwise the conic on the
+   cone's own nappe — an ellipse, a parabola, a branch of a hyperbola, the
+   flat on a chamfer among them — or nothing where the plane meets only the
+   other nappe (`Relation::Conic`). The conic is built from the wall's own
+   ruled form and never forms the apex. Where its vertices stand further
+   than ten thousand reaches from the origin it is split at them into the
+   arms that cross the box, decided once at the pair's scale. A plane at a
+   slant whose faces `clear` stands apart is passed over before any of this,
+   so the bodies built before #552 register no new curve. A ruling of touch
+   lays no band (decisions 7 and 9 are not extended to it), and no surface
+   is moved onto a touch with a cone or onto a conic.
 3. **Line identity.** The same line comes out of several pairs; lines within
    `EPS` over the box are one, and their supports are joined — never across
    two surfaces decided apart, nor, for lines, decided to meet at a cone's
@@ -297,6 +356,13 @@ The decisions, in the order taken, once per operation:
    top taken for the block's a hair above stood that hair under the top,
    and the next operation found the lines it ends crossing the top that far
    from it (8511092, 8505208).
+   Two conics (#552) are one when their planes are one, their walls are
+   one — alike cylinders, or cones of parallel axes whose meridian lines
+   are one across the box — and they are the same stretch of the cut: the
+   whole of it, or the arm on the same side of its plane of symmetry. A
+   conic is never one with a line, a circle or a meet. A conic is carried
+   by a plane alike to its plane and a wall alike to its wall, nothing else;
+   moved with its operand, it is cut again on the moved surfaces.
 4. **A line meeting a cylinder at a double root**, once per pair. A line
    passing within `EPS` outside a wall touches it once, where it passes
    closest. A line passing within `EPS` inside it crosses it twice, its
@@ -308,15 +374,62 @@ The decisions, in the order taken, once per operation:
    other curve through either; a ruling through a node only touches the
    other cylinder, whatever rounding leaves of the touch. A circle against a
    plane or a perpendicular wall is read the same way, through the lines
-   their planes share. A line meets a cone (#536) along a ruling; square to
-   the axis, where it crosses the cylinder of the cone's section at its
-   height, the corner the circle of that plane gives; through the apex, once,
-   or touching there where it stays outside on both sides; and otherwise at
-   the roots of the cone's quadric kept on its own nappe, touching it once
-   where it passes within `EPS` of it at its closest, as a wall. A circle in
-   a plane holding the axis crosses the two rulings that plane cuts; any
-   other circle off the axis is unsupported, as the pair it lies on is
-   (`relation/crossing/cone.rs`).
+   their planes share. One more touch (`relation/crossing/section.rs`): the
+   line a plane square to a wall's axis shares with a plane crossing that
+   axis steeply, at a cosine of a tenth or more, standing inside the wall's
+   section by rounding alone, a millionth of `EPS`, only touches the wall,
+   where it passes nearest the axis — the line, the circle the square plane
+   cuts and the conic the steep one cuts each reach that touch, the circle
+   only as an edge on the square plane: a rim where a wall gives way to a
+   cone, crossed by a plane through the cone's apex a hair off its slope,
+   keeps crossing twice, where that plane's hairpin on the cone does
+   (5545108465). A cut at
+   60° through a bore's lowest line at a tube's end shares a line with the
+   end found 3e-14 inside the bore, which crossed it twice 3.2e-6 apart
+   where the cut's ellipse touches the end once, a sliver between them no
+   face agreed on (5544100660). A plane leaning along the axis is left to
+   cross twice: its hairpin's vertex stands where rounding over its lean
+   puts it, and its arms pass the square plane where the line's two roots
+   do (5549116996). A line found on its own keeps crossing twice however
+   thin the hair, as real walls rely on. A line meets a cone (#536) along
+   a ruling; square to the axis, where it crosses the cylinder of the
+   cone's section at its height, the corner the circle of that plane gives
+   — a line inside that cylinder by rounding alone touches it, where it
+   passes nearest the axis: the line a plane square to the axis shares with
+   a plane touching the cone exactly where it crosses it, found a femtometre
+   inside, crossed it twice four tolerances apart (5543231406); through the
+   apex, once, or touching there where it stays outside on both sides; and
+   otherwise at the roots of the cone's quadric kept on its own nappe,
+   touching it once where it passes within `EPS` of it at its closest, as
+   a wall. A circle in a plane holding the axis crosses the two rulings
+   that plane cuts; any other circle off the axis is unsupported, as the
+   pair it lies on is (`relation/crossing/cone.rs`). A conic, its plane `P` cut by its wall
+   `Q`, meets a third surface `S` where the other curve of that corner does,
+   by the very same call (`relation/crossing/conic.rs`): against a plane,
+   the line `P` and `S` share crossing `Q`; against a wall, the lines, the
+   circle or the curve `Q` and `S` meet along crossing `P`. Each corner is
+   computed once, with the same double-root decision and the same bits
+   whichever curve reaches it, and no quartic is solved. Where `Q` and `S`
+   meet in a way the kernel does not build, so does the conic; and a
+   crossing left unsolved on a pair the kernel builds declines rather than
+   being passed over. A plane leaning off a wall's axis by less than the
+   angle read as along it, by more than rounding, is cut along lines drawn
+   through the foot of the wall's origin, and stands a fraction of the
+   tolerance off them where a corner is: a hair inside the wall's ruling,
+   the line it shares with an end crossed the wall microns aside of them,
+   and every corner of the sliver it cuts off was found twice (5520135751).
+   So a line or a circle lying on two surfaces, one of them so decided to
+   cut or touch the other along lines — a plane and a wall, two walls read
+   parallel — crosses it where those lines cross the curve's other plane,
+   by the call those lines make themselves (`relation/crossing/lying.rs`),
+   and a conic crosses such a plane the same way. Only where the lines
+   cross that plane steeply, at a cosine of a tenth or more: shallower, a
+   hair moves the place along them by far more than the other pairs of the
+   triple do (5524010446). A curve lying on a third surface, taken for one
+   that surface carries, is left to its own crossings: two planes crossing
+   at a grazing angle near a wall's axis put the rulings and the conic a
+   fraction of the tolerance apart, and the corner found through the
+   rulings stood that far off the conic's (5523010597).
 5. **Point identity.** Corners within `EPS` are merged, in a fixed order —
    the operands' own corners, the relations' special points, the crossings
    three planes fix, then the others, so that the crossings a curve makes
@@ -327,12 +440,74 @@ The decisions, in the order taken, once per operation:
    unless the two touch or graze (decision 2): within `EPS` of both far
    from their lines, a corner one of two grazing walls carries near their
    crossing and the node a band puts on the other there are one corner.
+   A corner found along a ruling through a cone's apex is on that cone
+   only where it stands on its own nappe: past the apex, the ruling the
+   cone shares with a plane holding its axis is that plane's line alone,
+   and a plane apart from the cone, square to its axis over the other
+   nappe, may cross it there. Counted on the cone, the corner was kept
+   apart from the one the other curves through that place found, and the
+   step was refused (5543226572: a slant through the apex of a cone
+   joined to two quarter turns, touching it along the ruling one of their
+   end planes holds).
+   A corner standing within `EPS` of a point where two walls were decided
+   to touch (decision 2) — the node or the contact of two perpendicular
+   cylinders — lies on both, and so on every curve of either it stands
+   on. Two walls of one operand touching at a
+   point leave no edge there, and the curves a third surface cuts each of
+   them along meet there with no edge to find the corner through: a rod
+   joined to a post it touches, cut by a pin of the rod's radius whose
+   axis meets the rod's at the touch, put the node of the pin and the rod
+   on neither the post nor the line the pin touches it along, and that
+   line was not cut there (5544320693). Not at a cone's apex: a plane at
+   the cone's slope a hair off it, taken onto every surface through the
+   apex, had corners within `EPS` of it cut curves that pass it by
+   (5545235515). Nor onto a wall decided apart from one the corner is on:
+   a post across two rods of one axis a hair apart in radius has a node
+   with each, and the two stay two (5545618519).
+   Where two walls of one operand touch at a point that a surface of the
+   other passes through, reaching it with a face, that point is a corner
+   candidate on the three, merged after the special points: the curves
+   the surface cuts the two walls along each touch the other wall there,
+   and with no edge of the operand there, no crossing finds it — a rod and
+   a post side by side joined to a disc whose floor passes through the
+   touch (5550316656), a slot's round end touching a turn cut by a block
+   whose face holds the touch (5550230611).
    No corner lies on a curve on a surface apart from one of its own. Each
    corner is measured where it stands (below, where planes fix it): one
    whose three planes fix a place stands there, though an operand put it
    up to three hairs off, each plane taken for another, and a curve
    crossing a fourth surface at that place finds that corner rather than a
-   second one beside it (8520500).
+   second one beside it (8520500). An operand's own corner, on the
+   surfaces its operand built it on, none taken for another nor moved onto
+   a touch, and on no plane of the other operand, stands where its operand
+   built it, on the line two of its planes share: that operand decided it.
+   A cut a hair from a block's edge leaves the edge's corners on the cut's
+   plane within the tolerance, though that plane, the floor and a side
+   meet twice the tolerance beyond, and the end face they were decided on
+   is gone; moved there by the next operation, they left the edge they end
+   that far off, and the floor lost its last edge (5520107844). A plane of
+   the other operand through the corner fixes its place anew, where the
+   boolean finds its other crossings with that plane (5523006542). A plane
+   and a wall crossing along a conic at a grazing angle stand within `EPS`
+   of each other far from it, so the refusal reads their conic as it reads
+   their lines (#552). Two planes
+   too near parallel to fix the line they share (below) are decided, once,
+   to graze where they stand within `EPS` of each other across every box
+   faces of both may meet in, every corner candidate on either in such a
+   box stands within `EPS` of both, and every curve crossing both
+   there crosses them within `EPS` of one place: they stand within `EPS` of
+   each other far from that line too, and the refusal does not hold
+   between them — the corner a rim, a side and a top meet at and the one an
+   ellipse, that side and a floor leaning a hair off the top meet at are
+   one, and the rim and the ellipse between them one arc (5520121880).
+   Where one candidate stands further, the two cross, and no corner is one
+   on both: one pair of corners merged and the next a hair too far apart
+   would make one arc of two at one end and leave them two at the other
+   (5520267036), and a cone's ruling crossing the two 1.2e-8 apart would
+   leave one of its corners two (5520167649). Nor do two whose faces may
+   meet further out, past every corner: a disc's rim has none at its far
+   side, three hundred units from the line, where the two part 5.2e-7 at a
+   tolerance of 5.1e-7 (5527004090).
 6. **Arc identity.** Once every curve is cut into arcs at the pooled
    corners, two arcs lying on one surface between the same two corners,
    which part by no more than `EPS` anywhere along them — measured exactly
@@ -341,16 +516,37 @@ The decisions, in the order taken, once per operation:
    the other's arc rather than its whole curve: two halves of two circles a
    hair apart, one each side, run between the same corners within a hair
    of each other's circle all along — are one arc.
-   One curve is kept for it: a line before a circle before a meet, then the
-   first registered. The arc lies on the surfaces of both, over its own
+   One curve is kept for it: a line before a circle before a conic before a
+   meet, then the first registered — a conic before a meet because a plane
+   cannot see a meet. The arc lies on the surfaces of both, over its own
    stretch alone, so supports are carried by arcs rather than by curves: an
    arc lies on its curve's surfaces and on those of the arcs taken for it,
    and an edge a later operation reads lies on its curve's surfaces all
-   along and on the others over its stretch. Two arcs whose surfaces
+   along and on the others over its stretch, and so does a corner a
+   surface of the other operand crosses it at there: a circle a face
+   leaning a hair off its plane is left bounded by, crossed by a cut, is
+   crossed on that face too, and the line the cut leaves on the face ends
+   there (5520140378). Two arcs whose surfaces
    include two decided apart stay two. The curve two perpendicular walls
    meet along is carried all along by its own two walls only, not by a wall
    of one radius a hair beside one of them: there it lies over its stretch
    alone, and is seen there as below, under "Everything else is derived".
+   Two arcs between the same corners that both lie on two surfaces decided
+   to touch are one when they part by no more than the hair, `HAIR`
+   tolerances: they are where a third surface crosses the band, each the
+   curve it cuts on one of the two, standing within `EPS` of both, and they
+   part by `EPS` over the sine of the angle the third crosses at — a cone's
+   wall crossing a wedge's wall a hair inside a block's side at 45°, 1.08e-8
+   apart at a tolerance of 9.5e-9 (5550223366).
+   Nor is a line carried all along by a plane it crosses at a grazing
+   angle: a cut's corner line beside a block's side leaning 1e-3° off the
+   cut's face lies on that side over the 1.5e-4 of its edge alone, and laid
+   on it all along it put a corner at the cut's floor, twenty tolerances
+   off the side, on the side (5541239472).
+   A conic on a plane or a wall that is not its own, and a circle leaning
+   on a plane by less than the tolerance across its rim, are seen there as
+   the conic that surface meets the curve's other own surface along,
+   between where the curve's ends stand on it (`domain/traced.rs`).
 
    A plane decided tangent to a cylinder thus keeps its tangent line, and a
    circle that runs within `EPS` of a side between two corners becomes that
@@ -412,7 +608,10 @@ The decisions, in the order taken, once per operation:
    within it inside too. Two planes are never read this way — decision 1
    takes them for one or keeps them apart — nor two surfaces crossing
    steeper than a band can turn, which a sliver stands within `EPS` of only
-   for being a sliver.
+   for being a sliver. No band is laid along a conic, nor along the ruling a
+   plane touches a cone along (#552): a plane a hair from tangent to a wall
+   at a slant, a conic a hair from a ruling or from an apex, are built with
+   none.
    Where the foot lands on the face's boundary, where the pairs do not
    order two faces on one side, or where the faces either side, or the
    twins of one region, disagree, a ray is cast as before.
@@ -597,6 +796,132 @@ The decisions, in the order taken, once per operation:
     well defined, and the planes are left two. Where the move is not made,
     as decision 8's, they are left two too.
 
+11. **A plane a hair off square to, or along, a wall's axis** (#552). A
+    plane of one operand and a cylinder or a cone of the other, their faces
+    in boxes that meet, the plane leaning off square to the wall's axis or
+    off along it: the second operand is turned so that the plane lies
+    exactly square or along, about where the two operands meet and set down
+    on what it held against the first (below), where that turn moves none
+    of its points further than `G`. The conic such a plane cuts the
+    wall along divides by the lean: a cut a ten-millionth of a degree off
+    square to a post cuts an ellipse within the tolerance of the rim beside
+    it, a side as far off along a bore cuts a hyperbola within it of the
+    two lines, and the kernel answered both ways, in different places — an
+    ellipse here and a rim there, crossings found once and twice. Turned,
+    the pair is the circle or the lines the kernel already holds exactly.
+
+    The measure is a move, not an angle. The lean is the sine `s` of the
+    plane's normal off the axis, `|n × a|`, or off square to it, `|n · a|`,
+    whichever is smaller; the lever `L` is half the diagonal of the second
+    operand's box, the furthest any of its points moves under a turn about
+    its middle. A pair is turned where `s·L` stands between rounding — a
+    millionth of the tolerance, under which it is exact already — and `G`.
+    The turn as made must move no point further than `G` either: its angle
+    times the furthest corner of the box from the point it is made about,
+    with the shift that sets it down.
+    For a tool as large as the part, `G` turns up to some 1e-8 radians,
+    about 6e-7 degrees; for a tool a tenth of the reach, ten times that.
+
+    `G` rather than the tolerance, though #552 decided on "less than the
+    tolerance across the part": it is the furthest the kernel already moves
+    an operand (decisions 8 and 10), a move of `G` is seen by a line at a
+    cosine of a twentieth as at most eight hundred tolerances, under the
+    thousand a line resolves, and it was measured. On the 538 shrunk
+    failures of #552's third round, a prototype turning at one tolerance
+    held 159 of the 236 within 1e-7 degrees and none of the 129 between
+    2e-7 and 1e-3 degrees; at `G` it held 216 and 60. Moving it to the
+    tolerance is one constant, and leaves the band #552 warns of wider.
+
+    The turn is decided once, before decision 8, and made rigidly with the
+    operand's surfaces, curves and corners, so that its own decisions hold
+    as it took them; a direction it turns to within rounding of one of the
+    first operand's is laid on that one's bits, so that a circle and its
+    wall share their axis, and identity, decisions 1 and 8 then compare
+    exactly. A tool turned 1e-7 degrees off a bore of its radius is then
+    merged onto it by decision 8.
+
+    Where the turn is made about decides where the operand ends up, a hair
+    either way, and a hair parts what the second held against the first.
+    Turned about the middle of its box, a wedge's side drawn on a disc's
+    end stood 1.2e-8 off it, its corners at the wedge's axis four times
+    further (5544600162); a post's end stood a hair off a line of a turn it
+    held (5544510380); a stepped turn's axis stood 2e-8 off a disc's end it
+    lay in (5544600864); a face laid square to a cone stood 0.98 of the
+    tolerance short of the circle where the cone meets a shaft
+    (5544232904): each declined as unverified, each held as drawn on
+    `85a2d2e`. The operand is turned about the middle of where the boxes of
+    the two operands overlap — or about the middle of its own box where,
+    turned about where they meet, a part of it reaching far past the other would
+    move past `G`: a cut reaching past a turn, drawn on its slit's face 1.4e-6
+    degrees off, was then left as drawn and refused (5547227649) — then
+    shifted square to the turn's axis — the
+    shift a turn about another point makes — so that each pair the turn
+    lays parallel lies on the other exactly wherever the two stood within
+    `EPS` of each other, taken for one place already: two flats, a plane or
+    the plane of a circle of each; a line of either, a straight edge or a
+    wall's axis, in a flat of the other; a straight edge of either
+    touching a cylinder of the other across its axis. Turned about where
+    the operands meet, a slot's side drawn on a disc's wall and a rounded
+    block's seam drawn on a ring's stood a fraction of `EPS` off, and were
+    refused (5546322326, 5546607658); their edges lay them. A flat is not
+    laid on a wall it touches: a face drawn on a turn's wall, a hair inside
+    a second wall of the turn a hair larger, was laid on that one, further
+    off the first, and refused (5546111832). A flat passing
+    within `EPS` of several lines of the other that part by more than a
+    thousandth of it lies on none of them: a cut drawn through a point a
+    hair from a turn's axis, its slit's line and an earlier cut's corner
+    was laid on the nearest, the axis, and refused, where as turned it held
+    (5546116488). Laying pairs from as far as `G` moved a cut's face three
+    tolerances onto what it only passed near, and it was refused
+    (5545209574). The pairs nearest to lying come first; a pair the shift
+    cannot lay without taking an earlier one off, or past `G`, is left as
+    it stands. A turn about a point has two such degrees of freedom, and
+    they are spent on what was drawn together (`canonical/placed.rs`).
+
+    The turn is solved one degree of freedom at a time: a pair of
+    directions exactly parallel locks the axis it turns about, the pairs off
+    square come first, and each next one is laid by a turn about the axis
+    locked. It is not made where no one turn lays
+    every pair exactly; where it would take a pair of directions of the two
+    operands, plane or wall, off exactly square or along; where it would
+    change the kind of an exact relation the operand had with the first —
+    one surface, a touch, a ruling, an apex, a plane holding a cone's axis,
+    which turned a hair off it would become a hyperbola a hair from the
+    apex; where it would lay a plane a hair beside a cone's apex, read
+    through it — a face through a point's apex leaning 1e-7 degrees off its
+    axis, turned about the middle of its box, stood a hair beside the apex
+    and was cut along two rulings it does not hold (5543232861); where a
+    canonical direction would
+    turn round, the way its curves run with it; nor where the operand holds
+    a conic or the curve two perpendicular cylinders meet along, which a
+    leaf never does. The pair is then built as drawn.
+
+    Only a plane against a wall's axis, as #552 decided. Turning for any
+    pair of directions — two planes, two walls — held fourteen more of the
+    shrunk failures and four more fresh seeds, but broke one that held, and
+    is set aside: the pairs are found by one predicate, and widening it is
+    a one-line change.
+
+    What it held, on round 3's seeds against `85a2d2e`, fifteen minutes a
+    draw: tilted on the exact kernel, 43 failures in 21 823 cases where the
+    base had 118 (5.4 to 2.0 in a thousand); tilted through the
+    application's body, 135 in 48 658 where it had 311 (6.4 to 2.8);
+    slanted, 11 in 15 078 where it had 10; turned through the body, 15 in
+    17 085 where it had 17. Of round 3's 538 shrunk failures, 282 hold.
+    Nine seeds the base held fail, three of them only by the path their
+    draw took — their shrunk cores fail on the base too. The other six are
+    a lean laid exactly beside an offset hair the lean had kept apart, or
+    beside a turn's walls: a plane laid along a wall beside a slope a hair
+    off its corner, two floors 2e-8 apart laid along a wall, a face laid
+    parallel to another a few tolerances off, an end laid on a shaft's end
+    it crossed, a turn's end planes laid along walls, two turns' walls laid
+    square. They are named in
+    `what_the_exact_campaigns_found_in_the_kernel.rs`, ignored with their
+    reason. Refusing those turns does not hold them: a turn refused at one
+    step leaves its tool at its lean beside a tool drawn at that lean and
+    turned the step before, and refusing two skew walls laid square held
+    one seed and broke two.
+
 Everything else is derived. A vertex lies on a curve when the curve's
 support is among the surfaces the vertex lies on and it stands within `EPS`
 of the curve: two surfaces crossing at a grazing angle stand within `EPS` of
@@ -658,8 +983,9 @@ same input gives the same bits.
   carries which side the matter is on, not the surface.
 - **Parameters.** A plane is read in `(s, t)` along its `u` and `v`; a cylinder
   in `(θ, h)`, the angle from `u` and the height along the axis. Every curve on
-  a cylinder is either a ruling or a graph over `θ`, which is what point
-  location, tessellation and the volume stand on.
+  a cylinder or a cone is either a ruling or a graph over `θ`, a conic a plane
+  cuts it along included, which is what point location, tessellation and the
+  volume stand on.
 - **Cones** (#536, `brep/surface/cone.rs`). A cone keeps the origin, axis,
   `u` and `v` every cylinder of its axis has, and its meridian line as a
   foot — the `(h, ρ)` of the line's point nearest `(0, 0)` — and a ruling of
@@ -803,8 +1129,9 @@ Flush, touching and coincident faces are then the ordinary path rather than a
 special one: a coincident face is a region covered twice, a shared wall a region
 covered once from each side.
 
-1. **Identity** of surfaces (decision 1), once the second operand is moved
-   onto a wall of its radius a hair off (decision 8).
+1. **Identity** of surfaces (decision 1), once the second operand is turned
+   square to, or along, a wall's axis it leans a hair off (decision 11) and
+   moved onto a wall of its radius a hair off (decision 8).
 2. **Relations** of pairs whose faces' boxes overlap (2, 3).
 3. **Corners.** Every edge curve of one operand against every surface of the
    other, and the special points of the relations (4, 5). A curve can only
@@ -816,13 +1143,21 @@ covered once from each side.
    operand on two of its surfaces, or inside faces of either on two surfaces
    decided to touch (9); kept arcs that are one are one (6).
 5. **Overlay** per surface. At each vertex the arcs are ordered by tangent
-   angle, ties broken by signed curvature — a second tie declines. Cycles are
-   traced, then grouped into regions by a ray up the second parameter from
-   each cycle's top. Each region gets an interior point. On a cone each arc
-   ending at the apex ends at a vertex of its own, at the angle it arrives
-   at, since the apex's own angle is rounding; the floor joins them, and
-   closes below a face holding the apex within it, so that the region at the
-   tip is bounded. No region keeps a stretch of the floor.
+   angle, ties broken by signed curvature, then by where each stands
+   halfway along the shorter, which neither crosses the other before, then
+   by the chord a tenth along: a curve two cylinders meet along leaves a
+   rim it touches to the fourth power of the way run, and its chord a
+   tenth along stood 8e-10 off the rim's (5543224272); two such curves of
+   different lengths, a tenth along each, were read at places at different
+   distances, the shorter one's below the longer though it runs above
+   (5544515442) — a last tie declines.
+   Cycles are traced, then grouped into regions by a ray up the second
+   parameter from each cycle's top. Each region gets an interior point. On
+   a cone each arc ending at the apex ends at a vertex of its own, at the
+   angle it arrives at, since the apex's own angle is rounding; the floor
+   joins them, and closes below a face holding the apex within it, so that
+   the region at the tip is bounded. No region keeps a stretch of the
+   floor.
 6. **Winding.** For each operand, a region is covered with the surface's
    normal, against it, or not at all. Covered gives the winding on each side
    of it; not covered gives the same winding on both, from an exact ray cast
@@ -852,6 +1187,113 @@ covered once from each side.
    a later, larger tolerance takes the face's surface for.
 9. **Verification.** The listing is checked before the body is handed back.
    What the kernel cannot verify it does not answer.
+10. **A lean read unstably** (#552, `combine/unstable.rs`). Once decision 11
+    has turned the second operand, a plane of one operand and a cylinder or
+    a cone of the other, their faces near enough to meet and not standing
+    clear, may still lean off square to the wall's axis, or off along it,
+    by more than decision 11 lays exactly and by a sine under a thousandth.
+    The conic it cuts divides by that lean, so the step's rounding is
+    magnified up to a thousand times: built, it may change for a change too
+    small to see. The step is built as drawn and the body carries the least
+    such lean, `Unstable` with its `Lean` and its degrees, which the
+    interface says to the user (Tom's decision of 2026-10-10: never
+    blocked). A decline stays a decline, with its own reason. Only pairs
+    across the two operands are read, so a later step never notes an
+    earlier one's lean, and a body handed back whole, where nothing was
+    combined, carries no note.
+
+    Why a thousandth of a radian, some 0.057°: it is where the kernel already
+    stops trusting a near-parallel pair — two planes stop fixing the line
+    they share (`canonical/planes.rs`), a surface stops parting a band across
+    (`combine/band.rs`) — and past it rounding is magnified less than a
+    thousand times, a ten-thousandth of the tolerance. Every hair the tilted
+    draw makes, 1e-3° at most, is inside. On 20 000 fresh tilted seeds with
+    decision 11, one case in eleven kept a lean in the band, and those
+    failed at 1.4 %, against 0.18 % for the others; a bound of 1e-4 would
+    miss the wedges of a hundredth of a degree, which are among the
+    failures. A draft drawn under 0.057° gets the notice, and nothing else.
+
+## The conic a plane cuts a wall along
+
+#552, `brep/conic.rs` and `conic/`. One curve holds every conic a plane cuts
+a cylinder or a cone along, anchored at a point `A` of it:
+
+    p(τ) = A + T·τ·s(kτ²) + N·τ²·c(kτ²)
+
+`s` and `c` the Stumpff functions, `T` the unit tangent at `A` and `N` the
+second derivative there. The curve solves `p''' = −k·p'`: the sign of `k`
+tells the ellipse from the hyperbola and the formula runs through the
+parabola with no case of its own. A point stands to rounding times its
+distance from the anchor along the curve, wherever the centre is: a plane a
+hair off parallel to a bore's axis cuts an ellipse whose centre stands a
+billion reaches away.
+
+It is built from the wall's ruled form, `P(θ) = F(θ) + l(θ)·d(θ)`, `F` the
+foot of the ruling at the wall's angle, `d` its direction, `l` how far along
+it the plane stands; a cylinder is the cone whose rulings run along its axis.
+Which nappe, which kind and where the vertices stand are read off that form,
+and `T`, `N` and `k` at the anchor are closed forms of the section's
+quadratic part and the wall's normal there — never of its constant term,
+which squares the reach a hair from an apex. The anchor is the own vertex
+nearest the origin when it stands within ten thousand reaches of it: one
+parameter then holds the whole stretch in the box to rounding. Past that,
+the cut is split at its far vertices into arms, each anchored where it
+crosses the wall's foot circle; an arm crossing it nowhere never meets the
+box and is not built.
+
+On its plane a conic is read through the plane's parameters, on its wall in
+`(θ, h)` or `(θ, l)`, a graph over the wall's angle — on a cylinder the
+wall's angle grows as `√k·τ`. Its point at a grid angle of the wall is the
+point of the cut on the ruling at that angle, which is where its triangles
+take their samples. It is listed by its fields, and soundness evaluates it
+by a formula of its own, apart from the kernel's.
+
+A plane at 45° through where the axes of two walls of one radius meet
+square holds one of the two ellipses they meet along, and cuts each wall
+along it: the conic is that component of the meet. It is read so where it
+is asked — one curve within the other when the conic is cut whole on one
+of the meet's walls and the component lies in its plane all round, and,
+crossing the conic with the other wall, a curve of that wall and its own
+lying on the conic's plane is the conic, along the surface (9501873,
+5550232928). It was declined as unsupported before round 6 of #552.
+
+### What #552 ends with
+
+- **Built.** Every section of a cylinder or a cone by a plane at any
+  angle: an ellipse, a parabola, a branch of a hyperbola, two rulings
+  through a cone's apex, the ruling a plane touches a wall along, the apex
+  alone — beside the circles and the rulings the kernel held before. A
+  conic whose far vertices stand past ten thousand reaches is built as
+  arms, each on its own anchor.
+- **Rounded.** A plane of one operand leaning off square to, or along, a
+  wall's axis of the other by a lean whose move across the second operand,
+  `s·L`, stands under `G`, twenty tolerances, is laid exactly square or
+  along, and the kernel builds the circle or the lines it already holds
+  (decision 11, `canonical/placed.rs`). It is decided once, for the
+  boolean, before decision 1 reads the pair, on a plane against
+  a wall's axis only. Tom's decision of 2026-10-10 asked for less than one
+  tolerance across the part; `G` was measured and is one constant to move.
+- **Warned of.** Past that, up to a sine of a thousandth, some 0.057°, the
+  step is built as drawn, the body carries the least lean (`Unstable`,
+  `combine/unstable.rs`, step 10 of the boolean), and the application
+  says it: the tree marks the step « cas instable », and the step's panel
+  names the plane nearly square, or nearly parallel, to the wall's axis,
+  with the angle (`extrusion.unstable_square`, `extrusion.unstable_along`).
+  It is never refused for it; a decline in the band is a broken step with
+  its own reason.
+- **Still declined.** Curves that are no conic — two cylinders at a skew
+  angle, a cone against a cylinder or a cone of another axis — where their
+  faces may cross; a face bounded by the curve two perpendicular cylinders
+  meet along against a face at a slant; a face inside a cylinder's hollow
+  against a cylinder at a skew angle to it (see the start of this
+  document). Beside those, what the kernel cannot verify it declines as
+  unverified or as a tie: about two tilted random parts in a thousand,
+  hairs nearly all of them, named in `exact-kernel-failures.md`, "#552:
+  conics".
+- **Merged short of the bar.** Tom had it merged on 2026-10-12 knowing
+  it is not perfect: the tilted draws above one in a thousand, one seed
+  broken, a frustum's line of touch read as two arcs, a slower gate. The
+  list is in `exact-kernel-failures.md`, "Merged as it stands".
 
 ## The curve two perpendicular cylinders meet
 
@@ -923,6 +1365,11 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   however little inside, as for a vertex: the kernel puts no vertex where
   the rim passes the line the cap's plane leaves on the wall by `EPS`, and
   seen from the wall's axis the rim stands inside by less than that.
+  So does the point where a line across the wall's axis passes through the
+  plane of one of its rims, standing inside it as close: a pocket's side
+  leaving a step's plane 6e-4 inside its inner rim passed under the step's
+  triangles, which reach as far inside as the rim's chords sag
+  (5550106720). Not a line along the axis, whose ends are vertices.
   The edges are then sampled a second time, on those rays. An
   arc ending where a plane touches its wall takes no sample so near that end
   that it would stand on the plane's edge, and no circle of the wall takes a
@@ -951,6 +1398,13 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   Inside a strip the arcs are graphs that do not cross, so each piece of face
   is a band between two of them, zipped into triangles. No triangle spans more
   than one grid step, so none leaves the cylinder by more than the tolerance.
+  Each face is cut alone, and a triangle of one lying on a triangle of
+  another across an edge they share, or passing through one beside a
+  corner they share, is cut the other way with a neighbour where the flip
+  makes neither: at a corner where a face turns into the matter, a wall's
+  triangle cut across the corner, true to the region in the wall's
+  parameters, sags by its chord through the face beyond — a post's wall
+  where a hole cut into its foot leaves its ceiling (5550629622).
 - **Cones.** A cone has one grid, cut for the furthest from its axis any
   circle or vertex on it stands, and every circle lying on it is sampled on
   that grid as well as on its own: the narrow rim and the wide one then
@@ -963,6 +1417,33 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   its apex within it — a point turned whole — takes that line as a loop of
   its own, once round the other way. A triangle with two corners on that
   line is the apex twice and is dropped: what is left is a fan from the tip.
+- **Conics** (#552, `tessellation/sampling/conic.rs`). An edge along a conic
+  is sampled the way the curve two perpendicular cylinders meet is, with one
+  wall: at every grid angle of its wall, each sample the point of the cut on
+  the ruling at that angle, so that the wall's outline finds one at every
+  grid angle as it does on a circle; at the angle of every vertex on its
+  wall; on every ray the wall's circles take; at its ends. Then wherever a
+  chord would stand further from it than the tolerance, halved: seen on its
+  plane the conic bends more than its wall's grid allows for, by as much as
+  the plane leans from square to the axis. A cone's grid is cut for the
+  widest any conic on it reaches, a ring with no vertex included. Two
+  conics of one plane cut on walls whose axes cross, leaving a vertex they
+  share together — a plane through a node of two walls of one radius cuts
+  both along curves tangent there — each take the other's samples as rays
+  of their own wall: sampled each on its own wall's angles, one chord of
+  one crossed the other's samples by the node, and the horn of face
+  between them could not be cut (5550117749). Not on two parallel walls,
+  sampled on the rays they share already (5551609285). A circle and a
+  conic ending at one vertex on the circle's own wall are the two rims of
+  a strip of that wall pinching there, and drop the same grid angles beside
+  it: within a fifth of `EPS` of the conic's plane, as the conic drops its
+  own, where the circle drops one only within a thousandth of `EPS` of any
+  other surface. Kept by the circle and dropped by the conic, the angle
+  left the strip's one triangle across the step lying on the leaning face
+  beside it — a half turn cut by a face decision 11 laid square and one
+  leaning 9.4e-6° past the hair (5550133356). Not every plane an end lies
+  on: a circle a hair off a block's face all along lost a grid angle by
+  each end, and the drawing lost matter (5561366633).
 - **Contact.** Chords sag towards their own cylinder's axis, so against a plane
   or a convex neighbour they retreat. Where two curved faces face each other on
   their hollow side closer than a chord's sag — an internal tangency, a near
@@ -1035,7 +1516,20 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   their axes from it, so that both rulings lie in one plane and meet there,
   as two walls touching exactly do. Withholding the step instead would
   leave a coarse wall's chord across two steps the whole length of the
-  ruling. A
+  ruling. The point stands too for a vertex lying on both walls that stands
+  off one of them by more than a thousandth of `EPS`: that one's samples
+  are anchored at the point, not at the vertex, whose ruling would lean a
+  hair over the other wall — a pin touching a 0.01° wedge's wall, one of
+  the wedge's edges crossing the pin's ruling 7.6e-9 outside it
+  (5550629812). A vertex standing on a wall anchors its samples there
+  still: a floor 1e-7 under the touch leaves a line on the other wall
+  there (5551116747, 5551409953). So does a vertex on a plane holding the
+  wall's ruling through it, however far it stands off the wall: a face of
+  that plane ends at the vertex, and the ruling anchored at the point runs
+  through it — a cylinder 1e-7 too wide to touch a post, ending square to
+  its axis on a plane through the post's, whose rim stands inside the post
+  at the corner and whose end face the post's ruling crossed 5e-8 short of
+  it (5564306306). A
   curve two perpendicular cylinders meet along is sampled on every ray the
   circles of either take: a wall a hair inside one of them takes the rays of
   that one's other curves, and its chords, shallower between two samples of
@@ -1119,14 +1613,18 @@ The tests that hold it:
 
 - `crates/solid/tests/a_bored_cylinder_on_two_kernels.rs`, the table: the
   flats and the exact kernel on #498's cases, OpenCascade quoted from #447;
-- `the_exact_kernel_joins_and_cuts.rs`, the same cases counted by hand;
+- `the_exact_kernel_joins_and_cuts.rs`, the same cases counted by hand, and
+  the cuts along a conic of #552 held to their arithmetic: a hole square to
+  a slanted face out through the floor, a shaft cut at a slant, a point cut
+  across, through its tip and parallel to its slope;
 - `the_exact_kernel_turns.rs`, turns held to Pappus's volume and to the same
   profile cut into annular slabs, each raised and joined, along a grid of
   lines; chamfers, points and countersinks held to the arithmetic, and what
   a cone cannot meet declined or passed over; its smoke campaign of turned leaves and prisms under `--ignored`,
   compiled only with `--features campaigns`;
 - `random_turned_solids.rs`, #448's harness drawing turns among prisms,
-  slanted ones in a draw of their own (`Case::drawn_slanted`), on the exact
+  slanted ones in a draw of their own (`Case::drawn_slanted`), tools on
+  leaning planes in another (`Case::drawn_tilted`), on the exact
   kernel and through `Body`, its fast cases in the gate and its
   campaigns under `--ignored`, compiled only with `--features campaigns`;
 - `random_exact_solids.rs`, the harness on the exact kernel, and on it again
@@ -1140,4 +1638,8 @@ The tests that hold it:
   `a_surface_a_hair_from_a_line_of_touch.rs` and
   `a_rim_grazing_a_ruling_of_touch.rs`, the seeds the campaigns of 5 October
   2026 failed, shrunk and gathered by what breaks them, ignored with their
-  reason; those the triangles draw badly are with the triangles' findings.
+  reason; those the triangles draw badly are with the triangles' findings;
+- `a_plane_a_hair_off_square_to_a_wall.rs`, decision 11 held to the
+  arithmetic: a post cut a ten-millionth of a degree off square, a bore cut
+  a hair off along its axis, a tool a hair off a bore of its radius merged
+  onto it.

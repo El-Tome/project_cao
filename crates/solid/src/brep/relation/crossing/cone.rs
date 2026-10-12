@@ -3,19 +3,22 @@
 //! A line or a circle square to the axis crosses the cone where it crosses
 //! the cylinder of the cone's section at its height, which is the very
 //! cylinder a plane square to the axis cuts the cone along: the corner is
-//! the one the circle they meet along gives. Through the apex, a line
-//! crosses once, or only touches where it stays outside on both sides. Any
-//! other line crosses at the roots of the cone's quadric kept on its own
-//! nappe, and touches it once where it passes within the tolerance of it at
-//! its closest, as decided for a cylinder. A circle in a plane holding the
-//! axis crosses the two rulings that plane cuts; any other circle is
-//! unsupported, as the pair of surfaces it lies on is.
+//! the one the circle they meet along gives — but a line inside that
+//! cylinder by rounding alone touches the cone, where it passes nearest the
+//! axis. Through the apex, a line crosses once, or only touches where it
+//! stays outside on both sides. Any other line crosses at the roots of the
+//! cone's quadric kept on its own nappe, and touches it once where it passes
+//! within the tolerance of it at its closest, as decided for a cylinder. A
+//! circle in a plane holding the axis crosses the two rulings that plane
+//! cuts; any other circle is unsupported, as the pair of surfaces it lies on
+//! is.
 
 use glam::DVec3;
 
 use super::super::cylinders::cylinders;
 use super::super::revolved::in_the_box;
 use super::super::{Relation, parallel, relation, square};
+use super::section::ROUNDING;
 use super::{Solved, Touches, circle_through, line_and_cylinder, touches};
 use crate::brep::curve::{Circle, Line};
 use crate::brep::scale::Scale;
@@ -35,6 +38,11 @@ pub(super) fn line_and_cone(line: &Line, cone: &Cone, scale: Scale, touching: &T
         let radius = cone.section(height);
         if radius > eps {
             let section = Cylinder::about(cone.origin, cone.axis, radius);
+            let nearest = nearest_the_axis(line, cone);
+            let inside = -section.distance(nearest);
+            if inside > 0.0 && inside <= ROUNDING * eps {
+                return Solved::At(vec![(line.parameter(nearest), true)]);
+            }
             return line_and_cylinder(line, &section, scale, touching, None);
         }
         if radius < -eps || !through {

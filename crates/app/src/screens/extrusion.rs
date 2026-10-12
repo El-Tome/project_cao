@@ -3,6 +3,7 @@ use cao_sketch::SketchAxis;
 use glam::DVec2;
 
 use crate::lang::Catalogue;
+use crate::wording;
 
 /// How the matter is made from the chosen areas.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -189,16 +190,20 @@ pub fn apply_extrusion(
     // An extrusion that changes nothing is worth saying out loud: a cut that
     // misses the matter looks exactly like a tool that did not work. One the
     // kernel declined changed nothing either, and saying so would send the
-    // user looking for a mistake that is not theirs.
-    *notice = match doc.is_declined(step) {
-        true => Some(lang.t("extrusion.declined")),
-        false => unchanged(before, doc.body().volume()).then(|| {
+    // user looking for a mistake that is not theirs. One it built at a lean
+    // it reads unstably is said too, and never refused (#552).
+    *notice = if doc.is_declined(step) {
+        Some(lang.t("extrusion.declined"))
+    } else if let Some(unstable) = doc.unstable_at(step) {
+        Some(wording::unstable::notice(lang, unstable))
+    } else {
+        unchanged(before, doc.body().volume()).then(|| {
             lang.t(match (mode, extrusion.is_revolving()) {
                 (_, true) => "extrusion.nothing_from_revolution",
                 (ExtrusionMode::Add, false) => "extrusion.nothing_added",
                 (ExtrusionMode::Cut, false) => "extrusion.nothing_removed",
             })
-        }),
+        })
     };
     extrusion.mode = None;
     true

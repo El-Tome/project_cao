@@ -7,6 +7,7 @@
 mod assembly;
 mod canonical;
 mod combine;
+mod conic;
 mod curve;
 mod domain;
 mod laying;
@@ -28,6 +29,7 @@ mod volume;
 
 use serde::{Deserialize, Serialize};
 
+pub use conic::{Arm, Conic, On, Round};
 pub use curve::{Circle, Curve, Line, Meet};
 pub use domain::Location;
 pub use listing::{ListedEdge, ListedFace, Listing};
@@ -55,10 +57,11 @@ pub enum Declined {
     /// short or that nearly whole is read before the kernel as nothing or as
     /// whole: this is the kernel's own net.
     Travel,
-    /// Two surfaces meet in a way the kernel does not build: a plane oblique
-    /// to a cylinder's axis or a cone's, or parallel to a cone's without
-    /// holding it; two cylinders at a skew angle, a cone and a cylinder or a
-    /// cone not of its axis.
+    /// Two surfaces meet along a curve the kernel does not build: two
+    /// cylinders at a skew angle, a cylinder or a cone off a cone's axis, a
+    /// cone within the tolerance of a plane or a cylinder of its axis all
+    /// across the box. A plane meets a cylinder or a cone at any angle along a
+    /// conic, which is built (#552).
     Unsupported,
     /// Two curves touch more closely than their curvatures can order.
     Tie,
@@ -75,4 +78,26 @@ pub enum Declined {
     /// itself: [`crate::Body`] catches the stop, so that a shape nobody tried
     /// costs the step, not the user's work.
     Panicked,
+}
+
+/// A step the kernel built though it reads it unstably (#552): a plane of one
+/// operand leans off square to, or along, the axis of a cylinder or a cone of
+/// the other, their faces near enough to meet, by more than decision 11 lays
+/// exactly and less than the kernel reads without magnifying its rounding.
+/// The conic such a plane cuts divides by the lean, so a change too small to
+/// see may change what is built. Said, never declined.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Unstable {
+    pub lean: Lean,
+    /// The least such lean of the step, in degrees.
+    pub degrees: f64,
+}
+
+/// Which way a plane leans off a wall's axis, a hair or a little.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Lean {
+    /// Nearly square to the axis: its normal nearly along it.
+    Square,
+    /// Nearly along the axis: its normal nearly square to it.
+    Along,
 }

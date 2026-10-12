@@ -82,7 +82,7 @@ fn swept(trace: &Trace) -> Option<f64> {
             let moment = center.x * (end_sin - start_sin) - center.y * (end_cos - start_cos);
             Some((radius * radius * sweep + radius * moment) / 2.0)
         }
-        Trace::Graph { .. } => None,
+        Trace::Graph { .. } | Trace::Conic { .. } => None,
     }
 }
 

@@ -22,8 +22,9 @@
 //!   `a_bored_cylinder_on_two_kernels`, which holds every body the exact
 //!   kernel answers to `soundness::listed`; the check itself is tried on
 //!   listings built by hand, sound and broken on purpose, in
-//!   `soundness/listed/tests.rs`. An ellipse is declined by the design, so no
-//!   edge lists one
+//!   `soundness/listed/tests.rs`. An ellipse was declined by the design then,
+//!   so no edge listed one; since #552 a plane at a slant to a wall lists the
+//!   conic it cuts, held by its own formula in the same file
 //! - the table is filled for every case, on the same axes as #449's: keeps
 //!   every rule, gives no answer, or breaks a rule; the volume against the
 //!   arithmetic; the time of a boolean — `a_bored_cylinder_on_two_kernels`,

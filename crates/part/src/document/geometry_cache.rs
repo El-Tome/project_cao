@@ -33,8 +33,11 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// design describes. Also bumped when the matter is written another way: 4
 /// is the body that says which kernel computed it (#526). 5: a revolution of
 /// straight runs is exact, and a declined step keeps its reason (#533). 6: a
-/// revolution of a slanted run is exact (#536).
-const REBUILT_BY: u32 = 6;
+/// revolution of a slanted run is exact (#536). 7: a plane meets a cylinder
+/// or a cone at a slant along a conic (#552). 8: a plane a hair off square
+/// to, or along, a wall's axis is laid exactly so, and a step built at a
+/// lean the kernel reads unstably is noted (#552).
+const REBUILT_BY: u32 = 8;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

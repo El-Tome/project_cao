@@ -139,6 +139,8 @@ impl Surfaces {
             | Relation::Circle(_)
             | Relation::Rulings { .. }
             | Relation::Apex(_)
+            | Relation::Conic(_)
+            | Relation::Ruling { .. }
             | Relation::Unsupported => None,
         }
     }

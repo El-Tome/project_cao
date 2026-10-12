@@ -267,8 +267,10 @@ pub(super) fn contacts(
     for (wall, rays) in beneath {
         contacts.entry(wall).or_default().beneath = rays;
     }
-    for (wall, point) in point::anchors(body, walls) {
-        contacts.entry(wall).or_default().anchors.push(point);
+    for (wall, point, standing_for) in point::anchors(body, walls) {
+        let anchors = &mut contacts.entry(wall).or_default().anchors;
+        anchors.retain(|anchor| !standing_for.contains(anchor));
+        anchors.push(point);
     }
     contacts
 }

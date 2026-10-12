@@ -351,3 +351,34 @@ fn a_ray_along_a_ruling_is_doubtful() {
         );
     }
 }
+
+#[test]
+fn a_ray_through_a_face_bounded_by_a_conic_crosses_it_once_and_misses_it_beside() {
+    use crate::brep::tessellation::tests::fixtures::stock_cut_at_a_slant;
+    let body = stock_cut_at_a_slant(0.3);
+    let eps = body.scale().eps();
+    let through = body
+        .crossings_along(DVec3::new(3.0, 2.0, 50.0), DVec3::NEG_Z, eps)
+        .expect("a line down through the slanted top and the floor");
+    assert_eq!(through.len(), 2, "{through:?}");
+    assert_eq!([through[0].1, through[1].1], [1, -1]);
+    for ((at, _), expected) in through.iter().zip([50.0 - 9.1, 50.0]) {
+        assert!(
+            (at - expected).abs() < 1e-12 * 50.0,
+            "{at} against {expected}"
+        );
+    }
+    let beside = body.crossings_along(DVec3::new(19.0, 7.0, 50.0), DVec3::NEG_Z, eps);
+    assert_eq!(beside, Ok(Vec::new()));
+    assert_windings(
+        &body,
+        &[
+            ([0.0, 0.0, 9.5], 1),
+            ([-10.0, 0.0, 12.5], 1),
+            ([19.0, 0.0, 4.0], 1),
+            ([10.0, 0.0, 7.5], 0),
+            ([-19.0, 0.0, 16.0], 0),
+            ([19.0, 7.0, 3.0], 0),
+        ],
+    );
+}

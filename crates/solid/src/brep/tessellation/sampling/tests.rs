@@ -9,6 +9,8 @@ use crate::brep::curve::{Curve, Meet};
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, EdgeId};
 
+mod conic;
+
 const CLOSE: f64 = 1e-12;
 
 #[test]
@@ -402,7 +404,7 @@ fn the_rings_of_the_stock_a_bore_crosses_are_sampled_through_every_sample_of_the
                 match body.curve(body.edge(edge).curve) {
                     Curve::Circle(_) => rings.push(angles_of(&samples, edge)),
                     Curve::Meet(_) => curve.extend(angles_of(&samples, edge)),
-                    Curve::Line(_) => {}
+                    Curve::Line(_) | Curve::Conic(_) => {}
                 }
             }
             assert_eq!(rings.len(), 2);

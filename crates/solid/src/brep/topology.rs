@@ -6,12 +6,15 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
+use super::Unstable;
+use super::conic::Conic;
 use super::curve::{Circle, Curve};
 use super::scale::Scale;
 use super::surface::Surface;
 
 mod apex;
 mod numbers;
+mod rotated;
 
 pub(super) use numbers::ascending;
 
@@ -95,6 +98,10 @@ pub struct Body {
     /// For each surface, the scale of the operation that brought it into the
     /// body: a raised profile's own for each of its surfaces.
     pub(crate) arrivals: Vec<Scale>,
+    /// Whether the operation that made the body read it unstably: its own
+    /// operation's alone, never an earlier one's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) unstable: Option<Unstable>,
 }
 
 impl Body {
@@ -108,6 +115,7 @@ impl Body {
             faces: Vec::new(),
             scale: Scale::of(0.0),
             arrivals: Vec::new(),
+            unstable: None,
         }
     }
 
@@ -145,6 +153,16 @@ impl Body {
 
     pub fn scale(&self) -> Scale {
         self.scale
+    }
+
+    /// Whether the operation that made the body read it unstably, and how.
+    pub fn unstable(&self) -> Option<Unstable> {
+        self.unstable
+    }
+
+    /// The body, noted as its own operation read it.
+    pub(crate) fn noted(self, unstable: Option<Unstable>) -> Body {
+        Body { unstable, ..self }
     }
 
     /// The scale of the operation that brought a surface into the body. A
@@ -191,9 +209,9 @@ impl Body {
     }
 
     /// The corners of a face, the points of its edges where a coordinate
-    /// turns back, and points all along its circles, in the order its loops
-    /// run: read off the exact curves, so they do not move with how finely
-    /// the face is drawn.
+    /// turns back, and points all along its circles and its closed conics,
+    /// in the order its loops run: read off the exact curves, so they do not
+    /// move with how finely the face is drawn.
     ///
     /// A drawing laid on the face takes the corner nearest the bottom-left of
     /// its span. The ends and turning points of a circle stand two at a time
@@ -210,8 +228,10 @@ impl Body {
                 points[0] = self.vertex(from).point;
                 points[1] = self.vertex(to).point;
             }
-            if let Curve::Circle(circle) = self.curve(edge.curve) {
-                points.extend(along(circle, edge.from, edge.to));
+            match self.curve(edge.curve) {
+                Curve::Circle(circle) => points.extend(along(circle, edge.from, edge.to)),
+                Curve::Conic(conic) => points.extend(along_a_conic(conic, edge.from, edge.to)),
+                Curve::Line(_) | Curve::Meet(_) => {}
             }
             corners.extend(points);
         }
@@ -229,6 +249,23 @@ impl Body {
         })
     }
 
+    /// The box round a face, from the extremes of its edges and the apex it
+    /// holds within it, grown by `eps`.
+    pub(in crate::brep) fn boxed(&self, face: FaceId, eps: f64) -> [DVec3; 2] {
+        let mut low = DVec3::INFINITY;
+        let mut high = DVec3::NEG_INFINITY;
+        if let Some(apex) = self.apex_held(face) {
+            (low, high) = (apex, apex);
+        }
+        for coedge in self.face(face).loops.iter().flatten() {
+            for point in self.extremes(self.edge(coedge.edge)) {
+                low = low.min(point);
+                high = high.max(point);
+            }
+        }
+        [low - DVec3::splat(eps), high + DVec3::splat(eps)]
+    }
+
     /// The points of an edge where a coordinate is largest or smallest.
     pub(super) fn extremes(&self, edge: &Edge) -> Vec<DVec3> {
         let curve = self.curve(edge.curve);
@@ -236,6 +273,12 @@ impl Body {
         match curve {
             Curve::Line(_) => {}
             Curve::Circle(circle) => found.extend(turning_points(circle, edge.from, edge.to)),
+            Curve::Conic(conic) => found.extend(
+                DVec3::AXES
+                    .into_iter()
+                    .flat_map(|axis| conic.turning(axis, edge.from, edge.to))
+                    .map(|t| conic.point(t)),
+            ),
             Curve::Meet(_) => {
                 const SAMPLES: usize = 64;
                 let step = (edge.to - edge.from) / SAMPLES as f64;
@@ -274,10 +317,13 @@ pub(super) fn turning_points(circle: &Circle, from: f64, to: f64) -> Vec<DVec3> 
     found
 }
 
+/// How many points [`Body::corners_of`] reads along a closed curve, a turn
+/// round, as the flats did.
+const STEPS: f64 = 48.0;
+
 /// The points of a circle, between two of its parameters, every 48th of a
 /// turn from where its angle is read.
 fn along(circle: &Circle, from: f64, to: f64) -> Vec<DVec3> {
-    const STEPS: f64 = 48.0;
     let step = TAU / STEPS;
     let first = (from / step).ceil() as i64;
     let last = (to / step).floor() as i64;
@@ -286,5 +332,20 @@ fn along(circle: &Circle, from: f64, to: f64) -> Vec<DVec3> {
         .collect()
 }
 
+/// The points of a closed conic, between two of its parameters, every 48th
+/// of its period from its anchor; none along a conic that does not close,
+/// whose ends and turning points move with it already.
+fn along_a_conic(conic: &Conic, from: f64, to: f64) -> Vec<DVec3> {
+    let Some(period) = conic.period() else {
+        return Vec::new();
+    };
+    let step = period / STEPS;
+    let first = (from / step).ceil() as i64;
+    let last = (to / step).floor() as i64;
+    (first..=last)
+        .map(|index| conic.point(index as f64 * step))
+        .collect()
+}
+
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

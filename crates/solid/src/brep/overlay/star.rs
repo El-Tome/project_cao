@@ -157,7 +157,7 @@ fn leaving(arcs: &[Arc], half: usize, rounding: f64, vertex: DVec2) -> Leaving {
         blur: rounding / lever,
         bend: direction.perp_dot(second) / direction.length().powi(3),
         flat: match *trace {
-            Trace::Graph { .. } => 2.0 * rounding / (lever * lever),
+            Trace::Graph { .. } | Trace::Conic { .. } => 2.0 * rounding / (lever * lever),
             Trace::Segment { .. } | Trace::Round { .. } => 0.0,
         },
         off: start.distance(vertex) + rounding,
@@ -180,7 +180,7 @@ fn length(trace: &Trace) -> f64 {
     match *trace {
         Trace::Segment { from, to } => from.distance(to),
         Trace::Round { radius, sweep, .. } => radius * sweep.abs(),
-        Trace::Graph { .. } => (0..PIECES)
+        Trace::Graph { .. } | Trace::Conic { .. } => (0..PIECES)
             .map(|piece| {
                 let at = |piece: usize| trace.at(piece as f64 / PIECES as f64)[0];
                 at(piece).distance(at(piece + 1))
@@ -266,8 +266,14 @@ fn chord(leaving: &Leaving) -> f64 {
 /// from rounding only by a corner standing off them, they come in the order
 /// they stand in as they run; set off together from rounding alone, the
 /// one bending further left comes after, and of two bending alike, the one
-/// whose chord turns further left; two that are gathered only through a
-/// third part by where they head.
+/// standing further left as they run — or, where rounding blurs that, the
+/// one whose chord a tenth along turns further left: a curve two cylinders
+/// meet along leaves a rim it touches to the fourth power of the way run,
+/// its chord 8e-10 off the rim's a tenth along (5543224272), and two such
+/// curves of different lengths have their chords drawn to places at
+/// different distances, the shorter one's reading below the longer though
+/// it runs above (5544515442); two that are gathered only through a third
+/// part by where they head.
 fn counterclockwise(left: &Leaving, right: &Leaving) -> Option<Ordering> {
     let touching = together(left, right) && !tied(left, right);
     if let Some([one, other]) = touching.then(|| sides(left, right)).flatten() {
@@ -276,8 +282,12 @@ fn counterclockwise(left: &Leaving, right: &Leaving) -> Option<Ordering> {
     match (alike(left, right), together(left, right)) {
         (false, _) => Some(left.bend.total_cmp(&right.bend)),
         (true, false) => Some(left.angle.total_cmp(&right.angle)),
-        (true, true) => ((chord(right) - chord(left)).abs() > CHORD_TIE)
-            .then(|| chord(left).total_cmp(&chord(right))),
+        (true, true) => sides(left, right)
+            .map(|[one, other]| one.total_cmp(&other))
+            .or_else(|| {
+                ((chord(right) - chord(left)).abs() > CHORD_TIE)
+                    .then(|| chord(left).total_cmp(&chord(right)))
+            }),
     }
 }
 

@@ -8,12 +8,20 @@
 //! across an edge nothing else uses, nor edges meeting at a vertex only they
 //! reach: the counts are those of the result as it stands, each such face and
 //! edge counted.
+//!
+//! Then the cuts #552 brings, along the conic a plane at a slant meets a
+//! cylinder or a cone along, each held to the arithmetic, its listing and
+//! its triangles: a hole square to a slanted face out through the floor, a
+//! shaft cut at a slant, a point cut across, through its tip and parallel to
+//! its slope; a plane touching a shaft along a ruling, which is that line;
+//! and what still declines, a skew bore and a radial hole in a cone.
 
 use std::f64::consts::{PI, TAU};
 
 use cao_solid::brep::{Body, Curve, Declined, Surface};
 use cao_solid::profile::{Contour, Frame, Run};
 use cao_solid::soundness::{closed, listed, uncrossed};
+use cao_solid::turning::{Axis, Corner, Straight, Turn};
 use glam::{DVec2, DVec3};
 
 /// How far a triangle may stand from the surface it stands for.
@@ -320,4 +328,305 @@ fn a_cylinder_resting_against_a_flat_face_touches_it_along_an_edge_the_listing_t
         "the top runs the contact both ways as a loop of its own"
     );
     assert_eq!(listed(&listing, body.scale().reach()), Ok(()));
+}
+
+/// A result held to the arithmetic, its listing and its triangles, whatever
+/// it is made of.
+fn exactly(result: Result<Body, Declined>, arithmetic: f64) -> Body {
+    let body = result.expect("the kernel answers");
+    assert_eq!(listed(&body.listing(), body.scale().reach()), Ok(()));
+    let volume = body.volume();
+    assert!(
+        ((volume - arithmetic) / arithmetic).abs() <= 1e-9,
+        "the exact volume is {volume}, the arithmetic {arithmetic}"
+    );
+    let triangles = body.triangles(MESH);
+    assert_eq!(closed(&triangles), Ok(()));
+    assert_eq!(uncrossed(&triangles), Ok(()));
+    body
+}
+
+/// A rectangle from `low` to `high` on the plane through `origin` spanned by
+/// `u` and `v`, raised `depth` along `u × v`.
+fn slab(origin: DVec3, u: DVec3, v: DVec3, [low, high]: [[f64; 2]; 2], depth: f64) -> Body {
+    raised(
+        Contour::rectangle(DVec2::from(low), DVec2::from(high)),
+        frame(origin, u, v),
+        u.cross(v) * depth,
+    )
+}
+
+/// The direction in the plane `YZ` leaning `degrees` from `Y` towards `Z`.
+fn leaning(degrees: f64) -> DVec3 {
+    let (sin, cos) = degrees.to_radians().sin_cos();
+    DVec3::new(0.0, cos, sin)
+}
+
+/// A wedge twenty along X: a block of twenty by twenty under the slant
+/// `z = 5 + y·tan 30°`.
+fn wedge() -> Body {
+    let top = 5.0 + 20.0 * 30f64.to_radians().tan();
+    raised(
+        Contour::straight(vec![
+            DVec2::ZERO,
+            DVec2::new(20.0, 0.0),
+            DVec2::new(20.0, top),
+            DVec2::new(0.0, 5.0),
+        ]),
+        frame(DVec3::ZERO, DVec3::Y, DVec3::Z),
+        DVec3::X * 20.0,
+    )
+}
+
+/// Its volume: twenty along X times the trapezoid under the slant.
+fn wedge_volume() -> f64 {
+    2000.0 + 4000.0 / 3f64.sqrt()
+}
+
+/// A point turned about Z: its tip at ten, its base of radius five on XY.
+fn point() -> Body {
+    let corner = |at: [f64; 2], run: u32| Corner {
+        at: DVec2::from(at),
+        run,
+    };
+    let straight = Straight {
+        side: 1.0,
+        contours: vec![vec![
+            corner([0.0, 0.0], 0),
+            corner([10.0, 0.0], 1),
+            corner([0.0, 5.0], 2),
+        ]],
+        runs: 3,
+        last_off_the_axis: Some(2),
+    };
+    let turn = Turn {
+        axis: Axis {
+            origin: DVec2::ZERO,
+            direction: DVec2::X,
+        },
+        angle: TAU,
+        resolution: 0.0,
+        on_the_axis: 0.0,
+    };
+    Body::turned(&straight, frame(DVec3::ZERO, DVec3::Z, DVec3::X), &turn).expect("the point turns")
+}
+
+const POINT: f64 = 250.0 * PI / 3.0;
+
+/// The area of the disc of radius `r` beyond a chord `d` from its centre.
+fn segment(r: f64, d: f64) -> f64 {
+    r * r * (d / r).acos() - d * (r * r - d * d).sqrt()
+}
+
+/// A hole of radius two square to the wedge's slant, from the middle of its
+/// face down through the floor, which it leaves along an ellipse: what it
+/// takes is a disc times the length of its axis inside.
+fn holed_wedge() -> Result<Body, Declined> {
+    let face = DVec3::new(10.0, 10.0, 5.0 + 10.0 * 30f64.to_radians().tan());
+    let normal = DVec3::new(0.0, -0.5, 3f64.sqrt() / 2.0);
+    let hole = raised(
+        circle(DVec2::ZERO, 2.0),
+        frame(face + normal, DVec3::X, (-normal).cross(DVec3::X)),
+        -normal * 17.0,
+    );
+    wedge().cut_by(&hole)
+}
+
+#[test]
+fn a_hole_square_to_a_slanted_face_out_through_the_floor_holds_its_volume() {
+    let inside = 10.0 / 3f64.sqrt() + 20.0 / 3.0;
+    exactly(holed_wedge(), wedge_volume() - 4.0 * PI * inside);
+}
+
+/// A shaft of radius five thirty high, all above a plane leaning thirty
+/// degrees through its axis at fifteen cut away: it keeps its mean height.
+fn shaft_cut_at_a_slant() -> Result<Body, Declined> {
+    let above = slab(
+        DVec3::Z * 15.0,
+        DVec3::X,
+        leaning(30.0),
+        [[-10.0, -15.0], [10.0, 15.0]],
+        20.0,
+    );
+    standing([0.0, 0.0], 5.0, 0.0, 30.0).cut_by(&above)
+}
+
+#[test]
+fn a_shaft_cut_by_a_slanted_plane_holds_its_volume() {
+    exactly(shaft_cut_at_a_slant(), 375.0 * PI);
+}
+
+/// The point, its tip cut off above a plane leaning fifteen degrees through
+/// its axis at six: the tip's volume is a third of its height cubed times the
+/// slope's square, over the slant's.
+fn point_cut_obliquely() -> Result<Body, Declined> {
+    let above = slab(
+        DVec3::Z * 6.0,
+        DVec3::X,
+        leaning(15.0),
+        [[-10.0, -10.0], [10.0, 10.0]],
+        10.0,
+    );
+    point().cut_by(&above)
+}
+
+#[test]
+fn a_cone_cut_obliquely_holds_its_volume() {
+    let slant = 15f64.to_radians().tan();
+    let tip = 16.0 * PI / 3.0 * (1.0 - slant * slant / 4.0).powf(-1.5);
+    exactly(point_cut_obliquely(), POINT - tip);
+}
+
+/// The point cut by a plane through its tip, fifteen degrees off its axis,
+/// steeper than its slope: it cuts two rulings, and takes the piece of the
+/// point standing on the base's segment beyond the chord it leaves there.
+fn point_cut_through_its_tip() -> Result<Body, Declined> {
+    let chord = 10.0 * 15f64.to_radians().tan();
+    let down = DVec3::new(0.0, chord, -10.0).normalize();
+    let beyond = slab(
+        DVec3::Z * 10.0,
+        DVec3::X,
+        down,
+        [[-10.0, -5.0], [10.0, 15.0]],
+        10.0,
+    );
+    point().cut_by(&beyond)
+}
+
+#[test]
+fn a_plane_through_a_point_s_tip_at_a_slant_is_built_along_two_rulings() {
+    let chord = 10.0 * 15f64.to_radians().tan();
+    let body = exactly(
+        point_cut_through_its_tip(),
+        POINT - 10.0 / 3.0 * segment(5.0, chord),
+    );
+    let apex = DVec3::Z * 10.0;
+    let rulings = body
+        .listing()
+        .edges
+        .iter()
+        .filter(|edge| match edge.curve {
+            Curve::Line(line) => {
+                let off = apex - line.origin;
+                (off - line.direction * off.dot(line.direction)).length() <= 1e-9
+            }
+            _ => false,
+        })
+        .count();
+    assert_eq!(rulings, 2, "{:#?}", body.listing());
+}
+
+/// The point cut by the plane `2y + z = 2`, parallel to its ruling on `+Y`:
+/// the tip's side goes, a parabola between, the base's segment beyond the
+/// chord at `y = 1` and the parabola's face adding up to it.
+fn point_cut_parallel_to_its_slope() -> Result<Body, Declined> {
+    let normal = DVec3::new(0.0, 2.0, 1.0).normalize();
+    let beyond = slab(
+        DVec3::Z * 2.0,
+        DVec3::X,
+        normal.cross(DVec3::X),
+        [[-10.0, -12.0], [10.0, 8.0]],
+        10.0,
+    );
+    point().cut_by(&beyond)
+}
+
+#[test]
+fn a_plane_parallel_to_a_ruling_cuts_a_point_along_a_parabola() {
+    let tip = (250.0 * 0.2f64.acos() + 44.0 * 6f64.sqrt()) / 3.0;
+    let body = exactly(point_cut_parallel_to_its_slope(), POINT - tip);
+    let parabolas = body
+        .listing()
+        .edges
+        .iter()
+        .filter(|edge| matches!(edge.curve, Curve::Conic(conic) if conic.k.abs() <= 1e-9))
+        .count();
+    assert_eq!(parabolas, 1, "{:#?}", body.listing());
+}
+
+/// A block standing against the shaft, its face leaning a tenth of a
+/// billionth of a radian off its axis, within the angle the kernel reads as
+/// square: the face touches the wall along a ruling.
+fn shaft_and_block_touching_along_a_ruling() -> Result<Body, Declined> {
+    let tilt: f64 = 1e-10;
+    let normal = DVec3::new(tilt.cos(), 0.0, tilt.sin());
+    let up = DVec3::new(-tilt.sin(), 0.0, tilt.cos());
+    let block = raised(
+        Contour::rectangle(DVec2::splat(-10.0), DVec2::splat(10.0)),
+        frame(DVec3::new(5.0, 0.0, 15.0), DVec3::Y, up),
+        normal * 10.0,
+    );
+    standing([0.0, 0.0], 5.0, 0.0, 30.0).joined(&block)
+}
+
+/// The line of touch is an edge of four uses, which the listing's check
+/// takes for a backward hole on the block's face, as on a cylinder resting
+/// on a flat one: what is held is the line itself, and no conic.
+#[test]
+fn a_plane_touching_a_shaft_along_a_ruling_lists_that_line_and_no_conic() {
+    let body = shaft_and_block_touching_along_a_ruling().expect("the kernel answers");
+    let volume = body.volume();
+    let arithmetic = 750.0 * PI + 4000.0;
+    assert!(
+        ((volume - arithmetic) / arithmetic).abs() <= 1e-9,
+        "the exact volume is {volume}, the arithmetic {arithmetic}"
+    );
+    let triangles = body.triangles(MESH);
+    assert_eq!(closed(&triangles), Ok(()));
+    assert_eq!(uncrossed(&triangles), Ok(()));
+    let listing = body.listing();
+    assert!(
+        !listing
+            .edges
+            .iter()
+            .any(|edge| matches!(edge.curve, Curve::Conic(_))),
+        "{listing:#?}"
+    );
+    let along = listing.edges.iter().any(|edge| match edge.curve {
+        Curve::Line(line) => {
+            line.direction.abs().abs_diff_eq(DVec3::Z, 1e-9)
+                && line.origin.truncate().distance(glam::DVec2::new(5.0, 0.0)) <= 1e-8
+        }
+        _ => false,
+    });
+    assert!(along, "the ruling of touch: {listing:#?}");
+}
+
+#[test]
+fn every_conic_body_above_is_drawn_closed_and_uncrossed() {
+    for (what, made) in [
+        ("the holed wedge", holed_wedge()),
+        ("the shaft cut at a slant", shaft_cut_at_a_slant()),
+        ("the point cut obliquely", point_cut_obliquely()),
+        ("the point cut through its tip", point_cut_through_its_tip()),
+        (
+            "the point cut parallel to its slope",
+            point_cut_parallel_to_its_slope(),
+        ),
+        (
+            "the shaft and the block touching it",
+            shaft_and_block_touching_along_a_ruling(),
+        ),
+    ] {
+        let body = made.unwrap_or_else(|declined| panic!("{what}: {declined:?}"));
+        let reach = body.scale().reach();
+        for tolerance in [1e-2 * reach, 1e-3 * reach, 1e-4 * reach] {
+            let triangles = body.triangles(tolerance);
+            assert_eq!(closed(&triangles), Ok(()), "{what} at {tolerance}");
+            assert_eq!(uncrossed(&triangles), Ok(()), "{what} at {tolerance}");
+        }
+    }
+}
+
+#[test]
+fn a_skew_bore_and_a_radial_hole_in_a_cone_still_decline() {
+    let along = DVec3::new(0.5, 0.0, 3f64.sqrt() / 2.0);
+    let skew = raised(
+        circle(DVec2::ZERO, 3.0),
+        frame(DVec3::new(15.0, 0.0, -5.0), DVec3::Y, DVec3::Y.cross(along)),
+        along * 25.0,
+    );
+    assert_eq!(stock().cut_by(&skew), Err(Declined::Unsupported));
+    let radial = lying([0.0, 5.0], 1.0, -10.0, 10.0);
+    assert_eq!(point().cut_by(&radial), Err(Declined::Unsupported));
 }

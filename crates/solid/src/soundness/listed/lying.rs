@@ -8,6 +8,7 @@ use std::collections::BTreeSet;
 use glam::DVec3;
 
 use super::Mislisted;
+use super::conic;
 use super::nappe::Nappe;
 use crate::brep::{Curve, Listing, Surface};
 
@@ -127,5 +128,6 @@ pub(super) fn point(curve: &Curve, at: f64) -> DVec3 {
             circle.center + (circle.u * cos + circle.v * sin) * circle.radius
         }
         Curve::Meet(meet) => meet.point(at),
+        Curve::Conic(conic) => conic::point(conic, at),
     }
 }

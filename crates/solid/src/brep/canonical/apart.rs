@@ -65,6 +65,12 @@ impl Apart {
                     Relation::Tangent(_) => {
                         touching.insert(pair);
                     }
+                    Relation::Ruling { apex, .. } => {
+                        touching.insert(pair);
+                        if let Some(apex) = apex {
+                            points.insert(pair, vec![apex]);
+                        }
+                    }
                     Relation::Lines([line, _])
                         if grazes(first, second, line.origin, scale.eps()) =>
                     {
@@ -94,6 +100,7 @@ impl Apart {
                     | Relation::Lines(_)
                     | Relation::Circle(_)
                     | Relation::Rulings { apex: None, .. }
+                    | Relation::Conic(_)
                     | Relation::Unsupported => {}
                 }
             }
@@ -142,6 +149,67 @@ impl Apart {
         self.points
             .get(&[one.min(other), one.max(other)])
             .map_or(&[], Vec::as_slice)
+    }
+
+    /// Every pair of perpendicular cylinders decided to touch at a point —
+    /// the node of the curve they meet along, or the one point they share —
+    /// with that point.
+    pub fn walls_touching(&self) -> impl Iterator<Item = ([SurfaceId; 2], DVec3)> + '_ {
+        self.points
+            .iter()
+            .filter(|(pair, _)| {
+                pair.iter().all(|surface| {
+                    matches!(
+                        self.surfaces.get(surface.0 as usize),
+                        Some(Surface::Cylinder(_))
+                    )
+                })
+            })
+            .flat_map(|(pair, at)| at.iter().map(move |point| (*pair, *point)))
+    }
+
+    /// The walls `support` lacks that were decided to touch one of its own
+    /// walls at a point within `eps` of `point`, the node or the contact of
+    /// two perpendicular cylinders: a corner standing there is on both. Two
+    /// walls of one operand touching at a point leave no edge there, and the
+    /// curves a third surface cuts each of them along, one crossing the line
+    /// the other touches it along, meet there with no edge to find the
+    /// corner through: a rod touching a post, both cut by a pin of the rod's
+    /// radius whose axis meets the rod's at the touch (5544320693). Not a
+    /// cone's apex: a plane a hair off it at the cone's slope, taken onto
+    /// every surface through it, cut curves there that pass it by
+    /// (5545235515). Nor a wall decided apart from one of the support's,
+    /// as no corner is on two such (decision 5): a post across two rods of
+    /// one axis a hair apart in radius has a node with each (5545618519).
+    pub fn touching(
+        &self,
+        support: &BTreeSet<SurfaceId>,
+        point: DVec3,
+        eps: f64,
+    ) -> Vec<SurfaceId> {
+        self.walls_touching()
+            .filter(|(_, at)| at.distance(point) <= eps)
+            .filter_map(|([one, other], _)| {
+                match (support.contains(&one), support.contains(&other)) {
+                    (true, false) => Some(other),
+                    (false, true) => Some(one),
+                    _ => None,
+                }
+            })
+            .filter(|&touched| !support.iter().any(|&own| self.pair(own, touched)))
+            .collect::<BTreeSet<SurfaceId>>()
+            .into_iter()
+            .collect()
+    }
+
+    /// Whether `surface` is a cone `point` stands off the own nappe of by
+    /// more than `eps`: a ruling through the apex runs on over the other
+    /// nappe, where it lies on no face of the cone.
+    pub fn off_the_nappe(&self, surface: SurfaceId, point: DVec3, eps: f64) -> bool {
+        matches!(
+            self.surfaces.get(surface.0 as usize),
+            Some(Surface::Cone(cone)) if cone.distance(point).abs() > eps
+        )
     }
 
     /// Whether a place stands within `eps` of a surface.

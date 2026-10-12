@@ -9,6 +9,7 @@ use glam::DVec3;
 
 use super::{Body, Face, FaceId, Vertex, VertexId};
 use crate::brep::curve::Curve;
+use crate::brep::domain::traced;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 
@@ -51,10 +52,13 @@ impl Body {
 
     /// The apex of the cone a face lies on, where the face holds it within
     /// itself: no corner of the face stands there, and its circles about the
-    /// axis go round it once, net. A ruling goes round nothing. A face with
-    /// a corner at its apex is held by that corner already.
+    /// axis and its conics go round it once, net, a conic by the angle its
+    /// trace on the cone turns through — the tip a plane at a slant cuts off
+    /// a point, held by an ellipse alone. A ruling goes round nothing. A face
+    /// with a corner at its apex is held by that corner already.
     fn apex_within(&self, face: &Face) -> Option<DVec3> {
-        let Surface::Cone(cone) = self.surface(face.surface) else {
+        let surface = *self.surface(face.surface);
+        let Surface::Cone(cone) = surface else {
             return None;
         };
         let apex = cone.apex();
@@ -70,12 +74,20 @@ impl Body {
             if at_the_apex {
                 return None;
             }
-            if let Curve::Circle(circle) = self.curve(edge.curve)
-                && circle.axis.cross(cone.axis).length() <= Scale::RELATIVE
-            {
-                let way = circle.axis.dot(cone.axis).signum();
-                let run = if coedge.forward { 1.0 } else { -1.0 };
-                swept += way * run * (edge.to - edge.from);
+            let run = if coedge.forward { 1.0 } else { -1.0 };
+            match self.curve(edge.curve) {
+                Curve::Circle(circle)
+                    if circle.axis.cross(cone.axis).length() <= Scale::RELATIVE =>
+                {
+                    let way = circle.axis.dot(cone.axis).signum();
+                    swept += way * run * (edge.to - edge.from);
+                }
+                curve @ Curve::Conic(_) => {
+                    if let Ok(trace) = traced(curve, &surface, edge.from, edge.to, eps) {
+                        swept += run * (trace.end().x - trace.start().x);
+                    }
+                }
+                Curve::Line(_) | Curve::Circle(_) | Curve::Meet(_) => {}
             }
         }
         (swept.abs() > PI).then_some(apex)

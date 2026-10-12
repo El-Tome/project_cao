@@ -18,6 +18,7 @@ use std::collections::BTreeSet;
 
 use glam::DVec3;
 
+use crate::brep::conic::{Conic, Round};
 use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
@@ -51,7 +52,7 @@ pub(in crate::brep) fn carried_along(
         if carried.iter().any(|surface| moved.contains(surface)) {
             continue;
         }
-        let Some(shifted) = translated(current, &carried, by) else {
+        let Some(shifted) = translated(current, &carried, by, scale) else {
             continue;
         };
         if !kept(first, current, &shifted, &carried, rank, scale) {
@@ -119,25 +120,13 @@ fn slides(surface: &Surface, by: DVec3, scale: Scale) -> bool {
 /// The body with the surfaces `carried`, the corners on them and the curves
 /// of the edges beside them moved by `by`; none where a curve to move is one
 /// two perpendicular cylinders meet along. A cone is built again through
-/// its meridian line moved, canonical.
-fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body> {
+/// its meridian line moved, canonical; a conic is cut again by its plane
+/// moved on its wall moved, the arm on its side kept, so that it has the
+/// bits the moved surfaces' own relation gives it.
+fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3, scale: Scale) -> Option<Body> {
     let mut moved = body.clone();
     for &rank in carried {
-        moved.surfaces[rank] = match body.surfaces[rank] {
-            Surface::Plane(plane) => {
-                Surface::Plane(Plane::through(plane.origin + by, plane.normal).0)
-            }
-            Surface::Cylinder(cylinder) => Surface::Cylinder(Cylinder::about(
-                cylinder.origin + by,
-                cylinder.axis,
-                cylinder.radius,
-            )),
-            Surface::Cone(cone) => Surface::Cone(Cone::through(
-                cone.origin + by,
-                cone.axis,
-                [cone.foot, cone.foot + cone.ruling],
-            )),
-        };
+        moved.surfaces[rank] = shifted(&body.surfaces[rank], by);
     }
     let mut corners = BTreeSet::new();
     for (rank, vertex) in moved.vertices.iter_mut().enumerate() {
@@ -167,6 +156,7 @@ fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body>
                 center: circle.center + by,
                 ..circle
             }),
+            Curve::Conic(conic) => Curve::Conic(recut(&conic, by, scale)?),
             Curve::Meet(_) => return None,
         };
     }
@@ -194,6 +184,44 @@ fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body>
         edge.to = end;
     }
     Some(moved)
+}
+
+/// A surface translated by `by`, canonical.
+fn shifted(surface: &Surface, by: DVec3) -> Surface {
+    match surface {
+        Surface::Plane(plane) => Surface::Plane(shifted_plane(plane, by)),
+        Surface::Cylinder(cylinder) => Surface::Cylinder(shifted_cylinder(cylinder, by)),
+        Surface::Cone(cone) => Surface::Cone(shifted_cone(cone, by)),
+    }
+}
+
+fn shifted_plane(plane: &Plane, by: DVec3) -> Plane {
+    Plane::through(plane.origin + by, plane.normal).0
+}
+
+fn shifted_cylinder(cylinder: &Cylinder, by: DVec3) -> Cylinder {
+    Cylinder::about(cylinder.origin + by, cylinder.axis, cylinder.radius)
+}
+
+fn shifted_cone(cone: &Cone, by: DVec3) -> Cone {
+    Cone::through(
+        cone.origin + by,
+        cone.axis,
+        [cone.foot, cone.foot + cone.ruling],
+    )
+}
+
+/// The conic translated by `by`: cut again on its plane and its wall
+/// translated, the component on the same side of the plane of symmetry;
+/// none where the move parts the cut into arms or joins its arms.
+fn recut(conic: &Conic, by: DVec3, scale: Scale) -> Option<Conic> {
+    let round = match &conic.round {
+        Round::Cylinder(cylinder) => Round::Cylinder(shifted_cylinder(cylinder, by)),
+        Round::Cone(cone) => Round::Cone(shifted_cone(cone, by)),
+    };
+    Conic::cut(&shifted_plane(&conic.plane, by), &round, scale)
+        .into_iter()
+        .find(|cut| cut.arm == conic.arm)
 }
 
 /// Whether every surface the move carries along with the surface of rank
@@ -240,8 +268,14 @@ fn kept(
             first.surfaces.iter().all(|known| {
                 let held = |surface: &Surface| match relation(known, surface, scale) {
                     Relation::Same { .. } | Relation::Tangent(_) => true,
-                    Relation::Unsupported => false,
-                    _ => [known, surface]
+                    Relation::Conic(_) | Relation::Ruling { .. } | Relation::Unsupported => false,
+                    Relation::Apart
+                    | Relation::Line(_)
+                    | Relation::Lines(_)
+                    | Relation::Circle(_)
+                    | Relation::Meet(_)
+                    | Relation::Rulings { .. }
+                    | Relation::Apex(_) => [known, surface]
                         .iter()
                         .any(|one| matches!(one, Surface::Cone(_))),
                 };

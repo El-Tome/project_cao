@@ -14,15 +14,19 @@ mod operands;
 mod parted;
 mod related;
 mod slid;
+mod unstable;
+
+use glam::DVec3;
 
 use super::Declined;
 use super::assembly::assembled;
-use super::canonical::{Apart, Planes, Pool, Registry, closed, flush};
+use super::canonical::{Apart, Place, Planes, Pool, Registry, closed, flush, squared};
 use super::selection::selected;
 use super::topology::{Body, SurfaceId};
 pub(super) use operands::Operands;
 use related::Special;
 use slid::slid;
+use unstable::unstable;
 
 /// What is kept of the two operands' matter.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,15 +68,18 @@ impl Body {
 
 pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Result<Body, Declined> {
     let scale = first.scale().joined(second.scale());
+    let squared = squared(first, second, scale);
+    let second = squared.as_ref().unwrap_or(second);
     let closed = closed(first, second, scale);
     let second = closed.as_ref().unwrap_or(second);
     let flush = flush(first, second, scale);
     let second = flush.as_ref().unwrap_or(second);
     let slid = slid(first, second, scale);
     let operands = Operands::of(first, slid.as_ref().unwrap_or(second), scale);
+    let unstable = unstable(&operands);
     let arena = laid(&operands)?;
     let faces = selected(&operands, &arena, operation)?;
-    assembled(arena, faces)
+    assembled(arena, faces).map(|body| body.noted(unstable))
 }
 
 /// The arena of two operands, decided once: surfaces, relations, curves,
@@ -85,46 +92,97 @@ pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
     let (special, done) = related::related(operands, &mut registry)?;
     let found = crossed::crossed(operands, &mut registry, &held)?;
     related::completed(operands, &mut registry, &done);
-    let mut pool = pooled(operands, &registry, &ending, &special, &found);
+    let candidates = candidates(operands, &registry, &ending, &special, &found)?;
+    let places: Vec<Place> = candidates
+        .iter()
+        .map(|candidate| {
+            let mut on = candidate.surfaces.clone();
+            for curve in &candidate.curves {
+                on.extend(registry.list[*curve].support.iter().copied());
+            }
+            Place {
+                point: candidate.point,
+                on,
+                along: candidate.curves.clone(),
+            }
+        })
+        .collect();
+    registry.planes = std::mem::take(&mut registry.planes).grazing(
+        |pair| operands.meeting(pair),
+        &places,
+        operands.eps(),
+    );
+    let mut pool = Pool::new(operands.eps());
+    for candidate in candidates {
+        let Candidate {
+            point,
+            surfaces,
+            curves,
+            built,
+        } = candidate;
+        if built {
+            pool.add_built(point, surfaces, curves, &registry);
+        } else {
+            pool.add(point, surfaces, curves, &registry);
+        }
+    }
     let bands = band::laid_out(operands, &mut registry, &mut pool)?;
     cut::cut(operands, &registry, &pool, &held, &bands)
 }
 
-/// Every corner candidate in a fixed order — the first operand's vertices,
-/// the second's, the relations' special points, the crossings three planes
-/// fix, the other crossings — merged. A place three planes fix is exact,
-/// and the crossings a curve makes nearby are merged into it rather than
-/// into each other: a post's rim crossing the two sides of a box whose
-/// corner line stands a hair inside the wall crosses them past the
-/// tolerance apart, each within it of the corner.
-fn pooled(
+/// A corner candidate: where it was found, the surfaces it was found on, the
+/// curves it was found along, and whether it is an operand's own corner
+/// standing where that operand built it.
+struct Candidate {
+    point: DVec3,
+    surfaces: Vec<SurfaceId>,
+    curves: Vec<usize>,
+    built: bool,
+}
+
+/// Every corner candidate in the fixed order they are merged in — the first
+/// operand's vertices, the second's, the relations' special points, the
+/// points where two walls of one operand touch a surface of the other
+/// passes through, the crossings three planes fix, the other crossings. A place three planes
+/// fix is exact, and the crossings a curve makes nearby are merged into it
+/// rather than into each other: a post's rim crossing the two sides of a
+/// box whose corner line stands a hair inside the wall crosses them past
+/// the tolerance apart, each within it of the corner.
+fn candidates(
     operands: &Operands,
     registry: &Registry,
     ending: &held::Ending,
     special: &[Special],
     found: &[crossed::Found],
-) -> Pool {
-    let mut pool = Pool::new(operands.eps());
+) -> Result<Vec<Candidate>, Declined> {
+    let mut candidates = Vec::new();
     for (operand, body) in operands.bodies.iter().enumerate() {
         for id in body.vertex_ids() {
             let vertex = body.vertex(id);
             let surfaces = vertex
                 .on
                 .iter()
-                .map(|own| operands.surfaces.mapped[operand][own.0 as usize].0);
+                .map(|own| operands.surfaces.mapped[operand][own.0 as usize].0)
+                .collect();
             let curves = ending.get(&(operand, id)).cloned().unwrap_or_default();
-            let point = held::laid(operands, registry, operand, id, &curves);
-            pool.add(point, surfaces, curves, registry);
+            let (point, built) = held::laid(operands, registry, operand, id, &curves);
+            candidates.push(Candidate {
+                point,
+                surfaces,
+                curves,
+                built,
+            });
         }
     }
     for point in special {
-        pool.add(
-            point.point,
-            point.surfaces,
-            point.curves.iter().copied(),
-            registry,
-        );
+        candidates.push(Candidate {
+            point: point.point,
+            surfaces: point.surfaces.to_vec(),
+            curves: point.curves.to_vec(),
+            built: false,
+        });
     }
+    candidates.extend(touched(operands, registry)?);
     let fixed = |crossing: &&crossed::Found| {
         let mut on = registry.list[crossing.curve].support.clone();
         on.push(crossing.surface);
@@ -134,14 +192,53 @@ fn pooled(
     let (by_planes, others): (Vec<&crossed::Found>, Vec<&crossed::Found>) =
         found.iter().partition(fixed);
     for crossing in by_planes.into_iter().chain(others) {
-        pool.add(
-            crossing.point,
-            [crossing.surface],
-            [crossing.curve],
-            registry,
-        );
+        let mut surfaces = crossing.partly.clone();
+        surfaces.push(crossing.surface);
+        candidates.push(Candidate {
+            point: crossing.point,
+            surfaces,
+            curves: vec![crossing.curve],
+            built: false,
+        });
     }
-    pool
+    Ok(candidates)
+}
+
+/// Where two walls of one operand touch at a point a face of the other
+/// operand reaches across: a corner on the three. The operand leaves no
+/// edge where its own walls only touch, and the curves the third surface
+/// cuts them along, each touching the other wall there, meet with no edge
+/// to find the corner through: a rod and a post touching at a point, joined
+/// to a disc whose floor passes through it (5550316656).
+fn touched(operands: &Operands, registry: &Registry) -> Result<Vec<Candidate>, Declined> {
+    let list = &operands.surfaces.list;
+    let mut found = Vec::new();
+    for ([one, other], point) in registry.apart.walls_touching() {
+        for operand in 0..2 {
+            if !operands.touched(operand, one, point)?
+                || !operands.touched(operand, other, point)?
+            {
+                continue;
+            }
+            for (rank, surface) in list.iter().enumerate() {
+                let third = SurfaceId(rank as u32);
+                if third == one
+                    || third == other
+                    || surface.distance(point).abs() > operands.eps()
+                    || !operands.touched(1 - operand, third, point)?
+                {
+                    continue;
+                }
+                found.push(Candidate {
+                    point,
+                    surfaces: vec![one, other, third],
+                    curves: Vec::new(),
+                    built: false,
+                });
+            }
+        }
+    }
+    Ok(found)
 }
 
 #[cfg(test)]

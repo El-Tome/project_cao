@@ -1312,3 +1312,986 @@ face listed backwards 1. The seeds named in the rounds before and still
 failing, among them 5365104153 (a stepped post ending in a point joined to
 a sixth of a turn of a coaxial post), stay ignored with their reason in
 `what_the_exact_campaigns_found_in_the_kernel.rs` and `…_triangles.rs`.
+
+## #552: conics
+
+The review of #552 ran the tilted draw on fresh seeds at `62cd56b`, the
+branch as the lanes left it: 1 120 of 39 061 cases broke a rule, 28.7 in a
+thousand — 842 declines, 215 meshes left open, 59 crossing, 3 listings
+off, 1 volume. On the slanted draw, every failure the branch added to the
+base's was a seed the base declined as asking for a conic. The rounds below
+are measured with `triage_552`, a scratch twin of the campaigns that names
+the kernel's reason beside each failure, in release, the seeds of a draw
+dealt over every core; seeds the round named were shrunk by
+`the_seeds_a_turning_campaign_named_are_shrunk_one_by_one`.
+
+### What the review's round fixed
+
+- **A corner of one arm on the other** (9312094, 51 of the first 153
+  failures over seeds 9300000–9304999): a plane a hair off parallel to a
+  shaft's axis cuts an ellipse whose far vertices stand a billion reaches
+  away, built as two arms. Read through one arm's parameter, a point of the
+  other came back a whole sweep away, within the tolerance by rounding, and
+  the wall held the same stretch twice. A point across an arm's plane of
+  symmetry is on neither (`Conic::holds`, `Conic::distance`).
+- **A ray at an end's own angle** (9312005): an arm all but along the
+  rulings turns by a hair across the box, and a sample read back off the
+  angle of its end landed beyond it; such a ray stands at the end.
+- **A conic and its neighbours on other angles** (9314220, 9512340,
+  9311810): a conic halved between its wall's rays, beside a circle, a meet
+  or another conic of the same axis sampled on other angles, had chords
+  crossing theirs where they touch or meet at a sharp rim, and a face was
+  left uncut. Every sample of a conic is a ray of every wall about its
+  axis. These took the meshes left open from 31 to 2 in the first 5 000
+  tilted seeds.
+- **A line past a cone's apex** (9304992, 9302688, 9303477, 9301298): a
+  plane at a cone's slope through its apex touches it along a ruling a
+  turned section's flat face holds, and the line the plane cuts that face
+  along runs on past the apex over the other nappe. It was read as lying on
+  the cone there: a corner on a surface apart from the cone was refused on
+  it, an arc past the apex was laid on the cone's face, and a corner past
+  it took the cone among its surfaces. A cone a place stands off the own
+  nappe of is left out of what that place lies on. A first cut of this left
+  a corner's support growing for ever on seven seeds in 20 000; the
+  support now takes, and asks for, the surfaces the corner stands on
+  (9501559).
+
+### The count
+
+At `a74a27b`, 20 000 seeds a draw from 9500000, on the exact kernel; the
+base `9e54a71` over the same seeds for the draws it has:
+
+| draw | broke a rule | per thousand | base broke a rule | base declined as asking for a conic |
+| --- | --- | --- | --- | --- |
+| tilted, off the lattice | 204 | 10.2 | — | — |
+| tilted, on the lattice | 71 | 3.55 | — | — |
+| slanted, off the lattice | 13 | 0.65 | 10 | 5 692 |
+| slanted, on the lattice | 15 | 0.75 | 10 | 5 009 |
+| turned, off the lattice | 14 | 0.70 | 6 | 2 263 |
+
+Through the application's body, 10 000 seeds from 9600000: tilted off the
+lattice 115 (11.5 in a thousand), on it 33 (3.3); no mesh is left open
+there — a face the triangles cannot cover is declined as undrawn — and 20
+and 5 cases draw crossing triangles.
+
+**No seed that held on the base fails.** On the slanted and turned draws,
+every seed failing on the branch and not on the base was declined on the
+base as asking for a conic: 3 slanted off the lattice, 5 on it, 8 turned —
+the family the issue's first default names, *asked for a conic before,
+built now, wrong*, counted in the table. Of those 16, 13 are declines, 2
+list a vertex off its face, 1 draws crossing.
+
+**Bit for bit.** The fingerprints of every body and its triangles over
+seeds 0..1000 of the square, profile, turned and slanted draws, on and off
+the lattice, are those of `9e54a71` up to the first step the base
+declined; #498's eighteen cases are identical.
+
+**The gate.** `cargo test --workspace`, warm, three runs each: 33.0 to
+33.4 s on `9e54a71`, 34.7 to 34.8 s at `a74a27b` (the issue's fourth
+default allows three seconds).
+
+**The judge** (the issue's third default): read only where the leaves'
+boxes meet, the cases asking beyond the conics over seeds 0..1000 go from
+115 to 82 turned off the lattice, 389 to 360 slanted off it, 227 to 210
+tilted and 282 to 244 tilted off it (`c2c47f3`).
+
+### What is left, by family
+
+The slanted and turned draws are under one failure in a thousand. The
+tilted ones are not, and the bar is not met there. Every failure of the
+tilted draws but four carries a hair, by design of the draw:
+
+| family | off the lattice | on the lattice |
+| --- | --- | --- |
+| a plane within 1e-7° of square or parallel to a wall's axis | 148 | 3 |
+| a plane or a wall a hair from tangent, by an offset (`nudge`) | 22 | 45 |
+| a plane 2e-7° to 1e-3° off, drawn or computed from a nudged place | 33 | 19 |
+| no hair | 1 | 4 |
+
+- **A plane a hair off square or parallel to a wall's axis**, 7.4 in a
+  thousand alone off the lattice: within four times the angle the kernel
+  reads as square or parallel (5e-10 rad, 2.9e-8°), the conic stands within
+  the tolerance of the rim or of the rulings, and the plane within it of the
+  wall or of the end, across the box. No band is laid along a conic (the
+  issue's second default), and these are declined as unverified or as a
+  tie, or drawn crossing. Named by 9300728 (a shaft cut at its end by a
+  plane 1e-7° off square) and 9412210 (half a shaft leaning 1e-7° joined to
+  a rounded block, the review's crossing reproducer), both ignored. This
+  family alone keeps the tilted draw above the bar: by the second default
+  it ships named, and waits on a band on conics, an issue of its own.
+- **A hair from tangent by an offset** — a hole's wall a hair from a
+  block's side, a plane a hair from a shaft's ruling, a conic a hair from a
+  rim — the tangency band's family of #528 and #533, now met at a slant.
+  The same second default.
+- **Without a hair.** Off the lattice, one: a tube cut by a shaft square
+  to it and by a block, with no conic at all, listed with a loop
+  backwards — on the base too (9505549). On the lattice, three, each a
+  coincidence of the lattice: a plane holding one of the two ellipses two
+  perpendicular shafts of one radius meet along (9501873: a conic is never
+  read as one with a meet, declined as unsupported); a slanted cut touching
+  a shaft's outermost ruling exactly at the next cut's floor (9519300); two
+  corners a rounding apart leaving an arc of no length (9507403); the
+  fourth the table counts there, 9503428, has a hair of 1e-8 in its plane's
+  place the reading missed. And from the first 5 000 seeds: an ellipse
+  touching a shaft's far rim at its vertex, the sliver between the chord
+  rounding leaves and the rim one unit in the last place wide (9304992).
+  The four of #552 are ignored with their reason.
+
+The review's reproducers: 9400405, 9300117 and 9300193 hold; 9412210 is
+the crossing above.
+
+### Two planes at a grazing angle
+
+The tilted draw at `0d74713`, its failures shrunk (424 on the exact kernel,
+391 through the application's body), counted 244 where two planes cross at
+a few times the angle the kernel reads as parallel — a block's face
+leaning 4e-8° to 1e-7° off a post's end or a block's side — and stand
+within the tolerance of each other far from the line they cross along.
+Two corners within the tolerance of each other and of both, one on each,
+were kept apart since that line passes far from them, and the arcs
+between them never made one.
+
+- **The planes graze, decided once.** Two planes too near parallel to fix
+  their line graze where every corner candidate on either, in a box faces
+  of both may meet in, stands within the tolerance of both, and every
+  curve crossing both crosses them within it of one place; corners within
+  the tolerance of each other on two grazing planes are then one
+  (5520121880, 5520206994, 5520122256). A first cut that let any corner
+  within the tolerance of both through, corner by corner, held 256 of the
+  815, and failed three seeds the base held: one pair of corners merged
+  and the next a hair too far apart (5520267036), a cone's ruling
+  crossing the two planes 1.2e-8 apart (5520167649), planes at 1e-3°
+  (5520271162).
+- **Their faces part past every corner.** Measured again once merged, a
+  ten-minute draw against `34a1b64` found two seeds the base held that the
+  rule above failed: a disc's bottom and a slab's floor leaning 1e-7° off
+  it, every corner within the tolerance of both, but the disc's rim, which
+  has no corner at its far side, three hundred units from the line the two
+  cross along and 5.2e-7 off the floor at a tolerance of 5.1e-7
+  (5527004090, and 5527006753 at the scale of a post). Two planes now
+  graze only where they stand within the tolerance of each other across
+  every box faces of both may meet in too. A box is wider than the faces
+  in it, and the rule gave back 10 of the 241 of the 815: 231 hold, none
+  that held on `34a1b64` fails. Ten minutes a draw against `34a1b64` over
+  the same seeds: on the exact kernel from 5527000000, 129 of 16 627 (7.8
+  in a thousand) against 169 (10.2); through the application's body from
+  5528000000, 121 of 15 702 (7.7) against 168 (10.7). No seed that held on
+  `34a1b64` fails.
+- **A corner on an edge over its stretch.** A face leaning a hair off a
+  post's end, left bounded by the post's circle, lies on that circle over
+  its stretch alone; a cut crossing the circle there now finds the corner
+  on the face too, and the line it leaves on the face ends there
+  (5520140378, failed once the corners were one).
+
+Three seeds named above hold now and are no longer ignored: 9300728 and
+9412210, a shaft's end or flat side and a plane leaning 1e-7° off it,
+since the two graze; 9519300, the ellipse touching a ruling at the next
+cut's floor, since the corner the floor crosses the edge at lies on the
+face that edge bounds over its stretch.
+
+Of the 815, 241 hold (130 on the exact kernel, 111 through the body),
+none that held fails. On fresh seeds, the tilted draw off the lattice
+against `34a1b64` over the same seeds: on the exact kernel, 224 of 31 396
+(7.1 in a thousand) against 313 (10.0) from 5520140000; through the
+application's body, 346 of 44 524 (7.8) against 463 (10.4) from 5520240000.
+No seed that held on `34a1b64` fails. 15 of the 815 the first cut held
+fail still: a corner of one plane where their faces meet stands a hair
+past the tolerance from the other (5 % past it in 5520108939 and
+5520102585), and the two cross.
+
+### A plane a hair from tangent by an offset
+
+The family a plane a hair from tangent by an offset, triaged at `34a1b64`,
+counts 313 of the 815 shrunk tilted failures (156 on the kernel, 157
+through the application's body). Two of its causes were facts decided
+twice, and are decided once now:
+
+- **A plane read along a wall's axis though it leans** (5520135751,
+  5520203207): its rulings are drawn through the foot of the wall's
+  origin, and a line it shares with an end crossed the wall microns aside
+  of them. A line or a circle on two surfaces crosses the wall where those
+  rulings cross its other plane (decision 4), and a conic crosses such a
+  plane the same way.
+- **An earlier operation's corner moved by the next one** (5520107844,
+  5520210646): a cut a hair from a block's edge leaves the edge's corners
+  on the cut's plane within the tolerance; the next operation moved them to
+  where that plane, the floor and a side meet, off the edge they end. An
+  operand's own corner on its own planes stands where its operand built it
+  (decision 5).
+
+Of the 313, 103 hold (47 and 56), and none of the 815 that held fails.
+On fresh seeds, fifteen minutes a draw against `34a1b64`: the tilted
+draw on the kernel from 5525000000, 131 failures in 14 704 cases against
+149 in 14 766 (10.2 to 8.9 in a thousand); through the application's body
+from 5526000000, 145 in 14 022 against 166 in 14 044 (11.8 to 10.3); no
+seed the base held fails. What is left of the family is the band on
+conics the issue defers: a plane at a slant a hair from an edge or a rim,
+where a conic's vertex stands a few tolerances from a corner every plane
+holds within the tolerance (5520109275, ignored with its reason).
+
+Merged on the grazing planes above, the two hold what each held alone:
+335 of the 815 (170 on the kernel, 165 through the body; 231 with the
+grazing planes alone), none that held on `34a1b64` failing. Ten minutes
+a draw against `34a1b64` over the same seeds: on the exact kernel from
+5527000000, 115 of 16 460 (7.0 in a thousand) against 167 (10.1); through
+the application's body from 5528000000, 106 of 15 738 (6.7) against 168
+(10.7). No seed that held on `34a1b64`, nor with the grazing planes alone,
+fails.
+
+### Round 4: the pieces with no hair
+
+Decided with Tom on 10 October, after round 3: the pieces with no hair
+come before any hair family. Round 3's shrunk failures held twelve with no
+hair in their inputs; all twelve fail at `85a2d2e`. Run at `9e54a71`, the
+base of #536, eight held there only because #536 declined their conic, and
+four fail there too, inherited from #533 and #536 under their draws' bar.
+One of the twelve is a hair after all: 5543220895 leans 36.86989754584402°,
+atan ¾ less 1e-7°, a cone's slope less a hair, which sorting by whole
+degrees could not see — the plane through the rim's lowest point a hair off
+the ruling there, the rim bulging 7.3e-8 off its chord at a tolerance of
+6.6e-8. It belongs with the hair from tangent.
+
+Fixed, each with its shrunk case kept as a test:
+
+- **A face touching a cone along a ruling beyond its apex** (5543214149,
+  5543216778): a plane at exactly the slope through an apex outside the box
+  was cut as a conic, which is nothing for a doubled ruling; the face was
+  decided apart from the cone and the ruling's corners kept apart. Such a
+  plane now holds the ruling, read at its foot, where no conic is cut
+  (decision 2). Holding the two rulings of a steeper plane too, and the
+  ruling wherever the angle reads as touching, broke three seeds past the
+  12 000 measured, found once merged (5543114315, 5543213205, 5543216548,
+  each a plane a hair off an apex beyond the box whose hyperbola held):
+  narrowed to the case it was for, and named.
+- **A line inside a cone's section by rounding** (5543231406): the line a
+  floor square to a cone's axis shares with a cut touching the cone exactly
+  there, found 6e-14 inside the section, crossed it twice four tolerances
+  apart, a sliver between no face agreed on. Inside by a millionth of the
+  tolerance or less, it only touches the cone (decision 4). Put in the
+  shared `touches`, the same rule broke three fresh seeds whose walls rely
+  on a line inside crossing twice (5549110872, 5549116996, 5549119078).
+- **A corner past a cone's apex** (5543226572): a slant through a cone's
+  apex on the end planes of two quarter turns, touching the cone along the
+  ruling one of them holds. A corner found along that ruling past the apex
+  was counted on the cone and kept apart from the same corner on a plane
+  apart from it. The cone counts only where the corner stands on its own
+  nappe (decision 5). It also holds 9507403, ignored since round 1.
+- **Two arcs leaving a corner straight together** (5543224272): a wedge of
+  a hundredth of a degree cut by a post touching its end plane; the curve
+  the post meets the wedge's wall along leaves the post's rim to the fourth
+  power of the way run, its chord a tenth along 8e-10 off the rim's, and
+  the corner was declined as a tie. Where the chords cannot tell, the two
+  are read halfway along the shorter (the overlay, step 5).
+
+On all 538 shrunk cases of round 3, these hold nine, four of them hair
+cases besides (5543107477, 5543132523, 5543206708, 5543529231), and none
+that failed fails otherwise. Every named-case file with
+`--include-ignored`: nothing that passed at `85a2d2e` fails. On round 3's
+own seeds against `85a2d2e`, 12 000 tilted on each kernel from 5543100000
+and 5543200000, 4 000 slanted from 5543300000 and 4 000 turned through the
+body from 5543600000: 134 failures against 135, 5543206708 repaired, no
+seed that held fails.
+
+Left, each ignored with its reason:
+
+- **The tangency band's edge with a conic at the touch** (5543307115, a
+  slanted draw): a rounded block's side touches its corner's wall along a
+  line, and a cone of that axis cuts the side along a hyperbola whose
+  vertex sits on that line; a turn's end plane of a hundredth of a degree
+  crosses the side where the side and the cone stand 1.52e-8 apart at a
+  tolerance of 1.6e-8. Two corners that far apart on the same four surfaces
+  are parted by the hyperbola, 3e-8 from both (`canonical/corners.rs`,
+  `parted`). No band is laid along a conic (decision 7): the issue's second
+  default.
+- **A wall touching a wedge at a point** (5543227890): a slot's round end
+  touches, at one point, the wall of a turn of a hundredth of a degree
+  joined to it; the slot's wall takes no sample there, and its triangle
+  crosses the turn's end face by 1e-7 (`tessellation/contact/point.rs`).
+- **Inherited from #533 and #536**, under their draws' bar: two regions
+  with no point inside them, declined as a tie at `overlay/partition.rs`
+  (5543305067, 5543616767), and two meshes drawn crossing (5543304420,
+  5543610415).
+
+### Decision 11: a lean of a hair laid square or along
+
+After round 3, Tom decided on 2026-10-10 how #552 ends: below the kernel's
+tolerance a plane's lean off square to, or along, a wall's axis is rounded;
+above it, up to a small angle, the step is computed as drawn and the user
+is warned that it is unstable, never blocked; the pieces with no hair come
+first; two more rounds at most. This is the rounding, decision 11 of
+`exact-kernel.md`. The warning and the plain pieces are lanes of their own.
+
+- **The threshold is `G`, twenty tolerances, not one.** Tom's comment says
+  "less than the tolerance across the part"; the method was left open. The
+  turn is measured as the furthest it moves a point of the tool — the lean
+  times half the diagonal of the tool's box — and made up to `G`, the
+  furthest the kernel already moves an operand (decisions 8 and 10), which
+  a line at a cosine of a twentieth sees as at most eight hundred
+  tolerances. A prototype at one tolerance held 159 of round 3's 236
+  shrunk failures within 1e-7°, and none of the 129 between 2e-7° and
+  1e-3°; at `G`, 216 and 60. For a tool as large as the part, `G` is a
+  lean of about 1e-8 radians; for a tool a tenth of the reach, ten times
+  that. The 1e-5° and 1e-3° hairs the tilted draw makes stay as drawn.
+- **Plane against axis only.** Turning for any pair of directions, two
+  planes or two walls, held fourteen more shrunk failures and four more
+  fresh seeds on the prototype, but broke one fresh seed (5549103968); set
+  aside. Widening the rule is one predicate.
+- **Set aside too:** laying a plane a hair off a cone's slope on it
+  (5543220895, its tilt the slope less 1e-7°), outside Tom's rule.
+
+At `85a2d2e` and on the branch, release, fifteen minutes a draw over round
+3's seeds, counted over the seeds both reached:
+
+| draw | first seed | cases | `85a2d2e`, failed (in a thousand) | decision 11 | repaired | broken |
+| --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5543100000 | 21 823 | 118 (5.41) | 43 (1.97) | 78 | 3 |
+| tilted, application's body | 5543200000 | 48 658 | 311 (6.39) | 135 (2.77) | 180 | 4 |
+| slanted, exact kernel | 5543300000 | 15 078 | 10 (0.66) | 11 (0.73) | 0 | 1 |
+| turned, application's body | 5543600000 | 17 085 | 17 (1.00) | 15 (0.88) | 3 | 1 |
+
+Of round 3's 538 shrunk failures, 282 hold: 131 tilted on the exact
+kernel, 144 through the application's body, 7 of the other draws. Sixteen
+seeds named in `what_the_exact_campaigns_found_in_the_kernel.rs` hold and
+are no longer ignored; nothing that passed there, in the triangles' file,
+the tangency band's or the hair files fails.
+
+**The nine seeds the base held that fail.** Three only by the path their
+draw took: shrunk, they fail on `85a2d2e` as well (5543113170, a turn with
+a hole cut by a floor 6e-7 off; 5543223121 and 5543242165, through the
+application's body). Six are a lean laid exactly beside an offset hair the
+lean had kept apart, or beside a turn's walls, named and ignored with
+their reason:
+
+- 5543112269 (`hair-from-tangent`): a start plane laid exactly along a
+  leaning cylinder that slopes to a point 1.8e-6 off its corner;
+- 5543218891 (`hair-from-tangent`): two floors 2e-8 apart laid along a
+  wall at 30°, cutting it along two pairs of lines a hair apart;
+- 5543312609 (`hair-from-tangent`, slanted): a turn's end planes laid
+  exactly along walls they leaned 1e-7° off;
+- 5543615040 (`hair-from-tangent`, turned): two turns' walls laid square
+  by a plane's turn, meeting along the curve of two perpendicular
+  cylinders;
+- 5543235780 (`near-parallel-planes`): a slot's face laid parallel to a
+  block's face a few tolerances off, a ring's walls crossing both;
+- 5543120314 (`near-parallel-planes`): a point's end laid on a leaning
+  shaft's end it crossed a hair off.
+
+Refusing more turns is no cure. A turn refused at one step leaves
+its tool at its lean beside one drawn at that lean and turned the step
+before: refusing a turn that lays two skew walls square held 5543615040,
+and broke 5543215175 and 5543231819, whose second step was refused.
+
+One turn the first measurement made is refused: a plane through a point's
+apex leaning 1e-7° off its axis, turned about the middle of its box along
+the axis, stood a hair beside the apex and was cut along two rulings it
+does not hold (5543232861, named, holds). A turn is not made where it
+would lay a plane a hair beside a cone's apex; it cost one of the shrunk
+failures the first measurement held (5543132867). Turning about the apex
+instead was tried: it held that seed and broke four others.
+
+**Left of the family.** A lean past `G` and under a small angle, built as
+drawn, waits on the warning; 5549204865, a tube cut by a face 5e-7 off
+tangent and 1.9e-6° off square — past the hair, failing on `85a2d2e` too —
+is named under `hair-from-tangent`. The offset hairs and the planes a hair
+apart are the families above, which the rounding reaches only where they
+lean as well.
+
+### Round 4 merged: the pieces with no hair, then decision 11
+
+The plain pieces went in first, then decision 11 on top. Measured merged,
+on round 3's seeds past the 12 000 the plain pieces had been measured on,
+their reading of a plane through a cone's apex beyond the box broke three
+seeds that held on `85a2d2e` (5543114315, 5543213205, 5543216548): two
+rulings held for a plane steeper than the slope a hair off the apex,
+declined as unverified, and a ruling of touch held for a plane steeper by
+a third of a billionth, its face left undrawn. The conic cut held all
+three. The ruling of touch is now held only where no conic is cut, the
+case it was written for (decision 2); the three are named and hold.
+
+Per seed, the way each was drawn, against `85a2d2e`'s campaigns over the
+same seeds:
+
+| Draw | First seed | Seeds | `85a2d2e` | Plain pieces | Both | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5543100000 | 21 600 | 118 | 118 | 43 | 78 | 3 |
+| tilted, application's body | 5543200000 | 48 400 | 308 | 302 | 127 | 185 | 4 |
+| slanted, exact kernel | 5543300000 | 8 571 | 7 | 7 | 7 | 0 | 0 |
+| turned, application's body | 5543600000 | 16 800 | 16 | 16 | 14 | 3 | 1 |
+
+The plain pieces alone break no seed. The eight broken merged are decision
+11's own, named above: three by the path of their draw, five named and
+ignored; its sixth, 5543312609, lies past the slanted seeds reached. Of
+round 3's 538 shrunk failures, 289 hold, the union of what each lane held
+alone (9 and 282). With `--include-ignored`, nothing that passed on
+either lane alone fails in any named-case file, and #498's eighteen cases
+hold.
+
+### The warning: a lean the kernel reads unstably
+
+The second half of Tom's decision of 2026-10-10. A step whose plane leans
+off square to, or along, a wall's axis by more than decision 11 lays
+exactly and by a sine under a thousandth — some 0.057° — is built as drawn
+and noted with its least lean; the application says it is an unstable
+case, with the angle, once the step is applied and in the tree, and never
+refuses it. A decline in the band stays a broken step, with its reason. The
+design and the bound are in `exact-kernel.md`, step 10 of the boolean.
+
+- **What the band covers.** On 20 000 fresh tilted seeds from 5549100000
+  with decision 11, 1 820 cases (9.1 %) kept a lean in the band, and 25 of
+  them failed: 1.4 %, against 0.18 % for the cases with none. The tilted
+  draw is weighted towards hairs, so a user's part sees the notice far
+  less often. 29 of that measurement's 57 failures were neither turned
+  nor in the band.
+- **What the warning does not change.** The judge of the campaigns does
+  not excuse a step in the band: a failure there counts as any other. The
+  campaigns count the steps built in the band, "steps built at an unstable
+  lean", beside their rules.
+- **Left in the band.** The families of round 3 between 2e-7° and 1e-3°
+  that decision 11 does not reach, 5549204865 (a tube cut by a face 5e-7
+  off tangent and 1.9e-6° off square), and the wedges of a hundredth of a
+  degree (5543224272, 5543227890) are built with the notice where the
+  kernel builds them, and broken with their reason where it declines.
+
+
+### Round 5: the pieces with no hair
+
+Round 4's measurement at `beaf75d` left eleven shrunk cases with no hair,
+each failing on `85a2d2e` too. Three causes are fixed, each decided once,
+and with them the two regions with no point inside them inherited from
+#533 and #536 and two cases ignored since earlier campaigns:
+
+- **A corner where two walls touch at a point** (5544320693): a rod joined
+  to a post it touches, cut by a pin of the rod's radius whose axis meets
+  the rod's at the touch. The node of the pin and the rod is that touch,
+  and the line the pin touches the post along runs through it; the union
+  left no edge there, so the node, found on the pin and the rod alone,
+  never cut the line, and a region of the pin had no point inside it. A
+  corner standing where two walls were decided to touch at a point — the
+  node or the contact of two perpendicular cylinders — now lies on both
+  (`canonical/apart.rs`, decision 5). It holds 5543305067 and 5543616767
+  too. Read at a cone's apex as well, it broke 5545235515 in the round's
+  own campaign, a plane at a cone's slope a hair off its apex, and taken
+  onto a wall decided apart from the corner's, 5545618519, a post across
+  two rods of one axis a hair apart in radius; both seeds are named.
+- **A line inside a wall's section by rounding** (5544100660, 5544229207):
+  a cut at 60°, or at 45°, through a wall's lowest line at its end. The
+  line the cut shares with the end, 3e-14 inside the section, crossed the
+  wall twice 3.2e-6 apart where the cut's ellipse touches the end once.
+  Round 4 decided it for a cone's section alone; the line a plane square
+  to a wall's axis shares with a plane crossing it steeply now touches any
+  wall it stands inside by rounding alone, and the line, the circle and
+  the conic of that corner reach the one touch
+  (`relation/crossing/section.rs`, decision 4). Not beside a plane leaning
+  along the axis: there the rule broke 5549116996, a hairpin whose vertex
+  stands where rounding over its lean puts it. Nor for a circle no plane of
+  the triple holds: read for any circle, it broke 5545108465 in the
+  round's own campaign, a rim where a shaft gives way to a cone cut
+  through the cone's apex a hair off its slope, whose hairpin crosses the
+  rim twice; the touch is now read only for the edges lying on the
+  triple's surfaces, and that seed is named. It holds 9304992 too.
+- **Two arcs leaving a corner together** (5544515442): a rod along a
+  rounded block's side, cut by a post touching the block's front where its
+  corner's wall does. On the rod, the curves the post and the corner's
+  wall meet it along leave their corner flat, touching to the fourth
+  order; their chords a tenth along were drawn to places at different
+  distances, the shorter one's reading below though it runs above, and
+  the rod's cycles were traced across each other. Two such arcs are now
+  ordered first by where each stands at one run, half the shorter (the
+  overlay, step 5). It holds 6128869 too, ignored since campaign 6.
+
+Left, each ignored with what was found:
+
+- **A turn of 359.9° whose slit meets a tangent line at a rim**
+  (5544504441): the 105° turn's inner wall touches the shaft's step along
+  a line through the step's inner rim exactly at the slit, where the
+  curve the shaft's wall meets that inner wall along leaves the rim
+  touching it to the fourth order, within the tolerance of it across the
+  whole slit. The step's face is lost: its rims, the slit's lines and the
+  curves at the touch are left with one face each, declined as
+  unverified. Reading the meeting curve on the step's plane as the rim, as
+  a circle is read on a wall as the meeting curve (`domain/traced.rs`),
+  removed a decline there and changed nothing else.
+- **A cone face meeting itself along a circle** (5544323650): the body is
+  verified, but the cone's face, whose wall runs on above and below the
+  circle where the half ring's top and inner wall end — an edge with four
+  uses — is not cut into triangles: its loop runs along that circle and
+  back, and the sweep in the cone's parameters gives up
+  (`tessellation/sweep.rs`). Left open.
+- **Two walls of one radius tangent at a node** (5544618545, 5544629222):
+  the body holds, and so do the exact kernel's own triangles. Drawn as the
+  application draws, at a fifth of a thousandth of the reach, the sliver
+  faces either side of the two ellipses, between the node and a pin's or
+  a post's curves, stand 0.004 apart where their chords sag 0.003, and
+  their triangles cross. The strips the contact of two perpendicular
+  walls is cut in follow the rays of their circles, not those curves.
+- **Crossings at a rim** (5544205878, 5544518834, 5544528726): a cone face
+  and a bore face where a hyperbola meets the bore's rim, drawn as the
+  application draws; a post's face and a floor at its rim, and two walls
+  of the turned families of #533, at the exact kernel's own tolerance.
+  Not diagnosed further.
+
+Measured at `54aed83` against `f57a5ca`, release, fifteen minutes a draw
+on fresh seeds, the two trees side by side on five threads each, counted
+over the seeds both reached:
+
+| Draw | First seed | Seeds | `f57a5ca` | Round 5 | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5545100000 | 40 756 | 106 | 105 | 1 | 0 |
+| tilted, application's body | 5545200000 | 58 733 | 159 | 159 | 0 | 0 |
+| slanted, exact kernel | 5545300000 | 39 459 | 26 | 25 | 1 | 0 |
+| turned, exact kernel | 5545500000 | 30 545 | 19 | 19 | 0 | 0 |
+| turned, application's body | 5545600000 | 39 087 | 17 | 16 | 1 | 0 |
+
+The plain pieces are rare in fresh draws, so the counts barely move;
+what the round measures is that no seed that held breaks. The two
+measurements before this one broke three seeds (5545108465, 5545235515,
+5545618519), each a reading wider than its cause asked for; each is
+named, and the rules are narrowed to hold them. Every named-case file
+with `--include-ignored`: nothing that passed at `f57a5ca` fails, and
+6128869 and 9304992, ignored before, hold.
+
+### Round 5: decision 11 set down where it meets
+
+Round 4's measurement left five seeds that held on `85a2d2e` and fail by
+decision 11's own turn (`decision-11-regressions`). The turn was made about
+the middle of the second operand's box. Its directions came out exact, but
+the operand landed a hair off what it had held against the first, up to
+the lean times the distance from the middle of the box. The turn is now
+made about the middle of where the two operands' boxes overlap. The
+operand is then shifted square to the turn's axis, so that each pair the
+turn lays parallel lies exactly where the two stood within the tolerance
+(`canonical/placed.rs`, decision 11 in `exact-kernel.md`).
+
+- **Held, four of the five:**
+  - a wedge's side drawn on a disc's end (5544600162);
+  - a post's end holding a line of a turn (5544510380);
+  - a stepped turn's axis lying in a disc's end (5544600864);
+  - a face laid square to a cone 0.98 of the tolerance short of the
+    circle where the cone meets a shaft (5544232904). Drawn exactly
+    square, that face fails as well.
+
+  Three seeds named under the earlier keys hold with them:
+  - 5543120314, a point's end on a leaning shaft's end;
+  - 5543235780, a slot's face parallel to a block's;
+  - 5543615040, two turns' walls laid square, the one refusing the turn
+    for skew walls held before it broke two others.
+- **Left, one.** 5544236192 is named under `near-parallel-planes`. A ring
+  is laid square to a block 4e-8° off a quarter turn. Its end then leans
+  7e-10 off the line a later 45° cut shares with the block's floor, a line
+  the ring held exactly as drawn. A shift cannot lay a lean, wherever the
+  turn is made about. Drawn with the ring and the block exact and the cut
+  leaning 4e-8° about Z, with no turn made, the kernel meets the same tie
+  in the overlay's star.
+- **Laying from as far as `G` broke two seeds**, on the first
+  measurement:
+  - 5545209574: a cut's face was moved three tolerances onto something it
+    only passed near;
+  - 5545217348: a block's end was not laid on the plane of a circle it
+    stood on.
+
+  Pairs are now laid only within the tolerance, and the plane of a circle
+  is laid on as a plane is. Both are named and hold.
+
+Fresh seeds, release, against `f57a5ca` built in its own target directory,
+counted over the seeds both reached:
+
+| Draw | First seed | Cases | `f57a5ca` | Branch | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- |
+| tilted, application's body | 5545200000 | 32 263 | 90 (2.79) | 87 (2.70) | 3 | 0 |
+| turned, application's body | 5545600000 | 17 776 | 4 (0.23) | 3 (0.17) | 1 | 0 |
+| turned, exact kernel | 5545500000 | 8 383 | 6 (0.72) | 6 (0.72) | 0 | 0 |
+
+In the named-case files with `--include-ignored`, the seven cases above
+that fail on `f57a5ca` hold on the branch, the two new ones hold, and
+nothing that held there fails.
+
+### Round 5: the two lanes merged
+
+The pieces with no hair and decision 11's setting down share no
+production file, and merged as they stood (`afd06dd`). Measured merged,
+ten minutes a draw against `f57a5ca`, the two trees side by side on five
+threads each, they broke three seeds, all by decision 11's setting down,
+and a version of the fix broke a fourth:
+
+- **A straight edge touching a wall** (5546322326, 5546607658): a slot's
+  side drawn on a leaning disc's wall, a rounded block's seam on a leaning
+  ring's bore. Turned about where the operands meet, each stood a
+  fraction of the tolerance off the wall, and was refused. A straight edge
+  of either operand square to a cylinder's axis of the other, touching it
+  within the tolerance, is now laid on it by the shift.
+- **A flat near several lines that part** (5546116488): a cut drawn
+  through a point a hair from a turn's axis, its slit's line and an
+  earlier cut's corner, each a fraction of the tolerance from the others.
+  It was laid on the axis, the nearest, and refused; as turned, between
+  them, it held. A flat passing within the tolerance of lines that part
+  by more than a thousandth of it now lies on none of them.
+- **A flat laid on a wall it touches** (5546111832), by the first version
+  of that fix: a face drawn on a turn's wall, a hair inside a second wall
+  a hair larger, was laid on that one and refused. A flat is not laid on
+  a wall.
+
+Measured again on fresh seeds, decision 11 left two cuts reaching far
+past the body as drawn: turned about where the operands meet, their far
+ends would have moved past `G` (5547227649, a cut along a 270° turn's slit
+face 1.4e-6° off; 5547233090, a face 9.5e-7° off square to a tube a hair
+inside its end, which failed in release alone). The turn now falls back on
+the middle of the cut's box where the meeting would move it past `G`, as
+`f57a5ca` turned it; both are named and hold.
+
+Left, two seeds named under `near-parallel-planes`, each held on
+`f57a5ca` by where its turn happened to leave a line two planes a hair
+apart cross on:
+
+- 5547225260: a face 2e-8° off square to a ring's axis leaning 1e-5°,
+  drawn through a point of its end. The two planes lean 1.7e-7 apart and
+  cross along a line through the end's inner rim near its lowest point;
+  decision 11 lays the face's sides along the axis, a turn of 3.5e-10
+  radian, and about where the two meet the line lands 0.004 from that
+  point instead of 0.001, and the triangles cross.
+- 5548213817: a face drawn on a 0.01° wedge's face, 1e-7° off it. Laid
+  along the wedge's axis, it still leans 1.5e-9 radian off that face, and
+  the step is refused.
+
+No pair of the two lies within the tolerance for the shift to lay.
+
+Fresh seeds, release, the merged branch with its fixes against
+`f57a5ca` built in its own target directory, counted over the seeds both
+reached:
+
+| Draw | First seed | Cases | `f57a5ca` | Branch | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5548100000 | 29 115 | 71 (2.44) | 69 (2.37) | 2 | 0 |
+| tilted, application's body | 5548200000 | 40 735 | 109 (2.68) | 105 (2.58) | 5 | 1 |
+| slanted, exact kernel | 5548300000 | 26 639 | 15 (0.56) | 15 (0.56) | 0 | 0 |
+| turned, exact kernel | 5548500000 | 19 888 | 13 (0.65) | 13 (0.65) | 0 | 0 |
+| turned, application's body | 5548600000 | 28 138 | 12 (0.43) | 11 (0.39) | 1 | 0 |
+
+The one broken is 5548213817, above. In every named-case file with
+`--include-ignored`, the fifteen cases above that fail on `f57a5ca` hold
+on the branch, the round's eleven new seeds hold but the two ignored, and
+nothing that held there fails; #498's eighteen cases hold.
+
+### Round 6: the pieces with no hair
+
+Round 5's measurement at `784c69e` left fourteen shrunk cases with no hair
+(`plain-pieces`, named at `22df52e`), each failing as drawn on `f57a5ca`
+too. Thirteen hold, by seven causes each decided once, and with them sixteen
+cases ignored since earlier rounds:
+
+- **Two walls of one operand touching at a point** (5550316656,
+  5550230611): a rod beside a post it touches, or a slot's round end
+  beside a turn, then a face of the other operand passing through the
+  touch — a disc's floor, a block's side. Each wall's curve on that face
+  touches the other wall there, and with no edge of the operand there no
+  crossing found the corner: a tie in the face's overlay, or lines run
+  the wrong number of times. The touch, kept in `Apart` (decision 2), is a
+  corner candidate on the two walls and every surface of the other
+  operand through it (`combine.rs`, `touched`).
+- **A third surface crossing a band** (5550223366): a cone's wall crosses
+  at 45° the band of a block's side and a 0.01° wedge's wall a hair
+  inside it, leaving the circle it meets the wall along and the conic it
+  cuts the side along between the same corners, 1.08e-8 apart at a
+  tolerance of 9.5e-9. Two arcs both lying on two surfaces decided to
+  touch are one up to the hair (`combine/identified.rs`, decision 6).
+- **A plane holding one of the two ellipses** two walls of one radius meet
+  along, their axes meeting square (5550232928, and 9501873, ignored as
+  `kernel-declines` since #552's first rounds): the conic and the meet's
+  component are read as one curve (`canonical/curves.rs`), and a curve of
+  the conic's wall and the surface it crosses lying on its plane is the
+  conic (`relation/crossing/conic.rs`). Where the component came first,
+  as an operand's edge, it lay on the plane as a meet, and a plane is now
+  told to see it as its conic (`domain/traced.rs`, 5552120815, below).
+- **A triangle passing through another face's beside a corner they
+  share** (5550316166, 5550409179, 5550412859, 5550427782, 5550629622,
+  5550709462): at a corner where a face turns into the matter, a wall's
+  triangle cut across it, true to the region in the wall's parameters,
+  sags through the face beyond. The folds pass, which undid a triangle
+  lying on another face across an edge, now undoes these too
+  (`tessellation/folds.rs`). With them hold round 5's 5544205878,
+  5544518834, 5544528726 and the two walls of one radius tangent at a
+  node, 5544618545 and 5544629222, and from earlier rounds 3202168,
+  533779006, 5364102153, 5365231546, 5365239260, 8515799, 8550600,
+  8585454 and 8587307.
+- **A corner at a point contact standing off one wall** (5550629812, and
+  round 4's 5543227890): a pin touching a 0.01° wedge's wall has a vertex
+  of the wedge 7.6e-9 outside it, decided on the pin, and the pin's
+  samples anchored at it leaned its ruling across the wedge's end face.
+  The touch point anchors a wall's samples for every vertex on both
+  walls standing off that one (`tessellation/contact/point.rs`).
+- **A rim passed a hair inside by a line** (5550106720): a pocket's side
+  leaves a stepped turn's step 6e-4 inside its inner rim, whose chords sag
+  0.06; the rim takes a sample there (`tessellation/sampling/beneath.rs`).
+- **Two conics leaving a node together** (5550117749): a 15° face through
+  a node of a turn's wall and a cylinder of its radius cuts both along
+  conics tangent there, sampled on different walls' angles until one's
+  chord crossed the other's samples and the horn of face between them
+  could not be cut. Two conics of one plane on walls whose axes cross
+  take each other's samples as rays (`tessellation/sampling/conic.rs`).
+
+The round's own campaigns, run against `22df52e` while the round went,
+broke four seeds, each found, shrunk, named and held by narrowing what
+broke it:
+
+- 5551116747 (tilted, exact kernel) and 5551409953 (slanted, through the
+  body): a post floored 1e-7 under where a lying cylinder touches it, a
+  pin touching a post whose end stands 6e-8 past the post's axis. A first
+  version had the touch stand for every vertex on both walls; one standing
+  on a wall anchors that wall's samples still.
+- 5551609285 (turned, through the body): a ring and a cylinder inside it
+  touching along a line a turn's end plane crosses. A first version gave
+  any two tangent conics each other's samples; two parallel walls are
+  sampled on the rays they share already.
+- 5552120815 (tilted, exact kernel), open on `22df52e` as drawn and
+  refused at `576396a`: a turn cut by a cylinder of its radius whose axis
+  meets its own, then by a plane at 45° holding one of their ellipses —
+  the meet came to lie on the plane, which saw it only as a chord. It is
+  seen as the plane's conic now.
+
+The one seed round 5 broke (`decision-11-regressions`, 5550133356, tilted,
+exact kernel) holds too, by a lane of its own merged after this one: a half
+turn cut by a face decision 11 lays square and by one leaning 9.4e-6° past
+the hair leaves a sliver whose inner wall is a strip between a circle and a
+conic ending at one corner, 0.2° short of a grid angle. The circle kept
+that angle, dropping one beside an end only within a thousandth of `EPS`
+of another surface, while the conic dropped it within a fifth, and the
+strip's one triangle across the step lay on the leaning face. A circle now
+drops a grid angle within a fifth of `EPS` of a plane whose conic on its
+own wall ends at the same vertex (`tessellation/sampling/ends.rs`,
+`pinching`). A first version giving the fifth to every plane an end lies
+on broke 5561366633 (tilted, exact kernel, volume): a circle a hair off a
+block's face all along lost a grid angle by each end. It is named and
+holds.
+
+Left, ignored with what was found:
+
+- **A turn of 359.9° whose slit opens at a line of touch** (5550232595,
+  as 5544504441): a tube's end face lies on the plane x = -15 a post
+  touches along y = 0, and the tube's inner wall passes through that line
+  at z = 5, its rim tangent to it, where the slit opens. The band lays the
+  rim's arc across the slit on the post and a stretch of the curve the
+  inner wall meets the post along on the end plane; neither is seen there
+  but as a chord, the end face is lost, and the step is declined as
+  unverified.
+
+Every named-case file with `--include-ignored`: the twenty-nine cases
+above that fail on `22df52e` hold, the four new ones hold, and nothing
+that held there fails; #498's eighteen cases hold.
+
+Measured at the round's tip on fresh seeds, release, fifteen minutes a
+draw, the branch and `22df52e` side by side on five threads each, each
+tree in its own target directory, counted over the seeds both reached:
+
+| Draw | First seed | Cases | `22df52e` | Branch | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5553100000 | 41 295 | 112 (2.71) | 112 (2.71) | 0 | 0 |
+| tilted, application's body | 5553200000 | 55 533 | 128 (2.30) | 126 (2.27) | 2 | 0 |
+| slanted, exact kernel | 5553300000 | 39 366 | 17 (0.43) | 14 (0.36) | 3 | 0 |
+| slanted, application's body | 5553400000 | 44 607 | 27 (0.61) | 24 (0.54) | 3 | 0 |
+| turned, application's body | 5553600000 | 33 673 | 17 (0.50) | 17 (0.50) | 0 | 0 |
+| square | 5553700000 | 94 491 | 6 (0.06) | 6 (0.06) | 0 | 0 |
+
+The plain pieces are rare in fresh draws, so the counts barely move: what
+the measurement holds is that no seed that held on `22df52e` fails. The
+slanted draws lose about one failure in seven, the tilted draw through the
+body two in a hundred and twenty-eight; the others are unchanged.
+
+### Round 6: the two lanes merged
+
+The pieces with no hair were merged first, then `decision-11-regressions`,
+each measured on its own against `22df52e`: the gate, every named-case file
+with `--include-ignored`, and ten minutes a draw of the tilted and slanted
+draws on fresh seeds, release, the two trees side by side on five threads
+each, each in its own target directory, counted over the seeds both reached.
+
+The first merge broke one seed, 5564306306 (slanted, exact kernel, drawn
+crossing): a post joined to a cylinder lying along X, 1e-7 wider than where
+it would touch the post, ending square to X on a plane through the post's
+axis. The rim puts a corner on both walls 1e-7 inside the post, on the end
+face's plane, which holds the post's ruling there. The touch of the two
+walls stood for that corner, as for the pin's and the slot's above, and the
+post's ruling anchored 5e-8 short of it in that plane ran through the end
+face. A corner on a plane parallel to a wall's axis anchors that wall's
+samples still, whatever it stands off it (`tessellation/contact/point.rs`);
+the seed is named and holds, and the measurement was run again.
+
+| Tree | Draw | First seed | Cases | `22df52e` | Tree's | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| pieces with no hair | tilted, exact kernel | 5564100000 | 23 941 | 55 | 53 | 2 | 0 |
+| | tilted, application's body | 5564200000 | 24 146 | 58 | 56 | 2 | 0 |
+| | slanted, exact kernel | 5564300000 | 19 710 | 16 | 14 | 3 | 1 |
+| | slanted, application's body | 5564400000 | 26 346 | 12 | 10 | 2 | 0 |
+| with the corner on a plane | tilted, exact kernel | 5566100000 | 17 573 | 44 | 43 | 1 | 0 |
+| | tilted, application's body | 5566200000 | 36 003 | 81 | 80 | 1 | 0 |
+| | slanted, exact kernel | 5566300000 | 25 995 | 9 | 9 | 0 | 0 |
+| | slanted, application's body | 5566400000 | 29 585 | 14 | 13 | 1 | 0 |
+| with decision 11's regression | tilted, exact kernel | 5565100000 | 28 225 | 69 | 67 | 2 | 0 |
+| | tilted, application's body | 5565200000 | 36 569 | 95 | 88 | 7 | 0 |
+| | slanted, exact kernel | 5565300000 | 25 976 | 16 | 14 | 2 | 0 |
+| | slanted, application's body | 5565400000 | 29 718 | 23 | 22 | 1 | 0 |
+
+In every named-case file with `--include-ignored`, after both merges, the
+twenty-nine cases of the pieces with no hair and 5550133356 hold, as do the
+six new named cases, and nothing that held on `22df52e` fails; #498's
+eighteen cases hold. The turn of 359.9° (5550232595) is the one case of
+the round left ignored.
+
+### Round 6 measured
+
+Measured at `05f20eb` against `22df52e` on fresh seeds from 5570100000 to
+5570900000, every draw, with round 5's case counts; the table is the
+journal's, 12 October. Twenty-nine seeds are repaired. One that held on
+`22df52e` fails on every run: 5570235757, tilted through the application's
+body, drawn crossing, a post and a half turn whose walls meet at one point,
+cut by a face through that point 1e-5° off the plane holding the turn's
+axis. Shrinking leaves it whole, and it bisects to `576396a`, two conics
+of one plane leaving a node of two crossing walls sampled on each other's
+places: the face cuts the post along an ellipse all but a circle and the
+turn along a curve all but two lines, and the two leave the point of touch
+together. It is named under `conics-at-a-node` in
+`what_the_exact_campaigns_found_in_the_triangles.rs`, ignored. One more
+seed changed the rule it breaks, 5570132168, drawn crossing on `22df52e`
+and refused on the tip; its shrunk core, a whole turn cut by a block
+2.3e-6° off square to its axis, is refused on both.
+
+All 238 failures were shrunk, none killed or late. Six have no hair, every
+one refused and failing on `22df52e` too: 5570126783, 5570207344,
+5570319299, 5570201909, 5570420146, 5570526055 (listed below). The other
+232 carry a hair: by an offset 143, a lean in the warning's band 68, a
+lean of 1e-7° or less that decision 11 does not lay 21.
+
+### Where #552 ends
+
+**Tom's choice of 2026-10-10**, after round 3, with the tilted draws near
+six in a thousand and three rounds of case-by-case fixes no longer moving
+them. Half of what was left was a plane within 1e-7° of square or
+parallel to a cylinder's or a cone's axis, most of the rest a plane 2e-7°
+to 1e-3° off or a hair of an offset. Building the conic divides by the
+tilt, so rounding is magnified by about one over it; at such tilts it
+reaches the kernel's own tolerance, and the kernel answered both ways in
+different places. A user never draws such a tilt on purpose, but the
+solver can leave one, since a rule such as « Perpendiculaire » holds to
+about 1e-9. The choice, as Tom made it:
+
+1. **Below the kernel's tolerance, round.** A plane whose tilt from square
+   or parallel to an axis moves it by less than the tolerance across the
+   part is laid exactly square or parallel, decided once; the kernel then
+   builds the circle or the lines it already holds exactly. Accepting the
+   tilt as drawn was set aside: it leaves the ill-conditioned conic and its
+   inconsistent answers, where rounding moves the geometry by less than the
+   kernel already treats as one place.
+2. **Above it, up to a small angle, compute as drawn and warn, never
+   block.** The step is built when the kernel can build it, and the user
+   sees an "unstable case" notice naming the near-square or near-parallel
+   angle. If the kernel declines, the step is broken as before, with that
+   reason.
+3. **Pieces with no hair come first**: cones cut at a real slant that are
+   refused or drawn crossing, and turns of a hundredth of a degree, before
+   any hair family.
+4. **Two more rounds at most**, then the pull request. Whatever is left is
+   named in the issue and here, with this choice, so it is not lost.
+
+How it was carried out is in `exact-kernel.md`: the rounding is decision
+11, at `G` rather than one tolerance (measured, and one constant to move);
+the warning is step 10 of the boolean, up to a sine of a thousandth, some
+0.057°. Three rounds followed the choice, not two: round 4 took the pieces
+with no hair, decision 11 and the warning; round 5 the pieces with no hair
+round 4 left and decision 11's own regressions; round 6 the same again.
+Round 6 changed no rule the choice set.
+
+**The rates, round by round.** Failures in a thousand cases, every draw on
+fresh seeds of its own each round, in release; 40 000 cases a tilted draw,
+30 000 a slanted, turned or square one, 20 000 a profile one. Round 0 is
+the branch as the review left it once its round was fixed.
+
+| Draw | 0, `0d74713` | 1, `daf2079` | 2, `cf9093b` | 3, `0d35b52` | 4, `beaf75d` | 5, `784c69e` | 6, `05f20eb` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 10.60 | 6.55 | 6.00 | 5.50 | 2.45 | 2.42 | 2.02 |
+| tilted, application's body | 9.78 | 6.38 | 5.98 | 6.25 | 2.60 | 2.83 | 2.17 |
+| slanted, exact kernel | 0.50 | 0.57 | 0.63 | 0.63 | 0.63 | 0.60 | 0.47 |
+| slanted, application's body | 0.73 | 0.60 | 0.60 | 0.20 | 0.47 | 0.83 | 0.50 |
+| turned, exact kernel | 0.50 | 0.57 | 0.47 | 0.50 | 0.77 | 0.57 | 0.63 |
+| turned, application's body | 0.80 | 1.07 | 0.23 | 0.63 | 0.53 | 0.47 | 0.33 |
+| square | 0.00 | 0.07 | 0.10 | 0.07 | 0.07 | 0.13 | 0.07 |
+| profiles, exact kernel | 0.20 | 0.15 | 0.35 | 0.25 | 0.20 | 0.05 | 0.35 |
+| profiles, application's body | 0.15 | 0.10 | 0.10 | 0.10 | 0.20 | 0.30 | 0.15 |
+
+Every draw but the two tilted ones ends under one failure in a thousand.
+The tilted draws end at about two, a draw weighted towards hairs: of
+round 6's 165 shrunk tilted failures, three have none. The bar is not met
+there, and the families below are why.
+
+**Left with no hair**, first:
+
+- **A turn of 359.9° whose slit opens at a line of touch** (5550232595,
+  5544504441): the slit's lines and rims are left with one face each,
+  declined as unverified. Named under `plain-pieces`, ignored.
+- **A cone face meeting itself along a circle** (5544323650): the body is
+  verified, but the face's loop runs along the circle and back, and the
+  sweep in the cone's parameters gives up; left open. Named under
+  `plain-pieces`, ignored.
+- **Six refused at round 6's measurement**, each failing on `22df52e` as
+  well, not named: a quarter turn given a post and cut by a whole cone, the
+  three about parallel axes (5570126783); a wedge of 0.01° of two cone
+  bands joined to a slot (5570207344) or to a rounded rectangle
+  (5570319299), the wedge round 5 already met; a whole cone cut by a block
+  leaning 80.5° and by one square to it (5570201909); a block joined to a
+  three-quarter turn of three cone bands about an axis leaning 45°
+  (5570420146); a half turn joined to a cylinder across it and to a whole
+  turn about an axis leaning 30° (5570526055).
+
+**Broken by the branch**, one: 5570235757, two conics leaving a node of
+two crossing walls (`conics-at-a-node`, above).
+
+**Left with a hair**, by round 6's shrunk counts:
+
+- **A hair from tangent by an offset**, 143 — a plane at a slant a hair
+  from an edge, a rim or a wall's ruling, a conic a hair from where a wall
+  ends. No band is laid along a conic: the issue's second default, and the
+  follow-up a band on conics would be. Named under `hair-from-tangent`
+  (5520109275, 5541111069, 5542121248, 5543126616, 5549204865), and
+  5543307115, a hyperbola's vertex on a line of touch, under
+  `kernel-declines`; three more are decision 11 laying a lean exactly
+  beside such a hair (5543112269, 5543218891, 5543312609).
+- **A lean in the warning's band**, 68: built as drawn with the notice
+  where the kernel builds it, broken with its reason where it declines, as
+  the choice says. Two planes a hair off each other are most of it, named
+  under `near-parallel-planes` (5541126238, 5542234414, 5543139042,
+  5547225260, 5548213817).
+- **A lean of 1e-7° or less that decision 11 does not lay**, 21: a pair
+  other than a plane against a wall's axis — two planes, two walls — or a
+  turn decision 11 refuses (5542111371, 5544236192, under
+  `near-parallel-planes`). Widening the rule to every pair of directions
+  held more and broke one seed; it is one predicate, set aside.
+
+**The gate.** Built and warm, best of three runs each, side by side on
+12 October: 37.4 s at the tip, 33.1 s at `9e54a71`, the tip of #536 the
+branch stands on. That is 4.3 s over it, past the 3 s the issue's fourth
+default allows, and that default says to cut gate seeds first; it was
+left to the pull request, and Tom accepted it as it stands (below).
+
+### Merged as it stands
+
+**Tom's word of 2026-10-12**, after trying the branch in the application:
+merge it, knowing it is not perfect, and keep a written trace of what is
+not. What went to `main` short of what was aimed at:
+
+- **The tilted draws are not under one failure in a thousand.** They end
+  at 2.02 and 2.17, nearly every failure a hair; every other draw is under
+  the bar. The families above are why, and each is named.
+- **One seed the branch broke**, 5570235757 (`conics-at-a-node`), named
+  and ignored rather than fixed.
+- **A plane touching a frustum along a ruling, the apex outside the
+  part,** is listed as two arcs of ellipse 4e-7 apart with a ribbon of cone
+  between them, not as the ruling. The body is closed, uncrossed, at the
+  right volume, and nothing shows on screen; a fillet or a dimension on
+  that edge would meet it. The plane drawn tangent passes a hair inside
+  the cone, and no band is laid along a conic. With the apex inside the
+  part, the same gesture gives the ruling.
+- **The notice writes its angle with a point**, « 0.01° », where French
+  writes « 0,01° ». Left as it is.
+- **The gate is 4.3 s slower than at #536's tip**, past the 3 s the issue
+  allowed, with no gate seed cut. Tom accepted it, and a little more if a
+  later step needs it.
+- **The follow-ups are not opened**: a band laid along a conic, decision
+  11 for every pair of directions, #514's grid, exact predicates where
+  floating point cannot tell. They are opened on Tom's word.

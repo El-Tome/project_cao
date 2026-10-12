@@ -1343,8 +1343,14 @@ fn seed_8581871_two_walls_of_one_radius_a_hair_apart_under_a_plane_touching_both
 
 /// Campaign 8c, the profile draw through the application's body: Uncrossed.
 /// Shrunk through the application's body.
+///
+/// Was ignored as: crescent-tip: left, the triangles': two walls of one radius
+/// just past decision 8's hair stand within a fifth of a tolerance of each
+/// other over a tenth of a turn about their crossing, where the triangles
+/// withhold every step, and a wall's triangle spanning it crosses the slot's
+/// ceiling. Holds since a triangle passing through another face's beside a
+/// corner the two share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "crescent-tip: left, the triangles': two walls of one radius just past decision 8's hair stand within a fifth of a tolerance of each other over a tenth of a turn about their crossing, where the triangles withhold every step, and a wall's triangle spanning it crosses the slot's ceiling"]
 fn seed_8585454_two_walls_of_one_radius_a_hair_apart_under_a_plane_touching_both() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1390,8 +1396,14 @@ fn seed_8586289_two_walls_of_one_radius_a_hair_apart_beside_a_third_surface() {
 
 /// Campaign 8c, the profile draw through the application's body: Uncrossed.
 /// Shrunk through the application's body.
+///
+/// Was ignored as: crescent-tip: left, the triangles': two walls of one radius
+/// just past decision 8's hair stand within a fifth of a tolerance of each
+/// other over a tenth of a turn about their crossing, where the triangles
+/// withhold every step, and a wall's triangle spanning it crosses the floor's.
+/// Holds since a triangle passing through another face's beside a corner the
+/// two share is cut the other way, round 6 of #552.
 #[test]
-#[ignore = "crescent-tip: left, the triangles': two walls of one radius just past decision 8's hair stand within a fifth of a tolerance of each other over a tenth of a turn about their crossing, where the triangles withhold every step, and a wall's triangle spanning it crosses the floor's"]
 fn seed_8587307_two_walls_of_one_radius_a_hair_apart_under_a_plane_touching_both() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

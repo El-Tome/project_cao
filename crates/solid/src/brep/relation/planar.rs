@@ -28,7 +28,8 @@ pub(super) fn planes(one: &Plane, other: &Plane, scale: Scale) -> Relation {
 /// Square to the axis, the circle at the plane's height. Along the axis, the
 /// lines the plane cuts, or the one it touches: through the foot of the axis
 /// on the plane and along the axis, whenever the axis stands within the
-/// tolerance of a radius from the plane.
+/// tolerance of a radius from the plane. At a slant, the ellipse `sliced.rs`
+/// cuts (#552).
 pub(super) fn plane_and_cylinder(plane: &Plane, cylinder: &Cylinder, scale: Scale) -> Relation {
     if parallel(plane.normal, cylinder.axis, scale) {
         let height =
@@ -36,7 +37,7 @@ pub(super) fn plane_and_cylinder(plane: &Plane, cylinder: &Cylinder, scale: Scal
         return Relation::Circle(Circle::on(cylinder, height));
     }
     if !square(plane.normal, cylinder.axis, scale) {
-        return Relation::Unsupported;
+        return super::sliced::plane_and_cylinder(plane, cylinder, scale);
     }
     let away = plane.distance(cylinder.origin);
     let foot = cylinder.origin - plane.normal * away;

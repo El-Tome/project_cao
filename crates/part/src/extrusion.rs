@@ -97,7 +97,9 @@ impl PartState {
     }
 
     /// Joins a tool to the part, or takes it out. A step the kernel declines
-    /// leaves the part as it was.
+    /// leaves the part as it was; one it built though it reads it unstably is
+    /// noted with its lean. The tool's own pieces stand square or along each
+    /// other, and are not read.
     pub(crate) fn combine(&mut self, tool: Body, mode: ExtrusionMode) -> Result<(), Declined> {
         if tool.is_empty() {
             return Ok(());
@@ -106,6 +108,9 @@ impl PartState {
             ExtrusionMode::Add => self.body.union(&tool),
             ExtrusionMode::Cut => self.body.difference(&tool),
         }?;
+        if let Some(unstable) = self.body.unstable() {
+            self.unstable.insert(self.replaying, unstable);
+        }
         Ok(())
     }
 

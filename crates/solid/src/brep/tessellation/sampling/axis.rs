@@ -111,7 +111,7 @@ impl Axes {
             .edge_ids()
             .filter_map(|id| match body.curve(body.edge(id).curve) {
                 Curve::Circle(circle) => Some(circle),
-                Curve::Line(_) | Curve::Meet(_) => None,
+                Curve::Line(_) | Curve::Meet(_) | Curve::Conic(_) => None,
             })
             .collect();
         let mut cones = Vec::new();

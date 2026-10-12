@@ -10,6 +10,12 @@
 //! shares it, as decision 3 reads it. A curve running within the tolerance of
 //! a surface it was decided off, on a surface decided apart from it or a hair
 //! beside the curve they share, never meets it.
+//!
+//! A crossing the kernel cannot solve is left to the pair that makes it so:
+//! a surface the curve lies on that meets the other in a way the kernel does
+//! not build, a pair the boolean declined unless its faces stand clear. On
+//! any other triple the crossing is owed, and the operation declines rather
+//! than pass it by.
 
 use glam::DVec3;
 
@@ -18,15 +24,20 @@ use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::{Registry, same};
 use crate::brep::curve::Curve;
-use crate::brep::relation::{Crossings, Touches, crossings_given, relation};
+use crate::brep::relation::{Crossings, Lying, Relation, Touches, crossings_lying, relation};
+use crate::brep::scale::Scale;
+use crate::brep::surface::Surface;
 use crate::brep::topology::SurfaceId;
 
-/// A corner found where a registered curve passes through a surface.
+/// A corner found where a registered curve passes through a surface, and
+/// the surfaces an operand's edge covering it lies on over its stretch alone
+/// (decision 6): the corner is on that edge, and so on them.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct Found {
     pub point: DVec3,
     pub surface: SurfaceId,
     pub curve: usize,
+    pub partly: Vec<SurfaceId>,
 }
 
 pub(super) fn crossed(
@@ -50,8 +61,10 @@ pub(super) fn crossed(
             }
             let geometry = registry.list[curve].curve;
             let touches = touches(registry, curve, surface);
-            let list = match crossings_given(
+            let lying = lying(operands, registry, curve, surface);
+            let list = match crossings_lying(
                 &geometry,
+                &lying,
                 &operands.surfaces.list[rank],
                 operands.scale,
                 &touches,
@@ -62,7 +75,18 @@ pub(super) fn crossed(
                     }
                     continue;
                 }
-                Crossings::Unsupported => continue,
+                Crossings::Unsupported => {
+                    let list = &operands.surfaces.list;
+                    let support: Vec<(&Surface, Scale)> = registry.list[curve]
+                        .support
+                        .iter()
+                        .map(|own| (&list[own.0 as usize], operands.scale_of([*own, surface])))
+                        .collect();
+                    if left_to_a_declined_pair(&support, &list[rank]) {
+                        continue;
+                    }
+                    return Err(Declined::Unsupported);
+                }
                 Crossings::At(list) => list,
             };
             for crossing in list {
@@ -77,10 +101,18 @@ pub(super) fn crossed(
                     }
                 }
                 if counts {
+                    let mut partly: Vec<SurfaceId> = on_it
+                        .iter()
+                        .filter(|held| held.covers(crossing.parameter, geometry.period(), slack))
+                        .flat_map(|held| held.partly.iter().copied())
+                        .collect();
+                    partly.sort();
+                    partly.dedup();
                     found.push(Found {
                         point: crossing.point,
                         surface,
                         curve,
+                        partly,
                     });
                 }
             }
@@ -116,6 +148,47 @@ fn along(operands: &Operands, registry: &Registry, curve: usize, surface: Surfac
         })
 }
 
+/// The surfaces a registered line or circle lies on, each with what it was
+/// decided to make with `surface`, as decision 2 decides that pair; none
+/// for another curve, which is solved through its own surfaces already, nor
+/// for one lying on a third surface. That curve was taken for one on a
+/// third within the tolerance, and that surface decides the corner too:
+/// two planes crossing at a grazing angle, a hair from a wall's axis, cut
+/// it along a conic and along two rulings a fraction of the tolerance
+/// apart, and the corner found through the rulings stood that far off the
+/// one the conic found (5523010597).
+fn lying<'a>(
+    operands: &'a Operands,
+    registry: &Registry,
+    curve: usize,
+    surface: SurfaceId,
+) -> Vec<Lying<'a>> {
+    let list = &operands.surfaces.list;
+    let known = &registry.list[curve];
+    if known.support.len() != 2 || !matches!(known.curve, Curve::Line(_) | Curve::Circle(_)) {
+        return Vec::new();
+    }
+    known
+        .support
+        .iter()
+        .map(|&own| {
+            let [one, other] = if own < surface {
+                [own, surface]
+            } else {
+                [surface, own]
+            };
+            Lying {
+                surface: &list[own.0 as usize],
+                with: relation(
+                    &list[one.0 as usize],
+                    &list[other.0 as usize],
+                    operands.scale_of([one, other]),
+                ),
+            }
+        })
+        .collect()
+}
+
 /// What the surfaces a registered curve lies on were decided to make with
 /// `surface`, and with each other: the lines they touch along, and the
 /// points where two perpendicular cylinders touch — a node of the curve
@@ -136,3 +209,16 @@ fn touches(registry: &Registry, curve: usize, surface: SurfaceId) -> Touches {
         at,
     }
 }
+
+/// Whether a crossing left unsolved against `surface` stands on a pair the
+/// kernel does not build: a surface the curve lies on, each with the scale
+/// its pair with `surface` is decided at, meeting it in a way left
+/// unsupported.
+fn left_to_a_declined_pair(support: &[(&Surface, Scale)], surface: &Surface) -> bool {
+    support
+        .iter()
+        .any(|(own, scale)| relation(own, surface, *scale) == Relation::Unsupported)
+}
+
+#[cfg(test)]
+mod tests;

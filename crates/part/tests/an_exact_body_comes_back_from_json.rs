@@ -20,13 +20,18 @@ fn turned() -> Frame {
 }
 
 fn raised(part: &Body, outline: Contour, height: f64) -> Body {
+    raised_on(part, outline, turned(), height)
+}
+
+/// An outline raised `height` from `frame`, square to it.
+fn raised_on(part: &Body, outline: Contour, frame: Frame, height: f64) -> Body {
     let profile = Profile {
         exact: Some((outline, Vec::new())),
         sampled: cao_solid::Loop::straight(&[]),
         sampled_holes: Vec::new(),
         triangles: &[],
     };
-    part.tool_raised(&profile, turned(), DVec3::Z * height)
+    part.tool_raised(&profile, frame, frame.u.cross(frame.v) * height)
         .expect("the kernel raises it")
 }
 
@@ -54,4 +59,41 @@ fn an_exact_body_comes_back_from_json_and_cuts_as_before() {
     let second = raised(&part, disc(DVec2::new(20.0, 13.0 / 7.0 + 8.0), 1.3), 10.0);
     assert_eq!(read.difference(&second), part.difference(&second));
     assert_eq!(read.triangles(), part.triangles());
+}
+
+/// The top of a post cut away above a plane leaning off it: the post's wall
+/// meets that plane along an ellipse, an edge the cache must write as the
+/// kernel built it.
+#[test]
+fn a_body_cut_at_a_slant_comes_back_from_json_and_cuts_as_before() {
+    let post = raised(
+        &Body::default(),
+        disc(DVec2::new(10.0 / 3.0, 7.1), 6.1),
+        10.0,
+    );
+    let level = turned();
+    let (sin, cos) = 0.4f64.sin_cos();
+    let leaning = Frame {
+        origin: level.origin + DVec3::Z * 5.0,
+        u: level.u,
+        v: level.v * cos + DVec3::Z * sin,
+    };
+    let above = raised_on(
+        &post,
+        Contour::rectangle(DVec2::splat(-30.0), DVec2::splat(30.0)),
+        leaning,
+        10.0,
+    );
+    let part = post
+        .difference(&above)
+        .expect("the kernel cuts it at a slant");
+
+    let written = serde_json::to_string(&part).expect("a body writes");
+    let read: Body = serde_json::from_str(&written).expect("and reads back");
+
+    assert_eq!(read, part);
+    let bore = raised(&part, disc(DVec2::new(2.0, 13.0 / 7.0 + 4.0), 1.3), 10.0);
+    assert_eq!(read.difference(&bore), part.difference(&bore));
+    assert_eq!(read.triangles(), part.triangles());
+    assert!(part.is_exact(), "the post stays exact");
 }

@@ -20,5 +20,5 @@ mod sweep;
 pub mod turning;
 
 pub use body::{Body, FaceHit, FacePlane};
-pub use brep::Declined;
+pub use brep::{Declined, Lean, Unstable};
 pub use sweep::Loop;

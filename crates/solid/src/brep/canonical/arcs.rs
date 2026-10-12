@@ -70,7 +70,10 @@ fn beside(curve: &Curve, [from, to]: [f64; 2], point: DVec3) -> f64 {
 /// and only the ends count. From a line in its plane, a point of a circle
 /// runs away as a cosine of its angle, turning where the radius stands
 /// square to the line; from a circle in its plane, where the radius runs
-/// through the other centre. Anything else is sampled.
+/// through the other centre. Anything else is sampled; a conic's middle is
+/// always among its places, and from its chord, the line between its two
+/// corners, a conic parts most at the middle of its stretch, its parameter
+/// an affine image of the circle's, the parabola's or the hyperbola's own.
 fn turning(one: &Curve, from: f64, to: f64, other: &Curve) -> Vec<f64> {
     let mut found = vec![from, to];
     let phase = match (one, other) {

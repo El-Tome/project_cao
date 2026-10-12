@@ -13,6 +13,15 @@
 //!   the kernel handed back a body built anew —
 //!   `a_cut_that_misses_the_exact_matter_says_it_removed_nothing`
 //!
+//! Closes #552.
+//! - a step the kernel built at a lean it reads unstably says so once applied,
+//!   with the lean, rather than nothing —
+//!   `an_extrusion_built_at_an_unstable_lean_says_so_once_applied`
+//! - a step it declined says it was declined, as before — no test: a decline
+//!   hands back no body, so no note, and
+//!   `an_extrusion_the_kernel_declines_says_so_rather_than_that_it_made_nothing`
+//!   holds the sentence
+//!
 //! Since #533 an area across its axis is turned on both sides, so a revolution
 //! that changes nothing no longer blames the axis —
 //! `a_revolution_across_its_axis_makes_matter_and_has_nothing_to_say`,
@@ -131,11 +140,22 @@ fn a_distance_that_does_not_read_says_why_and_is_not_ready() {
     assert!(!extrusion.is_ready(&variables));
 }
 
-/// The square raised 10 into a block, then a circle on a plane tilted 30°
-/// about X standing over the block's top: raised down its normal, the
-/// cylinder meets that top along an ellipse the exact kernel does not draw.
-fn a_block_under_a_slanted_circle() -> PartDocument {
-    let mut document = a_part_with_a_square();
+/// A post Ø8 raised 10 about the origin, and over it a circle on a plane
+/// tilted 30° about X: raised down, its wall crosses the post's at a skew
+/// angle, which the exact kernel does not build.
+fn a_post_under_a_slanted_circle() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 4.0,
+        rim: Vec::new(),
+        construction: false,
+    });
     document.apply(Operation::Extrude {
         sketch: 0,
         areas: document.areas_at(0, &[DVec2::ZERO]),
@@ -164,7 +184,7 @@ fn a_block_under_a_slanted_circle() -> PartDocument {
 #[test]
 fn an_extrusion_the_kernel_declines_says_so_rather_than_that_it_made_nothing() {
     let lang = Catalogue::french();
-    let mut document = a_block_under_a_slanted_circle();
+    let mut document = a_post_under_a_slanted_circle();
     let mut extrusion = ExtrusionState::default();
     extrusion.offer(1);
     extrusion.picks = vec![DVec2::ZERO];
@@ -248,5 +268,70 @@ fn a_revolution_that_changes_nothing_says_so_without_blaming_the_axis() {
     assert!(
         !said.contains("axe"),
         "an area across its axis is turned, so the axis is no reason: {said}",
+    );
+}
+
+/// A shaft Ø20 raised 30 on XY, and on XZ a rectangle from (−20, 0) to
+/// (20, 40) whose foot lies on the sketch's horizontal axis.
+fn a_shaft_and_a_rectangle_standing_on_its_axis() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 10.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::ZERO]),
+        distance: 30.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XZ,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::new(-20.0, 0.0)),
+        opposite: PointRef::New(DVec2::new(20.0, 40.0)),
+        construction: false,
+    });
+    document
+}
+
+#[test]
+fn an_extrusion_built_at_an_unstable_lean_says_so_once_applied() {
+    let lang = Catalogue::french();
+    let mut document = a_shaft_and_a_rectangle_standing_on_its_axis();
+    let before = document.body().volume();
+    let mut extrusion = ExtrusionState::default();
+    extrusion.offer(1);
+    extrusion.shape = Shape::Revolution;
+    extrusion.axis = RevolutionAxis::Sketch(SketchAxis::U);
+    extrusion.angle_input = "0.01".to_string();
+    extrusion.picks = vec![DVec2::new(0.0, 20.0)];
+    extrusion.arm(ExtrusionMode::Cut);
+    let mut notice = None;
+
+    assert!(apply_extrusion(
+        &mut document,
+        &mut extrusion,
+        &mut notice,
+        &lang
+    ));
+
+    assert_eq!(
+        notice,
+        Some(lang.t_with("extrusion.unstable_along", &[("angle", "0.01")])),
+    );
+    assert!(
+        document.body().volume() < before,
+        "the slice is taken out all the same"
     );
 }

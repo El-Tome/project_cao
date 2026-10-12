@@ -90,7 +90,7 @@ pub(super) fn stretches(trace: &Trace, periodic: bool) -> Vec<Stretch> {
             cuts.sort_by(f64::total_cmp);
             cuts
         }
-        Trace::Graph { .. } => sampled(trace, periodic),
+        Trace::Graph { .. } | Trace::Conic { .. } => sampled(trace, periodic),
     };
     let bounds: Vec<f64> = std::iter::once(0.0)
         .chain(cuts)
@@ -107,20 +107,28 @@ pub(super) fn stretches(trace: &Trace, periodic: bool) -> Vec<Stretch> {
 }
 
 /// Where any trace turns back in its first parameter, found between samples,
-/// and on a cylinder where it has gone a quarter turn since the last cut.
+/// and on a cylinder where it has gone a quarter turn since the last cut. A
+/// sample where the pace rounds to nought is passed over, the turn sought
+/// between the samples either side of it: an ellipse anchored at a vertex
+/// turns back exactly on one.
 pub(super) fn sampled(trace: &Trace, periodic: bool) -> Vec<f64> {
     const SAMPLES: usize = 64;
     let pace = |u: f64| trace.at(u)[1].x;
     let place = |u: f64| trace.at(u)[0].x;
     let mut turns = Vec::new();
-    for sample in 0..SAMPLES {
-        let (low, high) = (
-            sample as f64 / SAMPLES as f64,
-            (sample + 1) as f64 / SAMPLES as f64,
-        );
-        if pace(low) * pace(high) < 0.0 {
-            turns.push(bisect(pace, low, high));
+    let mut last: Option<(f64, f64)> = None;
+    for sample in 0..=SAMPLES {
+        let at = sample as f64 / SAMPLES as f64;
+        let here = pace(at);
+        if here == 0.0 {
+            continue;
         }
+        if let Some((before, paced)) = last
+            && paced * here < 0.0
+        {
+            turns.push(bisect(pace, before, at));
+        }
+        last = Some((at, here));
     }
     if !periodic {
         return turns;
@@ -166,7 +174,7 @@ fn height(stretch: &Stretch, target: f64) -> f64 {
             let sine = ((1.0 - cosine) * (1.0 + cosine)).sqrt();
             center.y + radius * sine.copysign(middle.sin())
         }
-        Trace::Graph { .. } => bisected(stretch, target),
+        Trace::Graph { .. } | Trace::Conic { .. } => bisected(stretch, target),
     }
 }
 

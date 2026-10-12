@@ -11,7 +11,9 @@
 //! corner on two surfaces, one from each, whose curves all stand further
 //! than the tolerance from it: each within the tolerance of the other, the
 //! two corners would still not be within it of one place on all their
-//! surfaces.
+//! surfaces. A corner found along a ruling through a cone's apex is on the
+//! cone only where it stands on its own nappe: past the apex, the ruling is
+//! the line of the curve's other surfaces alone.
 
 use std::collections::BTreeSet;
 
@@ -26,6 +28,10 @@ pub(in crate::brep) struct Corner {
     pub point: DVec3,
     pub surfaces: BTreeSet<SurfaceId>,
     pub curves: BTreeSet<usize>,
+    /// For an operand's own corner, the surfaces its operand built it on:
+    /// on those planes alone, it stands where that operand decided, not
+    /// where they meet.
+    pub built: Option<Vec<SurfaceId>>,
 }
 
 pub(in crate::brep) struct Pool {
@@ -56,13 +62,50 @@ impl Pool {
         curves: impl IntoIterator<Item = usize>,
         registry: &Registry,
     ) -> usize {
+        self.added(point, surfaces, curves, registry, false)
+    }
+
+    /// As `add`, for an operand's own corner on the surfaces its operand
+    /// built it on, none taken for another nor moved: on no plane but those,
+    /// it stands where its operand put it. That operand decided it, at its
+    /// own tolerance, on every surface it then lay on: a cut a hair from a
+    /// block's edge left the edge's corner on the cut's plane within the
+    /// tolerance, though the cut, the floor and a side meet twice the
+    /// tolerance beyond it, and the end face it was decided on is gone. Moved
+    /// to where those three meet, it left the edge it ends, laid where the
+    /// operand built it, that far off (5520107844).
+    pub fn add_built(
+        &mut self,
+        point: DVec3,
+        surfaces: impl IntoIterator<Item = SurfaceId>,
+        curves: impl IntoIterator<Item = usize>,
+        registry: &Registry,
+    ) -> usize {
+        self.added(point, surfaces, curves, registry, true)
+    }
+
+    fn added(
+        &mut self,
+        point: DVec3,
+        surfaces: impl IntoIterator<Item = SurfaceId>,
+        curves: impl IntoIterator<Item = usize>,
+        registry: &Registry,
+        built: bool,
+    ) -> usize {
         let surfaces: BTreeSet<SurfaceId> = surfaces.into_iter().collect();
         let curves: BTreeSet<usize> = curves.into_iter().collect();
-        let found_on = on(&surfaces, &curves, registry);
-        let here = standing(point, &found_on, registry, self.eps);
+        let found_on = on(&surfaces, &curves, point, registry, self.eps);
+        let built = built.then(|| surfaces.iter().copied().collect::<Vec<_>>());
+        let here = placed(point, built.as_deref(), &found_on, registry, self.eps);
         let found = self.corners.iter().position(|corner| {
-            let known = on(&corner.surfaces, &corner.curves, registry);
-            let there = standing(corner.point, &known, registry, self.eps);
+            let known = on(
+                &corner.surfaces,
+                &corner.curves,
+                corner.point,
+                registry,
+                self.eps,
+            );
+            let there = corner.standing(&known, registry, self.eps);
             (there.distance(here) <= self.eps
                 && !parted(there, &known, &found_on, registry, self.eps)
                 || registry.planes.fix_a_place(&known, &found_on))
@@ -73,6 +116,7 @@ impl Pool {
                 point,
                 surfaces: BTreeSet::new(),
                 curves: BTreeSet::new(),
+                built,
             });
             self.corners.len() - 1
         });
@@ -83,9 +127,10 @@ impl Pool {
     }
 
     /// Every corner's support: the surfaces it was found on, those of the
-    /// curves it was found along, and those of every curve it lies on as
-    /// `lies_on` reads it, until none is added — a corner found on two of the
-    /// three surfaces a line lies on lies on the third.
+    /// curves it was found along, those of every curve it lies on as
+    /// `lies_on` reads it, and those decided to touch one of them at a point
+    /// it stands on, until none is added — a corner found on two of the
+    /// three surfaces a line lies on lies on the third (5544320693).
     pub fn supports(&self, registry: &Registry) -> Vec<Vec<SurfaceId>> {
         let mut supports: Vec<BTreeSet<SurfaceId>> = self
             .corners
@@ -93,7 +138,12 @@ impl Pool {
             .map(|corner| {
                 let mut support = corner.surfaces.clone();
                 for curve in &corner.curves {
-                    support.extend(registry.list[*curve].support.iter().copied());
+                    support.extend(on_the_nappe(
+                        &registry.list[*curve].support,
+                        corner.point,
+                        registry,
+                        self.eps,
+                    ));
                 }
                 support
             })
@@ -101,18 +151,20 @@ impl Pool {
         loop {
             let mut grown = false;
             for (corner, support) in self.corners.iter().zip(&mut supports) {
+                let touched = registry.apart.touching(support, corner.point, self.eps);
+                grown |= !touched.is_empty();
+                support.extend(touched);
                 for (rank, known) in registry.list.iter().enumerate() {
                     let sorted: Vec<SurfaceId> = support.iter().copied().collect();
-                    if known
-                        .support
-                        .iter()
-                        .all(|surface| support.contains(surface))
+                    let standing: Vec<SurfaceId> =
+                        on_the_nappe(&known.support, corner.point, registry, self.eps).collect();
+                    if standing.iter().all(|surface| support.contains(surface))
                         || registry.apart.across(&known.support, &sorted)
                         || !lies_on(corner.point, &sorted, rank, registry, self.eps)
                     {
                         continue;
                     }
-                    support.extend(known.support.iter().copied());
+                    support.extend(standing);
                     grown = true;
                 }
             }
@@ -125,6 +177,30 @@ impl Pool {
             .map(|support| support.into_iter().collect())
             .collect()
     }
+}
+
+impl Corner {
+    /// Where the corner stands, given what it lies on ([`standing`]): where
+    /// its operand built it, for an operand's own.
+    pub fn standing(&self, support: &[SurfaceId], registry: &Registry, eps: f64) -> DVec3 {
+        placed(self.point, self.built.as_deref(), support, registry, eps)
+    }
+}
+
+/// The surfaces of a curve a corner on it lies on: all of them, but a cone
+/// the corner stands off the own nappe of — a line through the cone's apex
+/// runs on past it, and a corner there lies on the curve's other surfaces
+/// only.
+fn on_the_nappe(
+    surfaces: &[SurfaceId],
+    point: DVec3,
+    registry: &Registry,
+    eps: f64,
+) -> impl Iterator<Item = SurfaceId> {
+    surfaces
+        .iter()
+        .copied()
+        .filter(move |surface| !registry.apart.off_the_nappe(*surface, point, eps))
 }
 
 /// Where a corner stands: where three planes it lies on meet, when their
@@ -165,17 +241,53 @@ pub(in crate::brep) fn standing(
     }
 }
 
+/// Where a corner stands ([`standing`]), or, for an operand's own corner
+/// lying on no plane but those its operand `built` it on, on the line the
+/// two of them most across each other share, at its foot there, never moved
+/// to where a third crosses that line: its operand decided where. A plane
+/// of the other operand through the corner fixes its place anew, as it
+/// does for any corner it crosses: the place the boolean finds its other
+/// crossings at (5523006542).
+fn placed(
+    point: DVec3,
+    built: Option<&[SurfaceId]>,
+    support: &[SurfaceId],
+    registry: &Registry,
+    eps: f64,
+) -> DVec3 {
+    let own = |surface: &SurfaceId| {
+        !registry.planes.is_plane(*surface) || built.is_some_and(|built| built.contains(surface))
+    };
+    if built.is_none() || !support.iter().all(own) {
+        return standing(point, support, registry, eps);
+    }
+    let foot =
+        |(origin, direction): (DVec3, DVec3)| origin + direction * direction.dot(point - origin);
+    match registry.planes.line_across(support).map(foot) {
+        Some(place) if place.distance(point) > eps * ROUNDING => place,
+        _ => point,
+    }
+}
+
 /// Under this share of the tolerance, a corner is where its planes meet.
 const ROUNDING: f64 = 1e-3;
 
 /// Whether a surface of `one` the other lacks and a surface of `other` the
-/// first lacks cross along lines, none of them within `eps` of `point`. Two
-/// surfaces touching stand within `eps` of each other far from the line they
-/// touch along, and a place on both is not for that on it; nor is a place
-/// within `eps` of two cylinders meeting at a grazing angle near the curve
-/// they meet along. Two walls decided to cross at a grazing angle are read
-/// as two touching are: a corner one of them carries near their crossing,
-/// and the node a band puts on the other there, are one corner on both.
+/// first lacks cross along lines or a conic, none of them within `eps` of
+/// `point`. Two surfaces touching stand within `eps` of each other far from
+/// the line they touch along, and a place on both is not for that on it; nor
+/// is a place within `eps` of two cylinders meeting at a grazing angle near
+/// the curve they meet along, nor of a plane and a wall cutting a conic at a
+/// grazing angle near it. Two walls decided to cross at a grazing angle are
+/// read as two touching are: a corner one of them carries near their
+/// crossing, and the node a band puts on the other there, are one corner on
+/// both. Nor are two planes decided to graze: within the tolerance of each
+/// other wherever their faces may meet, far from the line they cross along
+/// too, a place on one within it of the other is on both (5520121880). Nor
+/// two too near parallel to fix that line where the place stands within
+/// rounding of both: the line is fixed only to that rounding over the sine
+/// of their angle, and the place is on it however far from it the line was
+/// computed (5542123080).
 fn parted(
     point: DVec3,
     one: &[SurfaceId],
@@ -192,11 +304,15 @@ fn parted(
     let [first, second] = [only(one, other), only(other, one)];
     first.iter().any(|&a| {
         second.iter().any(|&b| {
-            if registry.apart.touch(a, b) || registry.apart.graze(a, b) {
+            if registry.apart.touch(a, b)
+                || registry.apart.graze(a, b)
+                || registry.planes.graze(a, b)
+                || registry.planes.meet_at(a, b, point, eps * ROUNDING)
+            {
                 return false;
             }
             let mut shared = registry.list.iter().filter(|known| {
-                matches!(known.curve, Curve::Line(_))
+                matches!(known.curve, Curve::Line(_) | Curve::Conic(_))
                     && known.support.binary_search(&a).is_ok()
                     && known.support.binary_search(&b).is_ok()
             });
@@ -211,15 +327,23 @@ fn parted(
 }
 
 /// The surfaces a place was found on and those of the curves it was found
-/// along, sorted.
+/// along it stands on, sorted: not a cone it stands off the own nappe of,
+/// past the apex of a ruling it was found along ([`on_the_nappe`]).
 fn on(
     surfaces: &BTreeSet<SurfaceId>,
     curves: &BTreeSet<usize>,
+    point: DVec3,
     registry: &Registry,
+    eps: f64,
 ) -> Vec<SurfaceId> {
     let mut on = surfaces.clone();
     for curve in curves {
-        on.extend(registry.list[*curve].support.iter().copied());
+        on.extend(on_the_nappe(
+            &registry.list[*curve].support,
+            point,
+            registry,
+            eps,
+        ));
     }
     on.into_iter().collect()
 }
@@ -237,7 +361,11 @@ fn on(
 /// corner lies on it where it stands within the tolerance of it. Nor is the
 /// line two surfaces touch along: a corner lies on it only within the
 /// tolerance of it and of both surfaces. And no corner lies on a curve one of
-/// whose surfaces is decided apart from one of the corner's (decision 5).
+/// whose surfaces is decided apart from one of the corner's (decision 5),
+/// but a cone the corner stands off the own nappe of: a line through its
+/// apex — the ruling a plane touches it along, which a flat face holding
+/// the axis carries too — runs on past the apex, where a surface apart from
+/// the cone may well cross it.
 pub(in crate::brep) fn lies_on(
     point: DVec3,
     support: &[SurfaceId],
@@ -246,7 +374,8 @@ pub(in crate::brep) fn lies_on(
     eps: f64,
 ) -> bool {
     let own = &registry.list[curve];
-    if registry.apart.across(&own.support, support) || distance(&own.curve, point) > eps {
+    let standing: Vec<SurfaceId> = on_the_nappe(&own.support, point, registry, eps).collect();
+    if registry.apart.across(&standing, support) || distance(&own.curve, point) > eps {
         return false;
     }
     let shared: Vec<SurfaceId> = own

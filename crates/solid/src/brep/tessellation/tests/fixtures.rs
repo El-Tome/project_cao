@@ -13,6 +13,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
+use crate::brep::conic::{Conic, Round};
 use crate::brep::curve::{Circle, Curve, Line, Meet};
 use crate::brep::meet::Meeting;
 use crate::brep::scale::Scale;
@@ -44,12 +45,13 @@ impl Build {
                 faces: Vec::new(),
                 scale: Scale::of(1.0),
                 arrivals: Vec::new(),
+                unstable: None,
             },
             lines: BTreeMap::new(),
         }
     }
 
-    fn surface(&mut self, surface: Surface) -> SurfaceId {
+    pub(crate) fn surface(&mut self, surface: Surface) -> SurfaceId {
         self.body.surfaces.push(surface);
         SurfaceId(self.body.surfaces.len() as u32 - 1)
     }
@@ -73,7 +75,13 @@ impl Build {
         VertexId(self.body.vertices.len() as u32 - 1)
     }
 
-    fn edge(&mut self, curve: Curve, ends: Option<[VertexId; 2]>, from: f64, to: f64) -> EdgeId {
+    pub(crate) fn edge(
+        &mut self,
+        curve: Curve,
+        ends: Option<[VertexId; 2]>,
+        from: f64,
+        to: f64,
+    ) -> EdgeId {
         self.body.curves.push(curve);
         let curve = CurveId(self.body.curves.len() as u32 - 1);
         self.body.edges.push(Edge {
@@ -197,6 +205,33 @@ impl Build {
         to: f64,
     ) -> EdgeId {
         self.edge(Curve::Meet(meet), ends, from, to)
+    }
+
+    /// The conics a plane and a wall of the body cut, as the kernel builds
+    /// them within the tolerance of `reach`.
+    pub(crate) fn conic(&self, plane: SurfaceId, wall: SurfaceId, reach: f64) -> Vec<Conic> {
+        let Surface::Plane(plane) = *self.body.surface(plane) else {
+            panic!("a conic is cut by a plane");
+        };
+        let round = match *self.body.surface(wall) {
+            Surface::Cylinder(cylinder) => Round::Cylinder(cylinder),
+            Surface::Cone(cone) => Round::Cone(cone),
+            Surface::Plane(_) => panic!("a conic is cut on a wall"),
+        };
+        Conic::cut(&plane, &round, Scale::of(reach))
+    }
+
+    /// A stretch of a conic from parameter `from` up to `to`: a whole
+    /// ellipse round its period with no vertex, or between two vertices
+    /// standing where it passes them.
+    pub(crate) fn conic_edge(
+        &mut self,
+        conic: Conic,
+        ends: Option<[VertexId; 2]>,
+        from: f64,
+        to: f64,
+    ) -> EdgeId {
+        self.edge(Curve::Conic(conic), ends, from, to)
     }
 
     /// One whole loop of the curve two perpendicular cylinders meet along,
@@ -359,6 +394,31 @@ fn stock_in(build: &mut Build) -> (FaceId, FaceId) {
 pub(crate) fn stock() -> Body {
     let mut build = Build::new();
     stock_in(&mut build);
+    build.finish(STOCK_RADIUS)
+}
+
+/// The stock cut by a plane at a slant through the middle of its top,
+/// leaning along X by `lean`: a wall going all the way round between a ring
+/// and the ellipse the plane cuts, neither with a vertex.
+pub(crate) fn stock_cut_at_a_slant(lean: f64) -> Body {
+    let mut build = Build::new();
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, STOCK_RADIUS);
+    let low = build.circle(wall, 0.0, None);
+    let (top, top_flipped) = build.plane(DVec3::new(0.0, 0.0, HEIGHT), DVec3::new(lean, 0.0, 1.0));
+    let (bottom, bottom_flipped) = build.plane(DVec3::ZERO, DVec3::NEG_Z);
+    let [ellipse] = build.conic(top, wall, STOCK_RADIUS)[..] else {
+        panic!("a plane at a slant cuts a shaft along one ellipse");
+    };
+    let period = ellipse.period().expect("an ellipse closes");
+    let high = build.conic_edge(ellipse, None, 0.0, period);
+    let use_of = |edge, forward| Coedge { edge, forward };
+    build.face(
+        wall,
+        false,
+        vec![vec![use_of(low, true)], vec![use_of(high, false)]],
+    );
+    build.face(top, top_flipped, vec![vec![use_of(high, true)]]);
+    build.face(bottom, bottom_flipped, vec![vec![use_of(low, false)]]);
     build.finish(STOCK_RADIUS)
 }
 

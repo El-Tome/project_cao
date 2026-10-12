@@ -137,12 +137,15 @@ impl Plane {
                 let mut simpler = vec![Plane::Xy(origin.z)];
                 for axis in 0..3 {
                     if turn[axis] != 0.0 {
-                        let mut straighter = turn;
-                        straighter[axis] = 0.0;
-                        simpler.push(Plane::Tilted {
-                            origin,
-                            turn: straighter,
-                        });
+                        for straight in [0.0, rounded(turn[axis], 15.0), rounded(turn[axis], 45.0)]
+                        {
+                            let mut straighter = turn;
+                            straighter[axis] = straight;
+                            simpler.push(Plane::Tilted {
+                                origin,
+                                turn: straighter,
+                            });
+                        }
                     }
                 }
                 let rounded_origin = DVec3::new(

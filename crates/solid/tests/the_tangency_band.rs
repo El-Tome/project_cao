@@ -1893,9 +1893,10 @@ fn seed_6521564_a_wall_touching_two_planes_a_hair_apart_from_one_side() {
 // A ruling of a perpendicular wall crossing exactly the line two parallel
 // walls touch along inside (1-12).
 
-/// Campaign 6a, the square draw: Answers.
+/// Campaign 6a, the square draw: Answers. Holds since #552's round 5: two
+/// arcs leaving a corner together are read first where each stands at one
+/// run, the same distance along both (5544515442).
 #[test]
-#[ignore = "band: two curves touching to the fourth order at a ruling crossing a line of touch (1-12)"]
 fn seed_6128869_a_square_ruling_crossing_the_line_two_walls_touch_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(5.0), Outline::circle([2.0, 1.0], 4.5), 8.0),
@@ -2528,8 +2529,12 @@ fn seed_3157560_a_boss_a_hair_across_a_bore_and_the_stock_it_touches_leaves_the_
 /// of fifty tolerances. The hair is twenty, which no line of measure can
 /// see the merge through, and thirty tolerances are left two walls again:
 /// the sliver is back.
+///
+/// Was ignored as: triangles: a step withheld where a wall faces another over
+/// part of its height (1-1, 1-3). Holds since a triangle passing through
+/// another face's beside a corner the two share is cut the other way, round 6
+/// of #552.
 #[test]
-#[ignore = "triangles: a step withheld where a wall faces another over part of its height (1-1, 1-3)"]
 fn seed_3202168_a_post_hollowed_a_hair_off_its_axis_below_a_lying_cut_stays_uncrossed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

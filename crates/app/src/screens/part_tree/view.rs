@@ -71,12 +71,14 @@ fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> TreeAct
 }
 
 fn made_of_matter(ui: &mut egui::Ui, body: &Body, lang: &Catalogue) {
-    let heading = match (body.declined, body.lost) {
-        (true, _) => lang.t_with("part_tree.declined", &[("name", &body.name)]),
-        (false, true) => lang.t_with("part_tree.lost", &[("name", &body.name)]),
-        (false, false) => body.name.clone(),
+    let name = &[("name", body.name.as_str())];
+    let heading = match (body.declined, body.lost, &body.unstable) {
+        (true, _, _) => lang.t_with("part_tree.declined", name),
+        (false, true, _) => lang.t_with("part_tree.lost", name),
+        (false, false, Some(_)) => lang.t_with("part_tree.unstable", name),
+        (false, false, None) => body.name.clone(),
     };
-    egui::CollapsingHeader::new(heading)
+    let header = egui::CollapsingHeader::new(heading)
         .id_salt(("body", body.step))
         .default_open(false)
         .show(ui, |ui| {
@@ -85,6 +87,9 @@ fn made_of_matter(ui: &mut egui::Ui, body: &Body, lang: &Catalogue) {
                 row(ui, area);
             }
         });
+    if let Some(said) = &body.unstable {
+        header.header_response.on_hover_text(said);
+    }
 }
 
 /// Draws one sketch, and says whether it was asked to be reopened.

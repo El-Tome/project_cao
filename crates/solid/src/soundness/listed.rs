@@ -9,8 +9,9 @@
 
 use std::f64::consts::TAU;
 
-use crate::brep::{Curve, Listing};
+use crate::brep::{Arm, Curve, Listing};
 
+mod conic;
 mod lying;
 mod nappe;
 mod turning;
@@ -217,6 +218,12 @@ fn whole(listing: &Listing, reach: f64) -> Result<(), Mislisted> {
             Curve::Meet(meet) => {
                 edge.from != edge.to
                     && (meet.point(edge.from) - meet.point(edge.to)).length() <= room
+            }
+            Curve::Conic(conic) => {
+                let period = TAU / conic.k.sqrt();
+                conic.arm == Arm::Whole
+                    && conic.k > 0.0
+                    && ((edge.to - edge.from).abs() - period).abs() <= ON * period
             }
         };
         if !round {

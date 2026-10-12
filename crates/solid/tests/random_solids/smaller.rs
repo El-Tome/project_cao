@@ -448,7 +448,7 @@ impl Outline {
                 }
             }
         }
-        simpler.retain(|candidate| candidate != self);
+        simpler.retain(|candidate| differs(candidate, self));
         simpler
     }
 
@@ -477,6 +477,101 @@ impl Outline {
             _ => None,
         }
     }
+}
+
+/// Whether two outlines differ by more than the rounding of the numbers
+/// they are drawn with. A semi-axis rebuilt from its direction and its
+/// length, or turned onto the step its angle already stands on, moves by a
+/// last bit or two; offered as simpler, two such changes would lead back
+/// and forth between the same two outlines for ever.
+fn differs(one: &Outline, other: &Outline) -> bool {
+    let near =
+        |one: f64, other: f64| (one - other).abs() <= 1e-12 * one.abs().max(other.abs()).max(1.0);
+    let near_pair = |one: DVec2, other: DVec2| near(one.x, other.x) && near(one.y, other.y);
+    let same = match (one, other) {
+        (
+            Outline::Ellipse {
+                center,
+                first,
+                second,
+                from,
+            },
+            Outline::Ellipse {
+                center: other_center,
+                first: other_first,
+                second: other_second,
+                from: other_from,
+            },
+        ) => {
+            near_pair(*center, *other_center)
+                && near_pair(*first, *other_first)
+                && near(*second, *other_second)
+                && near(*from, *other_from)
+        }
+        (
+            Outline::Chorded {
+                center,
+                first,
+                second,
+                arcs,
+            },
+            Outline::Chorded {
+                center: other_center,
+                first: other_first,
+                second: other_second,
+                arcs: other_arcs,
+            },
+        ) => {
+            near_pair(*center, *other_center)
+                && near_pair(*first, *other_first)
+                && near(*second, *other_second)
+                && arcs.len() == other_arcs.len()
+                && arcs
+                    .iter()
+                    .zip(other_arcs)
+                    .all(|(arc, other)| near(arc[0], other[0]) && near(arc[1], other[1]))
+        }
+        (
+            Outline::OvalSlot {
+                from,
+                to,
+                across,
+                along,
+            },
+            Outline::OvalSlot {
+                from: other_from,
+                to: other_to,
+                across: other_across,
+                along: other_along,
+            },
+        ) => {
+            near_pair(*from, *other_from)
+                && near_pair(*to, *other_to)
+                && near(*across, *other_across)
+                && near(*along, *other_along)
+        }
+        (
+            Outline::OvalRing {
+                center,
+                first,
+                second,
+                hole,
+            },
+            Outline::OvalRing {
+                center: other_center,
+                first: other_first,
+                second: other_second,
+                hole: other_hole,
+            },
+        ) => {
+            near_pair(*center, *other_center)
+                && near_pair(*first, *other_first)
+                && near(*second, *other_second)
+                && near_pair(*hole, *other_hole)
+        }
+        _ => one == other,
+    };
+    !same
 }
 
 impl Axis {

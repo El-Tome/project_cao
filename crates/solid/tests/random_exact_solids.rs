@@ -2012,6 +2012,100 @@ fn the_flats_of_an_outline_an_ellipse_bounds_enclose_the_polygon_its_places_are_
     }
 }
 
+/// Places along the outline and the holes an outline an ellipse bounds is
+/// handed over as, close enough together that, from a place a tenth of a
+/// unit or more from the wall, the nearest of them stands under a
+/// ten-thousandth further than the wall itself.
+fn walls_of(outline: &Outline) -> Vec<DVec2> {
+    let (contour, holes) = outline
+        .oval_contours()
+        .expect("an outline an ellipse bounds");
+    std::iter::once(&contour)
+        .chain(&holes)
+        .flat_map(|contour| {
+            let count = contour.corners.len();
+            (0..count).flat_map(move |index| {
+                let corner = contour.corners[index];
+                let next = contour.corners[(index + 1) % count];
+                let steps = 1000;
+                (0..steps).map(move |step| {
+                    let share = step as f64 / steps as f64;
+                    match contour.runs[index] {
+                        Run::Straight => corner + (next - corner) * share,
+                        Run::Round { center, turn } => {
+                            center + DVec2::from_angle(turn * share).rotate(corner - center)
+                        }
+                        Run::Oval {
+                            center,
+                            first,
+                            second,
+                            turn,
+                        } => {
+                            let oval = Oval::new(center, first, second);
+                            let out = corner - center;
+                            let along = first.perp().normalize() * second;
+                            let start = DVec2::new(
+                                out.dot(first) / first.length_squared(),
+                                out.dot(along) / (second * second),
+                            )
+                            .to_angle();
+                            oval.at(start + turn * share)
+                        }
+                    }
+                })
+            })
+        })
+        .collect()
+}
+
+#[test]
+fn a_slot_with_elliptic_ends_or_an_elliptic_ring_shrunk_holds_no_place_nearer_its_wall_than_it_is_shrunk_by()
+ {
+    let outlines = [
+        Outline::oval_slot([0.0, 0.0], [4.0, 0.0], 2.0, 0.5),
+        Outline::oval_slot([0.0, 0.0], [3.0, 4.0], 1.5, 0.25),
+        Outline::oval_slot([1.0, 1.0], [1.0, 3.0], 0.5, 2.0),
+        Outline::oval_ring([0.0, 0.0], [4.0, 0.0], 1.0, [1.0, 0.9]),
+        Outline::oval_ring([1.0, -1.0], [2.0, 2.0], 1.2, [2.0, 1.0]),
+        Outline::oval_ring([0.0, 0.0], [0.0, 3.0], 2.0, [1.9, 1.9]),
+    ];
+    let held: usize = random_solids::on_every_core(&outlines, |outline| {
+        let walls = walls_of(outline);
+        let leaf = Leaf::prism(Plane::xy(0.0), outline.clone(), 10.0);
+        let mut held = 0;
+        for by in [0.1, 0.4] {
+            for way in [DVec3::X, DVec3::new(0.6, 0.8, 0.0)] {
+                for across in -30..=30 {
+                    let origin =
+                        way.cross(DVec3::Z) * (across as f64 * 0.2) + DVec3::Z * 5.0 - way * 20.0;
+                    let stretches = leaf.along_grown(origin, way, -by).expect("a prism");
+                    for stretch in stretches {
+                        for step in 0..=20 {
+                            let at = stretch.from.at
+                                + (stretch.to.at - stretch.from.at) * step as f64 / 20.0;
+                            let place = origin + way * at;
+                            let place = DVec2::new(place.x, place.y);
+                            let nearest = walls
+                                .iter()
+                                .map(|wall| wall.distance(place))
+                                .fold(f64::INFINITY, f64::min);
+                            held += 1;
+                            assert!(
+                                nearest >= by - 1e-3,
+                                "{outline} shrunk by {by} holds {place}, {nearest} from its wall"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        held
+    })
+    .into_iter()
+    .sum();
+    assert!(held > 10_000, "{held} places held");
+}
+
 /// Prisms of every outline an ellipse bounds, on every kind of plane, drawn
 /// from a seed of their own: axes on the plane's and turned, the first
 /// semi-axis the major or the minor, one trait or two, a slot either way, a
@@ -2174,14 +2268,15 @@ fn oval_wall_of(outline: &Outline, place: DVec2, by: f64, near: f64) -> Wall {
         } => {
             let way = (*to - *from).normalize();
             let (along, aside) = ((place - *from).dot(way), (place - *from).dot(way.perp()));
-            let length = from.distance(*to);
+            let trimmed = (-by).max(0.0);
+            let (start, end) = (trimmed, from.distance(*to) - trimmed);
             let side = aside.abs() - (across + by);
-            let band = if side >= -along && side >= along - length {
+            let band = if side >= start - along && side >= along - end {
                 (side, way.perp() * aside.signum(), false)
             } else {
-                ((-along).max(along - length), way, false)
+                ((start - along).max(along - end), way, false)
             };
-            let band = if *across + by <= 0.0 {
+            let band = if *across + by <= 0.0 || end <= start {
                 (f64::INFINITY, DVec2::ZERO, false)
             } else {
                 band
@@ -3287,6 +3382,51 @@ fn shrinking_any_drawn_ellipse_case_comes_to_an_end() {
 }
 
 #[test]
+fn shrinking_a_case_while_it_still_holds_an_ellipse_or_a_turned_one_comes_to_an_end() {
+    let holding: &dyn Fn(&Case) -> bool = &|case: &Case| case.leaves().any(elliptic);
+    let turned: &dyn Fn(&Case) -> bool = &|case: &Case| {
+        case.leaves().any(|leaf| {
+            outline_of(leaf)
+                .and_then(Outline::oval)
+                .is_some_and(|oval| oval.first.x != 0.0 && oval.first.y != 0.0)
+        })
+    };
+    let lone = |outline: Outline| Case::new(Leaf::prism(Plane::xy(0.0), outline, 4.0), vec![]);
+    let cases: Vec<Case> = ELLIPSE_DRAWS
+        .iter()
+        .flat_map(|(_, draw)| (0..40).map(draw))
+        .chain([
+            lone(Outline::ellipse(
+                [30.0, 35.0],
+                [10.396639796596714, 14.076933470747331],
+                25.000005,
+            )),
+            lone(Outline::ellipse([1.0, 2.0], [2.6, 1.5], 1.7)),
+        ])
+        .collect();
+    for (index, case) in cases.iter().enumerate() {
+        for (what, keeps) in [("an ellipse", holding), ("a turned ellipse", turned)] {
+            if !keeps(case) {
+                continue;
+            }
+            let mut rounds = 0;
+            let shrunk = shrink(case.clone(), Case::smaller, keeps, || {
+                rounds += 1;
+                rounds < 100_000
+            });
+            assert!(
+                rounds < 100_000,
+                "case {index}, kept holding {what}, was still shrinking: {shrunk}"
+            );
+            assert!(
+                shrunk.smaller().iter().all(|smaller| !keeps(smaller)),
+                "case {index}, kept holding {what}, stopped short: {shrunk}"
+            );
+        }
+    }
+}
+
+#[test]
 fn ellipse_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_arithmetic() {
     for (name, draw) in ELLIPSE_DRAWS {
         let seeds: Vec<u64> = (0..40).collect();
@@ -3683,11 +3823,6 @@ mod campaign {
         );
     }
 
-    /// How many of the cases each draw of ellipses gives the first 300
-    /// seeds the flats answer by their own rules, each of them asserted
-    /// answered by the arithmetic too: the arithmetic of ellipses held to
-    /// the flats before the exact kernel raises one (#571), the flats owing
-    /// the draws nothing.
     #[test]
     #[ignore = "a campaign, run by hand once: see the head of this file"]
     fn ellipse_cases_the_flats_answer_by_their_own_rules_on_300_seeds_keep_every_rule_held_to_the_arithmetic()

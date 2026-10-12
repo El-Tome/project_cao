@@ -19,7 +19,7 @@ use cao_solid::profile::{Contour, Run};
 use glam::{DVec2, DVec3};
 
 use super::Outline;
-use super::along::{Crossing, Seen, Stretch, clipped, far, meet, union};
+use super::along::{Crossing, Seen, Stretch, clipped, far, meet, outside, union};
 
 /// An ellipse of a plane: its centre, its first semi-axis as drawn, and the
 /// half-length of its second, a quarter turn counter-clockwise from the
@@ -399,7 +399,9 @@ impl Outline {
     /// The stretches of a line inside an outline an ellipse bounds, grown by
     /// `by` all round or shrunk when `by` is negative: a chorded ellipse
     /// held by the ellipse and every trait, each moved out by `by`; a slot
-    /// as the band between its centres and its two ends; a ring as its
+    /// as the band between its centres and its two ends, the band's own
+    /// ends drawn in as its sides are when it shrinks, since an end's wall
+    /// can bend away from a side faster than the band narrows; a ring as its
     /// outer ellipse less its hole, which shrinks as the ring grows. Nothing
     /// for any other outline.
     pub(super) fn oval_stretches(&self, seen: &Seen, by: f64) -> Option<Vec<Stretch>> {
@@ -430,36 +432,20 @@ impl Outline {
                     rise: seen.rise,
                     speed: seen.speed,
                 };
+                let trimmed = (-by).max(0.0);
                 let band = clipped(
                     &turned,
-                    DVec2::new(0.0, -across - by),
-                    DVec2::new(from.distance(*to), across + by),
+                    DVec2::new(trimmed, -across - by),
+                    DVec2::new(from.distance(*to) - trimmed, across + by),
                     Some(1),
                 );
                 let ends = self.ovals().into_iter().flat_map(|end| crossed(end, by));
                 union(band.into_iter().chain(ends).collect())
             }
-            Outline::OvalRing { .. } => {
-                let Some(&rim) = crossed(oval, by).first() else {
-                    return Some(Vec::new());
-                };
-                let Some(&bore) = crossed(self.oval_hole()?, -by).first() else {
-                    return Some(vec![rim]);
-                };
-                [
-                    Stretch {
-                        from: rim.from,
-                        to: bore.from,
-                    },
-                    Stretch {
-                        from: bore.to,
-                        to: rim.to,
-                    },
-                ]
-                .into_iter()
-                .filter(|stretch| stretch.from.at < stretch.to.at)
-                .collect()
-            }
+            Outline::OvalRing { .. } => meet(
+                &crossed(oval, by),
+                &outside(&crossed(self.oval_hole()?, -by)),
+            ),
             _ => return None,
         })
     }

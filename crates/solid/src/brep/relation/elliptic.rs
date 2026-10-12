@@ -62,15 +62,7 @@ pub(super) fn plane_and_elliptic(plane: &Plane, wall: &EllipticCylinder, scale: 
 }
 
 pub(super) fn walls(one: &EllipticCylinder, other: &EllipticCylinder, scale: Scale) -> Relation {
-    let eps = scale.eps();
-    let between = other.origin - one.origin;
-    let across = (between - one.axis * one.axis.dot(between)).length();
-    let alike = parallel(one.axis, other.axis, scale)
-        && across <= eps
-        && (one.major - other.major).abs() <= eps
-        && (one.minor - other.minor).abs() <= eps
-        && one.u.cross(other.u).length() * one.major <= eps;
-    if alike {
+    if parallel(one.axis, other.axis, scale) && one.within(other, scale.eps()) {
         Relation::Same { agree: true }
     } else {
         Relation::Unsupported

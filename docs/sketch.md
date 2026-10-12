@@ -1160,6 +1160,36 @@ round the curve — never on top of it nor made one with it, so as never to read
 as a corner it is not. Where the point lands is all that is new: the curve
 still holds it on the whole of itself afterwards, an arc on its whole circle.
 
+**A direction comes by turning whole** (#532). An angle typed between two
+traits, or « Parallèle » or « Perpendiculaire » laid between them, turns the
+shape of the second as a hand would, before anything else moves: no size nobody
+typed changes on the way. A rule turns it the short way, an angle on the side
+of the first it stands on now.
+
+The shape is the trait and whatever hangs on it: what is drawn joined to it,
+what touches it, what is held on it. Never what it is held on: a rectangle
+standing on the side of a plate turns about its foot, and the plate stays. It
+turns about the one place it hangs at:
+
+- on the first, the corner they share or the foot of a T;
+- on something that does not turn, a point held there — on an axis, on a trait
+  of another shape — or a trait whose direction is given, by « Horizontale »,
+  « Verticale » or an angle to an axis typed;
+- on the origin, or a fixed point.
+
+Hanging nowhere, it turns about where the two cross, and failing that about its
+point nearest the origin, as a value typed ranks them (#455). An angle typed
+against a sketch axis turns the trait's shape the same way, as « Parallèle » and
+« Perpendiculaire » to an axis already did (#482).
+
+Turned, the shape is held where it turned while the drawing settles. Where that
+cannot land — a corner whose height is typed has to slide — it is let go of
+and slides. Where turning cannot land at all, the drawing settles as it lay,
+the first one clicked held, as before. A shape held at two places cannot turn
+whole: it gives as the order above says, a size nobody typed before a fixed
+point. Either way it is never blown up — a free rectangle once grew past two
+thousand units for 90° typed against an axis.
+
 The first one clicked is held only while the rule lands. Afterwards the two are
 as free as the rule leaves them: a length typed later on the second of two
 equal traits changes both, rather than being refused. The rule keeps the order
@@ -1202,6 +1232,13 @@ when none decides it.
 | Type a value | Four traits made square, only the width typed | The side nearest the origin stays, and the height with it | Same (#455); both sides moved, and the height changed |
 | Type a value | Four traits from a corner held on V, nothing square, the left side typed, then the right one | The far corner of the right side alone: the held corner, the left side and the bottom stay | Same (#530); the left side grew with the right one and was brought back by sliding the corner along V, the bottom leaning and growing — and before #547, by turning the corner off V while the value answered exact |
 | Type a value | An angle between two free traits | The second trait clicked turns, the first stays | Same (#451) |
+| Type a value | A free rectangle leaning, an angle against an axis, its sizes typed or not | It turns whole about its corner nearest the origin | Same (#532); it slid, or it grew, past two thousand units at 90° |
+| Type a value | A rectangle held by its origin corner and a fixed corner, an angle against an axis, no size typed | It reshapes between the two while it can, square and no larger; past that the fixed corner gives and it turns whole | Same (#532) |
+| Type a value | A rectangle and a trait from one of its corners, the angle between them | The trait stays; the rectangle turns whole about the corner | Same (#532); the trait clicked first moved, and the rectangle grew |
+| Type a value | A rectangle and a trait apart, the angle between them | The trait stays; the rectangle turns whole about its corner nearest the origin | Same (#532); the rectangle slid, or grew |
+| Lay a rule | « Parallèle » or « Perpendiculaire » from a trait to a rectangle | The rectangle turns whole; the trait stays | Same (#532); the rectangle grew, past sixteen hundred units for a square, or the trait clicked first moved |
+| Type a value | A side rising from a base held level by « Horizontale », an angle against an axis | The side turns about its foot; the base stays | Same (#532) |
+| Lay a rule | A small rectangle standing on a side of a plate drawn from the origin, made parallel to a trait | It turns about its foot on the plate; the plate stays | Same (#532) |
 | Type a value | A shape squared by its rules, held by a single fixed point or corner of the part | Nothing turns | Same for a fixed point (#456); a corner of the part waits on #359 |
 | Lay a rule | Two free traits made square | The second clicked turns onto the first | Same (#451) |
 | Lay a rule | Two traits made equal | The second takes the first's length | Same |

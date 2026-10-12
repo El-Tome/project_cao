@@ -11,6 +11,7 @@
 
 use glam::DVec2;
 
+use super::settling::Landing;
 use super::{Element, LengthOutcome, PointId, Sketch};
 use crate::constraints::{Constraint, Dimension, DimensionTarget};
 use crate::erased::Erased;
@@ -108,7 +109,11 @@ impl Sketch {
             }
             self.give_back(before);
         }
-        self.land(Some(Element::Point(kept)), None, millimeters_per_unit)
+        self.land(
+            Some(Element::Point(kept)),
+            Landing::Nothing,
+            millimeters_per_unit,
+        )
     }
 
     /// The origin never moves, so it is always the one kept.

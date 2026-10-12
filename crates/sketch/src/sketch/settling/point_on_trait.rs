@@ -16,6 +16,7 @@
 use glam::DVec2;
 
 use super::super::{LengthOutcome, PointId, SegmentId, Sketch};
+use super::Landing;
 use super::point_on_curve::curve_element;
 use crate::constraints::Constraint;
 use crate::laid_from::LaidFrom;
@@ -268,7 +269,8 @@ impl Sketch {
         };
         let size_before = size(self);
         let still = self.drawing_size() * 1e-9;
-        let landed = self.land_held(Some(held), None, millimeters_per_unit) == LengthOutcome::Exact
+        let landed = self.land_held(Some(held), Landing::Nothing, millimeters_per_unit)
+            == LengthOutcome::Exact
             && self.lies_on(point, on)
             && (size(self) - size_before).abs() <= still
             && stays

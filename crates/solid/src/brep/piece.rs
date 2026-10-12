@@ -1,7 +1,10 @@
-//! A contour read into the pieces its walls stand on: one per line and one per
-//! circle, so that two runs on one line make one wall and a whole circle made
-//! of two halves makes a ring. Each piece carries the numbers of the runs it
-//! was read from, which name its wall.
+//! A contour read into the pieces its walls stand on: one per line, one per
+//! circle and one per ellipse, so that two runs on one line make one wall and
+//! a whole circle made of two halves makes a ring. Each piece carries the
+//! numbers of the runs it was read from, which name its wall.
+
+pub(super) mod oval;
+mod way;
 
 use std::f64::consts::TAU;
 
@@ -10,11 +13,12 @@ use glam::DVec2;
 use crate::brep::Declined;
 use crate::brep::topology::ascending;
 use crate::profile::{Contour, Run};
+pub(super) use way::{signed_area, turned};
 
 /// How many roundings of its radius a point of a circle carries once it is
 /// computed from a centre that far away: an arc so large that they reach the
 /// tolerance cannot keep its own points on its surface.
-const ROUNDINGS: f64 = 16.0;
+pub(super) const ROUNDINGS: f64 = 16.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum Piece {
@@ -31,6 +35,19 @@ pub(super) enum Piece {
         radius: f64,
         sweep: f64,
     },
+    /// `from` run round the ellipse about `center` by the eccentric angle
+    /// `sweep` lands on `to`: the ellipse whose first half-axis is `first`,
+    /// its direction and its length, and whose second reaches `second` a
+    /// quarter turn anticlockwise from it. A ring when the sweep is a whole
+    /// turn and the two are one corner.
+    Oval {
+        from: DVec2,
+        to: DVec2,
+        center: DVec2,
+        first: DVec2,
+        second: f64,
+        sweep: f64,
+    },
 }
 
 /// A piece, and the numbers of the walls of the runs merged into it,
@@ -41,41 +58,30 @@ pub(super) struct Named {
     pub numbers: Vec<u32>,
 }
 
-impl Named {
-    pub(super) fn mirrored(&self) -> Named {
-        Named {
-            piece: self.piece.mirrored(),
-            numbers: self.numbers.clone(),
-        }
-    }
-
-    fn reversed(&self) -> Named {
-        Named {
-            piece: self.piece.reversed(),
-            numbers: self.numbers.clone(),
-        }
-    }
-}
-
 impl Piece {
     pub(super) fn from(&self) -> DVec2 {
         match *self {
-            Piece::Straight { from, .. } | Piece::Arc { from, .. } => from,
+            Piece::Straight { from, .. } | Piece::Arc { from, .. } | Piece::Oval { from, .. } => {
+                from
+            }
         }
     }
 
     pub(super) fn to(&self) -> DVec2 {
         match *self {
-            Piece::Straight { to, .. } | Piece::Arc { to, .. } => to,
+            Piece::Straight { to, .. } | Piece::Arc { to, .. } | Piece::Oval { to, .. } => to,
         }
     }
 
     pub(super) fn is_ring(&self) -> bool {
-        matches!(*self, Piece::Arc { sweep, .. } if sweep.abs() == TAU)
+        matches!(
+            *self,
+            Piece::Arc { sweep, .. } | Piece::Oval { sweep, .. } if sweep.abs() == TAU
+        )
     }
 
-    /// Whether `corner` lies within `eps` of the line or the circle the piece
-    /// runs along.
+    /// Whether `corner` lies within `eps` of the line, the circle or the
+    /// ellipse the piece runs along.
     fn holds(&self, corner: DVec2, eps: f64) -> bool {
         match *self {
             Piece::Straight { from, to } => {
@@ -83,49 +89,12 @@ impl Piece {
                 along.perp_dot(corner - from).abs() <= eps * along.length()
             }
             Piece::Arc { center, radius, .. } => (corner.distance(center) - radius).abs() <= eps,
-        }
-    }
-
-    fn reversed(&self) -> Piece {
-        match *self {
-            Piece::Straight { from, to } => Piece::Straight { from: to, to: from },
-            Piece::Arc {
-                from,
-                to,
+            Piece::Oval {
                 center,
-                radius,
-                sweep,
-            } => Piece::Arc {
-                from: to,
-                to: from,
-                center,
-                radius,
-                sweep: -sweep,
-            },
-        }
-    }
-
-    /// The same piece seen in a mirror across the first axis.
-    pub(super) fn mirrored(&self) -> Piece {
-        let flip = |point: DVec2| DVec2::new(point.x, -point.y);
-        match *self {
-            Piece::Straight { from, to } => Piece::Straight {
-                from: flip(from),
-                to: flip(to),
-            },
-            Piece::Arc {
-                from,
-                to,
-                center,
-                radius,
-                sweep,
-            } => Piece::Arc {
-                from: flip(from),
-                to: flip(to),
-                center: flip(center),
-                radius,
-                sweep: -sweep,
-            },
+                first,
+                second,
+                ..
+            } => oval::off(center, first, second, corner) <= eps,
         }
     }
 }
@@ -236,7 +205,12 @@ fn read(from: DVec2, to: DVec2, run: Run, eps: f64) -> Result<Option<Piece>, Dec
                 sweep: turn,
             }))
         }
-        Run::Oval { .. } => Err(Declined::Unfinished),
+        Run::Oval {
+            center,
+            first,
+            second,
+            turn,
+        } => oval::read([from, to], center, (first, second), turn, eps).map(Some),
     }
 }
 
@@ -299,11 +273,13 @@ fn joined(first: &Piece, second: &Piece, eps: f64) -> Result<Option<Piece>, Decl
                 sweep: total,
             }))
         }
+        (Piece::Oval { .. }, Piece::Oval { .. }) => oval::joined(first, second, eps),
         _ => Ok(None),
     }
 }
 
-/// The merged pieces, a lone circle made a ring of exactly one turn.
+/// The merged pieces, a lone circle or ellipse made a ring of exactly one
+/// turn.
 fn closed(mut pieces: Vec<Named>, eps: f64) -> Result<Vec<Named>, Declined> {
     if let [
         Named {
@@ -313,6 +289,25 @@ fn closed(mut pieces: Vec<Named>, eps: f64) -> Result<Vec<Named>, Declined> {
     ] = pieces.as_mut_slice()
     {
         if *radius * (sweep.abs() - TAU).abs() > eps {
+            return Err(Declined::Profile);
+        }
+        *sweep = TAU.copysign(*sweep);
+        return Ok(pieces);
+    }
+    if let [
+        Named {
+            piece:
+                Piece::Oval {
+                    first,
+                    second,
+                    sweep,
+                    ..
+                },
+            ..
+        },
+    ] = pieces.as_mut_slice()
+    {
+        if first.length().max(*second) * (sweep.abs() - TAU).abs() > eps {
             return Err(Declined::Profile);
         }
         *sweep = TAU.copysign(*sweep);
@@ -341,30 +336,4 @@ pub(super) fn apart(contours: &[Vec<Named>], eps: f64) -> bool {
             .take_while(|other| other.x - corner.x <= eps)
             .all(|other| corner.distance(*other) > eps)
     })
-}
-
-/// The area a loop of pieces encloses, positive when it turns anticlockwise:
-/// the shoelace over the chords, and the segment each arc adds to its chord.
-pub(super) fn signed_area(pieces: &[Named]) -> f64 {
-    pieces
-        .iter()
-        .map(|Named { piece, .. }| {
-            let chord = piece.from().perp_dot(piece.to()) / 2.0;
-            match *piece {
-                Piece::Straight { .. } => chord,
-                Piece::Arc { radius, sweep, .. } => {
-                    chord + radius * radius * (sweep - sweep.sin()) / 2.0
-                }
-            }
-        })
-        .sum()
-}
-
-/// The pieces turned the way `anticlockwise` asks.
-pub(super) fn turned(pieces: Vec<Named>, anticlockwise: bool) -> Vec<Named> {
-    if (signed_area(&pieces) > 0.0) == anticlockwise {
-        pieces
-    } else {
-        pieces.iter().rev().map(Named::reversed).collect()
-    }
 }

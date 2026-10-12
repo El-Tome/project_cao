@@ -50,13 +50,31 @@ pub(super) fn unstable(operands: &Operands) -> Option<Unstable> {
     })
 }
 
-/// How a plane leans off a wall's axis, and by what sine; none for any
-/// other pair.
+/// Whether a plane and an elliptic wall, one of each operand, lean by a sine
+/// decision 11 would lay exactly or the notice would read: neither reads an
+/// elliptic wall yet (#571), so the pair is declined rather than built as
+/// drawn, its conic dividing by the lean.
+pub(super) fn unread(operands: &Operands, [one, other]: [SurfaceId; 2]) -> bool {
+    let list = &operands.surfaces.list;
+    let (plane, wall) = match (&list[one.0 as usize], &list[other.0 as usize]) {
+        (Surface::Plane(plane), Surface::Elliptic(wall))
+        | (Surface::Elliptic(wall), Surface::Plane(plane)) => (plane, wall),
+        _ => return false,
+    };
+    let Some(exactly) = laid_exactly(operands.bodies[1], operands.scale) else {
+        return false;
+    };
+    let (_, sine) = leaning(plane.normal, wall.axis);
+    !exactly(sine) && sine < UNSTABLE
+}
+
+/// How a plane leans off a circular wall's axis, and by what sine; none for
+/// any other pair.
 fn lean_of(one: &Surface, other: &Surface) -> Option<(Lean, f64)> {
     let axis = |wall: &Surface| match wall {
         Surface::Cylinder(cylinder) => Some(cylinder.axis),
         Surface::Cone(cone) => Some(cone.axis),
-        Surface::Plane(_) => None,
+        Surface::Plane(_) | Surface::Elliptic(_) => None,
     };
     match (one, other) {
         (Surface::Plane(plane), wall) | (wall, Surface::Plane(plane)) => {

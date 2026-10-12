@@ -74,7 +74,7 @@ fn holds_its_ruling(body: &Body, vertex: &Vertex, (_, cylinder): &Wall) -> bool 
         .filter_map(|id| body.surfaces.get(id.0 as usize))
         .any(|surface| match surface {
             Surface::Plane(plane) => plane.normal.dot(cylinder.axis).abs() <= Scale::RELATIVE,
-            Surface::Cylinder(_) | Surface::Cone(_) => false,
+            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => false,
         })
 }
 

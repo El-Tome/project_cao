@@ -43,6 +43,7 @@ pub(super) fn conic_and_surface(
     let wall = match conic.round {
         Round::Cylinder(cylinder) => Surface::Cylinder(cylinder),
         Round::Cone(cone) => Surface::Cone(cone),
+        Round::Elliptic(wall) => Surface::Elliptic(wall),
     };
     let own_plane = Surface::Plane(conic.plane);
     let (curves, across, along_a_touch) = match surface {
@@ -61,28 +62,30 @@ pub(super) fn conic_and_surface(
             | Relation::Ruling { .. }
             | Relation::Unsupported => return Crossings::Unsupported,
         },
-        Surface::Cylinder(_) | Surface::Cone(_) => match relation(&wall, surface, scale) {
-            Relation::Same { .. } => return Crossings::Along,
-            Relation::Lines(lines) => (lines.map(Curve::Line).to_vec(), own_plane, false),
-            Relation::Tangent(line) => (vec![Curve::Line(line)], own_plane, true),
-            Relation::Circle(circle) => (vec![Curve::Circle(circle)], own_plane, false),
-            Relation::Meet(meeting) => (
-                meeting
-                    .components
-                    .iter()
-                    .copied()
-                    .map(Curve::Meet)
-                    .collect(),
-                own_plane,
-                false,
-            ),
-            Relation::Apart | Relation::Apex(_) => (Vec::new(), own_plane, false),
-            Relation::Line(_)
-            | Relation::Rulings { .. }
-            | Relation::Conic(_)
-            | Relation::Ruling { .. }
-            | Relation::Unsupported => return Crossings::Unsupported,
-        },
+        Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+            match relation(&wall, surface, scale) {
+                Relation::Same { .. } => return Crossings::Along,
+                Relation::Lines(lines) => (lines.map(Curve::Line).to_vec(), own_plane, false),
+                Relation::Tangent(line) => (vec![Curve::Line(line)], own_plane, true),
+                Relation::Circle(circle) => (vec![Curve::Circle(circle)], own_plane, false),
+                Relation::Meet(meeting) => (
+                    meeting
+                        .components
+                        .iter()
+                        .copied()
+                        .map(Curve::Meet)
+                        .collect(),
+                    own_plane,
+                    false,
+                ),
+                Relation::Apart | Relation::Apex(_) => (Vec::new(), own_plane, false),
+                Relation::Line(_)
+                | Relation::Rulings { .. }
+                | Relation::Conic(_)
+                | Relation::Ruling { .. }
+                | Relation::Unsupported => return Crossings::Unsupported,
+            }
+        }
     };
     let mut kept = Vec::new();
     for curve in &curves {

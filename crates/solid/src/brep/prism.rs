@@ -1,16 +1,17 @@
 //! A profile raised along its plane's normal into a body.
 
+mod apart;
 mod corridor;
 mod touch;
 mod walls;
 
-use std::f64::consts::TAU;
+use std::f64::consts::{PI, TAU};
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use super::Declined;
 use super::curve::Circle;
-use super::piece::{self, Named};
+use super::piece::{self, Named, oval};
 use super::scale::Scale;
 use super::topology::{Body, turning_points};
 use crate::profile::{Contour, Frame, Run};
@@ -101,6 +102,7 @@ impl Body {
         if ring_in_a_loop
             || corridor::run_both_ways(&contours, eps)
             || corridor::needle(&contours, eps)
+            || apart::touches_another_loop(&contours, eps)
         {
             return Err(Declined::Profile);
         }
@@ -113,13 +115,23 @@ impl Body {
 }
 
 /// The largest coordinate the body will reach, at either end: its corners and
-/// the points where an arc turns back in a coordinate. Read exactly, so that
-/// the profile is decided at the tolerance of the body it makes.
+/// the points where an arc or an ellipse turns back in a coordinate. Read
+/// exactly, so that the profile is decided at the tolerance of the body it
+/// makes.
 fn reach(outline: &Contour, holes: &[Contour], frame: Frame, lift: DVec3) -> f64 {
     let mut points = Vec::new();
     for contour in std::iter::once(outline).chain(holes) {
         for (corner, run) in contour.corners.iter().zip(&contour.runs) {
             points.push(frame.at(*corner));
+            if let Run::Oval {
+                center,
+                first,
+                second,
+                turn,
+            } = *run
+            {
+                points.extend(oval_turning(frame, *corner, center, (first, second), turn));
+            }
             if let Run::Round { center, turn } = *run
                 && turn.abs() < TAU
             {
@@ -142,6 +154,37 @@ fn reach(outline: &Contour, holes: &[Contour], frame: Frame, lift: DVec3) -> f64
         .flat_map(|point| [*point, *point + lift])
         .map(|point| point.abs().max_element())
         .fold(0.0, f64::max)
+}
+
+/// The points of an oval run from `corner`, placed in `frame`, where a
+/// coordinate turns back: at most the whole ellipse's.
+fn oval_turning(
+    frame: Frame,
+    corner: DVec2,
+    center: DVec2,
+    axes: (DVec2, f64),
+    turn: f64,
+) -> Vec<DVec3> {
+    if !(axes.0.length() > 0.0 && axes.1 > 0.0 && turn.is_finite()) {
+        return Vec::new();
+    }
+    let start = oval::angle(center, axes, corner);
+    let (from, to) = (
+        start.min(start + turn),
+        start.max(start + turn).min(start + TAU),
+    );
+    let [along, across] = [axes.0, axes.0.perp().normalize() * axes.1]
+        .map(|half| frame.u * half.x + frame.v * half.y);
+    let mut found = Vec::new();
+    for axis in 0..3 {
+        let phase = across[axis].atan2(along[axis]);
+        let first = ((from - phase) / PI).ceil() as i64;
+        let last = ((to - phase) / PI).floor() as i64;
+        found.extend(
+            (first..=last).map(|step| frame.at(oval::at(center, axes, phase + step as f64 * PI))),
+        );
+    }
+    found
 }
 
 #[cfg(test)]

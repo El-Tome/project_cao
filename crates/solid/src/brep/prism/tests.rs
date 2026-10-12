@@ -989,3 +989,5 @@ fn a_pinch_whose_walls_leave_its_corner_nearly_along_each_other_is_declined() {
         Err(Declined::Profile)
     );
 }
+
+mod oval;

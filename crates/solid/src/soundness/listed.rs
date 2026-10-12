@@ -14,6 +14,7 @@ use crate::brep::{Arm, Curve, Listing};
 mod conic;
 mod lying;
 mod nappe;
+mod oval;
 mod turning;
 
 /// What a listing says that its geometry does not bear out, and where: faces,

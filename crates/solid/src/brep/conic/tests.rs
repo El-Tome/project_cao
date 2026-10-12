@@ -59,7 +59,7 @@ fn in_the_box(point: DVec3) -> bool {
 /// at lengths evenly spread across the box, which is where a long arm passes
 /// it within a sliver of angle.
 fn cut_points(plane: &Plane, round: &Round, count: usize) -> Vec<(f64, DVec3)> {
-    let section = Section::of(plane, round);
+    let section = Section::of(plane, round).expect("a circular wall");
     let crossings = (0..=count)
         .map(|step| 4.0 * REACH * (step as f64 / count as f64 - 0.5))
         .filter_map(|length| section.crossing(length))
@@ -357,6 +357,7 @@ fn a_conic_runs_with_the_angle_of_its_wall() {
             let (own, off_axis) = match round {
                 Round::Cylinder(cylinder) => (cylinder.parameters(point).x, cylinder.radius),
                 Round::Cone(cone) => (cone.parameters(point).x, cone.off_axis(point)),
+                Round::Elliptic(wall) => (wall.parameters(point).x, wall.major),
             };
             let apart = (seen.x - own).rem_euclid(TAU);
             let apart = apart.min(TAU - apart);
@@ -377,7 +378,7 @@ fn a_conic_whose_vertices_stand_beyond_ten_thousand_reaches_is_built_as_two_arms
         DVec3::new(2.0, -2.0, 0.0),
         leaning(DVec3::X, DVec3::Z, 1e-7),
     );
-    let section = Section::of(&plane, &round);
+    let section = Section::of(&plane, &round).expect("a circular wall");
     for psi in [0.0, PI] {
         assert!(section.point(section.phi + psi).length() > LONG * REACH);
     }
@@ -502,7 +503,7 @@ fn a_cut_through_an_apex_outside_the_box_is_built_as_its_ruling_without_dividing
         unreachable!()
     };
     let plane = plane(DVec3::ZERO, leaning(DVec3::X, DVec3::Z, 0.2));
-    assert_eq!(Section::of(&plane, &round).c, 0.0);
+    assert_eq!(Section::of(&plane, &round).expect("a circular wall").c, 0.0);
     let conics = Conic::cut(&plane, &round, scale());
     assert_eq!(conics.len(), 2, "two rulings");
     for conic in &conics {
@@ -693,6 +694,7 @@ fn the_point_of_a_conic_at_a_grid_angle_stands_at_that_angle_within_the_outline_
             let own = match conic.round {
                 Round::Cylinder(cylinder) => cylinder.parameters(point).x,
                 Round::Cone(cone) => cone.parameters(point).x,
+                Round::Elliptic(wall) => wall.parameters(point).x,
             };
             let apart = (own - angle).rem_euclid(TAU);
             assert!(
@@ -709,3 +711,5 @@ fn the_point_of_a_conic_at_a_grid_angle_stands_at_that_angle_within_the_outline_
     }
     assert!(read > 20, "{read} grid angles read");
 }
+
+mod elliptic;

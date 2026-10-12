@@ -85,6 +85,9 @@ pub(in crate::brep) fn traced(
         (Surface::Cone(cone), Curve::Conic(conic)) if conic.round == Round::Cone(*cone) => {
             Ok(own(conic, On::Wall, from, to))
         }
+        (Surface::Elliptic(wall), Curve::Conic(conic)) if conic.round == Round::Elliptic(*wall) => {
+            Ok(own(conic, On::Wall, from, to))
+        }
         (_, Curve::Conic(conic)) => {
             match beside(
                 curve,
@@ -102,6 +105,14 @@ pub(in crate::brep) fn traced(
         {
             let start = cylinder.parameters(line.point(from));
             let height = (line.point(to) - cylinder.origin).dot(cylinder.axis);
+            Ok(Trace::Segment {
+                from: start,
+                to: DVec2::new(start.x, height),
+            })
+        }
+        (Surface::Elliptic(wall), Curve::Line(line)) if parallel(line.direction, wall.axis) => {
+            let start = wall.parameters(line.point(from));
+            let height = (line.point(to) - wall.origin).dot(wall.axis);
             Ok(Trace::Segment {
                 from: start,
                 to: DVec2::new(start.x, height),
@@ -179,7 +190,9 @@ pub(in crate::brep) fn traced(
                 beside(curve, (plane, &round), surface, [from, to], eps).ok_or(declined)
             })
         }
-        (Surface::Cylinder(_) | Surface::Cone(_), _) => chord(curve, surface, from, to, eps),
+        (Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
+            chord(curve, surface, from, to, eps)
+        }
     }
 }
 
@@ -250,6 +263,7 @@ fn beside(
         Surface::Plane(beside) => (Conic::cut(beside, round, scale), On::Plane),
         Surface::Cylinder(wall) => (Conic::cut(plane, &Round::Cylinder(*wall), scale), On::Wall),
         Surface::Cone(wall) => (Conic::cut(plane, &Round::Cone(*wall), scale), On::Wall),
+        Surface::Elliptic(wall) => (Conic::cut(plane, &Round::Elliptic(*wall), scale), On::Wall),
     };
     let middle = curve.point((from + to) / 2.0);
     let off = |conic: &Conic, at: f64| {
@@ -314,7 +328,9 @@ fn chord(
     Ok(Trace::Segment {
         from,
         to: match surface {
-            Surface::Cylinder(_) | Surface::Cone(_) => DVec2::new(unwrapped(to.x, from.x), to.y),
+            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+                DVec2::new(unwrapped(to.x, from.x), to.y)
+            }
             Surface::Plane(_) => to,
         },
     })

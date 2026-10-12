@@ -295,7 +295,7 @@ pub(super) fn parted(
         .collect();
     let apex = match geometry {
         Surface::Cone(cone) => Some(cone.apex()),
-        Surface::Plane(_) | Surface::Cylinder(_) => None,
+        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => None,
     };
     let at_the_apex = |vertex: VertexId| {
         apex.is_some_and(|apex| body.vertex(vertex).point.distance(apex) <= body.scale().eps())

@@ -22,6 +22,7 @@ use glam::DVec3;
 use super::Mislisted;
 use super::lying::point;
 use super::nappe::Nappe;
+use super::oval;
 use crate::brep::{Circle, Curve, ListedEdge, Listing, Surface};
 
 /// How many chords a curve with no short formula is swept along.
@@ -45,6 +46,7 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
         let (nappe, unrolled) = match &listed.surface {
             Surface::Plane(_) => (None, 1.0),
             Surface::Cylinder(cylinder) => (None, cylinder.radius),
+            Surface::Elliptic(wall) => (None, wall.minor),
             Surface::Cone(cone) => {
                 let nappe = Nappe::of(cone);
                 let widest = widest(listing, &listed.loops, &nappe);
@@ -269,7 +271,9 @@ fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3, room: f64) -> (f64,
             let from = place - about;
             (from.dot(plane.u), from.dot(plane.v))
         }),
-        (Surface::Cylinder(_) | Surface::Cone(_), Curve::Line(_)) => (0.0, 0.0),
+        (Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), Curve::Line(_)) => {
+            (0.0, 0.0)
+        }
         (Surface::Cylinder(cylinder), Curve::Circle(circle))
             if section(cylinder.origin, cylinder.axis, &circle, room) =>
         {
@@ -302,6 +306,17 @@ fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3, room: f64) -> (f64,
             let from = nappe.length(about);
             around(edge, |place| {
                 (nappe.length(place) - from, nappe.angle(place))
+            })
+        }
+        (Surface::Elliptic(wall), _) => {
+            let axis = wall.axis.normalize();
+            let [u, v] = [wall.u, wall.v].map(DVec3::normalize);
+            around(edge, |place| {
+                let from = place - wall.origin;
+                (
+                    (place - about).dot(axis),
+                    oval::angle([wall.major, wall.minor], [from.dot(u), from.dot(v)]),
+                )
             })
         }
     }

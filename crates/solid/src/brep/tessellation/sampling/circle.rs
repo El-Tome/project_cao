@@ -113,7 +113,9 @@ pub(super) fn on_circle(
 
     let on_the_grid = |side: usize, surface: &Surface| match surface {
         Surface::Plane(plane) if ends_of.pinching[side].contains(plane) => eps * contact::APART,
-        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => eps * TOLD,
+        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+            eps * TOLD
+        }
     };
     let on_the_turn = |at: f64| {
         let round = low + (at - low).rem_euclid(TAU);

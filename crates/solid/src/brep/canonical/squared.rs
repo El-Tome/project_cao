@@ -280,6 +280,7 @@ fn direction(surface: &Surface) -> DVec3 {
         Surface::Plane(plane) => plane.normal,
         Surface::Cylinder(cylinder) => cylinder.axis,
         Surface::Cone(cone) => cone.axis,
+        Surface::Elliptic(wall) => wall.axis,
     }
 }
 

@@ -79,7 +79,7 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
         .map(SurfaceId)
         .filter_map(|id| match body.surface(id) {
             Surface::Cone(cone) => Some((id, *cone)),
-            Surface::Plane(_) | Surface::Cylinder(_) => None,
+            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => None,
         })
         .map(|(id, cone)| {
             let mut widest = circles

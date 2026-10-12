@@ -181,9 +181,9 @@ const MOVED: f64 = 2.0;
 /// beside it covers: a block's side leaning 1e-3° off a cut's face carries
 /// the cut's corner line over the 1.5e-4 between their crossing and the
 /// block's top, and stands twenty tolerances off it at the cut's floor
-/// (5541239472). A cone carries its rulings and its circles about its axis.
-/// A conic is carried by a surface decided one with its plane or with its
-/// wall, and by nothing else.
+/// (5541239472). A cone carries its rulings and its circles about its axis,
+/// an elliptic wall its rulings alone. A conic is carried by a surface
+/// decided one with its plane or with its wall, and by nothing else.
 pub(super) fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
     let eps = scale.eps();
     let parallel =
@@ -208,12 +208,17 @@ pub(super) fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
         (Surface::Cone(cone), Curve::Line(line)) => cone.rules(line, scale),
         (Surface::Cone(cone), Curve::Circle(circle)) => cone.holds(circle, eps),
         (Surface::Cone(_), Curve::Meet(_)) => false,
+        (Surface::Elliptic(wall), Curve::Line(line)) => parallel(line.direction, wall.axis),
+        (Surface::Elliptic(_), Curve::Circle(_) | Curve::Meet(_)) => false,
         (_, Curve::Conic(conic)) => {
             let own = match (surface, conic.round) {
                 (Surface::Plane(_), _) => Surface::Plane(conic.plane),
                 (Surface::Cylinder(_), Round::Cylinder(cylinder)) => Surface::Cylinder(cylinder),
                 (Surface::Cone(_), Round::Cone(cone)) => Surface::Cone(cone),
-                (Surface::Cylinder(_), Round::Cone(_)) | (Surface::Cone(_), Round::Cylinder(_)) => {
+                (Surface::Elliptic(_), Round::Elliptic(wall)) => Surface::Elliptic(wall),
+                (Surface::Cylinder(_), Round::Cone(_) | Round::Elliptic(_))
+                | (Surface::Cone(_), Round::Cylinder(_) | Round::Elliptic(_))
+                | (Surface::Elliptic(_), Round::Cylinder(_) | Round::Cone(_)) => {
                     return false;
                 }
             };

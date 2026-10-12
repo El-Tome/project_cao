@@ -103,6 +103,7 @@ fn a_conic_crosses_a_plane_where_the_line_the_planes_share_crosses_its_wall_to_t
         let surface = match round {
             Round::Cylinder(cylinder) => Surface::Cylinder(cylinder),
             Round::Cone(cone) => Surface::Cone(cone),
+            Round::Elliptic(wall) => Surface::Elliptic(wall),
         };
         let conic = ellipse(&slant, round);
         let found = on_the_conic(&conic, &side, &none);

@@ -4,13 +4,15 @@
 //! length on the surface too since a cylinder unrolls flat; on a cone with its
 //! angle unrolled at the point's own distance from the axis, nought at the
 //! apex and never less, which is a length across a ruling to first order and
-//! exact along one.
+//! exact along one; on an elliptic wall with its angle unrolled at the speed
+//! the wall's section runs at the point's angle, a length across a ruling to
+//! first order.
 
 use std::f64::consts::TAU;
 
 use glam::DVec2;
 
-use crate::brep::surface::Cone;
+use crate::brep::surface::{Cone, EllipticCylinder};
 use crate::brep::trace::Trace;
 
 /// How a surface's parameters unroll into lengths.
@@ -21,6 +23,7 @@ pub(super) enum Unrolling {
     /// A cylinder's of this radius.
     Round(f64),
     Cone(Cone),
+    Elliptic(EllipticCylinder),
 }
 
 impl Unrolling {
@@ -35,6 +38,7 @@ impl Unrolling {
             Unrolling::Flat => None,
             Unrolling::Round(radius) => Some(radius),
             Unrolling::Cone(cone) => Some(cone.radius_at(at.y).max(0.0)),
+            Unrolling::Elliptic(wall) => Some(wall.speed(at.x)),
         }
     }
 }

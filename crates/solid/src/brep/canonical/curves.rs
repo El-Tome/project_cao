@@ -206,7 +206,13 @@ fn conics_within(one: &Conic, other: &Conic, scale: Scale, eps: f64) -> bool {
             cones_alike(&mine, &theirs, scale, eps),
             facing(mine.axis, theirs.axis),
         ),
-        (Round::Cylinder(_), Round::Cone(_)) | (Round::Cone(_), Round::Cylinder(_)) => {
+        (Round::Elliptic(mine), Round::Elliptic(theirs)) => (
+            parallel(mine.axis, theirs.axis, scale) && mine.gap(&theirs) <= eps,
+            facing(mine.axis, theirs.axis),
+        ),
+        (Round::Cylinder(_), Round::Cone(_) | Round::Elliptic(_))
+        | (Round::Cone(_), Round::Cylinder(_) | Round::Elliptic(_))
+        | (Round::Elliptic(_), Round::Cylinder(_) | Round::Cone(_)) => {
             return false;
         }
     };

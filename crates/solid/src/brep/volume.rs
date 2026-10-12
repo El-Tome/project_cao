@@ -7,11 +7,13 @@
 //! so a flipped face gives its flux the right sign by itself.
 
 mod cone;
+mod elliptic;
 
 use std::f64::consts::PI;
 
 use glam::DVec3;
 
+use super::conic::On;
 use super::curve::Curve;
 use super::domain::traced;
 use super::surface::{Cylinder, Plane, Surface};
@@ -31,7 +33,7 @@ impl Body {
         let surface = self.surface(lying.surface);
         let anchor = match surface {
             Surface::Cone(cone) => self.anchor(face, cone),
-            Surface::Plane(_) | Surface::Cylinder(_) => 0.0,
+            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => 0.0,
         };
         lying
             .loops
@@ -41,8 +43,9 @@ impl Body {
     }
 
     /// What one use of an edge adds to the flux through its face: in closed
-    /// form for the lines and circles a plane, a cylinder or a cone carries,
-    /// and by quadrature along the curve for any other.
+    /// form for the lines and circles a plane, a cylinder or a cone carries
+    /// and for the rulings and conics of an elliptic wall, and by quadrature
+    /// along the curve for any other.
     fn flux_along(&self, surface: &Surface, anchor: f64, coedge: Coedge) -> f64 {
         let edge = self.edge(coedge.edge);
         let curve = self.curve(edge.curve);
@@ -57,6 +60,18 @@ impl Body {
             (Surface::Cone(cone), Ok(Trace::Segment { from, to })) => {
                 cone::straight(cone, anchor, from, to)
             }
+            (Surface::Elliptic(wall), Ok(Trace::Segment { from, to })) => {
+                elliptic::straight(wall, from, to)
+            }
+            (
+                Surface::Elliptic(wall),
+                Ok(Trace::Conic {
+                    conic,
+                    on: On::Wall,
+                    from,
+                    to,
+                }),
+            ) => Some(elliptic::graph(wall, &conic, from, to)),
             _ => None,
         };
         let flux = exact.unwrap_or_else(|| along(curve, edge.from, edge.to, surface, anchor));
@@ -125,6 +140,7 @@ fn along(curve: &Curve, from: f64, to: f64, surface: &Surface, anchor: f64) -> f
                     Surface::Plane(plane) => planar(plane, point, speed),
                     Surface::Cylinder(cylinder) => radial(cylinder, point, speed),
                     Surface::Cone(cone) => cone::conical(cone, anchor, point, speed),
+                    Surface::Elliptic(wall) => elliptic::density(wall, point, speed),
                 };
                 total += weight * density * width / 2.0;
             }

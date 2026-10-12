@@ -54,14 +54,21 @@ pub(super) fn off(
                 let inside = (one.radius - other.radius).abs() - across;
                 Some(outside.abs().min(inside.abs()))
             }
+            (Surface::Plane(plane), Surface::Elliptic(wall))
+            | (Surface::Elliptic(wall), Surface::Plane(plane)) => {
+                Some((plane.distance(wall.origin).abs() - wall.support(plane.normal)).abs())
+            }
             (Surface::Plane(_), Surface::Plane(_)) => Some(0.0),
-            (Surface::Cone(_), _) | (_, Surface::Cone(_)) => None,
+            (Surface::Cone(_) | Surface::Elliptic(_), _)
+            | (_, Surface::Cone(_) | Surface::Elliptic(_)) => None,
         },
         Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => {
             let (one, other) = match (one, other) {
                 (Surface::Cylinder(one), Surface::Cylinder(other)) => (one, other),
-                (Surface::Plane(_) | Surface::Cone(_), _)
-                | (_, Surface::Plane(_) | Surface::Cone(_)) => return None,
+                (Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_), _)
+                | (_, Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_)) => {
+                    return None;
+                }
             };
             Some(moved(one, other, scale).map_or(0.0, |(rank, to)| {
                 let from = [one, other][rank];

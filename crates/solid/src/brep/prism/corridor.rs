@@ -9,7 +9,7 @@ use std::f64::consts::TAU;
 
 use glam::DVec2;
 
-use crate::brep::piece::{Named, Piece};
+use crate::brep::piece::{Named, Piece, oval};
 
 /// How far apart, in radians, the walls leaving a corner the profile passes
 /// through twice have to stand. Closer, they hold between them a fin nobody
@@ -64,6 +64,19 @@ fn way(piece: &Piece, from_start: bool) -> DVec2 {
         } => {
             let (corner, sign) = if from_start { (from, 1.0) } else { (to, -1.0) };
             (corner - center).perp().normalize_or_zero() * sweep.signum() * sign
+        }
+        Piece::Oval {
+            from,
+            to,
+            center,
+            first,
+            second,
+            sweep,
+        } => {
+            let (corner, sign) = if from_start { (from, 1.0) } else { (to, -1.0) };
+            let (sin, cos) = oval::angle(center, (first, second), corner).sin_cos();
+            let running = first.perp().normalize() * (second * cos) - first * sin;
+            running.normalize_or_zero() * sweep.signum() * sign
         }
     }
 }
@@ -120,6 +133,36 @@ fn back_along(one: &Piece, other: &Piece, eps: f64) -> bool {
             }
             let [first, second] = [one, other].map(|piece| span(piece, center));
             shared(first, second) * radius > eps
+        }
+        (
+            Piece::Oval {
+                center,
+                first,
+                second,
+                sweep,
+                ..
+            },
+            Piece::Oval {
+                center: other_center,
+                first: other_first,
+                second: other_second,
+                sweep: other_sweep,
+                ..
+            },
+        ) => {
+            let wall = oval::wall(center, (first, second));
+            let theirs = oval::wall(other_center, (other_first, other_second));
+            if !oval::alike(&wall, &theirs, eps) || sweep * other_sweep >= 0.0 {
+                return false;
+            }
+            let read = |piece: &Piece| match *piece {
+                Piece::Oval { from, sweep, .. } => {
+                    let start = oval::angle(center, (first, second), from) + sweep.min(0.0);
+                    (start.rem_euclid(TAU), sweep.abs())
+                }
+                Piece::Straight { .. } | Piece::Arc { .. } => (0.0, 0.0),
+            };
+            shared(read(one), read(other)) * wall.major > eps
         }
         _ => false,
     }

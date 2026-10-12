@@ -131,7 +131,7 @@ impl EllipticCylinder {
     /// from a point to an ellipse", 2013) — the place folded into the first
     /// quadrant, the foot's multiplier found by halving on the stretch where
     /// it is the one root, a place on an axis of the section read apart.
-    pub fn foot(&self, at: DVec2) -> (DVec2, f64) {
+    fn foot(&self, at: DVec2) -> (DVec2, f64) {
         let (a, b) = (self.major, self.minor);
         let (y0, y1) = (at.x.abs(), at.y.abs());
         let (x0, x1) = if y1 > 0.0 {

@@ -330,6 +330,25 @@ fn an_oval_run_whose_ends_miss_its_ellipse_is_declined() {
 }
 
 #[test]
+fn an_oval_run_turning_far_past_a_whole_turn_either_way_is_declined() {
+    for turn in [1e15, -1e15] {
+        let spun = Contour {
+            corners: vec![CENTER + DVec2::new(7.0, 0.0)],
+            runs: vec![Run::Oval {
+                center: CENTER,
+                first: DVec2::new(7.0, 0.0),
+                second: 3.0,
+                turn,
+            }],
+        };
+        assert_eq!(
+            Body::raised(&spun, &[], ground(), DVec3::Z * 4.0).map(|_| ()),
+            Err(Declined::Profile)
+        );
+    }
+}
+
+#[test]
 fn the_triangles_of_an_elliptic_prism_close_and_enclose_its_volume() {
     let block = Contour::rectangle(DVec2::new(-10.0, -10.0), DVec2::new(15.0, 10.0));
     for (outline, holes, volume) in [

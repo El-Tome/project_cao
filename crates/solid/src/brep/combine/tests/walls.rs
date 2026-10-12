@@ -245,3 +245,44 @@ fn the_same_ellipse_a_ten_thousandth_off_is_built_crossing_it() {
     };
     cut_and_joined(moved);
 }
+
+#[test]
+fn the_same_ellipse_a_hair_off_in_its_centre_its_half_axes_or_its_turn_is_one_wall() {
+    let boss = boss();
+    let stock = block([-10.0, -10.0, 0.0], [15.0, 10.0, 4.0]);
+    let hole = stock
+        .cut_by(&raised(boss, -1.0, 5.0))
+        .expect("the hole is cut");
+    let hair = 5.0 * Scale::of(10.0).eps();
+    for again in [
+        Section {
+            center: boss.center + DVec2::new(hair, -hair),
+            ..boss
+        },
+        Section::ellipse(
+            boss.center.to_array(),
+            boss.first.normalize() * (7.0 + hair),
+            3.0 - hair,
+        ),
+        Section::ellipse(
+            boss.center.to_array(),
+            DVec2::from_angle(0.4 + hair / 7.0) * 7.0,
+            3.0,
+        ),
+    ] {
+        let twice = hole
+            .cut_by(&raised(again, -2.0, 6.0))
+            .expect("the same hole is cut again");
+        held(&twice, 500.0 * 4.0 - boss.area() * 4.0);
+        let walls = twice
+            .surfaces
+            .iter()
+            .filter(|surface| matches!(surface, Surface::Elliptic(_)))
+            .count();
+        assert_eq!(walls, 1, "{again:?}");
+        let joined = raised(boss, 0.0, 4.0)
+            .joined(&raised(again, 0.0, 4.0))
+            .expect("the same boss is joined again");
+        held(&joined, boss.area() * 4.0);
+    }
+}

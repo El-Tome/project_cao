@@ -60,10 +60,9 @@ pub enum Declined {
     /// Two surfaces meet along a curve the kernel does not build: two
     /// cylinders at a skew angle, a cylinder or a cone off a cone's axis, a
     /// cone within the tolerance of a plane or a cylinder of its axis all
-    /// across the box, an elliptic wall against any other wall, or a plane
-    /// leaning off an elliptic wall's axis by a hair it does not read yet. A
-    /// plane meets a cylinder, a cone or an elliptic wall at any other angle
-    /// along a conic, which is built (#552, #571).
+    /// across the box, or an elliptic wall against any other wall. A plane
+    /// meets a cylinder, a cone or an elliptic wall at any other angle along
+    /// a conic, which is built (#552, #571).
     Unsupported,
     /// Two curves touch more closely than their curvatures can order.
     Tie,
@@ -83,8 +82,8 @@ pub enum Declined {
 }
 
 /// A step the kernel built though it reads it unstably (#552): a plane of one
-/// operand leans off square to, or along, the axis of a cylinder or a cone of
-/// the other, their faces near enough to meet, by more than decision 11 lays
+/// operand leans off square to, or along, the axis of a cylinder, a cone or an
+/// elliptic wall (#571) of the other, their faces near enough to meet, by more than decision 11 lays
 /// exactly and less than the kernel reads without magnifying its rounding.
 /// The conic such a plane cuts divides by the lean, so a change too small to
 /// see may change what is built. Said, never declined.

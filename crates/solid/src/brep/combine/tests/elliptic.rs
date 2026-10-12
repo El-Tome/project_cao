@@ -290,24 +290,6 @@ fn a_plane_at_a_slant_through_an_elliptic_boss_cuts_it_along_a_conic() {
 }
 
 #[test]
-fn a_plane_leaning_a_hair_off_square_to_or_along_an_elliptic_wall_s_axis_is_declined() {
-    let boss = oval([3.0, -1.0], first(0.4), 0.0, 10.0);
-    let lean = 1e-5;
-    for normal in [DVec3::new(lean, 0.0, 1.0), DVec3::new(1.0, 0.0, lean)] {
-        let tool = slab(DVec3::new(4.0, -1.0, 6.0), normal);
-        assert_eq!(
-            boss.cut_by(&tool).map(|_| ()),
-            Err(Declined::Unsupported),
-            "{normal}"
-        );
-    }
-    let level = boss
-        .cut_by(&slab(DVec3::new(4.0, -1.0, 6.0), DVec3::Z))
-        .expect("a level cut is built");
-    held(&level, area() * 6.0);
-}
-
-#[test]
 fn a_side_a_hair_inside_the_end_of_an_elliptic_boss_s_major_axis_leaves_a_strip_drawn_off_it() {
     let boss = ellipse(
         [3.0, 0.0],
@@ -389,4 +371,30 @@ fn a_flat_elliptic_boss_cut_along_its_minor_axis_is_drawn_closed_and_uncrossed()
         .cut_by(&block([1.5, -1.999999, 1.0], [11.5, 0.000001, 3.0]))
         .expect("the boss is cut");
     drawn(&cut);
+}
+
+#[test]
+fn an_elliptic_boss_touching_one_of_two_sides_a_block_told_apart_a_hair_off_is_joined() {
+    let blocks = along_x(12.5, rectangle([20.0, 30.0], [43.0, 43.0]), 45.0)
+        .joined(&along_x(
+            12.5,
+            rectangle([20.000_000_1, 30.0], [42.500_000_1, 42.5]),
+            -90.0,
+        ))
+        .expect("the blocks join");
+    let center = DVec2::new(25.0, 35.0);
+    let first = DVec2::X * 5.0;
+    let outline = Contour {
+        corners: vec![center + first],
+        runs: vec![Run::Oval {
+            center,
+            first,
+            second: 3.0,
+            turn: TAU,
+        }],
+    };
+    let boss = along_x(12.500_000_1, outline, 180.0);
+    let joined = blocks.joined(&boss).expect("the elliptic boss joins");
+    assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
+    on_its_surfaces(&joined);
 }

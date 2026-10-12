@@ -8,6 +8,11 @@
 //! line. Found a femtometre inside the section, the line crosses it twice,
 //! its roots `√(2rδ)` apart: a few tolerances, with a sliver between them
 //! no face agrees on, and the corner the vertex gives stands between them.
+//! An elliptic wall's section (#571) is held the same way, the line standing
+//! inside it as far as its offset from the axis falls short of the wall's
+//! support across it, and its rim, a conic, reaches the touch through the
+//! line its plane shares with the steep one: two cuts at 45° and 75° through
+//! one point of an elliptic post's rim (5571628398).
 //! Inside by no more than rounding, the line only touches the wall where it
 //! passes nearest the axis — on a cone's section (5543231406), on a bore cut
 //! at 60° through its lowest line at the end of a tube (5544100660). The
@@ -26,7 +31,7 @@
 //! through the cone's apex a hair off its slope, whose hairpin on the cone
 //! crosses the rim where the line's two roots do (5545108465).
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use super::super::planar::planes;
 use super::super::{Relation, square};
@@ -34,7 +39,7 @@ use super::Crossing;
 use super::lying::{Lying, STEEP};
 use crate::brep::curve::{Curve, Line};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Plane, Surface};
+use crate::brep::surface::{Cylinder, EllipticCylinder, Plane, Surface};
 
 /// How far inside a wall's section, as a share of the tolerance, a line
 /// square to the axis stands by rounding alone.
@@ -51,11 +56,7 @@ pub(super) fn touched(
     scale: Scale,
 ) -> Option<f64> {
     let axis = section.axis;
-    if planes
-        .iter()
-        .any(|plane| plane.normal.dot(axis).abs() < STEEP)
-        || !square(line.direction, axis, scale)
-    {
+    if !steep(line, planes, axis, scale) {
         return None;
     }
     let flat = |v: DVec3| v - axis * axis.dot(v);
@@ -63,6 +64,39 @@ pub(super) fn touched(
     let closest = -from.dot(towards) / towards.length_squared();
     let inside = section.radius - (from + towards * closest).length();
     (inside > 0.0 && inside <= ROUNDING * scale.eps()).then_some(closest)
+}
+
+/// The same on an elliptic wall's section (#571): inside it by rounding
+/// alone where the line's offset from the axis falls short of the wall's
+/// reach across the line by no more, its parameter where it passes nearest
+/// the axis in the section squashed onto the unit circle, as a line is read
+/// against an elliptic wall (`elliptic.rs`).
+pub(super) fn touched_on_an_ellipse(
+    line: &Line,
+    planes: [&Plane; 2],
+    wall: &EllipticCylinder,
+    scale: Scale,
+) -> Option<f64> {
+    if !steep(line, planes, wall.axis, scale) {
+        return None;
+    }
+    let flat = |v: DVec3| DVec2::new(v.dot(wall.u), v.dot(wall.v));
+    let (from, towards) = (flat(line.origin - wall.origin), flat(line.direction));
+    let normal = towards.perp().normalize();
+    let inside = (wall.major * normal.x).hypot(wall.minor * normal.y) - normal.dot(from).abs();
+    let squashed = |v: DVec2| DVec2::new(v.x / wall.major, v.y / wall.minor);
+    let (at, pace) = (squashed(from), squashed(towards));
+    (inside > 0.0 && inside <= ROUNDING * scale.eps())
+        .then(|| -at.dot(pace) / pace.length_squared())
+}
+
+/// Whether both planes cross the axis steeply and the line they share runs
+/// square to it.
+fn steep(line: &Line, planes: [&Plane; 2], axis: DVec3, scale: Scale) -> bool {
+    !planes
+        .iter()
+        .any(|plane| plane.normal.dot(axis).abs() < STEEP)
+        && square(line.direction, axis, scale)
 }
 
 /// The touch of a curve of the triple of two planes and a wall, crossing
@@ -87,6 +121,19 @@ pub(super) fn crossing(
             Surface::Cylinder(wall),
         ) => {
             let at = touched(line, [first, second], wall, scale)?;
+            Some(Crossing {
+                parameter: at,
+                point: line.point(at),
+                tangent: true,
+            })
+        }
+        (
+            Curve::Line(line),
+            Surface::Plane(first),
+            Surface::Plane(second),
+            Surface::Elliptic(wall),
+        ) => {
+            let at = touched_on_an_ellipse(line, [first, second], wall, scale)?;
             Some(Crossing {
                 parameter: at,
                 point: line.point(at),

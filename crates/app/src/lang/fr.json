@@ -687,8 +687,8 @@
   "extrusion.nothing_added": "L'extrusion n'a rien ajouté.",
   "extrusion.nothing_removed": "Rien enlevé : la matière n'est pas de ce côté du plan (essayez « Sens inverse »).",
   "extrusion.declined": "Le noyau exact ne sait pas encore construire cette opération : la pièce reste comme elle était.",
-  "extrusion.unstable_square": "Cas instable : un plan est presque perpendiculaire à l'axe d'un cylindre ou d'un cône (écart de {angle}°). Le résultat peut changer pour une modification infime.",
-  "extrusion.unstable_along": "Cas instable : un plan est presque parallèle à l'axe d'un cylindre ou d'un cône (écart de {angle}°). Le résultat peut changer pour une modification infime.",
+  "extrusion.unstable_square": "Cas instable : un plan est presque perpendiculaire à l'axe d'un cylindre, d'un cône ou d'un cylindre elliptique (écart de {angle}°). Le résultat peut changer pour une modification infime.",
+  "extrusion.unstable_along": "Cas instable : un plan est presque parallèle à l'axe d'un cylindre, d'un cône ou d'un cylindre elliptique (écart de {angle}°). Le résultat peut changer pour une modification infime.",
   "extrusion.nothing_from_revolution": "La révolution n'a rien changé à la pièce.",
 
   "viewport.read_only": "{value} {unit} (lecture seule)",

@@ -1,6 +1,7 @@
 //! Decision 10: two parallel planes, one of each operand, standing within
-//! `Scale::HAIR` tolerances of each other, are one surface where a wall touches
-//! one of them and so stands within the hair of the other. Two planes a
+//! `Scale::HAIR` tolerances of each other, are one surface where a wall — a
+//! cylinder or an elliptic wall (#571) — touches one of them and so stands
+//! within the hair of the other. Two planes a
 //! hair apart never cross, and decision 1 keeps them two; but a wall
 //! touching one crosses the other at a grazing angle, along two rulings a
 //! band apart, or passes it by a hair it was meant to touch: as ill
@@ -68,18 +69,20 @@ fn offset(first: &Body, second: &Body, plane: &Plane, scale: Scale) -> Option<DV
     nearest.map(|gap| plane.normal * gap)
 }
 
-/// Whether `wall` is a cylinder along `plane` touching it, or the plane
-/// `gap` along its normal, within `eps`.
+/// Whether `wall` is a cylinder or an elliptic wall along `plane` touching
+/// it, or the plane `gap` along its normal, within `eps`: an elliptic wall
+/// reaches as far across its axis as its support says along the normal.
 fn touches_one(wall: &Surface, plane: &Plane, gap: f64, eps: f64) -> bool {
-    let cylinder = match wall {
-        Surface::Cylinder(cylinder) => cylinder,
-        Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_) => return false,
+    let (origin, axis, reach) = match wall {
+        Surface::Cylinder(cylinder) => (cylinder.origin, cylinder.axis, cylinder.radius),
+        Surface::Elliptic(wall) => (wall.origin, wall.axis, wall.support(plane.normal)),
+        Surface::Plane(_) | Surface::Cone(_) => return false,
     };
-    if cylinder.axis.dot(plane.normal).abs() > eps {
+    if axis.dot(plane.normal).abs() > eps {
         return false;
     }
-    let away = plane.distance(cylinder.origin);
+    let away = plane.distance(origin);
     [away, away - gap]
         .iter()
-        .any(|away| (away.abs() - cylinder.radius).abs() <= eps)
+        .any(|away| (away.abs() - reach).abs() <= eps)
 }

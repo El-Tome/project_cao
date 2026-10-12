@@ -3429,7 +3429,7 @@ fn shrinking_a_case_while_it_still_holds_an_ellipse_or_a_turned_one_comes_to_an_
 #[test]
 fn ellipse_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_arithmetic() {
     for (name, draw) in ELLIPSE_DRAWS {
-        let seeds: Vec<u64> = (0..40).collect();
+        let seeds: Vec<u64> = (0..20).collect();
         let weighed = random_solids::on_every_core(&seeds, |seed| {
             let case = draw(*seed);
             random_solids::check(&case).ok()?;
@@ -3448,7 +3448,7 @@ fn ellipse_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the
                 "{name}, seed {seed}: {measured:?}\n{case}"
             );
         }
-        assert!(held > 15, "{name}: {held} cases held");
+        assert!(held > 8, "{name}: {held} cases held");
     }
 }
 

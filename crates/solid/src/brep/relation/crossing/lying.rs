@@ -126,6 +126,8 @@ pub(super) fn leans(one: &Surface, other: &Surface, scale: Scale) -> bool {
         | (Surface::Cylinder(cylinder), Surface::Plane(plane)) => {
             plane.normal.dot(cylinder.axis).abs()
         }
+        (Surface::Plane(plane), Surface::Elliptic(wall))
+        | (Surface::Elliptic(wall), Surface::Plane(plane)) => plane.normal.dot(wall.axis).abs(),
         (Surface::Cylinder(one), Surface::Cylinder(other)) => one.axis.cross(other.axis).length(),
         _ => return false,
     };

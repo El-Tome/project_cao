@@ -4,6 +4,7 @@
 
 use super::*;
 use crate::brep::conic::{Conic, Round};
+use crate::brep::surface::EllipticCylinder;
 
 /// The reach of 5544100660's tube, a bore of radius 45 about Z at a few
 /// hundred from the origin.
@@ -130,4 +131,67 @@ fn a_line_inside_a_bore_s_section_by_rounding_still_crosses_it_twice_beside_a_pl
         &Touches::default(),
     ));
     assert_eq!(found.len(), 2, "{found:?}");
+}
+
+/// An elliptic bore about Z, its major half-axis of 45 turned 0.4 off X, its
+/// minor of 25, at a few hundred from the origin (#571).
+fn elliptic_bore() -> EllipticCylinder {
+    let first = DVec3::new(0.4_f64.cos(), 0.4_f64.sin(), 0.0) * 45.0;
+    EllipticCylinder::about(DVec3::new(240.0, 180.0, 0.0), DVec3::Z, first, 25.0)
+}
+
+#[test]
+fn a_slant_through_an_elliptic_bore_s_lowest_line_at_its_end_touches_its_rim_once_whichever_curve_reaches_it()
+ {
+    let wall = elliptic_bore();
+    let down = DVec3::NEG_Y;
+    let reach = wall.support(down);
+    let lowest = wall.origin
+        + (wall.u * (wall.major * wall.major * down.dot(wall.u))
+            + wall.v * (wall.minor * wall.minor * down.dot(wall.v)))
+            / reach
+        + DVec3::Z * 75.0;
+    let (sin, cos) = 60_f64.to_radians().sin_cos();
+    let slant = Plane::through(lowest + DVec3::Y * 3e-14, DVec3::new(0.0, sin, -cos)).0;
+    let [square, steep] = [end(), slant].map(Surface::Plane);
+    let round = Surface::Elliptic(wall);
+    let Relation::Line(line) = relation(&square, &steep, wide()) else {
+        panic!("the planes cross");
+    };
+    let inside = reach - (line.point(line.parameter(lowest)) - wall.origin).dot(down);
+    assert!(inside > 0.0 && inside < 1e-6 * wide().eps(), "{inside}");
+    let lying = [&square, &steep].map(|own| Lying {
+        surface: own,
+        with: relation(own, &round, wide()),
+    });
+    let through_the_line = points(crossings_lying(
+        &Curve::Line(line),
+        &lying,
+        &round,
+        wide(),
+        &Touches::default(),
+    ));
+    let Relation::Conic(rims) = relation(&square, &round, wide()) else {
+        panic!("the end cuts the wall along its section");
+    };
+    let along_the_rim: Vec<(DVec3, bool)> = rims
+        .iter()
+        .flat_map(|rim| points(crossings(&Curve::Conic(*rim), &steep, wide())))
+        .collect();
+    let along_the_slant: Vec<(DVec3, bool)> = Conic::cut(&slant, &Round::Elliptic(wall), wide())
+        .iter()
+        .flat_map(|conic| points(crossings(&Curve::Conic(*conic), &square, wide())))
+        .collect();
+    for found in [&through_the_line, &along_the_rim, &along_the_slant] {
+        assert_eq!(
+            found.len(),
+            1,
+            "{through_the_line:?} {along_the_rim:?} {along_the_slant:?}"
+        );
+        assert!(found[0].1, "a touch: {found:?}");
+        assert!(
+            found[0].0.distance(through_the_line[0].0) <= 1e-12 * 400.0,
+            "{through_the_line:?} {found:?}"
+        );
+    }
 }

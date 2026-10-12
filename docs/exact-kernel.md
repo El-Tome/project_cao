@@ -387,7 +387,11 @@ The decisions, in the order taken, once per operation:
    60° through a bore's lowest line at a tube's end shares a line with the
    end found 3e-14 inside the bore, which crossed it twice 3.2e-6 apart
    where the cut's ellipse touches the end once, a sliver between them no
-   face agreed on (5544100660). A plane leaning along the axis is left to
+   face agreed on (5544100660). An elliptic wall's section is held the same
+   way (#571), its rim, a conic, reaching the touch through the line its
+   plane shares with the steep one: two cuts at 45° and 75° through one
+   point of an elliptic post's rim (5571628398). A plane leaning along the
+   axis is left to
    cross twice: its hairpin's vertex stands where rounding over its lean
    puts it, and its arms pass the square plane where the line's two roots
    do (5549116996). A line found on its own keeps crossing twice however
@@ -422,7 +426,9 @@ The decisions, in the order taken, once per operation:
    cut or touch the other along lines — a plane and a wall, two walls read
    parallel — crosses it where those lines cross the curve's other plane,
    by the call those lines make themselves (`relation/crossing/lying.rs`),
-   and a conic crosses such a plane the same way. Only where the lines
+   and a conic crosses such a plane the same way, on an elliptic wall too
+   (#571): an elliptic hole reaching a hair past a cut laid along it
+   (5571636439). Only where the lines
    cross that plane steeply, at a cosine of a tenth or more: shallower, a
    hair moves the place along them by far more than the other pairs of the
    triple do (5524010446). A curve lying on a third surface, taken for one

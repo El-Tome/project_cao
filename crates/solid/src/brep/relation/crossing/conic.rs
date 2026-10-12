@@ -43,6 +43,7 @@ pub(super) fn conic_and_surface(
     let wall = match conic.round {
         Round::Cylinder(cylinder) => Surface::Cylinder(cylinder),
         Round::Cone(cone) => Surface::Cone(cone),
+        Round::Elliptic(wall) => Surface::Elliptic(wall),
     };
     let own_plane = Surface::Plane(conic.plane);
     let (curves, across, along_a_touch) = match surface {

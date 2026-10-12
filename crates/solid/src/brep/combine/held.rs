@@ -215,9 +215,10 @@ pub(super) fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
                 (Surface::Plane(_), _) => Surface::Plane(conic.plane),
                 (Surface::Cylinder(_), Round::Cylinder(cylinder)) => Surface::Cylinder(cylinder),
                 (Surface::Cone(_), Round::Cone(cone)) => Surface::Cone(cone),
-                (Surface::Cylinder(_), Round::Cone(_))
-                | (Surface::Cone(_), Round::Cylinder(_))
-                | (Surface::Elliptic(_), _) => {
+                (Surface::Elliptic(_), Round::Elliptic(wall)) => Surface::Elliptic(wall),
+                (Surface::Cylinder(_), Round::Cone(_) | Round::Elliptic(_))
+                | (Surface::Cone(_), Round::Cylinder(_) | Round::Elliptic(_))
+                | (Surface::Elliptic(_), Round::Cylinder(_) | Round::Cone(_)) => {
                     return false;
                 }
             };

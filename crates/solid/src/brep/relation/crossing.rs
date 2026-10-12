@@ -12,8 +12,9 @@
 //! two cylinders where it makes any, and numerically otherwise, in `scan.rs`.
 //! A line a plane cuts a cylinder along, crossed with a circle or a cylinder
 //! square to it, is measured from the radii (`cut.rs`). A line or a circle
-//! against a cone is solved in `cone.rs`, and the conic a plane cuts a wall
-//! along at a slant through its triple's other pair in `conic.rs`. A triple
+//! against a cone is solved in `cone.rs`, against an elliptic wall in
+//! `elliptic.rs`, and the conic a plane cuts a wall along at a slant through
+//! its triple's other pair in `conic.rs`. A triple
 //! of two planes and a wall one of them stands a hair from tangent to is
 //! decided on the hairpin that plane cuts, in `grazed.rs`. The line a plane
 //! square to a wall's axis shares with a plane crossing it steeply, inside
@@ -22,6 +23,7 @@
 mod cone;
 mod conic;
 mod cut;
+mod elliptic;
 mod grazed;
 mod lying;
 mod scan;
@@ -111,7 +113,9 @@ pub fn crossings_given(
             return conic::conic_and_surface(conic, surface, scale, touching);
         }
         (Curve::Meet(_), Surface::Cone(_) | Surface::Elliptic(_)) => Solved::Unsupported,
-        (Curve::Line(_), Surface::Elliptic(_)) => Solved::Unsupported,
+        (Curve::Line(line), Surface::Elliptic(wall)) => {
+            elliptic::line_and_elliptic(line, wall, scale, touching)
+        }
         (Curve::Line(line), Surface::Plane(plane)) => line_and_plane(line, plane, scale),
         (Curve::Line(line), Surface::Cylinder(cylinder)) => {
             line_and_cylinder(line, cylinder, scale, touching, None)

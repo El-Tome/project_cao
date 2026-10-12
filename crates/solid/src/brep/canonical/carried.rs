@@ -220,6 +220,7 @@ fn recut(conic: &Conic, by: DVec3, scale: Scale) -> Option<Conic> {
     let round = match &conic.round {
         Round::Cylinder(cylinder) => Round::Cylinder(shifted_cylinder(cylinder, by)),
         Round::Cone(cone) => Round::Cone(shifted_cone(cone, by)),
+        Round::Elliptic(wall) => Round::Elliptic(wall.moved(by)),
     };
     Conic::cut(&shifted_plane(&conic.plane, by), &round, scale)
         .into_iter()

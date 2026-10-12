@@ -177,6 +177,7 @@ fn seen_straight(conic: &Conic, line: &Line, edge: &Edge, eps: f64) -> bool {
     let wall = match conic.round {
         Round::Cylinder(cylinder) => Surface::Cylinder(cylinder),
         Round::Cone(cone) => Surface::Cone(cone),
+        Round::Elliptic(wall) => Surface::Elliptic(wall),
     };
     let [from, to] = [edge.from, edge.to].map(|at| wall.parameters(line.point(at)));
     let turn = to.x - from.x;

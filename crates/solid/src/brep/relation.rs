@@ -5,6 +5,7 @@
 mod conical;
 mod crossing;
 mod cylinders;
+mod elliptic;
 mod planar;
 mod revolved;
 mod sliced;
@@ -80,6 +81,7 @@ pub fn relation(one: &Surface, other: &Surface, scale: Scale) -> Relation {
         (Surface::Cone(cone), other) | (other, Surface::Cone(cone)) => {
             conical::relation(cone, other, scale)
         }
+        (Surface::Elliptic(one), Surface::Elliptic(other)) => elliptic::walls(one, other, scale),
         (Surface::Elliptic(_), _) | (_, Surface::Elliptic(_)) => Relation::Unsupported,
     }
 }

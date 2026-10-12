@@ -5,6 +5,7 @@ use crate::brep::curve::Meet;
 use crate::brep::meet::Meeting;
 
 mod conic;
+mod elliptic;
 mod grazed;
 mod lying;
 mod section;

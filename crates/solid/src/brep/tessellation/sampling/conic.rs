@@ -31,8 +31,7 @@ use super::{divisions, on_a_plane, touching_planes};
 use crate::brep::conic::{Conic, On, Round};
 use crate::brep::curve::Curve;
 use crate::brep::scale::Scale;
-use crate::brep::surface::Cylinder;
-use crate::brep::surface::Surface;
+use crate::brep::surface::{Cylinder, EllipticCylinder, Surface};
 use crate::brep::tessellation::contact::{self, Contact, Wall, Zones};
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
@@ -100,6 +99,19 @@ pub(super) fn of_edge(
             let grazing = grazed(body, edge, &own, step);
             let clear = |point: DVec3| !grazing(point, eps * contact::APART);
             let rays: Vec<f64> = vertices.iter().chain(rays).copied().collect();
+            on_conic(conic, edge, tolerance, eps, [&grid, &rays], &clear)
+        }
+        Round::Elliptic(wall) => {
+            let steps = divisions(wall.major, tolerance);
+            let grid = turn(steps);
+            let step = TAU * wall.major / steps as f64;
+            let own = [plane, Surface::Elliptic(wall)];
+            let grazing = grazed(body, edge, &own, step);
+            let clear = |point: DVec3| !grazing(point, eps * contact::APART);
+            let rays: Vec<f64> = on_the_wall(body, &wall)
+                .into_iter()
+                .chain(rays.iter().copied())
+                .collect();
             on_conic(conic, edge, tolerance, eps, [&grid, &rays], &clear)
         }
     }
@@ -215,16 +227,20 @@ pub(super) fn rays_about(
     eps: f64,
 ) -> Vec<f64> {
     let (origin, axis) = about(&conic.round);
-    let (u, v) = match conic.round {
-        Round::Cylinder(cylinder) => (cylinder.u, cylinder.v),
-        Round::Cone(cone) => (cone.u, cone.v),
+    let (u, v, scaled) = match conic.round {
+        Round::Cylinder(cylinder) => (cylinder.u, cylinder.v, None),
+        Round::Cone(cone) => (cone.u, cone.v, None),
+        Round::Elliptic(wall) => (wall.u, wall.v, Some((wall.major, wall.minor))),
     };
     walls
         .iter()
         .filter(|(_, wall)| coaxial(wall, origin, axis, eps))
         .filter_map(|(id, _)| contacts.get(id))
         .flat_map(|contact| contact.rays.iter())
-        .map(|way| way.dot(v).atan2(way.dot(u)))
+        .map(|way| match scaled {
+            None => way.dot(v).atan2(way.dot(u)),
+            Some((major, minor)) => (way.dot(v) / minor).atan2(way.dot(u) / major),
+        })
         .collect()
 }
 
@@ -232,7 +248,26 @@ fn about(round: &Round) -> (DVec3, DVec3) {
     match round {
         Round::Cylinder(cylinder) => (cylinder.origin, cylinder.axis),
         Round::Cone(cone) => (cone.origin, cone.axis),
+        Round::Elliptic(wall) => (wall.origin, wall.axis),
     }
+}
+
+/// The angles about an elliptic wall of every vertex lying on it, where a
+/// ruling leaves that every rim of the wall takes a sample on.
+fn on_the_wall(body: &Body, wall: &EllipticCylinder) -> Vec<f64> {
+    let Some(rank) = body
+        .surfaces
+        .iter()
+        .position(|surface| *surface == Surface::Elliptic(*wall))
+    else {
+        return Vec::new();
+    };
+    let id = SurfaceId(rank as u32);
+    body.vertices
+        .iter()
+        .filter(|vertex| vertex.on.contains(&id))
+        .map(|vertex| wall.parameters(vertex.point).x)
+        .collect()
 }
 
 /// Whether a wall turns about the line through `origin` along `axis`.

@@ -85,6 +85,7 @@ impl Ends {
                         let on_the_wall = match &conic.round {
                             Round::Cylinder(cylinder) => contact::lies_on(circle, cylinder, own),
                             Round::Cone(cone) => cone.holds(circle, own),
+                            Round::Elliptic(_) => false,
                         };
                         on_the_wall.then_some(conic.plane)
                     }

@@ -14,10 +14,12 @@
 //! `1 − cos √z` — so a point is held to rounding times its distance from the
 //! anchor along the curve, wherever the centre stands: a plane a hair off
 //! parallel to a bore's axis cuts an ellipse whose centre and far vertex stand
-//! a billion reaches away. How it is built is `built.rs`; how it is seen on
-//! its plane and on its wall, `seen.rs`.
+//! a billion reaches away. How it is built is `built.rs`, on an elliptic
+//! wall `elliptic.rs`; how it is seen on its plane and on its wall,
+//! `seen.rs`.
 
 mod built;
+mod elliptic;
 mod seen;
 
 use std::f64::consts::TAU;
@@ -25,19 +27,21 @@ use std::f64::consts::TAU;
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
-use super::surface::{Cone, Cylinder, Plane};
+use super::surface::{Cone, Cylinder, EllipticCylinder, Plane};
 
 /// The wall a plane cuts a conic on.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Round {
     Cylinder(Cylinder),
     Cone(Cone),
+    Elliptic(EllipticCylinder),
 }
 
 /// Which stretch of the cut the curve is: all of it, or the arm on one side
 /// of the plane of symmetry, between two vertices standing beyond
 /// [`LONG`] reaches, on the side where the wall's angle less the angle of the
-/// plane's normal has the sign `side`.
+/// plane's normal has the sign `side` — on an elliptic wall, less the angle
+/// the normal reaches furthest at.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Arm {
     Whole,
@@ -181,6 +185,11 @@ impl Conic {
         let (origin, u, v) = match self.round {
             Round::Cylinder(cylinder) => (cylinder.origin, cylinder.u, cylinder.v),
             Round::Cone(cone) => (cone.origin, cone.u, cone.v),
+            Round::Elliptic(wall) => {
+                let turned = elliptic::turned(&self.plane, &wall, point);
+                let psi = turned - TAU * (turned / TAU).round();
+                return f64::from(side) * psi > 0.0;
+            }
         };
         let from = point - origin;
         let normal = self.plane.normal;
@@ -200,14 +209,19 @@ impl Conic {
         self.point(self.parameter(point)).distance(point)
     }
 
-    /// Where Newton starts: on a cylinder, the eccentric angle; on a cone, the
-    /// nearer of the parameter the point's place along the tangent and the
-    /// bend gives, and of its place along the tangent alone, which is all
-    /// that holds on an arm nearly straight across the box, its bend all but
-    /// along its tangent.
+    /// Where Newton starts: on a cylinder or an elliptic wall, the eccentric
+    /// angle; on a cone, the nearer of the parameter the point's place along
+    /// the tangent and the bend gives, and of its place along the tangent
+    /// alone, which is all that holds on an arm nearly straight across the
+    /// box, its bend all but along its tangent.
     fn seed(&self, point: DVec3) -> f64 {
         if let Round::Cylinder(cylinder) = self.round {
             let turned = cylinder.parameters(point).x - cylinder.parameters(self.anchor).x;
+            let principal = turned - TAU * (turned / TAU).round();
+            return principal / self.k.sqrt();
+        }
+        if let Round::Elliptic(wall) = self.round {
+            let turned = wall.parameters(point).x - wall.parameters(self.anchor).x;
             let principal = turned - TAU * (turned / TAU).round();
             return principal / self.k.sqrt();
         }

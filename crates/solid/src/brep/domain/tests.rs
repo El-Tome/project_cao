@@ -965,3 +965,4 @@ fn a_wall_turning_three_quarters_round_keeps_its_matter_on_the_left_and_its_volu
 
 mod cone;
 mod conic;
+mod elliptic;

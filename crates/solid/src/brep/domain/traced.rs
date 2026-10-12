@@ -85,6 +85,9 @@ pub(in crate::brep) fn traced(
         (Surface::Cone(cone), Curve::Conic(conic)) if conic.round == Round::Cone(*cone) => {
             Ok(own(conic, On::Wall, from, to))
         }
+        (Surface::Elliptic(wall), Curve::Conic(conic)) if conic.round == Round::Elliptic(*wall) => {
+            Ok(own(conic, On::Wall, from, to))
+        }
         (_, Curve::Conic(conic)) => {
             match beside(
                 curve,
@@ -252,7 +255,7 @@ fn beside(
         Surface::Plane(beside) => (Conic::cut(beside, round, scale), On::Plane),
         Surface::Cylinder(wall) => (Conic::cut(plane, &Round::Cylinder(*wall), scale), On::Wall),
         Surface::Cone(wall) => (Conic::cut(plane, &Round::Cone(*wall), scale), On::Wall),
-        Surface::Elliptic(_) => return None,
+        Surface::Elliptic(wall) => (Conic::cut(plane, &Round::Elliptic(*wall), scale), On::Wall),
     };
     let middle = curve.point((from + to) / 2.0);
     let off = |conic: &Conic, at: f64| {

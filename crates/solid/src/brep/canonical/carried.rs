@@ -271,10 +271,14 @@ fn kept(
             first.surfaces.iter().all(|known| {
                 let held = |surface: &Surface| match relation(known, surface, scale) {
                     Relation::Same { .. } | Relation::Tangent(_) => true,
+                    Relation::Parallel(rulings) if rulings.iter().any(|ruled| ruled.touching) => {
+                        true
+                    }
                     Relation::Conic(_) | Relation::Ruling { .. } | Relation::Unsupported => false,
                     Relation::Apart
                     | Relation::Line(_)
                     | Relation::Lines(_)
+                    | Relation::Parallel(_)
                     | Relation::Circle(_)
                     | Relation::Meet(_)
                     | Relation::Rulings { .. }

@@ -65,6 +65,9 @@ impl Apart {
                     Relation::Tangent(_) => {
                         touching.insert(pair);
                     }
+                    Relation::Parallel(rulings) if rulings.iter().any(|ruled| ruled.touching) => {
+                        touching.insert(pair);
+                    }
                     Relation::Ruling { apex, .. } => {
                         touching.insert(pair);
                         if let Some(apex) = apex {
@@ -98,6 +101,7 @@ impl Apart {
                     }
                     Relation::Line(_)
                     | Relation::Lines(_)
+                    | Relation::Parallel(_)
                     | Relation::Circle(_)
                     | Relation::Rulings { apex: None, .. }
                     | Relation::Conic(_)

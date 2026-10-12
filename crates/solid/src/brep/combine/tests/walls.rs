@@ -1,0 +1,247 @@
+//! Joins and cuts of two walls about parallel axes, an elliptic one among
+//! them (#571): round holes and posts through and beside elliptic bosses,
+//! crossing at two rulings or four, touching outside, touching inside and
+//! crossing twice; two ellipses crossing or touching, and the same ellipse
+//! a ten-thousandth off. Each held to its listing, to the area its sections
+//! enclose times its height, and drawn closed and uncrossed from a fine
+//! tolerance to a coarse one.
+//!
+//! The area is the arithmetic's, read off the two sections apart from the
+//! kernel: where their curves cross, found by halving between samples, and
+//! the area each arc of one inside the other sweeps about the origin, in
+//! closed form.
+
+use std::f64::consts::{PI, TAU};
+
+use glam::{DVec2, DVec3};
+
+use super::*;
+use crate::soundness::{closed, uncrossed};
+
+/// A section seen square to Z: `center + first cos t + second sin t`,
+/// `second` a quarter turn counter-clockwise from `first`.
+#[derive(Clone, Copy, Debug)]
+struct Section {
+    center: DVec2,
+    first: DVec2,
+    second: DVec2,
+}
+
+impl Section {
+    fn ellipse(center: [f64; 2], first: DVec2, other: f64) -> Section {
+        Section {
+            center: DVec2::from(center),
+            first,
+            second: first.perp().normalize() * other,
+        }
+    }
+
+    fn circle(center: [f64; 2], radius: f64) -> Section {
+        Section::ellipse(center, DVec2::X * radius, radius)
+    }
+
+    fn point(&self, t: f64) -> DVec2 {
+        self.center + self.first * t.cos() + self.second * t.sin()
+    }
+
+    /// Below nought inside, above outside.
+    fn implicit(&self, point: DVec2) -> f64 {
+        let from = point - self.center;
+        let x = from.dot(self.first) / self.first.length_squared();
+        let y = from.dot(self.second) / self.second.length_squared();
+        x * x + y * y - 1.0
+    }
+
+    fn area(&self) -> f64 {
+        PI * self.first.length() * self.second.length()
+    }
+
+    /// The area the arc from `from` to `to` sweeps about the origin.
+    fn swept(&self, from: f64, to: f64) -> f64 {
+        let across = self.first.perp_dot(self.second);
+        let chord = self.point(to) - self.point(from);
+        (across * (to - from) + self.center.perp_dot(chord)) / 2.0
+    }
+
+    /// The parameter of the point of the curve `point` stands on, in
+    /// `[0, 2π)`.
+    fn parameter(&self, point: DVec2) -> f64 {
+        let from = point - self.center;
+        let x = from.dot(self.first) / self.first.length_squared();
+        let y = from.dot(self.second) / self.second.length_squared();
+        y.atan2(x).rem_euclid(TAU)
+    }
+
+    /// The points where this section's curve crosses `other`'s, where the
+    /// other's equation changes sign between two samples, by halving:
+    /// samples within rounding of the other curve, as about a touch, tell no
+    /// side.
+    fn crossings(&self, other: &Section) -> Vec<DVec2> {
+        const SAMPLES: usize = 20_000;
+        const ROUNDING: f64 = 1e-12;
+        let side = |t: f64| other.implicit(self.point(t));
+        let mut found = Vec::new();
+        let mut last: Option<(f64, bool)> = None;
+        for step in 0..=SAMPLES {
+            let t = TAU * step as f64 / SAMPLES as f64;
+            let value = side(t);
+            if value.abs() <= ROUNDING {
+                continue;
+            }
+            let outside = value > 0.0;
+            if let Some((from, was)) = last
+                && was != outside
+            {
+                let [mut low, mut high] = [from, t];
+                for _ in 0..200 {
+                    let middle = (low + high) / 2.0;
+                    if (side(middle) > 0.0) == was {
+                        low = middle;
+                    } else {
+                        high = middle;
+                    }
+                }
+                found.push(self.point((low + high) / 2.0));
+            }
+            last = Some((t, outside));
+        }
+        found
+    }
+
+    /// The area of this section's arcs standing inside `other`, swept, the
+    /// arcs ending at `crossings`.
+    fn inside(&self, other: &Section, crossings: &[DVec2]) -> f64 {
+        let mut at: Vec<f64> = crossings
+            .iter()
+            .map(|point| self.parameter(*point))
+            .collect();
+        at.sort_by(f64::total_cmp);
+        if at.is_empty() {
+            let deepest = (0..64)
+                .map(|step| other.implicit(self.point(TAU * f64::from(step) / 64.0)))
+                .max_by(|one, other| one.abs().total_cmp(&other.abs()))
+                .unwrap_or(1.0);
+            return if deepest < 0.0 { self.area() } else { 0.0 };
+        }
+        let mut swept = 0.0;
+        for (index, &from) in at.iter().enumerate() {
+            let to = at.get(index + 1).copied().unwrap_or(at[0] + TAU);
+            if other.implicit(self.point((from + to) / 2.0)) < 0.0 {
+                swept += self.swept(from, to);
+            }
+        }
+        swept
+    }
+
+    /// The area both sections enclose, both curves' arcs ending at the very
+    /// points where they cross, so that the boundary closes.
+    fn overlap(&self, other: &Section) -> f64 {
+        let crossings = self.crossings(other);
+        self.inside(other, &crossings) + other.inside(self, &crossings)
+    }
+}
+
+/// A prism of a section from `from` to `to` along Z, handed to the kernel
+/// as an ellipse or, where both half-axes are one, a circle.
+fn raised(section: Section, from: f64, to: f64) -> Body {
+    let (first, other) = (section.first.length(), section.second.length());
+    let start = section.center + section.first;
+    let runs = if first == other {
+        vec![Run::Round {
+            center: section.center,
+            turn: TAU,
+        }]
+    } else {
+        vec![Run::Oval {
+            center: section.center,
+            first: section.first,
+            second: other,
+            turn: TAU,
+        }]
+    };
+    let outline = Contour {
+        corners: vec![start],
+        runs,
+    };
+    Body::raised(&outline, &[], ground(from), DVec3::Z * (to - from)).expect("a prism raises")
+}
+
+/// The body's listing, its volume against the arithmetic's, and its
+/// triangles closed and uncrossed from a fine tolerance to a coarse one.
+fn held(body: &Body, volume: f64) {
+    assert!(
+        (body.volume() - volume).abs() <= 1e-9 * volume,
+        "the body holds {}, the arithmetic {volume}",
+        body.volume()
+    );
+    assert_eq!(listed(&body.listing(), body.scale().reach()), Ok(()));
+    for share in [1e-4, 1e-3, 2e-2] {
+        let triangles = body.triangles(share * body.scale().reach());
+        assert_eq!(closed(&triangles).map_err(|_| share), Ok(()), "open");
+        assert_eq!(uncrossed(&triangles).map_err(|_| share), Ok(()), "crossed");
+    }
+}
+
+/// The ellipse every case below is drawn on: half-axes 7 and 3, the major
+/// one turned 0.4 off X, about `(3, −1)`.
+fn boss() -> Section {
+    Section::ellipse([3.0, -1.0], DVec2::from_angle(0.4) * 7.0, 3.0)
+}
+
+/// A place of the plane, `(x, y)` along the boss's own half-axes from its
+/// centre.
+fn on_the_boss(x: f64, y: f64) -> [f64; 2] {
+    let boss = boss();
+    let place = boss.center + boss.first.normalize() * x + boss.second.normalize() * y;
+    place.to_array()
+}
+
+/// The boss cut by a prism of `tool` through it, and joined to one.
+fn cut_and_joined(tool: Section) {
+    let boss = boss();
+    let body = raised(boss, 0.0, 4.0);
+    let cut = body
+        .cut_by(&raised(tool, -1.0, 5.0))
+        .expect("the tool is cut out of the boss");
+    held(&cut, (boss.area() - boss.overlap(&tool)) * 4.0);
+    let joined = body
+        .joined(&raised(tool, 0.0, 4.0))
+        .expect("the tool is joined to the boss");
+    held(
+        &joined,
+        (boss.area() + tool.area() - boss.overlap(&tool)) * 4.0,
+    );
+}
+
+#[test]
+fn a_round_hole_crossing_an_elliptic_boss_s_wall_at_two_rulings_or_four_holds_its_volume() {
+    cut_and_joined(Section::circle(on_the_boss(7.0, 0.0), 2.0));
+    cut_and_joined(Section::circle([9.3, -1.0], 1.0));
+    cut_and_joined(Section::circle(on_the_boss(0.3, 0.2), 5.0));
+}
+
+#[test]
+fn a_circle_touching_an_elliptic_boss_outside_or_inside_at_a_major_vertex_and_crossing_it_twice_holds_its_volume()
+ {
+    cut_and_joined(Section::circle(on_the_boss(9.0, 0.0), 2.0));
+    cut_and_joined(Section::circle(on_the_boss(4.0, 0.0), 3.0));
+}
+
+#[test]
+fn two_ellipses_crossing_at_four_rulings_or_touching_outside_hold_their_volume() {
+    let boss = boss();
+    let u = boss.first.normalize();
+    let v = boss.second.normalize();
+    cut_and_joined(Section::ellipse(on_the_boss(0.0, 0.0), v * 6.0, 2.0));
+    cut_and_joined(Section::ellipse(on_the_boss(9.0, 0.0), u * 2.0, 1.0));
+}
+
+#[test]
+fn the_same_ellipse_a_ten_thousandth_off_is_built_crossing_it() {
+    let boss = boss();
+    let moved = Section {
+        center: boss.center + DVec2::new(1e-4, 0.0),
+        ..boss
+    };
+    cut_and_joined(moved);
+}

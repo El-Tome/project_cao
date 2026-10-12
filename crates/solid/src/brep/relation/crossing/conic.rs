@@ -46,15 +46,16 @@ pub(super) fn conic_and_surface(
         Round::Elliptic(wall) => Surface::Elliptic(wall),
     };
     let own_plane = Surface::Plane(conic.plane);
-    let (curves, across, along_a_touch) = match surface {
+    let (curves, across) = match surface {
         Surface::Plane(plane) if let Some(lines) = along_the_axis(conic, plane, scale) => lines,
         Surface::Plane(plane) => match planes(&conic.plane, plane, scale) {
             Relation::Same { .. } => return Crossings::Along,
-            Relation::Line(line) => (vec![Curve::Line(line)], wall, false),
-            Relation::Apart => (Vec::new(), wall, false),
+            Relation::Line(line) => (vec![(Curve::Line(line), false)], wall),
+            Relation::Apart => (Vec::new(), wall),
             Relation::Apex(_)
             | Relation::Lines(_)
             | Relation::Tangent(_)
+            | Relation::Parallel(_)
             | Relation::Circle(_)
             | Relation::Meet(_)
             | Relation::Rulings { .. }
@@ -65,20 +66,28 @@ pub(super) fn conic_and_surface(
         Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
             match relation(&wall, surface, scale) {
                 Relation::Same { .. } => return Crossings::Along,
-                Relation::Lines(lines) => (lines.map(Curve::Line).to_vec(), own_plane, false),
-                Relation::Tangent(line) => (vec![Curve::Line(line)], own_plane, true),
-                Relation::Circle(circle) => (vec![Curve::Circle(circle)], own_plane, false),
+                Relation::Lines(lines) => (
+                    lines.map(|line| (Curve::Line(line), false)).to_vec(),
+                    own_plane,
+                ),
+                Relation::Tangent(line) => (vec![(Curve::Line(line), true)], own_plane),
+                Relation::Parallel(rulings) => (
+                    rulings
+                        .iter()
+                        .map(|ruled| (Curve::Line(ruled.line), ruled.touching))
+                        .collect(),
+                    own_plane,
+                ),
+                Relation::Circle(circle) => (vec![(Curve::Circle(circle), false)], own_plane),
                 Relation::Meet(meeting) => (
                     meeting
                         .components
                         .iter()
-                        .copied()
-                        .map(Curve::Meet)
+                        .map(|component| (Curve::Meet(*component), false))
                         .collect(),
                     own_plane,
-                    false,
                 ),
-                Relation::Apart | Relation::Apex(_) => (Vec::new(), own_plane, false),
+                Relation::Apart | Relation::Apex(_) => (Vec::new(), own_plane),
                 Relation::Line(_)
                 | Relation::Rulings { .. }
                 | Relation::Conic(_)
@@ -88,7 +97,7 @@ pub(super) fn conic_and_surface(
         }
     };
     let mut kept = Vec::new();
-    for curve in &curves {
+    for (curve, along_a_touch) in &curves {
         let touched = match (curve, surface, conic.round) {
             (Curve::Line(line), Surface::Plane(plane), Round::Cylinder(cylinder))
                 if across == wall =>
@@ -132,7 +141,7 @@ pub(super) fn conic_and_surface(
                 kept.push(Crossing {
                     parameter,
                     point,
-                    tangent: crossing.tangent || along_a_touch,
+                    tangent: crossing.tangent || *along_a_touch,
                 });
             }
         }
@@ -151,7 +160,7 @@ fn along_the_axis(
     conic: &Conic,
     plane: &Plane,
     scale: Scale,
-) -> Option<(Vec<Curve>, Surface, bool)> {
+) -> Option<(Vec<(Curve, bool)>, Surface)> {
     let Round::Cylinder(cylinder) = conic.round else {
         return None;
     };
@@ -164,8 +173,11 @@ fn along_the_axis(
     }
     let own_plane = Surface::Plane(conic.plane);
     Some(match plane_and_cylinder(plane, &cylinder, scale) {
-        Relation::Lines(lines) => (lines.map(Curve::Line).to_vec(), own_plane, false),
-        Relation::Tangent(line) => (vec![Curve::Line(line)], own_plane, true),
-        _ => (Vec::new(), own_plane, false),
+        Relation::Lines(lines) => (
+            lines.map(|line| (Curve::Line(line), false)).to_vec(),
+            own_plane,
+        ),
+        Relation::Tangent(line) => (vec![(Curve::Line(line), true)], own_plane),
+        _ => (Vec::new(), own_plane),
     })
 }

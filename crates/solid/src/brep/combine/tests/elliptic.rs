@@ -205,18 +205,12 @@ fn an_elliptic_hole_touching_a_block_s_side_from_inside_is_cut() {
 }
 
 #[test]
-fn a_round_post_beside_an_elliptic_boss_is_joined_where_their_faces_stand_clear_and_declined_where_they_cross()
- {
+fn a_round_post_standing_clear_of_an_elliptic_boss_is_joined() {
     let boss = oval([3.0, -1.0], first(0.4), 0.0, 4.0);
     let clear = boss
         .joined(&standing([9.3, 2.7], 0.1, 0.0, 4.0))
         .expect("a post standing clear of the boss is joined");
     held(&clear, area() * 4.0 + PI * 0.01 * 4.0);
-    assert_eq!(
-        boss.joined(&standing([9.3, -1.0], 1.0, 0.0, 4.0))
-            .map(|_| ()),
-        Err(Declined::Unsupported)
-    );
 }
 
 #[test]

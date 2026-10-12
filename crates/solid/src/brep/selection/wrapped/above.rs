@@ -8,7 +8,7 @@ use glam::{DVec2, DVec3};
 
 use super::ROUNDING;
 use crate::brep::curve::Line;
-use crate::brep::relation::{Relation, at_a_slant};
+use crate::brep::relation::{Relation, abreast, at_a_slant, standing_above};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder, Surface};
 
@@ -31,6 +31,16 @@ pub(in crate::brep::selection) fn stands_above(
     rounding: f64,
 ) -> Option<bool> {
     match related {
+        Relation::Lines(lines) if abreast(first, second) => {
+            standing_above(first, second, lines, place, rounding)
+        }
+        Relation::Tangent(line) if abreast(first, second) => {
+            standing_above(first, second, &[*line], place, rounding)
+        }
+        Relation::Parallel(rulings) => {
+            let lines: Vec<Line> = rulings.iter().map(|ruled| ruled.line).collect();
+            standing_above(first, second, &lines, place, rounding)
+        }
         Relation::Lines(lines) => across_the_lobe(first, second, lines, place),
         Relation::Tangent(_) => touching_above(first, second),
         Relation::Rulings { lines, .. } if at_a_slant(first, second, scale) => {

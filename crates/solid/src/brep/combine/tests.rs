@@ -921,4 +921,5 @@ fn a_plane_carries_a_line_only_where_the_line_stays_within_the_tolerance_of_it_a
 mod conical;
 mod conics;
 mod elliptic;
+mod stress_elliptic;
 mod unstable;

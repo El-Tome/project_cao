@@ -1,8 +1,10 @@
 //! Joins and cuts on an elliptic wall (#571): the planes of a block square
 //! to its axis, along it — crossing it along two rulings, or touching it
 //! along one at its support point — and at a slant, and the same ellipse
-//! twice. Each held to its listing, to the arithmetic's volume, and drawn
-//! closed.
+//! twice; then the cases the stresses of `stress_elliptic.rs` found drawn
+//! wrong. Each held to its listing, to the arithmetic's volume where it is
+//! simple, and drawn closed and uncrossed from a fine tolerance to a coarse
+//! one.
 
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
@@ -48,15 +50,12 @@ fn area() -> f64 {
 }
 
 fn held(body: &Body, volume: f64) {
-    assert_eq!(listed(&body.listing(), body.scale().reach()), Ok(()));
     assert!(
         (body.volume() - volume).abs() <= 1e-9 * volume,
         "the body holds {}, the arithmetic {volume}",
         body.volume()
     );
-    let triangles = body.triangles(1e-3 * body.scale().reach());
-    closed(&triangles).expect("the triangles close");
-    uncrossed(&triangles).expect("no triangle crosses another");
+    drawn(body);
 }
 
 /// The body's listing, and its triangles closed and uncrossed from a fine

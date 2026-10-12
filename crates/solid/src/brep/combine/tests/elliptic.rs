@@ -4,7 +4,7 @@
 //! twice. Each held to its listing, to the arithmetic's volume, and drawn
 //! closed.
 
-use std::f64::consts::{PI, TAU};
+use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 use glam::{DVec2, DVec3};
 
@@ -23,13 +23,19 @@ fn first(turned: f64) -> DVec2 {
 /// The ellipse about `center` whose major half-axis is `first`, raised from
 /// `from` to `to`.
 fn oval(center: [f64; 2], first: DVec2, from: f64, to: f64) -> Body {
+    ellipse(center, first, MINOR, from, to)
+}
+
+/// The ellipse about `center` whose major half-axis is `first` and whose
+/// minor one is `minor` long, raised from `from` to `to`.
+fn ellipse(center: [f64; 2], first: DVec2, minor: f64, from: f64, to: f64) -> Body {
     let center = DVec2::from(center);
     let outline = Contour {
         corners: vec![center + first],
         runs: vec![Run::Oval {
             center,
             first,
-            second: MINOR,
+            second: minor,
             turn: TAU,
         }],
     };
@@ -51,6 +57,17 @@ fn held(body: &Body, volume: f64) {
     let triangles = body.triangles(1e-3 * body.scale().reach());
     closed(&triangles).expect("the triangles close");
     uncrossed(&triangles).expect("no triangle crosses another");
+}
+
+/// The body's listing, and its triangles closed and uncrossed from a fine
+/// tolerance to a coarse one.
+fn drawn(body: &Body) {
+    assert_eq!(listed(&body.listing(), body.scale().reach()), Ok(()));
+    for share in [1e-4, 1e-3, 2e-2] {
+        let triangles = body.triangles(share * body.scale().reach());
+        assert_eq!(closed(&triangles).map_err(|_| share), Ok(()), "open");
+        assert_eq!(uncrossed(&triangles).map_err(|_| share), Ok(()), "crossed");
+    }
 }
 
 #[test]
@@ -268,4 +285,20 @@ fn a_plane_leaning_a_hair_off_square_to_or_along_an_elliptic_wall_s_axis_is_decl
         .cut_by(&slab(DVec3::new(4.0, -1.0, 6.0), DVec3::Z))
         .expect("a level cut is built");
     held(&level, area() * 6.0);
+}
+
+#[test]
+fn a_side_a_hair_inside_the_end_of_an_elliptic_boss_s_major_axis_leaves_a_strip_drawn_off_it() {
+    let boss = ellipse(
+        [3.0, 0.0],
+        DVec2::from_angle(FRAC_PI_2) * 2.0,
+        1.5,
+        -1.0,
+        4.0,
+    );
+    let side = 2.0 - 2e-8 / 3.0;
+    let cut = boss
+        .cut_by(&block([-1.5, -4.0, 1.0], [4.0, side, 2.5]))
+        .expect("the boss is cut");
+    drawn(&cut);
 }

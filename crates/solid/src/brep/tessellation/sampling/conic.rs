@@ -26,7 +26,7 @@ use glam::DVec3;
 
 use super::chords::halved;
 use super::cone::Grid;
-use super::elliptic::on_the_wall;
+use super::elliptic::{between_steps, on_the_wall};
 use super::ends::grazed;
 use super::{divisions, on_a_plane, touching_planes};
 use crate::brep::conic::{Conic, On, Round};
@@ -113,7 +113,8 @@ pub(super) fn of_edge(
                 .into_iter()
                 .chain(rays.iter().copied())
                 .collect();
-            on_conic(conic, edge, tolerance, eps, [&grid, &rays], &clear)
+            let edge = between_steps(conic, edge, steps);
+            on_conic(conic, &edge, tolerance, eps, [&grid, &rays], &clear)
         }
     }
 }

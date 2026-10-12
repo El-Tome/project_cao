@@ -2,6 +2,14 @@
 //! elliptic wall at a slant or leaning a hair off its axis, each seed shrunk
 //! and kept as the test it was fixed against.
 //!
+//! Round 0, measured at `2982f55`, before this lane: such a plane leaning
+//! off the wall's axis by less than a thousandth of a radian was declined,
+//! and an elliptic wall of the second operand never turned. Laid square or
+//! along where decision 11 lays it, and built and noted unstable past it,
+//! 2928 of round 0's 4079 failures hold since `2e1ea5c`: a plane leaning a
+//! hundredth of a degree off along an elliptic post, an elliptic boss drawn
+//! on a plane leaning a ten-millionth of a degree and joined to a block.
+//!
 //! Round 1, measured at `2e1ea5c`: what #552 decides for a plane meeting a
 //! circular wall a hair from a touch reaches an elliptic wall too. A line
 //! two planes crossing the axis steeply share, inside the wall's section by
@@ -20,6 +28,46 @@
 mod random_solids;
 
 use random_solids::{Case, Leaf, Outline, Plane, Step};
+
+#[test]
+fn seed_5571600008_an_elliptic_post_cut_by_a_plane_leaning_0_01_degrees_off_along_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(15.0),
+            Outline::ellipse([43.0, 30.0], [10.0, 0.0], 5.0),
+            23.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([43.0, 33.0, 26.0], [89.99, 0.0, 0.0]),
+            Outline::rectangle([-13.0, -15.0], [13.0, 15.0]),
+            13.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_5571600015_an_elliptic_boss_drawn_on_a_plane_leaning_1e_7_degrees_is_joined_to_a_cut_block()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(15.0),
+            Outline::rectangle([-5.0, -10.0], [28.0, 40.0]),
+            40.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([18.0, 13.0, 30.0], [90.0, 0.0, 0.0]),
+                Outline::rectangle([-43.0, -45.0], [8.0, 13.0]),
+                15.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::tilted([12.0, 3.0, -1.0], [90.0, 89.9999999, 0.0]),
+                Outline::ellipse([0.0, 0.0], [-8.0, -0.0], 10.0),
+                8.0,
+            )),
+        ],
+    ));
+}
 
 #[test]
 fn seed_5571628398_an_elliptic_post_cut_at_45_and_75_degrees_through_one_point_of_its_rim() {

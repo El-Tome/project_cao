@@ -56,7 +56,7 @@ impl Planes {
                 .iter()
                 .map(|surface| match surface {
                     Surface::Plane(plane) => Some((plane.normal, plane.offset())),
-                    Surface::Cylinder(_) | Surface::Cone(_) => None,
+                    Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
                 })
                 .collect(),
             grazing: BTreeSet::new(),

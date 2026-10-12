@@ -179,7 +179,9 @@ pub(in crate::brep) fn traced(
                 beside(curve, (plane, &round), surface, [from, to], eps).ok_or(declined)
             })
         }
-        (Surface::Cylinder(_) | Surface::Cone(_), _) => chord(curve, surface, from, to, eps),
+        (Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
+            chord(curve, surface, from, to, eps)
+        }
     }
 }
 
@@ -250,6 +252,7 @@ fn beside(
         Surface::Plane(beside) => (Conic::cut(beside, round, scale), On::Plane),
         Surface::Cylinder(wall) => (Conic::cut(plane, &Round::Cylinder(*wall), scale), On::Wall),
         Surface::Cone(wall) => (Conic::cut(plane, &Round::Cone(*wall), scale), On::Wall),
+        Surface::Elliptic(_) => return None,
     };
     let middle = curve.point((from + to) / 2.0);
     let off = |conic: &Conic, at: f64| {
@@ -314,7 +317,9 @@ fn chord(
     Ok(Trace::Segment {
         from,
         to: match surface {
-            Surface::Cylinder(_) | Surface::Cone(_) => DVec2::new(unwrapped(to.x, from.x), to.y),
+            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+                DVec2::new(unwrapped(to.x, from.x), to.y)
+            }
             Surface::Plane(_) => to,
         },
     })

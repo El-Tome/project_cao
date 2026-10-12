@@ -237,7 +237,7 @@ fn solved(mut lying: Vec<Lying>, axis: DVec3, left: f64) -> DVec3 {
 fn flats(body: &Body, near: (DVec3, DVec3), grown: f64) -> Vec<Plane> {
     let planes = body.surfaces.iter().filter_map(|surface| match surface {
         Surface::Plane(plane) => Some(*plane),
-        Surface::Cylinder(_) | Surface::Cone(_) => None,
+        Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
     });
     let circles = body
         .edges
@@ -250,12 +250,13 @@ fn flats(body: &Body, near: (DVec3, DVec3), grown: f64) -> Vec<Plane> {
     planes.chain(circles).collect()
 }
 
-/// The axis of each wall of a body.
+/// The axis of each circular wall of a body: an elliptic one is not turned
+/// onto yet (#571).
 fn axes(body: &Body) -> impl Iterator<Item = Straight> {
     body.surfaces.iter().filter_map(|surface| match surface {
         Surface::Cylinder(cylinder) => Some((cylinder.origin, cylinder.axis)),
         Surface::Cone(cone) => Some((cone.origin, cone.axis)),
-        Surface::Plane(_) => None,
+        Surface::Plane(_) | Surface::Elliptic(_) => None,
     })
 }
 
@@ -263,7 +264,7 @@ fn axes(body: &Body) -> impl Iterator<Item = Straight> {
 fn walls(body: &Body) -> impl Iterator<Item = &Cylinder> {
     body.surfaces.iter().filter_map(|surface| match surface {
         Surface::Cylinder(cylinder) => Some(cylinder),
-        Surface::Plane(_) | Surface::Cone(_) => None,
+        Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
     })
 }
 

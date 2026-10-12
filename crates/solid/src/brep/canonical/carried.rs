@@ -106,12 +106,13 @@ fn beside(body: &Body, edge: EdgeId) -> Vec<usize> {
 }
 
 /// Whether a move leaves a surface where it is: along a plane, or along a
-/// cylinder's axis; a cone, which a move along its axis takes its apex
-/// with, only under no move at all.
+/// cylinder's or an elliptic wall's axis; a cone, which a move along its
+/// axis takes its apex with, only under no move at all.
 fn slides(surface: &Surface, by: DVec3, scale: Scale) -> bool {
     let off = match surface {
         Surface::Plane(plane) => plane.normal.dot(by).abs(),
         Surface::Cylinder(cylinder) => (by - cylinder.axis * cylinder.axis.dot(by)).length(),
+        Surface::Elliptic(wall) => (by - wall.axis * wall.axis.dot(by)).length(),
         Surface::Cone(_) => by.length(),
     };
     off <= ROUNDING * scale.eps()
@@ -192,6 +193,7 @@ fn shifted(surface: &Surface, by: DVec3) -> Surface {
         Surface::Plane(plane) => Surface::Plane(shifted_plane(plane, by)),
         Surface::Cylinder(cylinder) => Surface::Cylinder(shifted_cylinder(cylinder, by)),
         Surface::Cone(cone) => Surface::Cone(shifted_cone(cone, by)),
+        Surface::Elliptic(wall) => Surface::Elliptic(wall.moved(by)),
     }
 }
 

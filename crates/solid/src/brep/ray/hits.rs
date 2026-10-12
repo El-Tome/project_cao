@@ -30,6 +30,7 @@ pub(super) fn hits(
         Surface::Plane(plane) => on_plane(plane, origin, direction, eps),
         Surface::Cylinder(cylinder) => on_cylinder(cylinder, origin, direction, eps),
         Surface::Cone(cone) => on_cone(cone, origin, direction, scale),
+        Surface::Elliptic(_) => Hits::Along,
     }
 }
 

@@ -14,7 +14,7 @@ use glam::DVec3;
 
 use super::curve::Curve;
 use super::domain::traced;
-use super::surface::{Cylinder, Plane, Surface};
+use super::surface::{Cylinder, EllipticCylinder, Plane, Surface};
 use super::topology::{Body, Coedge, FaceId};
 use super::trace::Trace;
 
@@ -31,7 +31,7 @@ impl Body {
         let surface = self.surface(lying.surface);
         let anchor = match surface {
             Surface::Cone(cone) => self.anchor(face, cone),
-            Surface::Plane(_) | Surface::Cylinder(_) => 0.0,
+            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => 0.0,
         };
         lying
             .loops
@@ -125,6 +125,7 @@ fn along(curve: &Curve, from: f64, to: f64, surface: &Surface, anchor: f64) -> f
                     Surface::Plane(plane) => planar(plane, point, speed),
                     Surface::Cylinder(cylinder) => radial(cylinder, point, speed),
                     Surface::Cone(cone) => cone::conical(cone, anchor, point, speed),
+                    Surface::Elliptic(wall) => elliptic(wall, point, speed),
                 };
                 total += weight * density * width / 2.0;
             }
@@ -190,6 +191,23 @@ fn radial(cylinder: &Cylinder, point: DVec3, speed: DVec3) -> f64 {
     let outward = (from - cylinder.axis * height).normalize();
     let turning = speed.dot(cylinder.axis.cross(outward));
     -height * (cylinder.radius + cylinder.origin.dot(outward)) * turning
+}
+
+/// On an elliptic wall the position's flux through `∂θ × ∂h` is `AB + B
+/// (o·u) cos θ + A (o·v) sin θ` whatever the height, and the 1-form whose
+/// derivative that is, `−h` times it `dθ`, read here along the curve.
+fn elliptic(wall: &EllipticCylinder, point: DVec3, speed: DVec3) -> f64 {
+    let from = point - wall.origin;
+    let height = from.dot(wall.axis);
+    let (major, minor) = (wall.major, wall.minor);
+    let [x, y] = [from.dot(wall.u) / major, from.dot(wall.v) / minor];
+    let [run_x, run_y] = [speed.dot(wall.u) / major, speed.dot(wall.v) / minor];
+    let turning = (x * run_y - y * run_x) / (x * x + y * y);
+    let (sin, cos) = (y / x.hypot(y), x / x.hypot(y));
+    let flux = major * minor
+        + minor * wall.origin.dot(wall.u) * cos
+        + major * wall.origin.dot(wall.v) * sin;
+    -height * flux * turning
 }
 
 /// The positive nodes of the eight-point rule on `[-1, 1]`, with their weights.

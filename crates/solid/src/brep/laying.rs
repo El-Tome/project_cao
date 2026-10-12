@@ -69,9 +69,15 @@ impl Laying {
                         && known.axis.cross(cone.axis).length() <= Scale::RELATIVE
                         && known.ruling.perp_dot(cone.ruling).abs() <= Scale::RELATIVE
                 }
-                (Surface::Plane(_), Surface::Cylinder(_) | Surface::Cone(_))
-                | (Surface::Cylinder(_), Surface::Plane(_) | Surface::Cone(_))
-                | (Surface::Cone(_), Surface::Plane(_) | Surface::Cylinder(_)) => false,
+                (Surface::Elliptic(known), Surface::Elliptic(wall)) => {
+                    known.axis.dot(wall.axis) > 0.0
+                        && known.axis.cross(wall.axis).length() <= Scale::RELATIVE
+                        && known.gap(wall) <= eps
+                }
+                (Surface::Plane(_), _)
+                | (Surface::Cylinder(_), _)
+                | (Surface::Cone(_), _)
+                | (Surface::Elliptic(_), _) => false,
             };
             alike
                 && corners

@@ -58,7 +58,9 @@ pub(in crate::brep::selection) fn stands_above(
                 let gap = -second.distance(place) / facing;
                 (gap.abs() > rounding).then_some(gap > 0.0)
             }
-            (Surface::Cylinder(_), Surface::Plane(_)) => None,
+            (Surface::Cylinder(_), Surface::Plane(_))
+            | (Surface::Elliptic(_), _)
+            | (_, Surface::Elliptic(_)) => None,
             (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
                 measured(first, second, place, rounding)
             }
@@ -89,9 +91,9 @@ fn touching_above(first: &Surface, second: &Surface) -> Option<bool> {
             let inside = (across - (first.radius - second.radius).abs()).abs();
             Some(outside <= inside || second.radius > first.radius)
         }
-        (Surface::Plane(_), Surface::Plane(_)) | (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
-            None
-        }
+        (Surface::Plane(_), Surface::Plane(_))
+        | (Surface::Cone(_) | Surface::Elliptic(_), _)
+        | (_, Surface::Cone(_) | Surface::Elliptic(_)) => None,
     }
 }
 
@@ -112,7 +114,10 @@ fn across_the_lobe(
 ) -> Option<bool> {
     let wall = match (first, second) {
         (Surface::Cylinder(wall), _) | (_, Surface::Cylinder(wall)) => wall,
-        (Surface::Plane(_) | Surface::Cone(_), Surface::Plane(_) | Surface::Cone(_)) => {
+        (
+            Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_),
+            Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_),
+        ) => {
             return None;
         }
     };
@@ -129,9 +134,9 @@ fn across_the_lobe(
         (Surface::Cylinder(wall), Surface::Plane(plane)) => {
             Some(plane.distance(middle) * plane.distance(wall.origin) > 0.0)
         }
-        (Surface::Plane(_), Surface::Plane(_)) | (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
-            None
-        }
+        (Surface::Plane(_), Surface::Plane(_))
+        | (Surface::Cone(_) | Surface::Elliptic(_), _)
+        | (_, Surface::Cone(_) | Surface::Elliptic(_)) => None,
     }
 }
 
@@ -165,7 +170,9 @@ fn across_the_cone_s_lobe(
     let (cone, plane) = match (first, second) {
         (Surface::Cone(cone), Surface::Plane(plane))
         | (Surface::Plane(plane), Surface::Cone(cone)) => (cone, plane),
-        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_), _) => return None,
+        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
+            return None;
+        }
     };
     let rulings = lines.map(|line| ruling_angle(cone, &line));
     let middle = middle_of_the_lobe(cone.parameters(place).x, rulings);
@@ -177,7 +184,7 @@ fn across_the_cone_s_lobe(
             let outside = towards * axis_side > 0.0;
             Some(outside == (cone.ruling.x > 0.0))
         }
-        Surface::Plane(_) | Surface::Cylinder(_) => Some(towards > 0.0),
+        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => Some(towards > 0.0),
     }
 }
 
@@ -208,7 +215,9 @@ fn touching_the_cone(first: &Surface, second: &Surface) -> Option<bool> {
         (Surface::Plane(plane), Surface::Cone(cone)) => {
             Some(plane.normal.dot(cone.axis) * cone.ruling.x > 0.0)
         }
-        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_), _) => None,
+        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
+            None
+        }
     }
 }
 
@@ -221,7 +230,9 @@ fn touching_the_cone(first: &Surface, second: &Surface) -> Option<bool> {
 fn across_the_rulings(first: &Surface, second: &Surface) -> Option<bool> {
     match (first, second) {
         (Surface::Cone(cone), Surface::Plane(_)) => Some(cone.ruling.x < 0.0),
-        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_), _) => None,
+        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
+            None
+        }
     }
 }
 
@@ -231,6 +242,7 @@ fn nearest(surface: &Surface, place: DVec3) -> DVec3 {
         Surface::Plane(plane) => place - plane.normal * plane.distance(place),
         Surface::Cylinder(cylinder) => beside(cylinder, place),
         Surface::Cone(cone) => cone.nearest(place),
+        Surface::Elliptic(wall) => wall.nearest(place),
     }
 }
 

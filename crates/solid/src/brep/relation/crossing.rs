@@ -110,7 +110,8 @@ pub fn crossings_given(
         (Curve::Conic(conic), surface) => {
             return conic::conic_and_surface(conic, surface, scale, touching);
         }
-        (Curve::Meet(_), Surface::Cone(_)) => Solved::Unsupported,
+        (Curve::Meet(_), Surface::Cone(_) | Surface::Elliptic(_)) => Solved::Unsupported,
+        (Curve::Line(_), Surface::Elliptic(_)) => Solved::Unsupported,
         (Curve::Line(line), Surface::Plane(plane)) => line_and_plane(line, plane, scale),
         (Curve::Line(line), Surface::Cylinder(cylinder)) => {
             line_and_cylinder(line, cylinder, scale, touching, None)
@@ -151,7 +152,7 @@ fn circle_and_surface(
                 plane: &own_plane,
             }),
         ),
-        Surface::Cone(_) => return Solved::Unsupported,
+        Surface::Cone(_) | Surface::Elliptic(_) => return Solved::Unsupported,
     };
     circle_through(circle, relation, (across, cut), scale, touching)
 }
@@ -229,7 +230,7 @@ fn meet_through_lines(
             cylinder: &own,
             plane,
         }),
-        Surface::Cylinder(_) | Surface::Cone(_) => None,
+        Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
     };
     let curve = Curve::Meet(*meet);
     let mut found = Vec::new();
@@ -255,7 +256,7 @@ fn relation_with(own: &Cylinder, surface: &Surface, scale: Scale) -> Relation {
     match surface {
         Surface::Plane(plane) => plane_and_cylinder(plane, own, scale),
         Surface::Cylinder(cylinder) => cylinders(own, cylinder, scale),
-        Surface::Cone(_) => Relation::Unsupported,
+        Surface::Cone(_) | Surface::Elliptic(_) => Relation::Unsupported,
     }
 }
 

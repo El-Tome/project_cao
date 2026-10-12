@@ -55,7 +55,7 @@ pub(super) fn grazed(
     let round = match wall {
         Surface::Cylinder(cylinder) => Round::Cylinder(*cylinder),
         Surface::Cone(cone) => Round::Cone(*cone),
-        Surface::Plane(_) => return None,
+        Surface::Plane(_) | Surface::Elliptic(_) => return None,
     };
     let nearest = |point: DVec3| {
         found
@@ -148,7 +148,7 @@ fn route(planes: [&Plane; 2], wall: &Surface, point: DVec3, scale: Scale) -> Opt
     let normal = match wall {
         Surface::Cylinder(cylinder) => cylinder.radial(cylinder.parameters(point).x),
         Surface::Cone(cone) => cone.normal(cone.parameters(point).x),
-        Surface::Plane(_) => return None,
+        Surface::Plane(_) | Surface::Elliptic(_) => return None,
     };
     let shared = planes[0].normal.cross(planes[1].normal);
     let between = shared.length();

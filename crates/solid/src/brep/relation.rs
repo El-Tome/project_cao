@@ -63,7 +63,7 @@ pub enum Relation {
     },
     /// Two cylinders at a skew angle, a cone and a cylinder or a cone not of
     /// its axis, a cone within the tolerance of a plane or a cylinder of its
-    /// axis all across the box.
+    /// axis all across the box, an elliptic wall and any surface.
     Unsupported,
 }
 
@@ -80,6 +80,7 @@ pub fn relation(one: &Surface, other: &Surface, scale: Scale) -> Relation {
         (Surface::Cone(cone), other) | (other, Surface::Cone(cone)) => {
             conical::relation(cone, other, scale)
         }
+        (Surface::Elliptic(_), _) | (_, Surface::Elliptic(_)) => Relation::Unsupported,
     }
 }
 
@@ -101,9 +102,9 @@ pub(in crate::brep) fn at_a_slant(one: &Surface, other: &Surface, scale: Scale) 
                     && plane.distance(cone.origin).abs() <= scale.eps())
         }
         (Surface::Plane(_), Surface::Plane(_))
-        | (Surface::Cylinder(_) | Surface::Cone(_), Surface::Cylinder(_) | Surface::Cone(_)) => {
-            false
-        }
+        | (Surface::Cylinder(_) | Surface::Cone(_), Surface::Cylinder(_) | Surface::Cone(_))
+        | (Surface::Elliptic(_), _)
+        | (_, Surface::Elliptic(_)) => false,
     }
 }
 

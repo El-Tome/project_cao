@@ -115,8 +115,10 @@ impl Surfaces {
             Relation::Meet(_) => {
                 let (first, second) = match (first, second) {
                     (Surface::Cylinder(first), Surface::Cylinder(second)) => (first, second),
-                    (Surface::Plane(_) | Surface::Cone(_), _)
-                    | (_, Surface::Plane(_) | Surface::Cone(_)) => return None,
+                    (Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_), _)
+                    | (_, Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_)) => {
+                        return None;
+                    }
                 };
                 let (rank, cylinder) = moved(first, second, scale)?;
                 let (rank, cylinder) = if own([one, other][rank]) {
@@ -156,7 +158,7 @@ impl Surfaces {
     ) -> Option<([usize; 2], Cylinder)> {
         let cylinder = match self.list[rank] {
             Surface::Cylinder(cylinder) => cylinder,
-            Surface::Plane(_) | Surface::Cone(_) => return None,
+            Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_) => return None,
         };
         let planes: Vec<(usize, Plane, bool)> = (0..self.list.len())
             .filter(|&other| other != rank && near(rank, other))
@@ -173,7 +175,10 @@ impl Surfaces {
                     );
                     Some((other, plane, touches))
                 }
-                Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => None,
+                Surface::Plane(_)
+                | Surface::Cylinder(_)
+                | Surface::Cone(_)
+                | Surface::Elliptic(_) => None,
             })
             .collect();
         for (index, &(one, plane, touches)) in planes.iter().enumerate() {
@@ -253,9 +258,9 @@ fn along_the_partner(before: &Surface, after: &Surface, partner: &Surface) -> Ve
         (Surface::Cylinder(before), Surface::Cylinder(after), Surface::Cylinder(partner)) => {
             (before, after, partner)
         }
-        (Surface::Plane(_) | Surface::Cone(_), _, _)
-        | (_, Surface::Plane(_) | Surface::Cone(_), _)
-        | (_, _, Surface::Plane(_) | Surface::Cone(_)) => {
+        (Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_), _, _)
+        | (_, Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_), _)
+        | (_, _, Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_)) => {
             return Vec::new();
         }
     };
@@ -351,7 +356,9 @@ fn touching(fixed: &Surface, moving: &Surface) -> Option<Surface> {
                 cylinder.radius,
             ))
         }
-        (Surface::Plane(_), Surface::Plane(_)) | (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
+        (Surface::Plane(_), Surface::Plane(_))
+        | (Surface::Cone(_) | Surface::Elliptic(_), _)
+        | (_, Surface::Cone(_) | Surface::Elliptic(_)) => {
             return None;
         }
     };

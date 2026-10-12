@@ -45,7 +45,7 @@ fn on_the_cone(body: &Body) -> (FaceId, Cone) {
     body.face_ids()
         .find_map(|face| match body.surface(body.face(face).surface) {
             Surface::Cone(cone) => Some((face, *cone)),
-            Surface::Plane(_) | Surface::Cylinder(_) => None,
+            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => None,
         })
         .expect("a face lies on a cone")
 }

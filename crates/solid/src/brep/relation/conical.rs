@@ -32,7 +32,7 @@ pub(super) fn relation(cone: &Cone, other: &Surface, scale: Scale) -> Relation {
                 Relation::Unsupported
             }
         }
-        Surface::Cylinder(_) => Relation::Unsupported,
+        Surface::Cylinder(_) | Surface::Elliptic(_) => Relation::Unsupported,
     }
 }
 

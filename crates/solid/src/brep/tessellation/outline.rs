@@ -83,6 +83,7 @@ impl Outline {
                 let eps = body.scale().eps();
                 outline.conical(cone, samples, &laps, steps, apex, eps)?;
             }
+            Surface::Elliptic(_) => return None,
         }
         Some(outline)
     }

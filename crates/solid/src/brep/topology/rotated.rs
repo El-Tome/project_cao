@@ -16,8 +16,9 @@ impl Body {
     /// within a sine of `within` of one of `anchors` laid on that one's
     /// bits, so that a pair the turn lays square or along compares exactly;
     /// none where a canonical direction would turn round, the way its curves
-    /// run with it, or the body holds a curve the turn does not rebuild — a
-    /// conic or the curve two perpendicular cylinders meet along.
+    /// run with it, or the body holds a surface or a curve the turn does not
+    /// rebuild — an elliptic wall, a conic or the curve two perpendicular
+    /// cylinders meet along.
     ///
     /// A circle reads its angle from the reference of its turned axis, as a
     /// wall about that axis does, and an edge on it starts nearest where it
@@ -67,6 +68,7 @@ impl Body {
                     direction(cone.axis)?,
                     [cone.foot, cone.foot + cone.ruling],
                 )),
+                Surface::Elliptic(_) => return None,
             };
         }
         for (rank, curve) in self.curves.iter().enumerate() {

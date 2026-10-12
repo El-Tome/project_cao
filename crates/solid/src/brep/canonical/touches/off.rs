@@ -55,13 +55,16 @@ pub(super) fn off(
                 Some(outside.abs().min(inside.abs()))
             }
             (Surface::Plane(_), Surface::Plane(_)) => Some(0.0),
-            (Surface::Cone(_), _) | (_, Surface::Cone(_)) => None,
+            (Surface::Cone(_) | Surface::Elliptic(_), _)
+            | (_, Surface::Cone(_) | Surface::Elliptic(_)) => None,
         },
         Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => {
             let (one, other) = match (one, other) {
                 (Surface::Cylinder(one), Surface::Cylinder(other)) => (one, other),
-                (Surface::Plane(_) | Surface::Cone(_), _)
-                | (_, Surface::Plane(_) | Surface::Cone(_)) => return None,
+                (Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_), _)
+                | (_, Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_)) => {
+                    return None;
+                }
             };
             Some(moved(one, other, scale).map_or(0.0, |(rank, to)| {
                 let from = [one, other][rank];

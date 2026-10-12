@@ -72,7 +72,7 @@ impl Body {
     fn closed(&self, face: FaceId, loops: Vec<Vec<Trace>>) -> Vec<Vec<Trace>> {
         match self.surface(self.face(face).surface) {
             Surface::Cone(cone) => floor::closed(cone, loops, self.scale.eps()),
-            Surface::Plane(_) | Surface::Cylinder(_) => loops,
+            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => loops,
         }
     }
 
@@ -137,6 +137,7 @@ impl Body {
         match self.surface(self.face(face).surface) {
             Surface::Cylinder(cylinder) => Unrolling::Round(cylinder.radius),
             Surface::Cone(cone) => Unrolling::Cone(*cone),
+            Surface::Elliptic(wall) => Unrolling::Elliptic(*wall),
             Surface::Plane(_) => Unrolling::Flat,
         }
     }

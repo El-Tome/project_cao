@@ -109,13 +109,18 @@ Known and still open:
   decided clear of a face at a slant, so such a pair still declines;
 - the conics (#552): a plane a hair off square to, or along, a wall's
   axis is laid exactly so where that moves the tool by no more than `G`
-  (decision 11); past that, up to a small angle, and a plane or a conic a
-  hair from tangent by an offset, are built with no band, and decline or
-  draw crossing two to three times in a thousand random parts of the
-  tilted draw off the lattice, a draw weighted towards such hairs — the
-  families `exact-kernel-failures.md` counts; two planes at a few times the
-  angle read as parallel graze, and hold, where their corners allow it.
-  The slanted and turned draws are under one in a thousand;
+  (decision 11); past that, up to a sine of a thousandth, it is built as
+  drawn and the user is told the step is unstable (step 10 of the
+  boolean). A lean in that band, a lean of a hair between two planes or
+  two walls, which decision 11 leaves, and a plane or a conic a hair from
+  tangent by an offset, held by no band, decline or draw crossing about
+  twice in a thousand random parts of the tilted draws, a draw weighted
+  towards such hairs; a handful with no hair are left too, a turn of
+  359.9° whose slit opens at a line of touch and cone bands of a wedge of
+  0.01° among them. `exact-kernel-failures.md` names them, with the rates
+  of every round. Two planes at a few times the angle read as parallel
+  graze, and hold, where their corners allow it. The slanted and turned
+  draws are under one in a thousand;
 - a face standing inside a cylinder's hollow is not decided clear of a
   cylinder at a skew angle to it: a boss raised, or a hole cut, square to
   the elliptic face a slanted cut leaves on a shaft declines, though the
@@ -1251,6 +1256,40 @@ of the meet's walls and the component lies in its plane all round, and,
 crossing the conic with the other wall, a curve of that wall and its own
 lying on the conic's plane is the conic, along the surface (9501873,
 5550232928). It was declined as unsupported before round 6 of #552.
+
+### What #552 ends with
+
+- **Built.** Every section of a cylinder or a cone by a plane at any
+  angle: an ellipse, a parabola, a branch of a hyperbola, two rulings
+  through a cone's apex, the ruling a plane touches a wall along, the apex
+  alone — beside the circles and the rulings the kernel held before. A
+  conic whose far vertices stand past ten thousand reaches is built as
+  arms, each on its own anchor.
+- **Rounded.** A plane of one operand leaning off square to, or along, a
+  wall's axis of the other by a lean whose move across the second operand,
+  `s·L`, stands under `G`, twenty tolerances, is laid exactly square or
+  along, and the kernel builds the circle or the lines it already holds
+  (decision 11, `canonical/placed.rs`). It is decided once, for the
+  boolean, before decision 1 reads the pair, on a plane against
+  a wall's axis only. Tom's decision of 2026-10-10 asked for less than one
+  tolerance across the part; `G` was measured and is one constant to move.
+- **Warned of.** Past that, up to a sine of a thousandth, some 0.057°, the
+  step is built as drawn, the body carries the least lean (`Unstable`,
+  `combine/unstable.rs`, step 10 of the boolean), and the application
+  says it: the tree marks the step « cas instable », and the step's panel
+  names the plane nearly square, or nearly parallel, to the wall's axis,
+  with the angle (`extrusion.unstable_square`, `extrusion.unstable_along`).
+  It is never refused for it; a decline in the band is a broken step with
+  its own reason.
+- **Still declined.** Curves that are no conic — two cylinders at a skew
+  angle, a cone against a cylinder or a cone of another axis — where their
+  faces may cross; a face bounded by the curve two perpendicular cylinders
+  meet along against a face at a slant; a face inside a cylinder's hollow
+  against a cylinder at a skew angle to it (see the start of this
+  document). Beside those, what the kernel cannot verify it declines as
+  unverified or as a tie: about two tilted random parts in a thousand,
+  hairs nearly all of them, named in `exact-kernel-failures.md`, "#552:
+  conics".
 
 ## The curve two perpendicular cylinders meet
 

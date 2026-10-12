@@ -26,6 +26,11 @@
 //! the round's campaigns are named last, and hold. The decision 11
 //! regression holds too: the circle and the conic bounding the wall's strip
 //! between the two faces drop the same grid angle beside the end they share.
+//!
+//! The measurement that closes round 6 broke one seed, named last under
+//! `conics-at-a-node` and ignored: two conics a face cuts through a node of
+//! two crossing walls, sampled on each other's places, where the face leans
+//! a hair off the plane holding one wall's axis.
 
 // The drawing and the checks are the campaign's; this file only builds cases
 // and holds them.
@@ -4123,6 +4128,37 @@ fn seed_5551609285_a_turn_cut_by_a_ring_and_a_cylinder_touching_its_bore() {
                 Plane::yz(-22.5),
                 Outline::circle([32.5, 20.0], 10.0),
                 70.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 6, found by its measurement, tilted through the
+/// application's body, the one seed that holds on `22df52e` and fails on the
+/// tip: a post joined to a half turn about a line along X, the two walls
+/// meeting at one point, cut by a block whose face passes through that
+/// point leaning 1e-5° off the plane holding the turn's axis. The face cuts
+/// the post along an ellipse all but a circle and the turn along a
+/// hyperbola all but two lines, and the two leave the point together;
+/// sampled on each other's places since `576396a`, their triangles cross.
+/// It holds on the exact kernel's own triangles, with the face square, and
+/// with any two of the three leaves. Shrinking leaves it whole.
+#[test]
+#[ignore = "conics-at-a-node, #552's round 6 measurement: a face 1e-5 degrees off the plane holding a half turn's axis cuts it and a post through the point their walls meet at; two conics leaving that node sampled on each other's places are drawn crossing; holds on 22df52e, broken at 576396a"]
+fn seed_5570235757_a_post_and_a_half_turn_meeting_at_a_point_cut_through_it_1e_5_degrees_off() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(35.0), Outline::circle([22.5, 5.0], 10.0), 43.0),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(56.25),
+                Axis::first(27.5),
+                Section::bands(7.5, &[[30.0, 0.0, 12.5]]),
+                -180.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([22.5, 5.0, 56.25], [0.0, 1e-5, 0.0]),
+                Outline::rectangle([-15.0, -13.0], [15.0, 13.0]),
+                25.0,
             )),
         ],
     ));

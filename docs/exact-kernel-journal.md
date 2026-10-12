@@ -672,6 +672,28 @@ side, and the first 15 000 seeds of round 1's slanted draws run again on
   along a line 1, a face listed backwards 1.
 - The gate's tests, built, take about 33 s, as at the merge.
 
+## 9 October: round 0 of #552, measured
+
+The branch as the review left it, `0d74713`, measured on fresh seeds in
+release, the nine draws two at a time, with the case counts every later
+round kept. Written down on 12 October from the campaign logs, so that
+the rounds have a start to be read against:
+
+| Draw | First seed | Cases | Failures | Per thousand |
+| --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5520100000 | 40 000 | 424 | 10.60 |
+| tilted, application's body | 5520200000 | 40 000 | 391 | 9.78 |
+| slanted, exact kernel | 5520300000 | 30 000 | 15 | 0.50 |
+| slanted, application's body | 5520400000 | 30 000 | 22 | 0.73 |
+| turned, exact kernel | 5520500000 | 30 000 | 15 | 0.50 |
+| turned, application's body | 5520600000 | 30 000 | 24 | 0.80 |
+| square | 5520700000 | 30 000 | 0 | 0.00 |
+| profiles, exact kernel | 5520800000 | 20 000 | 4 | 0.20 |
+| profiles, application's body | 5520900000 | 20 000 | 3 | 0.15 |
+
+The tilted draws' 815 failures are the ones `exact-kernel-failures.md`
+shrinks and sorts under "Two planes at a grazing angle".
+
 ## 9 October: round 1 of #552, measured
 
 Two lanes merged onto `34a1b64` (two planes at a grazing angle decided
@@ -1198,3 +1220,37 @@ built in its own target directory:
   turned ones, none in the square and profile draws.
 - The gate's tests, built and warm, take about 37.5 s at `05f20eb` and
   35.2 s at `22df52e`, the best of five runs each.
+
+## 12 October: #552 closed out
+
+The last round of #552 was round 6; this entry closes the work for the
+pull request. `exact-kernel-failures.md`, "Where #552 ends", writes out
+Tom's choice of 2026-10-10 and gives the rates of every draw over rounds 0
+to 6, the families left, the plain ones first, and the one seed the branch
+broke. `exact-kernel.md` ends its section on the conic with what #552
+builds, rounds, warns of and still declines.
+
+| Draw | Round 0 | Round 3 | Round 6 |
+| --- | --- | --- | --- |
+| tilted, exact kernel | 10.60 | 5.50 | 2.02 |
+| tilted, application's body | 9.78 | 6.25 | 2.17 |
+| slanted, exact kernel | 0.50 | 0.63 | 0.47 |
+| slanted, application's body | 0.73 | 0.20 | 0.50 |
+| turned, exact kernel | 0.50 | 0.50 | 0.63 |
+| turned, application's body | 0.80 | 0.63 | 0.33 |
+| square | 0.00 | 0.07 | 0.07 |
+| profiles, exact kernel | 0.20 | 0.25 | 0.35 |
+| profiles, application's body | 0.15 | 0.10 | 0.15 |
+
+- Round 0, at `0d74713`, is the branch the review left; its nine draws
+  were measured from 5520100000 to 5520900000 with the case counts every
+  round kept.
+- The bar of one failure in a thousand is met everywhere but on the two
+  tilted draws, which end at about two, nearly every failure a hair.
+- 5570235757, the seed round 6's measurement found broken by `576396a`, is
+  named under `conics-at-a-node` in
+  `what_the_exact_campaigns_found_in_the_triangles.rs`, ignored; it fails
+  on the tip as the campaign drew it.
+- The gate's tests, built and warm, best of three runs each, side by side:
+  37.4 s at the tip, 33.1 s at `9e54a71`, #536's tip, 4.3 s over it where
+  the issue's fourth default allows 3. Gate seeds are not cut yet.

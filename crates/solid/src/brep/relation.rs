@@ -32,11 +32,11 @@ pub enum Relation {
     },
     /// Two planes across each other.
     Line(Line),
-    /// A plane along a cylinder's axis cutting it, or two parallel cylinders
-    /// crossing.
+    /// A plane along a cylinder's or an elliptic wall's axis cutting it, or
+    /// two parallel cylinders crossing.
     Lines([Line; 2]),
-    /// A plane touching a cylinder, or two parallel cylinders touching from
-    /// outside or from inside.
+    /// A plane touching a cylinder or an elliptic wall, or two parallel
+    /// cylinders touching from outside or from inside.
     Tangent(Line),
     /// A plane square to a cylinder's axis, or a cone and a surface of its
     /// axis crossing off it.
@@ -54,7 +54,8 @@ pub enum Relation {
     Apex(DVec3),
     /// A plane at a slant to a cylinder's axis, or to a cone's axis without
     /// passing through its apex within the box: the conic it cuts on the
-    /// wall's own nappe, whole or as the arms it is split into.
+    /// wall's own nappe, whole or as the arms it is split into. A plane square
+    /// to an elliptic wall's axis, or at a slant to it, cuts its conic too.
     Conic(Vec<Conic>),
     /// A plane touching a cone along a ruling: that line, and the apex where
     /// it stands within the box.
@@ -64,7 +65,7 @@ pub enum Relation {
     },
     /// Two cylinders at a skew angle, a cone and a cylinder or a cone not of
     /// its axis, a cone within the tolerance of a plane or a cylinder of its
-    /// axis all across the box, an elliptic wall and any surface.
+    /// axis all across the box, an elliptic wall and any wall.
     Unsupported,
 }
 
@@ -82,14 +83,18 @@ pub fn relation(one: &Surface, other: &Surface, scale: Scale) -> Relation {
             conical::relation(cone, other, scale)
         }
         (Surface::Elliptic(one), Surface::Elliptic(other)) => elliptic::walls(one, other, scale),
+        (Surface::Plane(plane), Surface::Elliptic(wall))
+        | (Surface::Elliptic(wall), Surface::Plane(plane)) => {
+            elliptic::plane_and_elliptic(plane, wall, scale)
+        }
         (Surface::Elliptic(_), _) | (_, Surface::Elliptic(_)) => Relation::Unsupported,
     }
 }
 
-/// Whether two surfaces are a plane at a slant to a cylinder's axis — neither
-/// square to it nor along it — or to a cone's — neither square to it nor
-/// holding it: the pairs whose curve is a conic, which only the conic's own
-/// decision builds.
+/// Whether two surfaces are a plane at a slant to a cylinder's or an
+/// elliptic wall's axis — neither square to it nor along it — or to a
+/// cone's — neither square to it nor holding it: the pairs whose curve is a
+/// conic, which only the conic's own decision builds.
 pub(in crate::brep) fn at_a_slant(one: &Surface, other: &Surface, scale: Scale) -> bool {
     match (one, other) {
         (Surface::Plane(plane), Surface::Cylinder(cylinder))
@@ -102,6 +107,10 @@ pub(in crate::brep) fn at_a_slant(one: &Surface, other: &Surface, scale: Scale) 
             !parallel(plane.normal, cone.axis, scale)
                 && !(square(plane.normal, cone.axis, scale)
                     && plane.distance(cone.origin).abs() <= scale.eps())
+        }
+        (Surface::Plane(plane), Surface::Elliptic(wall))
+        | (Surface::Elliptic(wall), Surface::Plane(plane)) => {
+            !parallel(plane.normal, wall.axis, scale) && !square(plane.normal, wall.axis, scale)
         }
         (Surface::Plane(_), Surface::Plane(_))
         | (Surface::Cylinder(_) | Surface::Cone(_), Surface::Cylinder(_) | Surface::Cone(_))

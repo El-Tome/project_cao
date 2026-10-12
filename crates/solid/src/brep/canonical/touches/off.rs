@@ -54,6 +54,10 @@ pub(super) fn off(
                 let inside = (one.radius - other.radius).abs() - across;
                 Some(outside.abs().min(inside.abs()))
             }
+            (Surface::Plane(plane), Surface::Elliptic(wall))
+            | (Surface::Elliptic(wall), Surface::Plane(plane)) => {
+                Some((plane.distance(wall.origin).abs() - wall.support(plane.normal)).abs())
+            }
             (Surface::Plane(_), Surface::Plane(_)) => Some(0.0),
             (Surface::Cone(_) | Surface::Elliptic(_), _)
             | (_, Surface::Cone(_) | Surface::Elliptic(_)) => None,

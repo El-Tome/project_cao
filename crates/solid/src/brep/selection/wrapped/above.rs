@@ -53,6 +53,10 @@ pub(in crate::brep::selection) fn stands_above(
                 let gap = plane.distance(beside(cylinder, place));
                 (gap.abs() > rounding).then_some(gap > 0.0)
             }
+            (Surface::Plane(plane), Surface::Elliptic(wall)) => {
+                let gap = plane.distance(wall.nearest(place));
+                (gap.abs() > rounding).then_some(gap > 0.0)
+            }
             (Surface::Plane(first), Surface::Plane(second)) => {
                 let facing = first.normal.dot(second.normal);
                 let gap = -second.distance(place) / facing;
@@ -83,7 +87,8 @@ fn touching_above(first: &Surface, second: &Surface) -> Option<bool> {
         (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
             Some(plane.distance(cylinder.origin) > 0.0)
         }
-        (Surface::Cylinder(_), Surface::Plane(_)) => Some(true),
+        (Surface::Cylinder(_) | Surface::Elliptic(_), Surface::Plane(_)) => Some(true),
+        (Surface::Plane(plane), Surface::Elliptic(wall)) => Some(plane.distance(wall.origin) > 0.0),
         (Surface::Cylinder(first), Surface::Cylinder(second)) => {
             let between = second.origin - first.origin;
             let across = (between - first.axis * first.axis.dot(between)).length();
@@ -112,18 +117,21 @@ fn across_the_lobe(
     lines: &[Line; 2],
     place: DVec3,
 ) -> Option<bool> {
-    let wall = match (first, second) {
-        (Surface::Cylinder(wall), _) | (_, Surface::Cylinder(wall)) => wall,
-        (
-            Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_),
-            Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_),
-        ) => {
+    let middle = match (first, second) {
+        (Surface::Cylinder(wall), _) | (_, Surface::Cylinder(wall)) => {
+            let at = wall.parameters(place);
+            let [one, other] = lines.map(|line| wall.parameters(line.origin).x);
+            wall.point(DVec2::new(middle_of_the_lobe(at.x, [one, other]), at.y))
+        }
+        (Surface::Elliptic(wall), _) | (_, Surface::Elliptic(wall)) => {
+            let at = wall.parameters(place);
+            let [one, other] = lines.map(|line| wall.parameters(line.origin).x);
+            wall.point(DVec2::new(middle_of_the_lobe(at.x, [one, other]), at.y))
+        }
+        (Surface::Plane(_) | Surface::Cone(_), Surface::Plane(_) | Surface::Cone(_)) => {
             return None;
         }
     };
-    let at = wall.parameters(place);
-    let [one, other] = lines.map(|line| wall.parameters(line.origin).x);
-    let middle = wall.point(DVec2::new(middle_of_the_lobe(at.x, [one, other]), at.y));
     match (first, second) {
         (Surface::Cylinder(first), Surface::Cylinder(second)) => {
             let facing = |cylinder: &Cylinder| cylinder.radial(cylinder.parameters(place).x);
@@ -132,6 +140,10 @@ fn across_the_lobe(
         }
         (Surface::Plane(plane), Surface::Cylinder(_)) => Some(plane.distance(middle) > 0.0),
         (Surface::Cylinder(wall), Surface::Plane(plane)) => {
+            Some(plane.distance(middle) * plane.distance(wall.origin) > 0.0)
+        }
+        (Surface::Plane(plane), Surface::Elliptic(_)) => Some(plane.distance(middle) > 0.0),
+        (Surface::Elliptic(wall), Surface::Plane(plane)) => {
             Some(plane.distance(middle) * plane.distance(wall.origin) > 0.0)
         }
         (Surface::Plane(_), Surface::Plane(_))

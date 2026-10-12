@@ -345,5 +345,6 @@ fn sliced_alone(one: &Surface, other: &Surface) -> Relation {
 
 mod conical;
 mod crossing;
+mod elliptic;
 mod lattice;
 mod sliced;

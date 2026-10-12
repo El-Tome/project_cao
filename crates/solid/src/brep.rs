@@ -60,8 +60,10 @@ pub enum Declined {
     /// Two surfaces meet along a curve the kernel does not build: two
     /// cylinders at a skew angle, a cylinder or a cone off a cone's axis, a
     /// cone within the tolerance of a plane or a cylinder of its axis all
-    /// across the box. A plane meets a cylinder or a cone at any angle along a
-    /// conic, which is built (#552).
+    /// across the box, an elliptic wall against any other wall, or a plane
+    /// leaning off an elliptic wall's axis by a hair it does not read yet. A
+    /// plane meets a cylinder, a cone or an elliptic wall at any other angle
+    /// along a conic, which is built (#552, #571).
     Unsupported,
     /// Two curves touch more closely than their curvatures can order.
     Tie,

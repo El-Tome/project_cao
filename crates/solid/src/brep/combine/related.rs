@@ -6,6 +6,8 @@
 //! its faces stand clear of each other; a plane at a slant to a wall whose
 //! faces stand clear is passed by first, whatever its pair makes, so that
 //! the conic it cuts is registered only where two faces may meet along it.
+//! So is a plane leaning off an elliptic wall's axis by a hair, which the
+//! kernel does not read yet (`unstable.rs`).
 //!
 //! The boxes only spare the pairs that cannot meet; they decide nothing
 //! else. A box round a face at a slant is loose, which costs a pair related
@@ -18,6 +20,7 @@ use glam::DVec3;
 
 use super::clear::clear;
 use super::operands::Operands;
+use super::unstable::unread;
 use crate::brep::Declined;
 use crate::brep::canonical::Registry;
 use crate::brep::relation::{Relation, at_a_slant, relation};
@@ -48,6 +51,12 @@ pub(super) fn related(
             }
             done.insert(pair);
             let scale = operands.scale_of(pair);
+            if unread(operands, pair) {
+                if clear(operands, pair) {
+                    continue;
+                }
+                return Err(Declined::Unsupported);
+            }
             if at_a_slant(&list[one], &list[other], scale) && clear(operands, pair) {
                 continue;
             }

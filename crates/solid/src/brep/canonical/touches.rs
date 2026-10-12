@@ -313,11 +313,26 @@ fn moved_along(before: &Surface, after: &Surface, other: &Surface, scale: Scale)
 }
 
 /// `moving` moved onto the line it was decided to touch `fixed` along: a
-/// cylinder along a plane's normal, a plane along its own, a cylinder
-/// towards or away from a parallel one, by the gap the relation found within
-/// the tolerance. None where the touch is exact already.
+/// cylinder or an elliptic wall along a plane's normal, a plane along its
+/// own, a cylinder towards or away from a parallel one, by the gap the
+/// relation found within the tolerance. None where the touch is exact
+/// already.
 fn touching(fixed: &Surface, moving: &Surface) -> Option<Surface> {
     let moved = match (fixed, moving) {
+        (Surface::Plane(plane), Surface::Elliptic(wall)) => {
+            let away = plane.distance(wall.origin);
+            let gap = away.abs() - wall.support(plane.normal);
+            Surface::Elliptic(wall.moved(-plane.normal * away.signum() * gap))
+        }
+        (Surface::Elliptic(wall), Surface::Plane(plane)) => {
+            let away = plane.distance(wall.origin);
+            let gap = away.abs() - wall.support(plane.normal);
+            let (plane, _) = Plane::through(
+                plane.origin + plane.normal * away.signum() * gap,
+                plane.normal,
+            );
+            Surface::Plane(plane)
+        }
         (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
             let away = plane.distance(cylinder.origin);
             let gap = away.abs() - cylinder.radius;

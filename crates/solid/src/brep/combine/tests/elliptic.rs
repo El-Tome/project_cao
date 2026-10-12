@@ -372,3 +372,29 @@ fn a_flat_elliptic_boss_cut_along_its_minor_axis_is_drawn_closed_and_uncrossed()
         .expect("the boss is cut");
     drawn(&cut);
 }
+
+#[test]
+fn an_elliptic_boss_touching_one_of_two_sides_a_block_told_apart_a_hair_off_is_joined() {
+    let blocks = along_x(12.5, rectangle([20.0, 30.0], [43.0, 43.0]), 45.0)
+        .joined(&along_x(
+            12.5,
+            rectangle([20.000_000_1, 30.0], [42.500_000_1, 42.5]),
+            -90.0,
+        ))
+        .expect("the blocks join");
+    let center = DVec2::new(25.0, 35.0);
+    let first = DVec2::X * 5.0;
+    let outline = Contour {
+        corners: vec![center + first],
+        runs: vec![Run::Oval {
+            center,
+            first,
+            second: 3.0,
+            turn: TAU,
+        }],
+    };
+    let boss = along_x(12.500_000_1, outline, 180.0);
+    let joined = blocks.joined(&boss).expect("the elliptic boss joins");
+    assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
+    on_its_surfaces(&joined);
+}

@@ -11,13 +11,16 @@
 //! `canonical/touches.rs`, or a slot's sides its cap was drawn tangent to:
 //! decided finer, a bore's wall a slot's cap was taken for missed one side
 //! and crossed the other, and the slot's lines of touch along its sides
-//! stood on surfaces decided apart (8575631).
+//! stood on surfaces decided apart (8575631). An elliptic wall (#571) is
+//! read the same way, as far across its axis as its support reaches.
 
 use std::collections::BTreeMap;
 
+use glam::DVec3;
+
 use super::Operands;
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Plane, Surface};
+use crate::brep::surface::{Cylinder, EllipticCylinder, Plane, Surface};
 use crate::brep::topology::SurfaceId;
 
 impl Operands<'_> {
@@ -31,15 +34,16 @@ impl Operands<'_> {
         let mut finer = BTreeMap::new();
         for (rank, wall) in list.iter().enumerate() {
             let wall = match wall {
-                Surface::Cylinder(wall) => wall,
-                Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_) => continue,
+                Surface::Cylinder(wall) => Wall::Round(wall),
+                Surface::Elliptic(wall) => Wall::Oval(wall),
+                Surface::Plane(_) | Surface::Cone(_) => continue,
             };
             let wall_id = SurfaceId(rank as u32);
             let planes: Vec<(SurfaceId, Plane)> = list
                 .iter()
                 .enumerate()
                 .filter_map(|(other, surface)| match surface {
-                    Surface::Plane(plane) if off(wall, plane, self.scale) <= eps => {
+                    Surface::Plane(plane) if off(&wall, plane, self.scale) <= eps => {
                         Some((SurfaceId(other as u32), *plane))
                     }
                     Surface::Plane(_)
@@ -50,7 +54,7 @@ impl Operands<'_> {
                 .collect();
             for (index, &(one, first)) in planes.iter().enumerate() {
                 for &(other, second) in &planes[index + 1..] {
-                    if !beside(wall, [first, second]) {
+                    if !beside(&wall, [first, second]) {
                         continue;
                     }
                     if let Some(decided) = self.told_apart([one, other], [first, second], wall_id) {
@@ -89,18 +93,45 @@ impl Operands<'_> {
     }
 }
 
+/// A wall standing along planes: a cylinder, or an elliptic wall (#571),
+/// which reaches as far across its axis as its support says.
+enum Wall<'a> {
+    Round(&'a Cylinder),
+    Oval(&'a EllipticCylinder),
+}
+
+impl Wall<'_> {
+    /// A point of the wall's axis, and its direction.
+    fn axis(&self) -> (DVec3, DVec3) {
+        match self {
+            Wall::Round(wall) => (wall.origin, wall.axis),
+            Wall::Oval(wall) => (wall.origin, wall.axis),
+        }
+    }
+
+    /// How far the wall reaches from its axis along `way`, square to it.
+    fn reach(&self, way: DVec3) -> f64 {
+        match self {
+            Wall::Round(wall) => wall.radius,
+            Wall::Oval(wall) => wall.support(way),
+        }
+    }
+}
+
 /// How far a wall stands from touching a plane along its axis; infinite
 /// where the plane does not run along the axis.
-fn off(wall: &Cylinder, plane: &Plane, scale: Scale) -> f64 {
-    if wall.axis.dot(plane.normal).abs() * 2.0 * scale.reach() > scale.eps() {
+fn off(wall: &Wall, plane: &Plane, scale: Scale) -> f64 {
+    let (origin, axis) = wall.axis();
+    if axis.dot(plane.normal).abs() * 2.0 * scale.reach() > scale.eps() {
         return f64::INFINITY;
     }
-    (plane.distance(wall.origin).abs() - wall.radius).abs()
+    (plane.distance(origin).abs() - wall.reach(plane.normal)).abs()
 }
 
 /// Whether two planes stand on one side of a wall's axis, a hair apart
 /// there, rather than either side of it, a diameter apart.
-fn beside(wall: &Cylinder, [first, second]: [Plane; 2]) -> bool {
-    let towards = |plane: Plane| plane.normal * plane.distance(wall.origin);
+fn beside(wall: &Wall, [first, second]: [Plane; 2]) -> bool {
+    let (origin, _) = wall.axis();
+    let towards = |plane: Plane| plane.normal * plane.distance(origin);
     towards(first).dot(towards(second)) > 0.0
 }

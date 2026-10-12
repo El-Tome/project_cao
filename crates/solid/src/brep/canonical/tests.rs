@@ -1433,6 +1433,60 @@ fn a_rounded_rectangle_a_hair_beside_a_block_is_moved_flush_with_it() {
     }
 }
 
+/// A slot along X with elliptic ends, `across` from its axis to each side,
+/// its ends reaching `beyond` past its corners, from `left` to `right`
+/// about `level`, raised `height` (#571).
+fn oval_slot(level: f64, [left, right]: [f64; 2], across: f64, beyond: f64, height: f64) -> Body {
+    let side = DVec2::Y * across;
+    let [left, right] = [left, right].map(|x| DVec2::new(x, level));
+    let outline = Contour {
+        corners: vec![left - side, right - side, right + side, left + side],
+        runs: vec![
+            Run::Straight,
+            Run::Oval {
+                center: right,
+                first: -side,
+                second: beyond,
+                turn: PI,
+            },
+            Run::Straight,
+            Run::Oval {
+                center: left,
+                first: side,
+                second: beyond,
+                turn: PI,
+            },
+        ],
+    };
+    Body::raised(&outline, &[], ground(0.0), DVec3::Z * height).expect("a slot raises")
+}
+
+#[test]
+fn a_slot_with_elliptic_ends_a_hair_beside_a_block_is_moved_flush_with_it() {
+    let block = block([1.0, 3.0, 0.0], [8.0, 9.0, 5.0]);
+    let scale = Scale::of(9.0);
+    let hair = 1.5 * scale.eps();
+    let slot = oval_slot(2.0 - hair, [3.0, 6.0], 1.0, 1.5, 5.0);
+    let moved = flush(&block, &slot, scale).expect("the slot is moved");
+    let top = moved
+        .surfaces
+        .iter()
+        .find_map(|surface| match surface {
+            Surface::Plane(plane) if plane.normal.y.abs() > 0.5 && plane.offset().abs() > 2.5 => {
+                Some(plane.offset().abs())
+            }
+            _ => None,
+        })
+        .expect("the slot's side beside the block");
+    assert!((top - 3.0).abs() < 1e-12, "the side stands at {top}");
+    for surface in &moved.surfaces {
+        if let Surface::Elliptic(wall) = surface {
+            let off = wall.origin.y - 2.0;
+            assert!(off.abs() < 1e-12, "an end about {:?}", wall.origin);
+        }
+    }
+}
+
 /// Two blocks whose sides stand a hair apart, no wall touching either, are
 /// left two: the skin between them is well defined, and case 8 keeps its
 /// floor of a ten-millionth.

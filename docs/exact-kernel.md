@@ -798,7 +798,9 @@ The decisions, in the order taken, once per operation:
     angle, along two rulings a band apart, or misses it by the hair it was
     meant to touch: a rounded rectangle drawn a hair and a half beside a
     block touched its own sides with its corners' walls and crossed the
-    block's, and declined (8540801, 8510444). Without the wall the skin is
+    block's, and declined (8540801, 8510444). An elliptic wall (#571)
+    touches one as far across its axis as its support reaches: a slot with
+    elliptic ends drawn a hair beside a block. Without the wall the skin is
     well defined, and the planes are left two. Where the move is not made,
     as decision 8's, they are left two too.
 

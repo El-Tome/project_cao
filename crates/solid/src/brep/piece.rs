@@ -3,6 +3,8 @@
 //! of two halves makes a ring. Each piece carries the numbers of the runs it
 //! was read from, which name its wall.
 
+mod way;
+
 use std::f64::consts::TAU;
 
 use glam::DVec2;
@@ -10,6 +12,7 @@ use glam::DVec2;
 use crate::brep::Declined;
 use crate::brep::topology::ascending;
 use crate::profile::{Contour, Run};
+pub(super) use way::{signed_area, turned};
 
 /// How many roundings of its radius a point of a circle carries once it is
 /// computed from a centre that far away: an arc so large that they reach the
@@ -41,22 +44,6 @@ pub(super) struct Named {
     pub numbers: Vec<u32>,
 }
 
-impl Named {
-    pub(super) fn mirrored(&self) -> Named {
-        Named {
-            piece: self.piece.mirrored(),
-            numbers: self.numbers.clone(),
-        }
-    }
-
-    fn reversed(&self) -> Named {
-        Named {
-            piece: self.piece.reversed(),
-            numbers: self.numbers.clone(),
-        }
-    }
-}
-
 impl Piece {
     pub(super) fn from(&self) -> DVec2 {
         match *self {
@@ -83,49 +70,6 @@ impl Piece {
                 along.perp_dot(corner - from).abs() <= eps * along.length()
             }
             Piece::Arc { center, radius, .. } => (corner.distance(center) - radius).abs() <= eps,
-        }
-    }
-
-    fn reversed(&self) -> Piece {
-        match *self {
-            Piece::Straight { from, to } => Piece::Straight { from: to, to: from },
-            Piece::Arc {
-                from,
-                to,
-                center,
-                radius,
-                sweep,
-            } => Piece::Arc {
-                from: to,
-                to: from,
-                center,
-                radius,
-                sweep: -sweep,
-            },
-        }
-    }
-
-    /// The same piece seen in a mirror across the first axis.
-    pub(super) fn mirrored(&self) -> Piece {
-        let flip = |point: DVec2| DVec2::new(point.x, -point.y);
-        match *self {
-            Piece::Straight { from, to } => Piece::Straight {
-                from: flip(from),
-                to: flip(to),
-            },
-            Piece::Arc {
-                from,
-                to,
-                center,
-                radius,
-                sweep,
-            } => Piece::Arc {
-                from: flip(from),
-                to: flip(to),
-                center: flip(center),
-                radius,
-                sweep: -sweep,
-            },
         }
     }
 }
@@ -341,30 +285,4 @@ pub(super) fn apart(contours: &[Vec<Named>], eps: f64) -> bool {
             .take_while(|other| other.x - corner.x <= eps)
             .all(|other| corner.distance(*other) > eps)
     })
-}
-
-/// The area a loop of pieces encloses, positive when it turns anticlockwise:
-/// the shoelace over the chords, and the segment each arc adds to its chord.
-pub(super) fn signed_area(pieces: &[Named]) -> f64 {
-    pieces
-        .iter()
-        .map(|Named { piece, .. }| {
-            let chord = piece.from().perp_dot(piece.to()) / 2.0;
-            match *piece {
-                Piece::Straight { .. } => chord,
-                Piece::Arc { radius, sweep, .. } => {
-                    chord + radius * radius * (sweep - sweep.sin()) / 2.0
-                }
-            }
-        })
-        .sum()
-}
-
-/// The pieces turned the way `anticlockwise` asks.
-pub(super) fn turned(pieces: Vec<Named>, anticlockwise: bool) -> Vec<Named> {
-    if (signed_area(&pieces) > 0.0) == anticlockwise {
-        pieces
-    } else {
-        pieces.iter().rev().map(Named::reversed).collect()
-    }
 }

@@ -112,6 +112,16 @@ as one thread would. Several campaigns run side by side should share the cores
 between them: a machine crowded past its cores slows every case, and a case
 slowed past `CAO_FUZZ_PATIENCE` counts as no answer.
 
+The seeds a campaign named are run again and shrunk on as many threads, by
+the tests that take them in `CAO_TRIAGE_SEEDS`
+(`the_seeds_a_campaign_named_are_shrunk_one_by_one` and its kin, through
+`shrunk_across`, #566). Each seed is shrunk on its own, so they print the same
+shrunk cases, in seed order, as one thread would. A check that never comes
+back stops its own seed's shrink and no other: that seed is printed with a
+`hung:` line, shrunk as far as it got, and a case late as drawn is not shrunk
+at all. Each smaller case would cost a whole patience, and leave one more
+thread holding a core while the other seeds are timed.
+
 A campaign shrinks the first three failures of each rule and counts the rest.
 One rule broken by a common cause can hide a rarer one behind it: several
 campaigns from different seeds see more than one long one.

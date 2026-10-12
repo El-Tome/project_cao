@@ -1,7 +1,9 @@
 //! A campaign whose seeds are handed to several threads at once: the same
-//! search, on every core of the machine rather than one.
+//! search, on every core of the machine rather than one. And the seeds it
+//! named, run again and shrunk the same way.
 
 use std::cell::Cell;
+use std::collections::BTreeMap;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
@@ -97,6 +99,94 @@ pub fn campaign_across<C: Clone + PartialEq + Send + 'static>(
         broken,
         findings,
         failed,
+    }
+}
+
+/// A seed a campaign named, run again by [`shrunk_across`].
+#[derive(Clone, Debug)]
+pub enum Rerun<C> {
+    /// The seed breaks no rule any more.
+    Holds(u64),
+    /// The seed still breaks a rule, shrunk as far as it went: `hung` says a
+    /// check met on the way never came back, which stopped its shrink there,
+    /// or that the case as drawn did, which is then not shrunk at all.
+    Breaks { finding: Finding<C>, hung: bool },
+}
+
+/// What the threads share while they shrink: the reruns finished ahead of
+/// one still under way, held back so that `each` meets them in seed order.
+struct InOrder<C, E> {
+    handed: usize,
+    ready: BTreeMap<usize, Rerun<C>>,
+    each: E,
+}
+
+/// Draws each seed again, checks it and shrinks it while it breaks the same
+/// rule, on `threads` threads, and hands every rerun to `each` in seed order
+/// as soon as those before it are done.
+///
+/// Each seed is shrunk on its own, so what is handed back is what one thread
+/// would hand back. A check that never comes back stops its own seed's shrink
+/// and no other: its thread is left running, and holds a core until it ends.
+pub fn shrunk_across<C: Clone + PartialEq + Send + 'static>(
+    threads: usize,
+    seeds: impl IntoIterator<Item = u64>,
+    draw: impl Fn(u64) -> C + Sync,
+    check: Check<C>,
+    smaller: impl Fn(&C) -> Vec<C> + Sync,
+    patience: Duration,
+    each: impl FnMut(Rerun<C>) + Send,
+) {
+    let mut seeds: Vec<u64> = seeds.into_iter().collect();
+    seeds.sort_unstable();
+    let next = AtomicUsize::new(0);
+    let abandoned = AtomicBool::new(false);
+    let order = Mutex::new(InOrder {
+        handed: 0,
+        ready: BTreeMap::new(),
+        each,
+    });
+
+    std::thread::scope(|scope| {
+        for _ in 0..threads.max(1) {
+            scope.spawn(|| {
+                let _abandon = Abandon(&abandoned);
+                while !abandoned.load(Ordering::SeqCst) {
+                    let index = next.fetch_add(1, Ordering::SeqCst);
+                    let Some(&seed) = seeds.get(index) else {
+                        break;
+                    };
+                    let drawn = draw(seed);
+                    let rerun = match answer(drawn.clone(), &check, patience) {
+                        Ok(()) => Rerun::Holds(seed),
+                        Err(flaw) => {
+                            let (finding, hung) =
+                                shrunk(seed, drawn, flaw, &check, &smaller, patience, || true);
+                            Rerun::Breaks { finding, hung }
+                        }
+                    };
+                    let mut guard = order.lock().expect("a thread to have let go");
+                    let order = &mut *guard;
+                    order.ready.insert(index, rerun);
+                    while let Some(rerun) = order.ready.remove(&order.handed) {
+                        (order.each)(rerun);
+                        order.handed += 1;
+                    }
+                }
+            });
+        }
+    });
+}
+
+/// Stops every thread from taking another seed once one of them panicked
+/// outside a check: the seeds after its own would never be handed on.
+struct Abandon<'a>(&'a AtomicBool);
+
+impl Drop for Abandon<'_> {
+    fn drop(&mut self) {
+        if std::thread::panicking() {
+            self.0.store(true, Ordering::SeqCst);
+        }
     }
 }
 

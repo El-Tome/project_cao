@@ -25,7 +25,9 @@ mod measure;
 mod random;
 mod shrinking;
 
-pub use campaign::{Check, Finding, Report, answer, campaign, campaign_across};
+pub use campaign::{
+    Check, Finding, Report, Rerun, answer, campaign, campaign_across, shrunk_across,
+};
 pub use closed::closed;
 pub use crossing::uncrossed;
 pub use listed::{Mislisted, listed};

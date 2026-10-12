@@ -38,6 +38,21 @@ impl Piece {
                 radius,
                 sweep: -sweep,
             },
+            Piece::Oval {
+                from,
+                to,
+                center,
+                first,
+                second,
+                sweep,
+            } => Piece::Oval {
+                from: to,
+                to: from,
+                center,
+                first,
+                second,
+                sweep: -sweep,
+            },
         }
     }
 
@@ -62,12 +77,28 @@ impl Piece {
                 radius,
                 sweep: -sweep,
             },
+            Piece::Oval {
+                from,
+                to,
+                center,
+                first,
+                second,
+                sweep,
+            } => Piece::Oval {
+                from: flip(from),
+                to: flip(to),
+                center: flip(center),
+                first: DVec2::new(first.x, -first.y),
+                second,
+                sweep: -sweep,
+            },
         }
     }
 }
 
 /// The area a loop of pieces encloses, positive when it turns anticlockwise:
-/// the shoelace over the chords, and the segment each arc adds to its chord.
+/// the shoelace over the chords, and the segment each arc adds to its chord,
+/// an ellipse's that of the circle it is squashed from, times its half-axes.
 pub(in crate::brep) fn signed_area(pieces: &[Named]) -> f64 {
     pieces
         .iter()
@@ -78,6 +109,12 @@ pub(in crate::brep) fn signed_area(pieces: &[Named]) -> f64 {
                 Piece::Arc { radius, sweep, .. } => {
                     chord + radius * radius * (sweep - sweep.sin()) / 2.0
                 }
+                Piece::Oval {
+                    first,
+                    second,
+                    sweep,
+                    ..
+                } => chord + first.length() * second * (sweep - sweep.sin()) / 2.0,
             }
         })
         .sum()

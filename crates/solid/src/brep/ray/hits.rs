@@ -1,13 +1,13 @@
-//! Where a line meets a plane, a cylinder or a cone, with the surface's own
-//! normal there: linear on a plane, and on a cylinder or a cone the
+//! Where a line meets a plane, a cylinder, a cone or an elliptic wall, with
+//! the surface's own normal there: linear on a plane, and on a wall the
 //! quadratic solved so that neither root is found by taking two close
 //! numbers from each other, a cone's kept on its own nappe.
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use crate::brep::curve::Line;
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cone, Cylinder, Plane, Surface};
+use crate::brep::surface::{Cone, Cylinder, EllipticCylinder, Plane, Surface};
 
 pub(super) enum Hits {
     /// Parameters along the line, each with the surface's own normal there:
@@ -30,7 +30,7 @@ pub(super) fn hits(
         Surface::Plane(plane) => on_plane(plane, origin, direction, eps),
         Surface::Cylinder(cylinder) => on_cylinder(cylinder, origin, direction, eps),
         Surface::Cone(cone) => on_cone(cone, origin, direction, scale),
-        Surface::Elliptic(_) => Hits::Along,
+        Surface::Elliptic(wall) => on_elliptic(wall, origin, direction, eps),
     }
 }
 
@@ -76,6 +76,46 @@ fn on_cylinder(cylinder: &Cylinder, origin: DVec3, direction: DVec3, eps: f64) -
         }
     };
     Hits::At(roots.map(|root| root.map(|at| (at, (from + towards * at) / radius))))
+}
+
+/// The cylinder's quadratic, read in the elliptic wall's section squashed
+/// onto the unit circle, whose roots stand where the line's do.
+fn on_elliptic(wall: &EllipticCylinder, origin: DVec3, direction: DVec3, eps: f64) -> Hits {
+    let squashed = |v: DVec3| {
+        let flat = v - wall.axis * wall.axis.dot(v);
+        DVec2::new(flat.dot(wall.u) / wall.major, flat.dot(wall.v) / wall.minor)
+    };
+    let (from, towards) = (squashed(origin - wall.origin), squashed(direction));
+    let speed = towards.length_squared();
+    if speed <= f64::EPSILON * f64::EPSILON {
+        return if wall.distance(origin).abs() <= eps {
+            Hits::Along
+        } else {
+            Hits::At([None; 2])
+        };
+    }
+    let half = from.dot(towards);
+    let rest = (from.length() - 1.0) * (from.length() + 1.0);
+    let discriminant = half * half - speed * rest;
+    if discriminant < 0.0 {
+        return Hits::At([None; 2]);
+    }
+    let far = -(half + discriminant.sqrt().copysign(half));
+    let roots = if far == 0.0 {
+        [Some(0.0), None]
+    } else {
+        let [one, other] = [far / speed, rest / far];
+        match one.total_cmp(&other) {
+            std::cmp::Ordering::Greater => [Some(other), Some(one)],
+            _ => [Some(one), Some(other)],
+        }
+    };
+    Hits::At(roots.map(|root| {
+        root.map(|at| {
+            let theta = wall.parameters(origin + direction * at).x;
+            (at, wall.normal(theta))
+        })
+    }))
 }
 
 /// A line through the apex, where the normal is no answer and the two roots

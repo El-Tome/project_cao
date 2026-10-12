@@ -110,6 +110,14 @@ pub(in crate::brep) fn traced(
                 to: DVec2::new(start.x, height),
             })
         }
+        (Surface::Elliptic(wall), Curve::Line(line)) if parallel(line.direction, wall.axis) => {
+            let start = wall.parameters(line.point(from));
+            let height = (line.point(to) - wall.origin).dot(wall.axis);
+            Ok(Trace::Segment {
+                from: start,
+                to: DVec2::new(start.x, height),
+            })
+        }
         (Surface::Cylinder(cylinder), Curve::Circle(circle))
             if parallel(circle.axis, cylinder.axis) =>
         {

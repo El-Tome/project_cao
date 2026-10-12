@@ -7,14 +7,16 @@
 //! so a flipped face gives its flux the right sign by itself.
 
 mod cone;
+mod elliptic;
 
 use std::f64::consts::PI;
 
 use glam::DVec3;
 
+use super::conic::On;
 use super::curve::Curve;
 use super::domain::traced;
-use super::surface::{Cylinder, EllipticCylinder, Plane, Surface};
+use super::surface::{Cylinder, Plane, Surface};
 use super::topology::{Body, Coedge, FaceId};
 use super::trace::Trace;
 
@@ -41,8 +43,9 @@ impl Body {
     }
 
     /// What one use of an edge adds to the flux through its face: in closed
-    /// form for the lines and circles a plane, a cylinder or a cone carries,
-    /// and by quadrature along the curve for any other.
+    /// form for the lines and circles a plane, a cylinder or a cone carries
+    /// and for the rulings and conics of an elliptic wall, and by quadrature
+    /// along the curve for any other.
     fn flux_along(&self, surface: &Surface, anchor: f64, coedge: Coedge) -> f64 {
         let edge = self.edge(coedge.edge);
         let curve = self.curve(edge.curve);
@@ -57,6 +60,18 @@ impl Body {
             (Surface::Cone(cone), Ok(Trace::Segment { from, to })) => {
                 cone::straight(cone, anchor, from, to)
             }
+            (Surface::Elliptic(wall), Ok(Trace::Segment { from, to })) => {
+                elliptic::straight(wall, from, to)
+            }
+            (
+                Surface::Elliptic(wall),
+                Ok(Trace::Conic {
+                    conic,
+                    on: On::Wall,
+                    from,
+                    to,
+                }),
+            ) => Some(elliptic::graph(wall, &conic, from, to)),
             _ => None,
         };
         let flux = exact.unwrap_or_else(|| along(curve, edge.from, edge.to, surface, anchor));
@@ -125,7 +140,7 @@ fn along(curve: &Curve, from: f64, to: f64, surface: &Surface, anchor: f64) -> f
                     Surface::Plane(plane) => planar(plane, point, speed),
                     Surface::Cylinder(cylinder) => radial(cylinder, point, speed),
                     Surface::Cone(cone) => cone::conical(cone, anchor, point, speed),
-                    Surface::Elliptic(wall) => elliptic(wall, point, speed),
+                    Surface::Elliptic(wall) => elliptic::density(wall, point, speed),
                 };
                 total += weight * density * width / 2.0;
             }
@@ -191,23 +206,6 @@ fn radial(cylinder: &Cylinder, point: DVec3, speed: DVec3) -> f64 {
     let outward = (from - cylinder.axis * height).normalize();
     let turning = speed.dot(cylinder.axis.cross(outward));
     -height * (cylinder.radius + cylinder.origin.dot(outward)) * turning
-}
-
-/// On an elliptic wall the position's flux through `∂θ × ∂h` is `AB + B
-/// (o·u) cos θ + A (o·v) sin θ` whatever the height, and the 1-form whose
-/// derivative that is, `−h` times it `dθ`, read here along the curve.
-fn elliptic(wall: &EllipticCylinder, point: DVec3, speed: DVec3) -> f64 {
-    let from = point - wall.origin;
-    let height = from.dot(wall.axis);
-    let (major, minor) = (wall.major, wall.minor);
-    let [x, y] = [from.dot(wall.u) / major, from.dot(wall.v) / minor];
-    let [run_x, run_y] = [speed.dot(wall.u) / major, speed.dot(wall.v) / minor];
-    let turning = (x * run_y - y * run_x) / (x * x + y * y);
-    let (sin, cos) = (y / x.hypot(y), x / x.hypot(y));
-    let flux = major * minor
-        + minor * wall.origin.dot(wall.u) * cos
-        + major * wall.origin.dot(wall.v) * sin;
-    -height * flux * turning
 }
 
 /// The positive nodes of the eight-point rule on `[-1, 1]`, with their weights.

@@ -5,9 +5,10 @@ use std::f64::consts::TAU;
 
 use glam::DVec3;
 
+use super::conic::Conic;
 use super::curve::{Circle, Curve, Line};
 use super::scale::Scale;
-use super::surface::{Cylinder, Plane, Surface};
+use super::surface::{Cylinder, EllipticCylinder, Plane, Surface};
 use super::topology::{Body, Coedge, CurveId, Edge, EdgeId, SurfaceId, Vertex, VertexId};
 
 /// A body being laid, and the tolerance its surfaces are shared at.
@@ -146,6 +147,50 @@ impl Laying {
         let circle = Circle::on(cylinder, (center - cylinder.origin).dot(cylinder.axis));
         let forward = sweep * cylinder.axis.dot(up) > 0.0;
         self.edge(Curve::Circle(circle), None, 0.0, TAU, forward)
+    }
+
+    /// An arc of the rim `plane` cuts the elliptic wall along, from `ends[0]`
+    /// running round by the eccentric angle `sweep` about `up` to `ends[1]`,
+    /// used that way: the rim's parameter runs with the wall's angle, as
+    /// `√k` times it.
+    pub fn oval_arc(
+        &mut self,
+        wall: &EllipticCylinder,
+        plane: &Plane,
+        ends: [VertexId; 2],
+        sweep: f64,
+        up: DVec3,
+    ) -> Coedge {
+        let rim = Conic::rim(plane, wall);
+        let turning = sweep * wall.axis.dot(up).signum();
+        let [start, end] = if turning > 0.0 {
+            ends
+        } else {
+            [ends[1], ends[0]]
+        };
+        let from = rim.parameter(self.body.vertex(start).point);
+        let span = turning.abs() / rim.k.sqrt();
+        self.edge(
+            Curve::Conic(rim),
+            Some([start, end]),
+            from,
+            from + span,
+            turning > 0.0,
+        )
+    }
+
+    /// The whole rim `plane` cuts the elliptic wall along, used the way
+    /// `sweep` turns about `up`.
+    pub fn oval_ring(
+        &mut self,
+        wall: &EllipticCylinder,
+        plane: &Plane,
+        sweep: f64,
+        up: DVec3,
+    ) -> Coedge {
+        let rim = Conic::rim(plane, wall);
+        let forward = sweep * wall.axis.dot(up) > 0.0;
+        self.edge(Curve::Conic(rim), None, 0.0, TAU / rim.k.sqrt(), forward)
     }
 
     /// A straight edge from `start` to `end` on the line `beside` runs

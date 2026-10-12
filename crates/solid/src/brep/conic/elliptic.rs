@@ -87,6 +87,14 @@ impl Slice {
         across.atan2(apart) / 2.0
     }
 
+    /// The wall's angle at the end of the cut's major axis nearest the world's
+    /// origin, and how far from it that end stands.
+    fn nearest(&self) -> (f64, f64) {
+        let vertex = self.vertex();
+        let [one, other] = [vertex, vertex + PI].map(|theta| (theta, self.point(theta).length()));
+        if other.1 < one.1 { other } else { one }
+    }
+
     /// The conic anchored at the cut's point at the wall's angle `theta`.
     fn anchored(&self, theta: f64, arm: Arm) -> Conic {
         let wall = &self.wall;
@@ -119,14 +127,7 @@ impl Slice {
         if self.rise == 0.0 {
             return Vec::new();
         }
-        let vertex = self.vertex();
-        let nearest = [vertex, vertex + PI]
-            .into_iter()
-            .map(|theta| (theta, self.point(theta).length()))
-            .min_by(|one, other| one.1.total_cmp(&other.1));
-        let Some((nearest, away)) = nearest else {
-            return Vec::new();
-        };
+        let (nearest, away) = self.nearest();
         if away <= LONG * scale.reach() {
             return vec![self.anchored(nearest, Arm::Whole)];
         }
@@ -142,6 +143,17 @@ impl Slice {
                 self.anchored(theta, Arm::Split { side: *side })
             })
             .collect()
+    }
+}
+
+impl Conic {
+    /// The whole section a plane across an elliptic wall's axis cuts it
+    /// along, anchored at the end of its major axis nearest the world's
+    /// origin, as `Conic::cut` anchors it: the rim a cap of an elliptic prism
+    /// leaves, whose end no plane square to the axis sends beyond the box.
+    pub fn rim(plane: &Plane, wall: &EllipticCylinder) -> Conic {
+        let slice = Slice::of(plane, wall);
+        slice.anchored(slice.nearest().0, Arm::Whole)
     }
 }
 

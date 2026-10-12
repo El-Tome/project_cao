@@ -302,3 +302,23 @@ fn a_side_a_hair_inside_the_end_of_an_elliptic_boss_s_major_axis_leaves_a_strip_
         .expect("the boss is cut");
     drawn(&cut);
 }
+
+#[test]
+fn a_side_a_hair_inside_an_elliptic_boss_s_support_point_leaves_a_strip_drawn_off_it() {
+    let boss = ellipse([-2.0, 2.0], DVec2::from_angle(0.4) * 2.0, 1.6, 0.0, 4.0);
+    let Some(Surface::Elliptic(wall)) = boss
+        .surfaces
+        .iter()
+        .find(|surface| matches!(surface, Surface::Elliptic(_)))
+    else {
+        panic!("the boss stands on an elliptic wall");
+    };
+    let reach = wall.support(DVec3::X);
+    let tool = block(
+        [-2.0 - reach + 2e-8 / 3.0, 1.0, 2.0],
+        [1.0 + reach, 2.5, 2.5],
+    );
+    for body in [boss.joined(&tool), boss.cut_by(&tool), tool.cut_by(&boss)] {
+        drawn(&body.expect("the boss and the block are joined and cut"));
+    }
+}

@@ -4,6 +4,7 @@
 use std::f64::consts::TAU;
 
 use crate::brep::conic::{Conic, On};
+use crate::brep::scale::Scale;
 use crate::brep::surface::{EllipticCylinder, Surface};
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
@@ -22,6 +23,31 @@ pub(super) fn on_the_wall(body: &Body, wall: &EllipticCylinder) -> Vec<f64> {
         .iter()
         .filter(|vertex| vertex.on.contains(&id))
         .map(|vertex| wall.parameters(vertex.point).x)
+        .collect()
+}
+
+/// The angles about an elliptic wall of its support along the normal of
+/// each plane of the body running along its axis and reaching it: where
+/// such a plane touches the wall, or where the strip it leaves between two
+/// rulings bulges furthest past it. A strip thinner than a step of the grid
+/// has no sample of its own otherwise, and its triangles lie flat on the
+/// plane's.
+pub(super) fn reached_by_planes(body: &Body, wall: &EllipticCylinder) -> Vec<f64> {
+    let eps = body.scale().eps();
+    body.surfaces
+        .iter()
+        .filter_map(|surface| match surface {
+            Surface::Plane(plane) => Some(plane),
+            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
+        })
+        .filter(|plane| {
+            plane.normal.dot(wall.axis).abs() <= Scale::RELATIVE
+                && plane.distance(wall.origin).abs() - wall.support(plane.normal) <= eps
+        })
+        .map(|plane| {
+            let toward = plane.normal * -plane.distance(wall.origin).signum();
+            (wall.minor * toward.dot(wall.v)).atan2(wall.major * toward.dot(wall.u))
+        })
         .collect()
 }
 

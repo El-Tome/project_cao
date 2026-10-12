@@ -26,7 +26,7 @@ use glam::DVec3;
 
 use super::chords::halved;
 use super::cone::Grid;
-use super::elliptic::{between_steps, on_the_wall};
+use super::elliptic::{between_steps, on_the_wall, reached_by_planes};
 use super::ends::grazed;
 use super::{divisions, on_a_plane, touching_planes};
 use crate::brep::conic::{Conic, On, Round};
@@ -111,6 +111,7 @@ pub(super) fn of_edge(
             let clear = |point: DVec3| !grazing(point, eps * contact::APART);
             let rays: Vec<f64> = on_the_wall(body, &wall)
                 .into_iter()
+                .chain(reached_by_planes(body, &wall))
                 .chain(rays.iter().copied())
                 .collect();
             let edge = between_steps(conic, edge, steps);

@@ -1134,3 +1134,67 @@ that, no seed that held on `22df52e` fails in the eight draws run after
 it, four before the second merge and four after, and fifteen are repaired;
 the table is in `exact-kernel-failures.md`. 5550133356 holds, and the turn
 of 359.9° is the one case of the round left ignored.
+
+## 12 October: round 6 of #552, measured
+
+Round 6 measured at `05f20eb` as round 5 was at `784c69e`: every draw on
+fresh seeds, the same case counts, release, two campaigns at a time on five
+threads each, and the same seeds run on `22df52e`, round 5's tip, each tree
+built in its own target directory:
+
+| Draw | First seed | Cases | `22df52e` | `05f20eb` | Per thousand | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5570100000 | 40 000 | 86 | 81 | 2.02 | 5 | 0 |
+| tilted, application's body | 5570200000 | 40 000 | 96 | 87 | 2.17 | 10 | 1 |
+| slanted, exact kernel | 5570300000 | 30 000 | 15 | 14 | 0.47 | 1 | 0 |
+| slanted, application's body | 5570400000 | 30 000 | 17 | 15 | 0.50 | 2 | 0 |
+| turned, exact kernel | 5570500000 | 30 000 | 23 | 19 | 0.63 | 4 | 0 |
+| turned, application's body | 5570600000 | 30 000 | 13 | 10 | 0.33 | 3 | 0 |
+| square | 5570700000 | 30 000 | 2 | 2 | 0.07 | 0 | 0 |
+| profiles, exact kernel | 5570800000 | 20 000 | 9 | 7 | 0.35 | 2 | 0 |
+| profiles, application's body | 5570900000 | 20 000 | 5 | 3 | 0.15 | 2 | 0 |
+
+- The tilted draws stay over the bar of one failure in a thousand, at 2.0
+  and 2.2, where round 5 left them at 2.4 and 2.8 on other seeds. Every
+  other draw is under it, as at `22df52e`. Twenty-nine seeds are repaired.
+- **One seed that holds on `22df52e` fails on the tip**, alone as well, on
+  every run: 5570235757, tilted through the application's body, drawn
+  crossing (`Uncrossed`). Shrinking leaves it whole: a post joined to a
+  half turn about a crossing axis, the two walls meeting at a point, cut
+  by a block whose face passes through that point leaning 1e-5° off the
+  plane holding the turn's axis. It holds on the exact kernel, with the
+  face square, and with any two of the three leaves. Bisected to
+  `576396a`, two conics of one plane leaving a node of two crossing walls
+  sampled on each other's places: the face cuts the post along an ellipse
+  all but a circle and the turn along one all but two lines, and the two
+  leave the point of touch together. It was not looked into further.
+- **One seed changed the rule it breaks**: 5570132168, tilted on the exact
+  kernel, drawn crossing on `22df52e` and refused on the tip. Shrunk on
+  the tip, a whole turn cut by a block 2.3e-6° off square to its axis, in
+  the warning's band; that core is refused on both trees.
+- **Shrunk, all 238 failures.** None was killed or late.
+- **No hair, 6**, every one refused (`Answers`), every one failing on
+  `22df52e` too:
+  - a quarter turn given a post and cut by a whole cone, the three about
+    parallel axes (5570126783, tilted, exact kernel);
+  - a slot joined to a wedge of 0.01° of two cone bands (5570207344,
+    tilted, body), and a rounded rectangle joined to one (5570319299,
+    slanted, exact kernel), the wedge of 0.01° round 5 already met;
+  - a whole cone cut by a block leaning 80.5° and by a block square to it
+    (5570201909, tilted, body);
+  - a block joined to a three-quarter turn of three cone bands about an
+    axis leaning 45° (5570420146, slanted, body);
+  - a half turn joined to a cylinder across it and to a whole turn about an
+    axis leaning 30° (5570526055, turned, exact kernel).
+- **A hair, 232**: by an offset, 143; a lean between 2e-7° and 1e-3°, in
+  the warning's band, 68; a lean of 1e-7° or less that decision 11 does
+  not lay, 21. The tilted draws hold 165 of them.
+- By the rule broken, over all 238: refused (`Answers`) 191, drawn crossing
+  (`Uncrossed`) 41, left open (`Closed`) 3, listed off (`Listed`) 2, a
+  volume (`Volume`) 1; no span (`Spans`).
+- **The warning, counted** in the campaign's own report: the steps built at
+  an unstable lean, 3 596 and 3 650 in the tilted draws on the exact kernel
+  and through the body, 138 and 123 in the slanted ones, 209 and 177 in the
+  turned ones, none in the square and profile draws.
+- The gate's tests, built and warm, take about 37.5 s at `05f20eb` and
+  35.2 s at `22df52e`, the best of five runs each.

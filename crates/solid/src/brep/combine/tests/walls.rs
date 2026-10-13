@@ -292,6 +292,40 @@ fn the_same_ellipse_a_hair_off_in_its_centre_its_half_axes_or_its_turn_is_one_wa
     }
 }
 
+/// The boss's ellipse a hair narrower, cut in half along its major axis:
+/// the half's two corners stand where the two ellipses meet, at the ends of
+/// that axis, on both walls.
+#[test]
+fn the_same_ellipse_a_hair_narrower_cut_in_half_through_the_ends_both_share_is_one_wall() {
+    let boss = boss();
+    let hair = 5.0 * Scale::of(10.0).eps();
+    let half = Contour {
+        corners: vec![boss.center + boss.first, boss.center - boss.first],
+        runs: vec![
+            Run::Oval {
+                center: boss.center,
+                first: boss.first,
+                second: 3.0 - hair,
+                turn: PI,
+            },
+            Run::Straight,
+        ],
+    };
+    let half = Body::raised(&half, &[], ground(-1.0), DVec3::Z * 6.0).expect("a half raises");
+
+    let joined = raised(boss, 0.0, 4.0)
+        .joined(&half)
+        .expect("the half is joined to the boss on its wall");
+
+    held(&joined, boss.area() * 4.0 + boss.area() / 2.0 * 2.0);
+    let walls = joined
+        .surfaces
+        .iter()
+        .filter(|surface| matches!(surface, Surface::Elliptic(_)))
+        .count();
+    assert_eq!(walls, 1, "one elliptic wall");
+}
+
 #[test]
 fn a_round_pin_in_an_elliptic_pocket_touching_it_across_its_minor_axis_holds_its_volume() {
     let boss = boss();

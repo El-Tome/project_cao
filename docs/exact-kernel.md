@@ -14,9 +14,11 @@ Kept current, so that whoever takes the next step knows where to start.
 It can:
 
 - **compute the part.** `Body` holds an exact body or the flats. A profile of
-  straight runs and arcs, holes included, is raised square to its plane, then
-  joined or cut, by the exact kernel; the arcs reach it as arcs, centre and
-  turn, through `Outline::runs`. What is drawn, lit under the cursor and
+  straight runs, arcs and ellipses, holes included, is raised square to its
+  plane, then joined or cut, by the exact kernel; the arcs reach it as arcs,
+  centre and turn, and an ellipse, whole or in arcs, as its centre, its
+  half-axes and its eccentric turn (`Run::Oval`, #571), through
+  `Outline::runs`. What is drawn, lit under the cursor and
   picked are its own triangles, each knowing its face, and a click reads the
   true surface's normal. The section view is read off those triangles. An
   exact body is written to the geometry cache whole and read back as the
@@ -47,7 +49,9 @@ It can:
   the axis (`brep/turned.rs`). The section [Turning](#turning) says how.
 - surfaces: planes, circular cylinders parallel or square to each other, and
   circular cones against cylinders and cones of their axis; a plane against
-  a cylinder or a cone at any angle (#552); curves: lines, circles, the
+  a cylinder or a cone at any angle (#552); elliptic cylinders (#571)
+  against planes at any angle and round or elliptic walls parallel or
+  square to them; curves: lines, circles, ellipses, the
   conics a plane cuts a wall along at a slant — an ellipse, a parabola, a
   branch of a hyperbola — and the curve two perpendicular walls meet
   along, either of them elliptic (#571). The section [The conic a plane
@@ -77,9 +81,10 @@ It can:
   faces themselves before the kernel declines (`combine/clear.rs`); a plane
   at a slant to a wall is asked the same first, so that the conic it cuts
   is registered only where two faces may meet along it.
-- hand a revolution of a profile with an arc, or an area bounded by an
-  ellipse, **to the flats**, from that step on: it has no sphere, torus or
-  ellipse. So does a profile of straight runs the reading cannot lay against
+- hand a revolution of a profile with an arc or an ellipse **to the
+  flats**, from that step on: it has no sphere or torus. An ellipse raised
+  is the exact kernel's since #571, and what it declines there is a broken
+  step, never the flats. So does a profile of straight runs the reading cannot lay against
   its axis: pinched at a corner on the axis, or a corner of it within the
   tolerance of a slant it does not end.
 
@@ -87,10 +92,11 @@ Left, in the order #497 set:
 
 - revolutions of arcs: spheres, tori. Those of straight runs are done:
   parallel or square to the axis (#533), slanted (#536);
-- an ellipse drawn in a profile, raised: the elliptic cylinder. A plane
-  crossing a cylinder or a cone at a slant is done (#552);
 - a cone against a cylinder or a cone of another axis, such as a radial hole
-  through it, and two cylinders at a skew angle;
+  through it, two cylinders at a skew angle, and an elliptic wall against a
+  cone or a wall at a skew angle. A plane crossing a cylinder or a cone at a
+  slant is done (#552), and the elliptic cylinder against planes and walls
+  parallel or square to it (#571);
 - an exact STEP;
 - chamfers and fillets on a straight edge, then on a circular one, then where
   fillets meet at a corner;
@@ -125,21 +131,32 @@ Known and still open:
 - a face standing inside a cylinder's hollow is not decided clear of a
   cylinder at a skew angle to it: a boss raised, or a hole cut, square to
   the elliptic face a slanted cut leaves on a shaft declines, though the
-  tool never reaches the shaft's wall.
+  tool never reaches the shaft's wall;
+- the elliptic walls (#571): a plane in the warning band through a wall's
+  tangent line, the same ellipse turned a hair beside a block's planes, two
+  touches at the ends of a half-axis beside a third wall, a third surface
+  through a node of a meet, and a round bar touching an elliptic hole at a
+  point, named in `exact-kernel-failures.md`, "#571: elliptic walls".
 
 ## Scope
 
-- **Surfaces:** planes, circular cylinders and circular cones, nothing else.
+- **Surfaces:** planes, circular cylinders, elliptic cylinders (#571) and
+  circular cones, nothing else.
 - **Curves:** lines, circles, the conics a plane cuts a cylinder or a cone
   along at a slant (#552), and the curve where two perpendicular cylinders
-  meet. A cone meets a plane square to its axis, a cylinder or a cone of its
+  meet, either of them elliptic (#571). An elliptic wall meets a plane
+  square to its axis along an ellipse, a plane along it along the rulings
+  it cuts or touches, any other plane along an ellipse, and a round or
+  elliptic wall parallel to it along up to four rulings. A cone meets a
+  plane square to its axis, a cylinder or a cone of its
   axis along circles or at its apex, a plane holding its axis along two
   rulings, and any other plane along an ellipse, a parabola, a branch of a
   hyperbola, two rulings through its apex, the ruling it touches along, or
   its apex alone. Two cylinders at any other angle than parallel or square,
   a cone against a cylinder or a cone of another axis, and a cone within the
-  tolerance of a plane or a cylinder of its axis all across the box are
-  declined where their faces may cross: the operation gives no answer, which
+  tolerance of a plane or a cylinder of its axis all across the box, and
+  an elliptic wall against a cone or a wall neither parallel nor square to
+  it, are declined where their faces may cross: the operation gives no answer, which
   the harness counts as such rather than as a wrong solid. Where the faces stand clear of each other — a
   bore square into one side of a hexagonal prism, beside the next side, or
   drilled right through it past the far side's slanted neighbours — the pair
@@ -152,8 +169,8 @@ Known and still open:
   Every leaf of the sixteen cases and
   of the campaign stands on a plane of the origin, so neither is needed to
   hold them.
-- **Operations:** raise a profile of straight runs and arcs along its plane's
-  normal; turn a profile of straight runs, each parallel, square or slanted
+- **Operations:** raise a profile of straight runs, arcs and ellipses along
+  its plane's normal; turn a profile of straight runs, each parallel, square or slanted
   to the axis; join, cut. Spheres and tori, what an arc turns into, are
   out. A turn about a line that is no axis of the planes the rest
   of the part stands on brings cylinders at a skew angle to those, and
@@ -683,8 +700,13 @@ The decisions, in the order taken, once per operation:
    square to itself, its sine times the difference of the half-axes, so
    that a section a hair from round, turned any way, is still itself. The
    second's rims are cut again on the first's wall
-   (`canonical/crescent/oval.rs`); a wall its operand drew corners on is
-   left two. A circle and an ellipse are never merged this way.
+   (`canonical/crescent/oval.rs`), and its arcs read again at their
+   corners, where every corner its operand drew on it already stands on
+   the first's wall: half an ellipse cut along its major axis, joined to
+   the same ellipse a hair wider across, whose ends both walls share
+   (seed 6 of the ellipses' draw). A wall carrying a corner off the
+   first's is left two, and declined. A circle and an ellipse are never
+   merged this way.
 
    A cone (#536) is decided against a cylinder or a cone about one axis
    only: a cone and a wall or a cone, one of each operand, whose axes are
@@ -1051,6 +1073,26 @@ same input gives the same bits.
   tip on the axis is a vertex of its cone's face, a whole turn's included
   (`Face::apex`): the listing lists it, and soundness holds it to the
   geometry as any other vertex.
+- **Elliptic walls** (#571, `brep/surface/elliptic.rs`). An ellipse raised
+  is an `EllipticCylinder`, a surface beside the circular cylinder rather
+  than a cylinder of two radii, so that every circular path keeps its bits.
+  It keeps the point of its axis nearest the origin, an axis with a fixed
+  sign, `u` along its major half-axis with a fixed sign, `v = axis × u`,
+  and its two half-axes, the major first. It is read in `(θ, h)`, `θ` the
+  eccentric angle from `u` towards `v`: parallel elliptic walls do not
+  share where their angles start, as circular ones do. Its normal is the
+  ellipse's through the point, and a point's distance to it is the true one,
+  from the foot of the normal (Eberly's method). Its rims are #552's conic
+  read on the elliptic wall, and so is what any plane cuts it along. An
+  ellipse is a circle where its half-axes are one, decided once, where the
+  profile is read (`piece/oval.rs`): an arc of ellipse, which carries
+  corners, within `EPS`; a whole ellipse within decision 8's hair `G`, Tom's
+  decision of 2026-10-13. A hair is below any step the software will show —
+  #514 holds the user's precision at a tenth of a micron, and `G` is some
+  two nanometres on a part a hundred millimetres across — and kept elliptic,
+  such a wall stood within `G` of a circle of its size all round, which
+  decision 2 declines. Either way the wall is the circle of the mean
+  half-axis, a circular cylinder.
 - **Topology** is arenas of plain structs with `u32` ids: vertices with their
   point and the surfaces they lie on, edges with their curve and parameter
   range, faces with their surface, their side, and loops of oriented uses of

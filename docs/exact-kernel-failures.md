@@ -2295,3 +2295,75 @@ not. What went to `main` short of what was aimed at:
 - **The follow-ups are not opened**: a band laid along a conic, decision
   11 for every pair of directions, #514's grid, exact predicates where
   floating point cannot tell. They are opened on Tom's word.
+
+## #571: elliptic walls
+
+What is left on elliptic walls when the application's body raised an
+ellipse on the exact kernel for the first time (the flip). Each family is
+named, with the seeds that hold it where one is in the gate's files,
+ignored until it is fixed. Lane c, running the campaigns on the exact
+kernel beside this one, counts them; what follows is what stood at the
+flip.
+
+- **A plane in the warning band through a wall's tangent line**, its arcs
+  misordered round a corner at `overlay/star.rs`: #552's own default, on
+  circular walls as well (`line-of-touch` in
+  `a_surface_a_hair_from_a_line_of_touch.rs`).
+- **The same ellipse turned by 1e-7 to 1e-4 of a radian beside a block's
+  planes**: too far for decision 8 to make it one wall with itself, near
+  enough for its crossings with itself to stand within the tolerance of
+  the block's faces.
+- **Two touches at the ends of a half-axis**, a crescent 1e-6 to 1e-5 thick
+  between them, and a third wall across both.
+- **A third surface through a node of a meet on an elliptic wall**: a
+  hole's end cap through the node of a figure of eight an elliptic hole
+  makes with a round pocket, left unverified (5571542016); a round bore's
+  cap through the near-nodes an elliptic hole a hair narrower than a post
+  makes with it, a tie (5571541652); a crescent between two parallel walls
+  a hair apart, each at a node of an elliptic hole, read backwards
+  (5571546569).
+- **A round bar touching an elliptic hole at a point**, drawn crossing it
+  there (5571548076).
+
+An ellipse within decision 8's hair of round is not among them: Tom
+decided on 2026-10-13 that a whole one is raised as a circle
+(`exact-kernel.md`, "The body").
+
+### The flip measured through the application's body
+
+Each draw of ellipses for 300 s through the application's body, on fresh
+seeds and five threads at `14eff46`, and the exact kernel on the same
+seeds. In its 1200 s the kernel ran fewer of the crossed and tilted
+seeds, being checked on its own triangles and listing too: the two are
+compared over the seeds both ran.
+
+| Draw | Seeds from | Body | Kernel, same seeds | Body only | Kernel only |
+| --- | --- | --- | --- | --- | --- |
+| ellipses | 5572000000 | 155 of 9296, 16.7 ‰ | 156 of 9296, 16.8 ‰ | 5 | 6 |
+| crossed | 5572100000 | 12 of 9053, 1.3 ‰ | 5 of 4150, 1.2 ‰ | 1 | 0 |
+| tilted | 5572200000 | 67 of 29001, 2.3 ‰ | 57 of 26599, 2.1 ‰ | 9 | 1 |
+
+Nearly everything the body fails, the kernel fails on the same seed: the
+kernel's families, which the rounds of #571 work on. In the ellipses'
+draw most of them are an ellipse a hair from round against a circle of its
+size, which Tom's decision of 2026-10-13 settles for a whole one, and the
+same ellipse a hair off or turned a hair beside a block.
+
+What the body adds is the application drawing finer than the kernel's own
+triangles, none of it the flip's: no face is numbered otherwise, no click
+lands elsewhere, and no step goes to the flats.
+
+- **Undrawn at the application's fineness.** A face the body cannot cut
+  into triangles at two ten-thousandths of the reach, which the kernel's
+  coarser ones cover: an ellipse 1e-6 from round against a circle of its
+  size (5572007115), the same ellipse 1e-6 wider beside a circle
+  (5572005755), an ellipse touched at both ends of its major axis by
+  a circle of that radius, beside a pin (5572001841).
+- **Drawn crossing at the application's fineness.** An elliptic hole
+  1e-6 narrower than its boss (5572001987); a plane leaning 1e-5° to 0.01°
+  off along an elliptic wall's axis, near the line it touches the wall
+  along (5572208524, 5572213933, 5572216256, 5572217185, 5572217381); a
+  round post bored through by two elliptic walls square to each other
+  (5572103167).
+- **Late.** A case past the 30 s the campaign waits, through the body
+  alone (5572008304).

@@ -36,6 +36,11 @@
 //! eccentric angles of every sample of that curve, as a cylinder's circles
 //! take the rays through them, and each wall is cut in strips between them
 //! (`tessellation/contact/own.rs`).
+//!
+//! Still failing, ignored with their reason: a third surface through a node
+//! of two walls square to each other, or a hair from one; a round bar
+//! touching an elliptic hole at a point; a crescent between two parallel
+//! walls a hair apart, each at a node of an elliptic hole.
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -227,6 +232,90 @@ fn seed_5571537754_an_elliptic_post_bored_across_and_joined_to_an_elliptic_bar_i
                 Plane::xz(-9.999999999999998),
                 Outline::circle([45.0, 32.5], 15.0),
                 -40.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "#571: a hole's end cap through the node of a figure of eight an elliptic hole makes with a round pocket is left unverified"]
+fn seed_5571542016_an_elliptic_hole_ending_at_its_node_with_a_round_pocket_is_cut() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-2.0),
+            Outline::ellipse([4.0, 5.0], [0.0, 2.0], 2.5),
+            6.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(7.0),
+                Outline::circle([5.0, 2.0], 1.99999999),
+                -3.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(7.99999999),
+                Outline::ellipse([5.0, 2.99999999], [8.0, 0.0], 1.0),
+                2.99999999,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "#571: a round bore's cap through the near-nodes an elliptic hole a hair narrower than a post makes with it is a tie"]
+fn seed_5571541652_a_bore_ending_at_the_near_nodes_of_a_post_and_an_elliptic_hole_is_cut() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(2.0), Outline::circle([10.0, 8.0], 2.0), 10.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(7.0),
+                Outline::ellipse([8.0, 7.5], [0.0, 3.99999998], 1.99999999),
+                6.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(10.49999999),
+                Outline::circle([10.0, 5.49999002], 2.0),
+                2.499999989999999,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "#571: a round bar touching an elliptic hole at a point is drawn crossing it there"]
+fn seed_5571548076_a_round_bar_touching_an_elliptic_hole_at_a_point_is_drawn_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-1.0), Outline::circle([10.0, 3.0], 3.0), 7.5),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(-0.5),
+                Outline::ellipse([10.00000002, 2.0], [3.0, 0.0], 2.6999999999999997),
+                -3.5,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(6.00000002),
+                Outline::circle([1.0, -4.199999999999999], 3.5),
+                8.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "#571: a crescent between two parallel walls a hair apart, each at a node of an elliptic hole, is read backwards"]
+fn seed_5571546569_a_post_bored_by_an_elliptic_hole_then_by_its_own_wall_a_hair_off_is_listed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(60.0), Outline::circle([60.0, 30.0], 90.0), 240.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(-90.0),
+                Outline::ellipse([60.00001, 180.0], [90.0, 0.0], 18.0),
+                -120.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(117.0),
+                Outline::circle([60.00001, 30.0], 90.0),
+                126.0,
             )),
         ],
     ));

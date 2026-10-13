@@ -1356,6 +1356,16 @@ cross it; the curve itself crosses a third surface as two cylinders' does.
 An elliptic wall at any other angle than parallel or square to another
 wall still declines where their faces may cross.
 
+Still open on square walls with an elliptic one among them, under one
+case in a thousand of the crossed draw on fresh seeds: a third surface
+through a node, or a hair from one — a bore's end cap through the node
+of a figure of eight, a contact on a third wall's extreme ruling — left
+unverified or a tie; a very flat elliptic wall at a node of a round one,
+the two within a chord's sag of each other far along it, and a round bar
+touching an elliptic hole at a point, drawn crossing; a crescent between
+two parallel walls a hair apart, each at a node of an elliptic wall,
+read backwards by the listing.
+
 ## Triangles
 
 - **Watertight by construction.** Every edge is sampled once, and every face
@@ -1489,6 +1499,17 @@ wall still declines where their faces may cross.
   leaning 9.4e-6° past the hair (5550133356). Not every plane an end lies
   on: a circle a hair off a block's face all along lost a grid angle by
   each end, and the drawing lost matter (5561366633).
+- **Elliptic walls** (#571). An elliptic wall is divided as a circle of its
+  major half-axis, on a grid of eccentric angles. The curve it meets a wall
+  square to it along is sampled as two cylinders' is, on that grid. Its
+  rims, and that curve, take a sample at the eccentric angle of every
+  sample of the curve, as a cylinder's circles take a ray through it, so
+  that two walls cut from each other are cut in strips between them and
+  stay ordered (5571534144); and at that of every sample of another curve
+  standing inside the wall closer than twice a chord's sag where the wall
+  holds a face, found after a first sampling as a cylinder's are
+  (`sampling/beneath/oval.rs`): a bar's cap ending inside a boss a hair
+  above its rim (5571519943).
 - **Contact.** Chords sag towards their own cylinder's axis, so against a plane
   or a convex neighbour they retreat. Where two curved faces face each other on
   their hollow side closer than a chord's sag — an internal tangency, a near

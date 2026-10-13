@@ -146,7 +146,8 @@ fn an_elliptic_wall_moved_keeps_its_axis_and_half_axes_to_the_bit() {
 }
 
 #[test]
-fn two_elliptic_walls_stand_as_far_apart_as_their_axes_half_axes_and_turn_part_them() {
+fn two_elliptic_walls_stand_as_far_apart_as_their_axes_half_axes_and_turn_part_them_the_turn_by_the_half_axes_difference()
+ {
     let wall = EllipticCylinder::about(DVec3::ZERO, DVec3::Z, DVec3::X * 5.0, 3.0);
     let beside = EllipticCylinder::about(DVec3::new(0.0, 2e-3, 7.0), DVec3::Z, DVec3::X * 5.0, 3.0);
     let wider = EllipticCylinder::about(DVec3::ZERO, DVec3::Z, DVec3::X * 5.25, 2.5);
@@ -158,8 +159,25 @@ fn two_elliptic_walls_stand_as_far_apart_as_their_axes_half_axes_and_turn_part_t
     );
     assert!((wall.gap(&beside) - 2e-3).abs() < CLOSE);
     assert!((wall.gap(&wider) - 0.75).abs() < CLOSE);
-    assert!((wall.gap(&turned) - 5e-4).abs() < 1e-11);
+    assert!((wall.gap(&turned) - 2e-4).abs() < 1e-11);
     assert_eq!(wall.gap(&wall), 0.0);
+}
+
+#[test]
+fn an_elliptic_wall_a_hair_from_round_turned_any_way_stands_within_its_half_axes_difference() {
+    let wall = EllipticCylinder::about(DVec3::ZERO, DVec3::Z, DVec3::X * (5.0 + 3e-9), 5.0);
+    for degrees in [1e-3, 1.0, 45.0, 90.0, 135.0] {
+        let turned = EllipticCylinder::about(
+            DVec3::ZERO,
+            DVec3::Z,
+            DVec2::from_angle(f64::to_radians(degrees)).extend(0.0) * (5.0 + 3e-9),
+            5.0,
+        );
+        assert!(wall.within(&turned, 3.1e-9), "{degrees}");
+        assert!(wall.gap(&turned) <= 3.1e-9, "{degrees}");
+    }
+    let rounder = EllipticCylinder::about(DVec3::ZERO, DVec3::Z, DVec3::Y * (5.0 + 1e-9), 5.0);
+    assert!(!wall.within(&rounder, 1.9e-9));
 }
 
 #[test]

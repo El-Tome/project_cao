@@ -487,3 +487,70 @@ fn two_ellipses_turned_a_few_degrees_apart_crossing_at_four_rulings_hold_their_v
         base.area() * 4.0 + rounder.area() * 4.0 - base.overlap(&rounder) * 3.0,
     );
 }
+
+/// Both feet of the touches the walls of `body` meet along, exact.
+fn touching_exactly_at_two(body: &Body) {
+    let [round, oval] = [
+        |surface: &&Surface| matches!(surface, Surface::Cylinder(_)),
+        |surface: &&Surface| matches!(surface, Surface::Elliptic(_)),
+    ]
+    .map(|kind| *body.surfaces.iter().find(kind).expect("both walls stand"));
+    let feet = crate::brep::relation::feet_of_touches(&round, &oval, body.scale());
+    assert_eq!(feet.len(), 2, "the two walls touch along two rulings");
+    for [on_round, on_oval] in feet {
+        let off = on_round.distance(on_oval);
+        assert!(
+            off <= 1e-12 * body.scale().reach(),
+            "a touch stands {off} off exact"
+        );
+    }
+}
+
+#[test]
+fn an_elliptic_hole_a_hair_from_touching_a_round_bore_at_both_ends_of_its_major_axis_is_grown_onto_both()
+ {
+    let bore = Section::circle([6.0, 1.0], 2.0);
+    let eps = Scale::of(10.0).eps();
+    let way = DVec2::new(-0.92, -0.39).normalize();
+    for hair in [-eps * 0.9, -eps / 3.0, eps / 3.0] {
+        let hole = Section::ellipse([6.0, 1.0], way * (2.0 + hair), 1.5);
+        let cut = raised(bore, 2.0, 10.0)
+            .cut_by(&raised(hole, 2.0, 9.5))
+            .expect("the hole is cut, touching the bore at both ends of its major axis");
+        let grown = Section::ellipse([6.0, 1.0], way * 2.0, 1.5);
+        held(&cut, bore.area() * 8.0 - grown.area() * 7.5);
+        touching_exactly_at_two(&cut);
+    }
+}
+
+#[test]
+fn a_round_pin_a_hair_from_touching_an_elliptic_pocket_across_its_minor_axis_is_grown_onto_both_sides()
+ {
+    let pocket = Section::ellipse([3.0, 7.0], DVec2::from_angle(0.3) * 2.5, 1.5);
+    let eps = Scale::of(17.0).eps();
+    for hair in [-eps / 2.0, eps / 3.0] {
+        let pin = Section::circle([3.0, 7.0], 1.5 + hair);
+        let joined = raised(pocket, 8.0, 12.0)
+            .joined(&raised(pin, 9.0, 17.0))
+            .expect("the pin is joined, touching the pocket across its minor axis");
+        let grown = Section::circle([3.0, 7.0], 1.5);
+        held(&joined, pocket.area() * 4.0 + grown.area() * 5.0);
+        touching_exactly_at_two(&joined);
+    }
+}
+
+#[test]
+fn an_ellipse_a_hair_from_round_turned_a_ten_thousandth_joins_itself_as_one_wall() {
+    let oval = Section::ellipse([3.0, 7.0], DVec2::X * 5.001, 5.0);
+    let turned = Section::ellipse([3.0, 7.0], DVec2::from_angle(1e-4) * 5.001, 5.0);
+    let joined = raised(oval, 0.0, 4.0)
+        .joined(&raised(turned, -1.0, 3.0))
+        .expect("the turned ellipse is the same wall within the hair");
+    held(&joined, oval.area() * 5.0);
+    let walls = joined
+        .surfaces
+        .iter()
+        .filter(|surface| matches!(surface, Surface::Elliptic(_)))
+        .count();
+    assert_eq!(walls, 1);
+}

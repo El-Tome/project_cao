@@ -922,5 +922,6 @@ mod conical;
 mod conics;
 mod elliptic;
 mod leaning;
+mod square_walls;
 mod stress_elliptic;
 mod unstable;

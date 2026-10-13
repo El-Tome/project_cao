@@ -9,6 +9,7 @@ mod elliptic;
 mod planar;
 mod revolved;
 mod sliced;
+mod square;
 
 use glam::DVec3;
 
@@ -41,7 +42,7 @@ pub enum Relation {
     /// A plane square to a cylinder's axis, or a cone and a surface of its
     /// axis crossing off it.
     Circle(Circle),
-    /// Two perpendicular cylinders.
+    /// Two perpendicular walls, circular or elliptic.
     Meet(Meeting),
     /// A plane through a cone's apex steeper than its slope, holding its axis
     /// or at a slant to it: the two rulings it cuts, and the apex they cross
@@ -81,6 +82,12 @@ pub fn relation(one: &Surface, other: &Surface, scale: Scale) -> Relation {
         }
         (Surface::Cone(cone), other) | (other, Surface::Cone(cone)) => {
             conical::relation(cone, other, scale)
+        }
+        (Surface::Elliptic(_), Surface::Cylinder(_) | Surface::Elliptic(_))
+        | (Surface::Cylinder(_), Surface::Elliptic(_))
+            if let Some(met) = square::walls(one, other, scale) =>
+        {
+            met
         }
         (Surface::Elliptic(one), Surface::Elliptic(other)) => elliptic::walls(one, other, scale),
         (Surface::Plane(plane), Surface::Elliptic(wall))

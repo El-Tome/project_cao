@@ -130,14 +130,6 @@ impl Wall {
             Wall::Elliptic(wall) => wall.axis,
         }
     }
-
-    /// How far `point` stands outside the wall, negative inside.
-    pub fn distance(&self, point: DVec3) -> f64 {
-        match self {
-            Wall::Cylinder(cylinder) => cylinder.distance(point),
-            Wall::Elliptic(wall) => wall.distance(point),
-        }
-    }
 }
 
 impl From<Cylinder> for Wall {

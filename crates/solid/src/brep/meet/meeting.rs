@@ -34,11 +34,26 @@ impl Meeting {
     /// bit; the second is moved, by less than the tolerance, onto the touch
     /// decided here, and every component carries it moved.
     pub fn of(one: &Wall, other: &Wall, scale: Scale) -> Meeting {
+        Meeting::snapped_within(one, other, scale.eps())
+    }
+
+    /// The same, the two walls taken as they stand: nothing moved beyond
+    /// the rounding `pair.rs` reads as a touch. Decision 2 has made exact
+    /// every touch it could; where it could not — the wall it would move
+    /// held at another touch — the curve stays on the walls the corners
+    /// around it are found on, rather than on a copy a hair off one of
+    /// them that a crossing at a slant would part from by more than the
+    /// tolerance.
+    pub fn as_they_stand(one: &Wall, other: &Wall) -> Meeting {
+        Meeting::snapped_within(one, other, 0.0)
+    }
+
+    fn snapped_within(one: &Wall, other: &Wall, eps: f64) -> Meeting {
         let (first, second) = match ordered(one, other) {
             Ordering::Less | Ordering::Equal => (*one, *other),
             Ordering::Greater => (*other, *one),
         };
-        let second = snapped(&first, &second, scale.eps());
+        let second = snapped(&first, &second, eps);
         let pair = Pair::of(&first, &second);
         let configuration = pair.configuration();
         let components = (0..pair.components())

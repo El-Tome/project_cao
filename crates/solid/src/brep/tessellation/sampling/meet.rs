@@ -41,7 +41,7 @@ enum Reason {
 /// The points of an edge along a meet between its ends, in the way the edge
 /// runs: none for a component the pair does not have. A whole loop's points
 /// start at its start and do not come back to it. `rays` are the angles the
-/// circles of its first cylinder and of its second take besides their grid;
+/// sections of its first wall and of its second take besides their grid;
 /// a place on the grid or on a ray is kept only where `clear` says so.
 pub(super) fn on_meet(
     meet: &Meet,

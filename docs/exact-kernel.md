@@ -49,9 +49,10 @@ It can:
   circular cones against cylinders and cones of their axis; a plane against
   a cylinder or a cone at any angle (#552); curves: lines, circles, the
   conics a plane cuts a wall along at a slant — an ellipse, a parabola, a
-  branch of a hyperbola — and the curve two perpendicular cylinders meet
-  along. The section [The conic a plane cuts a wall
-  along](#the-conic-a-plane-cuts-a-wall-along) says how a conic is held.
+  branch of a hyperbola — and the curve two perpendicular walls meet
+  along, either of them elliptic (#571). The section [The conic a plane
+  cuts a wall along](#the-conic-a-plane-cuts-a-wall-along) says how a conic
+  is held.
 - **number its faces as the flats do**, so a drawing laid on a face keeps it
   when a size changes: 0 for the floor of a raise, 1 for its top, one per run
   for the walls — two runs on one line, or two arcs of one circle, make one
@@ -211,7 +212,7 @@ The decisions, in the order taken, once per operation:
    coaxial and flush are comparisons of ids.
 2. **The relation of a pair** of surfaces whose faces' boxes overlap: apart,
    one line, a tangent line, two lines, a circle, or the curve two
-   perpendicular cylinders meet along with its special points. This is the
+   perpendicular walls meet along with its special points. This is the
    only place a tangency is decided; once decided, it is built exactly — one
    line from a formula, never a double root. Two perpendicular cylinders,
    one of each operand, a hair from touching — inside, outside, or at a
@@ -1310,7 +1311,7 @@ lying on the conic's plane is the conic, along the surface (9501873,
   broken, a frustum's line of touch read as two arcs, a slower gate. The
   list is in `exact-kernel-failures.md`, "Merged as it stands".
 
-## The curve two perpendicular cylinders meet
+## The curve two perpendicular walls meet
 
 In a frame whose third axis is the first cylinder's and whose first axis is the
 second's, the first is `x² + y² = a²` and the second `(y − d)² + (z − e)² = b²`.
@@ -1324,7 +1325,36 @@ join, or, within `EPS`, both: a singular point where four arcs meet. That gives
 the configurations: two loops, one loop, a figure of eight through a node
 (internal tangency), two ellipses crossing at two nodes (equal radii, axes
 meeting), a single point of contact. Nodes are vertices. The parameter is
-`y = m + ℓ sin ψ`, which keeps the roots free of cancellation at the ends.
+`y = m − ℓ cos t`, and each root is factored through `cos(t/2)` and
+`sin(t/2)`, which keeps it free of cancellation at the ends.
+
+Either wall may be elliptic (#571). Its section cuts each chord at the
+height `y` about a middle moving along the diameter conjugate to the
+chords, `x = κy ± α√((w − y)(w + y))`: `w` is how far the wall reaches
+along the height — its support — and `κ`, `α` come off its quadratic form
+in the pair's frame (`meet/pair.rs`). So everything that hangs on the span
+— its ends, the gaps, the configurations, the nodes, the contact, the
+parameter and the factored roots — is a circular pair's with `a` and `b`
+the two half-widths, and only the point and its derivatives gain the shear
+and the scale. Two cylinders keep their own expressions, bit for bit. On
+an elliptic wall the curve is seen in the eccentric angle, which turns as
+the angle of the circle of its half-width does, from where the wall
+reaches furthest along the height. Decision 2's snap moves the second wall
+across the first's axis by the gap, as for a cylinder; at a node of both
+ends an elliptic wall takes its partner's half-width by its half-axis
+nearer the height alone, the hair a drawing of one half-width leaves. The
+curve is then built on the two walls as decision 2 left them, not on a
+copy of one moved onto the touch as two cylinders' is: where no move could
+be made — an elliptic bar a hair from a node with both walls of a ring,
+held at one by the other — the copy stood a hair off the wall the
+corners around the curve are found on, and a rim crossing the bar at a
+slant put them further than the tolerance from the curve (5571519047).
+Equal half-widths with the axes meeting still give two planar components,
+`(x − κ₁y)/α₁ = ±(z − e − κ₂(y − d))/α₂`. A circle on one wall crosses an
+elliptic wall square to it where the lines its plane cuts that wall along
+cross it; the curve itself crosses a third surface as two cylinders' does.
+An elliptic wall at any other angle than parallel or square to another
+wall still declines where their faces may cross.
 
 ## Triangles
 

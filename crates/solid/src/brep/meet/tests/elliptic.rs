@@ -121,6 +121,7 @@ fn every_meet() -> Vec<(Wall, Wall, Meet)> {
     every_shape()
         .into_iter()
         .chain(leaning())
+        .chain(noded())
         .flat_map(|(first, second)| {
             components(first, second)
                 .into_iter()
@@ -146,9 +147,9 @@ fn every_point_of_a_meet_on_an_elliptic_wall_lies_on_both_walls() {
             let point = meet.point(t);
             for wall in [first, second] {
                 assert!(
-                    wall.distance(point).abs() < 1e-12 * REACH,
+                    wall.surface().distance(point).abs() < 1e-12 * REACH,
                     "{meet:?} at {t}: {point} is off {wall:?} by {}",
-                    wall.distance(point)
+                    wall.surface().distance(point)
                 );
             }
         }
@@ -380,9 +381,13 @@ fn a_pair_with_an_elliptic_wall_twice_the_tolerance_from_a_touch_is_left_as_it_i
 
 /// Pairs within half the tolerance of a touch, of every kind: an elliptic
 /// wall moved onto a node or a contact, and an elliptic wall of one
-/// half-width with a round one but for a hair, at a node of both ends.
+/// half-width with a round one but for a hair, at a node of both ends. Two
+/// elliptic walls turned off the height stand a third of it off a node of
+/// both ends: the half-axis that takes the hair moves the far end of the
+/// wall by up to twice as much.
 fn a_hair_from_a_touch() -> Vec<(Wall, Wall)> {
     let hair = scale().eps() / 2.0;
+    let third = scale().eps() / 3.0;
     let bar = |center: DVec3, degrees: f64, first: f64, second: f64| {
         oval(
             center,
@@ -396,7 +401,19 @@ fn a_hair_from_a_touch() -> Vec<(Wall, Wall)> {
         unreachable!("the post is elliptic")
     };
     let reach = leaning.support(DVec3::Y);
+    let Wall::Elliptic(across) = bar(DVec3::new(0.0, third, 1.0), 40.0, 3.0, 1.5) else {
+        unreachable!("the bar is elliptic")
+    };
+    let wider = (reach + third) / across.support(DVec3::Y);
     vec![
+        (
+            turned_post,
+            bar(DVec3::new(0.0, third, 1.0), 40.0, 3.0 * wider, 1.5 * wider),
+        ),
+        (
+            turned_post,
+            round(DVec3::new(0.0, -hair, 0.5), DVec3::X, reach - hair),
+        ),
         (
             post(0.0),
             round(DVec3::new(0.0, 1.0 + hair, 0.5), DVec3::X, 2.0),
@@ -452,9 +469,9 @@ fn a_snapped_meet_on_an_elliptic_wall_stays_within_the_tolerance_of_both_walls()
         for point in points {
             for wall in [first, second] {
                 assert!(
-                    wall.distance(point).abs() <= eps,
+                    wall.surface().distance(point).abs() <= eps,
                     "{first:?} {second:?}: {point} is off {wall:?} by {}",
-                    wall.distance(point)
+                    wall.surface().distance(point)
                 );
             }
         }
@@ -523,7 +540,7 @@ fn two_walls_one_elliptic_touching_from_outside_meet_at_one_point_on_both() {
         let contact = meeting.contact.expect("a point of contact");
         assert!(meeting.components.is_empty());
         for wall in [post(0.0), bar] {
-            assert!(wall.distance(contact).abs() <= eps);
+            assert!(wall.surface().distance(contact).abs() <= eps);
         }
         assert!((contact - DVec3::new(0.0, 3.0 * d.signum(), 4.0)).length() <= eps);
     }
@@ -556,7 +573,7 @@ fn two_walls_one_elliptic_and_turned_touch_where_each_reaches_the_other() {
     let meeting = Meeting::of(&turned_post, &bar, scale());
     let contact = meeting.contact.expect("a point of contact");
     for wall in [turned_post, bar] {
-        assert!(wall.distance(contact).abs() <= eps, "{wall:?}");
+        assert!(wall.surface().distance(contact).abs() <= eps, "{wall:?}");
     }
 }
 
@@ -574,19 +591,53 @@ fn a_meeting_with_an_elliptic_wall_is_the_same_whichever_wall_is_named_first() {
     }
 }
 
+/// Pairs whose curve has nodes, an elliptic wall among them, its axes
+/// along the height or turned off it: a round bar inside an elliptic post
+/// touching it, of its half-width through its axis, and an elliptic bar
+/// turned of the post's half-width.
+fn noded() -> Vec<(Wall, Wall)> {
+    let turned_post = post(25.0);
+    let Wall::Elliptic(leaning) = turned_post else {
+        unreachable!("the post is elliptic")
+    };
+    let reach = leaning.support(DVec3::Y);
+    let Wall::Elliptic(bar) = oval(
+        DVec3::new(0.0, 0.0, -2.5),
+        DVec3::X,
+        turned(DVec3::Y, DVec3::Z, 30.0) * 3.0,
+        1.5,
+    ) else {
+        unreachable!("the bar is elliptic")
+    };
+    let across = oval(
+        DVec3::new(0.0, 0.0, -2.5),
+        DVec3::X,
+        turned(DVec3::Y, DVec3::Z, 30.0) * 3.0 * reach / bar.support(DVec3::Y),
+        1.5 * reach / bar.support(DVec3::Y),
+    );
+    vec![
+        (post(0.0), round(DVec3::new(0.0, 1.0, -2.5), DVec3::X, 2.0)),
+        (post(0.0), round(DVec3::new(0.0, -1.0, -2.5), DVec3::X, 2.0)),
+        (post(0.0), round(DVec3::new(0.0, 0.0, -2.5), DVec3::X, 3.0)),
+        (
+            turned_post,
+            round(DVec3::new(0.0, reach - 2.0, -2.5), DVec3::X, 2.0),
+        ),
+        (
+            turned_post,
+            round(DVec3::new(0.0, 0.0, -2.5), DVec3::X, reach),
+        ),
+        (turned_post, across),
+    ]
+}
+
 #[test]
 fn a_point_at_a_node_with_an_elliptic_wall_names_every_pass_through_it_and_elsewhere_none() {
     let eps = scale().eps();
-    for radius_and_d in [(2.0, 1.0), (2.0, -1.0), (3.0, 0.0)] {
-        let (radius, d) = radius_and_d;
-        let bar = round(DVec3::new(0.0, d, -2.5), DVec3::X, radius);
-        let meeting = Meeting::of(&post(25.0), &bar, scale());
-        let meeting = if meeting.nodes.is_empty() {
-            Meeting::of(&post(0.0), &bar, scale())
-        } else {
-            meeting
-        };
-        assert!(!meeting.nodes.is_empty(), "{radius_and_d:?}");
+    for pair in noded() {
+        let (first, second) = pair;
+        let meeting = Meeting::of(&first, &second, scale());
+        assert!(!meeting.nodes.is_empty(), "{pair:?}");
         for meet in &meeting.components {
             for node in &meeting.nodes {
                 let named: Vec<f64> = node
@@ -596,7 +647,7 @@ fn a_point_at_a_node_with_an_elliptic_wall_names_every_pass_through_it_and_elsew
                     .map(|(_, t)| *t)
                     .collect();
                 let near = node.point + DVec3::splat(eps / 4.0);
-                assert_eq!(meet.passes(near, eps), named, "{radius_and_d:?}");
+                assert_eq!(meet.passes(near, eps), named, "{pair:?}");
             }
             let period = meet.period().expect("a component");
             for t in [period / 8.0, period * 3.0 / 8.0, period * 5.0 / 8.0] {

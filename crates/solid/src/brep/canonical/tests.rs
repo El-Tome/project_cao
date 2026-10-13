@@ -1507,3 +1507,28 @@ fn a_block_a_hair_beside_another_with_no_wall_touching_its_side_is_left_where_it
 
 mod conics;
 mod squared;
+
+#[test]
+fn an_elliptic_wall_crossing_another_at_a_grazing_angle_grazes_it_and_one_crossing_it_steeply_does_not()
+ {
+    use crate::brep::surface::EllipticCylinder;
+    let oval = |turned: f64, center: DVec3| {
+        Surface::Elliptic(EllipticCylinder::about(
+            center,
+            DVec3::Z,
+            DVec3::new(turned.cos(), turned.sin(), 0.0) * 7.0,
+            3.0,
+        ))
+    };
+    let wall = oval(0.0, DVec3::ZERO);
+    let turned = oval(1e-4, DVec3::ZERO);
+    let moved = oval(0.0, DVec3::new(1e-4, 2e-4, 0.0));
+    let crossed = oval(1.2, DVec3::ZERO);
+    let round = Surface::Cylinder(Cylinder::about(DVec3::X * 7.0, DVec3::Z, 2.0));
+    let apart = Apart::of(&[wall, turned, moved, crossed, round], |_| scale());
+    let [wall, turned, moved, crossed, round] = [0, 1, 2, 3, 4].map(SurfaceId);
+    assert!(apart.graze(wall, turned));
+    assert!(apart.graze(wall, moved));
+    assert!(!apart.graze(wall, crossed));
+    assert!(!apart.graze(wall, round));
+}

@@ -133,7 +133,7 @@ fn touches(operands: &Operands, registry: &Registry) -> Vec<Touch> {
                 }
                 Relation::Parallel(rulings) => rulings
                     .iter()
-                    .filter(|ruled| ruled.touching)
+                    .filter(|ruled| ruled.touching || grazing)
                     .map(|ruled| {
                         let others = rulings.iter().filter(|other| other.line != ruled.line);
                         (ruled.line, others.map(|other| other.line).collect())

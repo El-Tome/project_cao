@@ -28,7 +28,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use glam::DVec3;
 
-use crate::brep::relation::{Relation, relation};
+use crate::brep::relation::{Relation, abreast, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::topology::SurfaceId;
@@ -65,8 +65,24 @@ impl Apart {
                     Relation::Tangent(_) => {
                         touching.insert(pair);
                     }
-                    Relation::Parallel(rulings) if rulings.iter().any(|ruled| ruled.touching) => {
-                        touching.insert(pair);
+                    Relation::Lines(lines) if abreast(first, second) => {
+                        if lines
+                            .iter()
+                            .all(|line| grazes_at(first, second, line.origin))
+                        {
+                            grazing.insert(pair);
+                        }
+                    }
+                    Relation::Parallel(rulings) => {
+                        if rulings.iter().any(|ruled| ruled.touching) {
+                            touching.insert(pair);
+                        }
+                        let mut crossings = rulings.iter().filter(|ruled| !ruled.touching);
+                        if crossings.clone().next().is_some()
+                            && crossings.all(|ruled| grazes_at(first, second, ruled.line.origin))
+                        {
+                            grazing.insert(pair);
+                        }
                     }
                     Relation::Ruling { apex, .. } => {
                         touching.insert(pair);
@@ -101,7 +117,6 @@ impl Apart {
                     }
                     Relation::Line(_)
                     | Relation::Lines(_)
-                    | Relation::Parallel(_)
                     | Relation::Circle(_)
                     | Relation::Rulings { apex: None, .. }
                     | Relation::Conic(_)
@@ -234,6 +249,15 @@ impl Apart {
 /// the crossing to be grazing: within the tolerance of each other a hundred
 /// tolerances from the lines, and more.
 const GRAZING: f64 = 1e-2;
+
+/// Whether two parallel walls, an elliptic one among them, crossing along
+/// a line through `on`, meet there at a grazing angle: the same ellipse a
+/// hair beyond decision 8's turned or moved, an ellipse a hair from a
+/// circle crossing it near its vertices.
+fn grazes_at(one: &Surface, other: &Surface, on: DVec3) -> bool {
+    let facing = |wall: &Surface| wall.normal(wall.parameters(on));
+    facing(one).cross(facing(other)).length() <= GRAZING
+}
 
 /// Whether two parallel walls of one radius crossing along a line through
 /// `on` meet there at a grazing angle: their axes a hair apart, the crescent

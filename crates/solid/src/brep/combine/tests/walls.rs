@@ -396,3 +396,53 @@ fn a_circle_touching_an_elliptic_boss_at_a_vertex_and_crossing_it_near_there_hol
         cut_and_joined(Section::circle(on_the_boss(7.0 - radius, 0.0), radius));
     }
 }
+
+/// The chords of the triangles a body's circular wall is drawn with, each
+/// held within the tolerance of the wall, from a fine tolerance to a coarse
+/// one.
+fn round_drawn_within_the_tolerance(body: &Body) {
+    let Some(Surface::Cylinder(round)) = body
+        .surfaces
+        .iter()
+        .find(|surface| matches!(surface, Surface::Cylinder(_)))
+    else {
+        panic!("the body stands on a circular wall");
+    };
+    for share in [1e-4, 1e-3, 2e-2] {
+        let tolerance = share * body.scale().reach();
+        let triangles = body.triangles(tolerance);
+        assert_eq!(closed(&triangles).map_err(|_| share), Ok(()), "open");
+        assert_eq!(uncrossed(&triangles).map_err(|_| share), Ok(()), "crossed");
+        for triangle in triangles {
+            let across = (triangle[1] - triangle[0]).cross(triangle[2] - triangle[0]);
+            if across.normalize().dot(DVec3::Z).abs() < 0.5
+                && triangle
+                    .iter()
+                    .all(|corner| round.distance(*corner).abs() <= 1e-9)
+            {
+                for (one, other) in [(0, 1), (1, 2), (2, 0)] {
+                    let middle = (triangle[one] + triangle[other]) / 2.0;
+                    assert!(
+                        round.distance(middle).abs() <= tolerance,
+                        "a chord stands {} off the round wall at {share}",
+                        round.distance(middle)
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_circle_inscribed_where_an_elliptic_boss_s_wall_was_cut_away_is_drawn_within_the_tolerance() {
+    let boss = raised(Section::ellipse([0.0, 0.0], DVec2::X * 6.0, 3.0), 0.0, 4.0);
+    let trimmed = boss
+        .cut_by(&block([-10.0, 2.0, -1.0], [10.0, 10.0, 5.0]))
+        .and_then(|body| body.cut_by(&block([-10.0, -10.0, -1.0], [10.0, -2.0, 5.0])))
+        .expect("the boss is trimmed across its minor axis");
+    let joined = trimmed
+        .joined(&raised(Section::circle([0.0, 0.0], 3.0), 0.0, 4.0))
+        .expect("the circle is joined where the wall it touches is gone");
+    assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
+    round_drawn_within_the_tolerance(&joined);
+}

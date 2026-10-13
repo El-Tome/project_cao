@@ -107,7 +107,10 @@ impl Abreast {
     }
 
     /// The steps of each circular wall of the pair standing within the room
-    /// of the other wall.
+    /// of the other wall, a step or less from a corner on both: by a line
+    /// the two touch along. Where no corner is, a face of either is gone
+    /// there — a chord of an ellipse cut it away — and a step left out would
+    /// leave a chord across two.
     fn crowded(&mut self, pair: [SurfaceId; 2], body: &Body, tolerance: f64) {
         let room = body.scale().eps() * contact::APART;
         for (wall, other) in [(pair[0], pair[1]), (pair[1], pair[0])] {
@@ -115,11 +118,21 @@ impl Abreast {
                 continue;
             };
             let steps = divisions(round.radius, tolerance);
+            let width = TAU / steps as f64;
+            let touching: Vec<f64> = body
+                .vertices
+                .iter()
+                .filter(|vertex| vertex.on.contains(&wall) && vertex.on.contains(&other))
+                .map(|vertex| round.parameters(vertex.point).x)
+                .collect();
             let near: Vec<usize> = (0..steps)
                 .filter(|step| {
-                    let angle = TAU * *step as f64 / steps as f64;
+                    let angle = width * *step as f64;
                     let point = round.point(DVec2::new(angle, 0.0));
                     body.surface(other).distance(point).abs() <= room
+                        && touching.iter().any(|at| {
+                            ((angle - at + TAU / 2.0).rem_euclid(TAU) - TAU / 2.0).abs() <= width
+                        })
                 })
                 .collect();
             if !near.is_empty() {

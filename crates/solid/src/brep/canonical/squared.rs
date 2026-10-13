@@ -357,13 +357,26 @@ pub(super) fn kept(first: &Body, before: &Body, after: &Body, scale: Scale) -> b
             let (known, tool) = (first.surface(one), after.surface(other));
             let was = relation(known, before.surface(other), scale);
             let is = relation(known, tool, scale);
-            let exact = apex(&was) || matches!(was, Relation::Same { .. } | Relation::Tangent(_));
+            let exact = apex(&was)
+                || matches!(was, Relation::Same { .. } | Relation::Tangent(_))
+                || touches(&was) > 0;
             if exact {
                 std::mem::discriminant(&was) == std::mem::discriminant(&is)
+                    && touches(&was) == touches(&is)
             } else {
                 !apex(&is) || through_the_apex(known, tool, scale)
             }
         })
+}
+
+/// How many rulings two parallel walls, an elliptic one among them, touch
+/// along beside crossings or with another touch (#571): a touch as exact as
+/// a tangent's, which a turn must keep.
+fn touches(relation: &Relation) -> usize {
+    match relation {
+        Relation::Parallel(rulings) => rulings.iter().filter(|ruled| ruled.touching).count(),
+        _ => 0,
+    }
 }
 
 /// Whether a plane passes through a cone's apex but for rounding.

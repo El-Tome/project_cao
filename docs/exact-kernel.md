@@ -700,8 +700,13 @@ The decisions, in the order taken, once per operation:
    square to itself, its sine times the difference of the half-axes, so
    that a section a hair from round, turned any way, is still itself. The
    second's rims are cut again on the first's wall
-   (`canonical/crescent/oval.rs`); a wall its operand drew corners on is
-   left two. A circle and an ellipse are never merged this way.
+   (`canonical/crescent/oval.rs`), and its arcs read again at their
+   corners, where every corner its operand drew on it already stands on
+   the first's wall: half an ellipse cut along its major axis, joined to
+   the same ellipse a hair wider across, whose ends both walls share
+   (seed 6 of the ellipses' draw). A wall carrying a corner off the
+   first's is left two, and declined. A circle and an ellipse are never
+   merged this way.
 
    A cone (#536) is decided against a cylinder or a cone about one axis
    only: a cone and a wall or a cone, one of each operand, whose axes are

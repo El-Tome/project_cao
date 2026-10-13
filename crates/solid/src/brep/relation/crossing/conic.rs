@@ -23,6 +23,7 @@
 //! on its arm's side of the plane of symmetry when it is an arm. Where `Q`
 //! and `S` meet in a way the kernel does not build, so does the conic.
 
+use super::super::elliptic::plane_and_elliptic;
 use super::super::planar::{plane_and_cylinder, planes};
 use super::super::{Relation, relation, square};
 use super::grazed::grazed;
@@ -104,6 +105,11 @@ pub(super) fn conic_and_surface(
             {
                 section::touched(line, [&conic.plane, plane], &cylinder, scale)
             }
+            (Curve::Line(line), Surface::Plane(plane), Round::Elliptic(elliptic))
+                if across == wall =>
+            {
+                section::touched_on_an_ellipse(line, [&conic.plane, plane], &elliptic, scale)
+            }
             _ => None,
         };
         let found = match touched {
@@ -150,8 +156,8 @@ pub(super) fn conic_and_surface(
     Crossings::At(kept)
 }
 
-/// The lines a plane read along the axis of a conic's cylinder cuts or
-/// touches it along, to be crossed with the conic's own plane: the triple's
+/// The lines a plane read along the axis of a conic's cylinder or elliptic
+/// wall cuts or touches it along, to be crossed with the conic's own plane: the triple's
 /// most degenerate pair, so that the corner is the one those lines give
 /// (`lying.rs`). None for a plane across the axis, on a cone, or where
 /// the conic's plane leans too near the axis for those lines to fix where
@@ -161,18 +167,24 @@ fn along_the_axis(
     plane: &Plane,
     scale: Scale,
 ) -> Option<(Vec<(Curve, bool)>, Surface)> {
-    let Round::Cylinder(cylinder) = conic.round else {
-        return None;
+    let (wall, axis) = match conic.round {
+        Round::Cylinder(cylinder) => (Surface::Cylinder(cylinder), cylinder.axis),
+        Round::Elliptic(elliptic) => (Surface::Elliptic(elliptic), elliptic.axis),
+        Round::Cone(_) => return None,
     };
-    let wall = Surface::Cylinder(cylinder);
-    if !square(plane.normal, cylinder.axis, scale)
+    if !square(plane.normal, axis, scale)
         || !leans(&Surface::Plane(*plane), &wall, scale)
-        || conic.plane.normal.dot(cylinder.axis).abs() < STEEP
+        || conic.plane.normal.dot(axis).abs() < STEEP
     {
         return None;
     }
     let own_plane = Surface::Plane(conic.plane);
-    Some(match plane_and_cylinder(plane, &cylinder, scale) {
+    let found = match conic.round {
+        Round::Elliptic(elliptic) => plane_and_elliptic(plane, &elliptic, scale),
+        Round::Cylinder(cylinder) => plane_and_cylinder(plane, &cylinder, scale),
+        Round::Cone(_) => return None,
+    };
+    Some(match found {
         Relation::Lines(lines) => (
             lines.map(|line| (Curve::Line(line), false)).to_vec(),
             own_plane,

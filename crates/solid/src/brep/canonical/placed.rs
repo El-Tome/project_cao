@@ -16,10 +16,12 @@
 //! makes — so that each such pair lies exactly: two flats the turn lays
 //! parallel, a plane or the plane of a circle of each, one on the other; a
 //! line of either, straight edge or wall's axis, in a flat of the other the
-//! turn lays it along; a straight edge of either touching a cylinder of the
-//! other across its axis. A flat that passes near several lines parting
-//! from each other lies on none of them. Only where the two stand within
-//! the tolerance of each other, taken for one place already: laid from as far as `Scale::HAIR` tolerances, a cut's face was
+//! turn lays it along; a straight edge of either touching a cylinder or an
+//! elliptic wall of the other across its axis, an elliptic wall reaching
+//! as far as its support says across the edge. A flat that passes near
+//! several lines parting from each other lies on none of them. Only where
+//! the two stand within the tolerance of each other, taken for one place
+//! already: laid from as far as `Scale::HAIR` tolerances, a cut's face was
 //! moved three tolerances onto what it only passed near, and refused
 //! (5545209574). The pairs nearest to lying come first; a pair the shift
 //! cannot lay without taking an earlier one off, or without moving the
@@ -28,7 +30,7 @@
 use glam::{DQuat, DVec3};
 
 use crate::brep::curve::Curve;
-use crate::brep::surface::{Cylinder, Plane, Surface};
+use crate::brep::surface::{EllipticCylinder, Plane, Surface};
 use crate::brep::topology::{Body, Edge};
 
 /// What the shift is read from: the turn and the point it is made about,
@@ -62,13 +64,47 @@ struct Lying {
 type Straight = (DVec3, DVec3);
 
 /// What an operand may hold against the other: its flats, its straight
-/// edges, the axes of its walls, and its cylinders as an axis and a radius,
-/// the second's turned and set about where the two meet.
+/// edges, the axes of its walls, and its cylinders and elliptic walls as an
+/// axis and how far they reach from it, the second's turned and set about
+/// where the two meet.
 struct Held {
     flats: Vec<Plane>,
     edges: Vec<Straight>,
     axes: Vec<Straight>,
-    walls: Vec<(Straight, f64)>,
+    walls: Vec<(Straight, Reach)>,
+}
+
+/// How far a wall reaches from its axis: a cylinder its radius all round,
+/// an elliptic wall as far as its support says along each direction.
+#[derive(Clone, Copy)]
+enum Reach {
+    Round(f64),
+    Oval(EllipticCylinder),
+}
+
+impl Reach {
+    /// How far the wall reaches along `across`, square to its axis and of
+    /// unit length.
+    fn along(&self, across: DVec3) -> f64 {
+        match self {
+            Reach::Round(radius) => *radius,
+            Reach::Oval(wall) => wall.support(across),
+        }
+    }
+
+    /// The reach of the wall turned by `turn`, which its support reads off
+    /// its turned half-axes.
+    fn turned(self, turn: DQuat) -> Reach {
+        match self {
+            Reach::Round(_) => self,
+            Reach::Oval(wall) => Reach::Oval(EllipticCylinder {
+                axis: turn * wall.axis,
+                u: turn * wall.u,
+                v: turn * wall.v,
+                ..wall
+            }),
+        }
+    }
 }
 
 impl Held {
@@ -88,7 +124,7 @@ impl Held {
             edges: edges(body, near, eps).into_iter().map(line).collect(),
             axes: axes(body).map(line).collect(),
             walls: walls(body)
-                .map(|wall| (line((wall.origin, wall.axis)), wall.radius))
+                .map(|(axis, reach)| (line(axis), reach.turned(turn)))
                 .collect(),
         }
     }
@@ -141,7 +177,7 @@ fn held(still: &Held, moving: &Held, laying: &Laying, toward: f64) -> Vec<Lying>
             lying.extend(aways.into_iter().map(|away| lay(flat.normal, away)));
         }
     }
-    for &((origin, axis), radius) in &still.walls {
+    for &((origin, axis), reach) in &still.walls {
         for &(point, direction) in &moving.edges {
             if axis.dot(direction).abs() > laying.within {
                 continue;
@@ -149,7 +185,7 @@ fn held(still: &Held, moving: &Held, laying: &Laying, toward: f64) -> Vec<Lying>
             let across = axis.cross(direction).normalize_or_zero();
             let from_the_axis = (point - origin).dot(across);
             lying.extend(
-                touching(from_the_axis, radius, laying)
+                touching(from_the_axis, reach.along(across), laying)
                     .map(|apart| lay(across * from_the_axis.signum(), apart)),
             );
         }
@@ -195,7 +231,9 @@ fn lies_in(flat: &Plane, point: DVec3, direction: DVec3, laying: &Laying) -> Opt
 }
 
 /// How far a straight edge, `from_the_axis` of a wall and square to its
-/// axis, stands off touching the wall, where it does within the tolerance.
+/// axis, stands off touching the wall, which reaches `radius` from its axis
+/// across the edge — the support, on an elliptic wall — where it does
+/// within the tolerance.
 /// A slot's side drawn on a disc's wall, and a rounded block's seam on a
 /// ring's, were left a fraction of the tolerance off by the turn and
 /// refused (5546322326, 5546607658); their edges lay them. A flat is not
@@ -250,21 +288,26 @@ fn flats(body: &Body, near: (DVec3, DVec3), grown: f64) -> Vec<Plane> {
     planes.chain(circles).collect()
 }
 
-/// The axis of each circular wall of a body: an elliptic one is not turned
-/// onto yet (#571).
+/// The axis of each wall of a body.
 fn axes(body: &Body) -> impl Iterator<Item = Straight> {
     body.surfaces.iter().filter_map(|surface| match surface {
         Surface::Cylinder(cylinder) => Some((cylinder.origin, cylinder.axis)),
         Surface::Cone(cone) => Some((cone.origin, cone.axis)),
-        Surface::Plane(_) | Surface::Elliptic(_) => None,
+        Surface::Elliptic(wall) => Some((wall.origin, wall.axis)),
+        Surface::Plane(_) => None,
     })
 }
 
-/// The cylinders of a body.
-fn walls(body: &Body) -> impl Iterator<Item = &Cylinder> {
+/// The cylinders and the elliptic walls of a body, as their axis and how
+/// far they reach from it.
+fn walls(body: &Body) -> impl Iterator<Item = (Straight, Reach)> {
     body.surfaces.iter().filter_map(|surface| match surface {
-        Surface::Cylinder(cylinder) => Some(cylinder),
-        Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
+        Surface::Cylinder(cylinder) => Some((
+            (cylinder.origin, cylinder.axis),
+            Reach::Round(cylinder.radius),
+        )),
+        Surface::Elliptic(wall) => Some(((wall.origin, wall.axis), Reach::Oval(*wall))),
+        Surface::Plane(_) | Surface::Cone(_) => None,
     })
 }
 

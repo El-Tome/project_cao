@@ -449,3 +449,41 @@ fn a_circle_inscribed_where_an_elliptic_boss_s_wall_was_cut_away_is_drawn_within
     assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
     round_drawn_within_the_tolerance(&joined);
 }
+
+#[test]
+fn an_ellipse_a_hair_from_round_cut_by_a_circle_a_hair_off_it_is_declined_rather_than_kept() {
+    let oval = Section::ellipse([120.0, 150.0], DVec2::Y * 15.0000015, 15.0);
+    let circle = Section::circle([119.9999997, 150.0], 15.0000005);
+    let body = raised(oval, 15.0, 150.0);
+    assert!(
+        body.surfaces
+            .iter()
+            .any(|surface| matches!(surface, Surface::Elliptic(_))),
+        "the ellipse is raised on an elliptic wall"
+    );
+    let cut = body.cut_by(&raised(circle, 15.0, 149.999994));
+    assert_eq!(cut.map(|_| ()), Err(Declined::Unsupported));
+}
+
+#[test]
+fn two_ellipses_turned_a_few_degrees_apart_crossing_at_four_rulings_hold_their_volume() {
+    let boss = boss();
+    for degrees in [3.5f64, 12.0] {
+        let turned = DVec2::from_angle(0.4 + degrees.to_radians()) * 7.0;
+        cut_and_joined(Section::ellipse(boss.center.to_array(), turned, 3.0));
+    }
+    let rounder = Section::ellipse(boss.center.to_array(), DVec2::from_angle(0.46) * 5.0, 4.0);
+    let body = raised(
+        Section::ellipse(boss.center.to_array(), DVec2::from_angle(0.4) * 5.0, 4.0),
+        0.0,
+        4.0,
+    );
+    let joined = body
+        .joined(&raised(rounder, -1.0, 3.0))
+        .expect("the turned ellipse is joined");
+    let base = Section::ellipse(boss.center.to_array(), DVec2::from_angle(0.4) * 5.0, 4.0);
+    held(
+        &joined,
+        base.area() * 4.0 + rounder.area() * 4.0 - base.overlap(&rounder) * 3.0,
+    );
+}

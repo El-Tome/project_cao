@@ -204,3 +204,32 @@ fn an_elliptic_wall_and_a_wall_not_parallel_to_it_are_unsupported() {
         Relation::Unsupported
     );
 }
+
+#[test]
+fn a_circle_and_an_ellipse_a_hair_from_round_within_twenty_tolerances_of_it_all_round_are_unsupported()
+ {
+    let eps = scale().eps();
+    let nearly = Surface::Elliptic(EllipticCylinder::about(
+        DVec3::new(1.0, -2.0, 0.0),
+        DVec3::Z,
+        DVec3::X * (5.0 + 10.0 * eps),
+        5.0,
+    ));
+    for (x, radius) in [(1.0, 5.0 + 5.0 * eps), (1.0 + 3.0 * eps, 5.0), (1.0, 5.0)] {
+        let round = Surface::Cylinder(Cylinder::about(DVec3::new(x, -2.0, 0.0), DVec3::Z, radius));
+        assert_eq!(
+            super::super::relation(&nearly, &round, scale()),
+            Relation::Unsupported,
+            "{x} {radius}"
+        );
+    }
+    let further = Surface::Cylinder(Cylinder::about(
+        DVec3::new(1.0, -2.0, 0.0),
+        DVec3::Z,
+        5.0 + 30.0 * eps,
+    ));
+    assert_eq!(
+        super::super::relation(&nearly, &further, scale()),
+        Relation::Apart
+    );
+}

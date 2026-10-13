@@ -1,13 +1,15 @@
-//! Two parallel walls, an elliptic one among them (#571), standing within
-//! twice a chord's sag of each other where the distance between them turns
-//! — one touching the other inside, or crossing it a hair from a touch —
-//! with faces at heights that meet: the rays both take from a point inside
-//! both, as two circular walls close to each other take theirs
-//! (`contact/together.rs`).
+//! Two parallel walls, an elliptic one among them (#571), that meet, or
+//! stand within twice a chord's sag of each other where the distance
+//! between them turns — one touching the other inside, crossing it a hair
+//! from a touch, or crossing it anywhere — with faces at heights that meet:
+//! the rays both take from a point inside both, as two circular walls close
+//! to each other take theirs (`contact/together.rs`).
 //!
 //! Each sampled on its own grid, the outer one's chords sag past the inner
-//! one's samples about where the two touch, and the faces either bounds on
-//! a cap they share, or the strips of the two walls, cross. Sampled on rays
+//! one's samples about where the two touch, or where two ellipses turned a
+//! few degrees apart leave a crossing nearly along each other, and the
+//! faces either bounds on a cap they share, or the strips of the two walls,
+//! cross. Sampled on rays
 //! from the axis of the one standing inside the other there — through the
 //! samples of either's grid and through the vertices on either — both are
 //! graphs of the angle round it, one further out than the other on every
@@ -25,7 +27,7 @@ use glam::{DVec2, DVec3};
 
 use super::super::contact::{self, Contact};
 use super::divisions;
-use crate::brep::relation::closest;
+use crate::brep::relation::{Relation, closest, relation};
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, SurfaceId};
 
@@ -41,7 +43,8 @@ pub(super) struct Abreast {
 
 impl Abreast {
     /// Every pair of parallel walls of `body`, an elliptic one among them,
-    /// one inside the other and within twice `tolerance` of it somewhere.
+    /// that meet, or stand one inside the other within twice `tolerance` of
+    /// it somewhere.
     pub(super) fn of(body: &Body, tolerance: f64) -> Abreast {
         let mut found = Abreast::default();
         let walls: Vec<SurfaceId> = (0..body.surfaces.len() as u32)
@@ -62,7 +65,11 @@ impl Abreast {
                 let Some(nearest) = closest(pair[0], pair[1], body.scale()) else {
                     continue;
                 };
-                if nearest > 2.0 * tolerance || !side_by_side([one, other], body) {
+                let meeting = !matches!(
+                    relation(pair[0], pair[1], body.scale()),
+                    Relation::Apart | Relation::Unsupported
+                );
+                if !meeting && nearest > 2.0 * tolerance || !side_by_side([one, other], body) {
                     continue;
                 }
                 let Some([inner, outer]) = hubbed([one, other], body) else {

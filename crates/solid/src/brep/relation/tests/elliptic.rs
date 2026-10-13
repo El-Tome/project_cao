@@ -110,7 +110,8 @@ fn a_plane_along_an_elliptic_wall_s_axis_cuts_it_along_two_rulings_touches_it_al
 }
 
 #[test]
-fn the_same_ellipse_reached_twice_is_one_surface_and_another_meets_it_along_rulings() {
+fn the_same_ellipse_reached_twice_is_one_surface_one_a_hair_off_is_unsupported_and_another_meets_it_along_rulings()
+ {
     let eps = scale().eps();
     let wall = oval();
     let again = |center: DVec3, first: DVec3, second: f64| {
@@ -134,10 +135,18 @@ fn the_same_ellipse_reached_twice_is_one_surface_and_another_meets_it_along_ruli
         ),
         (
             again(DVec3::new(1.0, -2.0, 0.0), major, 3.0 + 2.0 * eps),
-            "parallel",
+            "unsupported",
         ),
         (
             again(DVec3::new(1.0, -2.0 + 2.0 * eps, 0.0), major, 3.0),
+            "unsupported",
+        ),
+        (
+            again(DVec3::new(1.0, -2.0, 0.0), major, 3.0 + 30.0 * eps),
+            "parallel",
+        ),
+        (
+            again(DVec3::new(1.0, -2.0 + 30.0 * eps, 0.0), major, 3.0),
             "lines",
         ),
     ] {

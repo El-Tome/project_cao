@@ -24,8 +24,11 @@
 //! Two crossings are `Lines` and one touch `Tangent`, as for two circular
 //! walls; any other set of rulings — four crossings, two touches, a touch
 //! beside crossings — is `Parallel`, each ruling with whether the walls only
-//! touch along it. Walls standing within the tolerance of each other at
-//! every foot, which no ruling tells apart, are unsupported.
+//! touch along it. Walls standing within decision 8's hair of each other at
+//! every foot — an ellipse a hair from round about a circle of its size —
+//! stand within the tolerance of each other over most of their turn, in
+//! bands no ruling tells apart, and are unsupported: built, such a pair was
+//! drawn backwards, left open, or kept matter a cut took away.
 
 mod normals;
 
@@ -264,7 +267,8 @@ struct Met {
 
 /// The rulings `walked` meets `other` along, from the angles of `walked`
 /// at which their distance turns, in order round it; none where the two
-/// stand within the tolerance of each other at every one of those angles.
+/// stand within decision 8's hair of each other at every one of those
+/// angles.
 fn met(walked: &EllipticCylinder, other: Other, angles: Vec<f64>, scale: Scale) -> Option<Met> {
     let eps = scale.eps();
     let point = |theta: f64| walked.point(DVec2::new(theta, 0.0));
@@ -272,6 +276,9 @@ fn met(walked: &EllipticCylinder, other: Other, angles: Vec<f64>, scale: Scale) 
         .iter()
         .map(|&theta| other.gap(point(theta)))
         .collect();
+    if gaps.iter().all(|gap| gap.abs() <= Scale::HAIR * eps) {
+        return None;
+    }
     let touching: Vec<bool> = gaps.iter().map(|gap| gap.abs() <= eps).collect();
     let start = touching.iter().position(|touch| !touch)?;
     let count = angles.len();

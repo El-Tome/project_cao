@@ -1,4 +1,4 @@
-//! What two perpendicular cylinders make together, decided once within the
+//! What two perpendicular walls make together, decided once within the
 //! kernel's tolerance: the components of the curve they meet along, its nodes,
 //! or the point where they touch.
 
@@ -8,9 +8,9 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use super::pair::{Configuration, Pair};
-use crate::brep::curve::Meet;
+use crate::brep::curve::{Meet, Wall};
 use crate::brep::scale::Scale;
-use crate::brep::surface::Cylinder;
+use crate::brep::surface::{Cylinder, EllipticCylinder};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Meeting {
@@ -29,12 +29,12 @@ pub struct Node {
 }
 
 impl Meeting {
-    /// The larger cylinder is taken first whatever the order asked, so the
+    /// The larger wall is taken first whatever the order asked, so the
     /// same pair gives the same curve both ways. The first is kept bit for
     /// bit; the second is moved, by less than the tolerance, onto the touch
     /// decided here, and every component carries it moved.
-    pub fn of(one: &Cylinder, other: &Cylinder, scale: Scale) -> Meeting {
-        let (first, second) = match goes_first(one, other) {
+    pub fn of(one: &Wall, other: &Wall, scale: Scale) -> Meeting {
+        let (first, second) = match ordered(one, other) {
             Ordering::Less | Ordering::Equal => (*one, *other),
             Ordering::Greater => (*other, *one),
         };
@@ -60,15 +60,11 @@ impl Meeting {
     }
 }
 
-/// The cylinder of two perpendicular ones that `Meeting::of` moves onto the
+/// The wall of two perpendicular ones that `Meeting::of` moves onto the
 /// touch it decides, by its rank in the pair as asked, and where it moves it
 /// to; none where nothing moves.
-pub(in crate::brep) fn moved(
-    one: &Cylinder,
-    other: &Cylinder,
-    scale: Scale,
-) -> Option<(usize, Cylinder)> {
-    let (first, second, rank) = match goes_first(one, other) {
+pub(in crate::brep) fn moved(one: &Wall, other: &Wall, scale: Scale) -> Option<(usize, Wall)> {
+    let (first, second, rank) = match ordered(one, other) {
         Ordering::Greater => (other, one, 0),
         Ordering::Less | Ordering::Equal => (one, other, 1),
     };
@@ -76,29 +72,38 @@ pub(in crate::brep) fn moved(
     (snapped != *second).then_some((rank, snapped))
 }
 
-/// The other cylinder of the pair moved onto the touch `moved` decides, by
+/// The other wall of the pair moved onto the touch `moved` decides, by
 /// its rank in the pair as asked: across the axis of the one `moved` moves,
-/// by the same offset the other way, and given that one's radius where the
-/// two were taken for one radius. None where nothing moves.
+/// by the same offset the other way, and given that one's half-width where
+/// the two were taken for one half-width. None where nothing moves.
 pub(in crate::brep) fn moved_instead(
-    one: &Cylinder,
-    other: &Cylinder,
+    one: &Wall,
+    other: &Wall,
     scale: Scale,
-) -> Option<(usize, Cylinder)> {
-    let (first, second, rank) = match goes_first(one, other) {
+) -> Option<(usize, Wall)> {
+    let (first, second, rank) = match ordered(one, other) {
         Ordering::Greater => (other, one, 1),
         Ordering::Less | Ordering::Equal => (one, other, 0),
     };
     let pair = Pair::of(first, second);
     let (offset, radius) = touch(&pair, scale.eps())?;
     let kept = if radius == pair.b { pair.a } else { pair.b };
+    let by = -pair.axes[1] * (offset - pair.d);
     Some((
         rank,
-        Cylinder::about(
-            first.origin - pair.axes[1] * (offset - pair.d),
-            first.axis,
-            kept,
-        ),
+        match first {
+            Wall::Cylinder(cylinder) => {
+                Wall::Cylinder(Cylinder::about(cylinder.origin + by, cylinder.axis, kept))
+            }
+            Wall::Elliptic(oval) => {
+                let moved = oval.moved(by);
+                Wall::Elliptic(if radius == pair.b {
+                    moved
+                } else {
+                    widened(&moved, pair.axes[1], kept)
+                })
+            }
+        },
     ))
 }
 
@@ -132,24 +137,32 @@ pub(super) fn nodes(pair: &Pair) -> Vec<Node> {
     }
 }
 
-/// The second cylinder moved across the first's axis, and for two equal ones
-/// given the first's radius, so that an end of the span within `eps` of a
-/// touch is one exactly: the ends of the span meet for a contact, both roots
-/// vanish together at a node.
-fn snapped(first: &Cylinder, second: &Cylinder, eps: f64) -> Cylinder {
+/// The second wall moved across the first's axis, and for two of one
+/// half-width given the first's, so that an end of the span within `eps`
+/// of a touch is one exactly: the ends of the span meet for a contact,
+/// both roots vanish together at a node.
+fn snapped(first: &Wall, second: &Wall, eps: f64) -> Wall {
     let pair = Pair::of(first, second);
-    match touch(&pair, eps) {
-        Some((offset, radius)) => Cylinder::about(
-            second.origin + pair.axes[1] * (offset - pair.d),
-            second.axis,
+    match (touch(&pair, eps), second) {
+        (Some((offset, radius)), Wall::Cylinder(cylinder)) => Wall::Cylinder(Cylinder::about(
+            cylinder.origin + pair.axes[1] * (offset - pair.d),
+            cylinder.axis,
             radius,
-        ),
-        None => *second,
+        )),
+        (Some((offset, half)), Wall::Elliptic(oval)) => {
+            let moved = oval.moved(pair.axes[1] * (offset - pair.d));
+            Wall::Elliptic(if half == pair.b {
+                moved
+            } else {
+                widened(&moved, pair.axes[1], half)
+            })
+        }
+        (None, _) => *second,
     }
 }
 
-/// The offset of the second cylinder's axis across the first's, and its
-/// radius, that make an end of the span within `eps` of a touch one
+/// The offset of the second wall's axis across the first's, and its
+/// half-width, that make an end of the span within `eps` of a touch one
 /// exactly; none where nothing is within `eps` of a touch, or where it is
 /// one already.
 fn touch(pair: &Pair, eps: f64) -> Option<(f64, f64)> {
@@ -169,6 +182,44 @@ fn touch(pair: &Pair, eps: f64) -> Option<(f64, f64)> {
         }
     };
     (offset != d || radius != b).then_some((offset, radius))
+}
+
+/// An elliptic wall made to reach `half` along `along`, square to its axis,
+/// by the half-axis nearer that direction alone: where the two walls of a
+/// node are drawn of one half-width, an axis of the ellipse runs along the
+/// other wall's, and that half-axis alone is the hair off.
+fn widened(oval: &EllipticCylinder, along: DVec3, half: f64) -> EllipticCylinder {
+    let [on_u, on_v] = [along.dot(oval.u), along.dot(oval.v)];
+    let (first, second) = if on_u.abs() >= on_v.abs() {
+        let rest = oval.minor * on_v;
+        let length = ((half - rest) * (half + rest)).max(0.0).sqrt() / on_u.abs();
+        (oval.u * length, oval.minor)
+    } else {
+        let rest = oval.major * on_u;
+        let length = ((half - rest) * (half + rest)).max(0.0).sqrt() / on_v.abs();
+        (oval.v * length, oval.major)
+    };
+    EllipticCylinder::about(oval.origin, oval.axis, first, second)
+}
+
+/// Which of two walls goes first: two cylinders as they always have; with
+/// an elliptic wall among them, the larger by its radius or major
+/// half-axis, then by where it stands and which way it runs.
+fn ordered(one: &Wall, other: &Wall) -> Ordering {
+    match (one, other) {
+        (Wall::Cylinder(one), Wall::Cylinder(other)) => goes_first(one, other),
+        _ => size(other)
+            .total_cmp(&size(one))
+            .then_with(|| lexicographic(one.origin(), other.origin()))
+            .then_with(|| lexicographic(one.axis(), other.axis())),
+    }
+}
+
+fn size(wall: &Wall) -> f64 {
+    match wall {
+        Wall::Cylinder(cylinder) => cylinder.radius,
+        Wall::Elliptic(oval) => oval.major,
+    }
 }
 
 pub(in crate::brep) fn goes_first(one: &Cylinder, other: &Cylinder) -> Ordering {

@@ -7,7 +7,7 @@ use glam::{DVec2, DVec3};
 use super::apart::Apart;
 use super::planes::Planes;
 use crate::brep::conic::{Arm, Conic, Round};
-use crate::brep::curve::{Circle, Curve, Line, Meet};
+use crate::brep::curve::{Circle, Curve, Line, Meet, Wall};
 use crate::brep::relation::apart_by;
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder};
@@ -155,8 +155,8 @@ pub(in crate::brep) fn within(one: &Curve, other: &Curve, scale: Scale, eps: f64
         }
         (Curve::Meet(one), Curve::Meet(other)) => {
             one.component == other.component
-                && alike(&one.first, &other.first, scale, eps)
-                && alike(&one.second, &other.second, scale, eps)
+                && walls_alike(&one.first, &other.first, scale, eps)
+                && walls_alike(&one.second, &other.second, scale, eps)
         }
         (Curve::Conic(one), Curve::Conic(other)) => conics_within(one, other, scale, eps),
         (Curve::Meet(meet), Curve::Conic(conic)) | (Curve::Conic(conic), Curve::Meet(meet)) => {
@@ -175,9 +175,13 @@ const PLACES: usize = 16;
 /// all round: a plane cuts a wall along one curve. Two walls of one radius
 /// whose axes meet square meet along two ellipses, each in a plane at 45°.
 fn meet_within_conic(meet: &Meet, conic: &Conic, eps: f64) -> bool {
-    let (Round::Cylinder(wall), Arm::Whole, Some(period)) = (conic.round, conic.arm, meet.period())
-    else {
+    let (Arm::Whole, Some(period)) = (conic.arm, meet.period()) else {
         return false;
+    };
+    let wall = match conic.round {
+        Round::Cylinder(cylinder) => Wall::Cylinder(cylinder),
+        Round::Elliptic(oval) => Wall::Elliptic(oval),
+        Round::Cone(_) => return false,
     };
     meet.own(&wall, eps).is_some()
         && (0..PLACES).all(|place| {
@@ -258,6 +262,18 @@ fn circle_distance(circle: &Circle, point: DVec3) -> f64 {
 
 fn meet_distance(meet: &Meet, point: DVec3) -> f64 {
     meet.point(meet.parameter(point)).distance(point)
+}
+
+/// Two walls of a meet one within `eps`: cylinders as `alike` reads them,
+/// elliptic walls as `EllipticCylinder::within` does.
+fn walls_alike(one: &Wall, other: &Wall, scale: Scale, eps: f64) -> bool {
+    match (one, other) {
+        (Wall::Cylinder(one), Wall::Cylinder(other)) => alike(one, other, scale, eps),
+        (Wall::Elliptic(one), Wall::Elliptic(other)) => {
+            parallel(one.axis, other.axis, scale) && one.within(other, eps)
+        }
+        (Wall::Cylinder(_), Wall::Elliptic(_)) | (Wall::Elliptic(_), Wall::Cylinder(_)) => false,
+    }
 }
 
 fn alike(one: &Cylinder, other: &Cylinder, scale: Scale, eps: f64) -> bool {

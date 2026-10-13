@@ -19,7 +19,7 @@ use glam::DVec3;
 use super::super::contact::{Wall, lies_on};
 use super::{Samples, divisions};
 use crate::brep::conic::Round;
-use crate::brep::curve::{Curve, Line};
+use crate::brep::curve::{self, Curve, Line};
 use crate::brep::domain::Location;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
@@ -69,7 +69,10 @@ pub(super) fn walls(
                 Curve::Circle(circle) => {
                     circle.axis.cross(cylinder.axis).length() > Scale::RELATIVE
                 }
-                Curve::Meet(meet) => meet.first != *cylinder && meet.second != *cylinder,
+                Curve::Meet(meet) => {
+                    let own = curve::Wall::Cylinder(*cylinder);
+                    meet.first != own && meet.second != own
+                }
                 Curve::Conic(conic) => conic.round != Round::Cylinder(*cylinder),
                 Curve::Line(_) => false,
             };

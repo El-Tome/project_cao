@@ -8,7 +8,7 @@ use glam::DVec3;
 
 use super::super::sampling::divisions;
 use super::{Wall, bears};
-use crate::brep::curve::Curve;
+use crate::brep::curve::{self, Curve};
 use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, SurfaceId};
 
@@ -52,7 +52,10 @@ pub(super) fn along_meets(
             .flatten()
             .map(|end| body.vertex(end).point);
         let through: Vec<DVec3> = meets[id.0 as usize].iter().copied().chain(ends).collect();
-        for cylinder in [meet.first, meet.second] {
+        for wall in [meet.first, meet.second] {
+            let curve::Wall::Cylinder(cylinder) = wall else {
+                continue;
+            };
             let flat = |point: DVec3| {
                 let from = point - cylinder.origin;
                 from - cylinder.axis * cylinder.axis.dot(from)

@@ -1,4 +1,4 @@
-//! Two perpendicular cylinders read in the frame of the first: the span the
+//! Two perpendicular walls read in the frame of the first: the span the
 //! curve they meet along covers, where each root vanishes, and the roots
 //! themselves with their derivatives.
 
@@ -6,33 +6,65 @@ use std::f64::consts::TAU;
 
 use glam::DVec3;
 
-use crate::brep::surface::Cylinder;
+use crate::brep::curve::Wall;
+use crate::brep::surface::EllipticCylinder;
 
 /// Below this, relative to the size of the pair, a gap is rounding and not a
 /// decision. The decision within the kernel's tolerance is taken once, by
-/// `Meeting::of`, which moves the second cylinder onto what it decided: what
+/// `Meeting::of`, which moves the second wall onto what it decided: what
 /// is left here is the rounding of that move.
 const ROUNDING: f64 = 256.0 * f64::EPSILON;
 
-/// How two perpendicular cylinders meet.
+/// How two perpendicular walls meet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Configuration {
     Apart,
     /// A single point, where they touch from outside.
     Contact,
     OneLoop,
-    /// One cylinder passes right through the other.
+    /// One wall passes right through the other.
     TwoLoops,
-    /// One cylinder inside the other, touching it along a side: two loops
+    /// One wall inside the other, touching it along a side: two loops
     /// through a node, run as one curve.
     FigureOfEight,
-    /// Equal radii and axes meeting: two ellipses crossing at two nodes.
+    /// Equal half-widths and axes meeting: two ellipses crossing at two
+    /// nodes.
     TwoEllipses,
+}
+
+/// How a wall's section is read across the pair: a circle as its own root,
+/// an ellipse as the root of the circle of its half-width, sheared along the
+/// diameter conjugate to the chords it cuts and scaled across them (#571).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) enum Section {
+    Round,
+    Oval {
+        /// How far the middle of a chord moves per unit of height.
+        shear: f64,
+        /// What a unit of the root is worth across the chord.
+        scale: f64,
+    },
+}
+
+impl Section {
+    /// A section's coordinate across the chords, its value and its first two
+    /// derivatives, from the height's and the signed root's: on a circle
+    /// the root itself, bit for bit.
+    fn across(self, height: [f64; 3], root: [f64; 3]) -> [f64; 3] {
+        match self {
+            Section::Round => root,
+            Section::Oval { shear, scale } => {
+                [0, 1, 2].map(|order| shear * height[order] + scale * root[order])
+            }
+        }
+    }
 }
 
 pub(super) struct Pair {
     pub origin: DVec3,
     pub axes: [DVec3; 3],
+    /// The half-widths of the two walls along the height: each radius, or
+    /// how far an elliptic wall reaches along the second axis.
     pub a: f64,
     pub b: f64,
     pub d: f64,
@@ -44,17 +76,21 @@ pub(super) struct Pair {
     pub x_gaps: [f64; 2],
     pub z_gaps: [f64; 2],
     pub rounding: f64,
+    pub sections: [Section; 2],
 }
 
 impl Pair {
-    pub fn of(first: &Cylinder, second: &Cylinder) -> Pair {
-        let third = first.axis;
-        let one = (second.axis - third * third.dot(second.axis)).normalize();
+    pub fn of(first: &Wall, second: &Wall) -> Pair {
+        let third = first.axis();
+        let along = second.axis();
+        let one = (along - third * third.dot(along)).normalize();
         let two = third.cross(one);
-        let between = second.origin - first.origin;
-        let (a, b) = (first.radius, second.radius);
+        let between = second.origin() - first.origin();
+        let (a, first_section, first_size) = read(first, one, two);
+        let (b, second_section, second_size) = read(second, third, two);
         let (d, e) = (between.dot(two), between.dot(third));
-        let rounding = ROUNDING * (1.0 + first.origin.length() + second.origin.length() + a + b);
+        let rounding = ROUNDING
+            * (1.0 + first.origin().length() + second.origin().length() + first_size + second_size);
 
         let (mut low, mut high) = ((-a).max(d - b), a.min(d + b));
         let mut x_gaps = [low + a, a - high];
@@ -70,7 +106,7 @@ impl Pair {
             z_gaps[1] = 0.0;
         }
         Pair {
-            origin: first.origin,
+            origin: first.origin(),
             axes: [one, two, third],
             a,
             b,
@@ -81,6 +117,7 @@ impl Pair {
             x_gaps,
             z_gaps,
             rounding,
+            sections: [first_section, second_section],
         }
     }
 
@@ -140,6 +177,36 @@ impl Pair {
 
     /// `(x, y, z)` at `t`, with its first and second derivatives.
     pub fn local(&self, signs: [f64; 2], t: f64) -> [DVec3; 3] {
+        let (y, [x, z]) = self.roots(signs, t);
+        if self.sections == [Section::Round; 2] {
+            return [
+                DVec3::new(x[0], y[0], self.e + z[0]),
+                DVec3::new(x[1], y[1], z[1]),
+                DVec3::new(x[2], y[2], z[2]),
+            ];
+        }
+        let x = self.sections[0].across(y, x);
+        let from_the_axis = [y[0] - self.d, y[1], y[2]];
+        let z = match self.sections[1] {
+            Section::Round => [self.e + z[0], z[1], z[2]],
+            oval => {
+                let [z, z1, z2] = oval.across(from_the_axis, z);
+                [self.e + z, z1, z2]
+            }
+        };
+        [
+            DVec3::new(x[0], y[0], z[0]),
+            DVec3::new(x[1], y[1], z[1]),
+            DVec3::new(x[2], y[2], z[2]),
+        ]
+    }
+
+    /// The height across both axes at `t` and the two signed roots, each
+    /// with its first and second derivatives: on a circular wall the root
+    /// is its coordinate across the height, `x` or `z − e`; on an elliptic
+    /// one, the coordinate across the circle of its half-width that the
+    /// ellipse is sheared and scaled off.
+    pub fn roots(&self, signs: [f64; 2], t: f64) -> ([f64; 3], [[f64; 3]; 2]) {
         let half = (self.high - self.low) / 2.0;
         let middle = (self.high + self.low) / 2.0;
         let angles = Angles::at(t);
@@ -151,16 +218,36 @@ impl Pair {
         let x = root(self.x_gaps, half, &angles);
         let z = root(self.z_gaps, half, &angles);
         let [sx, sz] = signs;
-        [
-            DVec3::new(sx * x[0], y[0], self.e + sz * z[0]),
-            DVec3::new(sx * x[1], y[1], sz * z[1]),
-            DVec3::new(sx * x[2], y[2], sz * z[2]),
-        ]
+        (y, [x.map(|value| sx * value), z.map(|value| sz * value)])
+    }
+
+    /// How far the curve reaches across the chords of the first wall, or
+    /// the second, from the coordinate's own origin, where its root reaches
+    /// `room` at most over heights from the wall's axis `[low, high]`: the
+    /// root either way on a circle, the middles of the chords moved off it
+    /// on an ellipse.
+    pub fn reach_across(&self, wall: usize, room: f64, [low, high]: [f64; 2]) -> [f64; 2] {
+        match self.sections[wall] {
+            Section::Round => [-room, room],
+            Section::Oval { shear, scale } => {
+                let [one, other] = [shear * low, shear * high];
+                let spread = scale * room + self.rounding;
+                [one.min(other) - spread, one.max(other) + spread]
+            }
+        }
     }
 
     /// The point of the curve at the height `y`, where both roots vanish.
     pub fn at_end(&self, y: f64) -> DVec3 {
-        self.world(DVec3::new(0.0, y, self.e))
+        let x = match self.sections[0] {
+            Section::Round => 0.0,
+            Section::Oval { shear, .. } => shear * y,
+        };
+        let z = match self.sections[1] {
+            Section::Round => self.e,
+            Section::Oval { shear, .. } => self.e + shear * (y - self.d),
+        };
+        self.world(DVec3::new(x, y, z))
     }
 
     pub fn world(&self, local: DVec3) -> DVec3 {
@@ -179,6 +266,45 @@ impl Pair {
             from.dot(self.axes[2]),
         )
     }
+}
+
+/// A wall read across the pair, its coordinate across the chords along
+/// `across` and the height along `along`: its half-width along the height,
+/// how its section is read, and its size — a radius, or a major half-axis.
+fn read(wall: &Wall, across: DVec3, along: DVec3) -> (f64, Section, f64) {
+    match wall {
+        Wall::Cylinder(cylinder) => (cylinder.radius, Section::Round, cylinder.radius),
+        Wall::Elliptic(oval) => {
+            let (half, section) = sheared(oval, across, along);
+            (half, section, oval.major)
+        }
+    }
+}
+
+/// An elliptic wall's section in the coordinates `(c, h)` along `across` and
+/// `along`, square to each other and to its axis. Its quadratic form there,
+/// `p₁₁ c² + 2 p₁₂ c h + p₂₂ h² = 1`, of determinant `1/(A²B²)`, solved for
+/// `c` at the height `h`: `c = κ h ± α √((w − h)(w + h))`, with `κ = −p₁₂/p₁₁`,
+/// `α = 1/(A B p₁₁)` and the half-width `w = A B √p₁₁`, how far the wall
+/// reaches along `along`.
+fn sheared(oval: &EllipticCylinder, across: DVec3, along: DVec3) -> (f64, Section) {
+    let (major, minor) = (oval.major, oval.minor);
+    let [cu, cv] = [across.dot(oval.u) / major, across.dot(oval.v) / minor];
+    let [hu, hv] = [along.dot(oval.u) / major, along.dot(oval.v) / minor];
+    let p11 = cu * cu + cv * cv;
+    let p12 = cu * hu + cv * hv;
+    let half = oval.support(along);
+    let section = Section::Oval {
+        shear: -p12 / p11,
+        scale: 1.0 / (major * minor * p11),
+    };
+    (half, section)
+}
+
+/// The eccentric angle at which an elliptic wall reaches furthest along
+/// `along`, square to its axis.
+pub(super) fn reached(oval: &EllipticCylinder, along: DVec3) -> f64 {
+    (oval.minor * along.dot(oval.v)).atan2(oval.major * along.dot(oval.u))
 }
 
 struct Angles {

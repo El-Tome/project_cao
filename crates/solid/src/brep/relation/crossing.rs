@@ -33,8 +33,8 @@ use glam::DVec3;
 
 use super::cylinders::cylinders;
 use super::planar::{plane_and_cylinder, planes};
-use super::{Relation, parallel, square};
-use crate::brep::curve::{Circle, Curve, Line, Meet};
+use super::{Relation, parallel, relation, square};
+use crate::brep::curve::{Circle, Curve, Line, Meet, Wall};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use cut::Cut;
@@ -229,18 +229,20 @@ fn meet_through_lines(
             };
             Some((lines, own, other))
         })?;
-    let cut = match surface {
-        Surface::Plane(plane) => Some(Cut {
-            cylinder: &own,
-            plane,
-        }),
-        Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
+    let cut = match (surface, &own) {
+        (Surface::Plane(plane), Wall::Cylinder(cylinder)) => Some(Cut { cylinder, plane }),
+        (Surface::Plane(_), Wall::Elliptic(_))
+        | (Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => None,
     };
     let curve = Curve::Meet(*meet);
     let mut found = Vec::new();
     for (line, along_a_touch) in lines {
         let cut = cut.as_ref().filter(|_| !along_a_touch);
-        let Solved::At(crossed) = line_and_cylinder(&line, &other, scale, touching, cut) else {
+        let crossed = match other {
+            Wall::Cylinder(other) => line_and_cylinder(&line, &other, scale, touching, cut),
+            Wall::Elliptic(other) => elliptic::line_and_elliptic(&line, &other, scale, touching),
+        };
+        let Solved::At(crossed) = crossed else {
             continue;
         };
         for (at, touch) in crossed {
@@ -254,13 +256,17 @@ fn meet_through_lines(
     Some(Solved::At(found))
 }
 
-/// How a cylinder of a meet and a surface meet, the pair decided as the
+/// How a wall of a meet and a surface meet, the pair decided as the
 /// relation of any two surfaces is.
-fn relation_with(own: &Cylinder, surface: &Surface, scale: Scale) -> Relation {
-    match surface {
-        Surface::Plane(plane) => plane_and_cylinder(plane, own, scale),
-        Surface::Cylinder(cylinder) => cylinders(own, cylinder, scale),
-        Surface::Cone(_) | Surface::Elliptic(_) => Relation::Unsupported,
+fn relation_with(own: &Wall, surface: &Surface, scale: Scale) -> Relation {
+    match (own, surface) {
+        (Wall::Cylinder(own), Surface::Plane(plane)) => plane_and_cylinder(plane, own, scale),
+        (Wall::Cylinder(own), Surface::Cylinder(cylinder)) => cylinders(own, cylinder, scale),
+        (Wall::Cylinder(_), Surface::Cone(_) | Surface::Elliptic(_)) => Relation::Unsupported,
+        (Wall::Elliptic(own), Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_)) => {
+            relation(&Surface::Elliptic(*own), surface, scale)
+        }
+        (Wall::Elliptic(_), Surface::Cone(_)) => Relation::Unsupported,
     }
 }
 

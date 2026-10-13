@@ -1,9 +1,9 @@
-//! The curve where two perpendicular cylinders meet: exact, as four arcs over
+//! The curve where two perpendicular walls meet: exact, as four arcs over
 //! the height across both axes.
 //!
-//! In the frame whose third axis is the first cylinder's, whose first axis is
-//! the second's and whose origin is the first's, the first is `x² + y² = a²`
-//! and the second `(y − d)² + (z − e)² = b²`. The curve spans `y` over
+//! In the frame whose third axis is the first wall's, whose first axis is
+//! the second's and whose origin is on the first's, two cylinders are
+//! `x² + y² = a²` and `(y − d)² + (z − e)² = b²`. The curve spans `y` over
 //! `[lo, hi] = [max(−a, d − b), min(a, d + b)]`, and its parameter `t` runs it
 //! as `y = m − l cos t`, `m` the middle of the span and `l` its half-width.
 //! With `c = cos(t/2)` and `s = sin(t/2)`, `hi − y = 2l c²` and
@@ -20,6 +20,15 @@
 //! both ends of the span or at neither, after `4π` otherwise; a node, where
 //! both roots vanish at once, is crossed along the branch going straight
 //! through it.
+//!
+//! An elliptic wall (#571) cuts each chord at the height `y` about a middle
+//! moving along the diameter conjugate to the chords: `x = κy ± α√(a² − y²)`,
+//! `a` how far the wall reaches along the height (`pair.rs`). Everything
+//! that hangs on the span — its ends, the gaps, the configurations, the
+//! nodes, the contact, the parameter and the factored roots — is a circular
+//! pair's with `a` and `b` the two half-widths; only the point and its
+//! derivatives gain the shear `κ` and the scale `α`. A circular wall is read
+//! by its own expressions, bit for bit.
 
 mod meeting;
 mod pair;
@@ -29,9 +38,8 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
-use super::curve::Meet;
+use super::curve::{Meet, Wall};
 use super::scale::Scale;
-use super::surface::Cylinder;
 pub use meeting::{Meeting, Node};
 pub(super) use meeting::{goes_first, moved, moved_instead};
 pub use pair::Configuration;
@@ -115,15 +123,23 @@ impl Meet {
             .collect()
     }
 
-    /// Whether `cylinder` is one of the two the curve runs round, within
-    /// `eps`: the first, or the second. None for any other, a wall parallel
-    /// to one of them a hair off it among them.
-    pub(in crate::brep) fn own(&self, cylinder: &Cylinder, eps: f64) -> Option<bool> {
-        let alike = |own: &Cylinder| {
-            let from = own.origin - cylinder.origin;
-            own.axis.cross(cylinder.axis).length() <= Scale::RELATIVE
-                && (from - cylinder.axis * from.dot(cylinder.axis)).length() <= eps
-                && (own.radius - cylinder.radius).abs() <= eps
+    /// Whether `wall` is one of the two the curve runs round, within `eps`:
+    /// the first, or the second. None for any other, a wall parallel to one
+    /// of them a hair off it among them.
+    pub(in crate::brep) fn own(&self, wall: &Wall, eps: f64) -> Option<bool> {
+        let alike = |own: &Wall| match (own, wall) {
+            (Wall::Cylinder(own), Wall::Cylinder(cylinder)) => {
+                let from = own.origin - cylinder.origin;
+                own.axis.cross(cylinder.axis).length() <= Scale::RELATIVE
+                    && (from - cylinder.axis * from.dot(cylinder.axis)).length() <= eps
+                    && (own.radius - cylinder.radius).abs() <= eps
+            }
+            (Wall::Elliptic(own), Wall::Elliptic(oval)) => {
+                own.axis.cross(oval.axis).length() <= Scale::RELATIVE && own.within(oval, eps)
+            }
+            (Wall::Cylinder(_), Wall::Elliptic(_)) | (Wall::Elliptic(_), Wall::Cylinder(_)) => {
+                false
+            }
         };
         if alike(&self.first) {
             Some(true)
@@ -144,7 +160,8 @@ impl Meet {
     /// A box holding the component from `from` to `to`: the height across
     /// both axes spans what `m − l cos t` covers there, and each root is at
     /// most what that height leaves it, `x² = a² − y²` and
-    /// `(z − e)² = b² − (y − d)²`, whichever its sign.
+    /// `(z − e)² = b² − (y − d)²`, whichever its sign — on an elliptic wall
+    /// scaled by `α` about the middles `κy` of the chords over that height.
     pub(in crate::brep) fn bounds(&self, from: f64, to: f64) -> [DVec3; 2] {
         let pair = self.pair();
         let (from, to) = (from.min(to), from.max(to));
@@ -167,13 +184,15 @@ impl Meet {
             (radius * radius - nearest(centre).powi(2)).max(0.0).sqrt() + pair.rounding
         };
         let (x, z) = (room(pair.a, 0.0), room(pair.b, pair.d));
+        let [x, z] = [(x, 0, 0.0), (z, 1, pair.d)]
+            .map(|(room, wall, from)| pair.reach_across(wall, room, [low - from, high - from]));
         let (low, high) = (low - pair.rounding, high + pair.rounding);
         let mut bounds = [DVec3::INFINITY, DVec3::NEG_INFINITY];
         for corner in 0..8 {
             let local = DVec3::new(
-                if corner & 1 == 0 { -x } else { x },
+                if corner & 1 == 0 { x[0] } else { x[1] },
                 if corner & 2 == 0 { low } else { high },
-                pair.e + if corner & 4 == 0 { -z } else { z },
+                pair.e + if corner & 4 == 0 { z[0] } else { z[1] },
             );
             let world = pair.world(local);
             bounds = [bounds[0].min(world), bounds[1].max(world)];

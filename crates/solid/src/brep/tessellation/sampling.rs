@@ -283,11 +283,8 @@ impl Samples {
     }
 }
 
-/// The points of every edge along a meet between its ends, each on the rays
-/// its two cylinders take in `contacts`, and none where either cylinder all
-/// but lies on a wall facing it, nor on a plane touching it but off the line
-/// they touch along, as a circle takes no ray there; none for any other
-/// edge.
+/// The points of every edge along a meet between its ends, as
+/// [`meet::of_edge`] places them; none for any other edge.
 fn on_meets(
     body: &Body,
     walls: &[contact::Wall],
@@ -295,28 +292,12 @@ fn on_meets(
     contacts: &BTreeMap<SurfaceId, Contact>,
     tolerance: f64,
 ) -> Vec<Vec<DVec3>> {
-    let eps = body.scale().eps();
-    let angles = |cylinder: &Cylinder| taken(cylinder, walls, contacts);
     body.edge_ids()
         .map(|id| {
             let edge = body.edge(id);
             match body.curve(edge.curve) {
                 Curve::Meet(meet) => {
-                    let [first, second] = [angles(&meet.first), angles(&meet.second)];
-                    let walls = [meet.first, meet.second];
-                    let planes = walls
-                        .map(|wall| touching_planes(body, wall.origin, wall.axis, wall.radius));
-                    let grazed = meet::grazing_ends(body, edge, &walls, tolerance);
-                    let clear = |point: DVec3| {
-                        !grazed(point, eps * contact::APART)
-                            && walls.iter().zip(&planes).all(|(wall, planes)| {
-                                !zones.crowded(wall, point)
-                                    && !planes.iter().any(|plane| {
-                                        on_a_plane(plane, wall.origin, wall.axis, point, eps)
-                                    })
-                            })
-                    };
-                    meet::on_meet(meet, edge, tolerance, eps, [&first, &second], &clear)
+                    meet::of_edge(body, edge, meet, (walls, zones, contacts), tolerance)
                 }
                 Curve::Line(_) | Curve::Circle(_) | Curve::Conic(_) => Vec::new(),
             }

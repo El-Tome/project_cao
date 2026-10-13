@@ -30,7 +30,7 @@ mod volume;
 use serde::{Deserialize, Serialize};
 
 pub use conic::{Arm, Conic, On, Round};
-pub use curve::{Circle, Curve, Line, Meet};
+pub use curve::{Circle, Curve, Line, Meet, Wall};
 pub use domain::Location;
 pub use listing::{ListedEdge, ListedFace, Listing};
 pub use meet::{Configuration, Meeting, Node};

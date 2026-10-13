@@ -1,5 +1,5 @@
 //! The curves an edge runs along, each with its own parameter: a length along
-//! a line, an angle round a circle, for the curve two perpendicular cylinders
+//! a line, an angle round a circle, for the curve two perpendicular walls
 //! meet along the parameter `meet.rs` gives it, and for the conic a plane cuts
 //! a wall along at a slant the universal parameter of `conic.rs`.
 
@@ -7,7 +7,7 @@ use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
 use super::conic::Conic;
-use super::surface::{Cylinder, canonical_direction};
+use super::surface::{Cylinder, EllipticCylinder, Surface, canonical_direction};
 
 /// The line through `origin`, its point nearest the world's origin, along
 /// `direction`, of unit length and with its sign fixed. Its parameter is the
@@ -29,13 +29,20 @@ pub struct Circle {
     pub v: DVec3,
 }
 
-/// One closed component of the curve where two perpendicular cylinders meet.
-/// Its evaluation lives in `meet.rs`.
+/// One closed component of the curve where two perpendicular walls meet,
+/// circular or elliptic (#571). Its evaluation lives in `meet.rs`.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Meet {
-    pub first: Cylinder,
-    pub second: Cylinder,
+    pub first: Wall,
+    pub second: Wall,
     pub component: u8,
+}
+
+/// A wall the curve two perpendicular walls meet along runs round.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub enum Wall {
+    Cylinder(Cylinder),
+    Elliptic(EllipticCylinder),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -90,6 +97,58 @@ impl Circle {
     pub fn parameter(&self, point: DVec3) -> f64 {
         let from = point - self.center;
         from.dot(self.v).atan2(from.dot(self.u))
+    }
+}
+
+impl Wall {
+    /// The wall a surface is, if it is one.
+    pub fn of(surface: &Surface) -> Option<Wall> {
+        match surface {
+            Surface::Cylinder(cylinder) => Some(Wall::Cylinder(*cylinder)),
+            Surface::Elliptic(wall) => Some(Wall::Elliptic(*wall)),
+            Surface::Plane(_) | Surface::Cone(_) => None,
+        }
+    }
+
+    pub fn surface(&self) -> Surface {
+        match self {
+            Wall::Cylinder(cylinder) => Surface::Cylinder(*cylinder),
+            Wall::Elliptic(wall) => Surface::Elliptic(*wall),
+        }
+    }
+
+    pub fn origin(&self) -> DVec3 {
+        match self {
+            Wall::Cylinder(cylinder) => cylinder.origin,
+            Wall::Elliptic(wall) => wall.origin,
+        }
+    }
+
+    pub fn axis(&self) -> DVec3 {
+        match self {
+            Wall::Cylinder(cylinder) => cylinder.axis,
+            Wall::Elliptic(wall) => wall.axis,
+        }
+    }
+
+    /// How far `point` stands outside the wall, negative inside.
+    pub fn distance(&self, point: DVec3) -> f64 {
+        match self {
+            Wall::Cylinder(cylinder) => cylinder.distance(point),
+            Wall::Elliptic(wall) => wall.distance(point),
+        }
+    }
+}
+
+impl From<Cylinder> for Wall {
+    fn from(cylinder: Cylinder) -> Wall {
+        Wall::Cylinder(cylinder)
+    }
+}
+
+impl From<EllipticCylinder> for Wall {
+    fn from(wall: EllipticCylinder) -> Wall {
+        Wall::Elliptic(wall)
     }
 }
 

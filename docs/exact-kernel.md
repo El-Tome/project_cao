@@ -267,6 +267,29 @@ The decisions, in the order taken, once per operation:
    two surfaces touching, they stand within `EPS` of each other far from
    the lines, `EPS` over the angle on either side of each, and decisions 5,
    6 and 9 read the pair as they read a touch.
+   Two parallel walls, an elliptic one among them (#571), meet along the
+   rulings their sections cross or touch at (`relation/walls.rs`). The
+   distance from one section to the other turns only at the feet of the
+   normals the two share: found in closed form for a circle against an
+   ellipse, from Eberly's equation of the feet of the normals from a point,
+   and for two ellipses with the rounder one mapped onto a circle. A
+   crossing is halved for between two such feet whose gaps part in sign; a
+   foot within `EPS` of the other wall is a touch, its ruling laid halfway
+   between the two walls. Two crossings are `Lines` and one touch
+   `Tangent`, as for two circular walls, which keep their bits; four
+   crossings, two touches, or a touch beside crossings are `Parallel`, each
+   ruling with whether the walls only touch along it, and every reader of a
+   relation answers it. Two walls within `G` of each other at every foot —
+   an ellipse a hair from round about a circle of its size — are
+   unsupported: they stand within `EPS` of each other over bands no ruling
+   tells apart, and built, such a pair was drawn backwards, left open, or
+   kept matter a cut took away. A wall the second operand alone carries, a
+   hair from touching, is moved onto the touch square to the axes; one
+   touching at both ends of a half-axis or of a diameter — an ellipse
+   inside a circle as long as its major half-axis — is grown or shrunk
+   across the two, which no translation settles, by no more than `G`
+   (`canonical/touches/walls.rs`). Crossings all at a sine of a hundredth
+   or less graze, as two walls of one radius do.
    A wall standing within `EPS` of two parallel planes an operand decided
    apart, a hair apart on one side of it — at a finer tolerance, before a
    later leaf grew the reach — is
@@ -652,6 +675,15 @@ The decisions, in the order taken, once per operation:
    crescent merged away is at most `G` thick and is almost always what was
    meant: a slot's cap, a rounded corner or a bore drawn on a hole of its
    radius, a hair off.
+
+   Two elliptic walls (#571), one of each operand, are one surface where
+   their axes, their half-axes and the turn of their major half-axes stand
+   within `G` of each other: the turn measured by how far it moves the wall
+   square to itself, its sine times the difference of the half-axes, so
+   that a section a hair from round, turned any way, is still itself. The
+   second's rims are cut again on the first's wall
+   (`canonical/crescent/oval.rs`); a wall its operand drew corners on is
+   left two. A circle and an ellipse are never merged this way.
 
    A cone (#536) is decided against a cylinder or a cone about one axis
    only: a cone and a wall or a cone, one of each operand, whose axes are
@@ -1573,7 +1605,18 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   where it stands within a thousandth of `EPS` of such a surface: two circles
   of one radius crossing a hair apart stand within the rounding of each other
   a long way round from their vertex, and a place of each there, on no ray
-  they share, has the two arcs of a cap cross back and forth. What
+  they share, has the two arcs of a cap cross back and forth. Two
+  parallel walls, an elliptic one among them (#571), that meet or stand
+  within twice a chord's sag of each other are sampled the same way, on
+  rays from a point inside both (`tessellation/sampling/abreast.rs`) —
+  through the steps of either's grid, the vertices on either, and the
+  places an elliptic rim takes alone, where a plane along the axis reaches
+  furthest past it. The walls such pairs join into a group are all sampled
+  from one point inside every one of them, the axis of the smallest; where
+  no such point is, each pair standing close is sampled from its own, and a
+  pair that only crosses keeps its grids. A whole rim of an elliptic wall
+  ends where it starts, and a place beside that point is measured against
+  both ends of it. What
   still crosses is refined locally, and what survives
   that is reported as a failure of the triangles, apart from the kernel's.
 

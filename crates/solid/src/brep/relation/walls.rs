@@ -97,15 +97,12 @@ pub(in crate::brep) fn feet_of_touches(
     })
 }
 
-/// How near two parallel walls, an elliptic one among them, come where they
-/// cross nowhere: the least of their gaps at the feet of the normals one
-/// sends through the other. None where they cross, or for any other pair.
+/// How near two parallel walls, an elliptic one among them, come where the
+/// distance between them turns: the least of their gaps at the feet of the
+/// normals one sends through the other, nought where they touch, a hair
+/// where they cross a hair from touching. None for any other pair.
 pub(in crate::brep) fn closest(one: &Surface, other: &Surface, scale: Scale) -> Option<f64> {
-    let (met, _) = read(one, other, scale)?;
-    met.rulings
-        .iter()
-        .all(|ruled| ruled.touching)
-        .then_some(met.nearest)
+    read(one, other, scale).map(|(met, _)| met.nearest)
 }
 
 /// The pair read round its elliptic wall, or the less round of two, and

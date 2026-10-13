@@ -126,7 +126,12 @@ impl Section {
         let mut swept = 0.0;
         for (index, &from) in at.iter().enumerate() {
             let to = at.get(index + 1).copied().unwrap_or(at[0] + TAU);
-            if other.implicit(self.point((from + to) / 2.0)) < 0.0 {
+            let deepest = [0.25, 0.5, 0.75]
+                .map(|share| other.implicit(self.point(from + (to - from) * share)))
+                .into_iter()
+                .max_by(|one, other| one.abs().total_cmp(&other.abs()))
+                .unwrap_or(1.0);
+            if deepest < 0.0 {
                 swept += self.swept(from, to);
             }
         }
@@ -344,5 +349,50 @@ fn a_round_post_a_hair_off_touching_an_elliptic_boss_is_moved_onto_the_touch() {
         let off = crate::brep::relation::off_the_touches(&round, &oval, joined.scale())
             .expect("the two walls touch");
         assert!(off <= 1e-12 * 13.0, "the touch stands {off} off exact");
+    }
+}
+
+#[test]
+fn a_post_under_an_elliptic_boss_touching_its_wall_seen_from_above_is_drawn_within_the_tolerance() {
+    let boss = Section::ellipse([9.0, 0.0], DVec2::X * 5.0, 3.0);
+    let post = Section::circle([9.0, 0.5], 2.5);
+    let both = raised(boss, 0.0, 9.0)
+        .joined(&raised(post, -4.0, -1.0))
+        .expect("the two prisms are joined, standing apart");
+    held(&both, boss.area() * 9.0 + post.area() * 3.0);
+    let Some(Surface::Cylinder(round)) = both
+        .surfaces
+        .iter()
+        .find(|surface| matches!(surface, Surface::Cylinder(_)))
+    else {
+        panic!("the post stands on a circular wall");
+    };
+    for share in [1e-4, 1e-3, 2e-2] {
+        let tolerance = share * both.scale().reach();
+        for triangle in both.triangles(tolerance) {
+            let across = (triangle[1] - triangle[0]).cross(triangle[2] - triangle[0]);
+            if across.normalize().dot(DVec3::Z).abs() < 0.5
+                && triangle
+                    .iter()
+                    .all(|corner| round.distance(*corner).abs() <= 1e-9)
+            {
+                for (one, other) in [(0, 1), (1, 2), (2, 0)] {
+                    let middle = (triangle[one] + triangle[other]) / 2.0;
+                    assert!(
+                        round.distance(middle).abs() <= tolerance,
+                        "a chord stands {} off the post at {share}",
+                        round.distance(middle)
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_circle_touching_an_elliptic_boss_at_a_vertex_and_crossing_it_near_there_holds_its_volume() {
+    let curvature = 3.0 * 3.0 / 7.0;
+    for radius in [curvature * 1.01, curvature * 1.1] {
+        cut_and_joined(Section::circle(on_the_boss(7.0 - radius, 0.0), radius));
     }
 }

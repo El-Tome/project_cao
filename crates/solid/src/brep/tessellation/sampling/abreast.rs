@@ -1,15 +1,18 @@
-//! Two parallel walls, an elliptic one among them (#571), one standing
-//! inside the other within twice a chord's sag of it, or touching it: the
-//! rays both take from a point inside both, as two circular walls close
-//! inside each other take theirs (`contact/together.rs`).
+//! Two parallel walls, an elliptic one among them (#571), standing within
+//! twice a chord's sag of each other where the distance between them turns
+//! — one touching the other inside, or crossing it a hair from a touch —
+//! with faces at heights that meet: the rays both take from a point inside
+//! both, as two circular walls close to each other take theirs
+//! (`contact/together.rs`).
 //!
 //! Each sampled on its own grid, the outer one's chords sag past the inner
 //! one's samples about where the two touch, and the faces either bounds on
 //! a cap they share, or the strips of the two walls, cross. Sampled on rays
-//! from the inner one's axis — through the samples of either's grid and
-//! through the vertices on either — both are graphs of the angle round it,
-//! the outer one's point further out on every ray, and chords between the
-//! same two rays cannot cross. Neither takes a ray, nor a circle a step of
+//! from the axis of the one standing inside the other there — through the
+//! samples of either's grid and through the vertices on either — both are
+//! graphs of the angle round it, one further out than the other on every
+//! ray between two the walls cross at, and chords between the same two
+//! rays cannot cross. Neither takes a ray, nor a circle a step of
 //! its grid, along which the two stand within the room of each other, as
 //! an elliptic rim leaves out its places a hair from a surface its end lies
 //! on: about a touch of a high order, an osculating circle at a vertex, a
@@ -59,10 +62,10 @@ impl Abreast {
                 let Some(nearest) = closest(pair[0], pair[1], body.scale()) else {
                     continue;
                 };
-                if nearest > 2.0 * tolerance {
+                if nearest > 2.0 * tolerance || !side_by_side([one, other], body) {
                     continue;
                 }
-                let Some([inner, outer]) = nested([one, other], body) else {
+                let Some([inner, outer]) = hubbed([one, other], body) else {
                     continue;
                 };
                 found.shared([inner, outer], body, tolerance);
@@ -198,34 +201,62 @@ fn hit(wall: &Surface, hub: DVec3, way: DVec3) -> Option<(DVec3, Taken)> {
     }
 }
 
-/// The two walls of a pair, the one standing inside the other first; none
-/// where neither does. Read at the far end of each one's major half-axis,
-/// or of a quarter of its turn: a pair that neither crosses nor stands
-/// apart side by side stands one inside the other there, but where it
-/// touches.
-fn nested([one, other]: [SurfaceId; 2], body: &Body) -> Option<[SurfaceId; 2]> {
-    let inside = |wall: SurfaceId, of: SurfaceId| {
-        let gaps: Vec<f64> = quarters(body.surface(wall))
-            .into_iter()
-            .map(|point| body.surface(of).distance(point))
-            .collect();
-        gaps.iter().all(|gap| *gap <= body.scale().eps()) && gaps.iter().any(|gap| *gap < 0.0)
-    };
-    if inside(one, other) {
-        Some([one, other])
-    } else if inside(other, one) {
-        Some([other, one])
-    } else {
-        None
+/// Whether faces of two parallel walls stand at heights along the axis
+/// that meet: two walls whose faces stand one above the other never face
+/// each other, though one stands inside the other seen along the axis — a
+/// post under a boss — and a step one leaves out there would leave a chord
+/// across two.
+fn side_by_side([one, other]: [SurfaceId; 2], body: &Body) -> bool {
+    let (_, axis) = axis_of(body.surface(one));
+    let [first, second] = [one, other].map(|wall| heights(wall, axis, body));
+    let eps = body.scale().eps();
+    match (first, second) {
+        (Some([low, high]), Some([from, to])) => from <= high + eps && low <= to + eps,
+        _ => false,
     }
 }
 
-/// The points of a wall at the quarters of its turn, at the height of its
-/// origin.
-fn quarters(wall: &Surface) -> Vec<DVec3> {
-    (0..4)
-        .map(|quarter| wall.point(DVec2::new(TAU * f64::from(quarter) / 4.0, 0.0)))
-        .collect()
+/// The least and the largest height along `axis` the ends of the edges
+/// bounding a wall's faces stand at; none where it holds no face.
+fn heights(wall: SurfaceId, axis: DVec3, body: &Body) -> Option<[f64; 2]> {
+    let mut span: Option<[f64; 2]> = None;
+    for face in body
+        .face_ids()
+        .filter(|face| body.face(*face).surface == wall)
+    {
+        for coedge in body.face(face).loops.iter().flatten() {
+            let edge = body.edge(coedge.edge);
+            for at in [edge.from, edge.to] {
+                let height = axis.dot(body.point_on(coedge.edge, at));
+                span = Some(span.map_or([height, height], |[low, high]| {
+                    [low.min(height), high.max(height)]
+                }));
+            }
+        }
+    }
+    span
+}
+
+/// The two walls of a pair, first the one whose axis stands inside the
+/// other wall, the smaller where each stands inside the other's: a point
+/// inside both, which every ray from it leaves once through each wall. None
+/// where neither does.
+fn hubbed([one, other]: [SurfaceId; 2], body: &Body) -> Option<[SurfaceId; 2]> {
+    let holds = |wall: SurfaceId, of: SurfaceId| {
+        let (hub, _) = axis_of(body.surface(wall));
+        body.surface(of).distance(hub) < 0.0
+    };
+    let size = |wall: SurfaceId| match body.surface(wall) {
+        Surface::Cylinder(round) => round.radius,
+        Surface::Elliptic(oval) => oval.major,
+        Surface::Plane(_) | Surface::Cone(_) => f64::INFINITY,
+    };
+    match (holds(one, other), holds(other, one)) {
+        (true, true) if size(other) < size(one) => Some([other, one]),
+        (true, _) => Some([one, other]),
+        (false, true) => Some([other, one]),
+        (false, false) => None,
+    }
 }
 
 /// The points of a wall's grid at the height of its origin: a circle's

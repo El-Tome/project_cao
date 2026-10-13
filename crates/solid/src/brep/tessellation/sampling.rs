@@ -120,7 +120,8 @@ impl Samples {
         let zones = Zones::of(body, &walls);
         let grids = cone::grids(body, tolerance);
         let first = Samples::through(body, &walls, &zones, &grids, &BTreeMap::new(), tolerance);
-        let beneath = beneath::walls(body, &walls, &first, tolerance);
+        let mut beneath = beneath::walls(body, &walls, &first, tolerance);
+        beneath.extend(beneath::oval::walls(body, &first, tolerance));
         let mut samples = if beneath.is_empty() {
             first
         } else {

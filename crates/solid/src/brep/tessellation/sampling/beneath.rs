@@ -11,6 +11,8 @@
 //! by its tolerance, and seen from the wall's axis the rim stands inside
 //! by less than that wherever the cap leans to the wall.
 
+pub(super) mod oval;
+
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
 

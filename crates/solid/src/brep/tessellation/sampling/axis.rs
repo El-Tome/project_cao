@@ -278,6 +278,7 @@ impl Axes {
             anchors: contact.anchors.clone(),
             beside: contact.beside.clone(),
             beneath: contact.beneath.clone(),
+            oval: contact.oval,
         })
     }
 }

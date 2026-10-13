@@ -41,7 +41,7 @@ use glam::DVec3;
 use super::sampling::{divisions, touching_planes};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Surface};
+use crate::brep::surface::{Cylinder, EllipticCylinder, Surface};
 use crate::brep::topology::{Body, SurfaceId, Vertex};
 use facing::Facing;
 pub(super) use facing::Zones;
@@ -83,6 +83,9 @@ pub(super) struct Contact {
     /// there, and the outer one's arc, ending where the third crosses it,
     /// must pass outside that vertex rather than chord under it.
     pub(super) beneath: Vec<DVec3>,
+    /// The elliptic wall these rays are about, its rims taking a sample on
+    /// each (#571); none for a cylinder's.
+    pub(super) oval: Option<EllipticCylinder>,
 }
 
 impl Contact {
@@ -92,6 +95,7 @@ impl Contact {
         self.anchors.extend(other.anchors);
         self.beside.extend(other.beside);
         self.beneath.extend(other.beneath);
+        self.oval = self.oval.or(other.oval);
     }
 }
 
@@ -266,6 +270,15 @@ pub(super) fn contacts(
     }
     for (wall, rays) in beneath {
         contacts.entry(wall).or_default().beneath = rays;
+    }
+    for (id, points) in inside {
+        if let Surface::Elliptic(oval) = body.surface(*id) {
+            let contact = contacts.entry(*id).or_default();
+            contact.oval = Some(*oval);
+            contact
+                .rays
+                .extend(points.iter().map(|point| *point - oval.origin));
+        }
     }
     for (wall, point, standing_for) in point::anchors(body, walls) {
         let anchors = &mut contacts.entry(wall).or_default().anchors;

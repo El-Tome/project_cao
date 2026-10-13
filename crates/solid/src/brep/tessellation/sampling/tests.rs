@@ -957,6 +957,7 @@ fn a_ring_takes_a_ray_a_rounding_short_of_the_angle_it_starts_at() {
         anchors: Vec::new(),
         beside: Vec::new(),
         beneath: Vec::new(),
+        oval: None,
     };
     let eps = body.scale().eps();
     let points = super::on_circle(

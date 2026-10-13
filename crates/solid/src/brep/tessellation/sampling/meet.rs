@@ -136,9 +136,15 @@ pub(super) fn of_edge(
         Wall::Cylinder(cylinder) => taken(&cylinder, walls, contacts),
         Wall::Elliptic(oval) => {
             let steps = divisions(oval.major, tolerance);
+            let beneath = contacts
+                .values()
+                .filter(|contact| contact.oval == Some(oval))
+                .flat_map(|contact| contact.rays.iter())
+                .map(|way| (way.dot(oval.v) / oval.minor).atan2(way.dot(oval.u) / oval.major));
             on_the_wall(body, &oval, steps)
                 .into_iter()
                 .chain(reached_by_planes(body, &oval))
+                .chain(beneath)
                 .collect()
         }
     });

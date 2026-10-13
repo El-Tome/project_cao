@@ -20,6 +20,14 @@
 //! meets the bar along, as a circle square to a cylinder's axis is (and a
 //! circle on an elliptic wall square to its own likewise), and the curve on
 //! the cap as the section the cap cuts the post along (`domain/traced/square.rs`).
+//!
+//! Round 2 again: a round bar ending inside an elliptic boss a hair above
+//! the boss's rim leaves its cap's circle standing just inside the boss's
+//! wall, closer than the rim's chords sag there; the face the rim bounds
+//! was drawn across the cap. An elliptic wall's rims and the curves on it
+//! now take a sample at the angle of every sample of another curve standing
+//! that close inside it, as a cylinder's circles take a ray through it
+//! (`tessellation/sampling/beneath/oval.rs`).
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -89,5 +97,69 @@ fn seed_5571525354_a_round_bar_lying_on_an_elliptic_post_s_cap_is_joined_to_it()
             Outline::ellipse([359.99999, -210.0], [0.0, 60.0], 60.0),
             270.0,
         ))],
+    ));
+}
+
+#[test]
+fn seed_5571519943_a_round_bar_ending_a_hair_inside_an_elliptic_boss_s_rim_is_drawn_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-1.0),
+            Outline::rectangle([-1.0, 1.0], [11.0, 11.0]),
+            -3.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(-1.0),
+                Outline::ellipse([5.0, 6.0], [5.480903307962513, 0.45792895602438877], 4.0),
+                4.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(-1.9910123116881127),
+                Outline::circle([-1.0, 5.0], 3.0),
+                -7.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_5571523190_an_elliptic_bar_joined_across_a_boss_two_holes_crossed_is_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(2.0),
+            Outline::rectangle(
+                [-2.8831406486676987, 1.3660865617868154],
+                [6.883140648667698, 10.633913438213185],
+            ),
+            -3.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::ellipse([2.0, 6.0], [2.598076211353316, 1.4999999999999998], 2.5),
+                8.5,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(2.3660865617868154),
+                Outline::ellipse_from(
+                    [2.0, 5.5],
+                    [2.883140648667699, 0.0],
+                    2.883140648667699,
+                    242.99394652258277,
+                ),
+                -7.267826876426369,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(1.8660865617868154),
+                Outline::circle([2.883140648667699, 6.5], 2.0),
+                -4.133913438213185,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(5.383140648667699),
+                Outline::ellipse([4.0, 6.5], [2.8571428571428568, 0.0], 2.0),
+                -2.5,
+            )),
+        ],
     ));
 }

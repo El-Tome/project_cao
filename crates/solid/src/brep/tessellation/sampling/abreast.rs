@@ -19,6 +19,12 @@
 //! an elliptic rim leaves out its places a hair from a surface its end lies
 //! on: about a touch of a high order, an osculating circle at a vertex, a
 //! sample there of one alone stands outside the other's chord.
+//!
+//! A wall abreast of two others takes the rays of both pairs; the walls
+//! the pairs join into a group are all sampled from one point inside every
+//! one of them, so that each takes every ray. Where no such point is, each
+//! pair standing close is sampled from its own, and a pair that only
+//! crosses keeps its grids.
 
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
@@ -47,9 +53,14 @@ pub(super) struct Abreast {
 impl Abreast {
     /// Every pair of parallel walls of `body`, an elliptic one among them,
     /// that meet, or stand one inside the other within twice `tolerance` of
-    /// it somewhere.
+    /// it somewhere, sampled from a point inside every wall the pairs join
+    /// into a group. Where no such point is, each pair standing that close
+    /// is sampled from its own, and a pair that only crosses is left to its
+    /// grids: rays from two points on one wall leave samples the third
+    /// never takes (campaign seed 5571469258).
     pub(super) fn of(body: &Body, tolerance: f64) -> Abreast {
         let mut found = Abreast::default();
+        let mut pairs = Vec::new();
         let walls: Vec<SurfaceId> = (0..body.surfaces.len() as u32)
             .map(SurfaceId)
             .filter(|id| {
@@ -68,18 +79,35 @@ impl Abreast {
                 let Some(nearest) = closest(pair[0], pair[1], body.scale()) else {
                     continue;
                 };
+                let near = nearest <= 2.0 * tolerance;
                 let meeting = !matches!(
                     relation(pair[0], pair[1], body.scale()),
                     Relation::Apart | Relation::Unsupported
                 );
-                if !meeting && nearest > 2.0 * tolerance || !side_by_side([one, other], body) {
+                if !(near || meeting) || !side_by_side([one, other], body) {
                     continue;
                 }
-                let Some([inner, outer]) = hubbed([one, other], body) else {
-                    continue;
-                };
-                found.shared([inner, outer], body, tolerance);
-                found.crowded([inner, outer], body, tolerance);
+                if let Some(pair) = hubbed([one, other], body) {
+                    pairs.push((pair, near));
+                }
+            }
+        }
+        let joined: Vec<[SurfaceId; 2]> = pairs.iter().map(|(pair, _)| *pair).collect();
+        for group in grouped(&joined) {
+            if let Some(hub) = common_hub(&group, body) {
+                found.shared(&group, hub, body, tolerance);
+                continue;
+            }
+            for &([inner, outer], near) in &pairs {
+                if near && group.contains(&inner) {
+                    let (hub, _) = axis_of(body.surface(inner));
+                    found.shared(&[inner, outer], hub, body, tolerance);
+                }
+            }
+        }
+        for &(pair, near) in &pairs {
+            if near {
+                found.crowded(pair, body, tolerance);
             }
         }
         found
@@ -151,29 +179,25 @@ impl Abreast {
         }
     }
 
-    /// Both walls sampled on the rays from the inner one's axis through the
-    /// samples of either's grid, through the vertices on either, and
-    /// through the places an elliptic wall's rims take on their own: where
-    /// a plane along the axis reaches furthest past it, where a vertex
-    /// stands just inside it. Taken by one rim alone, such a place of the
-    /// outer wall beside a touch left a chord of it across the inner rim's
-    /// (campaign seed 5571457963).
-    fn shared(&mut self, [inner, outer]: [SurfaceId; 2], body: &Body, tolerance: f64) {
-        let (hub, axis) = axis_of(body.surface(inner));
+    /// The walls of a group sampled on the rays from `hub`, inside every
+    /// one of them, through the samples of each one's grid, through the
+    /// vertices on each, and through the places an elliptic wall's rims take
+    /// on their own: where a plane along the axis reaches furthest past it,
+    /// where a vertex stands just inside it. Taken by one rim alone, such a
+    /// place of the outer wall beside a touch left a chord of it across the
+    /// inner rim's (campaign seed 5571457963).
+    fn shared(&mut self, group: &[SurfaceId], hub: DVec3, body: &Body, tolerance: f64) {
+        let (_, axis) = axis_of(body.surface(group[0]));
         let flat = |way: DVec3| way - axis * axis.dot(way);
-        let mut places: Vec<DVec3> = [inner, outer]
-            .into_iter()
-            .flat_map(|wall| grid(body.surface(wall), tolerance))
-            .chain(
-                [inner, outer]
-                    .into_iter()
-                    .flat_map(|wall| alone(body, wall, tolerance)),
-            )
+        let mut places: Vec<DVec3> = group
+            .iter()
+            .flat_map(|wall| grid(body.surface(*wall), tolerance))
+            .chain(group.iter().flat_map(|wall| alone(body, *wall, tolerance)))
             .collect();
         places.extend(
             body.vertices
                 .iter()
-                .filter(|vertex| vertex.on.contains(&inner) || vertex.on.contains(&outer))
+                .filter(|vertex| group.iter().any(|wall| vertex.on.contains(wall)))
                 .map(|vertex| vertex.point),
         );
         let room = body.scale().eps() * contact::APART;
@@ -181,17 +205,25 @@ impl Abreast {
             let Some(way) = flat(place - hub).try_normalize() else {
                 continue;
             };
-            let hits = [inner, outer].map(|wall| hit(body.surface(wall), hub, way));
-            let [Some((within, _)), Some((beyond, _))] = hits else {
+            let Some(hits) = group
+                .iter()
+                .map(|wall| hit(body.surface(*wall), hub, way))
+                .collect::<Option<Vec<(DVec3, Taken)>>>()
+            else {
                 continue;
             };
-            if within.distance(beyond) <= room {
+            let crowded = hits.iter().enumerate().any(|(rank, (one, _))| {
+                hits[rank + 1..]
+                    .iter()
+                    .any(|(other, _)| one.distance(*other) <= room)
+            });
+            if crowded {
                 continue;
             }
-            for (wall, (_, taken)) in [inner, outer].into_iter().zip(hits.into_iter().flatten()) {
+            for (wall, (_, taken)) in group.iter().zip(hits) {
                 match taken {
-                    Taken::Ray(ray) => self.rounds.entry(wall).or_default().push(ray),
-                    Taken::Angle(angle) => self.ovals.entry(wall).or_default().push(angle),
+                    Taken::Ray(ray) => self.rounds.entry(*wall).or_default().push(ray),
+                    Taken::Angle(angle) => self.ovals.entry(*wall).or_default().push(angle),
                 }
             }
         }
@@ -243,15 +275,58 @@ fn hubbed([one, other]: [SurfaceId; 2], body: &Body) -> Option<[SurfaceId; 2]> {
         let (hub, _) = axis_of(body.surface(wall));
         body.surface(of).distance(hub) < 0.0
     };
-    let size = |wall: SurfaceId| match body.surface(wall) {
-        Surface::Cylinder(round) => round.radius,
-        Surface::Elliptic(oval) => oval.major,
-        Surface::Plane(_) | Surface::Cone(_) => f64::INFINITY,
-    };
+    let size = |wall: SurfaceId| size(body.surface(wall));
     match (holds(one, other), holds(other, one)) {
         (true, true) if size(other) < size(one) => Some([other, one]),
         (true, _) => Some([one, other]),
         (false, true) => Some([other, one]),
         (false, false) => None,
+    }
+}
+
+/// The walls pairs abreast join into groups, each wall in one: a wall
+/// abreast of two others takes rays from both pairs, and each of those
+/// others must take the rays of the other pair too, or its chords cross
+/// the samples it never took (campaign seed 5571471048).
+fn grouped(pairs: &[[SurfaceId; 2]]) -> Vec<Vec<SurfaceId>> {
+    let mut groups: Vec<Vec<SurfaceId>> = Vec::new();
+    for pair in pairs {
+        let mut group = pair.to_vec();
+        let mut rank = groups.len();
+        while rank > 0 {
+            rank -= 1;
+            if pair.iter().any(|wall| groups[rank].contains(wall)) {
+                group.extend(groups.swap_remove(rank));
+            }
+        }
+        group.sort();
+        group.dedup();
+        groups.push(group);
+    }
+    groups
+}
+
+/// A point inside every wall of a group, from which each ray leaves each
+/// wall once: the axis of the smallest wall standing inside all the
+/// others; none where no wall's does.
+fn common_hub(group: &[SurfaceId], body: &Body) -> Option<DVec3> {
+    let mut by_size = group.to_vec();
+    by_size.sort_by(|one, other| size(body.surface(*one)).total_cmp(&size(body.surface(*other))));
+    by_size
+        .into_iter()
+        .map(|wall| axis_of(body.surface(wall)).0)
+        .find(|hub| {
+            group
+                .iter()
+                .all(|wall| body.surface(*wall).distance(*hub) < 0.0)
+        })
+}
+
+/// How far a wall reaches from its axis at most.
+fn size(wall: &Surface) -> f64 {
+    match wall {
+        Surface::Cylinder(round) => round.radius,
+        Surface::Elliptic(oval) => oval.major,
+        Surface::Plane(_) | Surface::Cone(_) => f64::INFINITY,
     }
 }

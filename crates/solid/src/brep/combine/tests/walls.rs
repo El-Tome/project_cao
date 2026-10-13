@@ -599,10 +599,55 @@ fn an_elliptic_pocket_touching_a_boss_s_end_inside_beside_a_block_reaching_both_
     let cut = body
         .cut_by(&raised(pocket, 30.00001, 60.00001))
         .expect("the pocket is cut, touching the boss's wall at the end of its major axis");
-    assert_eq!(listed(&cut.listing(), cut.scale().reach()), Ok(()));
+    drawn(&cut);
+}
+
+/// The body's listing, and its triangles closed and uncrossed from a fine
+/// tolerance to a coarse one.
+fn drawn(body: &Body) {
+    assert_eq!(listed(&body.listing(), body.scale().reach()), Ok(()));
     for share in [1e-4, 1e-3, 2e-2] {
-        let triangles = cut.triangles(share * cut.scale().reach());
+        let triangles = body.triangles(share * body.scale().reach());
         assert_eq!(closed(&triangles).map_err(|_| share), Ok(()), "open");
         assert_eq!(uncrossed(&triangles).map_err(|_| share), Ok(()), "crossed");
     }
+}
+
+#[test]
+fn two_ellipses_touching_at_both_ends_of_their_one_half_axis_stacked_under_a_round_cut_are_drawn_from_one_point()
+ {
+    let way = DVec2::new(-0.7764571353075626, 2.897777478867205);
+    let upper = Section::ellipse([8.0, 1.0], way, 5.5);
+    let lower = Section::ellipse([8.0, 1.0], way, 6.0);
+    let round = Section::circle([6.0, 3.0], 3.0);
+    let cut = raised(upper, 2.0, 12.0)
+        .cut_by(&raised(round, 4.0, 12.0))
+        .expect("the round is cut out of the upper ellipse");
+    let joined = cut
+        .joined(&raised(lower, -7.0, 2.0))
+        .expect("the lower ellipse is joined under it, touching it at both ends of a half-axis");
+    held(
+        &joined,
+        upper.area() * 10.0 - upper.overlap(&round) * 8.0 + lower.area() * 9.0,
+    );
+}
+
+#[test]
+fn a_circle_and_two_ellipses_no_point_stands_inside_all_three_of_are_drawn_closed() {
+    let round = raised(Section::circle([5.0, 7.5], 2.0), 4.0, 5.0);
+    let narrow = Section::ellipse(
+        [3.5012387797481557, 7.5609442751146005],
+        DVec2::new(-0.4995871400289, 0.020314761080168248),
+        2.0,
+    );
+    let wide = Section::ellipse(
+        [6.5, 7.5],
+        DVec2::new(0.08125904432067299, 1.9983485601156),
+        2.5,
+    );
+    let joined = round
+        .joined(&raised(narrow, 3.99999999, 4.99999999))
+        .and_then(|body| body.joined(&raised(wide, 3.99999989, 4.99999989)))
+        .expect("the three prisms are joined");
+    drawn(&joined);
 }

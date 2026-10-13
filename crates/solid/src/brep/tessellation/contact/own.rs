@@ -1,5 +1,6 @@
 //! The rays the circles of a wall take on their own: through its vertices,
-//! and through the curves it meets a perpendicular wall along.
+//! and through the curves it meets a perpendicular wall along. An elliptic
+//! wall's rims take the eccentric angles of the same points (#571).
 
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
@@ -7,7 +8,7 @@ use std::f64::consts::PI;
 use glam::DVec3;
 
 use super::super::sampling::divisions;
-use super::{Wall, bears};
+use super::{Contact, Wall, bears};
 use crate::brep::curve::{self, Curve};
 use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, SurfaceId};
@@ -53,8 +54,17 @@ pub(super) fn along_meets(
             .map(|end| body.vertex(end).point);
         let through: Vec<DVec3> = meets[id.0 as usize].iter().copied().chain(ends).collect();
         for wall in [meet.first, meet.second] {
-            let curve::Wall::Cylinder(cylinder) = wall else {
-                continue;
+            let cylinder = match wall {
+                curve::Wall::Cylinder(cylinder) => cylinder,
+                curve::Wall::Elliptic(oval) => {
+                    let rays = through.iter().map(|point| *point - oval.origin);
+                    for surface in (0..body.surfaces.len() as u32).map(SurfaceId) {
+                        if *body.surface(surface) == Surface::Elliptic(oval) {
+                            own.entry(surface).or_default().extend(rays.clone());
+                        }
+                    }
+                    continue;
+                }
             };
             let flat = |point: DVec3| {
                 let from = point - cylinder.origin;
@@ -138,4 +148,28 @@ pub(super) fn through_vertices(
 fn flat_from(cylinder: &Cylinder, point: DVec3) -> DVec3 {
     let from = point - cylinder.origin;
     from - cylinder.axis * cylinder.axis.dot(from)
+}
+
+/// Marks the contact of each elliptic wall of the body as its own (#571),
+/// with the rays through the samples of other curves standing just inside
+/// it: its rims and the curves it meets another wall along take a sample
+/// at each, as a cylinder's circles take a ray.
+pub(super) fn ovals(
+    body: &Body,
+    inside: &BTreeMap<SurfaceId, Vec<DVec3>>,
+    contacts: &mut BTreeMap<SurfaceId, Contact>,
+) {
+    for (id, points) in inside {
+        if let Some(Surface::Elliptic(oval)) = body.surfaces.get(id.0 as usize) {
+            let contact = contacts.entry(*id).or_default();
+            contact
+                .rays
+                .extend(points.iter().map(|point| *point - oval.origin));
+        }
+    }
+    for (id, contact) in contacts.iter_mut() {
+        if let Some(Surface::Elliptic(oval)) = body.surfaces.get(id.0 as usize) {
+            contact.oval = Some(*oval);
+        }
+    }
 }

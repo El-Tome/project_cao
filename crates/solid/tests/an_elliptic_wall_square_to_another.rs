@@ -28,6 +28,14 @@
 //! now take a sample at the angle of every sample of another curve standing
 //! that close inside it, as a cylinder's circles take a ray through it
 //! (`tessellation/sampling/beneath/oval.rs`).
+//!
+//! Round 4: an elliptic wall cut from a wall square to it lies over that
+//! wall along the curve the two meet along, and the two part slowly from
+//! it; sampled on its own grid alone, its triangles fanned across a step
+//! sagged under the other wall's and crossed them. Its rims take the
+//! eccentric angles of every sample of that curve, as a cylinder's circles
+//! take the rays through them, and each wall is cut in strips between them
+//! (`tessellation/contact/own.rs`).
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -159,6 +167,66 @@ fn seed_5571523190_an_elliptic_bar_joined_across_a_boss_two_holes_crossed_is_dra
                 Plane::yz(5.383140648667699),
                 Outline::ellipse([4.0, 6.5], [2.8571428571428568, 0.0], 2.0),
                 -2.5,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_5571534144_an_elliptic_post_cut_by_an_elliptic_hole_and_a_round_bar_is_drawn_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(-2.0),
+            Outline::ellipse([0.0, 0.0], [3.464101615137755, 1.9999999999999998], 6.0),
+            5.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-6.0677643628300215),
+                Outline::ellipse(
+                    [0.0, -4.101492007535095],
+                    [0.4581544946141771, 1.7098558516161508],
+                    4.720461426967995,
+                ),
+                12.135528725660045,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-6.08257569495584),
+                Outline::circle([-2.5, 0.0], 5.567764262830022),
+                12.165151389911678,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_5571537754_an_elliptic_post_bored_across_and_joined_to_an_elliptic_bar_is_drawn_uncrossed()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-10.0),
+            Outline::ellipse([40.0, 10.0], [-20.0, 0.0], 17.5),
+            47.5,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(-15.0),
+                Outline::circle([40.0, 10.0], 20.0),
+                -50.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(17.5),
+                Outline::ellipse(
+                    [10.0, 20.0],
+                    [-7.337993857053425, 12.70977818604485],
+                    18.34498464263357,
+                ),
+                45.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(-9.999999999999998),
+                Outline::circle([45.0, 32.5], 15.0),
+                -40.0,
             )),
         ],
     ));

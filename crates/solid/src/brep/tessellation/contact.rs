@@ -46,7 +46,7 @@ use crate::brep::topology::{Body, SurfaceId, Vertex};
 use facing::Facing;
 pub(super) use facing::Zones;
 pub(super) use gap::Gap;
-use own::{Through, along_meets, through_vertices};
+use own::{Through, along_meets, ovals, through_vertices};
 
 /// How close to another wall, as a share of the kernel's tolerance, no sample
 /// of a wall stands but on the lines they meet along: twice what the rules
@@ -271,15 +271,7 @@ pub(super) fn contacts(
     for (wall, rays) in beneath {
         contacts.entry(wall).or_default().beneath = rays;
     }
-    for (id, points) in inside {
-        if let Surface::Elliptic(oval) = body.surface(*id) {
-            let contact = contacts.entry(*id).or_default();
-            contact.oval = Some(*oval);
-            contact
-                .rays
-                .extend(points.iter().map(|point| *point - oval.origin));
-        }
-    }
+    ovals(body, inside, &mut contacts);
     for (wall, point, standing_for) in point::anchors(body, walls) {
         let anchors = &mut contacts.entry(wall).or_default().anchors;
         anchors.retain(|anchor| !standing_for.contains(anchor));

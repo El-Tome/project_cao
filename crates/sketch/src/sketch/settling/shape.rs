@@ -8,77 +8,6 @@ use crate::holding::Support;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
 impl Sketch {
-    /// Every pair of points the drawing joins: the two ends of a trait, the
-    /// centre of an arc to each of its ends, an ellipse's centre to the ends
-    /// of its axes, a point to what a rule holds it on, and a tangency's
-    /// curve and touch to the trait they brush.
-    ///
-    /// What lies on a trait is joined to both its ends: joined to the start
-    /// alone, it would count as nearer the start than the end is, and a drag
-    /// of the end would keep it rather than the far end.
-    pub(crate) fn joined_pairs(&self) -> Vec<(PointId, PointId)> {
-        let mut pairs = self.drawn_pairs();
-        let ends_of = |segment: SegmentId| -> Vec<PointId> {
-            self.segments()
-                .get(segment.0)
-                .map(|line| vec![line.start, line.end])
-                .unwrap_or_default()
-        };
-        let circle_centre = |circle: crate::sketch::CircleId| {
-            self.circles().get(circle.0).map(|round| round.center)
-        };
-        let arc_centre = |arc: crate::arc::ArcId| self.arcs().get(arc.0).map(|curve| curve.center);
-        let ellipse_centre = |ellipse: crate::ellipse::EllipseId| {
-            self.ellipses().get(ellipse.0).map(|curve| curve.center)
-        };
-        for constraint in self.constraints() {
-            let (joined, to): (Vec<PointId>, Vec<PointId>) = match *constraint {
-                Constraint::OnSegment { point, segment, .. }
-                | Constraint::Midpoint { point, segment } => (vec![point], ends_of(segment)),
-                Constraint::OnCircle { point, circle, .. } => {
-                    (vec![point], circle_centre(circle).into_iter().collect())
-                }
-                Constraint::OnArc { point, arc, .. } => {
-                    (vec![point], arc_centre(arc).into_iter().collect())
-                }
-                Constraint::OnEllipse { point, ellipse, .. } => {
-                    (vec![point], ellipse_centre(ellipse).into_iter().collect())
-                }
-                Constraint::Tangent {
-                    circle,
-                    segment,
-                    at,
-                    ..
-                } => (
-                    circle_centre(circle).into_iter().chain(at).collect(),
-                    ends_of(segment),
-                ),
-                Constraint::ArcTangent {
-                    arc, segment, at, ..
-                } => (
-                    arc_centre(arc).into_iter().chain(at).collect(),
-                    ends_of(segment),
-                ),
-                Constraint::EllipseTangent {
-                    ellipse,
-                    segment,
-                    at,
-                    ..
-                } => (
-                    ellipse_centre(ellipse).into_iter().chain(at).collect(),
-                    ends_of(segment),
-                ),
-                _ => (Vec::new(), Vec::new()),
-            };
-            for one in &joined {
-                pairs.extend(to.iter().map(|other| (*one, *other)));
-            }
-        }
-        let count = self.points().len();
-        pairs.retain(|(one, other)| one.0 < count && other.0 < count);
-        pairs
-    }
-
     /// The points joined to `point`, however far round, `point` among them,
     /// in the order they were drawn.
     ///
@@ -264,26 +193,6 @@ impl Sketch {
             || self
                 .live_arcs()
                 .any(|(_, arc)| arc.start == point || arc.end == point)
-    }
-
-    /// The points drawn as one: a trait's two ends, an arc's centre and ends,
-    /// an ellipse's centre and the ends of its axes and of its drawn stretch.
-    fn drawn_pairs(&self) -> Vec<(PointId, PointId)> {
-        let mut pairs: Vec<(PointId, PointId)> = self
-            .live_segments()
-            .map(|(_, line)| (line.start, line.end))
-            .collect();
-        for (_, arc) in self.live_arcs() {
-            pairs.extend([(arc.center, arc.start), (arc.center, arc.end)]);
-        }
-        for (id, ellipse) in self.live_ellipses() {
-            let [centre, ends @ ..] = self.ellipse_points(id);
-            pairs.extend(ends.map(|end| (centre, end)));
-            if let Some((from, to)) = ellipse.drawn {
-                pairs.extend([(centre, from), (centre, to)]);
-            }
-        }
-        pairs
     }
 
     fn stay_along(

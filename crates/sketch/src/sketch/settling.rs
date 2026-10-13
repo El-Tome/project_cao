@@ -7,6 +7,7 @@ use super::{LengthOutcome, PointId, Sketch};
 
 mod fixed_gives;
 mod give;
+mod joins;
 mod kept;
 mod landing;
 mod nearest;
@@ -16,10 +17,12 @@ mod point_on_trait;
 mod pull;
 mod shape;
 mod share;
+mod turned_whole;
 
 pub(crate) use kept::Kept;
 pub use point_on_curve::CLEAR_OF_AN_END;
 pub use pull::PointPull;
+pub(in crate::sketch) use turned_whole::Landing;
 
 /// What the user is holding while a drag lasts: points the solver reads as
 /// immovable, and the lines the drag keeps where they lie — or, while a rule

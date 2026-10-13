@@ -1,11 +1,8 @@
 //! A trait made to run the way of one of the sketch's axes, or square to it:
 //! the shape it belongs to turns whole, as a hand would turn it.
 
-use std::f64::consts::{FRAC_PI_2, PI};
-
-use glam::DVec2;
-
-use super::{PointId, Sketch};
+use super::Sketch;
+use super::turned_whole::quarter_turn_at_most;
 use crate::constraints::Constraint;
 
 impl Sketch {
@@ -35,39 +32,7 @@ impl Sketch {
             return;
         }
         let angle = quarter_turn_at_most(running.angle_to(wanted));
-        if angle.abs() < 1e-12 {
-            return;
-        }
-        let shape = self.shape_through(&[line.start, line.end]);
-        let Some(about) = self.pivot_onto_the_axis(&shape) else {
-            return;
-        };
-        let turn = DVec2::from_angle(angle);
-        for point in shape {
-            let place = about + turn.rotate(self.point(point) - about);
-            self.move_point(point, place);
-        }
+        let stops = self.held_in_direction(None);
+        self.turn_whole(segment, &stops, angle, None);
     }
-
-    fn pivot_onto_the_axis(&self, shape: &[PointId]) -> Option<DVec2> {
-        let stays = self.points_that_stay();
-        let mut held = shape
-            .iter()
-            .filter(|point| stays[point.0])
-            .map(|point| self.point(*point));
-        if let Some(first) = held.next() {
-            return held
-                .all(|place| place.distance(first) < 1e-9)
-                .then_some(first);
-        }
-        self.nearest_the_origin(shape)
-            .map(|point| self.point(point))
-    }
-}
-
-/// The turn, taken the short way: a trait runs the way of a line whichever end
-/// leads, so no turn needs to be more than a quarter.
-fn quarter_turn_at_most(angle: f64) -> f64 {
-    let angle = angle.rem_euclid(PI);
-    if angle > FRAC_PI_2 { angle - PI } else { angle }
 }

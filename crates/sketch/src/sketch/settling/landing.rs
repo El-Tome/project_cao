@@ -1,7 +1,8 @@
 //! A rule laid, or an angle typed, between two things: the one clicked first
 //! stays where it is, and the second comes to it.
 
-use super::{Kept, LengthOutcome, Sketch};
+use super::turned_whole::Turned;
+use super::{Kept, Landing, LengthOutcome, Sketch};
 use crate::constraints::{Constraint, DimensionTarget};
 use crate::equation::Equation;
 use crate::laid_from::LaidFrom;
@@ -20,7 +21,7 @@ impl Sketch {
         if let Some(landed) = self.meet_in_order(rule, millimeters_per_unit) {
             return landed;
         }
-        self.land(rule.laid_from(), None, millimeters_per_unit)
+        self.land(rule.laid_from(), Landing::Rule(rule), millimeters_per_unit)
     }
 
     /// Every point held on two things or more.
@@ -104,7 +105,7 @@ impl Sketch {
             .iter()
             .find(|dimension| dimension.target.is_the_same_as(target))
             .and_then(|dimension| dimension.target.laid_from());
-        self.land(from, Some(target), millimeters_per_unit)
+        self.land(from, Landing::Value(target), millimeters_per_unit)
     }
 
     /// Held only while it lands: once settled, the two are as free as the rule
@@ -113,50 +114,76 @@ impl Sketch {
     /// second is fixed, or outranks the clicks some other way — the drawing is
     /// put back and settles as if nothing had been clicked first.
     ///
+    /// A direction is not left to the solver: the shape of the thing clicked
+    /// second — or of a trait an angle is typed against an axis — is turned
+    /// whole to it first, and the solver mends only what is left (#532).
+    ///
     /// Fixed points outrank the clicks, and give only when neither way lands.
     pub(in crate::sketch) fn land(
         &mut self,
         from: Option<Element>,
-        target: Option<DimensionTarget>,
+        landing: Landing,
         millimeters_per_unit: f64,
     ) -> LengthOutcome {
         self.landing_or_giving(millimeters_per_unit, |sketch| {
-            sketch.land_held(from, target, millimeters_per_unit)
+            sketch.land_held(from, landing, millimeters_per_unit)
         })
     }
 
     pub(in crate::sketch) fn land_held(
         &mut self,
         from: Option<Element>,
-        target: Option<DimensionTarget>,
+        landing: Landing,
         millimeters_per_unit: f64,
     ) -> LengthOutcome {
         let Some(from) = from else {
-            return self.land_near(target, millimeters_per_unit);
+            if let Some(landed) = self.land_turned(landing, millimeters_per_unit) {
+                return landed;
+            }
+            return self.land_near(landing.target(), millimeters_per_unit);
         };
         let held = self.points_it_leans_on(from);
-        let square = self.ways_up_kept();
+        let ways_up = self.ways_up_kept();
+        let square: Vec<Kept> = ways_up
+            .iter()
+            .filter_map(|(start, end)| Kept::direction(self, *start, *end, None))
+            .collect();
+        let square_ends: Vec<PointId> = ways_up
+            .iter()
+            .flat_map(|(start, end)| [*start, *end])
+            .collect();
         let tries = [
-            (held.clone(), square.clone()),
-            (Vec::new(), square),
-            (held, Vec::new()),
+            (held.clone(), square.clone(), square_ends),
+            (Vec::new(), square, Vec::new()),
+            (held, Vec::new(), Vec::new()),
         ];
-        for (held, lines) in tries
+        for (held, lines, square_ends) in tries
             .into_iter()
-            .filter(|(held, lines)| !held.is_empty() || !lines.is_empty())
+            .filter(|(held, lines, _)| !held.is_empty() || !lines.is_empty())
         {
-            let kept = self.shapes_now();
-            let shares = self.shares(&held, millimeters_per_unit);
-            if let Element::Circle(circle) = from {
-                self.held.sizes.push(circle);
+            let turns: &[Turned] = match held.is_empty() {
+                true => &[Turned::Not],
+                false => &Turned::IN_ORDER,
+            };
+            for how in turns {
+                let kept = self.shapes_now();
+                let Some(stays) = self.turned(landing, *how, &square_ends) else {
+                    continue;
+                };
+                self.held.stays = stays;
+                let shares = self.shares(&held, millimeters_per_unit);
+                if let Element::Circle(circle) = from {
+                    self.held.sizes.push(circle);
+                }
+                let landed = self.settle_held(held.clone(), lines.clone(), millimeters_per_unit);
+                self.held.sizes.clear();
+                self.held.stays.clear();
+                if landed {
+                    self.keep_shares(&shares, &held, &[], millimeters_per_unit);
+                    return LengthOutcome::Exact;
+                }
+                self.give_back(kept);
             }
-            let landed = self.settle_held(held.clone(), lines, millimeters_per_unit);
-            self.held.sizes.clear();
-            if landed {
-                self.keep_shares(&shares, &held, &[], millimeters_per_unit);
-                return LengthOutcome::Exact;
-            }
-            self.give_back(kept);
         }
         self.resolve_keeping_places(millimeters_per_unit)
     }
@@ -167,12 +194,12 @@ impl Sketch {
     /// the clicks are, and given up when the rule cannot hold without turning
     /// it — an angle typed against an axis still does. A shape drawn away from
     /// the origin is left to the clicks (#451).
-    fn ways_up_kept(&self) -> Vec<Kept> {
+    fn ways_up_kept(&self) -> Vec<(PointId, PointId)> {
         let groups = self.point_groups();
         self.traits_lying_square(&groups)
             .into_iter()
             .filter(|(owner, _)| *owner == groups[Sketch::ORIGIN.0])
-            .filter_map(|(_, (start, end))| Kept::direction(self, start, end, None))
+            .map(|(_, ends)| ends)
             .collect()
     }
 

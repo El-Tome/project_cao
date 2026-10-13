@@ -234,10 +234,19 @@ pub(super) fn rays_about(
         Round::Cone(cone) => (cone.u, cone.v, None),
         Round::Elliptic(wall) => (wall.u, wall.v, Some((wall.major, wall.minor))),
     };
+    let own = match conic.round {
+        Round::Elliptic(wall) => Some(wall),
+        Round::Cylinder(_) | Round::Cone(_) => None,
+    };
     walls
         .iter()
         .filter(|(_, wall)| coaxial(wall, origin, axis, eps))
         .filter_map(|(id, _)| contacts.get(id))
+        .chain(
+            contacts
+                .values()
+                .filter(|contact| own.is_some() && contact.oval == own),
+        )
         .flat_map(|contact| contact.rays.iter())
         .map(|way| match scaled {
             None => way.dot(v).atan2(way.dot(u)),

@@ -34,6 +34,7 @@ use glam::DVec3;
 use off::off;
 use walls::onto_a_touch;
 
+use crate::brep::curve::Wall;
 use crate::brep::meet::{moved, moved_instead};
 use crate::brep::relation::{Relation, abreast, relation};
 use crate::brep::scale::Scale;
@@ -115,21 +116,15 @@ impl Surfaces {
         let [first, second] = [&self.list[one], &self.list[other]];
         match relation(first, second, scale) {
             Relation::Meet(_) => {
-                let (first, second) = match (first, second) {
-                    (Surface::Cylinder(first), Surface::Cylinder(second)) => (first, second),
-                    (Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_), _)
-                    | (_, Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_)) => {
-                        return None;
-                    }
-                };
-                let (rank, cylinder) = moved(first, second, scale)?;
-                let (rank, cylinder) = if own([one, other][rank]) {
-                    (rank, cylinder)
+                let (first, second) = (Wall::of(first)?, Wall::of(second)?);
+                let (rank, wall) = moved(&first, &second, scale)?;
+                let (rank, wall) = if own([one, other][rank]) {
+                    (rank, wall)
                 } else {
-                    moved_instead(first, second, scale)?
+                    moved_instead(&first, &second, scale)?
                 };
                 let shifted = [one, other][rank];
-                own(shifted).then_some((shifted, Surface::Cylinder(cylinder)))
+                own(shifted).then_some((shifted, wall.surface()))
             }
             Relation::Tangent(_) | Relation::Parallel(_) if abreast(first, second) => {
                 if own(other) {

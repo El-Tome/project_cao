@@ -196,11 +196,15 @@ fn the_same_ellipse_reached_again_is_one_surface_and_one_turned_a_little_crosses
 }
 
 #[test]
-fn an_elliptic_wall_and_a_wall_not_parallel_to_it_are_unsupported() {
+fn an_elliptic_wall_and_a_wall_neither_parallel_nor_square_to_it_are_unsupported() {
     let wall = Surface::Elliptic(oval());
-    let square = Surface::Cylinder(Cylinder::about(DVec3::ZERO, DVec3::X, 2.0));
+    let skew = Surface::Cylinder(Cylinder::about(
+        DVec3::ZERO,
+        DVec3::new(1.0, 0.0, 1.0).normalize(),
+        2.0,
+    ));
     assert_eq!(
-        super::super::relation(&wall, &square, scale()),
+        super::super::relation(&wall, &skew, scale()),
         Relation::Unsupported
     );
 }

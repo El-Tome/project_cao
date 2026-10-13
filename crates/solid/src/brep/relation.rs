@@ -6,6 +6,7 @@ mod conical;
 mod crossing;
 mod cylinders;
 mod elliptic;
+mod perpendicular;
 mod planar;
 mod revolved;
 mod sliced;
@@ -49,7 +50,7 @@ pub enum Relation {
     /// A plane square to a cylinder's axis, or a cone and a surface of its
     /// axis crossing off it.
     Circle(Circle),
-    /// Two perpendicular cylinders.
+    /// Two perpendicular walls, circular or elliptic.
     Meet(Meeting),
     /// A plane through a cone's apex steeper than its slope, holding its axis
     /// or at a slant to it: the two rulings it cuts, and the apex they cross
@@ -73,9 +74,9 @@ pub enum Relation {
     },
     /// Two cylinders at a skew angle, a cone and a cylinder or a cone not of
     /// its axis, a cone within the tolerance of a plane or a cylinder of its
-    /// axis all across the box, an elliptic wall and a wall not parallel to
-    /// it, two parallel walls within the tolerance of each other all round
-    /// though not one.
+    /// axis all across the box, an elliptic wall and a wall neither parallel
+    /// nor square to it or a cone, two parallel walls within the tolerance of
+    /// each other all round though not one.
     Unsupported,
 }
 
@@ -91,6 +92,12 @@ pub fn relation(one: &Surface, other: &Surface, scale: Scale) -> Relation {
         }
         (Surface::Cone(cone), other) | (other, Surface::Cone(cone)) => {
             conical::relation(cone, other, scale)
+        }
+        (Surface::Elliptic(_), Surface::Cylinder(_) | Surface::Elliptic(_))
+        | (Surface::Cylinder(_), Surface::Elliptic(_))
+            if let Some(met) = perpendicular::walls(one, other, scale) =>
+        {
+            met
         }
         (Surface::Elliptic(one), Surface::Elliptic(other)) => elliptic::walls(one, other, scale),
         (Surface::Plane(plane), Surface::Elliptic(wall))

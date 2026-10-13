@@ -25,7 +25,7 @@ use glam::DVec3;
 use super::operands::Operands;
 use crate::brep::canonical::{Registry, distance, within};
 use crate::brep::conic::Round;
-use crate::brep::curve::Curve;
+use crate::brep::curve::{Curve, Wall};
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
@@ -173,7 +173,7 @@ const MOVED: f64 = 2.0;
 /// Whether a surface carries a curve all along it, within the tolerance: a
 /// line on a plane stands square to its normal and within the tolerance of
 /// it, a line on a cylinder runs along its axis, a circle on a plane or a
-/// cylinder stands square to it and about its axis, the curve two cylinders
+/// cylinder stands square to it and about its axis, the curve two walls
 /// meet along runs round one of its own two — not round a wall of one
 /// radius a hair beside one of them, which carries it only over the stretch
 /// an arc of it was taken for (decision 6). Nor does a plane a line crosses
@@ -182,7 +182,8 @@ const MOVED: f64 = 2.0;
 /// the cut's corner line over the 1.5e-4 between their crossing and the
 /// block's top, and stands twenty tolerances off it at the cut's floor
 /// (5541239472). A cone carries its rulings and its circles about its axis,
-/// an elliptic wall its rulings alone. A conic is carried by a surface
+/// an elliptic wall its rulings and the curves it meets a wall square to it
+/// along. A conic is carried by a surface
 /// decided one with its plane or with its wall, and by nothing else.
 pub(super) fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
     let eps = scale.eps();
@@ -203,13 +204,18 @@ pub(super) fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
                 && (from - cylinder.axis * from.dot(cylinder.axis)).length() <= eps
                 && (circle.radius - cylinder.radius).abs() <= eps
         }
-        (Surface::Cylinder(cylinder), Curve::Meet(meet)) => meet.own(cylinder, eps).is_some(),
+        (Surface::Cylinder(cylinder), Curve::Meet(meet)) => {
+            meet.own(&Wall::Cylinder(*cylinder), eps).is_some()
+        }
         (Surface::Plane(_), Curve::Meet(_)) => false,
         (Surface::Cone(cone), Curve::Line(line)) => cone.rules(line, scale),
         (Surface::Cone(cone), Curve::Circle(circle)) => cone.holds(circle, eps),
         (Surface::Cone(_), Curve::Meet(_)) => false,
         (Surface::Elliptic(wall), Curve::Line(line)) => parallel(line.direction, wall.axis),
-        (Surface::Elliptic(_), Curve::Circle(_) | Curve::Meet(_)) => false,
+        (Surface::Elliptic(wall), Curve::Meet(meet)) => {
+            meet.own(&Wall::Elliptic(*wall), eps).is_some()
+        }
+        (Surface::Elliptic(_), Curve::Circle(_)) => false,
         (_, Curve::Conic(conic)) => {
             let own = match (surface, conic.round) {
                 (Surface::Plane(_), _) => Surface::Plane(conic.plane),

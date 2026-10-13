@@ -349,3 +349,4 @@ mod crossing;
 mod elliptic;
 mod lattice;
 mod sliced;
+mod square;

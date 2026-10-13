@@ -1,12 +1,14 @@
 //! A curve seen in the parameters of a surface it lies on.
 
+mod square;
+
 use std::f64::consts::TAU;
 
 use glam::{DVec2, DVec3};
 
 use crate::brep::Declined;
 use crate::brep::conic::{Conic, On, Round};
-use crate::brep::curve::{Circle, Curve, Meet};
+use crate::brep::curve::{Circle, Curve, Meet, Wall};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::trace::Trace;
@@ -97,7 +99,9 @@ pub(in crate::brep) fn traced(
                 eps,
             ) {
                 Some(trace) => Ok(trace),
-                None => chord(curve, surface, from, to, eps),
+                None => chord(curve, surface, from, to, eps).or_else(|declined| {
+                    square::rim(curve, conic, surface, [from, to], eps).ok_or(declined)
+                }),
             }
         }
         (Surface::Cylinder(cylinder), Curve::Line(line))
@@ -137,12 +141,19 @@ pub(in crate::brep) fn traced(
             })
         }
         (Surface::Cylinder(cylinder), Curve::Meet(meet))
-            if parallel(cylinder.axis, meet.first.axis)
-                || parallel(cylinder.axis, meet.second.axis) =>
+            if parallel(cylinder.axis, meet.first.axis())
+                || parallel(cylinder.axis, meet.second.axis()) =>
         {
-            let on_first = parallel(cylinder.axis, meet.first.axis);
-            let other = if on_first { meet.second } else { meet.first };
-            let beside = meet.own(cylinder, eps).is_none();
+            let on_first = parallel(cylinder.axis, meet.first.axis());
+            let (own, other) = if on_first {
+                (meet.first, meet.second)
+            } else {
+                (meet.second, meet.first)
+            };
+            let beside = meet.own(&Wall::Cylinder(*cylinder), eps).is_none();
+            if beside && matches!(own, Wall::Elliptic(_)) {
+                return chord(curve, surface, from, to, eps);
+            }
             let graph = Trace::Graph {
                 meet: *meet,
                 on_first,
@@ -151,7 +162,7 @@ pub(in crate::brep) fn traced(
                 to,
             };
             Ok(if beside {
-                met(curve, other, cylinder, [from, to], eps).unwrap_or(graph)
+                met(curve, other, Wall::Cylinder(*cylinder), [from, to], eps).unwrap_or(graph)
             } else {
                 graph
             })
@@ -159,9 +170,15 @@ pub(in crate::brep) fn traced(
         (Surface::Cylinder(cylinder), Curve::Circle(circle))
             if square(circle.axis, cylinder.axis) =>
         {
-            let own = Cylinder::about(circle.center, circle.axis, circle.radius);
+            let own = Wall::Cylinder(Cylinder::about(circle.center, circle.axis, circle.radius));
+            let other = Wall::Cylinder(*cylinder);
             chord(curve, surface, from, to, eps)
-                .or_else(|declined| met(curve, own, cylinder, [from, to], eps).ok_or(declined))
+                .or_else(|declined| met(curve, own, other, [from, to], eps).ok_or(declined))
+        }
+        (Surface::Elliptic(oval), Curve::Circle(circle)) if square(circle.axis, oval.axis) => {
+            chord(curve, surface, from, to, eps).or_else(|declined| {
+                square::circle(curve, circle, oval, [from, to], eps).ok_or(declined)
+            })
         }
         (Surface::Cone(cone), Curve::Line(line))
             if cone.rules(line, Scale::of(eps / Scale::RELATIVE)) =>
@@ -184,8 +201,19 @@ pub(in crate::brep) fn traced(
                 to: DVec2::new(start + turn * to, length),
             })
         }
+        (Surface::Elliptic(oval), Curve::Meet(meet))
+            if let Some(on_first) = meet.own(&Wall::Elliptic(*oval), eps) =>
+        {
+            Ok(Trace::Graph {
+                meet: *meet,
+                on_first,
+                beside: None,
+                from,
+                to,
+            })
+        }
         (Surface::Plane(plane), Curve::Meet(meet)) => {
-            let round = Round::Cylinder(meet.first);
+            let round = square::round(meet, plane);
             chord(curve, surface, from, to, eps).or_else(|declined| {
                 beside(curve, (plane, &round), surface, [from, to], eps).ok_or(declined)
             })
@@ -196,24 +224,18 @@ pub(in crate::brep) fn traced(
     }
 }
 
-/// A stretch of a curve lying on `own`, a cylinder square to `cylinder`,
-/// seen on `cylinder` as the curve the two meet along: the component and the
-/// stretch of it the curve's ends and middle stand on, when the middle
-/// stands within `eps` of it.
-fn met(
-    curve: &Curve,
-    own: Cylinder,
-    cylinder: &Cylinder,
-    [from, to]: [f64; 2],
-    eps: f64,
-) -> Option<Trace> {
+/// A stretch of a curve lying on `own`, a wall square to `other`, seen on
+/// `other` as the curve the two meet along: the component and the stretch
+/// of it the curve's ends and middle stand on, when the middle stands
+/// within `eps` of it.
+fn met(curve: &Curve, own: Wall, other: Wall, [from, to]: [f64; 2], eps: f64) -> Option<Trace> {
     let middle = curve.point((from + to) / 2.0);
     let off = |meet: &Meet, at: f64| meet.point(at).distance(middle);
     let (meet, period, at) = (0..2)
         .filter_map(|component| {
             let meet = Meet {
                 first: own,
-                second: *cylinder,
+                second: other,
                 component,
             };
             Some((meet, meet.period()?, meet.parameter(middle)))

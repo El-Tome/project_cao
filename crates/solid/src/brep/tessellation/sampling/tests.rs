@@ -5,7 +5,7 @@ use glam::DVec3;
 use super::super::contact::APART;
 use super::super::tests::fixtures;
 use super::{Samples, divisions};
-use crate::brep::curve::{Curve, Meet};
+use crate::brep::curve::{Curve, Meet, Wall};
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, EdgeId};
 
@@ -227,7 +227,10 @@ fn a_meet_is_sampled_at_every_grid_angle_of_either_cylinder_and_wherever_it_turn
         for tolerance in [1e-3, 0.02, 0.5] {
             let samples = Samples::of(&body, tolerance);
             for (edge, meet) in body.edge_ids().zip(&meets) {
-                for (on_first, cylinder) in [(true, meet.first), (false, meet.second)] {
+                for (on_first, wall) in [(true, meet.first), (false, meet.second)] {
+                    let Wall::Cylinder(cylinder) = wall else {
+                        unreachable!("the stock and the bore are round")
+                    };
                     let steps = divisions(cylinder.radius, tolerance);
                     let mut places = meet.turns(on_first);
                     for step in 0..steps {
@@ -954,6 +957,7 @@ fn a_ring_takes_a_ray_a_rounding_short_of_the_angle_it_starts_at() {
         anchors: Vec::new(),
         beside: Vec::new(),
         beneath: Vec::new(),
+        oval: None,
     };
     let eps = body.scale().eps();
     let points = super::on_circle(

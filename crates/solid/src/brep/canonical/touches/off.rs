@@ -5,6 +5,7 @@ use glam::DVec3;
 
 use super::walls::off_the_touches;
 use crate::brep::curve::Circle;
+use crate::brep::curve::Wall;
 use crate::brep::meet::moved;
 use crate::brep::relation::{Relation, abreast, relation};
 use crate::brep::scale::Scale;
@@ -68,16 +69,16 @@ pub(super) fn off(
             | (_, Surface::Cone(_) | Surface::Elliptic(_)) => None,
         },
         Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => {
-            let (one, other) = match (one, other) {
-                (Surface::Cylinder(one), Surface::Cylinder(other)) => (one, other),
-                (Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_), _)
-                | (_, Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_)) => {
-                    return None;
+            let (one, other) = (Wall::of(one)?, Wall::of(other)?);
+            Some(moved(&one, &other, scale).map_or(0.0, |(rank, to)| {
+                match ([one, other][rank], to) {
+                    (Wall::Cylinder(from), Wall::Cylinder(to)) => {
+                        from.origin.distance(to.origin) + (from.radius - to.radius).abs()
+                    }
+                    (Wall::Elliptic(from), Wall::Elliptic(to)) => from.gap(&to),
+                    (Wall::Cylinder(_), Wall::Elliptic(_))
+                    | (Wall::Elliptic(_), Wall::Cylinder(_)) => f64::INFINITY,
                 }
-            };
-            Some(moved(one, other, scale).map_or(0.0, |(rank, to)| {
-                let from = [one, other][rank];
-                from.origin.distance(to.origin) + (from.radius - to.radius).abs()
             }))
         }
         Relation::Apart

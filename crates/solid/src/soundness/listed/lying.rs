@@ -9,6 +9,7 @@ use glam::DVec3;
 
 use super::Mislisted;
 use super::conic;
+use super::meet;
 use super::nappe::Nappe;
 use super::oval;
 use crate::brep::{Curve, Listing, Surface};
@@ -135,6 +136,7 @@ pub(super) fn point(curve: &Curve, at: f64) -> DVec3 {
             let (sin, cos) = at.sin_cos();
             circle.center + (circle.u * cos + circle.v * sin) * circle.radius
         }
+        Curve::Meet(meet) if meet::elliptic(meet) => meet::point(meet, at),
         Curve::Meet(meet) => meet.point(at),
         Curve::Conic(conic) => conic::point(conic, at),
     }

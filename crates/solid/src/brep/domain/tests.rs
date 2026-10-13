@@ -110,8 +110,8 @@ fn a_meet_whose_second_cylinder_was_moved_onto_a_touch_is_seen_on_the_cylinder_i
     let standing = Cylinder::about(DVec3::new(3.499_999_99, 0.0, 2.0), DVec3::Y, 1.0);
     let moved = Cylinder::about(DVec3::new(3.5, 0.0, 2.0), DVec3::Y, 1.0);
     let meet = Meet {
-        first,
-        second: moved,
+        first: first.into(),
+        second: moved.into(),
         component: 0,
     };
     let tolerance = 2e-8;
@@ -147,8 +147,8 @@ fn a_meet_taken_for_an_arc_of_a_wall_a_hair_off_its_own_is_seen_in_that_wall_s_a
     let beside = Cylinder::about(DVec3::new(0.0, 1.000_01, 3.0), DVec3::X, 3.0);
     let across = Cylinder::about(DVec3::new(7.5, 2.5, 0.0), DVec3::Z, 1.5);
     let meet = Meet {
-        first: across,
-        second: own,
+        first: across.into(),
+        second: own.into(),
         component: 0,
     };
     let [from, to] = [3.0, 3.1];
@@ -376,8 +376,8 @@ fn a_meet_lying_on_a_parallel_wall_a_hair_off_its_own_is_seen_as_the_curve_that_
     let hole = Cylinder::about(DVec3::new(0.0, 9.0, 0.0), DVec3::Z, 2.0);
     let second = Cylinder::about(DVec3::new(1.999_99, 0.0, 4.5), DVec3::Y, 3.0);
     let meet = Meet {
-        first,
-        second: hole,
+        first: first.into(),
+        second: hole.into(),
         component: 0,
     };
     let [from, to] = [3.139_010_664, 3.144_174_643];

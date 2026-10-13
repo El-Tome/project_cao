@@ -4,7 +4,7 @@
 
 use glam::DVec3;
 
-use super::feet_of_touches;
+use crate::brep::relation::feet_of_touches;
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
 
@@ -17,11 +17,7 @@ const ROUNDING: f64 = 1e-3;
 /// their common normal there: onto the first touch whose move leaves every
 /// other no further from exact. None where no move does, or where the
 /// touch is exact already.
-pub(in crate::brep) fn onto_a_touch(
-    fixed: &Surface,
-    moving: &Surface,
-    scale: Scale,
-) -> Option<Surface> {
+pub(super) fn onto_a_touch(fixed: &Surface, moving: &Surface, scale: Scale) -> Option<Surface> {
     let feet = feet_of_touches(fixed, moving, scale);
     let room = ROUNDING * scale.eps();
     feet.iter().find_map(|&[on_fixed, on_moving]| {
@@ -36,11 +32,7 @@ pub(in crate::brep) fn onto_a_touch(
 /// How far two parallel walls decided to touch along rulings stand from
 /// touching exactly, at the touch that stands furthest; none where they
 /// touch nowhere.
-pub(in crate::brep) fn off_the_touches(
-    one: &Surface,
-    other: &Surface,
-    scale: Scale,
-) -> Option<f64> {
+pub(super) fn off_the_touches(one: &Surface, other: &Surface, scale: Scale) -> Option<f64> {
     feet_of_touches(one, other, scale)
         .into_iter()
         .map(|[on_one, on_other]| on_one.distance(on_other))

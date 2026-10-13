@@ -346,8 +346,11 @@ fn a_round_post_a_hair_off_touching_an_elliptic_boss_is_moved_onto_the_touch() {
             |surface: &&Surface| matches!(surface, Surface::Elliptic(_)),
         ]
         .map(|kind| *joined.surfaces.iter().find(kind).expect("both walls stand"));
-        let off = crate::brep::relation::off_the_touches(&round, &oval, joined.scale())
-            .expect("the two walls touch");
+        let feet = crate::brep::relation::feet_of_touches(&round, &oval, joined.scale());
+        let [[on_round, on_oval]] = feet[..] else {
+            panic!("the two walls touch along one ruling, not {feet:?}");
+        };
+        let off = on_round.distance(on_oval);
         assert!(off <= 1e-12 * 13.0, "the touch stands {off} off exact");
     }
 }

@@ -18,23 +18,11 @@ use glam::{DVec2, DVec3};
 use crate::brep::curve::Line;
 use crate::brep::surface::Surface;
 
-/// Whether two surfaces are walls about parallel axes, one of them
-/// elliptic at least: the pairs this file reads.
-pub(in crate::brep) fn abreast(first: &Surface, second: &Surface) -> bool {
-    matches!(
-        (first, second),
-        (
-            Surface::Elliptic(_),
-            Surface::Elliptic(_) | Surface::Cylinder(_)
-        ) | (Surface::Cylinder(_), Surface::Elliptic(_))
-    )
-}
-
 /// Whether `second` stands on the side of `first` its own normal points to,
 /// all along the stretch of `first` between two of `rulings` that `place`
 /// stands on; none where the two stand within `rounding` of each other
 /// wherever the stretch is read.
-pub(in crate::brep) fn standing_above(
+pub(super) fn standing_above(
     first: &Surface,
     second: &Surface,
     rulings: &[Line],

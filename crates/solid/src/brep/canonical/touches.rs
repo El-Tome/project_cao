@@ -28,12 +28,14 @@
 //! a plane whose face is far away touches nothing.
 
 mod off;
+mod walls;
 
 use glam::DVec3;
 use off::off;
+use walls::onto_a_touch;
 
 use crate::brep::meet::{moved, moved_instead};
-use crate::brep::relation::{Relation, abreast, onto_a_touch, relation};
+use crate::brep::relation::{Relation, abreast, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::topology::SurfaceId;

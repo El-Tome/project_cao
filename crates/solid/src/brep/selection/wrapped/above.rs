@@ -2,15 +2,18 @@
 //! decided: along the line they touch along, along the stretch between two
 //! lines they cross along, about a cone; and measured where they stand apart.
 
+mod walls;
+
 use std::f64::consts::TAU;
 
 use glam::{DVec2, DVec3};
 
 use super::ROUNDING;
 use crate::brep::curve::Line;
-use crate::brep::relation::{Relation, abreast, at_a_slant, standing_above};
+use crate::brep::relation::{Relation, abreast, at_a_slant};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder, Surface};
+use walls::standing_above;
 
 /// Whether the second of two surfaces `related` so at `scale` stands on the
 /// side of the first its own normal points to: along the line they touch

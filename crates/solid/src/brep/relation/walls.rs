@@ -28,8 +28,6 @@
 //! every foot, which no ruling tells apart, are unsupported.
 
 mod normals;
-mod side;
-mod touched;
 
 use glam::{DVec2, DVec3};
 
@@ -37,8 +35,6 @@ use super::{Relation, parallel, sorted};
 use crate::brep::curve::Line;
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, EllipticCylinder, Surface};
-pub(in crate::brep) use side::{abreast, standing_above};
-pub(in crate::brep) use touched::{off_the_touches, onto_a_touch};
 
 /// A ruling two parallel walls meet along, and whether they only touch
 /// along it rather than cross.
@@ -72,6 +68,18 @@ pub(super) fn elliptic_pair(
     scale: Scale,
 ) -> Relation {
     met_ovals(one, other, scale).map_or(Relation::Unsupported, |(met, _)| ruled(met.rulings))
+}
+
+/// Whether two surfaces are walls about parallel axes, one of them
+/// elliptic at least: the pairs `walls.rs` reads.
+pub(in crate::brep) fn abreast(first: &Surface, second: &Surface) -> bool {
+    matches!(
+        (first, second),
+        (
+            Surface::Elliptic(_),
+            Surface::Elliptic(_) | Surface::Cylinder(_)
+        ) | (Surface::Cylinder(_), Surface::Elliptic(_))
+    )
 }
 
 /// Where two parallel walls, an elliptic one among them, decided to touch

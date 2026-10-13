@@ -3,9 +3,10 @@
 
 use glam::DVec3;
 
+use super::walls::off_the_touches;
 use crate::brep::curve::Circle;
 use crate::brep::meet::moved;
-use crate::brep::relation::{Relation, abreast, off_the_touches, relation};
+use crate::brep::relation::{Relation, abreast, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder, Surface};
 

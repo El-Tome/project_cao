@@ -9,11 +9,12 @@
 //! The second operand is moved square to the axis onto the first's, with
 //! what it built, as decision 8 moves it onto a cylinder; decision 1 then
 //! takes the wall for the first's where their half-axes and their turn
-//! stand within the tolerance. Past it, a wall no corner of its operand
-//! lies on, bounded by whole rims alone — an ellipse raised whole — is laid
-//! on the first's wall itself and its rims cut again on it: nothing it built
-//! is left a hair off. A wall carrying corners is left two. A circle and an
-//! ellipse never merge this way.
+//! stand within the tolerance. Past it, a wall bounded by its rims and
+//! rulings alone — an ellipse raised whole, or cut by traits — whose every
+//! corner already stands on the first's wall is laid on that wall itself
+//! and its rims cut again on it: nothing it built is left a hair off. A wall
+//! carrying a corner off the first's is left two. A circle and an ellipse
+//! never merge this way.
 
 use glam::DVec3;
 
@@ -44,7 +45,8 @@ pub(super) fn offset(first: &Body, own: &EllipticCylinder, scale: Scale) -> Opti
 
 /// The second operand with each elliptic wall `offset` laid about the axis
 /// of one of the first's, but still past the tolerance of it, laid on that
-/// wall where nothing but whole rims bounds it; none when none is.
+/// wall where its rims and rulings bound it and its corners stand on it;
+/// none when none is.
 pub(super) fn reshaped(first: &Body, second: &Body, scale: Scale) -> Option<Body> {
     let mut body: Option<Body> = None;
     for rank in 0..second.surfaces.len() {
@@ -91,8 +93,10 @@ fn hair_off(
 }
 
 /// The body with its wall of rank `rank`, `own`, put for `known`, and its
-/// rims cut again on it; none where a corner lies on the wall or an edge
-/// beside it is anything but a whole rim of it.
+/// rims cut again on it; none where a corner on the wall stands off
+/// `known`, or an edge beside it is anything but a rim of it or a ruling.
+/// A corner where the two walls already meet stays on both: the ends of a
+/// half of the same ellipse a hair narrower, cut along its major axis.
 fn laid_on(
     body: &Body,
     rank: usize,
@@ -101,7 +105,12 @@ fn laid_on(
     scale: Scale,
 ) -> Option<Body> {
     let id = SurfaceId(rank as u32);
-    if body.vertices.iter().any(|vertex| vertex.on.contains(&id)) {
+    let eps = scale.eps();
+    if body
+        .vertices
+        .iter()
+        .any(|vertex| vertex.on.contains(&id) && known.distance(vertex.point).abs() > eps)
+    {
         return None;
     }
     let mut laid = body.clone();
@@ -112,19 +121,35 @@ fn laid_on(
     {
         for coedge in body.face(face).loops.iter().flatten() {
             let edge = body.edge(coedge.edge);
-            let Curve::Conic(conic) = body.curve(edge.curve) else {
-                return None;
+            let conic = match body.curve(edge.curve) {
+                Curve::Line(line)
+                    if edge.ends.is_some()
+                        && line.direction.cross(known.axis).length() * scale.reach() <= eps =>
+                {
+                    continue;
+                }
+                Curve::Conic(conic) if conic.round == Round::Elliptic(*own) => conic,
+                _ => return None,
             };
-            if edge.ends.is_some() || conic.round != Round::Elliptic(*own) {
-                return None;
-            }
             let recut = Conic::cut(&conic.plane, &Round::Elliptic(*known), scale)
                 .into_iter()
                 .find(|cut| cut.arm == Arm::Whole)?;
             let period = recut.period()?;
+            let (from, to) = match edge.ends {
+                None => (edge.from, edge.from + period),
+                Some(ends) => {
+                    let [from, to] = ends.map(|end| recut.parameter(body.vertex(end).point));
+                    let to = from + (to - from).rem_euclid(period);
+                    let middle = conic.point((edge.from + edge.to) / 2.0);
+                    if recut.point((from + to) / 2.0).distance(middle) > known.minor {
+                        return None;
+                    }
+                    (from, to)
+                }
+            };
             laid.curves[edge.curve.0 as usize] = Curve::Conic(recut);
             let stretch = &mut laid.edges[coedge.edge.0 as usize];
-            stretch.to = stretch.from + period;
+            (stretch.from, stretch.to) = (from, to);
         }
     }
     Some(laid)

@@ -25,12 +25,16 @@
 //! - picking reads the exact kernel's body: a click anywhere on a cylinder's
 //!   wall lands on its one curved face, with the true cylinder's normal —
 //!   `a_click_on_an_exact_cylinders_wall_lands_on_its_one_curved_face`
+//!
+//! Closes #571.
+//! - a click on an elliptic wall reads its true normal, and lands on its one
+//!   curved face — `a_click_on_an_exact_elliptic_wall_lands_on_its_one_curved_face`
 
 use glam::{DVec2, DVec3};
 
 use super::*;
 use cao_render::OrbitCamera;
-use cao_solid::profile::Contour;
+use cao_solid::profile::{Contour, Run};
 
 /// Which way is up on screen once the view has swung onto a face — the same
 /// answer `once_facing` gives, without a viewport to ask.
@@ -187,6 +191,72 @@ fn a_click_on_an_exact_cylinders_wall_lands_on_its_one_curved_face() {
         assert!(
             hit.normal.distance(outwards) < 1e-9,
             "the wall at {step} faces {:?}, not straight out of the axis",
+            hit.normal,
+        );
+    }
+
+    assert!(
+        walls.iter().all(|face| *face == walls[0]),
+        "the wall answered to several faces: {walls:?}",
+    );
+}
+
+/// An ellipse of half-axes `a` along X and `b` pushed along its normal by
+/// the exact kernel, as the drawing hands it: one run of a whole turn. The
+/// flats are handed nothing, which is why a body that fell back to them
+/// would be empty.
+fn elliptic_cylinder(a: f64, b: f64, height: f64) -> Body {
+    let profile = cao_solid::profile::Profile {
+        exact: Some((
+            Contour {
+                corners: vec![DVec2::X * a],
+                runs: vec![Run::Oval {
+                    center: DVec2::ZERO,
+                    first: DVec2::X * a,
+                    second: b,
+                    turn: std::f64::consts::TAU,
+                }],
+            },
+            Vec::new(),
+        )),
+        sampled: cao_solid::Loop::straight(&[]),
+        sampled_holes: Vec::new(),
+        triangles: &[],
+    };
+    let frame = cao_solid::profile::Frame {
+        origin: DVec3::ZERO,
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    Body::default()
+        .tool_raised(&profile, frame, DVec3::Z * height)
+        .expect("the exact kernel raises a lone ellipse")
+}
+
+#[test]
+fn a_click_on_an_exact_elliptic_wall_lands_on_its_one_curved_face() {
+    let (a, b) = (15.0, 6.0);
+    let body = elliptic_cylinder(a, b, 20.0);
+    let mut walls = Vec::new();
+
+    for step in 0..12 {
+        let angle = (30.0 * step as f64 + 7.0).to_radians();
+        let outwards = DVec3::new(angle.cos(), angle.sin(), 0.0);
+        let origin = outwards * 40.0 + DVec3::Z * 10.0;
+
+        let offered = what_the_part_offers(&body, origin, -outwards, facing)
+            .expect("the wall is there to be hit");
+        let PlaneChoice::Curved(face) = offered else {
+            panic!("the wall at {step} offered {offered:?}");
+        };
+        walls.push(face);
+        let hit = body.ray_hit(origin, -outwards).expect("the wall is hit");
+        let at = origin - outwards * hit.distance;
+        let true_normal = DVec3::new(at.x / (a * a), at.y / (b * b), 0.0).normalize();
+        assert!(
+            hit.normal.distance(true_normal) < 1e-9,
+            "the wall at {step} faces {:?}, not {true_normal:?}, the way the \
+             ellipse through where it was hit does",
             hit.normal,
         );
     }

@@ -171,7 +171,11 @@ fn slot(from: DVec2, to: DVec2, radius: f64) -> Contour {
 /// The corners of the flats a contour is sampled into, and the curve each
 /// flat from a corner to the next was sampled from: an arc takes its share
 /// of the steps a whole circle or ellipse is cut into, as the application
-/// cuts it, and arcs of one circle or one ellipse are one curve.
+/// cuts it. Arcs of one circle are one curve, the two halves a whole circle
+/// is handed as here being the one run the application hands; each arc of
+/// an ellipse is a curve of its own, as the application numbers every run
+/// of an outline (#571): two arcs of one ellipse two traits part are two
+/// faces of the flats.
 pub fn sampled(contour: &Contour) -> (Vec<DVec2>, Vec<Option<usize>>) {
     let mut corners = Vec::new();
     let mut curves = Vec::new();
@@ -184,7 +188,7 @@ pub fn sampled(contour: &Contour) -> (Vec<DVec2>, Vec<Option<usize>>) {
                 seen.len() - 1
             })
     };
-    for (&corner, &run) in contour.corners.iter().zip(&contour.runs) {
+    for (rank, (&corner, &run)) in contour.corners.iter().zip(&contour.runs).enumerate() {
         match run {
             Run::Straight => {
                 corners.push(corner);
@@ -210,7 +214,7 @@ pub fn sampled(contour: &Contour) -> (Vec<DVec2>, Vec<Option<usize>>) {
                 second,
                 turn,
             } => {
-                let curve = number(Curve::Ellipse(center, first, second));
+                let curve = number(Curve::Oval(rank));
                 let along = first.perp().normalize() * second;
                 let out = corner - center;
                 let from = DVec2::new(
@@ -234,9 +238,10 @@ pub fn sampled(contour: &Contour) -> (Vec<DVec2>, Vec<Option<usize>>) {
     (corners, curves)
 }
 
-/// A curve the flats of a contour are sampled from, told apart by what it is.
+/// A curve the flats of a contour are sampled from: a circle told apart by
+/// what it is, an arc of ellipse by the run it is.
 #[derive(Clone, Copy, PartialEq)]
 enum Curve {
     Circle(DVec2, f64),
-    Ellipse(DVec2, DVec2, f64),
+    Oval(usize),
 }

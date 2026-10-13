@@ -821,3 +821,32 @@ fn a_cache_written_before_unstable_steps_were_noted_is_replayed() {
         "the design is replayed rather than the cache read",
     );
 }
+
+#[test]
+fn a_cache_written_before_ellipses_were_exact_is_replayed() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut marked = a_part_with_matter().state;
+    marked.declined.insert(3, cao_solid::Declined::Unsupported);
+    let today = String::from_utf8(encoded(&marked, &borrowed(&design)).expect("a cache"))
+        .expect("a cache is text");
+    let stamped = today.replacen(
+        &format!(r#""rebuilt_by":{REBUILT_BY}"#),
+        r#""rebuilt_by":8"#,
+        1,
+    );
+    assert_ne!(
+        stamped, today,
+        "raising an ellipse exactly rebuilds past the 8 of #552's lean"
+    );
+    replacing(&files, path, GEOMETRY_ENTRY, Some(stamped.as_bytes()));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert!(
+        !reopened.is_declined(3),
+        "the design is replayed rather than the cache read",
+    );
+}

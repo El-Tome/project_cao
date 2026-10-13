@@ -44,8 +44,8 @@
 //! the true curve, the flats within the sagitta of the 48-gon. A case with
 //! an ellipse may be declined as unsupported only where an elliptic wall
 //! meets a cone or a wall at a skew angle (`Case::asks_beyond_the_conics`).
-//! Until the kernel raises an ellipse, every case of these draws is declined
-//! as unfinished, which is a failure. The flats answered 199, 280 and 272 of
+//! Through the application's body an ellipse is the exact kernel's as
+//! well: a decline is a broken step, never the flats. The flats answered 199, 280 and 272 of
 //! the first 300 cases of the three draws by their own rules when they were
 //! written, and the arithmetic held every one.
 //!
@@ -1883,10 +1883,13 @@ fn an_outline_an_ellipse_bounds_is_handed_to_the_exact_kernel_as_its_arcs_among_
         }
     }
     let (_, curves) = random_solids::sampled(&cut);
-    let arcs: Vec<usize> = curves.iter().flatten().copied().collect();
-    assert!(
-        !arcs.is_empty() && arcs.iter().all(|curve| *curve == arcs[0]),
-        "two arcs of one ellipse sampled as several curves: {curves:?}"
+    let mut arcs: Vec<usize> = curves.iter().flatten().copied().collect();
+    arcs.dedup();
+    assert_eq!(
+        arcs.len(),
+        2,
+        "each arc of the ellipse its own curve, as the application numbers \
+         every run: {curves:?}"
     );
 
     let (slot, _) = Outline::oval_slot([0.0, 0.0], [4.0, 0.0], 1.0, 2.0)
@@ -3473,7 +3476,6 @@ fn ellipse_cases_keep_every_rule_on_the_exact_kernel(
 }
 
 #[test]
-#[ignore = "#571: the exact kernel does not raise an ellipse yet"]
 fn random_ellipse_cases_keep_every_rule_on_the_exact_kernel() {
     for (name, draw) in ELLIPSE_DRAWS {
         ellipse_cases_keep_every_rule_on_the_exact_kernel(name, draw, 0..16);
@@ -3481,7 +3483,6 @@ fn random_ellipse_cases_keep_every_rule_on_the_exact_kernel() {
 }
 
 #[test]
-#[ignore = "#571: the exact kernel does not raise an ellipse yet"]
 fn ellipse_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact() {
     for (name, draw) in ELLIPSE_DRAWS {
         let seeds: Vec<u64> = (0..12).collect();
@@ -3529,7 +3530,6 @@ fn ellipse_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_
 }
 
 #[test]
-#[ignore = "#571: the exact kernel does not raise an ellipse yet"]
 fn every_elliptic_profile_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_its_area_times_its_height()
  {
     let leaves: Vec<Leaf> = (0..120)
@@ -3566,7 +3566,6 @@ fn every_elliptic_profile_raised_by_the_exact_kernel_alone_keeps_every_rule_and_
 }
 
 #[test]
-#[ignore = "#571: the exact kernel does not raise an ellipse yet"]
 fn an_elliptic_leaf_names_its_faces_as_the_flats_name_them() {
     let leaves: Vec<Leaf> = (0..60)
         .flat_map(|seed| {
@@ -3596,7 +3595,6 @@ fn an_elliptic_leaf_names_its_faces_as_the_flats_name_them() {
 }
 
 #[test]
-#[ignore = "#571: the exact kernel does not raise an ellipse yet"]
 fn a_lone_elliptic_leaf_cut_by_a_slanted_half_space_encloses_the_volume_of_its_slices() {
     let leaves: Vec<Leaf> = elliptic_prisms(400)
         .into_iter()

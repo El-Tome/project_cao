@@ -11,7 +11,10 @@
 //!   runs is the exact kernel's, `the_exact_kernel_turns_the_part.rs`) —
 //!   `a_part_turned_into_a_torus_is_computed_by_the_flats_from_that_step_on`,
 //!   `undoing_the_turn_gives_the_part_back_to_the_exact_kernel`; an ellipse
-//!   likewise — `a_part_with_an_ellipse_raised_is_computed_by_the_flats_from_that_step_on`
+//!   raised is the exact kernel's since #571 —
+//!   `a_part_with_an_ellipse_raised_stays_exact_from_that_step_on` — and the
+//!   flats' on a part already on them —
+//!   `an_ellipse_raised_after_a_turned_arc_is_computed_by_the_flats`
 //! - an operation the exact kernel declines is a broken step —
 //!   `a_raise_crossing_a_post_at_a_skew_angle_is_a_broken_step` (since #552 the
 //!   raise meeting a block at a slant is built,
@@ -22,7 +25,9 @@
 //!   opened on its cache still names it, held beside the cache by
 //!   `a_declined_step_is_still_named_once_the_part_opens_on_its_cache`
 //! - drawing, lighting under the cursor and picking read the exact kernel's
-//!   triangles — `a_raised_circle_is_drawn_lit_and_picked_from_its_true_cylinder`
+//!   triangles — `a_raised_circle_is_drawn_lit_and_picked_from_its_true_cylinder`,
+//!   and since #571 on an elliptic wall —
+//!   `a_raised_ellipse_is_drawn_lit_and_picked_from_its_true_elliptic_wall`
 //! - a drawing laid on a face keeps its face when a size of the part changes —
 //!   `a_drawing_on_the_top_of_a_disc_rides_it_when_it_grows`,
 //!   `a_drawing_on_a_floor_a_cut_left_keeps_it_when_the_cut_deepens`,
@@ -55,13 +60,13 @@
 //!   test: it is prose, held by `language.rs` and by nothing that asserts
 //!
 //! The part a history describes, computed by the exact kernel wherever it can
-//! and by the flats from the first step it cannot: a revolution of an arc,
-//! which turns into a sphere or a torus, or an area bounded by an ellipse
-//! (`an_ellipse_encloses_an_area.rs`), which the exact kernel has no surface
-//! for. The screen's side — the notice and the tree row
+//! and by the flats from the first step it cannot: a revolution of an arc or
+//! of an ellipse, which turns into a sphere or a torus the exact kernel has
+//! no surface for. An ellipse raised is the exact kernel's since #571
+//! (`the_exact_kernel_raises_an_ellipse.rs`). The screen's side — the notice and the tree row
 //! a declined step shows — is `cao_app`'s, tested beside its presenters.
 
-use std::f64::consts::PI;
+use std::f64::consts::{PI, TAU};
 
 use cao_part::history::{ExtrusionMode, FaceAnchor, Operation, PointRef, RevolutionAxis};
 use cao_part::{
@@ -507,6 +512,68 @@ fn a_raised_circle_is_drawn_lit_and_picked_from_its_true_cylinder() {
     );
 }
 
+/// An ellipse 60 by 40 about the origin raised 10, its wall drawn within
+/// two ten-thousandths of the reach of 30 it spans, as every exact wall is:
+/// finer than the 48 steps the flats cut it into. Where a ray meets it, it
+/// faces the way the ellipse through that point does, `(x/a², y/b²)`.
+#[test]
+fn a_raised_ellipse_is_drawn_lit_and_picked_from_its_true_elliptic_wall() {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    raise_an_ellipse(&mut history, 0, DVec2::ZERO);
+    let state = PartState::rebuild(&history);
+    let body = &state.body;
+    let (a, b) = (30.0, 20.0);
+    let facing = |at: DVec3| DVec3::new(at.x / (a * a), at.y / (b * b), 0.0).normalize();
+    let off = |at: DVec3| {
+        let level = (at.x / a).powi(2) + (at.y / b).powi(2) - 1.0;
+        level / (2.0 * DVec3::new(at.x / (a * a), at.y / (b * b), 0.0).length())
+    };
+
+    let wall = body
+        .ray_hit(DVec3::new(60.0, 0.0, 2.5), DVec3::NEG_X)
+        .expect("the ray meets the wall")
+        .face;
+    let lit: Vec<[DVec3; 3]> = body.triangles_of(wall).collect();
+    let drawn = body.triangles();
+    for (step, turn) in (0..7).map(|step| (step, 0.37 + TAU * step as f64 / 7.0)) {
+        let toward = DVec3::new(turn.cos(), turn.sin(), 0.0);
+        let origin = toward * 60.0 + DVec3::Z * 2.5;
+        let hit = body
+            .ray_hit(origin, -toward)
+            .expect("the ray meets the wall");
+        assert_eq!(hit.face, wall, "ray {step} lands on the one wall");
+        let at = origin - toward * hit.distance;
+        assert!(
+            hit.normal.distance(facing(at)) < 1e-9,
+            "ray {step}: the wall faces {}, the ellipse {}",
+            hit.normal,
+            facing(at),
+        );
+    }
+
+    assert!(!body.is_flat(wall), "the wall is one curved face");
+    assert!(lit.iter().all(|triangle| drawn.contains(triangle)));
+    let corners: Vec<DVec3> = lit.iter().flatten().copied().collect();
+    assert!(
+        corners.iter().all(|corner| off(*corner).abs() < 1e-9),
+        "every corner stands on the ellipse",
+    );
+    let sag = lit
+        .iter()
+        .flat_map(|[p, q, r]| [(*p + *q) / 2.0, (*q + *r) / 2.0, (*r + *p) / 2.0])
+        .map(|middle| off(middle).abs())
+        .fold(0.0, f64::max);
+    assert!(sag <= 2e-4 * 30.0, "the triangles sag {sag} off the wall");
+    let mut around: Vec<i64> = corners
+        .iter()
+        .map(|corner| (corner.y.atan2(corner.x) * 1e6).round() as i64)
+        .collect();
+    around.sort_unstable();
+    around.dedup();
+    assert!(around.len() > 48, "{} steps round the wall", around.len());
+}
+
 #[test]
 fn the_section_of_an_exact_part_keeps_only_what_lies_behind_the_plane() {
     let state = a_disc();
@@ -922,47 +989,78 @@ fn a_disc_joined_across_a_block_s_side_holds_the_arithmetics_volume() {
     assert_drawn_closed(&state);
 }
 
-#[test]
-fn a_part_with_an_ellipse_raised_is_computed_by_the_flats_from_that_step_on() {
-    let mut history = History::default();
-    sketch_on(&mut history, WorkPlane::XY);
+/// An ellipse 60 by 40 about `center`, its major axis along the sketch's
+/// horizontal, drawn in `sketch` and raised 5.
+fn raise_an_ellipse(history: &mut History, sketch: usize, center: DVec2) {
     history.push(Operation::AddEllipse {
-        sketch: 0,
-        center: PointRef::New(DVec2::new(50.0, 20.0)),
+        sketch,
+        center: PointRef::New(center),
         first: [
-            PointRef::New(DVec2::new(20.0, 20.0)),
-            PointRef::New(DVec2::new(80.0, 20.0)),
+            PointRef::New(center - DVec2::X * 30.0),
+            PointRef::New(center + DVec2::X * 30.0),
         ],
         second: [
-            PointRef::New(DVec2::new(50.0, 0.0)),
-            PointRef::New(DVec2::new(50.0, 40.0)),
+            PointRef::New(center - DVec2::Y * 20.0),
+            PointRef::New(center + DVec2::Y * 20.0),
         ],
         construction: false,
         drawn: None,
     });
+    raise(history, sketch, center, 5.0, ExtrusionMode::Add);
+}
+
+/// A Ø40 about (0, 100) drawn in `sketch` and raised 10.
+fn raise_a_disc_far_off(history: &mut History, sketch: usize) {
+    circle(history, sketch, DVec2::new(0.0, 100.0), 20.0);
     raise(
-        &mut history,
-        0,
-        DVec2::new(50.0, 20.0),
-        5.0,
-        ExtrusionMode::Add,
-    );
-    let oval = PartState::rebuild(&history).body.volume();
-    sketch_on(&mut history, WorkPlane::XY);
-    circle(&mut history, 1, DVec2::new(0.0, 100.0), 20.0);
-    raise(
-        &mut history,
-        1,
+        history,
+        sketch,
         DVec2::new(0.0, 100.0),
         10.0,
         ExtrusionMode::Add,
     );
-    let after_the_oval = PartState::rebuild(&history).body.volume();
+}
 
+#[test]
+fn a_part_with_an_ellipse_raised_stays_exact_from_that_step_on() {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    raise_an_ellipse(&mut history, 0, DVec2::new(50.0, 20.0));
+    let oval = PartState::rebuild(&history).body.volume();
+    sketch_on(&mut history, WorkPlane::XY);
+    raise_a_disc_far_off(&mut history, 1);
+
+    let state = PartState::rebuild(&history);
+
+    assert_near(oval, PI * 600.0 * 5.0, "the ellipse raised, exactly");
     assert_near(
-        after_the_oval - oval,
-        inscribed(20.0) * 10.0,
-        "the Ø40 raised after the ellipse, by the flats",
+        state.body.volume() - oval,
+        PI * 400.0 * 10.0,
+        "the Ø40 raised after the ellipse, a true circle",
+    );
+    assert!(state.body.is_exact(), "the part stays exact");
+}
+
+/// The flats sample an ellipse at 48 steps of its eccentric angle: a
+/// polygon squashed from the one of 48 sides inscribed in a circle.
+#[test]
+fn an_ellipse_raised_after_a_turned_arc_is_computed_by_the_flats() {
+    let mut history = History::default();
+    turn_a_torus(&mut history, 0);
+    let turned = PartState::rebuild(&history).body.volume();
+    sketch_on(&mut history, WorkPlane::XY);
+    raise_an_ellipse(&mut history, 1, DVec2::new(-50.0, -50.0));
+
+    let state = PartState::rebuild(&history);
+
+    assert!(
+        !state.body.is_exact(),
+        "the turn sent the part to the flats"
+    );
+    assert_near(
+        state.body.volume() - turned,
+        inscribed(1.0) * 600.0 * 5.0,
+        "the ellipse raised on the flats",
     );
 }
 

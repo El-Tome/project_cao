@@ -2295,3 +2295,36 @@ not. What went to `main` short of what was aimed at:
 - **The follow-ups are not opened**: a band laid along a conic, decision
   11 for every pair of directions, #514's grid, exact predicates where
   floating point cannot tell. They are opened on Tom's word.
+
+## #571: elliptic walls
+
+What is left on elliptic walls when the application's body raised an
+ellipse on the exact kernel for the first time (the flip). Each family is
+named, with the seeds that hold it where one is in the gate's files,
+ignored until it is fixed. Lane c, running the campaigns on the exact
+kernel beside this one, counts them; what follows is what stood at the
+flip.
+
+- **A plane in the warning band through a wall's tangent line**, its arcs
+  misordered round a corner at `overlay/star.rs`: #552's own default, on
+  circular walls as well (`line-of-touch` in
+  `a_surface_a_hair_from_a_line_of_touch.rs`).
+- **The same ellipse turned by 1e-7 to 1e-4 of a radian beside a block's
+  planes**: too far for decision 8 to make it one wall with itself, near
+  enough for its crossings with itself to stand within the tolerance of
+  the block's faces.
+- **Two touches at the ends of a half-axis**, a crescent 1e-6 to 1e-5 thick
+  between them, and a third wall across both.
+- **A third surface through a node of a meet on an elliptic wall**: a
+  hole's end cap through the node of a figure of eight an elliptic hole
+  makes with a round pocket, left unverified (5571542016); a round bore's
+  cap through the near-nodes an elliptic hole a hair narrower than a post
+  makes with it, a tie (5571541652); a crescent between two parallel walls
+  a hair apart, each at a node of an elliptic hole, read backwards
+  (5571546569).
+- **A round bar touching an elliptic hole at a point**, drawn crossing it
+  there (5571548076).
+
+An ellipse within decision 8's hair of round is not among them: Tom
+decided on 2026-10-13 that a whole one is raised as a circle
+(`exact-kernel.md`, "The body").

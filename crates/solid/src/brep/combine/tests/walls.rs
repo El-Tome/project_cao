@@ -579,3 +579,30 @@ fn an_ellipse_cut_by_a_smaller_one_reaching_a_millionth_past_its_end_leaves_two_
         .expect("the smaller ellipse is cut out, crossing the other twice beside its end");
     held(&cut, (oval.area() - oval.overlap(&inner)) * 47.5);
 }
+
+#[test]
+fn an_elliptic_pocket_touching_a_boss_s_end_inside_beside_a_block_reaching_both_walls_is_drawn_closed()
+ {
+    let boss = Section::ellipse(
+        [322.5, 202.5],
+        DVec2::new(-19.48557158514987, -11.250000000000002),
+        67.5,
+    );
+    let pocket = Section::ellipse(
+        [330.9375, 187.8858213111376],
+        DVec2::new(-14.614178688862403, -8.437500000000002),
+        50.625,
+    );
+    let body = block([300.0, 180.0, 90.0], [525.0, 225.0, 195.0])
+        .joined(&raised(boss, 60.0, 105.0))
+        .expect("the boss is joined to the block");
+    let cut = body
+        .cut_by(&raised(pocket, 30.00001, 60.00001))
+        .expect("the pocket is cut, touching the boss's wall at the end of its major axis");
+    assert_eq!(listed(&cut.listing(), cut.scale().reach()), Ok(()));
+    for share in [1e-4, 1e-3, 2e-2] {
+        let triangles = cut.triangles(share * cut.scale().reach());
+        assert_eq!(closed(&triangles).map_err(|_| share), Ok(()), "open");
+        assert_eq!(uncrossed(&triangles).map_err(|_| share), Ok(()), "crossed");
+    }
+}

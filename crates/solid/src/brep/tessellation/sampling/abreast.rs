@@ -27,6 +27,7 @@ use glam::{DVec2, DVec3};
 
 use super::super::contact::{self, Contact};
 use super::divisions;
+use super::elliptic::{on_the_wall, reached_by_planes};
 use crate::brep::relation::{Relation, closest, relation};
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, SurfaceId};
@@ -149,13 +150,23 @@ impl Abreast {
     }
 
     /// Both walls sampled on the rays from the inner one's axis through the
-    /// samples of either's grid and through the vertices on either.
+    /// samples of either's grid, through the vertices on either, and
+    /// through the places an elliptic wall's rims take on their own: where
+    /// a plane along the axis reaches furthest past it, where a vertex
+    /// stands just inside it. Taken by one rim alone, such a place of the
+    /// outer wall beside a touch left a chord of it across the inner rim's
+    /// (campaign seed 5571457963).
     fn shared(&mut self, [inner, outer]: [SurfaceId; 2], body: &Body, tolerance: f64) {
         let (hub, axis) = axis_of(body.surface(inner));
         let flat = |way: DVec3| way - axis * axis.dot(way);
         let mut places: Vec<DVec3> = [inner, outer]
             .into_iter()
             .flat_map(|wall| grid(body.surface(wall), tolerance))
+            .chain(
+                [inner, outer]
+                    .into_iter()
+                    .flat_map(|wall| alone(body, wall, tolerance)),
+            )
             .collect();
         places.extend(
             body.vertices
@@ -290,6 +301,21 @@ fn grid(wall: &Surface, tolerance: f64) -> Vec<DVec3> {
     };
     (0..steps)
         .map(|step| wall.point(DVec2::new(TAU * step as f64 / steps as f64, 0.0)))
+        .collect()
+}
+
+/// The places an elliptic wall's rims are sampled at besides its grid and
+/// the rays given them (`conic.rs`), at the height of its origin; none for
+/// another wall.
+fn alone(body: &Body, wall: SurfaceId, tolerance: f64) -> Vec<DVec3> {
+    let Surface::Elliptic(oval) = body.surface(wall) else {
+        return Vec::new();
+    };
+    let steps = divisions(oval.major, tolerance);
+    on_the_wall(body, oval, steps)
+        .into_iter()
+        .chain(reached_by_planes(body, oval))
+        .map(|angle| oval.point(DVec2::new(angle, 0.0)))
         .collect()
 }
 

@@ -94,7 +94,12 @@ fn to_segment(at: DVec2, from: DVec2, to: DVec2) -> f64 {
 }
 
 /// The distance to any trace: the nearest of its samples, then closed in on
-/// between that sample's neighbours.
+/// between that sample's neighbours. A whole rim of an elliptic wall ends
+/// where it starts, and a place beside that point stands as near the
+/// sample at either end: closed in on beside the first alone, the place
+/// past the start the rim reaches only at its end was read a ten-thousandth
+/// of a turn off it (campaign seed 5571458568). Beside an end, both ends
+/// are closed in on.
 pub(super) fn sampled(trace: &Trace, at: DVec2, radius: Option<f64>) -> f64 {
     const SAMPLES: usize = 64;
     let gap = |u: f64| {
@@ -109,15 +114,27 @@ pub(super) fn sampled(trace: &Trace, at: DVec2, radius: Option<f64>) -> f64 {
             gap(*one as f64 / SAMPLES as f64).total_cmp(&gap(*other as f64 / SAMPLES as f64))
         })
         .unwrap_or(0);
-    let mut low = (nearest.max(1) - 1) as f64 / SAMPLES as f64;
-    let mut high = ((nearest + 1).min(SAMPLES)) as f64 / SAMPLES as f64;
-    for _ in 0..200 {
-        let (left, right) = (low + (high - low) / 3.0, high - (high - low) / 3.0);
-        if gap(left) < gap(right) {
-            high = right;
-        } else {
-            low = left;
+    let closed_in = |sample: usize| {
+        let mut low = (sample.max(1) - 1) as f64 / SAMPLES as f64;
+        let mut high = ((sample + 1).min(SAMPLES)) as f64 / SAMPLES as f64;
+        for _ in 0..200 {
+            let (left, right) = (low + (high - low) / 3.0, high - (high - low) / 3.0);
+            if gap(left) < gap(right) {
+                high = right;
+            } else {
+                low = left;
+            }
         }
-    }
-    gap((low + high) / 2.0).min(gap(0.0)).min(gap(1.0))
+        gap((low + high) / 2.0)
+    };
+    let other_end = match nearest {
+        0 => Some(SAMPLES),
+        SAMPLES => Some(0),
+        _ => None,
+    };
+    other_end
+        .map_or(f64::INFINITY, closed_in)
+        .min(closed_in(nearest))
+        .min(gap(0.0))
+        .min(gap(1.0))
 }

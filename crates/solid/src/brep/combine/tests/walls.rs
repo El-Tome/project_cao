@@ -554,3 +554,28 @@ fn an_ellipse_a_hair_from_round_turned_a_ten_thousandth_joins_itself_as_one_wall
         .count();
     assert_eq!(walls, 1);
 }
+
+#[test]
+fn an_ellipse_cut_by_itself_turned_a_ten_thousandth_of_a_turn_leaves_four_slivers() {
+    let first = DVec2::new(1.9318516525781362, -0.5176380902050413);
+    let oval = Section::ellipse([7.0, 10.0], first, 5.0);
+    let turned = Section::ellipse(
+        [7.0, 10.0],
+        DVec2::new(1.9319034067278127, -0.517444902451915),
+        5.0,
+    );
+    let cut = raised(oval, 8.0, 14.0)
+        .cut_by(&raised(turned, 8.0, 14.0))
+        .expect("the turned ellipse is cut out, crossing it at four rulings");
+    held(&cut, (oval.area() - oval.overlap(&turned)) * 6.0);
+}
+
+#[test]
+fn an_ellipse_cut_by_a_smaller_one_reaching_a_millionth_past_its_end_leaves_two_rims_crossing() {
+    let oval = Section::ellipse([25.0, 10.0], DVec2::new(-12.5, 0.0), 22.5);
+    let inner = Section::ellipse([25.0, 4.374999], DVec2::new(-9.375, 0.0), 16.875);
+    let cut = raised(oval, 0.0, 47.5)
+        .cut_by(&raised(inner, 0.0, 47.5))
+        .expect("the smaller ellipse is cut out, crossing the other twice beside its end");
+    held(&cut, (oval.area() - oval.overlap(&inner)) * 47.5);
+}

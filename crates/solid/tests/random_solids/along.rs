@@ -101,6 +101,12 @@ impl Leaf {
                     .flat_map(|(center, radius)| disc(&seen, *center, *radius));
                 union(rectangles.chain(discs).collect())
             }
+            Outline::Ellipse { .. }
+            | Outline::Chorded { .. }
+            | Outline::OvalSlot { .. }
+            | Outline::OvalRing { .. } => outline
+                .oval_stretches(&seen, by)
+                .expect("an outline an ellipse bounds"),
         };
         let Some(slab) = slab(&seen, height.min(0.0) - by, height.max(0.0) + by) else {
             return Some(Vec::new());
@@ -170,6 +176,12 @@ impl Leaf {
                 .iter()
                 .flat_map(|(center, radius)| round(*center, *radius))
                 .collect(),
+            Outline::Ellipse { .. }
+            | Outline::Chorded { .. }
+            | Outline::OvalSlot { .. }
+            | Outline::OvalRing { .. } => outline
+                .oval_extremes(base, u, v)
+                .expect("an outline an ellipse bounds"),
         };
         corners
             .iter()
@@ -228,7 +240,7 @@ fn rectangle(seen: &Seen, low: DVec2, high: DVec2) -> Vec<Stretch> {
 /// of sides square to the axis `walled` lying on its outline: a line through
 /// a corner, where a straight run meets an arc, crosses that pair and not the
 /// one inside the area.
-fn clipped(seen: &Seen, low: DVec2, high: DVec2, walled: Option<usize>) -> Vec<Stretch> {
+pub(super) fn clipped(seen: &Seen, low: DVec2, high: DVec2, walled: Option<usize>) -> Vec<Stretch> {
     if low.cmpge(high).any() {
         return Vec::new();
     }

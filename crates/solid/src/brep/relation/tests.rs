@@ -167,6 +167,7 @@ fn class(relation: &Relation) -> &'static str {
         Relation::Line(_) => "line",
         Relation::Lines(_) => "lines",
         Relation::Tangent(_) => "tangent",
+        Relation::Parallel(_) => "parallel",
         Relation::Circle(_) => "circle",
         Relation::Meet(_) => "meet",
         Relation::Rulings { .. } => "rulings",
@@ -345,5 +346,7 @@ fn sliced_alone(one: &Surface, other: &Surface) -> Relation {
 
 mod conical;
 mod crossing;
+mod elliptic;
 mod lattice;
 mod sliced;
+mod square;

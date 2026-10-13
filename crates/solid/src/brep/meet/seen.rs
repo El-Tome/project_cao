@@ -1,13 +1,22 @@
-//! The curve two perpendicular cylinders meet along, seen in the parameters
+//! The curve two perpendicular walls meet along, seen in the parameters
 //! `(θ, h)` of either of them, `θ` unwrapped along the component so that it
 //! never jumps by a turn.
+//!
+//! On an elliptic wall `θ` is the eccentric angle (#571). The section is
+//! the circle of its half-width `w` along the height, sheared and scaled
+//! (`pair.rs`), and the eccentric angle turns as that circle's own angle
+//! does: a point at the height `y` of the chords, its signed root `r`
+//! across them, stands at `θ_w + angle(y, ∓r)` on the first wall and
+//! `θ_w + angle(y − d, r)` on the second, `θ_w` the eccentric angle of the
+//! wall's reach along the height. So a circular wall's reading carries over
+//! with the root in place of the coordinate across the chords.
 
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 use glam::{DVec2, DVec3};
 
-use super::pair::Pair;
-use crate::brep::curve::Meet;
+use super::pair::{Pair, Section, reached};
+use crate::brep::curve::{Meet, Wall};
 use crate::brep::surface::Cylinder;
 
 /// How a component goes round a cylinder's axis: facing one way, never
@@ -24,22 +33,39 @@ impl Meet {
         let pair = self.pair();
         let signs = pair.signs(self.component);
         let [point, speed, bend] = pair.local(signs, t);
+        let start = self.start(&pair, on_first);
         if on_first {
-            let across = [point, speed, bend].map(|v| DVec2::new(v.x, v.y));
+            let across = match self.first {
+                Wall::Cylinder(_) => [point, speed, bend].map(|v| DVec2::new(v.x, v.y)),
+                Wall::Elliptic(_) => {
+                    let (y, [x, _]) = pair.roots(signs, t);
+                    [0, 1, 2].map(|order| DVec2::new(x[order], y[order]))
+                }
+            };
             let around = around_first(&pair, signs[0], t);
-            let [angle, turn, sway] = angles(across, around, start(&self.first, pair.axes[0]));
+            let [angle, turn, sway] = angles(across, around, start);
             [
                 DVec2::new(angle, point.z),
                 DVec2::new(turn, speed.z),
                 DVec2::new(sway, bend.z),
             ]
         } else {
-            let mut across = [point, speed, bend].map(|v| DVec2::new(v.y, v.z));
-            across[0] -= DVec2::new(pair.d, pair.e);
+            let across = match self.second {
+                Wall::Cylinder(_) => {
+                    let mut across = [point, speed, bend].map(|v| DVec2::new(v.y, v.z));
+                    across[0] -= DVec2::new(pair.d, pair.e);
+                    across
+                }
+                Wall::Elliptic(_) => {
+                    let (y, [_, z]) = pair.roots(signs, t);
+                    let y = [y[0] - pair.d, y[1], y[2]];
+                    [0, 1, 2].map(|order| DVec2::new(y[order], z[order]))
+                }
+            };
             let around = around_second(&pair, signs[1], t);
-            let [angle, turn, sway] = angles(across, around, start(&self.second, pair.axes[1]));
-            let axis = self.second.axis;
-            let height = (pair.world(point) - self.second.origin).dot(axis);
+            let [angle, turn, sway] = angles(across, around, start);
+            let axis = self.second.axis();
+            let height = (pair.world(point) - self.second.origin()).dot(axis);
             [
                 DVec2::new(angle, height),
                 DVec2::new(turn, pair.direction(speed).dot(axis)),
@@ -65,11 +91,11 @@ impl Meet {
         let [point, speed, bend] = pair.local(pair.signs(self.component), t);
         let point = pair.world(point);
         let [speed, bend] = [speed, bend].map(|local| pair.direction(local));
-        let cylinder = if on_first { &self.first } else { &self.second };
+        let wall = if on_first { &self.first } else { &self.second };
         let across = |origin: DVec3| {
             [point - origin, speed, bend].map(|v| DVec2::new(v.dot(beside.u), v.dot(beside.v)))
         };
-        let [mine, theirs] = [across(beside.origin), across(cylinder.origin)];
+        let [mine, theirs] = [across(beside.origin), across(wall.origin())];
         let parted = theirs[0].perp_dot(mine[0]).atan2(theirs[0].dot(mine[0]));
         let [mine_turn, mine_sway] = rates(mine);
         let [their_turn, their_sway] = rates(theirs);
@@ -97,10 +123,11 @@ impl Meet {
         }
         let signs = pair.signs(self.component);
         let period = pair.period();
-        let (radius, gaps, from) = if on_first {
-            (pair.a, pair.x_gaps, start(&self.first, pair.axes[0]))
+        let from = self.start(&pair, on_first);
+        let (radius, gaps) = if on_first {
+            (pair.a, pair.x_gaps)
         } else {
-            (pair.b, pair.z_gaps, start(&self.second, pair.axes[1]))
+            (pair.b, pair.z_gaps)
         };
         let (sin, cos) = (theta - from).sin_cos();
         let quarter = (theta - from) / 2.0 - FRAC_PI_2 / 2.0;
@@ -135,8 +162,11 @@ impl Meet {
         .into_iter()
         .filter(|&t| t < period)
         .filter(|&t| {
-            let point = pair.local(signs, t)[0];
-            let root = if on_first { point.x } else { point.z - pair.e };
+            let root = match (on_first, pair.sections[usize::from(!on_first)]) {
+                (true, Section::Round) => pair.local(signs, t)[0].x,
+                (false, Section::Round) => pair.local(signs, t)[0].z - pair.e,
+                (_, Section::Oval { .. }) => pair.roots(signs, t).1[usize::from(!on_first)][0],
+            };
             on_its_end || root * side > 0.0
         })
         .collect();
@@ -193,6 +223,23 @@ fn around_second(pair: &Pair, sign: f64, t: f64) -> Around {
         [false, true] => Around::Facing(DVec2::X),
         [true, false] => Around::Facing(DVec2::NEG_X),
         [false, false] => Around::Facing(DVec2::new(0.0, sign)),
+    }
+}
+
+impl Meet {
+    /// Where the angle of the first wall, or of the second, stands for the
+    /// direction of the frame its section is read in: on a cylinder, the
+    /// first axis of the pair for the first, the second for the second; on
+    /// an elliptic wall, where the eccentric angle stands for the same
+    /// direction of the circle of its half-width.
+    fn start(&self, pair: &Pair, on_first: bool) -> f64 {
+        let wall = if on_first { &self.first } else { &self.second };
+        let rank = usize::from(!on_first);
+        match wall {
+            Wall::Cylinder(cylinder) => start(cylinder, pair.axes[rank]),
+            Wall::Elliptic(oval) if on_first => reached(oval, pair.axes[1]) - FRAC_PI_2,
+            Wall::Elliptic(oval) => reached(oval, pair.axes[1]),
+        }
     }
 }
 

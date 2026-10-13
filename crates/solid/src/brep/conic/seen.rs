@@ -13,6 +13,7 @@ use std::f64::consts::{PI, TAU};
 use glam::{DVec2, DVec3};
 
 use super::built::Section;
+use super::elliptic::Slice;
 use super::{Conic, On, Round};
 
 impl Conic {
@@ -43,6 +44,15 @@ impl Conic {
                     DVec2::new(start + root * t, (point - cylinder.origin).dot(axis)),
                     DVec2::new(root, speed.dot(axis)),
                     DVec2::new(0.0, bend.dot(axis)),
+                ]
+            }
+            Round::Elliptic(wall) => {
+                let root = self.k.sqrt();
+                let start = wall.parameters(self.anchor).x;
+                [
+                    DVec2::new(start + root * t, (point - wall.origin).dot(wall.axis)),
+                    DVec2::new(root, speed.dot(wall.axis)),
+                    DVec2::new(0.0, bend.dot(wall.axis)),
                 ]
             }
             Round::Cone(cone) => {
@@ -91,18 +101,25 @@ impl Conic {
         match self.round {
             Round::Cylinder(cylinder) => cylinder.parameters(self.anchor).x,
             Round::Cone(cone) => cone.parameters(self.anchor).x,
+            Round::Elliptic(wall) => wall.parameters(self.anchor).x,
         }
     }
 
     /// The point of the cut on the ruling at the wall's angle `theta`, its
     /// part across the axis that angle's radial direction times a length, so
     /// that it stands at that very angle to rounding, and its parameter: on a
-    /// cylinder `(θ − θ_A)/√k`, on a cone read back off the point, as many
-    /// periods on as `theta` turns.
+    /// cylinder or an elliptic wall `(θ − θ_A)/√k`, on a cone read back off
+    /// the point, as many periods on as `theta` turns.
     pub fn at_angle(&self, theta: f64) -> (f64, DVec3) {
-        let point = Section::of(&self.plane, &self.round).point(theta);
+        let point = match self.round {
+            Round::Elliptic(wall) => Slice::of(&self.plane, &wall).point(theta),
+            Round::Cylinder(_) | Round::Cone(_) => Section::of(&self.plane, &self.round)
+                .map_or(DVec3::NAN, |section| section.point(theta)),
+        };
         let t = match self.round {
-            Round::Cylinder(_) => (theta - self.anchor_angle()) / self.k.sqrt(),
+            Round::Cylinder(_) | Round::Elliptic(_) => {
+                (theta - self.anchor_angle()) / self.k.sqrt()
+            }
             Round::Cone(_) => {
                 let t = self.parameter(point);
                 let seen = self.seen_on(super::On::Wall, t)[0].x;
@@ -114,16 +131,20 @@ impl Conic {
     }
 
     /// How far a stretch stands from its wall's axis at most: a cylinder's
-    /// radius; on a cone, at an end, or at the far vertex of an ellipse where
-    /// the stretch passes it, `|C|/|D|`, `D` least there.
+    /// radius, an elliptic wall's major half-axis; on a cone, at an end, or
+    /// at the far vertex of an ellipse where the stretch passes it, `|C|/|D|`,
+    /// `D` least there.
     pub fn widest(&self, from: f64, to: f64) -> f64 {
         let cone = match self.round {
             Round::Cylinder(cylinder) => return cylinder.radius,
+            Round::Elliptic(wall) => return wall.major,
             Round::Cone(cone) => cone,
         };
         let ends = [from, to].map(|t| cone.off_axis(self.point(t)));
         let widest = ends[0].max(ends[1]);
-        let section = Section::of(&self.plane, &self.round);
+        let Some(section) = Section::of(&self.plane, &self.round) else {
+            return widest;
+        };
         if self.k <= 0.0 {
             return widest;
         }

@@ -36,8 +36,9 @@ pub(super) fn slid(first: &Body, second: &Body, scale: Scale) -> Option<Body> {
 }
 
 /// The move that takes `before` to `after` where it is a translation: a
-/// cylinder moved square to its axis keeping its radius, a plane along its
-/// normal. None where nothing moved, or a radius changed.
+/// cylinder moved square to its axis keeping its radius, an elliptic wall
+/// keeping its axis and its half-axes, a plane along its normal. None where
+/// nothing moved, or a radius changed.
 fn translation(before: &Surface, after: &Surface) -> Option<DVec3> {
     let by = match (before, after) {
         (Surface::Cylinder(one), Surface::Cylinder(other))
@@ -45,10 +46,17 @@ fn translation(before: &Surface, after: &Surface) -> Option<DVec3> {
         {
             other.origin - one.origin
         }
+        (Surface::Elliptic(one), Surface::Elliptic(other))
+            if *other == one.moved(other.origin - one.origin) =>
+        {
+            other.origin - one.origin
+        }
         (Surface::Plane(one), Surface::Plane(other)) if one.normal == other.normal => {
             one.normal * (other.offset() - one.offset())
         }
-        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_), _) => return None,
+        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
+            return None;
+        }
     };
     (by != DVec3::ZERO).then_some(by)
 }

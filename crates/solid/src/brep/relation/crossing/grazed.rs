@@ -11,7 +11,10 @@
 //! rounding, so the corner is read there: in closed form on the hairpin,
 //! the same bits whichever of the triple's three curves reaches it. A pair
 //! of crossings within the tolerance of each other is one touch, where the
-//! hairpin turns back along the plane.
+//! hairpin turns back along the plane. An elliptic wall's hairpin (#571) is
+//! read the same way: a plane leaning a ten-thousandth of a degree on the
+//! ruling an elliptic post or hole reaches furthest along (5571639751,
+//! 5571654147).
 //!
 //! The line still decides whether it touches the wall, as every touch is
 //! decided, and its crossing stands where the hairpin has none near it to
@@ -55,6 +58,7 @@ pub(super) fn grazed(
     let round = match wall {
         Surface::Cylinder(cylinder) => Round::Cylinder(*cylinder),
         Surface::Cone(cone) => Round::Cone(*cone),
+        Surface::Elliptic(elliptic) => Round::Elliptic(*elliptic),
         Surface::Plane(_) => return None,
     };
     let nearest = |point: DVec3| {
@@ -148,6 +152,7 @@ fn route(planes: [&Plane; 2], wall: &Surface, point: DVec3, scale: Scale) -> Opt
     let normal = match wall {
         Surface::Cylinder(cylinder) => cylinder.radial(cylinder.parameters(point).x),
         Surface::Cone(cone) => cone.normal(cone.parameters(point).x),
+        Surface::Elliptic(elliptic) => elliptic.normal(elliptic.parameters(point).x),
         Surface::Plane(_) => return None,
     };
     let shared = planes[0].normal.cross(planes[1].normal);

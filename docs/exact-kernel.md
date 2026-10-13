@@ -14,9 +14,11 @@ Kept current, so that whoever takes the next step knows where to start.
 It can:
 
 - **compute the part.** `Body` holds an exact body or the flats. A profile of
-  straight runs and arcs, holes included, is raised square to its plane, then
-  joined or cut, by the exact kernel; the arcs reach it as arcs, centre and
-  turn, through `Outline::runs`. What is drawn, lit under the cursor and
+  straight runs, arcs and ellipses, holes included, is raised square to its
+  plane, then joined or cut, by the exact kernel; the arcs reach it as arcs,
+  centre and turn, and an ellipse, whole or in arcs, as its centre, its
+  half-axes and its eccentric turn (`Run::Oval`, #571), through
+  `Outline::runs`. What is drawn, lit under the cursor and
   picked are its own triangles, each knowing its face, and a click reads the
   true surface's normal. The section view is read off those triangles. An
   exact body is written to the geometry cache whole and read back as the
@@ -47,11 +49,14 @@ It can:
   the axis (`brep/turned.rs`). The section [Turning](#turning) says how.
 - surfaces: planes, circular cylinders parallel or square to each other, and
   circular cones against cylinders and cones of their axis; a plane against
-  a cylinder or a cone at any angle (#552); curves: lines, circles, the
+  a cylinder or a cone at any angle (#552); elliptic cylinders (#571)
+  against planes at any angle and round or elliptic walls parallel or
+  square to them; curves: lines, circles, ellipses, the
   conics a plane cuts a wall along at a slant — an ellipse, a parabola, a
-  branch of a hyperbola — and the curve two perpendicular cylinders meet
-  along. The section [The conic a plane cuts a wall
-  along](#the-conic-a-plane-cuts-a-wall-along) says how a conic is held.
+  branch of a hyperbola — and the curve two perpendicular walls meet
+  along, either of them elliptic (#571). The section [The conic a plane
+  cuts a wall along](#the-conic-a-plane-cuts-a-wall-along) says how a conic
+  is held.
 - **number its faces as the flats do**, so a drawing laid on a face keeps it
   when a size changes: 0 for the floor of a raise, 1 for its top, one per run
   for the walls — two runs on one line, or two arcs of one circle, make one
@@ -76,9 +81,10 @@ It can:
   faces themselves before the kernel declines (`combine/clear.rs`); a plane
   at a slant to a wall is asked the same first, so that the conic it cuts
   is registered only where two faces may meet along it.
-- hand a revolution of a profile with an arc, or an area bounded by an
-  ellipse, **to the flats**, from that step on: it has no sphere, torus or
-  ellipse. So does a profile of straight runs the reading cannot lay against
+- hand a revolution of a profile with an arc or an ellipse **to the
+  flats**, from that step on: it has no sphere or torus. An ellipse raised
+  is the exact kernel's since #571, and what it declines there is a broken
+  step, never the flats. So does a profile of straight runs the reading cannot lay against
   its axis: pinched at a corner on the axis, or a corner of it within the
   tolerance of a slant it does not end.
 
@@ -86,10 +92,11 @@ Left, in the order #497 set:
 
 - revolutions of arcs: spheres, tori. Those of straight runs are done:
   parallel or square to the axis (#533), slanted (#536);
-- an ellipse drawn in a profile, raised: the elliptic cylinder. A plane
-  crossing a cylinder or a cone at a slant is done (#552);
 - a cone against a cylinder or a cone of another axis, such as a radial hole
-  through it, and two cylinders at a skew angle;
+  through it, two cylinders at a skew angle, and an elliptic wall against a
+  cone or a wall at a skew angle. A plane crossing a cylinder or a cone at a
+  slant is done (#552), and the elliptic cylinder against planes and walls
+  parallel or square to it (#571);
 - an exact STEP;
 - chamfers and fillets on a straight edge, then on a circular one, then where
   fillets meet at a corner;
@@ -124,21 +131,32 @@ Known and still open:
 - a face standing inside a cylinder's hollow is not decided clear of a
   cylinder at a skew angle to it: a boss raised, or a hole cut, square to
   the elliptic face a slanted cut leaves on a shaft declines, though the
-  tool never reaches the shaft's wall.
+  tool never reaches the shaft's wall;
+- the elliptic walls (#571): a plane in the warning band through a wall's
+  tangent line, the same ellipse turned a hair beside a block's planes, two
+  touches at the ends of a half-axis beside a third wall, a third surface
+  through a node of a meet, and a round bar touching an elliptic hole at a
+  point, named in `exact-kernel-failures.md`, "#571: elliptic walls".
 
 ## Scope
 
-- **Surfaces:** planes, circular cylinders and circular cones, nothing else.
+- **Surfaces:** planes, circular cylinders, elliptic cylinders (#571) and
+  circular cones, nothing else.
 - **Curves:** lines, circles, the conics a plane cuts a cylinder or a cone
   along at a slant (#552), and the curve where two perpendicular cylinders
-  meet. A cone meets a plane square to its axis, a cylinder or a cone of its
+  meet, either of them elliptic (#571). An elliptic wall meets a plane
+  square to its axis along an ellipse, a plane along it along the rulings
+  it cuts or touches, any other plane along an ellipse, and a round or
+  elliptic wall parallel to it along up to four rulings. A cone meets a
+  plane square to its axis, a cylinder or a cone of its
   axis along circles or at its apex, a plane holding its axis along two
   rulings, and any other plane along an ellipse, a parabola, a branch of a
   hyperbola, two rulings through its apex, the ruling it touches along, or
   its apex alone. Two cylinders at any other angle than parallel or square,
   a cone against a cylinder or a cone of another axis, and a cone within the
-  tolerance of a plane or a cylinder of its axis all across the box are
-  declined where their faces may cross: the operation gives no answer, which
+  tolerance of a plane or a cylinder of its axis all across the box, and
+  an elliptic wall against a cone or a wall neither parallel nor square to
+  it, are declined where their faces may cross: the operation gives no answer, which
   the harness counts as such rather than as a wrong solid. Where the faces stand clear of each other — a
   bore square into one side of a hexagonal prism, beside the next side, or
   drilled right through it past the far side's slanted neighbours — the pair
@@ -151,8 +169,8 @@ Known and still open:
   Every leaf of the sixteen cases and
   of the campaign stands on a plane of the origin, so neither is needed to
   hold them.
-- **Operations:** raise a profile of straight runs and arcs along its plane's
-  normal; turn a profile of straight runs, each parallel, square or slanted
+- **Operations:** raise a profile of straight runs, arcs and ellipses along
+  its plane's normal; turn a profile of straight runs, each parallel, square or slanted
   to the axis; join, cut. Spheres and tori, what an arc turns into, are
   out. A turn about a line that is no axis of the planes the rest
   of the part stands on brings cylinders at a skew angle to those, and
@@ -211,7 +229,7 @@ The decisions, in the order taken, once per operation:
    coaxial and flush are comparisons of ids.
 2. **The relation of a pair** of surfaces whose faces' boxes overlap: apart,
    one line, a tangent line, two lines, a circle, or the curve two
-   perpendicular cylinders meet along with its special points. This is the
+   perpendicular walls meet along with its special points. This is the
    only place a tangency is decided; once decided, it is built exactly — one
    line from a formula, never a double root. Two perpendicular cylinders,
    one of each operand, a hair from touching — inside, outside, or at a
@@ -267,6 +285,29 @@ The decisions, in the order taken, once per operation:
    two surfaces touching, they stand within `EPS` of each other far from
    the lines, `EPS` over the angle on either side of each, and decisions 5,
    6 and 9 read the pair as they read a touch.
+   Two parallel walls, an elliptic one among them (#571), meet along the
+   rulings their sections cross or touch at (`relation/walls.rs`). The
+   distance from one section to the other turns only at the feet of the
+   normals the two share: found in closed form for a circle against an
+   ellipse, from Eberly's equation of the feet of the normals from a point,
+   and for two ellipses with the rounder one mapped onto a circle. A
+   crossing is halved for between two such feet whose gaps part in sign; a
+   foot within `EPS` of the other wall is a touch, its ruling laid halfway
+   between the two walls. Two crossings are `Lines` and one touch
+   `Tangent`, as for two circular walls, which keep their bits; four
+   crossings, two touches, or a touch beside crossings are `Parallel`, each
+   ruling with whether the walls only touch along it, and every reader of a
+   relation answers it. Two walls within `G` of each other at every foot —
+   an ellipse a hair from round about a circle of its size — are
+   unsupported: they stand within `EPS` of each other over bands no ruling
+   tells apart, and built, such a pair was drawn backwards, left open, or
+   kept matter a cut took away. A wall the second operand alone carries, a
+   hair from touching, is moved onto the touch square to the axes; one
+   touching at both ends of a half-axis or of a diameter — an ellipse
+   inside a circle as long as its major half-axis — is grown or shrunk
+   across the two, which no translation settles, by no more than `G`
+   (`canonical/touches/walls.rs`). Crossings all at a sine of a hundredth
+   or less graze, as two walls of one radius do.
    A wall standing within `EPS` of two parallel planes an operand decided
    apart, a hair apart on one side of it — at a finer tolerance, before a
    later leaf grew the reach — is
@@ -387,7 +428,11 @@ The decisions, in the order taken, once per operation:
    60° through a bore's lowest line at a tube's end shares a line with the
    end found 3e-14 inside the bore, which crossed it twice 3.2e-6 apart
    where the cut's ellipse touches the end once, a sliver between them no
-   face agreed on (5544100660). A plane leaning along the axis is left to
+   face agreed on (5544100660). An elliptic wall's section is held the same
+   way (#571), its rim, a conic, reaching the touch through the line its
+   plane shares with the steep one: two cuts at 45° and 75° through one
+   point of an elliptic post's rim (5571628398). A plane leaning along the
+   axis is left to
    cross twice: its hairpin's vertex stands where rounding over its lean
    puts it, and its arms pass the square plane where the line's two roots
    do (5549116996). A line found on its own keeps crossing twice however
@@ -422,7 +467,9 @@ The decisions, in the order taken, once per operation:
    cut or touch the other along lines — a plane and a wall, two walls read
    parallel — crosses it where those lines cross the curve's other plane,
    by the call those lines make themselves (`relation/crossing/lying.rs`),
-   and a conic crosses such a plane the same way. Only where the lines
+   and a conic crosses such a plane the same way, on an elliptic wall too
+   (#571): an elliptic hole reaching a hair past a cut laid along it
+   (5571636439). Only where the lines
    cross that plane steeply, at a cosine of a tenth or more: shallower, a
    hair moves the place along them by far more than the other pairs of the
    triple do (5524010446). A curve lying on a third surface, taken for one
@@ -647,6 +694,20 @@ The decisions, in the order taken, once per operation:
    meant: a slot's cap, a rounded corner or a bore drawn on a hole of its
    radius, a hair off.
 
+   Two elliptic walls (#571), one of each operand, are one surface where
+   their axes, their half-axes and the turn of their major half-axes stand
+   within `G` of each other: the turn measured by how far it moves the wall
+   square to itself, its sine times the difference of the half-axes, so
+   that a section a hair from round, turned any way, is still itself. The
+   second's rims are cut again on the first's wall
+   (`canonical/crescent/oval.rs`), and its arcs read again at their
+   corners, where every corner its operand drew on it already stands on
+   the first's wall: half an ellipse cut along its major axis, joined to
+   the same ellipse a hair wider across, whose ends both walls share
+   (seed 6 of the ellipses' draw). A wall carrying a corner off the
+   first's is left two, and declined. A circle and an ellipse are never
+   merged this way.
+
    A cone (#536) is decided against a cylinder or a cone about one axis
    only: a cone and a wall or a cone, one of each operand, whose axes are
    parallel and stand within `G` of each other, whatever their radii, are
@@ -792,13 +853,15 @@ The decisions, in the order taken, once per operation:
     angle, along two rulings a band apart, or misses it by the hair it was
     meant to touch: a rounded rectangle drawn a hair and a half beside a
     block touched its own sides with its corners' walls and crossed the
-    block's, and declined (8540801, 8510444). Without the wall the skin is
+    block's, and declined (8540801, 8510444). An elliptic wall (#571)
+    touches one as far across its axis as its support reaches: a slot with
+    elliptic ends drawn a hair beside a block. Without the wall the skin is
     well defined, and the planes are left two. Where the move is not made,
     as decision 8's, they are left two too.
 
 11. **A plane a hair off square to, or along, a wall's axis** (#552). A
-    plane of one operand and a cylinder or a cone of the other, their faces
-    in boxes that meet, the plane leaning off square to the wall's axis or
+    plane of one operand and a cylinder, a cone or an elliptic wall (#571)
+    of the other, their faces in boxes that meet, the plane leaning off square to the wall's axis or
     off along it: the second operand is turned so that the plane lies
     exactly square or along, about where the two operands meet and set down
     on what it held against the first (below), where that turn moves none
@@ -838,7 +901,12 @@ The decisions, in the order taken, once per operation:
     first operand's is laid on that one's bits, so that a circle and its
     wall share their axis, and identity, decisions 1 and 8 then compare
     exactly. A tool turned 1e-7 degrees off a bore of its radius is then
-    merged onto it by decision 8.
+    merged onto it by decision 8. An elliptic wall (#571) turns its axis
+    and its half-axes together, their lengths kept to the bit, and the
+    section a plane cuts it along, its rim, is cut again on the turned
+    plane and wall; its major half-axis turned within rounding of an
+    elliptic wall's of the first is laid on that one's bits too, so that
+    decision 1 compares the two ellipses exactly.
 
     Where the turn is made about decides where the operand ends up, a hair
     either way, and a hair parts what the second held against the first.
@@ -863,7 +931,9 @@ The decisions, in the order taken, once per operation:
     touching a cylinder of the other across its axis. Turned about where
     the operands meet, a slot's side drawn on a disc's wall and a rounded
     block's seam drawn on a ring's stood a fraction of `EPS` off, and were
-    refused (5546322326, 5546607658); their edges lay them. A flat is not
+    refused (5546322326, 5546607658); their edges lay them. An elliptic
+    wall is touched across its axis where an edge stands as far from it as
+    its support reaches across the edge. A flat is not
     laid on a wall it touches: a face drawn on a turn's wall, a hair inside
     a second wall of the turn a hair larger, was laid on that one, further
     off the first, and refused (5546111832). A flat passing
@@ -893,8 +963,8 @@ The decisions, in the order taken, once per operation:
     and was cut along two rulings it does not hold (5543232861); where a
     canonical direction would
     turn round, the way its curves run with it; nor where the operand holds
-    a conic or the curve two perpendicular cylinders meet along, which a
-    leaf never does. The pair is then built as drawn.
+    a conic other than an elliptic wall's whole section, or the curve two
+    perpendicular cylinders meet along, which a leaf never does. The pair is then built as drawn.
 
     Only a plane against a wall's axis, as #552 decided. Turning for any
     pair of directions — two planes, two walls — held fourteen more of the
@@ -1003,6 +1073,26 @@ same input gives the same bits.
   tip on the axis is a vertex of its cone's face, a whole turn's included
   (`Face::apex`): the listing lists it, and soundness holds it to the
   geometry as any other vertex.
+- **Elliptic walls** (#571, `brep/surface/elliptic.rs`). An ellipse raised
+  is an `EllipticCylinder`, a surface beside the circular cylinder rather
+  than a cylinder of two radii, so that every circular path keeps its bits.
+  It keeps the point of its axis nearest the origin, an axis with a fixed
+  sign, `u` along its major half-axis with a fixed sign, `v = axis × u`,
+  and its two half-axes, the major first. It is read in `(θ, h)`, `θ` the
+  eccentric angle from `u` towards `v`: parallel elliptic walls do not
+  share where their angles start, as circular ones do. Its normal is the
+  ellipse's through the point, and a point's distance to it is the true one,
+  from the foot of the normal (Eberly's method). Its rims are #552's conic
+  read on the elliptic wall, and so is what any plane cuts it along. An
+  ellipse is a circle where its half-axes are one, decided once, where the
+  profile is read (`piece/oval.rs`): an arc of ellipse, which carries
+  corners, within `EPS`; a whole ellipse within decision 8's hair `G`, Tom's
+  decision of 2026-10-13. A hair is below any step the software will show —
+  #514 holds the user's precision at a tenth of a micron, and `G` is some
+  two nanometres on a part a hundred millimetres across — and kept elliptic,
+  such a wall stood within `G` of a circle of its size all round, which
+  decision 2 declines. Either way the wall is the circle of the mean
+  half-axis, a circular cylinder.
 - **Topology** is arenas of plain structs with `u32` ids: vertices with their
   point and the surfaces they lie on, edges with their curve and parameter
   range, faces with their surface, their side, and loops of oriented uses of
@@ -1188,8 +1278,8 @@ covered once from each side.
 9. **Verification.** The listing is checked before the body is handed back.
    What the kernel cannot verify it does not answer.
 10. **A lean read unstably** (#552, `combine/unstable.rs`). Once decision 11
-    has turned the second operand, a plane of one operand and a cylinder or
-    a cone of the other, their faces near enough to meet and not standing
+    has turned the second operand, a plane of one operand and a cylinder, a
+    cone or an elliptic wall (#571) of the other, their faces near enough to meet and not standing
     clear, may still lean off square to the wall's axis, or off along it,
     by more than decision 11 lays exactly and by a sine under a thousandth.
     The conic it cuts divides by that lean, so the step's rounding is
@@ -1295,7 +1385,7 @@ lying on the conic's plane is the conic, along the surface (9501873,
   broken, a frustum's line of touch read as two arcs, a slower gate. The
   list is in `exact-kernel-failures.md`, "Merged as it stands".
 
-## The curve two perpendicular cylinders meet
+## The curve two perpendicular walls meet
 
 In a frame whose third axis is the first cylinder's and whose first axis is the
 second's, the first is `x² + y² = a²` and the second `(y − d)² + (z − e)² = b²`.
@@ -1309,7 +1399,46 @@ join, or, within `EPS`, both: a singular point where four arcs meet. That gives
 the configurations: two loops, one loop, a figure of eight through a node
 (internal tangency), two ellipses crossing at two nodes (equal radii, axes
 meeting), a single point of contact. Nodes are vertices. The parameter is
-`y = m + ℓ sin ψ`, which keeps the roots free of cancellation at the ends.
+`y = m − ℓ cos t`, and each root is factored through `cos(t/2)` and
+`sin(t/2)`, which keeps it free of cancellation at the ends.
+
+Either wall may be elliptic (#571). Its section cuts each chord at the
+height `y` about a middle moving along the diameter conjugate to the
+chords, `x = κy ± α√((w − y)(w + y))`: `w` is how far the wall reaches
+along the height — its support — and `κ`, `α` come off its quadratic form
+in the pair's frame (`meet/pair.rs`). So everything that hangs on the span
+— its ends, the gaps, the configurations, the nodes, the contact, the
+parameter and the factored roots — is a circular pair's with `a` and `b`
+the two half-widths, and only the point and its derivatives gain the shear
+and the scale. Two cylinders keep their own expressions, bit for bit. On
+an elliptic wall the curve is seen in the eccentric angle, which turns as
+the angle of the circle of its half-width does, from where the wall
+reaches furthest along the height. Decision 2's snap moves the second wall
+across the first's axis by the gap, as for a cylinder; at a node of both
+ends an elliptic wall takes its partner's half-width by its half-axis
+nearer the height alone, the hair a drawing of one half-width leaves. The
+curve is then built on the two walls as decision 2 left them, not on a
+copy of one moved onto the touch as two cylinders' is: where no move could
+be made — an elliptic bar a hair from a node with both walls of a ring,
+held at one by the other — the copy stood a hair off the wall the
+corners around the curve are found on, and a rim crossing the bar at a
+slant put them further than the tolerance from the curve (5571519047).
+Equal half-widths with the axes meeting still give two planar components,
+`(x − κ₁y)/α₁ = ±(z − e − κ₂(y − d))/α₂`. A circle on one wall crosses an
+elliptic wall square to it where the lines its plane cuts that wall along
+cross it; the curve itself crosses a third surface as two cylinders' does.
+An elliptic wall at any other angle than parallel or square to another
+wall still declines where their faces may cross.
+
+Still open on square walls with an elliptic one among them, under one
+case in a thousand of the crossed draw on fresh seeds: a third surface
+through a node, or a hair from one — a bore's end cap through the node
+of a figure of eight, a contact on a third wall's extreme ruling — left
+unverified or a tie; a very flat elliptic wall at a node of a round one,
+the two within a chord's sag of each other far along it, and a round bar
+touching an elliptic hole at a point, drawn crossing; a crescent between
+two parallel walls a hair apart, each at a node of an elliptic wall,
+read backwards by the listing.
 
 ## Triangles
 
@@ -1444,6 +1573,17 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   leaning 9.4e-6° past the hair (5550133356). Not every plane an end lies
   on: a circle a hair off a block's face all along lost a grid angle by
   each end, and the drawing lost matter (5561366633).
+- **Elliptic walls** (#571). An elliptic wall is divided as a circle of its
+  major half-axis, on a grid of eccentric angles. The curve it meets a wall
+  square to it along is sampled as two cylinders' is, on that grid. Its
+  rims, and that curve, take a sample at the eccentric angle of every
+  sample of the curve, as a cylinder's circles take a ray through it, so
+  that two walls cut from each other are cut in strips between them and
+  stay ordered (5571534144); and at that of every sample of another curve
+  standing inside the wall closer than twice a chord's sag where the wall
+  holds a face, found after a first sampling as a cylinder's are
+  (`sampling/beneath/oval.rs`): a bar's cap ending inside a boss a hair
+  above its rim (5571519943).
 - **Contact.** Chords sag towards their own cylinder's axis, so against a plane
   or a convex neighbour they retreat. Where two curved faces face each other on
   their hollow side closer than a chord's sag — an internal tangency, a near
@@ -1558,7 +1698,18 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   where it stands within a thousandth of `EPS` of such a surface: two circles
   of one radius crossing a hair apart stand within the rounding of each other
   a long way round from their vertex, and a place of each there, on no ray
-  they share, has the two arcs of a cap cross back and forth. What
+  they share, has the two arcs of a cap cross back and forth. Two
+  parallel walls, an elliptic one among them (#571), that meet or stand
+  within twice a chord's sag of each other are sampled the same way, on
+  rays from a point inside both (`tessellation/sampling/abreast.rs`) —
+  through the steps of either's grid, the vertices on either, and the
+  places an elliptic rim takes alone, where a plane along the axis reaches
+  furthest past it. The walls such pairs join into a group are all sampled
+  from one point inside every one of them, the axis of the smallest; where
+  no such point is, each pair standing close is sampled from its own, and a
+  pair that only crosses keeps its grids. A whole rim of an elliptic wall
+  ends where it starts, and a place beside that point is measured against
+  both ends of it. What
   still crosses is refined locally, and what survives
   that is reported as a failure of the triangles, apart from the kernel's.
 

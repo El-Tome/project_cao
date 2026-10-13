@@ -104,6 +104,7 @@ pub(super) fn related(
                 | Relation::Line(_)
                 | Relation::Lines(_)
                 | Relation::Tangent(_)
+                | Relation::Parallel(_)
                 | Relation::Circle(_)
                 | Relation::Rulings { apex: None, .. }
                 | Relation::Ruling { apex: None, .. }

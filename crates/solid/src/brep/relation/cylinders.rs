@@ -2,7 +2,7 @@
 //! ones meet along the curve of `meet.rs`, and any other angle is declined.
 
 use super::{Relation, parallel, sorted, square};
-use crate::brep::curve::Line;
+use crate::brep::curve::{Line, Wall};
 use crate::brep::meet::{Configuration, Meeting, goes_first};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
@@ -15,7 +15,7 @@ pub(super) fn cylinders(one: &Cylinder, other: &Cylinder, scale: Scale) -> Relat
         };
     }
     if square(one.axis, other.axis, scale) {
-        let meeting = Meeting::of(one, other, scale);
+        let meeting = Meeting::of(&Wall::Cylinder(*one), &Wall::Cylinder(*other), scale);
         return if meeting.configuration == Configuration::Apart {
             Relation::Apart
         } else {

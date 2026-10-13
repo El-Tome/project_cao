@@ -170,13 +170,25 @@ fn slot(from: DVec2, to: DVec2, radius: f64) -> Contour {
 
 /// The corners of the flats a contour is sampled into, and the curve each
 /// flat from a corner to the next was sampled from: an arc takes its share
-/// of the steps a whole circle is cut into, as the application cuts it, and
-/// arcs of one circle are one curve.
+/// of the steps a whole circle or ellipse is cut into, as the application
+/// cuts it. Arcs of one circle are one curve, the two halves a whole circle
+/// is handed as here being the one run the application hands; each arc of
+/// an ellipse is a curve of its own, as the application numbers every run
+/// of an outline (#571): two arcs of one ellipse two traits part are two
+/// faces of the flats.
 pub fn sampled(contour: &Contour) -> (Vec<DVec2>, Vec<Option<usize>>) {
     let mut corners = Vec::new();
     let mut curves = Vec::new();
-    let mut circles: Vec<(DVec2, f64)> = Vec::new();
-    for (&corner, &run) in contour.corners.iter().zip(&contour.runs) {
+    let mut seen: Vec<Curve> = Vec::new();
+    let mut number = |curve: Curve| {
+        seen.iter()
+            .position(|known| *known == curve)
+            .unwrap_or_else(|| {
+                seen.push(curve);
+                seen.len() - 1
+            })
+    };
+    for (rank, (&corner, &run)) in contour.corners.iter().zip(&contour.runs).enumerate() {
         match run {
             Run::Straight => {
                 corners.push(corner);
@@ -184,13 +196,7 @@ pub fn sampled(contour: &Contour) -> (Vec<DVec2>, Vec<Option<usize>>) {
             }
             Run::Round { center, turn } => {
                 let radius = corner.distance(center);
-                let curve = circles
-                    .iter()
-                    .position(|&circle| circle == (center, radius))
-                    .unwrap_or_else(|| {
-                        circles.push((center, radius));
-                        circles.len() - 1
-                    });
+                let curve = number(Curve::Circle(center, radius));
                 let steps = ((turn.abs() / TAU * CIRCLE_STEPS as f64).ceil() as usize).max(2);
                 for step in 0..steps {
                     let turned = DVec2::from_angle(turn * step as f64 / steps as f64);
@@ -202,7 +208,40 @@ pub fn sampled(contour: &Contour) -> (Vec<DVec2>, Vec<Option<usize>>) {
                     curves.push(Some(curve));
                 }
             }
+            Run::Oval {
+                center,
+                first,
+                second,
+                turn,
+            } => {
+                let curve = number(Curve::Oval(rank));
+                let along = first.perp().normalize() * second;
+                let out = corner - center;
+                let from = DVec2::new(
+                    out.dot(first) / first.length_squared(),
+                    out.dot(along) / (second * second),
+                )
+                .to_angle();
+                let steps = ((turn.abs() / TAU * CIRCLE_STEPS as f64).ceil() as usize).max(2);
+                for step in 0..steps {
+                    let at = from + turn * step as f64 / steps as f64;
+                    corners.push(if step == 0 {
+                        corner
+                    } else {
+                        center + first * at.cos() + along * at.sin()
+                    });
+                    curves.push(Some(curve));
+                }
+            }
         }
     }
     (corners, curves)
+}
+
+/// A curve the flats of a contour are sampled from: a circle told apart by
+/// what it is, an arc of ellipse by the run it is.
+#[derive(Clone, Copy, PartialEq)]
+enum Curve {
+    Circle(DVec2, f64),
+    Oval(usize),
 }

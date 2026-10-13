@@ -5,6 +5,7 @@ use crate::brep::curve::Meet;
 use crate::brep::meet::Meeting;
 
 mod conic;
+mod elliptic;
 mod grazed;
 mod lying;
 mod section;
@@ -239,8 +240,8 @@ fn the_curve_two_cylinders_meet_along_a_hair_from_their_touch_crosses_a_plane_tw
         unreachable!()
     };
     let meet = Curve::Meet(Meet {
-        first: wall,
-        second: round,
+        first: wall.into(),
+        second: round.into(),
         component: 0,
     });
     let level = plane(DVec3::new(0.0, 0.0, height), DVec3::Z);
@@ -266,8 +267,8 @@ fn one_loop() -> (Curve, Surface, Surface) {
     let stock = Cylinder::about(DVec3::ZERO, DVec3::Z, 5.0);
     let across = Cylinder::about(DVec3::new(0.0, 4.0, 0.0), DVec3::X, 3.0);
     let meet = Meet {
-        first: stock,
-        second: across,
+        first: stock.into(),
+        second: across.into(),
         component: 0,
     };
     (
@@ -334,7 +335,7 @@ fn a_meet_touching_a_plane_where_it_starts_gives_the_touch_within_its_first_peri
         ] {
             let first = Cylinder::about(centre, DVec3::Z, a);
             let second = Cylinder::about(centre + across * d + DVec3::Z * e, along, b);
-            for meet in Meeting::of(&first, &second, scale()).components {
+            for meet in Meeting::of(&first.into(), &second.into(), scale()).components {
                 let period = meet.period().expect("a component closes on itself");
                 for y in [(-a).max(d - b), a.min(d + b)] {
                     let side = plane(centre + across * y, across);
@@ -391,7 +392,7 @@ fn a_meet_crosses_a_cylinder_parallel_to_one_of_its_own_where_their_lines_cross_
     let aside = cylinder(DVec3::new(10.000_000_1, 0.0, 30.0), DVec3::Y, 20.0);
     let scale = Scale::of(60.0);
     let mut crossed = Vec::new();
-    for meet in Meeting::of(&post, &bar, scale).components {
+    for meet in Meeting::of(&post.into(), &bar.into(), scale).components {
         let Crossings::At(found) = crossings(&Curve::Meet(meet), &aside, scale) else {
             panic!("points expected");
         };
@@ -419,8 +420,8 @@ fn an_ellipse_of_two_equal_cylinders_lies_along_its_own_plane() {
     let first = Cylinder::about(DVec3::ZERO, DVec3::Z, 4.0);
     let second = Cylinder::about(DVec3::new(0.0, 0.0, 1.0), DVec3::X, 4.0);
     let ellipse = Curve::Meet(Meet {
-        first,
-        second,
+        first: first.into(),
+        second: second.into(),
         component: 0,
     });
     let own = plane(DVec3::new(0.0, 0.0, 1.0), DVec3::new(1.0, 0.0, -1.0));

@@ -8,7 +8,7 @@ use super::touch::Parted;
 use crate::brep::laying::{Laying, reversed};
 use crate::brep::piece::{Named, Piece};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Plane, Surface};
+use crate::brep::surface::{Cylinder, EllipticCylinder, Plane, Surface};
 use crate::brep::topology::{Body, Coedge, Face, SurfaceId, VertexId};
 use crate::profile::Frame;
 
@@ -75,7 +75,15 @@ struct Walls {
 struct Side {
     surface: SurfaceId,
     flipped: bool,
-    cylinder: Option<Cylinder>,
+    wall: Wall,
+}
+
+/// What a side's wall is, as its piece built it.
+#[derive(Clone, Copy)]
+enum Wall {
+    Flat,
+    Round(Cylinder),
+    Oval(EllipticCylinder),
 }
 
 impl Walls {
@@ -94,13 +102,30 @@ impl Walls {
         if let ([piece @ Piece::Arc { center, sweep, .. }], [side]) = (contour, sides.as_slice())
             && piece.is_ring()
             && parted.touches[0].is_none()
-            && let Some(cylinder) = side.cylinder
+            && let Wall::Round(cylinder) = side.wall
         {
             let center = self.frame.at(*center);
             let below = self.laying.ring(&cylinder, center, *sweep, self.up);
             let above = self
                 .laying
                 .ring(&cylinder, center + self.lift, *sweep, self.up);
+            faces.push(Face {
+                surface: side.surface,
+                flipped: side.flipped,
+                loops: vec![vec![below], vec![reversed(above)]],
+                numbers: named[0].numbers.clone(),
+                apex: None,
+            });
+            return (vec![below], vec![above]);
+        }
+        if let ([piece @ Piece::Oval { sweep, .. }], [side]) = (contour, sides.as_slice())
+            && piece.is_ring()
+            && parted.touches[0].is_none()
+            && let Wall::Oval(wall) = side.wall
+        {
+            let [below, above] = self
+                .caps()
+                .map(|cap| self.laying.oval_ring(&wall, &cap, *sweep, self.up));
             faces.push(Face {
                 surface: side.surface,
                 flipped: side.flipped,
@@ -128,8 +153,17 @@ impl Walls {
         let (mut below, mut above) = (Vec::new(), Vec::new());
         for (index, piece) in contour.iter().enumerate() {
             let (start, end) = (corners[index], corners[(index + 1) % count]);
-            let (bottom, top) = match (*piece, sides[index].cylinder) {
-                (Piece::Arc { center, sweep, .. }, Some(cylinder)) => {
+            let (bottom, top) = match (*piece, sides[index].wall) {
+                (Piece::Oval { sweep, .. }, Wall::Oval(wall)) => {
+                    let [floor, top] = self.caps();
+                    (
+                        self.laying
+                            .oval_arc(&wall, &floor, [start.0, end.0], sweep, self.up),
+                        self.laying
+                            .oval_arc(&wall, &top, [start.1, end.1], sweep, self.up),
+                    )
+                }
+                (Piece::Arc { center, sweep, .. }, Wall::Round(cylinder)) => {
                     let center = self.frame.at(center);
                     (
                         self.laying
@@ -161,6 +195,14 @@ impl Walls {
         (below, above)
     }
 
+    /// The planes of the floor and the top, as the raise laid them.
+    fn caps(&self) -> [Plane; 2] {
+        [
+            Plane::through(self.frame.origin, -self.up).0,
+            Plane::through(self.frame.origin + self.lift, self.up).0,
+        ]
+    }
+
     fn side(&mut self, piece: &Piece) -> Side {
         let [from, to] = [piece.from(), piece.to()].map(|corner| self.frame.at(corner));
         let corners = [from, to, from + self.lift, to + self.lift];
@@ -171,7 +213,7 @@ impl Walls {
                 Side {
                     surface,
                     flipped,
-                    cylinder: None,
+                    wall: Wall::Flat,
                 }
             }
             Piece::Arc {
@@ -184,7 +226,22 @@ impl Walls {
                 Side {
                     surface: self.laying.surface(Surface::Cylinder(cylinder), &corners),
                     flipped: sweep < 0.0,
-                    cylinder: Some(cylinder),
+                    wall: Wall::Round(cylinder),
+                }
+            }
+            Piece::Oval {
+                center,
+                first,
+                second,
+                sweep,
+                ..
+            } => {
+                let axis = self.frame.u * first.x + self.frame.v * first.y;
+                let wall = EllipticCylinder::about(self.frame.at(center), self.up, axis, second);
+                Side {
+                    surface: self.laying.surface(Surface::Elliptic(wall), &corners),
+                    flipped: sweep < 0.0,
+                    wall: Wall::Oval(wall),
                 }
             }
         }

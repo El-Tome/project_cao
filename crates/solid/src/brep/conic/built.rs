@@ -30,6 +30,7 @@ use std::f64::consts::PI;
 
 use glam::{DVec2, DVec3};
 
+use super::elliptic::Slice;
 use super::{Arm, Conic, LONG, Round};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Plane;
@@ -58,7 +59,9 @@ pub(super) struct Section {
 }
 
 impl Section {
-    pub fn of(plane: &Plane, round: &Round) -> Section {
+    /// The plane and a circular wall read in the wall's frame; none for an
+    /// elliptic wall, whose foot is no circle (`elliptic.rs`).
+    pub fn of(plane: &Plane, round: &Round) -> Option<Section> {
         let (origin, axis, u, v, foot, ruling) = match *round {
             Round::Cylinder(cylinder) => (
                 cylinder.origin,
@@ -76,6 +79,7 @@ impl Section {
                 cone.foot,
                 cone.ruling,
             ),
+            Round::Elliptic(_) => return None,
         };
         let normal = plane.normal;
         let rise = normal.dot(axis);
@@ -84,7 +88,7 @@ impl Section {
         let [w_h, w_rho] = ruling.to_array();
         let s = normal.dot(origin) + rise * foot.x - plane.offset();
         let (a, b) = (rise * w_h, w_rho * mu);
-        Section {
+        Some(Section {
             plane: *plane,
             round: *round,
             origin,
@@ -101,7 +105,7 @@ impl Section {
             c: rise * w_h * foot.y - w_rho * s,
             s,
             delta: (a - b) * (a + b),
-        }
+        })
     }
 
     fn radial(&self, theta: f64) -> DVec3 {
@@ -215,9 +219,16 @@ impl Conic {
     /// within [`LONG`] reaches, or else its arms, each anchored where it
     /// crosses the wall's foot circle — an arm crossing it nowhere never
     /// meets the box, and is not built. Nothing where the plane meets only
-    /// the other nappe, or runs along the axis of a cylinder.
+    /// the other nappe, or runs along the axis of a cylinder. An elliptic
+    /// wall is cut by `elliptic.rs`, square to its axis as well.
     pub fn cut(plane: &Plane, round: &Round, scale: Scale) -> Vec<Conic> {
-        let section = Section::of(plane, round);
+        let section = match round {
+            Round::Elliptic(wall) => return Slice::of(plane, wall).cut(scale),
+            Round::Cylinder(_) | Round::Cone(_) => Section::of(plane, round),
+        };
+        let Some(section) = section else {
+            return Vec::new();
+        };
         if let Round::Cylinder(_) = round
             && section.rise == 0.0
         {
@@ -250,7 +261,7 @@ impl Conic {
 
 /// The sides of the plane of symmetry an angle `ψ` and its mirror `−ψ` stand
 /// on: one alone where the two are one, on the plane itself.
-fn sides(psi: f64) -> &'static [i8] {
+pub(super) fn sides(psi: f64) -> &'static [i8] {
     if psi == 0.0 || psi == PI {
         &[1]
     } else {

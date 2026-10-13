@@ -1,12 +1,16 @@
 //! Decision 11 (#552): a plane of one operand leaning a hair off square to,
 //! or along, the axis of a wall of the other is laid exactly so, the second
 //! operand turned rigidly about where the two meet, where the turn moves
-//! none of it further than `Scale::HAIR` tolerances.
+//! none of it further than `Scale::HAIR` tolerances. An elliptic wall of the
+//! second operand turns its axis and its half-axes together, its rims cut
+//! again on the turned wall and caps (#571).
 
 use glam::DQuat;
 
 use super::*;
 use crate::brep::canonical::squared::kept;
+use crate::brep::conic::Round;
+use crate::brep::surface::EllipticCylinder;
 
 fn degrees(angle: f64) -> f64 {
     angle.to_radians()
@@ -83,6 +87,7 @@ fn directions(body: &Body) -> Vec<DVec3> {
             Surface::Plane(plane) => plane.normal,
             Surface::Cylinder(cylinder) => cylinder.axis,
             Surface::Cone(cone) => cone.axis,
+            Surface::Elliptic(wall) => wall.axis,
         })
         .collect()
 }
@@ -92,7 +97,7 @@ fn planes(body: &Body) -> Vec<Plane> {
         .iter()
         .filter_map(|surface| match surface {
             Surface::Plane(plane) => Some(*plane),
-            Surface::Cylinder(_) | Surface::Cone(_) => None,
+            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
         })
         .collect()
 }
@@ -439,4 +444,190 @@ fn a_tool_reaching_far_past_the_body_is_turned_about_its_own_middle_where_turned
     );
     let squared = squared(&body, &tool, scale()).expect("the block is turned");
     assert!(square_or_along(&squared, DVec3::Z));
+}
+
+/// The half-axes of the elliptic posts below (#571).
+const MAJOR: f64 = 7.0;
+const MINOR: f64 = 3.0;
+
+/// An elliptic post about Z through `center`, its major half-axis turned
+/// `turned` radians off X, from `low` to `high`.
+fn oval(center: [f64; 2], turned: f64, low: f64, high: f64) -> Body {
+    raised_oval(center, turned, ground(low), high - low)
+}
+
+/// The same post drawn on the ground at `low` turned by `turn` about the
+/// origin, as on a face leaning by that turn.
+fn oval_drawn_turned(center: [f64; 2], turned: f64, [low, high]: [f64; 2], turn: DQuat) -> Body {
+    let frame = Frame {
+        origin: turn * (DVec3::Z * low),
+        u: turn * DVec3::X,
+        v: turn * DVec3::Y,
+    };
+    raised_oval(center, turned, frame, high - low)
+}
+
+fn raised_oval(center: [f64; 2], turned: f64, frame: Frame, height: f64) -> Body {
+    let center = DVec2::from(center);
+    let first = DVec2::from_angle(turned) * MAJOR;
+    let outline = Contour {
+        corners: vec![center + first],
+        runs: vec![Run::Oval {
+            center,
+            first,
+            second: MINOR,
+            turn: TAU,
+        }],
+    };
+    Body::raised(&outline, &[], frame, frame.normal() * height).expect("an elliptic post raises")
+}
+
+fn wall_of(body: &Body) -> EllipticCylinder {
+    body.surfaces
+        .iter()
+        .find_map(|surface| match surface {
+            Surface::Elliptic(wall) => Some(*wall),
+            _ => None,
+        })
+        .expect("an elliptic wall")
+}
+
+#[test]
+fn an_elliptic_post_leaning_a_ten_millionth_of_a_degree_on_a_block_is_turned_rigidly_square_to_its_top()
+ {
+    let body = block([-10.0, -10.0, 0.0], [10.0, 10.0, 4.0]);
+    let tool = leaning(
+        oval([1.0, -1.0], 0.4, 4.0, 10.0),
+        DQuat::from_rotation_x(degrees(1e-7)),
+    );
+    assert!(!square_or_along(&tool, DVec3::Z));
+    let squared = squared(&body, &tool, scale()).expect("the post is turned");
+    assert!(square_or_along(&squared, DVec3::Z));
+    let (drawn, turned) = (wall_of(&tool), wall_of(&squared));
+    assert_eq!(turned.axis, DVec3::Z);
+    assert_eq!([turned.major, turned.minor], [drawn.major, drawn.minor]);
+    assert!(turned.u.dot(turned.axis).abs() <= 1e-15, "{turned:?}");
+    assert!((turned.u.length() - 1.0).abs() <= 1e-15, "{turned:?}");
+    assert_eq!(turned.v, turned.axis.cross(turned.u));
+    let rims: Vec<&Curve> = squared
+        .curves
+        .iter()
+        .filter(|curve| matches!(curve, Curve::Conic(_)))
+        .collect();
+    assert_eq!(rims.len(), 2, "the post's two rims");
+    for rim in rims {
+        let Curve::Conic(conic) = rim else {
+            unreachable!("only conics were kept")
+        };
+        assert_eq!(conic.round, Round::Elliptic(turned));
+        assert!(
+            squared.surfaces.contains(&Surface::Plane(conic.plane)),
+            "{conic:?} stands on a cap of the turned post"
+        );
+    }
+}
+
+#[test]
+fn an_elliptic_post_turned_within_rounding_of_a_pocket_of_its_ellipse_is_laid_on_its_axis_and_its_major_half_axis()
+ {
+    let body = block([-10.0, -10.0, 0.0], [12.0, 10.0, 10.0])
+        .cut_by(&oval([1.0, -1.0], 0.4, 6.0, 11.0))
+        .expect("the pocket is cut");
+    let tool = oval_drawn_turned(
+        [1.0, -1.0],
+        0.4 + 2e-15,
+        [-1.0, 11.0],
+        DQuat::from_axis_angle(DVec3::new(1.1f64.cos(), 1.1f64.sin(), 0.0), degrees(1e-7)),
+    );
+    let squared = squared(&body, &tool, scale()).expect("the post is turned");
+    let (known, turned) = (wall_of(&body), wall_of(&squared));
+    assert_eq!(turned.axis, known.axis);
+    assert_eq!(turned.u, known.u);
+    assert_eq!(turned.v, known.v);
+    assert_eq!(
+        relation(
+            &Surface::Elliptic(known),
+            &Surface::Elliptic(turned),
+            scale()
+        ),
+        Relation::Same { agree: true }
+    );
+}
+
+/// The elliptic post about Z through the origin, its major half-axis turned
+/// 0.4 off X, from 0 to 10, leaning 1e-7° about `axis`.
+fn leaning_oval(axis: DVec3) -> Body {
+    leaning(
+        oval([0.0, 0.0], 0.4, 0.0, 10.0),
+        DQuat::from_axis_angle(axis, degrees(1e-7)),
+    )
+}
+
+/// How far the elliptic post standing upright reaches along Y.
+fn reach_along_y() -> f64 {
+    wall_of(&oval([0.0, 0.0], 0.4, 0.0, 10.0)).support(DVec3::Y)
+}
+
+#[test]
+fn a_side_drawn_tangent_to_a_leaning_elliptic_post_is_laid_along_it_still_tangent() {
+    let body = leaning_oval(DVec3::X);
+    let reach = reach_along_y();
+    let tool = block([-10.0, reach, 2.0], [10.0, 20.0, 30.0]);
+    let wall = wall_of(&body);
+    let squared = squared(&body, &tool, scale()).expect("the block is turned");
+    let side = planes(&squared)
+        .into_iter()
+        .find(|plane| plane.normal.y.abs() > 0.5 && (plane.offset().abs() - reach).abs() < 1e-6)
+        .expect("the block's side on the post");
+    assert!(side.normal.dot(wall.axis).abs() <= 1e-15);
+    let off = side.distance(wall.origin).abs() - wall.support(side.normal);
+    assert!(off.abs() < 1e-12, "the side stands {off} off the wall");
+}
+
+#[test]
+fn an_edge_drawn_touching_a_leaning_elliptic_post_s_wall_is_laid_across_it_still_touching() {
+    let body = leaning_oval(DVec3::X);
+    let reach = reach_along_y();
+    let outline = Contour::straight(vec![
+        DVec2::new(reach, 6.0),
+        DVec2::new(reach + 10.0, 6.0),
+        DVec2::new(reach + 10.0, 10.0),
+    ]);
+    let frame = Frame {
+        origin: DVec3::new(-10.0, 0.0, 0.0),
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let wedge = Body::raised(&outline, &[], frame, DVec3::X * 20.0).expect("a wedge raises");
+    let wall = wall_of(&body);
+    let squared = squared(&body, &wedge, scale()).expect("the wedge is turned");
+    let edge = squared
+        .edges
+        .iter()
+        .filter_map(|edge| match squared.curve(edge.curve) {
+            Curve::Line(line) if line.direction.x.abs() > 0.5 => Some(*line),
+            _ => None,
+        })
+        .min_by(|one, other| one.origin.y.total_cmp(&other.origin.y))
+        .expect("the wedge's edge on the post");
+    assert!(edge.direction.dot(wall.axis).abs() <= 1e-15);
+    let across = edge.direction.cross(wall.axis).normalize();
+    let off = (edge.origin - wall.origin).dot(across).abs() - wall.support(across);
+    assert!(off.abs() < 1e-12, "the edge stands {off} off the wall");
+}
+
+#[test]
+fn a_side_drawn_through_a_leaning_elliptic_post_s_axis_is_laid_along_it_holding_the_axis() {
+    let body = leaning_oval(DVec3::Y);
+    let tool = block([0.0, -20.0, 2.0], [20.0, 20.0, 30.0]);
+    let wall = wall_of(&body);
+    let squared = squared(&body, &tool, scale()).expect("the block is turned");
+    let side = planes(&squared)
+        .into_iter()
+        .find(|plane| plane.normal.x.abs() > 0.5 && plane.offset().abs() < 1e-6)
+        .expect("the block's side through the axis");
+    for height in [0.0, 10.0] {
+        let off = side.distance(wall.origin + wall.axis * height);
+        assert!(off.abs() < 1e-12, "the axis stands {off} off the side");
+    }
 }

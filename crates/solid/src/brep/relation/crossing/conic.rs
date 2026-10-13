@@ -23,6 +23,7 @@
 //! on its arm's side of the plane of symmetry when it is an arm. Where `Q`
 //! and `S` meet in a way the kernel does not build, so does the conic.
 
+use super::super::elliptic::plane_and_elliptic;
 use super::super::planar::{plane_and_cylinder, planes};
 use super::super::{Relation, relation, square};
 use super::grazed::grazed;
@@ -43,17 +44,19 @@ pub(super) fn conic_and_surface(
     let wall = match conic.round {
         Round::Cylinder(cylinder) => Surface::Cylinder(cylinder),
         Round::Cone(cone) => Surface::Cone(cone),
+        Round::Elliptic(wall) => Surface::Elliptic(wall),
     };
     let own_plane = Surface::Plane(conic.plane);
-    let (curves, across, along_a_touch) = match surface {
+    let (curves, across) = match surface {
         Surface::Plane(plane) if let Some(lines) = along_the_axis(conic, plane, scale) => lines,
         Surface::Plane(plane) => match planes(&conic.plane, plane, scale) {
             Relation::Same { .. } => return Crossings::Along,
-            Relation::Line(line) => (vec![Curve::Line(line)], wall, false),
-            Relation::Apart => (Vec::new(), wall, false),
+            Relation::Line(line) => (vec![(Curve::Line(line), false)], wall),
+            Relation::Apart => (Vec::new(), wall),
             Relation::Apex(_)
             | Relation::Lines(_)
             | Relation::Tangent(_)
+            | Relation::Parallel(_)
             | Relation::Circle(_)
             | Relation::Meet(_)
             | Relation::Rulings { .. }
@@ -61,36 +64,51 @@ pub(super) fn conic_and_surface(
             | Relation::Ruling { .. }
             | Relation::Unsupported => return Crossings::Unsupported,
         },
-        Surface::Cylinder(_) | Surface::Cone(_) => match relation(&wall, surface, scale) {
-            Relation::Same { .. } => return Crossings::Along,
-            Relation::Lines(lines) => (lines.map(Curve::Line).to_vec(), own_plane, false),
-            Relation::Tangent(line) => (vec![Curve::Line(line)], own_plane, true),
-            Relation::Circle(circle) => (vec![Curve::Circle(circle)], own_plane, false),
-            Relation::Meet(meeting) => (
-                meeting
-                    .components
-                    .iter()
-                    .copied()
-                    .map(Curve::Meet)
-                    .collect(),
-                own_plane,
-                false,
-            ),
-            Relation::Apart | Relation::Apex(_) => (Vec::new(), own_plane, false),
-            Relation::Line(_)
-            | Relation::Rulings { .. }
-            | Relation::Conic(_)
-            | Relation::Ruling { .. }
-            | Relation::Unsupported => return Crossings::Unsupported,
-        },
+        Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+            match relation(&wall, surface, scale) {
+                Relation::Same { .. } => return Crossings::Along,
+                Relation::Lines(lines) => (
+                    lines.map(|line| (Curve::Line(line), false)).to_vec(),
+                    own_plane,
+                ),
+                Relation::Tangent(line) => (vec![(Curve::Line(line), true)], own_plane),
+                Relation::Parallel(rulings) => (
+                    rulings
+                        .iter()
+                        .map(|ruled| (Curve::Line(ruled.line), ruled.touching))
+                        .collect(),
+                    own_plane,
+                ),
+                Relation::Circle(circle) => (vec![(Curve::Circle(circle), false)], own_plane),
+                Relation::Meet(meeting) => (
+                    meeting
+                        .components
+                        .iter()
+                        .map(|component| (Curve::Meet(*component), false))
+                        .collect(),
+                    own_plane,
+                ),
+                Relation::Apart | Relation::Apex(_) => (Vec::new(), own_plane),
+                Relation::Line(_)
+                | Relation::Rulings { .. }
+                | Relation::Conic(_)
+                | Relation::Ruling { .. }
+                | Relation::Unsupported => return Crossings::Unsupported,
+            }
+        }
     };
     let mut kept = Vec::new();
-    for curve in &curves {
+    for (curve, along_a_touch) in &curves {
         let touched = match (curve, surface, conic.round) {
             (Curve::Line(line), Surface::Plane(plane), Round::Cylinder(cylinder))
                 if across == wall =>
             {
                 section::touched(line, [&conic.plane, plane], &cylinder, scale)
+            }
+            (Curve::Line(line), Surface::Plane(plane), Round::Elliptic(elliptic))
+                if across == wall =>
+            {
+                section::touched_on_an_ellipse(line, [&conic.plane, plane], &elliptic, scale)
             }
             _ => None,
         };
@@ -129,7 +147,7 @@ pub(super) fn conic_and_surface(
                 kept.push(Crossing {
                     parameter,
                     point,
-                    tangent: crossing.tangent || along_a_touch,
+                    tangent: crossing.tangent || *along_a_touch,
                 });
             }
         }
@@ -138,8 +156,8 @@ pub(super) fn conic_and_surface(
     Crossings::At(kept)
 }
 
-/// The lines a plane read along the axis of a conic's cylinder cuts or
-/// touches it along, to be crossed with the conic's own plane: the triple's
+/// The lines a plane read along the axis of a conic's cylinder or elliptic
+/// wall cuts or touches it along, to be crossed with the conic's own plane: the triple's
 /// most degenerate pair, so that the corner is the one those lines give
 /// (`lying.rs`). None for a plane across the axis, on a cone, or where
 /// the conic's plane leans too near the axis for those lines to fix where
@@ -148,21 +166,30 @@ fn along_the_axis(
     conic: &Conic,
     plane: &Plane,
     scale: Scale,
-) -> Option<(Vec<Curve>, Surface, bool)> {
-    let Round::Cylinder(cylinder) = conic.round else {
-        return None;
+) -> Option<(Vec<(Curve, bool)>, Surface)> {
+    let (wall, axis) = match conic.round {
+        Round::Cylinder(cylinder) => (Surface::Cylinder(cylinder), cylinder.axis),
+        Round::Elliptic(elliptic) => (Surface::Elliptic(elliptic), elliptic.axis),
+        Round::Cone(_) => return None,
     };
-    let wall = Surface::Cylinder(cylinder);
-    if !square(plane.normal, cylinder.axis, scale)
+    if !square(plane.normal, axis, scale)
         || !leans(&Surface::Plane(*plane), &wall, scale)
-        || conic.plane.normal.dot(cylinder.axis).abs() < STEEP
+        || conic.plane.normal.dot(axis).abs() < STEEP
     {
         return None;
     }
     let own_plane = Surface::Plane(conic.plane);
-    Some(match plane_and_cylinder(plane, &cylinder, scale) {
-        Relation::Lines(lines) => (lines.map(Curve::Line).to_vec(), own_plane, false),
-        Relation::Tangent(line) => (vec![Curve::Line(line)], own_plane, true),
-        _ => (Vec::new(), own_plane, false),
+    let found = match conic.round {
+        Round::Elliptic(elliptic) => plane_and_elliptic(plane, &elliptic, scale),
+        Round::Cylinder(cylinder) => plane_and_cylinder(plane, &cylinder, scale),
+        Round::Cone(_) => return None,
+    };
+    Some(match found {
+        Relation::Lines(lines) => (
+            lines.map(|line| (Curve::Line(line), false)).to_vec(),
+            own_plane,
+        ),
+        Relation::Tangent(line) => (vec![(Curve::Line(line), true)], own_plane),
+        _ => (Vec::new(), own_plane),
     })
 }

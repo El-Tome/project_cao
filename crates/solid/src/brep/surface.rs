@@ -3,11 +3,13 @@
 //! cylinders and cones start their angles from the same direction.
 
 mod cone;
+mod elliptic;
 
 use glam::{DVec2, DVec3};
 use serde::{Deserialize, Serialize};
 
 pub use cone::Cone;
+pub use elliptic::EllipticCylinder;
 
 /// The plane of points `x` with `normal · x = offset`, read in `(s, t)` along
 /// `u` and `v` from `origin`, its point nearest the world's origin.
@@ -36,6 +38,7 @@ pub enum Surface {
     Plane(Plane),
     Cylinder(Cylinder),
     Cone(Cone),
+    Elliptic(EllipticCylinder),
 }
 
 /// A direction of unit length with its sign fixed: its largest component, the
@@ -156,6 +159,7 @@ impl Surface {
             Surface::Plane(plane) => plane.point(at),
             Surface::Cylinder(cylinder) => cylinder.point(at),
             Surface::Cone(cone) => cone.point(at),
+            Surface::Elliptic(wall) => wall.point(at),
         }
     }
 
@@ -164,17 +168,20 @@ impl Surface {
             Surface::Plane(plane) => plane.parameters(point),
             Surface::Cylinder(cylinder) => cylinder.parameters(point),
             Surface::Cone(cone) => cone.parameters(point),
+            Surface::Elliptic(wall) => wall.parameters(point),
         }
     }
 
     /// The surface's own normal at `at`: a plane's normal, a cylinder's radial
-    /// direction, a cone's normal along its ruling. A face turns it round
-    /// when its matter lies the other way.
+    /// direction, a cone's normal along its ruling, an elliptic wall's normal
+    /// away from its axis. A face turns it round when its matter lies the
+    /// other way.
     pub fn normal(&self, at: DVec2) -> DVec3 {
         match self {
             Surface::Plane(plane) => plane.normal,
             Surface::Cylinder(cylinder) => cylinder.radial(at.x),
             Surface::Cone(cone) => cone.normal(at.x),
+            Surface::Elliptic(wall) => wall.normal(at.x),
         }
     }
 
@@ -184,6 +191,7 @@ impl Surface {
             Surface::Plane(plane) => plane.distance(point),
             Surface::Cylinder(cylinder) => cylinder.distance(point),
             Surface::Cone(cone) => cone.distance(point),
+            Surface::Elliptic(wall) => wall.distance(point),
         }
     }
 
@@ -191,7 +199,9 @@ impl Surface {
     pub fn period(&self) -> Option<f64> {
         match self {
             Surface::Plane(_) => None,
-            Surface::Cylinder(_) | Surface::Cone(_) => Some(std::f64::consts::TAU),
+            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+                Some(std::f64::consts::TAU)
+            }
         }
     }
 }

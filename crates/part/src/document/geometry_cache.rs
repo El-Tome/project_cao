@@ -36,8 +36,9 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// revolution of a slanted run is exact (#536). 7: a plane meets a cylinder
 /// or a cone at a slant along a conic (#552). 8: a plane a hair off square
 /// to, or along, a wall's axis is laid exactly so, and a step built at a
-/// lean the kernel reads unstably is noted (#552).
-const REBUILT_BY: u32 = 8;
+/// lean the kernel reads unstably is noted (#552). 9: an ellipse raised is
+/// exact, and the part stays exact after it (#571).
+const REBUILT_BY: u32 = 9;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

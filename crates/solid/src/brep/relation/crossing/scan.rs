@@ -1,4 +1,4 @@
-//! The curve two perpendicular cylinders meet along, against a surface:
+//! The curve two perpendicular walls meet along, against a surface:
 //! numeric, where lines and circles are closed forms.
 //!
 //! The distance to the surface is sampled round the component. Its extrema
@@ -13,9 +13,10 @@ use std::f64::consts::TAU;
 use glam::DVec3;
 
 use super::Solved;
-use crate::brep::curve::Meet;
+use crate::brep::curve::{Meet, Wall};
 use crate::brep::relation::Relation;
 use crate::brep::relation::cylinders::cylinders;
+use crate::brep::relation::elliptic::walls;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 
@@ -27,9 +28,18 @@ const HALVINGS: usize = 64;
 pub(super) fn meet_and_surface(meet: &Meet, surface: &Surface, scale: Scale) -> Solved {
     let eps = scale.eps();
     let along = match surface {
-        Surface::Cylinder(cylinder) => [meet.first, meet.second]
-            .iter()
-            .any(|own| matches!(cylinders(own, cylinder, scale), Relation::Same { .. })),
+        Surface::Cylinder(cylinder) => [meet.first, meet.second].iter().any(|own| match own {
+            Wall::Cylinder(own) => {
+                matches!(cylinders(own, cylinder, scale), Relation::Same { .. })
+            }
+            Wall::Elliptic(_) => false,
+        }),
+        Surface::Elliptic(oval) => [meet.first, meet.second].iter().any(|own| match own {
+            Wall::Elliptic(own) => {
+                matches!(walls(own, oval, scale), Relation::Same { .. })
+            }
+            Wall::Cylinder(_) => false,
+        }),
         Surface::Plane(_) | Surface::Cone(_) => false,
     };
     if along {
@@ -92,6 +102,7 @@ fn gradient(surface: &Surface, point: DVec3) -> DVec3 {
             (from - cylinder.axis * cylinder.axis.dot(from)).normalize_or_zero()
         }
         Surface::Cone(cone) => cone.normal(cone.parameters(point).x),
+        Surface::Elliptic(wall) => wall.normal(wall.parameters(point).x),
     }
 }
 

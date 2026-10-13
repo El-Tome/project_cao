@@ -32,12 +32,14 @@
 //! rays, then between them wherever a chord would leave it ([`conic`]); on a
 //! cone, it widens the cone's grid to the furthest it stands from the axis.
 
+mod abreast;
 mod axis;
 mod beneath;
 mod chords;
 mod circle;
 mod cone;
 mod conic;
+mod elliptic;
 mod ends;
 mod meet;
 mod planes;
@@ -49,9 +51,11 @@ use std::f64::consts::PI;
 use glam::DVec3;
 
 use super::contact::{self, Contact, Zones};
+use crate::brep::conic::Round;
 use crate::brep::curve::Curve;
-use crate::brep::surface::Cylinder;
+use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
+use abreast::Abreast;
 use axis::Axes;
 use circle::on_circle;
 use cone::Grid;
@@ -119,7 +123,8 @@ impl Samples {
         let zones = Zones::of(body, &walls);
         let grids = cone::grids(body, tolerance);
         let first = Samples::through(body, &walls, &zones, &grids, &BTreeMap::new(), tolerance);
-        let beneath = beneath::walls(body, &walls, &first, tolerance);
+        let mut beneath = beneath::walls(body, &walls, &first, tolerance);
+        beneath.extend(beneath::oval::walls(body, &first, tolerance));
         let mut samples = if beneath.is_empty() {
             first
         } else {
@@ -147,8 +152,9 @@ impl Samples {
         };
         let eps = body.scale().eps();
         let alone = BTreeMap::new();
+        let abreast = Abreast::of(body, tolerance);
         let axes = Axes::of(body, grids, walls, tolerance);
-        let given = axes.given();
+        let given = abreast.joined(axes.given());
         let mut meets = on_meets(body, walls, zones, &alone, tolerance);
         let mut contacts =
             contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
@@ -160,14 +166,14 @@ impl Samples {
             contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
         }
         let mut axes = axes.gathered(&contacts);
-        let gathered = axes.given();
+        let gathered = abreast.joined(axes.given());
         if gathered != given {
             contacts = contact::contacts(body, walls, zones, &meets, beneath, &gathered, tolerance);
             axes = axes.gathered(&contacts);
         }
         let along = conic::rays_along(body, walls, zones, grids, &contacts, tolerance);
         if !along.is_empty() {
-            let mut given = axes.given();
+            let mut given = abreast.joined(axes.given());
             for (wall, rays) in along {
                 given.entry(wall).or_default().extend(rays);
             }
@@ -178,6 +184,7 @@ impl Samples {
                     contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
             }
         }
+        abreast.withhold(&mut contacts);
         let vertices = samples.points.clone();
         let alone = Contact::default();
         let mut places = Places::new(eps * TOLD);
@@ -186,7 +193,15 @@ impl Samples {
             let between = match body.curve(edge.curve) {
                 Curve::Line(_) => Vec::new(),
                 Curve::Conic(conic) => {
-                    let rays = conic::rays_about(conic, walls, &contacts, eps);
+                    let mut rays = conic::rays_about(conic, walls, &contacts, eps);
+                    if let Round::Elliptic(wall) = conic.round
+                        && let Some(rank) = body
+                            .surfaces
+                            .iter()
+                            .position(|surface| *surface == Surface::Elliptic(wall))
+                    {
+                        rays.extend(abreast.angles(SurfaceId(rank as u32)));
+                    }
                     conic::of_edge(body, edge, conic, zones, grids, &rays, tolerance)
                 }
                 Curve::Circle(circle) => {
@@ -282,11 +297,8 @@ impl Samples {
     }
 }
 
-/// The points of every edge along a meet between its ends, each on the rays
-/// its two cylinders take in `contacts`, and none where either cylinder all
-/// but lies on a wall facing it, nor on a plane touching it but off the line
-/// they touch along, as a circle takes no ray there; none for any other
-/// edge.
+/// The points of every edge along a meet between its ends, as
+/// [`meet::of_edge`] places them; none for any other edge.
 fn on_meets(
     body: &Body,
     walls: &[contact::Wall],
@@ -294,28 +306,12 @@ fn on_meets(
     contacts: &BTreeMap<SurfaceId, Contact>,
     tolerance: f64,
 ) -> Vec<Vec<DVec3>> {
-    let eps = body.scale().eps();
-    let angles = |cylinder: &Cylinder| taken(cylinder, walls, contacts);
     body.edge_ids()
         .map(|id| {
             let edge = body.edge(id);
             match body.curve(edge.curve) {
                 Curve::Meet(meet) => {
-                    let [first, second] = [angles(&meet.first), angles(&meet.second)];
-                    let walls = [meet.first, meet.second];
-                    let planes = walls
-                        .map(|wall| touching_planes(body, wall.origin, wall.axis, wall.radius));
-                    let grazed = meet::grazing_ends(body, edge, &walls, tolerance);
-                    let clear = |point: DVec3| {
-                        !grazed(point, eps * contact::APART)
-                            && walls.iter().zip(&planes).all(|(wall, planes)| {
-                                !zones.crowded(wall, point)
-                                    && !planes.iter().any(|plane| {
-                                        on_a_plane(plane, wall.origin, wall.axis, point, eps)
-                                    })
-                            })
-                    };
-                    meet::on_meet(meet, edge, tolerance, eps, [&first, &second], &clear)
+                    meet::of_edge(body, edge, meet, (walls, zones, contacts), tolerance)
                 }
                 Curve::Line(_) | Curve::Circle(_) | Curve::Conic(_) => Vec::new(),
             }

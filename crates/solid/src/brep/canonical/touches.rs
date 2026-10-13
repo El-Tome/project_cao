@@ -28,12 +28,15 @@
 //! a plane whose face is far away touches nothing.
 
 mod off;
+mod walls;
 
 use glam::DVec3;
 use off::off;
+use walls::onto_a_touch;
 
+use crate::brep::curve::Wall;
 use crate::brep::meet::{moved, moved_instead};
-use crate::brep::relation::{Relation, relation};
+use crate::brep::relation::{Relation, abreast, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::topology::SurfaceId;
@@ -113,19 +116,24 @@ impl Surfaces {
         let [first, second] = [&self.list[one], &self.list[other]];
         match relation(first, second, scale) {
             Relation::Meet(_) => {
-                let (first, second) = match (first, second) {
-                    (Surface::Cylinder(first), Surface::Cylinder(second)) => (first, second),
-                    (Surface::Plane(_) | Surface::Cone(_), _)
-                    | (_, Surface::Plane(_) | Surface::Cone(_)) => return None,
-                };
-                let (rank, cylinder) = moved(first, second, scale)?;
-                let (rank, cylinder) = if own([one, other][rank]) {
-                    (rank, cylinder)
+                let (first, second) = (Wall::of(first)?, Wall::of(second)?);
+                let (rank, wall) = moved(&first, &second, scale)?;
+                let (rank, wall) = if own([one, other][rank]) {
+                    (rank, wall)
                 } else {
-                    moved_instead(first, second, scale)?
+                    moved_instead(&first, &second, scale)?
                 };
                 let shifted = [one, other][rank];
-                own(shifted).then_some((shifted, Surface::Cylinder(cylinder)))
+                own(shifted).then_some((shifted, wall.surface()))
+            }
+            Relation::Tangent(_) | Relation::Parallel(_) if abreast(first, second) => {
+                if own(other) {
+                    onto_a_touch(first, second, scale).map(|moved| (other, moved))
+                } else if own(one) {
+                    onto_a_touch(second, first, scale).map(|moved| (one, moved))
+                } else {
+                    None
+                }
             }
             Relation::Tangent(_) if own(other) => {
                 touching(first, second).map(|moved| (other, moved))
@@ -136,6 +144,7 @@ impl Surfaces {
             | Relation::Line(_)
             | Relation::Lines(_)
             | Relation::Tangent(_)
+            | Relation::Parallel(_)
             | Relation::Circle(_)
             | Relation::Rulings { .. }
             | Relation::Apex(_)
@@ -156,7 +165,7 @@ impl Surfaces {
     ) -> Option<([usize; 2], Cylinder)> {
         let cylinder = match self.list[rank] {
             Surface::Cylinder(cylinder) => cylinder,
-            Surface::Plane(_) | Surface::Cone(_) => return None,
+            Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_) => return None,
         };
         let planes: Vec<(usize, Plane, bool)> = (0..self.list.len())
             .filter(|&other| other != rank && near(rank, other))
@@ -173,7 +182,10 @@ impl Surfaces {
                     );
                     Some((other, plane, touches))
                 }
-                Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => None,
+                Surface::Plane(_)
+                | Surface::Cylinder(_)
+                | Surface::Cone(_)
+                | Surface::Elliptic(_) => None,
             })
             .collect();
         for (index, &(one, plane, touches)) in planes.iter().enumerate() {
@@ -253,9 +265,9 @@ fn along_the_partner(before: &Surface, after: &Surface, partner: &Surface) -> Ve
         (Surface::Cylinder(before), Surface::Cylinder(after), Surface::Cylinder(partner)) => {
             (before, after, partner)
         }
-        (Surface::Plane(_) | Surface::Cone(_), _, _)
-        | (_, Surface::Plane(_) | Surface::Cone(_), _)
-        | (_, _, Surface::Plane(_) | Surface::Cone(_)) => {
+        (Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_), _, _)
+        | (_, Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_), _)
+        | (_, _, Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_)) => {
             return Vec::new();
         }
     };
@@ -295,6 +307,11 @@ fn crossed_elsewhere(before: &Surface, after: &Surface, other: &Surface, scale: 
 fn moved_along(before: &Surface, after: &Surface, other: &Surface, scale: Scale) -> f64 {
     let places = |surface: &Surface| match relation(surface, other, scale) {
         Relation::Tangent(line) => vec![line.origin],
+        Relation::Parallel(rulings) => rulings
+            .iter()
+            .filter(|ruled| ruled.touching)
+            .map(|ruled| ruled.line.origin)
+            .collect(),
         found => found.points(),
     };
     let (from, to) = (places(before), places(after));
@@ -308,11 +325,26 @@ fn moved_along(before: &Surface, after: &Surface, other: &Surface, scale: Scale)
 }
 
 /// `moving` moved onto the line it was decided to touch `fixed` along: a
-/// cylinder along a plane's normal, a plane along its own, a cylinder
-/// towards or away from a parallel one, by the gap the relation found within
-/// the tolerance. None where the touch is exact already.
+/// cylinder or an elliptic wall along a plane's normal, a plane along its
+/// own, a cylinder towards or away from a parallel one, by the gap the
+/// relation found within the tolerance. None where the touch is exact
+/// already.
 fn touching(fixed: &Surface, moving: &Surface) -> Option<Surface> {
     let moved = match (fixed, moving) {
+        (Surface::Plane(plane), Surface::Elliptic(wall)) => {
+            let away = plane.distance(wall.origin);
+            let gap = away.abs() - wall.support(plane.normal);
+            Surface::Elliptic(wall.moved(-plane.normal * away.signum() * gap))
+        }
+        (Surface::Elliptic(wall), Surface::Plane(plane)) => {
+            let away = plane.distance(wall.origin);
+            let gap = away.abs() - wall.support(plane.normal);
+            let (plane, _) = Plane::through(
+                plane.origin + plane.normal * away.signum() * gap,
+                plane.normal,
+            );
+            Surface::Plane(plane)
+        }
         (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
             let away = plane.distance(cylinder.origin);
             let gap = away.abs() - cylinder.radius;
@@ -351,7 +383,9 @@ fn touching(fixed: &Surface, moving: &Surface) -> Option<Surface> {
                 cylinder.radius,
             ))
         }
-        (Surface::Plane(_), Surface::Plane(_)) | (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
+        (Surface::Plane(_), Surface::Plane(_))
+        | (Surface::Cone(_) | Surface::Elliptic(_), _)
+        | (_, Surface::Cone(_) | Surface::Elliptic(_)) => {
             return None;
         }
     };

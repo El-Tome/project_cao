@@ -182,6 +182,10 @@ impl Outline {
                 (DVec2::splat(f64::MAX), DVec2::splat(f64::MIN)),
                 |(low, high), corner| (low.min(*corner), high.max(*corner)),
             ),
+            Outline::Ellipse { .. }
+            | Outline::Chorded { .. }
+            | Outline::OvalSlot { .. }
+            | Outline::OvalRing { .. } => self.oval_box().expect("an outline an ellipse bounds"),
         }
     }
 
@@ -266,6 +270,13 @@ impl Outline {
                     }
                 }
             }
+            Outline::Ellipse { .. }
+            | Outline::Chorded { .. }
+            | Outline::OvalSlot { .. }
+            | Outline::OvalRing { .. } => {
+                simpler.push(Outline::Rectangle { low, high });
+                simpler.extend(self.simpler_oval());
+            }
             Outline::Star { center, corners } => {
                 simpler.push(Outline::Rectangle { low, high });
                 if corners.len() > 3 {
@@ -282,6 +293,285 @@ impl Outline {
         }
         simpler
     }
+}
+
+/// The direction of the plane's axis nearest `direction`, either way.
+fn on_an_axis(direction: DVec2) -> DVec2 {
+    if direction.x.abs() >= direction.y.abs() {
+        DVec2::X * direction.x.signum()
+    } else {
+        DVec2::Y * direction.y.signum()
+    }
+}
+
+/// The same direction, its angle on a step of `degrees`: on a plane's axis
+/// exactly when it comes to one, rather than a rounding of the cosine off
+/// it, which `on_an_axis` would put back.
+fn turned_round(direction: DVec2, degrees: f64) -> DVec2 {
+    let turned =
+        DVec2::from_angle(rounded(direction.to_angle().to_degrees(), degrees).to_radians());
+    let rounding = |value: f64| if value.abs() < 1e-12 { 0.0 } else { value };
+    DVec2::new(rounding(turned.x), rounding(turned.y))
+}
+
+impl Outline {
+    /// What an outline an ellipse bounds shrinks into: a circle, the whole
+    /// ellipse without its traits or its hole, its ends round, its axes on
+    /// the plane's, its half-axes made one, and every number on round ones.
+    fn simpler_oval(&self) -> Vec<Outline> {
+        let mut simpler = Vec::new();
+        match self {
+            Outline::OvalSlot {
+                from,
+                to,
+                across,
+                along,
+            } => {
+                let way = (*to - *from).normalize();
+                let length = from.distance(*to);
+                simpler.push(Outline::Slot {
+                    from: *from,
+                    to: *to,
+                    radius: *across,
+                });
+                simpler.push(Outline::Ellipse {
+                    center: *from,
+                    first: way * *along,
+                    second: *across,
+                    from: 0.0,
+                });
+                let slot = |to: DVec2, across: f64, along: f64| Outline::OvalSlot {
+                    from: *from,
+                    to,
+                    across,
+                    along,
+                };
+                simpler.push(slot(*to, *across, *across));
+                simpler.push(slot(*from + on_an_axis(way) * length, *across, *along));
+                for step in [1.0, 0.5] {
+                    let (start, end) = (rounded_point(*from, step), rounded_point(*to, step));
+                    let (across, along) = (rounded(*across, step), rounded(*along, step));
+                    if start != end && across > 0.0 && along > 0.0 {
+                        simpler.push(Outline::OvalSlot {
+                            from: start,
+                            to: end,
+                            across,
+                            along,
+                        });
+                    }
+                }
+            }
+            _ => {
+                let Some(oval) = self.oval() else {
+                    return simpler;
+                };
+                let (center, first, second) = (oval.center, oval.first, oval.second);
+                let length = first.length();
+                simpler.push(Outline::Circle {
+                    center,
+                    radius: oval.minor(),
+                    from: 0.0,
+                });
+                simpler.push(Outline::Ellipse {
+                    center,
+                    first,
+                    second,
+                    from: 0.0,
+                });
+                let mut reshaped = |first: DVec2, second: f64| {
+                    if let Some(outline) = self.with_oval(center, first, second) {
+                        simpler.push(outline);
+                    }
+                };
+                reshaped(on_an_axis(first) * length, second);
+                reshaped(turned_round(first, 15.0) * length, second);
+                reshaped(first, length);
+                for step in [1.0, 0.5] {
+                    let (length, second) = (rounded(length, step), rounded(second, step));
+                    if length > 0.0 && second > 0.0 {
+                        let moved = rounded_point(center, step);
+                        if let Some(outline) =
+                            self.with_oval(moved, first.normalize() * length, second)
+                        {
+                            simpler.push(outline);
+                        }
+                    }
+                }
+                match self {
+                    Outline::Chorded { arcs, .. } => {
+                        if arcs.len() > 1 {
+                            for arc in arcs {
+                                simpler.push(Outline::Chorded {
+                                    center,
+                                    first,
+                                    second,
+                                    arcs: vec![*arc],
+                                });
+                            }
+                        }
+                        for step in [15.0, 45.0] {
+                            simpler.push(Outline::Chorded {
+                                center,
+                                first,
+                                second,
+                                arcs: arcs
+                                    .iter()
+                                    .map(|arc| arc.map(|end| rounded(end, step)))
+                                    .collect(),
+                            });
+                        }
+                    }
+                    Outline::OvalRing { hole, .. } => {
+                        let least = hole.min_element();
+                        simpler.push(Outline::Ring {
+                            center,
+                            outer: oval.minor(),
+                            inner: least,
+                        });
+                        simpler.push(Outline::OvalRing {
+                            center,
+                            first,
+                            second,
+                            hole: DVec2::splat(least),
+                        });
+                        for step in [1.0, 0.5] {
+                            simpler.push(Outline::OvalRing {
+                                center,
+                                first,
+                                second,
+                                hole: rounded_point(*hole, step),
+                            });
+                        }
+                    }
+                    Outline::Ellipse { .. } => {}
+                    _ => unreachable!("only outlines an ellipse bounds"),
+                }
+            }
+        }
+        simpler.retain(|candidate| differs(candidate, self));
+        simpler
+    }
+
+    /// The same outline drawn on another ellipse: a ring's hole kept, a
+    /// chorded ellipse's arcs kept.
+    fn with_oval(&self, center: DVec2, first: DVec2, second: f64) -> Option<Outline> {
+        match self {
+            Outline::Ellipse { from, .. } => Some(Outline::Ellipse {
+                center,
+                first,
+                second,
+                from: *from,
+            }),
+            Outline::Chorded { arcs, .. } => Some(Outline::Chorded {
+                center,
+                first,
+                second,
+                arcs: arcs.clone(),
+            }),
+            Outline::OvalRing { hole, .. } => Some(Outline::OvalRing {
+                center,
+                first,
+                second,
+                hole: *hole,
+            }),
+            _ => None,
+        }
+    }
+}
+
+/// Whether two outlines differ by more than the rounding of the numbers
+/// they are drawn with. A semi-axis rebuilt from its direction and its
+/// length, or turned onto the step its angle already stands on, moves by a
+/// last bit or two; offered as simpler, two such changes would lead back
+/// and forth between the same two outlines for ever.
+fn differs(one: &Outline, other: &Outline) -> bool {
+    let near =
+        |one: f64, other: f64| (one - other).abs() <= 1e-12 * one.abs().max(other.abs()).max(1.0);
+    let near_pair = |one: DVec2, other: DVec2| near(one.x, other.x) && near(one.y, other.y);
+    let same = match (one, other) {
+        (
+            Outline::Ellipse {
+                center,
+                first,
+                second,
+                from,
+            },
+            Outline::Ellipse {
+                center: other_center,
+                first: other_first,
+                second: other_second,
+                from: other_from,
+            },
+        ) => {
+            near_pair(*center, *other_center)
+                && near_pair(*first, *other_first)
+                && near(*second, *other_second)
+                && near(*from, *other_from)
+        }
+        (
+            Outline::Chorded {
+                center,
+                first,
+                second,
+                arcs,
+            },
+            Outline::Chorded {
+                center: other_center,
+                first: other_first,
+                second: other_second,
+                arcs: other_arcs,
+            },
+        ) => {
+            near_pair(*center, *other_center)
+                && near_pair(*first, *other_first)
+                && near(*second, *other_second)
+                && arcs.len() == other_arcs.len()
+                && arcs
+                    .iter()
+                    .zip(other_arcs)
+                    .all(|(arc, other)| near(arc[0], other[0]) && near(arc[1], other[1]))
+        }
+        (
+            Outline::OvalSlot {
+                from,
+                to,
+                across,
+                along,
+            },
+            Outline::OvalSlot {
+                from: other_from,
+                to: other_to,
+                across: other_across,
+                along: other_along,
+            },
+        ) => {
+            near_pair(*from, *other_from)
+                && near_pair(*to, *other_to)
+                && near(*across, *other_across)
+                && near(*along, *other_along)
+        }
+        (
+            Outline::OvalRing {
+                center,
+                first,
+                second,
+                hole,
+            },
+            Outline::OvalRing {
+                center: other_center,
+                first: other_first,
+                second: other_second,
+                hole: other_hole,
+            },
+        ) => {
+            near_pair(*center, *other_center)
+                && near_pair(*first, *other_first)
+                && near(*second, *other_second)
+                && near_pair(*hole, *other_hole)
+        }
+        _ => one == other,
+    };
+    !same
 }
 
 impl Axis {

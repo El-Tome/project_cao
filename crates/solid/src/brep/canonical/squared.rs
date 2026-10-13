@@ -1,13 +1,16 @@
 //! Decision 11 (#552): a plane of one operand leaning a hair off square to,
-//! or along, the axis of a cylinder or a cone of the other, their faces in
-//! boxes that meet, is laid exactly so. The conic such a plane cuts divides
-//! by the lean, and at a ten-millionth of a degree it stands within the
-//! tolerance of the rim or the lines beside it: the kernel answered it both
-//! ways, in different places.
+//! or along, the axis of a cylinder, a cone or an elliptic wall (#571) of
+//! the other, their faces in boxes that meet, is laid exactly so. The conic
+//! such a plane cuts divides by the lean, and at a ten-millionth of a
+//! degree it stands within the tolerance of the rim or the lines beside
+//! it: the kernel answered it both ways, in different places.
 //!
 //! The second operand is turned rigidly, with its surfaces, curves and
 //! corners, so that its own decisions hold as it took them; decided once,
-//! before decision 8 reads it. It is turned about the middle of where the
+//! before decision 8 reads it. An elliptic wall turns its axis and its
+//! half-axes together, and one turned within rounding of an elliptic wall
+//! of the first is laid on its major half-axis too, so that decision 1
+//! compares the two exactly. It is turned about the middle of where the
 //! two operands' boxes overlap, and set down where it lays exactly what it
 //! held against the first (`placed.rs`); about the middle of its own box
 //! where, turned about where they meet, it would move past the hair: a cut
@@ -142,7 +145,12 @@ pub(in crate::brep) fn squared(first: &Body, second: &Body, scale: Scale) -> Opt
         left: Scale::HAIR * eps - swept,
     };
     let shift = placed(first, second, &laying);
-    let anchors: Vec<DVec3> = first.surfaces.iter().map(direction).collect();
+    let anchors: Vec<DVec3> = first
+        .surfaces
+        .iter()
+        .map(direction)
+        .chain(first.surfaces.iter().filter_map(major_half_axis))
+        .collect();
     let turned = second.rotated(met, turn, shift, &anchors, exact)?;
     kept(first, second, &turned, scale).then_some(turned)
 }
@@ -280,6 +288,18 @@ fn direction(surface: &Surface) -> DVec3 {
         Surface::Plane(plane) => plane.normal,
         Surface::Cylinder(cylinder) => cylinder.axis,
         Surface::Cone(cone) => cone.axis,
+        Surface::Elliptic(wall) => wall.axis,
+    }
+}
+
+/// The direction of an elliptic wall's major half-axis, which a direction of
+/// the second operand turned within rounding of it is laid on as on any of
+/// the first's: an elliptic wall's major half-axis among them, so that the
+/// two compare exactly as one ellipse. None for any other surface.
+fn major_half_axis(surface: &Surface) -> Option<DVec3> {
+    match surface {
+        Surface::Elliptic(wall) => Some(wall.u),
+        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => None,
     }
 }
 
@@ -337,13 +357,26 @@ pub(super) fn kept(first: &Body, before: &Body, after: &Body, scale: Scale) -> b
             let (known, tool) = (first.surface(one), after.surface(other));
             let was = relation(known, before.surface(other), scale);
             let is = relation(known, tool, scale);
-            let exact = apex(&was) || matches!(was, Relation::Same { .. } | Relation::Tangent(_));
+            let exact = apex(&was)
+                || matches!(was, Relation::Same { .. } | Relation::Tangent(_))
+                || touches(&was) > 0;
             if exact {
                 std::mem::discriminant(&was) == std::mem::discriminant(&is)
+                    && touches(&was) == touches(&is)
             } else {
                 !apex(&is) || through_the_apex(known, tool, scale)
             }
         })
+}
+
+/// How many rulings two parallel walls, an elliptic one among them, touch
+/// along beside crossings or with another touch (#571): a touch as exact as
+/// a tangent's, which a turn must keep.
+fn touches(relation: &Relation) -> usize {
+    match relation {
+        Relation::Parallel(rulings) => rulings.iter().filter(|ruled| ruled.touching).count(),
+        _ => 0,
+    }
 }
 
 /// Whether a plane passes through a cone's apex but for rounding.

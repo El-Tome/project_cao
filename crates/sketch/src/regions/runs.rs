@@ -22,8 +22,17 @@ pub enum Leg {
         centre: DVec2,
         turned: f64,
     },
-    /// Along an ellipse, which no exact kernel here can raise yet.
-    Oval,
+    /// Along the ellipse about `centre` whose first semi-axis is `first`, its
+    /// second reaching `second` a quarter turn counter-clockwise from it,
+    /// `turned` radians of the turn round it from the first axis, signed the
+    /// way the loop is walked: a whole ellipse, which has a single corner,
+    /// turns a whole turn.
+    Oval {
+        centre: DVec2,
+        first: DVec2,
+        second: f64,
+        turned: f64,
+    },
 }
 
 /// One run as the walk reads it: its two ends, and the curve it follows with
@@ -44,7 +53,12 @@ impl Outline {
                 let leg = match span.along {
                     None => Leg::Straight,
                     Some((Bend::Round(centre), turned)) => Leg::Round { centre, turned },
-                    Some((Bend::Oval(_), _)) => Leg::Oval,
+                    Some((Bend::Oval(drawn), turned)) => Leg::Oval {
+                        centre: drawn.centre,
+                        first: drawn.first,
+                        second: drawn.second,
+                        turned,
+                    },
                 };
                 (span.from, leg)
             })

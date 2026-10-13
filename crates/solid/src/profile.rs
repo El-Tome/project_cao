@@ -11,9 +11,8 @@ use crate::sweep::Loop;
 /// one raises it is the body's business ([`crate::Body::tool_raised`]).
 #[derive(Clone, Debug)]
 pub struct Profile<'a> {
-    /// The outline and the holes as runs, or `None` when a run follows a
-    /// curve the exact kernel has no surface for, an ellipse: the area is then
-    /// raised by the flats.
+    /// The outline and the holes as runs, or `None` when the drawing hands
+    /// none: the area is then raised by the flats.
     pub exact: Option<(Contour, Vec<Contour>)>,
     pub sampled: Loop<'a>,
     pub sampled_holes: Vec<Loop<'a>>,
@@ -28,6 +27,16 @@ pub enum Run {
     /// as `turn` says, in radians, signed as the turn goes.
     Round {
         center: DVec2,
+        turn: f64,
+    },
+    /// Along the ellipse about `center` whose first semi-axis is `first`, its
+    /// second reaching `second` a quarter turn counter-clockwise from it,
+    /// `turn` radians of the turn round it measured from the first axis,
+    /// signed as the turn goes.
+    Oval {
+        center: DVec2,
+        first: DVec2,
+        second: f64,
         turn: f64,
     },
 }

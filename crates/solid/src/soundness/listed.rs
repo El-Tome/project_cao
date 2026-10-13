@@ -5,7 +5,9 @@
 //! here by its own formula, so that a listing the kernel got wrong is not
 //! checked by the same mistake. The curve two perpendicular cylinders meet
 //! along is the one exception, evaluated by its own `point`: it has no
-//! formula short enough to write twice.
+//! formula short enough to write twice. With an elliptic wall among the two
+//! (#571) it is read by a formula of its own, each wall's chord solved at
+//! the height its parameter stands for.
 
 use std::f64::consts::TAU;
 
@@ -13,7 +15,9 @@ use crate::brep::{Arm, Curve, Listing};
 
 mod conic;
 mod lying;
+mod meet;
 mod nappe;
+mod oval;
 mod turning;
 
 /// What a listing says that its geometry does not bear out, and where: faces,

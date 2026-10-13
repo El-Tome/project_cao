@@ -160,6 +160,7 @@ fn touch(ring: &Piece, piece: &Piece, eps: f64) -> Option<DVec2> {
             let on_ring = center + (on_other - center).normalize() * radius;
             Some((on_other + on_ring) / 2.0)
         }
+        Piece::Oval { .. } => None,
     }
 }
 
@@ -188,6 +189,7 @@ fn share(piece: &Piece, point: DVec2, eps: f64) -> Option<f64> {
             let clear = point.distance(from) > eps && point.distance(to) > eps;
             (clear && turned < sweep.abs()).then_some(turned)
         }
+        Piece::Oval { .. } => None,
     }
 }
 
@@ -229,10 +231,12 @@ fn part(
                 let first = stops[0].1;
                 cuts.chain([(TAU, points[first], Some(first))]).collect()
             }
-            Piece::Arc { sweep, .. } => std::iter::once((0.0, piece.from(), met))
-                .chain(cuts)
-                .chain([(sweep.abs(), piece.to(), None)])
-                .collect(),
+            Piece::Arc { sweep, .. } | Piece::Oval { sweep, .. } => {
+                std::iter::once((0.0, piece.from(), met))
+                    .chain(cuts)
+                    .chain([(sweep.abs(), piece.to(), None)])
+                    .collect()
+            }
             Piece::Straight { from, to } => std::iter::once((0.0, from, met))
                 .chain(cuts)
                 .chain([(1.0, to, None)])
@@ -268,6 +272,20 @@ fn between(piece: &Piece, start: DVec2, end: DVec2, turned: f64) -> Piece {
             to: end,
             center,
             radius,
+            sweep: turned.copysign(sweep),
+        },
+        Piece::Oval {
+            center,
+            first,
+            second,
+            sweep,
+            ..
+        } => Piece::Oval {
+            from: start,
+            to: end,
+            center,
+            first,
+            second,
             sweep: turned.copysign(sweep),
         },
     }

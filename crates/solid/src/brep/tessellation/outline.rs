@@ -83,6 +83,18 @@ impl Outline {
                 let eps = body.scale().eps();
                 outline.conical(cone, samples, &laps, steps, apex, eps)?;
             }
+            Surface::Elliptic(wall) => {
+                let steps = divisions(wall.major, tolerance);
+                let raws: Vec<Vec<DVec2>> = laps
+                    .iter()
+                    .map(|ids| {
+                        ids.iter()
+                            .map(|id| wall.parameters(samples.point(*id)))
+                            .collect()
+                    })
+                    .collect();
+                outline.round_laid(&raws, &laps, steps, |id| !samples.is_vertex(id))?;
+            }
         }
         Some(outline)
     }

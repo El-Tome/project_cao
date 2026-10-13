@@ -3,9 +3,11 @@
 
 use glam::DVec3;
 
+use super::walls::off_the_touches;
 use crate::brep::curve::Circle;
+use crate::brep::curve::Wall;
 use crate::brep::meet::moved;
-use crate::brep::relation::{Relation, relation};
+use crate::brep::relation::{Relation, abreast, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder, Surface};
 
@@ -35,6 +37,7 @@ pub(super) fn off(
             | Relation::Line(_)
             | Relation::Lines(_)
             | Relation::Tangent(_)
+            | Relation::Parallel(_)
             | Relation::Meet(_)
             | Relation::Rulings { .. }
             | Relation::Apex(_) => true,
@@ -42,6 +45,9 @@ pub(super) fn off(
         return about.then(|| cone.off_axis(*origin));
     }
     match relation(one, other, scale) {
+        Relation::Tangent(_) | Relation::Parallel(_) if abreast(one, other) => {
+            off_the_touches(one, other, scale)
+        }
         Relation::Tangent(_) => match (one, other) {
             (Surface::Plane(plane), Surface::Cylinder(cylinder))
             | (Surface::Cylinder(cylinder), Surface::Plane(plane)) => {
@@ -54,24 +60,32 @@ pub(super) fn off(
                 let inside = (one.radius - other.radius).abs() - across;
                 Some(outside.abs().min(inside.abs()))
             }
+            (Surface::Plane(plane), Surface::Elliptic(wall))
+            | (Surface::Elliptic(wall), Surface::Plane(plane)) => {
+                Some((plane.distance(wall.origin).abs() - wall.support(plane.normal)).abs())
+            }
             (Surface::Plane(_), Surface::Plane(_)) => Some(0.0),
-            (Surface::Cone(_), _) | (_, Surface::Cone(_)) => None,
+            (Surface::Cone(_) | Surface::Elliptic(_), _)
+            | (_, Surface::Cone(_) | Surface::Elliptic(_)) => None,
         },
         Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => {
-            let (one, other) = match (one, other) {
-                (Surface::Cylinder(one), Surface::Cylinder(other)) => (one, other),
-                (Surface::Plane(_) | Surface::Cone(_), _)
-                | (_, Surface::Plane(_) | Surface::Cone(_)) => return None,
-            };
-            Some(moved(one, other, scale).map_or(0.0, |(rank, to)| {
-                let from = [one, other][rank];
-                from.origin.distance(to.origin) + (from.radius - to.radius).abs()
+            let (one, other) = (Wall::of(one)?, Wall::of(other)?);
+            Some(moved(&one, &other, scale).map_or(0.0, |(rank, to)| {
+                match ([one, other][rank], to) {
+                    (Wall::Cylinder(from), Wall::Cylinder(to)) => {
+                        from.origin.distance(to.origin) + (from.radius - to.radius).abs()
+                    }
+                    (Wall::Elliptic(from), Wall::Elliptic(to)) => from.gap(&to),
+                    (Wall::Cylinder(_), Wall::Elliptic(_))
+                    | (Wall::Elliptic(_), Wall::Cylinder(_)) => f64::INFINITY,
+                }
             }))
         }
         Relation::Apart
         | Relation::Same { .. }
         | Relation::Line(_)
         | Relation::Lines(_)
+        | Relation::Parallel(_)
         | Relation::Circle(_)
         | Relation::Meet(_)
         | Relation::Rulings { .. }

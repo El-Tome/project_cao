@@ -10,11 +10,13 @@
 //! comes onto or leaves an edge, a three-halves power of the distance; the
 //! integral is cut at every one of those places, all of them found in closed
 //! form, and each piece is summed by tanh–sinh quadrature, which holds such
-//! ends to the rounding.
+//! ends to the rounding. A slice of an elliptic prism (#571) is an ellipse,
+//! and its part on one side of a chord the disc of its reach along the
+//! chord's normal, squeezed across.
 
 use std::f64::consts::{FRAC_PI_2, PI};
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use super::{Leaf, Outline};
 
@@ -70,11 +72,84 @@ struct Round {
     rings: Vec<Ring>,
 }
 
+/// A prism of an ellipse, bored or not by a smaller one about its centre
+/// (#571): the centre where it starts, its axis of unit length, how far
+/// along it it runs, and each ellipse by the world directions of its axes
+/// and its half-lengths along them, the hole's area taken away.
+struct Elliptic {
+    origin: DVec3,
+    axis: DVec3,
+    along: [f64; 2],
+    ovals: Vec<([DVec3; 2], [f64; 2], f64)>,
+}
+
+impl Elliptic {
+    /// The volume on the side `normal · x ≤ offset`: every slice is the
+    /// ellipse, and an ellipse on one side of a chord is the disc of its
+    /// reach along the chord's normal on that side, squeezed across by the
+    /// ratio of its area to the disc's.
+    fn kept(&self, normal: DVec3, offset: f64) -> f64 {
+        let along = normal.dot(self.axis);
+        let trace = normal - self.axis * along;
+        let across = trace.length();
+        let level = offset - normal.dot(self.origin);
+        let [low, high] = self.along;
+        let area = |chord: f64| {
+            self.ovals
+                .iter()
+                .map(|([first, second], [a, b], sign)| {
+                    let toward = trace / across;
+                    let reach = (a * toward.dot(*first)).hypot(b * toward.dot(*second));
+                    sign * a * b / (reach * reach) * segment(reach, chord)
+                })
+                .sum::<f64>()
+        };
+        if across <= 1e-15 * normal.length() {
+            let whole: f64 = self
+                .ovals
+                .iter()
+                .map(|(_, [a, b], sign)| sign * PI * a * b)
+                .sum();
+            let kept = if along == 0.0 {
+                if level >= 0.0 { high - low } else { 0.0 }
+            } else {
+                let at = level / along;
+                if along > 0.0 {
+                    (at.min(high) - low).max(0.0)
+                } else {
+                    (high - at.max(low)).max(0.0)
+                }
+            };
+            return whole * kept;
+        }
+        let chord = |s: f64| (level - along * s) / across;
+        let mut breaks = vec![low, high];
+        for ([first, second], [a, b], _) in &self.ovals {
+            let toward = trace / across;
+            let reach = (a * toward.dot(*first)).hypot(b * toward.dot(*second));
+            if along != 0.0 {
+                breaks
+                    .extend([level - reach * across, level + reach * across].map(|at| at / along));
+            }
+        }
+        breaks.retain(|at| at.is_finite() && (low..=high).contains(at));
+        breaks.sort_by(f64::total_cmp);
+        breaks.dedup();
+        breaks
+            .windows(2)
+            .map(|pair| tanh_sinh(&|s: f64| area(chord(s)), pair[0], pair[1]))
+            .sum()
+    }
+}
+
 impl Leaf {
     /// The volume of the leaf on the side `normal · x ≤ offset` of a plane,
-    /// to a relative 1e-12: nothing for a leaf that is not a circle or a ring
-    /// prism or a whole turn.
+    /// to a relative 1e-12: nothing for a leaf that is not a circle, a ring,
+    /// an ellipse or an elliptic ring prism, or a whole turn.
     pub fn kept_by_a_half_space(&self, normal: DVec3, offset: f64) -> Option<f64> {
+        if let Some(elliptic) = self.elliptic() {
+            return Some(elliptic.kept(normal, offset));
+        }
         let round = self.round()?;
         let along = normal.dot(round.axis);
         let across = (normal - round.axis * along).length();
@@ -141,6 +216,40 @@ impl Leaf {
                 .map(|pair| tanh_sinh(&area, pair[0], pair[1]))
                 .sum(),
         )
+    }
+
+    fn elliptic(&self) -> Option<Elliptic> {
+        let Leaf::Prism {
+            plane,
+            outline: outline @ (Outline::Ellipse { .. } | Outline::OvalRing { .. }),
+            height,
+        } = self
+        else {
+            return None;
+        };
+        let (_, u, v) = plane.frame();
+        let world = |direction: DVec2| u * direction.x + v * direction.y;
+        let ovals = outline
+            .oval()
+            .into_iter()
+            .map(|oval| (oval, 1.0))
+            .chain(outline.oval_hole().map(|hole| (hole, -1.0)))
+            .map(|(oval, sign)| {
+                let unit = oval.first.normalize();
+                (
+                    [world(unit), world(unit.perp())],
+                    [oval.first.length(), oval.second],
+                    sign,
+                )
+            })
+            .collect();
+        let center = outline.oval()?.center;
+        Some(Elliptic {
+            origin: plane.to_world(center),
+            axis: plane.normal().normalize(),
+            along: [height.min(0.0), height.max(0.0)],
+            ovals,
+        })
     }
 
     fn round(&self) -> Option<Round> {

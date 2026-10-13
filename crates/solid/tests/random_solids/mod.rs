@@ -17,6 +17,7 @@ mod cores;
 mod drawing;
 mod kernels;
 mod outlines;
+mod ovals;
 mod printing;
 mod scope;
 mod sections;
@@ -33,6 +34,8 @@ pub use checking::{check, holds, kept_its_promise, within_reach};
 pub use cores::on_every_core;
 pub use drawing::clear_of_the_lines;
 pub use kernels::{Application, Exact, Flats, Kernel, TESSELLATION, whole_circle};
+pub use outlines::sampled;
+pub use ovals::Oval;
 pub use scope::Conics;
 pub use sections::{Along, Axis, ON_THE_AXIS, Piece, Section, Trapezoid};
 
@@ -248,6 +251,45 @@ pub enum Outline {
         to: DVec2,
         radius: f64,
     },
+    /// An ellipse about `center` whose first semi-axis is `first`, its second
+    /// reaching `second` a quarter turn counter-clockwise from it (#571):
+    /// sampled as the application samples one, into as many flats as a
+    /// circle, from the eccentric angle in degrees where its single corner
+    /// lies, and handed to the exact kernel as one whole turn from there.
+    Ellipse {
+        center: DVec2,
+        first: DVec2,
+        second: f64,
+        from: f64,
+    },
+    /// The arcs of an ellipse in `arcs`, each from one eccentric angle in
+    /// degrees to a larger one, joined by the straight runs between them: an
+    /// ellipse cut by one trait, or by two, which leaves two arcs of one
+    /// ellipse.
+    Chorded {
+        center: DVec2,
+        first: DVec2,
+        second: f64,
+        arcs: Vec<[f64; 2]>,
+    },
+    /// Two half ellipses about `from` and `to`, reaching `along` past them
+    /// along the way between them and `across` either side of it, joined by
+    /// two straight runs: a slot with elliptic ends, in any direction.
+    OvalSlot {
+        from: DVec2,
+        to: DVec2,
+        across: f64,
+        along: f64,
+    },
+    /// An ellipse with a smaller one about its centre bored through it, its
+    /// half-lengths `hole` along the first semi-axis and across it: a circle
+    /// when the two are one.
+    OvalRing {
+        center: DVec2,
+        first: DVec2,
+        second: f64,
+        hole: DVec2,
+    },
 }
 
 impl Outline {
@@ -298,6 +340,46 @@ impl Outline {
             from: DVec2::from(from),
             to: DVec2::from(to),
             radius,
+        }
+    }
+
+    pub fn ellipse(center: [f64; 2], first: [f64; 2], second: f64) -> Self {
+        Self::ellipse_from(center, first, second, 0.0)
+    }
+
+    pub fn ellipse_from(center: [f64; 2], first: [f64; 2], second: f64, from: f64) -> Self {
+        Self::Ellipse {
+            center: DVec2::from(center),
+            first: DVec2::from(first),
+            second,
+            from,
+        }
+    }
+
+    pub fn chorded(center: [f64; 2], first: [f64; 2], second: f64, arcs: &[[f64; 2]]) -> Self {
+        Self::Chorded {
+            center: DVec2::from(center),
+            first: DVec2::from(first),
+            second,
+            arcs: arcs.to_vec(),
+        }
+    }
+
+    pub fn oval_slot(from: [f64; 2], to: [f64; 2], across: f64, along: f64) -> Self {
+        Self::OvalSlot {
+            from: DVec2::from(from),
+            to: DVec2::from(to),
+            across,
+            along,
+        }
+    }
+
+    pub fn oval_ring(center: [f64; 2], first: [f64; 2], second: f64, hole: [f64; 2]) -> Self {
+        Self::OvalRing {
+            center: DVec2::from(center),
+            first: DVec2::from(first),
+            second,
+            hole: DVec2::from(hole),
         }
     }
 }

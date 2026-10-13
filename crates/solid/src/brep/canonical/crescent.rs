@@ -32,8 +32,13 @@
 //! stand within `Scale::HAIR` tolerances are taken about one axis, whatever
 //! their radii: the second operand is moved onto the first's axis the same
 //! way (5361108529, 5361110937).
+//!
+//! Two elliptic walls a hair apart in their axes, their half-axes and the
+//! turn of their major ones are one surface too (#571, `oval.rs`).
 
 use glam::DVec3;
+
+mod oval;
 
 use super::carried::carried_along;
 use crate::brep::scale::Scale;
@@ -44,11 +49,17 @@ use crate::brep::topology::Body;
 /// tolerances of one of the first's, of one radius, moved onto it; each of
 /// its cones whose axis stands as near a cylinder's or a cone's of the
 /// first, and each of its cylinders whose axis stands as near a cone's of
-/// the first, moved about that axis; none when nothing moves.
+/// the first, moved about that axis; each of its elliptic walls as near one
+/// of the first's in every measure moved onto it, as `oval.rs` says; none
+/// when nothing moves.
 pub(in crate::brep) fn closed(first: &Body, second: &Body, scale: Scale) -> Option<Body> {
-    carried_along(first, second, scale, |current, rank| {
-        offset(first, &current.surfaces[rank], scale)
-    })
+    let moved = carried_along(first, second, scale, |current, rank| {
+        match &current.surfaces[rank] {
+            Surface::Elliptic(own) => oval::offset(first, own, scale),
+            surface => offset(first, surface, scale),
+        }
+    });
+    oval::reshaped(first, moved.as_ref().unwrap_or(second), scale).or(moved)
 }
 
 /// The move square to the axes that lays `surface` about the axis of the
@@ -90,7 +101,7 @@ fn axis_of(surface: &Surface) -> Option<(DVec3, DVec3)> {
     match surface {
         Surface::Cylinder(cylinder) => Some((cylinder.origin, cylinder.axis)),
         Surface::Cone(cone) => Some((cone.origin, cone.axis)),
-        Surface::Plane(_) => None,
+        Surface::Plane(_) | Surface::Elliptic(_) => None,
     }
 }
 

@@ -26,13 +26,13 @@ use glam::DVec3;
 
 use super::chords::halved;
 use super::cone::Grid;
-use super::ends::grazed;
+use super::elliptic::{a_step_apart, between_steps, on_the_wall, reached_by_planes};
+use super::ends::{grazed, grazed_near};
 use super::{divisions, on_a_plane, touching_planes};
 use crate::brep::conic::{Conic, On, Round};
 use crate::brep::curve::Curve;
 use crate::brep::scale::Scale;
-use crate::brep::surface::Cylinder;
-use crate::brep::surface::Surface;
+use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::tessellation::contact::{self, Contact, Wall, Zones};
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
@@ -101,6 +101,20 @@ pub(super) fn of_edge(
             let clear = |point: DVec3| !grazing(point, eps * contact::APART);
             let rays: Vec<f64> = vertices.iter().chain(rays).copied().collect();
             on_conic(conic, edge, tolerance, eps, [&grid, &rays], &clear)
+        }
+        Round::Elliptic(wall) => {
+            let steps = divisions(wall.major, tolerance);
+            let grid = turn(steps);
+            let own = [plane, Surface::Elliptic(wall)];
+            let grazing = grazed_near(body, edge, &own, a_step_apart(wall, steps));
+            let clear = |point: DVec3| !grazing(point, eps * contact::APART);
+            let rays: Vec<f64> = on_the_wall(body, &wall, steps)
+                .into_iter()
+                .chain(reached_by_planes(body, &wall))
+                .chain(rays.iter().copied())
+                .collect();
+            let edge = between_steps(conic, edge, steps);
+            on_conic(conic, &edge, tolerance, eps, [&grid, &rays], &clear)
         }
     }
 }
@@ -215,16 +229,29 @@ pub(super) fn rays_about(
     eps: f64,
 ) -> Vec<f64> {
     let (origin, axis) = about(&conic.round);
-    let (u, v) = match conic.round {
-        Round::Cylinder(cylinder) => (cylinder.u, cylinder.v),
-        Round::Cone(cone) => (cone.u, cone.v),
+    let (u, v, scaled) = match conic.round {
+        Round::Cylinder(cylinder) => (cylinder.u, cylinder.v, None),
+        Round::Cone(cone) => (cone.u, cone.v, None),
+        Round::Elliptic(wall) => (wall.u, wall.v, Some((wall.major, wall.minor))),
+    };
+    let own = match conic.round {
+        Round::Elliptic(wall) => Some(wall),
+        Round::Cylinder(_) | Round::Cone(_) => None,
     };
     walls
         .iter()
         .filter(|(_, wall)| coaxial(wall, origin, axis, eps))
         .filter_map(|(id, _)| contacts.get(id))
+        .chain(
+            contacts
+                .values()
+                .filter(|contact| own.is_some() && contact.oval == own),
+        )
         .flat_map(|contact| contact.rays.iter())
-        .map(|way| way.dot(v).atan2(way.dot(u)))
+        .map(|way| match scaled {
+            None => way.dot(v).atan2(way.dot(u)),
+            Some((major, minor)) => (way.dot(v) / minor).atan2(way.dot(u) / major),
+        })
         .collect()
 }
 
@@ -232,6 +259,7 @@ fn about(round: &Round) -> (DVec3, DVec3) {
     match round {
         Round::Cylinder(cylinder) => (cylinder.origin, cylinder.axis),
         Round::Cone(cone) => (cone.origin, cone.axis),
+        Round::Elliptic(wall) => (wall.origin, wall.axis),
     }
 }
 

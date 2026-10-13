@@ -1,9 +1,10 @@
 //! Whether the kernel reads a step unstably (#552): a plane of one operand
-//! leaning off square to, or along, the axis of a cylinder or a cone of the
-//! other, their faces near enough to meet, by more than decision 11 lays
-//! exactly and less than `UNSTABLE`. The conic such a plane cuts divides by
-//! the lean, so the rounding of a step is magnified by about one over it:
-//! the step is built, and said to the user, who is never blocked.
+//! leaning off square to, or along, the axis of a cylinder, a cone or an
+//! elliptic wall (#571) of the other, their faces near enough to meet, by
+//! more than decision 11 lays exactly and less than `UNSTABLE`. The conic
+//! such a plane cuts divides by the lean, so the rounding of a step is
+//! magnified by about one over it: the step is built, and said to the
+//! user, who is never blocked.
 //!
 //! Read after decision 11, on the operands as the boolean lays them, so a
 //! lean it turned exact is not noted, and only pairs across the two
@@ -56,6 +57,7 @@ fn lean_of(one: &Surface, other: &Surface) -> Option<(Lean, f64)> {
     let axis = |wall: &Surface| match wall {
         Surface::Cylinder(cylinder) => Some(cylinder.axis),
         Surface::Cone(cone) => Some(cone.axis),
+        Surface::Elliptic(wall) => Some(wall.axis),
         Surface::Plane(_) => None,
     };
     match (one, other) {

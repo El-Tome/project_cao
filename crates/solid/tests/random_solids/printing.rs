@@ -145,6 +145,69 @@ impl Display for Outline {
                 Pair(*from),
                 Pair(*to)
             ),
+            Outline::Ellipse {
+                center,
+                first,
+                second,
+                from,
+            } => {
+                if *from == 0.0 {
+                    write!(
+                        out,
+                        "Outline::ellipse({}, {}, {second:?})",
+                        Pair(*center),
+                        Pair(*first)
+                    )
+                } else {
+                    write!(
+                        out,
+                        "Outline::ellipse_from({}, {}, {second:?}, {from:?})",
+                        Pair(*center),
+                        Pair(*first)
+                    )
+                }
+            }
+            Outline::Chorded {
+                center,
+                first,
+                second,
+                arcs,
+            } => {
+                write!(
+                    out,
+                    "Outline::chorded({}, {}, {second:?}, &[",
+                    Pair(*center),
+                    Pair(*first)
+                )?;
+                for (index, [from, to]) in arcs.iter().enumerate() {
+                    let separator = if index == 0 { "" } else { ", " };
+                    write!(out, "{separator}[{from:?}, {to:?}]")?;
+                }
+                write!(out, "])")
+            }
+            Outline::OvalSlot {
+                from,
+                to,
+                across,
+                along,
+            } => write!(
+                out,
+                "Outline::oval_slot({}, {}, {across:?}, {along:?})",
+                Pair(*from),
+                Pair(*to)
+            ),
+            Outline::OvalRing {
+                center,
+                first,
+                second,
+                hole,
+            } => write!(
+                out,
+                "Outline::oval_ring({}, {}, {second:?}, {})",
+                Pair(*center),
+                Pair(*first),
+                Pair(*hole)
+            ),
         }
     }
 }

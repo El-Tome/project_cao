@@ -30,14 +30,14 @@ mod volume;
 use serde::{Deserialize, Serialize};
 
 pub use conic::{Arm, Conic, On, Round};
-pub use curve::{Circle, Curve, Line, Meet};
+pub use curve::{Circle, Curve, Line, Meet, Wall};
 pub use domain::Location;
 pub use listing::{ListedEdge, ListedFace, Listing};
 pub use meet::{Configuration, Meeting, Node};
 pub use overlay::{Arc, Overlay, Region};
 pub use relation::{Crossing, Crossings, Relation, crossings, relation};
 pub use scale::Scale;
-pub use surface::{Cone, Cylinder, Plane, Surface};
+pub use surface::{Cone, Cylinder, EllipticCylinder, Plane, Surface};
 pub use topology::{
     Body, Coedge, CurveId, Edge, EdgeId, Face, FaceId, SurfaceId, Vertex, VertexId,
 };
@@ -60,8 +60,12 @@ pub enum Declined {
     /// Two surfaces meet along a curve the kernel does not build: two
     /// cylinders at a skew angle, a cylinder or a cone off a cone's axis, a
     /// cone within the tolerance of a plane or a cylinder of its axis all
-    /// across the box. A plane meets a cylinder or a cone at any angle along a
-    /// conic, which is built (#552).
+    /// across the box, an elliptic wall against a cone or a wall neither
+    /// parallel nor square to it, or a parallel wall within decision 8's hair
+    /// of it all round. A plane meets a cylinder, a cone or an elliptic wall
+    /// at any other angle along a conic, a parallel round or elliptic wall
+    /// meets an elliptic one along rulings, and a square one along the curve
+    /// the two meet along, which are built (#552, #571).
     Unsupported,
     /// Two curves touch more closely than their curvatures can order.
     Tie,
@@ -81,8 +85,8 @@ pub enum Declined {
 }
 
 /// A step the kernel built though it reads it unstably (#552): a plane of one
-/// operand leans off square to, or along, the axis of a cylinder or a cone of
-/// the other, their faces near enough to meet, by more than decision 11 lays
+/// operand leans off square to, or along, the axis of a cylinder, a cone or an
+/// elliptic wall (#571) of the other, their faces near enough to meet, by more than decision 11 lays
 /// exactly and less than the kernel reads without magnifying its rounding.
 /// The conic such a plane cuts divides by the lean, so a change too small to
 /// see may change what is built. Said, never declined.

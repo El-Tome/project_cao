@@ -28,11 +28,12 @@ pub struct Body {
     matter: Matter,
 }
 
-/// Which kernel computed the matter. Exact on planes, cylinders and cones as
-/// long as every step was one the exact kernel builds; flat pieces from the
-/// first step it does not — a revolution of an arc, an ellipse — on,
-/// since an exact body joined to flats can only be flats. The exact body is
-/// boxed, being several times the size of the flats' handle.
+/// Which kernel computed the matter. Exact on planes, cylinders, elliptic
+/// walls and cones as long as every step was one the exact kernel builds;
+/// flat pieces from the first step it does not — a revolution of an arc or
+/// of an ellipse — on, since an exact body joined to flats can only be
+/// flats. The exact body is boxed, being several times the size of the
+/// flats' handle.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 enum Matter {
     Exact(Box<Exact>),
@@ -76,8 +77,9 @@ pub struct FacePlane {
 impl Body {
     /// A profile raised into a prism along `travel`, square to its frame, in
     /// the kernel this body is computed by: exact when the body is and the
-    /// profile has no run the exact kernel cannot raise, flats otherwise.
-    /// Declined only by the exact kernel.
+    /// drawing handed the profile's runs, flats otherwise. Declined only by
+    /// the exact kernel: an ellipse it cannot build with is a broken step,
+    /// never the flats (#571).
     pub fn tool_raised(
         &self,
         profile: &Profile,

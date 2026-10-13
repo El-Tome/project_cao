@@ -71,7 +71,7 @@ fn between(
 ) -> bool {
     let plane = match surface {
         Surface::Plane(plane) => plane,
-        Surface::Cylinder(_) | Surface::Cone(_) => return false,
+        Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => return false,
     };
     let rounding = scale.eps() * ROUNDING;
     let sides: Vec<f64> = alike
@@ -81,7 +81,7 @@ fn between(
                 let facing = known.normal.dot(plane.normal).signum();
                 Some(facing * known.offset() - plane.offset())
             }
-            Surface::Cylinder(_) | Surface::Cone(_) => None,
+            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
         })
         .collect();
     sides.iter().any(|side| *side > rounding) && sides.iter().any(|side| *side < -rounding)
@@ -91,7 +91,8 @@ fn between(
 const ROUNDING: f64 = 1e-6;
 
 /// How far apart two surfaces one within the tolerance stand: their offsets
-/// along the normal, their axes and radii, or their axes and meridian lines.
+/// along the normal, their axes and radii, their axes and meridian lines, or
+/// their axes and half-axes.
 fn gap(one: &Surface, other: &Surface) -> f64 {
     match (one, other) {
         (Surface::Plane(one), Surface::Plane(other)) => {
@@ -104,8 +105,12 @@ fn gap(one: &Surface, other: &Surface) -> f64 {
             across.length() + (one.radius - other.radius).abs()
         }
         (Surface::Cone(one), Surface::Cone(other)) => apart_by(one, other),
-        (Surface::Plane(_), Surface::Cylinder(_) | Surface::Cone(_))
-        | (Surface::Cylinder(_), Surface::Plane(_) | Surface::Cone(_))
-        | (Surface::Cone(_), Surface::Plane(_) | Surface::Cylinder(_)) => f64::INFINITY,
+        (Surface::Elliptic(one), Surface::Elliptic(other)) => one.gap(other),
+        (Surface::Plane(_), Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_))
+        | (Surface::Cylinder(_), Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_))
+        | (Surface::Cone(_), Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_))
+        | (Surface::Elliptic(_), Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_)) => {
+            f64::INFINITY
+        }
     }
 }

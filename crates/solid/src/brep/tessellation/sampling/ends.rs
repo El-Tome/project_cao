@@ -36,7 +36,7 @@ impl Ends {
                 plane.normal.dot(circle.axis).abs() <= Scale::RELATIVE
                     && (plane.distance(circle.center).abs() - circle.radius).abs() <= eps
             }
-            Surface::Cylinder(_) | Surface::Cone(_) => false,
+            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => false,
         };
         let own = eps * TOLD;
         let holds = |surface: &Surface| match surface {
@@ -46,6 +46,7 @@ impl Ends {
             }
             Surface::Cylinder(cylinder) => contact::lies_on(circle, cylinder, own),
             Surface::Cone(cone) => cone.holds(circle, own),
+            Surface::Elliptic(_) => false,
         };
         let surfaces = |vertex: VertexId| {
             body.vertex(vertex)
@@ -84,6 +85,7 @@ impl Ends {
                         let on_the_wall = match &conic.round {
                             Round::Cylinder(cylinder) => contact::lies_on(circle, cylinder, own),
                             Round::Cone(cone) => cone.holds(circle, own),
+                            Round::Elliptic(_) => false,
                         };
                         on_the_wall.then_some(conic.plane)
                     }
@@ -123,7 +125,9 @@ impl Ends {
             Surface::Cylinder(wall) if wall.axis.cross(axis).length() <= Scale::RELATIVE => {
                 self.closes(side, wall, eps)
             }
-            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => true,
+            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+                true
+            }
         }
     }
 }
@@ -137,6 +141,23 @@ pub(super) fn grazed<'a>(
     own: &[Surface],
     step: f64,
 ) -> impl Fn(DVec3, f64) -> bool + use<'a> {
+    grazed_near(body, edge, own, move |point: DVec3, end: DVec3| {
+        (point - end).length() <= step
+    })
+}
+
+/// Whether a place of an edge stands within `room` of a surface one of its
+/// ends lies on and none of the curve's `own` surfaces is, where `near` says
+/// the place stands near that end.
+pub(super) fn grazed_near<'a, Near>(
+    body: &'a Body,
+    edge: &'a Edge,
+    own: &[Surface],
+    near: Near,
+) -> impl Fn(DVec3, f64) -> bool + use<'a, Near>
+where
+    Near: Fn(DVec3, DVec3) -> bool + 'a,
+{
     let ends: Vec<(DVec3, Vec<Surface>)> = edge
         .ends
         .into_iter()
@@ -154,7 +175,7 @@ pub(super) fn grazed<'a>(
         .collect();
     move |point: DVec3, room: f64| {
         ends.iter().any(|(end, surfaces)| {
-            (point - *end).length() <= step
+            near(point, *end)
                 && surfaces
                     .iter()
                     .any(|surface| surface.distance(point).abs() < room)

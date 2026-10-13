@@ -94,21 +94,61 @@ fn area_of(outline: &Outline) -> Area {
                 holes: vec![(bore.clone(), curved(&bore))],
             }
         }
-        Outline::Rounded { low, high, .. } => convex(outline, (*low + *high) / 2.0),
-        Outline::Slot { from, to, .. } => convex(outline, (*from + *to) / 2.0),
+        Outline::Rounded { low, high, .. } => convex(outline, Some((*low + *high) / 2.0)),
+        Outline::Slot { from, to, .. } | Outline::OvalSlot { from, to, .. } => {
+            convex(outline, Some((*from + *to) / 2.0))
+        }
+        Outline::Ellipse { center, .. } => convex(outline, Some(*center)),
+        Outline::Chorded { .. } => convex(outline, None),
+        Outline::OvalRing { .. } => ringed(outline),
     }
 }
 
 /// An outline of straight runs and arcs, which is convex: its flats sampled
-/// from its contour, and a fan from a point inside to fill it.
-fn convex(outline: &Outline, inside: DVec2) -> Area {
-    let contour = outline.contour().expect("an outline of runs and arcs");
+/// from its contour, and a fan to fill it from a point inside, or from the
+/// middle of its corners.
+fn convex(outline: &Outline, inside: Option<DVec2>) -> Area {
+    let contour = match outline.contour() {
+        Some(contour) => contour,
+        None => {
+            outline
+                .oval_contours()
+                .expect("an outline of runs and arcs")
+                .0
+        }
+    };
     let (corners, curves) = super::outlines::sampled(&contour);
+    let inside = inside.unwrap_or_else(|| corners.iter().sum::<DVec2>() / corners.len() as f64);
     Area {
         triangles: fan_from(inside, &corners),
         outline_curves: curves,
         outline: corners,
         holes: Vec::new(),
+    }
+}
+
+/// An elliptic ring: its outer ellipse and its hole each sampled from the end
+/// of their first semi-axes, as many flats each, and the room between them
+/// filled flat by flat, the two corners at one step joined: each ellipse
+/// reads the same eccentric angle there, so no two joins cross.
+fn ringed(outline: &Outline) -> Area {
+    let (contour, holes) = outline.oval_contours().expect("an elliptic ring");
+    let (rim, rim_curves) = super::outlines::sampled(&contour);
+    let (bore, bore_curves) = super::outlines::sampled(&holes[0]);
+    let triangles = (0..rim.len())
+        .flat_map(|index| {
+            let next = (index + 1) % rim.len();
+            [
+                [bore[index], rim[index], rim[next]],
+                [bore[index], rim[next], bore[next]],
+            ]
+        })
+        .collect();
+    Area {
+        triangles,
+        outline: rim,
+        outline_curves: rim_curves,
+        holes: vec![(bore, bore_curves)],
     }
 }
 
@@ -122,6 +162,18 @@ fn seen_whole_from(center: DVec2, corners: &[DVec2]) -> bool {
         .collect();
     corners.len() >= 3
         && (turns.iter().all(|turn| *turn > 0.0) || turns.iter().all(|turn| *turn < 0.0))
+}
+
+/// Whether arcs of an ellipse, in degrees, follow one another round less than
+/// one turn, each turning some way and each leaving some way before the
+/// next: what keeps a trait between every two.
+fn in_turn(arcs: &[[f64; 2]]) -> bool {
+    let ends: Vec<f64> = arcs.iter().flatten().copied().collect();
+    !arcs.is_empty()
+        && arcs.len() <= 2
+        && ends.iter().all(|end| end.is_finite())
+        && ends.windows(2).all(|pair| pair[0] < pair[1])
+        && ends[ends.len() - 1] < ends[0] + 360.0
 }
 
 fn signed_area(points: &[DVec2]) -> f64 {
@@ -156,6 +208,32 @@ impl Leaf {
                         }
                         Outline::Slot { from, to, radius } => {
                             0.0 < *radius && from != to && (from.x == to.x || from.y == to.y)
+                        }
+                        Outline::Ellipse { first, second, .. } => {
+                            0.0 < first.length() && 0.0 < *second
+                        }
+                        Outline::Chorded {
+                            first,
+                            second,
+                            arcs,
+                            ..
+                        } => 0.0 < first.length() && 0.0 < *second && in_turn(arcs),
+                        Outline::OvalSlot {
+                            from,
+                            to,
+                            across,
+                            along,
+                        } => 0.0 < *across && 0.0 < *along && from != to,
+                        Outline::OvalRing {
+                            first,
+                            second,
+                            hole,
+                            ..
+                        } => {
+                            0.0 < hole.x
+                                && hole.x < first.length()
+                                && 0.0 < hole.y
+                                && hole.y < *second
                         }
                     }
             }

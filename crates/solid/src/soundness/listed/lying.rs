@@ -9,7 +9,9 @@ use glam::DVec3;
 
 use super::Mislisted;
 use super::conic;
+use super::meet;
 use super::nappe::Nappe;
+use super::oval;
 use crate::brep::{Curve, Listing, Surface};
 
 /// How many stretches an edge is cut into to be tried along its length: its
@@ -51,7 +53,7 @@ pub(super) fn lying(
         };
         let distance = match &listed.surface {
             Surface::Cone(cone) => Nappe::of(cone).apex().distance(listing.vertices[vertex]),
-            Surface::Plane(_) | Surface::Cylinder(_) => f64::INFINITY,
+            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => f64::INFINITY,
         };
         if !within(distance, room) {
             return Err(Mislisted::ApexAway {
@@ -116,6 +118,13 @@ fn off(surface: &Surface, place: DVec3) -> f64 {
             ((from - axis * from.dot(axis)).length() - cylinder.radius).abs()
         }
         Surface::Cone(cone) => Nappe::of(cone).off(place),
+        Surface::Elliptic(wall) => {
+            let from = place - wall.origin;
+            oval::off(
+                [wall.major, wall.minor],
+                [from.dot(wall.u.normalize()), from.dot(wall.v.normalize())],
+            )
+        }
     }
 }
 
@@ -127,6 +136,7 @@ pub(super) fn point(curve: &Curve, at: f64) -> DVec3 {
             let (sin, cos) = at.sin_cos();
             circle.center + (circle.u * cos + circle.v * sin) * circle.radius
         }
+        Curve::Meet(meet) if meet::elliptic(meet) => meet::point(meet, at),
         Curve::Meet(meet) => meet.point(at),
         Curve::Conic(conic) => conic::point(conic, at),
     }

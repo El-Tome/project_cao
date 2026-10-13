@@ -31,8 +31,8 @@
 //!   break the same rules
 
 use cao_part::PartDocument;
-use cao_part::history::{ExtrusionMode, Operation, PointRef};
-use cao_sketch::{PointId, Region, WorkPlane};
+use cao_part::history::{ExtrusionMode, Operation, PointRef, RevolutionAxis};
+use cao_sketch::{PointId, Region, SketchAxis, WorkPlane};
 use cao_solid::soundness;
 use chrono::{DateTime, Utc};
 use glam::{DVec2, DVec3};
@@ -202,6 +202,37 @@ fn windows_touching_at_one_corner_leave_the_frame_one_opening() {
     assert_raised_round_its_openings(one_corner(), 700.0, 80.0);
 }
 
+/// A round segment, an arc and its chord, drawn on a second sketch and
+/// turned whole about its V axis fifty from the frame: a band of a torus,
+/// which sends the part to the flats.
+fn turn_a_band_of_a_torus(document: &mut PartDocument) {
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 1,
+        center: PointRef::New(DVec2::new(50.0, 5.0)),
+        start: PointRef::New(DVec2::new(55.0, 0.0)),
+        end: PointRef::New(DVec2::new(55.0, 10.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 1,
+        start: PointRef::Existing(PointId(3)),
+        end: PointRef::Existing(PointId(2)),
+        construction: false,
+    });
+    let areas = document.areas_at(1, &[DVec2::new(56.0, 5.0)]);
+    document.apply(Operation::Revolve {
+        sketch: 1,
+        areas,
+        axis: RevolutionAxis::Sketch(SketchAxis::V),
+        angle: 360.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+}
+
 #[test]
 fn windows_touching_in_a_frame_raised_by_the_flats_leave_one_opening() {
     for (drawing, measure) in [
@@ -210,28 +241,15 @@ fn windows_touching_in_a_frame_raised_by_the_flats_leave_one_opening() {
         (one_corner, 700.0),
     ] {
         let mut document = drawing();
-        document.apply(Operation::AddEllipse {
-            sketch: 0,
-            center: PointRef::New(DVec2::new(60.0, 15.0)),
-            first: [
-                PointRef::New(DVec2::new(50.0, 15.0)),
-                PointRef::New(DVec2::new(70.0, 15.0)),
-            ],
-            second: [
-                PointRef::New(DVec2::new(60.0, 10.0)),
-                PointRef::New(DVec2::new(60.0, 20.0)),
-            ],
-            construction: false,
-            drawn: None,
-        });
-        raise(&mut document, DVec2::new(60.0, 15.0), ExtrusionMode::Add);
-        let oval = document.body().volume();
+        turn_a_band_of_a_torus(&mut document);
+        let turned = document.body().volume();
         raise(&mut document, DVec2::splat(2.0), ExtrusionMode::Add);
 
+        assert!(!document.body().is_exact(), "the turn sent it to the flats");
         let triangles = document.body().triangles();
         soundness::closed(&triangles).expect("the part is raised closed");
         soundness::uncrossed(&triangles).expect("the part is raised uncrossed");
-        let frame = document.body().volume() - oval;
+        let frame = document.body().volume() - turned;
         assert_near(frame, measure * DEPTH, "the frame's share, by the flats");
     }
 }

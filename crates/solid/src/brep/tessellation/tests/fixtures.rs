@@ -14,7 +14,7 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use crate::brep::conic::{Conic, Round};
-use crate::brep::curve::{Circle, Curve, Line, Meet};
+use crate::brep::curve::{Circle, Curve, Line, Meet, Wall};
 use crate::brep::meet::Meeting;
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
@@ -176,20 +176,19 @@ impl Build {
         self.edge(Curve::Circle(circle), Some([from, to]), start, end)
     }
 
-    /// What two cylinders of the body make together, decided as the kernel
-    /// decides it within the tolerance of `reach`. The cylinder the meeting
+    /// What two walls of the body make together, decided as the kernel
+    /// decides it within the tolerance of `reach`. The wall the meeting
     /// takes second may have been moved onto the touch it decided: the body
     /// takes it moved, so that its curves lie on its surfaces bit for bit.
     pub(crate) fn meeting(&mut self, one: SurfaceId, other: SurfaceId, reach: f64) -> Meeting {
-        let cylinder = |build: &Build, id: SurfaceId| match *build.body.surface(id) {
-            Surface::Cylinder(cylinder) => cylinder,
-            Surface::Plane(_) | Surface::Cone(_) => panic!("a meeting is of two cylinders"),
+        let wall = |build: &Build, id: SurfaceId| {
+            Wall::of(build.body.surface(id)).expect("a meeting is of two walls")
         };
-        let (first, second) = (cylinder(self, one), cylinder(self, other));
+        let (first, second) = (wall(self, one), wall(self, other));
         let meeting = Meeting::of(&first, &second, Scale::of(reach));
         if let Some(meet) = meeting.components.first() {
             let moved = if meet.first == first { other } else { one };
-            self.body.surfaces[moved.0 as usize] = Surface::Cylinder(meet.second);
+            self.body.surfaces[moved.0 as usize] = meet.second.surface();
         }
         meeting
     }
@@ -216,7 +215,7 @@ impl Build {
         let round = match *self.body.surface(wall) {
             Surface::Cylinder(cylinder) => Round::Cylinder(cylinder),
             Surface::Cone(cone) => Round::Cone(cone),
-            Surface::Plane(_) => panic!("a conic is cut on a wall"),
+            Surface::Plane(_) | Surface::Elliptic(_) => panic!("a conic is cut on a circular wall"),
         };
         Conic::cut(&plane, &round, Scale::of(reach))
     }
@@ -234,16 +233,13 @@ impl Build {
         self.edge(Curve::Conic(conic), ends, from, to)
     }
 
-    /// One whole loop of the curve two perpendicular cylinders meet along,
-    /// with no vertex on it.
+    /// One whole loop of the curve two perpendicular walls meet along, with
+    /// no vertex on it.
     pub(crate) fn meet(&mut self, first: SurfaceId, second: SurfaceId) -> EdgeId {
-        let cylinder = |id| match *self.body.surface(id) {
-            Surface::Cylinder(cylinder) => cylinder,
-            Surface::Plane(_) | Surface::Cone(_) => panic!("the curve is where two cylinders meet"),
-        };
+        let wall = |id| Wall::of(self.body.surface(id)).expect("the curve is where two walls meet");
         let meet = Meet {
-            first: cylinder(first),
-            second: cylinder(second),
+            first: wall(first),
+            second: wall(second),
             component: 0,
         };
         self.edge(Curve::Meet(meet), None, 0.0, TAU)

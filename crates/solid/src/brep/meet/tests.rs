@@ -3,6 +3,7 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use super::*;
+use crate::brep::curve::Wall;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
 
@@ -73,8 +74,8 @@ fn every_shape() -> Vec<(Cylinder, Cylinder)> {
 fn components(first: Cylinder, second: Cylinder) -> Vec<Meet> {
     (0..2)
         .map(|component| Meet {
-            first,
-            second,
+            first: first.into(),
+            second: second.into(),
             component,
         })
         .filter(|meet| meet.period().is_some())
@@ -286,7 +287,7 @@ fn a_meet_turning_back_at_an_angle_its_sine_rounds_is_still_found_there_once() {
             ] {
                 let first = Cylinder::about(DVec3::ZERO, one, a);
                 let second = Cylinder::about(one.cross(other) * d + one, other, b);
-                for meet in Meeting::of(&first, &second, scale()).components {
+                for meet in Meeting::of(&first.into(), &second.into(), scale()).components {
                     let period = meet.period().expect("a component closes on itself");
                     for on_first in [true, false] {
                         for turn in meet.turns(on_first) {
@@ -351,8 +352,8 @@ fn a_meet_turns_back_on_a_cylinder_exactly_where_its_angle_stops_and_nowhere_els
 fn a_component_the_pair_does_not_have_crosses_no_angle_and_never_turns() {
     let (first, second) = pair(5.0, 3.0, 4.0, 2.0);
     let missing = Meet {
-        first,
-        second,
+        first: first.into(),
+        second: second.into(),
         component: 1,
     };
     assert!(missing.at_angle(true, 0.0).is_empty());
@@ -361,7 +362,7 @@ fn a_component_the_pair_does_not_have_crosses_no_angle_and_never_turns() {
 
 fn configuration(a: f64, b: f64, d: f64) -> Configuration {
     let (first, second) = pair(a, b, d, 1.5);
-    Meeting::of(&first, &second, scale()).configuration
+    Meeting::of(&first.into(), &second.into(), scale()).configuration
 }
 
 #[test]
@@ -429,10 +430,10 @@ fn a_pair_a_hair_wider_than_the_tolerance_from_a_touch_keeps_its_curve_exact_thr
         (5.0, 3.0, 8.0 - hair),
     ] {
         let (first, second) = pair(a, b, d, 1.5);
-        let meeting = Meeting::of(&first, &second, scale());
+        let meeting = Meeting::of(&first.into(), &second.into(), scale());
         assert!(!meeting.components.is_empty(), "{a} {b} {d}");
         for meet in meeting.components {
-            assert_eq!(meet.second, second, "{a} {b} {d}: moved");
+            assert_eq!(meet.second, Wall::from(second), "{a} {b} {d}: moved");
             let period = meet.period().expect("a component closes on itself");
             let mut near_the_ends = samples(&meet);
             for end in [0.0, PI, TAU, 3.0 * PI]
@@ -484,7 +485,7 @@ fn a_node_is_where_its_components_pass_at_the_parameters_it_names() {
         ((5.0, 3.0, -2.0 + eps / 3.0), 1, 2),
     ] {
         let (first, second) = pair(a, b, d, -2.5);
-        let meeting = Meeting::of(&first, &second, scale());
+        let meeting = Meeting::of(&first.into(), &second.into(), scale());
         assert_eq!(meeting.nodes.len(), nodes, "{a} {b} {d}");
         for node in &meeting.nodes {
             assert_eq!(node.on.len(), passes);
@@ -508,7 +509,7 @@ fn two_cylinders_touching_from_outside_meet_at_one_point_on_both() {
     let eps = scale().eps();
     for d in [8.0, -8.0, 8.0 - eps / 2.0, -8.0 - eps / 2.0] {
         let (first, second) = pair(5.0, 3.0, d, 4.0);
-        let meeting = Meeting::of(&first, &second, scale());
+        let meeting = Meeting::of(&first.into(), &second.into(), scale());
         let contact = meeting.contact.expect("a point of contact");
         assert!(meeting.components.is_empty());
         assert!(first.distance(contact).abs() <= eps);
@@ -528,8 +529,8 @@ fn a_meeting_is_the_same_whichever_cylinder_is_named_first() {
     ] {
         let (first, second) = pair(a, b, d, 0.5);
         assert_eq!(
-            Meeting::of(&first, &second, scale()),
-            Meeting::of(&second, &first, scale())
+            Meeting::of(&first.into(), &second.into(), scale()),
+            Meeting::of(&second.into(), &first.into(), scale())
         );
     }
 }
@@ -543,7 +544,7 @@ fn a_snapped_meet_stays_within_the_tolerance_of_both_cylinders() {
         (4.0, 4.0 + eps / 2.0, -eps / 2.0),
     ] {
         let (first, second) = pair(a, b, d, 1.5);
-        let meeting = Meeting::of(&first, &second, scale());
+        let meeting = Meeting::of(&first.into(), &second.into(), scale());
         assert!(!meeting.components.is_empty());
         for meet in meeting.components {
             for t in samples(&meet) {
@@ -569,7 +570,7 @@ fn a_point_at_a_node_names_every_pass_of_a_component_through_it_and_a_point_else
         (4.0, 4.0, 0.0),
     ] {
         let (first, second) = pair(a, b, d, -2.5);
-        let meeting = Meeting::of(&first, &second, scale());
+        let meeting = Meeting::of(&first.into(), &second.into(), scale());
         assert!(!meeting.nodes.is_empty(), "{a} {b} {d}");
         for meet in &meeting.components {
             for node in &meeting.nodes {
@@ -600,9 +601,15 @@ fn a_point_at_a_node_names_every_pass_of_a_component_through_it_and_a_point_else
 #[test]
 fn a_cylinder_moved_instead_onto_a_node_takes_its_partner_s_radius() {
     let (post, bar) = pair(20.0 + 0.3 * scale().eps(), 20.0, 0.0, 5.0);
-    let (rank, instead) = moved_instead(&post, &bar, scale()).expect("the post moves");
+    let (round, bar) = (Wall::from(post), Wall::from(bar));
+    let (rank, instead) = moved_instead(&round, &bar, scale()).expect("the post moves");
     assert_eq!(rank, 0);
-    assert_eq!(instead, Cylinder::about(post.origin, post.axis, 20.0));
+    assert_eq!(
+        instead,
+        Wall::Cylinder(Cylinder::about(post.origin, post.axis, 20.0))
+    );
     assert_eq!(moved(&instead, &bar, scale()), None);
     assert!(!Meeting::of(&instead, &bar, scale()).nodes.is_empty());
 }
+
+mod elliptic;

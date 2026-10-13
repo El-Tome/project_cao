@@ -106,12 +106,13 @@ fn beside(body: &Body, edge: EdgeId) -> Vec<usize> {
 }
 
 /// Whether a move leaves a surface where it is: along a plane, or along a
-/// cylinder's axis; a cone, which a move along its axis takes its apex
-/// with, only under no move at all.
+/// cylinder's or an elliptic wall's axis; a cone, which a move along its
+/// axis takes its apex with, only under no move at all.
 fn slides(surface: &Surface, by: DVec3, scale: Scale) -> bool {
     let off = match surface {
         Surface::Plane(plane) => plane.normal.dot(by).abs(),
         Surface::Cylinder(cylinder) => (by - cylinder.axis * cylinder.axis.dot(by)).length(),
+        Surface::Elliptic(wall) => (by - wall.axis * wall.axis.dot(by)).length(),
         Surface::Cone(_) => by.length(),
     };
     off <= ROUNDING * scale.eps()
@@ -192,6 +193,7 @@ fn shifted(surface: &Surface, by: DVec3) -> Surface {
         Surface::Plane(plane) => Surface::Plane(shifted_plane(plane, by)),
         Surface::Cylinder(cylinder) => Surface::Cylinder(shifted_cylinder(cylinder, by)),
         Surface::Cone(cone) => Surface::Cone(shifted_cone(cone, by)),
+        Surface::Elliptic(wall) => Surface::Elliptic(wall.moved(by)),
     }
 }
 
@@ -218,6 +220,7 @@ fn recut(conic: &Conic, by: DVec3, scale: Scale) -> Option<Conic> {
     let round = match &conic.round {
         Round::Cylinder(cylinder) => Round::Cylinder(shifted_cylinder(cylinder, by)),
         Round::Cone(cone) => Round::Cone(shifted_cone(cone, by)),
+        Round::Elliptic(wall) => Round::Elliptic(wall.moved(by)),
     };
     Conic::cut(&shifted_plane(&conic.plane, by), &round, scale)
         .into_iter()
@@ -268,10 +271,14 @@ fn kept(
             first.surfaces.iter().all(|known| {
                 let held = |surface: &Surface| match relation(known, surface, scale) {
                     Relation::Same { .. } | Relation::Tangent(_) => true,
+                    Relation::Parallel(rulings) if rulings.iter().any(|ruled| ruled.touching) => {
+                        true
+                    }
                     Relation::Conic(_) | Relation::Ruling { .. } | Relation::Unsupported => false,
                     Relation::Apart
                     | Relation::Line(_)
                     | Relation::Lines(_)
+                    | Relation::Parallel(_)
                     | Relation::Circle(_)
                     | Relation::Meet(_)
                     | Relation::Rulings { .. }

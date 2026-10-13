@@ -74,6 +74,7 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
         let axis = match wall {
             Surface::Cylinder(cylinder) => cylinder.axis,
             Surface::Cone(cone) => cone.axis,
+            Surface::Elliptic(wall) => wall.axis,
             Surface::Plane(_) => continue,
         };
         directions.extend(straight_edges(edged).map(|along| axis.cross(along)));
@@ -105,7 +106,7 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
                 Surface::Cone(cone) => {
                     in_the_hollow(cone, nappe, face, room) || beyond(cone, face, room)
                 }
-                Surface::Plane(_) | Surface::Cylinder(_) => false,
+                Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => false,
             })
 }
 
@@ -175,18 +176,19 @@ fn farthest((body, face): (&Body, FaceId), origin: DVec3, axis: DVec3) -> Option
     Some(farthest)
 }
 
-/// The direction a surface stands square to: a plane's normal, a
-/// cylinder's or a cone's axis.
+/// The direction a surface stands square to: a plane's normal, a wall's
+/// axis.
 fn offered(surface: &Surface) -> DVec3 {
     match surface {
         Surface::Plane(plane) => plane.normal,
         Surface::Cylinder(cylinder) => cylinder.axis,
         Surface::Cone(cone) => cone.axis,
+        Surface::Elliptic(wall) => wall.axis,
     }
 }
 
-/// A face on a cylinder or a cone, seen about its axis: the stretch of the
-/// axis it spans, and how near and how far from the axis it stands.
+/// A face on a wall, seen about its axis: the stretch of the axis it spans,
+/// and how near and how far from the axis it stands.
 struct Wall {
     ends: [DVec3; 2],
     axis: DVec3,
@@ -199,6 +201,7 @@ impl Wall {
         let (origin, axis, [inner, outer]) = match surface {
             Surface::Cylinder(cylinder) => (cylinder.origin, cylinder.axis, [cylinder.radius; 2]),
             Surface::Cone(cone) => (cone.origin, cone.axis, radii(cone, face)?),
+            Surface::Elliptic(wall) => (wall.origin, wall.axis, [wall.minor, wall.major]),
             Surface::Plane(_) => return None,
         };
         let [low, high] = reach(face, axis)?;

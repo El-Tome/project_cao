@@ -150,7 +150,7 @@ What it does: [`sketch.md`](sketch.md).
 | An exact body behind `Body`: the brep, the face counter, a panic in the kernel caught as a decline, a face left in pieces given fresh numbers | `solid/src/body/exact.rs` | `Exact`, `Declined::Panicked` |
 | The triangles an exact body is drawn with, made once and kept, each knowing its face; a ray against them answering with the true surface's normal | `solid/src/body/drawn.rs` | `Drawn`, `DRAWN`, `ray_hit` |
 | What a body is made of inside the crate: faces as flat pieces, ray casting | `solid/src/mesh.rs` | `Mesh`, `Polygon`, `ray_hit`, `bounds` |
-| Extruding an area into a prism on the flats | `solid/src/sweep.rs` | `prism(...)`, reached as `Body::tool_raised` when the part is on the flats or the area holds an ellipse |
+| Extruding an area into a prism on the flats | `solid/src/sweep.rs` | `prism(...)`, reached as `Body::tool_raised` when the part is on the flats |
 | Turning an area around an axis on the flats | `solid/src/sweep.rs` | `revolution(...)`, reached as `Body::tool_turned` when the part is on the flats, the profile holds an arc or an ellipse, or the reading cannot lay it against its axis |
 | How a profile is read before it is turned, once for both kernels: whether the turn is whole, which side of the axis the area lies on, how close counts as on the axis, and the profile laid straight | `solid/src/turning.rs`, `turning/straight.rs` | `Turn::of`, `Turn::lie` → `Lie`, `Turn::on_axis`, `is_whole`, `ON_THE_AXIS`, `Straight::of`, `Straight::numbers` |
 | A profile turned by the flats, its points within the band laid on the axis first | `solid/src/body/turned.rs` | `turned_flats`, `Snapped` |
@@ -164,6 +164,7 @@ What it does: [`sketch.md`](sketch.md).
 | How two surfaces of the exact kernel meet, decided once | `solid/src/brep/relation.rs`, `brep/meet.rs`, `brep/canonical/` | `relation`, `crossings`, `Meeting` |
 | A plane at a slant to a cylinder or a cone, decided into its conic, the rulings through the apex, the ruling it touches along or the apex alone | `solid/src/brep/relation/sliced.rs`, `brep/relation.rs` | `at_a_slant`, `plane_and_cylinder`, `plane_and_cone` |
 | The conic a plane cuts a wall along: one formula from an anchor, built from the wall's ruled form, seen on its plane and its wall ([`exact-kernel.md`](exact-kernel.md#the-conic-a-plane-cuts-a-wall-along)) | `solid/src/brep/conic.rs`, `brep/conic/built.rs`, `brep/conic/seen.rs` | `Conic`, `Conic::cut`, `Round`, `Arm`, `parameter`, `bounds`, `turning` |
+| Two parallel walls, an elliptic one among them, met along the rulings their sections cross or touch at, found from the feet of the normals they share; the side one stands on between two rulings; the move onto a touch; their triangles on rays from a point inside every wall of a group (#571) | `solid/src/brep/relation/walls.rs`, `brep/relation/walls/normals.rs`, `brep/selection/wrapped/above/walls.rs`, `brep/canonical/touches/walls.rs`, `brep/tessellation/sampling/abreast.rs` | `round_and_elliptic`, `elliptic_pair`, `Relation::Parallel`, `Ruled`, `feet_of_touches`, `standing_above`, `onto_a_touch`, `Abreast::of` |
 | Where a conic crosses a third surface, by the call the other curve of the corner makes | `solid/src/brep/relation/crossing/conic.rs` | `conic_and_surface`, reached from `crossings_given` |
 | An edge along a conic sampled for the triangles | `solid/src/brep/tessellation/sampling/conic.rs` | `on_conic` |
 | Join and cut on the exact kernel | `solid/src/brep/combine.rs` and `combine/` | `Body::joined`, `Body::cut_by` |
@@ -214,7 +215,7 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | The sizes a chamfer or a pattern was asked for, as written | `part/src/history/operation/sizes.rs` | `ChamferAsked`, `RepeatsAsked`, `Operation::sizes` |
 | A size that does not hold once the part is rebuilt | `part/src/broken.rs` | `Broken`, `PartState::size`, `broken_since` |
 | Which faces of the part a step of matter made | `part/src/extrusion.rs`, `part/src/document/matter.rs` | `PartState::raising`, `PartDocument::faces_made_by` |
-| An area handed to the kernel as runs and as steps; an ellipse sends it to the flats | `part/src/profile.rs` | `profile` |
+| An area handed to the kernel as runs and as steps, an ellipse as its arcs | `part/src/profile.rs` | `profile` |
 | A step of matter the exact kernel declined: broken under its own number, its faces counted all the same, its reason kept, carried by the cache | `part/src/extrusion.rs`, `part/src/document/matter.rs` | `declined_with`, `PartState::declined`, `PartDocument::is_declined`, `declined_because` |
 | A revolution: the axis in the sketch, an area across it cut into its sides, each turned and joined | `part/src/extrusion.rs` | `PartState::revolve`, `axis_in_sketch`, `sides_of` |
 | A part raised, joined and cut by the exact kernel, held to the arithmetic, and to the flats from a revolution of an arc on | `part/tests/the_exact_kernel_computes_the_part.rs`, `part/tests/an_exact_body_comes_back_from_json.rs` | |

@@ -65,7 +65,12 @@ fn enclosed(runs: &[(DVec2, Leg)]) -> f64 {
                     let radius = from.distance(centre);
                     centre.perp_dot(to - from) + radius * radius * turned
                 }
-                Leg::Oval => panic!("an oval run encloses nothing this reads"),
+                Leg::Oval {
+                    centre,
+                    first,
+                    second,
+                    turned,
+                } => centre.perp_dot(to - from) + first.length() * second * turned,
             }
         })
         .sum();
@@ -205,18 +210,79 @@ fn an_arc_walked_backwards_turns_the_other_way() {
     );
 }
 
-#[test]
-fn an_ellipse_reads_as_an_oval_run() {
-    let mut sketch = Sketch::new(WorkPlane::XY);
+fn ellipse_of_twenty_by_eight(sketch: &mut Sketch) {
     let centre = sketch.add_point(DVec2::ZERO);
-    let first = points(&mut sketch, &[(20.0, 0.0), (-20.0, 0.0)]);
-    let second = points(&mut sketch, &[(0.0, 8.0), (0.0, -8.0)]);
+    let first = points(sketch, &[(20.0, 0.0), (-20.0, 0.0)]);
+    let second = points(sketch, &[(0.0, 8.0), (0.0, -8.0)]);
     sketch.add_ellipse(centre, [first[0], first[1]], [second[0], second[1]]);
+}
+
+#[test]
+fn an_ellipse_reads_as_an_oval_run_holding_its_centre_its_axes_and_a_whole_turn() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    ellipse_of_twenty_by_eight(&mut sketch);
 
     let runs = only_area(&sketch).outline.runs();
 
     assert_eq!(runs.len(), 1, "a whole ellipse has one corner: {runs:?}");
-    assert_eq!(runs[0].1, Leg::Oval, "{runs:?}");
+    let Leg::Oval {
+        centre,
+        first,
+        second,
+        turned,
+    } = runs[0].1
+    else {
+        panic!("an ellipse reads as an oval run: {runs:?}");
+    };
+    assert!(
+        centre.length() < TOLERANCE
+            && (first.length() - 20.0).abs() < TOLERANCE
+            && first.y.abs() < TOLERANCE
+            && (second - 8.0).abs() < TOLERANCE,
+        "the ellipse's own centre and axes: {runs:?}",
+    );
+    assert!(
+        (turned.abs() - TAU).abs() < TOLERANCE,
+        "a whole ellipse turns a whole turn: {runs:?}",
+    );
+    assert!(
+        (enclosed(&runs).abs() - TAU / 2.0 * 160.0).abs() < 1e-9,
+        "the runs alone enclose πab, got {}",
+        enclosed(&runs),
+    );
+}
+
+#[test]
+fn an_ellipse_cut_by_a_trait_reads_as_two_oval_runs_each_enclosing_its_own_area() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    ellipse_of_twenty_by_eight(&mut sketch);
+    let ends = points(&mut sketch, &[(-30.0, 4.0), (30.0, 4.0)]);
+    sketch.add_segment(ends[0], ends[1]);
+
+    let mut areas: Vec<f64> = sketch
+        .regions()
+        .iter()
+        .map(|region| {
+            let runs = region.outline.runs();
+            assert!(
+                runs.iter().any(|(_, leg)| matches!(leg, Leg::Oval { .. })),
+                "each side keeps a run of the ellipse: {runs:?}",
+            );
+            enclosed(&runs).abs()
+        })
+        .collect();
+    areas.sort_by(f64::total_cmp);
+
+    let cap = 160.0 * (TAU / 6.0 - 3.0_f64.sqrt() / 4.0);
+    assert_eq!(
+        areas.len(),
+        2,
+        "the trait parts the ellipse in two: {areas:?}"
+    );
+    assert!(
+        (areas[0] - cap).abs() < 1e-9 && (areas[1] - (TAU / 2.0 * 160.0 - cap)).abs() < 1e-9,
+        "the cap above the trait is ab(π/3 − √3/4), the rest the remainder: {areas:?}",
+    );
 }
 
 #[test]

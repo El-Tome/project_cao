@@ -103,27 +103,37 @@ impl EllipticCylinder {
 
     /// Whether another elliptic wall about a parallel axis is this one within
     /// `eps`: the offset of its axis, each difference of its half-axes, and
-    /// how far the turn of its major half-axis moves the ends of this one's,
-    /// each within it, as a cylinder's axis and radius are.
+    /// how far the turn of its major half-axis moves this wall, each within
+    /// it, as a cylinder's axis and radius are.
     pub fn within(&self, other: &EllipticCylinder, eps: f64) -> bool {
         let between = other.origin - self.origin;
         let across = between - self.axis * self.axis.dot(between);
         across.length() <= eps
             && (self.major - other.major).abs() <= eps
             && (self.minor - other.minor).abs() <= eps
-            && self.u.cross(other.u).length() * self.major <= eps
+            && self.turned(other) <= eps
     }
 
     /// How far another elliptic wall about a parallel axis stands from this
     /// one: the offset of its axis, the differences of its half-axes, and how
-    /// far the turn of its major half-axis moves the ends of this one's.
+    /// far the turn of its major half-axis moves this wall.
     pub fn gap(&self, other: &EllipticCylinder) -> f64 {
         let between = other.origin - self.origin;
         let across = between - self.axis * self.axis.dot(between);
         across.length()
             + (self.major - other.major).abs()
             + (self.minor - other.minor).abs()
-            + self.u.cross(other.u).length() * self.major
+            + self.turned(other)
+    }
+
+    /// How far the turn of `other`'s major half-axis from this one's moves
+    /// this wall square to itself: the sine of the turn times the difference
+    /// of the half-axes, which a small turn reaches at most, and a quarter
+    /// turn at the ends of either half-axis. A section a hair from round
+    /// stands within that hair of itself turned any way, though the ends of
+    /// its major half-axis travel the whole turn.
+    fn turned(&self, other: &EllipticCylinder) -> f64 {
+        self.u.cross(other.u).length() * (self.major - self.minor)
     }
 
     /// The point of the section's ellipse nearest `at`, read in `(u, v)` from

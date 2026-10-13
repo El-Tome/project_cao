@@ -3,9 +3,10 @@
 
 use glam::DVec3;
 
+use super::walls::off_the_touches;
 use crate::brep::curve::Circle;
 use crate::brep::meet::moved;
-use crate::brep::relation::{Relation, relation};
+use crate::brep::relation::{Relation, abreast, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder, Surface};
 
@@ -35,6 +36,7 @@ pub(super) fn off(
             | Relation::Line(_)
             | Relation::Lines(_)
             | Relation::Tangent(_)
+            | Relation::Parallel(_)
             | Relation::Meet(_)
             | Relation::Rulings { .. }
             | Relation::Apex(_) => true,
@@ -42,6 +44,9 @@ pub(super) fn off(
         return about.then(|| cone.off_axis(*origin));
     }
     match relation(one, other, scale) {
+        Relation::Tangent(_) | Relation::Parallel(_) if abreast(one, other) => {
+            off_the_touches(one, other, scale)
+        }
         Relation::Tangent(_) => match (one, other) {
             (Surface::Plane(plane), Surface::Cylinder(cylinder))
             | (Surface::Cylinder(cylinder), Surface::Plane(plane)) => {
@@ -79,6 +84,7 @@ pub(super) fn off(
         | Relation::Same { .. }
         | Relation::Line(_)
         | Relation::Lines(_)
+        | Relation::Parallel(_)
         | Relation::Circle(_)
         | Relation::Meet(_)
         | Relation::Rulings { .. }

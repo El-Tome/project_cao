@@ -38,9 +38,11 @@ const ACROSS: f64 = 1e-3;
 struct Touch {
     pair: [SurfaceId; 2],
     line: Line,
-    /// The other line two walls crossing at a grazing angle cross along:
-    /// a corner nearer it stands in that line's band, not in this one's.
-    beyond: Option<Line>,
+    /// The other lines the pair meets along — the other line two walls
+    /// crossing at a grazing angle cross along, the other rulings two
+    /// parallel walls touch or cross along: a corner nearer one of them
+    /// stands by that line, not in this one's band.
+    beyond: Vec<Line>,
 }
 
 /// A band laid out: its two surfaces, and the stretch along the line of
@@ -125,10 +127,18 @@ fn touches(operands: &Operands, registry: &Registry) -> Vec<Touch> {
                 continue;
             }
             let lines = match relation(&list[one], &list[other], operands.scale_of(pair)) {
-                Relation::Tangent(line) => vec![(line, None)],
+                Relation::Tangent(line) => vec![(line, Vec::new())],
                 Relation::Lines([line, other]) if grazing => {
-                    vec![(line, Some(other)), (other, Some(line))]
+                    vec![(line, vec![other]), (other, vec![line])]
                 }
+                Relation::Parallel(rulings) => rulings
+                    .iter()
+                    .filter(|ruled| ruled.touching || grazing)
+                    .map(|ruled| {
+                        let others = rulings.iter().filter(|other| other.line != ruled.line);
+                        (ruled.line, others.map(|other| other.line).collect())
+                    })
+                    .collect(),
                 _ => continue,
             };
             for (line, beyond) in lines {
@@ -163,7 +173,8 @@ fn sorted(
             || registry.apart.across(support, &touch.pair)
             || touch
                 .beyond
-                .is_some_and(|other| distance(&Curve::Line(other), point) < distance(&line, point))
+                .iter()
+                .any(|other| distance(&Curve::Line(*other), point) < distance(&line, point))
             || !within(operands, registry, touch, point)?
         {
             continue;

@@ -114,3 +114,46 @@ fn a_place_of_an_elliptic_wall_is_located_against_its_face() {
         assert_eq!(body.locate(face, at(point), eps), Ok(expected), "{point}");
     }
 }
+
+#[test]
+fn a_place_on_either_rim_of_a_whole_elliptic_wall_is_on_its_boundary_either_side_of_where_its_angle_starts()
+ {
+    let first = DVec2::new(1.9318516525781362, -0.5176380902050413);
+    let center = DVec2::new(7.0, 10.0);
+    let ellipse = Contour {
+        corners: vec![center + first],
+        runs: vec![Run::Oval {
+            center,
+            first,
+            second: 5.0,
+            turn: 2.0 * PI,
+        }],
+    };
+    let ground = Frame {
+        origin: DVec3::new(0.0, 0.0, 8.0),
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    let body = Body::raised(&ellipse, &[], ground, DVec3::Z * 6.0).expect("the ellipse raises");
+    let eps = body.scale().eps();
+    let face = body
+        .face_ids()
+        .find(|face| matches!(body.surface(body.face(*face).surface), Surface::Elliptic(_)))
+        .expect("the ellipse raises an elliptic wall");
+    for angle in [PI - 1e-4, -PI + 1e-4, PI, 1e-4, -1e-4, PI / 2.0 + 1e-4] {
+        for height in [8.0, 14.0] {
+            let at = DVec2::new(angle, height);
+            assert_eq!(
+                body.locate(face, at, eps),
+                Ok(Location::Boundary),
+                "{angle} {height}"
+            );
+        }
+        let halfway = DVec2::new(angle, 11.0);
+        assert_eq!(
+            body.locate(face, halfway, eps),
+            Ok(Location::Inside),
+            "{angle}"
+        );
+    }
+}

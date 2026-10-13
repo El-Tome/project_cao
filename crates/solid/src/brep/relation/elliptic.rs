@@ -13,9 +13,10 @@
 //! Two elliptic walls are one surface (decision 1) where their axes are
 //! parallel and within the tolerance of each other across the box, their
 //! half-axes within it of each other, and the turn between their major
-//! half-axes moves the ends of one by no more than it. Any other pair is
-//! unsupported, which declines a boolean unless the two faces stand clear of
-//! each other.
+//! half-axes moves the ends of one by no more than it. Two other walls about
+//! parallel axes meet along rulings, as `walls.rs` decides; about axes at
+//! any other angle they are unsupported, which declines a boolean unless
+//! the two faces stand clear of each other.
 
 use super::{Relation, parallel, sorted, square};
 use crate::brep::conic::{Conic, Round};
@@ -62,9 +63,11 @@ pub(super) fn plane_and_elliptic(plane: &Plane, wall: &EllipticCylinder, scale: 
 }
 
 pub(super) fn walls(one: &EllipticCylinder, other: &EllipticCylinder, scale: Scale) -> Relation {
-    if parallel(one.axis, other.axis, scale) && one.within(other, scale.eps()) {
+    if !parallel(one.axis, other.axis, scale) {
+        Relation::Unsupported
+    } else if one.within(other, scale.eps()) {
         Relation::Same { agree: true }
     } else {
-        Relation::Unsupported
+        super::walls::elliptic_pair(one, other, scale)
     }
 }

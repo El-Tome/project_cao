@@ -28,12 +28,14 @@
 //! a plane whose face is far away touches nothing.
 
 mod off;
+mod walls;
 
 use glam::DVec3;
 use off::off;
+use walls::onto_a_touch;
 
 use crate::brep::meet::{moved, moved_instead};
-use crate::brep::relation::{Relation, relation};
+use crate::brep::relation::{Relation, abreast, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::topology::SurfaceId;
@@ -129,6 +131,15 @@ impl Surfaces {
                 let shifted = [one, other][rank];
                 own(shifted).then_some((shifted, Surface::Cylinder(cylinder)))
             }
+            Relation::Tangent(_) | Relation::Parallel(_) if abreast(first, second) => {
+                if own(other) {
+                    onto_a_touch(first, second, scale).map(|moved| (other, moved))
+                } else if own(one) {
+                    onto_a_touch(second, first, scale).map(|moved| (one, moved))
+                } else {
+                    None
+                }
+            }
             Relation::Tangent(_) if own(other) => {
                 touching(first, second).map(|moved| (other, moved))
             }
@@ -138,6 +149,7 @@ impl Surfaces {
             | Relation::Line(_)
             | Relation::Lines(_)
             | Relation::Tangent(_)
+            | Relation::Parallel(_)
             | Relation::Circle(_)
             | Relation::Rulings { .. }
             | Relation::Apex(_)
@@ -300,6 +312,11 @@ fn crossed_elsewhere(before: &Surface, after: &Surface, other: &Surface, scale: 
 fn moved_along(before: &Surface, after: &Surface, other: &Surface, scale: Scale) -> f64 {
     let places = |surface: &Surface| match relation(surface, other, scale) {
         Relation::Tangent(line) => vec![line.origin],
+        Relation::Parallel(rulings) => rulings
+            .iter()
+            .filter(|ruled| ruled.touching)
+            .map(|ruled| ruled.line.origin)
+            .collect(),
         found => found.points(),
     };
     let (from, to) = (places(before), places(after));

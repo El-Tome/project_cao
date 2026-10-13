@@ -924,3 +924,4 @@ mod elliptic;
 mod leaning;
 mod stress_elliptic;
 mod unstable;
+mod walls;

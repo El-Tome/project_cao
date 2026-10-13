@@ -12,9 +12,11 @@
 //! two cylinders where it makes any, and numerically otherwise, in `scan.rs`.
 //! A line a plane cuts a cylinder along, crossed with a circle or a cylinder
 //! square to it, is measured from the radii (`cut.rs`). A line or a circle
-//! against a cone is solved in `cone.rs`, against an elliptic wall in
-//! `elliptic.rs`, and the conic a plane cuts a wall along at a slant through
-//! its triple's other pair in `conic.rs`. A triple
+//! against a cone is solved in `cone.rs`, a line against an elliptic wall in
+//! `elliptic.rs` — a circle about an axis parallel to that wall's crosses it
+//! where the rulings its own cylinder meets the wall along pass its plane —
+//! and the conic a plane cuts a wall along at a slant through its triple's
+//! other pair in `conic.rs`. A triple
 //! of two planes and a wall one of them stands a hair from tangent to is
 //! decided on the hairpin that plane cuts, in `grazed.rs`. The line a plane
 //! square to a wall's axis shares with a plane crossing it steeply, inside
@@ -33,6 +35,7 @@ use glam::DVec3;
 
 use super::cylinders::cylinders;
 use super::planar::{plane_and_cylinder, planes};
+use super::walls::round_and_elliptic;
 use super::{Relation, parallel, square};
 use crate::brep::curve::{Circle, Curve, Line, Meet};
 use crate::brep::scale::Scale;
@@ -156,6 +159,9 @@ fn circle_and_surface(
                 plane: &own_plane,
             }),
         ),
+        Surface::Elliptic(wall) if parallel(circle.axis, wall.axis, scale) => {
+            (round_and_elliptic(&own_cylinder, wall, scale), false, None)
+        }
         Surface::Cone(_) | Surface::Elliptic(_) => return Solved::Unsupported,
     };
     circle_through(circle, relation, (across, cut), scale, touching)
@@ -178,6 +184,10 @@ fn circle_through(
         Relation::Line(line) => vec![(*line, false, None)],
         Relation::Lines(lines) => lines.map(|line| (line, false, cut.as_ref())).to_vec(),
         Relation::Tangent(line) | Relation::Ruling { line, .. } => vec![(*line, true, None)],
+        Relation::Parallel(rulings) => rulings
+            .iter()
+            .map(|ruled| (ruled.line, ruled.touching, None))
+            .collect(),
         Relation::Circle(_)
         | Relation::Meet(_)
         | Relation::Rulings { .. }

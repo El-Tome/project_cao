@@ -110,7 +110,8 @@ fn a_plane_along_an_elliptic_wall_s_axis_cuts_it_along_two_rulings_touches_it_al
 }
 
 #[test]
-fn the_same_ellipse_reached_twice_is_one_surface_and_another_is_unsupported() {
+fn the_same_ellipse_reached_twice_is_one_surface_one_a_hair_off_is_unsupported_and_another_meets_it_along_rulings()
+ {
     let eps = scale().eps();
     let wall = oval();
     let again = |center: DVec3, first: DVec3, second: f64| {
@@ -119,10 +120,10 @@ fn the_same_ellipse_reached_twice_is_one_surface_and_another_is_unsupported() {
     let turned = 30f64.to_radians();
     let major = DVec3::new(turned.cos(), turned.sin(), 0.0) * 7.0;
     for (other, expected) in [
-        (again(DVec3::new(1.0, -2.0, 9.0), -major, 3.0), true),
+        (again(DVec3::new(1.0, -2.0, 9.0), -major, 3.0), "same"),
         (
             again(DVec3::new(1.0, -2.0 + eps / 2.0, 0.0), major, 3.0),
-            true,
+            "same",
         ),
         (
             again(
@@ -130,27 +131,32 @@ fn the_same_ellipse_reached_twice_is_one_surface_and_another_is_unsupported() {
                 DVec3::Z.cross(major) * 3.0 / 7.0,
                 7.0,
             ),
-            true,
+            "same",
         ),
         (
             again(DVec3::new(1.0, -2.0, 0.0), major, 3.0 + 2.0 * eps),
-            false,
+            "unsupported",
         ),
         (
             again(DVec3::new(1.0, -2.0 + 2.0 * eps, 0.0), major, 3.0),
-            false,
+            "unsupported",
+        ),
+        (
+            again(DVec3::new(1.0, -2.0, 0.0), major, 3.0 + 30.0 * eps),
+            "parallel",
+        ),
+        (
+            again(DVec3::new(1.0, -2.0 + 30.0 * eps, 0.0), major, 3.0),
+            "lines",
         ),
     ] {
         let found = relation(&Surface::Elliptic(wall), &other, scale());
-        let same = matches!(found, Relation::Same { agree: true });
-        assert_eq!(same, expected, "{other:?} gives {found:?}");
-        if !expected {
-            assert_eq!(found, Relation::Unsupported);
-        }
+        assert_eq!(class(&found), expected, "{other:?} gives {found:?}");
     }
     let round = cylinder(DVec3::new(1.0, -2.0, 0.0), DVec3::Z, 5.0);
-    assert_eq!(
-        relation(&Surface::Elliptic(wall), &round, scale()),
-        Relation::Unsupported
-    );
+    let found = relation(&Surface::Elliptic(wall), &round, scale());
+    let Relation::Parallel(rulings) = &found else {
+        panic!("four crossings expected, got {found:?}");
+    };
+    assert!(rulings.len() == 4 && rulings.iter().all(|ruled| !ruled.touching));
 }

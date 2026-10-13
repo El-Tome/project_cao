@@ -2,15 +2,18 @@
 //! decided: along the line they touch along, along the stretch between two
 //! lines they cross along, about a cone; and measured where they stand apart.
 
+mod walls;
+
 use std::f64::consts::TAU;
 
 use glam::{DVec2, DVec3};
 
 use super::ROUNDING;
 use crate::brep::curve::Line;
-use crate::brep::relation::{Relation, at_a_slant};
+use crate::brep::relation::{Relation, abreast, at_a_slant};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder, Surface};
+use walls::standing_above;
 
 /// Whether the second of two surfaces `related` so at `scale` stands on the
 /// side of the first its own normal points to: along the line they touch
@@ -31,6 +34,16 @@ pub(in crate::brep::selection) fn stands_above(
     rounding: f64,
 ) -> Option<bool> {
     match related {
+        Relation::Lines(lines) if abreast(first, second) => {
+            standing_above(first, second, lines, place, rounding)
+        }
+        Relation::Tangent(line) if abreast(first, second) => {
+            standing_above(first, second, &[*line], place, rounding)
+        }
+        Relation::Parallel(rulings) => {
+            let lines: Vec<Line> = rulings.iter().map(|ruled| ruled.line).collect();
+            standing_above(first, second, &lines, place, rounding)
+        }
         Relation::Lines(lines) => across_the_lobe(first, second, lines, place),
         Relation::Tangent(_) => touching_above(first, second),
         Relation::Rulings { lines, .. } if at_a_slant(first, second, scale) => {

@@ -9,6 +9,7 @@ mod elliptic;
 mod planar;
 mod revolved;
 mod sliced;
+mod walls;
 
 use glam::DVec3;
 
@@ -21,6 +22,8 @@ pub use crossing::{
     Crossing, Crossings, Lying, Touches, crossings, crossings_given, crossings_lying,
 };
 pub(in crate::brep) use revolved::apart_by;
+pub use walls::Ruled;
+pub(in crate::brep) use walls::{abreast, closest, feet_of_touches};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Relation {
@@ -33,11 +36,16 @@ pub enum Relation {
     /// Two planes across each other.
     Line(Line),
     /// A plane along a cylinder's or an elliptic wall's axis cutting it, or
-    /// two parallel cylinders crossing.
+    /// two parallel walls crossing.
     Lines([Line; 2]),
     /// A plane touching a cylinder or an elliptic wall, or two parallel
-    /// cylinders touching from outside or from inside.
+    /// walls touching from outside or from inside.
     Tangent(Line),
+    /// Two parallel walls, an elliptic one among them, meeting along more
+    /// than `Lines` or `Tangent` hold — four crossings, two touches, a touch
+    /// beside crossings: each ruling, and whether the walls only touch along
+    /// it.
+    Parallel(Vec<Ruled>),
     /// A plane square to a cylinder's axis, or a cone and a surface of its
     /// axis crossing off it.
     Circle(Circle),
@@ -65,7 +73,9 @@ pub enum Relation {
     },
     /// Two cylinders at a skew angle, a cone and a cylinder or a cone not of
     /// its axis, a cone within the tolerance of a plane or a cylinder of its
-    /// axis all across the box, an elliptic wall and any wall.
+    /// axis all across the box, an elliptic wall and a wall not parallel to
+    /// it, two parallel walls within the tolerance of each other all round
+    /// though not one.
     Unsupported,
 }
 
@@ -87,7 +97,10 @@ pub fn relation(one: &Surface, other: &Surface, scale: Scale) -> Relation {
         | (Surface::Elliptic(wall), Surface::Plane(plane)) => {
             elliptic::plane_and_elliptic(plane, wall, scale)
         }
-        (Surface::Elliptic(_), _) | (_, Surface::Elliptic(_)) => Relation::Unsupported,
+        (Surface::Cylinder(round), Surface::Elliptic(wall))
+        | (Surface::Elliptic(wall), Surface::Cylinder(round)) => {
+            walls::round_and_elliptic(round, wall, scale)
+        }
     }
 }
 
@@ -141,6 +154,10 @@ impl Relation {
             Relation::Circle(circle) => vec![Curve::Circle(*circle)],
             Relation::Conic(conics) => conics.iter().copied().map(Curve::Conic).collect(),
             Relation::Ruling { line, .. } => vec![Curve::Line(*line)],
+            Relation::Parallel(rulings) => rulings
+                .iter()
+                .map(|ruled| Curve::Line(ruled.line))
+                .collect(),
             Relation::Meet(meeting) => meeting
                 .components
                 .iter()
@@ -173,6 +190,7 @@ impl Relation {
             | Relation::Line(_)
             | Relation::Lines(_)
             | Relation::Tangent(_)
+            | Relation::Parallel(_)
             | Relation::Circle(_)
             | Relation::Conic(_)
             | Relation::Unsupported => Vec::new(),

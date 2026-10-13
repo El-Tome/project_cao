@@ -318,6 +318,30 @@ fn two_pockets_drilled_from_either_side_of_an_elliptic_boss_to_one_plane_take_wh
 }
 
 #[test]
+fn a_bar_lying_on_a_boss_s_floor_a_hair_inside_a_tangent_of_its_rim_is_joined_and_cut() {
+    let shaft = Section::round([0.0, 0.0], 5.0);
+    let pairs = [0.0, 0.4]
+        .map(|turned| {
+            let wall = boss(turned);
+            let (reach, _) = wall.across(DVec2::Y);
+            (wall, Section::round([reach - 1e-5, 2.0], 2.0))
+        })
+        .into_iter()
+        .chain([(shaft, Section::oval([5.0 - 1e-5, 1.5], DVec2::X * 2.5, 1.5))]);
+    for (wall, bar) in pairs {
+        let column = standing_up(wall, 0.0, HEIGHT);
+        let rod = lying(bar, -10.0, 10.0);
+        let cut = column.cut_by(&rod).expect("the bar is cut away");
+        held(&cut, boss_volume(wall, HEIGHT) - shared(wall, bar));
+        let joined = column.joined(&rod).expect("the bar is joined");
+        held(
+            &joined,
+            boss_volume(wall, HEIGHT) + bar.area() * 20.0 - shared(wall, bar),
+        );
+    }
+}
+
+#[test]
 fn a_round_bar_touching_an_elliptic_boss_from_outside_meets_it_at_one_point() {
     let wall = boss(0.0);
     let bar = Section::round([6.0, 5.0], 2.0);

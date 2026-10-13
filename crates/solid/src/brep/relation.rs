@@ -6,10 +6,10 @@ mod conical;
 mod crossing;
 mod cylinders;
 mod elliptic;
+mod perpendicular;
 mod planar;
 mod revolved;
 mod sliced;
-mod square;
 
 use glam::DVec3;
 
@@ -85,7 +85,7 @@ pub fn relation(one: &Surface, other: &Surface, scale: Scale) -> Relation {
         }
         (Surface::Elliptic(_), Surface::Cylinder(_) | Surface::Elliptic(_))
         | (Surface::Cylinder(_), Surface::Elliptic(_))
-            if let Some(met) = square::walls(one, other, scale) =>
+            if let Some(met) = perpendicular::walls(one, other, scale) =>
         {
             met
         }

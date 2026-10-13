@@ -3,7 +3,8 @@
 
 use glam::DVec3;
 
-use crate::brep::curve::{Circle, Wall};
+use crate::brep::curve::Circle;
+use crate::brep::curve::Wall;
 use crate::brep::meet::moved;
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;

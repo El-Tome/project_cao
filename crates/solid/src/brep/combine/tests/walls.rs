@@ -450,19 +450,89 @@ fn a_circle_inscribed_where_an_elliptic_boss_s_wall_was_cut_away_is_drawn_within
     round_drawn_within_the_tolerance(&joined);
 }
 
+/// A cap of `oval`, the arc of its ellipse from the eccentric angle −2.5
+/// round by 5 and the trait back, raised from `from` to `to`.
+fn raised_cap(oval: Section, from: f64, to: f64) -> Body {
+    let (first, other) = (oval.first, oval.second.length());
+    let outline = Contour {
+        corners: vec![oval.point(-2.5), oval.point(2.5)],
+        runs: vec![
+            Run::Oval {
+                center: oval.center,
+                first,
+                second: other,
+                turn: 5.0,
+            },
+            Run::Straight,
+        ],
+    };
+    Body::raised(&outline, &[], ground(from), DVec3::Z * (to - from)).expect("a cap raises")
+}
+
 #[test]
-fn an_ellipse_a_hair_from_round_cut_by_a_circle_a_hair_off_it_is_declined_rather_than_kept() {
+fn an_arc_of_an_ellipse_a_hair_from_round_cut_by_a_circle_a_hair_off_it_is_declined_rather_than_kept()
+ {
     let oval = Section::ellipse([120.0, 150.0], DVec2::Y * 15.0000015, 15.0);
     let circle = Section::circle([119.9999997, 150.0], 15.0000005);
-    let body = raised(oval, 15.0, 150.0);
+    let body = raised_cap(oval, 15.0, 150.0);
     assert!(
         body.surfaces
             .iter()
             .any(|surface| matches!(surface, Surface::Elliptic(_))),
-        "the ellipse is raised on an elliptic wall"
+        "the arc is raised on an elliptic wall"
     );
     let cut = body.cut_by(&raised(circle, 15.0, 149.999994));
     assert_eq!(cut.map(|_| ()), Err(Declined::Unsupported));
+}
+
+/// The body `step` makes of a prism of `oval` and a prism of the circle
+/// of its half-axes' mean, each the same: one is made as the other is,
+/// with no elliptic wall left.
+fn made_as_the_circle_of_its_mean(oval: Section, step: impl Fn(Body) -> Body) {
+    let mean = (oval.first.length() + oval.second.length()) / 2.0;
+    let round = step(raised(
+        Section::circle(oval.center.to_array(), mean),
+        0.0,
+        4.0,
+    ));
+    let made = step(raised(oval, 0.0, 4.0));
+    assert!(
+        made.surfaces
+            .iter()
+            .all(|surface| !matches!(surface, Surface::Elliptic(_))),
+        "an elliptic wall is left"
+    );
+    assert_eq!(made.faces.len(), round.faces.len());
+    assert_eq!(made.edges.len(), round.edges.len());
+    assert_eq!(made.vertices.len(), round.vertices.len());
+    assert!(
+        (made.volume() - round.volume()).abs() <= 1e-9 * round.volume(),
+        "the body holds {}, two circles {}",
+        made.volume(),
+        round.volume()
+    );
+    held(&made, round.volume());
+}
+
+#[test]
+fn a_whole_ellipse_a_hair_from_round_is_joined_and_cut_by_a_circle_of_its_size_as_two_circles_are()
+{
+    let eps = Scale::of(165.0).eps();
+    let oval = Section::ellipse(
+        [120.0, 150.0],
+        DVec2::Y * (15.0 + 5.0 * eps),
+        15.0 - 5.0 * eps,
+    );
+    let size = Section::circle([120.0, 150.0], 15.0);
+    let off = Section::circle([119.9999997, 150.0], 15.0000005);
+    made_as_the_circle_of_its_mean(oval, |body| {
+        body.joined(&raised(size, 2.0, 6.0))
+            .expect("the circle of its size is joined")
+    });
+    made_as_the_circle_of_its_mean(oval, |body| {
+        body.cut_by(&raised(off, 1.0, 3.0))
+            .expect("the circle a hair off is cut")
+    });
 }
 
 #[test]

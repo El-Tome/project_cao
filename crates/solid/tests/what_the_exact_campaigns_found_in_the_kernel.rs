@@ -175,6 +175,12 @@
 //! 533779006. The turn of 359.9° stays ignored with what was found of it.
 //! The seed the round's own campaign found refused, a plane at 45° holding
 //! the ellipse two walls of one radius meet along, is named last and holds.
+//!
+//! The draw of ellipses (#571), measured on the merged lanes at `8e168c9`,
+//! failed most often on a whole ellipse a hair from round against a circle
+//! of its size, declined as two walls within decision 8's hair all round.
+//! Such an ellipse is raised as the circle of its half-axes' mean since Tom's
+//! decision of 13 October, and the two seeds named after it hold.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -8656,5 +8662,29 @@ fn seed_5552120815_a_turn_cut_by_a_cylinder_of_its_radius_and_a_plane_holding_th
                 11.0,
             )),
         ],
+    ));
+}
+
+#[test]
+fn seed_5571700143_a_disc_joined_to_a_whole_ellipse_a_hair_from_round_of_its_size() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(-2.0), Outline::circle([0.0, 3.0], 3.0), 9.0),
+        vec![Step::add(Leaf::prism(
+            Plane::xz(-0.9999999),
+            Outline::ellipse([0.0, 3.0], [-0.0, -2.9999999999999996], 2.9999999699999993),
+            5.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_5571700144_a_disc_joined_to_a_whole_ellipse_a_hair_from_round_drawn_on_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(-2.0), Outline::circle([7.0, 3.0], 2.5), 5.0),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(-2.0),
+            Outline::ellipse([7.0, 3.0], [-2.5000000000000004, -0.0], 2.4999999749999997),
+            5.0,
+        ))],
     ));
 }

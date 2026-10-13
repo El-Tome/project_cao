@@ -7,11 +7,11 @@ use std::f64::consts::{FRAC_PI_2, PI, TAU};
 use glam::{DVec2, DVec3};
 
 use super::{assert_sound, counts, ground};
-use crate::brep::Declined;
 use crate::brep::conic::Arm;
 use crate::brep::curve::Curve;
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, FaceId};
+use crate::brep::{Declined, Scale};
 use crate::profile::{Contour, Frame, Run};
 use crate::soundness::{closed, enclosed, listed, uncrossed};
 
@@ -106,6 +106,60 @@ fn an_ellipse_whose_half_axes_are_one_within_the_tolerance_is_raised_as_a_circul
         Surface::Cylinder(cylinder) if (cylinder.radius - 5.0).abs() < 1e-11
     )));
     held(&body, PI * 25.0 * 10.0);
+}
+
+#[test]
+fn a_whole_ellipse_whose_half_axes_differ_by_ten_tolerances_is_raised_as_the_circle_of_their_mean()
+{
+    let eps = Scale::of(10.0).eps();
+    let body = Body::raised(
+        &ellipse(0.4, 5.0 + 5.0 * eps, 5.0 - 5.0 * eps),
+        &[],
+        ground(),
+        DVec3::Z * 10.0,
+    )
+    .expect("an ellipse a hair from round raises");
+    assert!(wall_faces(&body).is_empty());
+    assert!(body.surfaces.iter().any(|surface| matches!(
+        surface,
+        Surface::Cylinder(cylinder) if (cylinder.radius - 5.0).abs() < 1e-12
+    )));
+    assert_eq!(counts(&body), [3, 2, 0]);
+    held(&body, PI * 25.0 * 10.0);
+}
+
+#[test]
+fn a_whole_ellipse_whose_half_axes_differ_by_more_than_decision_8_s_hair_keeps_its_elliptic_wall() {
+    let eps = Scale::of(10.0).eps();
+    let body = Body::raised(
+        &ellipse(0.4, 5.0 + 11.0 * eps, 5.0 - 11.0 * eps),
+        &[],
+        ground(),
+        DVec3::Z * 10.0,
+    )
+    .expect("an ellipse raises");
+    assert_eq!(wall_faces(&body).len(), 1);
+}
+
+#[test]
+fn an_arc_of_an_ellipse_whose_half_axes_differ_by_ten_tolerances_keeps_its_elliptic_wall() {
+    let eps = Scale::of(10.0).eps();
+    let first = DVec2::from_angle(0.4) * (5.0 + 5.0 * eps);
+    let second = 5.0 - 5.0 * eps;
+    let cap = Contour {
+        corners: vec![on(first, second, -0.5), on(first, second, 2.5)],
+        runs: vec![
+            Run::Oval {
+                center: CENTER,
+                first,
+                second,
+                turn: 3.0,
+            },
+            Run::Straight,
+        ],
+    };
+    let body = Body::raised(&cap, &[], ground(), DVec3::Z * 10.0).expect("a cap raises");
+    assert_eq!(wall_faces(&body).len(), 1);
 }
 
 #[test]

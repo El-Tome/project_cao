@@ -279,7 +279,7 @@ fn joined(first: &Piece, second: &Piece, eps: f64) -> Result<Option<Piece>, Decl
 }
 
 /// The merged pieces, a lone circle or ellipse made a ring of exactly one
-/// turn.
+/// turn, and a lone ellipse a hair from round the ring of a circle.
 fn closed(mut pieces: Vec<Named>, eps: f64) -> Result<Vec<Named>, Declined> {
     if let [
         Named {
@@ -311,6 +311,7 @@ fn closed(mut pieces: Vec<Named>, eps: f64) -> Result<Vec<Named>, Declined> {
             return Err(Declined::Profile);
         }
         *sweep = TAU.copysign(*sweep);
+        pieces[0].piece = oval::rounded(pieces[0].piece, eps);
         return Ok(pieces);
     }
     if pieces.len() < 2 {

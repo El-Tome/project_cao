@@ -3,7 +3,10 @@
 //! anticlockwise from it, and the eccentric angle the run turns by from its
 //! corner. An ellipse whose two half-axes are one within the tolerance is the
 //! circle of their mean, decided once here: its wall is a circular cylinder,
-//! as an arc's is.
+//! as an arc's is. So is a whole ellipse whose half-axes are one within
+//! decision 8's hair (Tom, 2026-10-13): no corner stands on it for the move
+//! to take off its wall, and the hair is under any step the application
+//! shows. An arc keeps the tolerance, its corners on the ellipse.
 
 use std::f64::consts::{PI, TAU};
 
@@ -11,6 +14,7 @@ use glam::{DVec2, DVec3};
 
 use super::{Piece, ROUNDINGS};
 use crate::brep::Declined;
+use crate::brep::scale::Scale;
 use crate::brep::surface::EllipticCylinder;
 
 /// Where the ellipse about `center` stands at the eccentric angle `angle`
@@ -95,6 +99,30 @@ fn round([from, to]: [DVec2; 2], center: DVec2, axes: (DVec2, f64), turn: f64) -
         center,
         radius: (axes.0.length() + axes.1) / 2.0,
         sweep: turn + (shift + PI).rem_euclid(TAU) - PI,
+    }
+}
+
+/// A whole ellipse, a ring, whose half-axes are one within decision 8's
+/// hair, as the ring of the circle of their mean; any other piece as it is.
+pub(super) fn rounded(piece: Piece, eps: f64) -> Piece {
+    match piece {
+        Piece::Oval {
+            from,
+            to,
+            center,
+            first,
+            second,
+            sweep,
+        } if piece.is_ring() && (first.length() - second).abs() <= Scale::HAIR * eps => {
+            Piece::Arc {
+                from,
+                to,
+                center,
+                radius: (first.length() + second) / 2.0,
+                sweep,
+            }
+        }
+        other => other,
     }
 }
 

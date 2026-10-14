@@ -1268,6 +1268,7 @@ when none decides it.
 | Lay a rule | The same with half an ellipse a cut left | It comes whole, its axes kept, and lengthens a little past the point | Same (#554); the rule was refused |
 | Lay a rule | The same with half an ellipse drawn by its ends | It comes whole until what is drawn reaches the point, a little inside its end; it does not lengthen | Same (#554); the rule was refused |
 | Lay a rule | The same with the fillet of two free traits | It comes whole and lengthens, the trait it is tangent to turning with its end | Same (#554); the rule was refused |
+| Cut a corner | The corner next to a fillet, by a fillet or a chamfer | The fillet stays tangent to both its sides | Same (#590); its tangency to the side the two share was dropped |
 | Lay a rule | « Coïncidence », an arc or half an ellipse clicked first, then the end of a trait | The point comes onto what is drawn, at the nearest place — a little short of an end when the nearest place on the whole curve is past it; the curve stays | Same (#554); the rule was refused |
 | Lay a rule | « Coïncidence », the end of a trait clicked first, then a fixed curve | The curve cannot come: the point comes onto it | Same (#554); the rule was refused |
 | Lay a rule | A point at the middle of a trait | The point comes to the middle; the trait stays | Same (#479); the trait moved a third of the way to the point |
@@ -1665,7 +1666,10 @@ The curve is **held tangent** to both pieces, by a rule laid down with it.
 Without that it would stop being a fillet the moment anything in the drawing
 moved: the arc and the two sides are loose pieces otherwise, exactly as a trim
 leaves them. The radius typed is left on the arc as a dimension, which with the
-two tangencies holds the fillet whole.
+two tangencies holds the fillet whole. Cutting the corner next to it trims a
+side the fillet is tangent to, and the tangency follows the piece its contact
+stands on, as a circle's does (#590): rounding every corner of a plate, in one
+gesture or one after the other, leaves every fillet tangent to both its sides.
 
 The corner stays as a point, held on both sides, with the stretch the curve took
 off each of them laid back in as construction — exactly what a chamfer leaves,

@@ -431,3 +431,67 @@ fn a_trait_laid_the_way_of_an_axis_leaves_both_pieces_that_way() {
         }
     }
 }
+
+/// A trait with two points on it, and an arc of radius three tangent to it at
+/// its start, curling up and back from there.
+fn an_arc_brushing_a_trait_at_its_start() -> (Sketch, SegmentId, [PointId; 4], Constraint) {
+    let (mut sketch, segment, points) = a_trait_with_two_points_on_it();
+    let centre = sketch.add_point(DVec2::new(0.0, 4.0));
+    let other_end = sketch.add_point(DVec2::new(-3.0, 4.0));
+    let arc = sketch.add_arc(centre, points[0], other_end);
+    let rule = Constraint::ArcTangent {
+        arc,
+        segment,
+        at: Some(points[0]),
+        from: LaidFrom::Nowhere,
+    };
+    sketch.add_constraint(rule);
+    (sketch, segment, points, rule)
+}
+
+#[test]
+fn a_trait_cut_beyond_where_an_arc_brushes_it_keeps_the_tangency() {
+    let (mut sketch, segment, [start, near, far, _], rule) = an_arc_brushing_a_trait_at_its_start();
+
+    let trimmed = sketch
+        .trim(segment, near, far)
+        .expect("a cut that can be made");
+
+    let Constraint::ArcTangent { arc, at, from, .. } = rule else {
+        unreachable!()
+    };
+    let kept = trimmed
+        .pieces
+        .iter()
+        .copied()
+        .find(|piece| sketch.segments()[piece.0].start == start)
+        .expect("the piece the contact stands on");
+    assert!(
+        sketch.constraints().contains(&Constraint::ArcTangent {
+            arc,
+            segment: kept,
+            at,
+            from,
+        }),
+        "the arc is still held tangent, to the piece its contact fell on"
+    );
+    assert_eq!(trimmed.rules_dropped, 0, "nothing was lost to the cut");
+}
+
+#[test]
+fn a_trim_taking_the_contact_of_an_arc_drops_its_tangency() {
+    let (mut sketch, segment, [start, near, ..], _) = an_arc_brushing_a_trait_at_its_start();
+
+    let trimmed = sketch
+        .trim(segment, start, near)
+        .expect("a cut that can be made");
+
+    assert!(
+        !sketch
+            .constraints()
+            .iter()
+            .any(|rule| matches!(rule, Constraint::ArcTangent { .. })),
+        "the stretch the arc touched is gone, and the tangency with it"
+    );
+    assert_eq!(trimmed.rules_dropped, 1, "and the cut says what it cost");
+}

@@ -1253,6 +1253,7 @@ when none decides it.
 | Cut a corner | A chamfer or a fillet on a corner carrying an angle | The angle, read between the stretches, still turns the trait it was typed from | Same (#451) |
 | Drag a point | The free end of a side of a corner rounded or chamfered | The side turns about the corner, the cut following with its values; the other side stays | Same (#565); the whole corner slid with the hand, or the other side leaned |
 | Drag a point | The same, past where the fillet fits the sides | The side stops where it still fits | Same (#565) |
+| Drag a point | The corner point a fillet or a chamfer left, alone or on an outline cut all round | The corner follows the hand, each side turning about its free end or the next corner; every other corner stays | Same (#591); it stayed where its lines crossed |
 | Type a value | An angle between the two sides of a corner rounded or chamfered | The second clicked turns about the corner; the corner and the first side stay | Same (#565); the side rolled on the fillet, the corner sliding — and from 140° inside a fillet, or at 5° on a chamfer, the cut came out inside out |
 | Type a value | The same, too tight for the fillet on the sides as long as they are | The corner rolls along the first side, which stays | Same (#565) |
 | Lay a rule | A free point on a trait | The point comes onto the trait, whichever was clicked first | Same |
@@ -1692,6 +1693,13 @@ between them; a point laid by hand where two lines meet is not one.
   corner after the hand. Where holding the corner would leave the free end less
   free than it was — a side held level by « Horizontale », which cannot turn —
   the corner moves with its side, as it would uncut.
+- **Dragging the corner itself moves it as a sharp corner** (#591), where it
+  used to stay at the crossing of its two lines. The corner follows the cursor,
+  each of its sides turns about what it runs out to — its free end, or the
+  corner at its other end when that one is cut too — every other corner stays,
+  and every cut keeps its values. On a plate rounded all round, which has no
+  free end left to take, this is how a corner is moved. A side that cannot
+  turn — held level, say — takes the corner along itself instead.
 - **An angle typed between the two sides turns the second one clicked about the
   corner**, the first staying, as at any corner (#451) — and so does an angle
   the corner carried before it was cut, typed again, or « Perpendiculaire »

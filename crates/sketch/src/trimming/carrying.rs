@@ -67,8 +67,9 @@ impl Piece {
 /// What a trait carried before it was cut: everything standing that spoke of
 /// it, and where along it the ones fastened to a place sat.
 ///
-/// A tangency is held at the point where the circle touches; a distance to the
-/// line, at the foot of the point it measures from. Both are places on the
+/// A tangency is held at the point where the circle, the arc or the ellipse
+/// touches — a fillet's at the end it runs into the trait by; a distance to
+/// the line, at the foot of the point it measures from. Both are places on the
 /// line, and each follows the piece its place fell on.
 pub(super) struct Carried {
     pub(super) rules: Vec<Constraint>,
@@ -115,7 +116,7 @@ pub(super) fn targets(values: &[Dimension]) -> Vec<DimensionTarget> {
 /// What a rule says about *direction* survives whole: the pieces lie on the
 /// line the trait lay on, so they stand to everything else exactly as it did.
 /// What is fastened to a place on that line — a tangency, held at the point
-/// where the circle touches — follows the piece that place fell on. A rule
+/// where the curve touches — follows the piece that place fell on. A rule
 /// about length speaks of a trait that is no longer there.
 pub(super) fn still_holds(
     rule: Constraint,
@@ -183,6 +184,17 @@ pub(super) fn still_holds(
             from,
         } if segment == cut && fell_on_the_piece => Some(Constraint::EllipseTangent {
             ellipse,
+            segment: piece.id,
+            at,
+            from,
+        }),
+        Constraint::ArcTangent {
+            arc,
+            segment,
+            at,
+            from,
+        } if segment == cut && fell_on_the_piece => Some(Constraint::ArcTangent {
+            arc,
             segment: piece.id,
             at,
             from,
@@ -303,6 +315,21 @@ impl Sketch {
                         at: Some(point),
                         ..
                     } if *on == segment => Some((*rule, place_of_point(*point)?)),
+                    Constraint::ArcTangent {
+                        arc,
+                        segment: on,
+                        at,
+                        ..
+                    } if *on == segment => {
+                        let touches = match at {
+                            Some(point) => self.points().get(point.0).copied()?,
+                            None => self
+                                .points()
+                                .get(self.arcs().get(arc.0)?.center.0)
+                                .copied()?,
+                        };
+                        Some((*rule, along(touches)))
+                    }
                     Constraint::EllipseTangent {
                         ellipse,
                         segment: on,

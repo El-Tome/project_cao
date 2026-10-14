@@ -14,7 +14,7 @@ use std::f64::consts::TAU;
 use glam::DVec2;
 
 use super::super::{Leaf, Outline, Oval, Plane, Step};
-use super::Drawing;
+use super::{Drawing, in_steps};
 
 /// The hairs a tool drawn from an ellipse misses it by: moved or grown, in
 /// units of the case's lattice, or turned, in radians.
@@ -231,7 +231,7 @@ impl Drawing {
             0 | 1 => 0.0,
             2 => reach - self.oval_hair().abs().max(1e-6 * reach),
             _ => {
-                let most = ((reach - unit / 2.0) / unit).floor().max(0.0) as i64;
+                let most = in_steps(reach - unit / 2.0, unit).floor().max(0.0) as i64;
                 unit * (self.random.below(2 * most as usize + 1) as i64 - most) as f64
             }
         }
@@ -258,7 +258,7 @@ impl Drawing {
         let toward = self.trait_direction(oval);
         let reach = oval.support(toward);
         let step = 0.25 * self.scale;
-        let most = ((reach - step) / step).floor() as i64;
+        let most = in_steps(reach - step, step).floor() as i64;
         if most < 1 {
             let (furthest, half) = facing(oval, toward, 0.0);
             return vec![[furthest + half, furthest + 360.0 - half]];

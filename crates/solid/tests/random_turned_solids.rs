@@ -106,6 +106,13 @@
 //!   `the_draws_of_ellipses_give_each_seed_its_case`
 //! - no number a fingerprinted draw prints stands where the last bit decides
 //!   its count — `no_number_a_fingerprinted_draw_prints_stands_where_the_last_bit_decides_its_count`
+//!
+//! Beside what #586 asked: the draws themselves gave a seed a case one lattice
+//! step apart on the two platforms, where they floored, ceiled or rounded a
+//! count of steps reached through sines and cosines — a box's corner seen on
+//! a leaning plane, an ellipse's reach. A count a hair off a step is now
+//! counted on it, and the fingerprints of the two draws that differed are
+//! what holds it on both platforms.
 //! - a case drawn differently still changes the fingerprint —
 //!   `a_case_drawn_differently_changes_the_fingerprint`
 
@@ -2133,23 +2140,23 @@ fn the_draws_before_conics_still_give_each_seed_its_case() {
 
 #[test]
 fn the_draws_before_ellipses_still_give_each_seed_its_case() {
-    assert_eq!(fingerprint(Case::drawn_tilted), 0xaa9c_9ee8_3b53_8bd1);
+    assert_eq!(fingerprint(Case::drawn_tilted), 0x32d0_d851_1237_f618);
     assert_eq!(
         fingerprint(Case::drawn_tilted_off_the_lattice),
-        0x787f_0459_bbb8_d871
+        0x1fd0_313a_bd3d_51fe
     );
 }
 
 #[test]
 fn the_draws_of_ellipses_give_each_seed_its_case() {
-    assert_eq!(fingerprint(Case::drawn_ellipses), 0xcba1_9186_3851_7909);
+    assert_eq!(fingerprint(Case::drawn_ellipses), 0x4dd6_0de5_d4c7_374b);
     assert_eq!(
         fingerprint(Case::drawn_ellipses_crossed),
         0xf068_3371_b7c0_1306
     );
     assert_eq!(
         fingerprint(Case::drawn_ellipses_tilted),
-        0x4982_24da_6cb4_60f6
+        0xbceb_602c_9067_dfe6
     );
 }
 

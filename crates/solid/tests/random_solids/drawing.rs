@@ -20,6 +20,26 @@ mod turns;
 
 pub use tilts::clear_of_the_lines;
 
+/// How near a whole or half step of the lattice a count of steps stands to be
+/// counted on it. A count reached through `sin` and `cos` lands a hair either
+/// side of the step it means, by the last bit each platform's library rounds:
+/// floored, ceiled or rounded as it stood, the same seed drew a case one step
+/// apart on a Mac and on Linux (#586). The narrowest hair a draw lays on
+/// purpose is a thousand times wider, and that last bit a thousand times
+/// narrower.
+const ON_THE_STEP: f64 = 1e-11;
+
+/// `value` counted in `step`s, put back on the whole or half step it stands
+/// within `ON_THE_STEP` of.
+fn in_steps(value: f64, step: f64) -> f64 {
+    let steps = value / step;
+    let half = (steps * 2.0).round() / 2.0;
+    match (steps - half).abs() < ON_THE_STEP {
+        true => half,
+        false => steps,
+    }
+}
+
 impl Case {
     /// The case a seed stands for. The same seed always draws the same case,
     /// which is what lets a failure be named by its seed alone.

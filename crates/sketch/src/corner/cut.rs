@@ -93,20 +93,24 @@ impl Sketch {
     /// Lays a corner's cut again for the way its sides run out now, as the cut
     /// itself lays it: a fillet's curve of the radius it has, grazing both
     /// sides, or a chamfer's ends as far back along each side as they stand.
-    /// Where the cut no longer fits the sides, nothing is moved.
+    /// Each side runs out to its anchor among `corners`. Where the cut no
+    /// longer fits the sides, nothing is moved.
     ///
     /// What is left to mend is then within the solver's precision. Left to the
     /// solver, a corner opened or closed far in one go comes out with its cut
     /// laid in the quarter across the corner, the sides running past it.
-    pub(crate) fn lay_cut_again(&mut self, corner: &CutCorner) {
+    pub(crate) fn lay_cut_again(&mut self, corner: &CutCorner, corners: &[CutCorner]) {
         let at = self.point(corner.point);
-        let [Some(one), Some(other)] = corner
-            .sides
-            .map(|side| (self.point(side.far) - at).try_normalize())
+        let anchors = corner.sides.map(|side| self.anchor_of(corners, &side));
+        let [Some(one), Some(other)] =
+            anchors.map(|anchor| (self.point(anchor) - at).try_normalize())
         else {
             return;
         };
-        let reaches = corner.sides.map(|side| self.point(side.far).distance(at));
+        let reaches = [0, 1].map(|index| {
+            let (side, anchor) = (corner.sides[index], self.point(anchors[index]));
+            anchor.distance(at) - anchor.distance(self.point(side.far))
+        });
         let (backs, centre) = match self.cut_curve(corner) {
             Some(arc) => {
                 let half = one.angle_to(other).abs() / 2.0;
@@ -147,6 +151,40 @@ impl Sketch {
             .map(|(id, _)| id)
     }
 
+    /// Whether a point is the corner a cut left, whole.
+    pub(crate) fn is_a_cut_corner(&self, point: PointId) -> bool {
+        self.cut_corner_at(point)
+            .is_some_and(|corner| self.is_whole(&corner))
+    }
+
+    /// The traits a cut is made of, besides what is left of its sides: the
+    /// stretches it laid back between the corner and each side, and a
+    /// chamfer's straight cut.
+    pub(crate) fn cut_traits(&self, corner: &CutCorner) -> Vec<SegmentId> {
+        let ends = [corner.point, corner.sides[0].near, corner.sides[1].near];
+        self.live_segments()
+            .filter(|(id, _)| corner.sides.iter().all(|side| side.piece != *id))
+            .filter(|(_, line)| ends.contains(&line.start) && ends.contains(&line.end))
+            .map(|(id, _)| id)
+            .collect()
+    }
+
+    /// The place a side of a cut corner runs out to: its free end, or, where
+    /// that end is where another cut starts, the corner that cut left. A side
+    /// between two cut corners runs from one to the other; its ends are only
+    /// where the two cuts start.
+    pub(crate) fn anchor_of(&self, corners: &[CutCorner], side: &CutSide) -> PointId {
+        corners
+            .iter()
+            .find(|other| {
+                other
+                    .sides
+                    .iter()
+                    .any(|beyond| beyond.piece == side.piece && beyond.near == side.far)
+            })
+            .map_or(side.far, |other| other.point)
+    }
+
     /// Whether every one of `corners` is still whole. A settling that brings a
     /// side out past its corner has turned the cut inside out.
     pub(crate) fn still_cut(&self, corners: &[CutCorner]) -> bool {
@@ -171,6 +209,10 @@ impl Sketch {
         corner.sides.iter().position(|side| {
             side.piece == segment || (ends.contains(&corner.point) && ends.contains(&side.near))
         })
+    }
+
+    fn cut_corner_at(&self, point: PointId) -> Option<CutCorner> {
+        self.cut_corner_held(point, &self.holds_on(point))
     }
 
     /// The corner a point stands for, held as `holds` say: on two traits and

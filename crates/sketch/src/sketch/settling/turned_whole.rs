@@ -111,7 +111,8 @@ impl Sketch {
         let about =
             self.turn_whole(turning.turns, &stops, walls, turning.angle, turning.meeting)?;
         if let Some(cut) = &turning.cut {
-            self.lay_cut_again(&cut.corner);
+            let corners = self.cut_corners();
+            self.lay_cut_again(&cut.corner, &corners);
         }
         Some(match how {
             Turned::Pinned => about

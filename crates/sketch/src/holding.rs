@@ -162,11 +162,14 @@ impl Sketch {
     ///
     /// Held on two things at once it stands at their crossing, and a crossing
     /// is not somewhere a drag can take it: it moves when they do, and not
-    /// otherwise.
+    /// otherwise. But for the corner a chamfer or a fillet left: dragged, it
+    /// goes where the hand is, as a sharp corner would, and its sides follow
+    /// (#591).
     pub fn slide(&self, point: PointId, towards: DVec2) -> DVec2 {
         match self.holds_on(point).as_slice() {
             [] => self.round_its_own_curve(point, towards).unwrap_or(towards),
             [only] => self.along(*only, towards).unwrap_or(towards),
+            _ if self.is_a_cut_corner(point) => towards,
             _ => self.point(point),
         }
     }

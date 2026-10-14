@@ -45,8 +45,6 @@ const ROUNDS: usize = 12;
 /// is the usual case; the bound is there for the drawing where putting a shape
 /// back is what breaks the next equation.
 const WELDS: usize = 4;
-/// How much of the error a round must clear to be worth another one.
-const WORTH_ANOTHER_ROUND: f64 = 0.9;
 /// Below this, an equation counts as satisfied. Relative to the drawing's own
 /// size, so it means the same thing at any scale.
 pub(crate) const TOLERANCE: f64 = 1e-5;
@@ -72,17 +70,15 @@ impl Sketch {
 
         let scale = self.characteristic_size();
         let mut outcome = SolveOutcome::Residual;
-        let mut before = f64::INFINITY;
+        let mut rounds = stall::Rounds::new(ROUNDS);
         for _ in 0..ROUNDS {
             outcome = self.settle_once(millimeters_per_unit, scale);
             if outcome == SolveOutcome::Solved {
                 break;
             }
-            let left = self.worst_error(millimeters_per_unit, scale);
-            if left > before * WORTH_ANOTHER_ROUND {
+            if !rounds.worth_another(self.worst_error(millimeters_per_unit, scale)) {
                 break;
             }
-            before = left;
         }
 
         // A trait pulled down to nothing, or a tangency whose contact has slid

@@ -67,7 +67,7 @@ in one of the two domains, never there.
 | Dropping a point where curves cross and cutting each of them in two there | `sketch/src/splitting.rs` | `Sketch::crossing_at` → `Crossing`, `Sketch::split` → `Split` |
 | Cutting the corner two traits share with a straight line | `sketch/src/chamfer.rs` | `Sketch::chamfer` → `Chamfered`, `Sketch::chamfer_fits`, `Chamfer`, `ChamferMode` |
 | Rounding that same corner into a curve tangent to both sides | `sketch/src/fillet.rs` | `Sketch::fillet` → `Rounded`, `Sketch::fillet_fits` |
-| A corner a chamfer or a fillet cut, read back from what it left, its cut laid again when a side turns, and never turned inside out | `sketch/src/corner/cut.rs` | `cut_corners`, `cut_side_of`, `points_it_stands_on`, `side_turned`, `lay_cut_again`, `still_cut` |
+| A corner a chamfer or a fillet cut, read back from what it left, its cut laid again when a side turns, and never turned inside out | `sketch/src/corner/cut.rs` | `cut_corners`, `side_turned`, `lay_cut_again`, `still_cut` |
 | Laying a second copy of part of the drawing down, under any transform | `sketch/src/duplicating.rs` | `Sketch::duplicate` → `Duplicated` |
 | Running a change against a copy of the drawing, to show it before it is made | `sketch/src/preview.rs` | `Sketch::preview` → `Preview`, `Laid` |
 | The straight line a click names, and the direction it runs in | `sketch/src/axis.rs` | `ChosenAxis`, `Sketch::axis_line` |

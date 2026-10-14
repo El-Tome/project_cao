@@ -67,7 +67,7 @@ in one of the two domains, never there.
 | Dropping a point where curves cross and cutting each of them in two there | `sketch/src/splitting.rs` | `Sketch::crossing_at` → `Crossing`, `Sketch::split` → `Split` |
 | Cutting the corner two traits share with a straight line | `sketch/src/chamfer.rs` | `Sketch::chamfer` → `Chamfered`, `Sketch::chamfer_fits`, `Chamfer`, `ChamferMode` |
 | Rounding that same corner into a curve tangent to both sides | `sketch/src/fillet.rs` | `Sketch::fillet` → `Rounded`, `Sketch::fillet_fits` |
-| A corner a chamfer or a fillet cut, read back from what it left, its cut laid again when a side turns, and never turned inside out | `sketch/src/corner/cut.rs` | `cut_corners`, `side_turned`, `lay_cut_again`, `still_cut` |
+| A corner a chamfer or a fillet cut, read back from what it left, its cut laid again when a side turns, and never turned inside out | `sketch/src/corner/cut.rs` | `cut_corners`, `is_a_cut_corner`, `anchor_of`, `cut_traits`, `side_turned`, `lay_cut_again`, `still_cut` |
 | Laying a second copy of part of the drawing down, under any transform | `sketch/src/duplicating.rs` | `Sketch::duplicate` → `Duplicated` |
 | Running a change against a copy of the drawing, to show it before it is made | `sketch/src/preview.rs` | `Sketch::preview` → `Preview`, `Laid` |
 | The straight line a click names, and the direction it runs in | `sketch/src/axis.rs` | `ChosenAxis`, `Sketch::axis_line` |
@@ -89,7 +89,7 @@ in one of the two domains, never there.
 | A point dropped and the drawing settled around it; a handful dropped at once | `sketch/src/sketch/settling.rs` | `Sketch::settle_around`, `settle_around_all` |
 | What a drag of one point may do: stretch, follow one way, pivot, or nothing | `sketch/src/sketch/settling/pull.rs` | `PointPull`, `Sketch::pull`, `settle_pulled` |
 | Where a pulled point is taken at each frame, and what it lands on | `sketch/src/sketch/settling/pull/landing.rs` | `PointPull::landing`, `onto_grid`, `arrived`, `joined_to`, `joins` |
-| A free end of a cut corner's side pulled: the side turns about the corner | `sketch/src/sketch/settling/pull/cut_corner.rs` | `held_at_cut_corners`, `move_laying_cuts` |
+| A cut corner pulled: a free end of a side turns the side about the corner, the corner itself moves as a sharp one | `sketch/src/sketch/settling/pull/cut_corner.rs` | `held_at_cut_corners`, `held_at_its_corner`, `move_laying_cuts` |
 | The shape a dragged point belongs to, and the point of it that stays | `sketch/src/sketch/settling/shape.rs` | `shape_of`, `stay_point`, `centres_under`, `turned_about` |
 | The pairs of points the drawing joins, and how a rule ties them | `sketch/src/sketch/settling/joins.rs` | `joined_pairs`, `tied_pairs`, `drawn_pairs`, `Tie` |
 | The traits a drag keeps pointing the way they did | `sketch/src/sketch/settling/kept.rs` | `Kept`, `tied_by_direction`, `lines_kept_in` |

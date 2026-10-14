@@ -33,6 +33,6 @@ impl Sketch {
         }
         let angle = quarter_turn_at_most(running.angle_to(wanted));
         let stops = self.held_in_direction(None);
-        self.turn_whole(segment, &stops, angle, None);
+        self.turn_whole(segment, &stops, &[], angle, None);
     }
 }

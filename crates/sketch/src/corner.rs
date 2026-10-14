@@ -15,6 +15,10 @@ use crate::constraints::{Dimension, DimensionTarget};
 use crate::holding::Support;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
+mod cut;
+
+pub(crate) use cut::{CutCorner, SideTurned};
+
 /// How a corner was named, as the history records it.
 ///
 /// Not the two traits it stood between at the time: cutting one corner of a

@@ -98,6 +98,16 @@
 //!   `the_draws_before_turns_still_give_each_seed_its_case`
 //! - a case drawn differently still changes the fingerprint —
 //!   `a_case_drawn_differently_changes_the_fingerprint`
+//!
+//! Closes #586.
+//! - the two fingerprints that failed on macOS pass there and on the CI's
+//!   Linux, and so do the others of the file —
+//!   `the_draws_before_ellipses_still_give_each_seed_its_case`,
+//!   `the_draws_of_ellipses_give_each_seed_its_case`
+//! - no number a fingerprinted draw prints stands where the last bit decides
+//!   its count — `no_number_a_fingerprinted_draw_prints_stands_where_the_last_bit_decides_its_count`
+//! - a case drawn differently still changes the fingerprint —
+//!   `a_case_drawn_differently_changes_the_fingerprint`
 
 // The drawing, the promise and the checks are shared with the other
 // campaigns; each file uses its own part of them.
@@ -153,15 +163,40 @@ fn lines_over(leaf: &Leaf) -> (Lines, f64) {
     (Lines::across(low - 1.0, high + 1.0, 24), reach)
 }
 
-/// A case as printed, each number in it to a millionth. A star's corners are
-/// laid with `sin` and `cos`, which each platform's library rounds its own
-/// way in the last bit: read to the last digit, the same draws would have one
-/// fingerprint on a Mac and another on Linux.
-fn to_a_millionth(printed: &str) -> String {
+/// Where a number starts counting as one millionth more: this far from the
+/// count below, and not halfway. The draws lay their hair offsets on the
+/// halfway mark on purpose (`20.0000005`, `5.5e-6`, `179.9999985`), where the
+/// last bit a platform's `sin_cos` rounds decides which way a number goes
+/// (#586). No draw builds a number on a golden fraction of a millionth.
+const NEXT_MILLIONTH_FROM: f64 = 0.381_966_011_250_105_2;
+
+/// How near the mark a number may stand, in millionths: a hundred times what
+/// the last bits of the platform's `sin` and `cos` move a number of the draws.
+const CLEAR_OF_THE_MARK: f64 = 1e-6;
+
+/// A case as printed, each number in it counted in millionths. A star's
+/// corners are laid with `sin` and `cos`, which each platform's library rounds
+/// its own way in the last bit: read to the last digit, the same draws would
+/// have one fingerprint on a Mac and another on Linux (#541). A sign is read
+/// with its number, so that a cosine of a right angle counts no millionth
+/// either side of nothing.
+fn in_millionths(printed: &str) -> String {
+    each_number(printed, |value| {
+        format!(
+            "{}",
+            (value * 1e6 + 1.0 - NEXT_MILLIONTH_FROM).floor() as i64
+        )
+    })
+}
+
+/// The printed case, each number with a fraction or an exponent replaced by
+/// what `count` makes of it. Whole numbers stay as they are printed.
+fn each_number(printed: &str, mut count: impl FnMut(f64) -> String) -> String {
     let mut rounded = String::with_capacity(printed.len());
     let mut characters = printed.chars().peekable();
     while let Some(first) = characters.next() {
-        if !first.is_ascii_digit() {
+        let signed = first == '-' && characters.peek().is_some_and(char::is_ascii_digit);
+        if !first.is_ascii_digit() && !signed {
             rounded.push(first);
             continue;
         }
@@ -175,7 +210,7 @@ fn to_a_millionth(printed: &str) -> String {
             characters.next();
         }
         match number.parse::<f64>() {
-            Ok(value) if number.contains(['.', 'e']) => rounded.push_str(&format!("{value:.6}")),
+            Ok(value) if number.contains(['.', 'e']) => rounded.push_str(&count(value)),
             _ => rounded.push_str(&number),
         }
     }
@@ -188,9 +223,25 @@ type Draw = fn(u64) -> Case;
 /// How many pairs of walls meet along one kind of conic.
 type Count = fn(&random_solids::Conics) -> usize;
 
+/// Every draw a fingerprint is asserted for below.
+const FINGERPRINTED: [Draw; 12] = [
+    Case::drawn,
+    Case::drawn_square,
+    Case::drawn_profiles,
+    Case::drawn_turned,
+    Case::drawn_turned_off_the_lattice,
+    Case::drawn_slanted,
+    Case::drawn_slanted_off_the_lattice,
+    Case::drawn_tilted,
+    Case::drawn_tilted_off_the_lattice,
+    Case::drawn_ellipses,
+    Case::drawn_ellipses_crossed,
+    Case::drawn_ellipses_tilted,
+];
+
 fn fingerprint(draw: Draw) -> u64 {
     (0..300)
-        .flat_map(|seed| to_a_millionth(&draw(seed).to_string()).into_bytes())
+        .flat_map(|seed| in_millionths(&draw(seed).to_string()).into_bytes())
         .fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
             (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
         })
@@ -225,9 +276,26 @@ fn the_draws_before_turns_still_give_each_seed_its_case() {
     ],
 )"
     );
-    assert_eq!(fingerprint(Case::drawn), 0x0046_86d1_6591_9cb0);
-    assert_eq!(fingerprint(Case::drawn_square), 0x9f98_5bfa_be69_afd9);
-    assert_eq!(fingerprint(Case::drawn_profiles), 0x3d32_990d_6d85_4c27);
+    assert_eq!(fingerprint(Case::drawn), 0xf3d0_3d25_d6d6_62eb);
+    assert_eq!(fingerprint(Case::drawn_square), 0x0347_3e33_46ca_101b);
+    assert_eq!(fingerprint(Case::drawn_profiles), 0x074a_7a8e_f8a6_6df1);
+}
+
+#[test]
+fn no_number_a_fingerprinted_draw_prints_stands_where_the_last_bit_decides_its_count() {
+    for (rank, draw) in FINGERPRINTED.into_iter().enumerate() {
+        for seed in 0..300 {
+            each_number(&draw(seed).to_string(), |value| {
+                let past = (value * 1e6 + 1.0 - NEXT_MILLIONTH_FROM).rem_euclid(1.0);
+                assert!(
+                    past.min(1.0 - past) > CLEAR_OF_THE_MARK,
+                    "draw {rank}, seed {seed}: {value} stands {past} of a millionth past \
+                     the mark, where a platform's last bit decides its count"
+                );
+                String::new()
+            });
+        }
+    }
 }
 
 #[test]
@@ -2047,41 +2115,41 @@ fn random_slanted_cases_keep_every_rule_on_the_exact_kernel() {
 
 #[test]
 fn the_draws_before_cones_still_give_each_seed_its_case() {
-    assert_eq!(fingerprint(Case::drawn_turned), 0xcc31_66e3_4654_2d89);
+    assert_eq!(fingerprint(Case::drawn_turned), 0x9180_1d59_a432_9c6a);
     assert_eq!(
         fingerprint(Case::drawn_turned_off_the_lattice),
-        0x15a1_285a_02b7_1fa1
+        0x13be_c8c0_b781_93e1
     );
 }
 
 #[test]
 fn the_draws_before_conics_still_give_each_seed_its_case() {
-    assert_eq!(fingerprint(Case::drawn_slanted), 0x2254_c920_5d6b_d63a);
+    assert_eq!(fingerprint(Case::drawn_slanted), 0x32b3_b100_d73f_534f);
     assert_eq!(
         fingerprint(Case::drawn_slanted_off_the_lattice),
-        0x1c0c_4b23_deb0_6a25
+        0x5ae8_3b2b_d8e7_55f3
     );
 }
 
 #[test]
 fn the_draws_before_ellipses_still_give_each_seed_its_case() {
-    assert_eq!(fingerprint(Case::drawn_tilted), 0x39f1_3da1_b1a0_af34);
+    assert_eq!(fingerprint(Case::drawn_tilted), 0xaa9c_9ee8_3b53_8bd1);
     assert_eq!(
         fingerprint(Case::drawn_tilted_off_the_lattice),
-        0xda6e_019c_3e1a_2a60
+        0x787f_0459_bbb8_d871
     );
 }
 
 #[test]
 fn the_draws_of_ellipses_give_each_seed_its_case() {
-    assert_eq!(fingerprint(Case::drawn_ellipses), 0x7e99_3b64_802f_dfc2);
+    assert_eq!(fingerprint(Case::drawn_ellipses), 0xcba1_9186_3851_7909);
     assert_eq!(
         fingerprint(Case::drawn_ellipses_crossed),
-        0x24e1_4fd7_5e78_dd65
+        0xf068_3371_b7c0_1306
     );
     assert_eq!(
         fingerprint(Case::drawn_ellipses_tilted),
-        0x29e9_3933_e05a_8940
+        0x4982_24da_6cb4_60f6
     );
 }
 

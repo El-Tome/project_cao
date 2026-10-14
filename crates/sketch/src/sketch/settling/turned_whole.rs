@@ -10,6 +10,7 @@ use glam::DVec2;
 use super::joins::Tie;
 use super::{LengthOutcome, PointId, Sketch};
 use crate::constraints::{Constraint, DimensionTarget, Toward};
+use crate::corner::SideTurned;
 use crate::holding::Support;
 use crate::sketch::{Element, SegmentId};
 
@@ -51,10 +52,12 @@ impl Turned {
     pub(super) const IN_ORDER: [Self; 3] = [Self::Pinned, Self::Loose, Self::Not];
 }
 
-/// A trait to turn, how far, and what its shape is walked no further than.
+/// A trait to turn, how far, what its shape is walked no further than, and
+/// the cut corner it is a side of when it turns against the other side.
 struct Turning {
     turns: SegmentId,
     stops: Vec<PointId>,
+    cut: Option<SideTurned>,
     angle: f64,
     meeting: Option<DVec2>,
 }
@@ -104,16 +107,31 @@ impl Sketch {
         let mut stops = turning.stops;
         stops.extend_from_slice(kept);
         stops.extend(self.held_in_direction(landing.target()));
-        let about = self.turn_whole(turning.turns, &stops, turning.angle, turning.meeting)?;
+        let walls: &[PointId] = turning.cut.as_ref().map_or(&[], |cut| &cut.cut);
+        let about =
+            self.turn_whole(turning.turns, &stops, walls, turning.angle, turning.meeting)?;
+        if let Some(cut) = &turning.cut {
+            self.lay_cut_again(&cut.corner);
+        }
         Some(match how {
-            Turned::Pinned => about,
+            Turned::Pinned => about
+                .into_iter()
+                .chain(turning.cut.map(|cut| cut.free_end))
+                .collect(),
             Turned::Loose | Turned::Not => Vec::new(),
         })
     }
 
+    /// The cut corner `landing` turns one side of against the other, when it
+    /// is laid between the two sides of one.
+    pub(super) fn side_turned_by(&self, landing: Landing) -> Option<SideTurned> {
+        self.turning(landing)?.cut
+    }
+
     /// Turns the shape `turns` belongs to by `angle`, walked no further than
     /// what holds it: what the drawing keeps still — the origin, a fixed
-    /// point — and `stops`.
+    /// point — and `stops`. The walk never takes in `walls`, which neither
+    /// turn nor hold it.
     ///
     /// It turns about the one place it is held at. Held nowhere, it turns
     /// about `meeting` when there is one, or else about its point nearest the
@@ -124,13 +142,14 @@ impl Sketch {
         &mut self,
         turns: SegmentId,
         stops: &[PointId],
+        walls: &[PointId],
         angle: f64,
         meeting: Option<DVec2>,
     ) -> Option<Vec<PointId>> {
         if !angle.is_finite() || angle.abs() < 1e-12 {
             return None;
         }
-        let (shape, holds) = self.walked_to_holds(turns, stops);
+        let (shape, holds) = self.walked_to_holds(turns, stops, walls);
         let (about, pivot) = match holds.split_first() {
             Some((first, rest)) => {
                 let at = self.point(*first);
@@ -165,7 +184,12 @@ impl Sketch {
     /// something that does not turn — an axis, a trait the walk never reached
     /// — stays where it is held: those are the places the shape is held at,
     /// and no part of it.
-    fn walked_to_holds(&self, turns: SegmentId, stops: &[PointId]) -> (Vec<PointId>, Vec<PointId>) {
+    fn walked_to_holds(
+        &self,
+        turns: SegmentId,
+        stops: &[PointId],
+        walls: &[PointId],
+    ) -> (Vec<PointId>, Vec<PointId>) {
         let count = self.points().len();
         let mut stop = self.pinned_points();
         for point in stops.iter().filter(|point| point.0 < count) {
@@ -184,6 +208,9 @@ impl Sketch {
             }
         }
         let mut reached = vec![false; count];
+        for wall in walls.iter().filter(|wall| wall.0 < count) {
+            reached[wall.0] = true;
+        }
         let (mut shape, mut holds) = (Vec::new(), Vec::new());
         let mut front = self.points_it_leans_on(Element::Segment(turns));
         while let Some(point) = front.pop() {
@@ -256,6 +283,7 @@ impl Sketch {
                         Turning {
                             turns: segment,
                             stops: Vec::new(),
+                            cut: None,
                             angle: opened_to(along, arm, wanted),
                             meeting: None,
                         }
@@ -303,7 +331,9 @@ impl Sketch {
 
     /// The trait clicked second, turned by `angle`: its shape is walked no
     /// further than the trait clicked first, nor than a point held on it —
-    /// the foot of a T turns the stem about itself.
+    /// the foot of a T turns the stem about itself, and the corner a cut left
+    /// between them turns the second side about the corner, the cut left to
+    /// mend (#565).
     fn second_turning(
         &self,
         first: SegmentId,
@@ -320,6 +350,7 @@ impl Sketch {
         Turning {
             turns: second,
             stops,
+            cut: self.side_turned(first, second),
             angle,
             meeting,
         }

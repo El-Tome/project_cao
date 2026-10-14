@@ -25,6 +25,7 @@ const HALVINGS: usize = 24;
 /// that counts as having followed the hand at all.
 const PROGRESS: f64 = 1e-3;
 
+mod cut_corner;
 mod landing;
 
 /// What a drag of one point may do to the drawing, read from the drawing as
@@ -111,6 +112,13 @@ impl Sketch {
         pins.extend(stay);
         let lines = self.lines_kept_in(&shape, &[point]);
         let give = self.give_of(point, &shape, &pins, &lines, about, millimeters_per_unit);
+        let (pins, lines, give) = self.held_at_cut_corners(
+            point,
+            &shape,
+            about,
+            (pins, lines, give),
+            millimeters_per_unit,
+        );
         let swings = self.live_ellipses().find_map(|(id, _)| {
             let [centre, ends @ ..] = self.ellipse_points(id);
             ends.contains(&point).then_some(centre)
@@ -223,7 +231,7 @@ impl Sketch {
             return false;
         };
         let kept = self.shapes_now();
-        self.move_point(pull.point, landing);
+        self.move_laying_cuts(pull.point, &holding.pins, landing);
         let mut lines = holding.lines.clone();
         lines.push(Kept::level(self, pull.point, way.perp(), 0.0));
         let settled = self.settle_held(holding.pins.clone(), lines, millimeters_per_unit);
@@ -282,7 +290,7 @@ impl Sketch {
         millimeters_per_unit: f64,
     ) -> bool {
         let kept = self.shapes_now();
-        self.move_point(point, landing);
+        self.move_laying_cuts(point, &holding.pins, landing);
         let mut held = holding.pins.clone();
         held.push(point);
         let outcome = self.settle_held(held, holding.lines.clone(), millimeters_per_unit);
@@ -304,7 +312,7 @@ impl Sketch {
         millimeters_per_unit: f64,
     ) -> bool {
         let kept = self.shapes_now();
-        self.move_point(pull.point, landing);
+        self.move_laying_cuts(pull.point, &holding.pins, landing);
         if self.settle_held(
             holding.pins.clone(),
             holding.lines.clone(),

@@ -142,7 +142,12 @@ impl Sketch {
             }
             return self.land_near(landing.target(), millimeters_per_unit);
         };
-        let held = self.points_it_leans_on(from);
+        let cut = self.side_turned_by(landing);
+        let leaning = self.points_it_leans_on(from);
+        let held = match &cut {
+            Some(cut) => cut.stays.to_vec(),
+            None => leaning.clone(),
+        };
         let ways_up = self.ways_up_kept();
         let square: Vec<Kept> = ways_up
             .iter()
@@ -152,11 +157,17 @@ impl Sketch {
             .iter()
             .flat_map(|(start, end)| [*start, *end])
             .collect();
-        let tries = [
+        let mut tries = vec![
             (held.clone(), square.clone(), square_ends),
             (Vec::new(), square, Vec::new()),
-            (held, Vec::new(), Vec::new()),
+            (held.clone(), Vec::new(), Vec::new()),
         ];
+        // A side of a cut corner held by its end at the cut: the corner rolls
+        // along it, which is what is left when the cut cannot be laid again
+        // with the corner where it stands (#565).
+        if cut.is_some() {
+            tries.push((leaning, Vec::new(), Vec::new()));
+        }
         for (held, lines, square_ends) in tries
             .into_iter()
             .filter(|(held, lines, _)| !held.is_empty() || !lines.is_empty())

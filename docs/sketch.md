@@ -990,7 +990,9 @@ equations can no longer even be written.
 A corner pulled past the opposite one is not refused: it goes through, and the
 shape comes out the other way round, its traits on the lines they had. Not
 where that would turn a curve inside out — the ray from an arc's centre to its
-end, or a trait rounded into a fillet or a slot's cap, does not reverse.
+end, or a trait rounded into a fillet or a slot's cap, does not reverse, and
+neither does a side of a corner rounded or chamfered, brought out past its
+corner.
 
 A point that stopped short of the hand is dropped on nothing: what the hand is
 over is not where the point is.
@@ -1249,6 +1251,10 @@ when none decides it.
 | Type a value | A length on the second of two traits made equal | Both take it | Same since #451; it was refused, Equal only ever moving the second |
 | Drag a point | An end of the second of two traits made equal | It follows the hand, and the first trait stretches with it | Same since #451; the end stopped short, Equal only ever moving the second |
 | Cut a corner | A chamfer or a fillet on a corner carrying an angle | The angle, read between the stretches, still turns the trait it was typed from | Same (#451) |
+| Drag a point | The free end of a side of a corner rounded or chamfered | The side turns about the corner, the cut following with its values; the other side stays | Same (#565); the whole corner slid with the hand, or the other side leaned |
+| Drag a point | The same, past where the fillet fits the sides | The side stops where it still fits | Same (#565) |
+| Type a value | An angle between the two sides of a corner rounded or chamfered | The second clicked turns about the corner; the corner and the first side stay | Same (#565); the side rolled on the fillet, the corner sliding — and from 140° inside a fillet, or at 5° on a chamfer, the cut came out inside out |
+| Type a value | The same, too tight for the fillet on the sides as long as they are | The corner rolls along the first side, which stays | Same (#565) |
 | Lay a rule | A free point on a trait | The point comes onto the trait, whichever was clicked first | Same |
 | Lay a rule | « Coïncidence », a trait clicked first, then a point placed on an arc the trait does not reach | The arc reshapes to bring the point onto the trait; the trait stays | Same (#548); the rule was refused |
 | Lay a rule | The same, the point clicked first | The trait comes to the point; the arc stays | Same (#548); the rule was refused |
@@ -1666,6 +1672,41 @@ off each of them laid back in as construction — exactly what a chamfer leaves,
 though the radius and the tangencies already hold the curve. The two tools leave
 the same thing behind, so a value the corner carried survives a fillet the same
 way it survives a chamfer.
+
+### A cut corner still turns as a corner
+
+A side of a corner rounded or chamfered still runs from the corner out to its
+free end: its end at the cut is where the cut starts, and slides along it
+whenever the corner opens or closes (#565). The corner is the point the cut
+left, held on both sides, with the cut — the curve or the trait — still running
+between them; a point laid by hand where two lines meet is not one.
+
+- **Dragging a side's free end turns that side about the corner**, as at a
+  corner nothing was cut from. The corner stays, the side follows the cursor,
+  the other side does not move, and the cut follows: a fillet keeps its radius
+  and grazes both sides, a chamfer keeps its values. It used to slide the whole
+  corner after the hand. Where holding the corner would leave the free end less
+  free than it was — a side held level by « Horizontale », which cannot turn —
+  the corner moves with its side, as it would uncut.
+- **An angle typed between the two sides turns the second one clicked about the
+  corner**, the first staying, as at any corner (#451) — and so does an angle
+  the corner carried before it was cut, typed again, or « Perpendiculaire »
+  laid between the two. It used to roll the side on the fillet, the corner
+  sliding along the other side.
+
+Either way the cut is laid again for the new opening before the drawing
+settles, as the cut itself lays it. Left to the solver, a corner opened or
+closed far in one go came out with its cut in the quarter across the corner,
+the sides running past it — the flip #565 was opened on: 140° typed inside a
+fillet of three on sides ten long read −40°, the side gone over the other one,
+and 5° typed at a chamfer of two brought the cut out past the corner. A
+settling that turns a cut inside out is now refused, as one that crushes a
+trait is — a free end dragged back through the corner stops short of it.
+
+Where the cut cannot be laid with the corner where it stands — a fillet too
+large for the sides at the angle typed — the corner rolls along the first side,
+which stays, and the sides lengthen as far as the fillet needs. A free end
+dragged past where the fillet fits stops where it still does.
 
 ### A crossing becomes a point
 

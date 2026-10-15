@@ -23,9 +23,9 @@ use super::turns::{Line, square_to, world_axis};
 
 /// A band with its edges at both of its ends: its length, its low and high
 /// edge where it starts, and its low and high edge where it ends.
-type Band = [f64; 5];
+pub(super) type Band = [f64; 5];
 
-fn banded(section: &Section) -> Vec<Band> {
+pub(super) fn banded(section: &Section) -> Vec<Band> {
     (0..section.bands.len())
         .map(|index| {
             let ([low, high], [low_end, high_end]) = section.edges(index);
@@ -34,7 +34,7 @@ fn banded(section: &Section) -> Vec<Band> {
         .collect()
 }
 
-fn is_level(band: &Band) -> bool {
+pub(super) fn is_level(band: &Band) -> bool {
     band[1] == band[3] && band[2] == band[4]
 }
 

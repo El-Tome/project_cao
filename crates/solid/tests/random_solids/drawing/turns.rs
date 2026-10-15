@@ -91,6 +91,11 @@ impl Drawing {
         } else {
             section
         };
+        let section = if self.bowing() {
+            self.rounded_section(section)
+        } else {
+            section
+        };
         let section = self.aside(section);
         Leaf::Turned {
             plane,
@@ -346,9 +351,15 @@ impl Drawing {
     /// circle, an arc or a ring of it, a wall flush with the prism's or
     /// inside it, a shoulder flush with one of its ends; or about a line
     /// square to it, on an edge of a block, tangent to one of its faces, or
-    /// tangent to its wall; and, among slanted turns, now and then a slant
-    /// drawn on it (`slanted_from_prism`).
+    /// tangent to its wall; among slanted turns, now and then a slant drawn
+    /// on it (`slanted_from_prism`); and among rounded ones, now and then a
+    /// ball or a dome on a circle (`rounded_from_prism`).
     fn turned_from_prism(&mut self, before: &Leaf) -> Leaf {
+        if self.bowing()
+            && let Some(rounded) = self.rounded_from_prism(before)
+        {
+            return rounded;
+        }
         if self.slanted() && self.random.chance(0.3) {
             return self.slanted_from_prism(before);
         }
@@ -489,9 +500,13 @@ impl Drawing {
     /// it: a wall of one of its radii, a sleeve on its outer wall, a groove
     /// across its outer wall, or ends on its shoulders; turned as far, the
     /// other way, or as the draw goes, from its side of the axis or the
-    /// other; and, among slanted turns, after a slant, now and then a slant
-    /// drawn from it (`along_a_slant`).
+    /// other; among slanted turns, after a slant, now and then a slant drawn
+    /// from it (`along_a_slant`); and among rounded ones, after an arc, half
+    /// the time a tool drawn from it (`along_an_arc`).
     fn turned_along(&mut self, line: Line, before: Axis, section: &Section, degrees: f64) -> Leaf {
+        if self.bowing() && section.bows() && self.random.chance(0.5) {
+            return self.along_an_arc(line, before, section, degrees);
+        }
         if self.slanted() && section.slopes() && self.random.chance(0.3) {
             return self.along_a_slant(line, before, section, degrees);
         }
@@ -563,8 +578,12 @@ impl Drawing {
     /// block whose side is tangent to its outer wall; or a hole across it, a
     /// circle square to its axis with its centre on it; and, among slanted
     /// turns, after a slant, now and then a circle on one of its rims
-    /// (`prism_at_a_rim`).
+    /// (`prism_at_a_rim`); and, among rounded turns, after an arc, half the
+    /// time a prism drawn from it (`prism_at_an_arc`).
     fn prism_from_turned(&mut self, line: Line, before: Axis, section: &Section) -> Leaf {
+        if self.bowing() && section.bows() && self.random.chance(0.5) {
+            return self.prism_at_an_arc(line, before, section);
+        }
         if self.slanted() && section.slopes() && self.random.chance(0.3) {
             return self.prism_at_a_rim(line, before, section);
         }
@@ -651,9 +670,15 @@ impl Line {
 }
 
 /// The radii a section's edges stand at, at both ends of every band of a
-/// section that slopes, but for the hairs a section a hair off its axis has:
-/// a tool drawn to one would be a sliver.
+/// section that slopes, and at the bulge of every arc, but for the hairs a
+/// section a hair off its axis has: a tool drawn to one would be a sliver.
 pub(super) fn radii_of(section: &Section, unit: f64) -> Vec<f64> {
+    let bulges = (0..section.bands.len())
+        .flat_map(|index| [0, 1].map(|edge| (index, edge)))
+        .filter_map(|(index, edge)| {
+            let bow = section.bow(index, edge)?;
+            Some(bow.extreme(section.chord(index, edge)).y.abs())
+        });
     section
         .bands
         .iter()
@@ -664,6 +689,7 @@ pub(super) fn radii_of(section: &Section, unit: f64) -> Vec<f64> {
                 .iter()
                 .flat_map(|[low, high]| [low.abs(), high.abs()]),
         )
+        .chain(bulges)
         .filter(|radius| *radius > unit / 4.0)
         .collect()
 }

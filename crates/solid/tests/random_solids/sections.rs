@@ -456,7 +456,8 @@ impl Section {
 
     /// Whether every band lies on one side of the axis, at both of its ends,
     /// an edge a hair across it taken as on it: the side, or nothing for a
-    /// section across it.
+    /// section across it. A section whose every edge lies on the axis — a
+    /// ball, an apple — lies on the side its arcs bulge towards.
     pub fn side(&self) -> Option<f64> {
         let snap = self.snap();
         let edges = |edge: usize| {
@@ -465,7 +466,16 @@ impl Section {
                 [start[edge], end[edge]]
             })
         };
-        if edges(0).all(|low| low >= -snap) {
+        let on_the_axis = edges(0).all(|low| low >= -snap) && edges(1).all(|high| high <= snap);
+        let bulge = self
+            .bowed
+            .iter()
+            .flatten()
+            .map(|[_, _, radius]| radius.signum())
+            .find(|sign| *sign != 0.0);
+        if on_the_axis && let Some(bulge) = bulge {
+            Some(bulge)
+        } else if edges(0).all(|low| low >= -snap) {
             Some(1.0)
         } else if edges(1).all(|high| high <= snap) {
             Some(-1.0)

@@ -61,6 +61,44 @@
 //! answered 244 of the first 300 tilted cases by their own rules when the
 //! draw was written, and the arithmetic held every one.
 //!
+//! Edges bow along arcs (#576), in a draw of their own
+//! (`Case::drawn_rounded`), which keeps every seed of `drawn_slanted` and
+//! `drawn_tilted` its case: three fresh sections in four take an arc — a
+//! ball, a zone or a cap of one, a ring torus or an arc of one raised on a
+//! cylinder or bored in a tube, an apple, a shaft with a rounded end, a
+//! round-bottomed groove, a rounded shoulder, a fillet, a barrel bore, a
+//! round groove in a bore — or one of the hairs a kernel breaks on: a ball's
+//! centre a hair off the axis, a cap's, an arc a hair from tangent to the
+//! wall it continues, a sphere a hair larger than the shaft it ends; and
+//! tools are drawn from an arc: a coaxial cylinder at its equator or a hair
+//! off, a shaft ending square through its centre, at its pole or a hair from
+//! either, the same arc again or a hair along the axis, the whole ball or
+//! torus it lies on or a hair larger, a cone tangent at a lattice latitude,
+//! a sleeve, a block through the axis, a circle or a ring square to the axis
+//! at the centre or the pole, and a ball or a dome on a circle raised
+//! before. An arc's centre stands on a coordinate of the lattice and its
+//! radius on a length, its corners on the lattice points of its circle —
+//! the ends of its diameters and the points a Pythagorean triple puts there
+//! — so that no number of a gate case comes through a sine or a cosine. A
+//! bowed piece of a section turns into the room between a sphere or a torus
+//! and whatever its other edge turns into, a line against a sphere one
+//! quadratic and against a torus a quartic, and encloses the volume Pappus
+//! gives its arc; a line through a pole is counted as one through a cone's
+//! tip. The flats turn an arc sampled as the application samples one, and
+//! are held to the arithmetic within the sagittas of the profile's sampling
+//! and of the turn together. A sphere or a torus is built along circles
+//! alone, so a decline as unsupported is excused only on a case asking
+//! beyond them (`Case::asks_a_round_beyond_its_circles`): a plane at a
+//! slant, a block's side, a hole or a cone off the axis. The exact kernel
+//! declines a profile with an arc today, so the tests that need it are
+//! ignored until it turns one. The gate holds the drawn rounded leaves off
+//! their axis to the flats, as it holds the turned and the slanted ones; a
+//! whole rounded case on the flats takes the better part of a minute where
+//! a torus is cut several times, so the cases are held to them once, by
+//! hand, behind `campaigns`: the flats answered 236 of the first 300
+//! rounded cases by their own rules when the draw was written, and the
+//! arithmetic held every one.
+//!
 //! The exact kernel lays a section against its axis before turning it; a
 //! hole a hair from its band's edge is laid onto the outline, and the wall
 //! between them is not there. Where that leaves the matter in two pieces, or
@@ -85,13 +123,17 @@
 //! degrees besides, and coaxial tools a hair off their axis; and those of
 //! tilted solids (`a_campaign_of_tilted_solids_…`,
 //! `Case::drawn_tilted_off_the_lattice`) with their planes leaning by a
-//! degree's step, a real angle, or a hair.
+//! degree's step, a real angle, or a hair; and those of rounded solids
+//! (`a_campaign_of_rounded_solids_…`, `Case::drawn_rounded_off_the_lattice`)
+//! with an arc a hair short of a quarter circle besides, which ends a hair
+//! off the axis, and coaxial tools a hair off their axis.
 //! `CAO_FUZZ_SEED`, `CAO_FUZZ_CASES` and `CAO_FUZZ_PATIENCE` are read as in
 //! `random_exact_solids.rs`; the seeds a campaign names are shrunk by
 //! `the_seeds_a_turning_campaign_named_are_shrunk_one_by_one`, given in
 //! `CAO_TRIAGE_SEEDS`, with `CAO_TRIAGE_KERNEL=application` for the
-//! campaign through the application's body, and `CAO_TRIAGE_DRAW=slanted`
-//! or `tilted` for a campaign of slanted or tilted solids.
+//! campaign through the application's body, and `CAO_TRIAGE_DRAW=slanted`,
+//! `tilted` or `rounded` for a campaign of slanted, tilted or rounded
+//! solids.
 //!
 //! Closes #541.
 //! - the fingerprint of the draws passes on macOS and on the CI's Linux —
@@ -131,8 +173,8 @@ use cao_solid::turning::Lie;
 use cao_solid::turning::Straight;
 use glam::{DQuat, DVec2, DVec3};
 use random_solids::{
-    Application, Axis, Case, Drawn, Exact, Flats, Kernel, Leaf, Mode, ON_THE_AXIS, Outline, Piece,
-    Plane, Section, Step, Stretch, TESSELLATION, Trapezoid, Turned,
+    Application, Axis, Bow, Case, Drawn, Exact, Flats, Kernel, Leaf, Mode, ON_THE_AXIS, Outline,
+    Piece, Plane, Section, Step, Stretch, TESSELLATION, Trapezoid, Turned,
 };
 
 fn spans_of(stretches: &[Stretch]) -> Spans {
@@ -232,7 +274,7 @@ type Draw = fn(u64) -> Case;
 type Count = fn(&random_solids::Conics) -> usize;
 
 /// Every draw a fingerprint is asserted for below.
-const FINGERPRINTED: [Draw; 12] = [
+const FINGERPRINTED: [Draw; 14] = [
     Case::drawn,
     Case::drawn_square,
     Case::drawn_profiles,
@@ -245,6 +287,26 @@ const FINGERPRINTED: [Draw; 12] = [
     Case::drawn_ellipses,
     Case::drawn_ellipses_crossed,
     Case::drawn_ellipses_tilted,
+    Case::drawn_rounded,
+    Case::drawn_rounded_off_the_lattice,
+];
+
+/// The fingerprints of the draws before the rounds (#576), in the order
+/// `FINGERPRINTED` lists them: the values the tests below pin one by one,
+/// which no draw of arcs may move.
+const BEFORE_ROUNDS: [u64; 12] = [
+    0xf3d0_3d25_d6d6_62eb,
+    0x0347_3e33_46ca_101b,
+    0xc776_8886_b55b_afbd,
+    0x9180_1d59_a432_9c6a,
+    0x13be_c8c0_b781_93e1,
+    0x32b3_b100_d73f_534f,
+    0x5ae8_3b2b_d8e7_55f3,
+    0x32d0_d851_1237_f618,
+    0x1fd0_313a_bd3d_51fe,
+    0x3472_512f_3462_be46,
+    0x2e27_8c01_f49f_a60d,
+    0x9fad_ec77_db9b_db13,
 ];
 
 fn fingerprint(draw: Draw) -> u64 {
@@ -343,6 +405,8 @@ fn every_seed_draws_a_turned_case_though_a_turn_before_has_no_radius_to_draw_fro
             Case::drawn_turned_off_the_lattice(seed);
             Case::drawn_slanted(seed);
             Case::drawn_slanted_off_the_lattice(seed);
+            Case::drawn_rounded(seed);
+            Case::drawn_rounded_off_the_lattice(seed);
         });
         assert!(drawn.is_ok(), "seed {seed} draws no case");
     }
@@ -1745,8 +1809,14 @@ fn raised_alone_keep_every_rule_and_enclose_pappus_s_volume(leaves: &[Leaf]) {
         );
         if let [side] = turn.drawn().as_slice() {
             let (outline, holes) = side.contours();
-            let straight = Straight::of(&outline, &holes, turn.frame(), &turn.turn(0.0), 0.0)
-                .expect("a section of straight runs");
+            let Some(straight) = Straight::of(&outline, &holes, turn.frame(), &turn.turn(0.0), 0.0)
+            else {
+                assert!(
+                    turn.section.bows(),
+                    "{leaf}: a section of straight runs not laid"
+                );
+                continue;
+            };
             let laid = turn.angle() * moment_laid(&straight);
             assert!(
                 (volume - laid).abs() <= 1e-9 * laid,
@@ -1777,22 +1847,24 @@ fn moment_laid(straight: &Straight) -> f64 {
 
 /// How far laying a section square to its axis may move the volume of its
 /// turn: no corner moves by more than twice the tolerance the exact kernel
-/// reads it at, which sweeps at most a strip that wide along every edge, at
-/// the furthest radius.
+/// reads it at, which sweeps at most a strip that wide along every edge, an
+/// arc's measured along the arc, at the furthest radius, an arc's bulge
+/// counted.
 fn laying_room(turn: &Turned) -> f64 {
     let frame = turn.frame();
-    let furthest = turn
-        .section
+    let section = &turn.section;
+    let bulges = (0..section.bands.len())
+        .flat_map(|index| [0, 1].map(|edge| (index, edge)))
+        .filter_map(|(index, edge)| {
+            let bow = section.bow(index, edge)?;
+            Some(bow.extreme(section.chord(index, edge)).y.abs())
+        });
+    let furthest = section
         .bands
         .iter()
         .flat_map(|band| [band[1].abs(), band[2].abs()])
-        .chain(
-            turn.section
-                .sloping_to
-                .iter()
-                .flatten()
-                .map(|edge| edge.abs()),
-        )
+        .chain(section.sloping_to.iter().flatten().map(|edge| edge.abs()))
+        .chain(bulges)
         .fold(0.0, f64::max);
     let placed = turn
         .drawn()
@@ -1801,17 +1873,24 @@ fn laying_room(turn: &Turned) -> f64 {
         .map(|corner| frame.at(corner).abs().max_element())
         .fold(0.0, f64::max);
     let tolerance = Scale::HAIR * Scale::of(placed + furthest).eps();
-    let edges: f64 = turn
-        .section
+    let edges: f64 = section
         .trapezoids()
         .iter()
         .map(|trapezoid| {
-            let length = trapezoid.along[1] - trapezoid.along[0];
+            let along = trapezoid.along;
+            let length = along[1] - along[0];
             let [low, high] = [trapezoid.low, trapezoid.high];
-            (high[0] - low[0])
-                + (high[1] - low[1])
-                + length.hypot(low[1] - low[0])
-                + length.hypot(high[1] - high[0])
+            let edge = |edge: usize, chord: [f64; 2]| match trapezoid.bows[edge] {
+                Some(bow) => {
+                    let corners = [
+                        DVec2::new(along[0], chord[0]),
+                        DVec2::new(along[1], chord[1]),
+                    ];
+                    bow.turn(corners).abs() * bow.radius.abs()
+                }
+                None => length.hypot(chord[1] - chord[0]),
+            };
+            (high[0] - low[0]) + (high[1] - low[1]) + edge(0, low) + edge(1, high)
         })
         .sum();
     turn.angle() * furthest * 2.0 * tolerance * edges
@@ -1906,7 +1985,7 @@ fn name_their_faces_as_the_flats_name_them(leaves: &[Leaf]) -> usize {
         }
         let Some((numbers, runs)) = laid_runs(&turn) else {
             assert!(
-                turn.has_a_wall_a_hair_thin(),
+                turn.has_a_wall_a_hair_thin() || turn.section.bows(),
                 "{leaf}: a section of straight runs not laid"
             );
             continue;
@@ -4254,6 +4333,26 @@ fn a_rounded_leaf_off_its_axis_holds_along_every_line_and_spans_the_box_its_flat
 }
 
 #[test]
+fn a_ball_whose_centre_stands_a_hair_off_the_axis_spans_the_box_its_flats_span_on_either_side() {
+    for (low, bows, degrees) in [
+        (-2e-7, [[3.5, -2e-7, -2.5], [0.0; 3]], -180.0),
+        (2e-7, [[0.0; 3], [3.5, 2e-7, 2.5]], 270.0),
+    ] {
+        let leaf = Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(0.0),
+            Section::bands(1.0, &[[5.0, low, low]]).bowed(&[bows]),
+            degrees,
+        );
+        let flats = leaf.solid().expect("a turn the flats make");
+        spans_the_box_its_flats_span(&leaf, &flats);
+        let alone = Case::new(leaf.clone(), vec![]);
+        let held = random_solids::held_to_arithmetic(&alone, &Flats::for_case(&alone));
+        assert!(held.is_ok(), "{leaf}: {held:?}");
+    }
+}
+
+#[test]
 fn a_rounded_leaf_shrinks_into_straight_edges_and_round_numbers() {
     let leaf = |section: Section| Leaf::turned(Plane::xy(0.0), Axis::first(0.0), section, 360.0);
     let rounded = Section::bands(0.3, &[[2.0, 0.0, 2.7], [2.0, 0.0, 2.0]])
@@ -4453,6 +4552,668 @@ fn a_rounded_case_prints_as_the_rust_that_builds_it_again() {
     );
 }
 
+#[test]
+fn the_same_seed_draws_the_same_rounded_case_and_not_one_of_the_other_draws() {
+    for seed in 0..200 {
+        assert_eq!(
+            Case::drawn_rounded(seed),
+            Case::drawn_rounded(seed),
+            "seed {seed}"
+        );
+    }
+    let distinct: std::collections::BTreeSet<String> = (0..200)
+        .map(|seed| Case::drawn_rounded(seed).to_string())
+        .collect();
+    assert!(distinct.len() > 190, "{} distinct cases", distinct.len());
+    let same = (0..200)
+        .filter(|seed| {
+            let rounded = Case::drawn_rounded(*seed);
+            FINGERPRINTED[..12]
+                .iter()
+                .any(|draw| rounded == draw(*seed))
+        })
+        .count();
+    assert!(same < 20, "{same} rounded cases are another draw's");
+}
+
+#[test]
+fn a_rounded_case_holds_profiles_of_runs_and_arcs_turned_about_lines_of_the_planes_of_the_origin_and_prisms()
+ {
+    let mut rounded = 0;
+    for seed in 0..3000 {
+        let case = Case::drawn_rounded(seed);
+        for leaf in case.leaves() {
+            assert!(leaf.is_solid(), "seed {seed}: {case}");
+            assert!(
+                !matches!(leaf.plane(), Plane::Tilted { .. }),
+                "seed {seed}: {case}"
+            );
+            match leaf {
+                Leaf::Prism { outline, .. } => {
+                    assert!(
+                        !matches!(outline, Outline::Star { .. }),
+                        "seed {seed}: {case}"
+                    )
+                }
+                Leaf::Turned { axis, section, .. } => {
+                    assert_eq!(axis.lean, 0.0, "seed {seed}: {case}");
+                    rounded += usize::from(section.bows());
+                    for side in turned(leaf).expect("a turn").drawn() {
+                        for corners in std::iter::once(&side.outline).chain(&side.holes) {
+                            assert!(corners.len() >= 3, "seed {seed}: {case}");
+                            for (index, corner) in corners.iter().enumerate() {
+                                let run = corners[(index + 1) % corners.len()] - *corner;
+                                assert!(
+                                    run != DVec2::ZERO,
+                                    "seed {seed}, a run of no length: {case}"
+                                );
+                            }
+                        }
+                    }
+                }
+                Leaf::Revolution { .. } => panic!("seed {seed} drew a revolution: {case}"),
+            }
+        }
+    }
+    assert!(rounded > 1000, "{rounded} rounded leaves");
+}
+
+/// The turned leaves whose section bows, of the first cases of the rounded
+/// draw.
+fn drawn_rounds(seeds: u64) -> Vec<Leaf> {
+    (0..seeds)
+        .flat_map(|seed| {
+            Case::drawn_rounded(seed)
+                .leaves()
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .filter(|leaf| turned(leaf).is_some_and(|turn| turn.section.bows()))
+        .collect()
+}
+
+/// An arc of a section read on the left of its axis: the band it bows, the
+/// edge, the corners of the edge and the arc.
+type Arc = (usize, usize, [DVec2; 2], Bow);
+
+fn arcs_of(section: &Section) -> Vec<Arc> {
+    (0..section.bands.len())
+        .flat_map(|index| [0, 1].map(|edge| (index, edge)))
+        .filter_map(|(index, edge)| {
+            let bow = section.bow(index, edge)?;
+            Some((index, edge, section.chord(index, edge), bow))
+        })
+        .collect()
+}
+
+/// The arcs of a turned leaf read about the world line it turns about: the
+/// line, and each arc's centre as a level along the line's world axis and
+/// a radius, its radius, and its corners read the same way.
+struct Rounds {
+    line: (DVec3, usize),
+    arcs: Vec<(DVec2, f64, [DVec2; 2])>,
+}
+
+fn rounds(leaf: &Leaf) -> Option<Rounds> {
+    let Leaf::Turned {
+        plane,
+        axis,
+        section,
+        ..
+    } = leaf
+    else {
+        return None;
+    };
+    let line = world_line(leaf)?;
+    let level = |along: f64| plane.to_world(axis.at(DVec2::new(along, 0.0)))[line.1];
+    let read = |place: DVec2| DVec2::new(level(place.x), place.y.abs());
+    let arcs = arcs_of(section)
+        .into_iter()
+        .map(|(_, _, chord, bow)| {
+            (
+                DVec2::new(level(bow.center.x), bow.center.y.abs()),
+                bow.radius.abs(),
+                chord.map(read),
+            )
+        })
+        .collect();
+    Some(Rounds { line, arcs })
+}
+
+/// The band whose wall a quarter arc of band `index` continues: the one
+/// before it when the arc leaves the top of its circle, the one after it
+/// when it arrives there, and none where the section ends.
+fn wall_band(section: &Section, index: usize, chord: &[DVec2; 2], bow: &Bow) -> Option<usize> {
+    if chord[0].x == bow.center.x {
+        index.checked_sub(1)
+    } else {
+        Some(index + 1).filter(|at| *at < section.bands.len())
+    }
+}
+
+#[test]
+fn the_rounded_generator_draws_every_kind_it_keeps() {
+    let cases: Vec<Case> = (0..1000).map(Case::drawn_rounded).collect();
+    let leaves = || cases.iter().flat_map(Case::leaves);
+    let turns = || leaves().filter_map(turned);
+    let rounded = || turns().filter(|turn| turn.section.bows());
+    let left = || rounded().map(|turn| on_the_left(&turn.section));
+    let seen = |what: &str, found: bool| assert!(found, "no rounded case drew {what}");
+    let hair = |section: &Section| 1e-4 * section.reach();
+    let on_the_axis = |section: &Section, s: f64| s.abs() < hair(section);
+    let lone = |section: &Section| -> Option<Arc> {
+        let arcs = arcs_of(section);
+        (section.bands.len() == 1 && arcs.len() == 1).then(|| arcs[0])
+    };
+    let is_ball = |section: &Section| {
+        lone(section).is_some_and(|(_, edge, chord, bow)| {
+            edge == 1
+                && chord.iter().all(|corner| corner.y == bow.center.y)
+                && on_the_axis(section, bow.center.y)
+        })
+    };
+
+    seen(
+        "a ball turned whole",
+        rounded().any(|turn| turn.degrees.abs() == 360.0 && is_ball(&on_the_left(&turn.section))),
+    );
+    seen(
+        "a ball turned part of the way",
+        rounded().any(|turn| turn.degrees.abs() < 360.0 && is_ball(&on_the_left(&turn.section))),
+    );
+    seen(
+        "a ball whose centre stands a hair off the axis",
+        left().any(|section| {
+            is_ball(&section) && lone(&section).is_some_and(|(.., bow)| bow.center.y != 0.0)
+        }),
+    );
+    seen(
+        "a zone",
+        left().any(|section| {
+            lone(&section).is_some_and(|(_, edge, chord, bow)| {
+                edge == 1 && bow.center.y == 0.0 && chord.iter().all(|corner| corner.y > 0.0)
+            })
+        }),
+    );
+    seen(
+        "a cap",
+        left().any(|section| {
+            lone(&section).is_some_and(|(_, edge, chord, bow)| {
+                edge == 1
+                    && bow.center.y == 0.0
+                    && chord.iter().filter(|corner| corner.y == 0.0).count() == 1
+                    && chord.iter().all(|corner| corner.x != bow.center.x)
+            })
+        }),
+    );
+    seen(
+        "a ring torus",
+        left().any(|section| {
+            let arcs = arcs_of(&section);
+            section.bands.len() == 1
+                && arcs.len() == 2
+                && arcs
+                    .iter()
+                    .all(|(_, _, chord, bow)| chord.iter().all(|corner| corner.y == bow.center.y))
+                && arcs[0].3.center.y > 0.0
+                && arcs[0].3.radius == -arcs[1].3.radius
+        }),
+    );
+    seen(
+        "an arc of a ring raised on a cylinder",
+        left().any(|section| {
+            arcs_of(&section).iter().any(|(_, edge, chord, bow)| {
+                *edge == 1
+                    && bow.radius > 0.0
+                    && bow.center.y > 0.0
+                    && chord.iter().all(|corner| corner.y > bow.center.y)
+            })
+        }),
+    );
+    seen(
+        "an apple",
+        left().any(|section| {
+            lone(&section).is_some_and(|(_, _, chord, bow)| {
+                bow.center.y < 0.0 && chord.iter().all(|corner| corner.y == 0.0)
+            })
+        }),
+    );
+    let quarter = |section: &Section, (_, edge, chord, bow): &Arc| {
+        *edge == 1
+            && bow.radius > 0.0
+            && on_the_axis(section, bow.center.y)
+            && chord.iter().any(|corner| on_the_axis(section, corner.y))
+            && chord.iter().any(|corner| corner.x == bow.center.x)
+    };
+    seen(
+        "a shaft with a rounded end",
+        left().any(|section| {
+            section.bands.len() >= 2 && arcs_of(&section).iter().any(|arc| quarter(&section, arc))
+        }),
+    );
+    seen(
+        "a round-bottomed groove",
+        left().any(|section| {
+            arcs_of(&section).iter().any(|(index, edge, chord, bow)| {
+                *edge == 1
+                    && bow.radius < 0.0
+                    && chord[0].y == chord[1].y
+                    && *index > 0
+                    && index + 1 < section.bands.len()
+            })
+        }),
+    );
+    seen(
+        "a groove below walls",
+        left().any(|section| {
+            arcs_of(&section).iter().any(|(index, edge, chord, bow)| {
+                *edge == 1
+                    && bow.radius < 0.0
+                    && chord[0].y == chord[1].y
+                    && *index > 0
+                    && section.edges(index - 1).1[1] > chord[0].y
+            })
+        }),
+    );
+    seen(
+        "a rounded shoulder",
+        left().any(|section| {
+            arcs_of(&section).iter().any(|(_, edge, chord, bow)| {
+                *edge == 1 && bow.radius > 0.0 && chord[0].y != chord[1].y && bow.center.y > 0.0
+            })
+        }),
+    );
+    seen(
+        "a fillet",
+        left().any(|section| {
+            arcs_of(&section).iter().any(|(_, edge, chord, bow)| {
+                *edge == 1 && bow.radius < 0.0 && chord[0].y != chord[1].y
+            })
+        }),
+    );
+    seen(
+        "a shoulder rounded across the whole step",
+        left().any(|section| {
+            arcs_of(&section).iter().any(|(index, edge, chord, bow)| {
+                *edge == 1
+                    && bow.radius > 0.0
+                    && chord[0].y != chord[1].y
+                    && bow.center.y > 0.0
+                    && (chord[0].y - chord[1].y).abs() == bow.radius
+                    && {
+                        let (before, after) = (
+                            index.checked_sub(1).map(|at| section.edges(at).1[1]),
+                            section.edges(index + 1).0[1],
+                        );
+                        before == Some(chord[0].y.max(chord[1].y))
+                            || after == chord[0].y.max(chord[1].y)
+                    }
+            })
+        }),
+    );
+    seen(
+        "a barrel bore",
+        left().any(|section| {
+            arcs_of(&section)
+                .iter()
+                .any(|(_, edge, chord, bow)| *edge == 0 && bow.radius < 0.0 && chord[0].y > 0.0)
+        }),
+    );
+    seen(
+        "a round groove in a bore",
+        left().any(|section| {
+            arcs_of(&section)
+                .iter()
+                .any(|(_, edge, chord, bow)| *edge == 0 && bow.radius > 0.0 && chord[0].y > 0.0)
+        }),
+    );
+    seen(
+        "a sphere a hair larger than the shaft it ends",
+        left().any(|section| {
+            arcs_of(&section)
+                .iter()
+                .any(|arc @ (index, _, chord, bow)| {
+                    quarter(&section, arc) && {
+                        let wall = match wall_band(&section, *index, chord, bow) {
+                            Some(at) if at < *index => section.edges(at).1[1],
+                            Some(at) => section.edges(at).0[1],
+                            None => f64::NAN,
+                        };
+                        wall != bow.radius && (wall - bow.radius).abs() < hair(&section)
+                    }
+                })
+        }),
+    );
+    seen(
+        "an arc a hair from tangent to the wall it continues",
+        left().any(|section| {
+            arcs_of(&section)
+                .iter()
+                .any(|arc @ (index, _, chord, bow)| {
+                    quarter(&section, arc) && {
+                        let Some(at) = wall_band(&section, *index, chord, bow) else {
+                            return false;
+                        };
+                        let (start, end) = section.edges(at);
+                        start[1] != end[1] && (start[1] - end[1]).abs() < hair(&section)
+                    }
+                })
+        }),
+    );
+    seen(
+        "a quarter circle whose centre stands a hair off the axis",
+        left().any(|section| {
+            arcs_of(&section)
+                .iter()
+                .any(|arc @ (.., bow)| quarter(&section, arc) && bow.center.y != 0.0)
+        }),
+    );
+    seen(
+        "an arc a hair short of a quarter circle",
+        (0..1000)
+            .map(Case::drawn_rounded_off_the_lattice)
+            .flat_map(|case| case.leaves().cloned().collect::<Vec<_>>())
+            .filter_map(|leaf| turned(&leaf).map(|turn| on_the_left(&turn.section)))
+            .any(|section| {
+                arcs_of(&section).iter().any(|(_, edge, chord, bow)| {
+                    *edge == 1
+                        && bow.center.y == 0.0
+                        && chord.iter().any(|corner| corner.x == bow.center.x)
+                        && chord
+                            .iter()
+                            .any(|corner| corner.y != 0.0 && corner.y < hair(&section))
+                })
+            }),
+    );
+
+    let earlier_and_later = |related: &dyn Fn(&Leaf, &Leaf) -> bool| {
+        cases.iter().any(|case| {
+            let leaves: Vec<&Leaf> = case.leaves().collect();
+            (1..leaves.len()).any(|later| {
+                leaves[..later]
+                    .iter()
+                    .any(|earlier| related(earlier, leaves[later]))
+            })
+        })
+    };
+    let after_a_round = |related: &dyn Fn(&Rounds, &Leaf) -> bool| {
+        earlier_and_later(&|earlier, later| {
+            rounds(earlier).is_some_and(|earlier| {
+                world_line(later).is_some_and(|line| same_line(earlier.line, line))
+                    && related(&earlier, later)
+            })
+        })
+    };
+    let level_walls =
+        |leaf: &Leaf| -> Vec<[DVec2; 2]> { meridian(leaf).map_or(Vec::new(), |read| read.level) };
+    seen(
+        "a coaxial cylinder at a ball's equator",
+        after_a_round(&|earlier, later| {
+            earlier.arcs.iter().any(|(center, radius, _)| {
+                level_walls(later).iter().any(|wall| {
+                    wall[0].y == center.y + radius && wall[0].x < center.x && center.x < wall[1].x
+                })
+            })
+        }),
+    );
+    seen(
+        "a coaxial cylinder a hair off a ball's equator",
+        after_a_round(&|earlier, later| {
+            earlier.arcs.iter().any(|(center, radius, _)| {
+                level_walls(later).iter().any(|wall| {
+                    let off = (wall[0].y - center.y - radius).abs();
+                    0.0 < off && off < 1e-4 * radius
+                })
+            })
+        }),
+    );
+    seen(
+        "a shaft ending square through a ball's centre",
+        after_a_round(&|earlier, later| {
+            earlier.arcs.iter().any(|(center, _, _)| {
+                level_walls(later)
+                    .iter()
+                    .any(|wall| wall.iter().any(|end| end.x == center.x))
+            })
+        }),
+    );
+    seen(
+        "a shaft ending square at a ball's pole",
+        after_a_round(&|earlier, later| {
+            earlier.arcs.iter().any(|(center, radius, _)| {
+                level_walls(later).iter().any(|wall| {
+                    wall.iter()
+                        .any(|end| end.x == center.x + radius || end.x == center.x - radius)
+                })
+            })
+        }),
+    );
+    seen(
+        "a shaft ending a hair from a ball's pole",
+        after_a_round(&|earlier, later| {
+            earlier.arcs.iter().any(|(center, radius, _)| {
+                level_walls(later).iter().any(|wall| {
+                    wall.iter().any(|end| {
+                        let off = (end.x - center.x - radius).abs();
+                        0.0 < off && off < 1e-4 * radius
+                    })
+                })
+            })
+        }),
+    );
+    seen(
+        "the same ball again",
+        after_a_round(&|earlier, later| {
+            rounds(later)
+                .is_some_and(|later| later.arcs.iter().any(|arc| earlier.arcs.contains(arc)))
+        }),
+    );
+    seen(
+        "the same ball a hair off",
+        after_a_round(&|earlier, later| {
+            rounds(later).is_some_and(|later| {
+                later.arcs.iter().any(|(center, radius, _)| {
+                    earlier.arcs.iter().any(|(other, other_radius, _)| {
+                        let off = (center.x - other.x)
+                            .abs()
+                            .max((radius - other_radius).abs());
+                        center.y == other.y && 0.0 < off && off < 1e-4 * radius
+                    })
+                })
+            })
+        }),
+    );
+    seen(
+        "a coaxial torus sharing the tube circle",
+        after_a_round(&|earlier, later| {
+            rounds(later).is_some_and(|later| {
+                later.arcs.len() == 2
+                    && later.arcs.iter().all(|(center, radius, _)| {
+                        center.y > 0.0
+                            && earlier.arcs.iter().any(|(other, other_radius, _)| {
+                                center == other && radius == other_radius
+                            })
+                    })
+            })
+        }),
+    );
+    seen(
+        "a cone tangent at a latitude",
+        after_a_round(&|earlier, later| {
+            meridian(later).is_some_and(|read| {
+                read.sloped.iter().any(|slope| {
+                    earlier.arcs.iter().any(|(center, radius, _)| {
+                        let touch = DVec2::new(center.x + 0.6 * radius, center.y + 0.8 * radius);
+                        off_the_line(*slope, touch) <= 1e-12
+                            && (slope[1] - slope[0])
+                                .normalize()
+                                .dot((touch - *center).normalize())
+                                .abs()
+                                <= 1e-12
+                    })
+                })
+            })
+        }),
+    );
+    seen(
+        "a circle square to the axis through a ball's centre or at its pole",
+        after_a_round(&|earlier, later| {
+            let (Some(line), Leaf::Prism { plane, outline, .. }) = (world_line(later), later)
+            else {
+                return false;
+            };
+            let level = plane.to_world(DVec2::ZERO)[line.1];
+            matches!(outline, Outline::Circle { .. } | Outline::Ring { .. })
+                && earlier.arcs.iter().any(|(center, radius, _)| {
+                    [center.x, center.x + radius, center.x - radius].contains(&level)
+                })
+        }),
+    );
+    seen(
+        "a block through a ball's axis",
+        earlier_and_later(&|earlier, later| {
+            let (
+                Some(earlier),
+                Leaf::Prism {
+                    plane,
+                    outline: Outline::Rectangle { low, high },
+                    ..
+                },
+            ) = (rounds(earlier), later)
+            else {
+                return false;
+            };
+            let (point, axis) = earlier.line;
+            let normal = plane.normal();
+            normal[axis] == 0.0
+                && (plane.to_world(DVec2::ZERO) - point).dot(normal) == 0.0
+                && [
+                    *low,
+                    *high,
+                    DVec2::new(low.x, high.y),
+                    DVec2::new(high.x, low.y),
+                ]
+                .iter()
+                .any(|corner| plane.to_world(*corner)[axis] != point[axis])
+        }),
+    );
+    seen(
+        "a ball on a circle raised before it",
+        earlier_and_later(&|earlier, later| {
+            let (Some(radius), Some(one), Some(later)) =
+                (radius_of(earlier), world_line(earlier), rounds(later))
+            else {
+                return false;
+            };
+            same_line(one, later.line)
+                && later.arcs.iter().any(|(center, arc, chord)| {
+                    center.y == 0.0 && *arc >= radius && chord.iter().all(|corner| corner.y == 0.0)
+                })
+        }),
+    );
+    seen(
+        "a dome on a circle raised before it",
+        earlier_and_later(&|earlier, later| {
+            let (Some(radius), Some(one), Some(later)) =
+                (radius_of(earlier), world_line(earlier), rounds(later))
+            else {
+                return false;
+            };
+            same_line(one, later.line)
+                && later.arcs.iter().any(|(center, arc, chord)| {
+                    center.y == 0.0
+                        && *arc == radius
+                        && chord
+                            .iter()
+                            .any(|corner| corner.y == radius && corner.x == center.x)
+                })
+        }),
+    );
+    let rounded_tool = |mode: Mode| {
+        cases.iter().any(|case| {
+            case.steps.iter().any(|step| {
+                step.mode == mode && turned(&step.tool).is_some_and(|turn| turn.section.bows())
+            })
+        })
+    };
+    seen("a rounded tool added", rounded_tool(Mode::Add));
+    seen("a rounded tool cut", rounded_tool(Mode::Cut));
+
+    let share = rounded().count() as f64 / leaves().count() as f64;
+    assert!(
+        (0.2..0.55).contains(&share),
+        "rounded leaves are {} of {}",
+        rounded().count(),
+        leaves().count()
+    );
+}
+
+#[test]
+#[ignore = "#576: the exact kernel does not turn an arc yet"]
+fn every_rounded_leaf_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_pappus_s_volume()
+ {
+    let leaves = drawn_rounds(80);
+    assert!(leaves.len() > 30, "{} leaves", leaves.len());
+    raised_alone_keep_every_rule_and_enclose_pappus_s_volume(&leaves);
+}
+
+#[test]
+#[ignore = "#576: the exact kernel does not turn an arc yet"]
+fn a_rounded_leaf_names_its_faces_as_the_flats_name_them() {
+    let leaves: Vec<Leaf> = drawn_rounds(120)
+        .into_iter()
+        .filter(|leaf| turned(leaf).is_some_and(|turn| turn.section.side().is_some()))
+        .collect();
+    assert!(leaves.len() > 40, "{} leaves", leaves.len());
+    let exact = name_their_faces_as_the_flats_name_them(&leaves);
+    assert_eq!(
+        exact,
+        leaves.len(),
+        "every leaf is turned by the exact kernel"
+    );
+}
+
+#[test]
+#[ignore = "#576: the exact kernel does not turn an arc yet"]
+fn rounded_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact() {
+    let held = kept_through_the_application_s_body_and_exact(Case::drawn_rounded, 0..8);
+    assert!(held > 3, "{held} cases held");
+}
+
+#[test]
+#[ignore = "#576: the exact kernel does not turn an arc yet"]
+fn random_rounded_cases_keep_every_rule_on_the_exact_kernel() {
+    keep_every_rule_on_the_exact_kernel(Case::drawn_rounded, 0..16);
+}
+
+#[test]
+fn a_drawn_rounded_leaf_off_its_axis_holds_along_every_line_and_spans_the_box_its_flats_hold_but_for_their_sagittas()
+ {
+    let leaves = turns_the_flats_hold(drawn_rounds(300));
+    assert!(leaves.len() > 20, "{} leaves", leaves.len());
+    for leaf in &leaves {
+        let flats = leaf.solid().expect("a turn the flats make");
+        holds_what_its_flats_hold(leaf, &flats);
+        spans_the_box_its_flats_span(leaf, &flats);
+    }
+}
+
+#[test]
+fn the_draws_before_rounds_still_give_each_seed_its_case() {
+    for (rank, (draw, expected)) in FINGERPRINTED.iter().zip(BEFORE_ROUNDS).enumerate() {
+        assert_eq!(fingerprint(*draw), expected, "draw {rank}");
+    }
+}
+
+#[test]
+fn the_draws_of_rounds_give_each_seed_its_case() {
+    assert_eq!(fingerprint(Case::drawn_rounded), 0x3020_0021_b2d6_1f1d);
+    assert_eq!(
+        fingerprint(Case::drawn_rounded_off_the_lattice),
+        0x8627_22c7_af4c_e33a
+    );
+}
+
 /// The campaigns, compiled only when asked for — `--features campaigns` —
 /// so that work on any other issue never pays for them.
 #[cfg(feature = "campaigns")]
@@ -4508,6 +5269,12 @@ mod campaign {
         Case::drawn_tilted_off_the_lattice(seed)
     }
 
+    /// The same, among turns whose edges bow (#576).
+    fn drawn_rounded(seed: u64) -> Case {
+        eprint!("\rseed {seed} ");
+        Case::drawn_rounded_off_the_lattice(seed)
+    }
+
     #[test]
     #[ignore = "a campaign, run by hand: see the head of this file"]
     fn a_campaign_of_turned_solids_on_the_exact_kernel_keeps_every_rule() {
@@ -4559,9 +5326,27 @@ mod campaign {
         );
     }
 
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_rounded_solids_on_the_exact_kernel_keeps_every_rule() {
+        campaign_over("rounded solids", Answering::Exactly, drawn_rounded, exactly);
+    }
+
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_rounded_solids_through_the_application_s_body_keeps_every_rule() {
+        campaign_over(
+            "rounded solids",
+            Answering::ThroughTheApplication,
+            drawn_rounded,
+            through_the_application,
+        );
+    }
+
     /// Each seed named in `CAO_TRIAGE_SEEDS`, commas between them, drawn as
     /// a turning campaign draws it — as a slanted one when `CAO_TRIAGE_DRAW`
-    /// is `slanted`, as a tilted one when it is `tilted` — run again on the exact kernel — through the
+    /// is `slanted`, as a tilted one when it is `tilted`, as a rounded one
+    /// when it is `rounded` — run again on the exact kernel — through the
     /// application's body when `CAO_TRIAGE_KERNEL` is `application` —
     /// shrunk while it still breaks the same rule, and printed as a test.
     #[test]
@@ -4579,6 +5364,7 @@ mod campaign {
         let draw: fn(u64) -> Case = match std::env::var("CAO_TRIAGE_DRAW").as_deref() {
             Ok("slanted") => Case::drawn_slanted_off_the_lattice,
             Ok("tilted") => Case::drawn_tilted_off_the_lattice,
+            Ok("rounded") => Case::drawn_rounded_off_the_lattice,
             _ => Case::drawn_turned_off_the_lattice,
         };
         shrunk_one_by_one(seeds, draw, check);
@@ -4586,7 +5372,9 @@ mod campaign {
 
     /// How many of the cases `draw` gives the first 300 seeds the flats
     /// answer by their own rules, each of them asserted answered by the
-    /// arithmetic too.
+    /// arithmetic too: every seed that is not is printed before the
+    /// assertion, since a campaign this long is not run twice to find the
+    /// second.
     fn held_by_the_flats_and_the_arithmetic(draw: fn(u64) -> Case) -> usize {
         let seeds: Vec<u64> = (0..300).collect();
         let weighed = random_solids::on_every_core(&seeds, |seed| {
@@ -4596,15 +5384,20 @@ mod campaign {
             Some((measured, case))
         });
         let mut held = 0;
+        let mut failed = Vec::new();
         for (seed, (measured, case)) in seeds
             .iter()
             .zip(weighed)
             .filter_map(|(seed, one)| Some((seed, one?)))
         {
             held += 1;
-            assert!(measured.is_ok(), "seed {seed}: {measured:?}\n{case}");
+            if let Err(flaw) = measured {
+                println!("seed {seed}: {flaw:?}\n{case}");
+                failed.push(*seed);
+            }
         }
         println!("{held} cases of {} held", seeds.len());
+        assert!(failed.is_empty(), "seeds {failed:?} broke a rule");
         held
     }
 
@@ -4635,6 +5428,18 @@ mod campaign {
     #[ignore = "a campaign, run by hand once: see the head of this file"]
     fn tilted_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_arithmetic() {
         let held = held_by_the_flats_and_the_arithmetic(Case::drawn_tilted);
+        assert!(held > 100, "{held} cases held");
+    }
+
+    /// The arithmetic of arcs held to the flats before the exact kernel
+    /// turns one (#576): the flats were written long before it, and owe it
+    /// nothing. A whole rounded case on the flats takes the better part of a
+    /// minute where a torus is cut several times, so the gate holds the
+    /// drawn leaves alone to them and the cases are held here, once.
+    #[test]
+    #[ignore = "a campaign, run by hand once: see the head of this file"]
+    fn rounded_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_arithmetic() {
+        let held = held_by_the_flats_and_the_arithmetic(Case::drawn_rounded);
         assert!(held > 100, "{held} cases held");
     }
 }

@@ -334,4 +334,4 @@ fn reach(placed: &Placed, corners: impl Iterator<Item = DVec2>) -> f64 {
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

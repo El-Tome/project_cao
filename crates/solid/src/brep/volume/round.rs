@@ -13,9 +13,64 @@
 //! as it must. A face reaching the other pole too is closed along it by the
 //! floor the domain lays, which is read as a latitude circle.
 
+use std::f64::consts::TAU;
+
 use glam::{DVec2, DVec3};
 
+use crate::brep::domain::floor;
 use crate::brep::surface::{Sphere, Surface, Torus};
+use crate::brep::topology::{Body, FaceId};
+use crate::brep::trace::Trace;
+
+impl Body {
+    /// The angle along the meridian a face of a sphere or a torus anchors
+    /// its flux at: a pole the face reaches by a corner or holds within it,
+    /// where the stretch of that pole no edge runs along must add nothing;
+    /// nought on a face reaching none, whose loops wind round the axis
+    /// nought times, net, so that the anchor cancels.
+    pub(super) fn round_anchor(&self, face: FaceId, surface: &Surface) -> f64 {
+        let eps = self.scale.eps();
+        let poles = floor::poles_of(surface, eps);
+        let lying = self.face(face);
+        let corners = lying
+            .loops
+            .iter()
+            .flatten()
+            .flat_map(|coedge| self.edge(coedge.edge).ends.into_iter().flatten());
+        corners
+            .chain(lying.poles.iter().copied())
+            .map(|vertex| self.vertex(vertex).point)
+            .find_map(|point| {
+                poles
+                    .iter()
+                    .find(|pole| pole.point.distance(point) <= eps)
+                    .map(|pole| pole.at)
+            })
+            .unwrap_or(0.0)
+    }
+
+    /// What the stretches of the floors closing a face of a sphere or a
+    /// torus add to its flux: nothing at the anchor's pole, and at the far
+    /// pole the 1-form along the stretch, as along a latitude circle there.
+    pub(super) fn round_floors(&self, face: FaceId, surface: &Surface, anchor: f64) -> Vec<f64> {
+        let (Some(round), Ok(loops)) = (Meridian::of(surface), self.traces(face)) else {
+            return Vec::new();
+        };
+        let lying = self.face(face);
+        let poles = floor::poles_of(surface, self.scale.eps());
+        if loops.is_empty() && poles.is_empty() {
+            let side = if lying.flipped { -1.0 } else { 1.0 };
+            return vec![side * round.whole()];
+        }
+        floor::floors_round(&poles, &loops, lying.flipped)
+            .iter()
+            .filter_map(|floor| match *floor {
+                Trace::Segment { from, to } => round.straight(anchor, from, to),
+                Trace::Round { .. } | Trace::Graph { .. } | Trace::Conic { .. } => None,
+            })
+            .collect()
+    }
+}
 
 /// The meridian circle a face's flux is read about, and the frame it turns
 /// in.
@@ -75,6 +130,13 @@ impl Meridian {
     fn q(&self, phi: f64) -> f64 {
         let (big, r) = (self.center.y, self.radius);
         r * (big * phi.sin() + r * phi / 2.0 + r / 4.0 * (2.0 * phi).sin())
+    }
+
+    /// The flux through a whole ring torus, which no loop and no pole
+    /// bounds: what its 1-form sweeps round a whole turn of the meridian,
+    /// `6π²Rr²`, the one term of `P` that does not come back on itself.
+    pub(super) fn whole(&self) -> f64 {
+        TAU * (self.p(TAU) - self.p(0.0))
     }
 
     /// What a straight trace in `(θ, φ)` adds: nothing along a meridian,

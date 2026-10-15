@@ -47,12 +47,12 @@ fn bent(contours: &[&[Laid]]) -> Straight {
 }
 
 /// A ball of radius 5 about the origin: a semicircle on the axis, turned.
-fn ball() -> Straight {
+pub(in crate::brep) fn ball() -> Straight {
     bent(&[&[([-5.0, 0.0], Some(([0.0, 0.0], -PI))), ([5.0, 0.0], None)]])
 }
 
 /// A ring of tube radius 2 about a circle of radius 6 at `h = 3`.
-fn ring() -> Straight {
+pub(in crate::brep) fn ring() -> Straight {
     bent(&[&[
         ([3.0, 8.0], Some(([3.0, 6.0], -PI))),
         ([3.0, 4.0], Some(([3.0, 6.0], -PI))),
@@ -60,7 +60,7 @@ fn ring() -> Straight {
 }
 
 /// A zone of the ball of radius 5 between `h = -3` and `h = 3`.
-fn zone() -> Straight {
+pub(in crate::brep) fn zone() -> Straight {
     bent(&[&[
         ([-3.0, 0.0], None),
         ([-3.0, 4.0], Some(([0.0, 0.0], -1.2870022175865685))),
@@ -70,7 +70,7 @@ fn zone() -> Straight {
 }
 
 /// A cap of the ball of radius 5 above `h = -3`, to the pole.
-fn cap() -> Straight {
+pub(in crate::brep) fn cap() -> Straight {
     bent(&[&[
         ([-3.0, 0.0], None),
         (
@@ -82,7 +82,7 @@ fn cap() -> Straight {
 }
 
 /// A shaft of radius 4 from `h = 0` to `h = 10`, ending in a ball.
-fn rounded_shaft() -> Straight {
+pub(in crate::brep) fn rounded_shaft() -> Straight {
     bent(&[&[
         ([0.0, 0.0], None),
         ([0.0, 4.0], None),
@@ -93,7 +93,7 @@ fn rounded_shaft() -> Straight {
 
 /// An apple: the arc of the circle of radius 2 about `(0, 1)` on the far
 /// side of the axis, from the axis back to it.
-fn apple() -> Straight {
+pub(in crate::brep) fn apple() -> Straight {
     let reach = 3f64.sqrt();
     bent(&[&[
         ([-reach, 0.0], Some(([0.0, 1.0], -2.0 * (2.0 * PI / 3.0)))),
@@ -101,7 +101,7 @@ fn apple() -> Straight {
     ]])
 }
 
-fn turned(straight: &Straight, degrees: f64) -> Body {
+pub(in crate::brep) fn turned(straight: &Straight, degrees: f64) -> Body {
     Body::turned(straight, ground(), &about_y(degrees)).expect("the profile turns")
 }
 

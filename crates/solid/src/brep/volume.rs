@@ -28,23 +28,28 @@ impl Body {
     }
 
     /// What each use of an edge adds to the flux through a face, a face of
-    /// a cone anchored where `cone.rs` says.
+    /// a cone anchored where `cone.rs` says, a face of a sphere or a torus
+    /// where `round.rs` says, with the stretches of its floors after them.
     fn fluxes(&self, face: FaceId) -> impl Iterator<Item = f64> + '_ {
         let lying = self.face(face);
         let surface = self.surface(lying.surface);
         let anchor = match surface {
             Surface::Cone(cone) => self.anchor(face, cone),
-            Surface::Plane(_)
-            | Surface::Cylinder(_)
-            | Surface::Elliptic(_)
-            | Surface::Sphere(_)
-            | Surface::Torus(_) => 0.0,
+            Surface::Sphere(_) | Surface::Torus(_) => self.round_anchor(face, surface),
+            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => 0.0,
+        };
+        let floors = match surface {
+            Surface::Sphere(_) | Surface::Torus(_) => self.round_floors(face, surface, anchor),
+            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+                Vec::new()
+            }
         };
         lying
             .loops
             .iter()
             .flatten()
             .map(move |coedge| self.flux_along(surface, anchor, *coedge))
+            .chain(floors)
     }
 
     /// What one use of an edge adds to the flux through its face: in closed

@@ -90,6 +90,7 @@ in one of the two domains, never there.
 | What a drag of one point may do: stretch, follow one way, pivot, or nothing | `sketch/src/sketch/settling/pull.rs` | `PointPull`, `Sketch::pull`, `settle_pulled` |
 | Where a pulled point is taken at each frame, and what it lands on | `sketch/src/sketch/settling/pull/landing.rs` | `PointPull::landing`, `onto_grid`, `arrived`, `joined_to`, `joins` |
 | A cut corner pulled: a free end of a side turns the side about the corner, the corner itself moves as a sharp one | `sketch/src/sketch/settling/pull/cut_corner.rs` | `held_at_cut_corners`, `held_at_its_corner`, `move_laying_cuts` |
+| How far along the hand's way a shape stretches when it cannot stretch all the way | `sketch/src/sketch/settling/pull/reach.rs` | `stretch_towards` |
 | The shape a dragged point belongs to, and the point of it that stays | `sketch/src/sketch/settling/shape.rs` | `shape_of`, `stay_point`, `centres_under`, `turned_about` |
 | The pairs of points the drawing joins, and how a rule ties them | `sketch/src/sketch/settling/joins.rs` | `joined_pairs`, `tied_pairs`, `drawn_pairs`, `Tie` |
 | The traits a drag keeps pointing the way they did | `sketch/src/sketch/settling/kept.rs` | `Kept`, `tied_by_direction`, `lines_kept_in` |

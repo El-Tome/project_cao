@@ -16,17 +16,17 @@ use crate::length::LengthOutcome;
 use crate::pulling::TURN_BIAS;
 use crate::sketch::{PointId, Sketch};
 
-/// How close to the last place a shape can still follow to the way there is
-/// halved, as a share of the drawing's size — a hundred-thousandth, the
-/// solver's own precision — and how many halvings that may take at the most.
+/// How close to the last place a shape can still follow to counts as having
+/// reached it, as a share of the drawing's size — a hundred-thousandth, the
+/// solver's own precision.
 const REACHED_WITHIN: f64 = 1e-5;
-const HALVINGS: usize = 24;
 /// The least way along the hand's line, as a share of the drawing's size,
 /// that counts as having followed the hand at all.
 const PROGRESS: f64 = 1e-3;
 
 mod cut_corner;
 mod landing;
+mod reach;
 
 /// What a drag of one point may do to the drawing, read from the drawing as
 /// the press found it.
@@ -242,42 +242,6 @@ impl Sketch {
         }
         self.give_back(kept);
         false
-    }
-
-    /// The point held as far towards `landing` as the shape can stretch: the
-    /// way there halved until the last place it still follows to.
-    fn stretch_towards(
-        &mut self,
-        pull: &PointPull,
-        holding: &Holding,
-        landing: DVec2,
-        millimeters_per_unit: f64,
-    ) -> bool {
-        let (mut reached, mut missed) = (0.0, 1.0);
-        let within = self.drawing_size() * REACHED_WITHIN / pull.from.distance(landing).max(1e-12);
-        for _ in 0..HALVINGS {
-            if missed - reached <= within {
-                break;
-            }
-            let halfway = (reached + missed) / 2.0;
-            let place = pull.from.lerp(landing, halfway);
-            let kept = self.shapes_now();
-            match self.stretch(pull.point, holding, place, millimeters_per_unit) {
-                true => reached = halfway,
-                false => missed = halfway,
-            }
-            self.give_back(kept);
-        }
-        // A hair's breadth past the press is no way at all: the hand's way
-        // runs off a curve the point is held to, and letting it go is what
-        // brings it round.
-        reached * pull.from.distance(landing) > self.drawing_size() * PROGRESS
-            && self.stretch(
-                pull.point,
-                holding,
-                pull.from.lerp(landing, reached),
-                millimeters_per_unit,
-            )
     }
 
     /// One try: the point held at `landing`, the shape's pins and kept lines

@@ -4,13 +4,18 @@
 //!   measurement, written on the issue on 2026-10-14 and on 2026-10-15
 //! - one frame of drag of every point of the part's sketch stays under a
 //!   budget set from that measurement, held by a test with a timing a slower
-//!   machine still meets (#502) — no test: set once a drag's tries are cut
-//!   down too, by the commits that follow
+//!   machine still meets (#502) — the budget is set on every point dragged
+//!   both ways together, since the worst point alone is too near what it was
+//!   to tell the two apart on a slower machine; and it is not a frame, which
+//!   a point the shape cannot follow all the way is still far from —
+//!   `every_point_of_the_owner_s_part_is_dragged_both_ways_in_under_nine_tenths_of_a_second`
 //! - what each point lands on is unchanged, unless that is what the
 //!   measurement shows to be wrong — the measurement showed the ends of the
 //!   cuts beside the angled chamfers stopping short of the hand for want of
 //!   passes, and the owner chose on 2026-10-15 that they follow it —
 //!   `an_end_of_a_cut_beside_the_angled_chamfers_follows_the_hand_all_the_way`
+
+use std::time::{Duration, Instant};
 
 use cao_part::PartState;
 use cao_part::history::{ChamferAsked, Operation, PointRef};
@@ -131,4 +136,24 @@ fn an_end_of_a_cut_beside_the_angled_chamfers_follows_the_hand_all_the_way() {
             assert!(missed < 1e-6, "p{} by {by} stops {missed} short", point.0);
         }
     }
+}
+
+/// Every point of the part dragged a frame off its press both ways, all told:
+/// 0.45 s where this was measured, in the build the tests run in, against
+/// 1.23 s before #592 — room for a machine twice as slow, and none for a
+/// return of the sweeps that crept.
+const BUDGET: Duration = Duration::from_millis(900);
+
+#[test]
+fn every_point_of_the_owner_s_part_is_dragged_both_ways_in_under_nine_tenths_of_a_second() {
+    let sketch = the_owner_s_part();
+    let started = Instant::now();
+    for (point, _) in sketch.live_points() {
+        for by in [HAND, -HAND] {
+            dragged(&sketch, point, by);
+        }
+    }
+
+    let took = started.elapsed();
+    assert!(took < BUDGET, "{took:?}");
 }

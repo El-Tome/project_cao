@@ -72,7 +72,7 @@ impl Sketch {
 
         let scale = self.characteristic_size();
         let mut outcome = SolveOutcome::Residual;
-        let mut rounds = stall::Rounds::new(ROUNDS);
+        let mut rounds = stall::Rounds::new();
         for _ in 0..ROUNDS {
             outcome = self.settle_once(millimeters_per_unit, scale);
             if outcome == SolveOutcome::Solved {

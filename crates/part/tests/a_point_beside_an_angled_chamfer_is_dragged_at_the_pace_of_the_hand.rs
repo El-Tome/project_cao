@@ -122,7 +122,7 @@ fn dragged(sketch: &Sketch, point: PointId, by: DVec2) -> (Sketch, LengthOutcome
 #[test]
 fn an_end_of_a_cut_beside_the_angled_chamfers_follows_the_hand_all_the_way() {
     let sketch = the_owner_s_part();
-    for point in [PointId(29), PointId(30)] {
+    for point in [PointId(30), PointId(33)] {
         for by in [HAND, -HAND] {
             let (moved, outcome) = dragged(&sketch, point, by);
 

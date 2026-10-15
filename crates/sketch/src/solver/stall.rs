@@ -7,8 +7,6 @@
 //! many times a frame while the hand is past the shape's reach; that is where
 //! the time went. A solve's rounds are watched the same way.
 
-use super::TOLERANCE;
-
 /// How many corrections a sweep is watched over between two looks.
 const WINDOW: usize = 25;
 /// How much of its smallest error a sweep must clear in that time to go on.
@@ -65,32 +63,27 @@ const WORTH_ANOTHER_ROUND: f64 = 0.9;
 /// How a solve's rounds are clearing its error.
 pub(super) struct Rounds {
     before: f64,
-    left: usize,
 }
 
 impl Rounds {
-    pub(super) fn new(rounds: usize) -> Self {
+    pub(super) fn new() -> Self {
         Self {
             before: f64::INFINITY,
-            left: rounds,
         }
     }
 
-    /// Whether another round is worth beginning, `error` left after this one.
-    /// It must clear a tenth of what the last one left, and rounds clearing at
-    /// that pace must bring it under the tolerance in the rounds that remain:
-    /// a drawing asked for what it cannot have — a point held beyond the reach
-    /// of the values around it — clears just enough each round to earn the
-    /// next, and a drag asks that of it at every try (#592). A solve that would
-    /// get there is never cut short.
+    /// Whether another round is worth beginning, `error` left after this one:
+    /// it must clear a tenth of what the last one left.
+    ///
+    /// Not that rounds clearing at that pace must bring it under the tolerance
+    /// in the rounds that remain, as was tried for #592: rounds do not clear at
+    /// a pace. Each reads anew which shapes to hold whole, and the reading
+    /// that lets a drawing land can come after three rounds that each cleared
+    /// a fifth — an end of a chamfer's cut, dragged on the owner's part, fell
+    /// from 6e-3 to 1e-5 in its fifth round, and was refused at its second.
     pub(super) fn worth_another(&mut self, error: f64) -> bool {
-        self.left = self.left.saturating_sub(1);
         let before = std::mem::replace(&mut self.before, error);
-        if !before.is_finite() {
-            return true;
-        }
-        let pace = error / before;
-        pace <= WORTH_ANOTHER_ROUND && error * pace.powi(self.left as i32) <= TOLERANCE
+        error <= before * WORTH_ANOTHER_ROUND
     }
 }
 

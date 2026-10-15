@@ -97,6 +97,7 @@ in one of the two domains, never there.
 | The kept lines as rows of the solver | `sketch/src/solver/kept_solver.rs` | `kept_equations`, `kept_row` |
 | The way-up guard of a drawing that settles, and the turn back that breaks nothing the settle made true | `sketch/src/solver/orientation.rs`, `orientation/turning_back.rs` | `orientations`, `rotation_gauges`, `hold_orientations` |
 | When a sweep of the solver has stopped getting anywhere | `sketch/src/solver/stall.rs` | `Stall::stalled` |
+| One row of the solver corrected: the points it speaks of moved, the shapes held carried whole | `sketch/src/solver/correction.rs` | `Sketch::correct` |
 | A point held keeping its place along what holds it through a gesture | `sketch/src/sketch/settling/share.rs` | `Sketch::shares`, `keep_shares` |
 | A side or a curve pulled: across or along, what a press takes hold of | `sketch/src/pulling.rs` | `Sketch::pulled_at`, `side_drag`, `curve_drag`, `SideDrag`, `CurveDrag` |
 | A side moved across, the shape stretching after it | `sketch/src/pulling/travel.rs` | `Sketch::move_side` |

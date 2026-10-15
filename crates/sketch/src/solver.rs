@@ -3,11 +3,12 @@ use glam::DVec2;
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, DimensionTarget};
 use crate::equation::{Equation, Row, row_at};
-use crate::rigid::{Block, ownership, rigidify};
+use crate::rigid::Block;
 use crate::sketch::{PointId, SegmentId, Sketch};
 mod angle_solver;
 mod arc_solver;
 mod axis_solver;
+mod correction;
 mod distance_solver;
 mod ellipse_solver;
 mod hold_solver;
@@ -144,12 +145,10 @@ impl Sketch {
     /// is what lets a part be rebuilt identically by replaying its history.
     fn sweeps(&mut self, millimeters_per_unit: f64, scale: f64, blocks: &[Block]) -> SolveOutcome {
         let pinned = self.pinned_points();
-        let owner = ownership(blocks, self.points().len());
+        let mut carried = correction::Carried::new(blocks, self.points().len());
 
-        // Both buffers have the same size on every turn, so the sweep owns them
-        // rather than asking for them again on each correction. The gradients
-        // are handed back to the same end, one equation at a time.
-        let mut moves = vec![DVec2::ZERO; self.points().len()];
+        // The gradients are handed back once a row is corrected, one equation
+        // at a time: the next row wants a buffer of the very same size.
         let mut entry: Vec<Equation> = Vec::new();
         let pulled = self.pulled_elsewhere(millimeters_per_unit, &pinned);
 
@@ -179,29 +178,7 @@ impl Sketch {
                     }
                     // Move along the gradient just far enough to cancel the error.
                     let step = -equation.error / norm;
-                    for (point, delta) in moves.iter_mut().enumerate() {
-                        *delta = match pinned[point] {
-                            true => DVec2::ZERO,
-                            false => DVec2::new(
-                                equation.gradient[point * 2] * step,
-                                equation.gradient[point * 2 + 1] * step,
-                            ),
-                        };
-                    }
-                    rigidify(self.points(), &mut moves, blocks, &owner, &pinned, scale);
-
-                    for (point, delta) in moves.iter().copied().enumerate() {
-                        self.translate_point(PointId(point), delta);
-                    }
-                    // And the sizes of the circles, which are unknowns of the
-                    // same system.
-                    for circle in 0..self.circles().len() {
-                        let column = self.points().len() * 2 + circle;
-                        let delta = equation.gradient[column] * step;
-                        if delta != 0.0 {
-                            self.grow_circle(crate::sketch::CircleId(circle), delta);
-                        }
-                    }
+                    self.correct(equation, step, &pinned, &mut carried, scale);
                 }
                 for equation in entry.drain(..) {
                     equation.recycle();

@@ -3,16 +3,18 @@ use glam::DVec2;
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, DimensionTarget};
 use crate::equation::{Equation, Row, row_at};
-use crate::rigid::{Block, ownership, rigidify};
+use crate::rigid::Block;
 use crate::sketch::{PointId, SegmentId, Sketch};
 mod angle_solver;
 mod arc_solver;
 mod axis_solver;
 mod distance_solver;
 mod ellipse_solver;
+mod heading;
 mod hold_solver;
 mod kept_solver;
 mod orientation;
+mod pass;
 mod stall;
 mod tangent_solver;
 
@@ -45,8 +47,6 @@ const ROUNDS: usize = 12;
 /// is the usual case; the bound is there for the drawing where putting a shape
 /// back is what breaks the next equation.
 const WELDS: usize = 4;
-/// How much of the error a round must clear to be worth another one.
-const WORTH_ANOTHER_ROUND: f64 = 0.9;
 /// Below this, an equation counts as satisfied. Relative to the drawing's own
 /// size, so it means the same thing at any scale.
 pub(crate) const TOLERANCE: f64 = 1e-5;
@@ -72,17 +72,15 @@ impl Sketch {
 
         let scale = self.characteristic_size();
         let mut outcome = SolveOutcome::Residual;
-        let mut before = f64::INFINITY;
+        let mut rounds = stall::Rounds::new();
         for _ in 0..ROUNDS {
             outcome = self.settle_once(millimeters_per_unit, scale);
             if outcome == SolveOutcome::Solved {
                 break;
             }
-            let left = self.worst_error(millimeters_per_unit, scale);
-            if left > before * WORTH_ANOTHER_ROUND {
+            if !rounds.worth_another(self.worst_error(millimeters_per_unit, scale)) {
                 break;
             }
-            before = left;
         }
 
         // A trait pulled down to nothing, or a tangency whose contact has slid
@@ -147,73 +145,11 @@ impl Sketch {
     /// Deterministic — same drawing, same order, same number of steps — which
     /// is what lets a part be rebuilt identically by replaying its history.
     fn sweeps(&mut self, millimeters_per_unit: f64, scale: f64, blocks: &[Block]) -> SolveOutcome {
-        let pinned = self.pinned_points();
-        let owner = ownership(blocks, self.points().len());
-
-        // Both buffers have the same size on every turn, so the sweep owns them
-        // rather than asking for them again on each correction. The gradients
-        // are handed back to the same end, one equation at a time.
-        let mut moves = vec![DVec2::ZERO; self.points().len()];
-        let mut entry: Vec<Equation> = Vec::new();
-        let pulled = self.pulled_elsewhere(millimeters_per_unit, &pinned);
-
-        let mut stall = stall::Stall::new();
+        let mut sweep = self.sweep(blocks, millimeters_per_unit);
         let mut worst: f64 = f64::INFINITY;
         for iteration in 1..=MAX_ITERATIONS {
-            worst = 0.0;
-            for index in 0..self.equation_count() {
-                let held_alone = self.held_alone(index, &pinned, &pulled);
-                self.any_equation(index, millimeters_per_unit, &pinned, &mut entry);
-                for equation in entry.iter_mut() {
-                    let off = equation.off_by(scale);
-                    worst = worst.max(off);
-                    if off < TOLERANCE * SETTLED_ALREADY {
-                        continue;
-                    }
-                    // A point laid on a curve follows it: the step this row
-                    // takes moves the point, and leaves the curve alone.
-                    if let Some(point) = held_alone {
-                        equation.hold_to(point);
-                    }
-                    self.hold_sizes(equation);
-
-                    let norm = equation.norm_squared();
-                    if norm < equation.flat_below(scale) {
-                        continue;
-                    }
-                    // Move along the gradient just far enough to cancel the error.
-                    let step = -equation.error / norm;
-                    for (point, delta) in moves.iter_mut().enumerate() {
-                        *delta = match pinned[point] {
-                            true => DVec2::ZERO,
-                            false => DVec2::new(
-                                equation.gradient[point * 2] * step,
-                                equation.gradient[point * 2 + 1] * step,
-                            ),
-                        };
-                    }
-                    rigidify(self.points(), &mut moves, blocks, &owner, &pinned, scale);
-
-                    for (point, delta) in moves.iter().copied().enumerate() {
-                        self.translate_point(PointId(point), delta);
-                    }
-                    // And the sizes of the circles, which are unknowns of the
-                    // same system.
-                    for circle in 0..self.circles().len() {
-                        let column = self.points().len() * 2 + circle;
-                        let delta = equation.gradient[column] * step;
-                        if delta != 0.0 {
-                            self.grow_circle(crate::sketch::CircleId(circle), delta);
-                        }
-                    }
-                }
-                for equation in entry.drain(..) {
-                    equation.recycle();
-                }
-            }
-
-            // Held, it is polished while it gains: the graph welds finer (#545).
-            if worst < TOLERANCE * SETTLED_ALREADY || stall.stalled(iteration, worst) {
+            worst = self.pass(&mut sweep, millimeters_per_unit, scale);
+            if self.swept(&mut sweep, iteration, worst, scale) {
                 break;
             }
         }

@@ -46,28 +46,24 @@ const CHORDS: usize = 64;
 pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
     for (face, listed) in listing.faces.iter().enumerate() {
         let side = if listed.outward { 1.0 } else { -1.0 };
-        let (nappe, unrolled) = match &listed.surface {
-            Surface::Plane(_) => (None, 1.0),
-            Surface::Cylinder(cylinder) => (None, cylinder.radius),
-            Surface::Elliptic(wall) => (None, wall.minor),
+        let (nappe, tube, unrolled) = match &listed.surface {
+            Surface::Plane(_) => (None, None, 1.0),
+            Surface::Cylinder(cylinder) => (None, None, cylinder.radius),
+            Surface::Elliptic(wall) => (None, None, wall.minor),
             Surface::Cone(cone) => {
                 let nappe = Nappe::of(cone);
                 let widest = widest(listing, &listed.loops, |place| nappe.radius(place));
-                (Some(nappe), widest)
+                (Some(nappe), None, widest)
             }
             Surface::Sphere(sphere) => {
                 let tube = Tube::of_sphere(sphere);
-                (
-                    None,
-                    widest(listing, &listed.loops, |place| tube.radius(place)),
-                )
+                let widest = widest(listing, &listed.loops, |place| tube.radius(place));
+                (None, Some(tube), widest)
             }
             Surface::Torus(torus) => {
                 let tube = Tube::of_torus(torus);
-                (
-                    None,
-                    widest(listing, &listed.loops, |place| tube.radius(place)),
-                )
+                let widest = widest(listing, &listed.loops, |place| tube.radius(place));
+                (None, Some(tube), widest)
             }
         };
         let about = listed
@@ -103,6 +99,15 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
                     area += (nappe.apex_length() - nappe.length(about)) * turns;
                     turns = 0.0;
                 }
+                if let Some(tube) = &tube
+                    && let Some(pole) = tube
+                        .poles()
+                        .into_iter()
+                        .find(|pole| passes(listing, uses, *pole, room))
+                {
+                    area += tube.tube() * (tube.phi(pole) - tube.phi(about)) * turns;
+                    turns = 0.0;
+                }
                 (area * side, (turns / TAU).round() * side)
             })
             .collect();
@@ -117,8 +122,8 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
             .filter(|&lap| swept[lap].1 != 0.0)
             .collect();
         let winding: f64 = round.iter().map(|&lap| swept[lap].1).sum();
-        let floor = match &nappe {
-            Some(nappe) => {
+        let floor = match (&nappe, &tube) {
+            (Some(nappe), _) => {
                 let passed = listed
                     .loops
                     .iter()
@@ -126,7 +131,15 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
                 let closed = !listed.poles.is_empty() || passed && winding.abs() == 1.0;
                 floor(nappe, winding, closed, about).ok_or(Mislisted::Pointed { face })?
             }
-            None => (0.0, 0.0),
+            (None, Some(tube)) => {
+                let poles: Vec<DVec3> = listed
+                    .poles
+                    .iter()
+                    .map(|&vertex| listing.vertices[vertex])
+                    .collect();
+                round_floor(tube, &poles, winding, about).ok_or(Mislisted::Pointed { face })?
+            }
+            (None, None) => (0.0, 0.0),
         };
         let outside = if let Some(&first) = round.first() {
             let (area, turns) = round.iter().fold(floor, |(area, turns), &lap| {
@@ -173,6 +186,23 @@ fn floor(nappe: &Nappe, winding: f64, holds: bool, about: DVec3) -> Option<(f64,
     }
     let below = nappe.apex_length() - nappe.length(about);
     Some((below * TAU * winding, -winding))
+}
+
+/// What the floor of a pole a sphere or a torus face holds sweeps, read from
+/// `about`, closing the face whose round loops wind `winding` times round
+/// the axis: once round, turned back the other way at the one pole the
+/// face holds; nothing where it winds round nothing and holds none, or
+/// both, as a ball does; and no reading at all for a face winding once that
+/// holds no pole or two, or holding one while winding round nothing.
+fn round_floor(tube: &Tube, poles: &[DVec3], winding: f64, about: DVec3) -> Option<(f64, f64)> {
+    match (winding.abs() == 1.0, poles) {
+        (true, [pole]) => {
+            let below = tube.tube() * (tube.phi(*pole) - tube.phi(about));
+            Some((below * TAU * winding, -winding))
+        }
+        (false, [] | [_, _]) => Some((0.0, 0.0)),
+        _ => None,
+    }
 }
 
 /// The largest distance from the axis, as `radius` reads it, a face's edges

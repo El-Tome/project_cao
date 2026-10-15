@@ -1,11 +1,13 @@
 //! The faces of a contour turned part of the way: a corner where the turn
 //! opens and one where it closes for each corner of the profile, the arc
-//! between them, and the edges left on the two ends.
+//! between them, and the edges left on the two ends — straight for a
+//! straight piece, a meridian arc for an arc of the profile (#576).
 
 use glam::DVec2;
 
 use super::super::Placed;
 use super::Swept;
+use super::round::{self, Round};
 use crate::brep::laying::{Laying, reversed};
 use crate::brep::piece::Named;
 use crate::brep::topology::{Coedge, Face, SurfaceId, VertexId};
@@ -41,6 +43,13 @@ pub(super) fn partial(
     swept: &[Swept],
     [(opening, _), (closing, _)]: [(SurfaceId, bool); 2],
 ) -> (Vec<Face>, Vec<Coedge>, Vec<Coedge>) {
+    if let ([named], [Some(surface)]) = (contour, swept)
+        && let Some(ring) = Round::of(&named.piece).filter(|_| named.piece.is_ring())
+    {
+        let (face, at_opening, at_closing) =
+            round::ring(laying, placed, &ring, *surface, named.numbers.clone());
+        return (vec![face], vec![at_opening], vec![at_closing]);
+    }
     let turned: Vec<Turned> = contour
         .iter()
         .enumerate()
@@ -57,17 +66,32 @@ pub(super) fn partial(
     let (mut faces, mut openings, mut closings) = (Vec::new(), Vec::new(), Vec::new());
     for (index, named) in contour.iter().enumerate() {
         let [start, end] = [turned[index], turned[(index + 1) % count]];
-        let at_opening = laying.line(start.opening, end.opening);
+        let arc = Round::of(&named.piece);
+        let at_opening = match &arc {
+            Some(arc) => round::edge(laying, placed, arc, [start.opening, end.opening], false),
+            None => laying.line(start.opening, end.opening),
+        };
         openings.push(at_opening);
         let Some((surface, flipped)) = swept[index] else {
             closings.push(at_opening);
             continue;
         };
-        let square = named.piece.from().x == named.piece.to().x;
-        let at_closing = if placed.half && square && start.arc.is_none() != end.arc.is_none() {
-            laying.line_on(at_opening, start.closing, end.closing)
-        } else {
-            laying.line(start.closing, end.closing)
+        let at_closing = match &arc {
+            Some(arc) if placed.half && arc.is_sphere() => laying.round_beside(
+                at_opening,
+                [start.closing, end.closing],
+                arc.sweep,
+                placed.closing_outward(),
+            ),
+            Some(arc) => round::edge(laying, placed, arc, [start.closing, end.closing], true),
+            None => {
+                let square = named.piece.from().x == named.piece.to().x;
+                if placed.half && square && start.arc.is_none() != end.arc.is_none() {
+                    laying.line_on(at_opening, start.closing, end.closing)
+                } else {
+                    laying.line(start.closing, end.closing)
+                }
+            }
         };
         closings.push(at_closing);
         let lap = std::iter::once(at_opening)

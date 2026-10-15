@@ -1,7 +1,8 @@
 //! A profile laid square to its axis, turned about it into a body (#533): a
 //! cylinder for each run parallel to the axis, a plane for each run square to
-//! it, a cone for each run slanted to it (#536), and the two planes holding
-//! the axis a partial turn ends on.
+//! it, a cone for each run slanted to it (#536), a sphere or a torus for
+//! each arc (#576), and the two planes holding the axis a partial turn ends
+//! on.
 //!
 //! The faces are laid by hand, as a raise lays its walls, then tidied and
 //! checked as a boolean's result is: what the kernel cannot verify it does not
@@ -18,15 +19,19 @@ use super::assembly::tidied;
 use super::curve::Circle;
 use super::piece;
 use super::scale::Scale;
-use super::surface::{Cone, Cylinder};
+use super::surface::{Cone, Cylinder, Sphere, Torus};
 use super::topology::{Body, turning_points};
-use crate::profile::{Contour, Frame};
-use crate::turning::{Straight, Turn};
+use crate::profile::{Contour, Frame, Run};
+use crate::turning::{Corner, Straight, Turn};
 
 /// The cosine and sine of a quarter, a half and three quarters of a turn,
 /// exactly: computed, the half turn's sine is a rounding off nought, and the
 /// planes a turn ends on would stand a hair off the planes of the origin.
 const RIGHT_ANGLES: [(f64, f64); 3] = [(0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)];
+
+/// How many roundings off the axis a point of an arc may stand and still be
+/// read as on it: a bulge there is a corner of the profile already.
+const ROUNDINGS: f64 = 16.0;
 
 /// Where a turn stands in the world: its axis through `origin` along `axis`,
 /// the side of the axis the profile lies on, `toward`, and the direction the
@@ -81,6 +86,17 @@ impl Placed {
         Cone::through(self.origin, self.axis, [from, to])
     }
 
+    /// The sphere an arc centred on the axis turns into.
+    fn sphere(&self, h: f64, radius: f64) -> Sphere {
+        Sphere::through(self.origin, self.axis, h, radius)
+    }
+
+    /// The torus an arc centred off the axis turns into, its chart centred
+    /// on the arc's `middle`.
+    fn torus(&self, center: DVec2, radius: f64, middle: DVec2) -> Torus {
+        Torus::through(self.origin, self.axis, center, radius, middle)
+    }
+
     /// The outward direction of the plane the turn ends on.
     fn closing_outward(&self) -> DVec3 {
         self.across * self.cos - self.toward * self.sin
@@ -92,53 +108,52 @@ impl Body {
     /// standing in `frame`.
     ///
     /// A run parallel to the axis turns into a cylinder, a run square to it
-    /// into a plane, a run slanted to it into a cone, and a run on the axis
-    /// into nothing. A corner on the axis between two runs leaving it would
-    /// pinch the body there, and is declined as a profile. Each face answers
-    /// to the numbers of the runs it was turned from, the outline's runs first
-    /// and then each hole's; a partial turn ends on the sketch's own plane,
-    /// numbered `runs`, and on the plane it turns to, numbered `runs + 1`.
+    /// into a plane, a run slanted to it into a cone, an arc into a sphere
+    /// or a torus, and a run on the axis into nothing. A corner on the axis
+    /// between two runs leaving it would pinch the body there, and is
+    /// declined as a profile. Each face answers to the numbers of the runs
+    /// it was turned from, the outline's runs first and then each hole's; a
+    /// partial turn ends on the sketch's own plane, numbered `runs`, and on
+    /// the plane it turns to, numbered `runs + 1`.
     ///
     /// A point turned whole has one vertex, at its tip, which its cone holds
-    /// within it and no edge reaches; the scale is read again once it is
-    /// there. A profile laid to no area turns into nothing.
+    /// within it and no edge reaches, and a ball two, at its poles; the
+    /// scale is read again once they are there. A profile laid to no area
+    /// turns into nothing.
     pub fn turned(straight: &Straight, frame: Frame, turn: &Turn) -> Result<Body, Declined> {
         let (placed, backwards) = placed(straight, frame, turn)?;
         if straight.contours.is_empty() {
             return Ok(Body::empty());
         }
-        let contours: Vec<Vec<DVec2>> = straight
+        let contours: Vec<Contour> = straight
             .contours
             .iter()
-            .map(|contour| {
-                contour
-                    .iter()
-                    .map(|corner| {
-                        let h = if backwards { -corner.at.x } else { corner.at.x };
-                        DVec2::new(h, corner.at.y)
-                    })
-                    .collect()
-            })
+            .map(|contour| mirrored(contour, backwards))
             .collect();
-        let corners = || contours.iter().flatten().copied();
+        let corners = || {
+            contours
+                .iter()
+                .flat_map(|contour| contour.corners.iter().copied())
+        };
         if corners().any(|corner| !(corner.is_finite() && corner.y >= 0.0)) {
             return Err(Declined::Profile);
         }
-        let scale = Scale::of(reach(&placed, corners()));
+        let bulges: Vec<DVec2> = contours.iter().flat_map(bulges).collect();
+        let reaching = || corners().chain(bulges.iter().copied());
+        let scale = Scale::of(reach(&placed, reaching()));
         let eps = scale.eps();
-        let furthest = corners().map(|corner| corner.y).fold(0.0, f64::max);
+        let furthest = reaching().map(|corner| corner.y).fold(0.0, f64::max);
         let placed = squared(placed, furthest, eps);
         if !placed.whole
-            && corners()
+            && reaching()
                 .any(|corner| corner.y > 0.0 && 2.0 * corner.y * (placed.angle / 2.0).sin() <= eps)
         {
             return Err(Declined::Travel);
         }
         let mut read = Vec::with_capacity(contours.len());
-        for (rank, (corners, laid)) in contours.iter().zip(&straight.contours).enumerate() {
+        for (rank, (contour, laid)) in contours.iter().zip(&straight.contours).enumerate() {
             let numbers: Vec<u32> = laid.iter().map(|corner| corner.run).collect();
-            let pieces =
-                piece::pieces_numbered(&Contour::straight(corners.clone()), &numbers, eps)?;
+            let pieces = piece::pieces_numbered(contour, &numbers, eps)?;
             if piece::signed_area(&pieces).abs() <= eps * scale.reach() {
                 return Err(Declined::Profile);
             }
@@ -157,8 +172,57 @@ impl Body {
     }
 }
 
+/// A laid contour as the kernel reads it, its corners read along the axis
+/// the other way when the turn goes `backwards`, and every arc with them: a
+/// mirror turns an arc the other way round. A contour of straight runs is
+/// the one `Contour::straight` makes.
+fn mirrored(contour: &[Corner], backwards: bool) -> Contour {
+    let mirror = |at: DVec2| DVec2::new(if backwards { -at.x } else { at.x }, at.y);
+    Contour {
+        corners: contour.iter().map(|corner| mirror(corner.at)).collect(),
+        runs: contour
+            .iter()
+            .map(|corner| match corner.bend {
+                Some(bend) => Run::Round {
+                    center: mirror(bend.center),
+                    turn: if backwards { -bend.turn } else { bend.turn },
+                },
+                None => Run::Straight,
+            })
+            .collect(),
+    }
+}
+
+/// Where the arcs of a contour reach furthest along the axis and from it:
+/// the points of each where it turns back, which no corner stands on.
+fn bulges(contour: &Contour) -> Vec<DVec2> {
+    let count = contour.corners.len();
+    contour
+        .runs
+        .iter()
+        .enumerate()
+        .filter_map(|(index, run)| match *run {
+            Run::Round { center, turn } => Some((contour.corners[index], center, turn)),
+            Run::Straight | Run::Oval { .. } => None,
+        })
+        .flat_map(|(from, center, turn)| {
+            let start = (from - center).to_angle();
+            let radius = from.distance(center);
+            (0..4).filter_map(move |quarter| {
+                let angle = f64::from(quarter) * FRAC_PI_2;
+                let along = ((angle - start) * turn.signum()).rem_euclid(TAU);
+                (along <= turn.abs()).then(|| center + DVec2::from_angle(angle) * radius)
+            })
+        })
+        .filter(|point| point.y > ROUNDINGS * f64::EPSILON * point.length())
+        .take(4 * count)
+        .collect()
+}
+
 /// Whether a contour has a corner on the axis between two pieces that both
-/// leave it, where the body turned from it would touch itself at a point.
+/// leave it, where the body turned from it would touch itself at a point:
+/// a piece leaving it off the axis, or an arc leaving it along the axis,
+/// tangent to it, as a horn torus's point does.
 fn pinched(contour: &[piece::Named]) -> bool {
     let count = contour.len();
     (0..count).any(|index| {
@@ -166,7 +230,14 @@ fn pinched(contour: &[piece::Named]) -> bool {
             &contour[(index + count - 1) % count].piece,
             &contour[index].piece,
         );
-        after.from().y == 0.0 && before.from().y > 0.0 && after.to().y > 0.0
+        let leaves = |piece: &piece::Piece, end: DVec2| match *piece {
+            piece::Piece::Arc { center, .. } => end.x == center.x,
+            piece::Piece::Straight { .. } | piece::Piece::Oval { .. } => false,
+        };
+        after.from().y == 0.0
+            && (leaves(before, before.to())
+                || leaves(after, after.from())
+                || before.from().y > 0.0 && after.to().y > 0.0)
     })
 }
 

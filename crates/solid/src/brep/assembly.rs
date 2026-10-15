@@ -21,7 +21,14 @@ pub(super) fn assembled(arena: Arena, faces: Vec<Face>) -> Result<Body, Declined
 /// side merged, each given the poles it holds within it, what no face uses
 /// left out, the rest renumbered, and the whole verified.
 pub(super) fn tidied(mut body: Body, faces: Vec<Face>) -> Result<Body, Declined> {
-    let mut faces = merged::merged(&mut body.edges, &body.curves, &body.vertices, faces);
+    let mut faces = merged::merged(
+        &mut body.edges,
+        &body.curves,
+        &body.vertices,
+        &body.surfaces,
+        body.scale.eps(),
+        faces,
+    );
     body.hold_poles(&mut faces);
     let mut edges = Renumbering::of(body.edges.len());
     for coedge in faces.iter().flat_map(|face| face.loops.iter().flatten()) {

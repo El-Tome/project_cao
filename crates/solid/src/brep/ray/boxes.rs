@@ -16,7 +16,7 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use crate::brep::curve::{Circle, Curve};
-use crate::brep::topology::{Body, Edge, FaceId};
+use crate::brep::topology::{Body, Edge, FaceId, round_box};
 
 pub(super) struct Boxes {
     boxes: Vec<[DVec3; 2]>,
@@ -36,10 +36,12 @@ impl Boxes {
         let boxes = body
             .face_ids()
             .map(|face| {
-                let held = body.poles_held(face).into_iter().fold(
-                    [DVec3::INFINITY, DVec3::NEG_INFINITY],
-                    |[low, high], pole| [low.min(pole), high.max(pole)],
-                );
+                let own = round_box(body.surface(body.face(face).surface))
+                    .unwrap_or([DVec3::INFINITY, DVec3::NEG_INFINITY]);
+                let held = body
+                    .poles_held(face)
+                    .into_iter()
+                    .fold(own, |[low, high], pole| [low.min(pole), high.max(pole)]);
                 body.face(face)
                     .loops
                     .iter()

@@ -166,6 +166,61 @@ impl Laying {
         self.edge(Curve::Circle(circle), None, 0.0, TAU, forward)
     }
 
+    /// An arc of `circle` from `ends[0]` turning by `sweep` about `up` to
+    /// `ends[1]`, used that way: a meridian of a sphere or a torus (#576).
+    pub fn round(&mut self, circle: Circle, ends: [VertexId; 2], sweep: f64, up: DVec3) -> Coedge {
+        self.body.curves.push(Curve::Circle(circle));
+        let curve = CurveId(self.body.curves.len() as u32 - 1);
+        self.round_on(curve, circle, ends, sweep, up)
+    }
+
+    /// The same arc on the circle an edge `beside` runs along: the two
+    /// meridians of a sphere at a half turn lie on one great circle, and
+    /// their edges can be joined into one only on one curve.
+    pub fn round_beside(
+        &mut self,
+        beside: Coedge,
+        ends: [VertexId; 2],
+        sweep: f64,
+        up: DVec3,
+    ) -> Coedge {
+        let curve = self.body.edge(beside.edge).curve;
+        let Curve::Circle(circle) = *self.body.curve(curve) else {
+            unreachable!("a meridian lies beside a meridian");
+        };
+        self.round_on(curve, circle, ends, sweep, up)
+    }
+
+    fn round_on(
+        &mut self,
+        curve: CurveId,
+        circle: Circle,
+        ends: [VertexId; 2],
+        sweep: f64,
+        up: DVec3,
+    ) -> Coedge {
+        let turning = sweep * circle.axis.dot(up).signum();
+        let [start, end] = if turning > 0.0 {
+            ends
+        } else {
+            [ends[1], ends[0]]
+        };
+        let from = circle.parameter(self.body.vertex(start).point);
+        self.edge_on(
+            curve,
+            Some([start, end]),
+            from,
+            from + turning.abs(),
+            turning > 0.0,
+        )
+    }
+
+    /// The whole of `circle`, used the way `sweep` turns about `up`.
+    pub fn round_ring(&mut self, circle: Circle, sweep: f64, up: DVec3) -> Coedge {
+        let forward = sweep * circle.axis.dot(up) > 0.0;
+        self.edge(Curve::Circle(circle), None, 0.0, TAU, forward)
+    }
+
     /// An arc of the rim `plane` cuts the elliptic wall along, from `ends[0]`
     /// running round by the eccentric angle `sweep` about `up` to `ends[1]`,
     /// used that way: the rim's parameter runs with the wall's angle, as

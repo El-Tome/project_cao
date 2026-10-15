@@ -19,9 +19,33 @@ pub(super) fn along_the_partner(
         (Surface::Cylinder(before), Surface::Cylinder(after), Surface::Cylinder(partner)) => {
             (before, after, partner)
         }
-        (Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_), _, _)
-        | (_, Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_), _)
-        | (_, _, Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_)) => {
+        (
+            Surface::Plane(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_),
+            _,
+            _,
+        )
+        | (
+            _,
+            Surface::Plane(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_),
+            _,
+        )
+        | (
+            _,
+            _,
+            Surface::Plane(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_),
+        ) => {
             return Vec::new();
         }
     };
@@ -100,8 +124,8 @@ pub(super) fn touching(fixed: &Surface, moving: &Surface) -> Option<Surface> {
             ))
         }
         (Surface::Plane(_), Surface::Plane(_))
-        | (Surface::Cone(_) | Surface::Elliptic(_), _)
-        | (_, Surface::Cone(_) | Surface::Elliptic(_)) => {
+        | (Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_), _)
+        | (_, Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_)) => {
             return None;
         }
     };

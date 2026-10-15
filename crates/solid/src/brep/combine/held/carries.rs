@@ -54,6 +54,13 @@ pub(in crate::brep::combine) fn carries(surface: &Surface, curve: &Curve, scale:
             meet.own(&Wall::Elliptic(*wall), eps).is_some()
         }
         (Surface::Elliptic(_), Curve::Circle(_)) => false,
+        (Surface::Sphere(sphere), Curve::Circle(circle)) => {
+            sphere.holds(circle, eps) || sphere.meridian(circle, eps)
+        }
+        (Surface::Torus(torus), Curve::Circle(circle)) => {
+            torus.holds(circle, eps) || torus.meridian(circle, eps)
+        }
+        (Surface::Sphere(_) | Surface::Torus(_), Curve::Line(_) | Curve::Meet(_)) => false,
         (_, Curve::Conic(conic)) => {
             let own = match (surface, conic.round) {
                 (Surface::Plane(_), _) => Surface::Plane(conic.plane),
@@ -62,7 +69,8 @@ pub(in crate::brep::combine) fn carries(surface: &Surface, curve: &Curve, scale:
                 (Surface::Elliptic(_), Round::Elliptic(wall)) => Surface::Elliptic(wall),
                 (Surface::Cylinder(_), Round::Cone(_) | Round::Elliptic(_))
                 | (Surface::Cone(_), Round::Cylinder(_) | Round::Elliptic(_))
-                | (Surface::Elliptic(_), Round::Cylinder(_) | Round::Cone(_)) => {
+                | (Surface::Elliptic(_), Round::Cylinder(_) | Round::Cone(_))
+                | (Surface::Sphere(_) | Surface::Torus(_), _) => {
                     return false;
                 }
             };

@@ -8,6 +8,7 @@ mod conic;
 mod elliptic;
 mod grazed;
 mod lying;
+mod round;
 mod section;
 
 /// The crossings found, each checked to lie on the curve at its parameter and

@@ -83,6 +83,7 @@ impl Outline {
                 let eps = body.scale().eps();
                 outline.conical(cone, samples, &laps, steps, apex, eps)?;
             }
+            Surface::Sphere(_) | Surface::Torus(_) => return None,
             Surface::Elliptic(wall) => {
                 let steps = divisions(wall.major, tolerance);
                 let raws: Vec<Vec<DVec2>> = laps

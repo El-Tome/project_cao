@@ -40,7 +40,11 @@ fn wall_of(listing: &Listing) -> (usize, EllipticCylinder) {
         .enumerate()
         .find_map(|(rank, face)| match face.surface {
             Surface::Elliptic(wall) => Some((rank, wall)),
-            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => None,
+            Surface::Plane(_)
+            | Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => None,
         })
         .expect("the prism stands on an elliptic wall")
 }

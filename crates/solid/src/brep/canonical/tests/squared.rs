@@ -88,6 +88,8 @@ fn directions(body: &Body) -> Vec<DVec3> {
             Surface::Cylinder(cylinder) => cylinder.axis,
             Surface::Cone(cone) => cone.axis,
             Surface::Elliptic(wall) => wall.axis,
+            Surface::Sphere(sphere) => sphere.axis,
+            Surface::Torus(torus) => torus.axis,
         })
         .collect()
 }
@@ -97,7 +99,11 @@ fn planes(body: &Body) -> Vec<Plane> {
         .iter()
         .filter_map(|surface| match surface {
             Surface::Plane(plane) => Some(*plane),
-            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
+            Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => None,
         })
         .collect()
 }

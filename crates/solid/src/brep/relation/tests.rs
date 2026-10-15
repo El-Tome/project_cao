@@ -348,5 +348,6 @@ mod conical;
 mod crossing;
 mod elliptic;
 mod lattice;
+mod round;
 mod sliced;
 mod square;

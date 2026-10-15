@@ -27,7 +27,15 @@ pub(super) fn across_the_cone_s_lobe(
     let (cone, plane) = match (first, second) {
         (Surface::Cone(cone), Surface::Plane(plane))
         | (Surface::Plane(plane), Surface::Cone(cone)) => (cone, plane),
-        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
+        (
+            Surface::Plane(_)
+            | Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_),
+            _,
+        ) => {
             return None;
         }
     };
@@ -41,7 +49,11 @@ pub(super) fn across_the_cone_s_lobe(
             let outside = towards * axis_side > 0.0;
             Some(outside == (cone.ruling.x > 0.0))
         }
-        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => Some(towards > 0.0),
+        Surface::Plane(_)
+        | Surface::Cylinder(_)
+        | Surface::Elliptic(_)
+        | Surface::Sphere(_)
+        | Surface::Torus(_) => Some(towards > 0.0),
     }
 }
 
@@ -72,9 +84,15 @@ pub(super) fn touching_the_cone(first: &Surface, second: &Surface) -> Option<boo
         (Surface::Plane(plane), Surface::Cone(cone)) => {
             Some(plane.normal.dot(cone.axis) * cone.ruling.x > 0.0)
         }
-        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
-            None
-        }
+        (
+            Surface::Plane(_)
+            | Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_),
+            _,
+        ) => None,
     }
 }
 
@@ -87,8 +105,14 @@ pub(super) fn touching_the_cone(first: &Surface, second: &Surface) -> Option<boo
 pub(super) fn across_the_rulings(first: &Surface, second: &Surface) -> Option<bool> {
     match (first, second) {
         (Surface::Cone(cone), Surface::Plane(_)) => Some(cone.ruling.x < 0.0),
-        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
-            None
-        }
+        (
+            Surface::Plane(_)
+            | Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_),
+            _,
+        ) => None,
     }
 }

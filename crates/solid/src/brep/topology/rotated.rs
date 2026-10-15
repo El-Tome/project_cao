@@ -10,7 +10,7 @@ use super::{Body, Edge};
 use crate::brep::conic::{Arm, Conic, Round};
 use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::surface::{
-    Cone, Cylinder, EllipticCylinder, Plane, Surface, canonical_direction, reference,
+    Cone, Cylinder, EllipticCylinder, Plane, Sphere, Surface, Torus, canonical_direction, reference,
 };
 
 impl Body {
@@ -59,6 +59,19 @@ impl Body {
                     [cone.foot, cone.foot + cone.ruling],
                 )),
                 Surface::Elliptic(wall) => Surface::Elliptic(turning.oval(wall)?),
+                Surface::Sphere(sphere) => Surface::Sphere(Sphere::through(
+                    turning.place(sphere.middle()),
+                    turning.direction(sphere.axis)?,
+                    0.0,
+                    sphere.radius,
+                )),
+                Surface::Torus(torus) => Surface::Torus(Torus::through(
+                    turning.place(torus.origin),
+                    turning.direction(torus.axis)?,
+                    torus.center,
+                    torus.radius,
+                    torus.middle(),
+                )),
             };
         }
         for (rank, curve) in self.curves.iter().enumerate() {

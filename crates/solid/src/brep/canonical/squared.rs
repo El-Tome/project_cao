@@ -192,6 +192,8 @@ fn direction(surface: &Surface) -> DVec3 {
         Surface::Cylinder(cylinder) => cylinder.axis,
         Surface::Cone(cone) => cone.axis,
         Surface::Elliptic(wall) => wall.axis,
+        Surface::Sphere(sphere) => sphere.axis,
+        Surface::Torus(torus) => torus.axis,
     }
 }
 
@@ -202,7 +204,11 @@ fn direction(surface: &Surface) -> DVec3 {
 fn major_half_axis(surface: &Surface) -> Option<DVec3> {
     match surface {
         Surface::Elliptic(wall) => Some(wall.u),
-        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => None,
+        Surface::Plane(_)
+        | Surface::Cylinder(_)
+        | Surface::Cone(_)
+        | Surface::Sphere(_)
+        | Surface::Torus(_) => None,
     }
 }
 

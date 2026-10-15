@@ -101,6 +101,12 @@ impl Torus {
         }
     }
 
+    /// The `(h, ρ)` of the point of the meridian circle the chart is
+    /// centred on: what the torus is built again through, moved or turned.
+    pub fn middle(&self) -> DVec2 {
+        self.round().meridian_point(self.seam)
+    }
+
     /// The torus's own normal at `at`, of unit length, the poles included:
     /// `∂θ × ∂φ` points along it, away from the meridian circle's centre.
     pub fn normal(&self, at: DVec2) -> DVec3 {

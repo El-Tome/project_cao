@@ -43,7 +43,7 @@ pub(super) fn hit(wall: &Surface, hub: DVec3, way: DVec3) -> Option<(DVec3, Take
             let at = from + pace * t;
             Some((hub + way * t, Taken::Angle(at.y.atan2(at.x))))
         }
-        Surface::Plane(_) | Surface::Cone(_) => None,
+        Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => None,
     }
 }
 
@@ -54,7 +54,9 @@ pub(super) fn grid(wall: &Surface, tolerance: f64) -> Vec<DVec3> {
     let steps = match wall {
         Surface::Cylinder(round) => divisions(round.radius, tolerance),
         Surface::Elliptic(oval) => divisions(oval.major, tolerance),
-        Surface::Plane(_) | Surface::Cone(_) => return Vec::new(),
+        Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => {
+            return Vec::new();
+        }
     };
     (0..steps)
         .map(|step| wall.point(DVec2::new(TAU * step as f64 / steps as f64, 0.0)))
@@ -83,6 +85,8 @@ pub(super) fn axis_of(wall: &Surface) -> (DVec3, DVec3) {
         Surface::Elliptic(oval) => (oval.origin, oval.axis),
         Surface::Plane(plane) => (plane.origin, plane.normal),
         Surface::Cone(cone) => (cone.origin, cone.axis),
+        Surface::Sphere(sphere) => (sphere.origin, sphere.axis),
+        Surface::Torus(torus) => (torus.origin, torus.axis),
     }
 }
 

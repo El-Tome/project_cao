@@ -57,6 +57,7 @@ pub(in crate::brep) fn traced(
     eps: f64,
 ) -> Result<Trace, Declined> {
     match (surface, curve) {
+        (Surface::Sphere(_) | Surface::Torus(_), _) => Err(Declined::Unfinished),
         (Surface::Plane(plane), Curve::Line(line)) => Ok(Trace::Segment {
             from: plane.parameters(line.point(from)),
             to: plane.parameters(line.point(to)),

@@ -40,7 +40,7 @@ pub(super) fn meet_and_surface(meet: &Meet, surface: &Surface, scale: Scale) -> 
             }
             Wall::Cylinder(_) => false,
         }),
-        Surface::Plane(_) | Surface::Cone(_) => false,
+        Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => false,
     };
     if along {
         return Solved::Along;
@@ -103,6 +103,8 @@ fn gradient(surface: &Surface, point: DVec3) -> DVec3 {
         }
         Surface::Cone(cone) => cone.normal(cone.parameters(point).x),
         Surface::Elliptic(wall) => wall.normal(wall.parameters(point).x),
+        Surface::Sphere(sphere) => sphere.normal(sphere.parameters(point)),
+        Surface::Torus(torus) => torus.normal(torus.parameters(point)),
     }
 }
 

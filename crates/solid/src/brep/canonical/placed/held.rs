@@ -83,7 +83,11 @@ impl Held {
 fn flats(body: &Body, near: (DVec3, DVec3), grown: f64) -> Vec<Plane> {
     let planes = body.surfaces.iter().filter_map(|surface| match surface {
         Surface::Plane(plane) => Some(*plane),
-        Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
+        Surface::Cylinder(_)
+        | Surface::Cone(_)
+        | Surface::Elliptic(_)
+        | Surface::Sphere(_)
+        | Surface::Torus(_) => None,
     });
     let circles = body
         .edges
@@ -102,6 +106,8 @@ fn axes(body: &Body) -> impl Iterator<Item = Straight> {
         Surface::Cylinder(cylinder) => Some((cylinder.origin, cylinder.axis)),
         Surface::Cone(cone) => Some((cone.origin, cone.axis)),
         Surface::Elliptic(wall) => Some((wall.origin, wall.axis)),
+        Surface::Sphere(sphere) => Some((sphere.origin, sphere.axis)),
+        Surface::Torus(torus) => Some((torus.origin, torus.axis)),
         Surface::Plane(_) => None,
     })
 }
@@ -115,7 +121,7 @@ fn walls(body: &Body) -> impl Iterator<Item = (Straight, Reach)> {
             Reach::Round(cylinder.radius),
         )),
         Surface::Elliptic(wall) => Some(((wall.origin, wall.axis), Reach::Oval(*wall))),
-        Surface::Plane(_) | Surface::Cone(_) => None,
+        Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => None,
     })
 }
 

@@ -93,7 +93,10 @@ fn a_conic_on_a_wall_a_hair_beside_its_own_is_seen_as_the_conic_that_wall_meets_
                     assert_eq!((seen.plane, seen.round), (plane, Round::Cylinder(wall)));
                 }
                 Surface::Plane(lifted) => assert_eq!(seen.plane, lifted),
-                Surface::Cone(_) | Surface::Elliptic(_) => unreachable!(),
+                Surface::Cone(_)
+                | Surface::Elliptic(_)
+                | Surface::Sphere(_)
+                | Surface::Torus(_) => unreachable!(),
             }
             let trace = trace.expect("seen");
             for (u, at) in [(0.0, from), (1.0, to)] {
@@ -169,7 +172,11 @@ fn slanted_top(body: &Body) -> FaceId {
     body.face_ids()
         .find(|&face| match body.surface(body.face(face).surface) {
             Surface::Plane(plane) => plane.normal.x != 0.0,
-            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => false,
+            Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => false,
         })
         .expect("the slanted top")
 }

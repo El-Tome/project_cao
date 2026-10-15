@@ -10,6 +10,7 @@ use crate::brep::{Circle, Curve, ListedEdge, Surface};
 use crate::soundness::listed::lying::point;
 use crate::soundness::listed::nappe::Nappe;
 use crate::soundness::listed::oval;
+use crate::soundness::listed::round::Tube;
 
 /// The area an edge run along its own way sweeps in a surface's parameters,
 /// and on a cylinder or a cone the angle it turns round the axis.
@@ -40,9 +41,16 @@ pub(super) fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3, room: f6
             let from = place - about;
             (from.dot(plane.u), from.dot(plane.v))
         }),
-        (Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), Curve::Line(_)) => {
-            (0.0, 0.0)
-        }
+        (
+            Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_),
+            Curve::Line(_),
+        ) => (0.0, 0.0),
+        (Surface::Sphere(sphere), _) => tube(&Tube::of_sphere(sphere), edge, about, room),
+        (Surface::Torus(torus), _) => tube(&Tube::of_torus(torus), edge, about, room),
         (Surface::Cylinder(cylinder), Curve::Circle(circle))
             if section(cylinder.origin, cylinder.axis, &circle, room) =>
         {
@@ -89,6 +97,28 @@ pub(super) fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3, room: f6
             })
         }
     }
+}
+
+/// What an edge sweeps on a sphere or a torus, in `(θ, φ)` with `φ`
+/// unrolled at the tube's radius from that of `about`: a latitude circle in
+/// closed form, a meridian circle nothing, since it turns no angle about
+/// the axis — never read along chords, which at a pole read an angle that
+/// is rounding — and anything else along chords.
+fn tube(tube: &Tube, edge: &ListedEdge, about: DVec3, room: f64) -> (f64, f64) {
+    let from = tube.phi(about);
+    let height = |place: DVec3| tube.tube() * (tube.phi(place) - from);
+    if let Curve::Circle(circle) = edge.curve {
+        if tube.holds_meridian(&circle, room) {
+            return (0.0, 0.0);
+        }
+        let (origin, axis) = tube.frame();
+        if section(origin, axis, &circle, room) {
+            let angle = (edge.to - edge.from) * axis.dot(circle.u.cross(circle.v)).signum();
+            let height = height(point(&edge.curve, edge.from));
+            return (-height * angle, angle);
+        }
+    }
+    around(edge, |place| (height(place), tube.angle(place)))
 }
 
 /// Whether a circle is a cross-section of a surface about the axis through

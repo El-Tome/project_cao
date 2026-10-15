@@ -64,6 +64,7 @@ pub(super) fn conic_and_surface(
             | Relation::Ruling { .. }
             | Relation::Unsupported => return Crossings::Unsupported,
         },
+        Surface::Sphere(_) | Surface::Torus(_) => return Crossings::Unsupported,
         Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
             match relation(&wall, surface, scale) {
                 Relation::Same { .. } => return Crossings::Along,

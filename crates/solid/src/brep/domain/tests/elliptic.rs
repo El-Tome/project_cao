@@ -94,7 +94,11 @@ fn a_place_of_an_elliptic_wall_is_located_against_its_face() {
         .face_ids()
         .find_map(|face| match body.surface(body.face(face).surface) {
             Surface::Elliptic(wall) => Some((face, *wall)),
-            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => None,
+            Surface::Plane(_)
+            | Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => None,
         })
         .expect("the slot's end is an elliptic wall");
     let at = |point: DVec3| wall.parameters(point);

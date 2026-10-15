@@ -12,6 +12,7 @@ use super::conic;
 use super::meet;
 use super::nappe::Nappe;
 use super::oval;
+use super::round::Tube;
 use crate::brep::{Curve, Listing, Surface};
 
 /// How many stretches an edge is cut into to be tried along its length: its
@@ -53,7 +54,11 @@ pub(super) fn lying(
         };
         let distance = match &listed.surface {
             Surface::Cone(cone) => Nappe::of(cone).apex().distance(listing.vertices[vertex]),
-            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => f64::INFINITY,
+            Surface::Plane(_)
+            | Surface::Cylinder(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => f64::INFINITY,
         };
         if !within(distance, room) {
             return Err(Mislisted::ApexAway {
@@ -118,6 +123,8 @@ fn off(surface: &Surface, place: DVec3) -> f64 {
             ((from - axis * from.dot(axis)).length() - cylinder.radius).abs()
         }
         Surface::Cone(cone) => Nappe::of(cone).off(place),
+        Surface::Sphere(sphere) => Tube::of_sphere(sphere).off(place),
+        Surface::Torus(torus) => Tube::of_torus(torus).off(place),
         Surface::Elliptic(wall) => {
             let from = place - wall.origin;
             oval::off(

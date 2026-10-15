@@ -23,6 +23,15 @@ impl Wall {
             Surface::Cylinder(cylinder) => (cylinder.origin, cylinder.axis, [cylinder.radius; 2]),
             Surface::Cone(cone) => (cone.origin, cone.axis, radii(cone, face)?),
             Surface::Elliptic(wall) => (wall.origin, wall.axis, [wall.minor, wall.major]),
+            Surface::Sphere(sphere) => (sphere.origin, sphere.axis, [0.0, sphere.radius]),
+            Surface::Torus(torus) => {
+                let (ring, tube) = (torus.center.y.abs(), torus.radius);
+                (
+                    torus.origin,
+                    torus.axis,
+                    [(ring - tube).max(0.0), ring + tube],
+                )
+            }
             Surface::Plane(_) => return None,
         };
         let [low, high] = reach(face, axis)?;

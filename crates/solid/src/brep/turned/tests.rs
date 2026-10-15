@@ -550,14 +550,14 @@ fn a_point_turned_whole_has_one_corner_at_its_tip_held_by_its_cone() {
     let [cone] = cones(&body)[..] else {
         panic!("one face lies on the cone");
     };
-    assert_eq!(body.face(cone).apex, Some(VertexId(0)));
+    assert_eq!(body.face(cone).poles, [VertexId(0)]);
     assert!(body.vertices[0].point.distance(DVec3::new(0.0, 10.0, 0.0)) <= 1e-12);
     assert_eq!(body.vertices[0].on, [body.face(cone).surface]);
     assert_eq!(faces_numbered(&body, 1), [cone]);
     let [disc] = faces_numbered(&body, 2)[..] else {
         panic!("one face answers to the base");
     };
-    assert_eq!(body.face(disc).apex, None);
+    assert!(body.face(disc).poles.is_empty());
 }
 
 #[test]
@@ -567,7 +567,7 @@ fn a_whole_point_s_listing_names_its_tip_as_a_vertex_of_its_cone() {
     let [cone] = cones(&body)[..] else {
         panic!("one face lies on the cone");
     };
-    assert_eq!(listing.faces[cone.0 as usize].apex, Some(0));
+    assert_eq!(listing.faces[cone.0 as usize].poles, [0]);
     assert_eq!(listing.vertices, [body.vertices[0].point]);
 }
 
@@ -597,7 +597,7 @@ fn a_point_turned_part_way_has_its_apex_as_a_corner_of_both_ends() {
     };
     assert_eq!(body.face(cone).loops.len(), 1);
     assert_eq!(body.face(cone).loops[0].len(), 3);
-    assert_eq!(body.face(cone).apex, None);
+    assert!(body.face(cone).poles.is_empty());
 }
 
 #[test]
@@ -696,7 +696,7 @@ fn a_whole_point_s_reach_and_bounds_hold_its_apex() {
     let [cone] = cones(&body)[..] else {
         panic!("one face lies on the cone");
     };
-    assert_eq!(body.apex_held(cone), Some(DVec3::new(0.0, 10.0, 0.0)));
+    assert_eq!(body.poles_held(cone), [DVec3::new(0.0, 10.0, 0.0)]);
 }
 
 #[test]
@@ -704,7 +704,7 @@ fn a_point_turned_part_way_holds_no_apex_beside_its_corner() {
     for degrees in [90.0, 180.0, 270.0] {
         let body = turned(&point(), degrees);
         assert!(
-            body.face_ids().all(|face| body.apex_held(face).is_none()),
+            body.face_ids().all(|face| body.poles_held(face).is_empty()),
             "at {degrees}°"
         );
     }
@@ -712,6 +712,6 @@ fn a_point_turned_part_way_holds_no_apex_beside_its_corner() {
     assert!(
         frustum
             .face_ids()
-            .all(|face| frustum.apex_held(face).is_none())
+            .all(|face| frustum.poles_held(face).is_empty())
     );
 }

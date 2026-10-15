@@ -80,7 +80,7 @@ pub(super) fn partial(
             flipped,
             loops: vec![lap],
             numbers: named.numbers.clone(),
-            apex: None,
+            poles: Vec::new(),
         });
     }
     (faces, openings, closings)

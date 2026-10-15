@@ -123,7 +123,7 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
                     .loops
                     .iter()
                     .any(|uses| passes(listing, uses, nappe.apex(), room));
-                let closed = listed.apex.is_some() || passed && winding.abs() == 1.0;
+                let closed = !listed.poles.is_empty() || passed && winding.abs() == 1.0;
                 floor(nappe, winding, closed, about).ok_or(Mislisted::Pointed { face })?
             }
             None => (0.0, 0.0),

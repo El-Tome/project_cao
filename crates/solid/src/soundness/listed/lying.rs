@@ -31,7 +31,7 @@ pub(super) fn lying(
         }
     }
     for (face, listed) in listing.faces.iter().enumerate() {
-        if let Some(vertex) = listed.apex {
+        for &vertex in &listed.poles {
             around[vertex].insert(face);
         }
     }
@@ -49,23 +49,27 @@ pub(super) fn lying(
     }
 
     for (face, listed) in listing.faces.iter().enumerate() {
-        let Some(vertex) = listed.apex else {
-            continue;
-        };
-        let distance = match &listed.surface {
-            Surface::Cone(cone) => Nappe::of(cone).apex().distance(listing.vertices[vertex]),
-            Surface::Plane(_)
-            | Surface::Cylinder(_)
-            | Surface::Elliptic(_)
-            | Surface::Sphere(_)
-            | Surface::Torus(_) => f64::INFINITY,
-        };
-        if !within(distance, room) {
-            return Err(Mislisted::ApexAway {
-                face,
-                vertex,
-                distance,
-            });
+        for &vertex in &listed.poles {
+            let place = listing.vertices[vertex];
+            let nearest = |poles: Vec<DVec3>| {
+                poles
+                    .into_iter()
+                    .map(|pole| pole.distance(place))
+                    .fold(f64::INFINITY, f64::min)
+            };
+            let distance = match &listed.surface {
+                Surface::Cone(cone) => Nappe::of(cone).apex().distance(place),
+                Surface::Sphere(sphere) => nearest(Tube::of_sphere(sphere).poles()),
+                Surface::Torus(torus) => nearest(Tube::of_torus(torus).poles()),
+                Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => f64::INFINITY,
+            };
+            if !within(distance, room) {
+                return Err(Mislisted::ApexAway {
+                    face,
+                    vertex,
+                    distance,
+                });
+            }
         }
     }
 

@@ -248,8 +248,7 @@ fn a_region_whose_point_stands_on_a_surface_its_boundary_runs_away_from_is_not_b
                     && (plane.offset().abs() - 5.0).abs() < 1e-9)
         })
         .expect("the bar's cap is there");
-    let (edges, overlay) =
-        parted(&arena, SurfaceId(wall as u32), false).expect("the wall is parted");
+    let (edges, overlay) = parted(&arena, SurfaceId(wall as u32), &[]).expect("the wall is parted");
     let geometry = &list[wall];
     let region = overlay
         .regions

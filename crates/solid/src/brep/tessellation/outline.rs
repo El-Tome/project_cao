@@ -79,7 +79,7 @@ impl Outline {
             }
             Surface::Cone(cone) => {
                 let steps = samples.steps(face.surface)?;
-                let apex = face.apex.map(|vertex| vertex.0 as usize);
+                let apex = face.poles.first().map(|vertex| vertex.0 as usize);
                 let eps = body.scale().eps();
                 outline.conical(cone, samples, &laps, steps, apex, eps)?;
             }

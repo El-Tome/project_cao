@@ -66,14 +66,14 @@ pub(super) fn laid(
             flipped: opening_flipped,
             loops: openings,
             numbers: vec![runs],
-            apex: None,
+            poles: Vec::new(),
         });
         faces.push(Face {
             surface: closing,
             flipped: closing_flipped,
             loops: closings,
             numbers: vec![runs + 1],
-            apex: None,
+            poles: Vec::new(),
         });
     }
     Ok((laying.body, faces))
@@ -170,7 +170,7 @@ fn whole(laying: &mut Laying, placed: &Placed, contour: &[Named], swept: &[Swept
                 .map(|ring| vec![ring])
                 .collect(),
             numbers: named.numbers.clone(),
-            apex: None,
+            poles: Vec::new(),
         });
     }
     faces

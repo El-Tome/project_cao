@@ -27,7 +27,7 @@ use super::overlay::{Overlay, Region};
 use super::surface::Surface;
 use super::topology::{Coedge, EdgeId, Face, SurfaceId};
 use numbers::numbers;
-use parted::{holds_an_apex, parted};
+use parted::{held_poles, parted};
 use twins::{Twin, twins};
 use wrapped::{Wrapped, collapsed, covering, wound};
 
@@ -42,7 +42,7 @@ pub(super) fn selected(
         .collect();
     let parted = carried
         .iter()
-        .map(|surface| parted(arena, *surface, holds_an_apex(operands, *surface)))
+        .map(|surface| parted(arena, *surface, &held_poles(operands, *surface)))
         .collect::<Result<Vec<_>, _>>()?;
     let seen: Vec<(&Surface, &[EdgeId], &Overlay)> = carried
         .iter()
@@ -296,7 +296,7 @@ fn face(
         flipped,
         loops,
         numbers,
-        apex: None,
+        poles: Vec::new(),
     }
 }
 

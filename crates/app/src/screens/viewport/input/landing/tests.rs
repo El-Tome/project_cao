@@ -147,3 +147,16 @@ fn the_middle_of_a_trait_carried_sideways_is_not_held_on_it_again() {
         "it stands on its trait by its own rule, not by where it was dropped"
     );
 }
+
+#[test]
+fn a_point_born_at_the_middle_of_a_trait_is_held_at_its_middle() {
+    let sketch = a_trait_and_a_circle();
+
+    assert_eq!(
+        born_at(&sketch, DVec2::new(20.0, 20.0)),
+        PointRef::Held {
+            at: DVec2::new(20.0, 20.0),
+            on: vec![Support::Middle(SegmentId(0))],
+        },
+    );
+}

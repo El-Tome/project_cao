@@ -799,6 +799,15 @@ to go on its own — a drag does not move it — and it follows the crossing
 wherever the two curves take it. If a value later drives them apart, the
 drawing says what it says of any rule it cannot honour.
 
+**Born at the middle of a trait**, it is held at the middle rather than merely
+on the trait: the midpoint mark shows at once, and when the trait changes
+length the point follows its middle — a line started from the middle of a side
+stays at the middle. The rule replaces the hold on the trait, since the middle
+is already on it. The middle is a birth's privilege: a point *dropped* there by
+a drag is held on the trait and nothing more. At a crossing that is also the
+middle of one of the two traits, the point is at the middle of that one and on
+the other.
+
 **Dropping a point on a trait holds it there too**, exactly as if it had been
 born on it. Only a point nothing held yet: one already sliding along its own
 trait would otherwise catch on the first crossing it went over. Dropping it on

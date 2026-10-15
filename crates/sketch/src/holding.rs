@@ -14,11 +14,14 @@ use crate::laid_from::LaidFrom;
 use crate::sketch::{CircleId, Element, PointId, SegmentId, Sketch};
 use crate::snap::onto_rim;
 
-/// What a point can be held on: a curve of the drawing, or one of the two
-/// axes its plane is counted from.
+/// What a point can be held on: a curve of the drawing, the middle of a
+/// trait, or one of the two axes its plane is counted from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Support {
     Segment(SegmentId),
+    /// The middle of a trait, which holds harder than the trait itself: the
+    /// point follows the middle when the trait changes length.
+    Middle(SegmentId),
     Circle(CircleId),
     Arc(ArcId),
     Ellipse(EllipseId),
@@ -34,6 +37,7 @@ impl Support {
                 segment,
                 from: LaidFrom::Nowhere,
             },
+            Self::Middle(segment) => Constraint::Midpoint { point, segment },
             Self::Circle(circle) => Constraint::OnCircle {
                 point,
                 circle,
@@ -78,7 +82,13 @@ impl Sketch {
         let on_traits = self
             .live_segments()
             .filter(|(id, _)| self.distance_to_segment(*id, place) <= near_enough)
-            .map(|(id, _)| Support::Segment(id));
+            .map(move |(id, _)| {
+                let (start, end) = self.endpoints(id);
+                match ((start + end) * 0.5).distance(place) <= near_enough {
+                    true => Support::Middle(id),
+                    false => Support::Segment(id),
+                }
+            });
         let on_circles = self
             .live_circles()
             .filter(|(_, circle)| {
@@ -113,9 +123,16 @@ impl Sketch {
     /// and holding it there would forbid that end from ever turning the trait
     /// again — while holding nothing, since a trait passes through its own
     /// ends whatever they do.
+    ///
+    /// The middle of a trait is a birth's privilege: a point dropped there by
+    /// a drag is held on the trait and nothing more.
     pub fn supports_for(&self, point: PointId, place: DVec2) -> Vec<Support> {
         self.supports_at(place)
             .into_iter()
+            .map(|support| match support {
+                Support::Middle(segment) => Support::Segment(segment),
+                support => support,
+            })
             .filter(|support| !self.drawn_from(*support, point))
             .collect()
     }
@@ -123,13 +140,30 @@ impl Sketch {
     /// Whether a curve is drawn from this very point.
     fn drawn_from(&self, support: Support, point: PointId) -> bool {
         let element = match support {
-            Support::Segment(segment) => Element::Segment(segment),
+            Support::Segment(segment) | Support::Middle(segment) => Element::Segment(segment),
             Support::Circle(circle) => Element::Circle(circle),
             Support::Arc(arc) => Element::Arc(arc),
             Support::Ellipse(ellipse) => Element::Ellipse(ellipse),
             Support::Axis(_) => return false,
         };
         self.points_it_leans_on(element).contains(&point)
+    }
+
+    /// Whether a rule holds a point on this trait — anywhere along it, or at
+    /// its middle.
+    pub(crate) fn held_on_trait(&self, point: PointId, segment: SegmentId) -> bool {
+        self.constraints().iter().any(|rule| match *rule {
+            Constraint::OnSegment {
+                point: held,
+                segment: on,
+                ..
+            }
+            | Constraint::Midpoint {
+                point: held,
+                segment: on,
+            } => held == point && on == segment,
+            _ => false,
+        })
     }
 
     /// What holds a point where it is.
@@ -205,6 +239,10 @@ impl Sketch {
                     let along = span / length;
                     start + along * (place - start).dot(along)
                 })
+            }
+            Support::Middle(segment) => {
+                let (start, end) = self.endpoints(segment);
+                Some((start + end) * 0.5)
             }
             Support::Circle(circle) => {
                 let round = self.circle(circle);

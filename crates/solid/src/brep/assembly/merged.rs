@@ -17,6 +17,8 @@
 use std::collections::BTreeMap;
 
 use crate::brep::curve::Curve;
+use crate::brep::domain::floor;
+use crate::brep::surface::Surface;
 use crate::brep::topology::{Coedge, Edge, EdgeId, Face, SurfaceId, Vertex, VertexId, ascending};
 
 /// A use of an edge: the face, the loop, the rank in the loop.
@@ -28,10 +30,12 @@ pub(super) fn merged(
     edges: &mut Vec<Edge>,
     curves: &[Curve],
     vertices: &[Vertex],
+    surfaces: &[Surface],
+    eps: f64,
     faces: Vec<Face>,
 ) -> Vec<Face> {
     let mut faces = unseamed(faces);
-    while let Some((at, [one, other])) = joint(edges, curves, vertices, &faces) {
+    while let Some((at, [one, other])) = joint(edges, curves, vertices, surfaces, eps, &faces) {
         let joined = joined(edges, curves, at, one, other);
         let rank = EdgeId(edges.len() as u32);
         edges.push(joined);
@@ -178,6 +182,8 @@ fn joint(
     edges: &[Edge],
     curves: &[Curve],
     vertices: &[Vertex],
+    surfaces: &[Surface],
+    eps: f64,
     faces: &[Face],
 ) -> Option<(VertexId, [EdgeId; 2])> {
     let used = uses(faces);
@@ -203,6 +209,15 @@ fn joint(
                 !beside.contains(surface) && faces.iter().any(|face| face.surface == *surface)
             })
         {
+            return None;
+        }
+        let point = vertices[vertex.0 as usize].point;
+        let at_a_pole = beside.iter().any(|surface| {
+            floor::poles_of(&surfaces[surface.0 as usize], eps)
+                .iter()
+                .any(|pole| pole.point.distance(point) <= eps)
+        });
+        if at_a_pole {
             return None;
         }
         let period = curves[first.curve.0 as usize].period();

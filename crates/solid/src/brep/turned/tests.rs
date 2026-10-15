@@ -9,6 +9,8 @@ use crate::brep::{EdgeId, FaceId, VertexId};
 use crate::soundness::{closed, listed, uncrossed};
 use crate::turning::{Axis, Corner};
 
+mod round;
+
 /// The sketch's plane, XY, its profile read away from the axis along X.
 fn ground() -> Frame {
     Frame {

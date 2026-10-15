@@ -31,9 +31,21 @@ pub(in crate::brep) struct Pole {
 /// surface, a cone's apex being read as its own floor. `eps` is a length,
 /// which the room along the meridian is read from at the tube's radius.
 pub(in crate::brep) fn poles_of(surface: &Surface, eps: f64) -> Vec<Pole> {
-    let (radius, lines): (f64, Vec<f64>) = match surface {
-        Surface::Sphere(sphere) => (sphere.radius, sphere.poles()),
-        Surface::Torus(torus) => (torus.radius, torus.poles()),
+    let (origin, axis, center, radius, lines): (DVec3, DVec3, f64, f64, Vec<f64>) = match surface {
+        Surface::Sphere(sphere) => (
+            sphere.origin,
+            sphere.axis,
+            sphere.center,
+            sphere.radius,
+            sphere.poles(),
+        ),
+        Surface::Torus(torus) => (
+            torus.origin,
+            torus.axis,
+            torus.center.x,
+            torus.radius,
+            torus.poles(),
+        ),
         Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
             return Vec::new();
         }
@@ -45,7 +57,7 @@ pub(in crate::brep) fn poles_of(surface: &Surface, eps: f64) -> Vec<Pole> {
             at,
             high: rank == 1,
             room: eps / radius,
-            point: surface.point(DVec2::new(0.0, at)),
+            point: origin + axis * (center + radius * at.sin()),
         })
         .collect()
 }
@@ -118,7 +130,7 @@ pub(in crate::brep) fn holds(loops: &[Vec<Trace>], pole: &Pole) -> bool {
     else {
         return loops.is_empty();
     };
-    let tiny = pole.room * ACROSS;
+    let tiny = pole.room;
     let crossings = heights(loops, place.x, true)
         .into_iter()
         .filter(|height| {
@@ -134,8 +146,7 @@ pub(in crate::brep) fn holds(loops: &[Vec<Trace>], pole: &Pole) -> bool {
 }
 
 /// Under this share of its pace, a trace runs along the meridian, and tells
-/// nothing of which side the face lies on; and this share of the room a
-/// trace's own crossing stands from its middle.
+/// nothing of which side the face lies on.
 const ACROSS: f64 = 1e-9;
 
 /// The loops with a stretch of the floor between each trace ending at the

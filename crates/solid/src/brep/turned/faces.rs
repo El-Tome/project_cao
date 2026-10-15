@@ -8,6 +8,7 @@
 //! off the axis, and no corner at all.
 
 mod partial;
+mod round;
 
 use std::f64::consts::TAU;
 
@@ -20,6 +21,29 @@ use crate::brep::piece::{Named, Piece};
 use crate::brep::surface::{Plane, Surface};
 use crate::brep::topology::{Body, Coedge, Face, SurfaceId};
 use partial::partial;
+use round::Round;
+
+impl Round {
+    /// The arc a piece is, if it is one.
+    fn of(piece: &Piece) -> Option<Round> {
+        match *piece {
+            Piece::Arc {
+                from,
+                to,
+                center,
+                radius,
+                sweep,
+            } => Some(Round {
+                from,
+                to,
+                center,
+                radius,
+                sweep,
+            }),
+            Piece::Straight { .. } | Piece::Oval { .. } => None,
+        }
+    }
+}
 
 /// The surface a piece of the profile turns into and whether the matter lies
 /// on the side its normal points to; none for a piece on the axis.
@@ -82,9 +106,15 @@ pub(super) fn laid(
 /// The planes a partial turn ends on, laid before every other surface so
 /// that no plane of the profile is taken for one of them: the sketch's own
 /// plane, and the plane the profile is turned onto. At a half turn they are
-/// one plane.
+/// one plane. Read on the corners and on the arcs' middles: a ball's
+/// corners all stand on the axis, which every end plane holds.
 fn ends(laying: &mut Laying, placed: &Placed, contours: &[Vec<Named>]) -> [(SurfaceId, bool); 2] {
-    let corners = || contours.iter().flatten().map(|named| named.piece.from());
+    let corners = || {
+        contours.iter().flatten().flat_map(|named| {
+            let middle = Round::of(&named.piece).map(|arc| arc.middle());
+            std::iter::once(named.piece.from()).chain(middle)
+        })
+    };
     let opening: Vec<DVec3> = corners().map(|corner| placed.opening(corner)).collect();
     let closing: Vec<DVec3> = corners().map(|corner| placed.closing(corner)).collect();
     let (plane, turned) = Plane::through(placed.origin, -placed.across);
@@ -103,8 +133,12 @@ fn ends(laying: &mut Laying, placed: &Placed, contours: &[Vec<Named>]) -> [(Surf
 /// Any other run is slanted, and turns into a cone whose matter, on the
 /// left of the run as the contour turns, lies on the side its normal points
 /// to where the run goes away from the axis — read along the cone's own
-/// axis, which a turn backwards points against the turn's.
+/// axis, which a turn backwards points against the turn's. An arc turns
+/// into a sphere or a torus ([`round`]).
 fn sweep(laying: &mut Laying, placed: &Placed, piece: &Piece) -> Result<Swept, Declined> {
+    if let Some(arc) = Round::of(piece) {
+        return Ok(Some(round::swept(laying, placed, &arc)));
+    }
     let Piece::Straight { from, to } = *piece else {
         return Err(Declined::Profile);
     };
@@ -138,13 +172,14 @@ fn sweep(laying: &mut Laying, placed: &Placed, piece: &Piece) -> Result<Swept, D
 
 /// The faces of one contour turned whole: each piece off the axis bounded by
 /// the whole circles its two ends turn along, those on the axis bounding
-/// nothing.
+/// nothing; a whole circle of the profile, which has no corner, one face
+/// with no loop.
 fn whole(laying: &mut Laying, placed: &Placed, contour: &[Named], swept: &[Swept]) -> Vec<Face> {
     let rings: Vec<Option<Coedge>> = contour
         .iter()
         .map(|named| {
             let corner = named.piece.from();
-            (corner.y > 0.0).then(|| {
+            (corner.y > 0.0 && !named.piece.is_ring()).then(|| {
                 laying.ring(
                     &placed.cylinder(corner),
                     placed.center(corner),

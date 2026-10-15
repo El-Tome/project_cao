@@ -18,6 +18,7 @@ mod lying;
 mod meet;
 mod nappe;
 mod oval;
+mod round;
 mod turning;
 
 /// What a listing says that its geometry does not bear out, and where: faces,

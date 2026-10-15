@@ -83,6 +83,8 @@ pub enum Relation {
 pub fn relation(one: &Surface, other: &Surface, scale: Scale) -> Relation {
     match (one, other) {
         (Surface::Plane(one), Surface::Plane(other)) => planar::planes(one, other, scale),
+        (Surface::Sphere(_) | Surface::Torus(_), _)
+        | (_, Surface::Sphere(_) | Surface::Torus(_)) => Relation::Unsupported,
         (Surface::Plane(plane), Surface::Cylinder(cylinder))
         | (Surface::Cylinder(cylinder), Surface::Plane(plane)) => {
             planar::plane_and_cylinder(plane, cylinder, scale)
@@ -135,7 +137,9 @@ pub(in crate::brep) fn at_a_slant(one: &Surface, other: &Surface, scale: Scale) 
         (Surface::Plane(_), Surface::Plane(_))
         | (Surface::Cylinder(_) | Surface::Cone(_), Surface::Cylinder(_) | Surface::Cone(_))
         | (Surface::Elliptic(_), _)
-        | (_, Surface::Elliptic(_)) => false,
+        | (_, Surface::Elliptic(_))
+        | (Surface::Sphere(_) | Surface::Torus(_), _)
+        | (_, Surface::Sphere(_) | Surface::Torus(_)) => false,
     }
 }
 

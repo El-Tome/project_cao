@@ -88,7 +88,7 @@ fn grown(moving: &Surface, feet: &[[DVec3; 2]], scale: Scale) -> Option<Surface>
                 ))
             })
         }
-        Surface::Plane(_) | Surface::Cone(_) => None,
+        Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => None,
     }
 }
 
@@ -111,6 +111,6 @@ fn translated(wall: &Surface, by: DVec3) -> Option<Surface> {
             round.radius,
         ))),
         Surface::Elliptic(oval) => Some(Surface::Elliptic(oval.moved(by))),
-        Surface::Plane(_) | Surface::Cone(_) => None,
+        Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => None,
     }
 }

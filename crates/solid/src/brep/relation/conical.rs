@@ -17,6 +17,7 @@ use crate::brep::surface::{Cone, Plane, Surface};
 pub(super) fn relation(cone: &Cone, other: &Surface, scale: Scale) -> Relation {
     match other {
         Surface::Plane(plane) => with_plane(cone, plane, scale),
+        Surface::Sphere(_) | Surface::Torus(_) => Relation::Unsupported,
         Surface::Cylinder(cylinder) if coaxial(cone, cylinder.origin, cylinder.axis, scale) => {
             met(cone, Meridian::Wall(cylinder.radius), scale)
         }

@@ -37,7 +37,11 @@ pub(super) fn offset(first: &Body, own: &EllipticCylinder, scale: Scale) -> Opti
         .iter()
         .filter_map(|surface| match surface {
             Surface::Elliptic(known) => hair_off(known, own, scale),
-            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => None,
+            Surface::Plane(_)
+            | Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => None,
         })
         .min_by(|one, other| one.0.total_cmp(&other.0))?;
     (distance > ROUNDING * scale.eps()).then_some(across)

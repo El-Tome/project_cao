@@ -265,8 +265,22 @@ fn grazes_at(one: &Surface, other: &Surface, on: DVec3) -> bool {
 fn grazes(one: &Surface, other: &Surface, on: DVec3, eps: f64) -> bool {
     let (one, other) = match (one, other) {
         (Surface::Cylinder(one), Surface::Cylinder(other)) => (one, other),
-        (Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_), _)
-        | (_, Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_)) => {
+        (
+            Surface::Plane(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_),
+            _,
+        )
+        | (
+            _,
+            Surface::Plane(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_),
+        ) => {
             return false;
         }
     };

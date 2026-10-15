@@ -31,6 +31,7 @@ mod elliptic;
 mod grazed;
 mod lying;
 mod meet;
+mod round;
 mod scan;
 mod section;
 
@@ -116,7 +117,15 @@ pub fn crossings_given(
         (Curve::Conic(conic), surface) => {
             return conic::conic_and_surface(conic, surface, scale, touching);
         }
-        (Curve::Meet(_), Surface::Cone(_)) => Solved::Unsupported,
+        (Curve::Line(line), Surface::Sphere(sphere)) => {
+            round::line_and_sphere(line, sphere, scale, touching)
+        }
+        (Curve::Line(line), Surface::Torus(torus)) => {
+            round::line_and_torus(line, torus, scale, touching)
+        }
+        (Curve::Meet(_), Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_)) => {
+            Solved::Unsupported
+        }
         (Curve::Line(line), Surface::Elliptic(wall)) => {
             elliptic::line_and_elliptic(line, wall, scale, touching)
         }

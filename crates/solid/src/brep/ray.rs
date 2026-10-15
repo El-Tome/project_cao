@@ -126,7 +126,7 @@ impl Body {
 
     /// Where the line through `origin` along the unit `direction` meets a
     /// face from the parameter `from` on, each crossing with one for coming
-    /// out of the matter there: twice at most.
+    /// out of the matter there: four times at most, on a torus.
     fn met(
         &self,
         face: FaceId,
@@ -135,14 +135,14 @@ impl Body {
         from: f64,
         eps: f64,
         boxes: Option<&Boxes>,
-    ) -> Result<[Option<Met>; 2], Declined> {
+    ) -> Result<[Option<Met>; 4], Declined> {
         let lying = self.face(face);
         let surface = self.surface(lying.surface);
         let found = match hits(surface, origin, direction, eps, self.scale) {
-            Hits::Along => return Ok([Some(Met::Doubtful), None]),
+            Hits::Along => return Ok([Some(Met::Doubtful), None, None, None]),
             Hits::At(found) => found,
         };
-        let mut met = [None, None];
+        let mut met = [None, None, None, None];
         for (slot, (at, normal)) in met
             .iter_mut()
             .zip(found)

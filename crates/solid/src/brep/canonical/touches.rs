@@ -169,7 +169,11 @@ impl Surfaces {
     ) -> Option<([usize; 2], Cylinder)> {
         let cylinder = match self.list[rank] {
             Surface::Cylinder(cylinder) => cylinder,
-            Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_) => return None,
+            Surface::Plane(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => return None,
         };
         let planes: Vec<(usize, Plane, bool)> = (0..self.list.len())
             .filter(|&other| other != rank && near(rank, other))
@@ -189,7 +193,9 @@ impl Surfaces {
                 Surface::Plane(_)
                 | Surface::Cylinder(_)
                 | Surface::Cone(_)
-                | Surface::Elliptic(_) => None,
+                | Surface::Elliptic(_)
+                | Surface::Sphere(_)
+                | Surface::Torus(_) => None,
             })
             .collect();
         for (index, &(one, plane, touches)) in planes.iter().enumerate() {

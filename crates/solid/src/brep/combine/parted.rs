@@ -36,7 +36,9 @@ impl Operands<'_> {
             let wall = match wall {
                 Surface::Cylinder(wall) => Wall::Round(wall),
                 Surface::Elliptic(wall) => Wall::Oval(wall),
-                Surface::Plane(_) | Surface::Cone(_) => continue,
+                Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => {
+                    continue;
+                }
             };
             let wall_id = SurfaceId(rank as u32);
             let planes: Vec<(SurfaceId, Plane)> = list
@@ -49,7 +51,9 @@ impl Operands<'_> {
                     Surface::Plane(_)
                     | Surface::Cylinder(_)
                     | Surface::Cone(_)
-                    | Surface::Elliptic(_) => None,
+                    | Surface::Elliptic(_)
+                    | Surface::Sphere(_)
+                    | Surface::Torus(_) => None,
                 })
                 .collect();
             for (index, &(one, first)) in planes.iter().enumerate() {

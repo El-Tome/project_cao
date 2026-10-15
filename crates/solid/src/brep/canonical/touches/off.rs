@@ -65,8 +65,14 @@ pub(super) fn off(
                 Some((plane.distance(wall.origin).abs() - wall.support(plane.normal)).abs())
             }
             (Surface::Plane(_), Surface::Plane(_)) => Some(0.0),
-            (Surface::Cone(_) | Surface::Elliptic(_), _)
-            | (_, Surface::Cone(_) | Surface::Elliptic(_)) => None,
+            (
+                Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_),
+                _,
+            )
+            | (
+                _,
+                Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_),
+            ) => None,
         },
         Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => {
             let (one, other) = (Wall::of(one)?, Wall::of(other)?);

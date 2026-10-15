@@ -24,6 +24,7 @@ use glam::DVec3;
 use super::Mislisted;
 use super::lying::point;
 use super::nappe::Nappe;
+use super::round::Tube;
 use crate::brep::{Curve, ListedEdge, Listing, Surface};
 use sweep::sweep;
 
@@ -51,8 +52,22 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
             Surface::Elliptic(wall) => (None, wall.minor),
             Surface::Cone(cone) => {
                 let nappe = Nappe::of(cone);
-                let widest = widest(listing, &listed.loops, &nappe);
+                let widest = widest(listing, &listed.loops, |place| nappe.radius(place));
                 (Some(nappe), widest)
+            }
+            Surface::Sphere(sphere) => {
+                let tube = Tube::of_sphere(sphere);
+                (
+                    None,
+                    widest(listing, &listed.loops, |place| tube.radius(place)),
+                )
+            }
+            Surface::Torus(torus) => {
+                let tube = Tube::of_torus(torus);
+                (
+                    None,
+                    widest(listing, &listed.loops, |place| tube.radius(place)),
+                )
             }
         };
         let about = listed
@@ -160,19 +175,21 @@ fn floor(nappe: &Nappe, winding: f64, holds: bool, about: DVec3) -> Option<(f64,
     Some((below * TAU * winding, -winding))
 }
 
-/// The largest distance from a cone's axis a face's edges reach, which
-/// unrolls the room into the cone's parameters no wider than it is anywhere.
-fn widest(listing: &Listing, loops: &[Vec<(usize, bool)>], nappe: &Nappe) -> f64 {
+/// The largest distance from the axis, as `radius` reads it, a face's edges
+/// reach, which unrolls the room into the surface's parameters no wider
+/// than it is anywhere.
+fn widest(listing: &Listing, loops: &[Vec<(usize, bool)>], radius: impl Fn(DVec3) -> f64) -> f64 {
     loops
         .iter()
         .flatten()
         .flat_map(|&(edge, _)| {
             let edge = &listing.edges[edge];
-            (0..=CHORDS).map(move |piece| {
+            (0..=CHORDS).map(|piece| {
                 let at = edge.from + (edge.to - edge.from) * piece as f64 / CHORDS as f64;
-                nappe.radius(point(&edge.curve, at))
+                point(&edge.curve, at)
             })
         })
+        .map(radius)
         .fold(0.0, f64::max)
 }
 

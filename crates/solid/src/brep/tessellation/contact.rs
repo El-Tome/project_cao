@@ -112,7 +112,11 @@ pub(super) fn walls(body: &Body) -> Vec<Wall> {
         .map(SurfaceId)
         .filter_map(|id| match body.surface(id) {
             Surface::Cylinder(cylinder) => Some((id, *cylinder)),
-            Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
+            Surface::Plane(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => None,
         })
         .collect();
     let mut next = body.surfaces.len() as u32;

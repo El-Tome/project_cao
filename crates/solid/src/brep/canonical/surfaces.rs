@@ -71,7 +71,11 @@ fn between(
 ) -> bool {
     let plane = match surface {
         Surface::Plane(plane) => plane,
-        Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => return false,
+        Surface::Cylinder(_)
+        | Surface::Cone(_)
+        | Surface::Elliptic(_)
+        | Surface::Sphere(_)
+        | Surface::Torus(_) => return false,
     };
     let rounding = scale.eps() * ROUNDING;
     let sides: Vec<f64> = alike
@@ -81,7 +85,11 @@ fn between(
                 let facing = known.normal.dot(plane.normal).signum();
                 Some(facing * known.offset() - plane.offset())
             }
-            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
+            Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => None,
         })
         .collect();
     sides.iter().any(|side| *side > rounding) && sides.iter().any(|side| *side < -rounding)
@@ -106,11 +114,19 @@ fn gap(one: &Surface, other: &Surface) -> f64 {
         }
         (Surface::Cone(one), Surface::Cone(other)) => apart_by(one, other),
         (Surface::Elliptic(one), Surface::Elliptic(other)) => one.gap(other),
-        (Surface::Plane(_), Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_))
-        | (Surface::Cylinder(_), Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_))
-        | (Surface::Cone(_), Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_))
-        | (Surface::Elliptic(_), Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_)) => {
-            f64::INFINITY
+        (Surface::Sphere(one), Surface::Sphere(other)) => {
+            one.middle().distance(other.middle()) + (one.radius - other.radius).abs()
         }
+        (Surface::Torus(one), Surface::Torus(other)) => {
+            let between = other.origin - one.origin;
+            let across = between - one.axis * one.axis.dot(between);
+            across.length() + one.center.distance(other.center) + (one.radius - other.radius).abs()
+        }
+        (Surface::Plane(_), _)
+        | (Surface::Cylinder(_), _)
+        | (Surface::Cone(_), _)
+        | (Surface::Elliptic(_), _)
+        | (Surface::Sphere(_), _)
+        | (Surface::Torus(_), _) => f64::INFINITY,
     }
 }

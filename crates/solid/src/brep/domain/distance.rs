@@ -12,10 +12,12 @@ use std::f64::consts::TAU;
 
 use glam::DVec2;
 
-use crate::brep::surface::{Cone, EllipticCylinder};
+use crate::brep::surface::{Cone, EllipticCylinder, Sphere, Torus};
 use crate::brep::trace::Trace;
 
-/// How a surface's parameters unroll into lengths.
+/// How a surface's parameters unroll into lengths: on a sphere or a torus
+/// the angle about the axis at the point's own distance from it, and the
+/// angle along the meridian at the tube's radius (#576).
 #[derive(Clone, Copy, Debug)]
 pub(super) enum Unrolling {
     /// A plane's, which are lengths already.
@@ -24,6 +26,8 @@ pub(super) enum Unrolling {
     Round(f64),
     Cone(Cone),
     Elliptic(EllipticCylinder),
+    Sphere(Sphere),
+    Torus(Torus),
 }
 
 impl Unrolling {
@@ -39,16 +43,31 @@ impl Unrolling {
             Unrolling::Round(radius) => Some(radius),
             Unrolling::Cone(cone) => Some(cone.radius_at(at.y).max(0.0)),
             Unrolling::Elliptic(wall) => Some(wall.speed(at.x)),
+            Unrolling::Sphere(sphere) => Some((sphere.radius * at.y.cos()).max(0.0)),
+            Unrolling::Torus(torus) => Some((torus.center.y + torus.radius * at.y.cos()).max(0.0)),
+        }
+    }
+
+    /// What the second parameter unrolls at: one where it is a length
+    /// already, the tube's radius where it is the angle along the meridian.
+    fn along(self) -> f64 {
+        match self {
+            Unrolling::Flat | Unrolling::Round(_) | Unrolling::Cone(_) | Unrolling::Elliptic(_) => {
+                1.0
+            }
+            Unrolling::Sphere(sphere) => sphere.radius,
+            Unrolling::Torus(torus) => torus.radius,
         }
     }
 }
 
 pub(super) fn distance(trace: &Trace, at: DVec2, unrolling: Unrolling) -> f64 {
     let radius = unrolling.radius_at(at);
+    let along = unrolling.along();
     match (*trace, radius) {
         (Trace::Segment { from, to }, None) => to_segment(at, from, to),
         (Trace::Segment { from, to }, Some(radius)) => {
-            let unrolled = |point: DVec2| DVec2::new(point.x * radius, point.y);
+            let unrolled = |point: DVec2| DVec2::new(point.x * radius, point.y * along);
             let turns = (((from.x + to.x) / 2.0 - at.x) / TAU).round();
             [-1.0, 0.0, 1.0]
                 .map(|more| DVec2::new(at.x + (turns + more) * TAU, at.y))
@@ -78,7 +97,7 @@ pub(super) fn distance(trace: &Trace, at: DVec2, unrolling: Unrolling) -> f64 {
                 at.distance(trace.start()).min(at.distance(trace.end()))
             }
         }
-        _ => sampled(trace, at, radius),
+        _ => sampled(trace, at, radius.map(|radius| (radius, along))),
     }
 }
 
@@ -99,13 +118,15 @@ fn to_segment(at: DVec2, from: DVec2, to: DVec2) -> f64 {
 /// sample at either end: closed in on beside the first alone, the place
 /// past the start the rim reaches only at its end was read a ten-thousandth
 /// of a turn off it (campaign seed 5571458568). Beside an end, both ends
-/// are closed in on.
-pub(super) fn sampled(trace: &Trace, at: DVec2, radius: Option<f64>) -> f64 {
+/// are closed in on. `scales` are what the angle and the second parameter
+/// unroll at, where the first is an angle.
+pub(super) fn sampled(trace: &Trace, at: DVec2, scales: Option<(f64, f64)>) -> f64 {
     const SAMPLES: usize = 64;
     let gap = |u: f64| {
         let mut gap = trace.at(u)[0] - at;
-        if let Some(radius) = radius {
+        if let Some((radius, along)) = scales {
             gap.x = (gap.x - TAU * (gap.x / TAU).round()) * radius;
+            gap.y *= along;
         }
         gap.length()
     };

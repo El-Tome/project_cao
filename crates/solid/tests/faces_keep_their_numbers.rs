@@ -269,6 +269,8 @@ fn names(body: &Body) -> Vec<(Vec<u32>, [i64; 3], bool)> {
                 Surface::Cylinder(cylinder) => (cylinder.axis, true),
                 Surface::Cone(cone) => (cone.axis, true),
                 Surface::Elliptic(wall) => (wall.axis, true),
+                Surface::Sphere(sphere) => (sphere.axis, true),
+                Surface::Torus(torus) => (torus.axis, true),
             };
             let facing = facing.round().as_i64vec3().to_array();
             (body.numbers(face).to_vec(), facing, curved)

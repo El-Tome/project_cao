@@ -8,6 +8,7 @@
 
 mod cone;
 mod elliptic;
+mod round;
 
 use std::f64::consts::PI;
 
@@ -33,7 +34,11 @@ impl Body {
         let surface = self.surface(lying.surface);
         let anchor = match surface {
             Surface::Cone(cone) => self.anchor(face, cone),
-            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => 0.0,
+            Surface::Plane(_)
+            | Surface::Cylinder(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => 0.0,
         };
         lying
             .loops
@@ -62,6 +67,9 @@ impl Body {
             }
             (Surface::Elliptic(wall), Ok(Trace::Segment { from, to })) => {
                 elliptic::straight(wall, from, to)
+            }
+            (Surface::Sphere(_) | Surface::Torus(_), Ok(Trace::Segment { from, to })) => {
+                round::Meridian::of(surface).and_then(|round| round.straight(anchor, from, to))
             }
             (
                 Surface::Elliptic(wall),
@@ -141,6 +149,8 @@ fn along(curve: &Curve, from: f64, to: f64, surface: &Surface, anchor: f64) -> f
                     Surface::Cylinder(cylinder) => radial(cylinder, point, speed),
                     Surface::Cone(cone) => cone::conical(cone, anchor, point, speed),
                     Surface::Elliptic(wall) => elliptic::density(wall, point, speed),
+                    Surface::Sphere(_) | Surface::Torus(_) => round::Meridian::of(surface)
+                        .map_or(0.0, |round| round.density(anchor, point, speed)),
                 };
                 total += weight * density * width / 2.0;
             }

@@ -136,7 +136,10 @@ fn a_circle_turned_with_its_wall_reads_its_angle_as_the_wall_does() {
             .filter_map(|surface| match surface {
                 Surface::Cylinder(cylinder) => Some((cylinder.axis, cylinder.u)),
                 Surface::Cone(cone) => Some((cone.axis, cone.u)),
-                Surface::Plane(_) | Surface::Elliptic(_) => None,
+                Surface::Plane(_)
+                | Surface::Elliptic(_)
+                | Surface::Sphere(_)
+                | Surface::Torus(_) => None,
             })
             .collect();
         for curve in &turned.curves {
@@ -172,6 +175,8 @@ fn a_direction_turned_within_rounding_of_an_anchor_is_laid_on_its_bits() {
             Surface::Cylinder(cylinder) => cylinder.axis,
             Surface::Cone(cone) => cone.axis,
             Surface::Elliptic(wall) => wall.axis,
+            Surface::Sphere(sphere) => sphere.axis,
+            Surface::Torus(torus) => torus.axis,
         })
         .collect();
     assert!(normals.contains(&DVec3::Z));

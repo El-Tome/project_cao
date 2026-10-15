@@ -36,7 +36,11 @@ impl Ends {
                 plane.normal.dot(circle.axis).abs() <= Scale::RELATIVE
                     && (plane.distance(circle.center).abs() - circle.radius).abs() <= eps
             }
-            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => false,
+            Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => false,
         };
         let own = eps * TOLD;
         let holds = |surface: &Surface| match surface {
@@ -46,6 +50,8 @@ impl Ends {
             }
             Surface::Cylinder(cylinder) => contact::lies_on(circle, cylinder, own),
             Surface::Cone(cone) => cone.holds(circle, own),
+            Surface::Sphere(sphere) => sphere.holds(circle, own) || sphere.meridian(circle, own),
+            Surface::Torus(torus) => torus.holds(circle, own) || torus.meridian(circle, own),
             Surface::Elliptic(_) => false,
         };
         let surfaces = |vertex: VertexId| {
@@ -125,9 +131,12 @@ impl Ends {
             Surface::Cylinder(wall) if wall.axis.cross(axis).length() <= Scale::RELATIVE => {
                 self.closes(side, wall, eps)
             }
-            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
-                true
-            }
+            Surface::Plane(_)
+            | Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => true,
         }
     }
 }

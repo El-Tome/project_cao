@@ -104,6 +104,8 @@ fn size(wall: &Surface) -> f64 {
     match wall {
         Surface::Cylinder(round) => round.radius,
         Surface::Elliptic(oval) => oval.major,
-        Surface::Plane(_) | Surface::Cone(_) => f64::INFINITY,
+        Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => {
+            f64::INFINITY
+        }
     }
 }

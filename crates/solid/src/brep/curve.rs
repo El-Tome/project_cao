@@ -121,7 +121,7 @@ impl Wall {
         match surface {
             Surface::Cylinder(cylinder) => Some(Wall::Cylinder(*cylinder)),
             Surface::Elliptic(wall) => Some(Wall::Elliptic(*wall)),
-            Surface::Plane(_) | Surface::Cone(_) => None,
+            Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => None,
         }
     }
 

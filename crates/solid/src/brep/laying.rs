@@ -75,10 +75,27 @@ impl Laying {
                         && known.axis.cross(wall.axis).length() <= Scale::RELATIVE
                         && known.gap(wall) <= eps
                 }
+                (Surface::Sphere(known), Surface::Sphere(sphere)) => {
+                    known.axis.dot(sphere.axis) > 0.0
+                        && known.axis.cross(sphere.axis).length() <= Scale::RELATIVE
+                        && known.middle().distance(sphere.middle())
+                            + (known.radius - sphere.radius).abs()
+                            <= eps
+                }
+                (Surface::Torus(known), Surface::Torus(torus)) => {
+                    known.axis.dot(torus.axis) > 0.0
+                        && known.axis.cross(torus.axis).length() <= Scale::RELATIVE
+                        && known.origin.distance(torus.origin)
+                            + known.center.distance(torus.center)
+                            + (known.radius - torus.radius).abs()
+                            <= eps
+                }
                 (Surface::Plane(_), _)
                 | (Surface::Cylinder(_), _)
                 | (Surface::Cone(_), _)
-                | (Surface::Elliptic(_), _) => false,
+                | (Surface::Elliptic(_), _)
+                | (Surface::Sphere(_), _)
+                | (Surface::Torus(_), _) => false,
             };
             alike
                 && corners

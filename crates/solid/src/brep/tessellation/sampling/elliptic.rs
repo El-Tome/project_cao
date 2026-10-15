@@ -47,7 +47,11 @@ pub(super) fn reached_by_planes(body: &Body, wall: &EllipticCylinder) -> Vec<f64
         .iter()
         .filter_map(|surface| match surface {
             Surface::Plane(plane) => Some(plane),
-            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
+            Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => None,
         })
         .filter(|plane| {
             plane.normal.dot(wall.axis).abs() <= Scale::RELATIVE

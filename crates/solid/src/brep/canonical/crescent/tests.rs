@@ -49,7 +49,11 @@ fn cylinders(body: &Body) -> Vec<Cylinder> {
         .iter()
         .filter_map(|surface| match surface {
             Surface::Cylinder(cylinder) => Some(*cylinder),
-            Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
+            Surface::Plane(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => None,
         })
         .collect()
 }
@@ -218,7 +222,11 @@ fn cones(body: &Body) -> Vec<Cone> {
         .iter()
         .filter_map(|surface| match surface {
             Surface::Cone(cone) => Some(*cone),
-            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => None,
+            Surface::Plane(_)
+            | Surface::Cylinder(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => None,
         })
         .collect()
 }

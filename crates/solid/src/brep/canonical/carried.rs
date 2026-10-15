@@ -23,7 +23,7 @@ use glam::DVec3;
 use crate::brep::conic::{Conic, Round};
 use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cone, Cylinder, Plane, Surface};
+use crate::brep::surface::{Cone, Cylinder, Plane, Sphere, Surface, Torus};
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
 use kept::kept;
 
@@ -109,13 +109,14 @@ fn beside(body: &Body, edge: EdgeId) -> Vec<usize> {
 
 /// Whether a move leaves a surface where it is: along a plane, or along a
 /// cylinder's or an elliptic wall's axis; a cone, which a move along its
-/// axis takes its apex with, only under no move at all.
+/// axis takes its apex with, a sphere or a torus, only under no move at
+/// all.
 fn slides(surface: &Surface, by: DVec3, scale: Scale) -> bool {
     let off = match surface {
         Surface::Plane(plane) => plane.normal.dot(by).abs(),
         Surface::Cylinder(cylinder) => (by - cylinder.axis * cylinder.axis.dot(by)).length(),
         Surface::Elliptic(wall) => (by - wall.axis * wall.axis.dot(by)).length(),
-        Surface::Cone(_) => by.length(),
+        Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => by.length(),
     };
     off <= ROUNDING * scale.eps()
 }
@@ -196,6 +197,19 @@ fn shifted(surface: &Surface, by: DVec3) -> Surface {
         Surface::Cylinder(cylinder) => Surface::Cylinder(shifted_cylinder(cylinder, by)),
         Surface::Cone(cone) => Surface::Cone(shifted_cone(cone, by)),
         Surface::Elliptic(wall) => Surface::Elliptic(wall.moved(by)),
+        Surface::Sphere(sphere) => Surface::Sphere(Sphere::through(
+            sphere.origin + by,
+            sphere.axis,
+            sphere.center,
+            sphere.radius,
+        )),
+        Surface::Torus(torus) => Surface::Torus(Torus::through(
+            torus.origin + by,
+            torus.axis,
+            torus.center,
+            torus.radius,
+            torus.middle(),
+        )),
     }
 }
 

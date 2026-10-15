@@ -72,6 +72,7 @@ pub(super) fn beside(
         Surface::Cylinder(wall) => (Conic::cut(plane, &Round::Cylinder(*wall), scale), On::Wall),
         Surface::Cone(wall) => (Conic::cut(plane, &Round::Cone(*wall), scale), On::Wall),
         Surface::Elliptic(wall) => (Conic::cut(plane, &Round::Elliptic(*wall), scale), On::Wall),
+        Surface::Sphere(_) | Surface::Torus(_) => return None,
     };
     let middle = curve.point((from + to) / 2.0);
     let off = |conic: &Conic, at: f64| {
@@ -136,9 +137,11 @@ pub(super) fn chord(
     Ok(Trace::Segment {
         from,
         to: match surface {
-            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
-                DVec2::new(unwrapped(to.x, from.x), to.y)
-            }
+            Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => DVec2::new(unwrapped(to.x, from.x), to.y),
             Surface::Plane(_) => to,
         },
     })

@@ -78,8 +78,8 @@ pub(in crate::brep::selection) fn stands_above(
                 (gap.abs() > rounding).then_some(gap > 0.0)
             }
             (Surface::Cylinder(_), Surface::Plane(_))
-            | (Surface::Elliptic(_), _)
-            | (_, Surface::Elliptic(_)) => None,
+            | (Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_), _)
+            | (_, Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_)) => None,
             (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
                 measured(first, second, place, rounding)
             }
@@ -112,8 +112,10 @@ fn touching_above(first: &Surface, second: &Surface) -> Option<bool> {
             Some(outside <= inside || second.radius > first.radius)
         }
         (Surface::Plane(_), Surface::Plane(_))
-        | (Surface::Cone(_) | Surface::Elliptic(_), _)
-        | (_, Surface::Cone(_) | Surface::Elliptic(_)) => None,
+        | (Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_), _)
+        | (_, Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_)) => {
+            None
+        }
     }
 }
 
@@ -143,7 +145,10 @@ fn across_the_lobe(
             let [one, other] = lines.map(|line| wall.parameters(line.origin).x);
             wall.point(DVec2::new(middle_of_the_lobe(at.x, [one, other]), at.y))
         }
-        (Surface::Plane(_) | Surface::Cone(_), Surface::Plane(_) | Surface::Cone(_)) => {
+        (
+            Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_),
+            Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_),
+        ) => {
             return None;
         }
     };
@@ -162,8 +167,10 @@ fn across_the_lobe(
             Some(plane.distance(middle) * plane.distance(wall.origin) > 0.0)
         }
         (Surface::Plane(_), Surface::Plane(_))
-        | (Surface::Cone(_) | Surface::Elliptic(_), _)
-        | (_, Surface::Cone(_) | Surface::Elliptic(_)) => None,
+        | (Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_), _)
+        | (_, Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_)) => {
+            None
+        }
     }
 }
 
@@ -185,6 +192,8 @@ fn nearest(surface: &Surface, place: DVec3) -> DVec3 {
         Surface::Cylinder(cylinder) => beside(cylinder, place),
         Surface::Cone(cone) => cone.nearest(place),
         Surface::Elliptic(wall) => wall.nearest(place),
+        Surface::Sphere(sphere) => sphere.nearest(place),
+        Surface::Torus(torus) => torus.nearest(place),
     }
 }
 

@@ -79,6 +79,8 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
             Surface::Cylinder(cylinder) => cylinder.axis,
             Surface::Cone(cone) => cone.axis,
             Surface::Elliptic(wall) => wall.axis,
+            Surface::Sphere(sphere) => sphere.axis,
+            Surface::Torus(torus) => torus.axis,
             Surface::Plane(_) => continue,
         };
         directions.extend(straight_edges(edged).map(|along| axis.cross(along)));
@@ -110,7 +112,11 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
                 Surface::Cone(cone) => {
                     in_the_hollow(cone, nappe, face, room) || beyond(cone, face, room)
                 }
-                Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => false,
+                Surface::Plane(_)
+                | Surface::Cylinder(_)
+                | Surface::Elliptic(_)
+                | Surface::Sphere(_)
+                | Surface::Torus(_) => false,
             })
 }
 
@@ -143,6 +149,8 @@ fn offered(surface: &Surface) -> DVec3 {
         Surface::Cylinder(cylinder) => cylinder.axis,
         Surface::Cone(cone) => cone.axis,
         Surface::Elliptic(wall) => wall.axis,
+        Surface::Sphere(sphere) => sphere.axis,
+        Surface::Torus(torus) => torus.axis,
     }
 }
 

@@ -542,7 +542,11 @@ fn deepest_of_any_wall(body: &Body, triangles: &[[DVec3; 3]]) -> f64 {
         .iter()
         .filter_map(|surface| match surface {
             Surface::Cylinder(cylinder) => Some(*cylinder),
-            Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
+            Surface::Plane(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => None,
         })
         .collect();
     triangles
@@ -594,7 +598,11 @@ fn widest_in_steps(body: &Body, triangles: &[[DVec3; 3]], tolerance: f64) -> f64
         .iter()
         .filter_map(|surface| match surface {
             Surface::Cylinder(cylinder) => Some(*cylinder),
-            Surface::Plane(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
+            Surface::Plane(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => None,
         })
         .collect();
     let mut widest = 0.0f64;

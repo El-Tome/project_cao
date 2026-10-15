@@ -300,6 +300,13 @@ impl Drawing {
                 .iter()
                 .map(|&[low, high]| [-high, -low])
                 .collect(),
+            bowed: section
+                .bowed
+                .iter()
+                .map(|&[low, high]| {
+                    [high, low].map(|[along, away, radius]| [along, -away, -radius])
+                })
+                .collect(),
             holes: section
                 .holes
                 .iter()

@@ -6,14 +6,19 @@
 //! square to the axis at the rectangle's ends, between the two cylinders of
 //! its radii, and on the near side of the two planes through the axis the
 //! turn starts and ends on. A trapezoid whose edges slope (#536) is the same
-//! slab between two cones rather than two cylinders. The leaf holds the
-//! union of its pieces.
+//! slab between two cones rather than two cylinders. An edge that bows
+//! (#576) bounds the slab by a sphere or a torus instead: the matter under
+//! an arc on the upper branch of its circle is the cylinder of its centre's
+//! radius joined to the tube, and under one on the lower branch that
+//! cylinder with the tube taken out, the other way round above the arc. The
+//! leaf holds the union of its pieces.
 
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 use glam::{DVec2, DVec3};
 
-use super::along::{Crossing, Seen, Stretch, cone, far, meet, outside, ring, slab, union};
+use super::along::{Crossing, Seen, Stretch, cone, disc, far, meet, outside, ring, slab, union};
+use super::rounds::{Bow, tube};
 use super::sections::{Axis, Piece, Section};
 use super::{Leaf, Plane};
 
@@ -158,7 +163,9 @@ impl Turned {
                 let Some(slab) = slab(&seen, piece.along[0] - by, piece.along[1] + by) else {
                     continue;
                 };
-                let within = if piece.is_level() {
+                let within = if piece.is_bowed() {
+                    meet(&round_shell(&seen, piece, by), &[slab])
+                } else if piece.is_level() {
                     let annulus = ring(&seen, DVec2::ZERO, piece.away[1] + by, piece.away[0] - by);
                     meet(&[slab], &annulus)
                 } else {
@@ -191,9 +198,11 @@ impl Turned {
     }
 
     /// The lowest and the highest corner of the box the leaf spans: each
-    /// piece's outer radius at both of its ends, at both ends of the turn
-    /// and wherever in between it goes furthest along a world axis, and its
-    /// inner radius at both of its ends and both ends of the turn.
+    /// piece's outer radius at both of its ends, and at the bulge of its
+    /// outer edge where that bows outwards, at both ends of the turn and
+    /// wherever in between it goes furthest along a world axis, and its
+    /// inner radius at both of its ends, and at the bulge of its inner edge
+    /// where that bows inwards, at both ends of the turn.
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
         let mut points = Vec::new();
         for piece in self.section.pieces() {
@@ -215,13 +224,27 @@ impl Turned {
                     }
                 }
             }
-            for (along, [inner, outer]) in
-                [(piece.along[0], piece.away), (piece.along[1], piece.ending)]
-            {
+            let mut profile = vec![
+                (piece.along[0], piece.away[1], false),
+                (piece.along[1], piece.ending[1], false),
+                (piece.along[0], piece.away[0], true),
+                (piece.along[1], piece.ending[0], true),
+            ];
+            for (edge, inwards) in [(1, false), (0, true)] {
+                if let Some(bow) = piece.bows[edge] {
+                    let bulge = bow.extreme(piece.chord(edge));
+                    if (bow.radius < 0.0) == inwards
+                        && piece.along[0] < bulge.x
+                        && bulge.x < piece.along[1]
+                    {
+                        profile.push((bulge.x, bulge.y, inwards));
+                    }
+                }
+            }
+            for (along, radius, at_the_ends) in profile {
                 for &(turn, end) in &turns {
-                    points.push(self.point(piece.side, along, outer, turn));
-                    if end {
-                        points.push(self.point(piece.side, along, inner, turn));
+                    if end || !at_the_ends {
+                        points.push(self.point(piece.side, along, radius, turn));
                     }
                 }
             }
@@ -280,6 +303,96 @@ fn shell(seen: &Seen, piece: &Piece, by: f64) -> Vec<Stretch> {
         &walls,
         &ring(seen, DVec2::ZERO, furthest + by, nearest - by),
     )
+}
+
+/// Where the line lies inside a piece an edge of which bows, each wall
+/// moved out by `by`: under its outer edge and above its inner one, each a
+/// sphere, a torus, a cone or a cylinder. An arc moved out keeps its centre
+/// and takes `by` on its radius, towards the matter's outside; where the
+/// circle moved in no longer reaches, the cylinder of its centre's radius
+/// bounds the matter, and the piece beside it, moved out too, covers the
+/// rest. Grown, the piece is held besides to the annulus its radii span
+/// moved out by `by`, as a sloped one is.
+fn round_shell(seen: &Seen, piece: &Piece, by: f64) -> Vec<Stretch> {
+    let at = piece.along[0];
+    let outer = match piece.bows[1] {
+        Some(bow) => under(seen, bow, by),
+        None => {
+            let slope = piece.slopes()[1];
+            cone(
+                seen,
+                at,
+                piece.away[1] + by * (1.0 + slope * slope).sqrt(),
+                slope,
+            )
+        }
+    };
+    let inner = match piece.bows[0] {
+        Some(bow) => over(seen, bow, by),
+        None => {
+            let slope = piece.slopes()[0];
+            let normal = by * (1.0 + slope * slope).sqrt();
+            let (inner_at, inner_end) = (piece.away[0] - normal, piece.ending[0] - normal);
+            if inner_at <= 0.0 && inner_end <= 0.0 {
+                everywhere()
+            } else {
+                outside(&cone(seen, at, inner_at, slope))
+            }
+        }
+    };
+    let walls = meet(&outer, &inner);
+    if by <= 0.0 {
+        return walls;
+    }
+    let (nearest, furthest) = (
+        piece.at(piece.along[0])[0]
+            .min(piece.at(piece.along[1])[0])
+            .min(piece.bows[0].map_or(f64::INFINITY, |bow| bow.extreme(piece.chord(0)).y)),
+        piece.at(piece.along[0])[1]
+            .max(piece.at(piece.along[1])[1])
+            .max(piece.bows[1].map_or(0.0, |bow| bow.extreme(piece.chord(1)).y)),
+    );
+    meet(
+        &walls,
+        &ring(seen, DVec2::ZERO, furthest + by, nearest - by),
+    )
+}
+
+fn everywhere() -> Vec<Stretch> {
+    vec![Stretch {
+        from: far(f64::NEG_INFINITY),
+        to: far(f64::INFINITY),
+    }]
+}
+
+/// Where the line lies no further from the axis than an edge bowed along
+/// `bow`, the arc moved out by `by`: under the upper branch of the circle,
+/// inside the cylinder of the centre's radius or inside the tube; under the
+/// lower one, inside that cylinder and outside the tube.
+fn under(seen: &Seen, bow: Bow, by: f64) -> Vec<Stretch> {
+    let radius = bow.radius.abs() + bow.bulge() * by;
+    let cylinder = disc(seen, DVec2::ZERO, bow.center.y);
+    let tube = tube(seen, bow.center, radius);
+    if bow.radius > 0.0 {
+        union([cylinder, tube].concat())
+    } else {
+        meet(&cylinder, &outside(&tube))
+    }
+}
+
+/// Where the line lies no nearer the axis than an edge bowed along `bow`,
+/// the arc moved out by `by`: above the upper branch of the circle, outside
+/// the cylinder of the centre's radius and outside the tube; above the
+/// lower one, outside that cylinder or inside the tube.
+fn over(seen: &Seen, bow: Bow, by: f64) -> Vec<Stretch> {
+    let radius = bow.radius.abs() - bow.bulge() * by;
+    let cylinder = outside(&disc(seen, DVec2::ZERO, bow.center.y));
+    let tube = tube(seen, bow.center, radius);
+    if bow.radius > 0.0 {
+        meet(&cylinder, &outside(&tube))
+    } else {
+        union([cylinder, tube].concat())
+    }
 }
 
 /// What two pieces of either side of the axis sweep per radian in common,

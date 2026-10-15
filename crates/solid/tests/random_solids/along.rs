@@ -281,7 +281,7 @@ pub(super) fn clipped(seen: &Seen, low: DVec2, high: DVec2, walled: Option<usize
 
 /// The line against a disc: the two roots of a quadratic, worked out so that
 /// neither loses its digits to the other.
-fn disc(seen: &Seen, center: DVec2, radius: f64) -> Vec<Stretch> {
+pub(super) fn disc(seen: &Seen, center: DVec2, radius: f64) -> Vec<Stretch> {
     if radius <= 0.0 {
         return Vec::new();
     }

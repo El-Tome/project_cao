@@ -7,7 +7,7 @@ use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
 use super::conic::Conic;
-use super::surface::{Cylinder, EllipticCylinder, Surface, canonical_direction};
+use super::surface::{Cylinder, EllipticCylinder, Surface, canonical_direction, reference};
 
 /// The line through `origin`, its point nearest the world's origin, along
 /// `direction`, of unit length and with its sign fixed. Its parameter is the
@@ -80,6 +80,21 @@ impl Circle {
             radius: cylinder.radius,
             u: cylinder.u,
             v: cylinder.v,
+        }
+    }
+
+    /// The circle about `center` in the plane square to `axis`, canonical:
+    /// its axis with its sign fixed, its angle read from the reference every
+    /// surface of that axis reads from (#576).
+    pub fn about(center: DVec3, axis: DVec3, radius: f64) -> Circle {
+        let (axis, _) = canonical_direction(axis);
+        let u = reference(axis);
+        Circle {
+            center,
+            axis,
+            radius,
+            u,
+            v: axis.cross(u),
         }
     }
 

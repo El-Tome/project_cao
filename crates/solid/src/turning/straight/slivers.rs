@@ -13,11 +13,15 @@ use super::{next, previous};
 /// Each slanted run whose end the run beyond it brings back to within
 /// `tolerance` of it, cut short where that run ends: its end laid on that
 /// corner, so the run back is laid to no length. Read from either end of the
-/// slant, and once, in the order of the corners.
-pub(super) fn cut_short(laid: &mut [DVec2], rings: &[Range<usize>], tolerance: f64) {
+/// slant, and once, in the order of the corners; never beside an arc, which
+/// `bent` names by the corner it leaves.
+pub(super) fn cut_short(laid: &mut [DVec2], rings: &[Range<usize>], tolerance: f64, bent: &[bool]) {
     for ring in rings {
         for end in ring.clone() {
             let (before, after) = (previous(ring, end), next(ring, end));
+            if bent[before] || bent[end] {
+                continue;
+            }
             for (far, back) in [(before, after), (after, before)] {
                 let (from, to, corner) = (laid[far], laid[end], laid[back]);
                 if corner != from

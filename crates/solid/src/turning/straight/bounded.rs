@@ -302,6 +302,7 @@ fn corners(along: &[f64], edges: &[Edge]) -> Vec<Corner> {
             corners.push(Corner {
                 at: at(edge.from),
                 run: edge.number,
+                bend: None,
             });
         }
     }

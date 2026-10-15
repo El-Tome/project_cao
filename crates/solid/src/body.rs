@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::brep::{Declined, Unstable};
 use crate::mesh::{Mesh, Polygon};
-use crate::profile::{Frame, Profile};
+use crate::profile::{Frame, Profile, Run};
 use crate::sweep;
 use crate::turning::{Lie, Straight, Turn};
 use exact::Exact;
@@ -313,6 +313,15 @@ impl Body {
         let (Matter::Exact(exact), Some((outline, holes))) = (&self.matter, &profile.exact) else {
             return None;
         };
+        // The exact kernel turns an arc (#576), but the step that hands it one
+        // is the last of the issue: until it lands, the flats turn every arc,
+        // and every part keeps the faces it has today.
+        if std::iter::once(outline)
+            .chain(holes)
+            .any(|contour| contour.runs.iter().any(|run| *run != Run::Straight))
+        {
+            return None;
+        }
         Straight::of(outline, holes, frame, turn, exact.reach())
     }
 

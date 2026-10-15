@@ -21,19 +21,30 @@ pub(super) type Run = (usize, usize);
 /// Whether the laid profile touches itself only where the profile as read
 /// already did, to `eps`, and meets no slanted run but at its ends.
 /// `contours` are the runs of each contour in order, each beginning where the
-/// one before it ends.
+/// one before it ends; an arc, which `bent` names by the corner it leaves, is
+/// read by neither rule, its own being [`super::bends`]'s.
 pub(super) fn are_drawn(
     laid: &[DVec2],
     read: &[DVec2],
     contours: &[Vec<Run>],
+    bent: &[bool],
     eps: f64,
     tolerance: f64,
 ) -> bool {
-    let runs: Vec<Run> = contours.iter().flatten().copied().collect();
+    let straight = |run: &Run| !bent[run.0];
+    let runs: Vec<Run> = contours
+        .iter()
+        .flatten()
+        .copied()
+        .filter(straight)
+        .collect();
     let turns_back = contours.iter().any(|contour| {
         (0..contour.len()).any(|index| {
             let (from, to) = contour[index];
             let (_, beyond) = contour[(index + 1) % contour.len()];
+            if bent[from] || bent[to] {
+                return false;
+            }
             let (before, after) = (laid[to] - laid[from], laid[beyond] - laid[to]);
             before.perp_dot(after) == 0.0 && before.dot(after) < 0.0
         })
@@ -43,7 +54,8 @@ pub(super) fn are_drawn(
             .iter()
             .any(|&second| overlap(laid, first, second) || cross(laid, first, second))
     });
-    let touches = runs.iter().any(|&(corner, _)| {
+    let corners = contours.iter().flatten().map(|&(corner, _)| corner);
+    let touches = corners.clone().any(|corner| {
         runs.iter().any(|&(from, to)| {
             corner != from
                 && corner != to

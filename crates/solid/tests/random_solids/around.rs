@@ -202,11 +202,14 @@ impl Turned {
     /// outer edge where that bows outwards, at both ends of the turn and
     /// wherever in between it goes furthest along a world axis, and its
     /// inner radius at both of its ends, and at the bulge of its inner edge
-    /// where that bows inwards, at both ends of the turn.
+    /// where that bows inwards, at both ends of the turn. A bulge is read
+    /// off the arc as drawn, not as the pieces lay it: a centre a hair off
+    /// the axis is laid on it, and the flats turn the arc about the centre
+    /// it was drawn with, a hair further out.
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
         let mut points = Vec::new();
-        for piece in self.section.pieces() {
-            let swept = self.swept(piece.side);
+        let turns = |side: f64| {
+            let swept = self.swept(side);
             let mut turns: Vec<(DVec2, bool)> = Vec::new();
             if !self.is_whole() {
                 turns.push((DVec2::X, true));
@@ -224,27 +227,43 @@ impl Turned {
                     }
                 }
             }
-            let mut profile = vec![
-                (piece.along[0], piece.away[1], false),
-                (piece.along[1], piece.ending[1], false),
-                (piece.along[0], piece.away[0], true),
-                (piece.along[1], piece.ending[0], true),
-            ];
-            for (edge, inwards) in [(1, false), (0, true)] {
-                if let Some(bow) = piece.bows[edge] {
-                    let bulge = bow.extreme(piece.chord(edge));
-                    if (bow.radius < 0.0) == inwards
-                        && piece.along[0] < bulge.x
-                        && bulge.x < piece.along[1]
-                    {
-                        profile.push((bulge.x, bulge.y, inwards));
+            turns
+        };
+        for piece in self.section.pieces() {
+            let turns = turns(piece.side);
+            for (along, [inner, outer]) in
+                [(piece.along[0], piece.away), (piece.along[1], piece.ending)]
+            {
+                for &(turn, end) in &turns {
+                    points.push(self.point(piece.side, along, outer, turn));
+                    if end {
+                        points.push(self.point(piece.side, along, inner, turn));
                     }
                 }
             }
-            for (along, radius, at_the_ends) in profile {
-                for &(turn, end) in &turns {
-                    if end || !at_the_ends {
-                        points.push(self.point(piece.side, along, radius, turn));
+        }
+        if let Some(side) = self.section.side().filter(|_| self.section.bows()) {
+            let turns = turns(side);
+            for trapezoid in self.section.trapezoids() {
+                for (edge, chord) in [(0, trapezoid.low), (1, trapezoid.high)] {
+                    let Some(bow) = trapezoid.bows[edge] else {
+                        continue;
+                    };
+                    let bulge = bow.extreme([
+                        DVec2::new(trapezoid.along[0], chord[0]),
+                        DVec2::new(trapezoid.along[1], chord[1]),
+                    ]);
+                    let outer = (edge == 1) == (side > 0.0);
+                    if outer != (bow.bulge() == side)
+                        || bulge.x <= trapezoid.along[0]
+                        || trapezoid.along[1] <= bulge.x
+                    {
+                        continue;
+                    }
+                    for &(turn, end) in &turns {
+                        if end || outer {
+                            points.push(self.point(side, bulge.x, bulge.y.abs(), turn));
+                        }
                     }
                 }
             }

@@ -11,7 +11,7 @@
 
 use std::f64::consts::TAU;
 
-use crate::brep::{Arm, Curve, Listing};
+use crate::brep::{Arm, Curve, ListedFace, Listing, Surface};
 
 mod conic;
 mod lying;
@@ -47,7 +47,8 @@ pub enum Mislisted {
     /// An edge no face uses, which bounds nothing.
     Unused { edge: usize },
     /// A face with no loop round it: a whole plane or a whole cylinder, which
-    /// no solid is bounded by.
+    /// no solid is bounded by. A whole sphere or torus is, holding every pole
+    /// of its surface.
     Unbounded { face: usize },
     /// A use that does not start where the one before it in its loop ends,
     /// or a whole closed curve sharing its loop with another use.
@@ -178,9 +179,10 @@ fn uses(listing: &Listing) -> Vec<Vec<(usize, bool)>> {
     uses
 }
 
-/// Every face has a loop, and every loop closes: each use starts at the
-/// vertex the one before it ends at, and a whole closed curve, which has no
-/// vertex, stands alone.
+/// Every face has a loop, but a whole sphere or torus holding every pole of
+/// its surface, and every loop closes: each use starts at the vertex the one
+/// before it ends at, and a whole closed curve, which has no vertex, stands
+/// alone.
 fn closed(listing: &Listing) -> Result<(), Mislisted> {
     let ends = |(edge, forward): (usize, bool)| {
         listing.edges[edge]
@@ -188,7 +190,7 @@ fn closed(listing: &Listing) -> Result<(), Mislisted> {
             .map(|[from, to]| if forward { [from, to] } else { [to, from] })
     };
     for (face, listed) in listing.faces.iter().enumerate() {
-        if listed.loops.is_empty() {
+        if listed.loops.is_empty() && !whole_round(listed) {
             return Err(Mislisted::Unbounded { face });
         }
         for (lap, uses) in listed.loops.iter().enumerate() {
@@ -211,6 +213,19 @@ fn closed(listing: &Listing) -> Result<(), Mislisted> {
         }
     }
     Ok(())
+}
+
+/// Whether a face with no loop is a whole sphere or torus, holding within it
+/// as many poles as its surface has: a ball's two, a ring's none.
+fn whole_round(listed: &ListedFace) -> bool {
+    let poles = match &listed.surface {
+        Surface::Sphere(sphere) => round::Tube::of_sphere(sphere).poles(),
+        Surface::Torus(torus) => round::Tube::of_torus(torus).poles(),
+        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+            return false;
+        }
+    };
+    poles.len() == listed.poles.len()
 }
 
 /// Every edge with no vertex runs round a whole closed curve.

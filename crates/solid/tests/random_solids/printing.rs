@@ -245,6 +245,18 @@ impl Display for Section {
             }
             write!(out, "])")?;
         }
+        if !self.bowed.is_empty() {
+            write!(out, ".bowed(&[")?;
+            for (index, [low, high]) in self.bowed.iter().enumerate() {
+                let separator = if index == 0 { "" } else { ", " };
+                write!(
+                    out,
+                    "{separator}[[{:?}, {:?}, {:?}], [{:?}, {:?}, {:?}]]",
+                    low[0], low[1], low[2], high[0], high[1], high[2]
+                )?;
+            }
+            write!(out, "])")?;
+        }
         if !self.holes.is_empty() {
             write!(out, ".with_holes(&[")?;
             for (index, [low, high]) in self.holes.iter().enumerate() {

@@ -601,11 +601,12 @@ impl Axis {
 }
 
 impl Section {
-    /// The section with a band levelled, or every band, a band or a hole
-    /// fewer, its edges nearest the axis laid on it, gathered into the one
-    /// level band that bounds it, and on round numbers. None of them slopes
-    /// more bands than the section did, which is what keeps levelling and
-    /// the rest from undoing each other.
+    /// The section with a band levelled, or every band, an edge
+    /// straightened, or every edge, a band or a hole fewer, its edges
+    /// nearest the axis laid on it, gathered into the one level band that
+    /// bounds it, and on round numbers. None of them slopes more bands or
+    /// bows more edges than the section did, which is what keeps levelling,
+    /// straightening and the rest from undoing each other.
     fn simpler(&self) -> Vec<Section> {
         let mut simpler = Vec::new();
         let sloping = (0..self.bands.len()).filter(|&index| self.slopes_at(index));
@@ -621,12 +622,30 @@ impl Section {
                 ..self.clone()
             });
         }
+        let bowing: Vec<(usize, usize)> = (0..self.bands.len())
+            .flat_map(|index| [(index, 0), (index, 1)])
+            .filter(|&(index, edge)| self.bow(index, edge).is_some())
+            .collect();
+        for &(index, edge) in &bowing {
+            let mut straight = self.clone();
+            straight.bowed[index][edge] = [0.0; 3];
+            simpler.push(straight.canonical());
+        }
+        if bowing.len() > 1 {
+            simpler.push(Section {
+                bowed: Vec::new(),
+                ..self.clone()
+            });
+        }
         if self.bands.len() > 1 {
             for index in 0..self.bands.len() {
                 let mut fewer = self.clone();
                 fewer.bands.remove(index);
                 if fewer.slopes() {
                     fewer.sloping_to.remove(index);
+                }
+                if fewer.bows() {
+                    fewer.bowed.remove(index);
                 }
                 simpler.push(fewer.canonical());
             }
@@ -676,6 +695,11 @@ impl Section {
                         .sloping_to
                         .iter()
                         .map(|end| end.map(|value| rounded(value, step)))
+                        .collect(),
+                    bowed: self
+                        .bowed
+                        .iter()
+                        .map(|band| band.map(|edge| edge.map(|value| rounded(value, step))))
                         .collect(),
                     holes: self
                         .holes

@@ -284,17 +284,37 @@ impl Flats {
         let turned = case
             .leaves()
             .filter_map(Leaf::as_turned)
-            .flat_map(|turned| turned.section.pieces())
-            .map(|piece| {
-                piece.away[1].max(piece.ending[1])
-                    * (1.0 - (std::f64::consts::PI / TURN_STEPS).cos())
-            })
+            .map(|turned| sagitta_of(&turned))
             .fold(0.0, f64::max);
         let sagitta = sagitta.max(turned);
         Flats {
             tolerance: sagitta.max(ALONG_A_LINE * reach),
         }
     }
+}
+
+/// How far the flats a turned leaf is turned into may stand inside its true
+/// surfaces: the sagitta of a step of the turn at its outer radius, and,
+/// where an edge of its section bows, the sagitta of a step of the arc's
+/// own sampling besides, since the profile is a polygon before it turns.
+pub fn sagitta_of(turned: &Turned) -> f64 {
+    let pieces = turned.section.pieces();
+    let outer = pieces
+        .iter()
+        .map(|piece| {
+            piece.away[1]
+                .max(piece.ending[1])
+                .max(piece.bows[1].map_or(0.0, |bow| bow.extreme(piece.chord(1)).y))
+        })
+        .fold(0.0, f64::max);
+    let arc = pieces
+        .iter()
+        .flat_map(|piece| piece.bows)
+        .flatten()
+        .map(|bow| bow.radius.abs())
+        .fold(0.0, f64::max);
+    outer * (1.0 - (std::f64::consts::PI / TURN_STEPS).cos())
+        + arc * (1.0 - (std::f64::consts::PI / CIRCLE_STEPS as f64).cos())
 }
 
 impl Kernel for Flats {

@@ -125,6 +125,7 @@ use std::f64::consts::PI;
 
 use cao_solid::Declined;
 use cao_solid::brep::Scale;
+use cao_solid::profile::Run;
 use cao_solid::soundness::{Lines, Spans, shrink};
 use cao_solid::turning::Lie;
 use cao_solid::turning::Straight;
@@ -858,11 +859,28 @@ fn step_cosine() -> f64 {
 
 /// Whether the flats a leaf is turned into hold along every line what the
 /// leaf holds with its outer walls drawn in by their sagitta, and no more
-/// than it holds with its inner walls drawn in by theirs.
+/// than it holds with its inner walls drawn in by theirs. A leaf an edge of
+/// whose section bows is held between itself shrunk and grown by the
+/// sagittas of its profile's sampling and of its turn together: a circle
+/// drawn in by a share of its radius is an ellipse, which no piece holds.
 fn holds_what_its_flats_hold(leaf: &Leaf, flats: &cao_solid::Body) {
     let turn = turned(leaf).expect("a turn");
     let (lines, reach) = lines_over(leaf);
     let measured = lines.inside(&flats.triangles());
+    let room = 1e-9 * reach;
+    if turn.section.bows() {
+        let sagitta = random_solids::sagitta_of(&turn);
+        for (index, measure) in measured.iter().enumerate() {
+            let (origin, direction) = lines.line(index);
+            let least = spans_of(&turn.along_grown(origin, direction, -sagitta));
+            let most = spans_of(&turn.along_grown(origin, direction, sagitta));
+            assert!(
+                least.without(measure).length() <= room && measure.without(&most).length() <= room,
+                "line {index} across {leaf}: {measure:?} not between {least:?} and {most:?}"
+            );
+        }
+        return;
+    }
     let pieces = turn.section.pieces();
     let least: Vec<Piece> = pieces
         .iter()
@@ -880,7 +898,6 @@ fn holds_what_its_flats_hold(leaf: &Leaf, flats: &cao_solid::Body) {
             ..*piece
         })
         .collect();
-    let room = 1e-9 * reach;
     for (index, measure) in measured.iter().enumerate() {
         let (origin, direction) = lines.line(index);
         let least = spans_of(&turn.along_pieces(&least, origin, direction, 0.0));
@@ -893,19 +910,14 @@ fn holds_what_its_flats_hold(leaf: &Leaf, flats: &cao_solid::Body) {
 }
 
 /// Whether the box a leaf spans holds the box its flats span, and stands
-/// past it by no more than their sagitta.
+/// past it by no more than their sagitta, the profile's sampling counted
+/// with the turn's where an edge bows.
 fn spans_the_box_its_flats_span(leaf: &Leaf, flats: &cao_solid::Body) {
     let turn = turned(leaf).expect("a turn");
     let (low, high) = leaf.bounds().expect("a box");
     let (flat_low, flat_high) = flats.bounds().expect("a box of flats");
     let reach = low.abs().max(high.abs()).max_element();
-    let outer = turn
-        .section
-        .pieces()
-        .iter()
-        .map(|piece| piece.away[1].max(piece.ending[1]))
-        .fold(0.0, f64::max);
-    let sagitta = outer * (1.0 - step_cosine()) + 1e-9 * reach;
+    let sagitta = random_solids::sagitta_of(&turn) + 1e-9 * reach;
     assert!(
         (low - flat_low).max_element() <= 1e-9 * reach
             && (flat_high - high).max_element() <= 1e-9 * reach,
@@ -2244,6 +2256,11 @@ fn on_the_left(section: &Section) -> Section {
             .iter()
             .map(|&[low, high]| [-high, -low])
             .collect(),
+        bowed: section
+            .bowed
+            .iter()
+            .map(|&[low, high]| [high, low].map(|[along, away, radius]| [along, -away, -radius]))
+            .collect(),
         holes: section
             .holes
             .iter()
@@ -2656,21 +2673,25 @@ fn a_sloped_section_runs_its_corners_along_its_slopes_and_closes_at_a_point() {
                 along: [0.0, 1.0],
                 low: [1.0, 1.0],
                 high: [5.0, 5.5],
+                bows: [None; 2],
             },
             Trapezoid {
                 along: [3.0, 6.0],
                 low: [1.0, 1.0],
                 high: [6.5, 8.0],
+                bows: [None; 2],
             },
             Trapezoid {
                 along: [1.0, 3.0],
                 low: [1.0, 1.0],
                 high: [2.0, 2.0],
+                bows: [None; 2],
             },
             Trapezoid {
                 along: [1.0, 3.0],
                 low: [5.4, 5.4],
                 high: [5.5, 6.5],
+                bows: [None; 2],
             },
         ]
     );
@@ -2687,6 +2708,7 @@ fn a_sloped_section_runs_its_corners_along_its_slopes_and_closes_at_a_point() {
             away: [0.0, 2.0],
             ending: [0.0, 0.0],
             side: 1.0,
+            bows: [None; 2],
         }
     );
 }
@@ -2959,16 +2981,28 @@ fn stairs(pieces: &[Piece], steps: usize, inside: bool) -> Vec<Piece> {
                     let along = [step, step + 1]
                         .map(|end| piece.along[0] + length * end as f64 / steps as f64);
                     let [start, end] = along.map(|at| piece.at(at));
+                    let bulge = |edge: usize| {
+                        piece.bows[edge]
+                            .filter(|bow| along[0] < bow.center.x && bow.center.x < along[1])
+                            .map_or(start[edge], |bow| bow.center.y + bow.radius)
+                    };
                     let away = if inside {
-                        [start[0].max(end[0]), start[1].min(end[1])]
+                        [
+                            start[0].max(end[0]).max(bulge(0)),
+                            start[1].min(end[1]).min(bulge(1)),
+                        ]
                     } else {
-                        [start[0].min(end[0]), start[1].max(end[1])]
+                        [
+                            start[0].min(end[0]).min(bulge(0)),
+                            start[1].max(end[1]).max(bulge(1)),
+                        ]
                     };
                     Piece {
                         along,
                         away,
                         ending: away,
                         side: piece.side,
+                        bows: [None; 2],
                     }
                 })
                 .filter(|piece| piece.away[0] < piece.away[1])
@@ -3751,6 +3785,672 @@ fn a_case_asking_beyond_the_conics_is_declined_as_unsupported_or_held() {
         declined += measured.declined;
     }
     println!("{declined} of {} declined as unsupported", asking.len());
+}
+
+/// A ball of radius two about the origin, turned by `degrees` about the
+/// plane's first axis.
+fn ball(degrees: f64) -> Leaf {
+    Leaf::turned(
+        Plane::xy(0.0),
+        Axis::first(0.0),
+        Section::bands(-2.0, &[[4.0, 0.0, 0.0]]).bowed(&[[[0.0, 0.0, 0.0], [0.0, 0.0, 2.0]]]),
+        degrees,
+    )
+}
+
+/// A ring torus whose tube of radius one runs three from the axis, about
+/// the origin, turned by `degrees` about the plane's first axis.
+fn ring(degrees: f64) -> Leaf {
+    Leaf::turned(
+        Plane::xy(0.0),
+        Axis::first(0.0),
+        Section::bands(-1.0, &[[2.0, 3.0, 3.0]]).bowed(&[[[0.0, 3.0, -1.0], [0.0, 3.0, 1.0]]]),
+        degrees,
+    )
+}
+
+#[test]
+fn a_rounded_section_bows_its_edges_along_arcs_and_is_solid_only_where_they_keep_off_the_axis() {
+    let straight = [[0.0; 3]; 2];
+    let ball =
+        Section::bands(-2.0, &[[4.0, 0.0, 0.0]]).bowed(&[[[0.0, 0.0, 0.0], [0.0, 0.0, 2.0]]]);
+    assert!(ball.is_solid());
+    assert!(ball.bows());
+    assert_eq!(ball.corners().0, [[-2.0, 0.0], [2.0, 0.0]].map(DVec2::from));
+    let (contour, holes) = ball.contour();
+    assert!(holes.is_empty());
+    assert_eq!(contour.corners, ball.corners().0);
+    assert_eq!(contour.runs[0], Run::Straight);
+    let Run::Round { center, turn } = contour.runs[1] else {
+        panic!("{:?}", contour.runs);
+    };
+    assert_eq!(center, DVec2::ZERO);
+    assert!((turn - PI).abs() < 1e-12, "{turn}");
+
+    let capped = Section::bands(0.0, &[[3.0, 0.0, 2.0], [2.0, 0.0, 2.0]])
+        .sloping_to(&[[0.0, 2.0], [0.0, 0.0]])
+        .bowed(&[straight, [[0.0; 3], [3.0, 0.0, 2.0]]]);
+    assert!(capped.is_solid());
+    let (contour, _) = capped.contour();
+    assert_eq!(
+        contour.corners,
+        [[0.0, 0.0], [3.0, 0.0], [5.0, 0.0], [3.0, 2.0], [0.0, 2.0]].map(DVec2::from)
+    );
+    let Run::Round { center, turn } = contour.runs[2] else {
+        panic!("{:?}", contour.runs);
+    };
+    assert_eq!(center, DVec2::new(3.0, 0.0));
+    assert!((turn - PI / 2.0).abs() < 1e-12, "{turn}");
+    assert!(
+        contour
+            .runs
+            .iter()
+            .enumerate()
+            .all(|(index, run)| index == 2 || *run == Run::Straight)
+    );
+
+    let grooved = Section::bands(0.0, &[[2.0, 0.0, 4.0], [2.0, 0.0, 3.0], [2.0, 0.0, 4.0]])
+        .bowed(&[straight, [[0.0; 3], [3.0, 3.0, -1.0]], straight]);
+    assert!(grooved.is_solid());
+    let (contour, _) = grooved.contour();
+    assert_eq!(contour.corners.len(), 10);
+    assert_eq!(contour.corners[6], DVec2::new(4.0, 3.0));
+    let Run::Round { center, turn } = contour.runs[6] else {
+        panic!("{:?}", contour.runs);
+    };
+    assert_eq!(center, DVec2::new(3.0, 3.0));
+    assert!((turn + PI).abs() < 1e-12, "{turn}");
+
+    let level = Section::bands(0.0, &[[2.0, 1.0, 3.0]]);
+    assert_eq!(level.clone().bowed(&[straight]), level);
+    assert!(!level.bows());
+    assert_eq!(
+        Section::bands(0.0, &[[2.0, 1.0, 3.0]]).bowed(&[[[5.0, 5.0, 0.0], [0.0; 3]]]),
+        level
+    );
+
+    for (what, section) in [
+        (
+            "an arc crossing the axis",
+            Section::bands(0.0, &[[4.0, 0.0, 1.0]]).bowed(&[[[2.0, 1.0, -2.0], [0.0; 3]]]),
+        ),
+        (
+            "an arc tangent to the axis between its corners",
+            Section::bands(0.0, &[[4.0, 2.0, 4.0]]).bowed(&[[[2.0, 2.0, -2.0], [0.0; 3]]]),
+        ),
+        (
+            "an arc tangent to the axis at its corner",
+            Section::bands(0.0, &[[2.0, 0.0, 0.0]])
+                .sloping_to(&[[0.0, 2.0]])
+                .bowed(&[[[0.0; 3], [0.0, 2.0, -2.0]]]),
+        ),
+        (
+            "a corner off its circle",
+            Section::bands(0.0, &[[4.0, 0.0, 0.0]]).bowed(&[[[0.0; 3], [1.0, 0.0, 2.0]]]),
+        ),
+        (
+            "an arc said to bow the other way",
+            Section::bands(0.0, &[[3.0, 0.0, 2.0]]).bowed(&[[[0.0; 3], [1.5, 0.0, -2.5]]]),
+        ),
+        (
+            "a hole under an arc",
+            Section::bands(0.0, &[[6.0, 0.0, 0.0]])
+                .bowed(&[[[0.0; 3], [3.0, 0.0, 3.0]]])
+                .with_holes(&[([2.0, 0.5], [4.0, 1.0])]),
+        ),
+        (
+            "an arc on a section across its axis",
+            Section::bands(0.0, &[[4.0, -1.0, 1.0]]).bowed(&[[[0.0; 3], [2.0, 1.0, 2.0]]]),
+        ),
+        (
+            "fewer bows than bands",
+            Section::bands(0.0, &[[2.0, 0.0, 2.0], [2.0, 0.0, 2.0]])
+                .bowed(&[[[0.0; 3], [1.0, 2.0, 1.0]]]),
+        ),
+    ] {
+        assert!(!section.is_solid(), "{what}");
+    }
+    assert!(
+        Section::bands(0.0, &[[3.0, 0.0, 2.0]])
+            .bowed(&[[[0.0; 3], [1.5, 0.0, 2.5]]])
+            .is_solid(),
+        "a zone whose corners stand on its circle"
+    );
+}
+
+/// A shaft of radius three from minus three to three about the plane's
+/// first axis, with a spherical cavity of radius one about the origin.
+fn hollowed() -> Leaf {
+    Leaf::turned(
+        Plane::xy(0.0),
+        Axis::first(0.0),
+        Section::bands(-3.0, &[[2.0, 0.0, 3.0], [2.0, 0.0, 3.0], [2.0, 0.0, 3.0]]).bowed(&[
+            [[0.0; 3]; 2],
+            [[0.0, 0.0, 1.0], [0.0; 3]],
+            [[0.0; 3]; 2],
+        ]),
+        360.0,
+    )
+}
+
+/// A shaft of radius four with a round-bottomed groove of radius one cut a
+/// unit deep across its middle, about the plane's first axis.
+fn grooved() -> Leaf {
+    Leaf::turned(
+        Plane::xy(0.0),
+        Axis::first(0.0),
+        Section::bands(0.0, &[[2.0, 0.0, 4.0], [2.0, 0.0, 3.0], [2.0, 0.0, 4.0]]).bowed(&[
+            [[0.0; 3]; 2],
+            [[0.0; 3], [3.0, 3.0, -1.0]],
+            [[0.0; 3]; 2],
+        ]),
+        360.0,
+    )
+}
+
+/// The rounded leaves held by hand: a ball, a zone and a cap of one, a
+/// shaft with a rounded end, a ring torus, an apple of a spindle torus, a
+/// round-bottomed groove, a spherical cavity, a barrel bore and a rounded
+/// shoulder, turned whole or part of the way.
+fn rounded_by_hand() -> Vec<Leaf> {
+    let turned = |section: Section, degrees: f64| {
+        Leaf::turned(Plane::xz(1.0), Axis::second(2.0), section, degrees)
+    };
+    let zone = Section::bands(-1.5, &[[3.0, 0.0, 2.0]]).bowed(&[[[0.0; 3], [0.0, 0.0, 2.5]]]);
+    let cap = Section::bands(-2.5, &[[4.0, 0.0, 0.0]])
+        .sloping_to(&[[0.0, 2.0]])
+        .bowed(&[[[0.0; 3], [0.0, 0.0, 2.5]]]);
+    let ended = Section::bands(0.0, &[[3.0, 0.0, 2.0], [2.0, 0.0, 2.0]])
+        .sloping_to(&[[0.0, 2.0], [0.0, 0.0]])
+        .bowed(&[[[0.0; 3]; 2], [[0.0; 3], [3.0, 0.0, 2.0]]]);
+    let apple = Section::bands(-2.0, &[[4.0, 0.0, 0.0]]).bowed(&[[[0.0; 3], [0.0, -1.5, 2.5]]]);
+    let barrel = Section::bands(0.0, &[[3.0, 2.0, 4.0]]).bowed(&[[[1.5, 4.0, -2.5], [0.0; 3]]]);
+    let shoulder = Section::bands(0.0, &[[2.0, 0.0, 4.0], [1.0, 0.0, 4.0], [2.0, 0.0, 2.0]])
+        .sloping_to(&[[0.0, 4.0], [0.0, 3.0], [0.0, 2.0]])
+        .bowed(&[[[0.0; 3]; 2], [[0.0; 3], [2.0, 3.0, 1.0]], [[0.0; 3]; 2]]);
+    let grooved_tube = Section::bands(0.0, &[[2.0, 1.0, 4.0], [2.0, 1.0, 3.0], [2.0, 1.0, 4.0]])
+        .bowed(&[[[0.0; 3]; 2], [[0.0; 3], [3.0, 3.0, -1.0]], [[0.0; 3]; 2]]);
+    let mut leaves = vec![
+        ball(360.0),
+        ball(90.0),
+        ball(-210.0),
+        ring(360.0),
+        ring(-90.0),
+        ring(135.0),
+        hollowed(),
+        grooved(),
+    ];
+    for (section, degrees) in [
+        (zone, 360.0),
+        (cap, 180.0),
+        (ended, 360.0),
+        (ended_backwards(), -90.0),
+        (apple, 360.0),
+        (barrel, 270.0),
+        (shoulder, 360.0),
+        (grooved_tube, 225.0),
+    ] {
+        leaves.push(turned(section, degrees));
+    }
+    leaves
+}
+
+/// A shaft with a rounded end drawn from the other end of its axis.
+fn ended_backwards() -> Section {
+    Section::bands(0.0, &[[2.0, 0.0, 0.0], [3.0, 0.0, 2.0]])
+        .sloping_to(&[[0.0, 2.0], [0.0, 2.0]])
+        .bowed(&[[[0.0; 3], [2.0, 0.0, 2.0]], [[0.0; 3]; 2]])
+}
+
+/// What a rounded section's corners and arcs sweep per radian, by Pappus,
+/// from another road than its pieces: the moment of its corners' polygon,
+/// and the moment of each arc's circular segment added or taken away as
+/// the arc bulges out of the polygon or into it.
+fn moment_with_arcs(turn: &Turned) -> f64 {
+    let section = &turn.section;
+    let polygon = |corners: &[DVec2]| {
+        (0..corners.len())
+            .map(|index| {
+                let (one, other) = (corners[index], corners[(index + 1) % corners.len()]);
+                one.perp_dot(other) * (one.y + other.y) / 6.0
+            })
+            .sum::<f64>()
+    };
+    let (outline, holes) = section.corners();
+    let mut moment = polygon(&outline) + holes.iter().map(|hole| polygon(hole)).sum::<f64>();
+    for index in 0..section.bands.len() {
+        for edge in 0..2 {
+            if let Some(bow) = section.bow(index, edge) {
+                let out = if edge == 1 { 1.0 } else { -1.0 };
+                moment += out * bow.bulge() * bow.segment_moment(section.chord(index, edge));
+            }
+        }
+    }
+    moment.abs()
+}
+
+#[test]
+fn the_pieces_of_a_rounded_section_turn_into_pappus_s_volume_of_its_corners_and_arcs() {
+    let volume = |leaf: &Leaf| turned(leaf).expect("a turn").volume();
+    let asin = 0.8f64.asin();
+    let closed = [
+        ("a ball", volume(&ball(360.0)), 32.0 * PI / 3.0),
+        ("a quarter of a ball", volume(&ball(90.0)), 8.0 * PI / 3.0),
+        ("a ring torus", volume(&ring(360.0)), 6.0 * PI * PI),
+        ("a quarter of a ring", volume(&ring(-90.0)), 1.5 * PI * PI),
+        (
+            "a shaft with a spherical cavity",
+            volume(&hollowed()),
+            54.0 * PI - 4.0 * PI / 3.0,
+        ),
+        (
+            "a round-bottomed groove",
+            volume(&grooved()),
+            250.0 * PI / 3.0 - 3.0 * PI * PI,
+        ),
+    ];
+    for (what, found, expected) in closed {
+        assert!(
+            (found - expected).abs() <= 1e-12 * expected,
+            "{what}: {found} against {expected}"
+        );
+    }
+    let by_hand = rounded_by_hand();
+    let found = |index: usize| volume(&by_hand[index]);
+    for (what, found, expected) in [
+        ("a zone", found(8), 16.5 * PI),
+        ("a cap, half way round", found(9), 28.0 * PI / 3.0),
+        ("a shaft with a rounded end", found(10), 52.0 * PI / 3.0),
+        (
+            "the same from the other end, a quarter back",
+            found(11),
+            13.0 * PI / 3.0,
+        ),
+        ("an apple", found(12), PI * (59.0 / 3.0 - 18.75 * asin)),
+    ] {
+        assert!(
+            (found - expected).abs() <= 1e-12 * expected,
+            "{what}: {found} against {expected}"
+        );
+    }
+
+    for leaf in &by_hand {
+        let turn = turned(leaf).expect("a turn");
+        let pappus = moment_with_arcs(&turn) * turn.angle();
+        let volume = turn.volume();
+        assert!(
+            (volume - pappus).abs() <= 1e-9 * pappus,
+            "{leaf}: {volume} against {pappus}"
+        );
+    }
+}
+
+#[test]
+fn a_line_through_a_ball_or_a_torus_is_told_where_it_crosses_how_squarely_and_that_it_curves() {
+    let along = |leaf: &Leaf, origin: [f64; 3], direction: [f64; 3]| {
+        crossings_of(
+            &leaf
+                .along(DVec3::from(origin), DVec3::from(direction))
+                .expect("a turn"),
+        )
+    };
+    let whole = ball(360.0);
+    let poles = along(&whole, [-5.0, 0.0, 0.0], [1.0, 0.0, 0.0]);
+    assert!(
+        close(&poles, &[(3.0, 0.0, true), (7.0, 0.0, true)]),
+        "{poles:?}"
+    );
+    let root = 3f64.sqrt();
+    let chord = along(&whole, [1.0, 0.0, -5.0], [0.0, 0.0, 1.0]);
+    assert!(
+        close(
+            &chord,
+            &[
+                (5.0 - root, root / 2.0, true),
+                (5.0 + root, root / 2.0, true)
+            ]
+        ),
+        "{chord:?}"
+    );
+    let square = along(&whole, [0.0, -5.0, 0.0], [0.0, 1.0, 0.0]);
+    assert!(
+        close(&square, &[(3.0, 1.0, true), (7.0, 1.0, true)]),
+        "{square:?}"
+    );
+    assert!(along(&whole, [0.0, 2.0, -5.0], [0.0, 0.0, 1.0]).is_empty());
+    assert!(along(&whole, [0.0, 2.5, -5.0], [0.0, 0.0, 1.0]).is_empty());
+
+    let quarter = along(&ball(90.0), [0.0, -5.0, 1.0], [0.0, 1.0, 0.0]);
+    assert!(
+        close(
+            &quarter,
+            &[(5.0, 1.0, false), (5.0 + root, root / 2.0, true)]
+        ),
+        "{quarter:?}"
+    );
+
+    let torus = ring(360.0);
+    let through = along(&torus, [0.0, -5.0, 0.0], [0.0, 1.0, 0.0]);
+    assert!(
+        close(
+            &through,
+            &[
+                (1.0, 1.0, true),
+                (3.0, 1.0, true),
+                (7.0, 1.0, true),
+                (9.0, 1.0, true)
+            ]
+        ),
+        "{through:?}"
+    );
+    let tube = along(&torus, [-5.0, 3.0, 0.0], [1.0, 0.0, 0.0]);
+    assert!(
+        close(&tube, &[(4.0, 1.0, true), (6.0, 1.0, true)]),
+        "{tube:?}"
+    );
+    let rim = 3.75f64.sqrt();
+    let beside = along(&torus, [0.0, 3.5, -5.0], [0.0, 0.0, 1.0]);
+    assert!(
+        close(
+            &beside,
+            &[(5.0 - rim, rim / 4.0, true), (5.0 + rim, rim / 4.0, true)]
+        ),
+        "{beside:?}"
+    );
+    assert!(along(&torus, [-5.0, 0.0, 0.0], [1.0, 0.0, 0.0]).is_empty());
+    let over = 9.75f64.sqrt();
+    let above = along(&torus, [0.0, -5.0, 2.5], [0.0, 1.0, 0.0]);
+    assert!(
+        close(
+            &above,
+            &[
+                (5.0 - over, over / 4.0, true),
+                (5.0 + over, over / 4.0, true)
+            ]
+        ),
+        "{above:?}"
+    );
+
+    let cavity = along(&hollowed(), [0.0, 0.0, -5.0], [0.0, 0.0, 1.0]);
+    assert!(
+        close(
+            &cavity,
+            &[
+                (2.0, 1.0, true),
+                (4.0, 1.0, true),
+                (6.0, 1.0, true),
+                (8.0, 1.0, true)
+            ]
+        ),
+        "{cavity:?}"
+    );
+    let groove = along(&grooved(), [3.0, 0.0, -5.0], [0.0, 0.0, 1.0]);
+    assert!(
+        close(&groove, &[(3.0, 1.0, true), (7.0, 1.0, true)]),
+        "{groove:?}"
+    );
+    let flank = along(&grooved(), [2.5, 0.0, -5.0], [0.0, 0.0, 1.0]);
+    let (bottom, slant) = (3.0 - 0.75f64.sqrt(), 0.75f64.sqrt());
+    assert!(
+        close(
+            &flank,
+            &[(5.0 - bottom, slant, true), (5.0 + bottom, slant, true)]
+        ),
+        "{flank:?}"
+    );
+}
+
+#[test]
+fn a_round_holds_along_every_line_what_rings_stacked_inside_it_hold_and_no_more_than_rings_stacked_around_it()
+ {
+    for leaf in &rounded_by_hand() {
+        let turn = turned(leaf).expect("a turn");
+        let pieces = turn.section.pieces();
+        let (inside, around) = (stairs(&pieces, 24, true), stairs(&pieces, 24, false));
+        let (lines, reach) = lines_over(leaf);
+        let room = 1e-9 * reach;
+        for index in 0..lines.count() {
+            let (origin, direction) = lines.line(index);
+            let [held, least, most] = [&pieces, &inside, &around]
+                .map(|pieces| spans_of(&turn.along_pieces(pieces, origin, direction, 0.0)));
+            assert!(
+                least.without(&held).length() <= room && held.without(&most).length() <= room,
+                "line {index} across {leaf}: {held:?} not between {least:?} and {most:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_rounded_leaf_grown_holds_every_line_it_held_and_shrunk_holds_none_it_did_not() {
+    for leaf in &rounded_by_hand() {
+        let (lines, reach) = lines_over(leaf);
+        let by = 1e-3 * reach;
+        for index in 0..lines.count() {
+            let (origin, direction) = lines.line(index);
+            let [shrunk, held, grown] = [-by, 0.0, by]
+                .map(|by| spans_of(&leaf.along_grown(origin, direction, by).expect("a turn")));
+            assert_eq!(
+                shrunk.without(&held).length(),
+                0.0,
+                "line {index} of {leaf}"
+            );
+            assert_eq!(held.without(&grown).length(), 0.0, "line {index} of {leaf}");
+            assert!(grown.length() > shrunk.length() || grown.length() == 0.0);
+        }
+    }
+}
+
+#[test]
+fn a_rounded_leaf_off_its_axis_holds_along_every_line_and_spans_the_box_its_flats_hold_but_for_their_sagittas()
+ {
+    let leaves = turns_the_flats_hold(rounded_by_hand());
+    assert!(leaves.len() >= 4, "{} leaves", leaves.len());
+    for leaf in &leaves {
+        let flats = leaf.solid().expect("a turn the flats make");
+        holds_what_its_flats_hold(leaf, &flats);
+        spans_the_box_its_flats_span(leaf, &flats);
+    }
+}
+
+#[test]
+fn a_rounded_leaf_shrinks_into_straight_edges_and_round_numbers() {
+    let leaf = |section: Section| Leaf::turned(Plane::xy(0.0), Axis::first(0.0), section, 360.0);
+    let rounded = Section::bands(0.3, &[[2.0, 0.0, 2.7], [2.0, 0.0, 2.0]])
+        .sloping_to(&[[0.0, 2.7], [0.0, 0.0]])
+        .bowed(&[[[0.0; 3], [1.3, 2.7, -1.0]], [[0.0; 3], [2.3, 0.0, 2.0]]]);
+    let shrunk: Vec<Leaf> = Case::new(leaf(rounded.clone()), vec![])
+        .smaller()
+        .into_iter()
+        .map(|case| case.start)
+        .collect();
+    let expected = [
+        Section::bands(0.3, &[[2.0, 0.0, 2.7], [2.0, 0.0, 2.0]])
+            .sloping_to(&[[0.0, 2.7], [0.0, 0.0]])
+            .bowed(&[[[0.0; 3]; 2], [[0.0; 3], [2.3, 0.0, 2.0]]]),
+        Section::bands(0.3, &[[2.0, 0.0, 2.7], [2.0, 0.0, 2.0]])
+            .sloping_to(&[[0.0, 2.7], [0.0, 0.0]])
+            .bowed(&[[[0.0; 3], [1.3, 2.7, -1.0]], [[0.0; 3]; 2]]),
+        Section::bands(0.3, &[[2.0, 0.0, 2.7], [2.0, 0.0, 2.0]])
+            .sloping_to(&[[0.0, 2.7], [0.0, 0.0]]),
+        Section::bands(0.3, &[[2.0, 0.0, 2.0]])
+            .sloping_to(&[[0.0, 0.0]])
+            .bowed(&[[[0.0; 3], [2.3, 0.0, 2.0]]]),
+        Section::bands(0.3, &[[4.0, 0.0, 2.7]]),
+        Section::bands(0.0, &[[2.0, 0.0, 3.0], [2.0, 0.0, 2.0]])
+            .sloping_to(&[[0.0, 3.0], [0.0, 0.0]])
+            .bowed(&[[[0.0; 3], [1.0, 3.0, -1.0]], [[0.0; 3], [2.0, 0.0, 2.0]]]),
+        Section::bands(0.5, &[[2.0, 0.0, 2.5], [2.0, 0.0, 2.0]])
+            .sloping_to(&[[0.0, 2.5], [0.0, 0.0]])
+            .bowed(&[[[0.0; 3], [1.5, 2.5, -1.0]], [[0.0; 3], [2.5, 0.0, 2.0]]]),
+    ];
+    for expected in expected {
+        let expected = leaf(expected);
+        assert!(shrunk.contains(&expected), "{expected} among {shrunk:#?}");
+    }
+    let straight = Section::bands(0.0, &[[2.0, 0.0, 3.0]]).sloping_to(&[[0.0, 1.0]]);
+    assert!(
+        Case::new(leaf(straight), vec![])
+            .smaller()
+            .iter()
+            .all(|case| turned(&case.start).is_none_or(|turn| !turn.section.bows())),
+        "a straight section shrinks into a bowed one"
+    );
+}
+
+#[test]
+fn a_case_asking_a_round_beyond_its_circles_is_told_from_one_that_does_not() {
+    let asks = |start: &Leaf, tool: Leaf| {
+        Case::new(start.clone(), vec![Step::cut(tool)]).asks_a_round_beyond_its_circles()
+    };
+    let knob = ball(360.0);
+    let coaxial = |degrees: f64, section: Section| {
+        Leaf::turned(Plane::xz(0.0), Axis::first(0.0), section, degrees)
+    };
+    let told = [
+        (
+            "a coaxial cylinder tangent at the equator",
+            Leaf::prism(Plane::yz(-3.0), Outline::circle([0.0, 0.0], 2.0), 6.0),
+            false,
+        ),
+        (
+            "a coaxial cylinder a hair off the equator",
+            Leaf::prism(Plane::yz(-3.0), Outline::circle([0.0, 0.0], 2.0000001), 6.0),
+            false,
+        ),
+        (
+            "a plane square through the centre",
+            Leaf::prism(Plane::yz(0.0), Outline::circle([0.0, 0.0], 3.0), 3.0),
+            false,
+        ),
+        (
+            "a plane square at the pole",
+            Leaf::prism(Plane::yz(2.0), Outline::circle([0.0, 0.0], 3.0), 3.0),
+            false,
+        ),
+        (
+            "a block whose face holds the axis",
+            Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
+                10.0,
+            ),
+            true,
+        ),
+        (
+            "a flat parallel to the axis and off it",
+            Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
+                10.0,
+            ),
+            true,
+        ),
+        (
+            "a plane at a slant",
+            Leaf::prism(
+                Plane::tilted([0.0, 0.0, 0.0], [0.0, 30.0, 0.0]),
+                Outline::rectangle([-5.0, -5.0], [5.0, 5.0]),
+                1.0,
+            ),
+            true,
+        ),
+        (
+            "a cylinder parallel to the axis and off it",
+            Leaf::prism(Plane::yz(-1.0), Outline::circle([1.0, 0.0], 1.0), 2.0),
+            true,
+        ),
+        (
+            "a radial hole",
+            Leaf::prism(Plane::xz(5.0), Outline::circle([0.0, 0.0], 1.0), 10.0),
+            true,
+        ),
+        (
+            "a coaxial cone tangent at a latitude",
+            coaxial(
+                360.0,
+                Section::bands(-1.0, &[[2.0, 0.0, 3.5]]).sloping_to(&[[0.0, 0.5]]),
+            ),
+            false,
+        ),
+        (
+            "a cone a hair off the axis",
+            Leaf::turned(
+                Plane::xz(0.0),
+                Axis::first(1e-7),
+                Section::bands(-1.0, &[[2.0, 0.0, 3.5]]).sloping_to(&[[0.0, 0.5]]),
+                360.0,
+            ),
+            true,
+        ),
+        ("the same ball again", ball(180.0), false),
+        (
+            "a coaxial torus sharing the tube circle",
+            coaxial(
+                360.0,
+                Section::bands(-2.0, &[[4.0, 0.0, 0.0]]).bowed(&[[[0.0; 3], [0.0, 1.5, 2.5]]]),
+            ),
+            false,
+        ),
+        ("a coaxial ring", ring(360.0), false),
+        (
+            "a ball about another axis",
+            Leaf::turned(
+                Plane::xy(0.0),
+                Axis::second(0.0),
+                Section::bands(-2.0, &[[4.0, 0.0, 0.0]]).bowed(&[[[0.0; 3], [0.0, 0.0, 2.0]]]),
+                360.0,
+            ),
+            true,
+        ),
+        (
+            "a block whose box stands apart",
+            Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([20.0, 20.0], [25.0, 25.0]),
+                2.0,
+            ),
+            false,
+        ),
+    ];
+    for (what, tool, asking) in told {
+        assert_eq!(asks(&knob, tool), asking, "{what}");
+    }
+    assert!(!Case::new(ball(90.0), vec![]).asks_a_round_beyond_its_circles());
+    assert!(!Case::new(ring(-215.0), vec![]).asks_a_round_beyond_its_circles());
+    let post = Leaf::prism(Plane::xy(-3.0), Outline::circle([1.0, 1.0], 1.0), 6.0);
+    let shaft = Leaf::turned(
+        Plane::xy(0.0),
+        Axis::first(0.0),
+        Section::bands(-2.0, &[[6.0, 0.0, 2.0]]),
+        360.0,
+    );
+    assert!(!asks(&shaft, post.clone()), "no round asks");
+    assert!(asks(&knob, post), "a post across a ball");
+}
+
+#[test]
+fn a_rounded_case_prints_as_the_rust_that_builds_it_again() {
+    let pasted = Case::new(
+        Leaf::turned(
+            Plane::xz(2.0),
+            Axis::second(0.0),
+            Section::bands(0.0, &[[3.0, 0.0, 2.0], [2.0, 0.0, 2.0]])
+                .sloping_to(&[[0.0, 2.0], [0.0, 0.0]])
+                .bowed(&[[[0.0; 3]; 2], [[0.0; 3], [3.0, 0.0, 2.0]]]),
+            360.0,
+        ),
+        vec![Step::cut(ring(90.0))],
+    );
+    assert_eq!(
+        pasted.to_string(),
+        "Case::new(
+    Leaf::turned(Plane::xz(2.0), Axis::second(0.0), Section::bands(0.0, &[[3.0, 0.0, 2.0], [2.0, 0.0, 2.0]]).sloping_to(&[[0.0, 2.0], [0.0, 0.0]]).bowed(&[[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], [[0.0, 0.0, 0.0], [3.0, 0.0, 2.0]]]), 360.0),
+    vec![
+        Step::cut(Leaf::turned(Plane::xy(0.0), Axis::first(0.0), Section::bands(-1.0, &[[2.0, 3.0, 3.0]]).bowed(&[[[0.0, 3.0, -1.0], [0.0, 3.0, 1.0]]]), 90.0)),
+    ],
+)"
+    );
 }
 
 /// The campaigns, compiled only when asked for — `--features campaigns` —

@@ -158,11 +158,14 @@ pub fn holds_through_the_application(case: &Case) {
 }
 
 /// A kernel's decline, judged: counted when the case asks for a curve
-/// beyond the conics and the kernel says it does not build it, no answer
-/// otherwise. A case that meets along a conic alone is answered since the
-/// kernel builds the conics (#552).
+/// beyond the conics, or a sphere or a torus for one beyond its circles
+/// (#576), and the kernel says it does not build it, no answer otherwise. A
+/// case that meets along a conic alone is answered since the kernel builds
+/// the conics (#552).
 fn declined_on(case: &Case, declined: Declined, mut measured: Measured) -> Result<Measured, Flaw> {
-    if declined == Declined::Unsupported && case.asks_beyond_the_conics() {
+    if declined == Declined::Unsupported
+        && (case.asks_beyond_the_conics() || case.asks_a_round_beyond_its_circles())
+    {
         measured.declined += 1;
         return Ok(measured);
     }

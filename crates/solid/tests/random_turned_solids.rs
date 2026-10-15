@@ -169,8 +169,7 @@ use cao_solid::Declined;
 use cao_solid::brep::Scale;
 use cao_solid::profile::Run;
 use cao_solid::soundness::{Lines, Spans, shrink};
-use cao_solid::turning::Lie;
-use cao_solid::turning::Straight;
+use cao_solid::turning::{Bend, Corner, Lie, Straight};
 use glam::{DQuat, DVec2, DVec3};
 use random_solids::{
     Application, Axis, Bow, Case, Drawn, Exact, Flats, Kernel, Leaf, Mode, ON_THE_AXIS, Outline,
@@ -1788,13 +1787,15 @@ fn every_turned_leaf_raised_by_the_exact_kernel_alone_keeps_every_rule_and_enclo
 /// Whether every one of `leaves`, raised alone by the exact kernel, keeps
 /// every rule held to the arithmetic and encloses the volume the arithmetic
 /// promised, and the volume of its section as the kernel laid it; a leaf
-/// with a wall a hair thin may be declined.
+/// with a wall a hair thin may be declined, and so may a bowed section the
+/// reading declines to lay, which are counted and printed.
 fn raised_alone_keep_every_rule_and_enclose_pappus_s_volume(leaves: &[Leaf]) {
     let weighed = random_solids::on_every_core(leaves, |leaf| {
         let alone = Case::new(leaf.clone(), vec![]);
         let held = random_solids::held_to_arithmetic(&alone, &Exact);
         (held, Exact.raised(leaf).map(|body| body.volume()))
     });
+    let mut bowed = BowedSections::default();
     for (leaf, (held, volume)) in leaves.iter().zip(weighed) {
         assert!(held.is_ok(), "{leaf}: {held:?}");
         let turn = turned(leaf).expect("a turn");
@@ -1813,10 +1814,12 @@ fn raised_alone_keep_every_rule_and_enclose_pappus_s_volume(leaves: &[Leaf]) {
             else {
                 assert!(
                     turn.section.bows(),
-                    "{leaf}: a section of straight runs not laid"
+                    "{leaf}: not laid, though the reading declines a bowed section only"
                 );
+                bowed.declined += 1;
                 continue;
             };
+            bowed.laid += usize::from(turn.section.bows());
             let laid = turn.angle() * moment_laid(&straight);
             assert!(
                 (volume - laid).abs() <= 1e-9 * laid,
@@ -1824,25 +1827,66 @@ fn raised_alone_keep_every_rule_and_enclose_pappus_s_volume(leaves: &[Leaf]) {
             );
         }
     }
+    println!("{bowed}");
+}
+
+/// How many bowed sections the reading laid, and how many it declined to
+/// lay — a pinch, an arc crossing a run, a corner within the tolerance of
+/// an arc — which the flats turn.
+#[derive(Default)]
+struct BowedSections {
+    laid: usize,
+    declined: usize,
+}
+
+impl std::fmt::Display for BowedSections {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} bowed sections laid by the reading, {} declined",
+            self.laid, self.declined
+        )
+    }
 }
 
 /// What a section laid square to its axis sweeps per radian: the moment of
-/// its area about the axis, its holes taken out.
+/// its area about the axis, its holes taken out — the moment of its corners'
+/// polygon, and each arc's circular segment added or taken away as the arc
+/// bulges out of the polygon or into it.
 fn moment_laid(straight: &Straight) -> f64 {
     straight
         .contours
         .iter()
         .map(|contour| {
             let corners: Vec<DVec2> = contour.iter().map(|corner| corner.at).collect();
-            corners
+            let chords = corners
                 .iter()
                 .zip(corners.iter().cycle().skip(1))
                 .map(|(from, to)| from.perp_dot(*to) * (from.y + to.y))
                 .sum::<f64>()
-                / 6.0
+                / 6.0;
+            let segments = contour
+                .iter()
+                .zip(contour.iter().cycle().skip(1))
+                .filter_map(|(from, to)| Some(segment_moment_laid(from.at, to.at, from.bend?)))
+                .sum::<f64>();
+            chords + segments
         })
         .sum::<f64>()
         .abs()
+}
+
+/// The first moment about the axis of the circular segment between a laid
+/// arc and its chord, signed as the arc turns, so that it adds to the
+/// moment of a loop's chords whichever way the loop runs: the sector less
+/// the triangle to the centre, by another road than `Bow::segment_moment` —
+/// the cosines read off the corners, which stand on the circle as laid.
+fn segment_moment_laid(from: DVec2, to: DVec2, bend: Bend) -> f64 {
+    let (start, end) = (from - bend.center, to - bend.center);
+    let squared = start.length_squared();
+    let sector = bend.center.y * squared * bend.turn / 2.0 + squared * (start.x - end.x) / 3.0;
+    let triangle = start.perp_dot(end) / 2.0 * (bend.center.y + from.y + to.y) / 3.0;
+    sector - triangle
 }
 
 /// How far laying a section square to its axis may move the volume of its
@@ -1897,13 +1941,85 @@ fn laying_room(turn: &Turned) -> f64 {
 }
 
 /// A run of a lone turn as the kernel lays it: its number, its two laid
-/// corners, along the axis and away from it, and the way out of the matter
-/// across it.
+/// corners, along the axis and away from it, the point of it to probe the
+/// face it turns into at, the way out of the matter there, and the bend
+/// where the run is an arc.
 struct Laid {
     run: u32,
     from: DVec2,
     to: DVec2,
+    probe: DVec2,
     out: DVec2,
+    bend: Option<Bend>,
+}
+
+impl Laid {
+    /// A straight run, probed at its middle, the way out square to it on
+    /// the outside of a loop turning by `turning`.
+    fn across(run: u32, from: DVec2, to: DVec2, turning: f64) -> Laid {
+        let along = (to - from).normalize();
+        Laid {
+            run,
+            from,
+            to,
+            probe: (from + to) / 2.0,
+            out: DVec2::new(along.y, -along.x) * turning,
+            bend: None,
+        }
+    }
+
+    /// An arc, probed at its middle on the arc, the way out along the
+    /// normal there: away from the centre where the arc bulges out of the
+    /// matter, towards it for a fillet — which the arc's turn tells, read
+    /// with the way the loop turns.
+    fn along(run: u32, from: DVec2, to: DVec2, bend: Bend, turning: f64) -> Laid {
+        let probe = bend.center + DVec2::from_angle(bend.turn / 2.0).rotate(from - bend.center);
+        Laid {
+            run,
+            from,
+            to,
+            probe,
+            out: (probe - bend.center).normalize() * bend.turn.signum() * turning,
+            bend: Some(bend),
+        }
+    }
+
+    /// Whether `other` turns into the same surface as this run: on its
+    /// line, or on its circle, within `reach` roundings.
+    fn on_the_same_curve(&self, other: &Laid, reach: f64) -> bool {
+        match (self.bend, other.bend) {
+            (None, None) => {
+                let along = (self.to - self.from).normalize();
+                [other.from, other.to]
+                    .iter()
+                    .all(|end| along.perp_dot(*end - self.from).abs() <= 1e-12 * reach)
+            }
+            (Some(bend), Some(other_bend)) => {
+                let radius = |run: &Laid, bend: Bend| run.from.distance(bend.center);
+                bend.center.distance(other_bend.center) <= 1e-12 * reach
+                    && (radius(self, bend) - radius(other, other_bend)).abs() <= 1e-12 * reach
+            }
+            (None, Some(_)) | (Some(_), None) => false,
+        }
+    }
+}
+
+/// Which way a laid contour turns, `1.0` anticlockwise in `(h, r)`: read
+/// off the signed area of its chords and of its arcs' segments, since a
+/// ball's chords alone enclose none.
+fn turning_of(contour: &[Corner]) -> f64 {
+    contour
+        .iter()
+        .zip(contour.iter().cycle().skip(1))
+        .map(|(from, to)| {
+            from.at.perp_dot(to.at)
+                + from.bend.map_or(0.0, |bend| {
+                    let (start, end) = (from.at - bend.center, to.at - bend.center);
+                    start.length_squared() * bend.turn - start.perp_dot(end)
+                })
+        })
+        .sum::<f64>()
+        .signum()
 }
 
 /// The numbers of the runs of a one-sided turn the kernel lays to some
@@ -1917,36 +2033,33 @@ fn laid_runs(turn: &Turned) -> Option<(Vec<u32>, Vec<Laid>)> {
     let [side] = <[Drawn; 1]>::try_from(turn.drawn()).ok().expect("one side");
     let (outline, holes) = side.contours();
     let straight = Straight::of(&outline, &holes, turn.frame(), &turn.turn(0.0), 1.0)?;
-    let outline: Vec<DVec2> = straight.contours[0]
-        .iter()
-        .map(|corner| corner.at)
-        .collect();
-    let turning = outline
-        .iter()
-        .zip(outline.iter().cycle().skip(1))
-        .map(|(from, to)| from.perp_dot(*to))
-        .sum::<f64>()
-        .signum();
+    let turning = turning_of(&straight.contours[0]);
     let mut runs = Vec::new();
     let mut numbers = Vec::new();
     for contour in &straight.contours {
         for (index, corner) in contour.iter().enumerate() {
             numbers.push(corner.run);
             let (from, to) = (corner.at, contour[(index + 1) % contour.len()].at);
-            if from.y == 0.0 && to.y == 0.0 {
+            if from.y == 0.0 && to.y == 0.0 && corner.bend.is_none() {
                 continue;
             }
-            let along = (to - from).normalize();
-            let out = DVec2::new(along.y, -along.x) * turning;
-            runs.push(Laid {
-                run: corner.run,
-                from,
-                to,
-                out,
+            runs.push(match corner.bend {
+                None => Laid::across(corner.run, from, to, turning),
+                Some(bend) => Laid::along(corner.run, from, to, bend, turning),
             });
         }
     }
     Some((numbers, runs))
+}
+
+/// Where a point of a one-sided turn's section, laid along the axis and
+/// away from it, stands in space half way round the turn: where its faces
+/// are probed.
+fn placed_half_way(turn: &Turned) -> impl Fn(DVec2) -> DVec3 {
+    let swept = turn.swept(turn.section.side().expect("one side"));
+    let (sine, cosine) = (turn.angle() / 2.0).sin_cos();
+    let radial = swept.out * cosine + swept.onward * sine;
+    move |place: DVec2| swept.origin + swept.along * place.x + radial * place.y
 }
 
 #[test]
@@ -1966,11 +2079,14 @@ fn a_turned_leaf_names_its_faces_as_the_flats_name_them() {
 
 /// Whether every one of `leaves`, turned on one side of its axis, is
 /// numbered by the exact kernel as the flats number it, and each run it
-/// lays turns into the face of its own number: or of a run on its line, or
-/// of one the kernel tells apart past the flats' numbers; and how many of
-/// them the exact kernel turned, the others held to the flats by the flats.
+/// lays turns into the face of its own number: or of a run on its line or
+/// its circle, or of one the kernel tells apart past the flats' numbers;
+/// and how many of them the exact kernel turned, the others held to the
+/// flats by the flats. A bowed section the reading declines to lay is
+/// counted and printed, as is one laid.
 fn name_their_faces_as_the_flats_name_them(leaves: &[Leaf]) -> usize {
     let mut turned_exactly = 0;
+    let mut bowed = BowedSections::default();
     for leaf in leaves {
         let turn = turned(leaf).expect("a turn");
         let exact = Application.raised(leaf).expect("a turned body");
@@ -1986,10 +2102,12 @@ fn name_their_faces_as_the_flats_name_them(leaves: &[Leaf]) -> usize {
         let Some((numbers, runs)) = laid_runs(&turn) else {
             assert!(
                 turn.has_a_wall_a_hair_thin() || turn.section.bows(),
-                "{leaf}: a section of straight runs not laid"
+                "{leaf}: not laid, though the reading declines a bowed section or a wall a hair thin only"
             );
+            bowed.declined += usize::from(turn.section.bows());
             continue;
         };
+        bowed.laid += usize::from(turn.section.bows());
         let laid = |face: usize| numbers.contains(&(face as u32)) || face as u32 >= runs_of(&turn);
         for face in (0..flats.faces_end()).filter(|face| laid(*face)) {
             assert_eq!(
@@ -1999,37 +2117,30 @@ fn name_their_faces_as_the_flats_name_them(leaves: &[Leaf]) -> usize {
             );
         }
         let (_, reach) = lines_over(leaf);
-        let swept = turn.swept(turn.section.side().expect("one side"));
-        let (sine, cosine) = (turn.angle() / 2.0).sin_cos();
-        let radial = swept.out * cosine + swept.onward * sine;
-        let at = |place: DVec2| swept.origin + swept.along * place.x + radial * place.y;
+        let at = placed_half_way(&turn);
         let drawn_to = TESSELLATION * reach;
         for run in runs
             .iter()
             .filter(|run| run.from.distance(run.to) > drawn_to)
         {
-            let middle = (run.from + run.to) / 2.0;
-            let way = (at(middle + run.out) - at(middle)).normalize();
+            let way = (at(run.probe + run.out) - at(run.probe)).normalize();
             let hit = exact
-                .ray_hit(at(middle) + way * drawn_to, -way)
+                .ray_hit(at(run.probe) + way * drawn_to, -way)
                 .unwrap_or_else(|| panic!("{leaf}: no face where run {} turns", run.run));
-            let along = (run.to - run.from).normalize();
-            let on_its_line = runs.iter().any(|other| {
-                other.run as usize == hit.face
-                    && [other.from, other.to]
-                        .iter()
-                        .all(|end| along.perp_dot(*end - run.from).abs() <= 1e-12 * reach)
-            });
+            let on_its_curve = runs
+                .iter()
+                .any(|other| other.run as usize == hit.face && run.on_the_same_curve(other, reach));
             let told_apart = hit.face >= flats.faces_end()
                 && runs.iter().filter(|other| other.run == run.run).count() > 1;
             assert!(
-                hit.face == run.run as usize || on_its_line || told_apart,
+                hit.face == run.run as usize || on_its_curve || told_apart,
                 "{leaf}: run {} turned into face {}",
                 run.run,
                 hit.face
             );
         }
     }
+    println!("{bowed}");
     turned_exactly
 }
 
@@ -4162,6 +4273,137 @@ fn the_pieces_of_a_rounded_section_turn_into_pappus_s_volume_of_its_corners_and_
             "{leaf}: {volume} against {pappus}"
         );
     }
+}
+
+/// The section of a rounded leaf laid against its axis as the exact kernel
+/// reads it, at the tolerance a lone leaf is read at.
+fn laid_by_hand(leaf: &Leaf) -> (Turned, Straight) {
+    let turn = turned(leaf).expect("a turn");
+    let [side] = <[Drawn; 1]>::try_from(turn.drawn()).ok().expect("one side");
+    let (outline, holes) = side.contours();
+    let straight = Straight::of(&outline, &holes, turn.frame(), &turn.turn(0.0), 0.0)
+        .unwrap_or_else(|| panic!("{leaf}: not laid"));
+    (turn, straight)
+}
+
+#[test]
+fn a_rounded_section_as_the_reading_lays_it_sweeps_pappus_s_volume_of_its_corners_and_arcs() {
+    for leaf in rounded_by_hand() {
+        let (turn, straight) = laid_by_hand(&leaf);
+        assert!(
+            straight
+                .contours
+                .iter()
+                .flatten()
+                .any(|corner| corner.bend.is_some()),
+            "{leaf}: laid with no arc"
+        );
+        let laid = turn.angle() * moment_laid(&straight);
+        let volume = turn.volume();
+        assert!(
+            (volume - laid).abs() <= 1e-9 * volume,
+            "{leaf}: {laid} as laid against {volume}"
+        );
+    }
+}
+
+#[test]
+fn a_bent_run_is_probed_on_its_arc_along_the_normal_there_and_a_straight_run_across_its_middle_as_before()
+ {
+    let drawn: Vec<Leaf> = drawn_turns(300)
+        .into_iter()
+        .filter(|leaf| turned(leaf).is_some_and(|turn| turn.section.side().is_some()))
+        .collect();
+    assert!(drawn.len() > 100, "{} leaves", drawn.len());
+    let by_hand = rounded_by_hand();
+    let mut bent = 0;
+    for (leaf, exact) in by_hand
+        .iter()
+        .map(|leaf| (leaf, true))
+        .chain(drawn.iter().map(|leaf| (leaf, false)))
+    {
+        let turn = turned(leaf).expect("a turn");
+        let Some((_, runs)) = laid_runs(&turn) else {
+            assert!(turn.has_a_wall_a_hair_thin(), "{leaf}: not laid");
+            continue;
+        };
+        let [side] = <[Drawn; 1]>::try_from(turn.drawn()).ok().expect("one side");
+        let (outline, holes) = side.contours();
+        let straight = Straight::of(&outline, &holes, turn.frame(), &turn.turn(0.0), 1.0)
+            .expect("laid once already");
+        let chords: Vec<DVec2> = straight.contours[0]
+            .iter()
+            .map(|corner| corner.at)
+            .collect();
+        let turning = chords
+            .iter()
+            .zip(chords.iter().cycle().skip(1))
+            .map(|(from, to)| from.perp_dot(*to))
+            .sum::<f64>()
+            .signum();
+        let (_, reach) = lines_over(leaf);
+        let at = placed_half_way(&turn);
+        for run in &runs {
+            match run.bend {
+                None => {
+                    assert_eq!(
+                        run.probe,
+                        (run.from + run.to) / 2.0,
+                        "{leaf}: run {}",
+                        run.run
+                    );
+                    let along = (run.to - run.from).normalize();
+                    assert_eq!(
+                        run.out,
+                        DVec2::new(along.y, -along.x) * turning,
+                        "{leaf}: run {}",
+                        run.run
+                    );
+                }
+                Some(bend) => {
+                    bent += 1;
+                    let radius = run.from.distance(bend.center);
+                    let radial = run.probe - bend.center;
+                    assert!(
+                        (radial.length() - radius).abs() <= 1e-12 * radius,
+                        "{leaf}: run {} probed at {} off its circle",
+                        run.run,
+                        run.probe
+                    );
+                    assert!(
+                        run.out.perp_dot(radial).abs() <= 1e-12 * radius
+                            && (run.out.length() - 1.0).abs() <= 1e-12,
+                        "{leaf}: run {} out {} off the normal",
+                        run.run,
+                        run.out
+                    );
+                }
+            }
+            if !exact {
+                continue;
+            }
+            let origin = at(run.probe);
+            let way = (at(run.probe + run.out) - origin).normalize();
+            let stretches = leaf.along(origin, way).expect("a turn's stretches");
+            assert!(
+                stretches
+                    .iter()
+                    .any(|stretch| stretch.to.at.abs() <= 1e-9 * reach),
+                "{leaf}: the matter does not end at run {}'s probe {} along {}: {stretches:?}",
+                run.run,
+                run.probe,
+                run.out
+            );
+        }
+    }
+    let arcs: usize = by_hand
+        .iter()
+        .map(|leaf| arcs_of(&turned(leaf).expect("a turn").section).len())
+        .sum();
+    assert_eq!(
+        bent, arcs,
+        "every arc of the leaves by hand laid and probed"
+    );
 }
 
 #[test]

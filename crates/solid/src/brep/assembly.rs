@@ -16,11 +16,11 @@ pub(super) fn assembled(arena: Arena, faces: Vec<Face>) -> Result<Body, Declined
 }
 
 /// The body `faces` make of what `body` holds: faces on one surface with one
-/// side merged, each given the apex it holds within it, what no face uses
+/// side merged, each given the poles it holds within it, what no face uses
 /// left out, the rest renumbered, and the whole verified.
 pub(super) fn tidied(mut body: Body, faces: Vec<Face>) -> Result<Body, Declined> {
     let mut faces = merged::merged(&mut body.edges, &body.curves, &body.vertices, faces);
-    body.hold_apexes(&mut faces);
+    body.hold_poles(&mut faces);
     let mut edges = Renumbering::of(body.edges.len());
     for coedge in faces.iter().flat_map(|face| face.loops.iter().flatten()) {
         edges.mark(coedge.edge.0);
@@ -33,8 +33,8 @@ pub(super) fn tidied(mut body: Body, faces: Vec<Face>) -> Result<Body, Declined>
             vertices.mark(end.0);
         }
     }
-    for apex in faces.iter().filter_map(|face| face.apex) {
-        vertices.mark(apex.0);
+    for pole in faces.iter().flat_map(|face| face.poles.iter()) {
+        vertices.mark(pole.0);
     }
     let mut surfaces = Renumbering::of(body.surfaces.len());
     for face in &faces {
@@ -89,7 +89,11 @@ pub(super) fn tidied(mut body: Body, faces: Vec<Face>) -> Result<Body, Declined>
                     })
                     .collect(),
                 numbers: face.numbers.clone(),
-                apex: face.apex.map(|apex| VertexId(vertices.renumbered(apex.0))),
+                poles: face
+                    .poles
+                    .iter()
+                    .map(|pole| VertexId(vertices.renumbered(pole.0)))
+                    .collect(),
             })
             .collect(),
         scale: body.scale,

@@ -167,7 +167,10 @@ fn the_poles_of_a_spindle_stand_where_its_meridian_circle_meets_the_axis() {
         2.0,
         DVec2::new(0.0, 4.0),
     );
-    assert_eq!(horn.poles().len(), 1);
+    let [one, other] = horn.poles()[..] else {
+        panic!("a horn's one point is both ends of its lobe");
+    };
+    assert_eq!(one, other);
     let near = horn.point(DVec2::new(0.0, PI - 1e-9));
     let from = near - horn.origin;
     let rho = (from - horn.axis * from.dot(horn.axis)).length();

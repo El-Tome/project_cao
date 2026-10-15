@@ -89,7 +89,7 @@ fn block(low: DVec3, high: DVec3) -> Listing {
                         .map(|index| edge_between(around[index], around[(index + 1) % 4]))
                         .collect(),
                 ],
-                apex: None,
+                poles: Vec::new(),
             });
         }
     }
@@ -118,19 +118,19 @@ fn round(center: DVec3, radius: f64, height: f64) -> Listing {
                 surface: Surface::Plane(disc(height)),
                 outward: true,
                 loops: vec![vec![(1, true)]],
-                apex: None,
+                poles: Vec::new(),
             },
             ListedFace {
                 surface: Surface::Plane(disc(0.0)),
                 outward: false,
                 loops: vec![vec![(0, false)]],
-                apex: None,
+                poles: Vec::new(),
             },
             ListedFace {
                 surface: Surface::Cylinder(cylinder),
                 outward: true,
                 loops: vec![vec![(0, true)], vec![(1, false)]],
-                apex: None,
+                poles: Vec::new(),
             },
         ],
         edges: vec![rim(0.0), rim(height)],
@@ -158,7 +158,7 @@ fn bored(low: DVec3, high: DVec3, center: DVec3, radius: f64) -> Listing {
         surface: Surface::Cylinder(cylinder),
         outward: false,
         loops: vec![vec![(top, true)], vec![(bottom, false)]],
-        apex: None,
+        poles: Vec::new(),
     });
     with_sides(listing)
 }
@@ -283,7 +283,7 @@ fn a_face_bounded_by_no_loop_is_found() {
         surface: listing.faces[0].surface,
         outward: true,
         loops: Vec::new(),
-        apex: None,
+        poles: Vec::new(),
     });
     assert_eq!(
         listed(&listing, REACH),
@@ -564,7 +564,7 @@ fn half_round() -> Listing {
         surface,
         outward,
         loops: vec![uses],
-        apex: None,
+        poles: Vec::new(),
     };
     with_sides(Listing {
         faces: vec![
@@ -794,7 +794,7 @@ fn a_wall_bounded_over_a_hair_by_the_rim_of_a_wall_touching_it_outside_turns_its
             surface: Surface::Cylinder(wall),
             outward: true,
             loops: vec![vec![(0, true), (1, true), (2, true), (3, true)]],
-            apex: None,
+            poles: Vec::new(),
         }],
         edges,
         vertices,
@@ -811,7 +811,7 @@ fn a_wall_bounded_over_a_hair_by_the_rim_of_a_wall_touching_it_outside_turns_its
 fn stock_holding(point: DVec3) -> Listing {
     let mut listing = stock();
     listing.vertices.push(point);
-    listing.faces[0].apex = Some(0);
+    listing.faces[0].poles = vec![0];
     listing
 }
 
@@ -846,7 +846,7 @@ fn a_vertex_a_face_holds_within_it_off_its_surface_is_found_off_the_face() {
 #[test]
 fn a_face_holding_a_vertex_the_listing_does_not_hold_is_found() {
     let mut listing = stock();
-    listing.faces[2].apex = Some(4);
+    listing.faces[2].poles = vec![4];
     assert_eq!(
         listed(&listing, REACH),
         Err(Mislisted::NoSuchApex { face: 2, vertex: 4 })
@@ -874,13 +874,13 @@ fn whole_point(tip: DVec3) -> Listing {
                 surface: Surface::Plane(Plane::through(DVec3::ZERO, DVec3::Z).0),
                 outward: false,
                 loops: vec![vec![(0, false)]],
-                apex: None,
+                poles: Vec::new(),
             },
             ListedFace {
                 surface: Surface::Cone(cone),
                 outward: false,
                 loops: vec![vec![(0, true)]],
-                apex: Some(0),
+                poles: vec![0],
             },
         ],
         edges: vec![ListedEdge {
@@ -938,7 +938,7 @@ fn partial_point(angle: f64) -> Listing {
             surface: Surface::Cone(cone),
             outward: false,
             loops: vec![vec![(0, true), (1, true), (2, true)]],
-            apex: None,
+            poles: Vec::new(),
         }],
         edges: vec![
             arc(rim, &vertices, 1, 2),
@@ -967,7 +967,7 @@ fn quarter_frustum(lower: DVec2, upper: DVec2) -> Listing {
             surface: Surface::Cone(cone),
             outward: cone.ruling.x > 0.0,
             loops: vec![vec![(0, true), (1, true), (2, false), (3, true)]],
-            apex: None,
+            poles: Vec::new(),
         }],
         edges: vec![
             arc(low, &vertices, 0, 1),
@@ -1047,14 +1047,14 @@ fn a_tip_a_cone_holds_away_from_its_apex_is_found_away_from_it() {
 #[test]
 fn a_cone_closed_at_its_apex_holding_no_vertex_there_is_found() {
     let mut listing = whole_point(TIP);
-    listing.faces[1].apex = None;
+    listing.faces[1].poles = Vec::new();
     assert_eq!(listed(&listing, REACH), Err(Mislisted::Pointed { face: 1 }));
 }
 
 #[test]
 fn a_cone_holding_its_apex_while_winding_round_nothing_is_found() {
     let mut listing = partial_point(PI / 2.0);
-    listing.faces[0].apex = Some(0);
+    listing.faces[0].poles = vec![0];
     assert_eq!(
         turning::turning(&listing, ON * REACH),
         Err(Mislisted::Pointed { face: 0 })
@@ -1138,19 +1138,19 @@ fn a_cone_a_hair_from_a_cylinder_keeps_its_rims_on_it_and_turns_the_right_way() 
                 surface: Surface::Plane(disc(10.0)),
                 outward: true,
                 loops: vec![vec![(1, true)]],
-                apex: None,
+                poles: Vec::new(),
             },
             ListedFace {
                 surface: Surface::Plane(disc(0.0)),
                 outward: false,
                 loops: vec![vec![(0, false)]],
-                apex: None,
+                poles: Vec::new(),
             },
             ListedFace {
                 surface: Surface::Cone(cone),
                 outward: true,
                 loops: vec![vec![(0, true)], vec![(1, false)]],
-                apex: None,
+                poles: Vec::new(),
             },
         ],
         edges: vec![rim(0.0, radius), rim(10.0, radius + hair)],

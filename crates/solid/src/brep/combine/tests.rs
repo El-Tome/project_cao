@@ -853,7 +853,7 @@ fn a_whole_point_s_face_meets_what_stands_at_its_apex() {
     let operands = Operands::of(&point, &tip, point.scale().joined(tip.scale()));
     let cone = point
         .face_ids()
-        .find(|&face| point.apex_held(face).is_some())
+        .find(|&face| !point.poles_held(face).is_empty())
         .expect("the cone's face holds its apex");
     assert!(tip.face_ids().any(|face| operands.near(cone, face)));
 }
@@ -868,7 +868,9 @@ fn a_whole_point_joined_to_a_block_clear_of_it_keeps_its_tip_as_a_vertex_of_its_
         .face_ids()
         .find(|&face| matches!(joined.surface(joined.face(face).surface), Surface::Cone(_)))
         .expect("the point's face is kept");
-    let tip = joined.face(cone).apex.expect("the cone holds its tip");
+    let [tip] = joined.face(cone).poles[..] else {
+        panic!("the cone holds its tip");
+    };
     assert!(
         joined
             .vertex(tip)

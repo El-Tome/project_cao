@@ -32,7 +32,7 @@ impl Body {
                 .flatten()
                 .any(|vertex| self.vertex(*vertex).point.distance(apex) <= eps)
         });
-        if at_the_apex || self.apex_held(face).is_some() {
+        if at_the_apex || !self.poles_held(face).is_empty() {
             cone.apex_at()
         } else {
             0.0

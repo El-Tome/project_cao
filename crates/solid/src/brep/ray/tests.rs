@@ -270,7 +270,7 @@ fn a_whole_point_s_face_box_holds_its_apex() {
     let boxes = Boxes::of(&body, body.scale().eps());
     let cone = body
         .face_ids()
-        .find(|&face| body.apex_held(face).is_some())
+        .find(|&face| !body.poles_held(face).is_empty())
         .expect("the cone's face holds its apex");
     for place in [DVec3::new(0.0, 9.9, 0.0), DVec3::new(0.0, 5.0, 2.0)] {
         assert!(!boxes.misses(cone, place), "{place}");

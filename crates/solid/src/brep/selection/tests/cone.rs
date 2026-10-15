@@ -1,6 +1,6 @@
 use std::f64::consts::{PI, TAU};
 
-use glam::DVec2;
+use glam::{DVec2, DVec3};
 
 use super::*;
 use crate::brep::curve::Curve;
@@ -116,7 +116,7 @@ fn a_whole_point_s_surface_has_a_bounded_cap_with_its_rim_alone() {
     let Surface::Cone(geometry) = *arena.body.surface(cone) else {
         unreachable!();
     };
-    let (edges, overlay) = parted(&arena, cone, true).expect("the cone is parted");
+    let (edges, overlay) = parted(&arena, cone, &[DVec3::ZERO]).expect("the cone is parted");
     assert_eq!(edges.len(), 1);
     let [cap] = bounded(&overlay)[..] else {
         panic!("one bounded region, not {overlay:?}");
@@ -128,7 +128,7 @@ fn a_whole_point_s_surface_has_a_bounded_cap_with_its_rim_alone() {
         geometry.apex_at() < cap.inside.y && cap.inside.y < rim,
         "{cap:?}"
     );
-    let (_, unheld) = parted(&arena, cone, false).expect("the cone is parted");
+    let (_, unheld) = parted(&arena, cone, &[]).expect("the cone is parted");
     assert!(bounded(&unheld).is_empty(), "no floor, no cap");
 }
 
@@ -137,7 +137,7 @@ fn a_point_turned_part_way_is_one_sector_bounded_by_its_rulings_and_its_rim() {
     for degrees in [90.0, 270.0, -200.0] {
         let arena = alone(point(degrees));
         let cone = the_cone(&arena);
-        let (edges, overlay) = parted(&arena, cone, false).expect("the cone is parted");
+        let (edges, overlay) = parted(&arena, cone, &[]).expect("the cone is parted");
         let [sector] = bounded(&overlay)[..] else {
             panic!("one sector at {degrees}°, not {overlay:?}");
         };
@@ -151,7 +151,7 @@ fn a_point_turned_part_way_is_one_sector_bounded_by_its_rulings_and_its_rim() {
 fn a_cone_parted_by_two_rulings_through_its_apex_keeps_both_sectors() {
     let arena = halved();
     let cone = the_cone(&arena);
-    let (edges, overlay) = parted(&arena, cone, true).expect("the cone is parted");
+    let (edges, overlay) = parted(&arena, cone, &[DVec3::ZERO]).expect("the cone is parted");
     let sectors = bounded(&overlay);
     assert_eq!(sectors.len(), 2, "{overlay:?}");
     for sector in sectors {
@@ -170,7 +170,8 @@ fn no_region_of_a_cone_is_bounded_by_a_floor_arc() {
         (halved(), false),
     ] {
         let cone = the_cone(&arena);
-        let (edges, overlay) = parted(&arena, cone, holds).expect("the cone is parted");
+        let held: &[DVec3] = if holds { &[DVec3::ZERO] } else { &[] };
+        let (edges, overlay) = parted(&arena, cone, held).expect("the cone is parted");
         assert_each_arc_run_once_each_way(&edges, &overlay);
     }
 }

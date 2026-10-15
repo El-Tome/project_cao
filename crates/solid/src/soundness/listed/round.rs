@@ -106,6 +106,22 @@ impl Tube {
     }
 }
 
+impl Tube {
+    /// Where the poles stand: the two ends of a sphere, where the meridian
+    /// circle of a spindle torus meets the axis, none on a ring.
+    pub(super) fn poles(&self) -> Vec<DVec3> {
+        let (big, r) = (self.center.y, self.radius);
+        if big.abs() > r {
+            return Vec::new();
+        }
+        let reach = (-big / r).acos();
+        [-reach, reach]
+            .into_iter()
+            .map(|phi| self.origin + self.axis * (self.center.x + r * phi.sin()))
+            .collect()
+    }
+}
+
 /// How far from square to the axis, in the sine of the angle between the
 /// two, a circle's axis may stand and the circle still be a meridian.
 const SQUARE: f64 = 1e-9;

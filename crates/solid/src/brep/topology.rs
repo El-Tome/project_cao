@@ -12,8 +12,8 @@ use super::curve::{Circle, Curve};
 use super::scale::Scale;
 use super::surface::Surface;
 
-mod apex;
 mod numbers;
+mod poles;
 mod rotated;
 
 pub(super) use numbers::ascending;
@@ -73,16 +73,17 @@ pub struct Coedge {
 /// the run of the profile it stands on, and a boolean keeps the names of
 /// every face of its operands a face lies on.
 ///
-/// `apex` is the vertex a face on a cone holds within it, which none of its
-/// loops reaches: a whole point's tip (#536).
+/// `poles` are the vertices a face holds within it, which none of its loops
+/// reaches: a whole point's tip at its cone's apex (#536), a ball's two ends
+/// at its sphere's poles (#576) — two at most.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Face {
     pub surface: SurfaceId,
     pub flipped: bool,
     pub loops: Vec<Vec<Coedge>>,
     pub numbers: Vec<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub apex: Option<VertexId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub poles: Vec<VertexId>,
 }
 
 /// A solid, as the surfaces and curves it stands on and the faces, edges and
@@ -249,13 +250,14 @@ impl Body {
         })
     }
 
-    /// The box round a face, from the extremes of its edges and the apex it
+    /// The box round a face, from the extremes of its edges and the poles it
     /// holds within it, grown by `eps`.
     pub(in crate::brep) fn boxed(&self, face: FaceId, eps: f64) -> [DVec3; 2] {
         let mut low = DVec3::INFINITY;
         let mut high = DVec3::NEG_INFINITY;
-        if let Some(apex) = self.apex_held(face) {
-            (low, high) = (apex, apex);
+        for pole in self.poles_held(face) {
+            low = low.min(pole);
+            high = high.max(pole);
         }
         for coedge in self.face(face).loops.iter().flatten() {
             for point in self.extremes(self.edge(coedge.edge)) {

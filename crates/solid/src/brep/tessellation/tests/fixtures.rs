@@ -267,7 +267,7 @@ impl Build {
             flipped,
             loops,
             numbers: Vec::new(),
-            apex: None,
+            poles: Vec::new(),
         });
         FaceId(self.body.faces.len() as u32 - 1)
     }

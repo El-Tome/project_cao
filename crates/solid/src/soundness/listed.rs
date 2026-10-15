@@ -30,7 +30,8 @@ pub enum Mislisted {
     NoSuchEdge { face: usize, edge: usize },
     /// An edge naming a vertex the listing does not hold.
     NoSuchVertex { edge: usize, vertex: usize },
-    /// A face holding within it a vertex the listing does not hold.
+    /// A face holding within it, as a pole, a vertex the listing does not
+    /// hold.
     NoSuchApex { face: usize, vertex: usize },
     /// An edge naming, beside it, a face the listing does not hold.
     NoSuchFace { edge: usize, face: usize },
@@ -76,8 +77,9 @@ pub enum Mislisted {
         at: f64,
         distance: f64,
     },
-    /// A face said to hold within it, as its apex, a vertex standing off the
-    /// apex of its cone — infinitely far from a surface with no apex.
+    /// A face said to hold within it, as a pole, a vertex standing off the
+    /// apex of its cone or every pole of its sphere or torus — infinitely far
+    /// from a surface with no pole.
     ApexAway {
         face: usize,
         vertex: usize,
@@ -136,9 +138,10 @@ fn ranked(listing: &Listing) -> Result<(), Mislisted> {
         {
             return Err(Mislisted::NoSuchEdge { face, edge });
         }
-        if let Some(vertex) = listed
-            .apex
-            .filter(|vertex| *vertex >= listing.vertices.len())
+        if let Some(&vertex) = listed
+            .poles
+            .iter()
+            .find(|vertex| **vertex >= listing.vertices.len())
         {
             return Err(Mislisted::NoSuchApex { face, vertex });
         }

@@ -106,7 +106,7 @@ pub(crate) fn tip_cut_at_a_slant_volume(lean: f64) -> f64 {
 
 fn held_at_its_apex(body: &mut Body, face: FaceId, apex: VertexId) {
     let surface = body.faces[face.0 as usize].surface;
-    body.faces[face.0 as usize].apex = Some(apex);
+    body.faces[face.0 as usize].poles = vec![apex];
     body.vertices[apex.0 as usize].on = vec![surface];
 }
 

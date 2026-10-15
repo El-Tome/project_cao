@@ -127,7 +127,11 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
 /// an edge runs along the curve two cylinders meet along.
 fn farthest((body, face): (&Body, FaceId), origin: DVec3, axis: DVec3) -> Option<f64> {
     let off = |point: DVec3| from_the_axis(point, origin, axis);
-    let mut farthest = body.apex_held(face).map_or(0.0, off);
+    let mut farthest = body
+        .poles_held(face)
+        .into_iter()
+        .map(off)
+        .fold(0.0, f64::max);
     for coedge in body.face(face).loops.iter().flatten() {
         let edge = body.edge(coedge.edge);
         let reached = match body.curve(edge.curve) {
@@ -194,9 +198,9 @@ fn straight_edges((body, face): (&Body, FaceId)) -> impl Iterator<Item = DVec3> 
 fn reach((body, face): (&Body, FaceId), direction: DVec3) -> Option<[f64; 2]> {
     let mut low = f64::INFINITY;
     let mut high = f64::NEG_INFINITY;
-    if let Some(apex) = body.apex_held(face) {
-        low = direction.dot(apex);
-        high = low;
+    for pole in body.poles_held(face) {
+        low = low.min(direction.dot(pole));
+        high = high.max(direction.dot(pole));
     }
     for coedge in body.face(face).loops.iter().flatten() {
         let edge = body.edge(coedge.edge);

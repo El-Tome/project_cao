@@ -153,16 +153,14 @@ impl Torus {
         self.point(DVec2::new(theta, phi))
     }
 
-    /// The angles along the meridian the poles stand at, in the window,
-    /// ascending: none on a ring, two on a spindle, one point on a horn.
+    /// The angles along the meridian the poles stand at, in the window, the
+    /// low end of the own lobe first and the high end second: none on a
+    /// ring, two on a spindle, the one point of a horn twice.
     pub fn poles(&self) -> Vec<f64> {
         let Some(reach) = self.lobe() else {
             return Vec::new();
         };
-        let mut poles = vec![self.windowed(-reach), self.windowed(reach)];
-        poles.sort_by(f64::total_cmp);
-        poles.dedup();
-        poles
+        vec![self.windowed(-reach), self.windowed(reach)]
     }
 
     /// The circle about the axis at height `h` and of `radius`: the very

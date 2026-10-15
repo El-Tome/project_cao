@@ -65,7 +65,7 @@ impl Wall {
 /// where an edge runs along the curve two cylinders meet along.
 pub(super) fn radii(cone: &Cone, (body, face): (&Body, FaceId)) -> Option<[f64; 2]> {
     let off = |point: DVec3| from_the_axis(point, cone.origin, cone.axis);
-    let mut inner = if body.apex_held(face).is_some() {
+    let mut inner = if !body.poles_held(face).is_empty() {
         0.0
     } else {
         f64::INFINITY

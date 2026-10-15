@@ -663,7 +663,7 @@ fn band_cut_open(seam: f64) -> Body {
                 used(2, false),
             ]],
             numbers: Vec::new(),
-            apex: None,
+            poles: Vec::new(),
         }],
         scale: Scale::of(10.0),
         arrivals: Vec::new(),
@@ -966,3 +966,4 @@ fn a_wall_turning_three_quarters_round_keeps_its_matter_on_the_left_and_its_volu
 mod cone;
 mod conic;
 mod elliptic;
+mod round;

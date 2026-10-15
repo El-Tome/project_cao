@@ -134,3 +134,58 @@ fn a_latitude_arc_s_closed_form_is_its_quadrature() {
         Some(0.0)
     );
 }
+
+#[test]
+fn a_ball_a_zone_a_cap_a_lune_and_an_apple_hold_pappus_s_volume() {
+    use crate::brep::turned::tests::round::{apple, ball, cap, turned, zone};
+    let r = 5.0f64;
+    let whole = 4.0 / 3.0 * PI * r * r * r;
+    let apple_moment = 6.0 * 3f64.sqrt() + 16.0 * PI / 3.0;
+    for degrees in [360.0, 90.0, 180.0, 45.0, -200.0] {
+        let share = f64::to_radians(degrees).abs() / TAU;
+        assert_relative(turned(&ball(), degrees).volume(), whole * share);
+        assert_relative(turned(&zone(), degrees).volume(), 132.0 * PI * share);
+        assert_relative(turned(&cap(), degrees).volume(), 448.0 * PI / 3.0 * share);
+        assert_relative(
+            turned(&apple(), degrees).volume(),
+            PI * apple_moment * share,
+        );
+    }
+}
+
+#[test]
+fn a_ring_and_a_rounded_shaft_end_hold_pappus_s_volume() {
+    use crate::brep::turned::tests::round::{ring, rounded_shaft, turned};
+    for degrees in [360.0, 90.0, 180.0, 300.0, -60.0] {
+        let share = f64::to_radians(degrees).abs() / TAU;
+        assert_relative(
+            turned(&ring(), degrees).volume(),
+            2.0 * PI * PI * 6.0 * 4.0 * share,
+        );
+        assert_relative(
+            turned(&rounded_shaft(), degrees).volume(),
+            608.0 * PI / 3.0 * share,
+        );
+    }
+}
+
+#[test]
+fn a_cap_s_face_flux_is_its_centre_s_share_of_the_vector_area_plus_the_radius_times_the_area() {
+    use crate::brep::turned::tests::round::{cap, turned};
+    let body = turned(&cap(), 360.0);
+    let face = body
+        .face_ids()
+        .find(|&face| matches!(body.surface(body.face(face).surface), Surface::Sphere(_)))
+        .expect("the cap");
+    let Surface::Sphere(sphere) = *body.surface(body.face(face).surface) else {
+        unreachable!()
+    };
+    let flux: f64 = body.fluxes(face).sum();
+    let phi = (-3f64).atan2(4.0);
+    let (sin, cos) = f64::sin_cos(phi);
+    let (r, middle) = (sphere.radius, sphere.middle());
+    let vector_area = sphere.axis * PI * r * r * cos * cos;
+    let area = TAU * r * r * (1.0 - sin);
+    assert_relative(flux, middle.dot(vector_area) + r * area);
+    assert!(middle.distance(DVec3::ZERO) < 1e-12);
+}

@@ -2,7 +2,8 @@
 //! circle as a stretch at constant `φ`, its angle read from the circle's own
 //! reference as on a cone, never from points; a meridian as a stretch at
 //! constant `θ`, read where the stretch stands farthest from the axis, since
-//! at a pole the angle is rounding.
+//! at a pole the angle is rounding, its `φ` run on from its start the way the
+//! circle turns, a whole circle a whole turn.
 
 use glam::{DVec2, DVec3};
 
@@ -128,10 +129,13 @@ pub(super) fn traced(
             .max_by(|one, other| chart.meridian(*one).y.total_cmp(&chart.meridian(*other).y))
             .expect("three places");
         let theta = surface.parameters(farthest).x;
-        let [start, end] = [from, to].map(|at| chart.phi(chart.meridian(circle.point(at))));
+        let (sin, cos) = theta.sin_cos();
+        let radial = chart.u * cos + chart.v * sin;
+        let turn = circle.axis.dot(radial.cross(chart.axis)).signum();
+        let start = chart.phi(chart.meridian(circle.point(from)));
         return Ok(Trace::Segment {
             from: DVec2::new(theta, start),
-            to: DVec2::new(theta, end),
+            to: DVec2::new(theta, start + turn * (to - from)),
         });
     }
     chord(&Curve::Circle(*circle), surface, from, to, eps)

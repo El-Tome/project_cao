@@ -1,7 +1,9 @@
-//! A profile of straight runs laid against its axis: every run within the
-//! tolerance of parallel or square to the axis laid so, exactly, and every
-//! other slanted as drawn, ready for the exact kernel to turn.
+//! A profile of straight runs and arcs laid against its axis: every run
+//! within the tolerance of parallel or square to the axis laid so, exactly,
+//! every other slanted as drawn, and every arc about a centre laid like a
+//! corner ([`bends`]), ready for the exact kernel to turn.
 
+mod bends;
 mod bounded;
 mod contacts;
 mod levels;
@@ -14,6 +16,7 @@ use glam::DVec2;
 use super::Turn;
 use crate::brep::Scale;
 use crate::profile::{Contour, Frame, Run};
+pub use bends::Bend;
 
 /// A profile whose every run is parallel, square or slanted to its axis,
 /// read along the axis and away from it.
@@ -41,12 +44,14 @@ pub struct Corner {
     pub at: DVec2,
     /// The number of the run leaving the corner.
     pub run: u32,
+    /// The run leaving the corner where it is an arc, as laid (#576).
+    pub bend: Option<Bend>,
 }
 
 impl Straight {
     /// The profile laid against the axis of `turn`, or `None` when a run is
-    /// round, or the profile cannot be laid as the exact kernel turns it: the
-    /// flats turn it then.
+    /// an arc of ellipse, or the profile cannot be laid as the exact kernel
+    /// turns it: the flats turn it then.
     ///
     /// A corner within the turn's band of the axis is laid on it. Every run
     /// within the tolerance of parallel or square to the axis is laid so,
@@ -65,6 +70,10 @@ impl Straight {
     /// the tolerance of a slanted run it does not end, a run across a slant,
     /// or a corner on the axis between two runs that both leave it is not
     /// straight. A run laid to no length keeps its number and names no face.
+    ///
+    /// An arc is laid about a centre laid like a corner ([`bends`]), joins
+    /// no level, and is not re-read column by column: a profile whose arcs
+    /// cannot be laid so goes to the flats.
     pub fn of(
         outline: &Contour,
         holes: &[Contour],
@@ -73,35 +82,47 @@ impl Straight {
         part_reach: f64,
     ) -> Option<Straight> {
         let contours: Vec<&Contour> = std::iter::once(outline).chain(holes).collect();
-        if contours
-            .iter()
-            .any(|contour| contour.runs.iter().any(|run| *run != Run::Straight))
-        {
+        if contours.iter().any(|contour| {
+            contour
+                .runs
+                .iter()
+                .any(|run| matches!(run, Run::Oval { .. }))
+        }) {
             return None;
         }
-        let (side, read) = read(&contours, turn)?;
+        let (side, read, raw) = read(&contours, turn)?;
+        let arcs = arcs(&contours, turn, side);
+        let bent: Vec<bool> = arcs.iter().map(Option::is_some).collect();
         let rings = rings(&contours);
         let runs: Vec<(usize, usize)> = rings
             .iter()
             .flat_map(|ring| ring.clone().map(|corner| (corner, next(ring, corner))))
             .collect();
+        let straight_runs: Vec<(usize, usize)> = runs
+            .iter()
+            .copied()
+            .filter(|&(from, _)| !bent[from])
+            .collect();
         let scale = scale(&contours, frame, &read, part_reach);
         let tolerance = turn.resolution.max(Scale::HAIR * scale.eps());
-        let mut laid = levels::laid(&read, &runs, tolerance)?;
-        slivers::cut_short(&mut laid, &rings, tolerance);
+        let mut laid = levels::laid(&read, &straight_runs, tolerance)?;
+        slivers::cut_short(&mut laid, &rings, tolerance, &bent);
+        let bends = bends::laid(&mut laid, &raw, &arcs, &runs, turn.on_the_axis, tolerance)?;
 
         let mut kept: Vec<Vec<usize>> = rings
             .iter()
             .map(|ring| {
                 ring.clone()
-                    .filter(|&corner| laid[corner] != laid[next(ring, corner)])
+                    .filter(|&corner| bent[corner] || laid[corner] != laid[next(ring, corner)])
                     .collect()
             })
             .collect();
-        if kept[0].len() < 3 {
+        let bounds =
+            |corners: &Vec<usize>| corners.len() >= 3 || corners.iter().any(|&corner| bent[corner]);
+        if !bounds(&kept[0]) {
             kept.clear();
         }
-        kept.retain(|corners| corners.len() >= 3);
+        kept.retain(bounds);
         let laid_runs: Vec<Vec<contacts::Run>> = kept
             .iter()
             .map(|corners| {
@@ -110,7 +131,8 @@ impl Straight {
                     .collect()
             })
             .collect();
-        let contours = if contacts::are_drawn(&laid, &read, &laid_runs, scale.eps(), tolerance) {
+        let drawn = contacts::are_drawn(&laid, &read, &laid_runs, &bent, scale.eps(), tolerance);
+        let contours = if drawn {
             kept.iter()
                 .map(|corners| {
                     corners
@@ -118,10 +140,13 @@ impl Straight {
                         .map(|&corner| Corner {
                             at: laid[corner],
                             run: corner as u32,
+                            bend: bends[corner],
                         })
                         .collect()
                 })
                 .collect()
+        } else if bent.iter().any(|bent| *bent) {
+            return None;
         } else {
             bounded::contours(&laid, &laid_runs, tolerance)?
         };
@@ -131,7 +156,7 @@ impl Straight {
 
         let last_off_the_axis = runs
             .iter()
-            .filter(|&&(from, to)| laid[from].y != 0.0 || laid[to].y != 0.0)
+            .filter(|&&(from, to)| bent[from] || laid[from].y != 0.0 || laid[to].y != 0.0)
             .map(|&(from, _)| from as u32)
             .max();
         Some(Straight {
@@ -157,33 +182,72 @@ impl Straight {
 }
 
 /// Every corner read as `(along, away)` from the axis, those within the
-/// band laid on it, and the side the others stand on; `None` when they stand
-/// on both, or none stands off the axis.
-fn read(contours: &[&Contour], turn: &Turn) -> Option<(f64, Vec<DVec2>)> {
+/// band laid on it, and as drawn; and the side the profile stands on, read
+/// off the corners beyond the band, or off the arcs' middles where every
+/// corner stands on the axis, as a ball's do. `None` when they stand on
+/// both sides, or none stands off the axis.
+fn read(contours: &[&Contour], turn: &Turn) -> Option<(f64, Vec<DVec2>, Vec<DVec2>)> {
     let along = turn.axis.direction.normalize_or_zero();
     let corners = contours
         .iter()
         .flat_map(|contour| contour.corners.iter().copied());
     let read: Vec<(f64, f64)> = corners
-        .map(|corner| {
-            let side = turn.axis.side(corner);
-            let side = if side.abs() <= turn.on_the_axis {
-                0.0
-            } else {
-                side
-            };
-            (along.dot(corner - turn.axis.origin), side)
-        })
+        .map(|corner| (along.dot(corner - turn.axis.origin), turn.axis.side(corner)))
         .collect();
-    let sign = read.iter().find(|(_, side)| *side != 0.0)?.1.signum();
-    if read.iter().any(|(_, side)| side * sign < 0.0) {
+    let beyond = |side: f64| side.abs() > turn.on_the_axis;
+    let bulges: Vec<f64> = contours
+        .iter()
+        .flat_map(|contour| contour.corners.iter().zip(&contour.runs))
+        .filter_map(|(&corner, run)| match *run {
+            Run::Round {
+                center,
+                turn: swept,
+            } => Some(center + DVec2::from_angle(swept / 2.0).rotate(corner - center)),
+            Run::Straight | Run::Oval { .. } => None,
+        })
+        .map(|middle| turn.axis.side(middle))
+        .collect();
+    let sides = read.iter().map(|(_, side)| *side).chain(bulges);
+    let sign = sides.clone().find(|side| beyond(*side))?.signum();
+    if sides
+        .filter(|side| beyond(*side))
+        .any(|side| side * sign < 0.0)
+    {
         return None;
     }
+    let raw = read
+        .iter()
+        .map(|&(along, side)| DVec2::new(along, side * sign))
+        .collect();
     let read = read
         .into_iter()
-        .map(|(along, side)| DVec2::new(along, if side == 0.0 { 0.0 } else { side * sign }))
+        .map(|(along, side)| DVec2::new(along, if beyond(side) { side * sign } else { 0.0 }))
         .collect();
-    Some((sign, read))
+    Some((sign, read, raw))
+}
+
+/// Every run's arc, by the corner it leaves, read as the corners are: its
+/// centre as `(along, away)`, away signed with `side` so that it is negative
+/// across the axis, and its turn signed as it goes in `(h, r)`.
+fn arcs(contours: &[&Contour], turn: &Turn, side: f64) -> Vec<Option<bends::Drawn>> {
+    let along = turn.axis.direction.normalize_or_zero();
+    contours
+        .iter()
+        .flat_map(|contour| contour.runs.iter())
+        .map(|run| match *run {
+            Run::Round {
+                center,
+                turn: swept,
+            } => Some(bends::Drawn {
+                center: DVec2::new(
+                    along.dot(center - turn.axis.origin),
+                    turn.axis.side(center) * side,
+                ),
+                turn: swept * side,
+            }),
+            Run::Straight | Run::Oval { .. } => None,
+        })
+        .collect()
 }
 
 /// The corners of each contour, numbered through the profile.

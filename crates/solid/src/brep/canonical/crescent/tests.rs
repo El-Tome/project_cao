@@ -194,6 +194,7 @@ fn point_on_top(across: f64) -> Body {
                 .map(|run| Corner {
                     at: DVec2::from(corners[run]),
                     run: run as u32,
+                    bend: None,
                 })
                 .collect(),
         ],
@@ -302,6 +303,7 @@ fn a_bore_of_a_pocket_s_radius_is_not_moved_onto_it_when_its_cone_would_leave_a_
                 .map(|run| Corner {
                     at: DVec2::from(corners[run]),
                     run: run as u32,
+                    bend: None,
                 })
                 .collect(),
         ],

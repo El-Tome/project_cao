@@ -51,6 +51,7 @@ fn chamfered() -> Body {
                 .map(|run| Corner {
                     at: DVec2::from(corners[run]),
                     run: run as u32,
+                    bend: None,
                 })
                 .collect(),
         ],

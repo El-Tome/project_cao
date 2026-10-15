@@ -15,6 +15,7 @@ fn turned(corners: &[[f64; 2]], degrees: f64) -> Body {
         .map(|(run, at)| Corner {
             at: DVec2::from(*at),
             run: run as u32,
+            bend: None,
         })
         .collect();
     let straight = Straight {

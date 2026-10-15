@@ -51,6 +51,7 @@ fn laid(contours: &[&[[f64; 2]]]) -> Straight {
                     Corner {
                         at: DVec2::from(at),
                         run: run - 1,
+                        bend: None,
                     }
                 })
                 .collect()

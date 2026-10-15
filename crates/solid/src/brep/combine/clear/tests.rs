@@ -162,6 +162,7 @@ fn turned(origin: DVec3, axis: DVec3, corners: &[[f64; 2]], angle: f64) -> Body 
                 .map(|(run, at)| Corner {
                     at: DVec2::from(*at),
                     run: run as u32,
+                    bend: None,
                 })
                 .collect(),
         ],

@@ -24,6 +24,7 @@ fn turned(corners: &[[f64; 2]], degrees: f64) -> Body {
                 .map(|(at, run)| Corner {
                     at: DVec2::from(*at),
                     run,
+                    bend: None,
                 })
                 .collect(),
         ],

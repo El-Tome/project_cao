@@ -12,7 +12,7 @@ use glam::DVec2;
 
 use crate::profile::Profile;
 
-pub use straight::{Corner, Straight};
+pub use straight::{Bend, Corner, Straight};
 
 /// How close to its axis a point of a profile counts as on it, as a share of
 /// the area's furthest point from the axis: the flats' band, wide enough for

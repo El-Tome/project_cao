@@ -4,11 +4,13 @@
 //!   measurement, written on the issue on 2026-10-14 and on 2026-10-15
 //! - one frame of drag of every point of the part's sketch stays under a
 //!   budget set from that measurement, held by a test with a timing a slower
-//!   machine still meets (#502) — the budget is set on every point dragged
-//!   both ways together, since the worst point alone is too near what it was
-//!   to tell the two apart on a slower machine; and it is not a frame, which
-//!   a point the shape cannot follow all the way is still far from —
-//!   `every_point_of_the_owner_s_part_is_dragged_both_ways_in_under_nine_tenths_of_a_second`
+//!   machine still meets (#502) — the budget is set where the sweeps crept:
+//!   the ends of the cuts beside the angled chamfers that the hand now drags
+//!   all the way, both ways together. Every point at once is only 2.7 times
+//!   faster, which a machine twice as slow swallows: the CI took 945 ms where
+//!   this one took 447. And it is not a frame for a point the shape cannot
+//!   follow all the way, which is #596 —
+//!   `the_cut_ends_the_hand_drags_all_the_way_take_a_quarter_of_a_second_at_the_most`
 //! - what each point lands on is unchanged, unless that is what the
 //!   measurement shows to be wrong — the measurement showed the ends of the
 //!   cuts beside the angled chamfers stopping short of the hand for want of
@@ -138,17 +140,18 @@ fn an_end_of_a_cut_beside_the_angled_chamfers_follows_the_hand_all_the_way() {
     }
 }
 
-/// Every point of the part dragged a frame off its press both ways, all told:
-/// 0.45 s where this was measured, in the build the tests run in, against
-/// 1.23 s before #592 — room for a machine twice as slow, and none for a
-/// return of the sweeps that crept.
-const BUDGET: Duration = Duration::from_millis(900);
+/// The ends of the cuts beside the angled chamfers that the hand drags all
+/// the way, each dragged a frame off its press both ways, all told: 65 ms
+/// where this was measured, in the build the tests run in, against 480 ms
+/// before #592 — room for a machine twice as slow, and none for a return of
+/// the sweeps that crept.
+const BUDGET: Duration = Duration::from_millis(250);
 
 #[test]
-fn every_point_of_the_owner_s_part_is_dragged_both_ways_in_under_nine_tenths_of_a_second() {
+fn the_cut_ends_the_hand_drags_all_the_way_take_a_quarter_of_a_second_at_the_most() {
     let sketch = the_owner_s_part();
     let started = Instant::now();
-    for (point, _) in sketch.live_points() {
+    for point in [30, 31, 32, 35, 36].map(PointId) {
         for by in [HAND, -HAND] {
             dragged(&sketch, point, by);
         }

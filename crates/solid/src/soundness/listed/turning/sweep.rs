@@ -100,13 +100,13 @@ pub(super) fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3, room: f6
 }
 
 /// What an edge sweeps on a sphere or a torus, in `(θ, φ)` with `φ`
-/// unrolled at the tube's radius from that of `about`: a latitude circle in
+/// weighed by the area form from that of `about`: a latitude circle in
 /// closed form, a meridian circle nothing, since it turns no angle about
 /// the axis — never read along chords, which at a pole read an angle that
 /// is rounding — and anything else along chords.
 fn tube(tube: &Tube, edge: &ListedEdge, about: DVec3, room: f64) -> (f64, f64) {
     let from = tube.phi(about);
-    let height = |place: DVec3| tube.tube() * (tube.phi(place) - from);
+    let height = |place: DVec3| tube.rise(from, tube.phi(place));
     if let Curve::Circle(circle) = edge.curve {
         if tube.holds_meridian(&circle, room) {
             return (0.0, 0.0);

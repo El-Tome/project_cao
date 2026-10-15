@@ -48,11 +48,6 @@ impl Tube {
         }
     }
 
-    /// The tube's radius.
-    pub(super) fn tube(&self) -> f64 {
-        self.radius
-    }
-
     /// A point of the axis, and its direction.
     pub(super) fn frame(&self) -> (DVec3, DVec3) {
         (self.origin, self.axis)
@@ -87,6 +82,15 @@ impl Tube {
         } else {
             phi
         }
+    }
+
+    /// What the surface's area form sweeps per radian about the axis from
+    /// one angle along the meridian to another, over the tube's radius:
+    /// `R(φ − φ₀) + r(sin φ − sin φ₀)`, the height along the axis on a
+    /// sphere, which a loop's orientation is weighed with as a cylinder's is
+    /// with its height.
+    pub(super) fn rise(&self, from: f64, to: f64) -> f64 {
+        self.center.y * (to - from) + self.radius * (to.sin() - from.sin())
     }
 
     /// How far a place stands from the meridian circle, in its half-plane.

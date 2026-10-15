@@ -105,7 +105,7 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
                         .into_iter()
                         .find(|pole| passes(listing, uses, *pole, room))
                 {
-                    area += tube.tube() * (tube.phi(pole) - tube.phi(about)) * turns;
+                    area += tube.rise(tube.phi(about), tube.phi(pole)) * turns;
                     turns = 0.0;
                 }
                 (area * side, (turns / TAU).round() * side)
@@ -197,7 +197,7 @@ fn floor(nappe: &Nappe, winding: f64, holds: bool, about: DVec3) -> Option<(f64,
 fn round_floor(tube: &Tube, poles: &[DVec3], winding: f64, about: DVec3) -> Option<(f64, f64)> {
     match (winding.abs() == 1.0, poles) {
         (true, [pole]) => {
-            let below = tube.tube() * (tube.phi(*pole) - tube.phi(about));
+            let below = tube.rise(tube.phi(about), tube.phi(*pole));
             Some((below * TAU * winding, -winding))
         }
         (false, [] | [_, _]) => Some((0.0, 0.0)),

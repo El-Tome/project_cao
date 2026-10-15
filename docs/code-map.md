@@ -170,7 +170,7 @@ What it does: [`sketch.md`](sketch.md).
 | Where a conic crosses a third surface, by the call the other curve of the corner makes | `solid/src/brep/relation/crossing/conic.rs` | `conic_and_surface`, reached from `crossings_given` |
 | An edge along a conic sampled for the triangles | `solid/src/brep/tessellation/sampling/conic.rs` | `on_conic` |
 | Join and cut on the exact kernel | `solid/src/brep/combine.rs` and `combine/` | `Body::joined`, `Body::cut_by` |
-| Two faces at a slant — two walls at a skew angle, a wall off a cone's axis — decided clear of each other on the faces themselves before the kernel declines; a plane at a slant to a wall asked first, so its conic is registered only where faces may meet along it | `solid/src/brep/combine/clear.rs` | `clear`, reached from `combine/related.rs` |
+| Two faces at a slant — two walls at a skew angle, a wall off a cone's axis — decided clear of each other on the faces themselves before the kernel declines; a plane at a slant to a wall asked first, so its conic is registered only where faces may meet along it | `solid/src/brep/combine/clear.rs`, `combine/clear/walls.rs`, `combine/clear/hollow.rs` | `clear`, reached from `combine/related.rs`; `Wall`, `in_the_hollow`, `beyond` |
 | The exact kernel's triangles, every edge sampled once | `solid/src/brep/tessellation.rs` and `tessellation/` | `Body::triangles(tolerance)` |
 | The rules every solid must keep, for the tests | `solid/src/soundness.rs` and `soundness/` | `closed`, `uncrossed`, `Lines`, `repeatable`, `campaign`, `listed` (an exact body's listing held to its geometry) |
 | Solids drawn at random, shrunk and printed as Rust | `solid/tests/random_solids/` | `Case::drawn`, `Case::smaller`, `check` |

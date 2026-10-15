@@ -9,6 +9,8 @@ mod merged;
 
 use super::Declined;
 use super::combine::Arena;
+use super::domain::floor;
+use super::surface::Surface;
 use super::topology::{Body, Coedge, CurveId, Edge, EdgeId, Face, SurfaceId, Vertex, VertexId};
 
 pub(super) fn assembled(arena: Arena, faces: Vec<Face>) -> Result<Body, Declined> {
@@ -145,12 +147,13 @@ impl Renumbering {
 }
 
 /// Every edge run as many times one way as the other, and at least once;
-/// every face with a loop, and every loop closed: each use starting where the
-/// one before it ends, or a whole closed curve alone.
+/// every face with a loop — but a whole sphere or torus, which closes on
+/// itself holding every pole of its surface — and every loop closed: each
+/// use starting where the one before it ends, or a whole closed curve alone.
 fn verified(body: &Body) -> Result<(), Declined> {
     let mut runs = vec![[0_usize; 2]; body.edges.len()];
     for face in &body.faces {
-        if face.loops.is_empty() {
+        if face.loops.is_empty() && !whole(body, face) {
             return Err(Declined::Unverified);
         }
         for lap in &face.loops {
@@ -169,6 +172,19 @@ fn verified(body: &Body) -> Result<(), Declined> {
         return Err(Declined::Unverified);
     }
     Ok(())
+}
+
+/// Whether a face with no loop is a whole closed surface: a sphere or a
+/// torus, every pole of which the face holds within it — a ball's two, a
+/// ring's none (#576).
+fn whole(body: &Body, face: &Face) -> bool {
+    let surface = body.surface(face.surface);
+    match surface {
+        Surface::Sphere(_) | Surface::Torus(_) => {
+            floor::poles_of(surface, body.scale.eps()).len() == face.poles.len()
+        }
+        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => false,
+    }
 }
 
 fn closed(body: &Body, lap: &[Coedge]) -> bool {

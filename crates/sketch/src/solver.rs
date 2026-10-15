@@ -8,12 +8,12 @@ use crate::sketch::{PointId, SegmentId, Sketch};
 mod angle_solver;
 mod arc_solver;
 mod axis_solver;
-mod correction;
 mod distance_solver;
 mod ellipse_solver;
 mod hold_solver;
 mod kept_solver;
 mod orientation;
+mod pass;
 mod stall;
 mod tangent_solver;
 
@@ -144,47 +144,11 @@ impl Sketch {
     /// Deterministic — same drawing, same order, same number of steps — which
     /// is what lets a part be rebuilt identically by replaying its history.
     fn sweeps(&mut self, millimeters_per_unit: f64, scale: f64, blocks: &[Block]) -> SolveOutcome {
-        let pinned = self.pinned_points();
-        let mut carried = correction::Carried::new(blocks, self.points().len());
-
-        // The gradients are handed back once a row is corrected, one equation
-        // at a time: the next row wants a buffer of the very same size.
-        let mut entry: Vec<Equation> = Vec::new();
-        let pulled = self.pulled_elsewhere(millimeters_per_unit, &pinned);
-
+        let mut sweep = self.sweep(blocks, millimeters_per_unit);
         let mut stall = stall::Stall::new();
         let mut worst: f64 = f64::INFINITY;
         for iteration in 1..=MAX_ITERATIONS {
-            worst = 0.0;
-            for index in 0..self.equation_count() {
-                let held_alone = self.held_alone(index, &pinned, &pulled);
-                self.any_equation(index, millimeters_per_unit, &pinned, &mut entry);
-                for equation in entry.iter_mut() {
-                    let off = equation.off_by(scale);
-                    worst = worst.max(off);
-                    if off < TOLERANCE * SETTLED_ALREADY {
-                        continue;
-                    }
-                    // A point laid on a curve follows it: the step this row
-                    // takes moves the point, and leaves the curve alone.
-                    if let Some(point) = held_alone {
-                        equation.hold_to(point);
-                    }
-                    self.hold_sizes(equation);
-
-                    let norm = equation.norm_squared();
-                    if norm < equation.flat_below(scale) {
-                        continue;
-                    }
-                    // Move along the gradient just far enough to cancel the error.
-                    let step = -equation.error / norm;
-                    self.correct(equation, step, &pinned, &mut carried, scale);
-                }
-                for equation in entry.drain(..) {
-                    equation.recycle();
-                }
-            }
-
+            worst = self.pass(&mut sweep, millimeters_per_unit, scale);
             // Held, it is polished while it gains: the graph welds finer (#545).
             if worst < TOLERANCE * SETTLED_ALREADY || stall.stalled(iteration, worst) {
                 break;

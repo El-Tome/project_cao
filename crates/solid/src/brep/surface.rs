@@ -4,12 +4,17 @@
 
 mod cone;
 mod elliptic;
+mod round;
+mod sphere;
+mod torus;
 
 use glam::{DVec2, DVec3};
 use serde::{Deserialize, Serialize};
 
 pub use cone::Cone;
 pub use elliptic::EllipticCylinder;
+pub use sphere::Sphere;
+pub use torus::Torus;
 
 /// The plane of points `x` with `normal · x = offset`, read in `(s, t)` along
 /// `u` and `v` from `origin`, its point nearest the world's origin.

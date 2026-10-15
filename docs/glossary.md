@@ -73,6 +73,8 @@ wording. Where a term carries a rule, the rule is on the line under it.
 | Code | Interface | What it names |
 | --- | --- | --- |
 | block, `rigidify` | bloc rigide | A part of the drawing a correction has no reason to reshape, carried and turned whole rather than bent. |
+| pass, sweep | — | A pass is one go of the solver over every row of the system, each corrected in turn; a sweep is passes over and over, until the drawing is polished or stops gaining. |
+| creeping, `Heading` | — | A sweep still gaining, but by less than a fifth of its error every twenty-five passes: a shape that almost gives. Its last passes are mixed into where they are heading — Anderson's mixing — while its error is above the tolerance (#592). A mixing that would take a point further than a tenth of the drawing from where it began is given up, the drawing put back: a bound on one mixing, not on where a drag ends. |
 | `SolveOutcome` | — | `Solved`, `Residual` (constraints contradict each other), `Nothing`. |
 | `LengthOutcome` | — | `Exact`, `BestEffort` (the far end could not move freely), `Degenerate`. |
 | world unit | unité | What coordinates are stored in. |

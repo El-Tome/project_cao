@@ -96,8 +96,9 @@ in one of the two domains, never there.
 | Where a dragged point can go without its shape turning | `sketch/src/sketch/settling/give.rs` | `Give`, `give_of` |
 | The kept lines as rows of the solver | `sketch/src/solver/kept_solver.rs` | `kept_equations`, `kept_row` |
 | The way-up guard of a drawing that settles, and the turn back that breaks nothing the settle made true | `sketch/src/solver/orientation.rs`, `orientation/turning_back.rs` | `orientations`, `rotation_gauges`, `hold_orientations` |
-| When a sweep of the solver has stopped getting anywhere | `sketch/src/solver/stall.rs` | `Stall::stalled` |
-| One pass of a sweep: every row corrected in turn, the points it speaks of moved, the shapes held carried whole | `sketch/src/solver/pass.rs` | `Sweep`, `Sketch::sweep`, `pass`, `correct` |
+| When a sweep of the solver has stopped getting anywhere, or creeps | `sketch/src/solver/stall.rs` | `Stall::stalled`, `Stall::creeping` |
+| Where a creeping sweep is heading, read off its last passes and gone to | `sketch/src/solver/heading.rs` | `Heading`, `mixed` |
+| One pass of a sweep: every row corrected in turn, the points it speaks of moved, the shapes held carried whole; and once it is done, whether the sweep is | `sketch/src/solver/pass.rs` | `Sweep`, `Sketch::sweep`, `pass`, `correct`, `swept` |
 | A point held keeping its place along what holds it through a gesture | `sketch/src/sketch/settling/share.rs` | `Sketch::shares`, `keep_shares` |
 | A side or a curve pulled: across or along, what a press takes hold of | `sketch/src/pulling.rs` | `Sketch::pulled_at`, `side_drag`, `curve_drag`, `SideDrag`, `CurveDrag` |
 | A side moved across, the shape stretching after it | `sketch/src/pulling/travel.rs` | `Sketch::move_side` |

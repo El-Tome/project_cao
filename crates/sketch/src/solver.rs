@@ -10,6 +10,7 @@ mod arc_solver;
 mod axis_solver;
 mod distance_solver;
 mod ellipse_solver;
+mod heading;
 mod hold_solver;
 mod kept_solver;
 mod orientation;
@@ -145,12 +146,10 @@ impl Sketch {
     /// is what lets a part be rebuilt identically by replaying its history.
     fn sweeps(&mut self, millimeters_per_unit: f64, scale: f64, blocks: &[Block]) -> SolveOutcome {
         let mut sweep = self.sweep(blocks, millimeters_per_unit);
-        let mut stall = stall::Stall::new();
         let mut worst: f64 = f64::INFINITY;
         for iteration in 1..=MAX_ITERATIONS {
             worst = self.pass(&mut sweep, millimeters_per_unit, scale);
-            // Held, it is polished while it gains: the graph welds finer (#545).
-            if worst < TOLERANCE * SETTLED_ALREADY || stall.stalled(iteration, worst) {
+            if self.swept(&mut sweep, iteration, worst, scale) {
                 break;
             }
         }

@@ -376,6 +376,23 @@ fn an_area_pinched_where_two_circles_touch_is_tinted_on_its_own_side_of_the_pinc
 }
 
 #[test]
+#[ignore = "#419"]
+fn a_circle_tangent_under_a_rectangle_s_top_keeps_its_areas_mirrored() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [5.0, 5.0],
+            opposite: [0.5, 8.5],
+            construction: false,
+        },
+        Gesture::Circle {
+            centre: [1.0, 6.0],
+            radius: 2.5,
+            construction: false,
+        },
+    ]);
+}
+
+#[test]
 fn a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it() {
     random_sketches::holds(&[
         Gesture::Circle {

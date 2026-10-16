@@ -151,14 +151,15 @@ fn bounds(places: &[DVec2]) -> Option<(DVec2, DVec2)> {
 }
 
 /// The ways a drawing is laid again to be held against itself: in another
-/// order, moved by a step of its own size, turned a quarter turn, and turned
-/// by an angle that lands nothing on the lattice.
+/// order, moved by a step of its own size, turned a quarter turn, turned by
+/// an angle that lands nothing on the lattice, and mirrored across the
+/// vertical axis.
 ///
 /// A sketch laid again has an origin of its own, which a move leaves where
 /// the drawing had nothing: the step is chosen so that it lands clear of
 /// every curve and every point, or the drawing laid again would hold a point
 /// the first one did not.
-fn relayings(sketch: &Sketch, curves: &[Curve]) -> [Relaying; 4] {
+fn relayings(sketch: &Sketch, curves: &[Curve]) -> [Relaying; 5] {
     let seen: Vec<DVec2> = sketch.live_points().map(|(_, at)| at).collect();
     let reach = reach(&seen);
     let unit = (reach / 10.0).max(1.0).log2().round().exp2();
@@ -187,6 +188,7 @@ fn relayings(sketch: &Sketch, curves: &[Curve]) -> [Relaying; 4] {
         Relaying::Moved(by),
         Relaying::Turned(90.0),
         Relaying::Turned(30.0),
+        Relaying::Mirrored,
     ]
 }
 
@@ -204,6 +206,7 @@ pub fn carried(how: Relaying, at: DVec2) -> DVec2 {
         Relaying::Moved(by) => at + by,
         Relaying::Turned(90.0) => DVec2::new(-at.y, at.x),
         Relaying::Turned(degrees) => DVec2::from_angle(degrees.to_radians()).rotate(at),
+        Relaying::Mirrored => DVec2::new(-at.x, at.y),
     }
 }
 
@@ -213,6 +216,7 @@ pub fn carried(how: Relaying, at: DVec2) -> DVec2 {
 /// area reads them.
 pub fn relaid(sketch: &Sketch, how: Relaying) -> Sketch {
     let reverse = how == Relaying::Reordered;
+    let mirror = how == Relaying::Mirrored;
     let mut again = Sketch::new(WorkPlane::XY);
     let mut points: Vec<Option<PointId>> = vec![None; sketch.points().len()];
     let mut live: Vec<(PointId, DVec2)> = sketch.live_points().collect();
@@ -257,6 +261,7 @@ pub fn relaid(sketch: &Sketch, how: Relaying) -> Sketch {
     }
     for (_, arc) in ordered(sketch.live_arcs().collect(), reverse) {
         let [centre, start, end] = [arc.center, arc.start, arc.end].map(|id| point(&mut again, id));
+        let (start, end) = if mirror { (end, start) } else { (start, end) };
         match arc.construction {
             true => again.add_construction_arc(centre, start, end),
             false => again.add_arc(centre, start, end),
@@ -276,6 +281,7 @@ pub fn relaid(sketch: &Sketch, how: Relaying) -> Sketch {
         };
         if let Some((from, to)) = sketch.ellipse_ends(id) {
             let (from, to) = (point(&mut again, from), point(&mut again, to));
+            let (from, to) = if mirror { (to, from) } else { (from, to) };
             again.draw_the_stretch(laid, from, to);
         }
     }

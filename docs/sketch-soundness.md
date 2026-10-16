@@ -26,7 +26,7 @@ after **every** gesture of a drawing.
 | Tint is measure | `tint_is_measure` | the triangles an area is tinted with cover more or less than its outline encloses |
 | Nothing missing | `nothing_missing` | a place something closes around lies in no area |
 | Nothing extra | `nothing_extra` | a place lies in two areas, or in one while nothing closes around it |
-| Order does not matter | `laid_alike` | the same drawing laid again — in another order, moved, turned — gives another count of areas, or puts a place in an area of another size |
+| Order does not matter | `laid_alike` | the same drawing laid again — in another order, moved, turned, mirrored — gives another count of areas, or puts a place in an area of another size |
 | Answers | `answer` | finding the areas panics, or does not come back within the patience given |
 
 The rules read **plain data** — outlines, holes, triangles, places — and never
@@ -82,7 +82,10 @@ is giving it.
 reverse order, each trait drawn from its other end; or moved by a step of the
 drawing's own size, chosen so that the fresh sketch's origin lands clear of
 everything; or turned a quarter turn, which is exact, and by thirty degrees,
-which is not. Rules and values are left behind: no area reads them.
+which is not; or mirrored across the vertical axis, which is exact, every arc
+and every stretch of ellipse laid from its end to its start so it still bulges
+the way the mirror image does. Rules and values are left behind: no area reads
+them.
 
 The walk welds a place onto a curve within a distance that grows with how far
 out the place stands, so laying a drawing again moves what it welds. An area
@@ -201,12 +204,6 @@ was laid again, the two counts of areas, and a place whose area changed size.
 - **The matter.** The rules hold the tint, `Region::triangles`. What an
   extrusion raises is `Region::face_triangles`, the outline with the holes cut
   out of it, and is not checked here.
-- **What only the mirror image shows.** Every way of laying a drawing again
-  keeps which way round it is, while the walk turns as tightly as it can and
-  so depends on it. A drawing whose mirror image breaks a rule passes, until a
-  campaign happens to draw the mirror image itself. Laying it again mirrored
-  takes every arc and every stretch of ellipse drawn back to front, and was
-  set aside for now.
 - **Dimensions, rules, dragging**, and whether a piece is entirely
   constrained: #501.
 - **The solid** and undo: #448.

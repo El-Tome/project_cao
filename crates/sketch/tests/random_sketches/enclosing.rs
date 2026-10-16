@@ -22,9 +22,9 @@ use cao_sketch::{EllipseDraft, Sketch, sweep_of};
 use glam::DVec2;
 
 /// Nearer than this, two places are one: twice the distance the drawing calls
-/// one place (`THE_SAME_PLACE`, `crates/sketch/src/edges.rs`), and under the
-/// five times a campaign misses a coincidence by when it misses one on purpose.
-const ONE_PLACE: f64 = 2e-7;
+/// one place, and under the five times a campaign misses a coincidence by when
+/// it misses one on purpose.
+const ONE_PLACE: f64 = 2.0 * cao_sketch::precision::USE;
 
 pub fn one_place(at: DVec2) -> f64 {
     ONE_PLACE * (1.0 + at.abs().max_element())
@@ -479,11 +479,14 @@ fn closest(distance: &impl Fn(f64) -> f64, mut low: f64, mut high: f64) -> f64 {
 /// Nearer than this to touching, and farther than a tenth of the distance
 /// the drawing calls one place, two curves or a curve and an end stand where
 /// the walk and this reckoning may each read a touch the other does not: the
-/// walk welds at once that distance (`THE_SAME_PLACE`), this at twice it, and
-/// a miss a campaign draws on purpose stays farther than five times it. A miss
-/// along a curve's tangent stays clear of the curve only to the second order,
-/// so a hair can still land in between.
-const DOUBT: (f64, f64) = (1e-8, 5e-7);
+/// walk welds at once that distance, this at twice it, and a miss a campaign
+/// draws on purpose stays farther than five times it. A miss along a curve's
+/// tangent stays clear of the curve only to the second order, so a hair can
+/// still land in between.
+const DOUBT: (f64, f64) = (
+    cao_sketch::precision::USE / 10.0,
+    5.0 * cao_sketch::precision::USE,
+);
 
 fn doubtful(gap: f64, at: DVec2) -> bool {
     let scale = 1.0 + at.abs().max_element();

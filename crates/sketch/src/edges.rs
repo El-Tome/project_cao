@@ -77,7 +77,7 @@ const CLOSE_TO_AN_END: f64 = 1e-9;
 /// touch, hunted along one curve and along the other, comes back twice a few
 /// ten-millionths apart. Left as two vertices it leaves a sliver of an edge
 /// between them, and the walk comes back with one face where the drawing shows
-/// two. A ten-millionth of the drawing is a hundredth of a micron on a part a
+/// two. A ten-millionth of the drawing is a tenth of a micron on a part a
 /// metre across: far below anything drawn, and far below what the solver
 /// counts a dimension as held to — which is why a drawing whose rules hold is
 /// settled further, under it (#545), so that a side drawn along another is

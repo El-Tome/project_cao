@@ -16,7 +16,7 @@ use crate::sketch::{SegmentId, Sketch};
 const PARALLEL: f64 = 1e-12;
 
 /// Below this sine of the angle between them, two traits count as running the
-/// same way when an angle between them is asked for. A hundred times what a
+/// same way when an angle between them is asked for. Ten times what a
 /// solver leaves between two traits a rule holds parallel, and far under the
 /// tenth of a degree an angle is shown to: an angle laid below it would only
 /// fight the rule, or read nothing anybody drew on purpose.

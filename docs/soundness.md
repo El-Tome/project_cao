@@ -51,8 +51,10 @@ both sides and cancels. When the rule breaks, the report names the line the two
 disagree most along. The lines only cover the box the inputs span, so matter a
 result leaves outside that box breaks the rule on its own.
 
-**Every tolerance is relative** to how far the solid reaches, for the reason
-`boolean.rs` gives: the noise of a coordinate grows with its size.
+**A tolerance on a coordinate is relative** to how far the solid reaches, for
+the reason `boolean.rs` gives: the noise of a coordinate grows with its size.
+The few read along a curve's own parameter are plain fractions of its run
+instead.
 
 ## The cases
 

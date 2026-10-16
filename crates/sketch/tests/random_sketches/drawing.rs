@@ -9,15 +9,11 @@
 
 use std::f64::consts::TAU;
 
-use cao_sketch::Sketch;
+use cao_sketch::{Sketch, precision};
 use glam::DVec2;
 
 use super::random::Random;
 use super::{Axis, Gesture};
-
-/// The distance under which the drawing calls two places one, as a share of
-/// how far a place stands out: `THE_SAME_PLACE`, `crates/sketch/src/edges.rs`.
-const THE_SAME_PLACE: f64 = 1e-7;
 
 /// A shape drawn earlier, as the generator remembers it: what a later shape
 /// can be drawn from.
@@ -86,7 +82,7 @@ impl Hand {
     /// turned to be laid again — up to a thousand times that.
     fn hair(&mut self) -> f64 {
         let furthest = 40.0 * self.scale;
-        let finest = 5.0 * THE_SAME_PLACE * (1.0 + furthest);
+        let finest = 5.0 * precision::USE * (1.0 + furthest);
         finest * *self.random.pick(&[1.0, 2.0, 10.0, 100.0, 1000.0])
     }
 

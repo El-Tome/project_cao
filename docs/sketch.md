@@ -385,7 +385,7 @@ rounds too hard is how a drawing that has drifted by a hair goes on looking
 exact.
 
 Significant figures rather than decimal places, so the precision follows the
-size of what is measured: six figures is a tenth of a micron on a part of a
+size of what is measured: six figures is a hundredth of a micron on a part of a
 millimetre and a hundredth of a millimetre on one of a metre. Three is a
 thousandth of whatever is being measured, which is where a reading stops
 telling a machinist anything new; six is where the arithmetic stops being

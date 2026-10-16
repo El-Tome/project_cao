@@ -6,10 +6,10 @@ use crate::naming::CurveId;
 use crate::regions::{Outline, signed_area};
 use crate::sketch::Sketch;
 
-/// Below this much of a turn apart, two half-edges leave a vertex the same
+/// Below this many radians apart, two half-edges leave a vertex the same
 /// way, and which of them lies further round is a matter of how hard each of
 /// them bends rather than of the last digit of an arctangent. A billionth of a
-/// turn is a ten-thousandth of a degree.
+/// radian is under a ten-millionth of a degree.
 const THE_SAME_WAY: f64 = 1e-9;
 
 /// What the walk of the drawing finds, every loop turning counter-clockwise.

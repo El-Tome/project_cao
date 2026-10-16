@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::ellipsing::EllipseDraft;
 
-/// How far round the turn two readings of one place may stand apart and still
-/// be that place: what the drawing already calls one place, read as a turn.
+/// How far apart two readings of one place may stand and still be that place
+/// — read against a sweep in radians in one check and as a fraction of a whole
+/// turn in the other, a factor of τ under anything either check resolves.
 const ON_THE_CURVE: f64 = 1e-9;
 use crate::erased::Erased;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};

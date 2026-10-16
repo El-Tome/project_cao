@@ -26,9 +26,10 @@ const STEPS: usize = 256;
 /// and a touch from a near miss.
 const TOUCHING: f64 = 1e-9;
 
-/// How many times the step holding a crossing is halved. A double at each
-/// turn: thirty of them take a step of a whole ellipse down to a billionth of
-/// it, well under what the drawing counts as one place.
+/// How many times the step holding a crossing is shrunk. The bisection halves
+/// it: forty turns take a step of a whole ellipse below a trillionth of it.
+/// The ternary hunt keeps two thirds: forty turns land it within a
+/// ten-millionth, still under what the drawing counts as one place.
 const HALVINGS: usize = 40;
 
 /// How far round its turn the ellipse stands at a place on it, as a fraction

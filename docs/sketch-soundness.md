@@ -74,7 +74,9 @@ its last stretch by a hair encloses nothing, and an area there is extra.
 **The places looked at** are a grid across the drawing, the middle of every
 triangle of tint, and a few places either side of every curve — none of them
 nearer a curve than its tint could stray from it, nor than the rounding a weld
-works with. Every tolerance is read against how far the drawing reaches.
+works with. A tolerance on a place grows with how far out the place stands;
+the drawing has no one size they are all read against yet, which is what #514
+is giving it.
 
 **Laid again** means the same points and curves added to a fresh sketch in the
 reverse order, each trait drawn from its other end; or moved by a step of the

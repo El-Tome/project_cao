@@ -14,7 +14,7 @@
 //! again, a cylinder at its rim, a cone crossing it at its rim, a slant a
 //! hair off it, a circle on its rim.
 
-use cao_solid::soundness::NEAR;
+use cao_solid::soundness::{NEAR, in_steps};
 use glam::{DVec2, DVec3};
 
 use super::super::{Axis, Leaf, Outline, Plane, Section};
@@ -128,8 +128,8 @@ impl Drawing {
     /// A length on the half lattice from half a unit up to `most`, or
     /// nothing when `most` is shorter than half a unit.
     pub(super) fn up_to(&mut self, most: f64) -> Option<f64> {
-        let value = self.random.on_lattice(0.5, most / self.scale, 0.5) * self.scale;
-        (value <= most).then_some(value)
+        let value = self.random.on_lattice(0.5, most / self.scale, 0.5);
+        (value <= in_steps(most / self.scale, 0.5) * 0.5).then_some(value * self.scale)
     }
 
     /// How long along the axis a slant runs to change its edge by `rise`:

@@ -19,7 +19,7 @@ use glam::{DVec2, DVec3};
 
 use super::super::{Leaf, Mode, Outline, Plane, Step};
 use super::turns::{Line, world_axis};
-use super::{Drawing, shifted};
+use super::{Drawing, in_steps, shifted};
 
 /// The hairs a campaign leans a plane by, in degrees, off parallel, off
 /// square, or off a cone's own slope: either side of the kernel's bound of
@@ -319,8 +319,8 @@ impl Drawing {
             .collect();
         let least = seen.iter().copied().fold(DVec3::MAX, DVec3::min) - half;
         let most = seen.iter().copied().fold(DVec3::MIN, DVec3::max) + half;
-        let down = |value: f64| (value / half).floor() * half;
-        let up = |value: f64| (value / half).ceil() * half;
+        let down = |value: f64| in_steps(value, half).floor() * half;
+        let up = |value: f64| in_steps(value, half).ceil() * half;
         let height = if self.random.chance(0.5) {
             up(most.z).max(half)
         } else {
@@ -347,7 +347,7 @@ impl Drawing {
     /// the target's box, on the lattice.
     fn slanted_cut(&mut self, target: &Leaf) -> Option<Step> {
         let (low, high) = target.bounds()?;
-        let middle = ((low + high) / 2.0 / self.scale).round() * self.scale;
+        let middle = ((low + high) / 2.0).map(|at| in_steps(at, self.scale).round() * self.scale);
         let plane = self.generic(middle);
         self.cut_along(plane, target)
     }

@@ -1,6 +1,25 @@
 //! A source of cases that is random enough to find what nobody listed, and
 //! repeatable enough that a case found once can be found again from its seed.
 
+/// How near a whole or half step of the lattice a count of steps stands to be
+/// counted on it. A bound reached through `sin` and `cos` lands a hair either
+/// side of the step it means, by the last bit each platform's library rounds:
+/// floored or ceiled as it stood, the same seed drew a case one step apart on
+/// a Mac and on Linux (#586). The narrowest hair a draw lays on purpose is a
+/// thousand times wider, and that last bit a thousand times narrower.
+const ON_THE_STEP: f64 = 1e-11;
+
+/// `value` counted in `step`s, put back on the whole or half step it stands
+/// within `ON_THE_STEP` of.
+pub fn in_steps(value: f64, step: f64) -> f64 {
+    let steps = value / step;
+    let half = (steps * 2.0).round() / 2.0;
+    match (steps - half).abs() < ON_THE_STEP {
+        true => half,
+        false => steps,
+    }
+}
+
 /// SplitMix64, rather than a dependency: the geometry crates take nothing but
 /// `glam` and `serde`, and a generator whose every number is a function of the
 /// seed alone is what makes a failure worth reporting.
@@ -42,8 +61,8 @@ impl Random {
     /// drawing on round numbers puts its corners, and where two solids end up
     /// sharing a face.
     pub fn on_lattice(&mut self, low: f64, high: f64, step: f64) -> f64 {
-        let first = (low / step).ceil() as i64;
-        let last = (high / step).floor() as i64;
+        let first = in_steps(low, step).ceil() as i64;
+        let last = in_steps(high, step).floor() as i64;
         let count = (last - first + 1).max(1) as usize;
         (first + self.below(count) as i64) as f64 * step
     }

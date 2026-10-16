@@ -14,8 +14,8 @@ use glam::{DVec2, DVec3};
 
 use super::super::super::{Case, Leaf, Mode, Outline, Oval, Plane, Step};
 use super::super::Drawing;
-use super::super::shifted;
 use super::super::tilts::{Lean, leaving, square_through};
+use super::super::{in_steps, shifted};
 use super::{in_plane, levels, ovals_of};
 
 /// Leans a hair from square or from along, in degrees, that move a tool as
@@ -97,7 +97,8 @@ impl Drawing {
             } else {
                 let target = self.random.pick(&leaves).clone();
                 let (low, high) = target.bounds().unwrap_or((DVec3::ZERO, DVec3::ONE));
-                let middle = ((low + high) / 2.0 / self.scale).round() * self.scale;
+                let middle =
+                    ((low + high) / 2.0).map(|at| in_steps(at, self.scale).round() * self.scale);
                 let plane = self.generic(middle);
                 self.cut_along(plane, &target)
             };

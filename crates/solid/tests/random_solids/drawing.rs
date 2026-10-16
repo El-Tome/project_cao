@@ -8,7 +8,7 @@
 //! often; and a coincidence is now and then missed by a hair, in the band where
 //! a tolerance has to decide.
 
-use cao_solid::soundness::{NEAR, Random};
+use cao_solid::soundness::{NEAR, Random, in_steps};
 use glam::{DVec2, DVec3};
 
 use super::{Case, Leaf, Mode, Outline, Plane, Step};

@@ -32,7 +32,7 @@ pub use closed::closed;
 pub use crossing::uncrossed;
 pub use listed::{Mislisted, listed};
 pub use measure::{Along, Lines, Spans, enclosed};
-pub use random::Random;
+pub use random::{Random, in_steps};
 pub use shrinking::shrink;
 
 pub type Triangle = [DVec3; 3];

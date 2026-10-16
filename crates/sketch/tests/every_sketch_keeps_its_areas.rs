@@ -41,6 +41,19 @@
 //!   `docs/code-map.md` — no test: read off `git diff --stat origin/main`
 //!   before the pull request was opened
 //!
+//! Closes #507.
+//! - a drawing laid again mirrored gives the areas of its mirror image: a
+//!   drawing holding an arc and half an ellipse keeps every rule, mirrored as
+//!   well as drawn — `a_drawing_with_an_arc_and_half_an_ellipse_holds_mirrored`,
+//!   `the_same_areas_mirrored_keep_the_order`
+//! - a list of areas broken on purpose, mirrored wrong, is caught by
+//!   `laid_alike` under `Relaying::Mirrored` —
+//!   `an_area_of_another_size_mirrored_breaks_the_order`
+//! - a campaign has run with it, and what it found is written down — no test:
+//!   the findings live on the issues and in `what_random_sketches_found.rs`
+//! - `docs/sketch-soundness.md` lists the mirrored laying, and drops it from
+//!   *What the rules cannot see* — no test: it is prose
+//!
 //! The campaign is run by hand:
 //!
 //! ```text
@@ -882,6 +895,89 @@ fn a_place_in_an_area_of_another_size_laid_again_breaks_the_order() {
         laid_alike(Relaying::Turned(90.0), &first, &second, &places, |at| at),
         Err(Flaw::Relaid {
             how: Relaying::Turned(90.0),
+            areas: (2, 2),
+            at: Some(DVec2::new(3.5, 0.5)),
+        })
+    );
+}
+
+#[test]
+fn a_drawing_with_an_arc_and_half_an_ellipse_holds_mirrored() {
+    random_sketches::holds(&[
+        Gesture::Arc {
+            centre: [2.0, 0.0],
+            start: [4.0, 0.0],
+            degrees: 180.0,
+            construction: false,
+        },
+        Gesture::Chain {
+            through: vec![[4.0, 0.0], [0.0, 0.0]],
+            closed: false,
+            construction: false,
+        },
+        Gesture::HalfEllipse {
+            from: [5.0, 0.0],
+            to: [9.0, 0.0],
+            rise: 2.0,
+            construction: false,
+        },
+        Gesture::Chain {
+            through: vec![[5.0, 0.0], [9.0, 0.0]],
+            closed: false,
+            construction: false,
+        },
+    ]);
+}
+
+fn mirrored(area: &Area) -> Area {
+    let mut mirrored = area.clone();
+    for place in mirrored.outline.iter_mut() {
+        place.x = -place.x;
+    }
+    for corner in mirrored.triangles.iter_mut().flatten() {
+        corner.x = -corner.x;
+    }
+    for place in mirrored.holes.iter_mut().flatten() {
+        place.x = -place.x;
+    }
+    mirrored
+}
+
+#[test]
+fn the_same_areas_mirrored_keep_the_order() {
+    let first = [
+        square([0.0, 0.0], [1.0, 1.0]),
+        square([2.0, 0.0], [4.0, 2.0]),
+    ];
+    let second: Vec<Area> = first.iter().map(mirrored).collect();
+    let places = [DVec2::splat(0.5), DVec2::new(3.0, 1.0), DVec2::splat(9.0)];
+
+    assert_eq!(
+        laid_alike(Relaying::Mirrored, &first, &second, &places, |at| {
+            DVec2::new(-at.x, at.y)
+        }),
+        Ok(())
+    );
+}
+
+#[test]
+fn an_area_of_another_size_mirrored_breaks_the_order() {
+    let first = [
+        square([0.0, 0.0], [1.0, 1.0]),
+        square([2.0, 0.0], [4.0, 2.0]),
+    ];
+    let second = [
+        mirrored(&square([0.0, 0.0], [2.0, 2.0])),
+        mirrored(&square([3.0, 0.0], [4.0, 1.0])),
+    ];
+    let places = [DVec2::new(3.5, 0.5), DVec2::splat(0.5)];
+
+    assert_eq!(
+        laid_alike(Relaying::Mirrored, &first, &second, &places, |at| {
+            DVec2::new(-at.x, at.y)
+        }),
+        Err(Flaw::Relaid {
+            how: Relaying::Mirrored,
             areas: (2, 2),
             at: Some(DVec2::new(3.5, 0.5)),
         })

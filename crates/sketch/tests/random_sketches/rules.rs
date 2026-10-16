@@ -53,6 +53,10 @@ pub enum Relaying {
     Moved(DVec2),
     /// Every place turned about the origin, by an angle in degrees.
     Turned(f64),
+    /// Every place mirrored across the vertical axis, every arc and every
+    /// stretch of ellipse laid from its end to its start so it still bulges
+    /// the way the mirror image does.
+    Mirrored,
 }
 
 /// Which rule a drawing broke: what a shrunk case has to go on breaking to

@@ -227,9 +227,9 @@ impl LengthUnit {
     /// a great deal more room, and how much is the reader's to say.
     ///
     /// Significant figures rather than decimal places, so that the precision
-    /// follows the size of what is being measured: six figures is a tenth of a
-    /// micron on a part of a millimetre and a hundredth of a millimetre on one
-    /// of a metre, which is the right shape for both.
+    /// follows the size of what is being measured: six figures is a hundredth
+    /// of a micron on a part of a millimetre and a hundredth of a millimetre
+    /// on one of a metre, which is the right shape for both.
     pub fn in_figures(self, millimeters: f64, figures: u32) -> String {
         let value = millimeters / self.millimeters();
         format!("{} {}", to_figures(value, figures), self.suffix())

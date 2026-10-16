@@ -51,6 +51,7 @@ mod naming;
 mod patterning;
 mod picking;
 mod plane;
+pub mod precision;
 mod preview;
 mod pulling;
 mod reading;

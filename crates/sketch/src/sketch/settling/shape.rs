@@ -145,7 +145,7 @@ impl Sketch {
                 Support::Ellipse(ellipse) => {
                     self.ellipses().get(ellipse.0).map(|curve| curve.center)
                 }
-                Support::Segment(_) | Support::Axis(_) => None,
+                Support::Segment(_) | Support::Middle(_) | Support::Axis(_) => None,
             };
             centres.extend(centre);
         }

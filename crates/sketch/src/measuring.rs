@@ -266,9 +266,7 @@ pub(crate) fn no_distance_to(
     }
     let place = sketch.point(point);
     let along = (place - start).dot(span) / reach;
-    let held = sketch
-        .holds_on(point)
-        .contains(&crate::holding::Support::Segment(segment));
+    let held = sketch.held_on_trait(point, segment);
     if !held && place.distance(start + span * along) > ON_THE_TRAIT {
         return None;
     }

@@ -8,7 +8,6 @@
 use glam::DVec2;
 
 use crate::constraints::{DimensionTarget, Toward};
-use crate::holding::Support;
 use crate::sketch::{SegmentId, Sketch};
 
 /// Below this the two traits run the same way and never meet, as a fraction of
@@ -101,7 +100,7 @@ impl Sketch {
         let drawn = self.segments()[stem.0];
         [drawn.start, drawn.end]
             .into_iter()
-            .any(|point| self.holds_on(point).contains(&Support::Segment(bar)))
+            .any(|point| self.held_on_trait(point, bar))
     }
 
     /// One arm of an angle: a trait's own direction, run the way asked.

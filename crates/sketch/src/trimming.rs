@@ -4,7 +4,6 @@ use glam::DVec2;
 
 use crate::constraints::{Constraint, Dimension, DimensionTarget};
 use crate::erased::Erased;
-use crate::holding::Support;
 use crate::laid_from::LaidFrom;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
 use crate::trimming::carrying::{Carried, Piece, gone, still_holds, still_measured, targets};
@@ -75,7 +74,7 @@ impl Sketch {
     }
 
     fn is_held_on(&self, point: PointId, segment: SegmentId) -> bool {
-        self.holds_on(point).contains(&Support::Segment(segment))
+        self.held_on_trait(point, segment)
     }
 
     /// Takes the stretch between `from` and `to` out of a trait, and leaves

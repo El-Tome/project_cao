@@ -10,7 +10,6 @@ use glam::DVec2;
 use super::joins::Tie;
 use super::{LengthOutcome, PointId, Sketch};
 use crate::constraints::{Constraint, DimensionTarget, Toward};
-use crate::holding::Support;
 use crate::sketch::{Element, SegmentId};
 
 /// What lands, for what it says about turning.
@@ -315,7 +314,7 @@ impl Sketch {
         stops.extend(
             self.live_points()
                 .map(|(point, _)| point)
-                .filter(|point| self.holds_on(*point).contains(&Support::Segment(first))),
+                .filter(|point| self.held_on_trait(*point, first)),
         );
         Turning {
             turns: second,

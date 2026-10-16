@@ -301,3 +301,75 @@ fn an_end_two_arcs_share_follows_neither_of_them() {
         "two curves to follow is no curve to follow",
     );
 }
+
+#[test]
+fn a_place_at_the_middle_of_a_trait_lands_on_its_middle() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(DVec2::new(50.0, 10.0));
+    let side = sketch.add_segment(start, end);
+
+    let on = sketch.supports_at(DVec2::new(30.0, 10.0));
+
+    assert_eq!(on, vec![Support::Middle(side)]);
+}
+
+#[test]
+fn a_place_elsewhere_along_a_trait_lands_on_the_trait_alone() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(DVec2::new(50.0, 10.0));
+    let side = sketch.add_segment(start, end);
+
+    let on = sketch.supports_at(DVec2::new(20.0, 10.0));
+
+    assert_eq!(on, vec![Support::Segment(side)]);
+}
+
+#[test]
+fn a_point_dropped_at_the_middle_by_a_drag_is_held_on_the_trait_alone() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(DVec2::new(50.0, 10.0));
+    let side = sketch.add_segment(start, end);
+    let dragged = sketch.add_point(DVec2::new(30.0, 40.0));
+
+    let on = sketch.supports_for(dragged, DVec2::new(30.0, 10.0));
+
+    assert_eq!(on, vec![Support::Segment(side)]);
+}
+
+#[test]
+fn a_crossing_at_the_middle_of_one_trait_lands_at_that_middle_and_on_the_other() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(DVec2::new(50.0, 10.0));
+    let flat = sketch.add_segment(start, end);
+    let below = sketch.add_point(DVec2::new(30.0, 0.0));
+    let above = sketch.add_point(DVec2::new(30.0, 40.0));
+    let upright = sketch.add_segment(below, above);
+
+    let on = sketch.supports_at(DVec2::new(30.0, 10.0));
+
+    assert_eq!(on, vec![Support::Middle(flat), Support::Segment(upright)]);
+}
+
+#[test]
+fn a_point_held_at_the_middle_counts_as_held_on_the_trait() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(DVec2::new(50.0, 10.0));
+    let side = sketch.add_segment(start, end);
+    let at_middle = sketch.add_point(DVec2::new(30.0, 10.0));
+    sketch.add_constraint(Constraint::Midpoint {
+        point: at_middle,
+        segment: side,
+    });
+    let elsewhere = sketch.add_point(DVec2::new(20.0, 10.0));
+    sketch.add_constraint(Support::Segment(side).holding(elsewhere));
+    let off = sketch.add_point(DVec2::new(20.0, 40.0));
+
+    assert!(sketch.held_on_trait(at_middle, side));
+    assert!(sketch.held_on_trait(elsewhere, side));
+    assert!(!sketch.held_on_trait(off, side));
+}

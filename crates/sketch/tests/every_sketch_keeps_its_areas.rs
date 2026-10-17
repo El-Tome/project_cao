@@ -77,8 +77,9 @@
 //!   frames and the owner's notch hold both rules in
 //!   `what_random_sketches_found.rs`
 //! - a campaign has run with both rules, and what it found is written down —
-//!   no test: the findings live on the issues and in
-//!   `what_random_sketches_found.rs`
+//!   no test: the report is a comment on #508; the dominant finding, a hole
+//!   touching its outline whose matter comes out short or empty, waits on an
+//!   issue of its own
 //! - `docs/sketch-soundness.md` lists both rules, and drops the matter from
 //!   *What the rules cannot see* — no test: it is prose
 //!

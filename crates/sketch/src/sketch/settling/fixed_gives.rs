@@ -3,7 +3,7 @@
 
 use super::super::{LengthOutcome, PointId, Sketch};
 use crate::constraints::Constraint;
-use crate::solver::TOLERANCE;
+use crate::precision::SOLVED;
 
 /// How many sets of fixed points are tried before the value is refused. Each
 /// try is a settle; a drawing with many fixed points would otherwise pay for
@@ -101,7 +101,7 @@ impl Sketch {
     fn reached_from_what_is_untrue(&self, millimeters_per_unit: f64) -> Vec<bool> {
         let count = self.points().len();
         let rows = self.equations_pinned_by(millimeters_per_unit, &vec![false; count]);
-        let scale = self.characteristic_size();
+        let scale = self.drawing_size();
         let mut reached = vec![false; count];
         let mut spoken: Vec<Vec<usize>> = Vec::new();
         for row in &rows {
@@ -110,7 +110,7 @@ impl Sketch {
                     row.gradient[index * 2] != 0.0 || row.gradient[index * 2 + 1] != 0.0
                 })
                 .collect();
-            if row.off_by(scale) >= TOLERANCE {
+            if row.off_by(scale) >= SOLVED {
                 for index in &points {
                     reached[*index] = true;
                 }

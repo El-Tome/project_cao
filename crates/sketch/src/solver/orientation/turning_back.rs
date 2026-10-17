@@ -4,8 +4,8 @@
 use glam::DVec2;
 
 use super::WayRound;
+use crate::precision::SOLVED;
 use crate::sketch::{PointId, Sketch};
-use crate::solver::TOLERANCE;
 
 impl Sketch {
     /// Turns each group back the way it was pointing. A rigid turn about the
@@ -43,7 +43,7 @@ impl Sketch {
                 continue;
             }
             let settled = *settled
-                .get_or_insert_with(|| self.worst_error(millimeters_per_unit, scale) < TOLERANCE);
+                .get_or_insert_with(|| self.worst_error(millimeters_per_unit, scale) < SOLVED);
             let before = self.points().to_vec();
             let turn = DVec2::from_angle(-drift);
             for index in way.members.iter().copied() {
@@ -53,7 +53,7 @@ impl Sketch {
                 let moved = way.about + turn.rotate(self.point(PointId(index)) - way.about);
                 self.place_point(PointId(index), moved);
             }
-            if settled && self.worst_error(millimeters_per_unit, scale) >= TOLERANCE {
+            if settled && self.worst_error(millimeters_per_unit, scale) >= SOLVED {
                 for index in way.members.iter().copied() {
                     self.place_point(PointId(index), before[index]);
                 }

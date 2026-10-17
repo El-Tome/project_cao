@@ -37,8 +37,9 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// or a cone at a slant along a conic (#552). 8: a plane a hair off square
 /// to, or along, a wall's axis is laid exactly so, and a step built at a
 /// lean the kernel reads unstably is noted (#552). 9: an ellipse raised is
-/// exact, and the part stays exact after it (#571).
-const REBUILT_BY: u32 = 9;
+/// exact, and the part stays exact after it (#571). 10: the solver stops at
+/// a thousandth of a micron, and a replay lands the drawing there (#517).
+const REBUILT_BY: u32 = 10;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

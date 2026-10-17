@@ -5,8 +5,8 @@ use glam::DVec2;
 
 use super::{LengthOutcome, PointId, Sketch};
 use crate::constraints::DimensionTarget;
+use crate::precision::SOLVED;
 use crate::sketch::Element;
-use crate::solver::TOLERANCE;
 
 impl Sketch {
     /// The free point a value typed leaves where it is, for as long as it
@@ -122,7 +122,7 @@ impl Sketch {
     }
 
     fn leaves_nothing_to_mend(&self, millimeters_per_unit: f64) -> bool {
-        self.worst_error(millimeters_per_unit, self.characteristic_size()) < TOLERANCE
+        self.worst_error(millimeters_per_unit, self.drawing_size()) < SOLVED
     }
 
     /// Which shape each point belongs to, as `point_groups` reads them, with

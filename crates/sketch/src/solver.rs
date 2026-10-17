@@ -3,6 +3,7 @@ use glam::DVec2;
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, DimensionTarget};
 use crate::equation::{Equation, Row, row_at};
+use crate::precision::SOLVED;
 use crate::rigid::{Block, ownership, rigidify};
 use crate::sketch::{PointId, SegmentId, Sketch};
 mod angle_solver;
@@ -13,6 +14,7 @@ mod ellipse_solver;
 mod hold_solver;
 mod kept_solver;
 mod orientation;
+mod polish;
 mod stall;
 mod tangent_solver;
 
@@ -47,10 +49,7 @@ const ROUNDS: usize = 12;
 const WELDS: usize = 4;
 /// How much of the error a round must clear to be worth another one.
 const WORTH_ANOTHER_ROUND: f64 = 0.9;
-/// Below this, an equation counts as satisfied. Relative to the drawing's own
-/// size, so it means the same thing at any scale.
-pub(crate) const TOLERANCE: f64 = 1e-5;
-/// An equation this far below the tolerance is left alone: its correction
+/// An equation this far below the stop line is left alone: its correction
 /// would move nothing, and applying it walks every point of the drawing.
 const SETTLED_ALREADY: f64 = 1e-3;
 
@@ -70,7 +69,7 @@ impl Sketch {
             return SolveOutcome::Nothing;
         }
 
-        let scale = self.characteristic_size();
+        let scale = self.drawing_size();
         let mut outcome = SolveOutcome::Residual;
         let mut before = f64::INFINITY;
         for _ in 0..ROUNDS {
@@ -85,6 +84,13 @@ impl Sketch {
             before = left;
         }
 
+        // Projection crawls over the last stretch of a stiff drawing: it is
+        // still gaining, but by so little a sweep that the stop line would
+        // cost thousands of them. Newton's step takes it from there.
+        if outcome == SolveOutcome::Residual && self.polish(millimeters_per_unit, scale) < SOLVED {
+            outcome = SolveOutcome::Solved;
+        }
+
         // A trait pulled down to nothing, or a tangency whose contact has slid
         // off its segment, is not geometry: the system would call itself
         // solved while the drawing had quietly fallen apart.
@@ -94,16 +100,17 @@ impl Sketch {
         }
     }
 
-    /// A length representative of the drawing, used where an absolute size
-    /// would mean different things at different zooms.
+    /// How big the drawing is, the one size every tolerance is read against.
     pub(crate) fn drawing_size(&self) -> f64 {
-        self.characteristic_size()
+        crate::precision::drawing_size(self)
     }
 
-    /// Whether any trait has been squeezed down to a point.
+    /// Whether any trait has been squeezed down to something shorter than the
+    /// use precision — under which nothing the user can type tells it from a
+    /// point.
     pub(crate) fn has_a_collapsed_trait(&self, scale: f64) -> bool {
         self.live_segments()
-            .any(|(id, _)| self.segment_length(id) < scale * 1e-6)
+            .any(|(id, _)| self.segment_length(id) < scale * crate::precision::USE)
     }
 
     /// One go at settling the drawing: the shapes that must not bend are read
@@ -122,7 +129,7 @@ impl Sketch {
             self.weld(&before, &blocks);
             for _ in 0..WELDS {
                 outcome = self.sweeps(millimeters_per_unit, scale, &blocks);
-                if self.weld(&before, &blocks) < scale * TOLERANCE {
+                if self.weld(&before, &blocks) < scale * SOLVED {
                     break;
                 }
             }
@@ -130,7 +137,7 @@ impl Sketch {
             // Keeping the shapes is not always possible — the values may want
             // the very thing that was being held. The drawing is then solved
             // the plain way, bending where it must.
-            if self.worst_error(millimeters_per_unit, scale) >= TOLERANCE {
+            if self.worst_error(millimeters_per_unit, scale) >= SOLVED {
                 for (index, position) in before.iter().enumerate() {
                     self.place_point(PointId(index), *position);
                 }
@@ -167,7 +174,7 @@ impl Sketch {
                 for equation in entry.iter_mut() {
                     let off = equation.off_by(scale);
                     worst = worst.max(off);
-                    if off < TOLERANCE * SETTLED_ALREADY {
+                    if off < SOLVED * SETTLED_ALREADY {
                         continue;
                     }
                     // A point laid on a curve follows it: the step this row
@@ -213,11 +220,11 @@ impl Sketch {
             }
 
             // Held, it is polished while it gains: the graph welds finer (#545).
-            if worst < TOLERANCE * SETTLED_ALREADY || stall.stalled(iteration, worst) {
+            if worst < SOLVED * SETTLED_ALREADY || stall.stalled(iteration, worst) {
                 break;
             }
         }
-        match worst < TOLERANCE {
+        match worst < SOLVED {
             true => SolveOutcome::Solved,
             false => SolveOutcome::Residual,
         }
@@ -245,7 +252,7 @@ impl Sketch {
             let mut off = false;
             self.any_equation(index, millimeters_per_unit, &pinned, &mut entry);
             for equation in entry.drain(..) {
-                if equation.off_by(scale) < TOLERANCE {
+                if equation.off_by(scale) < SOLVED {
                     continue;
                 }
                 off = true;
@@ -407,15 +414,6 @@ impl Sketch {
         let mut equations = self.equations_pinned_by(millimeters_per_unit, &anchored);
         equations.extend(self.ways_up_granted(&equations, &anchored));
         equations
-    }
-
-    /// A length representative of the drawing, used to judge errors relative to
-    /// its size rather than in absolute units.
-    pub(crate) fn characteristic_size(&self) -> f64 {
-        self.bounds()
-            .map(|(min, max)| (max - min).length())
-            .filter(|size| *size > 1e-6)
-            .unwrap_or(1.0)
     }
 
     fn dimension_count(&self) -> usize {

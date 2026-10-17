@@ -107,7 +107,7 @@ impl Sketch {
         let shape = self.proportion(curve);
         let kept = self.shapes_now();
         let outcome = self.resize(curve, reach, millimeters_per_unit);
-        let in_place = self.centre_of(curve).distance(centre) <= self.drawing_size() * 1e-5
+        let in_place = self.centre_of(curve).distance(centre) <= self.resolution()
             && (self.proportion(curve) - shape).abs() <= shape * 1e-5
             && (self.reach_now(curve) - reach).abs() <= reach * 1e-5;
         if outcome == LengthOutcome::Exact && in_place {

@@ -27,8 +27,8 @@ pub use laying::laid;
 pub use printing::Drawing;
 pub use random::Random;
 pub use rules::{
-    Area, Flaw, Place, Relaying, Rule, Silence, holding, laid_alike, nothing_extra,
-    nothing_missing, surface, tint_is_measure,
+    Area, Flaw, Matter, Place, Relaying, Rule, Silence, holding, laid_alike, matter_is_measure,
+    matter_tiles, nothing_extra, nothing_missing, surface, tint_is_measure,
 };
 pub use smaller::smaller;
 

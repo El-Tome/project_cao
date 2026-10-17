@@ -2,7 +2,8 @@
 //!
 //! Nobody can write down the areas of a random drawing, so they have no
 //! expected answer to be held against. What can be written down is what any
-//! answer must keep: its tint covers what its outline encloses, every closed
+//! answer must keep: its tint covers what its outline encloses, its matter
+//! covers that with the holes taken out and tiles what closes, every closed
 //! place lies in one area and only one, nothing lies in an area where nothing
 //! closes, and the same drawing laid again another way gives the same areas.
 //!
@@ -34,6 +35,22 @@ pub struct Area {
     /// How far the tint may stand from that measure because its curves were
     /// tinted as straight steps.
     pub sampling: f64,
+    /// What an extrusion raises from it, held apart from the tint.
+    pub matter: Matter,
+}
+
+/// An area's matter: the outline with its holes cut out through corridors,
+/// as `Region::face_triangles` hands it to an extrusion.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Matter {
+    /// The triangles the face is cut into, corridors and all.
+    pub triangles: Vec<[DVec2; 3]>,
+    /// What the outline encloses with its holes taken out, read on the curves
+    /// themselves: `Region::area()`.
+    pub measure: f64,
+    /// How far the matter may stand from that measure: the outline's sampling
+    /// and its holes', whose curves are cut out as straight steps too.
+    pub sampling: f64,
 }
 
 /// A place of the drawing, and whether something closes around it.
@@ -64,8 +81,10 @@ pub enum Relaying {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Rule {
     TintIsMeasure,
+    MatterIsMeasure,
     NothingMissing,
     NothingExtra,
+    MatterTiles,
     OrderDoesNotMatter,
     Answers,
 }
@@ -79,6 +98,20 @@ pub enum Flaw {
         near: DVec2,
         tinted: f64,
         measured: f64,
+    },
+    /// The matter of the area whose outline passes through `near` covers more
+    /// or less than that outline encloses with its holes taken out.
+    Matter {
+        near: DVec2,
+        raised: f64,
+        measured: f64,
+    },
+    /// A place something closes around lies in the matter of `areas` areas
+    /// rather than exactly one, or one nothing closes around lies in some.
+    Untiled {
+        at: DVec2,
+        areas: usize,
+        enclosed: bool,
     },
     /// A place something closes around lies in no area.
     Missing { at: DVec2 },
@@ -113,8 +146,10 @@ impl Flaw {
     pub fn rule(&self) -> Rule {
         match self {
             Flaw::Tint { .. } => Rule::TintIsMeasure,
+            Flaw::Matter { .. } => Rule::MatterIsMeasure,
             Flaw::Missing { .. } => Rule::NothingMissing,
             Flaw::Extra { .. } => Rule::NothingExtra,
+            Flaw::Untiled { .. } => Rule::MatterTiles,
             Flaw::Relaid { .. } => Rule::OrderDoesNotMatter,
             Flaw::NoAnswer(_) => Rule::Answers,
         }
@@ -164,6 +199,48 @@ pub fn tint_is_measure(areas: &[Area]) -> Result<(), Flaw> {
                 near: lowest(&area.outline),
                 tinted,
                 measured: area.measure,
+            });
+        }
+    }
+    Ok(())
+}
+
+/// The matter of every area covers what its outline encloses with its holes
+/// taken out, give or take what the sampling of its curves allows.
+pub fn matter_is_measure(areas: &[Area]) -> Result<(), Flaw> {
+    for area in areas {
+        let raised: f64 = area.matter.triangles.iter().map(surface).sum();
+        let reach = reach(&area.outline);
+        if (raised - area.matter.measure).abs() > area.matter.sampling + ROUNDING * reach * reach {
+            return Err(Flaw::Matter {
+                near: lowest(&area.outline),
+                raised,
+                measured: area.matter.measure,
+            });
+        }
+    }
+    Ok(())
+}
+
+/// The matter of the areas tiles what the drawing closes: a place something
+/// closes around lies in the matter of exactly one area, and a place nothing
+/// closes around lies in none. This is what sees a rod where a tube is drawn.
+pub fn matter_tiles(areas: &[Area], places: &[Place]) -> Result<(), Flaw> {
+    for place in places {
+        let count = areas
+            .iter()
+            .filter(|area| {
+                area.matter
+                    .triangles
+                    .iter()
+                    .any(|triangle| in_triangle(place.at, triangle))
+            })
+            .count();
+        if count != usize::from(place.enclosed) {
+            return Err(Flaw::Untiled {
+                at: place.at,
+                areas: count,
+                enclosed: place.enclosed,
             });
         }
     }

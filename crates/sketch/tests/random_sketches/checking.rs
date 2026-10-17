@@ -8,7 +8,8 @@ use super::areas::areas_of;
 use super::enclosing::{Curve, Enclosure, curves_of};
 use super::random::Random;
 use super::rules::{
-    Area, Flaw, Place, Relaying, laid_alike, nothing_extra, nothing_missing, reach, tint_is_measure,
+    Area, Flaw, Place, Relaying, laid_alike, matter_is_measure, matter_tiles, nothing_extra,
+    nothing_missing, reach, tint_is_measure,
 };
 
 /// Whether a drawing keeps every rule after every one of its gestures.
@@ -43,6 +44,7 @@ pub fn holds(gestures: &[Gesture]) {
 pub fn keeps_its_areas(sketch: &Sketch) -> Result<(), Flaw> {
     let areas = areas_of(sketch);
     tint_is_measure(&areas)?;
+    matter_is_measure(&areas)?;
     let curves = curves_of(sketch);
     let enclosure = Enclosure::of(&curves);
     let looked_at = places_to_look_at(&curves, &areas);
@@ -57,6 +59,7 @@ pub fn keeps_its_areas(sketch: &Sketch) -> Result<(), Flaw> {
         .collect();
     nothing_missing(&areas, &places)?;
     nothing_extra(&areas, &places)?;
+    matter_tiles(&areas, &places)?;
     for how in relayings(sketch, &curves).into_iter().filter(|how| {
         *how == Relaying::Reordered || !enclosure.may_read_otherwise(|at| carried(*how, at))
     }) {

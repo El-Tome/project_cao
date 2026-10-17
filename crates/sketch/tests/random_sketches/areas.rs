@@ -5,7 +5,7 @@ use std::f64::consts::TAU;
 use cao_sketch::{Outline, Region, Sketch};
 use glam::DVec2;
 
-use super::rules::{Area, reach};
+use super::rules::{Area, Matter, reach};
 
 /// How finely a whole curve is sampled for tinting: `FULL_CIRCLE_STEPS` and
 /// `FULL_ELLIPSE_STEPS` (`crates/sketch/src/arcing.rs`, `ellipsing.rs`). A run
@@ -23,16 +23,29 @@ pub fn areas_of(sketch: &Sketch) -> Vec<Area> {
     let regions = sketch.regions();
     regions
         .iter()
-        .map(|region| Area {
-            outline: region.outline.points.clone(),
-            holes: region
-                .holes
-                .iter()
-                .map(|hole| hole.points.clone())
-                .collect(),
-            triangles: region.triangles.clone(),
-            measure: measure(region, &regions, regions.len()),
-            sampling: sampling(sketch, &region.outline),
+        .map(|region| {
+            let outline_sampling = sampling(sketch, &region.outline);
+            Area {
+                outline: region.outline.points.clone(),
+                holes: region
+                    .holes
+                    .iter()
+                    .map(|hole| hole.points.clone())
+                    .collect(),
+                triangles: region.triangles.clone(),
+                measure: measure(region, &regions, regions.len()),
+                sampling: outline_sampling,
+                matter: Matter {
+                    triangles: region.face_triangles(),
+                    measure: region.area(),
+                    sampling: outline_sampling
+                        + region
+                            .holes
+                            .iter()
+                            .map(|hole| sampling(sketch, hole))
+                            .sum::<f64>(),
+                },
+            }
         })
         .collect()
 }

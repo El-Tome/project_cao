@@ -2,6 +2,9 @@
 
 use super::*;
 
+/// A touch tolerance of the size the drawings here would carry.
+const TOUCH: f64 = 1e-6;
+
 /// An ellipse about (10, 5), sixty wide and twenty high, turned a sixth of a
 /// half-turn so that nothing lines up with the axes by accident.
 fn leaning() -> EllipseDraft {
@@ -24,7 +27,7 @@ fn a_straight_run_through_an_ellipse_crosses_it_twice() {
     let oval = leaning();
     let (from, to) = (DVec2::new(-40.0, 5.0), DVec2::new(60.0, 5.0));
 
-    let crossings = where_segment_crosses_ellipse(from, to, oval);
+    let crossings = where_segment_crosses_ellipse(from, to, oval, TOUCH);
 
     assert_eq!(crossings.len(), 2, "{crossings:?}");
     for (along, round) in crossings {
@@ -42,7 +45,7 @@ fn a_straight_run_beside_an_ellipse_crosses_it_nowhere() {
     let oval = leaning();
 
     assert!(
-        where_segment_crosses_ellipse(DVec2::new(-40.0, 60.0), DVec2::new(60.0, 60.0), oval)
+        where_segment_crosses_ellipse(DVec2::new(-40.0, 60.0), DVec2::new(60.0, 60.0), oval, TOUCH)
             .is_empty()
     );
 }
@@ -52,7 +55,7 @@ fn a_run_that_stops_inside_an_ellipse_crosses_it_once() {
     let oval = leaning();
     let (from, to) = (DVec2::new(-40.0, 5.0), DVec2::new(10.0, 5.0));
 
-    let crossings = where_segment_crosses_ellipse(from, to, oval);
+    let crossings = where_segment_crosses_ellipse(from, to, oval, TOUCH);
 
     assert_eq!(crossings.len(), 1, "{crossings:?}");
 }
@@ -62,7 +65,7 @@ fn a_circle_through_an_ellipse_crosses_it_where_both_agree() {
     let oval = leaning();
     let (centre, radius) = (DVec2::new(30.0, 5.0), 12.0);
 
-    let crossings = where_circle_crosses_ellipse(centre, radius, oval);
+    let crossings = where_circle_crosses_ellipse(centre, radius, oval, TOUCH);
 
     assert_eq!(crossings.len(), 2, "{crossings:?}");
     for (round, at) in crossings {
@@ -82,14 +85,14 @@ fn a_circle_through_an_ellipse_crosses_it_where_both_agree() {
 fn a_circle_inside_an_ellipse_crosses_it_nowhere() {
     let oval = leaning();
 
-    assert!(where_circle_crosses_ellipse(DVec2::new(10.0, 5.0), 4.0, oval).is_empty());
+    assert!(where_circle_crosses_ellipse(DVec2::new(10.0, 5.0), 4.0, oval, TOUCH).is_empty());
 }
 
 #[test]
 fn an_arc_crosses_an_ellipse_only_over_the_stretch_it_runs() {
     let oval = leaning();
     let (centre, radius) = (DVec2::new(30.0, 5.0), 12.0);
-    let whole = where_circle_crosses_ellipse(centre, radius, oval);
+    let whole = where_circle_crosses_ellipse(centre, radius, oval, TOUCH);
     assert_eq!(whole.len(), 2, "the whole circle crosses twice: {whole:?}");
 
     // A short stretch of that circle about the first of the two crossings,
@@ -102,7 +105,7 @@ fn an_arc_crosses_an_ellipse_only_over_the_stretch_it_runs() {
         start: on_the_circle(first - 0.05),
         end: on_the_circle(first + 0.05),
     };
-    let crossings = where_arc_crosses_ellipse(arc, oval);
+    let crossings = where_arc_crosses_ellipse(arc, oval, TOUCH);
 
     assert_eq!(crossings.len(), 1, "{crossings:?}");
     let (round, at) = crossings[0];
@@ -123,7 +126,7 @@ fn two_ellipses_that_overlap_cross_where_both_agree() {
         second: 12.0,
     };
 
-    let crossings = where_ellipses_cross(near, far);
+    let crossings = where_ellipses_cross(near, far, TOUCH);
 
     assert_eq!(crossings.len(), 2, "{crossings:?}");
     for (here, there) in crossings {
@@ -141,7 +144,7 @@ fn two_ellipses_apart_cross_nowhere() {
         second: 12.0,
     };
 
-    assert!(where_ellipses_cross(leaning(), far).is_empty());
+    assert!(where_ellipses_cross(leaning(), far, TOUCH).is_empty());
 }
 
 #[test]
@@ -155,7 +158,67 @@ fn an_ellipse_crossed_four_times_finds_all_four() {
         second: 2.0,
     };
 
-    let crossings = where_ellipses_cross(near, far);
+    let crossings = where_ellipses_cross(near, far, TOUCH);
 
     assert_eq!(crossings.len(), 4, "{crossings:?}");
+}
+
+/// The way straight out of the curve at a turn, read off `at` differentiated.
+fn outward(oval: EllipseDraft, turn: f64) -> DVec2 {
+    let ahead = -oval.first * turn.sin() + oval.second_axis() * turn.cos();
+    DVec2::new(ahead.y, -ahead.x).normalize()
+}
+
+#[test]
+fn a_circle_grazing_an_ellipse_is_one_touch_wherever_it_grazes() {
+    let oval = leaning();
+    for step in 0..32 {
+        let turn = step as f64 / 32.0 * std::f64::consts::TAU;
+        for gap in [TOUCH * 0.5, -TOUCH * 0.5] {
+            let centre = oval.at(turn) + outward(oval, turn) * (3.0 + gap);
+            let found = where_circle_crosses_ellipse(centre, 3.0, oval, TOUCH);
+            assert_eq!(found.len(), 1, "turn {turn}, {gap} off: {found:?}");
+            let place = oval.at(found[0].1 * std::f64::consts::TAU);
+            assert!(
+                place.distance(oval.at(turn)) < 1e-4,
+                "the touch stands where the circle was laid, got {place}",
+            );
+        }
+    }
+}
+
+#[test]
+fn a_run_grazing_an_ellipse_within_the_tolerance_touches_it_once() {
+    let oval = leaning();
+    let turn = 0.8;
+    for gap in [TOUCH * 0.5, -TOUCH * 0.5] {
+        let place = oval.at(turn) + outward(oval, turn) * gap;
+        let along = outward(oval, turn).perp();
+        let found =
+            where_segment_crosses_ellipse(place - along * 20.0, place + along * 20.0, oval, TOUCH);
+        assert_eq!(found.len(), 1, "left {gap} off, one touch: {found:?}");
+        assert!(
+            (found[0].0 - 0.5).abs() < 1e-6,
+            "under the summit, halfway along the run, got {}",
+            found[0].0,
+        );
+    }
+}
+
+#[test]
+fn a_crossing_pair_no_sample_falls_between_is_still_two_crossings() {
+    let oval = leaning();
+    for step in 0..64 {
+        let turn = 0.013 + step as f64 / 64.0 * std::f64::consts::TAU;
+        let centre = oval.at(turn) + outward(oval, turn) * 0.02;
+        let found = where_circle_crosses_ellipse(centre, 0.1, oval, TOUCH);
+        assert_eq!(found.len(), 2, "standing at {turn}: {found:?}");
+        for (_, at) in found {
+            let place = oval.at(at * std::f64::consts::TAU);
+            assert!(
+                (place.distance(centre) - 0.1).abs() < 1e-6,
+                "a crossing stands on both curves, got {place}",
+            );
+        }
+    }
 }

@@ -4,6 +4,9 @@ use super::*;
 
 const TOLERANCE: f64 = 1e-9;
 
+/// A touch tolerance of the size the drawings here would carry.
+const TOUCH: f64 = 1e-6;
+
 #[test]
 fn two_segments_that_cross_meet_part_way_along_each_of_them() {
     let found = where_segments_cross(
@@ -65,6 +68,7 @@ fn a_straight_run_through_a_curve_cuts_it_twice() {
         DVec2::new(-10.0, 3.0),
         DVec2::new(10.0, 3.0),
         upper_half_circle(5.0),
+        TOUCH,
     );
     assert_eq!(found.len(), 2, "a chord of the bulge, got {found:?}");
 
@@ -93,6 +97,7 @@ fn a_chord_passing_below_a_bulge_never_meets_it() {
             DVec2::new(-10.0, -3.0),
             DVec2::new(10.0, -3.0),
             upper_half_circle(5.0),
+            TOUCH,
         )
         .is_empty(),
         "the run cuts the circle where the arc does not go",
@@ -106,6 +111,7 @@ fn a_straight_run_through_a_whole_circle_keeps_both_of_its_meetings() {
         DVec2::new(10.0, 3.0),
         DVec2::ZERO,
         5.0,
+        TOUCH,
     );
     assert_eq!(found.len(), 2, "a chord of the circle, got {found:?}");
 
@@ -128,7 +134,7 @@ fn a_straight_run_through_a_whole_circle_keeps_both_of_its_meetings() {
 
 #[test]
 fn two_whole_circles_meet_twice_wherever_they_overlap() {
-    let found = where_circles_cross(DVec2::ZERO, 5.0, DVec2::new(6.0, 0.0), 5.0);
+    let found = where_circles_cross(DVec2::ZERO, 5.0, DVec2::new(6.0, 0.0), 5.0, TOUCH);
     assert_eq!(
         found.len(),
         2,
@@ -149,16 +155,16 @@ fn two_whole_circles_meet_twice_wherever_they_overlap() {
 
 #[test]
 fn two_circles_that_miss_each_other_never_meet() {
-    assert!(where_circles_cross(DVec2::ZERO, 1.0, DVec2::new(9.0, 0.0), 2.0).is_empty());
+    assert!(where_circles_cross(DVec2::ZERO, 1.0, DVec2::new(9.0, 0.0), 2.0, TOUCH).is_empty());
     assert!(
-        where_circles_cross(DVec2::ZERO, 5.0, DVec2::ZERO, 2.0).is_empty(),
+        where_circles_cross(DVec2::ZERO, 5.0, DVec2::ZERO, 2.0, TOUCH).is_empty(),
         "one inside the other, sharing a centre",
     );
 }
 
 #[test]
 fn a_curve_crossing_a_whole_circle_reports_only_the_meetings_it_runs_over() {
-    let found = where_arc_crosses_circle(upper_half_circle(5.0), DVec2::new(6.0, 0.0), 5.0);
+    let found = where_arc_crosses_circle(upper_half_circle(5.0), DVec2::new(6.0, 0.0), 5.0, TOUCH);
     assert_eq!(
         found.len(),
         1,
@@ -185,7 +191,7 @@ fn two_curves_meet_only_where_both_of_them_run() {
     shifted.start = DVec2::new(11.0, 0.0);
     shifted.end = DVec2::new(1.0, 0.0);
 
-    let found = where_arcs_cross(upper_half_circle(5.0), shifted);
+    let found = where_arcs_cross(upper_half_circle(5.0), shifted, TOUCH);
     assert_eq!(
         found.len(),
         1,
@@ -202,5 +208,72 @@ fn two_curves_meet_only_where_both_of_them_run() {
     assert!(
         (round_second - expected).abs() < TOLERANCE,
         "{expected} of the way round the second, got {round_second}",
+    );
+}
+
+#[test]
+fn a_run_grazing_a_circle_within_the_tolerance_touches_it_once_under_its_summit() {
+    for gap in [TOUCH * 0.5, -TOUCH * 0.5] {
+        let found = where_segment_crosses_circle(
+            DVec2::new(-10.0, 5.0 + gap),
+            DVec2::new(10.0, 5.0 + gap),
+            DVec2::ZERO,
+            5.0,
+            TOUCH,
+        );
+        assert_eq!(found.len(), 1, "left {gap} off, one touch: {found:?}");
+        let (along, round) = found[0];
+        assert!(
+            (along - 0.5).abs() < TOLERANCE,
+            "under the summit, halfway along the run, got {along}",
+        );
+        assert!(
+            (round - 0.25).abs() < TOLERANCE,
+            "a quarter of the way round the circle, got {round}",
+        );
+    }
+}
+
+#[test]
+fn a_graze_whose_summit_falls_past_the_end_of_the_run_meets_nowhere() {
+    let found = where_segment_crosses_circle(
+        DVec2::new(-10.0, 5.0),
+        DVec2::new(-1.0, 5.0),
+        DVec2::ZERO,
+        5.0,
+        TOUCH,
+    );
+    assert!(
+        found.is_empty(),
+        "the summit stands at nought, past the run's end: {found:?}",
+    );
+}
+
+#[test]
+fn two_circles_grazing_within_the_tolerance_touch_once_outside_as_nested() {
+    let outside = where_circles_cross(
+        DVec2::ZERO,
+        3.0,
+        DVec2::new(6.0 + TOUCH * 0.5, 0.0),
+        3.0,
+        TOUCH,
+    );
+    assert_eq!(outside.len(), 1, "left apart outside: {outside:?}");
+    assert!(
+        outside[0].0.abs() < TOLERANCE && (outside[0].1 - 0.5).abs() < TOLERANCE,
+        "the touch stands between the centres, got {outside:?}",
+    );
+
+    let nested = where_circles_cross(
+        DVec2::ZERO,
+        5.0,
+        DVec2::new(2.0 - TOUCH * 0.5, 0.0),
+        3.0,
+        TOUCH,
+    );
+    assert_eq!(nested.len(), 1, "left apart nested: {nested:?}");
+    assert!(
+        nested[0].0.abs() < TOLERANCE && nested[0].1.abs() < TOLERANCE,
+        "the touch stands past both centres, got {nested:?}",
     );
 }

@@ -155,10 +155,15 @@ impl Curve {
 }
 
 /// How far along each of the two a crossing stands, for every crossing they
-/// have.
-pub(super) fn between(first: &Curve, second: &Curve, places: &[DVec2]) -> Vec<(f64, f64)> {
+/// have. `touch` is how near the two must come to meet in one touch.
+pub(super) fn between(
+    first: &Curve,
+    second: &Curve,
+    places: &[DVec2],
+    touch: f64,
+) -> Vec<(f64, f64)> {
     if first.run().is_some() || second.run().is_some() {
-        return where_a_run_of_an_ellipse_crosses(first, second, places);
+        return where_a_run_of_an_ellipse_crosses(first, second, places, touch);
     }
     let (this, that) = (first.ends(), second.ends());
     match (first.draft(places), second.draft(places)) {
@@ -170,12 +175,16 @@ pub(super) fn between(first: &Curve, second: &Curve, places: &[DVec2]) -> Vec<(f
         )
         .into_iter()
         .collect(),
-        (None, Some(curve)) => where_segment_crosses_arc(places[this.0], places[this.1], curve),
-        (Some(curve), None) => where_segment_crosses_arc(places[that.0], places[that.1], curve)
-            .into_iter()
-            .map(|(along, round)| (round, along))
-            .collect(),
-        (Some(near), Some(far)) => where_arcs_cross(near, far),
+        (None, Some(curve)) => {
+            where_segment_crosses_arc(places[this.0], places[this.1], curve, touch)
+        }
+        (Some(curve), None) => {
+            where_segment_crosses_arc(places[that.0], places[that.1], curve, touch)
+                .into_iter()
+                .map(|(along, round)| (round, along))
+                .collect()
+        }
+        (Some(near), Some(far)) => where_arcs_cross(near, far, touch),
     }
 }
 
@@ -186,6 +195,7 @@ fn where_a_run_of_an_ellipse_crosses(
     first: &Curve,
     second: &Curve,
     places: &[DVec2],
+    touch: f64,
 ) -> Vec<(f64, f64)> {
     let along_the_run = |run: Option<(EllipseDraft, f64, f64)>, whole: f64| {
         let Some((_, starts, sweep)) = run else {
@@ -197,26 +207,26 @@ fn where_a_run_of_an_ellipse_crosses(
     let (near, far) = (first.run(), second.run());
     let found = match (near, far) {
         (Some((drawn, ..)), None) => match second.draft(places) {
-            Some(arc) => where_arc_crosses_ellipse(arc, drawn)
+            Some(arc) => where_arc_crosses_ellipse(arc, drawn, touch)
                 .into_iter()
                 .map(|(round, whole)| (whole, round))
                 .collect(),
             None => {
                 let (from, to) = second.ends();
-                where_segment_crosses_ellipse(places[from], places[to], drawn)
+                where_segment_crosses_ellipse(places[from], places[to], drawn, touch)
                     .into_iter()
                     .map(|(along, whole)| (whole, along))
                     .collect()
             }
         },
         (None, Some(_)) => {
-            return where_a_run_of_an_ellipse_crosses(second, first, places)
+            return where_a_run_of_an_ellipse_crosses(second, first, places, touch)
                 .into_iter()
                 .map(|(there, here)| (here, there))
                 .collect();
         }
         (Some((near, starts, sweep)), Some((far, ..))) => {
-            where_ellipses_cross_along(near, starts, sweep, far)
+            where_ellipses_cross_along(near, starts, sweep, far, touch)
         }
         (None, None) => Vec::new(),
     };

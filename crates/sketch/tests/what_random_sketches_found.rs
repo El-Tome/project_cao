@@ -77,8 +77,8 @@
 //!   `a_small_circle_tangent_to_both_long_sides_of_a_rectangle_raises_its_matter`,
 //!   and the campaign's third drawing,
 //!   `a_circle_tangent_to_both_sides_of_a_rectangle_raises_its_matter`, whose
-//!   matter holds too but which still trips `OrderDoesNotMatter` when turned —
-//!   the tangency flicker #516 closes — and waits ignored on that branch
+//!   last flaw — the tangency flicker when turned — #516 closed, its ignore
+//!   taken off with it
 //! - #529's solid-level behaviour does not regress — no test: it is held by
 //!   the solid crate's own suite, which the gate runs
 //! - the corridors bridged out to holes still pass — no test: the window-frame
@@ -312,7 +312,6 @@ fn half_an_ellipse_under_a_rectangle_s_top_keeps_its_areas_when_turned() {
 }
 
 #[test]
-#[ignore = "#419"]
 fn an_ellipse_and_its_mirror_image_crossing_lie_one_area_apart() {
     random_sketches::holds(&[
         Gesture::Ellipse {
@@ -329,7 +328,6 @@ fn an_ellipse_and_its_mirror_image_crossing_lie_one_area_apart() {
 }
 
 #[test]
-#[ignore = "#419"]
 fn two_circles_touching_off_the_lattice_keep_both_their_areas() {
     random_sketches::holds(&[
         Gesture::Circle {
@@ -380,7 +378,6 @@ fn a_circle_tangent_inside_another_off_the_lattice_keeps_its_areas_in_either_ord
 }
 
 #[test]
-#[ignore = "#419"]
 fn an_area_pinched_where_two_circles_touch_is_tinted_on_its_own_side_of_the_pinch() {
     random_sketches::holds(&[
         Gesture::Rectangle {
@@ -504,7 +501,6 @@ fn an_outline_with_a_corner_on_one_of_its_diagonals_is_tinted_as_it_encloses() {
 }
 
 #[test]
-#[ignore = "#516"]
 fn a_circle_tangent_to_both_sides_of_a_rectangle_raises_its_matter() {
     random_sketches::holds(&[
         Gesture::Rectangle {

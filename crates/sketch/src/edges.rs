@@ -244,6 +244,7 @@ impl Sketch {
     /// points first, then one for each crossing — and where each of them has
     /// to be cut apart.
     fn cut(&self) -> Cut {
+        let touch = crate::precision::SAME * crate::precision::drawing_size(self);
         let drawn = self.points().len();
         let mut places = self.points().to_vec();
         let vertex = welded(&places);
@@ -266,7 +267,7 @@ impl Sketch {
         }
 
         let mut loops = Loops::default();
-        for round in self.rounds() {
+        for round in self.rounds(touch) {
             let pieces = broken(&round, &mut places);
             let id = CurveId::Circle(round.id);
             match pieces.is_empty() {
@@ -279,7 +280,7 @@ impl Sketch {
                 }
             }
         }
-        for oval in self.ovals() {
+        for oval in self.ovals(touch) {
             let pieces = broken_oval(&oval, &mut places);
             let id = CurveId::Ellipse(oval.id);
             match pieces.is_empty() {
@@ -303,7 +304,8 @@ impl Sketch {
         let crossed_from = places.len();
         for first in 0..curves.len() {
             for second in (first + 1)..curves.len() {
-                for (along_first, along_second) in between(&curves[first], &curves[second], &places)
+                for (along_first, along_second) in
+                    between(&curves[first], &curves[second], &places, touch)
                 {
                     if !held(along_first) || !held(along_second) {
                         continue;

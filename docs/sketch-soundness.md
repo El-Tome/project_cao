@@ -24,8 +24,10 @@ after **every** gesture of a drawing.
 | Rule | Function | What breaks it |
 | --- | --- | --- |
 | Tint is measure | `tint_is_measure` | the triangles an area is tinted with cover more or less than its outline encloses |
+| Matter is measure | `matter_is_measure` | the triangles an area raises cover more or less than its outline encloses with its holes taken out |
 | Nothing missing | `nothing_missing` | a place something closes around lies in no area |
 | Nothing extra | `nothing_extra` | a place lies in two areas, or in one while nothing closes around it |
+| Matter tiles | `matter_tiles` | a place something closes around lies in the matter of no area or of two, or one nothing closes around lies in some |
 | Order does not matter | `laid_alike` | the same drawing laid again — in another order, moved, turned, mirrored — gives another count of areas, or puts a place in an area of another size |
 | Answers | `answer` | finding the areas panics, or does not come back within the patience given |
 
@@ -40,6 +42,19 @@ triangles are held against what its **outline** encloses: `Region::area()`
 with the holes added back, each hole being the outline of an area one level
 deeper. A place lies *in* an area when it lies in its triangles and in none of
 its holes.
+
+**The matter is something else, and is held apart.** What an extrusion raises
+is `Region::face_triangles`, the outline with its holes cut out through
+corridors (`crates/sketch/src/regions.rs`). It is held to `Region::area()`,
+the outline with the holes taken out — with the same sampling allowance as the
+tint, the holes' curves included, since they too are cut out as straight
+steps — and the matter of all the areas must *tile* what the drawing closes:
+a place something closes around lies in the matter of exactly one area, one
+level of nesting answering for each place. The tiling is what sees a rod where
+a tube is drawn, which comparing surfaces alone would not: #503's ring was
+given no hole, so `Region::area()` was wrong in the same way as its matter and
+the two agreed. A corridor is two sides laid on top of each other and has no
+surface: a seam is not matter missing, and the rules read it as none.
 
 **The measure is read on the curves, the tint on their steps.** A circle is
 tinted as the straight steps it was sampled into, a forty-eighth of a turn
@@ -191,19 +206,17 @@ and not a neighbour of it. A number that is one of the constants Clippy refuses
 to see written out comes out as that constant. `cargo fmt` lays the pasted
 test out.
 
-A flaw names a place to go and look at: `Missing { at }` and `Extra { at }` a
-place that lies in the wrong number of areas, `Tint { near }` the lowest corner
-of the outline whose tint is off, `Relaid { how, areas, at }` how the drawing
-was laid again, the two counts of areas, and a place whose area changed size.
+A flaw names a place to go and look at: `Missing { at }`, `Extra { at }` and
+`Untiled { at }` a place that lies in the wrong number of areas or matters,
+`Tint { near }` and `Matter { near }` the lowest corner of the outline whose
+tint or matter is off, `Relaid { how, areas, at }` how the drawing was laid
+again, the two counts of areas, and a place whose area changed size.
 
 ## What the rules cannot see
 
 - **One area where two are drawn**, when the one is tinted and measured right:
   every place still lies in exactly one area. A diagonal drawn before the
   square on its ends was that until #494 welded points standing in one place.
-- **The matter.** The rules hold the tint, `Region::triangles`. What an
-  extrusion raises is `Region::face_triangles`, the outline with the holes cut
-  out of it, and is not checked here.
 - **Dimensions, rules, dragging**, and whether a piece is entirely
   constrained: #501.
 - **The solid** and undo: #448.

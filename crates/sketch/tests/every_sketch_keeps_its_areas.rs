@@ -54,6 +54,34 @@
 //! - `docs/sketch-soundness.md` lists the mirrored laying, and drops it from
 //!   *What the rules cannot see* — no test: it is prose
 //!
+//! Closes #508.
+//! - the matter is the measure, caught out by matter broken on purpose: a hole
+//!   left full, matter reaching outside its outline, a frame short of its
+//!   matter — `an_area_raised_as_its_measure_keeps_the_matter`,
+//!   `a_hole_left_full_breaks_the_matter`,
+//!   `matter_reaching_outside_its_outline_breaks_the_matter`,
+//!   `a_frame_whose_matter_misses_its_jamb_breaks_the_matter`
+//! - every closed place is in the matter of one area, caught out by matter
+//!   broken on purpose: a place in the matter of two areas, matter where
+//!   nothing closes, a closed place in none —
+//!   `a_rod_where_a_tube_is_drawn_puts_a_place_in_two_matters`,
+//!   `matter_where_nothing_closes_is_untiled`,
+//!   `a_closed_place_in_no_matter_is_untiled`
+//! - #503's drawing breaks the second rule — no test: #524 fixed what it broke
+//!   on before this net landed; the rod it would have shown is laid by hand in
+//!   `a_rod_where_a_tube_is_drawn_puts_a_place_in_two_matters`, and the drawing
+//!   itself now holds both rules in `what_random_sketches_found.rs`
+//! - #540's twin windows break the first rule — no test: #543 fixed them
+//!   meanwhile; their 325 mm² of matter for a measure of 500 is laid by hand in
+//!   `a_frame_whose_matter_misses_its_jamb_breaks_the_matter`, and the three
+//!   frames and the owner's notch hold both rules in
+//!   `what_random_sketches_found.rs`
+//! - a campaign has run with both rules, and what it found is written down —
+//!   no test: the findings live on the issues and in
+//!   `what_random_sketches_found.rs`
+//! - `docs/sketch-soundness.md` lists both rules, and drops the matter from
+//!   *What the rules cannot see* — no test: it is prose
+//!
 //! The campaign is run by hand:
 //!
 //! ```text
@@ -72,9 +100,9 @@ use std::time::{Duration, Instant, SystemTime};
 
 use glam::DVec2;
 use random_sketches::{
-    Area, Axis, Check, Drawing, Flaw, Gesture, Place, Random, Relaying, Report, Rule, Silence,
-    answer, campaign, drawn, laid_alike, nothing_extra, nothing_missing, played, smaller,
-    tint_is_measure,
+    Area, Axis, Check, Drawing, Flaw, Gesture, Matter, Place, Random, Relaying, Report, Rule,
+    Silence, answer, campaign, drawn, laid_alike, matter_is_measure, matter_tiles, nothing_extra,
+    nothing_missing, played, smaller, tint_is_measure,
 };
 
 fn square(low: [f64; 2], high: [f64; 2]) -> Area {
@@ -85,20 +113,45 @@ fn square(low: [f64; 2], high: [f64; 2]) -> Area {
         high,
         DVec2::new(low.x, high.y),
     ];
+    let triangles = vec![
+        [corners[0], corners[1], corners[2]],
+        [corners[0], corners[2], corners[3]],
+    ];
+    let measure = (high.x - low.x) * (high.y - low.y);
     Area {
         outline: corners.to_vec(),
         holes: Vec::new(),
-        triangles: vec![
-            [corners[0], corners[1], corners[2]],
-            [corners[0], corners[2], corners[3]],
-        ],
-        measure: (high.x - low.x) * (high.y - low.y),
+        triangles: triangles.clone(),
+        measure,
         sampling: 0.0,
+        matter: Matter {
+            triangles,
+            measure,
+            sampling: 0.0,
+        },
     }
 }
 
 fn hollowed(mut area: Area, hole: &Area) -> Area {
+    let (low, high) = (area.outline[0], area.outline[2]);
+    let (hole_low, hole_high) = (hole.outline[0], hole.outline[2]);
     area.holes.push(hole.outline.clone());
+    area.matter.measure -= hole.measure;
+    area.matter.triangles = [
+        [low, DVec2::new(high.x, hole_low.y)],
+        [DVec2::new(low.x, hole_high.y), high],
+        [
+            DVec2::new(low.x, hole_low.y),
+            DVec2::new(hole_low.x, hole_high.y),
+        ],
+        [
+            DVec2::new(hole_high.x, hole_low.y),
+            DVec2::new(high.x, hole_high.y),
+        ],
+    ]
+    .iter()
+    .flat_map(|band| square([band[0].x, band[0].y], [band[1].x, band[1].y]).triangles)
+    .collect();
     area
 }
 
@@ -662,6 +715,122 @@ fn a_small_piece_cut_from_a_big_circle_may_stray_only_by_the_steps_it_walks() {
 }
 
 #[test]
+fn an_area_raised_as_its_measure_keeps_the_matter() {
+    let ring = hollowed(
+        square([0.0, 0.0], [4.0, 4.0]),
+        &square([1.0, 1.0], [2.0, 2.0]),
+    );
+    assert_eq!(
+        matter_is_measure(&[square([5.0, 5.0], [6.0, 6.0]), ring]),
+        Ok(())
+    );
+}
+
+#[test]
+fn a_hole_left_full_breaks_the_matter() {
+    let mut full = hollowed(
+        square([0.0, 0.0], [4.0, 4.0]),
+        &square([1.0, 1.0], [2.0, 2.0]),
+    );
+    full.matter.triangles = full.triangles.clone();
+    assert_eq!(
+        matter_is_measure(&[full]),
+        Err(Flaw::Matter {
+            near: DVec2::ZERO,
+            raised: 16.0,
+            measured: 15.0,
+        })
+    );
+}
+
+#[test]
+fn matter_reaching_outside_its_outline_breaks_the_matter() {
+    let mut reaching = square([0.0, 0.0], [2.0, 2.0]);
+    reaching.matter.triangles.push([
+        DVec2::new(2.0, 0.0),
+        DVec2::new(3.0, 0.0),
+        DVec2::new(2.0, 3.0),
+    ]);
+    assert_eq!(
+        matter_is_measure(&[reaching]),
+        Err(Flaw::Matter {
+            near: DVec2::ZERO,
+            raised: 5.5,
+            measured: 4.0,
+        })
+    );
+}
+
+#[test]
+fn a_frame_whose_matter_misses_its_jamb_breaks_the_matter() {
+    let mut frame = square([0.0, 0.0], [30.0, 30.0]);
+    frame.holes.push(square([5.0, 5.0], [15.0, 25.0]).outline);
+    frame.holes.push(square([15.0, 5.0], [25.0, 25.0]).outline);
+    frame.matter.measure = 500.0;
+    frame.matter.triangles = [
+        square([25.0, 0.0], [30.0, 30.0]).triangles,
+        square([5.0, 25.0], [25.0, 30.0]).triangles,
+        square([10.0, 0.0], [25.0, 5.0]).triangles,
+    ]
+    .concat();
+    assert_eq!(
+        matter_is_measure(&[frame]),
+        Err(Flaw::Matter {
+            near: DVec2::ZERO,
+            raised: 325.0,
+            measured: 500.0,
+        })
+    );
+}
+
+#[test]
+fn a_rod_where_a_tube_is_drawn_puts_a_place_in_two_matters() {
+    let inner = square([1.0, 1.0], [2.0, 2.0]);
+    let tube = hollowed(square([0.0, 0.0], [4.0, 4.0]), &inner);
+    let mut rod = tube.clone();
+    rod.matter.triangles = rod.triangles.clone();
+    let places = [closed([1.5, 1.5]), closed([0.5, 0.5]), open([5.0, 5.0])];
+
+    assert_eq!(matter_tiles(&[tube, inner.clone()], &places), Ok(()));
+    assert_eq!(
+        matter_tiles(&[rod, inner], &places),
+        Err(Flaw::Untiled {
+            at: DVec2::splat(1.5),
+            areas: 2,
+            enclosed: true,
+        })
+    );
+}
+
+#[test]
+fn matter_where_nothing_closes_is_untiled() {
+    let areas = [square([0.0, 0.0], [2.0, 2.0])];
+    assert_eq!(matter_tiles(&areas, &[open([3.0, 1.0])]), Ok(()));
+    assert_eq!(
+        matter_tiles(&areas, &[open([1.0, 1.0])]),
+        Err(Flaw::Untiled {
+            at: DVec2::ONE,
+            areas: 1,
+            enclosed: false,
+        })
+    );
+}
+
+#[test]
+fn a_closed_place_in_no_matter_is_untiled() {
+    let mut bare = square([0.0, 0.0], [2.0, 2.0]);
+    bare.matter.triangles.clear();
+    assert_eq!(
+        matter_tiles(&[bare], &[closed([1.0, 1.0])]),
+        Err(Flaw::Untiled {
+            at: DVec2::ONE,
+            areas: 0,
+            enclosed: true,
+        })
+    );
+}
+
+#[test]
 fn a_closed_place_lying_in_no_area_is_missing() {
     let inner = square([1.0, 2.0], [3.0, 4.0]);
     let outer = hollowed(square([0.0, 0.0], [4.0, 4.0]), &inner);
@@ -739,6 +908,11 @@ fn a_place_on_the_seam_between_two_triangles_lies_in_their_area() {
         triangles: vec![[a, b, c], [a, c, d]],
         measure: (a.x - c.x) * (a.y - c.y),
         sampling: 0.0,
+        matter: Matter {
+            triangles: vec![[a, b, c], [a, c, d]],
+            measure: (a.x - c.x) * (a.y - c.y),
+            sampling: 0.0,
+        },
     };
     let seam = (d + a + b) / 3.0;
     assert_eq!(random_sketches::holding(&[area], seam).len(), 1);
@@ -754,6 +928,11 @@ fn a_sliver_of_tint_along_a_line_holds_nothing_past_its_ends() {
         triangles: vec![[a, b, c]],
         measure: 0.0,
         sampling: 0.0,
+        matter: Matter {
+            triangles: vec![[a, b, c]],
+            measure: 0.0,
+            sampling: 0.0,
+        },
     };
     let beyond = turn.rotate(DVec2::new(6.5, 1.0));
     assert!(random_sketches::holding(&[sliver], beyond).is_empty());
@@ -765,6 +944,9 @@ fn moved(area: &Area, by: DVec2) -> Area {
         *place += by;
     }
     for corner in moved.triangles.iter_mut().flatten() {
+        *corner += by;
+    }
+    for corner in moved.matter.triangles.iter_mut().flatten() {
         *corner += by;
     }
     moved
@@ -939,6 +1121,9 @@ fn mirrored(area: &Area) -> Area {
     }
     for place in mirrored.holes.iter_mut().flatten() {
         place.x = -place.x;
+    }
+    for corner in mirrored.matter.triangles.iter_mut().flatten() {
+        corner.x = -corner.x;
     }
     mirrored
 }

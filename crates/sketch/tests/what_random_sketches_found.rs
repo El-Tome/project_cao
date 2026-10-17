@@ -57,6 +57,18 @@
 //!   off — `an_outline_with_a_corner_on_one_of_its_diagonals_is_tinted_as_it_encloses`
 //! - the side a corner lies on is read exactly — no test: the reading is
 //!   private to the crate, and held beside it in regions/side/tests.rs
+//!
+//! Closes #508.
+//! - #503's drawing, which broke the second rule while its depth was wrong,
+//!   holds both matter rules now that #524 fixed it —
+//!   `a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it`
+//! - #540's twin windows, which gave 325 mm² of matter for a measure of 500
+//!   until #543 fixed the bridging, hold both rules with their two neighbours
+//!   and the owner's notch —
+//!   `a_frame_whose_windows_share_a_whole_side_raises_its_matter`,
+//!   `a_frame_whose_windows_share_part_of_a_side_raises_its_matter`,
+//!   `a_frame_whose_windows_touch_at_one_corner_raises_its_matter`,
+//!   `a_rectangle_set_in_a_notch_of_a_square_raises_its_matter`
 
 // The drawing, the rules and the shrinking are the campaign's; this file only
 // lays drawings and holds them.
@@ -403,6 +415,60 @@ fn a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it() {
         Gesture::Circle {
             centre: [5.0, 3.0],
             radius: 1.0,
+            construction: false,
+        },
+    ]);
+}
+
+fn a_frame_with_two_windows(windows: [[[f64; 2]; 2]; 2]) -> Vec<Gesture> {
+    let mut gestures = vec![Gesture::Rectangle {
+        corner: [0.0, 0.0],
+        opposite: [30.0, 30.0],
+        construction: false,
+    }];
+    gestures.extend(windows.iter().map(|window| Gesture::Rectangle {
+        corner: window[0],
+        opposite: window[1],
+        construction: false,
+    }));
+    gestures
+}
+
+#[test]
+fn a_frame_whose_windows_share_a_whole_side_raises_its_matter() {
+    random_sketches::holds(&a_frame_with_two_windows([
+        [[5.0, 5.0], [15.0, 25.0]],
+        [[15.0, 5.0], [25.0, 25.0]],
+    ]));
+}
+
+#[test]
+fn a_frame_whose_windows_share_part_of_a_side_raises_its_matter() {
+    random_sketches::holds(&a_frame_with_two_windows([
+        [[5.0, 5.0], [15.0, 25.0]],
+        [[15.0, 10.0], [25.0, 20.0]],
+    ]));
+}
+
+#[test]
+fn a_frame_whose_windows_touch_at_one_corner_raises_its_matter() {
+    random_sketches::holds(&a_frame_with_two_windows([
+        [[5.0, 5.0], [15.0, 15.0]],
+        [[15.0, 15.0], [25.0, 25.0]],
+    ]));
+}
+
+#[test]
+fn a_rectangle_set_in_a_notch_of_a_square_raises_its_matter() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [0.0, 0.0],
+            opposite: [40.0, 40.0],
+            construction: false,
+        },
+        Gesture::Rectangle {
+            corner: [0.0, 20.0],
+            opposite: [15.0, 30.0],
             construction: false,
         },
     ]);

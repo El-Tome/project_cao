@@ -227,7 +227,7 @@ pub fn matter_is_measure(areas: &[Area]) -> Result<(), Flaw> {
 /// closes around lies in none. This is what sees a rod where a tube is drawn.
 pub fn matter_tiles(areas: &[Area], places: &[Place]) -> Result<(), Flaw> {
     for place in places {
-        let areas = areas
+        let count = areas
             .iter()
             .filter(|area| {
                 area.matter
@@ -236,10 +236,10 @@ pub fn matter_tiles(areas: &[Area], places: &[Place]) -> Result<(), Flaw> {
                     .any(|triangle| in_triangle(place.at, triangle))
             })
             .count();
-        if areas != usize::from(place.enclosed) {
+        if count != usize::from(place.enclosed) {
             return Err(Flaw::Untiled {
                 at: place.at,
-                areas,
+                areas: count,
                 enclosed: place.enclosed,
             });
         }

@@ -133,6 +133,8 @@ fn square(low: [f64; 2], high: [f64; 2]) -> Area {
     }
 }
 
+/// Cuts a `square()` hole out of a `square()` area, matter included — the
+/// bands laid by hand hold only for axis-aligned rectangles.
 fn hollowed(mut area: Area, hole: &Area) -> Area {
     let (low, high) = (area.outline[0], area.outline[2]);
     let (hole_low, hole_high) = (hole.outline[0], hole.outline[2]);

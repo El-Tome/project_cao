@@ -52,7 +52,7 @@ impl Round {
 const ON_THE_CIRCLE: f64 = 1e-9;
 
 impl Sketch {
-    pub(crate) fn rounds(&self) -> Vec<Round> {
+    pub(crate) fn rounds(&self, touch: f64) -> Vec<Round> {
         let mut rounds: Vec<Round> = self
             .live_circles()
             .filter(|(_, circle)| !circle.construction)
@@ -65,7 +65,7 @@ impl Sketch {
             .collect();
 
         for index in 0..rounds.len() {
-            let mut turns = self.turns_through(&rounds[index]);
+            let mut turns = self.turns_through(&rounds[index], touch);
             for (other, far) in rounds.iter().enumerate() {
                 if other != index {
                     let found = where_circles_cross(
@@ -73,6 +73,7 @@ impl Sketch {
                         rounds[index].radius,
                         far.centre,
                         far.radius,
+                        touch,
                     );
                     turns.extend(found.into_iter().map(|(near, _)| near));
                 }
@@ -86,7 +87,7 @@ impl Sketch {
     /// Where the drawing's straight runs, curves and points run through the
     /// circle. Its own points count: one sitting on a circle is a place the
     /// walk can turn at, exactly as one sitting on a segment is.
-    fn turns_through(&self, round: &Round) -> Vec<f64> {
+    fn turns_through(&self, round: &Round, touch: f64) -> Vec<f64> {
         let mut turns = Vec::new();
         for (_, segment) in self.live_segments().filter(|(_, it)| !it.construction) {
             let found = where_segment_crosses_circle(
@@ -94,6 +95,7 @@ impl Sketch {
                 self.point(segment.end),
                 round.centre,
                 round.radius,
+                touch,
             );
             turns.extend(found.into_iter().map(|(_, turn)| turn));
         }
@@ -103,12 +105,16 @@ impl Sketch {
                 start: self.point(arc.start),
                 end: self.point(arc.end),
             };
-            let found = where_arc_crosses_circle(drawn, round.centre, round.radius);
+            let found = where_arc_crosses_circle(drawn, round.centre, round.radius, touch);
             turns.extend(found.into_iter().map(|(_, turn)| turn));
         }
         for (id, _) in self.live_ellipses().filter(|(_, it)| !it.construction) {
-            let found =
-                where_circle_crosses_ellipse(round.centre, round.radius, self.ellipse_draft(id));
+            let found = where_circle_crosses_ellipse(
+                round.centre,
+                round.radius,
+                self.ellipse_draft(id),
+                touch,
+            );
             // Only where the ellipse is drawn: the rest of its curve is not
             // there to cross.
             turns.extend(found.into_iter().filter_map(|(turn, there)| {

@@ -73,7 +73,7 @@ impl Oval {
 }
 
 impl Sketch {
-    pub(crate) fn ovals(&self) -> Vec<Oval> {
+    pub(crate) fn ovals(&self, touch: f64) -> Vec<Oval> {
         let mut ovals: Vec<Oval> = self
             .live_ellipses()
             .filter(|(_, ellipse)| !ellipse.construction)
@@ -90,10 +90,10 @@ impl Sketch {
             .collect();
 
         for index in 0..ovals.len() {
-            let mut turns = self.turns_through_the_oval(&ovals[index]);
+            let mut turns = self.turns_through_the_oval(&ovals[index], touch);
             for (other, far) in ovals.iter().enumerate() {
                 if other != index {
-                    let found = where_ellipses_cross(ovals[index].drawn, far.drawn);
+                    let found = where_ellipses_cross(ovals[index].drawn, far.drawn, touch);
                     turns.extend(
                         found
                             .into_iter()
@@ -111,13 +111,14 @@ impl Sketch {
     /// Where the drawing's straight runs, curves, circles and points run
     /// through the ellipse. Its own points count: one sitting on it is a place
     /// the walk can turn at, exactly as one sitting on a segment is.
-    fn turns_through_the_oval(&self, oval: &Oval) -> Vec<f64> {
+    fn turns_through_the_oval(&self, oval: &Oval, touch: f64) -> Vec<f64> {
         let mut turns = Vec::new();
         for (_, segment) in self.live_segments().filter(|(_, it)| !it.construction) {
             let found = where_segment_crosses_ellipse(
                 self.point(segment.start),
                 self.point(segment.end),
                 oval.drawn,
+                touch,
             );
             turns.extend(found.into_iter().map(|(_, turn)| turn));
         }
@@ -127,12 +128,16 @@ impl Sketch {
                 start: self.point(arc.start),
                 end: self.point(arc.end),
             };
-            let found = where_arc_crosses_ellipse(drawn, oval.drawn);
+            let found = where_arc_crosses_ellipse(drawn, oval.drawn, touch);
             turns.extend(found.into_iter().map(|(_, turn)| turn));
         }
         for (_, circle) in self.live_circles().filter(|(_, it)| !it.construction) {
-            let found =
-                where_circle_crosses_ellipse(self.point(circle.center), circle.radius, oval.drawn);
+            let found = where_circle_crosses_ellipse(
+                self.point(circle.center),
+                circle.radius,
+                oval.drawn,
+                touch,
+            );
             turns.extend(found.into_iter().map(|(_, turn)| turn));
         }
         // A handle of the ellipse's own stands on it and breaks nothing while

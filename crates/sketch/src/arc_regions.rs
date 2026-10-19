@@ -88,17 +88,21 @@ impl Sketch {
             let leaving = |half: usize| {
                 // Read to the grain first and brought round the turn after:
                 // half a turn one way and half a turn the other are the same
-                // direction, and so are a hair either side of nought.
+                // direction, and so are a hair either side of nought. The
+                // grain is an integer because `total_cmp` tells -0.0 from
+                // +0.0, and a tangent computed through sines lands on -0.0
+                // where a segment's direction lands on +0.0 — read apart,
+                // the bending no longer puts the two in order.
                 let angle = departure(half).to_angle();
                 let round = (std::f64::consts::TAU / THE_SAME_WAY).round();
                 (
-                    (angle / THE_SAME_WAY).round().rem_euclid(round),
+                    (angle / THE_SAME_WAY).round().rem_euclid(round) as i64,
                     bending(half),
                 )
             };
             half_edges.sort_by(|a, b| {
                 let (near, far) = (leaving(*a), leaving(*b));
-                near.0.total_cmp(&far.0).then(near.1.total_cmp(&far.1))
+                near.0.cmp(&far.0).then(near.1.total_cmp(&far.1))
             });
         }
 

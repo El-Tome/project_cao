@@ -30,7 +30,10 @@
 //!   `a_circle_touching_the_one_around_it_is_a_hole_of_it_wherever_the_touch_falls`
 //! - the same once the area around it was cut by the walk, its outline sampled
 //!   otherwise than the circle's at the touch —
-//!   `a_circle_touching_an_area_the_walk_cut_out_is_a_hole_of_it`
+//!   `a_circle_touching_an_area_the_walk_cut_out_is_carved_out_of_it`; since
+//!   #516 gave the touch a vertex, the walk carves the disc out of that area
+//!   through it rather than nesting it as a hole, and the test asserts the
+//!   carving
 //! - a shape touching its outline at a corner, pinched by the walk, leaves two
 //!   areas at depth 0 —
 //!   `a_triangle_touching_its_square_at_a_corner_leaves_two_areas_side_by_side`
@@ -516,7 +519,7 @@ fn a_triangle_touching_its_square_at_a_corner_leaves_two_areas_side_by_side() {
 }
 
 #[test]
-fn a_circle_touching_an_area_the_walk_cut_out_is_a_hole_of_it() {
+fn a_circle_touching_an_area_the_walk_cut_out_is_carved_out_of_it() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let corners =
         [(0.0, 0.0), (7.0, 3.0), (10.5, 3.0)].map(|(x, y)| sketch.add_point(DVec2::new(x, y)));
@@ -533,14 +536,17 @@ fn a_circle_touching_an_area_the_walk_cut_out_is_a_hole_of_it() {
         .iter()
         .filter(|region| region.contains(DVec2::new(5.0, 4.0)))
         .collect();
-    assert_eq!(disc.len(), 1, "the small disc lies in one area");
-    assert_eq!(disc[0].depth, 1);
+    assert_eq!(disc.len(), 1, "the small disc is one area of its own");
     let around: Vec<&Region> = regions
         .iter()
-        .filter(|region| region.holes.len() == 1)
+        .filter(|region| region.contains(DVec2::new(8.0, 5.0)))
         .collect();
-    assert_eq!(around.len(), 1, "one area has the small disc as its hole");
-    assert!(around[0].contains(DVec2::new(8.0, 5.0)));
+    assert_eq!(around.len(), 1, "one area stands around it");
+    assert!(
+        !around[0].contains(DVec2::new(5.0, 4.0)),
+        "and the disc is none of its matter: the touch stands on a vertex, and \
+         the walk carves the disc out through it",
+    );
 }
 
 #[test]

@@ -1,3 +1,9 @@
+//! Where the curves of the drawing meet, decided on the gap between them:
+//! within `touch` of each other they meet once, beyond it they cross cleanly
+//! or not at all. Deciding on where the arithmetic lands instead turns a
+//! tangency the solver left overlapping by δ into two crossings 2·√(2Rδ)
+//! apart, or into none when it left them apart (#516).
+
 use glam::DVec2;
 
 use crate::arcing::{ArcDraft, sweep_of};
@@ -31,9 +37,14 @@ pub(crate) fn where_segments_cross(
 ///
 /// A line meets a circle twice, so there can be two of them; a crossing that
 /// lands on the part of the circle the arc does not run over is not one.
-pub(crate) fn where_segment_crosses_arc(a1: DVec2, a2: DVec2, arc: ArcDraft) -> Vec<(f64, f64)> {
+pub(crate) fn where_segment_crosses_arc(
+    a1: DVec2,
+    a2: DVec2,
+    arc: ArcDraft,
+    touch: f64,
+) -> Vec<(f64, f64)> {
     let radius = arc.centre.distance(arc.start);
-    along_segment_at_circle(a1, a2, arc.centre, radius)
+    along_segment_at_circle(a1, a2, arc.centre, radius, touch)
         .into_iter()
         .filter_map(|along| round_arc(arc, a1.lerp(a2, along)).map(|round| (along, round)))
         .collect()
@@ -48,8 +59,9 @@ pub(crate) fn where_segment_crosses_circle(
     a2: DVec2,
     centre: DVec2,
     radius: f64,
+    touch: f64,
 ) -> Vec<(f64, f64)> {
-    along_segment_at_circle(a1, a2, centre, radius)
+    along_segment_at_circle(a1, a2, centre, radius, touch)
         .into_iter()
         .map(|along| (along, turn_at(centre, a1.lerp(a2, along))))
         .collect()
@@ -60,12 +72,12 @@ pub(crate) fn where_segment_crosses_circle(
 /// Two circles meet twice, and either meeting can fall outside what one of the
 /// two arcs actually runs over. Curves sharing a centre never cross, however
 /// their radii compare.
-pub(crate) fn where_arcs_cross(first: ArcDraft, second: ArcDraft) -> Vec<(f64, f64)> {
+pub(crate) fn where_arcs_cross(first: ArcDraft, second: ArcDraft, touch: f64) -> Vec<(f64, f64)> {
     let (near, far) = (
         first.centre.distance(first.start),
         second.centre.distance(second.start),
     );
-    where_circles_meet(first.centre, near, second.centre, far)
+    where_circles_meet(first.centre, near, second.centre, far, touch)
         .into_iter()
         .filter_map(|place| Some((round_arc(first, place)?, round_arc(second, place)?)))
         .collect()
@@ -77,9 +89,10 @@ pub(crate) fn where_arc_crosses_circle(
     arc: ArcDraft,
     centre: DVec2,
     radius: f64,
+    touch: f64,
 ) -> Vec<(f64, f64)> {
     let reach = arc.centre.distance(arc.start);
-    where_circles_meet(arc.centre, reach, centre, radius)
+    where_circles_meet(arc.centre, reach, centre, radius, touch)
         .into_iter()
         .filter_map(|place| Some((round_arc(arc, place)?, turn_at(centre, place))))
         .collect()
@@ -91,8 +104,9 @@ pub(crate) fn where_circles_cross(
     near_radius: f64,
     far: DVec2,
     far_radius: f64,
+    touch: f64,
 ) -> Vec<(f64, f64)> {
-    where_circles_meet(near, near_radius, far, far_radius)
+    where_circles_meet(near, near_radius, far, far_radius, touch)
         .into_iter()
         .map(|place| (turn_at(near, place), turn_at(far, place)))
         .collect()
@@ -108,25 +122,38 @@ pub(crate) fn turn_at(centre: DVec2, place: DVec2) -> f64 {
 }
 
 /// How far along the run it meets the circle, nearest end first, leaving out
-/// the two ends themselves.
+/// the two ends themselves. A run whose nearest approach stands within `touch`
+/// of the circle grazes it: one meeting, under the summit — and none when that
+/// summit falls past an end of the run, where the graze brushes empty space.
 pub(super) fn along_segment_at_circle(
     a1: DVec2,
     a2: DVec2,
     centre: DVec2,
     radius: f64,
+    touch: f64,
 ) -> Vec<f64> {
     let (along, reach) = (a2 - a1, a1 - centre);
-    let (a, b, c) = (
-        along.length_squared(),
+    let span = along.length_squared();
+    if span <= 0.0 {
+        return Vec::new();
+    }
+    let summit = -reach.dot(along) / span;
+    let gap = (reach + along * summit).length() - radius;
+    if gap.abs() <= touch {
+        return (summit > 0.0 && summit < 1.0)
+            .then_some(summit)
+            .into_iter()
+            .collect();
+    }
+    if gap >= 0.0 {
+        return Vec::new();
+    }
+    let (b, c) = (
         2.0 * reach.dot(along),
         reach.length_squared() - radius * radius,
     );
-    let discriminant = b * b - 4.0 * a * c;
-    if discriminant <= 0.0 {
-        return Vec::new();
-    }
-    let root = discriminant.sqrt();
-    let mut found: Vec<f64> = [(-b - root) / (2.0 * a), (-b + root) / (2.0 * a)]
+    let root = (b * b - 4.0 * span * c).max(0.0).sqrt();
+    let mut found: Vec<f64> = [(-b - root) / (2.0 * span), (-b + root) / (2.0 * span)]
         .into_iter()
         .filter(|along| *along > 0.0 && *along < 1.0)
         .collect();
@@ -134,17 +161,36 @@ pub(super) fn along_segment_at_circle(
     found
 }
 
-/// The two places two whole circles meet, or nothing when they miss, nest or
-/// share a centre.
-fn where_circles_meet(near: DVec2, near_radius: f64, far: DVec2, far_radius: f64) -> Vec<DVec2> {
+/// The two places two whole circles meet, the one place they graze when they
+/// stand within `touch` of each other — outside or nested — or nothing when
+/// they miss, nest clear or share a centre.
+fn where_circles_meet(
+    near: DVec2,
+    near_radius: f64,
+    far: DVec2,
+    far_radius: f64,
+    touch: f64,
+) -> Vec<DVec2> {
     let apart = far - near;
     let span = apart.length();
-    if span <= 0.0 || span >= near_radius + far_radius || span <= (near_radius - far_radius).abs() {
+    if span <= 0.0 {
+        return Vec::new();
+    }
+    let along = apart / span;
+    let outside = span - (near_radius + far_radius);
+    let nested = (near_radius - far_radius).abs() - span;
+    if outside.abs() <= touch {
+        return vec![near + along * near_radius];
+    }
+    if nested.abs() <= touch {
+        let way = if near_radius >= far_radius { 1.0 } else { -1.0 };
+        return vec![near + along * (near_radius * way)];
+    }
+    if outside >= 0.0 || nested >= 0.0 {
         return Vec::new();
     }
     let reach = (near_radius * near_radius - far_radius * far_radius + span * span) / (2.0 * span);
     let rise = (near_radius * near_radius - reach * reach).max(0.0).sqrt();
-    let along = apart / span;
     let middle = near + along * reach;
     let sideways = DVec2::new(-along.y, along.x) * rise;
     vec![middle + sideways, middle - sideways]

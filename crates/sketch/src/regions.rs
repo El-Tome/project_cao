@@ -4,8 +4,8 @@ use crate::arc_regions::Walked;
 use crate::edges::half_edge::Bend;
 use crate::naming::CurveId;
 use crate::sketch::Sketch;
+use ears::clipped_ears;
 pub use runs::Leg;
-use side::{Side, side};
 
 /// One closed loop of an area, and what drew each of its segments.
 ///
@@ -58,11 +58,39 @@ impl Region {
     /// The area as a solid face: the outline with what sits inside it taken
     /// out. This is what an extrusion turns into matter, so that two circles
     /// one inside the other give a tube and not a rod.
+    ///
+    /// The corridors bridged out to the holes ask the holes to stand clear of
+    /// the outline, and a hole touching it — a circle tangent inside a
+    /// rectangle — can lose its splice or wedge the clipper, either of which
+    /// leaves the matter wrong. The result is therefore held to what the
+    /// outline and holes measure, and a face that fails it is cut again by
+    /// the winding sweep, which touching loops cannot upset.
     pub fn face_triangles(&self) -> Vec<[DVec2; 3]> {
         if self.holes.is_empty() {
             return self.triangles.clone();
         }
-        triangulate(&bridge_holes(&self.outline.points, &self.holes))
+        let hollowed = signed_area(&self.outline.points).abs()
+            - self
+                .holes
+                .iter()
+                .map(|hole| signed_area(&hole.points).abs())
+                .sum::<f64>();
+        let bridged = triangulate(&bridge_holes(&self.outline.points, &self.holes));
+        if covers(&bridged, hollowed) {
+            return bridged;
+        }
+        let mut shell = self.outline.points.clone();
+        if signed_area(&shell) < 0.0 {
+            shell.reverse();
+        }
+        let turned: Vec<Vec<DVec2>> = self
+            .holes
+            .iter()
+            .map(|hole| clockwise(&hole.points))
+            .collect();
+        let mut loops: Vec<&[DVec2]> = vec![&shell];
+        loops.extend(turned.iter().map(|hole| hole.as_slice()));
+        swept::swept(&loops)
     }
 
     /// The borders of the area, each as the curves of the drawing running
@@ -273,6 +301,13 @@ fn clockwise(loop_points: &[DVec2]) -> Vec<DVec2> {
 
 /// Cuts a closed outline into triangles by clipping ears: repeatedly take a
 /// corner no other corner sits in, and snip it off.
+///
+/// An outline pinched where two curves touch runs through one corner twice,
+/// and near the touch its sampled walls can cross each other by less than
+/// their own sampling; against some orderings of such an outline the clipper
+/// wedges itself and leaves a bite of the face uncut. What comes out is
+/// therefore held to what the outline measures, and an outline that fails it
+/// is cut again by the winding sweep.
 fn triangulate(outline: &[DVec2]) -> Vec<[DVec2; 3]> {
     if outline.len() < 3 || signed_area(outline).abs() < 1e-9 {
         return Vec::new();
@@ -281,70 +316,29 @@ fn triangulate(outline: &[DVec2]) -> Vec<[DVec2; 3]> {
     if signed_area(&remaining) < 0.0 {
         remaining.reverse();
     }
-
-    let mut triangles = Vec::new();
-    let mut guard = remaining.len() * remaining.len();
-    while remaining.len() > 3 && guard > 0 {
-        guard -= 1;
-        let count = remaining.len();
-        let mut clipped = false;
-        for index in 0..count {
-            let (a, b, c) = (
-                remaining[(index + count - 1) % count],
-                remaining[index],
-                remaining[(index + 1) % count],
-            );
-            if side(c, a, b) != Side::Left {
-                continue;
-            }
-            let clear = remaining
-                .iter()
-                .enumerate()
-                .filter(|(other, _)| {
-                    *other != index
-                        && *other != (index + count - 1) % count
-                        && *other != (index + 1) % count
-                })
-                // A corner of the ear itself, met a second time, is the seam of
-                // a corridor cut out to a hole: it sits on the ear by
-                // construction and must not be read as blocking it.
-                .filter(|(_, point)| {
-                    point.distance_squared(a) > EPSILON
-                        && point.distance_squared(b) > EPSILON
-                        && point.distance_squared(c) > EPSILON
-                })
-                .all(|(_, point)| !in_triangle(*point, a, b, c));
-            if clear {
-                triangles.push([a, b, c]);
-                remaining.remove(index);
-                clipped = true;
-                break;
-            }
-        }
-        if !clipped {
-            break;
-        }
+    let triangles = clipped_ears(&remaining);
+    match covers(&triangles, signed_area(&remaining)) {
+        true => triangles,
+        false => swept::swept(&[&remaining]),
     }
-    if remaining.len() == 3 {
-        triangles.push([remaining[0], remaining[1], remaining[2]]);
-    }
-    triangles
 }
 
-/// How close two positions have to be to count as the same corner.
-const EPSILON: f64 = 1e-12;
-
-fn in_triangle(point: DVec2, a: DVec2, b: DVec2, c: DVec2) -> bool {
-    [(a, b), (b, c), (c, a)]
-        .into_iter()
-        .all(|(from, to)| side(point, from, to) != Side::Right)
+/// Whether the triangles cover what the face measures, to rounding.
+fn covers(triangles: &[[DVec2; 3]], measure: f64) -> bool {
+    let raised: f64 = triangles
+        .iter()
+        .map(|[a, b, c]| (*b - *a).perp_dot(*c - *a).abs() * 0.5)
+        .sum();
+    (raised - measure).abs() <= 1e-9 * measure.abs().max(1.0)
 }
 
 mod across;
+mod ears;
 mod hollow;
 mod measure;
 mod runs;
 mod side;
+mod swept;
 
 #[cfg(test)]
 mod tests;

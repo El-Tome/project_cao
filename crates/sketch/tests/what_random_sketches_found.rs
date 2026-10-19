@@ -69,6 +69,20 @@
 //!   `a_frame_whose_windows_share_part_of_a_side_raises_its_matter`,
 //!   `a_frame_whose_windows_touch_at_one_corner_raises_its_matter`,
 //!   `a_rectangle_set_in_a_notch_of_a_square_raises_its_matter`
+//!
+//! Closes #602.
+//! - on a region whose hole touches its outline, the matter covers what the
+//!   area measures and every closed place lies in the matter of exactly one
+//!   area — `an_ellipse_tangent_to_a_rectangle_s_top_and_bottom_raises_its_matter`,
+//!   `a_small_circle_tangent_to_both_long_sides_of_a_rectangle_raises_its_matter`,
+//!   and the campaign's third drawing,
+//!   `a_circle_tangent_to_both_sides_of_a_rectangle_raises_its_matter`, whose
+//!   matter holds too but which still trips `OrderDoesNotMatter` when turned —
+//!   the tangency flicker #516 closes — and waits ignored on that branch
+//! - #529's solid-level behaviour does not regress — no test: it is held by
+//!   the solid crate's own suite, which the gate runs
+//! - the corridors bridged out to holes still pass — no test: the window-frame
+//!   tests of regions and the #540 frames above already hold them
 
 // The drawing, the rules and the shrinking are the campaign's; this file only
 // lays drawings and holds them.
@@ -487,4 +501,54 @@ fn an_outline_with_a_corner_on_one_of_its_diagonals_is_tinted_as_it_encloses() {
         closed: true,
         construction: false,
     }]);
+}
+
+#[test]
+#[ignore = "#516"]
+fn a_circle_tangent_to_both_sides_of_a_rectangle_raises_its_matter() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [240.0, 240.0],
+            opposite: [330.0, 90.0],
+            construction: false,
+        },
+        Gesture::Circle {
+            centre: [285.0, 165.0],
+            radius: 45.0,
+            construction: false,
+        },
+    ]);
+}
+
+#[test]
+fn an_ellipse_tangent_to_a_rectangle_s_top_and_bottom_raises_its_matter() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [6.0, 0.0],
+            opposite: [9.0, -6.0],
+            construction: false,
+        },
+        Gesture::Ellipse {
+            centre: [8.0, -3.0],
+            reach: [9.0, -3.0],
+            across: 3.0,
+            construction: false,
+        },
+    ]);
+}
+
+#[test]
+fn a_small_circle_tangent_to_both_long_sides_of_a_rectangle_raises_its_matter() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [6.0, 2.0],
+            opposite: [8.0, 1.0],
+            construction: false,
+        },
+        Gesture::Circle {
+            centre: [7.0, 1.5],
+            radius: 0.5,
+            construction: false,
+        },
+    ]);
 }

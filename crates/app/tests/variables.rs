@@ -207,7 +207,6 @@ fn a_plate_raised_by_a_formula(test: &str) -> driver::App {
     driver::click(&mut app, "Rectangle (R)");
     driver::click_at(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
     driver::click_at(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
-    driver::click(&mut app, "Terminer");
     driver::click_exactly(&mut app, "Extrusion");
     driver::click_exactly(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");

@@ -57,15 +57,31 @@ pub fn open_on(test: &str, (width, height): (f32, f32)) -> App {
 }
 
 pub fn click(app: &mut App, label: &str) {
-    app.get_by_label_contains(label).click();
+    let node = app.get_by_label_contains(label);
+    within_reach(label, node.rect().center(), app.ctx.content_rect());
+    node.click();
     app.run();
 }
 
 /// The one widget whose label is exactly this — for a tool whose name is the
 /// start of its own mode group's, as `Ellipse` is of `Ellipses`.
 pub fn click_exactly(app: &mut App, label: &str) {
-    app.get_by_label(label).click();
+    let node = app.get_by_label(label);
+    within_reach(label, node.rect().center(), app.ctx.content_rect());
+    node.click();
     app.run();
+}
+
+/// A widget laid out past the edge of the screen is still in the accessibility
+/// tree, enabled and uniquely labelled, but the pointer events a click sends at
+/// its centre land on nothing — the gesture passes quietly and the tool never
+/// takes. Saying so here is what tells that apart from a button that is broken.
+fn within_reach(label: &str, centre: egui::Pos2, screen: egui::Rect) {
+    assert!(
+        screen.contains(centre),
+        "{label} sits at {centre:?}, off the {screen:?} screen, where a click \
+         reaches nothing: open the application wider, with `open_on`",
+    );
 }
 
 pub fn click_at(app: &mut App, (x, y): (f32, f32)) {
@@ -154,10 +170,12 @@ pub fn fields_at_the_cursor(app: &App) -> usize {
 /// The button of that name, for a word a heading or a label carries too — the
 /// ribbon's `Variables` beside the panel it opens.
 pub fn click_the_button(app: &mut App, label: &str) {
-    app.query_all_by_label(label)
+    let node = app
+        .query_all_by_label(label)
         .find(|node| node.accesskit_node().role() == egui::accesskit::Role::Button)
-        .unwrap_or_else(|| panic!("a button named {label}"))
-        .click();
+        .unwrap_or_else(|| panic!("a button named {label}"));
+    within_reach(label, node.rect().center(), app.ctx.content_rect());
+    node.click();
     app.run();
 }
 

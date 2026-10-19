@@ -93,7 +93,7 @@ impl Sketch {
                 // +0.0, and a tangent computed through sines lands on -0.0
                 // where a segment's direction lands on +0.0 — read apart,
                 // the bending no longer puts the two in order.
-                let angle = departure(half).to_angle();
+                let angle = departure(half).to_angle().rem_euclid(std::f64::consts::TAU);
                 let round = (std::f64::consts::TAU / THE_SAME_WAY).round();
                 (
                     (angle / THE_SAME_WAY).round().rem_euclid(round) as i64,

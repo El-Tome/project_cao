@@ -100,7 +100,10 @@ impl Equation {
     }
 
     /// How far off this equation is, in a unit that means the same thing for
-    /// every kind of dimension.
+    /// every kind of dimension: a share of the drawing's size. An angular
+    /// error of a radian displaces the far side of the drawing by about the
+    /// drawing's size, so radians unscaled already read as that share, and
+    /// one stop line holds lengths and angles alike.
     pub(crate) fn off_by(&self, scale: f64) -> f64 {
         match self.angular {
             true => self.error.abs(),

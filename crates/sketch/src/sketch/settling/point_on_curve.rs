@@ -49,7 +49,7 @@ impl Sketch {
             Curved::Arc(arc) => self.distance_to_arc(arc, place),
             Curved::Ellipse(ellipse) => self.distance_to_ellipse(ellipse, place),
         };
-        off <= self.drawing_size() * crate::solver::TOLERANCE
+        off <= self.drawing_size() * crate::precision::SOLVED
     }
 
     /// Carries a curve whole until it passes through a point, its size and the

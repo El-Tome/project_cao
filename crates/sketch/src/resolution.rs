@@ -1,7 +1,7 @@
 //! How finely the drawing holds its rules.
 
+use crate::precision::SOLVED;
 use crate::sketch::Sketch;
-use crate::solver::TOLERANCE;
 
 impl Sketch {
     /// The distance below which the drawing cannot tell two places apart.
@@ -13,7 +13,7 @@ impl Sketch {
     /// A drawing whose rules all hold is settled further, while that gains, to
     /// under what the graph its areas are read from welds (#545).
     pub fn resolution(&self) -> f64 {
-        TOLERANCE * self.characteristic_size()
+        SOLVED * self.drawing_size()
     }
 }
 

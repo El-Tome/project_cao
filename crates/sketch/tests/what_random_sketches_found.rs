@@ -83,6 +83,21 @@
 //!   the solid crate's own suite, which the gate runs
 //! - the corridors bridged out to holes still pass — no test: the window-frame
 //!   tests of regions and the #540 frames above already hold them
+//!
+//! Closes #603.
+//! - cutting a corner of an open chain with a chamfer never changes what the
+//!   areas around it claim to cover: the three drawings the hunt kept hold
+//!   every rule —
+//!   `a_chamfer_on_an_open_chain_closed_by_a_circle_keeps_the_tint_the_measure`,
+//!   `a_chamfer_on_an_open_chain_closed_by_an_arc_keeps_the_tint_the_measure`,
+//!   `a_chamfer_on_an_open_chain_against_a_pattern_keeps_the_tint_the_measure`
+//! - the chamfer's named tests and what a chamfer draws on closed shapes keep
+//!   passing — no test: they are chamfer.rs and corner/tests.rs's own, run in
+//!   the same gate
+//! - where the fault lay — no test: it was not the chamfer's rewiring but the
+//!   touches the cut leaves against the closing curve; #604 closed the arc and
+//!   pattern drawings and #606 the circle one, and this file pins the family
+//!   so no future sighting is lost
 
 // The drawing, the rules and the shrinking are the campaign's; this file only
 // lays drawings and holds them.
@@ -545,6 +560,84 @@ fn a_small_circle_tangent_to_both_long_sides_of_a_rectangle_raises_its_matter() 
             centre: [7.0, 1.5],
             radius: 0.5,
             construction: false,
+        },
+    ]);
+}
+
+#[test]
+fn a_chamfer_on_an_open_chain_closed_by_a_circle_keeps_the_tint_the_measure() {
+    random_sketches::holds(&[
+        Gesture::Circle {
+            centre: [2.0, 5.0],
+            radius: 4.0,
+            construction: false,
+        },
+        Gesture::Chain {
+            through: vec![
+                [2.0, 5.0],
+                [8.0, 0.0],
+                [6.0, 5.0],
+                [6.0, 2.0],
+                [2.0000205, 5.0],
+            ],
+            closed: false,
+            construction: false,
+        },
+        Gesture::Chamfer {
+            at: [6.0, 2.0],
+            length: 1.0,
+        },
+    ]);
+}
+
+#[test]
+fn a_chamfer_on_an_open_chain_closed_by_an_arc_keeps_the_tint_the_measure() {
+    random_sketches::holds(&[
+        Gesture::Chain {
+            through: vec![[10.0, 3.0], [4.0, 1.0], [6.0, 10.0]],
+            closed: false,
+            construction: false,
+        },
+        Gesture::Chamfer {
+            at: [4.0, 1.0],
+            length: 1.0,
+        },
+        Gesture::Arc {
+            centre: [7.0, 3.5],
+            start: [4.0, 3.5],
+            degrees: 180.0,
+            construction: false,
+        },
+    ]);
+}
+
+#[test]
+fn a_chamfer_on_an_open_chain_against_a_pattern_keeps_the_tint_the_measure() {
+    random_sketches::holds(&[
+        Gesture::Chain {
+            through: vec![[9.0, 2.0], [2.0, 3.0], [2.0, 1.0]],
+            closed: false,
+            construction: false,
+        },
+        Gesture::Chamfer {
+            at: [2.0, 3.0],
+            length: 1.0,
+        },
+        Gesture::Rectangle {
+            corner: [1.0, 2.4795],
+            opposite: [4.5, 3.5],
+            construction: false,
+        },
+        Gesture::Circle {
+            centre: [1.0, 1.0],
+            radius: 5.0,
+            construction: false,
+        },
+        Gesture::PatternAround {
+            of: vec![[-0.4776010333066978, 5.77668244562803]],
+            centre: [4.5, 2.4795],
+            degrees: 90.0,
+            count: 4,
         },
     ]);
 }

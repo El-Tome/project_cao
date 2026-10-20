@@ -6,6 +6,15 @@ use cao_solid::Loop;
 use cao_solid::profile::{Contour, Profile, Run};
 use glam::DVec2;
 
+/// Two places closer than this, relative to the drawing's reach, are one: the
+/// relative tolerance the exact kernel decides with, stated here because the
+/// kernel's own is not part of what it exports. The kernel takes it against
+/// the reach of the raised body, which this file cannot see; the drawing's
+/// own reach stands at or under it, so the parting never splits what the
+/// kernel keeps apart — a touch on a sketch far from the origin may still
+/// reach the kernel welded, and be declined as every pinch was before #609.
+const ONE_PLACE: f64 = 1e-9;
+
 /// The area handed both ways. `triangles` are the region's own, worked out by
 /// the caller, since the profile only borrows them.
 pub(crate) fn profile<'a>(region: &'a Region, triangles: &'a [[DVec2; 3]]) -> Profile<'a> {
@@ -34,12 +43,80 @@ fn loops(region: &Region) -> (Loop<'_>, Vec<Loop<'_>>) {
     )
 }
 
-/// The outline and the holes as runs.
+/// The outline and the holes as runs, a pinched outline parted into them.
+/// The holes go through as they come: a pinched hole welds an island, which
+/// is matter and not another hollow, so parting it the outline's way would
+/// cut matter out — it stays welded, and the kernel declines it as before.
 fn exact(region: &Region) -> (Contour, Vec<Contour>) {
-    (
-        contour(&region.outline),
-        region.holes.iter().map(contour).collect(),
-    )
+    let (outline, parted) = pinched_apart(contour(&region.outline));
+    let mut holes: Vec<Contour> = region.holes.iter().map(contour).collect();
+    holes.extend(parted);
+    (outline, holes)
+}
+
+/// The loops a pinched outline welds, apart again: the walk hands an area
+/// whose hole touches its outline as one loop through the touch twice, and
+/// the kernel raises that same place only as two loops meeting at one corner
+/// — a whole circle sharing a loop with other runs it declines. Parted at
+/// every corner the loop stands on twice, within the kernel's own net; the
+/// loop that measures the most is the outline, every other is a hole of it.
+fn pinched_apart(whole: Contour) -> (Contour, Vec<Contour>) {
+    let reach = whole
+        .corners
+        .iter()
+        .map(|corner| corner.abs().max_element())
+        .fold(1.0, f64::max);
+    let eps = ONE_PLACE * reach;
+    let mut corners: Vec<DVec2> = Vec::new();
+    let mut runs: Vec<Run> = Vec::new();
+    let mut parted: Vec<Contour> = Vec::new();
+    for (corner, run) in whole.corners.into_iter().zip(whole.runs) {
+        if let Some(at) = corners.iter().position(|seen| seen.distance(corner) <= eps) {
+            parted.push(Contour {
+                corners: corners.split_off(at),
+                runs: runs.split_off(at),
+            });
+        }
+        corners.push(corner);
+        runs.push(run);
+    }
+    let mut outline = Contour { corners, runs };
+    for hole in parted.iter_mut() {
+        if measure(hole) > measure(&outline) {
+            std::mem::swap(&mut outline, hole);
+        }
+    }
+    (outline, parted)
+}
+
+/// What a closed contour encloses, whichever way it turns.
+fn measure(contour: &Contour) -> f64 {
+    let count = contour.corners.len();
+    let doubled: f64 = contour
+        .runs
+        .iter()
+        .enumerate()
+        .map(|(at, run)| {
+            let from = contour.corners[at];
+            let to = contour.corners[(at + 1) % count];
+            from.perp_dot(to) + 2.0 * bulge(from, *run)
+        })
+        .sum();
+    (doubled / 2.0).abs()
+}
+
+/// The area between a curved run and its chord, signed the way the run turns.
+fn bulge(from: DVec2, run: Run) -> f64 {
+    match run {
+        Run::Straight => 0.0,
+        Run::Round { center, turn } => from.distance_squared(center) * (turn - turn.sin()) / 2.0,
+        Run::Oval {
+            first,
+            second,
+            turn,
+            ..
+        } => first.length() * second * (turn - turn.sin()) / 2.0,
+    }
 }
 
 fn contour(outline: &Outline) -> Contour {
@@ -70,3 +147,6 @@ fn contour(outline: &Outline) -> Contour {
         .unzip();
     Contour { corners, runs }
 }
+
+#[cfg(test)]
+mod tests;

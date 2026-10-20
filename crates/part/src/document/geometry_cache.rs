@@ -39,7 +39,9 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// lean the kernel reads unstably is noted (#552). 9: an ellipse raised is
 /// exact, and the part stays exact after it (#571). 10: the solver stops at
 /// a thousandth of a micron, and a replay lands the drawing there (#517).
-const REBUILT_BY: u32 = 10;
+/// 11: an area whose hole touches its outline is raised, pinched at the
+/// touch, where the kernel declined it (#609).
+const REBUILT_BY: u32 = 11;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

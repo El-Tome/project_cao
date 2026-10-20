@@ -8,7 +8,11 @@ use glam::DVec2;
 
 /// Two places closer than this, relative to the drawing's reach, are one: the
 /// relative tolerance the exact kernel decides with, stated here because the
-/// kernel's own is not part of what it exports.
+/// kernel's own is not part of what it exports. The kernel takes it against
+/// the reach of the raised body, which this file cannot see; the drawing's
+/// own reach stands at or under it, so the parting never splits what the
+/// kernel keeps apart — a touch on a sketch far from the origin may still
+/// reach the kernel welded, and be declined as every pinch was before #609.
 const ONE_PLACE: f64 = 1e-9;
 
 /// The area handed both ways. `triangles` are the region's own, worked out by
@@ -40,6 +44,9 @@ fn loops(region: &Region) -> (Loop<'_>, Vec<Loop<'_>>) {
 }
 
 /// The outline and the holes as runs, a pinched outline parted into them.
+/// The holes go through as they come: a pinched hole welds an island, which
+/// is matter and not another hollow, so parting it the outline's way would
+/// cut matter out — it stays welded, and the kernel declines it as before.
 fn exact(region: &Region) -> (Contour, Vec<Contour>) {
     let (outline, parted) = pinched_apart(contour(&region.outline));
     let mut holes: Vec<Contour> = region.holes.iter().map(contour).collect();

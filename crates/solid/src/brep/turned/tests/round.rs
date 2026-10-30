@@ -116,6 +116,13 @@ pub(in crate::brep) fn grooved_bore() -> Straight {
     ]])
 }
 
+/// A ball of radius 5 whose first pole stands at the origin of the profile's
+/// frame: the quarter of its arc that turns back there is read from the
+/// sine of a half turn.
+pub(in crate::brep) fn ball_at_the_origin() -> Straight {
+    bent(&[&[([0.0, 0.0], Some(([5.0, 0.0], -PI))), ([10.0, 0.0], None)]])
+}
+
 pub(in crate::brep) fn turned(straight: &Straight, degrees: f64) -> Body {
     Body::turned(straight, ground(), &about_y(degrees)).expect("the profile turns")
 }
@@ -341,6 +348,18 @@ fn a_whole_turn_s_arc_bulge_is_read_into_the_reach_and_the_slit_a_short_turn_lea
         Body::turned(&apple(), ground(), &about_y(TAU.to_degrees() * 1e-13)),
         Err(Declined::Travel)
     );
+}
+
+#[test]
+fn a_ball_whose_pole_stands_at_the_frame_s_origin_turns_part_way_like_any_other() {
+    let whole = 4.0 / 3.0 * PI * 125.0;
+    for degrees in [225.0, 285.0, 90.0, -225.0] {
+        let body = Body::turned(&ball_at_the_origin(), ground(), &about_y(degrees))
+            .unwrap_or_else(|declined| panic!("a ball turned {degrees}°: {declined:?}"));
+        assert_sound(&body, &format!("a ball at the origin turned {degrees}°"));
+        let expected = whole * f64::to_radians(degrees).abs() / TAU;
+        assert!((body.volume() - expected).abs() <= 1e-9 * expected);
+    }
 }
 
 #[test]

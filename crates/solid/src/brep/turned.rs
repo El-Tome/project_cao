@@ -24,10 +24,15 @@ use super::topology::{Body, turning_points};
 use crate::profile::{Contour, Frame, Run};
 use crate::turning::{Corner, Straight, Turn};
 
+/// The cosine and sine of each quarter of a turn from nought, exactly:
+/// computed, the half turn's sine is a rounding off nought, and a bulge of
+/// an arc at a pole would stand that rounding off the axis.
+const QUARTERS: [(f64, f64); 4] = [(1.0, 0.0), (0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)];
+
 /// The cosine and sine of a quarter, a half and three quarters of a turn,
-/// exactly: computed, the half turn's sine is a rounding off nought, and the
-/// planes a turn ends on would stand a hair off the planes of the origin.
-const RIGHT_ANGLES: [(f64, f64); 3] = [(0.0, 1.0), (-1.0, 0.0), (0.0, -1.0)];
+/// exactly: the planes a turn ends on would otherwise stand a hair off the
+/// planes of the origin.
+const RIGHT_ANGLES: [(f64, f64); 3] = [QUARTERS[1], QUARTERS[2], QUARTERS[3]];
 
 /// How many roundings off the axis a point of an arc may stand and still be
 /// read as on it: a bulge there is a corner of the profile already.
@@ -194,7 +199,8 @@ fn mirrored(contour: &[Corner], backwards: bool) -> Contour {
 }
 
 /// Where the arcs of a contour reach furthest along the axis and from it:
-/// the points of each where it turns back, which no corner stands on.
+/// the points of each where it turns back, which no corner stands on, each
+/// quarter of the turn read from the exact table.
 fn bulges(contour: &Contour) -> Vec<DVec2> {
     let count = contour.corners.len();
     contour
@@ -208,11 +214,14 @@ fn bulges(contour: &Contour) -> Vec<DVec2> {
         .flat_map(|(from, center, turn)| {
             let start = (from - center).to_angle();
             let radius = from.distance(center);
-            (0..4).filter_map(move |quarter| {
-                let angle = f64::from(quarter) * FRAC_PI_2;
-                let along = ((angle - start) * turn.signum()).rem_euclid(TAU);
-                (along <= turn.abs()).then(|| center + DVec2::from_angle(angle) * radius)
-            })
+            QUARTERS
+                .into_iter()
+                .enumerate()
+                .filter_map(move |(quarter, (cos, sin))| {
+                    let angle = quarter as f64 * FRAC_PI_2;
+                    let along = ((angle - start) * turn.signum()).rem_euclid(TAU);
+                    (along <= turn.abs()).then(|| center + DVec2::new(cos, sin) * radius)
+                })
         })
         .filter(|point| point.y > ROUNDINGS * f64::EPSILON * point.length())
         .take(4 * count)

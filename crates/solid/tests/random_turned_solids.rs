@@ -1788,7 +1788,9 @@ fn every_turned_leaf_raised_by_the_exact_kernel_alone_keeps_every_rule_and_enclo
 /// every rule held to the arithmetic and encloses the volume the arithmetic
 /// promised, and the volume of its section as the kernel laid it; a leaf
 /// with a wall a hair thin may be declined, and so may a bowed section the
-/// reading declines to lay, which are counted and printed.
+/// reading declines to lay, which are counted and printed. Every leaf that
+/// fails is printed with what it broke before the assertion, so that one
+/// run gives the whole list rather than its first entry.
 fn raised_alone_keep_every_rule_and_enclose_pappus_s_volume(leaves: &[Leaf]) {
     let weighed = random_solids::on_every_core(leaves, |leaf| {
         let alone = Case::new(leaf.clone(), vec![]);
@@ -1796,18 +1798,24 @@ fn raised_alone_keep_every_rule_and_enclose_pappus_s_volume(leaves: &[Leaf]) {
         (held, Exact.raised(leaf).map(|body| body.volume()))
     });
     let mut bowed = BowedSections::default();
+    let mut failed = Vec::new();
     for (leaf, (held, volume)) in leaves.iter().zip(weighed) {
-        assert!(held.is_ok(), "{leaf}: {held:?}");
+        if let Err(flaw) = held {
+            failed.push(format!("{leaf}: {flaw:?}"));
+        }
         let turn = turned(leaf).expect("a turn");
         let volume = match volume {
             Err(Declined::Profile) if turn.has_a_wall_a_hair_thin() => continue,
-            volume => volume.expect("a turned body"),
+            Ok(volume) => volume,
+            Err(declined) => {
+                failed.push(format!("{leaf}: {declined:?}, no turned body"));
+                continue;
+            }
         };
         let promised = turn.volume();
-        assert!(
-            (volume - promised).abs() <= 1e-9 * promised + laying_room(&turn),
-            "{leaf}: {volume} against {promised}"
-        );
+        if (volume - promised).abs() > 1e-9 * promised + laying_room(&turn) {
+            failed.push(format!("{leaf}: {volume} against {promised}"));
+        }
         if let [side] = turn.drawn().as_slice() {
             let (outline, holes) = side.contours();
             let Some(straight) = Straight::of(&outline, &holes, turn.frame(), &turn.turn(0.0), 0.0)
@@ -1821,13 +1829,21 @@ fn raised_alone_keep_every_rule_and_enclose_pappus_s_volume(leaves: &[Leaf]) {
             };
             bowed.laid += usize::from(turn.section.bows());
             let laid = turn.angle() * moment_laid(&straight);
-            assert!(
-                (volume - laid).abs() <= 1e-9 * laid,
-                "{leaf}: {volume} against {laid} as laid"
-            );
+            if (volume - laid).abs() > 1e-9 * laid {
+                failed.push(format!("{leaf}: {volume} against {laid} as laid"));
+            }
         }
     }
     println!("{bowed}");
+    for failure in &failed {
+        println!("{failure}");
+    }
+    assert!(
+        failed.is_empty(),
+        "{} of {} leaves broke a rule",
+        failed.len(),
+        leaves.len()
+    );
 }
 
 /// How many bowed sections the reading laid, and how many it declined to

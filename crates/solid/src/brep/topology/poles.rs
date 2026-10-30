@@ -132,7 +132,7 @@ impl Body {
                         .flatten()
                         .any(|vertex| self.vertex(*vertex).point.distance(pole.point) <= eps)
                 });
-                !cornered && floor::holds(&loops, pole)
+                !cornered && floor::holds(&loops, pole, face.flipped)
             })
             .map(|pole| pole.point)
             .collect()

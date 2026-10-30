@@ -62,7 +62,7 @@ impl Body {
             let side = if lying.flipped { -1.0 } else { 1.0 };
             return vec![side * round.whole()];
         }
-        floor::floors_round(&poles, &loops, lying.flipped)
+        floor::floors_round(&poles, &loops, lying.flipped, floor::seam(surface))
             .iter()
             .filter_map(|floor| match *floor {
                 Trace::Segment { from, to } => round.straight(anchor, from, to),

@@ -17,7 +17,7 @@ use crate::brep::overlay::Arc;
 use crate::brep::surface::Cone;
 use crate::brep::trace::Trace;
 pub(super) use round::closed_round;
-pub(in crate::brep) use round::{floors_round, holds, poles_of};
+pub(in crate::brep) use round::{floors_round, holds, poles_of, seam};
 
 /// A face's loops closed along the floor of a cone: where a trace ends at
 /// the apex and the next starts there, a stretch of the floor between their

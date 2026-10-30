@@ -72,19 +72,30 @@ impl Pole {
 /// A face's loops closed along the floors of a sphere or a torus: at each
 /// pole as a cone's are at its apex, and by the whole floor of each pole the
 /// face holds within it, which a ray up the meridian from inside the face
-/// crosses an odd number of times in all.
+/// crosses an odd number of times in all; the loops of a `flipped` face run
+/// the other way round in the chart. A face with no loop on a ring, which
+/// has no pole, is the whole window of the chart, closed along the cut the
+/// chart is centred on `seam` away from.
 pub(in crate::brep::domain) fn closed_round(
     poles: &[Pole],
     loops: Vec<Vec<Trace>>,
+    flipped: bool,
+    seam: Option<f64>,
 ) -> Vec<Vec<Trace>> {
-    let held: Vec<bool> = poles.iter().map(|pole| holds(&loops, pole)).collect();
-    let cut = wraps(&loops);
+    if loops.is_empty() && poles.is_empty() {
+        return seam.map(|seam| cut(seam, TAU, 0.0)).into_iter().collect();
+    }
+    let held: Vec<bool> = poles
+        .iter()
+        .map(|pole| holds(&loops, pole, flipped))
+        .collect();
+    let cut = wraps(&loops, seam);
     let mut closed = loops;
     for pole in poles {
         closed = closed
             .into_iter()
             .map(|lap| {
-                let joins = joins_round(&lap, pole);
+                let joins = joins_round(&lap, pole, flipped);
                 interleaved(lap, joins)
             })
             .collect();
@@ -95,19 +106,56 @@ pub(in crate::brep::domain) fn closed_round(
             closed.push(whole_round(pole, turns, false));
         }
     }
-    closed.extend(cut.into_iter().map(|floor| vec![floor]));
+    if !cut.is_empty() {
+        closed.push(cut);
+    }
     closed
 }
 
+/// The lap of the chart's two cuts that closes a face of a ring between the
+/// angles `left` and `right` about the axis: the window's top, at `seam + π`
+/// along the meridian, run from `right` to `left`, and its bottom, at
+/// `seam − π`, run back, so that a ray up the meridian from anywhere in the
+/// window between them crosses the top once. A face with no loop is the
+/// whole window.
+fn cut(seam: f64, right: f64, left: f64) -> Vec<Trace> {
+    vec![
+        Trace::Segment {
+            from: DVec2::new(right, seam + PI),
+            to: DVec2::new(left, seam + PI),
+        },
+        Trace::Segment {
+            from: DVec2::new(left, seam - PI),
+            to: DVec2::new(right, seam - PI),
+        },
+    ]
+}
+
+/// The angle a torus's chart is centred on, whose antipode the chart is cut
+/// at: none for a sphere, whose chart ends at its poles.
+pub(in crate::brep) fn seam(surface: &Surface) -> Option<f64> {
+    match surface {
+        Surface::Torus(torus) => Some(torus.seam),
+        Surface::Sphere(_)
+        | Surface::Plane(_)
+        | Surface::Cylinder(_)
+        | Surface::Cone(_)
+        | Surface::Elliptic(_) => None,
+    }
+}
+
 /// The stretches of a pole's floor the rounds' loops are closed along,
-/// each the way the loop runs: a loop keeps its face on its left, so a
+/// each the way the loop runs: a loop keeps its face on its left seen from
+/// outside the matter, so on a face whose surface's normal points out a
 /// trace arriving at the low pole leaves the face on the side the angle
 /// grows towards, and the join runs that way to the trace leaving, however
-/// far round; at the high pole the other way. Two meridians exactly half a
-/// turn apart, a ball's at a half turn, are told apart so, where the
-/// nearest way round is a tie.
-fn joins_round(lap: &[Trace], pole: &Pole) -> Vec<Option<Trace>> {
+/// far round; at the high pole the other way, and on a `flipped` face,
+/// whose loops run the other way round in the chart, the other way again.
+/// Two meridians exactly half a turn apart, a ball's at a half turn, are
+/// told apart so, where the nearest way round is a tie.
+fn joins_round(lap: &[Trace], pole: &Pole, flipped: bool) -> Vec<Option<Trace>> {
     let count = lap.len();
+    let down = pole.high != flipped;
     (0..count)
         .map(|rank| {
             let (from, next) = (lap[rank].end(), lap[(rank + 1) % count].start());
@@ -118,7 +166,7 @@ fn joins_round(lap: &[Trace], pole: &Pole) -> Vec<Option<Trace>> {
             let gap = if gap >= TAU - pole.room { 0.0 } else { gap };
             let along = if gap == 0.0 {
                 0.0
-            } else if pole.high {
+            } else if down {
                 gap - TAU
             } else {
                 gap
@@ -131,41 +179,32 @@ fn joins_round(lap: &[Trace], pole: &Pole) -> Vec<Option<Trace>> {
         .collect()
 }
 
-/// The two stretches of the chart's cut that close a face of a torus whose
-/// loops wind round the tube — a ring turned part of the way, bounded by
-/// two whole meridians and nothing else: the loop running the angle along
-/// the meridian up keeps the face on the side where the angle about the
-/// axis falls, the one running it down on the other, and between the two
-/// the face reaches the cut at the top and at the bottom of the window.
-/// None where no loop winds so, or more than two do.
-fn wraps(loops: &[Vec<Trace>]) -> Vec<Trace> {
-    let winding: Vec<(f64, f64, bool)> = loops
+/// The lap of the two stretches of the chart's cut that closes a face of a
+/// torus whose loops wind round the tube — a ring turned part of the way,
+/// bounded by two whole meridians and nothing else: the loop running the
+/// angle along the meridian up keeps the face on the side where the angle
+/// about the axis falls, the one running it down on the other, and between
+/// the two the face reaches the cut at the top and at the bottom of the
+/// window centred on `seam`. None where no loop winds so, or more than two
+/// do.
+fn wraps(loops: &[Vec<Trace>], seam: Option<f64>) -> Vec<Trace> {
+    let winding: Vec<(f64, bool)> = loops
         .iter()
         .filter_map(|lap| match lap[..] {
             [Trace::Segment { from, to }] if from.x == to.x && (to.y - from.y).abs() > PI => {
-                Some((from.x, from.y.min(to.y), to.y > from.y))
+                Some((from.x, to.y > from.y))
             }
             _ => None,
         })
         .collect();
-    let [(one, low, one_up), (other, _, other_up)] = winding[..] else {
+    let (&[(one, one_up), (other, other_up)], Some(seam)) = (winding.as_slice(), seam) else {
         return Vec::new();
     };
     if one_up == other_up {
         return Vec::new();
     }
     let (right, left) = if one_up { (one, other) } else { (other, one) };
-    let left = right - (right - left).rem_euclid(TAU);
-    vec![
-        Trace::Segment {
-            from: DVec2::new(right, low + TAU),
-            to: DVec2::new(left, low + TAU),
-        },
-        Trace::Segment {
-            from: DVec2::new(left, low),
-            to: DVec2::new(right, low),
-        },
-    ]
+    cut(seam, right, right - (right - left).rem_euclid(TAU))
 }
 
 /// The stretches of the floors alone that close a face on a sphere or a
@@ -176,15 +215,19 @@ pub(in crate::brep) fn floors_round(
     poles: &[Pole],
     loops: &[Vec<Trace>],
     flipped: bool,
+    seam: Option<f64>,
 ) -> Vec<Trace> {
-    let held: Vec<bool> = poles.iter().map(|pole| holds(loops, pole)).collect();
-    let mut floors = wraps(loops);
+    let held: Vec<bool> = poles
+        .iter()
+        .map(|pole| holds(loops, pole, flipped))
+        .collect();
+    let mut floors = wraps(loops, seam);
     let mut closed = loops.to_vec();
     for pole in poles {
         closed = closed
             .into_iter()
             .map(|lap| {
-                let joins = joins_round(&lap, pole);
+                let joins = joins_round(&lap, pole, flipped);
                 floors.extend(joins.iter().flatten().map(|floor| match *floor {
                     Trace::Segment { from, to } => Trace::Segment {
                         from: DVec2::new(from.x, pole.at),
@@ -219,11 +262,12 @@ fn whole_round(pole: &Pole, turns: f64, flipped: bool) -> Vec<Trace> {
 /// Whether a face bounded by `loops` holds a pole within it: not where a
 /// trace ends at the pole, which a corner holds already, and otherwise by
 /// parity along the meridian from the middle of a trace running round the
-/// axis, which keeps the face on its left: the face lies above it where it
-/// runs forwards, and the pole is inside where the other traces are crossed
-/// an even number of times on the way. A face with no loop holds every
-/// pole; one bounded by meridians alone holds none.
-pub(in crate::brep) fn holds(loops: &[Vec<Trace>], pole: &Pole) -> bool {
+/// axis, which keeps the face on its left seen from outside the matter: the
+/// face lies above it where it runs forwards and its surface's normal points
+/// out, below it on a `flipped` face, and the pole is inside where the other
+/// traces are crossed an even number of times on the way. A face with no
+/// loop holds every pole; one bounded by meridians alone holds none.
+pub(in crate::brep) fn holds(loops: &[Vec<Trace>], pole: &Pole, flipped: bool) -> bool {
     if loops
         .iter()
         .flatten()
@@ -250,8 +294,8 @@ pub(in crate::brep) fn holds(loops: &[Vec<Trace>], pole: &Pole) -> bool {
             }
         })
         .count();
-    (pace.x > 0.0) == pole.high && crossings % 2 == 0
-        || (pace.x > 0.0) != pole.high && crossings % 2 == 1
+    let above = (pace.x > 0.0) != flipped;
+    above == pole.high && crossings % 2 == 0 || above != pole.high && crossings % 2 == 1
 }
 
 /// Under this share of its pace, a trace runs along the meridian, and tells

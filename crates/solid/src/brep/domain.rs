@@ -77,9 +77,12 @@ impl Body {
         let surface = self.surface(self.face(face).surface);
         match surface {
             Surface::Cone(cone) => floor::closed(cone, loops, self.scale.eps()),
-            Surface::Sphere(_) | Surface::Torus(_) => {
-                floor::closed_round(&floor::poles_of(surface, self.scale.eps()), loops)
-            }
+            Surface::Sphere(_) | Surface::Torus(_) => floor::closed_round(
+                &floor::poles_of(surface, self.scale.eps()),
+                loops,
+                self.face(face).flipped,
+                floor::seam(surface),
+            ),
             Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => loops,
         }
     }
@@ -88,7 +91,9 @@ impl Body {
     /// the face: on its boundary within `eps` of it — of its edges, or of a
     /// pole it holds within it, a vertex of it — and otherwise inside or
     /// outside as the number of loops a ray up the second parameter crosses
-    /// is odd or even, its domain closed along the floors.
+    /// is odd or even, its domain closed along the floors, the one the ray
+    /// starts on counted: a point on the cut of a ring's chart is read at
+    /// the window's top, inside the face.
     pub fn locate(&self, face: FaceId, at: DVec2, eps: f64) -> Result<Location, Declined> {
         let loops = self.traces(face)?;
         let unrolling = self.unrolled_at(face);
@@ -104,7 +109,7 @@ impl Body {
         }
         let above = crossing::heights(&self.closed(face, loops), at.x, unrolling.periodic())
             .into_iter()
-            .filter(|height| *height > at.y)
+            .filter(|height| *height >= at.y)
             .count();
         Ok(if above % 2 == 1 {
             Location::Inside

@@ -101,6 +101,21 @@ pub(in crate::brep) fn apple() -> Straight {
     ]])
 }
 
+/// A round groove cut into a bore: a tube between `r = 15` and `r = 37.5`
+/// from `h = -15` to `h = 12.5`, its bore bowed out between `h = -10` and
+/// `h = 5` along the circle of radius 12.5 about `(-2.5, 5)`: a spindle
+/// torus whose matter lies outside its tube, reaching neither pole.
+pub(in crate::brep) fn grooved_bore() -> Straight {
+    bent(&[&[
+        ([-15.0, 15.0], None),
+        ([-10.0, 15.0], Some(([-2.5, 5.0], -1.2870022175865687))),
+        ([5.0, 15.0], None),
+        ([12.5, 15.0], None),
+        ([12.5, 37.5], None),
+        ([-15.0, 37.5], None),
+    ]])
+}
+
 pub(in crate::brep) fn turned(straight: &Straight, degrees: f64) -> Body {
     Body::turned(straight, ground(), &about_y(degrees)).expect("the profile turns")
 }
@@ -326,4 +341,31 @@ fn a_whole_turn_s_arc_bulge_is_read_into_the_reach_and_the_slit_a_short_turn_lea
         Body::turned(&apple(), ground(), &about_y(TAU.to_degrees() * 1e-13)),
         Err(Declined::Travel)
     );
+}
+
+#[test]
+fn a_round_groove_in_a_bore_holds_no_pole_of_its_spindle_torus_and_pappus_s_volume() {
+    let (r, big) = (12.5f64, 5.0f64);
+    let half = (7.5 / r).asin();
+    let segment_area = r * r * (2.0 * half - (2.0 * half).sin()) / 2.0;
+    let segment_moment = 2.0 / 3.0 * 7.5f64.powi(3) + big * segment_area;
+    let tube_moment = 27.5 * (37.5f64.powi(2) - 15f64.powi(2)) / 2.0;
+    let whole = TAU * (tube_moment - segment_moment);
+    for degrees in [360.0, 90.0, -180.0] {
+        let body = turned(&grooved_bore(), degrees);
+        let what = format!("a grooved bore turned {degrees}°");
+        let [groove] = rounds(&body)[..] else {
+            panic!("one face on the torus");
+        };
+        let face = body_face(&body, groove);
+        assert!(face.flipped, "{what}: the matter lies outside the tube");
+        assert!(face.poles.is_empty(), "{what}: {:?}", face.poles);
+        assert_sound(&body, &what);
+        let expected = whole * f64::to_radians(degrees).abs() / TAU;
+        assert!(
+            (body.volume() - expected).abs() <= 1e-9 * expected,
+            "{what}: {} against {expected}",
+            body.volume()
+        );
+    }
 }

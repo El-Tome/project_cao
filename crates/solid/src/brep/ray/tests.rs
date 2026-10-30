@@ -4,6 +4,8 @@ use super::*;
 use crate::brep::scale::Scale;
 use crate::profile::{Contour, Frame, Run};
 
+mod round;
+
 const EPS: f64 = 1e-9 * 40.0;
 
 fn ground(height: f64) -> Frame {

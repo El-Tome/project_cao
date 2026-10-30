@@ -41,6 +41,22 @@ fn ball_ended_shaft(hair: f64) -> Contour {
     )
 }
 
+/// The shaft drawn the other way round, so that the arc leaves the pole:
+/// from `(0, 14 + hair)` to the shaft's end at `(4, 10)` about `(0, 10)`,
+/// the ball a `hair` larger than the shaft, or smaller when `hair` is
+/// negative.
+fn shaft_from_the_pole(hair: f64) -> Contour {
+    drawn(
+        &[[0.0, 14.0 + hair], [4.0, 10.0], [4.0, 0.0], [0.0, 0.0]],
+        vec![
+            round([0.0, 10.0], -FRAC_PI_2),
+            Run::Straight,
+            Run::Straight,
+            Run::Straight,
+        ],
+    )
+}
+
 /// The contour laid with the band read off `furthest`, the profile's
 /// furthest point from the axis, which an arc's bulge may be.
 fn laid_about(contour: &Contour, furthest: f64) -> Option<Straight> {
@@ -94,6 +110,68 @@ fn a_ball_end_is_laid_tangent_to_its_shaft_to_the_bit() {
     assert_eq!(bends(&straight)[0][..2], [None, None]);
     assert_eq!(straight.last_off_the_axis, Some(2));
     assert_eq!(straight.runs, 4);
+}
+
+#[test]
+fn a_ball_end_a_hair_larger_or_smaller_than_its_shaft_is_laid_tangent_and_its_pole_slides() {
+    for hair in [0.5 * RESOLUTION, -0.5 * RESOLUTION] {
+        let straight =
+            laid(&shaft_from_the_pole(hair), &[], RESOLUTION).expect("a ball-ended shaft");
+        let corners = &straight.contours[0];
+        assert_eq!(corners.len(), 4, "{hair}: {corners:?}");
+        let (pole, shaft) = (corners[0], corners[1]);
+        let bend = pole.bend.expect("the arc leaves the pole");
+        assert_eq!(bend.center, DVec2::new(10.0, 0.0));
+        assert_eq!(shaft.at, DVec2::new(10.0, 4.0), "the shaft's level stays");
+        assert_eq!(
+            pole.at,
+            DVec2::new(14.0, 0.0),
+            "{hair}: the pole slid onto the circle"
+        );
+        assert!((bend.turn - FRAC_PI_2).abs() < 1e-15, "{}", bend.turn);
+    }
+}
+
+#[test]
+fn a_step_a_hair_high_beside_a_ball_end_is_no_corner_of_its_own() {
+    let hair = 0.5 * RESOLUTION;
+    let stepped = drawn(
+        &[
+            [0.0, 0.0],
+            [4.0, 0.0],
+            [4.0, 10.0],
+            [4.0 + hair, 10.0],
+            [0.0, 14.0 + hair],
+        ],
+        vec![
+            Run::Straight,
+            Run::Straight,
+            Run::Straight,
+            round([0.0, 10.0], FRAC_PI_2),
+            Run::Straight,
+        ],
+    );
+    let straight = laid(&stepped, &[], RESOLUTION).expect("a stepped ball end");
+    let corners = &straight.contours[0];
+    assert_eq!(corners.len(), 4, "{corners:?}");
+    let shaft = corners[2];
+    let level = shaft.at.y;
+    assert!(
+        shaft.at.x == 10.0 && (level - 4.0).abs() <= hair,
+        "{shaft:?}"
+    );
+    assert_eq!(
+        corners[1].at.y, level,
+        "the shaft's two corners on one level"
+    );
+    assert_eq!(shaft.run, 3, "the arc's run leaves the shaft's end");
+    let bend = shaft.bend.expect("the arc");
+    assert_eq!(bend.center, DVec2::new(10.0, 0.0));
+    let tip = corners[3].at;
+    assert!(
+        tip.y == 0.0 && (tip.x - (10.0 + level)).abs() < 1e-12,
+        "the tip on the circle: {tip}"
+    );
 }
 
 #[test]

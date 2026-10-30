@@ -40,6 +40,12 @@ type Run = (usize, usize);
 /// the drawn arc of each run, by the corner it leaves; `band` is how close
 /// to the axis a centre counts as on it. An end may stand off its circle by
 /// the tolerance and by what laying moved its centre and itself, no more.
+/// An arc leaving a pole whose end stands within that of tangent to the
+/// level its next run keeps — a ball end a hair larger or smaller than its
+/// shaft — is laid tangent, the pole slid along the axis onto the circle,
+/// since the shaft's level is shared and the pole's height is nobody
+/// else's. A corner laid onto one of the arc's ends is no corner within the
+/// tolerance of it.
 pub(super) fn laid(
     laid: &mut [DVec2],
     raw: &[DVec2],
@@ -64,14 +70,23 @@ pub(super) fn laid(
                 level(drawn.center.y, &radii, tolerance)
             },
         );
-        let radius = (laid[from] - center).x.hypot((laid[from] - center).y);
+        let mut radius = (laid[from] - center).x.hypot((laid[from] - center).y);
         let end = laid[to];
         let moved = drawn.center.distance(center) + raw[to].distance(end);
         if ((end - center).length() - radius).abs() > tolerance + moved {
             return None;
         }
         let next = runs.iter().find(|run| run.0 == to)?;
-        laid[to] = landed(end, center, radius, free(laid, next, straight(next)))?;
+        let free = free(laid, next, straight(next));
+        if laid[from].y == 0.0
+            && let Some(tangent) = tangent(end, center, &free)
+            && tangent != radius
+            && (tangent - radius).abs() <= tolerance + moved
+        {
+            radius = tangent;
+            laid[from] = landed(laid[from], center, radius, Free::Height)?;
+        }
+        laid[to] = landed(end, center, radius, free)?;
         let (start, end) = (laid[from] - center, laid[to] - center);
         let turned = start.perp_dot(end).atan2(start.dot(end));
         let turn = turned + TAU * ((drawn.turn - turned) / TAU).round();
@@ -92,10 +107,13 @@ pub(super) fn laid(
         if arc.pinches(tolerance) || crossed {
             return None;
         }
-        let near = laid
-            .iter()
-            .enumerate()
-            .any(|(corner, &at)| corner != from && corner != to && arc.distance(at) <= tolerance);
+        let near = laid.iter().enumerate().any(|(corner, &at)| {
+            corner != from
+                && corner != to
+                && at != laid[from]
+                && at != laid[to]
+                && arc.distance(at) <= tolerance
+        });
         if near {
             return None;
         }
@@ -133,6 +151,18 @@ enum Free {
     Height,
     Radius,
     Both,
+}
+
+/// The radius at which an arc would end tangent to the level its end stands
+/// on, the shaft a ball end joins, where the next run keeps that level:
+/// none for a slant, and none on the axis, where an arc ends at a pole
+/// rather than tangent to anything.
+fn tangent(end: DVec2, center: DVec2, free: &Free) -> Option<f64> {
+    match free {
+        Free::Height if end.y > 0.0 => Some((end.y - center.y).abs()),
+        Free::Radius => Some((end.x - center.x).abs()),
+        Free::Height | Free::Both => None,
+    }
 }
 
 /// The corner moved onto the circle along what it leaves free: the nearer

@@ -296,7 +296,9 @@ fn between(f: &dyn Fn(f64) -> f64, low: f64, high: f64, cuts: &[f64]) -> Vec<f64
 }
 
 /// The polished roots, each taken onto the own lobe, that stand on it to
-/// rounding, apart from each other, ascending.
+/// rounding, apart from each other, ascending. A root of the quartic on the
+/// mirror lobe is left where it is: polished, Newton's steps would take it
+/// onto the own lobe, at a crossing already found.
 fn kept(
     torus: &Torus,
     origin: DVec3,
@@ -307,6 +309,9 @@ fn kept(
     let round = torus.round();
     let mut kept: Vec<f64> = Vec::new();
     for t in found {
+        if on_the_mirror_lobe(torus, origin + direction * t) {
+            continue;
+        }
         let (t, off) = polished(&round, origin, direction, t);
         let own = off.abs() <= rounding
             && torus.lobe().is_none_or(|reach| {
@@ -318,6 +323,18 @@ fn kept(
     }
     kept.sort_by(f64::total_cmp);
     kept
+}
+
+/// Whether a point stands nearer the mirror lobe of the torus than its own:
+/// the quartic a line's roots are read from holds the meridian circle and
+/// its reflection across the axis alike, and on a spindle the two are two
+/// surfaces, of which only the own circle's is this one. In the meridian
+/// half-plane, the point is measured against both circles.
+fn on_the_mirror_lobe(torus: &Torus, point: DVec3) -> bool {
+    let (_, meridian) = torus.round().seen(point);
+    let mirror = DVec2::new(torus.center.x, -torus.center.y);
+    let own = ((meridian - torus.center).length() - torus.radius).abs();
+    ((meridian - mirror).length() - torus.radius).abs() < own
 }
 
 /// The root of `f` between `low` and `high` where it changes sign, closed in

@@ -279,6 +279,27 @@ fn a_line_touching_a_ring_s_crest_is_found_once_and_one_passing_by_is_not() {
 }
 
 #[test]
+fn a_root_on_the_mirror_lobe_is_not_polished_onto_the_own_lobe_s_crossing() {
+    let lemon = Torus::through(
+        DVec3::new(4.0, 0.0, 1.0),
+        DVec3::Y,
+        DVec2::new(1.0, -2.0),
+        2.5,
+        DVec2::new(1.0, 0.5),
+    );
+    let origin = DVec3::new(2.3925325617472946, -0.31827189138010503, -3.83361268235419);
+    let direction = DVec3::new(0.2959199195828451, 0.21946291946926036, 0.9296598454123485);
+    let roots = lemon.roots(origin, direction);
+    let [Some(into), Some(out), None, None] = roots else {
+        panic!("two crossings of the own lobe, each once: {roots:?}");
+    };
+    assert!(into < out);
+    for t in [into, out] {
+        assert!(lemon.distance(origin + direction * t).abs() < CLOSE, "{t}");
+    }
+}
+
+#[test]
 fn a_spindle_s_mirror_lobe_is_never_crossed() {
     let apple = apple();
     let middle = DVec3::new(0.0, 0.0, 4.0);

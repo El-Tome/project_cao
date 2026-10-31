@@ -23,7 +23,7 @@ use super::Relation;
 use crate::brep::curve::Circle;
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Plane, Sphere, Surface, Torus};
-pub(super) use arc::met as met_round;
+pub(super) use arc::{Met, met as met_round, met_in_the_half_plane};
 
 /// What the cone meets, read in the cone's own meridian half-plane.
 pub(super) enum Meridian {

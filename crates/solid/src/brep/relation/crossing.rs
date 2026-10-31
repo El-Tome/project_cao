@@ -17,7 +17,9 @@
 //! `elliptic.rs` — a circle about an axis parallel to that wall's crosses it
 //! where the rulings its own cylinder meets the wall along pass its plane —
 //! and the conic a plane cuts a wall along at a slant through its triple's
-//! other pair in `conic.rs`. A triple
+//! other pair in `conic.rs`. A line or a circle against a sphere or a torus
+//! is solved in `round.rs`, a circle in a plane holding the axis as the
+//! pair of the round and the surface it lies on was decided. A triple
 //! of two planes and a wall one of them stands a hair from tangent to is
 //! decided on the hairpin that plane cuts, in `grazed.rs`. The line a plane
 //! square to a wall's axis shares with a plane crossing it steeply, inside

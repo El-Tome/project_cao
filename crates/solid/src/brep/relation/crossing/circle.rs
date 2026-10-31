@@ -45,25 +45,14 @@ pub(super) fn circle_and_surface(
             (round_and_elliptic(&own_cylinder, wall, scale), false, None)
         }
         Surface::Sphere(sphere) => {
-            return held(sphere.holds(circle, scale.eps()) || sphere.meridian(circle, scale.eps()));
+            return super::round::circle_and_sphere(circle, sphere, scale, touching);
         }
         Surface::Torus(torus) => {
-            return held(torus.holds(circle, scale.eps()) || torus.meridian(circle, scale.eps()));
+            return super::round::circle_and_torus(circle, torus, scale, touching);
         }
         Surface::Cone(_) | Surface::Elliptic(_) => return Solved::Unsupported,
     };
     circle_through(circle, relation, (across, cut), scale, touching)
-}
-
-/// A circle a sphere or a torus holds, as a latitude or a meridian, lies
-/// along it; any other crosses it nowhere the kernel builds a corner at: a
-/// meridian circle against a coaxial surface is that pair's own relation.
-fn held(on: bool) -> Solved {
-    if on {
-        Solved::Along
-    } else {
-        Solved::At(Vec::new())
-    }
 }
 
 /// What the circle's own plane, `across`, or its own cylinder makes with a

@@ -3,7 +3,7 @@ use std::f64::consts::PI;
 use glam::{DVec2, DVec3};
 
 use super::*;
-use crate::brep::surface::{Cone, Cylinder};
+use crate::brep::surface::{Cone, Cylinder, Sphere};
 use crate::profile::{Contour, Frame, Run};
 use crate::turning::{Axis, Corner, Straight, Turn};
 
@@ -254,6 +254,67 @@ fn a_post_a_hair_off_a_point_s_axis_is_moved_onto_it() {
     let one = point_on_top(0.0);
     let other = post(DVec2::X * hair, 1.0);
     let moved = closed(&one, &other, scale()).expect("the post moves onto the point's axis");
+    let [wall] = cylinders(&moved)[..] else {
+        panic!("one wall");
+    };
+    assert!(wall.origin.length() < 1e-12, "{wall:?}");
+    on_its_surfaces(&moved);
+}
+
+/// A ball of radius 3 about the point `(across, 0, 12)`, turned about the
+/// line through it along Z.
+fn ball_on_top(across: f64) -> Body {
+    use crate::brep::turned::tests::round::bent;
+    let straight = bent(&[&[([9.0, 0.0], Some(([12.0, 0.0], -PI))), ([15.0, 0.0], None)]]);
+    let turn = Turn {
+        axis: Axis {
+            origin: DVec2::new(across, 0.0),
+            direction: DVec2::Y,
+        },
+        angle: 2.0 * PI,
+        resolution: 0.0,
+        on_the_axis: 0.0,
+    };
+    let upright = Frame {
+        origin: DVec3::ZERO,
+        u: DVec3::X,
+        v: DVec3::Z,
+    };
+    Body::turned(&straight, upright, &turn).expect("the ball turns")
+}
+
+fn spheres(body: &Body) -> Vec<Sphere> {
+    body.surfaces
+        .iter()
+        .filter_map(|surface| match surface {
+            Surface::Sphere(sphere) => Some(*sphere),
+            Surface::Plane(_)
+            | Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Torus(_) => None,
+        })
+        .collect()
+}
+
+/// A sphere or a torus is decided against a surface of its axis only (#576):
+/// one whose axis stands a hair off a wall's is moved onto it, and a wall a
+/// hair off a round's axis is moved onto the round's.
+#[test]
+fn a_ball_a_hair_off_a_post_s_axis_is_moved_onto_it_and_a_post_off_a_ball_s_too() {
+    let hair = 5.0 * scale().eps();
+    let moved = closed(&post(DVec2::ZERO, 1.0), &ball_on_top(hair), scale())
+        .expect("the ball moves onto the post's axis");
+    let [sphere] = spheres(&moved)[..] else {
+        panic!("one sphere");
+    };
+    assert!(
+        sphere.middle().distance(DVec3::Z * 12.0) < 1e-12,
+        "{sphere:?}"
+    );
+    on_its_surfaces(&moved);
+    let moved = closed(&ball_on_top(0.0), &post(DVec2::X * hair, 1.0), scale())
+        .expect("the post moves onto the ball's axis");
     let [wall] = cylinders(&moved)[..] else {
         panic!("one wall");
     };

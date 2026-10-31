@@ -1,8 +1,10 @@
 //! Which side of a surface another stands on, read off the pair as it was
 //! decided: along the line they touch along, along the stretch between two
-//! lines they cross along, about a cone; and measured where they stand apart.
+//! lines they cross along, about a cone, along the rims a round shares with a
+//! surface of its axis; and measured where they stand apart.
 
 mod cone;
+mod round;
 mod walls;
 
 use std::f64::consts::TAU;
@@ -15,6 +17,7 @@ use crate::brep::relation::{Relation, abreast, at_a_slant};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
 use cone::{across_the_cone_s_lobe, across_the_rulings, touching_the_cone};
+use round::{across_the_rims, bending_more, rounded};
 use walls::standing_above;
 
 /// Whether the second of two surfaces `related` so at `scale` stands on the
@@ -54,13 +57,14 @@ pub(in crate::brep::selection) fn stands_above(
         Relation::Rulings { .. } => across_the_rulings(first, second),
         Relation::Ruling { .. } => touching_the_cone(first, second),
         Relation::Conic(_) => measured(first, second, place, rounding),
+        Relation::Rims(rims) => across_the_rims(first, second, rims, place, rounding),
+        Relation::Apex(point) if rounded(first, second) => bending_more(first, second, *point),
         Relation::Apart
         | Relation::Same { .. }
         | Relation::Line(_)
         | Relation::Circle(_)
         | Relation::Meet(_)
         | Relation::Apex(_)
-        | Relation::Rims(_)
         | Relation::Meridians { .. }
         | Relation::Unsupported => match (first, second) {
             (Surface::Cylinder(first), Surface::Cylinder(second)) => {
@@ -80,9 +84,10 @@ pub(in crate::brep::selection) fn stands_above(
                 (gap.abs() > rounding).then_some(gap > 0.0)
             }
             (Surface::Cylinder(_), Surface::Plane(_))
-            | (Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_), _)
-            | (_, Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_)) => None,
-            (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
+            | (Surface::Elliptic(_), _)
+            | (_, Surface::Elliptic(_)) => None,
+            (Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_), _)
+            | (_, Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_)) => {
                 measured(first, second, place, rounding)
             }
         },

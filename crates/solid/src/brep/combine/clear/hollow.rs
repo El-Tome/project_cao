@@ -39,7 +39,7 @@ pub(super) fn beyond(cone: &Cone, face: (&Body, FaceId), room: f64) -> bool {
 }
 
 /// The ends of a face's edges, and the centres of its circles.
-fn corners((body, face): (&Body, FaceId)) -> Vec<DVec3> {
+pub(super) fn corners((body, face): (&Body, FaceId)) -> Vec<DVec3> {
     body.face(face)
         .loops
         .iter()

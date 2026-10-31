@@ -13,6 +13,7 @@ mod identified;
 mod operands;
 mod parted;
 mod related;
+mod seamed;
 mod slid;
 mod unstable;
 
@@ -25,6 +26,7 @@ use super::selection::selected;
 use super::topology::{Body, SurfaceId};
 pub(super) use operands::Operands;
 use related::Special;
+use seamed::seamed;
 use slid::slid;
 use unstable::unstable;
 
@@ -77,7 +79,8 @@ pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Resu
     let slid = slid(first, second, scale);
     let operands = Operands::of(first, slid.as_ref().unwrap_or(second), scale);
     let unstable = unstable(&operands);
-    let arena = laid(&operands)?;
+    let mut arena = laid(&operands)?;
+    seamed(&mut arena, &operands, operation);
     let faces = selected(&operands, &arena, operation)?;
     assembled(arena, faces).map(|body| body.noted(unstable))
 }

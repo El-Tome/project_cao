@@ -17,8 +17,13 @@
 //! to its widest, and in to the axis itself, so that a face it bounds is
 //! told clear less often than it might be, never wrongly (#552). A face
 //! bounded by the curve two cylinders meet along is never decided clear.
+//! A face on a sphere or a torus bulges between its edges, and a whole ball
+//! has none: its reach is read off the points of its surface that go
+//! furthest along the direction too, where they stand inside the face, and
+//! how far it stands from a line off the whole surface (#576).
 
 mod hollow;
+mod round;
 mod walls;
 
 use std::f64::consts::PI;
@@ -65,7 +70,8 @@ pub(super) fn clear(operands: &Operands, [one, other]: [SurfaceId; 2]) -> bool {
 /// the walls span stand further apart than the walls stand from them; and,
 /// a cone among the two, whether the other face stands inside the hollow
 /// the cone's face leaves about its axis, or beyond a plane touching the cone
-/// along a ruling.
+/// along a ruling; a sphere or a torus among the two, whether the other face
+/// stands beyond a plane touching the round, or inside a ring's hole.
 ///
 /// A bore drilled through a hexagonal bar, past its far side, is told apart
 /// from that side's slanted neighbours only across its own axis, in the plane
@@ -112,11 +118,10 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
                 Surface::Cone(cone) => {
                     in_the_hollow(cone, nappe, face, room) || beyond(cone, face, room)
                 }
-                Surface::Plane(_)
-                | Surface::Cylinder(_)
-                | Surface::Elliptic(_)
-                | Surface::Sphere(_)
-                | Surface::Torus(_) => false,
+                Surface::Sphere(_) | Surface::Torus(_) => {
+                    round::in_the_hollow(surface, face, room) || round::beyond(surface, face, room)
+                }
+                Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => false,
             })
 }
 
@@ -126,6 +131,9 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
 /// stands plus its radius, a conic as its box's farthest corner; none where
 /// an edge runs along the curve two cylinders meet along.
 fn farthest((body, face): (&Body, FaceId), origin: DVec3, axis: DVec3) -> Option<f64> {
+    if let Some(whole) = round::all_round(body.surface(body.face(face).surface), origin, axis) {
+        return Some(whole);
+    }
     let off = |point: DVec3| from_the_axis(point, origin, axis);
     let mut farthest = body
         .poles_held(face)
@@ -192,15 +200,20 @@ fn straight_edges((body, face): (&Body, FaceId)) -> impl Iterator<Item = DVec3> 
 }
 
 /// The least and the largest of `direction · p` over a face, read off its
-/// edges, where a circle or a conic turns back along `direction`, and the
-/// apex it holds within it; none where an edge runs along the curve two
+/// edges, where a circle or a conic turns back along `direction`, the poles
+/// it holds within it, and where its sphere or torus bulges furthest along
+/// `direction` inside it; none where an edge runs along the curve two
 /// cylinders meet along.
 fn reach((body, face): (&Body, FaceId), direction: DVec3) -> Option<[f64; 2]> {
     let mut low = f64::INFINITY;
     let mut high = f64::NEG_INFINITY;
-    for pole in body.poles_held(face) {
-        low = low.min(direction.dot(pole));
-        high = high.max(direction.dot(pole));
+    for point in body
+        .poles_held(face)
+        .into_iter()
+        .chain(round::bulges((body, face), direction))
+    {
+        low = low.min(direction.dot(point));
+        high = high.max(direction.dot(point));
     }
     for coedge in body.face(face).loops.iter().flatten() {
         let edge = body.edge(coedge.edge);

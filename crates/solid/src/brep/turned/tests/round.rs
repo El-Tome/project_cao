@@ -362,6 +362,40 @@ fn a_ball_whose_pole_stands_at_the_frame_s_origin_turns_part_way_like_any_other(
     }
 }
 
+/// What each rounded fixture holds turned whole, by Pappus.
+fn whole_volumes() -> [(&'static str, Straight, f64); 6] {
+    [
+        ("a ball", ball(), 4.0 / 3.0 * PI * 125.0),
+        ("a zone", zone(), 132.0 * PI),
+        ("a cap", cap(), 448.0 * PI / 3.0),
+        ("a rounded shaft end", rounded_shaft(), 608.0 * PI / 3.0),
+        ("a ring", ring(), 2.0 * PI * PI * 6.0 * 4.0),
+        (
+            "an apple",
+            apple(),
+            PI * (6.0 * 3f64.sqrt() + 16.0 * PI / 3.0),
+        ),
+    ]
+}
+
+#[test]
+fn every_rounded_fixture_turned_a_quarter_a_half_three_quarters_or_half_backwards_is_sound_and_holds_its_share_of_pappus()
+ {
+    for (what, straight, whole) in whole_volumes() {
+        for degrees in [180.0, 90.0, 270.0, -180.0] {
+            let body = turned(&straight, degrees);
+            let what = format!("{what} turned {degrees}°");
+            assert_sound(&body, &what);
+            let volume = body.volume();
+            let expected = whole * f64::to_radians(degrees).abs() / TAU;
+            assert!(
+                (volume - expected).abs() <= 1e-9 * expected,
+                "{what}: {volume} against {expected}"
+            );
+        }
+    }
+}
+
 #[test]
 fn a_round_groove_in_a_bore_holds_no_pole_of_its_spindle_torus_and_pappus_s_volume() {
     let (r, big) = (12.5f64, 5.0f64);

@@ -34,6 +34,11 @@ fn shaft(radius: f64, from: f64, to: f64, across: f64) -> Body {
 
 /// A profile of straight runs laid in `(h, r)`, turned whole about Y.
 fn turned_whole(corners: &[[f64; 2]]) -> Body {
+    turned_part(corners, 360.0)
+}
+
+/// A profile of straight runs laid in `(h, r)`, turned about Y by `degrees`.
+fn turned_part(corners: &[[f64; 2]], degrees: f64) -> Body {
     let count = corners.len();
     let contour = corners
         .iter()
@@ -54,7 +59,7 @@ fn turned_whole(corners: &[[f64; 2]]) -> Body {
         runs: count as u32,
         last_off_the_axis,
     };
-    turned(&straight, 360.0)
+    turned(&straight, degrees)
 }
 
 /// A ball of `radius` about the point of the Y axis at `h`.
@@ -579,4 +584,56 @@ fn a_block_in_a_ring_s_hole_is_passed_over_by_clear() {
         .cut_by(&post)
         .expect("a post in the ring's hole cuts nothing");
     held(&cut, RING, "a ring cut by a post in its hole");
+}
+
+/// Seed 5576600046 of the rounded campaign: a ring turned three quarters of
+/// the way, cut by a coaxial shaft running through its tube.
+#[test]
+fn a_ring_turned_three_quarters_cut_by_a_coaxial_shaft_keeps_pappus_s_volume() {
+    let ring = turned(
+        &bent(&[&[
+            ([5.0, 48.0], Some(([5.0, 28.0], -PI))),
+            ([5.0, 8.0], Some(([5.0, 28.0], -PI))),
+        ]]),
+        270.0,
+    );
+    let cut = ring
+        .cut_by(&shaft(13.0, -15.0, 25.0, 0.0))
+        .expect("the ring is cut");
+    let kept = turned_disc_beside(
+        DVec2::new(5.0, 28.0),
+        20.0,
+        (DVec2::new(0.0, 13.0), DVec2::Y),
+    );
+    held(
+        &cut,
+        kept * 0.75,
+        "three quarters of a ring cut by a coaxial shaft",
+    );
+}
+
+/// Seed 5576600456: a ring whose tube a cylinder of another axis runs
+/// through meets it along no curve the kernel builds.
+#[test]
+fn a_ring_a_cylinder_of_another_axis_runs_through_is_declined_as_unsupported() {
+    let ring = ring_of(-3.0, 3.5, 2.5);
+    let post = standing([2.0, 0.0], 2.0, 5.0, 11.0);
+    assert_eq!(ring.joined(&post).err(), Some(Declined::Unsupported));
+    assert_eq!(post.joined(&ring).err(), Some(Declined::Unsupported));
+}
+
+/// Seed 5576600742: a ring torus cut from a turned body whose bore slopes,
+/// the tube reaching below the body's bottom.
+#[test]
+fn a_ring_cut_from_a_body_with_a_sloping_bore_is_listed_sound() {
+    let body = turned_part(&[[-1.0, 0.5], [-1.0, 6.0], [1.5, 6.0], [1.5, 3.0]], 360.0);
+    let cut = body
+        .cut_by(&ring_of(1.0, 3.0, 2.4999998))
+        .expect("the ring is cut from the body");
+    assert_sound(&cut, "a ring cut from a body with a sloping bore");
+    assert!(
+        cut.volume() < body.volume() && cut.volume() > 0.0,
+        "{}",
+        cut.volume()
+    );
 }

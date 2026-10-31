@@ -2,11 +2,12 @@
 //! it (#576). A torus's chart is a window one turn wide along the meridian,
 //! centred on its `seam` and cut at the antipode, and a face is read in that
 //! window: the turn centres it on the arc it lays, so every face it makes
-//! sits inside one window. A whole ring is one face with no loop, which the
-//! cut may fall anywhere on; what a boolean keeps of it is a band between
-//! the rims the other operand's surfaces cross it along, and that band must
-//! not straddle the cut, or the chart reads it as two stretches at the
-//! window's two ends. So the cut is moved into a band the boolean keeps no
+//! sits inside one window. A whole ring is one face with no loop, and a ring
+//! turned part of the way one bounded by whole meridians alone, which the
+//! cut may fall anywhere on; what a boolean keeps of either is a band
+//! between the rims the other operand's surfaces cross it along, and that
+//! band must not straddle the cut, or the chart reads it as two stretches
+//! at the window's two ends. So the cut is moved into a band the boolean keeps no
 //! face of — one the other operand's matter covers, for a join or for the
 //! body a tool is cut from, and one it leaves bare for the tool itself: the
 //! kept bands then sit inside the window, however the ring was drawn.
@@ -18,11 +19,12 @@ use glam::DVec2;
 use super::{Arena, Operands, Operation};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::surface::{Surface, Torus};
-use crate::brep::topology::{EdgeId, SurfaceId};
+use crate::brep::topology::{Edge, EdgeId, SurfaceId};
 
-/// Each ring torus of the arena one operand alone carries, with no loop on
-/// any of its faces, cut along the middle of a band between its rims that
-/// `operation` keeps no face of, where there is one.
+/// Each ring torus of the arena one operand alone carries, every face of it
+/// bounded by whole meridian circles or by nothing, cut along the middle of
+/// a band between its rims that `operation` keeps no face of, where there
+/// is one.
 pub(super) fn seamed(arena: &mut Arena, operands: &Operands, operation: Operation) {
     let eps = operands.eps();
     for rank in 0..arena.body.surfaces.len() {
@@ -40,10 +42,17 @@ pub(super) fn seamed(arena: &mut Arena, operands: &Operands, operation: Operatio
             continue;
         };
         let body = operands.bodies[owner];
-        if operands.lying[owner][rank]
-            .iter()
-            .any(|face| !body.face(*face).loops.is_empty())
-        {
+        let whole_meridian = |edge: &Edge| {
+            edge.ends.is_none()
+                && matches!(body.curve(edge.curve), Curve::Circle(circle) if torus.meridian(circle, eps))
+        };
+        if operands.lying[owner][rank].iter().any(|face| {
+            body.face(*face)
+                .loops
+                .iter()
+                .flatten()
+                .any(|coedge| !whole_meridian(body.edge(coedge.edge)))
+        }) {
             continue;
         }
         let mut angles: Vec<f64> = arena

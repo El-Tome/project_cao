@@ -1,7 +1,7 @@
 //! The arcs lying on a surface, and the regions they part the surface into.
 
 use std::collections::BTreeMap;
-use std::f64::consts::PI;
+use std::f64::consts::{PI, TAU};
 
 use glam::{DVec2, DVec3};
 
@@ -45,7 +45,10 @@ pub(super) fn held_poles(operands: &Operands, surface: SurfaceId) -> Vec<DVec3> 
 /// does, and the floors join the tips and close the window, so that a whole
 /// ring is one region and a ring turned part of the way the strip between
 /// its two meridians, each a loop of its own once the floors are left out,
-/// as any whole curve with no vertex is. A rim along which another surface
+/// as any whole curve with no vertex is. A meridian arc running past the
+/// cut is read as two arcs of one edge, the one ending at a tip on the floor
+/// it leaves by, the other starting at a tip on the floor it comes back
+/// through. A rim along which another surface
 /// only touches a whole ring — a slab resting on its crest — parts nothing:
 /// a ring whose arcs are all such rims is read whole.
 pub(super) fn parted(
@@ -92,6 +95,7 @@ pub(super) fn parted(
     let mut on_the_cut: BTreeMap<(usize, u64), usize> = BTreeMap::new();
     let mut vertices = Vec::new();
     let mut arcs = Vec::with_capacity(edges.len());
+    let mut traced = Vec::with_capacity(edges.len());
     for &edge in &edges {
         let mut trace = body.trace(edge, surface)?;
         let ends = match body.edge(edge).ends {
@@ -150,8 +154,51 @@ pub(super) fn parted(
                 _ => None,
             },
         };
-        arcs.push(Arc { trace, ends });
+        let mut tip = |line: usize, at: DVec2| {
+            let slot = on_the_cut
+                .entry((line, at.x.to_bits()))
+                .or_insert(usize::MAX);
+            if *slot == usize::MAX {
+                vertices.push(at);
+                *slot = vertices.len() - 1;
+            }
+            *slot
+        };
+        match (&cut[..], trace, ends) {
+            ([bottom, top], Trace::Segment { from, to }, Some([start, end]))
+                if from.x == to.x && (to.y > *top || to.y < *bottom) =>
+            {
+                let (leaving, arriving, by) = if to.y > *top {
+                    (*top, *bottom, -TAU)
+                } else {
+                    (*bottom, *top, TAU)
+                };
+                let (left, back) = (DVec2::new(from.x, leaving), DVec2::new(from.x, arriving));
+                let (out, into) = (
+                    tip(usize::from(to.y > *top), left),
+                    tip(usize::from(to.y <= *bottom), back),
+                );
+                arcs.push(Arc {
+                    trace: Trace::Segment { from, to: left },
+                    ends: Some([start, out]),
+                });
+                traced.push(edge);
+                arcs.push(Arc {
+                    trace: Trace::Segment {
+                        from: back,
+                        to: DVec2::new(to.x, to.y + by),
+                    },
+                    ends: Some([into, end]),
+                });
+                traced.push(edge);
+            }
+            _ => {
+                arcs.push(Arc { trace, ends });
+                traced.push(edge);
+            }
+        }
     }
+    let edges = traced;
     for (line, &floor) in cut.iter().enumerate() {
         let ends: Vec<(usize, DVec2)> = on_the_cut
             .iter()

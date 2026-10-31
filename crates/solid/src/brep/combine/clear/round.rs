@@ -8,7 +8,7 @@
 //! beyond a plane touching the round, or, a ring, inside the hollow its tube
 //! leaves about the axis.
 
-use std::f64::consts::PI;
+use std::f64::consts::{PI, TAU};
 
 use glam::{DVec2, DVec3};
 
@@ -34,6 +34,9 @@ pub(super) fn bulges((body, face): (&Body, FaceId), direction: DVec3) -> Vec<DVe
             return Vec::new();
         }
     };
+    if body.face(face).loops.is_empty() {
+        return candidates;
+    }
     let eps = body.scale().eps();
     candidates
         .into_iter()
@@ -50,7 +53,9 @@ pub(super) fn bulges((body, face): (&Body, FaceId), direction: DVec3) -> Vec<DVe
 /// meridian half-plane of the direction's part square to the axis and in
 /// the one across from it, at the angle along the meridian whose tangent is
 /// the direction's part along the axis over its part across, and half a
-/// turn from it; on the own lobe only.
+/// turn from it; on the own lobe only. The angle about the axis is kept in
+/// the chart's own range, so that a point on the line `θ = 0` is read there
+/// and not a rounding below a whole turn.
 fn bulges_of_a_torus(torus: &Torus, direction: DVec3) -> Vec<DVec3> {
     let along = direction.dot(torus.axis);
     let across = direction - torus.axis * along;
@@ -59,10 +64,15 @@ fn bulges_of_a_torus(torus: &Torus, direction: DVec3) -> Vec<DVec3> {
     let mut found = Vec::new();
     for turn in [0.0, PI] {
         let phi = along.atan2(across.length() * turn.cos());
+        let about = if theta + turn > PI {
+            theta + turn - TAU
+        } else {
+            theta + turn
+        };
         for half in [0.0, PI] {
             let phi = phi + half;
             if big + radius * phi.cos() >= 0.0 {
-                found.push(torus.point(DVec2::new(theta + turn, phi)));
+                found.push(torus.point(DVec2::new(about, phi)));
             }
         }
     }

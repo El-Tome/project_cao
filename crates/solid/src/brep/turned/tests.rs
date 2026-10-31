@@ -12,7 +12,7 @@ use crate::turning::{Axis, Corner};
 pub(in crate::brep) mod round;
 
 /// The sketch's plane, XY, its profile read away from the axis along X.
-fn ground() -> Frame {
+pub(in crate::brep) fn ground() -> Frame {
     Frame {
         origin: DVec3::ZERO,
         u: DVec3::X,
@@ -21,7 +21,7 @@ fn ground() -> Frame {
 }
 
 /// A turn about Y by `degrees`, read with no tolerance of its own.
-fn about_y(degrees: f64) -> Turn {
+pub(in crate::brep) fn about_y(degrees: f64) -> Turn {
     Turn {
         axis: Axis {
             origin: DVec2::ZERO,

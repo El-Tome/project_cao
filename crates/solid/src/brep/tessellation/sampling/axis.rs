@@ -58,10 +58,9 @@ use std::f64::consts::TAU;
 use glam::DVec3;
 
 use super::super::contact::{self, Contact, Wall};
-use super::cone::Grid;
+use super::cone::{Grid, Spun};
 use super::divisions;
 use crate::brep::curve::{Circle, Curve};
-use crate::brep::surface::Cone;
 use crate::brep::topology::{Body, SurfaceId};
 use joined::{Joined, along, beside};
 
@@ -91,12 +90,12 @@ impl Group {
     }
 }
 
-/// The grid of every cone, and the walls standing together with a cone, each
-/// in its group, with every group's rays: the grid of each of its cones and
-/// the angles of their vertices, the grid of each of its walls, and, once
-/// [`Axes::gathered`], the rays its walls take in contact.
+/// The grid of every cone, sphere and torus, and the walls standing together
+/// with one, each in its group, with every group's rays: the grid of each of
+/// its cones and the angles of their vertices, the grid of each of its walls,
+/// and, once [`Axes::gathered`], the rays its walls take in contact.
 pub(super) struct Axes {
-    cones: Vec<(Cone, Vec<DVec3>)>,
+    cones: Vec<(Spun, Vec<DVec3>)>,
     groups: Vec<Group>,
     of_wall: BTreeMap<SurfaceId, usize>,
 }
@@ -119,7 +118,7 @@ impl Axes {
         let mut cones = Vec::new();
         let mut rims: Vec<(Vec<SurfaceId>, Vec<SurfaceId>, &Grid)> = Vec::new();
         for grid in grids.values() {
-            cones.push((grid.cone, grid.rays().collect()));
+            cones.push((grid.spun, grid.rays().collect()));
             let walls_of = |within: &dyn Fn(&Circle) -> bool| -> Vec<SurfaceId> {
                 circles
                     .iter()
@@ -128,19 +127,20 @@ impl Axes {
                     .map(|(id, _)| *id)
                     .collect()
             };
-            let height = |circle: &Circle| (circle.center - grid.cone.origin).dot(grid.cone.axis);
+            let height =
+                |circle: &Circle| (circle.center - grid.spun.origin()).dot(grid.spun.axis());
             let (low, high) = circles
                 .iter()
-                .filter(|circle| grid.cone.holds(circle, eps))
+                .filter(|circle| grid.spun.holds(circle, eps))
                 .map(|circle| height(circle))
                 .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), at| {
                     (low.min(at), high.max(at))
                 });
-            let held = walls_of(&|circle| grid.cone.holds(circle, eps));
+            let held = walls_of(&|circle| grid.spun.holds(circle, eps));
             let near = walls_of(&|circle| {
                 low + eps < height(circle)
                     && height(circle) < high - eps
-                    && !grid.cone.holds(circle, eps)
+                    && !grid.spun.holds(circle, eps)
                     && beside(circle, grid, tolerance)
             });
             if !held.is_empty() {
@@ -151,7 +151,7 @@ impl Axes {
             .iter()
             .filter(|wall| {
                 rims.iter()
-                    .any(|(_, _, grid)| along(grid.cone.origin, grid.cone.axis, wall, eps))
+                    .any(|(_, _, grid)| along(grid.spun.origin(), grid.spun.axis(), wall, eps))
             })
             .collect();
         let (mut joined, close) = Joined::close(&about, walls, eps, tolerance);
@@ -193,9 +193,9 @@ impl Axes {
             return group;
         }
         self.groups.push(Group {
-            axis: grid.cone.axis,
-            u: grid.cone.u,
-            v: grid.cone.v,
+            axis: grid.spun.axis(),
+            u: grid.spun.u(),
+            v: grid.spun.v(),
             rays: Vec::new(),
         });
         self.of_wall.insert(root, self.groups.len() - 1);
@@ -227,8 +227,8 @@ impl Axes {
     }
 
     /// What a circle of `wall` takes besides its grid, `contact`: the rays
-    /// of every cone it lies on, and those of the wall's group if it stands
-    /// in one. None for a circle lying on no cone and standing in no group,
+    /// of every cone, sphere or torus it lies on, and those of the wall's
+    /// group if it stands in one. None for a circle lying on none and standing in no group,
     /// which takes `contact` alone. A ray of the group is left out where
     /// `kept` says no sample stands, and at a step of the circle's grid
     /// `contact` withholds there.
@@ -243,7 +243,7 @@ impl Axes {
         let on_cones = self
             .cones
             .iter()
-            .filter(|(cone, _)| cone.holds(circle, eps))
+            .filter(|(spun, _)| spun.holds(circle, eps))
             .flat_map(|(_, rays)| rays.iter().copied());
         let group = self.of_wall.get(&wall).map(|group| &self.groups[*group]);
         let steps = divisions(circle.radius, tolerance);

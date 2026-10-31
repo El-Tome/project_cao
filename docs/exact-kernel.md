@@ -1584,6 +1584,50 @@ read backwards by the listing.
   holds a face, found after a first sampling as a cylinder's are
   (`sampling/beneath/oval.rs`): a bar's cap ending inside a boss a hair
   above its rim (5571519943).
+- **Rounds** (#576, `tessellation/sampling/round.rs`, `tessellation/outline/
+  round.rs`, `outline/strips.rs`). A sphere or a torus is doubly curved: a
+  chord of a latitude circle sags towards the axis and a chord of a meridian
+  towards the tube's centre, and a triangle reaching from one latitude
+  circle to the next would leave the surface by far more than the tolerance
+  however fine the grid of angles. So a round carries two grids, one of
+  angles about the axis, cut for the widest circle any face on it reaches —
+  a zone across the equator reaches `r`, a ring `R + r`, read off the surface
+  and the face's extent along the meridian, not off its edges alone — and one
+  of rows along the meridian, cut for the tube's radius; each takes a little
+  under half the tolerance, since the two sags add up along the hypotenuse
+  of a triangle of the lattice. Every latitude circle is sampled on the
+  round's angles as a cone's rim is on the cone's, and every meridian arc on
+  the round's rows, the opening and the closing meridian of a turn on the
+  same rows whatever circle each lies on, none within the round's room of a
+  latitude circle or a pole of the face it bounds. A face is laid out in
+  `(θ, φ)`, each sample on the line of its edge — a latitude circle's at the
+  circle's own angle along the meridian, a meridian's at the arc's own angle
+  about the axis — so that its boundaries are exactly square to the chart;
+  the poles are laid as a cone's apex is, a loop passing through one running
+  along its floor the way that pole's floor runs, the low one up the angle
+  and the high one down, and a face holding a pole within it taking the
+  whole floor as a loop of its own. It is then cut in strips between the
+  rows, each strip a row of columns between a boundary running down and the
+  next running up, and a column's bottom and top are its boundaries where
+  one runs there and the row itself where none does: there the face
+  continues across the row, and the lattice points of the grid along it are
+  added inside the face — the one exception to "no point is added inside a
+  face", on no edge, so that every edge's samples are still shared with the
+  face beyond it; shared by the strip below and the strip above, and by the
+  two walls of a face cut open at an angle, which stand for the same points
+  a turn apart. Each strip is swept alone, so that no triangle reaches from
+  one row past the next, and a triangle with two corners on a pole's floor
+  is the pole twice and is dropped: what is left is a fan from the pole. A
+  whole ball, one face with no loop, is laid out from its two floors and the
+  walls at the angle nought; a whole ring, with no loop and no vertex, from
+  the walls alone, closed along the cut of its chart at the top and the
+  bottom of the window, which stand for one circle; a ring turned part of
+  the way, winding round the tube between two whole meridians, from those
+  two meridians, closed along the cut the same way. A round's latitude
+  circle whose radius is a coaxial cylinder's — the equator a shaft ends in
+  a ball at — lies on both and is sampled once, on the shaft's grid and the
+  round's. A coaxial wall a hair inside a ball is not drawn in common with it
+  yet: a family the campaign measures.
 - **Contact.** Chords sag towards their own cylinder's axis, so against a plane
   or a convex neighbour they retreat. Where two curved faces face each other on
   their hollow side closer than a chord's sag — an internal tangency, a near

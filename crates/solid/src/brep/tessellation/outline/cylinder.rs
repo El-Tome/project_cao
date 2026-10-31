@@ -155,6 +155,7 @@ impl Outline {
     fn wall(&mut self, from: (DVec2, usize), to: (DVec2, usize)) {
         let (from, to) = (self.point(from.0, from.1), self.point(to.0, to.1));
         self.segments.push([from, to]);
+        self.walls.push(self.segments.len() - 1);
     }
 }
 

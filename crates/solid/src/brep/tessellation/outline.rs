@@ -3,22 +3,33 @@
 
 mod cone;
 mod cylinder;
+mod round;
+mod strips;
 
 use std::collections::BTreeMap;
 
 use glam::DVec2;
 
-use super::sampling::{Samples, divisions};
+use super::sampling::{Rounded, Samples, divisions};
+use super::sweep;
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, FaceId};
 
 /// Points of the parameters, each standing for a sample, and the segments
-/// between them.
+/// between them. A face of a sphere or a torus is cut in strips between the
+/// rows of its grid, each strip's segments swept alone ([`round`]); any
+/// other face is one region, swept whole.
 pub(super) struct Outline {
     pub(super) points: Vec<DVec2>,
     pub(super) samples: Vec<usize>,
     pub(super) segments: Vec<[usize; 2]>,
     at: BTreeMap<[u64; 2], usize>,
+    /// The segments closing a face cut open at an angle, along both edges of
+    /// the turn: what a round splits at its rows.
+    walls: Vec<usize>,
+    /// The segments of each strip of a round's face, none for a face swept
+    /// whole.
+    strips: Vec<Vec<usize>>,
 }
 
 impl Outline {
@@ -27,7 +38,7 @@ impl Outline {
     /// face cannot be laid out.
     pub(super) fn of(
         body: &Body,
-        samples: &Samples,
+        samples: &mut Samples,
         face: FaceId,
         tolerance: f64,
     ) -> Option<Outline> {
@@ -62,6 +73,8 @@ impl Outline {
             samples: Vec::new(),
             segments: Vec::new(),
             at: BTreeMap::new(),
+            walls: Vec::new(),
+            strips: Vec::new(),
         };
         match body.surface(face.surface) {
             Surface::Plane(plane) => {
@@ -83,7 +96,12 @@ impl Outline {
                 let eps = body.scale().eps();
                 outline.conical(cone, samples, &laps, steps, apex, eps)?;
             }
-            Surface::Sphere(_) | Surface::Torus(_) => return None,
+            Surface::Sphere(_) | Surface::Torus(_) => {
+                let round = Rounded::of(body.surface(face.surface))?;
+                let steps = samples.steps(face.surface)?;
+                let rows = samples.rows(face.surface)?;
+                outline.rounded(body, samples, face, &round, &laps, (steps, rows))?;
+            }
             Surface::Elliptic(wall) => {
                 let steps = divisions(wall.major, tolerance);
                 let raws: Vec<Vec<DVec2>> = laps
@@ -98,6 +116,41 @@ impl Outline {
             }
         }
         Some(outline)
+    }
+
+    /// The triangles of the region, by the index of their corners: one sweep
+    /// of the whole, or one of each strip of a round's face. None when a
+    /// region cannot be swept.
+    pub(super) fn cut(&self) -> Option<Vec<[usize; 3]>> {
+        if self.strips.is_empty() {
+            return sweep::triangles(&self.points, &self.segments);
+        }
+        let mut triangles = Vec::new();
+        for strip in &self.strips {
+            let mut local: Vec<usize> = strip
+                .iter()
+                .flat_map(|&segment| self.segments[segment])
+                .collect();
+            local.sort_unstable();
+            local.dedup();
+            let points: Vec<DVec2> = local.iter().map(|&point| self.points[point]).collect();
+            let segments: Vec<[usize; 2]> = strip
+                .iter()
+                .map(|&segment| {
+                    let [from, to] = self.segments[segment];
+                    Some([
+                        local.binary_search(&from).ok()?,
+                        local.binary_search(&to).ok()?,
+                    ])
+                })
+                .collect::<Option<_>>()?;
+            let cut = sweep::triangles(&points, &segments)?;
+            triangles.extend(
+                cut.into_iter()
+                    .map(|corners| corners.map(|corner| local[corner])),
+            );
+        }
+        Some(triangles)
     }
 
     /// The point at `at` standing for sample `id`, made once.

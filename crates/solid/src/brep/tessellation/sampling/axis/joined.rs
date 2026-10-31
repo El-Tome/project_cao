@@ -7,7 +7,7 @@ use std::f64::consts::PI;
 
 use glam::DVec3;
 
-use super::super::cone::Grid;
+use super::super::cone::{Grid, Spun};
 use crate::brep::curve::Circle;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
@@ -45,9 +45,13 @@ fn together(one: &Cylinder, other: &Cylinder, tolerance: f64) -> bool {
 /// of either's grid of the cone, as [`together`] tells two walls close: read
 /// across the axis at the circle's height, the way a chord sags. A cone all
 /// but square to its axis stands that close to the circles of a plane all
-/// but lying on it only along the axis, and is left as it was.
+/// but lying on it only along the axis, and is left as it was. A sphere or a
+/// torus stands close to no circle this way yet (#576): a coaxial wall a
+/// hair inside a ball is a family the campaign measures.
 pub(super) fn beside(circle: &Circle, grid: &Grid, tolerance: f64) -> bool {
-    let cone = &grid.cone;
+    let Spun::Cone(cone) = &grid.spun else {
+        return false;
+    };
     let sag = |steps: usize| circle.radius * (1.0 - (PI / steps as f64).cos());
     let room = 2.0 * sag(divisions(circle.radius, tolerance)).max(sag(grid.steps));
     let height = (circle.center - cone.origin).dot(cone.axis);

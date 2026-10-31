@@ -14,10 +14,10 @@ use crate::turning::{Bend, Corner, Straight};
 
 /// A corner laid in `(h, r)`, and the arc leaving it, if one does: its
 /// centre and its turn.
-type Laid = ([f64; 2], Option<([f64; 2], f64)>);
+pub(in crate::brep) type Laid = ([f64; 2], Option<([f64; 2], f64)>);
 
 /// A profile laid in `(h, r)`, run `k` leaving the `k`th corner.
-fn bent(contours: &[&[Laid]]) -> Straight {
+pub(in crate::brep) fn bent(contours: &[&[Laid]]) -> Straight {
     let mut run = 0;
     let contours: Vec<Vec<Corner>> = contours
         .iter()

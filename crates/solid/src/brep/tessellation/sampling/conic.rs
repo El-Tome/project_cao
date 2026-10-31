@@ -27,7 +27,7 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use super::chords::halved;
-use super::cone::Grid;
+use super::cone::{Grid, Spun};
 use super::elliptic::{a_step_apart, between_steps, on_the_wall, reached_by_planes};
 use super::ends::{grazed, grazed_near};
 use super::{divisions, on_a_plane, touching_planes};
@@ -89,7 +89,7 @@ pub(super) fn of_edge(
             on_conic(conic, edge, tolerance, eps, [&grid, rays], &clear)
         }
         Round::Cone(cone) => {
-            let (grid, vertices) = match grids.values().find(|grid| grid.cone == cone) {
+            let (grid, vertices) = match grids.values().find(|grid| grid.spun == Spun::Cone(cone)) {
                 Some(grid) => (turn(grid.steps), grid.vertex_angles().to_vec()),
                 None => {
                     let widest = conic.widest(edge.from, edge.to);

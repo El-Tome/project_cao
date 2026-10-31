@@ -40,6 +40,8 @@ pub(super) fn off(
             | Relation::Parallel(_)
             | Relation::Meet(_)
             | Relation::Rulings { .. }
+            | Relation::Rims(_)
+            | Relation::Meridians { .. }
             | Relation::Apex(_) => true,
         };
         return about.then(|| cone.off_axis(*origin));
@@ -96,6 +98,8 @@ pub(super) fn off(
         | Relation::Meet(_)
         | Relation::Rulings { .. }
         | Relation::Apex(_)
+        | Relation::Rims(_)
+        | Relation::Meridians { .. }
         | Relation::Conic(_)
         | Relation::Ruling { .. }
         | Relation::Unsupported => None,

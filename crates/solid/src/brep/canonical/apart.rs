@@ -115,6 +115,16 @@ impl Apart {
                         pointed.insert(pair);
                         points.insert(pair, vec![apex]);
                     }
+                    Relation::Rims(rims) => {
+                        if rims.iter().any(|rim| rim.touching) {
+                            touching.insert(pair);
+                        }
+                    }
+                    Relation::Meridians { poles, .. } => {
+                        if !poles.is_empty() {
+                            points.insert(pair, poles);
+                        }
+                    }
                     Relation::Line(_)
                     | Relation::Lines(_)
                     | Relation::Circle(_)
@@ -138,7 +148,8 @@ impl Apart {
         self.pairs.contains(&[one.min(other), one.max(other)])
     }
 
-    /// Whether two surfaces were decided to touch along a line.
+    /// Whether two surfaces were decided to touch along a line, or along a
+    /// circle about the axis they share (#576).
     pub fn touch(&self, one: SurfaceId, other: SurfaceId) -> bool {
         self.touching.contains(&[one.min(other), one.max(other)])
     }

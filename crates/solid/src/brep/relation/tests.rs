@@ -174,6 +174,8 @@ fn class(relation: &Relation) -> &'static str {
         Relation::Apex(_) => "apex",
         Relation::Conic(_) => "conic",
         Relation::Ruling { .. } => "ruling",
+        Relation::Rims(_) => "rims",
+        Relation::Meridians { .. } => "meridians",
         Relation::Unsupported => "unsupported",
     }
 }

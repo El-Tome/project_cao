@@ -18,7 +18,9 @@
 //! its corners (`combine/slid.rs`); nor take such a wall, a plane, further
 //! than the tolerance off the line it crosses another plane along. Nor is
 //! a wall about a cone's axis moved off it, where faces of the two meet on
-//! the circle they cross along. A cylinder touching two parallel planes on
+//! the circle they cross along; nor one about a sphere's or a torus's
+//! (#576), and a round itself is never moved onto a touch, as a cone is
+//! not. A cylinder touching two parallel planes on
 //! opposite sides is moved midway between them, its radius half their gap,
 //! which makes both exact; so is one touching one of them and standing
 //! within decision 8's hair of the other, which left touching the one
@@ -152,6 +154,8 @@ impl Surfaces {
             | Relation::Circle(_)
             | Relation::Rulings { .. }
             | Relation::Apex(_)
+            | Relation::Rims(_)
+            | Relation::Meridians { .. }
             | Relation::Conic(_)
             | Relation::Ruling { .. }
             | Relation::Unsupported => None,

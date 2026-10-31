@@ -91,6 +91,8 @@ pub(super) fn circle_through(
         | Relation::Meet(_)
         | Relation::Rulings { .. }
         | Relation::Apex(_)
+        | Relation::Rims(_)
+        | Relation::Meridians { .. }
         | Relation::Conic(_)
         | Relation::Unsupported => {
             return Solved::Unsupported;

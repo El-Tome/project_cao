@@ -10,13 +10,17 @@ use crate::brep::topology::Body;
 /// Whether every surface of the second operand stands with each of the
 /// first's whose faces it meets as it stood before the turn, where it stood
 /// exactly: one with it, touching it, along a ruling or at an apex of it, or
-/// holding its cone's axis. A tool face lying on the body's, turned a hair
-/// off it, or a plane holding a cone's axis turned into a hyperbola a hair
-/// from the apex, would be what the turn is made against. Nor is a plane
-/// laid a hair beside a cone's apex, but only exactly through it: the plane
-/// through a point's apex a hair off its axis, turned about the middle of
-/// its box along the axis, stood a hair beside the apex and was cut along
-/// two rulings it does not hold (5543232861). A face laid on the body's, a
+/// holding its cone's or its round's axis (#576). A tool face lying on the
+/// body's, turned a hair off it, or a plane holding a cone's axis turned
+/// into a hyperbola a hair from the apex, would be what the turn is made
+/// against. Nor is a plane laid a hair beside a cone's apex, but only
+/// exactly through it: the plane through a point's apex a hair off its
+/// axis, turned about the middle of its box along the axis, stood a hair
+/// beside the apex and was cut along two rulings it does not hold
+/// (5543232861). A plane laid square to a round's axis at its pole, or
+/// along it, is built where it lands: at a hair from the pole the touch is
+/// what is decided, and a hair beside the axis the great circle cut is
+/// within rounding of the one through it. A face laid on the body's, a
 /// wall laid touching, parallel or square to another: these are what the
 /// turn is for, and refused, they left a tool at its lean beside another
 /// drawn at that lean and turned the step before (5543215175).
@@ -39,7 +43,10 @@ pub(in crate::brep::canonical) fn kept(
             let was = relation(known, before.surface(other), scale);
             let is = relation(known, tool, scale);
             let exact = apex(&was)
-                || matches!(was, Relation::Same { .. } | Relation::Tangent(_))
+                || matches!(
+                    was,
+                    Relation::Same { .. } | Relation::Tangent(_) | Relation::Meridians { .. }
+                )
                 || touches(&was) > 0;
             if exact {
                 std::mem::discriminant(&was) == std::mem::discriminant(&is)
@@ -51,22 +58,27 @@ pub(in crate::brep::canonical) fn kept(
 }
 
 /// How many rulings two parallel walls, an elliptic one among them, touch
-/// along beside crossings or with another touch (#571): a touch as exact as
-/// a tangent's, which a turn must keep.
+/// along beside crossings or with another touch (#571), or how many circles
+/// a round touches a coaxial surface along (#576): a touch as exact as a
+/// tangent's, which a turn must keep.
 fn touches(relation: &Relation) -> usize {
     match relation {
         Relation::Parallel(rulings) => rulings.iter().filter(|ruled| ruled.touching).count(),
+        Relation::Rims(rims) => rims.iter().filter(|rim| rim.touching).count(),
         _ => 0,
     }
 }
 
-/// Whether a plane passes through a cone's apex but for rounding.
+/// Whether a plane passes through a cone's apex but for rounding; a round's
+/// pole is reached by any plane turned square onto it.
 fn through_the_apex(one: &Surface, other: &Surface, scale: Scale) -> bool {
     match (one, other) {
         (Surface::Cone(cone), Surface::Plane(plane))
         | (Surface::Plane(plane), Surface::Cone(cone)) => {
             plane.distance(cone.apex()).abs() <= 10.0 * ROUNDING * scale.eps()
         }
+        (Surface::Sphere(_) | Surface::Torus(_), _)
+        | (_, Surface::Sphere(_) | Surface::Torus(_)) => true,
         _ => false,
     }
 }

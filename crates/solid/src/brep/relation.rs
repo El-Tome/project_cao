@@ -9,6 +9,7 @@ mod elliptic;
 mod perpendicular;
 mod planar;
 mod revolved;
+mod round;
 mod sliced;
 mod walls;
 
@@ -25,6 +26,15 @@ pub use crossing::{
 pub(in crate::brep) use revolved::apart_by;
 pub use walls::Ruled;
 pub(in crate::brep) use walls::{abreast, closest, feet_of_touches};
+
+/// A circle about the axis a sphere or a torus meets a coaxial surface
+/// along, and whether the two only touch along it rather than cross
+/// (#576).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Rim {
+    pub circle: Circle,
+    pub touching: bool,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Relation {
@@ -59,8 +69,20 @@ pub enum Relation {
         lines: [Line; 2],
         apex: Option<DVec3>,
     },
-    /// Two surfaces touching at a cone's apex alone.
+    /// Two surfaces touching at a point on the axis alone: a cone's apex, a
+    /// sphere's or a spindle torus's pole (#576).
     Apex(DVec3),
+    /// A sphere or a torus and a surface of its axis — a plane square to it,
+    /// a cylinder, a cone, a sphere or a torus about it — crossing along one
+    /// or two circles about the axis, or touching along one (#576).
+    Rims(Vec<Rim>),
+    /// A plane holding a sphere's or a torus's axis: the great circle of the
+    /// sphere, or the two tube circles of the torus, it cuts, and the poles
+    /// they cross at where those stand within the box (#576).
+    Meridians {
+        circles: Vec<Circle>,
+        poles: Vec<DVec3>,
+    },
     /// A plane at a slant to a cylinder's axis, or to a cone's axis without
     /// passing through its apex within the box: the conic it cuts on the
     /// wall's own nappe, whole or as the arms it is split into. A plane square
@@ -84,7 +106,7 @@ pub fn relation(one: &Surface, other: &Surface, scale: Scale) -> Relation {
     match (one, other) {
         (Surface::Plane(one), Surface::Plane(other)) => planar::planes(one, other, scale),
         (Surface::Sphere(_) | Surface::Torus(_), _)
-        | (_, Surface::Sphere(_) | Surface::Torus(_)) => Relation::Unsupported,
+        | (_, Surface::Sphere(_) | Surface::Torus(_)) => round::relation(one, other, scale),
         (Surface::Plane(plane), Surface::Cylinder(cylinder))
         | (Surface::Cylinder(cylinder), Surface::Plane(plane)) => {
             planar::plane_and_cylinder(plane, cylinder, scale)
@@ -175,6 +197,10 @@ impl Relation {
                 .copied()
                 .map(Curve::Meet)
                 .collect(),
+            Relation::Rims(rims) => rims.iter().map(|rim| Curve::Circle(rim.circle)).collect(),
+            Relation::Meridians { circles, .. } => {
+                circles.iter().copied().map(Curve::Circle).collect()
+            }
             Relation::Apart | Relation::Same { .. } | Relation::Apex(_) | Relation::Unsupported => {
                 Vec::new()
             }
@@ -182,8 +208,8 @@ impl Relation {
     }
 
     /// The points that must be vertices: where a curve crosses itself, where
-    /// two cylinders touch at a point, a cone's apex where the pair meets
-    /// there.
+    /// two cylinders touch at a point, a cone's apex or a round's pole where
+    /// the pair meets there.
     pub fn points(&self) -> Vec<DVec3> {
         match self {
             Relation::Meet(meeting) => meeting
@@ -196,6 +222,7 @@ impl Relation {
                 apex.iter().copied().collect()
             }
             Relation::Apex(apex) => vec![*apex],
+            Relation::Meridians { poles, .. } => poles.clone(),
             Relation::Apart
             | Relation::Same { .. }
             | Relation::Line(_)
@@ -203,6 +230,7 @@ impl Relation {
             | Relation::Tangent(_)
             | Relation::Parallel(_)
             | Relation::Circle(_)
+            | Relation::Rims(_)
             | Relation::Conic(_)
             | Relation::Unsupported => Vec::new(),
         }

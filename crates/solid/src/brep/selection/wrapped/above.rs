@@ -60,6 +60,8 @@ pub(in crate::brep::selection) fn stands_above(
         | Relation::Circle(_)
         | Relation::Meet(_)
         | Relation::Apex(_)
+        | Relation::Rims(_)
+        | Relation::Meridians { .. }
         | Relation::Unsupported => match (first, second) {
             (Surface::Cylinder(first), Surface::Cylinder(second)) => {
                 above_at(first, second, place, rounding)

@@ -22,7 +22,8 @@ use crate::brep::topology::Body;
 /// decided with it about one axis still (#536): moved a hair off, the pair
 /// would meet along a curve the kernel does not build, and a bore of a
 /// pocket's radius moved onto it took its cone off the wall it widens onto
-/// (5361127255). The surface itself goes where its move was decided: one
+/// (5361127255); a sphere or a torus is kept beside its axis the same way
+/// (#576). The surface itself goes where its move was decided: one
 /// with the first's wall, about its axis, or onto a touch. And whether every
 /// surface carried stays apart from those of its own operand left behind,
 /// which that operand built apart: a rounded rectangle a hair taller than its
@@ -56,6 +57,7 @@ pub(super) fn kept(
                         true
                     }
                     Relation::Conic(_) | Relation::Ruling { .. } | Relation::Unsupported => false,
+                    Relation::Rims(_) | Relation::Meridians { .. } => true,
                     Relation::Apart
                     | Relation::Line(_)
                     | Relation::Lines(_)
@@ -63,9 +65,12 @@ pub(super) fn kept(
                     | Relation::Circle(_)
                     | Relation::Meet(_)
                     | Relation::Rulings { .. }
-                    | Relation::Apex(_) => [known, surface]
-                        .iter()
-                        .any(|one| matches!(one, Surface::Cone(_))),
+                    | Relation::Apex(_) => [known, surface].iter().any(|one| {
+                        matches!(
+                            one,
+                            Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_)
+                        )
+                    }),
                 };
                 (!same(known, &before.surfaces[rank])
                     || onto(known, &before.surfaces[rank], &after.surfaces[rank], scale))

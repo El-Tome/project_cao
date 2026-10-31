@@ -99,6 +99,15 @@ pub(super) fn related(
                     surfaces: pair,
                     curves: Vec::new(),
                 }),
+                Relation::Meridians { poles, .. } => {
+                    for pole in poles {
+                        special.push(Special {
+                            point: *pole,
+                            surfaces: pair,
+                            curves: ranks.clone(),
+                        });
+                    }
+                }
                 Relation::Apart
                 | Relation::Same { .. }
                 | Relation::Line(_)
@@ -106,6 +115,7 @@ pub(super) fn related(
                 | Relation::Tangent(_)
                 | Relation::Parallel(_)
                 | Relation::Circle(_)
+                | Relation::Rims(_)
                 | Relation::Rulings { apex: None, .. }
                 | Relation::Ruling { apex: None, .. }
                 | Relation::Conic(_)

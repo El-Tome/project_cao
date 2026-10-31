@@ -175,6 +175,35 @@ fn a_step_a_hair_high_beside_a_ball_end_is_no_corner_of_its_own() {
 }
 
 #[test]
+fn a_ball_end_whose_centre_and_end_stand_a_hair_off_the_axis_is_laid_with_its_pole_on_it() {
+    let off = 0.5 * super::turn_of(&[&ball_ended_shaft(0.0)], RESOLUTION).on_the_axis;
+    let contour = drawn(
+        &[
+            [0.0, 0.0],
+            [4.0, 0.0],
+            [4.0, 10.0],
+            [off, 14.0 - off],
+            [0.0, 14.0 - off],
+        ],
+        vec![
+            Run::Straight,
+            Run::Straight,
+            round([off, 10.0], FRAC_PI_2),
+            Run::Straight,
+            Run::Straight,
+        ],
+    );
+    let straight = laid(&contour, &[], RESOLUTION).expect("a ball-ended shaft");
+    assert_eq!(
+        super::at(&straight),
+        [[[0.0, 0.0], [0.0, 4.0], [10.0, 4.0], [14.0, 0.0]]]
+    );
+    let bend = straight.contours[0][2].bend.expect("the arc");
+    assert_eq!(bend.center, DVec2::new(10.0, 0.0));
+    assert_eq!(straight.runs, 5);
+}
+
+#[test]
 fn a_centre_a_hair_inside_the_band_is_a_sphere_and_a_hair_outside_a_torus() {
     let turn = super::turn_of(&[&ball_ended_shaft(0.0)], RESOLUTION);
     let band = turn.on_the_axis;

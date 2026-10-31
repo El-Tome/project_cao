@@ -84,9 +84,10 @@ pub(super) fn laid(
             && (tangent - radius).abs() <= tolerance + moved
         {
             radius = tangent;
-            laid[from] = landed(laid[from], center, radius, Free::Height)?;
+            let start = laid[from];
+            slid(laid, start, landed(start, center, radius, Free::Height)?);
         }
-        laid[to] = landed(end, center, radius, free)?;
+        slid(laid, end, landed(end, center, radius, free)?);
         let (start, end) = (laid[from] - center, laid[to] - center);
         let turned = start.perp_dot(end).atan2(start.dot(end));
         let turn = turned + TAU * ((drawn.turn - turned) / TAU).round();
@@ -151,6 +152,15 @@ enum Free {
     Height,
     Radius,
     Both,
+}
+
+/// Every corner standing at `from` moved to `to`: a corner laid onto the
+/// arc's end, the far end of a run laid to no length, goes where the end
+/// goes, so that the run stays laid to nothing.
+fn slid(laid: &mut [DVec2], from: DVec2, to: DVec2) {
+    for corner in laid.iter_mut().filter(|corner| **corner == from) {
+        *corner = to;
+    }
 }
 
 /// The radius at which an arc would end tangent to the level its end stands

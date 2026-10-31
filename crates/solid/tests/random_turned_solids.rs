@@ -4640,6 +4640,35 @@ fn a_ball_whose_centre_stands_a_hair_below_the_axis_is_boxed_as_the_arithmetic_l
 }
 
 #[test]
+fn a_ball_or_a_ring_turned_about_a_leaning_axis_spans_the_box_its_flats_span_and_is_held_on_the_exact_kernel()
+ {
+    let leaves = [
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::first(0.0).leaning(60.0),
+            Section::bands(1.5, &[[5.0, 0.0, 0.0]]).bowed(&[[[0.0; 3], [4.0, 0.0, 2.5]]]),
+            360.0,
+        ),
+        Leaf::turned(
+            Plane::xy(4.0),
+            Axis::first(0.0).leaning(30.0),
+            Section::bands(0.0, &[[2.0, 0.0, 0.0]]).bowed(&[[[1.0, 0.0, -1.0], [0.0; 3]]]),
+            360.0,
+        ),
+        Leaf::turned(
+            Plane::yz(2.0),
+            Axis::second(1.0).leaning(-45.0),
+            Section::bands(-1.5, &[[3.0, 4.0, 4.0]]).bowed(&[[[0.0, 4.0, -1.5], [0.0, 4.0, 1.5]]]),
+            360.0,
+        ),
+    ];
+    for leaf in &leaves {
+        spans_the_box_its_flats_span(leaf, &leaf.solid().expect("a turn the flats make"));
+    }
+    raised_alone_keep_every_rule_and_enclose_pappus_s_volume(&leaves);
+}
+
+#[test]
 fn a_rounded_leaf_shrinks_into_straight_edges_and_round_numbers() {
     let leaf = |section: Section| Leaf::turned(Plane::xy(0.0), Axis::first(0.0), section, 360.0);
     let rounded = Section::bands(0.3, &[[2.0, 0.0, 2.7], [2.0, 0.0, 2.0]])

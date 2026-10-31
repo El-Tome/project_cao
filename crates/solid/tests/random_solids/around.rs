@@ -203,11 +203,18 @@ impl Turned {
     /// wherever in between it goes furthest along a world axis, and its
     /// inner radius at both of its ends, and at the bulge of its inner edge
     /// where that bows inwards, at both ends of the turn. A bulge is read
-    /// off the arc as drawn, not as the pieces lay it: a centre a hair off
-    /// the axis is laid on it, and the flats turn the arc about the centre
-    /// it was drawn with, a hair further out.
+    /// twice, off the arc as drawn and as the pieces lay it: a centre a hair
+    /// off the axis is laid on it, and the flats turn the arc about the
+    /// centre it was drawn with — a hair further out when it stood above the
+    /// axis — while the exact kernel reaches the laid radius from the laid
+    /// centre — a hair further out when it stood below.
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
         let mut points = Vec::new();
+        let bulge = |bow: Bow, corners: [DVec2; 2], outer: bool, side: f64| {
+            let bulge = bow.extreme(corners);
+            (outer == (bow.bulge() == side) && corners[0].x < bulge.x && bulge.x < corners[1].x)
+                .then_some(bulge)
+        };
         let turns = |side: f64| {
             let swept = self.swept(side);
             let mut turns: Vec<(DVec2, bool)> = Vec::new();
@@ -241,25 +248,33 @@ impl Turned {
                     }
                 }
             }
+            for (edge, bow) in piece.bows.into_iter().enumerate() {
+                let outer = edge == 1;
+                let Some(bulge) = bow.and_then(|bow| bulge(bow, piece.chord(edge), outer, 1.0))
+                else {
+                    continue;
+                };
+                for &(turn, end) in &turns {
+                    if end || outer {
+                        points.push(self.point(piece.side, bulge.x, bulge.y.abs(), turn));
+                    }
+                }
+            }
         }
         if let Some(side) = self.section.side().filter(|_| self.section.bows()) {
             let turns = turns(side);
             for trapezoid in self.section.trapezoids() {
                 for (edge, chord) in [(0, trapezoid.low), (1, trapezoid.high)] {
-                    let Some(bow) = trapezoid.bows[edge] else {
-                        continue;
-                    };
-                    let bulge = bow.extreme([
+                    let outer = (edge == 1) == (side > 0.0);
+                    let corners = [
                         DVec2::new(trapezoid.along[0], chord[0]),
                         DVec2::new(trapezoid.along[1], chord[1]),
-                    ]);
-                    let outer = (edge == 1) == (side > 0.0);
-                    if outer != (bow.bulge() == side)
-                        || bulge.x <= trapezoid.along[0]
-                        || trapezoid.along[1] <= bulge.x
-                    {
+                    ];
+                    let Some(bulge) =
+                        trapezoid.bows[edge].and_then(|bow| bulge(bow, corners, outer, side))
+                    else {
                         continue;
-                    }
+                    };
                     for &(turn, end) in &turns {
                         if end || outer {
                             points.push(self.point(side, bulge.x, bulge.y.abs(), turn));

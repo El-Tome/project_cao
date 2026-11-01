@@ -2367,3 +2367,122 @@ lands elsewhere, and no step goes to the flats.
   (5572103167).
 - **Late.** A case past the 30 s the campaign waits, through the body
   alone (5572008304).
+
+## #576: spheres and tori
+
+The rounded draw — `Case::drawn_rounded`, the campaign
+`a_campaign_of_rounded_solids_on_the_exact_kernel_keeps_every_rule` — on the
+exact kernel, in release with `--features campaigns` over 1200 s: five rounds,
+each on its own tree and its own seeds, lane T's on five threads and lane R's
+on eight. The lone-leaf twins and their body ran beside them on seeds 0..600
+of the same draw. Every seed a family names below is a printed leaf of its
+round, run again on the fixed tree where the family was fixed; triage draws
+`Case::drawn_rounded_off_the_lattice` under `CAO_TRIAGE_DRAW=rounded`.
+
+| campaign | tree | first seed | cases | broke a rule | per thousand | declined by design |
+| --- | --- | --- | --- | --- | --- | --- |
+| rounded, on the exact kernel, before | `ed8267e` | 5576400000 | 108 051 | 63 145 | 584.40 | 4 370 beyond the conics, 14 hair-thin |
+| rounded, after lane T's first round | `e106f36` | 5576400000 | 53 187 | 9 724 | 182.83 | 14 994 |
+| rounded, after lane T's second round | `ef7aacd` | 5576500000 | 49 472 | 8 049 | 162.70 | 14 558 |
+| rounded, with relations and the boolean, round 1 | `bd79075` | 5576600000 | 68 625 | 2 601 | 37.90 | not recorded, Answers and Closed extracted alone |
+| rounded, with relations and the boolean, round 2 | `f660771` | 5576668625 | 67 860 | 2 314 | 34.10 | 19 173 beyond the conics, 13 hair-thin |
+
+**The bar is not met.** One case in a thousand is the issue's; the last round
+stands at 34.1 in a thousand, by a factor of thirty-four. What the rounds
+fixed and what is left follow, and campaign rounds follow the lanes as lane C
+takes them, on seeds from 5576800000 and up, past every seed used here.
+
+**Fixed:**
+
+- **A round face had no triangles** (lane T, `c607037` to `ef7aacd`). The
+  lone-leaf twin failed on all 62 bowed leaves of its 80 seeds — 43 `Open`, 19
+  `Volume` — and its body on 227 of 227 leaves of seeds 0..300, 254 of 254 on
+  300..600; the campaign counted `Closed` 44 083 and `Volume` 18 555. A face of
+  a sphere or a torus is now cut in strips between the rows of its grid, a
+  ball and a ring drawn from their poles and the cut of their chart alone; the
+  twin passes on its 80 seeds and its body fails 0 of 227 and 1 of 254.
+- **A ball a hair below the axis, and a ball or a ring on a leaning axis**
+  (lane T, `e106f36` and `ef7aacd`): the box a rounded leaf spans read the
+  bulge off the drawn arc while the kernel snapped the centre onto the axis,
+  or square to one world axis where the arc's furthest point lay on another.
+  1 494 `Volume` failures of round 1, seeds 5576400008, 5576400022 and
+  5576400131 among them; 0 in round 2.
+- **A ring's `Spans`, whole backwards or turned part way** (lane S2, `2cf1cf5`
+  and `dbff58b`): a loopless ring face was closed along nothing, its parity
+  put every point outside and its rays found no way out; 37 of the 42 `Spans`
+  of seeds 0..300 and 48 of the 51 of 300..600, 0 after. The ring's chart cut
+  is now its floor, at the window `(seam − π, seam + π]`.
+- **A flipped round face's volume and poles** (lane S2, family C): a round
+  groove in a bore, its matter outside the tube, held both poles and added
+  their floors to its flux. One leaf each range, 0 after.
+- **`Declined::Travel` on a ball or a cap** (lane S2, family B2): the quarter
+  points of a bulge were read through `sin π`, 1.2e-16, and a pole at the
+  frame's origin made a bulge of nothing. Two leaves on 0..300, one on
+  300..600, 0 after.
+- **The reading of a hair-off ball end** (lane S2, family B1, `adfa959` and
+  `afa66a1`): five leaves on 0..300, three on 300..600, all a sphere a hair
+  larger or smaller than its shaft, or a centre a hair above the axis with its
+  end a hair off it, which the reading could not lay. An arc leaving a pole
+  within the tolerance of tangent to the level its next run keeps is now laid
+  tangent, the pole sliding along the axis onto the circle.
+- **An apple's or a lemon's `Spans`** (lane S2, family D): a root of the
+  quartic on the mirror lobe was polished onto a crossing of the own lobe
+  already found. Five leaves on 0..300, three on 300..600, 0 after.
+- **Coaxial pairs with a round** (lane R, `30792d0` to `f660771`): a sphere
+  or a torus against a plane square to or holding its axis, a coaxial
+  cylinder, cone, sphere or torus now gives rims and meridians, a touch built
+  as one circle, `clear` passing a face apart, the side of a pair read from
+  its rims, and a whole ring's chart cut moved out of what a boolean keeps.
+  `Answers` fell from 6 220 at `ef7aacd` to 1 571 at `f660771`, `Spans` from
+  1 802 to 36. A ring turned part of the way is cut by a coaxial shaft, and a
+  ring a cylinder of another axis runs through declines (`f660771`).
+- **A block and a rounded ring standing apart could not be joined** (lane
+  F): the ring's torus face, an outer half bounded by its own two tangent
+  latitude circles, was read as a whole ring whose rims part nothing, so the
+  overlay dropped both circles and the join was declined as unverified. A
+  ring's tangent rims are dropped now only where every face on the torus is
+  whole. Found by the flip: `the_exact_kernel_turns.rs`'s turn of a rounded
+  rectangle beside a block, which the flats had computed until then.
+
+**Open:**
+
+- **34.1 in a thousand** at `f660771`: `Answers` 1 571, `Listed` 276,
+  `Closed` 233, `Uncrossed` 193, `Spans` 36, `Volume` 5. The `Answers` are a
+  pair with a round answered `Unsupported` or refused where the coaxial cases
+  should build, and are not triaged; the others are the boolean's, drawn on
+  fresh seeds as more rounded bodies build.
+- **The hair-off ball end of the harness**: a ball end a hair larger or
+  smaller than its shaft, which the kernel
+  lays tangent with its pole slid, while the harness's promise keeps the drawn
+  radius and centre. One leaf in 481 lone leaves — `Spans` — and 5 of 49 472
+  campaign cases, 0.1 in a thousand, `within_reach`; seeds 5576507978 and
+  5576516429, and 5576692721, 5576695548, 5576696191 at `f660771`, all lone
+  leaves with a 1e-5 hair.
+- **A ring torus turned onto a part that already holds matter** was
+  numbered by the flats' union in pieces: the boolean of the flats gives a
+  number of its own to every piece of a face its planes leave apart, so a
+  ring drawn as two halves of its tube and joined to a part on the flats
+  names seven faces turned whole and sixteen at 150° where the exact kernel
+  names its two halves, and four with the turn's two ends. On a part with
+  nothing else in it the two count alike, the exact kernel and `main`. A
+  drawing laid on one of those pieces may lose its face on replay — the
+  precedent #571 set for the steps after it.
+- **The harness handed a ring's section as two runs** where the application
+  hands a whole circle as one: the flats' sampling takes arcs of one circle
+  one after the other as one curve, and the exact kernel named a face per
+  half (seed 25 of the rounded draw, a ring turned 150°: four numbers
+  against three). The section's contour is now handed over a run per
+  circle, and `a_rounded_leaf_names_its_faces_as_the_flats_name_them` holds.
+- **A ball joined with a quarter shaft over its pole** fails `Backwards {
+  face: 0, lap: 0 }`; the test was written and left out of `f660771` because
+  it failed.
+- **A fillet or a shoulder whose two tangencies are both a hair off** still
+  declines in the reading, since its centre would have to move; the draw makes
+  fillets on the lattice, so no leaf shows it.
+- **The listing** accepts a face winding nought that holds two poles even with
+  loops, so it could not catch the wrong poles of family C; a face bounded by
+  a loop winding nought may legitimately hold both poles, and the reading is
+  left as it is.
+- **A coaxial wall a hair inside a ball** is not drawn in common with it
+  (`joined::beside` answers false for a round); no leaf of two campaign rounds
+  showed a crossing there.

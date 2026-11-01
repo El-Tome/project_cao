@@ -102,10 +102,11 @@ cylinders, then joined or cut exactly. A circle raised is a cylinder, not
 forty-eight flats inscribed in it, and its volume is the arithmetic's. How it
 decides, and what it cannot do yet, is [exact-kernel.md](exact-kernel.md).
 
-From the first **revolution**, or the first area bounded by an **ellipse**,
-the part is computed by **the flats** instead, and stays so: the exact kernel
-has no surface for either yet. Undoing that step gives the part back to the
-exact kernel.
+From the first area bounded by an **ellipse**, the part is computed by **the
+flats** instead, and stays so: the exact kernel has no surface an ellipse
+turns into. A **revolution** of straight runs or of arcs is the exact
+kernel's, an arc turning into a sphere or a torus since #576. Undoing that
+step gives the part back to the exact kernel.
 
 The flats go through a **binary space partition** (BSP): each volume becomes a
 tree of planes taken from its own faces, and the faces of the other volume are

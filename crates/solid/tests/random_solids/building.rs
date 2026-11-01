@@ -5,7 +5,7 @@ use cao_solid::turning::{self, Turn};
 use cao_solid::{Body, Declined, Loop};
 use glam::DVec2;
 
-use super::{Axis, Bow, CIRCLE_STEPS, Leaf, Outline, Section, Turned};
+use super::{Axis, Bow, CIRCLE_STEPS, Leaf, Outline, Piece, Section, Turned};
 
 /// The loops a prism is raised from, and the triangles its two ends are
 /// filled with.
@@ -657,8 +657,12 @@ impl Turned {
     /// kernel then declines as no profile it reads and the application turns
     /// on the flats (#576): a bowed section an arc of which crosses a run, or
     /// that a corner comes within the tolerance of, or that pinches the axis
-    /// anywhere but at its ends.
+    /// anywhere but at its ends. A section with no arc is never excused so:
+    /// what the reading declined before #576 stays a refusal.
     pub fn declines_to_lay(&self) -> bool {
+        if !self.section.pieces().iter().any(Piece::is_bowed) {
+            return false;
+        }
         let (frame, turn) = (self.frame(), self.turn(0.0));
         self.drawn().into_iter().any(|side| {
             let (outline, holes) = side.contours();

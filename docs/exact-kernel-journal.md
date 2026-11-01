@@ -1303,3 +1303,18 @@ coaxial pairs, a groove, an off-axis hole and a leaning plane. The campaign
 does not meet the bar: 34.1 cases in a thousand break a rule at `f660771`,
 `Answers` and the boolean's families first, and `exact-kernel-failures.md`
 counts them; campaign rounds follow, on seeds past every one used here.
+
+Lane C took two rounds, each failing seed of the first sorted by what broke
+and where. Half the refusals were the harness's: a bowed section the reading
+declines — an arc ending a hair off its circle — is no answer the exact
+kernel owes, and a face on a sphere or a torus is boxed by its whole surface,
+so a wall apart from a quarter torus is still related; both are counted now
+as the kernel decides them, and a section with no arc is refused as before.
+The listing found pointed a sphere's face holding one pole while its loop ran
+through the other, whose body was right. The round fell from 25.8 to 18.0 in
+a thousand on fresh seeds, `Answers` from 630 to 337 and `Listed` from 173 to
+129, and the rest did not move. Its largest family is a round combined with a
+coaxial turn of another extent: the ring's loop does not close across the
+chart's cut and the kernel declines it. Re-joining the loop across the cut
+built some of those right and others wrong where the kernel had declined
+safely, and was left out. The older draws give `main`'s verdicts bit for bit.

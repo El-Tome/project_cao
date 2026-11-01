@@ -2386,11 +2386,19 @@ round, run again on the fixed tree where the family was fixed; triage draws
 | rounded, after lane T's second round | `ef7aacd` | 5576500000 | 49 472 | 8 049 | 162.70 | 14 558 |
 | rounded, with relations and the boolean, round 1 | `bd79075` | 5576600000 | 68 625 | 2 601 | 37.90 | not recorded, Answers and Closed extracted alone |
 | rounded, with relations and the boolean, round 2 | `f660771` | 5576668625 | 67 860 | 2 314 | 34.10 | 19 173 beyond the conics, 13 hair-thin |
+| rounded, lane C round 1 | `b4f629b` | 5576800000 | 44 327 | 1 143 | 25.79 | 12 700 beyond the conics |
+| rounded, lane C round 2 | `3105e02` | 5576850000 | 45 154 | 814 | 18.03 | 12 898 beyond the conics, 188 bowed sections the reading declines, 4 hair-thin |
+| rounded, through the application's body, lane C round 2 | `3105e02` | 5576910000 | 8 198 | 187 | 22.81 | 2 396 beyond the conics |
 
 **The bar is not met.** One case in a thousand is the issue's; the last round
-stands at 34.1 in a thousand, by a factor of thirty-four. What the rounds
-fixed and what is left follow, and campaign rounds follow the lanes as lane C
-takes them, on seeds from 5576800000 and up, past every seed used here.
+stands at 18.0 in a thousand on the exact kernel and 22.8 through the
+application's body. Lane C's two rounds, on seeds from 5576800000 and up past
+every seed used before, moved `Answers` and `Listed` and left `Closed`,
+`Uncrossed`, `Spans` and `Volume` where they were: those families did not move
+in two rounds and are set aside, as the issue asks, below. The twelve older
+draws — 200 cases of each on the exact kernel and 60 through the application,
+from 5576950000 — give the same verdicts on `main` and on `d69c69c`, bit for
+bit.
 
 **Fixed:**
 
@@ -2443,14 +2451,56 @@ takes them, on seeds from 5576800000 and up, past every seed used here.
   ring's tangent rims are dropped now only where every face on the torus is
   whole. Found by the flip: `the_exact_kernel_turns.rs`'s turn of a rounded
   rectangle beside a block, which the flats had computed until then.
+- **Two of round 1's refusals were the harness's own** (lane C, `7553448`,
+  `d69c69c`): a bowed section the reading declines to lay — an arc whose end
+  stands a hair off its circle, 138 of 153, or one crossing itself — is no
+  answer the exact kernel owed, the application turning it on the flats; the
+  campaign counts it apart, a section with no arc never. And the kernel boxes
+  a face on a sphere or a torus by its whole surface, so a wall apart from a
+  quarter torus may still be related and declined; the scope rule reads the
+  same box. 257 of round 1's 630 `Answers`.
+- **A sphere's face holding one pole while its loop runs through the other**
+  (lane C, `59a2673`): the listing closed the loop along the floor of the pole
+  it passes through, as a cone's apex, and found the face pointed or
+  backwards; it winds once round the pole it holds. A face holding both poles
+  has no outside loop. The bodies were right: 24 of round 1's 173 `Listed`.
+- **The harness's rays through a spindle** (lane C, `3105e02`): a root of the
+  reflection across the axis was polished onto a crossing of the tube's own
+  circle; one leaf-alone `Spans`.
 
 **Open:**
 
-- **34.1 in a thousand** at `f660771`: `Answers` 1 571, `Listed` 276,
-  `Closed` 233, `Uncrossed` 193, `Spans` 36, `Volume` 5. The `Answers` are a
-  pair with a round answered `Unsupported` or refused where the coaxial cases
-  should build, and are not triaged; the others are the boolean's, drawn on
-  fresh seeds as more rounded bodies build.
+- **18.0 in a thousand** at `3105e02`, set aside: `Answers` 337, `Closed`
+  170, `Uncrossed` 152, `Listed` 129, `Spans` 20, `Volume` 6; through the
+  application's body `Answers` 137, `Uncrossed` 33, `Closed` 12, `Volume` 5.
+  The families, from round 1's 1 143 sorted one by one:
+  - **A round combined with a coaxial turn of another extent or sense** — a
+    quarter of a ball joined to a whole coaxial band, a whole ring cut by a
+    half turn: the kernel builds the boolean, its own check finds a loop on
+    the ring torus that does not close across the chart's cut, or an edge used
+    once, and declines `Unverified`, 249 of round 1's `Answers` (shrunk:
+    5576800479, 5576800792, 5576800961, 5576800514). Through the body the step
+    is refused. The same shape, in round numbers, is behind the `Closed` and
+    `Listed` `Backwards` left (5576801941, 5576805400, 5576802264,
+    5576808278). Re-joining the ring's loops across the cut built 82 more of
+    round 1's cases right and 90 wrong — `Spans` finding no matter, `Open`,
+    `Backwards`, `Crossing` — where the kernel had declined safely: set aside
+    unlanded.
+  - **Hairs**: 108 of 151 `Uncrossed` are a coaxial rim 1e-8 to 1e-7 inside or
+    outside the sphere's (5576800624, 5576800706, 5576800899); 13 of 15
+    leaf-alone `Spans`, the 6 leaf-alone `Volume`, a `Pointed` (5576809934).
+  - **Ties**, 76 of round 1's `Answers`: a region no column brackets in
+    `overlay/partition.rs` (41), the order of a star (18), a partition's cycle
+    (8), `selection/wrapped.rs` (6), the ray's winding (3) — two curves
+    touching more closely than their curvatures order (5576801218,
+    5576800781).
+  - **A straight edge traced on a round**, 45: a round meeting a circular
+    prism whose plane stands a hair off its own (`0.5000002` against `0.5`;
+    5576800874, 5576801314), declined at `domain/traced.rs`.
+  - **Horn tori turned part way**, two leaves alone: an extra crossing at the
+    pinch (5576818601), crossings outside the turn's window (5576842963).
+  - A turned band with its axis a hair off, cut by a rounded prism, holds no
+    round at all and is not #576's (5576800031).
 - **The hair-off ball end of the harness**: a ball end a hair larger or
   smaller than its shaft, which the kernel
   lays tangent with its pole slid, while the harness's promise keeps the drawn

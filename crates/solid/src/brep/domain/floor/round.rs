@@ -3,14 +3,17 @@
 //! stretches of them a loop through a pole is closed along, and the cut of
 //! a ring's chart a face winding round the tube is closed along.
 
-use std::f64::consts::{PI, TAU};
+use std::f64::consts::TAU;
 
 use glam::{DVec2, DVec3};
+
+mod ring;
 
 use super::super::crossing::heights;
 use super::{interleaved, turning, whole};
 use crate::brep::surface::Surface;
 use crate::brep::trace::Trace;
+use ring::{closing, cut};
 
 /// A pole of a sphere or a torus: the line of the chart it is read as, which
 /// end of the chart it closes, how far from the line a trace may end and
@@ -75,7 +78,8 @@ impl Pole {
 /// crosses an odd number of times in all; the loops of a `flipped` face run
 /// the other way round in the chart. A face with no loop on a ring, which
 /// has no pole, is the whole window of the chart, closed along the cut the
-/// chart is centred on `seam` away from.
+/// chart is centred on `seam` away from, and a face reaching across the cut
+/// is closed along what it reaches of it ([`closing`]).
 pub(in crate::brep::domain) fn closed_round(
     poles: &[Pole],
     loops: Vec<Vec<Trace>>,
@@ -89,7 +93,11 @@ pub(in crate::brep::domain) fn closed_round(
         .iter()
         .map(|pole| holds(&loops, pole, flipped))
         .collect();
-    let cut = wraps(&loops, seam);
+    let cuts = if poles.is_empty() {
+        closing(&loops, seam, flipped)
+    } else {
+        Vec::new()
+    };
     let mut closed = loops;
     for pole in poles {
         closed = closed
@@ -106,29 +114,8 @@ pub(in crate::brep::domain) fn closed_round(
             closed.push(whole_round(pole, turns, false));
         }
     }
-    if !cut.is_empty() {
-        closed.push(cut);
-    }
+    closed.extend(cuts);
     closed
-}
-
-/// The lap of the chart's two cuts that closes a face of a ring between the
-/// angles `left` and `right` about the axis: the window's top, at `seam + π`
-/// along the meridian, run from `right` to `left`, and its bottom, at
-/// `seam − π`, run back, so that a ray up the meridian from anywhere in the
-/// window between them crosses the top once. A face with no loop is the
-/// whole window.
-fn cut(seam: f64, right: f64, left: f64) -> Vec<Trace> {
-    vec![
-        Trace::Segment {
-            from: DVec2::new(right, seam + PI),
-            to: DVec2::new(left, seam + PI),
-        },
-        Trace::Segment {
-            from: DVec2::new(left, seam - PI),
-            to: DVec2::new(right, seam - PI),
-        },
-    ]
 }
 
 /// The angle a torus's chart is centred on, whose antipode the chart is cut
@@ -179,34 +166,6 @@ fn joins_round(lap: &[Trace], pole: &Pole, flipped: bool) -> Vec<Option<Trace>> 
         .collect()
 }
 
-/// The lap of the two stretches of the chart's cut that closes a face of a
-/// torus whose loops wind round the tube — a ring turned part of the way,
-/// bounded by two whole meridians and nothing else: the loop running the
-/// angle along the meridian up keeps the face on the side where the angle
-/// about the axis falls, the one running it down on the other, and between
-/// the two the face reaches the cut at the top and at the bottom of the
-/// window centred on `seam`. None where no loop winds so, or more than two
-/// do.
-fn wraps(loops: &[Vec<Trace>], seam: Option<f64>) -> Vec<Trace> {
-    let winding: Vec<(f64, bool)> = loops
-        .iter()
-        .filter_map(|lap| match lap[..] {
-            [Trace::Segment { from, to }] if from.x == to.x && (to.y - from.y).abs() > PI => {
-                Some((from.x, to.y > from.y))
-            }
-            _ => None,
-        })
-        .collect();
-    let (&[(one, one_up), (other, other_up)], Some(seam)) = (winding.as_slice(), seam) else {
-        return Vec::new();
-    };
-    if one_up == other_up {
-        return Vec::new();
-    }
-    let (right, left) = if one_up { (one, other) } else { (other, one) };
-    cut(seam, right, right - (right - left).rem_euclid(TAU))
-}
-
 /// The stretches of the floors alone that close a face on a sphere or a
 /// torus, each laid exactly on its pole's line: what a loop through a pole
 /// is closed along, and the whole floor of each pole the face holds, which
@@ -221,7 +180,14 @@ pub(in crate::brep) fn floors_round(
         .iter()
         .map(|pole| holds(loops, pole, flipped))
         .collect();
-    let mut floors = wraps(loops, seam);
+    let mut floors: Vec<Trace> = if poles.is_empty() {
+        closing(loops, seam, flipped)
+            .into_iter()
+            .flatten()
+            .collect()
+    } else {
+        Vec::new()
+    };
     let mut closed = loops.to_vec();
     for pole in poles {
         closed = closed

@@ -12,10 +12,13 @@
 //! along its floor from the angle it comes in at to the angle it leaves at,
 //! and a face holding one within it takes the whole floor as a loop of its
 //! own, the other way round from its rims. A face of a ring winding round
-//! the tube between two whole meridians, and a whole ring with no loop at
-//! all, are closed along the cut of the chart; a whole ball along its two
-//! floors; the walls closing a face cut open at an angle are the cone's.
+//! the tube between two whole meridians, one whose loops cross the cut
+//! along meridians a rim parts or that holds the whole cut ([`crossed`]),
+//! and a whole ring with no loop at all, are closed along the cut of the
+//! chart; a whole ball along its two floors; the walls closing a face cut
+//! open at an angle are the cone's.
 
+mod crossed;
 mod floors;
 
 use std::collections::BTreeMap;
@@ -91,11 +94,25 @@ impl Outline {
                 }
             }
         }
-        if !winding.is_empty() {
-            if winding.len() != 2 || laps.len() != 2 {
-                return None;
-            }
+        let ring = round.cut().is_some() && round.poles(eps).is_empty();
+        let crossing = ring
+            && round.cut().is_some_and(|top| {
+                laps.iter().flatten().any(|id| {
+                    let phi = round.parameters(samples.point(*id)).y;
+                    standing
+                        .get(id)
+                        .is_some_and(|stands| stands.theta.is_some())
+                        && ((phi - top + PI).rem_euclid(TAU) - PI).abs() <= lattice.room
+                })
+            });
+        let holds =
+            ring && winding.is_empty() && crossed::holds_the_cut(samples, round, laps, &standing);
+        if winding.len() == 2 && laps.len() == 2 {
             self.wound(samples, laps, &standing, &lattice)?;
+        } else if crossing || holds {
+            self.crossed(samples, laps, &standing, &mut lattice)?;
+        } else if !winding.is_empty() {
+            return None;
         } else if laps.is_empty() && round.poles(eps).is_empty() {
             self.whole_ring(samples, round, &mut lattice)?;
         } else {
@@ -115,7 +132,7 @@ impl Outline {
         lattice: &Lattice,
         eps: f64,
     ) -> Option<()> {
-        let (round, steps, rows) = (&lattice.round, lattice.steps, lattice.rows);
+        let (round, steps) = (&lattice.round, lattice.steps);
         let mut read: BTreeMap<usize, DVec2> = BTreeMap::new();
         for lap in laps {
             let mut last: Option<f64> = None;
@@ -134,7 +151,7 @@ impl Outline {
                         }
                     }
                 };
-                let phi = stands.phi.unwrap_or_else(|| on_a_row(raw.y, rows));
+                let phi = stands.phi.unwrap_or_else(|| on_a_level(raw.y, lattice));
                 last = Some(theta);
                 read.insert(id, DVec2::new(theta, phi));
             }
@@ -273,6 +290,20 @@ impl Outline {
         }
         Some(())
     }
+}
+
+/// Where a meridian's sample read back at `phi` is laid along the meridian:
+/// at the level of its faces it was sampled on, or the row of the lattice's
+/// grid, where it stands within [`ON_A_ROW`] of one; at `phi` itself
+/// otherwise. Read back from the sample's point, a level comes back an ulp
+/// off now and then, and the strips compare every coordinate bit for bit.
+fn on_a_level(phi: f64, lattice: &Lattice) -> f64 {
+    lattice
+        .levels
+        .iter()
+        .copied()
+        .find(|level| (phi - level).abs() <= ON_A_ROW)
+        .unwrap_or_else(|| on_a_row(phi, lattice.rows))
 }
 
 /// The row of a grid of `rows` rows a turn `phi` stands on, where it stands

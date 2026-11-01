@@ -26,7 +26,7 @@ use super::selection::selected;
 use super::topology::{Body, SurfaceId};
 pub(super) use operands::Operands;
 use related::Special;
-use seamed::seamed;
+use seamed::{reseamed, seamed};
 use slid::slid;
 use unstable::unstable;
 
@@ -81,6 +81,7 @@ pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Resu
     let unstable = unstable(&operands);
     let mut arena = laid(&operands)?;
     seamed(&mut arena, &operands, operation);
+    reseamed(&mut arena, &operands);
     let faces = selected(&operands, &arena, operation)?;
     assembled(arena, faces).map(|body| body.noted(unstable))
 }

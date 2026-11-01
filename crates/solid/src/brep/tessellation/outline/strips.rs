@@ -37,7 +37,9 @@ pub(super) struct Lattice {
     pub(super) round: Rounded,
     pub(super) steps: usize,
     pub(super) rows: usize,
-    levels: Vec<f64>,
+    /// The angles along the meridian bounding the faces of the round where
+    /// the face lies, which no row stands within the room of.
+    pub(super) levels: Vec<f64>,
     /// How close to a level, along the meridian, no row stands: the room
     /// the sampling leaves at the tube's radius.
     pub(super) room: f64,

@@ -597,7 +597,7 @@ fn a_slanted_profile_is_turned_by_the_exact_kernel_through_the_body() {
 }
 
 #[test]
-fn a_profile_with_an_arc_is_turned_by_the_flats_through_the_body() {
+fn a_profile_with_an_arc_is_turned_exactly_through_the_body() {
     let center = DVec2::new(6.0, 2.0);
     let points: Vec<DVec2> =
         std::iter::once(DVec2::new(2.0, 0.0))
@@ -631,10 +631,11 @@ fn a_profile_with_an_arc_is_turned_by_the_flats_through_the_body() {
     let part = part();
     let tool = part
         .tool_turned(&profile, ground(), &about_the_sketch_s_y(TAU, &profile))
-        .expect("the flats turn what the kernel cannot");
+        .expect("the exact kernel turns the arc");
     let turned = part.union(&tool).expect("the turn joins the part");
-    assert!(!turned.is_exact());
-    assert!(turned.volume() > 500.0);
+    assert!(turned.is_exact());
+    let volume = 500.0 + 128.0 * PI + 24.0 * PI * PI + 32.0 * PI / 3.0;
+    assert!((turned.volume() - volume).abs() <= 1e-9 * volume);
 }
 
 #[test]

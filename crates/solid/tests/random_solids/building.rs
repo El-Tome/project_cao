@@ -431,7 +431,7 @@ impl Drawn {
                 })
                 .collect(),
         };
-        let exact = placed(&contour);
+        let exact = placed(&one_run_per_circle(&contour));
         Drawn {
             outline: outline.iter().map(|corner| axis.at(*corner)).collect(),
             curves,
@@ -441,7 +441,10 @@ impl Drawn {
                 .collect(),
             triangles,
             exact,
-            exact_holes: holes.iter().map(placed).collect(),
+            exact_holes: holes
+                .iter()
+                .map(|hole| placed(&one_run_per_circle(hole)))
+                .collect(),
         }
     }
 
@@ -464,6 +467,49 @@ impl Drawn {
             triangles: &self.triangles,
         }
     }
+}
+
+/// The runs of a contour as the application's walk hands them: arcs of one
+/// circle one after the other are one run, since `outlines::sampled` samples
+/// them as one curve and the walk hands each stretch of one curve as one run
+/// — a whole circle, the two halves a ring's section bows into, a single run
+/// from its one corner. Handed as two, the exact kernel would name a face per
+/// half where the flats name one.
+fn one_run_per_circle(contour: &Contour) -> Contour {
+    let circle = |index: usize| match contour.runs[index] {
+        Run::Round { center, .. } => Some((center, contour.corners[index].distance(center))),
+        Run::Straight | Run::Oval { .. } => None,
+    };
+    let mut corners: Vec<DVec2> = Vec::new();
+    let mut runs: Vec<Run> = Vec::new();
+    let mut circles: Vec<Option<(DVec2, f64)>> = Vec::new();
+    for index in 0..contour.runs.len() {
+        let this = circle(index);
+        if let (
+            Some(this),
+            Some(Some(last)),
+            Some(Run::Round { turn, .. }),
+            Run::Round { turn: more, .. },
+        ) = (this, circles.last(), runs.last_mut(), contour.runs[index])
+            && *last == this
+        {
+            *turn += more;
+            continue;
+        }
+        corners.push(contour.corners[index]);
+        runs.push(contour.runs[index]);
+        circles.push(this);
+    }
+    if runs.len() > 1
+        && circles[0].is_some()
+        && circles.first() == circles.last()
+        && let (Some(Run::Round { turn: more, .. }), Some(corner)) = (runs.pop(), corners.pop())
+        && let Run::Round { turn, .. } = &mut runs[0]
+    {
+        *turn += more;
+        corners[0] = corner;
+    }
+    Contour { corners, runs }
 }
 
 /// A band of a section as the polygon its ends are filled with, its bowed

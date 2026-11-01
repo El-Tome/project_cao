@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::brep::{Declined, Unstable};
 use crate::mesh::{Mesh, Polygon};
-use crate::profile::{Frame, Profile, Run};
+use crate::profile::{Frame, Profile};
 use crate::sweep;
 use crate::turning::{Lie, Straight, Turn};
 use exact::Exact;
@@ -102,9 +102,9 @@ impl Body {
     }
 
     /// A profile turned about an axis lying in its plane, in the kernel this
-    /// body is computed by: exact when the body is and every run of the
-    /// profile is straight, flats for an arc or a profile the exact kernel
-    /// cannot lay against its axis. A turn that makes nothing is an empty
+    /// body is computed by: exact when the body is and the exact kernel can
+    /// lay the profile against its axis, arcs and all (#576); flats for an
+    /// ellipse or a profile it cannot lay. A turn that makes nothing is an empty
     /// body; an area across its axis is declined, since each side of it is
     /// turned apart. Declined otherwise only by the exact kernel.
     pub fn tool_turned(
@@ -313,15 +313,6 @@ impl Body {
         let (Matter::Exact(exact), Some((outline, holes))) = (&self.matter, &profile.exact) else {
             return None;
         };
-        // The exact kernel turns an arc (#576), but the step that hands it one
-        // is the last of the issue: until it lands, the flats turn every arc,
-        // and every part keeps the faces it has today.
-        if std::iter::once(outline)
-            .chain(holes)
-            .any(|contour| contour.runs.iter().any(|run| *run != Run::Straight))
-        {
-            return None;
-        }
         Straight::of(outline, holes, frame, turn, exact.reach())
     }
 

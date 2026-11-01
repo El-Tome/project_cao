@@ -6,15 +6,15 @@
 //!   `a_hole_flush_but_for_a_hair_comes_out_closed`,
 //!   `a_disc_joined_across_a_block_s_side_holds_the_arithmetics_volume`,
 //!   `a_hole_drilled_right_through_a_hexagonal_bar_is_cut`
-//! - once a revolution is in the history, the part is computed by the flats
-//!   from that step on (since #536, a revolution of an arc; one of straight
-//!   runs is the exact kernel's, `the_exact_kernel_turns_the_part.rs`) —
-//!   `a_part_turned_into_a_torus_is_computed_by_the_flats_from_that_step_on`,
+//! - a revolution of a profile of straight runs or an arc stays on the exact
+//!   kernel from that step on (a band of a torus since #576); only a
+//!   revolution of an ellipse goes to the flats —
+//!   `a_part_turned_into_a_torus_stays_exact_from_that_step_on`,
 //!   `undoing_the_turn_gives_the_part_back_to_the_exact_kernel`; an ellipse
 //!   raised is the exact kernel's since #571 —
 //!   `a_part_with_an_ellipse_raised_stays_exact_from_that_step_on` — and the
 //!   flats' on a part already on them —
-//!   `an_ellipse_raised_after_a_turned_arc_is_computed_by_the_flats`
+//!   `an_ellipse_raised_on_a_part_already_on_the_flats_is_computed_by_the_flats`
 //! - an operation the exact kernel declines is a broken step —
 //!   `a_raise_crossing_a_post_at_a_skew_angle_is_a_broken_step` (since #552 the
 //!   raise meeting a block at a slant is built,
@@ -60,10 +60,10 @@
 //!   test: it is prose, held by `language.rs` and by nothing that asserts
 //!
 //! The part a history describes, computed by the exact kernel wherever it can
-//! and by the flats from the first step it cannot: a revolution of an arc or
-//! of an ellipse, which turns into a sphere or a torus the exact kernel has
-//! no surface for. An ellipse raised is the exact kernel's since #571
-//! (`the_exact_kernel_raises_an_ellipse.rs`). The screen's side — the notice and the tree row
+//! and by the flats from the first step it cannot: a revolution of an ellipse,
+//! which turns into an elliptic torus the exact kernel has no surface for. An
+//! arc turned is the exact kernel's since #576, and an ellipse raised since
+//! #571 (`the_exact_kernel_raises_an_ellipse.rs`). The screen's side — the notice and the tree row
 //! a declined step shows — is `cao_app`'s, tested beside its presenters.
 
 use std::f64::consts::{PI, TAU};
@@ -245,8 +245,7 @@ fn inscribed(radius: f64) -> f64 {
 
 /// A round segment, an arc and its chord, turned about the sketch's own V
 /// axis far from anything at the origin: its arc turns into a band of a
-/// torus, matter only the flats can make. A whole circle would do as well,
-/// but its flats take the flats' boolean minutes to join in a debug build.
+/// torus.
 fn turn_a_torus(history: &mut History, sketch: usize) {
     sketch_on(history, WorkPlane::XY);
     let first = PartState::rebuild(history).sketches[sketch].points().len();
@@ -272,15 +271,54 @@ fn turn_a_torus(history: &mut History, sketch: usize) {
     });
 }
 
+/// An ellipse 10 by 6 about (50, 5) drawn in `sketch` and turned a quarter
+/// about the sketch's own V axis: an elliptic band, which only the flats
+/// make.
+fn turn_an_elliptic_band(history: &mut History, sketch: usize) {
+    sketch_on(history, WorkPlane::XY);
+    let center = DVec2::new(50.0, 5.0);
+    history.push(Operation::AddEllipse {
+        sketch,
+        center: PointRef::New(center),
+        first: [
+            PointRef::New(center - DVec2::X * 5.0),
+            PointRef::New(center + DVec2::X * 5.0),
+        ],
+        second: [
+            PointRef::New(center - DVec2::Y * 3.0),
+            PointRef::New(center + DVec2::Y * 3.0),
+        ],
+        construction: false,
+        drawn: None,
+    });
+    history.push(Operation::Revolve {
+        sketch,
+        areas: clicked(history, sketch, center),
+        axis: RevolutionAxis::Sketch(SketchAxis::V),
+        angle: 90.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+}
+
+/// The volume Pappus gives the segment an arc of `radius` and its chord
+/// close, the chord `chord` from the circle's centre, turned whole about an
+/// axis `distance` from that centre.
+fn a_segment_turned_whole(radius: f64, chord: f64, distance: f64) -> f64 {
+    let half = (chord / radius).acos();
+    let area = radius * radius * half - chord * chord * half.tan();
+    let centroid = 2.0 / 3.0 * (radius.powi(3) * half.sin() - chord.powi(3) * half.tan()) / area;
+    TAU * (distance + centroid) * area
+}
+
 #[test]
-fn a_part_turned_into_a_torus_is_computed_by_the_flats_from_that_step_on() {
+fn a_part_turned_into_a_torus_stays_exact_from_that_step_on() {
     let mut history = History::default();
     sketch_on(&mut history, WorkPlane::XY);
     circle(&mut history, 0, DVec2::ZERO, 20.0);
     raise(&mut history, 0, DVec2::ZERO, 10.0, ExtrusionMode::Add);
     let before_the_turn = PartState::rebuild(&history).body.volume();
     turn_a_torus(&mut history, 1);
-    let turned = PartState::rebuild(&history).body.volume();
+    let turned = PartState::rebuild(&history);
     sketch_on(&mut history, WorkPlane::XY);
     circle(&mut history, 2, DVec2::new(0.0, 100.0), 20.0);
     raise(
@@ -290,17 +328,30 @@ fn a_part_turned_into_a_torus_is_computed_by_the_flats_from_that_step_on() {
         10.0,
         ExtrusionMode::Add,
     );
-    let after_the_turn = PartState::rebuild(&history).body.volume();
+    let after_the_turn = PartState::rebuild(&history);
 
     assert_near(
         before_the_turn,
         PI * 400.0 * 10.0,
         "the Ø40 raised before the turn",
     );
+    assert!(
+        turned.body.is_exact(),
+        "the band of a torus the arc turns stays on the exact kernel",
+    );
     assert_near(
-        after_the_turn - turned,
-        inscribed(20.0) * 10.0,
-        "the Ø40 raised after the turn, by the flats",
+        turned.body.volume() - before_the_turn,
+        a_segment_turned_whole(5.0 * 2f64.sqrt(), 5.0, 50.0),
+        "the band of a torus, by Pappus",
+    );
+    assert!(
+        after_the_turn.body.is_exact(),
+        "the part stays on the exact kernel",
+    );
+    assert_near(
+        after_the_turn.body.volume() - turned.body.volume(),
+        PI * 400.0 * 10.0,
+        "the Ø40 raised after the turn, on its true cylinder",
     );
 }
 
@@ -1044,9 +1095,9 @@ fn a_part_with_an_ellipse_raised_stays_exact_from_that_step_on() {
 /// The flats sample an ellipse at 48 steps of its eccentric angle: a
 /// polygon squashed from the one of 48 sides inscribed in a circle.
 #[test]
-fn an_ellipse_raised_after_a_turned_arc_is_computed_by_the_flats() {
+fn an_ellipse_raised_on_a_part_already_on_the_flats_is_computed_by_the_flats() {
     let mut history = History::default();
-    turn_a_torus(&mut history, 0);
+    turn_an_elliptic_band(&mut history, 0);
     let turned = PartState::rebuild(&history).body.volume();
     sketch_on(&mut history, WorkPlane::XY);
     raise_an_ellipse(&mut history, 1, DVec2::new(-50.0, -50.0));

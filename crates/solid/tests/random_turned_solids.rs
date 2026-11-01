@@ -90,8 +90,9 @@
 //! alone, so a decline as unsupported is excused only on a case asking
 //! beyond them (`Case::asks_a_round_beyond_its_circles`): a plane at a
 //! slant, a block's side, a hole or a cone off the axis. The exact kernel
-//! declines a profile with an arc today, so the tests that need it are
-//! ignored until it turns one. The gate holds the drawn rounded leaves off
+//! turns a profile with an arc into the sphere or torus it sweeps (#576),
+//! each run of the section's contour handed over as the application hands
+//! it, a whole circle as one. The gate holds the drawn rounded leaves off
 //! their axis to the flats, as it holds the turned and the slanted ones; a
 //! whole rounded case on the flats takes the better part of a minute where
 //! a torus is cut several times, so the cases are held to them once, by
@@ -1804,7 +1805,26 @@ fn raised_alone_keep_every_rule_and_enclose_pappus_s_volume(leaves: &[Leaf]) {
             failed.push(format!("{leaf}: {flaw:?}"));
         }
         let turn = turned(leaf).expect("a turn");
+        let read = match turn.drawn().as_slice() {
+            [side] => {
+                let (outline, holes) = side.contours();
+                Some(Straight::of(
+                    &outline,
+                    &holes,
+                    turn.frame(),
+                    &turn.turn(0.0),
+                    0.0,
+                ))
+            }
+            _ => None,
+        };
         let volume = match volume {
+            Err(Declined::Profile)
+                if turn.section.bows() && read.as_ref().is_some_and(|laid| laid.is_none()) =>
+            {
+                bowed.declined += 1;
+                continue;
+            }
             Err(Declined::Profile) if turn.has_a_wall_a_hair_thin() => continue,
             Ok(volume) => volume,
             Err(declined) => {
@@ -1816,17 +1836,7 @@ fn raised_alone_keep_every_rule_and_enclose_pappus_s_volume(leaves: &[Leaf]) {
         if (volume - promised).abs() > 1e-9 * promised + laying_room(&turn) {
             failed.push(format!("{leaf}: {volume} against {promised}"));
         }
-        if let [side] = turn.drawn().as_slice() {
-            let (outline, holes) = side.contours();
-            let Some(straight) = Straight::of(&outline, &holes, turn.frame(), &turn.turn(0.0), 0.0)
-            else {
-                assert!(
-                    turn.section.bows(),
-                    "{leaf}: not laid, though the reading declines a bowed section only"
-                );
-                bowed.declined += 1;
-                continue;
-            };
+        if let Some(Some(straight)) = read {
             bowed.laid += usize::from(turn.section.bows());
             let laid = turn.angle() * moment_laid(&straight);
             if (volume - laid).abs() > 1e-9 * laid {
@@ -4414,11 +4424,19 @@ fn a_bent_run_is_probed_on_its_arc_along_the_normal_there_and_a_straight_run_acr
     }
     let arcs: usize = by_hand
         .iter()
-        .map(|leaf| arcs_of(&turned(leaf).expect("a turn").section).len())
+        .flat_map(|leaf| turned(leaf).expect("a turn").drawn())
+        .map(|side| {
+            let (outline, holes) = side.contours();
+            std::iter::once(&outline)
+                .chain(&holes)
+                .flat_map(|contour| &contour.runs)
+                .filter(|run| matches!(run, Run::Round { .. }))
+                .count()
+        })
         .sum();
     assert_eq!(
         bent, arcs,
-        "every arc of the leaves by hand laid and probed"
+        "every arc of the leaves by hand, a whole circle as one, laid and probed"
     );
 }
 
@@ -5465,7 +5483,6 @@ fn the_rounded_generator_draws_every_kind_it_keeps() {
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn every_rounded_leaf_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_pappus_s_volume()
  {
     let leaves = drawn_rounds(80);
@@ -5474,7 +5491,6 @@ fn every_rounded_leaf_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encl
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_rounded_leaf_names_its_faces_as_the_flats_name_them() {
     let leaves: Vec<Leaf> = drawn_rounds(120)
         .into_iter()
@@ -5490,14 +5506,12 @@ fn a_rounded_leaf_names_its_faces_as_the_flats_name_them() {
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn rounded_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact() {
     let held = kept_through_the_application_s_body_and_exact(Case::drawn_rounded, 0..8);
     assert!(held > 3, "{held} cases held");
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn random_rounded_cases_keep_every_rule_on_the_exact_kernel() {
     keep_every_rule_on_the_exact_kernel(Case::drawn_rounded, 0..16);
 }

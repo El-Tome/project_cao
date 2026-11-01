@@ -637,3 +637,57 @@ fn a_ring_cut_from_a_body_with_a_sloping_bore_is_listed_sound() {
         cut.volume()
     );
 }
+
+/// The volume of the rounded rectangle of `the_exact_kernel_turns`' profile
+/// turned whole, by Pappus: the rectangle [2,6]×[0,4] (area 16, centroid at
+/// radius 4) plus the half disc of radius 2 centred at radius 6 (area 2π,
+/// centroid at radius 6 + 8/(3π)).
+const ROUNDED_RECT: f64 = 128.0 * PI + 24.0 * PI * PI + 32.0 * PI / 3.0;
+
+/// A rectangle [2,6]×[0,4] whose side at radius 6 bulges out as a half disc
+/// of radius 2, laid as `(h, r)`.
+fn rounded_rect() -> Straight {
+    bent(&[&[
+        ([0.0, 2.0], None),
+        ([0.0, 6.0], Some(([2.0, 6.0], -PI))),
+        ([4.0, 6.0], None),
+        ([4.0, 2.0], None),
+    ]])
+}
+
+/// A block standing far apart from the ring is joined with it, or cut from
+/// it: each body keeps its own matter, and the ring's volume holds by Pappus.
+#[test]
+fn a_rounded_rectangle_turned_whole_or_a_quarter_joins_and_cuts_a_block_apart() {
+    let far = block([20.0, 20.0, 0.0], [30.0, 30.0, 5.0]);
+    for (what, ring, volume) in [
+        (
+            "a rounded rectangle",
+            turned(&rounded_rect(), 360.0),
+            ROUNDED_RECT,
+        ),
+        (
+            "a quarter of it",
+            turned(&rounded_rect(), 90.0),
+            ROUNDED_RECT / 4.0,
+        ),
+    ] {
+        held(&ring, volume, &format!("{what} alone"));
+        let joined = ring.joined(&far).expect(what);
+        held(
+            &joined,
+            volume + 500.0,
+            &format!("{what} joined with a block apart"),
+        );
+        let joined = far.joined(&ring).expect(what);
+        held(
+            &joined,
+            volume + 500.0,
+            &format!("a block joined with {what} apart"),
+        );
+        let cut = ring.cut_by(&far).expect(what);
+        held(&cut, volume, &format!("{what} cut by a block apart"));
+        let cut = far.cut_by(&ring).expect(what);
+        held(&cut, 500.0, &format!("a block cut by {what} apart"));
+    }
+}

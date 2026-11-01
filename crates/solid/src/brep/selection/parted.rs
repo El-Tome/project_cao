@@ -50,11 +50,15 @@ pub(super) fn held_poles(operands: &Operands, surface: SurfaceId) -> Vec<DVec3> 
 /// it leaves by, the other starting at a tip on the floor it comes back
 /// through. A rim along which another surface
 /// only touches a whole ring — a slab resting on its crest — parts nothing:
-/// a ring whose arcs are all such rims is read whole.
+/// a ring whose arcs are all such rims is read whole. That holds only where
+/// the ring's own face is whole, `whole`; a ring whose face is bounded by
+/// its own tangent rims — a meridian arc's two latitude circles — keeps
+/// them.
 pub(super) fn parted(
     arena: &Arena,
     surface: SurfaceId,
     held: &[DVec3],
+    whole: bool,
 ) -> Result<(Vec<EdgeId>, Overlay), Declined> {
     let body = &arena.body;
     let geometry = body.surface(surface);
@@ -82,7 +86,7 @@ pub(super) fn parted(
         Some(seam) if poles.is_empty() => vec![seam - PI, seam + PI],
         _ => Vec::new(),
     };
-    if !cut.is_empty() && edges.iter().all(|edge| touching(arena, surface, *edge)) {
+    if whole && !cut.is_empty() && edges.iter().all(|edge| touching(arena, surface, *edge)) {
         edges.clear();
     }
     let at_a_pole = |vertex: VertexId| {

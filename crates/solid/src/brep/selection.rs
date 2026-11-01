@@ -42,7 +42,14 @@ pub(super) fn selected(
         .collect();
     let parted = carried
         .iter()
-        .map(|surface| parted(arena, *surface, &held_poles(operands, *surface)))
+        .map(|surface| {
+            let whole = (0..2).all(|operand| {
+                operands.lying[operand][surface.0 as usize]
+                    .iter()
+                    .all(|&face| operands.bodies[operand].face(face).loops.is_empty())
+            });
+            parted(arena, *surface, &held_poles(operands, *surface), whole)
+        })
         .collect::<Result<Vec<_>, _>>()?;
     let seen: Vec<(&Surface, &[EdgeId], &Overlay)> = carried
         .iter()

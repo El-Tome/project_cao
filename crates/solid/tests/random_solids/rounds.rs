@@ -286,7 +286,10 @@ impl Round {
     }
 
     /// Where the line crosses the tube, in order along it: the roots of the
-    /// quartic on the tube's own lobe, or of the quadratic of a sphere.
+    /// quartic on the tube's own lobe, or of the quadratic of a sphere. A
+    /// root on the mirror lobe is left where it is, not polished: Newton's
+    /// steps on the own circle would take it there, onto a crossing already
+    /// found, and an odd extra crossing would throw the pairing off.
     fn crossings(&self, seen: &Seen, reach: f64) -> Vec<f64> {
         let (a, b, c) = (
             seen.step.length_squared(),
@@ -295,7 +298,7 @@ impl Round {
         );
         let (d, e) = (seen.rise, seen.level - self.center.x);
         let (cy, r) = (self.center.y, self.radius);
-        let mut roots = if cy == 0.0 {
+        let roots = if cy == 0.0 {
             real_roots(&[c + e * e - r * r, b + 2.0 * d * e, a + d * d])
         } else {
             let (alpha, beta, gamma) = (a + d * d, b + 2.0 * d * e, c + cy * cy + e * e - r * r);
@@ -307,13 +310,30 @@ impl Round {
                 alpha * alpha,
             ])
         };
-        for root in &mut roots {
-            *root = self.polished(seen, *root);
+        let mut kept = Vec::new();
+        for root in roots {
+            if self.on_the_mirror_lobe(seen, root) {
+                continue;
+            }
+            let root = self.polished(seen, root);
+            if root.is_finite() && self.off(seen, root).abs() <= ON_THE_TUBE * reach {
+                kept.push(root);
+            }
         }
-        roots.retain(|root| root.is_finite() && self.off(seen, *root).abs() <= ON_THE_TUBE * reach);
-        roots.sort_by(f64::total_cmp);
-        roots.dedup_by(|one, other| (*one - *other).abs() <= ON_THE_TUBE * reach);
-        roots
+        kept.sort_by(f64::total_cmp);
+        kept.dedup_by(|one, other| (*one - *other).abs() <= ON_THE_TUBE * reach);
+        kept
+    }
+
+    /// Whether the line's point `at` stands nearer the tube's mirror circle
+    /// across the axis than its own: the quartic holds both alike, and on a
+    /// spindle the two are two surfaces, of which only the own circle's is
+    /// this one.
+    fn on_the_mirror_lobe(&self, seen: &Seen, at: f64) -> bool {
+        let (away, along) = self.seen(seen, at);
+        let own = ((away - self.center.y).hypot(along) - self.radius).abs();
+        let mirror = ((away + self.center.y).hypot(along) - self.radius).abs();
+        mirror < own
     }
 
     /// Where the line lies inside the tube, in order along it.
@@ -341,4 +361,52 @@ impl Round {
 pub(super) fn tube(seen: &Seen, center: DVec2, radius: f64) -> Vec<Stretch> {
     let reach = seen.start.length().max(seen.level.abs()).max(radius) + center.abs().max_element();
     Round { center, radius }.inside(seen, reach.max(1.0))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The line at height nought across the axis, running along the radius:
+    /// `away` is the line's place, `along` stays nought, so a torus whose
+    /// centre stands `cy` away with tube radius `r` is met where
+    /// `|away - cy| = r`.
+    fn across(cy: f64, r: f64) -> Vec<f64> {
+        let seen = Seen {
+            start: DVec2::ZERO,
+            step: DVec2::X,
+            level: 0.0,
+            rise: 0.0,
+            speed: 1.0,
+        };
+        Round {
+            center: DVec2::new(0.0, cy),
+            radius: r,
+        }
+        .crossings(&seen, cy + r)
+    }
+
+    /// A spindle's quartic holds its own circle and its reflection across
+    /// the axis alike; only the own circle's crossings are this surface's.
+    /// The reflection of a spindle pokes through the axis into the near
+    /// side, where a root polished as its own would sit at ±(r - cy) inside
+    /// the tube and throw the pairing off.
+    #[test]
+    fn a_spindle_keeps_only_its_own_lobe() {
+        let crossings = across(1.0, 2.0);
+        assert_eq!(crossings.len(), 2, "{crossings:?}");
+        assert!((crossings[0] + 3.0).abs() < 1e-9, "{crossings:?}");
+        assert!((crossings[1] - 3.0).abs() < 1e-9, "{crossings:?}");
+    }
+
+    /// A ring's reflection stays across the axis, so nothing is dropped: all
+    /// four quartic roots are the own circle's.
+    #[test]
+    fn a_ring_keeps_every_quartic_root() {
+        let crossings = across(3.0, 1.0);
+        assert_eq!(crossings.len(), 4, "{crossings:?}");
+        for (crossing, expected) in crossings.iter().zip([-4.0, -2.0, 2.0, 4.0]) {
+            assert!((crossing - expected).abs() < 1e-9, "{crossings:?}");
+        }
+    }
 }

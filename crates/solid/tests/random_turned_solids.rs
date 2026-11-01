@@ -5701,6 +5701,42 @@ fn a_ball_cut_through_its_far_pole_the_other_way_winds_once_and_is_not_pointed()
     ));
 }
 
+/// A spindle — a tube whose radius runs past its axis — crosses a line the
+/// quartic holds four ways: twice on the tube's own circle and twice on its
+/// reflection across the axis. Only the own circle's crossings are the
+/// tube's, or the reflection's two, polished as the own, would sit inside it
+/// and the pairing would come out odd: the rounded campaign's seed
+/// 5576801702, held alone.
+#[test]
+fn seed_5576801702_a_spindle_tube_crosses_only_its_own_lobe() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(25.0),
+            Axis::second(0.0),
+            Section::bands(-25.0, &[[20.0, 0.0, 0.0]])
+                .bowed(&[[[0.0, 0.0, 0.0], [-15.0, -7.5, 12.5]]]),
+            90.0,
+        ),
+        vec![],
+    ));
+}
+
+/// The same spindle mirrored across its axis, whose reflection pokes through
+/// the other way: still only the own circle's crossings.
+#[test]
+fn a_spindle_turned_the_other_way_crosses_only_its_own_lobe() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(25.0),
+            Axis::second(0.0),
+            Section::bands(-25.0, &[[20.0, 0.0, 0.0]])
+                .bowed(&[[[0.0, 0.0, 0.0], [-15.0, 7.5, 12.5]]]),
+            90.0,
+        ),
+        vec![],
+    ));
+}
+
 /// The campaigns, compiled only when asked for — `--features campaigns` —
 /// so that work on any other issue never pays for them.
 #[cfg(feature = "campaigns")]

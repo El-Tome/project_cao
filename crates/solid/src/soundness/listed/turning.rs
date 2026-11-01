@@ -42,7 +42,10 @@ const CHORDS: usize = 64;
 /// winding once round the axis in all, closed by the floor the apex unrolls
 /// into; a loop passing through the apex is closed along that floor too,
 /// and where the others wind once round it, the rest of the floor closes
-/// the face as for an apex held within it.
+/// the face as for an apex held within it. On a sphere or a spindle torus,
+/// a face holding both poles is the whole closed surface with a hole cut out
+/// of its side, and has no outside loop: every loop bounds a hole, swept the
+/// other way.
 pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
     for (face, listed) in listing.faces.iter().enumerate() {
         let side = if listed.outward { 1.0 } else { -1.0 };
@@ -105,8 +108,12 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
                         .into_iter()
                         .find(|pole| passes(listing, uses, *pole, room))
                 {
-                    area += tube.rise(tube.phi(about), tube.phi(pole)) * turns;
-                    turns = 0.0;
+                    if listed.poles.len() == 1 {
+                        turns = turns.signum() * TAU;
+                    } else {
+                        area += tube.rise(tube.phi(about), tube.phi(pole)) * turns;
+                        turns = 0.0;
+                    }
                 }
                 (area * side, (turns / TAU).round() * side)
             })
@@ -149,6 +156,8 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
             if turns != 0.0 || area <= -blur {
                 return backwards(first);
             }
+            None
+        } else if tube.is_some() && listed.poles.len() == 2 {
             None
         } else {
             let widest = (0..swept.len())

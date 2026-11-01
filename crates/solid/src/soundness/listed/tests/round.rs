@@ -1,12 +1,12 @@
 //! Whole spheres and tori in a listing (#576): one face, no loop, every
 //! pole of the surface held.
 
+use std::f64::consts::{FRAC_PI_2, PI, TAU};
+
 use glam::{DVec2, DVec3};
 
-use std::f64::consts::TAU;
-
 use super::*;
-use crate::brep::{Circle, Cylinder, ListedEdge, Plane, Sphere, Torus};
+use crate::brep::{Circle, Curve, Cylinder, Line, ListedEdge, Plane, Sphere, Torus};
 
 const REACH: f64 = 10.0;
 
@@ -180,4 +180,88 @@ fn an_edge_a_hair_off_its_torus_is_found_off_it_by_the_listing_s_own_formula() {
         listed(&listing, REACH),
         Err(Mislisted::OffFace { edge: 0, .. })
     ));
+}
+
+/// A sphere whose face holds its north pole while its loop runs through the
+/// south pole along two meridians and a half rim, as a ball cut part of the
+/// way by a half cylinder leaves (seed 5576800098): the face winds once round
+/// the pole it holds, closed by that pole's floor, not by the pole the loop
+/// passes through.
+fn a_sphere_cut_through_its_other_pole() -> Listing {
+    let sphere = Sphere::through(DVec3::new(0.0, 0.0, 30.0), DVec3::X, -10.0, 2.5);
+    let rim = Circle::on(
+        &Cylinder::about(DVec3::new(0.0, 0.0, 30.0), DVec3::X, 1.5),
+        -8.0,
+    );
+    let meridian = Circle::about(
+        DVec3::new(-10.0, 0.0, 30.0),
+        DVec3::new(0.0, -1.0, 0.0),
+        2.5,
+    );
+    let (side, _) = Plane::through(DVec3::ZERO, DVec3::Y);
+    let (end, _) = Plane::through(DVec3::new(-8.0, 0.0, 0.0), DVec3::X);
+    let half = (4.0f64 / 5.0).acos();
+    with_sides(Listing {
+        faces: vec![
+            ListedFace {
+                surface: Surface::Sphere(sphere),
+                outward: true,
+                loops: vec![vec![(1, true), (2, true), (3, true)]],
+                poles: vec![1],
+            },
+            ListedFace {
+                surface: Surface::Plane(side),
+                outward: false,
+                loops: vec![vec![(2, false), (1, false), (0, true)]],
+                poles: Vec::new(),
+            },
+            ListedFace {
+                surface: Surface::Plane(end),
+                outward: false,
+                loops: vec![vec![(3, false), (0, false)]],
+                poles: Vec::new(),
+            },
+        ],
+        edges: vec![
+            ListedEdge {
+                curve: Curve::Line(Line::through(DVec3::new(-8.0, 0.0, 0.0), DVec3::Z)),
+                from: 28.5,
+                to: 31.5,
+                ends: Some([2, 3]),
+                sides: Vec::new(),
+            },
+            ListedEdge {
+                curve: Curve::Circle(meridian),
+                from: half,
+                to: PI,
+                ends: Some([2, 0]),
+                sides: Vec::new(),
+            },
+            ListedEdge {
+                curve: Curve::Circle(meridian),
+                from: PI,
+                to: TAU - half,
+                ends: Some([0, 3]),
+                sides: Vec::new(),
+            },
+            ListedEdge {
+                curve: Curve::Circle(rim),
+                from: FRAC_PI_2,
+                to: 3.0 * FRAC_PI_2,
+                ends: Some([3, 2]),
+                sides: Vec::new(),
+            },
+        ],
+        vertices: vec![
+            DVec3::new(-12.5, 0.0, 30.0),
+            DVec3::new(-7.5, 0.0, 30.0),
+            DVec3::new(-8.0, 0.0, 28.5),
+            DVec3::new(-8.0, 0.0, 31.5),
+        ],
+    })
+}
+
+#[test]
+fn a_sphere_holding_one_pole_whose_loop_passes_through_the_other_winds_once_and_is_not_pointed() {
+    assert_eq!(listed(&a_sphere_cut_through_its_other_pole(), 40.0), Ok(()));
 }

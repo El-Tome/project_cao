@@ -5657,6 +5657,50 @@ fn the_draws_of_rounds_give_each_seed_its_case() {
     );
 }
 
+/// A ball cut by a half cylinder across its far pole keeps the near pole it
+/// holds and winds once round it, closed by that pole's floor and not by the
+/// pole the loop passes through: the round campaign's seed 5576800098,
+/// shrunk (#576).
+#[test]
+fn seed_5576800098_a_ball_cut_through_its_far_pole_winds_once_and_is_not_pointed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(30.0),
+            Axis::first(0.0),
+            Section::bands(-12.5, &[[5.0, 0.0, 0.0]])
+                .bowed(&[[[-10.0, 0.0, -2.5], [0.0, 0.0, 0.0]]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::first(30.0),
+            Section::bands(-13.0, &[[5.0, 0.0, 12.0]]),
+            180.0,
+        ))],
+    ));
+}
+
+/// The same cut mirrored along the turn's axis, whose loop runs the rim the
+/// other way: the face winds once round its held pole the other way, still
+/// closed by the pole's floor and not by the one the loop passes through.
+#[test]
+fn a_ball_cut_through_its_far_pole_the_other_way_winds_once_and_is_not_pointed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(30.0),
+            Axis::first(0.0),
+            Section::bands(7.5, &[[5.0, 0.0, 0.0]]).bowed(&[[[10.0, 0.0, 2.5], [0.0, 0.0, 0.0]]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::first(30.0),
+            Section::bands(8.0, &[[5.0, 0.0, 12.0]]),
+            180.0,
+        ))],
+    ));
+}
+
 /// The campaigns, compiled only when asked for — `--features campaigns` —
 /// so that work on any other issue never pays for them.
 #[cfg(feature = "campaigns")]

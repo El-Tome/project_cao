@@ -66,92 +66,768 @@
 //! the torus is the exact kernel's, and so is every step after it. The
 //! kernel's own tests are `cao_solid`'s, beside the code in `brep/` and in
 //! `random_turned_solids.rs`.
-//!
-//! Written at the opening of #576, before the kernel code: every test here is
-//! ignored until the flip lifts it.
 
-const NOT_YET: &str = "#576: the exact kernel does not turn an arc yet";
+use std::f64::consts::PI;
+
+use cao_part::history::{ExtrusionMode, Operation, PointRef, RevolutionAxis};
+use cao_part::{History, PartDocument, PartState};
+use cao_sketch::{Area, PointId, SketchAxis, WorkPlane};
+use cao_solid::Declined;
+use glam::{DVec2, DVec3};
+
+/// How near the arithmetic an exact volume comes: the kernel's matter is the
+/// true sphere or torus, so what is left is rounding.
+const EXACT: f64 = 1e-9;
+
+const ABOUT_V: RevolutionAxis = RevolutionAxis::Sketch(SketchAxis::V);
+
+fn clicked(history: &History, sketch: usize, places: &[DVec2]) -> Vec<Area> {
+    PartState::rebuild(history).areas_at(sketch, places)
+}
+
+fn sketch_on(history: &mut History, plane: WorkPlane) -> usize {
+    let sketch = PartState::rebuild(history).sketches.len();
+    history.push(Operation::CreateSketch { plane, on: None });
+    sketch
+}
+
+/// The number the next point drawn in `sketch` is given.
+fn next_point(history: &History, sketch: usize) -> usize {
+    PartState::rebuild(history).sketches[sketch].points().len()
+}
+
+fn segment(history: &mut History, sketch: usize, start: PointRef, end: PointRef) {
+    history.push(Operation::AddSegment {
+        sketch,
+        start,
+        end,
+        construction: false,
+    });
+}
+
+fn rectangle(history: &mut History, sketch: usize, corner: DVec2, opposite: DVec2) {
+    history.push(Operation::AddRectangle {
+        sketch,
+        corner: PointRef::New(corner),
+        opposite: PointRef::New(opposite),
+        construction: false,
+    });
+}
+
+fn circle(history: &mut History, sketch: usize, center: DVec2, radius: f64) {
+    history.push(Operation::AddCircle {
+        sketch,
+        center: PointRef::New(center),
+        radius,
+        rim: Vec::new(),
+        construction: false,
+    });
+}
+
+fn turn(
+    history: &mut History,
+    sketch: usize,
+    place: DVec2,
+    axis: RevolutionAxis,
+    degrees: f64,
+    mode: ExtrusionMode,
+) {
+    history.push(Operation::Revolve {
+        sketch,
+        areas: clicked(history, sketch, &[place]),
+        axis,
+        angle: degrees.into(),
+        mode,
+    });
+}
+
+fn raise(history: &mut History, sketch: usize, place: DVec2, distance: f64, mode: ExtrusionMode) {
+    history.push(Operation::Extrude {
+        sketch,
+        areas: clicked(history, sketch, &[place]),
+        distance: distance.into(),
+        mode,
+    });
+}
+
+fn assert_near(made: f64, expected: f64, what: &str) {
+    assert!(
+        (made - expected).abs() <= EXACT * expected,
+        "{what}: {made} where the arithmetic gives {expected}",
+    );
+}
+
+/// The number the history gave its last step.
+fn last_step(history: &History) -> u32 {
+    history.steps().last().expect("a step").operations()[0]
+}
+
+/// A part made by applying each operation of `history` as the user would.
+fn applied_live(history: &History) -> PartDocument {
+    let now = "2026-10-31T09:00:00Z".parse().expect("a date");
+    let mut part = PartDocument::new("Rounded", now);
+    for operation in history.operations() {
+        part.apply(operation.clone());
+    }
+    part
+}
+
+/// The part `history` describes, applied live, held to have built its last
+/// step on the exact kernel, within the arithmetic's volume.
+fn built_exactly(history: &History, arithmetic: f64, what: &str) -> PartDocument {
+    let part = applied_live(history);
+    assert_eq!(part.declined_because(last_step(history)), None, "{what}");
+    assert!(part.body().is_exact(), "{what}: the part stays exact");
+    let volume = part.body().volume();
+    assert!(
+        (volume - arithmetic).abs() <= EXACT * arithmetic,
+        "{what}: {volume} where the arithmetic gives {arithmetic}",
+    );
+    part
+}
+
+/// The faces the last step of `history` made, counted from the first: the
+/// numbers its raise gave, whatever the steps before it gave.
+fn numbered_from_the_floor(history: &History) -> Vec<usize> {
+    let made = applied_live(history).faces_made_by(last_step(history));
+    made.iter().map(|face| face - made[0]).collect()
+}
+
+/// A half disc of `radius` about the origin, from its lower pole round its
+/// far side to its upper: turned about V, a ball.
+fn a_half_disc(history: &mut History, sketch: usize, radius: f64) {
+    let first = next_point(history, sketch);
+    history.push(Operation::AddArc {
+        sketch,
+        center: PointRef::New(DVec2::ZERO),
+        start: PointRef::New(DVec2::new(0.0, -radius)),
+        end: PointRef::New(DVec2::new(0.0, radius)),
+        construction: false,
+    });
+    segment(
+        history,
+        sketch,
+        PointRef::Existing(PointId(first + 2)),
+        PointRef::Existing(PointId(first + 1)),
+    );
+}
+
+/// The region of a disc of `radius` about the origin between the chords at
+/// `low` and at `high`: turned about V, a zone of the ball.
+fn a_zone(history: &mut History, sketch: usize, radius: f64, low: f64, high: f64) {
+    let across = |height: f64| (radius * radius - height * height).sqrt();
+    let first = next_point(history, sketch);
+    segment(
+        history,
+        sketch,
+        PointRef::New(DVec2::new(0.0, low)),
+        PointRef::New(DVec2::new(across(low), low)),
+    );
+    segment(
+        history,
+        sketch,
+        PointRef::New(DVec2::new(across(high), high)),
+        PointRef::New(DVec2::new(0.0, high)),
+    );
+    history.push(Operation::AddArc {
+        sketch,
+        center: PointRef::New(DVec2::ZERO),
+        start: PointRef::Existing(PointId(first + 1)),
+        end: PointRef::Existing(PointId(first + 2)),
+        construction: false,
+    });
+    segment(
+        history,
+        sketch,
+        PointRef::Existing(PointId(first + 3)),
+        PointRef::Existing(PointId(first)),
+    );
+}
+
+/// A tube of `radius` about `center`, its two halves meeting at its top and
+/// its bottom: turned about V, a ring torus.
+fn a_ring(history: &mut History, sketch: usize, center: DVec2, radius: f64) {
+    let first = next_point(history, sketch);
+    let top = center + DVec2::new(0.0, radius);
+    let bottom = center - DVec2::new(0.0, radius);
+    history.push(Operation::AddArc {
+        sketch,
+        center: PointRef::New(center),
+        start: PointRef::New(top),
+        end: PointRef::New(bottom),
+        construction: false,
+    });
+    history.push(Operation::AddArc {
+        sketch,
+        center: PointRef::New(center),
+        start: PointRef::Existing(PointId(first + 2)),
+        end: PointRef::Existing(PointId(first + 1)),
+        construction: false,
+    });
+}
+
+/// A shaft of `radius` and `length`, its end rounded by the quarter circle of
+/// the same radius centred on the axis: turned about V, πr²L + 2πr³/3.
+fn a_rounded_shaft(history: &mut History, sketch: usize, radius: f64, length: f64) {
+    let first = next_point(history, sketch);
+    history.push(Operation::AddArc {
+        sketch,
+        center: PointRef::New(DVec2::new(0.0, length)),
+        start: PointRef::New(DVec2::new(radius, length)),
+        end: PointRef::New(DVec2::new(0.0, length + radius)),
+        construction: false,
+    });
+    segment(
+        history,
+        sketch,
+        PointRef::New(DVec2::ZERO),
+        PointRef::New(DVec2::new(radius, 0.0)),
+    );
+    segment(
+        history,
+        sketch,
+        PointRef::Existing(PointId(first + 4)),
+        PointRef::Existing(PointId(first + 1)),
+    );
+    segment(
+        history,
+        sketch,
+        PointRef::Existing(PointId(first + 2)),
+        PointRef::Existing(PointId(first + 3)),
+    );
+}
+
+/// A half disc of `radius` about `center`, its diameter along the line
+/// through `center` parallel to V and the disc reaching towards the axis:
+/// turned about V, a torus taking matter away, tangent to the wall it sits on.
+fn a_half_disc_towards_the_axis(history: &mut History, sketch: usize, center: DVec2, radius: f64) {
+    let first = next_point(history, sketch);
+    history.push(Operation::AddArc {
+        sketch,
+        center: PointRef::New(center),
+        start: PointRef::New(center + DVec2::new(0.0, radius)),
+        end: PointRef::New(center - DVec2::new(0.0, radius)),
+        construction: false,
+    });
+    segment(
+        history,
+        sketch,
+        PointRef::Existing(PointId(first + 2)),
+        PointRef::Existing(PointId(first + 1)),
+    );
+}
+
+/// An ellipse about (50, 5), half-axes 5 and 3, turned a quarter about V: an
+/// elliptic torus, which only the flats make, far from the rest.
+fn turn_an_ellipse(history: &mut History) {
+    let sketch = sketch_on(history, WorkPlane::XY);
+    let center = DVec2::new(50.0, 5.0);
+    history.push(Operation::AddEllipse {
+        sketch,
+        center: PointRef::New(center),
+        first: [
+            PointRef::New(center - DVec2::X * 5.0),
+            PointRef::New(center + DVec2::X * 5.0),
+        ],
+        second: [
+            PointRef::New(center - DVec2::Y * 3.0),
+            PointRef::New(center + DVec2::Y * 3.0),
+        ],
+        construction: false,
+        drawn: None,
+    });
+    turn(history, sketch, center, ABOUT_V, 90.0, ExtrusionMode::Add);
+}
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_ball_turned_whole_and_part_way_holds_the_arithmetics_volume() {
-    unimplemented!("{NOT_YET}");
+    for (degrees, share) in [(360.0, 1.0), (90.0, 0.25)] {
+        let mut history = History::default();
+        let sketch = sketch_on(&mut history, WorkPlane::XY);
+        a_half_disc(&mut history, sketch, 5.0);
+        turn(
+            &mut history,
+            sketch,
+            DVec2::new(2.0, 0.0),
+            ABOUT_V,
+            degrees,
+            ExtrusionMode::Add,
+        );
+
+        built_exactly(
+            &history,
+            share * 500.0 * PI / 3.0,
+            &format!("a half disc of radius 5 turned {degrees}°"),
+        );
+    }
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_zone_of_a_sphere_turned_whole_and_part_way_holds_the_arithmetics_volume() {
-    unimplemented!("{NOT_YET}");
+    let (radius, low, high) = (5.0f64, -3.0f64, 3.0f64);
+    let zone = PI * (radius * radius * (high - low) - (high.powi(3) - low.powi(3)) / 3.0);
+
+    for (degrees, share) in [(360.0, 1.0), (90.0, 0.25)] {
+        let mut history = History::default();
+        let sketch = sketch_on(&mut history, WorkPlane::XY);
+        a_zone(&mut history, sketch, radius, low, high);
+        turn(
+            &mut history,
+            sketch,
+            DVec2::new(2.0, 0.0),
+            ABOUT_V,
+            degrees,
+            ExtrusionMode::Add,
+        );
+
+        built_exactly(
+            &history,
+            share * zone,
+            &format!("the zone of a ball of radius 5 between −3 and 3, turned {degrees}°"),
+        );
+    }
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_ring_torus_turned_whole_and_part_way_holds_the_arithmetics_volume() {
-    unimplemented!("{NOT_YET}");
+    let (big, tube) = (6.0f64, 2.0f64);
+    let ring = 2.0 * PI * PI * big * tube * tube;
+
+    for (degrees, share) in [(360.0, 1.0), (90.0, 0.25)] {
+        let mut history = History::default();
+        let sketch = sketch_on(&mut history, WorkPlane::XY);
+        a_ring(&mut history, sketch, DVec2::new(big, 3.0), tube);
+        turn(
+            &mut history,
+            sketch,
+            DVec2::new(big, 3.0),
+            ABOUT_V,
+            degrees,
+            ExtrusionMode::Add,
+        );
+
+        built_exactly(
+            &history,
+            share * ring,
+            &format!("a tube of radius 2 about 6 turned {degrees}°"),
+        );
+    }
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_rounded_shaft_end_turned_whole_and_part_way_holds_the_arithmetics_volume() {
-    unimplemented!("{NOT_YET}");
+    let (radius, length) = (4.0f64, 10.0f64);
+    let shaft = PI * radius * radius * length + 2.0 * PI * radius.powi(3) / 3.0;
+
+    for (degrees, share) in [(360.0, 1.0), (90.0, 0.25)] {
+        let mut history = History::default();
+        let sketch = sketch_on(&mut history, WorkPlane::XY);
+        a_rounded_shaft(&mut history, sketch, radius, length);
+        turn(
+            &mut history,
+            sketch,
+            DVec2::new(2.0, 5.0),
+            ABOUT_V,
+            degrees,
+            ExtrusionMode::Add,
+        );
+
+        built_exactly(
+            &history,
+            share * shaft,
+            &format!("a Ø8 shaft for 10 with a rounded end, turned {degrees}°"),
+        );
+    }
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_ball_cut_by_a_plane_square_to_its_axis_holds_the_arithmetics_volume() {
-    unimplemented!("{NOT_YET}");
+    let (radius, at) = (5.0f64, 3.0f64);
+    let height = radius - at;
+    let cap = PI * height * height * (3.0 * radius - height) / 3.0;
+
+    let mut history = History::default();
+    let sketch = sketch_on(&mut history, WorkPlane::XY);
+    a_half_disc(&mut history, sketch, radius);
+    turn(
+        &mut history,
+        sketch,
+        DVec2::new(2.0, 0.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Add,
+    );
+    let slab = sketch_on(
+        &mut history,
+        WorkPlane {
+            origin: DVec3::Y * at,
+            ..WorkPlane::XZ
+        },
+    );
+    rectangle(&mut history, slab, DVec2::splat(-10.0), DVec2::splat(10.0));
+    raise(&mut history, slab, DVec2::ZERO, -10.0, ExtrusionMode::Cut);
+
+    built_exactly(
+        &history,
+        500.0 * PI / 3.0 - cap,
+        "a ball of radius 5 less the cap above 3",
+    );
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_ball_cut_by_a_block_through_its_axis_holds_the_arithmetics_volume() {
-    unimplemented!("{NOT_YET}");
+    let mut history = History::default();
+    let sketch = sketch_on(&mut history, WorkPlane::XY);
+    a_half_disc(&mut history, sketch, 5.0);
+    turn(
+        &mut history,
+        sketch,
+        DVec2::new(2.0, 0.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Add,
+    );
+    let slab = sketch_on(&mut history, WorkPlane::YZ);
+    rectangle(&mut history, slab, DVec2::splat(-10.0), DVec2::splat(10.0));
+    raise(&mut history, slab, DVec2::ZERO, 10.0, ExtrusionMode::Cut);
+
+    built_exactly(
+        &history,
+        250.0 * PI / 3.0,
+        "a ball of radius 5 less the half the plane holding its axis keeps",
+    );
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_coaxial_bore_through_a_ball_holds_the_arithmetics_volume() {
-    unimplemented!("{NOT_YET}");
+    let (radius, bore) = (5.0f64, 2.0f64);
+    let skin = (radius * radius - bore * bore).sqrt();
+
+    let mut history = History::default();
+    let sketch = sketch_on(&mut history, WorkPlane::XY);
+    a_half_disc(&mut history, sketch, radius);
+    turn(
+        &mut history,
+        sketch,
+        DVec2::new(2.0, 0.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Add,
+    );
+    let hole = sketch_on(
+        &mut history,
+        WorkPlane {
+            origin: DVec3::Y * -10.0,
+            ..WorkPlane::XZ
+        },
+    );
+    circle(&mut history, hole, DVec2::ZERO, bore);
+    raise(&mut history, hole, DVec2::ZERO, -20.0, ExtrusionMode::Cut);
+
+    built_exactly(
+        &history,
+        4.0 * PI / 3.0 * skin.powi(3),
+        "a ball of radius 5 bored Ø4 through: a napkin ring",
+    );
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_coaxial_shaft_joined_to_a_ball_at_its_equator_holds_the_arithmetics_volume() {
-    unimplemented!("{NOT_YET}");
+    let (radius, length) = (5.0f64, 15.0f64);
+
+    let mut history = History::default();
+    let sketch = sketch_on(&mut history, WorkPlane::XY);
+    a_half_disc(&mut history, sketch, radius);
+    turn(
+        &mut history,
+        sketch,
+        DVec2::new(2.0, 0.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Add,
+    );
+    let shaft = sketch_on(&mut history, WorkPlane::XZ);
+    circle(&mut history, shaft, DVec2::ZERO, radius);
+    raise(
+        &mut history,
+        shaft,
+        DVec2::ZERO,
+        -length,
+        ExtrusionMode::Add,
+    );
+
+    built_exactly(
+        &history,
+        250.0 * PI / 3.0 + PI * radius * radius * length,
+        "a ball of radius 5 with a Ø10 shaft raised 15 from its equator",
+    );
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_coaxial_cone_cut_from_a_ring_torus_holds_the_arithmetics_volume() {
-    unimplemented!("{NOT_YET}");
+    let mut history = History::default();
+    let sketch = sketch_on(&mut history, WorkPlane::XY);
+    a_ring(&mut history, sketch, DVec2::new(6.0, 3.0), 2.0);
+    turn(
+        &mut history,
+        sketch,
+        DVec2::new(6.0, 3.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Add,
+    );
+    let cone = sketch_on(&mut history, WorkPlane::XY);
+    let first = next_point(&history, cone);
+    segment(
+        &mut history,
+        cone,
+        PointRef::New(DVec2::new(0.0, -5.0)),
+        PointRef::New(DVec2::new(14.0, -5.0)),
+    );
+    segment(
+        &mut history,
+        cone,
+        PointRef::Existing(PointId(first + 1)),
+        PointRef::New(DVec2::new(2.0, 7.0)),
+    );
+    segment(
+        &mut history,
+        cone,
+        PointRef::Existing(PointId(first + 2)),
+        PointRef::New(DVec2::new(0.0, 7.0)),
+    );
+    segment(
+        &mut history,
+        cone,
+        PointRef::Existing(PointId(first + 3)),
+        PointRef::Existing(PointId(first)),
+    );
+    turn(
+        &mut history,
+        cone,
+        DVec2::new(1.0, 0.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Cut,
+    );
+
+    // The cone's slant, x + y = 9, runs through the tube's centre circle and
+    // so takes the half of the tube towards the axis: Pappus on the half disc
+    // of radius 2 left about (6, 3), its centroid 4r/(3π) from the tube's
+    // centre across the slant, away from the axis.
+    built_exactly(
+        &history,
+        24.0 * PI * PI + 16.0 * 2f64.sqrt() * PI / 3.0,
+        "a ring of tube radius 2 about 6 less the cone its slant halves",
+    );
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_round_bottomed_groove_cut_into_a_shaft_holds_the_arithmetics_volume() {
-    unimplemented!("{NOT_YET}");
+    let (radius, length, tube) = (10.0f64, 20.0f64, 2.0f64);
+    let removed = 2.0 * PI * (radius - 4.0 * tube / (3.0 * PI)) * (PI * tube * tube / 2.0);
+
+    let mut history = History::default();
+    let sketch = sketch_on(&mut history, WorkPlane::XY);
+    rectangle(
+        &mut history,
+        sketch,
+        DVec2::ZERO,
+        DVec2::new(radius, length),
+    );
+    turn(
+        &mut history,
+        sketch,
+        DVec2::new(5.0, 5.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Add,
+    );
+    let groove = sketch_on(&mut history, WorkPlane::XY);
+    a_half_disc_towards_the_axis(&mut history, groove, DVec2::new(radius, length / 2.0), tube);
+    turn(
+        &mut history,
+        groove,
+        DVec2::new(radius - 1.0, length / 2.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Cut,
+    );
+
+    built_exactly(
+        &history,
+        PI * radius * radius * length - removed,
+        "a Ø20 shaft 20 long less a round-bottomed groove 2 deep",
+    );
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_hole_drilled_off_axis_through_a_ball_is_a_broken_step_with_its_reason() {
-    unimplemented!("{NOT_YET}");
+    let mut history = History::default();
+    let sketch = sketch_on(&mut history, WorkPlane::XY);
+    a_half_disc(&mut history, sketch, 5.0);
+    turn(
+        &mut history,
+        sketch,
+        DVec2::new(2.0, 0.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Add,
+    );
+    let hole = sketch_on(
+        &mut history,
+        WorkPlane {
+            origin: DVec3::Y * -10.0,
+            ..WorkPlane::XZ
+        },
+    );
+    circle(&mut history, hole, DVec2::new(2.0, 0.0), 1.0);
+    raise(
+        &mut history,
+        hole,
+        DVec2::new(2.0, 0.0),
+        -20.0,
+        ExtrusionMode::Cut,
+    );
+
+    let part = applied_live(&history);
+    assert_eq!(
+        part.declined_because(last_step(&history)),
+        Some(Declined::Unsupported),
+        "a bore two off the ball's axis crosses its surface where the kernel cannot follow",
+    );
+    assert_near(
+        part.body().volume(),
+        500.0 * PI / 3.0,
+        "the ball, as it stood before",
+    );
+    assert!(part.body().is_exact(), "the part stays exact");
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_plane_at_a_slant_through_a_ball_is_a_broken_step_with_its_reason() {
-    unimplemented!("{NOT_YET}");
+    let mut history = History::default();
+    let sketch = sketch_on(&mut history, WorkPlane::XY);
+    a_half_disc(&mut history, sketch, 5.0);
+    turn(
+        &mut history,
+        sketch,
+        DVec2::new(2.0, 0.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Add,
+    );
+    let normal = DVec3::new(1.0, 1.0, 0.0).normalize();
+    let u = DVec3::new(1.0, -1.0, 0.0).normalize();
+    let slant = sketch_on(
+        &mut history,
+        WorkPlane {
+            origin: DVec3::ZERO,
+            u,
+            v: normal.cross(u),
+        },
+    );
+    rectangle(&mut history, slant, DVec2::splat(-20.0), DVec2::splat(20.0));
+    raise(&mut history, slant, DVec2::ZERO, 10.0, ExtrusionMode::Cut);
+
+    let part = applied_live(&history);
+    assert_eq!(
+        part.declined_because(last_step(&history)),
+        Some(Declined::Unsupported),
+        "a plane at 45° through the ball's centre is not square to its axis",
+    );
+    assert_near(
+        part.body().volume(),
+        500.0 * PI / 3.0,
+        "the ball, as it stood before",
+    );
+    assert!(part.body().is_exact(), "the part stays exact");
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_ball_knob_and_a_rounded_shaft_number_their_faces_as_the_flats_do() {
-    unimplemented!("{NOT_YET}");
+    type Draw = fn(&mut History, usize);
+    type Place = fn() -> DVec2;
+    let shapes: [(&str, Draw, Place); 2] = [
+        (
+            "a ball knob",
+            |history, sketch| a_half_disc(history, sketch, 5.0),
+            || DVec2::new(2.0, 0.0),
+        ),
+        (
+            "a rounded shaft end",
+            |history, sketch| a_rounded_shaft(history, sketch, 4.0, 10.0),
+            || DVec2::new(2.0, 5.0),
+        ),
+    ];
+
+    for (what, draw, place) in shapes {
+        for degrees in [360.0, 90.0] {
+            let mut exact = History::default();
+            let sketch = sketch_on(&mut exact, WorkPlane::XY);
+            draw(&mut exact, sketch);
+            turn(
+                &mut exact,
+                sketch,
+                place(),
+                ABOUT_V,
+                degrees,
+                ExtrusionMode::Add,
+            );
+
+            let mut flats = History::default();
+            turn_an_ellipse(&mut flats);
+            let sketch = sketch_on(&mut flats, WorkPlane::XY);
+            draw(&mut flats, sketch);
+            turn(
+                &mut flats,
+                sketch,
+                place(),
+                ABOUT_V,
+                degrees,
+                ExtrusionMode::Add,
+            );
+            assert!(
+                !applied_live(&flats).body().is_exact(),
+                "{what} turned {degrees}°: the ellipse sent the part to the flats",
+            );
+
+            assert_eq!(
+                numbered_from_the_floor(&exact),
+                numbered_from_the_floor(&flats),
+                "{what} turned {degrees}°: the faces number from the floor as the flats' do",
+            );
+        }
+    }
 }
 
 #[test]
-#[ignore = "#576: the exact kernel does not turn an arc yet"]
 fn a_part_already_on_the_flats_turns_an_arc_on_the_flats() {
-    unimplemented!("{NOT_YET}");
+    let mut history = History::default();
+    turn_an_ellipse(&mut history);
+    let before = applied_live(&history).body().volume();
+    let sketch = sketch_on(&mut history, WorkPlane::XY);
+    a_half_disc(&mut history, sketch, 5.0);
+    turn(
+        &mut history,
+        sketch,
+        DVec2::new(2.0, 0.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Add,
+    );
+
+    let part = applied_live(&history);
+    assert!(!part.body().is_exact(), "the part stays on the flats");
+    assert_eq!(
+        part.declined_because(last_step(&history)),
+        None,
+        "the flats turn the arc, they do not decline it",
+    );
+    let added = part.body().volume() - before;
+    let pappus = 500.0 * PI / 3.0;
+    assert!(
+        added < pappus && added > 0.98 * pappus,
+        "{added} where the flats' inscribed ball holds a little under Pappus's {pappus}",
+    );
 }

@@ -34,7 +34,8 @@ type Spanned = Option<(DVec3, DVec3)>;
 /// normal and a point of it, a cylinder, an elliptic cylinder or a cone by
 /// its axis and a point of the axis, a cone besides by the furthest its leaf
 /// reaches from the axis, and a sphere or a torus by the axis it was turned
-/// about and the point of it its circle's centre stands level with.
+/// about and the point of it its circle's centre stands level with, a sphere
+/// besides by its radius and a torus by the circle's two radii.
 enum Wall {
     Plane {
         normal: DVec3,
@@ -56,10 +57,13 @@ enum Wall {
     Sphere {
         axis: DVec3,
         point: DVec3,
+        radius: f64,
     },
     Torus {
         axis: DVec3,
         point: DVec3,
+        big: f64,
+        radius: f64,
     },
 }
 
@@ -104,10 +108,12 @@ impl Wall {
             | Wall::Sphere {
                 axis: other,
                 point: on,
+                ..
             }
             | Wall::Torus {
                 axis: other,
                 point: on,
+                ..
             } => !coaxial(other, on, axis, point, reach),
             Wall::Elliptic { .. } => true,
         }
@@ -139,12 +145,47 @@ impl Wall {
             | Wall::Sphere {
                 axis: other,
                 point: on,
+                ..
             }
             | Wall::Torus {
                 axis: other,
                 point: on,
+                ..
             } => !coaxial(other, on, axis, point, reach),
             Wall::Elliptic { .. } => true,
+        }
+    }
+
+    /// The box the whole surface spans, as the kernel boxes a face on a
+    /// sphere or a torus by its surface's own extent, which reaches far
+    /// beyond the turn that drew a part of it (#576); none for any other
+    /// wall.
+    fn round_box(&self) -> Option<[DVec3; 2]> {
+        match *self {
+            Wall::Sphere { point, radius, .. } => {
+                Some([point - DVec3::splat(radius), point + DVec3::splat(radius)])
+            }
+            Wall::Torus {
+                axis,
+                point,
+                big,
+                radius,
+            } => {
+                let axis = axis.normalize();
+                let extent = |direction: DVec3| {
+                    let along = direction.dot(axis);
+                    let across = (direction - axis * along).length();
+                    let at = direction.dot(point);
+                    let spread = across * big + radius;
+                    [at - spread, at + spread]
+                };
+                let [x, y, z] = DVec3::AXES.map(extent);
+                Some([DVec3::new(x[0], y[0], z[0]), DVec3::new(x[1], y[1], z[1])])
+            }
+            Wall::Plane { .. }
+            | Wall::Cylinder { .. }
+            | Wall::Elliptic { .. }
+            | Wall::Cone { .. } => None,
         }
     }
 }
@@ -207,9 +248,18 @@ fn walls(leaf: &Leaf) -> Vec<Wall> {
             for bow in piece.bows.into_iter().flatten() {
                 let point = point + axis * bow.center.x;
                 walls.push(if bow.center.y == 0.0 {
-                    Wall::Sphere { axis, point }
+                    Wall::Sphere {
+                        axis,
+                        point,
+                        radius: bow.radius.abs(),
+                    }
                 } else {
-                    Wall::Torus { axis, point }
+                    Wall::Torus {
+                        axis,
+                        point,
+                        big: bow.center.y.abs(),
+                        radius: bow.radius.abs(),
+                    }
                 });
             }
         }
@@ -526,29 +576,40 @@ impl Case {
 
     /// Whether the case may ask the exact kernel for a curve beyond the
     /// circles it builds a sphere or a torus along (#576): a sphere or a
-    /// torus of one leaf against a wall of a leaf whose box meets its own
-    /// that is neither a plane square to the turn's axis or holding it, nor
-    /// a cylinder, a cone, a sphere or a torus about that very axis. The
-    /// kernel may decline such a case as unsupported; it may also hold it,
-    /// the walls never meeting there.
+    /// torus of one leaf against a wall of a leaf whose box meets the whole
+    /// surface's, that is neither a plane square to the turn's axis or
+    /// holding it, nor a cylinder, a cone, a sphere or a torus about that
+    /// very axis. The kernel may decline such a case as unsupported; it may
+    /// also hold it, the walls never meeting there. The leaf's box is not the
+    /// one the kernel reads: it boxes a face on a sphere or a torus by the
+    /// surface's own extent, which reaches far beyond the leaf the turn drew
+    /// of it, so two round walls whose leaves stand apart may still be
+    /// related and declined.
     pub fn asks_a_round_beyond_its_circles(&self) -> bool {
         let walled = Walled::of(self);
-        walled.leaves.iter().any(|(walls, bounds, _)| {
+        walled.leaves.iter().any(|(walls, _, _)| {
             walls
                 .iter()
                 .filter_map(|wall| match wall {
-                    Wall::Sphere { axis, point } | Wall::Torus { axis, point } => {
-                        Some((*axis, *point))
+                    Wall::Sphere { axis, point, .. } | Wall::Torus { axis, point, .. } => {
+                        Some((*axis, *point, wall.round_box()))
                     }
                     _ => None,
                 })
-                .any(|(axis, point)| {
-                    walled
-                        .leaves
-                        .iter()
-                        .filter(|(_, others, _)| walled.near(*bounds, *others))
-                        .flat_map(|(others, _, _)| others)
-                        .any(|other| other.asks_of_a_round(axis, point, walled.reach))
+                .any(|(axis, point, round_box)| {
+                    let spanned = round_box.map(|[low, high]| (low, high));
+                    walled.leaves.iter().any(|(others, bounds, _)| {
+                        others.iter().any(|other| {
+                            let boxed = match other {
+                                Wall::Sphere { .. } | Wall::Torus { .. } => {
+                                    other.round_box().map(|[low, high]| (low, high))
+                                }
+                                _ => *bounds,
+                            };
+                            walled.near(spanned, boxed)
+                                && other.asks_of_a_round(axis, point, walled.reach)
+                        })
+                    })
                 })
         })
     }

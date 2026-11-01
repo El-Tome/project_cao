@@ -16,13 +16,14 @@ use super::Case;
 /// How many lines the campaign held its cases along, how many it left out
 /// for grazing a curved wall or running through a cone's tip, how many
 /// cases asking beyond the conics, or meeting along one, the kernel declined
-/// as unsupported, and how many turned walls a hair thin it declined to
-/// raise.
+/// as unsupported, how many turned walls a hair thin it declined to raise,
+/// and how many bowed sections the reading declined to lay.
 pub static HELD: AtomicUsize = AtomicUsize::new(0);
 pub static GRAZING: AtomicUsize = AtomicUsize::new(0);
 pub static TIPS: AtomicUsize = AtomicUsize::new(0);
 pub static DECLINED: AtomicUsize = AtomicUsize::new(0);
 pub static THIN: AtomicUsize = AtomicUsize::new(0);
+pub static BOWED: AtomicUsize = AtomicUsize::new(0);
 
 /// How many steps the kernel built though it reads them unstably (#552).
 pub static UNSTABLE: AtomicUsize = AtomicUsize::new(0);
@@ -216,6 +217,10 @@ fn print_report(report: &Report<Case>, answering: Answering) {
     println!(
         "{} cases with a turned wall a hair thin declined as no profile",
         THIN.load(Ordering::Relaxed)
+    );
+    println!(
+        "{} cases with a bowed section the reading declines to lay",
+        BOWED.load(Ordering::Relaxed)
     );
     println!(
         "{} steps built at an unstable lean",

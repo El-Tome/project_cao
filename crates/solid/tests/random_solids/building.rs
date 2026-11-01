@@ -653,6 +653,19 @@ impl Turned {
         )
     }
 
+    /// Whether the reading declines to lay the section, which the exact
+    /// kernel then declines as no profile it reads and the application turns
+    /// on the flats (#576): a bowed section an arc of which crosses a run, or
+    /// that a corner comes within the tolerance of, or that pinches the axis
+    /// anywhere but at its ends.
+    pub fn declines_to_lay(&self) -> bool {
+        let (frame, turn) = (self.frame(), self.turn(0.0));
+        self.drawn().into_iter().any(|side| {
+            let (outline, holes) = side.contours();
+            turning::Straight::of(&outline, &holes, frame, &turn, 0.0).is_none()
+        })
+    }
+
     /// The leaf turned through the application's body, each side apart and
     /// the two joined: by the exact kernel, or by the flats when not `exact`.
     pub fn tool(&self, exact: bool) -> Result<Body, Declined> {

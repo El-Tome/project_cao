@@ -4863,6 +4863,119 @@ fn a_case_asking_a_round_beyond_its_circles_is_told_from_one_that_does_not() {
 }
 
 #[test]
+fn a_partial_round_asks_a_wall_that_meets_its_whole_surface_but_not_its_leaf() {
+    let quarter = ball(90.0);
+    let below = Leaf::prism(Plane::xy(0.0), Outline::circle([0.0, -1.5], 0.5), 1.0);
+    assert!(
+        Case::new(quarter, vec![Step::cut(below)]).asks_a_round_beyond_its_circles(),
+        "a wall below the leaf still meets the ball's whole surface"
+    );
+}
+
+#[test]
+fn seed_5576800642_a_bowed_section_the_reading_declines_to_lay_is_counted_no_answer() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(210.0),
+            Axis::second(0.0).leaning(1e-7),
+            Section::bands(-90.0, &[[60.0, 0.0, 75.0]])
+                .sloping_to(&[[0.0, 45.0]])
+                .bowed(&[[[0.0, 0.0, 0.0], [-90.0, 0.0, 75.0]]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(240.0),
+                Outline::slot([135.0, 120.0], [0.0, 120.0], 75.0),
+                120.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(150.0),
+                Axis::first(0.0),
+                Section::bands(90.0, &[[45.0, 0.0, 75.0]])
+                    .sloping_to(&[[0.0, 60.0]])
+                    .bowed(&[[[0.0, 0.0, 0.0], [90.0, 0.0, 75.0]]]),
+                180.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(180.0),
+                Axis::second(-29.9999994).leaning(0.001),
+                Section::bands(
+                    75.0,
+                    &[
+                        [75.0, 0.0, 120.0],
+                        [120.0, 0.0, 75.0],
+                        [90.0, 0.0, 90.0],
+                        [30.0, 0.0, 120.0],
+                        [60.0, 0.0, 60.0],
+                        [30.0, 0.0, 120.0],
+                    ],
+                )
+                .bowed(&[
+                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0], [420.0, 60.0, -30.0]],
+                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                ]),
+                360.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::yz(-15.0),
+                Axis::second(30.0).leaning(15.0),
+                Section::bands(0.0, &[[120.0, 0.0, 0.0]])
+                    .bowed(&[[[0.0, 0.0, 0.0], [60.0, -45.0, 75.0]]]),
+                -360.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_5576800195_a_torus_asking_beyond_its_circles_is_declined_and_counted_no_answer() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-10.0),
+            Outline::slot([25.0, 25.0], [25.0, 0.0], 10.0),
+            -20.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(10.0),
+                Outline::rounded([0.0, 15.0], [27.5, 32.5], 2.5),
+                37.5,
+            )),
+            Step::add(Leaf::turned(
+                Plane::yz(40.0),
+                Axis::first(-5.0),
+                Section::bands(
+                    -10.0,
+                    &[
+                        [2.5, 15.0, 17.5],
+                        [2.5, 15.0, 27.5],
+                        [5.0, 15.0, 27.5],
+                        [2.5, 15.0, 27.5],
+                    ],
+                )
+                .bowed(&[
+                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                    [[0.0, 0.0, 0.0], [-2.5, 27.5, -2.5]],
+                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+                ]),
+                90.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(25.0),
+                Outline::slot([50.0, 40.0], [70.0, 40.0], 2.5),
+                10.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
 fn a_rounded_case_prints_as_the_rust_that_builds_it_again() {
     let pasted = Case::new(
         Leaf::turned(
@@ -5553,8 +5666,8 @@ mod campaign {
 
     use cao_solid::soundness::{Check, Flaw};
     use random_solids::campaigning::{
-        Answering, DECLINED, GRAZING, HELD, THIN, TIPS, UNSTABLE, campaign_over, shrunk_one_by_one,
-        tally_conics,
+        Answering, BOWED, DECLINED, GRAZING, HELD, THIN, TIPS, UNSTABLE, campaign_over,
+        shrunk_one_by_one, tally_conics,
     };
 
     use super::*;
@@ -5566,6 +5679,7 @@ mod campaign {
         DECLINED.fetch_add(measured.declined, Ordering::Relaxed);
         UNSTABLE.fetch_add(measured.unstable, Ordering::Relaxed);
         THIN.fetch_add(measured.thin, Ordering::Relaxed);
+        BOWED.fetch_add(measured.bowed, Ordering::Relaxed);
     }
 
     fn exactly(case: &Case) -> Result<(), Flaw> {

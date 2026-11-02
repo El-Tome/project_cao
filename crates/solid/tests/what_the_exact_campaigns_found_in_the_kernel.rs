@@ -4488,10 +4488,10 @@ fn seed_5365201759_a_disc_a_hair_thick_turned_whole_is_nothing() {
 }
 
 /// A tube whose outer wall tapers from 30 to 10, then a band 1e-7 long, then a
-/// tube 15 to 27.5 across: laying declines the section, and the flats leave it
-/// open along a rim.
+/// tube 15 to 27.5 across: laying declines the section, and the flats left it
+/// open along a rim; the application's body declines it too since #632.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: the band 1e-7 long is the only thing joining the tube before it to the tube after it, which do not overlap across it; laid to nothing, it leaves the matter in two pieces, which laying declines (turning/straight/bounded.rs, `contours`), and the application turns the section on the flats, which leave it open along a rim. Whether a section laying parts in two is turned as two pieces is Tom's to decide"]
+#[ignore = "laying-declines, found by round 2's triage: the band 1e-7 long is the only thing joining the tube before it to the tube after it, which do not overlap across it; laid to nothing, it leaves the matter in two pieces, which laying declines (turning/straight/bounded.rs, `contours`), and the application's body declines it too since #632, where the flats left it open along a rim: no answer. Whether a section laying parts in two is turned as two pieces is Tom's to decide"]
 fn seed_5365202888_a_band_1e_7_long_between_a_tapered_tube_and_a_wider_one() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -4790,9 +4790,10 @@ fn seed_5365233246_a_disc_1e_7_thick_is_nothing() {
 }
 
 /// A ring whose inner wall slants out by a half, then a band 2e-7 long whose
-/// outer wall falls by one: laying declines it, and the flats leave it open.
+/// outer wall falls by one: laying declines it, and the flats left it open;
+/// the application's body declines it too since #632.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: the band's falling top passes 1e-7 from the corner where the ring's slanted inner wall ends, two runs away from its own end, and the band below that corner is a fin 1e-7 to 2e-7 thick, from under to over the tolerance of 1.6e-7: no wall wholly thinner than the tolerance to take away, so laying declines the corner near the slant (turning/straight/contacts.rs, `a_slant_is_met`), and the application turns the section on the flats, which leave it open along a rim"]
+#[ignore = "laying-declines, found by round 2's triage: the band's falling top passes 1e-7 from the corner where the ring's slanted inner wall ends, two runs away from its own end, and the band below that corner is a fin 1e-7 to 2e-7 thick, from under to over the tolerance of 1.6e-7: no wall wholly thinner than the tolerance to take away, so laying declines the corner near the slant (turning/straight/contacts.rs, `a_slant_is_met`), and the application's body declines it too since #632, where the flats left it open along a rim: no answer"]
 fn seed_5365236403_a_ring_ending_on_a_band_2e_7_long_whose_top_falls_by_one() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(

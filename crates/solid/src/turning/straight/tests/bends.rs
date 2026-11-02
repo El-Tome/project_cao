@@ -1,5 +1,5 @@
 //! How a profile's arcs are laid against its axis (#576), and when they
-//! leave the profile to the flats.
+//! leave the profile unlaid, which the body declines (#632).
 
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
 

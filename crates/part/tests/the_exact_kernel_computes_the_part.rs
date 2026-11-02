@@ -8,13 +8,12 @@
 //!   `a_hole_drilled_right_through_a_hexagonal_bar_is_cut`
 //! - a revolution of a profile of straight runs or an arc stays on the exact
 //!   kernel from that step on (a band of a torus since #576); only a
-//!   revolution of an ellipse goes to the flats —
+//!   revolution of an ellipse goes to the flats, a broken step since #632 —
 //!   `a_part_turned_into_a_torus_stays_exact_from_that_step_on`,
 //!   `undoing_the_turn_gives_the_part_back_to_the_exact_kernel`; an ellipse
 //!   raised is the exact kernel's since #571 —
 //!   `a_part_with_an_ellipse_raised_stays_exact_from_that_step_on` — and the
-//!   flats' on a part already on them —
-//!   `an_ellipse_raised_on_a_part_already_on_the_flats_is_computed_by_the_flats`
+//!   flats' on a part already on them, until #632 left no step a way there
 //! - an operation the exact kernel declines is a broken step —
 //!   `a_raise_crossing_a_post_at_a_skew_angle_is_a_broken_step` (since #552 the
 //!   raise meeting a block at a slant is built,
@@ -237,12 +236,6 @@ fn a_hole_flush_but_for_a_hair_comes_out_closed() {
     );
 }
 
-/// What the flats make of a circle: the polygon of 48 sides inscribed in it.
-fn inscribed(radius: f64) -> f64 {
-    let sides = 48.0;
-    sides / 2.0 * radius * radius * (2.0 * PI / sides).sin()
-}
-
 /// A round segment, an arc and its chord, turned about the sketch's own V
 /// axis far from anything at the origin: its arc turns into a band of a
 /// torus.
@@ -267,35 +260,6 @@ fn turn_a_torus(history: &mut History, sketch: usize) {
         areas: clicked(history, sketch, DVec2::new(56.0, 5.0)),
         axis: RevolutionAxis::Sketch(SketchAxis::V),
         angle: 360.0.into(),
-        mode: ExtrusionMode::Add,
-    });
-}
-
-/// An ellipse 10 by 6 about (50, 5) drawn in `sketch` and turned a quarter
-/// about the sketch's own V axis: an elliptic band, which only the flats
-/// make.
-fn turn_an_elliptic_band(history: &mut History, sketch: usize) {
-    sketch_on(history, WorkPlane::XY);
-    let center = DVec2::new(50.0, 5.0);
-    history.push(Operation::AddEllipse {
-        sketch,
-        center: PointRef::New(center),
-        first: [
-            PointRef::New(center - DVec2::X * 5.0),
-            PointRef::New(center + DVec2::X * 5.0),
-        ],
-        second: [
-            PointRef::New(center - DVec2::Y * 3.0),
-            PointRef::New(center + DVec2::Y * 3.0),
-        ],
-        construction: false,
-        drawn: None,
-    });
-    history.push(Operation::Revolve {
-        sketch,
-        areas: clicked(history, sketch, center),
-        axis: RevolutionAxis::Sketch(SketchAxis::V),
-        angle: 90.0.into(),
         mode: ExtrusionMode::Add,
     });
 }
@@ -1090,29 +1054,6 @@ fn a_part_with_an_ellipse_raised_stays_exact_from_that_step_on() {
         "the Ø40 raised after the ellipse, a true circle",
     );
     assert!(state.body.is_exact(), "the part stays exact");
-}
-
-/// The flats sample an ellipse at 48 steps of its eccentric angle: a
-/// polygon squashed from the one of 48 sides inscribed in a circle.
-#[test]
-fn an_ellipse_raised_on_a_part_already_on_the_flats_is_computed_by_the_flats() {
-    let mut history = History::default();
-    turn_an_elliptic_band(&mut history, 0);
-    let turned = PartState::rebuild(&history).body.volume();
-    sketch_on(&mut history, WorkPlane::XY);
-    raise_an_ellipse(&mut history, 1, DVec2::new(-50.0, -50.0));
-
-    let state = PartState::rebuild(&history);
-
-    assert!(
-        !state.body.is_exact(),
-        "the turn sent the part to the flats"
-    );
-    assert_near(
-        state.body.volume() - turned,
-        inscribed(1.0) * 600.0 * 5.0,
-        "the ellipse raised on the flats",
-    );
 }
 
 /// A block 30 by 10 by 10, a trench `width` wide from `from` cut `depth`

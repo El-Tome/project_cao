@@ -116,8 +116,9 @@
 //!
 //! A part turned from a profile of straight runs, each parallel, square or
 //! slanted to its axis, or from arcs, as the application builds it: the exact
-//! kernel turns it, and the part stays exact after it. Only an ellipse turned
-//! goes to the flats. The kernel's own tests are `cao_solid`'s, in
+//! kernel turns it, and the part stays exact after it. An ellipse turned, or
+//! a profile the reading cannot lay, is a broken step since #632, where the
+//! flats turned it. The kernel's own tests are `cao_solid`'s, in
 //! `the_exact_kernel_turns.rs`.
 
 use std::f64::consts::{PI, TAU};
@@ -1891,7 +1892,7 @@ fn a_drawing_saved_on_main_on_a_block_raised_after_a_disc_beside_a_chamfered_sha
 }
 
 #[test]
-fn a_diamond_turned_about_its_corner_on_the_axis_is_computed_by_the_flats_not_broken() {
+fn a_diamond_turned_about_its_corner_on_the_axis_is_a_broken_step() {
     let history = turned_whole(
         &[
             DVec2::new(0.0, 5.0),
@@ -1904,15 +1905,11 @@ fn a_diamond_turned_about_its_corner_on_the_axis_is_computed_by_the_flats_not_br
 
     let part = applied_live(&history);
 
-    assert!(
-        !part.is_declined(last_step(&history)),
-        "a profile pinched on its axis is the flats', not a broken step",
+    assert_eq!(
+        part.declined_because(last_step(&history)),
+        Some(Declined::Profile),
+        "a profile pinched on its axis is no profile the exact kernel reads",
     );
-    assert!(!part.body().is_exact(), "the flats turned it");
-    let pappus = 2.0 * PI * 5.0 * 50.0;
-    assert!(
-        (part.body().volume() - pappus).abs() <= 1e-2 * pappus,
-        "{} where Pappus gives {pappus}",
-        part.body().volume(),
-    );
+    assert!(part.body().is_empty(), "nothing stood before the turn");
+    assert!(part.body().is_exact(), "the part stays exact");
 }

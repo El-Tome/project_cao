@@ -10,7 +10,7 @@
 //! An arc joins no level, and the rules that re-read a laid profile column by
 //! column are not taught arcs: an arc that crosses a run, that a corner
 //! comes within the tolerance of, or that reaches the axis anywhere but at
-//! its ends — a pinch — is not laid, and the flats turn the profile.
+//! its ends — a pinch — is not laid, and the body declines the profile.
 
 use std::f64::consts::TAU;
 

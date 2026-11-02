@@ -654,8 +654,8 @@ impl Turned {
     }
 
     /// Whether the reading declines to lay the section, which the exact
-    /// kernel then declines as no profile it reads and the application turns
-    /// on the flats (#576): a bowed section an arc of which crosses a run, or
+    /// kernel then declines as no profile it reads, and the application's
+    /// body too since #632, where the flats turned it: a bowed section an arc of which crosses a run, or
     /// that a corner comes within the tolerance of, or that pinches the axis
     /// anywhere but at its ends. A section with no arc is never excused so:
     /// what the reading declined before #576 stays a refusal.
@@ -690,7 +690,7 @@ impl Turned {
     /// Whether a hole of the section stands a hair from an edge of its band
     /// or from the axis: a wall the exact kernel cannot lay square without
     /// bringing the hole onto the outline, so it may decline the section as
-    /// no profile it reads, and the application turns it on the flats. A
+    /// no profile it reads, and so does the application's body since #632. A
     /// sloped edge is read where the hole starts and ends, square to itself.
     /// So is a section a hair long from end to end, a wall with no hole that
     /// laying makes nothing.

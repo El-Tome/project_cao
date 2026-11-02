@@ -1,5 +1,6 @@
-//! A profile turned by the flats, for the body to fall back on when the
-//! exact kernel does not turn it.
+//! A profile turned by the flats, for a body already on them or a profile
+//! handed without its runs, as the harness hands one; and the numbers a
+//! turn names, for a step the exact kernel declines (#632).
 
 use glam::DVec2;
 

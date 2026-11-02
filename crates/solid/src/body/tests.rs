@@ -731,29 +731,18 @@ fn about_v(area: &Profile, angle: f64) -> Turn {
 }
 
 #[test]
-fn a_profile_the_exact_kernel_does_not_turn_is_the_flats_revolution() {
+fn a_profile_handed_without_its_runs_or_to_the_flats_is_the_flats_revolution() {
     let ring = Contour::rectangle(DVec2::new(30.0, 0.0), DVec2::new(34.0, 4.0)).corners;
     let ring_triangles = fan(&ring);
-    let straight_on_flats = (ring_turned_about_y(), straight(&ring, &ring_triangles));
-    let mut bulging = Contour::straight(ring.clone());
-    bulging.runs[1] = Run::Round {
-        center: DVec2::new(32.0, 2.0),
-        turn: 1e-6,
-    };
-    let rounded = Profile {
-        exact: Some((bulging, vec![])),
-        ..straight(&ring, &ring_triangles)
-    };
     let sampled_only = Profile {
         exact: None,
         ..straight(&ring, &ring_triangles)
     };
-    let mut cases = vec![straight_on_flats];
+    let mut cases = vec![(ring_turned_about_y(), straight(&ring, &ring_triangles))];
     for part in [
         Body::default(),
         block(DVec2::ZERO, DVec2::splat(10.0), 10.0),
     ] {
-        cases.push((part.clone(), rounded.clone()));
         cases.push((part, sampled_only.clone()));
     }
     for (part, profile) in cases {
@@ -776,6 +765,55 @@ fn a_profile_the_exact_kernel_does_not_turn_is_the_flats_revolution() {
                 Body::raised_flats(flats),
                 "{:?} turned {angle} rad",
                 profile.sampled.points,
+            );
+        }
+    }
+}
+
+#[test]
+fn a_profile_the_exact_kernel_does_not_turn_is_declined_never_the_flats_revolution() {
+    let ring = Contour::rectangle(DVec2::new(30.0, 0.0), DVec2::new(34.0, 4.0)).corners;
+    let ring_triangles = fan(&ring);
+    let mut bulging = Contour::straight(ring.clone());
+    bulging.runs[1] = Run::Round {
+        center: DVec2::new(32.0, 2.0),
+        turn: 1e-6,
+    };
+    let rounded = Profile {
+        exact: Some((bulging, vec![])),
+        ..straight(&ring, &ring_triangles)
+    };
+    for part in [
+        Body::default(),
+        block(DVec2::ZERO, DVec2::splat(10.0), 10.0),
+    ] {
+        for angle in [TAU, -TAU, PI / 2.0, -PI] {
+            let turn = about_v(&rounded, angle);
+            assert_eq!(
+                part.tool_turned(&rounded, FLAT, &turn),
+                Err(Declined::Profile),
+                "turned {angle} rad",
+            );
+            let mut declined = part.clone();
+            declined.count_past_turned(&rounded, FLAT, &turn);
+            assert!(
+                declined.is_exact(),
+                "turned {angle} rad: the part stays exact"
+            );
+            let flats = sweep::revolution(
+                rounded.sampled,
+                &[],
+                rounded.triangles,
+                |point| FLAT.at(point),
+                DVec2::ZERO,
+                DVec2::Y,
+                angle,
+            )
+            .expect("a profile on one side of its axis");
+            assert_eq!(
+                declined.faces_end(),
+                part.faces_end() + flats.faces_end(),
+                "turned {angle} rad: counted past the numbers the flats gave the turn",
             );
         }
     }

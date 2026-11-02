@@ -127,9 +127,13 @@ Known and still open:
 - a cone's own (#536): partial turns about a cone's axis, coaxial turns
   with a cone and a cone beside prisms, under one failure in a thousand
   random parts; `exact-kernel-failures.md` counts them by family;
-- the rounds' own (#576): 3.4 % of the rounded cases still break a rule,
-  far above the bar of one in a thousand — Answers, Listed, Closed,
-  Uncrossed and Spans among them — and campaign rounds follow;
+- the rounds' own (#576, #623): about 12 rounded cases in a thousand
+  still break a rule on the exact kernel, 13 to 15 through the
+  application's body, far above the bar of one in a thousand — `Closed`,
+  `Uncrossed`, `Listed` and `Answers` first. Half the drawn cases carry a
+  hair, a number a few units of 1e-7 off a round one or an axis leaning
+  1e-5, and fail about twice as often; on the cases a user types, every
+  number a multiple of a thousandth, it is between 7 and 8 in a thousand.
   `exact-kernel-failures.md` counts them by family. A ball joined with a
   quarter shaft over its pole is left too;
 - a face bounded by the curve two perpendicular cylinders meet is never
@@ -1184,6 +1188,12 @@ same input gives the same bits.
   whole ball is one face with no loop and two poles, a whole ring one face
   with no loop and no vertex: both are legal on a closed surface, closed by
   their poles' floors and the ring's cut alone (`domain/floor/round.rs`). A
+  face of a ring reaching across the cut is closed along what it reaches of
+  it (#623, `domain/floor/round/ring.rs`): along each stretch between the
+  meridians crossing the cut, read off the way each runs, and along the
+  whole cut for a face no meridian crosses that lies above the highest rim
+  bounding it — a ring with holes in its tube, a band the cut runs through;
+  the volume reads the same closure. A
   ray through a sphere is the quadratic a wall gives, through a torus a
   quartic bracketed between the critical points of its own level; `Hits::At`
   carries four, and a graze is a doubtful hit (`ray/hits.rs`). The volume is
@@ -1404,10 +1414,21 @@ covered once from each side.
    beside it shares. A rim two surfaces only touch along is built as that
    one circle, with no band and no move. `clear` may pass a face beside a
    round apart where no conic is asked — a block beside a ball knob or
-   standing in a ring's hole (`combine/clear/round.rs`). What a boolean
-   keeps of a whole ring must not straddle the chart's cut, so
-   `combine/seamed.rs` moves the cut into a band the operation keeps no face
-   of before the regions are read, and the kept bands sit inside one window.
+   standing in a ring's hole (`combine/clear/round.rs`). A ring's chart is a
+   window one turn wide along the meridian, cut at the antipode of its seam,
+   and a piece of surface the cut runs through is read as a region against
+   the window's bottom and another against its top, or as one region
+   bounded by both: the regions using the two floors along one stretch are
+   one region, and its loops are walked again through the cut, the two arcs
+   of an edge the cut parts one use of it (#623,
+   `selection/parted/glued.rs`). `combine/seamed.rs` still moves the cut,
+   before the regions are read, into a band the operation keeps no face of
+   where it can, and off a latitude circle or a vertex lying on it always,
+   to the middle of the widest band between them and their antipodes: on
+   the cut, a circle would be read along the window's top, over the floor,
+   and the antipodes keep the seam off them too, the window's middle where a
+   whole ring's face is sampled — on the crest a slab rests on, the sample
+   would read inside the slab.
 8. **Assembly.** Kept regions become faces and their arcs edges. Faces on one
    surface with one side are merged across an arc nothing else uses; two edges
    on one curve meeting at a vertex nothing else uses become one; a circle that
@@ -1766,7 +1787,20 @@ read backwards by the listing.
   the walls alone, closed along the cut of its chart at the top and the
   bottom of the window, which stand for one circle; a ring turned part of
   the way, winding round the tube between two whole meridians, from those
-  two meridians, closed along the cut the same way. A round's latitude
+  two meridians, closed along the cut the same way. A face of a ring a
+  boolean leaves reaching across the cut (#623, `outline/round/crossed.rs`)
+  is laid the same way: each loop is broken where a meridian of it crosses
+  the cut and laid to the window's top and bottom, and a face running round
+  the axis — a ring with holes cut in its tube, a band the cut runs
+  through — is walled as a whole ring is, at an angle of the grid no
+  meridian stands at, the walls standing only where the face does and a
+  latitude circle running round the axis laid from wall to wall. For its
+  strips to end where the face's rims stand, a meridian arc of a ring is
+  sampled at every level of its faces it runs across, the cut among them,
+  each such sample laid at its level bit for bit rather than where its point
+  reads back; and a face winding round the tube is gridded for the crest
+  even where all its rims stand at the inner equator, beside a shaft
+  touching it there. A round's latitude
   circle whose radius is a coaxial cylinder's — the equator a shaft ends in
   a ball at — lies on both and is sampled once, on the shaft's grid and the
   round's. A coaxial wall a hair inside a ball is not drawn in common with it

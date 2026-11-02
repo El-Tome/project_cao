@@ -1318,3 +1318,38 @@ coaxial turn of another extent: the ring's loop does not close across the
 chart's cut and the kernel declines it. Re-joining the loop across the cut
 built some of those right and others wrong where the kernel had declined
 safely, and was left out. The older draws give `main`'s verdicts bit for bit.
+
+## 2 November: #623, a round and a coaxial turn of another extent
+
+#576's largest family was a ring torus combined with a coaxial turn of
+another extent — a ring cut by a half turn, a quarter ring against a whole
+band — built by the boolean and declined by the kernel's own check, a loop
+on the torus not closing. The chart was the cause: a ring is read in a
+window one turn wide along the meridian, cut at the antipode of its seam,
+and a face the cut runs through came out as two regions, one against each
+floor, or one bounded by both. The selection now joins those regions and
+walks their loops through the cut; the domain closes such a face along the
+stretches of the cut it reaches, or along the whole cut when it holds it,
+and the volume reads the same closure; the triangles break each loop at the
+cut and wall a face running round the axis; a ring's meridian is sampled at
+every level its faces stand at; and the cut is moved off a rim or a vertex
+lying on it, to the middle of the widest band between them and their
+antipodes. The harness's listing judges a loop winding round the tube by
+its winding, a ring's face of holes alone, and no longer reads the area two
+loops on a ring sweep, which bounds a face on either side.
+
+The first measure found three cases right on #622's tip and wrong here,
+all a whole ring on a reversed axis: moved off the one rim lying on it, the
+cut went to that rim's antipode and left the seam on the rim, the window's
+middle where a whole ring's face is sampled — on the crest a slab rests on,
+inside the slab. With the antipodes in the band, none is left: on round 2's
+seeds the exact kernel fell from 18.0 to 11.9 in a thousand, 19.3 to 12.6 on
+fresh ones, and the application's body from 22.7 to 15.4 and 20.3 to 12.9,
+no case the base built right built wrong. Half the drawn cases carry a hair
+and fail twice as often; on the cases a user types, every number a multiple
+of a thousandth, the rate halved, to between 7 and 8 in a thousand on both.
+What is left is counted by family in `exact-kernel-failures.md` — first a
+sphere's poles beside a coaxial turn of another extent, which the triangles
+leave open. One seed takes the body forty minutes, on the flats
+(5577103202): dealt in hands fixed in advance, as `on_every_core` deals
+them, it held a measure's last core alone for half an hour.

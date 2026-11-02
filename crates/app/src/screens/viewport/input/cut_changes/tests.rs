@@ -443,3 +443,69 @@ fn a_press_on_the_sharp_corner_of_a_small_fillet_takes_the_corner_rather_than_it
         None
     );
 }
+
+#[test]
+fn the_second_pair_of_a_point_given_a_fillet_is_laid_beside_the_first_rather_than_retyping_it() {
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::ZERO),
+        end: PointRef::New(DVec2::new(0.0, 40.0)),
+        construction: false,
+    });
+    let corner = document.sketches()[0].segments()[0].start;
+    for end in [DVec2::new(30.0, 30.0), DVec2::new(40.0, 0.0)] {
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::Existing(corner),
+            end: PointRef::New(end),
+            construction: false,
+        });
+    }
+    document.apply(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        radius: 1.5.into(),
+        construction: false,
+    });
+    let mut editor = SketchEditor {
+        phase: SketchPhase::Editing(0),
+        tool: Tool::Fillet,
+        tool_state: ToolState::Corner {
+            taken: vec![Corner::Between(SegmentId(0), SegmentId(2))],
+            half: None,
+        },
+        ..Default::default()
+    };
+    let field = editor.live.field(0);
+    field.text = "5".to_string();
+    field.take(&Variables::default());
+    let (mut extrusion, lang) = (ExtrusionState::default(), Catalogue::french());
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    assert!(super::super::corner::cut(&mut context, 0));
+
+    assert!(
+        matches!(
+            context.document.history.applied_operations().last(),
+            Some(Operation::Fillet { .. })
+        ),
+        "another pair of the point is another corner, not the first one's group"
+    );
+    assert_eq!(
+        shapes(context.document),
+        vec![
+            CutShape::Fillet { radius: 1.5 },
+            CutShape::Fillet { radius: 5.0 }
+        ]
+    );
+}

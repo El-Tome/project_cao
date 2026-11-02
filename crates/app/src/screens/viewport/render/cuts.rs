@@ -35,9 +35,9 @@ pub(super) struct CutCanvas<'a> {
     pulled: PulledEnds,
     /// The cuts under the cursor or held, and the cuts laid with them.
     lit: Lit,
-    /// The corners of each, lit with them.
-    lit_corners: Vec<PointId>,
-    linked_corners: Vec<PointId>,
+    /// The sides of each at its corner, whose hidden stretch lights with it.
+    lit_ends: Vec<(PointId, SegmentId)>,
+    linked_ends: Vec<(PointId, SegmentId)>,
 }
 
 /// How a line is drawn.
@@ -53,15 +53,15 @@ impl<'a> CutCanvas<'a> {
         let drawn = sketch.drawn_cuts();
         let pulled = sketch.pulled_ends(&drawn);
         let lit = lit_cuts(sketch, context);
-        let lit_corners = corners_of(sketch, &lit.held);
-        let linked_corners = corners_of(sketch, &lit.linked);
+        let lit_ends = ends_of(sketch, &lit.held);
+        let linked_ends = ends_of(sketch, &lit.linked);
         Self {
             sketch,
             drawn,
             pulled,
             lit,
-            lit_corners,
-            linked_corners,
+            lit_ends,
+            linked_ends,
         }
     }
 
@@ -80,8 +80,8 @@ impl<'a> CutCanvas<'a> {
         let corners = self.sketch.segments()[side.0];
         let hidden = |corner: PointId| {
             let lit = match (
-                self.lit_corners.contains(&corner),
-                self.linked_corners.contains(&corner),
+                self.lit_ends.contains(&(corner, side)),
+                self.linked_ends.contains(&(corner, side)),
             ) {
                 (true, _) => 1.0,
                 (false, true) => LINKED,
@@ -210,6 +210,15 @@ pub(super) fn lit_cuts(sketch: &Sketch, context: &SketchContext<'_>) -> Lit {
 fn corners_of(sketch: &Sketch, cuts: &[CornerCutId]) -> Vec<PointId> {
     cuts.iter()
         .filter_map(|cut| sketch.corner_cuts().get(cut.0).map(|cut| cut.corner))
+        .collect()
+}
+
+/// Each side of these cuts at its corner: a point carrying several cuts
+/// lights only the sides of the one lit.
+fn ends_of(sketch: &Sketch, cuts: &[CornerCutId]) -> Vec<(PointId, SegmentId)> {
+    cuts.iter()
+        .filter_map(|cut| sketch.corner_cuts().get(cut.0))
+        .flat_map(|cut| cut.sides.map(|side| (cut.corner, side)))
         .collect()
 }
 

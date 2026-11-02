@@ -64,6 +64,9 @@ impl Sketch {
     /// the group it is laid with — a corner re-cut leaves the group it was
     /// laid in.
     ///
+    /// Every pair of traits meeting at a point is a corner of its own: a cut
+    /// between two other traits of the same point stands beside this one.
+    ///
     /// A value too big for the corner is still laid: the cut is drawn as one
     /// that does not fit, and the sharp corner stands in for it until the
     /// drawing makes room. Holding a value back before it is laid is the
@@ -79,7 +82,7 @@ impl Sketch {
         let (corner, _, _) = self
             .corner_to_cut(first, second)
             .ok_or(CutRefused::NoCorner)?;
-        if let Some(standing) = self.cut_standing_at(corner) {
+        if let Some(standing) = self.cut_standing_between(first, second) {
             Erased::mark(&mut self.erased.cuts, standing.0);
         }
         self.corner_cuts.push(CornerCut {
@@ -121,10 +124,18 @@ impl Sketch {
             })
     }
 
-    /// The cut standing on a point, if one does.
-    pub fn cut_standing_at(&self, corner: PointId) -> Option<CornerCutId> {
+    /// Every cut standing on a point, one for each pair of its traits cut.
+    pub fn cuts_standing_at(&self, corner: PointId) -> Vec<CornerCutId> {
         self.live_corner_cuts()
-            .find(|(_, cut)| cut.corner == corner)
+            .filter(|(_, cut)| cut.corner == corner)
+            .map(|(id, _)| id)
+            .collect()
+    }
+
+    /// The cut standing between two traits, whichever was named first.
+    pub fn cut_standing_between(&self, first: SegmentId, second: SegmentId) -> Option<CornerCutId> {
+        self.live_corner_cuts()
+            .find(|(_, cut)| cut.sides == [first, second] || cut.sides == [second, first])
             .map(|(id, _)| id)
     }
 

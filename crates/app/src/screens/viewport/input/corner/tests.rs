@@ -31,6 +31,14 @@
 //!   `a_chamfer_typed_from_variables_is_laid_as_it_was_written`,
 //!   `a_fillet_typed_as_a_plain_number_is_laid_as_that_number`
 //!
+//! The tool's share of #619, whose criteria live with the sketch's tests in
+//! `crates/sketch/tests/several_cuts_stand_on_one_point.rs`: a point three
+//! traits meet at asks for the two traits even once a pair is cut —
+//! `a_click_on_a_point_three_traits_meet_at_asks_for_the_traits_once_a_pair_is_cut`
+//! — two pairs of one point are two corners —
+//! `two_pairs_of_one_point_are_taken_in_one_gesture` — and a click on that
+//! point lets go of neither — `a_click_on_a_point_two_corners_are_taken_at_lets_go_of_neither`.
+//!
 //! The tool's share of #617, whose criteria live with the part's tests in
 //! `crates/part/tests/a_cut_is_drawn_from_its_sharp_corner.rs`: a value too big
 //! is held back with the largest offered —
@@ -251,6 +259,66 @@ fn the_same_corner_named_the_other_way_round_is_still_that_corner() {
              twice would cut it twice"
         );
     }
+}
+
+#[test]
+fn two_pairs_of_one_point_are_taken_in_one_gesture() {
+    let (mut sketch, along, up, pivot) = a_right_angle();
+    let away = sketch.add_point(CORNER + DVec2::new(-10.0, -10.0));
+    let back = sketch.add_segment(pivot, away);
+    let taken = vec![Corner::Between(along, up)];
+
+    let both = after_clicking(&sketch, taken, Corner::Between(back, up));
+
+    assert_eq!(
+        both,
+        vec![Corner::Between(along, up), Corner::Between(back, up)],
+        "two other traits of the same point are another corner"
+    );
+    assert_eq!(
+        after_clicking(&sketch, both, Corner::Between(up, along)),
+        vec![Corner::Between(back, up)],
+        "and each is let go of on its own"
+    );
+}
+
+#[test]
+fn a_click_on_a_point_two_corners_are_taken_at_lets_go_of_neither() {
+    let (mut sketch, along, up, pivot) = a_right_angle();
+    let away = sketch.add_point(CORNER + DVec2::new(-10.0, -10.0));
+    let back = sketch.add_segment(pivot, away);
+    let both = vec![Corner::Between(along, up), Corner::Between(back, up)];
+    let mut taken = both.clone();
+
+    assert!(!drops_at(&sketch, &mut taken, pivot));
+    assert_eq!(taken, both, "the point cannot say which pair is meant");
+    assert_eq!(
+        clicked(&sketch, sketch.point(pivot), SNAP, true),
+        CornerClick::Crowded,
+        "the click goes on to ask for the traits"
+    );
+}
+
+#[test]
+fn a_click_on_a_point_three_traits_meet_at_asks_for_the_traits_once_a_pair_is_cut() {
+    let (mut sketch, along, up, pivot) = a_right_angle();
+    let away = sketch.add_point(CORNER + DVec2::new(-10.0, -10.0));
+    sketch.add_segment(pivot, away);
+    sketch
+        .cut_corner(
+            along,
+            up,
+            cao_sketch::CutShape::Fillet { radius: 1.0 },
+            false,
+            0,
+        )
+        .expect("a corner of the point");
+
+    assert_eq!(
+        clicked(&sketch, sketch.point(pivot), SNAP, true),
+        CornerClick::Crowded,
+        "a pair already cut still leaves the point two others to choose from"
+    );
 }
 
 /// What the list of corners becomes when that one is clicked.

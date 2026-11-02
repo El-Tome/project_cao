@@ -30,8 +30,9 @@ pub(crate) fn corner(
     // Letting go of a corner asks nothing of the mode. Naming a first side is
     // what taking one needs, so the modes that measure from it cannot be shown
     // a point — but a corner already taken has its sides named, and its point
-    // says which corner is meant on its own. Without this, dropping one there
-    // meant clicking both its traits again.
+    // says which corner is meant on its own, as long as it is the only one
+    // taken there. Without this, dropping one meant clicking both its traits
+    // again.
     if let Some(point) = sketch.nearest_point(cursor, snap)
         && drops_at(sketch, &mut taken, point)
     {
@@ -106,15 +107,17 @@ fn said_what_is_held(context: &mut SketchContext<'_>) -> bool {
 }
 
 /// Lets go of the corner standing at that point, and says whether one was
-/// there to let go of.
+/// there to let go of. Two corners taken at one point are two pairs of its
+/// traits, which the point cannot tell apart: neither is let go of, and the
+/// click goes on to ask for the traits.
 fn drops_at(sketch: &Sketch, taken: &mut Vec<Corner>, point: PointId) -> bool {
     let stands_there = |corner: &Corner| sketch.corner_point(*corner) == Some(point);
-    match taken.iter().any(stands_there) {
-        true => {
+    match taken.iter().filter(|corner| stands_there(corner)).count() {
+        1 => {
             taken.retain(|corner| !stands_there(corner));
             true
         }
-        false => false,
+        _ => false,
     }
 }
 
@@ -136,18 +139,21 @@ pub(crate) fn corners_taken(sketch: &Sketch, state: &ToolState) -> Vec<PointId> 
 /// second gesture for putting one back, and a list that only grows makes a
 /// slip of the mouse cost the whole selection.
 ///
-/// A corner is told from another by the point it stands at, not by how it was
-/// named. Naming the same corner its other way round — the second trait
-/// clicked first, or its point where its traits were — is the same corner, and
-/// counting it twice cuts it twice and crosses the drawing over itself.
+/// A corner is told from another by the two traits it stands between, not by
+/// how it was named. Naming the same corner its other way round — the second
+/// trait clicked first, or its point where its traits were — is the same
+/// corner, and counting it twice cuts it twice and crosses the drawing over
+/// itself. Two other traits of the same point are another corner.
 fn toggle(sketch: &Sketch, taken: &mut Vec<Corner>, corner: Corner) {
-    let Some(at) = sketch.corner_point(corner) else {
+    let Some(sides) = sketch.sides_of(corner) else {
         return;
     };
-    match taken
-        .iter()
-        .position(|already| sketch.corner_point(*already) == Some(at))
-    {
+    let same = |already: &Corner| {
+        sketch
+            .sides_of(*already)
+            .is_some_and(|other| other == sides || other == (sides.1, sides.0))
+    };
+    match taken.iter().position(same) {
         Some(rank) => {
             taken.remove(rank);
         }

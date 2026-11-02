@@ -37,7 +37,7 @@ fn a_cut_leaves_both_sides_whole_and_lays_nothing_else() {
     assert!(sketch.arcs().is_empty());
     assert!(sketch.constraints().is_empty());
     assert!(sketch.dimensions().is_empty());
-    assert_eq!(sketch.cut_standing_at(corner), Some(CornerCutId(0)));
+    assert_eq!(sketch.cuts_standing_at(corner), vec![CornerCutId(0)]);
 }
 
 #[test]
@@ -71,7 +71,7 @@ fn erasing_a_side_takes_its_cut_away() {
 
     sketch.erase(Element::Segment(up));
 
-    assert_eq!(sketch.cut_standing_at(corner), None);
+    assert_eq!(sketch.cuts_standing_at(corner), Vec::<CornerCutId>::new());
     assert_eq!(sketch.live_corner_cuts().count(), 0);
 }
 
@@ -161,7 +161,7 @@ fn the_piece_holding_the_corner_erased_after_a_division_takes_the_cut_away() {
 
     sketch.erase(Element::Segment(cut.sides[0]));
 
-    assert_eq!(sketch.cut_standing_at(corner), None);
+    assert_eq!(sketch.cuts_standing_at(corner), Vec::<CornerCutId>::new());
 }
 
 #[test]
@@ -177,7 +177,7 @@ fn a_divided_side_keeps_its_cut_once_the_division_is_dragged_off_the_line() {
     sketch.place_point(divided.point, DVec2::new(60.0, 0.0));
     sketch.place_point(corner, DVec2::new(11.0, 11.0));
 
-    assert_eq!(sketch.cut_standing_at(corner), Some(CornerCutId(0)));
+    assert_eq!(sketch.cuts_standing_at(corner), vec![CornerCutId(0)]);
     assert!(sketch.drawn_cuts()[0].fits);
 }
 
@@ -193,5 +193,5 @@ fn a_cut_taken_away_stays_away_when_a_trait_is_drawn_again_from_its_corner() {
     sketch.add_segment(corner, again);
 
     assert_eq!(sketch.live_corner_cuts().count(), 0);
-    assert_eq!(sketch.cut_standing_at(corner), None);
+    assert_eq!(sketch.cuts_standing_at(corner), Vec::<CornerCutId>::new());
 }

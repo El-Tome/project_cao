@@ -102,8 +102,8 @@ pub(super) fn whole_group(
     let cuts: Vec<CornerCutId> = taken
         .iter()
         .map(|corner| {
-            let cut = sketch.cut_standing_at(sketch.corner_point(*corner)?)?;
             let named = sketch.sides_of(*corner)?;
+            let cut = sketch.cut_standing_between(named.0, named.1)?;
             let laid = sketch.corner_cuts()[cut.0].sides;
             let in_order = laid == [named.0, named.1];
             (in_order || !measured_from_a_side).then_some(cut)

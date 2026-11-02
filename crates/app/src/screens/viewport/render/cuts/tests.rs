@@ -79,3 +79,24 @@ fn the_cut_pointed_at_is_lit_apart_too() {
 fn nothing_held_lights_no_cut() {
     assert_eq!(lit_holding(Vec::new(), None), Lit::default());
 }
+
+#[test]
+fn a_cut_lit_at_a_point_carrying_another_lights_its_own_sides_alone() {
+    let mut sketch = cao_sketch::Sketch::new(WorkPlane::XY);
+    let corner = sketch.add_point(DVec2::ZERO);
+    let ends =
+        [(0.0, 40.0), (30.0, 30.0), (40.0, 0.0)].map(|(x, y)| sketch.add_point(DVec2::new(x, y)));
+    let [top, middle, bottom] = ends.map(|end| sketch.add_segment(corner, end));
+    let shape = cao_sketch::CutShape::Fillet { radius: 2.0 };
+    let near = sketch
+        .cut_corner(top, middle, shape, false, 0)
+        .expect("a corner");
+    sketch
+        .cut_corner(top, bottom, shape, false, 1)
+        .expect("another corner of the same point");
+
+    let lit = ends_of(&sketch, &[near]);
+
+    assert!(lit.contains(&(corner, top)) && lit.contains(&(corner, middle)));
+    assert!(!lit.contains(&(corner, bottom)));
+}

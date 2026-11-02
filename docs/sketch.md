@@ -1702,9 +1702,12 @@ On the canvas each side is solid where it is still drawn, and thin and dashed up
 to the sharp corner; the curve of the cut is drawn where the corner was, with
 its value beside it — « R10 mm », « 5 mm × 5 mm » or « 5 mm × 45.0° » — and in
 the refusal colour while it does not fit. A press on the curve takes the cut
-whole (`Selection::Cut`), and dragging it drags the corner point. Hovering it
-lights every cut laid with it. The ends and middle of a cut are snaps, and so is
-the centre of a fillet.
+whole (`Selection::Cut`), and dragging it drags the corner point. A cut held or
+hovered is lit in full, and every cut laid with it faintly: the group reads at
+a glance, and the one `Suppr` or « Inverser les côtés » acts on stands out. A
+press on the value takes the cut too, except on the dot of a point, which stays
+the point's. The ends and middle of a cut are snaps, and so is the centre of a
+fillet.
 
 ### A cut that does not fit
 

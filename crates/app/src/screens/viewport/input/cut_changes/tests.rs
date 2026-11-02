@@ -430,3 +430,16 @@ fn the_value_written_beside_a_small_fillet_takes_the_fillet_rather_than_its_corn
         "the corner's own point is within a press of the value"
     );
 }
+
+#[test]
+fn a_press_on_the_sharp_corner_of_a_small_fillet_takes_the_corner_rather_than_its_value() {
+    let document = a_rounded_plate();
+    let sketch = &document.sketches()[0];
+    let pixel = 0.1;
+    let beside = DVec2::splat(-2.0 * pixel);
+
+    assert_eq!(
+        crate::screens::viewport::render::cut_label_under(sketch, beside, pixel),
+        None
+    );
+}

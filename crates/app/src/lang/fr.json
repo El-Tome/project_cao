@@ -341,7 +341,7 @@
   "sketch.chamfer_asks_two_distances": "Tapez les deux distances, puis Entrée",
   "sketch.corners_refused": "{count} coin(s) trop serré(s) pour cette valeur",
   "command.hint.tool_split": "Cliquer un croisement : un point y est posé et chaque courbe qui y passe y est coupée",
-  "command.hint.toggle_construction": "Ce qui va être dessiné aide à construire, sans compter dans l'aire",
+  "command.hint.toggle_construction": "Ce qui va être dessiné aide à construire, sans compter dans l'aire. Avec un congé ou un chanfrein sélectionné, c'est lui seul qui bascule",
   "command.hint.circle_center": "Le centre, puis un point du bord",
   "command.hint.circle_two_points": "Deux points opposés du bord",
   "command.hint.circle_three_points": "Deux points du bord, puis le centre sur leur médiatrice",

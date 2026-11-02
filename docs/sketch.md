@@ -1711,9 +1711,11 @@ fillet.
 
 ### A cut that does not fit
 
-A cut fits when each side has room for what it takes, together with what the cut
-drawn as the outline at the side's other end takes. A cut in construction takes
-nothing from the outline, so it holds no other cut back. Room is measured along the whole trait: a side
+A cut fits when each side has room for what it takes, together with what the cuts
+drawn as the outline at the side's other end take. Two cuts on the same end of a
+side — the side rounded with two other traits of the point — overlap rather than
+add up: the larger is what that end gives. A cut in construction takes nothing
+from the outline, so it holds no other cut back. Room is measured along the whole trait: a side
 too short, two cuts overlapping on one side, or a corner so nearly straight or
 so nearly shut that the cut would reach past the sides, and the cut does not
 fit.
@@ -1740,6 +1742,27 @@ The sketch itself refuses a cut only when the two traits do not end at one point
 or one of them is an ellipse's axis. A corner already cut is cut again, the new
 cut in place of the old. A value too big is laid like any other: it is a cut
 that does not fit, not a refusal.
+
+### Several cuts on one point
+
+Every pair of traits meeting at a point is a corner of its own, with its own cut
+and its own value: three traits leaving one point can have the top one rounded
+with the middle one and, by another value, with the bottom one, across the
+middle one. A corner is told from another by its two traits, not by its point
+(`Sketch::cut_standing_between`, `Sketch::cuts_standing_at`); cutting a pair
+again replaces that pair's cut alone. The tool still asks for the two traits on
+such a point, and takes two pairs of it in one gesture as two corners; a click
+on the point lets go of neither, since it cannot say which pair is meant, and
+asks for the traits instead.
+
+A trait shared by two cuts shows from the tangent point nearest the corner, and
+the other cut joins it further along, where it meets it. Two arcs of the same
+point may cross: they are two curves of the drawing like any others, and the
+areas around them hold every closed place once. The place they close against
+the shared trait is bounded by the same curves as the area beyond them, and is
+told from it by the place pointed at, as the two halves of a circle a chord
+cuts are (#345). A cut held lights the hidden
+stretch of its own two sides only.
 
 ### Construction, groups and what a cut meets
 

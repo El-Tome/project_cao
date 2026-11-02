@@ -119,8 +119,8 @@ use std::f64::consts::PI;
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{Formula, History, Outcome, PartDocument, PartState, VariableChange, VariableId};
 use cao_sketch::{
-    Area, Chamfer, ChosenAxis, Constraint, Corner, CutShape, DimensionTarget, Element, PointId,
-    SegmentId, Sketch, SketchAxis, WorkPlane,
+    Area, Chamfer, ChosenAxis, Constraint, Corner, CornerCutId, CutShape, DimensionTarget, Element,
+    PointId, SegmentId, Sketch, SketchAxis, WorkPlane,
 };
 use glam::DVec2;
 
@@ -635,10 +635,7 @@ fn a_cut_named_by_its_point_replays_on_its_corner_after_the_drags_that_followed(
 
     let drawing = the_drawing(&rounded);
     same_points(&the_drawing(&sharp), &drawing);
-    assert_eq!(
-        drawing.cut_standing_at(PointId(1)).map(|cut| cut.0),
-        Some(0)
-    );
+    assert_eq!(drawing.cuts_standing_at(PointId(1)), vec![CornerCutId(0)]);
     let drawn = drawing.drawn_cuts();
     assert!(drawn[0].fits);
     assert!(

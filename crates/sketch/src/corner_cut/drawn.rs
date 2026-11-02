@@ -5,7 +5,9 @@
 //! the sides to draw follow from them and from the values.
 //!
 //! A cut fits when each of its sides has room for what it takes, together
-//! with what the cut drawn as the outline at the side's other end takes. One
+//! with what the cuts drawn as the outline at the side's other end take. Two
+//! cuts on the same end of a side, between it and two other traits of the
+//! point, overlap rather than add up: the larger is what that end gives. One
 //! that does not still has a place, where it would be, so it can be shown
 //! there; the outline and the area take the sharp corner instead until it fits
 //! again. A cut in construction takes nothing from the outline, so it holds no
@@ -66,19 +68,17 @@ impl Sketch {
     /// left out: there is nothing to draw for it, and its corner stays sharp.
     pub fn drawn_cuts(&self) -> Vec<DrawnCut> {
         let backs = self.cut_backs();
-        let taken = taken_from_the_outline(&backs);
+        let taken = self.taken_from_the_outline(&backs);
         let tolerance = crate::precision::SAME * crate::precision::drawing_size(self);
         backs
             .iter()
             .filter_map(|(id, cut, back)| {
                 let back = (*back)?;
                 let fits = cut.sides.iter().zip(back).all(|(side, own)| {
-                    let mut wanted = taken.get(side).copied().unwrap_or(0.0);
-                    if cut.construction {
-                        wanted += own;
-                    }
+                    let other = taken.get(side).copied().unwrap_or_default()
+                        [1 - self.end_of(*side, cut.corner)];
                     let (start, end) = self.endpoints(*side);
-                    wanted <= start.distance(end) + tolerance
+                    own + other <= start.distance(end) + tolerance
                 });
                 self.drawn(*id, cut, back, fits)
             })
@@ -90,14 +90,21 @@ impl Sketch {
         self.drawn_cuts().into_iter().find(|drawn| drawn.id == id)
     }
 
-    /// Where the cuts among `drawn` pull the ends of each side back to.
+    /// Where the cuts among `drawn` pull the ends of each side back to. Of two
+    /// cuts on one end, the side shows up to the one meeting it nearer the
+    /// corner, and the other joins it further along.
     pub fn pulled_ends(&self, drawn: &[DrawnCut]) -> PulledEnds {
         let mut pulled: HashMap<SegmentId, [Option<DVec2>; 2]> = HashMap::new();
         for cut in drawn.iter().filter(|cut| cut.fits && !cut.construction) {
             for (rank, side) in cut.sides.iter().enumerate() {
-                let at_start = self.segments()[side.0].start == cut.corner_point;
-                let ends = pulled.entry(*side).or_default();
-                ends[usize::from(!at_start)] = Some(cut.touches[rank]);
+                let touch = cut.touches[rank];
+                let end =
+                    &mut pulled.entry(*side).or_default()[self.end_of(*side, cut.corner_point)];
+                let nearer = end
+                    .is_none_or(|before| touch.distance(cut.corner) < before.distance(cut.corner));
+                if nearer {
+                    *end = Some(touch);
+                }
             }
         }
         PulledEnds(pulled)
@@ -150,18 +157,22 @@ impl Sketch {
     /// take.
     /// A corner already cut is cut again in place, so what its cut takes now
     /// is not counted against it.
+    ///
+    /// On each end of a side the new cuts and the standing ones overlap, the
+    /// larger giving what the end takes; what a new cut on one end has to
+    /// leave room for is what the other end takes.
     pub fn fitting_share(&self, corners: &[(SegmentId, SegmentId)], shape: CutShape) -> f64 {
-        let replaced: Vec<PointId> = corners
+        let replaced: Vec<CornerCutId> = corners
             .iter()
-            .filter_map(|(first, second)| self.shared_point(*first, *second))
+            .filter_map(|(first, second)| self.cut_standing_between(*first, *second))
             .collect();
         let standing: Vec<_> = self
             .cut_backs()
             .into_iter()
-            .filter(|(_, cut, _)| !replaced.contains(&cut.corner))
+            .filter(|(id, _, _)| !replaced.contains(id))
             .collect();
-        let taken = taken_from_the_outline(&standing);
-        let mut asked: HashMap<SegmentId, f64> = HashMap::new();
+        let taken = self.taken_from_the_outline(&standing);
+        let mut asked: HashMap<SegmentId, [f64; 2]> = HashMap::new();
         for (first, second) in corners {
             let Some((corner, far_first, far_second)) = self.corner_to_cut(*first, *second) else {
                 continue;
@@ -169,15 +180,25 @@ impl Sketch {
             let Some(back) = self.backs(corner, [far_first, far_second], shape) else {
                 return 0.0;
             };
-            *asked.entry(*first).or_default() += back[0];
-            *asked.entry(*second).or_default() += back[1];
+            for (side, own) in [(*first, back[0]), (*second, back[1])] {
+                let end = &mut asked.entry(side).or_default()[self.end_of(side, corner)];
+                *end = end.max(own);
+            }
         }
         let tolerance = crate::precision::SAME * crate::precision::drawing_size(self);
         let mut share = f64::INFINITY;
         for (side, wanted) in asked {
-            let gone = taken.get(&side).copied().unwrap_or(0.0);
+            let gone = taken.get(&side).copied().unwrap_or_default();
             let (start, end) = self.endpoints(side);
-            share = share.min((start.distance(end) + tolerance - gone) / wanted);
+            let room = start.distance(end) + tolerance;
+            for at in [0, 1] {
+                if wanted[at] > 0.0 {
+                    share = share.min((room - gone[1 - at]) / wanted[at]);
+                }
+            }
+            if wanted[0] > 0.0 && wanted[1] > 0.0 {
+                share = share.min(room / (wanted[0] + wanted[1]));
+            }
         }
         share.max(0.0)
     }
@@ -220,6 +241,28 @@ impl Sketch {
             true => Some(backs),
             false => None,
         }
+    }
+
+    /// Which end of a side a corner stands on: 0 for its start, 1 for its end.
+    fn end_of(&self, side: SegmentId, corner: PointId) -> usize {
+        usize::from(self.segments()[side.0].start != corner)
+    }
+
+    /// How much each end of a side the cuts drawn as the outline take, start
+    /// then end: the largest of the cuts standing on that end.
+    fn taken_from_the_outline(
+        &self,
+        backs: &[(CornerCutId, CornerCut, Option<[f64; 2]>)],
+    ) -> HashMap<SegmentId, [f64; 2]> {
+        let mut taken: HashMap<SegmentId, [f64; 2]> = HashMap::new();
+        for (_, cut, back) in backs.iter().filter(|(_, cut, _)| !cut.construction) {
+            let Some(back) = back else { continue };
+            for (side, own) in cut.sides.iter().zip(back) {
+                let end = &mut taken.entry(*side).or_default()[self.end_of(*side, cut.corner)];
+                *end = end.max(*own);
+            }
+        }
+        taken
     }
 
     /// The end of a side away from the corner.
@@ -270,21 +313,6 @@ impl Sketch {
             construction: cut.construction,
         })
     }
-}
-
-/// How much of each side the cuts drawn as the outline take, summed over the
-/// cuts standing on either of its ends.
-fn taken_from_the_outline(
-    backs: &[(CornerCutId, CornerCut, Option<[f64; 2]>)],
-) -> HashMap<SegmentId, f64> {
-    let mut taken: HashMap<SegmentId, f64> = HashMap::new();
-    for (_, cut, back) in backs.iter().filter(|(_, cut, _)| !cut.construction) {
-        let Some(back) = back else { continue };
-        for (side, own) in cut.sides.iter().zip(back) {
-            *taken.entry(*side).or_default() += own;
-        }
-    }
-    taken
 }
 
 #[cfg(test)]

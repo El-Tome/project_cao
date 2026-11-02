@@ -2882,7 +2882,20 @@ fifteen long, are within the tolerance of square there, and its groove's two
 ends, sixty apart along the axis, are not one level, so no circle is tangent
 to both square walls. Below that window the ends are one level and the
 centre is laid at their middle; above it the walls lean past the tolerance
-and are slanted as drawn. Whether to close it is a decision of its own.
+and are slanted as drawn.
+
+#636 decided to leave it. No lean a hand draws falls in the window, nor what
+a constraint leaves: an axis typed a thousandth off square over 200 already
+leans 5e-6 radians, past it, and a solver's residual is far below it. Inside
+it the step is refused at once, with its reason. A groove `W` wide along the
+axis between walls `D` deep is declined from a lean of some `tol / W` to
+`tol / D` radians, wherever `W` is the larger. Laying the arc's two ends on
+one level, each moved by up to twice the tolerance as a corner may be, would
+start that window at `4 tol / W`: closed for the pulley, sixty against
+fifteen, and still open for any groove more than four times as wide as its
+walls are deep; and it would be a second levels rule, reaching across an
+arc. Laying the walls as drawn would read cones within the tolerance of
+planes, the ground decision 11 keeps off.
 
 Laid, seed 5577103202's ring about a leaning axis is no longer parallel to
 the case's second leaf, turned about a line parallel to the sketch's own

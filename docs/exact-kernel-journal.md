@@ -1435,3 +1435,14 @@ not move, and no case built right on `main` is built wrong. Between some
 groove's two ends on two levels — which is set aside as a decision.
 `REBUILT_BY` moves from 13 to 14: a part saved with such a groove replays
 it built.
+
+## 2 November: #636, the window left
+
+Tom decided to leave #633's window, the pulley declined about an axis
+leaning between some 4e-6° and 1.2e-5°: no lean a hand draws falls there,
+and the step is refused at once, with its reason. One level for the two
+ends of an arc between walls laid square would have closed the window only
+for a groove up to four times as wide as its walls are deep, the pulley's
+own proportion, and narrowed it for any wider one; walls laid as drawn
+would have been cones within the tolerance of planes. No code moves;
+`exact-kernel-failures.md` says why.

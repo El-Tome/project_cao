@@ -101,7 +101,8 @@ It can:
   round between two walls laid square whose two ends the lean leaves on two
   levels, so that no circle is tangent to both walls (5577103202's pulley
   groove drawn square to its sketch, about an axis leaning between some
-  3e-6° and 1.5e-5°; #633 laid it at every other lean). Until #632 the
+  3e-6° and 1.5e-5°; #633 laid it at every other lean, and #636 left that
+  window, which no lean a hand draws reaches). Until #632 the
   flats turned these, and every step after them was the flats' boolean,
   which took minutes past a few steps on the window's thread (5577103202:
   two minutes for the fifth step, twenty-two for the sixth). Refused at once,

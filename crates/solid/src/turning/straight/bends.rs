@@ -1,6 +1,7 @@
 //! The arcs of a profile laid against its axis (#576): the centre of each
 //! laid like a corner — on the axis within the band, else on a level within
-//! the tolerance — its radius read again from the laid centre to the laid
+//! the tolerance — or at the middle of a half circle ending tangent to the
+//! run leaving it, its radius read again from the laid centre to the laid
 //! start, its end laid on that circle along the coordinate its next run
 //! leaves free, and its turn read again between the laid corners. So a ball
 //! end, a rounded shoulder and a round-bottom groove are tangent by
@@ -35,6 +36,10 @@ pub(super) struct Drawn {
 /// A run, by the corners it goes between.
 type Run = (usize, usize);
 
+/// How many roundings of a radius a corner may stand off its circle and
+/// still be on it.
+const ROUNDINGS: f64 = 16.0;
+
 /// Each run's bend, the arcs' end corners moved onto their circles; `None`
 /// where an arc cannot be laid. `raw` holds the corners as drawn, `arcs`
 /// the drawn arc of each run, by the corner it leaves; `band` is how close
@@ -45,7 +50,8 @@ type Run = (usize, usize);
 /// shaft — is laid tangent, the pole slid along the axis onto the circle,
 /// since the shaft's level is shared and the pole's height is nobody
 /// else's. A corner laid onto one of the arc's ends is no corner within the
-/// tolerance of it.
+/// tolerance of it. A half circle ending tangent to the run leaving it has
+/// its centre laid at the middle of its ends ([`diameter`]).
 pub(super) fn laid(
     laid: &mut [DVec2],
     raw: &[DVec2],
@@ -62,13 +68,20 @@ pub(super) fn laid(
         let Some(drawn) = arcs[from] else {
             continue;
         };
-        let center = DVec2::new(
-            level(drawn.center.x, &heights, tolerance),
-            if drawn.center.y.abs() <= band {
-                0.0
-            } else {
-                level(drawn.center.y, &radii, tolerance)
-            },
+        let next = runs.iter().find(|run| run.0 == to)?;
+        let free = free(laid, next, straight(next));
+        let center = diameter(
+            laid[from],
+            laid[to],
+            DVec2::new(
+                level(drawn.center.x, &heights, tolerance),
+                if drawn.center.y.abs() <= band {
+                    0.0
+                } else {
+                    level(drawn.center.y, &radii, tolerance)
+                },
+            ),
+            &free,
         );
         let mut radius = (laid[from] - center).x.hypot((laid[from] - center).y);
         let end = laid[to];
@@ -76,8 +89,6 @@ pub(super) fn laid(
         if ((end - center).length() - radius).abs() > tolerance + moved {
             return None;
         }
-        let next = runs.iter().find(|run| run.0 == to)?;
-        let free = free(laid, next, straight(next));
         if laid[from].y == 0.0
             && let Some(tangent) = tangent(end, center, &free)
             && tangent != radius
@@ -121,6 +132,26 @@ pub(super) fn laid(
         bends[from] = Some(Bend { center, turn });
     }
     Some(bends)
+}
+
+/// The centre of a half circle whose end lands tangent to the run leaving
+/// it — a groove's half round bottom between two walls, a tube's wall
+/// rounded whole between its two shafts — laid at the middle of its two
+/// ends, which stand on its level: they are the ends of a diameter, and the
+/// arc is tangent at both however the runs' levels were laid, where a
+/// centre kept as drawn stands a hair off that middle about an axis
+/// leaning a hair (#633). Any other centre stays as laid: a ball's poles
+/// land along the axis, where nothing is tangent.
+fn diameter(start: DVec2, end: DVec2, center: DVec2, free: &Free) -> DVec2 {
+    match free {
+        Free::Radius if start != end && start.y == center.y && end.y == center.y => {
+            DVec2::new((start.x + end.x) / 2.0, center.y)
+        }
+        Free::Height if start != end && start.x == center.x && end.x == center.x => {
+            DVec2::new(center.x, (start.y + end.y) / 2.0)
+        }
+        Free::Height | Free::Radius | Free::Both => center,
+    }
 }
 
 /// The value laid on the level nearest it within `tolerance`, or left as it
@@ -177,10 +208,17 @@ fn tangent(end: DVec2, center: DVec2, free: &Free) -> Option<f64> {
 
 /// The corner moved onto the circle along what it leaves free: the nearer
 /// of the two places along a line, the foot of the radius otherwise; none
-/// where the line misses the circle.
+/// where the line misses the circle. A corner laid on the centre's level,
+/// within roundings of the radius from the centre, stays: its line is
+/// tangent to the circle there, a groove's wall or a shoulder's shaft, and
+/// whether it misses or crosses by an ulp is the rounding of a lean, which
+/// moved the corner by the root of it (#633).
 fn landed(corner: DVec2, center: DVec2, radius: f64, free: Free) -> Option<DVec2> {
     let from = corner - center;
     let nearer = |fixed: f64, moving: f64| {
+        if moving == 0.0 && (radius - fixed.abs()).abs() <= ROUNDINGS * f64::EPSILON * radius {
+            return Some(0.0);
+        }
         let reach = (radius - fixed) * (radius + fixed);
         if reach < 0.0 {
             return None;

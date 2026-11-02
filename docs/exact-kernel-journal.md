@@ -1412,3 +1412,26 @@ On #628's seed sets through the body, the only verdicts that moved are the
 fifty cases the flats answered: twenty of them open, refused now but one
 the harness counts no answer, and the thirty they built right refused too;
 the rate fell from 9.6 to 8.3 and from 8.3 to 7.3 in a thousand.
+
+## 2 November: #633, a groove about an axis leaning a hair
+
+#632 left the reading declining seed 5577103202's ring about an axis leaning
+a tenth of a degree, and laying it at 15°. Leaned rigidly with its axis, the
+section read against the axis is the same at every lean up to rounding, so
+it was the bits: the groove's end is landed on its circle along its wall,
+and the wall is tangent there, `radius² − fixed²` nought but for an ulp
+either side — below, the wall missed the circle and the reading declined;
+above, the end moved a micron off its level. An end laid on its centre's
+level now stays there, within roundings of its radius. Drawn square to its
+sketch, as #632's pulley is in the application, the same groove about an
+axis a hair off it was still refused, its centre kept as drawn a hair off
+the middle of its walls laid square: a half circle ending tangent to the run
+leaving it has its centre laid at that middle now. Laid at the middle of its
+poles too, a ball moved by an ulp, and two hair cases built right came out
+with crossing triangles, so a ball is left as it is laid. Some 220 sections the
+reading declined on the measured seeds are laid and answered; the rates do
+not move, and no case built right on `main` is built wrong. Between some
+4e-6° and 1.2e-5° the pulley is still declined — its walls square, its
+groove's two ends on two levels — which is set aside as a decision.
+`REBUILT_BY` moves from 13 to 14: a part saved with such a groove replays
+it built.

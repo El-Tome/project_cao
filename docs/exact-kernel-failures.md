@@ -2815,6 +2815,78 @@ excuse, neither a bowed section the reading declines nor a wall a hair thin,
 so no answer (5576914427), as the two `laying-declines` seeds named in
 `what_the_exact_campaigns_found_in_the_kernel.rs` are now, where the flats
 left them open along a rim. Seed 5577103202 itself, kept out of the second
-set because the flats took it forty minutes, is refused at its first leaf in
-a few hundredths of a second
-(`seed_5577103202_a_bowed_section_the_reading_declines_to_lay_is_refused_through_the_body_at_once`).
+set because the flats took it forty minutes, was refused at its first leaf in
+a few hundredths of a second, until #633 laid it.
+
+## #633: a groove about an axis leaning a hair
+
+The reading declined seed 5577103202's ring about an axis leaning 0.001°,
+0.1°, 1° or 5° and laid it at 1e-5°, 0.01°, 15° or 30°: a groove whose half
+round bottom is tangent to its two walls, the harness turning the section
+rigidly with its axis, so that read against it the profile is the same at
+every lean up to rounding. The cause was the bits, not the lean
+(`turning/straight/bends.rs`, `landed`): an arc's end is moved onto its
+circle along the coordinate its next run leaves free, and along a groove's
+wall, square to the axis, that line is tangent to the circle — the root it
+takes, of `radius² − fixed²`, is of nought up to the rounding the lean
+leaves. An ulp below nought and the wall missed the circle, so the profile
+was declined; an ulp above and the end was moved the root of it, some 1e-6,
+off its level, tangent no longer.
+
+Two rules lay it now:
+
+- **An end laid on its centre's level stays**, when it stands within
+  roundings of the radius from the centre: it is the tangent point.
+- **A half circle ending tangent to the run leaving it** — a groove's
+  bottom between two walls, a tube's wall rounded whole between its two
+  shafts — has its centre laid at the middle of its two ends (`diameter`).
+  Drawn square to its sketch and turned about an axis a hair off it, as #632
+  drew the pulley in the application, the groove's walls are laid square and
+  its centre kept as drawn stood a hair off their middle: the arc's end
+  came out off its circle by more than the kernel's own tolerance, and the
+  kernel refused it as no profile it reads.
+
+A first version laid every half circle's centre so, a ball's included: a
+ball's poles land along the axis, where nothing is tangent, and moving its
+centre by an ulp turned two hair cases `main` builds right into crossing
+triangles through the body (5576911550, 5576915729), and a third that broke
+a rule already (5576913025). The rule is held to a tangent landing since,
+and `a_ball_drawn_a_hair_off_the_middle_of_its_poles_keeps_its_centre_as_laid`
+says so.
+
+**Measured like for like**: `main` at `43c30b9` (#632 merged) against the
+branch, every verdict compared case by case. On the body's sets `main` is
+#632's own measure, its tree bit for bit; on the exact kernel's it is #628's,
+which #632 left alone but for comments.
+
+| seeds | kernel | cases | `main` broke a rule | branch broke a rule | bowed sections declined, `main` | branch | built right on `main`, wrong here |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| from 5576850000 | exact | 45 154 | 318, 7.04 ‰ | 320, 7.09 ‰ | 188 | 89 | none |
+| from 5577000000 | exact | 45 000 | 338, 7.51 ‰ | 339, 7.53 ‰ | 181 | 86 | none |
+| from 5576910000 | the application's body | 8 198 | 68, 8.29 ‰ | 68, 8.29 ‰ | 22 | 8 | none |
+| from 5577100000, but 5577103202 | the application's body | 7 999 | 58, 7.25 ‰ | 58, 7.25 ‰ | 24 | 13 | none |
+
+Some 220 sections the reading declined are laid and answered now. Three of
+them, on the exact kernel, break a rule — every one a hair:
+5576853629 (`Answers`, a ring cut by a ring a ten-millionth along), 5576888940
+(`Uncrossed`, two coaxial rounds 2e-7 apart) and 5577009942 (`Listed`, a pole
+6e-8 off the axis); through the body the second keeps every rule and the two
+others are refused, as they were when their section was declined. Two cases
+that broke a rule already break another one now (5577022081, 5577105811,
+`Answers` to `Uncrossed`). The rate does not move: what the reading declined
+was excused, and is answered now.
+
+**What is left, by the reading**: a pulley drawn square to its sketch is
+declined about an axis leaning between some 4e-6° and 1.2e-5°. Its walls,
+fifteen long, are within the tolerance of square there, and its groove's two
+ends, sixty apart along the axis, are not one level, so no circle is tangent
+to both square walls. Below that window the ends are one level and the
+centre is laid at their middle; above it the walls lean past the tolerance
+and are slanted as drawn. Whether to close it is a decision of its own.
+
+Laid, seed 5577103202's ring about a leaning axis is no longer parallel to
+the case's second leaf, turned about a line parallel to the sketch's own
+axis: the two meet along cylinders at a skew angle, which the exact kernel
+declines as unsupported, so that step is refused at once, where about the
+straight axis it is built and the next one refused. The whole case takes the
+body under a second, as about the straight axis.

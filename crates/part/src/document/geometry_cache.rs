@@ -43,8 +43,10 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// touch, where the kernel declined it (#609). 12: an arc turned is a
 /// sphere or a torus of the exact kernel, and the part stays exact after it
 /// (#576). 13: a turn the exact kernel cannot make is a broken step, where
-/// the flats made it and every step after it (#632).
-const REBUILT_BY: u32 = 13;
+/// the flats made it and every step after it (#632). 14: a groove tangent to
+/// its walls is laid about an axis leaning a hair, where the reading declined
+/// it, and its end stays at the tangent (#633).
+const REBUILT_BY: u32 = 14;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

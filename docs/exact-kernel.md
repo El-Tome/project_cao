@@ -97,11 +97,11 @@ It can:
   what it declines there is a broken step too. So is a profile of straight
   runs or arcs the reading cannot lay against its axis: pinched at a corner
   on the axis, an arc crossing a run or a level, a corner of the profile
-  within the tolerance of a slant or an arc it does not end, or an arc
-  ending on a level an axis leaning a little takes off square, which #633
-  is to teach the reading (5577103202's pulley groove is declined from the
-  least lean to some 1e-5° at the drawing's resolution, and still at a
-  tenth of a degree read at none, as the harness reads it). Until #632 the
+  within the tolerance of a slant or an arc it does not end, or a half
+  round between two walls laid square whose two ends the lean leaves on two
+  levels, so that no circle is tangent to both walls (5577103202's pulley
+  groove drawn square to its sketch, about an axis leaning between some
+  3e-6° and 1.5e-5°; #633 laid it at every other lean). Until #632 the
   flats turned these, and every step after them was the flats' boolean,
   which took minutes past a few steps on the window's thread (5577103202:
   two minutes for the fifth step, twenty-two for the sixth). Refused at once,

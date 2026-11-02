@@ -4877,8 +4877,8 @@ fn a_partial_round_asks_a_wall_that_meets_its_whole_surface_but_not_its_leaf() {
 }
 
 #[test]
-fn seed_5576800642_a_bowed_section_the_reading_declines_to_lay_is_counted_no_answer() {
-    random_solids::holds_exactly(&Case::new(
+fn seed_5576800642_bowed_sections_about_axes_leaning_a_hair_are_laid_and_keep_every_rule() {
+    let case = Case::new(
         Leaf::turned(
             Plane::xy(210.0),
             Axis::second(0.0).leaning(1e-7),
@@ -4933,136 +4933,10 @@ fn seed_5576800642_a_bowed_section_the_reading_declines_to_lay_is_counted_no_ans
                 -360.0,
             )),
         ],
-    ));
-}
-
-/// Seed 5577103202's case, its first section turned about `axis`: a ring
-/// with a groove whose half round bottom is tangent to its straight sides,
-/// then five steps. About an axis leaning 1e-5° and a hair off sideways,
-/// the reading declines to lay that section; the flats turned it, and every
-/// step after it was their boolean — two minutes for the fifth, twenty-two
-/// for the sixth, on the window's thread — until #632 refused it at its
-/// first leaf. About the sketch's own axis it is raised exactly; leaning a
-/// tenth of a degree, which the flats built in an instant, it is refused
-/// too, until the exact kernel lays a small lean (#633).
-fn seed_5577103202(axis: Axis) -> Case {
-    Case::new(
-        Leaf::turned(
-            Plane::xy(90.0),
-            axis,
-            Section::bands(
-                -90.0,
-                &[[15.0, 30.0, 90.0], [60.0, 30.0, 75.0], [30.0, 30.0, 90.0]],
-            )
-            .bowed(&[
-                [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
-                [[0.0, 0.0, 0.0], [-45.0, 75.0, -30.0]],
-                [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
-            ]),
-            -360.0,
-        ),
-        vec![
-            Step::add(Leaf::turned(
-                Plane::xy(240.0),
-                Axis::second(-90.0),
-                Section::bands(
-                    90.0,
-                    &[
-                        [30.0, 0.0, 90.0],
-                        [30.0, 0.0, 90.0],
-                        [15.0, 0.0, 90.0],
-                        [60.0, 0.0, 120.0],
-                        [30.0, 0.0, 105.0],
-                    ],
-                )
-                .bowed(&[
-                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
-                    [[0.0, 0.0, 0.0], [135.0, 90.0, -15.0]],
-                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
-                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
-                    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
-                ]),
-                360.0,
-            )),
-            Step::add(Leaf::turned(
-                Plane::xy(0.0),
-                Axis::second(75.0),
-                Section::bands(-120.0, &[[180.0, -0.0, -0.0]])
-                    .bowed(&[[[-30.0, -0.0, -90.0], [0.0, -0.0, -0.0]]]),
-                360.0,
-            )),
-            Step::cut(Leaf::turned(
-                Plane::yz(210.0),
-                Axis::first(180.0),
-                Section::bands(
-                    -30.0,
-                    &[
-                        [60.0, 120.0, 225.0],
-                        [15.0, 120.0, 285.0],
-                        [45.0, 210.0, 285.0],
-                    ],
-                )
-                .sloping_to(&[[120.0, 285.0], [120.0, 285.0], [210.0, 285.0]]),
-                -0.01,
-            )),
-            Step::add(Leaf::prism(
-                Plane::xz(-30.0),
-                Outline::ring([210.0, 180.0], 285.0, 225.0),
-                -90.0,
-            )),
-            Step::cut(Leaf::prism(
-                Plane::xy(15.0),
-                Outline::rectangle([120.0, 120.0], [240.0, 240.0]),
-                210.0,
-            )),
-        ],
-    )
-}
-
-#[test]
-fn seed_5577103202_a_bowed_section_the_reading_declines_to_lay_is_refused_through_the_body_at_once()
-{
-    let case = seed_5577103202(
-        Axis::second(-3.0000000000000004e-7)
-            .backwards()
-            .leaning(-1e-5),
     );
-    assert_eq!(
-        Application.raised(&case.start).err(),
-        Some(Declined::Profile),
-        "the first leaf is refused, not turned on the flats",
-    );
-
-    let started = std::time::Instant::now();
-    let measured = random_solids::held_to_arithmetic(&case, &Application)
+    let measured = random_solids::held_to_arithmetic(&case, &Exact)
         .unwrap_or_else(|flaw| panic!("{:?} broke the rule: {flaw:?}", flaw.rule()));
-    let seconds = started.elapsed().as_secs_f64();
-
-    assert_eq!(
-        measured.bowed, 1,
-        "counted as a section the reading declines"
-    );
-    assert!(
-        seconds < 10.0,
-        "{seconds} s, where the flats took twenty-four minutes"
-    );
-}
-
-#[test]
-fn a_bowed_section_turned_about_an_axis_leaning_a_tenth_of_a_degree_is_declined_through_the_body() {
-    let leaning = seed_5577103202(Axis::second(0.0).backwards().leaning(0.1));
-    assert_eq!(
-        Application.raised(&leaning.start).err(),
-        Some(Declined::Profile),
-        "leaning 0.1°: refused, not turned on the flats",
-    );
-    let straight = seed_5577103202(Axis::second(0.0).backwards());
-    assert!(
-        Application
-            .raised(&straight.start)
-            .is_ok_and(|body| body.is_exact()),
-        "about its own axis: raised exactly",
-    );
+    assert_eq!(measured.bowed, 0, "every section laid");
 }
 
 #[test]

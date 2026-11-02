@@ -29,6 +29,15 @@
 //!   there can a test tell a part opened on its cache from one replayed; the
 //!   docs are prose, held by `language.rs` only
 //!
+//! Closes #636.
+//! - a pulley turned about an axis leaning in the window is a broken step
+//!   with its reason, the part before it exact and the step after it built,
+//!   and the pulley is built exactly below and above the window —
+//!   `a_pulley_whose_groove_the_reading_cannot_lay_is_a_broken_step`
+//! - the docs say the window was decided left, and why — no test: prose, in
+//!   `exact-kernel.md`, `exact-kernel-failures.md` and the journal, held by
+//!   `language.rs` only
+//!
 //! A revolution the exact kernel cannot make, as the application builds it:
 //! a broken step with its reason, the part as it stood before it and still
 //! exact, and the steps after it built exactly. The flats turned it until
@@ -38,7 +47,8 @@
 //! 3e-6° and from some 1.5e-5° on, as about the sketch's own axis, and
 //! declined between: there its walls, fifteen long, are laid square, and
 //! its groove's two ends, sixty apart, stand on two levels, so that no
-//! circle is tangent to both walls.
+//! circle is tangent to both walls. #636 left that window: no lean a hand
+//! draws falls in it.
 
 use std::f64::consts::{FRAC_PI_2, PI};
 

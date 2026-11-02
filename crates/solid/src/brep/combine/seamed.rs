@@ -82,11 +82,14 @@ pub(super) fn seamed(arena: &mut Arena, operands: &Operands, operation: Operatio
 /// lying on it, or through a vertex on it — a slab resting on a ring's lower
 /// crest when the chart is cut there, a wall of the ring's own radius
 /// meeting its end meridians at the crests — cut instead along the middle
-/// of the widest band between those circles and vertices (#623). On the
-/// cut, such a circle would be read along the window's top, over the floor,
-/// and a meridian ending there would leave a stretch of nothing past it;
-/// anywhere else a face reaching across the cut is joined back across it
-/// as the selection reads it.
+/// of the widest band between those circles and vertices and their
+/// antipodes (#623). On the cut, such a circle would be read along the
+/// window's top, over the floor, and a meridian ending there would leave a
+/// stretch of nothing past it; anywhere else a face reaching across the cut
+/// is joined back across it as the selection reads it. The antipodes keep
+/// the seam, the window's middle, off them too: a whole ring's face is
+/// sampled there, and on the crest a slab rests on it would be read inside
+/// the slab.
 pub(super) fn reseamed(arena: &mut Arena, operands: &Operands) {
     let eps = operands.eps();
     for rank in 0..arena.body.surfaces.len() {
@@ -115,6 +118,11 @@ pub(super) fn reseamed(arena: &mut Arena, operands: &Operands) {
         if !angles.iter().any(on_the_cut) {
             continue;
         }
+        let antipodes: Vec<f64> = angles
+            .iter()
+            .map(|angle| (angle + PI).rem_euclid(TAU))
+            .collect();
+        angles.extend(antipodes);
         angles.sort_by(f64::total_cmp);
         angles.dedup();
         let widest = (0..angles.len())

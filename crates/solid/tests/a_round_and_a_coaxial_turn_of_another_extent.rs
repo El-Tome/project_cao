@@ -23,7 +23,7 @@ mod random_solids;
 
 use std::f64::consts::PI;
 
-use random_solids::{Axis, Case, Exact, Kernel, Leaf, Plane, Section, Step};
+use random_solids::{Axis, Case, Exact, Kernel, Leaf, Outline, Plane, Section, Step};
 
 /// Lane C round 1 of #576, the rounded draw on the exact kernel: Answers.
 #[test]
@@ -222,6 +222,70 @@ fn a_band_of_a_torus_the_chart_s_cut_runs_through_is_one_face() {
             Section::bands(-4.5, &[[5.0, -5.0, 0.0]])
                 .bowed(&[[[-2.0, -5.0, -2.5], [0.0, 0.0, 0.0]]]),
             360.0,
+        ))],
+    ));
+}
+
+/// Seed 5576876097: a whole ring a coaxial slab only rests on, along its
+/// crest, where the chart was cut — moved off the crest, the cut must not
+/// leave the window's middle, where a whole ring's face is sampled, on it.
+#[test]
+fn a_whole_ring_a_coaxial_slab_rests_on_keeps_every_rule_and_its_volume() {
+    let case = Case::new(
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::second(0.0).backwards(),
+            Section::bands(-0.5, &[[5.0, 4.5, 4.5]]).bowed(&[[[2.0, 4.5, -2.5], [2.0, 4.5, 2.5]]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::second(0.0),
+            Section::bands(0.5, &[[1.0, 0.0, 7.5]]),
+            90.0,
+        ))],
+    );
+    random_solids::holds_exactly(&case);
+    random_solids::holds_through_the_application(&case);
+    let ring = 2.0 * PI * PI * 4.5 * 2.5 * 2.5;
+    let body = exactly(&case);
+    assert!(
+        (body.volume() - ring).abs() < 1e-9 * ring,
+        "the whole ring: {}",
+        body.volume()
+    );
+}
+
+/// Seeds 5576873290 and 5577106512: a whole ring joined to a coaxial tube
+/// whose bore it touches along its inner equator, the chart cut there.
+#[test]
+fn a_whole_ring_joined_to_a_coaxial_tube_whose_bore_it_touches_keeps_every_rule() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(45.0),
+            Axis::first(180.0).backwards(),
+            Section::bands(75.0, &[[150.0, 120.0, 120.0]])
+                .bowed(&[[[150.0, 120.0, -75.0], [150.0, 120.0, 75.0]]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(-75.0),
+            Outline::ring([180.0, 45.0], 165.0, 120.0),
+            195.0,
+        ))],
+    ));
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(8.0),
+            Axis::first(-2.5).backwards(),
+            Section::bands(-3.0, &[[4.0, 2.5, 2.5]])
+                .bowed(&[[[-1.0, 2.5, -2.0], [-1.0, 2.5, 2.0]]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(3.0),
+            Outline::ring([8.0, -2.5], 4.0, 2.5),
+            10.0,
         ))],
     ));
 }

@@ -58,6 +58,8 @@ fn lean_of(one: &Surface, other: &Surface) -> Option<(Lean, f64)> {
         Surface::Cylinder(cylinder) => Some(cylinder.axis),
         Surface::Cone(cone) => Some(cone.axis),
         Surface::Elliptic(wall) => Some(wall.axis),
+        Surface::Sphere(sphere) => Some(sphere.axis),
+        Surface::Torus(torus) => Some(torus.axis),
         Surface::Plane(_) => None,
     };
     match (one, other) {

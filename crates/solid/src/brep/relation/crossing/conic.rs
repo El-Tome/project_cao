@@ -60,10 +60,13 @@ pub(super) fn conic_and_surface(
             | Relation::Circle(_)
             | Relation::Meet(_)
             | Relation::Rulings { .. }
+            | Relation::Rims(_)
+            | Relation::Meridians { .. }
             | Relation::Conic(_)
             | Relation::Ruling { .. }
             | Relation::Unsupported => return Crossings::Unsupported,
         },
+        Surface::Sphere(_) | Surface::Torus(_) => return Crossings::Unsupported,
         Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
             match relation(&wall, surface, scale) {
                 Relation::Same { .. } => return Crossings::Along,
@@ -91,6 +94,8 @@ pub(super) fn conic_and_surface(
                 Relation::Apart | Relation::Apex(_) => (Vec::new(), own_plane),
                 Relation::Line(_)
                 | Relation::Rulings { .. }
+                | Relation::Rims(_)
+                | Relation::Meridians { .. }
                 | Relation::Conic(_)
                 | Relation::Ruling { .. }
                 | Relation::Unsupported => return Crossings::Unsupported,

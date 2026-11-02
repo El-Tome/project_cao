@@ -177,10 +177,10 @@ pub(in crate::brep) fn slope_between_two_flats(at: f64) -> (Body, FaceId) {
 fn apexes(cut: &Cut) -> Vec<Option<DVec3>> {
     let mut body = cut.body.clone();
     let mut faces = body.faces.clone();
-    body.hold_apexes(&mut faces);
+    body.hold_poles(&mut faces);
     faces
         .iter()
-        .map(|face| face.apex.map(|vertex| body.vertex(vertex).point))
+        .map(|face| face.poles.first().map(|vertex| body.vertex(*vertex).point))
         .collect()
 }
 
@@ -224,10 +224,11 @@ fn a_cone_face_between_two_hyperbolas_goes_round_its_axis_and_holds_its_apex() {
     for at in [4.0, 1.0, 9.0] {
         let (mut body, slope) = slope_between_two_flats(at);
         let mut faces = body.faces.clone();
-        body.hold_apexes(&mut faces);
+        body.hold_poles(&mut faces);
         let apex = faces[slope.0 as usize]
-            .apex
-            .map(|vertex| body.vertex(vertex).point);
+            .poles
+            .first()
+            .map(|vertex| body.vertex(*vertex).point);
         assert_eq!(
             apex,
             Some(DVec3::new(0.0, 0.0, TIP)),

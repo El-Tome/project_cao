@@ -202,33 +202,35 @@ fn windows_touching_at_one_corner_leave_the_frame_one_opening() {
     assert_raised_round_its_openings(one_corner(), 700.0, 80.0);
 }
 
-/// A round segment, an arc and its chord, drawn on a second sketch and
-/// turned whole about its V axis fifty from the frame: a band of a torus,
-/// which sends the part to the flats.
-fn turn_a_band_of_a_torus(document: &mut PartDocument) {
+/// An ellipse 10 by 6 about (50, 5), drawn on a second sketch and turned a
+/// quarter about its V axis fifty from the frame: an elliptic band, which
+/// sends the part to the flats.
+fn turn_an_elliptic_band(document: &mut PartDocument) {
     document.apply(Operation::CreateSketch {
         plane: WorkPlane::XY,
         on: None,
     });
-    document.apply(Operation::AddArc {
+    let center = DVec2::new(50.0, 5.0);
+    document.apply(Operation::AddEllipse {
         sketch: 1,
-        center: PointRef::New(DVec2::new(50.0, 5.0)),
-        start: PointRef::New(DVec2::new(55.0, 0.0)),
-        end: PointRef::New(DVec2::new(55.0, 10.0)),
+        center: PointRef::New(center),
+        first: [
+            PointRef::New(center - DVec2::X * 5.0),
+            PointRef::New(center + DVec2::X * 5.0),
+        ],
+        second: [
+            PointRef::New(center - DVec2::Y * 3.0),
+            PointRef::New(center + DVec2::Y * 3.0),
+        ],
         construction: false,
+        drawn: None,
     });
-    document.apply(Operation::AddSegment {
-        sketch: 1,
-        start: PointRef::Existing(PointId(3)),
-        end: PointRef::Existing(PointId(2)),
-        construction: false,
-    });
-    let areas = document.areas_at(1, &[DVec2::new(56.0, 5.0)]);
+    let areas = document.areas_at(1, &[center]);
     document.apply(Operation::Revolve {
         sketch: 1,
         areas,
         axis: RevolutionAxis::Sketch(SketchAxis::V),
-        angle: 360.0.into(),
+        angle: 90.0.into(),
         mode: ExtrusionMode::Add,
     });
 }
@@ -241,7 +243,7 @@ fn windows_touching_in_a_frame_raised_by_the_flats_leave_one_opening() {
         (one_corner, 700.0),
     ] {
         let mut document = drawing();
-        turn_a_band_of_a_torus(&mut document);
+        turn_an_elliptic_band(&mut document);
         let turned = document.body().volume();
         raise(&mut document, DVec2::splat(2.0), ExtrusionMode::Add);
 

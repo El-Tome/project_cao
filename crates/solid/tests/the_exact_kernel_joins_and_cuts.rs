@@ -388,6 +388,7 @@ fn point() -> Body {
     let corner = |at: [f64; 2], run: u32| Corner {
         at: DVec2::from(at),
         run,
+        bend: None,
     };
     let straight = Straight {
         side: 1.0,

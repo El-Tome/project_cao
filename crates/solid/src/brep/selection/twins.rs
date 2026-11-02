@@ -12,8 +12,16 @@
 //! kept on the first surface — a plane before a cylinder, then the one
 //! ranked first — so that a skin thinner than the tolerance is not left
 //! between two faces back to back.
+//!
+//! On a sphere or a torus, whose chart closes on itself both ways, a loop
+//! bounds two regions, one each side of it — a lune and the rest of the
+//! ball, a band of a ring and the rest of the tube — and both are bounded
+//! by the very same arcs. Two regions of one surface are never one piece of
+//! surface: a group is read surface by surface, and a surface's region that
+//! stands a tolerance off the first's is left out of the twins without
+//! breaking the group (#576).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::brep::overlay::{Overlay, Region};
 use crate::brep::surface::Surface;
@@ -51,36 +59,44 @@ pub(super) fn twins(parted: &[(&Surface, &[EdgeId], &Overlay)], eps: f64) -> Vec
         }
     }
     for group in alike.into_values().filter(|group| group.len() > 1) {
-        let first = *group
+        let surfaces: BTreeSet<usize> = group.iter().map(|(surface, _)| *surface).collect();
+        if surfaces.len() < 2 {
+            continue;
+        }
+        let lead = *surfaces
             .iter()
-            .min_by_key(|(surface, _)| (!matches!(parted[*surface].0, Surface::Plane(_)), *surface))
+            .min_by_key(|surface| (!matches!(parted[**surface].0, Surface::Plane(_)), **surface))
             .expect("a group holds a region");
         let region = |(surface, rank): (usize, usize)| &parted[surface].2.regions[rank];
         let close = |one: (usize, usize), other: (usize, usize)| {
             let inside = parted[one.0].0.point(region(one).inside);
             parted[other.0].0.distance(inside).abs() <= eps
         };
-        let others: Vec<(usize, usize, bool)> = group
-            .iter()
-            .filter(|member| **member != first)
-            .filter(|&&member| close(member, first) && close(first, member))
-            .filter_map(|&member| {
-                let facing = facing(
-                    region(first),
-                    parted[first.0].1,
-                    region(member),
-                    parted[member.0].1,
-                )?;
-                Some((member.0, member.1, !facing))
-            })
-            .collect();
-        if others.len() + 1 != group.len() {
-            continue;
+        for &first in group.iter().filter(|(surface, _)| *surface == lead) {
+            let others: Vec<(usize, usize, bool)> = group
+                .iter()
+                .filter(|(surface, _)| *surface != lead)
+                .filter(|&&member| close(member, first) && close(first, member))
+                .filter_map(|&member| {
+                    let facing = facing(
+                        region(first),
+                        parted[first.0].1,
+                        region(member),
+                        parted[member.0].1,
+                    )?;
+                    Some((member.0, member.1, !facing))
+                })
+                .collect();
+            let covered: BTreeSet<usize> = others.iter().map(|(surface, _, _)| *surface).collect();
+            if covered.len() != others.len() || covered.len() + 1 != surfaces.len() {
+                continue;
+            }
+            for &(surface, rank, _) in &others {
+                found[surface][rank] = Twin::Other;
+            }
+            found[first.0][first.1] = Twin::First(others);
+            break;
         }
-        for &(surface, rank, _) in &others {
-            found[surface][rank] = Twin::Other;
-        }
-        found[first.0][first.1] = Twin::First(others);
     }
     found
 }

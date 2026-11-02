@@ -13,6 +13,14 @@
 //! axis, its own included, where their leaves' boxes meet. Nothing else it
 //! meets asks — a plane at any angle, a wall parallel or square to it — so a
 //! case with an ellipse is built or failed but there.
+//!
+//! A sphere or a torus (#576) is built along circles alone: against a plane
+//! square to its axis or holding it, and against a cylinder, a cone, a
+//! sphere or a torus about that very axis. Any other wall whose leaf's box
+//! meets its own asks beyond those circles — a plane at a slant, a block's
+//! side, a hole drilled off the axis, a cone off it — and the kernel may
+//! decline the case as unsupported, which is counted apart from the rule
+//! for the conics (`asks_a_round_beyond_its_circles`).
 
 use cao_solid::profile::Run;
 use glam::{DVec2, DVec3};
@@ -25,7 +33,9 @@ type Spanned = Option<(DVec3, DVec3)>;
 /// A surface a leaf is bounded by, as the scope rule reads it: a plane by its
 /// normal and a point of it, a cylinder, an elliptic cylinder or a cone by
 /// its axis and a point of the axis, a cone besides by the furthest its leaf
-/// reaches from the axis.
+/// reaches from the axis, and a sphere or a torus by the axis it was turned
+/// about and the point of it its circle's centre stands level with, a sphere
+/// besides by its radius and a torus by the circle's two radii.
 enum Wall {
     Plane {
         normal: DVec3,
@@ -42,6 +52,17 @@ enum Wall {
     Cone {
         axis: DVec3,
         point: DVec3,
+        radius: f64,
+    },
+    Sphere {
+        axis: DVec3,
+        point: DVec3,
+        radius: f64,
+    },
+    Torus {
+        axis: DVec3,
+        point: DVec3,
+        big: f64,
         radius: f64,
     },
 }
@@ -83,21 +104,108 @@ impl Wall {
                 axis: other,
                 point: on,
                 ..
-            } => {
-                let parallel = other.normalize().cross(axis).length() <= ALIGNED;
-                let off = (on - point) - axis * (on - point).dot(axis);
-                !parallel || off.length() > ALIGNED * reach
             }
+            | Wall::Sphere {
+                axis: other,
+                point: on,
+                ..
+            }
+            | Wall::Torus {
+                axis: other,
+                point: on,
+                ..
+            } => !coaxial(other, on, axis, point, reach),
             Wall::Elliptic { .. } => true,
+        }
+    }
+
+    /// Whether this wall meets a sphere or a torus turned about `axis`
+    /// through `point` in a curve the kernel does not build (#576): anything
+    /// but a plane square to the axis or holding it, or a cylinder, a cone,
+    /// a sphere or a torus about the same line.
+    fn asks_of_a_round(&self, axis: DVec3, point: DVec3, reach: f64) -> bool {
+        let axis = axis.normalize();
+        match *self {
+            Wall::Plane { normal, point: on } => {
+                let normal = normal.normalize();
+                let square = normal.cross(axis).length() <= ALIGNED;
+                let holding = normal.dot(axis).abs() <= ALIGNED
+                    && normal.dot(point - on).abs() <= ALIGNED * reach;
+                !square && !holding
+            }
+            Wall::Cylinder {
+                axis: other,
+                point: on,
+            }
+            | Wall::Cone {
+                axis: other,
+                point: on,
+                ..
+            }
+            | Wall::Sphere {
+                axis: other,
+                point: on,
+                ..
+            }
+            | Wall::Torus {
+                axis: other,
+                point: on,
+                ..
+            } => !coaxial(other, on, axis, point, reach),
+            Wall::Elliptic { .. } => true,
+        }
+    }
+
+    /// The box the whole surface spans, as the kernel boxes a face on a
+    /// sphere or a torus by its surface's own extent, which reaches far
+    /// beyond the turn that drew a part of it (#576); none for any other
+    /// wall.
+    fn round_box(&self) -> Option<[DVec3; 2]> {
+        match *self {
+            Wall::Sphere { point, radius, .. } => {
+                Some([point - DVec3::splat(radius), point + DVec3::splat(radius)])
+            }
+            Wall::Torus {
+                axis,
+                point,
+                big,
+                radius,
+            } => {
+                let axis = axis.normalize();
+                let extent = |direction: DVec3| {
+                    let along = direction.dot(axis);
+                    let across = (direction - axis * along).length();
+                    let at = direction.dot(point);
+                    let spread = across * big + radius;
+                    [at - spread, at + spread]
+                };
+                let [x, y, z] = DVec3::AXES.map(extent);
+                Some([DVec3::new(x[0], y[0], z[0]), DVec3::new(x[1], y[1], z[1])])
+            }
+            Wall::Plane { .. }
+            | Wall::Cylinder { .. }
+            | Wall::Elliptic { .. }
+            | Wall::Cone { .. } => None,
         }
     }
 }
 
-/// The planes a leaf is bounded by, the cylinders and the cones: a turn's
-/// planes square to its axis at each end of its section and, short of a
-/// whole turn, the two it starts and ends on; its cylinder, and its cone
-/// when an edge of its section slopes; a prism's two ends, its sides and
-/// the cylinders of its arcs, circular or elliptic.
+/// Whether the line along `other` through `on` is the line along `axis`
+/// through `point`, within the rounding of a direction and that share of
+/// the reach.
+fn coaxial(other: DVec3, on: DVec3, axis: DVec3, point: DVec3, reach: f64) -> bool {
+    let parallel = other.normalize().cross(axis).length() <= ALIGNED;
+    let off = (on - point) - axis * (on - point).dot(axis);
+    parallel && off.length() <= ALIGNED * reach
+}
+
+/// The planes a leaf is bounded by, the cylinders, the cones, the spheres
+/// and the tori: a turn's planes square to its axis at each end of its
+/// section and, short of a whole turn, the two it starts and ends on; its
+/// cylinder, its cone when an edge of its section slopes, and for each edge
+/// that bows a sphere or a torus as the arc's centre stands on the axis or
+/// off it; a prism's two ends, its sides and the cylinders of its arcs,
+/// circular or elliptic.
 fn walls(leaf: &Leaf) -> Vec<Wall> {
     if let Some(turned) = leaf.as_turned() {
         let swept = turned.swept(1.0);
@@ -135,6 +243,25 @@ fn walls(leaf: &Leaf) -> Vec<Wall> {
                 point,
                 radius,
             });
+        }
+        for piece in turned.section.pieces() {
+            for bow in piece.bows.into_iter().flatten() {
+                let point = point + axis * bow.center.x;
+                walls.push(if bow.center.y == 0.0 {
+                    Wall::Sphere {
+                        axis,
+                        point,
+                        radius: bow.radius.abs(),
+                    }
+                } else {
+                    Wall::Torus {
+                        axis,
+                        point,
+                        big: bow.center.y.abs(),
+                        radius: bow.radius.abs(),
+                    }
+                });
+            }
         }
         return walls;
     }
@@ -444,6 +571,46 @@ impl Case {
             };
             !matches!(other, Wall::Plane { .. })
                 && other.asks_of_a_cone(axis, point, radius, walled.reach)
+        })
+    }
+
+    /// Whether the case may ask the exact kernel for a curve beyond the
+    /// circles it builds a sphere or a torus along (#576): a sphere or a
+    /// torus of one leaf against a wall of a leaf whose box meets the whole
+    /// surface's, that is neither a plane square to the turn's axis or
+    /// holding it, nor a cylinder, a cone, a sphere or a torus about that
+    /// very axis. The kernel may decline such a case as unsupported; it may
+    /// also hold it, the walls never meeting there. The leaf's box is not the
+    /// one the kernel reads: it boxes a face on a sphere or a torus by the
+    /// surface's own extent, which reaches far beyond the leaf the turn drew
+    /// of it, so two round walls whose leaves stand apart may still be
+    /// related and declined.
+    pub fn asks_a_round_beyond_its_circles(&self) -> bool {
+        let walled = Walled::of(self);
+        walled.leaves.iter().any(|(walls, _, _)| {
+            walls
+                .iter()
+                .filter_map(|wall| match wall {
+                    Wall::Sphere { axis, point, .. } | Wall::Torus { axis, point, .. } => {
+                        Some((*axis, *point, wall.round_box()))
+                    }
+                    _ => None,
+                })
+                .any(|(axis, point, round_box)| {
+                    let spanned = round_box.map(|[low, high]| (low, high));
+                    walled.leaves.iter().any(|(others, bounds, _)| {
+                        others.iter().any(|other| {
+                            let boxed = match other {
+                                Wall::Sphere { .. } | Wall::Torus { .. } => {
+                                    other.round_box().map(|[low, high]| (low, high))
+                                }
+                                _ => *bounds,
+                            };
+                            walled.near(spanned, boxed)
+                                && other.asks_of_a_round(axis, point, walled.reach)
+                        })
+                    })
+                })
         })
     }
 

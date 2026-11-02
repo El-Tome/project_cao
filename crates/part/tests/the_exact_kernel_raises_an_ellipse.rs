@@ -88,8 +88,8 @@
 //! - a turn of a profile holding an ellipse stays on the flats (what must not
 //!   break) — `an_ellipse_turned_is_computed_by_the_flats`; a part already on
 //!   the flats raises an ellipse on the flats, held by
-//!   `an_ellipse_raised_after_a_turned_arc_is_computed_by_the_flats` in
-//!   `the_exact_kernel_computes_the_part.rs`
+//!   `an_ellipse_raised_on_a_part_already_on_the_flats_is_computed_by_the_flats`
+//!   in `the_exact_kernel_computes_the_part.rs`
 //!
 //! A part holding an ellipse, as the application builds it: the elliptic
 //! wall is the exact kernel's, and so is every step after it. The kernel's
@@ -375,27 +375,37 @@ fn an_ellipse_cut_by_traits(history: &mut History, at: &[f64]) -> usize {
     sketch
 }
 
-/// A round segment, an arc and its chord, turned whole about the sketch's V
-/// axis fifty from the origin: a band of a torus, which only the flats make.
-fn turn_a_torus(history: &mut History) {
-    let sketch = sketch_on(history, WorkPlane::XY);
-    let first = next_point(history, sketch);
-    history.push(Operation::AddArc {
+/// Half an ellipse 10 by 6 about (50, 5) and the chord closing it, on a sketch
+/// of its own a thousand along X, turned whole about the sketch's V axis: an
+/// elliptic band, which only the flats make. The sketch stands that far so
+/// that the sweep's planes cross none of the faces a raise makes.
+fn turn_an_elliptic_band(history: &mut History) {
+    let sketch = sketch_on(history, plane(DVec3::X * 1000.0, DVec3::X, DVec3::Y));
+    let center = DVec2::new(50.0, 5.0);
+    let first = [center - DVec2::X * 5.0, center + DVec2::X * 5.0];
+    let first_refs = [PointRef::New(first[0]), PointRef::New(first[1])];
+    history.push(Operation::AddEllipse {
         sketch,
-        center: PointRef::New(DVec2::new(50.0, 5.0)),
-        start: PointRef::New(DVec2::new(55.0, 0.0)),
-        end: PointRef::New(DVec2::new(55.0, 10.0)),
+        center: PointRef::New(center),
+        first: first_refs.clone(),
+        second: [
+            PointRef::New(center - DVec2::Y * 3.0),
+            PointRef::New(center + DVec2::Y * 3.0),
+        ],
         construction: false,
+        drawn: Some([first_refs[1].clone(), first_refs[0].clone()]),
     });
+    let base = next_point(history, sketch) - 5;
     segment(
         history,
         sketch,
-        PointRef::Existing(PointId(first + 2)),
-        PointRef::Existing(PointId(first + 1)),
+        PointRef::Existing(PointId(base + 2)),
+        PointRef::Existing(PointId(base + 1)),
     );
+    let inside = DVec2::new(50.0, 6.5);
     history.push(Operation::Revolve {
         sketch,
-        areas: clicked(history, sketch, &[DVec2::new(56.0, 5.0)]),
+        areas: clicked(history, sketch, &[inside]),
         axis: RevolutionAxis::Sketch(SketchAxis::V),
         angle: 360.0.into(),
         mode: ExtrusionMode::Add,
@@ -424,15 +434,15 @@ fn an_ellipse_cut_by_a_trait_is_raised_exactly_and_numbers_its_faces_as_the_flat
         raise(&mut exact, sketch, place, 10.0, ExtrusionMode::Add);
         let mut flats = History::default();
         let sketch = an_ellipse_cut_by_traits(&mut flats, traits);
-        turn_a_torus(&mut flats);
-        let torus = applied_live(&flats).body().volume();
+        turn_an_elliptic_band(&mut flats);
+        let band = applied_live(&flats).body().volume();
         raise(&mut flats, sketch, place, 10.0, ExtrusionMode::Add);
 
         built_exactly(&exact, area * 10.0, "the area the traits leave");
         let on_the_flats = applied_live(&flats);
-        assert!(!on_the_flats.body().is_exact(), "the torus sent it there");
+        assert!(!on_the_flats.body().is_exact(), "the turn sent it there");
         assert!(
-            on_the_flats.body().volume() > torus,
+            on_the_flats.body().volume() > band,
             "the flats raised the step too"
         );
         assert_eq!(

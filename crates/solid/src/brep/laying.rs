@@ -75,10 +75,27 @@ impl Laying {
                         && known.axis.cross(wall.axis).length() <= Scale::RELATIVE
                         && known.gap(wall) <= eps
                 }
+                (Surface::Sphere(known), Surface::Sphere(sphere)) => {
+                    known.axis.dot(sphere.axis) > 0.0
+                        && known.axis.cross(sphere.axis).length() <= Scale::RELATIVE
+                        && known.middle().distance(sphere.middle())
+                            + (known.radius - sphere.radius).abs()
+                            <= eps
+                }
+                (Surface::Torus(known), Surface::Torus(torus)) => {
+                    known.axis.dot(torus.axis) > 0.0
+                        && known.axis.cross(torus.axis).length() <= Scale::RELATIVE
+                        && known.origin.distance(torus.origin)
+                            + known.center.distance(torus.center)
+                            + (known.radius - torus.radius).abs()
+                            <= eps
+                }
                 (Surface::Plane(_), _)
                 | (Surface::Cylinder(_), _)
                 | (Surface::Cone(_), _)
-                | (Surface::Elliptic(_), _) => false,
+                | (Surface::Elliptic(_), _)
+                | (Surface::Sphere(_), _)
+                | (Surface::Torus(_), _) => false,
             };
             alike
                 && corners
@@ -146,6 +163,61 @@ impl Laying {
     pub fn ring(&mut self, cylinder: &Cylinder, center: DVec3, sweep: f64, up: DVec3) -> Coedge {
         let circle = Circle::on(cylinder, (center - cylinder.origin).dot(cylinder.axis));
         let forward = sweep * cylinder.axis.dot(up) > 0.0;
+        self.edge(Curve::Circle(circle), None, 0.0, TAU, forward)
+    }
+
+    /// An arc of `circle` from `ends[0]` turning by `sweep` about `up` to
+    /// `ends[1]`, used that way: a meridian of a sphere or a torus (#576).
+    pub fn round(&mut self, circle: Circle, ends: [VertexId; 2], sweep: f64, up: DVec3) -> Coedge {
+        self.body.curves.push(Curve::Circle(circle));
+        let curve = CurveId(self.body.curves.len() as u32 - 1);
+        self.round_on(curve, circle, ends, sweep, up)
+    }
+
+    /// The same arc on the circle an edge `beside` runs along: the two
+    /// meridians of a sphere at a half turn lie on one great circle, and
+    /// their edges can be joined into one only on one curve.
+    pub fn round_beside(
+        &mut self,
+        beside: Coedge,
+        ends: [VertexId; 2],
+        sweep: f64,
+        up: DVec3,
+    ) -> Coedge {
+        let curve = self.body.edge(beside.edge).curve;
+        let Curve::Circle(circle) = *self.body.curve(curve) else {
+            unreachable!("a meridian lies beside a meridian");
+        };
+        self.round_on(curve, circle, ends, sweep, up)
+    }
+
+    fn round_on(
+        &mut self,
+        curve: CurveId,
+        circle: Circle,
+        ends: [VertexId; 2],
+        sweep: f64,
+        up: DVec3,
+    ) -> Coedge {
+        let turning = sweep * circle.axis.dot(up).signum();
+        let [start, end] = if turning > 0.0 {
+            ends
+        } else {
+            [ends[1], ends[0]]
+        };
+        let from = circle.parameter(self.body.vertex(start).point);
+        self.edge_on(
+            curve,
+            Some([start, end]),
+            from,
+            from + turning.abs(),
+            turning > 0.0,
+        )
+    }
+
+    /// The whole of `circle`, used the way `sweep` turns about `up`.
+    pub fn round_ring(&mut self, circle: Circle, sweep: f64, up: DVec3) -> Coedge {
+        let forward = sweep * circle.axis.dot(up) > 0.0;
         self.edge(Curve::Circle(circle), None, 0.0, TAU, forward)
     }
 

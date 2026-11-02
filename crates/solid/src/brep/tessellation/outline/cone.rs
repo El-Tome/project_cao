@@ -36,10 +36,10 @@ struct Floor<'a> {
 
 /// A loop laid out in `(θ, l)`, each point beside the sample it stands for,
 /// and how many times it goes round the axis.
-struct Laid {
-    raw: Vec<DVec2>,
-    ids: Vec<usize>,
-    turns: i64,
+pub(super) struct Laid {
+    pub(super) raw: Vec<DVec2>,
+    pub(super) ids: Vec<usize>,
+    pub(super) turns: i64,
 }
 
 impl Floor<'_> {
@@ -148,7 +148,7 @@ impl Floor<'_> {
 /// loop running along an edge and back along it meets each of its samples
 /// twice. Added up step by step from the last, the angles of the two passes
 /// part by a rounding, and the two chains cross.
-fn near_turn(read: f64, last: f64) -> f64 {
+pub(super) fn near_turn(read: f64, last: f64) -> f64 {
     read + TAU * ((last - read) / TAU).round()
 }
 

@@ -17,17 +17,26 @@
 //! to its widest, and in to the axis itself, so that a face it bounds is
 //! told clear less often than it might be, never wrongly (#552). A face
 //! bounded by the curve two cylinders meet along is never decided clear.
+//! A face on a sphere or a torus bulges between its edges, and a whole ball
+//! has none: its reach is read off the points of its surface that go
+//! furthest along the direction too, where they stand inside the face, and
+//! how far it stands from a line off the whole surface (#576).
+
+mod hollow;
+mod round;
+mod walls;
 
 use std::f64::consts::PI;
 
-use glam::{DVec2, DVec3};
+use glam::DVec3;
 
 use super::operands::Operands;
-use crate::brep::conic::{Conic, Round};
+use crate::brep::conic::Conic;
 use crate::brep::curve::{Circle, Curve};
-use crate::brep::scale::Scale;
-use crate::brep::surface::{Cone, Surface};
+use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, FaceId, SurfaceId};
+use hollow::{beyond, in_the_hollow};
+use walls::{Wall, radii};
 
 /// How many tolerances two faces must stand apart to be clear: each surface
 /// may have been taken for one a tolerance away, and an edge stands within
@@ -61,7 +70,8 @@ pub(super) fn clear(operands: &Operands, [one, other]: [SurfaceId; 2]) -> bool {
 /// the walls span stand further apart than the walls stand from them; and,
 /// a cone among the two, whether the other face stands inside the hollow
 /// the cone's face leaves about its axis, or beyond a plane touching the cone
-/// along a ruling.
+/// along a ruling; a sphere or a torus among the two, whether the other face
+/// stands beyond a plane touching the round, or inside a ring's hole.
 ///
 /// A bore drilled through a hexagonal bar, past its far side, is told apart
 /// from that side's slanted neighbours only across its own axis, in the plane
@@ -75,6 +85,8 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
             Surface::Cylinder(cylinder) => cylinder.axis,
             Surface::Cone(cone) => cone.axis,
             Surface::Elliptic(wall) => wall.axis,
+            Surface::Sphere(sphere) => sphere.axis,
+            Surface::Torus(torus) => torus.axis,
             Surface::Plane(_) => continue,
         };
         directions.extend(straight_edges(edged).map(|along| axis.cross(along)));
@@ -106,53 +118,11 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
                 Surface::Cone(cone) => {
                     in_the_hollow(cone, nappe, face, room) || beyond(cone, face, room)
                 }
+                Surface::Sphere(_) | Surface::Torus(_) => {
+                    round::in_the_hollow(surface, face, room) || round::beyond(surface, face, room)
+                }
                 Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => false,
             })
-}
-
-/// Whether a face stands nearer a cone's axis everywhere than the face on
-/// the cone does anywhere: a pocket within a chamfered end.
-fn in_the_hollow(cone: &Cone, nappe: (&Body, FaceId), face: (&Body, FaceId), room: f64) -> bool {
-    match (radii(cone, nappe), farthest(face, cone.origin, cone.axis)) {
-        (Some([inner, _]), Some(farthest)) => farthest + room < inner,
-        _ => false,
-    }
-}
-
-/// Whether a face stands beyond a plane touching the cone along one of its
-/// rulings, on the side away from the solid the nappe bounds: a block beside
-/// a point's slope, which no direction the two surfaces offer tells apart
-/// from the ring the slope makes. The planes tried touch the cone where the
-/// face's corners stand about the axis, and where their mean does.
-fn beyond(cone: &Cone, face: (&Body, FaceId), room: f64) -> bool {
-    let corners = corners(face);
-    let mean = corners.iter().sum::<DVec3>() / corners.len().max(1) as f64;
-    corners.iter().chain([&mean]).any(|&corner| {
-        let theta = cone.parameters(corner).x;
-        let outward = cone.normal(theta) * cone.ruling.x.signum();
-        let touching = outward.dot(cone.point(DVec2::new(theta, 0.0)));
-        reach(face, outward).is_some_and(|[low, _]| low > touching + room)
-    })
-}
-
-/// The ends of a face's edges, and the centres of its circles.
-fn corners((body, face): (&Body, FaceId)) -> Vec<DVec3> {
-    body.face(face)
-        .loops
-        .iter()
-        .flatten()
-        .flat_map(|coedge| {
-            let edge = body.edge(coedge.edge);
-            let curve = body.curve(edge.curve);
-            let centre = match curve {
-                Curve::Circle(circle) => Some(circle.center),
-                Curve::Line(_) | Curve::Meet(_) | Curve::Conic(_) => None,
-            };
-            [curve.point(edge.from), curve.point(edge.to)]
-                .into_iter()
-                .chain(centre)
-        })
-        .collect()
 }
 
 /// How far from the line through `origin` along `axis` a face stands at
@@ -161,8 +131,15 @@ fn corners((body, face): (&Body, FaceId)) -> Vec<DVec3> {
 /// stands plus its radius, a conic as its box's farthest corner; none where
 /// an edge runs along the curve two cylinders meet along.
 fn farthest((body, face): (&Body, FaceId), origin: DVec3, axis: DVec3) -> Option<f64> {
+    if let Some(whole) = round::all_round(body.surface(body.face(face).surface), origin, axis) {
+        return Some(whole);
+    }
     let off = |point: DVec3| from_the_axis(point, origin, axis);
-    let mut farthest = body.apex_held(face).map_or(0.0, off);
+    let mut farthest = body
+        .poles_held(face)
+        .into_iter()
+        .map(off)
+        .fold(0.0, f64::max);
     for coedge in body.face(face).loops.iter().flatten() {
         let edge = body.edge(coedge.edge);
         let reached = match body.curve(edge.curve) {
@@ -184,106 +161,9 @@ fn offered(surface: &Surface) -> DVec3 {
         Surface::Cylinder(cylinder) => cylinder.axis,
         Surface::Cone(cone) => cone.axis,
         Surface::Elliptic(wall) => wall.axis,
+        Surface::Sphere(sphere) => sphere.axis,
+        Surface::Torus(torus) => torus.axis,
     }
-}
-
-/// A face on a wall, seen about its axis: the stretch of the axis it spans,
-/// and how near and how far from the axis it stands.
-struct Wall {
-    ends: [DVec3; 2],
-    axis: DVec3,
-    inner: f64,
-    outer: f64,
-}
-
-impl Wall {
-    fn of(surface: &Surface, face: (&Body, FaceId)) -> Option<Wall> {
-        let (origin, axis, [inner, outer]) = match surface {
-            Surface::Cylinder(cylinder) => (cylinder.origin, cylinder.axis, [cylinder.radius; 2]),
-            Surface::Cone(cone) => (cone.origin, cone.axis, radii(cone, face)?),
-            Surface::Elliptic(wall) => (wall.origin, wall.axis, [wall.minor, wall.major]),
-            Surface::Plane(_) => return None,
-        };
-        let [low, high] = reach(face, axis)?;
-        Some(Wall {
-            ends: [low, high].map(|height| origin + axis * height),
-            axis,
-            inner,
-            outer,
-        })
-    }
-
-    /// Whether two walls stand apart side by side: the stretches of axis
-    /// they span, each grown by how far its wall stands from it, do not
-    /// meet.
-    fn beside(&self, other: &Wall, room: f64) -> bool {
-        between_stretches(self.ends, other.ends) > self.outer + other.outer + room
-    }
-
-    /// Whether this wall stands inside the hollow the other leaves about
-    /// its axis: a bore within a countersink's narrow end.
-    fn within(&self, other: &Wall, room: f64) -> bool {
-        let off = |point: DVec3| from_the_axis(point, other.ends[0], other.axis);
-        off(self.ends[0]).max(off(self.ends[1])) + self.outer < other.inner - room
-    }
-}
-
-/// How near and how far from its axis a face on a cone stands: as its
-/// boundary does, since the distance grows along each ruling, nought where
-/// the face holds its apex or a conic bounds it, a conic of the cone as far
-/// out as it is widest and any other as its box's farthest corner; none
-/// where an edge runs along the curve two cylinders meet along.
-fn radii(cone: &Cone, (body, face): (&Body, FaceId)) -> Option<[f64; 2]> {
-    let off = |point: DVec3| from_the_axis(point, cone.origin, cone.axis);
-    let mut inner = if body.apex_held(face).is_some() {
-        0.0
-    } else {
-        f64::INFINITY
-    };
-    let mut outer: f64 = 0.0;
-    for coedge in body.face(face).loops.iter().flatten() {
-        let edge = body.edge(coedge.edge);
-        let (near, far) = match body.curve(edge.curve) {
-            Curve::Line(line) => {
-                let start = line.point(edge.from);
-                let speed = line.direction - cone.axis * cone.axis.dot(line.direction);
-                let radial = start - cone.origin;
-                let radial = radial - cone.axis * cone.axis.dot(radial);
-                let nearest = if speed.length_squared() > 0.0 {
-                    (edge.from - radial.dot(speed) / speed.length_squared())
-                        .clamp(edge.from, edge.to)
-                } else {
-                    edge.from
-                };
-                (
-                    off(line.point(nearest)),
-                    off(start).max(off(line.point(edge.to))),
-                )
-            }
-            Curve::Circle(circle) => {
-                let centre = off(circle.center);
-                let square = circle.axis.cross(cone.axis).length() <= Scale::RELATIVE;
-                let near = if square {
-                    (circle.radius - centre).abs()
-                } else {
-                    0.0
-                };
-                (near, centre + circle.radius)
-            }
-            Curve::Conic(conic) => (
-                0.0,
-                if conic.round == Round::Cone(*cone) {
-                    conic.widest(edge.from, edge.to)
-                } else {
-                    boxed(conic, edge.from, edge.to, off)
-                },
-            ),
-            Curve::Meet(_) => return None,
-        };
-        inner = inner.min(near);
-        outer = outer.max(far);
-    }
-    inner.is_finite().then_some([inner, outer])
 }
 
 /// The largest `off` reads at a corner of the box round a stretch of a
@@ -320,15 +200,20 @@ fn straight_edges((body, face): (&Body, FaceId)) -> impl Iterator<Item = DVec3> 
 }
 
 /// The least and the largest of `direction · p` over a face, read off its
-/// edges, where a circle or a conic turns back along `direction`, and the
-/// apex it holds within it; none where an edge runs along the curve two
+/// edges, where a circle or a conic turns back along `direction`, the poles
+/// it holds within it, and where its sphere or torus bulges furthest along
+/// `direction` inside it; none where an edge runs along the curve two
 /// cylinders meet along.
 fn reach((body, face): (&Body, FaceId), direction: DVec3) -> Option<[f64; 2]> {
     let mut low = f64::INFINITY;
     let mut high = f64::NEG_INFINITY;
-    if let Some(apex) = body.apex_held(face) {
-        low = direction.dot(apex);
-        high = low;
+    for point in body
+        .poles_held(face)
+        .into_iter()
+        .chain(round::bulges((body, face), direction))
+    {
+        low = low.min(direction.dot(point));
+        high = high.max(direction.dot(point));
     }
     for coedge in body.face(face).loops.iter().flatten() {
         let edge = body.edge(coedge.edge);

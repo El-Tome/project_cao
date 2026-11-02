@@ -190,6 +190,7 @@ fn laid(corners: &[DVec2], last_off_the_axis: Option<u32>) -> Straight {
                 .map(|(corner, run)| Corner {
                     at: DVec2::new(corner.y, corner.x),
                     run,
+                    bend: None,
                 })
                 .collect(),
         ],

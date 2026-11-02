@@ -35,7 +35,7 @@ fn face(surface: Surface, outward: bool, loops: Vec<Vec<(usize, bool)>>) -> List
         surface,
         outward,
         loops,
-        apex: None,
+        poles: Vec::new(),
     }
 }
 
@@ -100,7 +100,7 @@ fn tip_cut_at_a_slant(lean: f64) -> Listing {
     let ellipse = cut(&slant, Round::Cone(cone), TIP);
     let period = TAU / ellipse.k.sqrt();
     let mut wall = face(Surface::Cone(cone), false, vec![vec![(0, true)]]);
-    wall.apex = Some(0);
+    wall.poles = vec![0];
     with_sides(Listing {
         faces: vec![
             face(Surface::Plane(slant), !turned, vec![vec![(0, false)]]),

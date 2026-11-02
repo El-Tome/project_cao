@@ -41,20 +41,28 @@ It can:
   leaning on its neighbour by a hair would stand; a whole circle sharing its
   loop with other runs; and, by a turn, any profile passing twice through one
   corner.
-- **turn a profile of straight runs** about an axis lying in its plane: by
-  any angle up to a whole turn, either way, adding or taking away matter. A
-  run parallel to the axis turns into a cylinder, a run square to it into a
-  disc or a ring, a slanted run into a cone — a chamfer, a point, a
-  countersink, a taper (#536) — and a partial turn ends on two planes holding
-  the axis (`brep/turned.rs`). The section [Turning](#turning) says how.
+- **turn a profile of straight runs and arcs** about an axis lying in its
+  plane: by any angle up to a whole turn, either way, adding or taking away
+  matter. A run parallel to the axis turns into a cylinder, a run square to
+  it into a disc or a ring, a slanted run into a cone — a chamfer, a point, a
+  countersink, a taper (#536) — and an arc into a sphere when its centre
+  lies on the axis and a torus otherwise — a ball end, a rounded shoulder, a
+  round-bottomed groove (#576) — and a partial turn ends on two planes
+  holding the axis (`brep/turned.rs`). The section [Turning](#turning) says
+  how.
 - surfaces: planes, circular cylinders parallel or square to each other, and
-  circular cones against cylinders and cones of their axis; a plane against
+  circular cones against cylinders and cones of their axis; a sphere or a
+  torus against a plane square to or holding its axis, and a coaxial
+  cylinder, cone, sphere or torus — a bore through a ball, a shaft joined to
+  it at its equator, a groove cut in a shaft (#576); a plane against
   a cylinder or a cone at any angle (#552); elliptic cylinders (#571)
   against planes at any angle and round or elliptic walls parallel or
   square to them; curves: lines, circles, ellipses, the
   conics a plane cuts a wall along at a slant — an ellipse, a parabola, a
   branch of a hyperbola — and the curve two perpendicular walls meet
-  along, either of them elliptic (#571). The section [The conic a plane
+  along, either of them elliptic (#571). A round meets its coaxial surfaces
+  along circles — its latitude circles and the rims a touch leaves — and a
+  plane holding its axis along its meridians. The section [The conic a plane
   cuts a wall along](#the-conic-a-plane-cuts-a-wall-along) says how a conic
   is held.
 - **number its faces as the flats do**, so a drawing laid on a face keeps it
@@ -81,17 +89,24 @@ It can:
   faces themselves before the kernel declines (`combine/clear.rs`); a plane
   at a slant to a wall is asked the same first, so that the conic it cuts
   is registered only where two faces may meet along it.
-- hand a revolution of a profile with an arc or an ellipse **to the
-  flats**, from that step on: it has no sphere or torus. An ellipse raised
-  is the exact kernel's since #571, and what it declines there is a broken
-  step, never the flats. So does a profile of straight runs the reading cannot lay against
-  its axis: pinched at a corner on the axis, or a corner of it within the
-  tolerance of a slant it does not end.
+- hand a revolution of a profile with an **ellipse** to the flats, from that
+  step on: it has no surface an ellipse turns into. An ellipse raised is the
+  exact kernel's since #571, and what it declines there is a broken step,
+  never the flats. An arc turned is the exact kernel's since #576 — a
+  sphere or a torus — and what it declines there is a broken step too. So
+  does a profile of straight runs or arcs the reading cannot lay against
+  its axis: pinched at a corner on the axis, an arc crossing a run or a
+  level, or a corner of the profile within the tolerance of a slant or an
+  arc it does not end.
 
 Left, in the order #497 set:
 
-- revolutions of arcs: spheres, tori. Those of straight runs are done:
-  parallel or square to the axis (#533), slanted (#536);
+- revolutions of ellipses: the exact kernel has no surface an ellipse turns
+  into. Those of straight runs and arcs are done: parallel or square to the
+  axis (#533), slanted (#536), and an arc into a sphere or a torus (#576);
+- a sphere or a torus against a plane at a slant, a wall or a round of
+  another axis, or an elliptic wall: declined as unsupported where the
+  faces may cross;
 - a cone against a cylinder or a cone of another axis, such as a radial hole
   through it, two cylinders at a skew angle, and an elliptic wall against a
   cone or a wall at a skew angle. A plane crossing a cylinder or a cone at a
@@ -112,6 +127,11 @@ Known and still open:
 - a cone's own (#536): partial turns about a cone's axis, coaxial turns
   with a cone and a cone beside prisms, under one failure in a thousand
   random parts; `exact-kernel-failures.md` counts them by family;
+- the rounds' own (#576): 3.4 % of the rounded cases still break a rule,
+  far above the bar of one in a thousand — Answers, Listed, Closed,
+  Uncrossed and Spans among them — and campaign rounds follow;
+  `exact-kernel-failures.md` counts them by family. A ball joined with a
+  quarter shaft over its pole is left too;
 - a face bounded by the curve two perpendicular cylinders meet is never
   decided clear of a face at a slant, so such a pair still declines;
 - the conics (#552): a plane a hair off square to, or along, a wall's
@@ -140,8 +160,8 @@ Known and still open:
 
 ## Scope
 
-- **Surfaces:** planes, circular cylinders, elliptic cylinders (#571) and
-  circular cones, nothing else.
+- **Surfaces:** planes, circular cylinders, elliptic cylinders (#571),
+  circular cones, spheres and tori (#576), nothing else.
 - **Curves:** lines, circles, the conics a plane cuts a cylinder or a cone
   along at a slant (#552), and the curve where two perpendicular cylinders
   meet, either of them elliptic (#571). An elliptic wall meets a plane
@@ -152,11 +172,17 @@ Known and still open:
   axis along circles or at its apex, a plane holding its axis along two
   rulings, and any other plane along an ellipse, a parabola, a branch of a
   hyperbola, two rulings through its apex, the ruling it touches along, or
-  its apex alone. Two cylinders at any other angle than parallel or square,
+  its apex alone. A sphere or a torus meets a plane square to its axis
+  along latitude circles, a touch at a crest or a root, or its pole; a
+  plane holding its axis along its meridians; and a coaxial cylinder, cone,
+  sphere or torus along one or two rims. Two cylinders at any other angle
+  than parallel or square,
   a cone against a cylinder or a cone of another axis, and a cone within the
-  tolerance of a plane or a cylinder of its axis all across the box, and
-  an elliptic wall against a cone or a wall neither parallel nor square to
-  it, are declined where their faces may cross: the operation gives no answer, which
+  tolerance of a plane or a cylinder of its axis all across the box, an
+  elliptic wall against a cone or a wall neither parallel nor square to
+  it, a plane at a slant through a sphere or a torus, a wall or a round of
+  another axis, and an elliptic wall against a round, are declined where
+  their faces may cross: the operation gives no answer, which
   the harness counts as such rather than as a wrong solid. Where the faces stand clear of each other — a
   bore square into one side of a hexagonal prism, beside the next side, or
   drilled right through it past the far side's slanted neighbours — the pair
@@ -170,9 +196,10 @@ Known and still open:
   of the campaign stands on a plane of the origin, so neither is needed to
   hold them.
 - **Operations:** raise a profile of straight runs, arcs and ellipses along
-  its plane's normal; turn a profile of straight runs, each parallel, square or slanted
-  to the axis; join, cut. Spheres and tori, what an arc turns into, are
-  out. A turn about a line that is no axis of the planes the rest
+  its plane's normal; turn a profile of straight runs and arcs, each
+  parallel, square or slanted to the axis, an arc about its own centre;
+  join, cut. A turn of an ellipse still goes to the flats. A turn about a
+  line that is no axis of the planes the rest
   of the part stands on brings cylinders at a skew angle to those, and
   declines where their faces cross: a broken step, as #533 decided.
 
@@ -210,7 +237,10 @@ The decisions, in the order taken, once per operation:
 1. **Surface identity.** Each surface of the second operand is compared with
    the first's, never a body's surface with its own: planes one when parallel
    and their offsets within `EPS`; cylinders one when their axes are parallel,
-   within `EPS` of each other over the box, and their radii within `EPS`. The
+   within `EPS` of each other over the box, and their radii within `EPS`;
+   spheres one when their axes are parallel within `EPS`, their centres along
+   the axis within `EPS`, and their radii within `EPS`; tori the same, with
+   their ring radii within `EPS` too. The
    first operand's copy is kept — the nearest, where two of the first's stand
    within `EPS` — and a plane standing strictly between two planes of the
    first within `EPS` of each is taken for neither: taken for one, it would
@@ -345,6 +375,23 @@ The decisions, in the order taken, once per operation:
    apart in slope stand within it of each other all along their faces.
    A cone whose axis stands a hair off the other's is taken about one axis
    by decision 8.
+   A sphere or a torus (#576) is read by its meridian circle, about
+   `(h_c, R)` in the half-plane `(h, ρ)` and of radius `r`, against the
+   line of that half-plane a coaxial plane, cylinder or cone gives, or the
+   circle another sphere or torus gives (`relation/round.rs`,
+   `relation/revolved/arc.rs`). A crossing off the axis is a circle about
+   the axis — `Relation::Rims`, one or two, each carrying whether the pair
+   only touches along it, and a touch decided against `EPS` before any root
+   and built as that one circle, so no pair with a round grazes or is moved
+   onto a touch. A crossing or a touch on the axis is `Relation::Apex`. A
+   plane holding the axis cuts the round along its meridians —
+   `Relation::Meridians`, one great circle for a sphere, two tube circles
+   for a torus — with the poles it crosses at as corners, as a cone's apex
+   is. Two rounds within `EPS` all round are `Same`, and unsupported where
+   no meridian tells them apart. A plane at a slant, a wall or a round of
+   another axis, and an elliptic wall are unsupported, and decline unless
+   `clear` stands the two faces apart; none of them asks for a conic, so
+   `at_a_slant` answers false.
    A plane at a slant to a wall (#552) — neither square to a cylinder's
    axis nor along it, neither square to a cone's axis nor holding it — is
    decided by `relation/sliced.rs` alone, once the rows above have passed
@@ -404,6 +451,11 @@ The decisions, in the order taken, once per operation:
    conic is never one with a line, a circle or a meet. A conic is carried
    by a plane alike to its plane and a wall alike to its wall, nothing else;
    moved with its operand, it is cut again on the moved surfaces.
+   A rim of a round (#576) is a circle, and is one with another circle as
+   any line is, over the box and never across two surfaces decided apart: a
+   latitude circle laid once at a crest or a root, a meridian shared by two
+   rounds meeting on a point. A pole is a vertex of its own, not a corner
+   the rims fix.
 4. **A line meeting a cylinder at a double root**, once per pair. A line
    passing within `EPS` outside a wall touches it once, where it passes
    closest. A line passing within `EPS` inside it crosses it twice, its
@@ -448,7 +500,15 @@ The decisions, in the order taken, once per operation:
    touching it once where it passes within `EPS` of it at its closest, as
    a wall. A circle in a plane holding the axis crosses the two rulings
    that plane cuts; any other circle off the axis is unsupported, as the
-   pair it lies on is (`relation/crossing/cone.rs`). A conic, its plane `P` cut by its wall
+   pair it lies on is (`relation/crossing/cone.rs`). A line through a round
+   (#576) is a wall's quadratic through a sphere, and through a torus a
+   quartic met only where the line lies in a plane holding the axis: there
+   the section is two circles of the tube's radius about `(h_c, ±R)`, and
+   the line crosses each as it crosses a wall
+   (`relation/crossing/round.rs`). A circle about the axis lies on the
+   round where the round holds it; a circle in a plane holding the axis is
+   read in that plane's `(h, ρ)` and crosses the round where it crosses the
+   round's own meridian circle there. A conic, its plane `P` cut by its wall
    `Q`, meets a third surface `S` where the other curve of that corner does,
    by the very same call (`relation/crossing/conic.rs`): against a plane,
    the line `P` and `S` share crossing `Q`; against a wall, the lines, the
@@ -487,6 +547,9 @@ The decisions, in the order taken, once per operation:
    unless the two touch or graze (decision 2): within `EPS` of both far
    from their lines, a corner one of two grazing walls carries near their
    crossing and the node a band puts on the other there are one corner.
+   A corner at a pole of a sphere or a torus (#576) is one vertex wherever
+   the meridians reach it: it stands on the axis, and two edges meeting
+   there stay two, as the fan a pole closes by its floor needs.
    A corner found along a ruling through a cone's apex is on that cone
    only where it stands on its own nappe: past the apex, the ruling the
    cone shares with a plane holding its axis is that plane's line alone,
@@ -724,6 +787,13 @@ The decisions, in the order taken, once per operation:
    pocket of its radius a hair off the wall its cone widens onto took the
    cone off that wall (5361127255).
 
+   A sphere or a torus (#576), one of each operand, whose axis stands
+   within `G` of the other's is taken about the first's axis, the second
+   operand moved square to it with what it built on it, as a cone is: a
+   torus by its own axis and origin, a sphere by the axis it carries. A
+   round's axis is read once and is never moved off it, by this decision or
+   decision 2, as a cone's is.
+
    Twenty, bounded rather than measured alone. A line crossing the moved
    wall at a slant sees it moved by the offset over the cosine, at each of
    its two crossings, and the harness holds lines down to a cosine of a
@@ -860,7 +930,8 @@ The decisions, in the order taken, once per operation:
     as decision 8's, they are left two too.
 
 11. **A plane a hair off square to, or along, a wall's axis** (#552). A
-    plane of one operand and a cylinder, a cone or an elliptic wall (#571)
+    plane of one operand and a cylinder, a cone, an elliptic wall (#571), a
+    sphere or a torus (#576)
     of the other, their faces in boxes that meet, the plane leaning off square to the wall's axis or
     off along it: the second operand is turned so that the plane lies
     exactly square or along, about where the two operands meet and set down
@@ -1052,7 +1123,10 @@ same input gives the same bits.
   alone, so that parallel cylinders share where their angles start. The face
   carries which side the matter is on, not the surface.
 - **Parameters.** A plane is read in `(s, t)` along its `u` and `v`; a cylinder
-  in `(θ, h)`, the angle from `u` and the height along the axis. Every curve on
+  in `(θ, h)`, the angle from `u` and the height along the axis; a sphere or a
+  torus in `(θ, φ)`, the angle about the axis and the angle along the meridian
+  circle, so that every latitude circle and every meridian is a line of the
+  chart. Every curve on
   a cylinder or a cone is either a ruling or a graph over `θ`, a conic a plane
   cuts it along included, which is what point location, tessellation and the
   volume stand on.
@@ -1071,8 +1145,8 @@ same input gives the same bits.
   along it for parity and inside points alone, never measured as a boundary
   (`domain/floor.rs`), and only where the apex stands in the box. A point's
   tip on the axis is a vertex of its cone's face, a whole turn's included
-  (`Face::apex`): the listing lists it, and soundness holds it to the
-  geometry as any other vertex.
+  (`Face::poles`, the apex among them): the listing lists it, and soundness
+  holds it to the geometry as any other vertex.
 - **Elliptic walls** (#571, `brep/surface/elliptic.rs`). An ellipse raised
   is an `EllipticCylinder`, a surface beside the circular cylinder rather
   than a cylinder of two radii, so that every circular path keeps its bits.
@@ -1093,11 +1167,34 @@ same input gives the same bits.
   such a wall stood within `G` of a circle of its size all round, which
   decision 2 declines. Either way the wall is the circle of the mean
   half-axis, a circular cylinder.
+- **Spheres and tori** (#576, `brep/surface/sphere.rs`,
+  `brep/surface/torus.rs`, sharing the chart `brep/surface/round.rs`). A
+  sphere keeps the origin, axis, `u` and `v` every cylinder of its axis has,
+  the height `h_c` of its centre along the axis and its radius; a torus adds
+  the ring radius `R`, signed as the profile reads it, and the seam its chart
+  is cut at. Both are read in `(θ, φ)` about the meridian circle's centre
+  `(h_c, R)`: `h(φ) = h_c + r sin φ`, `ρ(φ) = R + r cos φ`, and the normal
+  `N = A sin φ + radial(θ) cos φ` points away from that centre, the invariant
+  the volume and `Face.flipped` stand on; near a horn, `ρ` is read as
+  `(R − r) + 2 r cos²(φ/2)`, which keeps its bits at the point where the tube
+  meets the axis. A sphere's poles are the two ends of the axis, a spindle's
+  its two ends short of it, a horn's one point on it; a ring has none, and
+  its chart is the window `(seam − π, seam + π]`. A face holds its poles as
+  vertices — `Face.poles`, at most two, a cone's apex among them — and a
+  whole ball is one face with no loop and two poles, a whole ring one face
+  with no loop and no vertex: both are legal on a closed surface, closed by
+  their poles' floors and the ring's cut alone (`domain/floor/round.rs`). A
+  ray through a sphere is the quadratic a wall gives, through a torus a
+  quartic bracketed between the critical points of its own level; `Hits::At`
+  carries four, and a graze is a doubtful hit (`ray/hits.rs`). The volume is
+  the flux of the position through the face, anchored at a pole
+  (`volume/round.rs`).
 - **Topology** is arenas of plain structs with `u32` ids: vertices with their
   point and the surfaces they lie on, edges with their curve and parameter
   range, faces with their surface, their side, and loops of oriented uses of
   edges. A loop has its face on its left, seen from outside the matter.
-- **No seams.** A cylinder's face may go all the way round. A whole circle is an
+- **No seams.** A cylinder's face may go all the way round, and a whole ring
+  torus too, its chart cut at a seam that is no edge. A whole circle is an
   edge with no vertex — which is how the application will want to pick it, and
   how Parasolid holds it.
 - **Non-manifold edges** have four uses, or six: two blocks touching along an
@@ -1107,10 +1204,10 @@ same input gives the same bits.
 
 #533 brought the kernel its first turn, of the profiles whose surfaces it
 already had: every run parallel or square to the axis. #536 added the cone,
-and with it every slanted run. The body is laid directly, as a raise lays its
+and with it every slanted run; #576 the sphere and the torus, and with them
+an arc. The body is laid directly, as a raise lays its
 walls, rather than raised in slabs and joined or swept through the raise's
-code: one surface per piece of the profile, one circle per corner, which is
-the construction spheres and tori will grow from.
+code: one surface per piece of the profile, one circle per corner.
 
 - **The reading** is decided once, before either kernel, in `turning.rs`:
   whether a turn is whole (within a thousandth of a radian, the flats' own
@@ -1128,7 +1225,24 @@ the construction spheres and tori will grow from.
   beside them give them, so a chamfer's ends are, to the bit, the radius of
   the cylinder and the height of the shoulder it joins, and its angle is
   never snapped; a slant reaching within the band of the axis ends on it, at
-  an apex. There is no angle below which a run is taken for parallel or
+  an apex. An arc is laid the same way (#576): its centre is laid like a
+  corner — on the axis within the band, else on a level within the
+  tolerance — its radius read again from the laid centre to the laid start,
+  its end laid on that circle along the coordinate its next run leaves free,
+  and its turn read again between the laid corners; `Corner.bend` carries
+  it as `Bend { center, turn }`, the centre in `(h, r)`, `r` nought on the
+  axis and negative across it, and the turn in radians, anticlockwise
+  positive. So a ball end, a rounded shoulder and a round-bottomed groove
+  are tangent by construction where the laid numbers say so, and the circle
+  a corner turns along is one circle for the arc and the run beside it. A
+  ball end a hair larger or smaller than its shaft, whose end stands within
+  the tolerance of tangent to the level its next run keeps, is laid tangent,
+  the pole slid along the axis onto the circle. An arc joins no level, and
+  the rules that re-read a laid profile column by column are not taught
+  arcs: one that crosses a run, that a corner comes within the tolerance of,
+  or that reaches the axis anywhere but at its ends — a pinch — is not laid,
+  and the flats turn the profile. There is no angle below which a run is
+  taken for parallel or
   square but the tolerance itself, so the kernel turns cones a hair from a
   cylinder or a disc. A hole a hair inside its outline opens onto it as a notch, a
   slot a hair wide closes, and the outline's run along the wall that went is
@@ -1170,24 +1284,34 @@ the construction spheres and tori will grow from.
   decision 1's identity and needs no tolerance; a piece square to it on the
   plane through `O + A h` square to `A`; a slanted piece on
   `Cone::through(O, A, [from, to])`, whose rims are then the very circles of
-  the cylinder and the plane beside it; a piece on the axis on nothing. A
+  the cylinder and the plane beside it; an arc piece on a sphere where its
+  centre lies on the axis, on a torus otherwise
+  (`brep/turned/faces/round.rs`), shared with one already laid that its four
+  corners and its middle stand on, and with the side its normal gives, its
+  sweep's sign deciding `flipped`; a piece on the axis on nothing. A
   partial turn has a corner where each corner off the axis starts and ends,
   and the arc between them; one corner where a corner on the axis stays; a
-  straight edge where each piece starts and ends; and the two ends, holding
+  straight edge where each piece starts and ends, a meridian arc on each end
+  plane where the piece is an arc; and the two ends, holding
   the profile's holes as holes. A whole turn is its limit, the two ends
   closing on each other: a whole circle for each corner off the axis, no
-  corner but at a cone's tip — a square turned about its side is two discs
-  and a cylinder between two circles, and a point turned whole a disc and a
-  cone with one vertex, at its tip. A half turn lays its closing line on its
+  corner but at a cone's tip or a round's pole — a square turned about its
+  side is two discs
+  and a cylinder between two circles, a point turned whole a disc and a
+  cone with one vertex, at its tip, and a ball one face with two poles and
+  no loop. A half turn lays its closing line on its
   opening one only where the piece is square: the rulings of a cone at
-  nought and at a half turn are two lines. A hole of the profile, or a notch on the
+  nought and at a half turn are two lines, and a sphere's closing meridian
+  lies on the opening one's great circle, so `tidied` merges the two ends.
+  A hole of the profile, or a notch on the
   axis, turned whole leaves a closed hollow inside.
 - **Tidied and checked** as a boolean's result is (`assembly::tidied`):
   faces on one surface with one side merged across what nothing else uses,
   and the body verified. On a turn this only changes a half turn of a profile
   touching its axis: the two ends are one face answering to both numbers,
   and each pair of radial lines, laid on one curve, one diameter, the corner
-  on the axis gone.
+  on the axis gone — and a half-turned arc, whose closing meridian lies on
+  its opening one's great circle, the same way.
 - **Declined:** a corner turned, or the slit a partial turn leaves, narrower
   than the tolerance (`Declined::Travel`) — past the reading's own rules,
   which make such a turn nothing or whole first; a profile whose corners
@@ -1195,7 +1319,8 @@ the construction spheres and tori will grow from.
   both leave it (`Declined::Profile`), which the reading hands the flats
   before the kernel sees it.
 - **The numbers** are the flats': run `k`, the outline's first and then each
-  hole's, names the face it turns into, a cone included; a run on the axis,
+  hole's, names the face it turns into, a cone, a sphere or a torus
+  included — one arc is one face; a run on the axis,
   or one laid to no length, names none; a partial turn's opening end is
   `runs` and its closing end `runs + 1`. The count a turn moves the part's counter by copies the
   flats' `faces_end`, quirk included: a whole turn counts up to its last run
@@ -1246,7 +1371,8 @@ covered once from each side.
    a cone each arc ending at the apex ends at a vertex of its own, at the
    angle it arrives at, since the apex's own angle is rounding; the floor
    joins them, and closes below a face holding the apex within it, so that
-   the region at the tip is bounded. No region keeps a stretch of the
+   the region at the tip is bounded. A sphere's or a torus's pole is laid the
+   same way (#576). No region keeps a stretch of the
    floor.
 6. **Winding.** For each operand, a region is covered with the surface's
    normal, against it, or not at all. Covered gives the winding on each side
@@ -1265,7 +1391,23 @@ covered once from each side.
    wall, and leaves a non-manifold edge its four uses. A plane holding a
    cone's axis is read against the cone on either lobe the two rulings part
    it into, the axis side all round; a place at the very angle of a ruling
-   is on neither.
+   is on neither. A face on a surface of a round's axis is read against the
+   round on the side of each rim its pair was decided along — along a rim
+   the two only touch along, the one whose meridian bends more towards the
+   other's normal there (`selection/wrapped/above/round.rs`).
+
+   **A sphere or a torus in the overlay** (#576). Its pairs with the
+   surfaces of its axis give `Relation::Rims` — one or two circles, a touch
+   decided once — and `Relation::Meridians` for a plane holding the axis;
+   both are laid as a cone's circles and rulings are, each circle built
+   from the frame so that it is the very circle the cylinder or the plane
+   beside it shares. A rim two surfaces only touch along is built as that
+   one circle, with no band and no move. `clear` may pass a face beside a
+   round apart where no conic is asked — a block beside a ball knob or
+   standing in a ring's hole (`combine/clear/round.rs`). What a boolean
+   keeps of a whole ring must not straddle the chart's cut, so
+   `combine/seamed.rs` moves the cut into a band the operation keeps no face
+   of before the regions are read, and the kept bands sit inside one window.
 8. **Assembly.** Kept regions become faces and their arcs edges. Faces on one
    surface with one side are merged across an arc nothing else uses; two edges
    on one curve meeting at a vertex nothing else uses become one; a circle that
@@ -1279,7 +1421,8 @@ covered once from each side.
    What the kernel cannot verify it does not answer.
 10. **A lean read unstably** (#552, `combine/unstable.rs`). Once decision 11
     has turned the second operand, a plane of one operand and a cylinder, a
-    cone or an elliptic wall (#571) of the other, their faces near enough to meet and not standing
+    cone, an elliptic wall (#571), a sphere or a torus (#576) of the other,
+    their faces near enough to meet and not standing
     clear, may still lean off square to the wall's axis, or off along it,
     by more than decision 11 lays exactly and by a sine under a thousandth.
     The conic it cuts divides by that lean, so the step's rounding is
@@ -1584,6 +1727,50 @@ read backwards by the listing.
   holds a face, found after a first sampling as a cylinder's are
   (`sampling/beneath/oval.rs`): a bar's cap ending inside a boss a hair
   above its rim (5571519943).
+- **Rounds** (#576, `tessellation/sampling/round.rs`, `tessellation/outline/
+  round.rs`, `outline/strips.rs`). A sphere or a torus is doubly curved: a
+  chord of a latitude circle sags towards the axis and a chord of a meridian
+  towards the tube's centre, and a triangle reaching from one latitude
+  circle to the next would leave the surface by far more than the tolerance
+  however fine the grid of angles. So a round carries two grids, one of
+  angles about the axis, cut for the widest circle any face on it reaches —
+  a zone across the equator reaches `r`, a ring `R + r`, read off the surface
+  and the face's extent along the meridian, not off its edges alone — and one
+  of rows along the meridian, cut for the tube's radius; each takes a little
+  under half the tolerance, since the two sags add up along the hypotenuse
+  of a triangle of the lattice. Every latitude circle is sampled on the
+  round's angles as a cone's rim is on the cone's, and every meridian arc on
+  the round's rows, the opening and the closing meridian of a turn on the
+  same rows whatever circle each lies on, none within the round's room of a
+  latitude circle or a pole of the face it bounds. A face is laid out in
+  `(θ, φ)`, each sample on the line of its edge — a latitude circle's at the
+  circle's own angle along the meridian, a meridian's at the arc's own angle
+  about the axis — so that its boundaries are exactly square to the chart;
+  the poles are laid as a cone's apex is, a loop passing through one running
+  along its floor the way that pole's floor runs, the low one up the angle
+  and the high one down, and a face holding a pole within it taking the
+  whole floor as a loop of its own. It is then cut in strips between the
+  rows, each strip a row of columns between a boundary running down and the
+  next running up, and a column's bottom and top are its boundaries where
+  one runs there and the row itself where none does: there the face
+  continues across the row, and the lattice points of the grid along it are
+  added inside the face — the one exception to "no point is added inside a
+  face", on no edge, so that every edge's samples are still shared with the
+  face beyond it; shared by the strip below and the strip above, and by the
+  two walls of a face cut open at an angle, which stand for the same points
+  a turn apart. Each strip is swept alone, so that no triangle reaches from
+  one row past the next, and a triangle with two corners on a pole's floor
+  is the pole twice and is dropped: what is left is a fan from the pole. A
+  whole ball, one face with no loop, is laid out from its two floors and the
+  walls at the angle nought; a whole ring, with no loop and no vertex, from
+  the walls alone, closed along the cut of its chart at the top and the
+  bottom of the window, which stand for one circle; a ring turned part of
+  the way, winding round the tube between two whole meridians, from those
+  two meridians, closed along the cut the same way. A round's latitude
+  circle whose radius is a coaxial cylinder's — the equator a shaft ends in
+  a ball at — lies on both and is sampled once, on the shaft's grid and the
+  round's. A coaxial wall a hair inside a ball is not drawn in common with it
+  yet: a family the campaign measures.
 - **Contact.** Chords sag towards their own cylinder's axis, so against a plane
   or a convex neighbour they retreat. Where two curved faces face each other on
   their hollow side closer than a chord's sag — an internal tangency, a near
@@ -1744,7 +1931,11 @@ different chords.
   half-line from its apex rather than to the whole line; a loop through the
   apex is closed there, in the listing's own reading, by the turn that
   leaves it going round the axis nought times, and a tip is held to the
-  apex as any vertex to its surfaces.
+  apex as any vertex to its surfaces. A sphere or a torus is held to the
+  circle its meridian runs along, to its poles and to the cut of its own
+  chart; a loop is weighed with the area form `r·ρ(φ)` rather than an
+  angle unrolled at one radius, and a meridian adds nothing
+  (`soundness/listed/round.rs`).
 
 ## Where it lives
 
@@ -1773,9 +1964,14 @@ The tests that hold it:
   lines; chamfers, points and countersinks held to the arithmetic, and what
   a cone cannot meet declined or passed over; its smoke campaign of turned leaves and prisms under `--ignored`,
   compiled only with `--features campaigns`;
+- `the_exact_kernel_turns_an_arc.rs`, a profile holding an arc turned
+  into a sphere or a torus, held to Pappus's volume and to the coaxial
+  pairs it meets, and the pairs it declines named;
 - `random_turned_solids.rs`, #448's harness drawing turns among prisms,
   slanted ones in a draw of their own (`Case::drawn_slanted`), tools on
-  leaning planes in another (`Case::drawn_tilted`), on the exact
+  leaning planes in another (`Case::drawn_tilted`), and profiles holding
+  arcs in a draw of their own (`Case::drawn_rounded`,
+  `Case::drawn_rounded_off_the_lattice`), on the exact
   kernel and through `Body`, its fast cases in the gate and its
   campaigns under `--ignored`, compiled only with `--features campaigns`;
 - `random_exact_solids.rs`, the harness on the exact kernel, and on it again

@@ -33,7 +33,11 @@ fn slanted_top(body: &Body) -> FaceId {
     body.face_ids()
         .find(|&face| match body.surface(body.face(face).surface) {
             Surface::Plane(plane) => plane.normal.x != 0.0,
-            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => false,
+            Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => false,
         })
         .expect("the slanted top")
 }

@@ -136,7 +136,8 @@ fn apexes(body: &Body) -> Vec<Option<DVec3>> {
     (0..body.faces.len())
         .map(|face| {
             body.faces[face]
-                .apex
+                .poles
+                .first()
                 .map(|vertex| body.vertices[vertex.0 as usize].point)
         })
         .collect()
@@ -167,9 +168,9 @@ fn a_wall_bounded_by_a_conic_holds_the_apex_a_boolean_gives_it_and_is_drawn_clos
         let mut body = built.clone();
         let mut faces = body.faces.clone();
         for face in &mut faces {
-            face.apex = None;
+            face.poles = Vec::new();
         }
-        body.hold_apexes(&mut faces);
+        body.hold_poles(&mut faces);
         body.faces = faces;
         assert_eq!(apexes(&body), by_hand, "the apexes the faces hold");
         for tolerance in TOLERANCES {

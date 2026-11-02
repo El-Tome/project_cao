@@ -40,8 +40,10 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// exact, and the part stays exact after it (#571). 10: the solver stops at
 /// a thousandth of a micron, and a replay lands the drawing there (#517).
 /// 11: an area whose hole touches its outline is raised, pinched at the
-/// touch, where the kernel declined it (#609).
-const REBUILT_BY: u32 = 11;
+/// touch, where the kernel declined it (#609). 12: an arc turned is a
+/// sphere or a torus of the exact kernel, and the part stays exact after it
+/// (#576).
+const REBUILT_BY: u32 = 12;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

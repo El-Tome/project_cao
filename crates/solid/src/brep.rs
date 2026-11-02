@@ -37,7 +37,7 @@ pub use meet::{Configuration, Meeting, Node};
 pub use overlay::{Arc, Overlay, Region};
 pub use relation::{Crossing, Crossings, Relation, crossings, relation};
 pub use scale::Scale;
-pub use surface::{Cone, Cylinder, EllipticCylinder, Plane, Surface};
+pub use surface::{Cone, Cylinder, EllipticCylinder, Plane, Sphere, Surface, Torus};
 pub use topology::{
     Body, Coedge, CurveId, Edge, EdgeId, Face, FaceId, SurfaceId, Vertex, VertexId,
 };

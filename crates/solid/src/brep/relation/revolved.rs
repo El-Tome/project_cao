@@ -8,12 +8,22 @@
 //! Each surface is the part of its line at `ρ ≥ 0`: a ray leaving the axis
 //! at a cone's apex or at a plane's foot. Two rays that do not cross off the
 //! axis meet, if at all, where one starts.
+//!
+//! A sphere or a torus (#576) is a circle of the same half-plane, about
+//! `(h_c, R)` and of radius `r`, kept where `ρ ≥ 0`; a round against a line
+//! or another circle is decided in `arc.rs`, in the frame of the first
+//! surface, which `Frame` carries so that every circle built is the one a
+//! cylinder of the axis has.
+
+mod arc;
 
 use glam::{DVec2, DVec3};
 
 use super::Relation;
+use crate::brep::curve::Circle;
 use crate::brep::scale::Scale;
-use crate::brep::surface::Cone;
+use crate::brep::surface::{Cone, Plane, Sphere, Surface, Torus};
+pub(super) use arc::{Met, met as met_round, met_in_the_half_plane};
 
 /// What the cone meets, read in the cone's own meridian half-plane.
 pub(super) enum Meridian {
@@ -23,6 +33,9 @@ pub(super) enum Meridian {
     Wall(f64),
     /// Another cone about the axis: its meridian line's foot and ruling.
     Nappe { foot: DVec2, ruling: DVec2 },
+    /// A sphere or a torus about the axis: its meridian circle's centre,
+    /// `(h_c, R)`, and radius (#576). A sphere has `R = 0`.
+    Arc { center: DVec2, radius: f64 },
 }
 
 impl Meridian {
@@ -37,13 +50,53 @@ impl Meridian {
         }
     }
 
+    /// A surface about `frame`'s axis, read in its meridian half-plane with
+    /// the same `turned` and `shift` a cone is read with: a cylinder its
+    /// radius, a cone its line, a sphere or a torus its circle; none for a
+    /// plane, read as a level by its caller, or an elliptic wall (#576).
+    pub(super) fn of_surface(frame: &Frame, surface: &Surface) -> Option<Meridian> {
+        let read = |origin: DVec3, axis: DVec3| {
+            (
+                frame.axis.dot(axis).signum(),
+                (origin - frame.origin).dot(frame.axis),
+            )
+        };
+        match surface {
+            Surface::Cylinder(cylinder) => Some(Meridian::Wall(cylinder.radius)),
+            Surface::Cone(cone) => {
+                let (turned, shift) = read(cone.origin, cone.axis);
+                Some(Meridian::Nappe {
+                    foot: DVec2::new(turned * cone.foot.x + shift, cone.foot.y),
+                    ruling: DVec2::new(turned * cone.ruling.x, cone.ruling.y),
+                })
+            }
+            Surface::Sphere(sphere) => {
+                let (turned, shift) = read(sphere.origin, sphere.axis);
+                Some(Meridian::Arc {
+                    center: DVec2::new(turned * sphere.center + shift, 0.0),
+                    radius: sphere.radius,
+                })
+            }
+            Surface::Torus(torus) => {
+                let (turned, shift) = read(torus.origin, torus.axis);
+                Some(Meridian::Arc {
+                    center: DVec2::new(turned * torus.center.x + shift, torus.center.y),
+                    radius: torus.radius,
+                })
+            }
+            Surface::Plane(_) | Surface::Elliptic(_) => None,
+        }
+    }
+
     /// The line's normal and offset: the points `x` with `normal · x =
-    /// offset`.
+    /// offset`. An arc is no line: `met` crosses it in `arc.rs` before it
+    /// reads one.
     fn line(&self) -> (DVec2, f64) {
         match *self {
             Meridian::Level(height) => (DVec2::X, height),
             Meridian::Wall(radius) => (DVec2::Y, radius),
             Meridian::Nappe { foot, ruling } => (ruling.perp(), ruling.perp().dot(foot)),
+            Meridian::Arc { .. } => unreachable!("an arc of the meridian is met as a circle"),
         }
     }
 
@@ -54,12 +107,76 @@ impl Meridian {
                 start: DVec2::new(height, 0.0),
                 direction: DVec2::Y,
             }),
-            Meridian::Wall(_) => None,
+            Meridian::Wall(_) | Meridian::Arc { .. } => None,
             Meridian::Nappe { foot, ruling } => Some(Ray {
                 start: DVec2::new(foot.x - ruling.x * foot.y / ruling.y, 0.0),
                 direction: ruling,
             }),
         }
+    }
+}
+
+/// The axis a surface of revolution is read about, with the `origin`, `u`
+/// and `v` every surface of that axis shares: the frame every circle of the
+/// meridian half-plane is built in, so that it is the very circle a cylinder
+/// of the axis has there (#576).
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Frame {
+    pub origin: DVec3,
+    pub axis: DVec3,
+    pub u: DVec3,
+    pub v: DVec3,
+}
+
+impl Frame {
+    pub(super) fn of_cone(cone: &Cone) -> Frame {
+        Frame {
+            origin: cone.origin,
+            axis: cone.axis,
+            u: cone.u,
+            v: cone.v,
+        }
+    }
+
+    pub(super) fn of_sphere(sphere: &Sphere) -> Frame {
+        Frame {
+            origin: sphere.origin,
+            axis: sphere.axis,
+            u: sphere.u,
+            v: sphere.v,
+        }
+    }
+
+    pub(super) fn of_torus(torus: &Torus) -> Frame {
+        Frame {
+            origin: torus.origin,
+            axis: torus.axis,
+            u: torus.u,
+            v: torus.v,
+        }
+    }
+
+    /// The point of the axis at height `h`.
+    pub(super) fn point(&self, h: f64) -> DVec3 {
+        self.origin + self.axis * h
+    }
+
+    /// The circle about the axis at height `h` and of `radius`, as
+    /// `Cone::circle` builds it.
+    pub(super) fn circle(&self, h: f64, radius: f64) -> Circle {
+        Circle {
+            center: self.point(h),
+            axis: self.axis,
+            radius,
+            u: self.u,
+            v: self.v,
+        }
+    }
+
+    /// The height a plane parallel to the axis's normal plane stands at, as
+    /// `conical::with_plane` reads it.
+    pub(super) fn level(&self, plane: &Plane) -> f64 {
+        (plane.offset() - plane.normal.dot(self.origin)) / plane.normal.dot(self.axis)
     }
 }
 
@@ -88,8 +205,17 @@ impl Ray {
 /// tolerance, or a cone within the tolerance of a plane or a cylinder all
 /// along, which no decision lays out. Where the lines cross, a plane keeps
 /// its height and a cylinder its radius to the bit, so that the circle is
-/// the one either shares with every other surface there.
+/// the one either shares with every other surface there. A sphere or a
+/// torus about the axis is crossed as the circle it is, in the cone's frame
+/// (`arc.rs`).
 pub(super) fn met(cone: &Cone, other: Meridian, scale: Scale) -> Relation {
+    if let Meridian::Arc { center, radius } = other {
+        let nappe = Meridian::Nappe {
+            foot: cone.foot,
+            ruling: cone.ruling,
+        };
+        return arc::met(&Frame::of_cone(cone), center, radius, nappe, scale);
+    }
     let eps = scale.eps();
     let across = cone.ruling.perp();
     let offset = across.dot(cone.foot);
@@ -116,6 +242,7 @@ pub(super) fn met(cone: &Cone, other: Meridian, scale: Scale) -> Relation {
             (offset * normal.y - level * across.y) / sine,
             (across.x * level - normal.x * offset) / sine,
         ),
+        Meridian::Arc { .. } => unreachable!("an arc of the meridian is met as a circle"),
     };
     if crossing.y > eps {
         return Relation::Circle(cone.circle(crossing.x, crossing.y));

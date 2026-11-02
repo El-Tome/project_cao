@@ -11,6 +11,8 @@ use crate::profile::{Profile, Run};
 use crate::sweep::{self, Loop};
 use crate::turning::{Axis, is_whole};
 
+mod bends;
+
 const FLAT: Frame = Frame {
     origin: DVec3::ZERO,
     u: DVec3::X,
@@ -403,7 +405,7 @@ fn a_profile_pinched_at_a_corner_on_its_axis_goes_to_the_flats() {
 }
 
 #[test]
-fn an_arc_is_not_straight() {
+fn an_arc_whose_turn_contradicts_its_corners_is_not_laid_and_a_round_hole_is() {
     let square = polygon(&[[1.0, 0.0], [5.0, 0.0], [5.0, 2.0], [1.0, 2.0]]);
     let mut rounded = square.clone();
     rounded.runs[1] = Run::Round {
@@ -412,7 +414,12 @@ fn an_arc_is_not_straight() {
     };
     assert_eq!(laid(&rounded, &[], RESOLUTION), None);
     let hole = Contour::circle(DVec2::new(3.0, 1.0), 0.5);
-    assert_eq!(laid(&square, &[hole], RESOLUTION), None);
+    let straight = laid(&square, &[hole], RESOLUTION).expect("a round hole is laid");
+    assert!(
+        straight.contours[1]
+            .iter()
+            .all(|corner| corner.bend.is_some())
+    );
 }
 
 #[test]

@@ -14,6 +14,7 @@ use glam::{DVec2, DVec3};
 use super::{Case, Leaf, Mode, Outline, Plane, Step};
 
 mod ovals;
+mod rounds;
 mod slants;
 mod tilts;
 mod turns;
@@ -58,6 +59,7 @@ impl Case {
                 off_the_lattice: false,
                 slanted: false,
                 tilted: false,
+                rounded: false,
             },
         )
     }
@@ -72,6 +74,7 @@ impl Case {
                 off_the_lattice: true,
                 slanted: false,
                 tilted: false,
+                rounded: false,
             },
         )
     }
@@ -90,6 +93,7 @@ impl Case {
                 off_the_lattice: false,
                 slanted: true,
                 tilted: false,
+                rounded: false,
             },
         )
     }
@@ -105,6 +109,7 @@ impl Case {
                 off_the_lattice: true,
                 slanted: true,
                 tilted: false,
+                rounded: false,
             },
         )
     }
@@ -124,6 +129,7 @@ impl Case {
                 off_the_lattice: false,
                 slanted: true,
                 tilted: true,
+                rounded: false,
             },
         )
     }
@@ -139,6 +145,50 @@ impl Case {
                 off_the_lattice: true,
                 slanted: true,
                 tilted: true,
+                rounded: false,
+            },
+        )
+    }
+
+    /// The case a seed stands for among turns whose edges may bow (#576):
+    /// the turns `drawn_slanted` draws, three fresh sections in four given
+    /// an arc — a ball, a zone or a cap of one, a ring torus or an arc of
+    /// one, an apple, a shaft with a rounded end, a round-bottomed groove, a
+    /// rounded shoulder or a fillet, a barrel bore or a round groove in a
+    /// bore, and beside them the hairs: a centre a hair off the axis, an arc
+    /// a hair from tangent to the wall it continues, a sphere a hair larger
+    /// than the shaft it ends — and tools drawn from an arc: a coaxial
+    /// cylinder at its equator or a hair off, a shaft ending square through
+    /// its centre, at its pole or a hair from either, the same arc again or
+    /// a hair along the axis, the whole ball or torus it lies on or a hair
+    /// larger, a cone tangent at a lattice latitude, a sleeve, a block
+    /// through the axis, a circle or a ring square to the axis at the centre
+    /// or the pole; and a ball or a dome on a circle raised before. None of
+    /// the cases `drawn_slanted` or `drawn_tilted` gives the same seed.
+    pub fn drawn_rounded(seed: u64) -> Case {
+        Case::drawn_among(
+            seed,
+            Among::Turned {
+                off_the_lattice: false,
+                slanted: true,
+                tilted: false,
+                rounded: true,
+            },
+        )
+    }
+
+    /// The case a seed stands for in a campaign over rounded turns: the
+    /// same draw, past the gate's lattice as `drawn_slanted_off_the_lattice`
+    /// goes, and with an arc a hair short of a quarter circle besides, which
+    /// ends a hair off the axis.
+    pub fn drawn_rounded_off_the_lattice(seed: u64) -> Case {
+        Case::drawn_among(
+            seed,
+            Among::Turned {
+                off_the_lattice: true,
+                slanted: true,
+                tilted: false,
+                rounded: true,
             },
         )
     }
@@ -212,9 +262,11 @@ impl Case {
     /// fewer kinds rather than drawing again: the cases `drawn` and
     /// `drawn_square` give are the ones a seed has always named. A slanted
     /// draw throws one number away first, so that a case of it with no
-    /// slant in it is still none of `drawn_turned`'s, and a tilted draw a
-    /// second one, so that a case of it with no leaning plane is none of
-    /// `drawn_slanted`'s.
+    /// slant in it is still none of `drawn_turned`'s, a tilted draw a second
+    /// one, so that a case of it with no leaning plane is none of
+    /// `drawn_slanted`'s, and a rounded draw five more, so that a case of it
+    /// with no arc in it is none of `drawn_slanted`'s nor of any draw of
+    /// ellipses'.
     fn drawn_among(seed: u64, among: Among) -> Case {
         let mut random = Random::seeded(seed);
         if let Among::Turned { slanted: true, .. } = among {
@@ -222,6 +274,11 @@ impl Case {
         }
         if let Among::Turned { tilted: true, .. } = among {
             random.number();
+        }
+        if let Among::Turned { rounded: true, .. } = among {
+            for _ in 0..5 {
+                random.number();
+            }
         }
         let scale = *random.pick(&[1.0, 1.0, 1.0, 5.0, 30.0]);
         let mut drawing = Drawing {
@@ -277,12 +334,15 @@ enum Among {
     Profiles,
     /// Turned sections and the prisms of the profiles, on the planes of the
     /// origin; past the gate's lattice in a campaign; their runs slanting,
-    /// and tools drawn from the slants, when `slanted`; and tools on leaning
-    /// planes drawn from what came before them, when `tilted`.
+    /// and tools drawn from the slants, when `slanted`; tools on leaning
+    /// planes drawn from what came before them, when `tilted`; and their
+    /// edges bowing along arcs, and tools drawn from the arcs, when
+    /// `rounded`.
     Turned {
         off_the_lattice: bool,
         slanted: bool,
         tilted: bool,
+        rounded: bool,
     },
     /// Prisms of ellipses among the profiles, on the planes of the origin
     /// and, in the draw of leaning tools, on planes leaning off them.

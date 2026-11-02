@@ -1,11 +1,11 @@
 //! A leaf handed to the kernel, and what the kernel was promised for it.
 
-use cao_solid::profile::{Contour, Frame, Profile};
+use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::turning::{self, Turn};
 use cao_solid::{Body, Declined, Loop};
 use glam::DVec2;
 
-use super::{Axis, CIRCLE_STEPS, Leaf, Outline, Section, Turned};
+use super::{Axis, Bow, CIRCLE_STEPS, Leaf, Outline, Piece, Section, Turned};
 
 /// The loops a prism is raised from, and the triangles its two ends are
 /// filled with.
@@ -346,8 +346,14 @@ impl Leaf {
                     * (high.y - low.y).abs();
                 (pappus, pappus * FACETING)
             }
-            Leaf::Turned { .. } => {
-                let volume = self.as_turned().map_or(0.0, |turned| turned.volume());
+            Leaf::Turned { section, .. } => {
+                let volume = self.as_turned().map_or(0.0, |turned| {
+                    if section.bows() {
+                        turned.sampled_volume()
+                    } else {
+                        turned.volume()
+                    }
+                });
                 (volume, volume * FACETING)
             }
         }
@@ -361,18 +367,25 @@ impl Leaf {
 pub const FACETING: f64 = 2e-3;
 
 /// One side of a turned leaf as the kernels are handed it, in the plane's
-/// own coordinates: its outline and its holes, and the triangles its ends are
-/// filled with, two to every trapezoid of the section but where one of them
-/// has no area, at a point.
+/// own coordinates: its outline sampled as the application samples an arc,
+/// with the curve each flat was sampled from, its holes, and the triangles
+/// its ends are filled with, two to every trapezoid of the section but
+/// where one of them has no area, at a point, and a band whose edge bows
+/// cut ear by ear; and the outline and the holes as runs, for the exact
+/// kernel.
 pub struct Drawn {
     pub outline: Vec<DVec2>,
+    pub curves: Vec<Option<usize>>,
     pub holes: Vec<Vec<DVec2>>,
     pub triangles: Vec<[DVec2; 3]>,
+    exact: Contour,
+    exact_holes: Vec<Contour>,
 }
 
 impl Drawn {
     fn of(axis: &Axis, section: &Section) -> Drawn {
-        let (outline, holes) = section.corners();
+        let (contour, holes) = section.contour();
+        let (outline, curves) = super::outlines::sampled(&contour);
         let triangles = section
             .trapezoids()
             .iter()
@@ -384,6 +397,12 @@ impl Drawn {
                     DVec2::new(to, trapezoid.high[1]),
                     DVec2::new(from, trapezoid.high[0]),
                 ];
+                if trapezoid.bows.iter().any(Option::is_some) {
+                    return ear_clipped(&band_polygon(corners, trapezoid.bows))
+                        .into_iter()
+                        .map(|triangle| triangle.map(|corner| axis.at(corner)))
+                        .collect::<Vec<_>>();
+                }
                 [[0, 1, 2], [0, 2, 3]]
                     .into_iter()
                     .filter(move |[one, two, three]| {
@@ -391,27 +410,48 @@ impl Drawn {
                             != 0.0
                     })
                     .map(move |triangle| triangle.map(|corner| axis.at(corners[corner])))
+                    .collect()
             })
             .collect();
+        let placed = |contour: &Contour| Contour {
+            corners: contour
+                .corners
+                .iter()
+                .map(|corner| axis.at(*corner))
+                .collect(),
+            runs: contour
+                .runs
+                .iter()
+                .map(|run| match *run {
+                    Run::Round { center, turn } => Run::Round {
+                        center: axis.at(center),
+                        turn,
+                    },
+                    run => run,
+                })
+                .collect(),
+        };
+        let exact = placed(&one_run_per_circle(&contour));
         Drawn {
             outline: outline.iter().map(|corner| axis.at(*corner)).collect(),
+            curves,
             holes: holes
                 .iter()
-                .map(|hole| hole.iter().map(|corner| axis.at(*corner)).collect())
+                .map(|hole| hole.corners.iter().map(|corner| axis.at(*corner)).collect())
                 .collect(),
             triangles,
+            exact,
+            exact_holes: holes
+                .iter()
+                .map(|hole| placed(&one_run_per_circle(hole)))
+                .collect(),
         }
     }
 
-    /// The outline and the holes as runs, every one of them straight.
+    /// The outline and the holes as runs: straight, or round along the arc
+    /// an edge of the section bows along.
     pub fn contours(&self) -> (Contour, Vec<Contour>) {
-        (
-            Contour::straight(self.outline.clone()),
-            self.holes
-                .iter()
-                .map(|hole| Contour::straight(hole.clone()))
-                .collect(),
-        )
+        (self.exact.clone(), self.exact_holes.clone())
     }
 
     /// The side as the application hands an area over: both ways, or, when
@@ -419,17 +459,176 @@ impl Drawn {
     pub fn profile(&self, exact: bool) -> Profile<'_> {
         Profile {
             exact: exact.then(|| self.contours()),
-            sampled: Loop::straight(&self.outline),
+            sampled: Loop {
+                points: &self.outline,
+                curves: &self.curves,
+            },
             sampled_holes: self.holes.iter().map(|hole| Loop::straight(hole)).collect(),
             triangles: &self.triangles,
         }
     }
 }
 
+/// The runs of a contour as the application's walk hands them: arcs of one
+/// circle one after the other are one run, since `outlines::sampled` samples
+/// them as one curve and the walk hands each stretch of one curve as one run
+/// — a whole circle, the two halves a ring's section bows into, a single run
+/// from its one corner. Handed as two, the exact kernel would name a face per
+/// half where the flats name one.
+fn one_run_per_circle(contour: &Contour) -> Contour {
+    let circle = |index: usize| match contour.runs[index] {
+        Run::Round { center, .. } => Some((center, contour.corners[index].distance(center))),
+        Run::Straight | Run::Oval { .. } => None,
+    };
+    let mut corners: Vec<DVec2> = Vec::new();
+    let mut runs: Vec<Run> = Vec::new();
+    let mut circles: Vec<Option<(DVec2, f64)>> = Vec::new();
+    for index in 0..contour.runs.len() {
+        let this = circle(index);
+        if let (
+            Some(this),
+            Some(Some(last)),
+            Some(Run::Round { turn, .. }),
+            Run::Round { turn: more, .. },
+        ) = (this, circles.last(), runs.last_mut(), contour.runs[index])
+            && *last == this
+        {
+            *turn += more;
+            continue;
+        }
+        corners.push(contour.corners[index]);
+        runs.push(contour.runs[index]);
+        circles.push(this);
+    }
+    if runs.len() > 1
+        && circles[0].is_some()
+        && circles.first() == circles.last()
+        && let (Some(Run::Round { turn: more, .. }), Some(corner)) = (runs.pop(), corners.pop())
+        && let Run::Round { turn, .. } = &mut runs[0]
+    {
+        *turn += more;
+        corners[0] = corner;
+    }
+    Contour { corners, runs }
+}
+
+/// A band of a section as the polygon its ends are filled with, its bowed
+/// edges sampled as the outline's are, anticlockwise from the low edge's
+/// start: the very points the outline holds, since each arc is sampled from
+/// the same corner about the same centre.
+fn band_polygon(corners: [DVec2; 4], bows: [Option<Bow>; 2]) -> Vec<DVec2> {
+    let round = |bow: Option<Bow>, from: DVec2, to: DVec2| match bow {
+        Some(bow) => Run::Round {
+            center: bow.center,
+            turn: bow.turn([from, to]),
+        },
+        None => Run::Straight,
+    };
+    let runs = [
+        round(bows[0], corners[0], corners[1]),
+        Run::Straight,
+        match round(bows[1], corners[3], corners[2]) {
+            Run::Round { center, turn } => Run::Round {
+                center,
+                turn: -turn,
+            },
+            run => run,
+        },
+        Run::Straight,
+    ];
+    let mut contour = Contour {
+        corners: Vec::new(),
+        runs: Vec::new(),
+    };
+    for (corner, run) in corners.into_iter().zip(runs) {
+        if contour.corners.last() == Some(&corner) {
+            *contour.runs.last_mut().expect("a run to the corner") = run;
+            continue;
+        }
+        contour.corners.push(corner);
+        contour.runs.push(run);
+    }
+    if contour.corners.len() > 1 && contour.corners.first() == contour.corners.last() {
+        contour.corners.pop();
+        contour.runs.pop();
+    }
+    let (mut polygon, _) = super::outlines::sampled(&contour);
+    polygon.dedup();
+    if polygon.len() > 1 && polygon.first() == polygon.last() {
+        polygon.pop();
+    }
+    polygon
+}
+
+/// A simple polygon, anticlockwise, cut into triangles ear by ear: a corner
+/// turning left whose triangle holds no other corner is cut off, and one
+/// lying straight between its neighbours is dropped.
+fn ear_clipped(polygon: &[DVec2]) -> Vec<[DVec2; 3]> {
+    let mut left = polygon.to_vec();
+    let mut triangles = Vec::new();
+    let holds = |triangle: [DVec2; 3], point: DVec2| {
+        (0..3).all(|index| {
+            let (from, to) = (triangle[index], triangle[(index + 1) % 3]);
+            (to - from).perp_dot(point - from) >= 0.0
+        })
+    };
+    while left.len() >= 3 {
+        let count = left.len();
+        let ear = (0..count).find(|&index| {
+            let triangle = [
+                left[(index + count - 1) % count],
+                left[index],
+                left[(index + 1) % count],
+            ];
+            let turn = (triangle[1] - triangle[0]).perp_dot(triangle[2] - triangle[0]);
+            turn == 0.0
+                || turn > 0.0
+                    && (0..count)
+                        .filter(|&other| {
+                            other != index
+                                && other != (index + count - 1) % count
+                                && other != (index + 1) % count
+                        })
+                        .all(|other| !holds(triangle, left[other]))
+        });
+        let Some(index) = ear else {
+            break;
+        };
+        let triangle = [
+            left[(index + count - 1) % count],
+            left[index],
+            left[(index + 1) % count],
+        ];
+        if (triangle[1] - triangle[0]).perp_dot(triangle[2] - triangle[0]) > 0.0 {
+            triangles.push(triangle);
+        }
+        left.remove(index);
+    }
+    triangles
+}
+
 impl Turned {
     pub fn frame(&self) -> Frame {
         let (origin, u, v) = self.plane.frame();
         Frame { origin, u, v }
+    }
+
+    /// The volume the flats are promised for a section whose edge bows:
+    /// Pappus's, of the polygon its outline is sampled into, which is what
+    /// they are handed. Such a section lies on one side of its axis.
+    pub fn sampled_volume(&self) -> f64 {
+        let (contour, holes) = self.section.contour();
+        let (outline, _) = super::outlines::sampled(&contour);
+        let moment = |corners: &[DVec2]| {
+            (0..corners.len())
+                .map(|index| {
+                    let (one, other) = (corners[index], corners[(index + 1) % corners.len()]);
+                    one.perp_dot(other) * (one.y + other.y) / 6.0
+                })
+                .sum::<f64>()
+        };
+        let swept = moment(&outline) + holes.iter().map(|hole| moment(&hole.corners)).sum::<f64>();
+        self.angle() * swept.abs()
     }
 
     /// Each side of the section as the kernels are handed it: the section
@@ -452,6 +651,23 @@ impl Turned {
             resolution,
             &whole.profile(true),
         )
+    }
+
+    /// Whether the reading declines to lay the section, which the exact
+    /// kernel then declines as no profile it reads and the application turns
+    /// on the flats (#576): a bowed section an arc of which crosses a run, or
+    /// that a corner comes within the tolerance of, or that pinches the axis
+    /// anywhere but at its ends. A section with no arc is never excused so:
+    /// what the reading declined before #576 stays a refusal.
+    pub fn declines_to_lay(&self) -> bool {
+        if !self.section.pieces().iter().any(Piece::is_bowed) {
+            return false;
+        }
+        let (frame, turn) = (self.frame(), self.turn(0.0));
+        self.drawn().into_iter().any(|side| {
+            let (outline, holes) = side.contours();
+            turning::Straight::of(&outline, &holes, frame, &turn, 0.0).is_none()
+        })
     }
 
     /// The leaf turned through the application's body, each side apart and

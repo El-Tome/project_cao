@@ -7,7 +7,7 @@ use super::*;
 use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cone, Cylinder, Plane, Surface};
+use crate::brep::surface::{Cone, Cylinder, Plane, Sphere, Surface, Torus};
 use crate::brep::topology::{Body, SurfaceId};
 use crate::profile::{Contour, Frame, Run};
 
@@ -68,6 +68,7 @@ fn chamfered_shaft() -> Body {
                 .map(|run| Corner {
                     at: DVec2::from(corners[run]),
                     run: run as u32,
+                    bend: None,
                 })
                 .collect(),
         ],
@@ -484,6 +485,30 @@ fn a_cone_within_the_tolerance_of_two_of_the_first_operand_s_is_the_nearest() {
     let other = with_surfaces(vec![tip(along)]);
     let surfaces = Surfaces::of(&one, &other, scale);
     assert_eq!(surfaces.mapped[1], vec![(SurfaceId(1), true)]);
+}
+
+/// A sphere or a torus of the second operand within the tolerance of two of
+/// the first's is the nearest, as a plane or a cone is (#576).
+#[test]
+fn a_round_within_the_tolerance_of_two_of_the_first_operand_s_is_the_nearest() {
+    let scale = Scale::of(25.0);
+    let hair = 0.8 * scale.eps();
+    let ball = |radius: f64| Surface::Sphere(Sphere::through(DVec3::ZERO, DVec3::Z, 5.0, radius));
+    let ring = |tube: f64| {
+        Surface::Torus(Torus::through(
+            DVec3::ZERO,
+            DVec3::Z,
+            DVec2::new(2.0, 4.0),
+            tube,
+            DVec2::new(2.0, 4.0 + tube),
+        ))
+    };
+    for round in [&ball as &dyn Fn(f64) -> Surface, &ring] {
+        let one = with_surfaces(vec![round(3.0), round(3.0 + hair), round(3.0 - hair / 2.0)]);
+        let other = with_surfaces(vec![round(3.0 + hair)]);
+        let surfaces = Surfaces::of(&one, &other, scale);
+        assert_eq!(surfaces.mapped[1], vec![(SurfaceId(1), true)]);
+    }
 }
 
 /// Seed 1008675 of the campaign: two blocks joined with their tops six tenths

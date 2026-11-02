@@ -9,6 +9,8 @@ mod merged;
 
 use super::Declined;
 use super::combine::Arena;
+use super::domain::floor;
+use super::surface::Surface;
 use super::topology::{Body, Coedge, CurveId, Edge, EdgeId, Face, SurfaceId, Vertex, VertexId};
 
 pub(super) fn assembled(arena: Arena, faces: Vec<Face>) -> Result<Body, Declined> {
@@ -16,11 +18,18 @@ pub(super) fn assembled(arena: Arena, faces: Vec<Face>) -> Result<Body, Declined
 }
 
 /// The body `faces` make of what `body` holds: faces on one surface with one
-/// side merged, each given the apex it holds within it, what no face uses
+/// side merged, each given the poles it holds within it, what no face uses
 /// left out, the rest renumbered, and the whole verified.
 pub(super) fn tidied(mut body: Body, faces: Vec<Face>) -> Result<Body, Declined> {
-    let mut faces = merged::merged(&mut body.edges, &body.curves, &body.vertices, faces);
-    body.hold_apexes(&mut faces);
+    let mut faces = merged::merged(
+        &mut body.edges,
+        &body.curves,
+        &body.vertices,
+        &body.surfaces,
+        body.scale.eps(),
+        faces,
+    );
+    body.hold_poles(&mut faces);
     let mut edges = Renumbering::of(body.edges.len());
     for coedge in faces.iter().flat_map(|face| face.loops.iter().flatten()) {
         edges.mark(coedge.edge.0);
@@ -33,8 +42,8 @@ pub(super) fn tidied(mut body: Body, faces: Vec<Face>) -> Result<Body, Declined>
             vertices.mark(end.0);
         }
     }
-    for apex in faces.iter().filter_map(|face| face.apex) {
-        vertices.mark(apex.0);
+    for pole in faces.iter().flat_map(|face| face.poles.iter()) {
+        vertices.mark(pole.0);
     }
     let mut surfaces = Renumbering::of(body.surfaces.len());
     for face in &faces {
@@ -89,7 +98,11 @@ pub(super) fn tidied(mut body: Body, faces: Vec<Face>) -> Result<Body, Declined>
                     })
                     .collect(),
                 numbers: face.numbers.clone(),
-                apex: face.apex.map(|apex| VertexId(vertices.renumbered(apex.0))),
+                poles: face
+                    .poles
+                    .iter()
+                    .map(|pole| VertexId(vertices.renumbered(pole.0)))
+                    .collect(),
             })
             .collect(),
         scale: body.scale,
@@ -141,12 +154,13 @@ impl Renumbering {
 }
 
 /// Every edge run as many times one way as the other, and at least once;
-/// every face with a loop, and every loop closed: each use starting where the
-/// one before it ends, or a whole closed curve alone.
+/// every face with a loop — but a whole sphere or torus, which closes on
+/// itself holding every pole of its surface — and every loop closed: each
+/// use starting where the one before it ends, or a whole closed curve alone.
 fn verified(body: &Body) -> Result<(), Declined> {
     let mut runs = vec![[0_usize; 2]; body.edges.len()];
     for face in &body.faces {
-        if face.loops.is_empty() {
+        if face.loops.is_empty() && !whole(body, face) {
             return Err(Declined::Unverified);
         }
         for lap in &face.loops {
@@ -165,6 +179,19 @@ fn verified(body: &Body) -> Result<(), Declined> {
         return Err(Declined::Unverified);
     }
     Ok(())
+}
+
+/// Whether a face with no loop is a whole closed surface: a sphere or a
+/// torus, every pole of which the face holds within it — a ball's two, a
+/// ring's none (#576).
+fn whole(body: &Body, face: &Face) -> bool {
+    let surface = body.surface(face.surface);
+    match surface {
+        Surface::Sphere(_) | Surface::Torus(_) => {
+            floor::poles_of(surface, body.scale.eps()).len() == face.poles.len()
+        }
+        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => false,
+    }
 }
 
 fn closed(body: &Body, lap: &[Coedge]) -> bool {

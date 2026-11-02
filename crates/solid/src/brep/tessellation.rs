@@ -8,9 +8,17 @@
 //! grid, so that no triangle spans more than one step of it — but beside a
 //! line where two walls touch, whose nearest steps [`contact`] withholds. So
 //! too on a cone, whose rims share its grid, and whose apex stands for every
-//! angle: a face reaching it is a fan from it. Each face is cut alone, so two
-//! faces standing within the tolerance of each other can fold onto each other
-//! across their edge; [`folds`] cuts them the other way once all are cut.
+//! angle: a face reaching it is a fan from it. The one exception is a face
+//! of a sphere or a torus (#576): a doubly curved surface sags both ways,
+//! along its latitude circles and along its meridians, and a triangle
+//! reaching from one latitude circle to the next would leave it by far more
+//! than the tolerance however fine the grid of angles; so the face is cut in
+//! strips between the rows of a grid along the meridian, and the lattice
+//! points where the rows cross the angles are added inside the face — on no
+//! edge, so that every edge's samples are still shared with the face beyond
+//! it. Each face is cut alone, so two faces standing within the tolerance of
+//! each other can fold onto each other across their edge; [`folds`] cuts them
+//! the other way once all are cut.
 
 mod contact;
 mod folds;
@@ -40,15 +48,15 @@ impl Body {
     /// along them, so that the triangles of two faces close against each
     /// other.
     pub fn triangles_by_face(&self, tolerance: f64) -> Cut {
-        let samples = Samples::of(self, tolerance);
+        let mut samples = Samples::of(self, tolerance);
         let mut drawn = Vec::new();
         let mut uncut = Vec::new();
         for id in self.face_ids() {
-            let Some(outline) = Outline::of(self, &samples, id, tolerance) else {
+            let Some(outline) = Outline::of(self, &mut samples, id, tolerance) else {
                 uncut.push(id);
                 continue;
             };
-            let Some(cut) = sweep::triangles(&outline.points, &outline.segments) else {
+            let Some(cut) = outline.cut() else {
                 uncut.push(id);
                 continue;
             };

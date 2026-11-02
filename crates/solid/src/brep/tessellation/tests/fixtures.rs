@@ -215,7 +215,9 @@ impl Build {
         let round = match *self.body.surface(wall) {
             Surface::Cylinder(cylinder) => Round::Cylinder(cylinder),
             Surface::Cone(cone) => Round::Cone(cone),
-            Surface::Plane(_) | Surface::Elliptic(_) => panic!("a conic is cut on a circular wall"),
+            Surface::Plane(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_) => {
+                panic!("a conic is cut on a circular wall")
+            }
         };
         Conic::cut(&plane, &round, Scale::of(reach))
     }
@@ -265,7 +267,7 @@ impl Build {
             flipped,
             loops,
             numbers: Vec::new(),
-            apex: None,
+            poles: Vec::new(),
         });
         FaceId(self.body.faces.len() as u32 - 1)
     }

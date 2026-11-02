@@ -7,30 +7,47 @@
 //! where the two ends close onto each other: a whole circle for each corner
 //! off the axis, and no corner at all.
 
+mod partial;
+mod round;
+
 use std::f64::consts::TAU;
 
-use glam::{DVec2, DVec3};
+use glam::DVec3;
 
 use super::Placed;
 use crate::brep::Declined;
 use crate::brep::laying::{Laying, reversed};
 use crate::brep::piece::{Named, Piece};
 use crate::brep::surface::{Plane, Surface};
-use crate::brep::topology::{Body, Coedge, Face, SurfaceId, VertexId};
+use crate::brep::topology::{Body, Coedge, Face, SurfaceId};
+use partial::partial;
+use round::Round;
+
+impl Round {
+    /// The arc a piece is, if it is one.
+    fn of(piece: &Piece) -> Option<Round> {
+        match *piece {
+            Piece::Arc {
+                from,
+                to,
+                center,
+                radius,
+                sweep,
+            } => Some(Round {
+                from,
+                to,
+                center,
+                radius,
+                sweep,
+            }),
+            Piece::Straight { .. } | Piece::Oval { .. } => None,
+        }
+    }
+}
 
 /// The surface a piece of the profile turns into and whether the matter lies
 /// on the side its normal points to; none for a piece on the axis.
 type Swept = Option<(SurfaceId, bool)>;
-
-/// Where a corner of a partial turn went: a corner where the turn opens and
-/// one where it closes, and the arc between them; or a single corner, on the
-/// axis.
-#[derive(Clone, Copy)]
-struct Turned {
-    opening: VertexId,
-    closing: VertexId,
-    arc: Option<Coedge>,
-}
 
 /// The body's surfaces, edges and vertices, and its faces before they are
 /// tidied. The outline turns anticlockwise and the holes clockwise in
@@ -73,14 +90,14 @@ pub(super) fn laid(
             flipped: opening_flipped,
             loops: openings,
             numbers: vec![runs],
-            apex: None,
+            poles: Vec::new(),
         });
         faces.push(Face {
             surface: closing,
             flipped: closing_flipped,
             loops: closings,
             numbers: vec![runs + 1],
-            apex: None,
+            poles: Vec::new(),
         });
     }
     Ok((laying.body, faces))
@@ -89,9 +106,15 @@ pub(super) fn laid(
 /// The planes a partial turn ends on, laid before every other surface so
 /// that no plane of the profile is taken for one of them: the sketch's own
 /// plane, and the plane the profile is turned onto. At a half turn they are
-/// one plane.
+/// one plane. Read on the corners and on the arcs' middles: a ball's
+/// corners all stand on the axis, which every end plane holds.
 fn ends(laying: &mut Laying, placed: &Placed, contours: &[Vec<Named>]) -> [(SurfaceId, bool); 2] {
-    let corners = || contours.iter().flatten().map(|named| named.piece.from());
+    let corners = || {
+        contours.iter().flatten().flat_map(|named| {
+            let middle = Round::of(&named.piece).map(|arc| arc.middle());
+            std::iter::once(named.piece.from()).chain(middle)
+        })
+    };
     let opening: Vec<DVec3> = corners().map(|corner| placed.opening(corner)).collect();
     let closing: Vec<DVec3> = corners().map(|corner| placed.closing(corner)).collect();
     let (plane, turned) = Plane::through(placed.origin, -placed.across);
@@ -110,8 +133,12 @@ fn ends(laying: &mut Laying, placed: &Placed, contours: &[Vec<Named>]) -> [(Surf
 /// Any other run is slanted, and turns into a cone whose matter, on the
 /// left of the run as the contour turns, lies on the side its normal points
 /// to where the run goes away from the axis — read along the cone's own
-/// axis, which a turn backwards points against the turn's.
+/// axis, which a turn backwards points against the turn's. An arc turns
+/// into a sphere or a torus ([`round`]).
 fn sweep(laying: &mut Laying, placed: &Placed, piece: &Piece) -> Result<Swept, Declined> {
+    if let Some(arc) = Round::of(piece) {
+        return Ok(Some(round::swept(laying, placed, &arc)));
+    }
     let Piece::Straight { from, to } = *piece else {
         return Err(Declined::Profile);
     };
@@ -143,26 +170,16 @@ fn sweep(laying: &mut Laying, placed: &Placed, piece: &Piece) -> Result<Swept, D
     }
 }
 
-/// The surfaces either side of each corner of a contour: those of the piece
-/// ending there and of the piece starting there, the axis having none.
-fn beside(swept: &[Swept], index: usize) -> Vec<SurfaceId> {
-    let count = swept.len();
-    [swept[(index + count - 1) % count], swept[index]]
-        .into_iter()
-        .flatten()
-        .map(|(surface, _)| surface)
-        .collect()
-}
-
 /// The faces of one contour turned whole: each piece off the axis bounded by
 /// the whole circles its two ends turn along, those on the axis bounding
-/// nothing.
+/// nothing; a whole circle of the profile, which has no corner, one face
+/// with no loop.
 fn whole(laying: &mut Laying, placed: &Placed, contour: &[Named], swept: &[Swept]) -> Vec<Face> {
     let rings: Vec<Option<Coedge>> = contour
         .iter()
         .map(|named| {
             let corner = named.piece.from();
-            (corner.y > 0.0).then(|| {
+            (corner.y > 0.0 && !named.piece.is_ring()).then(|| {
                 laying.ring(
                     &placed.cylinder(corner),
                     placed.center(corner),
@@ -188,92 +205,8 @@ fn whole(laying: &mut Laying, placed: &Placed, contour: &[Named], swept: &[Swept
                 .map(|ring| vec![ring])
                 .collect(),
             numbers: named.numbers.clone(),
-            apex: None,
+            poles: Vec::new(),
         });
     }
     faces
-}
-
-/// The faces of one contour turned part of the way, and the edges it leaves
-/// on the end the turn opens on and on the end it closes on, in the
-/// contour's order.
-fn partial(
-    laying: &mut Laying,
-    placed: &Placed,
-    contour: &[Named],
-    swept: &[Swept],
-    [(opening, _), (closing, _)]: [(SurfaceId, bool); 2],
-) -> (Vec<Face>, Vec<Coedge>, Vec<Coedge>) {
-    let turned: Vec<Turned> = contour
-        .iter()
-        .enumerate()
-        .map(|(index, named)| {
-            let corner = named.piece.from();
-            let beside = beside(swept, index);
-            let on = |end: SurfaceId| -> Vec<SurfaceId> {
-                std::iter::once(end).chain(beside.iter().copied()).collect()
-            };
-            turned(laying, placed, corner, [on(opening), on(closing)])
-        })
-        .collect();
-    let count = contour.len();
-    let (mut faces, mut openings, mut closings) = (Vec::new(), Vec::new(), Vec::new());
-    for (index, named) in contour.iter().enumerate() {
-        let [start, end] = [turned[index], turned[(index + 1) % count]];
-        let at_opening = laying.line(start.opening, end.opening);
-        openings.push(at_opening);
-        let Some((surface, flipped)) = swept[index] else {
-            closings.push(at_opening);
-            continue;
-        };
-        let square = named.piece.from().x == named.piece.to().x;
-        let at_closing = if placed.half && square && start.arc.is_none() != end.arc.is_none() {
-            laying.line_on(at_opening, start.closing, end.closing)
-        } else {
-            laying.line(start.closing, end.closing)
-        };
-        closings.push(at_closing);
-        let lap = std::iter::once(at_opening)
-            .chain(end.arc)
-            .chain(std::iter::once(reversed(at_closing)))
-            .chain(start.arc.map(reversed))
-            .collect();
-        faces.push(Face {
-            surface,
-            flipped,
-            loops: vec![lap],
-            numbers: named.numbers.clone(),
-            apex: None,
-        });
-    }
-    (faces, openings, closings)
-}
-
-/// A corner of the profile turned part of the way: on the axis, one corner on
-/// both ends and the surfaces beside it; off it, a corner on each end and the
-/// arc between them, on the circle the corner turns along.
-fn turned(laying: &mut Laying, placed: &Placed, corner: DVec2, on: [Vec<SurfaceId>; 2]) -> Turned {
-    if corner.y == 0.0 {
-        let both: Vec<SurfaceId> = on.concat();
-        let vertex = laying.vertex(placed.center(corner), &both);
-        return Turned {
-            opening: vertex,
-            closing: vertex,
-            arc: None,
-        };
-    }
-    let opening = laying.vertex(placed.opening(corner), &on[0]);
-    let closing = laying.vertex(placed.closing(corner), &on[1]);
-    let arc = laying.arc(
-        &placed.cylinder(corner),
-        placed.center(corner),
-        [opening, closing],
-        placed.angle,
-        placed.axis,
-    );
-    Turned {
-        opening,
-        closing,
-        arc: Some(arc),
-    }
 }

@@ -31,6 +31,11 @@
 //! a slant is sampled as a meet is, with one wall: on that wall's grid and
 //! rays, then between them wherever a chord would leave it ([`conic`]); on a
 //! cone, it widens the cone's grid to the furthest it stands from the axis.
+//! A latitude circle of a sphere or a torus is sampled on the round's grid
+//! as a cone's rim is, and a meridian arc on the round's rows along the
+//! meridian ([`round`]), where the faces of the round are cut in strips; the
+//! lattice points those strips add inside a face are numbered on past every
+//! edge's samples.
 
 mod abreast;
 mod axis;
@@ -43,6 +48,7 @@ mod elliptic;
 mod ends;
 mod meet;
 mod planes;
+mod round;
 mod touches;
 
 use std::collections::BTreeMap;
@@ -52,15 +58,16 @@ use glam::DVec3;
 
 use super::contact::{self, Contact, Zones};
 use crate::brep::conic::Round;
-use crate::brep::curve::Curve;
+use crate::brep::curve::{Circle, Curve};
 use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
 use abreast::Abreast;
 use axis::Axes;
 use circle::on_circle;
-use cone::Grid;
+use cone::{Grid, Spun};
 use ends::Ends;
 pub(super) use planes::{on_a_plane, touching_planes};
+pub(super) use round::{ON_A_ROW, Rounded, levels, midway, rows};
 use touches::{Places, on_the_line};
 
 /// How far from another surface, as a share of the kernel's tolerance, a
@@ -204,20 +211,27 @@ impl Samples {
                     }
                     conic::of_edge(body, edge, conic, zones, grids, &rays, tolerance)
                 }
-                Curve::Circle(circle) => {
-                    let wall = contact::wall_of(circle, walls, eps);
-                    let contact = wall
-                        .and_then(|(surface, _)| contacts.get(surface))
-                        .unwrap_or(&alone);
-                    let on_axis = wall.and_then(|(surface, own)| {
-                        let clear = |point| !zones.crowded(own, point);
-                        axes.widened(contact, (circle, *surface), tolerance, eps, clear)
-                    });
-                    let contact = on_axis.as_ref().unwrap_or(contact);
-                    let ends = Ends::of(body, circle, edge);
-                    let planes = touching_planes(body, circle.center, circle.axis, circle.radius);
-                    on_circle(circle, edge, tolerance, eps, contact, &ends, &planes)
-                }
+                Curve::Circle(circle) => match meridian_of(circle, grids, eps) {
+                    Some((surface, round, rows)) => {
+                        let levels = round::levels_along(body, surface, edge, &round, eps);
+                        round::on_meridian(circle, edge, &round, rows, &levels, eps)
+                    }
+                    None => {
+                        let wall = contact::wall_of(circle, walls, eps);
+                        let contact = wall
+                            .and_then(|(surface, _)| contacts.get(surface))
+                            .unwrap_or(&alone);
+                        let on_axis = wall.and_then(|(surface, own)| {
+                            let clear = |point| !zones.crowded(own, point);
+                            axes.widened(contact, (circle, *surface), tolerance, eps, clear)
+                        });
+                        let contact = on_axis.as_ref().unwrap_or(contact);
+                        let ends = Ends::of(body, circle, edge);
+                        let planes =
+                            touching_planes(body, circle.center, circle.axis, circle.radius);
+                        on_circle(circle, edge, tolerance, eps, contact, &ends, &planes)
+                    }
+                },
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
             };
             let ends: Vec<DVec3> = edge
@@ -286,15 +300,43 @@ impl Samples {
         &self.edges[edge.0 as usize]
     }
 
-    /// How many steps a turn the grid of the cone `surface` has.
+    /// How many steps a turn the grid of the cone, sphere or torus `surface`
+    /// has.
     pub(super) fn steps(&self, surface: SurfaceId) -> Option<usize> {
         self.grids.get(&surface).map(|grid| grid.steps)
+    }
+
+    /// How many rows a turn of the meridian the grid of the sphere or torus
+    /// `surface` has.
+    pub(super) fn rows(&self, surface: SurfaceId) -> Option<usize> {
+        self.grids.get(&surface).map(|grid| grid.rows)
+    }
+
+    /// A point added inside a face of a sphere or a torus, where the lattice
+    /// of its rows and angles stands: numbered on past every edge's samples,
+    /// on no edge, so that no face along an edge misses it.
+    pub(super) fn added(&mut self, point: DVec3) -> usize {
+        self.points.push(point);
+        self.points.len() - 1
     }
 
     /// Whether a sample is a vertex's own point.
     pub(super) fn is_vertex(&self, id: usize) -> bool {
         id < self.vertices
     }
+}
+
+/// The sphere or torus of the body `circle` is a meridian of, with its
+/// surface and how many rows a turn its grid has.
+fn meridian_of(
+    circle: &Circle,
+    grids: &BTreeMap<SurfaceId, Grid>,
+    eps: f64,
+) -> Option<(SurfaceId, Rounded, usize)> {
+    grids.iter().find_map(|(id, grid)| match grid.spun {
+        Spun::Round(round) if round.meridian(circle, eps) => Some((*id, round, grid.rows)),
+        Spun::Round(_) | Spun::Cone(_) => None,
+    })
 }
 
 /// The points of every edge along a meet between its ends, as

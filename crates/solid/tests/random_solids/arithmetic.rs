@@ -46,9 +46,10 @@ const EXACTLY: f64 = 1e-6;
 /// a curved wall, and how many for running through a cone's tip, where it
 /// has no normal (#536), summed over every body the case was checked at; how
 /// many cases the kernel declined as asking for a curve it does not build,
-/// and how many it declined to raise for a turned wall a hair thin, which
-/// are no answers it owed (#533); how many steps it built though it reads
-/// them unstably, which it says and which are held like any other (#552).
+/// how many it declined to raise for a turned wall a hair thin, and how many
+/// for a bowed section the reading declines to lay, which are no answers it
+/// owed (#533, #576); how many steps it built though it reads them unstably,
+/// which it says and which are held like any other (#552).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Measured {
     pub held: usize,
@@ -56,6 +57,7 @@ pub struct Measured {
     pub through_a_tip: usize,
     pub declined: usize,
     pub thin: usize,
+    pub bowed: usize,
     pub unstable: usize,
 }
 
@@ -73,10 +75,10 @@ struct Promise {
 /// the whole case run twice, bit for bit.
 ///
 /// A leaf or a step the kernel declines is no answer, but for a case asking
-/// beyond the conics, or meeting along one, declined as unsupported, and a
-/// turned leaf with a wall a hair thin declined as no profile, which are
-/// counted. A case with a leaf that is no solid, or none this arithmetic
-/// covers — a star — holds nothing.
+/// beyond the conics, or meeting along one, declined as unsupported, a turned
+/// leaf with a wall a hair thin declined as no profile, and a bowed section
+/// the reading declines to lay, which are counted. A case with a leaf that is
+/// no solid, or none this arithmetic covers — a star — holds nothing.
 pub fn held_to_arithmetic<K: Kernel>(case: &Case, kernel: &K) -> Result<Measured, Flaw> {
     let mut measured = Measured::default();
     if !case.leaves().all(covered) {
@@ -89,14 +91,25 @@ pub fn held_to_arithmetic<K: Kernel>(case: &Case, kernel: &K) -> Result<Measured
     let lines = Lines::across(region.0, region.1, LINES);
     let promise = promise(case, &lines);
 
-    let bodies = match raised(case, kernel) {
-        Ok(bodies) => bodies,
-        Err(Declined::Profile) if case.has_a_wall_a_hair_thin() => {
-            measured.thin += 1;
-            return Ok(measured);
+    let mut bodies = Vec::with_capacity(leaves.len());
+    for leaf in &leaves {
+        match kernel.raised(leaf) {
+            Ok(body) => bodies.push(body),
+            Err(Declined::Profile) if case.has_a_wall_a_hair_thin() => {
+                measured.thin += 1;
+                return Ok(measured);
+            }
+            Err(Declined::Profile)
+                if leaf
+                    .as_turned()
+                    .is_some_and(|turned| turned.declines_to_lay()) =>
+            {
+                measured.bowed += 1;
+                return Ok(measured);
+            }
+            Err(declined) => return declined_on(case, declined, measured),
         }
-        Err(declined) => return declined_on(case, declined, measured),
-    };
+    }
     for (leaf, body) in bodies.iter().enumerate() {
         let held = Held {
             lines: &lines,
@@ -158,11 +171,14 @@ pub fn holds_through_the_application(case: &Case) {
 }
 
 /// A kernel's decline, judged: counted when the case asks for a curve
-/// beyond the conics and the kernel says it does not build it, no answer
-/// otherwise. A case that meets along a conic alone is answered since the
-/// kernel builds the conics (#552).
+/// beyond the conics, or a sphere or a torus for one beyond its circles
+/// (#576), and the kernel says it does not build it, no answer otherwise. A
+/// case that meets along a conic alone is answered since the kernel builds
+/// the conics (#552).
 fn declined_on(case: &Case, declined: Declined, mut measured: Measured) -> Result<Measured, Flaw> {
-    if declined == Declined::Unsupported && case.asks_beyond_the_conics() {
+    if declined == Declined::Unsupported
+        && (case.asks_beyond_the_conics() || case.asks_a_round_beyond_its_circles())
+    {
         measured.declined += 1;
         return Ok(measured);
     }

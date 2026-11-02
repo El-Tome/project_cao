@@ -45,14 +45,14 @@ pub(super) fn raise(
             flipped: bottom_flipped,
             loops: bottom_loops,
             numbers: vec![0],
-            apex: None,
+            poles: Vec::new(),
         },
         Face {
             surface: top,
             flipped: top_flipped,
             loops: top_loops,
             numbers: vec![1],
-            apex: None,
+            poles: Vec::new(),
         },
     ];
     walls.laying.body.faces = caps.into_iter().chain(sides).collect();
@@ -114,7 +114,7 @@ impl Walls {
                 flipped: side.flipped,
                 loops: vec![vec![below], vec![reversed(above)]],
                 numbers: named[0].numbers.clone(),
-                apex: None,
+                poles: Vec::new(),
             });
             return (vec![below], vec![above]);
         }
@@ -131,7 +131,7 @@ impl Walls {
                 flipped: side.flipped,
                 loops: vec![vec![below], vec![reversed(above)]],
                 numbers: named[0].numbers.clone(),
-                apex: None,
+                poles: Vec::new(),
             });
             return (vec![below], vec![above]);
         }
@@ -187,7 +187,7 @@ impl Walls {
                 flipped: sides[index].flipped,
                 loops: vec![vec![bottom, end.2, reversed(top), reversed(start.2)]],
                 numbers: named[index].numbers.clone(),
-                apex: None,
+                poles: Vec::new(),
             });
             below.push(bottom);
             above.push(top);

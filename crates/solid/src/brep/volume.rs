@@ -8,6 +8,7 @@
 
 mod cone;
 mod elliptic;
+mod round;
 
 use std::f64::consts::PI;
 
@@ -27,19 +28,28 @@ impl Body {
     }
 
     /// What each use of an edge adds to the flux through a face, a face of
-    /// a cone anchored where `cone.rs` says.
+    /// a cone anchored where `cone.rs` says, a face of a sphere or a torus
+    /// where `round.rs` says, with the stretches of its floors after them.
     fn fluxes(&self, face: FaceId) -> impl Iterator<Item = f64> + '_ {
         let lying = self.face(face);
         let surface = self.surface(lying.surface);
         let anchor = match surface {
             Surface::Cone(cone) => self.anchor(face, cone),
+            Surface::Sphere(_) | Surface::Torus(_) => self.round_anchor(face, surface),
             Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => 0.0,
+        };
+        let floors = match surface {
+            Surface::Sphere(_) | Surface::Torus(_) => self.round_floors(face, surface, anchor),
+            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+                Vec::new()
+            }
         };
         lying
             .loops
             .iter()
             .flatten()
             .map(move |coedge| self.flux_along(surface, anchor, *coedge))
+            .chain(floors)
     }
 
     /// What one use of an edge adds to the flux through its face: in closed
@@ -62,6 +72,9 @@ impl Body {
             }
             (Surface::Elliptic(wall), Ok(Trace::Segment { from, to })) => {
                 elliptic::straight(wall, from, to)
+            }
+            (Surface::Sphere(_) | Surface::Torus(_), Ok(Trace::Segment { from, to })) => {
+                round::Meridian::of(surface).and_then(|round| round.straight(anchor, from, to))
             }
             (
                 Surface::Elliptic(wall),
@@ -141,6 +154,8 @@ fn along(curve: &Curve, from: f64, to: f64, surface: &Surface, anchor: f64) -> f
                     Surface::Cylinder(cylinder) => radial(cylinder, point, speed),
                     Surface::Cone(cone) => cone::conical(cone, anchor, point, speed),
                     Surface::Elliptic(wall) => elliptic::density(wall, point, speed),
+                    Surface::Sphere(_) | Surface::Torus(_) => round::Meridian::of(surface)
+                        .map_or(0.0, |round| round.density(anchor, point, speed)),
                 };
                 total += weight * density * width / 2.0;
             }

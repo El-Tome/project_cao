@@ -38,7 +38,14 @@ pub(super) fn through_lines(
     let cut = match (surface, &own) {
         (Surface::Plane(plane), Wall::Cylinder(cylinder)) => Some(Cut { cylinder, plane }),
         (Surface::Plane(_), Wall::Elliptic(_))
-        | (Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => None,
+        | (
+            Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_),
+            _,
+        ) => None,
     };
     let curve = Curve::Meet(*meet);
     let mut found = Vec::new();
@@ -68,10 +75,15 @@ fn relation_with(own: &Wall, surface: &Surface, scale: Scale) -> Relation {
     match (own, surface) {
         (Wall::Cylinder(own), Surface::Plane(plane)) => plane_and_cylinder(plane, own, scale),
         (Wall::Cylinder(own), Surface::Cylinder(cylinder)) => cylinders(own, cylinder, scale),
-        (Wall::Cylinder(_), Surface::Cone(_) | Surface::Elliptic(_)) => Relation::Unsupported,
+        (
+            Wall::Cylinder(_),
+            Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_),
+        ) => Relation::Unsupported,
         (Wall::Elliptic(own), Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_)) => {
             relation(&Surface::Elliptic(*own), surface, scale)
         }
-        (Wall::Elliptic(_), Surface::Cone(_)) => Relation::Unsupported,
+        (Wall::Elliptic(_), Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_)) => {
+            Relation::Unsupported
+        }
     }
 }

@@ -51,7 +51,11 @@ fn flat(body: &Body, normal: DVec3) -> FaceId {
     body.face_ids()
         .find(|&face| match body.surface(body.face(face).surface) {
             Surface::Plane(plane) => plane.normal.cross(normal.normalize()).length() < TOLERANCE,
-            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => false,
+            Surface::Cylinder(_)
+            | Surface::Cone(_)
+            | Surface::Elliptic(_)
+            | Surface::Sphere(_)
+            | Surface::Torus(_) => false,
         })
         .expect("a flat face")
 }
@@ -158,6 +162,7 @@ fn turned(origin: DVec3, axis: DVec3, corners: &[[f64; 2]], angle: f64) -> Body 
                 .map(|(run, at)| Corner {
                     at: DVec2::from(*at),
                     run: run as u32,
+                    bend: None,
                 })
                 .collect(),
         ],

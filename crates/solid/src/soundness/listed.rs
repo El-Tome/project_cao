@@ -11,13 +11,14 @@
 
 use std::f64::consts::TAU;
 
-use crate::brep::{Arm, Curve, Listing};
+use crate::brep::{Arm, Curve, ListedFace, Listing, Surface};
 
 mod conic;
 mod lying;
 mod meet;
 mod nappe;
 mod oval;
+mod round;
 mod turning;
 
 /// What a listing says that its geometry does not bear out, and where: faces,
@@ -29,7 +30,8 @@ pub enum Mislisted {
     NoSuchEdge { face: usize, edge: usize },
     /// An edge naming a vertex the listing does not hold.
     NoSuchVertex { edge: usize, vertex: usize },
-    /// A face holding within it a vertex the listing does not hold.
+    /// A face holding within it, as a pole, a vertex the listing does not
+    /// hold.
     NoSuchApex { face: usize, vertex: usize },
     /// An edge naming, beside it, a face the listing does not hold.
     NoSuchFace { edge: usize, face: usize },
@@ -45,7 +47,8 @@ pub enum Mislisted {
     /// An edge no face uses, which bounds nothing.
     Unused { edge: usize },
     /// A face with no loop round it: a whole plane or a whole cylinder, which
-    /// no solid is bounded by.
+    /// no solid is bounded by. A whole sphere or torus is, holding every pole
+    /// of its surface.
     Unbounded { face: usize },
     /// A use that does not start where the one before it in its loop ends,
     /// or a whole closed curve sharing its loop with another use.
@@ -75,8 +78,9 @@ pub enum Mislisted {
         at: f64,
         distance: f64,
     },
-    /// A face said to hold within it, as its apex, a vertex standing off the
-    /// apex of its cone — infinitely far from a surface with no apex.
+    /// A face said to hold within it, as a pole, a vertex standing off the
+    /// apex of its cone or every pole of its sphere or torus — infinitely far
+    /// from a surface with no pole.
     ApexAway {
         face: usize,
         vertex: usize,
@@ -135,9 +139,10 @@ fn ranked(listing: &Listing) -> Result<(), Mislisted> {
         {
             return Err(Mislisted::NoSuchEdge { face, edge });
         }
-        if let Some(vertex) = listed
-            .apex
-            .filter(|vertex| *vertex >= listing.vertices.len())
+        if let Some(&vertex) = listed
+            .poles
+            .iter()
+            .find(|vertex| **vertex >= listing.vertices.len())
         {
             return Err(Mislisted::NoSuchApex { face, vertex });
         }
@@ -174,9 +179,10 @@ fn uses(listing: &Listing) -> Vec<Vec<(usize, bool)>> {
     uses
 }
 
-/// Every face has a loop, and every loop closes: each use starts at the
-/// vertex the one before it ends at, and a whole closed curve, which has no
-/// vertex, stands alone.
+/// Every face has a loop, but a whole sphere or torus holding every pole of
+/// its surface, and every loop closes: each use starts at the vertex the one
+/// before it ends at, and a whole closed curve, which has no vertex, stands
+/// alone.
 fn closed(listing: &Listing) -> Result<(), Mislisted> {
     let ends = |(edge, forward): (usize, bool)| {
         listing.edges[edge]
@@ -184,7 +190,7 @@ fn closed(listing: &Listing) -> Result<(), Mislisted> {
             .map(|[from, to]| if forward { [from, to] } else { [to, from] })
     };
     for (face, listed) in listing.faces.iter().enumerate() {
-        if listed.loops.is_empty() {
+        if listed.loops.is_empty() && !whole_round(listed) {
             return Err(Mislisted::Unbounded { face });
         }
         for (lap, uses) in listed.loops.iter().enumerate() {
@@ -207,6 +213,19 @@ fn closed(listing: &Listing) -> Result<(), Mislisted> {
         }
     }
     Ok(())
+}
+
+/// Whether a face with no loop is a whole sphere or torus, holding within it
+/// as many poles as its surface has: a ball's two, a ring's none.
+fn whole_round(listed: &ListedFace) -> bool {
+    let poles = match &listed.surface {
+        Surface::Sphere(sphere) => round::Tube::of_sphere(sphere).poles(),
+        Surface::Torus(torus) => round::Tube::of_torus(torus).poles(),
+        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+            return false;
+        }
+    };
+    poles.len() == listed.poles.len()
 }
 
 /// Every edge with no vertex runs round a whole closed curve.

@@ -79,9 +79,9 @@
 //!   `a_drawing_on_a_shoulder_of_a_turned_shaft_rides_it_when_the_shoulder_moves`,
 //!   `a_drawing_on_the_closing_end_of_a_partial_turn_follows_it_when_the_turn_widens`,
 //!   `faces_after_a_full_turn_are_numbered_as_on_main`
-//! - a profile with an arc sends the part to the flats from that step on (a slanted
-//!   run did too, until #536) —
-//!   `a_part_turned_from_an_arc_is_computed_by_the_flats_from_that_step_on`
+//! - a profile with an arc turned stays on the exact kernel from that step on,
+//!   a band of a torus since #576 —
+//!   `a_part_turned_from_an_arc_stays_exact_from_that_step_on`
 //! - a revolution the exact kernel declines is a broken step, with its reason kept —
 //!   `a_turn_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_reason`
 //!   (`declined_because(step) == Some(Declined::Unsupported)`, volume unchanged),
@@ -115,11 +115,12 @@
 //!   flats — no test: it is prose, held by `language.rs` and by nothing that asserts
 //!
 //! A part turned from a profile of straight runs, each parallel, square or
-//! slanted to its axis, as the application builds it: the exact kernel turns
-//! it, and the part stays exact after it. An arc still goes to the flats. The
-//! kernel's own tests are `cao_solid`'s, in `the_exact_kernel_turns.rs`.
+//! slanted to its axis, or from arcs, as the application builds it: the exact
+//! kernel turns it, and the part stays exact after it. Only an ellipse turned
+//! goes to the flats. The kernel's own tests are `cao_solid`'s, in
+//! `the_exact_kernel_turns.rs`.
 
-use std::f64::consts::PI;
+use std::f64::consts::{PI, TAU};
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -614,21 +615,6 @@ fn faces_after_a_full_turn_whose_side_lies_within_the_band_are_numbered_as_on_ma
     );
 }
 
-/// What the flats make of a circle: the polygon of 48 sides inscribed in it.
-fn inscribed(radius: f64) -> f64 {
-    let sides = 48.0;
-    sides / 2.0 * radius * radius * (2.0 * PI / sides).sin()
-}
-
-/// How much matter a Ø40 raised 10 far from the rest adds to the part
-/// `history` describes, applied as the user would, so that the part is built
-/// once rather than at every click; the part held to stay on the flats.
-fn a_disc_raised_after(history: &History) -> f64 {
-    let (added, exact) = a_disc_raised_on(history);
-    assert!(!exact, "the part stays on the flats");
-    added
-}
-
 /// How much matter a Ø40 raised 10 far from the rest adds to the part
 /// `history` describes, and whether the part is still exact after it.
 fn a_disc_raised_on(history: &History) -> (f64, bool) {
@@ -657,7 +643,7 @@ fn a_disc_raised_on(history: &History) -> (f64, bool) {
 }
 
 #[test]
-fn a_part_turned_from_an_arc_is_computed_by_the_flats_from_that_step_on() {
+fn a_part_turned_from_an_arc_stays_exact_from_that_step_on() {
     let mut history = History::default();
     sketch_on(&mut history, WorkPlane::XY);
     let first = PartState::rebuild(&history).sketches[0].points().len();
@@ -683,15 +669,28 @@ fn a_part_turned_from_an_arc_is_computed_by_the_flats_from_that_step_on() {
         ExtrusionMode::Add,
     );
 
-    assert!(
-        !applied_live(&history).body().is_exact(),
-        "an arc turned is a torus, which the exact kernel has no surface for",
-    );
     assert_near(
-        a_disc_raised_after(&history),
-        inscribed(20.0) * 10.0,
-        "the Ø40 raised after the torus, by the flats",
+        exact(&history).body.volume(),
+        a_segment_turned_whole(5.0 * 2f64.sqrt(), 5.0, 70.0),
+        "the segment the arc and its chord close, turned whole about V, by Pappus",
     );
+    let (added, stays_exact) = a_disc_raised_on(&history);
+    assert!(stays_exact, "the part stays on the exact kernel");
+    assert_near(
+        added,
+        PI * 400.0 * 10.0,
+        "the Ø40 raised after the turn, on its true cylinder",
+    );
+}
+
+/// The volume Pappus gives the segment an arc of `radius` and its chord
+/// close, the chord `chord` from the circle's centre, turned whole about an
+/// axis `distance` from that centre.
+fn a_segment_turned_whole(radius: f64, chord: f64, distance: f64) -> f64 {
+    let half = (chord / radius).acos();
+    let area = radius * radius * half - chord * chord * half.tan();
+    let centroid = 2.0 / 3.0 * (radius.powi(3) * half.sin() - chord.powi(3) * half.tan()) / area;
+    TAU * (distance + centroid) * area
 }
 
 #[test]

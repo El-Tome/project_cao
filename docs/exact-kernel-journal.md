@@ -1254,3 +1254,67 @@ builds, rounds, warns of and still declines.
 - The gate's tests, built and warm, best of three runs each, side by side:
   37.4 s at the tip, 33.1 s at `9e54a71`, #536's tip, 4.3 s over it where
   the issue's fourth default allows 3. Gate seeds are not cut yet.
+
+## 1 November: #576, spheres and tori
+
+Lane S gave the kernel its two round surfaces. A sphere keeps the height of
+its centre along the axis and its radius, a torus the centre `(h_c, R)`, the
+tube's radius and the seam of its chart; both are read in `(θ, φ)` about the
+meridian circle's centre, `h = h_c + r sin φ` and `ρ = R + r cos φ`, with a
+near-horn form for `ρ` that keeps its bits where the tube meets the axis. The
+poles are the chart's ends, a face holds them as vertices (`Face.poles`, the
+cone's apex among them), and a whole ball or a whole ring is one face with no
+loop — closed by its poles' floors, or by the ring's cut, and never by an
+edge. The volume is the flux of the position anchored at a pole, the listing
+has its own formulas, a ray through a torus is the quartic bracketed between
+the critical points of its level, and the reading learned arcs: `Corner.bend`
+carries `Bend { center, turn }`, the centre laid like a corner and the turn
+re-read between the laid corners.
+
+Lane S2 took the lone leaves the campaign named and fixed five families, none
+of them a surface: a loopless ring closed along nothing, a flipped face
+holding the wrong poles, a bulge read through `sin π`, an apple's root polished
+onto its mirror lobe, and a ball end a hair off its shaft, which the reading
+could not lay until it was laid tangent with its pole sliding along the axis.
+On 481 lone leaves the body then failed one — the harness's, the hair-off ball
+end of the failures file.
+
+Lane T drew the rounds. A round is doubly curved, so it carries a grid of
+angles about the axis and a grid of rows along the meridian, each taking a
+little under half the tolerance, and a face is laid out square to its chart
+and cut in strips between the rows, with the poles laid as a cone's apex is.
+The 62 bowed leaves of the twin's 80 seeds went from all failing to none, and
+the campaign's `Closed` from 44 083 to 0.
+
+Lane R built the pairs and the boolean: a plane square to or holding the
+axis, a coaxial cylinder, cone, sphere or torus, all read on the meridian
+circle — rims with a touch decided once and built as that one circle, the
+meridians of a plane holding the axis with the poles as corners, `Apex` where
+the pair meets on the axis. `clear` passes a face beside a round apart, the
+side of a pair is read from its rims, and a boolean moves a whole ring's chart
+cut into a band it keeps no face of. `Answers` fell from 6 220 to 1 571 and
+`Spans` from 1 802 to 36 between `ef7aacd` and `f660771`.
+
+The flip is lane F's: `Body::tool_turned` no longer sends a profile holding an
+arc to the flats and `REBUILT_BY` moves from 11 to 12, so a part built before
+#576 is played again. `the_exact_kernel_turns_an_arc.rs` holds a ball, a
+zone, a ring, a rounded shaft, a ball cut by a plane and by a block, the
+coaxial pairs, a groove, an off-axis hole and a leaning plane. The campaign
+does not meet the bar: 34.1 cases in a thousand break a rule at `f660771`,
+`Answers` and the boolean's families first, and `exact-kernel-failures.md`
+counts them; campaign rounds follow, on seeds past every one used here.
+
+Lane C took two rounds, each failing seed of the first sorted by what broke
+and where. Half the refusals were the harness's: a bowed section the reading
+declines — an arc ending a hair off its circle — is no answer the exact
+kernel owes, and a face on a sphere or a torus is boxed by its whole surface,
+so a wall apart from a quarter torus is still related; both are counted now
+as the kernel decides them, and a section with no arc is refused as before.
+The listing found pointed a sphere's face holding one pole while its loop ran
+through the other, whose body was right. The round fell from 25.8 to 18.0 in
+a thousand on fresh seeds, `Answers` from 630 to 337 and `Listed` from 173 to
+129, and the rest did not move. Its largest family is a round combined with a
+coaxial turn of another extent: the ring's loop does not close across the
+chart's cut and the kernel declines it. Re-joining the loop across the cut
+built some of those right and others wrong where the kernel had declined
+safely, and was left out. The older draws give `main`'s verdicts bit for bit.

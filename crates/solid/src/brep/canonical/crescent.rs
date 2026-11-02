@@ -101,6 +101,8 @@ fn axis_of(surface: &Surface) -> Option<(DVec3, DVec3)> {
     match surface {
         Surface::Cylinder(cylinder) => Some((cylinder.origin, cylinder.axis)),
         Surface::Cone(cone) => Some((cone.origin, cone.axis)),
+        Surface::Sphere(sphere) => Some((sphere.origin, sphere.axis)),
+        Surface::Torus(torus) => Some((torus.origin, torus.axis)),
         Surface::Plane(_) | Surface::Elliptic(_) => None,
     }
 }

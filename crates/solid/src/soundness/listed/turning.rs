@@ -15,6 +15,8 @@
 //! A loop sweeping less than both — a sliver between a side and a circle
 //! tangent to it — turns neither way that can be read, and is not judged.
 
+mod sweep;
+
 use std::f64::consts::TAU;
 
 use glam::DVec3;
@@ -22,8 +24,9 @@ use glam::DVec3;
 use super::Mislisted;
 use super::lying::point;
 use super::nappe::Nappe;
-use super::oval;
-use crate::brep::{Circle, Curve, ListedEdge, Listing, Surface};
+use super::round::Tube;
+use crate::brep::{Curve, ListedEdge, Listing, Surface};
+use sweep::sweep;
 
 /// How many chords a curve with no short formula is swept along.
 const CHORDS: usize = 64;
@@ -39,18 +42,31 @@ const CHORDS: usize = 64;
 /// winding once round the axis in all, closed by the floor the apex unrolls
 /// into; a loop passing through the apex is closed along that floor too,
 /// and where the others wind once round it, the rest of the floor closes
-/// the face as for an apex held within it.
+/// the face as for an apex held within it. On a sphere or a spindle torus,
+/// a face holding both poles is the whole closed surface with a hole cut out
+/// of its side, and has no outside loop: every loop bounds a hole, swept the
+/// other way.
 pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
     for (face, listed) in listing.faces.iter().enumerate() {
         let side = if listed.outward { 1.0 } else { -1.0 };
-        let (nappe, unrolled) = match &listed.surface {
-            Surface::Plane(_) => (None, 1.0),
-            Surface::Cylinder(cylinder) => (None, cylinder.radius),
-            Surface::Elliptic(wall) => (None, wall.minor),
+        let (nappe, tube, unrolled) = match &listed.surface {
+            Surface::Plane(_) => (None, None, 1.0),
+            Surface::Cylinder(cylinder) => (None, None, cylinder.radius),
+            Surface::Elliptic(wall) => (None, None, wall.minor),
             Surface::Cone(cone) => {
                 let nappe = Nappe::of(cone);
-                let widest = widest(listing, &listed.loops, &nappe);
-                (Some(nappe), widest)
+                let widest = widest(listing, &listed.loops, |place| nappe.radius(place));
+                (Some(nappe), None, widest)
+            }
+            Surface::Sphere(sphere) => {
+                let tube = Tube::of_sphere(sphere);
+                let widest = widest(listing, &listed.loops, |place| tube.radius(place));
+                (None, Some(tube), widest)
+            }
+            Surface::Torus(torus) => {
+                let tube = Tube::of_torus(torus);
+                let widest = widest(listing, &listed.loops, |place| tube.radius(place));
+                (None, Some(tube), widest)
             }
         };
         let about = listed
@@ -86,6 +102,19 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
                     area += (nappe.apex_length() - nappe.length(about)) * turns;
                     turns = 0.0;
                 }
+                if let Some(tube) = &tube
+                    && let Some(pole) = tube
+                        .poles()
+                        .into_iter()
+                        .find(|pole| passes(listing, uses, *pole, room))
+                {
+                    if listed.poles.len() == 1 {
+                        turns = turns.signum() * TAU;
+                    } else {
+                        area += tube.rise(tube.phi(about), tube.phi(pole)) * turns;
+                        turns = 0.0;
+                    }
+                }
                 (area * side, (turns / TAU).round() * side)
             })
             .collect();
@@ -100,16 +129,24 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
             .filter(|&lap| swept[lap].1 != 0.0)
             .collect();
         let winding: f64 = round.iter().map(|&lap| swept[lap].1).sum();
-        let floor = match &nappe {
-            Some(nappe) => {
+        let floor = match (&nappe, &tube) {
+            (Some(nappe), _) => {
                 let passed = listed
                     .loops
                     .iter()
                     .any(|uses| passes(listing, uses, nappe.apex(), room));
-                let closed = listed.apex.is_some() || passed && winding.abs() == 1.0;
+                let closed = !listed.poles.is_empty() || passed && winding.abs() == 1.0;
                 floor(nappe, winding, closed, about).ok_or(Mislisted::Pointed { face })?
             }
-            None => (0.0, 0.0),
+            (None, Some(tube)) => {
+                let poles: Vec<DVec3> = listed
+                    .poles
+                    .iter()
+                    .map(|&vertex| listing.vertices[vertex])
+                    .collect();
+                round_floor(tube, &poles, winding, about).ok_or(Mislisted::Pointed { face })?
+            }
+            (None, None) => (0.0, 0.0),
         };
         let outside = if let Some(&first) = round.first() {
             let (area, turns) = round.iter().fold(floor, |(area, turns), &lap| {
@@ -119,6 +156,8 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
             if turns != 0.0 || area <= -blur {
                 return backwards(first);
             }
+            None
+        } else if tube.is_some() && listed.poles.len() == 2 {
             None
         } else {
             let widest = (0..swept.len())
@@ -158,19 +197,38 @@ fn floor(nappe: &Nappe, winding: f64, holds: bool, about: DVec3) -> Option<(f64,
     Some((below * TAU * winding, -winding))
 }
 
-/// The largest distance from a cone's axis a face's edges reach, which
-/// unrolls the room into the cone's parameters no wider than it is anywhere.
-fn widest(listing: &Listing, loops: &[Vec<(usize, bool)>], nappe: &Nappe) -> f64 {
+/// What the floor of a pole a sphere or a torus face holds sweeps, read from
+/// `about`, closing the face whose round loops wind `winding` times round
+/// the axis: once round, turned back the other way at the one pole the
+/// face holds; nothing where it winds round nothing and holds none, or
+/// both, as a ball does; and no reading at all for a face winding once that
+/// holds no pole or two, or holding one while winding round nothing.
+fn round_floor(tube: &Tube, poles: &[DVec3], winding: f64, about: DVec3) -> Option<(f64, f64)> {
+    match (winding.abs() == 1.0, poles) {
+        (true, [pole]) => {
+            let below = tube.rise(tube.phi(about), tube.phi(*pole));
+            Some((below * TAU * winding, -winding))
+        }
+        (false, [] | [_, _]) => Some((0.0, 0.0)),
+        _ => None,
+    }
+}
+
+/// The largest distance from the axis, as `radius` reads it, a face's edges
+/// reach, which unrolls the room into the surface's parameters no wider
+/// than it is anywhere.
+fn widest(listing: &Listing, loops: &[Vec<(usize, bool)>], radius: impl Fn(DVec3) -> f64) -> f64 {
     loops
         .iter()
         .flatten()
         .flat_map(|&(edge, _)| {
             let edge = &listing.edges[edge];
-            (0..=CHORDS).map(move |piece| {
+            (0..=CHORDS).map(|piece| {
                 let at = edge.from + (edge.to - edge.from) * piece as f64 / CHORDS as f64;
-                nappe.radius(point(&edge.curve, at))
+                point(&edge.curve, at)
             })
         })
+        .map(radius)
         .fold(0.0, f64::max)
 }
 
@@ -240,148 +298,4 @@ fn is_slit(uses: &[(usize, bool)]) -> bool {
             .sum::<i32>()
             == 0
     })
-}
-
-/// The area an edge run along its own way sweeps in a surface's parameters,
-/// and on a cylinder or a cone the angle it turns round the axis.
-///
-/// On a plane the area is half the moment of the edge about `about`, a
-/// place of the face, along the plane's normal: exact for a line and for a
-/// circle. On a cylinder it is what the edge sweeps under it, down to the
-/// height of `about`, as the angle turns: nothing for a ruling, which turns
-/// no angle. On a cone it is the same in `(θ, l)`, `l` along the ruling:
-/// nothing for a ruling, the length from that of `about` times the angle for
-/// a cross-section.
-fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3, room: f64) -> (f64, f64) {
-    match (surface, edge.curve) {
-        (Surface::Plane(plane), Curve::Line(_)) => {
-            let [from, to] = [edge.from, edge.to].map(|at| point(&edge.curve, at) - about);
-            (plane.normal.dot(from.cross(to)) / 2.0, 0.0)
-        }
-        (Surface::Plane(plane), Curve::Circle(circle)) => {
-            let chord = point(&edge.curve, edge.to) - point(&edge.curve, edge.from);
-            let moment = plane.normal.dot((circle.center - about).cross(chord));
-            let turned = circle.radius
-                * circle.radius
-                * (edge.to - edge.from)
-                * plane.normal.dot(circle.u.cross(circle.v));
-            ((moment + turned) / 2.0, 0.0)
-        }
-        (Surface::Plane(plane), _) => chords(edge, |place| {
-            let from = place - about;
-            (from.dot(plane.u), from.dot(plane.v))
-        }),
-        (Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), Curve::Line(_)) => {
-            (0.0, 0.0)
-        }
-        (Surface::Cylinder(cylinder), Curve::Circle(circle))
-            if section(cylinder.origin, cylinder.axis, &circle, room) =>
-        {
-            let axis = cylinder.axis.normalize();
-            let height = (circle.center - about).dot(axis);
-            let angle = (edge.to - edge.from) * axis.dot(circle.u.cross(circle.v)).signum();
-            (-height * angle, angle)
-        }
-        (Surface::Cylinder(cylinder), _) => {
-            let axis = cylinder.axis.normalize();
-            around(edge, |place| {
-                let from = place - cylinder.origin;
-                (
-                    (place - about).dot(axis),
-                    from.dot(cylinder.v).atan2(from.dot(cylinder.u)),
-                )
-            })
-        }
-        (Surface::Cone(cone), Curve::Circle(circle))
-            if section(cone.origin, cone.axis, &circle, room) =>
-        {
-            let nappe = Nappe::of(cone);
-            let length = nappe.length(point(&edge.curve, edge.from)) - nappe.length(about);
-            let angle = (edge.to - edge.from)
-                * cone.axis.normalize().dot(circle.u.cross(circle.v)).signum();
-            (-length * angle, angle)
-        }
-        (Surface::Cone(cone), _) => {
-            let nappe = Nappe::of(cone);
-            let from = nappe.length(about);
-            around(edge, |place| {
-                (nappe.length(place) - from, nappe.angle(place))
-            })
-        }
-        (Surface::Elliptic(wall), _) => {
-            let axis = wall.axis.normalize();
-            let [u, v] = [wall.u, wall.v].map(DVec3::normalize);
-            around(edge, |place| {
-                let from = place - wall.origin;
-                (
-                    (place - about).dot(axis),
-                    oval::angle([wall.major, wall.minor], [from.dot(u), from.dot(v)]),
-                )
-            })
-        }
-    }
-}
-
-/// Whether a circle is a cross-section of a surface about the axis through
-/// `origin` along `axis`, its angle the surface's own: square to the axis,
-/// about a place of it within `room`. A circle about another axis lies on
-/// the surface only over a stretch a hair long, an arc of the surface's
-/// taken for it — the rim of a wall all but touching this one, whose angle
-/// may run the other way round.
-fn section(origin: DVec3, axis: DVec3, circle: &Circle, room: f64) -> bool {
-    let axis = axis.normalize();
-    let from = circle.center - origin;
-    axis.cross(circle.axis).length() <= SQUARE && (from - axis * from.dot(axis)).length() <= room
-}
-
-/// How far from square to the axis, in the sine of the angle between the
-/// two axes, a circle may stand and still be a cross-section.
-const SQUARE: f64 = 1e-9;
-
-/// What a curve sweeps on a plane, along chords in the plane's parameters,
-/// each with the sliver between it and the curve, read through the place
-/// half way along it as a parabola's is: four thirds of the triangle the
-/// chord makes with that place. The chords alone fall short by the
-/// slivers, as much as a whole crescent a hair wide between an arc of an
-/// ellipse and one of a circle touching it at both ends sweeps, which then
-/// read as turning the wrong way.
-fn chords(edge: &ListedEdge, flat: impl Fn(DVec3) -> (f64, f64)) -> (f64, f64) {
-    let places: Vec<(f64, f64)> = (0..=2 * CHORDS)
-        .map(|half| {
-            let at = edge.from + (edge.to - edge.from) * half as f64 / (2 * CHORDS) as f64;
-            flat(point(&edge.curve, at))
-        })
-        .collect();
-    let cross = |one: (f64, f64), other: (f64, f64)| one.0 * other.1 - other.0 * one.1;
-    let area = places
-        .windows(3)
-        .step_by(2)
-        .map(|piece| {
-            let (start, middle, end) = (piece[0], piece[1], piece[2]);
-            let along = (end.0 - start.0, end.1 - start.1);
-            let bulge = (middle.0 - start.0, middle.1 - start.1);
-            cross(start, end) / 2.0 + 2.0 / 3.0 * cross(bulge, along)
-        })
-        .sum();
-    (area, 0.0)
-}
-
-/// What a curve sweeps under a surface about an axis, along chords in the
-/// surface's parameters as `chart` reads them at each place — the height
-/// from that of `about`, then the angle — the angle followed across the
-/// turn rather than read afresh.
-fn around(edge: &ListedEdge, chart: impl Fn(DVec3) -> (f64, f64)) -> (f64, f64) {
-    let mut last: Option<(f64, f64)> = None;
-    let (mut area, mut angle) = (0.0, 0.0);
-    for piece in 0..=CHORDS {
-        let at = edge.from + (edge.to - edge.from) * piece as f64 / CHORDS as f64;
-        let (height, theta) = chart(point(&edge.curve, at));
-        if let Some((before_height, before)) = last {
-            let step = (theta - before + TAU / 2.0).rem_euclid(TAU) - TAU / 2.0;
-            area -= (height + before_height) / 2.0 * step;
-            angle += step;
-        }
-        last = Some((height, theta));
-    }
-    (area, angle)
 }

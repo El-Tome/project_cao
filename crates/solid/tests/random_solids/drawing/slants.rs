@@ -23,9 +23,9 @@ use super::turns::{Line, square_to, world_axis};
 
 /// A band with its edges at both of its ends: its length, its low and high
 /// edge where it starts, and its low and high edge where it ends.
-type Band = [f64; 5];
+pub(super) type Band = [f64; 5];
 
-fn banded(section: &Section) -> Vec<Band> {
+pub(super) fn banded(section: &Section) -> Vec<Band> {
     (0..section.bands.len())
         .map(|index| {
             let ([low, high], [low_end, high_end]) = section.edges(index);
@@ -34,7 +34,7 @@ fn banded(section: &Section) -> Vec<Band> {
         .collect()
 }
 
-fn is_level(band: &Band) -> bool {
+pub(super) fn is_level(band: &Band) -> bool {
     band[1] == band[3] && band[2] == band[4]
 }
 
@@ -463,7 +463,7 @@ impl Drawing {
     /// A line of the plane of the origin holding `line`, run so that the
     /// end `ends[1]` of a prism reads above its end `ends[0]`, and where the
     /// two stand along it.
-    fn upright(&mut self, line: Line, ends: [DVec3; 2]) -> (Plane, Axis, f64, f64) {
+    pub(super) fn upright(&mut self, line: Line, ends: [DVec3; 2]) -> (Plane, Axis, f64, f64) {
         let (plane, mut axis) = self.holding(line);
         if line.along(axis, ends[1]) < line.along(axis, ends[0]) {
             axis.backwards = !axis.backwards;
@@ -517,7 +517,7 @@ impl Drawing {
     }
 
     /// The leaf drawn, or a fresh turn when it came out no solid.
-    fn or_fresh(&mut self, leaf: Leaf) -> Leaf {
+    pub(super) fn or_fresh(&mut self, leaf: Leaf) -> Leaf {
         if leaf.is_solid() {
             leaf
         } else {

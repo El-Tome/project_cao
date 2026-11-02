@@ -1,7 +1,10 @@
 //! Which side of a surface another stands on, read off the pair as it was
 //! decided: along the line they touch along, along the stretch between two
-//! lines they cross along, about a cone; and measured where they stand apart.
+//! lines they cross along, about a cone, along the rims a round shares with a
+//! surface of its axis; and measured where they stand apart.
 
+mod cone;
+mod round;
 mod walls;
 
 use std::f64::consts::TAU;
@@ -12,7 +15,9 @@ use super::ROUNDING;
 use crate::brep::curve::Line;
 use crate::brep::relation::{Relation, abreast, at_a_slant};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cone, Cylinder, Surface};
+use crate::brep::surface::{Cylinder, Surface};
+use cone::{across_the_cone_s_lobe, across_the_rulings, touching_the_cone};
+use round::{across_the_rims, bending_more, rounded};
 use walls::standing_above;
 
 /// Whether the second of two surfaces `related` so at `scale` stands on the
@@ -52,12 +57,15 @@ pub(in crate::brep::selection) fn stands_above(
         Relation::Rulings { .. } => across_the_rulings(first, second),
         Relation::Ruling { .. } => touching_the_cone(first, second),
         Relation::Conic(_) => measured(first, second, place, rounding),
+        Relation::Rims(rims) => across_the_rims(first, second, rims, place, rounding),
+        Relation::Apex(point) if rounded(first, second) => bending_more(first, second, *point),
         Relation::Apart
         | Relation::Same { .. }
         | Relation::Line(_)
         | Relation::Circle(_)
         | Relation::Meet(_)
         | Relation::Apex(_)
+        | Relation::Meridians { .. }
         | Relation::Unsupported => match (first, second) {
             (Surface::Cylinder(first), Surface::Cylinder(second)) => {
                 above_at(first, second, place, rounding)
@@ -78,7 +86,8 @@ pub(in crate::brep::selection) fn stands_above(
             (Surface::Cylinder(_), Surface::Plane(_))
             | (Surface::Elliptic(_), _)
             | (_, Surface::Elliptic(_)) => None,
-            (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
+            (Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_), _)
+            | (_, Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_)) => {
                 measured(first, second, place, rounding)
             }
         },
@@ -110,8 +119,10 @@ fn touching_above(first: &Surface, second: &Surface) -> Option<bool> {
             Some(outside <= inside || second.radius > first.radius)
         }
         (Surface::Plane(_), Surface::Plane(_))
-        | (Surface::Cone(_) | Surface::Elliptic(_), _)
-        | (_, Surface::Cone(_) | Surface::Elliptic(_)) => None,
+        | (Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_), _)
+        | (_, Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_)) => {
+            None
+        }
     }
 }
 
@@ -141,7 +152,10 @@ fn across_the_lobe(
             let [one, other] = lines.map(|line| wall.parameters(line.origin).x);
             wall.point(DVec2::new(middle_of_the_lobe(at.x, [one, other]), at.y))
         }
-        (Surface::Plane(_) | Surface::Cone(_), Surface::Plane(_) | Surface::Cone(_)) => {
+        (
+            Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_),
+            Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_),
+        ) => {
             return None;
         }
     };
@@ -160,8 +174,10 @@ fn across_the_lobe(
             Some(plane.distance(middle) * plane.distance(wall.origin) > 0.0)
         }
         (Surface::Plane(_), Surface::Plane(_))
-        | (Surface::Cone(_) | Surface::Elliptic(_), _)
-        | (_, Surface::Cone(_) | Surface::Elliptic(_)) => None,
+        | (Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_), _)
+        | (_, Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_)) => {
+            None
+        }
     }
 }
 
@@ -176,91 +192,6 @@ fn middle_of_the_lobe(at: f64, [one, other]: [f64; 2]) -> f64 {
     }
 }
 
-/// Whether the second of a cone and a plane through its apex at a slant
-/// stands on the side of the first its own normal points to, all along the
-/// lobe of the cone between the two rulings the plane holds that `place`
-/// stands on: read along the ruling at the lobe's middle, where the two
-/// stand furthest apart. The cone stands on the side of the plane that
-/// ruling leaves the apex towards. The plane runs inside the cone along the
-/// lobe whose middle ruling it holds the axis on the other side of — a
-/// chord of each circle about the axis, short of the axis — and outside it
-/// along the other, beyond the rulings: the side the cone's normal points
-/// to where the cone opens along its axis.
-fn across_the_cone_s_lobe(
-    first: &Surface,
-    second: &Surface,
-    lines: &[Line; 2],
-    place: DVec3,
-) -> Option<bool> {
-    let (cone, plane) = match (first, second) {
-        (Surface::Cone(cone), Surface::Plane(plane))
-        | (Surface::Plane(plane), Surface::Cone(cone)) => (cone, plane),
-        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
-            return None;
-        }
-    };
-    let rulings = lines.map(|line| ruling_angle(cone, &line));
-    let middle = middle_of_the_lobe(cone.parameters(place).x, rulings);
-    let leaving = cone.axis * cone.ruling.x + cone.radial(middle) * cone.ruling.y;
-    let towards = plane.normal.dot(leaving);
-    match first {
-        Surface::Cone(_) => {
-            let axis_side = plane.normal.dot(cone.axis * cone.ruling.x);
-            let outside = towards * axis_side > 0.0;
-            Some(outside == (cone.ruling.x > 0.0))
-        }
-        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => Some(towards > 0.0),
-    }
-}
-
-/// The angle about a cone's axis of a ruling given as a line through its
-/// apex, read a reach off the apex along the line, on whichever side runs
-/// on the cone's own nappe rather than the other.
-fn ruling_angle(cone: &Cone, line: &Line) -> f64 {
-    let apex = cone.apex();
-    let length = 1.0 + apex.abs().max_element();
-    let at = line.parameter(apex);
-    let [ahead, behind] = [length, -length].map(|run| line.point(at + run));
-    let own = if cone.distance(ahead).abs() <= cone.distance(behind).abs() {
-        ahead
-    } else {
-        behind
-    };
-    cone.parameters(own).x
-}
-
-/// Whether the second of a cone and a plane touching it along a ruling
-/// stands on the side of the first its own normal points to: the plane
-/// stands outside the cone, where the cone's normal points when it opens
-/// along its axis, and the cone on the side of the plane its axis runs
-/// towards from the apex.
-fn touching_the_cone(first: &Surface, second: &Surface) -> Option<bool> {
-    match (first, second) {
-        (Surface::Cone(cone), Surface::Plane(_)) => Some(cone.ruling.x > 0.0),
-        (Surface::Plane(plane), Surface::Cone(cone)) => {
-            Some(plane.normal.dot(cone.axis) * cone.ruling.x > 0.0)
-        }
-        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
-            None
-        }
-    }
-}
-
-/// Whether a plane holding a cone's axis stands on the side of the cone its
-/// own normal points to: on the axis side all round, the same on either
-/// lobe the two rulings part the cone into, where the cone's normal points
-/// when it opens against its axis. A place of the plane stands at the very
-/// angle of a ruling, on neither lobe, and the cone stands on both sides of
-/// the plane there: none.
-fn across_the_rulings(first: &Surface, second: &Surface) -> Option<bool> {
-    match (first, second) {
-        (Surface::Cone(cone), Surface::Plane(_)) => Some(cone.ruling.x < 0.0),
-        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
-            None
-        }
-    }
-}
-
 /// The point of a surface nearest `place`.
 fn nearest(surface: &Surface, place: DVec3) -> DVec3 {
     match surface {
@@ -268,6 +199,8 @@ fn nearest(surface: &Surface, place: DVec3) -> DVec3 {
         Surface::Cylinder(cylinder) => beside(cylinder, place),
         Surface::Cone(cone) => cone.nearest(place),
         Surface::Elliptic(wall) => wall.nearest(place),
+        Surface::Sphere(sphere) => sphere.nearest(place),
+        Surface::Torus(torus) => torus.nearest(place),
     }
 }
 

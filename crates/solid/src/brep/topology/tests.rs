@@ -98,7 +98,11 @@ fn the_corners_of_a_face_bounded_by_an_ellipse_hold_points_along_it_that_move_wi
             .face_ids()
             .find(|&face| match body.surface(body.face(face).surface) {
                 Surface::Plane(plane) => plane.normal.x != 0.0,
-                Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => false,
+                Surface::Cylinder(_)
+                | Surface::Cone(_)
+                | Surface::Elliptic(_)
+                | Surface::Sphere(_)
+                | Surface::Torus(_) => false,
             })
             .expect("the slanted top");
         let Curve::Conic(conic) = *body.curve(body.edge(body.face(top).loops[0][0].edge).curve)

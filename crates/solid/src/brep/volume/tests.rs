@@ -6,6 +6,7 @@ use super::*;
 use crate::profile::{Contour, Frame};
 
 mod conic;
+mod round;
 
 fn ground() -> Frame {
     Frame {
@@ -206,6 +207,7 @@ fn turned(corners: &[[f64; 2]], degrees: f64) -> Body {
                 .map(|run| Corner {
                     at: DVec2::from(corners[run]),
                     run: run as u32,
+                    bend: None,
                 })
                 .collect(),
         ],

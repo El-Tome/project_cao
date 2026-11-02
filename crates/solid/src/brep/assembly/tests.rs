@@ -2,6 +2,8 @@ use glam::{DVec2, DVec3};
 
 use super::*;
 use crate::brep::curve::{Curve, Line};
+use crate::brep::scale::Scale;
+use crate::brep::surface::{Cylinder, Sphere, Torus};
 use crate::profile::{Contour, Frame, Run};
 use crate::soundness::listed;
 
@@ -155,4 +157,63 @@ fn a_block_swallowing_a_smaller_one_in_its_corner_keeps_six_faces() {
     let joined = tall.joined(&low).expect("a block inside another joins");
     assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
     assert_eq!(counted(&joined), [6, 12, 8]);
+}
+
+/// A ball: one face on a sphere, no loop, its two poles held as vertices.
+fn ball(poles: Vec<VertexId>) -> Body {
+    let sphere = Sphere::through(DVec3::new(1.0, 2.0, 3.0), DVec3::Z, 0.0, 4.0);
+    Body {
+        surfaces: vec![Surface::Sphere(sphere)],
+        curves: Vec::new(),
+        vertices: [-1.0, 7.0]
+            .into_iter()
+            .map(|z| Vertex {
+                point: DVec3::new(1.0, 2.0, z),
+                on: vec![SurfaceId(0)],
+            })
+            .collect(),
+        edges: Vec::new(),
+        faces: vec![Face {
+            surface: SurfaceId(0),
+            flipped: false,
+            loops: Vec::new(),
+            numbers: vec![0],
+            poles,
+        }],
+        scale: Scale::of(7.0),
+        arrivals: vec![Scale::of(7.0)],
+        unstable: None,
+    }
+}
+
+#[test]
+fn a_ball_holding_its_two_poles_is_verified_and_one_holding_fewer_is_not() {
+    assert_eq!(verified(&ball(vec![VertexId(0), VertexId(1)])), Ok(()));
+    assert_eq!(
+        verified(&ball(vec![VertexId(0)])),
+        Err(Declined::Unverified)
+    );
+    assert_eq!(verified(&ball(Vec::new())), Err(Declined::Unverified));
+}
+
+#[test]
+fn a_ring_torus_is_verified_as_one_face_with_no_loop_and_no_vertex() {
+    let torus = Torus::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        DVec2::new(1.0, 5.0),
+        2.0,
+        DVec2::new(1.0, 7.0),
+    );
+    let mut ring = ball(Vec::new());
+    ring.surfaces = vec![Surface::Torus(torus)];
+    ring.vertices.clear();
+    assert_eq!(verified(&ring), Ok(()));
+    let mut wall = ring.clone();
+    wall.surfaces = vec![Surface::Cylinder(Cylinder::about(
+        DVec3::ZERO,
+        DVec3::Z,
+        2.0,
+    ))];
+    assert_eq!(verified(&wall), Err(Declined::Unverified));
 }

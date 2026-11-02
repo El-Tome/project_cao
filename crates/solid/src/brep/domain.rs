@@ -11,7 +11,7 @@ use glam::{DVec2, DVec3};
 
 use super::Declined;
 use super::surface::Surface;
-use super::topology::{Body, EdgeId, FaceId, SurfaceId};
+use super::topology::{Body, EdgeId, Face, FaceId, SurfaceId};
 use super::trace::Trace;
 use distance::Unrolling;
 pub(super) use traced::traced;
@@ -44,7 +44,11 @@ impl Body {
     /// way its loop runs. On a cylinder a trace may start a whole turn away
     /// from where the one before it ended.
     pub fn traces(&self, face: FaceId) -> Result<Vec<Vec<Trace>>, Declined> {
-        let face = self.face(face);
+        self.traces_of(self.face(face))
+    }
+
+    /// The same, of a face not yet in the body.
+    pub(in crate::brep) fn traces_of(&self, face: &Face) -> Result<Vec<Vec<Trace>>, Declined> {
         face.loops
             .iter()
             .map(|lap| {
@@ -62,25 +66,34 @@ impl Body {
             .collect()
     }
 
-    /// A face's loops as [`Body::traces`] gives them, closed along the floor
-    /// of its cone where they reach its apex or go round it ([`floor`]): a
+    /// A face's loops as [`Body::traces`] gives them, closed along the floors
+    /// of its surface where they reach a pole or go round one ([`floor`]): a
     /// domain to count parity in, never to measure a boundary on.
     pub(in crate::brep) fn closed_traces(&self, face: FaceId) -> Result<Vec<Vec<Trace>>, Declined> {
         Ok(self.closed(face, self.traces(face)?))
     }
 
     fn closed(&self, face: FaceId, loops: Vec<Vec<Trace>>) -> Vec<Vec<Trace>> {
-        match self.surface(self.face(face).surface) {
+        let surface = self.surface(self.face(face).surface);
+        match surface {
             Surface::Cone(cone) => floor::closed(cone, loops, self.scale.eps()),
+            Surface::Sphere(_) | Surface::Torus(_) => floor::closed_round(
+                &floor::poles_of(surface, self.scale.eps()),
+                loops,
+                self.face(face).flipped,
+                floor::seam(surface),
+            ),
             Surface::Plane(_) | Surface::Cylinder(_) | Surface::Elliptic(_) => loops,
         }
     }
 
     /// Where `at`, in the parameters of the face's surface, stands against
-    /// the face: on its boundary within `eps` of it — of its edges, or of the
-    /// apex it holds within it, a vertex of it — and otherwise inside or
+    /// the face: on its boundary within `eps` of it — of its edges, or of a
+    /// pole it holds within it, a vertex of it — and otherwise inside or
     /// outside as the number of loops a ray up the second parameter crosses
-    /// is odd or even, its domain closed along the floor.
+    /// is odd or even, its domain closed along the floors, the one the ray
+    /// starts on counted: a point on the cut of a ring's chart is read at
+    /// the window's top, inside the face.
     pub fn locate(&self, face: FaceId, at: DVec2, eps: f64) -> Result<Location, Declined> {
         let loops = self.traces(face)?;
         let unrolling = self.unrolled_at(face);
@@ -88,14 +101,15 @@ impl Body {
         let near = loops.iter().flatten().any(|trace| {
             !self.far_from(trace, place, eps) && distance::distance(trace, at, unrolling) <= eps
         }) || self
-            .apex_held(face)
-            .is_some_and(|apex| apex.distance(place) <= eps);
+            .poles_held(face)
+            .iter()
+            .any(|pole| pole.distance(place) <= eps);
         if near {
             return Ok(Location::Boundary);
         }
         let above = crossing::heights(&self.closed(face, loops), at.x, unrolling.periodic())
             .into_iter()
-            .filter(|height| *height > at.y)
+            .filter(|height| *height >= at.y)
             .count();
         Ok(if above % 2 == 1 {
             Location::Inside
@@ -138,6 +152,8 @@ impl Body {
             Surface::Cylinder(cylinder) => Unrolling::Round(cylinder.radius),
             Surface::Cone(cone) => Unrolling::Cone(*cone),
             Surface::Elliptic(wall) => Unrolling::Elliptic(*wall),
+            Surface::Sphere(sphere) => Unrolling::Sphere(*sphere),
+            Surface::Torus(torus) => Unrolling::Torus(*torus),
             Surface::Plane(_) => Unrolling::Flat,
         }
     }

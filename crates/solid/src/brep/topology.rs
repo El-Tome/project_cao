@@ -12,8 +12,8 @@ use super::curve::{Circle, Curve};
 use super::scale::Scale;
 use super::surface::Surface;
 
-mod apex;
 mod numbers;
+mod poles;
 mod rotated;
 
 pub(super) use numbers::ascending;
@@ -73,16 +73,17 @@ pub struct Coedge {
 /// the run of the profile it stands on, and a boolean keeps the names of
 /// every face of its operands a face lies on.
 ///
-/// `apex` is the vertex a face on a cone holds within it, which none of its
-/// loops reaches: a whole point's tip (#536).
+/// `poles` are the vertices a face holds within it, which none of its loops
+/// reaches: a whole point's tip at its cone's apex (#536), a ball's two ends
+/// at its sphere's poles (#576) — two at most.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Face {
     pub surface: SurfaceId,
     pub flipped: bool,
     pub loops: Vec<Vec<Coedge>>,
     pub numbers: Vec<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub apex: Option<VertexId>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub poles: Vec<VertexId>,
 }
 
 /// A solid, as the surfaces and curves it stands on and the faces, edges and
@@ -198,14 +199,25 @@ impl Body {
     }
 
     /// The largest coordinate, in absolute value, any point of the body
-    /// reaches: what its scale is taken against.
+    /// reaches: what its scale is taken against. A face on a sphere or a
+    /// torus reaches as far as its surface does, whose bulge no edge stands
+    /// on.
     pub fn reach(&self) -> f64 {
         let corners = self.vertices.iter().map(|vertex| vertex.point);
         let arcs = self.edges.iter().flat_map(|edge| self.extremes(edge));
         corners
             .chain(arcs)
+            .chain(self.round_boxes().flatten())
             .map(|point| point.abs().max_element())
             .fold(0.0, f64::max)
+    }
+
+    /// The box round each face lying on a sphere or a torus: its surface's
+    /// own, which no edge of the face need reach.
+    fn round_boxes(&self) -> impl Iterator<Item = [DVec3; 2]> + '_ {
+        self.faces
+            .iter()
+            .filter_map(|face| round_box(self.surface(face.surface)))
     }
 
     /// The corners of a face, the points of its edges where a coordinate
@@ -243,19 +255,28 @@ impl Body {
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
         let corners = self.vertices.iter().map(|vertex| vertex.point);
         let arcs = self.edges.iter().flat_map(|edge| self.extremes(edge));
-        corners.chain(arcs).fold(None, |reached, point| {
-            let (low, high) = reached.unwrap_or((point, point));
-            Some((low.min(point), high.max(point)))
-        })
+        let rounds = self.round_boxes().flatten();
+        corners
+            .chain(arcs)
+            .chain(rounds)
+            .fold(None, |reached, point| {
+                let (low, high) = reached.unwrap_or((point, point));
+                Some((low.min(point), high.max(point)))
+            })
     }
 
-    /// The box round a face, from the extremes of its edges and the apex it
-    /// holds within it, grown by `eps`.
+    /// The box round a face, from the extremes of its edges and the poles it
+    /// holds within it, grown by `eps`; round a face on a sphere or a torus,
+    /// its surface's own box.
     pub(in crate::brep) fn boxed(&self, face: FaceId, eps: f64) -> [DVec3; 2] {
         let mut low = DVec3::INFINITY;
         let mut high = DVec3::NEG_INFINITY;
-        if let Some(apex) = self.apex_held(face) {
-            (low, high) = (apex, apex);
+        if let Some([lowest, highest]) = round_box(self.surface(self.face(face).surface)) {
+            (low, high) = (lowest, highest);
+        }
+        for pole in self.poles_held(face) {
+            low = low.min(pole);
+            high = high.max(pole);
         }
         for coedge in self.face(face).loops.iter().flatten() {
             for point in self.extremes(self.edge(coedge.edge)) {
@@ -302,6 +323,17 @@ impl Body {
             })
             .collect()
     }
+}
+
+/// The box round a whole sphere or torus; none for any other surface.
+pub(super) fn round_box(surface: &Surface) -> Option<[DVec3; 2]> {
+    let extent = |direction: DVec3| match surface {
+        Surface::Sphere(sphere) => Some(sphere.extent(direction)),
+        Surface::Torus(torus) => Some(torus.extent(direction)),
+        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
+    };
+    let [x, y, z] = [extent(DVec3::X)?, extent(DVec3::Y)?, extent(DVec3::Z)?];
+    Some([DVec3::new(x[0], y[0], z[0]), DVec3::new(x[1], y[1], z[1])])
 }
 
 /// The points of a circle, between two of its parameters, where a coordinate

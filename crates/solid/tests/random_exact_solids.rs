@@ -82,6 +82,14 @@
 //! `ellipses`, `ellipses_crossed` or `ellipses_tilted` for the draws of
 //! ellipses, and `CAO_TRIAGE_KERNEL=application` for the seeds a campaign
 //! through the application's body named.
+//!
+//! Closes #630.
+//! - what every core makes of the items comes back in the order of the
+//!   items — `what_every_core_makes_of_the_seeds_comes_back_in_the_order_of_the_seeds`
+//! - an item that keeps its thread waiting keeps no other item waiting —
+//!   `an_item_that_keeps_its_core_waiting_keeps_no_other_item_waiting`
+//! - a panic weighing one item fails the caller with that panic's own
+//!   message — `a_panic_weighing_one_item_fails_the_caller_with_its_own_message`
 
 // The drawing, the promise and the checks are shared with the flats'
 // campaign; each file uses its own part of them.
@@ -89,6 +97,9 @@
 mod random_solids;
 
 use std::cell::Cell;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use cao_solid::Declined;
 use cao_solid::brep::{Curve, Line, ListedEdge, Listing};
@@ -1248,6 +1259,42 @@ fn what_every_core_makes_of_the_seeds_comes_back_in_the_order_of_the_seeds() {
         squared,
         seeds.iter().map(|seed| seed * seed).collect::<Vec<_>>()
     );
+}
+
+#[test]
+fn an_item_that_keeps_its_core_waiting_keeps_no_other_item_waiting() {
+    // On one core nothing is weighed beside an item that waits.
+    if thread::available_parallelism().map_or(1, |cores| cores.get()) < 2 {
+        return;
+    }
+    let items: Vec<usize> = (0..64).collect();
+    let others = items.len() - 1;
+    let weighed = AtomicUsize::new(0);
+    let patience = Instant::now() + Duration::from_secs(10);
+    let seen = random_solids::on_every_core(&items, |item| {
+        if *item > 0 {
+            return weighed.fetch_add(1, Ordering::SeqCst);
+        }
+        while weighed.load(Ordering::SeqCst) < others && Instant::now() < patience {
+            thread::sleep(Duration::from_millis(1));
+        }
+        weighed.load(Ordering::SeqCst)
+    });
+    assert_eq!(
+        seen[0], others,
+        "the first item waited for the others, and only some were weighed meanwhile"
+    );
+}
+
+#[test]
+#[should_panic(expected = "the seventh item does not weigh")]
+fn a_panic_weighing_one_item_fails_the_caller_with_its_own_message() {
+    let items: Vec<usize> = (0..64).collect();
+    random_solids::on_every_core(&items, |item| {
+        if *item == 7 {
+            panic!("the seventh item does not weigh");
+        }
+    });
 }
 
 /// Every case of `draw` among the seeds that the exact kernel answers

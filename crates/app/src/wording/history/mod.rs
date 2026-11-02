@@ -1,6 +1,7 @@
 //! How a history step reads: its name in the tree, and the line it unfolds
 //! into.
 
+mod cut_change;
 mod detail;
 mod moved;
 mod sized;
@@ -70,6 +71,7 @@ pub fn label(lang: &Catalogue, variables: &Variables, operation: &Operation) -> 
         Operation::Split { .. } => lang.t("history.split"),
         Operation::Chamfer { .. } => lang.t("history.chamfer"),
         Operation::Fillet { .. } => lang.t("history.fillet"),
+        Operation::CutChange(change) => cut_change::label(lang, change),
         Operation::Mirror { .. } => lang.t("history.mirrored"),
         Operation::CircularPattern { .. } => lang.t("history.circular_pattern"),
         Operation::RectangularPattern { .. } => lang.t("history.rectangular_pattern"),

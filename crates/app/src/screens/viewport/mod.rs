@@ -8,7 +8,7 @@
 mod cube_labels;
 mod finish;
 mod input;
-pub(crate) use input::corner_picks_with;
+pub(crate) use input::{chamfer_to_swap, corner_picks_with, swap_held_chamfer, switch_held_cuts};
 mod matter;
 mod navigation;
 mod render;

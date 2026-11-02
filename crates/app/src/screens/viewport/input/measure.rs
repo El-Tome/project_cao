@@ -51,6 +51,24 @@ pub(super) fn measure(
 
     let sketch = &context.document.sketches()[index];
 
+    // A fillet has its own radius: a dimension laid on it opens that value
+    // rather than laying a second one beside it.
+    let under = match mode {
+        DimensionMode::Radius => sketch.nearest_cut(cursor, snap),
+        DimensionMode::Auto => sketch.cut_before_traits(cursor, snap),
+        _ => None,
+    };
+    if sketch.nearest_point(cursor, snap * 0.8).is_none()
+        && let Some(cut) = under
+        && matches!(
+            sketch.corner_cuts()[cut.0].shape,
+            cao_sketch::CutShape::Fillet { .. }
+        )
+    {
+        super::open_cut_values(context, index, cut);
+        return false;
+    }
+
     // An annotation under the cursor, with no geometry there to take the click
     // first, means changing its value — never laying a second copy over it.
     let on_geometry = sketch.nearest_point(cursor, snap * 0.8).is_some()

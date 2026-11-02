@@ -897,14 +897,14 @@ A chamfer, a fillet, a mirror or a pattern cannot be traced with a couple of
 lines following the cursor: what they would leave is a drawing, not a shape. So
 the drawing is what is shown. `Sketch::preview` runs the very call the click
 commits against a copy of the sketch, and the canvas paints that copy in place
-of the one on record — the corner already cut, the copies already laid — with
+of the one on record — the corner cut, the copies already laid — with
 whatever is new in it drawn faintly, as a promise rather than as drawing
 already there.
 
 That is the same rule as the dimension's, taken to its end: there is no second
 reading to diverge from the first, because there is no second reading. It also
-means nothing is shown for a click the tool would refuse — a corner already cut
-takes no second cut, and an axis naming no direction shows no copies.
+means nothing is shown for a click the tool would refuse — two traits sharing no
+end, an axis naming no direction.
 
 The values are read as they are typed, so the curve of a fillet grows under the
 radius being keyed in, and the grid of a pattern fills out as its count does. A
@@ -1731,13 +1731,12 @@ The tool does not lay a value too big. `Entrée` applies nothing, the message ba
 reads « Trop grand pour ce coin : la plus grande valeur qui tient est proposée,
 Entrée pour l'appliquer », and the field takes the largest value that fits —
 every length cut down by the same share, an angle kept. A second `Entrée` lays
-it. A corner already cut is refused at the click, with « Ce coin est déjà
-coupé ».
+it.
 
-The sketch itself refuses a cut only when the two traits do not end at one point
-— or one of them is an ellipse's axis — and when a cut already stands on that
-point. A value too big is laid like any other: it is a cut that does not fit,
-not a refusal.
+The sketch itself refuses a cut only when the two traits do not end at one point,
+or one of them is an ellipse's axis. A corner already cut is cut again, the new
+cut in place of the old. A value too big is laid like any other: it is a cut
+that does not fit, not a refusal.
 
 ### Construction, groups and what a cut meets
 
@@ -1768,10 +1767,52 @@ A value that no longer fits on replay — a variable it was written from having
 changed — leaves the step built and the cut drawn as not fitting. The drawing
 can be given room again, and the cut comes back.
 
-**Not built yet**, in later issues of epic #616: changing a cut in place or
-deleting it with `Suppr` (#618), several cuts on one point (#619), hanging a
-point or a rule on a cut's own points (#620), and a fillet between a trait and
-an arc (#621).
+### A cut is changed in place
+
+A cut laid is changed where it stands (#618). Each change is one step of the
+history, taken back by one undo.
+
+**Its values.** A double-click on a cut, or on the value written beside it,
+opens its values again, in the tool that lays its kind: « Congé » for a fillet,
+« Chanfrein » in the cut's own mode for a chamfer, every corner laid with it
+taken, each field holding what it was written as — the formula of the
+variables it follows, or the number to its last digit. `Entrée` lays the new values on the whole group in place, and the
+history says « Congé modifié » or « Chanfrein modifié ». A value too big is held
+back with the largest offered, as when the cut was laid. « Cote de rayon »
+pointed at a fillet opens the same values rather than laying a second radius
+beside them.
+
+**Its kind or its mode.** Clicking a corner already cut with « Congé » or
+« Chanfrein » cuts it again: what it carried is taken off and the new cut stands
+in its place. A corner of a group cut again on its own leaves the group with
+its new value; the corners of a whole group retyped in the same kind and mode
+— a chamfer's sides named in the order it measures them — are the values
+changed in place instead, each cut keeping its sides and whether it is
+construction. The preview shows whichever of the two `Entrée` will do.
+
+**Taken off.** `Suppr` with a cut selected takes it off: the corner is sharp
+again, its sides whole up to it, and the cuts laid with it stay.
+
+**Its sides.** « Inverser les côtés » shows under the ribbon, where « Extruder
+l'esquisse » does, while one chamfer in two distances or in a distance and an
+angle is selected: what one side gave, the other gives. A fillet and an equal
+chamfer read both sides alike and offer nothing to swap. The button moves to a
+panel of the feature's own once there is one.
+
+**Construction.** « Construction » with a cut selected switches that cut alone
+between construction and the outline. The toggle switches nothing else while a
+cut is held, and switching a side does not touch its cut.
+
+« Mesurer » reads a cut as what it draws: a fillet's radius, a chamfer's cut as
+a straight run. A press near where a cut meets its side takes whichever of the
+two passes nearer, for the selection, the dimension tool and the measure alike.
+
+A trim or a division hands a cut on the side it cuts to the piece left at the
+corner; a cut taken off or replaced before it stays as it was.
+
+**Not built yet**, in later issues of epic #616: several cuts on one point
+(#619), hanging a point or a rule on a cut's own points (#620), and a fillet
+between a trait and an arc (#621).
 
 ### A crossing becomes a point
 

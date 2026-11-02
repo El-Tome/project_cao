@@ -50,7 +50,7 @@ impl Sketch {
         {
             return Some(Selection::Element(Element::Point(point)));
         }
-        if let Some(cut) = self.nearest_cut(cursor, tolerance) {
+        if let Some(cut) = self.cut_before_traits(cursor, tolerance) {
             return Some(Selection::Cut(cut));
         }
         if let Some(segment) = self.nearest_segment(cursor, tolerance) {

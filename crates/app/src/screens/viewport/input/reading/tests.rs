@@ -111,6 +111,7 @@ impl Drawing {
         match showing {
             Measured::Of(target) => sketch.read(target),
             Measured::Inside(place) => sketch.read_inside(place),
+            Measured::Cut(cut) => sketch.read_cut(cut),
         }
     }
 

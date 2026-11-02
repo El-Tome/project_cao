@@ -192,6 +192,25 @@ pub(super) fn lit_corners(sketch: &Sketch, context: &SketchContext<'_>) -> Vec<P
     corners_of(sketch, &lit_cuts(sketch, context))
 }
 
+/// The cut whose value is written under the cursor. The text stands near the
+/// sharp corner, whose point a press would otherwise take first.
+pub(crate) fn cut_label_under(sketch: &Sketch, cursor: DVec2, pixel: f64) -> Option<CornerCutId> {
+    sketch
+        .drawn_cuts()
+        .iter()
+        .map(|cut| (cut.id, label_place(cut, pixel) - cursor))
+        .filter(|(_, off)| {
+            off.x.abs() <= LABEL_HALF_WIDTH * pixel && off.y.abs() <= LABEL_HALF_HEIGHT * pixel
+        })
+        .min_by(|(_, one), (_, other)| one.length().total_cmp(&other.length()))
+        .map(|(id, _)| id)
+}
+
+/// How far either way of its place the value of a cut reads as under the
+/// cursor, in pixels: about the size « R10 mm » is written at.
+const LABEL_HALF_WIDTH: f64 = 26.0;
+const LABEL_HALF_HEIGHT: f64 = 8.0;
+
 /// Where the value of a cut is written: beside the middle of its curve, on
 /// the side away from what it rounds off.
 fn label_place(cut: &DrawnCut, pixel: f64) -> DVec2 {

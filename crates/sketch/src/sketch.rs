@@ -47,9 +47,12 @@ pub struct Sketch {
     /// The rules that carry no value: perpendicular, parallel, equal…
     #[serde(default)]
     constraints: Vec<Constraint>,
-    /// The fillets and chamfers standing on corners, by rank.
+    /// The fillets and chamfers standing on corners, by rank, and how each
+    /// one's values were written.
     #[serde(default)]
     pub(crate) corner_cuts: Vec<crate::corner_cut::CornerCut>,
+    #[serde(default)]
+    pub(crate) cuts_written: Vec<[Option<String>; 2]>,
     /// What has been deleted, by rank.
     ///
     /// Deleted geometry is marked rather than taken out of the list: a segment
@@ -102,6 +105,7 @@ impl Sketch {
             dimensions: Vec::new(),
             constraints: Vec::new(),
             corner_cuts: Vec::new(),
+            cuts_written: Vec::new(),
             erased: Erased::default(),
             held: settling::Held::default(),
             settled: RefCell::default(),

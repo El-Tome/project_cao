@@ -4,6 +4,7 @@ use glam::DVec2;
 
 use super::CornerCutId;
 use super::drawn::CutCurve;
+use crate::reading::Reading;
 use crate::sketch::{PointId, Sketch};
 use crate::snap::Snap;
 
@@ -16,6 +17,57 @@ impl Sketch {
             .filter(|(_, distance)| *distance <= tolerance)
             .min_by(|(_, one), (_, other)| one.total_cmp(other))
             .map(|(id, _)| id)
+    }
+
+    /// The cut under the cursor when its curve passes nearer than what is
+    /// drawn of any trait: where a curve meets its side, a press nearer the
+    /// side takes the side.
+    pub fn cut_before_traits(&self, position: DVec2, tolerance: f64) -> Option<CornerCutId> {
+        let drawn = self.drawn_cuts();
+        let (cut, from_cut) = drawn
+            .iter()
+            .map(|cut| (cut.id, distance_to(cut.curve, position)))
+            .filter(|(_, distance)| *distance <= tolerance)
+            .min_by(|(_, one), (_, other)| one.total_cmp(other))?;
+        let pulled = self.pulled_ends(&drawn);
+        let from_traits = self
+            .live_segments()
+            .filter_map(|(id, segment)| {
+                let [from, to] = self.visible_ends(id, &pulled)?;
+                let from = from.unwrap_or(self.point(segment.start));
+                let to = to.unwrap_or(self.point(segment.end));
+                Some(nearest_on(CutCurve::Straight { from, to }, position).distance(position))
+            })
+            .fold(f64::INFINITY, f64::min);
+        (from_cut <= from_traits).then_some(cut)
+    }
+
+    /// What « Mesurer » reads of a cut: a fillet's radius, a chamfer's cut as
+    /// a straight run.
+    pub fn read_cut(&self, cut: CornerCutId) -> Option<Reading> {
+        let drawn = self.drawn_cut(cut)?;
+        Some(match drawn.curve {
+            CutCurve::Arc(arc) => Reading::Round {
+                radius: arc.centre.distance(arc.start),
+            },
+            CutCurve::Straight { from, to } => Reading::Gap {
+                span: from.distance(to),
+                offsets: (to - from).abs(),
+            },
+        })
+    }
+
+    /// The two ends of a chamfer's cut, the run a measure reads off it.
+    pub fn cut_run(&self, cut: CornerCutId) -> Option<(DVec2, DVec2)> {
+        match self.drawn_cut(cut)?.curve {
+            CutCurve::Straight { from, to } => Some((from, to)),
+            CutCurve::Arc(_) => None,
+        }
+    }
+
+    /// The middle of what a cut draws, where its measure is written.
+    pub fn cut_middle(&self, cut: CornerCutId) -> Option<DVec2> {
+        Some(middle(self.drawn_cut(cut)?.curve))
     }
 
     /// The point a press at `position` drags: the point under it, or the

@@ -16,7 +16,7 @@ use glam::DVec2;
 
 use crate::broken::Broken;
 use crate::formula::{Formula, Operator};
-use crate::history::ChamferAsked;
+use crate::history::{ChamferAsked, CutAsked};
 use crate::outcome::Outcome;
 use crate::state::PartState;
 
@@ -190,7 +190,8 @@ impl PartState {
             self.broke(Broken::Operation(self.replaying));
             return None;
         };
-        self.lay_cuts(sketch, corners, construction, |scale| {
+        let written = CutAsked::Chamfer(asked.clone()).written();
+        self.lay_cuts(sketch, corners, (construction, written), |scale| {
             CutShape::Chamfer(in_units(mode, scale))
         })
     }
@@ -203,8 +204,11 @@ impl PartState {
         construction: bool,
     ) -> Option<Outcome> {
         let radius = self.size(asked, |_| true)?;
-        self.lay_cuts(sketch, corners, construction, |scale| CutShape::Fillet {
-            radius: radius / scale,
+        let written = CutAsked::Fillet(asked.clone()).written();
+        self.lay_cuts(sketch, corners, (construction, written), |scale| {
+            CutShape::Fillet {
+                radius: radius / scale,
+            }
         })
     }
 
@@ -249,8 +253,9 @@ impl PartState {
     ///
     /// Nothing of the drawing is trimmed: each corner only says what is drawn
     /// in its place, so a value too big for a corner is laid all the same and
-    /// drawn as one that does not fit. A corner refused is one that is not
-    /// there to cut, or one already cut, and refusing it breaks the step.
+    /// drawn as one that does not fit, and a corner already cut is cut again.
+    /// A corner refused is one that is not there to cut, and refusing it
+    /// breaks the step.
     ///
     /// The first value a part is ever given is what fixes what its drawing is
     /// worth in millimetres, and a cut is as good a first value as any: its
@@ -260,7 +265,7 @@ impl PartState {
         &mut self,
         sketch: usize,
         corners: &[Corner],
-        construction: bool,
+        (construction, written): (bool, [Option<String>; 2]),
         shape: impl Fn(f64) -> CutShape,
     ) -> Option<Outcome> {
         let scale = self.scale();
@@ -277,8 +282,9 @@ impl PartState {
                     .cut_corner(first, second, shape(scale), construction, group)
                     .ok()
             });
-            if laid.is_none() {
-                refused += 1;
+            match laid {
+                Some(cut) => drawing.write_cuts_as(&[cut], written.clone()),
+                None => refused += 1,
             }
         }
         if !self.has_scale() && refused < corners.len() {
@@ -318,7 +324,7 @@ impl PartState {
 /// A chamfer as the drawing measures it. The history records millimetres, the
 /// way every other length the user types is recorded; the sketch works in its
 /// own units, and only the distances convert.
-fn in_units(mode: Chamfer, millimeters_per_unit: f64) -> Chamfer {
+pub(crate) fn in_units(mode: Chamfer, millimeters_per_unit: f64) -> Chamfer {
     match mode {
         Chamfer::Equal(reach) => Chamfer::Equal(reach / millimeters_per_unit),
         Chamfer::Sided { first, second } => Chamfer::Sided {

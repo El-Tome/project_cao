@@ -4,12 +4,13 @@ use cao_sketch::{Chamfer, Corner, CornerCutId, CutShape, Sketch};
 
 use super::record;
 use super::remap::SketchIdMap;
-use crate::history::{ChamferAsked, History, Operation};
+use crate::history::{ChamferAsked, CutChange, History, Operation};
 use crate::state::PartState;
 
 /// Lays every cut still standing again, one operation for each group laid
 /// together so the corners keep changing together, its values written in
-/// millimetres as the user would have typed them.
+/// millimetres as the user would have typed them — then switches each cut
+/// whose construction differs from its group's first.
 pub(super) fn add_cuts(
     old_sketch: &Sketch,
     sketch_index: usize,
@@ -69,8 +70,22 @@ pub(super) fn add_cuts(
             new_history,
             new_state,
         );
-        for (rank, (old_id, _)) in laid.iter().enumerate() {
-            map.cuts.insert(*old_id, CornerCutId(before + rank));
+        for (rank, (old_id, cut)) in laid.iter().enumerate() {
+            let now = CornerCutId(before + rank);
+            map.cuts.insert(*old_id, now);
+            // Construction is a cut's own since #618: one switched apart from
+            // its group is switched again after the group is laid.
+            if cut.construction != first.construction {
+                record(
+                    Operation::CutChange(CutChange::Construction {
+                        sketch: sketch_index,
+                        cut: now,
+                        construction: cut.construction,
+                    }),
+                    new_history,
+                    new_state,
+                );
+            }
         }
     }
 }

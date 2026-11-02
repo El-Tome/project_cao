@@ -7,7 +7,9 @@ use crate::screens::SketchContext;
 use crate::screens::extrusion::apply_extrusion;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
-use crate::screens::viewport::{ViewportState, corner_picks_with};
+use crate::screens::viewport::{
+    ViewportState, corner_picks_with, swap_held_chamfer, switch_held_cuts,
+};
 use crate::{screens, wording};
 
 /// Carries out one command, wherever it came from.
@@ -176,9 +178,29 @@ pub(crate) fn run(
             }));
             false
         }
+        // With a fillet or a chamfer held, the toggle switches it; otherwise it
+        // says what the next shape is drawn as.
         Command::ToggleConstruction => {
-            editor.construction = !editor.construction;
+            let mut context = SketchContext {
+                document: doc,
+                editor,
+                extrusion,
+                lang,
+            };
+            if switch_held_cuts(&mut context) {
+                return true;
+            }
+            context.editor.construction = !context.editor.construction;
             false
+        }
+        Command::SwapChamferSides => {
+            let mut context = SketchContext {
+                document: doc,
+                editor,
+                extrusion,
+                lang,
+            };
+            swap_held_chamfer(&mut context)
         }
         Command::DimensionAuto
         | Command::DimensionPointToPoint

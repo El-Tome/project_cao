@@ -347,3 +347,24 @@ fn a_cut_in_construction_holds_no_drawn_cut_back() {
     let share = sketch.fitting_share(&[(sides[2], sides[3])], CutShape::Fillet { radius: 6.0 });
     assert!(share >= 1.0, "{share}");
 }
+
+#[test]
+fn a_corner_cut_again_does_not_count_what_its_old_cut_takes() {
+    let (mut sketch, sides) = a_rectangle(100.0, 20.0);
+    sketch
+        .cut_corner(
+            sides[0],
+            sides[1],
+            CutShape::Fillet { radius: 10.0 },
+            false,
+            0,
+        )
+        .expect("a rectangle's corner takes a fillet");
+
+    let share = sketch.fitting_share(&[(sides[0], sides[1])], CutShape::Fillet { radius: 20.0 });
+
+    assert!(
+        (share * 20.0 - 20.0).abs() < SHARE_NEAR,
+        "the whole short side is there for the new cut: {share}"
+    );
+}

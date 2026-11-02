@@ -32,6 +32,9 @@ pub enum Command {
     ToolCircularPattern,
     ToolRectangularPattern,
     ToggleConstruction,
+    /// Swaps the sides of the chamfer held: what one side gave, the other
+    /// gives.
+    SwapChamferSides,
 
     CircleCenter,
     CircleTwoPoints,
@@ -101,7 +104,7 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 59] = [
+    pub const ALL: [Self; 60] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -126,6 +129,7 @@ impl Command {
         Self::ToolCircularPattern,
         Self::ToolRectangularPattern,
         Self::ToggleConstruction,
+        Self::SwapChamferSides,
         Self::CircleCenter,
         Self::CircleTwoPoints,
         Self::CircleThreePoints,
@@ -186,7 +190,8 @@ impl Command {
             | Self::ToolMirror
             | Self::ToolCircularPattern
             | Self::ToolRectangularPattern
-            | Self::ToggleConstruction => CommandFamily::DrawingTools,
+            | Self::ToggleConstruction
+            | Self::SwapChamferSides => CommandFamily::DrawingTools,
             Self::CircleCenter
             | Self::CircleTwoPoints
             | Self::CircleThreePoints

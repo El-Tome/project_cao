@@ -17,10 +17,9 @@ pub enum Outcome {
     Cut {
         rules: usize,
         values: usize,
-        /// Corners the gesture named that were not there to cut, or were cut
-        /// already. One gesture names several, and a corner refused does not
-        /// stop the others — so it is counted and said, rather than silently
-        /// dropped.
+        /// Corners the gesture named that were not there to cut. One gesture
+        /// names several, and a corner refused does not stop the others — so
+        /// it is counted and said, rather than silently dropped.
         refused: usize,
     },
     /// A rule the drawing could not hold, whatever gave way: the drawing is as

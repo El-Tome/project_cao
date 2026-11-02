@@ -18,6 +18,7 @@ use crate::state::PartState;
 use remap::{SketchIdMap, remap_area, remap_constraint, remap_target, without_order};
 use variables::{Renumbered, compact_variables};
 
+mod cuts;
 mod ellipses;
 mod remap;
 mod variables;
@@ -362,6 +363,7 @@ fn compact_sketch(
         );
     }
 
+    cuts::add_cuts(old_sketch, sketch_index, &mut map, new_history, new_state);
     map
 }
 

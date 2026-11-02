@@ -18,7 +18,7 @@
 
 use std::f64::consts::TAU;
 
-use cao_sketch::{EllipseDraft, Sketch, sweep_of};
+use cao_sketch::{CutCurve, EllipseDraft, Sketch, sweep_of};
 use glam::DVec2;
 
 /// Nearer than this, two places are one: twice the distance the drawing calls
@@ -61,14 +61,31 @@ pub enum Curve {
 }
 
 /// The curves a drawing closes places with: every one still drawn, and none
-/// of its construction geometry.
+/// of its construction geometry. A trait counts for what its cut corners leave
+/// of it, and each cut that fits for the curve it draws in their place.
 pub fn curves_of(sketch: &Sketch) -> Vec<Curve> {
     let mut curves = Vec::new();
-    for (_, segment) in sketch.live_segments().filter(|(_, it)| !it.construction) {
-        let (from, to) = (sketch.point(segment.start), sketch.point(segment.end));
+    for (id, _) in sketch.live_segments().filter(|(_, it)| !it.construction) {
+        let Some((from, to)) = sketch.visible_part(id) else {
+            continue;
+        };
         if from.distance(to) > one_place(from) {
             curves.push(Curve::Straight { from, to });
         }
+    }
+    for cut in sketch.drawn_cuts() {
+        if !cut.fits || cut.construction {
+            continue;
+        }
+        curves.push(match cut.curve {
+            CutCurve::Straight { from, to } => Curve::Straight { from, to },
+            CutCurve::Arc(drawn) => Curve::Round {
+                centre: drawn.centre,
+                radius: drawn.centre.distance(drawn.start),
+                from: (drawn.start - drawn.centre).to_angle(),
+                sweep: sweep_of(drawn),
+            },
+        });
     }
     for (id, arc) in sketch.live_arcs().filter(|(_, it)| !it.construction) {
         let drawn = sketch.arc_draft(id);

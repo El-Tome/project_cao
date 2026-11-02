@@ -1,15 +1,16 @@
-use cao_sketch::{Chamfer, Corner, Laid, Preview, Sketch, ToolState};
+use cao_sketch::{Corner, Preview, Sketch, ToolState};
 use glam::DVec2;
 
 use crate::screens::sketch::{SketchEditor, Tool};
 
-use super::{in_units, typed};
+use super::{in_units, shape_of, typed};
 
 /// What a corner would become, shown before the click that commits it.
 ///
 /// The two sides are the ones already clicked, or the one clicked and the one
 /// under the cursor. Nothing until the values are typed: a corner with no
-/// radius has no curve to show.
+/// radius has no curve to show. A value too big is shown as a cut that does
+/// not fit, before Enter holds it back.
 pub(crate) fn previewed(
     sketch: &Sketch,
     editor: &SketchEditor,
@@ -38,24 +39,25 @@ pub(crate) fn previewed(
     }
 
     let rounding = editor.tool == Tool::Fillet;
-    let asked = in_units(
-        typed(editor.live.locked(), editor.chamfer_mode, rounding)?,
-        scale,
+    let shape = shape_of(
+        rounding,
+        in_units(
+            typed(editor.live.locked(), editor.chamfer_mode, rounding)?,
+            scale,
+        ),
     );
+    let construction = editor.construction;
     sketch.preview(|trial| {
+        let group = trial.fresh_cut_group();
         let mut laid = Vec::new();
         for corner in shown {
             let Some((first, second)) = trial.sides_of(corner) else {
                 continue;
             };
-            // A corner the value does not fit is simply not shown: the gesture
+            // A corner that cannot be cut is simply not shown: the gesture
             // lays the others, and the tool says how many it turned away.
-            match (rounding, asked) {
-                (true, Chamfer::Equal(radius)) => {
-                    laid.extend(trial.fillet(first, second, radius)?.laid())
-                }
-                (true, _) => return None,
-                (false, _) => laid.extend(trial.chamfer(first, second, asked)?.laid()),
+            if let Ok(cut) = trial.cut_corner(first, second, shape, construction, group) {
+                laid.push(cut);
             }
         }
         Some(laid)

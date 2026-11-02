@@ -4,6 +4,7 @@ use super::*;
 use crate::axis::ChosenAxis;
 use crate::chamfer::Chamfer;
 use crate::constraints::SketchAxis;
+use crate::corner_cut::{CornerCutId, CutShape};
 use crate::plane::WorkPlane;
 use crate::sketch::SegmentId;
 
@@ -20,27 +21,47 @@ fn a_right_angle() -> (Sketch, SegmentId, SegmentId) {
     (sketch, along, up)
 }
 
+/// The corner cut the way a click would cut it, as a preview reads it.
+fn cut(
+    trial: &mut Sketch,
+    along: SegmentId,
+    up: SegmentId,
+    shape: CutShape,
+) -> Option<Vec<CornerCutId>> {
+    trial
+        .cut_corner(along, up, shape, false, 0)
+        .ok()
+        .map(|id| vec![id])
+}
+
 #[test]
-fn a_previewed_fillet_leaves_the_drawing_untouched_and_hands_back_the_curve_it_would_lay() {
+fn a_previewed_fillet_leaves_the_drawing_untouched_and_hands_back_the_cut_it_would_lay() {
     let (sketch, along, up) = a_right_angle();
 
     let shown = sketch
-        .preview(|trial| trial.fillet(along, up, 3.0))
+        .preview(|trial| cut(trial, along, up, CutShape::Fillet { radius: 3.0 }))
         .expect("a corner that can be rounded");
 
-    assert!(
-        sketch.arcs().is_empty(),
+    assert_eq!(
+        sketch.live_corner_cuts().count(),
+        0,
         "the drawing the user still has in front of them has not been rounded"
     );
     assert_eq!(
-        shown.sketch.arcs().len(),
-        1,
-        "the drawing shown carries the curve the click would lay"
+        shown.cuts,
+        vec![CornerCutId(0)],
+        "the cut is what the preview names as new"
     );
     assert!(
-        matches!(shown.laid.as_slice(), [Element::Arc(_)]),
-        "the curve is what the preview names as new, got {:?}",
+        shown.laid.is_empty(),
+        "no piece of the drawing is laid: {:?}",
         shown.laid
+    );
+    assert!(
+        shown
+            .sketch
+            .drawn_cut(CornerCutId(0))
+            .is_some_and(|drawn| drawn.fits)
     );
 }
 
@@ -49,14 +70,10 @@ fn a_previewed_chamfer_names_the_cut_it_would_lay_across_the_corner() {
     let (sketch, along, up) = a_right_angle();
 
     let shown = sketch
-        .preview(|trial| trial.chamfer(along, up, Chamfer::Equal(3.0)))
+        .preview(|trial| cut(trial, along, up, CutShape::Chamfer(Chamfer::Equal(3.0))))
         .expect("a corner that can be cut");
 
-    assert!(
-        matches!(shown.laid.as_slice(), [Element::Segment(_)]),
-        "the straight cut is what the preview names as new, got {:?}",
-        shown.laid
-    );
+    assert_eq!(shown.cuts, vec![CornerCutId(0)]);
 }
 
 #[test]
@@ -83,13 +100,17 @@ fn a_previewed_mirror_names_every_copy_it_would_lay() {
 }
 
 #[test]
-fn a_preview_of_a_corner_too_tight_to_round_shows_nothing_at_all() {
+fn a_preview_of_a_corner_too_tight_for_its_fillet_shows_one_that_does_not_fit() {
     let (sketch, along, up) = a_right_angle();
 
+    let shown = sketch
+        .preview(|trial| cut(trial, along, up, CutShape::Fillet { radius: 500.0 }))
+        .expect("a value too big is still laid, and shown for what it is");
+
     assert!(
-        sketch
-            .preview(|trial| trial.fillet(along, up, 500.0))
-            .is_none(),
-        "a preview of what the click would refuse is a preview that lies"
+        shown
+            .sketch
+            .drawn_cut(CornerCutId(0))
+            .is_some_and(|drawn| !drawn.fits)
     );
 }

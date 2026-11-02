@@ -18,8 +18,10 @@
 //!   `a_count_is_held_while_anything_follows_the_pattern_and_the_refusal_says_what`,
 //!   `a_count_in_a_sketch_matter_was_raised_from_is_refused_naming_the_step_raised`,
 //!   `a_count_that_would_take_away_an_extruded_copy_is_refused_naming_the_extrusion`,
-//!   `a_change_that_would_take_a_sketch_off_its_face_is_refused_naming_the_sketch`,
-//!   `a_chamfer_already_short_of_a_corner_that_would_cut_fewer_is_refused`
+//!   `a_change_that_would_take_a_sketch_off_its_face_is_refused_naming_the_sketch`.
+//!   A chamfer a variable makes too big breaks nothing since #617: it lays no
+//!   trait to renumber, and is drawn as a cut that does not fit —
+//!   `a_chamfer_a_variable_makes_too_big_is_drawn_as_not_fitting_and_renumbers_nothing`
 //! - changing a variable changes every size written from it — and only those
 //!   still written from it: a value taken away from the drawing stops
 //!   following it —
@@ -686,7 +688,7 @@ fn a_change_that_would_take_a_sketch_off_its_face_is_refused_naming_the_sketch()
 const TOP_OF_THE_BLOCK: usize = 1;
 
 #[test]
-fn a_chamfer_already_short_of_a_corner_that_would_cut_fewer_is_refused() {
+fn a_chamfer_a_variable_makes_too_big_is_drawn_as_not_fitting_and_renumbers_nothing() {
     let mut document = PartDocument::new("Plaques", at_nine());
     document
         .change_variable(added("reach", Formula::Number(15.0)))
@@ -721,6 +723,7 @@ fn a_chamfer_already_short_of_a_corner_that_would_cut_fewer_is_refused() {
             Corner::Between(SegmentId(4), SegmentId(5)),
         ],
         mode: ChamferAsked::Equal(reach),
+        construction: false,
     });
     document.apply(Operation::AddSegment {
         sketch: 0,
@@ -729,21 +732,22 @@ fn a_chamfer_already_short_of_a_corner_that_would_cut_fewer_is_refused() {
         construction: false,
     });
 
-    let refused = document.change_variable(edited(0, "reach", Formula::Number(45.0)));
+    document
+        .change_variable(edited(0, "reach", Formula::Number(45.0)))
+        .expect("a cut lays no trait, so nothing after it is named by another rank");
 
-    let renumbered = Broken::Renumbered {
-        changed: THE_CHAMFER,
-        followed_by: THE_CHAMFER + 1,
-    };
-    assert!(
-        matches!(&refused, Err(Refused::Breaks(broken)) if broken.contains(&renumbered)),
-        "a chamfer that already missed the small square would miss the big one \
-         too, and the trait after it would be named by another rank: {refused:?}"
+    let fits: Vec<bool> = document.sketches()[0]
+        .drawn_cuts()
+        .iter()
+        .map(|cut| cut.fits)
+        .collect();
+    assert_eq!(
+        fits,
+        vec![false, false],
+        "45 is more than either square has to give: both are drawn as cuts \
+         that do not fit, their sharp corners standing in"
     );
 }
-
-/// The count, the sketch, two squares and a value come before it.
-const THE_CHAMFER: u32 = 6;
 
 #[test]
 fn a_count_on_the_last_thing_drawn_changes_how_many_copies_stand() {

@@ -112,6 +112,15 @@ pub(crate) fn paint_dimension_labels(
         );
     }
 
+    super::cuts::paint_cut_labels(
+        &painter,
+        sketch,
+        state,
+        context.document.scale(),
+        view_projection,
+        (rect, pixel),
+    );
+
     // The dimension being placed carries its value with it: a bare pair of
     // arrows says nothing about what is being measured.
     if context.editor.placing().is_some()

@@ -266,8 +266,15 @@ fn a_corner_an_axis_makes_with_a_trait_is_not_cut() {
     let up = sketch.add_point(DVec2::new(80.0, 60.0));
     let side = sketch.add_segment(east, up);
 
-    assert!(!sketch.fillet_fits(first, side, 2.0));
-    assert!(!sketch.chamfer_fits(first, side, crate::chamfer::Chamfer::Equal(2.0)));
+    for shape in [
+        crate::corner_cut::CutShape::Fillet { radius: 2.0 },
+        crate::corner_cut::CutShape::Chamfer(crate::chamfer::Chamfer::Equal(2.0)),
+    ] {
+        assert_eq!(
+            sketch.cut_corner(first, side, shape, false, 0),
+            Err(crate::corner_cut::CutRefused::NoCorner)
+        );
+    }
 }
 
 #[test]

@@ -47,6 +47,9 @@ pub struct Sketch {
     /// The rules that carry no value: perpendicular, parallel, equal…
     #[serde(default)]
     constraints: Vec<Constraint>,
+    /// The fillets and chamfers standing on corners, by rank.
+    #[serde(default)]
+    pub(crate) corner_cuts: Vec<crate::corner_cut::CornerCut>,
     /// What has been deleted, by rank.
     ///
     /// Deleted geometry is marked rather than taken out of the list: a segment
@@ -74,6 +77,7 @@ mod holds_up;
 mod keeping;
 mod merging;
 mod redundancy;
+mod settled_cache;
 pub(crate) mod settling;
 mod tangency;
 
@@ -97,30 +101,11 @@ impl Sketch {
             ellipses: Vec::new(),
             dimensions: Vec::new(),
             constraints: Vec::new(),
+            corner_cuts: Vec::new(),
             erased: Erased::default(),
             held: settling::Held::default(),
             settled: RefCell::default(),
         }
-    }
-
-    /// The verdict remembered for this print, if it is the one still standing.
-    ///
-    /// The cell never leaves this method: a borrow held across a reading would
-    /// meet the one taken to record the answer, and that is a panic.
-    pub(crate) fn settled_read_from(&self, print: u64) -> Option<Vec<bool>> {
-        match self.settled.borrow().as_ref() {
-            Some((was, verdict)) if *was == print => Some(verdict.clone()),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn remember_settled(&self, print: u64, verdict: Vec<bool>) {
-        *self.settled.borrow_mut() = Some((print, verdict));
-    }
-
-    #[cfg(test)]
-    pub(crate) fn forget_what_is_settled(&self) {
-        *self.settled.borrow_mut() = None;
     }
 
     pub fn is_erased_point(&self, point: PointId) -> bool {
@@ -184,6 +169,7 @@ impl Sketch {
             Element::Arc(arc) => Erased::mark(&mut self.erased.arcs, arc.0),
             Element::Ellipse(ellipse) => self.erase_ellipse(ellipse),
         }
+        self.cuts_lose_what_is_erased();
         let dimensions = std::mem::take(&mut self.dimensions);
         self.dimensions = dimensions
             .into_iter()

@@ -26,6 +26,7 @@ pub(crate) fn push_point_markers(
 ) {
     let half = scale.world_size_of(4.0);
     let highlight = tint_at(theme.highlight, 1.0);
+    let lit = super::cuts::lit_corners(sketch, context);
 
     for index in 0..sketch.points().len() {
         let point = PointId(index);
@@ -40,7 +41,8 @@ pub(crate) fn push_point_markers(
             .plane
             .to_world(shown_position(sketch, point, context));
         let hovered = context.editor.hovered_point == Some(point)
-            || context.editor.first_point() == Some(point);
+            || context.editor.first_point() == Some(point)
+            || lit.contains(&point);
         let color = if hovered { highlight } else { base };
         let width = if hovered { 2.5 } else { 1.5 };
         let (color, width) = emphasis::mark(

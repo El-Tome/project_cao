@@ -65,8 +65,11 @@ in one of the two domains, never there.
 | Taking a stretch out of an ellipse, which leaves the same ellipse with that stretch gone | `sketch/src/trimming/ellipse.rs` | `Sketch::ellipse_stretch_at`, `Sketch::trim_ellipse` → `EllipseTrimmed` |
 | What a cut would take out of the drawing, as against what a tool would lay | `sketch/src/trimming/going.rs` | `Sketch::trim_takes`, `arc_trim_takes`, `circle_trim_takes` → `Going`, `Stretch` |
 | Dropping a point where curves cross and cutting each of them in two there | `sketch/src/splitting.rs` | `Sketch::crossing_at` → `Crossing`, `Sketch::split` → `Split` |
-| Cutting the corner two traits share with a straight line | `sketch/src/chamfer.rs` | `Sketch::chamfer` → `Chamfered`, `Sketch::chamfer_fits`, `Chamfer`, `ChamferMode` |
-| Rounding that same corner into a curve tangent to both sides | `sketch/src/fillet.rs` | `Sketch::fillet` → `Rounded`, `Sketch::fillet_fits` |
+| The ways a chamfer says what it takes off a corner: one distance, two, or a distance and an angle | `sketch/src/chamfer.rs` | `Chamfer`, `ChamferMode` |
+| Laying a fillet or a chamfer as a cut on the sharp corner two traits share — live cuts, groups, a corner already cut, a cut handed to the piece a trim or a division leaves at the corner, and taken away for good with its corner or a side | `sketch/src/corner_cut.rs` | `CornerCut`, `CornerCutId`, `CutShape`, `CutRefused`, `Sketch::cut_corner`, `Sketch::live_corner_cuts`, `Sketch::cuts_grouped_with`, `Sketch::fresh_cut_group`, `cuts_follow_pieces`, `cuts_lose_what_is_erased` |
+| What a cut draws, worked out from its corner every time it is read: where it meets each side, whether it fits, what is left to draw of a side, and the largest share of a value that fits | `sketch/src/corner_cut/drawn.rs` | `DrawnCut`, `CutCurve`, `PulledEnds`, `Sketch::drawn_cuts`, `Sketch::pulled_ends`, `Sketch::visible_part`, `Sketch::visible_ends`, `Sketch::fitting_share` |
+| Taking a cut by its curve, dragging it by its corner, and the places it offers to snap to | `sketch/src/corner_cut/picking.rs` | `Sketch::nearest_cut`, `Sketch::point_to_drag_at`, `nearest_cut_place`, `places_on_cuts` |
+| The straight traits and the cuts as the face graph reads them: each trait from where its cuts leave it, the curve of every cut that fits and is not construction, named `CurveId::Corner` | `sketch/src/edges/drawn.rs` | `traits_and_cuts`, `Sketch::name_the_sides_cuts_took` |
 | Laying a second copy of part of the drawing down, under any transform | `sketch/src/duplicating.rs` | `Sketch::duplicate` → `Duplicated` |
 | Running a change against a copy of the drawing, to show it before it is made | `sketch/src/preview.rs` | `Sketch::preview` → `Preview`, `Laid` |
 | The straight line a click names, and the direction it runs in | `sketch/src/axis.rs` | `ChosenAxis`, `Sketch::axis_line` |
@@ -213,7 +216,8 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | Where a step begins and ends in the list | `part/src/feature.rs` | `Feature::all` |
 | Replaying the history for the geometry | `part/src/replay.rs`, `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` → `Outcome` |
 | What a replay notes: what each operation laid, what was raised, which values left the drawing | `part/src/replay.rs` | `Replay`, `Laid`, `SetBy`, `next_value_set` |
-| The six ways a curve is replaced by other curves | `part/src/cutting.rs` | `PartState::trim`, `trim_arc`, `trim_circle`, `split`, `chamfer`, `fillet`, `PartState::area_rank` |
+| The ways a curve of a drawing is replaced by other curves — trimmed as a trait, an arc, a circle or an ellipse, divided, chamfered or rounded — and the fillets and chamfers laid as cuts on corners, one group per gesture, their values in millimetres | `part/src/cutting.rs` | `PartState::trim`, `trim_arc`, `trim_circle`, `trim_ellipse`, `split`, `chamfer`, `fillet`, `lay_cuts`, `sides_now`, `PartState::area_rank` |
+| Laying every cut still standing again after compaction, one operation per group so the corners keep changing together | `part/src/compaction/cuts.rs` | `add_cuts` |
 | A circle, an arc or an ellipse laid down again as the history replays it | `part/src/curves.rs` | `PartState::add_circle`, `add_arc`, `add_ellipse` |
 | A side moved across or a shape turned, replayed | `part/src/pulled.rs` | `PartState::move_segment`, `turn_shape` |
 | A point, a trait, a symmetric trait or a rectangle laid down again as the history replays it | `part/src/straight.rs` | `PartState::add_point`, `add_segment`, `add_symmetric_segment`, `add_rectangle` |
@@ -302,6 +306,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: gathering one frame of everything drawn | `app/src/screens/viewport/render.rs` | `build_frame` |
 | Canvas: the grid and the drawing's axes, on the plane a sketch is open on | `app/src/screens/viewport/render/grid.rs` | `push` |
 | Canvas: the drawing itself — contour, areas, points | `app/src/screens/viewport/render/drawing.rs` | `push_sketch`, `push_regions`, `what_would_be_laid` |
+| Canvas: the fillets and chamfers of the drawing — what is left of each side, the stretch hidden up to the sharp corner, the curve of every cut and its value | `app/src/screens/viewport/render/cuts.rs` | `CutCanvas`, `CutCanvas::push_side`, `CutCanvas::push_cuts`, `lit_corners`, `paint_cut_labels` |
 | Canvas: a point's square, a midpoint's triangle, a right angle's corner | `app/src/screens/viewport/render/marks.rs` | `push_point_markers`, `push_midpoint_mark`, `push_square_mark` |
 | Canvas: what a click right now would lay down | `app/src/screens/viewport/render/preview.rs` | `push_preview`, `push_preview_line`, `pending_annotation` |
 | Canvas: the planes and the face a sketch can be started on | `app/src/screens/viewport/render/planes.rs` | `push_choosable_planes`, `push_hovered_face` |
@@ -319,8 +324,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: one click of the trim tool, and what it would take | `app/src/screens/viewport/input/trim.rs` | `trim`, `previewed` |
 | Canvas: drawing the stretch a cut would take | `app/src/screens/viewport/render/trim.rs` | `what_would_go`, `push_going` |
 | Canvas: one click of the division tool | `app/src/screens/viewport/input/split.rs` | `split` |
-| Canvas: the two clicks of the chamfer and the fillet, and the values typed between them | `app/src/screens/viewport/input/corner.rs` | `corner`, `cut`, `corner_held` |
-| Canvas: the cut or the curve a corner would take, shown as the value is typed | `app/src/screens/viewport/input/corner/preview.rs` | `previewed` |
+| Canvas: the two clicks of the chamfer and the fillet — a corner's point or its two traits — the values typed for every corner taken, and a value too big held back with the largest that fits | `app/src/screens/viewport/input/corner.rs`, `input/corner/laying.rs` | `corner`, `cut`, `corners_taken`, `on_enter`, `held_back`, `offer_the_largest`, `laying` |
+| Canvas: the cut or the curve the corners taken would take, shown as the value is typed | `app/src/screens/viewport/input/corner/preview.rs` | `previewed` |
 | Canvas: what the mirror and the two patterns take hold of, and the axis, centre or direction they lay the copy against | `app/src/screens/viewport/input/copying.rs` | `copy`, `hold_is_done`, `axis_at`, `turned`, `filled` |
 | Canvas: the copies a mirror or a pattern would lay, shown before the click that names where | `app/src/screens/viewport/input/copying/preview.rs` | `previewed` |
 | Canvas: the values a pattern's fields open on | `app/src/screens/viewport/input/copying/opening.rs` | `fields_open_on` |

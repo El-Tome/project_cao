@@ -296,7 +296,13 @@ fn a_fillet_reads_as_a_round_run_between_the_two_straight_runs_it_joins() {
         .map(|side| sketch.add_segment(corners[side], corners[(side + 1) % 4]))
         .collect();
     sketch
-        .fillet(sides[0], sides[1], 5.0)
+        .cut_corner(
+            sides[0],
+            sides[1],
+            crate::corner_cut::CutShape::Fillet { radius: 5.0 },
+            false,
+            0,
+        )
         .expect("a fillet of five fits a corner of a forty by twenty");
 
     let runs = only_area(&sketch).outline.runs();

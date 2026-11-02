@@ -142,7 +142,7 @@ pub(crate) fn push_preview(
         Some(Snap::Midpoint(at)) => {
             push_midpoint_mark(out, sketch, at, scale, tint_at(theme.highlight, 1.0))
         }
-        Some(Snap::OnCurve(at) | Snap::Crossing(at)) => push_point_marker(
+        Some(Snap::OnCurve(at) | Snap::Crossing(at) | Snap::Centre(at)) => push_point_marker(
             out,
             sketch,
             at,

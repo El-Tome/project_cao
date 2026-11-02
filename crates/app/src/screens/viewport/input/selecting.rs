@@ -74,6 +74,9 @@ pub(super) fn erase(
             Selection::Element(element) => elements.push(*element),
             Selection::Dimension(target) => dimensions.push(*target),
             Selection::Rule(constraint) => constraints.push(*constraint),
+            // A fillet or a chamfer is not taken off by the delete key yet:
+            // what it takes back is a corner as it was, which is its own step.
+            Selection::Cut(_) => {}
         }
     }
     context.document.apply(Operation::EraseMany {

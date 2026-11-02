@@ -4,6 +4,7 @@
 use glam::DVec2;
 
 use crate::arc::ArcId;
+use crate::corner_cut::CornerCutId;
 use crate::element::Element;
 use crate::ellipse::EllipseId;
 use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
@@ -13,7 +14,8 @@ use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
 /// Geometry and nothing else: the rules and the values that spoke of the
 /// original stay with it. A pattern lays the same copy down many times, and
 /// carrying a rule over each time would hand the solver the same figure to hold
-/// once per copy.
+/// once per copy. A corner cut is part of how the geometry is drawn, so a
+/// corner whose two sides are copied is cut the same way on the copy.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Duplicated {
     pub points: Vec<PointId>,
@@ -21,6 +23,7 @@ pub struct Duplicated {
     pub circles: Vec<CircleId>,
     pub arcs: Vec<ArcId>,
     pub ellipses: Vec<EllipseId>,
+    pub cuts: Vec<CornerCutId>,
 }
 
 /// Two places nearer than this are the one place, and a copy laid at the second
@@ -66,6 +69,7 @@ impl Sketch {
                 .map(|(_, now)| *now)
         };
 
+        let mut sides: Vec<(SegmentId, SegmentId)> = Vec::new();
         for held in &laid {
             match *held {
                 Element::Point(_) => {}
@@ -76,10 +80,12 @@ impl Sketch {
                     let (Some(start), Some(end)) = (copy_of(side.start), copy_of(side.end)) else {
                         continue;
                     };
-                    made.segments.push(match side.construction {
+                    let copy = match side.construction {
                         true => self.add_construction_segment(start, end),
                         false => self.add_segment(start, end),
-                    });
+                    };
+                    sides.push((id, copy));
+                    made.segments.push(copy);
                 }
                 Element::Circle(id) => {
                     let Some(round) = self.circles().get(id.0).copied() else {
@@ -157,7 +163,44 @@ impl Sketch {
                 }
             }
         }
+        made.cuts = self.cut_the_copies(&sides);
         made
+    }
+
+    /// Cuts every corner whose two sides were copied the same way on the copy,
+    /// each group laid together staying one group of its own.
+    fn cut_the_copies(&mut self, sides: &[(SegmentId, SegmentId)]) -> Vec<CornerCutId> {
+        let copy_of = |side: SegmentId| {
+            sides
+                .iter()
+                .find(|(was, _)| *was == side)
+                .map(|(_, now)| *now)
+        };
+        let standing: Vec<_> = self.live_corner_cuts().map(|(_, cut)| cut).collect();
+        let fresh = self.fresh_cut_group();
+        let mut groups: Vec<(usize, usize)> = Vec::new();
+        let mut cut = Vec::new();
+        for original in standing {
+            let (Some(first), Some(second)) =
+                (copy_of(original.sides[0]), copy_of(original.sides[1]))
+            else {
+                continue;
+            };
+            let group = match groups.iter().find(|(was, _)| *was == original.group) {
+                Some((_, now)) => *now,
+                None => {
+                    let now = fresh + groups.len();
+                    groups.push((original.group, now));
+                    now
+                }
+            };
+            if let Ok(id) =
+                self.cut_corner(first, second, original.shape, original.construction, group)
+            {
+                cut.push(id);
+            }
+        }
+        cut
     }
 
     /// The element a copy is made of: an axis of an ellipse is the ellipse.

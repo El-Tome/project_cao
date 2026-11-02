@@ -14,6 +14,7 @@ use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::arc::ArcId;
+use crate::corner_cut::CornerCutId;
 use crate::ellipse::EllipseId;
 use crate::regions::Region;
 use crate::sketch::{CircleId, SegmentId};
@@ -25,6 +26,8 @@ pub enum CurveId {
     Arc(ArcId),
     Circle(CircleId),
     Ellipse(EllipseId),
+    /// The curve or the cut a fillet or a chamfer draws where its corner was.
+    Corner(CornerCutId),
 }
 
 /// What became of the curves one cut replaced: each curve it took out, with
@@ -53,9 +56,23 @@ pub struct Area {
 
 impl Area {
     /// The name of an area, as it stands, with the place that was pointed at.
+    ///
+    /// A border the curve of a fillet or a chamfer runs along alone is left
+    /// out of the name: the cut comes and goes as it fits or not, the sharp
+    /// corner standing in for it meanwhile, and the area is the same area
+    /// either way.
     pub fn of(region: &Region, inside: DVec2) -> Self {
         Self {
-            bounds: region.bounds().to_vec(),
+            bounds: region
+                .bounds()
+                .iter()
+                .filter(|border| {
+                    !border
+                        .iter()
+                        .all(|curve| matches!(curve, CurveId::Corner(_)))
+                })
+                .cloned()
+                .collect(),
             inside,
         }
     }

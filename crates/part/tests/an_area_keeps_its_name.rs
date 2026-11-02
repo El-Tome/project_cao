@@ -152,6 +152,7 @@ fn rounding_a_corner_of_an_extruded_shape_keeps_the_matter() {
         sketch: 0,
         corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
         radius: 2.0.into(),
+        construction: false,
     });
 
     let state = PartState::rebuild(&history);
@@ -172,6 +173,7 @@ fn chamfering_a_corner_of_an_extruded_shape_keeps_the_matter() {
         sketch: 0,
         corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
         mode: Chamfer::Equal(2.0).into(),
+        construction: false,
     });
 
     let state = PartState::rebuild(&history);
@@ -373,6 +375,7 @@ fn compaction_hands_back_an_area_whose_corners_were_cut() {
             sketch: 0,
             corners: vec![Corner::Between(SegmentId(first), SegmentId(second))],
             mode: Chamfer::Equal(2.0).into(),
+            construction: false,
         });
     }
     let before = volume(&PartState::rebuild(&history).body);

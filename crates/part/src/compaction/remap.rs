@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use cao_sketch::{
-    ArcId, Area, CircleId, Constraint, CurveId, DimensionTarget, Element, EllipseId, PointId,
-    SegmentId,
+    ArcId, Area, CircleId, Constraint, CornerCutId, CurveId, DimensionTarget, Element, EllipseId,
+    PointId, SegmentId,
 };
 
 /// Where every element of one sketch landed after being re-emitted, so a later
@@ -15,6 +15,7 @@ pub(super) struct SketchIdMap {
     pub(super) circles: HashMap<CircleId, CircleId>,
     pub(super) arcs: HashMap<ArcId, ArcId>,
     pub(super) ellipses: HashMap<EllipseId, EllipseId>,
+    pub(super) cuts: HashMap<CornerCutId, CornerCutId>,
 }
 
 /// An area's name, said in the numbers the re-emitted sketch uses.
@@ -49,6 +50,7 @@ fn remap_curve(curve: CurveId, map: &SketchIdMap) -> Option<CurveId> {
         CurveId::Arc(id) => map.arcs.get(&id).copied().map(CurveId::Arc),
         CurveId::Circle(id) => map.circles.get(&id).copied().map(CurveId::Circle),
         CurveId::Ellipse(id) => map.ellipses.get(&id).copied().map(CurveId::Ellipse),
+        CurveId::Corner(id) => map.cuts.get(&id).copied().map(CurveId::Corner),
     }
 }
 

@@ -9,6 +9,7 @@ use glam::DVec2;
 use crate::annotation::AnnotationMetrics;
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, DimensionTarget};
+use crate::corner_cut::CornerCutId;
 use crate::sketch::{Element, PointId, Sketch};
 use crate::snap::onto_rim;
 
@@ -19,6 +20,9 @@ pub enum Selection {
     Element(Element),
     Dimension(DimensionTarget),
     Rule(Constraint),
+    /// A fillet or a chamfer, taken whole: its curve, its corner and the
+    /// corners cut with it.
+    Cut(CornerCutId),
 }
 
 /// How much easier a wide target is to hit than the trait it is drawn over. An
@@ -29,8 +33,10 @@ const WIDE_TARGET_REACH: f64 = 1.5;
 impl Sketch {
     /// What the cursor is over, in the order a click should take it.
     ///
-    /// A point before a trait before a curve before an annotation: the smaller
-    /// the target, the harder it is to hit on purpose, so the smaller one wins.
+    /// A point before a cut before a trait before a curve before an
+    /// annotation: the smaller the target, the harder it is to hit on purpose,
+    /// so the smaller one wins. A cut stands on the end of two traits, so it
+    /// is read before them.
     /// The origin is never picked — it is there to be measured from, not moved.
     pub fn pick(
         &self,
@@ -43,6 +49,9 @@ impl Sketch {
             .filter(|point| !self.is_origin(*point))
         {
             return Some(Selection::Element(Element::Point(point)));
+        }
+        if let Some(cut) = self.nearest_cut(cursor, tolerance) {
+            return Some(Selection::Cut(cut));
         }
         if let Some(segment) = self.nearest_segment(cursor, tolerance) {
             return Some(Selection::Element(Element::Segment(segment)));
@@ -76,10 +85,16 @@ impl Sketch {
             }
         };
         for held in selection {
-            let Selection::Element(element) = held else {
-                continue;
+            let leans_on = match held {
+                Selection::Element(element) => self.points_it_leans_on(*element),
+                Selection::Cut(cut) => self
+                    .corner_cuts()
+                    .get(cut.0)
+                    .map(|cut| vec![cut.corner])
+                    .unwrap_or_default(),
+                Selection::Dimension(_) | Selection::Rule(_) => continue,
             };
-            for point in self.points_it_leans_on(*element) {
+            for point in leans_on {
                 take(point);
             }
         }

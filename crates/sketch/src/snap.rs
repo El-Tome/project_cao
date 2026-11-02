@@ -48,8 +48,12 @@ pub enum Snap {
     /// miss.
     Crossing(DVec2),
     /// The middle of a line, which needs a mark of its own: nothing else on
-    /// screen says the cursor is exactly halfway along.
+    /// screen says the cursor is exactly halfway along. The middle of the curve
+    /// of a fillet, or of the cut of a chamfer, is one too.
     Midpoint(DVec2),
+    /// The centre of a fillet: no point of the drawing stands there, since the
+    /// curve is drawn from its corner, and it is still a place one aims at.
+    Centre(DVec2),
     /// Somewhere along a drawn curve, its ends included.
     OnCurve(DVec2),
 }
@@ -73,6 +77,9 @@ impl Sketch {
         // two of them the crossing is the place a person was aiming at.
         if let Some(at) = self.nearest_crossing(cursor, settings.point_reach) {
             return (at, Some(Snap::Crossing(at)));
+        }
+        if let Some((at, snap)) = self.nearest_cut_place(cursor, settings.point_reach) {
+            return (at, Some(snap));
         }
 
         // A curve already drawn pulls harder than the grid, and a trait's middle
@@ -106,6 +113,7 @@ impl Sketch {
         let on_ellipses = self
             .live_ellipses()
             .map(|(id, _)| self.place_on_ellipse(id, cursor));
+        let on_cuts = self.places_on_cuts(cursor);
         let on_axes = axes().map(|axis| {
             let along = axis.direction();
             along * cursor.dot(along)
@@ -115,6 +123,7 @@ impl Sketch {
             .chain(on_circles)
             .chain(on_arcs)
             .chain(on_ellipses)
+            .chain(on_cuts)
             .chain(on_axes)
             .filter(|at| at.distance(cursor) <= reach)
             .min_by(|left, right| {

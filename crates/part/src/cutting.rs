@@ -9,8 +9,8 @@
 //! shape.
 
 use cao_sketch::{
-    ArcId, Area, Became, Chamfer, CircleId, Corner, CurveId, DimensionTarget, EllipseId, PointId,
-    SegmentId, Sketch, Standing,
+    ArcId, Area, Became, Chamfer, CircleId, Corner, CurveId, CutShape, DimensionTarget, EllipseId,
+    PointId, SegmentId, Sketch, Standing,
 };
 use glam::DVec2;
 
@@ -184,23 +184,14 @@ impl PartState {
         sketch: usize,
         corners: &[Corner],
         asked: &ChamferAsked,
+        construction: bool,
     ) -> Option<Outcome> {
         let Some(mode) = asked.worked_out(&self.values) else {
             self.broke(Broken::Operation(self.replaying));
             return None;
         };
-        let notes = asked.as_laid().map(Formula::note);
-        self.every_corner(sketch, corners, &notes, |drawing, scale, first, second| {
-            let chamfered = drawing.chamfer(first, second, in_units(mode, scale))?;
-            let typed = chamfered.typed(mode);
-            Some((
-                Cut {
-                    rules: chamfered.rules_dropped,
-                    values: chamfered.values_dropped,
-                    became: chamfered.became,
-                },
-                typed,
-            ))
+        self.lay_cuts(sketch, corners, construction, |scale| {
+            CutShape::Chamfer(in_units(mode, scale))
         })
     }
 
@@ -209,25 +200,12 @@ impl PartState {
         sketch: usize,
         corners: &[Corner],
         asked: &Formula,
+        construction: bool,
     ) -> Option<Outcome> {
         let radius = self.size(asked, |_| true)?;
-        self.every_corner(
-            sketch,
-            corners,
-            &[asked.note()],
-            |drawing, scale, first, second| {
-                let rounded = drawing.fillet(first, second, radius / scale)?;
-                let typed = rounded.typed(radius);
-                Some((
-                    Cut {
-                        rules: rounded.rules_dropped,
-                        values: rounded.values_dropped,
-                        became: rounded.became,
-                    },
-                    typed,
-                ))
-            },
-        )
+        self.lay_cuts(sketch, corners, construction, |scale| CutShape::Fillet {
+            radius: radius / scale,
+        })
     }
 
     /// The two traits a corner stands between, as the drawing has them now and
@@ -235,9 +213,7 @@ impl PartState {
     ///
     /// A corner named by its two traits keeps the first one, because the first
     /// distance is measured along it — and that trait is followed through
-    /// every cut since, rather than trusted as a number. Two corners of one
-    /// shape share a trait: cutting the first replaces it, and the second would
-    /// otherwise measure from a curve that is gone.
+    /// every trim or division since, rather than trusted as a number.
     fn sides_now(&self, sketch: usize, corner: Corner) -> Option<(SegmentId, SegmentId)> {
         let drawing = self.sketches.get(sketch)?;
         let Corner::Between(first, second) = corner else {
@@ -269,85 +245,53 @@ impl PartState {
             .collect()
     }
 
-    /// Cuts every corner the gesture named, with the same values, as one
-    /// operation.
+    /// Cuts every corner the gesture named, with the same values, as one group.
     ///
-    /// Each corner is read against the drawing as it stands when its own turn
-    /// comes, not as it stood when the gesture was made: cutting one corner of
-    /// a shape trims the traits its neighbours lean on, and the four corners of
-    /// a plate all share theirs. That is what [`Corner`] records a point for.
-    fn every_corner(
+    /// Nothing of the drawing is trimmed: each corner only says what is drawn
+    /// in its place, so a value too big for a corner is laid all the same and
+    /// drawn as one that does not fit. A corner refused is one that is not
+    /// there to cut, or one already cut, and refusing it breaks the step.
+    ///
+    /// The first value a part is ever given is what fixes what its drawing is
+    /// worth in millimetres, and a cut is as good a first value as any: its
+    /// values were turned into the drawing's units at one millimetre a unit,
+    /// so that is the scale it fixes.
+    fn lay_cuts(
         &mut self,
         sketch: usize,
         corners: &[Corner],
-        notes: &[Option<String>],
-        cut: impl Fn(
-            &mut Sketch,
-            f64,
-            SegmentId,
-            SegmentId,
-        ) -> Option<(Cut, Vec<(DimensionTarget, f64)>)>,
+        construction: bool,
+        shape: impl Fn(f64) -> CutShape,
     ) -> Option<Outcome> {
-        let mut total = Outcome::Cut {
-            rules: 0,
-            values: 0,
-            refused: 0,
-        };
-        let refused = Outcome::Cut {
-            rules: 0,
-            values: 0,
-            refused: 1,
-        };
-        for corner in corners {
-            let Some((first, second)) = self.sides_now(sketch, *corner) else {
-                total = total.and(refused);
-                continue;
-            };
-            let mut typed = Vec::new();
-            let Some(made) = self.cutting(sketch, |drawing, scale| {
-                let (made, wanted) = cut(drawing, scale, first, second)?;
-                typed = wanted;
-                Some(made)
-            }) else {
-                total = total.and(refused);
-                continue;
-            };
-            self.write_down(sketch, typed, notes);
-            total = total.and(made);
+        let scale = self.scale();
+        let sides: Vec<Option<(SegmentId, SegmentId)>> = corners
+            .iter()
+            .map(|corner| self.sides_now(sketch, *corner))
+            .collect();
+        let drawing = self.sketches.get_mut(sketch)?;
+        let group = drawing.fresh_cut_group();
+        let mut refused = 0;
+        for named in sides {
+            let laid = named.and_then(|(first, second)| {
+                drawing
+                    .cut_corner(first, second, shape(scale), construction, group)
+                    .ok()
+            });
+            if laid.is_none() {
+                refused += 1;
+            }
         }
-        if matches!(total, Outcome::Cut { refused, .. } if refused > 0) {
+        if !self.has_scale() && refused < corners.len() {
+            self.millimeters_per_unit = Some(scale);
+        }
+        if refused > 0 {
             self.broke(Broken::Operation(self.replaying));
         }
-        Some(total)
-    }
-
-    /// Records the values a cut was given, the same way any other typed length
-    /// is recorded.
-    ///
-    /// Through `apply_dimension` rather than straight onto the drawing: the
-    /// first value a part is ever given is what fixes what its drawing is worth
-    /// in millimetres, and a chamfer is as good a first value as any. Writing
-    /// it directly left a part whose scale was still unset while the dimension
-    /// sat there — and compaction, which replays every dimension as an
-    /// operation, then rebuilt a part that measured differently.
-    ///
-    /// Each carries what it was written from, in the order the cut laid them.
-    fn write_down(
-        &mut self,
-        sketch: usize,
-        typed: Vec<(DimensionTarget, f64)>,
-        notes: &[Option<String>],
-    ) {
-        for (rank, (target, value)) in typed.into_iter().enumerate() {
-            let outcome = self.apply_dimension(sketch, target, value);
-            self.remember_as(
-                sketch,
-                target,
-                outcome,
-                notes.get(rank).cloned().flatten(),
-                None,
-            );
-        }
+        Some(Outcome::Cut {
+            rules: 0,
+            values: 0,
+            refused,
+        })
     }
 
     fn cutting(

@@ -2109,12 +2109,17 @@ fn a_far_side_cut_short_at_its_corners_is_still_the_side_the_shape_turns_about()
         ],
         false,
     );
-    rounded
-        .fillet(SegmentId(1), SegmentId(2), 20.0)
-        .expect("rounded");
-    rounded
-        .fillet(SegmentId(2), SegmentId(3), 20.0)
-        .expect("rounded");
+    for (first, second) in [(1, 2), (2, 3)] {
+        rounded
+            .cut_corner(
+                SegmentId(first),
+                SegmentId(second),
+                crate::corner_cut::CutShape::Fillet { radius: 20.0 },
+                false,
+                0,
+            )
+            .expect("rounded");
+    }
     assert_near(
         turned_about(&rounded),
         DVec2::new(50.0, 60.0),

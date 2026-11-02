@@ -352,6 +352,7 @@ fn a_part_of_every_kind_of_drawing() -> PartDocument {
         sketch: 0,
         corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
         mode: Chamfer::Equal(2.0).into(),
+        construction: false,
     });
     document.apply(Operation::Mirror {
         sketch: 0,

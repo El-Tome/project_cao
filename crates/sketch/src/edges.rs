@@ -21,11 +21,13 @@ use crate::sketch::Sketch;
 
 mod border;
 mod curve;
+mod drawn;
 pub(crate) mod half_edge;
 mod weld;
 
 use border::{Borders, Loops, also_named};
 use curve::{Curve, between, pieces};
+use drawn::traits_and_cuts;
 pub(crate) use half_edge::{Bend, CurvedHalfEdge};
 use weld::welded;
 
@@ -250,13 +252,7 @@ impl Sketch {
         let vertex = welded(&places);
         let mut curves: Vec<Curve> = Vec::new();
         let mut names: Vec<CurveId> = Vec::new();
-        for (id, segment) in self.live_segments().filter(|(_, it)| !it.construction) {
-            curves.push(Curve::Straight {
-                from: vertex[segment.start.0],
-                to: vertex[segment.end.0],
-            });
-            names.push(CurveId::Segment(id));
-        }
+        traits_and_cuts(self, &vertex, &mut places, &mut curves, &mut names);
         for (id, arc) in self.live_arcs().filter(|(_, it)| !it.construction) {
             curves.push(Curve::Bent {
                 centre: self.point(arc.center),

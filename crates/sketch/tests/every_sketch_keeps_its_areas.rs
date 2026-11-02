@@ -474,6 +474,7 @@ fn every_change_the_generator_draws_changes_a_drawing_now_and_then() {
             sketch.live_circles().count(),
             sketch.live_arcs().count(),
             sketch.live_ellipses().count(),
+            sketch.live_corner_cuts().count(),
             sketch
                 .ellipses()
                 .iter()

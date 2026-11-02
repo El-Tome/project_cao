@@ -7,7 +7,7 @@
 //! down again operation by operation, every formula said in the ranks the
 //! compacted table gives its variables.
 
-use cao_sketch::{ArcId, CircleId, EllipseId, PointId, SegmentId, Sketch};
+use cao_sketch::{ArcId, CircleId, CornerCutId, EllipseId, PointId, SegmentId, Sketch};
 
 use super::record;
 use super::remap::SketchIdMap;
@@ -112,9 +112,11 @@ fn said_again(
             sketch,
             corners,
             mode,
+            construction,
         } => Operation::Chamfer {
             sketch: *sketch,
             corners: corners.clone(),
+            construction: *construction,
             mode: match mode {
                 ChamferAsked::Equal(reach) => ChamferAsked::Equal(say(reach)),
                 ChamferAsked::Angled { along, degrees } => ChamferAsked::Angled {
@@ -131,10 +133,12 @@ fn said_again(
             sketch,
             corners,
             radius,
+            construction,
         } => Operation::Fillet {
             sketch: *sketch,
             corners: corners.clone(),
             radius: say(radius),
+            construction: *construction,
         },
         Operation::CircularPattern {
             sketch,
@@ -189,6 +193,9 @@ fn where_it_was(sketch: &Sketch) -> SketchIdMap {
             .collect(),
         ellipses: (0..sketch.ellipses().len())
             .map(|rank| (EllipseId(rank), EllipseId(rank)))
+            .collect(),
+        cuts: (0..sketch.corner_cuts().len())
+            .map(|rank| (CornerCutId(rank), CornerCutId(rank)))
             .collect(),
     }
 }

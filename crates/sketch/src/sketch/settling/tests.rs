@@ -545,23 +545,26 @@ fn an_axis_end_swung_onto_a_place_as_far_out_as_it_stands_ends_there() {
 }
 
 #[test]
-fn a_rounded_corner_keeps_its_rectangle_from_going_through_inside_out() {
-    let (mut sketch, [a, ..], sides) = upright();
-    sketch
-        .fillet(sides[1], sides[2], 10.0)
+fn a_rounded_corner_settles_as_its_sharp_corner_would() {
+    let (mut sharp, [a, ..], sides) = upright();
+    let mut rounded = sharp.clone();
+    rounded
+        .cut_corner(
+            sides[1],
+            sides[2],
+            crate::corner_cut::CutShape::Fillet { radius: 10.0 },
+            false,
+            0,
+        )
         .expect("the top right corner rounded");
 
-    sketch.settle_around(a, DVec2::new(140.0, 90.0), 1.0);
+    sharp.settle_around(a, DVec2::new(140.0, 90.0), 1.0);
+    rounded.settle_around(a, DVec2::new(140.0, 90.0), 1.0);
 
-    assert!(
-        direction(&sketch, sides[1]).y > 0.0,
-        "the right side still runs up into the rounding: {}",
-        direction(&sketch, sides[1])
-    );
-    assert!(
-        direction(&sketch, sides[2]).x < 0.0,
-        "the top still runs away from it: {}",
-        direction(&sketch, sides[2])
+    assert_eq!(
+        rounded.points(),
+        sharp.points(),
+        "the cut lays nothing the solver reads"
     );
 }
 

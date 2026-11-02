@@ -1,15 +1,13 @@
-use cao_part::history::ChamferAsked;
-use cao_part::{Formula, Operation};
-use cao_sketch::{
-    Chamfer, ChamferMode, Corner, LockedInput, PointId, SegmentId, Sketch, ToolState,
-};
+use cao_sketch::{ChamferMode, Corner, PointId, SegmentId, Sketch, ToolState};
 use glam::DVec2;
 
 use crate::screens::sketch::Tool;
 
+mod laying;
 mod preview;
 use crate::screens::SketchContext;
 use crate::wording::outcome;
+use laying::{held_back, in_units, laying, shape_of, typed};
 pub(crate) use preview::previewed;
 
 /// One click of the chamfer or the fillet tool.
@@ -42,6 +40,11 @@ pub(crate) fn corner(
     }
 
     match clicked(sketch, cursor, snap, takes_a_point(context)) {
+        CornerClick::Corner(corner) if already_cut(sketch, corner) => {
+            keep_typing(context);
+            context.editor.message = Some(context.lang.t("sketch.corner_already_cut"));
+            return true;
+        }
         CornerClick::Corner(corner) => {
             toggle(sketch, &mut taken, corner);
             wait_for_values(context, taken, None);
@@ -71,6 +74,11 @@ pub(crate) fn corner(
                 return true;
             }
             let corner = Corner::Between(first, side);
+            if already_cut(sketch, corner) {
+                keep_typing(context);
+                context.editor.message = Some(context.lang.t("sketch.corner_already_cut"));
+                return true;
+            }
             // Named this way a corner carries its own first side, so a mode
             // that measures from one gathers corners like any other. What it
             // cannot do is take a corner by its point, which would leave it no
@@ -200,10 +208,18 @@ pub(crate) fn cut(context: &mut SketchContext<'_>, index: usize) -> bool {
         return false;
     };
 
+    if let Some(said) = held_back(context, index, &taken, asked, rounding) {
+        keep_typing(context);
+        context.editor.message = Some(context.lang.t(said));
+        return false;
+    }
+
     let written = [0, 1].map(|rank| context.editor.live.written(rank));
-    let applied = context
-        .document
-        .apply(laying(index, taken, asked, rounding, written));
+    let construction = context.editor.construction;
+    let applied =
+        context
+            .document
+            .apply(laying(index, taken, asked, rounding, written, construction));
     context.editor.tool_state = ToolState::None;
     context.editor.live.clear();
     context.editor.message = outcome::message(context.lang, applied)
@@ -211,76 +227,12 @@ pub(crate) fn cut(context: &mut SketchContext<'_>, index: usize) -> bool {
     true
 }
 
-/// The operation that lays every corner taken. Whether each of them fits is
-/// the drawing's business, and a corner too tight is counted and said rather
-/// than stopping the rest.
-///
-/// Each value goes in as it was typed, so that a corner cut from the part's
-/// variables follows them: `written` is what the two fields hold, as written.
-fn laying(
-    index: usize,
-    taken: Vec<Corner>,
-    asked: Chamfer,
-    rounding: bool,
-    written: [Option<Formula>; 2],
-) -> Operation {
-    let [first, second] = written;
-    let as_typed = |typed: Option<Formula>, number: f64| typed.unwrap_or(Formula::Number(number));
-    let mode = match asked {
-        Chamfer::Equal(reach) if rounding => {
-            return Operation::Fillet {
-                sketch: index,
-                corners: taken,
-                radius: as_typed(first, reach),
-            };
-        }
-        Chamfer::Equal(reach) => ChamferAsked::Equal(as_typed(first, reach)),
-        Chamfer::Angled { along, degrees } => ChamferAsked::Angled {
-            along: as_typed(first, along),
-            degrees: as_typed(second, degrees),
-        },
-        Chamfer::Sided {
-            first: near,
-            second: far,
-        } => ChamferAsked::Sided {
-            first: as_typed(first, near),
-            second: as_typed(second, far),
-        },
-    };
-    Operation::Chamfer {
-        sketch: index,
-        corners: taken,
-        mode,
-    }
-}
-
-/// The values the tool needs, once they have all been typed. A fillet asks for
-/// a radius and nothing else, whichever mode the chamfer beside it is in.
-fn typed(locked: LockedInput, mode: ChamferMode, rounding: bool) -> Option<Chamfer> {
-    let first = locked.first?;
-    if rounding {
-        return Some(Chamfer::Equal(first));
-    }
-    match mode.wants() {
-        1 => Some(mode.of(first, first)),
-        _ => Some(mode.of(first, locked.second?)),
-    }
-}
-
-/// A chamfer as the drawing measures it, for asking whether it fits: the
-/// values are typed in millimetres, and the sketch works in its own units.
-fn in_units(asked: Chamfer, millimeters_per_unit: f64) -> Chamfer {
-    match asked {
-        Chamfer::Equal(reach) => Chamfer::Equal(reach / millimeters_per_unit),
-        Chamfer::Sided { first, second } => Chamfer::Sided {
-            first: first / millimeters_per_unit,
-            second: second / millimeters_per_unit,
-        },
-        Chamfer::Angled { along, degrees } => Chamfer::Angled {
-            along: along / millimeters_per_unit,
-            degrees,
-        },
-    }
+/// Whether a cut already stands on the corner. Until a cut can be changed in
+/// place, a corner is cut once.
+fn already_cut(sketch: &Sketch, corner: Corner) -> bool {
+    sketch
+        .corner_point(corner)
+        .is_some_and(|point| sketch.cut_standing_at(point).is_some())
 }
 
 fn asks_for(context: &SketchContext<'_>, mode: ChamferMode) -> String {

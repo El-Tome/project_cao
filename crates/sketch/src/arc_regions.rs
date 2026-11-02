@@ -221,7 +221,7 @@ impl Sketch {
             // those two ever arrive here. Naming a bend for the others would
             // be inventing one: a straight trait about the world origin reads
             // as a plausible wrong area rather than as nothing at all.
-            CurveId::Arc(_) | CurveId::Segment(_) => None,
+            CurveId::Arc(_) | CurveId::Segment(_) | CurveId::Corner(_) => None,
         }
     }
 }

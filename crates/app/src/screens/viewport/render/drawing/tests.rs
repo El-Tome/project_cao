@@ -69,6 +69,7 @@ fn painted(active: bool) -> (Vec<cao_render::Vertex>, Vec<cao_render::Vertex>) {
     let shown = Shown {
         sketch: &sketch,
         laid: &[],
+        cuts: &[],
         going: None,
         active,
     };
@@ -211,6 +212,7 @@ fn painted_with_the_length_going(said_to_go: bool) -> Vec<cao_render::Vertex> {
     let shown = Shown {
         sketch: &sketch,
         laid: &[],
+        cuts: &[],
         going: Some(&going),
         active: true,
     };

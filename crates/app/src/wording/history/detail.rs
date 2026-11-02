@@ -164,11 +164,13 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
             sketch,
             corners,
             mode,
+            ..
         } => sized::chamfer(lang, variables, *sketch, corners.len(), mode),
         Operation::Fillet {
             sketch,
             corners,
             radius,
+            ..
         } => sized::fillet(lang, variables, *sketch, corners.len(), radius),
         Operation::Mirror {
             sketch,

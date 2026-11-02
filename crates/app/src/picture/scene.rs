@@ -1,6 +1,6 @@
 use cao_part::PartDocument;
 use cao_render::{CubeFace, CubeZone, OrbitCamera, SceneFrame, Vertex, ViewportRect};
-use cao_sketch::{Sketch, sweep_of};
+use cao_sketch::{CutCurve, Sketch, sweep_of};
 use glam::{DVec2, Vec3};
 
 /// What a picture of a part is made of: its matter and its drawings, and
@@ -103,9 +103,25 @@ fn extent(lines: &[Vertex], matter: &[[Vec3; 3]]) -> (Vec3, f32) {
 fn push_drawing(out: &mut Vec<Vertex>, sketch: &Sketch) {
     let at = |point: DVec2| sketch.plane.to_world(point).as_vec3();
 
-    for (id, _) in sketch.live_segments() {
-        let (start, end) = sketch.endpoints(id);
+    let drawn = sketch.drawn_cuts();
+    let pulled = sketch.pulled_ends(&drawn);
+    for (id, segment) in sketch.live_segments() {
+        let Some(ends) = sketch.visible_ends(id, &pulled) else {
+            continue;
+        };
+        let start = ends[0].unwrap_or(sketch.point(segment.start));
+        let end = ends[1].unwrap_or(sketch.point(segment.end));
         push_step(out, at(start), at(end));
+    }
+    for cut in drawn.iter().filter(|cut| cut.fits) {
+        match cut.curve {
+            CutCurve::Straight { from, to } => push_step(out, at(from), at(to)),
+            CutCurve::Arc(drawn) => {
+                let radius = (drawn.start - drawn.centre).length();
+                let from = (drawn.start - drawn.centre).to_angle();
+                push_curve(out, drawn.centre, radius, from, sweep_of(drawn), &at);
+            }
+        }
     }
     for (_, circle) in sketch.live_circles() {
         let centre = sketch.point(circle.center);

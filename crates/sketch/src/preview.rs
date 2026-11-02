@@ -1,7 +1,6 @@
-use crate::chamfer::Chamfered;
+use crate::corner_cut::CornerCutId;
 use crate::duplicating::Duplicated;
 use crate::element::Element;
-use crate::fillet::Rounded;
 use crate::sketch::Sketch;
 
 /// A drawing as a tool would leave it, and what the tool would have put there.
@@ -13,14 +12,25 @@ use crate::sketch::Sketch;
 pub struct Preview {
     pub sketch: Sketch,
     pub laid: Vec<Element>,
+    /// The fillets and chamfers the change laid, drawn with it.
+    pub cuts: Vec<CornerCutId>,
 }
 
 /// What a change left behind, read as pieces of the drawing.
 pub trait Laid {
     fn laid(&self) -> Vec<Element>;
+
+    /// The corners it cut. A change that cuts none says nothing.
+    fn cuts(&self) -> Vec<CornerCutId> {
+        Vec::new()
+    }
 }
 
 impl Laid for Duplicated {
+    fn cuts(&self) -> Vec<CornerCutId> {
+        self.cuts.clone()
+    }
+
     fn laid(&self) -> Vec<Element> {
         let points = self.points.iter().copied().map(Element::Point);
         let segments = self.segments.iter().copied().map(Element::Segment);
@@ -36,20 +46,19 @@ impl Laid for Duplicated {
     }
 }
 
-impl Laid for Rounded {
+/// Every corner a chamfer or a fillet was shown, cut with the same values.
+/// They are no piece of the drawing: what they draw is read off their corner.
+impl Laid for Vec<CornerCutId> {
     fn laid(&self) -> Vec<Element> {
-        vec![Element::Arc(self.arc)]
+        Vec::new()
+    }
+
+    fn cuts(&self) -> Vec<CornerCutId> {
+        self.clone()
     }
 }
 
-impl Laid for Chamfered {
-    fn laid(&self) -> Vec<Element> {
-        vec![Element::Segment(self.cut)]
-    }
-}
-
-/// One gesture that lays several things at once — every corner a chamfer or a
-/// fillet was shown, cut with the same values.
+/// One gesture that lays several things at once.
 impl Laid for Vec<Element> {
     fn laid(&self) -> Vec<Element> {
         self.clone()
@@ -70,6 +79,7 @@ impl Sketch {
         let made = change(&mut trial)?;
         Some(Preview {
             laid: made.laid(),
+            cuts: made.cuts(),
             sketch: trial,
         })
     }

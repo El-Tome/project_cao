@@ -180,6 +180,8 @@ impl Sketch {
         .collect();
 
         self.hand_over(segment, &pieces, &carried);
+        let laid: Vec<SegmentId> = pieces.iter().map(|piece| piece.id).collect();
+        self.cuts_follow_pieces(segment, &laid);
 
         let rules_dropped = dropped
             .iter()

@@ -4,8 +4,8 @@
 //! rule moving the drawing is #501's to check.
 
 use cao_sketch::{
-    Chamfer, ChosenAxis, Crossing, Element, EllipseMode, PointId, Repeats, Sketch, SketchAxis,
-    Support, WorkPlane, ellipse_from, rise_of,
+    Chamfer, ChosenAxis, Crossing, CutShape, Element, EllipseMode, PointId, Repeats, Sketch,
+    SketchAxis, Support, WorkPlane, ellipse_from, rise_of,
 };
 use glam::DVec2;
 
@@ -202,14 +202,26 @@ impl Gesture {
                 if let Some((first, second)) =
                     point_at(sketch, *at).and_then(|point| sketch.corner_at(point))
                 {
-                    sketch.fillet(first, second, *radius);
+                    let _ = sketch.cut_corner(
+                        first,
+                        second,
+                        CutShape::Fillet { radius: *radius },
+                        false,
+                        0,
+                    );
                 }
             }
             Gesture::Chamfer { at, length } => {
                 if let Some((first, second)) =
                     point_at(sketch, *at).and_then(|point| sketch.corner_at(point))
                 {
-                    sketch.chamfer(first, second, Chamfer::Equal(*length));
+                    let _ = sketch.cut_corner(
+                        first,
+                        second,
+                        CutShape::Chamfer(Chamfer::Equal(*length)),
+                        false,
+                        0,
+                    );
                 }
             }
             Gesture::Mirror { of, axis } => {

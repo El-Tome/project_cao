@@ -318,16 +318,21 @@ pub enum Operation {
         arcs: Vec<ArcId>,
         at: DVec2,
     },
-    /// Cuts the corner two traits share with a straight line, pulling each of
-    /// them back from it by what the mode asks.
+    /// Cuts the corner two traits share with a straight line, as much of each
+    /// side taken as the mode asks.
     ///
     /// Every corner the one gesture named, cut with the same values. They are
     /// one operation so that undo takes back the gesture rather than a quarter
-    /// of it, and so the history reads as the one thing that was done.
+    /// of it, so the history reads as the one thing that was done, and so the
+    /// corners stay one group that changes together.
     Chamfer {
         sketch: usize,
         corners: Vec<Corner>,
         mode: ChamferAsked,
+        /// Whether the cut is drawn as construction, as the toggle stood when
+        /// it was laid.
+        #[serde(default)]
+        construction: bool,
     },
     /// Lays a second copy of what was selected on the other side of an axis.
     ///
@@ -364,12 +369,16 @@ pub enum Operation {
         across: RepeatsAsked,
     },
     /// Rounds every corner the one gesture named into a curve tangent to both
-    /// its traits, for the reason `Chamfer` carries several.
+    /// its traits, for the reasons `Chamfer` carries several.
     Fillet {
         sketch: usize,
         corners: Vec<Corner>,
         /// Millimetres, like every other length the user types.
         radius: Formula,
+        /// Whether the curve is drawn as construction, as the toggle stood
+        /// when it was laid.
+        #[serde(default)]
+        construction: bool,
     },
     /// Sweeps closed areas of a sketch around an axis lying in its plane.
     Revolve {

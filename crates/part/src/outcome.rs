@@ -17,38 +17,13 @@ pub enum Outcome {
     Cut {
         rules: usize,
         values: usize,
-        /// Corners the value did not fit. One gesture names several, and a
-        /// corner too tight for the radius asked does not stop the others —
-        /// so it is counted and said, rather than silently dropped.
+        /// Corners the gesture named that were not there to cut, or were cut
+        /// already. One gesture names several, and a corner refused does not
+        /// stop the others — so it is counted and said, rather than silently
+        /// dropped.
         refused: usize,
     },
     /// A rule the drawing could not hold, whatever gave way: the drawing is as
     /// it was, and the rule was not laid.
     RuleRefused,
-}
-
-impl Outcome {
-    /// Two cuts of one gesture, counted together: what the whole gesture cost
-    /// is what the user is told, not what each corner of it cost.
-    pub(crate) fn and(self, other: Self) -> Self {
-        match (self, other) {
-            (
-                Self::Cut {
-                    rules,
-                    values,
-                    refused,
-                },
-                Self::Cut {
-                    rules: more,
-                    values: worth,
-                    refused: turned_away,
-                },
-            ) => Self::Cut {
-                rules: rules + more,
-                values: values + worth,
-                refused: refused + turned_away,
-            },
-            (_, last) => last,
-        }
-    }
 }

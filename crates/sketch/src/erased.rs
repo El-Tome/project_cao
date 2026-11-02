@@ -13,6 +13,8 @@ pub(crate) struct Erased {
     pub(crate) arcs: Vec<bool>,
     #[serde(default)]
     pub(crate) ellipses: Vec<bool>,
+    #[serde(default)]
+    pub(crate) cuts: Vec<bool>,
 }
 
 impl Erased {

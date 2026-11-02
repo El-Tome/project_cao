@@ -105,7 +105,7 @@ pub(super) fn drag_point(
         // only ever be freed by deleting the marks that hold it.
         let settled = sketch.settled_points(context.document.scale());
         let dragged_point = sketch
-            .nearest_point(pressed, snap)
+            .point_to_drag_at(pressed, snap)
             .filter(|point| !sketch.is_origin(*point))
             .filter(|point| {
                 let holds = sketch.holds_on(*point);

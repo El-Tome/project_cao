@@ -1,10 +1,11 @@
-//! What a part does with a chamfer: the corner is cut back, the history says
-//! the same thing every time it is replayed, and the distances are read in
-//! millimetres like every other length the user types.
+//! What a part does with a chamfer: the corner stays two whole traits and is
+//! drawn cut, the history says the same thing every time it is replayed, and
+//! the distances are read in millimetres like every other length the user
+//! types.
 
 use cao_part::history::{Operation, PointRef};
 use cao_part::{Outcome, PartState};
-use cao_sketch::{Chamfer, Corner, PointId, SegmentId, WorkPlane};
+use cao_sketch::{Chamfer, Corner, CutCurve, DrawnCut, PointId, SegmentId, WorkPlane};
 use glam::DVec2;
 
 const CORNER: DVec2 = DVec2::new(2.0, 1.0);
@@ -41,28 +42,44 @@ fn replay(operations: &[Operation]) -> PartState {
     state
 }
 
-/// The traits the shape is drawn with — not the stretches the cut took off,
-/// which stand there in construction to carry what the corner was worth.
-fn ends(state: &PartState) -> Vec<(DVec2, DVec2)> {
+/// Where each side is drawn from and to, then where the cut runs.
+fn drawn(state: &PartState) -> (Vec<Option<(DVec2, DVec2)>>, Vec<DrawnCut>) {
     let sketch = &state.sketches[0];
-    sketch
+    let sides = sketch
         .live_segments()
-        .filter(|(_, segment)| !segment.construction)
-        .map(|(id, _)| sketch.endpoints(id))
-        .collect()
+        .map(|(id, _)| sketch.visible_part(id))
+        .collect();
+    (sides, sketch.drawn_cuts())
 }
 
 #[test]
-fn a_chamfer_leaves_three_traits_where_a_corner_had_two() {
+fn a_chamfer_draws_a_cut_across_the_corner_and_leaves_both_traits_whole() {
     let mut state = replay(&a_right_angle());
 
     let said = state.apply(&Operation::Chamfer {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Equal(3.0).into(),
+        construction: false,
     });
 
-    assert_eq!(ends(&state).len(), 3);
+    let sketch = &state.sketches[0];
+    assert_eq!(
+        sketch.live_segments().count(),
+        2,
+        "nothing is laid but the cut"
+    );
+    let (sides, cuts) = drawn(&state);
+    assert_eq!(cuts.len(), 1);
+    assert!(matches!(cuts[0].curve, CutCurve::Straight { .. }));
+    assert_eq!(
+        sides[0],
+        Some((
+            CORNER + DVec2::new(3.0, 0.0),
+            CORNER + DVec2::new(10.0, 0.0)
+        )),
+        "the side is drawn from where the cut meets it"
+    );
     assert_eq!(
         said,
         Some(Outcome::Cut {
@@ -75,7 +92,7 @@ fn a_chamfer_leaves_three_traits_where_a_corner_had_two() {
 }
 
 #[test]
-fn a_chamfer_replayed_rebuilds_the_corner_it_cut() {
+fn a_chamfer_replayed_draws_the_same_cut() {
     let mut operations = a_right_angle();
     operations.push(Operation::Chamfer {
         sketch: 0,
@@ -85,10 +102,11 @@ fn a_chamfer_replayed_rebuilds_the_corner_it_cut() {
             second: 6.0,
         })
         .into(),
+        construction: false,
     });
 
-    assert_eq!(ends(&replay(&operations)), ends(&replay(&operations)));
-    assert_eq!(ends(&replay(&operations)).len(), 3);
+    assert_eq!(drawn(&replay(&operations)), drawn(&replay(&operations)));
+    assert_eq!(drawn(&replay(&operations)).1.len(), 1);
 }
 
 #[test]
@@ -100,14 +118,13 @@ fn a_chamfer_is_measured_in_millimetres_like_every_other_length() {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Equal(6.0).into(),
+        construction: false,
     });
 
-    let sketch = &state.sketches[0];
-    let reached = sketch
-        .live_points()
-        .any(|(_, place)| place.distance(CORNER + DVec2::new(3.0, 0.0)) <= TOLERANCE);
+    let (_, cuts) = drawn(&state);
     assert!(
-        reached,
-        "six millimetres at two millimetres to the unit is three units along the side"
+        cuts[0].touches[0].distance(CORNER + DVec2::new(3.0, 0.0)) <= TOLERANCE,
+        "six millimetres at two millimetres to the unit is three units along the side: {:?}",
+        cuts[0]
     );
 }

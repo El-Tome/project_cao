@@ -3,10 +3,11 @@
 //! change them.
 
 use cao_prefs::theme::Theme;
-use cao_sketch::{Element, Going, PointId, Preview, Selection, Sketch};
+use cao_sketch::{CornerCutId, Element, Going, PointId, Preview, Selection, Sketch};
 use glam::DVec2;
 
-use super::curves::{push_arc_at, push_circle_at, push_ellipse_at, push_line};
+use super::curves::{push_arc_at, push_circle_at, push_ellipse_at};
+use super::cuts::{CutCanvas, Stroke};
 use super::marks::push_point_markers;
 use super::preview::push_preview;
 use super::trim::{LOUDER, push_going};
@@ -97,6 +98,8 @@ pub(crate) fn what_would_be_laid(
 pub(crate) struct Shown<'a> {
     pub(crate) sketch: &'a Sketch,
     pub(crate) laid: &'a [Element],
+    /// The corners a tool is only offering to cut.
+    pub(crate) cuts: &'a [CornerCutId],
     /// What the tool in hand would take away, drawn over the rest rather than
     /// in place of it: what is aimed at has to stay visible.
     pub(crate) going: Option<&'a Going>,
@@ -114,6 +117,7 @@ pub(crate) fn push_sketch(
     let Shown {
         sketch,
         laid,
+        cuts,
         going,
         active,
     } = *shown;
@@ -125,6 +129,7 @@ pub(crate) fn push_sketch(
     let settled = sketch.settled_points(context.document.scale());
     let holds = |point: PointId| settled.get(point.0).copied().unwrap_or(false);
 
+    let canvas = CutCanvas::read(sketch, context);
     for (id, segment) in sketch.live_segments() {
         let held = holds(segment.start) && holds(segment.end);
         let (color, width) = match sketch.is_held(Element::Segment(id)) {
@@ -139,14 +144,18 @@ pub(crate) fn push_sketch(
             color,
             width,
         );
-        let start = sketch
-            .plane
-            .to_world(shown_position(sketch, segment.start, context));
-        let end = sketch
-            .plane
-            .to_world(shown_position(sketch, segment.end, context));
-        push_line(out, start, end, color, width, segment.construction, scale);
+        let ends = (
+            shown_position(sketch, segment.start, context),
+            shown_position(sketch, segment.end, context),
+        );
+        let stroke = Stroke {
+            color,
+            width,
+            construction: segment.construction,
+        };
+        canvas.push_side(out, id, ends, stroke, (theme, scale));
     }
+    canvas.push_cuts(out, cuts, (active, &settled), (theme, scale), context);
 
     for (id, circle) in sketch.live_circles() {
         let (color, width) = match sketch.is_held(Element::Circle(id)) {

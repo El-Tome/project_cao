@@ -32,11 +32,8 @@
 //!   ellipse takes it the same way —
 //!   `the_end_of_a_trait_comes_onto_the_drawn_half_of_an_ellipse_clicked_first`
 //! - a fillet lengthens too, the trait it is tangent to turning with its end —
-//!   `a_fillet_lengthens_to_a_point_clicked_first_its_trait_turning_with_its_end`.
-//!   One whose shape cannot follow comes until what is drawn reaches the
-//!   point, as half an ellipse drawn by its ends does — no test here: met by
-//!   the campaign of `a_point_laid_on_a_trait_or_a_curve_at_random.rs`, seed
-//!   8 among the gate's
+//!   no test: since #617 a fillet is drawn from its corner and is no curve of
+//!   the drawing a point can be laid on; hanging a point on one is #620's
 //! - a fixed curve and a point clicked first: the point comes onto it —
 //!   `a_point_comes_onto_a_fixed_curve_clicked_second`, and the same for a
 //!   curve that cannot move whole: a fixed circle, which holds only its
@@ -53,8 +50,8 @@
 
 use cao_part::{Operation, Outcome, PartDocument, PointRef};
 use cao_sketch::{
-    ArcId, CLEAR_OF_AN_END, CircleId, Constraint, Corner, Element, EllipseId, PointId, Rule,
-    RuleIntent, RulePick, SegmentId, Sketch, WorkPlane, rule_intent,
+    ArcId, CLEAR_OF_AN_END, CircleId, Constraint, Element, EllipseId, PointId, Rule, RuleIntent,
+    RulePick, SegmentId, Sketch, WorkPlane, rule_intent,
 };
 use glam::DVec2;
 
@@ -860,59 +857,5 @@ fn a_point_held_past_the_end_of_an_arc_stays_there_when_the_history_is_compacted
     assert!(
         gone.is_empty(),
         "the compaction moved the points at {gone:?}"
-    );
-}
-
-#[test]
-fn a_fillet_lengthens_to_a_point_clicked_first_its_trait_turning_with_its_end() {
-    let mut document = blank();
-    let corner = DVec2::new(40.0, 30.0);
-    a_trait(&mut document, corner, DVec2::new(70.0, 30.0));
-    let at = point_at(&document.sketches()[0], corner);
-    document.apply(Operation::AddSegment {
-        sketch: 0,
-        start: PointRef::Existing(at),
-        end: PointRef::New(DVec2::new(40.0, 60.0)),
-        construction: false,
-    });
-    document.apply(Operation::Fillet {
-        sketch: 0,
-        corners: vec![Corner::At(at)],
-        radius: 5.0.into(),
-    });
-    let arc = ArcId(0);
-    let tip = DVec2::new(100.0, -20.0);
-    let line = a_trait(&mut document, DVec2::new(120.0, -20.0), tip);
-    let apart = a_trait_apart(&mut document);
-    let before = document.sketches()[0].clone();
-    let point = point_at(&before, tip);
-    let (radius, sweep) = (before.arc_radius(arc), before.arc_sweep(arc).to_degrees());
-
-    let outcome = laid(&mut document, point, Element::Arc(arc), true);
-
-    let sketch = &document.sketches()[0];
-    let off = sketch.distance_to_arc(arc, tip);
-    let now = sketch.arc_sweep(arc).to_degrees();
-    assert_eq!(outcome, None, "the rule was refused");
-    assert!(
-        moved(&before, sketch, &ends(sketch, line)) < ON,
-        "the point clicked first, or its trait, moved"
-    );
-    assert!(
-        off < ON_THE_CURVE,
-        "the point stands {off} off what is drawn"
-    );
-    assert!(
-        (sketch.arc_radius(arc) - radius).abs() < ON,
-        "the radius went from {radius} to {}",
-        sketch.arc_radius(arc)
-    );
-    assert!(
-        now > sweep + 1.0,
-        "the fillet did not lengthen: {sweep}° to {now}°"
-    );
-    assert!(
-        moved(&before, sketch, &ends(sketch, apart)) < ON,
-        "a trait apart moved"
     );
 }

@@ -215,8 +215,8 @@ pub fn carried(how: Relaying, at: DVec2) -> DVec2 {
 
 /// The same points and curves laid on a fresh sketch, carried as `how` says,
 /// and in the reverse of the order they were drawn in when it says so — each
-/// trait then drawn from its other end. Rules and values are left behind: no
-/// area reads them.
+/// trait then drawn from its other end — with the same corners cut. Rules and
+/// values are left behind: no area reads them.
 pub fn relaid(sketch: &Sketch, how: Relaying) -> Sketch {
     let reverse = how == Relaying::Reordered;
     let mirror = how == Relaying::Mirrored;
@@ -241,6 +241,7 @@ pub fn relaid(sketch: &Sketch, how: Relaying) -> Sketch {
             laid
         }
     };
+    let mut sides = std::collections::HashMap::new();
     for (id, segment) in ordered(sketch.live_segments().collect(), reverse) {
         if sketch.ellipse_of_axis(id).is_some() {
             continue;
@@ -250,10 +251,20 @@ pub fn relaid(sketch: &Sketch, how: Relaying) -> Sketch {
             point(&mut again, segment.end),
         );
         let (start, end) = if reverse { (end, start) } else { (start, end) };
-        match segment.construction {
+        let laid = match segment.construction {
             true => again.add_construction_segment(start, end),
             false => again.add_segment(start, end),
         };
+        sides.insert(id, laid);
+    }
+    for (_, cut) in ordered(sketch.live_corner_cuts().collect(), reverse) {
+        let _ = again.cut_corner(
+            sides[&cut.sides[0]],
+            sides[&cut.sides[1]],
+            cut.shape,
+            cut.construction,
+            cut.group,
+        );
     }
     for (_, circle) in ordered(sketch.live_circles().collect(), reverse) {
         let centre = point(&mut again, circle.center);

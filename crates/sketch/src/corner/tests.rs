@@ -105,18 +105,23 @@ fn a_corner_named_either_way_stands_at_the_same_point() {
 }
 
 #[test]
-fn a_corner_already_cut_is_no_corner_to_cut_again() {
+fn a_corner_already_cut_still_names_its_two_traits() {
     let (mut sketch, along, up, pivot) = a_right_angle();
 
     sketch
-        .chamfer(along, up, Chamfer::Equal(3.0))
+        .cut_corner(
+            along,
+            up,
+            crate::corner_cut::CutShape::Chamfer(Chamfer::Equal(3.0)),
+            false,
+            0,
+        )
         .expect("a corner that can be cut");
 
     assert_eq!(
         sketch.corner_at(pivot),
-        None,
-        "the two stretches the cut laid back in still meet there, and taking \
-         them for a corner is what let the same corner be cut twice"
+        Some((along, up)),
+        "the cut leaves both traits whole and meeting where they met"
     );
 }
 

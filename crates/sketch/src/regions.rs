@@ -140,6 +140,7 @@ impl Sketch {
             .collect();
 
         hollow::nest(&mut regions, outsides);
+        self.name_the_sides_cuts_took(&mut regions);
         regions.sort_by_key(|region| region.depth);
         regions
     }

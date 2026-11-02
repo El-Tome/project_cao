@@ -164,6 +164,7 @@ fn a_slot_cut_through_a_raised_rounded_rectangle_leaves_the_arithmetics_volume()
             .map(|side| Corner::Between(SegmentId(side), SegmentId((side + 1) % 4)))
             .collect(),
         radius: 5.0.into(),
+        construction: false,
     });
     raise(
         &mut history,
@@ -877,6 +878,7 @@ fn a_rounded_plate(round: f64) -> History {
             .map(|side| Corner::Between(SegmentId(side), SegmentId((side + 1) % 4)))
             .collect(),
         radius: round.into(),
+        construction: false,
     });
     raise(
         &mut history,

@@ -45,8 +45,10 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// (#576). 13: a turn the exact kernel cannot make is a broken step, where
 /// the flats made it and every step after it (#632). 14: a groove tangent to
 /// its walls is laid about an axis leaning a hair, where the reading declined
-/// it, and its end stays at the tangent (#633).
-const REBUILT_BY: u32 = 14;
+/// it, and its end stays at the tangent (#633). 15: a fillet or a chamfer is
+/// drawn from its sharp corner rather than laid as geometry, and a replay
+/// draws it there (#617).
+const REBUILT_BY: u32 = 15;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

@@ -88,17 +88,6 @@ impl ChamferAsked {
         })
     }
 
-    /// Each value as written, in the order `Chamfered::typed` lays them down
-    /// as dimensions: the reach twice for an even cut, otherwise the two
-    /// values in the order they are asked.
-    pub(crate) fn as_laid(&self) -> [&Formula; 2] {
-        match self {
-            Self::Equal(reach) => [reach, reach],
-            Self::Angled { along, degrees } => [along, degrees],
-            Self::Sided { first, second } => [first, second],
-        }
-    }
-
     /// Every formula it is written with.
     pub fn formulas(&self) -> Vec<&Formula> {
         match self {

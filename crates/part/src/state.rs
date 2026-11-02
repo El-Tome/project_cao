@@ -331,12 +331,14 @@ impl PartState {
                 sketch,
                 corners,
                 mode,
-            } => self.chamfer(*sketch, corners, mode),
+                construction,
+            } => self.chamfer(*sketch, corners, mode, *construction),
             Operation::Fillet {
                 sketch,
                 corners,
                 radius,
-            } => self.fillet(*sketch, corners, radius),
+                construction,
+            } => self.fillet(*sketch, corners, radius, *construction),
             Operation::Mirror {
                 sketch,
                 elements,

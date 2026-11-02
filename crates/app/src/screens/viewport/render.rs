@@ -12,6 +12,7 @@ use glam::DVec2;
 mod arc;
 mod circle;
 mod curves;
+mod cuts;
 mod dimensions;
 mod drawing;
 mod ellipse;
@@ -137,6 +138,7 @@ pub(crate) fn build_frame(
         let shown = Shown {
             sketch: shown,
             laid: offered.as_ref().map_or(&[][..], |preview| &preview.laid),
+            cuts: offered.as_ref().map_or(&[][..], |preview| &preview.cuts),
             going: active.then_some(going).flatten(),
             active,
         };

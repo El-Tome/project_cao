@@ -5,7 +5,7 @@
 //!   `every_corner_taken_is_shown_wherever_the_cursor_is`,
 //!   `the_side_under_the_cursor_stands_in_for_the_second_click`
 
-use cao_sketch::{ChamferMode, Corner, Element, SegmentId, WorkPlane};
+use cao_sketch::{ChamferMode, Corner, CutCurve, CutShape, SegmentId, WorkPlane};
 
 use super::*;
 
@@ -38,13 +38,21 @@ fn a_radius_typed_on_a_corner_already_clicked_shows_the_curve_before_enter() {
     let shown = previewed(&sketch, &editor, DVec2::ZERO, 0.5, 1.0)
         .expect("a corner with both sides and a radius has a curve to show");
 
-    assert!(
-        matches!(shown.laid.as_slice(), [Element::Arc(_)]),
-        "the curve the click would lay is what is shown, got {:?}",
-        shown.laid
+    assert_eq!(
+        shown.cuts.len(),
+        1,
+        "the cut the click would lay is what is shown"
     );
-    assert!(
-        sketch.arcs().is_empty(),
+    assert!(matches!(
+        shown
+            .sketch
+            .drawn_cut(shown.cuts[0])
+            .map(|drawn| drawn.curve),
+        Some(CutCurve::Arc(_))
+    ));
+    assert_eq!(
+        sketch.live_corner_cuts().count(),
+        0,
         "the drawing itself is not rounded until the click"
     );
 }
@@ -94,11 +102,14 @@ fn a_chamfer_shows_the_straight_cut_its_two_distances_would_leave() {
     let shown = previewed(&sketch, &editor, DVec2::ZERO, 0.5, 1.0)
         .expect("a corner with both distances typed");
 
-    assert!(
-        matches!(shown.laid.as_slice(), [Element::Segment(_)]),
-        "the cut is what is shown, got {:?}",
-        shown.laid
-    );
+    assert_eq!(shown.cuts.len(), 1, "the cut is what is shown");
+    assert!(matches!(
+        shown
+            .sketch
+            .drawn_cut(shown.cuts[0])
+            .map(|drawn| drawn.curve),
+        Some(CutCurve::Straight { .. })
+    ));
 }
 
 #[test]
@@ -109,10 +120,12 @@ fn a_value_typed_in_millimetres_is_shown_at_the_size_the_drawing_measures() {
     let shown = previewed(&sketch, &editor, DVec2::ZERO, 0.5, 2.0)
         .expect("a corner that can be rounded at three units");
 
-    let [Element::Arc(arc)] = shown.laid.as_slice() else {
-        panic!("the curve is what is shown, got {:?}", shown.laid);
+    let [cut] = shown.cuts.as_slice() else {
+        panic!("the cut is what is shown, got {:?}", shown.cuts);
     };
-    let reach = shown.sketch.arc_radius(*arc);
+    let CutShape::Fillet { radius: reach } = shown.sketch.corner_cuts()[cut.0].shape else {
+        panic!("a fillet");
+    };
     assert!(
         (reach - 3.0).abs() <= 1e-9,
         "six millimetres at two per unit is three units, got {reach}"
@@ -129,7 +142,7 @@ fn every_corner_taken_is_shown_wherever_the_cursor_is() {
         .expect("a corner taken shows whatever the cursor is over");
 
     assert_eq!(
-        shown.laid.len(),
+        shown.cuts.len(),
         1,
         "the cursor names a second side only while one is still half a corner"
     );

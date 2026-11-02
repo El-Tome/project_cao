@@ -30,8 +30,19 @@
 //! - a formula can be typed as a chamfer's and a fillet's values —
 //!   `a_chamfer_typed_from_variables_is_laid_as_it_was_written`,
 //!   `a_fillet_typed_as_a_plain_number_is_laid_as_that_number`
+//!
+//! The tool's share of #617, whose criteria live with the part's tests in
+//! `crates/part/tests/a_cut_is_drawn_from_its_sharp_corner.rs`: a value too big
+//! is held back with the largest offered —
+//! `a_value_too_big_is_held_back_and_the_field_offers_the_largest` — and the
+//! « Construction » toggle decides what the cut is laid as —
+//! `a_cut_laid_while_construction_is_on_is_laid_in_construction`. A corner
+//! already cut is refused at the click —
+//! `a_click_on_a_corner_already_cut_is_refused_until_a_cut_can_be_changed`.
 
-use cao_sketch::{Corner, PointId, Sketch, WorkPlane};
+use cao_part::history::ChamferAsked;
+use cao_part::{Formula, Operation, Variables};
+use cao_sketch::{Chamfer, Corner, CutShape, LockedInput, PointId, Sketch, WorkPlane};
 use glam::DVec2;
 
 use super::*;
@@ -297,6 +308,7 @@ fn a_chamfer_typed_from_variables_is_laid_as_it_was_written() {
         },
         false,
         [Some(setback.clone()), Some(slope.clone())],
+        false,
     );
 
     assert!(
@@ -319,10 +331,107 @@ fn a_fillet_typed_as_a_plain_number_is_laid_as_that_number() {
         Chamfer::Equal(2.0),
         true,
         [Some(Formula::Number(2.0)), None],
+        false,
     );
 
     assert!(
         matches!(laid, Operation::Fillet { ref radius, .. } if *radius == Formula::Number(2.0)),
         "{laid:?}"
     );
+}
+
+#[test]
+fn a_cut_laid_while_construction_is_on_is_laid_in_construction() {
+    let laid = laying(
+        0,
+        vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        Chamfer::Equal(2.0),
+        true,
+        [None, None],
+        true,
+    );
+
+    assert!(
+        matches!(
+            laid,
+            Operation::Fillet {
+                construction: true,
+                ..
+            }
+        ),
+        "{laid:?}"
+    );
+}
+
+/// A part holding one rectangle forty by twenty, with the fillet tool holding
+/// its four corners and `typed` in the field.
+fn rounding_a_plate(typed: &str) -> (cao_part::PartDocument, crate::screens::sketch::SketchEditor) {
+    let mut document = cao_part::PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: cao_part::history::PointRef::New(DVec2::ZERO),
+        opposite: cao_part::history::PointRef::New(DVec2::new(40.0, 20.0)),
+        construction: false,
+    });
+    let mut editor = crate::screens::sketch::SketchEditor {
+        tool: Tool::Fillet,
+        tool_state: ToolState::Corner {
+            taken: (0..4)
+                .map(|side| Corner::Between(SegmentId(side), SegmentId((side + 1) % 4)))
+                .collect(),
+            half: None,
+        },
+        ..Default::default()
+    };
+    let field = editor.live.field(0);
+    field.text = typed.to_string();
+    field.take(&Variables::default());
+    (document, editor)
+}
+
+#[test]
+fn a_value_too_big_is_held_back_and_the_field_offers_the_largest() {
+    let (mut document, mut editor) = rounding_a_plate("15");
+    let mut extrusion = crate::screens::extrusion::ExtrusionState::default();
+    let lang = crate::lang::Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    let laid = cut(&mut context, 0);
+
+    assert!(!laid, "nothing is laid");
+    assert_eq!(context.document.sketches()[0].live_corner_cuts().count(), 0);
+    assert_eq!(
+        context.editor.live.typed(0),
+        Some(10.0),
+        "two fillets share a side of twenty"
+    );
+    assert_eq!(context.editor.message, Some(lang.t("sketch.cut_too_big")));
+
+    let laid = cut(&mut context, 0);
+
+    assert!(laid, "a second Enter lays what the field offers");
+    let drawn = context.document.sketches()[0].drawn_cuts();
+    assert_eq!(drawn.len(), 4);
+    assert!(drawn.iter().all(|cut| cut.fits), "{drawn:?}");
+}
+
+#[test]
+fn a_click_on_a_corner_already_cut_is_refused_until_a_cut_can_be_changed() {
+    let (sketch, along, up, pivot) = a_right_angle();
+    let mut sketch = sketch;
+    sketch
+        .cut_corner(along, up, CutShape::Fillet { radius: 2.0 }, false, 0)
+        .expect("a right angle takes a fillet");
+
+    assert!(already_cut(&sketch, Corner::At(pivot)));
+    assert!(already_cut(&sketch, Corner::Between(up, along)));
 }

@@ -37,8 +37,8 @@ staying available everywhere else. See [extrusion.md](extrusion.md).
 | **Point** | One click lays a lone point. |
 | **Dimension** | Two clicks: what is measured, then where the annotation sits. |
 | **Division** | One click on a crossing: a point is laid there and every curve running through it is cut in two. |
-| **Chamfer** | Two clicks: the two traits of a corner. What is taken off each is typed, then `Entrée`. |
-| **Fillet** | The same two clicks, then a radius: the corner becomes a curve tangent to both sides. |
+| **Chamfer** | The corner, by its point or by its two traits. What is taken off each is typed, then `Entrée`. |
+| **Fillet** | The same corner, then a radius: a curve tangent to both sides replaces the corner, and neither side is trimmed. |
 | **Mirror** | Take what is to be copied, `Entrée`, then click the trait or axis to mirror it across. |
 | **Circular pattern** | The same, then a step and a count, then click the point to turn about. |
 | **Rectangular pattern** | The same, then two steps and two counts, then click the trait or axis to run along. |
@@ -535,8 +535,9 @@ is a circle's. Clicking the curve itself with the dimension tool lays nothing.
   it so the place grabbed stays under the hand.
 - The axes **go with the ellipse**: erasing it erases them, and erasing an axis
   erases the ellipse, which cannot stand without it. No tool cuts an axis back —
-  trim, chamfer and fillet leave it whole. Only the two-ends placement lays one
-  short in the first place, and it lays it that way rather than cutting it.
+  trim leaves it whole, and a chamfer or a fillet cannot stand on one. Only the
+  two-ends placement lays one short in the first place, and it lays it that way
+  rather than cutting it.
 
 A trait can be held **tangent to an ellipse**, as it can to a circle: the two
 picks are the trait and the curve, and the trait ends up brushing it and keeps
@@ -896,17 +897,20 @@ A chamfer, a fillet, a mirror or a pattern cannot be traced with a couple of
 lines following the cursor: what they would leave is a drawing, not a shape. So
 the drawing is what is shown. `Sketch::preview` runs the very call the click
 commits against a copy of the sketch, and the canvas paints that copy in place
-of the one on record — the corner already rounded, the copies already laid —
-with whatever is new in it drawn faintly, as a promise rather than as drawing
+of the one on record — the corner already cut, the copies already laid — with
+whatever is new in it drawn faintly, as a promise rather than as drawing
 already there.
 
 That is the same rule as the dimension's, taken to its end: there is no second
 reading to diverge from the first, because there is no second reading. It also
-means nothing is shown for a click the tool would refuse — a corner too tight
-to round shows no curve, and an axis naming no direction shows no copies.
+means nothing is shown for a click the tool would refuse — a corner already cut
+takes no second cut, and an axis naming no direction shows no copies.
 
 The values are read as they are typed, so the curve of a fillet grows under the
-radius being keyed in, and the grid of a pattern fills out as its count does.
+radius being keyed in, and the grid of a pattern fills out as its count does. A
+value too big is shown too, as a cut that does not fit, in the refusal colour
+where it would be, until `Entrée` holds it back and offers the largest that
+fits.
 
 ### While a point is being moved
 
@@ -999,7 +1003,9 @@ equations can no longer even be written.
 A corner pulled past the opposite one is not refused: it goes through, and the
 shape comes out the other way round, its traits on the lines they had. Not
 where that would turn a curve inside out — the ray from an arc's centre to its
-end, or a trait rounded into a fillet or a slot's cap, does not reverse.
+end, or a slot's cap, does not reverse. A cut corner goes through as a sharp one
+would: its cut stands in the angle under 180° between the two sides, so it moves
+round to the other side of the corner rather than turning inside out.
 
 A point that stopped short of the hand is dropped on nothing: what the hand is
 over is not where the point is.
@@ -1023,8 +1029,8 @@ shape would turn on:
   on the side of the pulled one the shape stands on. The ends standing nearly
   as far off as the farthest — within a twentieth — are the far side, whole or
   in pieces, and the shape turns about the middle of the first and the last of
-  them: a rectangle's top, a U's arms, a top rounded or chamfered at its
-  corners, a hexagon's or an octagon's. One end alone that far is a corner,
+  them: a rectangle's top, a U's arms, a top cut at its corners, a hexagon's or
+  an octagon's. One end alone that far is a corner,
   and the far side runs down from it along the one trait whose other end
   stands more than half as far off — a trapezoid's other leg, a slanted top;
   when no trait does, or two alike do, it is the corner itself — a
@@ -1157,8 +1163,9 @@ clicked first stays, and the curve comes to it whole, keeping its size and the
 way it is turned, until it passes through the point. When the point then falls
 beyond what is drawn — of an arc, or of half an ellipse a cut left — the curve
 lengthens a little past it, its opening growing and its radius kept; a circle
-only moves. A fillet lengthens too, the trait it is tangent to turning with its
-end. Half an ellipse drawn by its ends ends on its own axis, which no end can
+only moves. A fillet or a chamfer is no curve of the drawing — it is worked out
+from a sharp corner — so nothing can be laid on one yet (#620). Half an ellipse
+drawn by its ends ends on its own axis, which no end can
 slide off without turning the curve: it does not lengthen, and moves until what
 is drawn reaches the point — as does an arc whose shape cannot follow it
 lengthening. When the curve alone would bend what it is joined to, its whole
@@ -1257,7 +1264,7 @@ when none decides it.
 | Lay a rule | Two free traits made square, the second fixed | The first gives: the order decides before the clicks | Same (#451) |
 | Type a value | A length on the second of two traits made equal | Both take it | Same since #451; it was refused, Equal only ever moving the second |
 | Drag a point | An end of the second of two traits made equal | It follows the hand, and the first trait stretches with it | Same since #451; the end stopped short, Equal only ever moving the second |
-| Cut a corner | A chamfer or a fillet on a corner carrying an angle | The angle, read between the stretches, still turns the trait it was typed from | Same (#451) |
+| Cut a corner | A chamfer or a fillet on a corner carrying an angle | Nothing: the two sides stay whole and the cut is drawn from the corner, so the angle still turns the trait it was typed from | Same (#451); since #617 the cut moves nothing |
 | Lay a rule | A free point on a trait | The point comes onto the trait, whichever was clicked first | Same |
 | Lay a rule | « Coïncidence », a trait clicked first, then a point placed on an arc the trait does not reach | The arc reshapes to bring the point onto the trait; the trait stays | Same (#548); the rule was refused |
 | Lay a rule | The same, the point clicked first | The trait comes to the point; the arc stays | Same (#548); the rule was refused |
@@ -1270,7 +1277,7 @@ when none decides it.
 | Lay a rule | The same with a circle | The circle comes whole, its radius kept | Same (#554); the rule was refused |
 | Lay a rule | The same with half an ellipse a cut left | It comes whole, its axes kept, and lengthens a little past the point | Same (#554); the rule was refused |
 | Lay a rule | The same with half an ellipse drawn by its ends | It comes whole until what is drawn reaches the point, a little inside its end; it does not lengthen | Same (#554); the rule was refused |
-| Lay a rule | The same with the fillet of two free traits | It comes whole and lengthens, the trait it is tangent to turning with its end | Same (#554); the rule was refused |
+| Lay a rule | The same with the fillet of two free traits | Nothing: a fillet is no curve of the drawing, so there is nowhere for the point to land — #620 | Not built: #620 |
 | Lay a rule | « Coïncidence », an arc or half an ellipse clicked first, then the end of a trait | The point comes onto what is drawn, at the nearest place — a little short of an end when the nearest place on the whole curve is past it; the curve stays | Same (#554); the rule was refused |
 | Lay a rule | « Coïncidence », the end of a trait clicked first, then a fixed curve | The curve cannot come: the point comes onto it | Same (#554); the rule was refused |
 | Lay a rule | A point at the middle of a trait | The point comes to the middle; the trait stays | Same (#479); the trait moved a third of the way to the point |
@@ -1586,10 +1593,19 @@ their real shape.
 
 ### A corner is cut off straight
 
-The chamfer tool takes a corner two traits share and replaces it with a
-straight line across it. Two clicks name the sides, and what is taken off each
-is typed in the fields that open between them — nothing is read off the cursor,
-because there is nothing being dragged.
+The chamfer tool takes a corner two traits share and draws a straight line
+across it. Neither side is trimmed: the corner stays a point where two whole
+traits meet, and the cut only says what is drawn there instead of it — see
+"What a cut draws" below (#617).
+
+Where the mode measures from no side, a click on the corner's point names it
+whole; a click on one of its traits names half a corner, which the next click on
+the other trait completes. A mode that measures from the first side has no side
+to measure from when a point names the corner, so it asks for the two traits one
+after the other. One gesture can take several corners, and the values typed
+apply to all of them, `Entrée` laying them together. What is taken off each side
+is typed in the fields that open — nothing is read off the cursor, because
+there is nothing being dragged.
 
 Three ways of saying it, chosen alongside the tool the way a circle's five
 constructions are:
@@ -1601,38 +1617,17 @@ constructions are:
 | Two distances | A distance of its own along each side |
 
 The angle is read where the cut meets the first side, between the cut and the
-stretch of that side still running to the corner — the angle of the triangle
-the cut closes. The corner's own opening and what is left of half a turn give
-the third, which is what fixes the second distance.
+trait itself running to the corner — the angle of the triangle the cut closes.
+The corner's own opening and what is left of half a turn give the third, which
+is what fixes the second distance.
 
-A chamfer asking for more than a side has to give is refused whole, and so are
-two traits that do not meet.
+The values are not left in the drawing as dimensions. The cut is one thing —
+the corner, its two sides and the shape — and writing its numbers down beside it
+would add rules nobody typed. They are written by the canvas beside the curve,
+where they are read and not solved: « 5 mm × 5 mm » or « 5 mm × 45.0° ».
 
-**The corner stays, as a point.** It is held on the line each of the two sides
-now lies on, so it sits at their crossing and follows them wherever they go —
-and anything else that ran into the corner is still attached to it. That point
-is what the typed values are measured from, and it is the reason they read back
-as they were typed: `20 × 20` stays two distances of `20`, not one slanted
-`28.28` at `45°`, and the two-distance mode can be read back at all.
-
-**What was typed is left in the drawing as a dimension, and only that.** Equal
-distances and two distances each leave a distance from the corner out along
-each side; distance and angle leaves the one distance, plus the angle the cut
-makes with the stretch of the first side it was measured from. The angle the two
-sides themselves stand at is nobody's typed value: writing it down would add a
-rule no one asked for, and over-constrain a drawing already dimensioned.
-
-**What the corner was already worth is kept.** A cut used to drop both a length
-given to a side and an angle given between the two — the trait a length measured
-was gone, and the pieces an angle was read between no longer touched. Neither is
-lost now: a length is rehung on the corner, out to the far end, which is the
-span it always measured; an angle is read between the two stretches, which still
-meet there. Only what nothing can carry is still dropped, and the tool says how
-much it cost.
-
-Erasing the corner point takes the dimensions measured from it; erasing one
-dimension takes only that one. Either way the cut stays where it is, held by
-less.
+Nothing the corner already carried is disturbed: a length or an angle read from
+it is read on the whole sides it always was.
 
 ### The matter in front stops hiding the drawing
 
@@ -1658,23 +1653,125 @@ which is what a section view (#193) will be for.
 
 ### A corner is rounded off
 
-The fillet takes the same two clicks as the chamfer and lays a curve across the
-corner instead of a straight line. One value, the radius. Each side is pulled
-back to where the curve grazes it, at a distance the corner's own opening
-decides — a sharp corner gives ground far sooner than a square one for the same
-radius, which is why a fillet that fits a right angle can be refused next door.
+The fillet takes the same corner as the chamfer and draws a curve across it
+instead of a straight line. One value, the radius. The arc meets each side where
+the corner's own opening decides — a sharp corner gives ground farther out than
+a square one for the same radius, which is why a radius can fit a right angle
+and not fit next door.
 
-The curve is **held tangent** to both pieces, by a rule laid down with it.
-Without that it would stop being a fillet the moment anything in the drawing
-moved: the arc and the two sides are loose pieces otherwise, exactly as a trim
-leaves them. The radius typed is left on the arc as a dimension, which with the
-two tangencies holds the fillet whole.
+No tangency is laid and no dimension either. Both sides stay whole, and the arc
+is worked out from them and the radius each time the drawing is read, so it
+cannot come loose from what it touches: it is tangent because it is computed
+that way, never because a rule holds it. The radius is written beside the curve
+as « R10 mm », in millimetres read off the drawing's scale.
 
-The corner stays as a point, held on both sides, with the stretch the curve took
-off each of them laid back in as construction — exactly what a chamfer leaves,
-though the radius and the tangencies already hold the curve. The two tools leave
-the same thing behind, so a value the corner carried survives a fillet the same
-way it survives a chamfer.
+What a cut draws, when it fits, when it does not, and what every other gesture
+and tool makes of a cut corner is the same for both shapes, and is what follows.
+
+### What a cut draws
+
+A fillet or a chamfer is a **property of a sharp corner**, not a piece of the
+drawing: the corner point, its two sides in the order they were clicked, the
+shape with its value, whether it is construction, and the group it was laid
+with. The first side clicked is the one a chamfer measures from.
+
+Nothing about it is solved. The solver holds the corner and its two whole sides
+as it would have without the cut; every time the drawing is read, what is drawn
+is worked out from the corner, its sides and the value — where the cut meets
+each side, then the arc or the straight cut between them
+(`Sketch::drawn_cuts`). A gesture on a cut corner is therefore exactly the
+gesture on a sharp one: dragging the corner point, a side or a free end, typing
+an angle between the sides, laying a rule or a length moves the corner as it
+always did, and the cut follows, still the same value, its arc still tangent to
+both sides or its cut still taking the same distances.
+
+The cut stands in the angle under 180° between its two sides. A drag taking the
+angle through 180° does not turn the cut inside out: it moves round to the other
+side of the corner.
+
+The areas read the drawn geometry and not the sharp corner. Each straight trait
+is laid from its visible part, and the curve of every cut that fits and is not
+construction is added to the area under `CurveId::Corner`. An area's name leaves
+the cut out and keeps the sides, and the curve of a cut that took a whole side
+answers for it: matter raised from a rounded plate stays raised when its
+fillets stop fitting, and when they meet into an obround. The extrusion profile
+follows from the areas, so an arc raises an exact cylindrical face and a chamfer
+cuts a flat one.
+
+On the canvas each side is solid where it is still drawn, and thin and dashed up
+to the sharp corner; the curve of the cut is drawn where the corner was, with
+its value beside it — « R10 mm », « 5 mm × 5 mm » or « 5 mm × 45.0° » — and in
+the refusal colour while it does not fit. A press on the curve takes the cut
+whole (`Selection::Cut`), and dragging it drags the corner point. Hovering it
+lights every cut laid with it. The ends and middle of a cut are snaps, and so is
+the centre of a fillet.
+
+### A cut that does not fit
+
+A cut fits when each side has room for what it takes, together with what the cut
+drawn as the outline at the side's other end takes. A cut in construction takes
+nothing from the outline, so it holds no other cut back. Room is measured along the whole trait: a side
+too short, two cuts overlapping on one side, or a corner so nearly straight or
+so nearly shut that the cut would reach past the sides, and the cut does not
+fit.
+
+Nothing is refused for that. A cut that does not fit is still laid, and drawn in
+the refusal colour where it would be; the outline, the areas, their tint and the
+extrusion take the sharp corner instead, until the drawing makes room and it
+fits again. Nothing is blocked: « Ajout de matière » raises the sharp corner,
+and a drag or a value that gives the side room brings the cut back. Two cuts
+meeting exactly on one side are allowed — a rectangle twenty high rounded to ten
+at both ends is an obround.
+
+A corner standing exactly straight, or folded exactly shut, gives the cut no
+place to be drawn at all: the corner stays sharp, and the cut waits, drawn
+nowhere, until the corner opens or closes again.
+
+The tool does not lay a value too big. `Entrée` applies nothing, the message bar
+reads « Trop grand pour ce coin : la plus grande valeur qui tient est proposée,
+Entrée pour l'appliquer », and the field takes the largest value that fits —
+every length cut down by the same share, an angle kept. A second `Entrée` lays
+it. A corner already cut is refused at the click, with « Ce coin est déjà
+coupé ».
+
+The sketch itself refuses a cut only when the two traits do not end at one point
+— or one of them is an ellipse's axis — and when a cut already stands on that
+point. A value too big is laid like any other: it is a cut that does not fit,
+not a refusal.
+
+### Construction, groups and what a cut meets
+
+A cut laid while the **Construction** toggle is on is drawn dashed and leaves
+the outline sharp, as any construction geometry does. The toggle decides when
+the cut is laid, whatever its sides are, and the cut keeps it.
+
+Several corners laid by one gesture form **one group with one value**: they
+change together through the variable the value was written from, and one undo
+takes the whole gesture back. An equal chamfer is one value.
+
+A side divided or trimmed after the cut keeps its cut on the piece that still
+runs into the corner, however that piece is dragged afterwards. A cut whose
+corner or either side is erased is gone for good: a trait drawn again from the
+corner later is a corner nobody has cut. « Symétrie » and the two patterns cut the copy of a corner whose two sides
+are copied, in a group of its own. Compaction lays every cut again, one
+operation per group.
+
+The values live in the drawing's units, as its points do; the history records
+millimetres and converts on the way in, in `Operation::Fillet` and
+`Operation::Chamfer`, each carrying whether the cut is construction. The first
+cut a part is given fixes its scale, as any first value does. A cut names its
+corner by its point where that point is enough, and by its two traits where a
+mode measures from the first; either way the corner is read from the drawing on
+replay, so the drags recorded after it do not drift.
+
+A value that no longer fits on replay — a variable it was written from having
+changed — leaves the step built and the cut drawn as not fitting. The drawing
+can be given room again, and the cut comes back.
+
+**Not built yet**, in later issues of epic #616: changing a cut in place or
+deleting it with `Suppr` (#618), several cuts on one point (#619), hanging a
+point or a rule on a cut's own points (#620), and a fillet between a trait and
+an arc (#621).
 
 ### A crossing becomes a point
 

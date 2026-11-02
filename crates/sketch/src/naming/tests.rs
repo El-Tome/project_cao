@@ -113,26 +113,35 @@ fn an_area_is_found_though_rounding_a_corner_gave_it_a_curve() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let drawn = rectangle(&mut sketch, DVec2::ZERO, DVec2::new(10.0, 4.0));
     let inside = DVec2::new(5.0, 2.0);
-
-    let rounded = sketch.fillet(drawn[0], drawn[1], 1.0).expect("a corner");
-    let regions = sketch.regions();
-
-    // What the descent will hand over: the two sides as they are left, and
-    // the two traits the rounding never touched. The curve now standing where
-    // the corner was descends from neither side, and is not in the name.
-    let mut carried: Vec<CurveId> = rounded.pieces.into_iter().map(CurveId::Segment).collect();
-    carried.extend([CurveId::Segment(drawn[2]), CurveId::Segment(drawn[3])]);
-    carried.sort_unstable();
     let area = Area {
-        bounds: carried.into_iter().map(|curve| vec![curve]).collect(),
+        bounds: drawn
+            .iter()
+            .map(|side| vec![CurveId::Segment(*side)])
+            .collect(),
         inside,
     };
 
+    let rounded = sketch
+        .cut_corner(
+            drawn[0],
+            drawn[1],
+            crate::corner_cut::CutShape::Fillet { radius: 1.0 },
+            false,
+            0,
+        )
+        .expect("a corner");
+    let regions = sketch.regions();
+
     assert!(
-        regions[0].runs_along(CurveId::Arc(rounded.arc)),
+        regions[0].runs_along(CurveId::Corner(rounded)),
         "the rounding really did put a curve in the boundary",
     );
-    assert_eq!(area.found_in(&regions), Some(0));
+    assert_eq!(
+        area.found_in(&regions),
+        Some(0),
+        "the four sides keep their names, and the curve between two of them \
+         is a border the name never had"
+    );
 }
 
 #[test]

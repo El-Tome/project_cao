@@ -187,18 +187,28 @@ fn a_chamfer_written_from_variables_lays_each_value_with_its_own_formula() {
         sketch: 0,
         corners: vec![cao_sketch::Corner::Between(SegmentId(0), SegmentId(1))],
         mode: cao_part::history::ChamferAsked::Angled { along, degrees },
+        construction: false,
     });
 
-    let mut notes: Vec<(bool, String)> = document.sketches()[0]
-        .dimensions()
-        .iter()
-        .filter_map(|value| Some((value.is_angle(), value.written.clone()?)))
-        .collect();
-    notes.sort();
+    let laid = |document: &PartDocument| {
+        let (_, cut) = document.sketches()[0]
+            .live_corner_cuts()
+            .next()
+            .expect("the corner is cut");
+        cut.shape
+    };
+    let angled = |along: f64, degrees: f64| {
+        cao_sketch::CutShape::Chamfer(cao_sketch::Chamfer::Angled { along, degrees })
+    };
+    assert_eq!(laid(&document), angled(3.0, 30.0));
+
+    set(&mut document, 0, "setback", 4.0);
+    set(&mut document, 1, "slope", 40.0);
+
     assert_eq!(
-        notes,
-        vec![(false, "#0".to_string()), (true, "#1".to_string())],
-        "the distance remembers setback and the angle slope",
+        laid(&document),
+        angled(4.0, 40.0),
+        "the distance follows setback and the angle slope",
     );
 }
 

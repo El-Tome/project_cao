@@ -135,13 +135,13 @@ Known and still open:
 - a cone's own (#536): partial turns about a cone's axis, coaxial turns
   with a cone and a cone beside prisms, under one failure in a thousand
   random parts; `exact-kernel-failures.md` counts them by family;
-- the rounds' own (#576, #623, #628): about 7 rounded cases in a thousand
-  still break a rule on the exact kernel, 8 to 10 through the
+- the rounds' own (#576, #623, #628, #626): about 5.6 rounded cases in a
+  thousand still break a rule on the exact kernel, 6 to 7 through the
   application's body, far above the bar of one in a thousand —
   `Uncrossed` and `Answers` first. Half the drawn cases carry a hair, a
   number a few units of 1e-7 off a round one or an axis leaning 1e-5, and
-  fail three to four times as often; on the cases a user types, every number
-  a multiple of a thousandth, it is about 3 in a thousand.
+  fail about three times as often; on the cases a user types, every number
+  a multiple of a thousandth, it is under 3 in a thousand.
   `exact-kernel-failures.md` counts them by family. A ball joined with a
   quarter shaft over its pole is left too;
 - a face bounded by the curve two perpendicular cylinders meet is never
@@ -227,12 +227,13 @@ There is one tolerance, `EPS = 1e-9 · reach`, `reach` being the largest
 coordinate a body or its operands have reached, never less than one. It is ten
 times the harness's `NEAR`, so what the kernel keeps apart the rules see apart,
 and a thousand times below `ALONG_A_LINE`, so a merge never shows as a volume.
-Four configurations alone are read wider, at twenty times it, each as ill
+Five configurations alone are read wider, at twenty times it, each as ill
 conditioned as the others: two parallel walls of one radius (decision 8), a
 wall touching one of two parallel planes (decision 10), a wall touching
-one of two planes it stands between (decision 2), and a plane a hair off
+one of two planes it stands between (decision 2), a plane a hair off
 square to, or along, a wall's axis (decision 11), which turns the second
-operand before decision 1 reads it. The result of an operation carries the larger reach of its operands. A pair
+operand before decision 1 reads it, and a coaxial surface a hair from
+touching a sphere or a torus, or from a rim on it (decision 12). The result of an operation carries the larger reach of its operands. A pair
 of surfaces one operand alone carries is decided at the tolerance it was
 decided at when the later of the two came into that operand: a body keeps,
 for each of its surfaces, the scale of the operation that brought it in —
@@ -394,8 +395,9 @@ The decisions, in the order taken, once per operation:
    `relation/revolved/arc.rs`). A crossing off the axis is a circle about
    the axis — `Relation::Rims`, one or two, each carrying whether the pair
    only touches along it, and a touch decided against `EPS` before any root
-   and built as that one circle, so no pair with a round grazes or is moved
-   onto a touch. A crossing or a touch on the axis is `Relation::Apex`. A
+   and built as that one circle, so no pair with a round grazes, nor is
+   moved onto a touch by this decision: decision 12 moves one standing
+   further off, within `G`, before. A crossing or a touch on the axis is `Relation::Apex`. A
    plane holding the axis cuts the round along its meridians —
    `Relation::Meridians`, one great circle for a sphere, two tube circles
    for a torus — with the poles it crosses at as corners, as a cone's apex
@@ -1075,6 +1077,65 @@ The decisions, in the order taken, once per operation:
     turned the step before, and refusing two skew walls laid square held
     one seed and broke two.
 
+12. **A coaxial surface a hair from touching a round** (#626). A plane
+    square to a sphere's or a torus's axis, a cylinder or a cone about it,
+    one of each operand, standing further than rounding from touching the
+    round and within `G` — the cylinder's radius against the round's
+    equator or its tube's inner or outer one, the plane against a pole or a
+    crest — is moved onto the touch. Left a hair `δ` off, the two cross
+    along two circles `√(2rδ)` apart, a few ten-thousandths: real geometry,
+    but thinner than any triangle laid between them, and the triangles of
+    the two faces crossed (5576800624, 5576800706, 5576800899). Moved, the
+    pair is decided once as a touch and built as the one circle, as a ball
+    end on a shaft of its radius already is. So is such a surface standing
+    within `G` of a rim the other operand drew on its round, where the round
+    meets another of its own surfaces: a rounded zone cut by its own section
+    moved 5e-8 along the axis crossed the zone's sphere a hair under its rim
+    and left a ring 1.7e-8 wide on the zone's end, which no ray tells the
+    side of (5576809934).
+
+    The second operand moves, with what it built on the surface, as decision
+    8 moves it: along the axis for a plane or a cone, whichever operand
+    carries the round, and away from it for a cylinder — its radius grown or
+    shrunk by the hair, every point of what moves with it taken square to
+    the axis by as much (`canonical/carried/across.rs`): a cylinder, a torus
+    or a cone of the axis stays one, a plane square to the axis or holding
+    it slides along itself, a circle of the axis keeps its centre. A torus
+    the second operand carries grows its ring onto a cylinder of the first
+    the same way. A sphere the second carries, against a cylinder of the
+    first, is no such move — its poles stand on the axis — and is left a
+    hair off; so is a move longer than `G`, a cone's along the axis being
+    the hair over the share of its slope it moves the line by; and so is
+    one decision 8's checks refuse. Nothing the user can see or measure
+    moves.
+
+    A hair is closed only where faces of the two surfaces come within `G` of
+    the circle: a bar a hair narrower than the rim of a cap far along the axis
+    from it was grown onto the rim for nothing (5576873713, shrunk). And a
+    move is not made where it would undo what the second operand held exactly,
+    each found by the first measure of the decision on the rounded draw, where
+    `main` had built the case right: a circle of a round — a rim, or where it
+    touches a surface of the other operand — taken off a surface it stood on
+    exactly, a ball's equator off the floor of the disc whose wall it touched,
+    raised onto the disc's top (5576859311); a surface of the second parted
+    from one of the first it was one with, a tool's wall one with a disc's
+    shrunk onto a ball a hair inside both (5577024047); or a round of the
+    second made to stand otherwise with a round of the first — a cap cut by
+    its copy 1e-7 along the axis, laid onto it, lost the lens between the two,
+    which a line through it at a slant still saw (5577028782), and a ring
+    whose tube is a hair thinner than another's about the same circle, raised
+    onto a crest, came to touch it inside along a circle it stands within the
+    tolerance of all round (5576883559). Two rounds a hair apart are not this
+    decision's. A move refused on its shortest gap is not tried on a longer
+    one.
+
+    Snapped, as decision 8 snaps two walls of one radius and #552 lays a
+    lean below the tolerance exactly, rather than built both ways and warned
+    of as #552 does above its band: the triangles would still have to keep
+    two rims a ten-thousandth apart, which is what failed. Nor left to exact
+    predicates (#585): the decisions would be exact, the geometry would stay
+    thinner than the triangles.
+
 Everything else is derived. A vertex lies on a curve when the curve's
 support is among the surfaces the vertex lies on and it stands within `EPS`
 of the curve: two surfaces crossing at a grazing angle stand within `EPS` of
@@ -1364,8 +1425,9 @@ special one: a coincident face is a region covered twice, a shared wall a region
 covered once from each side.
 
 1. **Identity** of surfaces (decision 1), once the second operand is turned
-   square to, or along, a wall's axis it leans a hair off (decision 11) and
-   moved onto a wall of its radius a hair off (decision 8).
+   square to, or along, a wall's axis it leans a hair off (decision 11),
+   moved onto a wall of its radius a hair off (decision 8), and onto a round
+   it stands a hair from touching, or a rim on it (decision 12).
 2. **Relations** of pairs whose faces' boxes overlap (2, 3).
 3. **Corners.** Every edge curve of one operand against every surface of the
    other, and the special points of the relations (4, 5). A curve can only

@@ -22,7 +22,6 @@
 
 mod contact;
 mod folds;
-mod orientation;
 mod outline;
 mod sampling;
 mod skins;

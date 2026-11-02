@@ -18,6 +18,7 @@ use glam::DVec2;
 
 use super::Corner;
 use super::contacts::{self, Run};
+use crate::orientation::winding;
 
 /// The contours bounding the matter of the laid profile, the outline first
 /// and anticlockwise, each hole after it clockwise, and none when it has no
@@ -75,17 +76,14 @@ pub(super) fn contours(
         }
         loops.push(corners(&along, &walked));
     }
-    let area = |corners: &Vec<Corner>| -> f64 {
-        corners
-            .iter()
-            .zip(corners.iter().cycle().skip(1))
-            .map(|(from, to)| from.at.perp_dot(to.at))
-            .sum()
+    let anticlockwise = |corners: &Vec<Corner>| {
+        let at: Vec<DVec2> = corners.iter().map(|corner| corner.at).collect();
+        winding(&at) == Ordering::Greater
     };
     if loops.is_empty() {
         return Some(Vec::new());
     }
-    let (outlines, holes): (Vec<_>, Vec<_>) = loops.into_iter().partition(|each| area(each) > 0.0);
+    let (outlines, holes): (Vec<_>, Vec<_>) = loops.into_iter().partition(anticlockwise);
     let [outline] = <[Vec<Corner>; 1]>::try_from(outlines).ok()?;
     Some(std::iter::once(outline).chain(holes).collect())
 }

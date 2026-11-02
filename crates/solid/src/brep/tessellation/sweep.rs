@@ -22,7 +22,7 @@ use std::cmp::Ordering;
 
 use glam::DVec2;
 
-use super::orientation::turn;
+use crate::orientation::turn;
 use band::{Band, Chain, Cutter};
 
 /// The triangles of the region `segments` bound, each segment running between

@@ -18,7 +18,7 @@ use glam::DVec2;
 
 use super::Corner;
 use super::contacts::{self, Run};
-use crate::orientation::winding;
+use crate::orientation::rotation;
 
 /// The contours bounding the matter of the laid profile, the outline first
 /// and anticlockwise, each hole after it clockwise, and none when it has no
@@ -78,7 +78,7 @@ pub(super) fn contours(
     }
     let anticlockwise = |corners: &Vec<Corner>| {
         let at: Vec<DVec2> = corners.iter().map(|corner| corner.at).collect();
-        winding(&at) == Ordering::Greater
+        rotation(&at) == Ordering::Greater
     };
     if loops.is_empty() {
         return Some(Vec::new());

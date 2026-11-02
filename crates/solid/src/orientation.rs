@@ -20,8 +20,9 @@ pub(crate) fn turn(a: DVec2, b: DVec2, c: DVec2) -> Ordering {
     let left = (a.x - c.x) * (b.y - c.y);
     let right = (a.y - c.y) * (b.x - c.x);
     let rough = left - right;
-    if rough.abs() > TURN * (left.abs() + right.abs()) {
-        return rough.total_cmp(&0.0);
+    let alike = (left > 0.0 && right > 0.0) || (left < 0.0 && right < 0.0);
+    if !alike || rough.abs() > TURN * (left.abs() + right.abs()) {
+        return sign(rough);
     }
     let [ax, ay, bx, by] = [
         Expansion::difference(a.x, c.x),
@@ -33,20 +34,26 @@ pub(crate) fn turn(a: DVec2, b: DVec2, c: DVec2) -> Ordering {
 }
 
 /// Shewchuk's bound on the rounding of the product form above: past it, the
-/// sign of the rough value is the sign of the exact one.
+/// sign of the rough value is the sign of the exact one. Two products of
+/// opposite signs, or one of them nought, need none: each difference keeps
+/// its sign, and so does each product — three samples along a rim of a
+/// chart are told on a line at once.
 const TURN: f64 = 3.330_669_073_875_471_6e-16;
 
 /// Which way a loop through `points`, closed from the last back to the
 /// first, turns: `Greater` anticlockwise, `Equal` when it bounds no area —
-/// the sign of the shoelace over its corners.
-pub(crate) fn winding(points: &[DVec2]) -> Ordering {
+/// the sign of the shoelace over its corners. The rough shoelace rounds
+/// each product, each difference and each of the additions once, some
+/// `n + 1` units of the last place of the sum over absolute values at most;
+/// four times that is allowed.
+pub(crate) fn rotation(points: &[DVec2]) -> Ordering {
     let pairs = || points.iter().zip(points.iter().cycle().skip(1));
     let (rough, size) = pairs().fold((0.0, 0.0), |(sum, size), (from, to)| {
         let (left, right) = (from.x * to.y, from.y * to.x);
         (sum + (left - right), size + left.abs() + right.abs())
     });
     if rough.abs() > (2 * points.len() + 2) as f64 * f64::EPSILON * size {
-        return rough.total_cmp(&0.0);
+        return sign(rough);
     }
     let mut sum = Expansion::default();
     for (from, to) in pairs() {
@@ -56,10 +63,12 @@ pub(crate) fn winding(points: &[DVec2]) -> Ordering {
     sum.sign()
 }
 
-/// Whether `c` and `d` stand on one side of the line through `a` and `b`,
-/// each seen in the plane it spans with that line: `Greater` on one side,
-/// `Less` on either side, `Equal` where either stands on the line — the
-/// sign of `((b - a) × (c - a)) · ((b - a) × (d - a))`.
+/// Whether `c` and `d` stand on one side of the line through `a` and `b`:
+/// `Greater` on the same side, `Less` on opposite sides, `Equal` where
+/// either stands on the line — the sign of
+/// `((b - a) × (c - a)) · ((b - a) × (d - a))`. For two points off one plane
+/// with the line it is the sign of the cosine of the angle between the
+/// half-planes holding them, so two a third of a turn apart read `Less`.
 pub(crate) fn beside(a: DVec3, b: DVec3, c: DVec3, d: DVec3) -> Ordering {
     let [along, mine, theirs] = [b - a, c - a, d - a];
     let rough = along.cross(mine).dot(along.cross(theirs));
@@ -72,7 +81,7 @@ pub(crate) fn beside(a: DVec3, b: DVec3, c: DVec3, d: DVec3) -> Ordering {
         )
     };
     if rough.abs() > BESIDE * size(along, mine).dot(size(along, theirs)) {
-        return rough.total_cmp(&0.0);
+        return sign(rough);
     }
     let parts = |point: DVec3| [0, 1, 2].map(|axis| Expansion::difference(point[axis], a[axis]));
     let [along, mine, theirs] = [b, c, d].map(parts);
@@ -96,6 +105,12 @@ pub(crate) fn beside(a: DVec3, b: DVec3, c: DVec3, d: DVec3) -> Ordering {
 /// products and their dot round it by some eleven units of the last place
 /// at most, and this is thirty-two.
 const BESIDE: f64 = 16.0 * f64::EPSILON;
+
+/// The sign of a value, nought either way round: a product of nought by a
+/// negative number is `-0.0`.
+fn sign(value: f64) -> Ordering {
+    value.partial_cmp(&0.0).unwrap_or(Ordering::Equal)
+}
 
 #[cfg(test)]
 mod tests;

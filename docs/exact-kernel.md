@@ -2024,11 +2024,13 @@ its error bound allows it, the exact sum of every rounding otherwise
 (Shewchuk's adaptive form). It brings robustness, not precision: every point
 stays in `f64`, and a sign asked twice is answered the same twice.
 
-Each sign decision on points is one of three kinds.
+Each sign decision the exact kernel takes on points is one of three kinds.
+The flats' own (`sweep.rs`, `mesh.rs`) are left as they are: the
+application has not reached them since #632, and #579 removes them.
 
 - **Exact**: the sign of a polynomial in the numbers the kernel holds, with
   nothing but arithmetic deciding near nought. Asked of `orientation.rs` —
-  `turn` for the side of a line, `winding` for the way a loop turns,
+  `turn` for the side of a line, `rotation` for the way a loop turns,
   `beside` for the side of an edge in space — or exact in plain arithmetic
   already: the sign of a stored number, of one difference (`a - b` rounds to
   nought only where `a` is `b`, and never across it) or of one product.
@@ -2059,21 +2061,22 @@ Each sign decision on points is one of three kinds.
   said to be compared exactly, and was, but on a slant, where a plain
   `perp_dot` reads a corner a rounding off the line on it, and some on the
   wrong side. Along a line, a coordinate two points of it differ in orders
-  them exactly. Nothing a campaign sees moved: a corner within rounding of a
-  slant is within the drawing's tolerance of it too, and `near` declines
-  that profile first.
+  them exactly. A corner within rounding of a slant is within the drawing's
+  tolerance of it too, and `near` declines that profile before any of the
+  three is read, but for a corner opening an arc: `near` reads the corners
+  that start a straight run, and there the exact `cross` is what decides.
 - **The way a laid contour turns** (`turning/straight/bounded.rs`), outline
-  or hole: exact, through `winding`, since #585. The shoelace over the
+  or hole: exact, through `rotation`, since #585. The shoelace over the
   laid corners' own coordinates loses a small contour far from the axis's
-  origin in its rounding; no laid contour a campaign draws is that small.
+  origin in its rounding.
 - **The way a loop turns before a raise** (`piece/way.rs`, `turned`):
-  tolerance — `prism.rs` refuses a loop within `EPS` of no area first, a
-  band far wider than the shoelace's rounding — and a curve once the loop
+  tolerance — `prism.rs` refuses a loop whose shoelace comes within
+  `eps · reach` of nought first, as `turned.rs` refuses a turned one, a band
+  far wider than the shoelace's rounding — and a curve once the loop
   holds an arc, whose segment adds `r²(θ − sin θ)/2`.
 - **The side of the axis**, a profile lying across it or on one side
   (`turning.rs`, `Turn::lie`; `turning/straight.rs`, `read`), the sides a
-  whole turn needs (`turning/sides.rs`), and the flats' own (`sweep.rs`):
-  tolerance, each past the turn's band of the axis or a share of the
+  whole turn needs (`turning/sides.rs`): tolerance, each past the turn's band of the axis or a share of the
   profile's reach.
 - **The order of directions about a vertex** (`overlay/star.rs`): curve. The
   arcs leaving a vertex are ordered by the angle they set off at, read by

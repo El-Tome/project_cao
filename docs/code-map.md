@@ -187,7 +187,7 @@ What it does: [`sketch.md`](sketch.md).
 | Join and cut on the exact kernel | `solid/src/brep/combine.rs` and `combine/` | `Body::joined`, `Body::cut_by` |
 | Two faces at a slant — two walls at a skew angle, a wall off a cone's axis — decided clear of each other on the faces themselves before the kernel declines; a plane at a slant to a wall asked first, so its conic is registered only where faces may meet along it | `solid/src/brep/combine/clear.rs`, `combine/clear/walls.rs`, `combine/clear/hollow.rs` | `clear`, reached from `combine/related.rs`; `Wall`, `in_the_hollow`, `beyond` |
 | The exact kernel's triangles, every edge sampled once | `solid/src/brep/tessellation.rs` and `tessellation/` | `Body::triangles(tolerance)` |
-| Which side of a line or of an edge a point stands on, and which way a loop turns, decided exactly: the triangles' sweep and folds, the laid profile of a turn (#585) | `solid/src/orientation.rs`, `orientation/expansion.rs` | `turn`, `winding`, `beside`, `Expansion` |
+| Which side of a line or of an edge a point stands on, and which way a loop turns, decided exactly: the triangles' sweep and folds, the laid profile of a turn (#585) | `solid/src/orientation.rs`, `orientation/expansion.rs` | `turn`, `rotation`, `beside`, `Expansion` |
 | The rules every solid must keep, for the tests | `solid/src/soundness.rs` and `soundness/` | `closed`, `uncrossed`, `Lines`, `repeatable`, `campaign`, `listed` (an exact body's listing held to its geometry) |
 | Solids drawn at random, shrunk and printed as Rust | `solid/tests/random_solids/` | `Case::drawn`, `Case::smaller`, `check` |
 | A campaign over random solids | `solid/tests/every_solid_keeps_its_rules.rs` | `a_campaign_of_random_solids_keeps_every_rule` |

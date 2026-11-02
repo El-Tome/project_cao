@@ -27,7 +27,7 @@ use std::cmp::Ordering;
 use glam::{DVec2, DVec3};
 
 use super::expansion::Expansion;
-use super::{beside, turn, winding};
+use super::{beside, rotation, turn};
 
 /// Sixteen by sixteen points a rounding apart from `base`, each with how
 /// many steps it stands across and up: on the diagonal where the two are
@@ -53,7 +53,7 @@ fn plain_turn(a: DVec2, b: DVec2, c: DVec2) -> Ordering {
 
 /// The shoelace in plain floating point, as the laid contours were told
 /// apart before #585.
-fn plain_winding(points: &[DVec2]) -> Ordering {
+fn plain_rotation(points: &[DVec2]) -> Ordering {
     sign(
         points
             .iter()
@@ -78,6 +78,10 @@ fn a_point_left_of_a_line_turns_counterclockwise_and_one_on_it_does_not_turn() {
         turn(DVec2::ZERO, DVec2::X, DVec2::new(3.0, 0.0)),
         Ordering::Equal
     );
+    assert_eq!(
+        turn(DVec2::new(0.0, 2.0), DVec2::ZERO, DVec2::Y),
+        Ordering::Equal
+    );
 }
 
 #[test]
@@ -97,12 +101,12 @@ fn a_point_a_rounding_away_from_a_long_line_is_seen_on_its_own_side() {
 #[test]
 fn a_loop_turns_anticlockwise_or_clockwise_and_a_flat_one_not_at_all() {
     let square = [DVec2::ZERO, DVec2::X, DVec2::ONE, DVec2::Y];
-    assert_eq!(winding(&square), Ordering::Greater);
+    assert_eq!(rotation(&square), Ordering::Greater);
     let backwards: Vec<DVec2> = square.iter().rev().copied().collect();
-    assert_eq!(winding(&backwards), Ordering::Less);
+    assert_eq!(rotation(&backwards), Ordering::Less);
     let flat = [DVec2::ZERO, DVec2::X, DVec2::new(2.0, 0.0)];
-    assert_eq!(winding(&flat), Ordering::Equal);
-    assert_eq!(winding(&[]), Ordering::Equal);
+    assert_eq!(rotation(&flat), Ordering::Equal);
+    assert_eq!(rotation(&[]), Ordering::Equal);
 }
 
 #[test]
@@ -111,8 +115,8 @@ fn a_loop_a_rounding_from_flat_turns_the_way_its_last_corner_stands() {
     let mut misread = 0;
     for (across, up, third) in grid(3.9, 2.0 * f64::EPSILON) {
         let corners = [first, second, third];
-        assert_eq!(winding(&corners), up.cmp(&across), "{across} {up}");
-        misread += usize::from(plain_winding(&corners) != up.cmp(&across));
+        assert_eq!(rotation(&corners), up.cmp(&across), "{across} {up}");
+        misread += usize::from(plain_rotation(&corners) != up.cmp(&across));
     }
     assert!(
         misread > 0,

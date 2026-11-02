@@ -38,6 +38,7 @@ use crate::brep::conic::{Conic, Round};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::surface::{Cone, Surface};
 use crate::brep::topology::{Body, Edge, Face, SurfaceId};
+use crate::brep::trace::Trace;
 
 /// A surface of revolution carrying a grid of its own: a cone, a sphere or a
 /// torus.
@@ -209,8 +210,10 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
 
 /// Whether a face of `round` reaches its crest, the circle furthest from the
 /// axis: its latitude circles and its vertices stand on either side of it
-/// along the meridian, or nothing bounds it there — a whole surface, or a
-/// face winding round the tube between two meridians.
+/// along the meridian, a meridian bounding it runs across it — a face
+/// winding round the tube whose rims all stand inside, beside a shaft
+/// touching its tube there (#623) — or nothing bounds it there, a whole
+/// surface or a face between two whole meridians.
 fn across_the_crest(body: &Body, face: &Face, round: &Rounded, eps: f64) -> bool {
     let mut along: Vec<f64> = face
         .poles
@@ -223,6 +226,13 @@ fn across_the_crest(body: &Body, face: &Face, round: &Rounded, eps: f64) -> bool
             && round.holds(circle, eps)
         {
             along.push(round.latitude(circle));
+        }
+        if let Curve::Circle(circle) = body.curve(edge.curve)
+            && round.meridian(circle, eps)
+            && let Ok(Trace::Segment { from, to }) = body.trace(coedge.edge, face.surface)
+            && (from.y.max(to.y) / TAU).floor() * TAU >= from.y.min(to.y)
+        {
+            return true;
         }
         for end in edge.ends.into_iter().flatten() {
             along.push(round.parameters(body.vertex(end).point).y);

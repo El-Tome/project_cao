@@ -270,9 +270,11 @@ fn near(row: f64, level: f64, room: f64) -> bool {
 /// The points of a meridian arc's edge between its ends, in the way the edge
 /// runs: at every row of the round's grid of `steps` rows a turn strictly
 /// inside the arc, none within the round's room of an end or of a level of
-/// the faces it bounds. A whole meridian circle — a ring turned part of the
-/// way — takes every row of the window and the cut of the chart besides,
-/// where the face winding round the tube is closed.
+/// the faces it bounds. On a ring it also takes every level of those faces
+/// it runs across, the cut of the chart among them: a whole meridian
+/// circle — a ring turned part of the way — where the face winding round
+/// the tube is closed, and an arc a rim elsewhere on its face passes the
+/// height of, which the strips the face is cut in end at (#623).
 pub(super) fn on_meridian(
     circle: &Circle,
     edge: &Edge,
@@ -284,6 +286,15 @@ pub(super) fn on_meridian(
     let (_, psi, sign) = round.along_meridian(circle, midway(edge));
     let phi_of = |t: f64| sign * (t - psi);
     let room = eps / round.radius();
+    let crossed: Vec<f64> = match round.cut() {
+        Some(_) if round.poles(eps).is_empty() => {
+            let mut crossed: Vec<f64> = levels.iter().map(|level| round.windowed(*level)).collect();
+            crossed.sort_by(f64::total_cmp);
+            crossed.dedup_by(|one, other| (*one - *other).abs() <= room);
+            crossed
+        }
+        Some(_) | None => Vec::new(),
+    };
     let mut taken: Vec<f64> = if edge.ends.is_none() {
         let mut levels = levels.to_vec();
         levels.extend(round.cut());
@@ -291,13 +302,20 @@ pub(super) fn on_meridian(
             .map(|rank| TAU * rank as f64 / steps as f64)
             .filter(|row| !levels.iter().any(|level| near(*row, *level, room)))
             .collect();
-        taken.extend(round.cut());
+        taken.extend(&crossed);
         taken
     } else {
         let (one, other) = (phi_of(edge.from), phi_of(edge.to));
+        let (low, high) = (one.min(other), one.max(other));
         let mut levels = levels.to_vec();
         levels.extend([one, other]);
-        rows(steps, one.min(other), one.max(other), &levels, room)
+        let mut taken = rows(steps, low, high, &levels, room);
+        for level in &crossed {
+            let first = ((low + room - level) / TAU).floor() as i64 + 1;
+            let last = ((high - room - level) / TAU).floor() as i64;
+            taken.extend((first..=last).map(|turns| level + TAU * turns as f64));
+        }
+        taken
     };
     let low = edge.from.min(edge.to);
     let mut places: Vec<f64> = taken

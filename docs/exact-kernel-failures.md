@@ -2485,7 +2485,8 @@ bit.
     5576808278). Re-joining the ring's loops across the cut built 82 more of
     round 1's cases right and 90 wrong — `Spans` finding no matter, `Open`,
     `Backwards`, `Crossing` — where the kernel had declined safely: set aside
-    unlanded.
+    unlanded here, and taken up by #623 with what reads a face across the
+    cut — see "#623" below, which counts the round again.
   - **Hairs**: 108 of 151 `Uncrossed` are a coaxial rim 1e-8 to 1e-7 inside or
     outside the sphere's (5576800624, 5576800706, 5576800899); 13 of 15
     leaf-alone `Spans`, the 6 leaf-alone `Volume`, a `Pointed` (5576809934).
@@ -2536,3 +2537,157 @@ bit.
 - **A coaxial wall a hair inside a ball** is not drawn in common with it
   (`joined::beside` answers false for a round); no leaf of two campaign rounds
   showed a crossing there.
+
+## #623: a round and a coaxial turn of another extent
+
+#576 left its largest family declining `Unverified`: a sphere or a torus
+turned through one extent combined with a body turned about the same axis
+through another — a quarter ring joined to a whole coaxial band it touches, a
+whole ring cut by a coaxial half turn. The kernel built the boolean, and its
+own check found a loop on the ring torus that did not close. The cause was
+the chart, not the boolean: a ring torus is read in a window one turn wide
+along the meridian, cut at the antipode of its seam, and a piece of surface
+the cut runs through was read as a region against the window's bottom and
+another against its top, or as one region bounded by both — and neither floor
+is an edge. The regions were never joined back, nor their loops walked
+through the cut.
+
+**Fixed:**
+
+- **The regions the cut parts** (`selection/parted/glued.rs`): the regions
+  using the two floors along one stretch are one region, and its loops are
+  walked again with the floors left out, an arc reaching a tip on one floor
+  followed by the arc leaving the twin tip on the other, the two arcs of an
+  edge the cut parts one use of it. A band the cut runs through, along two
+  floors no meridian reaches, is one region too. The four seeds of the issue
+  hold: 5576800479, 5576800514, 5576800792, 5576800961.
+- **A face reaching across the cut, read** (`domain/floor/round/ring.rs`): the
+  closure along the cut was laid only for a strip between two whole
+  meridians; it is laid now for every stretch of the cut a face reaches, read
+  off the meridians crossing it and the way each runs, and along the whole
+  cut for a face holding it — a whole ring with holes in its tube, a band the
+  cut runs through. The volume reads the same closure: a whole ring with a
+  quarter of the top of its tube cut away had a volume of minus the slot.
+- **Its triangles** (`tessellation/outline/round/crossed.rs`,
+  `sampling/round.rs`): each loop is broken where it crosses the cut and laid
+  to the window's top and bottom, as two whole meridians were; a face running
+  round the axis is walled as a whole ring is, the walls standing only where
+  the face does, a latitude circle running round the axis laid from wall to
+  wall. A meridian arc on a ring is sampled at every level of its faces it
+  runs across, the cut among them, where the strips end.
+- **The grid of a ring whose face winds round the tube while its rims all
+  stand inside** (`sampling/cone.rs`, `across_the_crest`): a ring touching a
+  shaft along its inner equator was sampled for a circle of the shaft's
+  radius, its triangles standing twice the tolerance off at the crest
+  (5576851706).
+- **A ring cut along a rim or through a vertex** (`combine/seamed.rs`,
+  `reseamed`): a slab resting on a ring's lower crest when the chart is cut
+  there, a wall of the ring's own radius meeting its end meridians at the
+  crests. The cut is moved to the middle of the widest band between them
+  and their antipodes. Without the antipodes, the first measure found three
+  cases right on the base and wrong here (5576873290, 5576876097,
+  5577106512): a single rim's band is the whole turn, its middle the rim's
+  antipode, and the seam — the window's middle, where a whole ring's face
+  is sampled — fell on the rim, on the crest a slab rests on, so the cut
+  took the whole ring.
+- **The listing** (`soundness/listed/turning.rs`, `turning/wound.rs`), the
+  harness's own: loops winding round the tube are judged by their winding
+  alone — two of them part a ring into two bounded strips, and only the way
+  they run says which is the face —, a ring's face may be holes alone, a band
+  the cut runs through sweeps its circles and a whole turn of the tube, and a
+  loop crossing the cut reads its rims past it a turn on. Its fixture of a
+  quarter ring ran both meridians down.
+
+**Measured like for like**: base `45b2492` (#622's tip) against the branch,
+on the same seeds, every verdict compared case by case.
+
+| seeds | kernel | cases | base broke a rule | branch broke a rule | refused on the base, built wrong on the branch |
+| --- | --- | --- | --- | --- | --- |
+| lane C round 2's, from 5576850000 | exact | 45 154 | 814, 18.03 ‰ | 535, 11.85 ‰ | 12, 4 of them plain |
+| fresh, from 5577000000 | exact | 45 000 | 868, 19.29 ‰ | 568, 12.62 ‰ | 20, 4 of them plain |
+| lane C round 2's, from 5576910000 | the application's body | 8 198 | 186, 22.69 ‰ | 126, 15.37 ‰ | 3, all hairs |
+| fresh, from 5577100000, but 5577103202 | the application's body | 7 999 | 162, 20.25 ‰ | 103, 12.88 ‰ | none |
+| round 1's 1 143 failing seeds | exact | 1 143 | 860 | 543 | 18 |
+
+No case the base built right is built wrong on the branch, on any of them.
+`Answers` fell from 337 to 80 on round 2's seeds and from 371 to 93 on the
+fresh ones; `Listed` from 129 to 112; `Closed`, `Uncrossed`, `Spans` and
+`Volume` stayed where they were, give or take ten.
+
+**A case a user types, and a hair.** Half the cases the rounded draw gives
+carry a hair — a number a few units of 1e-7 off a round one, an axis 3e-7
+off, a lean of 1e-5 — which the draw puts there on purpose. Read apart, a
+case every number of which is a multiple of a thousandth, `plain` below,
+fails half as often as the others, and less than one time in a hundred:
+
+| seeds | kernel | plain, base | plain, branch | hair, base | hair, branch |
+| --- | --- | --- | --- | --- | --- |
+| from 5576850000 | exact | 317 of 21 265, 14.91 ‰ | 156, 7.34 ‰ | 497 of 23 889, 20.80 ‰ | 379, 15.87 ‰ |
+| from 5577000000 | exact | 341 of 21 266, 16.03 ‰ | 166, 7.81 ‰ | 527 of 23 734, 22.20 ‰ | 402, 16.94 ‰ |
+| from 5576910000 | the body | 67 of 3 949, 16.97 ‰ | 28, 7.09 ‰ | 119 of 4 249, 28.01 ‰ | 98, 23.06 ‰ |
+| from 5577100000 | the body | 61 of 3 820, 15.97 ‰ | 28, 7.33 ‰ | 101 of 4 179, 24.17 ‰ | 75, 17.95 ‰ |
+
+Through the application's body, what a plain case still breaks is a
+refusal two times in three — `Answers`, 22 and 25 —, the rest `Uncrossed`
+(6 and 2) and one `Volume`.
+
+**Refused on the base, built wrong on the branch.** Every plain one is
+`Closed`, the triangles of a face open at a pole or at a turn's end beside
+the coaxial turn the branch now builds — the family the base had already
+on those draws, now reached; the application's body refuses such a step as
+`Undrawn`, as it refused the boolean before. The others are hairs:
+`Closed` the same way, and `Uncrossed`, a coaxial rim a hair inside or
+outside the round's, #626's — the three through the body among them.
+
+**A seed the body takes forty minutes over**, 5577103202, is left out of
+the fresh body seeds: a turned leaf on an axis 3e-7 off the plane's and
+leaning 1e-5, which the exact kernel declines, so the application builds it
+on the flats, and five steps on, two joins of the flats take 126 s and
+1 343 s to give 745 415 triangles, which do not close (`Closed`, on the base
+too). A few others take a minute or two through the body; none on the exact
+kernel.
+
+**What is left**, for the pass that takes the kernel as far as it goes —
+535 of round 2's seeds and 568 of the fresh ones, by family, with what a
+sample of the plain ones shrinks to (`CAO_TRIAGE_DRAW=rounded`, at
+`1df9cc3`); every one of them broke a rule on the base too, or was refused
+there:
+
+- **`Closed`, 160 and 169, a third of them plain** — the largest. A sphere
+  turned part of the way, its poles on the axis, combined with a coaxial
+  turn of another extent or sense: a ball turned 300° cut by a coaxial tube
+  turned 270° (5576853450), a quarter ball joined to a coaxial cone turned
+  the other way (5576867141), a half ball and a cap cut by a slab turned 90°
+  in the other plane (5576850917), the same at −240° and −270°
+  (5576871098), at 270° both (5576860117), and one ring joined to a slab
+  turned 345° (5576862224). The boolean is built, the triangles of a face
+  are open at a pole or at a turn's end, and the application refuses the
+  step as `Undrawn`. It is what #623 did for a ring's cut, still to do for
+  a sphere's poles; the place to start is the outline of a sphere's face
+  whose loops reach a pole along meridians a rim parts
+  (`tessellation/outline/round.rs`, `laid_round`, and `floors.rs`).
+- **`Uncrossed`, 157 and 154, four in five hairs** — #626: a coaxial rim a
+  hair inside or outside the round's. The plain ones are a whole ring
+  touching a whole coaxial cylinder along its outer or inner equator
+  (5576855166, 5576859244, 5576864048, 5576877759, 5576887458, 5576889779):
+  the triangles of the two cross beside the equator they share, and the
+  application's cross the same way.
+- **`Listed`, 112 and 130, half of them plain** — the same shapes as
+  `Closed`, on a sphere or a spindle turned part of the way with a coaxial
+  turn of another extent (5576850021, 5576854214, 5576860674, 5576869948):
+  four of six shrunk are refused by the application, so the faces are
+  wrong there too; two keep every rule through it (5576865967,
+  5576872826), where it is the listing's reading that is to be looked at
+  first, not the body.
+- **`Answers`, 80 and 93, four in five hairs** — ties, #585; a straight
+  edge traced on a round; the plain ones a round against a cylinder of
+  another axis (5576851103), a spindle against a coaxial half turn
+  (5576864698), a ring cut through its tube's centre by a coaxial cylinder
+  turned the other way (5576879605), a cylinder on an axis leaning a
+  thousandth beside a block (5576891961, no round at all).
+- **`Spans`, 20 and 15**, all hairs but one: a whole ring cut by a coaxial
+  half slab whose two planes touch its two crests (5576855990), built with
+  matter missing — the application's volume is wrong too.
+- **`Volume`, 8 and 6**, all hairs but one: a ring joined to a coaxial
+  spindle turned 315° (5576858970), the exact kernel's triangles a hundredth
+  short, the application's right.

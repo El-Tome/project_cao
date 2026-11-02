@@ -1,5 +1,7 @@
 //! The arcs lying on a surface, and the regions they part the surface into.
 
+mod glued;
+
 use std::collections::BTreeMap;
 use std::f64::consts::{PI, TAU};
 
@@ -14,6 +16,7 @@ use crate::brep::relation::{Relation, relation};
 use crate::brep::surface::Surface;
 use crate::brep::topology::{EdgeId, SurfaceId, VertexId};
 use crate::brep::trace::Trace;
+use glued::glued;
 
 /// Where the poles stand that a face of either operand lying on `surface`
 /// holds within it.
@@ -48,7 +51,8 @@ pub(super) fn held_poles(operands: &Operands, surface: SurfaceId) -> Vec<DVec3> 
 /// as any whole curve with no vertex is. A meridian arc running past the
 /// cut is read as two arcs of one edge, the one ending at a tip on the floor
 /// it leaves by, the other starting at a tip on the floor it comes back
-/// through. A rim along which another surface
+/// through; the regions the cut parts are joined back across it and their
+/// loops walked through it ([`glued`]). A rim along which another surface
 /// only touches a whole ring — a slab resting on its crest — parts nothing:
 /// a ring whose arcs are all such rims is read whole. That holds only where
 /// the ring's own face is whole, `whole`; a ring whose face is bounded by
@@ -220,6 +224,16 @@ pub(super) fn parted(
         arcs.extend(floor::arcs_at(line, &ends, holds));
     }
     let mut overlay = Overlay::of(&vertices, &arcs, geometry.period())?;
+    if !cut.is_empty() {
+        let mut twins = BTreeMap::new();
+        for (&(line, angle), &tip) in &on_the_cut {
+            if let Some(&other) = on_the_cut.get(&(1 - line, angle)) {
+                twins.insert(tip, other);
+            }
+        }
+        let overlay = glued(overlay, &arcs, &edges, &twins)?;
+        return Ok((edges, overlay));
+    }
     for region in &mut overlay.regions {
         let mut cycles = Vec::new();
         for cycle in &region.cycles {

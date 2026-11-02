@@ -124,7 +124,8 @@ fn a_cap_holding_its_pole_is_sound_and_one_wound_the_wrong_way_or_holding_none_i
 
 /// A ring of tube radius 2 about a circle of radius 6 at `z = 3`, turned a
 /// quarter from the plane `y = 0` to the plane `x = 0`: the torus's face
-/// between two whole meridian circles, and a disc on each end.
+/// between two whole meridian circles, one running down along the meridian
+/// and the other up, and a disc on each end facing away from the ring.
 fn quarter_ring() -> Listing {
     let torus = Torus::through(
         DVec3::ZERO,
@@ -147,7 +148,7 @@ fn quarter_ring() -> Listing {
             ListedFace {
                 surface: Surface::Torus(torus),
                 outward: true,
-                loops: vec![vec![(0, true)], vec![(1, false)]],
+                loops: vec![vec![(0, true)], vec![(1, true)]],
                 poles: Vec::new(),
             },
             ListedFace {
@@ -158,14 +159,26 @@ fn quarter_ring() -> Listing {
             },
             ListedFace {
                 surface: Surface::Plane(Plane::through(DVec3::ZERO, DVec3::X).0),
-                outward: true,
-                loops: vec![vec![(1, true)]],
+                outward: false,
+                loops: vec![vec![(1, false)]],
                 poles: Vec::new(),
             },
         ],
         edges: vec![meridian(opening), meridian(closing)],
         vertices: Vec::new(),
     })
+}
+
+#[test]
+fn a_quarter_ring_running_both_its_meridians_one_way_is_found_backwards() {
+    let mut listing = quarter_ring();
+    assert_eq!(listed(&listing, REACH), Ok(()));
+    listing.faces[0].loops[1] = vec![(1, false)];
+    listing.faces[2].loops[0] = vec![(1, true)];
+    assert_eq!(
+        listed(&with_sides(listing), REACH),
+        Err(Mislisted::Backwards { face: 0, lap: 0 })
+    );
 }
 
 #[test]

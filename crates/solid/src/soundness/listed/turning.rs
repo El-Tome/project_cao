@@ -16,6 +16,7 @@
 //! tangent to it — turns neither way that can be read, and is not judged.
 
 mod sweep;
+mod wound;
 
 use std::f64::consts::TAU;
 
@@ -45,7 +46,15 @@ const CHORDS: usize = 64;
 /// the face as for an apex held within it. On a sphere or a spindle torus,
 /// a face holding both poles is the whole closed surface with a hole cut out
 /// of its side, and has no outside loop: every loop bounds a hole, swept the
-/// other way.
+/// other way; so may a face of a ring, which has no pole to hold — the whole
+/// ring with a rectangle cut out of its tube (#623). Two latitude circles
+/// part a ring into two bands, both bounded, and either may be the face — a
+/// band the chart's cut runs through as well as the band between them — so
+/// on a ring the area its round loops sweep is not read, only that they wind
+/// round the axis nought times in all; a face listed backwards there is left
+/// to the rays, the triangles and the volume. On a ring, a face may go all the way round the tube instead,
+/// between loops winding round it as many times one way as the other
+/// ([`wound`]); every loop that winds round nothing is then a hole.
 pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
     for (face, listed) in listing.faces.iter().enumerate() {
         let side = if listed.outward { 1.0 } else { -1.0 };
@@ -96,6 +105,11 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
                     .fold((0.0, 0.0), |(area, angle), (more, further)| {
                         (area + more, angle + further)
                     });
+                if let Some(tube) = &tube
+                    && tube.poles().is_empty()
+                {
+                    area += wound::past_the_cut(tube, listing, uses);
+                }
                 if let Some(nappe) = &nappe
                     && passes(listing, uses, nappe.apex(), room)
                 {
@@ -125,6 +139,31 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
             .collect();
         let backwards = |lap: usize| Err(Mislisted::Backwards { face, lap });
 
+        if let Some(tube) = &tube
+            && tube.poles().is_empty()
+            && swept.iter().all(|(_, turns)| *turns == 0.0)
+        {
+            let tubed: Vec<(usize, f64)> = listed
+                .loops
+                .iter()
+                .map(|uses| wound::tube_turns(tube, listing, uses))
+                .enumerate()
+                .filter(|(_, turns)| *turns != 0.0)
+                .collect();
+            if let Some(&(first, _)) = tubed.first() {
+                if tubed.iter().map(|(_, turns)| turns).sum::<f64>() != 0.0 {
+                    return backwards(first);
+                }
+                for (lap, &(area, _)) in swept.iter().enumerate() {
+                    let hole = !tubed.iter().any(|&(tubed, _)| tubed == lap);
+                    if hole && area >= blurred[lap] && !is_slit(&listed.loops[lap]) {
+                        return backwards(lap);
+                    }
+                }
+                continue;
+            }
+        }
+
         let round: Vec<usize> = (0..swept.len())
             .filter(|&lap| swept[lap].1 != 0.0)
             .collect();
@@ -153,7 +192,8 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
                 (area + swept[lap].0, turns + swept[lap].1)
             });
             let blur: f64 = round.iter().map(|&lap| blurred[lap]).sum();
-            if turns != 0.0 || area <= -blur {
+            let ring = tube.as_ref().is_some_and(|tube| tube.poles().is_empty());
+            if turns != 0.0 || !ring && area <= -blur {
                 return backwards(first);
             }
             None
@@ -162,12 +202,12 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
         } else {
             let widest = (0..swept.len())
                 .max_by(|&one, &other| swept[one].0.abs().total_cmp(&swept[other].0.abs()));
-            if let Some(widest) = widest
-                && swept[widest].0 <= -blurred[widest]
-            {
-                return backwards(widest);
+            let ring = tube.as_ref().is_some_and(|tube| tube.poles().is_empty());
+            match widest {
+                Some(widest) if swept[widest].0 <= -blurred[widest] && ring => None,
+                Some(widest) if swept[widest].0 <= -blurred[widest] => return backwards(widest),
+                widest => widest,
             }
-            widest
         };
         for (lap, &(area, turns)) in swept.iter().enumerate() {
             let slit = is_slit(&listed.loops[lap]);

@@ -94,6 +94,7 @@ impl Outline {
                 }
             }
         }
+        one_angle_a_meridian(&mut standing);
         let ring = round.cut().is_some() && round.poles(eps).is_empty();
         let crossing = ring
             && round.cut().is_some_and(|top| {
@@ -191,8 +192,8 @@ impl Outline {
             }
             (false, _) => return None,
         }
-        let (raws, ids): (Vec<Vec<DVec2>>, Vec<Vec<usize>>) =
-            laid.into_iter().map(|lap| (lap.raw, lap.ids)).unzip();
+        let raws = floors.read_again(&laid);
+        let ids: Vec<Vec<usize>> = laid.into_iter().map(|lap| lap.ids).collect();
         self.round_laid(&raws, &ids, steps, |id| {
             !samples.is_vertex(id) || floors.tip(id).is_some()
         })
@@ -289,6 +290,38 @@ impl Outline {
             self.walls.push(self.segments.len() - 1);
         }
         Some(())
+    }
+}
+
+/// The angle about the axis of every meridian of a face made one value for
+/// all the samples standing on it: two edges of one meridian — parted where
+/// a rim of another face meets it — each read their angle off their own
+/// arc, an ulp apart now and then, and the strips compare every coordinate
+/// bit for bit (#628). Angles within [`CLEAR`] of each other are the
+/// smallest of them.
+fn one_angle_a_meridian(standing: &mut BTreeMap<usize, Standing>) {
+    let mut angles: Vec<f64> = standing
+        .values()
+        .filter_map(|stands| stands.theta)
+        .collect();
+    angles.sort_by(f64::total_cmp);
+    let mut one: BTreeMap<u64, f64> = BTreeMap::new();
+    let mut kept: Option<f64> = None;
+    for angle in angles {
+        let first = match kept {
+            Some(first) if angle - first <= CLEAR => first,
+            _ => angle,
+        };
+        kept = Some(first);
+        one.insert(angle.to_bits(), first);
+    }
+    for theta in standing
+        .values_mut()
+        .filter_map(|stands| stands.theta.as_mut())
+    {
+        if let Some(&first) = one.get(&theta.to_bits()) {
+            *theta = first;
+        }
     }
 }
 

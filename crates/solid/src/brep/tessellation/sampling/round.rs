@@ -270,11 +270,13 @@ fn near(row: f64, level: f64, room: f64) -> bool {
 /// The points of a meridian arc's edge between its ends, in the way the edge
 /// runs: at every row of the round's grid of `steps` rows a turn strictly
 /// inside the arc, none within the round's room of an end or of a level of
-/// the faces it bounds. On a ring it also takes every level of those faces
-/// it runs across, the cut of the chart among them: a whole meridian
-/// circle — a ring turned part of the way — where the face winding round
-/// the tube is closed, and an arc a rim elsewhere on its face passes the
-/// height of, which the strips the face is cut in end at (#623).
+/// the faces it bounds. It also takes every level of those faces it runs
+/// across: an arc a rim elsewhere on its face passes the height of, which
+/// the strips the face is cut in end at — on a ring (#623), on a sphere and
+/// on a spindle beside a coaxial turn of another extent (#628) — and on a
+/// ring a whole meridian circle — a ring turned part of the way — at the
+/// cut of the chart among them, where the face winding round the tube is
+/// closed.
 pub(super) fn on_meridian(
     circle: &Circle,
     edge: &Edge,
@@ -286,15 +288,10 @@ pub(super) fn on_meridian(
     let (_, psi, sign) = round.along_meridian(circle, midway(edge));
     let phi_of = |t: f64| sign * (t - psi);
     let room = eps / round.radius();
-    let crossed: Vec<f64> = match round.cut() {
-        Some(_) if round.poles(eps).is_empty() => {
-            let mut crossed: Vec<f64> = levels.iter().map(|level| round.windowed(*level)).collect();
-            crossed.sort_by(f64::total_cmp);
-            crossed.dedup_by(|one, other| (*one - *other).abs() <= room);
-            crossed
-        }
-        Some(_) | None => Vec::new(),
-    };
+    let mut crossed: Vec<f64> = levels.iter().map(|level| round.windowed(*level)).collect();
+    crossed.sort_by(f64::total_cmp);
+    crossed.dedup_by(|one, other| (*one - *other).abs() <= room);
+    let ring = round.cut().is_some() && round.poles(eps).is_empty();
     let mut taken: Vec<f64> = if edge.ends.is_none() {
         let mut levels = levels.to_vec();
         levels.extend(round.cut());
@@ -302,7 +299,9 @@ pub(super) fn on_meridian(
             .map(|rank| TAU * rank as f64 / steps as f64)
             .filter(|row| !levels.iter().any(|level| near(*row, *level, room)))
             .collect();
-        taken.extend(&crossed);
+        if ring {
+            taken.extend(&crossed);
+        }
         taken
     } else {
         let (one, other) = (phi_of(edge.from), phi_of(edge.to));

@@ -91,8 +91,9 @@ impl Lattice {
 
 /// A boundary of a strip running along the angle along the meridian: the
 /// angle about the axis it stands at, whether it runs down, the points at
-/// its two ends and its segment.
-type Vertical = (f64, bool, [usize; 2], usize);
+/// its two ends and its segments, more than one where it passes through a
+/// point that is no level of the strip.
+type Vertical = (f64, bool, [usize; 2], Vec<usize>);
 
 /// A boundary of a strip running along a row: its segment, and the points
 /// at its two ends, the one it starts at first.
@@ -111,7 +112,15 @@ impl Outline {
             .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), at| {
                 (low.min(at.y), high.max(at.y))
             });
-        let mut levels: Vec<f64> = self.points.iter().map(|at| at.y).collect();
+        let walls = std::mem::take(&mut self.walls);
+        let mut passing = self.passing(&walls);
+        let mut levels: Vec<f64> = self
+            .points
+            .iter()
+            .enumerate()
+            .filter(|(point, _)| !passing.contains_key(point))
+            .map(|(_, at)| at.y)
+            .collect();
         levels.extend(rows(lattice.rows, low, high, &lattice.levels, lattice.room));
         levels.sort_by(f64::total_cmp);
         levels.dedup();
@@ -121,11 +130,11 @@ impl Outline {
             .map(|(rank, level)| (level.to_bits(), rank))
             .collect();
         let rank = |phi: f64| rank.get(&phi.to_bits()).copied();
+        passing.retain(|point, _| rank(self.points[*point].y).is_none());
 
         let mut verticals: Vec<Vec<Vertical>> = vec![Vec::new(); levels.len()];
         let mut bottoms: Vec<Vec<Along>> = vec![Vec::new(); levels.len()];
         let mut tops: Vec<Vec<Along>> = vec![Vec::new(); levels.len()];
-        let walls = std::mem::take(&mut self.walls);
         for index in 0..self.segments.len() {
             let [from, to] = self.segments[index];
             let (a, b) = (self.points[from], self.points[to]);
@@ -133,7 +142,16 @@ impl Outline {
                 return None;
             }
             if a.x == b.x {
-                let (lower, upper) = if a.y < b.y { (from, to) } else { (to, from) };
+                if passing.contains_key(&from) {
+                    continue;
+                }
+                let mut chain = vec![index];
+                let mut end = to;
+                while let Some(&next) = passing.get(&end) {
+                    chain.push(next);
+                    end = self.segments[next][1];
+                }
+                let (lower, upper) = if a.y < b.y { (from, end) } else { (end, from) };
                 let (lo, hi) = (rank(self.points[lower].y)?, rank(self.points[upper].y)?);
                 let pieces = if hi - lo > 1 {
                     if !walls.contains(&index) {
@@ -161,16 +179,15 @@ impl Outline {
                             self.segments.push(segment);
                             self.segments.len() - 1
                         };
-                        pieces.push((lo + rank, at));
+                        pieces.push((lo + rank, segment, vec![at]));
                     }
                     pieces
                 } else {
-                    vec![(lo, index)]
+                    vec![(lo, [from, end], chain)]
                 };
-                for (strip, at) in pieces {
-                    let [from, to] = self.segments[at];
+                for (strip, [from, to], chain) in pieces {
                     let down = self.points[from].y > self.points[to].y;
-                    verticals[strip].push((a.x, down, [from, to], at));
+                    verticals[strip].push((a.x, down, [from, to], chain));
                 }
             } else if a.y == b.y {
                 let level = rank(a.y)?;
@@ -222,11 +239,44 @@ impl Outline {
             if used != bottoms[strip].len() + tops[strip].len() {
                 return None;
             }
-            segments.extend(columns.iter().map(|(_, _, _, index)| *index));
+            segments.extend(
+                columns
+                    .iter()
+                    .flat_map(|(_, _, _, chain)| chain.iter().copied()),
+            );
             strips.push(segments);
         }
         self.strips = strips;
         Some(())
+    }
+
+    /// The points a boundary only passes through along a meridian — a vertex
+    /// parting a meridian arc where an edge of another face meets it — each
+    /// with the segment leaving it: two segments touch it, one running into
+    /// it and one out of it the same way along the same angle about the
+    /// axis, neither a wall. Where such a point stands at no row and no
+    /// level of the face, the column runs on through it, and the boundary
+    /// across the face from it need not stop there.
+    fn passing(&self, walls: &[usize]) -> BTreeMap<usize, usize> {
+        let mut touching = vec![0usize; self.points.len()];
+        let mut arriving = BTreeMap::new();
+        let mut leaving = BTreeMap::new();
+        for (index, &[from, to]) in self.segments.iter().enumerate() {
+            touching[from] += 1;
+            touching[to] += 1;
+            let (a, b) = (self.points[from], self.points[to]);
+            if a.x == b.x && a.y != b.y && !walls.contains(&index) {
+                arriving.insert(to, b.y > a.y);
+                leaving.insert(from, (index, b.y > a.y));
+            }
+        }
+        leaving
+            .into_iter()
+            .filter(|(point, (_, up))| {
+                touching[*point] == 2 && arriving.get(point).is_some_and(|way| way == up)
+            })
+            .map(|(point, (index, _))| (point, index))
+            .collect()
     }
 
     /// The boundary of a column along one row, from the point `from` to the

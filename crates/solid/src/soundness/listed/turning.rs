@@ -15,6 +15,7 @@
 //! A loop sweeping less than both — a sliver between a side and a circle
 //! tangent to it — turns neither way that can be read, and is not judged.
 
+mod poles;
 mod sweep;
 mod wound;
 
@@ -46,15 +47,18 @@ const CHORDS: usize = 64;
 /// the face as for an apex held within it. On a sphere or a spindle torus,
 /// a face holding both poles is the whole closed surface with a hole cut out
 /// of its side, and has no outside loop: every loop bounds a hole, swept the
-/// other way; so may a face of a ring, which has no pole to hold — the whole
-/// ring with a rectangle cut out of its tube (#623). Two latitude circles
-/// part a ring into two bands, both bounded, and either may be the face — a
-/// band the chart's cut runs through as well as the band between them — so
-/// on a ring the area its round loops sweep is not read, only that they wind
-/// round the axis nought times in all; a face listed backwards there is left
-/// to the rays, the triangles and the volume. On a ring, a face may go all the way round the tube instead,
-/// between loops winding round it as many times one way as the other
-/// ([`wound`]); every loop that winds round nothing is then a hole.
+/// other way; so may a face of a ring, which has no pole to hold — the
+/// whole ring with a rectangle cut out of its tube (#623). A loop passing
+/// through both poles of a sphere or a spindle — a lune between two
+/// meridians — is closed along both floors ([`poles`], #628). Two latitude circles part a ring into two
+/// bands, both bounded, and either may be the face — a band the chart's cut
+/// runs through as well as the band between them — so on a ring the area
+/// its round loops sweep is not read, only that they wind round the axis
+/// nought times in all; a face listed backwards there is left to the rays,
+/// the triangles and the volume. On a ring, a face may go all the way round
+/// the tube instead, between loops winding round it as many times one way
+/// as the other ([`wound`]); every loop that winds round nothing is then a
+/// hole.
 pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
     for (face, listed) in listing.faces.iter().enumerate() {
         let side = if listed.outward { 1.0 } else { -1.0 };
@@ -117,6 +121,12 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
                     turns = 0.0;
                 }
                 if let Some(tube) = &tube
+                    && let Some((floors, swing)) =
+                        poles::through_both(tube, listing, uses, (about, room), listed.outward)
+                {
+                    area += floors;
+                    turns += swing;
+                } else if let Some(tube) = &tube
                     && let Some(pole) = tube
                         .poles()
                         .into_iter()

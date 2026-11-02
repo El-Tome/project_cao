@@ -91,7 +91,7 @@ impl Meridian {
     /// The line's normal and offset: the points `x` with `normal · x =
     /// offset`. An arc is no line: `met` crosses it in `arc.rs` before it
     /// reads one.
-    fn line(&self) -> (DVec2, f64) {
+    pub(super) fn line(&self) -> (DVec2, f64) {
         match *self {
             Meridian::Level(height) => (DVec2::X, height),
             Meridian::Wall(radius) => (DVec2::Y, radius),

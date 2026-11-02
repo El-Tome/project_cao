@@ -2890,3 +2890,97 @@ axis: the two meet along cylinders at a skew angle, which the exact kernel
 declines as unsupported, so that step is refused at once, where about the
 straight axis it is built and the next one refused. The whole case takes the
 body under a second, as about the straight axis.
+
+## #626: a coaxial surface a hair from tangent to a round
+
+After #633, the largest family on the rounded draw was `Uncrossed`, four in
+five of them hairs: a coaxial cylinder, cone or plane standing a few units
+of 1e-8 from tangent to a sphere or a torus — a bore 2e-8 narrower than the
+ball it runs through, a band 1e-7 inside a ball's equator, a disc 1e-8 under
+a ring's two crests. The two cross along two circles `√(2rδ)` apart, a few
+ten-thousandths: real geometry, thinner than any triangle laid between them.
+
+**Fixed:**
+
+- **Decision 12** (`canonical/tangent.rs`, `exact-kernel.md`): such a
+  surface, within decision 8's hair `G`, is moved onto the touch with its
+  operand — along the axis for a plane or a cone, away from it for a
+  cylinder, its radius grown or shrunk by the hair
+  (`canonical/carried/across.rs`). So is one standing within `G` of a rim
+  the other operand drew on its round: a rounded zone cut by its own
+  section moved 5e-8 along the axis left a ring 1.7e-8 wide (5576809934).
+- **A disc resting on a ring's two crests, its wall through both**
+  (`selection/parted.rs`), which the hair case becomes once moved and which
+  `main` declined `Unverified` drawn exactly so: a rim along which one
+  surface only touches a whole ring was read as parting nothing, though the
+  disc's wall crossed the ring along it. It parts the ring now where a face
+  of the crossing surface reaches the rim, and only there: a band's end
+  plane through the circle a ring touches a post along, its face short of
+  it, does not (5577022049).
+
+**What the first measure found.** Built as above, the decision held 147 of
+the two exact sets' `Uncrossed` and broke 17 cases `main` held, each shrunk
+and replayed on both trees: ten were the decision's own — a move closing one
+hair and opening another — and are refused since, each held by a test in
+`a_wall_a_hair_from_tangent_to_a_round.rs`: a ball's equator taken off the
+disc floor it stood on (5576859311), a tool's wall parted from a disc's it
+was one with (5577024047), a cap laid onto its copy 1e-7 along, the lens
+between them lost (5577028782), a ring a hair thinner than another about
+the same circle brought to touch it inside (5576883559, 5577020735), a bar
+grown onto the rim of a cap far along the axis from it (5576873713), and the
+first `parted.rs` rule reading a plane short of a rim as crossing it
+(5577022049). Two of those seeds, 5576873713 and 5577020735, held as
+shrunk, still break a rule by another path through the draw, below.
+
+**Measured like for like**: `main` at `c0ba3d0` (#637 merged; its verdicts
+are #633's measure, its tree bit for bit) against the branch, on #623's and
+#628's seed sets, every verdict compared case by case.
+
+| seeds | kernel | cases | `main` broke a rule | branch broke a rule | `Uncrossed`, `main` → branch | held on `main`, built wrong here |
+| --- | --- | --- | --- | --- | --- | --- |
+| from 5576850000 | exact | 45 154 | 320, 7.09 ‰ | 255, 5.65 ‰ | 172 → 112 | 2 |
+| from 5577000000 | exact | 45 000 | 339, 7.53 ‰ | 252, 5.60 ‰ | 167 → 100 | 2, and 1 declined on `main` |
+| from 5576910000 | the application's body | 8 198 | 68, 8.29 ‰ | 57, 6.95 ‰ | 37 → 25 | none |
+| from 5577100000, but 5577103202 | the application's body | 7 999 | 58, 7.25 ‰ | 46, 5.75 ‰ | 31 → 18 | none |
+
+Read apart, a case every number of which is a multiple of a thousandth
+against one that carries a hair:
+
+| seeds | kernel | plain, `main` | plain, branch | hair, `main` | hair, branch |
+| --- | --- | --- | --- | --- | --- |
+| from 5576850000 | exact | 65 of 21 265, 3.06 ‰ | 60, 2.82 ‰ | 255 of 23 889, 10.67 ‰ | 195, 8.16 ‰ |
+| from 5577000000 | exact | 62 of 21 266, 2.92 ‰ | 58, 2.73 ‰ | 277 of 23 734, 11.67 ‰ | 194, 8.17 ‰ |
+| from 5576910000 | the body | 13 of 3 949, 3.29 ‰ | 13, 3.29 ‰ | 55 of 4 249, 12.94 ‰ | 44, 10.36 ‰ |
+| from 5577100000 | the body | 10 of 3 820, 2.62 ‰ | 10, 2.62 ‰ | 48 of 4 179, 11.49 ‰ | 36, 8.61 ‰ |
+
+**Held on `main`, wrong or refused here**, each shrunk on the branch and
+replayed on both trees. Four reach, by another path through the draw, a
+family `main` breaks on the shrunk case too: a whole ring touching a whole
+coaxial cylinder along its equator (5576852238, 5577008284, both
+`Uncrossed`; 5577042736, a post along a ring's inner equator, `Volume`),
+a ring cut by one a hair thinner (5577020735, declined on `main`,
+`Uncrossed` here). One is the harness's: a bar 1e-6 thinner than the rim
+of a cap turned half a turn, grown onto the rim, stands that hair outside
+the box of what was drawn on the side the half cap leaves bare
+(5576873713, `Volume` by `within_reach`, as the hair-off ball end of #576);
+the body is the one the bar drawn at the rim's radius gives, bit for bit.
+Four are refused where `main` built them, each on a family `main` refuses
+on its shrunk case too: 5576863438, 5576877739 on the exact kernel,
+5576911895, 5577103737 through the body.
+
+**What is left**, for the pass that takes the kernel as far as it goes —
+round 2's `Uncrossed`, 112, sorted by what the shrunk case of `main` holds:
+
+- **Plain, about 43** — a whole ring touching a whole coaxial cylinder
+  along its outer or inner equator: the triangles of the two cross beside
+  the circle they share (under "#623" above).
+- **Two rounds a hair apart, about 31** — two balls of one radius, or two
+  rings, a hair apart along the axis or in radius. Laying one onto the
+  other is what decision 8 does for walls, but two rounds cross at a grazing
+  angle all along their circle, and the lens merged away was seen by the
+  rules' lines (5577028782): not this issue's, and set aside.
+- **A wall a hair off a round still, about 35** — hairs past `G`, a few
+  units of 1e-6 or 1e-5, real geometry the triangles do not keep apart; a
+  ball of the second operand a hair inside a cylinder of the first, which no
+  move of the ball settles (its poles stand on the axis); and moves a guard
+  refuses.

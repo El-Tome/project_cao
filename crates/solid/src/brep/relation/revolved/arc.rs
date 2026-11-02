@@ -8,7 +8,8 @@
 //! signed gap between the circle and the line, or between the two circles,
 //! against the tolerance before any root is taken, and built as the one
 //! exact circle at the foot of the centre: no pair with a round grazes, and
-//! none is moved onto a touch. Each root is written as a product, never as
+//! none is moved onto a touch here — decision 12 moves one standing a hair
+//! further off before (#626). Each root is written as a product, never as
 //! the difference of two squares, so that a crossing a hair from a touch is
 //! found where it stands. A plane keeps its height and a cylinder its
 //! radius to the bit, so that the circle is the one either shares with every

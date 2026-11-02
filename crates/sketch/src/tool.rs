@@ -10,6 +10,7 @@ use glam::DVec2;
 use crate::aim::{ChainAnchor, LockedInput};
 use crate::constraints::DimensionTarget;
 use crate::corner::Corner;
+use crate::corner_cut::CornerCutId;
 use crate::element::Element;
 use crate::measuring::DimensionPicks;
 use crate::picking::Selection;
@@ -73,6 +74,8 @@ pub enum Measured {
     /// to. It is gone the moment the drawing moves, so the simplest thing that
     /// finds the area again in the very next frame is the right one.
     Inside(DVec2),
+    /// The curve of a fillet, or the cut of a chamfer.
+    Cut(CornerCutId),
 }
 
 /// How far a shape, a dimension or a rule being drawn has gotten.

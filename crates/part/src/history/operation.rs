@@ -11,10 +11,12 @@ use serde::{Deserialize, Serialize};
 use crate::formula::Formula;
 use crate::variables::VariableChange;
 
+mod cut_change;
 mod edits;
 mod point_ref;
 mod raising;
 mod sizes;
+pub use cut_change::{CutAsked, CutChange};
 pub use point_ref::PointRef;
 pub use raising::{ExtrusionMode, FaceAnchor, RevolutionAxis};
 pub(crate) use sizes::FirstValue;
@@ -389,4 +391,6 @@ pub enum Operation {
         angle: Formula,
         mode: ExtrusionMode,
     },
+    /// A fillet or a chamfer changed after it was laid.
+    CutChange(CutChange),
 }

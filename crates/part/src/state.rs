@@ -339,6 +339,7 @@ impl PartState {
                 radius,
                 construction,
             } => self.fillet(*sketch, corners, radius, *construction),
+            Operation::CutChange(change) => self.change_cut(change),
             Operation::Mirror {
                 sketch,
                 elements,

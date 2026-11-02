@@ -1,6 +1,8 @@
-//! What a box catches, and what deleting a selection takes with it.
+//! What a click or a box takes hold of, and what deleting a selection takes
+//! with it.
 
 use cao_part::Operation;
+use cao_part::history::CutChange;
 use cao_sketch::Selection;
 use glam::DVec2;
 
@@ -57,7 +59,25 @@ pub(super) fn band_select(
     false
 }
 
-/// Deletes what the selection tool is holding, in one step.
+/// What the cursor is over. The order and the reaches are the drawing's own
+/// rule; all this adds is where each annotation was drawn.
+pub(super) fn pick(
+    context: &SketchContext<'_>,
+    index: usize,
+    cursor: DVec2,
+    snap: f64,
+    pixel: f64,
+) -> Option<Selection> {
+    let sketch = context.document.sketches().get(index)?;
+    sketch.pick(
+        cursor,
+        snap,
+        crate::screens::annotations::metrics(pixel, DVec2::ZERO),
+    )
+}
+
+/// Deletes what the selection tool is holding, in one step. A fillet or a
+/// chamfer held is taken off, its corner sharp again.
 pub(super) fn erase(
     context: &mut SketchContext<'_>,
     index: usize,
@@ -69,21 +89,35 @@ pub(super) fn erase(
     let mut elements = Vec::new();
     let mut dimensions = Vec::new();
     let mut constraints = Vec::new();
+    let mut cuts = Vec::new();
     for held in selection {
         match held {
             Selection::Element(element) => elements.push(*element),
             Selection::Dimension(target) => dimensions.push(*target),
             Selection::Rule(constraint) => constraints.push(*constraint),
-            // A fillet or a chamfer is not taken off by the delete key yet:
-            // what it takes back is a corner as it was, which is its own step.
-            Selection::Cut(_) => {}
+            Selection::Cut(cut) => cuts.push(*cut),
         }
     }
-    context.document.apply(Operation::EraseMany {
-        sketch: index,
-        elements,
-        dimensions,
-        constraints,
+    // The cuts first: erasing a side would take its cut away with it, and the
+    // step would then break on a cut no longer there to take off.
+    let mut done = Vec::new();
+    if !cuts.is_empty() {
+        done.push(Operation::CutChange(CutChange::TakeOff {
+            sketch: index,
+            cuts,
+        }));
+    }
+    if !elements.is_empty() || !dimensions.is_empty() || !constraints.is_empty() {
+        done.push(Operation::EraseMany {
+            sketch: index,
+            elements,
+            dimensions,
+            constraints,
+        });
+    }
+    context.document.apply(match done.len() {
+        1 => done.remove(0),
+        _ => Operation::Gesture(done),
     });
     true
 }

@@ -122,3 +122,15 @@ fn the_middle_of_a_fillet_is_a_place_to_start_from() {
     assert_eq!(snap, Some(crate::snap::Snap::Midpoint(at)));
     assert!(at.distance(on_the_curve()) < 1e-9, "{at}");
 }
+
+#[test]
+fn a_press_on_a_side_beside_where_the_curve_meets_it_takes_the_side() {
+    let (sketch, _, [right, _]) = a_rounded_right_angle();
+
+    let picked = sketch.pick(DVec2::new(20.3, 10.05), 0.5, METRICS);
+
+    assert_eq!(
+        picked,
+        Some(Selection::Element(crate::element::Element::Segment(right)))
+    );
+}

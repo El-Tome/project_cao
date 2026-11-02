@@ -148,8 +148,19 @@ impl Sketch {
     /// share is read side by side: what is left of each once the cuts already
     /// drawn as the outline have taken theirs, over what the new cuts would
     /// take.
+    /// A corner already cut is cut again in place, so what its cut takes now
+    /// is not counted against it.
     pub fn fitting_share(&self, corners: &[(SegmentId, SegmentId)], shape: CutShape) -> f64 {
-        let taken = taken_from_the_outline(&self.cut_backs());
+        let replaced: Vec<PointId> = corners
+            .iter()
+            .filter_map(|(first, second)| self.shared_point(*first, *second))
+            .collect();
+        let standing: Vec<_> = self
+            .cut_backs()
+            .into_iter()
+            .filter(|(_, cut, _)| !replaced.contains(&cut.corner))
+            .collect();
+        let taken = taken_from_the_outline(&standing);
         let mut asked: HashMap<SegmentId, f64> = HashMap::new();
         for (first, second) in corners {
             let Some((corner, far_first, far_second)) = self.corner_to_cut(*first, *second) else {

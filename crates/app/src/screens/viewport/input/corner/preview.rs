@@ -3,7 +3,7 @@ use glam::DVec2;
 
 use crate::screens::sketch::{SketchEditor, Tool};
 
-use super::{in_units, shape_of, typed};
+use super::{in_units, shape_of, typed, whole_group};
 
 /// What a corner would become, shown before the click that commits it.
 ///
@@ -47,6 +47,13 @@ pub(crate) fn previewed(
         ),
     );
     let construction = editor.construction;
+    // A whole group retyped is shown changed in place, as `Entrée` lays it.
+    if let Some(cut) = whole_group(sketch, &shown, shape) {
+        return sketch.preview(|trial| {
+            trial.reshape_cuts(cut, shape);
+            Some(trial.cuts_grouped_with(cut))
+        });
+    }
     sketch.preview(|trial| {
         let group = trial.fresh_cut_group();
         let mut laid = Vec::new();

@@ -2,9 +2,11 @@
 //! corner taken is cut by, the values typed as the drawing measures them, and
 //! a value too big held back with the largest that fits offered instead.
 
-use cao_part::history::ChamferAsked;
+use cao_part::history::{ChamferAsked, CutAsked, CutChange};
 use cao_part::{Formula, Operation, Variables};
-use cao_sketch::{Chamfer, ChamferMode, Corner, CutShape, LockedInput, SegmentId};
+use cao_sketch::{
+    Chamfer, ChamferMode, Corner, CornerCutId, CutShape, LockedInput, SegmentId, Sketch,
+};
 
 use crate::screens::SketchContext;
 
@@ -51,35 +53,94 @@ pub(super) fn laying(
     written: [Option<Formula>; 2],
     construction: bool,
 ) -> Operation {
+    match as_written(asked, rounding, written) {
+        CutAsked::Fillet(radius) => Operation::Fillet {
+            sketch: index,
+            corners: taken,
+            radius,
+            construction,
+        },
+        CutAsked::Chamfer(mode) => Operation::Chamfer {
+            sketch: index,
+            corners: taken,
+            mode,
+            construction,
+        },
+    }
+}
+
+/// The operation that gives a whole group its new values in place.
+pub(super) fn reshaping(
+    index: usize,
+    cut: CornerCutId,
+    asked: Chamfer,
+    rounding: bool,
+    written: [Option<Formula>; 2],
+) -> Operation {
+    Operation::CutChange(CutChange::Reshape {
+        sketch: index,
+        cut,
+        value: as_written(asked, rounding, written),
+    })
+}
+
+/// The cut whose group the corners taken are, whole and nothing more, when
+/// the values are typed for the same kind of cut — a fillet for a fillet, a
+/// chamfer in the same mode for a chamfer, its sides named in the order it
+/// measures them. Those values change the group in place, each cut keeping
+/// its sides and whether it is construction; any other gesture cuts each
+/// corner again, into a group of its own.
+pub(super) fn whole_group(
+    sketch: &Sketch,
+    taken: &[Corner],
+    shape: CutShape,
+) -> Option<CornerCutId> {
+    let measured_from_a_side = matches!(
+        shape,
+        CutShape::Chamfer(Chamfer::Sided { .. } | Chamfer::Angled { .. })
+    );
+    let cuts: Vec<CornerCutId> = taken
+        .iter()
+        .map(|corner| {
+            let cut = sketch.cut_standing_at(sketch.corner_point(*corner)?)?;
+            let named = sketch.sides_of(*corner)?;
+            let laid = sketch.corner_cuts()[cut.0].sides;
+            let in_order = laid == [named.0, named.1];
+            (in_order || !measured_from_a_side).then_some(cut)
+        })
+        .collect::<Option<_>>()?;
+    let first = *cuts.first()?;
+    let group = sketch.cuts_grouped_with(first);
+    let whole = group.len() == cuts.len() && cuts.iter().all(|cut| group.contains(cut));
+    let alike = match (sketch.corner_cuts()[first.0].shape, shape) {
+        (CutShape::Fillet { .. }, CutShape::Fillet { .. }) => true,
+        (CutShape::Chamfer(laid), CutShape::Chamfer(typed)) => {
+            std::mem::discriminant(&laid) == std::mem::discriminant(&typed)
+        }
+        _ => false,
+    };
+    (whole && alike).then_some(first)
+}
+
+/// The values typed, each as it was written, so that a cut written from the
+/// part's variables follows them.
+fn as_written(asked: Chamfer, rounding: bool, written: [Option<Formula>; 2]) -> CutAsked {
     let [first, second] = written;
     let as_typed = |typed: Option<Formula>, number: f64| typed.unwrap_or(Formula::Number(number));
-    let mode = match asked {
-        Chamfer::Equal(reach) if rounding => {
-            return Operation::Fillet {
-                sketch: index,
-                corners: taken,
-                radius: as_typed(first, reach),
-                construction,
-            };
-        }
-        Chamfer::Equal(reach) => ChamferAsked::Equal(as_typed(first, reach)),
-        Chamfer::Angled { along, degrees } => ChamferAsked::Angled {
+    match asked {
+        Chamfer::Equal(reach) if rounding => CutAsked::Fillet(as_typed(first, reach)),
+        Chamfer::Equal(reach) => CutAsked::Chamfer(ChamferAsked::Equal(as_typed(first, reach))),
+        Chamfer::Angled { along, degrees } => CutAsked::Chamfer(ChamferAsked::Angled {
             along: as_typed(first, along),
             degrees: as_typed(second, degrees),
-        },
+        }),
         Chamfer::Sided {
             first: near,
             second: far,
-        } => ChamferAsked::Sided {
+        } => CutAsked::Chamfer(ChamferAsked::Sided {
             first: as_typed(first, near),
             second: as_typed(second, far),
-        },
-    };
-    Operation::Chamfer {
-        sketch: index,
-        corners: taken,
-        mode,
-        construction,
+        }),
     }
 }
 

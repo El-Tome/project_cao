@@ -7,7 +7,7 @@ mod laying;
 mod preview;
 use crate::screens::SketchContext;
 use crate::wording::outcome;
-use laying::{held_back, in_units, laying, shape_of, typed};
+use laying::{held_back, in_units, laying, reshaping, shape_of, typed, whole_group};
 pub(crate) use preview::previewed;
 
 /// One click of the chamfer or the fillet tool.
@@ -40,11 +40,6 @@ pub(crate) fn corner(
     }
 
     match clicked(sketch, cursor, snap, takes_a_point(context)) {
-        CornerClick::Corner(corner) if already_cut(sketch, corner) => {
-            keep_typing(context);
-            context.editor.message = Some(context.lang.t("sketch.corner_already_cut"));
-            return true;
-        }
         CornerClick::Corner(corner) => {
             toggle(sketch, &mut taken, corner);
             wait_for_values(context, taken, None);
@@ -74,11 +69,6 @@ pub(crate) fn corner(
                 return true;
             }
             let corner = Corner::Between(first, side);
-            if already_cut(sketch, corner) {
-                keep_typing(context);
-                context.editor.message = Some(context.lang.t("sketch.corner_already_cut"));
-                return true;
-            }
             // Named this way a corner carries its own first side, so a mode
             // that measures from one gathers corners like any other. What it
             // cannot do is take a corner by its point, which would leave it no
@@ -216,23 +206,22 @@ pub(crate) fn cut(context: &mut SketchContext<'_>, index: usize) -> bool {
 
     let written = [0, 1].map(|rank| context.editor.live.written(rank));
     let construction = context.editor.construction;
-    let applied =
-        context
-            .document
-            .apply(laying(index, taken, asked, rounding, written, construction));
+    let shape = shape_of(rounding, in_units(asked, context.document.scale()));
+    let operation = match context
+        .document
+        .sketches()
+        .get(index)
+        .and_then(|sketch| whole_group(sketch, &taken, shape))
+    {
+        Some(cut) => reshaping(index, cut, asked, rounding, written),
+        None => laying(index, taken, asked, rounding, written, construction),
+    };
+    let applied = context.document.apply(operation);
     context.editor.tool_state = ToolState::None;
     context.editor.live.clear();
     context.editor.message = outcome::message(context.lang, applied)
         .or_else(|| Some(context.lang.t("sketch.click_a_corner")));
     true
-}
-
-/// Whether a cut already stands on the corner. Until a cut can be changed in
-/// place, a corner is cut once.
-fn already_cut(sketch: &Sketch, corner: Corner) -> bool {
-    sketch
-        .corner_point(corner)
-        .is_some_and(|point| sketch.cut_standing_at(point).is_some())
 }
 
 fn asks_for(context: &SketchContext<'_>, mode: ChamferMode) -> String {

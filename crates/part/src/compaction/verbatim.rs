@@ -13,7 +13,9 @@ use super::record;
 use super::remap::SketchIdMap;
 use super::variables::Renumbered;
 use crate::formula::Formula;
-use crate::history::{ChamferAsked, History, Operation, RepeatsAsked, StepKind};
+use crate::history::{
+    ChamferAsked, CutAsked, CutChange, History, Operation, RepeatsAsked, StepKind,
+};
 use crate::state::PartState;
 
 /// Whether a sketch holds a tool written from the variables — a pattern, a
@@ -117,17 +119,7 @@ fn said_again(
             sketch: *sketch,
             corners: corners.clone(),
             construction: *construction,
-            mode: match mode {
-                ChamferAsked::Equal(reach) => ChamferAsked::Equal(say(reach)),
-                ChamferAsked::Angled { along, degrees } => ChamferAsked::Angled {
-                    along: say(along),
-                    degrees: say(degrees),
-                },
-                ChamferAsked::Sided { first, second } => ChamferAsked::Sided {
-                    first: say(first),
-                    second: say(second),
-                },
-            },
+            mode: said_chamfer(mode, &say),
         },
         Operation::Fillet {
             sketch,
@@ -140,6 +132,16 @@ fn said_again(
             radius: say(radius),
             construction: *construction,
         },
+        Operation::CutChange(CutChange::Reshape { sketch, cut, value }) => {
+            Operation::CutChange(CutChange::Reshape {
+                sketch: *sketch,
+                cut: *cut,
+                value: match value {
+                    CutAsked::Fillet(radius) => CutAsked::Fillet(say(radius)),
+                    CutAsked::Chamfer(mode) => CutAsked::Chamfer(said_chamfer(mode, &say)),
+                },
+            })
+        }
         Operation::CircularPattern {
             sketch,
             elements,
@@ -197,5 +199,20 @@ fn where_it_was(sketch: &Sketch) -> SketchIdMap {
         cuts: (0..sketch.corner_cuts().len())
             .map(|rank| (CornerCutId(rank), CornerCutId(rank)))
             .collect(),
+    }
+}
+
+/// A chamfer's values, each said in the new ranks.
+fn said_chamfer(mode: &ChamferAsked, say: &impl Fn(&Formula) -> Formula) -> ChamferAsked {
+    match mode {
+        ChamferAsked::Equal(reach) => ChamferAsked::Equal(say(reach)),
+        ChamferAsked::Angled { along, degrees } => ChamferAsked::Angled {
+            along: say(along),
+            degrees: say(degrees),
+        },
+        ChamferAsked::Sided { first, second } => ChamferAsked::Sided {
+            first: say(first),
+            second: say(second),
+        },
     }
 }

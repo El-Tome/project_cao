@@ -87,6 +87,10 @@ pub(crate) fn what_is_measured(context: &SketchContext<'_>) -> Option<Measuring>
             reading: sketch.read(target)?,
             lit: Vec::new(),
         }),
+        Measured::Cut(cut) => Some(Measuring {
+            reading: sketch.read_cut(cut)?,
+            lit: Vec::new(),
+        }),
         Measured::Inside(place) => {
             let regions = sketch.regions();
             let area = &regions[cao_sketch::area_under(&regions, place)?];
@@ -118,7 +122,8 @@ pub(crate) fn push_measure(
         Some(Measured::Inside(_)) => {
             return tint_the_area(surfaces, sketch, measuring, theme);
         }
-        None => return,
+        // A cut is drawn already, and lit while it is held.
+        Some(Measured::Cut(_)) | None => return,
     };
     let width = theme.sketch_width;
     if let Some((from, to)) = sketch.run_of(target) {
@@ -231,6 +236,7 @@ pub(crate) fn paint_measure(
 
     let run = match measured {
         Measured::Of(target) => sketch.run_of(target),
+        Measured::Cut(cut) => sketch.cut_run(cut),
         Measured::Inside(_) => None,
     };
 
@@ -266,6 +272,7 @@ pub(crate) fn paint_measure(
             // the annotation for it would have put its own value.
             let belongs = match measured {
                 Measured::Inside(place) => Some(place),
+                Measured::Cut(cut) => sketch.cut_middle(cut),
                 Measured::Of(target) => sketch
                     .place(target, metrics(pixel, DVec2::ZERO))
                     .map(|placed| placed.text_at),

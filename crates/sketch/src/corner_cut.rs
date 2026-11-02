@@ -15,6 +15,7 @@ use crate::chamfer::Chamfer;
 use crate::erased::Erased;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
+mod changing;
 mod drawn;
 mod picking;
 
@@ -55,12 +56,13 @@ pub enum CutRefused {
     /// The two traits do not end at one point, or one of them is an axis of
     /// an ellipse, which the curve stands on.
     NoCorner,
-    /// A cut already stands on that point.
-    AlreadyCut,
 }
 
 impl Sketch {
-    /// Cuts the corner two traits share.
+    /// Cuts the corner two traits share. A corner already cut is cut again:
+    /// what it carried is taken off and the new cut stands in its place, in
+    /// the group it is laid with — a corner re-cut leaves the group it was
+    /// laid in.
     ///
     /// A value too big for the corner is still laid: the cut is drawn as one
     /// that does not fit, and the sharp corner stands in for it until the
@@ -77,8 +79,8 @@ impl Sketch {
         let (corner, _, _) = self
             .corner_to_cut(first, second)
             .ok_or(CutRefused::NoCorner)?;
-        if self.cut_standing_at(corner).is_some() {
-            return Err(CutRefused::AlreadyCut);
+        if let Some(standing) = self.cut_standing_at(corner) {
+            Erased::mark(&mut self.erased.cuts, standing.0);
         }
         self.corner_cuts.push(CornerCut {
             corner,
@@ -160,13 +162,28 @@ impl Sketch {
         }
     }
 
-    /// Hands every cut that stood on a trait now cut apart to the piece still
-    /// running into its corner, whatever rank that piece got. A trim erases
-    /// the trait before it lays the pieces, so a cut it took away is given back
-    /// here; one whose corner no piece runs into stays gone with the trait.
-    pub(crate) fn cuts_follow_pieces(&mut self, was: SegmentId, pieces: &[SegmentId]) {
-        for rank in 0..self.corner_cuts.len() {
-            let cut = self.corner_cuts[rank];
+    /// The cuts standing on a trait, read before a trim erases it.
+    pub(crate) fn cuts_standing_on(&self, side: SegmentId) -> Vec<CornerCutId> {
+        self.live_corner_cuts()
+            .filter(|(_, cut)| cut.sides.contains(&side))
+            .map(|(id, _)| id)
+            .collect()
+    }
+
+    /// Hands each of `standing` — the cuts that stood on a trait now cut
+    /// apart — to the piece still running into its corner, whatever rank that
+    /// piece got. A trim erases the trait before it lays the pieces, so the
+    /// cuts it took away are given back here; one whose corner no piece runs
+    /// into stays gone with the trait. A cut taken off or replaced before the
+    /// trim is none of these, and stays as it was.
+    pub(crate) fn cuts_follow_pieces(
+        &mut self,
+        standing: &[CornerCutId],
+        was: SegmentId,
+        pieces: &[SegmentId],
+    ) {
+        for id in standing {
+            let cut = self.corner_cuts[id.0];
             let Some(at) = cut.sides.iter().position(|side| *side == was) else {
                 continue;
             };
@@ -177,9 +194,9 @@ impl Sketch {
             let Some(piece) = touching else {
                 continue;
             };
-            self.corner_cuts[rank].sides[at] = piece;
-            if self.stands(&self.corner_cuts[rank]) {
-                Erased::unmark(&mut self.erased.cuts, rank);
+            self.corner_cuts[id.0].sides[at] = piece;
+            if self.stands(&self.corner_cuts[id.0]) {
+                Erased::unmark(&mut self.erased.cuts, id.0);
             }
         }
     }

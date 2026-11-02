@@ -43,6 +43,14 @@ pub(crate) fn read(
         return show(context, picks, Some(Measured::Of(refined)), None);
     }
 
+    // A fillet or a chamfer is read as what it draws, before the traits it
+    // stands between: the curve is what the click was aimed at.
+    if sketch.nearest_point(cursor, snap * 0.8).is_none()
+        && let Some(cut) = sketch.cut_before_traits(cursor, snap)
+    {
+        return show(context, picks, Some(Measured::Cut(cut)), None);
+    }
+
     let (picks, outcome) =
         cao_sketch::measure_pick(sketch, DimensionMode::Auto, picks, cursor, snap);
 

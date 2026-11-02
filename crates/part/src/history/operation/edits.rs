@@ -54,6 +54,7 @@ impl Operation {
             | Self::Mirror { sketch, .. }
             | Self::CircularPattern { sketch, .. }
             | Self::RectangularPattern { sketch, .. } => Some(*sketch),
+            Self::CutChange(change) => Some(change.sketch()),
         }
     }
 }

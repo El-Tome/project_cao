@@ -21,6 +21,7 @@ impl Operation {
             Self::Revolve { angle, .. } => vec![angle],
             Self::Fillet { radius, .. } => vec![radius],
             Self::Chamfer { mode, .. } => mode.formulas(),
+            Self::CutChange(super::CutChange::Reshape { value, .. }) => value.formulas(),
             Self::CircularPattern { degrees, count, .. } => vec![degrees, count],
             Self::RectangularPattern { along, across, .. } => {
                 vec![&along.step, &along.count, &across.step, &across.count]

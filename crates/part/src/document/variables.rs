@@ -60,6 +60,18 @@ impl PartDocument {
         Some(self.state.variables.written(&formula))
     }
 
+    /// Each value of a fillet or a chamfer as it was written, with the names
+    /// the variables go by now — what its fields open on again.
+    pub fn cut_written(&self, sketch: usize, cut: cao_sketch::CornerCutId) -> [Option<String>; 2] {
+        let Some(drawing) = self.sketches().get(sketch) else {
+            return [None, None];
+        };
+        drawing.cut_written(cut).map(|stored| {
+            let formula = Formula::from_stored(stored.as_deref()?)?;
+            Some(self.state.variables.written(&formula))
+        })
+    }
+
     /// Changes the variables, as one step of the history, and rebuilds the
     /// part from them — or says why not, and changes nothing.
     pub fn change_variable(&mut self, change: VariableChange) -> Result<(), Refused> {

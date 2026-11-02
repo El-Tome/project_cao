@@ -36,13 +36,11 @@
 //! is held back with the largest offered —
 //! `a_value_too_big_is_held_back_and_the_field_offers_the_largest` — and the
 //! « Construction » toggle decides what the cut is laid as —
-//! `a_cut_laid_while_construction_is_on_is_laid_in_construction`. A corner
-//! already cut is refused at the click —
-//! `a_click_on_a_corner_already_cut_is_refused_until_a_cut_can_be_changed`.
+//! `a_cut_laid_while_construction_is_on_is_laid_in_construction`.
 
 use cao_part::history::ChamferAsked;
 use cao_part::{Formula, Operation, Variables};
-use cao_sketch::{Chamfer, Corner, CutShape, LockedInput, PointId, Sketch, WorkPlane};
+use cao_sketch::{Chamfer, Corner, LockedInput, PointId, Sketch, WorkPlane};
 use glam::DVec2;
 
 use super::*;
@@ -422,16 +420,4 @@ fn a_value_too_big_is_held_back_and_the_field_offers_the_largest() {
     let drawn = context.document.sketches()[0].drawn_cuts();
     assert_eq!(drawn.len(), 4);
     assert!(drawn.iter().all(|cut| cut.fits), "{drawn:?}");
-}
-
-#[test]
-fn a_click_on_a_corner_already_cut_is_refused_until_a_cut_can_be_changed() {
-    let (sketch, along, up, pivot) = a_right_angle();
-    let mut sketch = sketch;
-    sketch
-        .cut_corner(along, up, CutShape::Fillet { radius: 2.0 }, false, 0)
-        .expect("a right angle takes a fillet");
-
-    assert!(already_cut(&sketch, Corner::At(pivot)));
-    assert!(already_cut(&sketch, Corner::Between(up, along)));
 }

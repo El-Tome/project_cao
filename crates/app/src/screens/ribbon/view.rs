@@ -5,6 +5,7 @@ use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::extrusion_row::extrusion_row;
 use crate::screens::sketch::SketchEditor;
+use crate::screens::viewport::chamfer_to_swap;
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
 use super::state::{Context, Ribbon, active, enabled};
@@ -129,6 +130,7 @@ impl Ribbon {
         });
 
         extrusion_row(ui, drawn.document, drawn.extrusion, &mut asked, lang);
+        chamfer_row(ui, drawn.document, drawn.editor, &mut asked, lang);
         asked
     }
 
@@ -283,3 +285,27 @@ fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut 
 
 #[cfg(test)]
 mod tests;
+
+/// What a chamfer held offers besides its values, while one is held: its two
+/// sides swapped. Here until a panel of the feature's own takes it.
+fn chamfer_row(
+    ui: &mut egui::Ui,
+    document: &PartDocument,
+    editor: &SketchEditor,
+    asked: &mut Vec<Command>,
+    lang: &Catalogue,
+) {
+    if chamfer_to_swap(document, editor).is_none() {
+        return;
+    }
+    ui.horizontal_wrapped(|ui| {
+        let swap = Command::SwapChamferSides;
+        if ui
+            .button(wording::label(lang, swap))
+            .on_hover_text(wording::hint(lang, swap))
+            .clicked()
+        {
+            asked.push(swap);
+        }
+    });
+}

@@ -41,19 +41,6 @@ fn a_cut_leaves_both_sides_whole_and_lays_nothing_else() {
 }
 
 #[test]
-fn a_corner_already_cut_is_not_cut_again() {
-    let (mut sketch, _, [right, up]) = a_right_angle();
-    sketch
-        .cut_corner(right, up, ROUND, false, 0)
-        .expect("a right angle takes a fillet");
-
-    assert_eq!(
-        sketch.cut_corner(up, right, ROUND, false, 1),
-        Err(CutRefused::AlreadyCut)
-    );
-}
-
-#[test]
 fn two_traits_that_do_not_meet_make_no_corner() {
     let (mut sketch, _, [right, _]) = a_right_angle();
     let away = sketch.add_point(DVec2::new(200.0, 200.0));

@@ -21,6 +21,10 @@ use crate::screens::viewport::ViewScale;
 /// the side's own colour: the sharp corner is still there to be read.
 const HIDDEN: f32 = 0.45;
 
+/// How strongly a cut laid with the one held or pointed at is lit: enough to
+/// read the group, faint enough to tell which one a key acts on.
+const LINKED: f32 = 0.35;
+
 /// How far from its curve the value of a cut stands, in pixels.
 const LABEL_PIXELS: f64 = 14.0;
 
@@ -29,11 +33,11 @@ pub(super) struct CutCanvas<'a> {
     sketch: &'a Sketch,
     drawn: Vec<DrawnCut>,
     pulled: PulledEnds,
-    /// Every cut under the cursor or held, with every cut laid with it: a
-    /// rounding of several corners lights as one.
-    lit: Vec<CornerCutId>,
-    /// The corners of those cuts, lit with them.
+    /// The cuts under the cursor or held, and the cuts laid with them.
+    lit: Lit,
+    /// The corners of each, lit with them.
     lit_corners: Vec<PointId>,
+    linked_corners: Vec<PointId>,
 }
 
 /// How a line is drawn.
@@ -49,13 +53,15 @@ impl<'a> CutCanvas<'a> {
         let drawn = sketch.drawn_cuts();
         let pulled = sketch.pulled_ends(&drawn);
         let lit = lit_cuts(sketch, context);
-        let lit_corners = corners_of(sketch, &lit);
+        let lit_corners = corners_of(sketch, &lit.held);
+        let linked_corners = corners_of(sketch, &lit.linked);
         Self {
             sketch,
             drawn,
             pulled,
             lit,
             lit_corners,
+            linked_corners,
         }
     }
 
@@ -72,12 +78,19 @@ impl<'a> CutCanvas<'a> {
     ) {
         let world = |place: DVec2| self.sketch.plane.to_world(place);
         let corners = self.sketch.segments()[side.0];
-        let hidden = |corner: PointId| match self.lit_corners.contains(&corner) {
-            true => Stroke {
-                color: tint_at(theme.highlight, 1.0),
+        let hidden = |corner: PointId| {
+            let lit = match (
+                self.lit_corners.contains(&corner),
+                self.linked_corners.contains(&corner),
+            ) {
+                (true, _) => 1.0,
+                (false, true) => LINKED,
+                (false, false) => return stroke,
+            };
+            Stroke {
+                color: tint_at(theme.highlight, lit),
                 ..stroke
-            },
-            false => stroke,
+            }
         };
         let Some(ends) = self.sketch.visible_ends(side, &self.pulled) else {
             push_hidden(out, world(start), world(end), hidden(corners.start), scale);
@@ -125,9 +138,12 @@ impl<'a> CutCanvas<'a> {
                 true => color,
                 false => tint(theme.refused),
             };
-            let (color, width) = match self.lit.contains(&cut.id) {
-                true => (tint_at(theme.highlight, 1.0), width * 2.0),
-                false => emphasis::mark(context, theme, Selection::Cut(cut.id), &[], base, width),
+            let (color, width) = if self.lit.held.contains(&cut.id) {
+                (tint_at(theme.highlight, 1.0), width * 2.0)
+            } else if self.lit.linked.contains(&cut.id) {
+                (tint_at(theme.highlight, LINKED), width * 1.4)
+            } else {
+                emphasis::mark(context, theme, Selection::Cut(cut.id), &[], base, width)
             };
             let color = match offered.contains(&cut.id) {
                 true => emphasis::ghost(theme),
@@ -163,22 +179,32 @@ fn push_hidden(
     push_line(out, from, to, faint, stroke.width * 0.6, true, scale);
 }
 
-/// Every cut under the cursor or held by the selection, with the cuts laid
-/// with it.
-fn lit_cuts(sketch: &Sketch, context: &SketchContext<'_>) -> Vec<CornerCutId> {
-    let held = |cut: CornerCutId| {
+/// The cuts under the cursor or held by the selection, apart from the cuts
+/// laid with them: a key such as `Suppr` acts on the first alone, and the
+/// second only shows the rounding they make together.
+#[derive(Debug, Default, PartialEq)]
+pub(super) struct Lit {
+    pub(super) held: Vec<CornerCutId>,
+    pub(super) linked: Vec<CornerCutId>,
+}
+
+pub(super) fn lit_cuts(sketch: &Sketch, context: &SketchContext<'_>) -> Lit {
+    let pointed_at = |cut: CornerCutId| {
         let what = Selection::Cut(cut);
         context.editor.is_selected(what) || context.editor.hovered == Some(what)
     };
-    let mut lit: Vec<CornerCutId> = Vec::new();
-    for (id, _) in sketch.live_corner_cuts().filter(|(id, _)| held(*id)) {
-        for cut in sketch.cuts_grouped_with(id) {
-            if !lit.contains(&cut) {
-                lit.push(cut);
-            }
+    let held: Vec<CornerCutId> = sketch
+        .live_corner_cuts()
+        .map(|(id, _)| id)
+        .filter(|id| pointed_at(*id))
+        .collect();
+    let mut linked: Vec<CornerCutId> = Vec::new();
+    for cut in held.iter().flat_map(|id| sketch.cuts_grouped_with(*id)) {
+        if !held.contains(&cut) && !linked.contains(&cut) {
+            linked.push(cut);
         }
     }
-    lit
+    Lit { held, linked }
 }
 
 fn corners_of(sketch: &Sketch, cuts: &[CornerCutId]) -> Vec<PointId> {
@@ -189,8 +215,35 @@ fn corners_of(sketch: &Sketch, cuts: &[CornerCutId]) -> Vec<PointId> {
 
 /// The corners of the cuts under the cursor or held, which light with them.
 pub(super) fn lit_corners(sketch: &Sketch, context: &SketchContext<'_>) -> Vec<PointId> {
-    corners_of(sketch, &lit_cuts(sketch, context))
+    corners_of(sketch, &lit_cuts(sketch, context).held)
 }
+
+/// The cut whose value is written under the cursor. The text stands near the
+/// sharp corner, whose point a press would otherwise take first — except on
+/// the dot of a point itself, which stays the point's.
+pub(crate) fn cut_label_under(sketch: &Sketch, cursor: DVec2, pixel: f64) -> Option<CornerCutId> {
+    if sketch.nearest_point(cursor, ON_A_POINT * pixel).is_some() {
+        return None;
+    }
+    sketch
+        .drawn_cuts()
+        .iter()
+        .map(|cut| (cut.id, label_place(cut, pixel) - cursor))
+        .filter(|(_, off)| {
+            off.x.abs() <= LABEL_HALF_WIDTH * pixel && off.y.abs() <= LABEL_HALF_HEIGHT * pixel
+        })
+        .min_by(|(_, one), (_, other)| one.length().total_cmp(&other.length()))
+        .map(|(id, _)| id)
+}
+
+/// How far either way of its place the value of a cut reads as under the
+/// cursor, in pixels: about the size « R10 mm » is written at.
+const LABEL_HALF_WIDTH: f64 = 26.0;
+const LABEL_HALF_HEIGHT: f64 = 8.0;
+
+/// How near a point a press has to land, in pixels, to take the point rather
+/// than the value written over it.
+const ON_A_POINT: f64 = 6.0;
 
 /// Where the value of a cut is written: beside the middle of its curve, on
 /// the side away from what it rounds off.
@@ -251,3 +304,6 @@ pub(super) fn paint_cut_labels(
         );
     }
 }
+
+#[cfg(test)]
+mod tests;

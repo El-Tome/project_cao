@@ -27,6 +27,7 @@ mod picture;
 pub mod ports;
 mod profile;
 mod pulled;
+mod recutting;
 mod replay;
 mod resizing;
 mod state;

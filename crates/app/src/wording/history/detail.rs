@@ -172,6 +172,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
             radius,
             ..
         } => sized::fillet(lang, variables, *sketch, corners.len(), radius),
+        Operation::CutChange(change) => super::cut_change::detail(lang, variables, change),
         Operation::Mirror {
             sketch,
             elements,

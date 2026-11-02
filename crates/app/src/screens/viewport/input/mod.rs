@@ -66,10 +66,14 @@ use annotation_drag::nearest_annotation;
 use dragging::{Gesture, drag_point, letting_go};
 
 mod areas;
+mod cut_changes;
 pub(crate) use areas::pick_areas;
+pub(crate) use cut_changes::{
+    chamfer_to_swap, open_cut_values, swap_held_chamfer, switch_held_cuts,
+};
 
 mod selecting;
-use selecting::{band_select, erase};
+use selecting::{band_select, erase, pick};
 
 mod copying;
 pub(crate) use copying::{copy, hold_is_done, previewed as copying_shows};
@@ -182,7 +186,14 @@ pub(crate) fn handle_sketch_input(
             navigating: state.drag.is_some(),
         };
         if response.clicked() {
-            let picked = pick(context, index, cursor, snap, scale.units_per_pixel);
+            let pixel = scale.units_per_pixel;
+            let picked = context
+                .document
+                .sketches()
+                .get(index)
+                .and_then(|sketch| super::render::cut_label_under(sketch, cursor, pixel))
+                .map(Selection::Cut)
+                .or_else(|| pick(context, index, cursor, snap, pixel));
             match (picked, adding) {
                 // Holding the modifier gathers things up one by one, which is
                 // how one picks out three traits that no box can enclose alone.
@@ -205,6 +216,9 @@ pub(crate) fn handle_sketch_input(
             match picked {
                 Some(Selection::Dimension(target)) if !adding => {
                     edit_dimension(context, index, target)
+                }
+                Some(Selection::Cut(cut)) if response.double_clicked() => {
+                    open_cut_values(context, index, cut)
                 }
                 _ => context.editor.select(None, None),
             }
@@ -279,23 +293,6 @@ pub(crate) fn handle_sketch_input(
         Tool::Constrain(rule) => constrain(context, index, rule, cursor, snap),
         Tool::Select | Tool::None => false,
     }
-}
-
-/// What the cursor is over. The order and the reaches are the drawing's own
-/// rule; all this adds is where each annotation was drawn.
-pub(super) fn pick(
-    context: &SketchContext<'_>,
-    index: usize,
-    cursor: DVec2,
-    snap: f64,
-    pixel: f64,
-) -> Option<Selection> {
-    let sketch = context.document.sketches().get(index)?;
-    sketch.pick(
-        cursor,
-        snap,
-        crate::screens::annotations::metrics(pixel, DVec2::ZERO),
-    )
 }
 
 /// Points the constraint tool at something, and lays the rule down as soon as

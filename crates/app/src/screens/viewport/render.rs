@@ -28,6 +28,7 @@ mod reading;
 mod symmetric_line;
 mod trim;
 
+pub(crate) use cuts::cut_label_under;
 pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
 use drawing::{Shown, push_sketch, what_would_be_laid};
 use extrusion::push_chosen_areas;

@@ -11,7 +11,8 @@ mod step;
 mod table;
 pub(crate) use operation::FirstValue;
 pub use operation::{
-    ChamferAsked, ExtrusionMode, FaceAnchor, Operation, PointRef, RepeatsAsked, RevolutionAxis,
+    ChamferAsked, CutAsked, CutChange, ExtrusionMode, FaceAnchor, Operation, PointRef,
+    RepeatsAsked, RevolutionAxis,
 };
 pub use step::{Step, StepKind};
 

@@ -1353,3 +1353,29 @@ sphere's poles beside a coaxial turn of another extent, which the triangles
 leave open. One seed takes the body forty minutes, on the flats
 (5577103202): dealt in hands fixed in advance, as `on_every_core` deals
 them, it held a measure's last core alone for half an hour.
+
+## 2 November: #628, a ball turned part of the way beside a coaxial turn, drawn
+
+After #623 the largest family left was a ball, a lemon or a ring turned
+part of the way beside a coaxial turn of another extent: built by the
+kernel, one face of it left open by the triangles, refused by the
+application as `Undrawn`. Ten shrunk seeds, one face open in each, and the
+strips declining it every time but once — not the poles, as the failures
+file had guessed from the outside. Three causes: a vertex parting a
+meridian made a level the meridian across the face had no sample at; a
+sphere's meridians were not sampled at the rims elsewhere on their face, as
+a ring's have been since #623; and one meridian came out at two angles an
+ulp apart, two edges reading it off their own arcs or a loop through a
+pole's floor unwrapped twice. The harness's listing had its own: a lune
+between two meridians was closed along one pole's floor by the loop's own
+turn, nought, and read backwards while the body was right.
+
+The draw fell under one in a hundred on both kernels: 11.9 to 7.0 and 12.6
+to 7.5 in a thousand on the exact kernel, 15.4 to 9.6 and 12.9 to 8.3
+through the application's body; about 3 in a thousand on the cases a user
+types. Three hairs built right on `main` are built wrong here, a skin a few
+units of 1e-8 thick whose two faces were sampled alike and now are not —
+#626's family. An independent review found a signed zero that could have
+panicked the merging of a meridian's angles; and reading each sample back by
+its id rather than by one rule for every point, which it suggested, parted a
+whole ball's two floors at their cut, so the one rule stayed.

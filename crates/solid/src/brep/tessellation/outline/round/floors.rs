@@ -148,6 +148,50 @@ impl Floors<'_> {
         Some(laid)
     }
 
+    /// The angles of the loops laid out moved back by whole turns onto the
+    /// bits the samples were read at or the grid's angles were made at, for
+    /// a face cut open at an angle, which unwraps them again: an angle a
+    /// turn on and a turn back is an ulp off now and then, and a wall laid
+    /// from it would not stand square to the chart (#628). Each angle takes
+    /// the first of those within [`CLEAR`] of it a turn back, then as it
+    /// is, then a turn on — one rule for every point, so that two points at
+    /// one place of the chart come out the same bits whichever way round
+    /// they were reached. Two of those angles within `CLEAR` of each other
+    /// could still part an angle and its ulp-off twin, and the strips would
+    /// then decline the face rather than draw it wrong.
+    pub(super) fn read_again(&self, laid: &[Laid]) -> Vec<Vec<DVec2>> {
+        let steps = self.steps as i64;
+        let mut known: Vec<f64> = self
+            .read
+            .values()
+            .map(|at| at.x)
+            .chain((-steps..=steps).map(|rank| self.angle(rank)))
+            .collect();
+        known.sort_by(f64::total_cmp);
+        let again = |theta: f64| {
+            let near = theta - TAU * (theta / TAU).round();
+            [near - TAU, near, near + TAU]
+                .into_iter()
+                .find_map(|angle| {
+                    let place = known.partition_point(|known| *known < angle);
+                    [place.wrapping_sub(1), place]
+                        .into_iter()
+                        .filter_map(|at| known.get(at))
+                        .find(|known| (*known - angle).abs() <= CLEAR)
+                        .copied()
+                })
+                .unwrap_or(near)
+        };
+        laid.iter()
+            .map(|lap| {
+                lap.raw
+                    .iter()
+                    .map(|at| DVec2::new(again(at.x), at.y))
+                    .collect()
+            })
+            .collect()
+    }
+
     /// The floor of `pole` going once round on its own, the way `way` says,
     /// for the pole's sample `id`.
     pub(super) fn round(&self, way: i64, pole: usize, id: usize) -> Laid {

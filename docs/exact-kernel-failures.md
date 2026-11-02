@@ -2665,7 +2665,8 @@ there:
   step as `Undrawn`. It is what #623 did for a ring's cut, still to do for
   a sphere's poles; the place to start is the outline of a sphere's face
   whose loops reach a pole along meridians a rim parts
-  (`tessellation/outline/round.rs`, `laid_round`, and `floors.rs`).
+  (`tessellation/outline/round.rs`, `laid_round`, and `floors.rs`). Taken
+  up by #628, below: the strips, not the poles.
 - **`Uncrossed`, 157 and 154, four in five hairs** — #626: a coaxial rim a
   hair inside or outside the round's. The plain ones are a whole ring
   touching a whole coaxial cylinder along its outer or inner equator
@@ -2691,3 +2692,100 @@ there:
 - **`Volume`, 8 and 6**, all hairs but one: a ring joined to a coaxial
   spindle turned 315° (5576858970), the exact kernel's triangles a hundredth
   short, the application's right.
+
+## #628: a ball turned part of the way beside a coaxial turn, drawn
+
+After #623, the largest family on the rounded draw was `Closed`: a ball, a
+spindle or a ring turned part of the way and combined with a coaxial turn of
+another extent, the boolean built by the exact kernel and one face of it left
+open by the triangles — so the application refused the step as `Undrawn`. Ten
+shrunk seeds, six `Closed` and four `Listed`, all refused through the body.
+Three causes in the triangles, one in the harness's listing:
+
+- **A meridian parted by a vertex** (`tessellation/outline/strips.rs`,
+  `passing`): where an edge of another face meets a meridian arc, the arc is
+  two edges and the vertex between them a sample — and every sample's height
+  was a level of the strips, so the meridian across the face, sampled at the
+  rows alone, crossed a level with no sample on it and the strips declined.
+  A point the boundary only passes through along a meridian, at no row and
+  no level of the face, is no level now: the column runs on through it
+  (5576867141).
+- **A rim elsewhere on the face a meridian runs past**
+  (`tessellation/sampling/round.rs`, `on_meridian`): #623 sampled a ring's
+  meridian arcs at every level of their faces they run across, where the
+  strips end; a sphere's and a spindle's are now sampled so too — a ball
+  turned 300° cut by a coaxial tube turned 270°, a half ball joined to a
+  coaxial half shaft turned from the other plane (5576853450, 5576850917,
+  5576850021, 5576860674, 5576869948). A whole meridian keeps it for a ring
+  alone: on a sphere, a whole great circle crosses both poles.
+- **One meridian at two angles an ulp apart** (`outline/round.rs`,
+  `one_angle_a_meridian`; `outline/round/floors.rs`, `read_again`): two edges
+  of one meridian each read their angle about the axis off their own arc, and
+  a loop laid through a pole's floor and then cut open at an angle was
+  unwrapped twice, `θ + 2π − 2π` an ulp off `θ`; the strips compare every
+  coordinate bit for bit and found a slanted segment. A face's meridians
+  within `CLEAR` of each other are one angle, and a laid loop's angles are
+  moved back onto the very bits they were read at before the cut unwraps
+  them (5576871098, 5576860117, 5576862224).
+- **A loop through both poles, in the listing** (`soundness/listed/turning.rs`,
+  `turning/poles.rs`), the harness's own: a lune between two meridians was
+  closed along the first pole's floor alone, by the loop's own turn, nought,
+  so its area came out wrong and the face read `Backwards` or `Pointed`. Each
+  pass through a pole is closed along that pole's floor now, the low pole's
+  running the angle up and the high pole's down. Two meridians part a sphere
+  into two lunes, both bounded, so a lune listed backwards reads as the other
+  one listed right: the rays, the triangles and the volume judge it, as on a
+  ring since #623. Of the six `Listed` shrunk, five keep every rule since
+  (5576850021, 5576860674, 5576865967, 5576869948, 5576872826).
+
+**Measured like for like**: `main` at `1af2ae7` (#623 merged) against the
+branch, on #623's seed sets, every verdict compared case by case.
+
+| seeds | kernel | cases | `main` broke a rule | branch broke a rule | built right on `main`, wrong here |
+| --- | --- | --- | --- | --- | --- |
+| from 5576850000 | exact | 45 154 | 535, 11.85 ‰ | 318, 7.04 ‰ | none |
+| from 5577000000 | exact | 45 000 | 568, 12.62 ‰ | 338, 7.51 ‰ | 1, a hair |
+| from 5576910000 | the application's body | 8 198 | 126, 15.37 ‰ | 79, 9.64 ‰ | none |
+| from 5577100000, but 5577103202 | the application's body | 7 999 | 103, 12.88 ‰ | 66, 8.25 ‰ | 2, hairs |
+
+**The draw is under one in a hundred** on both kernels, still far above #576's
+bar of one in a thousand. Read apart:
+
+| seeds | kernel | plain, `main` | plain, branch | hair, `main` | hair, branch |
+| --- | --- | --- | --- | --- | --- |
+| from 5576850000 | exact | 156, 7.34 ‰ | 65, 3.06 ‰ | 379, 15.87 ‰ | 253, 10.59 ‰ |
+| from 5577000000 | exact | 166, 7.81 ‰ | 62, 2.92 ‰ | 402, 16.94 ‰ | 276, 11.63 ‰ |
+| from 5576910000 | the body | 28, 7.09 ‰ | 13, 3.29 ‰ | 98, 23.06 ‰ | 66, 15.53 ‰ |
+| from 5577100000 | the body | 28, 7.33 ‰ | 10, 2.62 ‰ | 75, 17.95 ‰ | 56, 13.40 ‰ |
+
+`Closed` fell from 160 to 9 on round 2's seeds and from 169 to 15 on the fresh
+ones, `Listed` from 112 to 32 and from 131 to 41.
+
+**Built wrong where `main` built right or refused**, all hairs: a ball or a
+cone cut by another a few units of 1e-8 inside it, which leaves a skin
+thinner than the tolerance (5577012966, 5577100697, 5577107628 shrunk). On
+`main`, both faces of the skin were sampled at the rows alone, their
+triangles stood on the same points and cancelled; sampled now at their own
+rims, a hair apart, they cross. The same through the body for four cases
+`main` refused (5576914160, 5577100278, 5577103347, 5577106943). It is
+#626's: a rim within a hair of a round's taken onto it would leave one rim.
+
+**What is left**, for the pass that takes the kernel as far as it goes — 318
+of round 2's seeds and 338 of the fresh ones on the exact kernel:
+
+- **`Uncrossed`, 171 and 166, four in five hairs** — #626. The plain ones,
+  30, are a whole ring touching a whole coaxial cylinder along its outer or
+  inner equator (shrunk under "#623" above), the triangles of the two
+  crossing beside the equator they share.
+- **`Answers`, 80 and 95, four in five hairs** — ties (#585), a straight edge
+  traced on a round; the plain ones, 17 and 16, a round against a wall of
+  another axis (#624), a spindle against a coaxial half turn, a ring cut
+  through its tube's centre by a coaxial cylinder turned the other way.
+  Through the body, the plain cases left are 7 refusals in about 3 900.
+- **`Listed`, 32 and 41, half of them plain**, among them a spindle holding a
+  pole whose only loop is a slit along half a latitude circle (5576854214),
+  refused `Undrawn` through the body: a face that holds one pole of two with
+  no loop closing the other — the boolean's, not the triangles'.
+- **`Spans` 18 and 15, `Closed` 9 and 15, `Volume` 8 and 6**, all hairs but a
+  few: the half slab touching a ring's two crests (5576855990), a ring joined
+  to a coaxial spindle turned 315° (5576858970).

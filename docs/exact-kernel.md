@@ -127,13 +127,13 @@ Known and still open:
 - a cone's own (#536): partial turns about a cone's axis, coaxial turns
   with a cone and a cone beside prisms, under one failure in a thousand
   random parts; `exact-kernel-failures.md` counts them by family;
-- the rounds' own (#576, #623): about 12 rounded cases in a thousand
-  still break a rule on the exact kernel, 13 to 15 through the
-  application's body, far above the bar of one in a thousand — `Closed`,
-  `Uncrossed`, `Listed` and `Answers` first. Half the drawn cases carry a
-  hair, a number a few units of 1e-7 off a round one or an axis leaning
-  1e-5, and fail about twice as often; on the cases a user types, every
-  number a multiple of a thousandth, it is between 7 and 8 in a thousand.
+- the rounds' own (#576, #623, #628): about 7 rounded cases in a thousand
+  still break a rule on the exact kernel, 8 to 10 through the
+  application's body, far above the bar of one in a thousand —
+  `Uncrossed` and `Answers` first. Half the drawn cases carry a hair, a
+  number a few units of 1e-7 off a round one or an axis leaning 1e-5, and
+  fail three to four times as often; on the cases a user types, every number
+  a multiple of a thousandth, it is about 3 in a thousand.
   `exact-kernel-failures.md` counts them by family. A ball joined with a
   quarter shaft over its pole is left too;
 - a face bounded by the curve two perpendicular cylinders meet is never
@@ -1795,12 +1795,19 @@ read backwards by the listing.
   through — is walled as a whole ring is, at an angle of the grid no
   meridian stands at, the walls standing only where the face does and a
   latitude circle running round the axis laid from wall to wall. For its
-  strips to end where the face's rims stand, a meridian arc of a ring is
-  sampled at every level of its faces it runs across, the cut among them,
-  each such sample laid at its level bit for bit rather than where its point
-  reads back; and a face winding round the tube is gridded for the crest
-  even where all its rims stand at the inner equator, beside a shaft
-  touching it there. A round's latitude
+  strips to end where the face's rims stand, a meridian arc of a round is
+  sampled at every level of its faces it runs across — on a ring the cut
+  among them (#623), on a sphere and a spindle beside a coaxial turn of
+  another extent (#628) — each such sample laid at its level bit for bit
+  rather than where its point reads back; a point the boundary only passes
+  through along a meridian, a vertex where an edge of another face parts
+  it, is no level of the strips; a face's meridians within `CLEAR` of each
+  other stand at one angle, and a loop laid through a pole's floor is moved
+  back onto the bits it was read at before the face is cut open at an
+  angle (`outline/strips.rs`, `outline/round.rs`, `outline/round/floors.rs`);
+  and a face winding round the tube is gridded for the crest even where all
+  its rims stand at the inner equator, beside a shaft touching it there. A
+  round's latitude
   circle whose radius is a coaxial cylinder's — the equator a shaft ends in
   a ball at — lies on both and is sampled once, on the shaft's grid and the
   round's. A coaxial wall a hair inside a ball is not drawn in common with it

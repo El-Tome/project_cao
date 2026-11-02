@@ -53,7 +53,8 @@ pub(super) fn held_poles(operands: &Operands, surface: SurfaceId) -> Vec<DVec3> 
 /// it leaves by, the other starting at a tip on the floor it comes back
 /// through; the regions the cut parts are joined back across it and their
 /// loops walked through it ([`glued`]). A rim along which another surface
-/// only touches a whole ring — a slab resting on its crest — parts nothing:
+/// only touches a whole ring — a slab resting on its crest — parts nothing,
+/// unless a third crosses the ring there where a face of it reaches (#626):
 /// a ring whose arcs are all such rims is read whole. That holds only where
 /// the ring's own face is whole, `whole`; a ring whose face is bounded by
 /// its own tangent rims — a meridian arc's two latitude circles — keeps
@@ -63,6 +64,7 @@ pub(super) fn parted(
     surface: SurfaceId,
     held: &[DVec3],
     whole: bool,
+    reached: impl Fn(SurfaceId, DVec3) -> Result<bool, Declined>,
 ) -> Result<(Vec<EdgeId>, Overlay), Declined> {
     let body = &arena.body;
     let geometry = body.surface(surface);
@@ -90,8 +92,14 @@ pub(super) fn parted(
         Some(seam) if poles.is_empty() => vec![seam - PI, seam + PI],
         _ => Vec::new(),
     };
-    if whole && !cut.is_empty() && edges.iter().all(|edge| touching(arena, surface, *edge)) {
-        edges.clear();
+    if whole && !cut.is_empty() {
+        let mut all_touching = true;
+        for &edge in &edges {
+            all_touching = all_touching && touching(arena, surface, edge, &reached)?;
+        }
+        if all_touching {
+            edges.clear();
+        }
     }
     let at_a_pole = |vertex: VertexId| {
         poles
@@ -255,24 +263,42 @@ pub(super) fn parted(
 }
 
 /// Whether an edge of a sphere or a torus is a rim along which a surface it
-/// also lies on only touches the round (#576).
-fn touching(arena: &Arena, surface: SurfaceId, edge: EdgeId) -> bool {
+/// also lies on only touches the round (#576), and no other crosses the
+/// round there where a face of it `reached` the edge (#626): a disc resting
+/// on a ring's two crests, its wall through both, parts the ring along them;
+/// a plane through the circle a ring touches a shaft along, its face short
+/// of it, does not.
+fn touching(
+    arena: &Arena,
+    surface: SurfaceId,
+    edge: EdgeId,
+    reached: &impl Fn(SurfaceId, DVec3) -> Result<bool, Declined>,
+) -> Result<bool, Declined> {
     let body = &arena.body;
     let Curve::Circle(circle) = body.curve(body.edge(edge).curve) else {
-        return false;
+        return Ok(false);
     };
     let eps = body.scale().eps();
-    arena.supports[edge.0 as usize]
+    let stretch = body.edge(edge);
+    let middle = body.point_on(edge, (stretch.from + stretch.to) / 2.0);
+    let mut touched = false;
+    for &on in arena.supports[edge.0 as usize]
         .iter()
         .filter(|on| **on != surface)
-        .any(|on| {
-            matches!(
-                relation(body.surface(surface), body.surface(*on), body.scale()),
-                Relation::Rims(rims) if rims.iter().any(|rim| {
-                    rim.touching
-                        && rim.circle.center.distance(circle.center) <= eps
-                        && (rim.circle.radius - circle.radius).abs() <= eps
-                })
-            )
-        })
+    {
+        let only_touching = matches!(
+            relation(body.surface(surface), body.surface(on), body.scale()),
+            Relation::Rims(rims) if rims.iter().any(|rim| {
+                rim.touching
+                    && rim.circle.center.distance(circle.center) <= eps
+                    && (rim.circle.radius - circle.radius).abs() <= eps
+            })
+        );
+        if only_touching {
+            touched = true;
+        } else if reached(on, middle)? {
+            return Ok(false);
+        }
+    }
+    Ok(touched)
 }

@@ -9,8 +9,9 @@ use std::f64::consts::{PI, TAU};
 use glam::{DVec2, DVec3};
 
 use super::*;
-use crate::brep::turned::tests::round::{ball, bent, ring, turned};
+use crate::brep::turned::tests::round::{ball, bent, ring, turned, zone};
 use crate::brep::{Declined, Face};
+use crate::soundness::{closed, uncrossed};
 use crate::turning::{Corner, Straight};
 
 /// The volume of the ball of radius 5 about the origin, turned about Y.
@@ -294,8 +295,32 @@ fn a_shaft_of_a_ball_s_radius_joined_at_its_equator_touches_it_along_one_rim() {
 }
 
 #[test]
-fn a_shaft_a_hair_larger_or_smaller_than_the_ball_joined_at_its_equator_holds_its_volume() {
+fn a_shaft_a_hair_larger_or_smaller_than_the_ball_joined_at_its_equator_is_laid_onto_it() {
     let hair = 3.0 * Scale::of(15.0).eps();
+    for radius in [5.0 + hair, 5.0 - hair] {
+        let joined = turned(&ball(), 360.0)
+            .joined(&shaft(radius, 0.0, 15.0, 0.0))
+            .expect("the shaft is joined");
+        let what = format!("a shaft of radius {radius} joined to a ball of 5");
+        held_and_drawn(&joined, BALL / 2.0 + PI * 25.0 * 15.0, &what);
+        let [round] = rounds(&joined)[..] else {
+            panic!("{what}: one round face");
+        };
+        assert_eq!(round.poles.len(), 1, "{what}");
+        let cut = turned(&ball(), 360.0)
+            .cut_by(&shaft(radius, 0.0, 15.0, 0.0))
+            .expect("the ball is cut");
+        held_and_drawn(
+            &cut,
+            BALL / 2.0,
+            &format!("a ball cut by a shaft of radius {radius}"),
+        );
+    }
+}
+
+#[test]
+fn a_shaft_further_than_the_hair_from_the_ball_s_equator_still_crosses_it() {
+    let hair = 25.0 * Scale::of(15.0).eps();
     let larger = turned(&ball(), 360.0)
         .joined(&shaft(5.0 + hair, 0.0, 15.0, 0.0))
         .expect("a shaft a hair larger is joined");
@@ -690,4 +715,136 @@ fn a_rounded_rectangle_turned_whole_or_a_quarter_joins_and_cuts_a_block_apart() 
         let cut = far.cut_by(&ring).expect(what);
         held(&cut, 500.0, &format!("a block cut by {what} apart"));
     }
+}
+
+// Decision 12 (#626): a coaxial surface a hair from touching a round, or
+// from a rim on it, is moved onto it with its operand.
+
+/// The body held as `held` holds it, and drawn: its triangles, at the
+/// campaigns' fineness, closed and crossing nowhere.
+fn held_and_drawn(body: &Body, volume: f64, what: &str) {
+    held(body, volume, what);
+    let triangles = body.triangles(1e-3 * body.scale().reach());
+    assert_eq!(closed(&triangles).map_err(|_| ()), Ok(()), "{what}: open");
+    assert_eq!(
+        uncrossed(&triangles).map_err(|_| ()),
+        Ok(()),
+        "{what}: crossed"
+    );
+}
+
+/// The volume of the outer half of the ring of tube radius 2 about the
+/// circle of radius 6, beyond the cylinder of radius 6, by Pappus.
+fn outer_half_of_the_ring() -> f64 {
+    TAU * (6.0 + 8.0 / (3.0 * PI)) * 2.0 * PI
+}
+
+#[test]
+fn a_ring_is_grown_onto_a_shaft_a_hair_off_its_inner_equator() {
+    let hair = 3.0 * Scale::of(15.0).eps();
+    let post = shaft(4.0 + hair, -5.0, 10.0, 0.0);
+    let joined = post
+        .joined(&ring_of(3.0, 6.0, 2.0))
+        .expect("the ring is joined");
+    held_and_drawn(
+        &joined,
+        PI * (4.0 + hair) * (4.0 + hair) * 15.0 + 2.0 * PI * PI * (6.0 + hair) * 4.0,
+        "a ring a hair loose on a post, joined",
+    );
+    let scale = post.scale().joined(ring_of(3.0, 6.0, 2.0).scale());
+    let moved = tangent(&post, &ring_of(3.0, 6.0, 2.0), scale).expect("the ring is moved");
+    let Some(Surface::Torus(torus)) = moved.surfaces.first() else {
+        panic!("a torus: {:?}", moved.surfaces);
+    };
+    assert!((torus.center.y - torus.radius - (4.0 + hair)).abs() < 1e-12);
+}
+
+#[test]
+fn half_a_ring_is_grown_onto_a_shaft_a_hair_off_its_inner_equator_with_its_meridian_ends() {
+    let hair = 3.0 * Scale::of(15.0).eps();
+    let half = || {
+        turned(
+            &bent(&[&[
+                ([3.0, 8.0], Some(([3.0, 6.0], -PI))),
+                ([3.0, 4.0], Some(([3.0, 6.0], -PI))),
+            ]]),
+            180.0,
+        )
+    };
+    let joined = shaft(4.0 + hair, -5.0, 10.0, 0.0)
+        .joined(&half())
+        .expect("the half ring is joined");
+    held_and_drawn(
+        &joined,
+        PI * (4.0 + hair) * (4.0 + hair) * 15.0 + PI * PI * (6.0 + hair) * 4.0,
+        "half a ring a hair loose on a post, joined",
+    );
+}
+
+#[test]
+fn a_disc_a_hair_off_a_ring_s_crests_rests_on_them_with_its_wall_through_them() {
+    let hair = 3.0 * Scale::of(15.0).eps();
+    for (from, what) in [
+        (1.0, "on"),
+        (1.0 - hair, "a hair below"),
+        (1.0 + hair, "a hair above"),
+    ] {
+        let disc = || {
+            turned_whole(&[
+                [from, 0.0],
+                [from, 6.0],
+                [from + 4.0, 6.0],
+                [from + 4.0, 0.0],
+            ])
+        };
+        let joined = ring_of(3.0, 6.0, 2.0)
+            .joined(&disc())
+            .expect("the disc is joined");
+        held_and_drawn(
+            &joined,
+            PI * 36.0 * 4.0 + outer_half_of_the_ring(),
+            &format!("a ring joined to a disc {what} its crests"),
+        );
+        let cut = ring_of(3.0, 6.0, 2.0)
+            .cut_by(&disc())
+            .expect("the ring is cut");
+        held_and_drawn(
+            &cut,
+            outer_half_of_the_ring(),
+            &format!("a ring cut by a disc {what} its crests"),
+        );
+    }
+}
+
+#[test]
+fn a_zone_cut_by_a_bore_of_its_rims_ending_a_hair_off_them_is_a_napkin_ring() {
+    let hair = 3.0 * Scale::of(15.0).eps();
+    for from in [-3.0, -3.0 + hair, -3.0 - hair] {
+        let cut = turned(&zone(), 360.0)
+            .cut_by(&shaft(4.0, from, 10.0, 0.0))
+            .expect("the zone is bored");
+        held_and_drawn(
+            &cut,
+            132.0 * PI - 96.0 * PI,
+            &format!("a zone bored from {from}"),
+        );
+    }
+}
+
+#[test]
+fn a_ball_a_hair_inside_a_shaft_is_left_where_it_is() {
+    let hair = 3.0 * Scale::of(15.0).eps();
+    let post = shaft(5.0 + hair, -10.0, 10.0, 0.0);
+    let ball = turned(&ball(), 360.0);
+    let scale = post.scale().joined(ball.scale());
+    assert!(tangent(&post, &ball, scale).is_none());
+}
+
+#[test]
+fn a_shaft_further_than_the_hair_from_a_ball_is_left_where_it_is() {
+    let hair = 25.0 * Scale::of(15.0).eps();
+    let ball = turned(&ball(), 360.0);
+    let post = shaft(5.0 - hair, 0.0, 15.0, 0.0);
+    let scale = ball.scale().joined(post.scale());
+    assert!(tangent(&ball, &post, scale).is_none());
 }

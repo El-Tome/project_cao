@@ -48,7 +48,18 @@ pub(super) fn selected(
                     .iter()
                     .all(|&face| operands.bodies[operand].face(face).loops.is_empty())
             });
-            parted(arena, *surface, &held_poles(operands, *surface), whole)
+            let reached = |on: SurfaceId, point: DVec3| {
+                (0..2).try_fold(false, |found, operand| {
+                    Ok(found || operands.touched(operand, on, point)?)
+                })
+            };
+            parted(
+                arena,
+                *surface,
+                &held_poles(operands, *surface),
+                whole,
+                reached,
+            )
         })
         .collect::<Result<Vec<_>, _>>()?;
     let seen: Vec<(&Surface, &[EdgeId], &Overlay)> = carried

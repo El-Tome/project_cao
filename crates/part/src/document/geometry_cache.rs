@@ -47,8 +47,10 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// its walls is laid about an axis leaning a hair, where the reading declined
 /// it, and its end stays at the tangent (#633). 15: a fillet or a chamfer is
 /// drawn from its sharp corner rather than laid as geometry, and a replay
-/// draws it there (#617).
-const REBUILT_BY: u32 = 15;
+/// draws it there (#617). 16: a coaxial surface a hair from touching a
+/// sphere or a torus, or from a rim on it, is moved onto it, and a rim
+/// another surface crosses along parts a ring (#626).
+const REBUILT_BY: u32 = 16;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

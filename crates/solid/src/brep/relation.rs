@@ -24,6 +24,7 @@ pub use crossing::{
     Crossing, Crossings, Lying, Touches, crossings, crossings_given, crossings_lying,
 };
 pub(in crate::brep) use revolved::apart_by;
+pub(in crate::brep) use round::{Gap, off_the_rim, untouched};
 pub use walls::Ruled;
 pub(in crate::brep) use walls::{abreast, closest, feet_of_touches};
 

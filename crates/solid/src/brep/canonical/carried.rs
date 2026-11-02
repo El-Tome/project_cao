@@ -9,11 +9,16 @@
 //! a wall of its radius a hair off; decision 2 slides a wall its operand
 //! drew corners on along a touch this way.
 //!
+//! The second operand may be moved away from an axis instead, every point of
+//! what moves square to it (`across.rs`): a wall a hair from tangent to a
+//! round of its axis grows onto the touch (#626).
+//!
 //! A move that would carry a surface of the second operand further off one
 //! of the first's it was one with, part it from one it touched, lay one of its
 //! surfaces on another of its own it leaves behind, or move a curve the
 //! kernel does not translate, is not made.
 
+mod across;
 mod kept;
 
 use std::collections::BTreeSet;
@@ -25,10 +30,18 @@ use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder, Plane, Sphere, Surface, Torus};
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
+pub(super) use across::Across;
 use kept::kept;
 
 /// Under this share of the tolerance, a surface moved along itself stays.
 const ROUNDING: f64 = 1e-6;
+
+/// How the second operand is moved: translated, or away from an axis.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) enum Move {
+    Along(DVec3),
+    Across(Across),
+}
 
 /// The second operand with each surface `by` gives a move for translated by
 /// it, with what it carries; none when nothing moves. `by` is asked of the
@@ -40,6 +53,26 @@ pub(in crate::brep) fn carried_along(
     scale: Scale,
     by: impl Fn(&Body, usize) -> Option<DVec3>,
 ) -> Option<Body> {
+    carried_by(
+        first,
+        second,
+        scale,
+        |current, rank| by(current, rank).map(Move::Along),
+        |_, _| true,
+    )
+}
+
+/// The second operand with each surface `by` gives a move for moved by it,
+/// translated or away from an axis, with what it carries, as
+/// `carried_along` moves it — where the operand as moved `keeps` what it
+/// held as it stood.
+pub(super) fn carried_by(
+    first: &Body,
+    second: &Body,
+    scale: Scale,
+    by: impl Fn(&Body, usize) -> Option<Move>,
+    keeps: impl Fn(&Body, &Body) -> bool,
+) -> Option<Body> {
     let mut body: Option<Body> = None;
     let mut moved = BTreeSet::new();
     for rank in 0..second.surfaces.len() {
@@ -50,14 +83,14 @@ pub(in crate::brep) fn carried_along(
         let Some(by) = by(current, rank) else {
             continue;
         };
-        let carried = carried(current, rank, by, scale);
+        let carried = carried(current, rank, &by, scale);
         if carried.iter().any(|surface| moved.contains(surface)) {
             continue;
         }
-        let Some(shifted) = translated(current, &carried, by, scale) else {
+        let Some(shifted) = translated(current, &carried, &by, scale) else {
             continue;
         };
-        if !kept(first, current, &shifted, &carried, rank, scale) {
+        if !kept(first, current, &shifted, &carried, rank, scale) || !keeps(current, &shifted) {
             continue;
         }
         moved.extend(carried);
@@ -69,7 +102,7 @@ pub(in crate::brep) fn carried_along(
 /// The surfaces of the second operand that move with the surface of rank
 /// `start`: every surface a corner or a curve of a moving one lies on, but
 /// those the move slides along themselves.
-fn carried(body: &Body, start: usize, by: DVec3, scale: Scale) -> BTreeSet<usize> {
+fn carried(body: &Body, start: usize, by: &Move, scale: Scale) -> BTreeSet<usize> {
     let mut carried = BTreeSet::from([start]);
     let mut waiting = vec![start];
     while let Some(surface) = waiting.pop() {
@@ -107,11 +140,16 @@ fn beside(body: &Body, edge: EdgeId) -> Vec<usize> {
         .collect()
 }
 
-/// Whether a move leaves a surface where it is: along a plane, or along a
-/// cylinder's or an elliptic wall's axis; a cone, which a move along its
-/// axis takes its apex with, a sphere or a torus, only under no move at
-/// all.
-fn slides(surface: &Surface, by: DVec3, scale: Scale) -> bool {
+/// Whether a move leaves a surface where it is: a translation along a
+/// plane, or along a cylinder's or an elliptic wall's axis; a cone, which a
+/// move along its axis takes its apex with, a sphere or a torus, only under
+/// no move at all. A move away from an axis leaves a plane square to it or
+/// holding it.
+fn slides(surface: &Surface, by: &Move, scale: Scale) -> bool {
+    let by = match by {
+        Move::Along(by) => *by,
+        Move::Across(across) => return across.slides(surface, scale),
+    };
     let off = match surface {
         Surface::Plane(plane) => plane.normal.dot(by).abs(),
         Surface::Cylinder(cylinder) => (by - cylinder.axis * cylinder.axis.dot(by)).length(),
@@ -123,14 +161,18 @@ fn slides(surface: &Surface, by: DVec3, scale: Scale) -> bool {
 
 /// The body with the surfaces `carried`, the corners on them and the curves
 /// of the edges beside them moved by `by`; none where a curve to move is one
-/// two perpendicular cylinders meet along. A cone is built again through
-/// its meridian line moved, canonical; a conic is cut again by its plane
-/// moved on its wall moved, the arm on its side kept, so that it has the
-/// bits the moved surfaces' own relation gives it.
-fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3, scale: Scale) -> Option<Body> {
+/// two perpendicular cylinders meet along, or one the move away from an axis
+/// does not keep. A cone is built again through its meridian line moved,
+/// canonical; a conic is cut again by its plane moved on its wall moved, the
+/// arm on its side kept, so that it has the bits the moved surfaces' own
+/// relation gives it.
+fn translated(body: &Body, carried: &BTreeSet<usize>, by: &Move, scale: Scale) -> Option<Body> {
     let mut moved = body.clone();
     for &rank in carried {
-        moved.surfaces[rank] = shifted(&body.surfaces[rank], by);
+        moved.surfaces[rank] = match by {
+            Move::Along(by) => shifted(&body.surfaces[rank], *by),
+            Move::Across(across) => across.surface(&body.surfaces[rank], scale)?,
+        };
     }
     let mut corners = BTreeSet::new();
     for (rank, vertex) in moved.vertices.iter_mut().enumerate() {
@@ -139,7 +181,10 @@ fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3, scale: Scale) -
             .iter()
             .any(|on| carried.contains(&(on.0 as usize)))
         {
-            vertex.point += by;
+            vertex.point = match by {
+                Move::Along(by) => vertex.point + *by,
+                Move::Across(across) => across.point(vertex.point, scale)?,
+            };
             corners.insert(rank);
         }
     }
@@ -154,6 +199,13 @@ fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3, scale: Scale) -
         }
     }
     for &rank in &curves {
+        let by = match by {
+            Move::Along(by) => *by,
+            Move::Across(across) => {
+                moved.curves[rank] = across.curve(&body.curves[rank], scale)?;
+                continue;
+            }
+        };
         moved.curves[rank] = match body.curves[rank] {
             Curve::Line(line) => Curve::Line(Line::through(line.origin + by, line.direction)),
             Curve::Circle(circle) => Curve::Circle(Circle {

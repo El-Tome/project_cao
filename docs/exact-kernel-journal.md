@@ -1352,7 +1352,8 @@ What is left is counted by family in `exact-kernel-failures.md` — first a
 sphere's poles beside a coaxial turn of another extent, which the triangles
 leave open. One seed takes the body forty minutes, on the flats
 (5577103202): dealt in hands fixed in advance, as `on_every_core` deals
-them, it held a measure's last core alone for half an hour.
+them, it held a measure's last core alone for half an hour — dealt one at a
+time since #630.
 
 ## 2 November: #628, a ball turned part of the way beside a coaxial turn, drawn
 

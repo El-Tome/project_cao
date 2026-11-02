@@ -1,18 +1,21 @@
 //! Closes #632.
 //! - a profile with an arc turned about an axis leaning 0.1° is declined by
-//!   the application's body, not turned — no test: the section the
-//!   issue measured is the harness's, held in `cao_solid` by
-//!   `a_bowed_section_turned_about_an_axis_leaning_a_tenth_of_a_degree_is_declined_through_the_body`
-//!   in `random_turned_solids.rs`; the same rule through the part, on that
-//!   section drawn as a pulley about an axis leaning 1e-5° — at the drawing's
-//!   resolution the reading lays it from 1e-4° on — by
+//!   the application's body, not turned — no test: #633 lays that section
+//!   since, raised in `cao_solid` by
+//!   `a_grooved_ring_about_an_axis_leaning_a_tenth_of_a_degree_or_1e_5_is_raised_exactly`
+//!   in `a_groove_turned_about_a_leaning_axis.rs`; the rule, a profile the
+//!   reading cannot lay is a broken step, is held through the part on that
+//!   section drawn as a pulley about an axis leaning 1e-5°, which the reading
+//!   still declines, by
 //!   `a_pulley_whose_groove_the_reading_cannot_lay_is_a_broken_step`
 //! - a turned ellipse is declined by the application's body —
 //!   `a_turned_ellipse_is_a_broken_step`
 //! - seed 5577103202's case through the application's body is refused at its
-//!   first step, in about a second — no test: held in `cao_solid` by
-//!   `seed_5577103202_a_bowed_section_the_reading_declines_to_lay_is_refused_through_the_body_at_once`
-//!   in `random_turned_solids.rs`, where the harness's cases are written
+//!   first step, in about a second — no test: #633 raises that step since,
+//!   and the case keeps every rule through the body in about a second, held
+//!   in `cao_solid` by
+//!   `seed_5577103202_leaning_a_tenth_of_a_degree_keeps_every_rule_through_the_body_as_fast_as_straight`
+//!   in `a_groove_turned_about_a_leaning_axis.rs`
 //! - a part saved with such a revolution opens, that step « non construite » —
 //!   no test: held beside the cache by
 //!   `a_part_saved_with_a_turned_ellipse_opens_with_that_step_declined`, on
@@ -31,9 +34,11 @@
 //! exact, and the steps after it built exactly. The flats turned it until
 //! #632, and every boolean after that was theirs.
 //!
-//! The pulley is declined about an axis leaning from the least lean up to
-//! some 1e-5°, and built exactly from 1e-4° on, as about the sketch's own
-//! axis: #633 is the hair.
+//! Since #633 the pulley is built exactly about an axis leaning up to some
+//! 3e-6° and from some 1.5e-5° on, as about the sketch's own axis, and
+//! declined between: there its walls, fifteen long, are laid square, and
+//! its groove's two ends, sixty apart, stand on two levels, so that no
+//! circle is tangent to both walls.
 
 use std::f64::consts::{FRAC_PI_2, PI};
 
@@ -264,7 +269,7 @@ fn a_pulley_whose_groove_the_reading_cannot_lay_is_a_broken_step() {
             &format!("a pulley leaning 1e-5° turned {degrees}°"),
         );
 
-        for lean in [1e-4, 0.1] {
+        for lean in [1e-6, 1e-4, 0.1] {
             let mut history = History::default();
             a_block(&mut history);
             let sketch = a_pulley(&mut history);

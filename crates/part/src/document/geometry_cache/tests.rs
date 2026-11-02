@@ -1000,3 +1000,32 @@ fn a_part_saved_with_a_turned_ellipse_opens_with_that_step_declined() {
         );
     }
 }
+
+#[test]
+fn a_cache_written_before_a_groove_about_a_leaning_axis_was_laid_is_replayed() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut marked = a_part_with_matter().state;
+    marked.declined.insert(3, cao_solid::Declined::Profile);
+    let today = String::from_utf8(encoded(&marked, &borrowed(&design)).expect("a cache"))
+        .expect("a cache is text");
+    let stamped = today.replacen(
+        &format!(r#""rebuilt_by":{REBUILT_BY}"#),
+        r#""rebuilt_by":13"#,
+        1,
+    );
+    assert_ne!(
+        stamped, today,
+        "laying a groove tangent to its walls about a leaning axis rebuilds past the 13 of #632's refusals"
+    );
+    replacing(&files, path, GEOMETRY_ENTRY, Some(stamped.as_bytes()));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert!(
+        !reopened.is_declined(3),
+        "the design is replayed rather than the cache read",
+    );
+}

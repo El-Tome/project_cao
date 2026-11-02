@@ -49,7 +49,9 @@ pub use trace::Trace;
 pub enum Declined {
     /// The profile describes no solid: corners on each other within a loop
     /// or across loops, an arc whose ends are not on its circle or too large
-    /// for the tolerance to hold its points, a number that is not one.
+    /// for the tolerance to hold its points, a number that is not one. Or,
+    /// turned, none the kernel reads: one it cannot lay against its axis, or
+    /// one holding an ellipse, which no surface of its own turns into (#632).
     Profile,
     /// The travel does not stand square to the profile's plane, or is shorter
     /// than the tolerance; or a turn moves a corner of its profile, or leaves

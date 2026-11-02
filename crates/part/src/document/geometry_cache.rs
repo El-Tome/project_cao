@@ -42,8 +42,9 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// 11: an area whose hole touches its outline is raised, pinched at the
 /// touch, where the kernel declined it (#609). 12: an arc turned is a
 /// sphere or a torus of the exact kernel, and the part stays exact after it
-/// (#576).
-const REBUILT_BY: u32 = 12;
+/// (#576). 13: a turn the exact kernel cannot make is a broken step, where
+/// the flats made it and every step after it (#632).
+const REBUILT_BY: u32 = 13;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

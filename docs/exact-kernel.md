@@ -13,7 +13,9 @@ Kept current, so that whoever takes the next step knows where to start.
 
 It can:
 
-- **compute the part.** `Body` holds an exact body or the flats. A profile of
+- **compute the part.** `Body` holds an exact body or the flats, and the
+  application reaches only the first since #632: what the exact kernel cannot
+  make is a broken step, never the flats. A profile of
   straight runs, arcs and ellipses, holes included, is raised square to its
   plane, then joined or cut, by the exact kernel; the arcs reach it as arcs,
   centre and turn, and an ellipse, whole or in arcs, as its centre, its
@@ -82,22 +84,28 @@ It can:
   too (`Declined::Panicked`), not a lost part, and is kept from the
   application's crash log, since it is no crash. A body is drawn as it is
   built: one with a face the triangles cannot cover is declined too
-  (`Declined::Undrawn`). The face counter only goes up, on the flats as well
-  once a part has gone to them, so a number is never given twice.
+  (`Declined::Undrawn`). The face counter only goes up, so a number is never
+  given twice.
 - **tell faces at a slant that never touch from faces that cross**: two skew
   cylinders, a cylinder or a cone off a cone's axis, are decided apart on the
   faces themselves before the kernel declines (`combine/clear.rs`); a plane
   at a slant to a wall is asked the same first, so that the conic it cuts
   is registered only where two faces may meet along it.
-- hand a revolution of a profile with an **ellipse** to the flats, from that
-  step on: it has no surface an ellipse turns into. An ellipse raised is the
-  exact kernel's since #571, and what it declines there is a broken step,
-  never the flats. An arc turned is the exact kernel's since #576 — a
-  sphere or a torus — and what it declines there is a broken step too. So
-  does a profile of straight runs or arcs the reading cannot lay against
-  its axis: pinched at a corner on the axis, an arc crossing a run or a
-  level, or a corner of the profile within the tolerance of a slant or an
-  arc it does not end.
+- refuse a revolution of a profile with an **ellipse** (`Declined::Profile`):
+  it has no surface an ellipse turns into. An ellipse raised is the exact
+  kernel's since #571, an arc turned since #576 — a sphere or a torus — and
+  what it declines there is a broken step too. So is a profile of straight
+  runs or arcs the reading cannot lay against its axis: pinched at a corner
+  on the axis, an arc crossing a run or a level, a corner of the profile
+  within the tolerance of a slant or an arc it does not end, or an arc
+  ending on a level an axis leaning a little takes off square, which #633
+  is to teach the reading (5577103202's pulley groove is declined from the
+  least lean to some 1e-5° at the drawing's resolution, and still at a
+  tenth of a degree read at none, as the harness reads it). Until #632 the
+  flats turned these, and every step after them was the flats' boolean,
+  which took minutes past a few steps on the window's thread (5577103202:
+  two minutes for the fifth step, twenty-two for the sixth). Refused at once,
+  the step says what the exact kernel still lacks.
 
 Left, in the order #497 set:
 
@@ -202,7 +210,7 @@ Known and still open:
 - **Operations:** raise a profile of straight runs, arcs and ellipses along
   its plane's normal; turn a profile of straight runs and arcs, each
   parallel, square or slanted to the axis, an arc about its own centre;
-  join, cut. A turn of an ellipse still goes to the flats. A turn about a
+  join, cut. A turn of an ellipse is a broken step (#632). A turn about a
   line that is no axis of the planes the rest
   of the part stands on brings cylinders at a skew angle to those, and
   declines where their faces cross: a broken step, as #533 decided.
@@ -1251,7 +1259,8 @@ code: one surface per piece of the profile, one circle per corner.
   the rules that re-read a laid profile column by column are not taught
   arcs: one that crosses a run, that a corner comes within the tolerance of,
   or that reaches the axis anywhere but at its ends — a pinch — is not laid,
-  and the flats turn the profile. There is no angle below which a run is
+  and the step is declined (the flats turned it until #632). There is no
+  angle below which a run is
   taken for parallel or
   square but the tolerance itself, so the kernel turns cones a hair from a
   cylinder or a disc. A hole a hair inside its outline opens onto it as a notch, a
@@ -1272,8 +1281,8 @@ code: one surface per piece of the profile, one circle per corner.
   with one exception: a run bringing the slant's own end back to within the
   tolerance of it stays that close the whole way, so the sliver between is
   thinner than the tolerance, and the slant ends where the run back does
-  (`turning/straight/slivers.rs`, 5365208537). Any other such profile goes
-  to the flats — a hole under a chamfer — and so does one with a run across
+  (`turning/straight/slivers.rs`, 5365208537). Any other such profile is
+  declined — a hole under a chamfer — and so is one with a run across
   a slant, or a corner on the axis between two runs that both leave it, a
   pinch the turn would close on a point (`turning/straight/contacts.rs`). A
   corner on a level of its own a run past the tolerance from a slant's end
@@ -1326,8 +1335,8 @@ code: one surface per piece of the profile, one circle per corner.
   than the tolerance (`Declined::Travel`) — past the reading's own rules,
   which make such a turn nothing or whole first; a profile whose corners
   stand on each other, or with a corner on the axis between two pieces that
-  both leave it (`Declined::Profile`), which the reading hands the flats
-  before the kernel sees it.
+  both leave it (`Declined::Profile`), which the reading declines before
+  the kernel sees it.
 - **The numbers** are the flats': run `k`, the outline's first and then each
   hole's, names the face it turns into, a cone, a sphere or a torus
   included — one arc is one face; a run on the axis,
@@ -1990,7 +1999,8 @@ and refused above: `the_exact_kernel_stays_behind_the_body`, in
 `the_insides_of_the_matter_stay_in_cao_solid` on any of their tests. What the
 rest of the workspace computes with is `Body` (`body.rs`, `body/exact.rs`,
 `body/drawn.rs`), which holds the exact body or the flats and decides alone
-which one an operation goes to.
+which one an operation goes to: the flats only for a profile handed without
+its runs, as the harness hands one, and the view behind a sketch plane.
 
 The tests that hold it:
 

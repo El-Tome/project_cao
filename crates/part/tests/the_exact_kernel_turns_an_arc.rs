@@ -33,7 +33,9 @@
 //!   on a face keeps it —
 //!   `a_ball_knob_and_a_rounded_shaft_number_their_faces_as_the_flats_do`
 //!   (the faces made counted from the floor against the same step on a part
-//!   already on the flats, whole and part way); every rounded leaf of the
+//!   already on the flats, whole and part way; against the numbers that gave
+//!   on `main` since #632, which leaves no step a way to the flats); every
+//!   rounded leaf of the
 //!   harness's draw is held to the flats' numbers in `cao_solid` by
 //!   `a_rounded_leaf_names_its_faces_as_the_flats_name_them`
 //! - #448's harness draws arcs turned, before the kernel code: whole and part
@@ -58,9 +60,10 @@
 //!   replayed; the docs are prose, held by `language.rs` only
 //! - a turn of a profile holding an ellipse stays on the flats, and a part
 //!   already on the flats turns an arc on the flats (what must not break) —
-//!   `a_part_already_on_the_flats_turns_an_arc_on_the_flats`; the ellipse
-//!   turned is held in `the_exact_kernel_raises_an_ellipse.rs` by its own
-//!   bullet
+//!   no test: since #632 a turned ellipse is a broken step, held by
+//!   `a_turned_ellipse_is_a_broken_step` in
+//!   `a_revolution_the_exact_kernel_cannot_make_is_refused.rs`, and no part
+//!   goes to the flats any more
 //!
 //! A part holding an arc turned, as the application builds it: the sphere or
 //! the torus is the exact kernel's, and so is every step after it. The
@@ -315,28 +318,6 @@ fn a_half_disc_towards_the_axis(history: &mut History, sketch: usize, center: DV
         PointRef::Existing(PointId(first + 2)),
         PointRef::Existing(PointId(first + 1)),
     );
-}
-
-/// An ellipse about (50, 5), half-axes 5 and 3, turned a quarter about V: an
-/// elliptic torus, which only the flats make, far from the rest.
-fn turn_an_ellipse(history: &mut History) {
-    let sketch = sketch_on(history, WorkPlane::XY);
-    let center = DVec2::new(50.0, 5.0);
-    history.push(Operation::AddEllipse {
-        sketch,
-        center: PointRef::New(center),
-        first: [
-            PointRef::New(center - DVec2::X * 5.0),
-            PointRef::New(center + DVec2::X * 5.0),
-        ],
-        second: [
-            PointRef::New(center - DVec2::Y * 3.0),
-            PointRef::New(center + DVec2::Y * 3.0),
-        ],
-        construction: false,
-        drawn: None,
-    });
-    turn(history, sketch, center, ABOUT_V, 90.0, ExtrusionMode::Add);
 }
 
 #[test]
@@ -748,21 +729,26 @@ fn a_plane_at_a_slant_through_a_ball_is_a_broken_step_with_its_reason() {
 fn a_ball_knob_and_a_rounded_shaft_number_their_faces_as_the_flats_do() {
     type Draw = fn(&mut History, usize);
     type Place = fn() -> DVec2;
-    let shapes: [(&str, Draw, Place); 2] = [
+    // What the same step numbered on a part the flats computed, measured on
+    // `main` at c8ac192, the last commit where a turned ellipse sent a part
+    // there (#632).
+    let shapes: [(&str, Draw, Place, [&[usize]; 2]); 2] = [
         (
             "a ball knob",
             |history, sketch| a_half_disc(history, sketch, 5.0),
             || DVec2::new(2.0, 0.0),
+            [&[0], &[0, 1, 2]],
         ),
         (
             "a rounded shaft end",
             |history, sketch| a_rounded_shaft(history, sketch, 4.0, 10.0),
             || DVec2::new(2.0, 5.0),
+            [&[0, 1, 2], &[0, 1, 2, 5, 6]],
         ),
     ];
 
-    for (what, draw, place) in shapes {
-        for degrees in [360.0, 90.0] {
+    for (what, draw, place, on_the_flats) in shapes {
+        for (degrees, on_the_flats) in [360.0, 90.0].into_iter().zip(on_the_flats) {
             let mut exact = History::default();
             let sketch = sketch_on(&mut exact, WorkPlane::XY);
             draw(&mut exact, sketch);
@@ -775,59 +761,11 @@ fn a_ball_knob_and_a_rounded_shaft_number_their_faces_as_the_flats_do() {
                 ExtrusionMode::Add,
             );
 
-            let mut flats = History::default();
-            turn_an_ellipse(&mut flats);
-            let sketch = sketch_on(&mut flats, WorkPlane::XY);
-            draw(&mut flats, sketch);
-            turn(
-                &mut flats,
-                sketch,
-                place(),
-                ABOUT_V,
-                degrees,
-                ExtrusionMode::Add,
-            );
-            assert!(
-                !applied_live(&flats).body().is_exact(),
-                "{what} turned {degrees}°: the ellipse sent the part to the flats",
-            );
-
             assert_eq!(
                 numbered_from_the_floor(&exact),
-                numbered_from_the_floor(&flats),
-                "{what} turned {degrees}°: the faces number from the floor as the flats' do",
+                on_the_flats,
+                "{what} turned {degrees}°: the faces number from the floor as the flats' did",
             );
         }
     }
-}
-
-#[test]
-fn a_part_already_on_the_flats_turns_an_arc_on_the_flats() {
-    let mut history = History::default();
-    turn_an_ellipse(&mut history);
-    let before = applied_live(&history).body().volume();
-    let sketch = sketch_on(&mut history, WorkPlane::XY);
-    a_half_disc(&mut history, sketch, 5.0);
-    turn(
-        &mut history,
-        sketch,
-        DVec2::new(2.0, 0.0),
-        ABOUT_V,
-        360.0,
-        ExtrusionMode::Add,
-    );
-
-    let part = applied_live(&history);
-    assert!(!part.body().is_exact(), "the part stays on the flats");
-    assert_eq!(
-        part.declined_because(last_step(&history)),
-        None,
-        "the flats turn the arc, they do not decline it",
-    );
-    let added = part.body().volume() - before;
-    let pappus = 500.0 * PI / 3.0;
-    assert!(
-        added < pappus && added > 0.98 * pappus,
-        "{added} where the flats' inscribed ball holds a little under Pappus's {pappus}",
-    );
 }

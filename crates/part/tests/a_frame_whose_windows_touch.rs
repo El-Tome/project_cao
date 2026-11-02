@@ -8,8 +8,8 @@
 //!   `windows_sharing_a_whole_side_leave_the_frame_one_opening`,
 //!   `windows_sharing_part_of_a_side_leave_the_frame_one_opening`,
 //!   `windows_touching_at_one_corner_leave_the_frame_one_opening`; the same
-//!   on a part already on the flats —
-//!   `windows_touching_in_a_frame_raised_by_the_flats_leave_one_opening`
+//!   on a part already on the flats until #632, which leaves no step a way
+//!   there
 //! - the frame's matter equals its measure in each of them, and it is what
 //!   the extrusion panel and the measure tool light —
 //!   `the_matter_of_a_frame_whose_windows_touch_is_its_measure`
@@ -31,8 +31,8 @@
 //!   break the same rules
 
 use cao_part::PartDocument;
-use cao_part::history::{ExtrusionMode, Operation, PointRef, RevolutionAxis};
-use cao_sketch::{PointId, Region, SketchAxis, WorkPlane};
+use cao_part::history::{ExtrusionMode, Operation, PointRef};
+use cao_sketch::{PointId, Region, WorkPlane};
 use cao_solid::soundness;
 use chrono::{DateTime, Utc};
 use glam::{DVec2, DVec3};
@@ -200,60 +200,6 @@ fn windows_sharing_part_of_a_side_leave_the_frame_one_opening() {
 #[test]
 fn windows_touching_at_one_corner_leave_the_frame_one_opening() {
     assert_raised_round_its_openings(one_corner(), 700.0, 80.0);
-}
-
-/// An ellipse 10 by 6 about (50, 5), drawn on a second sketch and turned a
-/// quarter about its V axis fifty from the frame: an elliptic band, which
-/// sends the part to the flats.
-fn turn_an_elliptic_band(document: &mut PartDocument) {
-    document.apply(Operation::CreateSketch {
-        plane: WorkPlane::XY,
-        on: None,
-    });
-    let center = DVec2::new(50.0, 5.0);
-    document.apply(Operation::AddEllipse {
-        sketch: 1,
-        center: PointRef::New(center),
-        first: [
-            PointRef::New(center - DVec2::X * 5.0),
-            PointRef::New(center + DVec2::X * 5.0),
-        ],
-        second: [
-            PointRef::New(center - DVec2::Y * 3.0),
-            PointRef::New(center + DVec2::Y * 3.0),
-        ],
-        construction: false,
-        drawn: None,
-    });
-    let areas = document.areas_at(1, &[center]);
-    document.apply(Operation::Revolve {
-        sketch: 1,
-        areas,
-        axis: RevolutionAxis::Sketch(SketchAxis::V),
-        angle: 90.0.into(),
-        mode: ExtrusionMode::Add,
-    });
-}
-
-#[test]
-fn windows_touching_in_a_frame_raised_by_the_flats_leave_one_opening() {
-    for (drawing, measure) in [
-        (a_whole_side as fn() -> PartDocument, 500.0),
-        (part_of_a_side, 600.0),
-        (one_corner, 700.0),
-    ] {
-        let mut document = drawing();
-        turn_an_elliptic_band(&mut document);
-        let turned = document.body().volume();
-        raise(&mut document, DVec2::splat(2.0), ExtrusionMode::Add);
-
-        assert!(!document.body().is_exact(), "the turn sent it to the flats");
-        let triangles = document.body().triangles();
-        soundness::closed(&triangles).expect("the part is raised closed");
-        soundness::uncrossed(&triangles).expect("the part is raised uncrossed");
-        let frame = document.body().volume() - turned;
-        assert_near(frame, measure * DEPTH, "the frame's share, by the flats");
-    }
 }
 
 fn covered(triangles: &[[DVec2; 3]], place: DVec2) -> bool {

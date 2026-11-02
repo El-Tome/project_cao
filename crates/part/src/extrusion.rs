@@ -43,7 +43,7 @@ impl PartState {
     /// the axis first, and each side is turned on its own, as if the axis had
     /// been drawn across it. A turn of straight runs and arcs is the exact
     /// kernel's (#576); one with an ellipse, or a profile the kernel cannot lay
-    /// against its axis, sends the part to the flats.
+    /// against its axis, is a broken step (#632).
     pub(crate) fn revolve(
         &mut self,
         index: usize,

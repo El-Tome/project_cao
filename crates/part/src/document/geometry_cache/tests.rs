@@ -879,3 +879,124 @@ fn a_cache_written_before_ellipses_were_exact_is_replayed() {
         "the design is replayed rather than the cache read",
     );
 }
+
+#[test]
+fn a_cache_written_while_the_flats_still_turned_is_replayed() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut marked = a_part_with_matter().state;
+    marked.declined.insert(3, cao_solid::Declined::Unsupported);
+    let today = String::from_utf8(encoded(&marked, &borrowed(&design)).expect("a cache"))
+        .expect("a cache is text");
+    let stamped = today.replacen(
+        &format!(r#""rebuilt_by":{REBUILT_BY}"#),
+        r#""rebuilt_by":12"#,
+        1,
+    );
+    assert_ne!(
+        stamped, today,
+        "refusing a turn the exact kernel cannot make rebuilds past the 12 of #576's arcs"
+    );
+    replacing(&files, path, GEOMETRY_ENTRY, Some(stamped.as_bytes()));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert!(
+        !reopened.is_declined(3),
+        "the design is replayed rather than the cache read",
+    );
+}
+
+/// A block, an ellipse turned a quarter about the V axis of a sketch of its
+/// own, and a disc raised after it: the turn is a broken step since #632.
+fn a_part_with_a_turned_ellipse() -> (PartDocument, u32, u32) {
+    let mut document = a_part_with_matter();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let center = DVec2::new(50.0, 5.0);
+    document.apply(Operation::AddEllipse {
+        sketch: 1,
+        center: PointRef::New(center),
+        first: [
+            PointRef::New(center - DVec2::X * 5.0),
+            PointRef::New(center + DVec2::X * 5.0),
+        ],
+        second: [
+            PointRef::New(center - DVec2::Y * 3.0),
+            PointRef::New(center + DVec2::Y * 3.0),
+        ],
+        construction: false,
+        drawn: None,
+    });
+    let turned = document.history.next_number();
+    document.apply(Operation::Revolve {
+        sketch: 1,
+        areas: document.areas_at(1, &[center]),
+        axis: crate::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
+        angle: 90.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let center = DVec2::new(0.0, -40.0);
+    document.apply(Operation::AddCircle {
+        sketch: 2,
+        center: PointRef::New(center),
+        radius: 5.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    let raised = document.history.next_number();
+    document.apply(Operation::Extrude {
+        sketch: 2,
+        areas: document.areas_at(2, &[center]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    (document, turned, raised)
+}
+
+#[test]
+fn a_part_saved_with_a_turned_ellipse_opens_with_that_step_declined() {
+    let (document, turned, raised) = a_part_with_a_turned_ellipse();
+    assert!(document.is_declined(turned), "the turn is refused live");
+    let volume_raised = 10.0 * 20.0 * 4.0 + std::f64::consts::PI * 25.0 * 10.0;
+    let files = InMemoryFiles::default();
+    let on_its_design = Path::new("/parts/design.caopart");
+    let on_its_cache = Path::new("/parts/cache.caopart");
+    let now = at("2026-11-02T10:00:00Z");
+    document.save(&files, on_its_design, now).expect("saved");
+    document
+        .put_away(&files, on_its_cache, now)
+        .expect("put away");
+
+    for (path, how) in [(on_its_design, "replayed"), (on_its_cache, "on its cache")] {
+        let opened = PartDocument::load(&files, path).expect("the part opens");
+
+        assert!(
+            opened.is_declined(turned),
+            "{how}: the turn is declined, a broken step in the tree"
+        );
+        assert_eq!(
+            opened.declined_because(turned),
+            Some(cao_solid::Declined::Profile),
+            "{how}: with its reason",
+        );
+        assert!(
+            !opened.is_declined(raised),
+            "{how}: the disc after it stands"
+        );
+        assert!(opened.body().is_exact(), "{how}: the part is exact");
+        let volume = opened.body().volume();
+        assert!(
+            (volume - volume_raised).abs() < 1e-9 * volume_raised,
+            "{how}: the block and the disc, {volume} against {volume_raised}",
+        );
+    }
+}

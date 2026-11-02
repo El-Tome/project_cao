@@ -419,8 +419,8 @@ impl Held<'_> {
 
 impl Case {
     /// Whether a turned leaf of the case has a wall a hair thin, which the
-    /// exact kernel may decline to raise and the application turns on the
-    /// flats.
+    /// exact kernel may decline to raise, and the application's body with it
+    /// since #632.
     pub fn has_a_wall_a_hair_thin(&self) -> bool {
         self.leaves()
             .filter_map(Leaf::as_turned)

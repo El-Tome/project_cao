@@ -12,7 +12,9 @@
 //!   ellipse make one wall answering to both —
 //!   `an_ellipse_cut_by_a_trait_is_raised_exactly_and_numbers_its_faces_as_the_flats_do`
 //!   (cut by one trait and by two, the faces made counted from the floor
-//!   against the same step on a part already on the flats),
+//!   against the same step on a part already on the flats; against the
+//!   numbers that gave on `main` since #632, which leaves no step a way to
+//!   the flats),
 //!   `a_slot_with_elliptic_ends_is_raised_exactly`,
 //!   `the_areas_an_ellipse_and_a_circle_overlapping_part_are_raised_exactly`
 //!   (the lens and the crescent, each a circle's segment and an ellipse's),
@@ -85,11 +87,12 @@
 //! - `docs/exact-kernel.md` and `docs/glossary.md` say what the kernel builds
 //!   on an elliptic wall and what it still declines, and no longer send an
 //!   ellipse raised to the flats — no test: prose, held by `language.rs` only
-//! - a turn of a profile holding an ellipse stays on the flats (what must not
-//!   break) — `an_ellipse_turned_is_computed_by_the_flats`; a part already on
-//!   the flats raises an ellipse on the flats, held by
-//!   `an_ellipse_raised_on_a_part_already_on_the_flats_is_computed_by_the_flats`
-//!   in `the_exact_kernel_computes_the_part.rs`
+//! - a turn of a profile holding an ellipse stays on the flats, and a part
+//!   already on the flats raises an ellipse on the flats (what must not
+//!   break) — no test: since #632 a turned ellipse is a broken step, held by
+//!   `a_turned_ellipse_is_a_broken_step` in
+//!   `a_revolution_the_exact_kernel_cannot_make_is_refused.rs`, and no part
+//!   goes to the flats any more
 //!
 //! A part holding an ellipse, as the application builds it: the elliptic
 //! wall is the exact kernel's, and so is every step after it. The kernel's
@@ -375,43 +378,6 @@ fn an_ellipse_cut_by_traits(history: &mut History, at: &[f64]) -> usize {
     sketch
 }
 
-/// Half an ellipse 10 by 6 about (50, 5) and the chord closing it, on a sketch
-/// of its own a thousand along X, turned whole about the sketch's V axis: an
-/// elliptic band, which only the flats make. The sketch stands that far so
-/// that the sweep's planes cross none of the faces a raise makes.
-fn turn_an_elliptic_band(history: &mut History) {
-    let sketch = sketch_on(history, plane(DVec3::X * 1000.0, DVec3::X, DVec3::Y));
-    let center = DVec2::new(50.0, 5.0);
-    let first = [center - DVec2::X * 5.0, center + DVec2::X * 5.0];
-    let first_refs = [PointRef::New(first[0]), PointRef::New(first[1])];
-    history.push(Operation::AddEllipse {
-        sketch,
-        center: PointRef::New(center),
-        first: first_refs.clone(),
-        second: [
-            PointRef::New(center - DVec2::Y * 3.0),
-            PointRef::New(center + DVec2::Y * 3.0),
-        ],
-        construction: false,
-        drawn: Some([first_refs[1].clone(), first_refs[0].clone()]),
-    });
-    let base = next_point(history, sketch) - 5;
-    segment(
-        history,
-        sketch,
-        PointRef::Existing(PointId(base + 2)),
-        PointRef::Existing(PointId(base + 1)),
-    );
-    let inside = DVec2::new(50.0, 6.5);
-    history.push(Operation::Revolve {
-        sketch,
-        areas: clicked(history, sketch, &[inside]),
-        axis: RevolutionAxis::Sketch(SketchAxis::V),
-        angle: 360.0.into(),
-        mode: ExtrusionMode::Add,
-    });
-}
-
 /// The faces the last step of `history` made, counted from the first: the
 /// numbers its raise gave, whatever the steps before it gave.
 fn numbered_from_the_floor(history: &History) -> Vec<usize> {
@@ -421,33 +387,34 @@ fn numbered_from_the_floor(history: &History) -> Vec<usize> {
 
 /// The side beyond one trait, its arc parted at the end of the major axis,
 /// and the band between two, each of its arcs parted at an end of the minor
-/// axis: the same step on a part the flats compute numbers the same faces.
+/// axis: they number the faces the same step numbered on a part the flats
+/// computed. Those numbers were measured on `main` at c8ac192, the last
+/// commit where a turned ellipse sent a part to the flats (#632).
 #[test]
 fn an_ellipse_cut_by_a_trait_is_raised_exactly_and_numbers_its_faces_as_the_flats_do() {
     let beyond = elliptic_segment(30.0, 20.0, 10.0);
-    for (traits, place, area) in [
-        (&[10.0][..], DVec2::new(20.0, 0.0), beyond),
-        (&[-10.0, 10.0][..], DVec2::ZERO, PI * 600.0 - 2.0 * beyond),
+    for (traits, place, area, on_the_flats) in [
+        (
+            &[10.0][..],
+            DVec2::new(20.0, 0.0),
+            beyond,
+            &[0, 1, 2, 3, 4][..],
+        ),
+        (
+            &[-10.0, 10.0][..],
+            DVec2::ZERO,
+            PI * 600.0 - 2.0 * beyond,
+            &[0, 1, 2, 3, 4, 5, 6, 7][..],
+        ),
     ] {
         let mut exact = History::default();
         let sketch = an_ellipse_cut_by_traits(&mut exact, traits);
         raise(&mut exact, sketch, place, 10.0, ExtrusionMode::Add);
-        let mut flats = History::default();
-        let sketch = an_ellipse_cut_by_traits(&mut flats, traits);
-        turn_an_elliptic_band(&mut flats);
-        let band = applied_live(&flats).body().volume();
-        raise(&mut flats, sketch, place, 10.0, ExtrusionMode::Add);
 
         built_exactly(&exact, area * 10.0, "the area the traits leave");
-        let on_the_flats = applied_live(&flats);
-        assert!(!on_the_flats.body().is_exact(), "the turn sent it there");
-        assert!(
-            on_the_flats.body().volume() > band,
-            "the flats raised the step too"
-        );
         assert_eq!(
             numbered_from_the_floor(&exact),
-            numbered_from_the_floor(&flats),
+            on_the_flats,
             "the faces the flats number, cut by traits at {traits:?}",
         );
     }
@@ -1035,34 +1002,5 @@ fn an_elliptic_hole_through_a_cone_about_its_axis_is_a_broken_step_with_its_reas
         Declined::Unsupported,
         3500.0 * PI / 3.0,
         "an elliptic wall about a cone's axis, crossing its slope",
-    );
-}
-
-/// An ellipse 10 by 6 about (50, 5) on XY, turned a quarter about the
-/// sketch's V axis: an elliptic torus, which only the flats make. Pappus
-/// gives its volume, the flats a little less.
-#[test]
-fn an_ellipse_turned_is_computed_by_the_flats() {
-    let mut history = History::default();
-    let sketch = sketch_on(&mut history, WorkPlane::XY);
-    let center = DVec2::new(50.0, 5.0);
-    ellipse(&mut history, sketch, center, DVec2::X * 5.0, 3.0);
-    history.push(Operation::Revolve {
-        sketch,
-        areas: clicked(&history, sketch, &[center]),
-        axis: RevolutionAxis::Sketch(SketchAxis::V),
-        angle: 90.0_f64.into(),
-        mode: ExtrusionMode::Add,
-    });
-
-    let part = applied_live(&history);
-
-    assert_eq!(part.declined_because(last_step(&history)), None);
-    assert!(!part.body().is_exact(), "the elliptic torus is the flats'");
-    let pappus = PI * 15.0 * FRAC_PI_2 * 50.0;
-    let volume = part.body().volume();
-    assert!(
-        volume < pappus && volume > 0.98 * pappus,
-        "{volume} against Pappus's {pappus}",
     );
 }

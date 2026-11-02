@@ -2645,7 +2645,8 @@ leaning 1e-5, which the exact kernel declines, so the application builds it
 on the flats, and five steps on, two joins of the flats take 126 s and
 1 343 s to give 745 415 triangles, which do not close (`Closed`, on the base
 too). A few others take a minute or two through the body; none on the exact
-kernel.
+kernel. Since #632 the body refuses that leaf as the exact kernel does, in a
+few hundredths of a second, and the seed need be left out no more.
 
 **What is left**, for the pass that takes the kernel as far as it goes —
 535 of round 2's seeds and 568 of the fresh ones, by family, with what a
@@ -2789,3 +2790,31 @@ of round 2's seeds and 338 of the fresh ones on the exact kernel:
 - **`Spans` 18 and 15, `Closed` 9 and 15, `Volume` 8 and 6**, all hairs but a
   few: the half slab touching a ring's two crests (5576855990), a ring joined
   to a coaxial spindle turned 315° (5576858970).
+
+## #632: a revolution the exact kernel cannot make is refused
+
+The application's body turned on the flats what the reading declines to lay,
+and every step after it was the flats' boolean. Since #632 it refuses it, as
+the exact kernel does; the harness already counted such a decline apart
+(`bowed`, `thin`), and counts the rest as no answer.
+
+**Measured like for like**: the body's verdicts on #628's seed sets, case by
+case against #628's own measure of them, which is the kernel `main` holds.
+Every verdict that moved is a case the flats answered; none the exact kernel
+built moved.
+
+| seeds | cases | `main` broke a rule | branch broke a rule | the flats built right, refused here | the flats built open, refused here | the flats built open, no answer here |
+| --- | --- | --- | --- | --- | --- | --- |
+| from 5576910000 | 8 198 | 79, 9.64 ‰ | 68, 8.29 ‰ | 13 | 11 | 1 |
+| from 5577100000, but 5577103202 | 7 999 | 66, 8.25 ‰ | 58, 7.25 ‰ | 17 | 8 | |
+
+Of the fifty cases the flats answered, twenty came out open (`Closed`); the
+thirty they built right are counted declined now, which is what the exact
+kernel still lacks. One of the twenty is a decline the harness does not
+excuse, neither a bowed section the reading declines nor a wall a hair thin,
+so no answer (5576914427), as the two `laying-declines` seeds named in
+`what_the_exact_campaigns_found_in_the_kernel.rs` are now, where the flats
+left them open along a rim. Seed 5577103202 itself, kept out of the second
+set because the flats took it forty minutes, is refused at its first leaf in
+a few hundredths of a second
+(`seed_5577103202_a_bowed_section_the_reading_declines_to_lay_is_refused_through_the_body_at_once`).

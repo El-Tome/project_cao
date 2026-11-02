@@ -1380,3 +1380,35 @@ units of 1e-8 thick whose two faces were sampled alike and now are not —
 panicked the merging of a meridian's angles; and reading each sample back by
 its id rather than by one rule for every point, which it suggested, parted a
 whole ball's two floors at their cut, so the one rule stayed.
+
+## 2 November: #632, a revolution the exact kernel cannot make is refused
+
+Seed 5577103202 took the application's body forty minutes: a ring with a
+groove whose half round bottom is tangent to its straight sides, turned about
+an axis leaning 1e-5°, which the reading declines to lay. The body turned it
+on the flats, and every step after it was the flats' boolean, a tree split
+along the first face it is handed with nothing set aside outside the other
+body's box: two minutes for the fifth step, twenty-two for the sixth, 745 000
+triangles, on the window's thread. Tom decided to refuse such a turn at
+once rather than teach the exact kernel small leans first or make the flats
+fast: the flats are being retired, and a refused step shows what the exact
+kernel still lacks. A turned ellipse is refused with it, so that no
+revolution goes to the flats; the flats stay behind the view in front of a
+sketch plane and in the harness.
+
+`Body::tool_turned` declines what `Straight::of` cannot lay, as no profile it
+reads, where it turned it on the flats; the step is broken, the part stands
+as before it and stays exact, and the steps after it count past the numbers
+it would have named. The seed is refused at its first leaf in a few
+hundredths of a second. The same section about the sketch's own axis is
+raised exactly, and drawn as a pulley in the application it is declined
+from the least lean to some 1e-5°, raised from 1e-4° on: #633 is the hair.
+A profile pinched at a corner on its axis — a diamond turned about its
+corner — is refused too. No part reaches the flats through the application
+any more, so the tests that put one there by turning an ellipse first went
+with them, and the two that compared face numbers with such a part compare
+them with the numbers it gave on `main`. `REBUILT_BY` moves from 12 to 13.
+On #628's seed sets through the body, the only verdicts that moved are the
+fifty cases the flats answered: twenty of them open, refused now but one
+the harness counts no answer, and the thirty they built right refused too;
+the rate fell from 9.6 to 8.3 and from 8.3 to 7.3 in a thousand.

@@ -28,12 +28,12 @@ pub struct Body {
     matter: Matter,
 }
 
-/// Which kernel computed the matter. Exact on planes, cylinders, elliptic
-/// walls and cones as long as every step was one the exact kernel builds;
-/// flat pieces from the first step it does not — a revolution of an arc or
-/// of an ellipse — on, since an exact body joined to flats can only be
-/// flats. The exact body is boxed, being several times the size of the
-/// flats' handle.
+/// Which kernel computed the matter. Exact as long as every step was handed
+/// its runs, which the application always does: what the exact kernel cannot
+/// build is a broken step, never the flats (#632). Flat pieces from the first
+/// step handed none on, since an exact body joined to flats can only be
+/// flats, and for the view behind a plane. The exact body is boxed, being
+/// several times the size of the flats' handle.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 enum Matter {
     Exact(Box<Exact>),
@@ -102,11 +102,13 @@ impl Body {
     }
 
     /// A profile turned about an axis lying in its plane, in the kernel this
-    /// body is computed by: exact when the body is and the exact kernel can
-    /// lay the profile against its axis, arcs and all (#576); flats for an
-    /// ellipse or a profile it cannot lay. A turn that makes nothing is an empty
-    /// body; an area across its axis is declined, since each side of it is
-    /// turned apart. Declined otherwise only by the exact kernel.
+    /// body is computed by: exact when the body is and the drawing handed the
+    /// profile's runs, arcs and all (#576), flats otherwise. A turn that makes
+    /// nothing is an empty body; an area across its axis is declined, since
+    /// each side of it is turned apart. A profile the exact kernel cannot lay
+    /// against its axis, or one holding an ellipse, is declined as no profile
+    /// it reads: a broken step, never the flats (#632). Declined otherwise
+    /// only by the exact kernel.
     pub fn tool_turned(
         &self,
         profile: &Profile,
@@ -119,7 +121,10 @@ impl Body {
             Lie::Side(_) => {}
         }
         let whole = numbers_turned_whole(profile, frame, turn);
-        if let Some(straight) = self.straight(profile, frame, turn) {
+        if matches!(self.matter, Matter::Exact(_)) && profile.exact.is_some() {
+            let straight = self
+                .straight(profile, frame, turn)
+                .ok_or(Declined::Profile)?;
             let numbers = whole.unwrap_or_else(|| straight.numbers(turn.is_whole()));
             return Ok(Body::of_exact(Exact::turned(
                 &straight, frame, turn, numbers,

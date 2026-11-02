@@ -51,7 +51,7 @@ pub struct Corner {
 impl Straight {
     /// The profile laid against the axis of `turn`, or `None` when a run is
     /// an arc of ellipse, or the profile cannot be laid as the exact kernel
-    /// turns it: the flats turn it then.
+    /// turns it: the body declines it then (#632).
     ///
     /// A corner within the turn's band of the axis is laid on it. Every run
     /// within the tolerance of parallel or square to the axis is laid so,
@@ -73,7 +73,7 @@ impl Straight {
     ///
     /// An arc is laid about a centre laid like a corner ([`bends`]), joins
     /// no level, and is not re-read column by column: a profile whose arcs
-    /// cannot be laid so goes to the flats.
+    /// cannot be laid so is declined.
     pub fn of(
         outline: &Contour,
         holes: &[Contour],

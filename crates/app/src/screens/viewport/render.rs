@@ -33,7 +33,9 @@ pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
 use drawing::{Shown, push_sketch, what_would_be_laid};
 use extrusion::push_chosen_areas;
 pub(crate) use live_fields::paint_live_input;
-pub(crate) use overlays::{paint_band, paint_face_labels, paint_rule_marks, paint_ruler};
+pub(crate) use overlays::{
+    mark_under, paint_band, paint_face_labels, paint_rule_marks, paint_ruler, placed_marks,
+};
 use planes::{push_choosable_planes, push_hovered_face};
 use preview::pending_annotation;
 use reading::push_measure;

@@ -73,7 +73,9 @@ pub(crate) use cut_changes::{
 };
 
 mod selecting;
-use selecting::{band_select, erase, pick};
+use selecting::{band_select, erase_what_is_held, pick, take};
+mod marks;
+use marks::Marks;
 
 mod copying;
 pub(crate) use copying::{copy, hold_is_done, previewed as copying_shows};
@@ -141,13 +143,18 @@ pub(crate) fn handle_sketch_input(
 
     context.editor.cursor = Some(cursor);
     context.editor.hovered_point = context.document.sketches()[index].nearest_point(cursor, snap);
+    let marks = Marks::seen(state, rect, &context.document.sketches()[index]);
     // Previewing a click's target only where a click takes hold of existing
     // geometry — a drawing tool placing a fresh point keeps its plain cursor.
     context.editor.hovered = context
         .editor
         .tool
         .lights_the_whole_of_it()
-        .then(|| pick(context, index, cursor, snap, scale.units_per_pixel))
+        .then(|| {
+            marks
+                .under(pointer)
+                .or_else(|| pick(context, index, cursor, snap, scale.units_per_pixel))
+        })
         .flatten();
 
     follow_the_cursor(context, index, cursor, scale.units_per_pixel);
@@ -184,6 +191,9 @@ pub(crate) fn handle_sketch_input(
             raw_pressed,
             magnets,
             navigating: state.drag.is_some(),
+            on_mark: ui
+                .input(|input| input.pointer.press_origin())
+                .and_then(|at| marks.under(at)),
         };
         if response.clicked() {
             let pixel = scale.units_per_pixel;
@@ -193,23 +203,9 @@ pub(crate) fn handle_sketch_input(
                 .get(index)
                 .and_then(|sketch| super::render::cut_label_under(sketch, cursor, pixel))
                 .map(Selection::Cut)
+                .or_else(|| marks.under(pointer))
                 .or_else(|| pick(context, index, cursor, snap, pixel));
-            match (picked, adding) {
-                // Holding the modifier gathers things up one by one, which is
-                // how one picks out three traits that no box can enclose alone.
-                (Some(what), true) => context.editor.toggle(what),
-                (Some(what), false) => {
-                    if let ToolState::Select(select) = &mut context.editor.tool_state {
-                        select.held = vec![what];
-                    }
-                }
-                (None, false) => {
-                    if let ToolState::Select(select) = &mut context.editor.tool_state {
-                        select.held.clear();
-                    }
-                }
-                (None, true) => {}
-            }
+            take(context, picked, adding);
             // A dimension picked with the selection tool opens its value too:
             // reaching for the dimension tool again to change a number one is
             // already pointing at is a step for nothing.
@@ -224,16 +220,10 @@ pub(crate) fn handle_sketch_input(
             }
         }
 
-        if !context.editor.selection().is_empty()
-            && ui.input(|input| {
-                input.key_pressed(egui::Key::Delete) || input.key_pressed(egui::Key::Backspace)
-            })
-        {
-            let held = match &mut context.editor.tool_state {
-                ToolState::Select(select) => std::mem::take(&mut select.held),
-                _ => Vec::new(),
-            };
-            return erase(context, index, &held);
+        if ui.input(|input| {
+            input.key_pressed(egui::Key::Delete) || input.key_pressed(egui::Key::Backspace)
+        }) {
+            return erase_what_is_held(context, index);
         }
 
         // Who grabs is settled at the start of the gesture and holds for the
@@ -250,6 +240,7 @@ pub(crate) fn handle_sketch_input(
                 cursor,
                 response,
                 adding,
+                &marks,
                 scale.units_per_pixel,
             );
         }

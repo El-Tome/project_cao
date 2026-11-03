@@ -6,6 +6,17 @@
 //! are read the same way, by asking `egui` for one pass and looking at the
 //! shapes it hands back.
 //!
+//! Closes #643.
+//! - « Mesurer » on a chamfer draws its red and green reaches with the dashed
+//!   run, as on a trait — `a_chamfer_measured_is_drawn_as_the_triangle_of_its_cut`
+//! - « Mesurer » on a fillet marks its centre and draws the radius it reads —
+//!   `a_fillet_measured_marks_its_centre_and_draws_its_radius`
+//! - the numbers written for a cut, a trait, a circle and an area do not
+//!   change — no test: `paint_measure` is not touched, and the tests of this
+//!   file and of `wording/measure` still hold what they write
+//! - the cut's own lighting under the cursor does not change — no test:
+//!   `render/cuts.rs`, which draws it, is not touched
+//!
 //! Closes #425.
 //! - the area read is tinted while the measure is on screen —
 //!   `the_area_a_measure_reads_is_tinted_while_it_is_on_screen`
@@ -43,12 +54,16 @@
 //!   which reads the colour off the vertices rather than comparing two entries
 //!   of the theme, since it is the drawing that has to differ
 
+use cao_part::Formula;
 use cao_part::PartDocument;
 use cao_part::history::{Operation, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_prefs::theme::{Rgba, Theme};
 use cao_render::OrbitCamera;
-use cao_sketch::{DimensionTarget, PointId, ToolState, WorkPlane};
+use cao_sketch::{
+    Chamfer, Corner, CornerCutId, CutCurve, DimensionTarget, PointId, SegmentId, ToolState,
+    WorkPlane,
+};
 use chrono::Utc;
 
 use super::*;
@@ -654,5 +669,152 @@ fn an_area_says_its_surface_and_how_far_round_it_is() {
     assert!(
         said[0].0.contains("130"),
         "and how far round it is: {said:?}",
+    );
+}
+
+fn measuring_a_cut(
+    laid: impl FnOnce(Vec<Corner>) -> Operation,
+) -> (Vec<(DVec2, DVec2, [f32; 4])>, CutCurve) {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(40.0, 30.0)),
+        construction: false,
+    });
+    document.apply(laid(vec![Corner::Between(SegmentId(0), SegmentId(1))]));
+    let mut editor = SketchEditor {
+        phase: crate::screens::sketch::SketchPhase::Editing(0),
+        plane: Some(WorkPlane::XY),
+        tool: Tool::Measure,
+        tool_state: ToolState::Measure {
+            picks: cao_sketch::DimensionPicks::default(),
+            showing: Some(cao_sketch::Measured::Cut(CornerCutId(0))),
+        },
+        ..SketchEditor::default()
+    };
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let sketch = &context.document.sketches()[0];
+    let curve = sketch
+        .drawn_cut(CornerCutId(0))
+        .expect("the corner is cut")
+        .curve;
+    let mut out = Vec::new();
+    let measuring = what_is_measured(&context);
+    push_measure(
+        &mut out,
+        &mut Vec::new(),
+        sketch,
+        &context,
+        &Theme::default(),
+        a_view(),
+        measuring.as_ref(),
+    );
+    let onto_the_plane = |vertex: &cao_render::Vertex| {
+        WorkPlane::XY.to_local(glam::Vec3::from(vertex.position).as_dvec3())
+    };
+    let steps = out
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|pair| {
+            (
+                onto_the_plane(&pair[0]),
+                onto_the_plane(&pair[1]),
+                pair[0].color,
+            )
+        })
+        .collect();
+    (steps, curve)
+}
+
+fn reach_of(steps: &[(DVec2, DVec2, [f32; 4])], colour: Rgba) -> f64 {
+    let places: Vec<DVec2> = steps
+        .iter()
+        .filter(|(.., drawn)| *drawn == shade(colour))
+        .flat_map(|(from, to, _)| [*from, *to])
+        .collect();
+    places
+        .iter()
+        .flat_map(|from| places.iter().map(move |to| from.distance(*to)))
+        .fold(0.0, f64::max)
+}
+
+#[test]
+fn a_chamfer_measured_is_drawn_as_the_triangle_of_its_cut() {
+    let theme = Theme::default();
+    let (steps, curve) = measuring_a_cut(|corners| Operation::Chamfer {
+        sketch: 0,
+        corners,
+        mode: Chamfer::Sided {
+            first: 6.0,
+            second: 14.0,
+        }
+        .into(),
+        construction: false,
+    });
+    let CutCurve::Straight { from, to } = curve else {
+        panic!("a chamfer cuts straight: {curve:?}");
+    };
+
+    let (span, across, up) = (
+        reach_of(&steps, theme.measure),
+        reach_of(&steps, theme.axis_x),
+        reach_of(&steps, theme.axis_y),
+    );
+    assert!(
+        (span - from.distance(to)).abs() < A_DASH,
+        "the run is the cut itself, got {span} for {}",
+        from.distance(to)
+    );
+    assert!(
+        (across - (to.x - from.x).abs()).abs() < A_DASH
+            && (up - (to.y - from.y).abs()).abs() < A_DASH,
+        "the two reaches are drawn in their axes' colours, got {across} across and {up} up for {:?}",
+        to - from
+    );
+}
+
+#[test]
+fn a_fillet_measured_marks_its_centre_and_draws_its_radius() {
+    let theme = Theme::default();
+    let (steps, curve) = measuring_a_cut(|corners| Operation::Fillet {
+        sketch: 0,
+        corners,
+        radius: Formula::Number(8.0),
+        construction: false,
+    });
+    let CutCurve::Arc(arc) = curve else {
+        panic!("a fillet cuts round: {curve:?}");
+    };
+    let from_the_centre: Vec<f64> = steps
+        .iter()
+        .filter(|(.., drawn)| *drawn == shade(theme.measure))
+        .flat_map(|(from, to, _)| [from.distance(arc.centre), to.distance(arc.centre)])
+        .collect();
+
+    let nearest = from_the_centre
+        .iter()
+        .copied()
+        .fold(f64::INFINITY, f64::min);
+    let furthest = from_the_centre.iter().copied().fold(0.0, f64::max);
+    assert!(
+        nearest < 1.0,
+        "something is drawn on the centre the radius is read from, the nearest at {nearest}"
+    );
+    assert!(
+        (furthest - 8.0).abs() < A_DASH,
+        "and the radius runs out to the arc, eight away, reaching {furthest}"
     );
 }

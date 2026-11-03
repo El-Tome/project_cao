@@ -123,6 +123,11 @@ pub fn is_enabled(app: &App, label: &str) -> bool {
         .is_disabled()
 }
 
+pub fn is_on(app: &App, label: &str) -> bool {
+    app.get_by_label_contains(label).accesskit_node().toggled()
+        == Some(egui::accesskit::Toggled::True)
+}
+
 pub fn shows(app: &App, text: &str) -> bool {
     on_screen(app).iter().any(|label| label.contains(text))
 }
@@ -236,12 +241,16 @@ pub fn type_over(app: &mut App, holding: &str, text: &str) {
 
 /// A key pressed with the command key held, the way a shortcut is.
 pub fn press_with_command(app: &mut App, key: egui::Key) {
+    press_with(app, egui::Modifiers::COMMAND, key);
+}
+
+pub fn press_with(app: &mut App, modifiers: egui::Modifiers, key: egui::Key) {
     app.event(egui::Event::Key {
         key,
         physical_key: None,
         pressed: true,
         repeat: false,
-        modifiers: egui::Modifiers::COMMAND,
+        modifiers,
     });
     app.run();
     app.run();

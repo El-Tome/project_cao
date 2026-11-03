@@ -111,6 +111,59 @@ fn undoing_a_segment_leaves_it_in_the_history_and_something_to_redo() {
 }
 
 #[test]
+fn command_shift_z_redoes_what_command_z_undid() {
+    let mut app = driver::open("command_shift_z_redoes");
+    driver::create_a_part(&mut app, "Chape");
+    driver::start_a_sketch(&mut app);
+    driver::draw_a_segment(&mut app);
+    driver::open_the_history(&mut app);
+
+    driver::press_with_command(&mut app, egui::Key::Z);
+    assert!(
+        driver::is_enabled(&app, "Rétablir"),
+        "Cmd+Z undid the segment, so it can be put back"
+    );
+
+    driver::press_with(
+        &mut app,
+        egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
+        egui::Key::Z,
+    );
+    assert!(
+        !driver::is_enabled(&app, "Rétablir"),
+        "Cmd+Shift+Z put the segment back, so nothing is left to redo"
+    );
+    assert!(
+        driver::is_enabled(&app, "Annuler"),
+        "and the segment can be undone again"
+    );
+}
+
+#[test]
+fn shift_e_takes_matter_away_where_e_adds_it() {
+    let mut app = driver::open("shift_e_takes_matter_away");
+    driver::create_a_part(&mut app, "Chape");
+    driver::start_a_sketch(&mut app);
+    driver::click(&mut app, "Rectangle (R)");
+    driver::click_at(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    driver::click_at(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::click_exactly(&mut app, "Extrusion");
+    driver::click_exactly(&mut app, "1");
+
+    driver::press_with(&mut app, egui::Modifiers::SHIFT, egui::Key::E);
+    assert!(
+        driver::is_on(&app, "Enlèvement de matière"),
+        "{:?}",
+        driver::on_screen(&app)
+    );
+    assert!(!driver::is_on(&app, "Ajout de matière"));
+
+    driver::press(&mut app, egui::Key::E);
+    assert!(driver::is_on(&app, "Ajout de matière"));
+    assert!(!driver::is_on(&app, "Enlèvement de matière"));
+}
+
+#[test]
 fn the_ellipse_tool_offers_a_field_at_the_cursor_for_its_second_axis() {
     let mut app = driver::open("an_ellipse_offers_its_fields");
     driver::create_a_part(&mut app, "Came");

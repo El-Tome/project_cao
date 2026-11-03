@@ -100,13 +100,15 @@ pub fn arc_turned(places: &[DVec2], turned: f64, cursor: DVec2) -> Option<ArcDra
 /// third is, an angle in degrees for `ByCenter` or the curve's own radius for
 /// `ByEnds`. Left alone, the cursor decides everything, the way it always has.
 /// `scale` is how many millimetres a unit of the drawing is worth, since a
-/// typed radius or distance arrives in millimetres.
+/// typed radius or distance arrives in millimetres. A typed angle is laid
+/// clockwise when `turned` says the hand went that way.
 pub fn aimed(
     mode: ArcMode,
     places: &[DVec2],
     cursor: DVec2,
     locked: Option<f64>,
     scale: f64,
+    turned: f64,
 ) -> DVec2 {
     let Some(locked) = locked else {
         return cursor;
@@ -119,7 +121,11 @@ pub fn aimed(
                 return cursor;
             }
             let base = (start - centre).to_angle();
-            centre + DVec2::from_angle(base + locked.to_radians()) * radius
+            let way = match turned < 0.0 {
+                true => -1.0,
+                false => 1.0,
+            };
+            centre + DVec2::from_angle(base + way * locked.to_radians()) * radius
         }
         (ArcMode::ByEnds, 2) => {
             bent_through(places[0], places[1], cursor, locked / scale.max(1e-9)).unwrap_or(cursor)

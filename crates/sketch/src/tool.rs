@@ -114,6 +114,9 @@ pub enum ToolState {
         /// here because the live field that held it is cleared and reused for
         /// the second leg before the arc is settled enough to be dimensioned.
         first_typed: bool,
+        /// How far round the centre the hand has turned since the start was
+        /// laid, counter-clockwise positive: the way a by-centre arc runs.
+        turned: f64,
     },
     Ellipse {
         places: Vec<DVec2>,

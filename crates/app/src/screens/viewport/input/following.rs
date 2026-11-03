@@ -3,7 +3,7 @@
 //! down faces. Worked out as the cursor moves rather than at the click, so that
 //! what is drawn on screen is exactly what a click would record.
 
-use cao_sketch::{Aim, ChainAnchor, SegmentId, ToolState};
+use cao_sketch::{Aim, ArcMode, ChainAnchor, SegmentId, ToolState, arc_turned_round};
 use glam::DVec2;
 
 use crate::screens::SketchContext;
@@ -21,6 +21,12 @@ pub(super) fn follow_the_cursor(
         _ => None,
     };
     hold_the_quarter(context, index, cursor, pixel);
+    if let (ToolState::Arc { places, turned, .. }, ArcMode::ByCenter) =
+        (&mut context.editor.tool_state, context.editor.arc_mode)
+        && places.len() == 2
+    {
+        *turned = arc_turned_round(places, *turned, cursor);
+    }
 }
 
 /// Keeps the quarter an angle being put down faces, through a margin of a few

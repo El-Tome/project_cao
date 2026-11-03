@@ -124,7 +124,7 @@ fn a_radius_typed_while_placing_the_second_place_holds_however_the_cursor_turns(
     let centre = DVec2::ZERO;
     let cursor = DVec2::new(3.0, 4.0);
 
-    let placed = aimed(ArcMode::ByCenter, &[centre], cursor, Some(100.0), 2.0);
+    let placed = aimed(ArcMode::ByCenter, &[centre], cursor, Some(100.0), 2.0, 0.0);
 
     assert!(
         (centre.distance(placed) - 50.0).abs() < TOLERANCE,
@@ -145,7 +145,7 @@ fn a_distance_typed_while_placing_the_second_end_of_a_by_ends_arc_holds_too() {
     let first_end = DVec2::new(5.0, 0.0);
     let cursor = DVec2::new(5.0, 100.0);
 
-    let placed = aimed(ArcMode::ByEnds, &[first_end], cursor, Some(30.0), 1.0);
+    let placed = aimed(ArcMode::ByEnds, &[first_end], cursor, Some(30.0), 1.0, 0.0);
 
     assert!((first_end.distance(placed) - 30.0).abs() < TOLERANCE);
 }
@@ -161,6 +161,7 @@ fn an_angle_typed_while_placing_the_third_place_turns_the_start_direction_by_tha
         DVec2::new(-1.0, -1.0),
         Some(90.0),
         1.0,
+        0.0,
     );
 
     assert!(
@@ -180,6 +181,7 @@ fn a_radius_typed_while_bending_a_by_ends_arc_holds_however_near_the_cursor_stay
         barely_above_the_chord,
         Some(100.0),
         2.0,
+        0.0,
     );
     let drawn = arc_from(ArcMode::ByEnds, &[a, b], bent).expect("a radius that reaches both ends");
 
@@ -205,6 +207,7 @@ fn a_cursor_dragged_well_clear_of_the_chord_bends_that_radius_the_long_way_round
         well_above_the_chord,
         Some(50.0),
         1.0,
+        0.0,
     );
     let drawn = arc_from(ArcMode::ByEnds, &[a, b], bent).expect("a radius that reaches both ends");
 
@@ -226,7 +229,7 @@ fn a_radius_too_short_to_reach_both_ends_is_refused_rather_than_stretched_to_fit
     let cursor = DVec2::new(0.0, 10.0);
 
     assert_eq!(
-        aimed(ArcMode::ByEnds, &[a, b], cursor, Some(10.0), 1.0),
+        aimed(ArcMode::ByEnds, &[a, b], cursor, Some(10.0), 1.0, 0.0),
         cursor,
         "no curve 10 wide reaches ends 60 apart, so the cursor goes on deciding",
     );
@@ -245,6 +248,7 @@ fn the_leg_an_angle_opens_from_points_where_an_angle_of_zero_would_land() {
         DVec2::new(-50.0, -50.0),
         Some(0.0),
         1.0,
+        0.0,
     );
 
     assert_eq!(from, centre, "the angle opens from the centre");
@@ -274,7 +278,7 @@ fn leaving_the_field_empty_leaves_the_cursor_deciding_everything() {
     let cursor = DVec2::new(7.0, 8.0);
 
     assert_eq!(
-        aimed(ArcMode::ByCenter, &[DVec2::ZERO], cursor, None, 1.0),
+        aimed(ArcMode::ByCenter, &[DVec2::ZERO], cursor, None, 1.0, 0.0),
         cursor
     );
 }
@@ -417,10 +421,35 @@ fn coming_back_short_of_a_full_turn_closes_the_arc_again_the_same_way_round() {
 #[test]
 fn an_angle_typed_before_the_hand_moved_is_laid_out_counter_clockwise() {
     let not_moved = turned_along(&ROUND, &[ROUND[1]]);
-    let typed_at_once = aimed(ArcMode::ByCenter, &ROUND, ROUND[1], Some(90.0), 1.0);
+    let typed_at_once = aimed(
+        ArcMode::ByCenter,
+        &ROUND,
+        ROUND[1],
+        Some(90.0),
+        1.0,
+        not_moved,
+    );
 
     let drawn = arc_turned(&ROUND, not_moved, typed_at_once)
         .expect("a centre, a start and a typed angle make an arc");
 
     assert_runs(drawn, 0.0, 90.0);
+}
+
+#[test]
+fn an_angle_typed_after_the_hand_went_down_is_laid_out_clockwise() {
+    let gone_down = hand_going_round_through_degrees(&[-30.0]);
+    let turned = turned_along(&ROUND, &gone_down);
+    let cursor = *gone_down.last().expect("the hand went somewhere");
+    let typed = aimed(ArcMode::ByCenter, &ROUND, cursor, Some(270.0), 1.0, turned);
+
+    let drawn =
+        arc_turned(&ROUND, turned, typed).expect("a centre, a start and a typed angle make an arc");
+
+    assert_runs(drawn, 90.0, 270.0);
+    assert!(
+        drawn.end.distance(ROUND[1]) < TOLERANCE,
+        "three quarters clockwise ends on the start the hand left from, not at {:?}",
+        drawn.end,
+    );
 }

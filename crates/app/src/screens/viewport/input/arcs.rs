@@ -1,7 +1,9 @@
 //! What one click of the arc tool does, and what the canvas shows in between.
 
 use cao_part::{Operation, PointRef};
-use cao_sketch::{ArcDraft, ArcId, ArcMode, DimensionTarget, ToolState, arc_aimed, arc_from};
+use cao_sketch::{
+    ArcDraft, ArcId, ArcMode, DimensionTarget, ToolState, arc_aimed, arc_from, arc_turned,
+};
 use glam::DVec2;
 
 use super::super::values::{lay_values, shape_scale};
@@ -32,6 +34,7 @@ pub(crate) fn draw_arc(
         context.editor.tool_state = ToolState::Arc {
             places,
             first_typed,
+            turned: 0.0,
         };
         match leg_done {
             true => context.editor.live.open_for_the_next_stage(),
@@ -41,7 +44,7 @@ pub(crate) fn draw_arc(
         return false;
     }
 
-    let Some(drawn) = arc_from(mode, &places, cursor) else {
+    let Some(drawn) = arc_now(context, &places, cursor) else {
         context.editor.message = Some(context.lang.t("sketch.no_arc_from_these"));
         return false;
     };
@@ -87,7 +90,14 @@ pub(crate) fn draw_arc(
 pub(crate) fn arc_preview(context: &SketchContext<'_>, cursor: DVec2) -> Option<ArcDraft> {
     let (places, _) = places_so_far(context);
     let cursor = aimed(context, &places, cursor);
-    arc_from(context.editor.arc_mode, &places, cursor)
+    arc_now(context, &places, cursor)
+}
+
+fn arc_now(context: &SketchContext<'_>, places: &[DVec2], cursor: DVec2) -> Option<ArcDraft> {
+    match context.editor.arc_mode {
+        ArcMode::ByCenter => arc_turned(places, turned_so_far(context), cursor),
+        mode => arc_from(mode, places, cursor),
+    }
 }
 
 fn places_so_far(context: &SketchContext<'_>) -> (Vec<DVec2>, bool) {
@@ -95,8 +105,16 @@ fn places_so_far(context: &SketchContext<'_>) -> (Vec<DVec2>, bool) {
         ToolState::Arc {
             places,
             first_typed,
+            ..
         } => (places.clone(), *first_typed),
         _ => (Vec::new(), false),
+    }
+}
+
+fn turned_so_far(context: &SketchContext<'_>) -> f64 {
+    match context.editor.tool_state {
+        ToolState::Arc { turned, .. } => turned,
+        _ => 0.0,
     }
 }
 
@@ -158,6 +176,7 @@ pub(crate) fn aimed(context: &SketchContext<'_>, places: &[DVec2], cursor: DVec2
         cursor,
         context.editor.live.typed(0),
         shape_scale(context),
+        turned_so_far(context),
     )
 }
 

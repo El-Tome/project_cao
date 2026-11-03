@@ -21,15 +21,18 @@ use crate::jet::{Jet, JetPlace};
 use crate::sketch::Sketch;
 
 /// How many coordinates a cut's places are worked out over: the corner and
-/// the far end of each side, then the point a rule holds.
-pub(crate) const COORDINATES: usize = 8;
+/// the far end of each side, then the point a rule holds — or the two ends of
+/// a line brushing a fillet.
+pub(crate) const COORDINATES: usize = 10;
 
 /// Where the corner's coordinates sit among them, then each far end's.
 pub(crate) const CORNER: usize = 0;
 pub(crate) const FAR_FIRST: usize = 2;
 pub(crate) const FAR_SECOND: usize = 4;
-/// Where the point the rule holds sits.
+/// Where the point the rule holds sits, or the first end of the line.
 pub(crate) const OWN: usize = 6;
+/// Where the other end of a line brushing a fillet sits.
+pub(crate) const OWN_END: usize = 8;
 
 /// One of the points a cut offers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]

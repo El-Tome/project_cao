@@ -1,11 +1,11 @@
 //! What hangs on a cut, through the changes the cut goes through.
 //!
-//! A point hung on a cut's point, or held on its curve, is held by a rule that
-//! names the cut. The cut can be taken off, given another shape, have its
-//! sides swapped, or be cut again in place, and each of these says what
-//! becomes of those rules: what still has somewhere to stand follows, and
-//! what has lost its place is let go where it is. Nothing hung on a cut is
-//! ever erased with it.
+//! A point hung on a cut's point, or held on its curve, and a line brushing a
+//! fillet, are held by a rule that names the cut. The cut can be taken off,
+//! given another shape, have its sides swapped, or be cut again in place, and
+//! each of these says what becomes of those rules: what still has somewhere to
+//! stand follows, and what has lost its place is let go where it is. Nothing
+//! hung on a cut is ever erased with it.
 
 use glam::DVec2;
 
@@ -83,7 +83,7 @@ impl Sketch {
     pub fn anything_hangs_on_a_cut(&self) -> bool {
         self.constraints()
             .iter()
-            .any(|rule| hung_on(*rule).is_some())
+            .any(|rule| rule.hung_on_a_cut().is_some())
     }
 
     /// Every rule hanging something on one of these cuts.
@@ -91,7 +91,7 @@ impl Sketch {
         self.constraints()
             .iter()
             .copied()
-            .filter(|rule| hung_on(*rule).is_some_and(|cut| cuts.contains(&cut)))
+            .filter(|rule| rule.hung_on_a_cut().is_some_and(|cut| cuts.contains(&cut)))
             .collect()
     }
 
@@ -126,14 +126,18 @@ impl Sketch {
         }
     }
 
-    /// What a cut given another shape keeps: everything, but a fillet's
-    /// centre once it is a chamfer, which has none — the point stays where
-    /// it was. A point on the curve goes onto the new one.
+    /// What a cut given another shape keeps: everything, but what leans on a
+    /// fillet's circle once it is a chamfer, which has none — a point at its
+    /// centre, a line brushing it — each left where it was. A point on the
+    /// curve goes onto the new one.
     pub(crate) fn keep_what_the_shape_offers(&mut self, cut: CornerCutId) {
         for rule in self.rules_hung_on(&[cut]) {
-            if let Constraint::AtCutPoint { at, .. } = rule
-                && !self.cut_offers(cut, at)
-            {
+            let needs = match rule {
+                Constraint::AtCutPoint { at, .. } => at,
+                Constraint::CutTangent { .. } => CutPoint::Centre,
+                _ => continue,
+            };
+            if !self.cut_offers(cut, needs) {
                 self.erase_constraint(rule);
             }
         }
@@ -161,6 +165,11 @@ impl Sketch {
                     },
                 },
                 Constraint::OnCut { point, .. } => Constraint::OnCut { point, cut: to },
+                Constraint::CutTangent { segment, from, .. } => Constraint::CutTangent {
+                    cut: to,
+                    segment,
+                    from,
+                },
                 other => other,
             };
             self.add_constraint(handed);
@@ -168,11 +177,17 @@ impl Sketch {
     }
 }
 
-/// The cut a rule hangs something on, when it is one of those.
-fn hung_on(rule: Constraint) -> Option<CornerCutId> {
-    match rule {
-        Constraint::AtCutPoint { cut, .. } | Constraint::OnCut { cut, .. } => Some(cut),
-        _ => None,
+impl Constraint {
+    /// The cut a rule hangs something on, when it is one of those: a point,
+    /// or a line brushing a fillet. Such a rule stands only once its cut is
+    /// laid.
+    pub fn hung_on_a_cut(self) -> Option<CornerCutId> {
+        match self {
+            Self::AtCutPoint { cut, .. }
+            | Self::OnCut { cut, .. }
+            | Self::CutTangent { cut, .. } => Some(cut),
+            _ => None,
+        }
     }
 }
 

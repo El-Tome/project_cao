@@ -1,5 +1,5 @@
-//! The equations a rule hanging a point on a fillet or a chamfer asks of the
-//! solver.
+//! The equations a rule hanging a point on a fillet or a chamfer, or holding a
+//! line tangent to a fillet, asks of the solver.
 //!
 //! The cut is not solved: what it draws is worked out from its corner and the
 //! far end of each side. So is each place it offers, and the rule holding a
@@ -11,18 +11,21 @@ use glam::DVec2;
 
 use crate::constraints::Constraint;
 use crate::corner_cut::CornerCutId;
-use crate::corner_cut::points::{COORDINATES, CutPoint, OWN};
+use crate::corner_cut::points::{COORDINATES, CutPoint, OWN, OWN_END};
 use crate::equation::Equation;
 use crate::jet::{Jet, JetPlace};
-use crate::sketch::{PointId, Sketch};
+use crate::sketch::{PointId, SegmentId, Sketch};
 
 impl Sketch {
-    /// What a rule hanging a point on a cut asks of the drawing: nothing
-    /// while the cut's corner gives it no place.
+    /// What a rule hanging a point or a line on a cut asks of the drawing:
+    /// nothing while the cut's corner gives it no place.
     pub(super) fn cut_hold_equations(&self, constraint: Constraint, into: &mut Vec<Equation>) {
         match constraint {
             Constraint::AtCutPoint { point, cut, at } => self.at_cut_point(point, cut, at, into),
             Constraint::OnCut { point, cut } => into.extend(self.on_cut(point, cut)),
+            Constraint::CutTangent { cut, segment, .. } => {
+                into.extend(self.cut_tangent(cut, segment))
+            }
             _ => {}
         }
     }
@@ -79,6 +82,25 @@ impl Sketch {
         let mut equation = Equation::new(self.variables());
         equation.error = off.value;
         self.add_slopes(&mut equation, cut, &[point], off);
+        Some(equation)
+    }
+
+    /// A line brushing a fillet: as far from its centre as its radius, on
+    /// whichever side it already stands. The radius is the cut's value and
+    /// never gives; the corner, its sides and the line do.
+    fn cut_tangent(&self, cut: CornerCutId, segment: SegmentId) -> Option<Equation> {
+        let line = *self.segments().get(segment.0)?;
+        let (centre, radius) = self.cut_places(cut)?.round?;
+        let start = JetPlace::free(self.point(line.start), OWN);
+        let run = JetPlace::free(self.point(line.end), OWN_END) - start;
+        if run.length().value < 1e-9 {
+            return None;
+        }
+        let across = run.normalized().perp_dot(centre - start);
+        let off = across + -(radius * across.value.signum());
+        let mut equation = Equation::new(self.variables());
+        equation.error = off.value;
+        self.add_slopes(&mut equation, cut, &[line.start, line.end], off);
         Some(equation)
     }
 

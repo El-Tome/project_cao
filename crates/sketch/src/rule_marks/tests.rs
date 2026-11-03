@@ -77,6 +77,49 @@ fn a_tangency_writes_where_the_circle_touches() {
 }
 
 #[test]
+fn a_tangency_on_a_fillet_writes_where_its_circle_touches_the_line() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corner = sketch.add_point(DVec2::new(10.0, 10.0));
+    let right = sketch.add_point(DVec2::new(110.0, 10.0));
+    let up = sketch.add_point(DVec2::new(10.0, 110.0));
+    let sides = [
+        sketch.add_segment(corner, right),
+        sketch.add_segment(corner, up),
+    ];
+    let cut = sketch
+        .cut_corner(
+            sides[0],
+            sides[1],
+            crate::CutShape::Fillet { radius: 10.0 },
+            false,
+            0,
+        )
+        .expect("the two traits meet");
+    let start = sketch.add_point(DVec2::new(6.0, 22.0));
+    let end = sketch.add_point(DVec2::new(21.0, 2.0));
+    let segment = sketch.add_segment(start, end);
+    let constraint = Constraint::CutTangent {
+        cut,
+        segment,
+        from: crate::LaidFrom::Nowhere,
+    };
+    sketch.add_constraint(constraint);
+
+    let marks = sketch.rule_marks(constraint);
+
+    assert_eq!(
+        marks.len(),
+        1,
+        "one mark, where the line touches: {marks:?}"
+    );
+    assert!(
+        marks[0].distance(DVec2::new(12.0, 14.0)) < 1e-9,
+        "the mark sits at {}, not where the line touches the fillet's circle",
+        marks[0],
+    );
+}
+
+#[test]
 fn a_rule_whose_mark_is_far_from_the_cursor_is_not_picked() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let a = sketch.add_point(DVec2::new(0.0, 0.0));

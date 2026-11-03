@@ -75,6 +75,71 @@ fn lit_holding(held: Vec<Selection>, hovered: Option<Selection>) -> Lit {
 }
 
 #[test]
+fn a_fillet_shown_to_a_tangent_is_drawn_as_picked() {
+    let mut document = a_rounded_plate();
+    let sketch = document.sketches()[0].clone();
+    let shown = CornerCutId(0);
+    let mut editor = SketchEditor {
+        phase: SketchPhase::Editing(0),
+        tool: Tool::Constrain(cao_sketch::Rule::Tangent),
+        tool_state: ToolState::Constrain {
+            picks: vec![cao_sketch::RulePick::CutCurve(shown)],
+        },
+        ..Default::default()
+    };
+    let (mut extrusion, lang) = (ExtrusionState::default(), Catalogue::french());
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let scale = ViewScale::of(
+        &OrbitCamera::default(),
+        SCREEN,
+        1.0,
+        &ViewportConfig::default(),
+        1.0,
+    );
+    let theme = Theme::default();
+    let mut painted = Vec::new();
+
+    CutCanvas::read(&sketch, &context).push_cuts(
+        &mut painted,
+        &[],
+        (true, &[]),
+        (&theme, scale),
+        &context,
+    );
+
+    assert!(!painted.is_empty(), "the plate's fillets were drawn");
+    let picked = tint_at(theme.picked, 1.0);
+    let drawn_picked: Vec<DVec2> = painted
+        .iter()
+        .filter(|vertex| vertex.color == picked)
+        .map(|vertex| {
+            sketch
+                .plane
+                .to_local(glam::Vec3::from(vertex.position).as_dvec3())
+        })
+        .collect();
+    assert!(
+        !drawn_picked.is_empty(),
+        "the fillet shown to the rule is drawn as the others are, not as picked"
+    );
+    let CutCurve::Arc(arc) = sketch.drawn_cut(shown).expect("the fillet is drawn").curve else {
+        panic!("a fillet draws an arc");
+    };
+    let radius = arc.centre.distance(arc.start);
+    for place in drawn_picked {
+        assert!(
+            (place.distance(arc.centre) - radius).abs() < 1e-3,
+            "drawn as picked at {place}, off the fillet shown to the rule"
+        );
+    }
+}
+
+#[test]
 fn the_cut_held_is_lit_apart_from_the_cuts_laid_with_it() {
     let lit = lit_holding(vec![Selection::Cut(CornerCutId(2))], None);
 

@@ -60,3 +60,37 @@ fn a_coincidence_points_at_a_cut_s_point_and_another_rule_at_the_side_under_it()
         Some(RulePick::Element(Element::Segment(side))),
     );
 }
+
+#[test]
+fn the_tangent_tool_points_at_a_fillet_s_arc_rather_than_the_side_under_it() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corner = sketch.add_point(DVec2::new(10.0, 10.0));
+    let right = sketch.add_point(DVec2::new(60.0, 10.0));
+    let up = sketch.add_point(DVec2::new(10.0, 50.0));
+    let side = sketch.add_segment(corner, right);
+    let other = sketch.add_segment(corner, up);
+    let cut = sketch
+        .cut_corner(
+            side,
+            other,
+            cao_sketch::CutShape::Fillet { radius: 5.0 },
+            false,
+            0,
+        )
+        .expect("the two traits meet");
+    let on_the_arc = sketch.cut_middle(cut).expect("a fillet draws an arc");
+    assert!(
+        sketch.nearest_segment(on_the_arc, SNAP).is_some(),
+        "the arc's middle is within reach of a side"
+    );
+
+    assert_eq!(
+        nearest_rule_pick(&sketch, on_the_arc, SNAP, Rule::Tangent),
+        Some(RulePick::CutCurve(cut)),
+    );
+    assert_eq!(
+        nearest_rule_pick(&sketch, DVec2::new(30.0, 10.5), SNAP, Rule::Tangent),
+        Some(RulePick::Element(Element::Segment(side))),
+        "away from the arc, the side is what is under the hand"
+    );
+}

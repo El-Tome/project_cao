@@ -90,10 +90,10 @@ pub(super) fn add_cuts(
     }
 }
 
-/// Whether a rule hangs a point on a cut: laid once the cuts are, since it
+/// Whether a rule hangs something on a cut: laid once the cuts are, since it
 /// names one.
 fn hung(rule: Constraint) -> bool {
-    Support::held_by(rule).is_some_and(|(_, on)| on.names_a_cut())
+    rule.hung_on_a_cut().is_some()
 }
 
 /// The rules of a drawing that name no cut, which can be laid before them.
@@ -101,8 +101,8 @@ pub(super) fn laid_before_the_cuts(sketch: &Sketch) -> impl Iterator<Item = &Con
     sketch.constraints().iter().filter(|rule| !hung(**rule))
 }
 
-/// Lays again every rule that hung a point on a cut, the cuts it names given
-/// the numbers they were laid again under. One naming a cut no longer
+/// Lays again every rule that hung something on a cut, the cuts it names
+/// given the numbers they were laid again under. One naming a cut no longer
 /// standing, which was not laid again, holds nothing and is left out.
 pub(super) fn hang_again(
     old_sketch: &Sketch,
@@ -111,17 +111,23 @@ pub(super) fn hang_again(
     new_history: &mut History,
     new_state: &mut PartState,
 ) {
-    let laid_again = |rule: &&Constraint| match Support::held_by(**rule) {
-        Some((point, Support::CutPoint(cut, _) | Support::Cut(cut))) => {
-            map.cuts.contains_key(&cut) && map.points.contains_key(&point)
-        }
-        _ => false,
+    let laid_again = |rule: &&Constraint| {
+        let what_hangs_is_there = match **rule {
+            Constraint::CutTangent { segment, .. } => map.segments.contains_key(&segment),
+            rule => {
+                Support::held_by(rule).is_some_and(|(point, _)| map.points.contains_key(&point))
+            }
+        };
+        what_hangs_is_there
+            && rule
+                .hung_on_a_cut()
+                .is_some_and(|cut| map.cuts.contains_key(&cut))
     };
     for rule in old_sketch.constraints().iter().filter(laid_again) {
         record(
             Operation::Constrain {
                 sketch: sketch_index,
-                constraint: super::remap::remap_constraint(*rule, map),
+                constraint: super::remap::remap_constraint(super::remap::without_order(*rule), map),
             },
             new_history,
             new_state,

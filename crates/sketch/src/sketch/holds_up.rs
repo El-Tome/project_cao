@@ -6,6 +6,7 @@
 //! question — is what it names still there — asked of the kinds it names.
 
 use super::{CircleId, Constraint, Element, PointId, SegmentId, Sketch};
+use crate::corner_cut::CutPoint;
 
 impl Sketch {
     /// Whether everything a rule speaks of is still drawn.
@@ -51,6 +52,10 @@ impl Sketch {
                 segment: line,
                 ..
             } => circle(round) && segment(line),
+            // A fillet's curve has a circle to brush; a chamfer's has none.
+            Constraint::CutTangent {
+                cut, segment: line, ..
+            } => segment(line) && self.cut_offers(cut, CutPoint::Centre),
             Constraint::AxisCollinear { segment: on, .. }
             | Constraint::AxisParallel { segment: on, .. }
             | Constraint::AxisPerpendicular { segment: on, .. } => segment(on),

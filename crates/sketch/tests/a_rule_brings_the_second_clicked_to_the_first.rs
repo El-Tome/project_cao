@@ -24,6 +24,14 @@
 //! reference held only while the rule lands
 //! (`a_length_typed_later_on_the_second_trait_reaches_the_first`,
 //! `an_end_of_the_second_of_two_equal_traits_dragged_stretches_the_first_with_it`).
+//!
+//! A curve beside the end of a trait and the trait are brought alongside each
+//! other, an arc and an ellipse as a circle is: the trait clicked first, the
+//! curve comes along it until it touches the trait itself; the curve clicked
+//! first, the trait slides along itself to it before the solver closes the
+//! gap, turning it about its far end
+//! (`an_arc_beside_the_end_of_a_trait_is_brought_alongside_it`,
+//! `an_ellipse_beside_the_end_of_a_trait_is_brought_alongside_it`).
 
 use cao_sketch::{
     Constraint, DimensionTarget, Element, LaidFrom, LengthOutcome, PointId, Rule, RuleIntent,
@@ -441,5 +449,124 @@ fn a_length_typed_later_on_the_second_trait_reaches_the_first() {
     assert!(
         (reached - 50.0).abs() < SETTLED,
         "the first trait stayed {reached} long"
+    );
+}
+
+/// Lays a tangency between the trait from (10, 10) to (210, 10) and a curve
+/// standing beside its end, in each order, the first clicked staying. The
+/// trait clicked first, the curve touches the trait itself; the curve clicked
+/// first, the trait's far end travels along it by most of what the trait
+/// lacked. `curve` draws the curve and says the rule and the point it turns
+/// about; `touch` reads where the curve touches the trait's line.
+fn assert_brought_alongside(
+    what: &str,
+    curve: impl Fn(&mut Sketch, SegmentId, LaidFrom) -> (Constraint, PointId),
+    touch: impl Fn(&Sketch, Constraint) -> DVec2,
+) {
+    for from in [LaidFrom::Curve, LaidFrom::Trait] {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let a = sketch.add_point(DVec2::new(10.0, 10.0));
+        let b = sketch.add_point(DVec2::new(210.0, 10.0));
+        let segment = sketch.add_segment(a, b);
+        let (rule, centre) = curve(&mut sketch, segment, from);
+        let past = |sketch: &Sketch| {
+            let (start, end) = (sketch.point(a), sketch.point(b));
+            let span = end - start;
+            let along = (touch(sketch, rule) - start).dot(span) / span.length_squared();
+            (along - along.clamp(0.0, 1.0)).abs() * span.length()
+        };
+        let case = format!("{what}, {from:?} first");
+        let lacked = past(&sketch);
+        assert!(
+            lacked > 1.0,
+            "{case}: the curve was to stand beyond the trait's end"
+        );
+        let before = (ends(&sketch, 0), sketch.point(centre));
+
+        let outcome = sketch.lay_rule(rule, SCALE);
+
+        assert_eq!(
+            outcome,
+            LengthOutcome::Exact,
+            "{case}: the tangency did not land"
+        );
+        match from {
+            LaidFrom::Trait => {
+                let stayed = moved(&sketch, 0, before.0);
+                assert!(stayed < CLOSE, "{case}: the trait moved by {stayed}");
+                let off = past(&sketch);
+                assert!(off < CLOSE, "{case}: it touches {off} past the trait's end");
+            }
+            _ => {
+                let stayed = sketch.point(centre).distance(before.1);
+                assert!(stayed < CLOSE, "{case}: the curve moved by {stayed}");
+                let along = (before.0[1] - before.0[0]).normalize();
+                let slid = (sketch.point(a) - before.0[0]).dot(along);
+                assert!(
+                    slid > lacked / 2.0,
+                    "{case}: the trait slid {slid} along itself, short of the {lacked} it lacked"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn an_arc_beside_the_end_of_a_trait_is_brought_alongside_it() {
+    assert_brought_alongside(
+        "an arc",
+        |sketch, segment, from| {
+            let centre = sketch.add_point(DVec2::new(260.0, 60.0));
+            let start = sketch.add_point(DVec2::new(290.0, 60.0));
+            let end = sketch.add_point(DVec2::new(260.0, 90.0));
+            let arc = sketch.add_arc(centre, start, end);
+            let rule = Constraint::ArcTangent {
+                arc,
+                segment,
+                at: None,
+                from,
+            };
+            (rule, centre)
+        },
+        |sketch, rule| {
+            let Constraint::ArcTangent { arc, segment, .. } = rule else {
+                unreachable!()
+            };
+            sketch
+                .foot_on_segment(sketch.arc(arc).center, segment)
+                .expect("the trait has a length")
+        },
+    );
+}
+
+#[test]
+fn an_ellipse_beside_the_end_of_a_trait_is_brought_alongside_it() {
+    assert_brought_alongside(
+        "an ellipse",
+        |sketch, segment, from| {
+            let centre = sketch.add_point(DVec2::new(260.0, 60.0));
+            let [west, east, south, north] =
+                [(230.0, 60.0), (290.0, 60.0), (260.0, 45.0), (260.0, 75.0)]
+                    .map(|(x, y)| sketch.add_point(DVec2::new(x, y)));
+            let ellipse = sketch.add_ellipse(centre, [west, east], [south, north]);
+            let rule = Constraint::EllipseTangent {
+                ellipse,
+                segment,
+                at: None,
+                from,
+            };
+            (rule, centre)
+        },
+        |sketch, rule| {
+            let Constraint::EllipseTangent {
+                ellipse, segment, ..
+            } = rule
+            else {
+                unreachable!()
+            };
+            sketch
+                .ellipse_touching(ellipse, segment)
+                .expect("the trait has a length")
+        },
     );
 }

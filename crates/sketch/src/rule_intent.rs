@@ -24,6 +24,9 @@ pub enum RulePick {
     /// One of the points a fillet or a chamfer offers, which no point of the
     /// drawing stands on yet: a coincidence hangs a point there.
     CutPoint(CornerCutId, CutPoint),
+    /// The curve a fillet or a chamfer draws: a line is laid tangent to a
+    /// fillet's.
+    CutCurve(CornerCutId),
 }
 
 /// Which rule the constraint tool is about to lay down.
@@ -185,6 +188,14 @@ pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<Ru
                     segment: *segment,
                     from,
                 }),
+                ([], [segment], [], []) => {
+                    let cut = brushed_fillet(picks, sketch)?;
+                    constrain(Constraint::CutTangent {
+                        cut,
+                        segment: *segment,
+                        from,
+                    })
+                }
                 _ => None,
             }
         }
@@ -281,6 +292,16 @@ fn hangs_on_a_cut(picks: &[RulePick]) -> Option<(PointId, CornerCutId, CutPoint)
         ] => Some((*point, *cut, *at)),
         _ => None,
     }
+}
+
+/// The fillet among two picks, beside the trait: a chamfer's cut is
+/// straight, and nothing is tangent to it.
+fn brushed_fillet(picks: &[RulePick], sketch: &Sketch) -> Option<CornerCutId> {
+    let cut = picks.iter().find_map(|pick| match pick {
+        RulePick::CutCurve(cut) => Some(*cut),
+        _ => None,
+    })?;
+    (picks.len() == 2 && sketch.cut_offers(cut, CutPoint::Centre)).then_some(cut)
 }
 
 #[cfg(test)]

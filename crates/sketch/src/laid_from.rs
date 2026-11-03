@@ -9,6 +9,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::constraints::{Constraint, DimensionTarget};
+use crate::corner_cut::CornerCutId;
 use crate::sketch::{Element, PointId, Sketch};
 
 /// Which of the two things a tangency, or a point laid on a trait or a curve,
@@ -86,6 +87,12 @@ impl Constraint {
                 ellipse,
                 from,
             } => from.of_a_point_and(point, Element::Ellipse(ellipse)),
+            // A cut is no element: laid from the fillet, what stays is its
+            // corner and its sides — see `laid_from_a_cut`.
+            Self::CutTangent { segment, from, .. } => match from {
+                LaidFrom::Trait => Some(Element::Segment(segment)),
+                LaidFrom::Nowhere | LaidFrom::Curve | LaidFrom::Point => None,
+            },
             Self::EqualRadiusArcCircle { .. }
             | Self::OnAxis { .. }
             | Self::AtCutPoint { .. }
@@ -95,6 +102,19 @@ impl Constraint {
             | Self::AxisParallel { .. }
             | Self::AxisPerpendicular { .. }
             | Self::Fixed { .. } => None,
+        }
+    }
+
+    /// The cut a rule was laid from, when the thing clicked first is one: a
+    /// fillet a line was laid tangent to.
+    pub(crate) fn laid_from_a_cut(self) -> Option<CornerCutId> {
+        match self {
+            Self::CutTangent {
+                cut,
+                from: LaidFrom::Curve,
+                ..
+            } => Some(cut),
+            _ => None,
         }
     }
 
@@ -176,6 +196,11 @@ impl Constraint {
             Self::OnEllipse { point, ellipse, .. } => Self::OnEllipse {
                 point,
                 ellipse,
+                from: LaidFrom::Nowhere,
+            },
+            Self::CutTangent { cut, segment, .. } => Self::CutTangent {
+                cut,
+                segment,
                 from: LaidFrom::Nowhere,
             },
             other @ (Self::Perpendicular { .. }

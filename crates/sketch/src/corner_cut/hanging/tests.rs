@@ -67,6 +67,50 @@ fn a_cut_nothing_hangs_on_asks_the_solver_for_nothing() {
 }
 
 #[test]
+fn a_fillet_nothing_hangs_on_asks_nothing_beside_one_a_line_is_tangent_to() {
+    let (mut sketch, _, _, cut) = a_rounded_corner();
+    let start = sketch.add_point(DVec2::new(0.0, 30.0));
+    let end = sketch.add_point(DVec2::new(30.0, 0.0));
+    let line = sketch.add_segment(start, end);
+    sketch.add_constraint(Constraint::CutTangent {
+        cut,
+        segment: line,
+        from: LaidFrom::Nowhere,
+    });
+    let alone = sketch.equations(1.0).len();
+    assert!(alone > 0, "the tangent line asks the solver for nothing");
+
+    let corner = sketch.add_point(DVec2::new(200.0, 10.0));
+    let right = sketch.add_point(DVec2::new(300.0, 10.0));
+    let up = sketch.add_point(DVec2::new(200.0, 110.0));
+    let sides = [
+        sketch.add_segment(corner, right),
+        sketch.add_segment(corner, up),
+    ];
+    sketch
+        .cut_corner(
+            sides[0],
+            sides[1],
+            CutShape::Fillet { radius: 10.0 },
+            false,
+            1,
+        )
+        .unwrap();
+
+    let rows = sketch.equations(1.0);
+    assert_eq!(rows.len(), alone, "the second fillet asks rows of its own");
+    for row in &rows {
+        for point in [corner, right, up] {
+            let lean = DVec2::new(row.gradient[point.0 * 2], row.gradient[point.0 * 2 + 1]);
+            assert!(
+                lean.length() < 1e-12,
+                "a row leans on {point:?}, a point the second fillet stands on"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_point_hung_on_each_place_follows_a_new_radius() {
     let (mut sketch, _, _, cut) = a_rounded_corner();
     let hung = [CutPoint::Centre, CutPoint::First, CutPoint::Second]

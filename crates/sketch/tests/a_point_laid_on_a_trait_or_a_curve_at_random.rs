@@ -189,6 +189,10 @@ fn shapes(sketch: &Sketch) -> Vec<usize> {
                     .chain(sketch.corner_cuts()[cut.0].sides.map(Element::Segment))
                     .collect()
             }
+            Constraint::CutTangent { cut, segment, .. } => std::iter::once(segment)
+                .chain(sketch.corner_cuts()[cut.0].sides)
+                .map(Element::Segment)
+                .collect(),
             Constraint::Tangent {
                 circle,
                 segment,

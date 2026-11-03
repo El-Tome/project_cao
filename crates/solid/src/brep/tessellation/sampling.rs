@@ -57,9 +57,8 @@ use std::f64::consts::PI;
 use glam::DVec3;
 
 use super::contact::{self, Contact, Zones};
-use crate::brep::conic::Round;
 use crate::brep::curve::{Circle, Curve};
-use crate::brep::surface::{Cylinder, Surface};
+use crate::brep::surface::Cylinder;
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
 use abreast::Abreast;
 use axis::Axes;
@@ -200,16 +199,15 @@ impl Samples {
             let between = match body.curve(edge.curve) {
                 Curve::Line(_) => Vec::new(),
                 Curve::Conic(conic) => {
-                    let mut rays = conic::rays_about(conic, walls, &contacts, eps);
-                    if let Round::Elliptic(wall) = conic.round
-                        && let Some(rank) = body
-                            .surfaces
-                            .iter()
-                            .position(|surface| *surface == Surface::Elliptic(wall))
-                    {
-                        rays.extend(abreast.angles(SurfaceId(rank as u32)));
-                    }
-                    conic::of_edge(body, edge, conic, zones, grids, &rays, tolerance)
+                    let rays = conic::rays_about(conic, walls, &contacts, eps);
+                    conic::of_edge(
+                        body,
+                        edge,
+                        conic,
+                        (zones, grids, &abreast),
+                        &rays,
+                        tolerance,
+                    )
                 }
                 Curve::Circle(circle) => match meridian_of(circle, grids, eps) {
                     Some((surface, round, rows)) => {

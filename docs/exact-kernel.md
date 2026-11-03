@@ -2103,7 +2103,12 @@ read backwards by the listing.
   furthest past it. The walls such pairs join into a group are all sampled
   from one point inside every one of them, the axis of the smallest; where
   no such point is, each pair standing close is sampled from its own, and a
-  pair that only crosses keeps its grids. A whole rim of an elliptic
+  pair that only crosses keeps its grids. Two elliptic rims of a lens — two
+  walls of a group whose rims on one plane end at one vertex — drop a place
+  on a ray they share together: where one rim's place grazes a surface the
+  end lies on, a step or less from it, the other's is dropped too, else one
+  took a place the other left and the cap's chords crossed (5585709823,
+  #574). A whole rim of an elliptic
   wall ends where it starts, and a place beside that point is measured against
   both ends of it. What
   still crosses is refined locally, and what survives

@@ -14,7 +14,8 @@
 //!   `the_same_ellipse_turned_a_hair_past_decision_8_keeps_every_rule`,
 //!   `an_ellipse_joined_with_its_osculating_circle_at_a_vertex_keeps_every_rule`,
 //!   `a_circle_added_to_an_ellipse_a_hair_from_round_of_its_size_keeps_every_rule`,
-//!   `an_ellipse_a_hair_from_round_added_in_a_bore_of_its_size_keeps_every_rule`
+//!   `an_ellipse_a_hair_from_round_added_in_a_bore_of_its_size_keeps_every_rule`,
+//!   `the_same_ellipse_turned_a_ten_thousandth_under_a_block_touching_it_keeps_every_rule`
 //! - what stays above the bar is written in `docs/exact-kernel-failures.md` —
 //!   no test: prose, the same section
 //!
@@ -189,6 +190,37 @@ fn an_ellipse_a_hair_from_round_added_in_a_bore_of_its_size_keeps_every_rule() {
                     5.854873852794253,
                 ),
                 -150.0,
+            )),
+        ],
+    ));
+}
+
+/// Seed 5585709823: a block, and under it an ellipse of half-axes 3 and 2
+/// added, then cut again turned by a ten-thousandth of a radian. Four lenses
+/// a ten-thousandth thick are left between the two walls, which cross at a
+/// grazing angle at each end of each lens, near the ellipse's vertices, where
+/// the block's sides touch it. On a lens's floor near a crossing, one rim
+/// kept a point of its own, at a vertex's angle, that the other rim had
+/// dropped; the floor's chords crossed, its triangles could not be cut, and
+/// the shell was left open, breaking `Closed`.
+#[test]
+fn the_same_ellipse_turned_a_ten_thousandth_under_a_block_touching_it_keeps_every_rule() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(2.0),
+            Outline::rectangle([7.0, 2.0], [13.0, 6.0]),
+            -2.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::ellipse([10.0, 4.0], [3.0, 0.0], 2.0),
+                -4.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::ellipse([10.0, 4.0], [2.999999985, 0.00029999999950000003], 2.0),
+                -4.0,
             )),
         ],
     ));

@@ -227,12 +227,46 @@ fn sides(one: &Leaving, other: &Leaving) -> Option<[f64; 2]> {
 /// The angle of the chord from a half's vertex to where it stands once it
 /// has run `run`, read with its angle as it is unwrapped.
 fn seen(leaving: &Leaving, run: f64) -> f64 {
-    let share = (run / leaving.length).min(1.0);
+    let share = match leaving.trace {
+        Trace::Conic { .. } => along(&leaving.trace, leaving.forward, run),
+        Trace::Segment { .. } | Trace::Round { .. } | Trace::Graph { .. } => {
+            (run / leaving.length).min(1.0)
+        }
+    };
     let at = leaving
         .trace
         .at(if leaving.forward { share } else { 1.0 - share })[0];
     let chord = at - leaving.vertex;
     leaving.angle + (chord.y.atan2(chord.x) - leaving.angle + PI).rem_euclid(TAU) - PI
+}
+
+/// How many chords a conic is measured along to find where it has run a
+/// given length.
+const STEPS_ALONG: usize = 256;
+
+/// The share of a conic's trace, from the end a half leaves, at which it
+/// has run `run`: a conic's parameter does not run at one speed, and the
+/// share of its whole length read as a share of its parameter put an
+/// ellipse leaving the end of its major axis further along than its
+/// osculating circle, which bends more, and the two were ordered backwards
+/// (5585700934).
+fn along(trace: &Trace, forward: bool, run: f64) -> f64 {
+    let point = |share: f64| trace.at(if forward { share } else { 1.0 - share })[0];
+    let mut done = 0.0;
+    for step in 0..STEPS_ALONG {
+        let [from, to] = [step, step + 1].map(|at| at as f64 / STEPS_ALONG as f64);
+        let piece = point(from).distance(point(to));
+        if done + piece >= run {
+            let part = if piece > 0.0 {
+                (run - done) / piece
+            } else {
+                0.0
+            };
+            return from + part * (to - from);
+        }
+        done += piece;
+    }
+    1.0
 }
 
 /// Two directions closer than this, in radians, set off together, even on

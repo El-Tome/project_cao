@@ -13,7 +13,8 @@
 //!   `an_ellipse_a_millionth_short_of_round_touching_its_circle_keeps_every_rule`,
 //!   `the_same_ellipse_turned_a_hair_past_decision_8_keeps_every_rule`,
 //!   `the_same_ellipse_cut_from_itself_a_ten_thousandth_aside_keeps_every_rule`,
-//!   `an_ellipse_a_hair_narrower_than_its_twin_touching_it_at_both_ends_keeps_every_rule`
+//!   `an_ellipse_a_hair_narrower_than_its_twin_touching_it_at_both_ends_keeps_every_rule`,
+//!   `an_ellipse_joined_with_its_osculating_circle_at_a_vertex_keeps_every_rule`
 //! - what stays above the bar is written in `docs/exact-kernel-failures.md` —
 //!   no test: prose, the same section
 //!
@@ -183,5 +184,28 @@ fn an_ellipse_a_hair_narrower_than_its_twin_touching_it_at_both_ends_keeps_every
                 360.0,
             )),
         ],
+    ));
+}
+
+/// Seed 5585700934: an elliptic disc joined with a disc of the radius it
+/// curves by at the end of its major axis, touching it there: the
+/// osculating circle. Leaving the vertex they touch at, the two set off
+/// together and bend alike, and were told apart by where each stood once
+/// it had run as far — the ellipse read by the share of its parameter,
+/// further along than that, and ordered outside the circle on the wrong
+/// side. Declined as a tie.
+#[test]
+fn an_ellipse_joined_with_its_osculating_circle_at_a_vertex_keeps_every_rule() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-2.0),
+            Outline::ellipse([5.0, 8.0], [-3.5, 0.0], 3.49965),
+            2.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(-2.0),
+            Outline::circle([5.000699965, 8.0], 3.499300035),
+            2.0,
+        ))],
     ));
 }

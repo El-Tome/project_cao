@@ -1512,7 +1512,12 @@ covered once from each side.
    tenth along stood 8e-10 off the rim's (5543224272); two such curves of
    different lengths, a tenth along each, were read at places at different
    distances, the shorter one's below the longer though it runs above
-   (5544515442) — a last tie declines.
+   (5544515442) — a last tie declines. Where each stands is read once it
+   has run the same length: along a conic, whose parameter does not run at
+   one speed, by measuring it, for read as a share of the parameter an
+   ellipse leaving the end of its major axis stood further along than its
+   osculating circle, which bends more, and the two were ordered backwards
+   (5585700934, #574).
    Cycles are traced, then grouped into regions by a ray up the second
    parameter from each cycle's top. Each region gets an interior point. On
    a cone each arc ending at the apex ends at a vertex of its own, at the

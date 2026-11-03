@@ -3082,3 +3082,162 @@ The gate, `cargo test --workspace` built already and run three times on
 each tree in turn: 94.1 s at best on `main`, 95.3 s on the branch, less
 than one run differs from the next. A predicate builds its expansion only
 when the plain product's error bound does not settle the sign.
+
+## #644: the largest families, round after round
+
+#644 runs the loop Tom asked for on #585: every failure of the last
+measure rerun alone on a build that prints where a refusal is raised,
+shrunk, and sorted into families; the largest family a change of the kernel
+fixes is fixed, with a test that fails before; and every draw is measured
+again on the same seeds, verdict against verdict. Flash sorted the rounded
+and tilted-ellipse draws into families (`triage`, a brief that asks for a
+mechanism per family and at most eight a draw); every family below was
+read again on its shrunk cases before anything was changed.
+
+**Round 1** took six families, each with a test in
+`the_largest_failure_families.rs`:
+
+- **Two planes a hair off parallel** (`canonical/squared.rs`, decision 11
+  widened): a block's top and a slab's floor leaning 1e-7° off it had three
+  corners within the tolerance and one 9 % past it, and the block was
+  declined `Unverified` (5585501573). Decision 11 now lays two planes as it
+  laid a plane and a wall; where no one turn lays them with the rest, the
+  turn is sought again without them, so that what #552 laid is laid still.
+  #552 had tried every pair and set it aside on one seed; two planes alone,
+  measured on every draw, break none.
+- **A ring face across its chart's cut laid from inside itself**
+  (`tessellation/outline/round/crossed.rs`): a ring turned 359.9° against a
+  post's end, and a ring notched between two whole latitudes, were laid from
+  the widest gap between their own meridians, through the face, and left
+  open — `Closed` (5585602707, 5585617453). The opening is read off the
+  loops that do not run round the axis, and where no grid angle stands
+  clear, it is the one gap both of whose sides are the face's meridians.
+- **A ring round a post of its inner radius** (`tessellation/sampling/cone.rs`):
+  the ring's chords along the circle they touch, on its own grid, cut
+  across the post's between two of its steps — `Uncrossed` (5576855166). A
+  round's grid is now a multiple of a coaxial cylinder's that touches it
+  along an equator, when the two grids start at one angle.
+- **A ring in a band of its outer radius** (`selection/parted.rs`): the
+  ring stands a hair inside the circle for some way on either side of it,
+  and so do the band's chords — `Uncrossed` (5585606247). A cylinder holding
+  a whole ring and touching its outer equator now parts it there; at the
+  inner equator parting broke the volume, and the grid does it instead.
+- **A slit bounds no pole** (`topology/poles.rs`): a ball a half band
+  touches along half its equator, slit there, was read as holding one pole
+  of two — `Listed`, and refused through the body (5585606550).
+- **A plane a hair from an edge** (decision 13, `canonical/edged.rs`): a
+  cut at 45° through a point a third of the tolerance off a block's top
+  edge — `Unverified` (5585500692, 5585502204). Its first form broke four
+  seeds that held: a cut a hair off parallel to one of the edge's planes
+  crosses it far from the edge, and laid through the edge takes a strip off
+  it (5585501810, 5585505134, 5585513889); and two edges a hair apart leave
+  the cut a hair off the one it is not laid through (5585505818). It now
+  asks that the cut cross each plane along the edge within `G` of it, and
+  that every edge it would be laid through share one gap. The narrowing
+  gives back nine seeds the first form held, seven of the tilted ellipse
+  draw and two of the tilted one: rerun with decision 13 traced, eight
+  shrunk cases reach it, and in each the cut leans a hair off one plane
+  along the edge, 5e-9 to 9e-4 rad, so the first condition lets it go (two
+  of them, a cut between two edges at opposite gaps, the second too). Laid
+  through the edge, those were built, where the four above were refused.
+  The lean does not tell them apart, the same 6e-8 to 2e-7 rad in both,
+  nor does where the cut crosses that plane: inside the face or past it,
+  each happens on both sides. What does is the next pass's question.
+
+**Round 2** sorted round 1's tip again, flash naming each failure's
+mechanism. Its largest families are #574's first lead, a decision for Tom,
+or set aside on #626 ("What is left", below); the one it took is the
+harness's own:
+
+- **A prism a few roundings thick** (`random_solids/building.rs`): the
+  crossed ellipses draw raised a disc by a height a subtraction left
+  1.8e-15 long, two faces closer than the draws promise never to ask
+  (`NEAR`). The kernel declined it as no travel, rightly, and the campaign
+  counted no answer. Such a prism is no solid now, and its case holds
+  nothing (5585804304 and three more). The draw never asks whether a leaf
+  is solid, so every other seed draws what it drew.
+
+**Measured like for like**, #585's tip against round 1's, the same seeds,
+every verdict compared case by case. On the exact kernel, 20 000 cases a
+draw:
+
+| draw | from seed | #585 broke a rule | #644 broke a rule | held now | broken now |
+| --- | --- | --- | --- | --- | --- |
+| square | 5585100000 | 1 | 1 | 0 | 0 |
+| profiles | 5585200000 | 2 | 2 | 0 | 0 |
+| turned | 5585300000 | 9 | 8 | 1 | 0 |
+| slanted | 5585400000 | 11 | 10 | 1 | 0 |
+| tilted | 5585500000 | 53 | 38 | 15 | 0 |
+| rounded | 5585600000 | 95 | 76 | 19 | 0 |
+| ellipses | 5585700000 | 147 | 147 | 0 | 0 |
+| ellipses crossed | 5585800000 | 20 | 20 | 0 | 0 |
+| ellipses tilted | 5585900000 | 46 | 27 | 19 | 0 |
+| all | | 384 | 329 | 55 | 0 |
+
+Through the application's body, 2 000 cases a draw:
+
+| draw | from seed | #585 broke a rule | #644 broke a rule | held now | broken now |
+| --- | --- | --- | --- | --- | --- |
+| profiles | 5586200000 | 0 | 0 | 0 | 0 |
+| turned | 5586300000 | 0 | 0 | 0 | 0 |
+| slanted | 5586400000 | 0 | 0 | 0 | 0 |
+| tilted | 5586500000 | 5 | 3 | 2 | 0 |
+| rounded | 5586600000 | 7 | 7 | 0 | 0 |
+| ellipses | 5586700000 | 14 | 14 | 0 | 0 |
+| ellipses crossed | 5586800000 | 1 | 1 | 0 | 0 |
+| ellipses tilted | 5586900000 | 4 | 1 | 3 | 0 |
+| all | | 31 | 26 | 5 | 0 |
+
+**What is left**, round 1's tip sorted by family:
+
+- **The ellipse draw, 147, unchanged**: one ellipse a hair past decision 8
+  beside another wall — the same ellipse turned 1e-7 to 1e-4 rad, moved a
+  few units of 1e-6 or 1e-4, or resized within the hair, beside a block
+  plane, a circle or a third ellipse. Flash sorted them by mechanism, and a
+  spot check of their cases holds it:
+  - two walls a hair apart running an edge unequally through a node,
+    `Unverified` — 36;
+  - the shell left open between them, `Closed` — 27;
+  - the pair refused in `combine/related.rs`, `Unsupported` — 26;
+  - their triangles crossing, `Uncrossed` — 22;
+  - a curve's stretch not laid as a chord (`traced/taken.rs`), mostly a
+    near-round ellipse beside a circle, `Unsupported` — 23;
+  - a sliver between them no column crosses, `Tie` in `overlay/partition.rs`
+    — 9; and four single cases.
+
+  All but the chords are #574's first lead, which extends decisions 7 and 9,
+  the band and grazing decisions of two circular walls, to elliptic pairs:
+  the next pass's largest family, and #574's own. The chords are its second
+  lead's shape, an arc of a near-round ellipse against a circle, which waits
+  on Tom's rule.
+- **The rounded draw, 76** (flash, on the shrunk cases):
+  - two rounds a hair apart, set aside on #626 — 20;
+  - a coaxial turn a hair off a round's equator, past `G`, set aside on
+    #626 — 15;
+  - a round ending a hair from the axis — 14, every one `Spans` or `Volume`:
+    the kernel lays an arc's centre within `turning::ON_THE_AXIS` on the
+    axis and reads its radius again, which moves the cap by about 1e-5, and
+    the harness judges the arc as drawn. Whether the harness reads the
+    kernel's band or the band narrows is **a decision for Tom**;
+  - curves meeting at an edge that ties — 5; a straight edge a hair long
+    lying on a ball or a ring, declined in `domain/traced.rs` — 4 (a chord
+    of a sphere 1e-5 long, or the stretch of the axis inside a ring whose
+    tube reaches a hair past it, where the ring's chart has no angle to
+    trace it by); a ball's equator on a coaxial cylinder still — 3; a
+    section's corner a hair off its circle — 2; and 13 single cases.
+- **The tilted draw, 38**: 32 refused, 23 of them `Unverified` at
+  `assembly.rs`, and 6 `Uncrossed`. The shrunk cases decision 13 lets go
+  are a plane a hair from a turn's rim, which cuts a conic, and leans of
+  1e-5 degrees: #552's warning band. Two are the seeds its narrowing gives
+  back.
+- **The tilted ellipse draw, 27**: the seven its narrowing gives back, and
+  twenty flash sorted on its first form: a plane a hair from an elliptic or
+  a round wall's tangent line — 11, and 3 more a hair off tangent and
+  crossing it; a plane a hair off an edge where faces meet — 3; three
+  single cases. #574's third lead, the warning band, again.
+- **The crossed ellipse draw, 20, 16 once the harness's four are counted
+  apart**: a side tool whose wall ends where the crossed wall's extreme
+  stands, `Uncrossed` — 5; an elliptic arc taken for a chord — 4; a tool a
+  hair off the face it was drawn to meet — 3; four single cases.
+- **The small draws**: square 1, profiles 2, turned 8 and slanted 10, one
+  seed each of the last two held by round 1.

@@ -2681,7 +2681,8 @@ there:
   wrong there too; two keep every rule through it (5576865967,
   5576872826), where it is the listing's reading that is to be looked at
   first, not the body.
-- **`Answers`, 80 and 93, four in five hairs** — ties, #585; a straight
+- **`Answers`, 80 and 93, four in five hairs** — ties (an order of curves
+  or a tolerance, not a sign of points: "#585" below); a straight
   edge traced on a round; the plain ones a round against a cylinder of
   another axis (5576851103), a spindle against a coaxial half turn
   (5576864698), a ring cut through its tube's centre by a coaxial cylinder
@@ -2778,7 +2779,8 @@ of round 2's seeds and 338 of the fresh ones on the exact kernel:
   30, are a whole ring touching a whole coaxial cylinder along its outer or
   inner equator (shrunk under "#623" above), the triangles of the two
   crossing beside the equator they share.
-- **`Answers`, 80 and 95, four in five hairs** — ties (#585), a straight edge
+- **`Answers`, 80 and 95, four in five hairs** — ties (curve and tolerance
+  decisions, "#585" below), a straight edge
   traced on a round; the plain ones, 17 and 16, a round against a wall of
   another axis (#624), a spindle against a coaxial half turn, a ring cut
   through its tube's centre by a coaxial cylinder turned the other way.
@@ -2997,3 +2999,87 @@ round 2's `Uncrossed`, 112, sorted by what the shrunk case of `main` holds:
   ball of the second operand a hair inside a cylinder of the first, which no
   move of the ball settles (its poles stand on the axis); and moves a guard
   refuses.
+
+## #585: which side a point stands on
+
+#585 takes exactly the decisions of the kernel that are the sign of a
+polynomial in held points (`orientation.rs`, and `exact-kernel.md`, "Which
+side a point stands on", for the list): the side of a slant the laid
+profile asks of a corner, which way a laid contour turns, which side of an
+edge a folded triangle stands. The others are a tolerance or a curve, and
+it leaves them as they are.
+
+**Measured like for like**: `main` at `e411888` against the branch at
+`a822682`, on the same seeds, every verdict compared case by case. The
+branch's last commit, `f22f6ce`, changes no answer: the early exit it adds
+returns the sign the exact sum would. On the exact kernel, 20 000 cases a
+draw:
+
+| draw | from seed | `main` broke a rule | branch broke a rule | the same seeds |
+| --- | --- | --- | --- | --- |
+| square | 5585100000 | 1 | 1 | yes |
+| profiles | 5585200000 | 2 | 2 | yes |
+| turned | 5585300000 | 9 | 9 | yes |
+| slanted | 5585400000 | 11 | 11 | yes |
+| tilted | 5585500000 | 53 | 53 | yes |
+| rounded | 5585600000 | 95 | 95 | yes |
+| ellipses | 5585700000 | 147 | 147 | yes |
+| ellipses crossed | 5585800000 | 20 | 20 | yes |
+| ellipses tilted | 5585900000 | 46 | 46 | yes |
+
+Through the application's body, 2 000 cases a draw:
+
+| draw | from seed | `main` broke a rule | branch broke a rule | the same seeds |
+| --- | --- | --- | --- | --- |
+| profiles | 5586200000 | 0 | 0 | yes |
+| turned | 5586300000 | 0 | 0 | yes |
+| slanted | 5586400000 | 0 | 0 | yes |
+| tilted | 5586500000 | 5 | 5 | yes |
+| rounded | 5586600000 | 7 | 7 | yes |
+| ellipses | 5586700000 | 14 | 14 | yes |
+| ellipses crossed | 5586800000 | 1 | 1 | yes |
+| ellipses tilted | 5586900000 | 4 | 4 | yes |
+
+No family moved, and no seed that held on `main` fails: the sign
+decisions #585 made exact are not where the campaigns break.
+
+**Where the refusals come from**, each refused seed of `main` run again as
+drawn on a build that prints where a refusal is raised — 232 of the 384
+failures of the nine draws:
+
+- `Unverified` at `assembly.rs`, an edge of the result run more times one
+  way than the other — 111: tilted 35, ellipses 34, tilted ellipses 23,
+  rounded 8, slanted 3, turned 3, crossed ellipses 2, profiles 2,
+  square 1. On the tilted draw, a plane a hair off parallel to another or
+  a hair from an edge: #644.
+- `Unsupported` at `combine/related.rs`, two parallel walls, one elliptic,
+  the same ellipse a hair beside the other — 27, all on the ellipse draw:
+  #574's first lead.
+- `Unsupported` at `domain/traced/taken.rs`, a straight edge traced on a
+  curved wall it was taken onto by decision 6 — 26.
+- `Tie` — 50: 34 in `overlay/partition.rs` (a region no column crosses,
+  following the cycles and heights of curves), 8 in `overlay/star.rs` (the
+  order of curves at a corner, by tangent, bend and chord), 8 in
+  `selection.rs` (every read of a region tied); shrunk, one more reached
+  `ray.rs` (every direction doubtful). A curve or a tolerance decision each, none a sign
+  of points: the "ties, #585" of #628's list above are not #585's.
+- the rest, 18: a line lying on a round (`Unsupported` in
+  `domain/traced.rs`, 10, rounded), a travel the kernel does not make
+  (`Travel`, 4, crossed ellipses), a section the reading cannot lay
+  (`Profile`, 3), a crossing it does not build (`combine/crossed.rs`, 1).
+
+**What it costs**: nothing measurable. `main` and the branch's tip were
+run side by side on the same seeds, 2 000 cases a draw on one thread
+each, so that both met the same load:
+
+| draw | `main` | branch |
+| --- | --- | --- |
+| square | 124.0 s | 124.0 s |
+| turned | 328.9 s | 325.5 s |
+| tilted | 267.1 s | 265.3 s |
+| rounded | 351.0 s | 341.5 s |
+
+The gate, `cargo test --workspace` built already and run three times on
+each tree in turn: 94.1 s at best on `main`, 95.3 s on the branch, less
+than one run differs from the next. A predicate builds its expansion only
+when the plain product's error bound does not settle the sign.

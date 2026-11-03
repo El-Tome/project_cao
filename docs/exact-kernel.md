@@ -2130,8 +2130,11 @@ Every family the campaigns still name is a tolerance or a curve decision:
 the hairs from tangent no band is laid along, the leans in the warning band,
 the same ellipse turned a hair beside a block, the rounds' rims a hair apart,
 and the order of a conic and a line of touch at a corner. An exact predicate
-settles none of them, and #585's campaigns moved none (`exact-kernel-failures.md`,
-"#585").
+settles none of them. #585's campaigns, run on `main` and on the branch over
+the same seeds, gave every seed the same verdict on both, and every refusal
+they name is raised by a tolerance or a curve decision — the ties among them
+by an order of curves at a corner or a region no column crosses, never by
+the side of a point (`exact-kernel-failures.md`, "#585").
 
 What the list found besides is the same fact asked in several places with
 its own formula and its own band, which is #585's failure in another guise

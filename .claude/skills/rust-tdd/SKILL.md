@@ -67,7 +67,7 @@ a comment. A test is never commented.
 
 ## Looping fast
 
-The whole workspace takes ~12 s. During the red/green loop, aim narrower:
+The whole workspace takes minutes. During the red/green loop, aim narrower:
 
 ```sh
 cargo test -p cao_sketch                      # one crate
@@ -75,7 +75,8 @@ cargo test -p cao_sketch tangent              # the tests whose name holds "tang
 cargo test -p cao_part --test stress_tangent  # one integration file
 ```
 
-The whole workspace once, before committing — the gate will do it anyway.
+The whole workspace is the CI's job; run it by hand before pushing when the
+change reaches beyond one crate.
 
 ## `f64`, never with `==`
 
@@ -167,6 +168,7 @@ unique name. The real answer — a port for the file system — is described in 
 
 ## Before committing
 
-`scripts/verify.sh` runs `cargo fmt --all --check`, `clippy -D warnings` then
-`cargo test --workspace`. The gate does it by itself at commit time; running it
-by hand first saves a round trip.
+Nothing runs at commit. A push runs `scripts/verify.sh` — `cargo fmt --all
+--check` then `clippy -D warnings` — and the CI runs the tests. Commit the red
+test and the code that turns it green as you go; what has to be green is the
+branch the CI reads.

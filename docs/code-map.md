@@ -542,7 +542,8 @@ Elsewhere the repository is tested, and each test lives in the file it covers.
 ## Checking
 
 ```sh
-scripts/verify.sh            # fmt --check, clippy -D warnings, cargo test --workspace, ~12 s
+scripts/verify.sh            # fmt --check, clippy -D warnings — what a push runs
+cargo test --workspace       # the whole suite, minutes — what the CI runs
 cargo test -p cao_sketch     # one crate alone, while iterating
 cargo run -p cao_app         # launch the application
 ```

@@ -25,7 +25,7 @@ search to a `code-locator` subagent.
 
 Load `rust-tdd`, `architecture-rust` and `code-map` first. `refactor-rust` too
 when the work is a refactor. They say where a responsibility lives and what a
-crate may import; the gate enforces most of it.
+crate may import; the architecture test enforces most of it.
 
 ## Each turn
 
@@ -64,5 +64,7 @@ cannot get past it.
 - anything set aside, and why.
 
 Run `cargo` with `export PATH="$HOME/.cargo/bin:$PATH"` in front: the tool's
-shell may not have it. Never commit: the orchestrator does, once the gate is
-green.
+shell may not have it. Never commit: the orchestrator does, once your test is
+green. The tests run in the CI only, not at commit nor at push, so the crate
+run you saw is the only one before the pull request — run
+`cargo test --workspace` too when your change reaches beyond one crate.

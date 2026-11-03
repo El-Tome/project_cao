@@ -192,7 +192,7 @@ fn kind(path: &Path) -> Option<Kind> {
         Some("rs") => Some(Kind::Rust),
         Some("sh") => Some(Kind::Shell),
         // A git hook carries no extension, and is read all the same.
-        None if path.file_name()? == "pre-commit" => Some(Kind::Shell),
+        None if path.file_name()? == "pre-push" => Some(Kind::Shell),
         _ => None,
     }
 }

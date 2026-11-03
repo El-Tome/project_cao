@@ -147,12 +147,13 @@ rewritten for a naming rule.
 
 ## The gate
 
-`git commit` runs `cargo fmt --all --check`, then `clippy -D warnings`, then
-`cargo test --workspace` (~12 s).
-On failure the commit does not happen and the index is untouched: fix it and go
-again.
+A commit runs nothing: commit as often as is useful. `git push` runs
+`cargo fmt --all --check`, then `clippy -D warnings`; on failure the push does
+not happen: fix it and go again. The tests are not in it — the whole suite takes
+minutes — and run in the CI, on every pushed branch. A red CI is the gate saying
+no, and the pull request waits for it to go green.
 
-There is a valve, `CAO_SKIP_GATE=1`, for committing work in progress knowingly.
+There is a valve, `CAO_SKIP_GATE=1`, for pushing work in progress knowingly.
 **It belongs to the human.** Never reach for it yourself, not even after several
 failures: a failing gate is saying something true about the code. If you cannot
 get it green, explain why, and ask.

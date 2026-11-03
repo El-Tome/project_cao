@@ -79,12 +79,13 @@ What is checked is the **tip of the branch**, not its merge with `main`: a
 branch that went green last week can still break `main` today, and that is what
 the rebase before a merge is for.
 
-The first three also run locally before every commit
-(`scripts/verify.sh`, called by `.githooks/pre-commit`), and
+Formatting and clippy also run locally before every push
+(`scripts/verify.sh`, called by `.githooks/pre-push`); the tests run in the CI
+only, since the whole suite takes minutes. A commit runs nothing.
 `crates/app/tests/gate.rs` fails if the two lists stop agreeing.
 
 **Every one of them calls nothing but `cargo`.** No network, no secret, no
-metered anything — which is why the gate is twelve seconds and stays there.
+metered anything.
 #388 proposed a fifth job reading each pull request against its issue with a
 model, and it was refused for exactly that: an API key in this repository, and
 a bill per pull request. The reading it wanted still happens, before the pull

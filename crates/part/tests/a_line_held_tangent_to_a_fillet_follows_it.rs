@@ -62,9 +62,16 @@
 //!   `a_line_short_of_a_fillet_slides_along_itself_to_touch_it`
 //! - the line clicked first, the fillet slides along the line —
 //!   `a_fillet_beyond_a_line_s_end_slides_along_it_to_touch_it`
+//!
+//! Asked by the owner after trying undo in the app, to keep it working — an
+//! undo gives the rule back, and the line follows the fillet again:
+//! - a fillet become a chamfer, undone —
+//!   `undoing_a_fillet_become_a_chamfer_holds_its_line_tangent_again`
+//! - a fillet taken off, undone —
+//!   `undoing_a_fillet_taken_off_holds_its_line_tangent_again`
 
 use cao_part::history::{ChamferAsked, CutAsked, CutChange, Operation, PointRef};
-use cao_part::{History, PartState, compact};
+use cao_part::{History, PartDocument, PartState, compact};
 use cao_sketch::{
     ArcDraft, Chamfer, Constraint, Corner, CornerCutId, CutCurve, Element, PointId, Rule,
     RuleIntent, RulePick, SegmentId, Sketch, Support, WorkPlane, rule_intent, sweep_of,
@@ -760,4 +767,62 @@ fn a_fillet_beyond_a_line_s_end_slides_along_it_to_touch_it() {
         (radius - RADIUS).abs() < SAME,
         "the fillet's value became {radius}"
     );
+}
+
+/// The part of `a_line_held_tangent`, applied gesture by gesture as the app
+/// applies them, so that it can be undone as the app undoes.
+fn a_document_with_a_line_held_tangent() -> PartDocument {
+    let mut document = PartDocument::new("Plaque", "2026-11-03T09:00:00Z".parse().expect("a date"));
+    for operation in a_line_held_tangent().operations() {
+        document.apply(operation.clone());
+    }
+    document
+}
+
+/// The change undone, and the line held tangent again: the rule is back, the
+/// line touches the fillet, and follows it to a new radius.
+fn assert_undone_holds_the_line_again(mut document: PartDocument, case: &str) {
+    assert!(document.undo(), "{case}: there was nothing to undo");
+
+    let sketch = &document.sketches()[0];
+    assert!(
+        a_line_is_held_on_a_cut(sketch),
+        "{case}: the line is not held on the fillet again: {:?}",
+        sketch.constraints(),
+    );
+    assert_tangent(sketch, case);
+    assert_follows_a_new_radius(&mut document.history, case);
+}
+
+#[test]
+fn undoing_a_fillet_become_a_chamfer_holds_its_line_tangent_again() {
+    let mut document = a_document_with_a_line_held_tangent();
+    document.apply(Operation::CutChange(CutChange::Reshape {
+        sketch: 0,
+        cut: CUT,
+        value: CutAsked::Chamfer(ChamferAsked::from(Chamfer::Equal(7.0))),
+    }));
+    assert!(
+        !a_line_is_held_on_a_cut(&document.sketches()[0]),
+        "the chamfer was to let the line go"
+    );
+
+    assert_undone_holds_the_line_again(document, "the chamfer undone");
+}
+
+#[test]
+fn undoing_a_fillet_taken_off_holds_its_line_tangent_again() {
+    let mut document = a_document_with_a_line_held_tangent();
+    document.apply(Operation::CutChange(CutChange::TakeOff {
+        sketch: 0,
+        cuts: vec![CUT],
+    }));
+    let taken_off = &document.sketches()[0];
+    assert_eq!(taken_off.live_corner_cuts().count(), 0, "the fillet stays");
+    assert!(
+        !a_line_is_held_on_a_cut(taken_off),
+        "taking the fillet off was to let the line go"
+    );
+
+    assert_undone_holds_the_line_again(document, "the fillet taken off, undone");
 }

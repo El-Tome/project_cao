@@ -121,3 +121,44 @@ fn two_traits_laid_on_one_line_ask_that_each_end_of_the_second_stands_on_the_fir
         }
     }
 }
+
+#[test]
+fn a_line_of_no_length_tangent_to_a_fillet_asks_nothing() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corner = sketch.add_point(DVec2::new(10.0, 10.0));
+    let right = sketch.add_point(DVec2::new(110.0, 10.0));
+    let up = sketch.add_point(DVec2::new(10.0, 110.0));
+    let sides = [
+        sketch.add_segment(corner, right),
+        sketch.add_segment(corner, up),
+    ];
+    let cut = sketch
+        .cut_corner(
+            sides[0],
+            sides[1],
+            crate::CutShape::Fillet { radius: 10.0 },
+            false,
+            0,
+        )
+        .expect("the two traits meet");
+    let here = DVec2::new(5.0, 5.0);
+    let start = sketch.add_point(here);
+    let end = sketch.add_point(here);
+    let segment = sketch.add_segment(start, end);
+    sketch.add_constraint(Constraint::CutTangent {
+        cut,
+        segment,
+        from: crate::LaidFrom::Nowhere,
+    });
+
+    assert!(
+        sketch.equations(SCALE).is_empty(),
+        "a line of no length has no direction to be tangent along"
+    );
+    sketch.resolve(SCALE);
+    assert!(
+        sketch.points().iter().all(|place| place.is_finite()),
+        "a point of the drawing turned to nothing: {:?}",
+        sketch.points(),
+    );
+}

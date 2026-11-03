@@ -69,6 +69,10 @@
 //!   `undoing_a_fillet_become_a_chamfer_holds_its_line_tangent_again`
 //! - a fillet taken off, undone —
 //!   `undoing_a_fillet_taken_off_holds_its_line_tangent_again`
+//!
+//! Surfaced by the mutants the branch's code let live:
+//! - erasing the line takes its rule with it, and leaves the fillet as it was
+//!   — `erasing_a_line_tangent_to_a_fillet_takes_its_rule_and_leaves_the_fillet`
 
 use cao_part::history::{ChamferAsked, CutAsked, CutChange, Operation, PointRef};
 use cao_part::{History, PartDocument, PartState, compact};
@@ -318,6 +322,19 @@ fn the_line(sketch: &Sketch) -> [DVec2; 2] {
 
 fn the_corner_and_its_sides(sketch: &Sketch) -> [DVec2; 3] {
     [CORNER, RIGHT_END, UP_END].map(|point| sketch.point(point))
+}
+
+/// Whether the fillet's centre stands to the left of the line, taken whole
+/// and run from its start to its end.
+fn centre_on_the_left(sketch: &Sketch) -> bool {
+    let (centre, _) = the_fillet(sketch);
+    let (start, end) = sketch.endpoints(LINE);
+    (end - start).perp_dot(centre - start) > 0.0
+}
+
+/// How far a run from its first place to its second turned, in radians.
+fn turned(before: [DVec2; 2], after: [DVec2; 2]) -> f64 {
+    (before[1] - before[0]).angle_to(after[1] - after[0])
 }
 
 /// How far a set of places travelled, taken as the worst of them.
@@ -719,6 +736,11 @@ fn a_line_short_of_a_fillet_slides_along_itself_to_touch_it() {
     let sketch = tangent_laid(&history, picks);
 
     assert_tangent(&sketch, "the fillet clicked first");
+    assert_eq!(
+        centre_on_the_left(&sketch),
+        centre_on_the_left(&before),
+        "the line and the fillet came together across the fillet's centre"
+    );
     let past = past_the_line(&sketch);
     assert!(
         past < SAME,
@@ -737,6 +759,11 @@ fn a_line_short_of_a_fillet_slides_along_itself_to_touch_it() {
         (radius - RADIUS).abs() < SAME,
         "the fillet's value became {radius}"
     );
+    let turned = turned(the_line(&before), the_line(&sketch));
+    assert!(
+        turned.abs() < SAME,
+        "the line came in turned by {turned} rad, not in one piece"
+    );
 }
 
 #[test]
@@ -752,6 +779,11 @@ fn a_fillet_beyond_a_line_s_end_slides_along_it_to_touch_it() {
     let sketch = tangent_laid(&history, picks);
 
     assert_tangent(&sketch, "the line clicked first");
+    assert_eq!(
+        centre_on_the_left(&sketch),
+        centre_on_the_left(&before),
+        "the line and the fillet came together across the fillet's centre"
+    );
     let past = past_the_line(&sketch);
     assert!(
         past < SAME,
@@ -767,6 +799,14 @@ fn a_fillet_beyond_a_line_s_end_slides_along_it_to_touch_it() {
         (radius - RADIUS).abs() < SAME,
         "the fillet's value became {radius}"
     );
+    for end in [RIGHT_END, UP_END] {
+        let side = |sketch: &Sketch| [sketch.point(CORNER), sketch.point(end)];
+        let turned = turned(side(&before), side(&sketch));
+        assert!(
+            turned.abs() < SAME,
+            "the side to {end:?} came in turned by {turned} rad, the fillet not in one piece"
+        );
+    }
 }
 
 /// The part of `a_line_held_tangent`, applied gesture by gesture as the app
@@ -825,4 +865,34 @@ fn undoing_a_fillet_taken_off_holds_its_line_tangent_again() {
     );
 
     assert_undone_holds_the_line_again(document, "the fillet taken off, undone");
+}
+
+#[test]
+fn erasing_a_line_tangent_to_a_fillet_takes_its_rule_and_leaves_the_fillet() {
+    let mut history = a_line_held_tangent();
+    let held = the_drawing(&history);
+
+    history.push(Operation::EraseMany {
+        sketch: 0,
+        elements: vec![Element::Segment(LINE)],
+        dimensions: Vec::new(),
+        constraints: Vec::new(),
+    });
+
+    let sketch = the_drawing(&history);
+    assert!(
+        !a_line_is_held_on_a_cut(&sketch),
+        "the rule stayed behind its line: {:?}",
+        sketch.constraints(),
+    );
+    let fillet_moved = moved(
+        the_corner_and_its_sides(&held),
+        the_corner_and_its_sides(&sketch),
+    );
+    assert!(fillet_moved < SAME, "the fillet moved by {fillet_moved}");
+    let (_, radius) = the_fillet(&sketch);
+    assert!(
+        (radius - RADIUS).abs() < SAME,
+        "the fillet's value became {radius}"
+    );
 }

@@ -18,7 +18,9 @@
 //! on a wall facing it, or on a plane touching it off the line they touch
 //! along, nor a step or less from an end where the curve all but lies on a
 //! surface that end lies on, as for a meet — on an elliptic wall, nor where
-//! the place a wall abreast of it takes on the same ray does.
+//! the place a wall abreast of it takes on the same ray does, nor on a step
+//! of the grid the wall leaves out beside one, as a circle withholds its
+//! own.
 
 mod rays;
 
@@ -107,12 +109,18 @@ pub(super) fn of_edge(
         }
         Round::Elliptic(wall) => {
             let steps = divisions(wall.major, tolerance);
-            let grid = turn(steps);
             let id = body
                 .surfaces
                 .iter()
                 .position(|surface| *surface == Surface::Elliptic(wall))
                 .map(|rank| SurfaceId(rank as u32));
+            let left_out = id.map_or(&[][..], |id| abreast.left_out(id));
+            let grid: Vec<f64> = turn(steps)
+                .into_iter()
+                .enumerate()
+                .filter(|(step, _)| !left_out.contains(step))
+                .map(|(_, angle)| angle)
+                .collect();
             let clear = kept(body, edge, conic.plane, wall, steps, id, abreast);
             let rays: Vec<f64> = on_the_wall(body, &wall, steps)
                 .into_iter()

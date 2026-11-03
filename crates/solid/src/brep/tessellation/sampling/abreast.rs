@@ -14,11 +14,11 @@
 //! samples of either's grid and through the vertices on either — both are
 //! graphs of the angle round it, one further out than the other on every
 //! ray between two the walls cross at, and chords between the same two
-//! rays cannot cross. Neither takes a ray, nor a circle a step of
-//! its grid, along which the two stand within the room of each other, as
-//! an elliptic rim leaves out its places a hair from a surface its end lies
-//! on: about a touch of a high order, an osculating circle at a vertex, a
-//! sample there of one alone stands outside the other's chord.
+//! rays cannot cross. Neither takes a ray, nor a step of its grid by a
+//! corner on both, along which the two stand within the room of each
+//! other, as an elliptic rim leaves out its places a hair from a surface
+//! its end lies on: about a touch of a high order, an osculating circle at
+//! a vertex, a sample there of one alone stands outside the other's chord.
 //!
 //! A wall abreast of two others takes the rays of both pairs; the walls
 //! the pairs join into a group are all sampled from one point inside every
@@ -50,6 +50,7 @@ pub(super) struct Abreast {
     rounds: BTreeMap<SurfaceId, Vec<DVec3>>,
     ovals: BTreeMap<SurfaceId, Vec<f64>>,
     withheld: BTreeMap<SurfaceId, Vec<usize>>,
+    left_out: BTreeMap<SurfaceId, Vec<usize>>,
     hubs: BTreeMap<SurfaceId, Vec<(DVec3, SurfaceId)>>,
 }
 
@@ -142,6 +143,12 @@ impl Abreast {
         }
     }
 
+    /// The steps of an elliptic wall's grid its rims leave out at every
+    /// height, as a circular wall's circles leave out those it withholds.
+    pub(super) fn left_out(&self, wall: SurfaceId) -> &[usize] {
+        self.left_out.get(&wall).map_or(&[], Vec::as_slice)
+    }
+
     /// The angles an elliptic wall's rims take besides their grid.
     pub(super) fn angles(&self, wall: SurfaceId) -> &[f64] {
         self.ovals.get(&wall).map_or(&[], Vec::as_slice)
@@ -179,29 +186,39 @@ impl Abreast {
             .collect()
     }
 
-    /// The steps of each circular wall of the pair standing within the room
-    /// of the other wall, a step or less from a corner on both: by a line
-    /// the two touch along. Where no corner is, a face of either is gone
-    /// there — a chord of an ellipse cut it away — and a step left out would
-    /// leave a chord across two.
+    /// The steps of each wall of the pair standing within the room of the
+    /// other wall, a step or less from a corner on both: by a line the two
+    /// touch along, or cross along at a grazing angle. Where no corner is, a
+    /// face of either is gone there — a chord of an ellipse cut it away —
+    /// and a step left out would leave a chord across two. The ray through
+    /// such a step is crowded, and the other wall takes no place on it: an
+    /// elliptic rim keeping its own there, beside the ruling the same
+    /// ellipse turned a hair crosses itself along, left it outside the
+    /// other's chord (campaign seed 5585713456).
     fn crowded(&mut self, pair: [SurfaceId; 2], body: &Body, tolerance: f64) {
         let room = body.scale().eps() * contact::APART;
         for (wall, other) in [(pair[0], pair[1]), (pair[1], pair[0])] {
-            let Surface::Cylinder(round) = body.surface(wall) else {
-                continue;
+            let surface = body.surface(wall);
+            let (steps, withheld) = match surface {
+                Surface::Cylinder(round) => {
+                    (divisions(round.radius, tolerance), &mut self.withheld)
+                }
+                Surface::Elliptic(oval) => (divisions(oval.major, tolerance), &mut self.left_out),
+                Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => {
+                    continue;
+                }
             };
-            let steps = divisions(round.radius, tolerance);
             let width = TAU / steps as f64;
             let touching: Vec<f64> = body
                 .vertices
                 .iter()
                 .filter(|vertex| vertex.on.contains(&wall) && vertex.on.contains(&other))
-                .map(|vertex| round.parameters(vertex.point).x)
+                .map(|vertex| surface.parameters(vertex.point).x)
                 .collect();
             let near: Vec<usize> = (0..steps)
                 .filter(|step| {
                     let angle = width * *step as f64;
-                    let point = round.point(DVec2::new(angle, 0.0));
+                    let point = surface.point(DVec2::new(angle, 0.0));
                     body.surface(other).distance(point).abs() <= room
                         && touching.iter().any(|at| {
                             ((angle - at + TAU / 2.0).rem_euclid(TAU) - TAU / 2.0).abs() <= width
@@ -209,7 +226,7 @@ impl Abreast {
                 })
                 .collect();
             if !near.is_empty() {
-                self.withheld.entry(wall).or_default().extend(near);
+                withheld.entry(wall).or_default().extend(near);
             }
         }
     }

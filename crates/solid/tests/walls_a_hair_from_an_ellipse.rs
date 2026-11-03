@@ -15,7 +15,8 @@
 //!   `an_ellipse_joined_with_its_osculating_circle_at_a_vertex_keeps_every_rule`,
 //!   `a_circle_added_to_an_ellipse_a_hair_from_round_of_its_size_keeps_every_rule`,
 //!   `an_ellipse_a_hair_from_round_added_in_a_bore_of_its_size_keeps_every_rule`,
-//!   `the_same_ellipse_turned_a_ten_thousandth_under_a_block_touching_it_keeps_every_rule`
+//!   `the_same_ellipse_turned_a_ten_thousandth_under_a_block_touching_it_keeps_every_rule`,
+//!   `the_same_ellipse_turned_a_hundred_thousandth_added_back_in_its_bore_keeps_every_rule`
 //! - what stays above the bar is written in `docs/exact-kernel-failures.md` —
 //!   no test: prose, the same section
 //!
@@ -221,6 +222,39 @@ fn the_same_ellipse_turned_a_ten_thousandth_under_a_block_touching_it_keeps_ever
                 Plane::xy(0.0),
                 Outline::ellipse([10.0, 4.0], [2.999999985, 0.00029999999950000003], 2.0),
                 -4.0,
+            )),
+        ],
+    ));
+}
+
+/// Seed 5585713456: a block, an ellipse of half-axes 6.5 and 5 cut through
+/// it, then the same ellipse turned by a hundred-thousandth of a radian added
+/// back, reaching further. The two elliptic walls cross at a grazing angle
+/// near the ellipse's four vertices, a hair apart between, and the block's
+/// sides touch the ellipse at those vertices. The body is built, but two of
+/// its triangles cross, breaking `Uncrossed`: one on the block's face in its
+/// sketch's plane, beside the end of the minor axis where the block's side
+/// touches the ellipse, an edge of it a chord of the bore's rim that reaches
+/// inside the added ellipse; the other on the added ellipse's wall beside
+/// that end, standing through that face.
+#[test]
+fn the_same_ellipse_turned_a_hundred_thousandth_added_back_in_its_bore_keeps_every_rule() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(4.0),
+            Outline::rectangle([1.0, -2.0], [14.0, 8.0]),
+            2.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(4.5),
+                Outline::ellipse([7.5, 3.0], [6.5, 0.0], 5.0),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(4.5),
+                Outline::ellipse([7.5, 3.0], [6.4999999996749995, -6.499999999891667e-5], 5.0),
+                7.0,
             )),
         ],
     ));

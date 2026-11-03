@@ -2108,7 +2108,13 @@ read backwards by the listing.
   on a ray they share together: where one rim's place grazes a surface the
   end lies on, a step or less from it, the other's is dropped too, else one
   took a place the other left and the cap's chords crossed (5585709823,
-  #574). A whole rim of an elliptic
+  #574). Each wall of a pair standing that close leaves out, at every
+  height, the steps of its grid within the room of the other a step or
+  less from a corner on both, an elliptic wall as a circular one: the
+  other takes no place on the ray through such a step, and a rim keeping
+  its own there, beside the ruling the same ellipse turned a hair crosses
+  itself along, left it outside the other's chord (5585713456, #574). A
+  whole rim of an elliptic
   wall ends where it starts, and a place beside that point is measured against
   both ends of it. What
   still crosses is refined locally, and what survives

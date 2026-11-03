@@ -36,6 +36,33 @@
 //! Closes #485.
 //! - a hand wavering on the line between two quarters keeps the one shown, and
 //!   the click lays it — `a_hand_wavering_on_the_line_keeps_the_quarter_it_shows`
+//!
+//! Closes #567.
+//! - An X carrying a driving 60°: put down in the 120° quarter, a read-only
+//!   120° is laid beside it, and the 60° stays the only value driving the
+//!   traits — `an_x_put_down_in_another_quarter_lays_a_read_only_angle_beside_the_driving_one`
+//! - Put down again in the 60° quarter, the 60° opens, as today —
+//!   `an_x_put_down_again_in_the_driving_quarter_opens_the_driving_angle`
+//! - The same at a corner, a T, two traits apart, and a trait and an axis —
+//!   `a_corner_put_down_in_another_quarter_lays_a_read_only_angle`,
+//!   `a_corner_put_down_in_the_driving_quarter_opens_the_driving_angle`,
+//!   `a_t_put_down_in_another_quarter_lays_a_read_only_angle`,
+//!   `a_t_put_down_in_the_driving_quarter_opens_the_driving_angle`,
+//!   `two_traits_apart_put_down_in_another_quarter_lay_a_read_only_angle`,
+//!   `two_traits_apart_put_down_in_the_driving_quarter_open_the_driving_angle`,
+//!   `a_trait_and_an_axis_put_down_in_another_quarter_lay_a_read_only_angle`,
+//!   `a_trait_and_an_axis_put_down_in_the_driving_quarter_open_the_driving_angle`
+//! - A read-only angle reads its quarter again after the traits move —
+//!   `a_read_only_angle_reads_its_quarter_again_after_the_traits_move`
+//!
+//! Also asked by the issue, outside its Done when:
+//! - the preview before the click shows which of the two the click does — the
+//!   quarter the presenter holds as the cursor moves is the angle the preview
+//!   draws: `the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay`;
+//!   that it is drawn grey is no test: the colour is the renderer's, which no
+//!   presenter test reaches
+//! - a read-only angle goes when one of its traits goes —
+//!   `a_read_only_angle_goes_with_a_trait_it_measures`
 
 use cao_part::history::PointRef;
 use cao_part::{Formula, Operation, PartDocument, VariableChange};
@@ -673,5 +700,107 @@ fn a_dimension_placed_on_a_cut_s_point_hangs_nothing_there() {
             .dimension_of(DimensionTarget::Length(SegmentId(1)))
             .is_some(),
         "the click placed the length of the side it was waiting with",
+    );
+}
+
+/// Two traits crossing at (50, 0) at 60°: one along the U axis from the origin
+/// to (100, 0), the other rising through the crossing.
+fn an_x_at_sixty_degrees() -> PartDocument {
+    let crossing = DVec2::new(50.0, 0.0);
+    let sixty = DVec2::from_angle(60.0_f64.to_radians());
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for (start, end) in [
+        (DVec2::ZERO, DVec2::new(100.0, 0.0)),
+        (crossing - sixty * 40.0, crossing + sixty * 40.0),
+    ] {
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(start),
+            end: PointRef::New(end),
+            construction: false,
+        });
+    }
+    document
+}
+
+const ON_THE_FLAT_TRAIT: DVec2 = DVec2::new(20.0, 0.0);
+
+fn on_the_rising_trait() -> DVec2 {
+    DVec2::new(50.0, 0.0) + DVec2::from_angle(60.0_f64.to_radians()) * 30.0
+}
+
+fn in_the_sixty_degree_quarter() -> DVec2 {
+    DVec2::new(50.0, 0.0) + DVec2::from_angle(30.0_f64.to_radians()) * 20.0
+}
+
+fn in_the_hundred_and_twenty_degree_quarter() -> DVec2 {
+    DVec2::new(50.0, 0.0) + DVec2::from_angle(120.0_f64.to_radians()) * 20.0
+}
+
+/// Clicks the two traits of the X, then puts the angle down at `place`, as a
+/// user does with the smart dimension tool; the field it opens is let go.
+fn dimension_the_x(context: &mut SketchContext<'_>, place: DVec2) {
+    click(context, ON_THE_FLAT_TRAIT);
+    click(context, on_the_rising_trait());
+    click(context, place);
+    context.editor.editing = None;
+}
+
+#[test]
+fn an_x_put_down_in_another_quarter_lays_a_read_only_angle_beside_the_driving_one() {
+    let mut document = an_x_at_sixty_degrees();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    dimension_the_x(&mut context, in_the_sixty_degree_quarter());
+    dimension_the_x(&mut context, in_the_hundred_and_twenty_degree_quarter());
+
+    let sketch = &document.sketches()[0];
+    let laid: Vec<_> = sketch
+        .dimensions()
+        .iter()
+        .map(|dimension| (dimension.target, dimension.value, dimension.driven))
+        .collect();
+    let [driving, read_only] = laid[..] else {
+        panic!("the driving 60° and a read-only 120° beside it, got {laid:?}");
+    };
+    assert!(
+        matches!(driving.0, DimensionTarget::AngleBetween { .. })
+            && (driving.1 - 60.0).abs() < 1e-6
+            && !driving.2,
+        "the first angle laid drives at 60°, got {driving:?}",
+    );
+    assert!(
+        matches!(read_only.0, DimensionTarget::AngleBetween { .. })
+            && (read_only.1 - 120.0).abs() < 1e-6
+            && read_only.2,
+        "put down in the 120° quarter, a read-only 120° is laid, got {read_only:?}",
+    );
+    let opening = sketch.opening(read_only.0);
+    assert!(
+        opening.is_some_and(|opening| (opening - 120.0).abs() < 1e-6),
+        "the read-only angle names the 120° quarter itself, which reads {opening:?}",
+    );
+    let driving_values: Vec<_> = sketch
+        .dimensions()
+        .iter()
+        .filter(|dimension| !dimension.driven)
+        .map(|dimension| dimension.value)
+        .collect();
+    assert_eq!(
+        driving_values.len(),
+        1,
+        "the 60° stays the only value driving the traits, got {driving_values:?}",
     );
 }

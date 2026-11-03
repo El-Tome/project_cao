@@ -7,7 +7,9 @@
 //!   and it is read in degrees like any angle, never shown as a length —
 //!   `an_angle_between_two_traits_is_read_in_degrees` — and clicking the same
 //!   two again opens it rather than laying a second one beside it —
-//!   `clicking_the_same_two_traits_again_opens_the_angle_already_laid`
+//!   `clicking_the_same_two_traits_again_opens_the_angle_laid_in_its_own_quarter`.
+//!   #567 changed the other-quarter half: put down in another quarter, the
+//!   tool reads that quarter instead, to be laid read-only beside the first
 //! - a trait ending on the middle of another — a T — does the same —
 //!   `a_trait_ending_on_the_middle_of_another_lays_the_angle_too`, opening
 //!   only the two ways its stem is drawn. #485 reversed that: a T opens four
@@ -501,7 +503,7 @@ fn a_t_opens_four_ways_its_stem_read_past_its_foot_below_the_bar() {
 }
 
 #[test]
-fn clicking_the_same_two_traits_again_opens_the_angle_already_laid() {
+fn clicking_the_same_two_traits_again_opens_the_angle_laid_in_its_own_quarter() {
     let (mut sketch, [rising, falling]) = a_narrow_x();
     let laid = DimensionTarget::AngleBetween {
         first: rising,
@@ -519,12 +521,31 @@ fn clicking_the_same_two_traits_again_opens_the_angle_already_laid() {
         Some(laid),
         "the two traits already carry an angle, and clicking them again reaches it",
     );
-    for placed in [DVec2::new(28.0, 20.0), DVec2::new(20.0, 28.0)] {
-        assert_eq!(
-            sketch.oriented(laid, placed),
-            laid,
-            "put down anywhere, it stays the angle already laid rather than a second \
-             one beside it",
+    let to_the_south = DVec2::new(20.0, 12.0);
+    assert_eq!(
+        sketch.oriented(laid, to_the_south),
+        laid,
+        "put down in the quarter it measures, it stays the angle already laid",
+    );
+    for (placed, quarter, expected) in [
+        (DVec2::new(28.0, 20.0), "the next quarter, east", 60.0),
+        (DVec2::new(20.0, 28.0), "the opposite quarter, north", 120.0),
+    ] {
+        let read = sketch.oriented(laid, placed);
+        assert!(
+            read != laid
+                && matches!(
+                    read,
+                    DimensionTarget::AngleBetween { first, second, .. }
+                        if first == rising && second == falling
+                ),
+            "put down in {quarter}, it reads that quarter of the same two traits \
+             rather than the angle laid, got {read:?}",
+        );
+        let opening = sketch.opening(read);
+        assert!(
+            opening.is_some_and(|opening| (opening - expected).abs() < 1e-9),
+            "{quarter} measures {expected}°, read {opening:?}",
         );
     }
 }

@@ -171,8 +171,9 @@ pub(crate) fn mark_under(
 /// when it is the one being pointed at: of the two things to say, that is the
 /// one the user cannot undo.
 ///
-/// A lit mark takes the selection blue made opaque and half lightened: a glyph
-/// over a dark canvas, unlike a surface tint, has to read brighter to stand out.
+/// A lit mark takes the selection blue made opaque and taken four fifths of the
+/// way to white: a glyph over a dark canvas, unlike a surface tint, has to read
+/// brighter to stand out.
 fn mark_shade(
     theme: &Theme,
     going: Option<&Going>,
@@ -185,7 +186,7 @@ fn mark_shade(
             theme
                 .highlight
                 .with_alpha(1.0)
-                .mix(Rgba::opaque(1.0, 1.0, 1.0), 0.5),
+                .mix(Rgba::opaque(1.0, 1.0, 1.0), 0.8),
         ),
         (false, false) => tint_to_color(theme.rule),
     }

@@ -14,8 +14,9 @@
 //!   `a_rule_s_mark_pointed_at_is_painted_brighter_than_a_mark_at_rest`,
 //!   `a_rule_s_mark_held_is_painted_brighter_than_a_mark_at_rest`: each takes
 //!   the colour egui tessellates for the mark, weighs it laid over every colour
-//!   the canvas takes, and wants it brighter than the resting mark, and brighter
-//!   than the resting mark would be at the same opacity
+//!   the canvas takes, and wants it brighter than the resting mark by a contrast
+//!   of `CONTRAST_TO_STAND_OUT` or more, and brighter than the resting mark
+//!   would be at the same opacity
 
 use cao_part::history::PointRef;
 use cao_part::{Operation, PartDocument};
@@ -313,11 +314,20 @@ fn at_opacity(ink: egui::Color32, alpha: u8) -> egui::Color32 {
     egui::Color32::from_rgba_unmultiplied(r, g, b, alpha)
 }
 
+/// Below this contrast against its neighbours, a 13-point glyph does not stand
+/// out from them.
+const CONTRAST_TO_STAND_OUT: f32 = 1.4;
+
+/// The contrast ratio of a brightness against another, as WCAG measures it.
+fn contrast(lighter: f32, darker: f32) -> f32 {
+    (lighter + 0.05) / (darker + 0.05)
+}
+
 /// On every shipped theme, and over every colour the canvas takes behind
 /// them, each mark of the rule `editor` lights reads brighter than each mark
-/// of the rule left at rest — and brighter than the resting mark would read at
-/// the lit one's opacity, so that a mark made merely more opaque does not pass
-/// for one that lights up.
+/// of the rule left at rest, by [`CONTRAST_TO_STAND_OUT`] or more — and
+/// brighter than the resting mark would read at the lit one's opacity, so that
+/// a mark made merely more opaque does not pass for one that lights up.
 fn lit_marks_outshine_the_marks_at_rest(how: &str, editor: impl Fn() -> SketchEditor) {
     for (index, theme) in shipped_themes().iter().enumerate() {
         let painted = marks_painted(theme, editor());
@@ -338,11 +348,13 @@ fn lit_marks_outshine_the_marks_at_rest(how: &str, editor: impl Fn() -> SketchEd
                 for &rest in &at_rest {
                     let (lit_seen, rest_seen) =
                         (brightness_over(lit, canvas), brightness_over(rest, canvas));
+                    let against_rest = contrast(lit_seen, rest_seen);
                     assert!(
-                        lit_seen > rest_seen,
+                        against_rest >= CONTRAST_TO_STAND_OUT,
                         "on shipped theme {index}, over the canvas at {canvas:?}, the mark {how} \
                          ({lit:?}) reads {lit_seen:.3} bright where a mark at rest ({rest:?}) \
-                         reads {rest_seen:.3}: it fades behind the others",
+                         reads {rest_seen:.3}, a contrast of {against_rest:.2}:1 short of \
+                         {CONTRAST_TO_STAND_OUT}:1: it does not stand out from the others",
                     );
                     let rest_at_that_opacity = brightness_over(at_opacity(rest, lit.a()), canvas);
                     assert!(

@@ -54,10 +54,10 @@ impl Sketch {
     /// The angle a dimension already reads between this trait and this axis,
     /// whichever quarter it measures.
     ///
-    /// A trait and an axis carry one angle between them at most: the other
-    /// quarters are that one or what it leaves of a half turn, and a second
-    /// one laid beside it would sooner or later say something the first does
-    /// not.
+    /// A trait and an axis carry one driving angle between them at most: the
+    /// other quarters are that one or what it leaves of a half turn, laid
+    /// read-only, and a second driving one would sooner or later say something
+    /// the first does not.
     fn angle_already_to_axis(
         &self,
         segment: SegmentId,
@@ -83,9 +83,6 @@ impl Sketch {
         let DimensionTarget::AxisAngle { segment, axis, .. } = target else {
             return target;
         };
-        if let Some(laid) = self.angle_already_to_axis(segment, axis) {
-            return laid;
-        }
         if self.segments().get(segment.0).is_none() {
             return target;
         }

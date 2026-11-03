@@ -73,6 +73,10 @@ pub struct Sketch {
     /// never saved and never read back.
     #[serde(skip)]
     settled: RefCell<Option<(u64, Vec<bool>)>>,
+    /// The last answer to whether a value would say anything new, against the
+    /// same print and the target it was asked for.
+    #[serde(skip)]
+    redundant: RefCell<Option<(u64, DimensionTarget, bool)>>,
 }
 
 mod dimensions;
@@ -109,6 +113,7 @@ impl Sketch {
             erased: Erased::default(),
             held: settling::Held::default(),
             settled: RefCell::default(),
+            redundant: RefCell::default(),
         }
     }
 

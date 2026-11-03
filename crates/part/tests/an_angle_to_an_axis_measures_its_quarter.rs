@@ -31,7 +31,10 @@
 //!
 //! Decided while writing the criteria, with the owner:
 //! - the same trait and the same axis clicked again open the dimension already
-//!   there — `the_same_trait_and_axis_clicked_again_give_the_angle_already_there`
+//!   there — `the_same_trait_and_axis_put_down_again_in_its_quarter_give_the_angle_already_there`.
+//!   #567 changed the other-quarter half: put down in another quarter, a
+//!   read-only angle of that quarter is laid beside it —
+//!   `the_same_trait_and_axis_put_down_in_another_quarter_lay_a_read_only_angle_there`
 //! - a trait lying along the axis cuts no quarters and measures 0°, whichever
 //!   way it was drawn — `a_trait_lying_along_the_axis_measures_nothing_whichever_way_it_was_drawn`
 
@@ -293,15 +296,36 @@ fn an_angle_nothing_is_left_to_set_is_a_readout_of_its_own_quarter() {
 }
 
 #[test]
-fn the_same_trait_and_axis_clicked_again_give_the_angle_already_there() {
+fn the_same_trait_and_axis_put_down_again_in_its_quarter_give_the_angle_already_there() {
     let mut document = a_trait_from(LEFT, RIGHT);
     let (first, _) = put_down(&mut document, SketchAxis::V, QUARTERS[0].0);
 
-    let (again, value) = put_down(&mut document, SketchAxis::V, QUARTERS[1].0);
+    let (again, value) = put_down(&mut document, SketchAxis::V, DVec2::new(30.0, 60.0));
 
     assert_eq!(again, first);
     assert_eq!(angles_on(&document), vec![first]);
-    assert_reads(value, OBTUSE, "put down again up and right");
+    assert_reads(value, OBTUSE, "put down again up and left");
+}
+
+#[test]
+fn the_same_trait_and_axis_put_down_in_another_quarter_lay_a_read_only_angle_there() {
+    let mut document = a_trait_from(LEFT, RIGHT);
+    let (first, _) = put_down(&mut document, SketchAxis::V, QUARTERS[0].0);
+
+    let (other, value) = put_down(&mut document, SketchAxis::V, QUARTERS[1].0);
+
+    assert_ne!(other, first, "up and right is a quarter of its own");
+    assert_eq!(angles_on(&document), vec![first, other]);
+    let sketch = &document.sketches()[0];
+    assert!(
+        sketch.dimension_of(other).is_some_and(|laid| laid.driven),
+        "the angle laid beside the first only reads its quarter",
+    );
+    assert!(
+        sketch.dimension_of(first).is_some_and(|laid| !laid.driven),
+        "the first stays the one that drives",
+    );
+    assert_reads(value, ACUTE, "put down up and right");
 }
 
 #[test]

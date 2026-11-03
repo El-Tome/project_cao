@@ -122,7 +122,7 @@ impl PartState {
         // Nothing here is left to determine, so this value cannot drive the
         // shape. It is kept as a readout rather than refused: seeing a length
         // is useful even when setting it is not.
-        if self.sketches.get(index)?.would_be_redundant(target, scale) {
+        if self.lays_as_readout(index, target) {
             self.sketches[index].set_dimension(target, measured, true);
             return Some(DimensionOutcome::Reference);
         }
@@ -158,6 +158,18 @@ impl PartState {
             self.sketches[index] = before;
         }
         Some(DimensionOutcome::Geometry(outcome))
+    }
+
+    /// Whether a value on this target is kept as a readout: the one on the
+    /// drawing when there is one, or else one that would say nothing new.
+    pub(crate) fn lays_as_readout(&self, index: usize, target: DimensionTarget) -> bool {
+        let Some(sketch) = self.sketches.get(index) else {
+            return false;
+        };
+        match sketch.dimension_of(target) {
+            Some(laid) => laid.driven,
+            None => sketch.would_be_redundant(target, self.scale()),
+        }
     }
 
     /// The length a dimension refers to, in world units, or `None` for an angle

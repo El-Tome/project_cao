@@ -9,11 +9,28 @@
 //! - the preview before the click shows the angle the click lays: at a corner,
 //!   the quarter under the cursor —
 //!   `an_angle_at_a_corner_is_previewed_in_the_quarter_under_the_cursor`
+//!
+//! Closes #567, with `input/measure/tests.rs`.
+//! - the preview before the click shows which of the two the click does: in
+//!   another quarter, the angle of that quarter, not yet on the drawing; in
+//!   the driving angle's own, that angle —
+//!   `the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay`;
+//!   and what it hands the painter says whether the click lays a readout or
+//!   opens the driving angle —
+//!   `the_preview_says_whether_the_click_lays_a_readout_or_opens_the_driving_angle`.
+//!   The colour that flag is painted in gets no test: it is chosen inside
+//!   `paint_dimension_labels`, which needs an `egui::Ui`
+//! - decided in review: the preview and the click read "read-only" from one
+//!   question to the document, so what the preview says is what the click
+//!   records — in the quarter beside the driving angle, the one opposite, the
+//!   driving one's own, on a pair with no angle yet, and on a length nothing
+//!   is left to set —
+//!   `what_the_preview_calls_read_only_is_what_the_click_records`
 
 use cao_part::{Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_render::camera::OrbitCamera;
-use cao_sketch::{SegmentId, SketchAxis, ToolState, WorkPlane};
+use cao_sketch::{DimensionTarget, SegmentId, SketchAxis, ToolState, WorkPlane};
 use chrono::Utc;
 use glam::Vec3;
 
@@ -238,8 +255,9 @@ fn an_angle_to_an_axis_is_previewed_in_the_quarter_under_the_cursor() {
             lang: &lang,
         };
 
-        let (shown, _) =
-            pending_annotation(&context, 0, cursor, 1.0, 0.05).expect("an angle is shown");
+        let shown = pending_annotation(&context, 0, cursor, 1.0, 0.05)
+            .expect("an angle is shown")
+            .target;
 
         let reads = context.document.measured(0, shown).expect("it reads");
         assert!(
@@ -294,13 +312,281 @@ fn an_angle_at_a_corner_is_previewed_in_the_quarter_under_the_cursor() {
         };
         let cursor = corner + offset;
 
-        let (shown, _) =
-            pending_annotation(&context, 0, cursor, 1.0, 0.05).expect("an angle is shown");
+        let shown = pending_annotation(&context, 0, cursor, 1.0, 0.05)
+            .expect("an angle is shown")
+            .target;
 
         let reads = context.document.measured(0, shown).expect("it reads");
         assert!(
             (reads - expected).abs() < 1e-6,
             "under {cursor:?} the preview shows {reads}°, not {expected}°",
+        );
+    }
+}
+
+/// Two traits crossing at (50, 0) at 60°, the 60° between them driving, and
+/// a place in that quarter and one in the 120° quarter beside it.
+fn an_x_carrying_a_driving_sixty() -> (PartDocument, DimensionTarget, DVec2, DVec2) {
+    let crossing = DVec2::new(50.0, 0.0);
+    let degrees = |angle: f64| DVec2::from_angle(angle.to_radians());
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for (start, end) in [
+        (DVec2::ZERO, DVec2::new(100.0, 0.0)),
+        (
+            crossing - degrees(60.0) * 40.0,
+            crossing + degrees(60.0) * 40.0,
+        ),
+    ] {
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(start),
+            end: PointRef::New(end),
+            construction: false,
+        });
+    }
+    let (in_the_sixty, in_the_hundred_and_twenty) = (
+        crossing + degrees(30.0) * 20.0,
+        crossing + degrees(120.0) * 20.0,
+    );
+    let sketch = &document.sketches()[0];
+    let driving = sketch.oriented(
+        sketch.angle_between_traits(SegmentId(0), SegmentId(1)),
+        in_the_sixty,
+    );
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: driving,
+        value: 60.0.into(),
+        placement: None,
+    });
+    (document, driving, in_the_sixty, in_the_hundred_and_twenty)
+}
+
+fn placing(target: DimensionTarget) -> SketchEditor {
+    SketchEditor {
+        tool: Tool::Dimension,
+        tool_state: ToolState::Dimension {
+            placing: Some(target),
+            picks: Default::default(),
+        },
+        ..Default::default()
+    }
+}
+
+#[test]
+fn the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay() {
+    let (mut document, driving, in_the_sixty, in_the_hundred_and_twenty) =
+        an_x_carrying_a_driving_sixty();
+    let mut editor = placing(driving);
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    let shown = pending_annotation(&context, 0, in_the_hundred_and_twenty, 1.0, 0.05)
+        .expect("an angle is shown")
+        .target;
+    let reads = context.document.measured(0, shown);
+    assert!(
+        shown != driving
+            && context.document.sketches()[0].dimension_of(shown).is_none()
+            && reads.is_some_and(|reads| (reads - 120.0).abs() < 1e-6),
+        "in the 120° quarter, the preview shows that quarter's angle, not yet on the \
+         drawing, got {shown:?} reading {reads:?}",
+    );
+
+    let shown = pending_annotation(&context, 0, in_the_sixty, 1.0, 0.05)
+        .expect("an angle is shown")
+        .target;
+    assert_eq!(
+        shown, driving,
+        "in the 60° quarter, the preview shows the driving angle the click opens",
+    );
+}
+
+#[test]
+fn the_preview_says_whether_the_click_lays_a_readout_or_opens_the_driving_angle() {
+    let (mut document, driving, in_the_sixty, in_the_hundred_and_twenty) =
+        an_x_carrying_a_driving_sixty();
+    let mut editor = placing(driving);
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    let in_another_quarter = pending_annotation(&context, 0, in_the_hundred_and_twenty, 1.0, 0.05)
+        .expect("an angle is shown");
+    assert!(
+        in_another_quarter.read_only,
+        "in the 120° quarter the click lays a readout, and the preview says so",
+    );
+
+    let in_its_own_quarter =
+        pending_annotation(&context, 0, in_the_sixty, 1.0, 0.05).expect("an angle is shown");
+    assert!(
+        !in_its_own_quarter.read_only,
+        "in the 60° quarter the click opens the driving angle, and the preview says so",
+    );
+}
+
+/// The X with nothing on it yet: the first angle laid on it drives.
+fn an_x_with_no_angle() -> (PartDocument, DimensionTarget, DVec2) {
+    let (mut document, driving, in_the_sixty, _) = an_x_carrying_a_driving_sixty();
+    document.apply(Operation::EraseMany {
+        sketch: 0,
+        elements: vec![],
+        dimensions: vec![driving],
+        constraints: vec![],
+    });
+    (document, driving, in_the_sixty)
+}
+
+/// A right triangle from (10, 10): a base 40 along, a side 30 up, both with
+/// their lengths and the right angle between them, so that nothing is left
+/// for its hypotenuse's length to set.
+fn a_settled_right_triangle() -> (PartDocument, DimensionTarget) {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(10.0, 10.0)),
+        end: PointRef::New(DVec2::new(50.0, 10.0)),
+        construction: false,
+    });
+    let base = document.sketches()[0].segments()[0];
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(base.end),
+        end: PointRef::New(DVec2::new(50.0, 40.0)),
+        construction: false,
+    });
+    let top = document.sketches()[0].segments()[1].end;
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(top),
+        end: PointRef::Existing(base.start),
+        construction: false,
+    });
+    for (target, value) in [
+        (DimensionTarget::Length(SegmentId(0)), 40.0),
+        (DimensionTarget::Length(SegmentId(1)), 30.0),
+        (DimensionTarget::corner(SegmentId(0), SegmentId(1)), 90.0),
+    ] {
+        document.apply(Operation::SetDimension {
+            sketch: 0,
+            target,
+            value: value.into(),
+            placement: None,
+        });
+    }
+    (document, DimensionTarget::Length(SegmentId(2)))
+}
+
+#[test]
+fn what_the_preview_calls_read_only_is_what_the_click_records() {
+    let crossing = DVec2::new(50.0, 0.0);
+    let opposite_the_sixty = crossing + DVec2::from_angle(210.0_f64.to_radians()) * 20.0;
+    let (x, driving, in_the_sixty, in_the_hundred_and_twenty) = an_x_carrying_a_driving_sixty();
+    let (bare_x, first_angle, in_its_quarter) = an_x_with_no_angle();
+    let (triangle, hypotenuse) = a_settled_right_triangle();
+    for (mut document, placed, cursor, read_only, said) in [
+        (
+            x.clone(),
+            driving,
+            in_the_hundred_and_twenty,
+            true,
+            "the quarter beside the driving 60°",
+        ),
+        (
+            x.clone(),
+            driving,
+            opposite_the_sixty,
+            true,
+            "the quarter opposite the driving 60°",
+        ),
+        (
+            x,
+            driving,
+            in_the_sixty,
+            false,
+            "the driving 60°'s own quarter",
+        ),
+        (
+            bare_x,
+            first_angle,
+            in_its_quarter,
+            false,
+            "a pair with no angle yet",
+        ),
+        (
+            triangle,
+            hypotenuse,
+            DVec2::new(32.0, 23.0),
+            true,
+            "the hypotenuse of a settled triangle",
+        ),
+    ] {
+        let mut editor = placing(placed);
+        let mut extrusion = ExtrusionState::default();
+        let lang = Catalogue::french();
+        let context = SketchContext {
+            document: &mut document,
+            editor: &mut editor,
+            extrusion: &mut extrusion,
+            lang: &lang,
+        };
+
+        let shown =
+            pending_annotation(&context, 0, cursor, 1.0, 0.05).expect("a dimension is shown");
+        let asked = context.document.lays_as_readout(0, shown.target);
+        if context.document.sketches()[0]
+            .dimension_of(shown.target)
+            .is_none()
+        {
+            let value = context
+                .document
+                .measured(0, shown.target)
+                .expect("it reads");
+            context.document.apply(Operation::SetDimension {
+                sketch: 0,
+                target: shown.target,
+                value: value.into(),
+                placement: None,
+            });
+        }
+        let recorded = context.document.sketches()[0]
+            .dimension_of(shown.target)
+            .map(|laid| laid.driven);
+
+        assert_eq!(
+            shown.read_only, read_only,
+            "{said}: the preview says read-only {}, not {read_only}",
+            shown.read_only,
+        );
+        assert_eq!(
+            asked, shown.read_only,
+            "{said}: the document is asked the question the preview answers",
+        );
+        assert_eq!(
+            recorded,
+            Some(shown.read_only),
+            "{said}: the click records what the preview said, on {:?}",
+            shown.target,
         );
     }
 }

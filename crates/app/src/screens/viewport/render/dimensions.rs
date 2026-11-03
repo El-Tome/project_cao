@@ -10,6 +10,7 @@ use crate::screens::sketch::apply_dimension_value;
 use super::super::{PICK_PIXELS, ViewportState};
 use super::live_fields::value_field;
 use super::overlays::{tint_to_color as to_color_of, to_screen};
+use super::preview::PendingAnnotation;
 use super::{live_offset, pending_annotation};
 use crate::screens::SketchContext;
 use crate::ui::dropping::take_a_dropped_name;
@@ -84,11 +85,7 @@ pub(crate) fn paint_dimension_labels(
         } else {
             state.config.unit.format(value)
         };
-        let color = if dimension.driven {
-            egui::Color32::from_gray(170)
-        } else {
-            egui::Color32::from_rgb(250, 220, 120)
-        };
+        let (text, color) = as_label(text, dimension.driven);
         let color = match going.is_some_and(|going| going.values.contains(&dimension.target)) {
             true => to_color_of(state.theme.going),
             false => color,
@@ -102,11 +99,7 @@ pub(crate) fn paint_dimension_labels(
         painter.text(
             position,
             egui::Align2::CENTER_CENTER,
-            if dimension.driven {
-                format!("({text})")
-            } else {
-                text
-            },
+            text,
             egui::FontId::proportional(13.0),
             color,
         );
@@ -125,8 +118,11 @@ pub(crate) fn paint_dimension_labels(
     // arrows says nothing about what is being measured.
     if context.editor.placing().is_some()
         && let Some(cursor) = context.editor.cursor
-        && let Some((target, nudge)) =
-            pending_annotation(context, index, cursor, pixel * PICK_PIXELS, pixel)
+        && let Some(PendingAnnotation {
+            target,
+            nudge,
+            read_only,
+        }) = pending_annotation(context, index, cursor, pixel * PICK_PIXELS, pixel)
         && let Some(value) = context.document.measured(index, target)
         && let Some(text_at) = crate::screens::annotations::push(
             &mut Vec::new(),
@@ -138,17 +134,28 @@ pub(crate) fn paint_dimension_labels(
         )
         && let Some(position) = to_screen(sketch.plane.to_world(text_at), view_projection, rect)
     {
+        let text = if target.is_angle() {
+            format!("{value:.1}°")
+        } else {
+            state.config.unit.format(value)
+        };
+        let (text, color) = as_label(text, read_only);
         painter.text(
             position,
             egui::Align2::CENTER_CENTER,
-            if target.is_angle() {
-                format!("{value:.1}°")
-            } else {
-                state.config.unit.format(value)
-            },
+            text,
             egui::FontId::proportional(13.0),
-            egui::Color32::from_rgb(250, 220, 120),
+            color,
         );
+    }
+}
+
+/// A value as it is written: a readout quieter and between brackets, since it
+/// reports rather than decides.
+fn as_label(text: String, read_only: bool) -> (String, egui::Color32) {
+    match read_only {
+        true => (format!("({text})"), egui::Color32::from_gray(170)),
+        false => (text, egui::Color32::from_rgb(250, 220, 120)),
     }
 }
 

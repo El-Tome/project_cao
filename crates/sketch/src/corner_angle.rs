@@ -67,8 +67,8 @@ impl Sketch {
     /// The angle a dimension already reads at the corner of these two traits,
     /// whichever way round they were clicked and whichever quarter it measures.
     ///
-    /// A corner carries one angle at most: the other quarters are that one or
-    /// what it leaves of a half turn.
+    /// A corner carries one driving angle at most: the other quarters are that
+    /// one or what it leaves of a half turn, laid read-only.
     pub(crate) fn angle_already_at(
         &self,
         first: SegmentId,
@@ -96,9 +96,6 @@ impl Sketch {
         let DimensionTarget::Angle { first, second, .. } = target else {
             return target;
         };
-        if let Some(laid) = self.angle_already_at(first, second) {
-            return laid;
-        }
         let Some((pivot, far_first, far_second)) = self.corner_points(first, second) else {
             return target;
         };

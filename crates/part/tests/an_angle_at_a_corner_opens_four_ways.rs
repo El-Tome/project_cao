@@ -20,7 +20,17 @@
 //!   30°, a dimension put down just beside one of them inside the 150° quarter,
 //!   measures 150° — `an_x_at_thirty_degrees_measures_the_wide_quarter_right_beside_a_trait`
 //! - a corner carries one angle: the two traits clicked again open the one
-//!   already there — `the_same_corner_clicked_again_gives_the_angle_already_there`
+//!   already there — `the_same_corner_put_down_again_in_its_quarter_gives_the_angle_already_there`.
+//!   #567 changed the other-quarter half: put down in another quarter, a
+//!   read-only angle of that quarter is laid beside it —
+//!   `the_same_corner_put_down_in_another_quarter_lays_a_read_only_angle_there`
+//!
+//! Closes #567, with `crates/app/src/screens/viewport/input/measure/tests.rs`.
+//! - what must not break: trimming, compaction and the corner tools carry
+//!   every angle with its quarter — a driving one and a read-only one on the
+//!   same corner, each with its arms and which of them drives —
+//!   `a_cut_and_a_compaction_carry_a_driving_and_a_read_only_angle_of_one_corner`,
+//!   `a_fillet_on_the_corner_keeps_both_its_angles_and_which_one_drives`
 //! - an X and two traits apart keep their four ways — no test: #406's and
 //!   #407's own, run under the line test this issue gives them, hold it —
 //!   `the_angle_laid_is_the_one_on_the_side_the_dimension_is_placed` in
@@ -39,7 +49,7 @@
 //! the fillet in `crates/sketch/src/fillet/tests.rs`.
 
 use cao_part::{Operation, PartDocument, PointRef};
-use cao_sketch::{Along, DimensionTarget, PointId, SegmentId, Toward, WorkPlane};
+use cao_sketch::{Along, Corner, DimensionTarget, PointId, SegmentId, Toward, WorkPlane};
 use glam::DVec2;
 
 /// The horizontal trait, from the left up to the corner.
@@ -252,15 +262,39 @@ fn assert_carries_both_prolongations(document: &PartDocument, was: DimensionTarg
 }
 
 #[test]
-fn the_same_corner_clicked_again_gives_the_angle_already_there() {
+fn the_same_corner_put_down_again_in_its_quarter_gives_the_angle_already_there() {
     let mut document = a_corner();
     let (first, _) = put_down(&mut document, CORNER + DVec2::new(40.0, 20.0));
 
-    let (again, value) = put_down(&mut document, CORNER + DVec2::new(-20.0, 30.0));
+    let (again, value) = put_down(&mut document, CORNER + DVec2::new(50.0, 10.0));
 
     assert_eq!(again, first);
     assert_eq!(angles_on(&document), vec![first]);
-    assert_reads(value, acute(), "clicked again between the two traits");
+    assert_reads(value, acute(), "put down again in the acute quarter");
+}
+
+#[test]
+fn the_same_corner_put_down_in_another_quarter_lays_a_read_only_angle_there() {
+    let mut document = a_corner();
+    let (first, _) = put_down(&mut document, CORNER + DVec2::new(40.0, 20.0));
+
+    let (other, value) = put_down(&mut document, CORNER + DVec2::new(-20.0, 30.0));
+
+    assert_ne!(
+        other, first,
+        "between the two traits is a quarter of its own"
+    );
+    assert_eq!(angles_on(&document), vec![first, other]);
+    let sketch = &document.sketches()[0];
+    assert!(
+        sketch.dimension_of(other).is_some_and(|laid| laid.driven),
+        "the angle laid beside the first only reads its quarter",
+    );
+    assert!(
+        sketch.dimension_of(first).is_some_and(|laid| !laid.driven),
+        "the first stays the one that drives",
+    );
+    assert_reads(value, obtuse(), "put down between the two traits");
 }
 
 /// Two traits, the first one clicked, then the second, then the place.
@@ -400,4 +434,98 @@ fn a_cut_keeps_an_angle_read_along_a_stems_prolongation() {
     );
     let read = document.measured(0, carried).expect("it reads");
     assert_reads(read, 120.0, "after the cut");
+}
+
+/// The corner carrying its obtuse angle between the two prolongations,
+/// driving, and the acute one between the slanted trait and the horizontal's
+/// prolongation beside it, read-only.
+fn a_corner_with_a_driving_and_a_read_only_angle() -> PartDocument {
+    let mut document = a_corner();
+    put_down(&mut document, CORNER + DVec2::new(20.0, -30.0));
+    put_down(&mut document, CORNER + DVec2::new(40.0, 20.0));
+    document
+}
+
+/// An angle on the drawing, by its arms: whether it only reads its value, and
+/// what it reads.
+type Quarter = (Option<(Along, Along)>, bool, f64);
+
+fn quarters_on(document: &PartDocument) -> Vec<Quarter> {
+    document.sketches()[0]
+        .dimensions()
+        .iter()
+        .filter(|dimension| dimension.is_angle())
+        .map(|dimension| {
+            (
+                arms_of(dimension.target),
+                dimension.driven,
+                document.measured(0, dimension.target).unwrap_or(f64::NAN),
+            )
+        })
+        .collect()
+}
+
+fn assert_carries_both_quarters(document: &PartDocument, said: &str) {
+    let kept = quarters_on(document);
+    let [
+        (Some((Along::Prolongation, Along::Prolongation)), false, driving),
+        (Some((Along::Prolongation, Along::Trait)), true, read_only),
+    ] = kept[..]
+    else {
+        panic!(
+            "{said}: the driving angle between the prolongations and the read-only one \
+             beside it, got {kept:?}"
+        );
+    };
+    assert!(
+        (driving - obtuse()).abs() < SOLVED,
+        "{said}: the driving angle reads {driving}°",
+    );
+    assert!(
+        (read_only - acute()).abs() < SOLVED,
+        "{said}: the read-only angle reads {read_only}°",
+    );
+}
+
+#[test]
+fn a_cut_and_a_compaction_carry_a_driving_and_a_read_only_angle_of_one_corner() {
+    let mut document = a_corner_with_a_driving_and_a_read_only_angle();
+    assert_carries_both_quarters(&document, "laid");
+    document.apply(Operation::AddPoint {
+        sketch: 0,
+        position: (CORNER + UP_RIGHT) * 0.5,
+        on: Vec::new(),
+    });
+    let (far, middle) = (PointId(3), PointId(4));
+
+    document.apply(Operation::Trim {
+        sketch: 0,
+        segment: SLANTED,
+        from: middle,
+        to: far,
+    });
+    assert_carries_both_quarters(&document, "cut");
+    document.compact_history();
+    assert_carries_both_quarters(&document, "compacted");
+}
+
+#[test]
+fn a_fillet_on_the_corner_keeps_both_its_angles_and_which_one_drives() {
+    let mut document = a_corner_with_a_driving_and_a_read_only_angle();
+
+    document.apply(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::Between(ALONG, SLANTED)],
+        radius: 5.0.into(),
+        construction: false,
+    });
+
+    assert_eq!(
+        document.sketches()[0].corner_cuts().len(),
+        1,
+        "the corner is rounded"
+    );
+    assert_carries_both_quarters(&document, "rounded");
+    document.compact_history();
+    assert_carries_both_quarters(&document, "rounded and compacted");
 }

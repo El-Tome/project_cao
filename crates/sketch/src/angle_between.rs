@@ -138,9 +138,10 @@ impl Sketch {
     /// The angle a dimension already reads between these two traits, whichever
     /// way round they were clicked and whichever of their angles it names.
     ///
-    /// Two traits that cross carry one angle between them at most: the others
-    /// are that one or what it leaves of a half turn, and a second one laid
-    /// beside it would sooner or later say something the first does not.
+    /// Two traits that cross carry one driving angle between them at most: the
+    /// others are that one or what it leaves of a half turn, laid read-only,
+    /// and a second driving one would sooner or later say something the first
+    /// does not.
     pub fn angle_already_between(
         &self,
         first: SegmentId,
@@ -175,9 +176,6 @@ impl Sketch {
         let DimensionTarget::AngleBetween { first, second, .. } = target else {
             return target;
         };
-        if let Some(laid) = self.angle_already_between(first, second) {
-            return laid;
-        }
         let Some(crossing) = self.where_lines_cross(first, second) else {
             return target;
         };

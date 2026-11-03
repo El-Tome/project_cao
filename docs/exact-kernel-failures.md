@@ -3009,11 +3009,10 @@ profile asks of a corner, which way a laid contour turns, which side of an
 edge a folded triangle stands. The others are a tolerance or a curve, and
 it leaves them as they are.
 
-**Measured like for like**: `main` at `e411888` against the branch at
-`a822682`, on the same seeds, every verdict compared case by case. The
-branch's last commit, `f22f6ce`, changes no answer: the early exit it adds
-returns the sign the exact sum would. On the exact kernel, 20 000 cases a
-draw:
+**Measured like for like**: `main` at `e411888` against #585's first
+commit, on the same seeds, every verdict compared case by case. Its second
+changes no answer: the early exit it adds returns the sign the exact sum
+would. On the exact kernel, 20 000 cases a draw:
 
 | draw | from seed | `main` broke a rule | branch broke a rule | the same seeds |
 | --- | --- | --- | --- | --- |

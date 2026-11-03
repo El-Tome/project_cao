@@ -2975,6 +2975,26 @@ fn the_same_seed_draws_the_same_ellipse_case_and_none_another_draw_gives_it() {
 }
 
 /// Whether a leaf is a prism of an outline an ellipse bounds.
+/// The area the corners of an arc of an ellipse within the kernel's hair of
+/// round may sweep, laid on the circle of its mean (#574): each moves along
+/// its ray by half the difference of the half-axes at most, and the traits
+/// ending there follow, along no more than the outline's box's half
+/// perimeter. Nought for an ellipse further from round, read against a
+/// reach of twice the hair's for room.
+fn laid_round(leaf: &Leaf, outline: &Outline) -> f64 {
+    let (Some(oval), Some((low, high)), Some((from, to))) =
+        (outline.oval(), outline.oval_box(), leaf.bounds())
+    else {
+        return 0.0;
+    };
+    let reach = from.abs().max(to.abs()).max_element().max(1.0);
+    let apart = (oval.first.length() - oval.second).abs();
+    if apart > 2.0 * 20.0 * 1e-9 * reach {
+        return 0.0;
+    }
+    apart * ((high - low).x + (high - low).y)
+}
+
 fn elliptic(leaf: &Leaf) -> bool {
     outline_of(leaf).is_some_and(|outline| outline.oval().is_some())
 }
@@ -3604,9 +3624,10 @@ fn every_elliptic_profile_raised_by_the_exact_kernel_alone_keeps_every_rule_and_
             unreachable!("only prisms were kept")
         };
         let promised = area(outline) * height.abs();
+        let laid = laid_round(leaf, outline) * height.abs();
         let volume = volume.unwrap_or_else(|declined| panic!("{leaf}: {declined:?}"));
         assert!(
-            (volume - promised).abs() <= 1e-9 * promised,
+            (volume - promised).abs() <= 1e-9 * promised + laid,
             "{leaf}: {volume} against {promised}"
         );
     }

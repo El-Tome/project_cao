@@ -48,8 +48,11 @@ use taken::{beside, chord, met};
 /// as it was before conics were built. A circle square to a cylinder's axis
 /// that bulges off its chord there — a rim passing a hair from a ruling it
 /// crosses twice, taken for the curve its own wall meets that cylinder
-/// along — is seen as that curve, traced the way the curve's own arc is.
-/// Anything else is declined.
+/// along — is seen as that curve, traced the way the curve's own arc is. A
+/// circle whose axis runs along an elliptic wall's, bulging off its chord — a
+/// rim in the band where a circular wall touches an ellipse a hair from
+/// round — is seen as the wall's own rim at its height, as a cylinder sees a
+/// circle off its axis. Anything else is declined.
 pub(in crate::brep) fn traced(
     curve: &Curve,
     surface: &Surface,
@@ -183,6 +186,18 @@ pub(in crate::brep) fn traced(
             let other = Wall::Cylinder(*cylinder);
             chord(curve, surface, from, to, eps)
                 .or_else(|declined| met(curve, own, other, [from, to], eps).ok_or(declined))
+        }
+        (Surface::Elliptic(oval), Curve::Circle(circle)) if parallel(circle.axis, oval.axis) => {
+            chord(curve, surface, from, to, eps).or_else(|_| {
+                let turn = circle.axis.dot(oval.axis).signum();
+                let start = oval.parameters(circle.point(from)).x;
+                let end = oval.parameters(circle.point(to)).x;
+                let height = (circle.center - oval.origin).dot(oval.axis);
+                Ok(Trace::Segment {
+                    from: DVec2::new(start, height),
+                    to: DVec2::new(unwrapped(end, start + turn * (to - from)), height),
+                })
+            })
         }
         (Surface::Elliptic(oval), Curve::Circle(circle)) if square(circle.axis, oval.axis) => {
             chord(curve, surface, from, to, eps).or_else(|declined| {

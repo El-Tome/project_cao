@@ -49,8 +49,10 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// drawn from its sharp corner rather than laid as geometry, and a replay
 /// draws it there (#617). 16: a coaxial surface a hair from touching a
 /// sphere or a torus, or from a rim on it, is moved onto it, and a rim
-/// another surface crosses along parts a ring (#626).
-const REBUILT_BY: u32 = 16;
+/// another surface crosses along parts a ring (#626). 17: an arc of an
+/// ellipse a hair from round is an arc of the circle of its mean, its
+/// corners laid on it (#574).
+const REBUILT_BY: u32 = 17;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

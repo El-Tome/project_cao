@@ -1198,7 +1198,11 @@ its chord there, a rim passing a hair from a ruling it crosses twice, is
 seen instead as the curve its own wall meets that cylinder along, between
 where its ends stand on it, where its middle stands within `EPS` of it: it
 was taken for an arc of that curve, and the cylinder carries the curve.
-So is the curve two perpendicular cylinders meet along, on a wall parallel
+A circle whose axis runs along an elliptic wall's, and whose stretch bulges off its chord
+— the rim of a circular wall in the band where it touches an ellipse a hair
+from round — is seen on the elliptic wall as that wall's own rim at the
+circle's height, between the angles its ends stand at, as a cylinder sees a
+circle off its axis (#574). So is the curve two perpendicular cylinders meet along, on a wall parallel
 to one of them and further than `EPS` from it — two walls of one radius a
 hair apart, a crescent: it is seen as the curve that wall meets the other
 cylinder along, where its middle stands within `EPS` of it, and in that
@@ -1277,9 +1281,13 @@ same input gives the same bits.
   from the foot of the normal (Eberly's method). Its rims are #552's conic
   read on the elliptic wall, and so is what any plane cuts it along. An
   ellipse is a circle where its half-axes are one, decided once, where the
-  profile is read (`piece/oval.rs`): an arc of ellipse, which carries
-  corners, within `EPS`; a whole ellipse within decision 8's hair `G`, Tom's
-  decision of 2026-10-13. A hair is below any step the software will show —
+  profile is read (`piece/oval.rs`): within `EPS`, and within decision 8's
+  hair `G` for a whole ellipse, Tom's decision of 2026-10-13, and for an arc
+  between two straight runs, his of 2026-11-03 (#574): its two corners are
+  laid on the circle along their rays from the centre, by half the hair at
+  most, and the straight runs either side end where they now stand. An arc
+  beside another curve keeps `EPS`: moved, its corner would leave that
+  curve. A hair is below any step the software will show —
   #514 holds the user's precision at a tenth of a micron, and `G` is some
   two nanometres on a part a hundred millimetres across — and kept elliptic,
   such a wall stood within `G` of a circle of its size all round, which

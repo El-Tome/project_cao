@@ -83,6 +83,24 @@
 //! - `docs/sketch-soundness.md` lists both rules, and drops the matter from
 //!   *What the rules cannot see* — no test: it is prose
 //!
+//! Closes #509.
+//! - caught out by areas merged on purpose: two areas given as one, tinted and
+//!   measured right, break the rule — `two_areas_given_as_one_break_the_count`
+//! - the diagonal drawn before the square on its ends breaks it, and is kept
+//!   under #494 — no test: not in this file. `what_random_sketches_found.rs`
+//!   holds it, and its own `Closes #509` block names the test. #494 is closed,
+//!   so the drawing holds today: what that test rejects is #494's old answer,
+//!   the square alone as one area, against the reckoning's count of two
+//! - the faces of no surface are told apart: #493's kept cases break this rule
+//!   only where they already broke another, or not at all — no test: not in
+//!   this file. `what_random_sketches_found.rs` holds #493's cases, and its own
+//!   `Closes #509` block names the test
+//! - a campaign has run with it, and what it found is written down: added to
+//!   an open issue, or given one of its own — no test: the report lives on the
+//!   issues, and any drawing it keeps in `what_random_sketches_found.rs`
+//! - `docs/sketch-soundness.md` lists the rule, and drops one area where two
+//!   are drawn from *What the rules cannot see* — no test: it is prose
+//!
 //! The campaign is run by hand:
 //!
 //! ```text
@@ -102,8 +120,8 @@ use std::time::{Duration, Instant, SystemTime};
 use glam::DVec2;
 use random_sketches::{
     Area, Axis, Check, Drawing, Flaw, Gesture, Matter, Place, Random, Relaying, Report, Rule,
-    Silence, answer, campaign, drawn, laid_alike, matter_is_measure, matter_tiles, nothing_extra,
-    nothing_missing, played, smaller, tint_is_measure,
+    Silence, answer, as_many_as_closed, campaign, drawn, laid_alike, matter_is_measure,
+    matter_tiles, nothing_extra, nothing_missing, played, smaller, tint_is_measure,
 };
 
 fn square(low: [f64; 2], high: [f64; 2]) -> Area {
@@ -884,6 +902,32 @@ fn an_area_where_nothing_closes_is_extra() {
             enclosed: false,
         })
     );
+}
+
+#[test]
+fn two_areas_given_as_one_break_the_count() {
+    let places = [closed([0.5, 0.5]), closed([1.5, 0.5]), open([3.0, 0.5])];
+    let apart = [
+        square([0.0, 0.0], [1.0, 1.0]),
+        square([1.0, 0.0], [2.0, 1.0]),
+    ];
+    let merged = [square([0.0, 0.0], [2.0, 1.0])];
+
+    assert_eq!(tint_is_measure(&merged), Ok(()));
+    assert_eq!(matter_is_measure(&merged), Ok(()));
+    assert_eq!(nothing_missing(&merged, &places), Ok(()));
+    assert_eq!(nothing_extra(&merged, &places), Ok(()));
+    assert_eq!(matter_tiles(&merged, &places), Ok(()));
+    assert_eq!(as_many_as_closed(&apart, 2), Ok(()));
+    let flaw = as_many_as_closed(&merged, 2);
+    assert_eq!(
+        flaw,
+        Err(Flaw::Miscounted {
+            found: 1,
+            closed: 2
+        })
+    );
+    assert_eq!(flaw.map_err(|flaw| flaw.rule()), Err(Rule::AsManyAsClosed));
 }
 
 #[test]

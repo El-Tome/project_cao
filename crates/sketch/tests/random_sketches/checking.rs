@@ -8,8 +8,8 @@ use super::areas::areas_of;
 use super::enclosing::{Curve, Enclosure, curves_of};
 use super::random::Random;
 use super::rules::{
-    Area, Flaw, Place, Relaying, laid_alike, matter_is_measure, matter_tiles, nothing_extra,
-    nothing_missing, reach, tint_is_measure,
+    Area, Flaw, Place, Relaying, as_many_as_closed, laid_alike, matter_is_measure, matter_tiles,
+    nothing_extra, nothing_missing, reach, tint_is_measure,
 };
 
 /// Whether a drawing keeps every rule after every one of its gestures.
@@ -43,11 +43,37 @@ pub fn holds(gestures: &[Gesture]) {
 /// Whether the areas a sketch has now keep every rule.
 pub fn keeps_its_areas(sketch: &Sketch) -> Result<(), Flaw> {
     let areas = areas_of(sketch);
-    tint_is_measure(&areas)?;
-    matter_is_measure(&areas)?;
     let curves = curves_of(sketch);
     let enclosure = Enclosure::of(&curves);
     let looked_at = places_to_look_at(&curves, &areas);
+    laid_once(&areas, &enclosure, &looked_at)?;
+    for how in relayings(sketch, &curves).into_iter().filter(|how| {
+        *how == Relaying::Reordered || !enclosure.may_read_otherwise(|at| carried(*how, at))
+    }) {
+        let again = areas_of(&relaid(sketch, how));
+        laid_alike(how, &areas, &again, &looked_at, |at| carried(how, at))?;
+    }
+    Ok(())
+}
+
+/// Whether areas given for a sketch keep every rule that reads the sketch
+/// laid once.
+#[allow(
+    dead_code,
+    reason = "held to areas given by hand, which the campaign's own binary never does"
+)]
+pub fn areas_keep_the_rules(sketch: &Sketch, areas: &[Area]) -> Result<(), Flaw> {
+    let curves = curves_of(sketch);
+    laid_once(
+        areas,
+        &Enclosure::of(&curves),
+        &places_to_look_at(&curves, areas),
+    )
+}
+
+fn laid_once(areas: &[Area], enclosure: &Enclosure, looked_at: &[DVec2]) -> Result<(), Flaw> {
+    tint_is_measure(areas)?;
+    matter_is_measure(areas)?;
     let places: Vec<Place> = looked_at
         .iter()
         .filter_map(|at| {
@@ -57,16 +83,13 @@ pub fn keeps_its_areas(sketch: &Sketch) -> Result<(), Flaw> {
             })
         })
         .collect();
-    nothing_missing(&areas, &places)?;
-    nothing_extra(&areas, &places)?;
-    matter_tiles(&areas, &places)?;
-    for how in relayings(sketch, &curves).into_iter().filter(|how| {
-        *how == Relaying::Reordered || !enclosure.may_read_otherwise(|at| carried(*how, at))
-    }) {
-        let again = areas_of(&relaid(sketch, how));
-        laid_alike(how, &areas, &again, &looked_at, |at| carried(how, at))?;
+    nothing_missing(areas, &places)?;
+    nothing_extra(areas, &places)?;
+    matter_tiles(areas, &places)?;
+    match enclosure.areas_closed() {
+        Some(closed) => as_many_as_closed(areas, closed),
+        None => Ok(()),
     }
-    Ok(())
 }
 
 /// How far from a curve a place has to stand to be looked at, as a share of

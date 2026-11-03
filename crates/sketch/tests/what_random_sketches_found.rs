@@ -98,17 +98,36 @@
 //!   touches the cut leaves against the closing curve; #604 closed the arc and
 //!   pattern drawings and #606 the circle one, and this file pins the family
 //!   so no future sighting is lost
+//!
+//! Closes #509.
+//! - the diagonal drawn before the square on its ends breaks it, and is kept
+//!   under #494 — `a_diagonal_drawn_before_the_square_on_its_ends_is_held_to_two_areas`.
+//!   #494 is closed, so the drawing holds today: what the test rejects is
+//!   #494's old answer, the square alone as one area, against the
+//!   reckoning's count of two
+//! - the faces of no surface are told apart: #493's kept cases break this rule
+//!   only where they already broke another, or not at all —
+//!   `a_curve_drawn_twice_closes_no_area_of_its_own`, and #493's cases above,
+//!   held to every rule by `holds`
+//! - a campaign has run with it, and what it found is written down: added to
+//!   an open issue, or given one of its own — loops thinner than a billionth
+//!   that the walk drops, ignored under #670 —
+//!   `a_chain_closing_a_hair_from_a_rectangle_s_corner_keeps_as_many_areas_as_it_closes`,
+//!   `a_line_passing_a_hair_from_where_a_circle_touches_a_side_keeps_as_many_areas_as_it_closes`,
+//!   `a_diagonal_ending_a_hair_from_a_rectangle_s_corner_keeps_as_many_areas_as_it_closes`
 
 // The drawing, the rules and the shrinking are the campaign's; this file only
 // lays drawings and holds them.
 #[allow(dead_code, unused_imports)]
 mod random_sketches;
 
-use random_sketches::{Axis, Gesture};
+use random_sketches::areas::areas_of;
+use random_sketches::checking::areas_keep_the_rules;
+use random_sketches::enclosing::{Enclosure, curves_of};
+use random_sketches::{Axis, Flaw, Gesture, as_many_as_closed, laid};
 
-#[test]
-fn a_rectangle_on_part_of_another_s_side_is_tinted_as_it_encloses() {
-    random_sketches::holds(&[
+fn a_rectangle_on_part_of_another_s_side() -> Vec<Gesture> {
+    vec![
         Gesture::Rectangle {
             corner: [7.0, 7.0],
             opposite: [4.0, 3.0],
@@ -119,12 +138,16 @@ fn a_rectangle_on_part_of_another_s_side_is_tinted_as_it_encloses() {
             opposite: [11.0, 6.0],
             construction: false,
         },
-    ]);
+    ]
 }
 
 #[test]
-fn a_trait_laid_along_a_side_leaves_the_shape_its_area() {
-    random_sketches::holds(&[
+fn a_rectangle_on_part_of_another_s_side_is_tinted_as_it_encloses() {
+    random_sketches::holds(&a_rectangle_on_part_of_another_s_side());
+}
+
+fn a_trait_laid_along_a_side() -> Vec<Gesture> {
+    vec![
         Gesture::Rectangle {
             corner: [10.0, 10.0],
             opposite: [9.0, 7.0],
@@ -135,12 +158,16 @@ fn a_trait_laid_along_a_side_leaves_the_shape_its_area() {
             closed: false,
             construction: false,
         },
-    ]);
+    ]
 }
 
 #[test]
-fn an_arc_drawn_along_its_circle_leaves_the_disc_its_area() {
-    random_sketches::holds(&[
+fn a_trait_laid_along_a_side_leaves_the_shape_its_area() {
+    random_sketches::holds(&a_trait_laid_along_a_side());
+}
+
+fn an_arc_drawn_along_its_circle() -> Vec<Gesture> {
+    vec![
         Gesture::Circle {
             centre: [6.0, 1.0],
             radius: 0.5,
@@ -152,12 +179,16 @@ fn an_arc_drawn_along_its_circle_leaves_the_disc_its_area() {
             degrees: 135.0,
             construction: false,
         },
-    ]);
+    ]
 }
 
 #[test]
-fn a_trait_drawn_twice_between_two_points_is_tinted_once() {
-    random_sketches::holds(&[
+fn an_arc_drawn_along_its_circle_leaves_the_disc_its_area() {
+    random_sketches::holds(&an_arc_drawn_along_its_circle());
+}
+
+fn a_trait_drawn_twice_between_two_points() -> Vec<Gesture> {
+    vec![
         Gesture::Chain {
             through: vec![[0.0, 0.0], [0.0, -4.0], [-3.0, -4.0], [1.0, 1.0]],
             closed: false,
@@ -168,23 +199,32 @@ fn a_trait_drawn_twice_between_two_points_is_tinted_once() {
             closed: false,
             construction: false,
         },
-    ]);
+    ]
+}
+
+#[test]
+fn a_trait_drawn_twice_between_two_points_is_tinted_once() {
+    random_sketches::holds(&a_trait_drawn_twice_between_two_points());
+}
+
+fn a_circle_drawn_twice_on_one_centre() -> Vec<Gesture> {
+    vec![
+        Gesture::Circle {
+            centre: [8.0, 4.0],
+            radius: 2.0,
+            construction: false,
+        },
+        Gesture::Circle {
+            centre: [8.0, 4.0],
+            radius: 2.0,
+            construction: false,
+        },
+    ]
 }
 
 #[test]
 fn a_circle_drawn_twice_on_one_centre_is_one_area() {
-    random_sketches::holds(&[
-        Gesture::Circle {
-            centre: [8.0, 4.0],
-            radius: 2.0,
-            construction: false,
-        },
-        Gesture::Circle {
-            centre: [8.0, 4.0],
-            radius: 2.0,
-            construction: false,
-        },
-    ]);
+    random_sketches::holds(&a_circle_drawn_twice_on_one_centre());
 }
 
 #[test]
@@ -253,9 +293,8 @@ fn a_second_rectangle_drawn_from_the_first_one_s_corner_keeps_both_areas() {
     ]);
 }
 
-#[test]
-fn a_rectangle_drawn_into_another_s_corner_is_tinted_as_it_encloses() {
-    random_sketches::holds(&[
+fn a_rectangle_drawn_into_another_s_corner() -> Vec<Gesture> {
+    vec![
         Gesture::Rectangle {
             corner: [6.0, 2.0],
             opposite: [13.0, 9.0],
@@ -271,12 +310,16 @@ fn a_rectangle_drawn_into_another_s_corner_is_tinted_as_it_encloses() {
             opposite: [9.5, 2.5],
             construction: false,
         },
-    ]);
+    ]
 }
 
 #[test]
-fn a_rectangle_with_no_width_along_another_s_side_leaves_it_its_area() {
-    random_sketches::holds(&[
+fn a_rectangle_drawn_into_another_s_corner_is_tinted_as_it_encloses() {
+    random_sketches::holds(&a_rectangle_drawn_into_another_s_corner());
+}
+
+fn a_rectangle_with_no_width_along_another_s_side() -> Vec<Gesture> {
+    vec![
         Gesture::Rectangle {
             corner: [8.0, 10.0],
             opposite: [8.0, 9.0],
@@ -287,7 +330,72 @@ fn a_rectangle_with_no_width_along_another_s_side_leaves_it_its_area() {
             opposite: [13.0, 10.0],
             construction: false,
         },
+    ]
+}
+
+#[test]
+fn a_rectangle_with_no_width_along_another_s_side_leaves_it_its_area() {
+    random_sketches::holds(&a_rectangle_with_no_width_along_another_s_side());
+}
+
+#[test]
+fn a_curve_drawn_twice_closes_no_area_of_its_own() {
+    for (drawing, closes) in [
+        (a_rectangle_on_part_of_another_s_side(), 2),
+        (a_trait_laid_along_a_side(), 1),
+        (an_arc_drawn_along_its_circle(), 1),
+        (a_trait_drawn_twice_between_two_points(), 2),
+        (a_circle_drawn_twice_on_one_centre(), 1),
+        (a_rectangle_drawn_into_another_s_corner(), 4),
+        (a_rectangle_with_no_width_along_another_s_side(), 1),
+    ] {
+        let sketch = laid(&drawing);
+        let closed = Enclosure::of(&curves_of(&sketch)).areas_closed();
+        assert_eq!(closed, Some(closes), "{drawing:?}");
+        assert_eq!(
+            as_many_as_closed(&areas_of(&sketch), closes),
+            Ok(()),
+            "{drawing:?}"
+        );
+    }
+}
+
+#[test]
+fn a_diagonal_drawn_before_the_square_on_its_ends_is_held_to_two_areas() {
+    let square = Gesture::Rectangle {
+        corner: [0.0, 0.0],
+        opposite: [2.0, 2.0],
+        construction: false,
+    };
+    let sketch = laid(&[
+        Gesture::Chain {
+            through: vec![[2.0, 0.0], [0.0, 2.0]],
+            closed: false,
+            construction: false,
+        },
+        square.clone(),
     ]);
+    let walked = areas_of(&sketch);
+    let whole = areas_of(&laid(&[square]));
+
+    assert_eq!(Enclosure::of(&curves_of(&sketch)).areas_closed(), Some(2));
+    assert_eq!(whole.len(), 1, "the square alone is one area");
+    assert_eq!(as_many_as_closed(&walked, 2), Ok(()));
+    assert_eq!(
+        as_many_as_closed(&whole, 2),
+        Err(Flaw::Miscounted {
+            found: 1,
+            closed: 2
+        })
+    );
+    assert_eq!(areas_keep_the_rules(&sketch, &walked), Ok(()));
+    assert_eq!(
+        areas_keep_the_rules(&sketch, &whole),
+        Err(Flaw::Miscounted {
+            found: 1,
+            closed: 2
+        })
+    );
 }
 
 #[test]
@@ -638,6 +746,62 @@ fn a_chamfer_on_an_open_chain_against_a_pattern_keeps_the_tint_the_measure() {
             centre: [4.5, 2.4795],
             degrees: 90.0,
             count: 4,
+        },
+    ]);
+}
+
+#[test]
+#[ignore = "#670"]
+fn a_chain_closing_a_hair_from_a_rectangle_s_corner_keeps_as_many_areas_as_it_closes() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [5.0, 9.0],
+            opposite: [7.0, 5.0],
+            construction: false,
+        },
+        Gesture::Chain {
+            through: vec![[5.0, 5.0], [7.5, 0.5], [5.5, 0.0], [5.0000205, 5.0]],
+            closed: false,
+            construction: false,
+        },
+    ]);
+}
+
+#[test]
+#[ignore = "#670"]
+fn a_line_passing_a_hair_from_where_a_circle_touches_a_side_keeps_as_many_areas_as_it_closes() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [3.0, 1.0],
+            opposite: [0.0, 3.0],
+            construction: false,
+        },
+        Gesture::Circle {
+            centre: [1.501025, 1.75],
+            radius: 0.75,
+            construction: false,
+        },
+        Gesture::Chain {
+            through: vec![[0.0, 0.0], [6.0, 4.0]],
+            closed: false,
+            construction: false,
+        },
+    ]);
+}
+
+#[test]
+#[ignore = "#670"]
+fn a_diagonal_ending_a_hair_from_a_rectangle_s_corner_keeps_as_many_areas_as_it_closes() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [2.999959, 3.0],
+            opposite: [4.0, 0.0],
+            construction: false,
+        },
+        Gesture::Chain {
+            through: vec![[0.0, 0.0], [3.0, 3.0]],
+            closed: false,
+            construction: false,
         },
     ]);
 }

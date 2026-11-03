@@ -88,7 +88,10 @@
 //!   measured right, break the rule — `two_areas_given_as_one_break_the_count`
 //! - the diagonal drawn before the square on its ends breaks it, and is kept
 //!   under #494 — `a_diagonal_drawn_before_the_square_on_its_ends_is_held_to_two_areas`,
-//!   in `what_random_sketches_found.rs`
+//!   in `what_random_sketches_found.rs`.
+//!   #494 is closed, so the drawing holds today: what the test rejects is
+//!   #494's old answer, the square alone as one area, against the
+//!   reckoning's count of two
 //! - the faces of no surface are told apart: #493's kept cases break this rule
 //!   only where they already broke another, or not at all —
 //!   `a_curve_drawn_twice_closes_no_area_of_its_own`, and #493's cases held

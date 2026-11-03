@@ -227,8 +227,9 @@ given, and how many it closes.
 
 ## What the rules cannot see
 
-- **One area where two are drawn, on a doubtful reckoning**: the count is not
-  held where a near touch may be read either way.
+- **A merge and a split in the same drawing**: the count compares totals, so
+  two areas given as one beside one given as two along no curve leave it whole,
+  and pass when the tint and the matter stay right.
 - **Dimensions, rules, dragging**, and whether a piece is entirely
   constrained: #501.
 - **The solid** and undo: #448.

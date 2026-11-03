@@ -43,10 +43,10 @@ pub fn holds(gestures: &[Gesture]) {
 /// Whether the areas a sketch has now keep every rule.
 pub fn keeps_its_areas(sketch: &Sketch) -> Result<(), Flaw> {
     let areas = areas_of(sketch);
-    areas_keep_the_rules(sketch, &areas)?;
     let curves = curves_of(sketch);
     let enclosure = Enclosure::of(&curves);
     let looked_at = places_to_look_at(&curves, &areas);
+    laid_once(&areas, &enclosure, &looked_at)?;
     for how in relayings(sketch, &curves).into_iter().filter(|how| {
         *how == Relaying::Reordered || !enclosure.may_read_otherwise(|at| carried(*how, at))
     }) {
@@ -58,17 +58,28 @@ pub fn keeps_its_areas(sketch: &Sketch) -> Result<(), Flaw> {
 
 /// Whether areas given for a sketch keep every rule that reads the sketch
 /// laid once.
+#[allow(
+    dead_code,
+    reason = "held to areas given by hand, which the campaign's own binary never does"
+)]
 pub fn areas_keep_the_rules(sketch: &Sketch, areas: &[Area]) -> Result<(), Flaw> {
+    let curves = curves_of(sketch);
+    laid_once(
+        areas,
+        &Enclosure::of(&curves),
+        &places_to_look_at(&curves, areas),
+    )
+}
+
+fn laid_once(areas: &[Area], enclosure: &Enclosure, looked_at: &[DVec2]) -> Result<(), Flaw> {
     tint_is_measure(areas)?;
     matter_is_measure(areas)?;
-    let curves = curves_of(sketch);
-    let enclosure = Enclosure::of(&curves);
-    let places: Vec<Place> = places_to_look_at(&curves, areas)
-        .into_iter()
+    let places: Vec<Place> = looked_at
+        .iter()
         .filter_map(|at| {
             Some(Place {
-                at,
-                enclosed: enclosure.encloses(at)?,
+                at: *at,
+                enclosed: enclosure.encloses(*at)?,
             })
         })
         .collect();

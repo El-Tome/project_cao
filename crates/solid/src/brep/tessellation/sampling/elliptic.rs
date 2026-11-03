@@ -8,6 +8,8 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use crate::brep::conic::{Conic, On};
+use crate::brep::curve::Line;
+use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{EllipticCylinder, Surface};
 use crate::brep::topology::{Body, Edge, SurfaceId};
@@ -94,5 +96,99 @@ pub(super) fn a_step_apart(wall: EllipticCylinder, steps: usize) -> impl Fn(DVec
     move |one: DVec3, other: DVec3| {
         let turned = wall.parameters(one).x - wall.parameters(other).x;
         ((turned + PI).rem_euclid(TAU) - PI).abs() <= step
+    }
+}
+
+/// The sine of the widest angle two walls crossing along a ruling meet at
+/// for the lens between them to be thinner than a chord's sag a step from
+/// the ruling.
+const GRAZING: f64 = 1e-2;
+
+/// Whether a place of an edge on an elliptic wall stands near an end where
+/// another wall crosses its own at a grazing angle, and close to that wall:
+/// the two bound a lens thinner than a chord's sag there, and a sample one
+/// of them takes alone leaves its chord across the other's. Near and close
+/// are read the same from both walls — a step of the coarser grid from the
+/// end, and twice the deeper sag — so that the two drop the same places;
+/// the rays both take, shared from a point inside both (`abreast.rs`), are
+/// kept. Where the two touch, they take the rays they share.
+pub(super) fn in_a_lens<'a>(
+    body: &'a Body,
+    edge: &'a Edge,
+    wall: EllipticCylinder,
+    tolerance: f64,
+) -> impl Fn(DVec3) -> bool + use<'a> {
+    let own = Surface::Elliptic(wall);
+    let reach = |surface: &Surface| match surface {
+        Surface::Elliptic(oval) => oval.major,
+        Surface::Cylinder(round) => round.radius,
+        Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => 0.0,
+    };
+    let ends: Vec<(DVec3, Vec<Lens>)> = edge
+        .ends
+        .into_iter()
+        .flatten()
+        .map(|end| {
+            let vertex = body.vertex(end);
+            let crossing = vertex
+                .on
+                .iter()
+                .map(|id| *body.surface(*id))
+                .filter(|other| {
+                    *other != own && crosses_at(&own, other, vertex.point, body.scale())
+                })
+                .map(|other| {
+                    let widest = reach(&own).max(reach(&other));
+                    let steps = super::divisions(widest, tolerance) as f64;
+                    let step = TAU * widest / steps;
+                    let sag = widest * (1.0 - (PI / steps).cos());
+                    Lens {
+                        wall: other,
+                        step,
+                        room: 2.0 * sag,
+                    }
+                })
+                .collect();
+            (vertex.point, crossing)
+        })
+        .collect();
+    move |point: DVec3| {
+        ends.iter().any(|(end, walls)| {
+            walls.iter().any(|lens| {
+                (point - *end).length() <= lens.step && lens.wall.distance(point).abs() <= lens.room
+            })
+        })
+    }
+}
+
+/// A wall crossing an elliptic one at an end of its edge, how far from the
+/// end the lens they bound is read, and how close to that wall.
+struct Lens {
+    wall: Surface,
+    step: f64,
+    room: f64,
+}
+
+/// Whether two walls about parallel axes cross, rather than touch, along a
+/// ruling through `at`, at a grazing angle: a sine of a hundredth or less,
+/// as decision 2 has two such walls graze.
+fn crosses_at(own: &Surface, other: &Surface, at: DVec3, scale: Scale) -> bool {
+    if !matches!(other, Surface::Cylinder(_) | Surface::Elliptic(_)) {
+        return false;
+    }
+    let facing = |wall: &Surface| wall.normal(wall.parameters(at));
+    if facing(own).cross(facing(other)).length() > GRAZING {
+        return false;
+    }
+    let through = |line: &Line| {
+        let off = at - line.origin;
+        (off - line.direction * line.direction.dot(off)).length() <= scale.eps()
+    };
+    match relation(own, other, scale) {
+        Relation::Lines(lines) => lines.iter().any(through),
+        Relation::Parallel(rulings) => rulings
+            .iter()
+            .any(|ruled| !ruled.touching && through(&ruled.line)),
+        _ => false,
     }
 }

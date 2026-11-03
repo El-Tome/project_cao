@@ -2093,8 +2093,14 @@ read backwards by the listing.
   furthest past it. The walls such pairs join into a group are all sampled
   from one point inside every one of them, the axis of the smallest; where
   no such point is, each pair standing close is sampled from its own, and a
-  pair that only crosses keeps its grids. A whole rim of an elliptic wall
-  ends where it starts, and a place beside that point is measured against
+  pair that only crosses keeps its grids. Where two such walls cross at a
+  grazing angle — the same ellipse a hair aside or turned a hair — they
+  bound a lens thinner than a chord's sag on either side of the ruling, and
+  a place one rim takes alone there, a vertex's angle or a step of its own
+  grid, leaves its chord across the other's: an elliptic rim keeps only the
+  rays the two share, within a step of the coarser grid of the end and
+  twice the deeper sag of the other wall (#574). A whole rim of an elliptic
+  wall ends where it starts, and a place beside that point is measured against
   both ends of it. What
   still crosses is refined locally, and what survives
   that is reported as a failure of the triangles, apart from the kernel's.

@@ -3,13 +3,30 @@
 //! Closes #286.
 //! - the rule marks that will go are written in the alert colour, even the one
 //!   under the cursor — `a_rule_the_cut_would_take_is_marked_in_the_alert_colour`
+//!
+//! Closes #656.
+//! - On a rendered frame, a mark pointed at and a mark held are brighter than a
+//!   mark at rest, on every shipped theme —
+//!   `a_rule_s_mark_pointed_at_is_painted_brighter_than_a_mark_at_rest`,
+//!   `a_rule_s_mark_held_is_painted_brighter_than_a_mark_at_rest`
+//! - A test reads the colour off the painted mark and holds it apart from the
+//!   resting one by more than its alpha —
+//!   `a_rule_s_mark_pointed_at_is_painted_brighter_than_a_mark_at_rest`,
+//!   `a_rule_s_mark_held_is_painted_brighter_than_a_mark_at_rest`: each takes
+//!   the colour egui tessellates for the mark, weighs it laid over every colour
+//!   the canvas takes, and wants it brighter than the resting mark, and brighter
+//!   than the resting mark would be at the same opacity
 
+use cao_part::history::PointRef;
+use cao_part::{Operation, PartDocument};
 use cao_prefs::config::ViewportConfig;
 use cao_render::camera::OrbitCamera;
-use cao_sketch::{SegmentId, Stretch};
+use cao_sketch::{SegmentId, SelectState, Stretch, ToolState, WorkPlane};
 use glam::DVec2;
 
 use super::*;
+use crate::screens::extrusion::ExtrusionState;
+use crate::screens::sketch::{SketchEditor, SketchPhase, Tool};
 
 const SCREEN: egui::Rect = egui::Rect {
     min: egui::Pos2::ZERO,
@@ -29,8 +46,11 @@ fn shapes(paint: impl Fn(&egui::Ui)) -> Vec<egui::Shape> {
             screen_rect: Some(SCREEN),
             ..Default::default()
         });
+        // An area fades in over its first frames: read two frames in, every
+        // colour would come back at a fraction of its opacity.
         egui::Area::new(egui::Id::new("the canvas"))
             .fixed_pos(SCREEN.min)
+            .fade_in(false)
             .show(&context, |ui| paint(ui));
         output = context.end_pass();
     }
@@ -170,11 +190,194 @@ fn a_rule_the_cut_would_take_is_marked_in_the_alert_colour() {
         tint_to_color(theme.rule),
         "a rule the cut leaves alone is marked as going",
     );
-    assert_eq!(
-        mark_shade(&theme, None, &rule, true),
-        tint_to_color(theme.highlight),
+    let pointed = mark_shade(&theme, None, &rule, true);
+    assert_ne!(
+        pointed,
+        tint_to_color(theme.going),
+        "with no cut in sight, a rule pointed at is marked as going",
+    );
+    assert_ne!(
+        pointed,
+        tint_to_color(theme.rule),
         "with no cut in sight, a rule pointed at is no longer lit",
     );
+}
+
+/// Every theme the application ships with. There is one today; a theme added
+/// beside it belongs here, so that the marks are held to it too.
+fn shipped_themes() -> Vec<Theme> {
+    vec![Theme::default()]
+}
+
+const LIT: Constraint = Constraint::Parallel {
+    first: SegmentId(0),
+    second: SegmentId(1),
+};
+
+const AT_REST: Constraint = Constraint::Equal {
+    first: SegmentId(2),
+    second: SegmentId(3),
+};
+
+/// A drawing being edited with two rules on it, each marked on its own traits:
+/// the two long sides held parallel, the two short uprights held equal.
+fn a_drawing_with_two_rules() -> PartDocument {
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for (start, end) in [
+        ((0.0, 0.0), (40.0, 0.0)),
+        ((0.0, 20.0), (40.0, 20.0)),
+        ((10.0, 5.0), (10.0, 15.0)),
+        ((30.0, 5.0), (30.0, 15.0)),
+    ] {
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(DVec2::new(start.0, start.1)),
+            end: PointRef::New(DVec2::new(end.0, end.1)),
+            construction: false,
+        });
+    }
+    for constraint in [LIT, AT_REST] {
+        document.apply(Operation::Constrain {
+            sketch: 0,
+            constraint,
+        });
+    }
+    document
+}
+
+/// The colour a piece of painted text reaches the screen in: the shape is
+/// tessellated, so whatever egui does to it on the way — a fallback, an
+/// override, an opacity — is already applied.
+fn ink(text: &egui::epaint::TextShape) -> egui::Color32 {
+    let mut tessellated = Default::default();
+    egui::epaint::Tessellator::new(1.0, Default::default(), [1, 1], Vec::new())
+        .tessellate_text(text, &mut tessellated);
+    let mut colours: Vec<egui::Color32> = tessellated
+        .vertices
+        .iter()
+        .map(|vertex| vertex.color)
+        .collect();
+    colours.dedup();
+    assert_eq!(
+        colours.len(),
+        1,
+        "a mark painted in {colours:?} rather than in one colour"
+    );
+    colours[0]
+}
+
+/// Each mark one frame painted, by its glyph, with the colour it was painted in.
+fn marks_painted(theme: &Theme, mut editor: SketchEditor) -> Vec<(String, egui::Color32)> {
+    let mut state = ViewportState::default();
+    state.theme = theme.clone();
+    let mut document = a_drawing_with_two_rules();
+    let (mut extrusion, lang) = (ExtrusionState::default(), Catalogue::french());
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    shapes(|ui| paint_rule_marks(ui, &state, SCREEN, &context, None))
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Text(text) => Some((text.galley.text().to_string(), ink(text))),
+            _ => None,
+        })
+        .collect()
+}
+
+/// How bright `ink` reads laid over `behind`: egui blends a premultiplied
+/// colour in gamma space, and what comes out is weighed by its relative
+/// luminance — the sRGB definition contrast is measured with.
+fn brightness_over(ink: egui::Color32, behind: Rgba) -> f32 {
+    let [r, g, b, alpha] = ink.to_normalized_gamma_f32();
+    let linear = |channel: f32| {
+        if channel <= 0.04045 {
+            channel / 12.92
+        } else {
+            ((channel + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    let seen = |ink: f32, behind: f32| linear(ink + (1.0 - alpha) * behind);
+    0.2126 * seen(r, behind.r) + 0.7152 * seen(g, behind.g) + 0.0722 * seen(b, behind.b)
+}
+
+/// `ink`'s colour, at another opacity.
+fn at_opacity(ink: egui::Color32, alpha: u8) -> egui::Color32 {
+    let [r, g, b, _] = ink.to_srgba_unmultiplied();
+    egui::Color32::from_rgba_unmultiplied(r, g, b, alpha)
+}
+
+/// On every shipped theme, and over every colour the canvas takes behind
+/// them, each mark of the rule `editor` lights reads brighter than each mark
+/// of the rule left at rest — and brighter than the resting mark would read at
+/// the lit one's opacity, so that a mark made merely more opaque does not pass
+/// for one that lights up.
+fn lit_marks_outshine_the_marks_at_rest(how: &str, editor: impl Fn() -> SketchEditor) {
+    for (index, theme) in shipped_themes().iter().enumerate() {
+        let painted = marks_painted(theme, editor());
+        let of = |rule: Constraint| -> Vec<egui::Color32> {
+            painted
+                .iter()
+                .filter(|(glyph, _)| glyph == constraints::mark(rule))
+                .map(|(_, colour)| *colour)
+                .collect()
+        };
+        let (lit, at_rest) = (of(LIT), of(AT_REST));
+        assert!(
+            !lit.is_empty() && !at_rest.is_empty(),
+            "the frame does not mark both rules: it painted {painted:?}"
+        );
+        for canvas in (0..=10).map(|step| theme.background.sample(step as f32 / 10.0)) {
+            for &lit in &lit {
+                for &rest in &at_rest {
+                    let (lit_seen, rest_seen) =
+                        (brightness_over(lit, canvas), brightness_over(rest, canvas));
+                    assert!(
+                        lit_seen > rest_seen,
+                        "on shipped theme {index}, over the canvas at {canvas:?}, the mark {how} \
+                         ({lit:?}) reads {lit_seen:.3} bright where a mark at rest ({rest:?}) \
+                         reads {rest_seen:.3}: it fades behind the others",
+                    );
+                    let rest_at_that_opacity = brightness_over(at_opacity(rest, lit.a()), canvas);
+                    assert!(
+                        lit_seen > rest_at_that_opacity,
+                        "on shipped theme {index}, over the canvas at {canvas:?}, the mark {how} \
+                         reads {lit_seen:.3} bright, no more than a mark at rest painted at its \
+                         opacity ({rest_at_that_opacity:.3}): it stands out by its alpha alone",
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_rule_s_mark_pointed_at_is_painted_brighter_than_a_mark_at_rest() {
+    lit_marks_outshine_the_marks_at_rest("pointed at", || SketchEditor {
+        phase: SketchPhase::Editing(0),
+        tool: Tool::Select,
+        hovered: Some(Selection::Rule(LIT)),
+        ..Default::default()
+    });
+}
+
+#[test]
+fn a_rule_s_mark_held_is_painted_brighter_than_a_mark_at_rest() {
+    lit_marks_outshine_the_marks_at_rest("held", || SketchEditor {
+        phase: SketchPhase::Editing(0),
+        tool: Tool::Select,
+        tool_state: ToolState::Select(Box::new(SelectState {
+            held: vec![Selection::Rule(LIT)],
+            ..Default::default()
+        })),
+        ..Default::default()
+    });
 }
 
 #[test]

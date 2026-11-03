@@ -84,7 +84,8 @@ pub use annotation::{AnnotationMetrics, Placement};
 pub use arc::{Arc, ArcId};
 pub use arc_dimensions::arc_dimensions;
 pub use arc_placing::{
-    ArcMode, aimed as arc_aimed, angle_reference as arc_angle_reference, arc_from,
+    ArcMode, aimed as arc_aimed, angle_reference as arc_angle_reference, arc_from, arc_turned,
+    turned_round as arc_turned_round,
 };
 pub use arcing::{ArcDraft, places_along, steps_along, sweep_of};
 pub use axis::ChosenAxis;

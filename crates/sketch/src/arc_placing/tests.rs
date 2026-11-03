@@ -1,4 +1,31 @@
 //! What sketch · arc_placing.rs is held to.
+//!
+//! Closes #483, for the rule that turns the hand's path into an arc.
+//! - the cursor leaves the start going down: the arc turns clockwise. Going
+//!   up: counter-clockwise — `a_hand_leaving_the_start_downwards_turns_the_arc_clockwise`,
+//!   `a_hand_leaving_the_start_upwards_turns_the_arc_counter_clockwise`
+//! - it keeps going as far round as the hand does: down past a quarter, on past
+//!   the half, up the far side, three quarters of a circle, clockwise —
+//!   `a_hand_going_three_quarters_round_downwards_draws_three_quarters_clockwise`
+//! - winding back over the start and on the other way turns the arc the other
+//!   way — `winding_back_over_the_start_and_on_turns_the_arc_the_other_way`
+//! - past a full turn, the arc starts again from nothing, still in the same
+//!   direction — `past_a_full_turn_the_arc_starts_again_from_nothing_the_same_way_round`
+//! - an angle typed in the field is laid out in the direction the hand has
+//!   taken: gone down, typed `270`, three quarters clockwise; the value is
+//!   always positive — `an_angle_typed_after_the_hand_went_down_is_laid_out_clockwise`
+//! - nothing has moved yet: counter-clockwise, as today; the first movement
+//!   decides after that — `an_angle_typed_before_the_hand_moved_is_laid_out_counter_clockwise`
+//! - a clockwise arc is recorded as the sketch has always held arcs,
+//!   counter-clockwise from `start` to `end` with its ends swapped —
+//!   `a_hand_leaving_the_start_downwards_turns_the_arc_clockwise`
+//! - the line the typed angle is measured from still starts from the start leg —
+//!   `the_leg_an_angle_opens_from_points_where_an_angle_of_zero_would_land`
+//! - a clockwise arc gets its angle dimension and its two construction radii —
+//!   no test: held in `crates/app/src/screens/viewport/input/arcs/tests.rs`,
+//!   where the tool lays them
+//! - `ArcMode::ByEnds` and its tests, untouched — no test: the `ByEnds` tests
+//!   above are left as they were, and still pass
 
 use super::*;
 use crate::arcing::sweep_of;
@@ -247,5 +274,74 @@ fn leaving_the_field_empty_leaves_the_cursor_deciding_everything() {
     assert_eq!(
         aimed(ArcMode::ByCenter, &[DVec2::ZERO], cursor, None, 1.0),
         cursor
+    );
+}
+
+fn turned_along(places: &[DVec2], path: &[DVec2]) -> f64 {
+    path.iter()
+        .fold(0.0, |turned, &cursor| turned_round(places, turned, cursor))
+}
+
+#[test]
+fn a_hand_leaving_the_start_downwards_turns_the_arc_clockwise() {
+    let centre = DVec2::ZERO;
+    let start = DVec2::new(10.0, 0.0);
+    let places = [centre, start];
+    let down_to_the_south = [
+        DVec2::new(10.0, -1.0),
+        DVec2::new(9.0, -4.0),
+        DVec2::new(7.0, -7.0),
+        DVec2::new(4.0, -9.0),
+        DVec2::new(0.0, -10.0),
+    ];
+
+    let turned = turned_along(&places, &down_to_the_south);
+    let drawn = arc_turned(&places, turned, DVec2::new(0.0, -10.0))
+        .expect("a centre, a start and a hand gone a quarter round make an arc");
+
+    assert!(
+        (sweep_of(drawn) - std::f64::consts::FRAC_PI_2).abs() < TOLERANCE,
+        "the hand went a quarter round, and the arc runs {} degrees",
+        sweep_of(drawn).to_degrees(),
+    );
+    assert!(
+        drawn.start.distance(DVec2::new(0.0, -10.0)) < TOLERANCE
+            && drawn.end.distance(start) < TOLERANCE,
+        "a clockwise arc is held counter-clockwise with its ends swapped, \
+         from {:?} to {:?}",
+        drawn.start,
+        drawn.end,
+    );
+}
+
+#[test]
+fn a_hand_leaving_the_start_upwards_turns_the_arc_counter_clockwise() {
+    let centre = DVec2::ZERO;
+    let start = DVec2::new(10.0, 0.0);
+    let places = [centre, start];
+    let up_to_the_north = [
+        DVec2::new(10.0, 1.0),
+        DVec2::new(9.0, 4.0),
+        DVec2::new(7.0, 7.0),
+        DVec2::new(4.0, 9.0),
+        DVec2::new(0.0, 10.0),
+    ];
+
+    let turned = turned_along(&places, &up_to_the_north);
+    let drawn = arc_turned(&places, turned, DVec2::new(0.0, 10.0))
+        .expect("a centre, a start and a hand gone a quarter round make an arc");
+
+    assert!(
+        (sweep_of(drawn) - std::f64::consts::FRAC_PI_2).abs() < TOLERANCE,
+        "the hand went a quarter round, and the arc runs {} degrees",
+        sweep_of(drawn).to_degrees(),
+    );
+    assert!(
+        drawn.start.distance(start) < TOLERANCE
+            && drawn.end.distance(DVec2::new(0.0, 10.0)) < TOLERANCE,
+        "a counter-clockwise arc runs from the start it was given, \
+         from {:?} to {:?}",
+        drawn.start,
+        drawn.end,
     );
 }

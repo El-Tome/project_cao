@@ -64,6 +64,37 @@ pub fn arc_from(mode: ArcMode, places: &[DVec2], cursor: DVec2) -> Option<ArcDra
     }
 }
 
+/// How far round the centre the hand has turned since leaving the start, in
+/// radians, counter-clockwise positive — once the cursor has moved from where
+/// `turned` left it (start angle + turned) to `cursor`, the short way round.
+pub fn turned_round(places: &[DVec2], turned: f64, cursor: DVec2) -> f64 {
+    let (Some(&centre), Some(&start)) = (places.first(), places.get(1)) else {
+        return turned;
+    };
+    let reach = cursor - centre;
+    if reach.length() < 1e-9 || centre.distance(start) < 1e-9 {
+        return turned;
+    }
+    let left = (start - centre).to_angle() + turned;
+    let step = (reach.to_angle() - left + std::f64::consts::PI).rem_euclid(std::f64::consts::TAU)
+        - std::f64::consts::PI;
+    turned + step
+}
+
+/// The by-centre arc ending in the cursor's direction, laid the way `turned` says
+/// (negative: clockwise, recorded with its ends swapped; zero: counter-clockwise).
+pub fn arc_turned(places: &[DVec2], turned: f64, cursor: DVec2) -> Option<ArcDraft> {
+    let drawn = arc_from(ArcMode::ByCenter, places, cursor)?;
+    Some(match turned < 0.0 {
+        true => ArcDraft {
+            start: drawn.end,
+            end: drawn.start,
+            ..drawn
+        },
+        false => drawn,
+    })
+}
+
 /// The cursor, once a value typed into the live field has had its say: a
 /// radius or a distance while the second place is being picked, and while the
 /// third is, an angle in degrees for `ByCenter` or the curve's own radius for

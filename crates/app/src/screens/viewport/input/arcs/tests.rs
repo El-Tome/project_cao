@@ -5,6 +5,13 @@
 //!   way — the values typed and the two construction radii of a swept angle —
 //!   and one undo takes the whole of it back, one redo puts the whole of it
 //!   back — `an_arc_its_values_and_the_radii_of_its_sweep_are_one_step_undone_whole`
+//!
+//! Closes #483, for what the tool lays.
+//! - a clockwise arc gets its angle dimension, and its two construction radii,
+//!   just as a counter-clockwise one does —
+//!   `an_arc_swept_clockwise_with_a_typed_angle_keeps_that_angle_and_the_radii_of_its_sector`
+//! - gone down, typed `270`: the arc the tool records runs three quarters
+//!   clockwise — `an_arc_swept_clockwise_with_a_typed_angle_keeps_that_angle_and_the_radii_of_its_sector`
 
 use cao_part::{PartDocument, Variables};
 use cao_sketch::WorkPlane;

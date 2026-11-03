@@ -311,10 +311,11 @@ pub(crate) fn measure_preview(
 fn select_target(context: &mut SketchContext<'_>, index: usize, target: DimensionTarget) {
     // The same measurement clicked again is the one already there: showing its
     // value to be retyped is what the user is after, not a second copy of it
-    // laid over the first. A slanted trait is the exception — it has a width
-    // and a height to offer besides its length, and which one is wanted is only
-    // known once the cote is placed.
-    if !context.document.sketches()[index].is_slanted(target)
+    // laid over the first. A slanted trait and an angle are the exceptions — a
+    // width and a height besides the length, or another quarter, and which one
+    // is wanted is only known once the cote is placed.
+    if !target.is_angle()
+        && !context.document.sketches()[index].is_slanted(target)
         && context.document.sketches()[index]
             .dimension_of(target)
             .is_some()

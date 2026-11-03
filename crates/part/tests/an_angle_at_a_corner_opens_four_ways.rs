@@ -20,7 +20,10 @@
 //!   30°, a dimension put down just beside one of them inside the 150° quarter,
 //!   measures 150° — `an_x_at_thirty_degrees_measures_the_wide_quarter_right_beside_a_trait`
 //! - a corner carries one angle: the two traits clicked again open the one
-//!   already there — `the_same_corner_clicked_again_gives_the_angle_already_there`
+//!   already there — `the_same_corner_put_down_again_in_its_quarter_gives_the_angle_already_there`.
+//!   #567 changed the other-quarter half: put down in another quarter, a
+//!   read-only angle of that quarter is laid beside it —
+//!   `the_same_corner_put_down_in_another_quarter_lays_a_read_only_angle_there`
 //! - an X and two traits apart keep their four ways — no test: #406's and
 //!   #407's own, run under the line test this issue gives them, hold it —
 //!   `the_angle_laid_is_the_one_on_the_side_the_dimension_is_placed` in
@@ -252,15 +255,39 @@ fn assert_carries_both_prolongations(document: &PartDocument, was: DimensionTarg
 }
 
 #[test]
-fn the_same_corner_clicked_again_gives_the_angle_already_there() {
+fn the_same_corner_put_down_again_in_its_quarter_gives_the_angle_already_there() {
     let mut document = a_corner();
     let (first, _) = put_down(&mut document, CORNER + DVec2::new(40.0, 20.0));
 
-    let (again, value) = put_down(&mut document, CORNER + DVec2::new(-20.0, 30.0));
+    let (again, value) = put_down(&mut document, CORNER + DVec2::new(50.0, 10.0));
 
     assert_eq!(again, first);
     assert_eq!(angles_on(&document), vec![first]);
-    assert_reads(value, acute(), "clicked again between the two traits");
+    assert_reads(value, acute(), "put down again in the acute quarter");
+}
+
+#[test]
+fn the_same_corner_put_down_in_another_quarter_lays_a_read_only_angle_there() {
+    let mut document = a_corner();
+    let (first, _) = put_down(&mut document, CORNER + DVec2::new(40.0, 20.0));
+
+    let (other, value) = put_down(&mut document, CORNER + DVec2::new(-20.0, 30.0));
+
+    assert_ne!(
+        other, first,
+        "between the two traits is a quarter of its own"
+    );
+    assert_eq!(angles_on(&document), vec![first, other]);
+    let sketch = &document.sketches()[0];
+    assert!(
+        sketch.dimension_of(other).is_some_and(|laid| laid.driven),
+        "the angle laid beside the first only reads its quarter",
+    );
+    assert!(
+        sketch.dimension_of(first).is_some_and(|laid| !laid.driven),
+        "the first stays the one that drives",
+    );
+    assert_reads(value, obtuse(), "put down between the two traits");
 }
 
 /// Two traits, the first one clicked, then the second, then the place.

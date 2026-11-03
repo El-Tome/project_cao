@@ -9,6 +9,12 @@
 //! - the preview before the click shows the angle the click lays: at a corner,
 //!   the quarter under the cursor —
 //!   `an_angle_at_a_corner_is_previewed_in_the_quarter_under_the_cursor`
+//!
+//! Closes #567, with `input/measure/tests.rs`.
+//! - the preview before the click shows which of the two the click does: in
+//!   another quarter, the angle of that quarter, not yet on the drawing; in
+//!   the driving angle's own, that angle —
+//!   `the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay`
 
 use cao_part::{Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
@@ -303,4 +309,76 @@ fn an_angle_at_a_corner_is_previewed_in_the_quarter_under_the_cursor() {
             "under {cursor:?} the preview shows {reads}°, not {expected}°",
         );
     }
+}
+
+#[test]
+fn the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay() {
+    let crossing = DVec2::new(50.0, 0.0);
+    let degrees = |angle: f64| DVec2::from_angle(angle.to_radians());
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for (start, end) in [
+        (DVec2::ZERO, DVec2::new(100.0, 0.0)),
+        (
+            crossing - degrees(60.0) * 40.0,
+            crossing + degrees(60.0) * 40.0,
+        ),
+    ] {
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(start),
+            end: PointRef::New(end),
+            construction: false,
+        });
+    }
+    let (in_the_sixty, in_the_hundred_and_twenty) = (
+        crossing + degrees(30.0) * 20.0,
+        crossing + degrees(120.0) * 20.0,
+    );
+    let sketch = &document.sketches()[0];
+    let driving = sketch.oriented(
+        sketch.angle_between_traits(SegmentId(0), SegmentId(1)),
+        in_the_sixty,
+    );
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: driving,
+        value: 60.0.into(),
+        placement: None,
+    });
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    editor.tool = Tool::Dimension;
+    editor.tool_state = ToolState::Dimension {
+        placing: Some(driving),
+        picks: Default::default(),
+    };
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    let (shown, _) = pending_annotation(&context, 0, in_the_hundred_and_twenty, 1.0, 0.05)
+        .expect("an angle is shown");
+    let reads = context.document.measured(0, shown);
+    assert!(
+        shown != driving
+            && context.document.sketches()[0].dimension_of(shown).is_none()
+            && reads.is_some_and(|reads| (reads - 120.0).abs() < 1e-6),
+        "in the 120° quarter, the preview shows that quarter's angle, not yet on the \
+         drawing, got {shown:?} reading {reads:?}",
+    );
+
+    let (shown, _) =
+        pending_annotation(&context, 0, in_the_sixty, 1.0, 0.05).expect("an angle is shown");
+    assert_eq!(
+        shown, driving,
+        "in the 60° quarter, the preview shows the driving angle the click opens",
+    );
 }

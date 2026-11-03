@@ -7,7 +7,9 @@
 //!   `a_ring_round_a_post_of_its_inner_radius_keeps_every_rule`,
 //!   `a_ring_in_a_band_of_its_outer_radius_keeps_every_rule`,
 //!   `a_ball_a_half_band_touches_along_half_its_equator_keeps_every_rule`,
-//!   `a_block_cut_at_45_degrees_a_hair_from_its_top_edge_keeps_every_rule`
+//!   `a_block_cut_at_45_degrees_a_hair_from_its_top_edge_keeps_every_rule`,
+//!   and, for a family the draw made rather than the kernel,
+//!   `a_prism_a_few_roundings_thick_is_no_solid_the_campaign_asks_for`
 //! - every draw is measured on #585's tip and on this branch's tip, same
 //!   seeds, verdicts compared case by case, and no case that held is built
 //!   wrong or refused — no test: a campaign is run by hand
@@ -199,6 +201,43 @@ fn a_block_cut_at_45_degrees_a_hair_from_its_top_edge_keeps_every_rule() {
                 Plane::xy(210.0),
                 Outline::rectangle([-105.0, -120.0], [90.0, 135.0]),
                 105.0,
+            )),
+        ],
+    ));
+}
+
+/// Seed 5585804304: the crossed ellipses draw raises a disc by a height a
+/// subtraction left 1.8e-15 long, two faces closer than the draws ever ask
+/// for. The kernel declined it as no travel, rightly, and the campaign
+/// counted that as no answer.
+#[test]
+fn a_prism_a_few_roundings_thick_is_no_solid_the_campaign_asks_for() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(1.0),
+            Outline::chorded(
+                [9.0, 8.0],
+                [3.000000000000001, -5.196152422706632],
+                3.5,
+                &[[-37.97169415683865, 128.56238275964805]],
+            ),
+            -4.5,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(14.764680527307995),
+                Outline::ellipse_from(
+                    [-1.5, 16.48292804986533],
+                    [0.0, -3.0],
+                    1.909090909090909,
+                    133.98391367593828,
+                ),
+                5.764680527307995,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(8.999999999999998),
+                Outline::circle([-1.0, 6.017071950134673], 3.5),
+                -1.7763568394002505e-15,
             )),
         ],
     ));

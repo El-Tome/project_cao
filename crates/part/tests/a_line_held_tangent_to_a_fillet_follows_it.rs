@@ -83,6 +83,10 @@
 //! - compacting the part moves nothing, whichever was clicked first, though
 //!   the line was dragged along itself past the touch —
 //!   `a_compacted_part_whose_line_was_dragged_past_the_touch_moves_nothing`
+//! - the same compaction moved a line tangent to an arc too, and moves it no
+//!   more — no test: an arc is no fillet; held in
+//!   `a_compacted_tangency_moves_nothing.rs` by
+//!   `a_compacted_part_whose_line_was_dragged_past_an_arc_s_touch_moves_nothing`
 
 use cao_part::history::{ChamferAsked, CutAsked, CutChange, Operation, PointRef};
 use cao_part::{History, PartDocument, PartState, compact};

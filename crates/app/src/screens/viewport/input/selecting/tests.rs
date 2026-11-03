@@ -13,9 +13,9 @@
 //!   review) — `the_frame_a_box_starts_beside_a_corner_lights_nothing`,
 //!   `the_frame_a_box_starts_on_a_rule_s_mark_lights_nothing`
 //! - A fillet's or a chamfer's own points are not lit while a box is held
-//!   beside them (surfaced by review) — no test: held by
-//!   `a_fillet_s_point_a_box_is_held_beside_is_not_lit`, in
-//!   `screens/viewport/render/cuts/tests.rs`, where that light is decided
+//!   beside them (surfaced by review) — no test: held in
+//!   `screens/viewport/render/cuts/tests.rs`, where that light is decided,
+//!   under its own `Closes #663` block
 //! - On a rendered frame, the corner a box is held beside is drawn as at rest
 //!   — no test: the pixel renderer is not on main; checked on a headless
 //!   rendered frame before the merge, and the pull request says so

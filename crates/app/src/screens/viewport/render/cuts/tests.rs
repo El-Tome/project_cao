@@ -1,4 +1,11 @@
 //! What app · screens/viewport/render/cuts.rs is held to.
+//!
+//! Closes #663.
+//! - A fillet's or a chamfer's own points are not lit while a box is held
+//!   beside them (surfaced by review) —
+//!   `a_fillet_s_point_a_box_is_held_beside_is_not_lit`; pointing at one with
+//!   no button held still lights it —
+//!   `a_fillet_s_point_pointed_at_with_no_button_held_is_lit`
 
 use cao_part::history::PointRef;
 use cao_part::{Operation, PartDocument};

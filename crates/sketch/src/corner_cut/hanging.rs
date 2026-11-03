@@ -126,14 +126,18 @@ impl Sketch {
         }
     }
 
-    /// What a cut given another shape keeps: everything, but a fillet's
-    /// centre once it is a chamfer, which has none — the point stays where
-    /// it was. A point on the curve goes onto the new one.
+    /// What a cut given another shape keeps: everything, but what leans on a
+    /// fillet's circle once it is a chamfer, which has none — a point at its
+    /// centre, a line brushing it — each left where it was. A point on the
+    /// curve goes onto the new one.
     pub(crate) fn keep_what_the_shape_offers(&mut self, cut: CornerCutId) {
         for rule in self.rules_hung_on(&[cut]) {
-            if let Constraint::AtCutPoint { at, .. } = rule
-                && !self.cut_offers(cut, at)
-            {
+            let needs = match rule {
+                Constraint::AtCutPoint { at, .. } => at,
+                Constraint::CutTangent { .. } => CutPoint::Centre,
+                _ => continue,
+            };
+            if !self.cut_offers(cut, needs) {
                 self.erase_constraint(rule);
             }
         }

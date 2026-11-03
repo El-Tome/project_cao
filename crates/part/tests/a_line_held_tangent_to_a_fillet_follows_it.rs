@@ -28,10 +28,17 @@
 //!   `taking_a_fillet_off_lets_its_tangent_line_go_where_it_stands`,
 //!   `a_fillet_become_a_chamfer_lets_its_tangent_line_go_where_it_stands`
 //! - A cut nothing hangs on costs the solver nothing more than in #617 — no
-//!   test: what the solver is asked is read only inside the sketch crate; held
-//!   there, in `corner_cut/hanging/tests.rs`, by
-//!   `a_cut_nothing_hangs_on_asks_the_solver_for_nothing` (#620) and by
-//!   `a_fillet_nothing_hangs_on_asks_nothing_beside_one_a_line_is_tangent_to`
+//!   test: what the solver is asked is read only inside the sketch crate, so
+//!   the tests holding it live there, in `corner_cut/hanging/tests.rs`:
+//!   `a_cut_nothing_hangs_on_asks_the_solver_for_nothing` (#620), a lone
+//!   fillet, and
+//!   `a_fillet_nothing_hangs_on_asks_nothing_beside_one_a_line_is_tangent_to`,
+//!   a fillet beside one carrying a tangent line
+//!
+//! Carried over from the owner's answers on #620, which apply to a tangent as
+//! they are:
+//! - a fillet cut again, the rule follows the cut —
+//!   `a_corner_rounded_again_keeps_its_line_tangent`
 
 use cao_part::history::{ChamferAsked, CutAsked, CutChange, Operation, PointRef};
 use cao_part::{History, PartState};
@@ -172,9 +179,37 @@ fn the_drawing(history: &History) -> Sketch {
     PartState::rebuild(history).sketches[0].clone()
 }
 
+/// The one cut standing on the corner, whichever name a change gave it.
+fn the_cut(sketch: &Sketch) -> CornerCutId {
+    let mut standing = sketch.live_corner_cuts().map(|(cut, _)| cut);
+    let cut = standing.next().expect("a cut stands on the corner");
+    assert!(standing.next().is_none(), "one cut stands on the corner");
+    cut
+}
+
+fn rounded_to(history: &mut History, radius: f64) {
+    history.push(Operation::CutChange(CutChange::Reshape {
+        sketch: 0,
+        cut: CUT,
+        value: CutAsked::Fillet(radius.into()),
+    }));
+}
+
+/// Whether a rule still holds a line tangent to a cut.
+fn a_line_is_held_on_a_cut(sketch: &Sketch) -> bool {
+    sketch
+        .constraints()
+        .iter()
+        .any(|rule| matches!(rule, Constraint::CutTangent { .. }))
+}
+
 /// The fillet's arc as it is drawn: its centre and its radius.
 fn the_fillet(sketch: &Sketch) -> (DVec2, f64) {
-    match sketch.drawn_cut(CUT).expect("the fillet is drawn").curve {
+    match sketch
+        .drawn_cut(the_cut(sketch))
+        .expect("the fillet is drawn")
+        .curve
+    {
         CutCurve::Arc(arc) => (arc.centre, arc.centre.distance(arc.start)),
         CutCurve::Straight { .. } => panic!("the fillet is drawn straight"),
     }
@@ -208,7 +243,11 @@ fn the_touch(sketch: &Sketch) -> DVec2 {
 /// Whether a place lies within the sweep of the fillet's drawn arc, seen from
 /// its centre.
 fn within_the_drawn_arc(sketch: &Sketch, place: DVec2) -> bool {
-    let CutCurve::Arc(arc) = sketch.drawn_cut(CUT).expect("the fillet is drawn").curve else {
+    let CutCurve::Arc(arc) = sketch
+        .drawn_cut(the_cut(sketch))
+        .expect("the fillet is drawn")
+        .curve
+    else {
         panic!("the fillet is drawn straight");
     };
     sweep_of(ArcDraft { end: place, ..arc }) <= sweep_of(arc)
@@ -417,4 +456,105 @@ fn a_tangent_between_a_line_and_a_chamfer_lays_nothing() {
             "{order}: the same corner rounded takes no tangent either"
         );
     }
+}
+
+#[test]
+fn a_red_fillet_keeps_its_line_tangent() {
+    let mut history = a_line_held_tangent();
+
+    rounded_to(&mut history, 45.0);
+
+    let sketch = the_drawing(&history);
+    assert!(
+        !sketch.drawn_cut(CUT).expect("the fillet is drawn").fits,
+        "a fillet of 45 was to be too big for a side of 40, and drawn red"
+    );
+    let (_, radius) = the_fillet(&sketch);
+    assert!(
+        (radius - 45.0).abs() < SAME,
+        "the red fillet's value is {radius}"
+    );
+    assert_tangent(&sketch, "the fillet red");
+
+    rounded_to(&mut history, RADIUS);
+    let sketch = the_drawing(&history);
+    assert!(sketch.drawn_cut(CUT).expect("the fillet is drawn").fits);
+    assert_tangent(&sketch, "the fillet fitting again");
+}
+
+#[test]
+fn taking_a_fillet_off_lets_its_tangent_line_go_where_it_stands() {
+    let mut history = a_line_held_tangent();
+    let held = the_drawing(&history);
+
+    history.push(Operation::CutChange(CutChange::TakeOff {
+        sketch: 0,
+        cuts: vec![CUT],
+    }));
+
+    let sketch = the_drawing(&history);
+    assert_eq!(sketch.live_corner_cuts().count(), 0, "the fillet stays");
+    let line_moved = moved(the_line(&held), the_line(&sketch));
+    assert!(line_moved < SAME, "the line moved by {line_moved}");
+    assert!(
+        !a_line_is_held_on_a_cut(&sketch),
+        "the line is still held on the cut taken off: {:?}",
+        sketch.constraints(),
+    );
+}
+
+#[test]
+fn a_fillet_become_a_chamfer_lets_its_tangent_line_go_where_it_stands() {
+    let mut history = a_line_held_tangent();
+    let held = the_drawing(&history);
+
+    history.push(Operation::CutChange(CutChange::Reshape {
+        sketch: 0,
+        cut: CUT,
+        value: CutAsked::Chamfer(ChamferAsked::from(Chamfer::Equal(7.0))),
+    }));
+
+    let sketch = the_drawing(&history);
+    assert!(
+        matches!(
+            sketch.drawn_cut(CUT).expect("the cut is drawn").curve,
+            CutCurve::Straight { .. }
+        ),
+        "the fillet was to become a chamfer"
+    );
+    let line_moved = moved(the_line(&held), the_line(&sketch));
+    assert!(line_moved < SAME, "the line moved by {line_moved}");
+    assert!(
+        !a_line_is_held_on_a_cut(&sketch),
+        "the line is still held on the chamfer: {:?}",
+        sketch.constraints(),
+    );
+
+    rounded_to(&mut history, 8.0);
+    let sketch = the_drawing(&history);
+    let line_moved = moved(the_line(&held), the_line(&sketch));
+    assert!(
+        line_moved < SAME,
+        "rounded again, the line followed the fillet by {line_moved}"
+    );
+}
+
+#[test]
+fn a_corner_rounded_again_keeps_its_line_tangent() {
+    let mut history = a_line_held_tangent();
+
+    history.push(Operation::Fillet {
+        sketch: 0,
+        corners: the_corner(),
+        radius: 8.0.into(),
+        construction: false,
+    });
+
+    let sketch = the_drawing(&history);
+    let (_, radius) = the_fillet(&sketch);
+    assert!(
+        (radius - 8.0).abs() < SAME,
+        "the corner was to be rounded again to 8, it is {radius}"
+    );
+    assert_tangent(&sketch, "the corner rounded again");
 }

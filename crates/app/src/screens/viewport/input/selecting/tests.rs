@@ -8,6 +8,14 @@
 //!   `a_box_held_beside_a_side_s_middle_lights_nothing`; that pointing lights
 //!   things up again once the box is let go is held by
 //!   `the_corner_lights_up_again_once_the_box_is_let_go`
+//! - On the very frame a box appears, nothing is lit either, whether it was
+//!   started on empty space beside a corner or on a rule's mark (surfaced by
+//!   review) — `the_frame_a_box_starts_beside_a_corner_lights_nothing`,
+//!   `the_frame_a_box_starts_on_a_rule_s_mark_lights_nothing`
+//! - A fillet's or a chamfer's own points are not lit while a box is held
+//!   beside them (surfaced by review) — no test: held by
+//!   `a_fillet_s_point_a_box_is_held_beside_is_not_lit`, in
+//!   `screens/viewport/render/cuts/tests.rs`, where that light is decided
 //! - On a rendered frame, the corner a box is held beside is drawn as at rest
 //!   — no test: the pixel renderer is not on main; checked on a headless
 //!   rendered frame before the merge, and the pull request says so
@@ -233,6 +241,21 @@ impl Bench {
             "the press on empty space pulls a box"
         );
     }
+
+    /// Presses at `from` and moves a pixel at a time along `step`, stopping on
+    /// the first frame a box is there.
+    fn start_a_box(&mut self, from: egui::Pos2, step: egui::Vec2) {
+        self.frames(vec![vec![], moved(from), button(from, true)]);
+        let mut at = from;
+        for _ in 0..30 {
+            at += step;
+            self.frames(vec![moved(at)]);
+            if self.editor.band().is_some() {
+                return;
+            }
+        }
+        panic!("a press on empty space or on a rule's mark pulls a box");
+    }
 }
 
 /// Where a place on the drawing's plane lands on screen.
@@ -305,5 +328,55 @@ fn the_corner_lights_up_again_once_the_box_is_let_go() {
         bench.editor.hovered,
         Some(Selection::Element(Element::Point(bench.corner))),
         "and a click there would take the corner"
+    );
+}
+
+#[test]
+fn the_frame_a_box_starts_beside_a_corner_lights_nothing() {
+    let mut bench = Bench::with_a_rectangle();
+    let outwards = (bench.corner_on_screen - bench.centre_on_screen).normalized();
+    let out_of_reach = bench.corner_on_screen + outwards * 14.0;
+
+    bench.start_a_box(out_of_reach, -outwards);
+
+    assert_eq!(
+        bench.editor.hovered_point, None,
+        "the box will not take the corner it starts beside, so the corner is not lit"
+    );
+    assert_eq!(
+        bench.editor.hovered, None,
+        "nothing is lit as pointed at from the frame a box appears"
+    );
+}
+
+#[test]
+fn the_frame_a_box_starts_on_a_rule_s_mark_lights_nothing() {
+    let mut bench = Bench::with_a_rectangle();
+    bench.document.apply(Operation::Constrain {
+        sketch: 0,
+        constraint: cao_sketch::Constraint::Equal {
+            first: cao_sketch::SegmentId(0),
+            second: cao_sketch::SegmentId(2),
+        },
+    });
+    let view_projection = bench
+        .state
+        .camera
+        .view_projection(SCREEN.width() / SCREEN.height());
+    let (_, mark) = crate::screens::viewport::render::placed_marks(
+        &bench.document.sketches()[0],
+        view_projection,
+        SCREEN,
+    )[0];
+
+    bench.start_a_box(mark, egui::vec2(1.0, 0.0));
+
+    assert_eq!(
+        bench.editor.hovered, None,
+        "a rule not held, pressed on, pulls a box, and the box does not light its mark"
+    );
+    assert_eq!(
+        bench.editor.hovered_point, None,
+        "nothing is lit as pointed at from the frame a box appears"
     );
 }

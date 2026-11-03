@@ -73,7 +73,7 @@ pub(crate) use cut_changes::{
 };
 
 mod selecting;
-use selecting::{band_select, erase_what_is_held, pick, take};
+use selecting::{band_select, erase_what_is_held, lights_nothing, pick, take};
 mod marks;
 use marks::Marks;
 
@@ -229,11 +229,7 @@ pub(crate) fn handle_sketch_input(
         // Who grabs is settled at the start of the gesture and holds for the
         // whole of it: deciding again every frame would swap gestures mid-drag,
         // as soon as the cursor happened to pass over a point.
-        if response.drag_started() {
-            return drag_point(context, index, cursor, pressed, response, gesture);
-        }
-        let has_band = matches!(&context.editor.tool_state, ToolState::Select(select) if select.band.is_some());
-        if has_band {
+        if !response.drag_started() && context.editor.band().is_some() {
             return band_select(
                 context,
                 index,
@@ -244,8 +240,11 @@ pub(crate) fn handle_sketch_input(
                 scale.units_per_pixel,
             );
         }
-
-        return drag_point(context, index, cursor, pressed, response, gesture);
+        let changed = drag_point(context, index, cursor, pressed, response, gesture);
+        if context.editor.band().is_some() {
+            lights_nothing(context);
+        }
+        return changed;
     }
 
     if !response.clicked() {

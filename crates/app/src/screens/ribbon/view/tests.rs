@@ -139,17 +139,16 @@ fn a_side_toolbar_pulled_wider_is_that_wide_the_next_time_it_is_chosen() {
     assert_eq!(back, widened);
 }
 
-/// The height a top ribbon takes at a given window width, the way `a_frame`
-/// reads a side one's width: before and after `ribbon.show`, the gap is
-/// what the ribbon claimed.
-fn ribbon_height(ctx: &egui::Context, ribbon: &mut Ribbon, width: f32) -> f32 {
+/// Every piece of text a top ribbon draws at a given window width, with how
+/// many lines each was laid on. The first frame only measures the panel and
+/// draws nothing of what is in it.
+fn ribbon_texts(ctx: &egui::Context, ribbon: &mut Ribbon, width: f32) -> Vec<(String, usize)> {
     let mut settings = Settings::default();
     settings.toolbar.edge = Edge::Top;
     let document = PartDocument::new("part", Utc::now());
     let editor = SketchEditor::default();
     let mut extrusion = ExtrusionState::default();
     let lang = Catalogue::french();
-    let mut height = 0.0;
 
     let input = egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
@@ -158,20 +157,31 @@ fn ribbon_height(ctx: &egui::Context, ribbon: &mut Ribbon, width: f32) -> f32 {
         )),
         ..Default::default()
     };
-    let mut output = ctx.run_ui(input, |ui| {
-        let before = ui.available_rect_before_wrap().height();
-        let mut drawn = Drawn {
-            document: &document,
-            editor: &editor,
-            extrusion: &mut extrusion,
-            explorer_open: false,
-        };
-        ribbon.show(ui, &settings, &mut drawn, &lang);
-        height = before - ui.available_rect_before_wrap().height();
-    });
-    output.textures_delta.clear();
+    let mut frame = || {
+        let mut output = ctx.run_ui(input.clone(), |ui| {
+            let mut drawn = Drawn {
+                document: &document,
+                editor: &editor,
+                extrusion: &mut extrusion,
+                explorer_open: false,
+            };
+            ribbon.show(ui, &settings, &mut drawn, &lang);
+        });
+        output.textures_delta.clear();
+        output
+    };
+    frame();
 
-    height
+    frame()
+        .shapes
+        .into_iter()
+        .filter_map(|clipped| match clipped.shape {
+            egui::Shape::Text(text) => {
+                Some((text.galley.text().to_owned(), text.galley.rows.len()))
+            }
+            _ => None,
+        })
+        .collect()
 }
 
 #[test]
@@ -179,12 +189,15 @@ fn a_group_too_narrow_for_its_widest_button_wraps_instead_of_breaking_its_letter
     let ctx = egui::Context::default();
     let mut ribbon = Ribbon::new();
 
-    let height = ribbon_height(&ctx, &mut ribbon, 350.0);
+    let texts = ribbon_texts(&ctx, &mut ribbon, 350.0);
 
     assert!(
-        height < WINDOW.y / 2.0,
-        "a 350-wide window leaves the ribbon {height} points tall out of {}: a button's own \
-         label is breaking letter by letter instead of its row wrapping",
-        WINDOW.y,
+        texts.iter().any(|(text, _)| text.contains("Esquisse")),
+        "the ribbon is drawn: {texts:?}"
+    );
+    let broken: Vec<_> = texts.iter().filter(|(_, lines)| *lines > 1).collect();
+    assert!(
+        broken.is_empty(),
+        "a 350-wide window breaks these labels over several lines instead of wrapping their row: {broken:?}"
     );
 }

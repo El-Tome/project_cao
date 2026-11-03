@@ -45,9 +45,10 @@ fn the_fillet_picked_from_the_toolbar_rounds_the_corner_clicked_next() {
 #[test]
 #[should_panic(expected = "where a click reaches nothing")]
 fn clicking_a_button_past_the_edge_of_the_screen_says_so() {
-    let mut app = driver::open("clicking_a_button_past_the_edge");
+    let mut settings = cao_prefs::Settings::default();
+    settings.toolbar.edge = cao_prefs::Edge::Left;
+    let mut app = driver::open_with("clicking_a_button_past_the_edge", (1280.0, 600.0), settings);
     driver::create_a_part(&mut app, "Platine");
-    driver::start_a_sketch(&mut app);
 
-    driver::click(&mut app, "Congé");
+    driver::click(&mut app, "Annuler (Cmd+Z)");
 }

@@ -6,6 +6,7 @@ use crate::screens::extrusion::ExtrusionState;
 use crate::screens::extrusion_row::extrusion_row;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::chamfer_to_swap;
+use crate::ui::tool_button::tool_button;
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
 use super::state::{Context, Ribbon, active, enabled};
@@ -64,7 +65,7 @@ impl Ribbon {
                     .resizable(true)
                     .default_size(SIDE_WIDTH)
                     .show(ui, |ui| {
-                        asked = self.contents(ui, settings, drawn, lang);
+                        asked = self.scrolled_contents(ui, settings, drawn, lang);
                     });
             }
             Edge::Right => {
@@ -72,12 +73,26 @@ impl Ribbon {
                     .resizable(true)
                     .default_size(SIDE_WIDTH)
                     .show(ui, |ui| {
-                        asked = self.contents(ui, settings, drawn, lang);
+                        asked = self.scrolled_contents(ui, settings, drawn, lang);
                     });
             }
         }
 
         asked
+    }
+
+    /// A column taller than the window scrolls rather than running off its
+    /// bottom, where nothing could be reached.
+    fn scrolled_contents(
+        &mut self,
+        ui: &mut egui::Ui,
+        settings: &Settings,
+        drawn: &mut Drawn<'_>,
+        lang: &Catalogue,
+    ) -> Vec<Command> {
+        egui::ScrollArea::vertical()
+            .show(ui, |ui| self.contents(ui, settings, drawn, lang))
+            .inner
     }
 
     fn contents(
@@ -272,11 +287,7 @@ fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut 
         name.chars().take(2).collect()
     };
 
-    let response = ui
-        .add_enabled_ui(enabled(command, state), |ui| {
-            ui.selectable_label(active(command, state), label)
-        })
-        .inner
+    let response = tool_button(ui, enabled(command, state), active(command, state), label)
         .on_hover_text(wording::hint(state.lang, command));
     if response.clicked() {
         asked.push(command);

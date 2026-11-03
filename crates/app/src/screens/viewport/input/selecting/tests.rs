@@ -19,10 +19,26 @@
 //! - On a rendered frame, the corner a box is held beside is drawn as at rest
 //!   — no test: the pixel renderer is not on main; checked on a headless
 //!   rendered frame before the merge, and the pull request says so
+//!
+//! Closes #664.
+//! - A press 22 px from a side, driven whole in `crates/app/tests/`, starts a
+//!   box and grabs no side — no test: held by
+//!   `a_press_22_px_from_a_side_pulls_a_box_and_moves_no_side`, in
+//!   `crates/app/tests/selecting_under_the_hand.rs`
+//! - A click 22 px from a point, with the magnet's reach at its default,
+//!   selects nothing; a click 10 px from it selects it — no test: held by
+//!   `a_click_22_px_from_a_point_takes_nothing` and
+//!   `a_click_10_px_from_a_point_takes_it`, in
+//!   `crates/app/tests/selecting_under_the_hand.rs`
+//! - Pointing 22 px from a point with the selection tool lights nothing and
+//!   shows no magnet mark; dragging a point near another still shows the mark
+//!   and lands on it —
+//!   `pointing_22_px_from_a_point_lights_nothing_and_marks_no_magnet`,
+//!   `dragging_a_point_near_another_still_marks_the_magnet_and_lands_on_it`
 
 use cao_part::PartDocument;
 use cao_part::history::PointRef;
-use cao_sketch::{Element, PointId, WorkPlane};
+use cao_sketch::{Element, PointId, SegmentId, Snap, WorkPlane};
 use chrono::Utc;
 use glam::DVec2;
 
@@ -378,5 +394,132 @@ fn the_frame_a_box_starts_on_a_rule_s_mark_lights_nothing() {
     assert_eq!(
         bench.editor.hovered_point, None,
         "nothing is lit as pointed at from the frame a box appears"
+    );
+}
+
+/// Traits laid between places on screen, the drawing seen straight on so that
+/// a pixel covers the same length whichever way it is measured.
+struct FaceOn {
+    state: ViewportState,
+    document: PartDocument,
+    editor: SketchEditor,
+    extrusion: ExtrusionState,
+    lang: Catalogue,
+    egui: egui::Context,
+}
+
+impl FaceOn {
+    fn with_traits(traits: &[(egui::Pos2, egui::Pos2)]) -> Self {
+        let mut state = ViewportState::default();
+        state
+            .camera
+            .set_view_angles(0.0, std::f32::consts::FRAC_PI_2);
+        let mut document = PartDocument::new("part", Utc::now());
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        });
+        for (start, end) in traits {
+            document.apply(Operation::AddSegment {
+                sketch: 0,
+                start: PointRef::New(on_the_plane(&state, *start)),
+                end: PointRef::New(on_the_plane(&state, *end)),
+                construction: false,
+            });
+        }
+        Self {
+            state,
+            document,
+            editor: SketchEditor {
+                phase: SketchPhase::Editing(0),
+                tool: Tool::Select,
+                tool_state: ToolState::Select(Box::default()),
+                ..Default::default()
+            },
+            extrusion: ExtrusionState::default(),
+            lang: Catalogue::french(),
+            egui: egui::Context::default(),
+        }
+    }
+
+    fn point_at(&self, on_screen: egui::Pos2) -> PointId {
+        self.document.sketches()[0]
+            .nearest_point(on_the_plane(&self.state, on_screen), 1e-6)
+            .expect("a trait ends there")
+    }
+
+    fn frames(&mut self, frames: Vec<Vec<egui::Event>>) {
+        let mut context = SketchContext {
+            document: &mut self.document,
+            editor: &mut self.editor,
+            extrusion: &mut self.extrusion,
+            lang: &self.lang,
+        };
+        for events in frames {
+            frame(&self.egui, &mut self.state, &mut context, events);
+        }
+    }
+}
+
+#[test]
+fn pointing_22_px_from_a_point_lights_nothing_and_marks_no_magnet() {
+    let (start, end) = (egui::pos2(700.0, 250.0), egui::pos2(1000.0, 620.0));
+    let mut bench = FaceOn::with_traits(&[(start, end)]);
+    let the_end = bench.point_at(end);
+    let outwards = (end - start).normalized();
+
+    bench.frames(vec![vec![], moved(end + outwards * 10.0), vec![]]);
+    assert_eq!(
+        bench.editor.hovered_point,
+        Some(the_end),
+        "pointing 10 px past the trait's end lights the end"
+    );
+
+    bench.frames(vec![moved(end + outwards * 22.0), vec![]]);
+
+    assert_eq!(
+        bench.editor.hovered_point, None,
+        "22 px past the trait's end is out of reach of the end, so the end is not lit"
+    );
+    assert_eq!(
+        bench.editor.hovered, None,
+        "22 px past the trait's end, a click takes nothing, so nothing is lit"
+    );
+    assert_eq!(
+        bench.editor.snap, None,
+        "just pointing with the selection tool marks no magnet"
+    );
+}
+
+#[test]
+fn dragging_a_point_near_another_still_marks_the_magnet_and_lands_on_it() {
+    let (dragged, other) = (egui::pos2(860.0, 260.0), egui::pos2(900.0, 300.0));
+    let mut bench = FaceOn::with_traits(&[
+        (egui::pos2(720.0, 250.0), dragged),
+        (other, egui::pos2(1050.0, 330.0)),
+    ]);
+    let the_other = bench.document.sketches()[0].point(bench.point_at(other));
+    let near_the_other = other + egui::vec2(8.0, 6.0);
+
+    bench.frames(vec![
+        vec![],
+        moved(dragged),
+        button(dragged, true),
+        moved(dragged + egui::vec2(12.0, 12.0)),
+        moved(near_the_other),
+        vec![],
+    ]);
+    assert_eq!(
+        bench.editor.snap,
+        Some(Snap::Point),
+        "a point dragged 10 px from another is pulled onto it, and the magnet says so"
+    );
+
+    bench.frames(vec![button(near_the_other, false), vec![]]);
+
+    let (_, landed) = bench.document.sketches()[0].endpoints(SegmentId(0));
+    assert!(
+        landed.distance(the_other) < 1e-9,
+        "the dragged end lands on the other point: {landed:?}, expected {the_other:?}"
     );
 }

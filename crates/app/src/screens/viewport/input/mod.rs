@@ -73,7 +73,7 @@ pub(crate) use cut_changes::{
 };
 
 mod selecting;
-use selecting::{band_select, erase_what_is_held, lights_nothing, pick, take};
+use selecting::{aim_from, band_select, erase_what_is_held, lights_nothing, pick, take};
 mod marks;
 use marks::Marks;
 
@@ -139,10 +139,10 @@ pub(crate) fn handle_sketch_input(
     let snap = scale.world_size_of(PICK_PIXELS);
     let magnets = scale.snapping(&state.config);
     let (cursor, snapped_to) = context.document.sketches()[index].magnetise(raw_cursor, &magnets);
-    context.editor.snap = snapped_to;
+    let aim = aim_from(context, raw_cursor, cursor, snapped_to);
 
     context.editor.cursor = Some(cursor);
-    context.editor.hovered_point = context.document.sketches()[index].nearest_point(cursor, snap);
+    context.editor.hovered_point = context.document.sketches()[index].nearest_point(aim, snap);
     let marks = Marks::seen(state, rect, &context.document.sketches()[index]);
     // Previewing a click's target only where a click takes hold of existing
     // geometry — a drawing tool placing a fresh point keeps its plain cursor.
@@ -153,7 +153,7 @@ pub(crate) fn handle_sketch_input(
         .then(|| {
             marks
                 .under(pointer)
-                .or_else(|| pick(context, index, cursor, snap, scale.units_per_pixel))
+                .or_else(|| pick(context, index, aim, snap, scale.units_per_pixel))
         })
         .flatten();
 
@@ -175,11 +175,6 @@ pub(crate) fn handle_sketch_input(
                 plane.ray_intersection(origin.as_dvec3(), direction.as_dvec3())
             });
         let raw_pressed = press.unwrap_or(raw_cursor);
-        let pressed = press.map_or(cursor, |place| {
-            context.document.sketches()[index]
-                .magnetise(place, &magnets)
-                .0
-        });
 
         let adding = ui.input(|input| input.modifiers.command || input.modifiers.shift);
         let gesture = Gesture {
@@ -201,10 +196,10 @@ pub(crate) fn handle_sketch_input(
                 .document
                 .sketches()
                 .get(index)
-                .and_then(|sketch| super::render::cut_label_under(sketch, cursor, pixel))
+                .and_then(|sketch| super::render::cut_label_under(sketch, raw_cursor, pixel))
                 .map(Selection::Cut)
                 .or_else(|| marks.under(pointer))
-                .or_else(|| pick(context, index, cursor, snap, pixel));
+                .or_else(|| pick(context, index, raw_cursor, snap, pixel));
             take(context, picked, adding);
             // A dimension picked with the selection tool opens its value too:
             // reaching for the dimension tool again to change a number one is
@@ -240,7 +235,7 @@ pub(crate) fn handle_sketch_input(
                 scale.units_per_pixel,
             );
         }
-        let changed = drag_point(context, index, cursor, pressed, response, gesture);
+        let changed = drag_point(context, index, cursor, raw_pressed, response, gesture);
         if context.editor.band().is_some() {
             lights_nothing(context);
         }

@@ -99,20 +99,24 @@ fn a_pan_started_on_a_side_moves_nothing() {
 
 #[test]
 fn a_circle_pulled_out_is_still_drawn_to_its_new_size() {
-    let mut app = driver::open("a_circle_pulled_out");
+    let mut settings = cao_prefs::Settings::default();
+    settings.viewport.grid_snap = false;
+    let mut app = driver::open_with("a_circle_pulled_out", driver::SCREEN, settings);
     driver::create_a_part(&mut app, "Rondelle");
     driver::start_a_sketch(&mut app);
+    driver::open_the_history(&mut app);
+    let (centre, through) = (egui::pos2(850.0, 500.0), egui::pos2(950.0, 500.0));
     driver::click_exactly(&mut app, "Cercle (C)");
-    driver::click_at(&mut app, (850.0, 500.0));
-    driver::click_at(&mut app, (950.0, 500.0));
+    driver::click_at(&mut app, (centre.x, centre.y));
+    driver::click_at(&mut app, (through.x, through.y));
     driver::press(&mut app, egui::Key::Escape);
     driver::click(&mut app, "Sélection (S)");
-    driver::open_the_history(&mut app);
     let before = steps(&app).len();
 
-    // On the outline, away from the point it was drawn through: where the
-    // view shows it, read off the canvas rather than worked out.
-    let on_the_rim = egui::pos2(921.0, 571.0);
+    // The history is opened before the circle is drawn, and the grid pulls
+    // nothing: the circle stands where it was clicked, on a canvas that no
+    // longer moves, so its outline can be worked out from the two clicks.
+    let on_the_rim = centre + egui::vec2(1.0, 1.0).normalized() * centre.distance(through);
     driver::drag_and_drop(&mut app, on_the_rim, on_the_rim + egui::vec2(0.0, -40.0));
 
     let steps = steps(&app);

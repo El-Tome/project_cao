@@ -3,11 +3,11 @@
 
 use cao_part::Operation;
 use cao_part::history::CutChange;
-use cao_sketch::{Selection, ToolState};
+use cao_sketch::{Selection, Snap, ToolState};
 use glam::DVec2;
 
 use super::marks::Marks;
-use crate::screens::SketchContext;
+use crate::screens::{SketchContext, sketch::Tool};
 
 /// Pulls a box across the drawing and takes everything inside it.
 ///
@@ -69,6 +69,27 @@ pub(super) fn lights_nothing(context: &mut SketchContext<'_>) {
     context.editor.snap = None;
     context.editor.hovered = None;
     context.editor.hovered_point = None;
+}
+
+/// Where the tool in hand aims from, and the magnet it shows. The selection
+/// tool takes what is under the hand: its magnets pull only what it drags, and
+/// a mark shown while pointing would promise a grab the click does not make.
+pub(super) fn aim_from(
+    context: &mut SketchContext<'_>,
+    hand: DVec2,
+    cursor: DVec2,
+    magnet: Option<Snap>,
+) -> DVec2 {
+    let selecting = context.editor.tool == Tool::Select;
+    let dragging = context
+        .editor
+        .select_state()
+        .is_some_and(|held| !held.grabbed_nothing());
+    context.editor.snap = magnet.filter(|_| !selecting || dragging);
+    match selecting {
+        true => hand,
+        false => cursor,
+    }
 }
 
 /// Takes what a click landed on, alone or into the selection.

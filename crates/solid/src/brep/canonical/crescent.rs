@@ -34,10 +34,13 @@
 //! way (5361108529, 5361110937).
 //!
 //! Two elliptic walls a hair apart in their axes, their half-axes and the
-//! turn of their major ones are one surface too (#571, `oval.rs`).
+//! turn of their major ones are one surface too (#571, `oval.rs`), and so
+//! are a whole circular wall and a whole elliptic one about one axis a hair
+//! apart all round (#574, `other_kind.rs`).
 
 use glam::DVec3;
 
+mod other_kind;
 mod oval;
 
 use super::carried::carried_along;
@@ -59,7 +62,8 @@ pub(in crate::brep) fn closed(first: &Body, second: &Body, scale: Scale) -> Opti
             surface => offset(first, surface, scale),
         }
     });
-    oval::reshaped(first, moved.as_ref().unwrap_or(second), scale).or(moved)
+    let reshaped = oval::reshaped(first, moved.as_ref().unwrap_or(second), scale).or(moved);
+    other_kind::laid_across(first, reshaped.as_ref().unwrap_or(second), scale).or(reshaped)
 }
 
 /// The move square to the axes that lays `surface` about the axis of the

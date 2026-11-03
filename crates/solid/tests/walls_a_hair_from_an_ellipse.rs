@@ -12,7 +12,9 @@
 //!   `half_an_ellipse_a_hair_from_round_added_to_its_circle_keeps_every_rule`,
 //!   `an_ellipse_a_millionth_short_of_round_touching_its_circle_keeps_every_rule`,
 //!   `the_same_ellipse_turned_a_hair_past_decision_8_keeps_every_rule`,
-//!   `an_ellipse_joined_with_its_osculating_circle_at_a_vertex_keeps_every_rule`
+//!   `an_ellipse_joined_with_its_osculating_circle_at_a_vertex_keeps_every_rule`,
+//!   `a_circle_added_to_an_ellipse_a_hair_from_round_of_its_size_keeps_every_rule`,
+//!   `an_ellipse_a_hair_from_round_added_in_a_bore_of_its_size_keeps_every_rule`
 //! - what stays above the bar is written in `docs/exact-kernel-failures.md` —
 //!   no test: prose, the same section
 //!
@@ -137,5 +139,57 @@ fn an_ellipse_joined_with_its_osculating_circle_at_a_vertex_keeps_every_rule() {
             Outline::circle([5.000699965, 8.0], 3.499300035),
             2.0,
         ))],
+    ));
+}
+
+/// Seed 5585703794: an elliptic prism whose half-axes are 2.5 and
+/// 2.5000025, raised alone at a tolerance finer than the hair between
+/// them, joined with a circle of radius 2.5 about the same centre and
+/// reaching further. At the boolean's coarser tolerance the two walls stood
+/// within decision 8's hair of each other all round, and the pair was
+/// declined `Unsupported`.
+#[test]
+fn a_circle_added_to_an_ellipse_a_hair_from_round_of_its_size_keeps_every_rule() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-10.00000005),
+            Outline::ellipse([2.5, 47.5], [0.0, 2.5], 2.5000025),
+            90.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(-10.00000005),
+            Outline::circle([2.5, 47.5], 2.5),
+            180.0,
+        ))],
+    ));
+}
+
+/// Seed 5585717426: a block bored through by a circle, and an ellipse of
+/// its centre added back in the bore, 3e-6 narrower than the circle one
+/// way. As above, the other way round.
+#[test]
+fn an_ellipse_a_hair_from_round_added_in_a_bore_of_its_size_keeps_every_rule() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(60.0),
+            Outline::rectangle([-90.0, 15.0], [90.0, 165.0]),
+            120.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(-15.0),
+                Outline::circle([72.9358872521045, 94.30614136886825], 5.854876852788398),
+                -150.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(-15.00001),
+                Outline::ellipse(
+                    [72.9358872521045, 94.30614136886825],
+                    [-0.0, -5.854876852788398],
+                    5.854873852794253,
+                ),
+                -150.0,
+            )),
+        ],
     ));
 }

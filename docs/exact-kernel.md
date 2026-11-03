@@ -792,8 +792,13 @@ The decisions, in the order taken, once per operation:
    the first's wall: half an ellipse cut along its major axis, joined to
    the same ellipse a hair wider across, whose ends both walls share
    (seed 6 of the ellipses' draw). A wall carrying a corner off the
-   first's is left two, and declined. A circle and an ellipse are never
-   merged this way.
+   first's is left two, and declined. A whole circular wall and a whole
+   elliptic one about one axis, within `G` of each other all round — an
+   ellipse a hair from round raised at a finer tolerance than the
+   boolean's, against a circle of its size — are one surface too (#574,
+   `canonical/crescent/other_kind.rs`): the second's wall is put for the
+   first's where it carries no corner, and its rims cut again on it. One
+   carrying a corner is left two, and declined.
 
    A cone (#536) is decided against a cylinder or a cone about one axis
    only: a cone and a wall or a cone, one of each operand, whose axes are

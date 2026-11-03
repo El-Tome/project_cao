@@ -35,6 +35,22 @@ impl Repeats {
 /// pile nobody can tell apart.
 const NO_STEP: f64 = 1e-9;
 
+/// How many copies of a turn anyone types: 7° takes 360 to come back round,
+/// and 7.3° 3 600, which is a pattern nobody asks for.
+const A_TURN_OF_COPIES: usize = 360;
+
+/// How many copies a turn of `degrees` lays before the next would come back
+/// round onto the original, the original among them. Nothing for a turn that
+/// does not come back round within a turn of copies.
+pub fn largest_count_around(degrees: f64) -> Option<usize> {
+    let step = degrees.to_radians();
+    (step.abs() > NO_STEP).then_some(())?;
+    (1..=A_TURN_OF_COPIES).find(|copies| {
+        let turned = step * *copies as f64;
+        (turned - std::f64::consts::TAU * (turned / std::f64::consts::TAU).round()).abs() <= NO_STEP
+    })
+}
+
 impl Sketch {
     /// Repeats what is held around a point of the drawing, one step further
     /// round for each copy.
@@ -50,6 +66,7 @@ impl Sketch {
         count: usize,
     ) -> Option<Duplicated> {
         let at = *self.points().get(centre.0)?;
+        let count = largest_count_around(degrees).map_or(count, |largest| count.min(largest));
         if self.is_erased_point(centre) || count < 2 {
             return None;
         }

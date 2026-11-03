@@ -51,4 +51,10 @@ impl PartDocument {
     pub fn unstable_at(&self, step: u32) -> Option<Unstable> {
         self.state.unstable.get(&step).copied()
     }
+
+    /// How the circular pattern of that number falls short of its count, when
+    /// a full turn holds fewer copies than it asks for.
+    pub fn capped_at(&self, step: u32) -> Option<crate::copying::Capped> {
+        self.state.capped.get(&step).copied()
+    }
 }

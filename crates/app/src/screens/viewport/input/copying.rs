@@ -1,12 +1,13 @@
 use cao_part::history::RepeatsAsked;
-use cao_part::{Formula, Operation};
+use cao_part::{Formula, Operation, Variables};
 use cao_sketch::{
     ChosenAxis, Element, LockedInput, Repeats, Selection, Sketch, ToolState, axis_under,
+    largest_count_around,
 };
 use glam::DVec2;
 
 use crate::screens::SketchContext;
-use crate::screens::sketch::Tool;
+use crate::screens::sketch::{LiveInput, Tool};
 
 use super::pick;
 
@@ -258,6 +259,23 @@ fn filled(typed: [Option<f64>; 4]) -> Option<(Repeats, Repeats)> {
     let along = run(typed[0], typed[1])?;
     let across = run(typed[2], typed[3])?;
     (along.count * across.count >= 2).then_some((along, across))
+}
+
+/// Brings a circular pattern's count down to what a full turn of its step
+/// holds, the moment the two no longer agree, and answers that full turn for
+/// as long as the count stands brought down to it.
+pub(crate) fn count_brought_down(live: &mut LiveInput, variables: &Variables) -> Option<usize> {
+    let largest = live.typed(0).and_then(largest_count_around);
+    match (largest, live.typed(1).map(f64::round)) {
+        (Some(largest), Some(count)) if count > largest as f64 => {
+            live.field(1).text = largest.to_string();
+            live.take(1, variables, None);
+            live.brought_down = Some(largest);
+        }
+        (Some(largest), Some(count)) if count == largest as f64 => {}
+        _ => live.brought_down = None,
+    }
+    live.brought_down
 }
 
 /// The step and the count a pattern was given, once both have been typed.

@@ -351,3 +351,44 @@ fn the_centre_a_pattern_turns_about_is_not_repeated_onto_itself() {
         "no copy stands on the centre it turned about"
     );
 }
+
+#[test]
+fn a_turn_comes_back_round_onto_the_original_after_so_many_copies() {
+    for (degrees, largest) in [
+        (90.0, 4),
+        (180.0, 2),
+        (270.0, 4),
+        (72.0, 5),
+        (7.0, 360),
+        (-90.0, 4),
+    ] {
+        assert_eq!(
+            largest_count_around(degrees),
+            Some(largest),
+            "at {degrees}°"
+        );
+    }
+}
+
+#[test]
+fn a_turn_that_never_comes_back_round_within_a_turn_of_copies_keeps_no_cap() {
+    assert_eq!(largest_count_around(7.3), None);
+}
+
+#[test]
+fn a_pattern_asked_for_more_than_a_full_turn_lays_a_full_turn() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(10.0, 0.0));
+    let end = sketch.add_point(DVec2::new(20.0, 0.0));
+    let side = sketch.add_segment(start, end);
+
+    let laid = sketch
+        .pattern_around(&[Element::Segment(side)], Sketch::ORIGIN, 90.0, 6)
+        .expect("copies are laid");
+
+    assert_eq!(
+        laid.segments.len(),
+        3,
+        "three copies beside the original, and no fifth onto it"
+    );
+}

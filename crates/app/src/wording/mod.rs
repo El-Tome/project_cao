@@ -22,6 +22,7 @@ pub mod history;
 pub mod measure;
 pub mod outcome;
 pub mod part_file;
+pub mod pattern;
 pub mod plane;
 pub mod settings;
 pub mod shortcuts;

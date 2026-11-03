@@ -309,6 +309,8 @@
   "sketch.pattern_click_the_centre": "Tapez le pas et le nombre, puis cliquez le centre",
   "sketch.pattern_needs_a_centre": "Ce clic ne désigne aucun point du dessin",
   "sketch.pattern_needs_its_values": "Tapez le pas en degrés et le nombre de copies",
+  "sketch.pattern_count_capped": "{count} au plus : la {next}e retomberait sur l'original",
+  "history_tree.pattern_capped": "{laid} copies au plus à {degrees}° ; {asked} demandées",
   "command.hint.tool_rectangular_pattern": "Prendre des éléments, valider avec Entrée, taper les deux pas et les deux nombres, puis cliquer la direction",
   "sketch.pattern_click_the_direction": "Tapez les pas et les nombres, puis cliquez la direction",
   "sketch.pattern_needs_a_direction": "Ce clic ne désigne ni un trait ni un axe",

@@ -269,6 +269,7 @@ impl PartState {
         shape: impl Fn(f64) -> CutShape,
     ) -> Option<Outcome> {
         let scale = self.scale();
+        let before = self.before_the_cuts_move(sketch);
         let sides: Vec<Option<(SegmentId, SegmentId)>> = corners
             .iter()
             .map(|corner| self.sides_now(sketch, *corner))
@@ -292,6 +293,9 @@ impl PartState {
         }
         if refused > 0 {
             self.broke(Broken::Operation(self.replaying));
+        }
+        if let Some(refused) = self.settle_what_hangs_on_cuts(sketch, before) {
+            return Some(refused);
         }
         Some(Outcome::Cut {
             rules: 0,

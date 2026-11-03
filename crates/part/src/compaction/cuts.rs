@@ -1,6 +1,6 @@
 //! The fillets and chamfers of a sketch, laid again on the traits re-emitted.
 
-use cao_sketch::{Chamfer, Corner, CornerCutId, CutShape, Sketch};
+use cao_sketch::{Chamfer, Constraint, Corner, CornerCutId, CutShape, Sketch, Support};
 
 use super::record;
 use super::remap::SketchIdMap;
@@ -87,5 +87,44 @@ pub(super) fn add_cuts(
                 );
             }
         }
+    }
+}
+
+/// Whether a rule hangs a point on a cut: laid once the cuts are, since it
+/// names one.
+fn hung(rule: Constraint) -> bool {
+    Support::held_by(rule).is_some_and(|(_, on)| on.names_a_cut())
+}
+
+/// The rules of a drawing that name no cut, which can be laid before them.
+pub(super) fn laid_before_the_cuts(sketch: &Sketch) -> impl Iterator<Item = &Constraint> {
+    sketch.constraints().iter().filter(|rule| !hung(**rule))
+}
+
+/// Lays again every rule that hung a point on a cut, the cuts it names given
+/// the numbers they were laid again under. One naming a cut no longer
+/// standing, which was not laid again, holds nothing and is left out.
+pub(super) fn hang_again(
+    old_sketch: &Sketch,
+    sketch_index: usize,
+    map: &SketchIdMap,
+    new_history: &mut History,
+    new_state: &mut PartState,
+) {
+    let laid_again = |rule: &&Constraint| match Support::held_by(**rule) {
+        Some((point, Support::CutPoint(cut, _) | Support::Cut(cut))) => {
+            map.cuts.contains_key(&cut) && map.points.contains_key(&point)
+        }
+        _ => false,
+    };
+    for rule in old_sketch.constraints().iter().filter(laid_again) {
+        record(
+            Operation::Constrain {
+                sketch: sketch_index,
+                constraint: super::remap::remap_constraint(*rule, map),
+            },
+            new_history,
+            new_state,
+        );
     }
 }

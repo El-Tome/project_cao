@@ -39,7 +39,9 @@ impl Sketch {
             | Constraint::OnCircle { .. }
             | Constraint::OnArc { .. }
             | Constraint::OnEllipse { .. }
-            | Constraint::OnAxis { .. } => self.hold_holds_up(constraint),
+            | Constraint::OnAxis { .. }
+            | Constraint::AtCutPoint { .. }
+            | Constraint::OnCut { .. } => self.hold_holds_up(constraint),
             Constraint::Midpoint {
                 point: held,
                 segment: on,

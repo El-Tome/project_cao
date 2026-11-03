@@ -4,6 +4,7 @@ use glam::DVec2;
 
 use super::CornerCutId;
 use super::drawn::CutCurve;
+use crate::holding::Support;
 use crate::reading::Reading;
 use crate::sketch::{PointId, Sketch};
 use crate::snap::Snap;
@@ -72,12 +73,30 @@ impl Sketch {
 
     /// The point a press at `position` drags: the point under it, or the
     /// corner of the cut under it. Taking a fillet or a chamfer by its curve is
-    /// taking its corner, the one thing it moves with.
+    /// taking its corner, the one thing it moves with — and so is taking it by
+    /// one of its points, whether something hangs there or not.
     pub fn point_to_drag_at(&self, position: DVec2, tolerance: f64) -> Option<PointId> {
-        self.nearest_point(position, tolerance).or_else(|| {
-            let cut = self.nearest_cut(position, tolerance)?;
-            Some(self.corner_cuts()[cut.0].corner)
-        })
+        if let Some(point) = self.nearest_point(position, tolerance) {
+            return Some(self.corner_hung_from(point).unwrap_or(point));
+        }
+        let cut = self
+            .nearest_cut_point(position, tolerance)
+            .map(|(cut, _)| cut)
+            .or_else(|| self.nearest_cut(position, tolerance))?;
+        Some(self.corner_cuts()[cut.0].corner)
+    }
+
+    /// The corner of the cut a point hangs at, when it is one of a cut's
+    /// points.
+    fn corner_hung_from(&self, point: PointId) -> Option<PointId> {
+        self.holds_on(point)
+            .into_iter()
+            .find_map(|support| match support {
+                Support::CutPoint(cut, _) if self.cut_holds(cut) => {
+                    Some(self.corner_cuts()[cut.0].corner)
+                }
+                _ => None,
+            })
     }
 }
 
@@ -151,7 +170,7 @@ fn nearest_on(curve: CutCurve, position: DVec2) -> DVec2 {
 }
 
 /// How far a place sits from the curve a cut draws.
-fn distance_to(curve: CutCurve, position: DVec2) -> f64 {
+pub(super) fn distance_to(curve: CutCurve, position: DVec2) -> f64 {
     nearest_on(curve, position).distance(position)
 }
 

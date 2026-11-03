@@ -88,6 +88,8 @@ impl Constraint {
             } => from.of_a_point_and(point, Element::Ellipse(ellipse)),
             Self::EqualRadiusArcCircle { .. }
             | Self::OnAxis { .. }
+            | Self::AtCutPoint { .. }
+            | Self::OnCut { .. }
             | Self::Midpoint { .. }
             | Self::AxisCollinear { .. }
             | Self::AxisParallel { .. }
@@ -184,6 +186,8 @@ impl Constraint {
             | Self::Collinear { .. }
             | Self::EqualRadiusArcCircle { .. }
             | Self::OnAxis { .. }
+            | Self::AtCutPoint { .. }
+            | Self::OnCut { .. }
             | Self::Midpoint { .. }
             | Self::AxisCollinear { .. }
             | Self::AxisParallel { .. }

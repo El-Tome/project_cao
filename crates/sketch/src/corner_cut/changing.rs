@@ -14,6 +14,7 @@ impl Sketch {
         let group = self.cuts_grouped_with(cut);
         for id in &group {
             self.corner_cuts[id.0].shape = shape;
+            self.keep_what_the_shape_offers(*id);
         }
         !group.is_empty()
     }
@@ -37,11 +38,12 @@ impl Sketch {
     }
 
     /// Takes a cut off its corner, which is sharp again. The cuts laid with
-    /// it stay.
+    /// it stay, and so does what hung on it, where it is.
     pub fn take_cut_off(&mut self, cut: CornerCutId) -> bool {
         if !self.stands_live(cut) {
             return false;
         }
+        self.let_go_of_the_cut(cut);
         Erased::mark(&mut self.erased.cuts, cut.0);
         true
     }
@@ -58,6 +60,7 @@ impl Sketch {
         match laid.shape {
             CutShape::Chamfer(Chamfer::Sided { .. } | Chamfer::Angled { .. }) => {
                 laid.sides.reverse();
+                self.follow_the_sides_swapped(cut);
                 true
             }
             CutShape::Fillet { .. } | CutShape::Chamfer(Chamfer::Equal(_)) => false,

@@ -3,7 +3,7 @@
 //! on the drawing.
 
 use cao_part::{DimensionOutcome, Operation, Outcome};
-use cao_sketch::{DimensionMode, DimensionTarget, ToolState};
+use cao_sketch::{DimensionMode, DimensionTarget, Support, ToolState};
 use glam::DVec2;
 
 use crate::screens::SketchContext;
@@ -25,6 +25,7 @@ pub(super) fn measure(
     pixel: f64,
 ) -> bool {
     let mode = context.editor.dimension_mode;
+    hang_on_a_cut_point(context, index, cursor, snap);
 
     // A dimension already chosen is waiting to be put down. This click either
     // adds the second half of a pair — the segment that makes it an angle, the
@@ -129,6 +130,89 @@ pub(super) fn measure(
     false
 }
 
+/// The point of a cut a click of the tool would hang a point on to measure
+/// from: under the cursor, where the drawing has no point, for a mode that
+/// takes points, and while no dimension is waiting to be placed — that click
+/// says where it goes.
+fn cut_point_under(
+    context: &SketchContext<'_>,
+    index: usize,
+    cursor: DVec2,
+    snap: f64,
+) -> Option<(cao_sketch::CornerCutId, cao_sketch::CutPoint, DVec2)> {
+    let sketch = context.document.sketches().get(index)?;
+    let placing = matches!(
+        context.editor.tool_state,
+        ToolState::Dimension {
+            placing: Some(_),
+            ..
+        }
+    );
+    if placing
+        || !context.editor.dimension_mode.takes_points()
+        || sketch.nearest_point(cursor, snap * 0.8).is_some()
+    {
+        return None;
+    }
+    let (cut, at) = sketch.nearest_cut_point(cursor, snap * 0.8)?;
+    Some((cut, at, sketch.cut_point(cut, at)?))
+}
+
+/// Lays a point on the point of a cut under the cursor, held there, for the
+/// dimension to measure from: a fillet's centre, or where a cut meets a side.
+///
+/// It is a step of its own until the dimension is placed, which takes it in.
+/// A measure given up leaves it standing where it was laid, held to the cut,
+/// one undo away.
+fn hang_on_a_cut_point(context: &mut SketchContext<'_>, index: usize, cursor: DVec2, snap: f64) {
+    let Some((cut, at, place)) = cut_point_under(context, index, cursor, snap) else {
+        return;
+    };
+    context.document.apply(Operation::AddPoint {
+        sketch: index,
+        position: place,
+        on: vec![Support::CutPoint(cut, at)],
+    });
+}
+
+/// Takes into the step of the dimension just placed the points the tool hung
+/// on a cut for it: the steps right before it that laid a point it measures
+/// from, so one undo takes the whole of it back.
+fn take_in_the_points_it_hung(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    target: DimensionTarget,
+) {
+    let named: Vec<cao_sketch::PointId> = match target {
+        DimensionTarget::Distance { from, to } | DimensionTarget::Projected { from, to, .. } => {
+            vec![from, to]
+        }
+        DimensionTarget::PointToSegment { point, .. } => vec![point],
+        _ => return,
+    };
+    let laid = context.document.sketches()[index].points().len();
+    let operations = context.document.history.applied_operations();
+    let Some(placed) = operations.len().checked_sub(1) else {
+        return;
+    };
+    let hung = (1..=named.len())
+        .take_while(|back| {
+            let hangs = matches!(
+                operations.get(placed.wrapping_sub(*back)),
+                Some(Operation::AddPoint { on, .. })
+                    if matches!(on.as_slice(), [Support::CutPoint(..)])
+            );
+            hangs && named.contains(&cao_sketch::PointId(laid - back))
+        })
+        .count();
+    if hung > 0 {
+        context
+            .document
+            .history
+            .fold_into_one_gesture(placed - hung);
+    }
+}
+
 /// Puts down the dimension that was waiting, where the click landed.
 ///
 /// The value it starts with is what the geometry already measures, so placing
@@ -177,6 +261,7 @@ pub(super) fn place_dimension(
                 .unwrap_or_default(),
         ),
     });
+    take_in_the_points_it_hung(context, index, target);
 
     context.editor.select(Some(target), Some(value));
     if let (Some(editing), Some(Outcome::Dimension(DimensionOutcome::ScaleDefined { .. }))) =
@@ -201,6 +286,12 @@ pub(crate) fn measure_preview(
 ) -> Option<DimensionTarget> {
     let mode = context.editor.dimension_mode;
     let sketch = context.document.sketches().get(index)?;
+    // A cut's point is no point of the drawing yet: the click hangs one there
+    // and measures from it, which nothing read off the drawing as it stands
+    // can show beforehand.
+    if cut_point_under(context, index, cursor, snap).is_some() {
+        return None;
+    }
     let picks = match &context.editor.tool_state {
         ToolState::Dimension { picks, .. } => *picks,
         _ => cao_sketch::DimensionPicks::default(),

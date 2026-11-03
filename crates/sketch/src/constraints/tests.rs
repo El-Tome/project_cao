@@ -47,6 +47,12 @@ fn one_of_every_kind() -> (Sketch, Vec<Constraint>) {
 
     let loose = sketch.add_point(DVec2::new(20.0, 20.0));
 
+    let below = sketch.add_point(DVec2::new(0.0, -20.0));
+    let leg = sketch.add_segment(west, below);
+    let cut = sketch
+        .cut_corner(side, leg, crate::CutShape::Fillet { radius: 4.0 }, false, 0)
+        .expect("the side and the leg meet at the west end");
+
     let rules = vec![
         Constraint::Perpendicular {
             first: side,
@@ -118,6 +124,12 @@ fn one_of_every_kind() -> (Sketch, Vec<Constraint>) {
             point: loose,
             axis: SketchAxis::U,
         },
+        Constraint::AtCutPoint {
+            point: loose,
+            cut,
+            at: crate::CutPoint::Centre,
+        },
+        Constraint::OnCut { point: loose, cut },
         Constraint::Midpoint {
             point: loose,
             segment: side,
@@ -169,6 +181,8 @@ fn name_of(rule: &Constraint) -> &'static str {
         Constraint::OnArc { .. } => "on an arc",
         Constraint::OnEllipse { .. } => "on an ellipse",
         Constraint::OnAxis { .. } => "on an axis",
+        Constraint::AtCutPoint { .. } => "at a point of a cut",
+        Constraint::OnCut { .. } => "on the curve of a cut",
         Constraint::Midpoint { .. } => "midpoint",
         Constraint::AxisCollinear { .. } => "on an axis, trait",
         Constraint::AxisParallel { .. } => "along an axis, trait",

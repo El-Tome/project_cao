@@ -177,6 +177,10 @@ impl Sketch {
                 at: Some(at),
                 ..
             } => same(at, self.ellipses[ellipse.0].center),
+            Constraint::AtCutPoint { point, cut, .. } | Constraint::OnCut { point, cut } => self
+                .cut_stands_on(cut)
+                .into_iter()
+                .any(|stand| same(point, stand)),
             _ => false,
         });
         !onto_its_centre && !impossible_rule
@@ -275,6 +279,9 @@ impl Sketch {
         for ellipse in &mut self.ellipses {
             ellipse.center = one(ellipse.center);
             ellipse.drawn = ellipse.drawn.map(|(from, to)| (one(from), one(to)));
+        }
+        for cut in &mut self.corner_cuts {
+            cut.corner = one(cut.corner);
         }
         for rule in std::mem::take(&mut self.constraints) {
             let rule = handed_over(rule, one);

@@ -70,6 +70,10 @@ in one of the two domains, never there.
 | What a cut draws, worked out from its corner every time it is read: where it meets each side, whether it fits, what is left to draw of a side, and the largest share of a value that fits | `sketch/src/corner_cut/drawn.rs` | `DrawnCut`, `CutCurve`, `PulledEnds`, `Sketch::drawn_cuts`, `Sketch::pulled_ends`, `Sketch::visible_part`, `Sketch::visible_ends`, `Sketch::fitting_share` |
 | Taking a cut by its curve, dragging it by its corner, the places it offers to snap to, and what « Mesurer » reads of it | `sketch/src/corner_cut/picking.rs` | `Sketch::nearest_cut`, `Sketch::point_to_drag_at`, `nearest_cut_place`, `places_on_cuts`, `Sketch::cut_before_traits`, `Sketch::read_cut`, `Sketch::cut_run`, `Sketch::cut_middle` |
 | A cut changed in place: a group's new shape, a cut taken off, a chamfer's sides swapped, one cut switched to construction | `sketch/src/corner_cut/changing.rs` | `Sketch::reshape_cuts`, `Sketch::take_cut_off`, `Sketch::swap_cut_sides`, `Sketch::set_cut_construction`, `Sketch::write_cuts_as`, `Sketch::cut_written` |
+| The points a cut offers to hang something on — a fillet's centre, where a cut meets each side — where they stand, the nearest to a cursor, and each worked out again with how it moves with the corner and the far ends of the sides | `sketch/src/corner_cut/points.rs` | `CutPoint`, `Sketch::cut_point`, `Sketch::cut_points`, `Sketch::nearest_cut_point`, `cut_places` → `CutPlaces` |
+| What hangs on a cut through what the cut goes through: taken off, given another shape, its sides swapped, cut again, its side trimmed or divided; and what a point laid on a cut lands on | `sketch/src/corner_cut/hanging.rs` | `cut_supports_at`, `onto_cut`, `let_go_of_the_cut`, `keep_what_the_shape_offers`, `hand_hung_over`, `rules_hung_on`, `hang_again` |
+| The rows a point hung on a cut's point, or held on its curve, asks of the solver | `sketch/src/solver/hold_solver/on_a_cut.rs` | `cut_hold_equations` |
+| A number carrying its derivative along each coordinate it was worked out from, for a place the solver reads with its gradient | `sketch/src/jet.rs` | `Jet`, `JetPlace` |
 | The straight traits and the cuts as the face graph reads them: each trait from where its cuts leave it, the curve of every cut that fits and is not construction, named `CurveId::Corner` | `sketch/src/edges/drawn.rs` | `traits_and_cuts`, `Sketch::name_the_sides_cuts_took` |
 | Laying a second copy of part of the drawing down, under any transform | `sketch/src/duplicating.rs` | `Sketch::duplicate` → `Duplicated` |
 | Running a change against a copy of the drawing, to show it before it is made | `sketch/src/preview.rs` | `Sketch::preview` → `Preview`, `Laid` |
@@ -103,7 +107,7 @@ in one of the two domains, never there.
 | A side or a curve pulled: across or along, what a press takes hold of | `sketch/src/pulling.rs` | `Sketch::pulled_at`, `side_drag`, `curve_drag`, `SideDrag`, `CurveDrag` |
 | A side moved across, the shape stretching after it | `sketch/src/pulling/travel.rs` | `Sketch::move_side` |
 | A shape turned by hand, and the grid pulling its end | `sketch/src/turning.rs` | `Turn`, `Sketch::turn_shape`, `angle_onto_grid` |
-| Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
+| Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget` |
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |
 | Where a rule's mark is written, and the nearest one to a cursor | `sketch/src/rule_marks.rs` | `Sketch::rule_marks`, `Sketch::nearest_rule` |
 | The solver | `sketch/src/solver.rs` | `solve(millimeters_per_unit)` → `SolveOutcome` |
@@ -112,7 +116,7 @@ in one of the two domains, never there.
 | One equation of the system, linearised around the drawing's current shape | `sketch/src/equation.rs` | `Equation` |
 | The blocks that keep their shape while the rest of the drawing settles | `sketch/src/rigid.rs` | `Block`, `rigidify`, `ownership` |
 | What a set of equations holds, and what it leaves free | `sketch/src/independence.rs` | `rank`, `null_space`, `is_dependent` |
-| How much of a drawing is already decided | `sketch/src/settled.rs` | `freedom`, `is_fully_constrained`, `settled_points` |
+| How much of a drawing is already decided | `sketch/src/settled.rs` | `Freedom`, `freedom`, `is_fully_constrained`, `settled_points` |
 | A circle, an arc or an ellipse drawn to another size about its centre | `sketch/src/resizing.rs` | `Curved`, `Sketch::curve_at`, `reach_through`, `resize`, `resize_in_place`, `resize_circle`, `resize_arc`, `resize_ellipse` |
 | The five circle constructions, and the ways of drawing one | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three`, `CircleMode` |
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection`, `kind`, `near_side` |

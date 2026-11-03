@@ -123,9 +123,16 @@ pub(super) fn drag_point(
         // A point held where two things cross reads as settled, and the key
         // that pulls it off is the one way to move it: without this it could
         // only ever be freed by deleting the marks that hold it.
+        //
+        // A press on a point hung on a cut takes the cut's corner, except
+        // with that key: it is how the point is unhung.
         let settled = sketch.settled_points(context.document.scale());
-        let dragged_point = sketch
-            .point_to_drag_at(pressed, snap)
+        let pressed_on = match gesture.letting_go {
+            true => sketch.nearest_point(pressed, snap),
+            false => None,
+        };
+        let dragged_point = pressed_on
+            .or_else(|| sketch.point_to_drag_at(pressed, snap))
             .filter(|point| !sketch.is_origin(*point))
             .filter(|point| {
                 let holds = sketch.holds_on(*point);

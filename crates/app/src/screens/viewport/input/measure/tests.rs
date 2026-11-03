@@ -570,3 +570,108 @@ fn a_hand_wavering_on_the_line_keeps_the_quarter_it_shows() {
         "a hair under the line, the narrow quarter shown above it stays: {opening}°",
     );
 }
+
+/// A corner at (10, 10) rounded to 5: one side right to (60, 10), one up to
+/// (10, 50). The fillet meets the first at (15, 10).
+fn a_rounded_corner() -> PartDocument {
+    let mut document = a_trait_and_no_scale();
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(cao_sketch::PointId(1)),
+        end: PointRef::New(DVec2::new(10.0, 50.0)),
+        construction: false,
+    });
+    document.apply(Operation::Fillet {
+        sketch: 0,
+        corners: vec![cao_sketch::Corner::Between(SegmentId(0), SegmentId(1))],
+        radius: 5.0.into(),
+        construction: false,
+    });
+    document
+}
+
+#[test]
+fn a_dimension_from_a_cut_s_point_is_one_step_with_the_point_it_hangs() {
+    for mode in [DimensionMode::Auto, DimensionMode::PointToPoint] {
+        let mut document = a_rounded_corner();
+        let steps = document.history.applied_operations().len();
+        let points = document.sketches()[0].points().len();
+        let mut editor = SketchEditor {
+            dimension_mode: mode,
+            ..SketchEditor::default()
+        };
+        let mut extrusion = ExtrusionState::default();
+        let lang = Catalogue::french();
+        let mut context = SketchContext {
+            document: &mut document,
+            editor: &mut editor,
+            extrusion: &mut extrusion,
+            lang: &lang,
+        };
+
+        measure(&mut context, 0, DVec2::new(15.0, 10.0), 1.0, 0.05);
+        measure(&mut context, 0, DVec2::new(34.0, 10.0), 1.0, 0.05);
+        measure(&mut context, 0, DVec2::new(25.0, 0.0), 1.0, 0.05);
+
+        let hung = cao_sketch::PointId(points);
+        let sketch = &document.sketches()[0];
+        assert_eq!(
+            sketch.holds_on(hung),
+            vec![cao_sketch::Support::CutPoint(
+                cao_sketch::CornerCutId(0),
+                cao_sketch::CutPoint::First
+            )],
+            "{mode:?}",
+        );
+        let visible = DimensionTarget::Distance {
+            from: hung,
+            to: cao_sketch::PointId(2),
+        };
+        let laid = sketch
+            .dimension_of(visible)
+            .expect("the visible part is dimensioned");
+        assert!(
+            (laid.value - 19.0).abs() < 1e-6,
+            "{mode:?} reads {}",
+            laid.value
+        );
+        assert_eq!(
+            document.history.applied_operations().len(),
+            steps + 1,
+            "{mode:?}: one step"
+        );
+
+        assert!(document.undo());
+        assert_eq!(
+            document.sketches()[0].points().len(),
+            points,
+            "{mode:?}: one undo takes both"
+        );
+    }
+}
+
+#[test]
+fn a_dimension_placed_on_a_cut_s_point_hangs_nothing_there() {
+    let mut document = a_rounded_corner();
+    let points = document.sketches()[0].points().len();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    measure(&mut context, 0, DVec2::new(10.0, 40.0), 1.0, 0.05);
+    measure(&mut context, 0, DVec2::new(10.0, 15.0), 1.0, 0.05);
+
+    assert_eq!(document.sketches()[0].points().len(), points);
+    assert!(
+        document.sketches()[0]
+            .dimension_of(DimensionTarget::Length(SegmentId(1)))
+            .is_some(),
+        "the click placed the length of the side it was waiting with",
+    );
+}

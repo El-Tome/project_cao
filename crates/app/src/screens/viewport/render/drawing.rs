@@ -235,6 +235,7 @@ pub(crate) fn push_sketch(
         return;
     }
 
+    canvas.push_points(out, &settled, (theme, scale), context);
     push_point_markers(out, sketch, theme, scale, &settled, laid, context);
     emphasis::push_picked_axes(out, sketch, theme, context.editor.rule_picks());
 

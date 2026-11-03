@@ -106,7 +106,11 @@ impl Sketch {
                 .collect(),
             Constraint::OnCircle { point: held, .. }
             | Constraint::OnArc { point: held, .. }
-            | Constraint::OnEllipse { point: held, .. } => point(held).into_iter().collect(),
+            | Constraint::OnEllipse { point: held, .. }
+            | Constraint::OnCut { point: held, .. } => point(held).into_iter().collect(),
+            // The point is the cut's own: it shows as one of them, and a mark
+            // beside it would say it was held to something else.
+            Constraint::AtCutPoint { .. } => Vec::new(),
             Constraint::Fixed { element } => match element {
                 Element::Point(held) => point(held).into_iter().collect(),
                 Element::Segment(held) => middle(held).into_iter().collect(),

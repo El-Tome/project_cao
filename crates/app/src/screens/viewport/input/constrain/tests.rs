@@ -31,3 +31,32 @@ fn parallel_and_perpendicular_can_be_pointed_at_an_axis() {
         "an axis has no length to be equal to"
     );
 }
+
+#[test]
+fn a_coincidence_points_at_a_cut_s_point_and_another_rule_at_the_side_under_it() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corner = sketch.add_point(DVec2::new(10.0, 10.0));
+    let right = sketch.add_point(DVec2::new(60.0, 10.0));
+    let up = sketch.add_point(DVec2::new(10.0, 50.0));
+    let side = sketch.add_segment(corner, right);
+    let other = sketch.add_segment(corner, up);
+    let cut = sketch
+        .cut_corner(
+            side,
+            other,
+            cao_sketch::CutShape::Fillet { radius: 5.0 },
+            false,
+            0,
+        )
+        .expect("the two traits meet");
+
+    let tangent_point = DVec2::new(15.0, 10.0);
+    assert_eq!(
+        nearest_rule_pick(&sketch, tangent_point, SNAP, Rule::Coincident),
+        Some(RulePick::CutPoint(cut, cao_sketch::CutPoint::First)),
+    );
+    assert_eq!(
+        nearest_rule_pick(&sketch, tangent_point, SNAP, Rule::Parallel),
+        Some(RulePick::Element(Element::Segment(side))),
+    );
+}

@@ -28,7 +28,7 @@ use crate::sketch::{PointId, SegmentId, Sketch};
 
 /// Under this a cut takes nothing off a side, or the corner stands too open
 /// or too closed for a cut to have a place.
-const NOTHING: f64 = 1e-12;
+pub(super) const NOTHING: f64 = 1e-12;
 
 /// The curve a cut draws.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -266,7 +266,7 @@ impl Sketch {
     }
 
     /// The end of a side away from the corner.
-    fn far_end(&self, side: SegmentId, corner: PointId) -> PointId {
+    pub(super) fn far_end(&self, side: SegmentId, corner: PointId) -> PointId {
         let segment = self.segments()[side.0];
         match segment.start == corner {
             true => segment.end,

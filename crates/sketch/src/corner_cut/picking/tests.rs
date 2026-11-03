@@ -61,6 +61,39 @@ fn a_press_on_the_curve_of_a_fillet_drags_its_corner() {
 }
 
 #[test]
+fn a_press_on_a_point_of_a_fillet_drags_its_corner() {
+    let (sketch, corner, _) = a_rounded_right_angle();
+
+    for place in [
+        DVec2::new(20.0, 20.0),
+        DVec2::new(20.0, 10.0),
+        DVec2::new(10.0, 20.0),
+    ] {
+        assert_eq!(
+            sketch.point_to_drag_at(place, 0.5),
+            Some(corner),
+            "at {place}"
+        );
+    }
+}
+
+#[test]
+fn a_press_on_a_point_hung_on_a_fillet_drags_its_corner_too() {
+    let (mut sketch, corner, _) = a_rounded_right_angle();
+    let hung = sketch.add_point(DVec2::new(20.0, 20.0));
+    sketch.add_constraint(crate::Constraint::AtCutPoint {
+        point: hung,
+        cut: CornerCutId(0),
+        at: crate::CutPoint::Centre,
+    });
+
+    assert_eq!(
+        sketch.point_to_drag_at(DVec2::new(20.0, 20.0), 0.5),
+        Some(corner)
+    );
+}
+
+#[test]
 fn a_fillet_taken_carries_its_corner() {
     let (sketch, corner, _) = a_rounded_right_angle();
 

@@ -4,14 +4,15 @@
 
 use cao_prefs::theme::Theme;
 use cao_sketch::{
-    Chamfer, CornerCutId, CutCurve, CutShape, DrawnCut, PointId, PulledEnds, SegmentId, Selection,
-    Sketch,
+    Chamfer, Constraint, CornerCutId, CutCurve, CutPoint, CutShape, DrawnCut, PointId, PulledEnds,
+    SegmentId, Selection, Sketch,
 };
 use glam::{DVec2, DVec3};
 
 use super::super::ViewportState;
 use super::curves::{push_arc_at, push_line};
 use super::drawing::sketch_colors;
+use super::marks::push_point_marker;
 use super::overlays::{tint_to_color, to_screen};
 use super::{emphasis, tint, tint_at};
 use crate::screens::SketchContext;
@@ -162,6 +163,69 @@ impl<'a> CutCanvas<'a> {
                     cut.construction,
                     scale,
                 ),
+            }
+        }
+    }
+}
+
+impl CutCanvas<'_> {
+    /// The points every cut offers — a fillet's centre, and where a cut meets
+    /// each side — drawn as the drawing's own points are, in the colour of
+    /// their cut. One something already hangs on is a point of the drawing,
+    /// and is drawn with them.
+    pub(super) fn push_points(
+        &self,
+        out: &mut Vec<cao_render::Vertex>,
+        settled: &[bool],
+        (theme, scale): (&Theme, ViewScale),
+        context: &SketchContext<'_>,
+    ) {
+        let half = scale.world_size_of(4.0);
+        let hung: Vec<(CornerCutId, CutPoint)> = self
+            .sketch
+            .constraints()
+            .iter()
+            .filter_map(|rule| match *rule {
+                Constraint::AtCutPoint { cut, at, .. } => Some((cut, at)),
+                _ => None,
+            })
+            .collect();
+        let reach = scale.world_size_of(crate::screens::viewport::PICK_PIXELS);
+        let hovered = context
+            .editor
+            .cursor
+            .filter(|_| context.editor.hovered_point.is_none())
+            .and_then(|cursor| {
+                self.drawn
+                    .iter()
+                    .flat_map(|drawn| drawn.points().map(|(at, place)| (drawn.id, at, place)))
+                    .map(|(cut, at, place)| (cut, at, place.distance(cursor)))
+                    .filter(|(_, _, distance)| *distance <= reach)
+                    .min_by(|(_, _, one), (_, _, other)| one.total_cmp(other))
+                    .map(|(cut, at, _)| (cut, at))
+            });
+        for drawn in &self.drawn {
+            let held = settled.get(drawn.corner_point.0).copied().unwrap_or(false);
+            let (color, _) = sketch_colors(theme, true, held);
+            let color = match drawn.fits {
+                true => color,
+                false => tint(theme.refused),
+            };
+            for (at, place) in drawn.points() {
+                if hung.contains(&(drawn.id, at)) {
+                    continue;
+                }
+                let picked = context
+                    .editor
+                    .rule_picks()
+                    .contains(&cao_sketch::RulePick::CutPoint(drawn.id, at));
+                let lit =
+                    hovered == Some((drawn.id, at)) || picked || self.lit.held.contains(&drawn.id);
+                let (color, width) = match lit {
+                    true => (tint_at(theme.highlight, 1.0), 2.5),
+                    false => (color, 1.5),
+                };
+                push_point_marker(out, self.sketch, place, half, color, width);
             }
         }
     }

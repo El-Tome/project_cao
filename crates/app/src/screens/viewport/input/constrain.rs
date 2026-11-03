@@ -12,9 +12,18 @@ pub(super) fn nearest_rule_pick(
     snap: f64,
     rule: Rule,
 ) -> Option<RulePick> {
-    sketch
+    let point = sketch
         .nearest_point(cursor, snap * 0.8)
-        .filter(|point| !sketch.is_origin(*point) || rule == Rule::Coincident)
+        .filter(|point| !sketch.is_origin(*point) || rule == Rule::Coincident);
+    // A cut's point no point stands on yet is something only a coincidence
+    // can speak of: it hangs the other point there.
+    if point.is_none()
+        && rule == Rule::Coincident
+        && let Some((cut, at)) = sketch.nearest_cut_point(cursor, snap * 0.8)
+    {
+        return Some(RulePick::CutPoint(cut, at));
+    }
+    point
         .map(Element::Point)
         .or_else(|| sketch.nearest_segment(cursor, snap).map(Element::Segment))
         .or_else(|| sketch.nearest_circle(cursor, snap).map(Element::Circle))

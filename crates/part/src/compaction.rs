@@ -334,7 +334,7 @@ fn compact_sketch(
 
     ellipses::cut_ellipses(old_sketch, sketch_index, &mut map, new_history, new_state);
 
-    for constraint in old_sketch.constraints() {
+    for constraint in cuts::laid_before_the_cuts(old_sketch) {
         if let Constraint::OnCircle { point, circle, .. } = constraint
             && bundled_rim_points.contains(&(*point, *circle))
         {
@@ -364,6 +364,7 @@ fn compact_sketch(
     }
 
     cuts::add_cuts(old_sketch, sketch_index, &mut map, new_history, new_state);
+    cuts::hang_again(old_sketch, sketch_index, &map, new_history, new_state);
     map
 }
 

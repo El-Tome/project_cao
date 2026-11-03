@@ -29,7 +29,7 @@ mod corner_angle;
 mod corner_cut;
 pub use corner::Corner;
 pub use corner_cut::{
-    CornerCut, CornerCutId, CutCurve, CutRefused, CutShape, DrawnCut, PulledEnds,
+    CornerCut, CornerCutId, CutCurve, CutPoint, CutRefused, CutShape, DrawnCut, PulledEnds,
 };
 mod crossing;
 mod dimensioning;
@@ -46,6 +46,7 @@ mod erased;
 mod exact_angle;
 mod holding;
 mod independence;
+mod jet;
 mod laid_from;
 mod length;
 mod measuring;
@@ -66,6 +67,7 @@ mod rule_intent;
 mod rule_marks;
 pub mod segment;
 mod settled;
+pub use settled::Freedom;
 mod shape_dimensions;
 mod sketch;
 mod snap;
@@ -90,7 +92,7 @@ pub use axis_angle::AxisToward;
 pub use chain::{ChainClick, chain_click};
 pub use chamfer::{Chamfer, ChamferMode};
 pub use circling::{CircleProgress, Found, circle_from, circle_progress, rim_of};
-pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxis, Toward};
+pub use constraints::{Constraint, Dimension, DimensionTarget, SketchAxis, Toward};
 pub use construct::CircleMode;
 pub use corner_angle::Along;
 pub use dimensioning::axis_under;

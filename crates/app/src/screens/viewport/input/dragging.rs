@@ -85,7 +85,7 @@ pub(super) fn drag_point(
             };
             if let Some(state) = context.editor.select_state() {
                 match carried.is_empty() {
-                    true => state.band = Some((gesture.raw_pressed, cursor)),
+                    true => state.band = Some((gesture.raw_pressed, gesture.raw_cursor)),
                     false => {
                         state.dragged_group = carried;
                         state.drag_origin = Some(pressed);
@@ -192,7 +192,7 @@ pub(super) fn drag_point(
         if let Some(state) = context.editor.select_state()
             && state.grabbed_nothing()
         {
-            state.band = Some((pressed, cursor));
+            state.band = Some((gesture.raw_pressed, gesture.raw_cursor));
         }
     }
 

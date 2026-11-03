@@ -237,7 +237,7 @@ pub(crate) fn handle_sketch_input(
             return band_select(
                 context,
                 index,
-                cursor,
+                raw_cursor,
                 response,
                 adding,
                 &marks,

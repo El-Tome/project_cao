@@ -7,9 +7,8 @@
 //!   `a_click_on_a_mark_takes_its_rule_and_delete_erases_it`
 //! - a Cmd or Shift click adds the rule to the selection —
 //!   `a_command_click_on_a_second_mark_adds_its_rule`
-//! - a box takes a rule whose mark is inside it — no test: held by
-//!   `a_box_takes_each_rule_with_a_mark_inside_it_once`, in `input/marks/tests.rs`;
-//!   driven whole, the magnets pull a box's ends onto the corner beside the mark
+//! - a box takes a rule whose mark is inside it —
+//!   `a_box_drawn_around_a_corner_mark_takes_the_rule_alone`
 //! - Delete or Backspace erases what is held, rules included, in one step —
 //!   `a_click_on_a_mark_takes_its_rule_and_delete_erases_it`
 //! - a mark is found where it is drawn, including when another pushed it aside
@@ -21,6 +20,15 @@
 //! - a drag that starts on a mark draws a box —
 //!   `a_press_on_a_mark_pulls_a_box_rather_than_the_side_under_it`
 //! - `docs/sketch.md` says how a mark is picked — no test: prose
+//!
+//! Closes #657.
+//! - A box drawn around a corner's mark, driven whole in
+//!   `crates/app/tests/taking_a_rule.rs`, takes the rule alone —
+//!   `a_box_drawn_around_a_corner_mark_takes_the_rule_alone`
+//! - The box drawn on the canvas starts and ends under the hand, wherever the
+//!   drawing's magnets are — no test: held by
+//!   `the_box_drawn_on_the_canvas_starts_and_ends_under_the_hand`, in
+//!   `pulling_a_box.rs`
 
 mod driver;
 
@@ -178,5 +186,29 @@ fn a_click_on_a_side_away_from_its_marks_still_takes_the_side() {
     assert!(
         history.iter().any(|line| line.contains("Trait supprimé")),
         "{history:?}"
+    );
+}
+
+#[test]
+fn a_box_drawn_around_a_corner_mark_takes_the_rule_alone() {
+    let mut app = a_rectangle("a_box_drawn_around_a_corner_mark");
+    let mark = the_mark_out_in_the_open(&app);
+    let within_the_corner_s_magnet = mark + egui::vec2(17.0, -15.0);
+
+    driver::drag_and_drop(
+        &mut app,
+        mark + egui::vec2(-25.0, 25.0),
+        within_the_corner_s_magnet,
+    );
+    let history = delete_and_read_the_history(&mut app);
+
+    assert!(
+        history
+            .iter()
+            .any(|line| line.contains("Perpendiculaire supprimée"))
+            && !history
+                .iter()
+                .any(|line| line.contains("éléments supprimés")),
+        "the box took the right angle, and not the corner beside its mark: {history:?}"
     );
 }

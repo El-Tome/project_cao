@@ -2013,6 +2013,137 @@ read backwards by the listing.
   still crosses is refined locally, and what survives
   that is reported as a failure of the triangles, apart from the kernel's.
 
+## Which side a point stands on
+
+#585, `orientation.rs`. The kernel asks the same kind of question in many
+places: which side of a line, a plane or a surface a point stands on. Asked
+in plain `f64` near a degenerate case, such a question can be answered two
+ways by two paths. An exact predicate settles it where the question is the
+sign of a polynomial in numbers the kernel holds: a fast `f64` answer where
+its error bound allows it, the exact sum of every rounding otherwise
+(Shewchuk's adaptive form). It brings robustness, not precision: every point
+stays in `f64`, and a sign asked twice is answered the same twice.
+
+Each sign decision the exact kernel takes on points is one of three kinds.
+The flats' own (`sweep.rs`, `mesh.rs`) are left as they are: the
+application has not reached them since #632, and #579 removes them.
+
+- **Exact**: the sign of a polynomial in the numbers the kernel holds, with
+  nothing but arithmetic deciding near nought. Asked of `orientation.rs` —
+  `turn` for the side of a line, `rotation` for the way a loop turns,
+  `beside` for the side of an edge in space — or exact in plain arithmetic
+  already: the sign of a stored number, of one difference (`a - b` rounds to
+  nought only where `a` is `b`, and never across it) or of one product.
+- **Tolerance**: a band decides near nought — `EPS`, `G`, `GRAZING`, the
+  drawing's tolerance, a tie constant — and the sign is read only past it,
+  where rounding cannot reach it. An exact predicate would answer the same;
+  what decides is the band, a modelling choice (decisions 1 to 12).
+- **Curve**: the quantity is about a curve — an angle read by `atan2`, a
+  bend, a point sampled on a curve, a root of a quadratic or a quartic. No
+  polynomial of the numbers held answers it, and exact arithmetic on curves
+  is a decision of its own, not this one's.
+
+### The decisions, by family
+
+- **The side of a line in a face's chart**, where the triangles are cut:
+  exact, through `turn`, since #498 — the sweep (`tessellation/sweep.rs`,
+  `sweep/band.rs`) and the convex corner a diagonal is flipped across
+  (`folds.rs`, `opens`). `opens` asks the corner to open by a thousand
+  roundings besides: three samples of a rim collinear but for the rounding
+  they were read with make no triangle, a tolerance.
+- **The side of an edge in space**, a triangle lying on another across their
+  edge (`folds.rs`, `lies_on`): exact, through `beside`, since #585. Two
+  triangles passing through each other (`folds/through.rs`) are read past a
+  share of the tolerance, `clear`: tolerance.
+- **The laid profile of a turn** (`turning/straight/contacts.rs`): a run
+  coming straight back along the one before, two slants on one line, a run
+  across a slant. Exact, through `turn`, since #585: the profile was already
+  said to be compared exactly, and was, but on a slant, where a plain
+  `perp_dot` reads a corner a rounding off the line on it, and some on the
+  wrong side. Along a line, a coordinate two points of it differ in orders
+  them exactly. A corner within rounding of a slant is within the drawing's
+  tolerance of it too, and `near` declines that profile before any of the
+  three is read, but for a corner opening an arc: `near` reads the corners
+  that start a straight run, and there the exact `cross` is what decides.
+- **The way a laid contour turns** (`turning/straight/bounded.rs`), outline
+  or hole: exact, through `rotation`, since #585. The shoelace over the
+  laid corners' own coordinates loses a small contour far from the axis's
+  origin in its rounding.
+- **The way a loop turns before a raise** (`piece/way.rs`, `turned`):
+  tolerance — `prism.rs` refuses a loop whose shoelace comes within
+  `eps · reach` of nought first, as `turned.rs` refuses a turned one, a band
+  far wider than the shoelace's rounding — and a curve once the loop
+  holds an arc, whose segment adds `r²(θ − sin θ)/2`.
+- **The side of the axis**, a profile lying across it or on one side
+  (`turning.rs`, `Turn::lie`; `turning/straight.rs`, `read`), the sides a
+  whole turn needs (`turning/sides.rs`): tolerance, each past the turn's band of the axis or a share of the
+  profile's reach.
+- **The order of directions about a vertex** (`overlay/star.rs`): curve. The
+  arcs leaving a vertex are ordered by the angle they set off at, read by
+  `atan2`; those setting off together, within `ANGLE_TIE` and the blur
+  rounding gives each over its lever, by their bend, where each stands
+  halfway along the shorter, and the chord a tenth along, each with a tie of
+  its own. This is the first candidate #585 named: #552's family, a plane in
+  the warning band through a wall's tangent line, its arcs misordered at a
+  corner, which weighs most of #574's crossed and tilted ellipse draws. The
+  conic leaves the corner tangent to the line of touch, so the two set off
+  together and are told apart by their bends: an order of curves, which no
+  sign of points settles. The sweep's own order of segments at a sample
+  (`sweep.rs`, `leaving`) is exact, through `turn`.
+- **The parity of a ray** (`ray.rs`, `ray/hits.rs`): tolerance. A crossing
+  within `eps` of a face's boundary, one grazing the face at a cosine under
+  `GRAZING`, or one within `eps` of where the ray starts is a doubt, and the
+  ray is cast again along the next of eight directions; the way a crossing
+  goes through is read only past `GRAZING`. Where a ray meets a surface is a
+  root of a quadratic or a quartic: a curve.
+- **The location of a point in a face** (`domain.rs`, `domain/crossing.rs`):
+  tolerance. A point within `eps` of an edge or a pole is on the boundary,
+  and only past it is the parity of the heights above it counted; an
+  abscissa is compared by one difference, and each stretch ends where the
+  next starts, the same number read once, so a ray through a vertex is
+  counted once. `selection/wrapped.rs`, `covering`, asks it with no band, of
+  a point in the middle of a region's chord, which decisions 5 and 6 keep
+  further than the tolerance from every arc of the region, the face's
+  edges among them: tolerance, through them. Where the edges are curves,
+  their heights and turning points are read off the curve: a curve.
+- **The side of a plane** (`selection/wrapped/above.rs`, `selection/band.rs`,
+  `relation/planar.rs`, `relation/revolved.rs`): tolerance. Each is read
+  past `eps` or past `ROUNDING` shares of it (`stands_above` gives no side
+  within it), or of a point the relation keeps away from the plane — a
+  wall decided to touch a plane has its axis a radius from it. The plane's
+  normal is itself a rounding of the drawn one: an exact side of it would be
+  exact about a plane a rounding off the one meant, the band is what
+  absorbs that.
+- **Inside a wall, and on which nappe**: the tessellation asks whether a
+  point stands inside a cylinder in five places (`contact/gap.rs`,
+  `contact/together.rs`, `together/sampled.rs`, `sampling/abreast/groups.rs`,
+  `contact/parallel.rs`), the relations which nappe of a cone a point is on
+  in five more (`relation/revolved.rs`, `revolved/arc.rs`,
+  `relation/sliced.rs`, `conic/built.rs`, `relation/crossing/cone.rs`). Each
+  reads its own band, `0`, `eps` or `2 eps`, on a quantity that comes
+  through a projection on a unit axis, a square root or a root of the conic:
+  tolerance and curve.
+
+### What it does not settle
+
+Every family the campaigns still name is a tolerance or a curve decision:
+the hairs from tangent no band is laid along, the leans in the warning band,
+the same ellipse turned a hair beside a block, the rounds' rims a hair apart,
+and the order of a conic and a line of touch at a corner. An exact predicate
+settles none of them. #585's campaigns, run on `main` and on the branch over
+the same seeds, gave every seed the same verdict on both, and every refusal
+they name is raised by a tolerance or a curve decision — the ties among them
+by an order of curves at a corner or a region no column crosses, never by
+the side of a point (`exact-kernel-failures.md`, "#585").
+
+What the list found besides is the same fact asked in several places with
+its own formula and its own band, which is #585's failure in another guise
+and a matter for deciding once, not for exact arithmetic: which side of a
+wall or which nappe a point is on, as above; and two directions parallel,
+read within a sine of half `RELATIVE` across the box by `relation.rs` and
+`canonical/curves.rs`, within `RELATIVE` itself by `meet.rs` and
+`combine/clear/walls.rs`.
+
 ## How it is held
 
 The harness's line rule compares a result's triangles with its inputs'. That

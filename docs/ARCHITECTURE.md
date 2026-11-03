@@ -162,6 +162,9 @@ surface) always returns the same sign, including in near-degenerate cases that
 make a boolean loop — the bug mentioned above. This is achievable without
 changing representation, with adaptive-precision geometric predicates
 (Shewchuk's method: a fast `f64` computation paired with a known error bound,
-which only falls back to exact arithmetic on ambiguous cases). This track is
-not implemented; it would be confined to the boolean operations' decision
-points. See [extrusion.md](extrusion.md).
+which only falls back to exact arithmetic on ambiguous cases). It is confined
+to the decision points that are a sign of points (`crates/solid/src/orientation.rs`,
+#585); the exact kernel decides nearly every other one behind a tolerance band,
+once, which no exact predicate replaces. [exact-kernel.md](exact-kernel.md),
+"Which side a point stands on", has the list. See also
+[extrusion.md](extrusion.md).

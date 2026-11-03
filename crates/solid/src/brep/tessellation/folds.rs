@@ -33,10 +33,10 @@ use std::collections::BTreeMap;
 
 use glam::DVec2;
 
-use super::orientation::turn;
 use super::outline::Outline;
 use super::sampling::Samples;
 use crate::brep::topology::FaceId;
+use crate::orientation::{beside, turn};
 use through::through;
 
 /// A face cut into triangles in its surface's parameters, each corner a point
@@ -204,7 +204,7 @@ impl Folds<'_> {
 
     /// Whether triangle `one` lies on `other` across the edge both have: its
     /// third corner within the tolerance of the other's plane, on the side of
-    /// the edge the other covers.
+    /// the edge the other covers, as `crate::orientation` decides it (#585).
     fn lies_on(&self, one: [usize; 3], other: [usize; 3], [a, b]: [usize; 2]) -> bool {
         let third = |corners: [usize; 3]| corners.into_iter().find(|id| *id != a && *id != b);
         let (Some(mine), Some(theirs)) = (third(one), third(other)) else {
@@ -214,8 +214,8 @@ impl Folds<'_> {
         let Some(normal) = (to - from).cross(theirs - from).try_normalize() else {
             return false;
         };
-        let side = (to - from).cross(mine - from).dot(normal);
-        normal.dot(mine - from).abs() <= self.eps && side > 0.0
+        normal.dot(mine - from).abs() <= self.eps
+            && beside(from, to, mine, theirs) == Ordering::Greater
     }
 }
 

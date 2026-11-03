@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 
 use glam::DVec2;
 
-use super::super::orientation::turn;
+use crate::orientation::turn;
 
 /// Which boundary of a band a point arrives on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

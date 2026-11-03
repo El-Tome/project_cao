@@ -8,11 +8,16 @@
 //! Corners laid at one level share its value to the bit, and every run is
 //! laid exactly square or parallel to the axis, or slanted as drawn: the laid
 //! profile is compared exactly, with no tolerance, but for how near a corner
-//! comes to a slant, which shares no level with it.
+//! comes to a slant, which shares no level with it. On a slant, which side of
+//! it a corner stands is asked of `crate::orientation` (#585); along a line,
+//! a coordinate its points differ in orders them exactly.
+
+use std::cmp::Ordering;
 
 use glam::DVec2;
 
 use super::Corner;
+use crate::orientation::turn;
 
 /// One run of a laid contour: the corners it goes between, by their number
 /// in the profile.
@@ -42,11 +47,7 @@ pub(super) fn are_drawn(
         (0..contour.len()).any(|index| {
             let (from, to) = contour[index];
             let (_, beyond) = contour[(index + 1) % contour.len()];
-            if bent[from] || bent[to] {
-                return false;
-            }
-            let (before, after) = (laid[to] - laid[from], laid[beyond] - laid[to]);
-            before.perp_dot(after) == 0.0 && before.dot(after) < 0.0
+            !bent[from] && !bent[to] && back(laid[from], laid[to], laid[beyond])
         })
     });
     let meet = runs.iter().enumerate().any(|(index, &first)| {
@@ -96,6 +97,16 @@ pub(super) fn pinched(contours: &[Vec<Corner>]) -> bool {
     })
 }
 
+/// Whether the path from `a` through `b` comes straight back at `c`, past
+/// `b` towards `a` on their line.
+fn back(a: DVec2, b: DVec2, c: DVec2) -> bool {
+    if a == b || turn(a, b, c) != Ordering::Equal {
+        return false;
+    }
+    let along = if a.x != b.x { 0 } else { 1 };
+    c[along] != b[along] && (b[along] > a[along]) != (c[along] > b[along])
+}
+
 /// Whether a laid run is neither square nor parallel to the axis.
 pub(super) fn slanted(laid: &[DVec2], run: Run) -> bool {
     let (from, to) = (laid[run.0], laid[run.1]);
@@ -106,12 +117,14 @@ pub(super) fn slanted(laid: &[DVec2], run: Run) -> bool {
 fn overlap(laid: &[DVec2], first: Run, second: Run) -> bool {
     let (a, b, c, d) = (laid[first.0], laid[first.1], laid[second.0], laid[second.1]);
     if slanted(laid, first) || slanted(laid, second) {
-        let along = b - a;
-        if along.perp_dot(c - a) != 0.0 || along.perp_dot(d - a) != 0.0 {
+        if turn(a, b, c) != Ordering::Equal || turn(a, b, d) != Ordering::Equal {
             return false;
         }
-        let (start, end) = (along.dot(c - a), along.dot(d - a));
-        return start.max(end).min(along.length_squared()) > start.min(end).max(0.0);
+        let along = if a.x != b.x { 0 } else { 1 };
+        let span =
+            |one: DVec2, other: DVec2| (one[along].min(other[along]), one[along].max(other[along]));
+        let ((low, high), (start, end)) = (span(a, b), span(c, d));
+        return high.min(end) > low.max(start);
     }
     let shared = |axis: usize, across: usize| {
         a[axis] == b[axis]
@@ -129,10 +142,11 @@ fn overlap(laid: &[DVec2], first: Run, second: Run) -> bool {
 fn cross(laid: &[DVec2], first: Run, second: Run) -> bool {
     if slanted(laid, first) || slanted(laid, second) {
         let (a, b, c, d) = (laid[first.0], laid[first.1], laid[second.0], laid[second.1]);
-        let sides = |from: DVec2, to: DVec2, one: DVec2, other: DVec2| {
-            (to - from).perp_dot(one - from) * (to - from).perp_dot(other - from)
+        let apart = |from: DVec2, to: DVec2, one: DVec2, other: DVec2| {
+            let side = turn(from, to, one);
+            side != Ordering::Equal && side == turn(from, to, other).reverse()
         };
-        return sides(a, b, c, d) < 0.0 && sides(c, d, a, b) < 0.0;
+        return apart(a, b, c, d) && apart(c, d, a, b);
     }
     let inside = |value: f64, from: f64, to: f64| from.min(to) < value && value < from.max(to);
     let square_across = |square: Run, parallel: Run| {
@@ -183,3 +197,6 @@ fn apart(point: DVec2, from: DVec2, to: DVec2) -> f64 {
     };
     point.distance(from + run * along)
 }
+
+#[cfg(test)]
+mod tests;

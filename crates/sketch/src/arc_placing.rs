@@ -28,12 +28,24 @@ impl ArcMode {
     }
 }
 
+/// What the clicks so far have settled: the places they landed on, and how far
+/// round the centre the hand has turned since the last of them, as
+/// [`turned_round`] counts it.
+#[derive(Clone, Copy, Debug)]
+pub struct ArcSoFar<'a> {
+    pub places: &'a [DVec2],
+    pub turned: f64,
+}
+
 /// The arc the clicks so far and the cursor make, if they make one.
 ///
 /// The cursor gives a direction, never a distance: the far end is brought back
 /// onto the circle the near one already fixed, so what is drawn is a piece of a
-/// circle at every moment rather than only once it is recorded.
-pub fn arc_from(mode: ArcMode, places: &[DVec2], cursor: DVec2) -> Option<ArcDraft> {
+/// circle at every moment rather than only once it is recorded. A by-centre arc
+/// runs the way the hand turned: clockwise when `turned` is negative, recorded
+/// counter-clockwise with its ends swapped.
+pub fn arc_from(mode: ArcMode, so_far: ArcSoFar, cursor: DVec2) -> Option<ArcDraft> {
+    let places = so_far.places;
     match mode {
         ArcMode::ByCenter => {
             let (centre, start) = (*places.first()?, *places.get(1)?);
@@ -43,6 +55,10 @@ pub fn arc_from(mode: ArcMode, places: &[DVec2], cursor: DVec2) -> Option<ArcDra
                 return None;
             }
             let end = centre + DVec2::from_angle(reach.to_angle()) * radius;
+            let (start, end) = match so_far.turned < 0.0 {
+                true => (end, start),
+                false => (start, end),
+            };
             (end.distance(start) > 1e-6).then_some(ArcDraft { centre, start, end })
         }
         ArcMode::ByEnds => {
@@ -64,15 +80,33 @@ pub fn arc_from(mode: ArcMode, places: &[DVec2], cursor: DVec2) -> Option<ArcDra
     }
 }
 
+/// How far round the centre the hand has turned since leaving the start, in
+/// radians, counter-clockwise positive — once the cursor has moved from where
+/// `turned` left it (start angle + turned) to `cursor`, the short way round.
+pub fn turned_round(places: &[DVec2], turned: f64, cursor: DVec2) -> f64 {
+    let (Some(&centre), Some(&start)) = (places.first(), places.get(1)) else {
+        return turned;
+    };
+    let reach = cursor - centre;
+    if reach.length() < 1e-9 || centre.distance(start) < 1e-9 {
+        return turned;
+    }
+    let left = (start - centre).to_angle() + turned;
+    let step = (reach.to_angle() - left + std::f64::consts::PI).rem_euclid(std::f64::consts::TAU)
+        - std::f64::consts::PI;
+    turned + step
+}
+
 /// The cursor, once a value typed into the live field has had its say: a
 /// radius or a distance while the second place is being picked, and while the
 /// third is, an angle in degrees for `ByCenter` or the curve's own radius for
 /// `ByEnds`. Left alone, the cursor decides everything, the way it always has.
 /// `scale` is how many millimetres a unit of the drawing is worth, since a
-/// typed radius or distance arrives in millimetres.
+/// typed radius or distance arrives in millimetres. A typed angle is laid
+/// clockwise when the hand went that way.
 pub fn aimed(
     mode: ArcMode,
-    places: &[DVec2],
+    so_far: ArcSoFar,
     cursor: DVec2,
     locked: Option<f64>,
     scale: f64,
@@ -80,6 +114,7 @@ pub fn aimed(
     let Some(locked) = locked else {
         return cursor;
     };
+    let places = so_far.places;
     match (mode, places.len()) {
         (ArcMode::ByCenter, 2) => {
             let (centre, start) = (places[0], places[1]);
@@ -88,7 +123,11 @@ pub fn aimed(
                 return cursor;
             }
             let base = (start - centre).to_angle();
-            centre + DVec2::from_angle(base + locked.to_radians()) * radius
+            let way = match so_far.turned < 0.0 {
+                true => -1.0,
+                false => 1.0,
+            };
+            centre + DVec2::from_angle(base + way * locked.to_radians()) * radius
         }
         (ArcMode::ByEnds, 2) => {
             bent_through(places[0], places[1], cursor, locked / scale.max(1e-9)).unwrap_or(cursor)

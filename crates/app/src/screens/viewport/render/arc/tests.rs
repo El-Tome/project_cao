@@ -90,6 +90,7 @@ fn a_preview_locked(
     editor.tool_state = ToolState::Arc {
         places,
         first_typed: false,
+        turned: 0.0,
     };
     editor.live.field(0).locked = locked;
 

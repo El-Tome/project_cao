@@ -29,7 +29,7 @@ pub(super) fn band_select(
     let Some((from, _)) = context.editor.select_state().and_then(|state| state.band) else {
         return false;
     };
-    context.editor.snap = None;
+    lights_nothing(context);
     if let Some(state) = context.editor.select_state() {
         state.band = Some((from, to));
     }
@@ -61,6 +61,14 @@ pub(super) fn band_select(
         }
     }
     false
+}
+
+/// A box held lights nothing: it takes only what it encloses, so neither a
+/// magnet nor what lies under the hand is what it will take.
+pub(super) fn lights_nothing(context: &mut SketchContext<'_>) {
+    context.editor.snap = None;
+    context.editor.hovered = None;
+    context.editor.hovered_point = None;
 }
 
 /// Takes what a click landed on, alone or into the selection.

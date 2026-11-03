@@ -194,7 +194,7 @@ impl CutCanvas<'_> {
         let hovered = context
             .editor
             .cursor
-            .filter(|_| context.editor.hovered_point.is_none())
+            .filter(|_| context.editor.hovered_point.is_none() && context.editor.band().is_none())
             .and_then(|cursor| {
                 self.drawn
                     .iter()

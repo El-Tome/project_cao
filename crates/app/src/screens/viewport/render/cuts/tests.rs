@@ -1,4 +1,11 @@
 //! What app · screens/viewport/render/cuts.rs is held to.
+//!
+//! Closes #663.
+//! - A fillet's or a chamfer's own points are not lit while a box is held
+//!   beside them (surfaced by review) —
+//!   `a_fillet_s_point_a_box_is_held_beside_is_not_lit`; pointing at one with
+//!   no button held still lights it —
+//!   `a_fillet_s_point_pointed_at_with_no_button_held_is_lit`
 
 use cao_part::history::PointRef;
 use cao_part::{Operation, PartDocument};
@@ -9,6 +16,8 @@ use super::*;
 use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{SketchEditor, SketchPhase, Tool};
+use cao_prefs::config::ViewportConfig;
+use cao_render::camera::OrbitCamera;
 
 /// A plate forty by twenty, its four corners rounded together by five.
 fn a_rounded_plate() -> PartDocument {
@@ -99,4 +108,62 @@ fn a_cut_lit_at_a_point_carrying_another_lights_its_own_sides_alone() {
 
     assert!(lit.contains(&(corner, top)) && lit.contains(&(corner, middle)));
     assert!(!lit.contains(&(corner, bottom)));
+}
+
+/// How many of a fillet's points are drawn lit, the cursor resting a few
+/// pixels off the first one, with or without a box being pulled.
+fn fillet_points_lit_with_the_cursor_beside_one(box_pulled: bool) -> usize {
+    let mut document = a_rounded_plate();
+    let scale = ViewScale::of(
+        &OrbitCamera::default(),
+        egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 800.0)),
+        1.0,
+        &ViewportConfig::default(),
+        1.0,
+    );
+    let sketch = document.sketches()[0].clone();
+    let (_, tangent_point) = sketch.drawn_cuts()[0]
+        .points()
+        .next()
+        .expect("a fillet offers its points");
+    let beside = tangent_point + DVec2::new(1.0, 1.0).normalize() * scale.world_size_of(9.0);
+    let mut editor = SketchEditor {
+        phase: SketchPhase::Editing(0),
+        tool: Tool::Select,
+        tool_state: ToolState::Select(Box::new(cao_sketch::SelectState {
+            band: box_pulled.then_some((DVec2::new(-30.0, -30.0), beside)),
+            ..Default::default()
+        })),
+        cursor: Some(beside),
+        ..Default::default()
+    };
+    let (mut extrusion, lang) = (ExtrusionState::default(), Catalogue::french());
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let theme = Theme::default();
+    let mut painted = Vec::new();
+    CutCanvas::read(&sketch, &context).push_points(&mut painted, &[], (&theme, scale), &context);
+    let lit = tint_at(theme.highlight, 1.0);
+    painted.iter().filter(|vertex| vertex.color == lit).count()
+}
+
+#[test]
+fn a_fillet_s_point_pointed_at_with_no_button_held_is_lit() {
+    assert!(
+        fillet_points_lit_with_the_cursor_beside_one(false) > 0,
+        "the point under the cursor is lit, the way it offers itself to a click"
+    );
+}
+
+#[test]
+fn a_fillet_s_point_a_box_is_held_beside_is_not_lit() {
+    assert_eq!(
+        fillet_points_lit_with_the_cursor_beside_one(true),
+        0,
+        "the box will not take the fillet's point it is held beside, so the point is not lit"
+    );
 }

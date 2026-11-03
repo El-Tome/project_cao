@@ -12,7 +12,8 @@
 //!   `half_an_ellipse_a_hair_from_round_added_to_its_circle_keeps_every_rule`,
 //!   `an_ellipse_a_millionth_short_of_round_touching_its_circle_keeps_every_rule`,
 //!   `the_same_ellipse_turned_a_hair_past_decision_8_keeps_every_rule`,
-//!   `the_same_ellipse_cut_from_itself_a_ten_thousandth_aside_keeps_every_rule`
+//!   `the_same_ellipse_cut_from_itself_a_ten_thousandth_aside_keeps_every_rule`,
+//!   `an_ellipse_a_hair_narrower_than_its_twin_touching_it_at_both_ends_keeps_every_rule`
 //! - what stays above the bar is written in `docs/exact-kernel-failures.md` —
 //!   no test: prose, the same section
 //!
@@ -144,6 +145,42 @@ fn the_same_ellipse_cut_from_itself_a_ten_thousandth_aside_keeps_every_rule() {
                     2.5,
                 ),
                 17.0,
+            )),
+        ],
+    ));
+}
+
+/// Seed 5585701873: an elliptic slab, and on it the same ellipse raised
+/// twice, the second 3e-5 narrower across and 1.8e-6 lower: the two walls
+/// touch at both ends of their major axis and stand thinner than a chord's
+/// sag apart all round. Each rim kept places of its own beside the touch,
+/// and the floor's chords crossed: left open, `Closed`.
+#[test]
+fn an_ellipse_a_hair_narrower_than_its_twin_touching_it_at_both_ends_keeps_every_rule() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-15.0),
+            Outline::ellipse([105.0, 105.0], [0.0, -14.999999999999998], 120.0),
+            135.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::ellipse(
+                    [180.0, 180.0],
+                    [-142.89419162443238, -82.50000000000001],
+                    75.0,
+                ),
+                180.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-1.8e-6),
+                Outline::ellipse(
+                    [180.0, 180.0],
+                    [-142.89419162443238, -82.50000000000001],
+                    74.99997,
+                ),
+                360.0,
             )),
         ],
     ));

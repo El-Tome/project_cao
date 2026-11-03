@@ -2099,7 +2099,13 @@ read backwards by the listing.
   a place one rim takes alone there, a vertex's angle or a step of its own
   grid, leaves its chord across the other's: an elliptic rim keeps only the
   rays the two share, within a step of the coarser grid of the end and
-  twice the deeper sag of the other wall (#574). A whole rim of an elliptic
+  twice the deeper sag of the other wall (#574). So does an elliptic rim
+  wherever it stands within that sag of another elliptic wall of its group
+  that touches its own without crossing it — the same ellipse a hair
+  narrower, touching at both ends of a half-axis, stands that close all
+  round. Beside a circular wall it does not: the circle's rim takes the
+  steps of its grid there all the same, and a rim keeping only the rays
+  left the two apart again. A whole rim of an elliptic
   wall ends where it starts, and a place beside that point is measured against
   both ends of it. What
   still crosses is refined locally, and what survives

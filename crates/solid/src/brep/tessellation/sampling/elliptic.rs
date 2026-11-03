@@ -169,6 +169,51 @@ struct Lens {
     room: f64,
 }
 
+/// Whether a place of an elliptic wall's rim stands within twice a chord's
+/// sag of another elliptic wall sampled on the rays it takes and touching
+/// it — a circular wall's rim takes its grid there all the same — the
+/// coarser grid's sag of the two, read the same from both: the band either
+/// side of the touch is thinner than a chord's sag, and a place one of them
+/// takes alone leaves its chord across the other's.
+pub(super) fn in_a_band<'a>(
+    body: &Body,
+    wall: EllipticCylinder,
+    mates: &'a [Surface],
+    tolerance: f64,
+) -> impl Fn(DVec3) -> bool + use<'a> {
+    let own = Surface::Elliptic(wall);
+    let rooms: Vec<(&Surface, f64)> = mates
+        .iter()
+        .filter(|mate| matches!(mate, Surface::Elliptic(_)) && touching(&own, mate, body.scale()))
+        .map(|mate| {
+            let widest = wall.major.max(match mate {
+                Surface::Elliptic(oval) => oval.major,
+                Surface::Cylinder(round) => round.radius,
+                Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => {
+                    0.0
+                }
+            });
+            let steps = super::divisions(widest, tolerance) as f64;
+            (mate, 2.0 * widest * (1.0 - (PI / steps).cos()))
+        })
+        .collect();
+    move |point: DVec3| {
+        rooms
+            .iter()
+            .any(|(mate, room)| mate.distance(point).abs() <= *room)
+    }
+}
+
+/// Whether two walls about parallel axes only touch, along every ruling
+/// they meet along.
+fn touching(own: &Surface, other: &Surface, scale: Scale) -> bool {
+    match relation(own, other, scale) {
+        Relation::Tangent(_) => true,
+        Relation::Parallel(rulings) => rulings.iter().all(|ruled| ruled.touching),
+        _ => false,
+    }
+}
+
 /// Whether two walls about parallel axes cross, rather than touch, along a
 /// ruling through `at`, at a grazing angle: a sine of a hundredth or less,
 /// as decision 2 has two such walls graze.

@@ -45,10 +45,18 @@ pub(in crate::brep::tessellation::sampling) fn rays_along(
                 .into_iter()
                 .flatten()
                 .map(|end| body.vertex(end).point);
-            let points = of_edge(body, edge, conic, zones, grids, (&rays, &[]), tolerance)
-                .into_iter()
-                .chain(ends)
-                .collect();
+            let points = of_edge(
+                body,
+                edge,
+                conic,
+                zones,
+                grids,
+                (&rays, &[], &[]),
+                tolerance,
+            )
+            .into_iter()
+            .chain(ends)
+            .collect();
             Some((edge, conic, points))
         })
         .collect();

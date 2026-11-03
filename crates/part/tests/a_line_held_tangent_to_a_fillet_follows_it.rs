@@ -53,6 +53,15 @@
 //!   clicked first is — no test: the drawing is `cao_app`'s, held there by
 //!   `a_fillet_shown_to_a_tangent_is_drawn_as_picked` in
 //!   `screens/viewport/render/cuts/tests.rs`
+//!
+//! Asked by the owner after trying the pull request — the line moves as it
+//! does with a circle or an arc: a touch that would fall past an end of the
+//! line is brought onto it, the second clicked sliding along the line by what
+//! it lacks —
+//! - the fillet clicked first, the line slides along itself —
+//!   `a_line_short_of_a_fillet_slides_along_itself_to_touch_it`
+//! - the line clicked first, the fillet slides along the line —
+//!   `a_fillet_beyond_a_line_s_end_slides_along_it_to_touch_it`
 
 use cao_part::history::{ChamferAsked, CutAsked, CutChange, Operation, PointRef};
 use cao_part::{History, PartState, compact};
@@ -79,6 +88,25 @@ const LINE: SegmentId = SegmentId(2);
 /// is a millimetre. Beyond the corner a free line runs from (0, 18) to
 /// (18, 0), square to the cut's middle: touching nothing, crossing nothing.
 fn a_corner_cut_beside_a_line(cut: Operation) -> History {
+    a_corner_cut_beside(cut, [DVec2::new(0.0, 18.0), DVec2::new(18.0, 0.0)])
+}
+
+/// The corner rounded to 5 about (15, 15), and a free line on the same
+/// slant as the line beside it, from (−10, 28) to (−2, 20): it stops some
+/// 15.6 short of where it would touch the fillet's circle, at (9, 9).
+fn a_rounded_corner_beside_a_short_line() -> History {
+    a_corner_cut_beside(
+        Operation::Fillet {
+            sketch: 0,
+            corners: the_corner(),
+            radius: RADIUS.into(),
+            construction: false,
+        },
+        [DVec2::new(-10.0, 28.0), DVec2::new(-2.0, 20.0)],
+    )
+}
+
+fn a_corner_cut_beside(cut: Operation, [start, end]: [DVec2; 2]) -> History {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
@@ -99,8 +127,8 @@ fn a_corner_cut_beside_a_line(cut: Operation) -> History {
     history.push(cut);
     history.push(Operation::AddSegment {
         sketch: 0,
-        start: PointRef::New(DVec2::new(0.0, 18.0)),
-        end: PointRef::New(DVec2::new(18.0, 0.0)),
+        start: PointRef::New(start),
+        end: PointRef::New(end),
         construction: false,
     });
     history
@@ -265,6 +293,15 @@ fn within_the_drawn_arc(sketch: &Sketch, place: DVec2) -> bool {
         panic!("the fillet is drawn straight");
     };
     sweep_of(ArcDraft { end: place, ..arc }) <= sweep_of(arc)
+}
+
+/// How far the touch falls past the nearer end of the line: nothing while it
+/// lies between the two.
+fn past_the_line(sketch: &Sketch) -> f64 {
+    let (start, end) = sketch.endpoints(LINE);
+    let run = end - start;
+    let along = (the_touch(sketch) - start).dot(run) / run.length_squared();
+    (along - along.clamp(0.0, 1.0)).abs() * run.length()
 }
 
 fn the_line(sketch: &Sketch) -> [DVec2; 2] {
@@ -660,4 +697,67 @@ fn a_compacted_part_keeps_its_line_tangent_to_a_fillet() {
     );
     assert_tangent(&sketch, "compacted");
     assert_follows_a_new_radius(&mut compacted, "compacted");
+}
+
+#[test]
+fn a_line_short_of_a_fillet_slides_along_itself_to_touch_it() {
+    let history = a_rounded_corner_beside_a_short_line();
+    let before = the_drawing(&history);
+    assert!(
+        past_the_line(&before) > 1.0,
+        "the line was to stop well short of the fillet"
+    );
+    let (_, picks) = clicked(false);
+
+    let sketch = tangent_laid(&history, picks);
+
+    assert_tangent(&sketch, "the fillet clicked first");
+    let past = past_the_line(&sketch);
+    assert!(
+        past < SAME,
+        "the line touches the fillet {past} past its end"
+    );
+    let fillet_moved = moved(
+        the_corner_and_its_sides(&before),
+        the_corner_and_its_sides(&sketch),
+    );
+    assert!(
+        fillet_moved < SAME,
+        "the fillet, clicked first, moved by {fillet_moved}"
+    );
+    let (_, radius) = the_fillet(&sketch);
+    assert!(
+        (radius - RADIUS).abs() < SAME,
+        "the fillet's value became {radius}"
+    );
+}
+
+#[test]
+fn a_fillet_beyond_a_line_s_end_slides_along_it_to_touch_it() {
+    let history = a_rounded_corner_beside_a_short_line();
+    let before = the_drawing(&history);
+    assert!(
+        past_the_line(&before) > 1.0,
+        "the fillet was to stand well beyond the line's end"
+    );
+    let (_, picks) = clicked(true);
+
+    let sketch = tangent_laid(&history, picks);
+
+    assert_tangent(&sketch, "the line clicked first");
+    let past = past_the_line(&sketch);
+    assert!(
+        past < SAME,
+        "the fillet touches the line {past} past its end"
+    );
+    let line_moved = moved(the_line(&before), the_line(&sketch));
+    assert!(
+        line_moved < SAME,
+        "the line, clicked first, moved by {line_moved}"
+    );
+    let (_, radius) = the_fillet(&sketch);
+    assert!(
+        (radius - RADIUS).abs() < SAME,
+        "the fillet's value became {radius}"
+    );
 }

@@ -1,9 +1,12 @@
 //! A rule laid, or an angle typed, between two things: the one clicked first
 //! stays where it is, and the second comes to it.
 
+use glam::DVec2;
+
 use super::turned_whole::Turned;
 use super::{Kept, Landing, LengthOutcome, Sketch};
 use crate::constraints::{Constraint, DimensionTarget};
+use crate::corner_cut::CutCurve;
 use crate::equation::Equation;
 use crate::laid_from::LaidFrom;
 use crate::resizing::Curved;
@@ -42,33 +45,60 @@ impl Sketch {
     /// the trait, and the tangency could not land. The second one clicked is
     /// slid along the trait first, just far enough for the curve's centre to
     /// stand over it — that is part of coming to the first.
+    ///
+    /// A fillet is brought the whole way, across too, until it grazes: its
+    /// rule keeps no point where the two touch, and the solver left to close
+    /// the gap carries the touch past the end — a line turns about its far
+    /// end, a fillet's centre moves through its corner and its sides. It
+    /// slides whole, its corner and the far end of each side together.
     fn bring_alongside(&mut self, rule: Constraint) {
-        let (curve, element, segment, from) = match rule {
+        let (centre, curve, segment, from, grazing) = match rule {
             Constraint::Tangent {
                 circle,
                 segment,
                 from,
                 ..
             } => (
-                Curved::Circle(circle),
-                Element::Circle(circle),
+                self.centre_of(Curved::Circle(circle)),
+                self.points_it_leans_on(Element::Circle(circle)),
                 segment,
                 from,
+                None,
             ),
             Constraint::ArcTangent {
                 arc, segment, from, ..
-            } => (Curved::Arc(arc), Element::Arc(arc), segment, from),
+            } => (
+                self.centre_of(Curved::Arc(arc)),
+                self.points_it_leans_on(Element::Arc(arc)),
+                segment,
+                from,
+                None,
+            ),
             Constraint::EllipseTangent {
                 ellipse,
                 segment,
                 from,
                 ..
             } => (
-                Curved::Ellipse(ellipse),
-                Element::Ellipse(ellipse),
+                self.centre_of(Curved::Ellipse(ellipse)),
+                self.points_it_leans_on(Element::Ellipse(ellipse)),
                 segment,
                 from,
+                None,
             ),
+            Constraint::CutTangent { cut, segment, from } => {
+                let Some(CutCurve::Arc(arc)) = self.drawn_cut(cut).map(|drawn| drawn.curve) else {
+                    return;
+                };
+                let radius = arc.centre.distance(arc.start);
+                (
+                    arc.centre,
+                    self.cut_stands_on(cut),
+                    segment,
+                    from,
+                    Some(radius),
+                )
+            }
             _ => return,
         };
         let (start, end) = self.endpoints(segment);
@@ -77,17 +107,23 @@ impl Sketch {
         if length_squared < 1e-18 {
             return;
         }
-        let along = (self.centre_of(curve) - start).dot(span) / length_squared;
+        let along = (centre - start).dot(span) / length_squared;
         let past = along - along.clamp(0.0, 1.0);
         if past == 0.0 {
             return;
         }
+        let normal = span.perp() / length_squared.sqrt();
+        let off = normal.dot(centre - start);
+        let across = grazing.map_or(DVec2::ZERO, |radius| normal * (off - radius * off.signum()));
         let (moving, shift) = match from {
-            LaidFrom::Trait => (element, -span * past),
-            LaidFrom::Curve => (Element::Segment(segment), span * past),
+            LaidFrom::Trait => (curve, -span * past - across),
+            LaidFrom::Curve => (
+                self.points_it_leans_on(Element::Segment(segment)),
+                span * past + across,
+            ),
             LaidFrom::Nowhere | LaidFrom::Point => return,
         };
-        for point in self.points_it_leans_on(moving) {
+        for point in moving {
             self.move_point(point, self.point(point) + shift);
         }
     }

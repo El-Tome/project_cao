@@ -84,6 +84,7 @@ pub enum Rule {
     MatterIsMeasure,
     NothingMissing,
     NothingExtra,
+    AsManyAsClosed,
     MatterTiles,
     OrderDoesNotMatter,
     Answers,
@@ -122,6 +123,8 @@ pub enum Flaw {
         areas: usize,
         enclosed: bool,
     },
+    /// The drawing is given `found` areas where it closes `closed`.
+    Miscounted { found: usize, closed: usize },
     /// Laid again another way, the same drawing gives another count of areas,
     /// or puts `at` in an area of another size.
     Relaid {
@@ -149,6 +152,7 @@ impl Flaw {
             Flaw::Matter { .. } => Rule::MatterIsMeasure,
             Flaw::Missing { .. } => Rule::NothingMissing,
             Flaw::Extra { .. } => Rule::NothingExtra,
+            Flaw::Miscounted { .. } => Rule::AsManyAsClosed,
             Flaw::Untiled { .. } => Rule::MatterTiles,
             Flaw::Relaid { .. } => Rule::OrderDoesNotMatter,
             Flaw::NoAnswer(_) => Rule::Answers,
@@ -271,6 +275,18 @@ pub fn nothing_extra(areas: &[Area], places: &[Place]) -> Result<(), Flaw> {
         }
     }
     Ok(())
+}
+
+/// The drawing is given as many areas as it closes.
+pub fn as_many_as_closed(areas: &[Area], closed: usize) -> Result<(), Flaw> {
+    if areas.len() == closed {
+        Ok(())
+    } else {
+        Err(Flaw::Miscounted {
+            found: areas.len(),
+            closed,
+        })
+    }
 }
 
 /// The areas of a drawing laid again are the areas it had: as many, and every

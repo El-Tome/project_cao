@@ -98,6 +98,14 @@
 //!   touches the cut leaves against the closing curve; #604 closed the arc and
 //!   pattern drawings and #606 the circle one, and this file pins the family
 //!   so no future sighting is lost
+//!
+//! Closes #509.
+//! - the diagonal drawn before the square on its ends breaks it, and is kept
+//!   under #494 — `a_diagonal_drawn_before_the_square_on_its_ends_is_held_to_two_areas`
+//! - the faces of no surface are told apart: #493's kept cases break this rule
+//!   only where they already broke another, or not at all —
+//!   `a_curve_drawn_twice_closes_no_area_of_its_own`, and #493's cases above,
+//!   held to every rule by `holds`
 
 // The drawing, the rules and the shrinking are the campaign's; this file only
 // lays drawings and holds them.

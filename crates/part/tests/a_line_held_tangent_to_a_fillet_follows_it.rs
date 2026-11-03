@@ -33,11 +33,11 @@
 //!   `a_cut_nothing_hangs_on_asks_the_solver_for_nothing` (#620) and by
 //!   `a_fillet_nothing_hangs_on_asks_nothing_beside_one_a_line_is_tangent_to`
 
-use cao_part::history::{CutAsked, CutChange, Operation, PointRef};
+use cao_part::history::{ChamferAsked, CutAsked, CutChange, Operation, PointRef};
 use cao_part::{History, PartState};
 use cao_sketch::{
-    ArcDraft, Constraint, Corner, CornerCutId, CutCurve, Element, PointId, Rule, RuleIntent,
-    RulePick, SegmentId, Sketch, WorkPlane, rule_intent, sweep_of,
+    ArcDraft, Chamfer, Constraint, Corner, CornerCutId, CutCurve, Element, PointId, Rule,
+    RuleIntent, RulePick, SegmentId, Sketch, WorkPlane, rule_intent, sweep_of,
 };
 use glam::DVec2;
 
@@ -54,11 +54,10 @@ const RADIUS: f64 = 5.0;
 const LINE: SegmentId = SegmentId(2);
 
 /// A corner standing on its own at (10, 10): one trait right to (60, 10),
-/// one up to (10, 50), rounded to 5 about (15, 15). Its first value fixes the
-/// scale: a unit is a millimetre. Beyond the corner a free line runs from
-/// (0, 18) to (18, 0), square to the fillet's middle and some 8.5 from its
-/// centre: touching nothing, crossing nothing.
-fn a_rounded_corner_beside_a_line() -> History {
+/// one up to (10, 50), cut by `cut`. Its first value fixes the scale: a unit
+/// is a millimetre. Beyond the corner a free line runs from (0, 18) to
+/// (18, 0), square to the cut's middle: touching nothing, crossing nothing.
+fn a_corner_cut_beside_a_line(cut: Operation) -> History {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
@@ -76,12 +75,7 @@ fn a_rounded_corner_beside_a_line() -> History {
         end: PointRef::New(DVec2::new(10.0, 50.0)),
         construction: false,
     });
-    history.push(Operation::Fillet {
-        sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
-        radius: RADIUS.into(),
-        construction: false,
-    });
+    history.push(cut);
     history.push(Operation::AddSegment {
         sketch: 0,
         start: PointRef::New(DVec2::new(0.0, 18.0)),
@@ -89,6 +83,31 @@ fn a_rounded_corner_beside_a_line() -> History {
         construction: false,
     });
     history
+}
+
+fn the_corner() -> Vec<Corner> {
+    vec![Corner::Between(SegmentId(0), SegmentId(1))]
+}
+
+/// The corner rounded to 5 about (15, 15), the line some 8.5 from the
+/// fillet's centre.
+fn a_rounded_corner_beside_a_line() -> History {
+    a_corner_cut_beside_a_line(Operation::Fillet {
+        sketch: 0,
+        corners: the_corner(),
+        radius: RADIUS.into(),
+        construction: false,
+    })
+}
+
+/// The corner chamfered by 5 on each side.
+fn a_chamfered_corner_beside_a_line() -> History {
+    a_corner_cut_beside_a_line(Operation::Chamfer {
+        sketch: 0,
+        corners: the_corner(),
+        mode: ChamferAsked::from(Chamfer::Equal(5.0)),
+        construction: false,
+    })
 }
 
 /// What the constraint tool hands the rule, the line clicked first or the
@@ -332,4 +351,70 @@ fn a_line_tangent_to_a_fillet_stays_on_its_circle_once_the_touch_is_past_the_arc
         the_touch(&sketch),
     );
     assert_tangent(&sketch, "the touch past the drawn arc");
+}
+
+#[test]
+fn pulling_a_line_tangent_to_a_fillet_moves_its_corner() {
+    let mut history = a_line_held_tangent();
+    let held = the_drawing(&history);
+    let towards_the_corner = DVec2::new(-3.0, -3.0);
+
+    history.push(Operation::MoveSegment {
+        sketch: 0,
+        segment: LINE,
+        by: towards_the_corner,
+    });
+
+    let sketch = the_drawing(&history);
+    let (start, end) = held.endpoints(LINE);
+    let across = (end - start).normalize().perp();
+    let travel = towards_the_corner.dot(across);
+    for (was, is) in the_line(&held).into_iter().zip(the_line(&sketch)) {
+        let went = (is - was).dot(across);
+        assert!(
+            (went - travel).abs() < SAME,
+            "the line was pulled {travel} across, an end of it went {went}"
+        );
+    }
+    let corner_moved = sketch.point(CORNER).distance(held.point(CORNER));
+    assert!(
+        corner_moved > 1.0,
+        "the corner moved by {corner_moved}, to {}",
+        sketch.point(CORNER),
+    );
+    let (_, radius) = the_fillet(&sketch);
+    assert!(
+        (radius - RADIUS).abs() < SAME,
+        "the fillet's value became {radius}"
+    );
+    assert_tangent(&sketch, "the line pulled");
+}
+
+#[test]
+fn a_tangent_between_a_line_and_a_chamfer_lays_nothing() {
+    let mut history = a_chamfered_corner_beside_a_line();
+    let chamfered = the_drawing(&history);
+    for line_first in [true, false] {
+        let (order, picks) = clicked(line_first);
+        assert_eq!(
+            rule_intent(Rule::Tangent, &picks, &chamfered),
+            None,
+            "{order}: a rule was laid between a line and a chamfer's cut"
+        );
+    }
+
+    history.push(Operation::CutChange(CutChange::Reshape {
+        sketch: 0,
+        cut: CUT,
+        value: CutAsked::Fillet(RADIUS.into()),
+    }));
+
+    let rounded = the_drawing(&history);
+    for line_first in [true, false] {
+        let (order, picks) = clicked(line_first);
+        assert!(
+            rule_intent(Rule::Tangent, &picks, &rounded).is_some(),
+            "{order}: the same corner rounded takes no tangent either"
+        );
+    }
 }

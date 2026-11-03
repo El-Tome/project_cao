@@ -344,7 +344,13 @@ The decisions, in the order taken, once per operation:
    `Tangent`, as for two circular walls, which keep their bits; four
    crossings, two touches, or a touch beside crossings are `Parallel`, each
    ruling with whether the walls only touch along it, and every reader of a
-   relation answers it. Two walls within `G` of each other at every foot —
+   relation answers it. Through the map that makes the rounder of two
+   ellipses round, the feet keep where the walls cross but not how far apart
+   they stand: the same ellipse turned a hair stands furthest from itself a
+   quarter of the way between two feet, a fifth further than at either
+   (5585704198), so between two ellipses the distance is read again along
+   each stretch between two feet, at sixteen places (#574). Two walls within
+   `G` of each other there and at every foot —
    an ellipse a hair from round about a circle of its size — are
    unsupported: they stand within `EPS` of each other over bands no ruling
    tells apart, and built, such a pair was drawn backwards, left open, or

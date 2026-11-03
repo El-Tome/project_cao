@@ -10,7 +10,8 @@
 //! - each family fixed has a test that fails on `main` —
 //!   `an_arc_of_an_ellipse_a_hair_from_round_cut_from_its_circle_keeps_every_rule`,
 //!   `half_an_ellipse_a_hair_from_round_added_to_its_circle_keeps_every_rule`,
-//!   `an_ellipse_a_millionth_short_of_round_touching_its_circle_keeps_every_rule`
+//!   `an_ellipse_a_millionth_short_of_round_touching_its_circle_keeps_every_rule`,
+//!   `the_same_ellipse_turned_a_hair_past_decision_8_keeps_every_rule`
 //! - what stays above the bar is written in `docs/exact-kernel-failures.md` —
 //!   no test: prose, the same section
 //!
@@ -92,5 +93,25 @@ fn an_ellipse_a_millionth_short_of_round_touching_its_circle_keeps_every_rule() 
                 4.0,
             )),
         ],
+    ));
+}
+
+/// Seed 5585704198: an elliptic disc of half-axes 0.5 and 3, cut by the
+/// same ellipse turned a ten-millionth of a radian, a twenty-fifth past
+/// decision 8's hair. Read at the feet of the normals the two walls stood
+/// within the hair of each other, and the pair was declined `Unsupported`.
+#[test]
+fn the_same_ellipse_turned_a_hair_past_decision_8_keeps_every_rule() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::ellipse([9.0, 2.0], [0.0, -0.5], 3.0),
+            2.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::ellipse([9.0, 2.0], [4.999999999999991e-8, -0.4999999999999975], 3.0),
+            3.0,
+        ))],
     ));
 }

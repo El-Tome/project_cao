@@ -3,6 +3,8 @@
 //! foot stands within the tolerance of the other wall, a crossing halved for
 //! between two feet whose gaps part in sign.
 
+use std::f64::consts::TAU;
+
 use glam::{DVec2, DVec3};
 
 use super::Ruled;
@@ -13,6 +15,11 @@ use crate::brep::surface::{Cylinder, EllipticCylinder};
 /// Halvings of a crossing's bracket: past the fifty-three bits of a double
 /// the midpoint stands on an end, and the search stops there.
 const HALVINGS: usize = 1100;
+
+/// How many equal steps a stretch between two feet is read at, against an
+/// elliptic wall: the widest gap is flat at its top, and a sixteenth of the
+/// stretch misses it by a few in a thousand.
+const STRETCH_READS: usize = 16;
 
 /// The wall an elliptic one is measured against.
 #[derive(Clone, Copy)]
@@ -81,7 +88,7 @@ pub(super) fn met(
         .iter()
         .map(|&theta| other.gap(point(theta)))
         .collect();
-    if gaps.iter().all(|gap| gap.abs() <= Scale::HAIR * eps) {
+    if widest(walked, other, &angles, &gaps) <= Scale::HAIR * eps {
         return None;
     }
     let touching: Vec<bool> = gaps.iter().map(|gap| gap.abs() <= eps).collect();
@@ -90,7 +97,7 @@ pub(super) fn met(
     let turned = |index: usize| {
         let at = (start + index) % count;
         let turns = ((start + index) / count) as f64;
-        (at, angles[at] + std::f64::consts::TAU * turns)
+        (at, angles[at] + TAU * turns)
     };
     let mut found = Met {
         rulings: Vec::new(),
@@ -132,6 +139,30 @@ pub(super) fn met(
         index += 1;
     }
     Some(found)
+}
+
+/// How far apart two walls stand at most. Against a circular wall, at the
+/// feet of the normals, where the distance turns. Against an elliptic one,
+/// the feet were found through the map that makes it round, which keeps
+/// where the two cross but not how far apart they stand: the same ellipse
+/// turned a hair stands furthest from itself a quarter of the way between
+/// two feet, a fifth further than at either (5585704198). There the
+/// distance is read again along each stretch between two feet.
+fn widest(walked: &EllipticCylinder, other: Other, angles: &[f64], gaps: &[f64]) -> f64 {
+    let at_feet = gaps.iter().map(|gap| gap.abs()).fold(0.0, f64::max);
+    if matches!(other, Other::Round(_)) {
+        return at_feet;
+    }
+    let count = angles.len();
+    (0..count)
+        .flat_map(|index| {
+            let from = angles[index];
+            let to = angles.get(index + 1).copied().unwrap_or(angles[0] + TAU);
+            (1..STRETCH_READS)
+                .map(move |step| from + (to - from) * step as f64 / STRETCH_READS as f64)
+        })
+        .map(|theta| other.gap(walked.point(DVec2::new(theta, 0.0))).abs())
+        .fold(at_feet, f64::max)
 }
 
 /// The angle in `bracket` where `side` changes sign, by halving: above

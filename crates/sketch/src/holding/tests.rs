@@ -327,7 +327,7 @@ fn a_place_elsewhere_along_a_trait_lands_on_the_trait_alone() {
 }
 
 #[test]
-fn a_point_dropped_at_the_middle_by_a_drag_is_held_on_the_trait_alone() {
+fn a_point_dropped_at_the_middle_by_a_drag_is_held_at_its_middle() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let start = sketch.add_point(DVec2::new(10.0, 10.0));
     let end = sketch.add_point(DVec2::new(50.0, 10.0));
@@ -336,7 +336,32 @@ fn a_point_dropped_at_the_middle_by_a_drag_is_held_on_the_trait_alone() {
 
     let on = sketch.supports_for(dragged, DVec2::new(30.0, 10.0));
 
-    assert_eq!(on, vec![Support::Segment(side)]);
+    assert_eq!(on, vec![Support::Middle(side)]);
+}
+
+#[test]
+fn holding_a_point_at_the_middle_takes_the_place_of_its_hold_on_the_trait() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(DVec2::new(50.0, 10.0));
+    let side = sketch.add_segment(start, end);
+    let centre = sketch.add_point(DVec2::new(30.0, 30.0));
+    let round = sketch.add_circle(centre, 20.0);
+    let point = sketch.add_point(DVec2::new(30.0, 10.0));
+    sketch.add_constraint(Support::Segment(side).holding(point));
+    sketch.add_constraint(Support::Circle(round).holding(point));
+
+    sketch.hold(point, Support::Middle(side));
+
+    let rules: Vec<Constraint> = sketch.constraints().to_vec();
+    assert_eq!(
+        rules,
+        vec![
+            Support::Circle(round).holding(point),
+            Support::Middle(side).holding(point)
+        ],
+        "the middle stands in for the trait, and the circle stays"
+    );
 }
 
 #[test]

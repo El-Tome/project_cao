@@ -1,4 +1,30 @@
 //! What app · screens/viewport/input/landing.rs is held to.
+//!
+//! Closes #615.
+//! - a point dropped on the middle mark of a trait carries the midpoint rule on
+//!   that trait — `a_free_point_dropped_at_the_middle_of_a_trait_is_held_at_its_middle`;
+//!   that it then follows the middle is held in `cao_part`, by
+//!   `a_point_dropped_at_the_middle_follows_it_when_the_trait_stretches`
+//! - that holds for the end of another trait —
+//!   `the_end_of_another_trait_dropped_at_a_middle_is_held_there`
+//! - for a point already on that trait —
+//!   `a_point_slid_along_its_trait_to_the_middle_is_held_at_its_middle`
+//! - and for a point held elsewhere —
+//!   `a_point_held_elsewhere_dropped_at_a_middle_takes_the_middle_too`
+//! - the midpoint rule replaces the hold on the trait — no test: held
+//!   `holding_a_point_at_the_middle_takes_the_place_of_its_hold_on_the_trait`
+//!   holds it in `cao_sketch`, and `cao_part` replays through it
+//! - a point dropped anywhere else along a trait is held on it —
+//!   `a_point_dropped_on_a_trait_the_drag_left_in_place_is_held_on_it`
+//! - a drop where the middle of one trait crosses another is at that middle and
+//!   on the other — `a_drop_where_a_middle_crosses_another_trait_is_at_that_middle_and_on_the_other`
+//! - the drop and its rule are one step of the history — no test: held by
+//!   `one_undo_takes_back_the_drop_and_its_midpoint_rule`, in `cao_part`
+//! - a point dragged with the let-go key held behaves as it does today — no
+//!   test: `dragging.rs` still asks for no hold while that key is down, and is
+//!   not touched
+//! - the « 1/2 » mark shows on the point straight away — no test:
+//!   `rule_marks` already marks a midpoint rule, and the canvas has no net
 
 use super::*;
 use cao_sketch::{CircleId, SegmentId, WorkPlane};
@@ -158,5 +184,92 @@ fn a_point_born_at_the_middle_of_a_trait_is_held_at_its_middle() {
             at: DVec2::new(20.0, 20.0),
             on: vec![Support::Middle(SegmentId(0))],
         },
+    );
+}
+
+/// A trait lying flat from (10, 10) to (50, 10), its middle at (30, 10).
+fn a_flat_trait() -> (Sketch, SegmentId) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let west = sketch.add_point(DVec2::new(10.0, 10.0));
+    let east = sketch.add_point(DVec2::new(50.0, 10.0));
+    let side = sketch.add_segment(west, east);
+    (sketch, side)
+}
+
+const THE_MIDDLE: DVec2 = DVec2::new(30.0, 10.0);
+
+fn dropped_at_the_middle(sketch: &Sketch, point: PointId) -> Vec<Support> {
+    let mut settled = sketch.clone();
+    let pull = settled.pull(point, 1.0);
+    settled.settle_pulled(&pull, THE_MIDDLE, 1.0);
+    assert!(
+        settled.point(point).distance(THE_MIDDLE) < 1e-9,
+        "the drag takes the point to the middle"
+    );
+    held_at_drop(sketch, &settled, point, THE_MIDDLE)
+}
+
+#[test]
+fn a_free_point_dropped_at_the_middle_of_a_trait_is_held_at_its_middle() {
+    let (mut sketch, side) = a_flat_trait();
+    let lone = sketch.add_point(DVec2::new(30.0, 40.0));
+
+    assert_eq!(
+        dropped_at_the_middle(&sketch, lone),
+        vec![Support::Middle(side)]
+    );
+}
+
+#[test]
+fn the_end_of_another_trait_dropped_at_a_middle_is_held_there() {
+    let (mut sketch, side) = a_flat_trait();
+    let foot = sketch.add_point(DVec2::new(30.0, 40.0));
+    let head = sketch.add_point(DVec2::new(60.0, 60.0));
+    sketch.add_segment(foot, head);
+
+    assert_eq!(
+        dropped_at_the_middle(&sketch, foot),
+        vec![Support::Middle(side)]
+    );
+}
+
+#[test]
+fn a_point_slid_along_its_trait_to_the_middle_is_held_at_its_middle() {
+    let (mut sketch, side) = a_flat_trait();
+    let on_it = sketch.add_point(DVec2::new(20.0, 10.0));
+    sketch.add_constraint(Support::Segment(side).holding(on_it));
+
+    assert_eq!(
+        dropped_at_the_middle(&sketch, on_it),
+        vec![Support::Middle(side)]
+    );
+}
+
+#[test]
+fn a_point_held_elsewhere_dropped_at_a_middle_takes_the_middle_too() {
+    let (mut sketch, side) = a_flat_trait();
+    let centre = sketch.add_point(DVec2::new(30.0, 30.0));
+    let round = sketch.add_circle(centre, 20.0);
+    let on_the_round = sketch.add_point(DVec2::new(50.0, 30.0));
+    sketch.add_constraint(Support::Circle(round).holding(on_the_round));
+
+    assert_eq!(
+        dropped_at_the_middle(&sketch, on_the_round),
+        vec![Support::Middle(side)],
+        "what already held it stays as it was, and is not laid a second time"
+    );
+}
+
+#[test]
+fn a_drop_where_a_middle_crosses_another_trait_is_at_that_middle_and_on_the_other() {
+    let (mut sketch, side) = a_flat_trait();
+    let below = sketch.add_point(DVec2::new(30.0, 0.0));
+    let above = sketch.add_point(DVec2::new(30.0, 40.0));
+    let upright = sketch.add_segment(below, above);
+    let lone = sketch.add_point(DVec2::new(45.0, 40.0));
+
+    assert_eq!(
+        dropped_at_the_middle(&sketch, lone),
+        vec![Support::Middle(side), Support::Segment(upright)]
     );
 }

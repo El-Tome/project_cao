@@ -389,6 +389,6 @@ pub(crate) fn resolve(sketch: &mut Sketch, point: &PointRef) -> cao_sketch::Poin
 /// where it stands, so nothing moves until the drawing is next settled.
 pub(crate) fn hold(sketch: &mut Sketch, point: cao_sketch::PointId, on: &[Support]) {
     for support in on {
-        sketch.add_constraint(support.holding(point));
+        sketch.hold(point, *support);
     }
 }

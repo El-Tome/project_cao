@@ -30,6 +30,7 @@
 //! bands no ruling tells apart, and are unsupported: built, such a pair was
 //! drawn backwards, left open, or kept matter a cut took away.
 
+mod met;
 mod normals;
 
 use glam::{DVec2, DVec3};
@@ -38,6 +39,7 @@ use super::{Relation, parallel, sorted};
 use crate::brep::curve::Line;
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, EllipticCylinder, Surface};
+use met::{Met, Other, met};
 
 /// A ruling two parallel walls meet along, and whether they only touch
 /// along it rather than cross.
@@ -46,10 +48,6 @@ pub struct Ruled {
     pub line: Line,
     pub touching: bool,
 }
-
-/// Halvings of a crossing's bracket: past the fifty-three bits of a double
-/// the midpoint stands on an end, and the search stops there.
-const HALVINGS: usize = 1100;
 
 /// A circular wall and an elliptic one about parallel axes.
 pub(super) fn round_and_elliptic(
@@ -212,143 +210,6 @@ fn rounder_first(one: &EllipticCylinder, other: &EllipticCylinder) -> bool {
                 .unwrap_or(std::cmp::Ordering::Equal)
         })
         .is_le()
-}
-
-/// The wall an elliptic one is measured against.
-#[derive(Clone, Copy)]
-enum Other<'a> {
-    Round(&'a Cylinder),
-    Oval(&'a EllipticCylinder),
-}
-
-impl Other<'_> {
-    /// How far `point` stands outside the wall, negative inside.
-    fn gap(self, point: DVec3) -> f64 {
-        match self {
-            Other::Round(round) => round.distance(point),
-            Other::Oval(wall) => wall.distance(point),
-        }
-    }
-
-    /// Above nought outside the wall, below inside: the distance for a
-    /// circular wall, the section's own equation for an elliptic one.
-    fn side(self, point: DVec3) -> f64 {
-        match self {
-            Other::Round(round) => round.distance(point),
-            Other::Oval(wall) => {
-                let from = point - wall.origin;
-                let (x, y) = (from.dot(wall.u) / wall.major, from.dot(wall.v) / wall.minor);
-                (x - 1.0) * (x + 1.0) + y * y
-            }
-        }
-    }
-
-    /// The point of the wall nearest `point`.
-    fn nearest(self, point: DVec3) -> DVec3 {
-        match self {
-            Other::Round(round) => {
-                let from = point - round.origin;
-                let foot = round.origin + round.axis * round.axis.dot(from);
-                foot + (point - foot).normalize_or_zero() * round.radius
-            }
-            Other::Oval(wall) => wall.nearest(point),
-        }
-    }
-}
-
-/// The rulings two walls meet along, the feet of the normal they share at
-/// each touch — on the wall the pair is read round, and on the other — and
-/// the least gap between them at the feet of the normals.
-struct Met {
-    rulings: Vec<Ruled>,
-    feet: Vec<[DVec3; 2]>,
-    nearest: f64,
-}
-
-/// The rulings `walked` meets `other` along, from the angles of `walked`
-/// at which their distance turns, in order round it; none where the two
-/// stand within decision 8's hair of each other at every one of those
-/// angles.
-fn met(walked: &EllipticCylinder, other: Other, angles: Vec<f64>, scale: Scale) -> Option<Met> {
-    let eps = scale.eps();
-    let point = |theta: f64| walked.point(DVec2::new(theta, 0.0));
-    let gaps: Vec<f64> = angles
-        .iter()
-        .map(|&theta| other.gap(point(theta)))
-        .collect();
-    if gaps.iter().all(|gap| gap.abs() <= Scale::HAIR * eps) {
-        return None;
-    }
-    let touching: Vec<bool> = gaps.iter().map(|gap| gap.abs() <= eps).collect();
-    let start = touching.iter().position(|touch| !touch)?;
-    let count = angles.len();
-    let turned = |index: usize| {
-        let at = (start + index) % count;
-        let turns = ((start + index) / count) as f64;
-        (at, angles[at] + std::f64::consts::TAU * turns)
-    };
-    let mut found = Met {
-        rulings: Vec::new(),
-        feet: Vec::new(),
-        nearest: gaps
-            .iter()
-            .map(|gap| gap.abs())
-            .fold(f64::INFINITY, f64::min),
-    };
-    let mut index = 0;
-    while index < count {
-        let (at, from) = turned(index);
-        if touching[at] {
-            let mut nearest = at;
-            while index < count && touching[turned(index).0] {
-                let (run, _) = turned(index);
-                if gaps[run].abs() < gaps[nearest].abs() {
-                    nearest = run;
-                }
-                index += 1;
-            }
-            let here = point(angles[nearest]);
-            let there = other.nearest(here);
-            found.rulings.push(Ruled {
-                line: Line::through((here + there) / 2.0, walked.axis),
-                touching: true,
-            });
-            found.feet.push([here, there]);
-            continue;
-        }
-        let (next, to) = turned(index + 1);
-        if !touching[next] && (gaps[at] > 0.0) != (gaps[next] > 0.0) {
-            let theta = crossing([from, to], gaps[at] > 0.0, |theta| other.side(point(theta)));
-            found.rulings.push(Ruled {
-                line: Line::through(point(theta), walked.axis),
-                touching: false,
-            });
-        }
-        index += 1;
-    }
-    Some(found)
-}
-
-/// The angle in `bracket` where `side` changes sign, by halving: above
-/// nought at its low end when `outside`, below it otherwise.
-fn crossing([mut low, mut high]: [f64; 2], outside: bool, side: impl Fn(f64) -> f64) -> f64 {
-    let mut middle = (low + high) / 2.0;
-    for _ in 0..HALVINGS {
-        middle = (low + high) / 2.0;
-        if middle <= low || middle >= high {
-            break;
-        }
-        let value = side(middle);
-        if value == 0.0 {
-            break;
-        }
-        if (value > 0.0) == outside {
-            low = middle;
-        } else {
-            high = middle;
-        }
-    }
-    middle
 }
 
 /// The relation the rulings found make: apart for none, a touch alone as

@@ -2,10 +2,16 @@
 //!
 //! Closes #319.
 //! - the three-state button is shown only while a sketch is open, next to the
-//!   re-align button —
+//!   re-align button — read, with the user, as a ribbon button beside
+//!   « Recadrer » that is disabled outside a sketch rather than hidden, as
+//!   « Recadrer » is —
 //!   `the_matter_in_front_button_is_offered_only_while_a_sketch_is_open`
-//! - its face shows the current state —
-//!   `the_matter_in_front_button_names_the_state_it_is_in`
+//! - its icon shows the current one — the ribbon draws labels, not icons, so it
+//!   is the label that names the state —
+//!   `the_matter_in_front_button_names_the_state_it_is_in` — and the two-letter
+//!   face it falls back to with labels off, which must still tell the three
+//!   apart — `with_labels_off_the_three_states_still_read_apart`,
+//!   `with_labels_off_every_other_button_keeps_its_two_letters`
 
 use super::*;
 use cao_sketch::WorkPlane;
@@ -145,4 +151,65 @@ fn the_matter_in_front_button_names_the_state_it_is_in() {
         faces[3], faces[0],
         "a third click is back on Hidden, and the button says something else",
     );
+}
+
+fn faces_of_the_three_states(face: fn(Command, &Context<'_>) -> String) -> Vec<String> {
+    let part = a_part();
+    let extrusion = ExtrusionState::default();
+    let mut settings = Settings::default();
+    settings.toolbar.show_labels = false;
+    let lang = Catalogue::french();
+    let mut editor = drawing_on_a_sketch();
+
+    let mut faces = Vec::new();
+    for _ in 0..3 {
+        let state = Context {
+            settings: &settings,
+            document: &part,
+            editor: &editor,
+            extrusion: &extrusion,
+            lang: &lang,
+        };
+        faces.push(face(Command::NextMatterInFront, &state));
+        editor.next_matter_in_front();
+    }
+    faces
+}
+
+#[test]
+fn with_labels_off_the_three_states_still_read_apart() {
+    let faces = faces_of_the_three_states(short_label);
+
+    assert!(
+        faces[0] != faces[1] && faces[1] != faces[2] && faces[0] != faces[2],
+        "with labels off, two of the three states wear the same face: {faces:?}",
+    );
+}
+
+#[test]
+fn with_labels_off_every_other_button_keeps_its_two_letters() {
+    let part = a_part();
+    let extrusion = ExtrusionState::default();
+    let settings = Settings::default();
+    let lang = Catalogue::french();
+    let editor = drawing_on_a_sketch();
+    let state = Context {
+        settings: &settings,
+        document: &part,
+        editor: &editor,
+        extrusion: &extrusion,
+        lang: &lang,
+    };
+
+    for command in Command::ALL
+        .into_iter()
+        .filter(|command| *command != Command::NextMatterInFront)
+    {
+        let two_letters: String = label(command, &state).chars().take(2).collect();
+        assert_eq!(
+            short_label(command, &state),
+            two_letters,
+            "{command:?} changed face with labels off",
+        );
+    }
 }

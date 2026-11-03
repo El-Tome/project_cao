@@ -11,8 +11,15 @@ impl Mesh {
     /// looking rather than a way of taking matter away, and nothing is put back
     /// to close it.
     pub fn behind(&self, normal: DVec3, offset: f64) -> Mesh {
+        self.parted(normal, offset).0
+    }
+
+    /// What lies behind the plane, as [`Mesh::behind`] leaves it, and what
+    /// stands strictly in front of it: a face lying in the plane goes behind.
+    pub fn parted(&self, normal: DVec3, offset: f64) -> (Mesh, Mesh) {
         let plane = Plane { normal, offset };
         let mut kept: Vec<Polygon> = Vec::new();
+        let mut in_front: Vec<Polygon> = Vec::new();
         for polygon in &self.polygons {
             let mut cut = Split::default();
             plane.split(polygon, &mut cut);
@@ -21,8 +28,9 @@ impl Mesh {
             // and it is the very face a sketch started on a face is drawn on.
             kept.extend(cut.coplanar_back);
             kept.extend(cut.coplanar_front);
+            in_front.extend(cut.front);
         }
-        Mesh { polygons: kept }
+        (Mesh { polygons: kept }, Mesh { polygons: in_front })
     }
 }
 

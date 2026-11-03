@@ -1,5 +1,4 @@
 use cao_prefs::{Command, CommandFamily};
-use cao_render::MatterInFront;
 
 use crate::lang::Catalogue;
 
@@ -72,16 +71,6 @@ pub fn label(lang: &Catalogue, command: Command) -> String {
         Command::ToggleToolbarDocked => "command.label.toggle_toolbar_docked",
         Command::OpenSettings => "command.label.open_settings",
         Command::BackToMenu => "command.label.back_to_menu",
-    })
-}
-
-/// The face of the button that moves the matter in front of the sketch to its
-/// next state: the state it is in now.
-pub fn matter_in_front(lang: &Catalogue, state: MatterInFront) -> String {
-    lang.t(match state {
-        MatterInFront::Hidden => "command.label.matter_in_front.hidden",
-        MatterInFront::SeeThrough => "command.label.matter_in_front.see_through",
-        MatterInFront::Opaque => "command.label.matter_in_front.opaque",
     })
 }
 

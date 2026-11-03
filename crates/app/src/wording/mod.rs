@@ -19,6 +19,7 @@ pub mod ellipse;
 pub mod file;
 pub mod formula;
 pub mod history;
+pub mod matter;
 pub mod measure;
 pub mod outcome;
 pub mod part_file;

@@ -7,7 +7,7 @@
 use cao_prefs::theme::{Background, Theme};
 use cao_render::{AxisStyle, BackgroundShape, SceneFrame, ViewportRect, cube, push_axes, srgb};
 use cao_sketch::{DimensionTarget, Going};
-use glam::{DVec2, Vec3};
+use glam::{DVec2, DVec3, Vec3};
 
 mod arc;
 mod circle;
@@ -61,12 +61,11 @@ const SEE_THROUGH_OPACITY: f32 = 0.25;
 
 fn push_body(
     out: &mut Vec<cao_render::Vertex>,
-    body: &cao_solid::Body,
+    triangles: Vec<[DVec3; 3]>,
     color: [f32; 4],
     towards: Vec3,
 ) {
-    let triangles: Vec<_> = body
-        .triangles()
+    let triangles: Vec<_> = triangles
         .iter()
         .map(|corners| corners.map(|corner| corner.as_vec3()))
         .collect();
@@ -182,13 +181,25 @@ pub(crate) fn build_frame(
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
 
     let editor: &SketchEditor = context.editor;
-    let (body, eye) = (context.document.body(), camera.eye());
+    let drawn = matter::drawn(editor, state.mode, context.document.body(), camera.eye());
     let mut solids = Vec::new();
-    let shown = matter::shown_body(editor, state.mode, body, eye);
-    push_body(&mut solids, &shown, tint(theme.solid), camera.forward());
-    if let Some(in_front) = matter::see_through_body(editor, state.mode, body, eye) {
+    push_body(
+        &mut solids,
+        drawn.opaque.triangles(),
+        tint(theme.solid),
+        camera.forward(),
+    );
+    if let Some(in_front) = drawn.see_through {
+        // The surface pass culls nothing: a far side left in would be stacked
+        // behind the near one.
+        let eye = camera.eye().as_dvec3();
+        let facing = in_front
+            .triangles()
+            .into_iter()
+            .filter(|[a, b, c]| (*b - *a).cross(*c - *a).dot(eye - *a) > 0.0)
+            .collect();
         let veiled = tint_at(theme.solid, SEE_THROUGH_OPACITY);
-        push_body(&mut surfaces, &in_front, veiled, camera.forward());
+        push_body(&mut surfaces, facing, veiled, camera.forward());
     }
 
     let mut cube_triangles = Vec::new();

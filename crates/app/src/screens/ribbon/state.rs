@@ -3,7 +3,7 @@ use crate::screens::extrusion::{ExtrusionState, Shape};
 use crate::screens::sketch::{
     ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode, SketchEditor, Tool,
 };
-use crate::wording::command as wording;
+use crate::wording::{command as wording, matter};
 use cao_part::PartDocument;
 use cao_prefs::{Command, Settings};
 use cao_sketch::Rule;
@@ -133,10 +133,19 @@ fn mode_is(state: &Context<'_>, mode: CircleMode) -> bool {
 /// one button whose face says that.
 pub(super) fn label(command: Command, state: &Context<'_>) -> String {
     match command {
-        Command::NextMatterInFront => {
-            wording::matter_in_front(state.lang, state.editor.matter_in_front)
-        }
+        Command::NextMatterInFront => matter::in_front(state.lang, state.editor.matter_in_front),
         _ => wording::label(state.lang, command),
+    }
+}
+
+/// What the button reads with labels off: two letters, which for the matter in
+/// front of the sketch have to tell its three states apart.
+pub(super) fn short_label(command: Command, state: &Context<'_>) -> String {
+    match command {
+        Command::NextMatterInFront => {
+            matter::in_front_short(state.lang, state.editor.matter_in_front)
+        }
+        _ => label(command, state).chars().take(2).collect(),
     }
 }
 

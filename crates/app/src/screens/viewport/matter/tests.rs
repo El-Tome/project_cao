@@ -25,10 +25,17 @@
 //!   `see_through_hands_the_matter_in_front_over_apart`; that it reaches the
 //!   painter translucent is held under its own `Closes #319` in
 //!   `crates/app/src/screens/viewport/render/tests.rs`
+//! - what is drawn see-through is only what stands in front: a face lying on
+//!   the sketch plane stays opaque, under the sketch's own fills — found in
+//!   review, not in the issue —
+//!   `see_through_carries_no_face_lying_on_the_sketch_plane`,
+//!   `see_through_hands_over_nothing_when_nothing_stands_in_front`
 //! - Opaque: it is drawn as usual — `opaque_draws_the_matter_in_front_as_usual`
-//! - the button is shown only while a sketch is open, next to the re-align
-//!   button — no test: here; it is a ribbon command, held under its own
-//!   `Closes #319` in `crates/app/src/screens/ribbon/state/tests.rs`
+//! - the button, next to the re-align button, is there only while a sketch is
+//!   open; its icon shows the current state — no test: here; it is a ribbon
+//!   command, held under its own `Closes #319` in
+//!   `crates/app/src/screens/ribbon/state/tests.rs`, which says how the issue's
+//!   "shown" and "icon" were read
 //! - what lies behind the plane is always drawn as usual —
 //!   `what_lies_behind_the_plane_is_drawn_in_every_state`
 //! - every sketch opens on Hidden, and Hidden stays the default —
@@ -40,8 +47,9 @@
 //!   `closing_the_sketch_puts_the_whole_body_back`
 //! - clicks always reach the sketch plane, whatever the state, picking and
 //!   snapping on it included — no test: here; a click is met with the plane and
-//!   never with the body, held by a click through opaque matter in
-//!   `crates/app/tests/drawing.rs` under its own `Closes #319`
+//!   never with the body, and the input wants a window, so it is held in each
+//!   state by the driver, in `crates/app/tests/drawing.rs` under its own
+//!   `Closes #319`
 //! - the part's picture in the explorer carries no cut — no test: `picture::of`
 //!   reads `document.body()` and is handed neither the editor nor the view, so
 //!   there is nothing it could cut with
@@ -56,6 +64,19 @@ use super::*;
 use crate::screens::viewport::{ViewMode, ViewportState};
 
 const ABOVE: Vec3 = Vec3::new(0.0, 0.0, 10.0);
+
+fn shown_body<'a>(
+    editor: &SketchEditor,
+    mode: ViewMode,
+    body: &'a Body,
+    eye: Vec3,
+) -> Cow<'a, Body> {
+    drawn(editor, mode, body, eye).opaque
+}
+
+fn see_through_body(editor: &SketchEditor, mode: ViewMode, body: &Body, eye: Vec3) -> Option<Body> {
+    drawn(editor, mode, body, eye).see_through
+}
 
 /// The view a sketch on `plane` lands in when it is started.
 fn sitting_on(plane: WorkPlane) -> ViewMode {
@@ -172,8 +193,7 @@ fn closing_the_sketch_puts_the_whole_body_back() {
 
     assert_eq!(
         *shown, body,
-        "the view still sits on the plane the sketch was closed on, \
-         and keeping the cut with it would leave the part opened for good"
+        "the sketch is closed, and the part is still drawn cut open"
     );
     assert!(
         see_through_body(&editor, sitting_on(WorkPlane::XY), &body, ABOVE).is_none(),
@@ -444,5 +464,53 @@ fn opening_another_sketch_without_closing_it_starts_on_hidden() {
         look_of(&editor),
         Look::Hidden,
         "a sketch opened from the tree while another was open inherits its choice",
+    );
+}
+
+fn lies_on(body: &Body, height: f64) -> bool {
+    body.triangles()
+        .iter()
+        .any(|corners| corners.iter().all(|at| (at.z - height).abs() <= 1e-9))
+}
+
+fn see_through_on(height: f64) -> Option<Body> {
+    let plane = WorkPlane {
+        origin: DVec3::Z * height,
+        ..WorkPlane::XY
+    };
+    let mut editor = SketchEditor::default();
+    editor.begin_editing(0, plane);
+    editor.next_matter_in_front();
+    see_through_body(
+        &editor,
+        sitting_on(plane),
+        &a_body_through_the_plane(),
+        ABOVE,
+    )
+}
+
+#[test]
+fn see_through_carries_no_face_lying_on_the_sketch_plane() {
+    let through_the_middle = see_through_on(0.0).expect("the upper half stands in front");
+    let on_the_base = see_through_on(-1.0).expect("the whole block stands in front");
+
+    assert!(
+        !lies_on(&through_the_middle, 0.0),
+        "the cut across the block is drawn see-through over the sketch drawn on it",
+    );
+    assert!(
+        !lies_on(&on_the_base, -1.0),
+        "the face the sketch is laid on is drawn see-through over the sketch's own fills",
+    );
+}
+
+#[test]
+fn see_through_hands_over_nothing_when_nothing_stands_in_front() {
+    let on_the_top = see_through_on(1.0);
+
+    assert!(
+        on_the_top.is_none_or(|body| body.triangles().is_empty()),
+        "a sketch on the top face has nothing in front of it, and the top face \
+         is drawn see-through over it",
     );
 }

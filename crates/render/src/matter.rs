@@ -9,7 +9,7 @@ pub enum MatterInFront {
 }
 
 impl MatterInFront {
-    /// The state one click on the button moves to.
+    /// The state that follows, round the three.
     pub fn next(self) -> Self {
         match self {
             Self::Hidden => Self::SeeThrough,

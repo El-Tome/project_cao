@@ -164,6 +164,12 @@ impl PartDocument {
         self.state.measured(sketch, target)
     }
 
+    /// Whether a value on this target is kept as a readout rather than driving
+    /// the drawing: what a click would record, asked before it.
+    pub fn lays_as_readout(&self, sketch: usize, target: cao_sketch::DimensionTarget) -> bool {
+        self.state.lays_as_readout(sketch, target)
+    }
+
     /// Records an operation and applies it. Recording and applying go together
     /// so the two can never fall out of step. A rule refused is neither: it
     /// left the drawing as it was, and would only be a step that does nothing.

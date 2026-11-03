@@ -11,11 +11,28 @@ impl Sketch {
     /// already there — exactly the case of a triangle's third side once its
     /// other sides and angles are fixed. Counting constraints could never see
     /// that; comparing their directions can. A fixed point decides nothing.
+    ///
+    /// Read once per state of the drawing and target rather than once per
+    /// frame: the preview asks it on every image, and the answer is a cubic
+    /// pass over the whole sketch.
     pub fn would_be_redundant(&self, target: DimensionTarget, millimeters_per_unit: f64) -> bool {
         if self.dimension_of(target).is_some() {
             return false;
         }
+        let drawing = self.print_of_what_is_read(millimeters_per_unit);
+        let remembered = match self.redundant.borrow().as_ref() {
+            Some((was, asked, verdict)) if *was == drawing && *asked == target => Some(*verdict),
+            _ => None,
+        };
+        if let Some(verdict) = remembered {
+            return verdict;
+        }
+        let verdict = self.read_redundancy(target, millimeters_per_unit);
+        *self.redundant.borrow_mut() = Some((drawing, target, verdict));
+        verdict
+    }
 
+    fn read_redundancy(&self, target: DimensionTarget, millimeters_per_unit: f64) -> bool {
         let existing = self.equations_pinned_by(millimeters_per_unit, &self.only_the_origin());
         let Some(candidate) = self.candidate_equation(target, millimeters_per_unit) else {
             return false;

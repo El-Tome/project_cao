@@ -73,7 +73,7 @@ impl Sketch {
     /// The whole drawing, positions included, and not only its shapes: a trait
     /// lying square to the sketch is what lets its group keep the direction it
     /// was drawn in without being told, so moving one point can settle another.
-    fn print_of_what_is_read(&self, millimeters_per_unit: f64) -> u64 {
+    pub(crate) fn print_of_what_is_read(&self, millimeters_per_unit: f64) -> u64 {
         let mut print = DefaultHasher::new();
         millimeters_per_unit.to_bits().hash(&mut print);
         for point in self.points() {
@@ -92,6 +92,12 @@ impl Sketch {
         for (id, circle) in self.live_circles() {
             (id, circle.center).hash(&mut print);
             circle.radius.to_bits().hash(&mut print);
+        }
+        for (id, arc) in self.live_arcs() {
+            (id, arc.center, arc.start, arc.end).hash(&mut print);
+        }
+        for (id, ellipse) in self.live_ellipses() {
+            (id, ellipse.center, ellipse.first, ellipse.second).hash(&mut print);
         }
         for dimension in self.dimensions() {
             (dimension.target, dimension.driven).hash(&mut print);

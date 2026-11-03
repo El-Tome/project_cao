@@ -67,6 +67,31 @@
 //!   an `egui::Ui`
 //! - a read-only angle goes when one of its traits goes —
 //!   `a_read_only_angle_goes_with_a_trait_it_measures`
+//! - another quarter is any of the three: the one opposite the driving angle
+//!   reads the same value and is laid read-only too —
+//!   `an_x_put_down_in_the_opposite_quarter_lays_a_read_only_angle_of_the_same_value`;
+//!   and the preview and the click agree on which is read-only, held in
+//!   `render/preview/tests.rs` by
+//!   `what_the_preview_calls_read_only_is_what_the_click_records`
+//!
+//! What the issue says must not break:
+//! - Clicking the pair again in the quarter its angle measures opens it —
+//!   `an_x_put_down_again_in_the_driving_quarter_opens_the_driving_angle`,
+//!   `a_corner_put_down_in_the_driving_quarter_opens_the_driving_angle`,
+//!   `a_t_put_down_in_the_driving_quarter_opens_the_driving_angle`,
+//!   `two_traits_apart_put_down_in_the_driving_quarter_open_the_driving_angle`,
+//!   `a_trait_and_an_axis_put_down_in_the_driving_quarter_open_the_driving_angle`
+//! - A value typed on the driving angle drives the traits on its side; the
+//!   read-only ones follow —
+//!   `a_read_only_angle_reads_its_quarter_again_after_the_traits_move`
+//! - The quarter held through a margin, with a driving angle already laid: a
+//!   hair past its edge, it stays and opens; past the margin, the next quarter
+//!   is laid read-only —
+//!   `a_hand_a_hair_past_the_driving_quarter_keeps_it_and_opens_it`
+//! - Trimming, compaction and the corner tools carry every angle with its
+//!   quarter — no test: held in cao_part, where the trim, the compaction and
+//!   the fillet run, by the corner-angle tests that file transcribes for this
+//!   issue
 
 use cao_part::history::PointRef;
 use cao_part::{Formula, Operation, PartDocument, VariableChange};
@@ -1171,4 +1196,88 @@ fn a_read_only_angle_goes_with_a_trait_it_measures() {
         vec![],
         "with the rising trait gone, no angle is left reading it",
     );
+}
+
+#[test]
+fn an_x_put_down_in_the_opposite_quarter_lays_a_read_only_angle_of_the_same_value() {
+    let crossing = DVec2::new(50.0, 0.0);
+    lays_a_read_only_angle_beside_the_driving_one(APair {
+        other: (crossing + degrees(210.0) * 20.0, 60.0),
+        ..the_x()
+    });
+}
+
+#[test]
+fn a_hand_a_hair_past_the_driving_quarter_keeps_it_and_opens_it() {
+    let crossing = DVec2::new(50.0, 0.0);
+    let pixel = 0.05;
+    let follow = super::super::following::follow_the_cursor;
+    for (drifted_to, opens, said) in [
+        (
+            crossing + DVec2::new(30.0, -0.1),
+            true,
+            "a hair under the flat trait",
+        ),
+        (crossing + DVec2::new(30.0, -5.0), false, "well under it"),
+    ] {
+        let APair {
+            mut document,
+            picks,
+            driving,
+            ..
+        } = the_x();
+        let mut editor = SketchEditor::default();
+        let mut extrusion = ExtrusionState::default();
+        let lang = Catalogue::french();
+        let mut context = SketchContext {
+            document: &mut document,
+            editor: &mut editor,
+            extrusion: &mut extrusion,
+            lang: &lang,
+        };
+        put_down(&mut context, picks, driving.0);
+        let [(sixty, ..)] = angles_on(context.document)[..] else {
+            panic!("{said}: the driving 60° laid first");
+        };
+
+        context.editor.editing = None;
+        click(&mut context, picks[0]);
+        click(&mut context, picks[1]);
+        follow(&mut context, 0, crossing + DVec2::new(30.0, 0.3), pixel);
+        follow(&mut context, 0, drifted_to, pixel);
+        let shown = placing(context.editor);
+        click(&mut context, drifted_to);
+
+        let laid = angles_on(&document);
+        if opens {
+            assert_eq!(
+                shown,
+                Some(sixty),
+                "{said}: the driving 60° is still the one shown"
+            );
+            assert_eq!(
+                laid.len(),
+                1,
+                "{said}: nothing laid beside it, got {laid:?}"
+            );
+            assert_eq!(
+                editor.editing.as_ref().map(|editing| editing.target),
+                Some(sixty),
+                "{said}: the click opens the driving 60°",
+            );
+        } else {
+            assert_ne!(
+                shown,
+                Some(sixty),
+                "{said}: past the margin, the next quarter shows"
+            );
+            let [_, (_, value, true)] = laid[..] else {
+                panic!("{said}: a read-only angle laid beside the 60°, got {laid:?}");
+            };
+            assert!(
+                (value - 120.0).abs() < 1e-6,
+                "{said}: the quarter under the flat trait reads 120°, got {value}°",
+            );
+        }
+    }
 }

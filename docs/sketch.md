@@ -247,9 +247,11 @@ trait it cuts the plane into four quarters, two acute and two obtuse. The
 quarter the dimension is put down in is the angle measured, and the preview
 follows the cursor until the click. Which way round the trait was drawn says
 nothing. The quarter is chosen then and only then: dragging the dimension
-afterwards moves its value, never what it measures. To measure another quarter,
-delete it and put it down again. A trait and an axis carry one angle between
-them; clicking the pair again opens it.
+afterwards moves its value, never what it measures. A trait and an axis carry
+one **driving** angle between them. Put down again in the quarter it measures,
+the tool opens it; put down in another quarter, it lays a **read-only** angle
+there, drawn grey like any readout: it shows what that quarter measures and
+never drives the drawing. The preview says which of the two the click does.
 
 An angle between **two traits** follows the same rule everywhere. Their two
 lines cut four quarters where they cross, and the dimension measures the one it
@@ -258,7 +260,8 @@ At a **corner**, the quarters lie between the two traits, between one trait and
 the other's prolongation past the corner, or between the two prolongations. A
 **T** opens four ways like an **X**, its stem prolonged past its foot. A
 prolongation an angle opens from is drawn thin, out to the arc. A corner, like
-a pair of traits, carries one angle.
+a pair of traits, carries one driving angle, and any other quarter of it is
+laid read-only, the same way.
 
 A dimension from a point to a line reads as if a perpendicular segment came
 down from the point to the line. It really is the **line** that is measured,

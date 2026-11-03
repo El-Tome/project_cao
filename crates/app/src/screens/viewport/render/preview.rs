@@ -34,15 +34,10 @@ pub(crate) fn pending_annotation(
     pixel: f64,
 ) -> Option<PendingAnnotation> {
     let (target, nudge) = pending_target(context, index, cursor, snap, pixel)?;
-    let sketch = context.document.sketches().get(index)?;
-    let read_only = match sketch.dimension_of(target) {
-        Some(laid) => laid.driven,
-        None => sketch.would_be_redundant(target, context.document.scale()),
-    };
     Some(PendingAnnotation {
         target,
         nudge,
-        read_only,
+        read_only: context.document.lays_as_readout(index, target),
     })
 }
 
@@ -143,7 +138,7 @@ pub(crate) fn push_preview(
     // then, once it is chosen, the same annotation following the cursor to the spot it will sit on.
     if context.editor.tool == Tool::Dimension
         && let Some(index) = context.editor.active_sketch()
-        && let Some(PendingAnnotation { target, nudge, .. }) = pending_annotation(
+        && let Some((target, nudge)) = pending_target(
             context,
             index,
             cursor,

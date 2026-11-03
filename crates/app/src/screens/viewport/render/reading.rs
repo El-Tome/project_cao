@@ -18,6 +18,8 @@ use cao_prefs::theme::{Rgba, Theme};
 use cao_sketch::{Measured, Reading, Sketch};
 use glam::DVec2;
 
+mod cut;
+
 use super::curves::push_line;
 use super::overlays::{tint_to_color, to_screen};
 use super::{tint, tint_at};
@@ -122,44 +124,56 @@ pub(crate) fn push_measure(
         Some(Measured::Inside(_)) => {
             return tint_the_area(surfaces, sketch, measuring, theme);
         }
-        // A cut is drawn already, and lit while it is held.
-        Some(Measured::Cut(_)) | None => return,
+        Some(Measured::Cut(cut)) => return cut::push_cut(out, sketch, cut, theme, scale),
+        None => return,
     };
-    let width = theme.sketch_width;
     if let Some((from, to)) = sketch.run_of(target) {
-        for ((start, end), colour) in sides(from, to).into_iter().zip(colours(theme)) {
-            // A reach of nothing at all is a trait square to its axis. There is
-            // no side to draw and no number to write: its length already is its
-            // reach that way.
-            if start.distance(end) <= f64::EPSILON {
-                continue;
-            }
-            push_line(
-                out,
-                sketch.plane.to_world(start),
-                sketch.plane.to_world(end),
-                tint(colour),
-                width,
-                true,
-                scale,
-            );
-        }
-        return;
+        return push_triangle(out, sketch, from, to, theme, scale);
     }
     let Some(placed) = sketch.place(target, metrics(scale.units_per_pixel, DVec2::ZERO)) else {
         return;
     };
     for (start, end) in placed.shape {
-        push_line(
-            out,
-            sketch.plane.to_world(start),
-            sketch.plane.to_world(end),
-            tint(theme.measure),
-            width,
-            true,
-            scale,
-        );
+        push_dashed(out, sketch, start, end, theme.measure, theme, scale);
     }
+}
+
+fn push_triangle(
+    out: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    from: DVec2,
+    to: DVec2,
+    theme: &Theme,
+    scale: ViewScale,
+) {
+    for ((start, end), colour) in sides(from, to).into_iter().zip(colours(theme)) {
+        // A reach of nothing at all is a trait square to its axis. There is
+        // no side to draw and no number to write: its length already is its
+        // reach that way.
+        if start.distance(end) > f64::EPSILON {
+            push_dashed(out, sketch, start, end, colour, theme, scale);
+        }
+    }
+}
+
+fn push_dashed(
+    out: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    start: DVec2,
+    end: DVec2,
+    colour: Rgba,
+    theme: &Theme,
+    scale: ViewScale,
+) {
+    push_line(
+        out,
+        sketch.plane.to_world(start),
+        sketch.plane.to_world(end),
+        tint(colour),
+        theme.sketch_width,
+        true,
+        scale,
+    );
 }
 
 /// Tints the closed area a place falls in, so the number beside it has a shape

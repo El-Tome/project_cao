@@ -104,7 +104,7 @@ pub use laid_from::LaidFrom;
 pub use length::LengthOutcome;
 pub use measuring::{DimensionMode, DimensionPick, DimensionPicks, measure_pick};
 pub use naming::{Area, Became, CurveId, Standing, area_under};
-pub use patterning::Repeats;
+pub use patterning::{Repeats, largest_count_around};
 pub use picking::Selection;
 pub use plane::{PlaneKind, WorkPlane};
 pub use preview::{Laid, Preview};

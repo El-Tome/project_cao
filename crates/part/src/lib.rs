@@ -38,6 +38,7 @@ pub mod variables;
 pub use adapters::InMemoryFiles;
 pub use broken::Broken;
 pub use compaction::compact;
+pub use copying::Capped;
 pub use dimensioning::DimensionOutcome;
 pub use document::{PartDocument, PartMetadata, Refused, SCHEMA_VERSION, Use};
 #[cfg(any(test, feature = "test-support"))]

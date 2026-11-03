@@ -5,6 +5,16 @@
 //!   `a_count_written_from_a_variable_is_kept_as_written_when_it_comes_out_whole`
 //! - a count that comes out as anything but a positive whole number is
 //!   refused — `a_count_written_from_a_variable_that_does_not_come_out_whole_is_refused`
+//!
+//! Closes #522.
+//! - a count typed above the cap is brought down —
+//!   `a_count_typed_above_a_full_turn_is_brought_down_to_it`
+//! - with the line saying why — no test: its words are held in
+//!   `wording/pattern`, and the fields it is written under have no net
+//! - changing the angle with a count already typed brings it down the same way
+//!   — `an_angle_typed_after_the_count_brings_the_count_down_too`
+//! - an angle that never comes back round leaves the count alone —
+//!   `an_angle_that_never_comes_back_round_leaves_the_count_as_typed`
 
 use cao_sketch::{SketchAxis, WorkPlane};
 
@@ -144,4 +154,54 @@ fn a_count_typed_as_a_plain_number_is_rounded_as_it_always_was() {
         count_as_typed(Some((Formula::Number(4.4), 4.4)), 4),
         Some(Formula::Number(4.0))
     );
+}
+
+fn typed(degrees: &str, count: &str) -> crate::screens::sketch::LiveInput {
+    let mut live = crate::screens::sketch::LiveInput::default();
+    for (rank, text) in [(0, degrees), (1, count)] {
+        live.field(rank).text = text.to_string();
+        live.take(rank, &cao_part::Variables::default(), None);
+    }
+    live
+}
+
+#[test]
+fn a_count_typed_above_a_full_turn_is_brought_down_to_it() {
+    let mut live = typed("90", "6");
+
+    assert_eq!(
+        count_brought_down(&mut live, &cao_part::Variables::default()),
+        Some(4)
+    );
+    assert_eq!(live.typed(1), Some(4.0));
+    assert_eq!(live.field(1).text, "4");
+}
+
+#[test]
+fn an_angle_typed_after_the_count_brings_the_count_down_too() {
+    let mut live = typed("", "6");
+    assert_eq!(
+        count_brought_down(&mut live, &cao_part::Variables::default()),
+        None
+    );
+
+    live.field(0).text = "72".to_string();
+    live.take(0, &cao_part::Variables::default(), None);
+
+    assert_eq!(
+        count_brought_down(&mut live, &cao_part::Variables::default()),
+        Some(5)
+    );
+    assert_eq!(live.typed(1), Some(5.0));
+}
+
+#[test]
+fn an_angle_that_never_comes_back_round_leaves_the_count_as_typed() {
+    let mut live = typed("7.3", "60");
+
+    assert_eq!(
+        count_brought_down(&mut live, &cao_part::Variables::default()),
+        None
+    );
+    assert_eq!(live.typed(1), Some(60.0));
 }

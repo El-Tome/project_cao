@@ -5,6 +5,9 @@ use cao_part::history::Operation;
 use crate::lang::Catalogue;
 use crate::wording;
 
+/// The yellow the shell already writes its messages in.
+const WARNING: egui::Color32 = egui::Color32::from_rgb(250, 220, 120);
+
 /// The history panel: everything done to the part, newest last, with the steps
 /// that have been undone shown greyed out below the current position.
 ///
@@ -181,18 +184,31 @@ fn clicked_step(
     let start = run.start;
     for (offset, operation) in document.history.operations()[run].iter().enumerate() {
         let step = start + offset;
-        if entry(ui, document.variables(), operation, step, applied, lang) {
+        let capped = document
+            .history
+            .number_at(step)
+            .and_then(|number| document.capped_at(number));
+        if entry(
+            ui,
+            document.variables(),
+            (operation, capped),
+            step,
+            applied,
+            lang,
+        ) {
             clicked = Some(step + 1);
         }
     }
     clicked
 }
 
-/// One line of the history. Returns true when it was clicked.
+/// One line of the history. Returns true when it was clicked. A pattern laying
+/// a full turn short of its count is written in yellow, a warning rather than
+/// a fault, and says why.
 fn entry(
     ui: &mut egui::Ui,
     variables: &cao_part::Variables,
-    operation: &Operation,
+    (operation, capped): (&Operation, Option<cao_part::Capped>),
     step: usize,
     applied: usize,
     lang: &Catalogue,
@@ -208,9 +224,12 @@ fn entry(
     if undone {
         text = text.weak().italics();
     }
+    let mut detail = wording::history::detail(lang, variables, operation);
+    if let Some(capped) = capped {
+        text = text.color(WARNING);
+        detail = format!("{}\n{detail}", wording::pattern::step_capped(lang, capped));
+    }
 
-    let response = ui
-        .selectable_label(is_current, text)
-        .on_hover_text(wording::history::detail(lang, variables, operation));
+    let response = ui.selectable_label(is_current, text).on_hover_text(detail);
     response.clicked()
 }

@@ -78,7 +78,7 @@ mod marks;
 use marks::Marks;
 
 mod copying;
-pub(crate) use copying::{copy, hold_is_done, previewed as copying_shows};
+pub(crate) use copying::{copy, count_brought_down, hold_is_done, previewed as copying_shows};
 
 mod corner;
 pub(crate) use corner::{

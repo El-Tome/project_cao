@@ -2,13 +2,24 @@
 //! patterns, each reading its lengths in millimetres and settling the drawing
 //! around what it left.
 
-use cao_sketch::{ChosenAxis, Element, PointId, Repeats};
+use cao_sketch::{ChosenAxis, Element, PointId, Repeats, largest_count_around};
+use serde::{Deserialize, Serialize};
 
 use crate::broken::Broken;
 use crate::formula::Formula;
 use crate::history::RepeatsAsked;
 use crate::outcome::Outcome;
 use crate::state::PartState;
+
+/// A circular pattern asked for more copies than a full turn holds, and laying
+/// the full turn: a warning rather than a fault, since the variable that turned
+/// it onto itself may move back.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Capped {
+    pub asked: usize,
+    pub laid: usize,
+    pub degrees: f64,
+}
 
 impl PartState {
     pub(crate) fn mirror(
@@ -37,6 +48,17 @@ impl PartState {
             self.broke(Broken::Operation(self.replaying));
             return None;
         };
+        if let Some(laid) = largest_count_around(degrees).filter(|largest| *largest < count) {
+            let asked = count;
+            self.capped.insert(
+                self.replaying,
+                Capped {
+                    asked,
+                    laid,
+                    degrees,
+                },
+            );
+        }
         let scale = self.scale();
         let laid = self
             .sketches

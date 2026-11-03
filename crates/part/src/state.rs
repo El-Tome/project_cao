@@ -63,6 +63,9 @@ pub struct PartState {
     /// by number, each with its lean: cached for the reason `declined` is.
     #[serde(default)]
     pub(crate) unstable: BTreeMap<u32, Unstable>,
+    /// The circular patterns laying a full turn short of their count, by number.
+    #[serde(default)]
+    pub(crate) capped: BTreeMap<u32, crate::copying::Capped>,
     /// What the replay noted on the way: what a change to the variables is
     /// held to, and the values it froze.
     #[serde(skip)]

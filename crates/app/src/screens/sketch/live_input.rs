@@ -58,6 +58,8 @@ pub struct LiveInput {
     /// What the shape in hand says a unit of the drawing is worth, on a part
     /// that has not been told yet.
     unit: Unit,
+    /// The full turn a circular pattern's count was brought down to.
+    pub brought_down: Option<usize>,
 }
 
 /// What a unit of the drawing is worth, as the shape being drawn says it.

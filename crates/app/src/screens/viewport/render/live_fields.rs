@@ -7,7 +7,7 @@ use cao_sketch::{ChamferMode, ToolState};
 use crate::screens::sketch::{LiveInput, Tool};
 use crate::ui::formula_field::{formula_field, shift_the_caret};
 
-use super::super::input::rectangle_corner;
+use super::super::input::{count_brought_down, rectangle_corner};
 use super::super::values::shape_scale;
 use super::{arc, circle, ellipse, symmetric_line};
 use crate::screens::SketchContext;
@@ -107,6 +107,7 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
     let over = |rank: usize| (drawn_to && labels[rank] == "mm").then(|| measured[rank] / scale);
 
     let variables = context.document.variables();
+    let (lang, patterning) = (context.lang, context.editor.tool == Tool::CircularPattern);
     let live = &mut context.editor.live;
     let mut validated = false;
     let focus = std::mem::take(&mut live.focus);
@@ -132,6 +133,9 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
                         );
                     }
                 });
+                if patterning && let Some(largest) = count_brought_down(live, variables) {
+                    ui.weak(crate::wording::pattern::count_brought_down(lang, largest));
+                }
             });
         });
     Some(validated)

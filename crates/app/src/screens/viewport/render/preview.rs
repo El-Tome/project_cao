@@ -16,9 +16,37 @@ use crate::screens::viewport::input::{
 };
 use crate::screens::viewport::{HOLD_PIXELS, PICK_PIXELS, ViewScale};
 
+/// The annotation the dimension tool is showing in advance, nudged towards the
+/// cursor, and whether the click lays it as a readout rather than a value.
+pub(crate) struct PendingAnnotation {
+    pub target: DimensionTarget,
+    pub nudge: DVec2,
+    pub read_only: bool,
+}
+
 /// The annotation the dimension tool is showing in advance: the one a click
 /// would choose, or the one already chosen and looking for its place.
 pub(crate) fn pending_annotation(
+    context: &SketchContext<'_>,
+    index: usize,
+    cursor: DVec2,
+    snap: f64,
+    pixel: f64,
+) -> Option<PendingAnnotation> {
+    let (target, nudge) = pending_target(context, index, cursor, snap, pixel)?;
+    let sketch = context.document.sketches().get(index)?;
+    let read_only = match sketch.dimension_of(target) {
+        Some(laid) => laid.driven,
+        None => sketch.would_be_redundant(target, context.document.scale()),
+    };
+    Some(PendingAnnotation {
+        target,
+        nudge,
+        read_only,
+    })
+}
+
+fn pending_target(
     context: &SketchContext<'_>,
     index: usize,
     cursor: DVec2,
@@ -115,7 +143,7 @@ pub(crate) fn push_preview(
     // then, once it is chosen, the same annotation following the cursor to the spot it will sit on.
     if context.editor.tool == Tool::Dimension
         && let Some(index) = context.editor.active_sketch()
-        && let Some((target, nudge)) = pending_annotation(
+        && let Some(PendingAnnotation { target, nudge, .. }) = pending_annotation(
             context,
             index,
             cursor,

@@ -59,9 +59,12 @@
 //! - the preview before the click shows which of the two the click does — the
 //!   quarter the presenter holds as the cursor moves is the angle the preview
 //!   draws: `the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay`,
-//!   in `render/preview/tests.rs`;
-//!   that it is drawn grey is no test: the colour is the renderer's, which no
-//!   presenter test reaches
+//!   and what the preview hands the painter says whether the click lays a
+//!   readout or opens the driving angle —
+//!   `the_preview_says_whether_the_click_lays_a_readout_or_opens_the_driving_angle`,
+//!   both in `render/preview/tests.rs`; the colour that flag is painted in
+//!   gets no test: it is chosen inside `paint_dimension_labels`, which needs
+//!   an `egui::Ui`
 //! - a read-only angle goes when one of its traits goes —
 //!   `a_read_only_angle_goes_with_a_trait_it_measures`
 

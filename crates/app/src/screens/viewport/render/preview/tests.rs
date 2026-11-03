@@ -14,12 +14,17 @@
 //! - the preview before the click shows which of the two the click does: in
 //!   another quarter, the angle of that quarter, not yet on the drawing; in
 //!   the driving angle's own, that angle —
-//!   `the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay`
+//!   `the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay`;
+//!   and what it hands the painter says whether the click lays a readout or
+//!   opens the driving angle —
+//!   `the_preview_says_whether_the_click_lays_a_readout_or_opens_the_driving_angle`.
+//!   The colour that flag is painted in gets no test: it is chosen inside
+//!   `paint_dimension_labels`, which needs an `egui::Ui`
 
 use cao_part::{Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_render::camera::OrbitCamera;
-use cao_sketch::{SegmentId, SketchAxis, ToolState, WorkPlane};
+use cao_sketch::{DimensionTarget, SegmentId, SketchAxis, ToolState, WorkPlane};
 use chrono::Utc;
 use glam::Vec3;
 
@@ -244,8 +249,9 @@ fn an_angle_to_an_axis_is_previewed_in_the_quarter_under_the_cursor() {
             lang: &lang,
         };
 
-        let (shown, _) =
-            pending_annotation(&context, 0, cursor, 1.0, 0.05).expect("an angle is shown");
+        let shown = pending_annotation(&context, 0, cursor, 1.0, 0.05)
+            .expect("an angle is shown")
+            .target;
 
         let reads = context.document.measured(0, shown).expect("it reads");
         assert!(
@@ -300,8 +306,9 @@ fn an_angle_at_a_corner_is_previewed_in_the_quarter_under_the_cursor() {
         };
         let cursor = corner + offset;
 
-        let (shown, _) =
-            pending_annotation(&context, 0, cursor, 1.0, 0.05).expect("an angle is shown");
+        let shown = pending_annotation(&context, 0, cursor, 1.0, 0.05)
+            .expect("an angle is shown")
+            .target;
 
         let reads = context.document.measured(0, shown).expect("it reads");
         assert!(
@@ -311,8 +318,9 @@ fn an_angle_at_a_corner_is_previewed_in_the_quarter_under_the_cursor() {
     }
 }
 
-#[test]
-fn the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay() {
+/// Two traits crossing at (50, 0) at 60°, the 60° between them driving, and
+/// a place in that quarter and one in the 120° quarter beside it.
+fn an_x_carrying_a_driving_sixty() -> (PartDocument, DimensionTarget, DVec2, DVec2) {
     let crossing = DVec2::new(50.0, 0.0);
     let degrees = |angle: f64| DVec2::from_angle(angle.to_radians());
     let mut document = PartDocument::new("part", Utc::now());
@@ -349,14 +357,27 @@ fn the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay() {
         value: 60.0.into(),
         placement: None,
     });
-    let mut editor = SketchEditor::default();
+    (document, driving, in_the_sixty, in_the_hundred_and_twenty)
+}
+
+fn placing(target: DimensionTarget) -> SketchEditor {
+    SketchEditor {
+        tool: Tool::Dimension,
+        tool_state: ToolState::Dimension {
+            placing: Some(target),
+            picks: Default::default(),
+        },
+        ..Default::default()
+    }
+}
+
+#[test]
+fn the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay() {
+    let (mut document, driving, in_the_sixty, in_the_hundred_and_twenty) =
+        an_x_carrying_a_driving_sixty();
+    let mut editor = placing(driving);
     let mut extrusion = ExtrusionState::default();
     let lang = Catalogue::french();
-    editor.tool = Tool::Dimension;
-    editor.tool_state = ToolState::Dimension {
-        placing: Some(driving),
-        picks: Default::default(),
-    };
     let context = SketchContext {
         document: &mut document,
         editor: &mut editor,
@@ -364,8 +385,9 @@ fn the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay() {
         lang: &lang,
     };
 
-    let (shown, _) = pending_annotation(&context, 0, in_the_hundred_and_twenty, 1.0, 0.05)
-        .expect("an angle is shown");
+    let shown = pending_annotation(&context, 0, in_the_hundred_and_twenty, 1.0, 0.05)
+        .expect("an angle is shown")
+        .target;
     let reads = context.document.measured(0, shown);
     assert!(
         shown != driving
@@ -375,10 +397,40 @@ fn the_quarter_shown_before_the_click_is_the_read_only_one_it_would_lay() {
          drawing, got {shown:?} reading {reads:?}",
     );
 
-    let (shown, _) =
-        pending_annotation(&context, 0, in_the_sixty, 1.0, 0.05).expect("an angle is shown");
+    let shown = pending_annotation(&context, 0, in_the_sixty, 1.0, 0.05)
+        .expect("an angle is shown")
+        .target;
     assert_eq!(
         shown, driving,
         "in the 60° quarter, the preview shows the driving angle the click opens",
+    );
+}
+
+#[test]
+fn the_preview_says_whether_the_click_lays_a_readout_or_opens_the_driving_angle() {
+    let (mut document, driving, in_the_sixty, in_the_hundred_and_twenty) =
+        an_x_carrying_a_driving_sixty();
+    let mut editor = placing(driving);
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    let in_another_quarter = pending_annotation(&context, 0, in_the_hundred_and_twenty, 1.0, 0.05)
+        .expect("an angle is shown");
+    assert!(
+        in_another_quarter.read_only,
+        "in the 120° quarter the click lays a readout, and the preview says so",
+    );
+
+    let in_its_own_quarter =
+        pending_annotation(&context, 0, in_the_sixty, 1.0, 0.05).expect("an angle is shown");
+    assert!(
+        !in_its_own_quarter.read_only,
+        "in the 60° quarter the click opens the driving angle, and the preview says so",
     );
 }

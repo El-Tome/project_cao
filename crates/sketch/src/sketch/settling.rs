@@ -41,8 +41,8 @@ pub(crate) struct Held {
     /// Points held on two things that cannot follow either alone: what holds
     /// them gives as well, rather than the point alone (#548).
     pub(crate) loosened: Vec<PointId>,
-    /// How far the drag under way may throw a point other than the one
-    /// dragged (#597).
+    /// How far the drag under way may throw a point, the dragged one
+    /// included (#597).
     pub(crate) throw: Option<pull::Throw>,
 }
 

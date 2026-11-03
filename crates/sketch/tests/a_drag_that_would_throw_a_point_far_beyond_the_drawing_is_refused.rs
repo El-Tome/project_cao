@@ -1,10 +1,10 @@
 //! A drag that would throw a point far beyond the drawing is refused, as a cut
-//! corner turned inside out is: the landing may hold every rule, a point other
-//! than the one dragged sent that far is still not what the hand asked for.
+//! corner turned inside out is: the landing may hold every rule, a point the
+//! solver sends that far is still not what the hand asked for.
 //!
-//! The bound. A drag throws a point when a point other than the dragged one
-//! ends farther than twice the hand's way plus the drawing's size from where
-//! the press found it:
+//! The bound. A drag throws a point when any point, the dragged one included,
+//! ends farther from where the press found it than twice the sum of the hand's
+//! way and the drawing's size:
 //!
 //! ```text
 //! 2 × (|landing − press place of the dragged point| + drawing size at the press)
@@ -13,10 +13,13 @@
 //! the landing being the place a frame of the drag asks for, the one
 //! `Sketch::settle_around` is given, and the drawing's size
 //! `cao_sketch::precision::drawing_size` read on the drawing as the press
-//! found it. Why that much: a shape stretched after a corner taken
-//! far carries its other points as far as the hand went, never farther; a
-//! shape turned about a point near the hand swings its far side by up to twice
-//! the drawing's size. The factor two covers both at once.
+//! found it. Why that much: a shape stretched after a corner taken far carries
+//! its other points as far as the hand went, never farther; a shape turned
+//! about a point near the hand swings its far side by up to twice the
+//! drawing's size. The factor two covers both at once. The dragged point is
+//! held to it like every other: the hand takes it no farther than its own way,
+//! always within the bound, so the bound only ever stops a dragged point the
+//! solver flung.
 //!
 //! Closes #597.
 //! - The flights of the campaign are refused, each drag `BestEffort` with the
@@ -40,9 +43,10 @@
 //!   `a_point_laid_on_a_corner_of_a_two_point_closed_chain_is_dragged_without_throwing_the_other_corner_away`
 //!
 //! What must not break. A point dragged far by the hand itself goes where the
-//! hand puts it, however far, and a shape stretched after it carries its other
-//! points no farther than the hand went —
-//! `a_lone_trait_s_end_dragged_ten_sizes_away_goes_where_the_hand_puts_it`,
+//! hand puts it, however far —
+//! `a_lone_trait_s_end_dragged_ten_sizes_away_goes_where_the_hand_puts_it`; a
+//! shape stretched after a corner dragged far carries its other points no
+//! farther than the hand went —
 //! `a_square_cornered_rectangle_s_corner_dragged_ten_sizes_away_stretches_it_after_the_hand`.
 //! A shape turned about a point near the hand swings its far side by nearly
 //! twice the drawing's size for a small hand way, and is left alone —
@@ -120,18 +124,17 @@ impl Drag {
         self.hand.distance(self.pressed(self.point))
     }
 
-    /// How far from where the press found it a point other than the dragged
-    /// one may end.
+    /// How far from where the press found it any point, the dragged one
+    /// included, may end.
     fn bound(&self) -> f64 {
         2.0 * (self.hand_way() + self.size)
     }
 
-    /// The point other than the one dragged that ended farthest from where
-    /// the press found it, and how far.
-    fn farthest_other(&self) -> (PointId, f64) {
+    /// The point that ended farthest from where the press found it, the
+    /// dragged one included, and how far.
+    fn farthest(&self) -> (PointId, f64) {
         self.press
             .iter()
-            .filter(|(point, _)| *point != self.point)
             .map(|(point, _)| (*point, self.gone(*point)))
             .fold((self.point, 0.0), |far, each| match each.1 > far.1 {
                 true => each,
@@ -160,7 +163,7 @@ fn the_point_laid_last_at(sketch: &Sketch, place: DVec2) -> PointId {
 /// The drag threw no point past the bound, and when it was refused, the
 /// drawing stands as the press found it.
 fn assert_nothing_thrown(drag: &Drag) {
-    let (farthest, gone) = drag.farthest_other();
+    let (farthest, gone) = drag.farthest();
     assert!(
         gone <= drag.bound(),
         "{farthest:?} was thrown from {} to {}, {gone} away for a bound of {}, \
@@ -181,9 +184,6 @@ fn assert_nothing_thrown(drag: &Drag) {
     }
 }
 
-/// Seed 239 of `random_sketches::drawn`, shrunk. Before #597 the point laid
-/// on the half-ellipse's right end slid along the axis and stretched the
-/// ellipse until its left end stood a hundred and fifty million units away.
 #[test]
 fn a_point_laid_on_a_half_ellipse_s_end_is_dragged_without_throwing_its_other_end_away() {
     let sketch = random_sketches::laid(&[
@@ -205,10 +205,6 @@ fn a_point_laid_on_a_half_ellipse_s_end_is_dragged_without_throwing_its_other_en
     assert_nothing_thrown(&Drag::by(sketch, point, CAMPAIGN_WAY));
 }
 
-/// Seed 354 of `random_sketches::drawn`, shrunk. The arc's end at (3, 8) is
-/// held on the rectangle's lower side; before #597 its drag turned that side
-/// about the arc's centre and threw the side's far corner, at (5, 8), some
-/// seventy units down the rectangle's right side, for a drawing twelve across.
 #[test]
 fn an_arc_s_end_held_on_a_rectangle_s_side_is_dragged_without_throwing_the_far_corner_away() {
     let sketch = random_sketches::laid(&[
@@ -234,11 +230,6 @@ fn an_arc_s_end_held_on_a_rectangle_s_side_is_dragged_without_throwing_the_far_c
     assert_nothing_thrown(&Drag::by(sketch, point, CAMPAIGN_WAY));
 }
 
-/// Seed 584 of `random_sketches::drawn`, shrunk. The point the circle is
-/// drawn with, at (120, −15), is held on the rectangle's lower side; before
-/// #597 its drag turned that side about the circle's centre and threw the
-/// side's far corner, at (210, −15), some four thousand units up the
-/// rectangle's right side, for a drawing four hundred across.
 #[test]
 fn a_circle_s_rim_point_held_on_a_rectangle_s_side_is_dragged_without_throwing_the_far_corner_away()
 {
@@ -264,10 +255,6 @@ fn a_circle_s_rim_point_held_on_a_rectangle_s_side_is_dragged_without_throwing_t
     assert_nothing_thrown(&Drag::by(sketch, point, CAMPAIGN_WAY));
 }
 
-/// Seed 468 of `random_sketches::drawn`, shrunk. The chain closes on two
-/// traits between the origin and (3, 3), and the point laid on the origin is
-/// held on both; before #597 a hand way of about one threw the corner at
-/// (3, 3) eighteen units away, for a drawing four across.
 #[test]
 fn a_point_laid_on_a_corner_of_a_two_point_closed_chain_is_dragged_without_throwing_the_other_corner_away()
  {
@@ -302,7 +289,7 @@ fn a_lone_trait_s_end_dragged_ten_sizes_away_goes_where_the_hand_puts_it() {
         "the end was taken to {}, and stands at {landed}",
         drag.hand,
     );
-    let (farthest, gone) = drag.farthest_other();
+    let (farthest, gone) = drag.farthest();
     assert!(
         gone <= drag.hand_way() + drag.settled(),
         "{farthest:?} was carried {gone}, farther than the hand went, {}",
@@ -353,7 +340,7 @@ fn a_square_cornered_rectangle_s_corner_dragged_ten_sizes_away_stretches_it_afte
             "{what}: wanted {wanted}, found {found}",
         );
     }
-    let (farthest, gone) = drag.farthest_other();
+    let (farthest, gone) = drag.farthest();
     assert!(
         gone <= drag.hand_way() + drag.settled(),
         "{farthest:?} was carried {gone}, farther than the hand went, {}",
@@ -361,10 +348,6 @@ fn a_square_cornered_rectangle_s_corner_dragged_ten_sizes_away_stretches_it_afte
     );
 }
 
-/// A bar a hundred long and five wide, its sizes typed and its corner on the
-/// origin, which holds it: the corner beside the origin can only turn it.
-/// Taken a hundred and fifty degrees round, a hand way of under ten swings the
-/// far side by nearly twice the drawing's size.
 #[test]
 fn a_bar_turned_about_a_corner_near_the_hand_swings_its_far_side_whole() {
     let mut sketch = Sketch::new(WorkPlane::XY);

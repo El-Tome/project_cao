@@ -8,13 +8,17 @@
 use cao_prefs::theme::{Rgba, Theme};
 use cao_render::camera::CubeZone;
 use cao_render::cube;
-use cao_sketch::{Constraint, Going, Selection};
+use cao_sketch::{Constraint, Going, Selection, Sketch};
 use glam::{DVec2, DVec3};
 
 use crate::screens::viewport::cube_labels;
 
 /// How far apart two marks are set when they would otherwise land on top of each other, in points.
 const MARK_SPACING: f32 = 16.0;
+
+/// How far from its centre a mark answers a click, in points: the glyph's own
+/// size, short of the next mark set beside it.
+const MARK_REACH: f32 = 7.0;
 use crate::lang::Catalogue;
 use crate::screens::SketchContext;
 use crate::screens::viewport::{ViewScale, ViewportState, corner_origin};
@@ -105,33 +109,60 @@ pub(crate) fn paint_rule_marks(
         .view_projection(rect.width() / rect.height().max(1.0));
     let painter = ui.painter_at(rect);
 
-    // Several rules can hold the same corner — a middle and a right angle, say
-    // — so marks that would land on each other are set side by side.
-    let mut taken: Vec<egui::Pos2> = Vec::new();
-    for constraint in sketch.constraints() {
-        let rule = Selection::Rule(*constraint);
+    for (constraint, position) in placed_marks(sketch, view_projection, rect) {
+        let rule = Selection::Rule(constraint);
         let held = context.editor.is_selected(rule) || context.editor.hovered == Some(rule);
+        painter.text(
+            position,
+            egui::Align2::CENTER_CENTER,
+            constraints::mark(constraint),
+            egui::FontId::proportional(13.0),
+            mark_shade(&state.theme, going, &constraint, held),
+        );
+    }
+}
+
+/// Where each rule's mark is written on screen, one entry per mark.
+///
+/// Several rules can hold the same corner — a middle and a right angle, say —
+/// so marks that would land on each other are set side by side. The painter
+/// and the pick both read it, so a mark is taken where it is seen.
+pub(crate) fn placed_marks(
+    sketch: &Sketch,
+    view_projection: glam::Mat4,
+    rect: egui::Rect,
+) -> Vec<(Constraint, egui::Pos2)> {
+    let mut placed: Vec<(Constraint, egui::Pos2)> = Vec::new();
+    for constraint in sketch.constraints() {
         for at in sketch.rule_marks(*constraint) {
             let Some(position) = to_screen(sketch.plane.to_world(at), view_projection, rect) else {
                 continue;
             };
             let mut position = position + egui::vec2(9.0, -9.0);
-            while taken
+            while placed
                 .iter()
-                .any(|held| held.distance(position) < MARK_SPACING)
+                .any(|(_, held)| held.distance(position) < MARK_SPACING)
             {
                 position.x += MARK_SPACING;
             }
-            taken.push(position);
-            painter.text(
-                position,
-                egui::Align2::CENTER_CENTER,
-                constraints::mark(*constraint),
-                egui::FontId::proportional(13.0),
-                mark_shade(&state.theme, going, constraint, held),
-            );
+            placed.push((*constraint, position));
         }
     }
+    placed
+}
+
+/// The rule whose mark is under `pointer`: on the surface the mark is drawn
+/// on, and no further, so that just beside it is still the trait.
+pub(crate) fn mark_under(
+    placed: &[(Constraint, egui::Pos2)],
+    pointer: egui::Pos2,
+) -> Option<Constraint> {
+    placed
+        .iter()
+        .find(|(_, at)| {
+            (at.x - pointer.x).abs() <= MARK_REACH && (at.y - pointer.y).abs() <= MARK_REACH
+        })
+        .map(|(rule, _)| *rule)
 }
 
 /// The colour a rule's mark is written in.

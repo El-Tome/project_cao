@@ -3,7 +3,7 @@
 
 use cao_part::Operation;
 use cao_prefs::Modifier;
-use cao_sketch::{PointId, Pulled, Sketch, SnapSettings};
+use cao_sketch::{PointId, Pulled, Selection, Sketch, SnapSettings};
 use glam::DVec2;
 
 use crate::screens::SketchContext;
@@ -33,6 +33,8 @@ pub(super) struct Gesture {
     /// Whether the camera holds the gesture: an orbit or a pan started on
     /// the drawing moves the view, and takes hold of nothing in it.
     pub(super) navigating: bool,
+    /// The rule whose mark the press landed on.
+    pub(super) on_mark: Option<Selection>,
 }
 
 /// Whether the key that pulls a point off what holds it is down.
@@ -72,6 +74,24 @@ pub(super) fn drag_point(
     }
     if response.drag_started() {
         if gesture.navigating || !response.drag_started_by(egui::PointerButton::Primary) {
+            return false;
+        }
+        // A mark holds no point of its own: pressed on, it carries the
+        // selection it is part of, and otherwise pulls a box.
+        if let Some(rule) = gesture.on_mark {
+            let carried = match context.editor.is_selected(rule) {
+                true => sketch.points_of(context.editor.selection()),
+                false => Vec::new(),
+            };
+            if let Some(state) = context.editor.select_state() {
+                match carried.is_empty() {
+                    true => state.band = Some((gesture.raw_pressed, cursor)),
+                    false => {
+                        state.dragged_group = carried;
+                        state.drag_origin = Some(pressed);
+                    }
+                }
+            }
             return false;
         }
         // Pressing on something already picked moves the whole selection, the

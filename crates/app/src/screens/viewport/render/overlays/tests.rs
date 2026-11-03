@@ -176,3 +176,55 @@ fn a_rule_the_cut_would_take_is_marked_in_the_alert_colour() {
         "with no cut in sight, a rule pointed at is no longer lit",
     );
 }
+
+#[test]
+fn a_mark_set_aside_by_another_is_taken_where_it_was_set() {
+    let mut sketch = cao_sketch::Sketch::new(cao_sketch::WorkPlane::XY);
+    let corners = [(0.0, 0.0), (40.0, 0.0), (0.0, 20.0), (40.0, 20.0)]
+        .map(|(x, y)| sketch.add_point(DVec2::new(x, y)));
+    let low = sketch.add_segment(corners[0], corners[1]);
+    let high = sketch.add_segment(corners[2], corners[3]);
+    let parallel = Constraint::Parallel {
+        first: low,
+        second: high,
+    };
+    let equal = Constraint::Equal {
+        first: low,
+        second: high,
+    };
+    sketch.add_constraint(parallel);
+    sketch.add_constraint(equal);
+    let (state, _) = a_view();
+    let placed = placed_marks(
+        &sketch,
+        state.camera.view_projection(SCREEN.aspect_ratio()),
+        SCREEN,
+    );
+
+    let written: Vec<egui::Pos2> = placed
+        .iter()
+        .filter(|(rule, _)| *rule == equal)
+        .map(|(_, at)| *at)
+        .collect();
+    assert_eq!(
+        written.len(),
+        2,
+        "the equality is marked on both traits: {placed:?}"
+    );
+    for at in written {
+        assert_eq!(
+            mark_under(&placed, at),
+            Some(equal),
+            "taken where it was set aside to"
+        );
+        assert_eq!(
+            mark_under(&placed, at - egui::vec2(MARK_SPACING, 0.0)),
+            Some(parallel)
+        );
+        assert_eq!(
+            mark_under(&placed, at + egui::vec2(MARK_REACH + 1.0, 0.0)),
+            None,
+            "and no further"
+        );
+    }
+}

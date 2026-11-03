@@ -3,9 +3,10 @@
 
 use cao_part::Operation;
 use cao_part::history::CutChange;
-use cao_sketch::Selection;
+use cao_sketch::{Selection, ToolState};
 use glam::DVec2;
 
+use super::marks::Marks;
 use crate::screens::SketchContext;
 
 /// Pulls a box across the drawing and takes everything inside it.
@@ -19,6 +20,7 @@ pub(super) fn band_select(
     to: DVec2,
     response: &egui::Response,
     adding: bool,
+    marks: &Marks,
     pixel: f64,
 ) -> bool {
     // Where the box started is kept from the frame the drag began: egui lets go
@@ -40,11 +42,12 @@ pub(super) fn band_select(
     let Some(sketch) = context.document.sketches().get(index) else {
         return false;
     };
-    let caught = sketch.inside_band(
+    let mut caught = sketch.inside_band(
         from,
         to,
         crate::screens::annotations::metrics(pixel, DVec2::ZERO),
     );
+    caught.extend(marks.inside(from, to));
 
     if !adding && let Some(state) = context.editor.select_state() {
         state.held.clear();
@@ -57,6 +60,26 @@ pub(super) fn band_select(
         }
     }
     false
+}
+
+/// Takes what a click landed on, alone or into the selection.
+pub(super) fn take(context: &mut SketchContext<'_>, picked: Option<Selection>, adding: bool) {
+    match (picked, adding) {
+        // Holding the modifier gathers things up one by one, which is how one
+        // picks out three traits that no box can enclose alone.
+        (Some(what), true) => context.editor.toggle(what),
+        (Some(what), false) => {
+            if let ToolState::Select(select) = &mut context.editor.tool_state {
+                select.held = vec![what];
+            }
+        }
+        (None, false) => {
+            if let ToolState::Select(select) = &mut context.editor.tool_state {
+                select.held.clear();
+            }
+        }
+        (None, true) => {}
+    }
 }
 
 /// What the cursor is over. The order and the reaches are the drawing's own
@@ -74,6 +97,15 @@ pub(super) fn pick(
         snap,
         crate::screens::annotations::metrics(pixel, DVec2::ZERO),
     )
+}
+
+/// Deletes what the selection tool is holding, and lets go of it.
+pub(super) fn erase_what_is_held(context: &mut SketchContext<'_>, index: usize) -> bool {
+    let held = match &mut context.editor.tool_state {
+        ToolState::Select(select) => std::mem::take(&mut select.held),
+        _ => Vec::new(),
+    };
+    erase(context, index, &held)
 }
 
 /// Deletes what the selection tool is holding, in one step. A fillet or a

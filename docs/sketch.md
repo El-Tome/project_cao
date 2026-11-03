@@ -54,9 +54,14 @@ A circle and an arc answer to the same rule, read off the curve rather than off
 the points it stands on: a curve that swings out of the box between its two ends
 is not held entirely, and a curve whose centre lies outside the box still is.
 
+A box also takes a rule **whose mark is inside it**, as it takes a dimension
+whose value is.
+
 Who answers the drag is decided **when the gesture starts** and stays so to the
 end: a point under the cursor at press time moves; otherwise an annotation, a
-side or a curve under it; otherwise it is a box. Without that the gesture would
+side or a curve under it; otherwise it is a box. A press **on a rule's mark**
+pulls a box too, unless that rule is already held, in which case it carries the
+selection like anything held. Without that the gesture would
 change nature halfway, the moment the cursor passed over a point. A drag that
 moves the view — a pan, an orbit — takes hold of nothing.
 
@@ -659,6 +664,14 @@ side**.
 
 They follow the drawing **during** a move, like the values of dimensions: read
 off the recorded drawing, they lagged behind and only caught up on release.
+
+A rule is **taken by its mark**, as a dimension is taken by its value: pointing
+at the mark lights it, a click takes the rule alone, `Cmd`/`Shift` adds it, and
+`Suppr` erases it. The mark answers on the surface it is drawn on and no
+further — just beside it is the trait, whose middle would otherwise become hard
+to reach. One function says where each mark is written, side-by-side shifts
+included, and both the painter and the click read it, so a mark is found where
+it is seen. A rule has no value, so nothing opens.
 
 The symbols of technical drawing — ⊥, ∥, ½ — are not in the fonts shipped with
 the interface, and a mark that comes out as an empty box says less than

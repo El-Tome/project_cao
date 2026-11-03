@@ -230,6 +230,11 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
             point: map.points[&point],
             cut: map.cuts[&cut],
         },
+        Constraint::CutTangent { cut, segment, from } => Constraint::CutTangent {
+            cut: map.cuts[&cut],
+            segment: map.segments[&segment],
+            from,
+        },
         Constraint::Midpoint { point, segment } => Constraint::Midpoint {
             point: map.points[&point],
             segment: map.segments[&segment],

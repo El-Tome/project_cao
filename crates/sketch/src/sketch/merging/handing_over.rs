@@ -102,6 +102,7 @@ pub(super) fn handed_over(rule: Constraint, one: impl Fn(PointId) -> PointId) ->
         | Constraint::EqualRadiusArc { .. }
         | Constraint::EqualRadiusArcCircle { .. }
         | Constraint::Collinear { .. }
+        | Constraint::CutTangent { .. }
         | Constraint::AxisCollinear { .. }
         | Constraint::AxisParallel { .. }
         | Constraint::AxisPerpendicular { .. } => rule,

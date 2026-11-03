@@ -6,6 +6,7 @@ use glam::DVec2;
 
 use crate::arc::ArcId;
 use crate::constraints::Constraint;
+use crate::corner_cut::CutPoint;
 use crate::sketch::{CircleId, Element, PointId, SegmentId, Sketch};
 
 impl Sketch {
@@ -104,6 +105,20 @@ impl Sketch {
                 .or_else(|| self.ellipse_touching(ellipse, segment))
                 .into_iter()
                 .collect(),
+            // Where the line meets the fillet's whole circle, square under its
+            // centre, as for a circle.
+            Constraint::CutTangent { cut, segment, .. } => {
+                let touch = |centre: DVec2| {
+                    let (start, end) = self.endpoints(segment);
+                    let along = (end - start).try_normalize()?;
+                    Some(start + along * (centre - start).dot(along))
+                };
+                middle(segment)
+                    .and(self.cut_point(cut, CutPoint::Centre))
+                    .and_then(touch)
+                    .into_iter()
+                    .collect()
+            }
             Constraint::OnCircle { point: held, .. }
             | Constraint::OnArc { point: held, .. }
             | Constraint::OnEllipse { point: held, .. }

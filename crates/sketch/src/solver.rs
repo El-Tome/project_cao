@@ -511,14 +511,7 @@ impl Sketch {
                 into.extend(self.equal_length_equation(first, second))
             }
             Constraint::Collinear { first, second } => {
-                let Some(line) = self.segments().get(second.0).copied() else {
-                    return;
-                };
-                into.extend(
-                    [line.start, line.end]
-                        .into_iter()
-                        .filter_map(|point| self.on_line_equation(point, first, 0.0)),
-                );
+                self.collinear_equations(first, second, into)
             }
             Constraint::OnSegment { .. }
             | Constraint::OnCircle { .. }
@@ -526,7 +519,8 @@ impl Sketch {
             | Constraint::OnEllipse { .. }
             | Constraint::OnAxis { .. }
             | Constraint::AtCutPoint { .. }
-            | Constraint::OnCut { .. } => self.hold_equations(constraint, into),
+            | Constraint::OnCut { .. }
+            | Constraint::CutTangent { .. } => self.hold_equations(constraint, into),
             Constraint::Tangent { .. }
             | Constraint::ArcTangent { .. }
             | Constraint::EllipseTangent { .. } => self.tangent_equations(constraint, into),

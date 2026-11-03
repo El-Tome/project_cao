@@ -67,3 +67,57 @@ fn a_point_at_the_middle_stays_there_when_the_length_changes() {
     );
     assert!((sketch.segment_length(segment) - 160.0).abs() < SETTLED);
 }
+
+#[test]
+fn two_traits_laid_on_one_line_ask_that_each_end_of_the_second_stands_on_the_first() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(DVec2::new(50.0, 10.0));
+    let first = sketch.add_segment(start, end);
+    let near = sketch.add_point(DVec2::new(20.0, 13.0));
+    let far = sketch.add_point(DVec2::new(60.0, 15.0));
+    let second = sketch.add_segment(near, far);
+    assert!(sketch.equations(SCALE).is_empty());
+
+    sketch.add_constraint(Constraint::Collinear { first, second });
+
+    let rows = sketch.equations(SCALE);
+    let expected = [
+        (
+            3.0,
+            [
+                (start, DVec2::new(0.0, -0.75)),
+                (end, DVec2::new(0.0, -0.25)),
+                (near, DVec2::new(0.0, 1.0)),
+            ],
+        ),
+        (
+            5.0,
+            [
+                (start, DVec2::new(0.0, 0.25)),
+                (end, DVec2::new(0.0, -1.25)),
+                (far, DVec2::new(0.0, 1.0)),
+            ],
+        ),
+    ];
+    assert_eq!(rows.len(), expected.len(), "one row per end of the second");
+    for (rank, (row, (error, leans))) in rows.iter().zip(expected).enumerate() {
+        let mut wanted = vec![0.0; row.gradient.len()];
+        for (point, slope) in leans {
+            wanted[point.0 * 2] = slope.x;
+            wanted[point.0 * 2 + 1] = slope.y;
+        }
+        assert!(!row.angular, "row {rank} is a length");
+        assert!(
+            (row.error - error).abs() < 1e-12,
+            "row {rank} is {} off, not {error}",
+            row.error,
+        );
+        for (variable, (is, was)) in row.gradient.iter().zip(&wanted).enumerate() {
+            assert!(
+                (is - was).abs() < 1e-12,
+                "row {rank}, variable {variable}: {is}, not {was}",
+            );
+        }
+    }
+}

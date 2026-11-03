@@ -1,11 +1,11 @@
 //! What hangs on a cut, through the changes the cut goes through.
 //!
-//! A point hung on a cut's point, or held on its curve, is held by a rule that
-//! names the cut. The cut can be taken off, given another shape, have its
-//! sides swapped, or be cut again in place, and each of these says what
-//! becomes of those rules: what still has somewhere to stand follows, and
-//! what has lost its place is let go where it is. Nothing hung on a cut is
-//! ever erased with it.
+//! A point hung on a cut's point, or held on its curve, and a line brushing a
+//! fillet, are held by a rule that names the cut. The cut can be taken off,
+//! given another shape, have its sides swapped, or be cut again in place, and
+//! each of these says what becomes of those rules: what still has somewhere to
+//! stand follows, and what has lost its place is let go where it is. Nothing
+//! hung on a cut is ever erased with it.
 
 use glam::DVec2;
 
@@ -161,6 +161,11 @@ impl Sketch {
                     },
                 },
                 Constraint::OnCut { point, .. } => Constraint::OnCut { point, cut: to },
+                Constraint::CutTangent { segment, from, .. } => Constraint::CutTangent {
+                    cut: to,
+                    segment,
+                    from,
+                },
                 other => other,
             };
             self.add_constraint(handed);
@@ -168,10 +173,13 @@ impl Sketch {
     }
 }
 
-/// The cut a rule hangs something on, when it is one of those.
+/// The cut a rule hangs something on, when it is one of those: a point, or a
+/// line brushing a fillet.
 fn hung_on(rule: Constraint) -> Option<CornerCutId> {
     match rule {
-        Constraint::AtCutPoint { cut, .. } | Constraint::OnCut { cut, .. } => Some(cut),
+        Constraint::AtCutPoint { cut, .. }
+        | Constraint::OnCut { cut, .. }
+        | Constraint::CutTangent { cut, .. } => Some(cut),
         _ => None,
     }
 }

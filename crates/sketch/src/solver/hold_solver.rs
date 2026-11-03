@@ -35,9 +35,9 @@ impl Sketch {
                 into.extend(self.on_ellipse_equation(point, ellipse))
             }
             Constraint::OnAxis { point, axis } => into.extend(self.on_axis_equation(point, axis)),
-            Constraint::AtCutPoint { .. } | Constraint::OnCut { .. } => {
-                self.cut_hold_equations(constraint, into)
-            }
+            Constraint::AtCutPoint { .. }
+            | Constraint::OnCut { .. }
+            | Constraint::CutTangent { .. } => self.cut_hold_equations(constraint, into),
             _ => {}
         }
     }
@@ -233,6 +233,24 @@ impl Sketch {
         equation.add(curve.start, -along);
         equation.add(curve.center, along - out);
         Some(equation)
+    }
+
+    /// Two traits on one line: each end of the second held on the line the
+    /// first lies on.
+    pub(super) fn collinear_equations(
+        &self,
+        first: SegmentId,
+        second: SegmentId,
+        into: &mut Vec<Equation>,
+    ) {
+        let Some(line) = self.segments().get(second.0).copied() else {
+            return;
+        };
+        into.extend(
+            [line.start, line.end]
+                .into_iter()
+                .filter_map(|point| self.on_line_equation(point, first, 0.0)),
+        );
     }
 
     /// A point held halfway along a trait: one equation for each coordinate,

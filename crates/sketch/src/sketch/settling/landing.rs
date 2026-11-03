@@ -130,19 +130,29 @@ impl Sketch {
         })
     }
 
+    /// Lands with the thing clicked first held where it is: its own points,
+    /// or for a fillet, which is no element, what it is worked out from — its
+    /// corner and the far end of each side.
     pub(in crate::sketch) fn land_held(
         &mut self,
         from: Option<Element>,
         landing: Landing,
         millimeters_per_unit: f64,
     ) -> LengthOutcome {
-        let Some(from) = from else {
-            if let Some(landed) = self.land_turned(landing, millimeters_per_unit) {
-                return landed;
-            }
-            return self.land_near(landing.target(), millimeters_per_unit);
+        let from_a_cut = match landing {
+            Landing::Rule(rule) => rule.laid_from_a_cut(),
+            Landing::Value(_) | Landing::Nothing => None,
         };
-        let held = self.points_it_leans_on(from);
+        let held = match (from, from_a_cut) {
+            (Some(from), _) => self.points_it_leans_on(from),
+            (None, Some(cut)) => self.cut_stands_on(cut),
+            (None, None) => {
+                if let Some(landed) = self.land_turned(landing, millimeters_per_unit) {
+                    return landed;
+                }
+                return self.land_near(landing.target(), millimeters_per_unit);
+            }
+        };
         let ways_up = self.ways_up_kept();
         let square: Vec<Kept> = ways_up
             .iter()
@@ -172,7 +182,7 @@ impl Sketch {
                 };
                 self.held.stays = stays;
                 let shares = self.shares(&held, millimeters_per_unit);
-                if let Element::Circle(circle) = from {
+                if let Some(Element::Circle(circle)) = from {
                     self.held.sizes.push(circle);
                 }
                 let landed = self.settle_held(held.clone(), lines.clone(), millimeters_per_unit);

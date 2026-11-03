@@ -130,6 +130,11 @@ fn one_of_every_kind() -> (Sketch, Vec<Constraint>) {
             at: crate::CutPoint::Centre,
         },
         Constraint::OnCut { point: loose, cut },
+        Constraint::CutTangent {
+            cut,
+            segment: up,
+            from: LaidFrom::Nowhere,
+        },
         Constraint::Midpoint {
             point: loose,
             segment: side,
@@ -183,6 +188,7 @@ fn name_of(rule: &Constraint) -> &'static str {
         Constraint::OnAxis { .. } => "on an axis",
         Constraint::AtCutPoint { .. } => "at a point of a cut",
         Constraint::OnCut { .. } => "on the curve of a cut",
+        Constraint::CutTangent { .. } => "tangent, the curve of a cut",
         Constraint::Midpoint { .. } => "midpoint",
         Constraint::AxisCollinear { .. } => "on an axis, trait",
         Constraint::AxisParallel { .. } => "along an axis, trait",

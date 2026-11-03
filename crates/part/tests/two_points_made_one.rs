@@ -538,6 +538,7 @@ fn named_by(rule: Constraint) -> Vec<PointId> {
         | Constraint::EqualRadiusArc { .. }
         | Constraint::EqualRadiusArcCircle { .. }
         | Constraint::Collinear { .. }
+        | Constraint::CutTangent { .. }
         | Constraint::AxisCollinear { .. }
         | Constraint::AxisParallel { .. }
         | Constraint::AxisPerpendicular { .. } => Vec::new(),

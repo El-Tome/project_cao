@@ -301,6 +301,14 @@ pub enum Constraint {
         point: PointId,
         cut: CornerCutId,
     },
+    /// A line brushing a fillet: the whole circle its curve is a piece of, as
+    /// a line tangent to an arc brushes its whole circle. A chamfer has none.
+    CutTangent {
+        cut: CornerCutId,
+        segment: SegmentId,
+        #[serde(default)]
+        from: LaidFrom,
+    },
     /// A point held on one of the sketch's own axes, which is a line nothing
     /// can move.
     OnAxis {
@@ -335,20 +343,6 @@ pub enum Constraint {
     Fixed {
         element: Element,
     },
-}
-
-impl Constraint {
-    /// The trait a rule lays the way of one of the sketch's axes, and the axis
-    /// it then runs along: a trait square to one axis runs along the other.
-    pub(crate) fn along_an_axis(self) -> Option<(SegmentId, SketchAxis)> {
-        match self {
-            Self::AxisCollinear { segment, axis } | Self::AxisParallel { segment, axis } => {
-                Some((segment, axis))
-            }
-            Self::AxisPerpendicular { segment, axis } => Some((segment, axis.across())),
-            _ => None,
-        }
-    }
 }
 
 /// A value the user has fixed.

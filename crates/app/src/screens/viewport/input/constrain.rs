@@ -23,6 +23,14 @@ pub(super) fn nearest_rule_pick(
     {
         return Some(RulePick::CutPoint(cut, at));
     }
+    // A fillet's curve is what a tangent is aimed at, before the side it
+    // meets: nearer the side, the side is taken.
+    if point.is_none()
+        && rule == Rule::Tangent
+        && let Some(cut) = sketch.cut_before_traits(cursor, snap)
+    {
+        return Some(RulePick::CutCurve(cut));
+    }
     point
         .map(Element::Point)
         .or_else(|| sketch.nearest_segment(cursor, snap).map(Element::Segment))

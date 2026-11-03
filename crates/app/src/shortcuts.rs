@@ -23,13 +23,30 @@ pub fn shortcuts_pressed(
             .iter()
             .filter(|(command, _)| !left_alone(*command))
             .filter(|(_, chord)| {
-                to_egui_key(chord.key).is_some_and(|key| {
-                    input.consume_shortcut(&egui::KeyboardShortcut::new(modifiers(*chord), key))
-                })
+                to_egui_key(chord.key)
+                    .is_some_and(|key| consume_exactly(input, modifiers(*chord), key))
             })
             .map(|(command, _)| *command)
             .collect()
     })
+}
+
+/// egui's `consume_shortcut` lets Shift and Alt be held on top of what a
+/// shortcut names, so Cmd+Z would take Cmd+Shift+Z whenever it was read first.
+fn consume_exactly(
+    input: &mut egui::InputState,
+    wanted: egui::Modifiers,
+    wanted_key: egui::Key,
+) -> bool {
+    let before = input.events.len();
+    input.events.retain(|event| {
+        !matches!(
+            event,
+            egui::Event::Key { key, modifiers, pressed: true, .. }
+                if *key == wanted_key && modifiers.matches_exact(wanted)
+        )
+    });
+    input.events.len() < before
 }
 
 fn modifiers(chord: cao_prefs::Chord) -> egui::Modifiers {
@@ -118,3 +135,6 @@ fn to_egui_key(key: cao_prefs::Key) -> Option<egui::Key> {
         K::Period => E::Period,
     })
 }
+
+#[cfg(test)]
+mod tests;

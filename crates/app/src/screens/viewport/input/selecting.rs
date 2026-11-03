@@ -30,6 +30,8 @@ pub(super) fn band_select(
         return false;
     };
     context.editor.snap = None;
+    context.editor.hovered = None;
+    context.editor.hovered_point = None;
     if let Some(state) = context.editor.select_state() {
         state.band = Some((from, to));
     }

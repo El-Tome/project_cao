@@ -127,7 +127,7 @@ pub(super) fn hang_again(
         record(
             Operation::Constrain {
                 sketch: sketch_index,
-                constraint: super::remap::remap_constraint(*rule, map),
+                constraint: super::remap::remap_constraint(super::remap::without_order(*rule), map),
             },
             new_history,
             new_state,

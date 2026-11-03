@@ -56,12 +56,9 @@
 //!
 //! Asked by the owner after trying the pull request — the line moves as it
 //! does with a circle or an arc: a touch that would fall past an end of the
-//! line is brought onto it, the second clicked sliding along the line by what
-//! it lacks —
+//! line is brought onto it, the line sliding along itself by what it lacks —
 //! - the fillet clicked first, the line slides along itself —
 //!   `a_line_short_of_a_fillet_slides_along_itself_to_touch_it`
-//! - the line clicked first, the fillet slides along the line —
-//!   `a_fillet_beyond_a_line_s_end_slides_along_it_to_touch_it`
 //!
 //! Asked by the owner after trying undo in the app, to keep it working — an
 //! undo gives the rule back, and the line follows the fillet again:
@@ -73,12 +70,26 @@
 //! Surfaced by the mutants the branch's code let live:
 //! - erasing the line takes its rule with it, and leaves the fillet as it was
 //!   — `erasing_a_line_tangent_to_a_fillet_takes_its_rule_and_leaves_the_fillet`
+//!
+//! Surfaced by the second review of the slide. Only the line slides: the
+//! line clicked first, a fillet is left to the solver, as it was before the
+//! owner asked, since sliding its corner and its sides would break the shape
+//! they belong to —
+//! - the app's rectangle rounded at the origin keeps its shape, its size and
+//!   its corner at the origin, and the line ends tangent —
+//!   `the_line_clicked_first_leaves_a_rounded_rectangle_its_shape_and_its_corner`
+//! - a fixed corner stays where it is —
+//!   `the_line_clicked_first_leaves_a_fixed_corner_where_it_is`
+//! - compacting the part moves nothing, whichever was clicked first, though
+//!   the line was dragged along itself past the touch —
+//!   `a_compacted_part_whose_line_was_dragged_past_the_touch_moves_nothing`
 
 use cao_part::history::{ChamferAsked, CutAsked, CutChange, Operation, PointRef};
 use cao_part::{History, PartDocument, PartState, compact};
 use cao_sketch::{
-    ArcDraft, Chamfer, Constraint, Corner, CornerCutId, CutCurve, Element, PointId, Rule,
-    RuleIntent, RulePick, SegmentId, Sketch, Support, WorkPlane, rule_intent, sweep_of,
+    ArcDraft, Chamfer, Constraint, Corner, CornerCutId, CutCurve, Element, LockedInput, PointId,
+    Rule, RuleIntent, RulePick, SegmentId, Sketch, Support, WorkPlane, rectangle_dimensions,
+    rule_intent, sweep_of,
 };
 use glam::DVec2;
 
@@ -270,13 +281,21 @@ fn the_fillet(sketch: &Sketch) -> (DVec2, f64) {
 
 /// How far the line, taken whole, runs from the fillet's centre.
 fn reach_from_the_centre(sketch: &Sketch) -> f64 {
+    reach_of(sketch, LINE)
+}
+
+fn reach_of(sketch: &Sketch, line: SegmentId) -> f64 {
     let (centre, _) = the_fillet(sketch);
-    let (start, end) = sketch.endpoints(LINE);
+    let (start, end) = sketch.endpoints(line);
     (end - start).normalize().perp_dot(centre - start).abs()
 }
 
 fn assert_tangent(sketch: &Sketch, case: &str) {
-    let reach = reach_from_the_centre(sketch);
+    assert_tangent_of(sketch, LINE, case);
+}
+
+fn assert_tangent_of(sketch: &Sketch, line: SegmentId, case: &str) {
+    let reach = reach_of(sketch, line);
     let (_, radius) = the_fillet(sketch);
     assert!(
         (reach - radius).abs() < SAME,
@@ -287,8 +306,12 @@ fn assert_tangent(sketch: &Sketch, case: &str) {
 /// Where the line, taken whole, touches the fillet's circle: the foot of the
 /// centre on it.
 fn the_touch(sketch: &Sketch) -> DVec2 {
+    touch_on(sketch, LINE)
+}
+
+fn touch_on(sketch: &Sketch, line: SegmentId) -> DVec2 {
     let (centre, _) = the_fillet(sketch);
-    let (start, end) = sketch.endpoints(LINE);
+    let (start, end) = sketch.endpoints(line);
     let along = (end - start).normalize();
     start + along * along.dot(centre - start)
 }
@@ -309,9 +332,13 @@ fn within_the_drawn_arc(sketch: &Sketch, place: DVec2) -> bool {
 /// How far the touch falls past the nearer end of the line: nothing while it
 /// lies between the two.
 fn past_the_line(sketch: &Sketch) -> f64 {
-    let (start, end) = sketch.endpoints(LINE);
+    past_the_end_of(sketch, LINE)
+}
+
+fn past_the_end_of(sketch: &Sketch, line: SegmentId) -> f64 {
+    let (start, end) = sketch.endpoints(line);
     let run = end - start;
-    let along = (the_touch(sketch) - start).dot(run) / run.length_squared();
+    let along = (touch_on(sketch, line) - start).dot(run) / run.length_squared();
     (along - along.clamp(0.0, 1.0)).abs() * run.length()
 }
 
@@ -766,49 +793,6 @@ fn a_line_short_of_a_fillet_slides_along_itself_to_touch_it() {
     );
 }
 
-#[test]
-fn a_fillet_beyond_a_line_s_end_slides_along_it_to_touch_it() {
-    let history = a_rounded_corner_beside_a_short_line();
-    let before = the_drawing(&history);
-    assert!(
-        past_the_line(&before) > 1.0,
-        "the fillet was to stand well beyond the line's end"
-    );
-    let (_, picks) = clicked(true);
-
-    let sketch = tangent_laid(&history, picks);
-
-    assert_tangent(&sketch, "the line clicked first");
-    assert_eq!(
-        centre_on_the_left(&sketch),
-        centre_on_the_left(&before),
-        "the line and the fillet came together across the fillet's centre"
-    );
-    let past = past_the_line(&sketch);
-    assert!(
-        past < SAME,
-        "the fillet touches the line {past} past its end"
-    );
-    let line_moved = moved(the_line(&before), the_line(&sketch));
-    assert!(
-        line_moved < SAME,
-        "the line, clicked first, moved by {line_moved}"
-    );
-    let (_, radius) = the_fillet(&sketch);
-    assert!(
-        (radius - RADIUS).abs() < SAME,
-        "the fillet's value became {radius}"
-    );
-    for end in [RIGHT_END, UP_END] {
-        let side = |sketch: &Sketch| [sketch.point(CORNER), sketch.point(end)];
-        let turned = turned(side(&before), side(&sketch));
-        assert!(
-            turned.abs() < SAME,
-            "the side to {end:?} came in turned by {turned} rad, the fillet not in one piece"
-        );
-    }
-}
-
 /// The part of `a_line_held_tangent`, applied gesture by gesture as the app
 /// applies them, so that it can be undone as the app undoes.
 fn a_document_with_a_line_held_tangent() -> PartDocument {
@@ -895,4 +879,198 @@ fn erasing_a_line_tangent_to_a_fillet_takes_its_rule_and_leaves_the_fillet() {
         (radius - RADIUS).abs() < SAME,
         "the fillet's value became {radius}"
     );
+}
+
+/// The rectangle the app's tool draws from `corner` to `opposite`: four sides
+/// from the first corner round, and the three right angles the tool lays.
+/// Returns its sides, the first one leaving `corner`, the last coming back.
+fn a_rectangle(history: &mut History, corner: PointRef, opposite: DVec2) -> [SegmentId; 4] {
+    history.push(Operation::AddRectangle {
+        sketch: 0,
+        corner,
+        opposite: PointRef::New(opposite),
+        construction: false,
+    });
+    let drawn = the_drawing(history);
+    let first = drawn.segments().len() - 4;
+    let sides: [SegmentId; 4] = std::array::from_fn(|offset| SegmentId(first + offset));
+    let (corners, _) = rectangle_dimensions(&drawn, sides, LockedInput::default(), 1.0);
+    for constraint in corners {
+        history.push(Operation::Constrain {
+            sketch: 0,
+            constraint,
+        });
+    }
+    sides
+}
+
+/// The rectangle drawn from `corner` to `opposite`, rounded to 5 at the
+/// first corner, and a free line from `start` to `end`.
+fn a_rectangle_rounded_at_its_first_corner(
+    corner: PointRef,
+    opposite: DVec2,
+    [start, end]: [DVec2; 2],
+) -> (History, [SegmentId; 4], SegmentId) {
+    let mut history = History::default();
+    history.push(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let sides = a_rectangle(&mut history, corner, opposite);
+    history.push(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::Between(sides[0], sides[3])],
+        radius: RADIUS.into(),
+        construction: false,
+    });
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(start),
+        end: PointRef::New(end),
+        construction: false,
+    });
+    let line = SegmentId(sides[3].0 + 1);
+    (history, sides, line)
+}
+
+/// The rule « Tangence » lays, the line clicked first or the fillet, pushed
+/// onto the history.
+fn lay_the_tangent(history: &mut History, line: SegmentId, line_first: bool) {
+    let drawn = the_drawing(history);
+    let (on_the_line, on_the_arc) = (
+        RulePick::Element(Element::Segment(line)),
+        RulePick::CutCurve(the_cut(&drawn)),
+    );
+    let picks = match line_first {
+        true => [on_the_line, on_the_arc],
+        false => [on_the_arc, on_the_line],
+    };
+    let rule = the_tangent(&drawn, picks);
+    history.push(Operation::Constrain {
+        sketch: 0,
+        constraint: rule,
+    });
+}
+
+#[test]
+fn the_line_clicked_first_leaves_a_rounded_rectangle_its_shape_and_its_corner() {
+    let origin = PointId(0);
+    let (mut history, sides, line) = a_rectangle_rounded_at_its_first_corner(
+        PointRef::Existing(origin),
+        DVec2::new(50.0, 30.0),
+        [DVec2::new(-20.0, 18.0), DVec2::new(-12.0, 10.0)],
+    );
+    let drawn = the_drawing(&history);
+    assert!(
+        past_the_end_of(&drawn, line) > 1.0,
+        "the line was to stop well short of the fillet"
+    );
+
+    lay_the_tangent(&mut history, line, true);
+
+    let sketch = the_drawing(&history);
+    assert_tangent_of(&sketch, line, "the line clicked first");
+    assert!(
+        sketch.point(origin).length() < SAME,
+        "the rectangle's corner left the origin, for {}",
+        sketch.point(origin),
+    );
+    for (side, length) in sides.into_iter().zip([50.0, 30.0, 50.0, 30.0]) {
+        let now = sketch.segment_length(side);
+        assert!(
+            (now - length).abs() < SAME,
+            "the side {side:?} was {length} long, it is {now}"
+        );
+    }
+    for (side, next) in sides.into_iter().zip(sides.into_iter().cycle().skip(1)) {
+        let direction = |side: SegmentId| {
+            let (start, end) = sketch.endpoints(side);
+            (end - start).normalize()
+        };
+        let lean = direction(side).dot(direction(next));
+        assert!(
+            lean.abs() < SAME,
+            "the corner between {side:?} and {next:?} is no longer square: {lean}"
+        );
+    }
+}
+
+#[test]
+fn the_line_clicked_first_leaves_a_fixed_corner_where_it_is() {
+    let mut history = a_rounded_corner_beside_a_short_line();
+    history.push(Operation::Constrain {
+        sketch: 0,
+        constraint: Constraint::Fixed {
+            element: Element::Point(CORNER),
+        },
+    });
+    let held = the_drawing(&history).point(CORNER);
+    let (_, picks) = clicked(true);
+
+    let sketch = tangent_laid(&history, picks);
+
+    let corner_moved = sketch.point(CORNER).distance(held);
+    assert!(
+        corner_moved < SAME,
+        "the fixed corner moved by {corner_moved}, to {}",
+        sketch.point(CORNER),
+    );
+    assert_tangent(&sketch, "the line clicked first, the corner fixed");
+}
+
+/// Every point of the drawing, in an order that does not depend on how the
+/// points are numbered.
+fn every_place(sketch: &Sketch) -> Vec<DVec2> {
+    let mut places: Vec<DVec2> = sketch.live_points().map(|(_, place)| place).collect();
+    places.sort_by(|one, other| one.x.total_cmp(&other.x).then(one.y.total_cmp(&other.y)));
+    places
+}
+
+#[test]
+fn a_compacted_part_whose_line_was_dragged_past_the_touch_moves_nothing() {
+    for line_first in [false, true] {
+        let (mut history, _, line) = a_rectangle_rounded_at_its_first_corner(
+            PointRef::New(DVec2::new(10.0, 10.0)),
+            DVec2::new(60.0, 40.0),
+            [DVec2::new(0.0, 18.0), DVec2::new(18.0, 0.0)],
+        );
+        let case = match line_first {
+            true => "the line clicked first",
+            false => "the fillet clicked first",
+        };
+        lay_the_tangent(&mut history, line, line_first);
+        let laid = the_drawing(&history);
+        let (start, end) = laid.endpoints(line);
+        history.push(Operation::MoveMany {
+            sketch: 0,
+            points: vec![laid.segments()[line.0].start, laid.segments()[line.0].end],
+            by: (start - end).normalize() * 40.0,
+        });
+        let before = the_drawing(&history);
+        assert_tangent_of(&before, line, case);
+        assert!(
+            past_the_end_of(&before, line) > 1.0,
+            "{case}: the line was to be dragged along itself past the touch"
+        );
+
+        let compacted = compact(&history);
+
+        let after = the_drawing(&compacted);
+        assert!(
+            a_line_is_held_on_a_cut(&after),
+            "{case}: compacted, the line is no longer held on the fillet"
+        );
+        let (was, is) = (every_place(&before), every_place(&after));
+        assert_eq!(
+            was.len(),
+            is.len(),
+            "{case}: compacted, points came or went"
+        );
+        for (was, is) in was.into_iter().zip(is) {
+            assert!(
+                was.distance(is) < SAME,
+                "{case}: compacted, a point at {was} moved to {is}"
+            );
+        }
+    }
 }

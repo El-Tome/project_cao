@@ -46,11 +46,11 @@ impl Sketch {
     /// slid along the trait first, just far enough for the curve's centre to
     /// stand over it — that is part of coming to the first.
     ///
-    /// A fillet is brought the whole way, across too, until it grazes: its
-    /// rule keeps no point where the two touch, and the solver left to close
-    /// the gap carries the touch past the end — a line turns about its far
-    /// end, a fillet's centre moves through its corner and its sides. It
-    /// slides whole, its corner and the far end of each side together.
+    /// A line clicked after a fillet is brought the whole way, across too,
+    /// until it grazes: the rule keeps no point where the two touch, and the
+    /// solver left to close the gap would turn the line about its far end and
+    /// carry the touch past it. A fillet clicked after the line is left to the
+    /// solver: its corner and its sides belong to a shape a slide would break.
     fn bring_alongside(&mut self, rule: Constraint) {
         let (centre, curve, segment, from, grazing) = match rule {
             Constraint::Tangent {
@@ -86,18 +86,16 @@ impl Sketch {
                 from,
                 None,
             ),
-            Constraint::CutTangent { cut, segment, from } => {
+            Constraint::CutTangent {
+                cut,
+                segment,
+                from: from @ LaidFrom::Curve,
+            } => {
                 let Some(CutCurve::Arc(arc)) = self.drawn_cut(cut).map(|drawn| drawn.curve) else {
                     return;
                 };
                 let radius = arc.centre.distance(arc.start);
-                (
-                    arc.centre,
-                    self.cut_stands_on(cut),
-                    segment,
-                    from,
-                    Some(radius),
-                )
+                (arc.centre, Vec::new(), segment, from, Some(radius))
             }
             _ => return,
         };
@@ -116,7 +114,7 @@ impl Sketch {
         let off = normal.dot(centre - start);
         let across = grazing.map_or(DVec2::ZERO, |radius| normal * (off - radius * off.signum()));
         let (moving, shift) = match from {
-            LaidFrom::Trait => (curve, -span * past - across),
+            LaidFrom::Trait => (curve, -span * past),
             LaidFrom::Curve => (
                 self.points_it_leans_on(Element::Segment(segment)),
                 span * past + across,

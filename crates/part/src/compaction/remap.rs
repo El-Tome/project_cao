@@ -113,11 +113,18 @@ pub(super) fn remap_target(target: DimensionTarget, map: &SketchIdMap) -> Dimens
 /// A rule as it is laid again. A point held on a curve keeps no order of the
 /// clicks: laid in one on a drawing that already holds it, it would be brought
 /// back onto what is drawn of the curve from wherever a drag left it (#554).
+/// Nor does a tangency: the line held on the whole curve may have been dragged
+/// along itself past the touch, and laid in order, the second clicked would be
+/// slid back to it.
 pub(super) fn without_order(rule: Constraint) -> Constraint {
     match rule {
-        Constraint::OnCircle { .. } | Constraint::OnArc { .. } | Constraint::OnEllipse { .. } => {
-            rule.normalised()
-        }
+        Constraint::OnCircle { .. }
+        | Constraint::OnArc { .. }
+        | Constraint::OnEllipse { .. }
+        | Constraint::Tangent { .. }
+        | Constraint::ArcTangent { .. }
+        | Constraint::EllipseTangent { .. }
+        | Constraint::CutTangent { .. } => rule.normalised(),
         other => other,
     }
 }

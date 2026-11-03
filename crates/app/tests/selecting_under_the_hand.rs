@@ -15,6 +15,17 @@
 //!   `screens/viewport/input/selecting/tests.rs`, where what is lit and the
 //!   magnet the mark is drawn from can be read; both are drawn by wgpu, which
 //!   this harness does not run
+//! - A selection or an arc pressed a few pixels off its corner or its centre
+//!   still follows the hand from where it stood, and dropped near a point lands
+//!   exactly on it (surfaced by review) — no test: held by
+//!   `a_selection_pressed_beside_its_corner_does_not_jump_on_the_first_frame`,
+//!   `a_selection_pressed_beside_its_corner_and_dropped_near_a_point_lands_on_it`
+//!   and `an_arc_pressed_beside_its_centre_and_dropped_near_a_point_lands_on_it`,
+//!   in `screens/viewport/input/selecting/tests.rs`
+//! - A fillet's or a chamfer's point is not lit while just pointing 22 px from
+//!   it (surfaced by review) — no test: held by
+//!   `a_fillet_s_point_22_px_from_the_hand_is_not_lit_while_pointing`, in
+//!   `screens/viewport/render/cuts/tests.rs`
 
 mod driver;
 

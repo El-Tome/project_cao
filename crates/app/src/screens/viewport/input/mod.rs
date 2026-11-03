@@ -141,7 +141,7 @@ pub(crate) fn handle_sketch_input(
     let (cursor, snapped_to) = context.document.sketches()[index].magnetise(raw_cursor, &magnets);
     let aim = aim_from(context, raw_cursor, cursor, snapped_to);
 
-    context.editor.cursor = Some(cursor);
+    context.editor.cursor = Some(aim);
     context.editor.hovered_point = context.document.sketches()[index].nearest_point(aim, snap);
     let marks = Marks::seen(state, rect, &context.document.sketches()[index]);
     // Previewing a click's target only where a click takes hold of existing

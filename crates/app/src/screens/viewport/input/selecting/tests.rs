@@ -35,6 +35,16 @@
 //!   and lands on it —
 //!   `pointing_22_px_from_a_point_lights_nothing_and_marks_no_magnet`,
 //!   `dragging_a_point_near_another_still_marks_the_magnet_and_lands_on_it`
+//! - A selection or an arc pressed a few pixels off its corner or its centre
+//!   still follows the hand from where it stood, and dropped near a point lands
+//!   exactly on it (surfaced by review) —
+//!   `a_selection_pressed_beside_its_corner_does_not_jump_on_the_first_frame`,
+//!   `a_selection_pressed_beside_its_corner_and_dropped_near_a_point_lands_on_it`,
+//!   `an_arc_pressed_beside_its_centre_and_dropped_near_a_point_lands_on_it`
+//! - A fillet's or a chamfer's point is not lit while just pointing 22 px from
+//!   it (surfaced by review) — no test: held by
+//!   `a_fillet_s_point_22_px_from_the_hand_is_not_lit_while_pointing`, in
+//!   `screens/viewport/render/cuts/tests.rs`, where that light is decided
 
 use cao_part::PartDocument;
 use cao_part::history::PointRef;
@@ -521,5 +531,127 @@ fn dragging_a_point_near_another_still_marks_the_magnet_and_lands_on_it() {
     assert!(
         landed.distance(the_other) < 1e-9,
         "the dragged end lands on the other point: {landed:?}, expected {the_other:?}"
+    );
+}
+
+/// A trait ending on `corner`, held whole, and a point of another trait
+/// further on: what a group dragged by its corner is dropped near.
+fn a_held_trait_and_a_point_beyond(corner: egui::Pos2, beyond: egui::Pos2) -> FaceOn {
+    let mut bench = FaceOn::with_traits(&[
+        (egui::pos2(720.0, 250.0), corner),
+        (beyond, egui::pos2(1080.0, 360.0)),
+    ]);
+    let the_corner = bench.point_at(corner);
+    bench.editor.tool_state = ToolState::Select(Box::new(cao_sketch::SelectState {
+        held: vec![
+            Selection::Element(Element::Segment(SegmentId(0))),
+            Selection::Element(Element::Point(the_corner)),
+        ],
+        ..Default::default()
+    }));
+    bench
+}
+
+/// Twelve pixels out past the corner, along its trait: within reach of the
+/// corner, and not on it.
+fn beside_the_corner(corner: egui::Pos2) -> egui::Pos2 {
+    corner + (corner - egui::pos2(720.0, 250.0)).normalized() * 12.0
+}
+
+#[test]
+fn a_selection_pressed_beside_its_corner_does_not_jump_on_the_first_frame() {
+    let corner = egui::pos2(860.0, 260.0);
+    let mut bench = a_held_trait_and_a_point_beyond(corner, egui::pos2(940.0, 330.0));
+    let the_corner = bench.point_at(corner);
+    let was = bench.document.sketches()[0].point(the_corner);
+    let pressed = beside_the_corner(corner);
+    let along = (corner - egui::pos2(720.0, 250.0)).normalized();
+    let first = pressed + egui::vec2(-along.y, along.x) * 10.0;
+
+    bench.frames(vec![
+        vec![],
+        moved(pressed),
+        button(pressed, true),
+        moved(first),
+        vec![],
+    ]);
+
+    let hand = on_the_plane(&bench.state, first).distance(on_the_plane(&bench.state, pressed));
+    let shown = bench
+        .editor
+        .select_state()
+        .and_then(|state| state.drag_preview.as_ref())
+        .map(|preview| preview.point(the_corner))
+        .expect("the held trait is dragged, and shown where it goes");
+    assert!(
+        shown.distance(was) <= hand * 1.05,
+        "the corner moves no farther than the hand did: it moved {}, the hand {hand}",
+        shown.distance(was)
+    );
+}
+
+#[test]
+fn a_selection_pressed_beside_its_corner_and_dropped_near_a_point_lands_on_it() {
+    let (corner, beyond) = (egui::pos2(860.0, 260.0), egui::pos2(940.0, 330.0));
+    let mut bench = a_held_trait_and_a_point_beyond(corner, beyond);
+    let the_corner = bench.point_at(corner);
+    let the_point = bench.document.sketches()[0].point(bench.point_at(beyond));
+    let pressed = beside_the_corner(corner);
+    let near_the_point = beyond + egui::vec2(6.0, 5.0);
+
+    bench.frames(vec![
+        vec![],
+        moved(pressed),
+        button(pressed, true),
+        moved(pressed + egui::vec2(12.0, 12.0)),
+        moved(near_the_point),
+        vec![],
+        button(near_the_point, false),
+        vec![],
+    ]);
+
+    let landed = bench.document.sketches()[0].point(the_corner);
+    assert!(
+        landed.distance(the_point) < 1e-6,
+        "the corner the group was taken by lands on the point it was dropped near: \
+         {landed:?}, expected {the_point:?}"
+    );
+}
+
+#[test]
+fn an_arc_pressed_beside_its_centre_and_dropped_near_a_point_lands_on_it() {
+    let beyond = egui::pos2(1000.0, 420.0);
+    let mut bench = FaceOn::with_traits(&[(beyond, egui::pos2(1100.0, 450.0))]);
+    let centre = egui::pos2(820.0, 260.0);
+    let on_the_plane_at = |at: egui::Pos2| PointRef::New(on_the_plane(&bench.state, at));
+    let arc = Operation::AddArc {
+        sketch: 0,
+        center: on_the_plane_at(centre),
+        start: on_the_plane_at(centre + egui::vec2(60.0, 0.0)),
+        end: on_the_plane_at(centre + egui::vec2(0.0, 60.0)),
+        construction: false,
+    };
+    bench.document.apply(arc);
+    let the_centre = bench.point_at(centre);
+    let the_point = bench.document.sketches()[0].point(bench.point_at(beyond));
+    let pressed = centre + egui::vec2(-7.0, -7.0);
+    let near_the_point = beyond + egui::vec2(6.0, 5.0);
+
+    bench.frames(vec![
+        vec![],
+        moved(pressed),
+        button(pressed, true),
+        moved(pressed + egui::vec2(12.0, 12.0)),
+        moved(near_the_point),
+        vec![],
+        button(near_the_point, false),
+        vec![],
+    ]);
+
+    let landed = bench.document.sketches()[0].point(the_centre);
+    assert!(
+        landed.distance(the_point) < 1e-6,
+        "the arc's centre lands on the point it was dropped near: {landed:?}, expected \
+         {the_point:?}"
     );
 }

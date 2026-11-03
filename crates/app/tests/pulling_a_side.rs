@@ -113,9 +113,6 @@ fn a_circle_pulled_out_is_still_drawn_to_its_new_size() {
     driver::click(&mut app, "Sélection (S)");
     let before = steps(&app).len();
 
-    // The history is opened before the circle is drawn, and the grid pulls
-    // nothing: the circle stands where it was clicked, on a canvas that no
-    // longer moves, so its outline can be worked out from the two clicks.
     let on_the_rim = centre + egui::vec2(1.0, 1.0).normalized() * centre.distance(through);
     driver::drag_and_drop(&mut app, on_the_rim, on_the_rim + egui::vec2(0.0, -40.0));
 

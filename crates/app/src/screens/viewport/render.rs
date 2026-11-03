@@ -165,7 +165,12 @@ pub(crate) fn build_frame(
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
 
     let mut solids = Vec::new();
-    let shown = matter::shown_body(context.editor, context.document.body(), camera.eye());
+    let shown = matter::shown_body(
+        context.editor,
+        state.mode,
+        context.document.body(),
+        camera.eye(),
+    );
     cao_render::push_solid(
         &mut solids,
         &shown

@@ -26,6 +26,10 @@
 //!   it (surfaced by review) — no test: held by
 //!   `a_fillet_s_point_22_px_from_the_hand_is_not_lit_while_pointing`, in
 //!   `screens/viewport/render/cuts/tests.rs`
+//! - While a point is dragged, the point the magnet will land it on is lit,
+//!   and nothing else under the hand is (surfaced by the pixel check) — no
+//!   test: held by `a_point_dragged_22_px_from_another_lights_the_one_it_will_land_on`,
+//!   in `screens/viewport/input/selecting/tests.rs`
 
 mod driver;
 

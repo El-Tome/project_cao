@@ -80,13 +80,13 @@ pub(super) fn aim_from(
     cursor: DVec2,
     magnet: Option<Snap>,
 ) -> DVec2 {
-    let selecting = context.editor.tool == Tool::Select;
     let dragging = context
         .editor
         .select_state()
         .is_some_and(|held| !held.grabbed_nothing());
-    context.editor.snap = magnet.filter(|_| !selecting || dragging);
-    match selecting {
+    let pointing = context.editor.tool == Tool::Select && !dragging;
+    context.editor.snap = magnet.filter(|_| !pointing);
+    match pointing {
         true => hand,
         false => cursor,
     }

@@ -45,6 +45,9 @@
 //!   it (surfaced by review) — no test: held by
 //!   `a_fillet_s_point_22_px_from_the_hand_is_not_lit_while_pointing`, in
 //!   `screens/viewport/render/cuts/tests.rs`, where that light is decided
+//! - While a point is dragged, the point the magnet will land it on is lit,
+//!   and nothing else under the hand is (surfaced by the pixel check) —
+//!   `a_point_dragged_22_px_from_another_lights_the_one_it_will_land_on`
 
 use cao_part::PartDocument;
 use cao_part::history::PointRef;
@@ -653,5 +656,38 @@ fn an_arc_pressed_beside_its_centre_and_dropped_near_a_point_lands_on_it() {
         landed.distance(the_point) < 1e-6,
         "the arc's centre lands on the point it was dropped near: {landed:?}, expected \
          {the_point:?}"
+    );
+}
+
+#[test]
+fn a_point_dragged_22_px_from_another_lights_the_one_it_will_land_on() {
+    let (dragged, target, beyond) = (
+        egui::pos2(860.0, 260.0),
+        egui::pos2(940.0, 330.0),
+        egui::pos2(1080.0, 360.0),
+    );
+    let mut bench = FaceOn::with_traits(&[(egui::pos2(720.0, 250.0), dragged), (target, beyond)]);
+    let the_target = bench.point_at(target);
+    let held_at = target - (beyond - target).normalized() * 22.0;
+
+    bench.frames(vec![
+        vec![],
+        moved(dragged),
+        button(dragged, true),
+        moved(dragged + egui::vec2(12.0, 12.0)),
+        moved(held_at),
+        vec![],
+    ]);
+
+    assert_eq!(
+        bench.editor.hovered_point,
+        Some(the_target),
+        "the magnet carries the dragged end onto the other point, and lighting it is what says so"
+    );
+    assert!(
+        [None, Some(Selection::Element(Element::Point(the_target)))]
+            .contains(&bench.editor.hovered),
+        "nothing but the point the drag will land on is lit: {:?}",
+        bench.editor.hovered
     );
 }

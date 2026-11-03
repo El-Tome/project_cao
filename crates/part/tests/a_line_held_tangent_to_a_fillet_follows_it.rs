@@ -39,12 +39,26 @@
 //! they are:
 //! - a fillet cut again, the rule follows the cut —
 //!   `a_corner_rounded_again_keeps_its_line_tangent`
+//! - sides swapped, the rule follows the cut — a fillet's own sides cannot be
+//!   swapped (`swap_cut_sides` leaves a fillet as it is), so the swap a tangent
+//!   meets is the corner rounded again from its other side —
+//!   `a_corner_rounded_again_from_its_other_side_keeps_its_line_tangent`
+//! - a side trimmed, the rule follows the cut —
+//!   `a_side_trimmed_keeps_its_line_tangent_to_the_fillet`
+//!
+//! Surfaced by review:
+//! - a part holding a line tangent to a fillet is compacted without losing the
+//!   rule — `a_compacted_part_keeps_its_line_tangent_to_a_fillet`
+//! - a fillet clicked first under « Tangence » is drawn as picked, as a line
+//!   clicked first is — no test: the drawing is `cao_app`'s, held there by
+//!   `a_fillet_shown_to_a_tangent_is_drawn_as_picked` in
+//!   `screens/viewport/render/cuts/tests.rs`
 
 use cao_part::history::{ChamferAsked, CutAsked, CutChange, Operation, PointRef};
-use cao_part::{History, PartState};
+use cao_part::{History, PartState, compact};
 use cao_sketch::{
     ArcDraft, Chamfer, Constraint, Corner, CornerCutId, CutCurve, Element, PointId, Rule,
-    RuleIntent, RulePick, SegmentId, Sketch, WorkPlane, rule_intent, sweep_of,
+    RuleIntent, RulePick, SegmentId, Sketch, Support, WorkPlane, rule_intent, sweep_of,
 };
 use glam::DVec2;
 
@@ -557,4 +571,93 @@ fn a_corner_rounded_again_keeps_its_line_tangent() {
         "the corner was to be rounded again to 8, it is {radius}"
     );
     assert_tangent(&sketch, "the corner rounded again");
+}
+
+/// The corner rounded again to 8 as it stands, and the line tangent to it.
+fn assert_follows_a_new_radius(history: &mut History, case: &str) {
+    let cut = the_cut(&the_drawing(history));
+    history.push(Operation::CutChange(CutChange::Reshape {
+        sketch: 0,
+        cut,
+        value: CutAsked::Fillet(8.0.into()),
+    }));
+    let sketch = the_drawing(history);
+    let (_, radius) = the_fillet(&sketch);
+    assert!(
+        (radius - 8.0).abs() < SAME,
+        "{case}: the fillet was to be rounded to 8, it is {radius}"
+    );
+    assert_tangent(&sketch, &format!("{case}, then rounded to 8"));
+}
+
+#[test]
+fn a_corner_rounded_again_from_its_other_side_keeps_its_line_tangent() {
+    let mut history = a_line_held_tangent();
+
+    history.push(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::Between(SegmentId(1), SegmentId(0))],
+        radius: 8.0.into(),
+        construction: false,
+    });
+
+    let sketch = the_drawing(&history);
+    let (_, radius) = the_fillet(&sketch);
+    assert!(
+        (radius - 8.0).abs() < SAME,
+        "the corner was to be rounded again to 8, it is {radius}"
+    );
+    assert_tangent(&sketch, "the corner rounded again from its other side");
+}
+
+#[test]
+fn a_side_trimmed_keeps_its_line_tangent_to_the_fillet() {
+    let mut history = a_line_held_tangent();
+    let along_the_right_side = PointId(6);
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: DVec2::new(40.0, 10.0),
+        on: vec![Support::Segment(SegmentId(0))],
+    });
+
+    history.push(Operation::Trim {
+        sketch: 0,
+        segment: SegmentId(0),
+        from: along_the_right_side,
+        to: RIGHT_END,
+    });
+
+    let sketch = the_drawing(&history);
+    let cut = the_cut(&sketch);
+    let side = sketch.corner_cuts()[cut.0].sides[0];
+    let (start, end) = sketch.endpoints(side);
+    assert!(
+        (start.distance(end) - 30.0).abs() < SAME,
+        "the right side was to be trimmed to 30, it runs {}",
+        start.distance(end),
+    );
+    assert_tangent(&sketch, "a side trimmed");
+    assert_follows_a_new_radius(&mut history, "a side trimmed");
+}
+
+#[test]
+fn a_compacted_part_keeps_its_line_tangent_to_a_fillet() {
+    let history = a_line_held_tangent();
+    let before = the_drawing(&history);
+
+    let mut compacted = compact(&history);
+
+    let sketch = the_drawing(&compacted);
+    assert!(
+        a_line_is_held_on_a_cut(&sketch),
+        "compacted, the line is no longer held on the fillet: {:?}",
+        sketch.constraints(),
+    );
+    let line_moved = moved(the_line(&before), the_line(&sketch));
+    assert!(
+        line_moved < SAME,
+        "compacted, the line moved by {line_moved}"
+    );
+    assert_tangent(&sketch, "compacted");
+    assert_follows_a_new_radius(&mut compacted, "compacted");
 }

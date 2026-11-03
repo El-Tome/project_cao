@@ -83,7 +83,7 @@ impl Sketch {
     pub fn anything_hangs_on_a_cut(&self) -> bool {
         self.constraints()
             .iter()
-            .any(|rule| hung_on(*rule).is_some())
+            .any(|rule| rule.hung_on_a_cut().is_some())
     }
 
     /// Every rule hanging something on one of these cuts.
@@ -91,7 +91,7 @@ impl Sketch {
         self.constraints()
             .iter()
             .copied()
-            .filter(|rule| hung_on(*rule).is_some_and(|cut| cuts.contains(&cut)))
+            .filter(|rule| rule.hung_on_a_cut().is_some_and(|cut| cuts.contains(&cut)))
             .collect()
     }
 
@@ -177,14 +177,17 @@ impl Sketch {
     }
 }
 
-/// The cut a rule hangs something on, when it is one of those: a point, or a
-/// line brushing a fillet.
-fn hung_on(rule: Constraint) -> Option<CornerCutId> {
-    match rule {
-        Constraint::AtCutPoint { cut, .. }
-        | Constraint::OnCut { cut, .. }
-        | Constraint::CutTangent { cut, .. } => Some(cut),
-        _ => None,
+impl Constraint {
+    /// The cut a rule hangs something on, when it is one of those: a point,
+    /// or a line brushing a fillet. Such a rule stands only once its cut is
+    /// laid.
+    pub fn hung_on_a_cut(self) -> Option<CornerCutId> {
+        match self {
+            Self::AtCutPoint { cut, .. }
+            | Self::OnCut { cut, .. }
+            | Self::CutTangent { cut, .. } => Some(cut),
+            _ => None,
+        }
     }
 }
 

@@ -33,6 +33,10 @@ pub(super) fn mark(
             .editor
             .rule_picks()
             .contains(&RulePick::Element(element)),
+        Selection::Cut(cut) => context
+            .editor
+            .rule_picks()
+            .contains(&RulePick::CutCurve(cut)),
         _ => false,
     };
     let held = context.editor.is_selected(what) || context.editor.hovered == Some(what);

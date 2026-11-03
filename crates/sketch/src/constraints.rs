@@ -389,5 +389,7 @@ impl Dimension {
     }
 }
 
+mod axis;
+
 #[cfg(test)]
 mod tests;

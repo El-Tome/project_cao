@@ -341,6 +341,12 @@ with the implementation.
 
 ## Adding something
 
+**Subtract before you add.** Before a new type, branch or parameter, look for
+what the change lets you take out: a special case the new shape makes general,
+a field nobody reads any more, a second path to the same result. A requirement
+bolted onto a design that did not plan for it is how a file reaches the line
+budget.
+
 **A crate** — only when a mode outgrows a single screen and carries business
 logic of its own, or when a bounded context in `docs/contexts.md` is being split
 out. It respects the graph, and the architecture test gains an edge in the same

@@ -96,6 +96,8 @@ What the test cannot see:
 - [ ] Does the test describe an observable **behaviour** through the public
       interface, or the implementation? A test that breaks when a private
       function is renamed was testing the wrong thing.
+- [ ] Would the test still pass if every function it reaches returned nothing,
+      or its default? Then it checks nothing.
 - [ ] Is the test name a sentence saying what the software does?
 - [ ] Was a tolerance widened to make a red test pass? If so there is a bug
       underneath — stop there.

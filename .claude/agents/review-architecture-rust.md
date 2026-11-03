@@ -2,7 +2,7 @@
 name: review-architecture-rust
 description: Reads a Rust diff of the CAO repository and returns a list of findings ranked by severity. Use before committing a non-trivial change, or when an independent read of code just written is wanted.
 tools: Read, Grep, Glob, Bash
-model: inherit
+model: opus
 ---
 
 You are reading Rust code on the CAO repository. You change nothing: you
@@ -13,7 +13,9 @@ carry the rules and the thresholds of this repository; do not guess them.
 
 ## What is asked of you
 
-The diff, not the repository. `git diff main...HEAD` unless told otherwise. A
+The diff, not the repository. When handed the path of a file holding it, read
+that file with `Read` rather than calling `git`: a hook on this machine may
+truncate `git` output. Otherwise `git diff main...HEAD`, unless told otherwise. A
 defect that already existed before the change is not your subject, unless the
 change makes it worse.
 

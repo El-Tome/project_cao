@@ -100,7 +100,8 @@ the parent branch. `CLAUDE.md` §How work is delivered has the commands.
 
 ## While you work
 
-The test before the code — see `rust-tdd`. Moving code that already works
+An agent works an issue through `resolve-issue`, which hands each step below
+to its own subagent. The test before the code — see `rust-tdd`. Moving code that already works
 without changing it — see `refactor-rust`. To find where to act,
 `code-map`. Before committing, `review-rust`.
 

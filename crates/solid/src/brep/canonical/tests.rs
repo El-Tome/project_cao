@@ -1528,6 +1528,7 @@ fn a_block_a_hair_beside_another_with_no_wall_touching_its_side_is_left_where_it
     )
     .expect("a block raises");
     assert!(flush(&block, &other, scale).is_none());
+    assert!(edged(&block, &other, scale).is_none());
 }
 
 mod conics;

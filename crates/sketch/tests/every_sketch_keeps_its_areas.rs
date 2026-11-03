@@ -87,15 +87,14 @@
 //! - caught out by areas merged on purpose: two areas given as one, tinted and
 //!   measured right, break the rule — `two_areas_given_as_one_break_the_count`
 //! - the diagonal drawn before the square on its ends breaks it, and is kept
-//!   under #494 — `a_diagonal_drawn_before_the_square_on_its_ends_is_held_to_two_areas`,
-//!   in `what_random_sketches_found.rs`.
-//!   #494 is closed, so the drawing holds today: what the test rejects is
-//!   #494's old answer, the square alone as one area, against the
-//!   reckoning's count of two
+//!   under #494 — no test: not in this file. `what_random_sketches_found.rs`
+//!   holds it, and its own `Closes #509` block names the test. #494 is closed,
+//!   so the drawing holds today: what that test rejects is #494's old answer,
+//!   the square alone as one area, against the reckoning's count of two
 //! - the faces of no surface are told apart: #493's kept cases break this rule
-//!   only where they already broke another, or not at all —
-//!   `a_curve_drawn_twice_closes_no_area_of_its_own`, and #493's cases held
-//!   to every rule, both in `what_random_sketches_found.rs`
+//!   only where they already broke another, or not at all — no test: not in
+//!   this file. `what_random_sketches_found.rs` holds #493's cases, and its own
+//!   `Closes #509` block names the test
 //! - a campaign has run with it, and what it found is written down: added to
 //!   an open issue, or given one of its own — no test: the report lives on the
 //!   issues, and any drawing it keeps in `what_random_sketches_found.rs`

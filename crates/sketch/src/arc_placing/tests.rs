@@ -10,7 +10,9 @@
 //! - winding back over the start and on the other way turns the arc the other
 //!   way — `winding_back_over_the_start_and_on_turns_the_arc_the_other_way`
 //! - past a full turn, the arc starts again from nothing, still in the same
-//!   direction — `past_a_full_turn_the_arc_starts_again_from_nothing_the_same_way_round`
+//!   direction — `past_a_full_turn_the_arc_starts_again_from_nothing_the_same_way_round`,
+//!   and coming back short of that turn closes it again rather than flipping
+//!   it — `coming_back_short_of_a_full_turn_closes_the_arc_again_the_same_way_round`
 //! - an angle typed in the field is laid out in the direction the hand has
 //!   taken: gone down, typed `270`, three quarters clockwise; the value is
 //!   always positive — `an_angle_typed_after_the_hand_went_down_is_laid_out_clockwise`
@@ -344,4 +346,81 @@ fn a_hand_leaving_the_start_upwards_turns_the_arc_counter_clockwise() {
         drawn.start,
         drawn.end,
     );
+}
+
+const ROUND: [DVec2; 2] = [DVec2::ZERO, DVec2::new(10.0, 0.0)];
+
+fn at_degrees(degrees: f64) -> DVec2 {
+    DVec2::from_angle(degrees.to_radians()) * 10.0
+}
+
+fn hand_going_round_through_degrees(stops: &[f64]) -> Vec<DVec2> {
+    let mut path = Vec::new();
+    let mut at: f64 = 0.0;
+    for &stop in stops {
+        while (stop - at).abs() > 1e-9 {
+            at += (stop - at).clamp(-5.0, 5.0);
+            path.push(at_degrees(at));
+        }
+    }
+    path
+}
+
+fn arc_after(stops: &[f64]) -> ArcDraft {
+    let path = hand_going_round_through_degrees(stops);
+    let cursor = *path.last().expect("the hand went somewhere");
+    arc_turned(&ROUND, turned_along(&ROUND, &path), cursor)
+        .expect("a centre, a start and a hand gone round make an arc")
+}
+
+fn assert_runs(drawn: ArcDraft, from_degrees: f64, sweep_degrees: f64) {
+    assert!(
+        drawn.start.distance(at_degrees(from_degrees)) < TOLERANCE
+            && (sweep_of(drawn).to_degrees() - sweep_degrees).abs() < 1e-6,
+        "expected {sweep_degrees} degrees counter-clockwise from {from_degrees}, \
+         got {} degrees from {:?} to {:?}",
+        sweep_of(drawn).to_degrees(),
+        drawn.start,
+        drawn.end,
+    );
+}
+
+#[test]
+fn a_hand_going_three_quarters_round_downwards_draws_three_quarters_clockwise() {
+    let drawn = arc_after(&[-270.0]);
+
+    assert_runs(drawn, 90.0, 270.0);
+    assert!(
+        drawn.end.distance(ROUND[1]) < TOLERANCE,
+        "the arc has to end on the start the hand left from, not at {:?}",
+        drawn.end,
+    );
+}
+
+#[test]
+fn winding_back_over_the_start_and_on_turns_the_arc_the_other_way() {
+    assert_runs(arc_after(&[-200.0, 45.0]), 0.0, 45.0);
+    assert_runs(arc_after(&[200.0, -45.0]), -45.0, 45.0);
+}
+
+#[test]
+fn past_a_full_turn_the_arc_starts_again_from_nothing_the_same_way_round() {
+    assert_runs(arc_after(&[-370.0]), -10.0, 10.0);
+    assert_runs(arc_after(&[370.0]), 0.0, 10.0);
+}
+
+#[test]
+fn coming_back_short_of_a_full_turn_closes_the_arc_again_the_same_way_round() {
+    assert_runs(arc_after(&[-370.0, -350.0]), 10.0, 350.0);
+}
+
+#[test]
+fn an_angle_typed_before_the_hand_moved_is_laid_out_counter_clockwise() {
+    let not_moved = turned_along(&ROUND, &[ROUND[1]]);
+    let typed_at_once = aimed(ArcMode::ByCenter, &ROUND, ROUND[1], Some(90.0), 1.0);
+
+    let drawn = arc_turned(&ROUND, not_moved, typed_at_once)
+        .expect("a centre, a start and a typed angle make an arc");
+
+    assert_runs(drawn, 0.0, 90.0);
 }

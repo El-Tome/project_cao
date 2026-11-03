@@ -76,6 +76,9 @@ pub(super) fn drag_point(
         if gesture.navigating || !response.drag_started_by(egui::PointerButton::Primary) {
             return false;
         }
+        // What is taken is read under the hand, but what is carried travels
+        // from where the magnets put the press: the cursor it follows is theirs.
+        let origin = sketch.magnetise(pressed, &gesture.magnets).0;
         // A mark holds no point of its own: pressed on, it carries the
         // selection it is part of, and otherwise pulls a box.
         if let Some(rule) = gesture.on_mark {
@@ -88,7 +91,7 @@ pub(super) fn drag_point(
                     true => state.band = Some((gesture.raw_pressed, gesture.raw_cursor)),
                     false => {
                         state.dragged_group = carried;
-                        state.drag_origin = Some(pressed);
+                        state.drag_origin = Some(origin);
                     }
                 }
             }
@@ -111,7 +114,7 @@ pub(super) fn drag_point(
         }
         if group_grabbed {
             if let Some(state) = context.editor.select_state() {
-                state.drag_origin = Some(pressed);
+                state.drag_origin = Some(origin);
             }
             return false;
         }
@@ -159,7 +162,7 @@ pub(super) fn drag_point(
             match arc_group {
                 Some(group) => {
                     state.dragged_group = group;
-                    state.drag_origin = Some(pressed);
+                    state.drag_origin = Some(origin);
                 }
                 None => state.dragged_point = dragged_point,
             }
@@ -199,7 +202,7 @@ pub(super) fn drag_point(
                     Some(Pulled::Side(side)) => Some(side),
                     _ => None,
                 };
-                state.drag_origin = Some(pressed);
+                state.drag_origin = Some(origin);
                 state.grabbed_at = Some(gesture.raw_pressed);
             }
         }

@@ -19,10 +19,39 @@
 //! - On a rendered frame, the corner a box is held beside is drawn as at rest
 //!   — no test: the pixel renderer is not on main; checked on a headless
 //!   rendered frame before the merge, and the pull request says so
+//!
+//! Closes #664.
+//! - A press 22 px from a side, driven whole in `crates/app/tests/`, starts a
+//!   box and grabs no side — no test: held by
+//!   `a_press_22_px_from_a_side_pulls_a_box_and_moves_no_side`, in
+//!   `crates/app/tests/selecting_under_the_hand.rs`
+//! - A click 22 px from a point, with the magnet's reach at its default,
+//!   selects nothing; a click 10 px from it selects it — no test: held by
+//!   `a_click_22_px_from_a_point_takes_nothing` and
+//!   `a_click_10_px_from_a_point_takes_it`, in
+//!   `crates/app/tests/selecting_under_the_hand.rs`
+//! - Pointing 22 px from a point with the selection tool lights nothing and
+//!   shows no magnet mark; dragging a point near another still shows the mark
+//!   and lands on it —
+//!   `pointing_22_px_from_a_point_lights_nothing_and_marks_no_magnet`,
+//!   `dragging_a_point_near_another_still_marks_the_magnet_and_lands_on_it`
+//! - A selection or an arc pressed a few pixels off its corner or its centre
+//!   still follows the hand from where it stood, and dropped near a point lands
+//!   exactly on it (surfaced by review) —
+//!   `a_selection_pressed_beside_its_corner_does_not_jump_on_the_first_frame`,
+//!   `a_selection_pressed_beside_its_corner_and_dropped_near_a_point_lands_on_it`,
+//!   `an_arc_pressed_beside_its_centre_and_dropped_near_a_point_lands_on_it`
+//! - A fillet's or a chamfer's point is not lit while just pointing 22 px from
+//!   it (surfaced by review) — no test: held by
+//!   `a_fillet_s_point_22_px_from_the_hand_is_not_lit_while_pointing`, in
+//!   `screens/viewport/render/cuts/tests.rs`, where that light is decided
+//! - While a point is dragged, the point the magnet will land it on is lit,
+//!   and nothing else under the hand is (surfaced by the pixel check) —
+//!   `a_point_dragged_22_px_from_another_lights_the_one_it_will_land_on`
 
 use cao_part::PartDocument;
 use cao_part::history::PointRef;
-use cao_sketch::{Element, PointId, WorkPlane};
+use cao_sketch::{Element, PointId, SegmentId, Snap, WorkPlane};
 use chrono::Utc;
 use glam::DVec2;
 
@@ -378,5 +407,287 @@ fn the_frame_a_box_starts_on_a_rule_s_mark_lights_nothing() {
     assert_eq!(
         bench.editor.hovered_point, None,
         "nothing is lit as pointed at from the frame a box appears"
+    );
+}
+
+/// Traits laid between places on screen, the drawing seen straight on so that
+/// a pixel covers the same length whichever way it is measured.
+struct FaceOn {
+    state: ViewportState,
+    document: PartDocument,
+    editor: SketchEditor,
+    extrusion: ExtrusionState,
+    lang: Catalogue,
+    egui: egui::Context,
+}
+
+impl FaceOn {
+    fn with_traits(traits: &[(egui::Pos2, egui::Pos2)]) -> Self {
+        let mut state = ViewportState::default();
+        state
+            .camera
+            .set_view_angles(0.0, std::f32::consts::FRAC_PI_2);
+        let mut document = PartDocument::new("part", Utc::now());
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        });
+        for (start, end) in traits {
+            document.apply(Operation::AddSegment {
+                sketch: 0,
+                start: PointRef::New(on_the_plane(&state, *start)),
+                end: PointRef::New(on_the_plane(&state, *end)),
+                construction: false,
+            });
+        }
+        Self {
+            state,
+            document,
+            editor: SketchEditor {
+                phase: SketchPhase::Editing(0),
+                tool: Tool::Select,
+                tool_state: ToolState::Select(Box::default()),
+                ..Default::default()
+            },
+            extrusion: ExtrusionState::default(),
+            lang: Catalogue::french(),
+            egui: egui::Context::default(),
+        }
+    }
+
+    fn point_at(&self, on_screen: egui::Pos2) -> PointId {
+        self.document.sketches()[0]
+            .nearest_point(on_the_plane(&self.state, on_screen), 1e-6)
+            .expect("a trait ends there")
+    }
+
+    fn frames(&mut self, frames: Vec<Vec<egui::Event>>) {
+        let mut context = SketchContext {
+            document: &mut self.document,
+            editor: &mut self.editor,
+            extrusion: &mut self.extrusion,
+            lang: &self.lang,
+        };
+        for events in frames {
+            frame(&self.egui, &mut self.state, &mut context, events);
+        }
+    }
+}
+
+#[test]
+fn pointing_22_px_from_a_point_lights_nothing_and_marks_no_magnet() {
+    let (start, end) = (egui::pos2(700.0, 250.0), egui::pos2(1000.0, 620.0));
+    let mut bench = FaceOn::with_traits(&[(start, end)]);
+    let the_end = bench.point_at(end);
+    let outwards = (end - start).normalized();
+
+    bench.frames(vec![vec![], moved(end + outwards * 10.0), vec![]]);
+    assert_eq!(
+        bench.editor.hovered_point,
+        Some(the_end),
+        "pointing 10 px past the trait's end lights the end"
+    );
+
+    bench.frames(vec![moved(end + outwards * 22.0), vec![]]);
+
+    assert_eq!(
+        bench.editor.hovered_point, None,
+        "22 px past the trait's end is out of reach of the end, so the end is not lit"
+    );
+    assert_eq!(
+        bench.editor.hovered, None,
+        "22 px past the trait's end, a click takes nothing, so nothing is lit"
+    );
+    assert_eq!(
+        bench.editor.snap, None,
+        "just pointing with the selection tool marks no magnet"
+    );
+}
+
+#[test]
+fn dragging_a_point_near_another_still_marks_the_magnet_and_lands_on_it() {
+    let (dragged, other) = (egui::pos2(860.0, 260.0), egui::pos2(900.0, 300.0));
+    let mut bench = FaceOn::with_traits(&[
+        (egui::pos2(720.0, 250.0), dragged),
+        (other, egui::pos2(1050.0, 330.0)),
+    ]);
+    let the_other = bench.document.sketches()[0].point(bench.point_at(other));
+    let near_the_other = other + egui::vec2(8.0, 6.0);
+
+    bench.frames(vec![
+        vec![],
+        moved(dragged),
+        button(dragged, true),
+        moved(dragged + egui::vec2(12.0, 12.0)),
+        moved(near_the_other),
+        vec![],
+    ]);
+    assert_eq!(
+        bench.editor.snap,
+        Some(Snap::Point),
+        "a point dragged 10 px from another is pulled onto it, and the magnet says so"
+    );
+
+    bench.frames(vec![button(near_the_other, false), vec![]]);
+
+    let (_, landed) = bench.document.sketches()[0].endpoints(SegmentId(0));
+    assert!(
+        landed.distance(the_other) < 1e-9,
+        "the dragged end lands on the other point: {landed:?}, expected {the_other:?}"
+    );
+}
+
+/// A trait ending on `corner`, held whole, and a point of another trait
+/// further on: what a group dragged by its corner is dropped near.
+fn a_held_trait_and_a_point_beyond(corner: egui::Pos2, beyond: egui::Pos2) -> FaceOn {
+    let mut bench = FaceOn::with_traits(&[
+        (egui::pos2(720.0, 250.0), corner),
+        (beyond, egui::pos2(1080.0, 360.0)),
+    ]);
+    let the_corner = bench.point_at(corner);
+    bench.editor.tool_state = ToolState::Select(Box::new(cao_sketch::SelectState {
+        held: vec![
+            Selection::Element(Element::Segment(SegmentId(0))),
+            Selection::Element(Element::Point(the_corner)),
+        ],
+        ..Default::default()
+    }));
+    bench
+}
+
+/// Twelve pixels out past the corner, along its trait: within reach of the
+/// corner, and not on it.
+fn beside_the_corner(corner: egui::Pos2) -> egui::Pos2 {
+    corner + (corner - egui::pos2(720.0, 250.0)).normalized() * 12.0
+}
+
+#[test]
+fn a_selection_pressed_beside_its_corner_does_not_jump_on_the_first_frame() {
+    let corner = egui::pos2(860.0, 260.0);
+    let mut bench = a_held_trait_and_a_point_beyond(corner, egui::pos2(940.0, 330.0));
+    let the_corner = bench.point_at(corner);
+    let was = bench.document.sketches()[0].point(the_corner);
+    let pressed = beside_the_corner(corner);
+    let along = (corner - egui::pos2(720.0, 250.0)).normalized();
+    let first = pressed + egui::vec2(-along.y, along.x) * 10.0;
+
+    bench.frames(vec![
+        vec![],
+        moved(pressed),
+        button(pressed, true),
+        moved(first),
+        vec![],
+    ]);
+
+    let hand = on_the_plane(&bench.state, first).distance(on_the_plane(&bench.state, pressed));
+    let shown = bench
+        .editor
+        .select_state()
+        .and_then(|state| state.drag_preview.as_ref())
+        .map(|preview| preview.point(the_corner))
+        .expect("the held trait is dragged, and shown where it goes");
+    assert!(
+        shown.distance(was) <= hand * 1.05,
+        "the corner moves no farther than the hand did: it moved {}, the hand {hand}",
+        shown.distance(was)
+    );
+}
+
+#[test]
+fn a_selection_pressed_beside_its_corner_and_dropped_near_a_point_lands_on_it() {
+    let (corner, beyond) = (egui::pos2(860.0, 260.0), egui::pos2(940.0, 330.0));
+    let mut bench = a_held_trait_and_a_point_beyond(corner, beyond);
+    let the_corner = bench.point_at(corner);
+    let the_point = bench.document.sketches()[0].point(bench.point_at(beyond));
+    let pressed = beside_the_corner(corner);
+    let near_the_point = beyond + egui::vec2(6.0, 5.0);
+
+    bench.frames(vec![
+        vec![],
+        moved(pressed),
+        button(pressed, true),
+        moved(pressed + egui::vec2(12.0, 12.0)),
+        moved(near_the_point),
+        vec![],
+        button(near_the_point, false),
+        vec![],
+    ]);
+
+    let landed = bench.document.sketches()[0].point(the_corner);
+    assert!(
+        landed.distance(the_point) < 1e-6,
+        "the corner the group was taken by lands on the point it was dropped near: \
+         {landed:?}, expected {the_point:?}"
+    );
+}
+
+#[test]
+fn an_arc_pressed_beside_its_centre_and_dropped_near_a_point_lands_on_it() {
+    let beyond = egui::pos2(1000.0, 420.0);
+    let mut bench = FaceOn::with_traits(&[(beyond, egui::pos2(1100.0, 450.0))]);
+    let centre = egui::pos2(820.0, 260.0);
+    let on_the_plane_at = |at: egui::Pos2| PointRef::New(on_the_plane(&bench.state, at));
+    let arc = Operation::AddArc {
+        sketch: 0,
+        center: on_the_plane_at(centre),
+        start: on_the_plane_at(centre + egui::vec2(60.0, 0.0)),
+        end: on_the_plane_at(centre + egui::vec2(0.0, 60.0)),
+        construction: false,
+    };
+    bench.document.apply(arc);
+    let the_centre = bench.point_at(centre);
+    let the_point = bench.document.sketches()[0].point(bench.point_at(beyond));
+    let pressed = centre + egui::vec2(-7.0, -7.0);
+    let near_the_point = beyond + egui::vec2(6.0, 5.0);
+
+    bench.frames(vec![
+        vec![],
+        moved(pressed),
+        button(pressed, true),
+        moved(pressed + egui::vec2(12.0, 12.0)),
+        moved(near_the_point),
+        vec![],
+        button(near_the_point, false),
+        vec![],
+    ]);
+
+    let landed = bench.document.sketches()[0].point(the_centre);
+    assert!(
+        landed.distance(the_point) < 1e-6,
+        "the arc's centre lands on the point it was dropped near: {landed:?}, expected \
+         {the_point:?}"
+    );
+}
+
+#[test]
+fn a_point_dragged_22_px_from_another_lights_the_one_it_will_land_on() {
+    let (dragged, target, beyond) = (
+        egui::pos2(860.0, 260.0),
+        egui::pos2(940.0, 330.0),
+        egui::pos2(1080.0, 360.0),
+    );
+    let mut bench = FaceOn::with_traits(&[(egui::pos2(720.0, 250.0), dragged), (target, beyond)]);
+    let the_target = bench.point_at(target);
+    let held_at = target - (beyond - target).normalized() * 22.0;
+
+    bench.frames(vec![
+        vec![],
+        moved(dragged),
+        button(dragged, true),
+        moved(dragged + egui::vec2(12.0, 12.0)),
+        moved(held_at),
+        vec![],
+    ]);
+
+    assert_eq!(
+        bench.editor.hovered_point,
+        Some(the_target),
+        "the magnet carries the dragged end onto the other point, and lighting it is what says so"
+    );
+    assert!(
+        [None, Some(Selection::Element(Element::Point(the_target)))]
+            .contains(&bench.editor.hovered),
+        "nothing but the point the drag will land on is lit: {:?}",
+        bench.editor.hovered
     );
 }

@@ -50,7 +50,6 @@ pub(super) struct Abreast {
     rounds: BTreeMap<SurfaceId, Vec<DVec3>>,
     ovals: BTreeMap<SurfaceId, Vec<f64>>,
     withheld: BTreeMap<SurfaceId, Vec<usize>>,
-    mates: BTreeMap<SurfaceId, Vec<SurfaceId>>,
 }
 
 impl Abreast {
@@ -189,18 +188,7 @@ impl Abreast {
     /// where a vertex stands just inside it. Taken by one rim alone, such a
     /// place of the outer wall beside a touch left a chord of it across the
     /// inner rim's (campaign seed 5571457963).
-    /// The walls sampled on the rays `wall` takes from one point with it.
-    pub(super) fn mates(&self, wall: SurfaceId) -> &[SurfaceId] {
-        self.mates.get(&wall).map_or(&[], Vec::as_slice)
-    }
-
     fn shared(&mut self, group: &[SurfaceId], hub: DVec3, body: &Body, tolerance: f64) {
-        for wall in group {
-            let mates = self.mates.entry(*wall).or_default();
-            mates.extend(group.iter().filter(|other| *other != wall));
-            mates.sort();
-            mates.dedup();
-        }
         let (_, axis) = axis_of(body.surface(group[0]));
         let flat = |way: DVec3| way - axis * axis.dot(way);
         let mut places: Vec<DVec3> = group

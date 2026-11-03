@@ -17,9 +17,7 @@
 //! No place on the grid or on a ray is kept where the cylinder all but lies
 //! on a wall facing it, or on a plane touching it off the line they touch
 //! along, nor a step or less from an end where the curve all but lies on a
-//! surface that end lies on, as for a meet. On an elliptic wall, nor any
-//! but the rays it shares with a wall crossing it at a grazing angle near
-//! the end where they cross (#574).
+//! surface that end lies on, as for a meet.
 
 mod rays;
 
@@ -30,9 +28,7 @@ use glam::DVec3;
 
 use super::chords::halved;
 use super::cone::{Grid, Spun};
-use super::elliptic::{
-    a_step_apart, between_steps, in_a_band, in_a_lens, on_the_wall, reached_by_planes,
-};
+use super::elliptic::{a_step_apart, between_steps, on_the_wall, reached_by_planes};
 use super::ends::{grazed, grazed_near};
 use super::{divisions, on_a_plane, touching_planes};
 use crate::brep::conic::{Conic, On, Round};
@@ -70,7 +66,7 @@ pub(super) fn of_edge(
     conic: &Conic,
     zones: &Zones,
     grids: &BTreeMap<SurfaceId, Grid>,
-    (rays, shared, mates): (&[f64], &[f64], &[Surface]),
+    rays: &[f64],
     tolerance: f64,
 ) -> Vec<DVec3> {
     let eps = body.scale().eps();
@@ -112,18 +108,7 @@ pub(super) fn of_edge(
             let grid = turn(steps);
             let own = [plane, Surface::Elliptic(wall)];
             let grazing = grazed_near(body, edge, &own, a_step_apart(wall, steps));
-            let lens = in_a_lens(body, edge, wall, tolerance);
-            let band = in_a_band(body, wall, mates, tolerance);
-            let shared_at = |point: DVec3| {
-                let at = wall.parameters(point).x;
-                shared
-                    .iter()
-                    .any(|ray| ((at - ray + PI).rem_euclid(TAU) - PI).abs() <= AT_AN_END)
-            };
-            let clear = |point: DVec3| {
-                !grazing(point, eps * contact::APART)
-                    && (shared.is_empty() || !(lens(point) || band(point)) || shared_at(point))
-            };
+            let clear = |point: DVec3| !grazing(point, eps * contact::APART);
             let rays: Vec<f64> = on_the_wall(body, &wall, steps)
                 .into_iter()
                 .chain(reached_by_planes(body, &wall))

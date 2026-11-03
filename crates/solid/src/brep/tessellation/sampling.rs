@@ -201,25 +201,15 @@ impl Samples {
                 Curve::Line(_) => Vec::new(),
                 Curve::Conic(conic) => {
                     let mut rays = conic::rays_about(conic, walls, &contacts, eps);
-                    let mut shared = Vec::new();
-                    let mut mates = Vec::new();
                     if let Round::Elliptic(wall) = conic.round
                         && let Some(rank) = body
                             .surfaces
                             .iter()
                             .position(|surface| *surface == Surface::Elliptic(wall))
                     {
-                        let id = SurfaceId(rank as u32);
-                        shared = abreast.angles(id).to_vec();
-                        mates = abreast
-                            .mates(id)
-                            .iter()
-                            .map(|mate| *body.surface(*mate))
-                            .collect();
-                        rays.extend(&shared);
+                        rays.extend(abreast.angles(SurfaceId(rank as u32)));
                     }
-                    let abreasted = (rays.as_slice(), shared.as_slice(), mates.as_slice());
-                    conic::of_edge(body, edge, conic, zones, grids, abreasted, tolerance)
+                    conic::of_edge(body, edge, conic, zones, grids, &rays, tolerance)
                 }
                 Curve::Circle(circle) => match meridian_of(circle, grids, eps) {
                     Some((surface, round, rows)) => {

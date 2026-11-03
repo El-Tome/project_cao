@@ -12,6 +12,13 @@
 //! - an area is closed, or it is no area: a shape missing its last stretch by
 //!   a hair encloses nothing — `a_square_a_hair_short_of_closing_encloses_nothing`,
 //!   `three_circles_a_hair_apart_leave_the_gap_between_them_open`
+//!
+//! Closes #509.
+//! - a campaign has run with it, and what it found is written down — the
+//!   reckoning's own false alarm, a side through an ellipse's centre read as
+//!   a touch and cut once, is held here —
+//!   `a_side_through_an_ellipse_s_centre_crosses_it_twice`,
+//!   `a_side_through_a_turned_ellipse_s_centre_crosses_it_twice`
 
 // The drawing, the rules and the campaign are the campaign file's; this one
 // only holds the reckoning to drawings whose answer is known.
@@ -20,9 +27,10 @@ mod random_sketches;
 
 use cao_sketch::{EllipseDraft, EllipseMode, Sketch, WorkPlane, ellipse_from, rise_of};
 use glam::DVec2;
-use random_sketches::Relaying;
+use random_sketches::areas::areas_of;
 use random_sketches::checking::carried;
 use random_sketches::enclosing::{Curve, Enclosure, curves_of};
+use random_sketches::{Gesture, Relaying, as_many_as_closed, laid};
 
 fn straight(from: [f64; 2], to: [f64; 2]) -> Curve {
     Curve::Straight {
@@ -419,4 +427,44 @@ fn a_quarter_turn_never_reads_a_miss_otherwise() {
     let enclosure = Enclosure::of(&curves);
     assert!(enclosure.may_read_otherwise(|at| at + DVec2::new(64.0, -32.0)));
     assert!(!enclosure.may_read_otherwise(|at| carried(Relaying::Turned(90.0), at)));
+}
+
+#[test]
+fn a_side_through_an_ellipse_s_centre_crosses_it_twice() {
+    let sketch = laid(&[
+        Gesture::Ellipse {
+            centre: [8.0, 3.0],
+            reach: [8.0, -2.0],
+            across: 3.0,
+            construction: false,
+        },
+        Gesture::Rectangle {
+            corner: [8.0, 5.0],
+            opposite: [2.0, 9.5],
+            construction: false,
+        },
+    ]);
+
+    assert_eq!(Enclosure::of(&curves_of(&sketch)).areas_closed(), Some(3));
+    assert_eq!(as_many_as_closed(&areas_of(&sketch), 3), Ok(()));
+}
+
+#[test]
+fn a_side_through_a_turned_ellipse_s_centre_crosses_it_twice() {
+    let sketch = laid(&[
+        Gesture::Ellipse {
+            centre: [9.0, 6.0],
+            reach: [9.707106781186548, 6.707106781186548],
+            across: 0.5,
+            construction: false,
+        },
+        Gesture::Rectangle {
+            corner: [6.0, 6.0],
+            opposite: [11.0, 9.0],
+            construction: false,
+        },
+    ]);
+
+    assert_eq!(Enclosure::of(&curves_of(&sketch)).areas_closed(), Some(3));
+    assert_eq!(as_many_as_closed(&areas_of(&sketch), 3), Ok(()));
 }

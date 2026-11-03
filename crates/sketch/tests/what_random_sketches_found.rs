@@ -106,6 +106,12 @@
 //!   only where they already broke another, or not at all —
 //!   `a_curve_drawn_twice_closes_no_area_of_its_own`, and #493's cases above,
 //!   held to every rule by `holds`
+//! - a campaign has run with it, and what it found is written down: added to
+//!   an open issue, or given one of its own — loops thinner than a billionth
+//!   that the walk drops, ignored under #670 —
+//!   `a_chain_closing_a_hair_from_a_rectangle_s_corner_keeps_as_many_areas_as_it_closes`,
+//!   `a_line_passing_a_hair_from_where_a_circle_touches_a_side_keeps_as_many_areas_as_it_closes`,
+//!   `a_diagonal_ending_a_hair_from_a_rectangle_s_corner_keeps_as_many_areas_as_it_closes`
 
 // The drawing, the rules and the shrinking are the campaign's; this file only
 // lays drawings and holds them.
@@ -737,6 +743,62 @@ fn a_chamfer_on_an_open_chain_against_a_pattern_keeps_the_tint_the_measure() {
             centre: [4.5, 2.4795],
             degrees: 90.0,
             count: 4,
+        },
+    ]);
+}
+
+#[test]
+#[ignore = "#670"]
+fn a_chain_closing_a_hair_from_a_rectangle_s_corner_keeps_as_many_areas_as_it_closes() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [5.0, 9.0],
+            opposite: [7.0, 5.0],
+            construction: false,
+        },
+        Gesture::Chain {
+            through: vec![[5.0, 5.0], [7.5, 0.5], [5.5, 0.0], [5.0000205, 5.0]],
+            closed: false,
+            construction: false,
+        },
+    ]);
+}
+
+#[test]
+#[ignore = "#670"]
+fn a_line_passing_a_hair_from_where_a_circle_touches_a_side_keeps_as_many_areas_as_it_closes() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [3.0, 1.0],
+            opposite: [0.0, 3.0],
+            construction: false,
+        },
+        Gesture::Circle {
+            centre: [1.501025, 1.75],
+            radius: 0.75,
+            construction: false,
+        },
+        Gesture::Chain {
+            through: vec![[0.0, 0.0], [6.0, 4.0]],
+            closed: false,
+            construction: false,
+        },
+    ]);
+}
+
+#[test]
+#[ignore = "#670"]
+fn a_diagonal_ending_a_hair_from_a_rectangle_s_corner_keeps_as_many_areas_as_it_closes() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [2.999959, 3.0],
+            opposite: [4.0, 0.0],
+            construction: false,
+        },
+        Gesture::Chain {
+            through: vec![[0.0, 0.0], [3.0, 3.0]],
+            closed: false,
+            construction: false,
         },
     ]);
 }

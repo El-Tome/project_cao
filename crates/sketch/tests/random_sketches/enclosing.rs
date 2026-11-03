@@ -360,6 +360,11 @@ fn rounds_meet(centre: DVec2, radius: f64, other: DVec2, across: f64) -> Vec<DVe
     vec![base + toward.perp() * height, base - toward.perp() * height]
 }
 
+/// Nearer the centre than this, against how far out the trait's ends stand
+/// in the ellipse's own measure, the foot of a trait through the centre is
+/// rounding, and points no way at all.
+const ROUNDED: f64 = 1e-12;
+
 /// A trait against an ellipse, solved in the ellipse's own measure, where the
 /// ellipse is a circle and the trait is still straight.
 fn straight_meets_oval(from: DVec2, to: DVec2, drawn: &EllipseDraft) -> Vec<DVec2> {
@@ -367,7 +372,12 @@ fn straight_meets_oval(from: DVec2, to: DVec2, drawn: &EllipseDraft) -> Vec<DVec
     let step = far - near;
     let foot = near + step * (-near.dot(step) / step.length_squared());
     let unsquashed = |at: DVec2| drawn.centre + drawn.first * at.x + drawn.second_axis() * at.y;
-    let brushed = unsquashed(foot.try_normalize().unwrap_or(step.perp().normalize()));
+    let rounding = ROUNDED * near.length().max(far.length()).max(1.0);
+    let way = match foot.length() > rounding {
+        true => foot.normalize(),
+        false => step.perp().normalize(),
+    };
+    let brushed = unsquashed(way);
     let line = to - from;
     let gap = (brushed - from).perp_dot(line).abs() / line.length();
     if gap <= one_place(brushed) {

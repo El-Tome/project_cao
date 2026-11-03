@@ -28,6 +28,7 @@ after **every** gesture of a drawing.
 | Nothing missing | `nothing_missing` | a place something closes around lies in no area |
 | Nothing extra | `nothing_extra` | a place lies in two areas, or in one while nothing closes around it |
 | Matter tiles | `matter_tiles` | a place something closes around lies in the matter of no area or of two, or one nothing closes around lies in some |
+| As many as closed | `as_many_as_closed` | the drawing is given more or fewer areas than it closes |
 | Order does not matter | `laid_alike` | the same drawing laid again — in another order, moved, turned, mirrored — gives another count of areas, or puts a place in an area of another size |
 | Answers | `answer` | finding the areas panics, or does not come back within the patience given |
 
@@ -85,6 +86,16 @@ known.
 drawing's own `THE_SAME_PLACE` (`crates/sketch/src/edges.rs`) are one place for
 the reckoning; two farther apart than five times it are two. A shape missing
 its last stretch by a hair encloses nothing, and an area there is extra.
+
+**The count is read off the reckoning's graph.** Two areas given as one, tinted
+and measured right, leave every place in exactly one area: only how many there
+are tells them apart. The graph of `enclosing.rs` closes one area for each of
+its fundamental loops — its edges, less its vertices, plus the pieces it falls
+into. Two edges between the same two vertices through the same middle are one
+stretch drawn twice and count once, so the loop they would close, which has no
+surface, closes no area (#493): a curve drawn twice, a trait laid along a side,
+an arc along its circle. When the reckoning is doubtful, a near touch the walk
+may read either way, the count is not held.
 
 **The places looked at** are a grid across the drawing, the middle of every
 triangle of tint, and a few places either side of every curve — none of them
@@ -211,12 +222,13 @@ A flaw names a place to go and look at: `Missing { at }`, `Extra { at }` and
 `Tint { near }` and `Matter { near }` the lowest corner of the outline whose
 tint or matter is off, `Relaid { how, areas, at }` how the drawing was laid
 again, the two counts of areas, and a place whose area changed size.
+`Miscounted { found, closed }` names no place: how many areas the drawing was
+given, and how many it closes.
 
 ## What the rules cannot see
 
-- **One area where two are drawn**, when the one is tinted and measured right:
-  every place still lies in exactly one area. A diagonal drawn before the
-  square on its ends was that until #494 welded points standing in one place.
+- **One area where two are drawn, on a doubtful reckoning**: the count is not
+  held where a near touch may be read either way.
 - **Dimensions, rules, dragging**, and whether a piece is entirely
   constrained: #501.
 - **The solid** and undo: #448.
@@ -251,3 +263,16 @@ went without an answer.
 
 Each is kept, shrunk, in `what_random_sketches_found.rs`. Where two causes
 meet, the case sits under the one whose fix it waits on last.
+
+The campaign that brought in the count, 120 s from seed 161680310397850, found
+what the other rules could not see:
+
+| Cause | Issue |
+| --- | --- |
+| A loop thinner than an absolute surface of 1e-9, where curves cross a hair from a corner or a touch, closed by the walk but given no triangles by `triangulate` and dropped | #670 |
+| Areas lost or merged where two curves touch | #419 |
+| A side through an ellipse's centre, read by the reckoning itself as a touch and crossed once | fixed in #509 |
+
+The thin loops are kept under #670 in `what_random_sketches_found.rs`, beside
+the touches #419 already had there; the reckoning's own misreading is held in
+`what_closes_around_a_place.rs`.

@@ -205,7 +205,10 @@ fn a_box_drawn_around_a_corner_mark_takes_the_rule_alone() {
     assert!(
         history
             .iter()
-            .any(|line| line.contains("Perpendiculaire supprimée")),
+            .any(|line| line.contains("Perpendiculaire supprimée"))
+            && !history
+                .iter()
+                .any(|line| line.contains("éléments supprimés")),
         "the box took the right angle, and not the corner beside its mark: {history:?}"
     );
 }

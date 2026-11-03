@@ -48,7 +48,8 @@ staying available everywhere else. See [extrusion.md](extrusion.md).
 Dragging **from empty space** pulls a box, as on a desktop, and takes
 everything it holds **entirely**: a trait counts when both its ends are in.
 Half a trait cannot be deleted, so letting the box take it would promise
-something the drawing cannot do.
+something the drawing cannot do. The box runs between where the hand pressed
+and where it is now: the magnets do not pull its corners.
 
 A circle and an arc answer to the same rule, read off the curve rather than off
 the points it stands on: a curve that swings out of the box between its two ends

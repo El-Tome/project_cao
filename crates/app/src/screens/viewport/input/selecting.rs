@@ -29,6 +29,7 @@ pub(super) fn band_select(
     let Some((from, _)) = context.editor.select_state().and_then(|state| state.band) else {
         return false;
     };
+    context.editor.snap = None;
     if let Some(state) = context.editor.select_state() {
         state.band = Some((from, to));
     }
@@ -153,3 +154,6 @@ pub(super) fn erase(
     });
     true
 }
+
+#[cfg(test)]
+mod tests;

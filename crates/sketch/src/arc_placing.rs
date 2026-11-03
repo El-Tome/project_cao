@@ -28,12 +28,24 @@ impl ArcMode {
     }
 }
 
+/// What the clicks so far have settled: the places they landed on, and how far
+/// round the centre the hand has turned since the last of them, as
+/// [`turned_round`] counts it.
+#[derive(Clone, Copy, Debug)]
+pub struct ArcSoFar<'a> {
+    pub places: &'a [DVec2],
+    pub turned: f64,
+}
+
 /// The arc the clicks so far and the cursor make, if they make one.
 ///
 /// The cursor gives a direction, never a distance: the far end is brought back
 /// onto the circle the near one already fixed, so what is drawn is a piece of a
-/// circle at every moment rather than only once it is recorded.
-pub fn arc_from(mode: ArcMode, places: &[DVec2], cursor: DVec2) -> Option<ArcDraft> {
+/// circle at every moment rather than only once it is recorded. A by-centre arc
+/// runs the way the hand turned: clockwise when `turned` is negative, recorded
+/// counter-clockwise with its ends swapped.
+pub fn arc_from(mode: ArcMode, so_far: ArcSoFar, cursor: DVec2) -> Option<ArcDraft> {
+    let places = so_far.places;
     match mode {
         ArcMode::ByCenter => {
             let (centre, start) = (*places.first()?, *places.get(1)?);
@@ -43,6 +55,10 @@ pub fn arc_from(mode: ArcMode, places: &[DVec2], cursor: DVec2) -> Option<ArcDra
                 return None;
             }
             let end = centre + DVec2::from_angle(reach.to_angle()) * radius;
+            let (start, end) = match so_far.turned < 0.0 {
+                true => (end, start),
+                false => (start, end),
+            };
             (end.distance(start) > 1e-6).then_some(ArcDraft { centre, start, end })
         }
         ArcMode::ByEnds => {
@@ -81,38 +97,24 @@ pub fn turned_round(places: &[DVec2], turned: f64, cursor: DVec2) -> f64 {
     turned + step
 }
 
-/// The by-centre arc ending in the cursor's direction, laid the way `turned` says
-/// (negative: clockwise, recorded with its ends swapped; zero: counter-clockwise).
-pub fn arc_turned(places: &[DVec2], turned: f64, cursor: DVec2) -> Option<ArcDraft> {
-    let drawn = arc_from(ArcMode::ByCenter, places, cursor)?;
-    Some(match turned < 0.0 {
-        true => ArcDraft {
-            start: drawn.end,
-            end: drawn.start,
-            ..drawn
-        },
-        false => drawn,
-    })
-}
-
 /// The cursor, once a value typed into the live field has had its say: a
 /// radius or a distance while the second place is being picked, and while the
 /// third is, an angle in degrees for `ByCenter` or the curve's own radius for
 /// `ByEnds`. Left alone, the cursor decides everything, the way it always has.
 /// `scale` is how many millimetres a unit of the drawing is worth, since a
 /// typed radius or distance arrives in millimetres. A typed angle is laid
-/// clockwise when `turned` says the hand went that way.
+/// clockwise when the hand went that way.
 pub fn aimed(
     mode: ArcMode,
-    places: &[DVec2],
+    so_far: ArcSoFar,
     cursor: DVec2,
     locked: Option<f64>,
     scale: f64,
-    turned: f64,
 ) -> DVec2 {
     let Some(locked) = locked else {
         return cursor;
     };
+    let places = so_far.places;
     match (mode, places.len()) {
         (ArcMode::ByCenter, 2) => {
             let (centre, start) = (places[0], places[1]);
@@ -121,7 +123,7 @@ pub fn aimed(
                 return cursor;
             }
             let base = (start - centre).to_angle();
-            let way = match turned < 0.0 {
+            let way = match so_far.turned < 0.0 {
                 true => -1.0,
                 false => 1.0,
             };

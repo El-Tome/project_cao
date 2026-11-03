@@ -2,7 +2,7 @@
 
 use cao_part::{Operation, PointRef};
 use cao_sketch::{
-    ArcDraft, ArcId, ArcMode, DimensionTarget, ToolState, arc_aimed, arc_from, arc_turned,
+    ArcDraft, ArcId, ArcMode, ArcSoFar, DimensionTarget, ToolState, arc_aimed, arc_from,
 };
 use glam::DVec2;
 
@@ -22,7 +22,7 @@ pub(crate) fn draw_arc(
     let mode = context.editor.arc_mode;
     let (mut places, first_typed) = places_so_far(context);
     let asks_for = crate::wording::arc::asks_for(context.lang, mode);
-    let cursor = aimed(context, &places, cursor);
+    let cursor = aimed(context, cursor);
 
     if places.len() + 1 < mode.wants() {
         // The field that decides this leg is about to be cleared and handed
@@ -44,7 +44,7 @@ pub(crate) fn draw_arc(
         return false;
     }
 
-    let Some(drawn) = arc_now(context, &places, cursor) else {
+    let Some(drawn) = arc_from(mode, so_far(context), cursor) else {
         context.editor.message = Some(context.lang.t("sketch.no_arc_from_these"));
         return false;
     };
@@ -88,16 +88,8 @@ pub(crate) fn draw_arc(
 
 /// The arc a click right now would draw, for the canvas to show first.
 pub(crate) fn arc_preview(context: &SketchContext<'_>, cursor: DVec2) -> Option<ArcDraft> {
-    let (places, _) = places_so_far(context);
-    let cursor = aimed(context, &places, cursor);
-    arc_now(context, &places, cursor)
-}
-
-fn arc_now(context: &SketchContext<'_>, places: &[DVec2], cursor: DVec2) -> Option<ArcDraft> {
-    match context.editor.arc_mode {
-        ArcMode::ByCenter => arc_turned(places, turned_so_far(context), cursor),
-        mode => arc_from(mode, places, cursor),
-    }
+    let cursor = aimed(context, cursor);
+    arc_from(context.editor.arc_mode, so_far(context), cursor)
 }
 
 fn places_so_far(context: &SketchContext<'_>) -> (Vec<DVec2>, bool) {
@@ -111,10 +103,16 @@ fn places_so_far(context: &SketchContext<'_>) -> (Vec<DVec2>, bool) {
     }
 }
 
-fn turned_so_far(context: &SketchContext<'_>) -> f64 {
-    match context.editor.tool_state {
-        ToolState::Arc { turned, .. } => turned,
-        _ => 0.0,
+fn so_far<'a>(context: &'a SketchContext<'_>) -> ArcSoFar<'a> {
+    match &context.editor.tool_state {
+        ToolState::Arc { places, turned, .. } => ArcSoFar {
+            places,
+            turned: *turned,
+        },
+        _ => ArcSoFar {
+            places: &[],
+            turned: 0.0,
+        },
     }
 }
 
@@ -169,14 +167,13 @@ fn construct_the_sector(context: &mut SketchContext<'_>, index: usize, arc: ArcI
 /// The cursor, once a value typed into the live field has had its say. What
 /// that value means at each stage is `cao_sketch`'s to decide; this only
 /// hands over what has been picked so far and what was typed.
-pub(crate) fn aimed(context: &SketchContext<'_>, places: &[DVec2], cursor: DVec2) -> DVec2 {
+pub(crate) fn aimed(context: &SketchContext<'_>, cursor: DVec2) -> DVec2 {
     arc_aimed(
         context.editor.arc_mode,
-        places,
+        so_far(context),
         cursor,
         context.editor.live.typed(0),
         shape_scale(context),
-        turned_so_far(context),
     )
 }
 

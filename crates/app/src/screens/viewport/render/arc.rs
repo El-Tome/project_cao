@@ -20,7 +20,7 @@ pub(crate) fn live_fields(
     let places = context.editor.arc_places();
     match (context.editor.arc_mode, places.len()) {
         (ArcMode::ByCenter, 1) | (ArcMode::ByEnds, 1) => {
-            let aimed = arc_aimed(context, places, cursor);
+            let aimed = arc_aimed(context, cursor);
             let distance = places[0].distance(aimed) * shape_scale(context);
             Some((["mm", ""], [distance, 0.0]))
         }
@@ -73,7 +73,7 @@ pub(crate) fn push_preview(
         // should look like one.
         None => {
             if let [only] = context.editor.arc_places() {
-                let reach = arc_aimed(context, context.editor.arc_places(), cursor);
+                let reach = arc_aimed(context, cursor);
                 push_preview_line(out, sketch, *only, reach, preview, false, scale);
                 push_point_marker(out, sketch, *only, marker, preview, 1.5);
             }

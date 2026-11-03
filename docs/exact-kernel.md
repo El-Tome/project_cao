@@ -151,8 +151,8 @@ Known and still open:
   axis is laid exactly so where that moves the tool by no more than `G`
   (decision 11); past that, up to a sine of a thousandth, it is built as
   drawn and the user is told the step is unstable (step 10 of the
-  boolean). A lean in that band, a lean of a hair between two planes or
-  two walls, which decision 11 leaves, and a plane or a conic a hair from
+  boolean). A lean in that band, a lean of a hair between two walls,
+  which decision 11 leaves (two planes it lays parallel since #644), and a plane or a conic a hair from
   tangent by an offset, held by no band, decline or draw crossing about
   twice in a thousand random parts of the tilted draws, a draw weighted
   towards such hairs; a handful with no hair are left too, a turn of
@@ -228,13 +228,16 @@ There is one tolerance, `EPS = 1e-9 · reach`, `reach` being the largest
 coordinate a body or its operands have reached, never less than one. It is ten
 times the harness's `NEAR`, so what the kernel keeps apart the rules see apart,
 and a thousand times below `ALONG_A_LINE`, so a merge never shows as a volume.
-Five configurations alone are read wider, at twenty times it, each as ill
+Six configurations alone are read wider, at twenty times it, each as ill
 conditioned as the others: two parallel walls of one radius (decision 8), a
 wall touching one of two parallel planes (decision 10), a wall touching
 one of two planes it stands between (decision 2), a plane a hair off
-square to, or along, a wall's axis (decision 11), which turns the second
-operand before decision 1 reads it, and a coaxial surface a hair from
-touching a sphere or a torus, or from a rim on it (decision 12). The result of an operation carries the larger reach of its operands. A pair
+square to, or along, a wall's axis, or off parallel to a plane (decision
+11), which turns the second operand before decision 1 reads it, a coaxial
+surface a hair from touching a sphere or a torus, or from a rim on it
+(decision 12), and a plane a hair from a straight edge it runs along
+(decision 13). The result of an operation carries the larger reach of its
+operands. A pair
 of surfaces one operand alone carries is decided at the tolerance it was
 decided at when the later of the two came into that operand: a body keeps,
 for each of its surfaces, the scale of the operation that brought it in —
@@ -944,7 +947,8 @@ The decisions, in the order taken, once per operation:
     well defined, and the planes are left two. Where the move is not made,
     as decision 8's, they are left two too.
 
-11. **A plane a hair off square to, or along, a wall's axis** (#552). A
+11. **A plane a hair off square to, or along, a wall's axis, or off parallel
+    to a plane** (#552, #644). A
     plane of one operand and a cylinder, a cone, an elliptic wall (#571), a
     sphere or a torus (#576)
     of the other, their faces in boxes that meet, the plane leaning off square to the wall's axis or
@@ -1052,11 +1056,18 @@ The decisions, in the order taken, once per operation:
     a conic other than an elliptic wall's whole section, or the curve two
     perpendicular cylinders meet along, which a leaf never does. The pair is then built as drawn.
 
-    Only a plane against a wall's axis, as #552 decided. Turning for any
-    pair of directions — two planes, two walls — held fourteen more of the
-    shrunk failures and four more fresh seeds, but broke one that held, and
-    is set aside: the pairs are found by one predicate, and widening it is
-    a one-line change.
+    A plane against a wall's axis, as #552 decided, and since #644 two
+    planes a hair off parallel. Turning for any pair of directions — two
+    planes, two walls — held fourteen more of the shrunk failures and four
+    more fresh seeds on #552's round 3, but broke one that held, and was set
+    aside: the pairs are found by one predicate, and widening it is a
+    one-line change. Two planes alone were widened by #644: a block's top
+    and a slab's floor leaning 1e-7 degrees off it through a point on it,
+    three corners of the top within the tolerance of the floor and one 9 %
+    past it, neither grazed nor crossed cleanly — one edge of the top was
+    read on the floor, the next across it — and the block was refused
+    (5585501573). Turned, the floor lies on the top. Two walls a hair off
+    parallel stay as they are.
 
     What it held, on round 3's seeds against `85a2d2e`, fifteen minutes a
     draw: tilted on the exact kernel, 43 failures in 21 823 cases where the
@@ -1136,6 +1147,39 @@ The decisions, in the order taken, once per operation:
     two rims a ten-thousandth apart, which is what failed. Nor left to exact
     predicates (#585): the decisions would be exact, the geometry would stay
     thinner than the triangles.
+
+13. **A plane a hair from an edge** (#644, `canonical/edged.rs`). A plane of
+    the second operand parallel to a straight edge of the first that no two
+    of its walls bound, within rounding over the edge's length, standing
+    past rounding from it and within `G`, over a face of the plane at the
+    edge's ends or middle, is moved along its normal onto the edge, with
+    what its operand built on it, as decision 10 moves a plane onto another
+    (`carried.rs`). A cut at 45° drawn through a point 2e-7 off a block's
+    top edge passes the edge by a third of the tolerance: the block's top
+    and side cross the cut along two lines that far from the edge and from
+    each other, three planes nearly sharing one line, and the kernel read
+    the edge on the cut and the lines across it — an edge of the result run
+    more times one way than the other, declined `Unverified` (5585500692,
+    5585502204). Laid through the edge, the three share it exactly.
+
+    The move is a hair only where the plane crosses every plane along the
+    edge within `G` of it, at the gap over the sine of their lean; where it
+    does not, the plane is left. A cut 1e-5 degrees off parallel to a
+    block's side and 1e-7 off its edge crosses the side half a millimetre
+    from the edge, and laid through the edge it takes that strip off: moved,
+    blocks that held were refused (5585505134, 5585501810). A wall along
+    the edge is not asked: a cut a hair from tangent to a cone along the
+    ruling the edge is, laid through it, touches the cone there
+    (5585502064). A plane is left too where two such edges stand at gaps
+    more than rounding apart, a step a hair high under the cut: laid
+    through one, it would pass the other within the tolerance and off it
+    (5585505818). Of the thirty shrunk cases of #585's
+    tilted draw still declined `Unverified` once decision 11 lays two planes
+    parallel, it holds ten; the others are a plane a hair from a turn's rim,
+    which cuts a conic, and leans of 1e-5 degrees, in #552's warning band.
+    The line two walls touch along is no such edge either: a pin
+    touching a disc, the band decisions lay that line, and a block's face a
+    hair from it moved onto it was refused (90016363).
 
 Everything else is derived. A vertex lies on a curve when the curve's
 support is among the surfaces the vertex lies on and it stands within `EPS`
@@ -1257,7 +1301,13 @@ same input gives the same bits.
   vertices — `Face.poles`, at most two, a cone's apex among them — and a
   whole ball is one face with no loop and two poles, a whole ring one face
   with no loop and no vertex: both are legal on a closed surface, closed by
-  their poles' floors and the ring's cut alone (`domain/floor/round.rs`). A
+  their poles' floors and the ring's cut alone (`domain/floor/round.rs`).
+  Which poles a face holds is read by parity along the meridian, and an
+  edge the face runs both ways — a slit along a rim a wall touches it along,
+  the face on either side — bounds nothing there (#644,
+  `topology/poles.rs`): a ball a half band touches along half its equator
+  was read as holding one pole of two, and was listed `Pointed` and refused
+  through the body (5585606550). A
   face of a ring reaching across the cut is closed along what it reaches of
   it (#623, `domain/floor/round/ring.rs`): along each stretch between the
   meridians crossing the cut, read off the way each runs, and along the
@@ -1426,7 +1476,8 @@ special one: a coincident face is a region covered twice, a shared wall a region
 covered once from each side.
 
 1. **Identity** of surfaces (decision 1), once the second operand is turned
-   square to, or along, a wall's axis it leans a hair off (decision 11),
+   square to, or along, a wall's axis, or parallel to a plane, it leans a
+   hair off (decision 11),
    moved onto a wall of its radius a hair off (decision 8), and onto a round
    it stands a hair from touching, or a rim on it (decision 12).
 2. **Relations** of pairs whose faces' boxes overlap (2, 3).
@@ -1500,7 +1551,14 @@ covered once from each side.
    the cut, a circle would be read along the window's top, over the floor,
    and the antipodes keep the seam off them too, the window's middle where a
    whole ring's face is sampled — on the crest a slab rests on, the sample
-   would read inside the slab.
+   would read inside the slab. A rim along which another surface only
+   touches a whole ring parts nothing (#576), but where a cylinder holding
+   the ring within it touches its outer equator (#644,
+   `selection/parted.rs`): the ring's triangles stand a hair inside the
+   circle for some way on either side of it, and so do the bore's chords
+   between two of their steps, and the two crossed unless they share the
+   circle (5585606247). A post in the ring's hole parts nothing: the ring
+   stands outside the post's chords along its inner equator.
 8. **Assembly.** Kept regions become faces and their arcs edges. Faces on one
    surface with one side are merged across an arc nothing else uses; two edges
    on one curve meeting at a vertex nothing else uses become one; a circle that
@@ -1828,8 +1886,13 @@ read backwards by the listing.
   however fine the grid of angles. So a round carries two grids, one of
   angles about the axis, cut for the widest circle any face on it reaches —
   a zone across the equator reaches `r`, a ring `R + r`, read off the surface
-  and the face's extent along the meridian, not off its edges alone — and one
-  of rows along the meridian, cut for the tube's radius; each takes a little
+  and the face's extent along the meridian, not off its edges alone, and made
+  a multiple of the grid of every cylinder of the body on the round's axis
+  touching it along an equator whose grid starts the same way round (#644):
+  a ring round a post of its inner radius is touched along a circle that
+  parts neither face, and its chords along it, on its own grid, cut across
+  the post's between two of its steps (5576855166) — and one of rows along
+  the meridian, cut for the tube's radius; each takes a little
   under half the tolerance, since the two sags add up along the hypotenuse
   of a triangle of the lattice. Every latitude circle is sampled on the
   round's angles as a cone's rim is on the cone's, and every meridian arc on
@@ -1866,7 +1929,16 @@ read backwards by the listing.
   the axis — a ring with holes cut in its tube, a band the cut runs
   through — is walled as a whole ring is, at an angle of the grid no
   meridian stands at, the walls standing only where the face does and a
-  latitude circle running round the axis laid from wall to wall. For its
+  latitude circle running round the axis laid from wall to wall. The angle
+  the face is laid from is read off the samples of its loops but those
+  running round the axis, which sample every angle of the grid; where no
+  angle of the grid stands clear inside the widest gap between them, it is
+  the middle of the one gap between neighbouring samples both of whose
+  sides are meridians of the face, and only then the widest gap between its
+  meridians (#644). Read off every sample, a ring notched by a coaxial turn
+  of 270° between two whole latitude circles was laid from the middle of the
+  notch, and a ring turned 359.9° slit along a crest a post's end rests on
+  from half a turn round, through the face (5585617453, 5585602707). For its
   strips to end where the face's rims stand, a meridian arc of a round is
   sampled at every level of its faces it runs across — on a ring the cut
   among them (#623), on a sphere and a spindle beside a coaxial turn of

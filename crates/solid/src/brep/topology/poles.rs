@@ -115,11 +115,36 @@ impl Body {
     /// The poles of the sphere or the torus a face lies on that it holds
     /// within itself: none that a corner of the face stands at, and the
     /// others by parity along the meridian from inside the face, read off
-    /// its loops' traces ([`floor::holds`]). A face whose loops cannot be
-    /// traced holds none.
+    /// its loops' traces ([`floor::holds`]). An edge the face runs both ways
+    /// is a slit with the face on either side, and bounds nothing: a ball a
+    /// half band touches along half its equator, slit there, was read as
+    /// holding the pole on one side of the slit alone (5585606550). A face
+    /// whose loops cannot be traced holds none.
     fn round_poles_within(&self, face: &Face, surface: &Surface) -> Vec<DVec3> {
         let eps = self.scale.eps();
-        let Ok(loops) = self.traces_of(face) else {
+        let uses: Vec<_> = face.loops.iter().flatten().collect();
+        let slit = |edge| {
+            uses.iter()
+                .any(|coedge| coedge.edge == edge && coedge.forward)
+                && uses
+                    .iter()
+                    .any(|coedge| coedge.edge == edge && !coedge.forward)
+        };
+        let bounding = Face {
+            loops: face
+                .loops
+                .iter()
+                .map(|lap| {
+                    lap.iter()
+                        .filter(|coedge| !slit(coedge.edge))
+                        .copied()
+                        .collect()
+                })
+                .filter(|lap: &Vec<_>| !lap.is_empty())
+                .collect(),
+            ..face.clone()
+        };
+        let Ok(loops) = self.traces_of(&bounding) else {
             return Vec::new();
         };
         floor::poles_of(surface, eps)

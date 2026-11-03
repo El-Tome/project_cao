@@ -21,7 +21,9 @@ use glam::DVec3;
 
 use super::Declined;
 use super::assembly::assembled;
-use super::canonical::{Apart, Place, Planes, Pool, Registry, closed, flush, squared, tangent};
+use super::canonical::{
+    Apart, Place, Planes, Pool, Registry, closed, edged, flush, squared, tangent,
+};
 use super::selection::selected;
 use super::topology::{Body, SurfaceId};
 pub(super) use operands::Operands;
@@ -78,6 +80,8 @@ pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Resu
     let second = tangent.as_ref().unwrap_or(second);
     let flush = flush(first, second, scale);
     let second = flush.as_ref().unwrap_or(second);
+    let edged = edged(first, second, scale);
+    let second = edged.as_ref().unwrap_or(second);
     let slid = slid(first, second, scale);
     let operands = Operands::of(first, slid.as_ref().unwrap_or(second), scale);
     let unstable = unstable(&operands);

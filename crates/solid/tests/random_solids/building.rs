@@ -1,6 +1,7 @@
 //! A leaf handed to the kernel, and what the kernel was promised for it.
 
 use cao_solid::profile::{Contour, Frame, Profile, Run};
+use cao_solid::soundness::NEAR;
 use cao_solid::turning::{self, Turn};
 use cao_solid::{Body, Declined, Loop};
 use glam::DVec2;
@@ -194,7 +195,7 @@ impl Leaf {
             Leaf::Prism {
                 outline, height, ..
             } => {
-                *height != 0.0
+                self.thicker_than_near(*height)
                     && match outline {
                         Outline::Rectangle { low, high } => low.x < high.x && low.y < high.y,
                         Outline::Circle { radius, .. } => *radius > 0.0,
@@ -250,6 +251,18 @@ impl Leaf {
                 section, degrees, ..
             } => section.is_solid() && 0.0 < degrees.abs() && degrees.abs() <= 360.0,
         }
+    }
+
+    /// Whether a prism's height stands past `NEAR` of how far the prism
+    /// reaches: the draws never ask for two faces closer than that, and a
+    /// height a subtraction leaves a few roundings long, as the crossed
+    /// ellipses draw one, is no solid — the kernel declines it as no travel
+    /// (5585804304).
+    fn thicker_than_near(&self, height: f64) -> bool {
+        let reach = self.bounds().map_or(1.0, |(low, high)| {
+            low.abs().max(high.abs()).max_element().max(1.0)
+        });
+        height.abs() > NEAR * reach
     }
 
     /// The solid the kernel raises for this leaf, or `None` when the leaf is

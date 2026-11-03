@@ -3,7 +3,10 @@
 //! the other, their faces in boxes that meet, is laid exactly so. The conic
 //! such a plane cuts divides by the lean, and at a ten-millionth of a
 //! degree it stands within the tolerance of the rim or the lines beside
-//! it: the kernel answered it both ways, in different places.
+//! it: the kernel answered it both ways, in different places. So is a plane
+//! leaning a hair off parallel to a plane of the other (#644), whose line
+//! the two fix only to rounding over the lean, and whose corners stand on
+//! either side of the tolerance.
 //!
 //! The second operand is turned rigidly, with its surfaces, curves and
 //! corners, so that its own decisions hold as it took them; decided once,
@@ -113,13 +116,23 @@ impl Pair {
 /// or along stands exactly so; none when no such pair is found, or no turn
 /// within the hair lays them all and keeps what was exact.
 pub(in crate::brep) fn squared(first: &Body, second: &Body, scale: Scale) -> Option<Body> {
+    turned(first, second, scale, true).or_else(|| turned(first, second, scale, false))
+}
+
+/// The second operand turned as [`squared`] says, two planes a hair off
+/// parallel laid among the pairs where `abreast` (#644), none otherwise:
+/// where no one turn lays them with the planes and walls of the rest, the
+/// turn is sought again without them, so that a plane and a wall #552 laid
+/// are laid still.
+fn turned(first: &Body, second: &Body, scale: Scale, abreast: bool) -> Option<Body> {
     let (low, high) = second.bounds()?;
     let lever = lever(low, high);
     let eps = scale.eps();
     let exact = exact(scale, lever);
     let facing = facing(first, second, eps);
-    let (near, held) = paired(first, second, &facing, exact, Scale::HAIR * eps / lever);
-    if near.is_empty() {
+    let hair = Scale::HAIR * eps / lever;
+    let (near, held, planes) = paired(first, second, &facing, exact, hair, abreast);
+    if near.is_empty() || abreast && planes == 0 {
         return None;
     }
     let turn = solved(&near, &held, exact)?;
@@ -162,27 +175,34 @@ fn met(first: &Body, low: DVec3, high: DVec3) -> DVec3 {
 }
 
 /// The pairs of a direction of each operand whose faces stand in boxes that
-/// meet: those of a plane and a wall leaning by a sine between `exact` and
-/// `hair`, and those of any two surfaces standing exactly square or along.
+/// meet: those of a plane and a wall, or of two planes off parallel where
+/// `abreast`, leaning by a sine between `exact` and `hair`, and those of
+/// any two surfaces standing exactly square or along; and how many of the
+/// first are two planes.
 fn paired(
     first: &Body,
     second: &Body,
     facing: &[(SurfaceId, SurfaceId)],
     exact: f64,
     hair: f64,
-) -> (Vec<Pair>, Vec<Pair>) {
-    let (mut near, mut held) = (Vec::new(), Vec::new());
+    abreast: bool,
+) -> (Vec<Pair>, Vec<Pair>, usize) {
+    let (mut near, mut held, mut planes) = (Vec::new(), Vec::new(), 0);
     for &(one, other) in facing {
         let [surface, tool] = [first.surface(one), second.surface(other)];
         let pair = Pair::of(direction(surface), direction(tool));
         let walled = matches!(surface, Surface::Plane(_)) != matches!(tool, Surface::Plane(_));
+        let parallel = abreast
+            && matches!((surface, tool), (Surface::Plane(_), Surface::Plane(_)))
+            && matches!(pair.lean, Lean::Square);
         if pair.sine <= exact {
             held.push(pair);
-        } else if walled && pair.sine <= hair {
+        } else if (walled || parallel) && pair.sine <= hair {
+            planes += usize::from(parallel);
             near.push(pair);
         }
     }
-    (near, held)
+    (near, held, planes)
 }
 
 /// The direction a surface leans by: a plane's normal, a wall's axis.

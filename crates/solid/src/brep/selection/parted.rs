@@ -9,7 +9,7 @@ use glam::{DVec2, DVec3};
 
 use crate::brep::Declined;
 use crate::brep::combine::{Arena, Operands};
-use crate::brep::curve::Curve;
+use crate::brep::curve::{Circle, Curve};
 use crate::brep::domain::floor;
 use crate::brep::overlay::{Arc, Overlay};
 use crate::brep::relation::{Relation, relation};
@@ -54,8 +54,10 @@ pub(super) fn held_poles(operands: &Operands, surface: SurfaceId) -> Vec<DVec3> 
 /// through; the regions the cut parts are joined back across it and their
 /// loops walked through it ([`glued`]). A rim along which another surface
 /// only touches a whole ring — a slab resting on its crest — parts nothing,
-/// unless a third crosses the ring there where a face of it reaches (#626):
-/// a ring whose arcs are all such rims is read whole. That holds only where
+/// unless a third crosses the ring there where a face of it reaches (#626),
+/// or the other is a cylinder holding the ring within it, touching its
+/// outer equator (#644, [`enclosing`]): a ring whose arcs are all such rims
+/// is read whole. That holds only where
 /// the ring's own face is whole, `whole`; a ring whose face is bounded by
 /// its own tangent rims — a meridian arc's two latitude circles — keeps
 /// them.
@@ -294,11 +296,29 @@ fn touching(
                     && (rim.circle.radius - circle.radius).abs() <= eps
             })
         );
-        if only_touching {
+        if only_touching && enclosing(body.surface(surface), body.surface(on), circle, eps) {
+            return Ok(false);
+        } else if only_touching {
             touched = true;
         } else if reached(on, middle)? {
             return Ok(false);
         }
     }
     Ok(touched)
+}
+
+/// Whether `wall` is a cylinder holding the ring `round` within it, the rim
+/// `circle` they touch along its outer equator: a ring in a bore of its
+/// width. Its triangles stand a hair inside the circle for some way on
+/// either side of it, and so do the bore's chords between two of their
+/// steps; the two cross unless they share the circle, which parts the ring
+/// for it (5585606247). A post in the ring's hole, along its inner equator,
+/// does not part it: the ring stands outside the post's chords there.
+fn enclosing(round: &Surface, wall: &Surface, circle: &Circle, eps: f64) -> bool {
+    match (round, wall) {
+        (Surface::Torus(torus), Surface::Cylinder(_)) => {
+            (torus.center.y + torus.radius - circle.radius).abs() <= eps
+        }
+        _ => false,
+    }
 }

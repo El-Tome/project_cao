@@ -75,15 +75,23 @@ impl Outline {
             }
             read.push(laid);
         }
-        let meridians = laps
+        let meridians: Vec<f64> = laps
             .iter()
             .flatten()
-            .filter_map(|id| standing.get(id).and_then(|stands| stands.theta));
-        let (rank, start) = opening(read.iter().flatten().map(|(at, _, _)| at.x), steps)
-            .or_else(|| opening(meridians, steps))
-            .unwrap_or((0, 0.0));
+            .filter_map(|id| standing.get(id).and_then(|stands| stands.theta))
+            .collect();
+        let rim = |lap: &[Read]| {
+            !lap.iter().any(|(_, _, at_cut)| *at_cut)
+                && turned(&lap.iter().map(|(at, id, _)| (*at, *id)).collect::<Vec<_>>()) != 0
+        };
+        let angles = || {
+            read.iter()
+                .filter(|lap| !rim(lap))
+                .flatten()
+                .map(|(at, _, _)| at.x)
+        };
         let mut crossings: Vec<(f64, bool)> = Vec::new();
-        for lap in &mut read {
+        for lap in &read {
             let count = lap.len();
             for at in 0..count {
                 let (place, _, at_cut) = lap[at];
@@ -92,13 +100,22 @@ impl Outline {
                     crossings.push((place.x.rem_euclid(TAU), before <= middle));
                 }
             }
+        }
+        let walls = |start: f64| crossings.is_empty() || reaches(&crossings, start.rem_euclid(TAU));
+        let (rank, start) = opening(angles(), steps)
+            .or_else(|| {
+                between_meridians(angles(), &meridians, steps).filter(|(_, at)| !walls(*at))
+            })
+            .or_else(|| opening(meridians.iter().copied(), steps))
+            .unwrap_or((0, 0.0));
+        for lap in &mut read {
             for (at, _, _) in lap.iter_mut() {
                 if at.x < start {
                     at.x += TAU;
                 }
             }
         }
-        let walled = crossings.is_empty() || reaches(&crossings, start.rem_euclid(TAU));
+        let walled = walls(start);
         let mut chains: Vec<Vec<(DVec2, usize)>> = Vec::new();
         let mut closed: Vec<Vec<(DVec2, usize)>> = Vec::new();
         let mut rims: Vec<(f64, usize)> = Vec::new();
@@ -187,6 +204,57 @@ impl Outline {
 /// whose latitude circles are sampled at every angle of the grid, which is
 /// then walled between its meridians, or at nought where it has none.
 fn opening(angles: impl Iterator<Item = f64>, steps: usize) -> Option<(i64, f64)> {
+    let (gap, from) = widest(angles)?;
+    let step = TAU / steps as f64;
+    let rank = ((from + gap / 2.0) / step).round() as i64;
+    let at = step * rank as f64;
+    if at <= from + CLEAR || at >= from + gap - CLEAR {
+        return None;
+    }
+    let rank = halved(rank, steps);
+    Some((rank, TAU * rank as f64 / steps as f64))
+}
+
+/// The middle of the one gap between neighbouring angles a face's samples
+/// stand at whose two sides are meridians of the face: a ring turned a
+/// tenth of a degree short of a whole turn leaves a gap narrower than a
+/// step of the grid, which no angle of the grid stands clear inside, and
+/// was laid from the widest gap between its two meridians instead — the
+/// other way round, through the face (5585602707). Its rank is the grid's
+/// angle nearest it, which a face walled there would be walled at instead,
+/// so the gap is taken only where the face is not walled. None where no
+/// such gap, or more than one, is found.
+fn between_meridians(
+    angles: impl Iterator<Item = f64>,
+    meridians: &[f64],
+    steps: usize,
+) -> Option<(i64, f64)> {
+    let mut angles: Vec<f64> = angles.map(|angle| angle.rem_euclid(TAU)).collect();
+    angles.sort_by(f64::total_cmp);
+    angles.dedup();
+    let on_a_meridian = |angle: f64| {
+        meridians
+            .iter()
+            .any(|meridian| ((meridian - angle + PI).rem_euclid(TAU) - PI).abs() <= CLEAR)
+    };
+    let count = angles.len();
+    let mut gaps = (0..count).filter_map(|rank| {
+        let (from, to) = (angles[rank], angles[(rank + 1) % count]);
+        let to = if rank + 1 == count { to + TAU } else { to };
+        (to - from > CLEAR && on_a_meridian(from) && on_a_meridian(to)).then_some((from, to))
+    });
+    let (from, to) = gaps.next()?;
+    if gaps.next().is_some() {
+        return None;
+    }
+    let middle = ((from + to) / 2.0 + PI).rem_euclid(TAU) - PI;
+    let rank = halved((middle / (TAU / steps as f64)).round() as i64, steps);
+    Some((rank, middle))
+}
+
+/// The widest gap between `angles` round the axis, and the angle it starts
+/// at, both in `[0, 2π)`.
+fn widest(angles: impl Iterator<Item = f64>) -> Option<(f64, f64)> {
     let mut angles: Vec<f64> = angles.map(|angle| angle.rem_euclid(TAU)).collect();
     angles.sort_by(f64::total_cmp);
     angles.dedup();
@@ -200,20 +268,17 @@ fn opening(angles: impl Iterator<Item = f64>, steps: usize) -> Option<(i64, f64)
             widest = (pair[1] - pair[0], pair[0]);
         }
     }
-    let (gap, from) = widest;
-    let step = TAU / steps as f64;
-    let rank = ((from + gap / 2.0) / step).round() as i64;
-    let at = step * rank as f64;
-    if at <= from + CLEAR || at >= from + gap - CLEAR {
-        return None;
-    }
+    Some(widest)
+}
+
+/// A rank of the grid of `steps` angles a turn, read in `(−steps/2, steps/2]`.
+fn halved(rank: i64, steps: usize) -> i64 {
     let rank = rank.rem_euclid(steps as i64);
-    let rank = if 2 * rank > steps as i64 {
+    if 2 * rank > steps as i64 {
         rank - steps as i64
     } else {
         rank
-    };
-    Some((rank, TAU * rank as f64 / steps as f64))
+    }
 }
 
 /// Whether the face reaches the cut at the angle `at`, in `[0, 2π)`: where

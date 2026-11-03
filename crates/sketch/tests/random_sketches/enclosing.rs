@@ -573,6 +573,8 @@ struct Edge {
     from: usize,
     to: usize,
     curve: usize,
+    /// Where the edge stands halfway along its stretch of curve.
+    middle: DVec2,
 }
 
 /// The curves of a drawing as a graph cut at every place two of them meet,
@@ -697,24 +699,30 @@ impl Enclosure {
         for (index, curve) in curves.iter().enumerate() {
             let mut along = std::mem::take(&mut cuts[index]);
             along.sort_by(|a, b| a.0.total_cmp(&b.0));
-            let mut stops: Vec<usize> = along.iter().map(|(_, at)| vertex_at(*at)).collect();
-            stops.dedup();
+            let mut stops: Vec<(usize, f64)> = along
+                .iter()
+                .map(|(along, at)| (vertex_at(*at), *along))
+                .collect();
+            stops.dedup_by_key(|stop| stop.0);
             if curve.is_closed() {
-                if stops.len() > 1 && stops.first() == stops.last() {
+                if stops.len() > 1
+                    && stops.first().map(|stop| stop.0) == stops.last().map(|stop| stop.0)
+                {
                     stops.pop();
                 }
                 if stops.is_empty() {
-                    stops.push(vertex_at(curve.at(0.0)));
+                    stops.push((vertex_at(curve.at(0.0)), 0.0));
                 }
-                stops.push(stops[0]);
+                stops.push((stops[0].0, stops[0].1 + 1.0));
             } else if stops.len() == 1 && curve.sweep() > std::f64::consts::PI {
-                stops.push(stops[0]);
+                stops.push((stops[0].0, 1.0));
             }
             for pair in stops.windows(2) {
                 edges.push(Edge {
-                    from: pair[0],
-                    to: pair[1],
+                    from: pair[0].0,
+                    to: pair[1].0,
                     curve: index,
+                    middle: curve.at((pair[0].1 + pair[1].1) / 2.0),
                 });
             }
         }
@@ -788,6 +796,29 @@ impl Enclosure {
             enclosed |= windings.round() != 0.0;
         }
         Some(enclosed)
+    }
+
+    /// How many areas the curves close: one for each fundamental loop, but
+    /// for the loops two edges laid along each other close, which have no
+    /// surface — or nothing, when the drawing holds a near touch the walk may
+    /// read either way.
+    pub fn areas_closed(&self) -> Option<usize> {
+        if self.doubtful {
+            return None;
+        }
+        let alike = |one: &Edge, other: &Edge| {
+            let (ends, others) = ([one.from, one.to], [other.from, other.to]);
+            (ends == others || ends == [other.to, other.from])
+                && one.middle.distance(other.middle) <= one_place(one.middle)
+        };
+        let laid = (0..self.edges.len())
+            .filter(|index| {
+                !self.edges[..*index]
+                    .iter()
+                    .any(|before| alike(before, &self.edges[*index]))
+            })
+            .count();
+        Some(laid - self.tree.len())
     }
 
     /// How far round a place an edge turns, walked from its first vertex to

@@ -1,4 +1,5 @@
 use cao_prefs::{Command, CommandFamily};
+use cao_render::MatterInFront;
 
 use crate::lang::Catalogue;
 
@@ -11,6 +12,7 @@ pub fn label(lang: &Catalogue, command: Command) -> String {
         Command::NewSketch => "command.label.new_sketch",
         Command::FinishSketch => "command.label.finish_sketch",
         Command::RecenterOnSketch => "command.label.recenter_on_sketch",
+        Command::NextMatterInFront => "command.label.next_matter_in_front",
         Command::Undo => "command.label.undo",
         Command::Redo => "command.label.redo",
         Command::CompactHistory => "command.label.compact_history",
@@ -73,12 +75,23 @@ pub fn label(lang: &Catalogue, command: Command) -> String {
     })
 }
 
+/// The face of the button that moves the matter in front of the sketch to its
+/// next state: the state it is in now.
+pub fn matter_in_front(lang: &Catalogue, state: MatterInFront) -> String {
+    lang.t(match state {
+        MatterInFront::Hidden => "command.label.matter_in_front.hidden",
+        MatterInFront::SeeThrough => "command.label.matter_in_front.see_through",
+        MatterInFront::Opaque => "command.label.matter_in_front.opaque",
+    })
+}
+
 /// The one line of help shown when the pointer rests on the command.
 pub fn hint(lang: &Catalogue, command: Command) -> String {
     lang.t(match command {
         Command::NewSketch => "command.hint.new_sketch",
         Command::FinishSketch => "command.hint.finish_sketch",
         Command::RecenterOnSketch => "command.hint.recenter_on_sketch",
+        Command::NextMatterInFront => "command.hint.next_matter_in_front",
         Command::Undo => "command.hint.undo",
         Command::Redo => "command.hint.redo",
         Command::CompactHistory => "command.hint.compact_history",

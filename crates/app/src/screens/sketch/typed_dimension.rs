@@ -6,6 +6,20 @@ use cao_sketch::{DimensionTarget, LengthOutcome, ToolState};
 
 use super::SketchEditor;
 
+/// A dimension already on the drawing, opened for editing: its value, typed
+/// into the field beside it.
+pub struct DimensionEdit {
+    pub target: DimensionTarget,
+    pub input: String,
+    /// Set when the dimension has just been opened, so its field takes the
+    /// keyboard on its own: reaching it with Tab means walking through every
+    /// button of the toolbar first.
+    pub focus: bool,
+    /// Set when placing this very dimension is what gave the part its scale,
+    /// at what it read: a value typed straight into it is placed instead.
+    pub placed_the_scale: bool,
+}
+
 /// `placement: None` leaves the annotation where it was put down, not reset;
 /// a value taking the place of the one a dimension was placed with says where
 /// that was, since the step that said it is taken back.

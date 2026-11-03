@@ -1,4 +1,11 @@
 //! What app · screens/ribbon/state.rs is held to.
+//!
+//! Closes #319.
+//! - the three-state button is shown only while a sketch is open, next to the
+//!   re-align button —
+//!   `the_matter_in_front_button_is_offered_only_while_a_sketch_is_open`
+//! - its face shows the current state —
+//!   `the_matter_in_front_button_names_the_state_it_is_in`
 
 use super::*;
 use cao_sketch::WorkPlane;
@@ -78,4 +85,64 @@ fn the_tool_in_hand_is_the_one_shown_as_pressed() {
 
     assert!(active(Command::ToolLine, &state));
     assert!(!active(Command::ToolCircle, &state));
+}
+
+#[test]
+fn the_matter_in_front_button_is_offered_only_while_a_sketch_is_open() {
+    let part = a_part();
+    let extrusion = ExtrusionState::default();
+    let mut closed = drawing_on_a_sketch();
+    closed.close();
+
+    assert!(!is_enabled(
+        Command::NextMatterInFront,
+        &part,
+        &SketchEditor::default(),
+        &extrusion
+    ));
+    assert!(is_enabled(
+        Command::NextMatterInFront,
+        &part,
+        &drawing_on_a_sketch(),
+        &extrusion
+    ));
+    assert!(
+        !is_enabled(Command::NextMatterInFront, &part, &closed, &extrusion),
+        "a closed sketch has no matter in front of it to show",
+    );
+}
+
+#[test]
+fn the_matter_in_front_button_names_the_state_it_is_in() {
+    let part = a_part();
+    let extrusion = ExtrusionState::default();
+    let settings = Settings::default();
+    let lang = Catalogue::french();
+    let mut editor = drawing_on_a_sketch();
+
+    let mut faces = Vec::new();
+    for _ in 0..4 {
+        let state = Context {
+            settings: &settings,
+            document: &part,
+            editor: &editor,
+            extrusion: &extrusion,
+            lang: &lang,
+        };
+        faces.push(label(Command::NextMatterInFront, &state));
+        editor.next_matter_in_front();
+    }
+
+    assert!(
+        faces.iter().all(|face| face.contains("Matière devant")),
+        "the button is not the one a hand looks for: {faces:?}",
+    );
+    assert!(
+        faces[0] != faces[1] && faces[1] != faces[2] && faces[0] != faces[2],
+        "two of the three states read alike: {faces:?}",
+    );
+    assert_eq!(
+        faces[3], faces[0],
+        "a third click is back on Hidden, and the button says something else",
+    );
 }

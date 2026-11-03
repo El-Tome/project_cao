@@ -6,6 +6,7 @@ mod typed_dimension;
 
 pub use cao_sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode};
 pub use live_input::LiveInput;
+pub use typed_dimension::DimensionEdit;
 pub(crate) use typed_dimension::apply_dimension_value;
 
 /// The drawing tool in hand. New tools are added here and to the Esquisse
@@ -69,20 +70,6 @@ pub enum SketchPhase {
     Editing(usize),
 }
 
-/// A dimension already on the drawing, opened for editing: its value, typed
-/// into the field beside it.
-pub struct DimensionEdit {
-    pub target: DimensionTarget,
-    pub input: String,
-    /// Set when the dimension has just been opened, so its field takes the
-    /// keyboard on its own: reaching it with Tab means walking through every
-    /// button of the toolbar first.
-    pub focus: bool,
-    /// Set when placing this very dimension is what gave the part its scale,
-    /// at what it read: a value typed straight into it is placed instead.
-    pub placed_the_scale: bool,
-}
-
 /// Everything the sketch workflow needs to remember between frames. The sketch
 /// data itself lives in the part document; this is only the editing state.
 #[derive(Default)]
@@ -115,6 +102,7 @@ pub struct SketchEditor {
     /// the same reason.
     pub chamfer_mode: ChamferMode,
     pub construction: bool,
+    pub matter_in_front: cao_render::MatterInFront,
     pub live: LiveInput,
     /// Where the shape being drawn actually ends, once what was typed and the
     /// right-angle snap have had their say. Recomputed every frame from
@@ -202,6 +190,7 @@ impl SketchEditor {
     pub fn begin_editing(&mut self, sketch: usize, plane: WorkPlane) {
         self.phase = SketchPhase::Editing(sketch);
         self.plane = Some(plane);
+        self.matter_in_front = cao_render::MatterInFront::default();
         self.tool = Tool::Line;
         self.reset_pending();
         self.hovered_plane = None;
@@ -369,6 +358,10 @@ impl SketchEditor {
 
     pub fn close(&mut self) {
         *self = Self::default();
+    }
+
+    pub fn next_matter_in_front(&mut self) {
+        self.matter_in_front = self.matter_in_front.next();
     }
 
     pub fn select(&mut self, target: Option<DimensionTarget>, measured: Option<f64>) {

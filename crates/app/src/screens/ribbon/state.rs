@@ -3,6 +3,7 @@ use crate::screens::extrusion::{ExtrusionState, Shape};
 use crate::screens::sketch::{
     ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode, SketchEditor, Tool,
 };
+use crate::wording::command as wording;
 use cao_part::PartDocument;
 use cao_prefs::{Command, Settings};
 use cao_sketch::Rule;
@@ -128,6 +129,17 @@ fn mode_is(state: &Context<'_>, mode: CircleMode) -> bool {
     state.editor.circle_mode == mode
 }
 
+/// What the command's button reads: its name, or the state it is in for the
+/// one button whose face says that.
+pub(super) fn label(command: Command, state: &Context<'_>) -> String {
+    match command {
+        Command::NextMatterInFront => {
+            wording::matter_in_front(state.lang, state.editor.matter_in_front)
+        }
+        _ => wording::label(state.lang, command),
+    }
+}
+
 pub(super) fn enabled(command: Command, state: &Context<'_>) -> bool {
     is_enabled(command, state.document, state.editor, state.extrusion)
 }
@@ -148,7 +160,7 @@ pub fn is_enabled(
         Command::Undo => document.history.can_undo(),
         Command::Redo => document.history.can_redo(),
         Command::CompactHistory => !document.history.is_empty(),
-        Command::FinishSketch | Command::RecenterOnSketch => drawing,
+        Command::FinishSketch | Command::RecenterOnSketch | Command::NextMatterInFront => drawing,
         Command::ToolSelect
         | Command::ToolLine
         | Command::ToolLineSymmetric

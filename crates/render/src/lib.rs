@@ -6,6 +6,7 @@ pub mod camera;
 pub mod cube;
 pub mod geometry;
 pub mod grid;
+mod matter;
 pub mod offscreen;
 mod renderer;
 
@@ -15,5 +16,6 @@ pub use geometry::{
     push_plane_outline, push_plane_quad, push_solid, srgb,
 };
 pub use grid::{GridPlane, GridStyle, adaptive_step, push_grid};
+pub use matter::MatterInFront;
 pub use offscreen::{Size, draw};
 pub use renderer::{SceneFrame, SceneRenderer, ViewportRect};

@@ -7,7 +7,7 @@
 use cao_prefs::theme::{Background, Theme};
 use cao_render::{AxisStyle, BackgroundShape, SceneFrame, ViewportRect, cube, push_axes, srgb};
 use cao_sketch::{DimensionTarget, Going};
-use glam::DVec2;
+use glam::{DVec2, Vec3};
 
 mod arc;
 mod circle;
@@ -45,6 +45,7 @@ pub(crate) use trim::what_would_go;
 use super::matter;
 use super::{ViewMode, ViewScale, ViewportState};
 use crate::screens::SketchContext;
+use crate::screens::sketch::SketchEditor;
 
 /// A colour from the theme, turned into the space the shader blends in.
 fn tint(color: cao_prefs::theme::Rgba) -> [f32; 4] {
@@ -54,6 +55,22 @@ fn tint(color: cao_prefs::theme::Rgba) -> [f32; 4] {
 /// The same, with the opacity replaced.
 fn tint_at(color: cao_prefs::theme::Rgba, alpha: f32) -> [f32; 4] {
     tint(color.with_alpha(alpha))
+}
+
+const SEE_THROUGH_OPACITY: f32 = 0.25;
+
+fn push_body(
+    out: &mut Vec<cao_render::Vertex>,
+    body: &cao_solid::Body,
+    color: [f32; 4],
+    towards: Vec3,
+) {
+    let triangles: Vec<_> = body
+        .triangles()
+        .iter()
+        .map(|corners| corners.map(|corner| corner.as_vec3()))
+        .collect();
+    cao_render::push_solid(out, &triangles, color, towards);
 }
 
 fn axis_style(theme: &Theme) -> AxisStyle {
@@ -164,23 +181,15 @@ pub(crate) fn build_frame(
 
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
 
+    let editor: &SketchEditor = context.editor;
+    let (body, eye) = (context.document.body(), camera.eye());
     let mut solids = Vec::new();
-    let shown = matter::shown_body(
-        context.editor,
-        state.mode,
-        context.document.body(),
-        camera.eye(),
-    );
-    cao_render::push_solid(
-        &mut solids,
-        &shown
-            .triangles()
-            .iter()
-            .map(|corners| corners.map(|corner| corner.as_vec3()))
-            .collect::<Vec<_>>(),
-        tint(theme.solid),
-        camera.forward(),
-    );
+    let shown = matter::shown_body(editor, state.mode, body, eye);
+    push_body(&mut solids, &shown, tint(theme.solid), camera.forward());
+    if let Some(in_front) = matter::see_through_body(editor, state.mode, body, eye) {
+        let veiled = tint_at(theme.solid, SEE_THROUGH_OPACITY);
+        push_body(&mut surfaces, &in_front, veiled, camera.forward());
+    }
 
     let mut cube_triangles = Vec::new();
     let mut cube_edges = Vec::new();

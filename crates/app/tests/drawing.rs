@@ -26,6 +26,11 @@
 //! The fourth criterion was written expecting the step to leave the list. It
 //! does not: an undone step stays, greyed out and italic, and the test says so.
 //! What the tree can show is that something became redoable.
+//!
+//! Closes #319.
+//! - clicks always reach the sketch plane, whatever the state: drawing on a
+//!   stretch of plane hidden behind opaque matter still works —
+//!   `a_click_through_opaque_matter_still_lands_on_the_sketch_plane`
 
 mod driver;
 
@@ -194,6 +199,46 @@ fn an_ellipse_drawn_with_three_clicks_becomes_a_step_of_the_sketch() {
             .iter()
             .any(|label| label.ends_with(". Ellipse")),
         "the history names the ellipse as a numbered step of its own, showing {:?}",
+        driver::on_screen(&app),
+    );
+}
+
+/// A block raised off a sketch, and that sketch reopened from the history, so
+/// that the block stands between the eye and the plane being drawn on.
+fn a_sketch_reopened_under_its_own_block(test: &str) -> driver::App {
+    let mut app = driver::open(test);
+    driver::create_a_part(&mut app, "Bloc");
+    driver::start_a_sketch(&mut app);
+    driver::click(&mut app, "Rectangle (R)");
+    driver::click_at(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    driver::click_at(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::click_exactly(&mut app, "Extrusion");
+    driver::click_exactly(&mut app, "1");
+    driver::click(&mut app, "Ajout de matière");
+    driver::click_at(&mut app, (850.0, 510.0));
+    driver::click(&mut app, "Appliquer");
+    driver::open_the_history(&mut app);
+    driver::click(&mut app, "Modifier");
+    driver::click_exactly(&mut app, "Esquisse");
+    app
+}
+
+#[test]
+fn a_click_through_opaque_matter_still_lands_on_the_sketch_plane() {
+    let mut app = a_sketch_reopened_under_its_own_block("a_click_through_opaque_matter");
+    driver::click(&mut app, "Matière devant");
+    driver::click(&mut app, "Matière devant");
+
+    driver::click(&mut app, "Ligne (L)");
+    driver::click_at(&mut app, (780.0, 450.0));
+    driver::click_at(&mut app, (920.0, 580.0));
+    driver::press(&mut app, egui::Key::Escape);
+
+    assert!(
+        driver::on_screen(&app)
+            .iter()
+            .any(|label| label.ends_with(". Trait")),
+        "two clicks on the plane behind opaque matter drew nothing, showing {:?}",
         driver::on_screen(&app),
     );
 }

@@ -67,6 +67,10 @@ pub(crate) fn run(
             }
             false
         }
+        Command::NextMatterInFront => {
+            editor.next_matter_in_front();
+            false
+        }
         Command::Undo | Command::Redo => {
             let changed = if command == Command::Undo {
                 doc.undo()

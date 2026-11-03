@@ -18,6 +18,8 @@
 //!   `the_arc_tool_lays_the_quarter_the_hand_went_down_through`
 //! - what the canvas shows before the third click is the arc that click lays —
 //!   `the_preview_shows_the_quarter_the_hand_went_down_through`
+//! - the three places reusing a point already under them —
+//!   `an_arc_swept_clockwise_hangs_on_the_three_points_already_under_it`
 
 use cao_part::{PartDocument, Variables};
 use cao_sketch::WorkPlane;
@@ -246,4 +248,54 @@ fn an_arc_swept_clockwise_with_a_typed_angle_keeps_that_angle_and_the_radii_of_i
             "a construction radius from the centre to {end:?} should be left, among {radii:?}",
         );
     }
+}
+
+#[test]
+fn an_arc_swept_clockwise_hangs_on_the_three_points_already_under_it() {
+    let mut document = a_part_with_a_drawing();
+    for position in [CENTRE, START, on_the_circle_at(-90.0)] {
+        document.apply(Operation::AddPoint {
+            sketch: 0,
+            position,
+            on: Vec::new(),
+        });
+    }
+    let already_there: Vec<_> = document.sketches()[0].live_points().collect();
+    let point_at = |place: DVec2| {
+        already_there
+            .iter()
+            .find(|(_, at)| at.distance(place) < 1e-9)
+            .map(|(id, _)| *id)
+            .expect("a point was put there beforehand")
+    };
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    centre_and_start_clicked(&mut context);
+    hand_going_down_to(&mut context, -90.0);
+    draw_arc(&mut context, 0, on_the_circle_at(-90.0), SNAP, PIXEL);
+
+    let drawing = &document.sketches()[0];
+    assert_eq!(
+        drawing.live_points().count(),
+        already_there.len(),
+        "the arc stacked a point of its own on one already there",
+    );
+    let (_, arc) = drawing.live_arcs().last().expect("an arc was laid");
+    assert_eq!(
+        (arc.center, arc.start, arc.end),
+        (
+            point_at(CENTRE),
+            point_at(on_the_circle_at(-90.0)),
+            point_at(START),
+        ),
+        "a clockwise arc hangs on the centre, the point the hand went down to, and the start",
+    );
 }

@@ -41,6 +41,9 @@ pub struct SelectState {
     /// What a drag of the point may do to the drawing, read once where the
     /// gesture starts rather than again at every frame.
     pub pull: Option<PointPull>,
+    /// How far the dragged point stood from the press, when it was taken from
+    /// afar — a corner by its cut: the hand carries it at that distance.
+    pub held_off_by: Option<DVec2>,
     /// The side a drag is pulling across, or sliding along to turn its shape.
     pub dragged_side: Option<SegmentId>,
     /// Where the hand pressed, before any magnet pulled it: what a side or a

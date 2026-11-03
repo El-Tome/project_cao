@@ -4,7 +4,7 @@ use glam::DVec2;
 
 use crate::WorkPlane;
 use crate::annotation::AnnotationMetrics;
-use crate::corner_cut::{CornerCutId, CutShape};
+use crate::corner_cut::{CornerCutId, CutShape, Grip};
 use crate::picking::Selection;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
@@ -54,14 +54,20 @@ fn a_press_on_the_curve_of_a_fillet_takes_the_fillet() {
 }
 
 #[test]
-fn a_press_on_the_curve_of_a_fillet_drags_its_corner() {
+fn a_press_on_the_curve_of_a_fillet_drags_its_corner_from_afar() {
     let (sketch, corner, _) = a_rounded_right_angle();
 
-    assert_eq!(sketch.point_to_drag_at(on_the_curve(), 0.5), Some(corner));
+    assert_eq!(
+        sketch.point_to_drag_at(on_the_curve(), 0.5),
+        Some(Grip {
+            point: corner,
+            from_afar: true
+        })
+    );
 }
 
 #[test]
-fn a_press_on_a_point_of_a_fillet_drags_its_corner() {
+fn a_press_on_a_point_of_a_fillet_drags_its_corner_from_afar() {
     let (sketch, corner, _) = a_rounded_right_angle();
 
     for place in [
@@ -71,14 +77,30 @@ fn a_press_on_a_point_of_a_fillet_drags_its_corner() {
     ] {
         assert_eq!(
             sketch.point_to_drag_at(place, 0.5),
-            Some(corner),
+            Some(Grip {
+                point: corner,
+                from_afar: true
+            }),
             "at {place}"
         );
     }
 }
 
 #[test]
-fn a_press_on_a_point_hung_on_a_fillet_drags_its_corner_too() {
+fn a_press_on_the_corner_itself_drags_it_from_under_the_hand() {
+    let (sketch, corner, _) = a_rounded_right_angle();
+
+    assert_eq!(
+        sketch.point_to_drag_at(DVec2::new(10.0, 10.0), 0.5),
+        Some(Grip {
+            point: corner,
+            from_afar: false
+        })
+    );
+}
+
+#[test]
+fn a_press_on_a_point_hung_on_a_fillet_drags_its_corner_from_afar_too() {
     let (mut sketch, corner, _) = a_rounded_right_angle();
     let hung = sketch.add_point(DVec2::new(20.0, 20.0));
     sketch.add_constraint(crate::Constraint::AtCutPoint {
@@ -89,7 +111,10 @@ fn a_press_on_a_point_hung_on_a_fillet_drags_its_corner_too() {
 
     assert_eq!(
         sketch.point_to_drag_at(DVec2::new(20.0, 20.0), 0.5),
-        Some(corner)
+        Some(Grip {
+            point: corner,
+            from_afar: true
+        })
     );
 }
 

@@ -67,7 +67,7 @@
 //! - the corner point drags like a sharp corner, and grabbing an arc drags
 //!   the corner point — `dragging_a_rounded_corner_moves_it_as_a_sharp_corner`;
 //!   the arc grabbed is held in the sketch crate by
-//!   `a_press_on_the_curve_of_a_fillet_drags_its_corner`
+//!   `a_press_on_the_curve_of_a_fillet_drags_its_corner_from_afar`
 //! - a side's free end turns the side about the corner, and a whole side
 //!   moves as on a sharp outline —
 //!   `dragging_the_free_end_of_a_rounded_side_turns_it_as_on_a_sharp_corner`,

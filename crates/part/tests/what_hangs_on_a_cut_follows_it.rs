@@ -34,8 +34,8 @@
 //!     `a_fillet_become_a_chamfer_lets_its_centre_go_and_keeps_its_ends`
 //!   - dragging a cut's point drags its corner — no test: it is the press's,
 //!     held in the sketch crate by
-//!     `a_press_on_a_point_of_a_fillet_drags_its_corner` and
-//!     `a_press_on_a_point_hung_on_a_fillet_drags_its_corner_too`
+//!     `a_press_on_a_point_of_a_fillet_drags_its_corner_from_afar` and
+//!     `a_press_on_a_point_hung_on_a_fillet_drags_its_corner_from_afar_too`
 //!
 //! What #620 also asked, and the owner's notes on it:
 //! - a « Coïncidence » hangs a point on a cut's point —

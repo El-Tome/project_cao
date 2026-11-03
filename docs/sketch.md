@@ -1718,7 +1718,9 @@ On the canvas each side is solid where it is still drawn, and thin and dashed up
 to the sharp corner; the curve of the cut is drawn where the corner was, with
 its value beside it — « R10 mm », « 5 mm × 5 mm » or « 5 mm × 45.0° » — and in
 the refusal colour while it does not fit. A press on the curve takes the cut
-whole (`Selection::Cut`), and dragging it drags the corner point. A cut held or
+whole (`Selection::Cut`), and dragging it drags the corner point from afar: the
+corner moves by what the hand moves, keeping its distance, and the magnets pull
+where the corner goes rather than the hand. A cut held or
 hovered is lit in full, and every cut laid with it faintly: the group reads at
 a glance, and the one `Suppr` or « Inverser les côtés » acts on stands out. A
 press on the value takes the cut too, except on the dot of a point, which stays
@@ -1897,8 +1899,8 @@ Decided with the owner on 2026-11-02:
   onto the new one. A fillet's centre, which a chamfer has none of, is let go
   where it stands. Cutting a corner again with the tool hands what hung on the
   old cut to the new one the same way.
-- **Dragging one of a cut's points** drags the corner, as dragging the curve
-  does — whether something hangs on the point or not. With the let-go key
+- **Dragging one of a cut's points** drags the corner from afar, as dragging
+  the curve does — whether something hangs on the point or not. With the let-go key
   held, a point something hangs on is taken off the cut and dragged instead.
 
 ### A crossing becomes a point

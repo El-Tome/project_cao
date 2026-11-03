@@ -9,6 +9,16 @@ use crate::reading::Reading;
 use crate::sketch::{PointId, Sketch};
 use crate::snap::Snap;
 
+/// What a press takes hold of to drag.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Grip {
+    pub point: PointId,
+    /// Whether the point was taken by something else than itself — a
+    /// corner by its cut: it then moves by what the hand moves, keeping its
+    /// distance, rather than jumping under the hand.
+    pub from_afar: bool,
+}
+
 impl Sketch {
     /// The cut whose curve passes closest to `position`, within `tolerance`.
     pub fn nearest_cut(&self, position: DVec2, tolerance: f64) -> Option<CornerCutId> {
@@ -74,16 +84,29 @@ impl Sketch {
     /// The point a press at `position` drags: the point under it, or the
     /// corner of the cut under it. Taking a fillet or a chamfer by its curve is
     /// taking its corner, the one thing it moves with — and so is taking it by
-    /// one of its points, whether something hangs there or not.
-    pub fn point_to_drag_at(&self, position: DVec2, tolerance: f64) -> Option<PointId> {
+    /// one of its points, whether something hangs there or not. A corner taken
+    /// that way is taken from afar.
+    pub fn point_to_drag_at(&self, position: DVec2, tolerance: f64) -> Option<Grip> {
         if let Some(point) = self.nearest_point(position, tolerance) {
-            return Some(self.corner_hung_from(point).unwrap_or(point));
+            return Some(match self.corner_hung_from(point) {
+                Some(corner) => Grip {
+                    point: corner,
+                    from_afar: true,
+                },
+                None => Grip {
+                    point,
+                    from_afar: false,
+                },
+            });
         }
         let cut = self
             .nearest_cut_point(position, tolerance)
             .map(|(cut, _)| cut)
             .or_else(|| self.nearest_cut(position, tolerance))?;
-        Some(self.corner_cuts()[cut.0].corner)
+        Some(Grip {
+            point: self.corner_cuts()[cut.0].corner,
+            from_afar: true,
+        })
     }
 
     /// The corner of the cut a point hangs at, when it is one of a cut's

@@ -22,6 +22,7 @@ mod picking;
 pub(crate) mod points;
 
 pub use drawn::{CutCurve, DrawnCut, PulledEnds};
+pub use picking::Grip;
 pub use points::CutPoint;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

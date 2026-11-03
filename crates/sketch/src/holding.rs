@@ -123,18 +123,21 @@ impl Sketch {
     /// and holding it there would forbid that end from ever turning the trait
     /// again — while holding nothing, since a trait passes through its own
     /// ends whatever they do.
-    ///
-    /// The middle of a trait is a birth's privilege: a point dropped there by
-    /// a drag is held on the trait and nothing more.
     pub fn supports_for(&self, point: PointId, place: DVec2) -> Vec<Support> {
         self.supports_at(place)
             .into_iter()
-            .map(|support| match support {
-                Support::Middle(segment) => Support::Segment(segment),
-                support => support,
-            })
             .filter(|support| !self.drawn_from(*support, point))
             .collect()
+    }
+
+    /// Holds a point on what it stands on. The middle of a trait takes the
+    /// place of a hold on that trait: the two together say the same thing
+    /// twice, and the second is refused as redundant.
+    pub fn hold(&mut self, point: PointId, on: Support) {
+        if let Support::Middle(segment) = on {
+            self.erase_constraint(Support::Segment(segment).holding(point));
+        }
+        self.add_constraint(on.holding(point));
     }
 
     /// Whether a curve is drawn from this very point.

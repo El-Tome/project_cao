@@ -35,21 +35,22 @@ fn dropped_on(sketch: &Sketch, point: PointId, place: DVec2) -> Vec<Support> {
 /// one shown and the one the replay rebuilds, so every hold laid is met
 /// there. A trait the settling moved away is not held on, nor one the point
 /// was carried onto by its own rule, a trait's middle or a tangency's contact.
-/// Only a point nothing held `before`: one sliding along its own trait would
-/// otherwise catch on the first crossing it went over.
+/// A point something held `before` takes nothing but a middle: one sliding
+/// along its own trait would otherwise catch on the first crossing it went
+/// over, while the « 1/2 » shown as it passes a middle has to mean something.
 pub(crate) fn held_at_drop(
     before: &Sketch,
     settled: &Sketch,
     point: PointId,
     landing: DVec2,
 ) -> Vec<Support> {
-    if !before.holds_on(point).is_empty() {
-        return Vec::new();
-    }
+    let held = before.holds_on(point);
     let was_there = dropped_on(before, point, landing);
     dropped_on(settled, point, landing)
         .into_iter()
         .filter(|support| was_there.contains(support))
+        .filter(|support| held.is_empty() || matches!(support, Support::Middle(_)))
+        .filter(|support| !held.contains(support))
         .collect()
 }
 

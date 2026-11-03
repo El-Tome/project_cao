@@ -23,8 +23,8 @@
 //!   test: `point_ref_at` answers an existing point before `born_at` is asked,
 //!   as it always has
 //! - a point dragged and dropped on the middle is only held on the trait — no
-//!   test: `a_point_dropped_at_the_middle_by_a_drag_is_held_on_the_trait_alone`
-//!   holds `supports_for` in `cao_sketch`
+//!   test: reversed by #615, whose own tests stand beside it in
+//!   `a_point_dropped_at_the_middle_stays_at_its_middle.rs`
 //! - the symmetric line keeps the midpoint rule on its own segment, laid
 //!   once — no test: `a_symmetric_segment_is_one_step_holding_its_middle`
 //!   already holds it, in `drawn_shapes.rs` beside the operation

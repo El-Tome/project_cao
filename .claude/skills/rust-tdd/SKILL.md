@@ -24,6 +24,15 @@ instead of what should exist.
 
 **Never refactor while a test is red.** Green first.
 
+**A test that would still pass if every function returned nothing**, or its
+default, checks nothing: throw it out. The test calls the code the way its
+user does and checks what that user would see.
+
+**When two fixes fail the same way, attack the premise.** If they rest on one
+idea, write that idea in one sentence and question it before trying a third
+built on it. Two failures sharing a cause are a finding about the idea, not
+about the fixes.
+
 ## Where to put the test
 
 **Colocated**, at the bottom of the file, is the convention of the repository:

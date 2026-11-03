@@ -9,10 +9,17 @@ for where a new file goes and what it may import,
 
 ## How to work
 
-Seven skills carry the detail, in `.claude/skills/`:
+**An issue is worked through `resolve-issue`.** The session that takes it is
+the orchestrator: it hands each step — open, locate, red, green, gate, mutants,
+review, criteria, pull request — to its own subagent in `.claude/agents/`, each
+on the model its step needs, and keeps only their summaries. The agent that
+writes the code never writes the test it has to pass.
+
+Eight skills carry the detail, in `.claude/skills/`:
 
 | Skill | When |
 | --- | --- |
+| `resolve-issue` | to carry an issue from its branch to its pull request |
 | `open-an-issue` | before writing an issue — ask and argue first |
 | `open-a-task` | at the very start, before reading any code |
 | `code-map` | to find where to act |
@@ -21,7 +28,9 @@ Seven skills carry the detail, in `.claude/skills/`:
 | `architecture-rust` | before adding a crate, a module, a dependency, or any I/O |
 | `review-rust` | before committing |
 
-The `review-architecture-rust` subagent reads a diff in a separate context.
+The skills are what each subagent loads; a human can still follow them
+directly. `review-architecture-rust` reads a diff in a separate context, inside
+the pipeline or on its own.
 
 On a fresh clone, enable the git hook once:
 

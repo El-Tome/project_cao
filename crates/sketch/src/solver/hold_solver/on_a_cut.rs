@@ -27,8 +27,11 @@ impl Sketch {
         }
     }
 
-    /// A point standing at one of a cut's places: one row for each of its
-    /// two coordinates.
+    /// A point standing at one of a cut's places: one row along the first
+    /// side and one across it. Read in the cut's own frame rather than the
+    /// sketch's, the two rows stand still when the whole shape turns, which
+    /// is what lets a settle read the shape as free to turn and keep it the
+    /// way up it was drawn.
     fn at_cut_point(
         &self,
         point: PointId,
@@ -39,15 +42,17 @@ impl Sketch {
         if point.0 >= self.points().len() {
             return;
         }
-        let Some(place) = self.cut_places(cut).and_then(|places| places.at(at)) else {
+        let Some(places) = self.cut_places(cut) else {
             return;
         };
-        let held = self.point(point);
-        for (wanted, own, along) in [(place.x, held.x, DVec2::X), (place.y, held.y, DVec2::Y)] {
+        let Some(place) = places.at(at) else {
+            return;
+        };
+        let off = JetPlace::free(self.point(point), OWN) - place;
+        for row in [off.dot(places.along), places.along.perp_dot(off)] {
             let mut equation = Equation::new(self.variables());
-            equation.error = own - wanted.value;
-            equation.add(point, along);
-            self.add_slopes(&mut equation, cut, &[], -wanted);
+            equation.error = row.value;
+            self.add_slopes(&mut equation, cut, &[point], row);
             into.push(equation);
         }
     }

@@ -47,6 +47,9 @@
 //! - a cut nothing hangs on costs the solver nothing more than in #617 — no
 //!   test: held in the sketch crate by
 //!   `a_cut_nothing_hangs_on_asks_the_solver_for_nothing`
+//! - a shape held only by its right angles keeps its way up when what hangs
+//!   on its cut makes it give —
+//!   `a_rectangle_whose_visible_part_is_dimensioned_does_not_turn_when_its_radius_changes`
 //! - a change to a cut that what hangs on it cannot follow is refused, as a
 //!   value that cannot be held is, and nothing moves —
 //!   `a_cut_change_what_hangs_cannot_follow_is_refused`
@@ -644,4 +647,81 @@ fn a_part_read_back_keeps_what_hangs_on_its_cuts() {
         what_hangs(&the_drawing(&back)),
         what_hangs(&the_drawing(&history))
     );
+}
+
+#[test]
+fn a_rectangle_whose_visible_part_is_dimensioned_does_not_turn_when_its_radius_changes() {
+    let mut history = History::default();
+    history.push(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    history.push(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(100.0, 60.0)),
+        construction: false,
+    });
+    for side in 0..4 {
+        history.push(Operation::Constrain {
+            sketch: 0,
+            constraint: Constraint::Perpendicular {
+                first: SegmentId(side),
+                second: SegmentId((side + 1) % 4),
+            },
+        });
+    }
+    history.push(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::Between(SegmentId(1), SegmentId(2))],
+        radius: 8.0.into(),
+        construction: false,
+    });
+    let drawing = the_drawing(&history);
+    let cut = drawing.live_corner_cuts().next().unwrap().0;
+    let place = drawing.cut_point(cut, CutPoint::First).unwrap();
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: place,
+        on: vec![Support::CutPoint(cut, CutPoint::First)],
+    });
+    let hung = PointId(drawing.points().len());
+    let side = drawing.corner_cuts()[cut.0].sides[0];
+    let far = drawing.segments()[side.0];
+    let far = match far.start == drawing.corner_cuts()[cut.0].corner {
+        true => far.end,
+        false => far.start,
+    };
+    history.push(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Distance {
+            from: far,
+            to: hung,
+        },
+        value: 52.0.into(),
+        placement: None,
+    });
+    let before = the_drawing(&history);
+    assert!((before.point(far).distance(before.point(hung)) - 52.0).abs() < SAME);
+
+    history.push(Operation::CutChange(CutChange::Reshape {
+        sketch: 0,
+        cut,
+        value: CutAsked::Fillet(20.0.into()),
+    }));
+
+    let sketch = the_drawing(&history);
+    assert_on_cut(&sketch, hung, cut, CutPoint::First);
+    assert!((sketch.point(far).distance(sketch.point(hung)) - 52.0).abs() < SAME);
+    for side in 0..4 {
+        let (start, end) = sketch.endpoints(SegmentId(side));
+        let (was_start, was_end) = before.endpoints(SegmentId(side));
+        let turned = (end - start).angle_to(was_end - was_start);
+        assert!(turned.abs() < 1e-9, "side {side} turned by {turned} rad");
+    }
+}
+
+fn assert_on_cut(sketch: &Sketch, point: PointId, cut: CornerCutId, at: CutPoint) {
+    let place = sketch.cut_point(cut, at).unwrap();
+    assert!(sketch.point(point).distance(place) < SAME);
 }

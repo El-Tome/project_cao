@@ -71,6 +71,9 @@ impl DrawnCut {
 /// A cut's places as the solver reads them: each with how it moves with the
 /// corner and the far ends of the sides.
 pub(crate) struct CutPlaces {
+    /// Which way the first side leaves the corner: the frame a place is read
+    /// in, so that a shape turned whole reads the same.
+    pub along: JetPlace<COORDINATES>,
     pub touches: [JetPlace<COORDINATES>; 2],
     /// The centre of a fillet's curve, and its radius.
     pub round: Option<(JetPlace<COORDINATES>, f64)>,
@@ -186,6 +189,7 @@ fn places(
         .iter()
         .all(|back| back.value.is_finite() && back.value > NOTHING);
     finite.then(|| CutPlaces {
+        along: along[0],
         touches: [
             corner + along[0].scaled(backs[0]),
             corner + along[1].scaled(backs[1]),

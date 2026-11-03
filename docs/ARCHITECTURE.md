@@ -61,9 +61,8 @@ Inside a crate, the role of a file is carried by its folder — `model/`,
 `ports/`, `adapters/`, `services/`, and in the shell `ui/` and
 `screens/<mode>/`. What each of them means, what it may import, and the budget
 of 400 lines per file: [code-layout.md](code-layout.md).
-`crates/app/tests/architecture.rs` checks it, and `scripts/verify.sh` — format,
-clippy then `cargo test --workspace`, called by both local hooks before every
-commit — refuses the commit that breaks it.
+`crates/app/tests/architecture.rs` checks it, and the CI, which runs the
+tests on every pushed branch, refuses the branch that breaks it.
 
 ## The mode system
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# PreToolUse on Bash. Does something only when the command is a commit.
+# PreToolUse on Bash. Does something only when the command is a push.
 set -u
 
 payload=$(cat)
@@ -11,7 +11,7 @@ else
 fi
 
 case "$command_line" in
-    *'git commit'*) ;;
+    *'git push'*) ;;
     *) exit 0 ;;
 esac
 

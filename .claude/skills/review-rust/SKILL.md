@@ -132,7 +132,8 @@ scripts/verify.sh
 ```
 
 `cargo fmt --all --check`, `clippy -D warnings`, then `cargo test --workspace`,
-~12 s. The gate will do it again at commit time, but running it first saves a round trip.
+what a push runs. The tests are the CI's: run `cargo test --workspace` first
+when the change reaches beyond one crate, to save a round trip.
 
 For an independent read, the `review-architecture-rust` subagent applies this skill and
 `architecture-rust` to a diff, in a separate context — whoever just wrote the

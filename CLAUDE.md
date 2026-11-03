@@ -38,8 +38,9 @@ On a fresh clone, enable the git hook once:
 git config core.hooksPath .githooks
 ```
 
-`git commit` then runs `cargo fmt --all --check`, `clippy -D warnings` and
-`cargo test --workspace`. On failure the commit does not happen. A command long
+A commit then runs nothing. `git push` runs `cargo fmt --all --check` and
+`clippy -D warnings`; on failure the push does not happen. The tests run in the
+CI only — `cargo test --workspace` by hand when you want them first. A command long
 enough to be waited for **announces its own end** — never watch for it with
 `pgrep`, which finds the waiting shell itself and never stops; see
 [`docs/build.md`](docs/build.md). The

@@ -23,7 +23,7 @@ map is updated first, or it should not happen.
 Then check the net is under you:
 
 ```sh
-scripts/verify.sh
+cargo test --workspace && scripts/verify.sh
 ```
 
 Green before you start, or you will not know which failure you caused.
@@ -49,7 +49,9 @@ moved. The rest of the repository is covered, and re-testing it is not the job.
 function, paste it, fix what goes red. Rust is unusually good at this: an
 extraction that compiles has almost certainly kept its meaning.
 
-**3. Green.** `scripts/verify.sh`. If a test fails, the move changed
+**3. Green.** `cargo test --workspace`, then `scripts/verify.sh`. The tests
+are not in the push gate, and a refactor is the one change that must not wait
+for the CI to find out. If a test fails, the move changed
 behaviour — that is information, not an obstacle. Undo and look at why, rather
 than adjusting the test.
 
@@ -134,7 +136,8 @@ the human, not a hurdle to clear.
 
 ## Done
 
-- [ ] `scripts/verify.sh` green, and it was green at every commit in between.
+- [ ] `cargo test --workspace` and `scripts/verify.sh` green, and they were at
+      every commit in between.
 - [ ] No test was modified to accommodate the change. A test that moved with its
       code is fine; one whose assertions changed is not.
 - [ ] No ratchet figure went up.

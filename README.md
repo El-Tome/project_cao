@@ -93,8 +93,8 @@ cargo test --workspace
 cargo run -p cao_render --example offscreen -- /tmp   # writes 3 PNGs to check
 ```
 
-`scripts/verify.sh` chains `cargo fmt --all --check`, `clippy -D warnings` then
-`cargo test --workspace`; both local hooks call it before every commit.
+`scripts/verify.sh` chains `cargo fmt --all --check` then `clippy -D warnings`;
+both local hooks call it before every push. The tests are left to the CI.
 `crates/app/tests/architecture.rs` checks the architecture rules there — the
 crate graph, the folders, the budget of 400 lines per file — and
 `crates/app/tests/gate.rs` that the CI checks the same things it does.

@@ -22,11 +22,15 @@ eyes that did neither.
 | 2. Locate | `code-locator` | haiku | nothing |
 | 3. Red | `test-writer` | opus | tests only |
 | 4. Green | `implementer` | opus | production code only |
-| 5. Gate | `gate-runner` | haiku | nothing |
-| 6. Mutants | `mutation-hunter` | haiku | nothing |
-| 7. Review | `review-architecture-rust` | opus | nothing |
-| 8. Criteria | `criteria-checker` | sonnet | nothing |
-| 9. Pull request | `pr-writer` | sonnet | `gh` |
+| 5. Mutants | `mutation-hunter` | haiku | nothing |
+| 6. Review | `review-architecture-rust` | opus | nothing |
+| 7. Criteria | `criteria-checker` | sonnet | nothing |
+| 8. Pull request | `pr-writer` | sonnet | `gh` |
+| 9. CI | `gate-runner` | haiku | nothing |
+
+Nothing runs at commit; a push runs format and clippy; the tests run in the CI.
+So the gate step comes **after** the push: it reads the CI's verdict on the
+pull request.
 
 The model is in each agent's frontmatter. Override it only when the step is
 plainly lighter or heavier than usual — a one-line fix does not need opus to
@@ -76,22 +80,16 @@ else, by hand otherwise — and the turn is redone. When `implementer` says a
 test is wrong, it gives the reason; pass that reason to `test-writer`, and let
 it decide. Never settle it yourself by editing the test.
 
-Once green, `git add -A` again and go to the next criterion.
-
-**Red tests are never committed on their own.** The gate would refuse them, and
-`CAO_SKIP_GATE` belongs to the human. A test and the code that makes it pass
-land in the same commit.
+Once green, commit the test and the code together — nothing runs at commit, so
+a commit costs nothing — and go to the next criterion. A red test is not
+committed alone: every commit the CI may read stays green.
 
 **A refactor** has no red step: `test-writer` pins what the code does today, as
-`refactor-rust` says, and `implementer` moves the code under that pin.
+`refactor-rust` says, and `implementer` moves the code under that pin. Since the
+tests are not in the push gate, `implementer` runs `cargo test --workspace`
+itself after a move: a refactor does not wait for the CI to find out.
 
-### 5. Gate
-
-`gate-runner` runs `scripts/verify.sh` and returns green, or the failure in a
-few lines: the step, the file and line, the message. Red goes back to
-`implementer` with those lines.
-
-### 6. Mutants — domains only
+### 5. Mutants — domains only
 
 Only when the diff touches `crates/sketch/` or `crates/solid/`, where a weak
 test costs most. `mutation-hunter` runs `cargo mutants` on the diff alone and
@@ -100,7 +98,7 @@ returns the surviving mutants. A survivor in code this issue added goes back to
 installed, the step is skipped and the pull request says so. It never blocks
 on its own and is never part of the gate.
 
-### 7 and 8. Review, then criteria
+### 6 and 7. Review, then criteria
 
 Both read; neither writes. Run them in parallel.
 
@@ -118,17 +116,25 @@ criterion, and returns one verdict per criterion. A finding that lands, or a
 criterion not answered, goes back to the step that owns it — `test-writer` for
 a test that asserts something adjacent, `implementer` for the rest.
 
-### 9. Commit, then the pull request
+### 8. The pull request
 
-You commit — the gate runs again through the hook — in the voice `open-a-task`
-asks for. Then `pr-writer` gets the branch, the issue number, the
-`criteria-checker` verdicts, what `mutation-hunter` said or that it was
-skipped, and what was set aside. It pushes, opens the pull request, and stops.
-**Nobody merges without the human's word.**
+The last fixes committed, in the voice `open-a-task` asks for, `pr-writer` gets
+the branch, the issue number, the `criteria-checker` verdicts, what
+`mutation-hunter` said or that it was skipped, and what was set aside. It
+pushes — the hook runs format and clippy, and a red one comes back to
+`implementer` — opens the pull request, and stops. **Nobody merges without the
+human's word.**
+
+### 9. CI
+
+`gate-runner` gets the pull request's number, waits for its checks to end, and
+returns green, or each failed job in a few lines: the job, the file and line,
+the test, the message. Red goes back to `implementer` — or to `test-writer` for
+a test of its own that is wrong — then commit, push, and `gate-runner` again.
 
 ## The loop, and when it stops
 
-Gate red, a review finding, a criterion unanswered: back to the step that owns
+CI red, a review finding, a criterion unanswered: back to the step that owns
 it, then forward again from there. **After three rounds on the same failure,
 stop** and hand it to the human with what was tried.
 
@@ -147,7 +153,7 @@ request body.
 - **Mutants** — the diff touches neither `cao_sketch` nor `cao_solid`.
 - **Review** — never on a change to `crates/`. On documentation only, yes.
 
-**Gate** and **Criteria** are never skipped.
+**CI** and **Criteria** are never skipped.
 
 ## What the human hears at the end
 

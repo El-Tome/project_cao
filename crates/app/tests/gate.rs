@@ -23,8 +23,10 @@ const CI_STEPS_THAT_ONLY_PREPARE_THE_RUNNER: [&str; 3] = [
 
 /// What the CI checks and the local gate deliberately does not. Cross-compiling
 /// for Windows wants `mingw-w64` and the target installed, which is more than a
-/// commit should ask of every machine.
-const CHECKS_THE_LOCAL_GATE_LEAVES_TO_THE_CI: [&str; 1] = ["./scripts/build-windows.sh"];
+/// push should ask of every machine; the whole test suite takes minutes, which
+/// is more than a push should wait for.
+const CHECKS_THE_LOCAL_GATE_LEAVES_TO_THE_CI: [&str; 2] =
+    ["./scripts/build-windows.sh", "cargo test --workspace"];
 
 #[test]
 fn the_local_gate_and_the_ci_check_the_same_things() {

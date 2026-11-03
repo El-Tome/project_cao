@@ -21,7 +21,8 @@ aside.
 
 1. `git log main..HEAD` and `git diff main...HEAD --stat`, to know what the
    branch holds.
-2. `git push -u origin <branch>`.
+2. `git push -u origin <branch>`. The hook runs format and clippy first; if it
+   refuses the push, stop and return its message — fixing it is not yours.
 3. `gh pr create --base <base> --title "<type>(<scope>): <sentence>" --body-file <file>`.
    The title is the same conventional commit voice as the commits: what the
    software can do now.
@@ -35,7 +36,8 @@ In this order:
 - If visible, **To try it**: the gestures, quoting the interface, and what
   should be seen.
 - What changed, what was decided, what was set aside.
-- How it was verified: the gate, the test count, the mutants step.
+- How it was verified: the tests run locally, the mutants step, and that the
+  CI on this pull request runs the whole suite.
 - Each criterion of the issue, in turn: answered and by which test, not
   answered and why, reworded and how — from the verdicts you were given.
 - The steps of the pipeline that were skipped, and why.

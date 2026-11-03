@@ -1021,6 +1021,16 @@ end, or a slot's cap, does not reverse. A cut corner goes through as a sharp one
 would: its cut stands in the angle under 180° between the two sides, so it moves
 round to the other side of the corner rather than turning inside out.
 
+A place that holds every rule is still refused when it throws a point far
+beyond the drawing: farther from where the press found it than twice the sum of
+the hand's way and the drawing's size at the press (#597). The dragged point is
+held to it like any other. A shape stretched after a corner taken far carries
+its points no farther than the hand went, and one turned about a point near the
+hand swings its far side by up to twice the drawing's size; a point past both
+is not following the hand. The drag stops short where nothing is thrown, or the
+drawing stays as the press found it. Only a drag is held to it: a value typed,
+a rule laid or a selection moved is not.
+
 A point that stopped short of the hand is dropped on nothing: what the hand is
 over is not where the point is.
 

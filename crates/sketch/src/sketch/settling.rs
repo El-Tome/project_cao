@@ -41,6 +41,9 @@ pub(crate) struct Held {
     /// Points held on two things that cannot follow either alone: what holds
     /// them gives as well, rather than the point alone (#548).
     pub(crate) loosened: Vec<PointId>,
+    /// How far the drag under way may throw a point, the dragged one
+    /// included (#597).
+    pub(crate) throw: Option<pull::Throw>,
 }
 
 impl Sketch {
@@ -80,7 +83,8 @@ impl Sketch {
     /// Settles the drawing with `points` held still and `lines` kept, and
     /// says whether it came out whole: every value true, no trait squeezed to
     /// nothing, no tangency slid off, nothing kept come out the other way
-    /// round where it may not (`Kept::runs_backwards`).
+    /// round where it may not (`Kept::runs_backwards`), no point thrown past
+    /// the bound of a drag under way (`Sketch::throws_a_point`).
     pub(crate) fn settle_held(
         &mut self,
         points: Vec<PointId>,
@@ -97,6 +101,7 @@ impl Sketch {
             && !backwards
             && !self.has_a_collapsed_trait(self.drawing_size())
             && !self.has_a_flipped_tangent()
+            && !self.throws_a_point()
     }
 
     /// The same for a whole handful of points dropped at once, which is how a
@@ -146,7 +151,7 @@ impl Sketch {
         self.held.points = still.clone();
         let outcome = self.resolve(millimeters_per_unit);
         self.held.points.clear();
-        if outcome == LengthOutcome::Exact {
+        if outcome == LengthOutcome::Exact && !self.throws_a_point() {
             self.keep_shares(&shares, &still, &[], millimeters_per_unit);
             return outcome;
         }
@@ -160,15 +165,17 @@ impl Sketch {
         if outcome == LengthOutcome::Exact
             && !self.has_a_collapsed_trait(self.drawing_size())
             && !self.has_a_flipped_tangent()
+            && !self.throws_a_point()
         {
             self.keep_shares(&shares, anchored, &[], millimeters_per_unit);
             return outcome;
         }
 
         // Neither way leaves a drawing worth keeping: a value or a rule left
-        // untrue, a trait collapsed, or a tangency's contact slid off its
-        // segment. The gesture is refused rather than the shape broken — the
-        // point simply does not go there (#472).
+        // untrue, a trait collapsed, a tangency's contact slid off its
+        // segment, or a point a drag threw far beyond the drawing (#597). The
+        // gesture is refused rather than the shape broken — the point simply
+        // does not go there (#472).
         self.give_back(kept);
         LengthOutcome::BestEffort
     }

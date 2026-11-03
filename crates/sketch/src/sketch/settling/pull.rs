@@ -26,6 +26,9 @@ const HALVINGS: usize = 24;
 const PROGRESS: f64 = 1e-3;
 
 mod landing;
+mod throw;
+
+pub(super) use throw::Throw;
 
 /// What a drag of one point may do to the drawing, read from the drawing as
 /// the press found it.
@@ -130,13 +133,9 @@ impl Sketch {
         }
     }
 
-    /// Lays one place of the drag down: the point taken towards `position`
-    /// and the drawing settled around it, as `pull` allows.
-    ///
-    /// `Exact` when the drawing settled, the point wherever it could go;
-    /// `BestEffort` when nothing could be had and the drawing is given back
-    /// as it was.
-    pub fn settle_pulled(
+    /// The place `settle_pulled` lays down, the bound of the drag's throw
+    /// already read.
+    fn lay_pulled(
         &mut self,
         pull: &PointPull,
         position: DVec2,
@@ -378,7 +377,7 @@ impl Sketch {
             let along = self
                 .pull(pull.point, millimeters_per_unit)
                 .held_to_its_axis();
-            if self.settle_pulled(&along, position, millimeters_per_unit) == LengthOutcome::Exact {
+            if self.lay_pulled(&along, position, millimeters_per_unit) == LengthOutcome::Exact {
                 return true;
             }
         }

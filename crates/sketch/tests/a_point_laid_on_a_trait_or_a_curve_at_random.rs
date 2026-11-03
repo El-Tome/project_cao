@@ -184,6 +184,11 @@ fn shapes(sketch: &Sketch) -> Vec<usize> {
                 vec![Element::Point(point), Element::Ellipse(ellipse)]
             }
             Constraint::OnAxis { point, .. } => vec![Element::Point(point)],
+            Constraint::AtCutPoint { point, cut, .. } | Constraint::OnCut { point, cut } => {
+                std::iter::once(Element::Point(point))
+                    .chain(sketch.corner_cuts()[cut.0].sides.map(Element::Segment))
+                    .collect()
+            }
             Constraint::Tangent {
                 circle,
                 segment,

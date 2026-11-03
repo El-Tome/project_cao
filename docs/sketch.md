@@ -1178,7 +1178,9 @@ way it is turned, until it passes through the point. When the point then falls
 beyond what is drawn — of an arc, or of half an ellipse a cut left — the curve
 lengthens a little past it, its opening growing and its radius kept; a circle
 only moves. A fillet or a chamfer is no curve of the drawing — it is worked out
-from a sharp corner — so nothing can be laid on one yet (#620). Half an ellipse
+from a sharp corner — so the constraint tool cannot land a point on its curve; the
+Point tool lays one there, and « Coïncidence » hangs one on its centre or on an
+end (#620). Half an ellipse
 drawn by its ends ends on its own axis, which no end can
 slide off without turning the curve: it does not lengthen, and moves until what
 is drawn reaches the point — as does an arc whose shape cannot follow it
@@ -1291,7 +1293,7 @@ when none decides it.
 | Lay a rule | The same with a circle | The circle comes whole, its radius kept | Same (#554); the rule was refused |
 | Lay a rule | The same with half an ellipse a cut left | It comes whole, its axes kept, and lengthens a little past the point | Same (#554); the rule was refused |
 | Lay a rule | The same with half an ellipse drawn by its ends | It comes whole until what is drawn reaches the point, a little inside its end; it does not lengthen | Same (#554); the rule was refused |
-| Lay a rule | The same with the fillet of two free traits | Nothing: a fillet is no curve of the drawing, so there is nowhere for the point to land — #620 | Not built: #620 |
+| Lay a rule | The same with the fillet of two free traits | Nothing: the constraint tool cannot point at a fillet's curve. A point is laid on it with the Point tool, and « Coïncidence » hangs one on its centre or an end — #620 | Not built |
 | Lay a rule | « Coïncidence », an arc or half an ellipse clicked first, then the end of a trait | The point comes onto what is drawn, at the nearest place — a little short of an end when the nearest place on the whole curve is past it; the curve stays | Same (#554); the rule was refused |
 | Lay a rule | « Coïncidence », the end of a trait clicked first, then a fixed curve | The curve cannot come: the point comes onto it | Same (#554); the rule was refused |
 | Lay a rule | A point at the middle of a trait | The point comes to the middle; the trait stays | Same (#479); the trait moved a third of the way to the point |
@@ -1716,7 +1718,9 @@ On the canvas each side is solid where it is still drawn, and thin and dashed up
 to the sharp corner; the curve of the cut is drawn where the corner was, with
 its value beside it — « R10 mm », « 5 mm × 5 mm » or « 5 mm × 45.0° » — and in
 the refusal colour while it does not fit. A press on the curve takes the cut
-whole (`Selection::Cut`), and dragging it drags the corner point. A cut held or
+whole (`Selection::Cut`), and dragging it drags the corner point from afar: the
+corner moves by what the hand moves, keeping its distance, and the magnets pull
+where the corner goes rather than the hand. A cut held or
 hovered is lit in full, and every cut laid with it faintly: the group reads at
 a glance, and the one `Suppr` or « Inverser les côtés » acts on stands out. A
 press on the value takes the cut too, except on the dot of a point, which stays
@@ -1850,9 +1854,54 @@ two passes nearer, for the selection, the dimension tool and the measure alike.
 A trim or a division hands a cut on the side it cuts to the piece left at the
 corner; a cut taken off or replaced before it stays as it was.
 
-**Not built yet**, in later issues of epic #616: several cuts on one point
-(#619), hanging a point or a rule on a cut's own points (#620), and a fillet
-between a trait and an arc (#621).
+**Not built yet**, in later issues of epic #616: a fillet between a trait and an
+arc (#621), and a trait held tangent to a fillet's curve.
+
+### What hangs on a cut
+
+A cut's points — the centre of a fillet, and the two places a cut meets its
+sides — are drawn as points, in the colour of their cut: red while it does not
+fit. They are aimed at like any point, and anything can hang on them (#620):
+
+- a trait drawn from one, or a circle drawn on a fillet's centre;
+- a dimension from one — « Cote point à point » between a rounded side's free
+  end and its tangent point is how the visible part of the side is
+  dimensioned, « Cote de trait » measuring up to the sharp corner;
+- a « Coïncidence » between a point and one of them;
+- a point laid on the curve itself, with the Point tool.
+
+None of them is a point of the drawing until something hangs on it, so a cut
+nothing hangs on costs the solver nothing. Once something does, a point is laid
+there, held by a rule that works the place out again from the corner, its two
+sides and the value. What hangs follows the cut wherever the corner, the sides
+or the value take it — and pulled by something else, a length typed on a trait
+hanging there, moves the corner as the other rules allow. A change to a cut
+that what hangs on it cannot follow is refused as a value that cannot be held
+is: « Cette valeur est impossible avec ce qui est déjà fixé. Rien n'a changé. »
+
+The dimension tool lays the point it measures from in the dimension's own step:
+one undo takes both back. A measure given up after the first click leaves the
+point laid, held to the cut, one undo away. A click that places a dimension
+already chosen hangs nothing, wherever it lands.
+
+A corner merged into another point keeps its cut, and what hangs on it. A point
+hung on a cut is taken off it the way any held point is, by dragging it with the
+let-go key held; deleting it takes it off too.
+
+Decided with the owner on 2026-11-02:
+
+- **A cut that does not fit** keeps what hangs on it where the cut is drawn in
+  red. Nothing jumps, and nothing has moved when it fits again.
+- **A cut taken off** leaves what hung on it where it was: the points become
+  plain points, one that was an end of the cut still held on its side.
+- **A cut given another kind or value** keeps its ends — a fillet's end on a
+  side is the chamfer's end on the same side — and a point on its curve goes
+  onto the new one. A fillet's centre, which a chamfer has none of, is let go
+  where it stands. Cutting a corner again with the tool hands what hung on the
+  old cut to the new one the same way.
+- **Dragging one of a cut's points** drags the corner from afar, as dragging
+  the curve does — whether something hangs on the point or not. With the let-go key
+  held, a point something hangs on is taken off the cut and dragged instead.
 
 ### A crossing becomes a point
 

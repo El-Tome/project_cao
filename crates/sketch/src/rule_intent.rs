@@ -10,6 +10,7 @@
 
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, SketchAxis};
+use crate::corner_cut::{CornerCutId, CutPoint};
 use crate::ellipse::EllipseId;
 use crate::laid_from::LaidFrom;
 use crate::sketch::{CircleId, Element, PointId, SegmentId, Sketch};
@@ -20,6 +21,9 @@ use crate::sketch::{CircleId, Element, PointId, SegmentId, Sketch};
 pub enum RulePick {
     Element(Element),
     Axis(SketchAxis),
+    /// One of the points a fillet or a chamfer offers, which no point of the
+    /// drawing stands on yet: a coincidence hangs a point there.
+    CutPoint(CornerCutId, CutPoint),
 }
 
 /// Which rule the constraint tool is about to lay down.
@@ -195,6 +199,12 @@ pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<Ru
             [RulePick::Element(element)] => constrain(Constraint::Fixed { element: *element }),
             _ => None,
         },
+        Rule::Coincident if picks.len() == 2 && hangs_on_a_cut(picks).is_some() => {
+            let (point, cut, at) = hangs_on_a_cut(picks)?;
+            (!sketch.cut_stands_on(cut).contains(&point)).then_some(RuleIntent::Constrain(
+                Constraint::AtCutPoint { point, cut, at },
+            ))
+        }
         Rule::Coincident => {
             // A free point comes onto what it is laid on whichever was
             // clicked first: a trait keeps no order for it, and a curve takes
@@ -253,6 +263,23 @@ pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<Ru
             }
             _ => None,
         },
+    }
+}
+
+/// A point and one of a cut's points, in either order: the point hangs
+/// there. Not a point the cut stands on, which would have to stand at a place
+/// worked out from itself.
+fn hangs_on_a_cut(picks: &[RulePick]) -> Option<(PointId, CornerCutId, CutPoint)> {
+    match picks {
+        [
+            RulePick::Element(Element::Point(point)),
+            RulePick::CutPoint(cut, at),
+        ]
+        | [
+            RulePick::CutPoint(cut, at),
+            RulePick::Element(Element::Point(point)),
+        ] => Some((*point, *cut, *at)),
+        _ => None,
     }
 }
 

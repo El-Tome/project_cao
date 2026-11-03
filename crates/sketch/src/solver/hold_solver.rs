@@ -10,6 +10,8 @@ use crate::equation::{Equation, Row};
 use crate::holding::Support;
 use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
 
+mod on_a_cut;
+
 impl Sketch {
     /// What a rule holding a point asks of the drawing.
     ///
@@ -33,6 +35,9 @@ impl Sketch {
                 into.extend(self.on_ellipse_equation(point, ellipse))
             }
             Constraint::OnAxis { point, axis } => into.extend(self.on_axis_equation(point, axis)),
+            Constraint::AtCutPoint { .. } | Constraint::OnCut { .. } => {
+                self.cut_hold_equations(constraint, into)
+            }
             _ => {}
         }
     }

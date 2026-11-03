@@ -17,9 +17,13 @@ use crate::sketch::{PointId, SegmentId, Sketch};
 
 mod changing;
 mod drawn;
+mod hanging;
 mod picking;
+pub(crate) mod points;
 
 pub use drawn::{CutCurve, DrawnCut, PulledEnds};
+pub use picking::Grip;
+pub use points::CutPoint;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct CornerCutId(pub usize);
@@ -82,7 +86,8 @@ impl Sketch {
         let (corner, _, _) = self
             .corner_to_cut(first, second)
             .ok_or(CutRefused::NoCorner)?;
-        if let Some(standing) = self.cut_standing_between(first, second) {
+        let standing = self.cut_standing_between(first, second);
+        if let Some(standing) = standing {
             Erased::mark(&mut self.erased.cuts, standing.0);
         }
         self.corner_cuts.push(CornerCut {
@@ -92,7 +97,12 @@ impl Sketch {
             construction,
             group,
         });
-        Ok(CornerCutId(self.corner_cuts.len() - 1))
+        let laid = CornerCutId(self.corner_cuts.len() - 1);
+        if let Some(standing) = standing {
+            let swapped = self.corner_cuts[standing.0].sides[0] != first;
+            self.hand_hung_over(standing, laid, swapped);
+        }
+        Ok(laid)
     }
 
     /// Every cut ever laid, by rank, erased ones included.

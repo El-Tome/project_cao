@@ -43,6 +43,15 @@ pub(super) fn handed_over(rule: Constraint, one: impl Fn(PointId) -> PointId) ->
             point: one(point),
             axis,
         },
+        Constraint::AtCutPoint { point, cut, at } => Constraint::AtCutPoint {
+            point: one(point),
+            cut,
+            at,
+        },
+        Constraint::OnCut { point, cut } => Constraint::OnCut {
+            point: one(point),
+            cut,
+        },
         Constraint::Midpoint { point, segment } => Constraint::Midpoint {
             point: one(point),
             segment,

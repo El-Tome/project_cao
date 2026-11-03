@@ -3,7 +3,7 @@
 
 use cao_part::Operation;
 use cao_prefs::Modifier;
-use cao_sketch::{PointId, Pulled, Selection, Sketch, SnapSettings};
+use cao_sketch::{Grip, PointId, Pulled, Selection, Sketch, SnapSettings};
 use glam::DVec2;
 
 use crate::screens::SketchContext;
@@ -123,15 +123,30 @@ pub(super) fn drag_point(
         // A point held where two things cross reads as settled, and the key
         // that pulls it off is the one way to move it: without this it could
         // only ever be freed by deleting the marks that hold it.
+        //
+        // A press on a point hung on a cut takes the cut's corner, except
+        // with that key: it is how the point is unhung.
         let settled = sketch.settled_points(context.document.scale());
-        let dragged_point = sketch
-            .point_to_drag_at(pressed, snap)
-            .filter(|point| !sketch.is_origin(*point))
-            .filter(|point| {
-                let holds = sketch.holds_on(*point);
-                let stuck = settled.get(point.0).copied().unwrap_or(false) || holds.len() > 1;
+        let pressed_on = match gesture.letting_go {
+            true => sketch.nearest_point(pressed, snap),
+            false => None,
+        };
+        let grip = pressed_on
+            .map(|point| Grip {
+                point,
+                from_afar: false,
+            })
+            .or_else(|| sketch.point_to_drag_at(pressed, snap))
+            .filter(|grip| !sketch.is_origin(grip.point))
+            .filter(|grip| {
+                let holds = sketch.holds_on(grip.point);
+                let stuck = settled.get(grip.point.0).copied().unwrap_or(false) || holds.len() > 1;
                 !stuck || (gesture.letting_go && !holds.is_empty())
             });
+        let dragged_point = grip.map(|grip| grip.point);
+        let held_off_by = grip
+            .filter(|grip| grip.from_afar)
+            .map(|grip| sketch.point(grip.point) - gesture.raw_pressed);
         let arc_group = dragged_point.and_then(|point| centre_group(sketch, point));
         let carried = arc_group.is_some();
         if let Some(state) = context.editor.select_state() {
@@ -140,6 +155,7 @@ pub(super) fn drag_point(
             // frame would have the drop read a key released a frame early as
             // a drag that never asked for anything.
             state.letting_go = gesture.letting_go;
+            state.held_off_by = held_off_by;
             match arc_group {
                 Some(group) => {
                     state.dragged_group = group;
@@ -259,17 +275,26 @@ pub(super) fn drag_point(
     else {
         return false;
     };
+    let sketch = &context.document.sketches()[index];
+    // A point taken from afar is carried at the distance it stood from the
+    // press, and the magnets pull where it is carried rather than the hand.
+    let (hand, cursor) = match context
+        .editor
+        .select_state()
+        .and_then(|state| state.held_off_by)
+    {
+        Some(off) => {
+            let hand = gesture.raw_cursor + off;
+            let (cursor, magnet) = sketch.magnetise(hand, &gesture.magnets);
+            context.editor.snap = magnet;
+            (hand, cursor)
+        }
+        None => (gesture.raw_cursor, cursor),
+    };
     if pull.turns() {
         context.editor.snap = None;
     }
-    let sketch = &context.document.sketches()[index];
-    let landing = pull.landing(
-        sketch,
-        gesture.raw_cursor,
-        cursor,
-        letting_go,
-        &gesture.magnets,
-    );
+    let landing = pull.landing(sketch, hand, cursor, letting_go, &gesture.magnets);
     let mut settling = sketch.clone();
     if letting_go {
         settling.let_go(point);
@@ -290,6 +315,7 @@ pub(super) fn drag_point(
         state.drag_preview = None;
         state.letting_go = false;
         state.pull = None;
+        state.held_off_by = None;
     }
     // A drag the drawing could not take at all writes nothing: a step that
     // changes nothing would be what the next undo takes back.

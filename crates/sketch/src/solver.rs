@@ -524,7 +524,9 @@ impl Sketch {
             | Constraint::OnCircle { .. }
             | Constraint::OnArc { .. }
             | Constraint::OnEllipse { .. }
-            | Constraint::OnAxis { .. } => self.hold_equations(constraint, into),
+            | Constraint::OnAxis { .. }
+            | Constraint::AtCutPoint { .. }
+            | Constraint::OnCut { .. } => self.hold_equations(constraint, into),
             Constraint::Tangent { .. }
             | Constraint::ArcTangent { .. }
             | Constraint::EllipseTangent { .. } => self.tangent_equations(constraint, into),

@@ -5,6 +5,7 @@ use crate::angle_between::RUN_THE_SAME_WAY;
 use crate::arc::ArcId;
 use crate::axis_angle::AxisToward;
 use crate::corner_angle::Along;
+use crate::corner_cut::{CornerCutId, CutPoint};
 use crate::ellipse::EllipseId;
 use crate::laid_from::LaidFrom;
 use crate::sketch::{CircleId, Element, PointId, SegmentId};
@@ -284,6 +285,22 @@ pub enum Constraint {
         #[serde(default)]
         from: LaidFrom,
     },
+    /// A point hung on one of the places a fillet or a chamfer offers: the
+    /// centre of a fillet, or where the cut meets a side. The place is worked
+    /// out again from the corner, its sides and the value whenever it is read,
+    /// so the point follows them — and pulled by something else, moves them.
+    AtCutPoint {
+        point: PointId,
+        cut: CornerCutId,
+        at: CutPoint,
+    },
+    /// A point held on the curve a fillet or a chamfer draws: the circle a
+    /// fillet's curve is a piece of, or the line a chamfer's cut lies on —
+    /// the whole of it, as a point on an arc is held on its whole circle.
+    OnCut {
+        point: PointId,
+        cut: CornerCutId,
+    },
     /// A point held on one of the sketch's own axes, which is a line nothing
     /// can move.
     OnAxis {
@@ -375,23 +392,6 @@ impl Dimension {
     /// How the value reads on screen.
     pub fn unit_suffix(&self) -> &'static str {
         if self.is_angle() { "°" } else { "mm" }
-    }
-}
-
-/// How much freedom a drawing still has.
-///
-/// Worked out from the **rank** of the constraint system, not by counting
-/// constraints: that is the only way to see that a triangle's third side
-/// follows from its other sides and angles, and so adds nothing.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Freedom {
-    /// Coordinates that are still free to move.
-    pub degrees_of_freedom: usize,
-}
-
-impl Freedom {
-    pub fn fully_constrained(self) -> bool {
-        self.degrees_of_freedom == 0
     }
 }
 

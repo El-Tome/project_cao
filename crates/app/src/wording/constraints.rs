@@ -19,7 +19,9 @@ pub fn label(lang: &Catalogue, rule: Constraint) -> String {
         | Constraint::OnCircle { .. }
         | Constraint::OnArc { .. }
         | Constraint::OnEllipse { .. }
-        | Constraint::OnAxis { .. } => "constraints.label.coincident",
+        | Constraint::OnAxis { .. }
+        | Constraint::AtCutPoint { .. }
+        | Constraint::OnCut { .. } => "constraints.label.coincident",
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => {
             "constraints.label.collinear"
         }
@@ -52,7 +54,9 @@ pub fn erased_label(lang: &Catalogue, rule: Constraint) -> String {
         | Constraint::OnCircle { .. }
         | Constraint::OnArc { .. }
         | Constraint::OnEllipse { .. }
-        | Constraint::OnAxis { .. } => "constraints.erased.coincident",
+        | Constraint::OnAxis { .. }
+        | Constraint::AtCutPoint { .. }
+        | Constraint::OnCut { .. } => "constraints.erased.coincident",
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => {
             "constraints.erased.collinear"
         }
@@ -82,7 +86,9 @@ pub fn mark(rule: Constraint) -> &'static str {
         | Constraint::OnCircle { .. }
         | Constraint::OnArc { .. }
         | Constraint::OnEllipse { .. }
-        | Constraint::OnAxis { .. } => "+",
+        | Constraint::OnAxis { .. }
+        | Constraint::AtCutPoint { .. }
+        | Constraint::OnCut { .. } => "+",
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => "--",
         Constraint::Tangent { .. }
         | Constraint::ArcTangent { .. }

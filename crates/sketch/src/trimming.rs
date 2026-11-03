@@ -127,6 +127,7 @@ impl Sketch {
 
         let carried = self.carried_by(segment, rules, values);
         let cut_on_it = self.cuts_standing_on(segment);
+        let hung = self.rules_hung_on(&cut_on_it);
 
         let corner = self.corner_of_an_angle_on(segment, &carried.values);
 
@@ -183,6 +184,7 @@ impl Sketch {
         self.hand_over(segment, &pieces, &carried);
         let laid: Vec<SegmentId> = pieces.iter().map(|piece| piece.id).collect();
         self.cuts_follow_pieces(&cut_on_it, segment, &laid);
+        self.hang_again(&hung);
 
         let rules_dropped = dropped
             .iter()

@@ -7,9 +7,25 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use crate::constraints::Freedom;
 use crate::independence::{null_space, rank};
 use crate::sketch::{PointId, Sketch};
+
+/// How much freedom a drawing still has.
+///
+/// Worked out from the **rank** of the constraint system, not by counting
+/// constraints: that is the only way to see that a triangle's third side
+/// follows from its other sides and angles, and so adds nothing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Freedom {
+    /// Coordinates that are still free to move.
+    pub degrees_of_freedom: usize,
+}
+
+impl Freedom {
+    pub fn fully_constrained(self) -> bool {
+        self.degrees_of_freedom == 0
+    }
+}
 
 impl Sketch {
     /// Coordinates that no constraint holds, worked out from the rank of the

@@ -27,6 +27,7 @@ wording. Where a term carries a rule, the rule is on the line under it.
 | `Circle` | cercle | A centre and a radius. The radius is an unknown of the solver, like any coordinate. |
 | `Arc` | arc | A piece of a circle, as a centre and the two ends it runs between — three ordinary points of the drawing, shared like a segment's. No radius of its own: it is read off the end the curve starts at, which leaves the way round a consequence of the order of the two ends. |
 | `CornerCut`, `CornerCutId`, `CutShape`, `DrawnCut` | congé / chanfrein | A fillet or a chamfer standing on a sharp corner, by rank: its two sides, the shape it draws and whether it is construction. Nothing is trimmed and nothing is solved — what it draws is worked out from the corner, its sides and the value every time it is read. |
+| `CutPoint`, `Constraint::AtCutPoint`, `Constraint::OnCut` | — | One of the points a cut offers: a fillet's centre, or where the cut meets a side. Not a point of the drawing until something hangs on it; then a point is laid there, held by a rule the solver works out from the corner, its sides and the value. `OnCut` holds a point on the cut's curve instead. |
 | `Element` | élément | Whichever of point, segment, circle or arc a rule is about. |
 | `Region` | aire | A closed loop of the drawing, the thing an extrusion can be raised from. |
 | `Dimension` | cote | A rule that carries a number: length, angle, radius, diameter, distance. |

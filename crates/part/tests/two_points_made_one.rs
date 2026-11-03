@@ -521,6 +521,8 @@ fn named_by(rule: Constraint) -> Vec<PointId> {
         | Constraint::OnArc { point, .. }
         | Constraint::OnEllipse { point, .. }
         | Constraint::OnAxis { point, .. }
+        | Constraint::AtCutPoint { point, .. }
+        | Constraint::OnCut { point, .. }
         | Constraint::Midpoint { point, .. }
         | Constraint::Fixed {
             element: Element::Point(point),

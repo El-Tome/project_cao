@@ -221,6 +221,15 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
             point: map.points[&point],
             axis,
         },
+        Constraint::AtCutPoint { point, cut, at } => Constraint::AtCutPoint {
+            point: map.points[&point],
+            cut: map.cuts[&cut],
+            at,
+        },
+        Constraint::OnCut { point, cut } => Constraint::OnCut {
+            point: map.points[&point],
+            cut: map.cuts[&cut],
+        },
         Constraint::Midpoint { point, segment } => Constraint::Midpoint {
             point: map.points[&point],
             segment: map.segments[&segment],

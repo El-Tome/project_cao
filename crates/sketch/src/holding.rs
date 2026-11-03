@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::corner_cut::{CornerCutId, CutPoint};
 use crate::edges::off_by;
 use crate::ellipse::EllipseId;
 use crate::laid_from::LaidFrom;
@@ -26,6 +27,11 @@ pub enum Support {
     Arc(ArcId),
     Ellipse(EllipseId),
     Axis(SketchAxis),
+    /// One of the points a fillet or a chamfer offers, which holds harder than
+    /// the side it lies on: the point follows the cut.
+    CutPoint(CornerCutId, CutPoint),
+    /// The curve a fillet or a chamfer draws.
+    Cut(CornerCutId),
 }
 
 impl Support {
@@ -54,7 +60,15 @@ impl Support {
                 from: LaidFrom::Nowhere,
             },
             Self::Axis(axis) => Constraint::OnAxis { point, axis },
+            Self::CutPoint(cut, at) => Constraint::AtCutPoint { point, cut, at },
+            Self::Cut(cut) => Constraint::OnCut { point, cut },
         }
+    }
+
+    /// Whether this is a cut's point or its curve: what only stands once
+    /// the cut is laid.
+    pub fn names_a_cut(self) -> bool {
+        matches!(self, Self::CutPoint(..) | Self::Cut(_))
     }
 
     /// The point a rule holds, when it is one of these.
@@ -65,6 +79,8 @@ impl Support {
             Constraint::OnArc { point, arc, .. } => Some((point, Self::Arc(arc))),
             Constraint::OnEllipse { point, ellipse, .. } => Some((point, Self::Ellipse(ellipse))),
             Constraint::OnAxis { point, axis } => Some((point, Self::Axis(axis))),
+            Constraint::AtCutPoint { point, cut, at } => Some((point, Self::CutPoint(cut, at))),
+            Constraint::OnCut { point, cut } => Some((point, Self::Cut(cut))),
             _ => None,
         }
     }
@@ -108,10 +124,18 @@ impl Sketch {
             .filter(move |axis| across(*axis, place).abs() <= near_enough)
             .map(Support::Axis);
 
+        // A point of a cut holds a point entirely: it lies on the side and on
+        // the curve already, and a hold on either beside it would say nothing.
+        let on_cuts = self.cut_supports_at(place);
+        if let [Support::CutPoint(..)] = on_cuts.as_slice() {
+            return on_cuts;
+        }
+
         on_traits
             .chain(on_circles)
             .chain(on_arcs)
             .chain(on_ellipses)
+            .chain(on_cuts)
             .chain(on_axes)
             .collect()
     }
@@ -148,6 +172,9 @@ impl Sketch {
             Support::Arc(arc) => Element::Arc(arc),
             Support::Ellipse(ellipse) => Element::Ellipse(ellipse),
             Support::Axis(_) => return false,
+            Support::CutPoint(cut, _) | Support::Cut(cut) => {
+                return self.cut_stands_on(cut).contains(&point);
+            }
         };
         self.points_it_leans_on(element).contains(&point)
     }
@@ -260,6 +287,8 @@ impl Sketch {
                 let along = axis.direction();
                 Some(along * place.dot(along))
             }
+            Support::CutPoint(cut, at) => self.cut_point(cut, at),
+            Support::Cut(cut) => self.onto_cut(cut, place),
         }
     }
 
@@ -309,6 +338,14 @@ impl Sketch {
                     && !self.is_erased_ellipse(ellipse)
             }
             Constraint::OnAxis { point, .. } => drawn(point),
+            Constraint::AtCutPoint { point, cut, at } => {
+                drawn(point)
+                    && self.cut_offers(cut, at)
+                    && !self.cut_stands_on(cut).contains(&point)
+            }
+            Constraint::OnCut { point, cut } => {
+                drawn(point) && self.cut_holds(cut) && !self.cut_stands_on(cut).contains(&point)
+            }
             _ => false,
         }
     }

@@ -29,7 +29,13 @@ pub fn open(test: &str) -> App {
 
 /// The same on a screen of another size — wide enough, say, for the whole
 /// ribbon of the sketch to fit, patterns included.
-pub fn open_on(test: &str, (width, height): (f32, f32)) -> App {
+pub fn open_on(test: &str, size: (f32, f32)) -> App {
+    open_with(test, size, cao_prefs::Settings::default())
+}
+
+/// The same, with these settings already saved, as a user who had set them
+/// before would open it.
+pub fn open_with(test: &str, (width, height): (f32, f32), settings: cao_prefs::Settings) -> App {
     let root = std::env::temp_dir().join("cao-driver").join(test);
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("documents")).expect("a place to keep the parts");
@@ -38,6 +44,11 @@ pub fn open_on(test: &str, (width, height): (f32, f32)) -> App {
         data: root.join("data"),
         documents: Some(root.join("documents")),
     };
+    let mut profiles = cao_prefs::Profiles::default();
+    *profiles.active_mut() = settings;
+    profiles
+        .save(&cao_app::adapters::files::DiskFiles, &at)
+        .expect("the settings are written where the app reads them");
 
     let mut app = Harness::builder()
         .with_size(egui::vec2(width, height))

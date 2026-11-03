@@ -1734,7 +1734,12 @@ the angle of the circle of its half-width does, from where the wall
 reaches furthest along the height. Decision 2's snap moves the second wall
 across the first's axis by the gap, as for a cylinder; at a node of both
 ends an elliptic wall takes its partner's half-width by its half-axis
-nearer the height alone, the hair a drawing of one half-width leaves. The
+nearer the height alone, the hair a drawing of one half-width leaves.
+Turned, that half-axis grows by more than the hair, moving the wall
+further than the tolerance where it ends, and the rims its operand drew on
+it are laid on the grown wall from as far as its half-axes changed: left on
+the wall as it was, an ellipse turned 45° reaching a bar's sides at its
+axis had rims the grown wall saw as no curve it carries (5585800487). The
 curve is then built on the two walls as decision 2 left them, not on a
 copy of one moved onto the touch as two cylinders' is: where no move could
 be made — an elliptic bar a hair from a node with both walls of a ring,

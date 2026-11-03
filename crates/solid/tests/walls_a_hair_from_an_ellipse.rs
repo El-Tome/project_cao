@@ -16,7 +16,8 @@
 //!   `a_circle_added_to_an_ellipse_a_hair_from_round_of_its_size_keeps_every_rule`,
 //!   `an_ellipse_a_hair_from_round_added_in_a_bore_of_its_size_keeps_every_rule`,
 //!   `the_same_ellipse_turned_a_ten_thousandth_under_a_block_touching_it_keeps_every_rule`,
-//!   `the_same_ellipse_turned_a_hundred_thousandth_added_back_in_its_bore_keeps_every_rule`
+//!   `the_same_ellipse_turned_a_hundred_thousandth_added_back_in_its_bore_keeps_every_rule`,
+//!   `an_elliptic_pocket_reaching_a_round_bar_s_sides_at_its_axis_keeps_every_rule`
 //! - what stays above the bar is written in `docs/exact-kernel-failures.md` —
 //!   no test: prose, the same section
 //!
@@ -257,5 +258,28 @@ fn the_same_ellipse_turned_a_hundred_thousandth_added_back_in_its_bore_keeps_eve
                 7.0,
             )),
         ],
+    ));
+}
+
+/// Seed 5585800487: a round bar along x of radius 180, cut from its top down
+/// to its axis by an elliptic prism standing along z, the ellipse turned 45°
+/// and reaching exactly the bar's sides along y. The two walls, square to
+/// each other, touch at both ends of that reach: a node. The elliptic wall
+/// was grown onto the touch by a hair, its minor half-axis moved by about
+/// 1e-6, but the rims cut along it still stood on the wall as it was, and
+/// seen on the grown wall were no curve it carries: declined `Unsupported`.
+#[test]
+fn an_elliptic_pocket_reaching_a_round_bar_s_sides_at_its_axis_keeps_every_rule() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(0.0), Outline::circle([15.0, 240.0], 180.0), 135.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(450.0),
+            Outline::ellipse(
+                [90.0, 15.0],
+                [80.4984473241565, -80.49844732415654],
+                227.68399191159668,
+            ),
+            -210.0,
+        ))],
     ));
 }

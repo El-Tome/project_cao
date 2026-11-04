@@ -35,6 +35,9 @@ pub struct Solid {
     pub high: DVec3,
     /// Points along every B-spline edge, thirty-two to a span between knots.
     pub along_splines: Vec<Vec<DVec3>>,
+    /// Points along every parabola and every hyperbola edge, 129 each.
+    pub along_parabolas: Vec<Vec<DVec3>>,
+    pub along_hyperbolas: Vec<Vec<DVec3>>,
 }
 
 pub struct Vertex {
@@ -127,19 +130,24 @@ pub fn read(text: &str) -> Result<Solid, String> {
         (DVec3::INFINITY, DVec3::NEG_INFINITY),
         |(low, high), corner| (low.min(corner), high.max(corner)),
     );
-    let along_splines = edges
-        .values()
-        .filter(|edge| matches!(edge.curve, Curve::Spline(_)))
-        .map(|edge| {
-            let pieces = edge.curve.pieces(edge.from, edge.to);
-            pieces
-                .windows(2)
-                .flat_map(|pair| [pair[0], (pair[0] + pair[1]) / 2.0])
-                .chain(pieces.last().copied())
-                .map(|t| edge.curve.point(t))
-                .collect()
-        })
-        .collect();
+    let along = |kind: fn(&Curve) -> bool| -> Vec<Vec<DVec3>> {
+        edges
+            .values()
+            .filter(|edge| kind(&edge.curve))
+            .map(|edge| {
+                let pieces = edge.curve.pieces(edge.from, edge.to);
+                pieces
+                    .windows(2)
+                    .flat_map(|pair| [pair[0], (pair[0] + pair[1]) / 2.0])
+                    .chain(pieces.last().copied())
+                    .map(|t| edge.curve.point(t))
+                    .collect()
+            })
+            .collect()
+    };
+    let along_splines = along(|curve| matches!(curve, Curve::Spline(_)));
+    let along_parabolas = along(|curve| matches!(curve, Curve::Parabola { .. }));
+    let along_hyperbolas = along(|curve| matches!(curve, Curve::Hyperbola { .. }));
     Ok(Solid {
         faces: faces.len(),
         volume,
@@ -150,6 +158,8 @@ pub fn read(text: &str) -> Result<Solid, String> {
         low,
         high,
         along_splines,
+        along_parabolas,
+        along_hyperbolas,
     })
 }
 

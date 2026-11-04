@@ -28,6 +28,13 @@
 //!   `a_shaft_cut_at_a_slant_written_to_step_reads_back_as_one_closed_solid_of_its_volume`,
 //!   `an_elliptic_post_written_to_step_reads_back_as_one_closed_solid_of_its_volume`,
 //!   `a_part_drilled_from_the_side_written_to_step_reads_back_as_one_closed_solid_of_its_volume`;
+//!   the conic the slant cuts is an ellipse; a cone cut along a ruling cuts
+//!   a parabola and one cut steeper than its rulings a hyperbola, each on
+//!   its cone and its plane all along —
+//!   `a_cone_cut_along_a_ruling_written_to_step_reads_back_as_one_closed_solid_of_its_volume`,
+//!   `a_cone_cut_steeper_than_its_rulings_written_to_step_reads_back_as_one_closed_solid_of_its_volume`;
+//!   a cone widening along its axis as well as one narrowing —
+//!   `a_shaft_chamfered_at_its_foot_written_to_step_reads_back_as_one_closed_solid_of_its_volume`;
 //!   beyond the issue's list, since #576 brought them, a sphere and a torus —
 //!   `a_turned_ball_written_to_step_reads_back_as_one_closed_solid_of_its_volume`,
 //!   `a_turned_ring_written_to_step_reads_back_as_one_closed_solid_of_its_volume`;
@@ -151,6 +158,74 @@ fn chamfered_shaft() -> Body {
         DVec2::new(10.0, 0.0),
         DVec2::new(10.0, 28.0),
         DVec2::new(8.0, 30.0),
+        DVec2::new(0.0, 30.0),
+    ];
+    turned(corners.clone(), vec![Run::Straight; 5], corners)
+}
+
+/// A cone of radius 10 on the ground and height 20 along Y, its apex up:
+/// a right triangle turned about its upright side.
+fn cone() -> Body {
+    let corners = vec![
+        DVec2::new(0.0, 0.0),
+        DVec2::new(10.0, 0.0),
+        DVec2::new(0.0, 20.0),
+    ];
+    turned(corners.clone(), vec![Run::Straight; 3], corners)
+}
+
+/// How far `point` stands from the cone's wall, `r = 10 - y / 2`.
+fn off_the_cone(point: DVec3) -> f64 {
+    let across = DVec2::new(point.x, point.z).length();
+    (across - 10.0 + point.y / 2.0).abs() * 2.0 / 5f64.sqrt()
+}
+
+/// Everything of the cone on the far side of a plane through `origin`, its
+/// first direction `along` and its second Z, taken away.
+fn cone_cut(origin: DVec3, along: DVec3) -> Body {
+    let plane = Frame {
+        origin,
+        u: along,
+        v: DVec3::Z,
+    };
+    cone()
+        .difference(&raised(
+            Contour::rectangle(DVec2::splat(-40.0), DVec2::splat(40.0)),
+            plane,
+            30.0,
+        ))
+        .expect("the exact kernel cuts the cone")
+}
+
+/// The cone cut by the plane `2x + y = 10`, parallel to its ruling
+/// `(10 - y / 2, y, 0)`: the cut runs along a parabola from the base at
+/// `(5, 0, ±√75)` up to its vertex at `(-2.5, 15, 0)`.
+fn cone_cut_along_a_ruling() -> Body {
+    cone_cut(
+        DVec3::new(5.0, 0.0, 0.0),
+        DVec3::new(-1.0, 2.0, 0.0).normalize(),
+    )
+}
+
+fn off_the_plane_along_a_ruling(point: DVec3) -> f64 {
+    (2.0 * point.x + point.y - 10.0).abs() / 5f64.sqrt()
+}
+
+/// The cone cut by the plane `x = 4`, steeper than its rulings: the cut runs
+/// along a hyperbola from the base at `(4, 0, ±√84)` up to its vertex at
+/// `(4, 12, 0)`.
+fn cone_cut_steeper_than_its_rulings() -> Body {
+    cone_cut(DVec3::new(4.0, 0.0, 0.0), DVec3::Y)
+}
+
+/// The shaft of `chamfered_shaft` chamfered at its foot rather than its far
+/// end: its cone widens along Y where the other's narrows.
+fn shaft_chamfered_at_its_foot() -> Body {
+    let corners = vec![
+        DVec2::new(0.0, 0.0),
+        DVec2::new(8.0, 0.0),
+        DVec2::new(10.0, 2.0),
+        DVec2::new(10.0, 30.0),
         DVec2::new(0.0, 30.0),
     ];
     turned(corners.clone(), vec![Run::Straight; 5], corners)
@@ -359,6 +434,86 @@ fn a_chamfered_shaft_written_to_step_reads_back_as_one_closed_solid_of_its_volum
     assert!(
         text.contains("CONICAL_SURFACE"),
         "the chamfer is written on its cone"
+    );
+}
+
+#[test]
+fn a_shaft_chamfered_at_its_foot_written_to_step_reads_back_as_one_closed_solid_of_its_volume() {
+    let shaft = shaft_chamfered_at_its_foot();
+    let text = step::of(&shaft, 1.0).expect("the shaft is written");
+
+    reads_back_exact(&shaft, 1.0);
+    assert!(
+        text.contains("CONICAL_SURFACE"),
+        "the chamfer is written on its cone"
+    );
+}
+
+/// Every point of every conic edge of `kind` on both the cone and the plane
+/// that cut it, and the highest of them at the vertex `top`.
+fn conic_holds(
+    points: &[Vec<DVec3>],
+    off_the_plane: fn(DVec3) -> f64,
+    top: f64,
+    tolerance: f64,
+    kind: &str,
+) {
+    assert!(!points.is_empty(), "no {kind} is read from the file");
+    let all: Vec<DVec3> = points.iter().flatten().copied().collect();
+    for point in &all {
+        let off = off_the_cone(*point).max(off_the_plane(*point));
+        assert!(
+            off <= tolerance,
+            "a point of the {kind} stands {off} mm off the cone or the plane it is the meet of, \
+             the kernel's tolerance is {tolerance} mm: {point}"
+        );
+    }
+    let highest = all
+        .iter()
+        .map(|point| point.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+    assert!(
+        (highest - top).abs() <= tolerance,
+        "the {kind} rises to {highest}, its vertex stands at {top}"
+    );
+}
+
+#[test]
+fn a_cone_cut_along_a_ruling_written_to_step_reads_back_as_one_closed_solid_of_its_volume() {
+    let cut = cone_cut_along_a_ruling();
+    let text = step::of(&cut, 1.0).expect("the cut cone is written");
+
+    let solid = reads_back_exact(&cut, 1.0);
+    assert!(
+        text.contains("PARABOLA("),
+        "the cut is written as a parabola"
+    );
+    conic_holds(
+        &solid.along_parabolas,
+        off_the_plane_along_a_ruling,
+        15.0,
+        kernel_tolerance(&cut, 1.0),
+        "parabola",
+    );
+}
+
+#[test]
+fn a_cone_cut_steeper_than_its_rulings_written_to_step_reads_back_as_one_closed_solid_of_its_volume()
+ {
+    let cut = cone_cut_steeper_than_its_rulings();
+    let text = step::of(&cut, 1.0).expect("the cut cone is written");
+
+    let solid = reads_back_exact(&cut, 1.0);
+    assert!(
+        text.contains("HYPERBOLA("),
+        "the cut is written as a hyperbola"
+    );
+    conic_holds(
+        &solid.along_hyperbolas,
+        |point| (point.x - 4.0).abs(),
+        12.0,
+        kernel_tolerance(&cut, 1.0),
+        "hyperbola",
     );
 }
 

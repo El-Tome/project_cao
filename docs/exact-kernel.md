@@ -842,7 +842,12 @@ The decisions, in the order taken, once per operation:
    thousand random cases, but a block bored twice forty-eight tolerances
    apart is seen at a slant of a nineteenth, a line holding half again its
    room (the review of round 5). A merge the rules can see is a wrong
-   answer; two walls left two decline, at worst, in the band of 1-9.
+   answer; two walls left two decline, at worst, in the band of 1-9. Two
+   elliptic walls further apart than `G`, up to some ten thousand
+   tolerances — the same ellipse drawn again turned or moved by a hair —
+   are left two as well: their two nearly tangent crossings are what the
+   ellipses draw fails most after #574, and #677 decided not to widen the
+   merge for them, which would build wrong the parts refused today.
 
    What the lower hair costs, on five-minute campaigns of profiles, counted
    over the seeds both runs reached: from seed 80 500 000, against the 85

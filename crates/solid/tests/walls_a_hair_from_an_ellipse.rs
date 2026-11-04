@@ -22,6 +22,14 @@
 //! - what stays above the bar is written in `docs/exact-kernel-failures.md` —
 //!   no test: prose, the same section
 //!
+//! Closes #677.
+//! - the choice is written as decided in `docs/exact-kernel.md` (decision 8)
+//!   and in `docs/exact-kernel-failures.md` — no test: prose, held by
+//!   `language.rs` only
+//! - if the merge is widened or the crossings are built, the ellipses draw is
+//!   measured on fresh seeds against `main` — no test: neither is done, the
+//!   two walls are left two
+//!
 //! Each case is the shrunk case of a seed that broke a rule on `main`, of the
 //! ellipses' draw or, where its comment says so, of the crossed or the tilted
 //! draw.

@@ -7,10 +7,13 @@
 //! beside a curve, inside it where the curve is hollow towards the angle and
 //! outside where it bulges. An ellipse's offset is no ellipse and has no
 //! closed form, so the centre is found by Newton's method on where the two
-//! offsets meet, started from the fillet the sides' tangents alone would take:
-//! the one that grows out of the corner as the radius does. It fits when the
-//! places it touches lie on what is drawn of the sides, together with what
-//! the cuts at their other ends take.
+//! offsets meet. The fillet followed is the one that grows out of the corner
+//! as the radius does: one small enough for the sides' tangents alone to say
+//! where it touches is found first, and its radius doubled up to the one
+//! asked, each search starting where the last one ended — so a fillet far
+//! bigger than the curve beside it does not land on the other crossing. It
+//! fits when the places it touches lie on what is drawn of the sides,
+//! together with what the cuts at their other ends take.
 
 use std::f64::consts::{PI, TAU};
 
@@ -32,6 +35,15 @@ const MET: f64 = 1e-10;
 /// Under this share of a step, a step that brings the offsets no nearer is
 /// given up on: they are as near as the arithmetic takes them.
 const SHORTEST: f64 = 1.0 / 1024.0;
+
+/// How far back along the sides' tangents a fillet may touch, against the
+/// tightest bend of a side at the corner, for those tangents to be a good
+/// guess at where it touches the sides themselves.
+const GUESSED: f64 = 0.25;
+
+/// How many times at most a fillet's radius is doubled on its way out of the
+/// corner to the one asked.
+const DOUBLINGS: i32 = 16;
 
 /// How many times the search for the largest value that fits halves what is
 /// left to search: as many as a number carries digits.
@@ -188,7 +200,7 @@ fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64, tolerance: f64) ->
     });
     let back = radius / (opening * 0.5).tan();
     let room = runs.map(|run| run.room(tolerance));
-    let Some(at) = meeting(corner, runs, off, back) else {
+    let Some(at) = meeting(corner, runs, off, opening) else {
         let centre =
             corner + (leaving[0] + leaving[1]).normalize() * (radius / (opening * 0.5).sin());
         let touches = leaving.map(|away| corner + away * back);
@@ -214,16 +226,38 @@ fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64, tolerance: f64) ->
     })
 }
 
-/// Where on each side's path the places standing `off` it meet, searched
-/// from where they would stand `back` from the corner — nothing when they do
-/// not meet, or a fillet would have to stand inside a curve bending tighter
-/// than itself.
-fn meeting(corner: DVec2, runs: [Run; 2], off: [f64; 2], back: f64) -> Option<[f64; 2]> {
+/// Where on each side's path a fillet touches it whose centre stands `off`
+/// each path, between sides opening by `opening` at the corner — followed out
+/// of the corner from a fillet small enough for the tangents to say where it
+/// touches, its radius doubled up to the one asked. Nothing when a search
+/// fails on the way, or the fillet would have to stand inside a curve bending
+/// tighter than itself.
+fn meeting(corner: DVec2, runs: [Run; 2], off: [f64; 2], opening: f64) -> Option<[f64; 2]> {
     let radius = off[0].abs();
+    let tightest = runs
+        .iter()
+        .map(|run| run.path.bend(run.from))
+        .fold(f64::INFINITY, f64::min);
+    let back_of = |radius: f64| radius / (opening * 0.5).tan();
+    let doublings = (back_of(radius) / (tightest * GUESSED))
+        .log2()
+        .ceil()
+        .clamp(0.0, f64::from(DOUBLINGS)) as i32;
+    let mut at = runs.map(|run| run.first_guess(back_of(radius * 0.5_f64.powi(doublings))));
+    for doubling in (0..=doublings).rev() {
+        let share = 0.5_f64.powi(doubling);
+        at = searched(corner, runs, off.map(|off| off * share), at)?;
+    }
+    let tight = (0..2).any(|rank| off[rank] < 0.0 && radius >= runs[rank].path.bend(at[rank]));
+    (!tight).then_some(at)
+}
+
+/// Where on each side's path the places standing `off` it meet, by Newton's
+/// method from `at` — nothing when they do not come near enough.
+fn searched(corner: DVec2, runs: [Run; 2], off: [f64; 2], mut at: [f64; 2]) -> Option<[f64; 2]> {
     let centre_from = |rank: usize, at: f64| runs[rank].path.off_by(at, off[rank]);
     let miss = |at: [f64; 2]| centre_from(1, at[1]).0 - centre_from(0, at[0]).0;
-    let met = MET * (corner.length() + radius);
-    let mut at = runs.map(|run| run.first_guess(back));
+    let met = MET * (corner.length() + off[0].abs());
     'search: for _ in 0..STEPS {
         let gap = miss(at);
         if gap == DVec2::ZERO {
@@ -248,8 +282,7 @@ fn meeting(corner: DVec2, runs: [Run; 2], off: [f64; 2], back: f64) -> Option<[f
             }
         }
     }
-    let tight = (0..2).any(|rank| off[rank] < 0.0 && radius >= runs[rank].path.bend(at[rank]));
-    (miss(at).length() <= met && !tight).then_some(at)
+    (miss(at).length() <= met).then_some(at)
 }
 
 impl Run {

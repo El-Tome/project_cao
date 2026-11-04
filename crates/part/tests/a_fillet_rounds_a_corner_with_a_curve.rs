@@ -8,7 +8,9 @@
 //! - A fillet rounds the corner between a trait and an arc, and between two
 //!   arcs, tangent to both —
 //!   `a_fillet_rounds_the_corner_between_a_trait_and_an_arc_tangent_to_both`,
-//!   `a_fillet_rounds_the_corner_between_two_arcs_tangent_to_both`; the tool
+//!   `a_fillet_rounds_the_corner_between_two_arcs_tangent_to_both`, and a
+//!   fillet far bigger than the arc still stands at the corner —
+//!   `a_fillet_much_bigger_than_the_arc_beside_it_still_stands_at_the_corner`; the tool
 //!   naming such a corner by its point or by its sides is held in `cao_app` by
 //!   `a_click_on_the_point_a_trait_and_an_arc_end_at_names_both_its_sides` and
 //!   `a_click_on_an_arc_away_from_its_ends_names_that_side`
@@ -990,4 +992,113 @@ fn a_fillet_beside_an_arc_that_no_longer_fits_raises_the_sharp_corner() {
         raised(&sharp, inside),
         "the plate is raised with its sharp corner",
     );
+}
+
+/// The one fillet the drawing shows, fitting or not, and whether it fits.
+fn the_fillet_drawn(history: &History, what: &str) -> (ArcDraft, bool) {
+    let drawn = PartState::rebuild(history).sketches[0].drawn_cuts();
+    assert_eq!(drawn.len(), 1, "{what}: the corner takes its fillet");
+    match drawn[0].curve {
+        CutCurve::Arc(arc) => (arc, drawn[0].fits),
+        CutCurve::Straight { .. } => panic!("{what}: a fillet is drawn as an arc"),
+    }
+}
+
+#[test]
+fn a_fillet_much_bigger_than_the_arc_beside_it_still_stands_at_the_corner() {
+    let corner = DVec2::new(10.0, 10.0);
+    let centre = DVec2::new(2.0, 10.0);
+    let mut sharp = a_corner_at(corner);
+    a_trait(
+        &mut sharp,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(50.0, 10.0)),
+    );
+    an_arc(
+        &mut sharp,
+        centre,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(2.0, 18.0)),
+    );
+
+    let mut thirteen = sharp.clone();
+    round(&mut thirteen, Corner::At(THE_CORNER), 13.0);
+    let what = "a fillet of thirteen beside an arc of eight";
+    let (fillet, fits) = the_fillet_drawn(&thirteen, what);
+    let across = 272.0_f64.sqrt();
+    assert_drawn_as(
+        fillet,
+        13.0,
+        DVec2::new(2.0 + across, 23.0),
+        [
+            DVec2::new(2.0 + across, 10.0),
+            centre + DVec2::new(across, 13.0) * (8.0 / 21.0),
+        ],
+        what,
+    );
+    assert!(
+        fits,
+        "{what}: both touches lie on the sides drawn, and it fits"
+    );
+
+    for half in 1..=40 {
+        let radius = f64::from(half) * 0.5;
+        let what = format!("a fillet of {radius} beside an arc of eight");
+        let mut history = sharp.clone();
+        round(&mut history, Corner::At(THE_CORNER), radius);
+        let (fillet, fits) = the_fillet_drawn(&history, &what);
+        near(
+            fillet.centre.y - 10.0,
+            radius,
+            &format!("{what}: its centre a radius above the trait"),
+        );
+        near(
+            fillet.centre.distance(centre),
+            8.0 + radius,
+            &format!("{what}: its centre the arc's radius and its own from the arc's centre"),
+        );
+        near(
+            fillet.centre.x,
+            2.0 + (64.0 + 16.0 * radius).sqrt(),
+            &format!(
+                "{what}: its centre on the crossing near the corner, whose touch lies on \
+                 the arc drawn, not the one past the arc's centre"
+            ),
+        );
+        assert!(fits, "{what}: it fits");
+    }
+
+    let mut arrowhead = a_corner_at(DVec2::new(0.0, 5.0));
+    an_arc(
+        &mut arrowhead,
+        DVec2::new(12.0, 0.0),
+        PointRef::New(DVec2::new(12.0, 13.0)),
+        PointRef::Existing(THE_CORNER),
+    );
+    an_arc(
+        &mut arrowhead,
+        DVec2::new(-12.0, 0.0),
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(-12.0, 13.0)),
+    );
+    for whole in 1..=40 {
+        let radius = f64::from(whole);
+        let what = format!("a fillet of {radius} between two arcs of thirteen bulging towards it");
+        let mut history = arrowhead.clone();
+        round(
+            &mut history,
+            Corner::Between(ArcId(0).into(), ArcId(1).into()),
+            radius,
+        );
+        let (fillet, fits) = the_fillet_drawn(&history, &what);
+        near_place(
+            fillet.centre,
+            DVec2::new(0.0, ((13.0 + radius).powi(2) - 144.0).sqrt()),
+            &format!(
+                "{what}: its centre above the corner, the arcs' radius and its own from \
+                 both their centres, not below them"
+            ),
+        );
+        assert!(fits, "{what}: it fits");
+    }
 }

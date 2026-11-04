@@ -1,9 +1,10 @@
 //! The names a body's edges and vertices answer to (#582), built from the
-//! numbers of the faces they lie between and, where those meet more than
-//! once, from what meets them at their ends, read along the loops: what a
-//! move, a turn or a change of size that keeps the topology leaves alone.
-//! Where nothing topological tells two apart, where they lie in the world
-//! does, within the body's tolerance.
+//! numbers of the faces they lie between and from what meets them at their
+//! ends, read along the loops: what a move, a turn or a change of size that
+//! keeps the topology leaves alone. Where nothing topological tells two
+//! apart, where they lie in the world does, within the body's tolerance.
+
+mod found;
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -11,21 +12,22 @@ use std::collections::BTreeMap;
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
+use super::curve::Curve;
 use super::topology::{Body, EdgeId, FaceId, VertexId, ascending};
 
 /// The sides of the faces met at each end of an edge, other than its own two,
 /// from where it starts to where it ends along its first side's loop.
 type Ends = [Vec<Vec<u32>>; 2];
 
-/// An edge, as the sides of the two faces using it, the smaller first; where
-/// those two meet more than once, what meets it at its `ends`; and its rank
+/// An edge, as the sides of the two faces using it, the smaller first; what
+/// meets it at its `ends`, both empty for a whole closed edge; and its rank
 /// among the `of` edges alike in both, which only where they lie tells
 /// apart. A side is a face's numbers, each taken back to the number of the
 /// face it was parted from.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct EdgeName {
     pub between: [Vec<u32>; 2],
-    pub ends: Option<[Vec<Vec<u32>>; 2]>,
+    pub ends: [Vec<Vec<u32>>; 2],
     pub rank: u32,
     pub of: u32,
 }
@@ -33,46 +35,15 @@ pub struct EdgeName {
 /// What a name no longer finds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Lost {
-    /// No edge lies where it did: its two sides no longer meet, or meet
-    /// elsewhere, or fewer edges are alike in what it recorded than it was
-    /// ranked among.
+    /// No edge is the one named: its two sides no longer meet, or meet with
+    /// both its ends moved, or fewer edges are alike in what it recorded than
+    /// it was ranked among, or more than one keeps an end of it.
     Gone,
-    /// It went on in pieces: its sides meet more than they did, or one edge
-    /// starts where it started and another ends where it ended, `now` edges
-    /// between its two sides in all.
+    /// It went on in pieces: more edges are alike in what it recorded than
+    /// it was ranked among, or one edge starts where it started and another
+    /// ends where it ended. `now` counts the edges between its two sides,
+    /// not its pieces alone.
     Split { now: u32 },
-}
-
-impl EdgeName {
-    /// What the name no longer finds among the ends of the edges now
-    /// between its two sides: nothing when they still say which one it is.
-    fn lost_among(&self, siblings: &[Ends]) -> Option<Lost> {
-        let split = Some(Lost::Split {
-            now: siblings.len() as u32,
-        });
-        let Some(ends) = &self.ends else {
-            return match siblings.len() {
-                0 => Some(Lost::Gone),
-                1 => None,
-                _ => split,
-            };
-        };
-        let ties = siblings.iter().filter(|other| *other == ends).count() as u32;
-        match ties.cmp(&self.of) {
-            Ordering::Equal => None,
-            Ordering::Greater => split,
-            Ordering::Less if ties > 0 => Some(Lost::Gone),
-            Ordering::Less => {
-                let starts = siblings.iter().any(|other| other[0] == ends[0]);
-                let finishes = siblings.iter().any(|other| other[1] == ends[1]);
-                if starts && finishes {
-                    split
-                } else {
-                    Some(Lost::Gone)
-                }
-            }
-        }
-    }
 }
 
 /// A vertex, as the sides of every face at it, ascending; where another
@@ -86,6 +57,9 @@ pub struct VertexName {
     pub rank: u32,
     pub of: u32,
 }
+
+/// How many points along a whole closed edge where it lies is read from.
+const STEPS: u32 = 16;
 
 impl Body {
     /// The name of each edge, by the edge's rank, every number its own root.
@@ -111,21 +85,6 @@ impl Body {
         let vertices = reading.vertex_names(&edges);
         (edges, vertices)
     }
-
-    /// What a name no longer finds in the body, every number taken to its
-    /// `root`. Read off the edges themselves rather than their names: an
-    /// edge now alone between its two sides is named without its ends, and
-    /// they are what tell whether it is the one.
-    pub(crate) fn lost_rooted(&self, name: &EdgeName, root: impl Fn(u32) -> u32) -> Option<Lost> {
-        let reading = Reading::of(self, root);
-        let siblings: Vec<Ends> = self
-            .edge_ids()
-            .map(|edge| reading.edge(edge))
-            .filter(|read| read.between == name.between)
-            .map(|read| read.ends)
-            .collect();
-        name.lost_among(&siblings)
-    }
 }
 
 /// What the names are read from, in one pass over the faces' loops: the side
@@ -138,11 +97,11 @@ struct Reading<'a> {
 }
 
 /// An edge as its name is read: the sides it lies between, what meets it at
-/// its ends, and its middle.
+/// its ends, and where it lies.
 struct EdgeRead {
     between: [Vec<u32>; 2],
     ends: Ends,
-    middle: DVec3,
+    point: DVec3,
 }
 
 impl<'a> Reading<'a> {
@@ -204,39 +163,51 @@ impl<'a> Reading<'a> {
             sides.retain(|side| !between.contains(side));
             sides
         };
-        let stretch = self.body.edge(edge);
-        let ends = match stretch.ends {
+        let ends = match self.body.edge(edge).ends {
             Some([from, to]) if backward => [around(to), around(from)],
             Some([from, to]) => [around(from), around(to)],
             None => Default::default(),
         };
-        let middle = self.body.point_on(edge, (stretch.from + stretch.to) / 2.0);
         EdgeRead {
             between,
             ends,
-            middle,
+            point: self.place(edge),
+        }
+    }
+
+    /// Where an edge lies, read off its curve and its vertices alone, not
+    /// off the stretch it was built with: halfway between its vertices, or
+    /// for a whole closed edge the mean of points at even steps over one
+    /// period from the curve's own origin.
+    fn place(&self, edge: EdgeId) -> DVec3 {
+        let stretch = self.body.edge(edge);
+        let curve = self.body.curve(stretch.curve);
+        if let Some(ends) = stretch.ends {
+            let [from, to] =
+                ends.map(|end| self.body.parameter_on(edge, self.body.vertex(end).point));
+            return curve.point((from + to) / 2.0);
+        }
+        match curve.period() {
+            Some(period) => mean_along(curve, period),
+            None => curve.point((stretch.from + stretch.to) / 2.0),
         }
     }
 
     fn edge_names(&self) -> Vec<EdgeName> {
         let read: Vec<EdgeRead> = self.body.edge_ids().map(|edge| self.edge(edge)).collect();
-        let meetings = counted(read.iter().map(|each| &each.between));
         let alike: Vec<_> = read
             .iter()
-            .map(|each| {
-                let ends = (meetings[&each.between] > 1).then_some(&each.ends);
-                (&each.between, ends)
-            })
+            .map(|each| (&each.between, &each.ends))
             .collect();
         let ranks = ranked(&alike, |one, other| {
-            self.placed(read[one].middle, read[other].middle)
+            self.placed(read[one].point, read[other].point)
         });
         alike
             .into_iter()
             .zip(ranks)
             .map(|((between, ends), (rank, of))| EdgeName {
                 between: between.clone(),
-                ends: ends.cloned(),
+                ends: ends.clone(),
                 rank,
                 of,
             })
@@ -295,6 +266,14 @@ impl<'a> Reading<'a> {
     }
 }
 
+/// The mean of points along a closed curve at even steps over one period,
+/// from its parameter nought.
+fn mean_along(curve: &Curve, period: f64) -> DVec3 {
+    let step = period / f64::from(STEPS);
+    let points = (0..STEPS).map(|index| curve.point(step * f64::from(index)));
+    points.sum::<DVec3>() / f64::from(STEPS)
+}
+
 /// How many times each key comes.
 fn counted<K: Ord>(keys: impl Iterator<Item = K>) -> BTreeMap<K, u32> {
     let mut counts = BTreeMap::new();
@@ -311,18 +290,23 @@ fn ranked<G: Ord>(alike: &[G], order: impl Fn(usize, usize) -> Ordering) -> Vec<
     sorted.sort_by(|&one, &other| alike[one].cmp(&alike[other]));
     let mut ranks = vec![(0, 0); alike.len()];
     for run in sorted.chunk_by_mut(|&one, &other| alike[one] == alike[other]) {
-        // By insertion rather than `sort_by`: an order read to within a
-        // tolerance is not transitive, which `sort_by` may panic on.
-        for next in 1..run.len() {
-            let mut at = next;
-            while at > 0 && order(run[at], run[at - 1]).is_lt() {
-                run.swap(at, at - 1);
-                at -= 1;
-            }
-        }
+        ordered(run, &order);
         for (rank, &item) in run.iter().enumerate() {
             ranks[item] = (rank as u32, run.len() as u32);
         }
     }
     ranks
+}
+
+/// The items put in `order`, the first of two it holds equal kept first.
+fn ordered(items: &mut [usize], order: impl Fn(usize, usize) -> Ordering) {
+    // By insertion rather than `sort_by`: an order read to within a
+    // tolerance is not transitive, which `sort_by` may panic on.
+    for next in 1..items.len() {
+        let mut at = next;
+        while at > 0 && order(items[at], items[at - 1]).is_lt() {
+            items.swap(at, at - 1);
+            at -= 1;
+        }
+    }
 }

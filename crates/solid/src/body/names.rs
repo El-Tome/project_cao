@@ -22,9 +22,9 @@ impl Body {
         }
     }
 
-    /// What a name no longer finds in the body: nothing when its faces, and
-    /// where they meet more than once its ends, still say which edge it is.
-    /// On flats, which name no edge, every name is gone.
+    /// What became of the edge a name was given to: nothing when the body
+    /// still finds it, by its faces and its ends. On flats, which name no
+    /// edge, every name is gone.
     pub fn lost(&self, name: &EdgeName) -> Option<Lost> {
         match &self.matter {
             Matter::Exact(exact) => exact.lost(name),

@@ -186,10 +186,13 @@ impl Exact {
         &self.vertices
     }
 
-    /// What a name no longer finds among the edges between its two sides.
+    /// What became of the edge a name was given to, when the body no longer
+    /// finds it.
     pub fn lost(&self, name: &EdgeName) -> Option<Lost> {
-        self.brep
-            .lost_rooted(name, |number| root(&self.roots, number))
+        let found = self
+            .brep
+            .find_rooted(name, |number| root(&self.roots, number));
+        found.err()
     }
 
     /// The exact volume, or the volume the body is drawn with should

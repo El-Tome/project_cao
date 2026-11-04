@@ -707,7 +707,11 @@ fn an_exact_body_s_edge_and_vertex_names_come_back_from_the_cache_as_the_replay_
     let (edges, vertices) = (part.body().edge_names(), part.body().vertex_names());
     assert!(part.body().is_exact(), "the exact kernel built the part");
     assert!(
-        edges.iter().any(|name| name.ends.is_some()),
+        edges.iter().any(|name| edges
+            .iter()
+            .filter(|other| other.between == name.between)
+            .count()
+            > 1),
         "the floor's two pieces answer to the floor, and meet the front and \
          the back twice each: {edges:?}",
     );

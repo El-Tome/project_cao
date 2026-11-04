@@ -1,12 +1,14 @@
 //! Every edge and every vertex of an exact body is named from the numbers of
 //! the faces it lies between (#582), so that a step pointing at one finds it
 //! again once a size changes. An edge answers to the sides of its two faces
-//! and, where those two meet more than once, to the faces at its ends, read
-//! along the first side's loop, which a move, a turn or a change of size
-//! leaves alone; a vertex answers to the sides of every face at it and, where
-//! another vertex shares them, to the names of the edges ending there. What
-//! nothing topological tells apart, a ball's two poles, is ranked by where it
-//! lies, read in the world to within the body's tolerance.
+//! and to the faces met at its ends, read along the first side's loop, which
+//! a move, a turn or a change of size leaves alone; a vertex answers to the
+//! sides of every face at it and, where another vertex shares them, to the
+//! names of the edges ending there. What nothing topological tells apart, a
+//! ball's two poles or the two rims of a cross-bore, is ranked by where it
+//! lies, read in the world to within the body's tolerance. A name is found as
+//! a face is, by a number its sides share, and on one end kept when a cut has
+//! moved the other; both ends moved, it is gone.
 //!
 //! The slot is milled across a block's top from its front to its back, which
 //! leaves the top in two pieces: its width stands for the diameter of a hole.
@@ -32,6 +34,7 @@
 //!   `four_vertices_where_a_post_meets_a_block_s_back_keep_their_names_through_a_change_of_size_a_move_and_a_turn`,
 //!   and two that nothing topological tells apart by
 //!   `a_ball_s_two_poles_keep_their_names_through_a_move_though_rounding_leaves_them_either_side_of_a_coordinate_plane`
+//!   and `the_two_rims_of_a_cross_bore_through_a_shaft_keep_their_names_through_a_change_of_size_and_a_move`
 //! - A change that splits or removes an edge is reported for that edge —
 //!   `an_edge_a_later_cut_parts_in_two_is_reported_split_into_its_pieces`,
 //!   `an_edge_a_later_cut_parts_along_with_its_face_is_reported_split_rather_than_kept_on_its_first_piece`,
@@ -40,6 +43,10 @@
 //!   `a_notch_moved_across_a_slot_reports_the_edge_it_bounded_rather_than_finding_another`,
 //!   `a_notch_cut_on_one_side_of_a_slot_leaves_the_edge_on_the_other_side_found`,
 //!   `an_edge_alone_between_its_faces_is_still_found_when_a_cut_moves_its_end`,
+//!   `an_edge_whose_two_ends_a_change_replaces_is_reported_gone_rather_than_found_on_the_far_side`,
+//!   `an_edge_of_a_face_a_later_join_merges_flush_is_still_found`,
+//!   `an_edge_among_several_whose_one_end_a_cut_moves_is_still_found_on_its_own_piece`,
+//!   `a_cross_bore_that_no_longer_comes_out_reports_both_its_rims_gone`,
 //!   `every_name_is_reported_gone_on_a_part_the_flats_computed`
 //! - The names are written in the body, read back from the geometry cache,
 //!   and replayed the same — no test: held by
@@ -207,25 +214,25 @@ fn sides(faces: &[&[u32]]) -> Vec<Vec<u32>> {
     faces.iter().map(|side| side.to_vec()).collect()
 }
 
-/// The name of the one edge between two sides, which the faces alone name.
-fn alone(first: &[u32], second: &[u32]) -> EdgeName {
+/// The name of an edge: the sides of its two faces, and the faces met at
+/// its ends, where it starts and where it ends along the first side's loop.
+fn edge(first: &[u32], second: &[u32], start: &[&[u32]], end: &[&[u32]]) -> EdgeName {
     EdgeName {
         between: [first.to_vec(), second.to_vec()],
-        ends: None,
+        ends: [sides(start), sides(end)],
         rank: 0,
         of: 1,
     }
 }
 
-/// The name of an edge between two sides that meet more than once, told
-/// apart by the faces at its ends: where it starts and where it ends, along
-/// the first side's loop.
-fn ended(first: &[u32], second: &[u32], start: &[&[u32]], end: &[&[u32]]) -> EdgeName {
+/// The name of the `rank`th of `of` whole closed edges between two sides,
+/// which have no end to be told apart by.
+fn closed(first: &[u32], second: &[u32], rank: u32, of: u32) -> EdgeName {
     EdgeName {
         between: [first.to_vec(), second.to_vec()],
-        ends: Some([sides(start), sides(end)]),
-        rank: 0,
-        of: 1,
+        ends: [Vec::new(), Vec::new()],
+        rank,
+        of,
     }
 }
 
@@ -251,22 +258,13 @@ fn vertex_ending(faces: &[&[u32]], mut edges: Vec<EdgeName>) -> VertexName {
     }
 }
 
-/// Holds that names tell every edge apart: none given twice, an edge's ends
-/// written only where its two sides meet more than once, and the edges alike
-/// in both ranked from nought to as many as there are.
+/// Holds that names tell every edge apart: none given twice, and the edges
+/// alike in their sides and their ends ranked from nought to as many as
+/// there are.
 fn told_apart(names: &[EdgeName]) {
     let distinct: BTreeSet<&EdgeName> = names.iter().collect();
     assert_eq!(distinct.len(), names.len(), "a name given twice: {names:?}");
     for name in names {
-        let between = names
-            .iter()
-            .filter(|other| other.between == name.between)
-            .count();
-        assert_eq!(
-            name.ends.is_none(),
-            between == 1,
-            "{name:?} among {names:?}"
-        );
         let alike = names
             .iter()
             .filter(|other| other.between == name.between && other.ends == name.ends)
@@ -331,6 +329,13 @@ fn named_vertex(body: &brep::Body, name: &VertexName) -> DVec3 {
     body.vertex(carrying[0]).point
 }
 
+/// The edge the body finds for a name, which a step pointing at it would
+/// take.
+fn found(body: &brep::Body, name: &EdgeName) -> EdgeId {
+    body.find(name)
+        .unwrap_or_else(|lost| panic!("{name:?} not found: {lost:?}"))
+}
+
 /// The point halfway along an edge.
 fn middle(body: &brep::Body, edge: EdgeId) -> DVec3 {
     let stretch = body.edge(edge);
@@ -374,18 +379,18 @@ const BLOCK_RESIZED: [f64; 3] = [42.0, 14.0, 6.0];
 #[test]
 fn a_block_s_edges_and_vertices_keep_their_names_through_a_change_of_size_and_a_move() {
     let edges = [
-        alone(&[0], &[2]),
-        alone(&[0], &[3]),
-        alone(&[0], &[4]),
-        alone(&[0], &[5]),
-        alone(&[1], &[2]),
-        alone(&[1], &[3]),
-        alone(&[1], &[4]),
-        alone(&[1], &[5]),
-        alone(&[2], &[3]),
-        alone(&[2], &[5]),
-        alone(&[3], &[4]),
-        alone(&[4], &[5]),
+        edge(&[0], &[2], &[&[3]], &[&[5]]),
+        edge(&[0], &[3], &[&[4]], &[&[2]]),
+        edge(&[0], &[4], &[&[5]], &[&[3]]),
+        edge(&[0], &[5], &[&[2]], &[&[4]]),
+        edge(&[1], &[2], &[&[5]], &[&[3]]),
+        edge(&[1], &[3], &[&[2]], &[&[4]]),
+        edge(&[1], &[4], &[&[3]], &[&[5]]),
+        edge(&[1], &[5], &[&[4]], &[&[2]]),
+        edge(&[2], &[3], &[&[0]], &[&[1]]),
+        edge(&[2], &[5], &[&[1]], &[&[0]]),
+        edge(&[3], &[4], &[&[0]], &[&[1]]),
+        edge(&[4], &[5], &[&[0]], &[&[1]]),
     ];
     let vertices = [
         vertex_alone(&[&[0], &[2], &[3]]),
@@ -416,7 +421,7 @@ fn a_block_s_named_edge_and_corner_follow_the_block_through_a_change_of_size_and
     ] {
         let [length, breadth, height] = size;
         let body = exactly(&block(size), frame);
-        let top_right = named_edge(&body, &alone(&[1], &[3]));
+        let top_right = named_edge(&body, &edge(&[1], &[3], &[&[2]], &[&[4]]));
         near(
             middle(&body, top_right),
             placed(frame, [length, breadth / 2.0, height]),
@@ -470,10 +475,10 @@ const BORED_NARROWER: Bored = Bored { hole: 3.0, ..BORED };
 fn a_bored_cylinder_s_edges_keep_their_names_through_a_change_of_size_a_move_and_a_change_of_hole_diameter()
  {
     let edges = [
-        alone(&[0], &[2]),
-        alone(&[0], &[5]),
-        alone(&[1], &[2]),
-        alone(&[1], &[5]),
+        closed(&[0], &[2], 0, 1),
+        closed(&[0], &[5], 0, 1),
+        closed(&[1], &[2], 0, 1),
+        closed(&[1], &[5], 0, 1),
     ];
     for (label, body) in [
         ("as drawn", part(&bored(&BORED), ground())),
@@ -500,7 +505,7 @@ fn a_bored_cylinder_s_named_hole_rim_follows_the_hole_through_a_change_of_size_a
         ("with a narrower hole", &BORED_NARROWER, ground()),
     ] {
         let body = exactly(&bored(sizes), frame);
-        let rim = named_edge(&body, &alone(&[1], &[5]));
+        let rim = named_edge(&body, &closed(&[1], &[5], 0, 1));
         on_circle(
             middle(&body, rim),
             placed(frame, [sizes.off, 0.0, sizes.height]),
@@ -627,7 +632,7 @@ fn a_chamfered_shaft_s_named_edge_follows_its_chamfer_through_a_change_of_size_a
         ("moved", &SHAFT, lying(ELSEWHERE)),
     ] {
         let body = shaft_exactly(sizes, frame);
-        let foot = named_edge(&body, &alone(&[1], &[2]));
+        let foot = named_edge(&body, &closed(&[1], &[2], 0, 1));
         on_circle(
             middle(&body, foot),
             placed(frame, [sizes.length - sizes.chamfer, 0.0, 0.0]),
@@ -703,8 +708,8 @@ fn a_slot_s_edges_and_vertices_keep_their_names_through_a_change_of_size_a_move_
     for apart in [
         left_of_the_slot(),
         right_of_the_slot(),
-        ended(&[1], &[4], &[&[3]], &[&[9]]),
-        ended(&[1], &[4], &[&[11]], &[&[5]]),
+        edge(&[1], &[4], &[&[3]], &[&[9]]),
+        edge(&[1], &[4], &[&[11]], &[&[5]]),
     ] {
         assert!(names.contains(&apart), "{apart:?} among {names:?}");
     }
@@ -794,12 +799,12 @@ fn posted_versions() -> [(&'static str, &'static Posted, Frame); 5] {
 
 /// The ruling the back's loop runs up, from the floor to the post's top.
 fn rising() -> EdgeName {
-    ended(&[4], &[8], &[&[0, 6]], &[&[7]])
+    edge(&[4], &[8], &[&[0, 6]], &[&[7]])
 }
 
 /// The ruling the back's loop runs down, from the post's top to the floor.
 fn falling() -> EdgeName {
-    ended(&[4], &[8], &[&[7]], &[&[0, 6]])
+    edge(&[4], &[8], &[&[7]], &[&[0, 6]])
 }
 
 #[test]
@@ -827,13 +832,18 @@ fn four_vertices_where_a_post_meets_a_block_s_back_keep_their_names_through_a_ch
  {
     let foot = [&[0, 6][..], &[4], &[8]];
     let head = [&[4][..], &[7], &[8]];
-    let round_the_foot = alone(&[0, 6], &[8]);
-    let under_the_head = || vec![alone(&[4], &[7]), alone(&[7], &[8])];
+    let round_the_foot = edge(&[0, 6], &[8], &[&[4]], &[&[4]]);
+    let under_the_head = || {
+        vec![
+            edge(&[4], &[7], &[&[8]], &[&[8]]),
+            edge(&[7], &[8], &[&[4]], &[&[4]]),
+        ]
+    };
     let names = [
         vertex_ending(
             &foot,
             vec![
-                ended(&[0, 6], &[4], &[&[5]], &[&[8]]),
+                edge(&[0, 6], &[4], &[&[5]], &[&[8]]),
                 round_the_foot.clone(),
                 falling(),
             ],
@@ -841,7 +851,7 @@ fn four_vertices_where_a_post_meets_a_block_s_back_keep_their_names_through_a_ch
         vertex_ending(
             &foot,
             vec![
-                ended(&[0, 6], &[4], &[&[8]], &[&[3]]),
+                edge(&[0, 6], &[4], &[&[8]], &[&[3]]),
                 round_the_foot,
                 rising(),
             ],
@@ -871,7 +881,7 @@ fn four_vertices_where_a_post_meets_a_block_s_back_keep_their_names_through_a_ch
 /// The edge between a block's top and its front, as the block alone names
 /// it.
 fn top_front() -> EdgeName {
-    alone(&[1], &[2])
+    edge(&[1], &[2], &[&[5]], &[&[3]])
 }
 
 /// The block with a notch cut into the edge between its top and its front,
@@ -908,12 +918,12 @@ const SLOTTED_PAST_THE_END: Slotted = Slotted {
 
 /// The edge between the top and the front from the left side to the slot.
 fn left_of_the_slot() -> EdgeName {
-    ended(&[1], &[2], &[&[5]], &[&[11]])
+    edge(&[1], &[2], &[&[5]], &[&[11]])
 }
 
 /// The edge between the top and the front from the slot to the right side.
 fn right_of_the_slot() -> EdgeName {
-    ended(&[1], &[2], &[&[9]], &[&[3]])
+    edge(&[1], &[2], &[&[9]], &[&[3]])
 }
 
 /// The slot, then a notch three wide cut into the edge between the top and
@@ -974,7 +984,7 @@ fn an_edge_a_later_cut_parts_along_with_its_face_is_reported_split_rather_than_k
         trenched.has_face(12) && !drawn.has_face(12),
         "the slot leaves the top in two pieces, the second numbered afresh"
     );
-    for name in [top_front(), alone(&[1], &[4])] {
+    for name in [top_front(), edge(&[1], &[4], &[&[3]], &[&[5]])] {
         assert!(drawn.edge_names().contains(&name), "{name:?}");
         assert_eq!(
             trenched.lost(&name),
@@ -1005,6 +1015,13 @@ fn an_edge_a_later_cut_takes_away_is_reported_gone() {
         past_the_end.lost(&left),
         None,
         "the edge from the left side to the slot is still there"
+    );
+    let body = exactly(&slotted(&SLOTTED_PAST_THE_END), ground());
+    let [_, _, height] = SLOTTED_PAST_THE_END.block;
+    near(
+        middle(&body, found(&body, &left)),
+        placed(ground(), [SLOTTED_PAST_THE_END.from / 2.0, 0.0, height]),
+        "the edge found from the left side to the slot",
     );
 }
 
@@ -1090,7 +1107,7 @@ fn every_name_is_reported_gone_on_a_part_the_flats_computed() {
 fn a_notch_moved_across_a_slot_reports_the_edge_it_bounded_rather_than_finding_another() {
     let (_, notch_s_right_wall) = notch_walls();
     let notched_left = part(&slotted_and_notched(3.0), ground());
-    let from_the_notch_to_the_slot = ended(&[1], &[2], &[&[notch_s_right_wall]], &[&[11]]);
+    let from_the_notch_to_the_slot = edge(&[1], &[2], &[&[notch_s_right_wall]], &[&[11]]);
     let names = notched_left.edge_names();
     assert!(
         names.contains(&from_the_notch_to_the_slot),
@@ -1117,6 +1134,12 @@ fn a_notch_cut_on_one_side_of_a_slot_leaves_the_edge_on_the_other_side_found() {
         None,
         "the edge from the left side to the slot is untouched"
     );
+    let body = exactly(&slotted_and_notched(24.0), ground());
+    near(
+        middle(&body, found(&body, &left)),
+        placed(ground(), [SLOTTED.from / 2.0, 0.0, SLOTTED.block[2]]),
+        "the edge found from the left side to the slot",
+    );
     assert_eq!(
         notched.lost(&right),
         Some(Lost::Split { now: 3 }),
@@ -1126,14 +1149,21 @@ fn a_notch_cut_on_one_side_of_a_slot_leaves_the_edge_on_the_other_side_found() {
 
 #[test]
 fn an_edge_alone_between_its_faces_is_still_found_when_a_cut_moves_its_end() {
-    let cornered = part(&cornered(), ground());
+    let steps = cornered();
+    let cornered = part(&steps, ground());
     assert_eq!(
         cornered.lost(&top_front()),
         None,
         "the top and the front still meet once"
     );
+    let body = exactly(&steps, ground());
+    near(
+        middle(&body, found(&body, &top_front())),
+        placed(ground(), [13.5, 0.0, BLOCK[2]]),
+        "the edge found between the top and the front, from the left side to the cut",
+    );
     assert_eq!(
-        cornered.lost(&alone(&[2], &[3])),
+        cornered.lost(&edge(&[2], &[3], &[&[0]], &[&[1]])),
         Some(Lost::Gone),
         "the front and the right side no longer meet"
     );
@@ -1205,5 +1235,155 @@ fn a_ball_s_two_poles_keep_their_names_through_a_move_though_rounding_leaves_the
                 &format!("{pole:?}, {label}"),
             );
         }
+    }
+}
+
+/// The block with a notch cut into the edge between its top and its front,
+/// from `from` to `to` along it, three deep.
+fn notched_between(from: f64, to: f64) -> Vec<Raise> {
+    let mut steps = block(BLOCK);
+    steps.push(cut(
+        Contour::rectangle(DVec2::new(from, -1.0), DVec2::new(to, 3.0)),
+        7.0,
+        4.0,
+    ));
+    steps
+}
+
+#[test]
+fn an_edge_whose_two_ends_a_change_replaces_is_reported_gone_rather_than_found_on_the_far_side() {
+    let stub = edge(&[1], &[2], &[&[5]], &[&[11]]);
+    let names = part(&notched_between(10.0, 31.0), ground()).edge_names();
+    assert!(names.contains(&stub), "{stub:?} among {names:?}");
+    let widened = part(&notched_between(-1.0, 20.0), ground());
+    let left = widened.edge_names();
+    assert_eq!(
+        left.iter()
+            .filter(|name| name.between == stub.between)
+            .count(),
+        1,
+        "the top and the front still meet once, at the far end: {left:?}"
+    );
+    assert_eq!(
+        widened.lost(&stub),
+        Some(Lost::Gone),
+        "the edge from the left side to the notch is gone, and the stub from \
+         the notch to the right side, both its ends other faces, is not it"
+    );
+}
+
+#[test]
+fn an_edge_of_a_face_a_later_join_merges_flush_is_still_found() {
+    let floor_front = edge(&[0], &[2], &[&[3]], &[&[5]]);
+    let names = part(&block(BLOCK), ground()).edge_names();
+    assert!(
+        names.contains(&floor_front),
+        "{floor_front:?} among {names:?}"
+    );
+    let posted_part = part(&posted(&POSTED), ground());
+    let merged = posted_part.edge_names();
+    assert!(
+        merged.contains(&edge(&[0, 6], &[2], &[&[3]], &[&[5]])),
+        "the post's floor joins the block's, and the floor answers to both: {merged:?}"
+    );
+    assert_eq!(
+        posted_part.lost(&floor_front),
+        None,
+        "the floor still answers to its own number"
+    );
+    let body = exactly(&posted(&POSTED), ground());
+    near(
+        middle(&body, found(&body, &floor_front)),
+        placed(ground(), [BLOCK[0] / 2.0, 0.0, 0.0]),
+        "the edge found between the floor and the front",
+    );
+}
+
+/// The slot, then the block's front right corner cut off from its floor to
+/// its top: the edge from the slot to the right side ends at the cut.
+fn slotted_and_cornered() -> Vec<Raise> {
+    let mut steps = slotted(&SLOTTED);
+    steps.push(cut(
+        Contour::rectangle(DVec2::new(27.0, -1.0), DVec2::new(31.0, 3.0)),
+        -1.0,
+        12.0,
+    ));
+    steps
+}
+
+#[test]
+fn an_edge_among_several_whose_one_end_a_cut_moves_is_still_found_on_its_own_piece() {
+    let cornered = part(&slotted_and_cornered(), ground());
+    assert_eq!(
+        cornered.lost(&right_of_the_slot()),
+        None,
+        "the edge from the slot keeps its start, and only its end was cut"
+    );
+    let body = exactly(&slotted_and_cornered(), ground());
+    near(
+        middle(&body, found(&body, &right_of_the_slot())),
+        placed(ground(), [23.5, 0.0, SLOTTED.block[2]]),
+        "the edge found from the slot to the cut corner",
+    );
+}
+
+/// The shaft at `origin` with a hole of radius `hole` bored across it along
+/// Z halfway along, from `from` below its axis up past its top. The hole's
+/// wall, numbered six, meets the shaft's wall, numbered one, along two whole
+/// rims when it comes out on both sides, which no end tells apart.
+fn cross_bored(sizes: &Shaft, origin: [f64; 3], hole: f64, from: f64) -> (brep::Body, Frame) {
+    let frame = lying(origin);
+    let across = Frame {
+        origin: frame.origin + DVec3::Z * from,
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    let tool = brep::Body::raised(
+        &circle([0.0, sizes.length / 2.0], hole),
+        &[],
+        across,
+        DVec3::Z * (sizes.radius + 5.0 - from),
+    )
+    .expect("the hole raises")
+    .renumbered(4);
+    let body = shaft_exactly(sizes, frame)
+        .cut_by(&tool)
+        .expect("the hole bores across the shaft");
+    (body, frame)
+}
+
+#[test]
+fn the_two_rims_of_a_cross_bore_through_a_shaft_keep_their_names_through_a_change_of_size_and_a_move()
+ {
+    for (label, sizes, origin, hole) in [
+        ("as drawn", &SHAFT, [0.0; 3], 3.0),
+        ("resized", &SHAFT_RESIZED, [0.0; 3], 4.0),
+        ("moved", &SHAFT, ELSEWHERE, 3.0),
+    ] {
+        let (body, frame) = cross_bored(sizes, origin, hole, -sizes.radius - 5.0);
+        for (rank, below) in [(0, true), (1, false)] {
+            let rim = named_edge(&body, &closed(&[1], &[6], rank, 2));
+            let up = middle(&body, rim).z - frame.origin.z;
+            assert!(
+                if below { up < -hole } else { up > hole },
+                "rim {rank} stands {up} off the shaft's axis, {label}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_cross_bore_that_no_longer_comes_out_reports_both_its_rims_gone() {
+    let (through, _) = cross_bored(&SHAFT, [0.0; 3], 3.0, -SHAFT.radius - 5.0);
+    let names = through.edge_names();
+    let (blind, _) = cross_bored(&SHAFT, [0.0; 3], 3.0, 2.0);
+    for rank in 0..2 {
+        let rim = closed(&[1], &[6], rank, 2);
+        assert!(names.contains(&rim), "{rim:?} among {names:?}");
+        assert_eq!(
+            blind.find(&rim),
+            Err(Lost::Gone),
+            "{rim:?}: one rim of the two is left, and nothing tells which"
+        );
     }
 }

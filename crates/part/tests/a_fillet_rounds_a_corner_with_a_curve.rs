@@ -68,7 +68,7 @@ use std::f64::consts::PI;
 
 use cao_part::history::{Operation, PointRef};
 use cao_part::{History, PartState};
-use cao_sketch::{ArcDraft, ArcId, Corner, CutCurve, PointId, WorkPlane, sweep_of};
+use cao_sketch::{ArcDraft, ArcId, Corner, CutCurve, PointId, SegmentId, WorkPlane, sweep_of};
 use glam::DVec2;
 
 /// How near the arithmetic a place worked out in closed form comes.
@@ -359,4 +359,104 @@ fn a_fillet_rounds_the_corner_between_two_arcs_tangent_to_both() {
             what,
         );
     }
+}
+
+/// A trait running east from the corner at (10, 10) to (50, 10), and an arc
+/// round (2, 10) of radius 8 leaving the corner northwards and turning three
+/// quarters of the way round to (2, 2). At the corner the arc's tangent points
+/// north, above the trait; the chord to its far end points south-west, below
+/// it.
+fn a_trait_and_an_arc_turning_back_under_it() -> History {
+    let mut history = a_corner_at(DVec2::new(10.0, 10.0));
+    a_trait(
+        &mut history,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(50.0, 10.0)),
+    );
+    an_arc(
+        &mut history,
+        DVec2::new(2.0, 10.0),
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(2.0, 2.0)),
+    );
+    history
+}
+
+/// The trait's free end, dragged by hand to `position`.
+fn drag_the_trait_s_free_end(history: &mut History, position: DVec2) {
+    history.push(Operation::MovePoint {
+        sketch: 0,
+        point: PointId(2),
+        position,
+        merged_into: None,
+        on: Vec::new(),
+        let_go: false,
+    });
+}
+
+/// Which side of the trait the fillet stands on, looking from the corner
+/// along the trait: one to its left, minus one to its right.
+fn the_side_of_the_trait_the_fillet_stands_on(history: &History, what: &str) -> f64 {
+    let drawing = PartState::rebuild(history).sketches[0].clone();
+    let fillet = the_fillet(history, what);
+    let (corner, far) = drawing.endpoints(SegmentId(0));
+    assert!(
+        corner.distance(drawing.point(THE_CORNER)) < EXACT,
+        "{what}: the trait still runs from the corner"
+    );
+    (far - corner).perp_dot(fillet.centre - corner).signum()
+}
+
+#[test]
+fn a_fillet_beside_an_arc_stands_in_the_angle_under_half_a_turn_between_the_tangents() {
+    let mut history = a_trait_and_an_arc_turning_back_under_it();
+    round(&mut history, Corner::At(THE_CORNER), 5.0);
+
+    let what = "an arc whose chord leaves below the trait and its tangent above";
+    let fillet = the_fillet(&history, what);
+    assert!(
+        fillet.centre.y > 10.0,
+        "{what}: the fillet stands above the trait, in the angle the arc's tangent makes \
+         with it, not below where the chord to the arc's far end points: {fillet:?}"
+    );
+    assert_drawn_as(
+        fillet,
+        5.0,
+        DVec2::new(14.0, 15.0),
+        [
+            DVec2::new(14.0, 10.0),
+            DVec2::new(2.0 + 96.0 / 13.0, 10.0 + 40.0 / 13.0),
+        ],
+        what,
+    );
+}
+
+#[test]
+fn a_fillet_beside_an_arc_changes_side_only_when_a_drag_takes_the_angle_through_half_a_turn() {
+    let mut history = a_trait_and_an_arc_turning_back_under_it();
+    round(&mut history, Corner::At(THE_CORNER), 5.0);
+    let at_first = the_side_of_the_trait_the_fillet_stands_on(&history, "as laid");
+
+    drag_the_trait_s_free_end(&mut history, DVec2::new(34.0, 42.0));
+    let closed_up = the_side_of_the_trait_the_fillet_stands_on(
+        &history,
+        "the trait turned up towards the arc's tangent, past the chord",
+    );
+    assert_eq!(
+        closed_up, at_first,
+        "the angle the trait makes with the arc's tangent closed from 90° to about 37° \
+         and stayed under half a turn: the fillet keeps its side, though the trait \
+         crossed the chord to the arc's far end"
+    );
+
+    drag_the_trait_s_free_end(&mut history, DVec2::new(-14.0, -22.0));
+    let turned_through = the_side_of_the_trait_the_fillet_stands_on(
+        &history,
+        "the trait turned down past the arc's tangent taken backwards",
+    );
+    assert_eq!(
+        turned_through, -at_first,
+        "the angle the trait makes with the arc's tangent went through half a turn: \
+         the fillet stands on the trait's other side"
+    );
 }

@@ -671,25 +671,31 @@ fn geometry_written(files: &InMemoryFiles, path: &Path) -> Vec<u8> {
     written
 }
 
-/// Every object of a cache's text that reads back as a `T`, wherever and
-/// however deep the cache writes it.
-fn written<T: serde::de::DeserializeOwned + Ord>(cache: &[u8]) -> BTreeSet<T> {
+/// The edge names and the vertex names a cache's text holds, wherever and
+/// however deep it writes them. Each object that reads back as a vertex's
+/// name, or else as an edge's, is taken whole and not looked into: the names
+/// of the edges a vertex's name carries are the vertex's, and do not count as
+/// edge names written.
+fn names_written(cache: &[u8]) -> (BTreeSet<EdgeName>, BTreeSet<VertexName>) {
     let tree: serde_json::Value = serde_json::from_slice(cache).expect("a cache is JSON");
-    let mut found = BTreeSet::new();
+    let (mut edges, mut vertices) = (BTreeSet::new(), BTreeSet::new());
     let mut pending = vec![&tree];
     while let Some(node) = pending.pop() {
         match node {
             serde_json::Value::Object(fields) => {
-                if let Ok(read) = serde_json::from_value(node.clone()) {
-                    found.insert(read);
+                if let Ok(vertex) = serde_json::from_value::<VertexName>(node.clone()) {
+                    vertices.insert(vertex);
+                } else if let Ok(edge) = serde_json::from_value::<EdgeName>(node.clone()) {
+                    edges.insert(edge);
+                } else {
+                    pending.extend(fields.values());
                 }
-                pending.extend(fields.values());
             }
             serde_json::Value::Array(items) => pending.extend(items),
             _ => {}
         }
     }
-    found
+    (edges, vertices)
 }
 
 #[test]
@@ -701,7 +707,7 @@ fn an_exact_body_s_edge_and_vertex_names_come_back_from_the_cache_as_the_replay_
     let (edges, vertices) = (part.body().edge_names(), part.body().vertex_names());
     assert!(part.body().is_exact(), "the exact kernel built the part");
     assert!(
-        edges.iter().any(|name| name.of > 1),
+        edges.iter().any(|name| name.ends.is_some()),
         "the floor's two pieces answer to the floor, and meet the front and \
          the back twice each: {edges:?}",
     );
@@ -715,13 +721,18 @@ fn an_exact_body_s_edge_and_vertex_names_come_back_from_the_cache_as_the_replay_
     let cache = encoded(&marked, &borrowed(&design)).expect("a cache");
     replacing(&files, path, GEOMETRY_ENTRY, Some(&cache));
 
-    let cached = PartDocument::load(&files, path).expect("reads");
+    let mut cached = PartDocument::load(&files, path).expect("reads");
     let mut replayed = cached.clone();
     replayed.rewind_to(replayed.history.applied());
 
     assert!(
         cached.is_declined(99) && !replayed.is_declined(99),
         "the part opened on its cache, which alone knows the mark",
+    );
+    assert_eq!(
+        cached.body(),
+        replayed.body(),
+        "the very body the replay makes"
     );
     assert_eq!(
         cached.body().edge_names(),
@@ -739,15 +750,36 @@ fn an_exact_body_s_edge_and_vertex_names_come_back_from_the_cache_as_the_replay_
         vertices,
         "and as the part did"
     );
-    let written_edges: Vec<EdgeName> = written(&written_by_the_part).into_iter().collect();
+    let (written_edges, written_vertices) = names_written(&written_by_the_part);
     assert_eq!(
-        written_edges, edges,
+        written_edges.into_iter().collect::<Vec<_>>(),
+        edges,
         "the cache the part writes holds the name of every edge, and no other"
     );
-    let written_vertices: Vec<VertexName> = written(&written_by_the_part).into_iter().collect();
     assert_eq!(
-        written_vertices, vertices,
+        written_vertices.into_iter().collect::<Vec<_>>(),
+        vertices,
         "the cache the part writes holds the name of every vertex, and no other"
+    );
+
+    let before = cached.body().volume();
+    bored_again(&mut cached);
+    bored_again(&mut replayed);
+    assert!(
+        cached.body().volume() < before - 1.0,
+        "the next bore takes matter away: {} after {before}",
+        cached.body().volume(),
+    );
+    assert_eq!(
+        cached.body(),
+        replayed.body(),
+        "the next cut reads the numbers the floor's pieces were parted from, \
+         which the cache has to have kept",
+    );
+    assert_eq!(
+        cached.body().edge_names(),
+        replayed.body().edge_names(),
+        "and names the edges it leaves as the replay does",
     );
 }
 

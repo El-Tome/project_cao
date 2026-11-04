@@ -9,7 +9,7 @@ impl Body {
     /// faces alone.
     pub fn edge_names(&self) -> Vec<EdgeName> {
         match &self.matter {
-            Matter::Exact(exact) => exact.edge_names().to_vec(),
+            Matter::Exact(exact) => ascending(exact.edge_names()),
             Matter::Flats(_) => Vec::new(),
         }
     }
@@ -17,18 +17,24 @@ impl Body {
     /// The name of every vertex, ascending; none on flats.
     pub fn vertex_names(&self) -> Vec<VertexName> {
         match &self.matter {
-            Matter::Exact(exact) => exact.vertex_names().to_vec(),
+            Matter::Exact(exact) => ascending(exact.vertex_names()),
             Matter::Flats(_) => Vec::new(),
         }
     }
 
-    /// What a name no longer finds in the body: nothing when as many edges
-    /// lie between its two sides as it was ranked among. On flats, which
-    /// name no edge, every name is gone.
+    /// What a name no longer finds in the body: nothing when its faces, and
+    /// where they meet more than once its ends, still say which edge it is.
+    /// On flats, which name no edge, every name is gone.
     pub fn lost(&self, name: &EdgeName) -> Option<Lost> {
         match &self.matter {
             Matter::Exact(exact) => exact.lost(name),
             Matter::Flats(_) => Some(Lost::Gone),
         }
     }
+}
+
+fn ascending<T: Clone + Ord>(names: &[T]) -> Vec<T> {
+    let mut names = names.to_vec();
+    names.sort();
+    names
 }

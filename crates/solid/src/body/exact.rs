@@ -26,10 +26,11 @@ pub(super) struct Exact {
     /// that piece answered to before: what an edge or a vertex is named by.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     roots: BTreeMap<u32, u32>,
-    /// The name of every edge, ascending, each number taken back to its
-    /// root: read once, when the body is made.
+    /// The name of each edge, by the edge's rank, each number taken back to
+    /// its root: read once, when the body is made, and what a later step
+    /// finds its edge by.
     edges: Vec<EdgeName>,
-    /// The name of every vertex, ascending, read as the edges' are.
+    /// The name of each vertex, by the vertex's rank, read as the edges' are.
     vertices: Vec<VertexName>,
     #[serde(skip)]
     drawn: OnceLock<Drawn>,
@@ -58,9 +59,7 @@ impl Exact {
     /// The body, its edges and vertices named, each number taken back to
     /// its root.
     fn of(brep: brep::Body, next: u32, roots: BTreeMap<u32, u32>) -> Exact {
-        let (mut edges, mut vertices) = brep.names_rooted(|number| root(&roots, number));
-        edges.sort();
-        vertices.sort();
+        let (edges, vertices) = brep.names_rooted(|number| root(&roots, number));
         Exact {
             brep,
             next,
@@ -189,11 +188,8 @@ impl Exact {
 
     /// What a name no longer finds among the edges between its two sides.
     pub fn lost(&self, name: &EdgeName) -> Option<Lost> {
-        let now = self
-            .edges
-            .iter()
-            .filter(|edge| edge.between == name.between);
-        name.lost_among(now.count() as u32)
+        self.brep
+            .lost_rooted(name, |number| root(&self.roots, number))
     }
 
     /// The exact volume, or the volume the body is drawn with should

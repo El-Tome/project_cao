@@ -30,7 +30,9 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// Bumped when replaying the same design stops giving the same geometry — a
 /// fix in the solver, in an extrusion, in a boolean. What was cached before
 /// then holds the shape as it was computed, which is no longer the shape the
-/// design describes. Also bumped when the matter is written another way: 4
+/// design describes. Also bumped when edges and vertices come to be named
+/// another way, since a part opened on its cache trusts the names the cache
+/// holds, and when the matter is written another way: 4
 /// is the body that says which kernel computed it (#526). 5: a revolution of
 /// straight runs is exact, and a declined step keeps its reason (#533). 6: a
 /// revolution of a slanted run is exact (#536). 7: a plane meets a cylinder

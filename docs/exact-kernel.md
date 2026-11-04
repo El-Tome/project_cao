@@ -80,22 +80,31 @@ It can:
   between, so a step pointing at one finds it again when a size changes
   (#582, `brep/names.rs`). An edge answers to the sides of its two faces —
   a face's numbers, each taken back to its root, the number of the face a
-  piece was parted from — and to its rank among the edges between the same
-  two; a vertex answers to the sides of every face at it, and to its rank
-  among the vertices at the same sides, by the names of the edges ending
-  there. An edge's rank is read off the topology and the way the loops run:
-  what meets it at each end, seen along it from its first side. Not off the
+  piece was parted from. Where those two sides meet more than once, it
+  answers to its `ends` too: the sides of the other faces met at its start
+  and at its end, read along its first side's loop, which runs with the
+  matter on its left. A vertex answers to the sides of every face at it and,
+  where another vertex shares them, to the names of the edges ending there.
+  That is read off the topology and the way the loops run, not off the
   surfaces' parameters: those are canonical against the world's axes, a
   plane's `u` and a cylinder's angle origin, so a part turned would see the
-  order they give flip; they only part what nothing else does, two whole
-  circles between the same two faces. A piece of a parted face names its
-  edges by its root, so an edge a cut parts along with its face is all its
-  pieces, between the same two sides. A name that no longer finds as many
-  edges between its two sides as it was ranked among says so (`Lost`):
-  split, into how many, when there are more; gone when there are none or
-  fewer, since which of them went cannot be told. The exact body keeps the
+  order they give flip, and at a pole the angle is the arc tangent of two
+  rounding residues. What nothing topological tells apart — two whole
+  circles between the same two faces, a ball's two poles — is ranked by
+  where it lies, the middle of an edge or the vertex itself, compared
+  coordinate by coordinate in the world, a coordinate within the body's
+  tolerance counting as equal before the next is read. A move keeps that
+  order; a turn may swap two such, which are symmetric enough that nothing
+  intrinsic tells them apart. A piece of a parted face names its edges by
+  its root, so an edge a cut parts along with its face is all its pieces,
+  between the same two sides. A name finds its edge only when its faces,
+  and where they meet more than once its ends, say it is that one;
+  otherwise it says what became of it (`Lost`): split, with how many edges
+  now lie between its two sides, when they meet more than they did or when
+  one edge starts where it started and another ends where it ended; gone
+  when they no longer meet, or meet elsewhere. The exact body keeps the
   number each fresh piece replaced and works the names out once, as it is
-  made; the flats name none.
+  made, by the edge's and the vertex's rank; the flats name none.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face

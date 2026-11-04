@@ -25,11 +25,11 @@
 //! walls; any other set of rulings — four crossings, two touches, a touch
 //! beside crossings — is `Parallel`, each ruling with whether the walls only
 //! touch along it. Walls standing within decision 8's hair of each other at
-//! every foot, and between two ellipses all along each stretch between two
-//! — an ellipse a hair from round about a circle of its size —
-//! stand within the tolerance of each other over most of their turn, in
-//! bands no ruling tells apart, and are unsupported: built, such a pair was
-//! drawn backwards, left open, or kept matter a cut took away.
+//! every foot, and between two ellipses at evenly spaced angles along each
+//! stretch between two feet — an ellipse a hair from round about a circle of
+//! its size — stand within the tolerance of each other over most of their
+//! turn, in bands no ruling tells apart, and are unsupported: built, such a
+//! pair was drawn backwards, left open, or kept matter a cut took away.
 
 mod met;
 mod normals;

@@ -355,9 +355,9 @@ The decisions, in the order taken, once per operation:
    ellipses round, the feet keep where the walls cross but not how far apart
    they stand: the same ellipse turned a hair stands furthest from itself a
    quarter of the way between two feet, a fifth further than at either
-   (5585704198), so between two ellipses the distance is read again along
-   each stretch between two feet, at sixteen places (#574). Two walls within
-   `G` of each other there and at every foot —
+   (5585704198), so between two ellipses the distance is read again at
+   evenly spaced angles along each stretch between two feet (#574). Two
+   walls within `G` of each other there and at every foot —
    an ellipse a hair from round about a circle of its size — are
    unsupported: they stand within `EPS` of each other over bands no ruling
    tells apart, and built, such a pair was drawn backwards, left open, or
@@ -1216,11 +1216,12 @@ its chord there, a rim passing a hair from a ruling it crosses twice, is
 seen instead as the curve its own wall meets that cylinder along, between
 where its ends stand on it, where its middle stands within `EPS` of it: it
 was taken for an arc of that curve, and the cylinder carries the curve.
-A circle whose axis runs along an elliptic wall's, and whose stretch bulges off its chord
-— the rim of a circular wall in the band where it touches an ellipse a hair
-from round — is seen on the elliptic wall as that wall's own rim at the
-circle's height, between the angles its ends stand at, as a cylinder sees a
-circle off its axis (#574). So is the curve two perpendicular cylinders meet along, on a wall parallel
+A circle whose axis runs along an elliptic wall's, and whose stretch
+bulges off its chord — the rim of a circular wall in the band where it
+touches an ellipse a hair from round — is seen on the elliptic wall as
+that wall's own rim at the circle's height, between the angles its ends
+stand at, as a cylinder sees a circle off its axis (#574). So is the curve
+two perpendicular cylinders meet along, on a wall parallel
 to one of them and further than `EPS` from it — two walls of one radius a
 hair apart, a crescent: it is seen as the curve that wall meets the other
 cylinder along, where its middle stands within `EPS` of it, and in that
@@ -2116,14 +2117,13 @@ read backwards by the listing.
   from one point inside every one of them, the axis of the smallest; where
   no such point is, each pair standing close is sampled from its own, and a
   pair that only crosses keeps its grids. Each wall of a pair standing
-  that close leaves out, at every
-  height, the steps of its grid within the room of the other a step or
-  less from a corner on both, an elliptic wall as a circular one: the
-  other takes no place on the ray through such a step, and a rim keeping
-  its own there, beside the ruling the same ellipse turned a hair crosses
-  itself along, left it outside the other's chord (5585713456, #574). A
-  whole rim of an elliptic
-  wall ends where it starts, and a place beside that point is measured against
+  that close leaves out, at every height, the steps of its grid within the
+  room of the other a step or less from a corner on both, an elliptic wall
+  as a circular one: the other takes no place on the ray through such a
+  step, and a rim keeping its own there, beside the ruling the same
+  ellipse turned a hair crosses itself along, left it outside the other's
+  chord (5585713456, #574). A whole rim of an elliptic wall ends where it
+  starts, and a place beside that point is measured against
   both ends of it. What
   still crosses is refined locally, and what survives
   that is reported as a failure of the triangles, apart from the kernel's.

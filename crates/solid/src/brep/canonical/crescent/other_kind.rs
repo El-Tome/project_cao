@@ -12,14 +12,12 @@
 
 use std::f64::consts::TAU;
 
+use super::ROUNDING;
 use crate::brep::conic::{Arm, Conic, Round};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, EllipticCylinder, Plane, Surface};
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
-
-/// Under this share of the tolerance, two axes are one.
-const ROUNDING: f64 = 1e-6;
 
 /// The second operand with each whole wall standing about the axis of one
 /// of the first's of the other kind, within `Scale::HAIR` tolerances of it
@@ -85,7 +83,7 @@ fn laid_on(body: &Body, rank: usize, known: Surface, scale: Scale) -> Option<Bod
             }
             let cap = capped(body, coedge.edge, id)?;
             let rim = match known {
-                Surface::Cylinder(round) => rim_of_round(&round, cap),
+                Surface::Cylinder(round) => rim_of_round(&round, cap, scale)?,
                 Surface::Elliptic(oval) => rim_of_oval(&oval, cap, scale)?,
                 Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => {
                     return None;
@@ -137,12 +135,16 @@ fn capped(body: &Body, edge: EdgeId, wall: SurfaceId) -> Option<Plane> {
         })
 }
 
-/// The rim a cap's plane cuts a circular wall along.
-fn rim_of_round(round: &Cylinder, cap: Plane) -> Curve {
-    Curve::Circle(Circle::on(
-        round,
-        (cap.origin - round.origin).dot(round.axis),
-    ))
+/// The rim a cap's plane square to a circular wall's axis cuts it along;
+/// none for a cap leaning off it.
+fn rim_of_round(round: &Cylinder, cap: Plane, scale: Scale) -> Option<Curve> {
+    let square = cap.normal.cross(round.axis).length() * scale.reach() <= scale.eps();
+    square.then(|| {
+        Curve::Circle(Circle::on(
+            round,
+            (cap.origin - round.origin).dot(round.axis),
+        ))
+    })
 }
 
 /// The rim a cap's plane cuts an elliptic wall along, whole.

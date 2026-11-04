@@ -13,8 +13,9 @@
 //! rulings alone — an ellipse raised whole, or cut by traits — whose every
 //! corner already stands on the first's wall is laid on that wall itself
 //! and its rims cut again on it: nothing it built is left a hair off. A wall
-//! carrying a corner off the first's is left two. A circle and an ellipse
-//! never merge this way.
+//! carrying a corner off the first's is left two. A whole circular wall and
+//! a whole elliptic one about one axis, a hair apart all round, are one
+//! surface too, as `other_kind.rs` says.
 
 use glam::DVec3;
 

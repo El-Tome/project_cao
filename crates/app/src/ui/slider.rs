@@ -11,3 +11,15 @@ pub fn slider<Num: Numeric>(
 ) -> egui::Response {
     ui.add(egui::Slider::new(value, range).text(label))
 }
+
+/// The same, each value said by `say` rather than as a bare number.
+pub fn slider_saying<Num: Numeric>(
+    ui: &mut egui::Ui,
+    value: &mut Num,
+    range: RangeInclusive<Num>,
+    label: &str,
+    say: impl Fn(f64) -> String,
+) -> egui::Response {
+    let slider = egui::Slider::new(value, range).text(label);
+    ui.add(slider.custom_formatter(move |value, _| say(value)))
+}

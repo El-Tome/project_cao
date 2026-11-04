@@ -246,7 +246,7 @@ pub(super) fn place_dimension(
     let Some(measured) = context.document.measured(index, target) else {
         return false;
     };
-    let value = held_as_shown(measured);
+    let value = held_as_shown(context.document, target, measured);
     let applied = context.document.apply(Operation::SetDimension {
         sketch: index,
         target,
@@ -267,7 +267,7 @@ pub(super) fn place_dimension(
     if let (Some(editing), Some(Outcome::Dimension(DimensionOutcome::ScaleDefined { .. }))) =
         (context.editor.editing.as_mut(), applied)
     {
-        editing.placed_the_scale = true;
+        editing.placed_the_scale_at(value);
     }
     context.editor.message = outcome::message(context.lang, applied);
     true

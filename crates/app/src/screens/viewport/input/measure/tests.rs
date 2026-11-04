@@ -4,6 +4,19 @@
 //! - an edit field opens on what was typed, the formula —
 //!   `a_value_written_from_a_variable_is_opened_as_what_it_was_written_as` —
 //!   or the number as written — `a_number_typed_is_opened_as_it_was_written`
+//! - a value a drawing tool worked out from the shape reopens on what was
+//!   typed for it, not on the rounding noise of working it out —
+//!   `a_trait_drawn_at_a_typed_angle_reopens_on_the_angle_typed`,
+//!   `a_rectangle_side_typed_reopens_on_the_length_typed`
+//! - the first dimension of a part with no scale, placed by clicking, is not
+//!   rounded, since it is what says a unit is a millimetre —
+//!   `a_first_dimension_clicked_on_an_unround_trait_leaves_a_unit_worth_a_millimetre`;
+//!   its field opens on what its label shows —
+//!   `a_first_dimension_clicked_on_an_unround_trait_opens_on_what_its_label_shows`
+//!   — `Entrée` on it left as it opened writes nothing and keeps the scale —
+//!   `pressing_enter_on_a_first_dimension_left_as_it_opened_keeps_the_scale`
+//!   — and a value typed over it still sets the scale from what was typed —
+//!   `a_value_typed_over_a_first_clicked_dimension_sets_the_scale_from_it`
 //! - an untouched `Entrée` moves nothing, on a dimension just placed by
 //!   clicking as on a typed one reopened —
 //!   `pressing_enter_on_a_field_left_as_it_opened_moves_nothing`,
@@ -1530,5 +1543,222 @@ fn pressing_enter_on_a_clicked_angle_left_as_it_opened_moves_nothing() {
     assert!(
         (after - before).abs() < 1e-12,
         "Entrée on the field a click opened turns the trait from {before}° to {after}°",
+    );
+}
+
+#[test]
+fn a_trait_drawn_at_a_typed_angle_reopens_on_the_angle_typed() {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let start = DVec2::new(3.0, 4.0);
+    let draw = crate::screens::viewport::input::draw_line_point;
+    draw(&mut context, 0, start, 0.1, 0.05);
+    context.editor.live.open_on(&[None, Some(30.0)]);
+    draw(
+        &mut context,
+        0,
+        start + DVec2::from_angle(30.0_f64.to_radians()) * 8.0,
+        0.1,
+        0.05,
+    );
+    let angle = context.document.sketches()[0]
+        .dimensions()
+        .iter()
+        .map(|dimension| dimension.target)
+        .find(|target| matches!(target, DimensionTarget::Angle { .. }))
+        .expect("the angle typed is laid with the trait");
+    context.editor.reset_pending();
+
+    edit_dimension(&mut context, 0, angle);
+
+    assert_eq!(
+        opened_on(&editor),
+        Some("30"),
+        "30° was typed, and the field reopens on the noise of reading it back",
+    );
+}
+
+#[test]
+fn a_rectangle_side_typed_reopens_on_the_length_typed() {
+    use crate::screens::viewport::input::rectangle::{rectangle_corner, two_click_shape};
+
+    let mut document = a_trait_and_no_scale();
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: SIDE,
+        value: 100.0.into(),
+        placement: None,
+    });
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let start = DVec2::new(10.0, 10.0);
+    two_click_shape(&mut context, 0, start, 0.5, 0.05);
+    context.editor.live.open_on(&[Some(40.0), None]);
+    let corner = rectangle_corner(&context, start + DVec2::new(30.0, 30.0));
+    two_click_shape(&mut context, 0, corner, 0.5, 0.05);
+    context.editor.reset_pending();
+
+    edit_dimension(&mut context, 0, OTHER_SIDE);
+
+    assert_eq!(
+        opened_on(&editor),
+        Some("40"),
+        "a side 40 was typed for, at a scale of 100/24, reopens on the noise of \
+         reading it back off the drawing",
+    );
+}
+
+const ACROSS_THE_DIAGONAL: DVec2 = DVec2::new(14.0, 16.0);
+
+/// A part with no scale yet, and a trait √200 units long on it.
+fn a_diagonal_and_no_scale() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(10.0, 10.0)),
+        end: PointRef::New(DVec2::new(20.0, 20.0)),
+        construction: false,
+    });
+    document
+}
+
+#[test]
+fn a_first_dimension_clicked_on_an_unround_trait_leaves_a_unit_worth_a_millimetre() {
+    let mut document = a_diagonal_and_no_scale();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    place_dimension(&mut context, 0, SIDE, ACROSS_THE_DIAGONAL, 0.05);
+
+    assert!(
+        (document.scale() - 1.0).abs() < 1e-12,
+        "the first dimension, left as it read, says a unit is a millimetre, and a \
+         unit is worth {} mm: a hundred units would read {} mm",
+        document.scale(),
+        document.to_millimeters(100.0),
+    );
+    let held = document.sketches()[0]
+        .dimension_of(SIDE)
+        .map(|dimension| dimension.value)
+        .expect("the dimension is placed");
+    assert!(
+        (held - 200.0_f64.sqrt()).abs() < 1e-12,
+        "the diagonal is √200 units, and the dimension that sets the scale holds {held}",
+    );
+}
+
+fn the_diagonal_dimensioned(document: &mut PartDocument, editor: &mut SketchEditor) {
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document,
+        editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    place_dimension(&mut context, 0, SIDE, ACROSS_THE_DIAGONAL, 0.05);
+}
+
+#[test]
+fn a_first_dimension_clicked_on_an_unround_trait_opens_on_what_its_label_shows() {
+    let mut document = a_diagonal_and_no_scale();
+    let mut editor = SketchEditor::default();
+
+    the_diagonal_dimensioned(&mut document, &mut editor);
+
+    assert_eq!(
+        opened_on(&editor),
+        Some("14.1421"),
+        "the label reads 14.1421 mm, and the field opens on every figure of √200",
+    );
+}
+
+#[test]
+fn pressing_enter_on_a_first_dimension_left_as_it_opened_keeps_the_scale() {
+    let mut document = a_diagonal_and_no_scale();
+    let mut editor = SketchEditor::default();
+    the_diagonal_dimensioned(&mut document, &mut editor);
+    let steps = document.history.operations().len();
+
+    apply_dimension_value(&mut document, &mut editor, 0, SIDE, &Catalogue::french());
+
+    assert_eq!(
+        document.history.operations().len(),
+        steps,
+        "Entrée on the field the first click opened writes a step",
+    );
+    assert!(
+        (document.scale() - 1.0).abs() < 1e-12,
+        "Entrée left a unit worth {} mm",
+        document.scale(),
+    );
+    let held = document.sketches()[0]
+        .dimension_of(SIDE)
+        .map(|dimension| dimension.value)
+        .expect("the dimension is still there");
+    assert!(
+        (held - 200.0_f64.sqrt()).abs() < 1e-12,
+        "the dimension that sets the scale now holds {held}, not √200",
+    );
+}
+
+#[test]
+fn a_value_typed_over_a_first_clicked_dimension_sets_the_scale_from_it() {
+    let mut document = a_diagonal_and_no_scale();
+    let mut editor = SketchEditor::default();
+    the_diagonal_dimensioned(&mut document, &mut editor);
+    if let Some(editing) = editor.editing.as_mut() {
+        editing.input = "14.1422".to_string();
+    }
+
+    assert!(apply_dimension_value(
+        &mut document,
+        &mut editor,
+        0,
+        SIDE,
+        &Catalogue::french()
+    ));
+
+    let wanted = 14.1422 / 200.0_f64.sqrt();
+    assert!(
+        (document.scale() - wanted).abs() < 1e-12,
+        "14.1422 typed over a trait √200 units long makes a unit worth {wanted} mm, \
+         and it is worth {}",
+        document.scale(),
+    );
+    let units = document.sketches()[0].segment_length(SegmentId(0));
+    assert!(
+        (units - 200.0_f64.sqrt()).abs() < 1e-9,
+        "the value that sets the scale moves nothing, and the trait runs {units} units",
     );
 }

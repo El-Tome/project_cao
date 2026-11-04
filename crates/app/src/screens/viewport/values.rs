@@ -2,7 +2,7 @@
 //! typed for them at the cursor — so that a size typed from the part's
 //! variables leaves a dimension that goes on following them.
 
-use cao_part::{Formula, Operation};
+use cao_part::{Formula, Operation, PartDocument};
 use cao_sketch::DimensionTarget;
 
 use super::input::annotation_position;
@@ -44,9 +44,17 @@ pub(crate) fn as_typed(typed: Option<(Formula, f64)>, laid: f64) -> Formula {
 
 /// What a dimension placed by clicking holds: a length to the tenth of a micron
 /// and an angle to the ten-thousandth of a degree it is shown to, so that
-/// `Entrée` on its field moves nothing.
-pub(crate) fn held_as_shown(measured: f64) -> f64 {
-    (measured * 1e4).round() / 1e4
+/// `Entrée` on its field moves nothing. The length that sets a part's scale
+/// keeps what it measures, or a unit would be worth a hair off a millimetre.
+pub(crate) fn held_as_shown(
+    document: &PartDocument,
+    target: DimensionTarget,
+    measured: f64,
+) -> f64 {
+    match document.has_scale() || target.is_angle() {
+        true => (measured * 1e4).round() / 1e4,
+        false => measured,
+    }
 }
 
 /// Lays each value down, pinned where it is drawn, and written as what `typed`

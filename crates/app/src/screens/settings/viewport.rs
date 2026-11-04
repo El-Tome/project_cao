@@ -2,7 +2,8 @@ use cao_prefs::Profiles;
 use cao_prefs::config::{LengthUnit, UnitDisplay, ViewportCorner};
 
 use crate::lang::Catalogue;
-use crate::ui::slider::slider;
+use crate::ui::slider::{slider, slider_saying};
+use crate::wording;
 
 pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalogue) -> bool {
     let before = profiles.active().viewport;
@@ -90,11 +91,12 @@ pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalog
         }
     });
 
-    slider(
+    slider_saying(
         ui,
         &mut config.measure_figures,
         cao_prefs::config::FEWEST_FIGURES..=cao_prefs::config::ALL_FIGURES,
         &lang.t("settings.viewport.measure_figures"),
+        |figures| wording::settings::measure_figures(lang, figures as u32),
     );
 
     ui.add_space(10.0);

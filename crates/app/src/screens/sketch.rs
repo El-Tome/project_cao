@@ -375,7 +375,7 @@ impl SketchEditor {
             .is_some_and(|editing| editing.target == target);
         self.editing = Some(DimensionEdit {
             target,
-            input: measured.map(|value| value.to_string()).unwrap_or_default(),
+            input: measured.map(typed_dimension::opened_on).unwrap_or_default(),
             focus: !same,
             placed_the_scale: false,
         });

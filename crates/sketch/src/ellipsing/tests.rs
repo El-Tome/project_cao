@@ -2,7 +2,8 @@
 //!
 //! Closes #519.
 //! - `run_of` is good enough for the figures the measure tool now gives —
-//!   `the_way_round_a_very_flat_ellipse_is_good_to_a_tenth_of_a_micron`
+//!   `the_way_round_a_very_flat_ellipse_is_good_to_a_tenth_of_a_micron`, and
+//!   on an arc of it — `an_arc_of_a_very_flat_ellipse_is_good_to_a_tenth_of_a_micron`
 
 use super::*;
 
@@ -115,4 +116,33 @@ fn the_way_round_a_very_flat_ellipse_is_good_to_a_tenth_of_a_micron() {
          of one is what it can be out by",
         (run - exact).abs(),
     );
+}
+
+#[test]
+fn an_arc_of_a_very_flat_ellipse_is_good_to_a_tenth_of_a_micron() {
+    let flat = EllipseDraft {
+        centre: DVec2::ZERO,
+        first: DVec2::new(200.0, 0.0),
+        second: 0.2,
+    };
+    let round = way_round(200.0, 0.2);
+
+    for (from, sweep, share) in [
+        (0.3, std::f64::consts::PI, 0.5),
+        (0.0, std::f64::consts::FRAC_PI_2, 0.25),
+        (
+            -std::f64::consts::FRAC_PI_2,
+            -std::f64::consts::FRAC_PI_2,
+            0.25,
+        ),
+    ] {
+        let exact = round * share;
+        let run = flat.run_of(from, sweep);
+        assert!(
+            (run - exact).abs() < 5e-5,
+            "from {from} turning {sweep}, the arc goes {exact} mm and the run says {run}: \
+             out by {} mm",
+            (run - exact).abs(),
+        );
+    }
 }

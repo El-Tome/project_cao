@@ -1,6 +1,7 @@
 //! The edge a name finds (#582), as a face is found: by a number its sides
 //! share with the faces now, its ends answering as its sides do, and on one
-//! end kept when a cut has moved the other. Both ends moved, it is gone.
+//! end kept when a cut has moved the other. Both ends moved, it is gone; in
+//! more pieces than there were edges between its faces, it is split.
 
 use super::{EdgeName, EdgeRead, Lost, Reading, ordered};
 use crate::brep::topology::{Body, EdgeId};
@@ -34,7 +35,7 @@ impl Body {
             .collect();
         if ties.len() as u32 == name.of {
             ordered(&mut ties, |one, other| {
-                reading.placed(siblings[one].1.point, siblings[other].1.point)
+                reading.lying(&siblings[one].1.place, &siblings[other].1.place)
             });
             let found = ties.get(name.rank as usize);
             return found.map(|&sibling| siblings[sibling].0).ok_or(Lost::Gone);
@@ -44,6 +45,9 @@ impl Body {
         }
         if !ties.is_empty() {
             return Err(Lost::Gone);
+        }
+        if siblings.len() as u32 > name.among {
+            return split;
         }
         let starting: Vec<usize> = (0..siblings.len()).filter(starts).collect();
         let ending: Vec<usize> = (0..siblings.len()).filter(finishes).collect();

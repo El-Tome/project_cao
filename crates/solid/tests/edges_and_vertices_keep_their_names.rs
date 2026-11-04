@@ -8,7 +8,8 @@
 //! ball's two poles or the two rims of a cross-bore, is ranked by where it
 //! lies, read in the world to within the body's tolerance. A name is found as
 //! a face is, by a number its sides share, and on one end kept when a cut has
-//! moved the other; both ends moved, it is gone.
+//! moved the other; both ends moved, it is gone, and gone on in more pieces
+//! than there were edges between its faces when it was taken, it is split.
 //!
 //! The slot is milled across a block's top from its front to its back, which
 //! leaves the top in two pieces: its width stands for the diameter of a hole.
@@ -35,6 +36,7 @@
 //!   and two that nothing topological tells apart by
 //!   `a_ball_s_two_poles_keep_their_names_through_a_move_though_rounding_leaves_them_either_side_of_a_coordinate_plane`
 //!   and `the_two_rims_of_a_cross_bore_through_a_shaft_keep_their_names_through_a_change_of_size_and_a_move`
+//!   and `two_concentric_rims_between_the_same_two_faces_keep_their_names_through_a_change_of_size_and_a_move`
 //! - A change that splits or removes an edge is reported for that edge —
 //!   `an_edge_a_later_cut_parts_in_two_is_reported_split_into_its_pieces`,
 //!   `an_edge_a_later_cut_parts_along_with_its_face_is_reported_split_rather_than_kept_on_its_first_piece`,
@@ -47,13 +49,18 @@
 //!   `an_edge_of_a_face_a_later_join_merges_flush_is_still_found`,
 //!   `an_edge_among_several_whose_one_end_a_cut_moves_is_still_found_on_its_own_piece`,
 //!   `a_cross_bore_that_no_longer_comes_out_reports_both_its_rims_gone`,
+//!   `an_edge_a_slot_parts_and_a_cut_shortens_at_its_end_is_reported_split_rather_than_found_on_one_piece`,
+//!   `a_whole_rim_a_later_slot_interrupts_is_reported_split_rather_than_gone`,
 //!   `every_name_is_reported_gone_on_a_part_the_flats_computed`
 //! - The names are written in the body, read back from the geometry cache,
 //!   and replayed the same — no test: held by
 //!   `an_exact_body_s_edge_and_vertex_names_come_back_from_the_cache_as_the_replay_leaves_them`
 //!   and `a_cache_written_before_edges_and_vertices_were_named_is_replayed`,
 //!   in `crates/part/src/document/geometry_cache/tests.rs`, beside the cache,
-//!   which is `cao_part`'s and out of this crate's sight
+//!   which is `cao_part`'s and out of this crate's sight, and by
+//!   `an_exact_body_read_back_with_a_cycle_in_its_roots_still_answers_for_a_name`,
+//!   in `crates/part/tests/an_exact_body_comes_back_from_json.rs`, where a
+//!   body is read back from its text
 
 use std::collections::BTreeSet;
 use std::f64::consts::TAU;
@@ -184,9 +191,12 @@ fn part(steps: &[Raise], frame: Frame) -> Body {
     })
 }
 
-/// The same part built by the exact kernel alone, each tool's numbers moved
-/// above every number the steps before it named, as the body moves them:
-/// what a named edge is found on.
+/// The same part built by the exact kernel alone, what a named edge is found
+/// on: each tool's numbers moved above the numbers the steps before it
+/// raised. The kernel alone parts no face, so it gives no fresh number to a
+/// piece a cut leaves apart, as the body does: a tool cut after such a cut is
+/// numbered here below where the body numbers it, and the names a test looks
+/// up on both are made of numbers they agree on.
 fn exactly(steps: &[Raise], frame: Frame) -> brep::Body {
     let mut next = 0;
     let mut built: Option<brep::Body> = None;
@@ -214,23 +224,34 @@ fn sides(faces: &[&[u32]]) -> Vec<Vec<u32>> {
     faces.iter().map(|side| side.to_vec()).collect()
 }
 
-/// The name of an edge: the sides of its two faces, and the faces met at
-/// its ends, where it starts and where it ends along the first side's loop.
+/// The name of the one edge between two sides: the sides of its two faces,
+/// and the faces met at its ends, where it starts and where it ends along the
+/// first side's loop.
 fn edge(first: &[u32], second: &[u32], start: &[&[u32]], end: &[&[u32]]) -> EdgeName {
     EdgeName {
         between: [first.to_vec(), second.to_vec()],
         ends: [sides(start), sides(end)],
+        among: 1,
         rank: 0,
         of: 1,
     }
 }
 
+/// The name of an edge taken where `count` edges lay between its two sides.
+fn among(count: u32, name: EdgeName) -> EdgeName {
+    EdgeName {
+        among: count,
+        ..name
+    }
+}
+
 /// The name of the `rank`th of `of` whole closed edges between two sides,
-/// which have no end to be told apart by.
+/// the only edges between them, which have no end to be told apart by.
 fn closed(first: &[u32], second: &[u32], rank: u32, of: u32) -> EdgeName {
     EdgeName {
         between: [first.to_vec(), second.to_vec()],
         ends: [Vec::new(), Vec::new()],
+        among: of,
         rank,
         of,
     }
@@ -258,13 +279,18 @@ fn vertex_ending(faces: &[&[u32]], mut edges: Vec<EdgeName>) -> VertexName {
     }
 }
 
-/// Holds that names tell every edge apart: none given twice, and the edges
-/// alike in their sides and their ends ranked from nought to as many as
-/// there are.
+/// Holds that names tell every edge apart: none given twice, each counting
+/// the edges between its two sides, and the edges alike in their sides and
+/// their ends ranked from nought to as many as there are.
 fn told_apart(names: &[EdgeName]) {
     let distinct: BTreeSet<&EdgeName> = names.iter().collect();
     assert_eq!(distinct.len(), names.len(), "a name given twice: {names:?}");
     for name in names {
+        let between = names
+            .iter()
+            .filter(|other| other.between == name.between)
+            .count();
+        assert_eq!(name.among as usize, between, "{name:?} among {names:?}");
         let alike = names
             .iter()
             .filter(|other| other.between == name.between && other.ends == name.ends)
@@ -708,8 +734,8 @@ fn a_slot_s_edges_and_vertices_keep_their_names_through_a_change_of_size_a_move_
     for apart in [
         left_of_the_slot(),
         right_of_the_slot(),
-        edge(&[1], &[4], &[&[3]], &[&[9]]),
-        edge(&[1], &[4], &[&[11]], &[&[5]]),
+        among(2, edge(&[1], &[4], &[&[3]], &[&[9]])),
+        among(2, edge(&[1], &[4], &[&[11]], &[&[5]])),
     ] {
         assert!(names.contains(&apart), "{apart:?} among {names:?}");
     }
@@ -799,12 +825,12 @@ fn posted_versions() -> [(&'static str, &'static Posted, Frame); 5] {
 
 /// The ruling the back's loop runs up, from the floor to the post's top.
 fn rising() -> EdgeName {
-    edge(&[4], &[8], &[&[0, 6]], &[&[7]])
+    among(2, edge(&[4], &[8], &[&[0, 6]], &[&[7]]))
 }
 
 /// The ruling the back's loop runs down, from the post's top to the floor.
 fn falling() -> EdgeName {
-    edge(&[4], &[8], &[&[7]], &[&[0, 6]])
+    among(2, edge(&[4], &[8], &[&[7]], &[&[0, 6]]))
 }
 
 #[test]
@@ -843,7 +869,7 @@ fn four_vertices_where_a_post_meets_a_block_s_back_keep_their_names_through_a_ch
         vertex_ending(
             &foot,
             vec![
-                edge(&[0, 6], &[4], &[&[5]], &[&[8]]),
+                among(2, edge(&[0, 6], &[4], &[&[5]], &[&[8]])),
                 round_the_foot.clone(),
                 falling(),
             ],
@@ -851,7 +877,7 @@ fn four_vertices_where_a_post_meets_a_block_s_back_keep_their_names_through_a_ch
         vertex_ending(
             &foot,
             vec![
-                edge(&[0, 6], &[4], &[&[8]], &[&[3]]),
+                among(2, edge(&[0, 6], &[4], &[&[8]], &[&[3]])),
                 round_the_foot,
                 rising(),
             ],
@@ -918,12 +944,12 @@ const SLOTTED_PAST_THE_END: Slotted = Slotted {
 
 /// The edge between the top and the front from the left side to the slot.
 fn left_of_the_slot() -> EdgeName {
-    edge(&[1], &[2], &[&[5]], &[&[11]])
+    among(2, edge(&[1], &[2], &[&[5]], &[&[11]]))
 }
 
 /// The edge between the top and the front from the slot to the right side.
 fn right_of_the_slot() -> EdgeName {
-    edge(&[1], &[2], &[&[9]], &[&[3]])
+    among(2, edge(&[1], &[2], &[&[9]], &[&[3]]))
 }
 
 /// The slot, then a notch three wide cut into the edge between the top and
@@ -1107,7 +1133,7 @@ fn every_name_is_reported_gone_on_a_part_the_flats_computed() {
 fn a_notch_moved_across_a_slot_reports_the_edge_it_bounded_rather_than_finding_another() {
     let (_, notch_s_right_wall) = notch_walls();
     let notched_left = part(&slotted_and_notched(3.0), ground());
-    let from_the_notch_to_the_slot = edge(&[1], &[2], &[&[notch_s_right_wall]], &[&[11]]);
+    let from_the_notch_to_the_slot = among(3, edge(&[1], &[2], &[&[notch_s_right_wall]], &[&[11]]));
     let names = notched_left.edge_names();
     assert!(
         names.contains(&from_the_notch_to_the_slot),
@@ -1385,5 +1411,106 @@ fn a_cross_bore_that_no_longer_comes_out_reports_both_its_rims_gone() {
             Err(Lost::Gone),
             "{rim:?}: one rim of the two is left, and nothing tells which"
         );
+    }
+}
+
+#[test]
+fn an_edge_a_slot_parts_and_a_cut_shortens_at_its_end_is_reported_split_rather_than_found_on_one_piece()
+ {
+    let names = part(&block(BLOCK), ground()).edge_names();
+    assert!(names.contains(&top_front()), "{names:?}");
+    assert_eq!(
+        part(&slotted_and_cornered(), ground()).lost(&top_front()),
+        Some(Lost::Split { now: 2 }),
+        "the edge goes on either side of the slot, its far end cut back: \
+         neither piece is the edge alone"
+    );
+}
+
+/// The bored cylinder with a slot four wide cut across its top through the
+/// hole, three deep: the top is left in two pieces, and the hole's rim on
+/// it in two arcs.
+fn bored_and_slotted() -> Vec<Raise> {
+    let mut steps = bored(&BORED);
+    steps.push(cut(
+        Contour::rectangle(DVec2::new(6.0, -25.0), DVec2::new(10.0, 25.0)),
+        7.0,
+        4.0,
+    ));
+    steps
+}
+
+#[test]
+fn a_whole_rim_a_later_slot_interrupts_is_reported_split_rather_than_gone() {
+    let rim = closed(&[1], &[5], 0, 1);
+    let names = part(&bored(&BORED), ground()).edge_names();
+    assert!(names.contains(&rim), "{rim:?} among {names:?}");
+    assert_eq!(
+        part(&bored_and_slotted(), ground()).lost(&rim),
+        Some(Lost::Split { now: 2 }),
+        "the rim of the hole on the top goes on in two arcs, one each side \
+         of the slot"
+    );
+}
+
+/// A bead at `origin`: a half disc whose flat side stands square to the
+/// first axis of its plane, from `inner` out to `outer` off the axis, its
+/// round side away from the plane, turned whole about that axis. Its flat
+/// side, numbered nought, meets its round, numbered one, along two whole
+/// circles about one centre, which no end tells apart.
+fn bead(inner: f64, outer: f64, origin: [f64; 3]) -> (brep::Body, Frame) {
+    let middle = (inner + outer) / 2.0;
+    let half = (outer - inner) / 2.0;
+    let profile_of = Contour {
+        corners: vec![DVec2::new(0.0, outer), DVec2::new(0.0, inner)],
+        runs: vec![
+            Run::Straight,
+            Run::Round {
+                center: DVec2::new(0.0, middle),
+                turn: std::f64::consts::PI,
+            },
+        ],
+    };
+    let sampled: Vec<DVec2> = std::iter::once(DVec2::new(0.0, outer))
+        .chain((0..32).map(|step| {
+            DVec2::new(0.0, middle)
+                + DVec2::from_angle(
+                    -std::f64::consts::FRAC_PI_2 + std::f64::consts::PI * f64::from(step) / 32.0,
+                ) * half
+        }))
+        .collect();
+    let profile = Profile {
+        exact: Some((profile_of.clone(), Vec::new())),
+        sampled: Loop::straight(&sampled),
+        sampled_holes: Vec::new(),
+        triangles: &[],
+    };
+    let frame = lying(origin);
+    let whole = Turn::of(first_axis(), TAU, 0.0, &profile);
+    let straight = Straight::of(&profile_of, &[], frame, &whole, 1.0)
+        .expect("the half disc lies off its axis");
+    let body = brep::Body::turned(&straight, frame, &whole).expect("the bead turns");
+    (body, frame)
+}
+
+#[test]
+fn two_concentric_rims_between_the_same_two_faces_keep_their_names_through_a_change_of_size_and_a_move()
+ {
+    for (label, inner, outer, origin) in [
+        ("as drawn", 5.0, 9.0, [0.0; 3]),
+        ("resized", 7.0, 13.0, [0.0; 3]),
+        ("moved", 5.0, 9.0, ELSEWHERE),
+    ] {
+        let (body, frame) = bead(inner, outer, origin);
+        for (rank, radius) in [(0, inner), (1, outer)] {
+            let name = closed(&[0], &[1], rank, 2);
+            on_circle(
+                middle(&body, named_edge(&body, &name)),
+                frame.origin,
+                frame.u,
+                radius,
+                &format!("{name:?}, {label}"),
+            );
+        }
     }
 }

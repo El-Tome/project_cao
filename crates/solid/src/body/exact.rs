@@ -279,9 +279,11 @@ impl Exact {
 }
 
 /// The number of the face a piece was parted from, followed back to the
-/// first: the number itself for a face no cut parted.
+/// first: the number itself for a face no cut parted. Followed only while
+/// the number replaced is smaller, as every one the kernel writes is, so
+/// that roots edited by hand into a cycle cannot hang the part.
 fn root(roots: &BTreeMap<u32, u32>, mut number: u32) -> u32 {
-    while let Some(&replaced) = roots.get(&number) {
+    while let Some(&replaced) = roots.get(&number).filter(|&&replaced| replaced < number) {
         number = replaced;
     }
     number

@@ -83,7 +83,8 @@ It can:
   piece was parted from — and to its `ends`: the sides of the other faces
   met where it starts and where it ends, read along its first side's loop,
   which runs with the matter on its left; a whole closed edge has two empty
-  ends. A vertex answers to the sides of every face at it and, where another
+  ends. It also keeps `among`, how many edges lay between the same two
+  sides when it was named, whatever their ends. A vertex answers to the sides of every face at it and, where another
   vertex shares them, to the names of the edges ending there. That is read
   off the topology and the way the loops run, not off the surfaces'
   parameters: those are canonical against the world's axes, a plane's `u`
@@ -92,7 +93,8 @@ It can:
   residues. What nothing topological tells apart is ranked by where it lies
   — an edge halfway between the parameters of its two vertices, a whole
   closed edge by the mean of points at even steps round its curve from the
-  curve's own origin, a vertex by its point — compared coordinate by
+  curve's own origin and then by that origin, which concentric rims sharing
+  their mean do not share, a vertex by its point — compared coordinate by
   coordinate in the world, a coordinate within the body's tolerance counting
   as equal before the next is read. A move keeps that order; a turn may
   swap two such, even when a feature elsewhere makes the part unsymmetric:
@@ -108,10 +110,12 @@ It can:
   answer, in either order — read the other way, their ends swapped — are
   the name's siblings. As many whose two ends answer as the name was ranked
   among: found, the one at its rank. More: split. Fewer, and some: gone.
-  None: one sibling keeping its start and another its end is a split; a
-  single sibling keeping one end is the edge, its other end moved by a cut
-  at it; anything else, both ends moved or more than one candidate, is gone
-  (`Lost`). A split counts the edges now between the two faces, not the
+  None, and more siblings than there were edges between those sides: split,
+  whatever moved at its ends — an edge a slot parts and a cut shortens at
+  its end, a whole rim a slot interrupts. None otherwise: one sibling keeping
+  its start and another its end is a split; a single sibling keeping one end
+  is the edge, its other end moved by a cut at it; anything else, both ends
+  moved or more than one candidate, is gone (`Lost`). A split counts the edges now between the two faces, not the
   pieces of the named edge alone. A piece of a parted face names its edges
   by its root, so an edge a cut parts along with its face is all its pieces,
   between the same two sides. The exact body keeps the number each fresh
@@ -119,7 +123,12 @@ It can:
   and the vertex's rank; the flats name none. A fresh number comes from the
   part's one counter, so every later step's numbers move when an earlier
   change starts or stops parting a face: the faces' own rule, which moves a
-  drawing laid on a later face as surely as an edge's name.
+  drawing laid on a later face as surely as an edge's name. A root is
+  followed only while the number it replaced is smaller, as every one the
+  kernel writes is, so roots edited by hand into a cycle cannot hang a part.
+  Vertex names have no lookup yet and hold the names of their edges, so a
+  change at an edge's far end renames a vertex nothing touched: a dimension
+  from a vertex (#497) needs a `find` of its own.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face

@@ -20,14 +20,16 @@ use super::topology::{Body, EdgeId, FaceId, VertexId, ascending};
 type Ends = [Vec<Vec<u32>>; 2];
 
 /// An edge, as the sides of the two faces using it, the smaller first; what
-/// meets it at its `ends`, both empty for a whole closed edge; and its rank
-/// among the `of` edges alike in both, which only where they lie tells
-/// apart. A side is a face's numbers, each taken back to the number of the
-/// face it was parted from.
+/// meets it at its `ends`, both empty for a whole closed edge; how many
+/// edges lay between those two sides, `among`, whatever their ends; and its
+/// rank among the `of` edges alike in sides and ends, which only where they
+/// lie tells apart. A side is a face's numbers, each taken back to the
+/// number of the face it was parted from.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct EdgeName {
     pub between: [Vec<u32>; 2],
     pub ends: [Vec<Vec<u32>>; 2],
+    pub among: u32,
     pub rank: u32,
     pub of: u32,
 }
@@ -40,9 +42,10 @@ pub enum Lost {
     /// it was ranked among, or more than one keeps an end of it.
     Gone,
     /// It went on in pieces: more edges are alike in what it recorded than
-    /// it was ranked among, or one edge starts where it started and another
-    /// ends where it ended. `now` counts the edges between its two sides,
-    /// not its pieces alone.
+    /// it was ranked among; or, none alike, more edges lie between its two
+    /// sides than did when it was named, or one starts where it started and
+    /// another ends where it ended. `now` counts the edges between its two
+    /// sides, not its pieces alone.
     Split { now: u32 },
 }
 
@@ -101,7 +104,7 @@ struct Reading<'a> {
 struct EdgeRead {
     between: [Vec<u32>; 2],
     ends: Ends,
-    point: DVec3,
+    place: [DVec3; 2],
 }
 
 impl<'a> Reading<'a> {
@@ -171,36 +174,38 @@ impl<'a> Reading<'a> {
         EdgeRead {
             between,
             ends,
-            point: self.place(edge),
+            place: self.place(edge),
         }
     }
 
     /// Where an edge lies, read off its curve and its vertices alone, not
-    /// off the stretch it was built with: halfway between its vertices, or
-    /// for a whole closed edge the mean of points at even steps over one
-    /// period from the curve's own origin.
-    fn place(&self, edge: EdgeId) -> DVec3 {
+    /// off the stretch it was built with: halfway between its vertices; for
+    /// a whole closed edge, the mean of points at even steps over one period
+    /// from the curve's own origin, then that origin, which concentric
+    /// circles, sharing their mean, do not share.
+    fn place(&self, edge: EdgeId) -> [DVec3; 2] {
         let stretch = self.body.edge(edge);
         let curve = self.body.curve(stretch.curve);
         if let Some(ends) = stretch.ends {
             let [from, to] =
                 ends.map(|end| self.body.parameter_on(edge, self.body.vertex(end).point));
-            return curve.point((from + to) / 2.0);
+            return [curve.point((from + to) / 2.0); 2];
         }
         match curve.period() {
-            Some(period) => mean_along(curve, period),
-            None => curve.point((stretch.from + stretch.to) / 2.0),
+            Some(period) => [mean_along(curve, period), curve.point(0.0)],
+            None => [curve.point((stretch.from + stretch.to) / 2.0); 2],
         }
     }
 
     fn edge_names(&self) -> Vec<EdgeName> {
         let read: Vec<EdgeRead> = self.body.edge_ids().map(|edge| self.edge(edge)).collect();
+        let meetings = counted(read.iter().map(|each| &each.between));
         let alike: Vec<_> = read
             .iter()
             .map(|each| (&each.between, &each.ends))
             .collect();
         let ranks = ranked(&alike, |one, other| {
-            self.placed(read[one].point, read[other].point)
+            self.lying(&read[one].place, &read[other].place)
         });
         alike
             .into_iter()
@@ -208,6 +213,7 @@ impl<'a> Reading<'a> {
             .map(|((between, ends), (rank, of))| EdgeName {
                 between: between.clone(),
                 ends: ends.clone(),
+                among: meetings[between],
                 rank,
                 of,
             })
@@ -252,6 +258,15 @@ impl<'a> Reading<'a> {
                 of,
             })
             .collect()
+    }
+
+    /// Where two edges lie compared, each point of one against the same of
+    /// the other until two differ.
+    fn lying(&self, one: &[DVec3; 2], other: &[DVec3; 2]) -> Ordering {
+        let [first, then] = *one;
+        let [other_first, other_then] = *other;
+        self.placed(first, other_first)
+            .then_with(|| self.placed(then, other_then))
     }
 
     /// Two points compared coordinate by coordinate in the world, one

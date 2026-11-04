@@ -15,15 +15,19 @@
 //! fits when the places it touches lie on what is drawn of the sides,
 //! together with what the cuts at their other ends take.
 
-use std::f64::consts::{PI, TAU};
+use std::f64::consts::PI;
 
 use glam::DVec2;
 
 use super::drawn::{CutCurve, NOTHING, Worked, short_way_round};
 use super::{CornerCut, CornerCutId, CutShape, CutSide};
 use crate::arcing::sweep_of;
-use crate::ellipsing::EllipseDraft;
 use crate::sketch::{PointId, Sketch};
+
+mod path;
+mod places;
+
+use path::{Path, Run};
 
 /// How many steps the search for the centre takes at most.
 const STEPS: usize = 64;
@@ -48,26 +52,6 @@ const DOUBLINGS: i32 = 16;
 /// How many times the search for the largest value that fits halves what is
 /// left to search: as many as a number carries digits.
 const HALVINGS: usize = 52;
-
-/// The line or the curve a side lies on, each place of it named by one
-/// number: the distance along a line, the angle round a circle, the turn
-/// round an ellipse — growing counter-clockwise round a curve.
-#[derive(Clone, Copy, Debug)]
-enum Path {
-    Line { through: DVec2, along: DVec2 },
-    Circle { centre: DVec2, radius: f64 },
-    Ellipse(EllipseDraft),
-}
-
-/// How a side runs away from the corner: along its path from `from`, the
-/// corner, the way the sign of `way` says, as far as `reach`.
-#[derive(Clone, Copy, Debug)]
-struct Run {
-    path: Path,
-    from: f64,
-    way: f64,
-    reach: f64,
-}
 
 impl Sketch {
     /// A cut beside a curve worked out on its own: nothing when its corner
@@ -190,23 +174,15 @@ impl Sketch {
 /// have to stand inside a curve bending tighter than itself, the fillet fits
 /// nowhere, and is drawn where the sides' tangents alone would put it.
 fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64, tolerance: f64) -> Option<Worked> {
-    let leaving = runs.map(Run::leaving);
-    let turn = leaving[0].perp_dot(leaving[1]);
-    let opening = turn.abs().atan2(leaving[0].dot(leaving[1]));
-    if radius <= NOTHING || opening <= NOTHING || opening >= PI - NOTHING {
-        return None;
-    }
-    let inwards = [
-        leaving[0].perp() * turn.signum(),
-        -leaving[1].perp() * turn.signum(),
-    ];
-    let off = [0, 1].map(|rank| {
-        let outwards = runs[rank].path.outwards(runs[rank].from);
-        radius * outwards.dot(inwards[rank]).signum()
-    });
+    let Found {
+        leaving,
+        opening,
+        off,
+        at,
+    } = found(corner, runs, radius)?;
     let back = radius / (opening * 0.5).tan();
     let room = runs.map(|run| run.room(tolerance));
-    let Some(at) = meeting(corner, runs, off, opening) else {
+    let Some(at) = at else {
         let centre =
             corner + (leaving[0] + leaving[1]).normalize() * (radius / (opening * 0.5).sin());
         let touches = leaving.map(|away| corner + away * back);
@@ -229,6 +205,43 @@ fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64, tolerance: f64) ->
         takes,
         room,
         fits_alone: takes.iter().all(|take| *take >= 0.0),
+    })
+}
+
+/// A fillet between two sides as the search finds it: which way each side
+/// leaves the corner, how wide they open there, how far off each side's path
+/// its centre stands — outwards, or inwards when negative — and where on each
+/// path it touches, when it touches anywhere.
+struct Found {
+    leaving: [DVec2; 2],
+    opening: f64,
+    off: [f64; 2],
+    at: Option<[f64; 2]>,
+}
+
+/// The fillet of `radius` between two sides leaving `corner`, as both its
+/// drawing and what hangs on it read it — nothing when the sides leave the
+/// corner straight on or the same way.
+fn found(corner: DVec2, runs: [Run; 2], radius: f64) -> Option<Found> {
+    let leaving = runs.map(Run::leaving);
+    let turn = leaving[0].perp_dot(leaving[1]);
+    let opening = turn.abs().atan2(leaving[0].dot(leaving[1]));
+    if radius <= NOTHING || opening <= NOTHING || opening >= PI - NOTHING {
+        return None;
+    }
+    let inwards = [
+        leaving[0].perp() * turn.signum(),
+        -leaving[1].perp() * turn.signum(),
+    ];
+    let off = [0, 1].map(|rank| {
+        let outwards = runs[rank].path.outwards(runs[rank].from);
+        radius * outwards.dot(inwards[rank]).signum()
+    });
+    Some(Found {
+        leaving,
+        opening,
+        off,
+        at: meeting(corner, runs, off, opening),
     })
 }
 
@@ -289,88 +302,4 @@ fn searched(corner: DVec2, runs: [Run; 2], off: [f64; 2], mut at: [f64; 2]) -> O
         }
     }
     (miss(at).length() <= met).then_some(at)
-}
-
-impl Run {
-    /// The unit direction the side leaves the corner in.
-    fn leaving(self) -> DVec2 {
-        (self.path.onwards(self.from) * self.way).normalize_or_zero()
-    }
-
-    /// Where on the path a place `back` from the corner, along the side's
-    /// tangent there, lies near.
-    fn first_guess(self, back: f64) -> f64 {
-        self.from + self.way * back / self.path.onwards(self.from).length()
-    }
-
-    /// How far along the side from the corner a place of its path lies, in
-    /// the path's own measure: round a curve, the way the side runs, short of
-    /// a whole turn.
-    fn along(self, at: f64) -> f64 {
-        let along = (at - self.from) * self.way;
-        match self.path {
-            Path::Line { .. } => along,
-            Path::Circle { .. } | Path::Ellipse(_) => along.rem_euclid(TAU),
-        }
-    }
-
-    /// How far along the side there is room, in that same measure, the
-    /// drawing's tolerance given.
-    fn room(self, tolerance: f64) -> f64 {
-        self.reach + tolerance / self.path.onwards(self.from).length()
-    }
-}
-
-impl Path {
-    fn place(self, at: f64) -> DVec2 {
-        match self {
-            Self::Line { through, along } => through + along * at,
-            Self::Circle { centre, radius } => centre + DVec2::from_angle(at) * radius,
-            Self::Ellipse(drawn) => drawn.at(at),
-        }
-    }
-
-    /// How fast the place moves as its number grows.
-    fn onwards(self, at: f64) -> DVec2 {
-        match self {
-            Self::Line { along, .. } => along,
-            Self::Circle { radius, .. } => DVec2::from_angle(at).perp() * radius,
-            Self::Ellipse(drawn) => {
-                let (sin, cos) = at.sin_cos();
-                drawn.second_axis() * cos - drawn.first * sin
-            }
-        }
-    }
-
-    /// How fast `onwards` changes as the number grows.
-    fn bending(self, at: f64) -> DVec2 {
-        match self {
-            Self::Line { .. } => DVec2::ZERO,
-            Self::Circle { radius, .. } => -DVec2::from_angle(at) * radius,
-            Self::Ellipse(drawn) => drawn.centre - drawn.at(at),
-        }
-    }
-
-    /// The unit normal on the path's right as it runs, which is outside a
-    /// curve.
-    fn outwards(self, at: f64) -> DVec2 {
-        let onwards = self.onwards(at);
-        -onwards.perp() / onwards.length()
-    }
-
-    /// The place standing `by` off the path at `at`, outwards, and how fast
-    /// that place moves.
-    fn off_by(self, at: f64, by: f64) -> (DVec2, DVec2) {
-        let (onwards, bending) = (self.onwards(at), self.bending(at));
-        let (speed, outwards) = (onwards.length(), self.outwards(at));
-        let turning = (-bending.perp() - outwards * (onwards.dot(bending) / speed)) / speed;
-        (self.place(at) + outwards * by, onwards + turning * by)
-    }
-
-    /// The radius of the circle the path bends along at `at`: no end of it
-    /// along a line.
-    fn bend(self, at: f64) -> f64 {
-        let (onwards, bending) = (self.onwards(at), self.bending(at));
-        onwards.length().powi(3) / onwards.perp_dot(bending).abs()
-    }
 }

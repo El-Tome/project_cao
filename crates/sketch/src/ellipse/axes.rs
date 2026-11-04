@@ -29,15 +29,23 @@ impl Sketch {
     /// of its own ends; either way what the curve reaches is the same thing,
     /// read from the centre outwards.
     fn axis_reach(&self, centre: PointId, axis: SegmentId) -> DVec2 {
-        let Some(held) = self.segments().get(axis.0).copied() else {
+        let Some(share) = self.axis_share(centre, axis) else {
             return DVec2::ZERO;
         };
         let (start, end) = self.endpoints(axis);
-        match (held.start == centre, held.end == centre) {
-            (true, false) => end - start,
-            (false, true) => start - end,
-            _ => (end - start) * 0.5,
-        }
+        (end - start) * share
+    }
+
+    /// How much of an axis, read from its start to its end, the curve reaches
+    /// from the centre: all of it laid out from the centre, backwards when
+    /// the centre is its end, half of it laid across.
+    pub(crate) fn axis_share(&self, centre: PointId, axis: SegmentId) -> Option<f64> {
+        let held = self.segments().get(axis.0)?;
+        Some(match (held.start == centre, held.end == centre) {
+            (true, false) => 1.0,
+            (false, true) => -1.0,
+            _ => 0.5,
+        })
     }
 
     /// Whether an axis is laid out from the centre rather than across the

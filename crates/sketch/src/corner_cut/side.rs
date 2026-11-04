@@ -69,6 +69,16 @@ impl Sketch {
         }
     }
 
+    /// The points a side is drawn about besides its ends: none for a trait,
+    /// an arc's centre, an ellipse's centre and the ends of its axes.
+    pub(crate) fn drawn_about(&self, side: CutSide) -> Vec<PointId> {
+        match side {
+            CutSide::Trait(_) => Vec::new(),
+            CutSide::Arc(arc) => vec![self.arc(arc).center],
+            CutSide::ArcOfEllipse(ellipse) => self.ellipse_points(ellipse).to_vec(),
+        }
+    }
+
     pub(crate) fn is_erased_side(&self, side: CutSide) -> bool {
         match side {
             CutSide::Trait(segment) => self.is_erased_segment(segment),

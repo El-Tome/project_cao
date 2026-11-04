@@ -102,22 +102,18 @@
 //! - compacting the history keeps a fillet beside an arc, its sides followed
 //!   through what they became — `a_compacted_part_keeps_a_fillet_beside_an_arc`
 //!
-//! Set aside by the owner, 2026-11-04 — hanging on a fillet beside a curve
-//! is a separate issue:
-//! - nothing hangs on the points of a fillet beside a curve and no line is
-//!   held tangent to it; what a tool would hang there stays where it was put,
-//!   lays no rule naming the cut, and nothing panics —
-//!   `nothing_hangs_on_the_points_of_a_fillet_beside_a_curve`
+//! Hanging on a fillet beside a curve, which the owner set aside here on
+//! 2026-11-04, is #675's, held in
+//! `what_hangs_on_a_fillet_beside_a_curve_follows_it.rs`.
 
 use std::f64::consts::{PI, TAU};
 
-use cao_part::history::{CutAsked, CutChange, ExtrusionMode, Operation, PointRef};
+use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{History, Outcome, PartDocument, PartState};
 use cao_sketch::{
-    ArcDraft, ArcId, Area, Chamfer, ChosenAxis, Constraint, Corner, CornerCutId, CutCurve,
-    CutPoint, CutRefused, CutShape, CutSide, Element, EllipseId, PointId, Rule, RuleIntent,
-    RulePick, SegmentId, Sketch, SketchAxis, SnapSettings, Support, WorkPlane, rule_intent,
-    sweep_of,
+    ArcDraft, ArcId, Area, Chamfer, ChosenAxis, Corner, CornerCutId, CutCurve, CutRefused,
+    CutShape, CutSide, Element, EllipseId, PointId, SegmentId, Sketch, SketchAxis, SnapSettings,
+    WorkPlane, sweep_of,
 };
 use glam::DVec2;
 
@@ -2030,102 +2026,6 @@ fn a_compacted_part_keeps_a_fillet_beside_an_arc() {
 
         drawn_as_before(&compacted, before, &format!("{what}, compacted"));
     }
-}
-
-#[test]
-fn nothing_hangs_on_the_points_of_a_fillet_beside_a_curve() {
-    let [(mut history, _, _, _), _] = corners_rounded_beside_a_curve();
-    let cut = CornerCutId(0);
-    let drawing = PartState::rebuild(&history).sketches[0].clone();
-    let [touch, centre] = [CutPoint::First, CutPoint::Centre].map(|at| {
-        drawing
-            .cut_point(cut, at)
-            .expect("the fillet offers its points")
-    });
-
-    history.push(Operation::AddSegment {
-        sketch: 0,
-        start: PointRef::Held {
-            at: touch,
-            on: vec![Support::CutPoint(cut, CutPoint::First)],
-        },
-        end: PointRef::New(DVec2::new(14.0, -20.0)),
-        construction: false,
-    });
-    let started = PartState::rebuild(&history).sketches[0].segments()[1].start;
-    history.push(Operation::AddPoint {
-        sketch: 0,
-        position: centre,
-        on: vec![Support::CutPoint(cut, CutPoint::Centre)],
-    });
-    let laid = PointId(PartState::rebuild(&history).sketches[0].points().len() - 1);
-    history.push(Operation::AddSegment {
-        sketch: 0,
-        start: PointRef::New(DVec2::new(30.0, 30.0)),
-        end: PointRef::New(DVec2::new(40.0, 40.0)),
-        construction: false,
-    });
-    let loose = PointId(PartState::rebuild(&history).sketches[0].points().len() - 2);
-    let drawing = PartState::rebuild(&history).sketches[0].clone();
-    let picks = [
-        [
-            RulePick::Element(Element::Point(loose)),
-            RulePick::CutPoint(cut, CutPoint::Centre),
-        ],
-        [
-            RulePick::CutCurve(cut),
-            RulePick::Element(Element::Segment(SegmentId(1))),
-        ],
-    ];
-    for (rule, picks) in [(Rule::Coincident, picks[0]), (Rule::Tangent, picks[1])] {
-        if let Some(RuleIntent::Constrain(constraint)) = rule_intent(rule, &picks, &drawing) {
-            history.push(Operation::Constrain {
-                sketch: 0,
-                constraint,
-            });
-        }
-    }
-
-    history.push(Operation::CutChange(CutChange::Reshape {
-        sketch: 0,
-        cut,
-        value: CutAsked::Fillet(6.0.into()),
-    }));
-
-    let drawing = PartState::rebuild(&history).sketches[0].clone();
-    let hanging: Vec<&Constraint> = drawing
-        .constraints()
-        .iter()
-        .filter(|rule| {
-            matches!(
-                rule,
-                Constraint::AtCutPoint { .. }
-                    | Constraint::OnCut { .. }
-                    | Constraint::CutTangent { .. }
-            )
-        })
-        .collect();
-    assert!(
-        hanging.is_empty(),
-        "nothing hangs on a fillet beside a curve, and no line is held tangent to it: \
-         {hanging:?}"
-    );
-    near_place(
-        drawing.point(started),
-        touch,
-        "the line started at the fillet's end stays where it was put",
-    );
-    near_place(
-        drawing.point(laid),
-        centre,
-        "the point laid on the fillet's centre stays where it was put",
-    );
-    near_place(
-        drawing.point(loose),
-        DVec2::new(30.0, 30.0),
-        "the loose point a coincidence would have hung stays where it was",
-    );
-    the_fillet(&history, "the fillet reshaped to six");
 }
 
 /// A D: a trait from (10, 10) to (30, 10), and the arc round (20, 10) of

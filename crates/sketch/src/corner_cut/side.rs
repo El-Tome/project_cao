@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::arc::ArcId;
 use crate::ellipse::EllipseId;
 use crate::naming::CurveId;
-use crate::sketch::SegmentId;
+use crate::sketch::{PointId, SegmentId, Sketch};
 
 /// One of the two sides a cut stands between.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -29,6 +29,43 @@ impl CutSide {
 /// The two traits a cut stands between, when both its sides are traits.
 pub(crate) fn both_traits(sides: [CutSide; 2]) -> Option<[SegmentId; 2]> {
     Some([sides[0].as_trait()?, sides[1].as_trait()?])
+}
+
+impl Sketch {
+    /// The two ends of a side, start then end: none for a whole ellipse,
+    /// which has no end.
+    pub(crate) fn side_ends(&self, side: CutSide) -> Option<[PointId; 2]> {
+        match side {
+            CutSide::Trait(segment) => {
+                let segment = self.segments()[segment.0];
+                Some([segment.start, segment.end])
+            }
+            CutSide::Arc(arc) => {
+                let arc = self.arc(arc);
+                Some([arc.start, arc.end])
+            }
+            CutSide::ArcOfEllipse(ellipse) => {
+                self.ellipse_ends(ellipse).map(|(from, to)| [from, to])
+            }
+        }
+    }
+
+    /// The end of a side away from the corner, when the side ends there.
+    pub(crate) fn far_end_of(&self, side: CutSide, corner: PointId) -> Option<PointId> {
+        match self.side_ends(side)? {
+            [start, end] if start == corner => Some(end),
+            [start, end] if end == corner => Some(start),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn is_erased_side(&self, side: CutSide) -> bool {
+        match side {
+            CutSide::Trait(segment) => self.is_erased_segment(segment),
+            CutSide::Arc(arc) => self.is_erased_arc(arc),
+            CutSide::ArcOfEllipse(ellipse) => self.is_erased_ellipse(ellipse),
+        }
+    }
 }
 
 impl From<SegmentId> for CutSide {

@@ -16,6 +16,7 @@ use crate::erased::Erased;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
 mod changing;
+mod curved;
 mod drawn;
 mod hanging;
 mod picking;
@@ -60,8 +61,9 @@ pub struct CornerCut {
 /// Why a corner was not cut.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CutRefused {
-    /// The two sides are not two traits ending at one point, or one of them
-    /// is an axis of an ellipse, which the curve stands on.
+    /// The two sides do not end at one point; one of them is an axis of an
+    /// ellipse, which the curve stands on, or an arc of ellipse; or the cut
+    /// is a chamfer and a side is not a trait.
     NoCorner,
 }
 
@@ -87,6 +89,9 @@ impl Sketch {
         group: usize,
     ) -> Result<CornerCutId, CutRefused> {
         let (first, second) = (first.into(), second.into());
+        if matches!(shape, CutShape::Chamfer(_)) && both_traits([first, second]).is_none() {
+            return Err(CutRefused::NoCorner);
+        }
         let (corner, _, _) = self
             .corner_to_cut(first, second)
             .ok_or(CutRefused::NoCorner)?;
@@ -132,11 +137,7 @@ impl Sketch {
     fn stands(&self, cut: &CornerCut) -> bool {
         !self.is_erased_point(cut.corner)
             && cut.sides.iter().all(|side| {
-                side.as_trait().is_some_and(|side| {
-                    let segment = self.segments()[side.0];
-                    !self.is_erased_segment(side)
-                        && (segment.start == cut.corner || segment.end == cut.corner)
-                })
+                !self.is_erased_side(*side) && self.far_end_of(*side, cut.corner).is_some()
             })
     }
 
@@ -182,10 +183,7 @@ impl Sketch {
         for rank in 0..self.corner_cuts.len() {
             let cut = self.corner_cuts[rank];
             let lost = self.is_erased_point(cut.corner)
-                || cut.sides.iter().any(|side| {
-                    side.as_trait()
-                        .is_some_and(|side| self.is_erased_segment(side))
-                });
+                || cut.sides.iter().any(|side| self.is_erased_side(*side));
             if lost {
                 Erased::mark(&mut self.erased.cuts, rank);
             }

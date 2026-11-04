@@ -73,7 +73,10 @@ impl Sketch {
         backs
             .iter()
             .filter_map(|(id, cut, back)| {
-                let (back, sides) = ((*back)?, both_traits(cut.sides)?);
+                let Some(sides) = both_traits(cut.sides) else {
+                    return self.drawn_beside_a_curve(*id, cut, tolerance);
+                };
+                let back = (*back)?;
                 let fits = sides.iter().zip(back).all(|(side, own)| {
                     let other = taken.get(side).copied().unwrap_or_default()
                         [1 - self.end_of(*side, cut.corner)];
@@ -302,11 +305,7 @@ impl Sketch {
                 let inwards = (away[0] + away[1]).try_normalize()?;
                 let opening = away[0].angle_to(away[1]).abs();
                 let centre = corner + inwards * (radius / (opening * 0.5).sin());
-                let (start, end) = match (touches[0] - centre).perp_dot(touches[1] - centre) > 0.0 {
-                    true => (touches[0], touches[1]),
-                    false => (touches[1], touches[0]),
-                };
-                CutCurve::Arc(ArcDraft { centre, start, end })
+                CutCurve::Arc(short_way_round(centre, touches))
             }
             CutShape::Chamfer(_) => CutCurve::Straight {
                 from: touches[0],
@@ -324,6 +323,16 @@ impl Sketch {
             construction: cut.construction,
         })
     }
+}
+
+/// The arc of a fillet between the two places it touches its sides, the
+/// short way round: the side facing the corner.
+pub(super) fn short_way_round(centre: DVec2, touches: [DVec2; 2]) -> ArcDraft {
+    let (start, end) = match (touches[0] - centre).perp_dot(touches[1] - centre) > 0.0 {
+        true => (touches[0], touches[1]),
+        false => (touches[1], touches[0]),
+    };
+    ArcDraft { centre, start, end }
 }
 
 #[cfg(test)]

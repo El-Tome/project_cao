@@ -1,6 +1,6 @@
-//! How a corner is named, and what a corner is: two straight traits ending at
-//! one point. The fillet and the chamfer both stand on one — see `corner_cut`
-//! for what they draw there.
+//! How a corner is named, and what a corner is: two sides ending at one point,
+//! each a trait or a curve. The fillet and the chamfer both stand on one — see
+//! `corner_cut` for what they draw there.
 
 use std::f64::consts::TAU;
 
@@ -36,9 +36,7 @@ impl Sketch {
     /// earlier cut, or a point that stopped being a corner.
     pub fn sides_of(&self, corner: Corner) -> Option<(CutSide, CutSide)> {
         match corner {
-            Corner::At(point) => self
-                .corner_at(point)
-                .map(|(first, second)| (first.into(), second.into())),
+            Corner::At(point) => self.sides_at(point),
             Corner::Between(first, second) => {
                 self.point_between(first, second).map(|_| (first, second))
             }
@@ -61,10 +59,46 @@ impl Sketch {
         }
     }
 
-    /// The point two sides meet at.
+    /// The point two sides meet at: the first end of `first` that is an end
+    /// of `second` too.
     fn point_between(&self, first: CutSide, second: CutSide) -> Option<PointId> {
-        match (first, second) {
-            (CutSide::Trait(first), CutSide::Trait(second)) => self.shared_point(first, second),
+        let theirs = self.side_ends(second)?;
+        self.side_ends(first)?
+            .into_iter()
+            .find(|end| theirs.contains(end))
+    }
+
+    /// The two sides a point is the corner of: the traits, the arcs and the
+    /// arcs of ellipse drawn as the shape that end there, when exactly two do
+    /// and no curve is centred on it.
+    fn sides_at(&self, point: PointId) -> Option<(CutSide, CutSide)> {
+        let centred = self.live_circles().any(|(_, round)| round.center == point)
+            || self.live_arcs().any(|(_, arc)| arc.center == point);
+        if centred {
+            return None;
+        }
+        let arcs = self
+            .live_arcs()
+            .filter(|(_, arc)| !arc.construction && (arc.start == point || arc.end == point))
+            .map(|(id, _)| CutSide::Arc(id));
+        let arcs_of_ellipse = self
+            .live_ellipses()
+            .filter(|(_, ellipse)| !ellipse.construction)
+            .filter(|(_, ellipse)| {
+                ellipse
+                    .drawn
+                    .is_some_and(|(from, to)| from == point || to == point)
+            })
+            .map(|(id, _)| CutSide::ArcOfEllipse(id));
+        let sides: Vec<CutSide> = self
+            .traits_at(point)
+            .into_iter()
+            .map(CutSide::Trait)
+            .chain(arcs)
+            .chain(arcs_of_ellipse)
+            .collect();
+        match sides.as_slice() {
+            [first, second] => Some((*first, *second)),
             _ => None,
         }
     }
@@ -90,21 +124,26 @@ impl Sketch {
     ///
     /// Not where either is an axis of an ellipse: the axes are what the curve
     /// stands on, and a side pulled back would leave it standing on nothing.
+    /// Nor beside an arc of ellipse, which no cut is worked out beside.
     pub(crate) fn corner_to_cut(
         &self,
         first: CutSide,
         second: CutSide,
     ) -> Option<(PointId, PointId, PointId)> {
-        let (CutSide::Trait(first), CutSide::Trait(second)) = (first, second) else {
-            return None;
+        let held_off = |side: CutSide| match side {
+            CutSide::Trait(segment) => self.ellipse_of_axis(segment).is_some(),
+            CutSide::Arc(_) => false,
+            CutSide::ArcOfEllipse(_) => true,
         };
-        if [first, second]
-            .into_iter()
-            .any(|side| self.ellipse_of_axis(side).is_some())
-        {
+        if held_off(first) || held_off(second) {
             return None;
         }
-        self.shared_corner(first, second)
+        let corner = self.point_between(first, second)?;
+        Some((
+            corner,
+            self.far_end_of(first, corner)?,
+            self.far_end_of(second, corner)?,
+        ))
     }
 
     /// How wide a corner stands open, the shorter way round.

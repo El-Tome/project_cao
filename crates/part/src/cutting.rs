@@ -244,7 +244,9 @@ impl PartState {
             .into_iter()
             .filter_map(|curve| match curve {
                 CurveId::Segment(piece) => Some(CutSide::Trait(piece)),
-                _ => None,
+                CurveId::Arc(piece) => Some(CutSide::Arc(piece)),
+                CurveId::Ellipse(piece) => Some(CutSide::ArcOfEllipse(piece)),
+                CurveId::Circle(_) | CurveId::Corner(_) => None,
             })
             .collect()
     }

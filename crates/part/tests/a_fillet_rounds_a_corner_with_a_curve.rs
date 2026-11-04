@@ -63,3 +63,300 @@
 //!   `a_corner_rounded_beside_an_arc_mirrored_is_rounded_on_its_copy`
 //! - compacting the history keeps a fillet beside an arc, its sides followed
 //!   through what they became — `a_compacted_part_keeps_a_fillet_beside_an_arc`
+
+use std::f64::consts::PI;
+
+use cao_part::history::{Operation, PointRef};
+use cao_part::{History, PartState};
+use cao_sketch::{ArcDraft, ArcId, Corner, CutCurve, PointId, WorkPlane, sweep_of};
+use glam::DVec2;
+
+/// How near the arithmetic a place worked out in closed form comes.
+const EXACT: f64 = 1e-9;
+
+/// The first point laid after the origin: the corner every drawing here is
+/// built around.
+const THE_CORNER: PointId = PointId(1);
+
+fn near(made: f64, expected: f64, what: &str) {
+    assert!(
+        (made - expected).abs() <= EXACT * expected.abs().max(1.0),
+        "{what}: {made} where the arithmetic gives {expected}",
+    );
+}
+
+fn near_place(made: DVec2, expected: DVec2, what: &str) {
+    assert!(
+        made.distance(expected) <= EXACT * expected.length().max(1.0),
+        "{what}: {made} where the arithmetic gives {expected}",
+    );
+}
+
+/// A sketch on XY holding nothing but its corner, at `corner`.
+fn a_corner_at(corner: DVec2) -> History {
+    let mut history = History::default();
+    history.push(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: corner,
+        on: Vec::new(),
+    });
+    history
+}
+
+fn a_trait(history: &mut History, start: PointRef, end: PointRef) {
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start,
+        end,
+        construction: false,
+    });
+}
+
+/// An arc running counter-clockwise from `start` to `end` round `centre`.
+fn an_arc(history: &mut History, centre: DVec2, start: PointRef, end: PointRef) {
+    history.push(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(centre),
+        start,
+        end,
+        construction: false,
+    });
+}
+
+fn round(history: &mut History, corner: Corner, radius: f64) {
+    history.push(Operation::Fillet {
+        sketch: 0,
+        corners: vec![corner],
+        radius: radius.into(),
+        construction: false,
+    });
+}
+
+/// The one fillet the drawing shows, as the arc it is drawn with.
+fn the_fillet(history: &History, what: &str) -> ArcDraft {
+    let drawing = PartState::rebuild(history).sketches[0].clone();
+    let drawn = drawing.drawn_cuts();
+    assert_eq!(drawn.len(), 1, "{what}: the corner takes its fillet");
+    assert!(drawn[0].fits, "{what}: the fillet fits the corner");
+    match drawn[0].curve {
+        CutCurve::Arc(arc) => arc,
+        CutCurve::Straight { .. } => panic!("{what}: a fillet is drawn as an arc"),
+    }
+}
+
+/// Holds a fillet to the one worked out by hand: of `radius` round `centre`,
+/// running between the two places it touches the sides at, the short way
+/// round — on the side facing the corner.
+fn assert_drawn_as(fillet: ArcDraft, radius: f64, centre: DVec2, touches: [DVec2; 2], what: &str) {
+    near_place(
+        fillet.centre,
+        centre,
+        &format!("{what}: the fillet's centre"),
+    );
+    near(
+        fillet.centre.distance(fillet.start),
+        radius,
+        &format!("{what}: the fillet's radius at its start"),
+    );
+    near(
+        fillet.centre.distance(fillet.end),
+        radius,
+        &format!("{what}: the fillet's radius at its end"),
+    );
+    let ends = match fillet.start.distance(touches[0]) < fillet.start.distance(touches[1]) {
+        true => [fillet.start, fillet.end],
+        false => [fillet.end, fillet.start],
+    };
+    near_place(
+        ends[0],
+        touches[0],
+        &format!("{what}: where it touches the first side"),
+    );
+    near_place(
+        ends[1],
+        touches[1],
+        &format!("{what}: where it touches the second side"),
+    );
+    assert!(
+        sweep_of(fillet) < PI,
+        "{what}: the fillet runs the short way round, facing the corner, not {} rad",
+        sweep_of(fillet),
+    );
+}
+
+/// How far a place stands from the line a trait runs along.
+fn off_the_line(place: DVec2, through: DVec2, towards: DVec2) -> f64 {
+    (place - through)
+        .perp_dot((towards - through).normalize())
+        .abs()
+}
+
+#[test]
+fn a_fillet_rounds_the_corner_between_a_trait_and_an_arc_tangent_to_both() {
+    let corner = DVec2::new(10.0, 10.0);
+
+    {
+        let mut history = a_corner_at(corner);
+        let far = DVec2::new(50.0, 10.0);
+        a_trait(
+            &mut history,
+            PointRef::Existing(THE_CORNER),
+            PointRef::New(far),
+        );
+        let centre = DVec2::new(2.0, 10.0);
+        an_arc(
+            &mut history,
+            centre,
+            PointRef::Existing(THE_CORNER),
+            PointRef::New(DVec2::new(2.0, 18.0)),
+        );
+        round(&mut history, Corner::At(THE_CORNER), 5.0);
+        let what = "an arc bulging towards the corner";
+        let fillet = the_fillet(&history, what);
+        near(
+            off_the_line(fillet.centre, corner, far),
+            5.0,
+            &format!("{what}: tangent to the trait, its centre a radius off the trait's line"),
+        );
+        near(
+            fillet.centre.distance(centre),
+            8.0 + 5.0,
+            &format!("{what}: tangent to the arc from outside its circle"),
+        );
+        assert_drawn_as(
+            fillet,
+            5.0,
+            DVec2::new(14.0, 15.0),
+            [
+                DVec2::new(14.0, 10.0),
+                DVec2::new(2.0 + 96.0 / 13.0, 10.0 + 40.0 / 13.0),
+            ],
+            what,
+        );
+    }
+
+    {
+        let mut history = a_corner_at(corner);
+        let far = DVec2::new(24.0, 10.0);
+        a_trait(
+            &mut history,
+            PointRef::Existing(THE_CORNER),
+            PointRef::New(far),
+        );
+        let centre = DVec2::new(28.0, 10.0);
+        an_arc(
+            &mut history,
+            centre,
+            PointRef::New(DVec2::new(28.0, 28.0)),
+            PointRef::Existing(THE_CORNER),
+        );
+        round(&mut history, Corner::At(THE_CORNER), 5.0);
+        let what = "an arc hollow towards the corner";
+        let fillet = the_fillet(&history, what);
+        near(
+            off_the_line(fillet.centre, corner, far),
+            5.0,
+            &format!("{what}: tangent to the trait, its centre a radius off the trait's line"),
+        );
+        near(
+            fillet.centre.distance(centre),
+            18.0 - 5.0,
+            &format!("{what}: tangent to the arc from inside its circle"),
+        );
+        assert_drawn_as(
+            fillet,
+            5.0,
+            DVec2::new(16.0, 15.0),
+            [
+                DVec2::new(16.0, 10.0),
+                DVec2::new(28.0 - 216.0 / 13.0, 10.0 + 90.0 / 13.0),
+            ],
+            what,
+        );
+    }
+}
+
+#[test]
+fn a_fillet_rounds_the_corner_between_two_arcs_tangent_to_both() {
+    {
+        let corner = DVec2::new(0.0, 16.0);
+        let mut history = a_corner_at(corner);
+        let (east, west) = (DVec2::new(12.0, 0.0), DVec2::new(-12.0, 0.0));
+        an_arc(
+            &mut history,
+            east,
+            PointRef::Existing(THE_CORNER),
+            PointRef::New(DVec2::new(-8.0, 0.0)),
+        );
+        an_arc(
+            &mut history,
+            west,
+            PointRef::New(DVec2::new(8.0, 0.0)),
+            PointRef::Existing(THE_CORNER),
+        );
+        round(
+            &mut history,
+            Corner::Between(ArcId(0).into(), ArcId(1).into()),
+            5.0,
+        );
+        let what = "the tip of a lens, both arcs hollow towards it";
+        let fillet = the_fillet(&history, what);
+        for centre in [east, west] {
+            near(
+                fillet.centre.distance(centre),
+                20.0 - 5.0,
+                &format!("{what}: tangent to the arc round {centre} from inside its circle"),
+            );
+        }
+        assert_drawn_as(
+            fillet,
+            5.0,
+            DVec2::new(0.0, 9.0),
+            [DVec2::new(-4.0, 12.0), DVec2::new(4.0, 12.0)],
+            what,
+        );
+    }
+
+    {
+        let corner = DVec2::new(0.0, 5.0);
+        let mut history = a_corner_at(corner);
+        let (east, west) = (DVec2::new(12.0, 0.0), DVec2::new(-12.0, 0.0));
+        an_arc(
+            &mut history,
+            east,
+            PointRef::New(DVec2::new(12.0, 13.0)),
+            PointRef::Existing(THE_CORNER),
+        );
+        an_arc(
+            &mut history,
+            west,
+            PointRef::Existing(THE_CORNER),
+            PointRef::New(DVec2::new(-12.0, 13.0)),
+        );
+        round(
+            &mut history,
+            Corner::Between(ArcId(0).into(), ArcId(1).into()),
+            7.0,
+        );
+        let what = "two arcs bulging towards the corner between them";
+        let fillet = the_fillet(&history, what);
+        for centre in [east, west] {
+            near(
+                fillet.centre.distance(centre),
+                13.0 + 7.0,
+                &format!("{what}: tangent to the arc round {centre} from outside its circle"),
+            );
+        }
+        assert_drawn_as(
+            fillet,
+            7.0,
+            DVec2::new(0.0, 16.0),
+            [DVec2::new(4.2, 10.4), DVec2::new(-4.2, 10.4)],
+            what,
+        );
+    }
+}

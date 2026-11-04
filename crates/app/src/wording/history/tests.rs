@@ -1,4 +1,8 @@
 //! What app · wording/history/mod.rs is held to.
+//!
+//! Closes #519.
+//! - the history says a length through the one formatter, to 4 decimals,
+//!   trailing zeros trimmed — `the_history_says_a_radius_to_a_tenth_of_a_micron`
 
 use cao_part::history::{PointRef, RevolutionAxis};
 use cao_sketch::{Area, CircleId, CurveId, PointId, SegmentId, SketchAxis, WorkPlane};

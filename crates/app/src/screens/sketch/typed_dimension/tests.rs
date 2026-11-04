@@ -1,5 +1,12 @@
 //! What app · screens/sketch/typed_dimension.rs is held to.
 //!
+//! Closes #519.
+//! - an untouched `Entrée` moves nothing —
+//!   `pressing_enter_on_a_field_left_as_it_opened_moves_nothing`
+//! - the dimension editing tests, `typed_dimension.rs` and the driver tests
+//!   that read field values keep passing — no test: held by the tests already
+//!   written, which this issue leaves as they are
+//!
 //! Closes #175.
 //! - a formula can be typed as the value of a dimension placed or edited —
 //!   `a_formula_typed_into_a_dimension_is_what_the_dimension_follows`,

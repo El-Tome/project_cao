@@ -17,6 +17,7 @@ use super::overlays::{tint_to_color, to_screen};
 use super::{emphasis, tint, tint_at};
 use crate::screens::SketchContext;
 use crate::screens::viewport::ViewScale;
+use crate::wording::dimension;
 
 mod curve_sides;
 mod hidden;
@@ -346,7 +347,7 @@ pub(super) fn paint_cut_labels(
                 format!("{} × {}", mm(first), mm(second))
             }
             CutShape::Chamfer(Chamfer::Angled { along, degrees }) => {
-                format!("{} × {degrees:.1}°", mm(along))
+                format!("{} × {}", mm(along), dimension::degrees(degrees))
             }
         };
         let at = sketch.plane.to_world(label_place(&cut, pixel));

@@ -14,6 +14,7 @@ use super::preview::PendingAnnotation;
 use super::{live_offset, pending_annotation};
 use crate::screens::SketchContext;
 use crate::ui::dropping::take_a_dropped_name;
+use crate::wording::dimension::{degrees, short};
 
 /// Each dimension is drawn where it applies, with the value it stands for.
 /// A readout shows what the geometry measures rather than a stored number, so
@@ -81,7 +82,7 @@ pub(crate) fn paint_dimension_labels(
             dimension.value
         };
         let text = if dimension.is_angle() {
-            format!("{value:.1}°")
+            degrees(value)
         } else {
             state.config.unit.format(value)
         };
@@ -135,7 +136,7 @@ pub(crate) fn paint_dimension_labels(
         && let Some(position) = to_screen(sketch.plane.to_world(text_at), view_projection, rect)
     {
         let text = if target.is_angle() {
-            format!("{value:.1}°")
+            degrees(value)
         } else {
             state.config.unit.format(value)
         };
@@ -199,7 +200,7 @@ pub(crate) fn paint_dimension_field(
                         // nothing, since it reports the geometry rather than deciding it.
                         let measured = context.document.measured(index, target).unwrap_or_default();
                         let unit = if angle { "°" } else { "mm" };
-                        let value = format!("{measured:.2}");
+                        let value = short(measured);
                         let holes = [("value", value.as_str()), ("unit", unit)];
                         ui.weak(lang.t_with("viewport.read_only", &holes));
                         return;

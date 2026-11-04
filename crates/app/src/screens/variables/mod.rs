@@ -10,6 +10,7 @@ pub use view::VariablesAction;
 
 use crate::lang::Catalogue;
 use crate::ui::formula_field::{Naming, Offer};
+use crate::wording::dimension::short;
 
 /// What makes a name, as the formula reader has it: what a field completes
 /// is what a formula reads.
@@ -29,16 +30,10 @@ pub fn offered(variables: &Variables) -> Vec<Offer> {
             beside: values
                 .get(variable.0)
                 .filter(|value| value.is_finite())
-                .map(|value| shown(*value))
+                .map(|value| short(*value))
                 .unwrap_or_default(),
         })
         .collect()
-}
-
-/// What a variable comes to, to the ten-thousandth and no further.
-pub(crate) fn shown(value: f64) -> String {
-    let text = format!("{value:.4}");
-    text.trim_end_matches('0').trim_end_matches('.').to_string()
 }
 
 /// What the panel did this frame.

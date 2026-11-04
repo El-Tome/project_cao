@@ -1,5 +1,10 @@
 //! What the measure tool says, held to what #176 asked it to say.
 //!
+//! Closes #519.
+//! - the measure tool gives as many figures as 0.1 µm needs: 7 on 100 mm —
+//!   `a_measure_on_a_hundred_millimetres_reads_to_seven_figures`
+//! - and 8 on a metre — `a_measure_on_a_metre_reads_to_eight_figures`
+//!
 //! Closes #176.
 //! - a straight run says the distance and the reach along each axis, one to a
 //!   side of the triangle — `a_run_says_one_number_for_each_side_of_its_triangle`

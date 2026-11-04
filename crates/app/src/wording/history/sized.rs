@@ -6,8 +6,9 @@ use cao_part::{Formula, Variables};
 use cao_sketch::{ChosenAxis, PointId};
 
 use crate::lang::Catalogue;
+use crate::wording::dimension::short;
 use crate::wording::formula::sized;
-use crate::wording::history::values::{chamfer as chamfer_mode, chosen_axis, rounded};
+use crate::wording::history::values::{chamfer as chamfer_mode, chosen_axis};
 
 pub(super) fn chamfer(
     lang: &Catalogue,
@@ -38,10 +39,7 @@ pub(super) fn fillet(
         &[
             ("sketch", &sketch.to_string()),
             ("corners", &corners.to_string()),
-            (
-                "radius",
-                &sized(lang, variables, radius, |value| format!("{value:.3}")),
-            ),
+            ("radius", &sized(lang, variables, radius, short)),
         ],
     )
 }
@@ -62,10 +60,7 @@ pub(super) fn circular_pattern(
             ("sketch", &sketch.to_string()),
             ("elements", &elements.to_string()),
             ("centre", &centre.0.to_string()),
-            (
-                "degrees",
-                &sized(lang, variables, degrees, |value| rounded(value, 3)),
-            ),
+            ("degrees", &sized(lang, variables, degrees, short)),
             ("count", &sized(lang, variables, count, whole)),
         ],
     )
@@ -79,7 +74,7 @@ pub(super) fn rectangular_pattern(
     along: &RepeatsAsked,
     across: &RepeatsAsked,
 ) -> String {
-    let step = |run: &RepeatsAsked| sized(lang, variables, &run.step, |value| rounded(value, 3));
+    let step = |run: &RepeatsAsked| sized(lang, variables, &run.step, short);
     lang.t_with(
         "history.detail.rectangular_pattern",
         &[
@@ -102,5 +97,5 @@ fn whole(value: f64) -> String {
 /// A variable's formula, said with what it comes to when it is more than a
 /// number.
 pub(super) fn formula(lang: &Catalogue, variables: &Variables, written: &Formula) -> String {
-    sized(lang, variables, written, crate::wording::dimension::short)
+    sized(lang, variables, written, short)
 }

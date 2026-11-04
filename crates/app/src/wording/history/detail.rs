@@ -285,8 +285,8 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
             &[
                 ("sketch", &sketch.to_string()),
                 ("count", &(segments.len() + arcs.len()).to_string()),
-                ("x", &format!("{:.3}", at.x)),
-                ("y", &format!("{:.3}", at.y)),
+                ("x", &dimension::short(at.x)),
+                ("y", &dimension::short(at.y)),
             ],
         ),
         Operation::MergePoints {

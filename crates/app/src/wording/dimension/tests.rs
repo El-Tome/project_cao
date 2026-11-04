@@ -1,5 +1,20 @@
 //! What app · wording/dimension.rs is held to.
+//!
+//! Closes #519.
+//! - one formatter for every length: the history and the fields say the
+//!   number the canvas says, to 4 decimals, trailing zeros trimmed —
+//!   `a_measured_value_is_cut_to_a_tenth_of_a_micron_and_keeps_no_trailing_zero`,
+//!   `the_canvas_and_the_history_say_a_length_the_same_way`
+//! - angles to a fixed 4 decimals of a degree, trailing zeros trimmed —
+//!   `an_angle_is_said_to_four_decimals_of_a_degree_and_keeps_no_trailing_zero`
+//! - a non-zero value is never shown as zero, length or angle —
+//!   `a_value_under_a_tenth_of_a_micron_is_never_said_to_be_nothing`,
+//!   `an_angle_under_a_ten_thousandth_of_a_degree_is_never_said_to_be_nothing`
+//! - `wording/` tests keep passing, the one pinning 0.001 to « Cote 0 mm »
+//!   changed on purpose and renamed from `…_cut_to_two_decimals_…` —
+//!   `a_measured_value_is_cut_to_a_tenth_of_a_micron_and_keeps_no_trailing_zero`
 
+use cao_prefs::config::{LengthUnit, UnitDisplay};
 use cao_sketch::{ArcId, AxisToward, CircleId, PointId, SegmentId, Toward};
 
 use super::*;
@@ -69,13 +84,76 @@ fn a_dimension_is_named_after_what_it_measures() {
 }
 
 #[test]
-fn a_measured_value_is_cut_to_two_decimals_and_keeps_no_trailing_zero() {
+fn a_measured_value_is_cut_to_a_tenth_of_a_micron_and_keeps_no_trailing_zero() {
     let length = DimensionTarget::Length(SEGMENT);
 
-    assert_eq!(named(&length, 60.878_967), "Cote 60.88 mm");
+    assert_eq!(named(&length, 37.461_829_3), "Cote 37.4618 mm");
+    assert_eq!(named(&length, 60.878_967), "Cote 60.879 mm");
     assert_eq!(named(&length, 60.0), "Cote 60 mm");
     assert_eq!(named(&length, 60.1), "Cote 60.1 mm");
-    assert_eq!(named(&length, 0.001), "Cote 0 mm");
+    assert_eq!(named(&length, 0.001), "Cote 0.001 mm");
+}
+
+fn number_in(said: &str) -> f64 {
+    said.trim_end_matches('°')
+        .parse()
+        .unwrap_or_else(|_| panic!("{said:?} is not a number"))
+}
+
+#[test]
+fn the_canvas_and_the_history_say_a_length_the_same_way() {
+    let canvas = UnitDisplay::Fixed(LengthUnit::Millimeter);
+
+    for length in [37.461_829_3, 1234.567_89, 50.0003, 12.5, 60.0, 0.000_03] {
+        assert_eq!(
+            canvas.format(length),
+            format!("{} mm", short(length)),
+            "{length} mm reads one way on the canvas and another in the history",
+        );
+    }
+}
+
+#[test]
+fn a_value_under_a_tenth_of_a_micron_is_never_said_to_be_nothing() {
+    for value in [0.000_03_f64, -0.000_03, 1e-9] {
+        let said = short(value);
+        let number = number_in(&said);
+        assert!(
+            number != 0.0 && number.signum() == value.signum(),
+            "{value} is not nothing, and reads {said:?}",
+        );
+    }
+    assert_eq!(number_in(&short(0.0)), 0.0, "nothing still reads nothing");
+}
+
+#[test]
+fn an_angle_is_said_to_four_decimals_of_a_degree_and_keeps_no_trailing_zero() {
+    for (angle, reads) in [
+        (12.5, "12.5°"),
+        (60.0, "60°"),
+        (0.01, "0.01°"),
+        (33.123_456, "33.1235°"),
+    ] {
+        assert_eq!(degrees(angle), reads, "{angle}°");
+    }
+    assert_eq!(
+        named(&DimensionTarget::corner(SegmentId(0), SegmentId(1)), 0.01),
+        "Angle 0.01°",
+        "the history says the angle the canvas says",
+    );
+}
+
+#[test]
+fn an_angle_under_a_ten_thousandth_of_a_degree_is_never_said_to_be_nothing() {
+    for angle in [0.000_02_f64, -0.000_02, 1e-9] {
+        let said = degrees(angle);
+        let number = number_in(&said);
+        assert!(
+            number != 0.0 && number.signum() == angle.signum(),
+            "{angle}° is not nothing, and reads {said:?}",
+        );
+    }
+    assert_eq!(degrees(0.0), "0°", "nothing still reads nothing");
 }
 
 #[test]

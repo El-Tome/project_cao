@@ -1,5 +1,9 @@
 //! What the grid of a work plane is held to.
 //!
+//! Closes #519.
+//! - the grid step is chosen in f64, so a snapped place is round —
+//!   `a_place_a_metre_from_the_origin_snaps_onto_a_round_value`
+//!
 //! Closes #318.
 //! - a sketch on an offset or inclined face shows its grid on that face —
 //!   `a_grid_lies_on_the_plane_it_was_given`

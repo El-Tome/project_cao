@@ -1,5 +1,12 @@
 //! What app · input/measure.rs is held to.
 //!
+//! Closes #519.
+//! - an edit field opens on what was typed, the formula —
+//!   `a_value_written_from_a_variable_is_opened_as_what_it_was_written_as` —
+//!   or the number as written — `a_number_typed_is_opened_as_it_was_written`
+//! - a dimension placed by clicking stores its measured value rounded to
+//!   0.1 µm — `a_dimension_placed_by_clicking_holds_its_measure_to_a_tenth_of_a_micron`
+//!
 //! Closes #175.
 //! - a dimension on the drawing shows its value; editing it shows its formula
 //!   — `a_value_written_from_a_variable_is_opened_as_what_it_was_written_as`,

@@ -1,5 +1,9 @@
 //! What app · screens/variables/state.rs is held to.
 //!
+//! Closes #519.
+//! - what a variable comes to is never shown as zero when it is not —
+//!   `a_variable_worth_less_than_a_tenth_of_a_micron_is_not_shown_as_nothing`
+//!
 //! Closes #175.
 //! - a row is added, edited or deleted in the panel, and one asked as it was
 //!   records nothing — `every_variable_is_a_row_with_its_formula_and_what_it_comes_to`,

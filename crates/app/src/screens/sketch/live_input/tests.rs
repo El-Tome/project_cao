@@ -1,5 +1,10 @@
 //! What app · screens/sketch/live_input.rs is held to.
 //!
+//! Closes #519.
+//! - a live field shows a suggested length through the one formatter, to
+//!   4 decimals, and never a non-zero one as zero —
+//!   `a_suggested_value_is_shown_to_a_tenth_of_a_micron`
+//!
 //! Closes #423.
 //! - on a part with no scale yet, a length typed while a shape is drawn is
 //!   worth the length the shape had on screen when it was typed, and keeps

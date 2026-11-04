@@ -1,5 +1,9 @@
 //! What sketch · reading.rs is held to.
 //!
+//! Closes #519.
+//! - `run_of` is good enough for the figures the measure tool now gives —
+//!   `the_way_round_a_very_flat_ellipse_is_good_to_a_tenth_of_a_micron`
+//!
 //! Closes #428.
 //! - a surface goes up with the square of the scale while its perimeter does
 //!   not — `a_surface_goes_up_with_the_square_of_the_scale_while_its_perimeter_does_not`,

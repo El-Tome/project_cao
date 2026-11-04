@@ -158,7 +158,21 @@ pub fn to_figures(value: f64, figures: u32) -> String {
     let step = 10f64.powf(exponent - f64::from(figures - 1));
     let rounded = (value / step).round() * step;
     let decimals = (f64::from(figures - 1) - exponent).max(0.0) as usize;
-    let text = format!("{rounded:.decimals$}");
+    trimmed(format!("{rounded:.decimals$}"))
+}
+
+/// A value held to a number of decimal places, trailing zeros taken off. A
+/// value that is not zero but would read so is shown to its first figure.
+pub fn to_places(value: f64, places: usize) -> String {
+    let text = trimmed(format!("{value:.places$}"));
+    if value == 0.0 || text.parse::<f64>() != Ok(0.0) {
+        return text;
+    }
+    let first = -value.abs().log10().floor() as usize;
+    trimmed(format!("{value:.first$}"))
+}
+
+fn trimmed(text: String) -> String {
     match text.contains('.') {
         true => text.trim_end_matches('0').trim_end_matches('.').to_string(),
         false => text,
@@ -198,33 +212,18 @@ impl LengthUnit {
         }
     }
 
-    /// Formats a length given in world units (millimetres today), trimming the
-    /// decimals that a round value does not need.
+    /// Formats a length given in world units (millimetres today) to a tenth of
+    /// a micron, 1e-4 mm, said in this unit, its trailing zeros trimmed.
     pub fn format(self, millimeters: f64) -> String {
+        let places = (4.0 + self.millimeters().log10()).round() as usize;
         let value = millimeters / self.millimeters();
-        let text = if value >= 100.0 {
-            format!("{value:.0}")
-        } else if value >= 10.0 {
-            format!("{value:.1}")
-        } else {
-            format!("{value:.2}")
-        };
-        // Only trailing zeros *after a decimal point* are noise; trimming
-        // blindly would turn "1000" into "1".
-        let text = if text.contains('.') {
-            text.trim_end_matches('0').trim_end_matches('.')
-        } else {
-            &text
-        };
-        format!("{text} {}", self.suffix())
+        format!("{} {}", to_places(value, places), self.suffix())
     }
 
     /// The same length held to a number of significant figures.
     ///
-    /// `format` above is for a value the drawing is *held to* — a dimension is
-    /// typed, and typing 40 should read back 40 rather than 39.999999999999996.
-    /// A measure is the other thing: it reports what is there, so it is given
-    /// a great deal more room, and how much is the reader's to say.
+    /// `format` above is held to a tenth of a micron whatever the size. A
+    /// measure reports what is there, to as many figures as the reader says.
     ///
     /// Significant figures rather than decimal places, so that the precision
     /// follows the size of what is being measured: six figures is a hundredth

@@ -87,10 +87,10 @@
 use std::f64::consts::{PI, TAU};
 
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
-use cao_part::{History, PartDocument, PartState};
+use cao_part::{History, Outcome, PartDocument, PartState};
 use cao_sketch::{
-    ArcDraft, ArcId, Area, Corner, CutCurve, CutSide, EllipseId, PointId, SegmentId, Sketch,
-    SnapSettings, WorkPlane, sweep_of,
+    ArcDraft, ArcId, Area, Chamfer, Corner, CutCurve, CutRefused, CutShape, CutSide, EllipseId,
+    PointId, SegmentId, Sketch, SnapSettings, WorkPlane, sweep_of,
 };
 use glam::DVec2;
 
@@ -1610,4 +1610,183 @@ fn dragging_a_corner_between_two_arcs_moves_it_as_a_sharp_corner() {
         [true, true],
         "the fillet after the drag",
     );
+}
+
+/// A trait rising from (46, 34) to (46, 54), and the arc of ellipse round
+/// (40, 30) over the top of its curve, from that corner to (30, 30) — or, when
+/// `whole`, the whole ellipse through the corner, with nothing cut from it.
+fn a_trait_and_an_ellipse(whole: bool) -> History {
+    let corner = DVec2::new(46.0, 34.0);
+    let mut history = a_corner_at(corner);
+    a_trait(
+        &mut history,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(46.0, 54.0)),
+    );
+    let [back, _] = LEVEL.first_ends();
+    match whole {
+        false => an_arc_of_ellipse(
+            &mut history,
+            LEVEL,
+            [PointRef::Existing(THE_CORNER), PointRef::New(back)],
+        ),
+        true => {
+            let [back, front] = LEVEL.first_ends();
+            history.push(Operation::AddEllipse {
+                sketch: 0,
+                center: PointRef::New(LEVEL.centre),
+                first: [PointRef::New(back), PointRef::New(front)],
+                second: [
+                    PointRef::New(LEVEL.centre - LEVEL.across()),
+                    PointRef::New(LEVEL.centre + LEVEL.across()),
+                ],
+                construction: false,
+                drawn: None,
+            });
+        }
+    }
+    history
+}
+
+/// A trait from (10, 10) to (50, 10) and an arc round (2, 10) of radius 8 from
+/// that corner up to (2, 18).
+fn a_trait_and_an_arc() -> History {
+    let mut history = a_corner_at(DVec2::new(10.0, 10.0));
+    a_trait(
+        &mut history,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(50.0, 10.0)),
+    );
+    an_arc(
+        &mut history,
+        DVec2::new(2.0, 10.0),
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(2.0, 18.0)),
+    );
+    history
+}
+
+/// What laying `operation` on the drawing `history` makes says, and how many
+/// cuts then stand.
+fn laid(history: &History, operation: Operation) -> (Option<Outcome>, usize) {
+    let mut state = PartState::rebuild(history);
+    let said = state.apply(&operation);
+    (said, state.sketches[0].live_corner_cuts().count())
+}
+
+const ONE_REFUSED: Option<Outcome> = Some(Outcome::Cut {
+    rules: 0,
+    values: 0,
+    refused: 1,
+});
+
+#[test]
+fn a_chamfer_on_a_corner_with_an_arc_or_an_arc_of_ellipse_is_refused() {
+    for (history, curve, what) in [
+        (
+            a_trait_and_an_arc(),
+            CutSide::Arc(ArcId(0)),
+            "a trait and an arc",
+        ),
+        (
+            a_trait_and_an_ellipse(false),
+            CutSide::ArcOfEllipse(EllipseId(0)),
+            "a trait and an arc of ellipse",
+        ),
+    ] {
+        for corner in [
+            Corner::At(THE_CORNER),
+            Corner::Between(SegmentId(0).into(), curve),
+        ] {
+            assert_eq!(
+                laid(
+                    &history,
+                    Operation::Chamfer {
+                        sketch: 0,
+                        corners: vec![corner],
+                        mode: Chamfer::Equal(2.0).into(),
+                        construction: false,
+                    },
+                ),
+                (ONE_REFUSED, 0),
+                "{what}, named {corner:?}: the chamfer is refused and nothing is laid"
+            );
+        }
+        let mut drawing = PartState::rebuild(&history).sketches[0].clone();
+        assert_eq!(
+            drawing.cut_corner(
+                SegmentId(0),
+                curve,
+                CutShape::Chamfer(Chamfer::Equal(2.0)),
+                false,
+                0,
+            ),
+            Err(CutRefused::ChamferOnACurve),
+            "{what}: the drawing says the chamfer is refused for its curve, which is \
+             what the tool says why from"
+        );
+        assert!(
+            drawing
+                .cut_corner(
+                    SegmentId(0),
+                    curve,
+                    CutShape::Fillet { radius: 2.0 },
+                    false,
+                    0,
+                )
+                .is_ok(),
+            "{what}: the same corner takes a fillet"
+        );
+    }
+}
+
+#[test]
+fn a_whole_circle_or_a_whole_ellipse_has_no_corner_to_round() {
+    let corner = DVec2::new(10.0, 10.0);
+    let mut on_a_circle = a_corner_at(corner);
+    a_trait(
+        &mut on_a_circle,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(50.0, 10.0)),
+    );
+    on_a_circle.push(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(2.0, 10.0)),
+        radius: 8.0,
+        rim: vec![PointRef::Existing(THE_CORNER)],
+        construction: false,
+    });
+    let on_an_ellipse = a_trait_and_an_ellipse(true);
+
+    for (history, corners, what) in [
+        (
+            on_a_circle,
+            vec![Corner::At(THE_CORNER)],
+            "a trait ending on a whole circle",
+        ),
+        (
+            on_an_ellipse,
+            vec![
+                Corner::At(THE_CORNER),
+                Corner::Between(SegmentId(0).into(), EllipseId(0).into()),
+            ],
+            "a trait ending on a whole ellipse",
+        ),
+    ] {
+        for corner in corners {
+            assert_eq!(
+                laid(
+                    &history,
+                    Operation::Fillet {
+                        sketch: 0,
+                        corners: vec![corner],
+                        radius: 3.0.into(),
+                        construction: false,
+                    },
+                ),
+                (ONE_REFUSED, 0),
+                "{what}, named {corner:?}: a whole curve has no end, so no corner to round"
+            );
+        }
+    }
 }

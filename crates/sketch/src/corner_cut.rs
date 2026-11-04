@@ -63,10 +63,12 @@ pub struct CornerCut {
 /// Why a corner was not cut.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CutRefused {
-    /// The two sides do not end at one point, one of them is an axis of an
-    /// ellipse, which the curve stands on, or the cut is a chamfer and a side
-    /// is not a trait.
+    /// The two sides do not end at one point, or one of them is an axis of
+    /// an ellipse, which the curve stands on.
     NoCorner,
+    /// A chamfer was asked beside an arc or an arc of ellipse: it cuts only a
+    /// corner between two traits.
+    ChamferOnACurve,
 }
 
 impl Sketch {
@@ -91,12 +93,14 @@ impl Sketch {
         group: usize,
     ) -> Result<CornerCutId, CutRefused> {
         let (first, second) = (first.into(), second.into());
-        if matches!(shape, CutShape::Chamfer(_)) && both_traits([first, second]).is_none() {
-            return Err(CutRefused::NoCorner);
-        }
         let (corner, _, _) = self
             .corner_to_cut(first, second)
             .ok_or(CutRefused::NoCorner)?;
+        if matches!(shape, CutShape::Chamfer(_))
+            && let Some(refused) = first.refuses_a_chamfer().or(second.refuses_a_chamfer())
+        {
+            return Err(refused);
+        }
         let standing = self.cut_standing_between(first, second);
         if let Some(standing) = standing {
             Erased::mark(&mut self.erased.cuts, standing.0);

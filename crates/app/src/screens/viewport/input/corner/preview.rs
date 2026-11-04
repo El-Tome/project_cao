@@ -29,10 +29,10 @@ pub(crate) fn previewed(
     let mut shown = taken.clone();
     if let Some(first) = half
         && let Some(under) = sketch
-            .nearest_segment(cursor, snap)
+            .nearest_side(cursor, snap)
             .filter(|under| under != first)
     {
-        shown.push(Corner::Between((*first).into(), under.into()));
+        shown.push(Corner::Between(*first, under));
     }
     if shown.is_empty() {
         return None;

@@ -1,4 +1,4 @@
-use cao_sketch::{ChamferMode, Corner, PointId, SegmentId, Sketch, ToolState};
+use cao_sketch::{ChamferMode, Corner, CutRefused, CutSide, PointId, Sketch, ToolState};
 use glam::DVec2;
 
 use crate::screens::sketch::Tool;
@@ -42,18 +42,33 @@ pub(crate) fn corner(
 
     match clicked(sketch, cursor, snap, takes_a_point(context)) {
         CornerClick::Corner(corner) => {
+            if context.editor.tool != Tool::Fillet
+                && let Some(said) = chamfer_refused(sketch, corner)
+            {
+                keep_typing(context);
+                context.editor.message = Some(context.lang.t(said));
+                return true;
+            }
             toggle(sketch, &mut taken, corner);
             wait_for_values(context, taken, None);
         }
         CornerClick::Side(side) => {
+            if context.editor.tool != Tool::Fillet
+                && let Some(refused) = side.refuses_a_chamfer()
+            {
+                keep_typing(context);
+                context.editor.message = Some(context.lang.t(said_of(refused)));
+                return true;
+            }
             // A click on the corner itself finds whichever trait the drawing
             // holds first, and the same one every time. With one already
             // named, the other is the only choice left.
             let side = match half.filter(|first| *first == side) {
                 Some(named) => sketch
                     .nearest_point(cursor, snap)
-                    .and_then(|point| sketch.other_side_at(point, named))
-                    .unwrap_or(side),
+                    .zip(named.as_trait())
+                    .and_then(|(point, named)| sketch.other_side_at(point, named))
+                    .map_or(side, CutSide::from),
                 None => side,
             };
             let Some(first) = half.filter(|first| *first != side) else {
@@ -61,15 +76,15 @@ pub(crate) fn corner(
                 context.editor.message = Some(context.lang.t("sketch.click_the_other_side"));
                 return true;
             };
-            // Two traits that do not meet is a different failure from a
-            // corner too tight, and the count of corners turned away would
-            // describe it wrongly.
-            if sketch.shared_point(first, side).is_none() {
+            // Two sides that do not meet is a different failure from a corner
+            // too tight, and the count of corners turned away would describe
+            // it wrongly.
+            let corner = Corner::Between(first, side);
+            if sketch.corner_point(corner).is_none() {
                 keep_typing(context);
                 context.editor.message = Some(context.lang.t("sketch.chamfer_needs_a_corner"));
                 return true;
             }
-            let corner = Corner::Between(first.into(), side.into());
             // Named this way a corner carries its own first side, so a mode
             // that measures from one gathers corners like any other. What it
             // cannot do is take a corner by its point, which would leave it no
@@ -163,7 +178,7 @@ fn toggle(sketch: &Sketch, taken: &mut Vec<Corner>, corner: Corner) {
 
 /// What the tool is holding: the corners taken, and half a corner if a side is
 /// waiting for its other.
-fn held(state: &ToolState) -> (Vec<Corner>, Option<SegmentId>) {
+fn held(state: &ToolState) -> (Vec<Corner>, Option<CutSide>) {
     match state {
         ToolState::Corner { taken, half } => (taken.clone(), *half),
         _ => (Vec::new(), None),
@@ -173,7 +188,7 @@ fn held(state: &ToolState) -> (Vec<Corner>, Option<SegmentId>) {
 /// Puts back what the click left the tool holding, with the keyboard on the
 /// field. `open` rather than a nudge only when nothing was being typed yet:
 /// it clears, and a value typed for the first corner is meant for the next.
-fn wait_for_values(context: &mut SketchContext<'_>, taken: Vec<Corner>, half: Option<SegmentId>) {
+fn wait_for_values(context: &mut SketchContext<'_>, taken: Vec<Corner>, half: Option<CutSide>) {
     let fresh = context.editor.live.locked().first.is_none();
     context.editor.tool_state = ToolState::Corner { taken, half };
     match fresh {
@@ -247,7 +262,7 @@ pub(crate) enum CornerClick {
     /// A point too crowded to name a corner on its own.
     Crowded,
     /// A side of a corner, waiting for the other to be clicked.
-    Side(SegmentId),
+    Side(CutSide),
     /// Nothing the tool can use.
     Nothing,
 }
@@ -260,7 +275,7 @@ pub(crate) enum CornerClick {
 /// no first side to give them.
 fn clicked(sketch: &Sketch, cursor: DVec2, snap: f64, by_point: bool) -> CornerClick {
     if by_point && let Some(point) = sketch.nearest_point(cursor, snap) {
-        match sketch.corner_at(point) {
+        match sketch.sides_of(Corner::At(point)) {
             Some(_) => return CornerClick::Corner(Corner::At(point)),
             // Only a crowd is worth explaining. A point where one trait simply
             // ends is not a corner anybody was promised, and the trait under
@@ -269,9 +284,25 @@ fn clicked(sketch: &Sketch, cursor: DVec2, snap: f64, by_point: bool) -> CornerC
             None => {}
         }
     }
-    match sketch.nearest_segment(cursor, snap) {
+    match sketch.nearest_side(cursor, snap) {
         Some(side) => CornerClick::Side(side),
         None => CornerClick::Nothing,
+    }
+}
+
+/// Why a chamfer cannot take a corner, as the key of the sentence that says
+/// so — nothing when it can. The drawing says which side refuses it.
+fn chamfer_refused(sketch: &Sketch, corner: Corner) -> Option<&'static str> {
+    let (first, second) = sketch.sides_of(corner)?;
+    let refused = first.refuses_a_chamfer().or(second.refuses_a_chamfer())?;
+    Some(said_of(refused))
+}
+
+/// The key of the sentence that says why a corner was refused a cut.
+fn said_of(refused: CutRefused) -> &'static str {
+    match refused {
+        CutRefused::ChamferOnACurve => "sketch.chamfer_needs_two_traits",
+        CutRefused::NoCorner => "sketch.chamfer_needs_a_corner",
     }
 }
 

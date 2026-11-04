@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::CutRefused;
 use crate::arc::ArcId;
 use crate::ellipse::EllipseId;
 use crate::naming::CurveId;
@@ -22,6 +23,15 @@ impl CutSide {
         match self {
             Self::Trait(segment) => Some(segment),
             Self::Arc(_) | Self::ArcOfEllipse(_) => None,
+        }
+    }
+
+    /// Why a chamfer may not stand beside this side, when it may not: a
+    /// chamfer cuts only a corner between two traits.
+    pub fn refuses_a_chamfer(self) -> Option<CutRefused> {
+        match self {
+            Self::Trait(_) => None,
+            Self::Arc(_) | Self::ArcOfEllipse(_) => Some(CutRefused::ChamferOnACurve),
         }
     }
 }

@@ -5,7 +5,7 @@
 //!   `every_corner_taken_is_shown_wherever_the_cursor_is`,
 //!   `the_side_under_the_cursor_stands_in_for_the_second_click`
 
-use cao_sketch::{ChamferMode, Corner, CutCurve, CutShape, SegmentId, WorkPlane};
+use cao_sketch::{ChamferMode, Corner, CutCurve, CutShape, CutSide, SegmentId, WorkPlane};
 
 use super::*;
 
@@ -20,7 +20,7 @@ fn a_right_angle() -> (Sketch, SegmentId, SegmentId) {
     (sketch, along, up)
 }
 
-fn rounding(taken: Vec<Corner>, half: Option<SegmentId>, radius: Option<f64>) -> SketchEditor {
+fn rounding(taken: Vec<Corner>, half: Option<CutSide>, radius: Option<f64>) -> SketchEditor {
     let mut editor = SketchEditor {
         tool: Tool::Fillet,
         tool_state: ToolState::Corner { taken, half },
@@ -64,7 +64,7 @@ fn a_radius_typed_on_a_corner_already_clicked_shows_the_curve_before_enter() {
 #[test]
 fn the_side_under_the_cursor_stands_in_for_the_second_click() {
     let (sketch, along, _) = a_right_angle();
-    let editor = rounding(Vec::new(), Some(along), Some(3.0));
+    let editor = rounding(Vec::new(), Some(CutSide::Trait(along)), Some(3.0));
     let over_the_north_side = DVec2::new(2.0, 6.0);
 
     assert!(

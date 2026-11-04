@@ -2,8 +2,8 @@
 
 use glam::DVec2;
 
-use super::CornerCutId;
 use super::drawn::CutCurve;
+use super::{CornerCutId, CutSide};
 use crate::arcing::ArcDraft;
 use crate::holding::Support;
 use crate::reading::Reading;
@@ -29,6 +29,24 @@ impl Sketch {
             .filter(|(_, distance)| *distance <= tolerance)
             .min_by(|(_, one), (_, other)| one.total_cmp(other))
             .map(|(id, _)| id)
+    }
+
+    /// The side of a corner the cursor names: the trait under it, or else the
+    /// arc, or else the arc of ellipse — a whole ellipse has no end to stand a
+    /// corner on.
+    pub fn nearest_side(&self, position: DVec2, tolerance: f64) -> Option<CutSide> {
+        if let Some(segment) = self.nearest_segment(position, tolerance) {
+            return Some(segment.into());
+        }
+        if let Some(arc) = self.nearest_arc(position, tolerance) {
+            return Some(arc.into());
+        }
+        self.live_ellipses()
+            .filter(|(id, _)| self.ellipse_ends(*id).is_some())
+            .map(|(id, _)| (id, self.distance_to_ellipse(id, position)))
+            .filter(|(_, distance)| *distance <= tolerance)
+            .min_by(|(_, one), (_, other)| one.total_cmp(other))
+            .map(|(id, _)| id.into())
     }
 
     /// The cut under the cursor when its curve passes nearer than what is

@@ -141,12 +141,12 @@ fn a_whole_ellipse_whose_half_axes_differ_by_more_than_decision_8_s_hair_keeps_i
     assert_eq!(wall_faces(&body).len(), 1);
 }
 
-#[test]
-fn an_arc_of_an_ellipse_whose_half_axes_differ_by_ten_tolerances_keeps_its_elliptic_wall() {
-    let eps = Scale::of(10.0).eps();
-    let first = DVec2::from_angle(0.4) * (5.0 + 5.0 * eps);
-    let second = 5.0 - 5.0 * eps;
-    let cap = Contour {
+/// A cap of an ellipse cut by a trait: three radians of it, the trait
+/// closing it, its half-axes `5 ± apart`.
+fn cap(apart: f64) -> Contour {
+    let first = DVec2::from_angle(0.4) * (5.0 + apart);
+    let second = 5.0 - apart;
+    Contour {
         corners: vec![on(first, second, -0.5), on(first, second, 2.5)],
         runs: vec![
             Run::Oval {
@@ -157,9 +157,88 @@ fn an_arc_of_an_ellipse_whose_half_axes_differ_by_ten_tolerances_keeps_its_ellip
             },
             Run::Straight,
         ],
-    };
-    let body = Body::raised(&cap, &[], ground(), DVec3::Z * 10.0).expect("a cap raises");
+    }
+}
+
+#[test]
+fn an_arc_of_an_ellipse_whose_half_axes_differ_by_ten_tolerances_is_an_arc_of_their_mean_circle() {
+    let eps = Scale::of(10.0).eps();
+    let body = Body::raised(&cap(5.0 * eps), &[], ground(), DVec3::Z * 10.0).expect("a cap raises");
+    assert!(wall_faces(&body).is_empty());
+    assert!(body.surfaces.iter().any(|surface| matches!(
+        surface,
+        Surface::Cylinder(cylinder) if (cylinder.radius - 5.0).abs() < 1e-12
+    )));
+    for vertex in &body.vertices {
+        let off = (vertex.point.truncate().distance(CENTER) - 5.0).abs();
+        assert!(off < 1e-12, "{vertex:?} stands {off} off the circle");
+    }
+}
+
+#[test]
+fn an_arc_of_an_ellipse_whose_half_axes_differ_by_more_than_decision_8_s_hair_keeps_its_elliptic_wall()
+ {
+    let eps = Scale::of(10.0).eps();
+    let body =
+        Body::raised(&cap(11.0 * eps), &[], ground(), DVec3::Z * 10.0).expect("a cap raises");
     assert_eq!(wall_faces(&body).len(), 1);
+}
+
+/// The arc of a circle from `from` to `to` whose centre stands 4 to the left
+/// of the chord, and the area it bows out beyond that chord.
+fn bowed(from: DVec2, to: DVec2) -> (Run, f64) {
+    let center = (from + to) / 2.0 + (to - from).perp().normalize() * 4.0;
+    let turn = ((to - center).to_angle() - (from - center).to_angle()).rem_euclid(TAU);
+    let radius = from.distance(center);
+    let bowed = radius * radius * (turn - turn.sin()) / 2.0;
+    (Run::Round { center, turn }, bowed)
+}
+
+#[test]
+fn an_arc_of_an_ellipse_within_decision_8_s_hair_of_round_beside_a_circle_arc_keeps_its_elliptic_wall_and_its_corners()
+ {
+    let eps = Scale::of(10.0).eps();
+    let first = DVec2::from_angle(0.4) * (5.0 + 5.0 * eps);
+    let second = 5.0 - 5.0 * eps;
+    let [start, end] = [on(first, second, -0.5), on(first, second, 2.5)];
+    let middle = (start + end) / 2.0;
+    let oval = Run::Oval {
+        center: CENTER,
+        first,
+        second,
+        turn: 3.0,
+    };
+    let cap = first.length() * second * (3.0 - f64::sin(3.0)) / 2.0;
+    let (closing, lens) = bowed(end, start);
+    let (halfway, half) = bowed(end, middle);
+    for (contour, area) in [
+        (
+            Contour {
+                corners: vec![start, end],
+                runs: vec![oval, closing],
+            },
+            cap + lens,
+        ),
+        (
+            Contour {
+                corners: vec![start, end, middle],
+                runs: vec![oval, halfway, Run::Straight],
+            },
+            cap + half,
+        ),
+    ] {
+        let body = Body::raised(&contour, &[], ground(), DVec3::Z * 10.0).expect("it raises");
+        assert_eq!(wall_faces(&body).len(), 1, "{contour:?} lost its ellipse");
+        for corner in [start, end] {
+            assert!(
+                body.vertices
+                    .iter()
+                    .any(|vertex| vertex.point.truncate().distance(corner) < 1e-12),
+                "{contour:?} moved its corner {corner} off the ellipse"
+            );
+        }
+        held(&body, area * 10.0);
+    }
 }
 
 #[test]

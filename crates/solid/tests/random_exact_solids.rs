@@ -102,7 +102,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use cao_solid::Declined;
-use cao_solid::brep::{Curve, Line, ListedEdge, Listing};
+use cao_solid::brep::{Curve, Line, ListedEdge, Listing, Scale};
 use cao_solid::profile::Run;
 use cao_solid::soundness::{Flaw, Lines, Mislisted, Silence, Spans, Triangle, shrink};
 use glam::{DVec2, DVec3};
@@ -2974,6 +2974,31 @@ fn the_same_seed_draws_the_same_ellipse_case_and_none_another_draw_gives_it() {
     }
 }
 
+/// The area the kernel's outline may part from the drawn one by where it
+/// lays an arc of an ellipse within decision 8's hair of round on the circle
+/// of its mean (#574), which it does only between two traits: a chorded
+/// ellipse's arcs and a slot's elliptic ends. Every point of the outline
+/// moves by half the difference of the half-axes at most, along a perimeter
+/// no longer than that of the box round its ellipses, the outline being
+/// convex. The hair is read against the leaf's reach, taken from the
+/// corners and turning points the kernel takes its own from.
+fn laid_round(leaf: &Leaf, outline: &Outline) -> f64 {
+    if !matches!(outline, Outline::Chorded { .. } | Outline::OvalSlot { .. }) {
+        return 0.0;
+    }
+    let (Some(oval), Some((low, high)), Some((from, to))) =
+        (outline.oval(), outline.oval_box(), leaf.bounds())
+    else {
+        return 0.0;
+    };
+    let reach = from.abs().max(to.abs()).max_element();
+    let apart = (oval.first.length() - oval.second).abs();
+    if apart > Scale::HAIR * Scale::of(reach).eps() {
+        return 0.0;
+    }
+    apart * ((high - low).x + (high - low).y)
+}
+
 /// Whether a leaf is a prism of an outline an ellipse bounds.
 fn elliptic(leaf: &Leaf) -> bool {
     outline_of(leaf).is_some_and(|outline| outline.oval().is_some())
@@ -3604,9 +3629,10 @@ fn every_elliptic_profile_raised_by_the_exact_kernel_alone_keeps_every_rule_and_
             unreachable!("only prisms were kept")
         };
         let promised = area(outline) * height.abs();
+        let laid = laid_round(leaf, outline) * height.abs();
         let volume = volume.unwrap_or_else(|declined| panic!("{leaf}: {declined:?}"));
         assert!(
-            (volume - promised).abs() <= 1e-9 * promised,
+            (volume - promised).abs() <= 1e-9 * promised + laid,
             "{leaf}: {volume} against {promised}"
         );
     }

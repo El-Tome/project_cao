@@ -129,7 +129,13 @@ fn beside(
 /// the tolerance from the edge's own surface, so the curve they share may
 /// stand further than the tolerance from the edge: a rim of a bore moved onto
 /// a side, its floor taken for one a hair off, stands √2 hairs from the
-/// circle the moved wall and that floor share.
+/// circle the moved wall and that floor share. An elliptic wall decision 2
+/// grew or shrank onto a touch takes the curve as far again as its
+/// half-axes changed, which may be further than the tolerance where the
+/// wall touches nothing: turned 45°, an ellipse reaching a bar's sides at
+/// its axis was given the bar's half-width by its minor half-axis, two
+/// tolerances for a hair of reach, and its rims were left on the wall as
+/// it was (5585800487).
 fn shared(
     operands: &Operands,
     operand: usize,
@@ -138,15 +144,26 @@ fn shared(
     around: &[SurfaceId],
 ) -> Curve {
     let body = operands.bodies[operand];
-    let moved = body.uses(edge).into_iter().any(|(face, _)| {
-        let lying = body.face(face).surface;
-        operands.surfaces.list[operands.surface_of(operand, face).0 as usize]
-            != *body.surface(lying)
-    });
-    if !moved {
+    let list = &operands.surfaces.list;
+    let beside: Vec<(&Surface, SurfaceId)> = body
+        .uses(edge)
+        .into_iter()
+        .map(|(face, _)| {
+            let lying = body.surface(body.face(face).surface);
+            (lying, operands.surface_of(operand, face))
+        })
+        .collect();
+    if beside
+        .iter()
+        .all(|(lying, shared)| list[shared.0 as usize] == **lying)
+    {
         return *own;
     }
-    let list = &operands.surfaces.list;
+    let grown = beside
+        .iter()
+        .filter(|(_, shared)| operands.moved(*shared))
+        .map(|(lying, shared)| grown(lying, &list[shared.0 as usize]))
+        .fold(0.0, f64::max);
     let stretch = body.edge(edge);
     let middle = own.point((stretch.from + stretch.to) / 2.0);
     around
@@ -161,7 +178,7 @@ fn shared(
             )
             .curves()
         })
-        .filter(|shared| within(shared, own, operands.scale, MOVED * operands.eps()))
+        .filter(|shared| within(shared, own, operands.scale, MOVED * operands.eps() + grown))
         .min_by(|one, other| distance(one, middle).total_cmp(&distance(other, middle)))
         .unwrap_or(*own)
 }
@@ -170,6 +187,17 @@ fn shared(
 /// taken for another or moved onto a touch by up to the tolerance: √2 where
 /// they stand square, as two planes of the origin or a cap and its wall do.
 const MOVED: f64 = 2.0;
+
+/// How far an elliptic wall moved onto a touch was grown or shrunk: the
+/// change of its two half-axes. Nothing for any other surface.
+fn grown(before: &Surface, after: &Surface) -> f64 {
+    match (before, after) {
+        (Surface::Elliptic(before), Surface::Elliptic(after)) => {
+            (before.major - after.major).abs() + (before.minor - after.minor).abs()
+        }
+        _ => 0.0,
+    }
+}
 
 /// Where an operand's corner stands in the arena, and whether it stands
 /// where the operand built it, on the surfaces it built it on: or, where a

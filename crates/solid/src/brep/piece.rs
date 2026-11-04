@@ -151,7 +151,9 @@ pub(super) fn pieces_numbered(
         piece,
         numbers: ascending(numbers),
     });
-    closed(named.collect(), eps)
+    let mut pieces = closed(named.collect(), eps)?;
+    oval::laid_round(&mut pieces, eps);
+    Ok(pieces)
 }
 
 /// A piece, the corners of its contour that merging took away from inside

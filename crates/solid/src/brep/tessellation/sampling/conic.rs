@@ -17,7 +17,9 @@
 //! No place on the grid or on a ray is kept where the cylinder all but lies
 //! on a wall facing it, or on a plane touching it off the line they touch
 //! along, nor a step or less from an end where the curve all but lies on a
-//! surface that end lies on, as for a meet.
+//! surface that end lies on, as for a meet — on an elliptic wall, nor on a
+//! step of the grid the wall leaves out beside one, as a circle withholds
+//! its own.
 
 mod rays;
 
@@ -26,6 +28,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
+use super::abreast::Abreast;
 use super::chords::halved;
 use super::cone::{Grid, Spun};
 use super::elliptic::{a_step_apart, between_steps, on_the_wall, reached_by_planes};
@@ -59,13 +62,13 @@ enum Reason {
 
 /// The points of an edge along a conic between its ends, as [`on_conic`]
 /// places them, on the grid of its wall in `body` and, on a cylinder, on the
-/// angles `rays` its circles take.
+/// angles `rays` its circles take; on an elliptic wall, also on the rays it
+/// shares with the walls `abreast` of it.
 pub(super) fn of_edge(
     body: &Body,
     edge: &Edge,
     conic: &Conic,
-    zones: &Zones,
-    grids: &BTreeMap<SurfaceId, Grid>,
+    (zones, grids, abreast): (&Zones, &BTreeMap<SurfaceId, Grid>, &Abreast),
     rays: &[f64],
     tolerance: f64,
 ) -> Vec<DVec3> {
@@ -105,7 +108,18 @@ pub(super) fn of_edge(
         }
         Round::Elliptic(wall) => {
             let steps = divisions(wall.major, tolerance);
-            let grid = turn(steps);
+            let id = body
+                .surfaces
+                .iter()
+                .position(|surface| *surface == Surface::Elliptic(wall))
+                .map(|rank| SurfaceId(rank as u32));
+            let left_out = id.map_or(&[][..], |id| abreast.left_out(id));
+            let grid: Vec<f64> = turn(steps)
+                .into_iter()
+                .enumerate()
+                .filter(|(step, _)| !left_out.contains(step))
+                .map(|(_, angle)| angle)
+                .collect();
             let own = [plane, Surface::Elliptic(wall)];
             let grazing = grazed_near(body, edge, &own, a_step_apart(wall, steps));
             let clear = |point: DVec3| !grazing(point, eps * contact::APART);
@@ -113,6 +127,10 @@ pub(super) fn of_edge(
                 .into_iter()
                 .chain(reached_by_planes(body, &wall))
                 .chain(rays.iter().copied())
+                .chain(
+                    id.into_iter()
+                        .flat_map(|id| abreast.angles(id).iter().copied()),
+                )
                 .collect();
             let edge = between_steps(conic, edge, steps);
             on_conic(conic, &edge, tolerance, eps, [&grid, &rays], &clear)

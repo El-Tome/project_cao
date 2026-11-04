@@ -117,6 +117,11 @@ impl<'a> Operands<'a> {
         lying.flipped != !agree
     }
 
+    /// Whether decision 2 moved a shared surface onto a touch.
+    pub fn moved(&self, surface: SurfaceId) -> bool {
+        self.moved[surface.0 as usize]
+    }
+
     pub fn carries(&self, operand: usize, surface: SurfaceId) -> bool {
         !self.lying[operand][surface.0 as usize].is_empty()
     }

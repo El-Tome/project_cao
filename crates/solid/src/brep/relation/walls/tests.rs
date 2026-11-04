@@ -237,3 +237,23 @@ fn a_circle_and_an_ellipse_a_hair_from_round_within_twenty_tolerances_of_it_all_
         Relation::Apart
     );
 }
+
+/// Six times as long as it is wide: through the map that makes it round,
+/// the feet of the normals stand where it is a fifth nearer itself turned
+/// than at its widest (5585704198).
+#[test]
+fn a_long_ellipse_turned_a_tenth_past_the_hair_crosses_itself_four_times_though_its_feet_stand_within_it()
+ {
+    let eps = scale().eps();
+    let long = |turn: f64| {
+        let along = DVec2::from_angle(turn).rotate(DVec2::new(oval().u.x, oval().u.y));
+        Surface::Elliptic(EllipticCylinder::about(
+            within(&oval(), 0.0, 0.0),
+            DVec3::Z,
+            DVec3::new(along.x, along.y, 0.0) * 6.0,
+            1.0,
+        ))
+    };
+    let lean = 1.1 * Scale::HAIR * eps / (6.0 - 1.0);
+    assert_eq!(counted(&long(0.0), &long(lean)), (4, 0));
+}

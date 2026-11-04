@@ -291,7 +291,14 @@ The decisions, in the order taken, once per operation:
    square to its partner's axis, which it touched, is slid along that axis
    by what it grew: the node stands wherever along the axis the two meet,
    and a post resting on a shaft's end, crossing the shaft at a node but
-   for a hair of radius, rests on it still (533609727). A plane and a
+   for a hair of radius, rests on it still (533609727). A cylinder
+   touching two walls square to it at the two ends of its reach along one
+   way — a round tunnel as wide as a tube's wall, touching the outside at a
+   node and the bore beside it, an ellipse within the hair of round raised
+   as a circle — is moved midway between the two touches and given half
+   their distance as its radius, which no translation settles: moved onto
+   neither, the tunnel stood a hair into the bore, and the triangles of the
+   two crossed beside the point they touch at (5585800308). A plane and a
    cylinder, or two
    parallel cylinders, one of each operand, decided to touch along a line a
    hair apart are made to touch the same way: the surface the second operand
@@ -344,7 +351,13 @@ The decisions, in the order taken, once per operation:
    `Tangent`, as for two circular walls, which keep their bits; four
    crossings, two touches, or a touch beside crossings are `Parallel`, each
    ruling with whether the walls only touch along it, and every reader of a
-   relation answers it. Two walls within `G` of each other at every foot —
+   relation answers it. Through the map that makes the rounder of two
+   ellipses round, the feet keep where the walls cross but not how far apart
+   they stand: the same ellipse turned a hair stands furthest from itself a
+   quarter of the way between two feet, a fifth further than at either
+   (5585704198), so between two ellipses the distance is read again at
+   evenly spaced angles along each stretch between two feet (#574). Two
+   walls within `G` of each other there and at every foot —
    an ellipse a hair from round about a circle of its size — are
    unsupported: they stand within `EPS` of each other over bands no ruling
    tells apart, and built, such a pair was drawn backwards, left open, or
@@ -786,8 +799,13 @@ The decisions, in the order taken, once per operation:
    the first's wall: half an ellipse cut along its major axis, joined to
    the same ellipse a hair wider across, whose ends both walls share
    (seed 6 of the ellipses' draw). A wall carrying a corner off the
-   first's is left two, and declined. A circle and an ellipse are never
-   merged this way.
+   first's is left two, and declined. A whole circular wall and a whole
+   elliptic one about one axis, within `G` of each other all round — an
+   ellipse a hair from round raised at a finer tolerance than the
+   boolean's, against a circle of its size — are one surface too (#574,
+   `canonical/crescent/other_kind.rs`): the second's wall is put for the
+   first's where it carries no corner, and its rims cut again on it. One
+   carrying a corner is left two, and declined.
 
    A cone (#536) is decided against a cylinder or a cone about one axis
    only: a cone and a wall or a cone, one of each operand, whose axes are
@@ -1198,7 +1216,12 @@ its chord there, a rim passing a hair from a ruling it crosses twice, is
 seen instead as the curve its own wall meets that cylinder along, between
 where its ends stand on it, where its middle stands within `EPS` of it: it
 was taken for an arc of that curve, and the cylinder carries the curve.
-So is the curve two perpendicular cylinders meet along, on a wall parallel
+A circle whose axis runs along an elliptic wall's, and whose stretch
+bulges off its chord — the rim of a circular wall in the band where it
+touches an ellipse a hair from round — is seen on the elliptic wall as
+that wall's own rim at the circle's height, between the angles its ends
+stand at, as a cylinder sees a circle off its axis (#574). So is the curve
+two perpendicular cylinders meet along, on a wall parallel
 to one of them and further than `EPS` from it — two walls of one radius a
 hair apart, a crescent: it is seen as the curve that wall meets the other
 cylinder along, where its middle stands within `EPS` of it, and in that
@@ -1277,9 +1300,13 @@ same input gives the same bits.
   from the foot of the normal (Eberly's method). Its rims are #552's conic
   read on the elliptic wall, and so is what any plane cuts it along. An
   ellipse is a circle where its half-axes are one, decided once, where the
-  profile is read (`piece/oval.rs`): an arc of ellipse, which carries
-  corners, within `EPS`; a whole ellipse within decision 8's hair `G`, Tom's
-  decision of 2026-10-13. A hair is below any step the software will show —
+  profile is read (`piece/oval.rs`): within `EPS`, and within decision 8's
+  hair `G` for a whole ellipse, Tom's decision of 2026-10-13, and for an arc
+  between two straight runs, his of 2026-11-03 (#574): its two corners are
+  laid on the circle along their rays from the centre, by half the hair at
+  most, and the straight runs either side end where they now stand. An arc
+  beside another curve keeps `EPS`: moved, its corner would leave that
+  curve. A hair is below any step the software will show —
   #514 holds the user's precision at a tenth of a micron, and `G` is some
   two nanometres on a part a hundred millimetres across — and kept elliptic,
   such a wall stood within `G` of a circle of its size all round, which
@@ -1498,7 +1525,12 @@ covered once from each side.
    tenth along stood 8e-10 off the rim's (5543224272); two such curves of
    different lengths, a tenth along each, were read at places at different
    distances, the shorter one's below the longer though it runs above
-   (5544515442) — a last tie declines.
+   (5544515442) — a last tie declines. Where each stands is read once it
+   has run the same length: along a conic, whose parameter does not run at
+   one speed, by measuring it, for read as a share of the parameter an
+   ellipse leaving the end of its major axis stood further along than its
+   osculating circle, which bends more, and the two were ordered backwards
+   (5585700934, #574).
    Cycles are traced, then grouped into regions by a ray up the second
    parameter from each cycle's top. Each region gets an interior point. On
    a cone each arc ending at the apex ends at a vertex of its own, at the
@@ -1710,7 +1742,12 @@ the angle of the circle of its half-width does, from where the wall
 reaches furthest along the height. Decision 2's snap moves the second wall
 across the first's axis by the gap, as for a cylinder; at a node of both
 ends an elliptic wall takes its partner's half-width by its half-axis
-nearer the height alone, the hair a drawing of one half-width leaves. The
+nearer the height alone, the hair a drawing of one half-width leaves.
+Turned, that half-axis grows by more than the hair, moving the wall
+further than the tolerance where it ends, and the rims its operand drew on
+it are laid on the grown wall from as far as its half-axes changed: left on
+the wall as it was, an ellipse turned 45° reaching a bar's sides at its
+axis had rims the grown wall saw as no curve it carries (5585800487). The
 curve is then built on the two walls as decision 2 left them, not on a
 copy of one moved onto the touch as two cylinders' is: where no move could
 be made — an elliptic bar a hair from a node with both walls of a ring,
@@ -2079,8 +2116,14 @@ read backwards by the listing.
   furthest past it. The walls such pairs join into a group are all sampled
   from one point inside every one of them, the axis of the smallest; where
   no such point is, each pair standing close is sampled from its own, and a
-  pair that only crosses keeps its grids. A whole rim of an elliptic wall
-  ends where it starts, and a place beside that point is measured against
+  pair that only crosses keeps its grids. Each wall of a pair standing
+  that close leaves out, at every height, the steps of its grid within the
+  room of the other a step or less from a corner on both, an elliptic wall
+  as a circular one: the other takes no place on the ray through such a
+  step, and a rim keeping its own there, beside the ruling the same
+  ellipse turned a hair crosses itself along, left it outside the other's
+  chord (5585713456, #574). A whole rim of an elliptic wall ends where it
+  starts, and a place beside that point is measured against
   both ends of it. What
   still crosses is refined locally, and what survives
   that is reported as a failure of the triangles, apart from the kernel's.
@@ -2160,8 +2203,13 @@ application has not reached them since #632, and #579 removes them.
   corner, which weighs most of #574's crossed and tilted ellipse draws. The
   conic leaves the corner tangent to the line of touch, so the two set off
   together and are told apart by their bends: an order of curves, which no
-  sign of points settles. The sweep's own order of segments at a sample
-  (`sweep.rs`, `leaving`) is exact, through `turn`.
+  sign of points settles. How far a conic has run is measured along its
+  chords, and again along the chord the run ends in where that chord is
+  longer than the run: a plane leaning a hair off an elliptic wall's
+  tangent cuts it along a conic whose first chord runs along the rim it
+  touches and then plunges, and read straight along that chord the conic
+  was ordered above the rim (5585909807). The sweep's own order of
+  segments at a sample (`sweep.rs`, `leaving`) is exact, through `turn`.
 - **The parity of a ray** (`ray.rs`, `ray/hits.rs`): tolerance. A crossing
   within `eps` of a face's boundary, one grazing the face at a cosine under
   `GRAZING`, or one within `eps` of where the ray starts is a doubt, and the

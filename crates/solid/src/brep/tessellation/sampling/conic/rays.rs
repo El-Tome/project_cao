@@ -11,6 +11,7 @@ use crate::brep::curve::Curve;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
 use crate::brep::tessellation::contact::{Contact, Wall, Zones};
+use crate::brep::tessellation::sampling::abreast::Abreast;
 use crate::brep::tessellation::sampling::cone::Grid;
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
@@ -32,6 +33,7 @@ pub(in crate::brep::tessellation::sampling) fn rays_along(
     tolerance: f64,
 ) -> BTreeMap<SurfaceId, Vec<DVec3>> {
     let eps = body.scale().eps();
+    let alone = Abreast::default();
     let sampled: Vec<(&Edge, &Conic, Vec<DVec3>)> = body
         .edge_ids()
         .filter_map(|id| {
@@ -45,7 +47,7 @@ pub(in crate::brep::tessellation::sampling) fn rays_along(
                 .into_iter()
                 .flatten()
                 .map(|end| body.vertex(end).point);
-            let points = of_edge(body, edge, conic, zones, grids, &rays, tolerance)
+            let points = of_edge(body, edge, conic, (zones, grids, &alone), &rays, tolerance)
                 .into_iter()
                 .chain(ends)
                 .collect();

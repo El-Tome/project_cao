@@ -503,20 +503,36 @@ fn raised_cap(oval: Section, from: f64, to: f64) -> Body {
     Body::raised(&outline, &[], ground(from), DVec3::Z * (to - from)).expect("a cap raises")
 }
 
+/// Declined before #574, the arc read on an elliptic wall within the hair
+/// of the circle's. Its triangles cross at a thousandth of the reach, as
+/// those of the arc of the mean circle cut alike do: two circular walls a
+/// hair apart, not the arc's.
 #[test]
-fn an_arc_of_an_ellipse_a_hair_from_round_cut_by_a_circle_a_hair_off_it_is_declined_rather_than_kept()
+fn an_arc_of_an_ellipse_a_hair_from_round_cut_by_a_circle_a_hair_off_it_is_cut_as_the_arc_of_their_mean_circle()
  {
     let oval = Section::ellipse([120.0, 150.0], DVec2::Y * 15.0000015, 15.0);
+    let mean = Section::ellipse([120.0, 150.0], DVec2::Y * 15.00000075, 15.00000075);
     let circle = Section::circle([119.9999997, 150.0], 15.0000005);
     let body = raised_cap(oval, 15.0, 150.0);
     assert!(
         body.surfaces
             .iter()
-            .any(|surface| matches!(surface, Surface::Elliptic(_))),
-        "the arc is raised on an elliptic wall"
+            .all(|surface| !matches!(surface, Surface::Elliptic(_))),
+        "the arc is raised on the circle of its mean"
     );
-    let cut = body.cut_by(&raised(circle, 15.0, 149.999994));
-    assert_eq!(cut.map(|_| ()), Err(Declined::Unsupported));
+    let tool = raised(circle, 15.0, 149.999994);
+    let cut = body.cut_by(&tool).expect("the cap is cut");
+    let round = raised_cap(mean, 15.0, 150.0)
+        .cut_by(&tool)
+        .expect("the arc of the mean circle is cut");
+    assert_eq!(cut.faces.len(), round.faces.len());
+    assert!(
+        (cut.volume() - round.volume()).abs() <= 1e-6 * round.volume(),
+        "the body holds {}, the arc of the mean circle {}",
+        cut.volume(),
+        round.volume()
+    );
+    assert_eq!(listed(&cut.listing(), cut.scale().reach()), Ok(()));
 }
 
 /// The body `step` makes of a prism of `oval` and a prism of the circle

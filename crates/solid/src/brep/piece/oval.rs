@@ -6,7 +6,9 @@
 //! as an arc's is. So is a whole ellipse whose half-axes are one within
 //! decision 8's hair (Tom, 2026-10-13): no corner stands on it for the move
 //! to take off its wall, and the hair is under any step the application
-//! shows. An arc keeps the tolerance, its corners on the ellipse.
+//! shows. So is an arc of one between two straight pieces (Tom, 2026-11-03,
+//! #574), its corners laid on the circle; beside another curve, an arc keeps
+//! the tolerance, its corners on the ellipse.
 
 use std::f64::consts::{PI, TAU};
 
@@ -123,6 +125,48 @@ pub(super) fn rounded(piece: Piece, eps: f64) -> Piece {
             }
         }
         other => other,
+    }
+}
+
+/// Each arc of an ellipse whose half-axes are one within decision 8's hair,
+/// between two straight pieces, as the arc of the circle of their mean (Tom,
+/// 2026-11-03, #574): its corners laid on that circle along their rays from
+/// the centre, by half the hair at most, and the straight pieces either side
+/// ending where they now stand. An arc beside another curve keeps the
+/// tolerance, its corners on the ellipse: moved, the corner would leave that
+/// curve.
+pub(super) fn laid_round(pieces: &mut [super::Named], eps: f64) {
+    let count = pieces.len();
+    for index in 0..count {
+        let Piece::Oval {
+            from,
+            to,
+            center,
+            first,
+            second,
+            sweep,
+        } = pieces[index].piece
+        else {
+            continue;
+        };
+        let [before, after] = [(index + count - 1) % count, (index + 1) % count];
+        let straight = |rank: usize| matches!(pieces[rank].piece, Piece::Straight { .. });
+        if pieces[index].piece.is_ring()
+            || (first.length() - second).abs() > Scale::HAIR * eps
+            || !(straight(before) && straight(after))
+        {
+            continue;
+        }
+        let radius = (first.length() + second) / 2.0;
+        let laid = |corner: DVec2| center + (corner - center).normalize() * radius;
+        let [from, to] = [laid(from), laid(to)];
+        pieces[index].piece = round([from, to], center, (first, second), sweep);
+        if let Piece::Straight { to: end, .. } = &mut pieces[before].piece {
+            *end = from;
+        }
+        if let Piece::Straight { from: start, .. } = &mut pieces[after].piece {
+            *start = to;
+        }
     }
 }
 

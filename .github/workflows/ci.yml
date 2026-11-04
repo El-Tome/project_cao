@@ -38,9 +38,17 @@ jobs:
   build-windows:
     name: Windows executable
     runs-on: ubuntu-latest
+    # A mirror that stops answering froze this job for 46 minutes (#686):
+    # bounded, it fails red and is re-run instead of running for hours.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends mingw-w64
+      - name: Install mingw-w64
+        timeout-minutes: 5
+        run: |
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
+          sudo apt-get install -y --no-install-recommends \
+            -o Acquire::Retries=3 -o Acquire::http::Timeout=30 mingw-w64
       - run: rustup target add x86_64-pc-windows-gnu
       - uses: Swatinem/rust-cache@v2
       - run: ./scripts/build-windows.sh

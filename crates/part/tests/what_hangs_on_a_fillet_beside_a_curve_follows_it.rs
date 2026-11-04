@@ -98,8 +98,8 @@
 use cao_part::history::{CutAsked, CutChange, Operation, PointRef};
 use cao_part::{History, PartState};
 use cao_sketch::{
-    ArcId, Corner, CornerCutId, CutPoint, DimensionTarget, Element, PointId, Rule, RuleIntent,
-    RulePick, SegmentId, Sketch, Support, WorkPlane, rule_intent,
+    ArcId, Corner, CornerCutId, CutPoint, DimensionTarget, Element, EllipseId, PointId, Rule,
+    RuleIntent, RulePick, SegmentId, Sketch, Support, WorkPlane, rule_intent,
 };
 use glam::DVec2;
 
@@ -162,12 +162,12 @@ fn a_trait_and_an_arc_rounded() -> History {
     history
 }
 
-/// The fillet a hand works out between a trait and an arc bulging towards
-/// their corner.
+/// The fillet a hand works out between a trait and a curve bulging towards
+/// their corner: its centre, and where it touches each side.
 struct ByHand {
     centre: DVec2,
     on_the_trait: DVec2,
-    on_the_arc: DVec2,
+    on_the_curve: DVec2,
 }
 
 /// The fillet of `radius` at `corner`, between the trait running from it to
@@ -189,7 +189,7 @@ fn by_hand(corner: DVec2, far: DVec2, round: DVec2, reach: f64, radius: f64) -> 
     ByHand {
         centre,
         on_the_trait: corner + along * ahead,
-        on_the_arc: round + (centre - round) * (reach / (reach + radius)),
+        on_the_curve: round + (centre - round) * (reach / (reach + radius)),
     }
 }
 
@@ -203,6 +203,168 @@ fn by_hand_on(sketch: &Sketch, radius: f64) -> ByHand {
         sketch.arc_radius(ARC),
         radius,
     )
+}
+
+/// An ellipse as the test reads it: its centre, the reach of its first axis
+/// with its direction, and the reach of the second, a quarter turn
+/// counter-clockwise from the first.
+#[derive(Clone, Copy)]
+struct Oval {
+    centre: DVec2,
+    first: DVec2,
+    second: f64,
+}
+
+impl Oval {
+    fn across(self) -> DVec2 {
+        self.first.perp().normalize() * self.second
+    }
+
+    fn at(self, turn: f64) -> DVec2 {
+        self.centre + self.first * turn.cos() + self.across() * turn.sin()
+    }
+
+    /// The unit normal pointing out of the curve where a turn lands: the
+    /// gradient of its implicit equation.
+    fn outwards(self, turn: f64) -> DVec2 {
+        (self.first.normalize() * (turn.cos() / self.first.length())
+            + self.first.perp().normalize() * (turn.sin() / self.second))
+            .normalize()
+    }
+
+    /// The unit tangent where a turn lands, counter-clockwise.
+    fn onwards(self, turn: f64) -> DVec2 {
+        (-self.first * turn.sin() + self.across() * turn.cos()).normalize()
+    }
+
+    /// The turn a place of the curve stands at.
+    fn turn_of(self, place: DVec2) -> f64 {
+        let out = place - self.centre;
+        DVec2::new(
+            out.dot(self.first.normalize()) / self.first.length(),
+            out.dot(self.first.perp().normalize()) / self.second,
+        )
+        .to_angle()
+    }
+}
+
+/// Ten across and five high round (40, 30), its axes along x and y.
+const LEVEL: Oval = Oval {
+    centre: DVec2::new(40.0, 30.0),
+    first: DVec2::new(10.0, 0.0),
+    second: 5.0,
+};
+
+/// A corner at (46, 34) between a trait rising to (46, 54) and the arc of
+/// ellipse `LEVEL` draws counter-clockwise from that corner, the turn whose
+/// cosine is three fifths, over the top to (30, 30): it bulges towards the
+/// corner. Named by its trait then its curve, and rounded to 3 — the first
+/// value, which makes a unit a millimetre.
+fn a_trait_and_an_arc_of_ellipse_rounded() -> History {
+    let corner = LEVEL.at(0.8_f64.atan2(0.6));
+    let mut history = History::default();
+    history.push(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: corner,
+        on: Vec::new(),
+    });
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(CORNER),
+        end: PointRef::New(DVec2::new(46.0, 54.0)),
+        construction: false,
+    });
+    let [back, front] = [LEVEL.centre - LEVEL.first, LEVEL.centre + LEVEL.first];
+    history.push(Operation::AddEllipse {
+        sketch: 0,
+        center: PointRef::New(LEVEL.centre),
+        first: [PointRef::New(back), PointRef::New(front)],
+        second: [
+            PointRef::New(LEVEL.centre - LEVEL.across()),
+            PointRef::New(LEVEL.centre + LEVEL.across()),
+        ],
+        construction: false,
+        drawn: Some([PointRef::Existing(CORNER), PointRef::New(back)]),
+    });
+    history.push(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::Between(SegmentId(0).into(), EllipseId(0).into())],
+        radius: 3.0.into(),
+        construction: false,
+    });
+    history
+}
+
+/// The fillet of `radius` at `corner`, between the trait running from it to
+/// `far` and the arc of ellipse `oval` leaving it counter-clockwise and
+/// bulging towards it. An ellipse's offset has no closed form: the hand walks
+/// the curve on from the corner, its centre standing a radius out of the
+/// curve, to where that centre first stands a radius off the trait's line, on
+/// the side the curve leaves towards — then halves the last step until the
+/// arithmetic gives no more.
+fn by_hand_beside_an_ellipse(corner: DVec2, far: DVec2, oval: Oval, radius: f64) -> ByHand {
+    let along = (far - corner).normalize();
+    let from = oval.turn_of(corner);
+    let aside = along.perp() * along.perp_dot(oval.onwards(from)).signum();
+    let centre_at = |turn: f64| oval.at(turn) + oval.outwards(turn) * radius;
+    let short = |turn: f64| (centre_at(turn) - corner).dot(aside) - radius;
+    let (mut before, mut past) = (from, from);
+    while short(past) < 0.0 {
+        before = past;
+        past += 1e-3;
+        assert!(
+            past - from < std::f64::consts::PI,
+            "no fillet of {radius} stands beside the ellipse"
+        );
+    }
+    for _ in 0..100 {
+        let middle = (before + past) * 0.5;
+        match short(middle) < 0.0 {
+            true => before = middle,
+            false => past = middle,
+        }
+    }
+    let turn = (before + past) * 0.5;
+    let centre = centre_at(turn);
+    ByHand {
+        centre,
+        on_the_trait: corner + along * (centre - corner).dot(along),
+        on_the_curve: oval.at(turn),
+    }
+}
+
+/// The ellipse of the drawing as it stands, read off its centre and its axes.
+fn the_oval(sketch: &Sketch) -> Oval {
+    let ellipse = sketch.ellipses()[0];
+    let half = |axis: SegmentId| {
+        let (start, end) = sketch.endpoints(axis);
+        (end - start) * 0.5
+    };
+    Oval {
+        centre: sketch.point(ellipse.center),
+        first: half(ellipse.first),
+        second: half(ellipse.second).length(),
+    }
+}
+
+/// The fillet of `radius` a hand works out beside the drawing's arc of
+/// ellipse as it stands.
+fn by_hand_beside_the_ellipse_of(sketch: &Sketch, radius: f64) -> ByHand {
+    by_hand_beside_an_ellipse(
+        sketch.point(CORNER),
+        sketch.point(TRAIT_END),
+        the_oval(sketch),
+        radius,
+    )
+}
+
+/// The point the next one laid will be.
+fn next_point(history: &History) -> PointId {
+    PointId(the_drawing(history).points().len())
 }
 
 fn near(made: f64, expected: f64, what: &str) {
@@ -436,7 +598,207 @@ fn a_line_started_from_a_fillet_s_end_on_an_arc_follows_the_arc_given_a_new_radi
     );
     near_place(
         sketch.point(HUNG),
-        by_hand_on(&sketch, 5.0).on_the_arc,
+        by_hand_on(&sketch, 5.0).on_the_curve,
         "the line started where the fillet touches the arc follows that touch",
+    );
+}
+
+/// Where the corner of `a_trait_and_an_arc_of_ellipse_rounded` and the far
+/// end of its trait stand while nothing moves them.
+fn the_level_corner() -> (DVec2, DVec2) {
+    (LEVEL.at(0.8_f64.atan2(0.6)), DVec2::new(46.0, 54.0))
+}
+
+#[test]
+fn a_line_started_from_a_fillet_s_end_beside_an_arc_of_ellipse_follows_a_new_radius() {
+    let mut history = a_trait_and_an_arc_of_ellipse_rounded();
+    let on_the_trait = next_point(&history);
+    a_line_from(&mut history, CutPoint::First, DVec2::new(60.0, 40.0));
+    let on_the_curve = next_point(&history);
+    a_line_from(&mut history, CutPoint::Second, DVec2::new(30.0, 50.0));
+
+    rounded_to(&mut history, 5.0);
+
+    let sketch = the_drawing(&history);
+    let lines = &sketch.segments()[3..];
+    assert_eq!(
+        [lines[0].start, lines[1].start],
+        [on_the_trait, on_the_curve]
+    );
+    let (corner, far) = the_level_corner();
+    let fillet = by_hand_beside_an_ellipse(corner, far, LEVEL, 5.0);
+    near_place(
+        sketch.point(on_the_trait),
+        fillet.on_the_trait,
+        "the line started where the fillet touches the trait follows that touch",
+    );
+    near_place(
+        sketch.point(on_the_curve),
+        fillet.on_the_curve,
+        "the line started where the fillet touches the arc of ellipse follows that touch",
+    );
+}
+
+#[test]
+fn a_circle_drawn_on_the_centre_of_a_fillet_beside_an_arc_of_ellipse_stays_on_it_when_the_corner_moves()
+ {
+    let mut history = a_trait_and_an_arc_of_ellipse_rounded();
+    let hung = next_point(&history);
+    let center = on_the_cut(&history, CutPoint::Centre);
+    history.push(Operation::AddCircle {
+        sketch: 0,
+        center,
+        radius: 1.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    let round_the_curve = LEVEL.at(40_f64.to_radians());
+
+    history.push(Operation::MovePoint {
+        sketch: 0,
+        point: CORNER,
+        position: round_the_curve,
+        merged_into: None,
+        on: Vec::new(),
+        let_go: false,
+    });
+
+    let sketch = the_drawing(&history);
+    assert_eq!(sketch.circles()[0].center, hung);
+    near_place(
+        sketch.point(CORNER),
+        round_the_curve,
+        "the corner slides round the ellipse to where it was taken",
+    );
+    let (_, far) = the_level_corner();
+    let fillet = by_hand_beside_an_ellipse(round_the_curve, far, LEVEL, 3.0);
+    near_place(
+        sketch.point(hung),
+        fillet.centre,
+        "the circle's centre follows the fillet's centre",
+    );
+}
+
+#[test]
+fn a_dimension_from_a_point_of_a_fillet_beside_an_arc_of_ellipse_holds_when_the_value_changes() {
+    let mut history = a_trait_and_an_arc_of_ellipse_rounded();
+    let hung = next_point(&history);
+    hang_a_point(&mut history, CutPoint::First);
+    let (corner, far) = the_level_corner();
+    let span = far.distance(by_hand_beside_an_ellipse(corner, far, LEVEL, 3.0).on_the_trait);
+    history.push(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Distance {
+            from: TRAIT_END,
+            to: hung,
+        },
+        value: span.into(),
+        placement: None,
+    });
+
+    rounded_to(&mut history, 5.0);
+
+    let sketch = the_drawing(&history);
+    near(
+        sketch.point(TRAIT_END).distance(sketch.point(hung)),
+        span,
+        "the dimension from the trait's far end to the fillet's touch holds",
+    );
+    near_place(
+        sketch.point(hung),
+        by_hand_beside_the_ellipse_of(&sketch, 5.0).on_the_trait,
+        "the point the dimension measures to stays where the fillet touches the trait",
+    );
+}
+
+#[test]
+fn a_coincidence_hangs_a_point_on_a_point_of_a_fillet_beside_an_arc_of_ellipse() {
+    let mut history = a_trait_and_an_arc_of_ellipse_rounded();
+    let loose = next_point(&history);
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(60.0, 60.0)),
+        end: PointRef::New(DVec2::new(70.0, 70.0)),
+        construction: false,
+    });
+    let picks = [
+        RulePick::Element(Element::Point(loose)),
+        RulePick::CutPoint(CUT, CutPoint::Centre),
+    ];
+    let Some(RuleIntent::Constrain(rule)) =
+        rule_intent(Rule::Coincident, &picks, &the_drawing(&history))
+    else {
+        panic!("a point and the centre of a fillet beside an arc of ellipse make no coincidence");
+    };
+    history.push(Operation::Constrain {
+        sketch: 0,
+        constraint: rule,
+    });
+    let (corner, far) = the_level_corner();
+    near_place(
+        the_drawing(&history).point(loose),
+        by_hand_beside_an_ellipse(corner, far, LEVEL, 3.0).centre,
+        "the coincidence brings the point onto the fillet's centre",
+    );
+
+    rounded_to(&mut history, 5.0);
+
+    near_place(
+        the_drawing(&history).point(loose),
+        by_hand_beside_an_ellipse(corner, far, LEVEL, 5.0).centre,
+        "the point follows the fillet's centre",
+    );
+}
+
+#[test]
+fn a_point_placed_on_a_fillet_beside_an_arc_of_ellipse_follows_its_arc() {
+    let mut history = a_trait_and_an_arc_of_ellipse_rounded();
+    let (corner, far) = the_level_corner();
+    let fillet = by_hand_beside_an_ellipse(corner, far, LEVEL, 3.0);
+    let halfway = ((fillet.on_the_trait - fillet.centre).normalize()
+        + (fillet.on_the_curve - fillet.centre).normalize())
+    .normalize();
+    let placed = next_point(&history);
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: fillet.centre + halfway * 3.0,
+        on: vec![Support::Cut(CUT)],
+    });
+
+    rounded_to(&mut history, 5.0);
+
+    near(
+        the_drawing(&history)
+            .point(placed)
+            .distance(by_hand_beside_an_ellipse(corner, far, LEVEL, 5.0).centre),
+        5.0,
+        "the point placed on the fillet stands a radius from its centre",
+    );
+}
+
+#[test]
+fn a_line_started_from_a_fillet_s_end_on_an_arc_of_ellipse_follows_the_ellipse_reshaped() {
+    let mut history = a_trait_and_an_arc_of_ellipse_rounded();
+    let hung = next_point(&history);
+    a_line_from(&mut history, CutPoint::Second, DVec2::new(30.0, 50.0));
+    let height = the_drawing(&history).ellipses()[0].second;
+
+    history.push(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Length(height),
+        value: 12.0.into(),
+        placement: None,
+    });
+
+    let sketch = the_drawing(&history);
+    near(
+        the_oval(&sketch).second,
+        6.0,
+        "the ellipse takes the height it was given",
+    );
+    near_place(
+        sketch.point(hung),
+        by_hand_beside_the_ellipse_of(&sketch, 3.0).on_the_curve,
+        "the line started where the fillet touches the arc of ellipse follows that touch",
     );
 }

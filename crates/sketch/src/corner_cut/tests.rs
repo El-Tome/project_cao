@@ -3,8 +3,8 @@
 use glam::DVec2;
 
 use super::*;
-use crate::WorkPlane;
 use crate::element::Element;
+use crate::{CutSide, WorkPlane};
 
 /// Two traits meeting at a right angle away from the origin: one running
 /// right from the corner, one running up.
@@ -21,6 +21,14 @@ fn a_right_angle() -> (Sketch, PointId, [SegmentId; 2]) {
 }
 
 const ROUND: CutShape = CutShape::Fillet { radius: 10.0 };
+
+/// The trait a cut's side is, for a cut laid between two traits.
+fn trait_of(side: CutSide) -> SegmentId {
+    match side {
+        CutSide::Trait(segment) => segment,
+        curve => panic!("a side laid as a trait is a trait, not {curve:?}"),
+    }
+}
 
 #[test]
 fn a_cut_leaves_both_sides_whole_and_lays_nothing_else() {
@@ -120,7 +128,13 @@ fn a_rounded_corner_mirrored_is_rounded_the_same_way_on_its_copy() {
     assert_eq!(copied.cuts.len(), 1);
     let copy = sketch.corner_cuts()[copied.cuts[0].0];
     assert_eq!(copy.shape, ROUND);
-    assert_eq!(copy.sides, [copied.segments[0], copied.segments[1]]);
+    assert_eq!(
+        copy.sides,
+        [
+            CutSide::Trait(copied.segments[0]),
+            CutSide::Trait(copied.segments[1])
+        ]
+    );
     assert_ne!(copy.group, 0, "the copy changes on its own");
 }
 
@@ -139,9 +153,13 @@ fn a_side_divided_keeps_its_cut_on_the_piece_that_touches_the_corner() {
         .live_corner_cuts()
         .next()
         .expect("the cut still stands");
-    let near = sketch.segments()[cut.sides[0].0];
+    let near = sketch.segments()[trait_of(cut.sides[0]).0];
     assert!(near.start == corner || near.end == corner, "{near:?}");
-    assert_ne!(cut.sides[0], right, "the side was replaced by its pieces");
+    assert_ne!(
+        cut.sides[0],
+        CutSide::Trait(right),
+        "the side was replaced by its pieces"
+    );
     assert!(sketch.drawn_cuts()[0].fits);
 }
 
@@ -159,7 +177,7 @@ fn the_piece_holding_the_corner_erased_after_a_division_takes_the_cut_away() {
         .next()
         .expect("the cut still stands");
 
-    sketch.erase(Element::Segment(cut.sides[0]));
+    sketch.erase(Element::Segment(trait_of(cut.sides[0])));
 
     assert_eq!(sketch.cuts_standing_at(corner), Vec::<CornerCutId>::new());
 }

@@ -44,7 +44,7 @@ fn a_rounded_plate() -> PartDocument {
     document.apply(Operation::Fillet {
         sketch: 0,
         corners: (0..4)
-            .map(|side| Corner::Between(SegmentId(side), SegmentId((side + 1) % 4)))
+            .map(|side| Corner::Between(SegmentId(side).into(), SegmentId((side + 1) % 4).into()))
             .collect(),
         radius: 5.0.into(),
         construction: false,
@@ -276,7 +276,9 @@ impl PointingAtAPlate {
         document.apply(Operation::Fillet {
             sketch: 0,
             corners: (0..4)
-                .map(|side| Corner::Between(SegmentId(side), SegmentId((side + 1) % 4)))
+                .map(|side| {
+                    Corner::Between(SegmentId(side).into(), SegmentId((side + 1) % 4).into())
+                })
                 .collect(),
             radius: 5.0.into(),
             construction: false,

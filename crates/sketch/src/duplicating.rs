@@ -4,7 +4,7 @@
 use glam::DVec2;
 
 use crate::arc::ArcId;
-use crate::corner_cut::CornerCutId;
+use crate::corner_cut::{CornerCutId, CutSide};
 use crate::element::Element;
 use crate::ellipse::EllipseId;
 use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
@@ -170,7 +170,8 @@ impl Sketch {
     /// Cuts every corner whose two sides were copied the same way on the copy,
     /// each group laid together staying one group of its own.
     fn cut_the_copies(&mut self, sides: &[(SegmentId, SegmentId)]) -> Vec<CornerCutId> {
-        let copy_of = |side: SegmentId| {
+        let copy_of = |side: CutSide| {
+            let side = side.as_trait()?;
             sides
                 .iter()
                 .find(|(was, _)| *was == side)

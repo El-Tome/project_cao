@@ -138,12 +138,10 @@ impl Sketch {
         if self.is_erased_cut(cut) || !self.stands(&laid) {
             return None;
         }
+        let sides = super::both_traits(laid.sides)?;
         let corner = JetPlace::free(self.point(laid.corner), CORNER);
         let far = |side: usize, rank: usize| {
-            JetPlace::free(
-                self.point(self.far_end(laid.sides[side], laid.corner)),
-                rank,
-            )
+            JetPlace::free(self.point(self.far_end(sides[side], laid.corner)), rank)
         };
         places(corner, [far(0, FAR_FIRST), far(1, FAR_SECOND)], laid.shape)
     }

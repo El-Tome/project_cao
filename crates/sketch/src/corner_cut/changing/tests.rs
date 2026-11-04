@@ -2,10 +2,10 @@
 
 use glam::DVec2;
 
-use crate::WorkPlane;
 use crate::chamfer::Chamfer;
 use crate::corner_cut::{CornerCutId, CutShape};
 use crate::sketch::{SegmentId, Sketch};
+use crate::{CutSide, WorkPlane};
 
 /// A rectangle with its two bottom corners rounded together by a radius of
 /// five, and its two top corners chamfered together.
@@ -113,7 +113,7 @@ fn a_chamfer_swapped_measures_from_its_other_side() {
     let after = sketch
         .drawn_cut(CornerCutId(2))
         .expect("the chamfer is drawn");
-    let taken_from = |cut: crate::corner_cut::DrawnCut, side: SegmentId| {
+    let taken_from = |cut: crate::corner_cut::DrawnCut, side: CutSide| {
         let rank = cut
             .sides
             .iter()
@@ -129,7 +129,7 @@ fn a_chamfer_swapped_measures_from_its_other_side() {
     );
     assert_eq!(
         sketch.drawn_cut(CornerCutId(3)).map(|cut| cut.sides),
-        Some([SegmentId(2), SegmentId(3)]),
+        Some([CutSide::Trait(SegmentId(2)), CutSide::Trait(SegmentId(3))]),
         "the chamfer laid with it is left as it was"
     );
 }

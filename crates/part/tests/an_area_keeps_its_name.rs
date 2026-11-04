@@ -150,7 +150,7 @@ fn rounding_a_corner_of_an_extruded_shape_keeps_the_matter() {
 
     history.push(Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         radius: 2.0.into(),
         construction: false,
     });
@@ -171,7 +171,7 @@ fn chamfering_a_corner_of_an_extruded_shape_keeps_the_matter() {
 
     history.push(Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         mode: Chamfer::Equal(2.0).into(),
         construction: false,
     });
@@ -373,7 +373,10 @@ fn compaction_hands_back_an_area_whose_corners_were_cut() {
     for (first, second) in [(0, 1), (2, 3)] {
         history.push(Operation::Chamfer {
             sketch: 0,
-            corners: vec![Corner::Between(SegmentId(first), SegmentId(second))],
+            corners: vec![Corner::Between(
+                SegmentId(first).into(),
+                SegmentId(second).into(),
+            )],
             mode: Chamfer::Equal(2.0).into(),
             construction: false,
         });

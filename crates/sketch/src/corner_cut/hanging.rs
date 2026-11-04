@@ -48,8 +48,12 @@ impl Sketch {
         let Some(laid) = self.corner_cuts().get(cut.0).copied() else {
             return Vec::new();
         };
-        let fars = laid.sides.map(|side| self.far_end(side, laid.corner));
-        vec![laid.corner, fars[0], fars[1]]
+        let fars = laid
+            .sides
+            .iter()
+            .filter_map(|side| side.as_trait())
+            .map(|side| self.far_end(side, laid.corner));
+        std::iter::once(laid.corner).chain(fars).collect()
     }
 
     /// What a point laid at this place would hang on, among the cuts: one of
@@ -118,9 +122,12 @@ impl Sketch {
                 CutPoint::Second => sides[1],
                 CutPoint::Centre => continue,
             };
+            let Some(segment) = side.as_trait() else {
+                continue;
+            };
             self.add_constraint(Constraint::OnSegment {
                 point,
-                segment: side,
+                segment,
                 from: LaidFrom::Nowhere,
             });
         }

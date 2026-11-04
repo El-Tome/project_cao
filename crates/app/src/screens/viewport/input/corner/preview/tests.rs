@@ -33,7 +33,11 @@ fn rounding(taken: Vec<Corner>, half: Option<SegmentId>, radius: Option<f64>) ->
 #[test]
 fn a_radius_typed_on_a_corner_already_clicked_shows_the_curve_before_enter() {
     let (sketch, along, up) = a_right_angle();
-    let editor = rounding(vec![Corner::Between(along, up)], None, Some(3.0));
+    let editor = rounding(
+        vec![Corner::Between(along.into(), up.into())],
+        None,
+        Some(3.0),
+    );
 
     let shown = previewed(&sketch, &editor, DVec2::ZERO, 0.5, 1.0)
         .expect("a corner with both sides and a radius has a curve to show");
@@ -76,7 +80,7 @@ fn the_side_under_the_cursor_stands_in_for_the_second_click() {
 #[test]
 fn a_corner_with_no_value_typed_for_it_shows_nothing() {
     let (sketch, along, up) = a_right_angle();
-    let editor = rounding(vec![Corner::Between(along, up)], None, None);
+    let editor = rounding(vec![Corner::Between(along.into(), up.into())], None, None);
 
     assert!(
         previewed(&sketch, &editor, DVec2::ZERO, 0.5, 1.0).is_none(),
@@ -91,7 +95,7 @@ fn a_chamfer_shows_the_straight_cut_its_two_distances_would_leave() {
         tool: Tool::Chamfer,
         chamfer_mode: ChamferMode::Sided,
         tool_state: ToolState::Corner {
-            taken: vec![Corner::Between(along, up)],
+            taken: vec![Corner::Between(along.into(), up.into())],
             half: None,
         },
         ..Default::default()
@@ -115,7 +119,11 @@ fn a_chamfer_shows_the_straight_cut_its_two_distances_would_leave() {
 #[test]
 fn a_value_typed_in_millimetres_is_shown_at_the_size_the_drawing_measures() {
     let (sketch, along, up) = a_right_angle();
-    let editor = rounding(vec![Corner::Between(along, up)], None, Some(6.0));
+    let editor = rounding(
+        vec![Corner::Between(along.into(), up.into())],
+        None,
+        Some(6.0),
+    );
 
     let shown = previewed(&sketch, &editor, DVec2::ZERO, 0.5, 2.0)
         .expect("a corner that can be rounded at three units");
@@ -136,7 +144,11 @@ fn a_value_typed_in_millimetres_is_shown_at_the_size_the_drawing_measures() {
 fn every_corner_taken_is_shown_wherever_the_cursor_is() {
     let (sketch, along, up) = a_right_angle();
     let far = DVec2::new(-80.0, -80.0);
-    let editor = rounding(vec![Corner::Between(along, up)], None, Some(3.0));
+    let editor = rounding(
+        vec![Corner::Between(along.into(), up.into())],
+        None,
+        Some(3.0),
+    );
 
     let shown = previewed(&sketch, &editor, far, 0.5, 1.0)
         .expect("a corner taken shows whatever the cursor is over");

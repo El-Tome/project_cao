@@ -69,7 +69,7 @@ pub(crate) fn corner(
                 context.editor.message = Some(context.lang.t("sketch.chamfer_needs_a_corner"));
                 return true;
             }
-            let corner = Corner::Between(first, side);
+            let corner = Corner::Between(first.into(), side.into());
             // Named this way a corner carries its own first side, so a mode
             // that measures from one gathers corners like any other. What it
             // cannot do is take a corner by its point, which would leave it no

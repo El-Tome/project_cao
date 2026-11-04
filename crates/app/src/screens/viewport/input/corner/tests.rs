@@ -134,7 +134,7 @@ fn enter_with_no_side_clicked_asks_for_a_corner() {
 fn enter_with_a_corner_taken_cuts_it() {
     assert_eq!(
         on_enter(&ToolState::Corner {
-            taken: vec![Corner::Between(SegmentId(1), SegmentId(2))],
+            taken: vec![Corner::Between(SegmentId(1).into(), SegmentId(2).into())],
             half: None,
         }),
         CornerEnter::Cut
@@ -246,12 +246,12 @@ fn a_second_click_on_a_corner_drops_it() {
 #[test]
 fn the_same_corner_named_the_other_way_round_is_still_that_corner() {
     let (sketch, along, up, pivot) = a_right_angle();
-    let taken = vec![Corner::Between(along, up)];
+    let taken = vec![Corner::Between(along.into(), up.into())];
 
     for again in [
-        Corner::Between(up, along),
+        Corner::Between(up.into(), along.into()),
         Corner::At(pivot),
-        Corner::Between(along, up),
+        Corner::Between(along.into(), up.into()),
     ] {
         assert!(
             after_clicking(&sketch, taken.clone(), again).is_empty(),
@@ -266,18 +266,21 @@ fn two_pairs_of_one_point_are_taken_in_one_gesture() {
     let (mut sketch, along, up, pivot) = a_right_angle();
     let away = sketch.add_point(CORNER + DVec2::new(-10.0, -10.0));
     let back = sketch.add_segment(pivot, away);
-    let taken = vec![Corner::Between(along, up)];
+    let taken = vec![Corner::Between(along.into(), up.into())];
 
-    let both = after_clicking(&sketch, taken, Corner::Between(back, up));
+    let both = after_clicking(&sketch, taken, Corner::Between(back.into(), up.into()));
 
     assert_eq!(
         both,
-        vec![Corner::Between(along, up), Corner::Between(back, up)],
+        vec![
+            Corner::Between(along.into(), up.into()),
+            Corner::Between(back.into(), up.into())
+        ],
         "two other traits of the same point are another corner"
     );
     assert_eq!(
-        after_clicking(&sketch, both, Corner::Between(up, along)),
-        vec![Corner::Between(back, up)],
+        after_clicking(&sketch, both, Corner::Between(up.into(), along.into())),
+        vec![Corner::Between(back.into(), up.into())],
         "and each is let go of on its own"
     );
 }
@@ -287,7 +290,10 @@ fn a_click_on_a_point_two_corners_are_taken_at_lets_go_of_neither() {
     let (mut sketch, along, up, pivot) = a_right_angle();
     let away = sketch.add_point(CORNER + DVec2::new(-10.0, -10.0));
     let back = sketch.add_segment(pivot, away);
-    let both = vec![Corner::Between(along, up), Corner::Between(back, up)];
+    let both = vec![
+        Corner::Between(along.into(), up.into()),
+        Corner::Between(back.into(), up.into()),
+    ];
     let mut taken = both.clone();
 
     assert!(!drops_at(&sketch, &mut taken, pivot));
@@ -330,7 +336,7 @@ fn after_clicking(sketch: &Sketch, mut taken: Vec<Corner>, corner: Corner) -> Ve
 #[test]
 fn a_corner_named_by_its_two_traits_is_let_go_of_by_its_point() {
     let (sketch, along, up, pivot) = a_right_angle();
-    let mut taken = vec![Corner::Between(along, up)];
+    let mut taken = vec![Corner::Between(along.into(), up.into())];
 
     assert!(
         drops_at(&sketch, &mut taken, pivot),
@@ -344,12 +350,12 @@ fn a_corner_named_by_its_two_traits_is_let_go_of_by_its_point() {
 fn a_point_holding_no_corner_lets_go_of_nothing() {
     let (sketch, along, up, pivot) = a_right_angle();
     let far = sketch.segments()[along.0].end;
-    let mut taken = vec![Corner::Between(along, up)];
+    let mut taken = vec![Corner::Between(along.into(), up.into())];
 
     assert!(!drops_at(&sketch, &mut taken, far));
     assert_eq!(
         taken,
-        vec![Corner::Between(along, up)],
+        vec![Corner::Between(along.into(), up.into())],
         "a click elsewhere is a click elsewhere, and goes on to name a side"
     );
     assert!(drops_at(&sketch, &mut taken, pivot));
@@ -367,7 +373,7 @@ fn a_chamfer_typed_from_variables_is_laid_as_it_was_written() {
 
     let laid = laying(
         0,
-        vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         Chamfer::Angled {
             along: 3.0,
             degrees: 30.0,
@@ -393,7 +399,7 @@ fn a_chamfer_typed_from_variables_is_laid_as_it_was_written() {
 fn a_fillet_typed_as_a_plain_number_is_laid_as_that_number() {
     let laid = laying(
         0,
-        vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         Chamfer::Equal(2.0),
         true,
         [Some(Formula::Number(2.0)), None],
@@ -410,7 +416,7 @@ fn a_fillet_typed_as_a_plain_number_is_laid_as_that_number() {
 fn a_cut_laid_while_construction_is_on_is_laid_in_construction() {
     let laid = laying(
         0,
-        vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         Chamfer::Equal(2.0),
         true,
         [None, None],
@@ -447,7 +453,9 @@ fn rounding_a_plate(typed: &str) -> (cao_part::PartDocument, crate::screens::ske
         tool: Tool::Fillet,
         tool_state: ToolState::Corner {
             taken: (0..4)
-                .map(|side| Corner::Between(SegmentId(side), SegmentId((side + 1) % 4)))
+                .map(|side| {
+                    Corner::Between(SegmentId(side).into(), SegmentId((side + 1) % 4).into())
+                })
                 .collect(),
             half: None,
         },

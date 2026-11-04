@@ -719,8 +719,8 @@ fn a_chamfer_a_variable_makes_too_big_is_drawn_as_not_fitting_and_renumbers_noth
     document.apply(Operation::Chamfer {
         sketch: 0,
         corners: vec![
-            Corner::Between(SegmentId(0), SegmentId(1)),
-            Corner::Between(SegmentId(4), SegmentId(5)),
+            Corner::Between(SegmentId(0).into(), SegmentId(1).into()),
+            Corner::Between(SegmentId(4).into(), SegmentId(5).into()),
         ],
         mode: ChamferAsked::Equal(reach),
         construction: false,

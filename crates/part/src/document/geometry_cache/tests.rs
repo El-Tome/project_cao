@@ -350,7 +350,7 @@ fn a_part_of_every_kind_of_drawing() -> PartDocument {
     });
     document.apply(Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         mode: Chamfer::Equal(2.0).into(),
         construction: false,
     });

@@ -282,7 +282,11 @@ fn corners_of(sketch: &Sketch, cuts: &[CornerCutId]) -> Vec<PointId> {
 fn ends_of(sketch: &Sketch, cuts: &[CornerCutId]) -> Vec<(PointId, SegmentId)> {
     cuts.iter()
         .filter_map(|cut| sketch.corner_cuts().get(cut.0))
-        .flat_map(|cut| cut.sides.map(|side| (cut.corner, side)))
+        .flat_map(|cut| {
+            cut.sides
+                .iter()
+                .filter_map(move |side| Some((cut.corner, side.as_trait()?)))
+        })
         .collect()
 }
 

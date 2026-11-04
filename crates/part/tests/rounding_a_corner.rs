@@ -49,7 +49,7 @@ fn a_fillet_draws_a_curve_where_the_corner_was_and_leaves_both_traits_whole() {
 
     let said = state.apply(&Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(EAST, NORTH)],
+        corners: vec![Corner::Between(EAST.into(), NORTH.into())],
         radius: 3.0.into(),
         construction: false,
     });
@@ -78,7 +78,7 @@ fn a_fillet_replayed_draws_the_same_curve() {
     let mut operations = a_right_angle();
     operations.push(Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(EAST, NORTH)],
+        corners: vec![Corner::Between(EAST.into(), NORTH.into())],
         radius: 3.0.into(),
         construction: false,
     });
@@ -96,7 +96,7 @@ fn a_fillet_radius_is_measured_in_millimetres_like_every_other_length() {
 
     state.apply(&Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(EAST, NORTH)],
+        corners: vec![Corner::Between(EAST.into(), NORTH.into())],
         radius: 6.0.into(),
         construction: false,
     });

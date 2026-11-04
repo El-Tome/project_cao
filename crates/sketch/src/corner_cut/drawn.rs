@@ -21,7 +21,7 @@ use std::collections::HashMap;
 
 use glam::DVec2;
 
-use super::{CornerCut, CornerCutId, CutShape};
+use super::{CornerCut, CornerCutId, CutShape, CutSide, both_traits};
 use crate::arcing::ArcDraft;
 use crate::chamfer::Chamfer;
 use crate::sketch::{PointId, SegmentId, Sketch};
@@ -44,7 +44,7 @@ pub enum CutCurve {
 pub struct DrawnCut {
     pub id: CornerCutId,
     /// The two sides, the one named first first.
-    pub sides: [SegmentId; 2],
+    pub sides: [CutSide; 2],
     /// The point the corner stands at, and where it stands.
     pub corner_point: PointId,
     pub corner: DVec2,
@@ -73,14 +73,14 @@ impl Sketch {
         backs
             .iter()
             .filter_map(|(id, cut, back)| {
-                let back = (*back)?;
-                let fits = cut.sides.iter().zip(back).all(|(side, own)| {
+                let (back, sides) = ((*back)?, both_traits(cut.sides)?);
+                let fits = sides.iter().zip(back).all(|(side, own)| {
                     let other = taken.get(side).copied().unwrap_or_default()
                         [1 - self.end_of(*side, cut.corner)];
                     let (start, end) = self.endpoints(*side);
                     own + other <= start.distance(end) + tolerance
                 });
-                self.drawn(*id, cut, back, fits)
+                self.drawn(*id, cut, sides, back, fits)
             })
             .collect()
     }
@@ -97,9 +97,11 @@ impl Sketch {
         let mut pulled: HashMap<SegmentId, [Option<DVec2>; 2]> = HashMap::new();
         for cut in drawn.iter().filter(|cut| cut.fits && !cut.construction) {
             for (rank, side) in cut.sides.iter().enumerate() {
+                let Some(side) = side.as_trait() else {
+                    continue;
+                };
                 let touch = cut.touches[rank];
-                let end =
-                    &mut pulled.entry(*side).or_default()[self.end_of(*side, cut.corner_point)];
+                let end = &mut pulled.entry(side).or_default()[self.end_of(side, cut.corner_point)];
                 let nearer = end
                     .is_none_or(|before| touch.distance(cut.corner) < before.distance(cut.corner));
                 if nearer {
@@ -164,7 +166,9 @@ impl Sketch {
     pub fn fitting_share(&self, corners: &[(SegmentId, SegmentId)], shape: CutShape) -> f64 {
         let replaced: Vec<CornerCutId> = corners
             .iter()
-            .filter_map(|(first, second)| self.cut_standing_between(*first, *second))
+            .filter_map(|(first, second)| {
+                self.cut_standing_between((*first).into(), (*second).into())
+            })
             .collect();
         let standing: Vec<_> = self
             .cut_backs()
@@ -174,7 +178,9 @@ impl Sketch {
         let taken = self.taken_from_the_outline(&standing);
         let mut asked: HashMap<SegmentId, [f64; 2]> = HashMap::new();
         for (first, second) in corners {
-            let Some((corner, far_first, far_second)) = self.corner_to_cut(*first, *second) else {
+            let Some((corner, far_first, far_second)) =
+                self.corner_to_cut((*first).into(), (*second).into())
+            else {
                 continue;
             };
             let Some(back) = self.backs(corner, [far_first, far_second], shape) else {
@@ -208,8 +214,11 @@ impl Sketch {
     fn cut_backs(&self) -> Vec<(CornerCutId, CornerCut, Option<[f64; 2]>)> {
         self.live_corner_cuts()
             .map(|(id, cut)| {
-                let fars = cut.sides.map(|side| self.far_end(side, cut.corner));
-                (id, cut, self.backs(cut.corner, fars, cut.shape))
+                let back = both_traits(cut.sides).and_then(|sides| {
+                    let fars = sides.map(|side| self.far_end(side, cut.corner));
+                    self.backs(cut.corner, fars, cut.shape)
+                });
+                (id, cut, back)
             })
             .collect()
     }
@@ -256,8 +265,10 @@ impl Sketch {
     ) -> HashMap<SegmentId, [f64; 2]> {
         let mut taken: HashMap<SegmentId, [f64; 2]> = HashMap::new();
         for (_, cut, back) in backs.iter().filter(|(_, cut, _)| !cut.construction) {
-            let Some(back) = back else { continue };
-            for (side, own) in cut.sides.iter().zip(back) {
+            let (Some(back), Some(sides)) = (back, both_traits(cut.sides)) else {
+                continue;
+            };
+            for (side, own) in sides.iter().zip(back) {
                 let end = &mut taken.entry(*side).or_default()[self.end_of(*side, cut.corner)];
                 *end = end.max(*own);
             }
@@ -278,12 +289,12 @@ impl Sketch {
         &self,
         id: CornerCutId,
         cut: &CornerCut,
+        sides: [SegmentId; 2],
         back: [f64; 2],
         fits: bool,
     ) -> Option<DrawnCut> {
         let corner = self.point(cut.corner);
-        let away = cut
-            .sides
+        let away = sides
             .map(|side| (self.point(self.far_end(side, cut.corner)) - corner).normalize_or_zero());
         let touches = [corner + away[0] * back[0], corner + away[1] * back[1]];
         let curve = match cut.shape {

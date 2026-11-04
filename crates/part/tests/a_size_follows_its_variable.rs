@@ -185,7 +185,10 @@ fn a_chamfer_written_from_variables_lays_each_value_with_its_own_formula() {
 
     document.apply(Operation::Chamfer {
         sketch: 0,
-        corners: vec![cao_sketch::Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![cao_sketch::Corner::Between(
+            SegmentId(0).into(),
+            SegmentId(1).into(),
+        )],
         mode: cao_part::history::ChamferAsked::Angled { along, degrees },
         construction: false,
     });

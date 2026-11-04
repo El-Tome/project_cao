@@ -515,7 +515,7 @@ fn a_fillet_on_the_corner_keeps_both_its_angles_and_which_one_drives() {
 
     document.apply(Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(ALONG, SLANTED)],
+        corners: vec![Corner::Between(ALONG.into(), SLANTED.into())],
         radius: 5.0.into(),
         construction: false,
     });

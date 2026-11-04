@@ -26,6 +26,7 @@ pub(super) fn held_back(
     let sides: Vec<(SegmentId, SegmentId)> = taken
         .iter()
         .filter_map(|corner| sketch.sides_of(*corner))
+        .filter_map(|(first, second)| Some((first.as_trait()?, second.as_trait()?)))
         .collect();
     let shape = shape_of(rounding, in_units(asked, context.document.scale()));
     let share = sketch.fitting_share(&sides, shape);

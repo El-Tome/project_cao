@@ -1,6 +1,6 @@
 //! A drawing played gesture by gesture, and held to every rule after each one.
 
-use cao_sketch::{PointId, Sketch, WorkPlane};
+use cao_sketch::{CutSide, PointId, SegmentId, Sketch, WorkPlane};
 use glam::DVec2;
 
 use super::Gesture;
@@ -218,6 +218,14 @@ fn relayings(sketch: &Sketch, curves: &[Curve]) -> [Relaying; 5] {
     ]
 }
 
+/// The trait a cut's side is: the generator cuts no corner on a curve.
+fn trait_of(side: CutSide) -> SegmentId {
+    match side {
+        CutSide::Trait(segment) => segment,
+        curve => panic!("the generator cuts corners between traits only, not on {curve:?}"),
+    }
+}
+
 fn ordered<T>(mut items: Vec<T>, reverse: bool) -> Vec<T> {
     if reverse {
         items.reverse();
@@ -282,8 +290,8 @@ pub fn relaid(sketch: &Sketch, how: Relaying) -> Sketch {
     }
     for (_, cut) in ordered(sketch.live_corner_cuts().collect(), reverse) {
         let _ = again.cut_corner(
-            sides[&cut.sides[0]],
-            sides[&cut.sides[1]],
+            sides[&trait_of(cut.sides[0])],
+            sides[&trait_of(cut.sides[1])],
             cut.shape,
             cut.construction,
             cut.group,

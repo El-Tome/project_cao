@@ -126,7 +126,7 @@ impl Sketch {
         }
 
         let carried = self.carried_by(segment, rules, values);
-        let cut_on_it = self.cuts_standing_on(segment);
+        let cut_on_it = self.cuts_standing_on(segment.into());
         let hung = self.rules_hung_on(&cut_on_it);
 
         let corner = self.corner_of_an_angle_on(segment, &carried.values);

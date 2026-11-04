@@ -101,7 +101,10 @@ fn a_corner_named_either_way_stands_at_the_same_point() {
     let (sketch, along, up, pivot) = a_right_angle();
 
     assert_eq!(sketch.corner_point(Corner::At(pivot)), Some(pivot));
-    assert_eq!(sketch.corner_point(Corner::Between(along, up)), Some(pivot));
+    assert_eq!(
+        sketch.corner_point(Corner::Between(along.into(), up.into())),
+        Some(pivot)
+    );
 }
 
 #[test]

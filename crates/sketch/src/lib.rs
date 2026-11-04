@@ -29,7 +29,8 @@ mod corner_angle;
 mod corner_cut;
 pub use corner::Corner;
 pub use corner_cut::{
-    CornerCut, CornerCutId, CutCurve, CutPoint, CutRefused, CutShape, DrawnCut, Grip, PulledEnds,
+    CornerCut, CornerCutId, CutCurve, CutPoint, CutRefused, CutShape, CutSide, DrawnCut, Grip,
+    PulledEnds,
 };
 mod crossing;
 mod dimensioning;

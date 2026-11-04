@@ -68,8 +68,11 @@ impl Sketch {
             .flat_map(|cut| {
                 cut.sides
                     .iter()
-                    .filter(|side| self.visible_ends(**side, &pulled).is_none())
-                    .map(move |side| (CurveId::Corner(cut.id), CurveId::Segment(*side)))
+                    .filter(|side| {
+                        side.as_trait()
+                            .is_some_and(|side| self.visible_ends(side, &pulled).is_none())
+                    })
+                    .map(move |side| (CurveId::Corner(cut.id), CurveId::from(*side)))
             })
             .collect();
         if taken.is_empty() {

@@ -686,7 +686,10 @@ fn measuring_a_cut(
         opposite: PointRef::New(DVec2::new(40.0, 30.0)),
         construction: false,
     });
-    document.apply(laid(vec![Corner::Between(SegmentId(0), SegmentId(1))]));
+    document.apply(laid(vec![Corner::Between(
+        SegmentId(0).into(),
+        SegmentId(1).into(),
+    )]));
     let mut editor = SketchEditor {
         phase: crate::screens::sketch::SketchPhase::Editing(0),
         plane: Some(WorkPlane::XY),

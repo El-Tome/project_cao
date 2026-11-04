@@ -4,7 +4,7 @@
 use cao_part::history::{ChamferAsked, CutChange, PointRef};
 use cao_part::{Operation, PartDocument, Variables};
 use cao_sketch::{
-    Chamfer, Corner, CornerCutId, CutShape, SegmentId, Selection, ToolState, WorkPlane,
+    Chamfer, Corner, CornerCutId, CutShape, CutSide, SegmentId, Selection, ToolState, WorkPlane,
 };
 use glam::DVec2;
 
@@ -29,7 +29,7 @@ fn a_rounded_plate() -> PartDocument {
     document.apply(Operation::Fillet {
         sketch: 0,
         corners: (0..4)
-            .map(|side| Corner::Between(SegmentId(side), SegmentId((side + 1) % 4)))
+            .map(|side| Corner::Between(SegmentId(side).into(), SegmentId((side + 1) % 4).into()))
             .collect(),
         radius: 5.0.into(),
         construction: false,
@@ -123,7 +123,7 @@ fn one_corner_of_a_group_cut_again_leaves_the_group_with_its_new_value() {
         phase: SketchPhase::Editing(0),
         tool: Tool::Fillet,
         tool_state: ToolState::Corner {
-            taken: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+            taken: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
             half: None,
         },
         ..Default::default()
@@ -210,7 +210,7 @@ fn the_sides_of_a_held_chamfer_are_swapped() {
     let mut document = a_rounded_plate();
     document.apply(Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         mode: ChamferAsked::from(Chamfer::Sided {
             first: 2.0,
             second: 4.0,
@@ -235,7 +235,7 @@ fn the_sides_of_a_held_chamfer_are_swapped() {
 
     assert_eq!(
         context.document.sketches()[0].corner_cuts()[chamfer.0].sides,
-        [SegmentId(1), SegmentId(0)]
+        [CutSide::Trait(SegmentId(1)), CutSide::Trait(SegmentId(0))]
     );
 }
 
@@ -326,7 +326,7 @@ fn a_fillet_written_from_a_variable_opens_on_its_formula_and_keeps_following_it(
         .expect("a formula that reads");
     document.apply(Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         radius,
         construction: false,
     });
@@ -362,7 +362,7 @@ fn a_chamfer_group_clicked_in_the_other_order_is_cut_again_rather_than_retyped()
     let mut document = a_rounded_plate();
     document.apply(Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         mode: ChamferAsked::from(Chamfer::Sided {
             first: 2.0,
             second: 4.0,
@@ -374,7 +374,7 @@ fn a_chamfer_group_clicked_in_the_other_order_is_cut_again_rather_than_retyped()
         tool: Tool::Chamfer,
         chamfer_mode: cao_sketch::ChamferMode::Sided,
         tool_state: ToolState::Corner {
-            taken: vec![Corner::Between(SegmentId(1), SegmentId(0))],
+            taken: vec![Corner::Between(SegmentId(1).into(), SegmentId(0).into())],
             half: None,
         },
         ..Default::default()
@@ -406,7 +406,10 @@ fn a_chamfer_group_clicked_in_the_other_order_is_cut_again_rather_than_retyped()
         .live_corner_cuts()
         .find(|(_, cut)| matches!(cut.shape, CutShape::Chamfer(_)))
         .expect("the corner cut again");
-    assert_eq!(cut.sides, [SegmentId(1), SegmentId(0)]);
+    assert_eq!(
+        cut.sides,
+        [CutSide::Trait(SegmentId(1)), CutSide::Trait(SegmentId(0))]
+    );
 }
 
 #[test]
@@ -468,7 +471,7 @@ fn the_second_pair_of_a_point_given_a_fillet_is_laid_beside_the_first_rather_tha
     }
     document.apply(Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         radius: 1.5.into(),
         construction: false,
     });
@@ -476,7 +479,7 @@ fn the_second_pair_of_a_point_given_a_fillet_is_laid_beside_the_first_rather_tha
         phase: SketchPhase::Editing(0),
         tool: Tool::Fillet,
         tool_state: ToolState::Corner {
-            taken: vec![Corner::Between(SegmentId(0), SegmentId(2))],
+            taken: vec![Corner::Between(SegmentId(0).into(), SegmentId(2).into())],
             half: None,
         },
         ..Default::default()

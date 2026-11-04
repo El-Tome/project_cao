@@ -6,6 +6,7 @@ use std::f64::consts::TAU;
 
 use serde::{Deserialize, Serialize};
 
+use crate::corner_cut::CutSide;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
 /// How a corner was named, as the history records it.
@@ -18,26 +19,28 @@ pub enum Corner {
     /// The point two traits meet at. Which two is read from the drawing at the
     /// moment the cut is made.
     At(PointId),
-    /// The two traits themselves, the one named first before the other — for a
+    /// The two sides themselves, the one named first before the other — for a
     /// point too crowded to name a corner on its own, and for the chamfer
     /// modes that measure from the side named first.
     ///
-    /// A trait divided or trimmed since is followed through what it became,
+    /// A side divided or trimmed since is followed through what it became,
     /// which is the part layer's business — [`Sketch::sides_of`] answers only
     /// for a drawing nothing has divided since.
-    Between(SegmentId, SegmentId),
+    Between(CutSide, CutSide),
 }
 
 impl Sketch {
-    /// The two traits a corner stands between, as the drawing has them now.
+    /// The two sides a corner stands between, as the drawing has them now.
     ///
     /// Nothing when the corner is no longer there to cut: a trait erased by an
     /// earlier cut, or a point that stopped being a corner.
-    pub fn sides_of(&self, corner: Corner) -> Option<(SegmentId, SegmentId)> {
+    pub fn sides_of(&self, corner: Corner) -> Option<(CutSide, CutSide)> {
         match corner {
-            Corner::At(point) => self.corner_at(point),
+            Corner::At(point) => self
+                .corner_at(point)
+                .map(|(first, second)| (first.into(), second.into())),
             Corner::Between(first, second) => {
-                self.shared_point(first, second).map(|_| (first, second))
+                self.point_between(first, second).map(|_| (first, second))
             }
         }
     }
@@ -54,7 +57,15 @@ impl Sketch {
     pub fn corner_point(&self, corner: Corner) -> Option<PointId> {
         match corner {
             Corner::At(point) => Some(point),
-            Corner::Between(first, second) => self.shared_point(first, second),
+            Corner::Between(first, second) => self.point_between(first, second),
+        }
+    }
+
+    /// The point two sides meet at.
+    fn point_between(&self, first: CutSide, second: CutSide) -> Option<PointId> {
+        match (first, second) {
+            (CutSide::Trait(first), CutSide::Trait(second)) => self.shared_point(first, second),
+            _ => None,
         }
     }
 
@@ -75,15 +86,18 @@ impl Sketch {
         }
     }
 
-    /// The corner two traits share, when it is one a tool may cut back.
+    /// The corner two sides share, when it is one a tool may cut back.
     ///
     /// Not where either is an axis of an ellipse: the axes are what the curve
     /// stands on, and a side pulled back would leave it standing on nothing.
     pub(crate) fn corner_to_cut(
         &self,
-        first: SegmentId,
-        second: SegmentId,
+        first: CutSide,
+        second: CutSide,
     ) -> Option<(PointId, PointId, PointId)> {
+        let (CutSide::Trait(first), CutSide::Trait(second)) = (first, second) else {
+            return None;
+        };
         if [first, second]
             .into_iter()
             .any(|side| self.ellipse_of_axis(side).is_some())

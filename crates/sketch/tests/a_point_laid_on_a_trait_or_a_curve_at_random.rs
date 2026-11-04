@@ -67,8 +67,8 @@ use std::f64::consts::{PI, TAU};
 use std::time::{Duration, Instant, SystemTime};
 
 use cao_sketch::{
-    CLEAR_OF_AN_END, Constraint, DimensionTarget, Element, LaidFrom, LengthOutcome, PointId, Rule,
-    RuleIntent, RulePick, SegmentId, Sketch, rule_intent,
+    CLEAR_OF_AN_END, Constraint, CutSide, DimensionTarget, Element, LaidFrom, LengthOutcome,
+    PointId, Rule, RuleIntent, RulePick, SegmentId, Sketch, rule_intent,
 };
 use glam::DVec2;
 use random_sketches::{drawn, laid};
@@ -125,6 +125,15 @@ fn measured(sketch: &Sketch, target: DimensionTarget) -> Vec<PointId> {
         .into_iter()
         .flat_map(|element| points_of(sketch, element))
         .collect()
+}
+
+/// What a cut's side is in the drawing.
+fn element_of(side: CutSide) -> Element {
+    match side {
+        CutSide::Trait(segment) => Element::Segment(segment),
+        CutSide::Arc(arc) => Element::Arc(arc),
+        CutSide::ArcOfEllipse(ellipse) => Element::Ellipse(ellipse),
+    }
 }
 
 /// Which shape each point belongs to, as the rank of one point standing for
@@ -186,13 +195,14 @@ fn shapes(sketch: &Sketch) -> Vec<usize> {
             Constraint::OnAxis { point, .. } => vec![Element::Point(point)],
             Constraint::AtCutPoint { point, cut, .. } | Constraint::OnCut { point, cut } => {
                 std::iter::once(Element::Point(point))
-                    .chain(sketch.corner_cuts()[cut.0].sides.map(Element::Segment))
+                    .chain(sketch.corner_cuts()[cut.0].sides.map(element_of))
                     .collect()
             }
-            Constraint::CutTangent { cut, segment, .. } => std::iter::once(segment)
-                .chain(sketch.corner_cuts()[cut.0].sides)
-                .map(Element::Segment)
-                .collect(),
+            Constraint::CutTangent { cut, segment, .. } => {
+                std::iter::once(Element::Segment(segment))
+                    .chain(sketch.corner_cuts()[cut.0].sides.map(element_of))
+                    .collect()
+            }
             Constraint::Tangent {
                 circle,
                 segment,

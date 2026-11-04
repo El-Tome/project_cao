@@ -32,7 +32,7 @@ pub(crate) fn previewed(
             .nearest_segment(cursor, snap)
             .filter(|under| under != first)
     {
-        shown.push(Corner::Between(*first, under));
+        shown.push(Corner::Between((*first).into(), under.into()));
     }
     if shown.is_empty() {
         return None;

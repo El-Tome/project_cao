@@ -249,14 +249,31 @@ const STEPS_ALONG: usize = 256;
 /// share of its whole length read as a share of its parameter put an
 /// ellipse leaving the end of its major axis further along than its
 /// osculating circle, which bends more, and the two were ordered backwards
-/// (5585700934).
+/// (5585700934). A run ending in a chord longer than itself is measured
+/// again along that chord's own: a plane leaning a hair off a wall's tangent
+/// cuts it along a conic whose first chord runs along the rim it touches
+/// and then plunges, and read straight along that chord the conic had
+/// barely left its end, a hair above the rim, and was ordered above it
+/// (5585909807).
 fn along(trace: &Trace, forward: bool, run: f64) -> f64 {
     let point = |share: f64| trace.at(if forward { share } else { 1.0 - share })[0];
-    let mut done = 0.0;
-    for step in 0..STEPS_ALONG {
-        let [from, to] = [step, step + 1].map(|at| at as f64 / STEPS_ALONG as f64);
-        let piece = point(from).distance(point(to));
-        if done + piece >= run {
+    let [mut low, mut high, mut done] = [0.0, 1.0, 0.0];
+    for depth in 0..=REFINED {
+        let mut reached = None;
+        for step in 0..STEPS_ALONG {
+            let [from, to] =
+                [step, step + 1].map(|at| low + (high - low) * at as f64 / STEPS_ALONG as f64);
+            let piece = point(from).distance(point(to));
+            if done + piece >= run {
+                reached = Some((from, to, piece));
+                break;
+            }
+            done += piece;
+        }
+        let Some((from, to, piece)) = reached else {
+            return high;
+        };
+        if piece <= run || depth == REFINED {
             let part = if piece > 0.0 {
                 (run - done) / piece
             } else {
@@ -264,10 +281,14 @@ fn along(trace: &Trace, forward: bool, run: f64) -> f64 {
             };
             return from + part * (to - from);
         }
-        done += piece;
+        [low, high] = [from, to];
     }
-    1.0
+    high
 }
+
+/// How many times a run ending in a chord longer than itself is measured
+/// again along that chord's own.
+const REFINED: usize = 3;
 
 /// Two directions closer than this, in radians, set off together, even on
 /// long arcs whose ends rounding barely moves.

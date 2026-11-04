@@ -2207,8 +2207,13 @@ application has not reached them since #632, and #579 removes them.
   corner, which weighs most of #574's crossed and tilted ellipse draws. The
   conic leaves the corner tangent to the line of touch, so the two set off
   together and are told apart by their bends: an order of curves, which no
-  sign of points settles. The sweep's own order of segments at a sample
-  (`sweep.rs`, `leaving`) is exact, through `turn`.
+  sign of points settles. How far a conic has run is measured along its
+  chords, and again along the chord the run ends in where that chord is
+  longer than the run: a plane leaning a hair off an elliptic wall's
+  tangent cuts it along a conic whose first chord runs along the rim it
+  touches and then plunges, and read straight along that chord the conic
+  was ordered above the rim (5585909807). The sweep's own order of
+  segments at a sample (`sweep.rs`, `leaving`) is exact, through `turn`.
 - **The parity of a ray** (`ray.rs`, `ray/hits.rs`): tolerance. A crossing
   within `eps` of a face's boundary, one grazing the face at a cosine under
   `GRAZING`, or one within `eps` of where the ray starts is a doubt, and the

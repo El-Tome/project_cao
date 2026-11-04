@@ -18,12 +18,14 @@
 //!   `the_same_ellipse_turned_a_ten_thousandth_under_a_block_touching_it_keeps_every_rule`,
 //!   `the_same_ellipse_turned_a_hundred_thousandth_added_back_in_its_bore_keeps_every_rule`,
 //!   `an_elliptic_pocket_reaching_a_round_bar_s_sides_at_its_axis_keeps_every_rule`,
-//!   `an_elliptic_tunnel_as_wide_as_a_tube_s_wall_keeps_every_rule`
+//!   `an_elliptic_tunnel_as_wide_as_a_tube_s_wall_keeps_every_rule`,
+//!   `an_elliptic_wall_cut_a_hundred_thousandth_of_a_degree_off_its_tangent_keeps_every_rule`
 //! - what stays above the bar is written in `docs/exact-kernel-failures.md` —
 //!   no test: prose, the same section
 //!
 //! Each case is the shrunk case of a seed that broke a rule on `main`, of the
-//! ellipses' draw or, where its comment says so, of the crossed draw.
+//! ellipses' draw or, where its comment says so, of the crossed or the tilted
+//! draw.
 
 // The drawing, the promise and the checks are the campaigns'; this file
 // only builds cases and holds them.
@@ -306,6 +308,35 @@ fn an_elliptic_tunnel_as_wide_as_a_tube_s_wall_keeps_every_rule() {
             Plane::xz(90.0),
             Outline::ellipse([150.0, 105.0], [0.0, 30.0], 30.000000299999996),
             -240.0,
+        ))],
+    ));
+}
+
+/// Seed 5585909807 of the tilted draw: a bar of elliptic section, half-axes
+/// 2.5 and 5 turned 30° in its sketch, ten long along y, cut by a block whose face is the
+/// wall's tangent plane along its highest ruling, leaning a
+/// hundred-thousandth of a degree along the bar. The face touches the wall
+/// at the top of the far end's rim and stands 1.7e-6 into it at the near
+/// end: a sliver of the wall some five thousandths wide is cut away, along
+/// a conic whose vertex is that touch. The lean is past what decision 11
+/// lays along the axis and inside the band the kernel builds as drawn and
+/// warns of, and the step was declined as a tie, the overlay finding no
+/// point inside one of the regions it parts.
+#[test]
+fn an_elliptic_wall_cut_a_hundred_thousandth_of_a_degree_off_its_tangent_keeps_every_rule() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(3.5),
+            Outline::ellipse([3.0, 8.0], [-2.1650635094610964, -1.2500000000000002], 5.0),
+            -10.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted(
+                [1.1985582696927697, 13.5, 12.506939094329987],
+                [1e-5, 0.0, 0.0],
+            ),
+            Outline::rectangle([-3.0, -11.0], [6.0, 1.0]),
+            10.0,
         ))],
     ));
 }

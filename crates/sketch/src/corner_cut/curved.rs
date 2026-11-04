@@ -9,13 +9,14 @@
 //! closed form, so the centre is found by Newton's method on where the two
 //! offsets meet, started from the fillet the sides' tangents alone would take:
 //! the one that grows out of the corner as the radius does. It fits when the
-//! places it touches lie on what is drawn of the sides.
+//! places it touches lie on what is drawn of the sides, together with what
+//! the cuts at their other ends take.
 
 use std::f64::consts::{PI, TAU};
 
 use glam::DVec2;
 
-use super::drawn::{CutCurve, DrawnCut, NOTHING, short_way_round};
+use super::drawn::{CutCurve, NOTHING, Worked, short_way_round};
 use super::{CornerCut, CornerCutId, CutShape, CutSide};
 use crate::arcing::sweep_of;
 use crate::ellipsing::EllipseDraft;
@@ -56,70 +57,53 @@ struct Run {
     reach: f64,
 }
 
-/// Where a fillet beside a curve stands: its centre, where it touches each
-/// side, and whether both lie on what is drawn of the sides.
-#[derive(Clone, Copy, Debug)]
-struct Placed {
-    centre: DVec2,
-    touches: [DVec2; 2],
-    fits: bool,
-}
-
 impl Sketch {
-    /// A cut beside a curve as it is drawn now: nothing when its corner gives
-    /// it no place, or for a chamfer, which no such corner takes.
-    pub(super) fn drawn_beside_a_curve(
-        &self,
-        id: CornerCutId,
-        cut: &CornerCut,
-        tolerance: f64,
-    ) -> Option<DrawnCut> {
+    /// A cut beside a curve worked out on its own: nothing when its corner
+    /// gives it no place, or for a chamfer, which no such corner takes.
+    pub(super) fn worked_beside_a_curve(&self, cut: &CornerCut, tolerance: f64) -> Option<Worked> {
         let CutShape::Fillet { radius } = cut.shape else {
             return None;
         };
-        let corner = self.point(cut.corner);
         let runs = self.runs_away_from(cut.sides, cut.corner)?;
-        let placed = fillet_between(corner, runs, radius, tolerance)?;
-        Some(DrawnCut {
-            id,
-            sides: cut.sides,
-            corner_point: cut.corner,
-            corner,
-            touches: placed.touches,
-            curve: CutCurve::Arc(short_way_round(placed.centre, placed.touches)),
-            fits: placed.fits,
-            construction: cut.construction,
-        })
+        fillet_between(self.point(cut.corner), runs, radius, tolerance)
     }
 
-    /// How much of a value a corner beside a curve takes at most, as a share
-    /// of it — found by halving, the fillet having no closed form: none when
-    /// the corner gives it no place, and no bound when it fits as given, or
-    /// for a chamfer, which no such corner takes.
-    pub(super) fn share_beside_a_curve(
-        &self,
-        corner: PointId,
-        sides: [CutSide; 2],
-        shape: CutShape,
-        tolerance: f64,
-    ) -> f64 {
-        let CutShape::Fillet { radius } = shape else {
-            return f64::INFINITY;
+    /// How much of a fillet's radius corners among which one stands beside a
+    /// curve take at most, as a share of it: 1 when they fit as given,
+    /// nothing when one gives it no place.
+    ///
+    /// Such a fillet takes nothing from its sides in proportion to its
+    /// radius, so the share is found by halving: each share tried is laid on
+    /// a copy of the drawing, where every corner laid must be drawn and fit.
+    pub(super) fn share_by_halving(&self, corners: &[(CutSide, CutSide)], radius: f64) -> f64 {
+        let fits = |share: f64| {
+            let mut trial = self.clone();
+            let group = trial.fresh_cut_group();
+            let shape = CutShape::Fillet {
+                radius: radius * share,
+            };
+            let laid: Vec<CornerCutId> = corners
+                .iter()
+                .filter_map(|(first, second)| {
+                    trial.cut_corner(*first, *second, shape, false, group).ok()
+                })
+                .collect();
+            let drawn = trial.drawn_cuts();
+            laid.iter()
+                .filter(|id| !trial.is_erased_cut(**id))
+                .map(|id| drawn.iter().find(|cut| cut.id == *id).map(|cut| cut.fits))
+                .collect::<Option<Vec<bool>>>()
+                .map(|fits| fits.into_iter().all(|fit| fit))
         };
-        let Some(runs) = self.runs_away_from(sides, corner) else {
-            return 0.0;
-        };
-        let at = self.point(corner);
-        let placed = |share: f64| fillet_between(at, runs, radius * share, tolerance);
-        match placed(1.0) {
+        match fits(1.0) {
             None => return 0.0,
-            Some(placed) if placed.fits => return f64::INFINITY,
-            Some(_) => {}
+            Some(true) => return 1.0,
+            Some(false) => {}
         }
         let (mut fitting, mut not) = (0.0, 1.0);
         for _ in 0..HALVINGS {
             let half = (fitting + not) * 0.5;
-            match placed(half).is_some_and(|placed| placed.fits) {
+            match fits(half) == Some(true) {
                 true => fitting = half,
                 false => not = half,
             }
@@ -180,13 +164,14 @@ impl Sketch {
     }
 }
 
-/// The fillet of `radius` between two sides leaving `corner` — nothing when
-/// the sides leave it straight on or the same way.
+/// The fillet of `radius` between two sides leaving `corner`, worked out on
+/// its own — nothing when the sides leave the corner straight on or the same
+/// way.
 ///
 /// When no circle of that radius touches both near the corner, or it would
-/// have to stand inside a curve bending tighter than itself, the fillet does
-/// not fit, and is drawn where the sides' tangents alone would put it.
-fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64, tolerance: f64) -> Option<Placed> {
+/// have to stand inside a curve bending tighter than itself, the fillet fits
+/// nowhere, and is drawn where the sides' tangents alone would put it.
+fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64, tolerance: f64) -> Option<Worked> {
     let leaving = runs.map(Run::leaving);
     let turn = leaving[0].perp_dot(leaving[1]);
     let opening = turn.abs().atan2(leaving[0].dot(leaving[1]));
@@ -202,18 +187,30 @@ fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64, tolerance: f64) ->
         radius * outwards.dot(inwards[rank]).signum()
     });
     let back = radius / (opening * 0.5).tan();
+    let room = runs.map(|run| run.room(tolerance));
     let Some(at) = meeting(corner, runs, off, back) else {
-        return Some(Placed {
-            centre: corner
-                + (leaving[0] + leaving[1]).normalize() * (radius / (opening * 0.5).sin()),
-            touches: leaving.map(|away| corner + away * back),
-            fits: false,
+        let centre =
+            corner + (leaving[0] + leaving[1]).normalize() * (radius / (opening * 0.5).sin());
+        let touches = leaving.map(|away| corner + away * back);
+        return Some(Worked {
+            touches,
+            curve: CutCurve::Arc(short_way_round(centre, touches)),
+            takes: runs.map(|run| run.along(run.first_guess(back))),
+            room,
+            alone: false,
         });
     };
-    Some(Placed {
-        centre: runs[0].path.off_by(at[0], off[0]).0,
-        touches: [runs[0].path.place(at[0]), runs[1].path.place(at[1])],
-        fits: runs[0].holds(at[0], tolerance) && runs[1].holds(at[1], tolerance),
+    let touches = [runs[0].path.place(at[0]), runs[1].path.place(at[1])];
+    let takes = [runs[0].along(at[0]), runs[1].along(at[1])];
+    Some(Worked {
+        touches,
+        curve: CutCurve::Arc(short_way_round(
+            runs[0].path.off_by(at[0], off[0]).0,
+            touches,
+        )),
+        takes,
+        room,
+        alone: takes.iter().all(|take| *take >= 0.0),
     })
 }
 
@@ -267,14 +264,21 @@ impl Run {
         self.from + self.way * back / self.path.onwards(self.from).length()
     }
 
-    /// Whether a place of the path lies on what is drawn of the side.
-    fn holds(self, at: f64, tolerance: f64) -> bool {
+    /// How far along the side from the corner a place of its path lies, in
+    /// the path's own measure: round a curve, the way the side runs, short of
+    /// a whole turn.
+    fn along(self, at: f64) -> f64 {
         let along = (at - self.from) * self.way;
-        let slack = tolerance / self.path.onwards(self.from).length();
         match self.path {
-            Path::Line { .. } => (0.0..=self.reach + slack).contains(&along),
-            Path::Circle { .. } | Path::Ellipse(_) => along.rem_euclid(TAU) <= self.reach + slack,
+            Path::Line { .. } => along,
+            Path::Circle { .. } | Path::Ellipse(_) => along.rem_euclid(TAU),
         }
+    }
+
+    /// How far along the side there is room, in that same measure, the
+    /// drawing's tolerance given.
+    fn room(self, tolerance: f64) -> f64 {
+        self.reach + tolerance / self.path.onwards(self.from).length()
     }
 }
 

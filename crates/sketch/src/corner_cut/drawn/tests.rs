@@ -389,6 +389,117 @@ fn the_tightest_side_beside_an_arc_says_how_much_of_the_value_fits() {
     );
 }
 
+/// Whether each of two corners rounded together by `radius`, as one gesture,
+/// is drawn and fits.
+fn laid_together_fit(
+    sketch: &mut Sketch,
+    corners: [[CutSide; 2]; 2],
+    radius: f64,
+) -> [Option<bool>; 2] {
+    let ids = corners.map(|[first, second]| {
+        sketch
+            .cut_corner(first, second, CutShape::Fillet { radius }, false, 0)
+            .expect("a corner of the drawing")
+    });
+    ids.map(|id| sketch.drawn_cut(id).map(|cut| cut.fits))
+}
+
+/// Holds two corners rounded together to the largest radius worked out by
+/// hand, where their fillets just meet on the side between them: each fits on
+/// its own at the radius asked, both are red once laid together, the share
+/// gives the largest, both fit at it, and a hair more overlaps.
+fn assert_held_back_together(
+    sketch: &Sketch,
+    corners: [[CutSide; 2]; 2],
+    asked: f64,
+    largest: f64,
+    what: &str,
+) {
+    for (rank, [first, second]) in corners.into_iter().enumerate() {
+        let mut alone = sketch.clone();
+        assert_eq!(
+            laid_fits(&mut alone, [first, second], asked),
+            Some(true),
+            "{what}: corner {rank} on its own takes the fillet asked"
+        );
+    }
+    let share = sketch.fitting_share(
+        &corners.map(|[first, second]| (first, second)),
+        CutShape::Fillet { radius: asked },
+    );
+    assert!(
+        (share * asked - largest).abs() < SHARE_NEAR,
+        "{what}: the share {share} offers {} where the two fillets just meet at {largest}",
+        share * asked,
+    );
+
+    let mut together = sketch.clone();
+    assert_eq!(
+        laid_together_fit(&mut together, corners, asked),
+        [Some(false); 2],
+        "{what}: laid together, the two fillets overlap and neither fits"
+    );
+    assert_eq!(
+        laid_together_fit(&mut together, corners, share * asked),
+        [Some(true); 2],
+        "{what}: at the share offered, the two fillets meet and both fit"
+    );
+    assert_eq!(
+        laid_together_fit(&mut together, corners, share * asked * (1.0 + 1e-4)),
+        [Some(false); 2],
+        "{what}: a hair more than the share offered, the two fillets overlap"
+    );
+}
+
+#[test]
+fn two_fillets_on_the_two_ends_of_one_trait_one_beside_an_arc_hold_each_other_back() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let beside_the_arc = sketch.add_point(DVec2::new(10.0, 10.0));
+    let square = sketch.add_point(DVec2::new(30.0, 10.0));
+    let shared = sketch.add_segment(beside_the_arc, square);
+    let up = sketch.add_point(DVec2::new(30.0, 30.0));
+    let rising = sketch.add_segment(square, up);
+    let centre = sketch.add_point(DVec2::new(2.0, 10.0));
+    let top = sketch.add_point(DVec2::new(2.0, 18.0));
+    let arc = sketch.add_arc(centre, beside_the_arc, top);
+
+    assert_held_back_together(
+        &sketch,
+        [[shared.into(), arc.into()], [shared.into(), rising.into()]],
+        12.5,
+        12.0,
+        "a trait of twenty, rounded beside an arc of radius eight at one end and \
+         square at the other: a fillet of twelve takes eight of it beside the arc and \
+         twelve at the square end",
+    );
+}
+
+#[test]
+fn two_fillets_on_the_two_ends_of_one_arc_hold_each_other_back() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre_place = DVec2::new(2.0, 10.0);
+    let [low, high] = [-1.0, 1.0].map(|way| DVec2::new(12.0, 5.0 * way) / 13.0);
+    let centre = sketch.add_point(centre_place);
+    let ends = [low, high].map(|out| sketch.add_point(centre_place + out * 8.0));
+    let arc = sketch.add_arc(centre, ends[0], ends[1]);
+    let traits = [(ends[0], low), (ends[1], high)].map(|(end, out)| {
+        let far = sketch.add_point(centre_place + out * 28.0);
+        sketch.add_segment(end, far)
+    });
+
+    assert_held_back_together(
+        &sketch,
+        [
+            [arc.into(), traits[0].into()],
+            [arc.into(), traits[1].into()],
+        ],
+        10.0,
+        5.0,
+        "an arc of radius eight between two traits running out from its centre: a \
+         fillet of five on each end touches it at its middle",
+    );
+}
+
 #[test]
 fn a_cut_already_standing_takes_its_part_of_the_share() {
     let (mut sketch, sides) = a_rectangle(100.0, 20.0);

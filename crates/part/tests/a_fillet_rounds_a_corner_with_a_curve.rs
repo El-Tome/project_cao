@@ -51,7 +51,11 @@
 //!   `a_fillet_too_big_beside_an_arc_is_held_back_and_the_field_offers_the_largest`,
 //!   the share it offers by
 //!   `the_tightest_side_beside_an_arc_says_how_much_of_the_value_fits` in the
-//!   sketch crate; the red is the canvas's
+//!   sketch crate; two fillets meeting on one side hold each other back, red
+//!   together and offered the share where they meet, held there by
+//!   `two_fillets_on_the_two_ends_of_one_trait_one_beside_an_arc_hold_each_other_back`
+//!   and `two_fillets_on_the_two_ends_of_one_arc_hold_each_other_back`; the
+//!   red is the canvas's
 //!
 //! What the design adds so that the tools around a cut do not break on a
 //! curve side — not in the issue's words:

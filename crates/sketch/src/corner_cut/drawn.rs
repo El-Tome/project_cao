@@ -56,6 +56,20 @@ pub struct DrawnCut {
     pub construction: bool,
 }
 
+/// A cut worked out on its own, before what the other cuts on its sides take
+/// is counted: where it meets each side, the curve it draws, how much of each
+/// side it takes from the corner and how much room the side has for it — both
+/// in the side's own measure, a length along a trait, an angle round an arc,
+/// a turn round an ellipse. `alone` is false for one that fits nowhere.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Worked {
+    pub(super) touches: [DVec2; 2],
+    pub(super) curve: CutCurve,
+    pub(super) takes: [f64; 2],
+    pub(super) room: [f64; 2],
+    pub(super) alone: bool,
+}
+
 /// Where the cuts that fit and are drawn as the outline pull the ends of each
 /// side back to, read once for the whole drawing: start then end, nothing
 /// for an end no cut pulls.
@@ -67,23 +81,30 @@ impl Sketch {
     /// exactly straight, or folded exactly shut, has no place anywhere and is
     /// left out: there is nothing to draw for it, and its corner stays sharp.
     pub fn drawn_cuts(&self) -> Vec<DrawnCut> {
-        let backs = self.cut_backs();
-        let taken = self.taken_from_the_outline(&backs);
         let tolerance = crate::precision::SAME * crate::precision::drawing_size(self);
-        backs
+        let worked = self.worked_cuts(tolerance);
+        let taken = self.taken_from_the_outline(&worked);
+        worked
             .iter()
-            .filter_map(|(id, cut, back)| {
-                let Some(sides) = both_traits(cut.sides) else {
-                    return self.drawn_beside_a_curve(*id, cut, tolerance);
-                };
-                let back = (*back)?;
-                let fits = sides.iter().zip(back).all(|(side, own)| {
-                    let other = taken.get(side).copied().unwrap_or_default()
-                        [1 - self.end_of(*side, cut.corner)];
-                    let (start, end) = self.endpoints(*side);
-                    own + other <= start.distance(end) + tolerance
-                });
-                self.drawn(*id, cut, sides, back, fits)
+            .filter_map(|(id, cut, worked)| {
+                let worked = (*worked)?;
+                let fits = worked.alone
+                    && (0..2).all(|rank| {
+                        let side = cut.sides[rank];
+                        let other = taken.get(&side).copied().unwrap_or_default()
+                            [1 - self.end_of(side, cut.corner)];
+                        worked.takes[rank] + other <= worked.room[rank]
+                    });
+                Some(DrawnCut {
+                    id: *id,
+                    sides: cut.sides,
+                    corner_point: cut.corner,
+                    corner: self.point(cut.corner),
+                    touches: worked.touches,
+                    curve: worked.curve,
+                    fits,
+                    construction: cut.construction,
+                })
             })
             .collect()
     }
@@ -104,7 +125,8 @@ impl Sketch {
                     continue;
                 };
                 let touch = cut.touches[rank];
-                let end = &mut pulled.entry(side).or_default()[self.end_of(side, cut.corner_point)];
+                let end = &mut pulled.entry(side).or_default()
+                    [self.end_of(side.into(), cut.corner_point)];
                 let nearer = end
                     .is_none_or(|before| touch.distance(cut.corner) < before.distance(cut.corner));
                 if nearer {
@@ -167,20 +189,27 @@ impl Sketch {
     /// larger giving what the end takes; what a new cut on one end has to
     /// leave room for is what the other end takes.
     ///
-    /// A corner beside a curve is read on its own, the largest value that
-    /// fits it searched for.
+    /// A fillet asked beside a curve takes nothing in proportion to its
+    /// radius, and the share is searched for instead.
     pub fn fitting_share(&self, corners: &[(CutSide, CutSide)], shape: CutShape) -> f64 {
+        if let CutShape::Fillet { radius } = shape
+            && corners
+                .iter()
+                .any(|(first, second)| both_traits([*first, *second]).is_none())
+        {
+            return self.share_by_halving(corners, radius);
+        }
         let replaced: Vec<CornerCutId> = corners
             .iter()
             .filter_map(|(first, second)| self.cut_standing_between(*first, *second))
             .collect();
+        let tolerance = crate::precision::SAME * crate::precision::drawing_size(self);
         let standing: Vec<_> = self
-            .cut_backs()
+            .worked_cuts(tolerance)
             .into_iter()
             .filter(|(id, _, _)| !replaced.contains(id))
             .collect();
         let taken = self.taken_from_the_outline(&standing);
-        let tolerance = crate::precision::SAME * crate::precision::drawing_size(self);
         let mut share = f64::INFINITY;
         let mut asked: HashMap<SegmentId, [f64; 2]> = HashMap::new();
         for (first, second) in corners {
@@ -188,24 +217,18 @@ impl Sketch {
                 continue;
             };
             let Some(sides) = both_traits([*first, *second]) else {
-                share = share.min(self.share_beside_a_curve(
-                    corner,
-                    [*first, *second],
-                    shape,
-                    tolerance,
-                ));
                 continue;
             };
             let Some(back) = self.backs(corner, [far_first, far_second], shape) else {
                 return 0.0;
             };
             for (side, own) in sides.into_iter().zip(back) {
-                let end = &mut asked.entry(side).or_default()[self.end_of(side, corner)];
+                let end = &mut asked.entry(side).or_default()[self.end_of(side.into(), corner)];
                 *end = end.max(own);
             }
         }
         for (side, wanted) in asked {
-            let gone = taken.get(&side).copied().unwrap_or_default();
+            let gone = taken.get(&side.into()).copied().unwrap_or_default();
             let (start, end) = self.endpoints(side);
             let room = start.distance(end) + tolerance;
             for at in [0, 1] {
@@ -220,16 +243,16 @@ impl Sketch {
         share.max(0.0)
     }
 
-    /// Every cut standing, with how far back it takes each of its sides —
-    /// nothing for a corner that gives it no place.
-    fn cut_backs(&self) -> Vec<(CornerCutId, CornerCut, Option<[f64; 2]>)> {
+    /// Every cut standing, each worked out on its own — nothing for a corner
+    /// that gives it no place.
+    fn worked_cuts(&self, tolerance: f64) -> Vec<(CornerCutId, CornerCut, Option<Worked>)> {
         self.live_corner_cuts()
             .map(|(id, cut)| {
-                let back = both_traits(cut.sides).and_then(|sides| {
-                    let fars = sides.map(|side| self.far_end(side, cut.corner));
-                    self.backs(cut.corner, fars, cut.shape)
-                });
-                (id, cut, back)
+                let worked = match both_traits(cut.sides) {
+                    Some(sides) => self.worked_between_traits(&cut, sides, tolerance),
+                    None => self.worked_beside_a_curve(&cut, tolerance),
+                };
+                (id, cut, worked)
             })
             .collect()
     }
@@ -264,24 +287,26 @@ impl Sketch {
     }
 
     /// Which end of a side a corner stands on: 0 for its start, 1 for its end.
-    fn end_of(&self, side: SegmentId, corner: PointId) -> usize {
-        usize::from(self.segments()[side.0].start != corner)
+    fn end_of(&self, side: CutSide, corner: PointId) -> usize {
+        self.side_ends(side)
+            .map_or(0, |[start, _]| usize::from(start != corner))
     }
 
-    /// How much each end of a side the cuts drawn as the outline take, start
-    /// then end: the largest of the cuts standing on that end.
+    /// How much of each end of a side the cuts drawn as the outline take,
+    /// start then end, in the side's own measure: the largest of the cuts
+    /// standing on that end.
     fn taken_from_the_outline(
         &self,
-        backs: &[(CornerCutId, CornerCut, Option<[f64; 2]>)],
-    ) -> HashMap<SegmentId, [f64; 2]> {
-        let mut taken: HashMap<SegmentId, [f64; 2]> = HashMap::new();
-        for (_, cut, back) in backs.iter().filter(|(_, cut, _)| !cut.construction) {
-            let (Some(back), Some(sides)) = (back, both_traits(cut.sides)) else {
+        worked: &[(CornerCutId, CornerCut, Option<Worked>)],
+    ) -> HashMap<CutSide, [f64; 2]> {
+        let mut taken: HashMap<CutSide, [f64; 2]> = HashMap::new();
+        for (_, cut, worked) in worked.iter().filter(|(_, cut, _)| !cut.construction) {
+            let Some(worked) = worked else {
                 continue;
             };
-            for (side, own) in sides.iter().zip(back) {
+            for (side, own) in cut.sides.iter().zip(worked.takes) {
                 let end = &mut taken.entry(*side).or_default()[self.end_of(*side, cut.corner)];
-                *end = end.max(*own);
+                *end = end.max(own);
             }
         }
         taken
@@ -296,14 +321,15 @@ impl Sketch {
         }
     }
 
-    fn drawn(
+    /// A cut between two traits worked out on its own.
+    fn worked_between_traits(
         &self,
-        id: CornerCutId,
         cut: &CornerCut,
         sides: [SegmentId; 2],
-        back: [f64; 2],
-        fits: bool,
-    ) -> Option<DrawnCut> {
+        tolerance: f64,
+    ) -> Option<Worked> {
+        let fars = sides.map(|side| self.far_end(side, cut.corner));
+        let back = self.backs(cut.corner, fars, cut.shape)?;
         let corner = self.point(cut.corner);
         let away = sides
             .map(|side| (self.point(self.far_end(side, cut.corner)) - corner).normalize_or_zero());
@@ -320,15 +346,16 @@ impl Sketch {
                 to: touches[1],
             },
         };
-        Some(DrawnCut {
-            id,
-            sides: cut.sides,
-            corner_point: cut.corner,
-            corner,
+        let room = sides.map(|side| {
+            let (start, end) = self.endpoints(side);
+            start.distance(end) + tolerance
+        });
+        Some(Worked {
             touches,
             curve,
-            fits,
-            construction: cut.construction,
+            takes: back,
+            room,
+            alone: true,
         })
     }
 }

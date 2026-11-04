@@ -2,7 +2,11 @@
 //!
 //! Closes #519.
 //! - the history says a length through the one formatter, to 4 decimals,
-//!   trailing zeros trimmed — `the_history_says_a_radius_to_a_tenth_of_a_micron`
+//!   trailing zeros trimmed, a place's coordinates included —
+//!   `the_history_says_a_radius_to_a_tenth_of_a_micron`,
+//!   `the_history_says_a_place_to_a_tenth_of_a_micron`; the pins that read
+//!   « (20.0, 0.0) », « rayon 5.00 » and « 30.0° » changed on purpose —
+//!   `a_side_moved_and_a_shape_turned_say_so_and_unfold_into_what_they_did`
 
 use cao_part::history::{PointRef, RevolutionAxis};
 use cao_sketch::{Area, CircleId, CurveId, PointId, SegmentId, SketchAxis, WorkPlane};
@@ -212,11 +216,11 @@ fn a_side_moved_and_a_shape_turned_say_so_and_unfold_into_what_they_did() {
     assert_eq!(said(&turned), "Forme tournée");
     assert_eq!(
         detail(&lang, &variables, &moved),
-        "Esquisse 0 · trait 2 de (0.0, 15.0)"
+        "Esquisse 0 · trait 2 de (0, 15)"
     );
     assert_eq!(
         detail(&lang, &variables, &turned),
-        "Esquisse 0 · 4 points tournés de 30.0° autour de (70.0, 52.5)"
+        "Esquisse 0 · 4 points tournés de 30° autour de (70, 52.5)"
     );
 }
 
@@ -235,4 +239,42 @@ fn a_rule_laid_in_place_of_a_dimension_is_named_after_the_rule() {
     ]);
 
     assert_eq!(said(&in_place), "Parallèle");
+}
+
+#[test]
+fn the_history_says_a_radius_to_a_tenth_of_a_micron() {
+    let circle = Operation::AddCircle {
+        sketch: 1,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 37.461_829_3,
+        rim: Vec::new(),
+        construction: false,
+    };
+
+    assert_eq!(
+        detail(
+            &Catalogue::french(),
+            &cao_part::Variables::default(),
+            &circle
+        ),
+        "Esquisse 1 · rayon 37.4618",
+    );
+}
+
+#[test]
+fn the_history_says_a_place_to_a_tenth_of_a_micron() {
+    let point = Operation::AddPoint {
+        sketch: 0,
+        position: DVec2::new(12.5, 37.461_829_3),
+        on: Vec::new(),
+    };
+
+    assert_eq!(
+        detail(
+            &Catalogue::french(),
+            &cao_part::Variables::default(),
+            &point
+        ),
+        "Esquisse 0 · (12.5, 37.4618)",
+    );
 }

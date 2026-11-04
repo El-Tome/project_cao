@@ -45,7 +45,7 @@ fn an_unfolded_step_says_which_sketch_it_belongs_to_and_what_it_touched() {
                 position: DVec2::new(1.25, -3.0),
                 on: Vec::new(),
             },
-            "Esquisse 2 · (1.2, -3.0)",
+            "Esquisse 2 · (1.25, -3)",
         ),
         (
             Operation::AddSegment {
@@ -54,7 +54,7 @@ fn an_unfolded_step_says_which_sketch_it_belongs_to_and_what_it_touched() {
                 end: PointRef::New(DVec2::new(2.0, 4.0)),
                 construction: false,
             },
-            "Esquisse 0 · de point 7 à (2.0, 4.0)",
+            "Esquisse 0 · de point 7 à (2, 4)",
         ),
         (
             Operation::AddSymmetricSegment {
@@ -63,7 +63,7 @@ fn an_unfolded_step_says_which_sketch_it_belongs_to_and_what_it_touched() {
                 end: PointRef::New(DVec2::new(20.0, 0.0)),
                 construction: false,
             },
-            "Esquisse 0 · centré en point 3, jusqu'à (20.0, 0.0)",
+            "Esquisse 0 · centré en point 3, jusqu'à (20, 0)",
         ),
         (
             Operation::AddCircle {
@@ -73,7 +73,7 @@ fn an_unfolded_step_says_which_sketch_it_belongs_to_and_what_it_touched() {
                 rim: Vec::new(),
                 construction: false,
             },
-            "Esquisse 1 · rayon 5.00",
+            "Esquisse 1 · rayon 5",
         ),
         (
             Operation::MoveMany {
@@ -81,7 +81,7 @@ fn an_unfolded_step_says_which_sketch_it_belongs_to_and_what_it_touched() {
                 points: vec![PointId(1), PointId(2)],
                 by: AWAY,
             },
-            "Esquisse 0 · 2 points de (3.0, 0.0)",
+            "Esquisse 0 · 2 points de (3, 0)",
         ),
         (
             Operation::EraseMany {

@@ -4,8 +4,13 @@
 //! - an edit field opens on what was typed, the formula —
 //!   `a_value_written_from_a_variable_is_opened_as_what_it_was_written_as` —
 //!   or the number as written — `a_number_typed_is_opened_as_it_was_written`
+//! - an untouched `Entrée` moves nothing, on a dimension just placed by
+//!   clicking as on a typed one reopened —
+//!   `pressing_enter_on_a_field_left_as_it_opened_moves_nothing`,
+//!   `pressing_enter_on_a_typed_value_reopened_as_it_was_moves_nothing`
 //! - a dimension placed by clicking stores its measured value rounded to
-//!   0.1 µm — `a_dimension_placed_by_clicking_holds_its_measure_to_a_tenth_of_a_micron`
+//!   0.1 µm, so what is shown is what is held —
+//!   `a_dimension_placed_by_clicking_holds_its_measure_to_a_tenth_of_a_micron`
 //!
 //! Closes #175.
 //! - a dimension on the drawing shows its value; editing it shows its formula
@@ -1290,4 +1295,149 @@ fn a_hand_a_hair_past_the_driving_quarter_keeps_it_and_opens_it() {
             );
         }
     }
+}
+
+const UNROUND: DimensionTarget = DimensionTarget::Length(SegmentId(1));
+
+/// A part with a scale of one unit to the millimetre, and a second trait
+/// 37.4618293 mm long, which nothing holds yet.
+fn a_part_with_an_unround_trait() -> PartDocument {
+    let mut document = a_trait_as_long_as_a_width();
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(0.0, 20.0)),
+        end: PointRef::New(DVec2::new(37.461_829_3, 20.0)),
+        construction: false,
+    });
+    document
+}
+
+fn opened_on(editor: &SketchEditor) -> Option<&str> {
+    editor
+        .editing
+        .as_ref()
+        .map(|editing| editing.input.as_str())
+}
+
+fn typed_then_reopened(document: &mut PartDocument, editor: &mut SketchEditor, typed: &str) {
+    let lang = Catalogue::french();
+    let mut extrusion = ExtrusionState::default();
+    let mut context = SketchContext {
+        document,
+        editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    edit_dimension(&mut context, 0, SIDE);
+    if let Some(editing) = context.editor.editing.as_mut() {
+        editing.input = typed.to_string();
+    }
+    assert!(
+        apply_dimension_value(context.document, context.editor, 0, SIDE, &lang),
+        "{typed} is taken",
+    );
+    context.editor.reset_pending();
+    edit_dimension(&mut context, 0, SIDE);
+}
+
+#[test]
+fn a_number_typed_is_opened_as_it_was_written() {
+    let mut document = a_trait_as_long_as_a_width();
+    let mut editor = SketchEditor::default();
+
+    typed_then_reopened(&mut document, &mut editor, "37.4618293");
+
+    assert_eq!(
+        opened_on(&editor),
+        Some("37.4618293"),
+        "the field reopens on what was typed, not on a rounding of it",
+    );
+}
+
+#[test]
+fn pressing_enter_on_a_typed_value_reopened_as_it_was_moves_nothing() {
+    let mut document = a_trait_as_long_as_a_width();
+    let mut editor = SketchEditor::default();
+    typed_then_reopened(&mut document, &mut editor, "37.4618293");
+    let steps = document.history.operations().len();
+    let before = document.measured(0, SIDE).expect("the trait measures");
+
+    apply_dimension_value(&mut document, &mut editor, 0, SIDE, &Catalogue::french());
+
+    let after = document.measured(0, SIDE).expect("the trait measures");
+    assert_eq!(
+        document.history.operations().len(),
+        steps,
+        "Entrée on a field reopened as it was writes no step",
+    );
+    assert!(
+        (after - before).abs() < 1e-12,
+        "Entrée on a field reopened as it was moves the trait from {before} to {after} mm",
+    );
+}
+
+#[test]
+fn a_dimension_placed_by_clicking_holds_its_measure_to_a_tenth_of_a_micron() {
+    let mut document = a_part_with_an_unround_trait();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    place_dimension(&mut context, 0, UNROUND, DVec2::new(18.0, 25.0), 0.05);
+
+    let held = document.sketches()[0]
+        .dimension_of(UNROUND)
+        .map(|dimension| dimension.value)
+        .expect("the dimension is placed");
+    assert!(
+        (held - 37.4618).abs() < 1e-12,
+        "the trait measures 37.4618293 mm, and its dimension holds {held} rather than \
+         the tenth of a micron it is shown to",
+    );
+    let runs = document.measured(0, UNROUND).expect("the trait measures");
+    assert!(
+        (runs - 37.4618).abs() < 1e-6,
+        "the trait is drawn to what its dimension holds, and runs {runs} mm",
+    );
+    assert_eq!(
+        opened_on(&editor),
+        Some("37.4618"),
+        "the field shows what is held",
+    );
+}
+
+#[test]
+fn pressing_enter_on_a_field_left_as_it_opened_moves_nothing() {
+    let mut document = a_part_with_an_unround_trait();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    place_dimension(&mut context, 0, UNROUND, DVec2::new(18.0, 25.0), 0.05);
+    let steps = document.history.operations().len();
+    let before = document.measured(0, UNROUND).expect("the trait measures");
+
+    apply_dimension_value(&mut document, &mut editor, 0, UNROUND, &lang);
+
+    let after = document.measured(0, UNROUND).expect("the trait measures");
+    assert_eq!(
+        document.history.operations().len(),
+        steps,
+        "Entrée on the field a click opened writes no step",
+    );
+    assert!(
+        (after - before).abs() < 1e-12,
+        "Entrée on the field a click opened moves the trait from {before} to {after} mm",
+    );
 }

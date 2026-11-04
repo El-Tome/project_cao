@@ -161,7 +161,7 @@ fn a_length_is_shown_to_a_tenth_of_a_micron_whatever_its_size() {
     for (length, reads) in [
         (37.461_829_3, "37.4618 mm"),
         (123.4567, "123.4567 mm"),
-        (1234.567_89, "1234.5679 mm"),
+        (1_234.567_89, "1234.5679 mm"),
         (12.5, "12.5 mm"),
         (0.0004, "0.0004 mm"),
     ] {
@@ -188,8 +188,8 @@ fn a_tenth_of_a_micron_holds_in_whatever_unit_is_shown() {
     for (unit, length, reads) in [
         (micrometres, 0.012_345, "12.3 µm"),
         (centimetres, 25.0001, "2.50001 cm"),
-        (metres, 1000.000_31, "1.0000003 m"),
-        (UnitDisplay::Auto, 1000.000_31, "1.0000003 m"),
+        (metres, 1_000.000_31, "1.0000003 m"),
+        (UnitDisplay::Auto, 1_000.000_31, "1.0000003 m"),
         (UnitDisplay::Auto, 0.012_345, "12.3 µm"),
     ] {
         assert_eq!(unit.format(length), reads, "{length} mm in {unit:?}");

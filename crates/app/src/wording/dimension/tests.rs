@@ -104,7 +104,7 @@ fn number_in(said: &str) -> f64 {
 fn the_canvas_and_the_history_say_a_length_the_same_way() {
     let canvas = UnitDisplay::Fixed(LengthUnit::Millimeter);
 
-    for length in [37.461_829_3, 1234.567_89, 50.0003, 12.5, 60.0, 0.000_03] {
+    for length in [37.461_829_3, 1_234.567_89, 50.0003, 12.5, 60.0, 0.000_03] {
         assert_eq!(
             canvas.format(length),
             format!("{} mm", short(length)),

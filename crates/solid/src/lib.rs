@@ -4,9 +4,10 @@
 //! rendering and no interface, like `cao_sketch`.
 //!
 //! What leaves the crate is a [`Body`] and what it answers, its faces named by
-//! their numbers, and the [`Declined`] reason when the exact kernel gives no
-//! answer. The kernels stay inside: the rest of the workspace has only the
-//! body to keep (#499, #526).
+//! their numbers and its edges and vertices by their faces' ([`EdgeName`],
+//! [`VertexName`]), what a name no longer finds ([`Lost`]), and the
+//! [`Declined`] reason when the exact kernel gives no answer. The kernels stay
+//! inside: the rest of the workspace has only the body to keep (#499, #526).
 
 mod body;
 mod boolean;
@@ -22,5 +23,5 @@ mod sweep;
 pub mod turning;
 
 pub use body::{Body, FaceHit, FacePlane};
-pub use brep::{Declined, Lean, Unstable};
+pub use brep::{Declined, EdgeName, Lean, Lost, Unstable, VertexName};
 pub use sweep::Loop;

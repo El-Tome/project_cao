@@ -30,7 +30,9 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// Bumped when replaying the same design stops giving the same geometry — a
 /// fix in the solver, in an extrusion, in a boolean. What was cached before
 /// then holds the shape as it was computed, which is no longer the shape the
-/// design describes. Also bumped when the matter is written another way: 4
+/// design describes. Also bumped when edges and vertices come to be named
+/// another way, since a part opened on its cache trusts the names the cache
+/// holds, and when the matter is written another way: 4
 /// is the body that says which kernel computed it (#526). 5: a revolution of
 /// straight runs is exact, and a declined step keeps its reason (#533). 6: a
 /// revolution of a slanted run is exact (#536). 7: a plane meets a cylinder
@@ -51,8 +53,10 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// sphere or a torus, or from a rim on it, is moved onto it, and a rim
 /// another surface crosses along parts a ring (#626). 17: an arc of an
 /// ellipse a hair from round is an arc of the circle of its mean, its
-/// corners laid on it (#574).
-const REBUILT_BY: u32 = 17;
+/// corners laid on it (#574). 18: an exact body carries the names of its
+/// edges and its vertices, and the number each piece of a parted face
+/// replaced (#582).
+const REBUILT_BY: u32 = 18;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

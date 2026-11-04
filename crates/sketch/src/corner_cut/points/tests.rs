@@ -192,7 +192,80 @@ fn fillets_beside_a_curve() -> Vec<(Sketch, CornerCutId, String)> {
         ));
     }
 
+    fillets.extend(fillets_with_no_place_beside_a_curve());
     fillets
+}
+
+/// A fillet beside a curve hollow towards the corner, too big to stand
+/// inside it anywhere, drawn red where the sides' tangents alone put it: six
+/// in the hollow of an arc of five, and six in an ellipse five high. Each is
+/// a whole unit past the largest that has a place, so that no nudge a slope
+/// is measured by gives it one.
+fn fillets_with_no_place_beside_a_curve() -> Vec<(Sketch, CornerCutId, String)> {
+    let mut fillets = Vec::new();
+
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corner = sketch.add_point(DVec2::new(10.0, 10.0));
+    let far = sketch.add_point(DVec2::new(50.0, 10.0));
+    let along = sketch.add_segment(corner, far);
+    let centre = sketch.add_point(DVec2::new(14.0, 13.0));
+    let start = sketch.add_point(DVec2::new(9.0, 13.0));
+    let arc = sketch.add_arc(centre, start, corner);
+    let cut = sketch
+        .cut_corner(along, arc, CutShape::Fillet { radius: 6.0 }, false, 0)
+        .unwrap();
+    let leaving = [DVec2::X, DVec2::new(-0.6, 0.8)];
+    fillets.push((
+        sketch,
+        cut,
+        leaving,
+        "with no place in the hollow of an arc",
+    ));
+
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let turn = 30_f64.to_radians();
+    let on_the_curve = DVec2::new(40.0 + 10.0 * turn.cos(), 30.0 + 5.0 * turn.sin());
+    let [centre, back, front, low, high, corner, inside] = [
+        DVec2::new(40.0, 30.0),
+        DVec2::new(30.0, 30.0),
+        DVec2::new(50.0, 30.0),
+        DVec2::new(40.0, 25.0),
+        DVec2::new(40.0, 35.0),
+        on_the_curve,
+        DVec2::new(35.0, on_the_curve.y),
+    ]
+    .map(|place| sketch.add_point(place));
+    let inwards = sketch.add_segment(corner, inside);
+    let ellipse = sketch.add_ellipse(centre, [back, front], [low, high]);
+    sketch.draw_the_stretch(ellipse, low, corner);
+    let cut = sketch
+        .cut_corner(inwards, ellipse, CutShape::Fillet { radius: 6.0 }, false, 0)
+        .unwrap();
+    let back_down = DVec2::new(10.0 * turn.sin(), -5.0 * turn.cos()).normalize();
+    fillets.push((
+        sketch,
+        cut,
+        [-DVec2::X, back_down],
+        "with no place inside an arc of ellipse",
+    ));
+
+    fillets
+        .into_iter()
+        .map(|(sketch, cut, leaving, what)| {
+            let drawn = sketch.drawn_cut(cut).expect("the fillet is drawn");
+            assert!(!drawn.fits, "{what}: the fillet is red: {drawn:?}");
+            let corner = sketch.point(sketch.corner_cuts()[cut.0].corner);
+            let sin = leaving[0].perp_dot(leaving[1]).abs();
+            let stand_in = corner + (leaving[0] + leaving[1]) * (6.0 / sin);
+            let centre = sketch.cut_point(cut, CutPoint::Centre).unwrap();
+            assert!(
+                centre.distance(stand_in) < 1e-9,
+                "{what}: the fillet is drawn where the tangents alone put it, round \
+                 {stand_in}, not {centre}",
+            );
+            (sketch, cut, what.to_string())
+        })
+        .collect()
 }
 
 #[test]

@@ -2327,7 +2327,9 @@ flip.
 
 An ellipse within decision 8's hair of round is not among them: Tom
 decided on 2026-10-13 that a whole one is raised as a circle
-(`exact-kernel.md`, "The body").
+(`exact-kernel.md`, "The body"), and on 2026-11-03 that an arc of one is
+raised as an arc of the circle of its mean, which #574 does where the
+arc lies between straight traits (below).
 
 ### The flip measured through the application's body
 
@@ -3241,3 +3243,162 @@ Through the application's body, 2 000 cases a draw:
   hair off the face it was drawn to meet — 3; four single cases.
 - **The small draws**: square 1, profiles 2, turned 8 and slanted 10, one
   seed each of the last two held by round 1.
+
+
+## #574: the ellipse draws, round after round
+
+#574 took up what #571 left on its three ellipse draws, with Tom's decision
+of 2026-11-03 on its second lead and #571's stopping rule: a family that
+does not move in two rounds is set aside and written here. Each round sorted
+the failures of the last measure into families on a build that prints where
+a refusal is raised, wrote the shrunk case of one family as a test that
+fails on `main` (`walls_a_hair_from_an_ellipse.rs`), fixed it, and measured
+the draw again on #644's seeds, verdict against verdict. A change was kept
+only where no seed that held before broke.
+
+### What was fixed
+
+- **An arc of an ellipse a hair from round** (Tom's decision, the second
+  lead; `piece/oval.rs`, `domain/traced.rs`): its half-axes within decision
+  8's hair of one another, it is raised as an arc of the circle of their
+  mean, its corners laid on that circle and the straight traits ending at
+  them following, and a rim in its band is traced on it (5585703945,
+  5585718355, 5585700308). The decision names no neighbour; the kernel
+  raises only an arc between two straight traits, since a corner moved
+  off a curve beside it would leave that curve, and an arc beside another
+  curve keeps the tolerance.
+- **The same ellipse turned a hair past decision 8** (`relation/walls.rs`):
+  its feet all stood within the hair of the other, but between them the two
+  walls part by more, and the kernel took them for one; the widest gap is
+  now read between the feet, and the two cross (5585704198).
+- **An ellipse and its osculating circle leaving a vertex together**
+  (`overlay/star.rs`): ordered by where each has run to along its own arc,
+  not by a share of its parameter (5585700934).
+- **A whole ellipse a hair from round and a circle of its size about one
+  axis** (`crescent/other_kind.rs`): one wall, as two circles are
+  (5585703794, 5585717426).
+- **An elliptic wall crossing another at a hair** (`sampling/abreast.rs`):
+  the steps of its grid crowding the other wall are left out, as a circular
+  wall's are (5585713456).
+- **An edge beside an elliptic wall decision 2 grew onto a touch**
+  (`combine/held.rs`): laid on the grown wall, from as far as its half-axes
+  changed (5585800487).
+- **A tunnel as wide as a tube's wall** (`canonical/touches/across.rs`): a
+  cylinder a hair from touching two walls square to it at the two ends of
+  its reach is moved midway and its radius set to touch both. The drawn
+  tunnel is an ellipse within the hair of round, raised as a circle; an
+  elliptic tunnel meets the tube's walls on the walls as they stand and
+  needed no move (5585800308).
+- **A plane leaning a hair off a wall's tangent** (`overlay/star.rs`,
+  `along`), #574's third lead: the conic it cuts leaves the corner along the
+  rim and then plunges, and read as a straight share of its first chord it
+  was ordered above the rim; the chord the run ends in is measured again
+  along its own chords. Shared with round walls, it holds two seeds of the
+  tilted draw and breaks none (5585909807).
+
+### Tried and taken back
+
+- **The rays of a lens or a band a hair thick shared by its two rims**, and
+  an ellipse sampled on the rays it shares with its twin a hair narrower,
+  all round: the shrunk cases held, and the whole draw broke 31 seeds that
+  held before. At the draw's coarser fineness the zone covered most of a rim
+  and the two rims of one wall face disagreed. The shrunk cases hold only
+  what failed: every rule since was measured on the whole draw first.
+- **The paired drop**: where the two rims of a lens a hair thick end on one
+  plane, the place one drops near the lens's end the other drops too
+  (5585709823). Its first form broke 55 held seeds. Kept only at a lens's
+  true ends, it held one of #644's seeds and broke none of them; on the
+  fresh seeds it held two and broke three, among them the only two the
+  branch broke of those holding on `main` — 5574700017, the same ellipse
+  turned 1e-5 of a radian, and 5575703942 through the body, the same
+  ellipse moved 5e-5 over one a circle was cut through. It was taken out.
+- **Bounding decision 2's move of a turned ellipse** rather than laying the
+  rims on the grown wall: it changes the bits of every turned elliptic node.
+
+### Measured on #644's seeds
+
+Failures in 20 000 seeds, each change measured against the one before it;
+none broke a seed that held before it. The last two rounds were measured
+apart, on the draws each could reach: the ellipses draw by the tunnel's,
+the tilted draw by the tangent's. Taking the paired drop out gave back the
+one seed it held, 5585709823, which fails on `main` too. Against `main`,
+the branch's tip holds 55, 7 and 8 of these seeds and breaks none.
+
+| Draw | `main` | Branch |
+| --- | --- | --- |
+| ellipses | 147 | 92 |
+| crossed | 20 | 13 |
+| tilted ellipses | 27 | 19 |
+
+### Measured on fresh seeds
+
+The criteria's measure: every draw on seeds no round was sorted on, 20 000
+on the exact kernel and 5 000 through the application's body, `main` and
+the branch's tip verdict against verdict.
+
+| Draw | `main` | Branch | Held | Broken | Branch, ‰ |
+| --- | --- | --- | --- | --- | --- |
+| ellipses | 162 | 100 | 62 | 0 | 5.0 |
+| crossed ellipses | 34 | 33 | 1 | 0 | 1.65 |
+| tilted ellipses | 29 | 18 | 11 | 0 | 0.9 |
+| square | 2 | 2 | 0 | 0 | 0.1 |
+| profiles | 4 | 4 | 0 | 0 | 0.2 |
+| turned | 7 | 7 | 0 | 0 | 0.35 |
+| slanted | 6 | 6 | 0 | 0 | 0.3 |
+| tilted | 22 | 20 | 2 | 0 | 1.0 |
+| rounded | 76 | 76 | 0 | 0 | 3.8 |
+| profiles, body | 1 | 1 | 0 | 0 | 0.2 |
+| turned, body | 2 | 2 | 0 | 0 | 0.4 |
+| slanted, body | 0 | 0 | 0 | 0 | 0 |
+| tilted, body | 2 | 2 | 0 | 0 | 0.4 |
+| rounded, body | 29 | 29 | 0 | 0 | 5.8 |
+| ellipses, body | 43 | 36 | 7 | 0 | 7.2 |
+| crossed ellipses, body | 11 | 11 | 0 | 0 | 2.2 |
+| tilted ellipses, body | 9 | 7 | 2 | 0 | 1.4 |
+
+No seed that holds on `main` breaks, on any draw. The tilted ellipse draw
+ends under the bar; the ellipses and the crossed draws do not. The crossed draw held seven of #644's seeds and one fresh one.
+
+### What stays above the bar
+
+What the ellipses draw still fails, sorted at the round before last (91
+on #644's seeds), with the crossed and tilted draws beside it:
+
+- **A wall beside its near copy, past decision 8's hair** — 39, ellipses
+  only. The same ellipse turned 1e-7 to 1e-4 of a radian, moved or resized
+  1e-6 to 5e-4, or an ellipse near round against a circle of its size:
+  twenty to ten thousand tolerances apart, so decision 8 rightly keeps two
+  walls, and the kernel builds their true crossings — two long, nearly
+  tangent curves and a crescent a hair thick, often with a block's face at
+  a vertex of one copy. Left `Unverified` at `assembly.rs`, `Closed`,
+  `Uncrossed` or a tie. The first lead, decisions 7 and 9 extended to
+  elliptic pairs, was the shared-rays rule taken back above; widening
+  decision 8's elliptic merge past its hair would hold the family, and is
+  **a decision for Tom**.
+- **A touch at an ellipse's vertex, within a few tolerances** — 38 in the
+  ellipses draw, 2 crossed. Mostly `Closed`: on a planar cap the ellipse's
+  rim and the circle, flat or ellipse touching it cross, and the cap's sweep
+  fails; three rounds on its sampling held one seed. The rest `Uncrossed`,
+  `Unverified` where a third surface passes through the same ruling, or
+  `Listed` with a wall one tolerance off a face.
+- **A plane at a curved wall's tangent, the rest** — 9 tilted: two corners
+  1.4e-14 apart never merged (5585909267), rays doubting round a region a
+  hair thin (5585913058), a plane a hair inside a wall's extreme beside a
+  meet with a tilted cylinder (`Unverified`, four), and the sliver's
+  triangles crossing (`Uncrossed`, three).
+- **A cut plane a hair off a block's face, leaning** — 7 tilted, no
+  ellipse: plane against plane, in decision 11's band and the warned band
+  past it.
+- **A surface through or a hair off a node** — 6 crossed, 3 tilted: a third
+  wall or a box's face six to thirteen tolerances off where two crossed
+  walls meet.
+- **Two crossed walls at an exact node** — 5 crossed: their triangles cross
+  near it; `tessellation/contact` lays strips at nodes of two cylinders
+  only, not of an elliptic wall (5585803427, 5585809805, 5585814173).
+- **No ellipse at all** — 10 in the ellipses draw: rounded outlines, slots
+  and circles within about a tolerance of each other or of flats.
+- **Decision 8's own refusal** — 3: two elliptic walls within its hair, the
+  second carrying corners off the first's wall, left two on purpose.
+
+Tom said on 2026-11-04 to open the pull request once the two rounds then
+running ended: below that, each family is a mechanism of its own.

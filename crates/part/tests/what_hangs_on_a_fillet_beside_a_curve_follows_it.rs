@@ -802,3 +802,209 @@ fn a_line_started_from_a_fillet_s_end_on_an_arc_of_ellipse_follows_the_ellipse_r
         "the line started where the fillet touches the arc of ellipse follows that touch",
     );
 }
+
+/// Lays a short free line square to the middle of the fillet `by_hand` of
+/// `radius` works out, on the corner's side and three and a half further
+/// from its centre than the fillet — touching nothing — then holds it tangent
+/// to the fillet's arc as « Tangence » lays it, the fillet's arc clicked
+/// first: the line comes to the fillet, the corner where it was.
+fn a_line_held_tangent(history: &mut History, fillet: &ByHand, radius: f64) -> SegmentId {
+    let middle = ((fillet.on_the_trait - fillet.centre).normalize()
+        + (fillet.on_the_curve - fillet.centre).normalize())
+    .normalize();
+    let foot = fillet.centre + middle * (radius + 3.5);
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(foot - middle.perp() * 5.0),
+        end: PointRef::New(foot + middle.perp() * 5.0),
+        construction: false,
+    });
+    let line = SegmentId(the_drawing(history).segments().len() - 1);
+    let picks = [
+        RulePick::CutCurve(CUT),
+        RulePick::Element(Element::Segment(line)),
+    ];
+    let Some(RuleIntent::Constrain(rule)) =
+        rule_intent(Rule::Tangent, &picks, &the_drawing(history))
+    else {
+        panic!("the tangent rule between a line and a fillet beside a curve lays nothing");
+    };
+    history.push(Operation::Constrain {
+        sketch: 0,
+        constraint: rule,
+    });
+    let laid = the_drawing(history);
+    assert_tangent(
+        &laid,
+        line,
+        fillet.centre,
+        radius,
+        "the line just held tangent",
+    );
+    line
+}
+
+/// Holds a line, taken whole, a radius from a fillet's centre.
+fn assert_tangent(sketch: &Sketch, line: SegmentId, centre: DVec2, radius: f64, what: &str) {
+    let (start, end) = sketch.endpoints(line);
+    near(
+        (end - start).normalize().perp_dot(centre - start).abs(),
+        radius,
+        &format!("{what}: how far the line runs from the fillet's centre"),
+    );
+}
+
+#[test]
+fn a_line_held_tangent_to_a_fillet_beside_an_arc_follows_its_corner_moved() {
+    let mut history = a_trait_and_an_arc_rounded();
+    let fillet = by_hand_on(&the_drawing(&history), 5.0);
+    let line = a_line_held_tangent(&mut history, &fillet, 5.0);
+    let round_the_arc = ROUND + DVec2::from_angle((-30.0_f64).to_radians()) * REACH;
+
+    history.push(Operation::MovePoint {
+        sketch: 0,
+        point: CORNER,
+        position: round_the_arc,
+        merged_into: None,
+        on: Vec::new(),
+        let_go: false,
+    });
+
+    let sketch = the_drawing(&history);
+    near_place(
+        sketch.point(CORNER),
+        round_the_arc,
+        "the corner slides round the arc to where it was taken",
+    );
+    assert_tangent(
+        &sketch,
+        line,
+        by_hand_on(&sketch, 5.0).centre,
+        5.0,
+        "the corner moved",
+    );
+}
+
+#[test]
+fn a_line_held_tangent_to_a_fillet_beside_an_arc_follows_a_new_radius() {
+    let mut history = a_trait_and_an_arc_rounded();
+    let fillet = by_hand_on(&the_drawing(&history), 5.0);
+    let line = a_line_held_tangent(&mut history, &fillet, 5.0);
+
+    rounded_to(&mut history, 12.0);
+
+    let sketch = the_drawing(&history);
+    assert_tangent(
+        &sketch,
+        line,
+        by_hand_on(&sketch, 12.0).centre,
+        12.0,
+        "rounded to 12",
+    );
+}
+
+#[test]
+fn a_line_held_tangent_to_a_fillet_beside_an_arc_follows_the_arc_given_a_new_radius() {
+    let mut history = a_trait_and_an_arc_rounded();
+    let fillet = by_hand_on(&the_drawing(&history), 5.0);
+    let line = a_line_held_tangent(&mut history, &fillet, 5.0);
+
+    history.push(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::ArcRadius(ARC),
+        value: 10.0.into(),
+        placement: None,
+    });
+
+    let sketch = the_drawing(&history);
+    near(
+        sketch.arc_radius(ARC),
+        10.0,
+        "the arc takes the radius it was given",
+    );
+    assert_tangent(
+        &sketch,
+        line,
+        by_hand_on(&sketch, 5.0).centre,
+        5.0,
+        "the arc given a radius of 10",
+    );
+}
+
+#[test]
+fn a_line_held_tangent_to_a_fillet_beside_an_arc_of_ellipse_follows_its_corner_moved() {
+    let mut history = a_trait_and_an_arc_of_ellipse_rounded();
+    let fillet = by_hand_beside_the_ellipse_of(&the_drawing(&history), 3.0);
+    let line = a_line_held_tangent(&mut history, &fillet, 3.0);
+    let round_the_curve = LEVEL.at(40_f64.to_radians());
+
+    history.push(Operation::MovePoint {
+        sketch: 0,
+        point: CORNER,
+        position: round_the_curve,
+        merged_into: None,
+        on: Vec::new(),
+        let_go: false,
+    });
+
+    let sketch = the_drawing(&history);
+    near_place(
+        sketch.point(CORNER),
+        round_the_curve,
+        "the corner slides round the ellipse to where it was taken",
+    );
+    assert_tangent(
+        &sketch,
+        line,
+        by_hand_beside_the_ellipse_of(&sketch, 3.0).centre,
+        3.0,
+        "the corner moved",
+    );
+}
+
+#[test]
+fn a_line_held_tangent_to_a_fillet_beside_an_arc_of_ellipse_follows_a_new_radius() {
+    let mut history = a_trait_and_an_arc_of_ellipse_rounded();
+    let fillet = by_hand_beside_the_ellipse_of(&the_drawing(&history), 3.0);
+    let line = a_line_held_tangent(&mut history, &fillet, 3.0);
+
+    rounded_to(&mut history, 5.0);
+
+    let sketch = the_drawing(&history);
+    assert_tangent(
+        &sketch,
+        line,
+        by_hand_beside_the_ellipse_of(&sketch, 5.0).centre,
+        5.0,
+        "rounded to 5",
+    );
+}
+
+#[test]
+fn a_line_held_tangent_to_a_fillet_beside_an_arc_of_ellipse_follows_the_ellipse_reshaped() {
+    let mut history = a_trait_and_an_arc_of_ellipse_rounded();
+    let fillet = by_hand_beside_the_ellipse_of(&the_drawing(&history), 3.0);
+    let line = a_line_held_tangent(&mut history, &fillet, 3.0);
+    let height = the_drawing(&history).ellipses()[0].second;
+
+    history.push(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Length(height),
+        value: 12.0.into(),
+        placement: None,
+    });
+
+    let sketch = the_drawing(&history);
+    near(
+        the_oval(&sketch).second,
+        6.0,
+        "the ellipse takes the height it was given",
+    );
+    assert_tangent(
+        &sketch,
+        line,
+        by_hand_beside_the_ellipse_of(&sketch, 3.0).centre,
+        3.0,
+        "the ellipse given a height of 12",
+    );
+}

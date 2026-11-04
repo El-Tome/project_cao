@@ -3,9 +3,9 @@
 //!
 //! `cao_render` knows one shape, a segment between two places. A circle, an
 //! arc and a broken line all come down to a run of them, and the dashes of
-//! construction geometry are runs left out.
+//! construction geometry are cut along that run, a dash long on screen.
 
-use cao_sketch::{ArcDraft, EllipseDraft, Sketch, places_along, steps_along, sweep_of};
+use cao_sketch::{ArcDraft, EllipseDraft, Sketch, places_along};
 use glam::{DVec2, DVec3};
 
 use crate::screens::viewport::ViewScale;
@@ -72,8 +72,7 @@ pub(super) fn push_circle_at(
         let angle = step as f64 / SIDES as f64 * std::f64::consts::TAU;
         center + DVec2::from_angle(angle) * radius
     });
-    let side = std::f64::consts::TAU * radius / SIDES as f64;
-    push_curve(out, sketch, places, side, color, width, construction, scale);
+    push_curve(out, sketch, places, color, width, construction, scale);
 }
 
 /// The piece of a circle an arc draws, and nothing of the rest of that circle.
@@ -86,13 +85,10 @@ pub(super) fn push_arc_at(
     construction: bool,
     scale: ViewScale,
 ) {
-    let radius = drawn.centre.distance(drawn.start);
-    let step = sweep_of(drawn) * radius / steps_along(drawn) as f64;
     push_curve(
         out,
         sketch,
         places_along(drawn).into_iter(),
-        step,
         color,
         width,
         construction,
@@ -110,18 +106,10 @@ pub(super) fn push_ellipse_at(
     construction: bool,
     scale: ViewScale,
 ) {
-    // The steps of an ellipse are not all of one length, as a circle's are;
-    // their mean keeps the dashes about the size a circle's would be.
-    let run: f64 = places
-        .windows(2)
-        .map(|pair| pair[0].distance(pair[1]))
-        .sum();
-    let step = run / (places.len().max(2) - 1) as f64;
     push_curve(
         out,
         sketch,
         places.into_iter(),
-        step,
         color,
         width,
         construction,
@@ -135,38 +123,67 @@ pub(super) fn places_of(drawn: EllipseDraft, from: f64, sweep: f64) -> Vec<DVec2
     drawn.places_along(from, sweep, drawn.steps_over(sweep))
 }
 
-/// A run of places joined up, plain or, for construction geometry, with every
-/// other run of steps left out — which is what turns the same polyline into a
-/// dashed curve.
+/// A run of places joined up, plain or, for construction geometry, broken
+/// into dashes a dash long on screen with gaps as long — measured along the
+/// run, as a line's are, so that a step longer on screen than a dash still
+/// holds several, and a dash running past a place goes on into the next step.
 ///
-/// `step` is how long one of those steps is, the steps of a circle and of an
-/// arc being all of one length. How many of them make a dash is worked out
-/// from it once, so that a dash keeps a constant size on screen — the same way
-/// a construction line's dashes do — rather than growing with the curve's own
-/// radius.
-#[allow(clippy::too_many_arguments)]
+/// A run of no length at all draws nothing.
 fn push_curve(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
     places: impl Iterator<Item = DVec2>,
-    step: f64,
     color: [f32; 4],
     width: f32,
     construction: bool,
     scale: ViewScale,
 ) {
-    if step < 1e-12 {
+    let worlds: Vec<DVec3> = places.map(|place| sketch.plane.to_world(place)).collect();
+    let run: f64 = worlds
+        .windows(2)
+        .map(|pair| pair[0].distance(pair[1]))
+        .sum();
+    if run < 1e-12 * (worlds.len().max(2) - 1) as f64 {
         return;
     }
-    let dash_group = ((DASH_PIXELS * scale.units_per_pixel / step).round() as usize).max(1);
-    let mut previous = None;
-    for (rank, place) in places.enumerate() {
-        let world = sketch.plane.to_world(place).as_vec3();
-        let drawn = !construction || (rank / dash_group).is_multiple_of(2);
-        if let (Some(previous), true) = (previous, drawn) {
-            out.push(cao_render::Vertex::line(previous, color, width));
-            out.push(cao_render::Vertex::line(world, color, width));
+    let mut stroke = |from: DVec3, to: DVec3| {
+        out.push(cao_render::Vertex::line(from.as_vec3(), color, width));
+        out.push(cao_render::Vertex::line(to.as_vec3(), color, width));
+    };
+    let dash = DASH_PIXELS * scale.units_per_pixel;
+    if !construction || dash <= 0.0 {
+        for pair in worlds.windows(2) {
+            stroke(pair[0], pair[1]);
         }
-        previous = Some(world);
+        return;
+    }
+    // How far into the dash, or into the gap after it, the walk stands —
+    // carried from one step to the next.
+    let (mut drawing, mut into) = (true, 0.0);
+    for pair in worlds.windows(2) {
+        let (from, length) = (pair[0], pair[0].distance(pair[1]));
+        if length <= 0.0 {
+            continue;
+        }
+        let along = (pair[1] - from) / length;
+        let mut walked = 0.0;
+        while walked < length {
+            let left = (dash - into).max(0.0);
+            let stop = (walked + left).min(length);
+            if drawing {
+                stroke(from + along * walked, from + along * stop);
+            }
+            // Past the end of the dash or the gap, the other begins: set
+            // outright rather than added up, so that a remainder too small to
+            // move the walk cannot hold it in place.
+            match walked + left <= length {
+                true => (drawing, into) = (!drawing, 0.0),
+                false => into += stop - walked,
+            }
+            walked = stop;
+        }
     }
 }
+
+#[cfg(test)]
+mod tests;

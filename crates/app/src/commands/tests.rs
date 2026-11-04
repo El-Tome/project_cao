@@ -17,6 +17,15 @@
 //! Closes #319.
 //! - each click on the three-state button moves to the next state —
 //!   `the_matter_in_front_button_moves_the_open_sketch_to_the_next_state`
+//!
+//! Closes #580.
+//! - the three levels give the gaps they promise: « Grossière » 0.1 mm,
+//!   « Normale » 0.02 mm, « Fine » 0.005 mm, each picked asking the shell for
+//!   an export at its gap —
+//!   `each_stl_level_picked_asks_for_an_export_at_the_gap_it_promises`
+//! - a drawing in units other than millimetres is written in millimetres: the
+//!   export asked carries the part's millimetres per unit —
+//!   `an_stl_export_asked_from_a_part_drawn_at_a_scale_carries_its_millimetres_per_unit`
 
 use cao_part::PartDocument;
 use cao_prefs::Command;

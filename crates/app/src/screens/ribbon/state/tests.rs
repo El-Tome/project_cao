@@ -12,6 +12,12 @@
 //!   face it falls back to with labels off, which must still tell the three
 //!   apart — `with_labels_off_the_three_states_still_read_apart`,
 //!   `with_labels_off_every_other_button_keeps_its_two_letters`
+//!
+//! Closes #580.
+//! - to try it: the file opens in a slicer, PrusaSlicer or Cura, at the right
+//!   size — reached from the ribbon's « Exporter en STL », whose three levels
+//!   are offered while the part holds matter and not before —
+//!   `the_three_stl_levels_are_offered_only_while_the_part_holds_matter`
 
 use super::*;
 use cao_sketch::WorkPlane;

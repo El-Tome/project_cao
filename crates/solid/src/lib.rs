@@ -17,6 +17,7 @@ mod orientation;
 pub mod profile;
 #[cfg(any(test, feature = "test-support"))]
 pub mod soundness;
+pub mod stl;
 mod sweep;
 pub mod turning;
 

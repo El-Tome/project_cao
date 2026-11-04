@@ -16,6 +16,7 @@ pub mod constraints;
 pub mod cube;
 pub mod dimension;
 pub mod ellipse;
+pub mod export;
 pub mod file;
 pub mod formula;
 pub mod history;

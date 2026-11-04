@@ -74,7 +74,14 @@ pub(super) struct Worked {
 /// side back to, read once for the whole drawing: start then end, nothing
 /// for an end no cut pulls.
 #[derive(Clone, Debug, Default)]
-pub struct PulledEnds(HashMap<SegmentId, [Option<DVec2>; 2]>);
+pub struct PulledEnds(HashMap<CutSide, [Option<DVec2>; 2]>);
+
+impl PulledEnds {
+    /// Where the cuts pull the ends of one side back to, start then end.
+    pub(crate) fn of(&self, side: CutSide) -> [Option<DVec2>; 2] {
+        self.0.get(&side).copied().unwrap_or_default()
+    }
+}
 
 impl Sketch {
     /// Every cut standing, as it is drawn now. A cut on a corner standing
@@ -118,15 +125,12 @@ impl Sketch {
     /// cuts on one end, the side shows up to the one meeting it nearer the
     /// corner, and the other joins it further along.
     pub fn pulled_ends(&self, drawn: &[DrawnCut]) -> PulledEnds {
-        let mut pulled: HashMap<SegmentId, [Option<DVec2>; 2]> = HashMap::new();
+        let mut pulled: HashMap<CutSide, [Option<DVec2>; 2]> = HashMap::new();
         for cut in drawn.iter().filter(|cut| cut.fits && !cut.construction) {
             for (rank, side) in cut.sides.iter().enumerate() {
-                let Some(side) = side.as_trait() else {
-                    continue;
-                };
                 let touch = cut.touches[rank];
-                let end = &mut pulled.entry(side).or_default()
-                    [self.end_of(side.into(), cut.corner_point)];
+                let end =
+                    &mut pulled.entry(*side).or_default()[self.end_of(*side, cut.corner_point)];
                 let nearer = end
                     .is_none_or(|before| touch.distance(cut.corner) < before.distance(cut.corner));
                 if nearer {
@@ -138,20 +142,15 @@ impl Sketch {
     }
 
     /// What is left to draw of a side once the cuts on its ends have taken
-    /// their part, from its start towards its end. The whole trait when no cut
-    /// that fits stands on it, and nothing when two cuts meeting exactly have
-    /// taken all of it.
+    /// their part, as its two ends the way it runs: a trait from its start
+    /// towards its end, an arc counter-clockwise, an arc of ellipse the way
+    /// its stretch runs. The whole side when no cut that fits stands on it,
+    /// and nothing when two cuts meeting exactly have taken all of it.
     ///
     /// Only a cut drawn as the outline takes its part: one in construction
     /// leaves the side whole.
-    pub fn visible_part(&self, segment: SegmentId) -> Option<(DVec2, DVec2)> {
-        let side = self.segments()[segment.0];
-        let pulled = self.pulled_ends(&self.drawn_cuts());
-        let [from, to] = self.visible_ends(segment, &pulled)?;
-        Some((
-            from.unwrap_or(self.point(side.start)),
-            to.unwrap_or(self.point(side.end)),
-        ))
+    pub fn visible_part(&self, side: impl Into<CutSide>) -> Option<(DVec2, DVec2)> {
+        self.what_shows(side.into(), &self.pulled_ends(&self.drawn_cuts()))
     }
 
     /// Where the cuts pull each end of a side back to, start then end —
@@ -163,7 +162,7 @@ impl Sketch {
         pulled: &PulledEnds,
     ) -> Option<[Option<DVec2>; 2]> {
         let side = self.segments()[segment.0];
-        let ends = pulled.0.get(&segment).copied().unwrap_or_default();
+        let ends = pulled.of(segment.into());
         let (start, end) = (self.point(side.start), self.point(side.end));
         let (from, to) = (ends[0].unwrap_or(start), ends[1].unwrap_or(end));
         let tolerance = crate::precision::SAME * start.distance(end);

@@ -21,6 +21,7 @@ mod drawn;
 mod hanging;
 mod picking;
 pub(crate) mod points;
+mod showing;
 mod side;
 
 pub use drawn::{CutCurve, DrawnCut, PulledEnds};

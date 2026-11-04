@@ -252,15 +252,7 @@ impl Sketch {
         let vertex = welded(&places);
         let mut curves: Vec<Curve> = Vec::new();
         let mut names: Vec<CurveId> = Vec::new();
-        traits_and_cuts(self, &vertex, &mut places, &mut curves, &mut names);
-        for (id, arc) in self.live_arcs().filter(|(_, it)| !it.construction) {
-            curves.push(Curve::Bent {
-                centre: self.point(arc.center),
-                from: vertex[arc.start.0],
-                to: vertex[arc.end.0],
-            });
-            names.push(CurveId::Arc(id));
-        }
+        let pulled = traits_and_cuts(self, &vertex, &mut places, &mut curves, &mut names);
 
         let mut loops = Loops::default();
         for round in self.rounds(touch) {
@@ -276,7 +268,7 @@ impl Sketch {
                 }
             }
         }
-        for oval in self.ovals(touch) {
+        for oval in self.ovals(touch, &pulled) {
             let pieces = broken_oval(&oval, &mut places);
             let id = CurveId::Ellipse(oval.id);
             match pieces.is_empty() {

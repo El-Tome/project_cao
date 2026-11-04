@@ -42,8 +42,10 @@
 //!   trimmed there, then the fillet; the tint, the areas and the extrusion
 //!   follow it —
 //!   `a_plate_rounded_beside_an_arc_closes_its_area_along_the_trimmed_arc_and_the_fillet`,
-//!   `a_plate_rounded_beside_an_arc_is_raised_with_its_rounded_corner`; the
-//!   tint is painted from those same areas, and nothing under the canvas
+//!   `a_plate_rounded_beside_an_arc_is_raised_with_its_rounded_corner`; what
+//!   the canvas draws of each side is what `visible_part` says of it —
+//!   `a_side_rounded_beside_a_curve_shows_from_its_far_end_to_where_the_fillet_touches_it`;
+//!   the tint is painted from those same areas, and nothing under the canvas
 //!   asserts what is painted
 //! - A value too big is held back with the largest that fits, and a fillet
 //!   that no longer fits during a drag turns red with the sharp corner
@@ -73,9 +75,10 @@
 use std::f64::consts::{PI, TAU};
 
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
-use cao_part::{History, PartState};
+use cao_part::{History, PartDocument, PartState};
 use cao_sketch::{
-    ArcDraft, ArcId, Area, Corner, CutCurve, EllipseId, PointId, SegmentId, WorkPlane, sweep_of,
+    ArcDraft, ArcId, Area, Corner, CutCurve, CutSide, EllipseId, PointId, SegmentId, WorkPlane,
+    sweep_of,
 };
 use glam::DVec2;
 
@@ -486,6 +489,10 @@ struct Oval {
 impl Oval {
     fn across(self) -> DVec2 {
         self.first.perp().normalize() * self.second
+    }
+
+    fn at(self, turn: f64) -> DVec2 {
+        self.centre + self.first * turn.cos() + self.across() * turn.sin()
     }
 
     /// The two ends of the first axis: the turn of a half, then of nothing.
@@ -1100,5 +1107,334 @@ fn a_fillet_much_bigger_than_the_arc_beside_it_still_stands_at_the_corner() {
             ),
         );
         assert!(fits, "{what}: it fits");
+    }
+}
+
+/// What `∮ x dy − y dx` gathers along a piece of an outline: twice the area
+/// it sweeps about the origin, signed by the way it runs.
+fn swept_along(side: Side, from: DVec2, to: DVec2) -> f64 {
+    let turned = |from: f64, to: f64| {
+        let turn = (to - from).rem_euclid(TAU);
+        match turn > PI {
+            true => turn - TAU,
+            false => turn,
+        }
+    };
+    match side {
+        Side::Trait { .. } => from.perp_dot(to),
+        Side::Arc { centre, radius, .. } => {
+            let start = (from - centre).to_angle();
+            swept_round(
+                centre,
+                radius,
+                start,
+                start + turned(start, (to - centre).to_angle()),
+            )
+        }
+        Side::ArcOfEllipse { oval, .. } => {
+            let start = oval.turn_of(from);
+            let end = start + turned(start, oval.turn_of(to));
+            oval.centre.perp_dot(oval.at(end) - oval.at(start))
+                + oval.first.perp_dot(oval.across()) * (end - start)
+        }
+    }
+}
+
+fn swept_round(centre: DVec2, radius: f64, from: f64, to: f64) -> f64 {
+    centre.x * radius * (to.sin() - from.sin()) - centre.y * radius * (to.cos() - from.cos())
+        + radius * radius * (to - from)
+}
+
+/// The sliver a fillet takes off its corner: from the corner along the first
+/// side to where the fillet touches it, round the fillet, and back along the
+/// second side — the short way along each.
+fn the_sliver(history: &History, corner: DVec2, sides: [Side; 2], what: &str) -> f64 {
+    let (fillet, fits) = the_fillet_drawn(history, what);
+    assert!(fits, "{what}: the fillet fits");
+    let [first, second] =
+        sides.map(
+            |side| match side.off(corner, fillet.start) <= side.off(corner, fillet.end) {
+                true => fillet.start,
+                false => fillet.end,
+            },
+        );
+    let start = (first - fillet.centre).to_angle();
+    let round = (second - fillet.centre).to_angle() - start;
+    let round = round - TAU * (round / TAU).round();
+    let radius = fillet.centre.distance(first);
+    (swept_along(sides[0], corner, first)
+        + swept_round(fillet.centre, radius, start, start + round)
+        + swept_along(sides[1], second, corner))
+    .abs()
+        * 0.5
+}
+
+/// A plate drawn sharp and the same rounded at one corner beside a curve.
+struct Plate {
+    sharp: History,
+    rounded: History,
+    corner: DVec2,
+    /// The corner's two sides, as the drawing names them and as the test
+    /// knows them.
+    sides: [(CutSide, Side); 2],
+    inside: DVec2,
+    what: &'static str,
+}
+
+/// One plate of each kind of corner beside a curve: a trait and an arc, the
+/// tip of a lens between two arcs, and an arc and a tilted arc of ellipse.
+fn plates_rounded_beside_a_curve() -> Vec<Plate> {
+    let mut plates = Vec::new();
+
+    let sharp = a_plate_with_an_arc_side();
+    let mut rounded = sharp.clone();
+    round(&mut rounded, Corner::At(THE_CORNER), 5.0);
+    plates.push(Plate {
+        sharp,
+        rounded,
+        corner: DVec2::new(10.0, 10.0),
+        sides: [
+            (
+                SegmentId(0).into(),
+                Side::Trait {
+                    far: DVec2::new(50.0, 10.0),
+                },
+            ),
+            (
+                ArcId(0).into(),
+                Side::Arc {
+                    centre: DVec2::new(2.0, 10.0),
+                    radius: 8.0,
+                    counter_clockwise: true,
+                    far: DVec2::new(2.0, 18.0),
+                },
+            ),
+        ],
+        inside: DVec2::new(30.0, 15.0),
+        what: "a plate rounded between a trait and an arc",
+    });
+
+    let tip = DVec2::new(0.0, 16.0);
+    let mut sharp = a_corner_at(tip);
+    an_arc(
+        &mut sharp,
+        DVec2::new(12.0, 0.0),
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(0.0, -16.0)),
+    );
+    an_arc(
+        &mut sharp,
+        DVec2::new(-12.0, 0.0),
+        PointRef::Existing(PointId(3)),
+        PointRef::Existing(THE_CORNER),
+    );
+    let mut rounded = sharp.clone();
+    round(
+        &mut rounded,
+        Corner::Between(ArcId(0).into(), ArcId(1).into()),
+        5.0,
+    );
+    plates.push(Plate {
+        sharp,
+        rounded,
+        corner: tip,
+        sides: [
+            (
+                ArcId(0).into(),
+                Side::Arc {
+                    centre: DVec2::new(12.0, 0.0),
+                    radius: 20.0,
+                    counter_clockwise: true,
+                    far: DVec2::new(0.0, -16.0),
+                },
+            ),
+            (
+                ArcId(1).into(),
+                Side::Arc {
+                    centre: DVec2::new(-12.0, 0.0),
+                    radius: 20.0,
+                    counter_clockwise: false,
+                    far: DVec2::new(0.0, -16.0),
+                },
+            ),
+        ],
+        inside: DVec2::ZERO,
+        what: "a lens rounded at its tip",
+    });
+
+    let tilted = Oval {
+        centre: DVec2::new(30.0, 20.0),
+        first: DVec2::new(8.0, 6.0),
+        second: 5.0,
+    };
+    let corner = tilted.centre + DVec2::new(2.4, 6.8);
+    let [back, _] = tilted.first_ends();
+    let mut sharp = a_corner_at(corner);
+    an_arc_of_ellipse(
+        &mut sharp,
+        tilted,
+        [PointRef::Existing(THE_CORNER), PointRef::New(back)],
+    );
+    let (centre, bottom) = (
+        corner + DVec2::new(10.0, 0.0),
+        corner + DVec2::new(10.0, -10.0),
+    );
+    an_arc(
+        &mut sharp,
+        centre,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(bottom),
+    );
+    a_trait(
+        &mut sharp,
+        PointRef::Existing(PointId(3)),
+        PointRef::Existing(PointId(8)),
+    );
+    let mut rounded = sharp.clone();
+    round(
+        &mut rounded,
+        Corner::Between(EllipseId(0).into(), ArcId(0).into()),
+        2.0,
+    );
+    plates.push(Plate {
+        sharp,
+        rounded,
+        corner,
+        sides: [
+            (
+                EllipseId(0).into(),
+                Side::ArcOfEllipse {
+                    oval: tilted,
+                    counter_clockwise: true,
+                    far: back,
+                },
+            ),
+            (
+                ArcId(0).into(),
+                Side::Arc {
+                    centre,
+                    radius: 10.0,
+                    counter_clockwise: true,
+                    far: bottom,
+                },
+            ),
+        ],
+        inside: DVec2::new(32.0, 20.0),
+        what: "a plate rounded between a tilted arc of ellipse and an arc",
+    });
+
+    plates
+}
+
+impl Plate {
+    fn sliver(&self) -> f64 {
+        the_sliver(
+            &self.rounded,
+            self.corner,
+            self.sides.map(|(_, side)| side),
+            self.what,
+        )
+    }
+}
+
+/// How many faces raising `history`'s drawing at `place` makes.
+fn faces_raised(history: &History, place: DVec2) -> usize {
+    let mut history = history.clone();
+    let areas: Vec<Area> = PartState::rebuild(&history).areas_at(0, &[place]);
+    history.push(Operation::Extrude {
+        sketch: 0,
+        areas,
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    let mut part = PartDocument::new("Plate", "2026-11-04T09:00:00Z".parse().expect("a date"));
+    for operation in history.operations() {
+        part.apply(operation.clone());
+    }
+    let raise = history.steps().last().expect("a step").operations()[0];
+    part.faces_made_by(raise).len()
+}
+
+#[test]
+fn a_plate_rounded_beside_an_arc_closes_its_area_along_the_trimmed_arc_and_the_fillet() {
+    for plate in plates_rounded_beside_a_curve() {
+        let what = plate.what;
+        let sliver = plate.sliver();
+        assert!(
+            sliver > 0.1,
+            "{what}: the fillet takes a sliver off its corner"
+        );
+        near(
+            the_one_area(&plate.rounded, what),
+            the_one_area(&plate.sharp, what) - sliver,
+            &format!(
+                "{what}: one area, the sharp plate's less the sliver between the corner, \
+                 the trimmed sides and the fillet"
+            ),
+        );
+    }
+}
+
+#[test]
+fn a_side_rounded_beside_a_curve_shows_from_its_far_end_to_where_the_fillet_touches_it() {
+    for plate in plates_rounded_beside_a_curve() {
+        let what = plate.what;
+        let drawing = PartState::rebuild(&plate.rounded).sketches[0].clone();
+        let (fillet, _) = the_fillet_drawn(&plate.rounded, what);
+        for (id, side) in plate.sides {
+            let touch =
+                match side.off(plate.corner, fillet.start) <= side.off(plate.corner, fillet.end) {
+                    true => fillet.start,
+                    false => fillet.end,
+                };
+            let (far, starts_at_the_corner) = match side {
+                Side::Trait { far } => (far, true),
+                Side::Arc {
+                    far,
+                    counter_clockwise,
+                    ..
+                }
+                | Side::ArcOfEllipse {
+                    far,
+                    counter_clockwise,
+                    ..
+                } => (far, counter_clockwise),
+            };
+            let (from, to) = drawing
+                .visible_part(id)
+                .unwrap_or_else(|| panic!("{what}: {id:?} still shows"));
+            let (start, end) = match starts_at_the_corner {
+                true => (touch, far),
+                false => (far, touch),
+            };
+            near_place(
+                from,
+                start,
+                &format!("{what}: where {id:?} shows from, the way it runs"),
+            );
+            near_place(
+                to,
+                end,
+                &format!("{what}: where {id:?} shows to, the way it runs"),
+            );
+        }
+    }
+}
+
+#[test]
+fn a_plate_rounded_beside_an_arc_is_raised_with_its_rounded_corner() {
+    for plate in plates_rounded_beside_a_curve() {
+        let what = plate.what;
+        let area = the_one_area(&plate.sharp, what) - plate.sliver();
+        near(
+            raised(&plate.rounded, plate.inside),
+            area * 10.0,
+            &format!("{what}: raised by ten over the rounded area, exactly"),
+        );
+        assert_eq!(
+            faces_raised(&plate.rounded, plate.inside),
+            faces_raised(&plate.sharp, plate.inside) + 1,
+            "{what}: the fillet raises a face of its own, the trimmed sides one each as before"
+        );
     }
 }

@@ -1,7 +1,9 @@
+use std::collections::BTreeSet;
 use std::io::{Cursor, Read, Write};
 use std::path::Path;
 
 use cao_sketch::WorkPlane;
+use cao_solid::{EdgeName, VertexName};
 use chrono::{DateTime, Utc};
 use glam::DVec2;
 
@@ -634,6 +636,121 @@ fn an_exact_body_comes_back_from_the_cache_as_the_replay_leaves_it() {
     );
 }
 
+/// A channel cut into the floor from the front through to the back, beside
+/// the bore: the floor is left in two pieces, which meet the front and the
+/// back twice each.
+fn channelled(document: &mut PartDocument) {
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let sketch = document.sketches().len() - 1;
+    document.apply(Operation::AddRectangle {
+        sketch,
+        corner: PointRef::New(DVec2::new(18.0, -1.0)),
+        opposite: PointRef::New(DVec2::new(24.0, 21.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch,
+        areas: document.areas_at(sketch, &[DVec2::new(21.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Cut,
+    });
+}
+
+/// The geometry entry of the archive, as the part wrote it.
+fn geometry_written(files: &InMemoryFiles, path: &Path) -> Vec<u8> {
+    let bytes = files.read(path).expect("the archive is there");
+    let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).expect("a zip archive");
+    let mut entry = archive
+        .by_name(GEOMETRY_ENTRY)
+        .expect("the geometry is written");
+    let mut written = Vec::new();
+    entry.read_to_end(&mut written).expect("the entry is read");
+    written
+}
+
+/// Every object of a cache's text that reads back as a `T`, wherever and
+/// however deep the cache writes it.
+fn written<T: serde::de::DeserializeOwned + Ord>(cache: &[u8]) -> BTreeSet<T> {
+    let tree: serde_json::Value = serde_json::from_slice(cache).expect("a cache is JSON");
+    let mut found = BTreeSet::new();
+    let mut pending = vec![&tree];
+    while let Some(node) = pending.pop() {
+        match node {
+            serde_json::Value::Object(fields) => {
+                if let Ok(read) = serde_json::from_value(node.clone()) {
+                    found.insert(read);
+                }
+                pending.extend(fields.values());
+            }
+            serde_json::Value::Array(items) => pending.extend(items),
+            _ => {}
+        }
+    }
+    found
+}
+
+#[test]
+fn an_exact_body_s_edge_and_vertex_names_come_back_from_the_cache_as_the_replay_leaves_them() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    let mut part = a_bored_block();
+    channelled(&mut part);
+    let (edges, vertices) = (part.body().edge_names(), part.body().vertex_names());
+    assert!(part.body().is_exact(), "the exact kernel built the part");
+    assert!(
+        edges.iter().any(|name| name.of > 1),
+        "the floor's two pieces answer to the floor, and meet the front and \
+         the back twice each: {edges:?}",
+    );
+    assert!(!vertices.is_empty(), "the channel's corners are vertices");
+    part.put_away(&files, path, at("2026-11-04T10:00:00Z"))
+        .expect("the part is put away");
+    let written_by_the_part = geometry_written(&files, path);
+    let mut marked = part.state.clone();
+    marked.declined.insert(99, cao_solid::Declined::Unsupported);
+    let design = design_of(&files, path);
+    let cache = encoded(&marked, &borrowed(&design)).expect("a cache");
+    replacing(&files, path, GEOMETRY_ENTRY, Some(&cache));
+
+    let cached = PartDocument::load(&files, path).expect("reads");
+    let mut replayed = cached.clone();
+    replayed.rewind_to(replayed.history.applied());
+
+    assert!(
+        cached.is_declined(99) && !replayed.is_declined(99),
+        "the part opened on its cache, which alone knows the mark",
+    );
+    assert_eq!(
+        cached.body().edge_names(),
+        replayed.body().edge_names(),
+        "the edges read back are named as the replay names them",
+    );
+    assert_eq!(
+        cached.body().vertex_names(),
+        replayed.body().vertex_names(),
+        "the vertices read back are named as the replay names them",
+    );
+    assert_eq!(replayed.body().edge_names(), edges, "and as the part did");
+    assert_eq!(
+        replayed.body().vertex_names(),
+        vertices,
+        "and as the part did"
+    );
+    let written_edges: Vec<EdgeName> = written(&written_by_the_part).into_iter().collect();
+    assert_eq!(
+        written_edges, edges,
+        "the cache the part writes holds the name of every edge, and no other"
+    );
+    let written_vertices: Vec<VertexName> = written(&written_by_the_part).into_iter().collect();
+    assert_eq!(
+        written_vertices, vertices,
+        "the cache the part writes holds the name of every vertex, and no other"
+    );
+}
+
 #[test]
 fn a_declined_step_is_still_named_once_the_part_opens_on_its_cache() {
     let files = InMemoryFiles::default();
@@ -1020,6 +1137,35 @@ fn a_cache_written_before_a_groove_about_a_leaning_axis_was_laid_is_replayed() {
     assert_ne!(
         stamped, today,
         "laying a groove tangent to its walls about a leaning axis rebuilds past the 13 of #632's refusals"
+    );
+    replacing(&files, path, GEOMETRY_ENTRY, Some(stamped.as_bytes()));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert!(
+        !reopened.is_declined(3),
+        "the design is replayed rather than the cache read",
+    );
+}
+
+#[test]
+fn a_cache_written_before_edges_and_vertices_were_named_is_replayed() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut marked = a_part_with_matter().state;
+    marked.declined.insert(3, cao_solid::Declined::Unsupported);
+    let today = String::from_utf8(encoded(&marked, &borrowed(&design)).expect("a cache"))
+        .expect("a cache is text");
+    let stamped = today.replacen(
+        &format!(r#""rebuilt_by":{REBUILT_BY}"#),
+        r#""rebuilt_by":17"#,
+        1,
+    );
+    assert_ne!(
+        stamped, today,
+        "writing the names of the edges and the vertices in the body rebuilds past the 17 of #574's ellipses"
     );
     replacing(&files, path, GEOMETRY_ENTRY, Some(stamped.as_bytes()));
 

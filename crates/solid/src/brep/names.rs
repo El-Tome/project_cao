@@ -60,26 +60,26 @@ pub struct VertexName {
 impl Body {
     /// The name of each edge, by the edge's rank, every number its own root.
     pub fn edge_names(&self) -> Vec<EdgeName> {
-        self.edge_names_rooted(|number| number)
+        Reading::of(self, |number| number).edge_names()
     }
 
     /// The name of each vertex, by the vertex's rank, every number its own
     /// root.
     pub fn vertex_names(&self) -> Vec<VertexName> {
-        self.vertex_names_rooted(|number| number)
+        let (_, vertices) = self.names_rooted(|number| number);
+        vertices
     }
 
-    /// The name of each edge, by the edge's rank, every number taken to its
-    /// `root`.
-    pub(crate) fn edge_names_rooted(&self, root: impl Fn(u32) -> u32) -> Vec<EdgeName> {
-        Reading::of(self, root).edge_names()
-    }
-
-    /// The name of each vertex, by the vertex's rank, every number taken to
-    /// its `root`.
-    pub(crate) fn vertex_names_rooted(&self, root: impl Fn(u32) -> u32) -> Vec<VertexName> {
+    /// The name of each edge and of each vertex, by rank, every number taken
+    /// to its `root`.
+    pub(crate) fn names_rooted(
+        &self,
+        root: impl Fn(u32) -> u32,
+    ) -> (Vec<EdgeName>, Vec<VertexName>) {
         let reading = Reading::of(self, root);
-        reading.vertex_names(&reading.edge_names())
+        let edges = reading.edge_names();
+        let vertices = reading.vertex_names(&edges);
+        (edges, vertices)
     }
 }
 

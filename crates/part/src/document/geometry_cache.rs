@@ -51,8 +51,10 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// sphere or a torus, or from a rim on it, is moved onto it, and a rim
 /// another surface crosses along parts a ring (#626). 17: an arc of an
 /// ellipse a hair from round is an arc of the circle of its mean, its
-/// corners laid on it (#574).
-const REBUILT_BY: u32 = 17;
+/// corners laid on it (#574). 18: an exact body carries the names of its
+/// edges and its vertices, and the number each piece of a parted face
+/// replaced (#582).
+const REBUILT_BY: u32 = 18;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

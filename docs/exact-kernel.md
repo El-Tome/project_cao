@@ -76,6 +76,26 @@ It can:
   answers to the numbers of every operand face it lies on; a face merged across a seam to all of its
   members'. A face a cut leaves in pieces that no longer touch keeps its
   number on the first piece, and the others get fresh numbers.
+- **name its edges and its vertices** from the numbers of the faces they lie
+  between, so a step pointing at one finds it again when a size changes
+  (#582, `brep/names.rs`). An edge answers to the sides of its two faces —
+  a face's numbers, each taken back to its root, the number of the face a
+  piece was parted from — and to its rank among the edges between the same
+  two; a vertex answers to the sides of every face at it, and to its rank
+  among the vertices at the same sides, by the names of the edges ending
+  there. An edge's rank is read off the topology and the way the loops run:
+  what meets it at each end, seen along it from its first side. Not off the
+  surfaces' parameters: those are canonical against the world's axes, a
+  plane's `u` and a cylinder's angle origin, so a part turned would see the
+  order they give flip; they only part what nothing else does, two whole
+  circles between the same two faces. A piece of a parted face names its
+  edges by its root, so an edge a cut parts along with its face is all its
+  pieces, between the same two sides. A name that no longer finds as many
+  edges between its two sides as it was ranked among says so (`Lost`):
+  split, into how many, when there are more; gone when there are none or
+  fewer, since which of them went cannot be told. The exact body keeps the
+  number each fresh piece replaced and works the names out once, as it is
+  made; the flats name none.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face

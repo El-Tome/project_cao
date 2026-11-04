@@ -36,7 +36,8 @@
 //!   `every_name_is_reported_gone_on_a_part_the_flats_computed`
 //! - The names are written in the body, read back from the geometry cache,
 //!   and replayed the same — no test: held by
-//!   `an_exact_body_s_edge_and_vertex_names_come_back_from_the_cache_as_the_replay_leaves_them`,
+//!   `an_exact_body_s_edge_and_vertex_names_come_back_from_the_cache_as_the_replay_leaves_them`
+//!   and `a_cache_written_before_edges_and_vertices_were_named_is_replayed`,
 //!   in `crates/part/src/document/geometry_cache/tests.rs`, beside the cache,
 //!   which is `cao_part`'s and out of this crate's sight
 

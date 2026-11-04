@@ -9,7 +9,7 @@ impl Body {
     /// faces alone.
     pub fn edge_names(&self) -> Vec<EdgeName> {
         match &self.matter {
-            Matter::Exact(exact) => exact.edge_names(),
+            Matter::Exact(exact) => exact.edge_names().to_vec(),
             Matter::Flats(_) => Vec::new(),
         }
     }
@@ -17,7 +17,7 @@ impl Body {
     /// The name of every vertex, ascending; none on flats.
     pub fn vertex_names(&self) -> Vec<VertexName> {
         match &self.matter {
-            Matter::Exact(exact) => exact.vertex_names(),
+            Matter::Exact(exact) => exact.vertex_names().to_vec(),
             Matter::Flats(_) => Vec::new(),
         }
     }

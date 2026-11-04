@@ -1,5 +1,6 @@
-//! A body the exact kernel computed, the count its faces are numbered by, and
-//! the triangles it is drawn with, made once and only when asked for.
+//! A body the exact kernel computed, the count its faces are numbered by, the
+//! names of its edges and vertices, and the triangles it is drawn with, made
+//! once and only when asked for.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
@@ -25,31 +26,47 @@ pub(super) struct Exact {
     /// that piece answered to before: what an edge or a vertex is named by.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     roots: BTreeMap<u32, u32>,
+    /// The name of every edge, ascending, each number taken back to its
+    /// root: read once, when the body is made.
+    edges: Vec<EdgeName>,
+    /// The name of every vertex, ascending, read as the edges' are.
+    vertices: Vec<VertexName>,
     #[serde(skip)]
     drawn: OnceLock<Drawn>,
 }
 
 impl Default for Exact {
     fn default() -> Self {
-        Exact::of(brep::Body::empty(), 0)
+        Exact::of(brep::Body::empty(), 0, BTreeMap::new())
     }
 }
 
-/// Two exact bodies are one when their matter, their count and the numbers
-/// their pieces were parted from are: how far either was drawn yet says
-/// nothing of what it is.
+/// Two exact bodies are one when their matter, their count, the numbers
+/// their pieces were parted from and the names of their edges and vertices
+/// are: how far either was drawn yet says nothing of what it is.
 impl PartialEq for Exact {
     fn eq(&self, other: &Self) -> bool {
-        self.brep == other.brep && self.next == other.next && self.roots == other.roots
+        self.brep == other.brep
+            && self.next == other.next
+            && self.roots == other.roots
+            && self.edges == other.edges
+            && self.vertices == other.vertices
     }
 }
 
 impl Exact {
-    fn of(brep: brep::Body, next: u32) -> Exact {
+    /// The body, its edges and vertices named, each number taken back to
+    /// its root.
+    fn of(brep: brep::Body, next: u32, roots: BTreeMap<u32, u32>) -> Exact {
+        let (mut edges, mut vertices) = brep.names_rooted(|number| root(&roots, number));
+        edges.sort();
+        vertices.sort();
         Exact {
             brep,
             next,
-            roots: BTreeMap::new(),
+            roots,
+            edges,
+            vertices,
             drawn: OnceLock::new(),
         }
     }
@@ -60,8 +77,11 @@ impl Exact {
         frame: Frame,
         travel: DVec3,
     ) -> Result<Exact, Declined> {
-        let brep = caught(|| brep::Body::raised(outline, holes, frame, travel))?;
-        Ok(Exact::of(brep, brep::Body::numbers_raised(outline, holes)))
+        let numbers = brep::Body::numbers_raised(outline, holes);
+        caught(|| {
+            let brep = brep::Body::raised(outline, holes, frame, travel)?;
+            Ok(Exact::of(brep, numbers, BTreeMap::new()))
+        })
     }
 
     /// The profile turned, its count past the `numbers` the turn names.
@@ -71,8 +91,10 @@ impl Exact {
         turn: &Turn,
         numbers: u32,
     ) -> Result<Exact, Declined> {
-        let brep = caught(|| brep::Body::turned(straight, frame, turn))?;
-        Ok(Exact::of(brep, numbers))
+        caught(|| {
+            let brep = brep::Body::turned(straight, frame, turn)?;
+            Ok(Exact::of(brep, numbers, BTreeMap::new()))
+        })
     }
 
     pub fn joined(&self, other: &Exact) -> Result<Exact, Declined> {
@@ -125,10 +147,7 @@ impl Exact {
             if !drawn.is_whole() {
                 return Err(Declined::Undrawn);
             }
-            let exact = Exact {
-                roots,
-                ..Exact::of(brep, next)
-            };
+            let exact = Exact::of(brep, next, roots);
             let _ = exact.drawn.set(drawn);
             Ok(exact)
         })
@@ -160,36 +179,21 @@ impl Exact {
         self.next as usize
     }
 
-    /// The name of every edge, ascending, each number taken back to the
-    /// number of the face it was parted from.
-    pub fn edge_names(&self) -> Vec<EdgeName> {
-        let mut names = self.brep.edge_names_rooted(|number| self.root(number));
-        names.sort();
-        names
+    pub fn edge_names(&self) -> &[EdgeName] {
+        &self.edges
     }
 
-    /// The name of every vertex, ascending, each number taken back as for
-    /// an edge.
-    pub fn vertex_names(&self) -> Vec<VertexName> {
-        let mut names = self.brep.vertex_names_rooted(|number| self.root(number));
-        names.sort();
-        names
+    pub fn vertex_names(&self) -> &[VertexName] {
+        &self.vertices
     }
 
     /// What a name no longer finds among the edges between its two sides.
     pub fn lost(&self, name: &EdgeName) -> Option<Lost> {
-        let names = self.brep.edge_names_rooted(|number| self.root(number));
-        let now = names.iter().filter(|edge| edge.between == name.between);
+        let now = self
+            .edges
+            .iter()
+            .filter(|edge| edge.between == name.between);
         name.lost_among(now.count() as u32)
-    }
-
-    /// The number of the face a piece was parted from, followed back to the
-    /// first: the number itself for a face no cut parted.
-    fn root(&self, mut number: u32) -> u32 {
-        while let Some(&replaced) = self.roots.get(&number) {
-            number = replaced;
-        }
-        number
     }
 
     /// The exact volume, or the volume the body is drawn with should
@@ -273,6 +277,15 @@ impl Exact {
             .face_ids()
             .filter(move |&id| self.brep.numbers(id).iter().any(|&n| n as usize == face))
     }
+}
+
+/// The number of the face a piece was parted from, followed back to the
+/// first: the number itself for a face no cut parted.
+fn root(roots: &BTreeMap<u32, u32>, mut number: u32) -> u32 {
+    while let Some(&replaced) = roots.get(&number) {
+        number = replaced;
+    }
+    number
 }
 
 /// The body with each face a cut left in pieces that no longer touch told

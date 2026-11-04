@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::chamfer::Chamfer;
 use crate::erased::Erased;
-use crate::sketch::{PointId, SegmentId, Sketch};
+use crate::sketch::{PointId, Sketch};
 
 mod changing;
 mod curved;
@@ -204,35 +204,31 @@ impl Sketch {
             .collect()
     }
 
-    /// Hands each of `standing` — the cuts that stood on a trait now cut
+    /// Hands each of `standing` — the cuts that stood on a side now cut
     /// apart — to the piece still running into its corner, whatever rank that
-    /// piece got. A trim erases the trait before it lays the pieces, so the
+    /// piece got. A trim erases the side before it lays the pieces, so the
     /// cuts it took away are given back here; one whose corner no piece runs
-    /// into stays gone with the trait. A cut taken off or replaced before the
+    /// into stays gone with the side. A cut taken off or replaced before the
     /// trim is none of these, and stays as it was.
     pub(crate) fn cuts_follow_pieces(
         &mut self,
         standing: &[CornerCutId],
-        was: SegmentId,
-        pieces: &[SegmentId],
+        was: CutSide,
+        pieces: &[CutSide],
     ) {
         for id in standing {
             let cut = self.corner_cuts[id.0];
-            let Some(at) = cut
-                .sides
-                .iter()
-                .position(|side| *side == CutSide::Trait(was))
-            else {
+            let Some(at) = cut.sides.iter().position(|side| *side == was) else {
                 continue;
             };
-            let touching = pieces.iter().copied().find(|piece| {
-                let segment = self.segments()[piece.0];
-                segment.start == cut.corner || segment.end == cut.corner
-            });
+            let touching = pieces
+                .iter()
+                .copied()
+                .find(|piece| self.far_end_of(*piece, cut.corner).is_some());
             let Some(piece) = touching else {
                 continue;
             };
-            self.corner_cuts[id.0].sides[at] = piece.into();
+            self.corner_cuts[id.0].sides[at] = piece;
             if self.stands(&self.corner_cuts[id.0]) {
                 Erased::unmark(&mut self.erased.cuts, id.0);
             }

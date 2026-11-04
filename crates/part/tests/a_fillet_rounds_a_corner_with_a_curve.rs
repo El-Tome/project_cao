@@ -75,22 +75,33 @@
 //!
 //! What the design adds so that the tools around a cut do not break on a
 //! curve side — not in the issue's words:
-//! - erasing the arc a fillet stands on takes the fillet —
-//!   `erasing_the_arc_side_of_a_rounded_corner_takes_its_cut`
+//! - erasing the arc or the arc of ellipse a fillet stands on takes the
+//!   fillet — `erasing_the_arc_side_of_a_rounded_corner_takes_its_cut`
 //! - a division of an arc side keeps the cut on the piece touching the corner —
-//!   `dividing_the_arc_side_of_a_rounded_corner_keeps_its_cut`
-//! - a mirror copies a fillet standing beside an arc —
-//!   `a_corner_rounded_beside_an_arc_mirrored_is_rounded_on_its_copy`
+//!   `dividing_the_arc_side_of_a_rounded_corner_keeps_its_cut`; a trim keeps
+//!   it too, unless the stretch trimmed takes the corner, which takes the cut —
+//!   `trimming_the_arc_side_of_a_rounded_corner_keeps_its_cut_unless_the_corner_goes`
+//! - a mirror, and a pattern, copy a fillet standing beside an arc or an arc
+//!   of ellipse — `a_corner_rounded_beside_an_arc_mirrored_is_rounded_on_its_copy`
 //! - compacting the history keeps a fillet beside an arc, its sides followed
 //!   through what they became — `a_compacted_part_keeps_a_fillet_beside_an_arc`
+//!
+//! Set aside by the owner, 2026-11-04 — hanging on a fillet beside a curve
+//! is a separate issue:
+//! - nothing hangs on the points of a fillet beside a curve and no line is
+//!   held tangent to it; what a tool would hang there stays where it was put,
+//!   lays no rule naming the cut, and nothing panics —
+//!   `nothing_hangs_on_the_points_of_a_fillet_beside_a_curve`
 
 use std::f64::consts::{PI, TAU};
 
-use cao_part::history::{ExtrusionMode, Operation, PointRef};
+use cao_part::history::{CutAsked, CutChange, ExtrusionMode, Operation, PointRef};
 use cao_part::{History, Outcome, PartDocument, PartState};
 use cao_sketch::{
-    ArcDraft, ArcId, Area, Chamfer, Corner, CutCurve, CutRefused, CutShape, CutSide, EllipseId,
-    PointId, SegmentId, Sketch, SnapSettings, WorkPlane, sweep_of,
+    ArcDraft, ArcId, Area, Chamfer, ChosenAxis, Constraint, Corner, CornerCutId, CutCurve,
+    CutPoint, CutRefused, CutShape, CutSide, Element, EllipseId, PointId, Rule, RuleIntent,
+    RulePick, SegmentId, Sketch, SketchAxis, SnapSettings, Support, WorkPlane, rule_intent,
+    sweep_of,
 };
 use glam::DVec2;
 
@@ -1789,4 +1800,318 @@ fn a_whole_circle_or_a_whole_ellipse_has_no_corner_to_round() {
             );
         }
     }
+}
+
+/// The trait and the arc of `a_trait_and_an_arc` rounded by five, and the
+/// trait and the arc of ellipse of `a_trait_and_an_ellipse` rounded by three,
+/// each with its curve as the drawing names it.
+fn corners_rounded_beside_a_curve() -> [(History, Element, f64, &'static str); 2] {
+    let mut beside_an_arc = a_trait_and_an_arc();
+    round(&mut beside_an_arc, Corner::At(THE_CORNER), 5.0);
+    let mut beside_an_ellipse = a_trait_and_an_ellipse(false);
+    round(&mut beside_an_ellipse, Corner::At(THE_CORNER), 3.0);
+    [
+        (beside_an_arc, Element::Arc(ArcId(0)), 5.0, "beside an arc"),
+        (
+            beside_an_ellipse,
+            Element::Ellipse(EllipseId(0)),
+            3.0,
+            "beside an arc of ellipse",
+        ),
+    ]
+}
+
+/// Where on the arc of `a_trait_and_an_arc` a turn of `degrees` from the
+/// corner lands.
+fn on_the_arc(degrees: f64) -> DVec2 {
+    DVec2::new(2.0, 10.0) + DVec2::from_angle(degrees.to_radians()) * 8.0
+}
+
+/// Holds one fillet drawn to be the one `before` was: the same centre and
+/// the same two ends.
+fn drawn_as_before(history: &History, before: ArcDraft, what: &str) {
+    let after = the_fillet(history, what);
+    near_place(
+        after.centre,
+        before.centre,
+        &format!("{what}: the fillet's centre"),
+    );
+    near_place(
+        after.start,
+        before.start,
+        &format!("{what}: the fillet's start"),
+    );
+    near_place(after.end, before.end, &format!("{what}: the fillet's end"));
+}
+
+#[test]
+fn erasing_the_arc_side_of_a_rounded_corner_takes_its_cut() {
+    for (mut history, curve, _, what) in corners_rounded_beside_a_curve() {
+        the_fillet(&history, what);
+
+        history.push(Operation::EraseMany {
+            sketch: 0,
+            elements: vec![curve],
+            dimensions: Vec::new(),
+            constraints: Vec::new(),
+        });
+
+        let drawing = PartState::rebuild(&history).sketches[0].clone();
+        assert_eq!(
+            drawing.live_corner_cuts().count(),
+            0,
+            "{what}: the curve erased, its cut goes with it"
+        );
+        assert!(
+            drawing.drawn_cuts().is_empty(),
+            "{what}: nothing is drawn of it"
+        );
+    }
+}
+
+#[test]
+fn dividing_the_arc_side_of_a_rounded_corner_keeps_its_cut() {
+    let [(mut history, _, _, what), _] = corners_rounded_beside_a_curve();
+    let before = the_fillet(&history, what);
+
+    history.push(Operation::Split {
+        sketch: 0,
+        segments: Vec::new(),
+        arcs: vec![ArcId(0)],
+        at: on_the_arc(60.0),
+    });
+
+    let drawing = PartState::rebuild(&history).sketches[0].clone();
+    assert_eq!(drawing.live_arcs().count(), 2, "the arc is divided in two");
+    drawn_as_before(&history, before, "the arc divided past the fillet");
+    let (_, cut) = drawing.live_corner_cuts().next().expect("the cut stands");
+    let held = cut
+        .sides
+        .iter()
+        .find_map(|side| match side {
+            CutSide::Arc(arc) => Some(drawing.arc(*arc)),
+            _ => None,
+        })
+        .expect("the cut still stands beside an arc");
+    assert_eq!(
+        held.start, THE_CORNER,
+        "the cut stands on the piece touching the corner: {held:?}"
+    );
+}
+
+#[test]
+fn trimming_the_arc_side_of_a_rounded_corner_keeps_its_cut_unless_the_corner_goes() {
+    let mut rounded = a_trait_and_an_arc();
+    rounded.push(Operation::AddPoint {
+        sketch: 0,
+        position: on_the_arc(60.0),
+        on: Vec::new(),
+    });
+    let sixty = PointId(5);
+    round(&mut rounded, Corner::At(THE_CORNER), 5.0);
+    let before = the_fillet(&rounded, "before the trim");
+
+    let mut far_stretch_gone = rounded.clone();
+    far_stretch_gone.push(Operation::TrimArc {
+        sketch: 0,
+        arc: ArcId(0),
+        from: sixty,
+        to: PointId(4),
+    });
+    drawn_as_before(
+        &far_stretch_gone,
+        before,
+        "the stretch away from the corner trimmed",
+    );
+
+    let mut corner_gone = rounded;
+    corner_gone.push(Operation::TrimArc {
+        sketch: 0,
+        arc: ArcId(0),
+        from: THE_CORNER,
+        to: sixty,
+    });
+    let drawing = PartState::rebuild(&corner_gone).sketches[0].clone();
+    assert!(
+        drawing
+            .live_arcs()
+            .all(|(_, arc)| arc.start != THE_CORNER && arc.end != THE_CORNER),
+        "the stretch trimmed took the corner off the arc"
+    );
+    assert_eq!(
+        drawing.live_corner_cuts().count(),
+        0,
+        "the stretch trimmed took the corner, and the cut with it"
+    );
+}
+
+#[test]
+fn a_corner_rounded_beside_an_arc_mirrored_is_rounded_on_its_copy() {
+    for (mut history, curve, radius, what) in corners_rounded_beside_a_curve() {
+        history.push(Operation::Mirror {
+            sketch: 0,
+            elements: vec![Element::Segment(SegmentId(0)), curve],
+            axis: ChosenAxis::Sketch(SketchAxis::V),
+        });
+
+        let drawing = PartState::rebuild(&history).sketches[0].clone();
+        let drawn = drawing.drawn_cuts();
+        assert_eq!(drawn.len(), 2, "{what}: the copy is rounded too: {drawn:?}");
+        let (original, copy) = (drawn[0], drawn[1]);
+        near(
+            copy.corner.x,
+            -original.corner.x,
+            &format!("{what}: the copy's corner stands across the axis"),
+        );
+        near(copy.corner.y, original.corner.y, what);
+        assert!(copy.fits, "{what}: the copy fits: {copy:?}");
+        let CutCurve::Arc(copied) = copy.curve else {
+            panic!("{what}: the copy is a fillet");
+        };
+        near(
+            copied.centre.distance(copied.start),
+            radius,
+            &format!("{what}: the copy's radius"),
+        );
+        assert_ne!(
+            drawing.corner_cuts()[copy.id.0].group,
+            drawing.corner_cuts()[original.id.0].group,
+            "{what}: the copy changes on its own"
+        );
+    }
+
+    let [(mut history, curve, _, _), _] = corners_rounded_beside_a_curve();
+    history.push(Operation::CircularPattern {
+        sketch: 0,
+        elements: vec![Element::Segment(SegmentId(0)), curve],
+        centre: PointId(0),
+        degrees: 90.0.into(),
+        count: 2.0.into(),
+    });
+    let drawn = PartState::rebuild(&history).sketches[0].drawn_cuts();
+    assert_eq!(
+        drawn.len(),
+        2,
+        "a pattern round the origin rounds its copy too: {drawn:?}"
+    );
+    assert!(drawn.iter().all(|cut| cut.fits), "{drawn:?}");
+}
+
+#[test]
+fn a_compacted_part_keeps_a_fillet_beside_an_arc() {
+    let [(beside_an_arc, _, _, _), (beside_an_ellipse, _, _, _)] = corners_rounded_beside_a_curve();
+    let mut divided = beside_an_arc.clone();
+    divided.push(Operation::Split {
+        sketch: 0,
+        segments: Vec::new(),
+        arcs: vec![ArcId(0)],
+        at: on_the_arc(60.0),
+    });
+    for (history, what) in [
+        (beside_an_arc, "beside an arc"),
+        (beside_an_ellipse, "beside an arc of ellipse"),
+        (divided, "beside an arc divided since"),
+    ] {
+        let before = the_fillet(&history, what);
+
+        let compacted = cao_part::compact(&history);
+
+        drawn_as_before(&compacted, before, &format!("{what}, compacted"));
+    }
+}
+
+#[test]
+fn nothing_hangs_on_the_points_of_a_fillet_beside_a_curve() {
+    let [(mut history, _, _, _), _] = corners_rounded_beside_a_curve();
+    let cut = CornerCutId(0);
+    let drawing = PartState::rebuild(&history).sketches[0].clone();
+    let [touch, centre] = [CutPoint::First, CutPoint::Centre].map(|at| {
+        drawing
+            .cut_point(cut, at)
+            .expect("the fillet offers its points")
+    });
+
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Held {
+            at: touch,
+            on: vec![Support::CutPoint(cut, CutPoint::First)],
+        },
+        end: PointRef::New(DVec2::new(14.0, -20.0)),
+        construction: false,
+    });
+    let started = PartState::rebuild(&history).sketches[0].segments()[1].start;
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: centre,
+        on: vec![Support::CutPoint(cut, CutPoint::Centre)],
+    });
+    let laid = PointId(PartState::rebuild(&history).sketches[0].points().len() - 1);
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(30.0, 30.0)),
+        end: PointRef::New(DVec2::new(40.0, 40.0)),
+        construction: false,
+    });
+    let loose = PointId(PartState::rebuild(&history).sketches[0].points().len() - 2);
+    let drawing = PartState::rebuild(&history).sketches[0].clone();
+    let picks = [
+        [
+            RulePick::Element(Element::Point(loose)),
+            RulePick::CutPoint(cut, CutPoint::Centre),
+        ],
+        [
+            RulePick::CutCurve(cut),
+            RulePick::Element(Element::Segment(SegmentId(1))),
+        ],
+    ];
+    for (rule, picks) in [(Rule::Coincident, picks[0]), (Rule::Tangent, picks[1])] {
+        if let Some(RuleIntent::Constrain(constraint)) = rule_intent(rule, &picks, &drawing) {
+            history.push(Operation::Constrain {
+                sketch: 0,
+                constraint,
+            });
+        }
+    }
+
+    history.push(Operation::CutChange(CutChange::Reshape {
+        sketch: 0,
+        cut,
+        value: CutAsked::Fillet(6.0.into()),
+    }));
+
+    let drawing = PartState::rebuild(&history).sketches[0].clone();
+    let hanging: Vec<&Constraint> = drawing
+        .constraints()
+        .iter()
+        .filter(|rule| {
+            matches!(
+                rule,
+                Constraint::AtCutPoint { .. }
+                    | Constraint::OnCut { .. }
+                    | Constraint::CutTangent { .. }
+            )
+        })
+        .collect();
+    assert!(
+        hanging.is_empty(),
+        "nothing hangs on a fillet beside a curve, and no line is held tangent to it: \
+         {hanging:?}"
+    );
+    near_place(
+        drawing.point(started),
+        touch,
+        "the line started at the fillet's end stays where it was put",
+    );
+    near_place(
+        drawing.point(laid),
+        centre,
+        "the point laid on the fillet's centre stays where it was put",
+    );
+    near_place(
+        drawing.point(loose),
+        DVec2::new(30.0, 30.0),
+        "the loose point a coincidence would have hung stays where it was",
+    );
+    the_fillet(&history, "the fillet reshaped to six");
 }

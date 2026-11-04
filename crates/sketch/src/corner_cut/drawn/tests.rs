@@ -3,7 +3,7 @@
 use glam::DVec2;
 
 use super::*;
-use crate::{CutSide, WorkPlane};
+use crate::{CutSide, SegmentId, WorkPlane};
 
 const NEAR: f64 = 1e-9;
 /// A share lets the tightest side give a hair more than its length: the

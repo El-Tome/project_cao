@@ -36,9 +36,12 @@ impl Sketch {
         self.live_cut(cut).is_some()
     }
 
+    /// A cut something may hang on: one still standing, between two traits.
+    /// Nothing hangs on a cut beside a curve.
     fn live_cut(&self, cut: CornerCutId) -> Option<super::CornerCut> {
         let laid = *self.corner_cuts().get(cut.0)?;
-        (!self.is_erased_cut(cut) && self.stands(&laid)).then_some(laid)
+        let between_traits = super::both_traits(laid.sides).is_some();
+        (!self.is_erased_cut(cut) && self.stands(&laid) && between_traits).then_some(laid)
     }
 
     /// The points a cut is worked out from: its corner, then the far end of

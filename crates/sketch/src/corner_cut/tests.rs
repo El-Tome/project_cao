@@ -4,7 +4,7 @@ use glam::DVec2;
 
 use super::*;
 use crate::element::Element;
-use crate::{CutSide, WorkPlane};
+use crate::{CutSide, SegmentId, WorkPlane};
 
 /// Two traits meeting at a right angle away from the origin: one running
 /// right from the corner, one running up.

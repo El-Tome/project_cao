@@ -69,7 +69,7 @@ impl Sketch {
                 .map(|(_, now)| *now)
         };
 
-        let mut sides: Vec<(SegmentId, SegmentId)> = Vec::new();
+        let mut sides: Vec<(CutSide, CutSide)> = Vec::new();
         for held in &laid {
             match *held {
                 Element::Point(_) => {}
@@ -84,7 +84,7 @@ impl Sketch {
                         true => self.add_construction_segment(start, end),
                         false => self.add_segment(start, end),
                     };
-                    sides.push((id, copy));
+                    sides.push((id.into(), copy.into()));
                     made.segments.push(copy);
                 }
                 Element::Circle(id) => {
@@ -118,10 +118,12 @@ impl Sketch {
                         true => (end, start),
                         false => (start, end),
                     };
-                    made.arcs.push(match curve.construction {
+                    let copy = match curve.construction {
                         true => self.add_construction_arc(centre, start, end),
                         false => self.add_arc(centre, start, end),
-                    });
+                    };
+                    sides.push((id.into(), copy.into()));
+                    made.arcs.push(copy);
                 }
                 Element::Ellipse(id) => {
                     let Some(oval) = self.ellipses().get(id.0).copied() else {
@@ -159,6 +161,7 @@ impl Sketch {
                     // part of what the copy left behind.
                     let axes = self.ellipses()[copy.0];
                     made.segments.extend([axes.first, axes.second]);
+                    sides.push((id.into(), copy.into()));
                     made.ellipses.push(copy);
                 }
             }
@@ -169,9 +172,8 @@ impl Sketch {
 
     /// Cuts every corner whose two sides were copied the same way on the copy,
     /// each group laid together staying one group of its own.
-    fn cut_the_copies(&mut self, sides: &[(SegmentId, SegmentId)]) -> Vec<CornerCutId> {
+    fn cut_the_copies(&mut self, sides: &[(CutSide, CutSide)]) -> Vec<CornerCutId> {
         let copy_of = |side: CutSide| {
-            let side = side.as_trait()?;
             sides
                 .iter()
                 .find(|(was, _)| *was == side)

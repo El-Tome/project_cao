@@ -32,11 +32,9 @@ pub enum Said {
 /// What a measure says, from what it read.
 ///
 /// Lengths go through the same unit the rest of the interface shows, so a
-/// drawing read in centimetres does not suddenly answer in millimetres — and
-/// held to `figures` significant figures, where a dimension is rounded far
-/// harder. A dimension is typed and read back, so it rounds to what a person
-/// would type; a measure reports what is there, so how much of the number is
-/// worth reading is the reader's call, and `figures` is where they say it.
+/// drawing read in centimetres does not suddenly answer in millimetres. Each
+/// number goes to the tenth of a micron, or of a ten-thousandth of a degree, as
+/// a dimension does; `figures` is where the reader asks for fewer.
 pub fn says(
     lang: &Catalogue,
     measured: Measured,
@@ -61,7 +59,7 @@ pub fn says(
         ]),
         Reading::Opening { degrees } => Said::Beside(vec![say(
             "measure.angle",
-            cao_prefs::config::to_figures(degrees, figures),
+            cao_prefs::config::to_figures_within(degrees, figures, 4),
         )]),
         // Both, and in this order: the surface is what the area *is*, and how
         // far round it is what one would cut.

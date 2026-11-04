@@ -170,7 +170,7 @@ impl LiveInput {
         for (rank, value) in values.iter().enumerate() {
             let Some(value) = value else { continue };
             let field = self.field(rank);
-            field.text = shown(*value);
+            field.text = crate::wording::dimension::short(*value);
             field.take(&Variables::default());
         }
     }
@@ -246,15 +246,6 @@ impl LiveInput {
             first: self.typed(0),
             second: self.typed(1),
         }
-    }
-}
-
-/// A suggested value as its field shows it: whole where it can be, to the
-/// hundredth where it cannot.
-fn shown(value: f64) -> String {
-    match value.fract() == 0.0 {
-        true => format!("{value:.0}"),
-        false => format!("{value:.2}"),
     }
 }
 

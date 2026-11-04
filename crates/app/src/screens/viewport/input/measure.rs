@@ -246,7 +246,7 @@ pub(super) fn place_dimension(
     let Some(measured) = context.document.measured(index, target) else {
         return false;
     };
-    let value = held_as_shown(target, measured);
+    let value = held_as_shown(measured);
     let applied = context.document.apply(Operation::SetDimension {
         sketch: index,
         target,

@@ -43,12 +43,10 @@ pub(crate) fn as_typed(typed: Option<(Formula, f64)>, laid: f64) -> Formula {
 }
 
 /// What a dimension placed by clicking holds: a length to the tenth of a micron
-/// it is shown to, so that `Entrée` on its field moves nothing.
-pub(crate) fn held_as_shown(target: DimensionTarget, measured: f64) -> f64 {
-    match target.is_angle() {
-        true => measured,
-        false => (measured * 1e4).round() / 1e4,
-    }
+/// and an angle to the ten-thousandth of a degree it is shown to, so that
+/// `Entrée` on its field moves nothing.
+pub(crate) fn held_as_shown(measured: f64) -> f64 {
+    (measured * 1e4).round() / 1e4
 }
 
 /// Lays each value down, pinned where it is drawn, and written as what `typed`

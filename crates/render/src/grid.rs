@@ -10,15 +10,22 @@ use crate::geometry::{Vertex, srgb};
 /// Picks the grid step from the 1–2–5–10 sequence, the smallest one whose
 /// on-screen spacing stays above `target_pixel_spacing`. Zooming in therefore
 /// subdivides the grid, zooming out merges it.
-pub fn adaptive_step(world_units_per_pixel: f32, target_pixel_spacing: f32) -> f32 {
+///
+/// Below one the multiple is divided by a power of ten, not multiplied by its
+/// inverse: 1 / 10 is the `f64` nearest 0.1, where 0.01 × 10 need not be.
+pub fn adaptive_step(world_units_per_pixel: f64, target_pixel_spacing: f64) -> f64 {
     let minimum = (world_units_per_pixel * target_pixel_spacing).max(1e-6);
-    let decade = 10f32.powf(minimum.log10().floor());
+    let exponent = minimum.log10().floor() as i32;
+    let at = |multiple: f64| match exponent < 0 {
+        true => multiple / 10f64.powi(-exponent),
+        false => multiple * 10f64.powi(exponent),
+    };
     for multiple in [1.0, 2.0, 5.0] {
-        if decade * multiple >= minimum {
-            return decade * multiple;
+        if at(multiple) >= minimum {
+            return at(multiple);
         }
     }
-    decade * 10.0
+    at(10.0)
 }
 
 pub struct GridStyle {

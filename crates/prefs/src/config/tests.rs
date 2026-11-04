@@ -89,14 +89,7 @@ fn a_round_length_grows_no_decimals_of_its_own() {
 }
 
 #[test]
-fn asking_for_more_figures_than_the_arithmetic_has_gets_what_it_has() {
-    assert_eq!(
-        to_figures(1.234567891234, 12),
-        to_figures(1.234567891234, MOST_FIGURES),
-        "a value that has been through a solver and a change of scale has lost \
-         several of its figures, and printing ones nobody can stand behind is \
-         the same lie as rounding one that matters",
-    );
+fn asking_for_fewer_figures_than_the_fewest_gets_the_fewest() {
     assert_eq!(
         to_figures(1.234_567_891_234, 1),
         to_figures(1.234_567_891_234, FEWEST_FIGURES)
@@ -127,7 +120,7 @@ fn a_surface_is_said_in_the_square_of_its_unit() {
     let metres = UnitDisplay::Fixed(LengthUnit::Meter);
 
     assert_eq!(
-        metres.surface_in_figures(2_500_000.0, MOST_FIGURES),
+        metres.surface_in_figures(2_500_000.0, 6),
         "2.5 m²",
         "two and a half square metres is two and a half million square \
          millimetres, and the unit is squared with the number",
@@ -139,7 +132,7 @@ fn the_unit_a_surface_is_said_in_comes_from_the_side_of_a_square_of_it() {
     let automatic = UnitDisplay::Auto;
 
     assert_eq!(
-        automatic.surface_in_figures(100.0, MOST_FIGURES),
+        automatic.surface_in_figures(100.0, 6),
         "100 mm²",
         "a hundred square millimetres is ten millimetres square, so it is said \
          in millimetres — chosen from the surface itself it would be under the \

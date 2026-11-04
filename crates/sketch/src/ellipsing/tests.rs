@@ -1,4 +1,8 @@
 //! What sketch · ellipsing.rs is held to.
+//!
+//! Closes #519.
+//! - `run_of` is good enough for the figures the measure tool now gives —
+//!   `the_way_round_a_very_flat_ellipse_is_good_to_a_tenth_of_a_micron`
 
 use super::*;
 
@@ -75,4 +79,40 @@ fn a_turned_ellipse_fits_the_box_its_extremes_touch() {
         });
     assert!(low.cmple(seen_low + 1e-9).all() && high.cmpge(seen_high - 1e-9).all());
     assert!(seen_low.distance(low) < 0.1 && seen_high.distance(high) < 0.1);
+}
+
+/// The way round an ellipse, from the arithmetic-geometric mean: a series
+/// that doubles its correct digits at every step, and shares nothing with the
+/// panels `run_of` integrates over.
+fn way_round(half_first: f64, half_second: f64) -> f64 {
+    let (mut high, mut low) = (half_first, half_second);
+    let mut taken = 0.5 * (half_first * half_first - half_second * half_second);
+    let mut weight = 0.5;
+    for _ in 0..32 {
+        let gap = (high - low) / 2.0;
+        (high, low) = ((high + low) / 2.0, (high * low).sqrt());
+        weight *= 2.0;
+        taken += weight * gap * gap;
+    }
+    std::f64::consts::TAU / high * (half_first * half_first - taken)
+}
+
+#[test]
+fn the_way_round_a_very_flat_ellipse_is_good_to_a_tenth_of_a_micron() {
+    let flat = EllipseDraft {
+        centre: DVec2::ZERO,
+        first: DVec2::new(200.0, 0.0),
+        second: 0.2,
+    };
+    let exact = way_round(200.0, 0.2);
+
+    let run = flat.run_of(0.0, std::f64::consts::TAU);
+
+    assert!(
+        (run - exact).abs() < 5e-5,
+        "four hundred millimetres by four tenths go {exact} mm round and the run says \
+         {run}: out by {} mm, where the measure shows a tenth of a micron and half \
+         of one is what it can be out by",
+        (run - exact).abs(),
+    );
 }

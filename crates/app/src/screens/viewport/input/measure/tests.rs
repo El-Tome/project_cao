@@ -11,6 +11,11 @@
 //! - a dimension placed by clicking stores its measured value rounded to
 //!   0.1 µm, so what is shown is what is held —
 //!   `a_dimension_placed_by_clicking_holds_its_measure_to_a_tenth_of_a_micron`
+//! - and a clicked angle, shown to four decimals of a degree, holds its measure
+//!   rounded to 0.0001°, which moves the pin of
+//!   `a_trait_then_an_axis_then_a_place_lays_the_angle_of_that_quarter` on
+//!   purpose — `a_clicked_angle_holds_its_measure_to_a_ten_thousandth_of_a_degree`,
+//!   `pressing_enter_on_a_clicked_angle_left_as_it_opened_moves_nothing`
 //!
 //! Closes #175.
 //! - a dimension on the drawing shows its value; editing it shows its formula
@@ -540,8 +545,8 @@ fn a_trait_clicked_after_a_length_was_retyped_gets_its_own_length() {
 #[test]
 fn a_trait_then_an_axis_then_a_place_lays_the_angle_of_that_quarter() {
     for (place, expected) in [
-        (DVec2::new(40.0, 80.0), 101.309_932_474_020_2),
-        (DVec2::new(100.0, 80.0), 78.690_067_525_979_8),
+        (DVec2::new(40.0, 80.0), 101.3099),
+        (DVec2::new(100.0, 80.0), 78.6901),
     ] {
         let mut document = PartDocument::new("part", Utc::now());
         document.apply(Operation::CreateSketch {
@@ -577,8 +582,9 @@ fn a_trait_then_an_axis_then_a_place_lays_the_angle_of_that_quarter() {
             panic!("one angle to the axis laid at {place:?}, got {laid:?}");
         };
         assert!(
-            (value - expected).abs() < 1e-6,
-            "put down at {place:?} it reads {value}°, not {expected}°",
+            (value - expected).abs() < 1e-9,
+            "put down at {place:?} it holds {value}°, not the {expected}° of its quarter, \
+             to the ten-thousandth of a degree it is shown to",
         );
     }
 }
@@ -1439,5 +1445,90 @@ fn pressing_enter_on_a_field_left_as_it_opened_moves_nothing() {
     assert!(
         (after - before).abs() < 1e-12,
         "Entrée on the field a click opened moves the trait from {before} to {after} mm",
+    );
+}
+
+/// A trait leaning against the vertical axis, and its angle to it put down
+/// in the quarter `place` falls in.
+fn an_angle_put_down_at(place: DVec2) -> (PartDocument, SketchEditor, DimensionTarget) {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(20.0, 30.0)),
+        end: PointRef::New(DVec2::new(120.0, 50.0)),
+        construction: false,
+    });
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    click(&mut context, DVec2::new(70.0, 40.0));
+    click(&mut context, DVec2::new(0.0, 150.0));
+    click(&mut context, place);
+    let target = document.sketches()[0]
+        .dimensions()
+        .iter()
+        .map(|dimension| dimension.target)
+        .find(|target| matches!(target, DimensionTarget::AxisAngle { .. }))
+        .expect("an angle to the axis is laid");
+    (document, editor, target)
+}
+
+#[test]
+fn a_clicked_angle_holds_its_measure_to_a_ten_thousandth_of_a_degree() {
+    let (document, editor, target) = an_angle_put_down_at(DVec2::new(40.0, 80.0));
+
+    let held = document.sketches()[0]
+        .dimension_of(target)
+        .map(|dimension| dimension.value)
+        .expect("the angle is laid");
+    assert!(
+        (held - 101.3099).abs() < 1e-9,
+        "the trait leans 101.3099324740202° and its angle holds {held}°, more than \
+         the four decimals it is shown to",
+    );
+    assert_eq!(
+        crate::wording::dimension::degrees(held),
+        "101.3099°",
+        "the label says what is held",
+    );
+    assert_eq!(
+        opened_on(&editor),
+        Some("101.3099"),
+        "the field shows what is held",
+    );
+    let leans = document.measured(0, target).expect("the angle measures");
+    assert!(
+        (leans - 101.3099).abs() < 1e-6,
+        "the trait is turned to what its angle holds, and leans {leans}°",
+    );
+}
+
+#[test]
+fn pressing_enter_on_a_clicked_angle_left_as_it_opened_moves_nothing() {
+    let (mut document, mut editor, target) = an_angle_put_down_at(DVec2::new(40.0, 80.0));
+    let steps = document.history.operations().len();
+    let before = document.measured(0, target).expect("the angle measures");
+
+    apply_dimension_value(&mut document, &mut editor, 0, target, &Catalogue::french());
+
+    let after = document.measured(0, target).expect("the angle measures");
+    assert_eq!(
+        document.history.operations().len(),
+        steps,
+        "Entrée on the field a click opened writes no step",
+    );
+    assert!(
+        (after - before).abs() < 1e-12,
+        "Entrée on the field a click opened turns the trait from {before}° to {after}°",
     );
 }

@@ -117,30 +117,35 @@ impl EllipseDraft {
     /// form at all — it is the elliptic integral of the second kind, which is
     /// where the name comes from — so it is integrated instead.
     ///
-    /// Simpson's rule on this many panels lands within a part in ten million
-    /// million on a round ellipse and a part in a million on a very flat one,
-    /// where the speed along the curve swings hardest: a thousand to one,
-    /// measured against a reference of four million panels, comes out under a
-    /// micron on four hundred millimetres. Both are far under what the drawing
-    /// itself is worth, but they are four orders apart, and a figure that only
-    /// holds for the easy shape is one that gets quoted for the hard one.
+    /// Simpson's rule, halving each panel until halving it no longer changes
+    /// it: a very flat ellipse turns sharply at the ends of its long axis, over
+    /// a turn as narrow as its two axes are apart, and an even spacing fine
+    /// enough there is a million panels wasted everywhere else.
     pub fn run_of(&self, from: f64, sweep: f64) -> f64 {
+        const PANELS: usize = 64;
         let (first, second) = (self.first.length(), self.second);
         // Along the curve, `at` differentiated: the two axes are square to one
         // another, so how fast a turn moves along it is a plain hypotenuse.
         let speed = |turn: f64| (first * turn.sin()).hypot(second * turn.cos());
-        let panels = ((sweep.abs() / std::f64::consts::TAU) * 1024.0).ceil() as usize;
-        let panels = panels.next_multiple_of(2).max(2);
-        let step = sweep / panels as f64;
-        let mut total = speed(from) + speed(from + sweep);
-        for panel in 1..panels {
-            let weight = match panel % 2 {
-                0 => 2.0,
-                _ => 4.0,
-            };
-            total += weight * speed(from + step * panel as f64);
-        }
-        (total * step / 3.0).abs()
+        let tolerance = 1e-11 * first.max(second.abs()) / PANELS as f64;
+        let step = sweep / PANELS as f64;
+        let total: f64 = (0..PANELS)
+            .map(|panel| {
+                let (low, high) = (from + step * panel as f64, from + step * (panel + 1) as f64);
+                let (at_low, at_middle, at_high) =
+                    (speed(low), speed((low + high) / 2.0), speed(high));
+                let whole = step / 6.0 * (at_low + 4.0 * at_middle + at_high);
+                halved(
+                    &speed,
+                    ((low, at_low), (high, at_high)),
+                    at_middle,
+                    whole,
+                    tolerance,
+                    40,
+                )
+            })
+            .sum();
+        total.abs()
     }
 
     /// The turn that lands closest to a place.
@@ -261,6 +266,42 @@ impl EllipseDraft {
             .map(|step| self.at(from + sweep * step as f64 / steps as f64))
             .collect()
     }
+}
+
+/// Simpson's rule on one panel, split in two and each half split again while
+/// the two halves disagree with the whole by more than `tolerance`.
+fn halved(
+    speed: &impl Fn(f64) -> f64,
+    ((low, at_low), (high, at_high)): ((f64, f64), (f64, f64)),
+    at_middle: f64,
+    whole: f64,
+    tolerance: f64,
+    depth: u32,
+) -> f64 {
+    let middle = (low + high) / 2.0;
+    let (left_middle, right_middle) = (speed((low + middle) / 2.0), speed((middle + high) / 2.0));
+    let half = (middle - low) / 6.0;
+    let left = half * (at_low + 4.0 * left_middle + at_middle);
+    let right = half * (at_middle + 4.0 * right_middle + at_high);
+    let gap = left + right - whole;
+    if depth == 0 || gap.abs() <= 15.0 * tolerance {
+        return left + right + gap / 15.0;
+    }
+    halved(
+        speed,
+        ((low, at_low), (middle, at_middle)),
+        left_middle,
+        left,
+        tolerance / 2.0,
+        depth - 1,
+    ) + halved(
+        speed,
+        ((middle, at_middle), (high, at_high)),
+        right_middle,
+        right,
+        tolerance / 2.0,
+        depth - 1,
+    )
 }
 
 #[cfg(test)]

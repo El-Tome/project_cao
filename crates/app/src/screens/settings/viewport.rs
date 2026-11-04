@@ -93,7 +93,7 @@ pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalog
     slider(
         ui,
         &mut config.measure_figures,
-        cao_prefs::config::FEWEST_FIGURES..=cao_prefs::config::MOST_FIGURES,
+        cao_prefs::config::FEWEST_FIGURES..=cao_prefs::config::ALL_FIGURES,
         &lang.t("settings.viewport.measure_figures"),
     );
 

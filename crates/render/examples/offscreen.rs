@@ -158,7 +158,7 @@ fn build_frame(camera: &OrbitCamera, plane: Option<(glam::Vec3, glam::Vec3)>) ->
 
     if let Some((u, v)) = plane {
         let units_per_pixel = camera.world_units_per_pixel(HEIGHT as f32);
-        let step = adaptive_step(units_per_pixel, 48.0);
+        let step = adaptive_step(f64::from(units_per_pixel), 48.0) as f32;
         let diagonal = ((WIDTH * WIDTH + HEIGHT * HEIGHT) as f32).sqrt();
         let half_extent = units_per_pixel * diagonal * 1.5;
         push_grid(

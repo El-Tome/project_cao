@@ -127,20 +127,15 @@ impl Default for TrackpadConfig {
     }
 }
 
-/// How many significant figures a measure may be shown to, at the least and
-/// at the most.
-///
-/// Three is a thousandth of whatever is being measured, which is where a
-/// reading stops telling a machinist anything new. Six is where the arithmetic
-/// stops being trustworthy: the geometry is `f64` and good for about fifteen
-/// figures on its own, but a value that has been through a solver and a change
-/// of scale has lost several, and printing digits nobody can stand behind is
-/// the same lie as rounding one that matters.
+/// The fewest significant figures a measure may be shown to: a thousandth of
+/// whatever is measured, where a reading stops telling a machinist anything.
 pub const FEWEST_FIGURES: u32 = 3;
-pub const MOST_FIGURES: u32 = 6;
+/// Asks for as many figures as a tenth of a micron needs. Six, the most there
+/// was before #519, which saved preferences still hold by default.
+pub const ALL_FIGURES: u32 = 6;
 
 fn default_measure_figures() -> u32 {
-    MOST_FIGURES
+    ALL_FIGURES
 }
 
 /// A value held to a number of significant figures, with the trailing zeros
@@ -150,7 +145,7 @@ fn default_measure_figures() -> u32 {
 /// printing, so that 1234.5678 to three figures is 1230 — what three figures
 /// means — and not 1235, which is four of them wearing a round face.
 pub fn to_figures(value: f64, figures: u32) -> String {
-    let figures = figures.clamp(FEWEST_FIGURES, MOST_FIGURES);
+    let figures = figures.max(FEWEST_FIGURES);
     if value == 0.0 || !value.is_finite() {
         return format!("{value}");
     }
@@ -170,6 +165,16 @@ pub fn to_places(value: f64, places: usize) -> String {
     }
     let first = -value.abs().log10().floor() as usize;
     trimmed(format!("{value:.first$}"))
+}
+
+/// A reading to `figures` significant figures, never past `places` decimals:
+/// [`ALL_FIGURES`] or more gives every decimal up to `places`.
+pub fn to_figures_within(value: f64, figures: u32, places: usize) -> String {
+    let decimals = f64::from(figures.max(FEWEST_FIGURES) - 1) - value.abs().log10().floor();
+    match figures >= ALL_FIGURES || decimals >= places as f64 {
+        true => to_places(value, places),
+        false => to_figures(value, figures),
+    }
 }
 
 fn trimmed(text: String) -> String {
@@ -215,23 +220,20 @@ impl LengthUnit {
     /// Formats a length given in world units (millimetres today) to a tenth of
     /// a micron, 1e-4 mm, said in this unit, its trailing zeros trimmed.
     pub fn format(self, millimeters: f64) -> String {
-        let places = (4.0 + self.millimeters().log10()).round() as usize;
         let value = millimeters / self.millimeters();
-        format!("{} {}", to_places(value, places), self.suffix())
+        format!("{} {}", to_places(value, self.places()), self.suffix())
     }
 
-    /// The same length held to a number of significant figures.
-    ///
-    /// `format` above is held to a tenth of a micron whatever the size. A
-    /// measure reports what is there, to as many figures as the reader says.
-    ///
-    /// Significant figures rather than decimal places, so that the precision
-    /// follows the size of what is being measured: six figures is a hundredth
-    /// of a micron on a part of a millimetre and a hundredth of a millimetre
-    /// on one of a metre, which is the right shape for both.
+    fn places(self) -> usize {
+        (4.0 + self.millimeters().log10()).round() as usize
+    }
+
+    /// The same length as a measure says it: to the tenth of a micron, or to
+    /// fewer significant figures when the reader asks for fewer.
     pub fn in_figures(self, millimeters: f64, figures: u32) -> String {
         let value = millimeters / self.millimeters();
-        format!("{} {}", to_figures(value, figures), self.suffix())
+        let text = to_figures_within(value, figures, self.places());
+        format!("{text} {}", self.suffix())
     }
 }
 
@@ -273,10 +275,9 @@ pub struct ViewportConfig {
     pub ruler_corner: ViewportCorner,
     pub ruler_visible: bool,
     pub unit: UnitDisplay,
-    /// How many significant figures a measure is shown to, between
-    /// [`FEWEST_FIGURES`] and [`MOST_FIGURES`]. A measure reports rather than
-    /// decides, so how much of the number is worth reading is the reader's
-    /// call and not the tool's.
+    /// How many significant figures a measure is shown to, from [`FEWEST_FIGURES`]
+    /// up to [`ALL_FIGURES`]: a measure reports rather than decides, so how much
+    /// of the number is worth reading is the reader's call and not the tool's.
     #[serde(default = "default_measure_figures")]
     pub measure_figures: u32,
 }

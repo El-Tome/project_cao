@@ -9,7 +9,7 @@ use crate::screens::viewport::chamfer_to_swap;
 use crate::ui::tool_button::tool_button;
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
-use super::state::{Context, Ribbon, active, enabled};
+use super::state::{Context, Ribbon, active, enabled, label, short_label};
 
 /// What the bar needs to know about the part being drawn.
 ///
@@ -277,14 +277,14 @@ fn lay_out(
 }
 
 fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut Vec<Command>) {
-    let name = wording::label(state.lang, command);
+    let name = label(command, state);
     let label = if state.settings.toolbar.show_labels {
         match state.settings.shortcuts.chord_for(command) {
             Some(chord) => format!("{name} ({})", shortcuts::chord(state.lang, chord)),
             None => name,
         }
     } else {
-        name.chars().take(2).collect()
+        short_label(command, state)
     };
 
     let response = tool_button(ui, enabled(command, state), active(command, state), label)

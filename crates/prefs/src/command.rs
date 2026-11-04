@@ -10,6 +10,7 @@ pub enum Command {
     NewSketch,
     FinishSketch,
     RecenterOnSketch,
+    NextMatterInFront,
     Undo,
     Redo,
     CompactHistory,
@@ -104,10 +105,11 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 60] = [
+    pub const ALL: [Self; 61] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
+        Self::NextMatterInFront,
         Self::Undo,
         Self::Redo,
         Self::CompactHistory,
@@ -171,7 +173,10 @@ impl Command {
     /// settings screen.
     pub fn family(self) -> CommandFamily {
         match self {
-            Self::NewSketch | Self::FinishSketch | Self::RecenterOnSketch => CommandFamily::Sketch,
+            Self::NewSketch
+            | Self::FinishSketch
+            | Self::RecenterOnSketch
+            | Self::NextMatterInFront => CommandFamily::Sketch,
             Self::Undo | Self::Redo | Self::CompactHistory => CommandFamily::Editing,
             Self::ToolSelect
             | Self::ToolLine

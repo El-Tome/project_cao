@@ -93,6 +93,7 @@ impl Default for ToolbarLayout {
                             ],
                         ),
                         Item::Command(C::RecenterOnSketch),
+                        Item::Command(C::NextMatterInFront),
                         Item::Command(C::FinishSketch),
                         Item::Separator,
                         Item::group("edit", vec![Item::Command(C::Undo), Item::Command(C::Redo)]),

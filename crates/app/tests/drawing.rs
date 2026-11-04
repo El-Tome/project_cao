@@ -26,6 +26,17 @@
 //! The fourth criterion was written expecting the step to leave the list. It
 //! does not: an undone step stays, greyed out and italic, and the test says so.
 //! What the tree can show is that something became redoable.
+//!
+//! Closes #319.
+//! - clicks always reach the sketch plane, whatever the state: drawing on a
+//!   stretch of plane hidden behind opaque matter still works —
+//!   `a_click_lands_on_the_sketch_plane_whatever_the_matter_in_front`
+//! - picking on the sketch plane does not break —
+//!   `the_dimension_tool_takes_a_segment_behind_the_matter_whatever_its_state`
+//! - snapping on the sketch plane does not break — no test: the snap reaches
+//!   the tree only as the point a step is laid on, which the history does not
+//!   name; the cursor is magnetised before the pick above takes what is under
+//!   it, and neither reads the body nor the state
 
 mod driver;
 
@@ -196,4 +207,78 @@ fn an_ellipse_drawn_with_three_clicks_becomes_a_step_of_the_sketch() {
         "the history names the ellipse as a numbered step of its own, showing {:?}",
         driver::on_screen(&app),
     );
+}
+
+/// A block raised off a sketch, and that sketch reopened from the history, so
+/// that the block stands between the eye and the plane being drawn on.
+fn a_sketch_reopened_under_its_own_block(test: &str) -> driver::App {
+    let mut app = driver::open(test);
+    driver::create_a_part(&mut app, "Bloc");
+    driver::start_a_sketch(&mut app);
+    driver::click(&mut app, "Rectangle (R)");
+    driver::click_at(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    driver::click_at(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::click_exactly(&mut app, "Extrusion");
+    driver::click_exactly(&mut app, "1");
+    driver::click(&mut app, "Ajout de matière");
+    driver::click_at(&mut app, (850.0, 510.0));
+    driver::click(&mut app, "Appliquer");
+    driver::open_the_history(&mut app);
+    driver::click(&mut app, "Modifier");
+    driver::click_exactly(&mut app, "Esquisse");
+    app
+}
+
+/// The same block and sketch, after `clicks` on the button that says how the
+/// matter in front of the sketch is drawn — one name per state, as the button
+/// reads them.
+fn reopened_after(clicks: usize, test: &str) -> driver::App {
+    let mut app = a_sketch_reopened_under_its_own_block(test);
+    for _ in 0..clicks {
+        driver::click(&mut app, "Matière devant");
+    }
+    app
+}
+
+const HIDDEN_SEE_THROUGH_OPAQUE: [&str; 3] = ["hidden", "see_through", "opaque"];
+
+#[test]
+fn a_click_lands_on_the_sketch_plane_whatever_the_matter_in_front() {
+    for (clicks, state) in HIDDEN_SEE_THROUGH_OPAQUE.into_iter().enumerate() {
+        let mut app = reopened_after(clicks, &format!("a_click_lands_{state}"));
+
+        driver::click(&mut app, "Ligne (L)");
+        driver::click_at(&mut app, (780.0, 450.0));
+        driver::click_at(&mut app, (920.0, 580.0));
+        driver::press(&mut app, egui::Key::Escape);
+
+        assert!(
+            driver::on_screen(&app)
+                .iter()
+                .any(|label| label.ends_with(". Trait")),
+            "{state}: two clicks on the plane behind the matter drew nothing, showing {:?}",
+            driver::on_screen(&app),
+        );
+    }
+}
+
+#[test]
+fn the_dimension_tool_takes_a_segment_behind_the_matter_whatever_its_state() {
+    for (clicks, state) in HIDDEN_SEE_THROUGH_OPAQUE.into_iter().enumerate() {
+        let mut app = reopened_after(clicks, &format!("the_dimension_takes_{state}"));
+        driver::click(&mut app, "Ligne (L)");
+        driver::click_at(&mut app, (780.0, 450.0));
+        driver::click_at(&mut app, (920.0, 450.0));
+        driver::press(&mut app, egui::Key::Escape);
+
+        driver::click(&mut app, "Cote (D)");
+        driver::click_at(&mut app, (850.0, 452.0));
+        driver::click_at(&mut app, (850.0, 520.0));
+
+        assert!(
+            driver::shows(&app, "Largeur"),
+            "{state}: a click beside the segment did not take it, showing {:?}",
+            driver::on_screen(&app),
+        );
+    }
 }

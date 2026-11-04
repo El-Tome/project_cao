@@ -24,7 +24,8 @@
 //!   `two_arcs_of_one_point_crossing_are_allowed_and_every_closed_place_is_one_area`
 
 use cao_sketch::{
-    Chamfer, CornerCutId, CutCurve, CutShape, DrawnCut, SegmentId, Sketch, WorkPlane,
+    Chamfer, Corner, CornerCutId, CutCurve, CutShape, CutSide, DrawnCut, SegmentId, Sketch,
+    WorkPlane,
 };
 use glam::DVec2;
 
@@ -106,7 +107,7 @@ fn touch_on(cut: DrawnCut, side: SegmentId) -> DVec2 {
     let rank = cut
         .sides
         .iter()
-        .position(|on| *on == side)
+        .position(|on| *on == CutSide::Trait(side))
         .expect("a side of the cut");
     cut.touches[rank]
 }
@@ -148,7 +149,10 @@ fn the_third_pair_of_the_point_is_cut_as_well() {
         .expect("the middle and the bottom traits make a corner");
 
     assert_eq!(fan.sketch.live_corner_cuts().count(), 3);
-    assert_eq!(drawn(&fan.sketch, third).sides, [fan.middle, fan.bottom]);
+    assert_eq!(
+        drawn(&fan.sketch, third).sides,
+        [CutSide::Trait(fan.middle), CutSide::Trait(fan.bottom)]
+    );
 }
 
 #[test]
@@ -173,9 +177,13 @@ fn two_cuts_on_one_end_of_a_side_overlap_rather_than_add_up() {
 
     assert!(drawn(&fan.sketch, near).fits, "the near fillet fits");
     assert!(drawn(&fan.sketch, far).fits, "the far fillet fits");
-    let share = fan
-        .sketch
-        .fitting_share(&[(fan.top, fan.bottom)], fillet(5.0));
+    let share = fan.sketch.fitting_share_at(
+        &[fan
+            .sketch
+            .sides_of(Corner::Between(fan.top.into(), fan.bottom.into()))
+            .expect("the top and the bottom traits meet")],
+        fillet(5.0),
+    );
     assert!(share >= 1.0, "the far fillet is not held back: {share}");
 }
 

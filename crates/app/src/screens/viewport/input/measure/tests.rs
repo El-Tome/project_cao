@@ -639,7 +639,10 @@ fn a_rounded_corner() -> PartDocument {
     });
     document.apply(Operation::Fillet {
         sketch: 0,
-        corners: vec![cao_sketch::Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![cao_sketch::Corner::Between(
+            SegmentId(0).into(),
+            SegmentId(1).into(),
+        )],
         radius: 5.0.into(),
         construction: false,
     });

@@ -3,7 +3,7 @@
 use glam::DVec2;
 
 use super::*;
-use crate::WorkPlane;
+use crate::{CutSide, SegmentId, WorkPlane};
 
 const NEAR: f64 = 1e-9;
 /// A share lets the tightest side give a hair more than its length: the
@@ -276,11 +276,124 @@ fn a_straight_corner_gives_a_cut_no_place() {
     assert_eq!(sketch.visible_part(first), Some(sketch.endpoints(first)));
 }
 
+/// An arc round (10, 18) of radius 8 leaving the corner at (10, 10) eastwards,
+/// a quarter turn up to (18, 18), and a trait from that corner to `far`.
+fn an_arc_leaving_east_beside_a_trait_to(far: DVec2) -> (Sketch, PointId, [CutSide; 2]) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corner = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(far);
+    let along = sketch.add_segment(corner, end);
+    let centre = sketch.add_point(DVec2::new(10.0, 18.0));
+    let top = sketch.add_point(DVec2::new(18.0, 18.0));
+    let arc = sketch.add_arc(centre, corner, top);
+    (sketch, corner, [along.into(), arc.into()])
+}
+
+#[test]
+fn a_corner_whose_curve_leaves_it_straight_on_or_the_same_way_as_its_trait_gives_a_fillet_no_place()
+{
+    for (far, what) in [
+        (
+            DVec2::new(-30.0, 10.0),
+            "the trait leaving west, the arc east: straight on",
+        ),
+        (
+            DVec2::new(50.0, 10.0),
+            "the trait and the arc both leaving east: the same way",
+        ),
+    ] {
+        let (mut sketch, corner, [along, arc]) = an_arc_leaving_east_beside_a_trait_to(far);
+        sketch
+            .cut_corner_at(
+                corner,
+                along,
+                arc,
+                CutShape::Fillet { radius: 3.0 },
+                false,
+                0,
+            )
+            .expect("a trait and an arc ending at one point are a corner");
+
+        assert!(
+            sketch.drawn_cuts().is_empty(),
+            "{what}: the fillet has no place, so nothing is drawn: {:?}",
+            sketch.drawn_cuts()
+        );
+    }
+}
+
+/// A trait from (10, 10) to (50, 10), and an arc of radius five round
+/// (14, 13) hollow towards the corner, from (9, 13) round to (10, 10) — the
+/// fixture of `the_tightest_side_beside_an_arc_says_how_much_of_the_value_fits`.
+fn a_trait_and_a_tight_hollow_arc() -> (Sketch, [CutSide; 2]) {
+    a_trait_and_an_arc(DVec2::new(14.0, 13.0), DVec2::new(9.0, 13.0), false)
+}
+
+#[test]
+fn a_fillet_as_big_as_the_hollow_arc_beside_it_does_not_fit() {
+    for radius in [5.0, 6.0] {
+        let (mut sketch, [along, arc]) = a_trait_and_a_tight_hollow_arc();
+        let id = sketch
+            .cut_corner(along, arc, CutShape::Fillet { radius }, false, 0)
+            .expect("the trait and the arc make a corner");
+
+        let drawn = sketch
+            .drawn_cut(id)
+            .expect("the fillet is still drawn, red");
+
+        assert!(
+            !drawn.fits,
+            "a fillet of {radius} cannot stand in the hollow of an arc of radius five: \
+             {drawn:?}"
+        );
+    }
+}
+
+#[test]
+fn a_fillet_with_no_place_beside_a_curve_is_drawn_red_where_the_tangents_would_put_it() {
+    let (mut sketch, [along, arc]) = a_trait_and_a_tight_hollow_arc();
+    let id = sketch
+        .cut_corner(along, arc, CutShape::Fillet { radius: 6.0 }, false, 0)
+        .expect("the trait and the arc make a corner");
+
+    let drawn = sketch
+        .drawn_cut(id)
+        .expect("the fillet is still drawn, red");
+
+    assert!(!drawn.fits, "{drawn:?}");
+    let CutCurve::Arc(curve) = drawn.curve else {
+        panic!("a fillet is drawn as an arc: {drawn:?}");
+    };
+    assert!(
+        near(curve.centre, DVec2::new(13.0, 16.0)),
+        "the trait leaves east and the arc's tangent at three fifths west and four fifths \
+         north, half the opening's tangent two: the stand-in stands six from both tangent \
+         lines, at (13, 16) — not {}",
+        curve.centre
+    );
+    assert!(
+        near(drawn.touches[0], DVec2::new(13.0, 10.0))
+            && near(drawn.touches[1], DVec2::new(8.2, 12.4)),
+        "it touches each tangent line three from the corner, the radius over the half \
+         opening's tangent: {:?}",
+        drawn.touches
+    );
+    for end in [curve.start, curve.end] {
+        assert!(
+            (end.distance(curve.centre) - 6.0).abs() < NEAR,
+            "the stand-in has the radius asked: {curve:?}"
+        );
+    }
+}
+
 #[test]
 fn values_that_fit_have_a_share_of_at_least_one() {
     let (sketch, _, [right, up]) = a_right_angle();
 
-    let share = sketch.fitting_share(&[(right, up)], CutShape::Fillet { radius: 10.0 });
+    let share = sketch.fitting_share_at(
+        &at_their_corner(&sketch, &[(right.into(), up.into())]),
+        CutShape::Fillet { radius: 10.0 },
+    );
 
     assert!(share >= 1.0, "{share}");
 }
@@ -288,15 +401,234 @@ fn values_that_fit_have_a_share_of_at_least_one() {
 #[test]
 fn the_tightest_side_says_how_much_of_the_values_fits() {
     let (sketch, sides) = a_rectangle(100.0, 20.0);
-    let corners: Vec<(SegmentId, SegmentId)> = (0..4)
-        .map(|rank| (sides[rank], sides[(rank + 1) % 4]))
+    let corners: Vec<(CutSide, CutSide)> = (0..4)
+        .map(|rank| (sides[rank].into(), sides[(rank + 1) % 4].into()))
         .collect();
 
-    let share = sketch.fitting_share(&corners, CutShape::Fillet { radius: 15.0 });
+    let share = sketch.fitting_share_at(
+        &at_their_corner(&sketch, &corners),
+        CutShape::Fillet { radius: 15.0 },
+    );
 
     assert!(
         (share * 15.0 - 10.0).abs() < SHARE_NEAR,
         "two fillets share the short side: {share}"
+    );
+}
+
+/// Each pair of sides at the one end they share, as a corner is handed to
+/// [`Sketch::fitting_share_at`].
+fn at_their_corner(
+    sketch: &Sketch,
+    pairs: &[(CutSide, CutSide)],
+) -> Vec<(PointId, CutSide, CutSide)> {
+    pairs
+        .iter()
+        .map(|(first, second)| {
+            sketch
+                .sides_of(crate::Corner::Between(*first, *second))
+                .expect("the two sides meet at one end")
+        })
+        .collect()
+}
+
+/// A trait from (10, 10) to (50, 10), and an arc round `centre` ending at
+/// (10, 10) and at `far`: running counter-clockwise from the corner to `far`
+/// when `from_the_corner`, from `far` to the corner otherwise.
+fn a_trait_and_an_arc(centre: DVec2, far: DVec2, from_the_corner: bool) -> (Sketch, [CutSide; 2]) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corner = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(DVec2::new(50.0, 10.0));
+    let along = sketch.add_segment(corner, end);
+    let centre = sketch.add_point(centre);
+    let far = sketch.add_point(far);
+    let arc = match from_the_corner {
+        true => sketch.add_arc(centre, corner, far),
+        false => sketch.add_arc(centre, far, corner),
+    };
+    (sketch, [along.into(), arc.into()])
+}
+
+/// Whether the fillet of `radius` laid on the corner is drawn, and fits.
+fn laid_fits(sketch: &mut Sketch, [first, second]: [CutSide; 2], radius: f64) -> Option<bool> {
+    let id = sketch
+        .cut_corner(first, second, CutShape::Fillet { radius }, false, 0)
+        .expect("the trait and the arc make a corner");
+    sketch.drawn_cut(id).map(|cut| cut.fits)
+}
+
+/// Holds the share offered for `asked` on a corner to the largest radius
+/// worked out by hand: the share gives it, the fillet asked is drawn and does
+/// not fit, the one offered fits, and a hair more does not.
+fn assert_the_largest_offered(
+    sketch: &mut Sketch,
+    sides: [CutSide; 2],
+    asked: f64,
+    largest: f64,
+    what: &str,
+) {
+    let share = sketch.fitting_share_at(
+        &at_their_corner(sketch, &[(sides[0], sides[1])]),
+        CutShape::Fillet { radius: asked },
+    );
+
+    assert!(
+        (share * asked - largest).abs() < SHARE_NEAR,
+        "{what}: the share {share} offers {} where the largest that fits is {largest}",
+        share * asked,
+    );
+    assert_eq!(
+        laid_fits(sketch, sides, asked),
+        Some(false),
+        "{what}: the fillet asked is drawn, and does not fit"
+    );
+    assert_eq!(
+        laid_fits(sketch, sides, share * asked),
+        Some(true),
+        "{what}: the fillet offered fits"
+    );
+    assert_eq!(
+        laid_fits(sketch, sides, share * asked * (1.0 + 1e-4)),
+        Some(false),
+        "{what}: a hair more than the fillet offered does not fit"
+    );
+}
+
+#[test]
+fn the_tightest_side_beside_an_arc_says_how_much_of_the_value_fits() {
+    let (mut short, sides) = a_trait_and_an_arc(
+        DVec2::new(2.0, 10.0),
+        DVec2::new(2.0 + 96.0 / 13.0, 10.0 + 40.0 / 13.0),
+        true,
+    );
+    assert_the_largest_offered(
+        &mut short,
+        sides,
+        8.0,
+        5.0,
+        "an arc bulging towards the corner, ending where a fillet of five touches it",
+    );
+
+    let (mut hollow, sides) =
+        a_trait_and_an_arc(DVec2::new(14.0, 13.0), DVec2::new(9.0, 13.0), false);
+    assert_the_largest_offered(
+        &mut hollow,
+        sides,
+        6.0,
+        3.0,
+        "an arc of radius five hollow towards the corner, asked a fillet of six, \
+         ending where a fillet of three touches it",
+    );
+}
+
+/// Whether each of two corners rounded together by `radius`, as one gesture,
+/// is drawn and fits.
+fn laid_together_fit(
+    sketch: &mut Sketch,
+    corners: [[CutSide; 2]; 2],
+    radius: f64,
+) -> [Option<bool>; 2] {
+    let ids = corners.map(|[first, second]| {
+        sketch
+            .cut_corner(first, second, CutShape::Fillet { radius }, false, 0)
+            .expect("a corner of the drawing")
+    });
+    ids.map(|id| sketch.drawn_cut(id).map(|cut| cut.fits))
+}
+
+/// Holds two corners rounded together to the largest radius worked out by
+/// hand, where their fillets just meet on the side between them: each fits on
+/// its own at the radius asked, both are red once laid together, the share
+/// gives the largest, both fit at it, and a hair more overlaps.
+fn assert_held_back_together(
+    sketch: &Sketch,
+    corners: [[CutSide; 2]; 2],
+    asked: f64,
+    largest: f64,
+    what: &str,
+) {
+    for (rank, [first, second]) in corners.into_iter().enumerate() {
+        let mut alone = sketch.clone();
+        assert_eq!(
+            laid_fits(&mut alone, [first, second], asked),
+            Some(true),
+            "{what}: corner {rank} on its own takes the fillet asked"
+        );
+    }
+    let share = sketch.fitting_share_at(
+        &at_their_corner(sketch, &corners.map(|[first, second]| (first, second))),
+        CutShape::Fillet { radius: asked },
+    );
+    assert!(
+        (share * asked - largest).abs() < SHARE_NEAR,
+        "{what}: the share {share} offers {} where the two fillets just meet at {largest}",
+        share * asked,
+    );
+
+    let mut together = sketch.clone();
+    assert_eq!(
+        laid_together_fit(&mut together, corners, asked),
+        [Some(false); 2],
+        "{what}: laid together, the two fillets overlap and neither fits"
+    );
+    assert_eq!(
+        laid_together_fit(&mut together, corners, share * asked),
+        [Some(true); 2],
+        "{what}: at the share offered, the two fillets meet and both fit"
+    );
+    assert_eq!(
+        laid_together_fit(&mut together, corners, share * asked * (1.0 + 1e-4)),
+        [Some(false); 2],
+        "{what}: a hair more than the share offered, the two fillets overlap"
+    );
+}
+
+#[test]
+fn two_fillets_on_the_two_ends_of_one_trait_one_beside_an_arc_hold_each_other_back() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let beside_the_arc = sketch.add_point(DVec2::new(10.0, 10.0));
+    let square = sketch.add_point(DVec2::new(30.0, 10.0));
+    let shared = sketch.add_segment(beside_the_arc, square);
+    let up = sketch.add_point(DVec2::new(30.0, 30.0));
+    let rising = sketch.add_segment(square, up);
+    let centre = sketch.add_point(DVec2::new(2.0, 10.0));
+    let top = sketch.add_point(DVec2::new(2.0, 18.0));
+    let arc = sketch.add_arc(centre, beside_the_arc, top);
+
+    assert_held_back_together(
+        &sketch,
+        [[shared.into(), arc.into()], [shared.into(), rising.into()]],
+        12.5,
+        12.0,
+        "a trait of twenty, rounded beside an arc of radius eight at one end and \
+         square at the other: a fillet of twelve takes eight of it beside the arc and \
+         twelve at the square end",
+    );
+}
+
+#[test]
+fn two_fillets_on_the_two_ends_of_one_arc_hold_each_other_back() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre_place = DVec2::new(2.0, 10.0);
+    let [low, high] = [-1.0, 1.0].map(|way| DVec2::new(12.0, 5.0 * way) / 13.0);
+    let centre = sketch.add_point(centre_place);
+    let ends = [low, high].map(|out| sketch.add_point(centre_place + out * 8.0));
+    let arc = sketch.add_arc(centre, ends[0], ends[1]);
+    let traits = [(ends[0], low), (ends[1], high)].map(|(end, out)| {
+        let far = sketch.add_point(centre_place + out * 28.0);
+        sketch.add_segment(end, far)
+    });
+
+    assert_held_back_together(
+        &sketch,
+        [
+            [arc.into(), traits[0].into()],
+            [arc.into(), traits[1].into()],
+        ],
+        10.0,
+        5.0,
+        "an arc of radius eight between two traits running out from its centre: a \
+         fillet of five on each end touches it at its middle",
     );
 }
 
@@ -313,7 +645,10 @@ fn a_cut_already_standing_takes_its_part_of_the_share() {
         )
         .expect("a rectangle's corner takes a fillet");
 
-    let share = sketch.fitting_share(&[(sides[1], sides[2])], CutShape::Fillet { radius: 10.0 });
+    let share = sketch.fitting_share_at(
+        &at_their_corner(&sketch, &[(sides[1].into(), sides[2].into())]),
+        CutShape::Fillet { radius: 10.0 },
+    );
 
     assert!((share * 10.0 - 5.0).abs() < SHARE_NEAR, "{share}");
 }
@@ -344,7 +679,10 @@ fn a_cut_in_construction_holds_no_drawn_cut_back() {
         sketch.drawn_cut(drawn).is_some_and(|cut| cut.fits),
         "the dashed arc takes nothing from the outline, so the side has room"
     );
-    let share = sketch.fitting_share(&[(sides[2], sides[3])], CutShape::Fillet { radius: 6.0 });
+    let share = sketch.fitting_share_at(
+        &at_their_corner(&sketch, &[(sides[2].into(), sides[3].into())]),
+        CutShape::Fillet { radius: 6.0 },
+    );
     assert!(share >= 1.0, "{share}");
 }
 
@@ -361,7 +699,10 @@ fn a_corner_cut_again_does_not_count_what_its_old_cut_takes() {
         )
         .expect("a rectangle's corner takes a fillet");
 
-    let share = sketch.fitting_share(&[(sides[0], sides[1])], CutShape::Fillet { radius: 20.0 });
+    let share = sketch.fitting_share_at(
+        &at_their_corner(&sketch, &[(sides[0].into(), sides[1].into())]),
+        CutShape::Fillet { radius: 20.0 },
+    );
 
     assert!(
         (share * 20.0 - 20.0).abs() < SHARE_NEAR,

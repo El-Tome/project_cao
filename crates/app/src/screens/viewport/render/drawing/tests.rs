@@ -6,6 +6,11 @@
 //! - their written value follows — no test: it is the same list read one file
 //!   away, in `dimensions.rs`, and egui paints it as text on a window this
 //!   test does not open
+//!
+//! The tint's share of #621, whose criteria live with the part's tests in
+//! `crates/part/tests/a_fillet_rounds_a_corner_with_a_curve.rs`: a plate
+//! rounded beside an arc is tinted over its rounded area —
+//! `a_plate_rounded_beside_an_arc_is_tinted_along_its_rounded_outline`.
 
 use cao_part::PartDocument;
 use cao_part::history::{Operation, PointRef};
@@ -242,5 +247,115 @@ fn a_value_the_cut_would_take_is_drawn_in_the_alert_colour() {
         going > staying,
         "the length about to go is drawn exactly like one that stays — the \
          stretch is red in both, so only the value can tell them apart",
+    );
+}
+
+/// A plate whose corner at (10, 10) stands between a trait running east to
+/// (50, 10) and an arc round (2, 10) of radius 8 rising a quarter turn to
+/// (2, 18), closed by traits up to (50, 30) and across to the arc's end — and
+/// the same plate with that corner rounded by five.
+fn a_plate_beside_an_arc(rounded: bool) -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddPoint {
+        sketch: 0,
+        position: DVec2::new(10.0, 10.0),
+        on: Vec::new(),
+    });
+    let corner = cao_sketch::PointId(1);
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(corner),
+        end: PointRef::New(DVec2::new(50.0, 10.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(2.0, 10.0)),
+        start: PointRef::Existing(corner),
+        end: PointRef::New(DVec2::new(2.0, 18.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(cao_sketch::PointId(2)),
+        end: PointRef::New(DVec2::new(50.0, 30.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(cao_sketch::PointId(5)),
+        end: PointRef::Existing(cao_sketch::PointId(4)),
+        construction: false,
+    });
+    if rounded {
+        document.apply(Operation::Fillet {
+            sketch: 0,
+            corners: vec![cao_sketch::Corner::At(corner)],
+            radius: 5.0.into(),
+            construction: false,
+        });
+    }
+    document
+}
+
+/// How much of the plane the frame tints, and the area the drawing reads.
+fn tinted(mut document: PartDocument) -> (f64, f64) {
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let sketch = document.sketches()[0].clone();
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let shown = Shown {
+        sketch: &sketch,
+        laid: &[],
+        cuts: &[],
+        going: None,
+        active: true,
+    };
+    let (mut lines, mut surfaces) = (Vec::new(), Vec::new());
+    push_sketch(
+        &mut lines,
+        &mut surfaces,
+        &shown,
+        &Theme::default(),
+        a_view(),
+        &context,
+    );
+    let tinted = surfaces
+        .chunks(3)
+        .map(|corners| {
+            let [a, b, c] = [0, 1, 2].map(|rank| place(&corners[rank], &sketch));
+            (b - a).perp_dot(c - a).abs() * 0.5
+        })
+        .sum();
+    let read: f64 = sketch.regions().iter().map(|region| region.area()).sum();
+    (tinted, read)
+}
+
+#[test]
+fn a_plate_rounded_beside_an_arc_is_tinted_along_its_rounded_outline() {
+    let (sharp, sharp_area) = tinted(a_plate_beside_an_arc(false));
+    let (rounded, rounded_area) = tinted(a_plate_beside_an_arc(true));
+
+    assert!(
+        sharp_area - rounded_area > 2.0,
+        "the fillet takes its sliver off the area: {sharp_area} against {rounded_area}"
+    );
+    assert!(
+        (rounded - rounded_area).abs() < 0.2,
+        "the rounded plate is tinted over its rounded area, {rounded_area}, not {rounded}"
+    );
+    assert!(
+        (sharp - rounded) > 2.0,
+        "less is tinted once the corner is rounded: {sharp} against {rounded}"
     );
 }

@@ -52,7 +52,7 @@ use std::f64::consts::PI;
 
 use cao_part::history::{ChamferAsked, CutAsked, CutChange, Operation, PointRef};
 use cao_part::{Formula, History, PartDocument, PartState, VariableChange, VariableId};
-use cao_sketch::{Chamfer, Corner, CornerCutId, CutShape, SegmentId, Sketch, WorkPlane};
+use cao_sketch::{Chamfer, Corner, CornerCutId, CutShape, CutSide, SegmentId, Sketch, WorkPlane};
 use glam::DVec2;
 
 /// How near the arithmetic an area read from its curves comes.
@@ -83,7 +83,7 @@ fn a_rounded_plate() -> History {
 
 fn the_four_corners() -> Vec<Corner> {
     (0..4)
-        .map(|side| Corner::Between(SegmentId(side), SegmentId((side + 1) % 4)))
+        .map(|side| Corner::Between(SegmentId(side).into(), SegmentId((side + 1) % 4).into()))
         .collect()
 }
 
@@ -114,7 +114,7 @@ fn a_corner_cut_again_takes_its_new_kind_and_value() {
 
     history.push(Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         mode: Chamfer::Equal(3.0).into(),
         construction: false,
     });
@@ -145,7 +145,7 @@ fn a_corner_of_a_group_cut_again_leaves_its_group() {
 
     history.push(Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         radius: 3.0.into(),
         construction: false,
     });
@@ -216,7 +216,7 @@ fn a_chamfer_swapped_takes_from_its_other_side() {
     let mut history = a_rounded_plate();
     history.push(Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         mode: ChamferAsked::from(Chamfer::Sided {
             first: 2.0,
             second: 4.0,
@@ -240,7 +240,11 @@ fn a_chamfer_swapped_takes_from_its_other_side() {
         .drawn_cut(chamfer)
         .expect("the chamfer");
     let taken_from = |cut: cao_sketch::DrawnCut, side: SegmentId| {
-        let rank = cut.sides.iter().position(|on| *on == side).expect("a side");
+        let rank = cut
+            .sides
+            .iter()
+            .position(|on| *on == CutSide::Trait(side))
+            .expect("a side");
         cut.touches[rank].distance(cut.corner)
     };
     near(taken_from(before, SegmentId(0)), 2.0, "before");
@@ -324,7 +328,7 @@ fn swapping_a_chamfer_and_taking_cuts_off_with_traits_are_each_taken_back_by_one
     let mut history = a_rounded_plate();
     history.push(Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         mode: ChamferAsked::from(Chamfer::Sided {
             first: 2.0,
             second: 4.0,

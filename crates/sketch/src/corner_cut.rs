@@ -12,18 +12,25 @@
 use serde::{Deserialize, Serialize};
 
 use crate::chamfer::Chamfer;
+use crate::corner::Corner;
 use crate::erased::Erased;
-use crate::sketch::{PointId, SegmentId, Sketch};
+use crate::sketch::{PointId, Sketch};
 
 mod changing;
+mod curved;
 mod drawn;
 mod hanging;
 mod picking;
 pub(crate) mod points;
+mod showing;
+mod side;
 
 pub use drawn::{CutCurve, DrawnCut, PulledEnds};
 pub use picking::Grip;
 pub use points::CutPoint;
+pub use showing::Stretches;
+pub use side::CutSide;
+pub(crate) use side::both_traits;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct CornerCutId(pub usize);
@@ -44,7 +51,7 @@ pub struct CornerCut {
     pub corner: PointId,
     /// The two sides, the one named first before the other: a chamfer in two
     /// distances, or in a distance and an angle, measures from the first.
-    pub sides: [SegmentId; 2],
+    pub sides: [CutSide; 2],
     pub shape: CutShape,
     /// Whether the cut is drawn as construction, decided when it was laid
     /// whatever its sides are.
@@ -57,36 +64,64 @@ pub struct CornerCut {
 /// Why a corner was not cut.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CutRefused {
-    /// The two traits do not end at one point, or one of them is an axis of
+    /// The two sides do not end at one point, or one of them is an axis of
     /// an ellipse, which the curve stands on.
     NoCorner,
+    /// A chamfer was asked beside an arc or an arc of ellipse: it cuts only a
+    /// corner between two traits.
+    ChamferOnACurve,
 }
 
 impl Sketch {
-    /// Cuts the corner two traits share. A corner already cut is cut again:
-    /// what it carried is taken off and the new cut stands in its place, in
-    /// the group it is laid with — a corner re-cut leaves the group it was
-    /// laid in.
-    ///
-    /// Every pair of traits meeting at a point is a corner of its own: a cut
-    /// between two other traits of the same point stands beside this one.
-    ///
-    /// A value too big for the corner is still laid: the cut is drawn as one
-    /// that does not fit, and the sharp corner stands in for it until the
-    /// drawing makes room. Holding a value back before it is laid is the
-    /// tool's business, through [`Sketch::fitting_share`].
+    /// Cuts the corner the one end two sides share stands at — see
+    /// [`Sketch::cut_corner_at`]. Two sides sharing both their ends, a D or a
+    /// lens, make two corners, and name neither: they are refused.
     pub fn cut_corner(
         &mut self,
-        first: SegmentId,
-        second: SegmentId,
+        first: impl Into<CutSide>,
+        second: impl Into<CutSide>,
         shape: CutShape,
         construction: bool,
         group: usize,
     ) -> Result<CornerCutId, CutRefused> {
-        let (corner, _, _) = self
-            .corner_to_cut(first, second)
+        let (first, second) = (first.into(), second.into());
+        let [corner] = self.corners_between(first, second)[..] else {
+            return Err(CutRefused::NoCorner);
+        };
+        self.cut_corner_at(corner, first, second, shape, construction, group)
+    }
+
+    /// Cuts the corner two sides make at `corner`, both ending there. A corner
+    /// already cut is cut again: what it carried is taken off and the new cut
+    /// stands in its place, in the group it is laid with — a corner re-cut
+    /// leaves the group it was laid in.
+    ///
+    /// Every pair of sides meeting at a point is a corner of its own: a cut
+    /// between two other sides of the same point stands beside this one, and
+    /// so does one at the other end of two sides sharing both.
+    ///
+    /// A value too big for the corner is still laid: the cut is drawn as one
+    /// that does not fit, and the sharp corner stands in for it until the
+    /// drawing makes room. Holding a value back before it is laid is the
+    /// tool's business, through [`Sketch::fitting_share_at`].
+    pub fn cut_corner_at(
+        &mut self,
+        corner: PointId,
+        first: impl Into<CutSide>,
+        second: impl Into<CutSide>,
+        shape: CutShape,
+        construction: bool,
+        group: usize,
+    ) -> Result<CornerCutId, CutRefused> {
+        let (first, second) = (first.into(), second.into());
+        self.corner_to_cut(corner, first, second)
             .ok_or(CutRefused::NoCorner)?;
-        let standing = self.cut_standing_between(first, second);
+        if matches!(shape, CutShape::Chamfer(_))
+            && let Some(refused) = first.refuses_a_chamfer().or(second.refuses_a_chamfer())
+        {
+            return Err(refused);
+        }
+        let standing = self.cut_standing_between(corner, first, second);
         if let Some(standing) = standing {
             Erased::mark(&mut self.erased.cuts, standing.0);
         }
@@ -128,9 +163,7 @@ impl Sketch {
     fn stands(&self, cut: &CornerCut) -> bool {
         !self.is_erased_point(cut.corner)
             && cut.sides.iter().all(|side| {
-                let segment = self.segments()[side.0];
-                !self.is_erased_segment(*side)
-                    && (segment.start == cut.corner || segment.end == cut.corner)
+                !self.is_erased_side(*side) && self.far_end_of(*side, cut.corner).is_some()
             })
     }
 
@@ -142,10 +175,31 @@ impl Sketch {
             .collect()
     }
 
-    /// The cut standing between two traits, whichever was named first.
-    pub fn cut_standing_between(&self, first: SegmentId, second: SegmentId) -> Option<CornerCutId> {
+    /// How a cut's corner is named again: by its two sides, the first first
+    /// — with its point too where the two share both their ends and their
+    /// sides alone name no corner.
+    pub fn corner_named(&self, cut: CornerCutId) -> Option<Corner> {
+        let laid = self.corner_cuts.get(cut.0)?;
+        let [first, second] = laid.sides;
+        Some(match self.corners_between(first, second).len() {
+            1 => Corner::Between(first, second),
+            _ => Corner::BetweenAt(laid.corner, first, second),
+        })
+    }
+
+    /// The cut standing at a point between two sides, whichever was named
+    /// first.
+    pub fn cut_standing_between(
+        &self,
+        corner: PointId,
+        first: CutSide,
+        second: CutSide,
+    ) -> Option<CornerCutId> {
         self.live_corner_cuts()
-            .find(|(_, cut)| cut.sides == [first, second] || cut.sides == [second, first])
+            .find(|(_, cut)| {
+                cut.corner == corner
+                    && (cut.sides == [first, second] || cut.sides == [second, first])
+            })
             .map(|(id, _)| id)
     }
 
@@ -176,43 +230,45 @@ impl Sketch {
         for rank in 0..self.corner_cuts.len() {
             let cut = self.corner_cuts[rank];
             let lost = self.is_erased_point(cut.corner)
-                || cut.sides.iter().any(|side| self.is_erased_segment(*side));
+                || cut.sides.iter().any(|side| self.is_erased_side(*side));
             if lost {
                 Erased::mark(&mut self.erased.cuts, rank);
             }
         }
     }
 
-    /// The cuts standing on a trait, read before a trim erases it.
-    pub(crate) fn cuts_standing_on(&self, side: SegmentId) -> Vec<CornerCutId> {
+    /// The cuts standing on a side, read before a trim erases it.
+    pub(crate) fn cuts_standing_on(&self, side: CutSide) -> Vec<CornerCutId> {
         self.live_corner_cuts()
             .filter(|(_, cut)| cut.sides.contains(&side))
             .map(|(id, _)| id)
             .collect()
     }
 
-    /// Hands each of `standing` — the cuts that stood on a trait now cut
+    /// Hands each of `standing` — the cuts that stood on a side now cut
     /// apart — to the piece still running into its corner, whatever rank that
-    /// piece got. A trim erases the trait before it lays the pieces, so the
+    /// piece got. A trim erases the side before it lays the pieces, so the
     /// cuts it took away are given back here; one whose corner no piece runs
-    /// into stays gone with the trait. A cut taken off or replaced before the
-    /// trim is none of these, and stays as it was.
+    /// into is gone with the side, an arc of ellipse keeping its own number
+    /// included. A cut taken off or replaced before the trim is none of these,
+    /// and stays as it was.
     pub(crate) fn cuts_follow_pieces(
         &mut self,
         standing: &[CornerCutId],
-        was: SegmentId,
-        pieces: &[SegmentId],
+        was: CutSide,
+        pieces: &[CutSide],
     ) {
         for id in standing {
             let cut = self.corner_cuts[id.0];
             let Some(at) = cut.sides.iter().position(|side| *side == was) else {
                 continue;
             };
-            let touching = pieces.iter().copied().find(|piece| {
-                let segment = self.segments()[piece.0];
-                segment.start == cut.corner || segment.end == cut.corner
-            });
+            let touching = pieces
+                .iter()
+                .copied()
+                .find(|piece| self.far_end_of(*piece, cut.corner).is_some());
             let Some(piece) = touching else {
+                Erased::mark(&mut self.erased.cuts, id.0);
                 continue;
             };
             self.corner_cuts[id.0].sides[at] = piece;

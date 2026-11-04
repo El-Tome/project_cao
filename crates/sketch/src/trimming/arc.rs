@@ -9,6 +9,7 @@ use super::carrying::{gone, targets};
 use super::{NO_LENGTH, ON_THE_TRAIT};
 use crate::arc::ArcId;
 use crate::constraints::Constraint;
+use crate::corner_cut::CutSide;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
 
 /// Below this an arc runs nowhere at all: its two ends are the same direction
@@ -162,6 +163,7 @@ impl Sketch {
         }
 
         let carried = self.carried_round(id);
+        let cut_on_it = self.cuts_standing_on(id.into());
         self.erase(Element::Arc(id));
         let dropped = gone(&carried.rules, self.constraints());
         let dropped_values = gone(&targets(&carried.values), &targets(self.dimensions()));
@@ -192,6 +194,8 @@ impl Sketch {
             });
         }
         self.hand_round(id, &pieces, &carried);
+        let laid: Vec<CutSide> = pieces.iter().map(|piece| piece.id.into()).collect();
+        self.cuts_follow_pieces(&cut_on_it, id.into(), &laid);
 
         let rules_dropped = dropped
             .iter()

@@ -10,7 +10,7 @@ use glam::DVec2;
 use crate::aim::{ChainAnchor, LockedInput};
 use crate::constraints::DimensionTarget;
 use crate::corner::Corner;
-use crate::corner_cut::CornerCutId;
+use crate::corner_cut::{CornerCutId, CutSide};
 use crate::element::Element;
 use crate::measuring::DimensionPicks;
 use crate::picking::Selection;
@@ -155,7 +155,7 @@ pub enum ToolState {
         taken: Vec<Corner>,
         /// A side named whose other side has not been clicked yet — half a
         /// corner, which is nothing to cut on its own.
-        half: Option<SegmentId>,
+        half: Option<CutSide>,
     },
     Constrain {
         picks: Vec<RulePick>,

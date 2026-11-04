@@ -1,4 +1,4 @@
-use cao_sketch::{Corner, Preview, Sketch, ToolState};
+use cao_sketch::{Preview, Sketch, ToolState};
 use glam::DVec2;
 
 use crate::screens::sketch::{SketchEditor, Tool};
@@ -29,10 +29,11 @@ pub(crate) fn previewed(
     let mut shown = taken.clone();
     if let Some(first) = half
         && let Some(under) = sketch
-            .nearest_segment(cursor, snap)
+            .nearest_side(cursor, snap)
             .filter(|under| under != first)
+        && let Ok(corner) = super::named_by(sketch, *first, under, cursor)
     {
-        shown.push(Corner::Between(*first, under));
+        shown.push(corner);
     }
     if shown.is_empty() {
         return None;
@@ -58,12 +59,12 @@ pub(crate) fn previewed(
         let group = trial.fresh_cut_group();
         let mut laid = Vec::new();
         for corner in shown {
-            let Some((first, second)) = trial.sides_of(corner) else {
+            let Some((point, first, second)) = trial.sides_of(corner) else {
                 continue;
             };
             // A corner that cannot be cut is simply not shown: the gesture
             // lays the others, and the tool says how many it turned away.
-            if let Ok(cut) = trial.cut_corner(first, second, shape, construction, group) {
+            if let Ok(cut) = trial.cut_corner_at(point, first, second, shape, construction, group) {
                 laid.push(cut);
             }
         }

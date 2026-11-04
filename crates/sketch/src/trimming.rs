@@ -3,6 +3,7 @@
 use glam::DVec2;
 
 use crate::constraints::{Constraint, Dimension, DimensionTarget};
+use crate::corner_cut::CutSide;
 use crate::erased::Erased;
 use crate::laid_from::LaidFrom;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
@@ -126,7 +127,7 @@ impl Sketch {
         }
 
         let carried = self.carried_by(segment, rules, values);
-        let cut_on_it = self.cuts_standing_on(segment);
+        let cut_on_it = self.cuts_standing_on(segment.into());
         let hung = self.rules_hung_on(&cut_on_it);
 
         let corner = self.corner_of_an_angle_on(segment, &carried.values);
@@ -183,7 +184,8 @@ impl Sketch {
 
         self.hand_over(segment, &pieces, &carried);
         let laid: Vec<SegmentId> = pieces.iter().map(|piece| piece.id).collect();
-        self.cuts_follow_pieces(&cut_on_it, segment, &laid);
+        let laid: Vec<CutSide> = laid.into_iter().map(CutSide::from).collect();
+        self.cuts_follow_pieces(&cut_on_it, segment.into(), &laid);
         self.hang_again(&hung);
 
         let rules_dropped = dropped

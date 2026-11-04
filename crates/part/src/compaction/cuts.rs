@@ -1,6 +1,6 @@
 //! The fillets and chamfers of a sketch, laid again on the traits re-emitted.
 
-use cao_sketch::{Chamfer, Constraint, Corner, CornerCutId, CutShape, Sketch, Support};
+use cao_sketch::{Chamfer, Constraint, Corner, CornerCutId, CutShape, CutSide, Sketch, Support};
 
 use super::record;
 use super::remap::SketchIdMap;
@@ -34,9 +34,16 @@ pub(super) fn add_cuts(
         };
         let corners = laid
             .iter()
-            .filter_map(|(_, cut)| {
-                let [one, other] = cut.sides.map(|side| map.segments.get(&side).copied());
-                Some(Corner::Between(one?, other?))
+            .filter_map(|(id, _)| match old_sketch.corner_named(*id)? {
+                Corner::Between(one, other) => {
+                    Some(Corner::Between(side_now(one, map)?, side_now(other, map)?))
+                }
+                Corner::BetweenAt(point, one, other) => Some(Corner::BetweenAt(
+                    map.points.get(&point).copied()?,
+                    side_now(one, map)?,
+                    side_now(other, map)?,
+                )),
+                Corner::At(point) => map.points.get(&point).copied().map(Corner::At),
             })
             .collect();
         let before = new_state.sketches[sketch_index].corner_cuts().len();
@@ -87,6 +94,15 @@ pub(super) fn add_cuts(
                 );
             }
         }
+    }
+}
+
+/// A cut's side, in the numbers the re-emitted sketch uses.
+fn side_now(side: CutSide, map: &SketchIdMap) -> Option<CutSide> {
+    match side {
+        CutSide::Trait(id) => map.segments.get(&id).copied().map(CutSide::Trait),
+        CutSide::Arc(id) => map.arcs.get(&id).copied().map(CutSide::Arc),
+        CutSide::ArcOfEllipse(id) => map.ellipses.get(&id).copied().map(CutSide::ArcOfEllipse),
     }
 }
 

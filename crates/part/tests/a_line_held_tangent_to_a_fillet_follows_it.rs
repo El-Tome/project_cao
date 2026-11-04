@@ -91,9 +91,9 @@
 use cao_part::history::{ChamferAsked, CutAsked, CutChange, Operation, PointRef};
 use cao_part::{History, PartDocument, PartState, compact};
 use cao_sketch::{
-    ArcDraft, Chamfer, Constraint, Corner, CornerCutId, CutCurve, Element, LockedInput, PointId,
-    Rule, RuleIntent, RulePick, SegmentId, Sketch, Support, WorkPlane, rectangle_dimensions,
-    rule_intent, sweep_of,
+    ArcDraft, Chamfer, Constraint, Corner, CornerCutId, CutCurve, CutSide, Element, LockedInput,
+    PointId, Rule, RuleIntent, RulePick, SegmentId, Sketch, Support, WorkPlane,
+    rectangle_dimensions, rule_intent, sweep_of,
 };
 use glam::DVec2;
 
@@ -161,7 +161,7 @@ fn a_corner_cut_beside(cut: Operation, [start, end]: [DVec2; 2]) -> History {
 }
 
 fn the_corner() -> Vec<Corner> {
-    vec![Corner::Between(SegmentId(0), SegmentId(1))]
+    vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())]
 }
 
 /// The corner rounded to 5 about (15, 15), the line some 8.5 from the
@@ -688,7 +688,7 @@ fn a_corner_rounded_again_from_its_other_side_keeps_its_line_tangent() {
 
     history.push(Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(1), SegmentId(0))],
+        corners: vec![Corner::Between(SegmentId(1).into(), SegmentId(0).into())],
         radius: 8.0.into(),
         construction: false,
     });
@@ -721,7 +721,9 @@ fn a_side_trimmed_keeps_its_line_tangent_to_the_fillet() {
 
     let sketch = the_drawing(&history);
     let cut = the_cut(&sketch);
-    let side = sketch.corner_cuts()[cut.0].sides[0];
+    let CutSide::Trait(side) = sketch.corner_cuts()[cut.0].sides[0] else {
+        panic!("the corner is cut between two traits");
+    };
     let (start, end) = sketch.endpoints(side);
     assert!(
         (start.distance(end) - 30.0).abs() < SAME,
@@ -923,7 +925,7 @@ fn a_rectangle_rounded_at_its_first_corner(
     let sides = a_rectangle(&mut history, corner, opposite);
     history.push(Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(sides[0], sides[3])],
+        corners: vec![Corner::Between(sides[0].into(), sides[3].into())],
         radius: RADIUS.into(),
         construction: false,
     });

@@ -65,8 +65,8 @@
 use cao_part::history::{ChamferAsked, CutAsked, CutChange, Operation, PointRef};
 use cao_part::{History, Outcome, PartDocument, PartState, compact};
 use cao_sketch::{
-    Chamfer, Constraint, Corner, CornerCutId, CutPoint, DimensionTarget, Element, PointId, Rule,
-    RulePick, SegmentId, Sketch, Support, WorkPlane, rule_intent,
+    Chamfer, Constraint, Corner, CornerCutId, CutPoint, CutSide, DimensionTarget, Element, PointId,
+    Rule, RulePick, SegmentId, Sketch, Support, WorkPlane, rule_intent,
 };
 use glam::DVec2;
 
@@ -104,7 +104,7 @@ fn a_rounded_corner() -> History {
     });
     history.push(Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         radius: 5.0.into(),
         construction: false,
     });
@@ -673,7 +673,7 @@ fn a_rectangle_whose_visible_part_is_dimensioned_does_not_turn_when_its_radius_c
     }
     history.push(Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(1), SegmentId(2))],
+        corners: vec![Corner::Between(SegmentId(1).into(), SegmentId(2).into())],
         radius: 8.0.into(),
         construction: false,
     });
@@ -686,7 +686,9 @@ fn a_rectangle_whose_visible_part_is_dimensioned_does_not_turn_when_its_radius_c
         on: vec![Support::CutPoint(cut, CutPoint::First)],
     });
     let hung = PointId(drawing.points().len());
-    let side = drawing.corner_cuts()[cut.0].sides[0];
+    let CutSide::Trait(side) = drawing.corner_cuts()[cut.0].sides[0] else {
+        panic!("the corner is cut between two traits");
+    };
     let far = drawing.segments()[side.0];
     let far = match far.start == drawing.corner_cuts()[cut.0].corner {
         true => far.end,

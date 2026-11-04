@@ -4,7 +4,7 @@
 use cao_part::history::{ChamferAsked, CutChange, PointRef};
 use cao_part::{Operation, PartDocument, Variables};
 use cao_sketch::{
-    Chamfer, Corner, CornerCutId, CutShape, SegmentId, Selection, ToolState, WorkPlane,
+    Chamfer, Corner, CornerCutId, CutShape, CutSide, SegmentId, Selection, ToolState, WorkPlane,
 };
 use glam::DVec2;
 
@@ -29,7 +29,7 @@ fn a_rounded_plate() -> PartDocument {
     document.apply(Operation::Fillet {
         sketch: 0,
         corners: (0..4)
-            .map(|side| Corner::Between(SegmentId(side), SegmentId((side + 1) % 4)))
+            .map(|side| Corner::Between(SegmentId(side).into(), SegmentId((side + 1) % 4).into()))
             .collect(),
         radius: 5.0.into(),
         construction: false,
@@ -123,7 +123,7 @@ fn one_corner_of_a_group_cut_again_leaves_the_group_with_its_new_value() {
         phase: SketchPhase::Editing(0),
         tool: Tool::Fillet,
         tool_state: ToolState::Corner {
-            taken: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+            taken: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
             half: None,
         },
         ..Default::default()
@@ -210,7 +210,7 @@ fn the_sides_of_a_held_chamfer_are_swapped() {
     let mut document = a_rounded_plate();
     document.apply(Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         mode: ChamferAsked::from(Chamfer::Sided {
             first: 2.0,
             second: 4.0,
@@ -235,7 +235,7 @@ fn the_sides_of_a_held_chamfer_are_swapped() {
 
     assert_eq!(
         context.document.sketches()[0].corner_cuts()[chamfer.0].sides,
-        [SegmentId(1), SegmentId(0)]
+        [CutSide::Trait(SegmentId(1)), CutSide::Trait(SegmentId(0))]
     );
 }
 
@@ -326,7 +326,7 @@ fn a_fillet_written_from_a_variable_opens_on_its_formula_and_keeps_following_it(
         .expect("a formula that reads");
     document.apply(Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         radius,
         construction: false,
     });
@@ -362,7 +362,7 @@ fn a_chamfer_group_clicked_in_the_other_order_is_cut_again_rather_than_retyped()
     let mut document = a_rounded_plate();
     document.apply(Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         mode: ChamferAsked::from(Chamfer::Sided {
             first: 2.0,
             second: 4.0,
@@ -374,7 +374,7 @@ fn a_chamfer_group_clicked_in_the_other_order_is_cut_again_rather_than_retyped()
         tool: Tool::Chamfer,
         chamfer_mode: cao_sketch::ChamferMode::Sided,
         tool_state: ToolState::Corner {
-            taken: vec![Corner::Between(SegmentId(1), SegmentId(0))],
+            taken: vec![Corner::Between(SegmentId(1).into(), SegmentId(0).into())],
             half: None,
         },
         ..Default::default()
@@ -406,7 +406,10 @@ fn a_chamfer_group_clicked_in_the_other_order_is_cut_again_rather_than_retyped()
         .live_corner_cuts()
         .find(|(_, cut)| matches!(cut.shape, CutShape::Chamfer(_)))
         .expect("the corner cut again");
-    assert_eq!(cut.sides, [SegmentId(1), SegmentId(0)]);
+    assert_eq!(
+        cut.sides,
+        [CutSide::Trait(SegmentId(1)), CutSide::Trait(SegmentId(0))]
+    );
 }
 
 #[test]
@@ -468,7 +471,7 @@ fn the_second_pair_of_a_point_given_a_fillet_is_laid_beside_the_first_rather_tha
     }
     document.apply(Operation::Fillet {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         radius: 1.5.into(),
         construction: false,
     });
@@ -476,7 +479,7 @@ fn the_second_pair_of_a_point_given_a_fillet_is_laid_beside_the_first_rather_tha
         phase: SketchPhase::Editing(0),
         tool: Tool::Fillet,
         tool_state: ToolState::Corner {
-            taken: vec![Corner::Between(SegmentId(0), SegmentId(2))],
+            taken: vec![Corner::Between(SegmentId(0).into(), SegmentId(2).into())],
             half: None,
         },
         ..Default::default()
@@ -507,5 +510,84 @@ fn the_second_pair_of_a_point_given_a_fillet_is_laid_beside_the_first_rather_tha
             CutShape::Fillet { radius: 1.5 },
             CutShape::Fillet { radius: 5.0 }
         ]
+    );
+}
+
+/// A D — a trait from (10, 10) to (30, 10) and the arc round (20, 10) closing
+/// it over the top — rounded by two at its left end, and a trait drawn from
+/// that end afterwards: the end then carries three sides.
+fn a_d_rounded_at_an_end_a_trait_was_drawn_from() -> PartDocument {
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for at in [DVec2::new(10.0, 10.0), DVec2::new(30.0, 10.0)] {
+        document.apply(Operation::AddPoint {
+            sketch: 0,
+            position: at,
+            on: Vec::new(),
+        });
+    }
+    let (left, right) = (cao_sketch::PointId(1), cao_sketch::PointId(2));
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(left),
+        end: PointRef::Existing(right),
+        construction: false,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(20.0, 10.0)),
+        start: PointRef::Existing(right),
+        end: PointRef::Existing(left),
+        construction: false,
+    });
+    document.apply(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::At(left)],
+        radius: 2.0.into(),
+        construction: false,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(left),
+        end: PointRef::New(DVec2::new(0.0, 0.0)),
+        construction: false,
+    });
+    document
+}
+
+#[test]
+fn retyping_a_fillet_on_a_d_whose_end_a_trait_was_drawn_from_reshapes_it() {
+    let mut document = a_d_rounded_at_an_end_a_trait_was_drawn_from();
+    assert_eq!(shapes(&document), vec![CutShape::Fillet { radius: 2.0 }]);
+    let mut editor = holding(Vec::new());
+    let (mut extrusion, lang) = (ExtrusionState::default(), Catalogue::french());
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    open_cut_values(&mut context, 0, CornerCutId(0));
+    let field = context.editor.live.field(0);
+    field.text = "3".to_string();
+    field.take(&Variables::default());
+
+    assert!(super::super::corner::cut(&mut context, 0));
+
+    assert!(
+        matches!(
+            context.document.history.applied_operations().last(),
+            Some(Operation::CutChange(CutChange::Reshape { .. }))
+        ),
+        "the value retyped reshapes the fillet in place, rather than laying a new one its \
+         crowded corner refuses: {:?}",
+        context.document.history.applied_operations().last()
+    );
+    assert_eq!(
+        shapes(context.document),
+        vec![CutShape::Fillet { radius: 3.0 }]
     );
 }

@@ -19,6 +19,7 @@ use super::{NO_LENGTH, ON_THE_TRAIT};
 /// round the curve two places stand, and the two ends of a stretch are read
 /// off points the drawing already holds on it.
 const ROUND_THE_CURVE: f64 = 1e-9;
+use crate::corner_cut::CutSide;
 use crate::ellipse::{Ellipse, EllipseId};
 use crate::sketch::{Element, PointId, Sketch};
 
@@ -127,6 +128,7 @@ impl Sketch {
         }
 
         let kept = self.what_is_left(id, from, to);
+        let cut_on_it = self.cuts_standing_on(id.into());
         let mut pieces = Vec::new();
         for (rank, (opens, closes)) in kept.iter().enumerate() {
             match rank {
@@ -148,6 +150,8 @@ impl Sketch {
         if pieces.is_empty() {
             self.erase(Element::Ellipse(id));
         }
+        let laid: Vec<CutSide> = pieces.iter().map(|piece| (*piece).into()).collect();
+        self.cuts_follow_pieces(&cut_on_it, id.into(), &laid);
         Some(EllipseTrimmed { pieces })
     }
 

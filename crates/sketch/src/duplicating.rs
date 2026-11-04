@@ -4,7 +4,7 @@
 use glam::DVec2;
 
 use crate::arc::ArcId;
-use crate::corner_cut::CornerCutId;
+use crate::corner_cut::{CornerCutId, CutSide};
 use crate::element::Element;
 use crate::ellipse::EllipseId;
 use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
@@ -69,7 +69,7 @@ impl Sketch {
                 .map(|(_, now)| *now)
         };
 
-        let mut sides: Vec<(SegmentId, SegmentId)> = Vec::new();
+        let mut sides: Vec<(CutSide, CutSide)> = Vec::new();
         for held in &laid {
             match *held {
                 Element::Point(_) => {}
@@ -84,7 +84,7 @@ impl Sketch {
                         true => self.add_construction_segment(start, end),
                         false => self.add_segment(start, end),
                     };
-                    sides.push((id, copy));
+                    sides.push((id.into(), copy.into()));
                     made.segments.push(copy);
                 }
                 Element::Circle(id) => {
@@ -118,10 +118,12 @@ impl Sketch {
                         true => (end, start),
                         false => (start, end),
                     };
-                    made.arcs.push(match curve.construction {
+                    let copy = match curve.construction {
                         true => self.add_construction_arc(centre, start, end),
                         false => self.add_arc(centre, start, end),
-                    });
+                    };
+                    sides.push((id.into(), copy.into()));
+                    made.arcs.push(copy);
                 }
                 Element::Ellipse(id) => {
                     let Some(oval) = self.ellipses().get(id.0).copied() else {
@@ -159,21 +161,33 @@ impl Sketch {
                     // part of what the copy left behind.
                     let axes = self.ellipses()[copy.0];
                     made.segments.extend([axes.first, axes.second]);
+                    sides.push((id.into(), copy.into()));
                     made.ellipses.push(copy);
                 }
             }
         }
-        made.cuts = self.cut_the_copies(&sides);
+        made.cuts = self.cut_the_copies(&sides, &copied);
         made
     }
 
     /// Cuts every corner whose two sides were copied the same way on the copy,
-    /// each group laid together staying one group of its own.
-    fn cut_the_copies(&mut self, sides: &[(SegmentId, SegmentId)]) -> Vec<CornerCutId> {
-        let copy_of = |side: SegmentId| {
+    /// at the copy of its point, each group laid together staying one group
+    /// of its own.
+    fn cut_the_copies(
+        &mut self,
+        sides: &[(CutSide, CutSide)],
+        points: &[(PointId, PointId)],
+    ) -> Vec<CornerCutId> {
+        let copy_of = |side: CutSide| {
             sides
                 .iter()
                 .find(|(was, _)| *was == side)
+                .map(|(_, now)| *now)
+        };
+        let point_of = |point: PointId| {
+            points
+                .iter()
+                .find(|(was, _)| *was == point)
                 .map(|(_, now)| *now)
         };
         let standing: Vec<_> = self.live_corner_cuts().map(|(_, cut)| cut).collect();
@@ -181,9 +195,11 @@ impl Sketch {
         let mut groups: Vec<(usize, usize)> = Vec::new();
         let mut cut = Vec::new();
         for original in standing {
-            let (Some(first), Some(second)) =
-                (copy_of(original.sides[0]), copy_of(original.sides[1]))
-            else {
+            let (Some(corner), Some(first), Some(second)) = (
+                point_of(original.corner),
+                copy_of(original.sides[0]),
+                copy_of(original.sides[1]),
+            ) else {
                 continue;
             };
             let group = match groups.iter().find(|(was, _)| *was == original.group) {
@@ -194,9 +210,8 @@ impl Sketch {
                     now
                 }
             };
-            if let Ok(id) =
-                self.cut_corner(first, second, original.shape, original.construction, group)
-            {
+            let (shape, construction) = (original.shape, original.construction);
+            if let Ok(id) = self.cut_corner_at(corner, first, second, shape, construction, group) {
                 cut.push(id);
             }
         }

@@ -4,8 +4,8 @@
 
 use cao_prefs::theme::Theme;
 use cao_sketch::{
-    Chamfer, Constraint, CornerCutId, CutCurve, CutPoint, CutShape, DrawnCut, PointId, PulledEnds,
-    SegmentId, Selection, Sketch,
+    Chamfer, Constraint, CornerCutId, CutCurve, CutPoint, CutShape, CutSide, DrawnCut, PointId,
+    PulledEnds, SegmentId, Selection, Sketch,
 };
 use glam::{DVec2, DVec3};
 
@@ -17,6 +17,9 @@ use super::overlays::{tint_to_color, to_screen};
 use super::{emphasis, tint, tint_at};
 use crate::screens::SketchContext;
 use crate::screens::viewport::ViewScale;
+
+mod curve_sides;
+mod hidden;
 
 /// How faint the stretch of a side hidden by a cut is drawn, as a share of
 /// the side's own colour: the sharp corner is still there to be read.
@@ -37,8 +40,8 @@ pub(super) struct CutCanvas<'a> {
     /// The cuts under the cursor or held, and the cuts laid with them.
     lit: Lit,
     /// The sides of each at its corner, whose hidden stretch lights with it.
-    lit_ends: Vec<(PointId, SegmentId)>,
-    linked_ends: Vec<(PointId, SegmentId)>,
+    lit_ends: Vec<(PointId, CutSide)>,
+    linked_ends: Vec<(PointId, CutSide)>,
 }
 
 /// How a line is drawn.
@@ -79,20 +82,7 @@ impl<'a> CutCanvas<'a> {
     ) {
         let world = |place: DVec2| self.sketch.plane.to_world(place);
         let corners = self.sketch.segments()[side.0];
-        let hidden = |corner: PointId| {
-            let lit = match (
-                self.lit_ends.contains(&(corner, side)),
-                self.linked_ends.contains(&(corner, side)),
-            ) {
-                (true, _) => 1.0,
-                (false, true) => LINKED,
-                (false, false) => return stroke,
-            };
-            Stroke {
-                color: tint_at(theme.highlight, lit),
-                ..stroke
-            }
-        };
+        let hidden = |corner: PointId| self.hidden_at(corner, side.into(), stroke, theme);
         let Some(ends) = self.sketch.visible_ends(side, &self.pulled) else {
             push_hidden(out, world(start), world(end), hidden(corners.start), scale);
             return;
@@ -238,9 +228,8 @@ fn push_hidden(
     stroke: Stroke,
     scale: ViewScale,
 ) {
-    let [red, green, blue, alpha] = stroke.color;
-    let faint = [red, green, blue, alpha * HIDDEN];
-    push_line(out, from, to, faint, stroke.width * 0.6, true, scale);
+    let faint = hidden::faint(stroke);
+    push_line(out, from, to, faint.color, faint.width, true, scale);
 }
 
 /// The cuts under the cursor or held by the selection, apart from the cuts
@@ -279,7 +268,7 @@ fn corners_of(sketch: &Sketch, cuts: &[CornerCutId]) -> Vec<PointId> {
 
 /// Each side of these cuts at its corner: a point carrying several cuts
 /// lights only the sides of the one lit.
-fn ends_of(sketch: &Sketch, cuts: &[CornerCutId]) -> Vec<(PointId, SegmentId)> {
+fn ends_of(sketch: &Sketch, cuts: &[CornerCutId]) -> Vec<(PointId, CutSide)> {
     cuts.iter()
         .filter_map(|cut| sketch.corner_cuts().get(cut.0))
         .flat_map(|cut| cut.sides.map(|side| (cut.corner, side)))

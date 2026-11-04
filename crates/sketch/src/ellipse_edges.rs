@@ -9,6 +9,7 @@
 use glam::DVec2;
 
 use crate::arcing::ArcDraft;
+use crate::corner_cut::PulledEnds;
 use crate::crossing::ellipse::{
     where_arc_crosses_ellipse, where_circle_crosses_ellipse, where_ellipses_cross,
     where_segment_crosses_ellipse,
@@ -73,19 +74,27 @@ impl Oval {
 }
 
 impl Sketch {
-    pub(crate) fn ovals(&self, touch: f64) -> Vec<Oval> {
+    /// Every ellipse drawn as the outline, the stretch of each from where the
+    /// cuts on its ends leave it — none left of one they take all of.
+    pub(crate) fn ovals(&self, touch: f64, pulled: &PulledEnds) -> Vec<Oval> {
         let mut ovals: Vec<Oval> = self
             .live_ellipses()
             .filter(|(_, ellipse)| !ellipse.construction)
-            .map(|(id, _)| {
-                let (from, sweep) = self.ellipse_run(id);
+            .filter_map(|(id, _)| {
                 let turn = std::f64::consts::TAU;
-                Oval {
+                let run = match self.ellipse_ends(id) {
+                    None => None,
+                    Some(_) => {
+                        let (from, sweep) = self.ellipse_stretches(id, pulled).shows?;
+                        Some((from / turn, sweep / turn))
+                    }
+                };
+                Some(Oval {
                     id,
                     drawn: self.ellipse_draft(id),
                     turns: Vec::new(),
-                    run: self.ellipse_ends(id).map(|_| (from / turn, sweep / turn)),
-                }
+                    run,
+                })
             })
             .collect();
 

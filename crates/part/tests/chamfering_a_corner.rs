@@ -58,7 +58,7 @@ fn a_chamfer_draws_a_cut_across_the_corner_and_leaves_both_traits_whole() {
 
     let said = state.apply(&Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(EAST, NORTH)],
+        corners: vec![Corner::Between(EAST.into(), NORTH.into())],
         mode: Chamfer::Equal(3.0).into(),
         construction: false,
     });
@@ -96,7 +96,7 @@ fn a_chamfer_replayed_draws_the_same_cut() {
     let mut operations = a_right_angle();
     operations.push(Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(EAST, NORTH)],
+        corners: vec![Corner::Between(EAST.into(), NORTH.into())],
         mode: (Chamfer::Sided {
             first: 2.0,
             second: 6.0,
@@ -116,7 +116,7 @@ fn a_chamfer_is_measured_in_millimetres_like_every_other_length() {
 
     state.apply(&Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(EAST, NORTH)],
+        corners: vec![Corner::Between(EAST.into(), NORTH.into())],
         mode: Chamfer::Equal(6.0).into(),
         construction: false,
     });

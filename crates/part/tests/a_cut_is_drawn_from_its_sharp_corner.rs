@@ -157,7 +157,7 @@ fn a_plate(width: f64, height: f64) -> History {
 /// side after.
 fn the_four_corners() -> Vec<Corner> {
     (0..4)
-        .map(|side| Corner::Between(SegmentId(side), SegmentId((side + 1) % 4)))
+        .map(|side| Corner::Between(SegmentId(side).into(), SegmentId((side + 1) % 4).into()))
         .collect()
 }
 
@@ -218,7 +218,7 @@ fn sharp_and_rounded() -> (History, History) {
     let sharp = an_open_corner();
     let mut rounded = sharp.clone();
     rounded.push(round(
-        vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         5.0,
     ));
     (sharp, rounded)
@@ -247,7 +247,7 @@ fn a_rounded_corner_leaves_both_traits_whole_and_draws_its_curve() {
     let before = the_drawing(&history);
 
     history.push(round(
-        vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         5.0,
     ));
 
@@ -276,12 +276,12 @@ fn a_rounded_corner_leaves_both_traits_whole_and_draws_its_curve() {
 fn a_corner_named_by_its_point_or_by_its_two_traits_is_cut_the_same() {
     let mut by_traits = a_plate(40.0, 20.0);
     let mut by_point = by_traits.clone();
-    let corner = the_drawing(&by_traits)
-        .shared_point(SegmentId(0), SegmentId(1))
+    let (corner, _, _) = the_drawing(&by_traits)
+        .sides_of(Corner::Between(SegmentId(0).into(), SegmentId(1).into()))
         .expect("the two first sides meet");
 
     by_traits.push(round(
-        vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         5.0,
     ));
     by_point.push(round(vec![Corner::At(corner)], 5.0));
@@ -295,7 +295,7 @@ fn two_traits_that_do_not_touch_are_refused() {
     let mut state = PartState::rebuild(&a_plate(40.0, 20.0));
 
     let said = state.apply(&round(
-        vec![Corner::Between(SegmentId(0), SegmentId(2))],
+        vec![Corner::Between(SegmentId(0).into(), SegmentId(2).into())],
         5.0,
     ));
 
@@ -372,7 +372,7 @@ fn the_corner_keeps_the_rules_and_dimensions_it_had() {
     let before = the_drawing(&history);
 
     history.push(round(
-        vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         5.0,
     ));
 
@@ -453,7 +453,7 @@ fn an_equal_chamfer_takes_one_value_from_both_sides() {
     let mut history = a_plate(40.0, 20.0);
     history.push(Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         mode: Chamfer::Equal(3.0).into(),
         construction: false,
     });
@@ -559,7 +559,7 @@ fn a_side_dimension_measures_up_to_the_sharp_corner() {
 fn dividing_a_rounded_side_keeps_its_cut() {
     let mut history = a_plate(40.0, 20.0);
     history.push(round(
-        vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         5.0,
     ));
     let before = the_drawing(&history).drawn_cuts();
@@ -581,7 +581,7 @@ fn dividing_a_rounded_side_keeps_its_cut() {
 fn erasing_a_rounded_side_takes_its_cut() {
     let mut history = a_plate(40.0, 20.0);
     history.push(round(
-        vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         5.0,
     ));
 
@@ -735,7 +735,7 @@ fn the_first_cut_a_part_is_given_fixes_its_scale() {
 
     state.apply(&Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
         mode: Chamfer::Equal(3.0).into(),
         construction: false,
     });
@@ -748,14 +748,14 @@ fn a_compacted_part_keeps_its_cuts_and_their_groups() {
     let mut history = a_plate(40.0, 20.0);
     history.push(round(
         vec![
-            Corner::Between(SegmentId(0), SegmentId(1)),
-            Corner::Between(SegmentId(1), SegmentId(2)),
+            Corner::Between(SegmentId(0).into(), SegmentId(1).into()),
+            Corner::Between(SegmentId(1).into(), SegmentId(2).into()),
         ],
         5.0,
     ));
     history.push(Operation::Chamfer {
         sketch: 0,
-        corners: vec![Corner::Between(SegmentId(2), SegmentId(3))],
+        corners: vec![Corner::Between(SegmentId(2).into(), SegmentId(3).into())],
         mode: Chamfer::Equal(2.0).into(),
         construction: false,
     });

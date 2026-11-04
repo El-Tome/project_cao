@@ -183,6 +183,20 @@ impl EllipseDraft {
         self.at(self.turn_nearest(place))
     }
 
+    /// The place of the run from the turn `from` round by `sweep` closest to
+    /// a place: on the curve where the run passes by, its nearer end past it.
+    pub(crate) fn nearest_along(&self, place: DVec2, from: f64, sweep: f64) -> DVec2 {
+        let turn = self.turn_nearest(place);
+        if (turn - from).rem_euclid(std::f64::consts::TAU) <= sweep {
+            return self.at(turn);
+        }
+        let (start, end) = (self.at(from), self.at(from + sweep));
+        match place.distance(start) <= place.distance(end) {
+            true => start,
+            false => end,
+        }
+    }
+
     /// How far a place stands from the curve.
     pub fn distance(&self, place: DVec2) -> f64 {
         self.nearest(place).distance(place)

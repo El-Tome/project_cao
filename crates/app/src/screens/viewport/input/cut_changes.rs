@@ -34,10 +34,7 @@ pub(crate) fn open_cut_values(context: &mut SketchContext<'_>, index: usize, cut
     let taken: Vec<Corner> = sketch
         .cuts_grouped_with(cut)
         .into_iter()
-        .map(|id| {
-            let [first, second] = sketch.corner_cuts()[id.0].sides;
-            Corner::Between(first, second)
-        })
+        .filter_map(|id| sketch.corner_named(id))
         .collect();
     let mm = context.document.scale();
     let (tool, mode, values) = match laid.shape {

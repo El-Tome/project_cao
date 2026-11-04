@@ -17,10 +17,9 @@
 //! No place on the grid or on a ray is kept where the cylinder all but lies
 //! on a wall facing it, or on a plane touching it off the line they touch
 //! along, nor a step or less from an end where the curve all but lies on a
-//! surface that end lies on, as for a meet — on an elliptic wall, nor where
-//! the place a wall abreast of it takes on the same ray does, nor on a step
-//! of the grid the wall leaves out beside one, as a circle withholds its
-//! own.
+//! surface that end lies on, as for a meet — on an elliptic wall, nor on a
+//! step of the grid the wall leaves out beside one, as a circle withholds
+//! its own.
 
 mod rays;
 
@@ -32,8 +31,8 @@ use glam::DVec3;
 use super::abreast::Abreast;
 use super::chords::halved;
 use super::cone::{Grid, Spun};
-use super::elliptic::{between_steps, kept, on_the_wall, reached_by_planes};
-use super::ends::grazed;
+use super::elliptic::{a_step_apart, between_steps, on_the_wall, reached_by_planes};
+use super::ends::{grazed, grazed_near};
 use super::{divisions, on_a_plane, touching_planes};
 use crate::brep::conic::{Conic, On, Round};
 use crate::brep::surface::Surface;
@@ -121,7 +120,9 @@ pub(super) fn of_edge(
                 .filter(|(step, _)| !left_out.contains(step))
                 .map(|(_, angle)| angle)
                 .collect();
-            let clear = kept(body, edge, conic.plane, wall, steps, id, abreast);
+            let own = [plane, Surface::Elliptic(wall)];
+            let grazing = grazed_near(body, edge, &own, a_step_apart(wall, steps));
+            let clear = |point: DVec3| !grazing(point, eps * contact::APART);
             let rays: Vec<f64> = on_the_wall(body, &wall, steps)
                 .into_iter()
                 .chain(reached_by_planes(body, &wall))

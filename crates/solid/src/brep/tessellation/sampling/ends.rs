@@ -167,26 +167,12 @@ pub(super) fn grazed_near<'a, Near>(
 where
     Near: Fn(DVec3, DVec3) -> bool + 'a,
 {
-    let ends: Vec<VertexId> = edge.ends.into_iter().flatten().collect();
-    grazed_at(body, &ends, own, near)
-}
-
-/// Whether a place stands within `room` of a surface one of the vertices
-/// `ends` lies on and none of `own` is, where `near` says the place stands
-/// near that vertex.
-pub(super) fn grazed_at<'a, Near>(
-    body: &'a Body,
-    ends: &[VertexId],
-    own: &[Surface],
-    near: Near,
-) -> impl Fn(DVec3, f64) -> bool + use<'a, Near>
-where
-    Near: Fn(DVec3, DVec3) -> bool + 'a,
-{
-    let ends: Vec<(DVec3, Vec<Surface>)> = ends
-        .iter()
+    let ends: Vec<(DVec3, Vec<Surface>)> = edge
+        .ends
+        .into_iter()
+        .flatten()
         .map(|end| {
-            let vertex = body.vertex(*end);
+            let vertex = body.vertex(end);
             let surfaces = vertex
                 .on
                 .iter()

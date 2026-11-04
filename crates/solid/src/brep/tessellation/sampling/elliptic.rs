@@ -7,14 +7,10 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
-use super::abreast::Abreast;
-use super::ends::{grazed_at, grazed_near};
-use crate::brep::conic::{Conic, On, Round};
-use crate::brep::curve::Curve;
+use crate::brep::conic::{Conic, On};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{EllipticCylinder, Plane, Surface};
-use crate::brep::tessellation::contact;
-use crate::brep::topology::{Body, Edge, SurfaceId, VertexId};
+use crate::brep::surface::{EllipticCylinder, Surface};
+use crate::brep::topology::{Body, Edge, SurfaceId};
 
 /// The angles about an elliptic wall of every vertex lying on it, where a
 /// ruling leaves that every rim of the wall takes a sample on, and of every
@@ -98,80 +94,5 @@ pub(super) fn a_step_apart(wall: EllipticCylinder, steps: usize) -> impl Fn(DVec
     move |one: DVec3, other: DVec3| {
         let turned = wall.parameters(one).x - wall.parameters(other).x;
         ((turned + PI).rem_euclid(TAU) - PI).abs() <= step
-    }
-}
-
-/// Whether a place of an edge along the conic `plane` cuts `wall` along is
-/// kept: it does not stand within the room of a surface an end of the edge
-/// lies on, a step or less from that end on the wall's grid of `steps`
-/// steps a turn, the curve's own surfaces aside; nor, where a rim of an
-/// elliptic wall sampled with `wall` from a hub ends at that end on the
-/// same plane, does the place that wall takes on its ray, those walls aside
-/// too. Ending at one vertex, the two rims of a lens a hair thick both read
-/// their places on a ray there: one leaving out its own as a hair from a
-/// plane their end lies on, and the other keeping its own, left the other's
-/// chord across it (campaign seed 5585709823). Where no rim of the other
-/// wall ends there, its place on the ray may be a vertex another curve ends
-/// at, which no rim leaves out, and so must this one keep its own.
-pub(super) fn kept<'a>(
-    body: &'a Body,
-    edge: &'a Edge,
-    plane: Plane,
-    wall: EllipticCylinder,
-    steps: usize,
-    id: Option<SurfaceId>,
-    abreast: &'a Abreast,
-) -> impl Fn(DVec3) -> bool + 'a {
-    let room = body.scale().eps() * contact::APART;
-    let own = [Surface::Plane(plane), Surface::Elliptic(wall)];
-    let grazing = grazed_near(body, edge, &own, a_step_apart(wall, steps));
-    let beside: Vec<SurfaceId> = id
-        .into_iter()
-        .flat_map(|id| abreast.ovals_beside(id))
-        .collect();
-    let mut walls = own.to_vec();
-    walls.extend(beside.iter().map(|other| *body.surface(*other)));
-    let ending = |end: VertexId, other: SurfaceId| {
-        body.edge_ids().map(|rim| body.edge(rim)).any(|rim| {
-            rim.ends.is_some_and(|ends| ends.contains(&end))
-                && match body.curve(rim.curve) {
-                    Curve::Conic(conic) => {
-                        let Round::Elliptic(oval) = conic.round else {
-                            return false;
-                        };
-                        conic.plane == plane && Surface::Elliptic(oval) == *body.surface(other)
-                    }
-                    Curve::Line(_) | Curve::Circle(_) | Curve::Meet(_) => false,
-                }
-        })
-    };
-    let grazed_beside: Vec<_> = beside
-        .iter()
-        .map(|&other| {
-            let shared: Vec<VertexId> = edge
-                .ends
-                .into_iter()
-                .flatten()
-                .filter(|end| ending(*end, other))
-                .collect();
-            (
-                other,
-                grazed_at(body, &shared, &walls, a_step_apart(wall, steps)),
-            )
-        })
-        .collect();
-    move |point: DVec3| {
-        !grazing(point, room)
-            && id.is_none_or(|id| {
-                abreast
-                    .beside(body, id, point)
-                    .into_iter()
-                    .all(|(other, at)| {
-                        grazed_beside
-                            .iter()
-                            .filter(|(wall, _)| *wall == other)
-                            .all(|(_, grazed)| !grazed(at, room))
-                    })
-            })
     }
 }

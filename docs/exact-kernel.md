@@ -2115,12 +2115,8 @@ read backwards by the listing.
   furthest past it. The walls such pairs join into a group are all sampled
   from one point inside every one of them, the axis of the smallest; where
   no such point is, each pair standing close is sampled from its own, and a
-  pair that only crosses keeps its grids. Two elliptic rims of a lens — two
-  walls of a group whose rims on one plane end at one vertex — drop a place
-  on a ray they share together: where one rim's place grazes a surface the
-  end lies on, a step or less from it, the other's is dropped too, else one
-  took a place the other left and the cap's chords crossed (5585709823,
-  #574). Each wall of a pair standing that close leaves out, at every
+  pair that only crosses keeps its grids. Each wall of a pair standing
+  that close leaves out, at every
   height, the steps of its grid within the room of the other a step or
   less from a corner on both, an elliptic wall as a circular one: the
   other takes no place on the ray through such a step, and a rim keeping

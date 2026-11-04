@@ -51,7 +51,6 @@ pub(super) struct Abreast {
     ovals: BTreeMap<SurfaceId, Vec<f64>>,
     withheld: BTreeMap<SurfaceId, Vec<usize>>,
     left_out: BTreeMap<SurfaceId, Vec<usize>>,
-    hubs: BTreeMap<SurfaceId, Vec<(DVec3, SurfaceId)>>,
 }
 
 impl Abreast {
@@ -154,38 +153,6 @@ impl Abreast {
         self.ovals.get(&wall).map_or(&[], Vec::as_slice)
     }
 
-    /// The elliptic walls an elliptic wall was sampled with from a hub.
-    pub(super) fn ovals_beside(&self, wall: SurfaceId) -> impl Iterator<Item = SurfaceId> + '_ {
-        self.hubs
-            .get(&wall)
-            .into_iter()
-            .flatten()
-            .map(|(_, other)| *other)
-    }
-
-    /// Where each elliptic wall an elliptic wall was sampled with from a hub
-    /// leaves the ray from that hub through `point`, at the height of
-    /// `point`: the place a rim of it takes on the ray a rim of `wall` takes
-    /// `point` on.
-    pub(super) fn beside(
-        &self,
-        body: &Body,
-        wall: SurfaceId,
-        point: DVec3,
-    ) -> Vec<(SurfaceId, DVec3)> {
-        let (_, axis) = axis_of(body.surface(wall));
-        self.hubs
-            .get(&wall)
-            .into_iter()
-            .flatten()
-            .filter_map(|&(hub, other)| {
-                let hub = hub + axis * axis.dot(point - hub);
-                let way = (point - hub).try_normalize()?;
-                hit(body.surface(other), hub, way).map(|(at, _)| (other, at))
-            })
-            .collect()
-    }
-
     /// The steps of each wall of the pair standing within the room of the
     /// other wall, a step or less from a corner on both: by a line the two
     /// touch along, or cross along at a grazing angle. Where no corner is, a
@@ -239,16 +206,6 @@ impl Abreast {
     /// place of the outer wall beside a touch left a chord of it across the
     /// inner rim's (campaign seed 5571457963).
     fn shared(&mut self, group: &[SurfaceId], hub: DVec3, body: &Body, tolerance: f64) {
-        let ovals: Vec<SurfaceId> = group
-            .iter()
-            .copied()
-            .filter(|wall| matches!(body.surface(*wall), Surface::Elliptic(_)))
-            .collect();
-        for &wall in &ovals {
-            for &other in ovals.iter().filter(|other| **other != wall) {
-                self.hubs.entry(wall).or_default().push((hub, other));
-            }
-        }
         let (_, axis) = axis_of(body.surface(group[0]));
         let flat = |way: DVec3| way - axis * axis.dot(way);
         let mut places: Vec<DVec3> = group

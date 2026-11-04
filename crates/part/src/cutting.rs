@@ -212,21 +212,21 @@ impl PartState {
         })
     }
 
-    /// The two sides a corner stands between, as the drawing has them now and
-    /// in the order the gesture named them.
+    /// The point a corner stands at and the two sides it stands between, as
+    /// the drawing has them now and in the order the gesture named them.
     ///
     /// A corner named by its two sides keeps the first one, because the first
     /// distance is measured along it — and that side is followed through
     /// every trim or division since, rather than trusted as a number.
-    fn sides_now(&self, sketch: usize, corner: Corner) -> Option<(CutSide, CutSide)> {
+    fn sides_now(&self, sketch: usize, corner: Corner) -> Option<(PointId, CutSide, CutSide)> {
         let drawing = self.sketches.get(sketch)?;
         let Corner::Between(first, second) = corner else {
             return drawing.sides_of(corner);
         };
         for a in self.now(sketch, first) {
             for b in self.now(sketch, second) {
-                if drawing.corner_point(Corner::Between(a, b)).is_some() {
-                    return Some((a, b));
+                if let Some(named) = drawing.sides_of(Corner::Between(a, b)) {
+                    return Some(named);
                 }
             }
         }
@@ -272,7 +272,7 @@ impl PartState {
     ) -> Option<Outcome> {
         let scale = self.scale();
         let before = self.before_the_cuts_move(sketch);
-        let sides: Vec<Option<(CutSide, CutSide)>> = corners
+        let sides: Vec<Option<(PointId, CutSide, CutSide)>> = corners
             .iter()
             .map(|corner| self.sides_now(sketch, *corner))
             .collect();
@@ -280,9 +280,9 @@ impl PartState {
         let group = drawing.fresh_cut_group();
         let mut refused = 0;
         for named in sides {
-            let laid = named.and_then(|(first, second)| {
+            let laid = named.and_then(|(corner, first, second)| {
                 drawing
-                    .cut_corner(first, second, shape(scale), construction, group)
+                    .cut_corner_at(corner, first, second, shape(scale), construction, group)
                     .ok()
             });
             match laid {

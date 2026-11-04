@@ -20,7 +20,7 @@ use crate::sketch::{PointId, Sketch};
 /// pulled back stands on a place of its own, found or added in `places`.
 /// Hands back where the cuts pull the ends of each side to, which the
 /// stretches of ellipses are laid from in their turn.
-pub(super) fn traits_and_cuts(
+pub(super) fn sides_and_cuts(
     sketch: &Sketch,
     vertex: &[usize],
     places: &mut Vec<DVec2>,

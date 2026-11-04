@@ -49,6 +49,18 @@
 //! `a_chamfer_on_a_corner_with_a_curve_says_why_it_is_refused` — and a value
 //! too big is held back —
 //! `a_fillet_too_big_beside_an_arc_is_held_back_and_the_field_offers_the_largest`.
+//! Two sides sharing both their ends are two corners: a click on each end
+//! takes both — `a_click_on_each_end_of_a_d_takes_two_corners_and_rounds_both`
+//! — the preview stands at the end clicked —
+//! `the_preview_of_a_corner_of_a_d_shows_the_end_clicked` — and the two sides
+//! clicked take the corner nearest the click —
+//! `two_sides_clicked_that_share_both_ends_take_the_corner_nearest_the_click`.
+//! A trait and two arcs ending at one point crowd it —
+//! `a_point_where_a_trait_and_two_arcs_end_is_too_crowded_to_name_a_corner` —
+//! a curve clicked, then its corner point, completes the corner —
+//! `a_curve_clicked_then_its_corner_point_completes_the_corner` — and the
+//! status line speaks of sides, not traits —
+//! `the_status_line_asks_for_the_other_side_of_a_corner_whatever_it_is`.
 //!
 //! The tool's share of #617, whose criteria live with the part's tests in
 //! `crates/part/tests/a_cut_is_drawn_from_its_sharp_corner.rs`: a value too big
@@ -694,7 +706,7 @@ fn holds_the_curve_corner(context: &SketchContext<'_>) -> bool {
     let sketch = &context.document.sketches()[0];
     let taken = corners_held(context);
     taken.len() == 1
-        && sketch.sides_of(taken[0]).is_some_and(|(one, other)| {
+        && sketch.sides_of(taken[0]).is_some_and(|(_, one, other)| {
             let traits = [one, other]
                 .iter()
                 .filter(|side| side.as_trait().is_some())
@@ -827,4 +839,235 @@ fn a_chamfer_on_a_corner_with_a_curve_says_why_it_is_refused() {
             "{what}: nothing is cut"
         );
     }
+}
+
+/// A part holding a D: a trait from (10, 10) to (30, 10), and the arc round
+/// (20, 10) of radius 10 closing it over the top. Its two ends are two corners
+/// of the same two sides.
+fn a_part_with_a_d() -> (cao_part::PartDocument, PointId, PointId) {
+    use cao_part::history::PointRef;
+    let mut document = cao_part::PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for at in [DVec2::new(10.0, 10.0), DVec2::new(30.0, 10.0)] {
+        document.apply(Operation::AddPoint {
+            sketch: 0,
+            position: at,
+            on: Vec::new(),
+        });
+    }
+    let (left, right) = (PointId(1), PointId(2));
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(left),
+        end: PointRef::Existing(right),
+        construction: false,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(20.0, 10.0)),
+        start: PointRef::Existing(right),
+        end: PointRef::Existing(left),
+        construction: false,
+    });
+    (document, left, right)
+}
+
+/// Where on the D's arc a turn of `degrees` round its centre lands.
+fn over_the_d(degrees: f64) -> DVec2 {
+    DVec2::new(20.0, 10.0) + DVec2::from_angle(degrees.to_radians()) * 10.0
+}
+
+/// The points of the corners the tool holds.
+fn points_held(context: &SketchContext<'_>) -> Vec<PointId> {
+    let sketch = &context.document.sketches()[0];
+    corners_held(context)
+        .into_iter()
+        .filter_map(|corner| sketch.corner_point(corner))
+        .collect()
+}
+
+#[test]
+fn a_click_on_each_end_of_a_d_takes_two_corners_and_rounds_both() {
+    let (mut document, left, right) = a_part_with_a_d();
+    let mut editor = editing_with(Tool::Fillet);
+    let mut extrusion = crate::screens::extrusion::ExtrusionState::default();
+    let lang = crate::lang::Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    corner(&mut context, 0, DVec2::new(10.0, 10.0), SNAP);
+    corner(&mut context, 0, DVec2::new(30.0, 10.0), SNAP);
+
+    assert_eq!(
+        points_held(&context),
+        vec![left, right],
+        "the two ends of the same two sides are two corners, and both are held"
+    );
+    type_a_value(&mut context, 2.0);
+    assert!(cut(&mut context, 0), "Enter lays the fillets");
+    let mut rounded: Vec<PointId> = context.document.sketches()[0]
+        .drawn_cuts()
+        .iter()
+        .filter(|cut| cut.fits)
+        .map(|cut| cut.corner_point)
+        .collect();
+    rounded.sort_by_key(|point| point.0);
+    assert_eq!(rounded, vec![left, right], "both ends are rounded");
+}
+
+#[test]
+fn the_preview_of_a_corner_of_a_d_shows_the_end_clicked() {
+    let (mut document, left, right) = a_part_with_a_d();
+    let mut editor = editing_with(Tool::Fillet);
+    let mut extrusion = crate::screens::extrusion::ExtrusionState::default();
+    let lang = crate::lang::Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    for (end, at) in [
+        (left, DVec2::new(10.0, 10.0)),
+        (right, DVec2::new(30.0, 10.0)),
+    ] {
+        context.editor.tool_state = ToolState::None;
+        corner(&mut context, 0, at, SNAP);
+        type_a_value(&mut context, 2.0);
+
+        let sketch = context.document.sketches()[0].clone();
+        let shown = previewed(&sketch, context.editor, at, SNAP, 1.0)
+            .expect("a corner taken with its radius typed is shown");
+
+        assert_eq!(
+            shown
+                .cuts
+                .iter()
+                .filter_map(|cut| shown.sketch.drawn_cut(*cut))
+                .map(|drawn| drawn.corner_point)
+                .collect::<Vec<_>>(),
+            vec![end],
+            "the curve shown stands at the end clicked, {end:?}"
+        );
+    }
+}
+
+#[test]
+fn two_sides_clicked_that_share_both_ends_take_the_corner_nearest_the_click() {
+    let (mut document, left, right) = a_part_with_a_d();
+    let mut editor = editing_with(Tool::Fillet);
+    let mut extrusion = crate::screens::extrusion::ExtrusionState::default();
+    let lang = crate::lang::Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    for (end, on_the_arc, on_the_trait) in [
+        (right, over_the_d(30.0), DVec2::new(27.0, 10.0)),
+        (left, over_the_d(150.0), DVec2::new(13.0, 10.0)),
+    ] {
+        context.editor.tool_state = ToolState::None;
+
+        corner(&mut context, 0, on_the_arc, SNAP);
+        corner(&mut context, 0, on_the_trait, SNAP);
+
+        assert_eq!(
+            corners_held(&context),
+            vec![Corner::At(end)],
+            "the arc and the trait clicked near {end:?} name the corner there"
+        );
+    }
+}
+
+#[test]
+fn a_point_where_a_trait_and_two_arcs_end_is_too_crowded_to_name_a_corner() {
+    use cao_part::history::PointRef;
+    let [mut case, _] = corners_beside_a_curve();
+    case.document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(16.0, 2.0)),
+        start: PointRef::New(DVec2::new(16.0, 12.0)),
+        end: PointRef::Existing(PointId(1)),
+        construction: false,
+    });
+    let mut editor = editing_with(Tool::Fillet);
+    let mut extrusion = crate::screens::extrusion::ExtrusionState::default();
+    let lang = crate::lang::Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut case.document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    corner(&mut context, 0, case.corner, SNAP);
+
+    assert_eq!(
+        context.editor.message,
+        Some(lang.t("sketch.corner_has_too_many_traits")),
+        "a trait and two arcs ending at one point leave no saying which two are meant, \
+         as three traits do"
+    );
+    assert!(
+        matches!(
+            &context.editor.tool_state,
+            ToolState::None | ToolState::Corner { half: None, .. }
+        ) && corners_held(&context).is_empty(),
+        "neither a corner nor a side is taken"
+    );
+}
+
+#[test]
+fn a_curve_clicked_then_its_corner_point_completes_the_corner() {
+    for mut case in corners_beside_a_curve() {
+        let what = case.what;
+        let mut editor = editing_with(Tool::Fillet);
+        let mut extrusion = crate::screens::extrusion::ExtrusionState::default();
+        let lang = crate::lang::Catalogue::french();
+        let mut context = SketchContext {
+            document: &mut case.document,
+            editor: &mut editor,
+            extrusion: &mut extrusion,
+            lang: &lang,
+        };
+
+        corner(&mut context, 0, case.on_the_curve, SNAP);
+        corner(&mut context, 0, case.corner, SNAP);
+
+        assert!(
+            holds_the_curve_corner(&context),
+            "{what}: the curve named, a click on the corner completes it with the side \
+             there, holding {:?}",
+            corners_held(&context)
+        );
+    }
+}
+
+#[test]
+fn the_status_line_asks_for_the_other_side_of_a_corner_whatever_it_is() {
+    let lang = crate::lang::Catalogue::french();
+
+    assert_eq!(
+        lang.t("sketch.click_the_other_side"),
+        "Cliquez le second côté du coin",
+        "the side clicked first may be a curve"
+    );
+    assert!(
+        !lang
+            .t("sketch.corner_has_too_many_traits")
+            .contains("trait"),
+        "the sides crowding a point may be curves: {}",
+        lang.t("sketch.corner_has_too_many_traits")
+    );
 }

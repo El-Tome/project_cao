@@ -24,7 +24,9 @@
 //! — and whole beside a fillet that does not fit —
 //! `a_curve_beside_a_fillet_that_does_not_fit_is_drawn_whole`; the stretch
 //! it hides lights with its cut, as a trait side's does —
-//! `the_dashes_of_a_curve_up_to_its_sharp_corner_light_with_their_cut`.
+//! `the_dashes_of_a_curve_up_to_its_sharp_corner_light_with_their_cut` — and a
+//! fillet beside a curve that does not fit is red —
+//! `a_fillet_beside_a_curve_that_does_not_fit_is_painted_red`.
 
 use cao_part::history::PointRef;
 use cao_part::{Operation, PartDocument};
@@ -917,4 +919,36 @@ fn the_dashes_of_a_curve_up_to_its_sharp_corner_light_with_their_cut() {
              {curve_lit:?}, where the trait's are {trait_lit:?}"
         );
     }
+}
+
+#[test]
+fn a_fillet_beside_a_curve_that_does_not_fit_is_painted_red() {
+    let mut document =
+        a_trait_and_an_arc_rounded(DVec2::new(2.0 + 96.0 / 13.0, 10.0 + 40.0 / 13.0), 8.0);
+    let drawn = document.sketches()[0].drawn_cuts();
+    assert_eq!(drawn.len(), 1, "the fillet is drawn: {drawn:?}");
+    assert!(
+        !drawn[0].fits,
+        "a fillet of eight touches the arc past its end"
+    );
+    let CutCurve::Arc(fillet) = drawn[0].curve else {
+        panic!("a fillet is drawn as an arc");
+    };
+    let radius = fillet.centre.distance(fillet.start);
+
+    let strokes = strokes_hovering(&mut document, None);
+
+    let on_the_fillet: Vec<[f32; 4]> = strokes
+        .iter()
+        .filter(|(ends, _, _)| {
+            ends.iter()
+                .all(|end| (end.distance(fillet.centre) - radius).abs() < 1e-4)
+        })
+        .map(|(_, colour, _)| *colour)
+        .collect();
+    let refused = tint(Theme::default().refused);
+    assert!(
+        !on_the_fillet.is_empty() && on_the_fillet.iter().all(|colour| *colour == refused),
+        "the fillet that does not fit is painted in the colour of a refusal: {on_the_fillet:?}"
+    );
 }

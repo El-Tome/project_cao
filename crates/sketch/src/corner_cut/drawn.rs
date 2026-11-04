@@ -60,14 +60,14 @@ pub struct DrawnCut {
 /// is counted: where it meets each side, the curve it draws, how much of each
 /// side it takes from the corner and how much room the side has for it — both
 /// in the side's own measure, a length along a trait, an angle round an arc,
-/// a turn round an ellipse. `alone` is false for one that fits nowhere.
+/// a turn round an ellipse. `fits_alone` is false for one that fits nowhere.
 #[derive(Clone, Copy, Debug)]
 pub(super) struct Worked {
     pub(super) touches: [DVec2; 2],
     pub(super) curve: CutCurve,
     pub(super) takes: [f64; 2],
     pub(super) room: [f64; 2],
-    pub(super) alone: bool,
+    pub(super) fits_alone: bool,
 }
 
 /// Where the cuts that fit and are drawn as the outline pull the ends of each
@@ -95,7 +95,7 @@ impl Sketch {
             .iter()
             .filter_map(|(id, cut, worked)| {
                 let worked = (*worked)?;
-                let fits = worked.alone
+                let fits = worked.fits_alone
                     && (0..2).all(|rank| {
                         let side = cut.sides[rank];
                         let other = taken.get(&side).copied().unwrap_or_default()
@@ -190,17 +190,42 @@ impl Sketch {
     ///
     /// A fillet asked beside a curve takes nothing in proportion to its
     /// radius, and the share is searched for instead.
+    ///
+    /// Each corner is named by its two sides alone, at the one end they share
+    /// — see [`Sketch::fitting_share_at`] for a corner named by its point too.
     pub fn fitting_share(&self, corners: &[(CutSide, CutSide)], shape: CutShape) -> f64 {
+        let corners: Vec<(PointId, CutSide, CutSide)> = corners
+            .iter()
+            .filter_map(|(first, second)| {
+                let [corner] = self.corners_between(*first, *second)[..] else {
+                    return None;
+                };
+                Some((corner, *first, *second))
+            })
+            .collect();
+        self.fitting_share_at(&corners, shape)
+    }
+
+    /// How much of the values given a gesture can lay on these corners at
+    /// most, each named by its point and its two sides — see
+    /// [`Sketch::fitting_share`].
+    pub fn fitting_share_at(
+        &self,
+        corners: &[(PointId, CutSide, CutSide)],
+        shape: CutShape,
+    ) -> f64 {
         if let CutShape::Fillet { radius } = shape
             && corners
                 .iter()
-                .any(|(first, second)| both_traits([*first, *second]).is_none())
+                .any(|(_, first, second)| both_traits([*first, *second]).is_none())
         {
             return self.share_by_halving(corners, radius);
         }
         let replaced: Vec<CornerCutId> = corners
             .iter()
-            .filter_map(|(first, second)| self.cut_standing_between(*first, *second))
+            .filter_map(|(corner, first, second)| {
+                self.cut_standing_between(*corner, *first, *second)
+            })
             .collect();
         let tolerance = crate::precision::SAME * crate::precision::drawing_size(self);
         let standing: Vec<_> = self
@@ -211,11 +236,11 @@ impl Sketch {
         let taken = self.taken_from_the_outline(&standing);
         let mut share = f64::INFINITY;
         let mut asked: HashMap<SegmentId, [f64; 2]> = HashMap::new();
-        for (first, second) in corners {
-            let Some((corner, far_first, far_second)) = self.corner_to_cut(*first, *second) else {
+        for (corner, first, second) in corners.iter().copied() {
+            let Some((far_first, far_second)) = self.corner_to_cut(corner, first, second) else {
                 continue;
             };
-            let Some(sides) = both_traits([*first, *second]) else {
+            let Some(sides) = both_traits([first, second]) else {
                 continue;
             };
             let Some(back) = self.backs(corner, [far_first, far_second], shape) else {
@@ -354,7 +379,7 @@ impl Sketch {
             curve,
             takes: back,
             room,
-            alone: true,
+            fits_alone: true,
         })
     }
 }

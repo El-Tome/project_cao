@@ -10,7 +10,11 @@
 //!   `a_fillet_rounds_the_corner_between_a_trait_and_an_arc_tangent_to_both`,
 //!   `a_fillet_rounds_the_corner_between_two_arcs_tangent_to_both`, and a
 //!   fillet far bigger than the arc still stands at the corner —
-//!   `a_fillet_much_bigger_than_the_arc_beside_it_still_stands_at_the_corner`; the tool
+//!   `a_fillet_much_bigger_than_the_arc_beside_it_still_stands_at_the_corner`;
+//!   two sides sharing both their ends, a D or a lens, are rounded at the end
+//!   named — `two_sides_sharing_both_ends_are_rounded_at_the_end_named`, and in
+//!   the sketch crate
+//!   `two_sides_sharing_both_ends_name_a_corner_only_with_its_point`; the tool
 //!   naming such a corner by its point or by its sides is held in `cao_app` by
 //!   `a_click_on_the_point_a_trait_and_an_arc_end_at_names_both_its_sides` and
 //!   `a_click_on_an_arc_away_from_its_ends_names_that_side`
@@ -58,7 +62,8 @@
 //!   picture of a part draws it from its far end to the fillet only, as it
 //!   does a trait side, held there by
 //!   `a_curve_rounded_at_its_end_reaches_the_picture_from_its_far_end_to_the_fillet`;
-//!   the tint is painted from those same areas
+//!   the tint follows the rounded outline, held in `cao_app` by
+//!   `a_plate_rounded_beside_an_arc_is_tinted_along_its_rounded_outline`
 //! - A value too big is held back with the largest that fits, and a fillet
 //!   that no longer fits during a drag turns red with the sharp corner
 //!   standing in, as in #617 —
@@ -71,7 +76,8 @@
 //!   together and offered the share where they meet, held there by
 //!   `two_fillets_on_the_two_ends_of_one_trait_one_beside_an_arc_hold_each_other_back`
 //!   and `two_fillets_on_the_two_ends_of_one_arc_hold_each_other_back`; the
-//!   red is the canvas's
+//!   canvas paints it red, held in `cao_app` by
+//!   `a_fillet_beside_a_curve_that_does_not_fit_is_painted_red`
 //!
 //! What the design adds so that the tools around a cut do not break on a
 //! curve side — not in the issue's words:
@@ -80,7 +86,9 @@
 //! - a division of an arc side keeps the cut on the piece touching the corner —
 //!   `dividing_the_arc_side_of_a_rounded_corner_keeps_its_cut`; a trim keeps
 //!   it too, unless the stretch trimmed takes the corner, which takes the cut —
-//!   `trimming_the_arc_side_of_a_rounded_corner_keeps_its_cut_unless_the_corner_goes`
+//!   `trimming_the_arc_side_of_a_rounded_corner_keeps_its_cut_unless_the_corner_goes`,
+//!   on an arc of ellipse too, the piece at the corner being a new one —
+//!   `trimming_an_arc_of_ellipse_side_keeps_its_cut_on_the_piece_at_the_corner`
 //! - a mirror, and a pattern, copy a fillet standing beside an arc or an arc
 //!   of ellipse — `a_corner_rounded_beside_an_arc_mirrored_is_rounded_on_its_copy`
 //! - compacting the history keeps a fillet beside an arc, its sides followed
@@ -1252,11 +1260,7 @@ fn plates_rounded_beside_a_curve() -> Vec<Plate> {
         PointRef::Existing(THE_CORNER),
     );
     let mut rounded = sharp.clone();
-    round(
-        &mut rounded,
-        Corner::Between(ArcId(0).into(), ArcId(1).into()),
-        5.0,
-    );
+    round(&mut rounded, Corner::At(THE_CORNER), 5.0);
     plates.push(Plate {
         sharp,
         rounded,
@@ -2114,4 +2118,156 @@ fn nothing_hangs_on_the_points_of_a_fillet_beside_a_curve() {
         "the loose point a coincidence would have hung stays where it was",
     );
     the_fillet(&history, "the fillet reshaped to six");
+}
+
+/// A D: a trait from (10, 10) to (30, 10), and the arc round (20, 10) of
+/// radius 10 closing it over the top, from (30, 10) round to (10, 10) — two
+/// sides sharing both their ends, which are two corners.
+fn a_d() -> (History, PointId, PointId) {
+    let mut history = a_corner_at(DVec2::new(10.0, 10.0));
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: DVec2::new(30.0, 10.0),
+        on: Vec::new(),
+    });
+    let (left, right) = (THE_CORNER, PointId(2));
+    a_trait(
+        &mut history,
+        PointRef::Existing(left),
+        PointRef::Existing(right),
+    );
+    an_arc(
+        &mut history,
+        DVec2::new(20.0, 10.0),
+        PointRef::Existing(right),
+        PointRef::Existing(left),
+    );
+    (history, left, right)
+}
+
+/// The lens of `plates_rounded_beside_a_curve`, unrounded: its first arc runs
+/// from the top tip down to the bottom one, its second back up.
+fn a_lens() -> (History, PointId, PointId) {
+    let mut history = a_corner_at(DVec2::new(0.0, 16.0));
+    an_arc(
+        &mut history,
+        DVec2::new(12.0, 0.0),
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(0.0, -16.0)),
+    );
+    an_arc(
+        &mut history,
+        DVec2::new(-12.0, 0.0),
+        PointRef::Existing(PointId(3)),
+        PointRef::Existing(THE_CORNER),
+    );
+    (history, THE_CORNER, PointId(3))
+}
+
+/// The points the drawing's fillets are drawn at, every one fitting.
+fn rounded_at(history: &History, what: &str) -> Vec<PointId> {
+    let drawn = PartState::rebuild(history).sketches[0].drawn_cuts();
+    assert!(drawn.iter().all(|cut| cut.fits), "{what}: {drawn:?}");
+    let mut corners: Vec<PointId> = drawn.iter().map(|cut| cut.corner_point).collect();
+    corners.sort_by_key(|point| point.0);
+    corners
+}
+
+#[test]
+fn two_sides_sharing_both_ends_are_rounded_at_the_end_named() {
+    let (d, left, right) = a_d();
+    let (lens, top, bottom) = a_lens();
+    for (history, one, other, radius, what) in [
+        (d, left, right, 2.0, "a D"),
+        (lens, top, bottom, 3.0, "a lens"),
+    ] {
+        for corner in [one, other] {
+            let mut rounded = history.clone();
+            round(&mut rounded, Corner::At(corner), radius);
+            assert_eq!(
+                rounded_at(&rounded, what),
+                vec![corner],
+                "{what}: rounded at {corner:?}, the corner named, and nowhere else"
+            );
+        }
+
+        let mut both = history.clone();
+        both.push(Operation::Fillet {
+            sketch: 0,
+            corners: vec![Corner::At(one), Corner::At(other)],
+            radius: radius.into(),
+            construction: false,
+        });
+        assert_eq!(
+            rounded_at(&both, what),
+            vec![one, other],
+            "{what}: both ends rounded stand as two cuts"
+        );
+    }
+}
+
+/// The trait rising from (46, 34) and the arc of ellipse round (40, 30)
+/// running up from its bottom, (40, 25), round its right to that corner; two
+/// points on it a sixth and a twelfth of a turn past its bottom; the corner
+/// rounded by three, the fillet touching the curve a little past an eighth of
+/// a turn.
+fn an_arc_of_ellipse_rising_to_its_corner() -> (History, PointId, PointId) {
+    let mut history = a_corner_at(DVec2::new(46.0, 34.0));
+    a_trait(
+        &mut history,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(46.0, 54.0)),
+    );
+    let bottom = PointRef::New(LEVEL.centre - LEVEL.across());
+    let [back, front] = LEVEL.first_ends();
+    history.push(Operation::AddEllipse {
+        sketch: 0,
+        center: PointRef::New(LEVEL.centre),
+        first: [PointRef::New(back), PointRef::New(front)],
+        second: [bottom.clone(), PointRef::New(LEVEL.centre + LEVEL.across())],
+        construction: false,
+        drawn: Some([bottom, PointRef::Existing(THE_CORNER)]),
+    });
+    for degrees in [-60.0_f64, -30.0] {
+        history.push(Operation::AddPoint {
+            sketch: 0,
+            position: LEVEL.at(degrees.to_radians()),
+            on: Vec::new(),
+        });
+    }
+    let points = PartState::rebuild(&history).sketches[0].points().len();
+    round(&mut history, Corner::At(THE_CORNER), 3.0);
+    (history, PointId(points - 2), PointId(points - 1))
+}
+
+#[test]
+fn trimming_an_arc_of_ellipse_side_keeps_its_cut_on_the_piece_at_the_corner() {
+    let (rounded, low, high) = an_arc_of_ellipse_rising_to_its_corner();
+    let before = the_fillet(&rounded, "before the trim");
+
+    let mut middle_gone = rounded.clone();
+    middle_gone.push(Operation::TrimEllipse {
+        sketch: 0,
+        ellipse: EllipseId(0),
+        between: Some((low, high)),
+    });
+    drawn_as_before(
+        &middle_gone,
+        before,
+        "a stretch trimmed from the middle of the arc of ellipse",
+    );
+
+    let mut corner_gone = rounded;
+    corner_gone.push(Operation::TrimEllipse {
+        sketch: 0,
+        ellipse: EllipseId(0),
+        between: Some((high, THE_CORNER)),
+    });
+    assert_eq!(
+        PartState::rebuild(&corner_gone).sketches[0]
+            .live_corner_cuts()
+            .count(),
+        0,
+        "the stretch trimmed took the corner, and the cut with it"
+    );
 }

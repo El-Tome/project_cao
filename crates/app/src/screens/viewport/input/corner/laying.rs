@@ -5,7 +5,7 @@
 use cao_part::history::{ChamferAsked, CutAsked, CutChange};
 use cao_part::{Formula, Operation, Variables};
 use cao_sketch::{
-    Chamfer, ChamferMode, Corner, CornerCutId, CutShape, CutSide, LockedInput, Sketch,
+    Chamfer, ChamferMode, Corner, CornerCutId, CutShape, CutSide, LockedInput, PointId, Sketch,
 };
 
 use crate::screens::SketchContext;
@@ -23,12 +23,12 @@ pub(super) fn held_back(
     rounding: bool,
 ) -> Option<&'static str> {
     let sketch = context.document.sketches().get(index)?;
-    let sides: Vec<(CutSide, CutSide)> = taken
+    let corners: Vec<(PointId, CutSide, CutSide)> = taken
         .iter()
         .filter_map(|corner| sketch.sides_of(*corner))
         .collect();
     let shape = shape_of(rounding, in_units(asked, context.document.scale()));
-    let share = sketch.fitting_share(&sides, shape);
+    let share = sketch.fitting_share_at(&corners, shape);
     if share <= 0.0 {
         return Some("sketch.corner_has_no_room");
     }
@@ -102,10 +102,10 @@ pub(super) fn whole_group(
     let cuts: Vec<CornerCutId> = taken
         .iter()
         .map(|corner| {
-            let named = sketch.sides_of(*corner)?;
-            let cut = sketch.cut_standing_between(named.0, named.1)?;
+            let (point, first, second) = sketch.sides_of(*corner)?;
+            let cut = sketch.cut_standing_between(point, first, second)?;
             let laid = sketch.corner_cuts()[cut.0].sides;
-            let in_order = laid == [named.0, named.1];
+            let in_order = laid == [first, second];
             (in_order || !measured_from_a_side).then_some(cut)
         })
         .collect::<Option<_>>()?;

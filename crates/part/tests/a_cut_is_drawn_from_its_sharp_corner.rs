@@ -276,8 +276,8 @@ fn a_rounded_corner_leaves_both_traits_whole_and_draws_its_curve() {
 fn a_corner_named_by_its_point_or_by_its_two_traits_is_cut_the_same() {
     let mut by_traits = a_plate(40.0, 20.0);
     let mut by_point = by_traits.clone();
-    let corner = the_drawing(&by_traits)
-        .shared_point(SegmentId(0), SegmentId(1))
+    let (corner, _, _) = the_drawing(&by_traits)
+        .sides_of(Corner::Between(SegmentId(0).into(), SegmentId(1).into()))
         .expect("the two first sides meet");
 
     by_traits.push(round(

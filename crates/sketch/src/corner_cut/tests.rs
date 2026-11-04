@@ -213,3 +213,37 @@ fn a_cut_taken_away_stays_away_when_a_trait_is_drawn_again_from_its_corner() {
     assert_eq!(sketch.live_corner_cuts().count(), 0);
     assert_eq!(sketch.cuts_standing_at(corner), Vec::<CornerCutId>::new());
 }
+
+#[test]
+fn two_sides_sharing_both_ends_name_a_corner_only_with_its_point() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let left = sketch.add_point(DVec2::new(10.0, 10.0));
+    let right = sketch.add_point(DVec2::new(30.0, 10.0));
+    let across = sketch.add_segment(left, right);
+    let centre = sketch.add_point(DVec2::new(20.0, 10.0));
+    let over = sketch.add_arc(centre, right, left);
+    let small = CutShape::Fillet { radius: 2.0 };
+
+    assert_eq!(
+        sketch.cut_corner(over, across, small, false, 0),
+        Err(CutRefused::NoCorner),
+        "a trait and the arc closing it over share two ends: their sides alone name no corner"
+    );
+    let at_right = sketch
+        .cut_corner_at(right, over, across, small, false, 0)
+        .expect("the corner at the right end");
+    let at_left = sketch
+        .cut_corner_at(left, over, across, small, false, 1)
+        .expect("the corner at the left end");
+
+    assert_eq!(
+        [at_right, at_left].map(|cut| sketch.drawn_cut(cut).map(|drawn| drawn.corner_point)),
+        [Some(right), Some(left)],
+        "each cut stands at the end it was laid at"
+    );
+    assert_eq!(
+        sketch.live_corner_cuts().count(),
+        2,
+        "two corners, two cuts"
+    );
+}

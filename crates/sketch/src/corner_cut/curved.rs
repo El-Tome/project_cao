@@ -87,7 +87,11 @@ impl Sketch {
     /// Such a fillet takes nothing from its sides in proportion to its
     /// radius, so the share is found by halving: each share tried is laid on
     /// a copy of the drawing, where every corner laid must be drawn and fit.
-    pub(super) fn share_by_halving(&self, corners: &[(CutSide, CutSide)], radius: f64) -> f64 {
+    pub(super) fn share_by_halving(
+        &self,
+        corners: &[(PointId, CutSide, CutSide)],
+        radius: f64,
+    ) -> f64 {
         let fits = |share: f64| {
             let mut trial = self.clone();
             let group = trial.fresh_cut_group();
@@ -96,8 +100,10 @@ impl Sketch {
             };
             let laid: Vec<CornerCutId> = corners
                 .iter()
-                .filter_map(|(first, second)| {
-                    trial.cut_corner(*first, *second, shape, false, group).ok()
+                .filter_map(|(corner, first, second)| {
+                    trial
+                        .cut_corner_at(*corner, *first, *second, shape, false, group)
+                        .ok()
                 })
                 .collect();
             let drawn = trial.drawn_cuts();
@@ -209,7 +215,7 @@ fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64, tolerance: f64) ->
             curve: CutCurve::Arc(short_way_round(centre, touches)),
             takes: runs.map(|run| run.along(run.first_guess(back))),
             room,
-            alone: false,
+            fits_alone: false,
         });
     };
     let touches = [runs[0].path.place(at[0]), runs[1].path.place(at[1])];
@@ -222,7 +228,7 @@ fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64, tolerance: f64) ->
         )),
         takes,
         room,
-        alone: takes.iter().all(|take| *take >= 0.0),
+        fits_alone: takes.iter().all(|take| *take >= 0.0),
     })
 }
 

@@ -19,6 +19,7 @@ use crate::screens::SketchContext;
 use crate::screens::viewport::ViewScale;
 
 mod curve_sides;
+mod hidden;
 
 /// How faint the stretch of a side hidden by a cut is drawn, as a share of
 /// the side's own colour: the sharp corner is still there to be read.
@@ -227,7 +228,7 @@ fn push_hidden(
     stroke: Stroke,
     scale: ViewScale,
 ) {
-    let faint = curve_sides::faint(stroke);
+    let faint = hidden::faint(stroke);
     push_line(out, from, to, faint.color, faint.width, true, scale);
 }
 

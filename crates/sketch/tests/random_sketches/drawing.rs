@@ -400,7 +400,7 @@ impl Hand {
     fn corners(&self) -> Vec<DVec2> {
         self.sketch
             .live_points()
-            .filter(|(point, _)| self.sketch.corner_at(*point).is_some())
+            .filter(|(point, _)| super::laying::traits_cornered_at(&self.sketch, *point).is_some())
             .map(|(_, at)| at)
             .collect()
     }

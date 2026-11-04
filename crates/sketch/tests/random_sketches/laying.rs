@@ -4,8 +4,8 @@
 //! rule moving the drawing is #501's to check.
 
 use cao_sketch::{
-    Chamfer, ChosenAxis, Crossing, CutShape, Element, EllipseMode, PointId, Repeats, Sketch,
-    SketchAxis, Support, WorkPlane, ellipse_from, rise_of,
+    Chamfer, ChosenAxis, Corner, Crossing, CutShape, Element, EllipseMode, PointId, Repeats,
+    SegmentId, Sketch, SketchAxis, Support, WorkPlane, ellipse_from, rise_of,
 };
 use glam::DVec2;
 
@@ -117,6 +117,16 @@ fn chosen(sketch: &Sketch, axis: Axis) -> Option<ChosenAxis> {
     }
 }
 
+/// The two traits a point is the corner of, as the campaign has always taken
+/// a corner: two traits meeting there, and nothing else ending there.
+pub(super) fn traits_cornered_at(
+    sketch: &Sketch,
+    point: PointId,
+) -> Option<(SegmentId, SegmentId)> {
+    let (_, first, second) = sketch.sides_of(Corner::At(point))?;
+    Some((first.as_trait()?, second.as_trait()?))
+}
+
 fn point_at(sketch: &Sketch, at: [f64; 2]) -> Option<PointId> {
     let at = DVec2::from(at);
     sketch.nearest_point(at, reach(at, UNDER_A_PLACE))
@@ -200,7 +210,7 @@ impl Gesture {
             }
             Gesture::Fillet { at, radius } => {
                 if let Some((first, second)) =
-                    point_at(sketch, *at).and_then(|point| sketch.corner_at(point))
+                    point_at(sketch, *at).and_then(|point| traits_cornered_at(sketch, point))
                 {
                     let _ = sketch.cut_corner(
                         first,
@@ -213,7 +223,7 @@ impl Gesture {
             }
             Gesture::Chamfer { at, length } => {
                 if let Some((first, second)) =
-                    point_at(sketch, *at).and_then(|point| sketch.corner_at(point))
+                    point_at(sketch, *at).and_then(|point| traits_cornered_at(sketch, point))
                 {
                     let _ = sketch.cut_corner(
                         first,

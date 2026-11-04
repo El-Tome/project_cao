@@ -34,9 +34,11 @@ pub(super) fn add_cuts(
         };
         let corners = laid
             .iter()
-            .filter_map(|(_, cut)| {
-                let [one, other] = cut.sides.map(|side| side_now(side, map));
-                Some(Corner::Between(one?, other?))
+            .filter_map(|(id, _)| match old_sketch.corner_named(*id)? {
+                Corner::Between(one, other) => {
+                    Some(Corner::Between(side_now(one, map)?, side_now(other, map)?))
+                }
+                Corner::At(point) => map.points.get(&point).copied().map(Corner::At),
             })
             .collect();
         let before = new_state.sketches[sketch_index].corner_cuts().len();

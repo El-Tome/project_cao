@@ -27,7 +27,7 @@ mod weld;
 
 use border::{Borders, Loops, also_named};
 use curve::{Curve, between, pieces};
-use drawn::traits_and_cuts;
+use drawn::sides_and_cuts;
 pub(crate) use half_edge::{Bend, CurvedHalfEdge};
 use weld::welded;
 
@@ -252,7 +252,7 @@ impl Sketch {
         let vertex = welded(&places);
         let mut curves: Vec<Curve> = Vec::new();
         let mut names: Vec<CurveId> = Vec::new();
-        let pulled = traits_and_cuts(self, &vertex, &mut places, &mut curves, &mut names);
+        let pulled = sides_and_cuts(self, &vertex, &mut places, &mut curves, &mut names);
 
         let mut loops = Loops::default();
         for round in self.rounds(touch) {

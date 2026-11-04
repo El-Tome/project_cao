@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::caught::{caught, quietly};
 use super::drawn::Drawn;
 use super::{FaceHit, FacePlane};
-use crate::brep::{self, Declined, EdgeName, FaceId, Surface, Unstable, VertexName};
+use crate::brep::{self, Declined, EdgeName, FaceId, Lost, Surface, Unstable, VertexName};
 use crate::mesh::Mesh;
 use crate::profile::{Contour, Frame};
 use crate::turning::{Straight, Turn};
@@ -174,6 +174,13 @@ impl Exact {
         let mut names = self.brep.vertex_names_rooted(|number| self.root(number));
         names.sort();
         names
+    }
+
+    /// What a name no longer finds among the edges between its two sides.
+    pub fn lost(&self, name: &EdgeName) -> Option<Lost> {
+        let names = self.brep.edge_names_rooted(|number| self.root(number));
+        let now = names.iter().filter(|edge| edge.between == name.between);
+        name.lost_among(now.count() as u32)
     }
 
     /// The number of the face a piece was parted from, followed back to the

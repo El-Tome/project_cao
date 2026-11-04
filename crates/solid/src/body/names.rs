@@ -2,7 +2,7 @@
 //! faces they lie between, which a step pointing at one finds it again by.
 
 use super::{Body, Matter};
-use crate::brep::{EdgeName, VertexName};
+use crate::brep::{EdgeName, Lost, VertexName};
 
 impl Body {
     /// The name of every edge, ascending; none on flats, which name their
@@ -19,6 +19,16 @@ impl Body {
         match &self.matter {
             Matter::Exact(exact) => exact.vertex_names(),
             Matter::Flats(_) => Vec::new(),
+        }
+    }
+
+    /// What a name no longer finds in the body: nothing when as many edges
+    /// lie between its two sides as it was ranked among. On flats, which
+    /// name no edge, every name is gone.
+    pub fn lost(&self, name: &EdgeName) -> Option<Lost> {
+        match &self.matter {
+            Matter::Exact(exact) => exact.lost(name),
+            Matter::Flats(_) => Some(Lost::Gone),
         }
     }
 }

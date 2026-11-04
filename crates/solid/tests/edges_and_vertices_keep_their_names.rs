@@ -30,8 +30,10 @@
 //!   `four_vertices_where_a_post_meets_a_block_s_back_keep_their_ranks_through_a_change_of_size_a_move_and_a_turn`
 //! - A change that splits or removes an edge is reported for that edge —
 //!   `an_edge_a_later_cut_parts_in_two_is_reported_split_into_its_pieces`,
+//!   `an_edge_a_later_cut_parts_along_with_its_face_is_reported_split_rather_than_kept_on_its_first_piece`,
 //!   `an_edge_a_later_cut_takes_away_is_reported_gone`,
-//!   `an_edge_a_later_step_leaves_alone_is_not_reported`
+//!   `an_edge_a_later_step_leaves_alone_is_not_reported`,
+//!   `every_name_is_reported_gone_on_a_part_the_flats_computed`
 //! - The names are written in the body, read back from the geometry cache,
 //!   and replayed the same — no test: held by
 //!   `an_exact_body_s_edge_and_vertex_names_come_back_from_the_cache_as_the_replay_leaves_them`,
@@ -44,7 +46,7 @@ use std::f64::consts::TAU;
 use cao_solid::brep::{self, EdgeId, VertexId};
 use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::turning::{Axis, Corner, Straight, Turn};
-use cao_solid::{Body, EdgeName, Loop, VertexName};
+use cao_solid::{Body, EdgeName, Loop, Lost, VertexName};
 use glam::{DVec2, DVec3};
 
 /// How far a named edge or vertex may stand from where the drawing put it.
@@ -780,5 +782,177 @@ fn four_vertices_where_a_post_meets_a_block_s_back_keep_their_ranks_through_a_ch
                 &format!("{name:?}, {label}"),
             );
         }
+    }
+}
+
+/// The edge between a block's top and its front, as the block alone names
+/// it.
+fn top_front() -> EdgeName {
+    edge(&[1], &[2], 0, 1)
+}
+
+/// The block with a notch cut into the edge between its top and its front,
+/// a third of the way along: the top and the front stay one face each.
+fn notched() -> Vec<Raise> {
+    let mut steps = block(BLOCK);
+    steps.push(cut(
+        Contour::rectangle(DVec2::new(10.0, -1.0), DVec2::new(20.0, 3.0)),
+        7.0,
+        4.0,
+    ));
+    steps
+}
+
+/// The block with a step cut all along the edge between its top and its
+/// front: the top and the front no longer meet.
+fn rabbeted() -> Vec<Raise> {
+    let mut steps = block(BLOCK);
+    steps.push(cut(
+        Contour::rectangle(DVec2::new(-1.0, -1.0), DVec2::new(31.0, 2.0)),
+        8.0,
+        3.0,
+    ));
+    steps
+}
+
+/// The slot moved out to the block's right end and past it: the top is no
+/// longer left in two pieces.
+const SLOTTED_PAST_THE_END: Slotted = Slotted {
+    from: 20.0,
+    width: 11.0,
+    ..SLOTTED
+};
+
+/// Every name of `names` the body reports lost, with what it reports.
+fn reported(body: &Body, names: &[EdgeName]) -> Vec<(EdgeName, Lost)> {
+    names
+        .iter()
+        .filter_map(|name| Some((name.clone(), body.lost(name)?)))
+        .collect()
+}
+
+#[test]
+fn an_edge_a_later_cut_parts_in_two_is_reported_split_into_its_pieces() {
+    let drawn = part(&block(BLOCK), ground());
+    assert!(drawn.edge_names().contains(&top_front()));
+    let notched = part(&notched(), ground());
+    assert_eq!(notched.lost(&top_front()), Some(Lost::Split { now: 2 }));
+}
+
+#[test]
+fn an_edge_a_later_cut_parts_along_with_its_face_is_reported_split_rather_than_kept_on_its_first_piece()
+ {
+    let drawn = part(&block(BLOCK), ground());
+    let trenched = part(&slotted(&SLOTTED), ground());
+    assert!(
+        trenched.has_face(12) && !drawn.has_face(12),
+        "the slot leaves the top in two pieces, the second numbered afresh"
+    );
+    for name in [top_front(), edge(&[1], &[4], 0, 1)] {
+        assert!(drawn.edge_names().contains(&name), "{name:?}");
+        assert_eq!(
+            trenched.lost(&name),
+            Some(Lost::Split { now: 2 }),
+            "{name:?}"
+        );
+    }
+}
+
+#[test]
+fn an_edge_a_later_cut_takes_away_is_reported_gone() {
+    let rabbeted = part(&rabbeted(), ground());
+    assert_eq!(
+        rabbeted.lost(&top_front()),
+        Some(Lost::Gone),
+        "the top and the front no longer meet"
+    );
+    let trenched = part(&slotted(&SLOTTED), ground());
+    let past_the_end = part(&slotted(&SLOTTED_PAST_THE_END), ground());
+    for rank in 0..2 {
+        let name = edge(&[1], &[2], rank, 2);
+        assert!(trenched.edge_names().contains(&name), "{name:?}");
+        assert_eq!(
+            past_the_end.lost(&name),
+            Some(Lost::Gone),
+            "{name:?}: one edge of the two is left, and which went cannot be told"
+        );
+    }
+}
+
+#[test]
+fn an_edge_a_later_step_leaves_alone_is_not_reported() {
+    let block_names = part(&block(BLOCK), ground()).edge_names();
+    let slot_names = part(&slotted(&SLOTTED), ground()).edge_names();
+    for (label, body, names) in [
+        (
+            "a block resized",
+            part(&block(BLOCK_RESIZED), ground()),
+            &block_names,
+        ),
+        (
+            "a block moved",
+            part(&block(BLOCK), moved(ELSEWHERE)),
+            &block_names,
+        ),
+        (
+            "a slot resized",
+            part(&slotted(&SLOTTED_RESIZED), ground()),
+            &slot_names,
+        ),
+        (
+            "a slot moved",
+            part(&slotted(&SLOTTED), moved(ELSEWHERE)),
+            &slot_names,
+        ),
+        (
+            "a slot narrower",
+            part(&slotted(&SLOTTED_NARROWER), ground()),
+            &slot_names,
+        ),
+    ] {
+        let lost = reported(&body, names);
+        assert!(lost.is_empty(), "{label}: {lost:?}");
+    }
+    assert_eq!(
+        reported(&part(&notched(), ground()), &block_names),
+        [(top_front(), Lost::Split { now: 2 })],
+        "a notch reports the edge it cuts, and no other"
+    );
+}
+
+/// The block raised by the flats: the drawing handed its outline sampled,
+/// and no runs.
+fn flat_block() -> Body {
+    let corners = [
+        DVec2::ZERO,
+        DVec2::new(BLOCK[0], 0.0),
+        DVec2::new(BLOCK[0], BLOCK[1]),
+        DVec2::new(0.0, BLOCK[1]),
+    ];
+    let triangles = [
+        [corners[0], corners[1], corners[2]],
+        [corners[0], corners[2], corners[3]],
+    ];
+    let profile = Profile {
+        exact: None,
+        sampled: Loop::straight(&corners),
+        sampled_holes: Vec::new(),
+        triangles: &triangles,
+    };
+    let part = Body::default();
+    let tool = part
+        .tool_raised(&profile, ground(), DVec3::Z * BLOCK[2])
+        .expect("the flats never decline");
+    part.union(&tool).expect("the flats never decline")
+}
+
+#[test]
+fn every_name_is_reported_gone_on_a_part_the_flats_computed() {
+    let names = part(&block(BLOCK), ground()).edge_names();
+    assert_eq!(names.len(), 12);
+    let flats = flat_block();
+    assert!(!flats.is_exact());
+    for name in &names {
+        assert_eq!(flats.lost(name), Some(Lost::Gone), "{name:?}");
     }
 }

@@ -35,7 +35,7 @@ pub use curve::{Circle, Curve, Line, Meet, Wall};
 pub use domain::Location;
 pub use listing::{ListedEdge, ListedFace, Listing};
 pub use meet::{Configuration, Meeting, Node};
-pub use names::{EdgeName, VertexName};
+pub use names::{EdgeName, Lost, VertexName};
 pub use overlay::{Arc, Overlay, Region};
 pub use relation::{Crossing, Crossings, Relation, crossings, relation};
 pub use scale::Scale;

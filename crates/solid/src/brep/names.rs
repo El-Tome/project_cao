@@ -23,6 +23,31 @@ pub struct EdgeName {
     pub of: u32,
 }
 
+/// What a name no longer finds, once the edges between its two sides are
+/// not as many as it was ranked among.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Lost {
+    /// No edge lies between its two sides any more, or fewer than it was
+    /// ranked among: which of them went cannot be told, so the named one is
+    /// taken for gone.
+    Gone,
+    /// More edges lie between its two sides than it was ranked among: `now`
+    /// of them.
+    Split { now: u32 },
+}
+
+impl EdgeName {
+    /// What the name no longer finds among `now` edges between its two
+    /// sides: nothing when they are as many as it was ranked among.
+    pub(crate) fn lost_among(&self, now: u32) -> Option<Lost> {
+        match now.cmp(&self.of) {
+            Ordering::Equal => None,
+            Ordering::Greater => Some(Lost::Split { now }),
+            Ordering::Less => Some(Lost::Gone),
+        }
+    }
+}
+
 /// A vertex, as the sides of every face at it, ascending, and its rank among
 /// the `of` vertices of the body at the same sides.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

@@ -6,7 +6,7 @@ use cao_prefs::theme::Theme;
 use cao_sketch::{CornerCutId, Element, Going, PointId, Preview, Selection, Sketch};
 use glam::DVec2;
 
-use super::curves::{push_arc_at, push_circle_at, push_ellipse_at};
+use super::curves::push_circle_at;
 use super::cuts::{CutCanvas, Stroke};
 use super::marks::push_point_markers;
 use super::preview::push_preview;
@@ -195,15 +195,12 @@ pub(crate) fn push_sketch(
             color,
             width,
         );
-        push_arc_at(
-            out,
-            sketch,
-            sketch.arc_draft(id),
+        let stroke = Stroke {
             color,
             width,
-            arc.construction,
-            scale,
-        );
+            construction: arc.construction,
+        };
+        canvas.push_arc(out, id, stroke, scale);
     }
 
     for (id, oval) in sketch.live_ellipses() {
@@ -220,15 +217,12 @@ pub(crate) fn push_sketch(
             color,
             width,
         );
-        push_ellipse_at(
-            out,
-            sketch,
-            sketch.ellipse_polyline(id),
+        let stroke = Stroke {
             color,
             width,
-            oval.construction,
-            scale,
-        );
+            construction: oval.construction,
+        };
+        canvas.push_ellipse(out, id, stroke, scale);
     }
 
     if !active {

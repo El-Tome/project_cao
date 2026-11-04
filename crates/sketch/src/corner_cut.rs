@@ -27,6 +27,7 @@ mod side;
 pub use drawn::{CutCurve, DrawnCut, PulledEnds};
 pub use picking::Grip;
 pub use points::CutPoint;
+pub use showing::Stretches;
 pub use side::CutSide;
 pub(crate) use side::both_traits;
 

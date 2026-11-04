@@ -44,9 +44,16 @@
 //!   `a_plate_rounded_beside_an_arc_closes_its_area_along_the_trimmed_arc_and_the_fillet`,
 //!   `a_plate_rounded_beside_an_arc_is_raised_with_its_rounded_corner`; what
 //!   the canvas draws of each side is what `visible_part` says of it —
-//!   `a_side_rounded_beside_a_curve_shows_from_its_far_end_to_where_the_fillet_touches_it`;
-//!   the tint is painted from those same areas, and nothing under the canvas
-//!   asserts what is painted
+//!   `a_side_rounded_beside_a_curve_shows_from_its_far_end_to_where_the_fillet_touches_it`,
+//!   and the canvas strokes a curve side solid to the fillet and in thin
+//!   dashes on to the sharp corner, whole beside a fillet that does not fit,
+//!   held in `cao_app` by
+//!   `a_curve_rounded_at_its_end_is_drawn_solid_to_the_fillet_and_dashed_to_its_sharp_corner`
+//!   and `a_curve_beside_a_fillet_that_does_not_fit_is_drawn_whole`, and the
+//!   picture of a part draws it from its far end to the fillet only, as it
+//!   does a trait side, held there by
+//!   `a_curve_rounded_at_its_end_reaches_the_picture_from_its_far_end_to_the_fillet`;
+//!   the tint is painted from those same areas
 //! - A value too big is held back with the largest that fits, and a fillet
 //!   that no longer fits during a drag turns red with the sharp corner
 //!   standing in, as in #617 —

@@ -85,7 +85,7 @@ impl Sketch {
                 let run = match self.ellipse_ends(id) {
                     None => None,
                     Some(_) => {
-                        let (from, sweep) = self.stretch_shows(id, pulled)?;
+                        let (from, sweep) = self.ellipse_stretches(id, pulled).shows?;
                         Some((from / turn, sweep / turn))
                     }
                 };

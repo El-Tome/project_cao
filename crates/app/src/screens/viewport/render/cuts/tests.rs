@@ -15,6 +15,14 @@
 //!   in `crates/app/tests/selecting_under_the_hand.rs` and
 //!   `screens/viewport/input/selecting/tests.rs`, under their own
 //!   `Closes #664` blocks
+//!
+//! The canvas's share of #621, whose criteria live with the part's tests in
+//! `crates/part/tests/a_fillet_rounds_a_corner_with_a_curve.rs`: a curve
+//! rounded at its end is drawn solid from its far end to the fillet and in
+//! thin dashes on to its sharp corner, as a trait side is —
+//! `a_curve_rounded_at_its_end_is_drawn_solid_to_the_fillet_and_dashed_to_its_sharp_corner`
+//! — and whole beside a fillet that does not fit —
+//! `a_curve_beside_a_fillet_that_does_not_fit_is_drawn_whole`.
 
 use cao_part::history::PointRef;
 use cao_part::{Operation, PartDocument};
@@ -386,4 +394,339 @@ fn a_fillet_s_point_22_px_from_the_hand_is_not_lit_while_pointing() {
         0,
         "22 px from the hand, the fillet's point is out of reach of a click, so it is not lit"
     );
+}
+
+/// A trait from (10, 10) to (50, 10) and an arc round (2, 10) of radius 8 from
+/// that corner to `far`, the corner rounded by `radius`.
+fn a_trait_and_an_arc_rounded(far: DVec2, radius: f64) -> PartDocument {
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddPoint {
+        sketch: 0,
+        position: DVec2::new(10.0, 10.0),
+        on: Vec::new(),
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(cao_sketch::PointId(1)),
+        end: PointRef::New(DVec2::new(50.0, 10.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(2.0, 10.0)),
+        start: PointRef::Existing(cao_sketch::PointId(1)),
+        end: PointRef::New(far),
+        construction: false,
+    });
+    document.apply(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::At(cao_sketch::PointId(1))],
+        radius: radius.into(),
+        construction: false,
+    });
+    document
+}
+
+/// An arc of ellipse round (30, 20), its first axis (8, 6) and its second
+/// reaching 5, drawn from the corner at (32.4, 26.8) round to (22, 14); and an
+/// arc round (42.4, 26.8) of radius 10 from that corner down to (42.4, 16.8),
+/// the corner rounded by two.
+fn an_arc_of_ellipse_and_an_arc_rounded() -> PartDocument {
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddPoint {
+        sketch: 0,
+        position: DVec2::new(32.4, 26.8),
+        on: Vec::new(),
+    });
+    let back = PointRef::New(DVec2::new(22.0, 14.0));
+    document.apply(Operation::AddEllipse {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(30.0, 20.0)),
+        first: [back.clone(), PointRef::New(DVec2::new(38.0, 26.0))],
+        second: [
+            PointRef::New(DVec2::new(33.0, 16.0)),
+            PointRef::New(DVec2::new(27.0, 24.0)),
+        ],
+        construction: false,
+        drawn: Some([PointRef::Existing(cao_sketch::PointId(1)), back]),
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(42.4, 26.8)),
+        start: PointRef::Existing(cao_sketch::PointId(1)),
+        end: PointRef::New(DVec2::new(42.4, 16.8)),
+        construction: false,
+    });
+    document.apply(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::Between(
+            cao_sketch::EllipseId(0).into(),
+            cao_sketch::ArcId(0).into(),
+        )],
+        radius: 2.0.into(),
+        construction: false,
+    });
+    document
+}
+
+/// A curve side of a corner as the test laid it, leaving the corner the way
+/// its drawing runs when `counter_clockwise`.
+#[derive(Clone, Copy, Debug)]
+enum CurveSide {
+    Arc {
+        centre: DVec2,
+        radius: f64,
+        counter_clockwise: bool,
+    },
+    ArcOfEllipse {
+        centre: DVec2,
+        first: DVec2,
+        second: f64,
+        counter_clockwise: bool,
+    },
+}
+
+impl CurveSide {
+    /// How far round from the corner a place lies, the way the side leaves
+    /// it — an angle round an arc, a turn round an ellipse, within half a turn
+    /// either way — when the place lies on the side's curve.
+    fn along(self, corner: DVec2, place: DVec2) -> Option<f64> {
+        const ON: f64 = 1e-5;
+        let (turn, counter_clockwise): (Box<dyn Fn(DVec2) -> f64>, bool) = match self {
+            Self::Arc {
+                centre,
+                radius,
+                counter_clockwise,
+            } => {
+                if (place.distance(centre) - radius).abs() > ON * radius {
+                    return None;
+                }
+                (
+                    Box::new(move |at: DVec2| (at - centre).to_angle()),
+                    counter_clockwise,
+                )
+            }
+            Self::ArcOfEllipse {
+                centre,
+                first,
+                second,
+                counter_clockwise,
+            } => {
+                let squashed = move |at: DVec2| {
+                    let out = at - centre;
+                    DVec2::new(
+                        out.dot(first.normalize()) / first.length(),
+                        out.dot(first.perp().normalize()) / second,
+                    )
+                };
+                if (squashed(place).length() - 1.0).abs() > ON {
+                    return None;
+                }
+                (
+                    Box::new(move |at: DVec2| squashed(at).to_angle()),
+                    counter_clockwise,
+                )
+            }
+        };
+        let turned = turn(place) - turn(corner);
+        let turned = match counter_clockwise {
+            true => turned,
+            false => -turned,
+        };
+        let tau = std::f64::consts::TAU;
+        Some(turned - tau * (turned / tau).round())
+    }
+}
+
+/// How far round from the corner the canvas strokes a curve side, solid and
+/// thin, as the frame paints the drawing with no tool in hand.
+fn stroked_along(
+    document: &mut PartDocument,
+    corner: DVec2,
+    side: CurveSide,
+) -> (Vec<f64>, Vec<f64>) {
+    let sketch = document.sketches()[0].clone();
+    let mut editor = SketchEditor {
+        phase: SketchPhase::Editing(0),
+        ..Default::default()
+    };
+    let (mut extrusion, lang) = (ExtrusionState::default(), Catalogue::french());
+    let context = SketchContext {
+        document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let scale = ViewScale::of(
+        &OrbitCamera::default(),
+        SCREEN,
+        1.0,
+        &ViewportConfig::default(),
+        1.0,
+    );
+    let theme = Theme::default();
+    let (mut painted, mut surfaces) = (Vec::new(), Vec::new());
+    let shown = super::super::drawing::Shown {
+        sketch: &sketch,
+        laid: &[],
+        cuts: &[],
+        going: None,
+        active: true,
+    };
+    super::super::drawing::push_sketch(
+        &mut painted,
+        &mut surfaces,
+        &shown,
+        &theme,
+        scale,
+        &context,
+    );
+    let (mut solid, mut thin) = (Vec::new(), Vec::new());
+    for stroke in painted.chunks(2) {
+        let ends = [stroke[0], stroke[1]].map(|vertex| {
+            sketch
+                .plane
+                .to_local(glam::Vec3::from(vertex.position).as_dvec3())
+        });
+        let (Some(from), Some(to)) = (side.along(corner, ends[0]), side.along(corner, ends[1]))
+        else {
+            continue;
+        };
+        match stroke[0].width < theme.sketch_width * 0.9 {
+            true => thin.extend([from, to]),
+            false => solid.extend([from, to]),
+        }
+    }
+    (solid, thin)
+}
+
+/// How far round from the corner the fillet the drawing shows touches a
+/// curve side.
+fn touched_along(document: &PartDocument, corner: DVec2, side: CurveSide) -> f64 {
+    let drawn = document.sketches()[0].drawn_cuts();
+    assert_eq!(drawn.len(), 1, "one fillet is drawn: {drawn:?}");
+    drawn[0]
+        .touches
+        .iter()
+        .find_map(|touch| side.along(corner, *touch))
+        .expect("the fillet touches the curve")
+}
+
+const ALONG: f64 = 1e-4;
+
+fn lowest(along: &[f64]) -> f64 {
+    along.iter().copied().fold(f64::INFINITY, f64::min)
+}
+
+fn highest(along: &[f64]) -> f64 {
+    along.iter().copied().fold(f64::NEG_INFINITY, f64::max)
+}
+
+#[test]
+fn a_curve_rounded_at_its_end_is_drawn_solid_to_the_fillet_and_dashed_to_its_sharp_corner() {
+    let ellipse_corner = DVec2::new(32.4, 26.8);
+    let cases = [
+        (
+            a_trait_and_an_arc_rounded(DVec2::new(2.0, 18.0), 5.0),
+            DVec2::new(10.0, 10.0),
+            CurveSide::Arc {
+                centre: DVec2::new(2.0, 10.0),
+                radius: 8.0,
+                counter_clockwise: true,
+            },
+            DVec2::new(2.0, 18.0),
+            "an arc rounded beside a trait",
+        ),
+        (
+            an_arc_of_ellipse_and_an_arc_rounded(),
+            ellipse_corner,
+            CurveSide::ArcOfEllipse {
+                centre: DVec2::new(30.0, 20.0),
+                first: DVec2::new(8.0, 6.0),
+                second: 5.0,
+                counter_clockwise: true,
+            },
+            DVec2::new(22.0, 14.0),
+            "an arc of ellipse rounded beside an arc",
+        ),
+        (
+            an_arc_of_ellipse_and_an_arc_rounded(),
+            ellipse_corner,
+            CurveSide::Arc {
+                centre: DVec2::new(42.4, 26.8),
+                radius: 10.0,
+                counter_clockwise: true,
+            },
+            DVec2::new(42.4, 16.8),
+            "an arc rounded beside an arc of ellipse",
+        ),
+    ];
+    for (mut document, corner, side, far, what) in cases {
+        let touch = touched_along(&document, corner, side);
+        let far = side
+            .along(corner, far)
+            .expect("the far end is on the curve");
+        let (solid, thin) = stroked_along(&mut document, corner, side);
+
+        assert!(
+            !solid.is_empty() && (lowest(&solid) - touch).abs() < ALONG,
+            "{what}: drawn solid from where the fillet touches it, {touch} round from the \
+             corner, not from {}",
+            lowest(&solid),
+        );
+        assert!(
+            (highest(&solid) - far).abs() < ALONG,
+            "{what}: drawn solid up to its far end, {far} round, not {}",
+            highest(&solid),
+        );
+        assert!(
+            !thin.is_empty(),
+            "{what}: the stretch the fillet hides, from the touch to the sharp corner, is \
+             drawn in thin dashes"
+        );
+        assert!(
+            thin.iter()
+                .all(|along| (-ALONG..=touch + ALONG).contains(along)),
+            "{what}: the thin dashes run between the sharp corner and the touch, {touch} \
+             round, and nowhere else: {thin:?}"
+        );
+    }
+}
+
+#[test]
+fn a_curve_beside_a_fillet_that_does_not_fit_is_drawn_whole() {
+    let corner = DVec2::new(10.0, 10.0);
+    let far = DVec2::new(2.0 + 96.0 / 13.0, 10.0 + 40.0 / 13.0);
+    let side = CurveSide::Arc {
+        centre: DVec2::new(2.0, 10.0),
+        radius: 8.0,
+        counter_clockwise: true,
+    };
+    let mut document = a_trait_and_an_arc_rounded(far, 8.0);
+    assert!(
+        document.sketches()[0]
+            .drawn_cuts()
+            .iter()
+            .all(|cut| !cut.fits),
+        "a fillet of eight touches the arc past its end"
+    );
+
+    let (solid, thin) = stroked_along(&mut document, corner, side);
+
+    let far = side.along(corner, far).expect("the far end is on the arc");
+    assert!(
+        !solid.is_empty() && lowest(&solid).abs() < ALONG && (highest(&solid) - far).abs() < ALONG,
+        "the arc is drawn solid from its corner to its far end, {far} round: from {} to {}",
+        lowest(&solid),
+        highest(&solid),
+    );
+    assert!(thin.is_empty(), "nothing of the arc is dashed: {thin:?}");
 }

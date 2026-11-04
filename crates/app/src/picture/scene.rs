@@ -1,6 +1,6 @@
 use cao_part::PartDocument;
 use cao_render::{CubeFace, CubeZone, OrbitCamera, SceneFrame, Vertex, ViewportRect};
-use cao_sketch::{CutCurve, Sketch, sweep_of};
+use cao_sketch::{CutCurve, Sketch, Stretches, sweep_of};
 use glam::{DVec2, Vec3};
 
 /// What a picture of a part is made of: its matter and its drawings, and
@@ -128,13 +128,26 @@ fn push_drawing(out: &mut Vec<Vertex>, sketch: &Sketch) {
         push_curve(out, centre, circle.radius, 0.0, std::f64::consts::TAU, &at);
     }
     for (id, _) in sketch.live_arcs() {
+        let Some((from, sweep)) = sketch.arc_stretches(id, &pulled).shows else {
+            continue;
+        };
         let drawn = sketch.arc_draft(id);
         let radius = (drawn.start - drawn.centre).length();
-        let from = (drawn.start - drawn.centre).to_angle();
-        push_curve(out, drawn.centre, radius, from, sweep_of(drawn), &at);
+        push_curve(out, drawn.centre, radius, from, sweep, &at);
     }
     for (id, _) in sketch.live_ellipses() {
-        for pair in sketch.ellipse_polyline(id).windows(2) {
+        let places = match sketch.ellipse_stretches(id, &pulled) {
+            Stretches { hidden, .. } if hidden.is_empty() => sketch.ellipse_polyline(id),
+            Stretches {
+                shows: Some((from, sweep)),
+                ..
+            } => {
+                let drawn = sketch.ellipse_draft(id);
+                drawn.places_along(from, sweep, drawn.steps_over(sweep))
+            }
+            Stretches { shows: None, .. } => continue,
+        };
+        for pair in places.windows(2) {
             push_step(out, at(pair[0]), at(pair[1]));
         }
     }

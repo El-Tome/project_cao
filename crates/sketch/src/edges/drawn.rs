@@ -53,7 +53,7 @@ pub(super) fn traits_and_cuts(
         names.push(CurveId::Corner(cut.id));
     }
     for (id, arc) in sketch.live_arcs().filter(|(_, it)| !it.construction) {
-        if sketch.arc_shows(id, &pulled).is_none() {
+        if sketch.arc_stretches(id, &pulled).shows.is_none() {
             continue;
         }
         let ends = pulled.of(id.into());

@@ -18,6 +18,8 @@ use super::{emphasis, tint, tint_at};
 use crate::screens::SketchContext;
 use crate::screens::viewport::ViewScale;
 
+mod curve_sides;
+
 /// How faint the stretch of a side hidden by a cut is drawn, as a share of
 /// the side's own colour: the sharp corner is still there to be read.
 const HIDDEN: f32 = 0.45;
@@ -238,9 +240,8 @@ fn push_hidden(
     stroke: Stroke,
     scale: ViewScale,
 ) {
-    let [red, green, blue, alpha] = stroke.color;
-    let faint = [red, green, blue, alpha * HIDDEN];
-    push_line(out, from, to, faint, stroke.width * 0.6, true, scale);
+    let faint = curve_sides::faint(stroke);
+    push_line(out, from, to, faint.color, faint.width, true, scale);
 }
 
 /// The cuts under the cursor or held by the selection, apart from the cuts

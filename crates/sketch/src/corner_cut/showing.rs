@@ -11,43 +11,50 @@ use crate::arcing::sweep_of;
 use crate::ellipse::EllipseId;
 use crate::sketch::Sketch;
 
+/// A curve side split by the cuts on its ends: the stretch that shows, and
+/// the stretches they hide up to its sharp corners — each as the angle or the
+/// turn it starts at and how far round it runs, the way the curve runs.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Stretches {
+    pub shows: Option<(f64, f64)>,
+    pub hidden: Vec<(f64, f64)>,
+}
+
 impl Sketch {
     /// The two ends of what shows of a side, the way it runs — nothing when
     /// the cuts on its ends leave none of it.
     pub(crate) fn what_shows(&self, side: CutSide, pulled: &PulledEnds) -> Option<(DVec2, DVec2)> {
         let shows = match side {
             CutSide::Trait(segment) => self.visible_ends(segment, pulled).is_some(),
-            CutSide::Arc(arc) => self.arc_shows(arc, pulled).is_some(),
-            CutSide::ArcOfEllipse(ellipse) => self.stretch_shows(ellipse, pulled).is_some(),
+            CutSide::Arc(arc) => self.arc_stretches(arc, pulled).shows.is_some(),
+            CutSide::ArcOfEllipse(ellipse) => {
+                self.ellipse_stretches(ellipse, pulled).shows.is_some()
+            }
         };
         let [start, end] = self.side_ends(side)?.map(|point| self.point(point));
         let [from, to] = pulled.of(side);
         shows.then(|| (from.unwrap_or(start), to.unwrap_or(end)))
     }
 
-    /// What shows of an arc, as the angle it starts at and how far round it
-    /// runs counter-clockwise.
-    pub(crate) fn arc_shows(&self, arc: ArcId, pulled: &PulledEnds) -> Option<(f64, f64)> {
+    /// An arc split by the cuts on its ends, as angles round its centre,
+    /// counter-clockwise.
+    pub fn arc_stretches(&self, arc: ArcId, pulled: &PulledEnds) -> Stretches {
         let drawn = self.arc_draft(arc);
         let angle = |place: DVec2| (place - drawn.centre).to_angle();
-        shown(
+        split(
             angle(drawn.start),
             sweep_of(drawn),
             pulled.of(arc.into()).map(|end| end.map(angle)),
         )
     }
 
-    /// What shows of the stretch of an ellipse, as the turn it starts at and
-    /// how far round it runs: the whole of it for an ellipse no cut has taken
-    /// a stretch out of, which no fillet stands beside.
-    pub(crate) fn stretch_shows(
-        &self,
-        ellipse: EllipseId,
-        pulled: &PulledEnds,
-    ) -> Option<(f64, f64)> {
+    /// The stretch of an ellipse split by the cuts on its ends, as turns
+    /// round it: the whole of it for an ellipse no cut has taken a stretch
+    /// out of, which no fillet stands beside.
+    pub fn ellipse_stretches(&self, ellipse: EllipseId, pulled: &PulledEnds) -> Stretches {
         let drawn = self.ellipse_draft(ellipse);
         let (starts, sweep) = self.ellipse_run(ellipse);
-        shown(
+        split(
             starts,
             sweep,
             pulled
@@ -57,19 +64,39 @@ impl Sketch {
     }
 }
 
-/// What is left of a run starting at the turn `starts` and running `sweep`
-/// round, once its start and its end are pulled to the turns given: where it
-/// starts and how far it runs — nothing when nothing is left.
+/// A run starting at the turn `starts` and running `sweep` round, split once
+/// its start and its end are pulled to the turns given.
 ///
 /// A turn pulled a hair behind the run's start is read as behind it, not as
-/// most of a turn on. A run no cut pulls is left exactly as it is.
-fn shown(starts: f64, sweep: f64, pulled: [Option<f64>; 2]) -> Option<(f64, f64)> {
+/// most of a turn on. A run no cut pulls is left exactly as it is, and one
+/// they leave nothing of is hidden whole.
+fn split(starts: f64, sweep: f64, pulled: [Option<f64>; 2]) -> Stretches {
     if pulled == [None, None] {
-        return Some((starts, sweep));
+        return Stretches {
+            shows: Some((starts, sweep)),
+            hidden: Vec::new(),
+        };
     }
     let slack = (TAU - sweep) * 0.5;
     let along = |turn: f64| (turn - starts + slack).rem_euclid(TAU) - slack;
     let from = pulled[0].map_or(0.0, along);
     let to = pulled[1].map_or(sweep, along);
-    (to - from > crate::precision::SAME * sweep).then_some((starts + from, to - from))
+    if to - from <= crate::precision::SAME * sweep {
+        return Stretches {
+            shows: None,
+            hidden: vec![(starts, sweep)],
+        };
+    }
+    let hidden = [
+        (pulled[0].is_some(), (starts, from)),
+        (pulled[1].is_some(), (starts + to, sweep - to)),
+    ]
+    .into_iter()
+    .filter(|(pulled, (_, run))| *pulled && *run > 0.0)
+    .map(|(_, run)| run)
+    .collect();
+    Stretches {
+        shows: Some((starts + from, to - from)),
+        hidden,
+    }
 }

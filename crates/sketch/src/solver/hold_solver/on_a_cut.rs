@@ -1,17 +1,18 @@
 //! The equations a rule hanging a point on a fillet or a chamfer, or holding a
 //! line tangent to a fillet, asks of the solver.
 //!
-//! The cut is not solved: what it draws is worked out from its corner and the
-//! far end of each side. So is each place it offers, and the rule holding a
-//! point there reads it the same way, with how it moves with those three
-//! points — that is what lets a point pulled by something else move the
-//! corner, and the corner moving carry the point.
+//! The cut is not solved: what it draws is worked out from its corner, the
+//! far end of each side and, beside a curve, what the curve is drawn about. So
+//! is each place it offers, and the rule holding a point there reads it the
+//! same way, with how it moves with each of those points — that is what lets
+//! a point pulled by something else move the corner, and the corner moving
+//! carry the point.
 
 use glam::DVec2;
 
 use crate::constraints::Constraint;
 use crate::corner_cut::CornerCutId;
-use crate::corner_cut::points::{COORDINATES, CutPoint, OWN, OWN_END};
+use crate::corner_cut::points::{COORDINATES, CutPlaces, CutPoint};
 use crate::equation::Equation;
 use crate::jet::{Jet, JetPlace};
 use crate::sketch::{PointId, SegmentId, Sketch};
@@ -51,11 +52,11 @@ impl Sketch {
         let Some(place) = places.at(at) else {
             return;
         };
-        let off = JetPlace::free(self.point(point), OWN) - place;
+        let off = JetPlace::free(self.point(point), places.own()) - place;
         for row in [off.dot(places.along), places.along.perp_dot(off)] {
             let mut equation = Equation::new(self.variables());
             equation.error = row.value;
-            self.add_slopes(&mut equation, cut, &[point], row);
+            add_slopes(&mut equation, &places, &[point], row);
             into.push(equation);
         }
     }
@@ -67,7 +68,7 @@ impl Sketch {
             return None;
         }
         let places = self.cut_places(cut)?;
-        let held = JetPlace::free(self.point(point), OWN);
+        let held = JetPlace::free(self.point(point), places.own());
         let off = match places.round {
             Some((centre, radius)) => {
                 let reach = (held - centre).length();
@@ -81,7 +82,7 @@ impl Sketch {
         };
         let mut equation = Equation::new(self.variables());
         equation.error = off.value;
-        self.add_slopes(&mut equation, cut, &[point], off);
+        add_slopes(&mut equation, &places, &[point], off);
         Some(equation)
     }
 
@@ -90,9 +91,10 @@ impl Sketch {
     /// never gives; the corner, its sides and the line do.
     fn cut_tangent(&self, cut: CornerCutId, segment: SegmentId) -> Option<Equation> {
         let line = *self.segments().get(segment.0)?;
-        let (centre, radius) = self.cut_places(cut)?.round?;
-        let start = JetPlace::free(self.point(line.start), OWN);
-        let run = JetPlace::free(self.point(line.end), OWN_END) - start;
+        let places = self.cut_places(cut)?;
+        let (centre, radius) = places.round?;
+        let start = JetPlace::free(self.point(line.start), places.own());
+        let run = JetPlace::free(self.point(line.end), places.own() + 2) - start;
         if run.length().value < 1e-9 {
             return None;
         }
@@ -100,26 +102,22 @@ impl Sketch {
         let off = across + -(radius * across.value.signum());
         let mut equation = Equation::new(self.variables());
         equation.error = off.value;
-        self.add_slopes(&mut equation, cut, &[line.start, line.end], off);
+        add_slopes(&mut equation, &places, &[line.start, line.end], off);
         Some(equation)
     }
+}
 
-    /// Adds to a row how `value` moves with the corner, the far end of each
-    /// side, then each of `own`, in the order their coordinates were given.
-    fn add_slopes(
-        &self,
-        equation: &mut Equation,
-        cut: CornerCutId,
-        own: &[PointId],
-        value: Jet<COORDINATES>,
-    ) {
-        let points = self
-            .cut_stands_on(cut)
-            .into_iter()
-            .chain(own.iter().copied());
-        for (rank, point) in points.enumerate() {
-            let slope = DVec2::new(value.slope[rank * 2], value.slope[rank * 2 + 1]);
-            equation.add(point, slope);
-        }
+/// Adds to a row how `value` moves with what the cut stands on, then each of
+/// `own`, in the order their coordinates were given.
+fn add_slopes(
+    equation: &mut Equation,
+    places: &CutPlaces,
+    own: &[PointId],
+    value: Jet<COORDINATES>,
+) {
+    let points = places.stands_on.iter().chain(own);
+    for (rank, point) in points.enumerate() {
+        let slope = DVec2::new(value.slope[rank * 2], value.slope[rank * 2 + 1]);
+        equation.add(*point, slope);
     }
 }

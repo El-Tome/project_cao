@@ -166,7 +166,8 @@ impl Sketch {
 
     /// Lands with the thing clicked first held where it is: its own points,
     /// or for a fillet, which is no element, what it is worked out from — its
-    /// corner and the far end of each side.
+    /// corner, the far end of each side, and what a curve side is drawn
+    /// about: an arc's centre, an ellipse's centre and the ends of its axes.
     pub(in crate::sketch) fn land_held(
         &mut self,
         from: Option<Element>,

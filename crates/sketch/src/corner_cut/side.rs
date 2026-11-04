@@ -1,5 +1,6 @@
 //! What a side of a cut corner is: a curve ending at the corner.
 
+use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use super::CutRefused;
@@ -66,6 +67,35 @@ impl Sketch {
             [start, end] if start == corner => Some(end),
             [start, end] if end == corner => Some(start),
             _ => None,
+        }
+    }
+
+    /// The points a side is drawn about besides its ends: none for a trait,
+    /// an arc's centre, an ellipse's centre and the ends of its axes.
+    pub(crate) fn drawn_about(&self, side: CutSide) -> Vec<PointId> {
+        match side {
+            CutSide::Trait(_) => Vec::new(),
+            CutSide::Arc(arc) => vec![self.arc(arc).center],
+            CutSide::ArcOfEllipse(ellipse) => self.ellipse_points(ellipse).to_vec(),
+        }
+    }
+
+    /// How far a place stands from the whole line or curve a side lies on,
+    /// past its ends too, as the rule holding a point on that side reads it.
+    pub(crate) fn off_the_path_of(&self, side: CutSide, place: DVec2) -> f64 {
+        match side {
+            CutSide::Trait(segment) => {
+                let (start, end) = self.endpoints(segment);
+                (end - start)
+                    .normalize_or_zero()
+                    .perp_dot(place - start)
+                    .abs()
+            }
+            CutSide::Arc(arc) => {
+                let centre = self.point(self.arc(arc).center);
+                (centre.distance(place) - self.arc_radius(arc)).abs()
+            }
+            CutSide::ArcOfEllipse(ellipse) => self.ellipse_draft(ellipse).distance(place),
         }
     }
 

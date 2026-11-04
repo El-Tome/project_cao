@@ -149,10 +149,11 @@ impl PartState {
         self.cutting(sketch, |drawing, _| {
             let trimmed = drawing.trim_ellipse(ellipse, between)?;
             Some(Cut {
-                // Nothing is handed over and nothing is dropped: what a cut
-                // leaves of an ellipse is the very ellipse, so every rule and
-                // every value it carried still speaks of it.
-                rules: 0,
+                // Nothing is handed over: what a cut leaves of an ellipse is
+                // the very ellipse, so every rule and every value it carried
+                // still speaks of it. What is dropped hung on a fillet whose
+                // corner went with the stretch.
+                rules: trimmed.rules_dropped,
                 values: 0,
                 became: vec![(
                     CurveId::Ellipse(ellipse),

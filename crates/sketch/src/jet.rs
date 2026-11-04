@@ -44,6 +44,10 @@ impl<const N: usize> Jet<N> {
         self.through(self.value.sin(), self.value.cos())
     }
 
+    pub fn cos(self) -> Self {
+        self.through(self.value.cos(), -self.value.sin())
+    }
+
     pub fn abs(self) -> Self {
         match self.value < 0.0 {
             true => -self,
@@ -190,6 +194,14 @@ impl<const N: usize> JetPlace<N> {
 
     pub fn length(self) -> Jet<N> {
         self.dot(self).sqrt()
+    }
+
+    /// The place a quarter turn counter-clockwise from this one.
+    pub fn perp(self) -> Self {
+        Self {
+            x: -self.y,
+            y: self.x,
+        }
     }
 
     pub fn scaled(self, by: Jet<N>) -> Self {

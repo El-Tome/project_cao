@@ -18,21 +18,18 @@ use super::drawn::NOTHING;
 use super::{CornerCutId, CutCurve, CutShape, DrawnCut};
 use crate::chamfer::Chamfer;
 use crate::jet::{Jet, JetPlace};
-use crate::sketch::Sketch;
+use crate::sketch::{PointId, Sketch};
 
-/// How many coordinates a cut's places are worked out over: the corner and
-/// the far end of each side, then the point a rule holds — or the two ends of
-/// a line brushing a fillet.
-pub(crate) const COORDINATES: usize = 10;
+/// How many coordinates a cut's places are worked out over at most: the
+/// points the cut stands on — its corner, the far end of each side and, beside
+/// a curve, the five points an ellipse is drawn about — then the point a rule
+/// holds, or the two ends of a line brushing a fillet.
+pub(crate) const COORDINATES: usize = 30;
 
 /// Where the corner's coordinates sit among them, then each far end's.
 pub(crate) const CORNER: usize = 0;
 pub(crate) const FAR_FIRST: usize = 2;
 pub(crate) const FAR_SECOND: usize = 4;
-/// Where the point the rule holds sits, or the first end of the line.
-pub(crate) const OWN: usize = 6;
-/// Where the other end of a line brushing a fillet sits.
-pub(crate) const OWN_END: usize = 8;
 
 /// One of the points a cut offers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -72,7 +69,7 @@ impl DrawnCut {
 }
 
 /// A cut's places as the solver reads them: each with how it moves with the
-/// corner and the far ends of the sides.
+/// points the cut stands on.
 pub(crate) struct CutPlaces {
     /// Which way the first side leaves the corner: the frame a place is read
     /// in, so that a shape turned whole reads the same.
@@ -80,9 +77,18 @@ pub(crate) struct CutPlaces {
     pub touches: [JetPlace<COORDINATES>; 2],
     /// The centre of a fillet's curve, and its radius.
     pub round: Option<(JetPlace<COORDINATES>, f64)>,
+    /// What the cut stands on, in the order of their coordinates.
+    pub stands_on: Vec<PointId>,
 }
 
 impl CutPlaces {
+    /// Where the point a rule holds sits among the coordinates, past those of
+    /// what the cut stands on — or the first end of a line brushing a fillet,
+    /// its other end next.
+    pub(crate) fn own(&self) -> usize {
+        2 * self.stands_on.len()
+    }
+
     pub(crate) fn at(&self, point: CutPoint) -> Option<JetPlace<COORDINATES>> {
         match point {
             CutPoint::Centre => self.round.map(|(centre, _)| centre),
@@ -130,31 +136,38 @@ impl Sketch {
             .map(|(cut, point, _)| (cut, point))
     }
 
-    /// A cut's places worked out again from its corner and its sides, with
-    /// how each moves with them: nothing for a cut that does not stand, or
-    /// whose corner gives it no place — which is when it is not drawn either.
+    /// A cut's places worked out again from what it stands on, with how each
+    /// moves with it: nothing for a cut that does not stand, or whose corner
+    /// gives it no place — which is when it is not drawn either.
     pub(crate) fn cut_places(&self, cut: CornerCutId) -> Option<CutPlaces> {
         let laid = *self.corner_cuts().get(cut.0)?;
         if self.is_erased_cut(cut) || !self.stands(&laid) {
             return None;
         }
-        let sides = super::both_traits(laid.sides)?;
+        let stands_on = self.cut_stands_on(cut);
+        let Some(sides) = super::both_traits(laid.sides) else {
+            return self.places_beside_a_curve(&laid, stands_on);
+        };
         let corner = JetPlace::free(self.point(laid.corner), CORNER);
         let far = |side: usize, rank: usize| {
             JetPlace::free(self.point(self.far_end(sides[side], laid.corner)), rank)
         };
-        places(corner, [far(0, FAR_FIRST), far(1, FAR_SECOND)], laid.shape)
+        let leaving =
+            [far(0, FAR_FIRST), far(1, FAR_SECOND)].map(|far| (far - corner).normalized());
+        places(corner, leaving, laid.shape, stands_on)
     }
 }
 
-/// A cut's places, from its corner, the far end of each side and its shape:
-/// the formula `drawn` reads in plain numbers, here carried with its slopes.
-fn places(
+/// A cut's places, from its corner, the unit way each side leaves it and its
+/// shape: the formula `drawn` reads in plain numbers between two traits, and
+/// the one a fillet beside a curve that fits nowhere is drawn by, along the
+/// sides' tangents — here carried with its slopes.
+pub(super) fn places(
     corner: JetPlace<COORDINATES>,
-    fars: [JetPlace<COORDINATES>; 2],
+    along: [JetPlace<COORDINATES>; 2],
     shape: CutShape,
+    stands_on: Vec<PointId>,
 ) -> Option<CutPlaces> {
-    let along = fars.map(|far| (far - corner).normalized());
     let cos = along[0].dot(along[1]);
     let sin = along[0].perp_dot(along[1]).abs();
     let opening = sin.atan2(cos);
@@ -196,6 +209,7 @@ fn places(
             corner + along[1].scaled(backs[1]),
         ],
         round,
+        stands_on,
     })
 }
 

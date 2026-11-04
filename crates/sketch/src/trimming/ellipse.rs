@@ -12,6 +12,7 @@ use std::f64::consts::TAU;
 
 use glam::DVec2;
 
+use super::carrying::gone;
 use super::{NO_LENGTH, ON_THE_TRAIT};
 
 /// How far round the turn a place may stand past the end of a stretch and
@@ -28,6 +29,9 @@ use crate::sketch::{Element, PointId, Sketch};
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EllipseTrimmed {
     pub pieces: Vec<EllipseId>,
+    /// Rules the cut took away: those hung on a fillet whose corner went with
+    /// the stretch. Everything else still speaks of the very ellipse.
+    pub rules_dropped: usize,
 }
 
 impl Sketch {
@@ -129,6 +133,7 @@ impl Sketch {
 
         let kept = self.what_is_left(id, from, to);
         let cut_on_it = self.cuts_standing_on(id.into());
+        let rules = self.constraints().to_vec();
         let mut pieces = Vec::new();
         for (rank, (opens, closes)) in kept.iter().enumerate() {
             match rank {
@@ -152,7 +157,10 @@ impl Sketch {
         }
         let laid: Vec<CutSide> = pieces.iter().map(|piece| (*piece).into()).collect();
         self.cuts_follow_pieces(&cut_on_it, id.into(), &laid);
-        Some(EllipseTrimmed { pieces })
+        Some(EllipseTrimmed {
+            pieces,
+            rules_dropped: gone(&rules, self.constraints()).len(),
+        })
     }
 
     /// The stretches left drawn once the one between the two points is taken

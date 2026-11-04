@@ -164,6 +164,7 @@ impl Sketch {
 
         let carried = self.carried_round(id);
         let cut_on_it = self.cuts_standing_on(id.into());
+        let hung = self.rules_hung_on(&cut_on_it);
         self.erase(Element::Arc(id));
         let dropped = gone(&carried.rules, self.constraints());
         let dropped_values = gone(&targets(&carried.values), &targets(self.dimensions()));
@@ -196,14 +197,16 @@ impl Sketch {
         self.hand_round(id, &pieces, &carried);
         let laid: Vec<CutSide> = pieces.iter().map(|piece| piece.id.into()).collect();
         self.cuts_follow_pieces(&cut_on_it, id.into(), &laid);
+        self.hang_again(&hung);
 
         let rules_dropped = dropped
             .iter()
             .filter(|rule| {
-                !pieces.iter().any(|piece| {
-                    still_holds(**rule, id, piece, carried.place_of(**rule))
-                        .is_some_and(|moved| self.carries(moved))
-                })
+                !self.carries(**rule)
+                    && !pieces.iter().any(|piece| {
+                        still_holds(**rule, id, piece, carried.place_of(**rule))
+                            .is_some_and(|moved| self.carries(moved))
+                    })
             })
             .count();
         let values_dropped = dropped_values

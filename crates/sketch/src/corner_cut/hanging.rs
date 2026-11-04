@@ -10,7 +10,7 @@
 use glam::DVec2;
 
 use super::points::CutPoint;
-use super::{CornerCutId, CutCurve, CutShape};
+use super::{CornerCutId, CutCurve, CutShape, CutSide};
 use crate::constraints::Constraint;
 use crate::edges::off_by;
 use crate::holding::Support;
@@ -36,27 +36,30 @@ impl Sketch {
         self.live_cut(cut).is_some()
     }
 
-    /// A cut something may hang on: one still standing, between two traits.
-    /// Nothing hangs on a cut beside a curve.
+    /// A cut something may hang on: one still standing, between two traits
+    /// or beside a curve.
     fn live_cut(&self, cut: CornerCutId) -> Option<super::CornerCut> {
         let laid = *self.corner_cuts().get(cut.0)?;
-        let between_traits = super::both_traits(laid.sides).is_some();
-        (!self.is_erased_cut(cut) && self.stands(&laid) && between_traits).then_some(laid)
+        (!self.is_erased_cut(cut) && self.stands(&laid)).then_some(laid)
     }
 
     /// The points a cut is worked out from: its corner, then the far end of
-    /// each side. A point that is one of them is not hung on the cut — it
-    /// is what the cut stands on.
+    /// each side, then what each curve side is drawn about — an arc's
+    /// centre, an ellipse's centre and the ends of its axes. A point that is
+    /// one of them is not hung on the cut — it is what the cut stands on.
     pub(crate) fn cut_stands_on(&self, cut: CornerCutId) -> Vec<PointId> {
         let Some(laid) = self.corner_cuts().get(cut.0).copied() else {
             return Vec::new();
         };
-        let fars = laid
-            .sides
-            .iter()
-            .filter_map(|side| side.as_trait())
-            .map(|side| self.far_end(side, laid.corner));
-        std::iter::once(laid.corner).chain(fars).collect()
+        let fars = laid.sides.iter().filter_map(|side| match side.as_trait() {
+            Some(side) => Some(self.far_end(side, laid.corner)),
+            None => self.far_end_of(*side, laid.corner),
+        });
+        let drawn_about = laid.sides.iter().flat_map(|side| self.drawn_about(*side));
+        std::iter::once(laid.corner)
+            .chain(fars)
+            .chain(drawn_about)
+            .collect()
     }
 
     /// What a point laid at this place would hang on, among the cuts: one of
@@ -112,9 +115,13 @@ impl Sketch {
     }
 
     /// What a cut taken off leaves of what hung on it: each point where it
-    /// is, an end of the cut still held on its side, the rest let go.
+    /// is, an end of the cut still held on its side when it lies on it, the
+    /// rest let go. An end off its side — where a fillet with no place beside
+    /// a curve touches the corner's tangent instead — is let go too: held on
+    /// the side, it would move.
     pub(crate) fn let_go_of_the_cut(&mut self, cut: CornerCutId) {
         let sides = self.corner_cuts()[cut.0].sides;
+        let near_enough = crate::precision::SAME * crate::precision::drawing_size(self);
         for rule in self.rules_hung_on(&[cut]) {
             self.erase_constraint(rule);
             let Constraint::AtCutPoint { point, at, .. } = rule else {
@@ -125,13 +132,22 @@ impl Sketch {
                 CutPoint::Second => sides[1],
                 CutPoint::Centre => continue,
             };
-            let Some(segment) = side.as_trait() else {
+            if self.off_the_path_of(side, self.point(point)) > near_enough {
                 continue;
-            };
-            self.add_constraint(Constraint::OnSegment {
-                point,
-                segment,
-                from: LaidFrom::Nowhere,
+            }
+            let from = LaidFrom::Nowhere;
+            self.add_constraint(match side {
+                CutSide::Trait(segment) => Constraint::OnSegment {
+                    point,
+                    segment,
+                    from,
+                },
+                CutSide::Arc(arc) => Constraint::OnArc { point, arc, from },
+                CutSide::ArcOfEllipse(ellipse) => Constraint::OnEllipse {
+                    point,
+                    ellipse,
+                    from,
+                },
             });
         }
     }

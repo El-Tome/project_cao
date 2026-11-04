@@ -1867,9 +1867,6 @@ two passes nearer, for the selection, the dimension tool and the measure alike.
 A trim or a division hands a cut on the side it cuts to the piece left at the
 corner; a cut taken off or replaced before it stays as it was.
 
-**Not built yet**, in later issues of epic #616: a fillet between a trait and an
-arc (#621), and a trait held tangent to a fillet's curve.
-
 ### What hangs on a cut
 
 A cut's points — the centre of a fillet, and the two places a cut meets its
@@ -1915,6 +1912,31 @@ Decided with the owner on 2026-11-02:
 - **Dragging one of a cut's points** drags the corner from afar, as dragging
   the curve does — whether something hangs on the point or not. With the let-go key
   held, a point something hangs on is taken off the cut and dragged instead.
+
+A fillet beside a curve, an arc or an arc of ellipse for a side, takes all of
+the above (#675), and a line held tangent to its curve as well. Its points are
+found by a numeric search rather than a formula; what hangs on them follows
+them all the same — the corner, the trait, the curve and the value. A trim or
+a division of the curve hands the fillet, and what hangs on it, to the piece
+left at the corner. Nothing hangs on it until something does, and until then it
+costs the solver nothing, as between two traits.
+
+Decided with the owner on 2026-11-04, beside a curve:
+
+- **A red fillet that still has a place**, overrunning its side, keeps what
+  hangs on it where it is drawn, as between two traits.
+- **A red fillet with no place at all** — a fillet of 6 in the hollow of an arc
+  of 5 — is drawn where the corner's tangents alone would put it. What hangs
+  follows that stand-in, even when the drawing jumps to it, and comes back with
+  the fillet when it finds a place again.
+- **A fillet taken off** leaves its centre a plain point, and an end held on its
+  side — on the arc or the arc of ellipse, as on a trait. An end that is not on
+  its side is let go where it stands, like the centre: that is where a fillet
+  with no place touches the corner's tangent rather than the curve, and holding
+  it on the curve would move it. Nothing moves when a fillet is taken off.
+- **A value change** carries everything. A kind change does not arise: a
+  chamfer beside a curve is refused.
+- **Dragging one of its points** drags the corner, as between two traits.
 
 ### A crossing becomes a point
 

@@ -191,7 +191,8 @@ impl Sketch {
         let rules_dropped = dropped
             .iter()
             .filter(|rule| {
-                !self.stands_on_a_piece(**rule, segment, &pieces, carried.place_of(**rule))
+                !self.carries(**rule)
+                    && !self.stands_on_a_piece(**rule, segment, &pieces, carried.place_of(**rule))
             })
             .count();
         let values_dropped = dropped_values

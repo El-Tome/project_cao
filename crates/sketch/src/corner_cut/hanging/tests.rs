@@ -60,10 +60,129 @@ fn assert_at(sketch: &Sketch, point: PointId, expected: DVec2, what: &str) {
 }
 
 #[test]
+fn nothing_hangs_on_a_cut_taken_off() {
+    let (mut sketch, _, _, cut) = a_rounded_corner();
+    let [centre, touch] = [CutPoint::Centre, CutPoint::First].map(|at| {
+        sketch
+            .cut_point(cut, at)
+            .expect("the fillet offers its points")
+    });
+    assert!(sketch.take_cut_off(cut));
+    let point = sketch.add_point(touch);
+    let on_the_curve = sketch.add_point(centre + DVec2::new(-10.0, 0.0));
+    let start = sketch.add_point(DVec2::new(0.0, 30.0));
+    let end = sketch.add_point(DVec2::new(30.0, 0.0));
+    let line = sketch.add_segment(start, end);
+
+    for rule in [
+        Constraint::AtCutPoint {
+            point,
+            cut,
+            at: CutPoint::First,
+        },
+        Constraint::OnCut {
+            point: on_the_curve,
+            cut,
+        },
+        Constraint::CutTangent {
+            cut,
+            segment: line,
+            from: LaidFrom::Nowhere,
+        },
+    ] {
+        sketch.add_constraint(rule);
+    }
+
+    assert!(
+        !sketch.anything_hangs_on_a_cut(),
+        "a rule names the cut taken off: {:?}",
+        sketch.constraints()
+    );
+}
+
+#[test]
 fn a_cut_nothing_hangs_on_asks_the_solver_for_nothing() {
     let (sketch, ..) = a_rounded_corner();
 
     assert!(sketch.equations(1.0).is_empty());
+}
+
+/// A trait from (10, 10) to (50, 10) and an arc round (2, 10) of radius 8
+/// from that corner up to (2, 18); and a trait rising from (46, 34) to
+/// (46, 54) beside the arc of ellipse round (40, 30), 10 across and 5 high,
+/// drawn from that corner over the top to (30, 30). Each comes sharp, then
+/// rounded — by five beside the arc, by three beside the arc of ellipse.
+fn corners_beside_a_curve() -> [(Sketch, Sketch, &'static str); 2] {
+    let mut beside_an_arc = Sketch::new(WorkPlane::XY);
+    let corner = beside_an_arc.add_point(DVec2::new(10.0, 10.0));
+    let far = beside_an_arc.add_point(DVec2::new(50.0, 10.0));
+    let along = beside_an_arc.add_segment(corner, far);
+    let centre = beside_an_arc.add_point(DVec2::new(2.0, 10.0));
+    let top = beside_an_arc.add_point(DVec2::new(2.0, 18.0));
+    let arc = beside_an_arc.add_arc(centre, corner, top);
+    let mut arc_rounded = beside_an_arc.clone();
+    arc_rounded
+        .cut_corner(along, arc, CutShape::Fillet { radius: 5.0 }, false, 0)
+        .expect("the trait and the arc take a fillet");
+
+    let mut beside_an_ellipse = Sketch::new(WorkPlane::XY);
+    let corner = beside_an_ellipse.add_point(DVec2::new(46.0, 34.0));
+    let up = beside_an_ellipse.add_point(DVec2::new(46.0, 54.0));
+    let rising = beside_an_ellipse.add_segment(corner, up);
+    let [centre, back, front, low, high] = [
+        (40.0, 30.0),
+        (30.0, 30.0),
+        (50.0, 30.0),
+        (40.0, 25.0),
+        (40.0, 35.0),
+    ]
+    .map(|(x, y)| beside_an_ellipse.add_point(DVec2::new(x, y)));
+    let ellipse = beside_an_ellipse.add_ellipse(centre, [back, front], [low, high]);
+    beside_an_ellipse.draw_the_stretch(ellipse, corner, back);
+    let mut ellipse_rounded = beside_an_ellipse.clone();
+    ellipse_rounded
+        .cut_corner(rising, ellipse, CutShape::Fillet { radius: 3.0 }, false, 0)
+        .expect("the trait and the arc of ellipse take a fillet");
+
+    [
+        (beside_an_arc, arc_rounded, "beside an arc"),
+        (
+            beside_an_ellipse,
+            ellipse_rounded,
+            "beside an arc of ellipse",
+        ),
+    ]
+}
+
+#[test]
+fn a_fillet_beside_a_curve_nothing_hangs_on_asks_the_solver_for_nothing() {
+    for (sharp, rounded, what) in corners_beside_a_curve() {
+        assert_eq!(
+            rounded.drawn_cuts().len(),
+            1,
+            "{what}: the corner is rounded"
+        );
+
+        let (asked, unrounded) = (rounded.equations(1.0), sharp.equations(1.0));
+
+        assert_eq!(
+            asked.len(),
+            unrounded.len(),
+            "{what}: the fillet asks the solver rows the sharp corner does not"
+        );
+        for (row, sharp_row) in asked.iter().zip(&unrounded) {
+            let leans_alike = row.gradient.len() == sharp_row.gradient.len()
+                && row
+                    .gradient
+                    .iter()
+                    .zip(&sharp_row.gradient)
+                    .all(|(one, other)| (one - other).abs() < 1e-12);
+            assert!(
+                (row.error - sharp_row.error).abs() < 1e-12 && leans_alike,
+                "{what}: a row is asked otherwise than on the sharp corner"
+            );
+        }
+    }
 }
 
 #[test]

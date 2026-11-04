@@ -276,6 +276,116 @@ fn a_straight_corner_gives_a_cut_no_place() {
     assert_eq!(sketch.visible_part(first), Some(sketch.endpoints(first)));
 }
 
+/// An arc round (10, 18) of radius 8 leaving the corner at (10, 10) eastwards,
+/// a quarter turn up to (18, 18), and a trait from that corner to `far`.
+fn an_arc_leaving_east_beside_a_trait_to(far: DVec2) -> (Sketch, PointId, [CutSide; 2]) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corner = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(far);
+    let along = sketch.add_segment(corner, end);
+    let centre = sketch.add_point(DVec2::new(10.0, 18.0));
+    let top = sketch.add_point(DVec2::new(18.0, 18.0));
+    let arc = sketch.add_arc(centre, corner, top);
+    (sketch, corner, [along.into(), arc.into()])
+}
+
+#[test]
+fn a_corner_whose_curve_leaves_it_straight_on_or_the_same_way_as_its_trait_gives_a_fillet_no_place()
+{
+    for (far, what) in [
+        (
+            DVec2::new(-30.0, 10.0),
+            "the trait leaving west, the arc east: straight on",
+        ),
+        (
+            DVec2::new(50.0, 10.0),
+            "the trait and the arc both leaving east: the same way",
+        ),
+    ] {
+        let (mut sketch, corner, [along, arc]) = an_arc_leaving_east_beside_a_trait_to(far);
+        sketch
+            .cut_corner_at(
+                corner,
+                along,
+                arc,
+                CutShape::Fillet { radius: 3.0 },
+                false,
+                0,
+            )
+            .expect("a trait and an arc ending at one point are a corner");
+
+        assert!(
+            sketch.drawn_cuts().is_empty(),
+            "{what}: the fillet has no place, so nothing is drawn: {:?}",
+            sketch.drawn_cuts()
+        );
+    }
+}
+
+/// A trait from (10, 10) to (50, 10), and an arc of radius five round
+/// (14, 13) hollow towards the corner, from (9, 13) round to (10, 10) — the
+/// fixture of `the_tightest_side_beside_an_arc_says_how_much_of_the_value_fits`.
+fn a_trait_and_a_tight_hollow_arc() -> (Sketch, [CutSide; 2]) {
+    a_trait_and_an_arc(DVec2::new(14.0, 13.0), DVec2::new(9.0, 13.0), false)
+}
+
+#[test]
+fn a_fillet_as_big_as_the_hollow_arc_beside_it_does_not_fit() {
+    for radius in [5.0, 6.0] {
+        let (mut sketch, [along, arc]) = a_trait_and_a_tight_hollow_arc();
+        let id = sketch
+            .cut_corner(along, arc, CutShape::Fillet { radius }, false, 0)
+            .expect("the trait and the arc make a corner");
+
+        let drawn = sketch
+            .drawn_cut(id)
+            .expect("the fillet is still drawn, red");
+
+        assert!(
+            !drawn.fits,
+            "a fillet of {radius} cannot stand in the hollow of an arc of radius five: \
+             {drawn:?}"
+        );
+    }
+}
+
+#[test]
+fn a_fillet_with_no_place_beside_a_curve_is_drawn_red_where_the_tangents_would_put_it() {
+    let (mut sketch, [along, arc]) = a_trait_and_a_tight_hollow_arc();
+    let id = sketch
+        .cut_corner(along, arc, CutShape::Fillet { radius: 6.0 }, false, 0)
+        .expect("the trait and the arc make a corner");
+
+    let drawn = sketch
+        .drawn_cut(id)
+        .expect("the fillet is still drawn, red");
+
+    assert!(!drawn.fits, "{drawn:?}");
+    let CutCurve::Arc(curve) = drawn.curve else {
+        panic!("a fillet is drawn as an arc: {drawn:?}");
+    };
+    assert!(
+        near(curve.centre, DVec2::new(13.0, 16.0)),
+        "the trait leaves east and the arc's tangent at three fifths west and four fifths \
+         north, half the opening's tangent two: the stand-in stands six from both tangent \
+         lines, at (13, 16) — not {}",
+        curve.centre
+    );
+    assert!(
+        near(drawn.touches[0], DVec2::new(13.0, 10.0))
+            && near(drawn.touches[1], DVec2::new(8.2, 12.4)),
+        "it touches each tangent line three from the corner, the radius over the half \
+         opening's tangent: {:?}",
+        drawn.touches
+    );
+    for end in [curve.start, curve.end] {
+        assert!(
+            (end.distance(curve.centre) - 6.0).abs() < NEAR,
+            "the stand-in has the radius asked: {curve:?}"
+        );
+    }
+}
+
 #[test]
 fn values_that_fit_have_a_share_of_at_least_one() {
     let (sketch, _, [right, up]) = a_right_angle();

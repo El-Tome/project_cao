@@ -250,8 +250,8 @@ impl Sketch {
     /// piece got. A trim erases the side before it lays the pieces, so the
     /// cuts it took away are given back here; one whose corner no piece runs
     /// into is gone with the side, an arc of ellipse keeping its own number
-    /// included. A cut taken off or replaced before the trim is none of these,
-    /// and stays as it was.
+    /// included, and what hung on it is let go where it stands. A cut taken
+    /// off or replaced before the trim is none of these, and stays as it was.
     pub(crate) fn cuts_follow_pieces(
         &mut self,
         standing: &[CornerCutId],
@@ -269,6 +269,9 @@ impl Sketch {
                 .find(|piece| self.far_end_of(*piece, cut.corner).is_some());
             let Some(piece) = touching else {
                 Erased::mark(&mut self.erased.cuts, id.0);
+                for rule in self.rules_hung_on(&[*id]) {
+                    self.erase_constraint(rule);
+                }
                 continue;
             };
             self.corner_cuts[id.0].sides[at] = piece;

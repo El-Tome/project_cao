@@ -124,6 +124,15 @@
 //!   rules it truly drops and not what hangs on the fillet, hung again on the
 //!   piece left — the count the interface words as rules lost to the cut —
 //!   `a_trim_past_a_fillet_counts_what_it_drops_and_not_what_hangs_on_the_fillet`
+//! - trimming the curve beside a fillet from its corner takes the fillet, and
+//!   lets go of what hung on it where it stands, as erasing a side does since
+//!   #620: no rule names the fillet any more, and the trim counts the rules
+//!   lost — an arc of ellipse as an arc —
+//!   `trimming_the_curve_beside_a_fillet_from_its_corner_takes_the_fillet_and_lets_go_of_what_hung_on_it`
+//! - taking off a red fillet that still has a place and overruns its side
+//!   keeps the end past the side held on it — on the trait's whole line, the
+//!   arc's whole circle, the whole ellipse — and nothing moves —
+//!   `taking_off_a_red_fillet_that_overruns_its_side_keeps_the_end_past_it_held_on_its_side`
 //! - nothing hangs on a cut taken off — no test: a rule refused as it is laid
 //!   is read inside the sketch crate; held in `corner_cut/hanging/tests.rs` by
 //!   `nothing_hangs_on_a_cut_taken_off`
@@ -1804,5 +1813,224 @@ fn a_trim_past_a_fillet_counts_what_it_drops_and_not_what_hangs_on_the_fillet() 
             "{what}: the trim lost the rule holding the point on the stretch that went, and \
              nothing that hangs on the fillet"
         );
+    }
+}
+
+#[test]
+fn trimming_the_curve_beside_a_fillet_from_its_corner_takes_the_fillet_and_lets_go_of_what_hung_on_it()
+ {
+    let arc_from_its_corner = {
+        let mut history = a_trait_and_an_arc_rounded();
+        let sixty = next_point(&history);
+        history.push(Operation::AddPoint {
+            sketch: 0,
+            position: ROUND + DVec2::from_angle(60_f64.to_radians()) * REACH,
+            on: Vec::new(),
+        });
+        let hung = hang_on_all_three(&mut history);
+        let trim = Operation::TrimArc {
+            sketch: 0,
+            arc: ARC,
+            from: CORNER,
+            to: sixty,
+        };
+        (history, hung, trim, "the arc trimmed from its corner")
+    };
+    let ellipse_from_its_corner = {
+        let mut history = a_trait_and_an_arc_of_ellipse_rounded();
+        let further = next_point(&history);
+        history.push(Operation::AddPoint {
+            sketch: 0,
+            position: LEVEL.at(120_f64.to_radians()),
+            on: Vec::new(),
+        });
+        let hung = hang_on_all_three(&mut history);
+        let trim = Operation::TrimEllipse {
+            sketch: 0,
+            ellipse: EllipseId(0),
+            between: Some((CORNER, further)),
+        };
+        (
+            history,
+            hung,
+            trim,
+            "the arc of ellipse trimmed from its corner",
+        )
+    };
+
+    for (history, hung, trim, what) in [arc_from_its_corner, ellipse_from_its_corner] {
+        let before = the_drawing(&history);
+        let mut state = PartState::rebuild(&history);
+
+        let outcome = state.apply(&trim);
+
+        let sketch = &state.sketches[0];
+        assert_eq!(
+            sketch.live_corner_cuts().count(),
+            0,
+            "{what}: the corner went with the stretch, and the fillet with it"
+        );
+        assert!(
+            !sketch.anything_hangs_on_a_cut(),
+            "{what}: a rule still names the fillet gone: {:?}",
+            sketch.constraints()
+        );
+        for point in hung {
+            assert!(
+                sketch.holds_on(point).iter().all(|on| !on.names_a_cut()),
+                "{what}: {point:?} is still held on the fillet gone: {:?}",
+                sketch.holds_on(point)
+            );
+            near_place(
+                sketch.point(point),
+                before.point(point),
+                &format!("{what}: {point:?} is let go where it stood"),
+            );
+        }
+        assert_eq!(
+            outcome,
+            Some(Outcome::Cut {
+                rules: 3,
+                values: 0,
+                refused: 0
+            }),
+            "{what}: the three rules that hung on the fillet are lost to the trim"
+        );
+    }
+}
+
+/// A corner standing on its own at (10, 10): one trait right to (60, 10), one
+/// up to (10, 50), rounded to 5 — #620's corner, between two traits.
+fn two_traits_rounded() -> History {
+    let mut history = History::default();
+    history.push(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: DVec2::new(10.0, 10.0),
+        on: Vec::new(),
+    });
+    for end in [DVec2::new(60.0, 10.0), DVec2::new(10.0, 50.0)] {
+        history.push(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::Existing(CORNER),
+            end: PointRef::New(end),
+            construction: false,
+        });
+    }
+    history.push(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::Between(SegmentId(0).into(), SegmentId(1).into())],
+        radius: 5.0.into(),
+        construction: false,
+    });
+    history
+}
+
+/// The corner of `a_trait_and_an_arc_of_ellipse_rounded`, its arc of ellipse
+/// drawn only up to the turn of 70°, and rounded to 1, which fits: a fillet
+/// of 3 there touches the ellipse a little short of 75°, past what is drawn.
+fn a_trait_and_a_short_arc_of_ellipse_rounded() -> History {
+    let mut history = History::default();
+    history.push(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: LEVEL.at(0.8_f64.atan2(0.6)),
+        on: Vec::new(),
+    });
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(CORNER),
+        end: PointRef::New(DVec2::new(46.0, 54.0)),
+        construction: false,
+    });
+    history.push(Operation::AddEllipse {
+        sketch: 0,
+        center: PointRef::New(LEVEL.centre),
+        first: [
+            PointRef::New(LEVEL.centre - LEVEL.first),
+            PointRef::New(LEVEL.centre + LEVEL.first),
+        ],
+        second: [
+            PointRef::New(LEVEL.centre - LEVEL.across()),
+            PointRef::New(LEVEL.centre + LEVEL.across()),
+        ],
+        construction: false,
+        drawn: Some([
+            PointRef::Existing(CORNER),
+            PointRef::New(LEVEL.at(70_f64.to_radians())),
+        ]),
+    });
+    history.push(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::Between(SegmentId(0).into(), EllipseId(0).into())],
+        radius: 1.0.into(),
+        construction: false,
+    });
+    history
+}
+
+#[test]
+fn taking_off_a_red_fillet_that_overruns_its_side_keeps_the_end_past_it_held_on_its_side() {
+    for (mut history, overrun, sides, what) in [
+        (
+            two_traits_rounded(),
+            70.0,
+            [
+                Support::Segment(SegmentId(0)),
+                Support::Segment(SegmentId(1)),
+            ],
+            "between two traits, past the end of each",
+        ),
+        (
+            a_trait_and_a_hollow_arc_rounded(),
+            3.75,
+            [Support::Segment(SegmentId(0)), Support::Arc(ARC)],
+            "beside an arc, past its end on its circle",
+        ),
+        (
+            a_trait_and_a_short_arc_of_ellipse_rounded(),
+            3.0,
+            [
+                Support::Segment(SegmentId(0)),
+                Support::Ellipse(EllipseId(0)),
+            ],
+            "beside an arc of ellipse, past what is drawn of it",
+        ),
+    ] {
+        let [centre, first, second] = hang_on_all_three(&mut history);
+        rounded_to(&mut history, overrun);
+        let red = the_drawing(&history);
+        assert_red(&red, true, what);
+
+        history.push(Operation::CutChange(CutChange::TakeOff {
+            sketch: 0,
+            cuts: vec![CUT],
+        }));
+
+        let sketch = the_drawing(&history);
+        assert_eq!(sketch.holds_on(centre), Vec::new(), "{what}: the centre");
+        assert_eq!(
+            sketch.holds_on(first),
+            vec![sides[0]],
+            "{what}: the end on the first side stays held on it"
+        );
+        assert_eq!(
+            sketch.holds_on(second),
+            vec![sides[1]],
+            "{what}: the end on the second side stays held on it"
+        );
+        for (rank, (is, was)) in sketch.points().iter().zip(red.points()).enumerate() {
+            near_place(
+                *is,
+                *was,
+                &format!("{what}: the fillet taken off, point {rank} does not move"),
+            );
+        }
     }
 }

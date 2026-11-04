@@ -156,6 +156,10 @@ impl Exact {
         self.next += brep::Body::numbers_raised(outline, holes);
     }
 
+    pub fn brep(&self) -> &brep::Body {
+        &self.brep
+    }
+
     pub fn count_past_turned(&mut self, numbers: u32) {
         self.next += numbers;
     }

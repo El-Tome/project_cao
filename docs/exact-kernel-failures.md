@@ -3373,8 +3373,8 @@ on #644's seeds), with the crossed and tilted draws beside it:
   a vertex of one copy. Left `Unverified` at `assembly.rs`, `Closed`,
   `Uncrossed` or a tie. The first lead, decisions 7 and 9 extended to
   elliptic pairs, was the shared-rays rule taken back above; widening
-  decision 8's elliptic merge past its hair would hold the family, and is
-  **a decision for Tom**.
+  decision 8's elliptic merge past its hair would hold the family, and
+  #677 decided against it (below).
 - **A touch at an ellipse's vertex, within a few tolerances** — 38 in the
   ellipses draw, 2 crossed. Mostly `Closed`: on a planar cap the ellipse's
   rim and the circle, flat or ellipse touching it cross, and the cap's sweep
@@ -3402,3 +3402,15 @@ on #644's seeds), with the crossed and tilted draws beside it:
 
 Tom said on 2026-11-04 to open the pull request once the two rounds then
 running ended: below that, each family is a mechanism of its own.
+
+#677 decided to leave the first family, and to take it up again if a user
+meets it. Widened past `G`, decision 8 would merge walls the kernel can tell
+apart: the part wrong by up to ten thousand tolerances where the step is
+refused or left `Unverified` today, and the campaigns, held to the
+arithmetic, would count it a failure still. Building the two nearly tangent
+crossings is the answer, a mechanism of its own whose first attempt, the
+shared rays, broke 31 held seeds. To fall in the family, the same ellipse is
+drawn again turned 1e-7 to 1e-4 of a radian, or moved 1e-6 to 5e-4: a hand
+lands far above that, a typed value repeats the first exactly, and a solver's
+residual stays far below. The draw makes such near copies on purpose, far more
+often than a drawing does, and the ellipses draw stays above its bar.

@@ -1446,3 +1446,13 @@ for a groove up to four times as wide as its walls are deep, the pulley's
 own proportion, and narrowed it for any wider one; walls laid as drawn
 would have been cones within the tolerance of planes. No code moves;
 `exact-kernel-failures.md` says why.
+
+## 4 November: #677, two elliptic walls past decision 8's hair left two
+
+Tom decided to leave the largest family #574 left on the ellipses draw: the
+same ellipse drawn again turned or moved by twenty to ten thousand
+tolerances, its two walls kept two by decision 8 and their nearly tangent
+crossings refused or left unverified. Widening the merge would build those
+parts wrong; building the crossings is a mechanism of its own, worth taking
+up when a user meets one. No code moves; `exact-kernel-failures.md` says
+why.

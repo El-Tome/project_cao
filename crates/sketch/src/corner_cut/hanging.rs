@@ -115,9 +115,13 @@ impl Sketch {
     }
 
     /// What a cut taken off leaves of what hung on it: each point where it
-    /// is, an end of the cut still held on its side, the rest let go.
+    /// is, an end of the cut still held on its side when it lies on it, the
+    /// rest let go. An end off its side — where a fillet with no place beside
+    /// a curve touches the corner's tangent instead — is let go too: held on
+    /// the side, it would move.
     pub(crate) fn let_go_of_the_cut(&mut self, cut: CornerCutId) {
         let sides = self.corner_cuts()[cut.0].sides;
+        let near_enough = crate::precision::SAME * crate::precision::drawing_size(self);
         for rule in self.rules_hung_on(&[cut]) {
             self.erase_constraint(rule);
             let Constraint::AtCutPoint { point, at, .. } = rule else {
@@ -128,6 +132,9 @@ impl Sketch {
                 CutPoint::Second => sides[1],
                 CutPoint::Centre => continue,
             };
+            if self.off_the_path_of(side, self.point(point)) > near_enough {
+                continue;
+            }
             let from = LaidFrom::Nowhere;
             self.add_constraint(match side {
                 CutSide::Trait(segment) => Constraint::OnSegment {

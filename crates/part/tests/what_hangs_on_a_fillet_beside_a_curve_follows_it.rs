@@ -94,12 +94,41 @@
 //!   traits — `a_press_on_a_point_hung_on_a_fillet_beside_a_curve_drags_its_corner`;
 //!   a press on a point nothing hangs on yet is #621's, held in the sketch
 //!   crate by `a_press_on_a_fillet_beside_an_arc_drags_its_corner`
+//!
+//! Settled with the owner on 2026-11-04, in the issue's second comment, after
+//! the review found a case the answers above did not cover:
+//! - taking off a red fillet beside a curve that has no place: its stand-in
+//!   touches the corner's tangent, not the curve, so an end hung there is not
+//!   on its side; it is let go where it stands, a plain point like the
+//!   centre, and nothing moves —
+//!   `taking_off_a_fillet_with_no_place_lets_the_end_on_its_stand_in_go_where_it_stands`;
+//!   nor does the arc, its centre or the corner when the line hung there is
+//!   fixed —
+//!   `taking_off_a_fillet_with_no_place_moves_nothing_though_the_line_on_its_stand_in_is_fixed`
+//!
+//! Surfaced by the review and the reading of the criteria:
+//! - dividing or trimming the arc beside a fillet keeps what hangs on the
+//!   fillet, handed to the piece left at the corner, and it still follows a
+//!   new radius after —
+//!   `what_hangs_on_a_fillet_beside_an_arc_stays_hung_once_the_arc_is_divided`,
+//!   `what_hangs_on_a_fillet_beside_an_arc_stays_hung_once_the_arc_is_trimmed`;
+//!   trimming an arc of ellipse keeps it too —
+//!   `what_hangs_on_a_fillet_beside_an_arc_of_ellipse_stays_hung_once_it_is_trimmed`
+//! - a line held tangent to a red fillet beside a curve, with a place and
+//!   with none, stays tangent to it as it is drawn —
+//!   `a_line_held_tangent_to_a_red_fillet_beside_an_arc_stays_tangent_to_it_as_drawn`
+//! - beside an arc of ellipse too, what hangs on a fillet with no place
+//!   follows its stand-in and comes back —
+//!   `what_hangs_on_a_fillet_with_no_place_inside_an_arc_of_ellipse_follows_its_stand_in_and_comes_back`
+//! - nothing hangs on a cut taken off — no test: a rule refused as it is laid
+//!   is read inside the sketch crate; held in `corner_cut/hanging/tests.rs` by
+//!   `nothing_hangs_on_a_cut_taken_off`
 
 use cao_part::history::{CutAsked, CutChange, Operation, PointRef};
 use cao_part::{History, PartState};
 use cao_sketch::{
-    ArcId, Corner, CornerCutId, CutPoint, DimensionTarget, Element, EllipseId, Grip, PointId, Rule,
-    RuleIntent, RulePick, SegmentId, Sketch, Support, WorkPlane, rule_intent,
+    ArcId, Constraint, Corner, CornerCutId, CutPoint, CutSide, DimensionTarget, Element, EllipseId,
+    Grip, PointId, Rule, RuleIntent, RulePick, SegmentId, Sketch, Support, WorkPlane, rule_intent,
 };
 use glam::DVec2;
 
@@ -171,36 +200,65 @@ struct ByHand {
 }
 
 /// The fillet of `radius` at `corner`, between the trait running from it to
-/// `far` and the arc round `round` of `reach` leaving it counter-clockwise.
-/// Its centre stands `radius` off the trait's line, on the side the arc
-/// leaves towards, and `reach + radius` from the arc's centre: of the two
-/// places on that line so far from it, the one ahead of the corner along the
-/// trait.
+/// `far` and the arc round `round` of `reach` leaving it counter-clockwise,
+/// bulging towards the corner.
 fn by_hand(corner: DVec2, far: DVec2, round: DVec2, reach: f64, radius: f64) -> ByHand {
+    by_hand_by_an_arc(corner, far, round, reach, radius, 1.0, 1.0)
+        .expect("a fillet beside an arc bulging towards its corner has a place")
+}
+
+/// The same, the arc leaving the corner `way` round — one for
+/// counter-clockwise, minus one for clockwise — and the fillet standing `out`
+/// of its circle: one outside, minus one inside. Its centre stands `radius`
+/// off the trait's line, on the side the arc leaves towards, and
+/// `reach + out · radius` from the arc's centre: of the places on that line so
+/// far from it, the nearest ahead of the corner along the trait. Nothing when
+/// there is none.
+fn by_hand_by_an_arc(
+    corner: DVec2,
+    far: DVec2,
+    round: DVec2,
+    reach: f64,
+    radius: f64,
+    way: f64,
+    out: f64,
+) -> Option<ByHand> {
     let along = (far - corner).normalize();
-    let leaving = (corner - round).perp();
+    let leaving = (corner - round).perp() * way;
     let aside = along.perp() * along.perp_dot(leaving).signum();
     let abreast = corner + aside * radius;
     let from_the_round = abreast - round;
+    let off = reach + out * radius;
     let half = along.dot(from_the_round);
-    let rest = from_the_round.length_squared() - (reach + radius).powi(2);
-    let ahead = -half + (half * half - rest).sqrt();
+    let rest = from_the_round.length_squared() - off * off;
+    let room = half * half - rest;
+    if off <= 0.0 || room < 0.0 {
+        return None;
+    }
+    let ahead = [-half - room.sqrt(), -half + room.sqrt()]
+        .into_iter()
+        .filter(|ahead| *ahead > 0.0)
+        .fold(f64::INFINITY, f64::min);
     let centre = abreast + along * ahead;
-    ByHand {
+    Some(ByHand {
         centre,
         on_the_trait: corner + along * ahead,
-        on_the_curve: round + (centre - round) * (reach / (reach + radius)),
-    }
+        on_the_curve: round + (centre - round) * (reach / off),
+    })
 }
 
 /// The fillet of `radius` a hand works out on the drawing as it stands: from
-/// where its corner, its trait's far end and its arc are now.
+/// where its corner, its trait's far end and the arc it stands beside are now
+/// — the piece at the corner, once the arc is divided or trimmed.
 fn by_hand_on(sketch: &Sketch, radius: f64) -> ByHand {
+    let CutSide::Arc(arc) = sketch.corner_cuts()[CUT.0].sides[1] else {
+        panic!("the fillet stands beside an arc");
+    };
     by_hand(
         sketch.point(CORNER),
         sketch.point(TRAIT_END),
-        sketch.point(sketch.arc(ARC).center),
-        sketch.arc_radius(ARC),
+        sketch.point(sketch.arc(arc).center),
+        sketch.arc_radius(arc),
         radius,
     )
 }
@@ -301,23 +359,37 @@ fn a_trait_and_an_arc_of_ellipse_rounded() -> History {
 
 /// The fillet of `radius` at `corner`, between the trait running from it to
 /// `far` and the arc of ellipse `oval` leaving it counter-clockwise and
-/// bulging towards it. An ellipse's offset has no closed form: the hand walks
-/// the curve on from the corner, its centre standing a radius out of the
-/// curve, to where that centre first stands a radius off the trait's line, on
-/// the side the curve leaves towards — then halves the last step until the
-/// arithmetic gives no more.
+/// bulging towards it.
 fn by_hand_beside_an_ellipse(corner: DVec2, far: DVec2, oval: Oval, radius: f64) -> ByHand {
+    by_hand_by_an_ellipse(corner, far, oval, radius, 1.0, 1.0)
+}
+
+/// The same, the arc of ellipse leaving the corner `way` round — one for
+/// counter-clockwise, minus one for clockwise — and the fillet standing `out`
+/// of it: one outside the curve, minus one inside. An ellipse's offset has no
+/// closed form: the hand walks the curve on from the corner, its centre
+/// standing a radius off the curve, to where that centre first stands a
+/// radius off the trait's line, on the side the curve leaves towards — then
+/// halves the last step until the arithmetic gives no more.
+fn by_hand_by_an_ellipse(
+    corner: DVec2,
+    far: DVec2,
+    oval: Oval,
+    radius: f64,
+    way: f64,
+    out: f64,
+) -> ByHand {
     let along = (far - corner).normalize();
     let from = oval.turn_of(corner);
-    let aside = along.perp() * along.perp_dot(oval.onwards(from)).signum();
-    let centre_at = |turn: f64| oval.at(turn) + oval.outwards(turn) * radius;
+    let aside = along.perp() * along.perp_dot(oval.onwards(from) * way).signum();
+    let centre_at = |turn: f64| oval.at(turn) + oval.outwards(turn) * (radius * out);
     let short = |turn: f64| (centre_at(turn) - corner).dot(aside) - radius;
     let (mut before, mut past) = (from, from);
     while short(past) < 0.0 {
         before = past;
-        past += 1e-3;
+        past += 1e-3 * way;
         assert!(
-            past - from < std::f64::consts::PI,
+            (past - from).abs() < std::f64::consts::PI,
             "no fillet of {radius} stands beside the ellipse"
         );
     }
@@ -337,9 +409,13 @@ fn by_hand_beside_an_ellipse(corner: DVec2, far: DVec2, oval: Oval, radius: f64)
     }
 }
 
-/// The ellipse of the drawing as it stands, read off its centre and its axes.
+/// The ellipse the fillet stands beside as it stands — the piece at the
+/// corner, once it is trimmed — read off its centre and its axes.
 fn the_oval(sketch: &Sketch) -> Oval {
-    let ellipse = sketch.ellipses()[0];
+    let CutSide::ArcOfEllipse(ellipse) = sketch.corner_cuts()[CUT.0].sides[1] else {
+        panic!("the fillet stands beside an arc of ellipse");
+    };
+    let ellipse = sketch.ellipses()[ellipse.0];
     let half = |axis: SegmentId| {
         let (start, end) = sketch.endpoints(axis);
         (end - start) * 0.5
@@ -1280,4 +1356,374 @@ fn a_press_on_a_point_hung_on_a_fillet_beside_a_curve_drags_its_corner() {
             );
         }
     }
+}
+
+/// What a hand works out of a fillet, in the order `hang_on_all_three` hangs
+/// on it: its centre, its touch on the trait, its touch on the curve.
+fn places_of(fillet: &ByHand) -> [DVec2; 3] {
+    [fillet.centre, fillet.on_the_trait, fillet.on_the_curve]
+}
+
+/// Holds what `hang_on_all_three` hung where the fillet `fillet` stands, each
+/// point still hung on its place.
+fn assert_still_hung(sketch: &Sketch, hung: [PointId; 3], fillet: &ByHand, what: &str) {
+    assert_hung_at(sketch, hung, places_of(fillet), what);
+    for (point, at) in hung
+        .into_iter()
+        .zip([CutPoint::Centre, CutPoint::First, CutPoint::Second])
+    {
+        assert_eq!(
+            sketch.holds_on(point),
+            vec![Support::CutPoint(CUT, at)],
+            "{what}: the point at the fillet's {at:?} is still hung there"
+        );
+    }
+}
+
+#[test]
+fn what_hangs_on_a_fillet_beside_an_arc_stays_hung_once_the_arc_is_divided() {
+    let mut history = a_trait_and_an_arc_rounded();
+    let hung = hang_on_all_three(&mut history);
+
+    history.push(Operation::Split {
+        sketch: 0,
+        segments: Vec::new(),
+        arcs: vec![ARC],
+        at: ROUND + DVec2::from_angle(60_f64.to_radians()) * REACH,
+    });
+
+    let sketch = the_drawing(&history);
+    assert_eq!(sketch.live_arcs().count(), 2, "the arc is divided in two");
+    assert_still_hung(
+        &sketch,
+        hung,
+        &by_hand_on(&sketch, 5.0),
+        "the arc divided past the fillet",
+    );
+    rounded_to(&mut history, 12.0);
+    let sketch = the_drawing(&history);
+    assert_still_hung(
+        &sketch,
+        hung,
+        &by_hand_on(&sketch, 12.0),
+        "the arc divided, then the fillet rounded to 12",
+    );
+}
+
+#[test]
+fn what_hangs_on_a_fillet_beside_an_arc_stays_hung_once_the_arc_is_trimmed() {
+    let mut history = a_trait_and_an_arc_rounded();
+    let sixty = next_point(&history);
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: ROUND + DVec2::from_angle(60_f64.to_radians()) * REACH,
+        on: Vec::new(),
+    });
+    let hung = hang_on_all_three(&mut history);
+
+    history.push(Operation::TrimArc {
+        sketch: 0,
+        arc: ARC,
+        from: sixty,
+        to: PointId(4),
+    });
+
+    let sketch = the_drawing(&history);
+    let CutSide::Arc(piece) = sketch.corner_cuts()[CUT.0].sides[1] else {
+        panic!("the fillet still stands beside an arc");
+    };
+    let piece = sketch.arc(piece);
+    assert_eq!(
+        [piece.start, piece.end],
+        [CORNER, sixty],
+        "the stretch away from the corner is trimmed: {piece:?}"
+    );
+    assert_still_hung(
+        &sketch,
+        hung,
+        &by_hand_on(&sketch, 5.0),
+        "the arc trimmed past the fillet",
+    );
+    rounded_to(&mut history, 12.0);
+    let sketch = the_drawing(&history);
+    assert_still_hung(
+        &sketch,
+        hung,
+        &by_hand_on(&sketch, 12.0),
+        "the arc trimmed, then the fillet rounded to 12",
+    );
+}
+
+#[test]
+fn what_hangs_on_a_fillet_beside_an_arc_of_ellipse_stays_hung_once_it_is_trimmed() {
+    let mut history = a_trait_and_an_arc_of_ellipse_rounded();
+    let mut on_the_curve = Vec::new();
+    for degrees in [120.0_f64, 150.0] {
+        on_the_curve.push(next_point(&history));
+        history.push(Operation::AddPoint {
+            sketch: 0,
+            position: LEVEL.at(degrees.to_radians()),
+            on: Vec::new(),
+        });
+    }
+    let hung = hang_on_all_three(&mut history);
+
+    history.push(Operation::TrimEllipse {
+        sketch: 0,
+        ellipse: EllipseId(0),
+        between: Some((on_the_curve[0], on_the_curve[1])),
+    });
+
+    let sketch = the_drawing(&history);
+    assert_eq!(
+        sketch.live_ellipses().count(),
+        2,
+        "a stretch is trimmed from the middle of the arc of ellipse"
+    );
+    assert_still_hung(
+        &sketch,
+        hung,
+        &by_hand_beside_the_ellipse_of(&sketch, 3.0),
+        "the arc of ellipse trimmed past the fillet",
+    );
+    rounded_to(&mut history, 5.0);
+    let sketch = the_drawing(&history);
+    assert_still_hung(
+        &sketch,
+        hung,
+        &by_hand_beside_the_ellipse_of(&sketch, 5.0),
+        "the arc of ellipse trimmed, then the fillet rounded to 5",
+    );
+}
+
+#[test]
+fn taking_off_a_fillet_with_no_place_lets_the_end_on_its_stand_in_go_where_it_stands() {
+    let mut history = a_trait_and_a_hollow_arc_rounded();
+    let [centre, on_the_trait, on_the_curve] = hang_on_all_three(&mut history);
+    rounded_to(&mut history, 6.0);
+    let red = the_drawing(&history);
+    assert_hung_at(
+        &red,
+        [centre, on_the_trait, on_the_curve],
+        STANDING_IN,
+        "the fillet with no place",
+    );
+
+    history.push(Operation::CutChange(CutChange::TakeOff {
+        sketch: 0,
+        cuts: vec![CUT],
+    }));
+
+    let sketch = the_drawing(&history);
+    assert_eq!(sketch.live_corner_cuts().count(), 0, "the fillet is off");
+    for (rank, (is, was)) in sketch.points().iter().zip(red.points()).enumerate() {
+        near_place(
+            *is,
+            *was,
+            &format!("the fillet with no place taken off, point {rank} does not move"),
+        );
+    }
+    assert_eq!(
+        sketch.holds_on(on_the_curve),
+        Vec::new(),
+        "the end on the stand-in's touch, off the arc, is let go: a plain point"
+    );
+    assert_eq!(
+        sketch.holds_on(centre),
+        Vec::new(),
+        "the centre is let go: a plain point"
+    );
+    assert_eq!(
+        sketch.holds_on(on_the_trait),
+        vec![Support::Segment(SegmentId(0))],
+        "the stand-in's touch on the trait lies on it, and the end there stays held on it"
+    );
+}
+
+#[test]
+fn taking_off_a_fillet_with_no_place_moves_nothing_though_the_line_on_its_stand_in_is_fixed() {
+    let mut history = a_trait_and_a_hollow_arc_rounded();
+    hang_on_all_three(&mut history);
+    rounded_to(&mut history, 6.0);
+    let line_on_the_curve = SegmentId(the_drawing(&history).segments().len() - 1);
+    history.push(Operation::Constrain {
+        sketch: 0,
+        constraint: Constraint::Fixed {
+            element: Element::Segment(line_on_the_curve),
+        },
+    });
+    let red = the_drawing(&history);
+
+    history.push(Operation::CutChange(CutChange::TakeOff {
+        sketch: 0,
+        cuts: vec![CUT],
+    }));
+
+    let sketch = the_drawing(&history);
+    for (point, which) in [
+        (CORNER, "the corner"),
+        (TRAIT_END, "the trait's far end"),
+        (PointId(3), "the arc's centre"),
+        (PointId(4), "the arc's far end"),
+    ] {
+        near_place(
+            sketch.point(point),
+            red.point(point),
+            &format!("the fillet with no place taken off, {which} does not move"),
+        );
+    }
+    near(sketch.arc_radius(ARC), 5.0, "the arc keeps its radius");
+}
+
+#[test]
+fn a_line_held_tangent_to_a_red_fillet_beside_an_arc_stays_tangent_to_it_as_drawn() {
+    let mut history = a_trait_and_a_hollow_arc_rounded();
+    let fitting = by_hand_in_the_hollow_on(&the_drawing(&history), 1.75);
+    let line = a_line_held_tangent(&mut history, &fitting, 1.75);
+
+    for (radius, red, what) in [
+        (3.75, true, "red, overrunning the arc"),
+        (6.0, true, "red with no place, on its stand-in"),
+        (1.75, false, "fitting again"),
+    ] {
+        rounded_to(&mut history, radius);
+        let sketch = the_drawing(&history);
+        assert_red(&sketch, red, what);
+        assert_tangent(
+            &sketch,
+            line,
+            by_hand_in_the_hollow_on(&sketch, radius).centre,
+            radius,
+            what,
+        );
+    }
+}
+
+/// The fillet of `radius` a hand works out beside the hollow arc of
+/// `a_trait_and_a_hollow_arc_rounded`, from where its corner, its trait and
+/// its arc stand now — a line held tangent lets them give: inside the arc's
+/// circle, the arc leaving the corner clockwise, or where that has no place,
+/// the stand-in of the tangents alone.
+fn by_hand_in_the_hollow_on(sketch: &Sketch, radius: f64) -> ByHand {
+    let CutSide::Arc(arc) = sketch.corner_cuts()[CUT.0].sides[1] else {
+        panic!("the fillet stands beside an arc");
+    };
+    let (corner, far) = (sketch.point(CORNER), sketch.point(TRAIT_END));
+    let round = sketch.point(sketch.arc(arc).center);
+    by_hand_by_an_arc(
+        corner,
+        far,
+        round,
+        sketch.arc_radius(arc),
+        radius,
+        -1.0,
+        -1.0,
+    )
+    .unwrap_or_else(|| {
+        let leaving = [
+            (far - corner).normalize(),
+            -(corner - round).perp().normalize(),
+        ];
+        the_tangents_fillet(corner, leaving, radius)
+    })
+}
+
+/// A corner on the ellipse `LEVEL` at the turn of 30°, between a trait
+/// running west into the ellipse to (35, 32.5) and the arc of ellipse drawn
+/// counter-clockwise from the ellipse's bottom, (40, 25), up to that corner:
+/// it leaves the corner clockwise, and is hollow towards it. Named by its
+/// trait then its curve, and rounded to 1, which fits; a fillet of 6 has no
+/// place inside an ellipse five high.
+fn a_trait_inside_an_arc_of_ellipse_rounded() -> History {
+    let corner = LEVEL.at(30_f64.to_radians());
+    let mut history = History::default();
+    history.push(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: corner,
+        on: Vec::new(),
+    });
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(CORNER),
+        end: PointRef::New(DVec2::new(35.0, corner.y)),
+        construction: false,
+    });
+    let bottom = PointRef::New(LEVEL.centre - LEVEL.across());
+    history.push(Operation::AddEllipse {
+        sketch: 0,
+        center: PointRef::New(LEVEL.centre),
+        first: [
+            PointRef::New(LEVEL.centre - LEVEL.first),
+            PointRef::New(LEVEL.centre + LEVEL.first),
+        ],
+        second: [bottom.clone(), PointRef::New(LEVEL.centre + LEVEL.across())],
+        construction: false,
+        drawn: Some([bottom, PointRef::Existing(CORNER)]),
+    });
+    history.push(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::Between(SegmentId(0).into(), EllipseId(0).into())],
+        radius: 1.0.into(),
+        construction: false,
+    });
+    history
+}
+
+/// The fillet of `radius` the sides' tangents alone give at `corner`, the
+/// sides leaving it along `leaving`, trait first: the stand-in #621 draws for
+/// a fillet with no place. It touches each tangent the radius over the
+/// tangent of half the opening from the corner.
+fn the_tangents_fillet(corner: DVec2, leaving: [DVec2; 2], radius: f64) -> ByHand {
+    let cos = leaving[0].dot(leaving[1]);
+    let sin = leaving[0].perp_dot(leaving[1]).abs();
+    let back = radius * (1.0 + cos) / sin;
+    ByHand {
+        centre: corner + (leaving[0] + leaving[1]) * (radius / sin),
+        on_the_trait: corner + leaving[0] * back,
+        on_the_curve: corner + leaving[1] * back,
+    }
+}
+
+#[test]
+fn what_hangs_on_a_fillet_with_no_place_inside_an_arc_of_ellipse_follows_its_stand_in_and_comes_back()
+ {
+    let turn = 30_f64.to_radians();
+    let corner = LEVEL.at(turn);
+    let far = DVec2::new(35.0, corner.y);
+    let fitting = by_hand_by_an_ellipse(corner, far, LEVEL, 1.0, -1.0, -1.0);
+    let stand_in = the_tangents_fillet(corner, [-DVec2::X, -LEVEL.onwards(turn)], 6.0);
+    let mut history = a_trait_inside_an_arc_of_ellipse_rounded();
+    let hung = hang_on_all_three(&mut history);
+    assert_hung_at(
+        &the_drawing(&history),
+        hung,
+        places_of(&fitting),
+        "the fillet fitting",
+    );
+
+    rounded_to(&mut history, 6.0);
+
+    let sketch = the_drawing(&history);
+    assert_red(&sketch, true, "a fillet of 6 inside an ellipse five high");
+    assert_hung_at(
+        &sketch,
+        hung,
+        places_of(&stand_in),
+        "the fillet with no place, drawn where the tangents alone put it",
+    );
+
+    rounded_to(&mut history, 1.0);
+
+    let sketch = the_drawing(&history);
+    assert_red(&sketch, false, "the fillet finds a place again");
+    assert_hung_at(
+        &sketch,
+        hung,
+        places_of(&fitting),
+        "the fillet back in its place",
+    );
 }

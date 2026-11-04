@@ -60,6 +60,47 @@ fn assert_at(sketch: &Sketch, point: PointId, expected: DVec2, what: &str) {
 }
 
 #[test]
+fn nothing_hangs_on_a_cut_taken_off() {
+    let (mut sketch, _, _, cut) = a_rounded_corner();
+    let [centre, touch] = [CutPoint::Centre, CutPoint::First].map(|at| {
+        sketch
+            .cut_point(cut, at)
+            .expect("the fillet offers its points")
+    });
+    assert!(sketch.take_cut_off(cut));
+    let point = sketch.add_point(touch);
+    let on_the_curve = sketch.add_point(centre + DVec2::new(-10.0, 0.0));
+    let start = sketch.add_point(DVec2::new(0.0, 30.0));
+    let end = sketch.add_point(DVec2::new(30.0, 0.0));
+    let line = sketch.add_segment(start, end);
+
+    for rule in [
+        Constraint::AtCutPoint {
+            point,
+            cut,
+            at: CutPoint::First,
+        },
+        Constraint::OnCut {
+            point: on_the_curve,
+            cut,
+        },
+        Constraint::CutTangent {
+            cut,
+            segment: line,
+            from: LaidFrom::Nowhere,
+        },
+    ] {
+        sketch.add_constraint(rule);
+    }
+
+    assert!(
+        !sketch.anything_hangs_on_a_cut(),
+        "a rule names the cut taken off: {:?}",
+        sketch.constraints()
+    );
+}
+
+#[test]
 fn a_cut_nothing_hangs_on_asks_the_solver_for_nothing() {
     let (sketch, ..) = a_rounded_corner();
 

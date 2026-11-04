@@ -64,11 +64,13 @@
 //! - compacting the history keeps a fillet beside an arc, its sides followed
 //!   through what they became — `a_compacted_part_keeps_a_fillet_beside_an_arc`
 
-use std::f64::consts::PI;
+use std::f64::consts::{PI, TAU};
 
 use cao_part::history::{Operation, PointRef};
 use cao_part::{History, PartState};
-use cao_sketch::{ArcDraft, ArcId, Corner, CutCurve, PointId, SegmentId, WorkPlane, sweep_of};
+use cao_sketch::{
+    ArcDraft, ArcId, Corner, CutCurve, EllipseId, PointId, SegmentId, WorkPlane, sweep_of,
+};
 use glam::DVec2;
 
 /// How near the arithmetic a place worked out in closed form comes.
@@ -458,5 +460,425 @@ fn a_fillet_beside_an_arc_changes_side_only_when_a_drag_takes_the_angle_through_
         turned_through, -at_first,
         "the angle the trait makes with the arc's tangent went through half a turn: \
          the fillet stands on the trait's other side"
+    );
+}
+
+/// How near tangency a fillet worked out by a numeric solve comes: an
+/// ellipse's offset has no closed form.
+const SOLVED: f64 = 1e-7;
+
+/// An ellipse as the test reads it: its centre, the reach of its first axis
+/// with its direction, and the reach of the second, a quarter turn
+/// counter-clockwise from the first.
+#[derive(Clone, Copy, Debug)]
+struct Oval {
+    centre: DVec2,
+    first: DVec2,
+    second: f64,
+}
+
+impl Oval {
+    fn across(self) -> DVec2 {
+        self.first.perp().normalize() * self.second
+    }
+
+    /// The two ends of the first axis: the turn of a half, then of nothing.
+    fn first_ends(self) -> [DVec2; 2] {
+        [self.centre - self.first, self.centre + self.first]
+    }
+
+    /// The place in the ellipse's own measure, where it is the unit circle.
+    fn squashed(self, place: DVec2) -> DVec2 {
+        let out = place - self.centre;
+        DVec2::new(
+            out.dot(self.first.normalize()) / self.first.length(),
+            out.dot(self.first.perp().normalize()) / self.second,
+        )
+    }
+
+    /// The implicit equation: nought on the curve, negative inside.
+    fn off_the_curve(self, place: DVec2) -> f64 {
+        self.squashed(place).length_squared() - 1.0
+    }
+
+    /// The unit normal pointing out of the curve, the implicit equation's
+    /// gradient.
+    fn outwards_at(self, place: DVec2) -> DVec2 {
+        let squashed = self.squashed(place);
+        (self.first.normalize() * (squashed.x / self.first.length())
+            + self.first.perp().normalize() * (squashed.y / self.second))
+            .normalize()
+    }
+
+    fn turn_of(self, place: DVec2) -> f64 {
+        self.squashed(place).to_angle().rem_euclid(TAU)
+    }
+
+    /// The unit tangent at a place, counter-clockwise.
+    fn onwards_at(self, place: DVec2) -> DVec2 {
+        let turn = self.turn_of(place);
+        (-self.first * turn.sin() + self.across() * turn.cos()).normalize()
+    }
+}
+
+/// A side of a corner as the test knows it from the drawing it laid: what it
+/// is, and the far end of what is drawn of it.
+#[derive(Clone, Copy, Debug)]
+enum Side {
+    Trait {
+        far: DVec2,
+    },
+    Arc {
+        centre: DVec2,
+        radius: f64,
+        counter_clockwise: bool,
+        far: DVec2,
+    },
+    ArcOfEllipse {
+        oval: Oval,
+        counter_clockwise: bool,
+        far: DVec2,
+    },
+}
+
+impl Side {
+    /// The unit direction the side leaves the corner in.
+    fn leaving(self, corner: DVec2) -> DVec2 {
+        let (onwards, counter_clockwise) = match self {
+            Self::Trait { far } => return (far - corner).normalize(),
+            Self::Arc {
+                centre,
+                counter_clockwise,
+                ..
+            } => ((corner - centre).perp().normalize(), counter_clockwise),
+            Self::ArcOfEllipse {
+                oval,
+                counter_clockwise,
+                ..
+            } => (oval.onwards_at(corner), counter_clockwise),
+        };
+        match counter_clockwise {
+            true => onwards,
+            false => -onwards,
+        }
+    }
+
+    /// How far off the side's line or curve a place stands — for an ellipse,
+    /// its implicit equation, which is nought on it as well.
+    fn off(self, corner: DVec2, place: DVec2) -> f64 {
+        match self {
+            Self::Trait { far } => off_the_line(place, corner, far),
+            Self::Arc { centre, radius, .. } => (place.distance(centre) - radius).abs(),
+            Self::ArcOfEllipse { oval, .. } => oval.off_the_curve(place).abs(),
+        }
+    }
+
+    /// How far round from the corner a place of the side's line or curve
+    /// lies, and how far round its far end does — along the trait, or as a
+    /// turn the way the side leaves the corner.
+    fn reach(self, corner: DVec2, place: DVec2) -> (f64, f64) {
+        let (angle_of, counter_clockwise): (Box<dyn Fn(DVec2) -> f64>, bool) = match self {
+            Self::Trait { far } => {
+                let along = (far - corner).normalize();
+                return ((place - corner).dot(along), corner.distance(far));
+            }
+            Self::Arc {
+                centre,
+                counter_clockwise,
+                ..
+            } => (
+                Box::new(move |at: DVec2| (at - centre).to_angle()),
+                counter_clockwise,
+            ),
+            Self::ArcOfEllipse {
+                oval,
+                counter_clockwise,
+                ..
+            } => (Box::new(move |at| oval.turn_of(at)), counter_clockwise),
+        };
+        let far = match self {
+            Self::Trait { far } | Self::Arc { far, .. } | Self::ArcOfEllipse { far, .. } => far,
+        };
+        let round = |at: DVec2| {
+            let turned = angle_of(at) - angle_of(corner);
+            match counter_clockwise {
+                true => turned,
+                false => -turned,
+            }
+            .rem_euclid(TAU)
+        };
+        (round(place), round(far))
+    }
+
+    /// Holds the fillet round `centre` of `radius` tangent to the side at
+    /// `touch`: the touch on the side's line or curve, the centre a radius
+    /// from it square to the side, on the side `outside` says for a curve.
+    fn assert_tangent(
+        self,
+        corner: DVec2,
+        centre: DVec2,
+        radius: f64,
+        touch: DVec2,
+        outside: bool,
+        what: &str,
+    ) {
+        assert!(
+            self.off(corner, touch) <= SOLVED,
+            "{what}: the fillet touches the side at {touch}, which stands {} off it",
+            self.off(corner, touch),
+        );
+        let towards = centre - touch;
+        assert!(
+            (towards.length() - radius).abs() <= SOLVED * radius.max(1.0),
+            "{what}: the fillet's centre stands {} from where it touches the side, where \
+             its radius is {radius}",
+            towards.length(),
+        );
+        let (square, out) = match self {
+            Self::Trait { far } => ((far - corner).normalize().perp(), None),
+            Self::Arc { centre: round, .. } => {
+                let out = (touch - round).normalize();
+                (out, Some(out))
+            }
+            Self::ArcOfEllipse { oval, .. } => {
+                let out = oval.outwards_at(touch);
+                (out, Some(out))
+            }
+        };
+        assert!(
+            square.perp_dot(towards.normalize()).abs() <= SOLVED,
+            "{what}: the fillet's centre stands square to the side where it touches it, \
+             {} off square",
+            square.perp_dot(towards.normalize()),
+        );
+        if let Some(out) = out {
+            assert_eq!(
+                out.dot(towards) > 0.0,
+                outside,
+                "{what}: the fillet stands {} the curve",
+                match outside {
+                    true => "outside",
+                    false => "inside",
+                },
+            );
+        }
+        let (along, drawn) = self.reach(corner, touch);
+        assert!(
+            along > 0.0 && along <= drawn,
+            "{what}: the fillet touches the side {along} on from the corner, where what is \
+             drawn of it runs {drawn}",
+        );
+    }
+}
+
+/// Holds the one fillet the drawing shows to be tangent to both sides of the
+/// corner, standing in the angle under half a turn their tangents make there.
+/// `outside` says, for each side that is a curve, whether the fillet stands
+/// outside it.
+fn assert_tangent_to_both(
+    history: &History,
+    corner: DVec2,
+    sides: [Side; 2],
+    radius: f64,
+    outside: [bool; 2],
+    what: &str,
+) {
+    let fillet = the_fillet(history, what);
+    for end in [fillet.start, fillet.end] {
+        assert!(
+            (end.distance(fillet.centre) - radius).abs() <= SOLVED * radius,
+            "{what}: the fillet is drawn of radius {radius}: {fillet:?}",
+        );
+    }
+    assert!(
+        sweep_of(fillet) < PI,
+        "{what}: the fillet runs the short way round, facing the corner: {fillet:?}"
+    );
+    for (rank, side) in sides.into_iter().enumerate() {
+        let touch = match side.off(corner, fillet.start) <= side.off(corner, fillet.end) {
+            true => fillet.start,
+            false => fillet.end,
+        };
+        side.assert_tangent(
+            corner,
+            fillet.centre,
+            radius,
+            touch,
+            outside[rank],
+            &format!("{what}, side {rank}"),
+        );
+    }
+    let [one, other] = sides.map(|side| side.leaving(corner));
+    let turn = one.perp_dot(other).signum();
+    let out = fillet.centre - corner;
+    assert!(
+        one.perp_dot(out) * turn > 0.0 && out.perp_dot(other) * turn > 0.0,
+        "{what}: the fillet's centre {} stands in the angle the sides' tangents {one} and \
+         {other} make at the corner {corner}",
+        fillet.centre,
+    );
+}
+
+/// An ellipse drawn over the stretch running counter-clockwise from the
+/// first place to the second.
+fn an_arc_of_ellipse(history: &mut History, oval: Oval, drawn: [PointRef; 2]) {
+    let [back, front] = oval.first_ends();
+    history.push(Operation::AddEllipse {
+        sketch: 0,
+        center: PointRef::New(oval.centre),
+        first: [PointRef::New(back), PointRef::New(front)],
+        second: [
+            PointRef::New(oval.centre - oval.across()),
+            PointRef::New(oval.centre + oval.across()),
+        ],
+        construction: false,
+        drawn: Some(drawn),
+    });
+}
+
+/// Ten wide and five high round (40, 30), its axes along x and y; the corner
+/// stands on it at (46, 34), the turn whose cosine is three fifths.
+const LEVEL: Oval = Oval {
+    centre: DVec2::new(40.0, 30.0),
+    first: DVec2::new(10.0, 0.0),
+    second: 5.0,
+};
+
+#[test]
+fn a_fillet_rounds_the_corner_between_an_arc_of_ellipse_and_a_trait_tangent_to_both() {
+    let corner = DVec2::new(46.0, 34.0);
+    let mut history = a_corner_at(corner);
+    let far = DVec2::new(46.0, 54.0);
+    a_trait(
+        &mut history,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(far),
+    );
+    let [back, _] = LEVEL.first_ends();
+    an_arc_of_ellipse(
+        &mut history,
+        LEVEL,
+        [PointRef::Existing(THE_CORNER), PointRef::New(back)],
+    );
+
+    round(&mut history, Corner::At(THE_CORNER), 3.0);
+
+    assert_tangent_to_both(
+        &history,
+        corner,
+        [
+            Side::Trait { far },
+            Side::ArcOfEllipse {
+                oval: LEVEL,
+                counter_clockwise: true,
+                far: back,
+            },
+        ],
+        3.0,
+        [true, true],
+        "a trait rising from an arc of ellipse running over the top of its curve",
+    );
+}
+
+#[test]
+fn a_fillet_rounds_the_corner_between_an_arc_of_ellipse_and_an_arc_tangent_to_both() {
+    let tilted = Oval {
+        centre: DVec2::new(30.0, 20.0),
+        first: DVec2::new(8.0, 6.0),
+        second: 5.0,
+    };
+    let corner = tilted.centre + DVec2::new(2.4, 6.8);
+    let mut history = a_corner_at(corner);
+    let [back, _] = tilted.first_ends();
+    an_arc_of_ellipse(
+        &mut history,
+        tilted,
+        [PointRef::Existing(THE_CORNER), PointRef::New(back)],
+    );
+    let (centre, far) = (
+        corner + DVec2::new(10.0, 0.0),
+        corner + DVec2::new(10.0, -10.0),
+    );
+    an_arc(
+        &mut history,
+        centre,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(far),
+    );
+
+    round(
+        &mut history,
+        Corner::Between(EllipseId(0).into(), ArcId(0).into()),
+        2.0,
+    );
+
+    assert_tangent_to_both(
+        &history,
+        corner,
+        [
+            Side::ArcOfEllipse {
+                oval: tilted,
+                counter_clockwise: true,
+                far: back,
+            },
+            Side::Arc {
+                centre,
+                radius: 10.0,
+                counter_clockwise: true,
+                far,
+            },
+        ],
+        2.0,
+        [false, true],
+        "an arc dropping into a tilted arc of ellipse, the fillet inside the ellipse",
+    );
+}
+
+#[test]
+fn a_fillet_rounds_the_corner_between_two_arcs_of_ellipse_tangent_to_both() {
+    let corner = DVec2::new(46.0, 34.0);
+    let tilted = Oval {
+        centre: DVec2::new(45.6, 26.8),
+        first: DVec2::new(6.0, 8.0),
+        second: 5.0,
+    };
+    let mut history = a_corner_at(corner);
+    let [back, _] = LEVEL.first_ends();
+    an_arc_of_ellipse(
+        &mut history,
+        LEVEL,
+        [PointRef::Existing(THE_CORNER), PointRef::New(back)],
+    );
+    let [_, front] = tilted.first_ends();
+    an_arc_of_ellipse(
+        &mut history,
+        tilted,
+        [PointRef::New(front), PointRef::Existing(THE_CORNER)],
+    );
+
+    round(
+        &mut history,
+        Corner::Between(EllipseId(0).into(), EllipseId(1).into()),
+        3.0,
+    );
+
+    assert_tangent_to_both(
+        &history,
+        corner,
+        [
+            Side::ArcOfEllipse {
+                oval: LEVEL,
+                counter_clockwise: true,
+                far: back,
+            },
+            Side::ArcOfEllipse {
+                oval: tilted,
+                counter_clockwise: false,
+                far: front,
+            },
+        ],
+        3.0,
+        [true, true],
+        "two arcs of ellipse, one of them tilted, the fillet outside both",
     );
 }

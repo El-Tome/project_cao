@@ -61,9 +61,9 @@ pub struct CornerCut {
 /// Why a corner was not cut.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CutRefused {
-    /// The two sides do not end at one point; one of them is an axis of an
-    /// ellipse, which the curve stands on, or an arc of ellipse; or the cut
-    /// is a chamfer and a side is not a trait.
+    /// The two sides do not end at one point, one of them is an axis of an
+    /// ellipse, which the curve stands on, or the cut is a chamfer and a side
+    /// is not a trait.
     NoCorner,
 }
 

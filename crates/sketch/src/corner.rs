@@ -124,18 +124,16 @@ impl Sketch {
     ///
     /// Not where either is an axis of an ellipse: the axes are what the curve
     /// stands on, and a side pulled back would leave it standing on nothing.
-    /// Nor beside an arc of ellipse, which no cut is worked out beside.
     pub(crate) fn corner_to_cut(
         &self,
         first: CutSide,
         second: CutSide,
     ) -> Option<(PointId, PointId, PointId)> {
-        let held_off = |side: CutSide| match side {
-            CutSide::Trait(segment) => self.ellipse_of_axis(segment).is_some(),
-            CutSide::Arc(_) => false,
-            CutSide::ArcOfEllipse(_) => true,
+        let an_axis = |side: CutSide| {
+            side.as_trait()
+                .is_some_and(|segment| self.ellipse_of_axis(segment).is_some())
         };
-        if held_off(first) || held_off(second) {
+        if an_axis(first) || an_axis(second) {
             return None;
         }
         let corner = self.point_between(first, second)?;

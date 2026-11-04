@@ -12,12 +12,14 @@ use crate::ellipse::EllipseId;
 use crate::sketch::Sketch;
 
 /// A curve side split by the cuts on its ends: the stretch that shows, and
-/// the stretches they hide up to its sharp corners — each as the angle or the
-/// turn it starts at and how far round it runs, the way the curve runs.
-#[derive(Clone, Debug, Default, PartialEq)]
+/// the stretch a cut hides up to the sharp corner at its start, then at its
+/// end — each as the angle or the turn it starts at and how far round it
+/// runs, the way the curve runs. A side the cuts leave nothing of is hidden
+/// whole, as the stretch at its start.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Stretches {
     pub shows: Option<(f64, f64)>,
-    pub hidden: Vec<(f64, f64)>,
+    pub hidden: [Option<(f64, f64)>; 2],
 }
 
 impl Sketch {
@@ -74,7 +76,7 @@ fn split(starts: f64, sweep: f64, pulled: [Option<f64>; 2]) -> Stretches {
     if pulled == [None, None] {
         return Stretches {
             shows: Some((starts, sweep)),
-            hidden: Vec::new(),
+            hidden: [None, None],
         };
     }
     let slack = (TAU - sweep) * 0.5;
@@ -84,17 +86,14 @@ fn split(starts: f64, sweep: f64, pulled: [Option<f64>; 2]) -> Stretches {
     if to - from <= crate::precision::SAME * sweep {
         return Stretches {
             shows: None,
-            hidden: vec![(starts, sweep)],
+            hidden: [Some((starts, sweep)), None],
         };
     }
     let hidden = [
         (pulled[0].is_some(), (starts, from)),
         (pulled[1].is_some(), (starts + to, sweep - to)),
     ]
-    .into_iter()
-    .filter(|(pulled, (_, run))| *pulled && *run > 0.0)
-    .map(|(_, run)| run)
-    .collect();
+    .map(|(pulled, run)| (pulled && run.1 > 0.0).then_some(run));
     Stretches {
         shows: Some((starts + from, to - from)),
         hidden,

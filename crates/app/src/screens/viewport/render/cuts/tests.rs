@@ -22,7 +22,9 @@
 //! thin dashes on to its sharp corner, as a trait side is —
 //! `a_curve_rounded_at_its_end_is_drawn_solid_to_the_fillet_and_dashed_to_its_sharp_corner`
 //! — and whole beside a fillet that does not fit —
-//! `a_curve_beside_a_fillet_that_does_not_fit_is_drawn_whole`.
+//! `a_curve_beside_a_fillet_that_does_not_fit_is_drawn_whole`; the stretch
+//! it hides lights with its cut, as a trait side's does —
+//! `the_dashes_of_a_curve_up_to_its_sharp_corner_light_with_their_cut`.
 
 use cao_part::history::PointRef;
 use cao_part::{Operation, PartDocument};
@@ -188,8 +190,9 @@ fn a_cut_lit_at_a_point_carrying_another_lights_its_own_sides_alone() {
 
     let lit = ends_of(&sketch, &[near]);
 
-    assert!(lit.contains(&(corner, top)) && lit.contains(&(corner, middle)));
-    assert!(!lit.contains(&(corner, bottom)));
+    let side = cao_sketch::CutSide::Trait;
+    assert!(lit.contains(&(corner, side(top))) && lit.contains(&(corner, side(middle))));
+    assert!(!lit.contains(&(corner, side(bottom))));
 }
 
 /// How many of a fillet's points are drawn lit, the cursor resting a few
@@ -729,4 +732,189 @@ fn a_curve_beside_a_fillet_that_does_not_fit_is_drawn_whole() {
         highest(&solid),
     );
     assert!(thin.is_empty(), "nothing of the arc is dashed: {thin:?}");
+}
+
+/// A trait rising from (46, 34) to (46, 54), and an arc of ellipse ten wide
+/// and five high round (40, 30) drawn from that corner over its top to
+/// (30, 30), the corner rounded by three.
+fn a_trait_and_an_arc_of_ellipse_rounded() -> PartDocument {
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddPoint {
+        sketch: 0,
+        position: DVec2::new(46.0, 34.0),
+        on: Vec::new(),
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(cao_sketch::PointId(1)),
+        end: PointRef::New(DVec2::new(46.0, 54.0)),
+        construction: false,
+    });
+    let back = PointRef::New(DVec2::new(30.0, 30.0));
+    document.apply(Operation::AddEllipse {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(40.0, 30.0)),
+        first: [back.clone(), PointRef::New(DVec2::new(50.0, 30.0))],
+        second: [
+            PointRef::New(DVec2::new(40.0, 25.0)),
+            PointRef::New(DVec2::new(40.0, 35.0)),
+        ],
+        construction: false,
+        drawn: Some([PointRef::Existing(cao_sketch::PointId(1)), back]),
+    });
+    document.apply(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::At(cao_sketch::PointId(1))],
+        radius: 3.0.into(),
+        construction: false,
+    });
+    document
+}
+
+/// Every stroke the frame paints of the drawing, the cursor resting on
+/// `hovered`: its two ends, its colour and its width.
+fn strokes_hovering(
+    document: &mut PartDocument,
+    hovered: Option<Selection>,
+) -> Vec<([DVec2; 2], [f32; 4], f32)> {
+    let sketch = document.sketches()[0].clone();
+    let mut editor = SketchEditor {
+        phase: SketchPhase::Editing(0),
+        tool: Tool::Select,
+        tool_state: ToolState::Select(Box::default()),
+        hovered,
+        ..Default::default()
+    };
+    let (mut extrusion, lang) = (ExtrusionState::default(), Catalogue::french());
+    let context = SketchContext {
+        document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let scale = ViewScale::of(
+        &OrbitCamera::default(),
+        SCREEN,
+        1.0,
+        &ViewportConfig::default(),
+        1.0,
+    );
+    let (mut painted, mut surfaces) = (Vec::new(), Vec::new());
+    let shown = super::super::drawing::Shown {
+        sketch: &sketch,
+        laid: &[],
+        cuts: &[],
+        going: None,
+        active: true,
+    };
+    super::super::drawing::push_sketch(
+        &mut painted,
+        &mut surfaces,
+        &shown,
+        &Theme::default(),
+        scale,
+        &context,
+    );
+    painted
+        .chunks(2)
+        .map(|stroke| {
+            (
+                [stroke[0], stroke[1]].map(|vertex| {
+                    sketch
+                        .plane
+                        .to_local(glam::Vec3::from(vertex.position).as_dvec3())
+                }),
+                stroke[0].color,
+                stroke[0].width,
+            )
+        })
+        .collect()
+}
+
+/// The colours of the thin strokes painted between the corner and the touch
+/// on a side: `along` says how far round from the corner a place of the side
+/// lies, when it lies on it.
+fn colours_of_the_dashes(
+    strokes: &[([DVec2; 2], [f32; 4], f32)],
+    touch: f64,
+    along: impl Fn(DVec2) -> Option<f64>,
+) -> Vec<[f32; 4]> {
+    let thin = Theme::default().sketch_width * 0.9;
+    strokes
+        .iter()
+        .filter(|(_, _, width)| *width < thin)
+        .filter(|(ends, _, _)| {
+            ends.iter().all(|end| {
+                along(*end).is_some_and(|along| (-ALONG..=touch + ALONG).contains(&along))
+            })
+        })
+        .map(|(_, colour, _)| *colour)
+        .collect()
+}
+
+#[test]
+fn the_dashes_of_a_curve_up_to_its_sharp_corner_light_with_their_cut() {
+    let cases = [
+        (
+            a_trait_and_an_arc_rounded(DVec2::new(2.0, 18.0), 5.0),
+            DVec2::new(10.0, 10.0),
+            DVec2::new(50.0, 10.0),
+            CurveSide::Arc {
+                centre: DVec2::new(2.0, 10.0),
+                radius: 8.0,
+                counter_clockwise: true,
+            },
+            "an arc rounded beside a trait",
+        ),
+        (
+            a_trait_and_an_arc_of_ellipse_rounded(),
+            DVec2::new(46.0, 34.0),
+            DVec2::new(46.0, 54.0),
+            CurveSide::ArcOfEllipse {
+                centre: DVec2::new(40.0, 30.0),
+                first: DVec2::new(10.0, 0.0),
+                second: 5.0,
+                counter_clockwise: true,
+            },
+            "an arc of ellipse rounded beside a trait",
+        ),
+    ];
+    for (mut document, corner, far, curve, what) in cases {
+        let cut = &document.sketches()[0].drawn_cuts()[0];
+        let on_the_trait = |place: DVec2| {
+            let along = (far - corner).normalize();
+            ((place - corner).perp_dot(along).abs() < 1e-4).then(|| (place - corner).dot(along))
+        };
+        let trait_touch = cut
+            .touches
+            .iter()
+            .find_map(|touch| on_the_trait(*touch))
+            .expect("the fillet touches the trait");
+        let curve_touch = touched_along(&document, corner, curve);
+
+        let quiet = strokes_hovering(&mut document, None);
+        let lit = strokes_hovering(&mut document, Some(Selection::Cut(CornerCutId(0))));
+
+        let trait_lit = colours_of_the_dashes(&lit, trait_touch, on_the_trait);
+        let trait_quiet = colours_of_the_dashes(&quiet, trait_touch, on_the_trait);
+        assert!(
+            !trait_lit.is_empty() && trait_lit.iter().all(|colour| !trait_quiet.contains(colour)),
+            "{what}: the trait's dashes light with the cut pointed at: {trait_lit:?}"
+        );
+        let curve_lit =
+            colours_of_the_dashes(&lit, curve_touch, |place| curve.along(corner, place));
+        assert!(
+            !curve_lit.is_empty(),
+            "{what}: the curve's stretch up to the corner is dashed"
+        );
+        assert!(
+            curve_lit.iter().all(|colour| trait_lit.contains(colour)),
+            "{what}: the curve's dashes light with the cut pointed at, as the trait's do: \
+             {curve_lit:?}, where the trait's are {trait_lit:?}"
+        );
+    }
 }

@@ -192,18 +192,8 @@ impl Sketch {
     /// Past either end it is that end, not the far side of the curve: the rest
     /// of the ellipse is not drawn, and a click out there must find nothing.
     pub fn place_on_ellipse(&self, id: EllipseId, place: DVec2) -> DVec2 {
-        let drawn = self.ellipse_draft(id);
         let (from, sweep) = self.ellipse_run(id);
-        let turn = drawn.turn_nearest(place);
-        let along = (turn - from).rem_euclid(std::f64::consts::TAU);
-        if along <= sweep {
-            return drawn.at(turn);
-        }
-        let (start, end) = (drawn.at(from), drawn.at(from + sweep));
-        match place.distance(start) <= place.distance(end) {
-            true => start,
-            false => end,
-        }
+        self.ellipse_draft(id).nearest_along(place, from, sweep)
     }
 
     /// How far a place stands from the stretch that is drawn.

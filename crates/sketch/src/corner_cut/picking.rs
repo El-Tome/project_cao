@@ -4,6 +4,7 @@ use glam::DVec2;
 
 use super::CornerCutId;
 use super::drawn::CutCurve;
+use crate::arcing::ArcDraft;
 use crate::holding::Support;
 use crate::reading::Reading;
 use crate::sketch::{PointId, Sketch};
@@ -31,8 +32,8 @@ impl Sketch {
     }
 
     /// The cut under the cursor when its curve passes nearer than what is
-    /// drawn of any trait: where a curve meets its side, a press nearer the
-    /// side takes the side.
+    /// drawn of any trait, arc or ellipse: where a curve meets its side, a
+    /// press nearer the side takes the side.
     pub fn cut_before_traits(&self, position: DVec2, tolerance: f64) -> Option<CornerCutId> {
         let drawn = self.drawn_cuts();
         let (cut, from_cut) = drawn
@@ -41,16 +42,32 @@ impl Sketch {
             .filter(|(_, distance)| *distance <= tolerance)
             .min_by(|(_, one), (_, other)| one.total_cmp(other))?;
         let pulled = self.pulled_ends(&drawn);
-        let from_traits = self
-            .live_segments()
-            .filter_map(|(id, segment)| {
-                let [from, to] = self.visible_ends(id, &pulled)?;
-                let from = from.unwrap_or(self.point(segment.start));
-                let to = to.unwrap_or(self.point(segment.end));
-                Some(nearest_on(CutCurve::Straight { from, to }, position).distance(position))
-            })
+        let traits = self.live_segments().filter_map(|(id, segment)| {
+            let [from, to] = self.visible_ends(id, &pulled)?;
+            let from = from.unwrap_or(self.point(segment.start));
+            let to = to.unwrap_or(self.point(segment.end));
+            Some(distance_to(CutCurve::Straight { from, to }, position))
+        });
+        let arcs = self.live_arcs().filter_map(|(id, _)| {
+            let (from, sweep) = self.arc_stretches(id, &pulled).shows?;
+            let (centre, radius) = (self.point(self.arc(id).center), self.arc_radius(id));
+            let shows = ArcDraft {
+                centre,
+                start: centre + DVec2::from_angle(from) * radius,
+                end: centre + DVec2::from_angle(from + sweep) * radius,
+            };
+            Some(distance_to(CutCurve::Arc(shows), position))
+        });
+        let ellipses = self.live_ellipses().filter_map(|(id, _)| {
+            let (from, sweep) = self.ellipse_stretches(id, &pulled).shows?;
+            let nearest = self.ellipse_draft(id).nearest_along(position, from, sweep);
+            Some(nearest.distance(position))
+        });
+        let from_sides = traits
+            .chain(arcs)
+            .chain(ellipses)
             .fold(f64::INFINITY, f64::min);
-        (from_cut <= from_traits).then_some(cut)
+        (from_cut <= from_sides).then_some(cut)
     }
 
     /// What « Mesurer » reads of a cut: a fillet's radius, a chamfer's cut as

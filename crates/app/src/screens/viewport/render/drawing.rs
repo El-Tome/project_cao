@@ -200,7 +200,7 @@ pub(crate) fn push_sketch(
             width,
             construction: arc.construction,
         };
-        canvas.push_arc(out, id, stroke, scale);
+        canvas.push_arc(out, id, stroke, (theme, scale));
     }
 
     for (id, oval) in sketch.live_ellipses() {
@@ -222,7 +222,7 @@ pub(crate) fn push_sketch(
             width,
             construction: oval.construction,
         };
-        canvas.push_ellipse(out, id, stroke, scale);
+        canvas.push_ellipse(out, id, stroke, (theme, scale));
     }
 
     if !active {

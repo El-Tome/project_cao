@@ -37,7 +37,10 @@
 //!   `dragging_a_corner_between_a_trait_and_an_arc_slides_it_round_the_arc_as_on_a_sharp_corner`,
 //!   `dragging_a_corner_between_two_arcs_moves_it_as_a_sharp_corner`; the
 //!   fillet grabbed is held in the sketch crate by
-//!   `a_press_on_a_fillet_beside_an_arc_drags_its_corner`
+//!   `a_press_on_a_fillet_beside_an_arc_drags_its_corner`, and a press on the
+//!   arc past the fillet still taking the arc by
+//!   `a_press_on_an_arc_beside_where_its_fillet_meets_it_takes_the_arc` and
+//!   `a_press_on_an_arc_of_ellipse_beside_where_its_fillet_meets_it_takes_the_ellipse`
 //! - The visible outline runs along each side up to its tangent point, a curve
 //!   trimmed there, then the fillet; the tint, the areas and the extrusion
 //!   follow it —
@@ -49,7 +52,9 @@
 //!   dashes on to the sharp corner, whole beside a fillet that does not fit,
 //!   held in `cao_app` by
 //!   `a_curve_rounded_at_its_end_is_drawn_solid_to_the_fillet_and_dashed_to_its_sharp_corner`
-//!   and `a_curve_beside_a_fillet_that_does_not_fit_is_drawn_whole`, and the
+//!   and `a_curve_beside_a_fillet_that_does_not_fit_is_drawn_whole`, its dashes
+//!   lit with their cut as a trait side's are by
+//!   `the_dashes_of_a_curve_up_to_its_sharp_corner_light_with_their_cut`, and the
 //!   picture of a part draws it from its far end to the fillet only, as it
 //!   does a trait side, held there by
 //!   `a_curve_rounded_at_its_end_reaches_the_picture_from_its_far_end_to_the_fillet`;
@@ -84,8 +89,8 @@ use std::f64::consts::{PI, TAU};
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{History, PartDocument, PartState};
 use cao_sketch::{
-    ArcDraft, ArcId, Area, Corner, CutCurve, CutSide, EllipseId, PointId, SegmentId, WorkPlane,
-    sweep_of,
+    ArcDraft, ArcId, Area, Corner, CutCurve, CutSide, EllipseId, PointId, SegmentId, Sketch,
+    SnapSettings, WorkPlane, sweep_of,
 };
 use glam::DVec2;
 
@@ -1444,4 +1449,165 @@ fn a_plate_rounded_beside_an_arc_is_raised_with_its_rounded_corner() {
             "{what}: the fillet raises a face of its own, the trimmed sides one each as before"
         );
     }
+}
+
+/// Where the app lands a corner dragged towards `hand`, with no magnet
+/// pulling: what the drag path records.
+fn landing_of_the_corner(history: &History, hand: DVec2) -> DVec2 {
+    let drawing = PartState::rebuild(history).sketches[0].clone();
+    let magnets = SnapSettings {
+        point_reach: 0.0,
+        curve_reach: 0.0,
+        grid_step: None,
+        grid_reach: 0.0,
+    };
+    drawing
+        .pull(THE_CORNER, 1.0)
+        .landing(&drawing, hand, hand, false, &magnets)
+}
+
+/// Every point of one drawing where the other has it.
+fn same_points(one: &History, other: &History, what: &str) {
+    let [one, other] = [one, other].map(|history| PartState::rebuild(history).sketches[0].clone());
+    assert_eq!(one.points().len(), other.points().len(), "{what}");
+    for (rank, (a, b)) in one.points().iter().zip(other.points()).enumerate() {
+        assert!(
+            a.distance(*b) < SOLVED,
+            "{what}: point {rank} at {b}, where the sharp drawing has it at {a}"
+        );
+    }
+}
+
+/// An arc of the drawing as the test reads it, from the corner.
+fn the_arc_from_the_corner(drawing: &Sketch, arc: ArcId) -> Side {
+    let laid = drawing.arc(arc);
+    let counter_clockwise = laid.start == THE_CORNER;
+    Side::Arc {
+        centre: drawing.point(laid.center),
+        radius: drawing.arc_radius(arc),
+        counter_clockwise,
+        far: drawing.point(match counter_clockwise {
+            true => laid.end,
+            false => laid.start,
+        }),
+    }
+}
+
+#[test]
+fn dragging_a_corner_between_a_trait_and_an_arc_slides_it_round_the_arc_as_on_a_sharp_corner() {
+    let (centre, top) = (DVec2::new(2.0, 10.0), DVec2::new(2.0, 18.0));
+    let mut sharp = a_corner_at(DVec2::new(10.0, 10.0));
+    a_trait(
+        &mut sharp,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(50.0, 10.0)),
+    );
+    an_arc(
+        &mut sharp,
+        centre,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(top),
+    );
+    let mut rounded = sharp.clone();
+    round(&mut rounded, Corner::At(THE_CORNER), 5.0);
+
+    let hand = DVec2::new(11.0, 6.0);
+    let landing = landing_of_the_corner(&rounded, hand);
+    assert!(
+        landing.distance(landing_of_the_corner(&sharp, hand)) < SOLVED,
+        "the rounded corner lands where the sharp one does"
+    );
+    for history in [&mut sharp, &mut rounded] {
+        moved(history, THE_CORNER, landing);
+    }
+
+    same_points(&sharp, &rounded, "the corner dragged");
+    let drawing = PartState::rebuild(&rounded).sketches[0].clone();
+    let corner = drawing.point(THE_CORNER);
+    near_place(
+        corner,
+        centre + (hand - centre).normalize() * 8.0,
+        "the corner slides round the arc's circle, to where it comes nearest the hand",
+    );
+    near_place(
+        drawing.point(drawing.arc(ArcId(0)).center),
+        centre,
+        "the arc keeps its centre",
+    );
+    near(
+        drawing.arc_radius(ArcId(0)),
+        8.0,
+        "the arc keeps its radius",
+    );
+    near_place(
+        drawing.point(drawing.arc(ArcId(0)).end),
+        top,
+        "the arc's far end stays",
+    );
+    assert_tangent_to_both(
+        &rounded,
+        corner,
+        [
+            Side::Trait {
+                far: DVec2::new(50.0, 10.0),
+            },
+            the_arc_from_the_corner(&drawing, ArcId(0)),
+        ],
+        5.0,
+        [true, true],
+        "the fillet after the drag",
+    );
+}
+
+#[test]
+fn dragging_a_corner_between_two_arcs_moves_it_as_a_sharp_corner() {
+    let mut sharp = a_corner_at(DVec2::new(0.0, 5.0));
+    an_arc(
+        &mut sharp,
+        DVec2::new(12.0, 0.0),
+        PointRef::New(DVec2::new(12.0, 13.0)),
+        PointRef::Existing(THE_CORNER),
+    );
+    an_arc(
+        &mut sharp,
+        DVec2::new(-12.0, 0.0),
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(-12.0, 13.0)),
+    );
+    let mut rounded = sharp.clone();
+    round(
+        &mut rounded,
+        Corner::Between(ArcId(0).into(), ArcId(1).into()),
+        3.0,
+    );
+
+    let hand = DVec2::new(1.0, 7.0);
+    let landing = landing_of_the_corner(&rounded, hand);
+    assert!(
+        landing.distance(landing_of_the_corner(&sharp, hand)) < SOLVED,
+        "the rounded corner lands where the sharp one does"
+    );
+    for history in [&mut sharp, &mut rounded] {
+        moved(history, THE_CORNER, landing);
+    }
+
+    same_points(&sharp, &rounded, "the corner dragged");
+    let drawing = PartState::rebuild(&rounded).sketches[0].clone();
+    let corner = drawing.point(THE_CORNER);
+    near_place(
+        corner,
+        hand,
+        "between two arcs, the corner follows the hand",
+    );
+    assert_tangent_to_both(
+        &rounded,
+        corner,
+        [
+            the_arc_from_the_corner(&drawing, ArcId(0)),
+            the_arc_from_the_corner(&drawing, ArcId(1)),
+        ],
+        3.0,
+        [true, true],
+        "the fillet after the drag",
+    );
 }

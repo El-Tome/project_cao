@@ -192,3 +192,97 @@ fn a_press_on_a_side_beside_where_the_curve_meets_it_takes_the_side() {
         Some(Selection::Element(crate::element::Element::Segment(right)))
     );
 }
+
+/// A trait from (10, 10) to (50, 10) and an arc round (2, 10) of radius 8
+/// from that corner up to (2, 18), the corner rounded by five: the fillet runs
+/// round (14, 15) from (14, 10) on the trait to where it touches the arc.
+fn a_trait_and_an_arc_rounded() -> (Sketch, PointId, crate::arc::ArcId) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corner = sketch.add_point(DVec2::new(10.0, 10.0));
+    let far = sketch.add_point(DVec2::new(50.0, 10.0));
+    let along = sketch.add_segment(corner, far);
+    let centre = sketch.add_point(DVec2::new(2.0, 10.0));
+    let top = sketch.add_point(DVec2::new(2.0, 18.0));
+    let arc = sketch.add_arc(centre, corner, top);
+    sketch
+        .cut_corner(along, arc, CutShape::Fillet { radius: 5.0 }, false, 0)
+        .expect("the trait and the arc take a fillet");
+    (sketch, corner, arc)
+}
+
+/// Where the fillet beside the arc touches it.
+const ON_THE_ARC: DVec2 = DVec2::new(2.0 + 96.0 / 13.0, 10.0 + 40.0 / 13.0);
+
+#[test]
+fn a_press_on_a_fillet_beside_an_arc_drags_its_corner() {
+    let (sketch, corner, _) = a_trait_and_an_arc_rounded();
+    let centre = DVec2::new(14.0, 15.0);
+    let halfway = ((DVec2::new(14.0, 10.0) - centre).normalize()
+        + (ON_THE_ARC - centre).normalize())
+    .normalize();
+
+    for place in [
+        centre + halfway * 5.0,
+        centre,
+        DVec2::new(14.0, 10.0),
+        ON_THE_ARC,
+    ] {
+        assert_eq!(
+            sketch.point_to_drag_at(place, 0.5),
+            Some(Grip {
+                point: corner,
+                from_afar: true
+            }),
+            "a press at {place} on the fillet takes its corner"
+        );
+    }
+}
+
+#[test]
+fn a_press_on_an_arc_beside_where_its_fillet_meets_it_takes_the_arc() {
+    let (sketch, _, arc) = a_trait_and_an_arc_rounded();
+    let past_the_fillet = DVec2::new(2.0, 10.0) + DVec2::from_angle(25_f64.to_radians()) * 8.05;
+
+    let picked = sketch.pick(past_the_fillet, 0.5, METRICS);
+
+    assert_eq!(
+        picked,
+        Some(Selection::Element(crate::element::Element::Arc(arc))),
+        "a press on the arc a third of a unit past where the fillet meets it takes the arc, \
+         as one on a trait past its fillet takes the trait"
+    );
+}
+
+#[test]
+fn a_press_on_an_arc_of_ellipse_beside_where_its_fillet_meets_it_takes_the_ellipse() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corner = sketch.add_point(DVec2::new(46.0, 34.0));
+    let up = sketch.add_point(DVec2::new(46.0, 54.0));
+    let rising = sketch.add_segment(corner, up);
+    let [centre, back, front, low, high] = [
+        (40.0, 30.0),
+        (30.0, 30.0),
+        (50.0, 30.0),
+        (40.0, 25.0),
+        (40.0, 35.0),
+    ]
+    .map(|(x, y)| sketch.add_point(DVec2::new(x, y)));
+    let ellipse = sketch.add_ellipse(centre, [back, front], [low, high]);
+    sketch.draw_the_stretch(ellipse, corner, back);
+    sketch
+        .cut_corner(rising, ellipse, CutShape::Fillet { radius: 3.0 }, false, 0)
+        .expect("the trait and the arc of ellipse take a fillet");
+    let turn = 77_f64.to_radians();
+    let past_the_fillet = DVec2::new(40.0 + 10.0 * turn.cos(), 30.0 + 5.0 * turn.sin());
+
+    let picked = sketch.pick(past_the_fillet, 0.5, METRICS);
+
+    assert_eq!(
+        picked,
+        Some(Selection::Element(crate::element::Element::Ellipse(
+            ellipse
+        ))),
+        "a press on the arc of ellipse a third of a unit past where the fillet meets it takes \
+         the ellipse, as one on a trait past its fillet takes the trait"
+    );
+}

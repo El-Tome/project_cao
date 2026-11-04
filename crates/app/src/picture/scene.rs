@@ -137,7 +137,10 @@ fn push_drawing(out: &mut Vec<Vertex>, sketch: &Sketch) {
     }
     for (id, _) in sketch.live_ellipses() {
         let places = match sketch.ellipse_stretches(id, &pulled) {
-            Stretches { hidden, .. } if hidden.is_empty() => sketch.ellipse_polyline(id),
+            Stretches {
+                hidden: [None, None],
+                ..
+            } => sketch.ellipse_polyline(id),
             Stretches {
                 shows: Some((from, sweep)),
                 ..

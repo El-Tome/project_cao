@@ -203,11 +203,7 @@ fn touch(pair: &Pair, eps: f64) -> Option<(f64, f64)> {
 /// by the half-axis nearer that direction alone: where the two walls of a
 /// node are drawn of one half-width, an axis of the ellipse runs along the
 /// other wall's, and that half-axis alone is the hair off.
-pub(in crate::brep) fn widened(
-    oval: &EllipticCylinder,
-    along: DVec3,
-    half: f64,
-) -> EllipticCylinder {
+fn widened(oval: &EllipticCylinder, along: DVec3, half: f64) -> EllipticCylinder {
     let [on_u, on_v] = [along.dot(oval.u), along.dot(oval.v)];
     let (first, second) = if on_u.abs() >= on_v.abs() {
         let rest = oval.minor * on_v;

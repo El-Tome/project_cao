@@ -2974,7 +2974,6 @@ fn the_same_seed_draws_the_same_ellipse_case_and_none_another_draw_gives_it() {
     }
 }
 
-/// Whether a leaf is a prism of an outline an ellipse bounds.
 /// The area the corners of an arc of an ellipse within the kernel's hair of
 /// round may sweep, laid on the circle of its mean (#574): each moves along
 /// its ray by half the difference of the half-axes at most, and the traits
@@ -2995,6 +2994,7 @@ fn laid_round(leaf: &Leaf, outline: &Outline) -> f64 {
     apart * ((high - low).x + (high - low).y)
 }
 
+/// Whether a leaf is a prism of an outline an ellipse bounds.
 fn elliptic(leaf: &Leaf) -> bool {
     outline_of(leaf).is_some_and(|outline| outline.oval().is_some())
 }

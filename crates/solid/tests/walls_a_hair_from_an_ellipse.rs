@@ -295,7 +295,9 @@ fn an_elliptic_pocket_reaching_a_round_bar_s_sides_at_its_axis_keeps_every_rule(
 /// stands square to the tube's outside and to its bore, and touches each at
 /// one point, an end of the tunnel's reach: a node of their crossing. The
 /// body is built, but triangles of the bore and of the tunnel's wall cross
-/// beside that touch, breaking `Uncrossed`.
+/// beside that touch, breaking `Uncrossed`. Within decision 8's hair of
+/// round, the tunnel is raised as a circle (Tom, 2026-10-13): what this holds
+/// is two round walls touching, not an elliptic one.
 #[test]
 fn an_elliptic_tunnel_as_wide_as_a_tube_s_wall_keeps_every_rule() {
     random_solids::holds_exactly(&Case::new(

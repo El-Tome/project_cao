@@ -53,8 +53,10 @@ use crate::brep::topology::Body;
 /// its cones whose axis stands as near a cylinder's or a cone's of the
 /// first, and each of its cylinders whose axis stands as near a cone's of
 /// the first, moved about that axis; each of its elliptic walls as near one
-/// of the first's in every measure moved onto it, as `oval.rs` says; none
-/// when nothing moves.
+/// of the first's in every measure moved onto it, as `oval.rs` says; each
+/// whole wall about one of the first's of the other kind, as near it all
+/// round, replaced by that wall, as `other_kind.rs` says; none when nothing
+/// moves.
 pub(in crate::brep) fn closed(first: &Body, second: &Body, scale: Scale) -> Option<Body> {
     let moved = carried_along(first, second, scale, |current, rank| {
         match &current.surfaces[rank] {

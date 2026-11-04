@@ -27,7 +27,7 @@
 //! within decision 8's hair of the other, which left touching the one
 //! stands a hair or two off the other, across a skin no ray tells the side
 //! of.
-//! A wall touching two walls square to it at the two ends of its reach
+//! A cylinder touching two walls square to it at the two ends of its reach
 //! along one way, which no translation settles, is grown or shrunk across
 //! the two (`across.rs`).
 //! A touch counts where faces on the two surfaces stand in boxes that meet:
@@ -180,7 +180,7 @@ impl Surfaces {
         }
     }
 
-    /// The moves of the wall of rank `rank` onto two touches at once with
+    /// The moves of the cylinder of rank `rank` onto two touches at once with
     /// walls of the first operand near it, `first`, square to it at
     /// opposite ends of its reach, and those two.
     fn across(
@@ -195,8 +195,10 @@ impl Surfaces {
             .filter(|&other| other != rank && first(other))
             .filter_map(|other| {
                 let (shifted, moved) = self.onto([rank, other], &own, scale)?;
-                let onto =
-                    (shifted == rank).then(|| across::onto(wall, &self.list[other], &moved))??;
+                if shifted != rank {
+                    return None;
+                }
+                let onto = across::onto(wall, &self.list[other], &moved)?;
                 Some((other, onto))
             })
             .collect();

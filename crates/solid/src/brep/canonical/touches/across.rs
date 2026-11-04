@@ -1,38 +1,44 @@
-//! Decision 2's move of a wall onto two touches at once. A wall the second
-//! operand alone carries, a hair from touching two walls square to it at
-//! the two ends of its reach along one way — a tunnel as wide as a tube's
-//! wall, touching its outside and its bore — is no translation from
+//! Decision 2's move of a cylinder onto two touches at once. A cylinder the
+//! second operand alone carries, a hair from touching two walls square to
+//! it at the two ends of its reach along one way — a tunnel as wide as a
+//! tube's wall, touching its outside and its bore — is no translation from
 //! touching both: moved onto one, it stands twice as far from the other.
 //! Moved midway between the two and given half their distance as its
-//! half-width along that way, it touches both exactly, as a cylinder
-//! between two planes does.
+//! radius, it touches both exactly, as a cylinder between two planes does.
+//!
+//! An elliptic wall is not moved so: the curve it meets a wall square to it
+//! along is built on the two walls as they stand, not on a copy of one
+//! moved onto the touch, and a tunnel of it a hair too wide for the tube's
+//! wall is drawn as it is.
 
 use glam::DVec3;
 
 use crate::brep::curve::Wall;
-use crate::brep::meet::widened;
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
 
-/// A wall's move onto one touch with a wall square to it: the translation,
-/// and the end of its reach the touch stands at, of unit length.
+/// A cylinder's move onto one touch with a wall square to it: the
+/// translation, and the end of its reach the touch stands at, of unit
+/// length.
 pub(super) struct Onto {
     by: DVec3,
     end: DVec3,
 }
 
-/// How `wall`, moved to `moved` onto its touch with `partner`, a wall
-/// square to it, was moved: none where the move is no translation.
+/// How `wall`, a cylinder moved to `moved` onto its touch with `partner`, a
+/// wall square to it, was moved: none where the move is no translation.
 pub(super) fn onto(wall: &Surface, partner: &Surface, moved: &Surface) -> Option<Onto> {
-    let (own, theirs) = (Wall::of(wall)?, Wall::of(partner)?);
-    if own.axis().dot(theirs.axis()).abs() > Scale::RELATIVE {
+    let (Surface::Cylinder(own), Surface::Cylinder(after)) = (wall, moved) else {
+        return None;
+    };
+    let theirs = Wall::of(partner)?;
+    if own.axis.dot(theirs.axis()).abs() > Scale::RELATIVE {
         return None;
     }
-    let by = translation(wall, moved)?;
+    let by = translation(own, after)?;
     let way = by.normalize();
-    let center = own.origin() + own.axis() * own.axis().dot(theirs.origin() - own.origin());
-    let reach = support(&own, way);
-    let off = |side: f64| partner.distance(center + way * (side * reach)).abs();
+    let center = own.origin + own.axis * own.axis.dot(theirs.origin() - own.origin);
+    let off = |side: f64| partner.distance(center + way * (side * own.radius)).abs();
     let side = if off(1.0) <= off(-1.0) { 1.0 } else { -1.0 };
     Some(Onto {
         by,
@@ -41,58 +47,39 @@ pub(super) fn onto(wall: &Surface, partner: &Surface, moved: &Surface) -> Option
 }
 
 /// `wall` moved onto two touches at opposite ends of its reach along one
-/// way, where they ask two different translations: its middle moved by the
-/// mean of the two, its half-width along that way grown by the mean of what
-/// each moves its end outwards. None where the two touches stand at one end,
-/// along two ways, or ask one translation.
+/// way, where they ask two different translations: its axis moved by the
+/// mean of the two, its radius grown by the mean of what each moves its end
+/// outwards. None where the two touches stand at one end, along two ways,
+/// or ask one translation, or for any surface but a cylinder.
 pub(super) fn across(wall: &Surface, one: &Onto, other: &Onto) -> Option<Surface> {
-    let way = one.end;
-    if way.cross(other.end).length() > Scale::RELATIVE
-        || way.dot(other.end) > 0.0
+    let Surface::Cylinder(round) = wall else {
+        return None;
+    };
+    if one.end.cross(other.end).length() > Scale::RELATIVE
+        || one.end.dot(other.end) > 0.0
         || one.by == other.by
     {
         return None;
     }
     let shift = (one.by + other.by) / 2.0;
     let grown = (one.by.dot(one.end) + other.by.dot(other.end)) / 2.0;
-    match wall {
-        Surface::Cylinder(round) => Some(Surface::Cylinder(Cylinder::about(
-            round.origin + shift,
-            round.axis,
-            round.radius + grown,
-        ))),
-        Surface::Elliptic(oval) => Some(Surface::Elliptic(widened(
-            &oval.moved(shift),
-            way,
-            oval.support(way) + grown,
-        ))),
-        Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => None,
-    }
+    Some(Surface::Cylinder(Cylinder::about(
+        round.origin + shift,
+        round.axis,
+        round.radius + grown,
+    )))
 }
 
-/// How far a wall reaches from its axis along `way`, square to it.
-fn support(wall: &Wall, way: DVec3) -> f64 {
-    match wall {
-        Wall::Cylinder(round) => round.radius,
-        Wall::Elliptic(oval) => oval.support(way),
+/// The move that takes `before` to `after`, square to its axis, where it is
+/// a translation: the radius kept, which the moves onto a touch pass on to
+/// the bit, and the axis parallel, which rebuilding the cylinder may round
+/// by a bit on a tilted one. None where the radius changed or nothing
+/// moved.
+fn translation(before: &Cylinder, after: &Cylinder) -> Option<DVec3> {
+    if before.radius != after.radius || before.axis.cross(after.axis).length() > Scale::RELATIVE {
+        return None;
     }
-}
-
-/// The move that takes `before` to `after` where it is a translation, its
-/// shape kept to the bit; none where nothing moved or the shape changed.
-fn translation(before: &Surface, after: &Surface) -> Option<DVec3> {
-    let by = match (before, after) {
-        (Surface::Cylinder(one), Surface::Cylinder(other))
-            if one.radius == other.radius && one.axis == other.axis =>
-        {
-            other.origin - one.origin
-        }
-        (Surface::Elliptic(one), Surface::Elliptic(other))
-            if *other == one.moved(other.origin - one.origin) =>
-        {
-            other.origin - one.origin
-        }
-        _ => return None,
-    };
-    (by != DVec3::ZERO).then_some(by)
+    let by = after.origin - before.origin;
+    let by = by - before.axis * before.axis.dot(by);
+    (by.length() > 0.0).then_some(by)
 }

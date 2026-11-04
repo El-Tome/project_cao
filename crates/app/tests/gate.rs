@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 /// machine already has what they install.
 const CI_STEPS_THAT_ONLY_PREPARE_THE_RUNNER: [&str; 3] = [
     "./scripts/ci-deps-ubuntu.sh",
-    "sudo apt-get update && sudo apt-get install -y --no-install-recommends mingw-w64",
+    "sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update && sudo apt-get install -y --no-install-recommends -o Acquire::Retries=3 -o Acquire::http::Timeout=30 mingw-w64",
     "rustup target add x86_64-pc-windows-gnu",
 ];
 

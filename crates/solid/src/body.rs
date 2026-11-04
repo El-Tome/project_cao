@@ -3,6 +3,7 @@
 mod caught;
 mod drawn;
 mod exact;
+mod names;
 mod turned;
 
 use std::borrow::Cow;

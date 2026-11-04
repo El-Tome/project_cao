@@ -1,7 +1,7 @@
 //! A body the exact kernel computed, the count its faces are numbered by, and
 //! the triangles it is drawn with, made once and only when asked for.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
 use glam::DVec3;
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::caught::{caught, quietly};
 use super::drawn::Drawn;
 use super::{FaceHit, FacePlane};
-use crate::brep::{self, Declined, FaceId, Surface, Unstable};
+use crate::brep::{self, Declined, EdgeName, FaceId, Surface, Unstable, VertexName};
 use crate::mesh::Mesh;
 use crate::profile::{Contour, Frame};
 use crate::turning::{Straight, Turn};
@@ -21,6 +21,10 @@ pub(super) struct Exact {
     /// The number the next face made is given: every number a step named,
     /// kept or not, stands below it, so that no number is ever given twice.
     next: u32,
+    /// Each number a cut gave a piece of a face it parted, and the number
+    /// that piece answered to before: what an edge or a vertex is named by.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    roots: BTreeMap<u32, u32>,
     #[serde(skip)]
     drawn: OnceLock<Drawn>,
 }
@@ -31,11 +35,12 @@ impl Default for Exact {
     }
 }
 
-/// Two exact bodies are one when their matter and their count are: how far
-/// either was drawn yet says nothing of what it is.
+/// Two exact bodies are one when their matter, their count and the numbers
+/// their pieces were parted from are: how far either was drawn yet says
+/// nothing of what it is.
 impl PartialEq for Exact {
     fn eq(&self, other: &Self) -> bool {
-        self.brep == other.brep && self.next == other.next
+        self.brep == other.brep && self.next == other.next && self.roots == other.roots
     }
 }
 
@@ -44,6 +49,7 @@ impl Exact {
         Exact {
             brep,
             next,
+            roots: BTreeMap::new(),
             drawn: OnceLock::new(),
         }
     }
@@ -88,12 +94,13 @@ impl Exact {
     }
 
     /// The operation on the two bodies, the second's numbers moved above the
-    /// first's count, every face a cut left in pieces apart told apart, noted
-    /// unstable only as this operation reads it — a body handed back whole,
-    /// where nothing was combined, carries no earlier step's note — and
-    /// the result drawn: a body the kernel cannot draw, or a face of which it
-    /// cannot cut into triangles, is declined, rather than shown with a hole
-    /// where its matter is and handed on with that hole to the flats.
+    /// first's count, and its roots with them, every face a cut left in
+    /// pieces apart told apart, noted unstable only as this operation reads
+    /// it — a body handed back whole, where nothing was combined, carries no
+    /// earlier step's note — and the result drawn: a body the kernel cannot
+    /// draw, or a face of which it cannot cut into triangles, is declined,
+    /// rather than shown with a hole where its matter is and handed on with
+    /// that hole to the flats.
     fn combined(
         &self,
         other: &Exact,
@@ -107,12 +114,21 @@ impl Exact {
                 operation(&self.brep, &second)?
             };
             let mut next = self.next + other.next;
-            let brep = parted(brep, &mut next);
+            let mut roots = self.roots.clone();
+            let shifted = other
+                .roots
+                .iter()
+                .map(|(&fresh, &replaced)| (fresh + self.next, replaced + self.next));
+            roots.extend(shifted);
+            let brep = parted(brep, &mut next, &mut roots);
             let drawn = Drawn::of(&brep);
             if !drawn.is_whole() {
                 return Err(Declined::Undrawn);
             }
-            let exact = Exact::of(brep, next);
+            let exact = Exact {
+                roots,
+                ..Exact::of(brep, next)
+            };
             let _ = exact.drawn.set(drawn);
             Ok(exact)
         })
@@ -142,6 +158,31 @@ impl Exact {
 
     pub fn faces_end(&self) -> usize {
         self.next as usize
+    }
+
+    /// The name of every edge, ascending, each number taken back to the
+    /// number of the face it was parted from.
+    pub fn edge_names(&self) -> Vec<EdgeName> {
+        let mut names = self.brep.edge_names_rooted(|number| self.root(number));
+        names.sort();
+        names
+    }
+
+    /// The name of every vertex, ascending, each number taken back as for
+    /// an edge.
+    pub fn vertex_names(&self) -> Vec<VertexName> {
+        let mut names = self.brep.vertex_names_rooted(|number| self.root(number));
+        names.sort();
+        names
+    }
+
+    /// The number of the face a piece was parted from, followed back to the
+    /// first: the number itself for a face no cut parted.
+    fn root(&self, mut number: u32) -> u32 {
+        while let Some(&replaced) = self.roots.get(&number) {
+            number = replaced;
+        }
+        number
     }
 
     /// The exact volume, or the volume the body is drawn with should
@@ -229,9 +270,10 @@ impl Exact {
 
 /// The body with each face a cut left in pieces that no longer touch told
 /// apart: the first piece keeps the number, each other one takes the next
-/// fresh number, as the flats do. A drawing laid on one piece then has no
-/// business being measured from the other.
-fn parted(mut body: brep::Body, next: &mut u32) -> brep::Body {
+/// fresh number, as the flats do, and the number it replaced is written
+/// down as its root. A drawing laid on one piece then has no business being
+/// measured from the other.
+fn parted(mut body: brep::Body, next: &mut u32, roots: &mut BTreeMap<u32, u32>) -> brep::Body {
     let numbers: BTreeSet<u32> = body
         .face_ids()
         .flat_map(|face| body.numbers(face).to_vec())
@@ -239,6 +281,7 @@ fn parted(mut body: brep::Body, next: &mut u32) -> brep::Body {
     for number in numbers {
         for piece in body.pieces_of(number).iter().skip(1) {
             body.rename(piece, number, *next);
+            roots.insert(*next, number);
             *next += 1;
         }
     }

@@ -84,23 +84,24 @@ It can:
   met where it starts and where it ends, read along its first side's loop,
   which runs with the matter on its left; a whole closed edge has two empty
   ends. It also keeps `among`, how many edges lay between the same two
-  sides when it was named, whatever their ends. A vertex answers to the sides of every face at it and, where another
-  vertex shares them, to the names of the edges ending there. That is read
-  off the topology and the way the loops run, not off the surfaces'
-  parameters: those are canonical against the world's axes, a plane's `u`
-  and a cylinder's angle origin, so a part turned would see the order they
-  give flip, and at a pole the angle is the arc tangent of two rounding
-  residues. What nothing topological tells apart is ranked by where it lies
-  — an edge halfway between the parameters of its two vertices, a whole
-  closed edge by the mean of points at even steps round its curve from the
-  curve's own origin and then by that origin, which concentric rims sharing
-  their mean do not share, a vertex by its point — compared coordinate by
-  coordinate in the world, a coordinate within the body's tolerance counting
-  as equal before the next is read. A move keeps that order; a turn may
-  swap two such, even when a feature elsewhere makes the part unsymmetric:
-  the two rims of a cross-bore through a shaft, a ball's two poles. Telling
-  them apart would take the history of the hole, the way its tool
-  travelled, which the canonical surfaces drop.
+  sides when it was named, whatever their ends. A vertex answers to the
+  sides of every face at it and, where another vertex shares them, to the
+  names of the edges ending there. That is read off the topology and the way
+  the loops run, not off the surfaces' parameters: those are canonical
+  against the world's axes, a plane's `u` and a cylinder's angle origin, so a
+  part turned would see the order they give flip, and at a pole the angle is
+  the arc tangent of two rounding residues. What nothing topological tells
+  apart is ranked by one point of it: an edge's halfway between the
+  parameters of its two vertices, a whole closed edge's at its curve's own
+  origin, a vertex's own. Two edges of one body share no point but at a
+  vertex, so one point inside each tells any two apart — concentric rims
+  among them, whose origins stand at their own radii. The points are
+  compared coordinate by coordinate in the world, a coordinate within the
+  body's tolerance counting as equal before the next is read. A move keeps
+  that order; a turn may swap two such, even when a feature elsewhere makes
+  the part unsymmetric: the two rims of a cross-bore through a shaft, a
+  ball's two poles. Telling them apart would take the history of the hole,
+  the way its tool travelled, which the canonical surfaces drop.
 
   A name is found as a face is (`brep/names/found.rs`, `find`): by
   membership, not equality. A side recorded answers in a face sharing one of
@@ -112,20 +113,28 @@ It can:
   among: found, the one at its rank. More: split. Fewer, and some: gone.
   None, and more siblings than there were edges between those sides: split,
   whatever moved at its ends — an edge a slot parts and a cut shortens at
-  its end, a whole rim a slot interrupts. None otherwise: one sibling keeping
-  its start and another its end is a split; a single sibling keeping one end
-  is the edge, its other end moved by a cut at it; anything else, both ends
-  moved or more than one candidate, is gone (`Lost`). A split counts the edges now between the two faces, not the
-  pieces of the named edge alone. A piece of a parted face names its edges
-  by its root, so an edge a cut parts along with its face is all its pieces,
-  between the same two sides. The exact body keeps the number each fresh
-  piece replaced and works the names out once, as it is made, by the edge's
-  and the vertex's rank; the flats name none. A fresh number comes from the
-  part's one counter, so every later step's numbers move when an earlier
-  change starts or stops parting a face: the faces' own rule, which moves a
-  drawing laid on a later face as surely as an edge's name. A root is
+  its end, a whole rim a slot interrupts. None, and fewer: gone — two pieces
+  a shortened slot joins back into one edge would each find it otherwise.
+  None, and as many: one sibling keeping its start and another its end is a
+  split; a single sibling keeping one end is the edge, its other end moved
+  by a cut at it; anything else, both ends moved or more than one
+  candidate, is gone (`Lost`). A split counts the edges now between the two
+  faces, not the pieces of the named edge alone. A piece of a parted face
+  names its edges by its root, so an edge a cut parts along with its face is
+  all its pieces, between the same two sides. The exact body keeps the
+  number each fresh piece replaced and works the names out once, as it is
+  made, by the edge's and the vertex's rank; the flats name none. A root is
   followed only while the number it replaced is smaller, as every one the
   kernel writes is, so roots edited by hand into a cycle cannot hang a part.
+
+  What it does not catch. A fresh number comes from the part's one counter,
+  so every later step's numbers move when an earlier change starts or stops
+  parting a face: the faces' own rule, which moves a drawing laid on a later
+  face as surely as an edge's name — and the shifted number may name the
+  face beside, so a name can land on a neighbouring edge without a report.
+  The chamfer of #497 meets it first. Two edges a join bridges into one, two
+  blocks come to abut with their tops and fronts merging, are both found on
+  the merged edge: each name's faces still answer, and each keeps one end.
   Vertex names have no lookup yet and hold the names of their edges, so a
   change at an edge's far end renames a vertex nothing touched: a dimension
   from a vertex (#497) needs a `find` of its own.

@@ -2,7 +2,9 @@
 //! numbers of the faces they lie between and from what meets them at their
 //! ends, read along the loops: what a move, a turn or a change of size that
 //! keeps the topology leaves alone. Where nothing topological tells two
-//! apart, where they lie in the world does, within the body's tolerance.
+//! apart, where they lie in the world does, within the body's tolerance: two
+//! edges of one body share no point but at a vertex, so one point inside
+//! each tells any two apart.
 
 mod found;
 
@@ -12,7 +14,6 @@ use std::collections::BTreeMap;
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
-use super::curve::Curve;
 use super::topology::{Body, EdgeId, FaceId, VertexId, ascending};
 
 /// The sides of the faces met at each end of an edge, other than its own two,
@@ -39,7 +40,8 @@ pub struct EdgeName {
 pub enum Lost {
     /// No edge is the one named: its two sides no longer meet, or meet with
     /// both its ends moved, or fewer edges are alike in what it recorded than
-    /// it was ranked among, or more than one keeps an end of it.
+    /// it was ranked among; or, none alike, fewer edges lie between its two
+    /// sides than did when it was named, or more than one keeps an end of it.
     Gone,
     /// It went on in pieces: more edges are alike in what it recorded than
     /// it was ranked among; or, none alike, more edges lie between its two
@@ -60,9 +62,6 @@ pub struct VertexName {
     pub rank: u32,
     pub of: u32,
 }
-
-/// How many points along a whole closed edge where it lies is read from.
-const STEPS: u32 = 16;
 
 impl Body {
     /// The name of each edge, by the edge's rank, every number its own root.
@@ -104,7 +103,7 @@ struct Reading<'a> {
 struct EdgeRead {
     between: [Vec<u32>; 2],
     ends: Ends,
-    place: [DVec3; 2],
+    place: DVec3,
 }
 
 impl<'a> Reading<'a> {
@@ -179,22 +178,16 @@ impl<'a> Reading<'a> {
     }
 
     /// Where an edge lies, read off its curve and its vertices alone, not
-    /// off the stretch it was built with: halfway between its vertices; for
-    /// a whole closed edge, the mean of points at even steps over one period
-    /// from the curve's own origin, then that origin, which concentric
-    /// circles, sharing their mean, do not share.
-    fn place(&self, edge: EdgeId) -> [DVec3; 2] {
+    /// off the stretch it was built with: halfway between its vertices' own
+    /// parameters, or for a whole closed edge at its curve's own origin.
+    fn place(&self, edge: EdgeId) -> DVec3 {
         let stretch = self.body.edge(edge);
         let curve = self.body.curve(stretch.curve);
-        if let Some(ends) = stretch.ends {
-            let [from, to] =
-                ends.map(|end| self.body.parameter_on(edge, self.body.vertex(end).point));
-            return [curve.point((from + to) / 2.0); 2];
-        }
-        match curve.period() {
-            Some(period) => [mean_along(curve, period), curve.point(0.0)],
-            None => [curve.point((stretch.from + stretch.to) / 2.0); 2],
-        }
+        let Some(ends) = stretch.ends else {
+            return curve.point(0.0);
+        };
+        let [from, to] = ends.map(|end| self.body.parameter_on(edge, self.body.vertex(end).point));
+        curve.point((from + to) / 2.0)
     }
 
     fn edge_names(&self) -> Vec<EdgeName> {
@@ -205,7 +198,7 @@ impl<'a> Reading<'a> {
             .map(|each| (&each.between, &each.ends))
             .collect();
         let ranks = ranked(&alike, |one, other| {
-            self.lying(&read[one].place, &read[other].place)
+            self.placed(read[one].place, read[other].place)
         });
         alike
             .into_iter()
@@ -260,15 +253,6 @@ impl<'a> Reading<'a> {
             .collect()
     }
 
-    /// Where two edges lie compared, each point of one against the same of
-    /// the other until two differ.
-    fn lying(&self, one: &[DVec3; 2], other: &[DVec3; 2]) -> Ordering {
-        let [first, then] = *one;
-        let [other_first, other_then] = *other;
-        self.placed(first, other_first)
-            .then_with(|| self.placed(then, other_then))
-    }
-
     /// Two points compared coordinate by coordinate in the world, one
     /// within the body's tolerance of the other counting as equal before
     /// the next is compared.
@@ -279,14 +263,6 @@ impl<'a> Reading<'a> {
             .find(|(one, other)| (one - other).abs() > eps)
             .map_or(Ordering::Equal, |(one, other)| one.total_cmp(&other))
     }
-}
-
-/// The mean of points along a closed curve at even steps over one period,
-/// from its parameter nought.
-fn mean_along(curve: &Curve, period: f64) -> DVec3 {
-    let step = period / f64::from(STEPS);
-    let points = (0..STEPS).map(|index| curve.point(step * f64::from(index)));
-    points.sum::<DVec3>() / f64::from(STEPS)
 }
 
 /// How many times each key comes.

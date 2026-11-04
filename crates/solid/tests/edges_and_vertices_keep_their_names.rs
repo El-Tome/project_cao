@@ -8,8 +8,9 @@
 //! ball's two poles or the two rims of a cross-bore, is ranked by where it
 //! lies, read in the world to within the body's tolerance. A name is found as
 //! a face is, by a number its sides share, and on one end kept when a cut has
-//! moved the other; both ends moved, it is gone, and gone on in more pieces
-//! than there were edges between its faces when it was taken, it is split.
+//! moved the other; both ends moved, it is gone; gone on in more pieces than
+//! there were edges between its faces when it was taken, it is split; and
+//! with fewer, its pieces joined back, it is gone.
 //!
 //! The slot is milled across a block's top from its front to its back, which
 //! leaves the top in two pieces: its width stands for the diameter of a hole.
@@ -36,7 +37,10 @@
 //!   and two that nothing topological tells apart by
 //!   `a_ball_s_two_poles_keep_their_names_through_a_move_though_rounding_leaves_them_either_side_of_a_coordinate_plane`
 //!   and `the_two_rims_of_a_cross_bore_through_a_shaft_keep_their_names_through_a_change_of_size_and_a_move`
-//!   and `two_concentric_rims_between_the_same_two_faces_keep_their_names_through_a_change_of_size_and_a_move`
+//!   and `two_concentric_rims_between_the_same_two_faces_keep_their_names_through_a_change_of_size_and_a_move`;
+//!   and a tool that leaves a face of its own in pieces names the part's
+//!   edges as its areas cut one after the other do, by
+//!   `a_tool_that_parts_a_face_of_its_own_names_the_part_s_edges_as_cutting_its_areas_one_by_one_does`
 //! - A change that splits or removes an edge is reported for that edge —
 //!   `an_edge_a_later_cut_parts_in_two_is_reported_split_into_its_pieces`,
 //!   `an_edge_a_later_cut_parts_along_with_its_face_is_reported_split_rather_than_kept_on_its_first_piece`,
@@ -51,6 +55,9 @@
 //!   `a_cross_bore_that_no_longer_comes_out_reports_both_its_rims_gone`,
 //!   `an_edge_a_slot_parts_and_a_cut_shortens_at_its_end_is_reported_split_rather_than_found_on_one_piece`,
 //!   `a_whole_rim_a_later_slot_interrupts_is_reported_split_rather_than_gone`,
+//!   `two_pieces_a_shortened_slot_joins_back_into_one_edge_are_both_reported_gone_rather_than_found_on_it`,
+//!   `a_hole_bored_on_through_a_shaft_reports_its_one_rim_split_in_two`,
+//!   `an_arc_of_a_rim_looked_up_once_the_slot_is_gone_is_reported_gone_rather_than_found_on_the_whole_rim`,
 //!   `every_name_is_reported_gone_on_a_part_the_flats_computed`
 //! - The names are written in the body, read back from the geometry cache,
 //!   and replayed the same — no test: held by
@@ -1513,4 +1520,143 @@ fn two_concentric_rims_between_the_same_two_faces_keep_their_names_through_a_cha
             );
         }
     }
+}
+
+/// The slot drawn short of the front, from two along the block's depth on
+/// past its back: the top is left whole, and meets the front along one edge.
+fn slotted_short_of_the_front() -> Vec<Raise> {
+    let [length, breadth, height] = SLOTTED.block;
+    vec![
+        join(
+            Contour::rectangle(DVec2::ZERO, DVec2::new(length, breadth)),
+            0.0,
+            height,
+        ),
+        cut(
+            Contour::rectangle(
+                DVec2::new(SLOTTED.from, 2.0),
+                DVec2::new(SLOTTED.from + SLOTTED.width, breadth + 1.0),
+            ),
+            height - SLOTTED.depth,
+            SLOTTED.depth + 1.0,
+        ),
+    ]
+}
+
+#[test]
+fn two_pieces_a_shortened_slot_joins_back_into_one_edge_are_both_reported_gone_rather_than_found_on_it()
+ {
+    let names = part(&slotted(&SLOTTED), ground()).edge_names();
+    let (left, right) = (left_of_the_slot(), right_of_the_slot());
+    assert!(names.contains(&left) && names.contains(&right), "{names:?}");
+    let shortened = part(&slotted_short_of_the_front(), ground());
+    let now = shortened.edge_names();
+    assert_eq!(
+        now.iter()
+            .filter(|name| name.between == left.between)
+            .count(),
+        1,
+        "the top and the front meet along one edge again: {now:?}"
+    );
+    for (piece, name) in [("left", &left), ("right", &right)] {
+        assert_eq!(
+            shortened.lost(name),
+            Some(Lost::Gone),
+            "the {piece} piece is not the whole edge, which the other piece \
+             would find as well"
+        );
+    }
+}
+
+#[test]
+fn a_hole_bored_on_through_a_shaft_reports_its_one_rim_split_in_two() {
+    let (blind, _) = cross_bored(&SHAFT, [0.0; 3], 3.0, 2.0);
+    let rim = closed(&[1], &[6], 0, 1);
+    let names = blind.edge_names();
+    assert!(names.contains(&rim), "{rim:?} among {names:?}");
+    let (through, _) = cross_bored(&SHAFT, [0.0; 3], 3.0, -SHAFT.radius - 5.0);
+    assert_eq!(
+        through.find(&rim),
+        Err(Lost::Split { now: 2 }),
+        "the hole comes out the other side, and the shaft's wall meets it \
+         along two rims alike in their ends where it met one"
+    );
+}
+
+#[test]
+fn an_arc_of_a_rim_looked_up_once_the_slot_is_gone_is_reported_gone_rather_than_found_on_the_whole_rim()
+ {
+    let arcs = [
+        among(2, edge(&[1], &[5], &[&[11]], &[&[11]])),
+        among(2, edge(&[1], &[5], &[&[9]], &[&[9]])),
+    ];
+    let names = part(&bored_and_slotted(), ground()).edge_names();
+    let whole = part(&bored(&BORED), ground());
+    for arc in &arcs {
+        assert!(names.contains(arc), "{arc:?} among {names:?}");
+        assert_eq!(
+            whole.lost(arc),
+            Some(Lost::Gone),
+            "{arc:?}: the whole rim has no end where the slot's wall stood"
+        );
+    }
+}
+
+/// A tool raised against `part` as the part raises one, from `from` up for
+/// `height`, on the ground.
+fn tool(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    let profile = Profile {
+        exact: Some((outline, Vec::new())),
+        sampled: Loop::straight(&[]),
+        sampled_holes: Vec::new(),
+        triangles: &[],
+    };
+    part.tool_raised(&profile, lifted(ground(), from), DVec3::Z * height)
+        .expect("the tool raises")
+}
+
+/// The bar of a T sunk four into a block forty by twenty: its back wall,
+/// numbered four in the bar, where the stem stands.
+fn bar() -> Contour {
+    Contour::rectangle(DVec2::new(5.0, 5.0), DVec2::new(35.0, 9.0))
+}
+
+/// The stem of the T, standing on the middle of the bar's back wall.
+fn stem() -> Contour {
+    Contour::rectangle(DVec2::new(18.0, 9.0), DVec2::new(22.0, 15.0))
+}
+
+#[test]
+fn a_tool_that_parts_a_face_of_its_own_names_the_part_s_edges_as_cutting_its_areas_one_by_one_does()
+{
+    let stock = block([40.0, 20.0, 10.0]);
+    let drawn = part(&stock, ground());
+    let tee = tool(&drawn, bar(), 6.0, 5.0)
+        .union(&tool(&drawn, stem(), 6.0, 5.0))
+        .expect("the bar and the stem join into one tool");
+    assert!(
+        tee.has_face(12),
+        "the stem leaves the bar's back wall in two pieces, the second \
+         numbered afresh within the tool"
+    );
+    let at_once = drawn.difference(&tee).expect("the T is cut at once");
+    assert!(
+        at_once.has_face(18),
+        "the piece keeps its number, moved above the block's"
+    );
+    let names = at_once.edge_names();
+    assert!(
+        names
+            .iter()
+            .all(|name| name.between.iter().all(|side| !side.contains(&18))),
+        "the piece's edges are named by the wall it was parted from: {names:?}"
+    );
+    let mut one_by_one = stock;
+    one_by_one.push(cut(bar(), 6.0, 5.0));
+    one_by_one.push(cut(stem(), 6.0, 5.0));
+    assert_eq!(
+        names,
+        part(&one_by_one, ground()).edge_names(),
+        "as cutting the bar and then the stem names them"
+    );
 }

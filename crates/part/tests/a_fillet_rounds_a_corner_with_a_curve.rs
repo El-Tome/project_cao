@@ -66,10 +66,10 @@
 
 use std::f64::consts::{PI, TAU};
 
-use cao_part::history::{Operation, PointRef};
+use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{History, PartState};
 use cao_sketch::{
-    ArcDraft, ArcId, Corner, CutCurve, EllipseId, PointId, SegmentId, WorkPlane, sweep_of,
+    ArcDraft, ArcId, Area, Corner, CutCurve, EllipseId, PointId, SegmentId, WorkPlane, sweep_of,
 };
 use glam::DVec2;
 
@@ -880,5 +880,110 @@ fn a_fillet_rounds_the_corner_between_two_arcs_of_ellipse_tangent_to_both() {
         3.0,
         [true, true],
         "two arcs of ellipse, one of them tilted, the fillet outside both",
+    );
+}
+
+/// A plate whose corner at (10, 10) stands between a trait running east to
+/// (50, 10) and an arc round (2, 10) of radius 8 rising a quarter turn to
+/// (2, 18); traits from (50, 10) up to (50, 30) and across to the arc's end
+/// close it. A fillet of five fits the corner, touching the arc a little over
+/// a sixteenth of a turn round.
+fn a_plate_with_an_arc_side() -> History {
+    let mut history = a_corner_at(DVec2::new(10.0, 10.0));
+    a_trait(
+        &mut history,
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(50.0, 10.0)),
+    );
+    an_arc(
+        &mut history,
+        DVec2::new(2.0, 10.0),
+        PointRef::Existing(THE_CORNER),
+        PointRef::New(DVec2::new(2.0, 18.0)),
+    );
+    a_trait(
+        &mut history,
+        PointRef::Existing(PointId(2)),
+        PointRef::New(DVec2::new(50.0, 30.0)),
+    );
+    a_trait(
+        &mut history,
+        PointRef::Existing(PointId(5)),
+        PointRef::Existing(THE_ARC_S_FAR_END),
+    );
+    history
+}
+
+/// The end of the plate's arc away from the corner.
+const THE_ARC_S_FAR_END: PointId = PointId(4);
+
+fn moved(history: &mut History, point: PointId, position: DVec2) {
+    history.push(Operation::MovePoint {
+        sketch: 0,
+        point,
+        position,
+        merged_into: None,
+        on: Vec::new(),
+        let_go: false,
+    });
+}
+
+fn the_one_area(history: &History, what: &str) -> f64 {
+    let regions = PartState::rebuild(history).sketches[0].regions();
+    assert_eq!(regions.len(), 1, "{what}: one closed area");
+    regions[0].area()
+}
+
+fn raised(history: &History, place: DVec2) -> f64 {
+    let mut history = history.clone();
+    let areas: Vec<Area> = PartState::rebuild(&history).areas_at(0, &[place]);
+    history.push(Operation::Extrude {
+        sketch: 0,
+        areas,
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    PartState::rebuild(&history).body.volume()
+}
+
+#[test]
+fn a_fillet_beside_an_arc_that_no_longer_fits_raises_the_sharp_corner() {
+    let mut sharp = a_plate_with_an_arc_side();
+    let mut rounded = sharp.clone();
+    round(&mut rounded, Corner::At(THE_CORNER), 5.0);
+    the_fillet(&rounded, "before the drag");
+    assert!(
+        the_one_area(&rounded, "before the drag") < the_one_area(&sharp, "before the drag") - 1.0,
+        "before the drag, the fillet that fits takes its corner off the area"
+    );
+
+    let shortened = DVec2::new(2.0, 10.0) + DVec2::new(0.96, 0.28) * 8.0;
+    for history in [&mut sharp, &mut rounded] {
+        moved(history, THE_ARC_S_FAR_END, shortened);
+    }
+
+    let drawing = PartState::rebuild(&rounded).sketches[0].clone();
+    assert!(
+        drawing.point(THE_ARC_S_FAR_END).distance(shortened) < EXACT,
+        "the arc's far end was dragged round its circle, short of where the fillet touches"
+    );
+    let drawn = drawing.drawn_cuts();
+    assert_eq!(drawn.len(), 1, "the fillet is still drawn: {drawn:?}");
+    assert!(
+        !drawn[0].fits,
+        "the arc no longer reaches where the fillet touches it: {:?}",
+        drawn[0]
+    );
+    let what = "the arc dragged short of the fillet";
+    near(
+        the_one_area(&rounded, what),
+        the_one_area(&sharp, what),
+        "the area takes the sharp corner",
+    );
+    let inside = DVec2::new(30.0, 15.0);
+    near(
+        raised(&rounded, inside),
+        raised(&sharp, inside),
+        "the plate is raised with its sharp corner",
     );
 }

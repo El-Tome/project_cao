@@ -178,7 +178,7 @@ fn two_cuts_on_one_end_of_a_side_overlap_rather_than_add_up() {
     assert!(drawn(&fan.sketch, far).fits, "the far fillet fits");
     let share = fan
         .sketch
-        .fitting_share(&[(fan.top, fan.bottom)], fillet(5.0));
+        .fitting_share(&[(fan.top.into(), fan.bottom.into())], fillet(5.0));
     assert!(share >= 1.0, "the far fillet is not held back: {share}");
 }
 

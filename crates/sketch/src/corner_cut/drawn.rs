@@ -166,12 +166,13 @@ impl Sketch {
     /// On each end of a side the new cuts and the standing ones overlap, the
     /// larger giving what the end takes; what a new cut on one end has to
     /// leave room for is what the other end takes.
-    pub fn fitting_share(&self, corners: &[(SegmentId, SegmentId)], shape: CutShape) -> f64 {
+    ///
+    /// A corner beside a curve is read on its own, the largest value that
+    /// fits it searched for.
+    pub fn fitting_share(&self, corners: &[(CutSide, CutSide)], shape: CutShape) -> f64 {
         let replaced: Vec<CornerCutId> = corners
             .iter()
-            .filter_map(|(first, second)| {
-                self.cut_standing_between((*first).into(), (*second).into())
-            })
+            .filter_map(|(first, second)| self.cut_standing_between(*first, *second))
             .collect();
         let standing: Vec<_> = self
             .cut_backs()
@@ -179,23 +180,30 @@ impl Sketch {
             .filter(|(id, _, _)| !replaced.contains(id))
             .collect();
         let taken = self.taken_from_the_outline(&standing);
+        let tolerance = crate::precision::SAME * crate::precision::drawing_size(self);
+        let mut share = f64::INFINITY;
         let mut asked: HashMap<SegmentId, [f64; 2]> = HashMap::new();
         for (first, second) in corners {
-            let Some((corner, far_first, far_second)) =
-                self.corner_to_cut((*first).into(), (*second).into())
-            else {
+            let Some((corner, far_first, far_second)) = self.corner_to_cut(*first, *second) else {
+                continue;
+            };
+            let Some(sides) = both_traits([*first, *second]) else {
+                share = share.min(self.share_beside_a_curve(
+                    corner,
+                    [*first, *second],
+                    shape,
+                    tolerance,
+                ));
                 continue;
             };
             let Some(back) = self.backs(corner, [far_first, far_second], shape) else {
                 return 0.0;
             };
-            for (side, own) in [(*first, back[0]), (*second, back[1])] {
+            for (side, own) in sides.into_iter().zip(back) {
                 let end = &mut asked.entry(side).or_default()[self.end_of(side, corner)];
                 *end = end.max(own);
             }
         }
-        let tolerance = crate::precision::SAME * crate::precision::drawing_size(self);
-        let mut share = f64::INFINITY;
         for (side, wanted) in asked {
             let gone = taken.get(&side).copied().unwrap_or_default();
             let (start, end) = self.endpoints(side);

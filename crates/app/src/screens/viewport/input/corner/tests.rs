@@ -497,3 +497,87 @@ fn a_value_too_big_is_held_back_and_the_field_offers_the_largest() {
     assert_eq!(drawn.len(), 4);
     assert!(drawn.iter().all(|cut| cut.fits), "{drawn:?}");
 }
+
+/// A part holding a trait from (10, 10) to (50, 10) and an arc of radius five
+/// round (14, 13), running from (9, 13) to the corner at (10, 10) and hollow
+/// towards it, with the fillet tool holding that corner by its point and
+/// `typed` in the field. A fillet of three touches the arc at its far end.
+fn rounding_beside_an_arc(
+    typed: &str,
+) -> (cao_part::PartDocument, crate::screens::sketch::SketchEditor) {
+    use cao_part::history::PointRef;
+    let mut document = cao_part::PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddPoint {
+        sketch: 0,
+        position: DVec2::new(10.0, 10.0),
+        on: Vec::new(),
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(PointId(1)),
+        end: PointRef::New(DVec2::new(50.0, 10.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(14.0, 13.0)),
+        start: PointRef::New(DVec2::new(9.0, 13.0)),
+        end: PointRef::Existing(PointId(1)),
+        construction: false,
+    });
+    let mut editor = crate::screens::sketch::SketchEditor {
+        tool: Tool::Fillet,
+        tool_state: ToolState::Corner {
+            taken: vec![Corner::At(PointId(1))],
+            half: None,
+        },
+        ..Default::default()
+    };
+    let field = editor.live.field(0);
+    field.text = typed.to_string();
+    field.take(&Variables::default());
+    (document, editor)
+}
+
+#[test]
+fn a_fillet_too_big_beside_an_arc_is_held_back_and_the_field_offers_the_largest() {
+    let (mut document, mut editor) = rounding_beside_an_arc("6");
+    let mut extrusion = crate::screens::extrusion::ExtrusionState::default();
+    let lang = crate::lang::Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    let laid = cut(&mut context, 0);
+
+    assert!(
+        !laid,
+        "a fillet of six cannot stand inside an arc of radius five: nothing is laid"
+    );
+    assert_eq!(context.document.sketches()[0].live_corner_cuts().count(), 0);
+    let offered = context
+        .editor
+        .live
+        .typed(0)
+        .expect("the field offers a value");
+    assert!(
+        (3.0 - 2e-4..=3.0 + 1e-9).contains(&offered),
+        "the field offers the largest fillet that fits, three, down to its fourth decimal: \
+         {offered}"
+    );
+    assert_eq!(context.editor.message, Some(lang.t("sketch.cut_too_big")));
+
+    let laid = cut(&mut context, 0);
+
+    assert!(laid, "a second Enter lays what the field offers");
+    let drawn = context.document.sketches()[0].drawn_cuts();
+    assert_eq!(drawn.len(), 1, "{drawn:?}");
+    assert!(drawn[0].fits, "the fillet offered fits: {drawn:?}");
+}

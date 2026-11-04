@@ -3,7 +3,7 @@
 use glam::DVec2;
 
 use super::*;
-use crate::WorkPlane;
+use crate::{CutSide, WorkPlane};
 
 const NEAR: f64 = 1e-9;
 /// A share lets the tightest side give a hair more than its length: the
@@ -280,7 +280,10 @@ fn a_straight_corner_gives_a_cut_no_place() {
 fn values_that_fit_have_a_share_of_at_least_one() {
     let (sketch, _, [right, up]) = a_right_angle();
 
-    let share = sketch.fitting_share(&[(right, up)], CutShape::Fillet { radius: 10.0 });
+    let share = sketch.fitting_share(
+        &[(right.into(), up.into())],
+        CutShape::Fillet { radius: 10.0 },
+    );
 
     assert!(share >= 1.0, "{share}");
 }
@@ -288,8 +291,8 @@ fn values_that_fit_have_a_share_of_at_least_one() {
 #[test]
 fn the_tightest_side_says_how_much_of_the_values_fits() {
     let (sketch, sides) = a_rectangle(100.0, 20.0);
-    let corners: Vec<(SegmentId, SegmentId)> = (0..4)
-        .map(|rank| (sides[rank], sides[(rank + 1) % 4]))
+    let corners: Vec<(CutSide, CutSide)> = (0..4)
+        .map(|rank| (sides[rank].into(), sides[(rank + 1) % 4].into()))
         .collect();
 
     let share = sketch.fitting_share(&corners, CutShape::Fillet { radius: 15.0 });
@@ -297,6 +300,92 @@ fn the_tightest_side_says_how_much_of_the_values_fits() {
     assert!(
         (share * 15.0 - 10.0).abs() < SHARE_NEAR,
         "two fillets share the short side: {share}"
+    );
+}
+
+/// A trait from (10, 10) to (50, 10), and an arc round `centre` ending at
+/// (10, 10) and at `far`: running counter-clockwise from the corner to `far`
+/// when `from_the_corner`, from `far` to the corner otherwise.
+fn a_trait_and_an_arc(centre: DVec2, far: DVec2, from_the_corner: bool) -> (Sketch, [CutSide; 2]) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corner = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(DVec2::new(50.0, 10.0));
+    let along = sketch.add_segment(corner, end);
+    let centre = sketch.add_point(centre);
+    let far = sketch.add_point(far);
+    let arc = match from_the_corner {
+        true => sketch.add_arc(centre, corner, far),
+        false => sketch.add_arc(centre, far, corner),
+    };
+    (sketch, [along.into(), arc.into()])
+}
+
+/// Whether the fillet of `radius` laid on the corner is drawn, and fits.
+fn laid_fits(sketch: &mut Sketch, [first, second]: [CutSide; 2], radius: f64) -> Option<bool> {
+    let id = sketch
+        .cut_corner(first, second, CutShape::Fillet { radius }, false, 0)
+        .expect("the trait and the arc make a corner");
+    sketch.drawn_cut(id).map(|cut| cut.fits)
+}
+
+/// Holds the share offered for `asked` on a corner to the largest radius
+/// worked out by hand: the share gives it, the fillet asked is drawn and does
+/// not fit, the one offered fits, and a hair more does not.
+fn assert_the_largest_offered(
+    sketch: &mut Sketch,
+    sides: [CutSide; 2],
+    asked: f64,
+    largest: f64,
+    what: &str,
+) {
+    let share = sketch.fitting_share(&[(sides[0], sides[1])], CutShape::Fillet { radius: asked });
+
+    assert!(
+        (share * asked - largest).abs() < SHARE_NEAR,
+        "{what}: the share {share} offers {} where the largest that fits is {largest}",
+        share * asked,
+    );
+    assert_eq!(
+        laid_fits(sketch, sides, asked),
+        Some(false),
+        "{what}: the fillet asked is drawn, and does not fit"
+    );
+    assert_eq!(
+        laid_fits(sketch, sides, share * asked),
+        Some(true),
+        "{what}: the fillet offered fits"
+    );
+    assert_eq!(
+        laid_fits(sketch, sides, share * asked * (1.0 + 1e-4)),
+        Some(false),
+        "{what}: a hair more than the fillet offered does not fit"
+    );
+}
+
+#[test]
+fn the_tightest_side_beside_an_arc_says_how_much_of_the_value_fits() {
+    let (mut short, sides) = a_trait_and_an_arc(
+        DVec2::new(2.0, 10.0),
+        DVec2::new(2.0 + 96.0 / 13.0, 10.0 + 40.0 / 13.0),
+        true,
+    );
+    assert_the_largest_offered(
+        &mut short,
+        sides,
+        8.0,
+        5.0,
+        "an arc bulging towards the corner, ending where a fillet of five touches it",
+    );
+
+    let (mut hollow, sides) =
+        a_trait_and_an_arc(DVec2::new(14.0, 13.0), DVec2::new(9.0, 13.0), false);
+    assert_the_largest_offered(
+        &mut hollow,
+        sides,
+        6.0,
+        3.0,
+        "an arc of radius five hollow towards the corner, asked a fillet of six, \
+         ending where a fillet of three touches it",
     );
 }
 
@@ -313,7 +402,10 @@ fn a_cut_already_standing_takes_its_part_of_the_share() {
         )
         .expect("a rectangle's corner takes a fillet");
 
-    let share = sketch.fitting_share(&[(sides[1], sides[2])], CutShape::Fillet { radius: 10.0 });
+    let share = sketch.fitting_share(
+        &[(sides[1].into(), sides[2].into())],
+        CutShape::Fillet { radius: 10.0 },
+    );
 
     assert!((share * 10.0 - 5.0).abs() < SHARE_NEAR, "{share}");
 }
@@ -344,7 +436,10 @@ fn a_cut_in_construction_holds_no_drawn_cut_back() {
         sketch.drawn_cut(drawn).is_some_and(|cut| cut.fits),
         "the dashed arc takes nothing from the outline, so the side has room"
     );
-    let share = sketch.fitting_share(&[(sides[2], sides[3])], CutShape::Fillet { radius: 6.0 });
+    let share = sketch.fitting_share(
+        &[(sides[2].into(), sides[3].into())],
+        CutShape::Fillet { radius: 6.0 },
+    );
     assert!(share >= 1.0, "{share}");
 }
 
@@ -361,7 +456,10 @@ fn a_corner_cut_again_does_not_count_what_its_old_cut_takes() {
         )
         .expect("a rectangle's corner takes a fillet");
 
-    let share = sketch.fitting_share(&[(sides[0], sides[1])], CutShape::Fillet { radius: 20.0 });
+    let share = sketch.fitting_share(
+        &[(sides[0].into(), sides[1].into())],
+        CutShape::Fillet { radius: 20.0 },
+    );
 
     assert!(
         (share * 20.0 - 20.0).abs() < SHARE_NEAR,

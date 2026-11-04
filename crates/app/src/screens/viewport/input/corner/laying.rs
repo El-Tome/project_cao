@@ -5,7 +5,7 @@
 use cao_part::history::{ChamferAsked, CutAsked, CutChange};
 use cao_part::{Formula, Operation, Variables};
 use cao_sketch::{
-    Chamfer, ChamferMode, Corner, CornerCutId, CutShape, LockedInput, SegmentId, Sketch,
+    Chamfer, ChamferMode, Corner, CornerCutId, CutShape, CutSide, LockedInput, Sketch,
 };
 
 use crate::screens::SketchContext;
@@ -23,10 +23,9 @@ pub(super) fn held_back(
     rounding: bool,
 ) -> Option<&'static str> {
     let sketch = context.document.sketches().get(index)?;
-    let sides: Vec<(SegmentId, SegmentId)> = taken
+    let sides: Vec<(CutSide, CutSide)> = taken
         .iter()
         .filter_map(|corner| sketch.sides_of(*corner))
-        .filter_map(|(first, second)| Some((first.as_trait()?, second.as_trait()?)))
         .collect();
     let shape = shape_of(rounding, in_units(asked, context.document.scale()));
     let share = sketch.fitting_share(&sides, shape);

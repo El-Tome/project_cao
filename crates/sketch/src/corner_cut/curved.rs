@@ -32,6 +32,10 @@ const MET: f64 = 1e-10;
 /// given up on: they are as near as the arithmetic takes them.
 const SHORTEST: f64 = 1.0 / 1024.0;
 
+/// How many times the search for the largest value that fits halves what is
+/// left to search: as many as a number carries digits.
+const HALVINGS: usize = 52;
+
 /// The line or the curve a side lies on, each place of it named by one
 /// number: the distance along a line, the angle round a circle, the turn
 /// round an ellipse — growing counter-clockwise round a curve.
@@ -52,6 +56,15 @@ struct Run {
     reach: f64,
 }
 
+/// Where a fillet beside a curve stands: its centre, where it touches each
+/// side, and whether both lie on what is drawn of the sides.
+#[derive(Clone, Copy, Debug)]
+struct Placed {
+    centre: DVec2,
+    touches: [DVec2; 2],
+    fits: bool,
+}
+
 impl Sketch {
     /// A cut beside a curve as it is drawn now: nothing when its corner gives
     /// it no place, or for a chamfer, which no such corner takes.
@@ -65,26 +78,60 @@ impl Sketch {
             return None;
         };
         let corner = self.point(cut.corner);
-        let runs = [
-            self.run_away_from(cut.sides[0], cut.corner)?,
-            self.run_away_from(cut.sides[1], cut.corner)?,
-        ];
-        let (centre, at) = fillet_between(corner, runs, radius)?;
-        let touches = [runs[0].path.place(at[0]), runs[1].path.place(at[1])];
-        let fits = runs
-            .iter()
-            .zip(at)
-            .all(|(run, at)| run.holds(at, tolerance));
+        let runs = self.runs_away_from(cut.sides, cut.corner)?;
+        let placed = fillet_between(corner, runs, radius, tolerance)?;
         Some(DrawnCut {
             id,
             sides: cut.sides,
             corner_point: cut.corner,
             corner,
-            touches,
-            curve: CutCurve::Arc(short_way_round(centre, touches)),
-            fits,
+            touches: placed.touches,
+            curve: CutCurve::Arc(short_way_round(placed.centre, placed.touches)),
+            fits: placed.fits,
             construction: cut.construction,
         })
+    }
+
+    /// How much of a value a corner beside a curve takes at most, as a share
+    /// of it — found by halving, the fillet having no closed form: none when
+    /// the corner gives it no place, and no bound when it fits as given, or
+    /// for a chamfer, which no such corner takes.
+    pub(super) fn share_beside_a_curve(
+        &self,
+        corner: PointId,
+        sides: [CutSide; 2],
+        shape: CutShape,
+        tolerance: f64,
+    ) -> f64 {
+        let CutShape::Fillet { radius } = shape else {
+            return f64::INFINITY;
+        };
+        let Some(runs) = self.runs_away_from(sides, corner) else {
+            return 0.0;
+        };
+        let at = self.point(corner);
+        let placed = |share: f64| fillet_between(at, runs, radius * share, tolerance);
+        match placed(1.0) {
+            None => return 0.0,
+            Some(placed) if placed.fits => return f64::INFINITY,
+            Some(_) => {}
+        }
+        let (mut fitting, mut not) = (0.0, 1.0);
+        for _ in 0..HALVINGS {
+            let half = (fitting + not) * 0.5;
+            match placed(half).is_some_and(|placed| placed.fits) {
+                true => fitting = half,
+                false => not = half,
+            }
+        }
+        fitting
+    }
+
+    fn runs_away_from(&self, sides: [CutSide; 2], corner: PointId) -> Option<[Run; 2]> {
+        Some([
+            self.run_away_from(sides[0], corner)?,
+            self.run_away_from(sides[1], corner)?,
+        ])
     }
 
     fn run_away_from(&self, side: CutSide, corner: PointId) -> Option<Run> {
@@ -133,12 +180,13 @@ impl Sketch {
     }
 }
 
-/// The centre of the fillet of `radius` between two sides leaving `corner`,
-/// and where on each side's path it touches — nothing when the sides leave
-/// the corner straight on or the same way, when no such circle touches both,
-/// or when the circle would have to stand inside a curve bending tighter than
-/// itself.
-fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64) -> Option<(DVec2, [f64; 2])> {
+/// The fillet of `radius` between two sides leaving `corner` — nothing when
+/// the sides leave it straight on or the same way.
+///
+/// When no circle of that radius touches both near the corner, or it would
+/// have to stand inside a curve bending tighter than itself, the fillet does
+/// not fit, and is drawn where the sides' tangents alone would put it.
+fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64, tolerance: f64) -> Option<Placed> {
     let leaving = runs.map(Run::leaving);
     let turn = leaving[0].perp_dot(leaving[1]);
     let opening = turn.abs().atan2(leaving[0].dot(leaving[1]));
@@ -153,11 +201,31 @@ fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64) -> Option<(DVec2, 
         let outwards = runs[rank].path.outwards(runs[rank].from);
         radius * outwards.dot(inwards[rank]).signum()
     });
+    let back = radius / (opening * 0.5).tan();
+    let Some(at) = meeting(corner, runs, off, back) else {
+        return Some(Placed {
+            centre: corner
+                + (leaving[0] + leaving[1]).normalize() * (radius / (opening * 0.5).sin()),
+            touches: leaving.map(|away| corner + away * back),
+            fits: false,
+        });
+    };
+    Some(Placed {
+        centre: runs[0].path.off_by(at[0], off[0]).0,
+        touches: [runs[0].path.place(at[0]), runs[1].path.place(at[1])],
+        fits: runs[0].holds(at[0], tolerance) && runs[1].holds(at[1], tolerance),
+    })
+}
+
+/// Where on each side's path the places standing `off` it meet, searched
+/// from where they would stand `back` from the corner — nothing when they do
+/// not meet, or a fillet would have to stand inside a curve bending tighter
+/// than itself.
+fn meeting(corner: DVec2, runs: [Run; 2], off: [f64; 2], back: f64) -> Option<[f64; 2]> {
+    let radius = off[0].abs();
     let centre_from = |rank: usize, at: f64| runs[rank].path.off_by(at, off[rank]);
     let miss = |at: [f64; 2]| centre_from(1, at[1]).0 - centre_from(0, at[0]).0;
     let met = MET * (corner.length() + radius);
-
-    let back = radius / (opening * 0.5).tan();
     let mut at = runs.map(|run| run.first_guess(back));
     'search: for _ in 0..STEPS {
         let gap = miss(at);
@@ -184,7 +252,7 @@ fn fillet_between(corner: DVec2, runs: [Run; 2], radius: f64) -> Option<(DVec2, 
         }
     }
     let tight = (0..2).any(|rank| off[rank] < 0.0 && radius >= runs[rank].path.bend(at[rank]));
-    (miss(at).length() <= met && !tight).then(|| (centre_from(0, at[0]).0, at))
+    (miss(at).length() <= met && !tight).then_some(at)
 }
 
 impl Run {

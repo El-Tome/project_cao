@@ -41,7 +41,7 @@ use glam::DVec3;
 use super::curve::{Meet, Wall};
 use super::scale::Scale;
 pub use meeting::{Meeting, Node};
-pub(super) use meeting::{goes_first, moved, moved_instead};
+pub(super) use meeting::{goes_first, moved, moved_instead, widened};
 pub use pair::Configuration;
 use pair::Pair;
 

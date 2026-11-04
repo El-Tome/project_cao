@@ -27,9 +27,13 @@
 //! within decision 8's hair of the other, which left touching the one
 //! stands a hair or two off the other, across a skin no ray tells the side
 //! of.
+//! A wall touching two walls square to it at the two ends of its reach
+//! along one way, which no translation settles, is grown or shrunk across
+//! the two (`across.rs`).
 //! A touch counts where faces on the two surfaces stand in boxes that meet:
 //! a plane whose face is far away touches nothing.
 
+mod across;
 mod kept;
 mod moved;
 mod off;
@@ -84,6 +88,19 @@ impl Surfaces {
             if self.keeps(rank, &surface, &planes, (meet, pinned(rank)), scale) {
                 self.list[rank] = surface;
                 moved[rank] = true;
+            }
+        }
+        for rank in (0..count).filter(|&rank| own(rank)) {
+            if moved[rank] {
+                continue;
+            }
+            let first = |other: usize| carried(0, id(other)) && close(rank, other);
+            for (pair, surface) in self.across(rank, first, own, scale) {
+                if self.keeps(rank, &surface, &pair, (meet, pinned(rank)), scale) {
+                    self.list[rank] = surface;
+                    moved[rank] = true;
+                    break;
+                }
             }
         }
         let pairs: Vec<[usize; 2]> = (0..count)
@@ -161,6 +178,39 @@ impl Surfaces {
             | Relation::Ruling { .. }
             | Relation::Unsupported => None,
         }
+    }
+
+    /// The moves of the wall of rank `rank` onto two touches at once with
+    /// walls of the first operand near it, `first`, square to it at
+    /// opposite ends of its reach, and those two.
+    fn across(
+        &self,
+        rank: usize,
+        first: impl Fn(usize) -> bool,
+        own: impl Fn(usize) -> bool,
+        scale: Scale,
+    ) -> Vec<([usize; 2], Surface)> {
+        let wall = &self.list[rank];
+        let touches: Vec<(usize, across::Onto)> = (0..self.list.len())
+            .filter(|&other| other != rank && first(other))
+            .filter_map(|other| {
+                let (shifted, moved) = self.onto([rank, other], &own, scale)?;
+                let onto =
+                    (shifted == rank).then(|| across::onto(wall, &self.list[other], &moved))??;
+                Some((other, onto))
+            })
+            .collect();
+        touches
+            .iter()
+            .enumerate()
+            .flat_map(|(index, (one, onto))| {
+                touches[index + 1..]
+                    .iter()
+                    .filter_map(move |(other, then)| {
+                        across::across(wall, onto, then).map(|surface| ([*one, *other], surface))
+                    })
+            })
+            .collect()
     }
 
     /// A cylinder touching two parallel planes on opposite sides, or one of

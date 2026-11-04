@@ -17,12 +17,13 @@
 //!   `an_ellipse_a_hair_from_round_added_in_a_bore_of_its_size_keeps_every_rule`,
 //!   `the_same_ellipse_turned_a_ten_thousandth_under_a_block_touching_it_keeps_every_rule`,
 //!   `the_same_ellipse_turned_a_hundred_thousandth_added_back_in_its_bore_keeps_every_rule`,
-//!   `an_elliptic_pocket_reaching_a_round_bar_s_sides_at_its_axis_keeps_every_rule`
+//!   `an_elliptic_pocket_reaching_a_round_bar_s_sides_at_its_axis_keeps_every_rule`,
+//!   `an_elliptic_tunnel_as_wide_as_a_tube_s_wall_keeps_every_rule`
 //! - what stays above the bar is written in `docs/exact-kernel-failures.md` —
 //!   no test: prose, the same section
 //!
-//! Each case is the shrunk case of a seed of the ellipses' draw that broke a
-//! rule on `main`.
+//! Each case is the shrunk case of a seed that broke a rule on `main`, of the
+//! ellipses' draw or, where its comment says so, of the crossed draw.
 
 // The drawing, the promise and the checks are the campaigns'; this file
 // only builds cases and holds them.
@@ -261,13 +262,14 @@ fn the_same_ellipse_turned_a_hundred_thousandth_added_back_in_its_bore_keeps_eve
     ));
 }
 
-/// Seed 5585800487: a round bar along x of radius 180, cut from its top down
-/// to its axis by an elliptic prism standing along z, the ellipse turned 45°
-/// and reaching exactly the bar's sides along y. The two walls, square to
-/// each other, touch at both ends of that reach: a node. The elliptic wall
-/// was grown onto the touch by a hair, its minor half-axis moved by about
-/// 1e-6, but the rims cut along it still stood on the wall as it was, and
-/// seen on the grown wall were no curve it carries: declined `Unsupported`.
+/// Seed 5585800487 of the crossed draw: a round bar along x of radius 180, cut
+/// from its top down to its axis by an elliptic prism standing along z, the
+/// ellipse turned 45° and reaching exactly the bar's sides along y. The two
+/// walls, square to each other, touch at both ends of that reach: a node. The
+/// elliptic wall was grown onto the touch by a hair, its minor half-axis moved
+/// by about 1e-6, but the rims cut along it still stood on the wall as it was,
+/// and seen on the grown wall were no curve it carries: declined
+/// `Unsupported`.
 #[test]
 fn an_elliptic_pocket_reaching_a_round_bar_s_sides_at_its_axis_keeps_every_rule() {
     random_solids::holds_exactly(&Case::new(
@@ -280,6 +282,30 @@ fn an_elliptic_pocket_reaching_a_round_bar_s_sides_at_its_axis_keeps_every_rule(
                 227.68399191159668,
             ),
             -210.0,
+        ))],
+    ));
+}
+
+/// Seed 5585800308 of the crossed draw: a tube standing along z, of radius 90
+/// bored to 30, and an elliptic tunnel of half-axes 30 and 30.0000003 cut
+/// along y in its wall, as wide as the wall where it is thinnest and 3e-7
+/// past it on either side, nine tenths of the tolerance. The tunnel's wall
+/// stands square to the tube's outside and to its bore, and touches each at
+/// one point, an end of the tunnel's reach: a node of their crossing. The
+/// body is built, but triangles of the bore and of the tunnel's wall cross
+/// beside that touch, breaking `Uncrossed`.
+#[test]
+fn an_elliptic_tunnel_as_wide_as_a_tube_s_wall_keeps_every_rule() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::ring([210.0, 165.0], 90.0, 30.0),
+            255.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xz(90.0),
+            Outline::ellipse([150.0, 105.0], [0.0, 30.0], 30.000000299999996),
+            -240.0,
         ))],
     ));
 }

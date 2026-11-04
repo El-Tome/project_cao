@@ -291,7 +291,14 @@ The decisions, in the order taken, once per operation:
    square to its partner's axis, which it touched, is slid along that axis
    by what it grew: the node stands wherever along the axis the two meet,
    and a post resting on a shaft's end, crossing the shaft at a node but
-   for a hair of radius, rests on it still (533609727). A plane and a
+   for a hair of radius, rests on it still (533609727). A wall touching
+   two walls square to it at the two ends of its reach along one way — a
+   tunnel as wide as a tube's wall, touching the outside at a node and the
+   bore beside it — is moved midway between the two touches and given half
+   their distance as its half-width along that way, which no translation
+   settles: moved onto neither, the tunnel stood a hair into the bore, and
+   the triangles of the two crossed beside the point they touch at
+   (5585800308). A plane and a
    cylinder, or two
    parallel cylinders, one of each operand, decided to touch along a line a
    hair apart are made to touch the same way: the surface the second operand

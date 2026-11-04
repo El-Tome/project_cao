@@ -71,7 +71,9 @@ fn bases(face: &Face, edges: &BTreeMap<usize, Edge>) -> Vec<Base> {
     let at = |v0| Base { v0, cut: None };
     match &face.surface {
         Surface::Cone { radius, angle, .. } => vec![at(-radius / angle.tan())],
-        Surface::Sphere { .. } => vec![at(-PI / 2.0), at(PI / 2.0)],
+        Surface::Sphere { .. } | Surface::Torus { outer: Some(_), .. } => {
+            face.surface.poles().into_iter().map(at).collect()
+        }
         Surface::Torus { .. } => {
             let mut turns: Vec<f64> = samples(face, edges)
                 .map(|point| face.surface.parameters(point).1)
@@ -176,9 +178,10 @@ fn integrate(
         .iter()
         .any(|bound| matches!(bound, Bound::Edges(_)))
     {
-        let end = match surface {
-            Surface::Sphere { .. } if base.v0 < 0.0 => PI / 2.0,
-            Surface::Torus { .. } => base.v0 + TAU,
+        let poles = surface.poles();
+        let end = match (surface, poles.as_slice()) {
+            (_, [south, north]) if base.v0 == *south => *north,
+            (Surface::Torus { outer: None, .. }, _) => base.v0 + TAU,
             _ => return (0.0, 0.0),
         };
         for piece in 0..16 {

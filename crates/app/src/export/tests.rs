@@ -8,17 +8,29 @@
 //!   `a_level_refused_suggests_only_a_level_that_is_written`; and when none
 //!   is, the message says no level fits —
 //!   `a_body_no_level_covers_is_told_that_no_level_fits`
+//!
+//! Closes #581.
+//! - to try it: each part opens in FreeCAD — the file the command writes is
+//!   the exact solid, where the user chose, under the part's name —
+//!   `a_step_export_writes_the_exact_solid_where_the_user_chose_and_says_where`;
+//!   a dialog closed writes nothing —
+//!   `a_step_save_dialog_closed_writes_nothing_and_leaves_no_message`; a file
+//!   the system refuses fills the error bar —
+//!   `a_step_file_the_system_refuses_fills_the_error_bar`
+//! - a drawing in units other than millimetres is written in millimetres: the
+//!   part's own millimetres per unit is the one handed to the writer —
+//!   `a_step_export_of_a_part_drawn_at_a_scale_is_written_at_its_millimetres_per_unit`
 
 use std::cell::Cell;
 use std::path::{Path, PathBuf};
 
 use cao_part::{ExtrusionMode, FileError, Files, InMemoryFiles, Operation, PartDocument, PointRef};
 use cao_prefs::Command;
-use cao_sketch::WorkPlane;
+use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
 use chrono::Utc;
 use glam::DVec2;
 
-use super::stl;
+use super::{step, stl};
 use crate::export::export_request;
 use crate::lang::Catalogue;
 use crate::screens::SketchContext;
@@ -250,6 +262,137 @@ fn a_file_the_system_refuses_fills_the_error_bar() {
         &RefusingFiles,
         |_| Some(path.clone()),
     );
+
+    let error = said.error.expect("the error bar says the write failed");
+    assert!(
+        error.contains(&path.display().to_string()),
+        "the error bar names the file refused: {error}"
+    );
+}
+
+/// A block 10 by 20 units raised 10, its first side typed 25 mm before
+/// anything is raised: a part drawn at 2.5 mm a unit.
+fn a_block_drawn_at_a_scale() -> PartDocument {
+    let mut document = PartDocument::new("Platine", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Length(SegmentId(0)),
+        value: 25.0.into(),
+        placement: None,
+    });
+    raised(document, DVec2::new(5.0, 10.0))
+}
+
+fn exported_to_step(
+    document: &mut PartDocument,
+    files: &impl Files,
+    destination: impl FnOnce(&str) -> Option<PathBuf>,
+) -> Said {
+    let mut editor = SketchEditor {
+        message: Some("left by the last command".into()),
+        ..SketchEditor::default()
+    };
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut error = None;
+    let mut part = SketchContext {
+        document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    step(&mut part, files, destination, &mut error);
+
+    Said {
+        message: editor.message,
+        error,
+    }
+}
+
+#[test]
+fn a_step_export_writes_the_exact_solid_where_the_user_chose_and_says_where() {
+    let mut document = a_block();
+    let files = InMemoryFiles::default();
+    let path = PathBuf::from("/exports/plaque.step");
+    let offered = Cell::new(String::new());
+
+    let said = exported_to_step(&mut document, &files, |name| {
+        offered.set(name.to_string());
+        Some(path.clone())
+    });
+
+    let text = cao_solid::step::of(document.body(), document.scale()).expect("a block is exact");
+    assert_eq!(
+        files.read(&path).ok(),
+        Some(text.into_bytes()),
+        "the file holds the part's exact solid"
+    );
+    assert!(
+        offered.take().contains("Platine"),
+        "the place asked for is offered under the part's name"
+    );
+    let message = said.message.expect("the status line says where");
+    assert!(
+        message.contains(&path.display().to_string()) && !message.contains("left by"),
+        "the status line says where the file went, and only that: {message}"
+    );
+    assert_eq!(said.error, None);
+}
+
+#[test]
+fn a_step_export_of_a_part_drawn_at_a_scale_is_written_at_its_millimetres_per_unit() {
+    let mut document = a_block_drawn_at_a_scale();
+    assert!(
+        (document.scale() - 2.5).abs() < 1e-9,
+        "{}",
+        document.scale()
+    );
+    let files = InMemoryFiles::default();
+    let path = PathBuf::from("/exports/plaque.step");
+
+    exported_to_step(&mut document, &files, |_| Some(path.clone()));
+
+    let in_millimetres = cao_solid::step::of(document.body(), 2.5).expect("a block is exact");
+    let in_units = cao_solid::step::of(document.body(), 1.0).expect("a block is exact");
+    let written = files.read(&path).expect("the file is written");
+    assert_eq!(
+        written,
+        in_millimetres.into_bytes(),
+        "the file is written at the part's 2.5 mm a unit"
+    );
+    assert_ne!(written, in_units.into_bytes(), "the scale changes the file");
+}
+
+#[test]
+fn a_step_save_dialog_closed_writes_nothing_and_leaves_no_message() {
+    let files = InMemoryFiles::default();
+
+    let said = exported_to_step(&mut a_block(), &files, |_| None);
+
+    assert_eq!(said.message, None, "a cancelled export says nothing");
+    assert_eq!(said.error, None);
+    assert!(
+        !files.exists(Path::new("/")),
+        "nothing was written anywhere"
+    );
+}
+
+#[test]
+fn a_step_file_the_system_refuses_fills_the_error_bar() {
+    let path = PathBuf::from("/locked/plaque.step");
+
+    let said = exported_to_step(&mut a_block(), &RefusingFiles, |_| Some(path.clone()));
 
     let error = said.error.expect("the error bar says the write failed");
     assert!(

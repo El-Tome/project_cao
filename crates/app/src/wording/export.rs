@@ -22,5 +22,16 @@ pub fn written(lang: &Catalogue, path: &Path) -> String {
     lang.t_with("export.written", &[("path", &path.display().to_string())])
 }
 
+pub fn step_written(lang: &Catalogue, path: &Path) -> String {
+    lang.t_with(
+        "export.step_written",
+        &[("path", &path.display().to_string())],
+    )
+}
+
+pub fn faceted(lang: &Catalogue) -> String {
+    lang.t("export.faceted")
+}
+
 #[cfg(test)]
 mod tests;

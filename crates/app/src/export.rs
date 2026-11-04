@@ -78,5 +78,33 @@ pub(crate) fn stl(
     }
 }
 
+/// The part's exact solid written as a STEP file where `destination` says,
+/// in millimetres. A part on the flats asks for no place: the status line
+/// says it is not exact.
+pub(crate) fn step(
+    part: &mut SketchContext<'_>,
+    files: &impl Files,
+    destination: impl FnOnce(&str) -> Option<PathBuf>,
+    error: &mut Option<String>,
+) {
+    let Ok(text) = cao_solid::step::of(part.document.body(), part.document.scale()) else {
+        part.editor.message = Some(wording::export::faceted(part.lang));
+        return;
+    };
+    part.editor.message = None;
+    let Some(path) = destination(part.document.name()) else {
+        return;
+    };
+    match files.write(&path, text.as_bytes()) {
+        Ok(()) => part.editor.message = Some(wording::export::step_written(part.lang, &path)),
+        Err(failed) => {
+            *error = Some(wording::part_file::say(
+                part.lang,
+                &PartFileError::File(failed),
+            ))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests;

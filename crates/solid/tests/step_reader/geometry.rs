@@ -239,11 +239,29 @@ impl Exchange {
                 placement: placement()?,
                 radius: length(2)?,
             },
-            _ => Surface::Torus {
+            "TOROIDAL_SURFACE" => Surface::Torus {
                 placement: placement()?,
                 major: length(2)?,
                 minor: length(3)?,
+                outer: None,
             },
+            _ => {
+                let (major, minor) = (length(2)?, length(3)?);
+                if major >= minor {
+                    return Err(format!(
+                        "#{number}: a degenerate torus has its major radius below its minor"
+                    ));
+                }
+                if !boolean(at(record, 4)?)? {
+                    return Err(format!("#{number}: this reader does not read a lemon"));
+                }
+                Surface::Torus {
+                    placement: placement()?,
+                    major,
+                    minor,
+                    outer: Some(true),
+                }
+            }
         })
     }
 }
@@ -505,10 +523,13 @@ pub enum Surface {
         placement: Placement,
         radius: f64,
     },
+    /// `outer` is `Some(true)` on a spindle written as the outer part of
+    /// a degenerate torus.
     Torus {
         placement: Placement,
         major: f64,
         minor: f64,
+        outer: Option<bool>,
     },
 }
 
@@ -569,6 +590,7 @@ impl Surface {
                 placement,
                 major,
                 minor,
+                ..
             } => Local {
                 point: placement.origin
                     + placement.around(u) * (major + minor * v.cos())
@@ -668,6 +690,7 @@ impl Surface {
                 placement,
                 major,
                 minor,
+                ..
             } => {
                 let local = placement.local(point);
                 let across = local.truncate().length();
@@ -683,11 +706,20 @@ impl Surface {
     }
 
     /// Where the surface folds to a point, as the parameter `v` there: a
-    /// sphere's two poles. A cone's apex is where its integrals start, and
+    /// sphere's two poles, a spindle's two apexes. A cone's apex is where its integrals start, and
     /// needs no fold.
     pub fn poles(&self) -> Vec<f64> {
         match self {
             Surface::Sphere { .. } => vec![-FRAC_PI_2, FRAC_PI_2],
+            Surface::Torus {
+                major,
+                minor,
+                outer: Some(true),
+                ..
+            } => {
+                let apex = (-major / minor).acos();
+                vec![-apex, apex]
+            }
             _ => Vec::new(),
         }
     }

@@ -30,6 +30,11 @@ pub struct Solid {
     /// The distance the file declares two points one under.
     pub uncertainty: f64,
     pub metres_per_unit: f64,
+    /// The box the vertices span.
+    pub low: DVec3,
+    pub high: DVec3,
+    /// Points along every B-spline edge, thirty-two to a span between knots.
+    pub along_splines: Vec<Vec<DVec3>>,
 }
 
 pub struct Vertex {
@@ -73,7 +78,10 @@ pub fn read(text: &str) -> Result<Solid, String> {
         .iter()
         .find(|record| record.name == "FILE_SCHEMA")
         .ok_or("the header names no schema")?;
-    if !format!("{:?}", schema.values).contains("AUTOMOTIVE_DESIGN") {
+    if !format!("{:?}", schema.values)
+        .to_ascii_uppercase()
+        .contains("AUTOMOTIVE_DESIGN")
+    {
         return Err(format!(
             "the schema is {:?}, not AP214's AUTOMOTIVE_DESIGN",
             schema.values
@@ -106,6 +114,32 @@ pub fn read(text: &str) -> Result<Solid, String> {
     closed(&faces)?;
     let worst = worst(&faces, &edges);
     let (volume, area) = measure::enclosed(&faces, &edges)?;
+    let corners = edges
+        .values()
+        .flat_map(|edge| [edge.start.point, edge.end.point])
+        .chain(faces.iter().flat_map(|face| {
+            face.bounds.iter().filter_map(|bound| match bound {
+                Bound::Vertex(point) => Some(*point),
+                Bound::Edges(_) => None,
+            })
+        }));
+    let (low, high) = corners.fold(
+        (DVec3::INFINITY, DVec3::NEG_INFINITY),
+        |(low, high), corner| (low.min(corner), high.max(corner)),
+    );
+    let along_splines = edges
+        .values()
+        .filter(|edge| matches!(edge.curve, Curve::Spline(_)))
+        .map(|edge| {
+            let pieces = edge.curve.pieces(edge.from, edge.to);
+            pieces
+                .windows(2)
+                .flat_map(|pair| [pair[0], (pair[0] + pair[1]) / 2.0])
+                .chain(pieces.last().copied())
+                .map(|t| edge.curve.point(t))
+                .collect()
+        })
+        .collect();
     Ok(Solid {
         faces: faces.len(),
         volume,
@@ -113,6 +147,9 @@ pub fn read(text: &str) -> Result<Solid, String> {
         worst,
         uncertainty,
         metres_per_unit,
+        low,
+        high,
+        along_splines,
     })
 }
 
@@ -179,10 +216,13 @@ fn units(exchange: &Exchange, brep: usize) -> Result<(f64, f64, f64), String> {
         .map(|measure| {
             let measure =
                 exchange.simple(reference(measure)?, &["UNCERTAINTY_MEASURE_WITH_UNIT"])?;
-            Ok(
-                number_of(at(measure, 0)?)? * factor(exchange, reference(at(measure, 1)?)?)?
-                    / length,
-            )
+            let distance = number_of(at(measure, 0)?)?;
+            let unit = factor(exchange, reference(at(measure, 1)?)?)?;
+            Ok(if unit == length {
+                distance
+            } else {
+                distance * unit / length
+            })
         })
         .collect::<Result<Vec<f64>, String>>()?
         .into_iter()
@@ -286,6 +326,9 @@ fn face_of(
             }
         }
         bounds.push(Bound::Edges(uses));
+    }
+    if bounds.is_empty() {
+        return Err(format!("#{id}: a face bounded by nothing"));
     }
     Ok(Face {
         id,

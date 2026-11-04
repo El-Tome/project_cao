@@ -49,7 +49,8 @@ pub(crate) fn run(
         | Command::ToggleExplorer
         | Command::ExportStlCoarse
         | Command::ExportStlNormal
-        | Command::ExportStlFine => false,
+        | Command::ExportStlFine
+        | Command::ExportStep => false,
         Command::NewSketch => {
             extrusion.close();
             editor.start_choosing_plane(lang);

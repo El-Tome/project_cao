@@ -31,6 +31,10 @@
 //!   beyond the issue's list, since #576 brought them, a sphere and a torus —
 //!   `a_turned_ball_written_to_step_reads_back_as_one_closed_solid_of_its_volume`,
 //!   `a_turned_ring_written_to_step_reads_back_as_one_closed_solid_of_its_volume`;
+//!   a spindle, whose major radius is below its minor and which no plain
+//!   `TOROIDAL_SURFACE` holds, is written as the outer part of a
+//!   `DEGENERATE_TOROIDAL_SURFACE` —
+//!   `a_spindle_is_written_as_the_outer_part_of_a_degenerate_torus`;
 //!   and the meet curve's B-spline stands within the kernel's tolerance of
 //!   the kernel's own closed form —
 //!   `the_meet_curve_is_written_within_the_kernel_s_tolerance_of_its_closed_form`
@@ -49,10 +53,11 @@
 
 mod step_reader;
 
-use std::f64::consts::PI;
+use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 use cao_solid::brep::Scale;
-use cao_solid::profile::{Contour, Frame, Profile};
+use cao_solid::profile::{Contour, Frame, Profile, Run};
+use cao_solid::turning::{Axis, Turn};
 use cao_solid::{Body, Loop, step};
 use glam::{DVec2, DVec3};
 
@@ -92,6 +97,200 @@ fn block() -> Body {
     ))
 }
 
+fn disc(center: DVec2, radius: f64) -> Contour {
+    Contour {
+        corners: vec![center + DVec2::X * radius],
+        runs: vec![Run::Round { center, turn: TAU }],
+    }
+}
+
+/// A cylinder of radius 20 standing from 0 to 10, bored through on its axis
+/// with a radius of 5.
+fn bored_cylinder() -> Body {
+    let below = Frame {
+        origin: DVec3::NEG_Z,
+        ..GROUND
+    };
+    on_a_part(raised(disc(DVec2::ZERO, 20.0), GROUND, 10.0))
+        .difference(&raised(disc(DVec2::ZERO, 5.0), below, 12.0))
+        .expect("the exact kernel bores it")
+}
+
+/// A profile turned whole about the sketch's Y axis, `sampled` the drawing
+/// the profile was read from.
+fn turned(corners: Vec<DVec2>, runs: Vec<Run>, sampled: Vec<DVec2>) -> Body {
+    let sampled: &'static [DVec2] = Box::leak(sampled.into_boxed_slice());
+    let profile = Profile {
+        exact: Some((Contour { corners, runs }, Vec::new())),
+        sampled: Loop::straight(sampled),
+        sampled_holes: Vec::new(),
+        triangles: &[],
+    };
+    let about_y = Axis {
+        origin: DVec2::ZERO,
+        direction: DVec2::Y,
+    };
+    on_a_part(
+        Body::default()
+            .tool_turned(&profile, GROUND, &Turn::of(about_y, TAU, 1e-4, &profile))
+            .expect("the exact kernel turns it"),
+    )
+}
+
+fn arc(center: DVec2, radius: f64, from: f64, turn: f64) -> Vec<DVec2> {
+    (0..=32)
+        .map(|step| center + DVec2::from_angle(from + turn * f64::from(step) / 32.0) * radius)
+        .collect()
+}
+
+/// A shaft of radius 10 and length 30 along Y, its far end chamfered by 2:
+/// a cone between its cylinder and its end.
+fn chamfered_shaft() -> Body {
+    let corners = vec![
+        DVec2::new(0.0, 0.0),
+        DVec2::new(10.0, 0.0),
+        DVec2::new(10.0, 28.0),
+        DVec2::new(8.0, 30.0),
+        DVec2::new(0.0, 30.0),
+    ];
+    turned(corners.clone(), vec![Run::Straight; 5], corners)
+}
+
+/// The cylinder of radius 20 from 0 to 10, everything above the plane
+/// `z = 5 + 0.2 x` taken away: its top an ellipse, its rim a conic.
+fn shaft_cut_at_a_slant() -> Body {
+    let slant = Frame {
+        origin: DVec3::new(0.0, 0.0, 5.0),
+        u: DVec3::new(1.0, 0.0, 0.2).normalize(),
+        v: DVec3::Y,
+    };
+    on_a_part(raised(disc(DVec2::ZERO, 20.0), GROUND, 10.0))
+        .difference(&raised(
+            Contour::rectangle(DVec2::splat(-40.0), DVec2::splat(40.0)),
+            slant,
+            30.0,
+        ))
+        .expect("the exact kernel cuts it")
+}
+
+/// An ellipse of semi-axes 15 and 8 raised 10.
+fn elliptic_post() -> Body {
+    on_a_part(raised(
+        Contour {
+            corners: vec![DVec2::new(15.0, 0.0)],
+            runs: vec![Run::Oval {
+                center: DVec2::ZERO,
+                first: DVec2::new(15.0, 0.0),
+                second: 8.0,
+                turn: TAU,
+            }],
+        },
+        GROUND,
+        10.0,
+    ))
+}
+
+/// A shaft of radius 10 standing from 0 to 30, drilled through from the side
+/// along X by a hole of radius 4 about the line `y = 0, z = 15`: the two walls
+/// meet along two closed curves no conic holds.
+fn drilled_from_the_side() -> Body {
+    let side = Frame {
+        origin: DVec3::new(-15.0, 0.0, 0.0),
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    on_a_part(raised(disc(DVec2::ZERO, 10.0), GROUND, 30.0))
+        .difference(&raised(disc(DVec2::new(0.0, 15.0), 4.0), side, 30.0))
+        .expect("the exact kernel drills it")
+}
+
+/// How far `point` stands from the shaft's wall and from the hole's.
+fn off_the_drilled_walls(point: DVec3) -> f64 {
+    let shaft = (point.truncate().length() - 10.0).abs();
+    let hole = (DVec2::new(point.y, point.z - 15.0).length() - 4.0).abs();
+    shaft.max(hole)
+}
+
+/// A ball of radius 5: a half disc turned about its diameter.
+fn turned_ball() -> Body {
+    turned(
+        vec![DVec2::new(0.0, -5.0), DVec2::new(0.0, 5.0)],
+        vec![
+            Run::Round {
+                center: DVec2::ZERO,
+                turn: PI,
+            },
+            Run::Straight,
+        ],
+        arc(DVec2::ZERO, 5.0, -FRAC_PI_2, PI),
+    )
+}
+
+/// A ring from radius 2 to 6 and 4 high, its outer wall bulging by a half
+/// circle of radius 2: a band of a torus between two planes and a cylinder.
+fn turned_ring() -> Body {
+    let center = DVec2::new(6.0, 2.0);
+    let mut sampled = vec![DVec2::new(2.0, 0.0)];
+    sampled.extend(arc(center, 2.0, -FRAC_PI_2, PI));
+    sampled.push(DVec2::new(2.0, 4.0));
+    turned(
+        vec![
+            DVec2::new(2.0, 0.0),
+            DVec2::new(6.0, 0.0),
+            DVec2::new(6.0, 4.0),
+            DVec2::new(2.0, 4.0),
+        ],
+        vec![
+            Run::Straight,
+            Run::Round { center, turn: PI },
+            Run::Straight,
+            Run::Straight,
+        ],
+        sampled,
+    )
+}
+
+/// An arc of radius 3 about (2, 0), from the axis back to the axis the long
+/// way round, turned: a spindle, its major radius 2 below its minor 3, its
+/// two apexes on the axis.
+fn turned_spindle() -> Body {
+    let center = DVec2::new(2.0, 0.0);
+    let reach = 5f64.sqrt();
+    let from = DVec2::new(-2.0, -reach).to_angle();
+    let turn = (DVec2::new(-2.0, reach).to_angle() - from).rem_euclid(TAU);
+    turned(
+        vec![DVec2::new(0.0, -reach), DVec2::new(0.0, reach)],
+        vec![Run::Round { center, turn }, Run::Straight],
+        arc(center, 3.0, from, turn),
+    )
+}
+
+/// A disc of radius 20 drawn as 32 flat sides, raised 10 by the flats: the
+/// drawing handed no runs.
+fn flats_disc() -> Body {
+    let corners: &'static [DVec2] = Box::leak(
+        (0..32)
+            .map(|index| DVec2::from_angle(index as f64 * TAU / 32.0) * 20.0)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+    );
+    let triangles: &'static [[DVec2; 3]] = Box::leak(
+        (1..corners.len() - 1)
+            .map(|index| [corners[0], corners[index], corners[index + 1]])
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+    );
+    let profile = Profile {
+        exact: None,
+        sampled: Loop::straight(corners),
+        sampled_holes: Vec::new(),
+        triangles,
+    };
+    Body::default()
+        .tool_raised(&profile, GROUND, DVec3::Z * 10.0)
+        .expect("the flats never decline")
+}
+
 /// The kernel's widest tolerance at the body's reach, in millimetres: what
 /// the kernel lets a surface move by, and so what a file of it may declare.
 fn kernel_tolerance(body: &Body, millimetres_per_unit: f64) -> f64 {
@@ -114,7 +313,7 @@ fn reads_back_exact(body: &Body, millimetres_per_unit: f64) -> step_reader::Soli
     let solid = read(&text);
     let tolerance = kernel_tolerance(body, millimetres_per_unit);
     assert!(
-        solid.uncertainty <= tolerance,
+        solid.uncertainty <= tolerance * (1.0 + 1e-12),
         "the file declares points one under {} mm, the kernel only under {tolerance} mm",
         solid.uncertainty
     );
@@ -130,7 +329,7 @@ fn reads_back_exact(body: &Body, millimetres_per_unit: f64) -> step_reader::Soli
     );
     let kernel = body.volume() * millimetres_per_unit.powi(3);
     assert!(
-        (solid.volume - kernel).abs() <= tolerance * solid.area,
+        (solid.volume - kernel).abs() <= tolerance * solid.area * (1.0 + 1e-12),
         "the file encloses {} mm³, the kernel {kernel} mm³ — {} apart, {} allowed",
         solid.volume,
         (solid.volume - kernel).abs(),
@@ -144,6 +343,145 @@ fn a_block_written_to_step_reads_back_as_one_closed_solid_of_its_volume() {
     let solid = reads_back_exact(&block(), 1.0);
 
     assert_eq!(solid.faces, 6, "a block has six faces");
+}
+
+#[test]
+fn a_bored_cylinder_written_to_step_reads_back_as_one_closed_solid_of_its_volume() {
+    reads_back_exact(&bored_cylinder(), 1.0);
+}
+
+#[test]
+fn a_chamfered_shaft_written_to_step_reads_back_as_one_closed_solid_of_its_volume() {
+    let shaft = chamfered_shaft();
+    let text = step::of(&shaft, 1.0).expect("the shaft is written");
+
+    reads_back_exact(&shaft, 1.0);
+    assert!(
+        text.contains("CONICAL_SURFACE"),
+        "the chamfer is written on its cone"
+    );
+}
+
+#[test]
+fn a_shaft_cut_at_a_slant_written_to_step_reads_back_as_one_closed_solid_of_its_volume() {
+    let shaft = shaft_cut_at_a_slant();
+    let text = step::of(&shaft, 1.0).expect("the shaft is written");
+
+    reads_back_exact(&shaft, 1.0);
+    assert!(
+        text.contains("ELLIPSE("),
+        "the rim the slant cuts on the cylinder is written as its ellipse"
+    );
+}
+
+#[test]
+fn an_elliptic_post_written_to_step_reads_back_as_one_closed_solid_of_its_volume() {
+    let post = elliptic_post();
+    let text = step::of(&post, 1.0).expect("the post is written");
+
+    reads_back_exact(&post, 1.0);
+    assert!(
+        text.contains("SURFACE_OF_LINEAR_EXTRUSION"),
+        "the elliptic wall is written as an ellipse swept along its axis"
+    );
+}
+
+#[test]
+fn a_part_drilled_from_the_side_written_to_step_reads_back_as_one_closed_solid_of_its_volume() {
+    let solid = reads_back_exact(&drilled_from_the_side(), 1.0);
+
+    assert!(
+        solid.along_splines.len() >= 2,
+        "the hole meets the shaft along two curves, written as {} B-splines",
+        solid.along_splines.len()
+    );
+}
+
+#[test]
+fn the_meet_curve_is_written_within_the_kernel_s_tolerance_of_its_closed_form() {
+    let drilled = drilled_from_the_side();
+    let tolerance = kernel_tolerance(&drilled, 1.0);
+    let solid = read(&step::of(&drilled, 1.0).expect("the part is written"));
+
+    assert!(!solid.along_splines.is_empty(), "no meet curve is written");
+    for (index, points) in solid.along_splines.iter().enumerate() {
+        let worst = points
+            .iter()
+            .map(|point| off_the_drilled_walls(*point))
+            .fold(0.0, f64::max);
+        assert!(
+            worst <= tolerance,
+            "B-spline {index} strays {worst} mm off the walls it is the meet of, \
+             the kernel's tolerance is {tolerance} mm"
+        );
+    }
+}
+
+#[test]
+fn a_turned_ball_written_to_step_reads_back_as_one_closed_solid_of_its_volume() {
+    let ball = turned_ball();
+    let text = step::of(&ball, 1.0).expect("the ball is written");
+
+    reads_back_exact(&ball, 1.0);
+    assert!(
+        text.contains("SPHERICAL_SURFACE"),
+        "the ball is written on its sphere"
+    );
+}
+
+#[test]
+fn a_turned_ring_written_to_step_reads_back_as_one_closed_solid_of_its_volume() {
+    let ring = turned_ring();
+    let text = step::of(&ring, 1.0).expect("the ring is written");
+
+    reads_back_exact(&ring, 1.0);
+    assert!(
+        text.contains("TOROIDAL_SURFACE"),
+        "the bulge is written on its torus"
+    );
+}
+
+#[test]
+fn a_spindle_is_written_as_the_outer_part_of_a_degenerate_torus() {
+    let spindle = turned_spindle();
+    let text = step::of(&spindle, 1.0).expect("the spindle is written");
+
+    reads_back_exact(&spindle, 1.0);
+    assert!(
+        text.contains("DEGENERATE_TOROIDAL_SURFACE"),
+        "a torus whose major radius is below its minor is the degenerate kind"
+    );
+}
+
+#[test]
+fn a_body_on_the_flats_is_not_written() {
+    let flats = flats_disc();
+    assert!(!flats.is_exact(), "the disc is on the flats");
+
+    assert_eq!(step::of(&flats, 1.0), Err(step::Faceted));
+}
+
+#[test]
+fn a_part_drawn_in_units_of_two_and_a_half_millimetres_is_written_in_millimetres() {
+    let solid = reads_back_exact(&block(), 2.5);
+
+    let near = 1e-9 * 75.0;
+    assert!(
+        solid.low.abs().max_element() <= near
+            && (solid.high - DVec3::new(75.0, 50.0, 25.0))
+                .abs()
+                .max_element()
+                <= near,
+        "a block of 30 by 20 by 10 units of 2.5 mm spans {} to {} mm",
+        solid.low,
+        solid.high
+    );
+    let volume = 75.0 * 50.0 * 25.0;
+    assert!(
+        (solid.volume - volume).abs() <= 1e-9 * volume,
+        "it encloses {} mm³, not {volume}",
+        solid.volume
+    );
 }
 
 #[test]

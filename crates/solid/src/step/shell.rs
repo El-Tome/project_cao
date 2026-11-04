@@ -23,7 +23,7 @@ pub fn written(instances: &mut Instances, listing: &Listing) -> usize {
     let faces: Vec<String> = listing
         .faces
         .iter()
-        .map(|face| format!("#{}", advanced_face(instances, face, &edges)))
+        .map(|face| format!("#{}", advanced_face(instances, face, &edges, &vertices)))
         .collect();
     let shell = instances.add(format!("CLOSED_SHELL('',({}))", faces.join(",")));
     instances.add(format!("MANIFOLD_SOLID_BREP('',#{shell})"))
@@ -40,15 +40,29 @@ fn edge_curve(instances: &mut Instances, edge: &ListedEdge, vertices: &[usize]) 
             [vertex, vertex]
         }
     };
-    let curve = geometry::curve(instances, &edge.curve);
+    let curve = geometry::curve(instances, &edge.curve, edge.from, edge.to);
     instances.add(format!(
         "EDGE_CURVE('',#{start},#{end},#{curve},{})",
         flag(edge.to > edge.from)
     ))
 }
 
-fn advanced_face(instances: &mut Instances, face: &ListedFace, edges: &[usize]) -> usize {
+/// A face no loop bounds — a ball, a whole spindle — is bounded by the
+/// points it folds to.
+fn advanced_face(
+    instances: &mut Instances,
+    face: &ListedFace,
+    edges: &[usize],
+    vertices: &[usize],
+) -> usize {
     let mut bounds = Vec::new();
+    if face.loops.is_empty() {
+        for pole in &face.poles {
+            let around = instances.add(format!("VERTEX_LOOP('',#{})", vertices[*pole]));
+            let bound = instances.add(format!("FACE_BOUND('',#{around},.T.)"));
+            bounds.push(format!("#{bound}"));
+        }
+    }
     for lap in &face.loops {
         let mut oriented = Vec::new();
         for (edge, forward) in lap {
@@ -63,10 +77,10 @@ fn advanced_face(instances: &mut Instances, face: &ListedFace, edges: &[usize]) 
         let bound = instances.add(format!("FACE_BOUND('',#{edge_loop},.T.)"));
         bounds.push(format!("#{bound}"));
     }
-    let surface = geometry::surface(instances, &face.surface);
+    let (surface, agrees) = geometry::surface(instances, &face.surface);
     instances.add(format!(
         "ADVANCED_FACE('',({}),#{surface},{})",
         bounds.join(","),
-        flag(face.outward)
+        flag(face.outward == agrees)
     ))
 }

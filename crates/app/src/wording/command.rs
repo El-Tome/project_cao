@@ -70,6 +70,7 @@ pub fn label(lang: &Catalogue, command: Command) -> String {
         Command::ExportStlCoarse => "command.label.export_stl_coarse",
         Command::ExportStlNormal => "command.label.export_stl_normal",
         Command::ExportStlFine => "command.label.export_stl_fine",
+        Command::ExportStep => "command.label.export_step",
         Command::ToggleHistory => "command.label.toggle_history",
         Command::ToggleExplorer => "command.label.toggle_explorer",
         Command::ToggleToolbarDocked => "command.label.toggle_toolbar_docked",
@@ -142,6 +143,7 @@ pub fn hint(lang: &Catalogue, command: Command) -> String {
         Command::ExportStlCoarse | Command::ExportStlNormal | Command::ExportStlFine => {
             "command.hint.export_stl"
         }
+        Command::ExportStep => "command.hint.export_step",
         Command::ToggleHistory => "command.hint.toggle_history",
         Command::ToggleExplorer => "command.hint.toggle_explorer",
         Command::ToggleToolbarDocked => "command.hint.toggle_toolbar_docked",

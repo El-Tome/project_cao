@@ -22,6 +22,13 @@
 //! - to try it: the file opens in a slicer, PrusaSlicer or Cura, at the right
 //!   size — no test: a human opens the file in a slicer, which nothing in this
 //!   workspace runs
+//!
+//! Closes #581.
+//! - to try it: each part opens in FreeCAD — the command « Exporter en STEP… »
+//!   is offered while the part holds matter and not before —
+//!   `the_step_export_is_offered_only_while_the_part_holds_matter` — under the
+//!   tab « Export », beside the STL menu —
+//!   `the_step_export_sits_under_the_export_tab_and_nowhere_else`
 
 use super::*;
 use cao_sketch::WorkPlane;
@@ -326,4 +333,52 @@ fn the_three_stl_levels_are_one_menu_under_an_export_tab_of_their_own() {
         strays.is_empty(),
         "the tab « extrusion » still holds {strays:?}"
     );
+}
+
+#[test]
+fn the_step_export_is_offered_only_while_the_part_holds_matter() {
+    let editor = SketchEditor::default();
+    let extrusion = ExtrusionState::default();
+
+    assert!(
+        !is_enabled(Command::ExportStep, &a_part(), &editor, &extrusion),
+        "the STEP export is offered on a part with no matter"
+    );
+    assert!(
+        is_enabled(Command::ExportStep, &a_raised_block(), &editor, &extrusion),
+        "the STEP export is not offered on a part holding a block"
+    );
+    assert!(
+        is_enabled(
+            Command::ExportStep,
+            &a_raised_block(),
+            &drawing_on_a_sketch(),
+            &extrusion
+        ),
+        "the STEP export is not offered while a sketch is open on a part holding a block"
+    );
+}
+
+#[test]
+fn the_step_export_sits_under_the_export_tab_and_nowhere_else() {
+    let toolbar = Settings::default().toolbar;
+
+    let export = tab(&toolbar.items, "export")
+        .unwrap_or_else(|| panic!("the ribbon has no tab « export »: {:?}", toolbar.items));
+    assert!(
+        reached(export).contains(&Command::ExportStep),
+        "the tab « export » offers no STEP export: {export:?}",
+    );
+    assert!(
+        holds_the_levels_together(export),
+        "the STL menu is still whole beside it: {export:?}",
+    );
+    let elsewhere = toolbar
+        .items
+        .iter()
+        .filter(|item| !matches!(item, cao_prefs::Item::Group { name, .. } if name == "export"))
+        .flat_map(|item| reached(std::slice::from_ref(item)))
+        .filter(|command| *command == Command::ExportStep)
+        .count();
+    assert_eq!(elsewhere, 0, "the STEP export is offered outside its tab");
 }

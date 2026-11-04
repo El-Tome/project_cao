@@ -184,6 +184,63 @@ fn an_arc_of_an_ellipse_whose_half_axes_differ_by_more_than_decision_8_s_hair_ke
     assert_eq!(wall_faces(&body).len(), 1);
 }
 
+/// The arc of a circle from `from` to `to` whose centre stands 4 to the left
+/// of the chord, and the area it bows out beyond that chord.
+fn bowed(from: DVec2, to: DVec2) -> (Run, f64) {
+    let center = (from + to) / 2.0 + (to - from).perp().normalize() * 4.0;
+    let turn = ((to - center).to_angle() - (from - center).to_angle()).rem_euclid(TAU);
+    let radius = from.distance(center);
+    let bowed = radius * radius * (turn - turn.sin()) / 2.0;
+    (Run::Round { center, turn }, bowed)
+}
+
+#[test]
+fn an_arc_of_an_ellipse_within_decision_8_s_hair_of_round_beside_a_circle_arc_keeps_its_elliptic_wall_and_its_corners()
+ {
+    let eps = Scale::of(10.0).eps();
+    let first = DVec2::from_angle(0.4) * (5.0 + 5.0 * eps);
+    let second = 5.0 - 5.0 * eps;
+    let [start, end] = [on(first, second, -0.5), on(first, second, 2.5)];
+    let middle = (start + end) / 2.0;
+    let oval = Run::Oval {
+        center: CENTER,
+        first,
+        second,
+        turn: 3.0,
+    };
+    let cap = first.length() * second * (3.0 - f64::sin(3.0)) / 2.0;
+    let (closing, lens) = bowed(end, start);
+    let (halfway, half) = bowed(end, middle);
+    for (contour, area) in [
+        (
+            Contour {
+                corners: vec![start, end],
+                runs: vec![oval, closing],
+            },
+            cap + lens,
+        ),
+        (
+            Contour {
+                corners: vec![start, end, middle],
+                runs: vec![oval, halfway, Run::Straight],
+            },
+            cap + half,
+        ),
+    ] {
+        let body = Body::raised(&contour, &[], ground(), DVec3::Z * 10.0).expect("it raises");
+        assert_eq!(wall_faces(&body).len(), 1, "{contour:?} lost its ellipse");
+        for corner in [start, end] {
+            assert!(
+                body.vertices
+                    .iter()
+                    .any(|vertex| vertex.point.truncate().distance(corner) < 1e-12),
+                "{contour:?} moved its corner {corner} off the ellipse"
+            );
+        }
+        held(&body, area * 10.0);
+    }
+}
+
 #[test]
 fn an_elliptic_hole_in_a_block_is_a_wall_with_its_matter_outside() {
     let block = Contour::rectangle(DVec2::new(-10.0, -10.0), DVec2::new(15.0, 10.0));

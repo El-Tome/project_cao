@@ -40,6 +40,7 @@
 mod abreast;
 mod axis;
 mod beneath;
+mod capped;
 mod chords;
 mod circle;
 mod cone;
@@ -93,13 +94,19 @@ const MOST: usize = 1024;
 /// thousand and twenty-four, so that a fine one does not draw a million
 /// triangles.
 pub(super) fn divisions(radius: f64, tolerance: f64) -> usize {
+    match needed(radius, tolerance) {
+        Some(needed) => ((needed / 4.0).ceil() * 4.0).clamp(LEAST as f64, MOST as f64) as usize,
+        None => MOST,
+    }
+}
+
+fn needed(radius: f64, tolerance: f64) -> Option<f64> {
     let ratio = tolerance / radius;
     if ratio.is_nan() || ratio <= 0.0 {
-        return MOST;
+        return None;
     }
     let half_step = (1.0 - ratio.min(2.0)).acos();
-    let needed = (PI / half_step).ceil();
-    ((needed / 4.0).ceil() * 4.0).clamp(LEAST as f64, MOST as f64) as usize
+    Some((PI / half_step).ceil())
 }
 
 /// Every edge's points, in the way the edge runs: its first vertex, the points

@@ -3,6 +3,7 @@ pub mod app;
 mod autosave;
 mod commands;
 pub mod crash;
+mod export;
 mod lang;
 mod panels;
 mod picture;

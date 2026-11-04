@@ -42,9 +42,14 @@ pub(crate) fn run(
     editor.message = None;
 
     match command {
-        // The shell keeps these: they are about the window, not about the
-        // part, and the state they turn is not the part's to hold.
-        Command::OpenSettings | Command::BackToMenu | Command::ToggleExplorer => false,
+        // The shell keeps these: they reach the window or the disk, which
+        // the part's state has no business holding.
+        Command::OpenSettings
+        | Command::BackToMenu
+        | Command::ToggleExplorer
+        | Command::ExportStlCoarse
+        | Command::ExportStlNormal
+        | Command::ExportStlFine => false,
         Command::NewSketch => {
             extrusion.close();
             editor.start_choosing_plane(lang);

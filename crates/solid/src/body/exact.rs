@@ -203,6 +203,11 @@ impl Exact {
             .get_or_init(|| quietly(|| Drawn::of(&self.brep)).unwrap_or_default())
     }
 
+    pub fn triangles_within(&self, tolerance: f64) -> Option<Vec<[DVec3; 3]>> {
+        let cut = quietly(|| self.brep.triangles_by_face(tolerance))?;
+        (cut.uncut.is_empty() && !cut.capped).then_some(cut.triangles)
+    }
+
     pub fn ray_hit(&self, origin: DVec3, direction: DVec3) -> Option<FaceHit> {
         quietly(|| self.drawn().ray_hit(&self.brep, origin, direction)).flatten()
     }

@@ -1,6 +1,7 @@
 use cao_prefs::{Command, CommandFamily};
 
 use crate::lang::Catalogue;
+use crate::wording::dimension;
 
 /// The only place a `Command` is turned into a name.
 ///
@@ -79,7 +80,7 @@ pub fn label(lang: &Catalogue, command: Command) -> String {
 
 /// The one line of help shown when the pointer rests on the command.
 pub fn hint(lang: &Catalogue, command: Command) -> String {
-    lang.t(match command {
+    let key = match command {
         Command::NewSketch => "command.hint.new_sketch",
         Command::FinishSketch => "command.hint.finish_sketch",
         Command::RecenterOnSketch => "command.hint.recenter_on_sketch",
@@ -138,15 +139,19 @@ pub fn hint(lang: &Catalogue, command: Command) -> String {
         Command::ExtrusionRevolution => "command.hint.extrusion_revolution",
         Command::ExtrusionApply => "command.hint.extrusion_apply",
         Command::ExtrusionCancel => "command.hint.extrusion_cancel",
-        Command::ExportStlCoarse => "command.hint.export_stl_coarse",
-        Command::ExportStlNormal => "command.hint.export_stl_normal",
-        Command::ExportStlFine => "command.hint.export_stl_fine",
+        Command::ExportStlCoarse | Command::ExportStlNormal | Command::ExportStlFine => {
+            "command.hint.export_stl"
+        }
         Command::ToggleHistory => "command.hint.toggle_history",
         Command::ToggleExplorer => "command.hint.toggle_explorer",
         Command::ToggleToolbarDocked => "command.hint.toggle_toolbar_docked",
         Command::OpenSettings => "command.hint.open_settings",
         Command::BackToMenu => "command.hint.back_to_menu",
-    })
+    };
+    match crate::export::gap(command) {
+        Some(gap) => lang.t_with(key, &[("gap", &dimension::short(gap))]),
+        None => lang.t(key),
+    }
 }
 
 /// The heading a run of the palette is listed under.

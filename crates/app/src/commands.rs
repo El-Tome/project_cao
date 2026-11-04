@@ -324,27 +324,6 @@ pub(crate) fn run(
     }
 }
 
-/// What an export picked asks the shell to write: within `gap` millimetres of
-/// the part, in millimetres.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct ExportRequest {
-    pub gap: f64,
-    pub millimetres_per_unit: f64,
-}
-
-pub(crate) fn export_request(command: Command, document: &PartDocument) -> Option<ExportRequest> {
-    let gap = match command {
-        Command::ExportStlCoarse => 0.1,
-        Command::ExportStlNormal => 0.02,
-        Command::ExportStlFine => 0.005,
-        _ => return None,
-    };
-    Some(ExportRequest {
-        gap,
-        millimetres_per_unit: document.scale(),
-    })
-}
-
 /// After the history moves, the sketch being edited may no longer exist. The
 /// editor has to let go of it rather than point at nothing.
 pub(crate) fn clamp_editor_to_document(editor: &mut SketchEditor, doc: &PartDocument) {

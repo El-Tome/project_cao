@@ -14,10 +14,14 @@
 //!   `with_labels_off_every_other_button_keeps_its_two_letters`
 //!
 //! Closes #580.
+//! - the three levels are offered while the part holds matter and not before
+//!   — `the_three_stl_levels_are_offered_only_while_the_part_holds_matter`
+//! - they are one menu, « Exporter en STL… », under a tab « Export » of its
+//!   own rather than inside « Extrusion » —
+//!   `the_three_stl_levels_are_one_menu_under_an_export_tab_of_their_own`
 //! - to try it: the file opens in a slicer, PrusaSlicer or Cura, at the right
-//!   size — reached from the ribbon's « Exporter en STL », whose three levels
-//!   are offered while the part holds matter and not before —
-//!   `the_three_stl_levels_are_offered_only_while_the_part_holds_matter`
+//!   size — no test: a human opens the file in a slicer, which nothing in this
+//!   workspace runs
 
 use super::*;
 use cao_sketch::WorkPlane;
@@ -294,17 +298,32 @@ fn the_three_stl_levels_are_offered_only_while_the_part_holds_matter() {
             "{level:?} is not offered while a sketch is open on a part holding a block"
         );
     }
+}
+
+fn tab<'a>(items: &'a [cao_prefs::Item], name: &str) -> Option<&'a [cao_prefs::Item]> {
+    items.iter().find_map(|item| match item {
+        cao_prefs::Item::Group { name: named, items } if named == name => Some(items.as_slice()),
+        _ => None,
+    })
+}
+
+#[test]
+fn the_three_stl_levels_are_one_menu_under_an_export_tab_of_their_own() {
     let toolbar = Settings::default().toolbar;
-    let held = reached(&toolbar.items);
-    for level in STL_LEVELS {
-        assert!(
-            held.contains(&level),
-            "the standard toolbar reaches no {level:?}"
-        );
-    }
+
+    let export = tab(&toolbar.items, "export")
+        .unwrap_or_else(|| panic!("the ribbon has no tab « export »: {:?}", toolbar.items));
     assert!(
-        holds_the_levels_together(&toolbar.items),
-        "the three levels are one group of the ribbon, drawn as a menu: {:?}",
-        toolbar.items,
+        holds_the_levels_together(export),
+        "the tab « export » holds the three levels as one menu: {export:?}",
+    );
+    let extrusion = tab(&toolbar.items, "extrusion").expect("the ribbon has its tab « extrusion »");
+    let strays: Vec<Command> = reached(extrusion)
+        .into_iter()
+        .filter(|command| STL_LEVELS.contains(command))
+        .collect();
+    assert!(
+        strays.is_empty(),
+        "the tab « extrusion » still holds {strays:?}"
     );
 }

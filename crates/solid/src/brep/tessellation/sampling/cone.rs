@@ -32,6 +32,7 @@ use std::f64::consts::TAU;
 
 use glam::DVec3;
 
+use super::capped::beyond_most;
 use super::round::{Rounded, SHARE};
 use super::{MOST, divisions};
 use crate::brep::conic::{Conic, Round};
@@ -102,6 +103,9 @@ pub(super) struct Grid {
     pub(super) steps: usize,
     pub(super) rows: usize,
     angles: Vec<f64>,
+    /// Whether the most steps a turn is cut into leave the grid short of the
+    /// tolerance it was cut for.
+    pub(super) capped: bool,
 }
 
 impl Grid {
@@ -176,8 +180,12 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
                     angles.push(radial.dot(spun.v()).atan2(radial.dot(spun.u())));
                 }
             }
-            let (steps, rows) = match spun {
-                Spun::Cone(_) => (divisions(widest, tolerance), 0),
+            let (steps, rows, capped) = match spun {
+                Spun::Cone(_) => (
+                    divisions(widest, tolerance),
+                    0,
+                    beyond_most(widest, tolerance),
+                ),
                 Spun::Round(round) => {
                     let faces = body
                         .face_ids()
@@ -193,6 +201,8 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
                     (
                         kept_by_walls(body, &round, steps, tolerance, eps),
                         divisions(round.radius(), tolerance * SHARE),
+                        beyond_most(widest, tolerance * SHARE)
+                            || beyond_most(round.radius(), tolerance * SHARE),
                     )
                 }
             };
@@ -203,6 +213,7 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
                     steps,
                     rows,
                     angles,
+                    capped,
                 },
             )
         })

@@ -197,6 +197,7 @@ What it does: [`sketch.md`](sketch.md).
 | Join and cut on the exact kernel | `solid/src/brep/combine.rs` and `combine/` | `Body::joined`, `Body::cut_by` |
 | Two faces at a slant — two walls at a skew angle, a wall off a cone's axis — decided clear of each other on the faces themselves before the kernel declines; a plane at a slant to a wall asked first, so its conic is registered only where faces may meet along it | `solid/src/brep/combine/clear.rs`, `combine/clear/walls.rs`, `combine/clear/hollow.rs` | `clear`, reached from `combine/related.rs`; `Wall`, `in_the_hollow`, `beyond` |
 | The exact kernel's triangles, every edge sampled once | `solid/src/brep/tessellation.rs` and `tessellation/` | `Body::triangles(tolerance)` |
+| A body written as a binary STL at a gap in millimetres, declined when some round is too wide for the most steps a turn is cut into (#580) | `solid/src/stl.rs`, `brep/tessellation/sampling/capped.rs` | `stl::of`, `stl::Uncovered`, `Cut::capped` |
 | Which side of a line or of an edge a point stands on, and which way a loop turns, decided exactly: the triangles' sweep and folds, the laid profile of a turn (#585) | `solid/src/orientation.rs`, `orientation/expansion.rs` | `turn`, `rotation`, `beside`, `Expansion` |
 | The rules every solid must keep, for the tests | `solid/src/soundness.rs` and `soundness/` | `closed`, `uncrossed`, `Lines`, `repeatable`, `campaign`, `listed` (an exact body's listing held to its geometry) |
 | Solids drawn at random, shrunk and printed as Rust | `solid/tests/random_solids/` | `Case::drawn`, `Case::smaller`, `check` |
@@ -376,6 +377,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Files panel: what it holds and what is half-done to it | `app/src/screens/explorer/state.rs` | `Explorer` |
 | Files panel: the drawing of it | `app/src/screens/explorer/view.rs` | `panel(...)` → `ExplorerAction` |
 | Starting a second window on another part | `app/src/adapters/window.rs` | `open_another` |
+| Exporting the part to STL: the gap each level asks for, the level suggested when one is refused, the file written where the save dialog says (#580) | `app/src/export.rs`, `app/src/adapters/save_dialog.rs`, `app/src/wording/export.rs` | `gap`, `export_request`, `stl`; `stl_destination`, `with_stl_extension`; `uncovered`, `written` |
 | What a part's picture is made of | `app/src/picture/scene.rs` | `of` |
 | Taking that picture | `app/src/picture/mod.rs` | `Painter::take`, `SIDE` |
 | Toolbar | `app/src/screens/ribbon/` | `view.rs` draws, `state.rs` says what a command is in, `Drawn` is what it is told about the part |

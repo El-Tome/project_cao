@@ -1,4 +1,9 @@
 //! What app · wording/command.rs is held to.
+//!
+//! Closes #580.
+//! - the three levels give the gaps they promise, each hint saying the gap
+//!   its export asks for, from the one figure —
+//!   `each_stl_level_s_hint_says_the_gap_its_export_asks_for`
 
 use std::collections::BTreeMap;
 
@@ -61,5 +66,28 @@ fn no_two_families_of_the_palette_are_headed_the_same() {
                 family_heading(&lang, family),
             );
         }
+    }
+}
+
+#[test]
+fn each_stl_level_s_hint_says_the_gap_its_export_asks_for() {
+    let lang = Catalogue::french();
+    let document = cao_part::PartDocument::new("part", chrono::Utc::now());
+
+    for level in [
+        Command::ExportStlCoarse,
+        Command::ExportStlNormal,
+        Command::ExportStlFine,
+    ] {
+        let gap = crate::export::export_request(level, &document)
+            .expect("a level asks for an export")
+            .gap;
+        let figure = format!("{} mm", crate::wording::dimension::short(gap));
+        let said = hint(&lang, level);
+
+        assert!(
+            said.contains(&figure),
+            "{level:?} asks for {figure} and its hint reads: {said}"
+        );
     }
 }

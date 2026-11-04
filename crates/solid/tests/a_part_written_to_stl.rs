@@ -523,3 +523,51 @@ fn a_body_the_triangles_cannot_cover_is_not_written() {
         "at 0.02 mm the same round is held, and written"
     );
 }
+
+/// A disc of radius 20 drawn as 32 flat sides, raised 10 by the flats: the
+/// drawing handed no runs.
+fn flats_disc() -> Body {
+    let corners: &'static [DVec2] = Box::leak(
+        (0..32)
+            .map(|index| DVec2::from_angle(index as f64 * TAU / 32.0) * 20.0)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+    );
+    let triangles: &'static [[DVec2; 3]] = Box::leak(
+        (1..corners.len() - 1)
+            .map(|index| [corners[0], corners[index], corners[index + 1]])
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+    );
+    let profile = Profile {
+        exact: None,
+        sampled: Loop::straight(corners),
+        sampled_holes: Vec::new(),
+        triangles,
+    };
+    Body::default()
+        .tool_raised(&profile, GROUND, DVec3::Z * 10.0)
+        .expect("the flats never decline")
+}
+
+#[test]
+fn a_body_on_the_flats_is_written_as_its_own_triangles_whatever_the_level() {
+    let body = flats_disc();
+    assert!(!body.is_exact(), "the disc is on the flats");
+    let own: Vec<Triangle> = body
+        .triangles()
+        .into_iter()
+        .map(|corners| corners.map(|corner| corner.as_vec3().as_dvec3()))
+        .collect();
+
+    for gap in LEVELS {
+        let triangles = read(&stl::of(&body, gap, 1.0).expect("the flats are written"));
+
+        assert_eq!(
+            triangles, own,
+            "at {gap} mm the flats are written as they are"
+        );
+        assert_eq!(closed(&triangles), Ok(()), "at {gap} mm");
+        assert_eq!(uncrossed(&triangles), Ok(()), "at {gap} mm");
+    }
+}

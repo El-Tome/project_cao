@@ -47,13 +47,8 @@ impl Body {
     /// along them, so that the triangles of two faces close against each
     /// other.
     pub fn triangles_by_face(&self, tolerance: f64) -> Cut {
-        let (mut cut, capped) = sampling::capped(|| self.cut(tolerance));
-        cut.capped = capped;
-        cut
-    }
-
-    fn cut(&self, tolerance: f64) -> Cut {
         let mut samples = Samples::of(self, tolerance);
+        let capped = samples.capped(self, tolerance);
         let mut drawn = Vec::new();
         let mut uncut = Vec::new();
         for id in self.face_ids() {
@@ -104,7 +99,7 @@ impl Body {
             triangles,
             faces,
             uncut,
-            capped: false,
+            capped,
         }
     }
 }

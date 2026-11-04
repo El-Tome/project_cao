@@ -34,7 +34,8 @@ use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
 use chrono::Utc;
 use glam::DVec2;
 
-use super::{ExportRequest, export_request, run};
+use super::run;
+use crate::export::{ExportRequest, export_request};
 use crate::lang::Catalogue;
 use crate::screens::SketchContext;
 use crate::screens::extrusion::ExtrusionState;

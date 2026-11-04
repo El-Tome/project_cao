@@ -228,12 +228,13 @@ impl CaoApp {
                 Command::OpenSettings => self.settings_open = true,
                 Command::BackToMenu => back_to_menu = true,
                 Command::ToggleExplorer => self.explorer.toggle(),
-                _ => match commands::export_request(command, worked_on.document) {
+                _ => match export::export_request(command, worked_on.document) {
                     Some(request) => export::stl(
                         command,
                         request,
                         &mut worked_on,
                         &DiskFiles,
+                        crate::adapters::save_dialog::stl_destination,
                         &mut self.error,
                     ),
                     None => changed |= commands::run(command, &mut worked_on, ribbon, viewport),

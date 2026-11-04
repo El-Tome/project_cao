@@ -14,8 +14,9 @@ pub(super) fn chamfer_refused(sketch: &Sketch, corner: Corner) -> Option<&'stati
 }
 
 /// The corner two sides clicked name: where they meet — or, two sides meeting
-/// at both their ends, the end nearest the click, named by its point. What
-/// they name nothing for, as the key of the sentence that says why.
+/// at both their ends, the end nearest the click, named by its point and the
+/// two sides, whatever else ends there. What they name nothing for, as the
+/// key of the sentence that says why.
 pub(super) fn named_by(
     sketch: &Sketch,
     first: CutSide,
@@ -30,9 +31,8 @@ pub(super) fn named_by(
         _ => ends
             .iter()
             .min_by(|one, other| away(one).total_cmp(&away(other)))
-            .filter(|end| sketch.sides_of(Corner::At(**end)).is_some())
-            .map(|end| Corner::At(*end))
-            .ok_or("sketch.corner_has_too_many_traits"),
+            .map(|end| Corner::BetweenAt(*end, first, second))
+            .ok_or("sketch.chamfer_needs_a_corner"),
     }
 }
 

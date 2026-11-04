@@ -14,7 +14,15 @@
 //!   two sides sharing both their ends, a D or a lens, are rounded at the end
 //!   named — `two_sides_sharing_both_ends_are_rounded_at_the_end_named`, and in
 //!   the sketch crate
-//!   `two_sides_sharing_both_ends_name_a_corner_only_with_its_point`; the tool
+//!   `two_sides_sharing_both_ends_name_a_corner_only_with_its_point`, and keep
+//!   their fillet once a third side ends there —
+//!   `a_d_rounded_at_an_end_a_trait_is_then_drawn_from_keeps_its_fillet_once_compacted`,
+//!   named again by its point and its sides in the sketch crate, by
+//!   `a_cut_between_two_sides_sharing_both_ends_is_named_by_its_point_and_its_sides`,
+//!   and reshaped in place when its value is retyped, in `cao_app`, by
+//!   `retyping_a_fillet_on_a_d_whose_end_a_trait_was_drawn_from_reshapes_it`;
+//!   one side given twice names no corner —
+//!   `one_side_given_twice_names_no_corner`; the tool
 //!   naming such a corner by its point or by its sides is held in `cao_app` by
 //!   `a_click_on_the_point_a_trait_and_an_arc_end_at_names_both_its_sides` and
 //!   `a_click_on_an_arc_away_from_its_ends_names_that_side`
@@ -2263,11 +2271,34 @@ fn trimming_an_arc_of_ellipse_side_keeps_its_cut_on_the_piece_at_the_corner() {
         ellipse: EllipseId(0),
         between: Some((high, THE_CORNER)),
     });
+    let drawing = PartState::rebuild(&corner_gone).sketches[0].clone();
     assert_eq!(
-        PartState::rebuild(&corner_gone).sketches[0]
-            .live_corner_cuts()
-            .count(),
+        drawing.live_corner_cuts().count(),
         0,
         "the stretch trimmed took the corner, and the cut with it"
+    );
+    assert!(
+        drawing.is_erased_cut(CornerCutId(0)),
+        "the cut is erased, not left standing on nothing"
+    );
+}
+
+#[test]
+fn a_d_rounded_at_an_end_a_trait_is_then_drawn_from_keeps_its_fillet_once_compacted() {
+    let (mut history, left, _) = a_d();
+    round(&mut history, Corner::At(left), 2.0);
+    a_trait(
+        &mut history,
+        PointRef::Existing(left),
+        PointRef::New(DVec2::new(0.0, 0.0)),
+    );
+    let before = the_fillet(&history, "a third side drawn from the rounded end");
+
+    let compacted = cao_part::compact(&history);
+
+    drawn_as_before(
+        &compacted,
+        before,
+        "the D compacted, a third side ending at its rounded end",
     );
 }

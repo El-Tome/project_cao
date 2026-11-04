@@ -280,8 +280,8 @@ fn a_straight_corner_gives_a_cut_no_place() {
 fn values_that_fit_have_a_share_of_at_least_one() {
     let (sketch, _, [right, up]) = a_right_angle();
 
-    let share = sketch.fitting_share(
-        &[(right.into(), up.into())],
+    let share = sketch.fitting_share_at(
+        &at_their_corner(&sketch, &[(right.into(), up.into())]),
         CutShape::Fillet { radius: 10.0 },
     );
 
@@ -295,12 +295,31 @@ fn the_tightest_side_says_how_much_of_the_values_fits() {
         .map(|rank| (sides[rank].into(), sides[(rank + 1) % 4].into()))
         .collect();
 
-    let share = sketch.fitting_share(&corners, CutShape::Fillet { radius: 15.0 });
+    let share = sketch.fitting_share_at(
+        &at_their_corner(&sketch, &corners),
+        CutShape::Fillet { radius: 15.0 },
+    );
 
     assert!(
         (share * 15.0 - 10.0).abs() < SHARE_NEAR,
         "two fillets share the short side: {share}"
     );
+}
+
+/// Each pair of sides at the one end they share, as a corner is handed to
+/// [`Sketch::fitting_share_at`].
+fn at_their_corner(
+    sketch: &Sketch,
+    pairs: &[(CutSide, CutSide)],
+) -> Vec<(PointId, CutSide, CutSide)> {
+    pairs
+        .iter()
+        .map(|(first, second)| {
+            sketch
+                .sides_of(crate::Corner::Between(*first, *second))
+                .expect("the two sides meet at one end")
+        })
+        .collect()
 }
 
 /// A trait from (10, 10) to (50, 10), and an arc round `centre` ending at
@@ -338,7 +357,10 @@ fn assert_the_largest_offered(
     largest: f64,
     what: &str,
 ) {
-    let share = sketch.fitting_share(&[(sides[0], sides[1])], CutShape::Fillet { radius: asked });
+    let share = sketch.fitting_share_at(
+        &at_their_corner(sketch, &[(sides[0], sides[1])]),
+        CutShape::Fillet { radius: asked },
+    );
 
     assert!(
         (share * asked - largest).abs() < SHARE_NEAR,
@@ -423,8 +445,8 @@ fn assert_held_back_together(
             "{what}: corner {rank} on its own takes the fillet asked"
         );
     }
-    let share = sketch.fitting_share(
-        &corners.map(|[first, second]| (first, second)),
+    let share = sketch.fitting_share_at(
+        &at_their_corner(sketch, &corners.map(|[first, second]| (first, second))),
         CutShape::Fillet { radius: asked },
     );
     assert!(
@@ -513,8 +535,8 @@ fn a_cut_already_standing_takes_its_part_of_the_share() {
         )
         .expect("a rectangle's corner takes a fillet");
 
-    let share = sketch.fitting_share(
-        &[(sides[1].into(), sides[2].into())],
+    let share = sketch.fitting_share_at(
+        &at_their_corner(&sketch, &[(sides[1].into(), sides[2].into())]),
         CutShape::Fillet { radius: 10.0 },
     );
 
@@ -547,8 +569,8 @@ fn a_cut_in_construction_holds_no_drawn_cut_back() {
         sketch.drawn_cut(drawn).is_some_and(|cut| cut.fits),
         "the dashed arc takes nothing from the outline, so the side has room"
     );
-    let share = sketch.fitting_share(
-        &[(sides[2].into(), sides[3].into())],
+    let share = sketch.fitting_share_at(
+        &at_their_corner(&sketch, &[(sides[2].into(), sides[3].into())]),
         CutShape::Fillet { radius: 6.0 },
     );
     assert!(share >= 1.0, "{share}");
@@ -567,8 +589,8 @@ fn a_corner_cut_again_does_not_count_what_its_old_cut_takes() {
         )
         .expect("a rectangle's corner takes a fillet");
 
-    let share = sketch.fitting_share(
-        &[(sides[0].into(), sides[1].into())],
+    let share = sketch.fitting_share_at(
+        &at_their_corner(&sketch, &[(sides[0].into(), sides[1].into())]),
         CutShape::Fillet { radius: 20.0 },
     );
 

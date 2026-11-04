@@ -27,6 +27,10 @@ pub enum Corner {
     /// which is the part layer's business — [`Sketch::sides_of`] answers only
     /// for a drawing nothing has divided since.
     Between(CutSide, CutSide),
+    /// These two sides at this point, the one named first before the other —
+    /// for two sides sharing both their ends, a D or a lens, whose sides alone
+    /// name two corners and whose point may be crowded by a third side.
+    BetweenAt(PointId, CutSide, CutSide),
 }
 
 impl Sketch {
@@ -51,6 +55,11 @@ impl Sketch {
                 [point] => Some((point, first, second)),
                 _ => None,
             },
+            Corner::BetweenAt(point, first, second) => {
+                let ends_there = |side: CutSide| self.far_end_of(side, point).is_some();
+                (first != second && ends_there(first) && ends_there(second))
+                    .then_some((point, first, second))
+            }
         }
     }
 
@@ -58,7 +67,7 @@ impl Sketch {
     /// shows as taken.
     pub fn corner_point(&self, corner: Corner) -> Option<PointId> {
         match corner {
-            Corner::At(point) => Some(point),
+            Corner::At(point) | Corner::BetweenAt(point, ..) => Some(point),
             Corner::Between(..) => self.sides_of(corner).map(|(point, _, _)| point),
         }
     }

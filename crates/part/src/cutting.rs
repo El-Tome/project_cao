@@ -220,12 +220,18 @@ impl PartState {
     /// every trim or division since, rather than trusted as a number.
     fn sides_now(&self, sketch: usize, corner: Corner) -> Option<(PointId, CutSide, CutSide)> {
         let drawing = self.sketches.get(sketch)?;
-        let Corner::Between(first, second) = corner else {
-            return drawing.sides_of(corner);
+        let (first, second, at) = match corner {
+            Corner::At(_) => return drawing.sides_of(corner),
+            Corner::Between(first, second) => (first, second, None),
+            Corner::BetweenAt(point, first, second) => (first, second, Some(point)),
         };
         for a in self.now(sketch, first) {
             for b in self.now(sketch, second) {
-                if let Some(named) = drawing.sides_of(Corner::Between(a, b)) {
+                let now = match at {
+                    Some(point) => Corner::BetweenAt(point, a, b),
+                    None => Corner::Between(a, b),
+                };
+                if let Some(named) = drawing.sides_of(now) {
                     return Some(named);
                 }
             }

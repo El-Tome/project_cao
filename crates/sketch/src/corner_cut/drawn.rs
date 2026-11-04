@@ -191,24 +191,7 @@ impl Sketch {
     /// A fillet asked beside a curve takes nothing in proportion to its
     /// radius, and the share is searched for instead.
     ///
-    /// Each corner is named by its two sides alone, at the one end they share
-    /// — see [`Sketch::fitting_share_at`] for a corner named by its point too.
-    pub fn fitting_share(&self, corners: &[(CutSide, CutSide)], shape: CutShape) -> f64 {
-        let corners: Vec<(PointId, CutSide, CutSide)> = corners
-            .iter()
-            .filter_map(|(first, second)| {
-                let [corner] = self.corners_between(*first, *second)[..] else {
-                    return None;
-                };
-                Some((corner, *first, *second))
-            })
-            .collect();
-        self.fitting_share_at(&corners, shape)
-    }
-
-    /// How much of the values given a gesture can lay on these corners at
-    /// most, each named by its point and its two sides — see
-    /// [`Sketch::fitting_share`].
+    /// Each corner is named by its point and its two sides.
     pub fn fitting_share_at(
         &self,
         corners: &[(PointId, CutSide, CutSide)],

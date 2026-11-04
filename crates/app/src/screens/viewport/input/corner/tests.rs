@@ -60,7 +60,9 @@
 //! a curve clicked, then its corner point, completes the corner —
 //! `a_curve_clicked_then_its_corner_point_completes_the_corner` — and the
 //! status line speaks of sides, not traits —
-//! `the_status_line_asks_for_the_other_side_of_a_corner_whatever_it_is`.
+//! `the_status_line_asks_for_the_other_side_of_a_corner_whatever_it_is`. The
+//! two sides clicked are the corner taken, whatever else ends where they meet
+//! — `two_sides_clicked_are_the_corner_taken_whatever_else_ends_there`.
 //!
 //! The tool's share of #617, whose criteria live with the part's tests in
 //! `crates/part/tests/a_cut_is_drawn_from_its_sharp_corner.rs`: a value too big
@@ -984,8 +986,12 @@ fn two_sides_clicked_that_share_both_ends_take_the_corner_nearest_the_click() {
 
         assert_eq!(
             corners_held(&context),
-            vec![Corner::At(end)],
-            "the arc and the trait clicked near {end:?} name the corner there"
+            vec![Corner::BetweenAt(
+                end,
+                CutSide::Arc(cao_sketch::ArcId(0)),
+                CutSide::Trait(SegmentId(0))
+            )],
+            "the arc and the trait clicked near {end:?} name the corner between them there"
         );
     }
 }
@@ -1070,4 +1076,94 @@ fn the_status_line_asks_for_the_other_side_of_a_corner_whatever_it_is() {
         "the sides crowding a point may be curves: {}",
         lang.t("sketch.corner_has_too_many_traits")
     );
+    for (key, said) in [
+        (
+            "sketch.click_a_corner_to_round",
+            "Cliquez un coin à arrondir, ou ses deux côtés",
+        ),
+        ("sketch.click_a_corner", "Cliquez les deux côtés d'un coin"),
+        (
+            "sketch.chamfer_needs_a_corner",
+            "Ces deux côtés ne se rejoignent pas",
+        ),
+    ] {
+        assert_eq!(lang.t(key), said, "{key} speaks of sides");
+    }
+}
+
+/// A part holding an arc round (20, 10) of radius 10 over a construction
+/// base from (10, 10) to (30, 10), sharing both its ends, and a wall drawn
+/// down from the left end to (0, 0).
+fn an_arc_over_a_construction_base_beside_a_wall() -> (cao_part::PartDocument, PointId, PointId) {
+    use cao_part::history::PointRef;
+    let mut document = cao_part::PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for at in [DVec2::new(10.0, 10.0), DVec2::new(30.0, 10.0)] {
+        document.apply(Operation::AddPoint {
+            sketch: 0,
+            position: at,
+            on: Vec::new(),
+        });
+    }
+    let (left, right) = (PointId(1), PointId(2));
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(left),
+        end: PointRef::Existing(right),
+        construction: true,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(20.0, 10.0)),
+        start: PointRef::Existing(right),
+        end: PointRef::Existing(left),
+        construction: false,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(left),
+        end: PointRef::New(DVec2::new(0.0, 0.0)),
+        construction: false,
+    });
+    (document, left, right)
+}
+
+#[test]
+fn two_sides_clicked_are_the_corner_taken_whatever_else_ends_there() {
+    let (mut document, left, right) = an_arc_over_a_construction_base_beside_a_wall();
+    let mut editor = editing_with(Tool::Fillet);
+    let mut extrusion = crate::screens::extrusion::ExtrusionState::default();
+    let lang = crate::lang::Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let (arc, base) = (
+        CutSide::Arc(cao_sketch::ArcId(0)),
+        CutSide::Trait(SegmentId(0)),
+    );
+
+    for (end, on_the_arc, on_the_base) in [
+        (left, over_the_d(150.0), DVec2::new(13.0, 10.0)),
+        (right, over_the_d(30.0), DVec2::new(27.0, 10.0)),
+    ] {
+        context.editor.tool_state = ToolState::None;
+        context.editor.message = None;
+
+        corner(&mut context, 0, on_the_arc, SNAP);
+        corner(&mut context, 0, on_the_base, SNAP);
+
+        assert_eq!(
+            corners_held(&context),
+            vec![Corner::BetweenAt(end, arc, base)],
+            "the arc and the base clicked near {end:?} are the corner taken, not the arc \
+             and the wall, and not a crowd: {:?}",
+            context.editor.message
+        );
+    }
 }

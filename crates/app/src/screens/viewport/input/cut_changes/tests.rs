@@ -512,3 +512,82 @@ fn the_second_pair_of_a_point_given_a_fillet_is_laid_beside_the_first_rather_tha
         ]
     );
 }
+
+/// A D — a trait from (10, 10) to (30, 10) and the arc round (20, 10) closing
+/// it over the top — rounded by two at its left end, and a trait drawn from
+/// that end afterwards: the end then carries three sides.
+fn a_d_rounded_at_an_end_a_trait_was_drawn_from() -> PartDocument {
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for at in [DVec2::new(10.0, 10.0), DVec2::new(30.0, 10.0)] {
+        document.apply(Operation::AddPoint {
+            sketch: 0,
+            position: at,
+            on: Vec::new(),
+        });
+    }
+    let (left, right) = (cao_sketch::PointId(1), cao_sketch::PointId(2));
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(left),
+        end: PointRef::Existing(right),
+        construction: false,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(20.0, 10.0)),
+        start: PointRef::Existing(right),
+        end: PointRef::Existing(left),
+        construction: false,
+    });
+    document.apply(Operation::Fillet {
+        sketch: 0,
+        corners: vec![Corner::At(left)],
+        radius: 2.0.into(),
+        construction: false,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(left),
+        end: PointRef::New(DVec2::new(0.0, 0.0)),
+        construction: false,
+    });
+    document
+}
+
+#[test]
+fn retyping_a_fillet_on_a_d_whose_end_a_trait_was_drawn_from_reshapes_it() {
+    let mut document = a_d_rounded_at_an_end_a_trait_was_drawn_from();
+    assert_eq!(shapes(&document), vec![CutShape::Fillet { radius: 2.0 }]);
+    let mut editor = holding(Vec::new());
+    let (mut extrusion, lang) = (ExtrusionState::default(), Catalogue::french());
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    open_cut_values(&mut context, 0, CornerCutId(0));
+    let field = context.editor.live.field(0);
+    field.text = "3".to_string();
+    field.take(&Variables::default());
+
+    assert!(super::super::corner::cut(&mut context, 0));
+
+    assert!(
+        matches!(
+            context.document.history.applied_operations().last(),
+            Some(Operation::CutChange(CutChange::Reshape { .. }))
+        ),
+        "the value retyped reshapes the fillet in place, rather than laying a new one its \
+         crowded corner refuses: {:?}",
+        context.document.history.applied_operations().last()
+    );
+    assert_eq!(
+        shapes(context.document),
+        vec![CutShape::Fillet { radius: 3.0 }]
+    );
+}

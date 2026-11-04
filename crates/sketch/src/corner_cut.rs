@@ -175,15 +175,15 @@ impl Sketch {
             .collect()
     }
 
-    /// How a cut's corner is named again: by its two sides, the first first,
-    /// or by its point where the two share both their ends and their sides
-    /// alone name no corner.
+    /// How a cut's corner is named again: by its two sides, the first first
+    /// — with its point too where the two share both their ends and their
+    /// sides alone name no corner.
     pub fn corner_named(&self, cut: CornerCutId) -> Option<Corner> {
         let laid = self.corner_cuts.get(cut.0)?;
         let [first, second] = laid.sides;
         Some(match self.corners_between(first, second).len() {
             1 => Corner::Between(first, second),
-            _ => Corner::At(laid.corner),
+            _ => Corner::BetweenAt(laid.corner, first, second),
         })
     }
 

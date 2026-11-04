@@ -4,8 +4,8 @@
 //! rule moving the drawing is #501's to check.
 
 use cao_sketch::{
-    Chamfer, ChosenAxis, Corner, Crossing, CutShape, Element, EllipseMode, PointId, Repeats,
-    SegmentId, Sketch, SketchAxis, Support, WorkPlane, ellipse_from, rise_of,
+    Chamfer, ChosenAxis, Crossing, CutShape, Element, EllipseMode, PointId, Repeats, SegmentId,
+    Sketch, SketchAxis, Support, WorkPlane, ellipse_from, rise_of,
 };
 use glam::DVec2;
 
@@ -117,14 +117,33 @@ fn chosen(sketch: &Sketch, axis: Axis) -> Option<ChosenAxis> {
     }
 }
 
-/// The two traits a point is the corner of, as the campaign has always taken
-/// a corner: two traits meeting there, and nothing else ending there.
+/// The two traits a point is the corner of, by the rule the campaign was
+/// written against: exactly two drawn traits end there, no arc stands on it —
+/// as its centre or as an end, construction or not — and no circle is centred
+/// on it. An ellipse ending there is not looked at.
 pub(super) fn traits_cornered_at(
     sketch: &Sketch,
     point: PointId,
 ) -> Option<(SegmentId, SegmentId)> {
-    let (_, first, second) = sketch.sides_of(Corner::At(point))?;
-    Some((first.as_trait()?, second.as_trait()?))
+    let on_an_arc = sketch
+        .live_arcs()
+        .any(|(_, arc)| arc.center == point || arc.start == point || arc.end == point);
+    let centres_a_circle = sketch
+        .live_circles()
+        .any(|(_, round)| round.center == point);
+    if on_an_arc || centres_a_circle {
+        return None;
+    }
+    let traits: Vec<SegmentId> = sketch
+        .live_segments()
+        .filter(|(_, side)| !side.construction)
+        .filter(|(_, side)| side.start == point || side.end == point)
+        .map(|(id, _)| id)
+        .collect();
+    match traits[..] {
+        [first, second] => Some((first, second)),
+        _ => None,
+    }
 }
 
 fn point_at(sketch: &Sketch, at: [f64; 2]) -> Option<PointId> {

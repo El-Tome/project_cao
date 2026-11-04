@@ -38,6 +38,11 @@ pub(super) fn add_cuts(
                 Corner::Between(one, other) => {
                     Some(Corner::Between(side_now(one, map)?, side_now(other, map)?))
                 }
+                Corner::BetweenAt(point, one, other) => Some(Corner::BetweenAt(
+                    map.points.get(&point).copied()?,
+                    side_now(one, map)?,
+                    side_now(other, map)?,
+                )),
                 Corner::At(point) => map.points.get(&point).copied().map(Corner::At),
             })
             .collect();

@@ -247,3 +247,49 @@ fn two_sides_sharing_both_ends_name_a_corner_only_with_its_point() {
         "two corners, two cuts"
     );
 }
+
+#[test]
+fn a_cut_between_two_sides_sharing_both_ends_is_named_by_its_point_and_its_sides() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let left = sketch.add_point(DVec2::new(10.0, 10.0));
+    let right = sketch.add_point(DVec2::new(30.0, 10.0));
+    let across = sketch.add_segment(left, right);
+    let centre = sketch.add_point(DVec2::new(20.0, 10.0));
+    let over = sketch.add_arc(centre, right, left);
+    let cut = sketch
+        .cut_corner_at(
+            left,
+            across,
+            over,
+            CutShape::Fillet { radius: 2.0 },
+            false,
+            0,
+        )
+        .expect("the corner at the left end");
+    let down = sketch.add_point(DVec2::new(0.0, 0.0));
+    sketch.add_segment(left, down);
+
+    let named = crate::Corner::BetweenAt(left, CutSide::Trait(across), CutSide::Arc(over));
+    assert_eq!(
+        sketch.corner_named(cut),
+        Some(named),
+        "a third side at that end leaves the point alone no saying which corner, and \
+         the two sides alone name two"
+    );
+    assert_eq!(
+        sketch.sides_of(named),
+        Some((left, CutSide::Trait(across), CutSide::Arc(over))),
+        "named so, the corner is found again however crowded its point"
+    );
+}
+
+#[test]
+fn one_side_given_twice_names_no_corner() {
+    let (mut sketch, corner, [right, _]) = a_right_angle();
+
+    assert_eq!(
+        sketch.cut_corner_at(corner, right, right, ROUND, false, 0),
+        Err(CutRefused::NoCorner)
+    );
+    assert_eq!(sketch.live_corner_cuts().count(), 0);
+}

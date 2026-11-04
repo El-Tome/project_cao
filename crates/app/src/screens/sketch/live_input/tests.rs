@@ -1,5 +1,10 @@
 //! What app · screens/sketch/live_input.rs is held to.
 //!
+//! Closes #519.
+//! - a live field shows a suggested length through the one formatter, to
+//!   4 decimals, and never a non-zero one as zero —
+//!   `a_suggested_value_is_shown_to_a_tenth_of_a_micron`
+//!
 //! Closes #423.
 //! - on a part with no scale yet, a length typed while a shape is drawn is
 //!   worth the length the shape had on screen when it was typed, and keeps
@@ -185,4 +190,29 @@ fn a_formula_typed_keeps_what_it_was_written_as() {
 
     assert_eq!(live.sign_as(1, true), 0);
     assert_eq!(live.field(1).text, "45 + 45");
+}
+
+#[test]
+fn a_suggested_value_is_shown_to_a_tenth_of_a_micron() {
+    let mut live = LiveInput::default();
+
+    live.open_on(&[Some(37.461_829_3), Some(0.000_03)]);
+
+    assert_eq!(live.field(0).text, "37.4618");
+    let held = live
+        .field(0)
+        .locked
+        .expect("a value shown is a value decided");
+    assert!(
+        (held - 37.4618).abs() < 1e-12,
+        "the field holds {held}, not the 37.4618 it shows",
+    );
+    let tiny = live.field(1).text.clone();
+    let shown: f64 = tiny
+        .parse()
+        .unwrap_or_else(|_| panic!("{tiny:?} is not a number"));
+    assert!(
+        shown > 0.0,
+        "0.00003 is suggested, and the field shows {tiny:?}"
+    );
 }

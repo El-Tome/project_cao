@@ -518,6 +518,7 @@
   "settings.viewport.unit": "Unité :",
   "settings.viewport.unit_auto": "Auto",
   "settings.viewport.measure_figures": "Chiffres d'une mesure",
+  "settings.viewport.measure_figures_all": "Tous, au dixième de micron",
   "settings.viewport.camera": "Caméra",
   "settings.viewport.min_distance": "Distance minimale",
   "settings.viewport.max_distance": "Distance maximale",

@@ -4,6 +4,7 @@ use cao_part::Variables;
 use cao_part::history::{CutAsked, CutChange};
 
 use crate::lang::Catalogue;
+use crate::wording::dimension::short;
 use crate::wording::formula::sized;
 use crate::wording::history::values::chamfer as chamfer_mode;
 
@@ -38,10 +39,7 @@ pub(super) fn detail(lang: &Catalogue, variables: &Variables, change: &CutChange
             "history.detail.fillet_changed",
             &[
                 ("sketch", &sketch),
-                (
-                    "radius",
-                    &sized(lang, variables, radius, |value| format!("{value:.3}")),
-                ),
+                ("radius", &sized(lang, variables, radius, short)),
             ],
         ),
         CutChange::Reshape {

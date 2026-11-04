@@ -6,7 +6,7 @@ use cao_part::history::{ChamferAsked, PointRef, RevolutionAxis};
 use cao_sketch::ChosenAxis;
 
 use crate::lang::Catalogue;
-use crate::wording::{constraints, formula};
+use crate::wording::{constraints, dimension, formula};
 
 /// A shape drawn from one point to another: a segment, or a rectangle by its
 /// opposite corners.
@@ -41,13 +41,16 @@ pub(super) fn point_label(lang: &Catalogue, point: &PointRef) -> String {
         PointRef::New(position) => lang.t_with(
             "history.detail.new_point",
             &[
-                ("x", &rounded(position.x, 1)),
-                ("y", &rounded(position.y, 1)),
+                ("x", &dimension::short(position.x)),
+                ("y", &dimension::short(position.y)),
             ],
         ),
         PointRef::Held { at, .. } => lang.t_with(
             "history.detail.held_point",
-            &[("x", &rounded(at.x, 1)), ("y", &rounded(at.y, 1))],
+            &[
+                ("x", &dimension::short(at.x)),
+                ("y", &dimension::short(at.y)),
+            ],
         ),
     }
 }
@@ -58,9 +61,8 @@ pub(super) fn rounded(value: f64, places: usize) -> String {
 
 /// What a chamfer took off each side, in the words of the mode it was cut in.
 pub(super) fn chamfer(lang: &Catalogue, variables: &Variables, mode: &ChamferAsked) -> String {
-    let say = |written: &cao_part::Formula| {
-        formula::sized(lang, variables, written, |value| format!("{value:.3}"))
-    };
+    let say =
+        |written: &cao_part::Formula| formula::sized(lang, variables, written, dimension::short);
     match mode {
         ChamferAsked::Equal(reach) => {
             lang.t_with("history.chamfer.equal", &[("reach", &say(reach))])

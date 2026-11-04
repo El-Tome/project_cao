@@ -1,5 +1,9 @@
 //! What app · screens/variables/state.rs is held to.
 //!
+//! Closes #519.
+//! - what a variable comes to is never shown as zero when it is not —
+//!   `a_variable_worth_less_than_a_tenth_of_a_micron_is_not_shown_as_nothing`
+//!
 //! Closes #175.
 //! - a row is added, edited or deleted in the panel, and one asked as it was
 //!   records nothing — `every_variable_is_a_row_with_its_formula_and_what_it_comes_to`,
@@ -219,4 +223,27 @@ fn the_rows_a_refusal_names_blink_for_a_few_seconds() {
     assert_eq!(panel.rows_blinking(10.1), Some((&[double][..], true)));
     assert_eq!(panel.rows_blinking(10.3), Some((&[double][..], false)));
     assert_eq!(panel.rows_blinking(14.0), None, "and not for ever");
+}
+
+#[test]
+fn a_variable_worth_less_than_a_tenth_of_a_micron_is_not_shown_as_nothing() {
+    let mut panel = VariablesPanel::default();
+    let mut document = PartDocument::new("plate", Utc::now());
+    added(&mut panel, &mut document, "play", "0.00003");
+
+    let offers = crate::screens::variables::offered(document.variables());
+    let play = offers
+        .iter()
+        .find(|offer| offer.name == "play")
+        .expect("play is offered");
+    let shown: f64 = play
+        .beside
+        .parse()
+        .unwrap_or_else(|_| panic!("{:?} is not a number", play.beside));
+
+    assert!(
+        shown > 0.0,
+        "play comes to 0.00003 and is offered beside {:?}",
+        play.beside,
+    );
 }

@@ -234,9 +234,9 @@ impl ViewScale {
             1.0
         };
         let step_millimeters = adaptive_step(
-            (units_per_pixel * millimeters_per_unit) as f32,
-            config.grid_pixel_spacing,
-        ) as f64;
+            units_per_pixel * millimeters_per_unit,
+            f64::from(config.grid_pixel_spacing),
+        );
 
         Self {
             units_per_pixel,

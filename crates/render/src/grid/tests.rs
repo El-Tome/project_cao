@@ -1,5 +1,11 @@
 //! What the grid of a work plane is held to.
 //!
+//! Closes #519.
+//! - the grid step is chosen in f64 —
+//!   `a_grid_step_is_chosen_in_f64_and_is_the_round_value_it_says`; that a
+//!   snapped place is round is held where the snapping is, in
+//!   `screens/viewport/state/tests.rs`
+//!
 //! Closes #318.
 //! - a sketch on an offset or inclined face shows its grid on that face —
 //!   `a_grid_lies_on_the_plane_it_was_given`
@@ -98,7 +104,7 @@ fn adaptive_step_follows_the_1_2_5_sequence() {
             "step {step} too small for {units_per_pixel}"
         );
 
-        let mantissa = step / 10f32.powf(step.log10().floor());
+        let mantissa = step / 10f64.powf(step.log10().floor());
         assert!(
             [1.0, 2.0, 5.0]
                 .iter()
@@ -110,12 +116,23 @@ fn adaptive_step_follows_the_1_2_5_sequence() {
     }
 }
 
+#[test]
+fn a_grid_step_is_chosen_in_f64_and_is_the_round_value_it_says() {
+    let step: f64 = adaptive_step(0.002_f64, 48.0);
+
+    assert!(
+        (step - 0.1).abs() < 1e-15,
+        "a tenth of a millimetre chosen in f32 is {step}, and every place snapped \
+         to it a metre out lands a hundredth of a micron off",
+    );
+}
+
 /// Zooming in never coarsens the grid, zooming out never refines it.
 #[test]
 fn adaptive_step_grows_with_distance() {
     let mut previous = 0.0;
     for exponent in -4..4 {
-        let step = adaptive_step(10f32.powi(exponent), 48.0);
+        let step = adaptive_step(10f64.powi(exponent), 48.0);
         assert!(step >= previous);
         previous = step;
     }

@@ -1,5 +1,17 @@
 //! What the measure tool says, held to what #176 asked it to say.
 //!
+//! Closes #519.
+//! - the measure tool gives as many figures as 0.1 µm needs: 7 on 100 mm —
+//!   `a_measure_on_a_hundred_millimetres_reads_to_seven_figures`
+//! - and 8 on a metre — `a_measure_on_a_metre_reads_to_eight_figures`
+//! - the count follows the size of what is read, so the last figure falls on
+//!   the tenth of a micron, and the reader's setting only asks for fewer —
+//!   `a_measure_on_a_hundred_millimetres_reads_to_seven_figures`,
+//!   `fewer_figures_shortens_every_number_a_measure_says`; the 0.350001 pin of
+//!   `a_measure_is_held_to_the_figures_the_reader_asked_for` changes on purpose
+//! - a measured angle is said to four decimals of a degree, like every other —
+//!   `a_measured_angle_is_said_to_four_decimals_of_a_degree`
+//!
 //! Closes #176.
 //! - a straight run says the distance and the reach along each axis, one to a
 //!   side of the triangle — `a_run_says_one_number_for_each_side_of_its_triangle`
@@ -36,9 +48,11 @@ fn millimetres() -> UnitDisplay {
     UnitDisplay::Fixed(cao_prefs::config::LengthUnit::Millimeter)
 }
 
-/// The figures a fresh installation shows, which is as many as the arithmetic
-/// is trusted for.
-const FIGURES: u32 = cao_prefs::config::MOST_FIGURES;
+/// The figures a fresh installation shows: as many as a tenth of a micron
+/// needs at the size of what is read.
+fn figures() -> u32 {
+    cao_prefs::ViewportConfig::default().measure_figures
+}
 
 fn a_run(target: DimensionTarget, span: f64, offsets: DVec2) -> Said {
     says(
@@ -46,7 +60,7 @@ fn a_run(target: DimensionTarget, span: f64, offsets: DVec2) -> Said {
         Measured::Of(target),
         Reading::Gap { span, offsets },
         millimetres(),
-        FIGURES,
+        figures(),
     )
 }
 
@@ -117,7 +131,7 @@ fn a_round_says_both_the_radius_and_the_diameter() {
         Measured::Of(DimensionTarget::ArcRadius(cao_sketch::ArcId(0))),
         Reading::Round { radius: 12.5 },
         millimetres(),
-        FIGURES,
+        figures(),
     ) else {
         panic!("a circle is not a run, and is written beside itself");
     };
@@ -137,7 +151,7 @@ fn an_angle_is_said_in_degrees() {
         Measured::Of(DimensionTarget::corner(SegmentId(0), SegmentId(1))),
         Reading::Opening { degrees: 37.25 },
         millimetres(),
-        FIGURES,
+        figures(),
     ) else {
         panic!("an angle is not a run either");
     };
@@ -162,11 +176,14 @@ fn a_measure_is_held_to_the_figures_the_reader_asked_for() {
         panic!("a straight run is shown as a triangle");
     };
 
-    assert!(span.contains("40.0015"), "the run: {span:?}");
-    assert!(up.contains("0.350001"), "and each reach: {up:?}");
+    assert!(span.contains("40.0015 "), "the run: {span:?}");
+    assert!(
+        up.contains("0.35 "),
+        "and each reach, to the tenth of a micron and no further: {up:?}",
+    );
     assert!(
         across.contains("40 "),
-        "a reach round to six figures says so plainly, rather than 40.0000: {across:?}",
+        "a reach round to a tenth of a micron says so plainly, rather than 40.0000: {across:?}",
     );
 
     let Said::Beside(lines) = says(
@@ -176,7 +193,7 @@ fn a_measure_is_held_to_the_figures_the_reader_asked_for() {
             degrees: 37.249_998_3,
         },
         millimetres(),
-        FIGURES,
+        figures(),
     ) else {
         panic!("an angle is written beside itself");
     };
@@ -213,8 +230,60 @@ fn fewer_figures_shortens_every_number_a_measure_says() {
     );
     assert!(across.contains("1.41"), "and the reach with it: {across:?}");
     assert_ne!(
-        read(cao_prefs::config::MOST_FIGURES),
+        read(figures()),
         read(cao_prefs::config::FEWEST_FIGURES),
         "the setting is the reader's, and has to actually move something",
+    );
+}
+
+#[test]
+fn a_measure_on_a_hundred_millimetres_reads_to_seven_figures() {
+    let Said::Triangle { span, across, .. } =
+        a_run(distance(), 100.123_456_78, DVec2::new(37.461_829_3, 92.9))
+    else {
+        panic!("a straight run is shown as a triangle");
+    };
+
+    assert!(
+        span.contains("100.1235 mm"),
+        "a hundred millimetres to the tenth of a micron is seven figures: {span:?}",
+    );
+    assert!(
+        across.contains("37.4618 mm"),
+        "and a reach under a hundred is one figure fewer, the last still on the \
+         tenth of a micron: {across:?}",
+    );
+}
+
+#[test]
+fn a_measure_on_a_metre_reads_to_eight_figures() {
+    let Said::Triangle { span, .. } = a_run(distance(), 1_000.123_456_78, DVec2::new(600.0, 800.0))
+    else {
+        panic!("a straight run is shown as a triangle");
+    };
+
+    assert!(
+        span.contains("1000.1235 mm"),
+        "a metre to the tenth of a micron is eight figures: {span:?}",
+    );
+}
+
+#[test]
+fn a_measured_angle_is_said_to_four_decimals_of_a_degree() {
+    let Said::Beside(lines) = says(
+        &french(),
+        Measured::Of(DimensionTarget::corner(SegmentId(0), SegmentId(1))),
+        Reading::Opening {
+            degrees: 101.309_932_474_020_2,
+        },
+        millimetres(),
+        figures(),
+    ) else {
+        panic!("an angle is written beside itself");
+    };
+
+    assert!(
+        lines[0].contains("101.3099°"),
+        "the opening, as the dimension tool would show it: {lines:?}",
     );
 }

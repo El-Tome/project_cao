@@ -7,7 +7,7 @@ use cao_sketch::{DimensionMode, DimensionTarget, Support, ToolState};
 use glam::DVec2;
 
 use crate::screens::SketchContext;
-use crate::screens::viewport::HOLD_PIXELS;
+use crate::screens::viewport::{HOLD_PIXELS, values::held_as_shown};
 use crate::wording::{constraints, dimension, outcome};
 
 use super::{annotation_position, nearest_annotation, refine};
@@ -215,8 +215,8 @@ fn take_in_the_points_it_hung(
 
 /// Puts down the dimension that was waiting, where the click landed.
 ///
-/// The value it starts with is what the geometry already measures, so placing
-/// one never moves the drawing; typing another is what does.
+/// The value it starts with is what the geometry measures, held to what is
+/// shown of it; typing another is what moves the drawing.
 pub(super) fn place_dimension(
     context: &mut SketchContext<'_>,
     index: usize,
@@ -234,8 +234,7 @@ pub(super) fn place_dimension(
             sketch.oriented_holding(target, cursor, pixel * HOLD_PIXELS)
         });
 
-    // The reading asked for is already on the drawing: show its value rather
-    // than lay a second copy over it.
+    // Already on the drawing: show its value rather than lay a second copy.
     if context.document.sketches()[index]
         .dimension_of(target)
         .is_some()
@@ -244,9 +243,10 @@ pub(super) fn place_dimension(
         return false;
     }
 
-    let Some(value) = context.document.measured(index, target) else {
+    let Some(measured) = context.document.measured(index, target) else {
         return false;
     };
+    let value = held_as_shown(context.document, target, measured);
     let applied = context.document.apply(Operation::SetDimension {
         sketch: index,
         target,
@@ -267,7 +267,7 @@ pub(super) fn place_dimension(
     if let (Some(editing), Some(Outcome::Dimension(DimensionOutcome::ScaleDefined { .. }))) =
         (context.editor.editing.as_mut(), applied)
     {
-        editing.placed_the_scale = true;
+        editing.placed_the_scale_at(value);
     }
     context.editor.message = outcome::message(context.lang, applied);
     true

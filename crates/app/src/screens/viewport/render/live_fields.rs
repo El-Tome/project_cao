@@ -11,6 +11,7 @@ use super::super::input::{count_brought_down, rectangle_corner};
 use super::super::values::shape_scale;
 use super::{arc, circle, ellipse, symmetric_line};
 use crate::screens::SketchContext;
+use crate::wording::dimension::short;
 
 /// The length and the angle of the line being drawn, editable on the spot.
 ///
@@ -218,7 +219,7 @@ fn live_field(
         ui,
         id,
         &mut live.field(rank).text,
-        &format!("{measured:.2}"),
+        &short(measured),
         focus,
         variables,
     )

@@ -5,7 +5,7 @@
 use cao_part::history::Operation;
 
 use crate::lang::Catalogue;
-use crate::wording::history::values::rounded;
+use crate::wording::dimension::short;
 
 /// The unfolded line of a step that moved something, and nothing for any
 /// other step.
@@ -23,8 +23,8 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
                 ("sketch", &sketch.to_string()),
                 ("point", &point.0.to_string()),
                 ("kept", &kept.0.to_string()),
-                ("x", &rounded(position.x, 1)),
-                ("y", &rounded(position.y, 1)),
+                ("x", &short(position.x)),
+                ("y", &short(position.y)),
             ],
         ),
         Operation::MovePoint {
@@ -37,8 +37,8 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
             &[
                 ("sketch", &sketch.to_string()),
                 ("point", &point.0.to_string()),
-                ("x", &rounded(position.x, 1)),
-                ("y", &rounded(position.y, 1)),
+                ("x", &short(position.x)),
+                ("y", &short(position.y)),
             ],
         ),
         Operation::ResizeCircle {
@@ -50,7 +50,7 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
             &[
                 ("sketch", &sketch.to_string()),
                 ("circle", &circle.0.to_string()),
-                ("reach", &rounded(*reach, 1)),
+                ("reach", &short(*reach)),
             ],
         ),
         Operation::ResizeEllipse {
@@ -62,7 +62,7 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
             &[
                 ("sketch", &sketch.to_string()),
                 ("ellipse", &ellipse.0.to_string()),
-                ("reach", &rounded(*reach, 1)),
+                ("reach", &short(*reach)),
             ],
         ),
         Operation::ResizeArc { sketch, arc, reach } => lang.t_with(
@@ -70,7 +70,7 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
             &[
                 ("sketch", &sketch.to_string()),
                 ("arc", &arc.0.to_string()),
-                ("reach", &rounded(*reach, 1)),
+                ("reach", &short(*reach)),
             ],
         ),
         Operation::MoveMany { sketch, points, by } => lang.t_with(
@@ -78,16 +78,16 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
             &[
                 ("sketch", &sketch.to_string()),
                 ("count", &points.len().to_string()),
-                ("x", &rounded(by.x, 1)),
-                ("y", &rounded(by.y, 1)),
+                ("x", &short(by.x)),
+                ("y", &short(by.y)),
             ],
         ),
         Operation::MoveDimension { sketch, offset, .. } => lang.t_with(
             "history.detail.dimension_moved",
             &[
                 ("sketch", &sketch.to_string()),
-                ("x", &rounded(offset.x, 1)),
-                ("y", &rounded(offset.y, 1)),
+                ("x", &short(offset.x)),
+                ("y", &short(offset.y)),
             ],
         ),
         Operation::MoveSegment {
@@ -99,8 +99,8 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
             &[
                 ("sketch", &sketch.to_string()),
                 ("segment", &segment.0.to_string()),
-                ("x", &rounded(by.x, 1)),
-                ("y", &rounded(by.y, 1)),
+                ("x", &short(by.x)),
+                ("y", &short(by.y)),
             ],
         ),
         Operation::TurnShape {
@@ -113,9 +113,9 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
             &[
                 ("sketch", &sketch.to_string()),
                 ("count", &points.len().to_string()),
-                ("angle", &rounded(angle.to_degrees(), 1)),
-                ("x", &rounded(about.x, 1)),
-                ("y", &rounded(about.y, 1)),
+                ("angle", &short(angle.to_degrees())),
+                ("x", &short(about.x)),
+                ("y", &short(about.y)),
             ],
         ),
         _ => String::new(),

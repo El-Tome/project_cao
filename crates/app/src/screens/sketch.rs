@@ -375,13 +375,7 @@ impl SketchEditor {
             .is_some_and(|editing| editing.target == target);
         self.editing = Some(DimensionEdit {
             target,
-            input: match measured {
-                Some(length) => format!("{length:.2}")
-                    .trim_end_matches('0')
-                    .trim_end_matches('.')
-                    .to_string(),
-                None => String::new(),
-            },
+            input: measured.map(typed_dimension::opened_on).unwrap_or_default(),
             focus: !same,
             placed_the_scale: false,
         });

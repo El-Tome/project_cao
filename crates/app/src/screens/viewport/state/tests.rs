@@ -1,5 +1,9 @@
 //! What app · screens/viewport/state.rs is held to.
 //!
+//! Closes #519.
+//! - the grid step is chosen in f64, so a snapped place is round —
+//!   `a_place_a_metre_from_the_origin_snaps_onto_a_round_value`
+//!
 //! Closes #386.
 //! - the canvas keeps what it knows apart from what it draws — no test:
 //!   `MODES_WITHOUT_A_PRESENTER` lost `viewport` in `architecture.rs`, which
@@ -98,4 +102,30 @@ fn the_matter_a_refusal_names_blinks_the_same_way() {
     assert_eq!(state.faces_blinking(10.1), Some((&[4, 5][..], true)));
     assert_eq!(state.faces_blinking(10.3), Some((&[4, 5][..], false)));
     assert_eq!(state.faces_blinking(14.0), None, "and not for ever");
+}
+
+#[test]
+fn a_place_a_metre_from_the_origin_snaps_onto_a_round_value() {
+    let config = ViewportConfig::default();
+    let mut camera = OrbitCamera::default();
+    camera.zoom_by_factor(200.0);
+    let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 800.0));
+    let scale = ViewScale::of(&camera, screen, 1.0, &config, 1.0);
+    assert!(
+        (scale.step_millimeters - 0.1).abs() < 1e-3,
+        "the view is meant to be zoomed onto a grid of a tenth of a millimetre, \
+         and its step is {}",
+        scale.step_millimeters,
+    );
+
+    let (snapped, _) = cao_sketch::Sketch::new(WorkPlane::XY).magnetise(
+        glam::DVec2::new(1_000.001, 1_000.001),
+        &scale.snapping(&config),
+    );
+
+    assert!(
+        (snapped - glam::DVec2::splat(1_000.0)).length() < 1e-9,
+        "a place a metre out snaps onto the grid at {snapped:?}, off the round \
+         thousand it was pulled to",
+    );
 }

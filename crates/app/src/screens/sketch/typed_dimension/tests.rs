@@ -1,5 +1,12 @@
 //! What app · screens/sketch/typed_dimension.rs is held to.
 //!
+//! Closes #519.
+//! - a value retyped a tenth of a micron away is a step, and moves the drawing
+//!   — `a_tenth_of_a_micron_typed_over_a_value_is_a_step_that_moves_the_drawing`
+//! - the dimension editing tests, `typed_dimension.rs` and the driver tests
+//!   that read field values keep passing — no test: held by the tests already
+//!   written, which this issue leaves as they are
+//!
 //! Closes #175.
 //! - a formula can be typed as the value of a dimension placed or edited —
 //!   `a_formula_typed_into_a_dimension_is_what_the_dimension_follows`,
@@ -482,4 +489,34 @@ fn with_the_option_off_an_exact_angle_against_an_axis_is_a_dimension() {
             .is_some_and(|it| it.value.abs() < 1e-9),
         "the dimension reads 0, as today",
     );
+}
+
+#[test]
+fn a_tenth_of_a_micron_typed_over_a_value_is_a_step_that_moves_the_drawing() {
+    for (held, typed, wanted) in [(1000.0, "1000.0001", 1000.0001), (0.1, "0.1001", 0.1001)] {
+        let mut document = a_sketch();
+        a_trait(&mut document, DVec2::ZERO, DVec2::new(held, 0.0), false);
+        let side = DimensionTarget::Length(cao_sketch::SegmentId(0));
+        document.apply(Operation::SetDimension {
+            sketch: 0,
+            target: side,
+            value: held.into(),
+            placement: None,
+        });
+        let steps = document.history.operations().len();
+        let mut editor = typed_into(side, typed);
+
+        apply_dimension_value(&mut document, &mut editor, 0, side, &Catalogue::french());
+
+        assert_eq!(
+            document.history.operations().len(),
+            steps + 1,
+            "{typed} typed over {held} is taken for the same value and writes no step",
+        );
+        let runs = document.measured(0, side).expect("the trait measures");
+        assert!(
+            (runs - wanted).abs() < 1e-7,
+            "{typed} typed over {held}, and the trait runs {runs} mm",
+        );
+    }
 }

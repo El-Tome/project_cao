@@ -1,3 +1,4 @@
+use cao_prefs::config::to_places;
 use cao_sketch::{DimensionTarget, SketchAxis};
 
 use crate::lang::Catalogue;
@@ -108,14 +109,15 @@ pub fn spans(lang: &Catalogue, target: &DimensionTarget) -> String {
     }
 }
 
-/// A value as it reads in the history: a dimension taken from the drawing
-/// itself is a full float, and "Cote 60.878967 mm" is unreadable.
+/// A value as it reads in the history and the fields: the number the canvas
+/// shows in millimetres, to a tenth of a micron, never rounded to nothing.
 pub fn short(value: f64) -> String {
-    let text = format!("{value:.2}");
-    match text.contains('.') {
-        true => text.trim_end_matches('0').trim_end_matches('.').to_string(),
-        false => text,
-    }
+    to_places(value, 4)
+}
+
+/// An angle, to a fixed four decimals of a degree, never rounded to nothing.
+pub fn degrees(value: f64) -> String {
+    format!("{}°", to_places(value, 4))
 }
 
 #[cfg(test)]

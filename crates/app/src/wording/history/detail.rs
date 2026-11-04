@@ -49,8 +49,8 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
             "history.detail.point",
             &[
                 ("sketch", &sketch.to_string()),
-                ("x", &rounded(position.x, 1)),
-                ("y", &rounded(position.y, 1)),
+                ("x", &dimension::short(position.x)),
+                ("y", &dimension::short(position.y)),
             ],
         ),
         Operation::AddSegment {
@@ -79,7 +79,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
             "history.detail.circle",
             &[
                 ("sketch", &sketch.to_string()),
-                ("radius", &rounded(*radius, 2)),
+                ("radius", &dimension::short(*radius)),
             ],
         ),
         Operation::AddArc {
@@ -285,8 +285,8 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
             &[
                 ("sketch", &sketch.to_string()),
                 ("count", &(segments.len() + arcs.len()).to_string()),
-                ("x", &format!("{:.3}", at.x)),
-                ("y", &format!("{:.3}", at.y)),
+                ("x", &dimension::short(at.x)),
+                ("y", &dimension::short(at.y)),
             ],
         ),
         Operation::MergePoints {

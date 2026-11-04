@@ -5,7 +5,7 @@ use cao_part::{PartDocument, VariableId};
 
 use crate::lang::Catalogue;
 use crate::screens::variables::state::{Problem, Row, VariablesPanel};
-use crate::screens::variables::{NAMING, offered, shown};
+use crate::screens::variables::{NAMING, offered};
 use crate::ui::dropping::grip;
 use crate::ui::formula_field::{Offer, formula_field};
 use crate::ui::text_edit::text_edit;
@@ -151,7 +151,7 @@ fn one_row(
         panel.typed_into(row, typed.name, typed.formula);
     }
     match row.value {
-        Some(value) => ui.label(shown(value)),
+        Some(value) => ui.label(wording::dimension::short(value)),
         None => ui.weak(lang.t("variables.no_value")),
     };
     let erase = ui.small_button(lang.t("variables.erase")).clicked();

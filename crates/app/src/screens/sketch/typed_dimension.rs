@@ -20,6 +20,15 @@ pub struct DimensionEdit {
     pub placed_the_scale: bool,
 }
 
+impl DimensionEdit {
+    /// Marks this dimension as the one that gave the part its scale, its field
+    /// showing what its label shows rather than the unround value it holds.
+    pub(crate) fn placed_the_scale_at(&mut self, held: f64) {
+        self.placed_the_scale = true;
+        self.input = crate::wording::dimension::short(held);
+    }
+}
+
 /// `placement: None` leaves the annotation where it was put down, not reset;
 /// a value taking the place of the one a dimension was placed with says where
 /// that was, since the step that said it is taken back.
@@ -72,11 +81,19 @@ pub(crate) fn apply_dimension_value(
 
     // The same value twice must not repeat an identical step in the history —
     // though the same number written from a variable, or no longer from one,
-    // is a step: it changes what the value follows.
+    // is a step: it changes what the value follows. The dimension that set the
+    // scale opened on less than it holds, and left as it opened is the same.
+    let placed_the_scale = editor
+        .editing
+        .as_ref()
+        .is_some_and(|editing| editing.placed_the_scale);
+    let left_as_opened =
+        |held: f64| placed_the_scale && typed == crate::wording::dimension::short(held);
     if document.sketches()[index]
         .dimension_of(target)
         .is_some_and(|dimension| {
-            (dimension.value - value).abs() < 1e-4 && dimension.written == written.note()
+            (same_value(dimension.value, value) || left_as_opened(dimension.value))
+                && dimension.written == written.note()
         })
     {
         editor.message = None;
@@ -112,6 +129,21 @@ pub(crate) fn apply_dimension_value(
             editor.message = Some(lang.t("sketch.no_dimension_here"));
             false
         }
+    }
+}
+
+/// Whether two values are one to the user: far under the tenth of a micron they
+/// are shown to, and over the noise of working one out from the drawing.
+pub(crate) fn same_value(first: f64, second: f64) -> bool {
+    (first - second).abs() <= 1e-9 * first.abs().max(second.abs()).max(1.0)
+}
+
+/// What a field opens on: the value as it is shown, unless that is not it.
+pub(crate) fn opened_on(value: f64) -> String {
+    let shown = crate::wording::dimension::short(value);
+    match shown.parse().is_ok_and(|read| same_value(read, value)) {
+        true => shown,
+        false => value.to_string(),
     }
 }
 

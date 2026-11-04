@@ -47,6 +47,12 @@ impl Body {
     /// along them, so that the triangles of two faces close against each
     /// other.
     pub fn triangles_by_face(&self, tolerance: f64) -> Cut {
+        let (mut cut, capped) = sampling::capped(|| self.cut(tolerance));
+        cut.capped = capped;
+        cut
+    }
+
+    fn cut(&self, tolerance: f64) -> Cut {
         let mut samples = Samples::of(self, tolerance);
         let mut drawn = Vec::new();
         let mut uncut = Vec::new();
@@ -98,12 +104,14 @@ impl Body {
             triangles,
             faces,
             uncut,
+            capped: false,
         }
     }
 }
 
-/// The triangles of a body, the face each belongs to, and the faces that
-/// could not be laid out or cut, left open.
+/// The triangles of a body, the face each belongs to, the faces that could
+/// not be laid out or cut, left open, and whether some round was too wide to
+/// be held within the tolerance by the most steps a turn is cut into.
 ///
 /// A face cut into nothing is not among them: one thinner than the
 /// tolerance — a sliver a hair wide between a bore and a wall — has its
@@ -113,6 +121,7 @@ pub struct Cut {
     pub triangles: Vec<[DVec3; 3]>,
     pub faces: Vec<FaceId>,
     pub uncut: Vec<FaceId>,
+    pub capped: bool,
 }
 
 #[cfg(test)]

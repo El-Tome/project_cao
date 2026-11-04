@@ -66,6 +66,9 @@ pub fn label(lang: &Catalogue, command: Command) -> String {
         Command::ExtrusionRevolution => "command.label.extrusion_revolution",
         Command::ExtrusionApply => "command.label.extrusion_apply",
         Command::ExtrusionCancel => "command.label.extrusion_cancel",
+        Command::ExportStlCoarse => "command.label.export_stl_coarse",
+        Command::ExportStlNormal => "command.label.export_stl_normal",
+        Command::ExportStlFine => "command.label.export_stl_fine",
         Command::ToggleHistory => "command.label.toggle_history",
         Command::ToggleExplorer => "command.label.toggle_explorer",
         Command::ToggleToolbarDocked => "command.label.toggle_toolbar_docked",
@@ -135,6 +138,9 @@ pub fn hint(lang: &Catalogue, command: Command) -> String {
         Command::ExtrusionRevolution => "command.hint.extrusion_revolution",
         Command::ExtrusionApply => "command.hint.extrusion_apply",
         Command::ExtrusionCancel => "command.hint.extrusion_cancel",
+        Command::ExportStlCoarse => "command.hint.export_stl_coarse",
+        Command::ExportStlNormal => "command.hint.export_stl_normal",
+        Command::ExportStlFine => "command.hint.export_stl_fine",
         Command::ToggleHistory => "command.hint.toggle_history",
         Command::ToggleExplorer => "command.hint.toggle_explorer",
         Command::ToggleToolbarDocked => "command.hint.toggle_toolbar_docked",
@@ -159,6 +165,7 @@ pub fn family_heading(lang: &Catalogue, family: CommandFamily) -> String {
         CommandFamily::Dimensions => "command.family.dimensions",
         CommandFamily::Constraints => "command.family.constraints",
         CommandFamily::Extrusion => "command.family.extrusion",
+        CommandFamily::Export => "command.family.export",
         CommandFamily::Window => "command.family.window",
     })
 }

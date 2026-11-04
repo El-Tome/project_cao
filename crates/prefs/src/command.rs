@@ -76,6 +76,10 @@ pub enum Command {
     ExtrusionApply,
     ExtrusionCancel,
 
+    ExportStlCoarse,
+    ExportStlNormal,
+    ExportStlFine,
+
     ToggleHistory,
     ToggleExplorer,
     ToggleToolbarDocked,
@@ -100,12 +104,13 @@ pub enum CommandFamily {
     Dimensions,
     Constraints,
     Extrusion,
+    Export,
     Window,
 }
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 61] = [
+    pub const ALL: [Self; 64] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -164,6 +169,9 @@ impl Command {
         Self::ExtrusionRevolution,
         Self::ExtrusionApply,
         Self::ExtrusionCancel,
+        Self::ExportStlCoarse,
+        Self::ExportStlNormal,
+        Self::ExportStlFine,
         Self::ToggleHistory,
         Self::ToggleExplorer,
         Self::ToggleToolbarDocked,
@@ -227,6 +235,9 @@ impl Command {
             | Self::ExtrusionRevolution
             | Self::ExtrusionApply
             | Self::ExtrusionCancel => CommandFamily::Extrusion,
+            Self::ExportStlCoarse | Self::ExportStlNormal | Self::ExportStlFine => {
+                CommandFamily::Export
+            }
             Self::ToggleHistory
             | Self::ToggleExplorer
             | Self::ToggleToolbarDocked

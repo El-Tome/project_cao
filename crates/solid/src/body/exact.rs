@@ -205,7 +205,7 @@ impl Exact {
 
     pub fn triangles_within(&self, tolerance: f64) -> Option<Vec<[DVec3; 3]>> {
         let cut = quietly(|| self.brep.triangles_by_face(tolerance))?;
-        cut.uncut.is_empty().then_some(cut.triangles)
+        (cut.uncut.is_empty() && !cut.capped).then_some(cut.triangles)
     }
 
     pub fn ray_hit(&self, origin: DVec3, direction: DVec3) -> Option<FaceHit> {

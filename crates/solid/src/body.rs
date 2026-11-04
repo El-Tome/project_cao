@@ -197,7 +197,8 @@ impl Body {
     }
 
     /// The triangles within `tolerance` of the true surfaces, or nothing when
-    /// some face cannot be cut at it. Flats are their own triangles.
+    /// some face cannot be cut, or some round held, at it. Flats are their
+    /// own triangles.
     pub(crate) fn triangles_within(&self, tolerance: f64) -> Option<Vec<[DVec3; 3]>> {
         match &self.matter {
             Matter::Exact(exact) => exact.triangles_within(tolerance),

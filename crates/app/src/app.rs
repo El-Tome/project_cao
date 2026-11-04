@@ -4,7 +4,6 @@ use cao_part::PartDocument;
 use cao_prefs::{Command, Locations};
 use cao_render::SceneRenderer;
 
-use crate::commands;
 use crate::lang::Catalogue;
 use crate::remembered::Remembered;
 use crate::screens::explorer::Explorer;
@@ -15,6 +14,7 @@ use crate::screens::{
 };
 use crate::shortcuts::shortcuts_pressed;
 use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave, wording};
+use crate::{commands, export};
 
 pub struct CaoApp {
     screen: Screen,
@@ -228,7 +228,16 @@ impl CaoApp {
                 Command::OpenSettings => self.settings_open = true,
                 Command::BackToMenu => back_to_menu = true,
                 Command::ToggleExplorer => self.explorer.toggle(),
-                _ => changed |= commands::run(command, &mut worked_on, ribbon, viewport),
+                _ => match commands::export_request(command, worked_on.document) {
+                    Some(request) => export::stl(
+                        command,
+                        request,
+                        &mut worked_on,
+                        &DiskFiles,
+                        &mut self.error,
+                    ),
+                    None => changed |= commands::run(command, &mut worked_on, ribbon, viewport),
+                },
             }
         }
 

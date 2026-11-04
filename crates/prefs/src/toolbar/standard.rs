@@ -107,6 +107,18 @@ impl Default for ToolbarLayout {
                         Item::Separator,
                         Item::Command(C::ExtrusionStraight),
                         Item::Command(C::ExtrusionRevolution),
+                        Item::Separator,
+                        Item::group(
+                            "export",
+                            vec![Item::group(
+                                "stl",
+                                vec![
+                                    Item::Command(C::ExportStlCoarse),
+                                    Item::Command(C::ExportStlNormal),
+                                    Item::Command(C::ExportStlFine),
+                                ],
+                            )],
+                        ),
                     ],
                 ),
             ],

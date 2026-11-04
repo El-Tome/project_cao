@@ -40,6 +40,7 @@
 mod abreast;
 mod axis;
 mod beneath;
+mod capped;
 mod chords;
 mod circle;
 mod cone;
@@ -62,6 +63,7 @@ use crate::brep::surface::Cylinder;
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
 use abreast::Abreast;
 use axis::Axes;
+pub(super) use capped::capped;
 use circle::on_circle;
 use cone::{Grid, Spun};
 use ends::Ends;
@@ -95,10 +97,14 @@ const MOST: usize = 1024;
 pub(super) fn divisions(radius: f64, tolerance: f64) -> usize {
     let ratio = tolerance / radius;
     if ratio.is_nan() || ratio <= 0.0 {
+        capped::noted();
         return MOST;
     }
     let half_step = (1.0 - ratio.min(2.0)).acos();
     let needed = (PI / half_step).ceil();
+    if needed > MOST as f64 {
+        capped::noted();
+    }
     ((needed / 4.0).ceil() * 4.0).clamp(LEAST as f64, MOST as f64) as usize
 }
 

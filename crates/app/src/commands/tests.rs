@@ -27,13 +27,14 @@
 //!   export asked carries the part's millimetres per unit —
 //!   `an_stl_export_asked_from_a_part_drawn_at_a_scale_carries_its_millimetres_per_unit`
 
-use cao_part::PartDocument;
+use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::Command;
 use cao_render::MatterInFront;
-use cao_sketch::WorkPlane;
+use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
 use chrono::Utc;
+use glam::DVec2;
 
-use super::run;
+use super::{ExportRequest, export_request, run};
 use crate::lang::Catalogue;
 use crate::screens::SketchContext;
 use crate::screens::extrusion::ExtrusionState;
@@ -106,4 +107,76 @@ fn the_matter_in_front_button_moves_the_open_sketch_to_the_next_state() {
         ],
         "a click on the button does not move the sketch on from Hidden",
     );
+}
+
+/// A block 10 by 20 units raised 4, its first side typed `first_side` mm
+/// before anything is raised when given: the value that sets the scale.
+fn a_raised_block(first_side: Option<f64>) -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 20.0)),
+        construction: false,
+    });
+    if let Some(millimetres) = first_side {
+        document.apply(Operation::SetDimension {
+            sketch: 0,
+            target: DimensionTarget::Length(SegmentId(0)),
+            value: millimetres.into(),
+            placement: None,
+        });
+    }
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    assert!(!document.body().is_empty(), "the block is raised");
+    document
+}
+
+#[test]
+fn each_stl_level_picked_asks_for_an_export_at_the_gap_it_promises() {
+    let document = a_raised_block(None);
+
+    for (command, promised) in [
+        (Command::ExportStlCoarse, 0.1),
+        (Command::ExportStlNormal, 0.02),
+        (Command::ExportStlFine, 0.005),
+    ] {
+        let Some(ExportRequest { gap, .. }) = export_request(command, &document) else {
+            panic!("{command:?} asks for no export");
+        };
+        assert!(
+            (gap - promised).abs() < 1e-12,
+            "{command:?} asks for {gap} mm, it promises {promised} mm",
+        );
+    }
+    assert!(
+        export_request(Command::Undo, &document).is_none(),
+        "a command that is no export asks for none",
+    );
+}
+
+#[test]
+fn an_stl_export_asked_from_a_part_drawn_at_a_scale_carries_its_millimetres_per_unit() {
+    let scaled = a_raised_block(Some(25.0));
+    let unscaled = a_raised_block(None);
+    assert!((scaled.scale() - 2.5).abs() < 1e-9, "{}", scaled.scale());
+
+    for (document, expected) in [(&scaled, 2.5), (&unscaled, 1.0)] {
+        let request =
+            export_request(Command::ExportStlNormal, document).expect("an export is asked");
+        assert!(
+            (request.millimetres_per_unit - expected).abs() < 1e-9,
+            "the export carries {} mm a unit, the part {expected}",
+            request.millimetres_per_unit,
+        );
+    }
 }

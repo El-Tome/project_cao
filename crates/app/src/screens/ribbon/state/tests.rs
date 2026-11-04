@@ -219,3 +219,92 @@ fn with_labels_off_every_other_button_keeps_its_two_letters() {
         );
     }
 }
+
+const STL_LEVELS: [Command; 3] = [
+    Command::ExportStlCoarse,
+    Command::ExportStlNormal,
+    Command::ExportStlFine,
+];
+
+fn reached(items: &[cao_prefs::Item]) -> Vec<Command> {
+    items
+        .iter()
+        .flat_map(|item| match item {
+            cao_prefs::Item::Command(command) => vec![*command],
+            cao_prefs::Item::Group { items, .. } => reached(items),
+            cao_prefs::Item::Separator => Vec::new(),
+        })
+        .collect()
+}
+
+fn holds_the_levels_together(items: &[cao_prefs::Item]) -> bool {
+    items.iter().any(|item| match item {
+        cao_prefs::Item::Group { items, .. } => {
+            STL_LEVELS
+                .iter()
+                .all(|level| items.contains(&cao_prefs::Item::Command(*level)))
+                || holds_the_levels_together(items)
+        }
+        _ => false,
+    })
+}
+
+fn a_raised_block() -> PartDocument {
+    use cao_part::{ExtrusionMode, Operation, PointRef};
+    use glam::DVec2;
+
+    let mut document = a_part();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    assert!(!document.body().is_empty(), "the block is raised");
+    document
+}
+
+#[test]
+fn the_three_stl_levels_are_offered_only_while_the_part_holds_matter() {
+    let editor = SketchEditor::default();
+    let extrusion = ExtrusionState::default();
+    let (empty, raised) = (a_part(), a_raised_block());
+
+    for level in STL_LEVELS {
+        assert!(
+            !is_enabled(level, &empty, &editor, &extrusion),
+            "{level:?} is offered on a part with no matter"
+        );
+        assert!(
+            is_enabled(level, &raised, &editor, &extrusion),
+            "{level:?} is not offered on a part holding a block"
+        );
+        assert!(
+            is_enabled(level, &raised, &drawing_on_a_sketch(), &extrusion),
+            "{level:?} is not offered while a sketch is open on a part holding a block"
+        );
+    }
+    let toolbar = Settings::default().toolbar;
+    let held = reached(&toolbar.items);
+    for level in STL_LEVELS {
+        assert!(
+            held.contains(&level),
+            "the standard toolbar reaches no {level:?}"
+        );
+    }
+    assert!(
+        holds_the_levels_together(&toolbar.items),
+        "the three levels are one group of the ribbon, drawn as a menu: {:?}",
+        toolbar.items,
+    );
+}

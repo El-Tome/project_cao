@@ -245,3 +245,281 @@ fn a_shaft_cut_at_a_slant_written_to_stl_reads_back_closed_and_uncrossed() {
 fn an_elliptic_post_written_to_stl_reads_back_closed_and_uncrossed() {
     reads_back_sound(&elliptic_post());
 }
+
+/// A body, how far a point stands from the nearest of its true surfaces, and
+/// what the arithmetic says it encloses and how much surface it has.
+struct Case {
+    name: &'static str,
+    body: Body,
+    off: fn(DVec3) -> f64,
+    volume: f64,
+    area: f64,
+}
+
+fn radial(point: DVec3) -> f64 {
+    point.truncate().length()
+}
+
+fn block_off(p: DVec3) -> f64 {
+    [p.x, p.x - 30.0, p.y, p.y - 20.0, p.z, p.z - 10.0]
+        .map(f64::abs)
+        .into_iter()
+        .fold(f64::INFINITY, f64::min)
+}
+
+fn bored_cylinder_off(p: DVec3) -> f64 {
+    [p.z, p.z - 10.0, radial(p) - 20.0, radial(p) - 5.0]
+        .map(f64::abs)
+        .into_iter()
+        .fold(f64::INFINITY, f64::min)
+}
+
+fn cone_off(p: DVec3) -> f64 {
+    let across = DVec2::new(p.x, p.z).length();
+    p.y.abs()
+        .min((2.0 * across + p.y - 20.0).abs() / 5f64.sqrt())
+}
+
+fn shaft_cut_at_a_slant_off(p: DVec3) -> f64 {
+    let slant = (p.z - 5.0 - 0.2 * p.x).abs() / 1.04f64.sqrt();
+    p.z.abs().min((radial(p) - 20.0).abs()).min(slant)
+}
+
+fn ellipse_off(point: DVec2, a: f64, b: f64) -> f64 {
+    let at = |t: f64| (DVec2::new(a * t.cos(), b * t.sin()) - point).length();
+    let steps = 4096;
+    let step = TAU / steps as f64;
+    let nearest = (0..steps)
+        .map(|index| index as f64 * step)
+        .min_by(|one, other| at(*one).total_cmp(&at(*other)))
+        .unwrap();
+    let (mut low, mut high) = (nearest - step, nearest + step);
+    for _ in 0..80 {
+        let (one, other) = (low + (high - low) / 3.0, high - (high - low) / 3.0);
+        if at(one) < at(other) {
+            high = other;
+        } else {
+            low = one;
+        }
+    }
+    at((low + high) / 2.0)
+}
+
+fn elliptic_post_off(p: DVec3) -> f64 {
+    p.z.abs()
+        .min((p.z - 10.0).abs())
+        .min(ellipse_off(p.truncate(), 15.0, 8.0))
+}
+
+fn ellipse_perimeter(a: f64, b: f64) -> f64 {
+    let steps = 200_000;
+    let step = TAU / steps as f64;
+    (0..steps)
+        .map(|index| {
+            let t = (index as f64 + 0.5) * step;
+            DVec2::new(a * t.sin(), b * t.cos()).length() * step
+        })
+        .sum()
+}
+
+fn cases() -> Vec<Case> {
+    use std::f64::consts::PI;
+    vec![
+        Case {
+            name: "block",
+            body: block(),
+            off: block_off,
+            volume: 30.0 * 20.0 * 10.0,
+            area: 2.0 * (30.0 * 20.0 + 30.0 * 10.0 + 20.0 * 10.0),
+        },
+        Case {
+            name: "bored cylinder",
+            body: bored_cylinder(),
+            off: bored_cylinder_off,
+            volume: PI * (400.0 - 25.0) * 10.0,
+            area: 2.0 * PI * (400.0 - 25.0) + TAU * 20.0 * 10.0 + TAU * 5.0 * 10.0,
+        },
+        Case {
+            name: "cone",
+            body: cone(),
+            off: cone_off,
+            volume: PI * 100.0 * 20.0 / 3.0,
+            area: PI * 100.0 + PI * 10.0 * 500f64.sqrt(),
+        },
+        Case {
+            name: "shaft cut at a slant",
+            body: shaft_cut_at_a_slant(),
+            off: shaft_cut_at_a_slant_off,
+            volume: 5.0 * PI * 400.0,
+            area: PI * 400.0 + TAU * 20.0 * 5.0 + PI * 400.0 * 1.04f64.sqrt(),
+        },
+        Case {
+            name: "elliptic post",
+            body: elliptic_post(),
+            off: elliptic_post_off,
+            volume: PI * 15.0 * 8.0 * 10.0,
+            area: 2.0 * PI * 15.0 * 8.0 + ellipse_perimeter(15.0, 8.0) * 10.0,
+        },
+    ]
+}
+
+/// What rounding every number to an `f32` may move a corner by, on triangles
+/// reaching `reach` from the origin.
+fn rounding(triangles: &[Triangle]) -> f64 {
+    let reach = triangles
+        .iter()
+        .flatten()
+        .map(|corner| corner.abs().max_element())
+        .fold(0.0, f64::max);
+    4.0 * f64::from(f32::EPSILON) * reach
+}
+
+/// Every corner on a true surface, and every point of every triangle within
+/// `gap` of one.
+fn stands_within(triangles: &[Triangle], off: impl Fn(DVec3) -> f64, gap: f64, what: &str) {
+    let slack = rounding(triangles);
+    for (index, corners) in triangles.iter().enumerate() {
+        for corner in corners {
+            assert!(
+                off(*corner) <= slack,
+                "{what}: a corner of triangle {index} stands {} off every surface",
+                off(*corner),
+            );
+        }
+        for one in 0..=8 {
+            for other in 0..=8 - one {
+                let (a, b) = (one as f64 / 8.0, other as f64 / 8.0);
+                let point = corners[0] * (1.0 - a - b) + corners[1] * a + corners[2] * b;
+                assert!(
+                    off(point) <= gap * (1.0 + 1e-9) + slack,
+                    "{what}: triangle {index} stands {} off its surface, the gap is {gap} mm",
+                    off(point),
+                );
+            }
+        }
+    }
+}
+
+/// A cylinder of radius 2 m standing 10 mm high: at « Fine », a round so wide
+/// that a thousand and twenty-four chords to the turn stand 9.4 µm off it.
+fn wide_disc() -> Body {
+    on_a_part(raised(disc(DVec2::ZERO, 2000.0), GROUND, 10.0))
+}
+
+fn wide_disc_off(p: DVec3) -> f64 {
+    p.z.abs()
+        .min((p.z - 10.0).abs())
+        .min((radial(p) - 2000.0).abs())
+}
+
+#[test]
+fn the_volume_read_back_is_within_the_level_s_gap_times_the_arithmetic_s_area() {
+    for case in cases() {
+        for gap in LEVELS {
+            let bytes = stl::of(&case.body, gap, 1.0).expect("the body is written");
+            let read = enclosed(&read(&bytes));
+
+            assert!(
+                (read - case.volume).abs() <= gap * case.area + 1e-6 * case.volume,
+                "the {} read back at {gap} mm encloses {read}, the arithmetic {}, \
+                 within {gap} × {}",
+                case.name,
+                case.volume,
+                case.area,
+            );
+        }
+    }
+}
+
+#[test]
+fn every_triangle_read_back_stands_within_the_level_s_gap_of_the_true_surface() {
+    for case in cases() {
+        for gap in LEVELS {
+            let bytes = stl::of(&case.body, gap, 1.0).expect("the body is written");
+            stands_within(
+                &read(&bytes),
+                case.off,
+                gap,
+                &format!("the {} at {gap} mm", case.name),
+            );
+        }
+    }
+    let wide = wide_disc();
+    for gap in LEVELS {
+        match stl::of(&wide, gap, 1.0) {
+            Ok(bytes) => stands_within(
+                &read(&bytes),
+                wide_disc_off,
+                gap,
+                &format!("the disc 4 m across at {gap} mm"),
+            ),
+            Err(_) => assert_eq!(
+                gap, 0.005,
+                "the disc 4 m across is held within {gap} mm and was not written"
+            ),
+        }
+    }
+}
+
+#[test]
+fn a_finer_level_writes_more_triangles() {
+    for case in cases().into_iter().filter(|case| case.name != "block") {
+        let counts = LEVELS
+            .map(|gap| read(&stl::of(&case.body, gap, 1.0).expect("the body is written")).len());
+
+        assert!(
+            counts[0] < counts[1] && counts[1] < counts[2],
+            "the {} written at {LEVELS:?} mm holds {counts:?} triangles",
+            case.name,
+        );
+    }
+}
+
+#[test]
+fn a_part_drawn_in_units_of_two_and_a_half_millimetres_is_written_in_millimetres() {
+    let body = bored_cylinder();
+    let gap = 0.02;
+    let in_millimetres = read(&stl::of(&body, gap, 2.5).expect("the body is written"));
+    let in_units = read(&stl::of(&body, gap, 1.0).expect("the body is written"));
+
+    let (low, high) = body.bounds().expect("the body holds matter");
+    let (read_low, read_high) = in_millimetres.iter().flatten().fold(
+        (DVec3::INFINITY, DVec3::NEG_INFINITY),
+        |(low, high), corner| (low.min(*corner), high.max(*corner)),
+    );
+    assert!(
+        (read_low - low * 2.5).abs().max_element() <= gap * 1.01 + 1e-4
+            && (read_high - high * 2.5).abs().max_element() <= gap * 1.01 + 1e-4,
+        "the file spans {read_low} to {read_high} mm, the part {} to {} mm",
+        low * 2.5,
+        high * 2.5,
+    );
+    stands_within(
+        &in_millimetres,
+        |point| 2.5 * bored_cylinder_off(point / 2.5),
+        gap,
+        "the bored cylinder at 2.5 mm a unit",
+    );
+    assert!(
+        in_millimetres.len() > in_units.len(),
+        "a gap of {gap} mm is finer in units of 2.5 mm than in units of 1 mm: \
+         {} triangles against {}",
+        in_millimetres.len(),
+        in_units.len(),
+    );
+}
+
+#[test]
+fn a_body_the_triangles_cannot_cover_is_not_written() {
+    let wide = wide_disc();
+
+    assert_eq!(
+        stl::of(&wide, 0.005, 1.0).map(|bytes| bytes.len()),
+        Err(stl::Uncovered),
+        "no thousand and twenty-four chords hold a round 4 m across within 5 µm",
+    );
+    assert!(
+        stl::of(&wide, 0.02, 1.0).is_ok(),
+        "at 0.02 mm the same round is held, and written"
+    );
+}

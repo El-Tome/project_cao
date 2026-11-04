@@ -71,9 +71,8 @@ impl DrawnCut {
 /// A cut's places as the solver reads them: each with how it moves with the
 /// points the cut stands on.
 pub(crate) struct CutPlaces {
-    /// The frame a place is read in, so that a shape turned whole reads the
-    /// same: which way the first side leaves the corner between two traits,
-    /// the way from the corner to the fillet's centre beside a curve.
+    /// Which way the first side leaves the corner: the frame a place is read
+    /// in, so that a shape turned whole reads the same.
     pub along: JetPlace<COORDINATES>,
     pub touches: [JetPlace<COORDINATES>; 2],
     /// The centre of a fillet's curve, and its radius.
@@ -139,8 +138,7 @@ impl Sketch {
 
     /// A cut's places worked out again from what it stands on, with how each
     /// moves with it: nothing for a cut that does not stand, or whose corner
-    /// gives it no place — which is when it is not drawn either — nor, beside
-    /// a curve, for a fillet that fits nowhere.
+    /// gives it no place — which is when it is not drawn either.
     pub(crate) fn cut_places(&self, cut: CornerCutId) -> Option<CutPlaces> {
         let laid = *self.corner_cuts().get(cut.0)?;
         if self.is_erased_cut(cut) || !self.stands(&laid) {
@@ -154,20 +152,22 @@ impl Sketch {
         let far = |side: usize, rank: usize| {
             JetPlace::free(self.point(self.far_end(sides[side], laid.corner)), rank)
         };
-        let fars = [far(0, FAR_FIRST), far(1, FAR_SECOND)];
-        places(corner, fars, laid.shape, stands_on)
+        let leaving =
+            [far(0, FAR_FIRST), far(1, FAR_SECOND)].map(|far| (far - corner).normalized());
+        places(corner, leaving, laid.shape, stands_on)
     }
 }
 
-/// A cut's places, from its corner, the far end of each side and its shape:
-/// the formula `drawn` reads in plain numbers, here carried with its slopes.
-fn places(
+/// A cut's places, from its corner, the unit way each side leaves it and its
+/// shape: the formula `drawn` reads in plain numbers between two traits, and
+/// the one a fillet beside a curve that fits nowhere is drawn by, along the
+/// sides' tangents — here carried with its slopes.
+pub(super) fn places(
     corner: JetPlace<COORDINATES>,
-    fars: [JetPlace<COORDINATES>; 2],
+    along: [JetPlace<COORDINATES>; 2],
     shape: CutShape,
     stands_on: Vec<PointId>,
 ) -> Option<CutPlaces> {
-    let along = fars.map(|far| (far - corner).normalized());
     let cos = along[0].dot(along[1]);
     let sin = along[0].perp_dot(along[1]).abs();
     let opening = sin.atan2(cos);

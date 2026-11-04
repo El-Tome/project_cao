@@ -10,7 +10,7 @@
 use glam::DVec2;
 
 use super::points::CutPoint;
-use super::{CornerCutId, CutCurve, CutShape};
+use super::{CornerCutId, CutCurve, CutShape, CutSide};
 use crate::constraints::Constraint;
 use crate::edges::off_by;
 use crate::holding::Support;
@@ -128,13 +128,19 @@ impl Sketch {
                 CutPoint::Second => sides[1],
                 CutPoint::Centre => continue,
             };
-            let Some(segment) = side.as_trait() else {
-                continue;
-            };
-            self.add_constraint(Constraint::OnSegment {
-                point,
-                segment,
-                from: LaidFrom::Nowhere,
+            let from = LaidFrom::Nowhere;
+            self.add_constraint(match side {
+                CutSide::Trait(segment) => Constraint::OnSegment {
+                    point,
+                    segment,
+                    from,
+                },
+                CutSide::Arc(arc) => Constraint::OnArc { point, arc, from },
+                CutSide::ArcOfEllipse(ellipse) => Constraint::OnEllipse {
+                    point,
+                    ellipse,
+                    from,
+                },
             });
         }
     }

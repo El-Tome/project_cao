@@ -177,6 +177,43 @@ impl JetPath {
             .scaled(Jet::constant(-1.0) / onwards.length());
         self.place(at) + outwards.scaled(Jet::constant(by))
     }
+
+    /// [`Run::leaving`]: the unit direction `run` leaves its corner in, the
+    /// corner standing at `corner`.
+    pub(super) fn leaving(&self, run: Run, corner: JetPlace<COORDINATES>) -> JetPlace<COORDINATES> {
+        let from = Jet {
+            value: run.from,
+            slope: self.number_at(corner).slope,
+        };
+        self.onwards(from)
+            .scaled(Jet::constant(run.way))
+            .normalized()
+    }
+
+    /// The number naming `place` on the path, as `run_away_from` reads the
+    /// corner's: how far along a line, the angle round a circle, the turn
+    /// round an ellipse — the place squashed onto the circle its axes make
+    /// round, as `EllipseDraft::turn_on` reads it.
+    fn number_at(&self, place: JetPlace<COORDINATES>) -> Jet<COORDINATES> {
+        match *self {
+            Self::Line { through, along } => (place - through).dot(along),
+            Self::Circle { centre, .. } => {
+                let out = place - centre;
+                out.y.atan2(out.x)
+            }
+            Self::Ellipse {
+                centre,
+                first,
+                second,
+            } => {
+                let out = place - centre;
+                let along = first.length();
+                let across = first.perp().normalized().scaled(second);
+                let squashed_across = out.dot(across) / (second * second);
+                squashed_across.atan2(out.dot(first) / (along * along))
+            }
+        }
+    }
 }
 
 /// The unit direction at angle `at`, as `DVec2::from_angle` gives it.

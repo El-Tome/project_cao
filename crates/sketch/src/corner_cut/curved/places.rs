@@ -8,21 +8,25 @@
 //! curve do. One more step of Newton's method from where the search ended,
 //! taken over jets, carries it — a step of nought, since the offsets meet
 //! there, whose slopes are how far the meeting slides as each point moves.
+//!
+//! A fillet that fits nowhere is drawn where the sides' tangents alone would
+//! put it, as between two traits, and is read the same way: off the corner
+//! and the way each side leaves it.
 
 use glam::DVec2;
 
 use super::path::{JetPath, Run};
 use super::{Found, found};
-use crate::corner_cut::points::{COORDINATES, CutPlaces};
+use crate::corner_cut::points::{COORDINATES, CutPlaces, places};
 use crate::corner_cut::{CornerCut, CutShape, CutSide};
 use crate::jet::{Jet, JetPlace};
 use crate::sketch::{PointId, SegmentId, Sketch};
 
 impl Sketch {
     /// The places of a fillet beside a curve, over the coordinates of
-    /// `stands_on` in that order: nothing when its corner gives it no place,
-    /// or when it fits nowhere and is drawn where the sides' tangents alone
-    /// would put it.
+    /// `stands_on` in that order, as it is drawn — where it fits nowhere, the
+    /// stand-in the sides' tangents alone give: nothing when its corner gives
+    /// it no place.
     pub(in crate::corner_cut) fn places_beside_a_curve(
         &self,
         cut: &CornerCut,
@@ -36,19 +40,26 @@ impl Sketch {
         }
         let runs = self.runs_away_from(cut.sides, cut.corner)?;
         let Found { off, at, .. } = found(self.point(cut.corner), runs, radius)?;
-        let at = at?;
         let jet = |point: PointId| {
             let rank = stands_on.iter().position(|stand| *stand == point)?;
             Some(JetPlace::free(self.point(point), 2 * rank))
         };
+        let corner = jet(cut.corner)?;
         let paths = [
             self.jet_path(cut.sides[0], cut.corner, &jet)?,
             self.jet_path(cut.sides[1], cut.corner, &jet)?,
         ];
+        let leaving = [
+            paths[0].leaving(runs[0], corner),
+            paths[1].leaving(runs[1], corner),
+        ];
+        let Some(at) = at else {
+            return places(corner, leaving, cut.shape, stands_on);
+        };
         let at = slid(runs, &paths, off, at)?;
         let centre = paths[0].off_by(at[0], off[0]);
         Some(CutPlaces {
-            along: (centre - jet(cut.corner)?).normalized(),
+            along: leaving[0],
             touches: [paths[0].place(at[0]), paths[1].place(at[1])],
             round: Some((centre, radius)),
             stands_on,

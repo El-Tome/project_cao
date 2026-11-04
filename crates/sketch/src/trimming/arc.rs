@@ -202,10 +202,11 @@ impl Sketch {
         let rules_dropped = dropped
             .iter()
             .filter(|rule| {
-                !pieces.iter().any(|piece| {
-                    still_holds(**rule, id, piece, carried.place_of(**rule))
-                        .is_some_and(|moved| self.carries(moved))
-                })
+                !self.carries(**rule)
+                    && !pieces.iter().any(|piece| {
+                        still_holds(**rule, id, piece, carried.place_of(**rule))
+                            .is_some_and(|moved| self.carries(moved))
+                    })
             })
             .count();
         let values_dropped = dropped_values

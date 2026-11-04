@@ -120,12 +120,16 @@
 //! - beside an arc of ellipse too, what hangs on a fillet with no place
 //!   follows its stand-in and comes back —
 //!   `what_hangs_on_a_fillet_with_no_place_inside_an_arc_of_ellipse_follows_its_stand_in_and_comes_back`
+//! - a trim past a fillet, of its trait or of its arc, counts as lost the
+//!   rules it truly drops and not what hangs on the fillet, hung again on the
+//!   piece left — the count the interface words as rules lost to the cut —
+//!   `a_trim_past_a_fillet_counts_what_it_drops_and_not_what_hangs_on_the_fillet`
 //! - nothing hangs on a cut taken off — no test: a rule refused as it is laid
 //!   is read inside the sketch crate; held in `corner_cut/hanging/tests.rs` by
 //!   `nothing_hangs_on_a_cut_taken_off`
 
 use cao_part::history::{CutAsked, CutChange, Operation, PointRef};
-use cao_part::{History, PartState};
+use cao_part::{History, Outcome, PartState};
 use cao_sketch::{
     ArcId, Constraint, Corner, CornerCutId, CutPoint, CutSide, DimensionTarget, Element, EllipseId,
     Grip, PointId, Rule, RuleIntent, RulePick, SegmentId, Sketch, Support, WorkPlane, rule_intent,
@@ -1726,4 +1730,79 @@ fn what_hangs_on_a_fillet_with_no_place_inside_an_arc_of_ellipse_follows_its_sta
         places_of(&fitting),
         "the fillet back in its place",
     );
+}
+
+#[test]
+fn a_trim_past_a_fillet_counts_what_it_drops_and_not_what_hangs_on_the_fillet() {
+    let beyond_on_the_arc = |degrees: f64| ROUND + DVec2::from_angle(degrees.to_radians()) * REACH;
+    for (at, side, held_beyond, cut_from, what) in [
+        (
+            CutPoint::First,
+            Support::Segment(SegmentId(0)),
+            DVec2::new(45.0, 10.0),
+            DVec2::new(40.0, 10.0),
+            "the trait trimmed past the fillet",
+        ),
+        (
+            CutPoint::Second,
+            Support::Arc(ARC),
+            beyond_on_the_arc(75.0),
+            beyond_on_the_arc(60.0),
+            "the arc trimmed past the fillet",
+        ),
+    ] {
+        let mut history = a_trait_and_an_arc_rounded();
+        let hung = next_point(&history);
+        hang_a_point(&mut history, at);
+        let held = next_point(&history);
+        history.push(Operation::AddPoint {
+            sketch: 0,
+            position: held_beyond,
+            on: vec![side],
+        });
+        let from = next_point(&history);
+        history.push(Operation::AddPoint {
+            sketch: 0,
+            position: cut_from,
+            on: Vec::new(),
+        });
+        let mut state = PartState::rebuild(&history);
+
+        let outcome = state.apply(&match side {
+            Support::Arc(arc) => Operation::TrimArc {
+                sketch: 0,
+                arc,
+                from,
+                to: PointId(4),
+            },
+            _ => Operation::Trim {
+                sketch: 0,
+                segment: SegmentId(0),
+                from,
+                to: TRAIT_END,
+            },
+        });
+
+        let sketch = &state.sketches[0];
+        assert_eq!(
+            sketch.holds_on(hung),
+            vec![Support::CutPoint(CUT, at)],
+            "{what}: the point hung on the fillet is still hung there"
+        );
+        assert_eq!(
+            sketch.holds_on(held),
+            Vec::new(),
+            "{what}: the point held on the stretch that went is let go"
+        );
+        assert_eq!(
+            outcome,
+            Some(Outcome::Cut {
+                rules: 1,
+                values: 0,
+                refused: 0
+            }),
+            "{what}: the trim lost the rule holding the point on the stretch that went, and \
+             nothing that hangs on the fillet"
+        );
+    }
 }

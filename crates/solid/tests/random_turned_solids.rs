@@ -4879,12 +4879,11 @@ fn a_case_asking_a_round_beyond_its_circles_is_told_from_one_that_does_not() {
     assert!(asks(&knob, post), "a post across a ball");
 }
 
-/// The kernel boxes a face on a sphere or a torus by its own extent (#625),
-/// so a wall that crosses the whole surface where the turn drew none of it is
-/// never related to the face, and a decline there is no longer excused; a
-/// wall across the leaf itself still is. The face's extent is not the leaf's:
-/// a groove in a shaft beside its rounded end meets the shaft and the cap's
-/// whole sphere, and the kernel relates it to no face on the sphere.
+/// The excuse follows what the kernel relates, which boxes a face on a sphere
+/// or a torus by its own extent: a wall crossing the whole surface where the
+/// turn drew none of it is never related to the face. A face's extent is not
+/// its leaf's: the groove beside the shaft's rounded end meets the shaft and
+/// the cap's whole sphere, not the cap.
 #[test]
 fn a_partial_round_asks_no_wall_that_meets_its_whole_surface_but_not_its_leaf() {
     let whole_ball = (DVec3::splat(-2.0), DVec3::splat(2.0));
@@ -5043,11 +5042,9 @@ fn seed_5576800642_bowed_sections_about_axes_leaning_a_hair_are_laid_and_keep_ev
     assert_eq!(measured.bowed, 0, "every section laid");
 }
 
-/// Seed 5576800195 was declined as unsupported, and the decline counted as
-/// asked (#576): the round groove its quarter turn draws lies on a torus whose
-/// whole surface's box met the prisms beside it. The kernel boxes the groove
-/// by its own extent since #625, which meets no other leaf's box: the case is
-/// held, and a decline there would no longer be excused.
+/// The round groove lies on a torus about the line along Y through
+/// `x = 40, z = −5`, its tube of radius 2.5 at 27.5 from the axis, and the
+/// quarter turn sweeps it from +Z toward +X.
 #[test]
 fn seed_5576800195_a_quarter_torus_clear_of_the_prisms_its_whole_torus_meets_is_held_not_declined()
 {
@@ -5882,12 +5879,10 @@ fn a_spindle_turned_the_other_way_crosses_only_its_own_lobe() {
     ));
 }
 
-/// A ring torus joined with a tube about its own axis whose bore touches its
-/// outer equator: the join cuts the torus's face along that circle, and the
-/// face still holds the whole tube, its top as well. A line through the tube
-/// is crossed there as everywhere else: the rounded campaign's seed 2722,
-/// drawn with seed 625, which the face boxed short of the top of its tube left
-/// uncrossed (#625).
+/// A ring torus and a tube about the same line, whose bore touches the
+/// torus's outer equator: the join cuts the torus's face along that circle,
+/// and the face still holds the top of its tube, where the profile's one
+/// corner puts the seam of its chart.
 #[test]
 fn seed_2722_a_torus_joined_with_a_coaxial_tube_touching_its_outer_equator_is_crossed_where_its_tube_is()
  {

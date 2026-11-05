@@ -189,7 +189,7 @@ fn a_circle_crosses_a_parallel_cylinder_as_two_circles_cross() {
 }
 
 #[test]
-fn a_circle_crosses_a_perpendicular_cylinder_where_its_plane_cuts_it() {
+fn a_circle_crosses_a_perpendicular_or_a_skew_cylinder_where_its_plane_cuts_it() {
     let rim = circle(DVec3::ZERO, 20.0, 5.0);
     let across = cylinder(DVec3::new(0.0, 15.0, 5.0), DVec3::X, 5.0);
     let three = found(&rim, &across, 1e-12 * REACH);
@@ -197,8 +197,10 @@ fn a_circle_crosses_a_perpendicular_cylinder_where_its_plane_cuts_it() {
     assert_eq!(three.iter().filter(|crossing| crossing.tangent).count(), 1);
     let below = cylinder(DVec3::new(0.0, 0.0, 10.0), DVec3::X, 5.0);
     assert_eq!(tangents(&found(&rim, &below, 1e-12 * REACH)), [true, true]);
-    let skew = cylinder(DVec3::ZERO, DVec3::new(1.0, 0.0, 1.0), 5.0);
-    assert_eq!(crossings(&rim, &skew, scale()), Crossings::Unsupported);
+    let skew = cylinder(DVec3::new(20.0, 0.0, 5.0), DVec3::new(1.0, 0.0, 1.0), 5.0);
+    assert_eq!(tangents(&found(&rim, &skew, scale().eps())), [false, false]);
+    let far = cylinder(DVec3::ZERO, DVec3::new(1.0, 0.0, 1.0), 5.0);
+    assert_eq!(crossings(&rim, &far, scale()), Crossings::At(Vec::new()));
 }
 
 /// A round of radius 1 along Y whose axis stands 7 from Z, so that it touches

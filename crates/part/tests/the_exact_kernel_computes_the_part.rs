@@ -15,9 +15,11 @@
 //!   `a_part_with_an_ellipse_raised_stays_exact_from_that_step_on` — and the
 //!   flats' on a part already on them, until #632 left no step a way there
 //! - an operation the exact kernel declines is a broken step —
-//!   `a_raise_crossing_a_post_at_a_skew_angle_is_a_broken_step` (since #552 the
+//!   `a_raise_crossing_a_ball_off_its_centre_is_a_broken_step` (since #552 the
 //!   raise meeting a block at a slant is built,
-//!   `a_raise_meeting_a_block_at_a_slant_is_built_exactly`),
+//!   `a_raise_meeting_a_block_at_a_slant_is_built_exactly`, and since #577
+//!   the one crossing a post at a skew angle,
+//!   `a_raise_crossing_a_post_at_a_skew_angle_is_built_exactly`),
 //!   `a_step_declined_live_is_named_by_its_own_number`,
 //!   `a_step_after_a_declined_one_numbers_its_faces_as_if_it_had_stood`,
 //!   `a_size_that_would_have_the_kernel_decline_a_step_is_refused_naming_the_step`; a part
@@ -361,13 +363,71 @@ fn a_slanted_raise_beside_a_block(at: DVec3) -> History {
 
 /// A post Ø8 about (5, 5), 10 high, then the same slanted raise: over the
 /// post, the cylinder crosses its wall at 30° to its axis, two cylinders at a
-/// skew angle, which the exact kernel does not build.
+/// skew angle, which the exact kernel builds since #577.
 fn a_slanted_raise_beside_a_post(at: DVec3) -> History {
     a_slanted_raise_beside(at, |history| {
         circle(history, 0, DVec2::splat(5.0), 4.0);
         raise(history, 0, DVec2::splat(5.0), 10.0, ExtrusionMode::Add);
     })
 }
+
+/// A ball of radius 8 about (5, 5, 0) — a half disc drawn on the plane
+/// holding the upright through it, turned whole about that line — then the
+/// same slanted raise: over the ball, the cylinder crosses its sphere off its
+/// centre, which the exact kernel does not build.
+fn a_slanted_raise_beside_a_ball(at: DVec3) -> History {
+    let mut history = a_ball();
+    let (sin, cos) = (PI / 6.0).sin_cos();
+    sketch_on(
+        &mut history,
+        WorkPlane {
+            origin: at,
+            u: DVec3::X,
+            v: DVec3::new(0.0, cos, sin),
+        },
+    );
+    circle(&mut history, 1, DVec2::ZERO, 2.0);
+    raise(&mut history, 1, DVec2::ZERO, -10.0, ExtrusionMode::Add);
+    history
+}
+
+/// The ball alone: a half disc, the chord between its arc's ends on the
+/// axis.
+fn a_ball() -> History {
+    let mut history = History::default();
+    sketch_on(
+        &mut history,
+        WorkPlane {
+            origin: DVec3::new(5.0, 5.0, 0.0),
+            u: DVec3::X,
+            v: DVec3::Z,
+        },
+    );
+    let first = PartState::rebuild(&history).sketches[0].points().len();
+    history.push(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        start: PointRef::New(DVec2::new(0.0, -8.0)),
+        end: PointRef::New(DVec2::new(0.0, 8.0)),
+        construction: false,
+    });
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(PointId(first + 2)),
+        end: PointRef::Existing(PointId(first + 1)),
+        construction: false,
+    });
+    history.push(Operation::Revolve {
+        sketch: 0,
+        areas: clicked(&history, 0, DVec2::new(2.0, 0.0)),
+        axis: RevolutionAxis::Sketch(SketchAxis::V),
+        angle: 360.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    history
+}
+
+const BALL: f64 = 2048.0 * PI / 3.0;
 
 /// What `first` raises on XY, then a circle drawn on a plane tilted 30°
 /// about X and standing at `at`, raised 10 down its normal.
@@ -426,8 +486,29 @@ fn a_raise_meeting_a_block_at_a_slant_is_built_exactly() {
 }
 
 #[test]
-fn a_raise_crossing_a_post_at_a_skew_angle_is_a_broken_step() {
+fn a_raise_crossing_a_post_at_a_skew_angle_is_built_exactly() {
     let history = a_slanted_raise_beside_a_post(OVER_THE_BLOCK);
+    let mut part = applied_live(&history);
+    part.undo();
+    part.redo();
+
+    assert!(
+        !part.is_declined(last_step(&history)),
+        "the slanted raise is built"
+    );
+    assert!(part.body().is_exact(), "the part stays exact");
+    assert_drawn_closed(&PartState::rebuild(&history));
+    let (post, slanted) = (160.0 * PI, 40.0 * PI);
+    let volume = part.body().volume();
+    assert!(
+        volume > post && volume < post + slanted,
+        "the post and the slanted Ø4 sharing some of it: {volume}",
+    );
+}
+
+#[test]
+fn a_raise_crossing_a_ball_off_its_centre_is_a_broken_step() {
+    let history = a_slanted_raise_beside_a_ball(OVER_THE_BLOCK);
     let mut part = applied_live(&history);
     part.undo();
     part.redo();
@@ -436,16 +517,12 @@ fn a_raise_crossing_a_post_at_a_skew_angle_is_a_broken_step() {
         part.is_declined(last_step(&history)),
         "the slanted raise is declined"
     );
-    assert_near(
-        part.body().volume(),
-        160.0 * PI,
-        "the post, as it stood before",
-    );
+    assert_near(part.body().volume(), BALL, "the ball, as it stood before");
 }
 
 #[test]
 fn a_step_declined_live_is_named_by_its_own_number() {
-    let history = a_slanted_raise_beside_a_post(OVER_THE_BLOCK);
+    let history = a_slanted_raise_beside_a_ball(OVER_THE_BLOCK);
 
     let part = applied_live(&history);
 
@@ -459,7 +536,7 @@ fn a_step_declined_live_is_named_by_its_own_number() {
 #[test]
 fn a_step_after_a_declined_one_numbers_its_faces_as_if_it_had_stood() {
     let with_a_plate_after = |at: DVec3| {
-        let mut history = a_slanted_raise_beside_a_post(at);
+        let mut history = a_slanted_raise_beside_a_ball(at);
         sketch_on(&mut history, WorkPlane::XY);
         rectangle(
             &mut history,
@@ -476,11 +553,13 @@ fn a_step_after_a_declined_one_numbers_its_faces_as_if_it_had_stood() {
         );
         history
     };
-    // The post's floor, top and wall, the disc's, then the plate's floor and
-    // top.
+    // The three numbers the ball's turn takes, the disc's floor, top and
+    // wall, then the plate's floor and top.
     let plates_top = 3 + 3 + TOP;
     let declined = with_a_plate_after(OVER_THE_BLOCK);
     let raised = with_a_plate_after(DVec3::new(100.0, 5.0, 12.0));
+    assert!(applied_live(&declined).is_declined(last_step(&declined) - 3));
+    assert!(!applied_live(&raised).is_declined(last_step(&raised) - 3));
 
     assert_eq!(laid_on(declined, plates_top, 3.0), (3.0, false));
     assert_eq!(laid_on(raised, plates_top, 3.0), (3.0, false));
@@ -918,17 +997,12 @@ fn a_hole_drawn_on_a_rounded_plate_moves_no_further_than_its_corners_when_they_c
     }
 }
 
-/// A post Ø8 about (5, 5), 10 high, then a circle on a plane tilted 30° over
-/// it, raised down its normal by the variable `reach`, first 1: short of the
-/// post. At 10 it crosses the post's wall at a skew angle.
+/// The ball of `a_slanted_raise_beside_a_ball`, then a circle on a plane
+/// tilted 30° over it, raised down its normal by the variable `reach`,
+/// first 1: short of the ball. At 10 it crosses the ball's sphere off its
+/// centre.
 fn a_slanted_raise_reaching(reach: f64) -> PartDocument {
-    let mut part = applied_live(&{
-        let mut history = History::default();
-        sketch_on(&mut history, WorkPlane::XY);
-        circle(&mut history, 0, DVec2::splat(5.0), 4.0);
-        raise(&mut history, 0, DVec2::splat(5.0), 10.0, ExtrusionMode::Add);
-        history
-    });
+    let mut part = applied_live(&a_ball());
     part.change_variable(VariableChange::Added {
         name: "reach".to_string(),
         formula: Formula::Number(reach),

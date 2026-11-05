@@ -4,6 +4,7 @@
 use glam::{DVec2, DVec3};
 
 use super::*;
+use crate::brep::meet::Configuration;
 use crate::brep::surface::Surface;
 
 const REACH: f64 = 40.0;
@@ -196,17 +197,29 @@ fn the_same_ellipse_reached_again_is_one_surface_and_one_turned_a_little_crosses
 }
 
 #[test]
-fn an_elliptic_wall_and_a_wall_neither_parallel_nor_square_to_it_are_unsupported() {
+fn an_elliptic_wall_and_a_wall_neither_parallel_nor_square_to_it_meet_along_their_curve() {
     let wall = Surface::Elliptic(oval());
     let skew = Surface::Cylinder(Cylinder::about(
         DVec3::ZERO,
         DVec3::new(1.0, 0.0, 1.0).normalize(),
         2.0,
     ));
-    assert_eq!(
-        super::super::relation(&wall, &skew, scale()),
-        Relation::Unsupported
-    );
+    let found = super::super::relation(&wall, &skew, scale());
+    let Relation::Meet(meeting) = &found else {
+        panic!("a meet expected, got {found:?}");
+    };
+    assert_eq!(meeting.configuration, Configuration::TwoLoops);
+    for curve in found.curves() {
+        for t in [0.1, 0.7, 1.9, 3.3, 5.2] {
+            let point = curve.point(t);
+            for surface in [&wall, &skew] {
+                assert!(
+                    surface.distance(point).abs() <= 1e-9,
+                    "{point} off {surface:?}"
+                );
+            }
+        }
+    }
 }
 
 #[test]

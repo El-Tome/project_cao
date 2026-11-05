@@ -4,7 +4,7 @@
 //! rather than declining, and declines only where the faces truly cross
 //! along a curve it does not build (#526). A plane crossing a bore at a slant
 //! is cut along the ellipse they meet along (#552); two bores crossing at a
-//! skew angle are still declined.
+//! skew angle along the curve their walls meet along (#577).
 //!
 //! Every part here is turned and moved off the planes of the origin as a
 //! whole, so that the tilted cylinders and their triangles are exercised too:
@@ -164,6 +164,16 @@ fn keeps_every_rule(made: impl Fn(&Pose) -> Result<Body, Declined>, arithmetic: 
 /// enclose that volume within their sagitta, and the same operation answered
 /// twice gives the same triangles.
 fn holds(made: impl Fn() -> Result<Body, Declined>, arithmetic: f64, case: &str) {
+    let volume = sound(made, case).volume();
+    assert!(
+        ((volume - arithmetic) / arithmetic).abs() <= 1e-9,
+        "the exact volume is {volume}, the arithmetic {arithmetic}, in {case}"
+    );
+}
+
+/// A result held to its listing and its triangles, closed, uncrossed,
+/// enclosing what the body holds and drawn the same twice.
+fn sound(made: impl Fn() -> Result<Body, Declined>, case: &str) -> Body {
     let body = made().unwrap_or_else(|declined| panic!("{declined:?} in {case}"));
     assert_eq!(
         listed(&body.listing(), body.scale().reach()),
@@ -171,17 +181,13 @@ fn holds(made: impl Fn() -> Result<Body, Declined>, arithmetic: f64, case: &str)
         "{case}"
     );
     let volume = body.volume();
-    assert!(
-        ((volume - arithmetic) / arithmetic).abs() <= 1e-9,
-        "the exact volume is {volume}, the arithmetic {arithmetic}, in {case}"
-    );
     let triangles = body.triangles(MESH);
     assert_eq!(closed(&triangles), Ok(()), "{case}");
     assert_eq!(uncrossed(&triangles), Ok(()), "{case}");
     let drawn = enclosed(&triangles);
     assert!(
-        ((drawn - arithmetic) / arithmetic).abs() <= 1e-3,
-        "the triangles enclose {drawn}, the arithmetic {arithmetic}, in {case}"
+        ((drawn - volume) / volume).abs() <= 1e-3,
+        "the triangles enclose {drawn}, the body {volume}, in {case}"
     );
     let again = made().expect("the kernel answers twice");
     assert_eq!(
@@ -189,6 +195,7 @@ fn holds(made: impl Fn() -> Result<Body, Declined>, arithmetic: f64, case: &str)
         Ok(()),
         "{case}"
     );
+    body
 }
 
 #[test]
@@ -258,15 +265,17 @@ fn beyond_the_next_side(radius: f64, aside: f64, depth: f64) -> f64 {
 }
 
 /// Two bores drawn at random into two adjacent sides, the part laid at
-/// random, either of them poking past its side's end through the next side:
-/// where their walls may cross each other, at a skew angle, the operation
-/// may be declined, and otherwise it holds every rule with the arithmetic's
+/// random, either of them poking past its side's end through the next side.
+/// Where their walls cannot meet, every rule holds with the arithmetic's
 /// volume — each takes its own matter, less what stands beyond the next
-/// side.
+/// side. Where they may cross each other, at a skew angle, the cut is built
+/// since #577 and keeps every rule, its volume between the arithmetic,
+/// which counts what the two bores share twice, and that plus the smaller
+/// bore's matter.
 #[test]
-fn two_bores_drawn_at_random_into_adjacent_sides_are_cut_or_declined_as_unsupported() {
+fn two_bores_drawn_at_random_into_adjacent_sides_are_cut_where_they_cross_or_not() {
     const CASES: u64 = 60;
-    let (mut cut, mut poking) = (0, 0);
+    let (mut cut, mut poking, mut crossing) = (0, 0, 0);
     for seed in 0..CASES {
         let mut random = Random::seeded(seed);
         let pose = Pose::drawn(&mut random);
@@ -289,42 +298,41 @@ fn two_bores_drawn_at_random_into_adjacent_sides_are_cut_or_declined_as_unsuppor
                     part.cut_by(&bore_at(&pose, side, at, radius, depth))
                 })
         };
-        match made() {
-            Err(Declined::Unsupported) => {
-                let [
-                    (one, at, radius, depth),
-                    (other, other_at, other_radius, other_depth),
-                ] = [drawn[0], drawn[1]];
-                let apart = between_axes((one, at, depth), (other, other_at, other_depth));
-                assert!(
-                    apart <= radius + other_radius + 0.01,
-                    "seed {seed}: declined, its bores' axes {apart} apart: {drawn:?} in {pose:?}"
-                );
-            }
-            _ => {
-                let arithmetic =
-                    drawn
-                        .iter()
-                        .fold(hexagon_volume(), |left, &(_, at, radius, depth)| {
-                            left - (bored(radius, depth)
-                                - beyond_the_next_side(radius, at.x, depth))
-                        });
-                holds(
-                    made,
-                    arithmetic,
-                    &format!("seed {seed}: {drawn:?} in {pose:?}"),
-                );
-                cut += 1;
-                if drawn
-                    .iter()
-                    .any(|&(_, at, radius, _)| at.x.abs() + radius > 10.0)
-                {
-                    poking += 1;
-                }
-            }
+        let taken: Vec<f64> = drawn
+            .iter()
+            .map(|&(_, at, radius, depth)| {
+                bored(radius, depth) - beyond_the_next_side(radius, at.x, depth)
+            })
+            .collect();
+        let arithmetic = hexagon_volume() - taken.iter().sum::<f64>();
+        let case = format!("seed {seed}: {drawn:?} in {pose:?}");
+        let [
+            (one, at, radius, depth),
+            (other, other_at, other_radius, other_depth),
+        ] = [drawn[0], drawn[1]];
+        let apart = between_axes((one, at, depth), (other, other_at, other_depth));
+        if apart <= radius + other_radius + 0.01 {
+            let volume = sound(made, &case).volume();
+            let smaller = taken.iter().copied().fold(f64::INFINITY, f64::min);
+            assert!(
+                volume >= arithmetic * (1.0 - 1e-9) && volume <= arithmetic + smaller,
+                "the exact volume is {volume}, the arithmetic {arithmetic} \
+                 counting {smaller} at most twice, in {case}"
+            );
+            crossing += 1;
+            continue;
+        }
+        holds(made, arithmetic, &case);
+        cut += 1;
+        if drawn
+            .iter()
+            .any(|&(_, at, radius, _)| at.x.abs() + radius > 10.0)
+        {
+            poking += 1;
         }
     }
-    assert!(cut >= CASES / 4, "only {cut} of {CASES} cut");
+    assert!(cut >= CASES / 4, "only {cut} of {CASES} cut apart");
+    assert!(crossing >= 1, "no two bores drawn crossing");
     assert!(
         poking >= 5,
         "only {poking} cut poking through the next side"

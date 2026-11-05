@@ -14,7 +14,8 @@
 //! its triangles: a hole square to a slanted face out through the floor, a
 //! shaft cut at a slant, a point cut across, through its tip and parallel to
 //! its slope; a plane touching a shaft along a ruling, which is that line;
-//! and what still declines, a skew bore and a radial hole in a cone.
+//! and what still declines, a radial hole in a cone, beside a skew bore
+//! #577 builds.
 
 use std::f64::consts::{PI, TAU};
 
@@ -620,14 +621,23 @@ fn every_conic_body_above_is_drawn_closed_and_uncrossed() {
 }
 
 #[test]
-fn a_skew_bore_and_a_radial_hole_in_a_cone_still_decline() {
+fn a_skew_bore_is_built_and_a_radial_hole_in_a_cone_still_declines() {
     let along = DVec3::new(0.5, 0.0, 3f64.sqrt() / 2.0);
     let skew = raised(
         circle(DVec2::ZERO, 3.0),
         frame(DVec3::new(15.0, 0.0, -5.0), DVec3::Y, DVec3::Y.cross(along)),
         along * 25.0,
     );
-    assert_eq!(stock().cut_by(&skew), Err(Declined::Unsupported));
+    let bored = stock().cut_by(&skew).expect("the kernel answers");
+    assert_eq!(listed(&bored.listing(), bored.scale().reach()), Ok(()));
+    let triangles = bored.triangles(MESH);
+    assert_eq!(closed(&triangles), Ok(()));
+    assert_eq!(uncrossed(&triangles), Ok(()));
+    let volume = bored.volume();
+    assert!(
+        volume < WHOLE && volume > WHOLE - skew.volume(),
+        "the bored stock keeps {volume} of {WHOLE}"
+    );
     let radial = lying([0.0, 5.0], 1.0, -10.0, 10.0);
     assert_eq!(point().cut_by(&radial), Err(Declined::Unsupported));
 }

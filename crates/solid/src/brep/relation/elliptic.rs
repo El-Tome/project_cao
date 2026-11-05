@@ -15,8 +15,7 @@
 //! half-axes within it of each other, and the turn between their major
 //! half-axes moves the ends of one by no more than it. Two other walls about
 //! parallel axes meet along rulings, as `walls.rs` decides; about axes at
-//! any other angle they are unsupported, which declines a boolean unless
-//! the two faces stand clear of each other.
+//! any other angle they meet along the curve `meet.rs` builds (#577).
 
 use super::{Relation, parallel, sorted, square};
 use crate::brep::conic::{Conic, Round};

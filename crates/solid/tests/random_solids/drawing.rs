@@ -18,6 +18,7 @@ mod rounds;
 mod slants;
 mod tilts;
 mod turns;
+mod walls;
 
 pub use tilts::clear_of_the_lines;
 

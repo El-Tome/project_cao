@@ -1,7 +1,7 @@
-//! Two cylinders: parallel ones cross along lines or touch along one, square
-//! ones meet along the curve of `meet.rs`, and any other angle is declined.
+//! Two cylinders: parallel ones cross along lines or touch along one, and at
+//! any other angle they meet along the curve of `meet.rs`.
 
-use super::{Relation, parallel, sorted, square};
+use super::{Relation, parallel, sorted};
 use crate::brep::curve::{Line, Wall};
 use crate::brep::meet::{Configuration, Meeting, goes_first};
 use crate::brep::scale::Scale;
@@ -14,15 +14,12 @@ pub(super) fn cylinders(one: &Cylinder, other: &Cylinder, scale: Scale) -> Relat
             _ => side_by_side(one, other, scale),
         };
     }
-    if square(one.axis, other.axis, scale) {
-        let meeting = Meeting::of(&Wall::Cylinder(*one), &Wall::Cylinder(*other), scale);
-        return if meeting.configuration == Configuration::Apart {
-            Relation::Apart
-        } else {
-            Relation::Meet(meeting)
-        };
+    let meeting = Meeting::of(&Wall::Cylinder(*one), &Wall::Cylinder(*other), scale);
+    if meeting.configuration == Configuration::Apart {
+        Relation::Apart
+    } else {
+        Relation::Meet(meeting)
     }
-    Relation::Unsupported
 }
 
 /// Parallel, the larger first. Seen square to the axes they are two circles:

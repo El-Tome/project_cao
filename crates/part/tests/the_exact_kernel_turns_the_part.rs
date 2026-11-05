@@ -83,8 +83,10 @@
 //!   a band of a torus since #576 —
 //!   `a_part_turned_from_an_arc_stays_exact_from_that_step_on`
 //! - a revolution the exact kernel declines is a broken step, with its reason kept —
-//!   `a_turn_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_reason`
-//!   (`declined_because(step) == Some(Declined::Unsupported)`, volume unchanged),
+//!   `a_turn_crossing_a_raised_cylinder_off_its_sphere_s_centre_is_a_broken_step_with_its_reason`
+//!   (`declined_because(step) == Some(Declined::Unsupported)`, volume unchanged;
+//!   the turn crossing the cylinder at a skew angle is built since #577,
+//!   `a_turn_crossing_a_raised_cylinder_at_a_skew_angle_is_built`),
 //!   `a_step_after_a_declined_turn_numbers_its_faces_as_if_it_had_stood`; a part opened
 //!   on its cache keeps it, held beside the cache by
 //!   `a_declined_step_keeps_its_reason_once_the_part_opens_on_its_cache`
@@ -788,15 +790,102 @@ fn turned_at_thirty_degrees_beside_a_cylinder_at(at: f64, far: f64) -> History {
 }
 
 #[test]
-fn a_turn_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_reason() {
+fn a_turn_crossing_a_raised_cylinder_at_a_skew_angle_is_built() {
     let history = a_turn_at_thirty_degrees_beside_a_cylinder_at(0.0);
 
     let part = applied_live(&history);
 
     assert_eq!(
         part.declined_because(last_step(&history)),
+        None,
+        "the turn's cylinders cross the raised one at 60°, built since #577",
+    );
+    assert!(part.body().is_exact(), "the part stays exact");
+    assert_eq!(closed(&part.body().triangles()), Ok(()));
+    let (cylinder, tube) = (PI * 4.0 * 20.0, PI * 8.0 * 5.0);
+    let volume = part.body().volume();
+    assert!(
+        volume > cylinder && volume < cylinder + tube,
+        "the cylinder and the tube sharing some of it: {volume}",
+    );
+}
+
+/// The cylinder of `a_turn_at_thirty_degrees_beside_a_cylinder_at`, then
+/// the same turn, its run nearest the axis bowed along an arc whose centre
+/// stands on the axis: turned, a sphere, which crosses the raised cylinder
+/// off its centre where the exact kernel cannot follow.
+fn a_bowed_turn_at_thirty_degrees_beside_a_cylinder_at(at: f64) -> History {
+    let mut history = History::default();
+    sketch_on(
+        &mut history,
+        WorkPlane {
+            origin: DVec3::Y * 10.0,
+            ..WorkPlane::XZ
+        },
+    );
+    circle(&mut history, 0, DVec2::new(at, 0.0), 2.0);
+    raise(
+        &mut history,
+        0,
+        DVec2::new(at, 0.0),
+        20.0,
+        ExtrusionMode::Add,
+    );
+    sketch_on(&mut history, WorkPlane::XY);
+    let along = DVec2::from_angle(PI / 6.0);
+    let at = |h: f64, s: f64| along * h + along.perp() * s;
+    history.push(Operation::AddSegment {
+        sketch: 1,
+        start: PointRef::New(at(-3.0, 0.0)),
+        end: PointRef::New(at(-1.0, 0.0)),
+        construction: false,
+    });
+    let points = |history: &History| PartState::rebuild(history).sketches[1].points().len();
+    let first = points(&history);
+    history.push(Operation::AddArc {
+        sketch: 1,
+        center: PointRef::New(at(3.5, 0.0)),
+        start: PointRef::New(at(6.0, 1.0)),
+        end: PointRef::New(at(1.0, 1.0)),
+        construction: false,
+    });
+    let mut from = PointRef::Existing(PointId(first + 1));
+    for corner in [at(6.0, 3.0), at(1.0, 3.0)] {
+        history.push(Operation::AddSegment {
+            sketch: 1,
+            start: from,
+            end: PointRef::New(corner),
+            construction: false,
+        });
+        from = PointRef::Existing(PointId(points(&history) - 1));
+    }
+    history.push(Operation::AddSegment {
+        sketch: 1,
+        start: from,
+        end: PointRef::Existing(PointId(first + 2)),
+        construction: false,
+    });
+    turn(
+        &mut history,
+        1,
+        at(3.5, 2.85),
+        RevolutionAxis::Segment(SegmentId(0)),
+        360.0,
+        ExtrusionMode::Add,
+    );
+    history
+}
+
+#[test]
+fn a_turn_crossing_a_raised_cylinder_off_its_sphere_s_centre_is_a_broken_step_with_its_reason() {
+    let history = a_bowed_turn_at_thirty_degrees_beside_a_cylinder_at(0.0);
+
+    let part = applied_live(&history);
+
+    assert_eq!(
+        part.declined_because(last_step(&history)),
         Some(Declined::Unsupported),
-        "the turn's cylinders cross the raised one at 60°",
+        "the turn's sphere crosses the raised cylinder off its centre",
     );
     assert_near(
         part.body().volume(),
@@ -809,7 +898,7 @@ fn a_turn_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_r
 #[test]
 fn a_step_after_a_declined_turn_numbers_its_faces_as_if_it_had_stood() {
     let with_a_plate_after = |at: f64| {
-        let mut history = a_turn_at_thirty_degrees_beside_a_cylinder_at(at);
+        let mut history = a_bowed_turn_at_thirty_degrees_beside_a_cylinder_at(at);
         sketch_on(&mut history, WorkPlane::XY);
         rectangle(
             &mut history,
@@ -826,8 +915,8 @@ fn a_step_after_a_declined_turn_numbers_its_faces_as_if_it_had_stood() {
         );
         history
     };
-    // The cylinder's floor, top and wall; the turn's four runs, none on its
-    // axis; then the plate's floor and top.
+    // The cylinder's floor, top and wall; the turn's four runs, an arc among
+    // them, none on its axis; then the plate's floor and top.
     let plates_top = 3 + 4 + 1;
     let declined = with_a_plate_after(0.0);
     let stood = with_a_plate_after(50.0);

@@ -38,11 +38,11 @@ pub(super) fn solved(near: &[Pair], held: &[Pair], exact: f64) -> Option<DQuat> 
         }
         let now = turn * pair.second;
         let step = match (pair.lean, locked) {
-            (Lean::Square, None) => {
+            (Lean::Square | Lean::Abreast, None) => {
                 locked = Some(pair.first);
                 arc(now, pair.first * pair.first.dot(now).signum())
             }
-            (Lean::Along, None) => {
+            (Lean::Along | Lean::Across, None) => {
                 let laid = (now - pair.first * pair.first.dot(now)).normalize();
                 locked = Some(laid);
                 arc(now, laid)
@@ -82,7 +82,7 @@ fn about(axis: DVec3, now: DVec3, pair: &Pair) -> Option<DQuat> {
     let side = axis.cross(across);
     let target = pair.first;
     let angle = match pair.lean {
-        Lean::Along => {
+        Lean::Along | Lean::Across => {
             let (a, b, c) = (across.dot(target), side.dot(target), along.dot(target));
             let reach = a.hypot(b);
             if reach <= c.abs() {
@@ -95,7 +95,7 @@ fn about(axis: DVec3, now: DVec3, pair: &Pair) -> Option<DQuat> {
                 .into_iter()
                 .min_by(|one, other| one.abs().total_cmp(&other.abs()))?
         }
-        Lean::Square => {
+        Lean::Square | Lean::Abreast => {
             let target = target * target.dot(now).signum();
             if (axis.dot(target) - axis.dot(now)).abs() > 1e-12 {
                 return None;

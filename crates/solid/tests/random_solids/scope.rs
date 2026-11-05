@@ -2,17 +2,19 @@
 //! not build, read off the walls their leaves are bounded by, so that a
 //! decline as unsupported is counted rather than failed.
 //!
-//! #552 split it in two: what asks beyond the conics — skew cylinders, a
-//! cone against anything off its axis, where their leaves' boxes meet — and
-//! the conics a case's planes meet its cylinders and cones along, told kind
-//! by kind. The kernel builds the conics, so only the first excuses a
-//! decline.
+//! #552 split it in two: what asks beyond the conics — a cone against
+//! anything off its axis, where their leaves' boxes meet — and the conics a
+//! case's planes meet its cylinders and cones along, told kind by kind. The
+//! kernel builds the conics, so only the first excuses a decline.
 //!
-//! An elliptic wall (#571) is a cylinder to the rule: it asks against a wall
-//! at a skew angle, circular or elliptic, and against a cone about any
-//! axis, its own included, where their leaves' boxes meet. Nothing else it
-//! meets asks — a plane at any angle, a wall parallel or square to it — so a
-//! case with an ellipse is built or failed but there.
+//! An elliptic wall (#571) is a cylinder to the rule: it asks against a cone
+//! about any axis, its own included, where their leaves' boxes meet. Two
+//! walls at a skew angle, round or elliptic, ask nothing since #577 builds
+//! the curve they meet along — but for the cases it declines, two walls
+//! nearly parallel past what decision 11 lays: within the kernel's
+//! tolerance of each other along a stretch rather than at points, as
+//! `relation/perpendicular.rs` measures it, or leaning a sliver and meeting
+//! at all (`Case::asks_of_walls_along_a_stretch`).
 //!
 //! A sphere or a torus (#576) is built along circles alone: against a plane
 //! square to its axis or holding it, and against a cylinder, a cone, a
@@ -22,10 +24,13 @@
 //! decline the case as unsupported, which is counted apart from the rule
 //! for the conics (`asks_a_round_beyond_its_circles`).
 
+use std::f64::consts::{PI, TAU};
+
+use cao_solid::brep::{Cylinder, EllipticCylinder};
 use cao_solid::profile::Run;
 use glam::{DVec2, DVec3};
 
-use super::{Case, Leaf, Outline};
+use super::{Case, Leaf, Outline, Oval};
 
 /// The box a leaf spans, or nothing for a leaf that is no solid.
 type Spanned = Option<(DVec3, DVec3)>;
@@ -356,6 +361,377 @@ fn walls(leaf: &Leaf) -> Vec<Wall> {
     walls
 }
 
+/// The sine of a lean off parallel past which two walls are not read for
+/// a stretch: #552's band, as `relation/perpendicular.rs` reads it.
+const BAND: f64 = 1e-3;
+
+/// The share of the reach along which two walls standing within a
+/// tolerance of each other are declined, as `relation/perpendicular.rs`
+/// reads it.
+const STRETCH: f64 = 1e-2;
+
+/// The sine under which two walls leaning past decision 11 are declined
+/// wherever their faces meet, touching or crossing (#577's decision 1 of
+/// lane 2's rounds).
+const SLIVER: f64 = 2e-7;
+
+/// The tolerance a wall's triangles are cut to, as a share of the reach,
+/// and how many heights across a box two walls are compared at for a
+/// chord's sag, as `relation/perpendicular.rs` reads them.
+const DRAWN_AT: f64 = 1e-3;
+const HEIGHTS: usize = 9;
+
+/// The kernel's tolerance, as a share of the reach, and the furthest
+/// decision 11 turns an operand, in tolerances.
+const TOLERANCE: f64 = 1e-9;
+const HAIR: f64 = 20.0;
+
+/// A cylinder of a leaf, round or elliptic, as the rule for walls along a
+/// stretch reads it: its axis of unit length, a point of it, and how far its
+/// wall reaches from the axis in a direction square to it.
+#[derive(Clone, Copy, Debug)]
+struct Barrel {
+    axis: DVec3,
+    point: DVec3,
+    u: DVec3,
+    v: DVec3,
+    shape: Shape,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Shape {
+    Round(f64),
+    Oval(Oval),
+}
+
+impl Barrel {
+    /// The wall as the kernel holds it, its angles starting where the
+    /// kernel's own start.
+    fn exact(&self) -> Exact {
+        match self.shape {
+            Shape::Round(radius) => Exact::Round(Cylinder::about(self.point, self.axis, radius)),
+            Shape::Oval(oval) => Exact::Oval(EllipticCylinder::about(
+                self.point,
+                self.axis,
+                self.u * oval.first.x + self.v * oval.first.y,
+                oval.second,
+            )),
+        }
+    }
+
+    fn reach(&self, direction: DVec3) -> f64 {
+        match self.shape {
+            Shape::Round(radius) => radius,
+            Shape::Oval(oval) => {
+                oval.support(DVec2::new(direction.dot(self.u), direction.dot(self.v)))
+            }
+        }
+    }
+}
+
+/// A wall as the kernel holds it.
+#[derive(Clone, Copy, Debug)]
+enum Exact {
+    Round(Cylinder),
+    Oval(EllipticCylinder),
+}
+
+impl Exact {
+    fn size(&self) -> f64 {
+        match self {
+            Exact::Round(cylinder) => cylinder.radius,
+            Exact::Oval(oval) => oval.major,
+        }
+    }
+
+    fn origin_and_axis(&self) -> (DVec3, DVec3) {
+        match self {
+            Exact::Round(cylinder) => (cylinder.origin, cylinder.axis),
+            Exact::Oval(oval) => (oval.origin, oval.axis),
+        }
+    }
+
+    fn point(&self, angle: f64, height: f64) -> DVec3 {
+        match self {
+            Exact::Round(cylinder) => cylinder.point(DVec2::new(angle, height)),
+            Exact::Oval(oval) => oval.point(DVec2::new(angle, height)),
+        }
+    }
+
+    /// How far a point stands from the wall: exactly from a cylinder, to
+    /// first order from an elliptic wall, as the kernel measures it.
+    fn gap(&self, point: DVec3) -> f64 {
+        match self {
+            Exact::Round(cylinder) => {
+                let from = point - cylinder.origin;
+                ((from - cylinder.axis * from.dot(cylinder.axis)).length() - cylinder.radius).abs()
+            }
+            Exact::Oval(oval) => {
+                let from = point - oval.origin;
+                let [x, y] = [from.dot(oval.u), from.dot(oval.v)];
+                let [a, b] = [oval.major * oval.major, oval.minor * oval.minor];
+                let level = x * x / a + y * y / b - 1.0;
+                let slope = 2.0 * DVec2::new(x / a, y / b).length();
+                if slope > 0.0 {
+                    level.abs() / slope
+                } else {
+                    f64::INFINITY
+                }
+            }
+        }
+    }
+}
+
+/// How many steps a whole turn of a wall of `size` is cut into for its
+/// triangles at `tolerance`: the kernel's `tessellation/sampling.rs`.
+fn divisions(size: f64, tolerance: f64) -> usize {
+    let ratio = tolerance / size;
+    if ratio.is_nan() || ratio <= 0.0 {
+        return 1024;
+    }
+    let needed = (PI / (1.0 - ratio.min(2.0)).acos()).ceil();
+    ((needed / 4.0).ceil() * 4.0).clamp(16.0, 1024.0) as usize
+}
+
+/// Whether two walls stand closer to each other than a chord's sag over a
+/// step of either's grid, in the box `[low, high]`: at `HEIGHTS` heights
+/// across it, two consecutive steps of one wall's grid both within that
+/// sag of the other wall, as `relation/perpendicular.rs` reads it.
+fn closer_than_a_sag(first: &Barrel, second: &Barrel, low: DVec3, high: DVec3, reach: f64) -> bool {
+    let tolerance = DRAWN_AT * reach;
+    let (one, other) = (first.exact(), second.exact());
+    [(one, other), (other, one)]
+        .into_iter()
+        .any(|(wall, other)| {
+            let steps = divisions(wall.size(), tolerance);
+            let sag = wall.size() * (1.0 - (PI / steps as f64).cos());
+            let (origin, axis) = wall.origin_and_axis();
+            let (from, to) = (0..8)
+                .map(|corner: usize| {
+                    let pick =
+                        |bit: usize, at: usize| if corner & bit == 0 { low[at] } else { high[at] };
+                    (DVec3::new(pick(1, 0), pick(2, 1), pick(4, 2)) - origin).dot(axis)
+                })
+                .fold((f64::INFINITY, f64::NEG_INFINITY), |(from, to), height| {
+                    (from.min(height), to.max(height))
+                });
+            (0..HEIGHTS).any(|rank| {
+                let height = from + (to - from) * rank as f64 / (HEIGHTS - 1) as f64;
+                let near = |step: usize| {
+                    let angle = TAU * (step % steps) as f64 / steps as f64;
+                    other.gap(wall.point(angle, height)) <= sag
+                };
+                (0..steps).any(|step| near(step) && near(step + 1))
+            })
+        })
+}
+
+/// The barrels of a leaf: every round or elliptic wall of a prism — a
+/// circle, a ring's two, a rounded rectangle's four corners, a slot's two
+/// ends, the arcs an ellipse bounds — and of a turned leaf each edge off the
+/// axis of a band that neither slopes nor bows, and the two edges of each
+/// hole of its section.
+fn barrels(leaf: &Leaf) -> Vec<Barrel> {
+    if let Some(turned) = leaf.as_turned() {
+        let section = &turned.section;
+        let swept = turned.swept(1.0);
+        let axis = swept.along.normalize();
+        let u = swept.out;
+        let v = axis.cross(u);
+        let level = (0..section.bands.len()).flat_map(|index| {
+            let (start, end) = section.edges(index);
+            [0, 1]
+                .into_iter()
+                .filter(move |&edge| start[edge] == end[edge] && section.bow(index, edge).is_none())
+                .map(move |edge| start[edge])
+        });
+        let holes = section.holes.iter().flat_map(|[low, high]| [low.y, high.y]);
+        return level
+            .chain(holes)
+            .map(f64::abs)
+            .filter(|radius| *radius > 0.0)
+            .map(|radius| Barrel {
+                axis,
+                point: swept.origin,
+                u,
+                v,
+                shape: Shape::Round(radius),
+            })
+            .collect();
+    }
+    let Leaf::Prism { plane, outline, .. } = leaf else {
+        return Vec::new();
+    };
+    let (_, u, v) = plane.frame();
+    let axis = u.cross(v).normalize();
+    let barrel = |center: DVec2, shape: Shape| Barrel {
+        axis,
+        point: plane.to_world(center),
+        u,
+        v,
+        shape,
+    };
+    let round = |center: DVec2, radius: f64| barrel(center, Shape::Round(radius));
+    match outline {
+        Outline::Circle { center, radius, .. } => vec![round(*center, *radius)],
+        Outline::Ring {
+            center,
+            outer,
+            inner,
+        } => vec![round(*center, *outer), round(*center, *inner)],
+        Outline::Rounded { low, high, radius } => [
+            *low + *radius,
+            *high - *radius,
+            DVec2::new(low.x + radius, high.y - radius),
+            DVec2::new(high.x - radius, low.y + radius),
+        ]
+        .map(|center| round(center, *radius))
+        .to_vec(),
+        Outline::Slot { from, to, radius } => vec![round(*from, *radius), round(*to, *radius)],
+        Outline::Rectangle { .. } | Outline::Star { .. } => Vec::new(),
+        Outline::Ellipse { .. }
+        | Outline::Chorded { .. }
+        | Outline::OvalSlot { .. }
+        | Outline::OvalRing { .. } => {
+            let Some((contour, holes)) = outline.oval_contours() else {
+                return Vec::new();
+            };
+            std::iter::once(&contour)
+                .chain(&holes)
+                .flat_map(|contour| {
+                    contour
+                        .runs
+                        .iter()
+                        .zip(&contour.corners)
+                        .filter_map(|(run, corner)| match *run {
+                            Run::Straight => None,
+                            Run::Round { center, .. } => {
+                                Some(round(center, corner.distance(center)))
+                            }
+                            Run::Oval {
+                                center,
+                                first,
+                                second,
+                                ..
+                            } => Some(barrel(
+                                center,
+                                Shape::Oval(Oval::new(DVec2::ZERO, first, second)),
+                            )),
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect()
+        }
+    }
+}
+
+/// Two barrels read as `relation/perpendicular.rs` reads two walls: square
+/// to the first's axis, the second's stands at an offset affine in the
+/// height along it, and the heights the box `[low, high]` spans.
+struct Leaning<'a> {
+    first: &'a Barrel,
+    second: &'a Barrel,
+    rate: DVec3,
+    at_nought: DVec3,
+    from: f64,
+    to: f64,
+}
+
+impl<'a> Leaning<'a> {
+    fn of(first: &'a Barrel, second: &'a Barrel, low: DVec3, high: DVec3) -> Leaning<'a> {
+        let (axis, along) = (first.axis, second.axis);
+        let between = second.point - first.point;
+        let base = first.point.dot(axis);
+        let (from, to) = (0..8)
+            .map(|corner: usize| {
+                let pick =
+                    |bit: usize, at: usize| if corner & bit == 0 { low[at] } else { high[at] };
+                DVec3::new(pick(1, 0), pick(2, 1), pick(4, 2)).dot(axis) - base
+            })
+            .fold((f64::INFINITY, f64::NEG_INFINITY), |(from, to), height| {
+                (from.min(height), to.max(height))
+            });
+        Leaning {
+            first,
+            second,
+            rate: along / along.dot(axis) - axis,
+            at_nought: between - along * (between.dot(axis) / along.dot(axis)),
+            from,
+            to,
+        }
+    }
+
+    fn offset(&self, height: f64) -> DVec3 {
+        self.at_nought + self.rate * height
+    }
+
+    /// The height where the offset is least, and the two walls' reaches
+    /// along it there, clamped into the box.
+    fn nearest(&self) -> (f64, f64, f64) {
+        let squared = self.rate.length_squared();
+        let nearest = if squared > 0.0 {
+            -self.at_nought.dot(self.rate) / squared
+        } else {
+            (self.from + self.to) / 2.0
+        };
+        let way = self
+            .offset(nearest.clamp(self.from, self.to))
+            .normalize_or(self.first.axis.any_orthonormal_vector());
+        (nearest, self.first.reach(way), self.second.reach(way))
+    }
+
+    /// The longest stretch of heights in the box along which the walls are
+    /// one, or touch inside or outside, within `tolerance`: the kernel's
+    /// quadratic in the height.
+    fn stretch(&self, tolerance: f64) -> f64 {
+        let squared = self.rate.length_squared();
+        let (nearest, near, far) = self.nearest();
+        let closest = self.offset(nearest).length_squared();
+        let within_of = |bound: f64| {
+            if bound * bound < closest {
+                return None;
+            }
+            let half = if squared > 0.0 {
+                ((bound * bound - closest) / squared).sqrt()
+            } else {
+                f64::INFINITY
+            };
+            Some([
+                (nearest - half).max(self.from),
+                (nearest + half).min(self.to),
+            ])
+        };
+        let stretch = |target: f64| {
+            let Some([start, end]) = within_of(target + tolerance) else {
+                return 0.0;
+            };
+            match (target > tolerance)
+                .then(|| within_of(target - tolerance))
+                .flatten()
+            {
+                Some([inner, outer]) => (inner.min(end) - start).max(end - outer.max(start)),
+                None => end - start,
+            }
+            .max(0.0)
+        };
+        stretch((near - far).abs()).max(stretch(near + far))
+    }
+
+    /// Whether the walls meet, touching or crossing, as the kernel reads it:
+    /// the least offset, along the whole axis, within `tolerance` of their
+    /// reaches' sum or under it, the greatest in the box over their
+    /// difference.
+    fn meet(&self, tolerance: f64) -> bool {
+        let (nearest, near, far) = self.nearest();
+        let least = self.offset(nearest).length();
+        let most = self
+            .offset(self.from)
+            .length()
+            .max(self.offset(self.to).length());
+        least <= near + far + tolerance && most >= (near - far).abs() - tolerance
+    }
+}
+
 /// Whether two directions are neither parallel nor square to each other,
 /// by more than the rounding of a direction of unit length.
 fn oblique(one: DVec3, other: DVec3) -> bool {
@@ -542,25 +918,16 @@ impl Walled {
 
 impl Case {
     /// Whether the case may ask the exact kernel for a curve that is no
-    /// conic (#552): two cylinders whose axes are neither parallel nor
-    /// square, a skew meeting, either of them elliptic; or a cone meeting a
-    /// cylinder or a cone not about its very axis, or an elliptic wall about
-    /// any (#571); each where their leaves' boxes meet. A plane never asks.
-    /// The kernel may decline such a case as unsupported; it may also hold
-    /// it, the leaves never meeting there.
+    /// conic it builds (#552): a cone meeting a cylinder or a cone not about
+    /// its very axis, or an elliptic wall about any (#571), where their
+    /// leaves' boxes meet; or two walls nearly parallel along a stretch
+    /// (#577, `asks_of_walls_along_a_stretch`). A plane never asks, nor do
+    /// two walls at a skew angle since #577. The kernel may decline such a
+    /// case as unsupported; it may also hold it, the leaves never meeting
+    /// there.
     pub fn asks_beyond_the_conics(&self) -> bool {
         let walled = Walled::of(self);
-        let skew = walled.leaves.iter().any(|(walls, bounds, _)| {
-            walled
-                .leaves
-                .iter()
-                .filter(|(_, others, _)| walled.near(*bounds, *others))
-                .any(|(others, _, _)| {
-                    cylinders_among(walls)
-                        .any(|axis| cylinders_among(others).any(|other| oblique(other, axis)))
-                })
-        });
-        skew || walled.against_cones().into_iter().any(|(cone, _, other)| {
+        let coned = walled.against_cones().into_iter().any(|(cone, _, other)| {
             let Wall::Cone {
                 axis,
                 point,
@@ -571,6 +938,66 @@ impl Case {
             };
             !matches!(other, Wall::Plane { .. })
                 && other.asks_of_a_cone(axis, point, radius, walled.reach)
+        });
+        coned || self.asks_of_walls_along_a_stretch()
+    }
+
+    /// Whether two walls of two leaves whose boxes meet, round or elliptic,
+    /// lean off parallel past what decision 11 lays exactly — a turn moving
+    /// the second leaf `HAIR` tolerances — and under #552's band, where #577
+    /// declines them as unsupported: within the kernel's tolerance of one
+    /// another along a hundredth of the reach or more, one size with their
+    /// axes crossing or touching as the second's axis drifts across the line
+    /// of touch (`relation/perpendicular.rs`); leaning by a sine under
+    /// `SLIVER`, wherever they meet, touching or crossing. Read in the box the
+    /// two leaves share, where the kernel reads the faces' own; or closer to
+    /// one another than a chord's sag of either's grid over two steps of it,
+    /// where their triangles would cross (`closer_than_a_sag`).
+    pub fn asks_of_walls_along_a_stretch(&self) -> bool {
+        let walled = Walled::of(self);
+        let leaves: Vec<(&Leaf, Spanned)> = self
+            .leaves()
+            .map(|leaf| (leaf, leaf.is_solid().then(|| leaf.bounds()).flatten()))
+            .collect();
+        let reach_up_to = |last: usize| {
+            leaves[..=last]
+                .iter()
+                .filter_map(|(_, bounds)| *bounds)
+                .map(|(low, high)| low.abs().max(high.abs()).max_element())
+                .fold(1.0, f64::max)
+        };
+        leaves.iter().enumerate().any(|(index, (one, bounds))| {
+            leaves[index + 1..]
+                .iter()
+                .enumerate()
+                .any(|(after, (other, other_bounds))| {
+                    let reach = reach_up_to(index + 1 + after);
+                    let eps = TOLERANCE * reach;
+                    let (Some((low, high)), Some((other_low, other_high))) = (bounds, other_bounds)
+                    else {
+                        return false;
+                    };
+                    if !walled.near(*bounds, *other_bounds) {
+                        return false;
+                    }
+                    let margin = DVec3::splat(1e-6 * walled.reach);
+                    let (shared_low, shared_high) =
+                        (low.max(*other_low) - margin, high.min(*other_high) + margin);
+                    let lever = (*other_high - *other_low).length() / 2.0;
+                    barrels(one).iter().any(|first| {
+                        barrels(other).iter().any(|second| {
+                            let sine = first.axis.cross(second.axis).length();
+                            let parallel = sine * 2.0 <= TOLERANCE;
+                            if parallel || sine * lever <= HAIR * eps || sine >= BAND {
+                                return false;
+                            }
+                            let leaning = Leaning::of(first, second, shared_low, shared_high);
+                            leaning.stretch(eps) >= STRETCH * reach
+                                || (sine < SLIVER && leaning.meet(eps))
+                                || closer_than_a_sag(first, second, shared_low, shared_high, reach)
+                        })
+                    })
+                })
         })
     }
 

@@ -23,6 +23,7 @@ use super::surface::Surface;
 pub use crossing::{
     Crossing, Crossings, Lying, Touches, crossings, crossings_given, crossings_lying,
 };
+pub(in crate::brep) use perpendicular::along_a_stretch;
 pub(in crate::brep) use revolved::apart_by;
 pub(in crate::brep) use round::{Gap, off_the_rim, untouched};
 pub use walls::Ruled;
@@ -61,7 +62,7 @@ pub enum Relation {
     /// A plane square to a cylinder's axis, or a cone and a surface of its
     /// axis crossing off it.
     Circle(Circle),
-    /// Two perpendicular walls, circular or elliptic.
+    /// Two walls not parallel, circular or elliptic.
     Meet(Meeting),
     /// A plane through a cone's apex steeper than its slope, holding its axis
     /// or at a slant to it: the two rulings it cuts, and the apex they cross
@@ -95,10 +96,9 @@ pub enum Relation {
         line: Line,
         apex: Option<DVec3>,
     },
-    /// Two cylinders at a skew angle, a cone and a cylinder or a cone not of
-    /// its axis, a cone within the tolerance of a plane or a cylinder of its
-    /// axis all across the box, an elliptic wall and a wall neither parallel
-    /// nor square to it or a cone, two parallel walls within the tolerance of
+    /// A cone and a cylinder or a cone not of its axis, a cone within the
+    /// tolerance of a plane or a cylinder of its axis all across the box, an
+    /// elliptic wall and a cone, two parallel walls within the tolerance of
     /// each other all round though not one.
     Unsupported,
 }

@@ -93,7 +93,7 @@ const MOST: usize = 1024;
 /// least sixteen, so that a coarse tolerance still draws a round; at most a
 /// thousand and twenty-four, so that a fine one does not draw a million
 /// triangles.
-pub(super) fn divisions(radius: f64, tolerance: f64) -> usize {
+pub(in crate::brep) fn divisions(radius: f64, tolerance: f64) -> usize {
     match needed(radius, tolerance) {
         Some(needed) => ((needed / 4.0).ceil() * 4.0).clamp(LEAST as f64, MOST as f64) as usize,
         None => MOST,

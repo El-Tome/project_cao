@@ -106,8 +106,8 @@ impl Pair {
     fn off(&self, turn: DQuat) -> f64 {
         let second = turn * self.second;
         match self.lean {
-            Lean::Square => self.first.cross(second).length(),
-            Lean::Along => self.first.dot(second).abs(),
+            Lean::Square | Lean::Abreast => self.first.cross(second).length(),
+            Lean::Along | Lean::Across => self.first.dot(second).abs(),
         }
     }
 }
@@ -191,7 +191,8 @@ fn paired(
     for &(one, other) in facing {
         let [surface, tool] = [first.surface(one), second.surface(other)];
         let pair = Pair::of(direction(surface), direction(tool));
-        let walled = matches!(surface, Surface::Plane(_)) != matches!(tool, Surface::Plane(_));
+        let walled = matches!(surface, Surface::Plane(_)) != matches!(tool, Surface::Plane(_))
+            || ruled(surface) && ruled(tool);
         let parallel = abreast
             && matches!((surface, tool), (Surface::Plane(_), Surface::Plane(_)))
             && matches!(pair.lean, Lean::Square);
@@ -203,6 +204,15 @@ fn paired(
         }
     }
     (near, held, planes)
+}
+
+/// Whether a surface is a wall whose rulings run along or through its axis:
+/// two such walls a hair off square or parallel are laid so (#577).
+fn ruled(surface: &Surface) -> bool {
+    matches!(
+        surface,
+        Surface::Cylinder(_) | Surface::Elliptic(_) | Surface::Cone(_)
+    )
 }
 
 /// The direction a surface leans by: a plane's normal, a wall's axis.

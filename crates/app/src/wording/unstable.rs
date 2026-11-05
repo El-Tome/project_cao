@@ -1,5 +1,6 @@
 //! What the user reads of a step the kernel built though it reads it
-//! unstably (#552): which way the plane leans, and by how little.
+//! unstably (#552): which way the plane, or the wall (#577), leans, and by
+//! how little.
 
 use cao_solid::{Lean, Unstable};
 
@@ -10,6 +11,8 @@ pub fn notice(lang: &Catalogue, unstable: Unstable) -> String {
     let key = match unstable.lean {
         Lean::Square => "extrusion.unstable_square",
         Lean::Along => "extrusion.unstable_along",
+        Lean::Across => "extrusion.unstable_across",
+        Lean::Abreast => "extrusion.unstable_abreast",
     };
     lang.t_with(key, &[("angle", &angle(unstable.degrees))])
 }

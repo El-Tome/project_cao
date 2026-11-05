@@ -62,10 +62,10 @@ pub enum Crossings {
     At(Vec<Crossing>),
     /// The curve lies on the surface, within the tolerance.
     Along,
-    /// A circle against a cylinder at a skew angle, or against a cone
-    /// unless about an axis parallel to the cone's or in a plane holding
-    /// it; the curve two cylinders meet along against a cone; a conic
-    /// against a surface its wall meets in a way the kernel does not build.
+    /// A circle against a cone unless about an axis parallel to the cone's
+    /// or in a plane holding it; the curve two walls meet along against a
+    /// cone; a conic against a surface its wall meets in a way the kernel
+    /// does not build.
     Unsupported,
 }
 

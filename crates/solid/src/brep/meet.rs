@@ -1,5 +1,5 @@
-//! The curve where two perpendicular walls meet: exact, as four arcs over
-//! the height across both axes.
+//! The curve where two walls meet: exact, as four arcs over the height
+//! across both axes.
 //!
 //! In the frame whose third axis is the first wall's, whose first axis is
 //! the second's and whose origin is on the first's, two cylinders are
@@ -29,9 +29,18 @@
 //! pair's with `a` and `b` the two half-widths; only the point and its
 //! derivatives gain the shear `κ` and the scale `α`. A circular wall is read
 //! by its own expressions, bit for bit.
+//!
+//! Walls at a skew angle (#577) share the height, along the line square to
+//! both axes, and the second's section is read across its own axis: each
+//! ruling of the first meets the second where that section does, so the
+//! span and everything hanging on it are the square pair's, and the height
+//! along the first's axis is `z = (ζ + x cos φ) / sin φ`, `ζ` the second's
+//! coordinate across its chords (`pair.rs`). A pair square to within
+//! rounding is read as square, bit for bit.
 
 mod meeting;
 mod pair;
+mod section;
 mod seen;
 
 use std::f64::consts::{PI, TAU};

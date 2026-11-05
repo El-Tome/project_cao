@@ -2,10 +2,12 @@
 //! stand in boxes that meet: the curves the pair shares, registered as lying
 //! on both, and the points where such a curve crosses itself, where two
 //! cylinders only touch, or where a cone's apex stands on the other surface.
-//! A pair whose curve the kernel does not build declines the operation unless
-//! its faces stand clear of each other; a plane at a slant to a wall whose
-//! faces stand clear is passed by first, whatever its pair makes, so that
-//! the conic it cuts is registered only where two faces may meet along it.
+//! A pair whose curve the kernel does not build, or two walls within the
+//! tolerance of each other along a stretch where their faces may meet
+//! (#577), declines the operation unless its faces stand clear of each
+//! other; a plane at a slant to a wall whose faces stand clear is passed by
+//! first, whatever its pair makes, so that the conic it cuts is registered
+//! only where two faces may meet along it.
 //!
 //! The boxes only spare the pairs that cannot meet; they decide nothing
 //! else. A box round a face at a slant is loose, which costs a pair related
@@ -20,7 +22,7 @@ use super::clear::clear;
 use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::Registry;
-use crate::brep::relation::{Relation, at_a_slant, relation};
+use crate::brep::relation::{Relation, along_a_stretch, at_a_slant, relation};
 use crate::brep::topology::{FaceId, SurfaceId};
 
 /// A point a relation says must be a corner, on both surfaces of its pair
@@ -52,7 +54,9 @@ pub(super) fn related(
                 continue;
             }
             let found = relation(&list[one], &list[other], scale);
-            if found == Relation::Unsupported {
+            let stretched = matches!(found, Relation::Meet(_))
+                && along_a_stretch(&list[one], &list[other], &operands.meeting(pair), scale);
+            if found == Relation::Unsupported || stretched {
                 if clear(operands, pair) {
                     continue;
                 }

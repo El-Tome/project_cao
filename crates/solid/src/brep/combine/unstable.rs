@@ -1,6 +1,7 @@
 //! Whether the kernel reads a step unstably (#552): a plane of one operand
 //! leaning off square to, or along, the axis of a cylinder, a cone or an
-//! elliptic wall (#571) of the other, their faces near enough to meet, by
+//! elliptic wall (#571) of the other, or two such walls off square or
+//! parallel to each other (#577), their faces near enough to meet, by
 //! more than decision 11 lays exactly and less than `UNSTABLE`. The conic
 //! such a plane cuts divides by the lean, so the rounding of a step is
 //! magnified by about one over it: the step is built, and said to the
@@ -51,8 +52,8 @@ pub(super) fn unstable(operands: &Operands) -> Option<Unstable> {
     })
 }
 
-/// How a plane leans off a wall's axis, and by what sine; none for any
-/// other pair.
+/// How a plane leans off a wall's axis, or a wall off another's, and by
+/// what sine; none for any other pair.
 fn lean_of(one: &Surface, other: &Surface) -> Option<(Lean, f64)> {
     let axis = |wall: &Surface| match wall {
         Surface::Cylinder(cylinder) => Some(cylinder.axis),
@@ -66,6 +67,13 @@ fn lean_of(one: &Surface, other: &Surface) -> Option<(Lean, f64)> {
         (Surface::Plane(plane), wall) | (wall, Surface::Plane(plane)) => {
             Some(leaning(plane.normal, axis(wall)?))
         }
+        (
+            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_),
+            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_),
+        ) => match leaning(axis(one)?, axis(other)?) {
+            (Lean::Square, sine) => Some((Lean::Abreast, sine)),
+            (_, sine) => Some((Lean::Across, sine)),
+        },
         _ => None,
     }
 }

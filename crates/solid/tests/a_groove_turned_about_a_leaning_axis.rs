@@ -22,9 +22,11 @@
 //!
 //! Laid, the ring is no longer coaxial with the case's second leaf, turned
 //! about a line parallel to the sketch's own axis: about a leaning axis the
-//! two meet along cylinders at a skew angle, which the exact kernel declines
-//! as unsupported, and that step is refused at once where about the straight
-//! axis it is built and the next one refused.
+//! two meet along cylinders at a skew angle, which the exact kernel declined
+//! as unsupported until #577 built them; at 0.1° the step is now built, as
+//! about the straight axis, and the next one refused, and at 1e-5° — a
+//! sliver past decision 11, where the walls of one size meet — it is
+//! refused itself, as on main.
 
 // The drawing, the promise and the checks are the campaigns'; this file
 // only builds cases and holds them.
@@ -190,12 +192,16 @@ fn seed_5577103202_leaning_a_tenth_of_a_degree_keeps_every_rule_through_the_body
         Some((1, Declined::Unsupported)),
         "about the straight axis"
     );
-    for axis in [Axis::second(0.0).backwards().leaning(0.1), as_drawn()] {
+    for (axis, step) in [
+        (Axis::second(0.0).backwards().leaning(0.1), 1),
+        (as_drawn(), 0),
+    ] {
         let (leaning, refused) = timed(axis);
         assert_eq!(
             refused,
-            Some((0, Declined::Unsupported)),
-            "{axis:?}: the second leaf skew to the ring"
+            Some((step, Declined::Unsupported)),
+            "{axis:?}: the second leaf skew to the ring built at 0.1°, the next refused; \
+             at 1e-5°, a sliver past decision 11, the second refused (#577)"
         );
         assert!(
             leaning < 2.0 * straight + 1.0,

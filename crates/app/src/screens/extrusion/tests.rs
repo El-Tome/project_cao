@@ -27,8 +27,8 @@
 //! `a_revolution_across_its_axis_makes_matter_and_has_nothing_to_say`,
 //! `a_revolution_that_changes_nothing_says_so_without_blaming_the_axis`.
 
-use cao_part::{Operation, PartDocument, PointRef};
-use cao_sketch::WorkPlane;
+use cao_part::{Operation, PartDocument, PointRef, RevolutionAxis};
+use cao_sketch::{PointId, SketchAxis, WorkPlane};
 use chrono::Utc;
 use glam::DVec3;
 
@@ -140,28 +140,47 @@ fn a_distance_that_does_not_read_says_why_and_is_not_ready() {
     assert!(!extrusion.is_ready(&variables));
 }
 
-/// A post Ø8 raised 10 about the origin, and over it a circle on a plane
-/// tilted 30° about X: raised down, its wall crosses the post's at a skew
-/// angle, which the exact kernel does not build.
-fn a_post_under_a_slanted_circle() -> PartDocument {
-    let mut document = PartDocument::new("part", Utc::now());
+/// A ball of `radius` about `center`: a half disc drawn on the plane holding
+/// the upright through it, turned whole about that line.
+fn a_ball(document: &mut PartDocument, center: DVec3, radius: f64) {
+    let sketch = document.sketches().len();
     document.apply(Operation::CreateSketch {
-        plane: WorkPlane::XY,
+        plane: WorkPlane {
+            origin: center,
+            u: DVec3::X,
+            v: DVec3::Z,
+        },
         on: None,
     });
-    document.apply(Operation::AddCircle {
-        sketch: 0,
+    let first = document.sketches()[sketch].points().len();
+    document.apply(Operation::AddArc {
+        sketch,
         center: PointRef::New(DVec2::ZERO),
-        radius: 4.0,
-        rim: Vec::new(),
+        start: PointRef::New(DVec2::new(0.0, -radius)),
+        end: PointRef::New(DVec2::new(0.0, radius)),
         construction: false,
     });
-    document.apply(Operation::Extrude {
-        sketch: 0,
-        areas: document.areas_at(0, &[DVec2::ZERO]),
-        distance: 10.0.into(),
+    document.apply(Operation::AddSegment {
+        sketch,
+        start: PointRef::Existing(PointId(first + 2)),
+        end: PointRef::Existing(PointId(first + 1)),
+        construction: false,
+    });
+    document.apply(Operation::Revolve {
+        sketch,
+        areas: document.areas_at(sketch, &[DVec2::new(radius / 4.0, 0.0)]),
+        axis: RevolutionAxis::Sketch(SketchAxis::V),
+        angle: 360.0.into(),
         mode: ExtrusionMode::Add,
     });
+}
+
+/// A ball of radius 8 about the origin, and over it a circle on a plane
+/// tilted 30° about X: raised down, its wall crosses the ball's sphere off
+/// its centre, which the exact kernel does not build.
+fn a_ball_under_a_slanted_circle() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    a_ball(&mut document, DVec3::ZERO, 8.0);
     let (sin, cos) = (std::f64::consts::PI / 6.0).sin_cos();
     document.apply(Operation::CreateSketch {
         plane: WorkPlane {
@@ -184,7 +203,7 @@ fn a_post_under_a_slanted_circle() -> PartDocument {
 #[test]
 fn an_extrusion_the_kernel_declines_says_so_rather_than_that_it_made_nothing() {
     let lang = Catalogue::french();
-    let mut document = a_post_under_a_slanted_circle();
+    let mut document = a_ball_under_a_slanted_circle();
     let mut extrusion = ExtrusionState::default();
     extrusion.offer(1);
     extrusion.picks = vec![DVec2::ZERO];

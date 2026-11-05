@@ -253,7 +253,15 @@ fn an_arm_keeps_only_the_crossings_on_its_own_side() {
 }
 
 #[test]
-fn a_conic_against_a_skew_wall_or_a_cone_off_its_axis_is_unsupported() {
+fn a_conic_on_a_wall_crosses_a_skew_wall_twice_where_it_passes_through_it() {
+    let on_the_wall = ellipse(&slanted(), Round::Cylinder(wall()));
+    let skew = cylinder(DVec3::new(5.0, 0.0, 8.5), DVec3::new(1.0, 1.0, 1.0), 2.0);
+    let found = on_the_conic(&on_the_wall, &skew, &Touches::default());
+    assert_eq!(tangents(&found), [false, false]);
+}
+
+#[test]
+fn a_conic_against_a_cone_off_its_axis_or_on_a_cone_against_a_wall_off_it_is_unsupported() {
     let on_the_wall = ellipse(&slanted(), Round::Cylinder(wall()));
     let on_the_point = ellipse(&lower(), Round::Cone(point()));
     let skew = cylinder(DVec3::ZERO, DVec3::new(1.0, 0.0, 1.0), 2.0);
@@ -264,7 +272,6 @@ fn a_conic_against_a_skew_wall_or_a_cone_off_its_axis_is_unsupported() {
         [DVec2::new(0.0, 3.0), DVec2::new(6.0, 0.0)],
     ));
     for (conic, surface) in [
-        (&on_the_wall, &skew),
         (&on_the_wall, &off),
         (&on_the_point, &skew),
         (&on_the_point, &beside),

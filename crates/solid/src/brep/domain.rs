@@ -95,27 +95,54 @@ impl Body {
     /// starts on counted: a point on the cut of a ring's chart is read at
     /// the window's top, inside the face.
     pub fn locate(&self, face: FaceId, at: DVec2, eps: f64) -> Result<Location, Declined> {
+        Ok(self.locate_each(face, &[at], eps)?[0])
+    }
+
+    /// Where each of `points` stands against the face, as [`Body::locate`]
+    /// reads it, the face's loops traced once for them all and closed once
+    /// where one of them stands off its boundary.
+    pub(in crate::brep) fn locate_each(
+        &self,
+        face: FaceId,
+        points: &[DVec2],
+        eps: f64,
+    ) -> Result<Vec<Location>, Declined> {
         let loops = self.traces(face)?;
         let unrolling = self.unrolled_at(face);
-        let place = self.surface(self.face(face).surface).point(at);
-        let near = loops.iter().flatten().any(|trace| {
-            !self.far_from(trace, place, eps) && distance::distance(trace, at, unrolling) <= eps
-        }) || self
-            .poles_held(face)
+        let surface = self.surface(self.face(face).surface);
+        let poles = self.poles_held(face);
+        let near: Vec<bool> = points
             .iter()
-            .any(|pole| pole.distance(place) <= eps);
-        if near {
-            return Ok(Location::Boundary);
+            .map(|&at| {
+                let place = surface.point(at);
+                loops.iter().flatten().any(|trace| {
+                    !self.far_from(trace, place, eps)
+                        && distance::distance(trace, at, unrolling) <= eps
+                }) || poles.iter().any(|pole| pole.distance(place) <= eps)
+            })
+            .collect();
+        if near.iter().all(|&near| near) {
+            return Ok(vec![Location::Boundary; points.len()]);
         }
-        let above = crossing::heights(&self.closed(face, loops), at.x, unrolling.periodic())
-            .into_iter()
-            .filter(|height| *height >= at.y)
-            .count();
-        Ok(if above % 2 == 1 {
-            Location::Inside
-        } else {
-            Location::Outside
-        })
+        let closed = self.closed(face, loops);
+        Ok(points
+            .iter()
+            .zip(near)
+            .map(|(at, near)| {
+                if near {
+                    return Location::Boundary;
+                }
+                let above = crossing::heights(&closed, at.x, unrolling.periodic())
+                    .into_iter()
+                    .filter(|height| *height >= at.y)
+                    .count();
+                if above % 2 == 1 {
+                    Location::Inside
+                } else {
+                    Location::Outside
+                }
+            })
+            .collect())
     }
 
     /// A point of the face's surface, in its parameters, strictly inside the

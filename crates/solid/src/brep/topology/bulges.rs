@@ -18,44 +18,93 @@ use crate::brep::surface::{Surface, Torus};
 
 impl Body {
     /// The points of a face's sphere or torus that go furthest along
-    /// `direction` or against it — a sphere's two, a torus's four, found
-    /// where the surface's gradient along the direction vanishes — kept
-    /// where they stand inside the face or on its boundary at any of their
-    /// [`readings`], and every one where the face's domain cannot be read.
-    /// None for any other surface.
+    /// `direction` or against it, kept where the face holds them
+    /// ([`Body::held`]). None for any other surface.
     pub(in crate::brep) fn bulges(&self, face: FaceId, direction: DVec3) -> Vec<DVec3> {
         let surface = self.surface(self.face(face).surface);
-        let candidates = match surface {
-            Surface::Sphere(sphere) => [1.0, -1.0]
-                .map(|way| sphere.middle() + direction * (way * sphere.radius))
-                .to_vec(),
-            Surface::Torus(torus) => bulges_of_a_torus(torus, direction),
-            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
-                return Vec::new();
-            }
-        };
-        if self.face(face).loops.is_empty() {
-            return candidates;
-        }
-        let eps = self.scale().eps();
-        candidates
-            .into_iter()
-            .filter(|point| {
-                readings(surface, *point, eps)
-                    .into_iter()
-                    .any(|at| !matches!(self.locate(face, at, eps), Ok(Location::Outside)))
-            })
-            .collect()
+        self.held(face, furthest(surface, direction))
     }
 
     /// The points of a face's sphere or torus where a coordinate is largest
-    /// or smallest, kept where the face holds them: with its edges and its
-    /// poles, what its own box is read off.
+    /// or smallest, kept where the face holds them and where they stand past
+    /// the box of its edges' extremes and its poles: with those, what its
+    /// own box is read off. A point within that box widens no box and no
+    /// reach read off the face, and is never located.
     pub(in crate::brep) fn bulges_held(&self, face: FaceId) -> Vec<DVec3> {
-        DVec3::AXES
+        let surface = self.surface(self.face(face).surface);
+        let candidates: Vec<DVec3> = DVec3::AXES
             .into_iter()
-            .flat_map(|axis| self.bulges(face, axis))
+            .flat_map(|axis| furthest(surface, axis))
+            .collect();
+        if candidates.is_empty() {
+            return candidates;
+        }
+        let [low, high] = self.edged(face);
+        let past = candidates
+            .into_iter()
+            .filter(|point| point.cmplt(low).any() || point.cmpgt(high).any())
+            .collect();
+        self.held(face, past)
+    }
+
+    /// The box of a face's edges' extremes and of the poles it holds within
+    /// it, empty for a face with neither.
+    fn edged(&self, face: FaceId) -> [DVec3; 2] {
+        let edges = self
+            .face(face)
+            .loops
+            .iter()
+            .flatten()
+            .flat_map(|coedge| self.extremes(self.edge(coedge.edge)));
+        self.poles_held(face).into_iter().chain(edges).fold(
+            [DVec3::INFINITY, DVec3::NEG_INFINITY],
+            |[low, high], point| [low.min(point), high.max(point)],
+        )
+    }
+
+    /// Those of `points`, on a face's sphere or torus, that the face holds —
+    /// inside it or on its boundary at any of their [`readings`], located
+    /// all at once — and every one where the face has no loop or its domain
+    /// cannot be read.
+    fn held(&self, face: FaceId, points: Vec<DVec3>) -> Vec<DVec3> {
+        if points.is_empty() || self.face(face).loops.is_empty() {
+            return points;
+        }
+        let surface = self.surface(self.face(face).surface);
+        let eps = self.scale().eps();
+        let read: Vec<Vec<DVec2>> = points
+            .iter()
+            .map(|point| readings(surface, *point, eps))
+            .collect();
+        let all: Vec<DVec2> = read.iter().flatten().copied().collect();
+        let Ok(found) = self.locate_each(face, &all, eps) else {
+            return points;
+        };
+        let mut found = found.into_iter();
+        points
+            .into_iter()
+            .zip(read)
+            .filter(|(_, readings)| {
+                let locations: Vec<Location> = found.by_ref().take(readings.len()).collect();
+                locations.iter().any(|at| *at != Location::Outside)
+            })
+            .map(|(point, _)| point)
             .collect()
+    }
+}
+
+/// The points of a sphere or a torus that go furthest along `direction` or
+/// against it — a sphere's two, a torus's four, found where the surface's
+/// gradient along the direction vanishes; none on any other surface.
+fn furthest(surface: &Surface, direction: DVec3) -> Vec<DVec3> {
+    match surface {
+        Surface::Sphere(sphere) => [1.0, -1.0]
+            .map(|way| sphere.middle() + direction * (way * sphere.radius))
+            .to_vec(),
+        Surface::Torus(torus) => bulges_of_a_torus(torus, direction),
+        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+            Vec::new()
+        }
     }
 }
 

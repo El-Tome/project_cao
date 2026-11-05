@@ -55,8 +55,9 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// ellipse a hair from round is an arc of the circle of its mean, its
 /// corners laid on it (#574). 18: an exact body carries the names of its
 /// edges and its vertices, and the number each piece of a parted face
-/// replaced (#582).
-const REBUILT_BY: u32 = 18;
+/// replaced (#582). 19: a piece of a parted face answers to a number of its
+/// own, apart from the steps', so a later step's numbers stay put (#682).
+const REBUILT_BY: u32 = 19;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

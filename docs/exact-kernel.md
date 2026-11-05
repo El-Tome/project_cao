@@ -75,7 +75,11 @@ It can:
   run laid to no length (`brep/piece.rs`). A face kept from a boolean
   answers to the numbers of every operand face it lies on; a face merged across a seam to all of its
   members'. A face a cut leaves in pieces that no longer touch keeps its
-  number on the first piece, and the others get fresh numbers.
+  number on the first piece, and each other piece answers to a number of
+  its own, from a range far above any step's (`PIECES`, `body/exact.rs`)
+  and counted apart from the steps' numbers: a later step's numbers start
+  where the earlier steps' end, whatever any of them left in pieces, so a
+  drawing or a name laid on a later face stays on that face (#682).
 - **name its edges and its vertices** from the numbers of the faces they lie
   between, so a step pointing at one finds it again when a size changes
   (#582, `brep/names.rs`). An edge answers to the sides of its two faces —
@@ -122,19 +126,14 @@ It can:
   faces, not the pieces of the named edge alone. A piece of a parted face
   names its edges by its root, so an edge a cut parts along with its face is
   all its pieces, between the same two sides. The exact body keeps the
-  number each fresh piece replaced and works the names out once, as it is
-  made, by the edge's and the vertex's rank; the flats name none. A root is
+  number each piece replaced and works the names out once, as it is made,
+  by the edge's and the vertex's rank; the flats name none. A root is
   followed only while the number it replaced is smaller, as every one the
   kernel writes is, so roots edited by hand into a cycle cannot hang a part.
 
-  What it does not catch. A fresh number comes from the part's one counter,
-  so every later step's numbers move when an earlier change starts or stops
-  parting a face: the faces' own rule, which moves a drawing laid on a later
-  face as surely as an edge's name — and the shifted number may name the
-  face beside, so a name can land on a neighbouring edge without a report.
-  The chamfer of #497 meets it first. Two edges a join bridges into one, two
-  blocks come to abut with their tops and fronts merging, are both found on
-  the merged edge: each name's faces still answer, and each keeps one end.
+  What it does not catch. Two edges a join bridges into one, two blocks
+  come to abut with their tops and fronts merging, are both found on the
+  merged edge: each name's faces still answer, and each keeps one end.
   Vertex names have no lookup yet and hold the names of their edges, so a
   change at an edge's far end renames a vertex nothing touched: a dimension
   from a vertex (#497) needs a `find` of its own.
@@ -146,8 +145,8 @@ It can:
   too (`Declined::Panicked`), not a lost part, and is kept from the
   application's crash log, since it is no crash. A body is drawn as it is
   built: one with a face the triangles cannot cover is declined too
-  (`Declined::Undrawn`). The face counter only goes up, so a number is never
-  given twice.
+  (`Declined::Undrawn`). The face counter and the pieces' counter only go
+  up, so a number is never given twice.
 - **tell faces at a slant that never touch from faces that cross**: two skew
   cylinders, a cylinder or a cone off a cone's axis, are decided apart on the
   faces themselves before the kernel declines (`combine/clear.rs`); a plane
@@ -1557,8 +1556,9 @@ code: one surface per piece of the profile, one circle per corner.
   counted then. `Straight::numbers` counts the profile as laid, for the
   pieces of an area across its axis, which `main` never turned. A face a
   wall a hair thin left in pieces is told apart by the first boolean, as a
-  cut's pieces are: the second piece takes the next fresh number, one past
-  the count the flats gave the profile with its wall.
+  cut's pieces are: the second piece answers to a number of the pieces',
+  and the steps after it number their faces from the count the flats gave
+  the profile with its wall.
 
 ## The boolean
 

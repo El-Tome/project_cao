@@ -445,7 +445,7 @@ fn a_tools_faces_are_numbered_above_every_number_the_part_gave() {
 }
 
 #[test]
-fn a_top_a_trench_parts_in_two_gives_its_second_piece_a_fresh_number() {
+fn a_top_a_trench_parts_in_two_gives_its_second_piece_a_number_no_step_gives() {
     let part = block(DVec2::ZERO, DVec2::new(30.0, 10.0), 10.0);
     let trench = part
         .tool_raised(
@@ -463,8 +463,29 @@ fn a_top_a_trench_parts_in_two_gives_its_second_piece_a_fresh_number() {
 
     let cut = part.difference(&trench).expect("the kernel cuts it");
 
-    let fresh = 12;
-    assert_eq!(cut.faces_end(), fresh + 1);
+    let met = [5.0, 25.0].map(|along| {
+        cut.ray_hit(DVec3::new(along, 5.0, 20.0), DVec3::NEG_Z)
+            .expect("the ray meets the top")
+            .face
+    });
+    assert!(
+        met.contains(&TOP),
+        "one piece keeps the top's number: {met:?}"
+    );
+    let fresh = met
+        .into_iter()
+        .find(|&face| face != TOP)
+        .unwrap_or_else(|| panic!("the other piece answers to another: {met:?}"));
+    assert_eq!(cut.parted_from(fresh), Some(TOP));
+    assert_eq!(
+        cut.faces_end(),
+        12,
+        "the block's six numbers and the trench's six: parting the top took none"
+    );
+    assert!(
+        fresh >= cut.faces_end(),
+        "the second piece answers to {fresh}, which no step gives"
+    );
     let sides: Vec<f64> = [TOP, fresh]
         .iter()
         .map(|&face| {

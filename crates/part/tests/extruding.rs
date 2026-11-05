@@ -497,3 +497,93 @@ fn a_step_of_matter_names_the_faces_it_made() {
         "a rectangle raises nothing"
     );
 }
+
+#[test]
+fn a_step_of_matter_names_both_pieces_of_its_face_a_later_cut_parts_and_the_cut_names_neither() {
+    let at_nine = "2026-01-02T09:00:00Z".parse().expect("a date");
+    let mut document = PartDocument::new("Bloc", at_nine);
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(30.0, 10.0)),
+        construction: false,
+    });
+    let block = document.areas_at(0, &[DVec2::new(5.0, 5.0)]);
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: block,
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::Z * 10.0,
+            ..WorkPlane::XY
+        },
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::new(10.0, -1.0)),
+        opposite: PointRef::New(DVec2::new(20.0, 11.0)),
+        construction: false,
+    });
+    let slot = document.areas_at(1, &[DVec2::new(15.0, 5.0)]);
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        areas: slot,
+        distance: (-5.0).into(),
+        mode: ExtrusionMode::Cut,
+    });
+    const THE_BLOCK: u32 = 3;
+    const THE_SLOT: u32 = 6;
+
+    let block = document.faces_made_by(THE_BLOCK);
+    let slot = document.faces_made_by(THE_SLOT);
+    let from_above = |along: f64| {
+        document
+            .body()
+            .ray_hit(DVec3::new(along, 5.0, 20.0), DVec3::NEG_Z)
+            .expect("the ray meets the part")
+            .face
+    };
+    let top = [from_above(5.0), from_above(25.0)];
+    let floor = from_above(15.0);
+
+    assert_ne!(
+        top[0], top[1],
+        "the slot leaves the block's top in two pieces"
+    );
+    assert!(
+        top.iter().all(|piece| block.contains(piece)),
+        "the block lights both pieces of its top, {top:?}, among {block:?}"
+    );
+    assert_eq!(
+        block.len(),
+        7,
+        "the block's six faces, its top in two pieces: {block:?}"
+    );
+    assert!(
+        slot.contains(&floor),
+        "the slot lights its floor, {floor}, among {slot:?}"
+    );
+    assert!(
+        top.iter().all(|piece| !slot.contains(piece)),
+        "the slot lights neither piece of the block's top, {top:?}, among {slot:?}"
+    );
+    assert!(
+        block.iter().all(|face| !slot.contains(face)),
+        "no face was made by both: {block:?} {slot:?}"
+    );
+    assert!(
+        block
+            .iter()
+            .chain(&slot)
+            .all(|face| document.body().triangles_of(*face).next().is_some()),
+        "every face named stands in the part"
+    );
+}

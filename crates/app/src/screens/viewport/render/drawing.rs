@@ -13,28 +13,36 @@ use super::preview::push_preview;
 use super::trim::{LOUDER, push_going};
 use super::{emphasis, live_offset, tint, tint_at};
 use crate::screens::SketchContext;
+use crate::screens::part_tree::state::Points;
 use crate::screens::viewport::input::{copying_shows, corner_shows};
+use crate::screens::viewport::visibility::Seen;
 use crate::screens::viewport::{PICK_PIXELS, ViewScale};
 
 /// Tints the areas the drawing encloses, so a closed contour reads as a face
-/// rather than four separate lines.
+/// rather than four separate lines. An area lit from the tree is tinted apart,
+/// and is the only one tinted when the sketch is hidden.
 ///
 /// A shape drawn inside another is tinted more heavily: without that, an
 /// outline and the pocket in it wash into one another and the eye cannot tell which is which.
-pub(crate) fn push_regions(
+fn tint_regions(
     surfaces: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
     theme: &Theme,
     active: bool,
+    seen: Seen,
 ) {
-    for region in sketch.regions() {
+    for (rank, region) in sketch.regions().into_iter().enumerate() {
+        let lit = matches!(seen.lit, Some(Points::Area { rank: lit, .. }) if lit == rank);
+        if seen.hidden && !lit {
+            continue;
+        }
         // Deeper areas take more of the tint, which is what tells a shape
         // drawn inside another from the one it sits in.
         let shade = theme.region_fill.a * (1.0 + 0.6 * region.depth.min(4) as f32);
-        let color = if active {
-            tint_at(theme.region_fill, shade)
-        } else {
-            tint_at(theme.sketch_inactive, shade * 0.6)
+        let color = match (lit, active) {
+            (true, _) => tint_at(theme.highlight, shade),
+            (false, true) => tint_at(theme.region_fill, shade),
+            (false, false) => tint_at(theme.sketch_inactive, shade * 0.6),
         };
         for [a, b, c] in region.triangles {
             for corner in [a, b, c] {
@@ -108,183 +116,186 @@ pub(crate) struct Shown<'a> {
     pub(crate) active: bool,
 }
 
-pub(crate) fn push_sketch(
-    out: &mut Vec<cao_render::Vertex>,
-    surfaces: &mut Vec<cao_render::Vertex>,
-    shown: &Shown<'_>,
-    theme: &Theme,
-    scale: ViewScale,
-    context: &SketchContext<'_>,
-) {
-    let Shown {
-        sketch,
-        laid,
-        cuts,
-        going,
-        active,
-    } = *shown;
-    push_regions(surfaces, sketch, theme, active);
-
-    // Per element, not one verdict for the whole drawing: a contour can be
-    // nailed down while its neighbour is still floating, and that is exactly
-    // what tells the user what is left to do.
-    let settled = sketch.settled_points(context.document.scale());
-    let holds = |point: PointId| settled.get(point.0).copied().unwrap_or(false);
-
-    let canvas = CutCanvas::read(sketch, context);
-    for (id, segment) in sketch.live_segments() {
-        let held = holds(segment.start) && holds(segment.end);
-        let (color, width) = match sketch.is_held(Element::Segment(id)) {
-            true => (tint(theme.fixed), theme.sketch_width),
-            false => sketch_colors(theme, active, held),
-        };
-        let (color, width) = emphasis::mark(
-            context,
-            theme,
-            Selection::Element(Element::Segment(id)),
-            laid,
-            color,
-            width,
-        );
-        let ends = (
-            shown_position(sketch, segment.start, context),
-            shown_position(sketch, segment.end, context),
-        );
-        let stroke = Stroke {
-            color,
-            width,
-            construction: segment.construction,
-        };
-        canvas.push_side(out, id, ends, stroke, (theme, scale));
-    }
-    canvas.push_cuts(out, cuts, (active, &settled), (theme, scale), context);
-
-    for (id, circle) in sketch.live_circles() {
-        let (color, width) = match sketch.is_held(Element::Circle(id)) {
-            true => (tint(theme.fixed), theme.sketch_width),
-            false => sketch_colors(theme, active, holds(circle.center)),
-        };
-        let (color, width) = emphasis::mark(
-            context,
-            theme,
-            Selection::Element(Element::Circle(id)),
-            laid,
-            color,
-            width,
-        );
-        push_circle_at(
-            out,
+impl Seen {
+    /// Draws a sketch the way this says: whole, or only what the tree lit.
+    pub(crate) fn draw(
+        self,
+        out: &mut Vec<cao_render::Vertex>,
+        surfaces: &mut Vec<cao_render::Vertex>,
+        shown: &Shown<'_>,
+        theme: &Theme,
+        scale: ViewScale,
+        context: &SketchContext<'_>,
+    ) {
+        let seen = self;
+        let Shown {
             sketch,
-            sketch.point(circle.center),
-            circle.radius,
-            color,
-            width,
-            circle.construction,
-            scale,
-        );
-    }
-
-    for (id, arc) in sketch.live_arcs() {
-        let (color, width) = match sketch.is_held(Element::Arc(id)) {
-            true => (tint(theme.fixed), theme.sketch_width),
-            false => sketch_colors(theme, active, holds(arc.center)),
-        };
-        let (color, width) = emphasis::mark(
-            context,
-            theme,
-            Selection::Element(Element::Arc(id)),
             laid,
-            color,
-            width,
-        );
-        let stroke = Stroke {
-            color,
-            width,
-            construction: arc.construction,
+            cuts,
+            going,
+            active,
+        } = *shown;
+        tint_regions(surfaces, sketch, theme, active, seen);
+        // A trait lit from the tree is drawn in a colour of its own; in a sketch
+        // whose eye is out, it is drawn alone.
+        let marked = |element: Element, color, width| match seen.lit {
+            Some(Points::Element { element: lit, .. }) if lit == element => {
+                Some((tint_at(theme.highlight, 1.0), width * LOUDER))
+            }
+            _ if seen.hidden => None,
+            _ => Some(emphasis::mark(
+                context,
+                theme,
+                Selection::Element(element),
+                laid,
+                color,
+                width,
+            )),
         };
-        canvas.push_arc(out, id, stroke, (theme, scale));
-    }
 
-    for (id, oval) in sketch.live_ellipses() {
-        let stands = sketch.ellipse_points(id).into_iter().all(holds);
-        let (color, width) = match sketch.is_held(Element::Ellipse(id)) {
-            true => (tint(theme.fixed), theme.sketch_width),
-            false => sketch_colors(theme, active, stands),
-        };
-        let (color, width) = emphasis::mark(
-            context,
-            theme,
-            Selection::Element(Element::Ellipse(id)),
-            laid,
-            color,
-            width,
-        );
-        let stroke = Stroke {
-            color,
-            width,
-            construction: oval.construction,
-        };
-        canvas.push_ellipse(out, id, stroke, (theme, scale));
-    }
+        // Per element, not one verdict for the whole drawing: a contour can be
+        // nailed down while its neighbour is still floating, and that is exactly
+        // what tells the user what is left to do.
+        let settled = sketch.settled_points(context.document.scale());
+        let holds = |point: PointId| settled.get(point.0).copied().unwrap_or(false);
 
-    if !active {
-        return;
-    }
-
-    canvas.push_points(out, &settled, (theme, scale), context);
-    push_point_markers(out, sketch, theme, scale, &settled, laid, context);
-    emphasis::push_picked_axes(out, sketch, theme, context.editor.rule_picks());
-
-    // Every dimension is drawn where it applies, with extension lines, arrows
-    // and arcs, so the drawing says what holds it rather than just carrying a number.
-    for dimension in sketch.dimensions() {
-        let mut style = if dimension.driven {
-            crate::screens::annotations::Style::driven(theme)
-        } else {
-            crate::screens::annotations::Style::driving(theme)
-        };
-        let target = Selection::Dimension(dimension.target);
-        if context.editor.is_selected(target) || context.editor.hovered == Some(target) {
-            style.color = tint_at(theme.highlight, 1.0);
-            style.width *= 2.0;
+        let canvas = CutCanvas::read(sketch, context);
+        for (id, segment) in sketch.live_segments() {
+            let held = holds(segment.start) && holds(segment.end);
+            let (color, width) = match sketch.is_held(Element::Segment(id)) {
+                true => (tint(theme.fixed), theme.sketch_width),
+                false => sketch_colors(theme, active, held),
+            };
+            let Some((color, width)) = marked(Element::Segment(id), color, width) else {
+                continue;
+            };
+            let ends = (
+                shown_position(sketch, segment.start, context),
+                shown_position(sketch, segment.end, context),
+            );
+            let stroke = Stroke {
+                color,
+                width,
+                construction: segment.construction,
+            };
+            canvas.push_side(out, id, ends, stroke, (theme, scale));
         }
-        // Last, so that a value both pointed at and about to go reads as going:
-        // of the two things to say, that is the one the user cannot undo.
-        if going.is_some_and(|going| going.values.contains(&dimension.target)) {
-            style.color = tint(theme.going);
-            style.width *= LOUDER;
+        if !seen.hidden {
+            canvas.push_cuts(out, cuts, (active, &settled), (theme, scale), context);
         }
-        crate::screens::annotations::push(
-            out,
-            sketch,
-            dimension.target,
-            &style,
-            scale.units_per_pixel,
-            live_offset(context, dimension.target),
-        );
-    }
 
-    push_preview(out, sketch, theme, scale, context);
+        for (id, circle) in sketch.live_circles() {
+            let (color, width) = match sketch.is_held(Element::Circle(id)) {
+                true => (tint(theme.fixed), theme.sketch_width),
+                false => sketch_colors(theme, active, holds(circle.center)),
+            };
+            let Some((color, width)) = marked(Element::Circle(id), color, width) else {
+                continue;
+            };
+            push_circle_at(
+                out,
+                sketch,
+                sketch.point(circle.center),
+                circle.radius,
+                color,
+                width,
+                circle.construction,
+                scale,
+            );
+        }
 
-    if let Some(going) = going {
-        push_going(out, sketch, going, theme, scale);
-    }
+        for (id, arc) in sketch.live_arcs() {
+            let (color, width) = match sketch.is_held(Element::Arc(id)) {
+                true => (tint(theme.fixed), theme.sketch_width),
+                false => sketch_colors(theme, active, holds(arc.center)),
+            };
+            let Some((color, width)) = marked(Element::Arc(id), color, width) else {
+                continue;
+            };
+            let stroke = Stroke {
+                color,
+                width,
+                construction: arc.construction,
+            };
+            canvas.push_arc(out, id, stroke, (theme, scale));
+        }
 
-    if let Some(cao_sketch::DimensionTarget::Length(selected)) = context.editor.selected()
-        && selected.0 < sketch.segments().len()
-    {
-        let (start, end) = sketch.endpoints(selected);
-        let highlight = tint_at(theme.highlight, 1.0);
-        out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(start).as_vec3(),
-            highlight,
-            4.0,
-        ));
-        out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(end).as_vec3(),
-            highlight,
-            4.0,
-        ));
+        for (id, oval) in sketch.live_ellipses() {
+            let stands = sketch.ellipse_points(id).into_iter().all(holds);
+            let (color, width) = match sketch.is_held(Element::Ellipse(id)) {
+                true => (tint(theme.fixed), theme.sketch_width),
+                false => sketch_colors(theme, active, stands),
+            };
+            let Some((color, width)) = marked(Element::Ellipse(id), color, width) else {
+                continue;
+            };
+            let stroke = Stroke {
+                color,
+                width,
+                construction: oval.construction,
+            };
+            canvas.push_ellipse(out, id, stroke, (theme, scale));
+        }
+
+        if !active {
+            return;
+        }
+
+        canvas.push_points(out, &settled, (theme, scale), context);
+        push_point_markers(out, sketch, theme, scale, &settled, laid, context);
+        emphasis::push_picked_axes(out, sketch, theme, context.editor.rule_picks());
+
+        // Every dimension is drawn where it applies, with extension lines, arrows
+        // and arcs, so the drawing says what holds it rather than just carrying a number.
+        for dimension in sketch.dimensions() {
+            let mut style = if dimension.driven {
+                crate::screens::annotations::Style::driven(theme)
+            } else {
+                crate::screens::annotations::Style::driving(theme)
+            };
+            let target = Selection::Dimension(dimension.target);
+            if context.editor.is_selected(target) || context.editor.hovered == Some(target) {
+                style.color = tint_at(theme.highlight, 1.0);
+                style.width *= 2.0;
+            }
+            // Last, so that a value both pointed at and about to go reads as going:
+            // of the two things to say, that is the one the user cannot undo.
+            if going.is_some_and(|going| going.values.contains(&dimension.target)) {
+                style.color = tint(theme.going);
+                style.width *= LOUDER;
+            }
+            crate::screens::annotations::push(
+                out,
+                sketch,
+                dimension.target,
+                &style,
+                scale.units_per_pixel,
+                live_offset(context, dimension.target),
+            );
+        }
+
+        push_preview(out, sketch, theme, scale, context);
+
+        if let Some(going) = going {
+            push_going(out, sketch, going, theme, scale);
+        }
+
+        if let Some(cao_sketch::DimensionTarget::Length(selected)) = context.editor.selected()
+            && selected.0 < sketch.segments().len()
+        {
+            let (start, end) = sketch.endpoints(selected);
+            let highlight = tint_at(theme.highlight, 1.0);
+            out.push(cao_render::Vertex::line(
+                sketch.plane.to_world(start).as_vec3(),
+                highlight,
+                4.0,
+            ));
+            out.push(cao_render::Vertex::line(
+                sketch.plane.to_world(end).as_vec3(),
+                highlight,
+                4.0,
+            ));
+        }
     }
 }
 

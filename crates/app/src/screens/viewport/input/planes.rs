@@ -3,16 +3,17 @@
 //! the handle pulled along the normal.
 
 use cao_part::history::{FaceAnchor, Operation};
+use cao_render::MatterInFront;
 use cao_render::camera::view_angles_towards;
 use cao_sketch::WorkPlane;
-use cao_solid::Body;
+use cao_solid::{Body, FaceHit};
 use glam::{DVec2, DVec3};
 
 use crate::screens::SketchContext;
 use crate::screens::sketch::PlaneChoice;
 
 use super::{PICK_PIXELS, ViewScale, ViewportState, plane_half_size, to_ndc};
-use crate::screens::viewport::matter::shown;
+use crate::screens::viewport::matter::{Drawn, shown};
 use crate::screens::viewport::navigation::drag_asked;
 use crate::screens::viewport::{DEFAULT_SKETCH_RADIUS, section::Section};
 
@@ -80,7 +81,8 @@ pub(super) fn choose_a_cutting_face(
     origin: DVec3,
     direction: DVec3,
 ) -> bool {
-    if !clicked || !state.section().is_some_and(Section::is_waiting_for_a_face) {
+    let invisible = state.body_mode() == MatterInFront::Hidden;
+    if !clicked || invisible || !state.section().is_some_and(Section::is_waiting_for_a_face) {
         return false;
     }
     let offered =
@@ -121,7 +123,9 @@ pub(crate) fn point_the_section(
         };
         let (origin, direction) = ray(at);
         let drawn = shown(state, context.editor, body);
-        choose_a_cutting_face(state, &drawn.opaque, true, origin, direction);
+        let met = drawn_under(state, &drawn, origin, direction);
+        let piece = met.map_or(&*drawn.opaque, |(piece, _)| piece);
+        choose_a_cutting_face(state, piece, true, origin, direction);
         return true;
     }
     let navigating = ui.input(|input| drag_asked(input, &state.config).is_some());
@@ -189,9 +193,9 @@ fn what_is_drawn_offers(
 ) -> Option<PlaneChoice> {
     let part = context.document.body();
     let drawn = shown(state, context.editor, part);
-    let hit = drawn.opaque.ray_hit(origin, direction)?;
+    let (piece, hit) = drawn_under(state, &drawn, origin, direction)?;
     let up = |normal| once_facing(state, normal);
-    match own_face(&drawn.opaque, part, hit.face) {
+    match own_face(piece, part, hit.face) {
         Some(face) => offered_by(part, face, hit.normal, up),
         None => {
             let cut = state.section()?.cutting_plane();
@@ -203,6 +207,23 @@ fn what_is_drawn_offers(
             ))
         }
     }
+}
+
+/// The piece of what is drawn, opaque or see-through, the ray meets first,
+/// and where. Nothing of an invisible body is met.
+fn drawn_under<'a>(
+    state: &ViewportState,
+    drawn: &'a Drawn<'_>,
+    origin: DVec3,
+    direction: DVec3,
+) -> Option<(&'a Body, FaceHit)> {
+    if state.body_mode() == MatterInFront::Hidden {
+        return None;
+    }
+    std::iter::once(&*drawn.opaque)
+        .chain(drawn.see_through.as_ref())
+        .filter_map(|piece| Some((piece, piece.ray_hit(origin, direction)?)))
+        .min_by(|(_, a), (_, b)| a.distance.total_cmp(&b.distance))
 }
 
 /// The part's own face a face of `drawn` stands for, or `None` for one the

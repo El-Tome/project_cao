@@ -586,7 +586,7 @@ fn stroked_along(
         going: None,
         active: true,
     };
-    super::super::drawing::push_sketch(
+    crate::screens::viewport::visibility::Seen::default().draw(
         &mut painted,
         &mut surfaces,
         &shown,
@@ -813,7 +813,7 @@ fn strokes_hovering(
         going: None,
         active: true,
     };
-    super::super::drawing::push_sketch(
+    crate::screens::viewport::visibility::Seen::default().draw(
         &mut painted,
         &mut surfaces,
         &shown,

@@ -31,35 +31,45 @@ pub(crate) fn beside_the_part(
 ) -> bool {
     let mut changed = false;
     if ribbon.part_tree_open {
-        match screens::part_tree::panel(ui, doc, lang) {
+        match screens::part_tree::panel(ui, doc, editor, viewport, lang) {
             screens::part_tree::TreeAction::EditSketch(sketch) => {
                 if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
+                    viewport.light_out();
                     editor.begin_editing(sketch, plane);
                     let (center, radius) = commands::sketch_framing(doc, Some(sketch), plane);
                     viewport.look_at_plane(plane, center, radius);
                 }
             }
+            screens::part_tree::TreeAction::ToggleEye(sketch) => viewport.toggle_eye(doc, sketch),
+            screens::part_tree::TreeAction::Select { what, adding } => {
+                screens::part_tree::state::take(editor, what, adding);
+            }
+            screens::part_tree::TreeAction::Light(row) => viewport.light(row),
+            screens::part_tree::TreeAction::NextBodyMode => viewport.next_body_mode(),
             screens::part_tree::TreeAction::None => {}
         }
+    } else {
+        viewport.light_out();
     }
 
     if ribbon.history_open {
         match screens::history_tree::panel(ui, doc, &mut ribbon.history_compact_confirm, lang) {
             HistoryAction::RewindTo(step) => {
                 doc.rewind_to(step);
+                viewport.light_out();
                 commands::clamp_editor_to_document(editor, doc);
                 changed = true;
             }
             HistoryAction::EditSketch(sketch) => {
                 if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
+                    viewport.light_out();
                     editor.begin_editing(sketch, plane);
                     let (center, radius) = commands::sketch_framing(doc, Some(sketch), plane);
                     viewport.look_at_plane(plane, center, radius);
                 }
             }
             HistoryAction::CompactHistory => {
-                doc.compact_history();
-                commands::clamp_editor_to_document(editor, doc);
+                commands::compact_history(doc, editor, viewport);
                 changed = true;
             }
             HistoryAction::None => {}

@@ -1,4 +1,5 @@
 pub mod dropping;
+pub mod eye;
 pub mod floating_panel;
 pub mod formula_field;
 pub mod slider;

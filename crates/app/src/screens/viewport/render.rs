@@ -7,9 +7,10 @@
 use cao_prefs::theme::{Background, Theme};
 use cao_render::{AxisStyle, BackgroundShape, SceneFrame, ViewportRect, cube, push_axes, srgb};
 use cao_sketch::{DimensionTarget, Going};
-use glam::{DVec2, DVec3, Vec3};
+use glam::DVec2;
 
 mod arc;
+mod body;
 mod circle;
 mod copy_panel;
 mod curves;
@@ -33,7 +34,7 @@ mod trim;
 pub(crate) use copy_panel::paint_copy_panel;
 pub(crate) use cuts::cut_label_under;
 pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
-use drawing::{Shown, push_sketch, what_would_be_laid};
+use drawing::{Shown, what_would_be_laid};
 use extrusion::push_chosen_areas;
 pub(crate) use live_fields::paint_live_input;
 pub(crate) use overlays::{
@@ -48,7 +49,6 @@ pub(crate) use trim::what_would_go;
 
 use super::{ViewMode, ViewScale, ViewportState};
 use crate::screens::SketchContext;
-use crate::screens::sketch::SketchEditor;
 
 /// A colour from the theme, turned into the space the shader blends in.
 fn tint(color: cao_prefs::theme::Rgba) -> [f32; 4] {
@@ -58,21 +58,6 @@ fn tint(color: cao_prefs::theme::Rgba) -> [f32; 4] {
 /// The same, with the opacity replaced.
 fn tint_at(color: cao_prefs::theme::Rgba, alpha: f32) -> [f32; 4] {
     tint(color.with_alpha(alpha))
-}
-
-const SEE_THROUGH_OPACITY: f32 = 0.25;
-
-fn push_body(
-    out: &mut Vec<cao_render::Vertex>,
-    triangles: Vec<[DVec3; 3]>,
-    color: [f32; 4],
-    towards: Vec3,
-) {
-    let triangles: Vec<_> = triangles
-        .iter()
-        .map(|corners| corners.map(|corner| corner.as_vec3()))
-        .collect();
-    cao_render::push_solid(out, &triangles, color, towards);
 }
 
 fn axis_style(theme: &Theme) -> AxisStyle {
@@ -144,7 +129,7 @@ pub(crate) fn build_frame(
         push_choosable_planes(&mut surfaces, &mut lines, state, context);
     }
 
-    for (index, sketch) in context.document.sketches().iter().enumerate() {
+    for (index, sketch, seen) in state.sketches_seen(context) {
         let active = context.editor.active_sketch() == Some(index);
         // What a tool is offering to lay stands in for the recorded drawing the
         // same way a drag does, and what is new in it is drawn as a promise.
@@ -164,7 +149,7 @@ pub(crate) fn build_frame(
             going: active.then_some(going).flatten(),
             active,
         };
-        push_sketch(&mut lines, &mut surfaces, &shown, theme, scale, context);
+        seen.draw(&mut lines, &mut surfaces, &shown, theme, scale, context);
     }
 
     if let Some(index) = context.editor.active_sketch()
@@ -183,27 +168,8 @@ pub(crate) fn build_frame(
 
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
 
-    let editor: &SketchEditor = context.editor;
-    let drawn = super::matter::shown(state, editor, context.document.body());
     let mut solids = Vec::new();
-    push_body(
-        &mut solids,
-        drawn.opaque.triangles(),
-        tint(theme.solid),
-        camera.forward(),
-    );
-    if let Some(in_front) = drawn.see_through {
-        // The surface pass culls nothing: a far side left in would be stacked
-        // behind the near one.
-        let eye = camera.eye().as_dvec3();
-        let facing = in_front
-            .triangles()
-            .into_iter()
-            .filter(|[a, b, c]| (*b - *a).cross(*c - *a).dot(eye - *a) > 0.0)
-            .collect();
-        let veiled = tint_at(theme.solid, SEE_THROUGH_OPACITY);
-        push_body(&mut surfaces, facing, veiled, camera.forward());
-    }
+    body::push_matter(&mut solids, &mut surfaces, state, context);
 
     let mut cube_triangles = Vec::new();
     let mut cube_edges = Vec::new();

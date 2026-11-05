@@ -1,4 +1,5 @@
 pub mod state;
 pub mod view;
 
-pub use view::{TreeAction, panel};
+pub use state::TreeAction;
+pub use view::panel;

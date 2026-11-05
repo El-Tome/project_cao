@@ -25,6 +25,7 @@ pub mod matter;
 pub mod measure;
 pub mod outcome;
 pub mod part_file;
+pub mod part_tree;
 pub mod pattern;
 pub mod plane;
 pub mod section;

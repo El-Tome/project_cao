@@ -8,7 +8,9 @@
 mod cube_labels;
 mod finish;
 mod input;
+mod visibility;
 pub(crate) use input::copying::take_up as take_up_the_copy;
+pub(crate) use input::take as take_a_selection;
 pub(crate) use input::{chamfer_to_swap, corner_picks_with, swap_held_chamfer, switch_held_cuts};
 mod matter;
 mod navigation;

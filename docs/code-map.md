@@ -322,7 +322,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: gestures turned into calls on `cao_sketch` | `app/src/screens/viewport/input/mod.rs` | `pick`, `drag_point`, `constrain`, `aim`, `measure` |
 | Canvas: gathering one frame of everything drawn | `app/src/screens/viewport/render.rs` | `build_frame` |
 | Canvas: the grid and the drawing's axes, on the plane a sketch is open on | `app/src/screens/viewport/render/grid.rs` | `push` |
-| Canvas: the drawing itself — contour, areas, points | `app/src/screens/viewport/render/drawing.rs` | `push_sketch`, `push_regions`, `what_would_be_laid` |
+| Canvas: the drawing itself — contour, areas, points — whole, or only what the tree lit when its eye is out | `app/src/screens/viewport/render/drawing.rs` | `Seen::draw`, `what_would_be_laid` |
 | Canvas: the fillets and chamfers of the drawing — what is left of each side, the stretch hidden up to the sharp corner, the curve of every cut and its value | `app/src/screens/viewport/render/cuts.rs` | `CutCanvas`, `CutCanvas::push_side`, `CutCanvas::push_cuts`, `lit_corners`, `paint_cut_labels`, `cut_label_under` |
 | Canvas: an arc or an ellipse beside a cut — solid where it shows, in thin dashes over the stretch a fitting cut hides up to its sharp corner | `app/src/screens/viewport/render/cuts/curve_sides.rs` | `CutCanvas::push_arc`, `CutCanvas::push_ellipse` |
 | Canvas: the stretch of any side a cut hides up to its sharp corner — thin, faint, dashed, lit with its cut | `app/src/screens/viewport/render/cuts/hidden.rs` | `CutCanvas::hidden_at`, `faint` |
@@ -376,6 +376,11 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
 | Extrusion and revolution, UI side, and what it says when nothing was made or the kernel declined | `app/src/screens/extrusion.rs` | `ExtrusionState`, `apply_extrusion` |
 | The tree of a part: its bodies and sketches, a step marked when an area is lost or the kernel declined it, a sketch when its face is gone | `app/src/screens/part_tree/` | `state.rs` `PartTree::of`, `view.rs` `panel` |
+| The tree's rows clicked: in the open sketch they select, as a click on the canvas does; in another they light an element or an area on the canvas; the eye of a sketch and the « Corps » rubric stepping the body's mode | `app/src/screens/part_tree/state/clicks.rs`, `app/src/screens/part_tree/view.rs` | `TreeAction`, `clicked`, `clickable`, `marked`, `take` |
+| Canvas: which sketches are drawn — one an extrusion or a revolution was made from only with its eye lit, the eyes kept by the number of the operation that created their sketch and put back to their defaults by a compaction — the row lit from the tree, and the body's mode, opaque, see-through or invisible | `app/src/screens/viewport/visibility.rs`, `app/src/commands.rs` | `eye_lit`, `toggle_eye`, `light`, `body_mode`, `next_body_mode`, `sketches_seen`; `compact_history` |
+| Canvas: the part's matter in a frame, drawn as the body's mode says over what the sketch's cut or the section leaves | `app/src/screens/viewport/render/body.rs` | `push_matter` |
+| The eye beside a row, lit or faded | `app/src/ui/eye.rs` | `eye` |
+| What the tree says by a case: its eye's hover, the « Corps » rubric with the body's mode | `app/src/wording/part_tree.rs` | `eye`, `body` |
 | The panels beside a part, and what is asked in them | `app/src/panels.rs` | `beside_the_part` |
 | Variables panel: the rows, what is typed into them, what was refused | `app/src/screens/variables/` | `state.rs` `VariablesPanel`, `Named`, `view.rs` `panel`, `mod.rs` `run` |
 | What a refusal names blinks, and for how long | `app/src/screens/blinking.rs` | `lit`; `ViewportState::blink`, `VariablesPanel::blink` |

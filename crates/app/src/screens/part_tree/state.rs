@@ -18,6 +18,9 @@ use cao_sketch::{Area, Element, Sketch};
 use crate::lang::Catalogue;
 use crate::wording::{self, formula};
 
+mod clicks;
+pub use clicks::*;
+
 /// What a line of the tree points at, so that clicking it can find the thing
 /// itself.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -26,6 +29,17 @@ pub enum Points {
     Dimension { sketch: usize, rank: usize },
     Rule { sketch: usize, rank: usize },
     Area { sketch: usize, rank: usize },
+}
+
+impl Points {
+    pub fn sketch(self) -> usize {
+        match self {
+            Self::Element { sketch, .. }
+            | Self::Dimension { sketch, .. }
+            | Self::Rule { sketch, .. }
+            | Self::Area { sketch, .. } => sketch,
+        }
+    }
 }
 
 /// One line under a heading.

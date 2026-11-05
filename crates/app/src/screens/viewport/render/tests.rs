@@ -69,16 +69,13 @@
 //!   beside it, and `starting_a_sketch_turns_the_section_view_off`, in
 //!   `crates/app/tests/section_view.rs`
 //! - the section view never touches the document: nothing enters the history,
-//!   the `.caopart` is unchanged —
-//!   `the_section_view_leaves_the_history_and_the_document_untouched`, in
-//!   `crates/app/src/commands/tests.rs`; moving, inverting and pointing the
-//!   section are `Section`'s, which is handed no document
+//!   the `.caopart` is unchanged — no test: in this file; held in
+//!   `crates/app/src/commands/tests.rs`, under its own block for this issue,
+//!   since only a command reaches the document
 //! - "slicing a cube at mid-height gives the expected cross-section, in
-//!   `cao_solid`, with no window" —
-//!   `a_block_sliced_at_mid_height_leaves_its_footprint_on_the_plane`, in
-//!   `crates/solid/tests/the_section_of_an_exact_part_is_filled.rs`; #578 left
-//!   only slanted cuts there, so this one is a pin, green from the start
-
+//!   `cao_solid`, with no window" — no test: in this file; held in
+//!   `crates/solid/tests/the_section_of_an_exact_part_is_filled.rs`, under its
+//!   own block for this issue
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_render::MatterInFront;

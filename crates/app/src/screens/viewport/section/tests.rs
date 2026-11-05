@@ -1,8 +1,21 @@
 //! What app · screens/viewport/section.rs is held to.
 //!
-//! Closes #193 — the criteria are transcribed whole in
-//! `crates/app/src/screens/viewport/render/tests.rs`; what is held here is the
-//! panel and the handle, which draw nothing.
+//! Closes #193 — the whole transcription is in
+//! `crates/app/src/screens/viewport/render/tests.rs`; these bullets are the
+//! ones the panel and the handle answer.
+//! - the panel waits for a flat face to be clicked once « Face cliquée » is
+//!   chosen, until one is or a plane is chosen instead —
+//!   `the_panel_waits_for_a_face_until_one_is_clicked_or_a_plane_chosen`
+//! - a handle on the plane is pulled in the view: where a pointer ray lands
+//!   along the normal, the closest point between a ray and a line —
+//!   `a_ray_across_the_normal_pulls_the_handle_to_the_closest_point`,
+//!   `a_ray_along_the_normal_pulls_the_handle_nowhere`; only a ray near the
+//!   handle takes hold of it — `a_ray_far_from_the_handle_takes_no_hold_of_it`
+//! - the distance typed and the handle each follow the other —
+//!   `the_handle_stands_where_the_distance_typed_puts_the_plane`,
+//!   `pulling_the_handle_changes_the_distance_the_panel_shows`
+//! - each side's state is hidden, see-through or opaque, stepped round on its
+//!   own in the panel — `each_side_steps_round_its_three_states_on_its_own`
 
 use cao_render::MatterInFront;
 use cao_sketch::WorkPlane;

@@ -1,9 +1,14 @@
 //! The section view driven through the whole application: its button, its
 //! panel, and what turns it off.
 //!
-//! Closes #193 — the criteria are transcribed whole in
-//! `crates/app/src/screens/viewport/render/tests.rs`; what is held here is
-//! what only the whole application shows.
+//! Closes #193 — the whole transcription is in
+//! `crates/app/src/screens/viewport/render/tests.rs`; these bullets are the
+//! ones only the whole application shows.
+//! - the « Vue en coupe » button opens a floating panel, and closing the
+//!   panel, by the button again or by Échap, turns the view off —
+//!   `the_section_view_button_opens_its_panel_and_closing_it_turns_the_view_off`
+//! - starting a sketch turns the section view off —
+//!   `starting_a_sketch_turns_the_section_view_off`
 
 mod driver;
 

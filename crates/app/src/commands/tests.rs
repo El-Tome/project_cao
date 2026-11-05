@@ -26,6 +26,14 @@
 //! - a drawing in units other than millimetres is written in millimetres: the
 //!   export asked carries the part's millimetres per unit —
 //!   `an_stl_export_asked_from_a_part_drawn_at_a_scale_carries_its_millimetres_per_unit`
+//!
+//! Closes #193.
+//! - « Vue en coupe » opens a section on XY through the middle of the part,
+//!   one side opaque and the other hidden, and clicked again turns it off —
+//!   `the_section_view_opens_a_section_through_the_middle_of_the_part_and_closes_it`
+//! - the section view never touches the document: nothing enters the history,
+//!   the `.caopart` is unchanged —
+//!   `the_section_view_leaves_the_history_and_the_document_untouched`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::Command;

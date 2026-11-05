@@ -9,6 +9,8 @@
 //!   `the_section_view_button_opens_its_panel_and_closing_it_turns_the_view_off`
 //! - starting a sketch turns the section view off —
 //!   `starting_a_sketch_turns_the_section_view_off`
+//! - found in review: a close control in the panel's title turns the view off
+//!   — `the_close_control_in_the_panel_s_title_turns_the_view_off`
 
 mod driver;
 
@@ -120,5 +122,23 @@ fn starting_a_sketch_turns_the_section_view_off() {
     assert!(
         !the_panel_is_open(&app),
         "a sketch started, the section view is still on over the sketch's own cut",
+    );
+}
+
+#[test]
+fn the_close_control_in_the_panel_s_title_turns_the_view_off() {
+    let mut app = a_block("the_close_control_in_the_panel_s_title");
+    click_in_the_ribbon(&mut app, "Vue en coupe");
+    assert!(
+        the_panel_is_open(&app),
+        "« Vue en coupe » opens no panel, showing {:?}",
+        driver::on_screen(&app),
+    );
+
+    driver::click_the_button(&mut app, "Fermer");
+
+    assert!(
+        !the_panel_is_open(&app),
+        "« Fermer » in the panel's title leaves the section's panel open",
     );
 }

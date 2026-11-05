@@ -107,6 +107,10 @@ impl ViewportState {
         };
     }
 
+    pub(crate) fn close_section(&mut self) {
+        self.section = None;
+    }
+
     /// Has what a refusal named blink from `now` — these values on the
     /// drawing, these faces of the part — so that it is seen where it is.
     pub fn blink(&mut self, values: Vec<(usize, DimensionTarget)>, faces: Vec<usize>, now: f64) {

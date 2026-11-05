@@ -12,7 +12,7 @@ use super::{arc, ellipse, emphasis, symmetric_line, tint_at};
 use crate::screens::SketchContext;
 use crate::screens::sketch::{DimensionMode, Tool};
 use crate::screens::viewport::input::{
-    annotation_position, circle_from, measure_preview, rectangle_corner, refine,
+    annotation_position, circle_from, measure_preview, rectangle_corner,
 };
 use crate::screens::viewport::{HOLD_PIXELS, PICK_PIXELS, ViewScale};
 
@@ -52,7 +52,8 @@ fn pending_target(
         // A second entity under the cursor turns the dimension into another
         // one; it is shown where it would land, not dragged to the cursor.
         if context.editor.dimension_mode == DimensionMode::Auto
-            && let Some(refined) = refine(context, index, target, cursor, snap)
+            && let Some(refined) = (context.document.sketches().get(index))
+                .and_then(|sketch| sketch.refine(target, cursor, snap))
         {
             return Some((refined, DVec2::ZERO));
         }

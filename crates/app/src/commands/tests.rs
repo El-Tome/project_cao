@@ -34,6 +34,8 @@
 //! - the section view never touches the document: nothing enters the history,
 //!   the `.caopart` is unchanged —
 //!   `the_section_view_leaves_the_history_and_the_document_untouched`
+//! - found in review: an undo that leaves the part with no matter turns the
+//!   section off — `undoing_the_part_s_last_matter_away_turns_the_section_off`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::Command;
@@ -265,5 +267,27 @@ fn the_section_view_leaves_the_history_and_the_document_untouched() {
         document.body(),
         before.body(),
         "the section view changed the part itself",
+    );
+}
+
+#[test]
+fn undoing_the_part_s_last_matter_away_turns_the_section_off() {
+    let mut document = a_raised_block(None);
+    let mut viewport = ViewportState::default();
+    clicked(Command::SectionView, &mut document, &mut viewport);
+    assert!(
+        viewport.section().is_some(),
+        "« Vue en coupe » turns no section on"
+    );
+
+    clicked(Command::Undo, &mut document, &mut viewport);
+
+    assert!(
+        document.body().is_empty(),
+        "the undo left matter in the part"
+    );
+    assert!(
+        viewport.section().is_none(),
+        "the part holds no matter any more, and a section is still on with nothing to cut",
     );
 }

@@ -4,16 +4,16 @@
 use cao_prefs::Command;
 use cao_sketch::WorkPlane;
 
+use super::live_fields::value_field;
 use super::overlays::{tint_to_color, to_screen};
 use crate::screens::SketchContext;
-use crate::screens::viewport::section::{Section, to_the_middle};
+use crate::screens::viewport::section::Section;
 use crate::screens::viewport::{ViewScale, ViewportState};
 use crate::ui::floating_panel::{floating_panel, panel_row};
-use crate::ui::number_field::number_field;
 use crate::wording::section::{self as said, Side};
 
 /// Draws the panel while the section is on, and carries out what was done in
-/// it. Échap closes it, and with it the section.
+/// it. Échap or the control in its title closes it, and with it the section.
 pub(crate) fn paint_section_panel(
     ui: &egui::Ui,
     state: &mut ViewportState,
@@ -32,9 +32,13 @@ pub(crate) fn paint_section_panel(
     let title = crate::wording::command::label(lang, Command::SectionView);
     let left_at = view.min + egui::vec2(16.0, 16.0);
     let id = egui::Id::new("section_panel");
-    floating_panel(ui.ctx(), id, &title, (left_at, view), |ui| {
+    let close = lang.t("panel.close");
+    let floated = floating_panel(ui.ctx(), id, (&title, &close), (left_at, view), |ui| {
         rows(ui, section, context)
     });
+    if floated.closed {
+        state.section = None;
+    }
 }
 
 fn rows(ui: &mut egui::Ui, section: &mut Section, context: &SketchContext<'_>) {
@@ -46,18 +50,14 @@ fn rows(ui: &mut egui::Ui, section: &mut Section, context: &SketchContext<'_>) {
         on_an_origin_plane |= chosen;
         let said = crate::wording::plane::label(lang, plane.kind());
         if panel_row(ui, said, chosen, false).clicked() {
-            section.choose_plane(plane);
-            section.offset = to_the_middle(plane, body);
+            section.choose_origin_plane(plane, body);
         }
     }
     let on_a_face = !on_an_origin_plane;
     if panel_row(ui, lang.t("section.clicked_face"), on_a_face, waiting).clicked() {
         section.wait_for_a_face();
     }
-    ui.horizontal(|ui| {
-        ui.label(lang.t("section.distance"));
-        number_field(ui, &mut section.offset, 0.1);
-    });
+    ui.horizontal(|ui| distance(ui, section, context));
     if panel_row(
         ui,
         said::side(lang, Side::Behind, section.behind),
@@ -81,6 +81,30 @@ fn rows(ui: &mut egui::Ui, section: &mut Section, context: &SketchContext<'_>) {
     if ui.button(lang.t("section.invert")).clicked() {
         section.invert();
     }
+}
+
+/// The distance, in millimetres, typed or read from the formula field: while
+/// the field is not being typed in, it follows the cut wherever the handle
+/// takes it.
+fn distance(ui: &mut egui::Ui, section: &mut Section, context: &SketchContext<'_>) {
+    let millimetres = context.document.scale();
+    let variables = context.document.variables();
+    let id = egui::Id::new("section_distance");
+    let typing = ui.memory(|memory| memory.has_focus(id));
+    let mut text = match typing {
+        true => ui.data(|data| data.get_temp::<String>(id.with("text"))),
+        false => None,
+    }
+    .unwrap_or_else(|| section.distance_text(millimetres));
+    ui.label(context.lang.t("section.distance"));
+    let field = value_field(ui, id, &mut text, "", false, variables);
+    ui.label("mm");
+    if field.response.response.changed()
+        && let Ok((_, typed)) = variables.size_of(&text)
+    {
+        section.type_distance(typed, millimetres);
+    }
+    ui.data_mut(|data| data.insert_temp(id.with("text"), text));
 }
 
 /// The handle: a dot on the cutting plane over the middle of the part, and a

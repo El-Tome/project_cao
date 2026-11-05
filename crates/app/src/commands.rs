@@ -90,6 +90,9 @@ pub(crate) fn run(
             if changed {
                 clamp_editor_to_document(editor, doc);
             }
+            if doc.body().is_empty() {
+                viewport.close_section();
+            }
             changed
         }
         // Compaction itself waits for the warning in the history panel to be

@@ -127,7 +127,6 @@
   "plane.origin_xz": "Plan XZ",
   "plane.origin_yz": "Plan YZ",
   "plane.origin_slanted": "Plan d'esquisse",
-  "plane.cutting": "Plan de coupe",
 
   "cube.front": "FACE",
   "cube.back": "ARRIÈRE",
@@ -345,6 +344,7 @@
   "copy_panel.count": "Nombre",
   "copy_panel.validate": "Valider",
   "copy_panel.cancel": "Annuler",
+  "panel.close": "Fermer",
   "section.clicked_face": "Face cliquée",
   "section.distance": "Distance",
   "section.behind": "Derrière : {state}",

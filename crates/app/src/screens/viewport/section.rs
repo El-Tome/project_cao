@@ -18,12 +18,18 @@ pub(crate) struct Section {
 }
 
 /// Where the handle was taken: the line it slides along, how far along it the
-/// pointer was, and the distance the section read then.
+/// pointer was, the distance the section read then, and how far the part
+/// reaches either way along the normal.
 struct Held {
     line: (DVec3, DVec3),
     taken_at: f64,
     offset: f64,
+    reach: (f64, f64),
 }
+
+/// A ray closer than this to the normal runs nearly along the handle's line,
+/// and the smallest move of the pointer would throw the cut across the part.
+const GRAZING_DEGREES: f64 = 5.0;
 
 impl Section {
     pub(crate) fn new(plane: WorkPlane) -> Self {
@@ -64,9 +70,28 @@ impl Section {
         self.waiting_for_a_face
     }
 
-    pub(crate) fn choose_plane(&mut self, plane: WorkPlane) {
+    pub(crate) fn choose_origin_plane(&mut self, plane: WorkPlane, body: &Body) {
         self.plane = plane;
+        self.offset = to_the_middle(plane, body);
         self.waiting_for_a_face = false;
+    }
+
+    pub(crate) fn choose_face(&mut self, plane: WorkPlane) {
+        self.plane = plane;
+        self.offset = 0.0;
+        self.waiting_for_a_face = false;
+    }
+
+    pub(crate) fn type_distance(&mut self, millimetres: f64, millimetres_per_unit: f64) {
+        self.offset = millimetres / millimetres_per_unit;
+    }
+
+    pub(crate) fn distance_in_millimetres(&self, millimetres_per_unit: f64) -> f64 {
+        self.offset * millimetres_per_unit
+    }
+
+    pub(crate) fn distance_text(&self, millimetres_per_unit: f64) -> String {
+        crate::wording::dimension::short(self.distance_in_millimetres(millimetres_per_unit))
     }
 
     /// The plane the part is cut along: the one chosen, moved by the distance.
@@ -86,7 +111,8 @@ impl Section {
         middle - normal * normal.dot(middle - cut.origin)
     }
 
-    /// Takes hold of the handle when the ray passes within `reach` of it.
+    /// Takes hold of the handle when the ray passes within `reach` of it, and
+    /// does not graze the normal.
     pub(crate) fn grab(
         &mut self,
         body: &Body,
@@ -96,15 +122,21 @@ impl Section {
     ) -> bool {
         let handle = self.handle(body);
         let direction = direction.normalize_or_zero();
+        let normal = self.plane.normal();
+        if grazes(normal, direction) {
+            return false;
+        }
         let along = (handle - origin).dot(direction);
         if (origin + direction * along - handle).length() > reach {
             return false;
         }
-        let line = (handle, self.plane.normal());
+        let line = (handle, normal);
+        let reach = extent(body, self.plane);
         self.held = closest_along(line, (origin, direction)).map(|taken_at| Held {
             line,
             taken_at,
             offset: self.offset,
+            reach,
         });
         self.held.is_some()
     }
@@ -114,13 +146,17 @@ impl Section {
     }
 
     /// Moves the cut by as much as the pointer moved along the normal since the
-    /// handle was taken.
+    /// handle was taken, no further than the part reaches.
     pub(crate) fn pull(&mut self, origin: DVec3, direction: DVec3) {
         let Some(held) = &self.held else {
             return;
         };
+        if grazes(held.line.1, direction.normalize_or_zero()) {
+            return;
+        }
         if let Some(at) = closest_along(held.line, (origin, direction)) {
-            self.offset = held.offset + at - held.taken_at;
+            let (low, high) = held.reach;
+            self.offset = (held.offset + at - held.taken_at).clamp(low, high);
         }
     }
 
@@ -132,6 +168,27 @@ impl Section {
 /// How far along its normal `plane` has to move to pass the middle of the part.
 pub(crate) fn to_the_middle(plane: WorkPlane, body: &Body) -> f64 {
     plane.normal().dot(middle(body, plane) - plane.origin)
+}
+
+fn grazes(normal: DVec3, direction: DVec3) -> bool {
+    direction.dot(normal).abs() > GRAZING_DEGREES.to_radians().cos()
+}
+
+/// How far the part reaches along the normal of `plane`, from it, nearest and
+/// furthest.
+fn extent(body: &Body, plane: WorkPlane) -> (f64, f64) {
+    let Some((low, high)) = body.bounds() else {
+        return (0.0, 0.0);
+    };
+    let normal = plane.normal();
+    (0..8)
+        .map(|corner| {
+            let pick = glam::BVec3::new(corner & 1 != 0, corner & 2 != 0, corner & 4 != 0);
+            normal.dot(DVec3::select(pick, high, low) - plane.origin)
+        })
+        .fold((f64::INFINITY, f64::NEG_INFINITY), |(near, far), at| {
+            (near.min(at), far.max(at))
+        })
 }
 
 /// The middle of the part's box, or the plane's own origin when it holds none.

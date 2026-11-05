@@ -34,9 +34,9 @@ pub fn label(lang: &Catalogue, variables: &Variables, operation: &Operation) -> 
             .map(|first| label(lang, variables, first))
             .unwrap_or_default(),
         Operation::Variable(change) => variable(lang, variables, change),
-        Operation::CreateSketch { plane, on } => lang.t_with(
+        Operation::CreateSketch { plane, .. } => lang.t_with(
             "history.sketch",
-            &[("plane", &plane::of_sketch(lang, plane.kind(), on.is_some()))],
+            &[("plane", &plane::label(lang, plane.kind()))],
         ),
         Operation::AddPoint { .. } => lang.t("history.point"),
         Operation::AddSegment { .. } => lang.t("history.segment"),

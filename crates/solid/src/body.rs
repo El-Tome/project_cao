@@ -256,6 +256,15 @@ impl Body {
         matches!(self.matter, Matter::Exact(_))
     }
 
+    /// The face `face` was parted from, when a cut left that face in pieces
+    /// and this one took a fresh number.
+    pub fn parted_from(&self, face: usize) -> Option<usize> {
+        match &self.matter {
+            Matter::Exact(exact) => exact.parted_from(face),
+            Matter::Flats(_) => None,
+        }
+    }
+
     /// Whether some face of the body answers to `face`.
     pub fn has_face(&self, face: usize) -> bool {
         match &self.matter {

@@ -4,6 +4,7 @@
 //!
 //! The canvas itself is [`super`]; this is only what moves the eye.
 
+use cao_prefs::ViewportConfig;
 use cao_prefs::config::{Binding, TrackpadGesture};
 use cao_render::cube;
 
@@ -25,6 +26,25 @@ pub(super) fn advance_transition(ui: &egui::Ui, state: &mut ViewportState) {
         state.transition = None;
     }
 }
+/// The drag the buttons and keys held down ask the camera for, if any.
+pub(super) fn drag_asked(input: &egui::InputState, config: &ViewportConfig) -> Option<Drag> {
+    let matches = |bindings: &[Binding]| {
+        bindings.iter().any(|binding| {
+            input.pointer.button_down(to_egui_button(binding.button))
+                && input.modifiers.shift == binding.shift
+                && input.modifiers.command == binding.ctrl
+                && input.modifiers.alt == binding.alt
+        })
+    };
+    if matches(config.navigation.orbit()) {
+        Some(Drag::Orbit)
+    } else if matches(config.navigation.pan()) {
+        Some(Drag::Pan)
+    } else {
+        None
+    }
+}
+
 /// Camera navigation. Returns true when the click belonged to the orientation
 /// cube, so the sketch tools do not also act on it.
 pub(super) fn handle_navigation(
@@ -51,26 +71,10 @@ pub(super) fn handle_navigation(
     }
 
     let (delta, scroll, drag) = ui.input(|input| {
-        let matches = |bindings: &[Binding]| {
-            bindings.iter().any(|binding| {
-                input.pointer.button_down(to_egui_button(binding.button))
-                    && input.modifiers.shift == binding.shift
-                    && input.modifiers.command == binding.ctrl
-                    && input.modifiers.alt == binding.alt
-            })
-        };
-        let navigation = state.config.navigation;
-        let drag = if matches(navigation.orbit()) {
-            Some(Drag::Orbit)
-        } else if matches(navigation.pan()) {
-            Some(Drag::Pan)
-        } else {
-            None
-        };
         (
             glam::Vec2::new(input.pointer.delta().x, input.pointer.delta().y),
             ScrollInput::read(input),
-            drag,
+            drag_asked(input, &state.config),
         )
     });
 

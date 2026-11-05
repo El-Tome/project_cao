@@ -16,6 +16,17 @@
 //!   `pulling_the_handle_changes_the_distance_the_panel_shows`
 //! - each side's state is hidden, see-through or opaque, stepped round on its
 //!   own in the panel — `each_side_steps_round_its_three_states_on_its_own`
+//! - found in review: an origin plane chosen cuts through the middle of the
+//!   part, a face chosen cuts on it —
+//!   `an_origin_plane_chosen_in_the_panel_cuts_through_the_middle_of_the_part`,
+//!   `a_face_chosen_cuts_along_it_at_a_distance_of_nothing`
+//! - found in review: the distance reads and takes millimetres, said as every
+//!   other length is — `the_distance_reads_and_takes_millimetres`
+//! - found in review: a ray grazing the normal neither takes nor pulls the
+//!   handle, and the handle goes no further than the part —
+//!   `a_ray_grazing_the_normal_takes_no_hold_of_the_handle`,
+//!   `a_pull_grazing_the_normal_leaves_the_distance_where_it_was`,
+//!   `the_handle_is_pulled_no_further_than_the_part_reaches`
 
 use cao_render::MatterInFront;
 use cao_sketch::WorkPlane;
@@ -243,7 +254,7 @@ fn the_panel_waits_for_a_face_until_one_is_clicked_or_a_plane_chosen() {
 
     section.wait_for_a_face();
     let asked = section.is_waiting_for_a_face();
-    section.choose_plane(WorkPlane::YZ);
+    section.choose_origin_plane(WorkPlane::YZ, &block());
 
     assert!(
         !at_first,
@@ -262,4 +273,160 @@ fn the_panel_waits_for_a_face_until_one_is_clicked_or_a_plane_chosen() {
         WorkPlane::YZ,
         "the plane chosen is not the one cut along"
     );
+}
+
+#[test]
+fn an_origin_plane_chosen_in_the_panel_cuts_through_the_middle_of_the_part() {
+    let mut section = Section::new(WorkPlane::XY);
+    section.offset = 3.0;
+
+    section.choose_origin_plane(WorkPlane::YZ, &block());
+
+    assert_eq!(section.plane, WorkPlane::YZ);
+    assert!(
+        close_to(section.offset, 5.0),
+        "YZ chosen across a block 10 wide, the distance reads {}, not its middle, 5",
+        section.offset,
+    );
+}
+
+#[test]
+fn a_face_chosen_cuts_along_it_at_a_distance_of_nothing() {
+    let top = WorkPlane::from_normal(DVec3::Z * 4.0, DVec3::Z);
+    let mut section = Section::new(WorkPlane::XY);
+    section.offset = 2.0;
+    section.wait_for_a_face();
+
+    section.choose_face(top);
+
+    assert_eq!(
+        section.plane, top,
+        "the face chosen is not the one cut along"
+    );
+    assert!(
+        close_to(section.offset, 0.0),
+        "a face just chosen is cut {} away from it, not on it",
+        section.offset,
+    );
+    assert!(
+        !section.is_waiting_for_a_face(),
+        "a face chosen, the panel still waits for one",
+    );
+}
+
+#[test]
+fn the_distance_reads_and_takes_millimetres() {
+    let at_two_and_a_half_millimetres_a_unit = 2.5;
+    let mut section = Section::new(WorkPlane::XY);
+
+    section.type_distance(10.0, at_two_and_a_half_millimetres_a_unit);
+    let moved = section.offset;
+    section.offset = 4.0 / 3.0;
+
+    assert!(
+        close_to(moved, 4.0),
+        "10 mm typed at 2.5 mm a unit moves the cut {moved} units, not 4",
+    );
+    assert!(
+        close_to(
+            section.distance_in_millimetres(at_two_and_a_half_millimetres_a_unit),
+            10.0 / 3.0,
+        ),
+        "a cut 4/3 units off reads {} mm, not 10/3",
+        section.distance_in_millimetres(at_two_and_a_half_millimetres_a_unit),
+    );
+    assert_eq!(
+        section.distance_text(at_two_and_a_half_millimetres_a_unit),
+        crate::wording::dimension::short(10.0 / 3.0),
+        "the field does not read the distance the way every other length reads",
+    );
+    assert_eq!(
+        section.distance_text(at_two_and_a_half_millimetres_a_unit),
+        "3.3333",
+    );
+}
+
+/// A ray through the handle at (5, 5, 2), coming down at `degrees` off the
+/// normal.
+fn down_through_the_handle_at(degrees: f64) -> (DVec3, DVec3) {
+    let (sin, cos) = degrees.to_radians().sin_cos();
+    let direction = DVec3::new(sin, 0.0, -cos);
+    (DVec3::new(5.0, 5.0, 2.0) - direction * 50.0, direction)
+}
+
+#[test]
+fn a_ray_grazing_the_normal_takes_no_hold_of_the_handle() {
+    let body = block();
+    let mut at_three_degrees = Section::new(WorkPlane::XY);
+    at_three_degrees.offset = 2.0;
+    let mut at_ten_degrees = Section::new(WorkPlane::XY);
+    at_ten_degrees.offset = 2.0;
+
+    let (origin, direction) = down_through_the_handle_at(3.0);
+    let grazing = at_three_degrees.grab(&body, origin, direction, 0.5);
+    let (origin, direction) = down_through_the_handle_at(10.0);
+    let steep = at_ten_degrees.grab(&body, origin, direction, 0.5);
+
+    assert!(
+        !grazing,
+        "a ray three degrees off the normal takes hold of the handle, and the \
+         smallest move of the pointer would throw the cut across the part",
+    );
+    assert!(
+        steep,
+        "a ray ten degrees off the normal takes no hold of the handle"
+    );
+}
+
+#[test]
+fn a_pull_grazing_the_normal_leaves_the_distance_where_it_was() {
+    let body = block();
+    let mut section = Section::new(WorkPlane::XY);
+    section.offset = 2.0;
+    assert!(section.grab(&body, DVec3::new(20.0, 5.0, 2.0), DVec3::NEG_X, 0.5));
+    section.pull(DVec3::new(20.0, 5.0, 3.0), DVec3::NEG_X);
+
+    let (sin, cos) = 3f64.to_radians().sin_cos();
+    let grazing = DVec3::new(sin, 0.0, -cos);
+    section.pull(DVec3::new(4.0, 5.0, 2.5) - grazing * 50.0, grazing);
+
+    assert!(
+        close_to(section.offset, 3.0),
+        "a ray three degrees off the normal moved the cut to {}",
+        section.offset,
+    );
+}
+
+#[test]
+fn the_handle_is_pulled_no_further_than_the_part_reaches() {
+    let body = block();
+    let top = WorkPlane::from_normal(DVec3::Z * 4.0, DVec3::Z);
+
+    for (plane, offset, (lowest, highest)) in
+        [(WorkPlane::XY, 2.0, (0.0, 4.0)), (top, -1.0, (-4.0, 0.0))]
+    {
+        let mut section = Section::new(plane);
+        section.offset = offset;
+        let handle_height = plane.origin.z + offset;
+        assert!(
+            section.grab(
+                &body,
+                DVec3::new(20.0, 5.0, handle_height),
+                DVec3::NEG_X,
+                0.5
+            ),
+            "a ray through the handle of {plane:?} takes no hold of it",
+        );
+
+        section.pull(DVec3::new(20.0, 5.0, 100.0), DVec3::NEG_X);
+        let pulled_up = section.offset;
+        section.pull(DVec3::new(20.0, 5.0, -100.0), DVec3::NEG_X);
+        let pulled_down = section.offset;
+
+        assert!(
+            close_to(pulled_up, highest) && close_to(pulled_down, lowest),
+            "from {plane:?}, pulled far past the part the distance reads {pulled_up} and \
+             {pulled_down}, not the part's own reach, {highest} and {lowest}",
+        );
+    }
 }

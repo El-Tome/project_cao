@@ -7,6 +7,13 @@
 //!   `the_history_says_a_place_to_a_tenth_of_a_micron`; the pins that read
 //!   « (20.0, 0.0) », « rayon 5.00 » and « 30.0° » changed on purpose —
 //!   `a_side_moved_and_a_shape_turned_say_so_and_unfold_into_what_they_did`
+//!
+//! Closes #193.
+//! - decided in review: a sketch laid on a cut is recorded as such, and only
+//!   that record reads as a cut — no test: in this file; held where the sketch
+//!   is started, in `crates/app/src/screens/viewport/input/planes/tests.rs`
+//! - a face sketch from a file older than its anchor still reads « Face de la
+//!   pièce » — `a_face_sketch_from_a_file_older_than_its_anchor_still_reads_as_a_face`
 
 use cao_part::history::{PointRef, RevolutionAxis};
 use cao_sketch::{Area, CircleId, CurveId, PointId, SegmentId, SketchAxis, WorkPlane};
@@ -280,23 +287,23 @@ fn the_history_says_a_place_to_a_tenth_of_a_micron() {
 }
 
 #[test]
-fn a_sketch_on_a_cutting_plane_is_not_called_a_face_of_the_part() {
-    let mid_height = WorkPlane::from_normal(glam::DVec3::Z * 2.0, glam::DVec3::Z);
-    let on_the_section = said(&Operation::CreateSketch {
-        plane: mid_height,
+fn a_face_sketch_from_a_file_older_than_its_anchor_still_reads_as_a_face() {
+    let on_the_top = WorkPlane::from_normal(glam::DVec3::Z * 4.0, glam::DVec3::Z);
+    let mut written = serde_json::to_value(Operation::CreateSketch {
+        plane: on_the_top,
         on: None,
-    });
-    let on_a_face = said(&Operation::CreateSketch {
-        plane: mid_height,
-        on: Some(cao_part::history::FaceAnchor {
-            face: 0,
-            up: glam::DVec3::Y,
-        }),
-    });
+    })
+    .expect("a sketch is written");
+    let fields = written["CreateSketch"]
+        .as_object_mut()
+        .expect("a sketch is written as its fields");
+    fields.retain(|name, _| name == "plane");
+    let read: Operation =
+        serde_json::from_value(written).expect("a sketch written before #363 is still read");
 
-    assert_eq!(on_a_face, "Esquisse — Face de la pièce");
-    assert!(
-        on_the_section.starts_with("Esquisse — ") && on_the_section != on_a_face,
-        "a sketch laid on a cutting plane, held by no face, reads « {on_the_section} »",
+    assert_eq!(
+        said(&read),
+        "Esquisse — Face de la pièce",
+        "a sketch laid on a face before faces were recorded reads as something else",
     );
 }

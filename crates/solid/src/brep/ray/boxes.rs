@@ -5,43 +5,54 @@
 //! between two points of the boundary, and on a cylinder or a cone between
 //! two points of the boundary on the ruling through it — or, on a cone whose
 //! face holds its apex within it, between one and the apex, which is boxed
-//! too, as every pole a face holds is. The box of a line is that of its
-//! ends, of an arc of a circle that of
-//! its ends and of the places each coordinate turns, both exact to rounding;
-//! the curve two cylinders meet along is boxed by what its height across
-//! both axes leaves each root.
+//! too, as every pole a face holds is. A face on a sphere or a torus bulges
+//! past its boundary: a coordinate is largest or smallest over it on its
+//! boundary or where it is over the whole surface, and those of the
+//! surface's points the face holds are boxed with its boundary
+//! ([`Body::bulges_held`]) — read only once a place past the box of its
+//! boundary is asked about: a ray asks of the places it meets each surface
+//! at alone, so a face whose surface it never meets, or meets only within
+//! that box, never has them read. The box of a line is that of its ends, of
+//! an arc
+//! of a circle that of its ends and of the places each coordinate turns,
+//! both exact to rounding; the curve two cylinders meet along is boxed by
+//! what its height across both axes leaves each root.
 
+use std::cell::OnceCell;
 use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
 use crate::brep::curve::{Circle, Curve};
-use crate::brep::topology::{Body, Edge, FaceId, round_box};
+use crate::brep::topology::{Body, Edge, FaceId};
 
-pub(super) struct Boxes {
-    boxes: Vec<[DVec3; 2]>,
+pub(super) struct Boxes<'a> {
+    body: &'a Body,
+    /// Each face's box of its boundary and of the poles it holds.
+    bounded: Vec<[DVec3; 2]>,
+    /// Each face's box with where it bulges, read the first time it is
+    /// needed.
+    bulged: Vec<OnceCell<[DVec3; 2]>>,
     margin: f64,
 }
 
-impl Boxes {
+impl<'a> Boxes<'a> {
     /// The boxes of every face, a place being taken to miss one when it
     /// stands further than `eps` past it — the room the face's boundary is
     /// told within — and further than twice the body's own tolerance, which
     /// is how far an edge may stand off a surface it was decided to lie on.
-    pub fn of(body: &Body, eps: f64) -> Boxes {
+    pub fn of(body: &'a Body, eps: f64) -> Boxes<'a> {
         let edges: Vec<[DVec3; 2]> = body
             .edge_ids()
             .map(|edge| boxed(body, body.edge(edge)))
             .collect();
-        let boxes = body
+        let bounded: Vec<[DVec3; 2]> = body
             .face_ids()
             .map(|face| {
-                let own = round_box(body.surface(body.face(face).surface))
-                    .unwrap_or([DVec3::INFINITY, DVec3::NEG_INFINITY]);
-                let held = body
-                    .poles_held(face)
-                    .into_iter()
-                    .fold(own, |[low, high], pole| [low.min(pole), high.max(pole)]);
+                let held = body.poles_held(face).into_iter().fold(
+                    [DVec3::INFINITY, DVec3::NEG_INFINITY],
+                    |[low, high], pole| [low.min(pole), high.max(pole)],
+                );
                 body.face(face)
                     .loops
                     .iter()
@@ -53,7 +64,9 @@ impl Boxes {
             })
             .collect();
         Boxes {
-            boxes,
+            body,
+            bulged: vec![OnceCell::new(); bounded.len()],
+            bounded,
             margin: eps + 2.0 * body.scale().eps(),
         }
     }
@@ -61,8 +74,20 @@ impl Boxes {
     /// Whether `point` stands so far from a face that it can be neither in it
     /// nor within `eps` of its boundary.
     pub fn misses(&self, face: FaceId, point: DVec3) -> bool {
-        let [low, high] = self.boxes[face.0 as usize];
-        point.cmplt(low - self.margin).any() || point.cmpgt(high + self.margin).any()
+        let past = |[low, high]: [DVec3; 2]| {
+            point.cmplt(low - self.margin).any() || point.cmpgt(high + self.margin).any()
+        };
+        let rank = face.0 as usize;
+        let bounded = self.bounded[rank];
+        past(bounded)
+            && past(*self.bulged[rank].get_or_init(|| {
+                self.body
+                    .bulges_held(face)
+                    .into_iter()
+                    .fold(bounded, |[low, high], bulge| {
+                        [low.min(bulge), high.max(bulge)]
+                    })
+            }))
     }
 }
 

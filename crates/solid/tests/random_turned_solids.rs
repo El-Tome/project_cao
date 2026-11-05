@@ -159,6 +159,15 @@
 //! fingerprints are what holds it on both platforms.
 //! - a case drawn differently still changes the fingerprint —
 //!   `a_case_drawn_differently_changes_the_fingerprint`
+//!
+//! Closes #625.
+//! - #576's harness excuses a round against a wall only where the face's own
+//!   box meets it — `a_partial_round_asks_no_wall_that_meets_its_whole_surface_but_not_its_leaf`
+//! - and the `random_solids` campaign holds with no new broken case — no test:
+//!   a campaign, `a_campaign_of_rounded_solids_on_the_exact_kernel_keeps_every_rule`
+//!   and its run through the application's body, behind `--ignored` and too
+//!   long for the gate; its count of broken cases against `main`'s is what
+//!   the pull request reports
 
 // The drawing, the promise and the checks are shared with the other
 // campaigns; each file uses its own part of them.
@@ -4870,13 +4879,103 @@ fn a_case_asking_a_round_beyond_its_circles_is_told_from_one_that_does_not() {
     assert!(asks(&knob, post), "a post across a ball");
 }
 
+/// The excuse follows what the kernel relates, which boxes a face on a sphere
+/// or a torus by its own extent: a wall crossing the whole surface where the
+/// turn drew none of it is never related to the face. A face's extent is not
+/// its leaf's: the groove beside the shaft's rounded end meets the shaft and
+/// the cap's whole sphere, not the cap.
 #[test]
-fn a_partial_round_asks_a_wall_that_meets_its_whole_surface_but_not_its_leaf() {
-    let quarter = ball(90.0);
-    let below = Leaf::prism(Plane::xy(0.0), Outline::circle([0.0, -1.5], 0.5), 1.0);
+fn a_partial_round_asks_no_wall_that_meets_its_whole_surface_but_not_its_leaf() {
+    let whole_ball = (DVec3::splat(-2.0), DVec3::splat(2.0));
+    let whole_ring = (DVec3::new(-1.0, -4.0, -4.0), DVec3::new(1.0, 4.0, 4.0));
+    let meet = |(low, high): (DVec3, DVec3), (from, to): (DVec3, DVec3)| {
+        low.cmple(to).all() && from.cmple(high).all()
+    };
+    let post = |at: [f64; 2], level: f64, length: f64| {
+        Leaf::prism(Plane::xy(level), Outline::circle(at, 0.5), length)
+    };
+    let told = [
+        (
+            "a quarter ball and a post below it",
+            ball(90.0),
+            whole_ball,
+            post([0.0, -1.5], 0.0, 1.0),
+            false,
+        ),
+        (
+            "a quarter ring and a post through the tube below it",
+            ring(90.0),
+            whole_ring,
+            post([0.0, -3.0], 0.0, 1.0),
+            false,
+        ),
+        (
+            "a quarter ball and a post across it",
+            ball(90.0),
+            whole_ball,
+            post([0.0, 1.0], -3.0, 6.0),
+            true,
+        ),
+        (
+            "a quarter ring and a post across its tube",
+            ring(90.0),
+            whole_ring,
+            post([0.0, 3.0], -5.0, 10.0),
+            true,
+        ),
+    ];
+    let mut wrong = Vec::new();
+    for (what, quarter, whole, wall, asking) in told {
+        let own = quarter.bounds().expect("a quarter has a box");
+        let walled = wall.bounds().expect("a post has a box");
+        assert!(
+            meet(walled, whole),
+            "{what}: the post's box {walled:?} meets the whole surface's {whole:?}"
+        );
+        assert_eq!(
+            meet(walled, own),
+            asking,
+            "{what}: the post's box {walled:?} against the quarter's own {own:?}"
+        );
+        if Case::new(quarter, vec![Step::cut(wall)]).asks_a_round_beyond_its_circles() != asking {
+            wrong.push((what, asking));
+        }
+    }
+    let what = "a shaft's rounded end and a groove beside it";
+    let ended = Leaf::turned(
+        Plane::xy(0.0),
+        Axis::first(0.0),
+        Section::bands(-6.0, &[[6.0, 0.0, 2.0], [2.0, 0.0, 2.0]])
+            .sloping_to(&[[0.0, 2.0], [0.0, 0.0]])
+            .bowed(&[[[0.0; 3]; 2], [[0.0; 3], [0.0, 0.0, 2.0]]]),
+        360.0,
+    );
+    let cap = (DVec3::new(0.0, -2.0, -2.0), DVec3::splat(2.0));
+    let groove = Leaf::prism(
+        Plane::xy(-5.0),
+        Outline::rectangle([-1.5, 1.0], [-0.5, 5.0]),
+        10.0,
+    );
+    let walled = groove.bounds().expect("a groove has a box");
+    let shaft = ended.bounds().expect("a shaft has a box");
     assert!(
-        Case::new(quarter, vec![Step::cut(below)]).asks_a_round_beyond_its_circles(),
-        "a wall below the leaf still meets the ball's whole surface"
+        meet(walled, whole_ball) && meet(walled, shaft) && !meet(walled, cap),
+        "{what}: the groove's box {walled:?} meets the cap's whole sphere's {whole_ball:?} \
+         and the shaft's {shaft:?}, and stands clear of the cap's own {cap:?}"
+    );
+    let case = Case::new(ended, vec![Step::cut(groove)]);
+    let measured = random_solids::held_to_arithmetic(&case, &Exact)
+        .unwrap_or_else(|flaw| panic!("{what}: {:?} broke the rule: {flaw:?}", flaw.rule()));
+    assert_eq!(
+        measured.declined, 0,
+        "{what}: the kernel relates the groove to no face on the sphere"
+    );
+    if case.asks_a_round_beyond_its_circles() {
+        wrong.push((what, false));
+    }
+    assert!(
+        wrong.is_empty(),
+        "told wrong, each with whether it should ask: {wrong:?}"
     );
 }
 
@@ -4943,9 +5042,13 @@ fn seed_5576800642_bowed_sections_about_axes_leaning_a_hair_are_laid_and_keep_ev
     assert_eq!(measured.bowed, 0, "every section laid");
 }
 
+/// The round groove lies on a torus about the line along Y through
+/// `x = 40, z = −5`, its tube of radius 2.5 at 27.5 from the axis, and the
+/// quarter turn sweeps it from +Z toward +X.
 #[test]
-fn seed_5576800195_a_torus_asking_beyond_its_circles_is_declined_and_counted_no_answer() {
-    random_solids::holds_exactly(&Case::new(
+fn seed_5576800195_a_quarter_torus_clear_of_the_prisms_its_whole_torus_meets_is_held_not_declined()
+{
+    let case = Case::new(
         Leaf::prism(
             Plane::xy(-10.0),
             Outline::slot([25.0, 25.0], [25.0, 0.0], 10.0),
@@ -4983,7 +5086,35 @@ fn seed_5576800195_a_torus_asking_beyond_its_circles_is_declined_and_counted_no_
                 10.0,
             )),
         ],
-    ));
+    );
+    let whole = (DVec3::new(10.0, -5.0, -35.0), DVec3::new(70.0, 0.0, 25.0));
+    let swept = (DVec3::new(40.0, -5.0, -5.0), DVec3::new(67.5, 0.0, 22.5));
+    let meet = |(low, high): (DVec3, DVec3), (from, to): (DVec3, DVec3)| {
+        low.cmple(to).all() && from.cmple(high).all()
+    };
+    let prisms: Vec<(DVec3, DVec3)> = case
+        .leaves()
+        .filter(|leaf| matches!(leaf, Leaf::Prism { .. }))
+        .map(|leaf| leaf.bounds().expect("a prism has a box"))
+        .collect();
+    assert!(
+        prisms.iter().any(|&boxed| meet(boxed, whole)),
+        "the whole torus's box {whole:?} meets a prism's among {prisms:?}"
+    );
+    assert!(
+        prisms.iter().all(|&boxed| !meet(boxed, swept)),
+        "the groove's own box {swept:?} meets no prism's among {prisms:?}"
+    );
+    let measured = random_solids::held_to_arithmetic(&case, &Exact)
+        .unwrap_or_else(|flaw| panic!("{:?} broke the rule: {flaw:?}\n{case}", flaw.rule()));
+    assert_eq!(
+        measured.declined, 0,
+        "the kernel holds the case, declining none of it"
+    );
+    assert!(
+        !case.asks_a_round_beyond_its_circles(),
+        "the excuse asks the case no more"
+    );
 }
 
 #[test]
@@ -5745,6 +5876,29 @@ fn a_spindle_turned_the_other_way_crosses_only_its_own_lobe() {
             90.0,
         ),
         vec![],
+    ));
+}
+
+/// A ring torus and a tube about the same line, whose bore touches the
+/// torus's outer equator: the join cuts the torus's face along that circle,
+/// and the face still holds the top of its tube, where the profile's one
+/// corner puts the seam of its chart.
+#[test]
+fn seed_2722_a_torus_joined_with_a_coaxial_tube_touching_its_outer_equator_is_crossed_where_its_tube_is()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(2.0),
+            Axis::second(2.0).backwards(),
+            Section::bands(0.0, &[[10.0, 5.5, 5.5]]).bowed(&[[[5.0, 5.5, -5.0], [5.0, 5.5, 5.0]]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::yz(2.0),
+            Axis::second(2.0),
+            Section::bands(-10.0, &[[10.0, 10.5, 11.0]]),
+            360.0,
+        ))],
     ));
 }
 

@@ -101,6 +101,17 @@ pub(in crate::brep) fn apple() -> Straight {
     ]])
 }
 
+/// A lemon: the arc of the circle of radius 2 about `(0, -1)`, across the
+/// axis, from the axis back to it on the near side — the inner lobe of a
+/// spindle torus.
+pub(in crate::brep) fn lemon() -> Straight {
+    let reach = 3f64.sqrt();
+    bent(&[&[
+        ([-reach, 0.0], Some(([0.0, -1.0], -2.0 * PI / 3.0))),
+        ([reach, 0.0], None),
+    ]])
+}
+
 /// A round groove cut into a bore: a tube between `r = 15` and `r = 37.5`
 /// from `h = -15` to `h = 12.5`, its bore bowed out between `h = -10` and
 /// `h = 5` along the circle of radius 12.5 about `(-2.5, 5)`: a spindle

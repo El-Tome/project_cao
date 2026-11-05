@@ -89,6 +89,15 @@ fn turned_by(radians: f64) -> DVec2 {
     }
 }
 
+/// The lowest and the highest corner of the box `points` span, or nothing
+/// for no point.
+fn spanned(points: impl IntoIterator<Item = DVec3>) -> Option<(DVec3, DVec3)> {
+    points
+        .into_iter()
+        .map(|point| (point, point))
+        .reduce(|(low, high), (other, _)| (low.min(other), high.max(other)))
+}
+
 impl Turned {
     /// How far the leaf turns, in radians, either way: a whole turn when it
     /// is within a thousandth of one.
@@ -211,49 +220,8 @@ impl Turned {
     /// a hair further out when it stood below.
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
         let mut points = Vec::new();
-        let reaches = |bow: Bow, corners: [DVec2; 2], side: f64, turns: &[(DVec2, bool)]| {
-            let swept = self.swept(side);
-            let mut reached = Vec::new();
-            for &(turn, _) in turns {
-                let radial = swept.out * turn.x + swept.onward * turn.y;
-                for axis in 0..3 {
-                    for sign in [1.0, -1.0] {
-                        let towards = DVec2::new(swept.along[axis], radial[axis]) * sign;
-                        if towards.y * bow.bulge() <= 0.0 {
-                            continue;
-                        }
-                        let at = bow.center + towards.normalize() * bow.radius.abs();
-                        if corners[0].x < at.x && at.x < corners[1].x {
-                            reached.push(self.point(side, at.x, at.y.abs(), turn));
-                        }
-                    }
-                }
-            }
-            reached
-        };
-        let turns = |side: f64| {
-            let swept = self.swept(side);
-            let mut turns: Vec<(DVec2, bool)> = Vec::new();
-            if !self.is_whole() {
-                turns.push((DVec2::X, true));
-                turns.push((turned_by(self.angle()), true));
-            }
-            for axis in 0..3 {
-                let (cosine, sine) = (swept.out[axis], swept.onward[axis]);
-                if cosine == 0.0 && sine == 0.0 {
-                    continue;
-                }
-                let furthest = sine.atan2(cosine).rem_euclid(TAU);
-                for turn in [furthest, (furthest + PI).rem_euclid(TAU)] {
-                    if self.is_whole() || turn <= self.angle() {
-                        turns.push((turned_by(turn), false));
-                    }
-                }
-            }
-            turns
-        };
         for piece in self.section.pieces() {
-            let turns = turns(piece.side);
+            let turns = self.turns(piece.side);
             for (along, [inner, outer]) in
                 [(piece.along[0], piece.away), (piece.along[1], piece.ending)]
             {
@@ -266,12 +234,12 @@ impl Turned {
             }
             for (edge, bow) in piece.bows.into_iter().enumerate() {
                 if let Some(bow) = bow {
-                    points.extend(reaches(bow, piece.chord(edge), piece.side, &turns));
+                    points.extend(self.reaches(bow, piece.chord(edge), piece.side, &turns));
                 }
             }
         }
         if let Some(side) = self.section.side().filter(|_| self.section.bows()) {
-            let turns = turns(side);
+            let turns = self.turns(side);
             for trapezoid in self.section.trapezoids() {
                 for (edge, chord) in [(0, trapezoid.low), (1, trapezoid.high)] {
                     let Some(bow) = trapezoid.bows[edge] else {
@@ -289,14 +257,78 @@ impl Turned {
                             corners.map(|corner| DVec2::new(corner.x, -corner.y)),
                         )
                     };
-                    points.extend(reaches(bow, corners, side, &turns));
+                    points.extend(self.reaches(bow, corners, side, &turns));
                 }
             }
         }
-        points
-            .into_iter()
-            .map(|point| (point, point))
-            .reduce(|(low, high), (other, _)| (low.min(other), high.max(other)))
+        spanned(points)
+    }
+
+    /// The box the arc of `bow` between `corners`, on the side `side`, sweeps
+    /// over the turn: its corners and its furthest points along each world
+    /// axis at each turn [`Turned::bounds`] reads, the sphere or the torus it
+    /// turns into reaching no further within the leaf.
+    pub fn arc_bounds(&self, bow: Bow, corners: [DVec2; 2], side: f64) -> Option<(DVec3, DVec3)> {
+        let turns = self.turns(side);
+        let ends = turns.iter().flat_map(|&(turn, _)| {
+            corners.map(|corner| self.point(side, corner.x, corner.y, turn))
+        });
+        spanned(ends.chain(self.reaches(bow, corners, side, &turns)))
+    }
+
+    /// The turns a side of the leaf is read at, each with whether it is an
+    /// end of the turn: both ends short of a whole turn, and wherever in
+    /// between the side goes furthest along a world axis, either way.
+    fn turns(&self, side: f64) -> Vec<(DVec2, bool)> {
+        let swept = self.swept(side);
+        let mut turns: Vec<(DVec2, bool)> = Vec::new();
+        if !self.is_whole() {
+            turns.push((DVec2::X, true));
+            turns.push((turned_by(self.angle()), true));
+        }
+        for axis in 0..3 {
+            let (cosine, sine) = (swept.out[axis], swept.onward[axis]);
+            if cosine == 0.0 && sine == 0.0 {
+                continue;
+            }
+            let furthest = sine.atan2(cosine).rem_euclid(TAU);
+            for turn in [furthest, (furthest + PI).rem_euclid(TAU)] {
+                if self.is_whole() || turn <= self.angle() {
+                    turns.push((turned_by(turn), false));
+                }
+            }
+        }
+        turns
+    }
+
+    /// The points of the arc of `bow` between `corners`, on the side `side`,
+    /// that go furthest along each world axis either way at each of `turns`,
+    /// where they stand between its corners.
+    fn reaches(
+        &self,
+        bow: Bow,
+        corners: [DVec2; 2],
+        side: f64,
+        turns: &[(DVec2, bool)],
+    ) -> Vec<DVec3> {
+        let swept = self.swept(side);
+        let mut reached = Vec::new();
+        for &(turn, _) in turns {
+            let radial = swept.out * turn.x + swept.onward * turn.y;
+            for axis in 0..3 {
+                for sign in [1.0, -1.0] {
+                    let towards = DVec2::new(swept.along[axis], radial[axis]) * sign;
+                    if towards.y * bow.bulge() <= 0.0 {
+                        continue;
+                    }
+                    let at = bow.center + towards.normalize() * bow.radius.abs();
+                    if corners[0].x < at.x && at.x < corners[1].x {
+                        reached.push(self.point(side, at.x, at.y.abs(), turn));
+                    }
+                }
+            }
+        }
+        reached
     }
 
     /// The volume the leaf encloses: half the turn times what each piece

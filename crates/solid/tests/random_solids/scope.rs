@@ -19,10 +19,11 @@
 //! A sphere or a torus (#576) is built along circles alone: against a plane
 //! square to its axis or holding it, and against a cylinder, a cone, a
 //! sphere or a torus about that very axis. Any other wall whose leaf's box
-//! meets its own asks beyond those circles — a plane at a slant, a block's
-//! side, a hole drilled off the axis, a cone off it — and the kernel may
-//! decline the case as unsupported, which is counted apart from the rule
-//! for the conics (`asks_a_round_beyond_its_circles`).
+//! meets the box of the part of the round the turn drew (#625) asks beyond
+//! those circles — a plane at a slant, a block's side, a hole drilled off
+//! the axis, a cone off it — and the kernel may decline the case as
+//! unsupported, which is counted apart from the rule for the conics
+//! (`asks_a_round_beyond_its_circles`).
 
 use std::f64::consts::{PI, TAU};
 
@@ -39,8 +40,8 @@ type Spanned = Option<(DVec3, DVec3)>;
 /// normal and a point of it, a cylinder, an elliptic cylinder or a cone by
 /// its axis and a point of the axis, a cone besides by the furthest its leaf
 /// reaches from the axis, and a sphere or a torus by the axis it was turned
-/// about and the point of it its circle's centre stands level with, a sphere
-/// besides by its radius and a torus by the circle's two radii.
+/// about, the point of it its circle's centre stands level with and the box
+/// the arc it was turned from sweeps over the leaf's turn.
 enum Wall {
     Plane {
         normal: DVec3,
@@ -62,13 +63,12 @@ enum Wall {
     Sphere {
         axis: DVec3,
         point: DVec3,
-        radius: f64,
+        swept: Spanned,
     },
     Torus {
         axis: DVec3,
         point: DVec3,
-        big: f64,
-        radius: f64,
+        swept: Spanned,
     },
 }
 
@@ -161,32 +161,14 @@ impl Wall {
         }
     }
 
-    /// The box the whole surface spans, as the kernel boxes a face on a
-    /// sphere or a torus by its surface's own extent, which reaches far
-    /// beyond the turn that drew a part of it (#576); none for any other
-    /// wall.
-    fn round_box(&self) -> Option<[DVec3; 2]> {
+    /// The box the part of a sphere or a torus the leaf's turn drew spans,
+    /// as the kernel boxes a face on one by its own extent (#625) — the
+    /// arc's sweep, not the whole surface nor the whole leaf: a shaft's
+    /// rounded end reaches no further along the shaft than the cap; none for
+    /// any other wall.
+    fn round_box(&self) -> Spanned {
         match *self {
-            Wall::Sphere { point, radius, .. } => {
-                Some([point - DVec3::splat(radius), point + DVec3::splat(radius)])
-            }
-            Wall::Torus {
-                axis,
-                point,
-                big,
-                radius,
-            } => {
-                let axis = axis.normalize();
-                let extent = |direction: DVec3| {
-                    let along = direction.dot(axis);
-                    let across = (direction - axis * along).length();
-                    let at = direction.dot(point);
-                    let spread = across * big + radius;
-                    [at - spread, at + spread]
-                };
-                let [x, y, z] = DVec3::AXES.map(extent);
-                Some([DVec3::new(x[0], y[0], z[0]), DVec3::new(x[1], y[1], z[1])])
-            }
+            Wall::Sphere { swept, .. } | Wall::Torus { swept, .. } => swept,
             Wall::Plane { .. }
             | Wall::Cylinder { .. }
             | Wall::Elliptic { .. }
@@ -250,21 +232,16 @@ fn walls(leaf: &Leaf) -> Vec<Wall> {
             });
         }
         for piece in turned.section.pieces() {
-            for bow in piece.bows.into_iter().flatten() {
+            for (edge, bow) in piece.bows.into_iter().enumerate() {
+                let Some(bow) = bow else {
+                    continue;
+                };
                 let point = point + axis * bow.center.x;
+                let swept = turned.arc_bounds(bow, piece.chord(edge), piece.side);
                 walls.push(if bow.center.y == 0.0 {
-                    Wall::Sphere {
-                        axis,
-                        point,
-                        radius: bow.radius.abs(),
-                    }
+                    Wall::Sphere { axis, point, swept }
                 } else {
-                    Wall::Torus {
-                        axis,
-                        point,
-                        big: bow.center.y.abs(),
-                        radius: bow.radius.abs(),
-                    }
+                    Wall::Torus { axis, point, swept }
                 });
             }
         }
@@ -1003,15 +980,16 @@ impl Case {
 
     /// Whether the case may ask the exact kernel for a curve beyond the
     /// circles it builds a sphere or a torus along (#576): a sphere or a
-    /// torus of one leaf against a wall of a leaf whose box meets the whole
-    /// surface's, that is neither a plane square to the turn's axis or
-    /// holding it, nor a cylinder, a cone, a sphere or a torus about that
-    /// very axis. The kernel may decline such a case as unsupported; it may
-    /// also hold it, the walls never meeting there. The leaf's box is not the
-    /// one the kernel reads: it boxes a face on a sphere or a torus by the
-    /// surface's own extent, which reaches far beyond the leaf the turn drew
-    /// of it, so two round walls whose leaves stand apart may still be
-    /// related and declined.
+    /// torus of one leaf against a wall of a leaf whose box meets the box of
+    /// the part of the round the turn drew — against another sphere or
+    /// torus, that one's part's box — that is neither a plane square to the
+    /// turn's axis or holding it, nor a cylinder, a cone, a sphere or a
+    /// torus about that very axis. The kernel may decline such a case as
+    /// unsupported; it may also hold it, the walls never meeting there. The
+    /// round's leaf's box is not the one the kernel reads: it boxes a face on
+    /// a sphere or a torus by its own extent (#625), the sweep of the arc it
+    /// was turned from, which may stand well inside the leaf — a shaft's
+    /// rounded end reaches no further along the shaft than its cap.
     pub fn asks_a_round_beyond_its_circles(&self) -> bool {
         let walled = Walled::of(self);
         walled.leaves.iter().any(|(walls, _, _)| {
@@ -1023,14 +1001,11 @@ impl Case {
                     }
                     _ => None,
                 })
-                .any(|(axis, point, round_box)| {
-                    let spanned = round_box.map(|[low, high]| (low, high));
+                .any(|(axis, point, spanned)| {
                     walled.leaves.iter().any(|(others, bounds, _)| {
                         others.iter().any(|other| {
                             let boxed = match other {
-                                Wall::Sphere { .. } | Wall::Torus { .. } => {
-                                    other.round_box().map(|[low, high]| (low, high))
-                                }
+                                Wall::Sphere { .. } | Wall::Torus { .. } => other.round_box(),
                                 _ => *bounds,
                             };
                             walled.near(spanned, boxed)

@@ -15,16 +15,18 @@ pub struct Chamfered {
 
 impl Body {
     /// The edge a name finds cut off, set back by `distance` along each of
-    /// its two faces, by a flat face numbered where the steps' numbers ended.
-    /// Flats name no edge.
+    /// its two faces, or by the most they give: at most one of them taken
+    /// whole. The flat face it lays is numbered where the steps' numbers
+    /// ended. Flats name no edge.
     pub fn chamfer(&self, edge: &EdgeName, distance: f64) -> Result<Chamfered, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Unfinished);
         };
+        let (exact, taken) = exact.chamfered(edge, distance)?;
         Ok(Chamfered {
-            body: Body::of_exact(exact.chamfered(edge, distance)?),
+            body: Body::of_exact(exact),
             asked: distance,
-            taken: distance,
+            taken,
         })
     }
 }

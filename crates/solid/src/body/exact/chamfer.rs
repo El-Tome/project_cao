@@ -10,24 +10,27 @@ use crate::brep::{self, Curve, Declined, EdgeId, EdgeName, FaceId, Surface};
 use crate::profile::{Contour, Frame};
 
 /// A straight edge between two flat faces meeting outwards: a point of it,
-/// the way it runs, and for each face the way it faces and the way into it,
-/// square to the edge.
+/// the way it runs, for each face the way it faces and the way into it,
+/// square to the edge, and how far the nearer face runs that way to its
+/// nearest corner off the edge — the most a chamfer can set back.
 struct Wedge {
     point: DVec3,
     along: DVec3,
     outward: [DVec3; 2],
     into: [DVec3; 2],
+    reach: f64,
 }
 
 impl Exact {
     /// The body with the edge a name finds cut off, set back by `distance`
-    /// along each of its two faces, the face the cut lays numbered where the
-    /// steps' numbers ended. Unsupported: an edge that is not straight
+    /// along each of its two faces or by the most they give, and the
+    /// distance taken; the face the cut lays numbered where the steps'
+    /// numbers ended. Unsupported: an edge that is not straight
     /// between two flat faces meeting outwards, and a cut that, carried along
     /// the edge's line, takes matter beyond it — a face of the slab but its
     /// floor left on the body, the floor in two pieces, or a corner of it on
     /// neither of the edge's faces.
-    pub fn chamfered(&self, name: &EdgeName, distance: f64) -> Result<Exact, Declined> {
+    pub fn chamfered(&self, name: &EdgeName, distance: f64) -> Result<(Exact, f64), Declined> {
         caught(|| {
             let edge = self
                 .brep
@@ -35,7 +38,8 @@ impl Exact {
                 .map_err(|_| Declined::Unfinished)?;
             let wedge = Wedge::of(&self.brep, edge)?;
             let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
-            let (outline, frame, travel) = wedge.slab(distance, bounds);
+            let taken = distance.clamp(0.0, wedge.reach);
+            let (outline, frame, travel) = wedge.slab(taken, bounds);
             let tool = Exact {
                 next: 1,
                 ..Exact::raised(&outline, &[], frame, travel)?
@@ -43,7 +47,7 @@ impl Exact {
             let made = self.next;
             let cut = self.cut_by(&tool)?;
             if cut.cut_along(&wedge, made) {
-                Ok(cut)
+                Ok((cut, taken))
             } else {
                 Err(Declined::Unsupported)
             }
@@ -104,11 +108,23 @@ impl Wedge {
         if into_first.dot(second) >= 0.0 {
             return Err(Declined::Unsupported);
         }
+        let eps = body.scale().eps();
+        let reach = [(one, into_first), (other, into_second)]
+            .into_iter()
+            .flat_map(|(face, into)| {
+                let corners = body.corners_of(face);
+                corners
+                    .into_iter()
+                    .map(move |at| into.dot(at - line.origin))
+            })
+            .filter(|&far| far > eps)
+            .fold(f64::INFINITY, f64::min);
         Ok(Wedge {
             point: line.origin,
             along,
             outward: [first, second],
             into: [into_first, into_second],
+            reach,
         })
     }
 

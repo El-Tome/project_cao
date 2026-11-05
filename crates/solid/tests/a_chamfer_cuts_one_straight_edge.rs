@@ -19,7 +19,11 @@
 //! - A distance larger than the neighbouring faces can give is reduced to the
 //!   largest that fits, and the step reports the value asked and the value
 //!   taken —
-//!   `a_chamfer_asked_more_than_the_top_can_give_takes_the_whole_top_and_reports_both_values`
+//!   `a_chamfer_asked_more_than_the_top_can_give_takes_the_whole_top_and_reports_both_values`,
+//!   the other face the limit on the same edge by
+//!   `a_chamfer_asked_more_than_the_front_can_give_takes_the_whole_front_and_reports_both_values`,
+//!   and a face's reach measured along it rather than square to the other by
+//!   `a_chamfer_asked_more_than_a_slanted_wall_can_give_takes_the_wall_s_whole_width_along_it`
 //! - After a change of size, a move or a turn upstream, the step cuts the same
 //!   edge again, found by its name —
 //!   `a_chamfer_cuts_the_edge_its_name_finds_again_after_a_change_of_size_a_move_and_a_turn`
@@ -51,6 +55,7 @@ const PLACE: f64 = 1e-9;
 const EXACT: f64 = 1e-9;
 
 /// The numbers a raised block's faces answer to, and a trapezoid's walls.
+const FLOOR: usize = 0;
 const TOP: usize = 1;
 const FRONT: usize = 2;
 const SLANT: usize = 3;
@@ -220,6 +225,61 @@ fn taken_whole(chamfered: &Chamfered, distance: f64, what: &str) {
     );
 }
 
+/// Holds that a chamfer reports the distance it was asked, and the smaller
+/// one the edge's two faces gave it.
+fn reduced(chamfered: &Chamfered, asked: f64, taken: f64, what: &str) {
+    assert!(
+        (chamfered.asked - asked).abs() < PLACE,
+        "{what}: reports {} asked, where {asked} was",
+        chamfered.asked
+    );
+    assert!(
+        (chamfered.taken - taken).abs() < PLACE,
+        "{what}: took {}, where the faces give {taken}",
+        chamfered.taken
+    );
+}
+
+/// Holds that a step took the face numbered `consumed` away whole, left every
+/// other face of the part it was given, and made one face more, flat; and
+/// gives back the number that face answers to.
+fn one_flat_face_for_another(part: &Body, body: &Body, consumed: usize, what: &str) -> usize {
+    let (mut before, after) = (numbers(part), numbers(body));
+    assert!(
+        !after.contains(&consumed),
+        "{what}: face {consumed} still answers: {after:?}"
+    );
+    before.remove(&consumed);
+    assert!(
+        before.is_subset(&after),
+        "{what}: a face other than {consumed} went: {after:?}"
+    );
+    let made: Vec<usize> = after.difference(&before).copied().collect();
+    assert_eq!(
+        made.len(),
+        1,
+        "{what}: one face for face {consumed}: {after:?}"
+    );
+    assert!(
+        body.is_flat(made[0]),
+        "{what}: the face the chamfer lays is flat"
+    );
+    made[0]
+}
+
+/// Holds that a flat face faces the way `toward` points.
+fn faces_toward(body: &Body, face: usize, toward: DVec3, what: &str) {
+    let facing = body
+        .plane_of(face)
+        .expect("a flat face offers a plane")
+        .normal;
+    assert!(
+        facing.distance(toward.normalize()) < PLACE,
+        "{what}: the chamfer faces {facing}, where it faces {}",
+        toward.normalize()
+    );
+}
+
 #[test]
 fn a_chamfer_on_a_block_s_top_front_edge_lays_one_flat_face_set_back_by_the_distance_along_the_top_and_the_front()
  {
@@ -351,4 +411,153 @@ fn a_chamfer_on_an_edge_whose_faces_meet_at_a_slant_is_set_back_by_the_distance_
             &format!("what is left of the second wall at {what}"),
         );
     }
+}
+
+#[test]
+fn a_chamfer_asked_more_than_the_top_can_give_takes_the_whole_top_and_reports_both_values() {
+    let [length, breadth, height] = [30.0, 10.0, 20.0];
+    let block = block([length, breadth, height]);
+    let edge = edge_between(&block, TOP, FRONT);
+
+    let chamfered = block
+        .chamfer(&edge, 50.0)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "50 asked on the top front edge, the top 10 wide";
+    reduced(&chamfered, 50.0, breadth, what);
+    let body = &chamfered.body;
+    sound(
+        body,
+        length * breadth * height - length * breadth * breadth / 2.0,
+        what,
+    );
+    let chamfer = one_flat_face_for_another(&block, body, TOP, what);
+    faces_toward(body, chamfer, DVec3::new(0.0, -1.0, 1.0), what);
+    let on_back = |along: f64| DVec3::new(along, breadth, height);
+    let on_front = |along: f64| DVec3::new(along, 0.0, height - breadth);
+    corners_are(
+        body,
+        chamfer,
+        &[
+            on_back(0.0),
+            on_back(length),
+            on_front(length),
+            on_front(0.0),
+        ],
+        "the chamfer, from the front to the top of the back",
+    );
+    corners_are(
+        body,
+        FRONT,
+        &[
+            DVec3::ZERO,
+            DVec3::new(length, 0.0, 0.0),
+            on_front(length),
+            on_front(0.0),
+        ],
+        "what is left of the front",
+    );
+    corners_are(
+        body,
+        BACK,
+        &[
+            DVec3::new(0.0, breadth, 0.0),
+            DVec3::new(length, breadth, 0.0),
+            on_back(length),
+            on_back(0.0),
+        ],
+        "the back, whole",
+    );
+}
+
+#[test]
+fn a_chamfer_asked_more_than_the_front_can_give_takes_the_whole_front_and_reports_both_values() {
+    let [length, breadth, height] = [30.0, 20.0, 8.0];
+    let block = block([length, breadth, height]);
+    let edge = edge_between(&block, TOP, FRONT);
+
+    let chamfered = block
+        .chamfer(&edge, 50.0)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "50 asked on the top front edge, the front 8 high";
+    reduced(&chamfered, 50.0, height, what);
+    let body = &chamfered.body;
+    sound(
+        body,
+        length * breadth * height - length * height * height / 2.0,
+        what,
+    );
+    let chamfer = one_flat_face_for_another(&block, body, FRONT, what);
+    faces_toward(body, chamfer, DVec3::new(0.0, -1.0, 1.0), what);
+    let on_top = |along: f64| DVec3::new(along, height, height);
+    let on_floor = |along: f64| DVec3::new(along, 0.0, 0.0);
+    corners_are(
+        body,
+        chamfer,
+        &[on_top(0.0), on_top(length), on_floor(length), on_floor(0.0)],
+        "the chamfer, from the top to the front of the floor",
+    );
+    corners_are(
+        body,
+        TOP,
+        &[
+            on_top(0.0),
+            on_top(length),
+            DVec3::new(length, breadth, height),
+            DVec3::new(0.0, breadth, height),
+        ],
+        "what is left of the top",
+    );
+    corners_are(
+        body,
+        FLOOR,
+        &[
+            on_floor(0.0),
+            on_floor(length),
+            DVec3::new(length, breadth, 0.0),
+            DVec3::new(0.0, breadth, 0.0),
+        ],
+        "the floor, whole",
+    );
+}
+
+#[test]
+fn a_chamfer_asked_more_than_a_slanted_wall_can_give_takes_the_wall_s_whole_width_along_it() {
+    let height = 5.0;
+    let part = trapezoid(height);
+    let edge = edge_between(&part, FRONT, SLANT);
+
+    let chamfered = part
+        .chamfer(&edge, 50.0)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "50 asked on the front slant edge, the slant 10 wide and 8 off the front";
+    reduced(&chamfered, 50.0, 10.0, what);
+    let body = &chamfered.body;
+    let trapezoid = (40.0 + 34.0) / 2.0 * 8.0 * height;
+    let corner_cut_off = 10.0 * 10.0 * 0.8 / 2.0 * height;
+    sound(body, trapezoid - corner_cut_off, what);
+    let chamfer = one_flat_face_for_another(&part, body, SLANT, what);
+    faces_toward(body, chamfer, DVec3::new(2.0, -1.0, 0.0), what);
+    let on_front = upright(DVec2::new(30.0, 0.0), height);
+    let on_back = upright(DVec2::new(34.0, 8.0), height);
+    corners_are(
+        body,
+        chamfer,
+        &[on_front, on_back].concat(),
+        "the chamfer, from the front to the end of the back",
+    );
+    corners_are(
+        body,
+        FRONT,
+        &[upright(DVec2::ZERO, height), on_front].concat(),
+        "what is left of the front",
+    );
+    corners_are(
+        body,
+        BACK,
+        &[on_back, upright(DVec2::new(0.0, 8.0), height)].concat(),
+        "the back, whole",
+    );
 }

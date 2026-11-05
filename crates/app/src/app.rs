@@ -174,6 +174,7 @@ impl CaoApp {
         viewport.theme = settings.theme.clone();
         viewport.let_go = settings.shortcuts.let_go;
         editor.sketching = settings.sketching;
+        editor.copy_panel_at = settings.copy_panel_at;
 
         let mut back_to_menu = false;
         let mut changed = false;
@@ -203,16 +204,9 @@ impl CaoApp {
         asked.extend(ribbon.show(ui, &settings, &mut drawn, lang));
         asked.extend(
             shortcuts_pressed(ui, &settings, |command| {
-                // Enter closes what a tool laying copies is gathering, as its
-                // prompt says, rather than finishing the sketch under it.
-                command == Command::FinishSketch
-                    && matches!(
-                        editor.tool_state,
-                        cao_sketch::ToolState::Copying {
-                            naming_the_target: false,
-                            ..
-                        }
-                    )
+                // Enter moves through the panel of a tool laying copies rather
+                // than finishing the sketch under it.
+                command == Command::FinishSketch && editor.copy_panel().is_some()
             })
             .into_iter()
             .filter(|command| crate::screens::ribbon::is_enabled(*command, doc, editor, extrusion)),
@@ -272,6 +266,7 @@ impl CaoApp {
             };
             changed |= screens::viewport::show(ui, viewport, &mut context);
         });
+        let copy_panel_at = editor.copy_panel_at;
 
         if changed {
             autosave.touched();
@@ -283,6 +278,10 @@ impl CaoApp {
             && let Some(message) = autosave.write_if_due(&DiskFiles, doc, path, at_rest, lang)
         {
             self.error = Some(message);
+        }
+        if copy_panel_at != settings.copy_panel_at {
+            self.remembered.profiles.active_mut().copy_panel_at = copy_panel_at;
+            self.save_settings();
         }
         if back_to_menu {
             self.put_the_part_away();

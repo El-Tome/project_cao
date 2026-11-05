@@ -12,9 +12,9 @@ use super::finish::advance_on_enter;
 use super::input::{handle_sketch_input, pick_areas};
 use super::navigation::{advance_transition, handle_navigation};
 use super::render::{
-    build_frame, paint_band, paint_dimension_field, paint_dimension_labels, paint_face_labels,
-    paint_measure, paint_rule_marks, paint_ruler, push_blinking_matter, what_is_measured,
-    what_would_go,
+    build_frame, paint_band, paint_copy_panel, paint_dimension_field, paint_dimension_labels,
+    paint_face_labels, paint_measure, paint_rule_marks, paint_ruler, push_blinking_matter,
+    what_is_measured, what_would_go,
 };
 use super::state::{GestureGoesTo, ViewScale, ViewportState, cube_rect, gesture_goes_to};
 use super::values::refused_for_what_is_typed;
@@ -62,6 +62,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     // egui::Order::Foreground layer regardless of when it is painted, so moving this earlier does
     // not move it behind anything.
     changed |= advance_on_enter(ui, sketch, scale);
+    changed |= paint_copy_panel(ui, rect, sketch);
 
     // A measure read a moment ago is about a drawing that has just moved, so
     // it goes with the change rather than staying on screen being wrong.

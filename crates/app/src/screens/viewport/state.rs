@@ -302,6 +302,9 @@ pub(crate) fn cube_rect(viewport: egui::Rect, config: &ViewportConfig) -> egui::
     egui::Rect::from_min_size(origin, size)
 }
 
+/// How much of the plane to show when a sketch has no geometry to frame yet.
+pub const DEFAULT_SKETCH_RADIUS: f64 = 100.0;
+
 /// Work planes are drawn a fixed fraction of the view across, so they stay
 /// clickable however far the camera is.
 pub(crate) fn plane_half_size(state: &ViewportState) -> f64 {

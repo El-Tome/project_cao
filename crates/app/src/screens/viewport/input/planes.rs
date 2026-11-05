@@ -9,7 +9,8 @@ use glam::{DVec2, DVec3};
 use crate::screens::SketchContext;
 use crate::screens::sketch::PlaneChoice;
 
-use super::{DEFAULT_SKETCH_RADIUS, ViewportState, plane_half_size};
+use super::{ViewportState, plane_half_size};
+use crate::screens::viewport::DEFAULT_SKETCH_RADIUS;
 
 /// The step where the cursor is offering planes to draw on, and a click takes
 /// one: a fresh sketch on it, and the view swung round to face it.

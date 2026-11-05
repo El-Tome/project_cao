@@ -159,23 +159,23 @@ pub(crate) fn handle_sketch_input(
 
     follow_the_cursor(context, index, cursor, scale.units_per_pixel);
 
+    // What is grabbed is decided where the button went down, not where the
+    // cursor is when egui calls it a drag: by then it has already travelled the
+    // few pixels of the drag threshold, which was enough to miss the very point
+    // being aimed at.
+    let press = ui
+        .input(|input| input.pointer.press_origin())
+        .and_then(|position| {
+            let (origin, direction) = state
+                .camera
+                .ray(to_ndc(position, rect), rect.width() / rect.height());
+            plane.ray_intersection(origin.as_dvec3(), direction.as_dvec3())
+        });
+    let raw_pressed = press.unwrap_or(raw_cursor);
+
     // Dragging a point is a gesture, not a click, so it comes before the
     // click-based tools.
     if context.editor.tool == Tool::Select {
-        // What is grabbed is decided where the button went down, not where the
-        // cursor is when egui calls it a drag: by then it has already travelled
-        // the few pixels of the drag threshold, which was enough to miss the
-        // very point being aimed at.
-        let press = ui
-            .input(|input| input.pointer.press_origin())
-            .and_then(|position| {
-                let (origin, direction) = state
-                    .camera
-                    .ray(to_ndc(position, rect), rect.width() / rect.height());
-                plane.ray_intersection(origin.as_dvec3(), direction.as_dvec3())
-            });
-        let raw_pressed = press.unwrap_or(raw_cursor);
-
         let adding = ui.input(|input| input.modifiers.command || input.modifiers.shift);
         let gesture = Gesture {
             snap,
@@ -242,6 +242,9 @@ pub(crate) fn handle_sketch_input(
         return changed;
     }
 
+    if copying::gather_in_a_box(context, index, (raw_pressed, raw_cursor), response, scale) {
+        return false;
+    }
     if !response.clicked() {
         return false;
     }
@@ -435,6 +438,3 @@ pub(crate) fn draw_line_point(
         }
     }
 }
-
-/// How much of the plane to show when a sketch has no geometry to frame yet.
-pub const DEFAULT_SKETCH_RADIUS: f64 = 100.0;

@@ -6,16 +6,15 @@
 //!   in the view by its title — no test: how it is drawn and dragged is checked
 //!   on rendered frames, which no assertion here reaches
 //! - it comes back where it was last left, one position shared by every tool
-//!   that uses it, kept across restarts —
-//!   `the_panel_opens_where_it_was_last_left_whichever_copy_tool_is_taken`, in
-//!   the driver, and `a_settings_file_written_before_the_panel_still_loads`, in
-//!   `cao_prefs`
-//! - a position that no longer fits the view is brought back inside it —
-//!   `a_panel_left_outside_a_smaller_view_is_brought_back_inside_it`, beside
-//!   the `ui/` primitive
+//!   that uses it, kept across restarts — no test: here; held in
+//!   `crates/app/tests/copying_in_a_panel.rs` and in `cao_prefs`'s
+//!   `settings/tests.rs`, each under its own `Closes #321`
+//! - a position that no longer fits the view is brought back inside it — no
+//!   test: here; held in `ui/floating_panel/tests.rs`, under its own
+//!   `Closes #321`
 //! - the keyboard writes into the panel; the mouse stays entirely free for the
-//!   drawing — `a_click_on_the_drawing_with_the_panel_open_reaches_the_drawing`,
-//!   in the driver
+//!   drawing — no test: the panel takes a click only over itself, which is
+//!   egui's own hit-testing, and where it stands is checked on rendered frames
 //! - Elements: a click in the drawing adds an element —
 //!   `a_click_in_the_drawing_adds_the_element_under_it`
 //! - Elements: a click on one already held removes it —
@@ -30,8 +29,8 @@
 //! - Values: step and count for the circular pattern, two steps and two counts
 //!   for the rectangular one, none for the mirror —
 //!   `each_copy_tool_has_the_values_it_needs_and_no_more`
-//! - Validate / cancel — `the_panel_s_cancel_closes_it_and_lays_nothing`; Validate
-//!   is held under Leaving
+//! - Validate / cancel — `the_panel_s_cancel_closes_it_and_lays_nothing`;
+//!   Validate is held under Leaving
 //! - one slot is active and shown as such — no test: how it is shown is
 //!   checked on rendered frames; which one it is, by every test below
 //! - a click in the drawing fills the active slot and only that one, so an
@@ -53,27 +52,28 @@
 //! - otherwise the first empty slot becomes active and is marked —
 //!   `enter_on_validate_with_a_slot_empty_activates_and_marks_the_first_empty_one`
 //! - while the writing cursor is in a field of the panel, no letter shortcut
-//!   fires — `a_letter_typed_in_a_field_of_the_panel_takes_no_tool`, in the
-//!   driver
-//! - `Entrée` and `Échap` still do what is said here —
-//!   `enter_with_the_panel_open_does_not_close_the_sketch` and
-//!   `escape_closes_the_panel_and_lays_nothing`, in the driver
+//!   fires; `Entrée` and `Échap` still do what is said here — no test: here;
+//!   held in `crates/app/tests/copying_in_a_panel.rs`, which reaches the
+//!   keyboard
 //! - Validate: the copy is laid, the tool stays in hand, and the panel is
 //!   emptied entirely — elements, target and values — back on Elements —
 //!   `a_copy_laid_leaves_the_tool_in_hand_and_the_panel_empty_on_its_elements`
 //! - `Échap` or another tool taken from the ribbon: nothing is laid, the panel
-//!   closes — `escape_closes_the_panel_and_lays_nothing`, in the driver, and
-//!   `another_tool_taken_closes_the_panel_and_lays_nothing`
+//!   closes — `another_tool_taken_closes_the_panel_and_lays_nothing`; `Échap`
+//!   in the driver
 //! - the elements held stay selected if the tool reached for works on a
 //!   selection; otherwise the selection is dropped —
 //!   `the_selection_tool_taken_from_the_panel_keeps_its_elements_selected`,
 //!   `a_drawing_tool_taken_from_the_panel_drops_its_elements`
 //! - the preview (#311) updates as soon as the panel holds enough to lay
-//!   something — `the_preview_shows_across_the_axis_held_not_under_the_cursor`
+//!   something — `the_preview_shows_across_the_axis_held_not_under_the_cursor`,
+//!   `the_preview_waits_for_the_panel_to_hold_enough`
 //! - must not break: the preview of the copy before it is laid (#311) —
-//!   `the_preview_shows_across_the_axis_held_not_under_the_cursor`
+//!   `the_preview_shows_across_the_axis_held_not_under_the_cursor`; the
+//!   patterns' in `preview/tests.rs`
 //! - must not break: a pattern opens on a step its selection already fits in
-//!   (#322) — `a_rectangular_pattern_opens_its_values_on_a_step_its_elements_fit_in`
+//!   (#322) — `a_rectangular_pattern_opens_its_values_on_a_step_its_elements_fit_in`;
+//!   from a selection in hand, in `opening/tests.rs`
 //! - must not break: a selection made with the Selection tool is what the tool
 //!   starts with — `a_copy_tool_taken_with_a_selection_in_hand_opens_on_its_target`
 //! - must not break: a mirror, a circular pattern or a rectangular pattern is
@@ -84,136 +84,56 @@
 //! - must not break: a mirrored arc comes back as an arc (#317) —
 //!   `an_arc_mirrored_from_the_panel_comes_back_an_arc`
 
-use cao_part::{Operation, PartDocument, PointRef};
+use cao_part::history::RepeatsAsked;
+use cao_part::{Formula, Operation, PointRef};
 use cao_prefs::Command;
-use cao_sketch::{ChosenAxis, Element, SegmentId, WorkPlane};
-use chrono::Utc;
+use cao_sketch::{ArcId, ChosenAxis, Element, SegmentId, Selection, WorkPlane};
 use glam::DVec2;
 
-use super::super::{copy, enter_in_the_panel};
-use crate::lang::Catalogue;
+use super::bench::Bench;
 use crate::screens::SketchContext;
-use crate::screens::extrusion::ExtrusionState;
-use crate::screens::ribbon::Ribbon;
-use crate::screens::sketch::{CopySlot, SketchEditor};
-use crate::screens::viewport::ViewportState;
-
-const SNAP: f64 = 0.5;
-const PIXEL: f64 = 0.05;
+use crate::screens::sketch::{CopySlot, Tool};
+use crate::screens::viewport::input::handle_sketch_input;
+use crate::screens::viewport::{ViewScale, ViewportState, to_ndc};
 
 const ON_THE_TRAIT_TO_COPY: DVec2 = DVec2::new(-10.0, 0.0);
 const ON_THE_ORDINARY_TRAIT: DVec2 = DVec2::new(2.0, 0.0);
 const ON_THE_CONSTRUCTION_TRAIT: DVec2 = DVec2::new(0.0, 20.0);
+const THE_ORDINARY_TRAIT_S_FOOT: DVec2 = DVec2::new(2.0, -5.0);
+const THE_ORDINARY_TRAIT_S_HEAD: DVec2 = DVec2::new(2.0, 5.0);
 const FAR_FROM_EVERYTHING: DVec2 = DVec2::new(40.0, 40.0);
 
 const TRAIT_TO_COPY: SegmentId = SegmentId(0);
 const ORDINARY_TRAIT: SegmentId = SegmentId(1);
 const CONSTRUCTION_TRAIT: SegmentId = SegmentId(2);
 
-/// A sketch open on three traits clear of each other and of both sketch axes:
-/// one to copy, an ordinary one upright beside it, and a construction one lying
+/// Three traits clear of each other and of both sketch axes: one to copy, ten
+/// units tall, an ordinary one upright beside it, and a construction one lying
 /// above them both.
-struct Bench {
-    document: PartDocument,
-    editor: SketchEditor,
-    extrusion: ExtrusionState,
-    lang: Catalogue,
+fn three_traits() -> Bench {
+    Bench::drawn(vec![
+        Bench::a_trait(DVec2::new(-10.0, -5.0), DVec2::new(-10.0, 5.0), false),
+        Bench::a_trait(THE_ORDINARY_TRAIT_S_FOOT, THE_ORDINARY_TRAIT_S_HEAD, false),
+        Bench::a_trait(DVec2::new(-5.0, 20.0), DVec2::new(5.0, 20.0), true),
+    ])
 }
 
-impl Bench {
-    fn new() -> Self {
-        let mut document = PartDocument::new("part", Utc::now());
-        document.apply(Operation::CreateSketch {
-            plane: WorkPlane::XY,
-            on: None,
-        });
-        for (start, end, construction) in [
-            (DVec2::new(-10.0, -5.0), DVec2::new(-10.0, 5.0), false),
-            (DVec2::new(2.0, -5.0), DVec2::new(2.0, 5.0), false),
-            (DVec2::new(-5.0, 20.0), DVec2::new(5.0, 20.0), true),
-        ] {
-            document.apply(Operation::AddSegment {
-                sketch: 0,
-                start: PointRef::New(start),
-                end: PointRef::New(end),
-                construction,
-            });
-        }
-        let mut editor = SketchEditor::default();
-        editor.begin_editing(0, WorkPlane::XY);
-        Self {
-            document,
-            editor,
-            extrusion: ExtrusionState::default(),
-            lang: Catalogue::french(),
-        }
-    }
+/// The tool taken, the trait to copy held, and `Entrée` leaving Elements.
+fn holding_the_trait_to_copy(command: Command) -> Bench {
+    let mut bench = three_traits();
+    bench.take(command);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.enter();
+    bench
+}
 
-    fn context(&mut self) -> SketchContext<'_> {
-        SketchContext {
-            document: &mut self.document,
-            editor: &mut self.editor,
-            extrusion: &mut self.extrusion,
-            lang: &self.lang,
-        }
-    }
-
-    fn take(&mut self, command: Command) {
-        crate::commands::run(
-            command,
-            &mut self.context(),
-            &mut Ribbon::default(),
-            &mut ViewportState::default(),
-        );
-    }
-
-    fn click(&mut self, at: DVec2) {
-        self.editor.cursor = Some(at);
-        copy(&mut self.context(), 0, at, SNAP, PIXEL);
-    }
-
-    fn click_the_slot(&mut self, slot: CopySlot) {
-        self.editor
-            .copy_panel_mut()
-            .expect("the panel is open while a copy tool is in hand")
-            .activate(slot);
-    }
-
-    fn enter(&mut self) {
-        enter_in_the_panel(&mut self.context());
-    }
-
-    fn active(&self) -> CopySlot {
-        self.editor
-            .copy_panel()
-            .expect("the panel is open while a copy tool is in hand")
-            .active()
-    }
-
-    fn elements(&self) -> Vec<Element> {
-        self.editor
-            .copy_panel()
-            .expect("the panel is open while a copy tool is in hand")
-            .elements()
-            .to_vec()
-    }
-
-    fn laid(&self) -> usize {
-        self.document.history.applied_operations().len()
-    }
-
-    fn last_laid(&self) -> Option<&Operation> {
-        self.document.history.applied_operations().last()
-    }
-
-    fn traits(&self) -> usize {
-        self.document.sketches()[0].segments().len()
-    }
+fn traits(bench: &Bench) -> usize {
+    bench.document.sketches()[0].segments().len()
 }
 
 #[test]
 fn the_mirror_opens_on_its_elements_when_nothing_was_selected() {
-    let mut bench = Bench::new();
+    let mut bench = three_traits();
 
     bench.take(Command::ToolMirror);
 
@@ -223,7 +143,7 @@ fn the_mirror_opens_on_its_elements_when_nothing_was_selected() {
 
 #[test]
 fn a_click_in_the_drawing_adds_the_element_under_it() {
-    let mut bench = Bench::new();
+    let mut bench = three_traits();
     bench.take(Command::ToolMirror);
 
     bench.click(ON_THE_TRAIT_TO_COPY);
@@ -244,8 +164,20 @@ fn a_click_in_the_drawing_adds_the_element_under_it() {
 }
 
 #[test]
+fn a_click_on_an_element_already_held_lets_it_go() {
+    let mut bench = three_traits();
+    bench.take(Command::ToolMirror);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.click(ON_THE_ORDINARY_TRAIT);
+
+    bench.click(ON_THE_TRAIT_TO_COPY);
+
+    assert_eq!(bench.elements(), vec![Element::Segment(ORDINARY_TRAIT)]);
+}
+
+#[test]
 fn a_construction_trait_clicked_while_elements_is_active_is_copied() {
-    let mut bench = Bench::new();
+    let mut bench = three_traits();
     bench.take(Command::ToolMirror);
 
     bench.click(ON_THE_CONSTRUCTION_TRAIT);
@@ -260,7 +192,7 @@ fn a_construction_trait_clicked_while_elements_is_active_is_copied() {
 
 #[test]
 fn an_ordinary_trait_clicked_in_the_target_slot_is_the_mirror_s_axis() {
-    let mut bench = Bench::new();
+    let mut bench = three_traits();
     bench.take(Command::ToolMirror);
 
     bench.click_the_slot(CopySlot::Target);
@@ -284,8 +216,172 @@ fn an_ordinary_trait_clicked_in_the_target_slot_is_the_mirror_s_axis() {
 }
 
 #[test]
+fn a_point_clicked_in_the_target_slot_is_the_circular_pattern_s_centre() {
+    let mut bench = holding_the_trait_to_copy(Command::ToolCircularPattern);
+    let centre = bench.point_at(THE_ORDINARY_TRAIT_S_FOOT);
+
+    bench.click(THE_ORDINARY_TRAIT_S_FOOT);
+    assert_eq!(
+        bench.active(),
+        CopySlot::Value(0),
+        "the centre moves down one"
+    );
+    bench.enter();
+    bench.enter();
+    bench.editor.cursor = Some(THE_ORDINARY_TRAIT_S_HEAD);
+    bench.enter();
+
+    assert_eq!(
+        bench.last_laid(),
+        Some(&Operation::CircularPattern {
+            sketch: 0,
+            elements: vec![Element::Segment(TRAIT_TO_COPY)],
+            centre,
+            degrees: Formula::Number(90.0),
+            count: Formula::Number(4.0),
+        }),
+        "turned about the point clicked while the centre's slot was active, \
+         whatever point the cursor is over when it is laid"
+    );
+}
+
+#[test]
+fn a_trait_clicked_in_the_target_slot_is_the_rectangular_pattern_s_direction() {
+    let mut bench = holding_the_trait_to_copy(Command::ToolRectangularPattern);
+
+    bench.click(ON_THE_ORDINARY_TRAIT);
+    assert_eq!(
+        bench.active(),
+        CopySlot::Value(0),
+        "the direction moves down one"
+    );
+    for _ in 0..4 {
+        bench.enter();
+    }
+    bench.editor.cursor = Some(FAR_FROM_EVERYTHING);
+    bench.enter();
+
+    let Some(Operation::RectangularPattern {
+        elements,
+        direction,
+        along,
+        across,
+        ..
+    }) = bench.last_laid()
+    else {
+        panic!("a rectangular pattern is laid: {:?}", bench.last_laid());
+    };
+    assert_eq!(elements, &vec![Element::Segment(TRAIT_TO_COPY)]);
+    assert_eq!(direction, &ChosenAxis::Trait(ORDINARY_TRAIT));
+    let opened = RepeatsAsked {
+        step: Formula::Number(10.0),
+        count: Formula::Number(2.0),
+    };
+    assert_eq!(
+        (along, across),
+        (&opened, &opened),
+        "laid with the values the panel opened on"
+    );
+}
+
+#[test]
+fn each_copy_tool_has_the_values_it_needs_and_no_more() {
+    let walked = |command: Command| {
+        let mut bench = holding_the_trait_to_copy(command);
+        let mut slots = vec![bench.active()];
+        while bench.active() != CopySlot::Validate && slots.len() < 8 {
+            bench.enter();
+            slots.push(bench.active());
+        }
+        slots
+    };
+
+    assert_eq!(
+        walked(Command::ToolMirror),
+        [CopySlot::Target, CopySlot::Validate]
+    );
+    assert_eq!(
+        walked(Command::ToolCircularPattern),
+        [
+            CopySlot::Target,
+            CopySlot::Value(0),
+            CopySlot::Value(1),
+            CopySlot::Validate
+        ]
+    );
+    assert_eq!(
+        walked(Command::ToolRectangularPattern),
+        [
+            CopySlot::Target,
+            CopySlot::Value(0),
+            CopySlot::Value(1),
+            CopySlot::Value(2),
+            CopySlot::Value(3),
+            CopySlot::Validate
+        ]
+    );
+}
+
+#[test]
+fn the_panel_s_cancel_closes_it_and_lays_nothing() {
+    let mut bench = three_traits();
+    bench.take(Command::ToolMirror);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.click_the_slot(CopySlot::Target);
+    bench.click(ON_THE_ORDINARY_TRAIT);
+    let laid_before = bench.laid();
+
+    bench.editor.cancel_the_copy();
+
+    assert!(bench.editor.copy_panel().is_none(), "the panel is closed");
+    assert_eq!(bench.laid(), laid_before, "nothing is laid");
+}
+
+#[test]
+fn an_axis_already_picked_is_changed_by_clicking_its_slot_again() {
+    let mut bench = holding_the_trait_to_copy(Command::ToolMirror);
+    bench.click(ON_THE_ORDINARY_TRAIT);
+
+    bench.click_the_slot(CopySlot::Target);
+    bench.click(ON_THE_CONSTRUCTION_TRAIT);
+    assert_eq!(bench.active(), CopySlot::Validate);
+    bench.enter();
+
+    assert_eq!(
+        bench.last_laid(),
+        Some(&Operation::Mirror {
+            sketch: 0,
+            elements: vec![Element::Segment(TRAIT_TO_COPY)],
+            axis: ChosenAxis::Trait(CONSTRUCTION_TRAIT),
+        }),
+        "the second axis picked replaces the first"
+    );
+}
+
+#[test]
+fn a_copy_tool_taken_with_a_selection_in_hand_opens_on_its_target() {
+    for command in [
+        Command::ToolMirror,
+        Command::ToolCircularPattern,
+        Command::ToolRectangularPattern,
+    ] {
+        let mut bench = three_traits();
+        bench.select(&[Element::Segment(TRAIT_TO_COPY)]);
+
+        bench.take(command);
+
+        assert_eq!(bench.active(), CopySlot::Target, "{command:?}");
+        assert_eq!(
+            bench.elements(),
+            vec![Element::Segment(TRAIT_TO_COPY)],
+            "{command:?} starts with what the Selection tool held"
+        );
+    }
+}
+
+#[test]
 fn picking_the_mirror_s_axis_lands_on_validate() {
-    let mut bench = Bench::new();
+    let mut bench = three_traits();
     bench.take(Command::ToolMirror);
     bench.click(ON_THE_TRAIT_TO_COPY);
 
@@ -301,14 +397,47 @@ fn picking_the_mirror_s_axis_lands_on_validate() {
 }
 
 #[test]
+fn a_centre_picked_again_moves_onto_values_already_typed() {
+    let mut bench = holding_the_trait_to_copy(Command::ToolCircularPattern);
+    bench.click(THE_ORDINARY_TRAIT_S_FOOT);
+    bench.type_value(0, "30");
+
+    bench.click_the_slot(CopySlot::Target);
+    bench.click(THE_ORDINARY_TRAIT_S_HEAD);
+
+    assert_eq!(
+        bench.active(),
+        CopySlot::Value(0),
+        "down one, onto the step already typed, not on to the first empty slot"
+    );
+    assert_eq!(bench.value(0), Some(30.0));
+}
+
+#[test]
+fn enter_moves_down_one_slot() {
+    let mut bench = three_traits();
+    bench.take(Command::ToolCircularPattern);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+
+    bench.enter();
+    assert_eq!(bench.active(), CopySlot::Target);
+    bench.enter();
+    assert_eq!(
+        bench.active(),
+        CopySlot::Value(0),
+        "down one even with the centre still empty"
+    );
+}
+
+#[test]
 fn enter_on_validate_lays_the_mirror_as_one_step() {
-    let mut bench = Bench::new();
+    let mut bench = three_traits();
     bench.take(Command::ToolMirror);
     bench.click(ON_THE_TRAIT_TO_COPY);
     bench.click_the_slot(CopySlot::Target);
     bench.click(ON_THE_ORDINARY_TRAIT);
     let laid_before = bench.laid();
-    let traits_before = bench.traits();
+    let traits_before = traits(&bench);
 
     bench.editor.cursor = Some(FAR_FROM_EVERYTHING);
     bench.enter();
@@ -319,7 +448,335 @@ fn enter_on_validate_lays_the_mirror_as_one_step() {
         "laid by the same operation as before the panel: {:?}",
         bench.last_laid()
     );
-    assert_eq!(bench.traits(), traits_before + 1);
+    assert_eq!(traits(&bench), traits_before + 1);
     assert!(bench.document.undo());
-    assert_eq!(bench.traits(), traits_before, "undone in one go");
+    assert_eq!(traits(&bench), traits_before, "undone in one go");
+}
+
+#[test]
+fn enter_on_validate_with_a_slot_empty_activates_and_marks_the_first_empty_one() {
+    let mut bench = three_traits();
+    bench.take(Command::ToolMirror);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.click_the_slot(CopySlot::Validate);
+    let laid_before = bench.laid();
+
+    bench.enter();
+
+    assert_eq!(bench.laid(), laid_before, "nothing is laid with no axis");
+    assert_eq!(bench.active(), CopySlot::Target);
+    assert_eq!(bench.panel().marked(), Some(CopySlot::Target));
+    bench.click(ON_THE_ORDINARY_TRAIT);
+    assert_eq!(
+        bench.panel().marked(),
+        None,
+        "the mark goes once the slot is filled"
+    );
+
+    let mut bench = holding_the_trait_to_copy(Command::ToolCircularPattern);
+    bench.click(THE_ORDINARY_TRAIT_S_FOOT);
+    bench.type_value(1, "");
+    bench.click_the_slot(CopySlot::Validate);
+    let laid_before = bench.laid();
+
+    bench.enter();
+
+    assert_eq!(bench.laid(), laid_before, "nothing is laid with no count");
+    assert_eq!(bench.active(), CopySlot::Value(1));
+    assert_eq!(bench.panel().marked(), Some(CopySlot::Value(1)));
+}
+
+#[test]
+fn a_copy_laid_leaves_the_tool_in_hand_and_the_panel_empty_on_its_elements() {
+    let mut bench = holding_the_trait_to_copy(Command::ToolCircularPattern);
+    bench.click(THE_ORDINARY_TRAIT_S_FOOT);
+    bench.click_the_slot(CopySlot::Validate);
+    let laid_before = bench.laid();
+    bench.enter();
+    let laid = bench.laid();
+
+    assert_eq!(laid, laid_before + 1, "Validate laid the copy");
+    assert_eq!(bench.editor.tool, Tool::CircularPattern);
+    assert_eq!(bench.active(), CopySlot::Elements);
+    assert_eq!(bench.elements(), Vec::new());
+    assert_eq!(
+        (bench.value(0), bench.value(1)),
+        (None, None),
+        "the values go with the rest"
+    );
+
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.click_the_slot(CopySlot::Validate);
+    bench.enter();
+    assert_eq!(
+        bench.laid(),
+        laid,
+        "the centre went too: nothing is copied twice by mistake"
+    );
+    assert_eq!(bench.active(), CopySlot::Target);
+}
+
+#[test]
+fn another_tool_taken_closes_the_panel_and_lays_nothing() {
+    let mut bench = three_traits();
+    bench.take(Command::ToolMirror);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.click_the_slot(CopySlot::Target);
+    bench.click(ON_THE_ORDINARY_TRAIT);
+    let laid_before = bench.laid();
+
+    bench.take(Command::ToolLine);
+
+    assert!(bench.editor.copy_panel().is_none(), "the panel is closed");
+    assert_eq!(bench.laid(), laid_before, "nothing is laid");
+}
+
+#[test]
+fn the_selection_tool_taken_from_the_panel_keeps_its_elements_selected() {
+    let mut bench = three_traits();
+    bench.take(Command::ToolMirror);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.click(ON_THE_CONSTRUCTION_TRAIT);
+
+    bench.take(Command::ToolSelect);
+
+    assert_eq!(
+        bench.editor.selection(),
+        [
+            Selection::Element(Element::Segment(TRAIT_TO_COPY)),
+            Selection::Element(Element::Segment(CONSTRUCTION_TRAIT))
+        ]
+    );
+}
+
+#[test]
+fn a_drawing_tool_taken_from_the_panel_drops_its_elements() {
+    let mut bench = three_traits();
+    bench.take(Command::ToolMirror);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+
+    bench.take(Command::ToolLine);
+    bench.take(Command::ToolSelect);
+
+    assert!(bench.editor.selection().is_empty());
+}
+
+#[test]
+fn the_preview_shows_across_the_axis_held_not_under_the_cursor() {
+    let mut bench = holding_the_trait_to_copy(Command::ToolMirror);
+    bench.click(ON_THE_ORDINARY_TRAIT);
+
+    assert_eq!(
+        bench.previewed_traits(FAR_FROM_EVERYTHING, 1.0),
+        Some(1),
+        "the one trait held, mirrored across the axis the panel holds"
+    );
+}
+
+#[test]
+fn the_preview_waits_for_the_panel_to_hold_enough() {
+    let mut bench = three_traits();
+    bench.take(Command::ToolMirror);
+    bench.click(ON_THE_TRAIT_TO_COPY);
+    bench.enter();
+
+    assert_eq!(
+        bench.previewed_traits(ON_THE_ORDINARY_TRAIT, 1.0),
+        None,
+        "with no axis in the panel there is nothing to lay, whatever the cursor \
+         is over"
+    );
+}
+
+#[test]
+fn a_rectangular_pattern_opens_its_values_on_a_step_its_elements_fit_in() {
+    let bench = holding_the_trait_to_copy(Command::ToolRectangularPattern);
+
+    assert_eq!(
+        [0, 1, 2, 3].map(|rank| bench.value(rank)),
+        [Some(10.0), Some(2.0), Some(10.0), Some(2.0)],
+        "the trait held stands ten tall, and one copy each way"
+    );
+}
+
+#[test]
+fn a_circular_pattern_laid_from_the_panel_is_one_step() {
+    let mut bench = holding_the_trait_to_copy(Command::ToolCircularPattern);
+    bench.click(THE_ORDINARY_TRAIT_S_FOOT);
+    bench.click_the_slot(CopySlot::Validate);
+    let laid_before = bench.laid();
+    let traits_before = traits(&bench);
+
+    bench.enter();
+
+    assert_eq!(bench.laid(), laid_before + 1, "one step in the history");
+    assert!(
+        matches!(bench.last_laid(), Some(Operation::CircularPattern { .. })),
+        "{:?}",
+        bench.last_laid()
+    );
+    assert_eq!(
+        traits(&bench),
+        traits_before + 3,
+        "four standing, three laid"
+    );
+    assert!(bench.document.undo());
+    assert_eq!(traits(&bench), traits_before, "undone in one go");
+}
+
+#[test]
+fn a_rectangular_pattern_laid_from_the_panel_is_one_step() {
+    let mut bench = holding_the_trait_to_copy(Command::ToolRectangularPattern);
+    bench.click(ON_THE_ORDINARY_TRAIT);
+    bench.click_the_slot(CopySlot::Validate);
+    let laid_before = bench.laid();
+    let traits_before = traits(&bench);
+
+    bench.enter();
+
+    assert_eq!(bench.laid(), laid_before + 1, "one step in the history");
+    assert!(
+        matches!(
+            bench.last_laid(),
+            Some(Operation::RectangularPattern { .. })
+        ),
+        "{:?}",
+        bench.last_laid()
+    );
+    assert_eq!(traits(&bench), traits_before + 3, "two by two, three laid");
+    assert!(bench.document.undo());
+    assert_eq!(traits(&bench), traits_before, "undone in one go");
+}
+
+#[test]
+fn an_arc_mirrored_from_the_panel_comes_back_an_arc() {
+    let mut bench = Bench::drawn(vec![
+        Operation::AddArc {
+            sketch: 0,
+            center: PointRef::New(DVec2::new(-20.0, 0.0)),
+            start: PointRef::New(DVec2::new(-18.0, 0.0)),
+            end: PointRef::New(DVec2::new(-20.0, 2.0)),
+            construction: false,
+        },
+        Bench::a_trait(THE_ORDINARY_TRAIT_S_FOOT, THE_ORDINARY_TRAIT_S_HEAD, false),
+    ]);
+    bench.take(Command::ToolMirror);
+    let on_the_arc = DVec2::new(-20.0, 0.0) + DVec2::splat(2.0_f64.sqrt());
+
+    bench.click(on_the_arc);
+    assert_eq!(bench.elements(), vec![Element::Arc(ArcId(0))]);
+    bench.click_the_slot(CopySlot::Target);
+    bench.click(ON_THE_ORDINARY_TRAIT);
+    bench.enter();
+
+    assert_eq!(
+        bench.document.sketches()[0].live_arcs().count(),
+        2,
+        "the original and its copy, both arcs"
+    );
+}
+
+const SCREEN: egui::Rect = egui::Rect {
+    min: egui::Pos2::ZERO,
+    max: egui::pos2(1280.0, 800.0),
+};
+
+fn on_the_plane(state: &ViewportState, at: egui::Pos2) -> DVec2 {
+    let (origin, direction) = state
+        .camera
+        .ray(to_ndc(at, SCREEN), SCREEN.width() / SCREEN.height());
+    WorkPlane::XY
+        .ray_intersection(origin.as_dvec3(), direction.as_dvec3())
+        .expect("the place is on the drawing's plane")
+}
+
+/// One frame of the canvas, the pointer having done `events` since the last.
+fn frame(
+    egui: &egui::Context,
+    state: &mut ViewportState,
+    context: &mut SketchContext<'_>,
+    events: Vec<egui::Event>,
+) {
+    egui.begin_pass(egui::RawInput {
+        screen_rect: Some(SCREEN),
+        events,
+        ..Default::default()
+    });
+    egui::Area::new(egui::Id::new("the canvas"))
+        .fixed_pos(SCREEN.min)
+        .show(egui, |ui| {
+            ui.set_min_size(SCREEN.size());
+            let response = ui.interact(
+                SCREEN,
+                egui::Id::new("the canvas's surface"),
+                egui::Sense::click_and_drag(),
+            );
+            let scale = ViewScale::of(&state.camera, SCREEN, 1.0, &state.config, 1.0);
+            handle_sketch_input(ui, state, &response, SCREEN, scale, context);
+        });
+    egui.end_pass().textures_delta.clear();
+}
+
+fn moved(to: egui::Pos2) -> Vec<egui::Event> {
+    vec![egui::Event::PointerMoved(to)]
+}
+
+fn button(at: egui::Pos2, pressed: bool) -> Vec<egui::Event> {
+    vec![egui::Event::PointerButton {
+        pos: at,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    }]
+}
+
+#[test]
+fn a_box_drawn_in_the_drawing_adds_what_it_takes() {
+    let mut state = ViewportState::default();
+    state
+        .camera
+        .set_view_angles(0.0, std::f32::consts::FRAC_PI_2);
+    let inside = [egui::pos2(820.0, 300.0), egui::pos2(900.0, 300.0)];
+    let outside = [egui::pos2(820.0, 600.0), egui::pos2(900.0, 600.0)];
+    let [inside, outside] = [inside, outside].map(|ends| ends.map(|at| on_the_plane(&state, at)));
+    let mut bench = Bench::drawn(vec![
+        Bench::a_trait(inside[0], inside[1], false),
+        Bench::a_trait(outside[0], outside[1], false),
+    ]);
+    bench.take(Command::ToolMirror);
+    let (from, to) = (egui::pos2(760.0, 240.0), egui::pos2(960.0, 360.0));
+    let egui = egui::Context::default();
+
+    for events in [
+        vec![],
+        moved(from),
+        button(from, true),
+        moved(from + egui::vec2(12.0, 12.0)),
+        moved(from + (to - from) * 0.5),
+        moved(to),
+        vec![],
+        button(to, false),
+        vec![],
+    ] {
+        frame(&egui, &mut state, &mut bench.context(), events);
+    }
+
+    let below = &bench.document.sketches()[0].segments()[1];
+    let (below_start, below_end) = (below.start, below.end);
+    let taken = bench.elements();
+    assert!(
+        taken.contains(&Element::Segment(SegmentId(0))),
+        "the trait inside the box is added: {taken:?}"
+    );
+    for outside in [
+        Element::Segment(SegmentId(1)),
+        Element::Point(below_start),
+        Element::Point(below_end),
+    ] {
+        assert!(
+            !taken.contains(&outside),
+            "nothing of the trait below the box is added: {taken:?}"
+        );
+    }
+    assert_eq!(bench.active(), CopySlot::Elements);
 }

@@ -347,8 +347,11 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: the two clicks of the chamfer and the fillet — a corner's point or its two sides — the values typed for every corner taken, and a value too big held back with the largest that fits | `app/src/screens/viewport/input/corner.rs`, `input/corner/laying.rs` | `corner`, `cut`, `corners_taken`, `on_enter`, `held_back`, `offer_the_largest`, `laying` |
 | Canvas: what two sides clicked name — where they meet, or the end nearest the click of two sides sharing both — and why a chamfer refuses a corner | `app/src/screens/viewport/input/corner/naming.rs` | `named_by`, `chamfer_refused`, `said_of` |
 | Canvas: the cut or the curve the corners taken would take, shown as the value is typed | `app/src/screens/viewport/input/corner/preview.rs` | `previewed` |
-| Canvas: what the mirror and the two patterns take hold of, and the axis, centre or direction they lay the copy against | `app/src/screens/viewport/input/copying.rs` | `copy`, `hold_is_done`, `axis_at`, `turned`, `filled` |
-| Canvas: the copies a mirror or a pattern would lay, shown before the click that names where | `app/src/screens/viewport/input/copying/preview.rs` | `previewed` |
+| Canvas: what the mirror and the two patterns take hold of — a click or a box filling the panel's active slot — and what `Entrée` does in their panel | `app/src/screens/viewport/input/copying.rs` | `copy`, `gather_in_a_box`, `enter_in_the_panel`, `take_up`, `axis_at`, `turned`, `filled` |
+| The panel of the mirror and the two patterns: its slots, which one is active and which one is marked, the elements and the target it holds | `app/src/screens/sketch/copy_panel.rs` | `CopyPanel`, `CopySlot`, `CopyTarget`, `SketchEditor::copy_panel`, `SketchEditor::cancel_the_copy` |
+| Canvas: that panel drawn over the view, its rows, its value fields, Valider and Annuler | `app/src/screens/viewport/render/copy_panel.rs` | `paint_copy_panel` |
+| A panel over a view, in front, dragged by its title and brought back inside a view it no longer fits | `app/src/ui/floating_panel.rs` | `floating_panel`, `panel_row`, `kept_inside` |
+| Canvas: the copies a mirror or a pattern would lay, shown once its panel holds enough to lay them | `app/src/screens/viewport/input/copying/preview.rs` | `previewed` |
 | Canvas: the values a pattern's fields open on | `app/src/screens/viewport/input/copying/opening.rs` | `fields_open_on` |
 | Canvas: which closed areas an extrusion is offered, and which one a click takes | `app/src/screens/viewport/input/areas.rs` | `pick_areas` |
 | Canvas: drawing a circle, an arc or an ellipse to another size by its curve, or turning it | `app/src/screens/viewport/input/resizing.rs` | `drag_curve` |
@@ -507,7 +510,7 @@ lives.
   `planes.rs`, `extrusion.rs`, `drawing.rs` and `overlays.rs` — the last of
   which draws with `egui` rather than pushing vertices, and is read by asking
   `egui` for one pass with no window and looking at the shapes it hands back.
-  `circle.rs`, `curves.rs`, `dimensions.rs`, `live_fields.rs` and
+  `circle.rs`, `copy_panel.rs`, `curves.rs`, `dimensions.rs`, `live_fields.rs` and
   `symmetric_line.rs` still carry none and go the same way whenever someone
   writes them. `render.rs`, which now does nothing but gather the frame, left
   this list the same way: three tests read a built `SceneFrame` back, and one

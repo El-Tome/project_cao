@@ -6,7 +6,7 @@ mod live_input;
 mod typed_dimension;
 
 pub use cao_sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode};
-pub use copy_panel::{CopyPanel, CopySlot};
+pub use copy_panel::{CopyPanel, CopySlot, CopyTarget};
 pub use live_input::LiveInput;
 pub use typed_dimension::DimensionEdit;
 pub(crate) use typed_dimension::apply_dimension_value;
@@ -117,6 +117,8 @@ pub struct SketchEditor {
     /// gotten. See `cao_sketch::ToolState`.
     pub tool_state: ToolState,
     pub(crate) copy_panel: Option<CopyPanel>,
+    /// Where the copy tools' panel was last let go, as the settings hold it.
+    pub copy_panel_at: Option<[f32; 2]>,
     /// Copied from the profile in use every frame, as the viewport's config is.
     pub sketching: cao_prefs::SketchingConfig,
 }
@@ -170,11 +172,14 @@ impl SketchEditor {
     /// Drops everything half-finished: the shape in progress, the dimension
     /// being placed, the rule waiting for its next pick.
     pub fn reset_pending(&mut self) {
+        let held = self.what_the_panel_hands_on();
         self.tool_state = match self.tool {
-            Tool::Select => ToolState::Select(Box::default()),
+            Tool::Select => ToolState::Select(Box::new(cao_sketch::SelectState {
+                held,
+                ..Default::default()
+            })),
             _ => ToolState::None,
         };
-        self.copy_panel = None;
         self.live.clear();
         self.editing = None;
     }
@@ -213,6 +218,9 @@ impl SketchEditor {
     /// carries over when it is reached for: taking things and then saying what
     /// to do with them is the gesture the drawing already has.
     pub fn held_elements(&self) -> Vec<cao_sketch::Element> {
+        if let Some(panel) = &self.copy_panel {
+            return panel.elements().to_vec();
+        }
         self.selection()
             .iter()
             .filter_map(|held| match held {
@@ -270,7 +278,7 @@ impl SketchEditor {
     pub fn band(&self) -> Option<(DVec2, DVec2)> {
         match &self.tool_state {
             ToolState::Select(state) => state.band,
-            _ => None,
+            _ => self.copy_panel.as_ref().and_then(|panel| panel.band),
         }
     }
 
@@ -339,7 +347,11 @@ impl SketchEditor {
             return true;
         }
         // The mirror holds its own, so what it has taken is drawn as taken.
-        matches!(what, Selection::Element(element) if self.copied().contains(&element))
+        let held = self
+            .copy_panel
+            .as_ref()
+            .map_or(&[][..], CopyPanel::elements);
+        matches!(what, Selection::Element(element) if held.contains(&element))
     }
 
     /// Adds or removes one thing, the way holding the modifier does.

@@ -11,7 +11,6 @@ use crate::aim::{ChainAnchor, LockedInput};
 use crate::constraints::DimensionTarget;
 use crate::corner::Corner;
 use crate::corner_cut::{CornerCutId, CutSide};
-use crate::element::Element;
 use crate::measuring::DimensionPicks;
 use crate::picking::Selection;
 use crate::resizing::Curved;
@@ -140,13 +139,9 @@ pub enum ToolState {
         picks: DimensionPicks,
         showing: Option<Measured>,
     },
-    /// What a tool that lays copies is holding, and whether the next click
-    /// names the one thing it still needs — an axis, a centre, a direction —
-    /// rather than adding to what is held.
-    Copying {
-        held: Vec<Element>,
-        naming_the_target: bool,
-    },
+    /// A tool that lays copies is in hand. What it has gathered is the
+    /// interface's own: it lives in the panel the tool opens.
+    Copying,
     /// What the chamfer or fillet tool has been shown so far. The two gestures
     /// are the same; only what is laid across the corner differs.
     Corner {

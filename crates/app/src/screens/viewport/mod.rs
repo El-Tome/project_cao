@@ -8,6 +8,7 @@
 mod cube_labels;
 mod finish;
 mod input;
+pub(crate) use input::copying::take_up as take_up_the_copy;
 pub(crate) use input::{chamfer_to_swap, corner_picks_with, swap_held_chamfer, switch_held_cuts};
 mod matter;
 mod navigation;
@@ -16,7 +17,7 @@ mod state;
 mod values;
 mod view;
 
-pub use input::DEFAULT_SKETCH_RADIUS;
+pub use state::DEFAULT_SKETCH_RADIUS;
 pub use state::{ViewMode, ViewportState};
 pub use view::show;
 

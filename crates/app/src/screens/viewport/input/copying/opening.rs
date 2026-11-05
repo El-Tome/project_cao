@@ -3,7 +3,7 @@
 //! A value there to be typed over: the first thing anyone types is then a
 //! number being corrected rather than one guessed at.
 
-use cao_sketch::{Element, ToolState};
+use cao_sketch::Element;
 
 use crate::screens::SketchContext;
 use crate::screens::sketch::Tool;
@@ -20,16 +20,16 @@ const THE_ORIGINAL_AND_ONE: f64 = 2.0;
 /// Opens the fields the tool in hand asks for, each on the value it opens on.
 ///
 /// A grid steps by how wide what is held stands, in the millimetres its field
-/// is labelled with. The click that names the direction comes after this, so the
-/// extent along it cannot be read yet, and the widest way round is the one
-/// number no direction can make too small.
+/// is labelled with. The direction may be named only after this, so the extent
+/// along it cannot be read, and the widest way round is the one number no
+/// direction can make too small.
 ///
 /// The mirror asks for no values and opens nothing.
 pub(super) fn fields_open_on(context: &mut SketchContext<'_>) {
-    let ToolState::Copying { .. } = context.editor.tool_state else {
+    let Some(panel) = context.editor.copy_panel() else {
         return;
     };
-    let held = context.editor.copied();
+    let held = panel.elements();
     let values = match context.editor.tool {
         Tool::CircularPattern => [Some(A_QUARTER_TURN), Some(FOUR_TIMES_ROUND), None, None],
         Tool::RectangularPattern => {

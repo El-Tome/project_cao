@@ -8,7 +8,7 @@ use crate::screens::extrusion::apply_extrusion;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::{
-    ViewportState, corner_picks_with, swap_held_chamfer, switch_held_cuts,
+    ViewportState, corner_picks_with, swap_held_chamfer, switch_held_cuts, take_up_the_copy,
 };
 use crate::{screens, wording};
 
@@ -178,11 +178,13 @@ pub(crate) fn run(
                 _ => Tool::Mirror,
             };
             tool(editor, which);
-            editor.open_copy_panel(held);
-            editor.message = Some(lang.t(match which {
-                Tool::CircularPattern | Tool::RectangularPattern => "sketch.pattern_take_elements",
-                _ => "sketch.mirror_take_elements",
-            }));
+            let mut context = SketchContext {
+                document: doc,
+                editor,
+                extrusion,
+                lang,
+            };
+            take_up_the_copy(&mut context, held);
             false
         }
         // With a fillet or a chamfer held, the toggle switches it; otherwise it

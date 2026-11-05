@@ -41,6 +41,7 @@ impl Section {
 pub(super) fn read(wall: &Wall, across: DVec3, along: DVec3) -> (f64, Section, f64) {
     match wall {
         Wall::Cylinder(cylinder) => (cylinder.radius, Section::Round, cylinder.radius),
+        Wall::Cone(cone) => (cone.foot.y.abs(), Section::Round, cone.foot.y.abs()),
         Wall::Elliptic(oval) => {
             let (half, section) = sheared(oval, across, along);
             (half, section, oval.major)

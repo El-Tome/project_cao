@@ -14,8 +14,10 @@
 //! its triangles: a hole square to a slanted face out through the floor, a
 //! shaft cut at a slant, a point cut across, through its tip and parallel to
 //! its slope; a plane touching a shaft along a ruling, which is that line;
-//! and what still declines, a radial hole in a cone, beside a skew bore
-//! #577 builds.
+//! and, since #577, a skew bore and a radial hole in a frustum built, beside
+//! a bore along a ruling, two cones each within the other's slope and a
+//! radial hole through a point, whose face holds its apex, which still
+//! decline.
 
 use std::f64::consts::{PI, TAU};
 
@@ -386,20 +388,51 @@ fn wedge_volume() -> f64 {
 
 /// A point turned about Z: its tip at ten, its base of radius five on XY.
 fn point() -> Body {
-    let corner = |at: [f64; 2], run: u32| Corner {
-        at: DVec2::from(at),
-        run,
-        bend: None,
-    };
+    point_along(DVec3::ZERO, DVec3::Z, DVec3::X)
+}
+
+/// The same point turned about the line through `origin` along `axis`, its
+/// section drawn towards `away`.
+fn point_along(origin: DVec3, axis: DVec3, away: DVec3) -> Body {
+    turned_along(&[[0.0, 0.0], [10.0, 0.0], [0.0, 5.0]], origin, axis, away)
+}
+
+/// The point cut square to its axis at eight, where its radius is one: a
+/// frustum of the same cone, whose faces hold no apex.
+fn frustum() -> Body {
+    frustum_along(DVec3::ZERO, DVec3::Z, DVec3::X)
+}
+
+fn frustum_along(origin: DVec3, axis: DVec3, away: DVec3) -> Body {
+    turned_along(
+        &[[0.0, 0.0], [8.0, 0.0], [8.0, 1.0], [0.0, 5.0]],
+        origin,
+        axis,
+        away,
+    )
+}
+
+const FRUSTUM: f64 = POINT - 2.0 * PI / 3.0;
+
+/// A section of straight runs `(along, away)`, its first run on the axis,
+/// turned whole about the line through `origin` along `axis`.
+fn turned_along(corners: &[[f64; 2]], origin: DVec3, axis: DVec3, away: DVec3) -> Body {
+    let runs = corners.len() as u32;
     let straight = Straight {
         side: 1.0,
-        contours: vec![vec![
-            corner([0.0, 0.0], 0),
-            corner([10.0, 0.0], 1),
-            corner([0.0, 5.0], 2),
-        ]],
-        runs: 3,
-        last_off_the_axis: Some(2),
+        contours: vec![
+            corners
+                .iter()
+                .enumerate()
+                .map(|(run, at)| Corner {
+                    at: DVec2::from(*at),
+                    run: run as u32,
+                    bend: None,
+                })
+                .collect(),
+        ],
+        runs,
+        last_off_the_axis: Some(runs - 1),
     };
     let turn = Turn {
         axis: Axis {
@@ -410,9 +443,8 @@ fn point() -> Body {
         resolution: 0.0,
         on_the_axis: 0.0,
     };
-    Body::turned(&straight, frame(DVec3::ZERO, DVec3::Z, DVec3::X), &turn).expect("the point turns")
+    Body::turned(&straight, frame(origin, axis, away), &turn).expect("the section turns")
 }
-
 const POINT: f64 = 250.0 * PI / 3.0;
 
 /// The area of the disc of radius `r` beyond a chord `d` from its centre.
@@ -620,8 +652,63 @@ fn every_conic_body_above_is_drawn_closed_and_uncrossed() {
     }
 }
 
+/// The nodes and weights of Gauss–Legendre's rule of `count` points on
+/// `[0, 1]`, each node found by Newton from Tricomi's guess.
+fn gauss(count: usize) -> Vec<(f64, f64)> {
+    (1..=count)
+        .map(|index| {
+            let legendre = |x: f64| {
+                let (mut before, mut now) = (1.0, x);
+                for degree in 2..=count {
+                    let degree = degree as f64;
+                    (before, now) = (
+                        now,
+                        ((2.0 * degree - 1.0) * x * now - (degree - 1.0) * before) / degree,
+                    );
+                }
+                (now, count as f64 * (x * now - before) / (x * x - 1.0))
+            };
+            let mut x = (PI * (index as f64 - 0.25) / (count as f64 + 0.5)).cos();
+            for _ in 0..100 {
+                let (value, slope) = legendre(x);
+                let step = value / slope;
+                x -= step;
+                if step.abs() < 1e-16 {
+                    break;
+                }
+            }
+            let (_, slope) = legendre(x);
+            ((x + 1.0) / 2.0, 1.0 / ((1.0 - x * x) * slope * slope))
+        })
+        .collect()
+}
+
+/// What a bore of radius one along Y at height five takes from the point,
+/// and from its frustum, which it stays under:
+/// each of its lines, `x` aside and at height `z`, runs `2√(r(z)² − x²)`
+/// inside it, `r(z) = 5 − z/2`, over the bore's disc — Gauss over the
+/// radius, trapezoids round the turn, the integrand smooth since every line
+/// crosses the point's wall.
+fn taken_by_the_radial_bore() -> f64 {
+    let turns = 64;
+    gauss(16)
+        .into_iter()
+        .map(|(share, weight)| {
+            let round: f64 = (0..turns)
+                .map(|step| {
+                    let (sin, cos) = (TAU * step as f64 / turns as f64).sin_cos();
+                    let (x, z) = (share * cos, 5.0 + share * sin);
+                    let radius = 5.0 - z / 2.0;
+                    2.0 * (radius * radius - x * x).sqrt()
+                })
+                .sum();
+            weight * share * round * TAU / turns as f64
+        })
+        .sum()
+}
+
 #[test]
-fn a_skew_bore_is_built_and_a_radial_hole_in_a_cone_still_declines() {
+fn a_skew_bore_and_a_radial_hole_in_a_frustum_are_built() {
     let along = DVec3::new(0.5, 0.0, 3f64.sqrt() / 2.0);
     let skew = raised(
         circle(DVec2::ZERO, 3.0),
@@ -639,5 +726,93 @@ fn a_skew_bore_is_built_and_a_radial_hole_in_a_cone_still_declines() {
         "the bored stock keeps {volume} of {WHOLE}"
     );
     let radial = lying([0.0, 5.0], 1.0, -10.0, 10.0);
+    exactly(
+        frustum().cut_by(&radial),
+        FRUSTUM - taken_by_the_radial_bore(),
+    );
+}
+
+/// The same radial bore through the point, whose face holds its apex: the
+/// curve on it is declined until the cone's development is built.
+#[test]
+fn a_radial_hole_through_a_point_still_declines() {
+    let radial = lying([0.0, 5.0], 1.0, -10.0, 10.0);
     assert_eq!(point().cut_by(&radial), Err(Declined::Unsupported));
+}
+
+/// A bore of radius one half along `along` through `(1, 0, 3)`, from ten
+/// before to ten past.
+fn bore_through_the_point(along: DVec3) -> Body {
+    raised(
+        circle(DVec2::ZERO, 0.5),
+        frame(
+            DVec3::new(1.0, 0.0, 3.0) - along * 10.0,
+            DVec3::Y,
+            DVec3::Y.cross(along),
+        ),
+        along * 20.0,
+    )
+}
+
+/// A bore leaning ten degrees off the frustum's axis, inside its slope of
+/// twenty-six and a half but along none of its rulings: its curve stays on
+/// the cone's nappe, and the part is built. Each of its lines enters
+/// through the base and leaves through the slope, under the frustum's top,
+/// at the smaller root of the cone's quadratic, which opens downwards along
+/// a line this steep.
+#[test]
+fn a_bore_inside_a_cone_s_slope_along_none_of_its_rulings_is_built() {
+    let (sin, cos) = 10f64.to_radians().sin_cos();
+    let along = DVec3::new(sin, 0.0, cos);
+    let (u, v) = (DVec3::Y, along.cross(DVec3::Y));
+    let turns = 64;
+    let taken: f64 = gauss(16)
+        .into_iter()
+        .map(|(share, weight)| {
+            let round: f64 = (0..turns)
+                .map(|step| {
+                    let (s, c) = (TAU * step as f64 / turns as f64).sin_cos();
+                    let from = DVec3::new(1.0, 0.0, 3.0) + (u * c + v * s) * (0.5 * share);
+                    let radius = 5.0 - from.z / 2.0;
+                    let a = along.x * along.x + along.y * along.y - along.z * along.z / 4.0;
+                    let b = 2.0 * (from.x * along.x + from.y * along.y) + radius * along.z;
+                    let c0 = from.x * from.x + from.y * from.y - radius * radius;
+                    let leave = (-b + (b * b - 4.0 * a * c0).sqrt()) / (2.0 * a);
+                    leave + from.z / along.z
+                })
+                .sum();
+            weight * 0.25 * share * round * TAU / turns as f64
+        })
+        .sum();
+    exactly(
+        frustum().cut_by(&bore_through_the_point(along)),
+        FRUSTUM - taken,
+    );
+}
+
+/// The same bore along one of the frustum's rulings, `atan(1/2)` off its
+/// axis: that ruling meets it nowhere, the curve runs off to infinity, and
+/// the pair is declined.
+#[test]
+fn a_bore_along_one_of_a_cone_s_rulings_still_declines() {
+    let along = DVec3::new(1.0, 0.0, -2.0).normalize();
+    assert_eq!(
+        frustum().cut_by(&bore_through_the_point(along)),
+        Err(Declined::Unsupported)
+    );
+}
+
+/// The same frustum leaning ten degrees off the first, both of half-angle
+/// twenty-six and a half: each one's rulings fall within the other's slope,
+/// and neither's meet the other in a true quadratic all round — still
+/// declined.
+#[test]
+fn a_cone_within_another_s_slope_either_way_still_declines() {
+    let (sin, cos) = 10f64.to_radians().sin_cos();
+    let leaning = frustum_along(
+        DVec3::new(0.0, 0.5, 0.0),
+        DVec3::new(sin, 0.0, cos),
+        DVec3::new(cos, 0.0, -sin),
+    );
+    assert_eq!(frustum().cut_by(&leaning), Err(Declined::Unsupported));
 }

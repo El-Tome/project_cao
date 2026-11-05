@@ -366,25 +366,31 @@ fn a_plane_meeting_only_the_other_nappe_stands_apart() {
 }
 
 #[test]
-fn skew_walls_meet_along_their_curve_and_a_wall_off_a_cone_s_axis_stays_unsupported() {
+fn skew_walls_and_a_wall_off_a_cone_s_axis_meet_along_their_curve() {
     let skew = cylinder(DVec3::new(0.0, 0.0, 5.0), DVec3::new(1.0, 1.0, 0.3), 2.0);
     let off_the_axis = cylinder(DVec3::new(1.0, 0.0, 0.0), DVec3::Z, 2.0);
+    for (one, other) in [
+        (&shaft(), &skew),
+        (&point(), &skew),
+        (&point(), &off_the_axis),
+    ] {
+        assert!(!at_a_slant(one, other, scale()));
+        let met = decided(one, other);
+        assert!(matches!(met, Relation::Meet(_)), "{other:?}: {met:?}");
+    }
+}
+
+/// A point whose axis leans 11° off the first's, both of half-angle 26.6°:
+/// each one's rulings fall within the other's slope.
+#[test]
+fn a_cone_whose_rulings_fall_within_another_cone_s_slope_either_way_stays_unsupported() {
     let leaning_point = Surface::Cone(Cone::through(
         DVec3::new(0.0, 1.0, 0.0),
         DVec3::new(0.2, 0.0, 1.0),
         [DVec2::new(0.0, 3.0), DVec2::new(6.0, 0.0)],
     ));
-    assert!(!at_a_slant(&shaft(), &skew, scale()));
-    let met = decided(&shaft(), &skew);
-    assert!(matches!(met, Relation::Meet(_)), "{met:?}");
-    for (one, other) in [
-        (&point(), &skew),
-        (&point(), &off_the_axis),
-        (&point(), &leaning_point),
-    ] {
-        assert!(!at_a_slant(one, other, scale()));
-        assert_eq!(decided(one, other), Relation::Unsupported, "{other:?}");
-    }
+    assert!(!at_a_slant(&point(), &leaning_point, scale()));
+    assert_eq!(decided(&point(), &leaning_point), Relation::Unsupported);
 }
 
 /// A taper about the Z axis whose apex stands at height 50, beyond the box:

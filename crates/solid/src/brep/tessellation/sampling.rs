@@ -168,14 +168,14 @@ impl Samples {
         let abreast = Abreast::of(body, tolerance);
         let axes = Axes::of(body, grids, walls, tolerance);
         let given = abreast.joined(axes.given());
-        let mut meets = on_meets(body, walls, zones, &alone, tolerance);
+        let mut meets = on_meets(body, walls, zones, &alone, grids, tolerance);
         let mut contacts =
             contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
         let meeting = body
             .edge_ids()
             .any(|id| matches!(body.curve(body.edge(id).curve), Curve::Meet(_)));
         if meeting {
-            meets = on_meets(body, walls, zones, &contacts, tolerance);
+            meets = on_meets(body, walls, zones, &contacts, grids, tolerance);
             contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
         }
         let mut axes = axes.gathered(&contacts);
@@ -192,7 +192,7 @@ impl Samples {
             }
             contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
             if meeting {
-                meets = on_meets(body, walls, zones, &contacts, tolerance);
+                meets = on_meets(body, walls, zones, &contacts, grids, tolerance);
                 contacts =
                     contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
             }
@@ -351,6 +351,7 @@ fn on_meets(
     walls: &[contact::Wall],
     zones: &Zones,
     contacts: &BTreeMap<SurfaceId, Contact>,
+    grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
 ) -> Vec<Vec<DVec3>> {
     body.edge_ids()
@@ -358,7 +359,7 @@ fn on_meets(
             let edge = body.edge(id);
             match body.curve(edge.curve) {
                 Curve::Meet(meet) => {
-                    meet::of_edge(body, edge, meet, (walls, zones, contacts), tolerance)
+                    meet::of_edge(body, edge, meet, (walls, zones, contacts), grids, tolerance)
                 }
                 Curve::Line(_) | Curve::Circle(_) | Curve::Conic(_) => Vec::new(),
             }

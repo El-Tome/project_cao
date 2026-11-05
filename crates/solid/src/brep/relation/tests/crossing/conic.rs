@@ -261,27 +261,44 @@ fn a_conic_on_a_wall_crosses_a_skew_wall_twice_where_it_passes_through_it() {
 }
 
 #[test]
-fn a_conic_against_a_cone_off_its_axis_or_on_a_cone_against_a_wall_off_it_is_unsupported() {
+fn a_conic_against_a_cone_off_its_axis_or_on_a_cone_against_a_wall_off_it_crosses_where_they_meet()
+{
     let on_the_wall = ellipse(&slanted(), Round::Cylinder(wall()));
     let on_the_point = ellipse(&lower(), Round::Cone(point()));
     let skew = cylinder(DVec3::ZERO, DVec3::new(1.0, 0.0, 1.0), 2.0);
     let beside = cylinder(DVec3::new(1.0, 0.0, 0.0), DVec3::Z, 2.0);
-    let off = Surface::Cone(Cone::through(
+    let none = Touches::default();
+    for wall in [&skew, &beside] {
+        let found = on_the_conic(&on_the_point, wall, &none);
+        assert_eq!(tangents(&found), [false, false], "{wall:?}");
+        assert!(
+            (found[0].point.y + found[1].point.y).abs() <= 1e-12 * REACH,
+            "{found:?}"
+        );
+    }
+    let below = Surface::Cone(Cone::through(
         DVec3::new(1.0, 0.0, 0.0),
         DVec3::Z,
         [DVec2::new(0.0, 3.0), DVec2::new(6.0, 0.0)],
     ));
-    for (conic, surface) in [
-        (&on_the_wall, &off),
-        (&on_the_point, &skew),
-        (&on_the_point, &beside),
-    ] {
-        assert_eq!(
-            crossings(conic, surface, scale()),
-            Crossings::Unsupported,
-            "{surface:?}"
-        );
-    }
+    let above_its_apex = on_the_conic(&on_the_wall, &below, &none);
+    assert!(above_its_apex.is_empty(), "{above_its_apex:?}");
+}
+
+/// A point leaning 11° off the first, both of half-angle 26.6°: each one's
+/// rulings fall within the other's slope, a pair the kernel declines.
+#[test]
+fn a_conic_on_a_cone_against_a_cone_with_rulings_within_its_slope_is_unsupported() {
+    let on_the_point = ellipse(&lower(), Round::Cone(point()));
+    let leaning = Surface::Cone(Cone::through(
+        DVec3::new(0.0, 1.0, 0.0),
+        DVec3::new(0.2, 0.0, 1.0),
+        [DVec2::new(0.0, 3.0), DVec2::new(6.0, 0.0)],
+    ));
+    assert_eq!(
+        crossings(&on_the_point, &leaning, scale()),
+        Crossings::Unsupported
+    );
 }
 
 #[test]

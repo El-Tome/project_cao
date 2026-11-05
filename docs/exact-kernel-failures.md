@@ -3496,3 +3496,57 @@ nearly parallel in #552's band, 11 one nearly square.
   chord's sag, where the two walls' grids, a hair turned, cross their
   triangles — some built by luck at one lean and not the next. #706 is to
   sample them on one grid and build them.
+
+### Lane 3: a cone at any angle
+
+Lane 3 builds a cone against a cylinder, an elliptic wall or a cone of
+another axis (`docs/exact-kernel.md`, "A cone against another wall"),
+where `main` declined every such pair. One replay, the seeds and the
+counts of a 120-second round on each draw, `main` replayed on the same
+seeds; "new" is a seed the branch fails and `main` holds — a decline,
+there, every time:
+
+| Draw | Cases | Declined as unsupported, `main` → branch | New failures | Gone |
+| --- | --- | --- | --- | --- |
+| walls, exact | 853 | 529 → 232 | 9 `Uncrossed`, 1 `Closed`, 1 `Answers` | 0 |
+| walls, body | 1 337 | 797 → 349 | 13 `Uncrossed`, 1 `Answers` | 0 |
+| slanted | 3 565 | 698 → 158 | 1 `Closed`, 1 `Answers` | 0 |
+| tilted | 5 917 | 568 → 133 | 2 `Closed`, 1 `Answers` | 0 |
+| turned | 6 701 | 34 → 34 | 0 | 0 |
+| tilted ellipses | 5 986 | 114 → 111 | 0 | 0 |
+
+On the walls draw about one case in a hundred is now wrong where `main`
+declined it — 14 of 853 on the exact kernel, 16 of 1 337 through the
+body, `main`'s own failures included. The bar of one in a thousand is not
+met, and #577 stays open until #707 and #710 land. Two of the `Answers`,
+93075255850138 and 122431270514532, are no cone's: their shrunk cases fail
+on `main` too, which declined the cone step before reaching them.
+
+What is left, by family:
+
+- **Triangles crossing on a cone face away from its apex** (#710) — in
+  `(θ, l)` a segment running along `l` across `θ` is no chord where the
+  radius changes along it, and a sliver beside a hole, inside one column,
+  crosses the wall the hole is cut by. Walls, exact: 93075255850034,
+  93075255850115, 93075255850150, 93075255850326, 93075255850400,
+  93075255850402, 93075255850476, 93075255850694, 93075255850884. Walls,
+  body: 25875769009446, 25875769009839, 25875769009854, 25875769009915,
+  25875769010058, 25875769010076, 25875769010112, 25875769010597,
+  25875769010603, 25875769010631, 25875769010654, 25875769010704,
+  25875769010757. 25875769009446 is a bore of nearly the cone's radius
+  crossing it at a shallow angle, which `grazing` does not read.
+- **Closed or refused beside a tangent or a hair** (#707) — a cone face
+  bounded by a conic and the curve of a bore tangent to the plane of that
+  conic, their chords crossing at the vertex (93075255850420); a cone's
+  rim touching the body's wall within the tolerance (122431270514586); a
+  ruling crossing a curve sampled coarse on a wide wall (28743870519278);
+  a cone added a hair from a cylinder (28743870520828); a cone stepping
+  1e-8 off a coaxial cylinder's rim, crossed by a wall at 60°, left
+  `Unverified` (28743870518015); a body the application does not draw
+  beside a near touch `grazing` misses (25875769010357).
+- **A hole in a pointed cone's flank** (#711) — declined as unsupported
+  (`on_a_pointed_face`): in `(θ, l)` the apex is a line, and the fan from
+  it beside the hole lays two edges along one ruling.
+- **A cone and a wall closer than a chord's sag** (#706) — declined
+  (`grazing`) until `tessellation/contact` samples a cone in common with
+  the other wall.

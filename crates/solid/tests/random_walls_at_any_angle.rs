@@ -144,15 +144,20 @@ fn the_draw_of_walls_at_any_angle_draws_every_pair_the_issue_names() {
     for (family, drawn) in families {
         assert!(drawn >= 10, "{family}: {drawn} pairs in 400 cases");
     }
-    let coned = |case: &&Case| case.leaves().any(|leaf| kind_of(leaf) == Kind::Cone);
-    let asking = cases
+    let coned: Vec<&Case> = cases
         .iter()
         .filter(|case| !case.steps.is_empty())
-        .filter(coned)
-        .all(Case::asks_beyond_the_conics);
+        .filter(|case| case.leaves().any(|leaf| kind_of(leaf) == Kind::Cone))
+        .collect();
+    let asking = coned
+        .iter()
+        .filter(|case| case.asks_beyond_the_conics())
+        .count();
     assert!(
-        asking,
-        "a case with a cone that asks nothing beyond the conics"
+        asking < coned.len(),
+        "{asking} of {} cases with a cone ask beyond the conics: since #577 a cone \
+         off its axis is built but where the kernel still declines it",
+        coned.len()
     );
     let empty = cases.iter().filter(|case| case.steps.is_empty()).count();
     assert!(empty * 50 < cases.len(), "{empty} cases with no tool");
@@ -890,6 +895,167 @@ fn seed_86751972230147_a_post_bored_square_then_by_its_radius_at_45_degrees_keep
             )),
         ],
     ));
+}
+
+/// Seeds of the walls-at-any-angle campaigns lane 3 leaves wrong, each
+/// replayed from its draw as the campaign drew it: the exact kernel's, or
+/// the application's body's.
+fn walls_seed_on_the_exact_kernel(seed: u64) {
+    random_solids::holds_exactly(&Case::drawn_walls_at_any_angle(seed));
+}
+
+fn walls_seed_through_the_application(seed: u64) {
+    random_solids::holds_through_the_application(&Case::drawn_walls_at_any_angle(seed));
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_93075255850034_a_cone_face_is_drawn_uncrossed_on_the_exact_kernel() {
+    walls_seed_on_the_exact_kernel(93075255850034);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_93075255850115_a_cone_face_is_drawn_uncrossed_on_the_exact_kernel() {
+    walls_seed_on_the_exact_kernel(93075255850115);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_93075255850150_a_cone_face_is_drawn_uncrossed_on_the_exact_kernel() {
+    walls_seed_on_the_exact_kernel(93075255850150);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_93075255850326_a_cone_face_is_drawn_uncrossed_on_the_exact_kernel() {
+    walls_seed_on_the_exact_kernel(93075255850326);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_93075255850400_a_cone_face_is_drawn_uncrossed_on_the_exact_kernel() {
+    walls_seed_on_the_exact_kernel(93075255850400);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_93075255850402_a_cone_face_is_drawn_uncrossed_on_the_exact_kernel() {
+    walls_seed_on_the_exact_kernel(93075255850402);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_93075255850476_a_cone_face_is_drawn_uncrossed_on_the_exact_kernel() {
+    walls_seed_on_the_exact_kernel(93075255850476);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_93075255850694_a_cone_face_is_drawn_uncrossed_on_the_exact_kernel() {
+    walls_seed_on_the_exact_kernel(93075255850694);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_93075255850884_a_cone_face_is_drawn_uncrossed_on_the_exact_kernel() {
+    walls_seed_on_the_exact_kernel(93075255850884);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769009446_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769009446);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769009839_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769009839);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769009854_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769009854);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769009915_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769009915);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769010058_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769010058);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769010076_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769010076);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769010112_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769010112);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769010597_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769010597);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769010603_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769010603);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769010631_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769010631);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769010654_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769010654);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769010704_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769010704);
+}
+
+#[test]
+#[ignore = "triangles crossing on a cone face, #710"]
+fn seed_25875769010757_a_cone_face_is_drawn_uncrossed_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769010757);
+}
+
+#[test]
+#[ignore = "an open cone face, a family lane 3 leaves, #707"]
+fn seed_93075255850420_a_cone_face_is_drawn_closed_on_the_exact_kernel() {
+    walls_seed_on_the_exact_kernel(93075255850420);
+}
+
+#[test]
+#[ignore = "a decline nothing excuses, a family lane 3 leaves, #707"]
+fn seed_25875769010357_is_answered_through_the_application_s_body() {
+    walls_seed_through_the_application(25875769010357);
+}
+
+#[test]
+#[ignore = "a box floor against a cylinder cap leaning a hair, failing on main too, #707"]
+fn seed_93075255850138_a_floor_against_a_cap_leaning_a_hair_keeps_every_rule() {
+    walls_seed_on_the_exact_kernel(93075255850138);
 }
 
 /// The campaigns, compiled only when asked for — `--features campaigns` —

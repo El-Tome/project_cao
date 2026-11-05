@@ -65,6 +65,7 @@ pub(super) fn along_meets(
                     }
                     continue;
                 }
+                curve::Wall::Cone(_) => continue,
             };
             let flat = |point: DVec3| {
                 let from = point - cylinder.origin;

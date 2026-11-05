@@ -1287,14 +1287,19 @@ fn a_case_asking_beyond_the_conics_is_told_from_one_that_does_not() {
         ),
         ("a cone about its axis", about(Axis::first(0.0)), false),
         (
-            "a cylinder parallel to its axis and off it",
+            "a cylinder parallel to its axis and off it, its wall through the cone's apex at six",
             Leaf::prism(Plane::yz(1.0), Outline::circle([1.0, 0.0], 1.0), 2.0),
             true,
         ),
         (
-            "a hole across it",
+            "a cylinder parallel to its axis and off it, clear of its apex, built since #577",
+            Leaf::prism(Plane::yz(1.0), Outline::circle([0.5, 0.0], 1.0), 2.0),
+            false,
+        ),
+        (
+            "a hole across it, built since #577",
             Leaf::prism(Plane::xz(5.0), Outline::circle([2.0, 0.0], 1.0), 10.0),
-            true,
+            false,
         ),
         ("a cone a hair off its axis", about(Axis::first(1e-7)), true),
         (
@@ -1317,8 +1322,9 @@ fn a_case_asking_beyond_the_conics_is_told_from_one_that_does_not() {
         .filter(|seed| Case::drawn_slanted(*seed).asks_beyond_the_conics())
         .count();
     assert!(
-        (200..450).contains(&asking),
-        "{asking} slanted cases ask beyond the conics"
+        (50..200).contains(&asking),
+        "{asking} slanted cases ask beyond the conics, fewer since #577 builds a cone \
+         against a wall or a cone off its axis"
     );
 }
 
@@ -5900,6 +5906,46 @@ fn seed_2722_a_torus_joined_with_a_coaxial_tube_touching_its_outer_equator_is_cr
             360.0,
         ))],
     ));
+}
+
+/// A seed of the slanted or the tilted campaigns lane 3 leaves wrong,
+/// replayed from its draw past the lattice as the campaign drew it.
+fn slanted_seed_on_the_exact_kernel(seed: u64) {
+    random_solids::holds_exactly(&Case::drawn_slanted_off_the_lattice(seed));
+}
+
+fn tilted_seed_on_the_exact_kernel(seed: u64) {
+    random_solids::holds_exactly(&Case::drawn_tilted_off_the_lattice(seed));
+}
+
+#[test]
+#[ignore = "an open cone face, a family lane 3 leaves, #707"]
+fn seed_122431270514586_a_slanted_case_is_drawn_closed() {
+    slanted_seed_on_the_exact_kernel(122431270514586);
+}
+
+#[test]
+#[ignore = "a box floor against a cylinder cap leaning a hair, failing on main too, #707"]
+fn seed_122431270514532_a_floor_against_a_cap_leaning_a_hair_keeps_every_rule() {
+    slanted_seed_on_the_exact_kernel(122431270514532);
+}
+
+#[test]
+#[ignore = "an open cone face, a family lane 3 leaves, #707"]
+fn seed_28743870519278_a_tilted_case_is_drawn_closed() {
+    tilted_seed_on_the_exact_kernel(28743870519278);
+}
+
+#[test]
+#[ignore = "an open cone face, a family lane 3 leaves, #707"]
+fn seed_28743870520828_a_tilted_case_is_drawn_closed() {
+    tilted_seed_on_the_exact_kernel(28743870520828);
+}
+
+#[test]
+#[ignore = "a decline nothing excuses, a family lane 3 leaves, #707"]
+fn seed_28743870518015_a_tilted_case_is_answered() {
+    tilted_seed_on_the_exact_kernel(28743870518015);
 }
 
 /// The campaigns, compiled only when asked for — `--features campaigns` —

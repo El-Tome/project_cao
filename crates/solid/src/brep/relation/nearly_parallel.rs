@@ -16,8 +16,9 @@ use std::f64::consts::{PI, TAU};
 use glam::{DVec2, DVec3};
 
 use crate::brep::curve::Wall;
+use crate::brep::meet::nearest_approaches;
 use crate::brep::scale::Scale;
-use crate::brep::surface::Surface;
+use crate::brep::surface::{Cone, Surface};
 use crate::brep::tessellation::divisions;
 
 /// The share of the reach along which two walls standing within the
@@ -71,10 +72,14 @@ pub(in crate::brep) fn too_near_to_build(
     if sine >= BAND {
         return false;
     }
+    if matches!(first, Wall::Cone(_)) || matches!(second, Wall::Cone(_)) {
+        return closer_than_a_sag(&first, &second, within, scale);
+    }
     let eps = scale.eps();
     let reach = |wall: &Wall, way: DVec3| match wall {
         Wall::Cylinder(cylinder) => cylinder.radius,
         Wall::Elliptic(oval) => oval.support(way),
+        Wall::Cone(_) => 0.0,
     };
     let between = second.origin() - first.origin();
     let rate = along / along.dot(axis) - axis;
@@ -128,6 +133,50 @@ pub(in crate::brep) fn too_near_to_build(
     }) || closer_than_a_sag(&first, &second, within, scale)
 }
 
+/// Whether a cone and a wall, at any angle, come closer to each other than
+/// the coarsest drawn chord's sag without meeting within the tolerance, at
+/// a place where their faces may meet: at a nearest approach of one cone's
+/// rulings to the other wall (`meet::nearest_approaches`), the gap to the
+/// wall the point does not lie on is over `eps` and under the larger of the
+/// two walls' sags there, each cut into `divisions(size, COARSEST_DRAWN ·
+/// reach)` steps. Their triangles would
+/// have to be sampled in common there, as `tessellation/contact` does for
+/// two cylinders and not yet for a cone (#706).
+pub(in crate::brep) fn grazing(
+    one: &Surface,
+    other: &Surface,
+    within: &[[DVec3; 2]],
+    scale: Scale,
+) -> bool {
+    let (Some(first), Some(second)) = (Wall::of(one), Wall::of(other)) else {
+        return false;
+    };
+    let (cone, wall) = match (first, second) {
+        (Wall::Cone(cone), wall) | (wall, Wall::Cone(cone)) => (cone, wall),
+        _ => return false,
+    };
+    let tolerance = COARSEST_DRAWN * scale.reach();
+    let sag = |size: f64| size * (1.0 - (PI / divisions(size, tolerance) as f64).cos());
+    let size = |wall: &Wall, point: DVec3| match wall {
+        Wall::Cylinder(cylinder) => cylinder.radius,
+        Wall::Elliptic(oval) => oval.major,
+        Wall::Cone(cone) => cone.off_axis(point),
+    };
+    nearest_approaches(&cone, &wall)
+        .into_iter()
+        .any(|(point, on)| {
+            let room = sag(size(&Wall::Cone(cone), point)).max(sag(size(&wall, point)));
+            let away = if on == wall { Wall::Cone(cone) } else { wall };
+            let apart = gap(&away, point);
+            apart > scale.eps()
+                && apart <= room
+                && within.iter().any(|[low, high]| {
+                    point.cmpge(*low - DVec3::splat(room)).all()
+                        && point.cmple(*high + DVec3::splat(room)).all()
+                })
+        })
+}
+
 /// Whether two walls in the band stand closer to each other than a chord's
 /// sag over a step of a grid, where their faces may meet (#577): each wall
 /// cut into `divisions(size, COARSEST_DRAWN · reach)` steps, as its
@@ -142,22 +191,26 @@ fn closer_than_a_sag(first: &Wall, second: &Wall, within: &[[DVec3; 2]], scale: 
     [(first, second), (second, first)]
         .into_iter()
         .any(|(wall, other)| {
-            let size = match wall {
-                Wall::Cylinder(cylinder) => cylinder.radius,
-                Wall::Elliptic(oval) => oval.major,
-            };
-            let steps = divisions(size, tolerance);
-            let sag = size * (1.0 - (PI / steps as f64).cos());
             let (origin, axis) = (wall.origin(), wall.axis());
             within.iter().any(|[low, high]| {
                 let (from, to) = heights(*low, *high, origin, axis);
+                let size = |height: f64| match wall {
+                    Wall::Cylinder(cylinder) => cylinder.radius,
+                    Wall::Elliptic(oval) => oval.major,
+                    Wall::Cone(cone) => cone.radius_at(along_the_ruling(cone, height)).max(0.0),
+                };
+                let steps = divisions(size(from).max(size(to)), tolerance);
                 (0..HEIGHTS).any(|rank| {
                     let height = from + (to - from) * rank as f64 / (HEIGHTS - 1) as f64;
+                    let sag = size(height) * (1.0 - (PI / steps as f64).cos());
                     let near = |step: usize| {
                         let angle = TAU * (step % steps) as f64 / steps as f64;
                         let point = match wall {
                             Wall::Cylinder(cylinder) => cylinder.point(DVec2::new(angle, height)),
                             Wall::Elliptic(oval) => oval.point(DVec2::new(angle, height)),
+                            Wall::Cone(cone) => {
+                                cone.point(DVec2::new(angle, along_the_ruling(cone, height)))
+                            }
                         };
                         gap(other, point) <= sag
                     };
@@ -165,6 +218,11 @@ fn closer_than_a_sag(first: &Wall, second: &Wall, within: &[[DVec3; 2]], scale: 
                 })
             })
         })
+}
+
+/// The length along a cone's ruling at `height` along its axis.
+fn along_the_ruling(cone: &Cone, height: f64) -> f64 {
+    (height - cone.foot.x) / cone.ruling.x
 }
 
 /// How far along `axis`, from `origin`, a box spans.
@@ -184,6 +242,7 @@ fn heights(low: DVec3, high: DVec3, origin: DVec3, axis: DVec3) -> (f64, f64) {
 fn gap(wall: &Wall, point: DVec3) -> f64 {
     match wall {
         Wall::Cylinder(cylinder) => cylinder.distance(point).abs(),
+        Wall::Cone(cone) => cone.distance(point).abs(),
         Wall::Elliptic(oval) => {
             let from = point - oval.origin;
             let [x, y] = [from.dot(oval.u), from.dot(oval.v)];

@@ -65,7 +65,7 @@ pub(super) fn circle_and_surface(
 /// the two walls meet along, crossing the circle's own plane — the triple
 /// read from its most degenerate pair, as the curve itself reaches that
 /// corner (#577).
-fn through_the_meet(
+pub(super) fn through_the_meet(
     circle: &Circle,
     own_plane: &Plane,
     own_cylinder: Cylinder,

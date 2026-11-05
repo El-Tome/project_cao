@@ -5,7 +5,8 @@
 //!
 //! Part of #577: lane 2, two cylinders and elliptic walls at a skew angle.
 //! The cones are lane 3, a pull request of their own; the criteria about
-//! them are not answered here.
+//! them are not answered here but in `a_wall_against_a_cone_at_any_angle.rs`,
+//! whose head transcribes the whole issue.
 //!
 //! Done when:
 //!

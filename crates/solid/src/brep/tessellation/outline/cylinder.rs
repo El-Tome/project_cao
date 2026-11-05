@@ -178,7 +178,10 @@ type End = (f64, bool, (DVec2, usize));
 impl Opened {
     /// The face cut open at `cut`. None when a loop passes that angle at a
     /// sample not `cuttable` or between two of its samples, or the ends of the pieces along
-    /// an edge of the turn do not alternate into stretches of the region.
+    /// an edge of the turn do not alternate into stretches of the region; or
+    /// when a loop only touches it, at a sample a rounding off the angle on
+    /// one side: the two edges of the turn, one ruling, would not part at
+    /// the same samples (93075255850165).
     fn at(
         cut: f64,
         laps: &[Vec<usize>],
@@ -197,6 +200,13 @@ impl Opened {
                 None => (0, cut + (raw[0].x - cut).rem_euclid(TAU)),
             };
             let lap = Lap::from(raw, ids, first, near);
+            let count = ids.len();
+            let runs = (0..count)
+                .filter(|&at| on_cut(raw[at].x) && !on_cut(raw[(at + count - 1) % count].x))
+                .count() as i64;
+            if (runs - lap.turns).rem_euclid(2) != 0 {
+                return None;
+            }
             let mut piece = vec![lap.turned[0]];
             for &(at, turns) in &lap.turned[1..] {
                 piece.push((at, turns));

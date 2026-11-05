@@ -187,12 +187,14 @@ Left, in the order #497 set:
 - a sphere or a torus against a plane at a slant, a wall or a round of
   another axis, or an elliptic wall: declined as unsupported where the
   faces may cross;
-- a cone against a cylinder or a cone of another axis, such as a radial hole
-  through it, and an elliptic wall against a cone — #577's lane 3. A plane
-  crossing a cylinder or a cone at a slant is done (#552), the elliptic
-  cylinder against planes and walls parallel or square to it (#571), and
-  two cylinders or elliptic walls at any angle (#577, lane 2), but for the
-  pairs nearly parallel it declines (see "Two walls at any angle");
+- a few pairs of walls at any angle that the kernel still declines (see
+  "Two walls at any angle"): two walls nearly parallel, a cone whose
+  rulings run along the other wall's axis, a hole in the flank of a
+  pointed cone (#711), and a cone and a wall closer than a chord's sag
+  without meeting (#706). A plane crossing a cylinder or a cone at a slant
+  is done (#552), the elliptic cylinder against planes and walls parallel
+  or square to it (#571), and two cylinders, elliptic walls or cones at any
+  angle (#577);
 - an exact STEP;
 - chamfers and fillets on a straight edge, then on a circular one, then where
   fillets meet at a corner;
@@ -247,6 +249,11 @@ Known and still open:
   should reach `G` is open). Nearly parallel walls closer than a chord's
   sag are declined until #706 samples them on one grid.
   `exact-kernel-failures.md`, "#577: two walls at any angle";
+- a cone at a skew angle (#577, lane 3): about one walls case in a hundred
+  is drawn wrong where `main` declined it — triangles crossing on a cone
+  face away from its apex, whose `(θ, l)` chart bends chords (#710), and a
+  few closed, refused or undrawn bodies beside a tangent or a hair (#707).
+  `exact-kernel-failures.md`, "#577: two walls at any angle";
 - the elliptic walls (#571): a plane in the warning band through a wall's
   tangent line, the same ellipse turned a hair beside a block's planes, two
   touches at the ends of a half-axis beside a third wall, a third surface
@@ -271,11 +278,11 @@ Known and still open:
   its apex alone. A sphere or a torus meets a plane square to its axis
   along latitude circles, a touch at a crest or a root, or its pole; a
   plane holding its axis along its meridians; and a coaxial cylinder, cone,
-  sphere or torus along one or two rims. A cone against a cylinder or a
-  cone of another axis, and a cone within the
-  tolerance of a plane or a cylinder of its axis all across the box, an
-  elliptic wall against a cone, two walls nearly parallel that stand within
-  the tolerance or a chord's sag of each other (#577), a plane at a slant
+  sphere or torus along one or two rims. A cone within the
+  tolerance of a plane or a cylinder of its axis all across the box, two
+  walls nearly parallel that stand within the tolerance or a chord's sag
+  of each other, a cone pair of the few kinds "A cone against another
+  wall" names (#577), a plane at a slant
   through a sphere or a torus, a wall or a round of
   another axis, and an elliptic wall against a round, are declined where
   their faces may cross: the operation gives no answer, which
@@ -474,8 +481,10 @@ The decisions, in the order taken, once per operation:
    two rulings (`Relation::Rulings`), each built through its meridian line's
    foot, never through the apex, which a cone a hair from a cylinder holds a
    hundred million reaches away; the apex goes with them where it stands in
-   the box. A cylinder or a cone off its axis is unsupported, and declines
-   unless `clear` stands the two faces apart. No pair with a cone grazes and
+   the box. A cylinder, an elliptic wall or a cone off its axis meets it
+   along the curve read along its rulings (#577, "A cone against another
+   wall"), and declines in the cases named there unless `clear` stands the
+   two faces apart. No coaxial pair with a cone grazes and
    none is moved onto a touch: a cone a hair from a cylinder of its axis meets it
    along one exact circle, whatever the band the two stand within `EPS` of
    each other over; nor is a cylinder about a cone's axis moved off it onto
@@ -1803,9 +1812,9 @@ lying on the conic's plane is the conic, along the surface (9501873,
   with the angle (`extrusion.unstable_square`, `extrusion.unstable_along`).
   It is never refused for it; a decline in the band is a broken step with
   its own reason.
-- **Still declined.** Curves that are no conic — two cylinders at a skew
-  angle, a cone against a cylinder or a cone of another axis — where their
-  faces may cross; a face bounded by the curve two perpendicular cylinders
+- **Still declined.** Curves that are no conic, before #577 built them —
+  two cylinders at a skew angle, a cone against a cylinder or a cone of
+  another axis — where their faces may cross; a face bounded by the curve two perpendicular cylinders
   meet along against a face at a slant; a face inside a cylinder's hollow
   against a cylinder at a skew angle to it (see the start of this
   document). Beside those, what the kernel cannot verify it declines as
@@ -1946,8 +1955,86 @@ wrong answer:
   by any change to `LEAST` or `MOST` in `divisions`, until #706 lays such
   pairs on one shared order and removes it.
 
-Still declined: a cone against a wall or a cone of another axis, an
-elliptic wall against a cone — #577's lane 3.
+### A cone against another wall
+
+A cone meets a cylinder, an elliptic wall or a cone of another axis along
+a curve read along the cone's rulings (`meet/ruled.rs`). The ruling at the
+angle `θ` about the cone's axis is the line `F(θ) + l·d(θ)`; it meets the
+other wall's quadric where
+
+    A l² + B l + C = 0,
+
+`A`, `B`, `C` trigonometric in `θ`, and the discriminant `D = B² − 4AC` is
+a trigonometric polynomial of degree four. The curve is seen on the cone
+in its own `(θ, l)`, which is why the cone gives the rulings: no second
+parameter to solve for, and the nappe is a bound, `l` past the apex's
+`l_a`. Each span of `θ` where `D ≥ 0` and the roots stand on the nappe is
+one closed loop, its two roots joining at the span's ends, run as
+`θ = m − h cos t` and read there by half-angle forms, Taylor roots within
+a hundred-millionth of a radian of a simple zero; a double zero of `D`
+inside a span is a node, one alone a contact; `D` positive all round makes
+two loops winding round the cone, or one where the other wall holds the
+apex. The angle on the other wall is unwrapped along each loop from a
+table of its values, halved where it leaps — near the other wall's axis a
+small step sweeps a wide angle — and capped, since a loop all but a point
+leaps everywhere.
+
+A cylinder or an elliptic wall grows away from its axis, so `A ≥ 0`. A
+cone's quadric does not: two cones are read along the rulings of the one
+whose least `A` round the turn, as a share of its greatest, is the larger,
+and a root counts on the other cone's own nappe only. Decision 2 snaps a
+touch within the tolerance as for two walls: the other wall moves along
+the direction square to both axes until the ruling nearest it touches; two
+cones are not moved.
+
+Declined as unsupported, where the faces may meet and do not stand clear:
+
+- **A ruling along the other wall's axis.** `A` falling under a millionth
+  of its greatest round the cone — the other wall's axis at the cone's own
+  slope to its axis — where the far root runs off to infinity.
+- **A hair off coaxial**, where the curve is all but a circle of each and
+  the boolean reads the two faces as too near to part (5361127255).
+- **An apex on the other wall** (`on_the_apex`): every ruling meets it at
+  once, and the curve has a point no ruling crosses alone.
+- **A hole in a pointed face** (`on_a_pointed_face`, #711): a component of
+  the curve that does not go round a cone's axis while a face of that cone
+  holds its apex, as a pole or a corner. In `(θ, l)` the apex is a line
+  standing for one point, and a fan from it beside such a hole lays two
+  edges along one ruling. A component going round the axis parts the apex
+  from the rest, and is built.
+- **Grazing** (`grazing`, #706): a cone and a wall that come closer than
+  the coarsest drawn chord's sag without meeting within the tolerance, at
+  a nearest approach of the cone's rulings in a box where their faces may
+  meet — the gap over `EPS`, under the larger of the two walls' sags there,
+  each cut by `divisions` at `COARSEST_DRAWN`. Their triangles would have to
+  be sampled in common, as `tessellation/contact` does for two cylinders.
+
+The nearly-parallel declines above reach a cone only by the sag: a cone
+in #552's band is checked by `closer_than_a_sag`, its size read along
+the ruling at each height, since the sliver and the stretch assume one
+section all along.
+
+On the cone's side the tessellation follows. A curve on a cone is sampled
+at the cone's own grid, read for the widest the curve reaches, with the
+angles of the cone's vertices as rays, so that the face's edges stand on
+the same rulings. A cone face away from its apex is cut in columns between
+the rulings of its grid (`tessellation/outline/columns.rs`): a sample on a
+ruling is laid on it to the bit, each interval of a ruling is decided in
+or out of the face by the winding of its outline, and each column is
+swept alone, no point added; where a segment crosses a ruling the face is
+swept whole. A face going round its axis is cut open at a grid angle no
+loop only touches: a loop touching the angle at one sample, a rounding off
+it on one side, gave one edge of the opened turn a vertex the other lacked
+(`Opened::at`, 93075255850165). A face holding its apex counts a curve
+going round it as a circle about the axis, for its pole.
+
+Still wrong: in `(θ, l)` a segment running along `l` across `θ` is no
+chord of a cone whose radius changes along it — the chord's angle runs as
+the inverse of the radius — so a sliver beside a hole, though inside one
+column, crosses the wall the hole is cut by (93075255850034). Laying the
+face on its development, or on `(θ·r(l), l)`, mended that seed and broke
+some forty others; cutting the columns in rows too is #710. A hole in a
+pointed cone's flank waits on #711.
 
 ## Triangles
 

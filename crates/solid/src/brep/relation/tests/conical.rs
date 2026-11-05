@@ -1,11 +1,14 @@
 //! How a cone meets a plane, a cylinder or another cone (#536): every pair of
 //! one axis read as two lines of the meridian half-plane, a plane holding the
 //! axis as the two rulings it cuts, a plane at a slant as the conic it cuts
-//! (#552, `sliced.rs`), anything else declined.
+//! (#552, `sliced.rs`), a wall or a cone off its axis as the curve read along
+//! the rulings (#577); declined, a wall a hair off coaxial and two cones each
+//! with rulings within the other's slope.
 
 use glam::DVec2;
 
 use super::*;
+use crate::brep::meet::Configuration;
 use crate::brep::surface::{Cone, Cylinder};
 
 /// The cone about the line through `point` along `axis` its run from
@@ -213,9 +216,9 @@ fn a_cylinder_a_hair_off_coaxial_is_coaxial() {
 }
 
 #[test]
-fn a_cylinder_further_off_coaxial_is_unsupported() {
+fn a_cylinder_a_hair_off_coaxial_is_unsupported_and_one_further_off_meets_the_cone() {
     let eps = scale().eps();
-    for off in [2.0 * eps, 0.5, 30.0] {
+    for off in [2.0 * eps, 10.0 * eps] {
         let bore = cylinder(DVec3::new(0.0, off, 0.0), DVec3::Z, 2.0);
         assert_eq!(
             relation(&Surface::Cone(point()), &bore, scale()),
@@ -223,21 +226,63 @@ fn a_cylinder_further_off_coaxial_is_unsupported() {
             "{off}"
         );
     }
+    let aside = cylinder(DVec3::new(0.0, 0.5, 0.0), DVec3::Z, 2.0);
+    let found = relation(&Surface::Cone(point()), &aside, scale());
+    let Relation::Meet(meeting) = &found else {
+        panic!("a meeting expected, got {found:?}");
+    };
+    assert_eq!(meeting.configuration, Configuration::OneLoop);
+    assert_on_both(&found, &Surface::Cone(point()), &aside, 1e-9);
 }
 
 #[test]
-fn a_radial_cylinder_and_a_cone_at_a_skew_angle_are_unsupported() {
+fn a_radial_cylinder_and_a_cone_at_a_skew_angle_meet_along_their_curve() {
     for axis in [DVec3::X, DVec3::new(1.0, 1.0, 1.0)] {
         let hole = cylinder(DVec3::new(0.0, 0.0, 3.0), axis, 1.0);
-        assert_eq!(
-            relation(&Surface::Cone(point()), &hole, scale()),
-            Relation::Unsupported
-        );
-        assert_eq!(
-            relation(&hole, &Surface::Cone(point()), scale()),
-            Relation::Unsupported
-        );
+        let found = relation(&Surface::Cone(point()), &hole, scale());
+        let Relation::Meet(meeting) = &found else {
+            panic!("a meeting expected, got {found:?}");
+        };
+        assert_eq!(meeting.configuration, Configuration::TwoLoops, "{axis}");
+        assert_on_both(&found, &Surface::Cone(point()), &hole, 1e-9);
+        assert_eq!(relation(&hole, &Surface::Cone(point()), scale()), found);
     }
+}
+
+/// A cylinder along one of the point's rulings: that ruling meets it
+/// nowhere, `A` vanishes there, and the curve runs off to infinity.
+#[test]
+fn a_cylinder_along_one_of_the_cone_s_rulings_is_unsupported() {
+    let along = cylinder(
+        DVec3::new(1.0, 0.0, 3.0),
+        DVec3::new(1.0, 0.0, -2.0).normalize(),
+        1.0,
+    );
+    assert_eq!(
+        relation(&Surface::Cone(point()), &along, scale()),
+        Relation::Unsupported
+    );
+}
+
+/// A point whose axis leans 11° off the first's, both of half-angle
+/// 26.6°: each one's rulings fall within the other's slope, so neither's
+/// meet the other in a true quadratic all round — still unsupported.
+#[test]
+fn two_cones_each_with_rulings_within_the_other_s_slope_are_unsupported() {
+    let leaning = Surface::Cone(cone(
+        DVec3::new(0.0, 1.0, 0.0),
+        DVec3::new(0.2, 0.0, 1.0),
+        [0.0, 3.0],
+        [6.0, 0.0],
+    ));
+    assert_eq!(
+        relation(&Surface::Cone(point()), &leaning, scale()),
+        Relation::Unsupported
+    );
+    assert_eq!(
+        relation(&leaning, &Surface::Cone(point()), scale()),
+        Relation::Unsupported
+    );
 }
 
 #[test]
@@ -432,4 +477,111 @@ fn a_plane_beyond_the_apex_misses_the_cone() {
             "{height}"
         );
     }
+}
+
+/// The cylinder of radius one along Y at height four whose axis stands
+/// `offset` along X from where it would touch the point's ruling on `+X`
+/// from outside: `x = 3 + √1.25`, its wall `√1.25` from the axis along the
+/// ruling's normal.
+fn outside_the_ruling(offset: f64) -> Surface {
+    cylinder(
+        DVec3::new(3.0 + 1.25f64.sqrt() + offset, 0.0, 4.0),
+        DVec3::Y,
+        1.0,
+    )
+}
+
+#[test]
+fn a_cylinder_a_hair_from_touching_a_cone_outside_is_moved_onto_the_touch() {
+    let eps = scale().eps();
+    for hair in [0.5 * eps, -0.5 * eps] {
+        let touching = outside_the_ruling(hair);
+        let found = relation(&Surface::Cone(point()), &touching, scale());
+        let Relation::Meet(meeting) = &found else {
+            panic!("a meeting expected at {hair}, got {found:?}");
+        };
+        assert_eq!(meeting.configuration, Configuration::Contact, "{hair}");
+        assert_on_both(&found, &Surface::Cone(point()), &touching, 1e-12 * REACH);
+    }
+    assert_eq!(
+        relation(
+            &Surface::Cone(point()),
+            &outside_the_ruling(3.0 * eps),
+            scale()
+        ),
+        Relation::Apart
+    );
+}
+
+#[test]
+fn a_cylinder_a_hair_from_a_node_inside_a_cone_is_moved_onto_it() {
+    let eps = scale().eps();
+    for hair in [0.5 * eps, -0.5 * eps] {
+        let inside = cylinder(
+            DVec3::new(3.0 - 1.25f64.sqrt() + hair, 0.0, 4.0),
+            DVec3::Y,
+            1.0,
+        );
+        let found = relation(&Surface::Cone(point()), &inside, scale());
+        let Relation::Meet(meeting) = &found else {
+            panic!("a meeting expected at {hair}, got {found:?}");
+        };
+        assert_eq!(
+            meeting.configuration,
+            Configuration::FigureOfEight,
+            "{hair}"
+        );
+        assert_on_both(&found, &Surface::Cone(point()), &inside, eps);
+    }
+}
+
+/// A cone and a wall that come closer than the coarsest drawn chord's sag
+/// without meeting are grazing (`nearly_parallel.rs`), a pair the boolean
+/// declines where it cannot part their faces; touching, or further than a
+/// sag, they are not.
+#[test]
+fn a_cylinder_closer_to_a_cone_than_a_chord_s_sag_but_apart_grazes_it() {
+    let boxed = [[DVec3::new(-10.0, -10.0, -1.0), DVec3::new(10.0, 10.0, 11.0)]];
+    let grazes = |offset: f64| {
+        super::grazing(
+            &Surface::Cone(point()),
+            &outside_the_ruling(offset),
+            &boxed,
+            scale(),
+        )
+    };
+    assert!(grazes(1e-4 * REACH), "a ten-thousandth of the reach apart");
+    assert!(!grazes(0.0), "touching");
+    assert!(!grazes(0.1 * REACH), "a tenth of the reach apart");
+}
+
+/// A cone of ten degrees about an axis leaning five off Z, its apex a
+/// ten-thousandth of the reach outside the point's base and opening upward
+/// beside its wall: its rulings stand within the point's slope, so only the
+/// point's rulings are read against it.
+fn beside_the_point() -> Cone {
+    let lean = 5f64.to_radians();
+    cone(
+        DVec3::new(5.0 + 1e-4 * REACH, 0.0, 0.0),
+        DVec3::new(lean.sin(), 0.0, lean.cos()),
+        [0.0, 0.0],
+        [10.0, 10.0 * 10f64.to_radians().tan()],
+    )
+}
+
+#[test]
+fn two_cones_closer_than_a_chord_s_sag_but_apart_graze_whichever_is_read_along() {
+    let boxed = [[DVec3::new(-10.0, -10.0, -1.0), DVec3::new(10.0, 10.0, 11.0)]];
+    let (wide, narrow) = (point(), beside_the_point());
+    assert_eq!(between(&wide, &narrow), Relation::Apart);
+    let grazes = |one: &Cone, other: &Cone| {
+        super::grazing(
+            &Surface::Cone(*one),
+            &Surface::Cone(*other),
+            &boxed,
+            scale(),
+        )
+    };
+    assert!(grazes(&wide, &narrow), "the cone read along first");
+    assert!(grazes(&narrow, &wide), "the cone read along second");
 }

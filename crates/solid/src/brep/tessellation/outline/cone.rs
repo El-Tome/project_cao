@@ -14,7 +14,8 @@
 //! loop along the floor the long way round instead, the rest of the floor
 //! the sector leaves. A triangle with two corners on the floor stands for the
 //! apex twice and is dropped: what is left is a fan from the apex to the rims'
-//! samples.
+//! samples. A face away from its apex is cut in columns between the rulings
+//! of its grid ([`super::columns`]).
 
 use std::f64::consts::TAU;
 
@@ -193,6 +194,10 @@ impl Outline {
             laid.into_iter().map(|lap| (lap.raw, lap.ids)).unzip();
         self.round_laid(&raws, &ids, steps, |id| {
             !samples.is_vertex(id) || floor.tip(id)
-        })
+        })?;
+        if apex.is_none() && passing.is_none() {
+            self.columned(steps);
+        }
+        Some(())
     }
 }

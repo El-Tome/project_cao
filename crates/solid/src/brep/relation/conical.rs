@@ -2,17 +2,51 @@
 //! square to it, a cylinder or a cone about it — is decided as two lines of
 //! the meridian half-plane (`revolved.rs`), a plane holding its axis as the
 //! two rulings it cuts, and any other plane as the conic it cuts or the
-//! rulings through the apex (#552, `sliced.rs`). A cylinder or a cone off its
-//! axis is unsupported, which declines a boolean unless the two faces stand
-//! clear of each other.
+//! rulings through the apex (#552, `sliced.rs`). A cylinder, an elliptic
+//! wall or a cone off its axis meets it along the curve read along the
+//! rulings of one cone (#577, `meet/ruled.rs`), unless that reading fails,
+//! which declines a boolean unless the two faces stand clear of each other.
 
 use glam::DVec3;
 
 use super::revolved::{Meridian, in_the_box, met};
 use super::{Relation, parallel, sorted, square};
-use crate::brep::curve::Line;
+use crate::brep::curve::{Line, Wall};
+use crate::brep::meet::{Configuration, Meeting, steady};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Plane, Surface};
+
+/// A cone and a wall off its axis, met along the curve read along the
+/// rulings (`meet/ruled.rs`); unsupported where a ruling does not meet the
+/// other in a true quadratic — a wall's axis along a ruling of the cone, at
+/// the cone's own slope to its axis, where the curve runs off to infinity —
+/// within a hair of coaxial, where the curve is all but a circle of each
+/// and the boolean reads the two faces as too near to part (seed
+/// 5361127255), and where an apex stands on the other wall.
+fn ruled(cone: &Cone, wall: &Wall, scale: Scale) -> Relation {
+    let hair = Scale::of(scale.reach() * Scale::HAIR);
+    if !steady(cone, wall)
+        || coaxial(cone, wall.origin(), wall.axis(), hair)
+        || on_the_apex(cone, wall, scale)
+    {
+        return Relation::Unsupported;
+    }
+    let meeting = Meeting::of(&Wall::Cone(*cone), wall, scale);
+    if meeting.configuration == Configuration::Apart {
+        Relation::Apart
+    } else {
+        Relation::Meet(meeting)
+    }
+}
+
+/// Whether the apex of either cone of the pair stands on the other wall,
+/// where every ruling of that cone meets it at once and the curve has a
+/// point no ruling crosses alone.
+fn on_the_apex(cone: &Cone, wall: &Wall, scale: Scale) -> bool {
+    let eps = scale.eps();
+    wall.surface().distance(cone.apex()).abs() <= eps
+        || matches!(wall, Wall::Cone(other) if cone.distance(other.apex()).abs() <= eps)
+}
 
 pub(super) fn relation(cone: &Cone, other: &Surface, scale: Scale) -> Relation {
     match other {
@@ -32,10 +66,12 @@ pub(super) fn relation(cone: &Cone, other: &Surface, scale: Scale) -> Relation {
             if coaxial(first, second.origin, second.axis, scale) {
                 met(first, Meridian::of(first, second), scale)
             } else {
-                Relation::Unsupported
+                ruled(first, &Wall::Cone(*second), scale)
             }
         }
-        Surface::Cylinder(_) | Surface::Elliptic(_) => Relation::Unsupported,
+        Surface::Cylinder(_) | Surface::Elliptic(_) => {
+            Wall::of(other).map_or(Relation::Unsupported, |wall| ruled(cone, &wall, scale))
+        }
     }
 }
 

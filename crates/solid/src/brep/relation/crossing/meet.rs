@@ -5,6 +5,7 @@
 use super::super::cylinders::cylinders;
 use super::super::planar::plane_and_cylinder;
 use super::super::{Relation, relation};
+use super::cone::line_and_cone;
 use super::cut::Cut;
 use super::elliptic::line_and_elliptic;
 use super::{Solved, Touches, line_and_cylinder};
@@ -37,7 +38,7 @@ pub(super) fn through_lines(
         })?;
     let cut = match (surface, &own) {
         (Surface::Plane(plane), Wall::Cylinder(cylinder)) => Some(Cut { cylinder, plane }),
-        (Surface::Plane(_), Wall::Elliptic(_))
+        (Surface::Plane(_), Wall::Elliptic(_) | Wall::Cone(_))
         | (
             Surface::Cylinder(_)
             | Surface::Cone(_)
@@ -54,6 +55,7 @@ pub(super) fn through_lines(
         let crossed = match other {
             Wall::Cylinder(other) => line_and_cylinder(&line, &other, scale, touching, cut),
             Wall::Elliptic(other) => line_and_elliptic(&line, &other, scale, touching),
+            Wall::Cone(other) => line_and_cone(&line, &other, scale, touching),
         };
         let Solved::At(crossed) = crossed else {
             continue;
@@ -85,5 +87,6 @@ fn relation_with(own: &Wall, surface: &Surface, scale: Scale) -> Relation {
         (Wall::Elliptic(_), Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_)) => {
             Relation::Unsupported
         }
+        (Wall::Cone(own), _) => relation(&Surface::Cone(*own), surface, scale),
     }
 }

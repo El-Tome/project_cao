@@ -43,7 +43,7 @@ use super::{parallel, square};
 use crate::brep::curve::{Curve, Line};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
-use circle::{circle_and_surface, circle_through};
+use circle::{circle_and_surface, circle_through, through_the_meet};
 use cut::Cut;
 pub use lying::{Lying, crossings_lying};
 
@@ -62,10 +62,8 @@ pub enum Crossings {
     At(Vec<Crossing>),
     /// The curve lies on the surface, within the tolerance.
     Along,
-    /// A circle against a cone unless about an axis parallel to the cone's
-    /// or in a plane holding it; the curve two walls meet along against a
-    /// cone; a conic against a surface its wall meets in a way the kernel
-    /// does not build.
+    /// The curve two walls meet along against a sphere or a torus; a conic
+    /// against a surface its wall meets in a way the kernel does not build.
     Unsupported,
 }
 
@@ -125,9 +123,7 @@ pub fn crossings_given(
         (Curve::Line(line), Surface::Torus(torus)) => {
             round::line_and_torus(line, torus, scale, touching)
         }
-        (Curve::Meet(_), Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_)) => {
-            Solved::Unsupported
-        }
+        (Curve::Meet(_), Surface::Sphere(_) | Surface::Torus(_)) => Solved::Unsupported,
         (Curve::Line(line), Surface::Elliptic(wall)) => {
             elliptic::line_and_elliptic(line, wall, scale, touching)
         }

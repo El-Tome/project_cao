@@ -1040,10 +1040,83 @@ fn a_flat_milled_on_a_cone_holds_the_arithmetics_volume() {
     );
 }
 
+/// The nodes and weights of Gauss–Legendre's rule of `count` points on
+/// `[0, 1]`, each node found by Newton from Tricomi's guess.
+fn gauss(count: usize) -> Vec<(f64, f64)> {
+    (1..=count)
+        .map(|index| {
+            let legendre = |x: f64| {
+                let (mut before, mut now) = (1.0, x);
+                for degree in 2..=count {
+                    let degree = degree as f64;
+                    (before, now) = (
+                        now,
+                        ((2.0 * degree - 1.0) * x * now - (degree - 1.0) * before) / degree,
+                    );
+                }
+                (now, count as f64 * (x * now - before) / (x * x - 1.0))
+            };
+            let mut x = (PI * (index as f64 - 0.25) / (count as f64 + 0.5)).cos();
+            for _ in 0..100 {
+                let (value, slope) = legendre(x);
+                let step = value / slope;
+                x -= step;
+                if step.abs() < 1e-16 {
+                    break;
+                }
+            }
+            let (_, slope) = legendre(x);
+            ((x + 1.0) / 2.0, 1.0 / ((1.0 - x * x) * slope * slope))
+        })
+        .collect()
+}
+
+/// Where the line through `from` along `way`, of unit length, enters and
+/// leaves the frustum's cone `x² + z² = (10 − y/4)²`.
+fn through_the_frustum(from: DVec3, way: DVec3) -> [f64; 2] {
+    let radius = 10.0 - 0.25 * from.y;
+    let a = way.x * way.x + way.z * way.z - 0.0625 * way.y * way.y;
+    let b = 2.0 * (from.x * way.x + from.z * way.z) + 0.5 * radius * way.y;
+    let c = from.x * from.x + from.z * from.z - radius * radius;
+    let root = (b * b - 4.0 * a * c).max(0.0).sqrt();
+    [(-b - root) / (2.0 * a), (-b + root) / (2.0 * a)]
+}
+
+/// What a cylinder of `radius` along `way` through `center` shares with the
+/// frustum's cone: each of its lines' chord inside it, over its section, by
+/// Gauss over the radius and trapezoids round the turn — the integrand is
+/// smooth where every line crosses the cone's wall, and sixteen nodes agree
+/// with thirty-two to the last digit or two.
+fn shared_with_the_frustum(center: DVec3, way: DVec3, radius: f64) -> f64 {
+    let u = way.any_orthonormal_vector();
+    let v = way.cross(u);
+    let turns = 64;
+    gauss(16)
+        .into_iter()
+        .map(|(share, weight)| {
+            let round: f64 = (0..turns)
+                .map(|step| {
+                    let (sin, cos) = (TAU * step as f64 / turns as f64).sin_cos();
+                    let from = center + (u * cos + v * sin) * (radius * share);
+                    let [enter, leave] = through_the_frustum(from, way);
+                    leave - enter
+                })
+                .sum();
+            weight * radius * radius * share * round * TAU / turns as f64
+        })
+        .sum()
+}
+
+const FRUSTUM: f64 = 3500.0 * PI / 3.0;
+
 #[test]
-fn a_radial_hole_through_a_cone_declines_as_unsupported() {
+fn a_radial_hole_through_a_cone_holds_its_volume() {
     let hole = post(0.0, 10.0, 2.0, -20.0, 20.0);
-    assert_eq!(frustum().cut_by(&hole), Err(Declined::Unsupported));
+    let cut = frustum().cut_by(&hole).expect("the kernel answers");
+    holds(
+        &cut,
+        FRUSTUM - shared_with_the_frustum(DVec3::Y * 10.0, DVec3::Z, 2.0),
+    );
 }
 
 /// A slab two thick leaning thirty degrees off square to the frustum's
@@ -1072,7 +1145,7 @@ fn a_plane_at_a_slant_across_a_cone_holds_the_arithmetics_volume() {
 }
 
 #[test]
-fn a_cylinder_at_a_skew_angle_across_a_cone_s_slope_alone_declines_as_unsupported() {
+fn a_cylinder_at_a_skew_angle_across_a_cone_s_slope_alone_holds_its_volume() {
     let along = DVec3::new(2.0, 1.0, 0.0).normalize();
     let skew = Frame {
         origin: DVec3::Y * 10.0 - along * 20.0,
@@ -1081,11 +1154,85 @@ fn a_cylinder_at_a_skew_angle_across_a_cone_s_slope_alone_declines_as_unsupporte
     };
     let hole = Body::raised(&Contour::circle(DVec2::ZERO, 1.0), &[], skew, along * 40.0)
         .expect("the skew rod raises");
-    assert_eq!(frustum().cut_by(&hole), Err(Declined::Unsupported));
+    let cut = frustum().cut_by(&hole).expect("the kernel answers");
+    holds(
+        &cut,
+        FRUSTUM - shared_with_the_frustum(DVec3::Y * 10.0, along, 1.0),
+    );
 }
 
+/// A taper whose axis leans ten degrees off the frustum's, its slope of
+/// eight and a half and the frustum's of fourteen: each one's rulings fall
+/// within the other's slope, and neither's meet the other in a true
+/// quadratic all round — still unsupported.
 #[test]
-fn a_cone_of_another_axis_across_a_cone_s_slope_declines_as_unsupported() {
+fn a_cone_within_another_s_slope_either_way_declines_as_unsupported() {
+    let (sin, cos) = 10f64.to_radians().sin_cos();
+    let leaning = Turning {
+        origin: DVec3::new(2.0, 0.0, 0.0),
+        along: DVec3::new(-sin, cos, 0.0),
+        side: DVec3::new(cos, sin, 0.0),
+    };
+    let taper = laid(1.0, &[&[[0.0, 0.0], [20.0, 0.0], [20.0, 3.0], [0.0, 6.0]]]);
+    let tool = turned(&taper, leaning, TAU).expect("the taper turns");
+    assert_eq!(frustum().cut_by(&tool), Err(Declined::Unsupported));
+}
+/// A truncated cone about X through the frustum's axis at ten, from radius
+/// one at four to three at nine, its apex at one and a half inside the
+/// frustum: it crosses the frustum's slope, and every ray from its apex
+/// runs inside the frustum from the plane at four, `2.5/cos ψ` out, to the
+/// frustum's wall, before eight and a quarter, short of the plane at nine.
+/// What they share is each ray's `(ρ_out³ − ρ_in³)/3` over the tool's solid
+/// angle.
+#[test]
+fn a_cone_of_another_axis_across_a_cone_s_slope_holds_its_volume() {
+    let about_x = Turning {
+        origin: DVec3::Y * 10.0,
+        along: DVec3::X,
+        side: DVec3::Y,
+    };
+    let sides = laid(1.0, &[&[[4.0, 0.0], [9.0, 0.0], [9.0, 3.0], [4.0, 1.0]]]);
+    let tool = turned(&sides, about_x, TAU).expect("the truncated cone turns");
+    let apex = DVec3::new(1.5, 10.0, 0.0);
+    let half = 0.4f64.atan();
+    let turns = 64;
+    let shared: f64 = gauss(16)
+        .into_iter()
+        .map(|(share, weight)| {
+            let tilt = share * half;
+            let round: f64 = (0..turns)
+                .map(|step| {
+                    let (sin, cos) = (TAU * step as f64 / turns as f64).sin_cos();
+                    let ray =
+                        DVec3::X * tilt.cos() + (DVec3::Y * cos + DVec3::Z * sin) * tilt.sin();
+                    let [_, leave] = through_the_frustum(apex, ray);
+                    let enter = 2.5 / tilt.cos();
+                    (leave.powi(3) - enter.powi(3)) / 3.0
+                })
+                .sum();
+            weight * half * tilt.sin() * round * TAU / turns as f64
+        })
+        .sum();
+    let truncated = PI * 5.0 / 3.0 * (1.0 + 3.0 + 9.0);
+    holds(
+        &frustum().cut_by(&tool).expect("the kernel answers"),
+        FRUSTUM - shared,
+    );
+    holds(
+        &tool.cut_by(&frustum()).expect("the kernel answers"),
+        truncated - shared,
+    );
+}
+
+/// Two points about X through the frustum's axis at ten, tip to tip at
+/// their feet at nine: the one whose apex stands inside the frustum, at
+/// four, crosses its slope all round its own axis, which parts that apex
+/// from the rest — built; every ray of it leaves the frustum's cone before
+/// eight and a quarter, short of its foot, and the other point stands
+/// outside the frustum. What they share is each ray's `ρ³/3` out to the
+/// frustum's wall, over that point's solid angle.
+#[test]
+fn two_points_of_another_axis_across_a_cone_s_slope_hold_their_volume() {
     let about_x = Turning {
         origin: DVec3::Y * 10.0,
         along: DVec3::X,
@@ -1093,10 +1240,47 @@ fn a_cone_of_another_axis_across_a_cone_s_slope_declines_as_unsupported() {
     };
     let tips = laid(1.0, &[&[[4.0, 0.0], [14.0, 0.0], [9.0, 3.0]]]);
     let tool = turned(&tips, about_x, TAU).expect("the two points turn");
-    assert_eq!(frustum().cut_by(&tool), Err(Declined::Unsupported));
-    assert_eq!(tool.cut_by(&frustum()), Err(Declined::Unsupported));
+    let apex = DVec3::new(4.0, 10.0, 0.0);
+    let half = 0.6f64.atan();
+    let turns = 64;
+    let shared: f64 = gauss(16)
+        .into_iter()
+        .map(|(share, weight)| {
+            let tilt = share * half;
+            let round: f64 = (0..turns)
+                .map(|step| {
+                    let (sin, cos) = (TAU * step as f64 / turns as f64).sin_cos();
+                    let ray =
+                        DVec3::X * tilt.cos() + (DVec3::Y * cos + DVec3::Z * sin) * tilt.sin();
+                    let [_, leave] = through_the_frustum(apex, ray);
+                    leave.powi(3) / 3.0
+                })
+                .sum();
+            weight * half * tilt.sin() * round * TAU / turns as f64
+        })
+        .sum();
+    let points = 2.0 * PI * 9.0 * 5.0 / 3.0;
+    holds(
+        &frustum().cut_by(&tool).expect("the kernel answers"),
+        FRUSTUM - shared,
+    );
+    holds(
+        &tool.cut_by(&frustum()).expect("the kernel answers"),
+        points - shared,
+    );
 }
 
+/// A hole along Z through the side of a point about Y, its apex outside the
+/// hole: the curve does not go round the point's axis, and lies on a face
+/// holding its apex — still declined until the cone's development is built.
+#[test]
+fn a_radial_hole_through_a_point_s_side_still_declines_as_unsupported() {
+    let point = turned(&point(), about_y(), TAU).expect("the point turns");
+    assert_eq!(
+        point.cut_by(&post(0.0, 3.0, 1.0, -20.0, 20.0)),
+        Err(Declined::Unsupported)
+    );
+}
 #[test]
 fn a_point_resting_on_a_plate_by_its_tip_a_hair_into_it_keeps_every_rule() {
     let tip_down = laid(1.0, &[&[[0.0, 0.0], [10.0, 5.0], [10.0, 0.0]]]);

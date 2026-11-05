@@ -34,6 +34,16 @@ pub struct Cone {
 }
 
 impl Cone {
+    /// Whether another cone about a parallel axis is this one within `eps`:
+    /// its origin and its meridian line's foot within it, its ruling the
+    /// same to rounding.
+    pub fn within(&self, other: &Cone, eps: f64) -> bool {
+        self.axis.cross(other.axis).length() <= Scale::RELATIVE
+            && self.origin.distance(other.origin) <= eps
+            && (self.foot - other.foot).length() <= eps
+            && (self.ruling - other.ruling).length() <= Scale::RELATIVE
+    }
+
     /// The cone a run between two corners `(h, ρ)` turns into about the line
     /// through `point` along `axis`, `h` read along `axis` from `point`: the
     /// same bits whichever way the run is read and whichever way the axis

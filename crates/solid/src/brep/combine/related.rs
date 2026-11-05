@@ -22,7 +22,9 @@ use super::clear::clear;
 use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::Registry;
-use crate::brep::relation::{Relation, at_a_slant, relation, too_near_to_build};
+use crate::brep::curve::Wall;
+use crate::brep::relation::{Relation, at_a_slant, grazing, relation, too_near_to_build};
+use crate::brep::surface::Surface;
 use crate::brep::topology::{FaceId, SurfaceId};
 
 /// A point a relation says must be a corner, on both surfaces of its pair
@@ -54,8 +56,12 @@ pub(super) fn related(
                 continue;
             }
             let found = relation(&list[one], &list[other], scale);
+            let within = operands.meeting(pair);
             let too_near = matches!(found, Relation::Meet(_))
-                && too_near_to_build(&list[one], &list[other], &operands.meeting(pair), scale);
+                && (too_near_to_build(&list[one], &list[other], &within, scale)
+                    || on_a_pointed_face(operands, pair, &found))
+                || matches!(found, Relation::Meet(_) | Relation::Apart)
+                    && grazing(&list[one], &list[other], &within, scale);
             if found == Relation::Unsupported || too_near {
                 if clear(operands, pair) {
                     continue;
@@ -185,4 +191,44 @@ pub(super) fn facing(operands: &Operands, [one, other]: [SurfaceId; 2]) -> bool 
             .any(|first| seconds.iter().any(|second| operands.near(*first, *second)))
     };
     near(on(0, one), on(1, other)) || near(on(0, other), on(1, one))
+}
+
+/// Whether a curve read along a cone's rulings (`meet/ruled.rs`) has a
+/// component that does not go round the axis of a cone of the pair — a hole
+/// in its side — while a face of that cone, in either operand, holds its
+/// apex: a pole within it, or a corner at it. In the cone's chart the apex
+/// is a line, and a fan from it beside such a hole lays two edges along one
+/// ruling (#577): such a pair stays unsupported, as it was. A component
+/// going round the axis parts the apex from the rest, and is built.
+fn on_a_pointed_face(operands: &Operands, pair: [SurfaceId; 2], found: &Relation) -> bool {
+    let Relation::Meet(meeting) = found else {
+        return false;
+    };
+    let eps = operands.scale.eps();
+    pair.into_iter().any(|surface| {
+        let Surface::Cone(cone) = operands.surfaces.list[surface.0 as usize] else {
+            return false;
+        };
+        let aside = meeting
+            .components
+            .iter()
+            .any(|meet| meet.winds_round(&Wall::Cone(cone)) == Some(false));
+        let apex = cone.apex();
+        aside
+            && (0..2).any(|operand| {
+                let body = operands.bodies[operand];
+                operands.lying[operand][surface.0 as usize]
+                    .iter()
+                    .any(|&face| {
+                        !body.poles_held(face).is_empty()
+                            || body.face(face).loops.iter().flatten().any(|coedge| {
+                                body.edge(coedge.edge)
+                                    .ends
+                                    .iter()
+                                    .flatten()
+                                    .any(|vertex| body.vertex(*vertex).point.distance(apex) <= eps)
+                            })
+                    })
+            })
+    })
 }

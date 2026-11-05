@@ -37,3 +37,24 @@ fn an_angle_is_said_to_two_figures() {
     assert_eq!(angle(0.01), "0.01");
     assert_eq!(angle(3.2e-5), "0.000032");
 }
+
+#[test]
+fn two_walls_whose_axes_are_nearly_square_are_said_nearly_perpendicular() {
+    let said = said(Lean::Across, 0.001);
+
+    assert!(said.contains("axes"), "{said}");
+    assert!(said.contains("presque perpendiculaires"), "{said}");
+    assert!(!said.contains("plan"), "{said}");
+    assert!(said.contains("0.001°"), "{said}");
+}
+
+#[test]
+fn two_walls_whose_axes_are_nearly_parallel_are_said_nearly_parallel() {
+    let said = said(Lean::Abreast, 0.00003);
+
+    assert!(said.contains("axes"), "{said}");
+    assert!(said.contains("presque parallèles"), "{said}");
+    assert!(!said.contains("perpendiculaire"), "{said}");
+    assert!(!said.contains("plan"), "{said}");
+    assert!(said.contains("0.00003°"), "{said}");
+}

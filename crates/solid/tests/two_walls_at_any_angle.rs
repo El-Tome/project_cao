@@ -51,8 +51,9 @@
 //!   `seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_declined_as_unsupported`,
 //!   `seed_224442167740434_two_posts_of_radius_22_5_crossing_at_1e_4_degrees_are_declined_as_unsupported`,
 //!   `the_same_posts_crossing_at_3e_4_or_1e_4_degrees_are_declined_closer_than_a_sag`.
-//!   A lean in the band built and noted unstable stays answered by
-//!   `a_bore_leaning_in_the_band_off_square_is_noted_unstable`.
+//!   A lean in the band built and noted unstable stays answered, off square
+//!   by `a_bore_leaning_in_the_band_off_square_is_noted_unstable` and off
+//!   parallel by `a_bore_leaning_in_the_band_off_parallel_is_built_and_noted_unstable`.
 //! - #448's harness draws walls at any angle before the kernel code.
 //!   Campaigns end under one failure in a thousand on fresh seeds, with no
 //!   regression. A family that does not move in two rounds is reported and
@@ -75,6 +76,7 @@
 
 use std::f64::consts::{PI, TAU};
 
+use cao_solid::Lean;
 use cao_solid::brep::{Body, Curve, Declined, Surface};
 use cao_solid::profile::{Contour, Frame, Run};
 use cao_solid::soundness::{closed, listed, uncrossed};
@@ -399,6 +401,70 @@ fn a_bore_leaning_in_the_band_off_square_is_noted_unstable() {
         WHOLE_SHAFT - bored_out(90.0 - lean, OFFSET, HOLE),
     );
     let unstable = body.unstable().expect("the step is noted unstable");
+    assert_eq!(unstable.lean, Lean::Across, "the two axes nearly square");
+    assert!(
+        ((unstable.degrees - lean) / lean).abs() <= 1e-6,
+        "noted {} degrees off, drawn {lean}",
+        unstable.degrees
+    );
+}
+
+/// The shaft between two parallel planes leaning 30° about X through its
+/// axis at ±30: every line along its axis runs sixty inside it, and none
+/// of its faces stands square to it any longer.
+fn shaft_cut_at_a_slant_at_both_ends() -> Body {
+    let (sin, cos) = 30f64.to_radians().sin_cos();
+    let v = DVec3::new(0.0, cos, sin);
+    let normal = DVec3::X.cross(v);
+    let beyond = |level: f64, way: f64| {
+        raised(
+            Contour::rectangle(DVec2::splat(-20.0), DVec2::splat(20.0)),
+            DVec3::Z * level,
+            DVec3::X,
+            v,
+            normal * way * 30.0,
+        )
+    };
+    shaft()
+        .cut_by(&beyond(30.0, 1.0))
+        .and_then(|cut| cut.cut_by(&beyond(-30.0, -1.0)))
+        .expect("the ends cut at a slant")
+}
+
+/// A bore of radius 3 eight off the shaft's axis along Y, crossing its
+/// wall at a clear angle, its axis leaning `degrees` off the shaft's towards
+/// X, square to the way the ends slope: from `reach` below the middle to
+/// `reach` above it.
+fn leaning_beside(degrees: f64, reach: f64) -> Body {
+    let (sin, cos) = degrees.to_radians().sin_cos();
+    let along = DVec3::new(sin, 0.0, cos);
+    raised(
+        Contour::circle(DVec2::new(8.0, 0.0), HOLE),
+        -along * reach,
+        DVec3::Y,
+        along.cross(DVec3::Y),
+        along * 2.0 * reach,
+    )
+}
+
+/// The bore of `leaning_beside` a hundredth of a degree off the shaft's
+/// axis: in the band, nearly parallel, and neither within the tolerance
+/// along a stretch, a sliver, nor closer than a chord's sag. Between the two
+/// slanted ends it takes sixty times the lens of the two discs: the lean
+/// moves the bore along X, which the ends do not slope along, and parts
+/// the axes by no more than `(36·tan θ)²/16`, some 2.5e-6, a few billionths
+/// of the volume.
+#[test]
+fn a_bore_leaning_in_the_band_off_parallel_is_built_and_noted_unstable() {
+    let lean = 1e-2;
+    let ends = shaft_cut_at_a_slant_at_both_ends();
+    let body = holds_within(
+        ends.cut_by(&leaning_beside(lean, 60.0)),
+        PI * SHAFT * SHAFT * 60.0 - 60.0 * lens(SHAFT, HOLE, 8.0),
+        1e-7,
+    );
+    let unstable = body.unstable().expect("the step is noted unstable");
+    assert_eq!(unstable.lean, Lean::Abreast, "the two axes nearly parallel");
     assert!(
         ((unstable.degrees - lean) / lean).abs() <= 1e-6,
         "noted {} degrees off, drawn {lean}",

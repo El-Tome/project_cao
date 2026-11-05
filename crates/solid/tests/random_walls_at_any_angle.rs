@@ -499,7 +499,22 @@ fn two_shafts_crossing_at_1e_5_degrees_a_sliver_past_decision_11_are_declined_as
 #[test]
 fn the_same_shafts_crossing_at_3e_5_degrees_are_built_and_keep_every_rule() {
     let case = crossing_a_sliver_past_decision_11(3e-5);
-    assert!(answered(&case).is_ok(), "{case}");
+    let body = answered(&case).unwrap_or_else(|declined| panic!("{declined:?}\n{case}"));
+    let unstable = body.unstable().expect("a lean in the band is noted");
+    assert!(
+        matches!(
+            unstable.lean,
+            cao_solid::Lean::Abreast | cao_solid::Lean::Square
+        ),
+        "the walls lean abreast, and the tool's ends off square to the shaft's \
+         axis by as much: either is the step's least lean, {:?}\n{case}",
+        unstable.lean
+    );
+    assert!(
+        ((unstable.degrees - 3e-5) / 3e-5).abs() <= 1e-6,
+        "noted {} degrees off, drawn 3e-5",
+        unstable.degrees
+    );
     random_solids::holds_exactly(&case);
 }
 

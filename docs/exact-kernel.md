@@ -187,10 +187,12 @@ It can:
   no face of the slab but its floor, the floor in one piece, each of its
   corners on one of the edge's faces, and every face the body held still
   there but the edge's two, which the chamfer may consume. So an edge
-  ending at a concave corner — an arm's edge running into the stem of an
-  L, a pocket's rim — is declined: the slab carried along the line would
-  bite the matter beyond the neighbouring face. So is a cut that would take
-  a tab or a lump beside the edge away whole.
+  ending at a concave corner where a flat wall leaves it — an arm's edge
+  running into the stem of an L, a pocket's rim — is declined: the cut
+  carried along the line would run on along that wall. A round leaving the
+  edge's end at a few degrees, outwards or inwards, trims the chamfer like
+  any other end face. A cut that would take a tab or a lump beside the
+  edge away whole is declined too.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face

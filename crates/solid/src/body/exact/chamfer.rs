@@ -31,12 +31,14 @@ impl Exact {
     /// distance taken; the face the cut lays numbered where the steps'
     /// numbers ended, and trimmed, as a CAD tool trims it, by the faces it
     /// meets at the edge's ends — past the end corner where one of them
-    /// leaves the edge at an obtuse angle. A distance the tolerance holds no
-    /// length of is declined first. Unsupported: an edge that is not straight
-    /// between two flat faces meeting outwards, one running on tangentially
-    /// into the next edge of a face, and a cut that, carried along the
-    /// edge's line, takes matter beyond the faces it meets there — a face of
-    /// the slab but its floor left on the body, the floor in two pieces or
+    /// leaves the edge at an obtuse angle, or a round leaves it at a few
+    /// degrees either way. A distance the tolerance holds no length of is
+    /// declined first. Unsupported: an edge that is not straight between two
+    /// flat faces meeting outwards, one running on tangentially into the next
+    /// edge of a face, and a cut that, carried along the edge's line, takes
+    /// matter beyond the faces it meets there — a flat wall leaving the edge
+    /// at a concave corner, which the cut would run on along — seen as a face
+    /// of the slab but its floor left on the body, the floor in two pieces or
     /// with a corner on neither of the edge's faces, or a face the body
     /// held, but the edge's two, taken away whole.
     pub fn chamfered(&self, name: &EdgeName, distance: f64) -> Result<(Exact, f64), Declined> {
@@ -231,7 +233,10 @@ fn turning_back(body: &brep::Body, edge: &Edge, into: DVec3) -> Option<Vec<DVec3
 /// its size leaves between a round and the run it was drawn tangent to —
 /// some 1.5e-8 for a round of 2 in a drawing of 30, ten times that for a
 /// round of 0.2 — and well below any corner a hand draws: a thousandth of
-/// a degree is some 1.7e-5.
+/// a degree is some 1.7e-5. That noise is a billionth of the drawing's size
+/// over the round's radius, so this holds it up to a drawing a thousand
+/// times the radius; past that, a round a hair off tangent reads as a
+/// corner and is cut, soundly.
 const TANGENT: f64 = 1e-6;
 
 /// Whether, along a loop of `face`, the edge runs on into the edge after it,

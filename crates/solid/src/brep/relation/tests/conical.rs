@@ -478,3 +478,79 @@ fn a_plane_beyond_the_apex_misses_the_cone() {
         );
     }
 }
+
+/// The cylinder of radius one along Y at height four whose axis stands
+/// `offset` along X from where it would touch the point's ruling on `+X`
+/// from outside: `x = 3 + √1.25`, its wall `√1.25` from the axis along the
+/// ruling's normal.
+fn outside_the_ruling(offset: f64) -> Surface {
+    cylinder(
+        DVec3::new(3.0 + 1.25f64.sqrt() + offset, 0.0, 4.0),
+        DVec3::Y,
+        1.0,
+    )
+}
+
+#[test]
+fn a_cylinder_a_hair_from_touching_a_cone_outside_is_moved_onto_the_touch() {
+    let eps = scale().eps();
+    for hair in [0.5 * eps, -0.5 * eps] {
+        let touching = outside_the_ruling(hair);
+        let found = relation(&Surface::Cone(point()), &touching, scale());
+        let Relation::Meet(meeting) = &found else {
+            panic!("a meeting expected at {hair}, got {found:?}");
+        };
+        assert_eq!(meeting.configuration, Configuration::Contact, "{hair}");
+        assert_on_both(&found, &Surface::Cone(point()), &touching, 1e-12 * REACH);
+    }
+    assert_eq!(
+        relation(
+            &Surface::Cone(point()),
+            &outside_the_ruling(3.0 * eps),
+            scale()
+        ),
+        Relation::Apart
+    );
+}
+
+#[test]
+fn a_cylinder_a_hair_from_a_node_inside_a_cone_is_moved_onto_it() {
+    let eps = scale().eps();
+    for hair in [0.5 * eps, -0.5 * eps] {
+        let inside = cylinder(
+            DVec3::new(3.0 - 1.25f64.sqrt() + hair, 0.0, 4.0),
+            DVec3::Y,
+            1.0,
+        );
+        let found = relation(&Surface::Cone(point()), &inside, scale());
+        let Relation::Meet(meeting) = &found else {
+            panic!("a meeting expected at {hair}, got {found:?}");
+        };
+        assert_eq!(
+            meeting.configuration,
+            Configuration::FigureOfEight,
+            "{hair}"
+        );
+        assert_on_both(&found, &Surface::Cone(point()), &inside, eps);
+    }
+}
+
+/// A cone and a wall that come closer than the coarsest drawn chord's sag
+/// without meeting are grazing (`nearly_parallel.rs`), a pair the boolean
+/// declines where it cannot part their faces; touching, or further than a
+/// sag, they are not.
+#[test]
+fn a_cylinder_closer_to_a_cone_than_a_chord_s_sag_but_apart_grazes_it() {
+    let boxed = [[DVec3::new(-10.0, -10.0, -1.0), DVec3::new(10.0, 10.0, 11.0)]];
+    let grazes = |offset: f64| {
+        super::grazing(
+            &Surface::Cone(point()),
+            &outside_the_ruling(offset),
+            &boxed,
+            scale(),
+        )
+    };
+    assert!(grazes(1e-4 * REACH), "a ten-thousandth of the reach apart");
+    assert!(!grazes(0.0), "touching");
+    assert!(!grazes(0.1 * REACH), "a tenth of the reach apart");
+}

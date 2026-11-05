@@ -25,26 +25,47 @@
 //! - Two cones of other axes, and an elliptic wall against a cone, hold their
 //!   volume — `two_cones_crossing_square_hold_their_volume`,
 //!   `two_cones_crossing_at_a_skew_angle_hold_their_volume`,
-//!   `an_elliptic_wall_against_a_cone_holds_its_volume`
+//!   `an_elliptic_wall_against_a_cone_holds_its_volume` (square to the cone's
+//!   axis), `an_elliptic_wall_at_a_skew_angle_against_a_cone_holds_its_volume`
 //! - Pairs a hair from a touch or a node are snapped. A lean a hair off square
 //!   or parallel is laid exactly so, and one in the band is noted unstable —
-//!   for a cone, `a_hole_a_hair_from_touching_a_cone_s_wall_inside_is_moved_onto_the_touch`,
-//!   `a_radial_hole_a_hair_off_square_to_a_cone_is_laid_square`,
+//!   for a cone, the node `a_hole_a_hair_from_a_node_with_a_cone_s_wall_is_moved_onto_it`
+//!   (and, of the relation alone, the touch outside and the node inside,
+//!   `a_cylinder_a_hair_from_touching_a_cone_outside_is_moved_onto_the_touch`
+//!   and `a_cylinder_a_hair_from_a_node_inside_a_cone_is_moved_onto_it` in
+//!   `relation/tests/conical.rs`), `a_radial_hole_a_hair_off_square_to_a_cone_is_laid_square`,
 //!   `a_bore_a_hair_off_parallel_to_a_cone_s_axis_is_laid_parallel`,
-//!   `a_radial_hole_leaning_in_the_band_off_square_to_a_cone_is_noted_unstable`;
-//!   for two walls, held in `two_walls_at_any_angle.rs` by lane 2's tests. A
-//!   cone has an axis, and only its axis is read square or parallel to
-//!   another wall's: a ruling parallel to a wall's axis is no lean the kernel
-//!   lays, the curve there being the one the cone's slope gives.
+//!   `a_radial_hole_leaning_in_the_band_off_square_to_a_cone_is_noted_unstable`
+//!   (`Across`),
+//!   `a_bore_leaning_in_the_band_off_parallel_to_a_cone_s_axis_is_noted_unstable`
+//!   (`Abreast`); for two walls, held in `two_walls_at_any_angle.rs` by lane
+//!   2's tests. A cone has an axis, and only its axis is read square or
+//!   parallel to another wall's: a ruling parallel to a wall's axis is no
+//!   lean the kernel lays, but a decline, the curve running off to infinity
+//!   there. The declines lane 3 keeps are each pinned where their case
+//!   lives: a wall along a ruling, `a_bore_along_one_of_a_cone_s_rulings_still_declines`
+//!   (`the_exact_kernel_joins_and_cuts.rs`) and
+//!   `a_cylinder_along_one_of_the_cone_s_rulings_is_unsupported`
+//!   (`relation/tests/conical.rs`); a curve on a face holding its apex,
+//!   `a_radial_hole_through_a_point_still_declines` and
+//!   `a_radial_hole_through_a_point_s_side_still_declines_as_unsupported`;
+//!   two cones each within the other's slope,
+//!   `a_cone_within_another_s_slope_either_way_still_declines`; a cone and a
+//!   wall grazing closer than a chord's sag,
+//!   `a_cylinder_closer_to_a_cone_than_a_chord_s_sag_but_apart_grazes_it` in
+//!   `relation/tests/conical.rs`, of the relation alone since a boolean
+//!   whose faces stand clear builds the pair anyway.
 //! - #448's harness draws walls at any angle before the kernel code.
 //!   Campaigns end under one failure in a thousand on fresh seeds, with no
 //!   regression. A family that does not move in two rounds is reported and
-//!   set aside — no test: held by
-//!   `the_draw_of_walls_at_any_angle_draws_every_pair_the_issue_names` in
-//!   `random_walls_at_any_angle.rs`, whose draw already draws cones and whose
-//!   scope rule stops excusing a cone off its axis when the kernel builds
-//!   it; the campaigns run by hand, and the rate and the families set aside
-//!   (#706, #707) are a record in `docs/exact-kernel-failures.md`
+//!   set aside — no test: the bar is not met. The walls draws end around one
+//!   failure in a hundred, the rate and the families set aside recorded in
+//!   `docs/exact-kernel-failures.md`, and their seeds kept as reds ignored
+//!   on #706, #707, #710 and #711 in `random_walls_at_any_angle.rs` and
+//!   `random_turned_solids.rs`. What a test holds is the harness alone:
+//!   `the_draw_of_walls_at_any_angle_draws_every_pair_the_issue_names`
+//!   checks that the draw draws every pair the issue names, and the scope
+//!   rule excuses only the declines the kernel still makes.
 //! - `REBUILT_BY` moves, and `docs/exact-kernel.md` says what is built and
 //!   what still declines — no test: the number is a constant a test would
 //!   only restate, and the document is prose
@@ -493,10 +514,11 @@ fn a_radial_hole_leaning_in_the_band_off_square_to_a_cone_is_noted_unstable() {
 
 /// A hole of radius 2 along X at height 10, its axis as far from the
 /// frustum's ruling on `+Y` as its radius, but for a hair: inside, it
-/// touches the wall at one point. Its lines' chords vanish there, so the
+/// touches the wall at one point, where the two loops it leaves the cone
+/// along join — a figure of eight through a node. Its lines' chords vanish there, so the
 /// rule converges more slowly: 256 nodes hold it to some 1e-10.
 #[test]
-fn a_hole_a_hair_from_touching_a_cone_s_wall_inside_is_moved_onto_the_touch() {
+fn a_hole_a_hair_from_a_node_with_a_cone_s_wall_is_moved_onto_it() {
     let across = (1.0 + FRUSTUM.slope * FRUSTUM.slope).sqrt();
     let touching = FRUSTUM.foot - FRUSTUM.slope * 10.0 - 2.0 * across;
     let center = MIDDLE + DVec3::Y * touching;
@@ -510,6 +532,72 @@ fn a_hole_a_hair_from_touching_a_cone_s_wall_inside_is_moved_onto_the_touch() {
     assert!(
         at.iter().any(|vertex| vertex.distance(touch) <= 1e-9),
         "the two loops join at a node where the walls touch, {touch}: {at:?}"
+    );
+}
+
+/// An elliptic hole 4 by 2 at 60° off the frustum's axis through its
+/// middle, its half-axis of 2 square to the plane of the two axes: each of
+/// its lines' chord inside the cone, over its section.
+#[test]
+fn an_elliptic_wall_at_a_skew_angle_against_a_cone_holds_its_volume() {
+    let way = off_z(60.0);
+    let hole = elliptic(MIDDLE, way, DVec3::Y * 2.0, 1.0, 20.0);
+    let shared = over_an_ellipse(
+        MIDDLE,
+        (DVec3::Y, 2.0),
+        (way.cross(DVec3::Y), 1.0),
+        16,
+        |from| FRUSTUM.chord(from, way),
+    );
+    holds(FRUSTUM.body().cut_by(&hole), FRUSTUM.volume() - shared);
+}
+
+/// A bore of radius one six off the frustum's axis along Y, leaning a
+/// hundredth of a degree off it towards X: in the band, off parallel. The
+/// frustum's foot is first cut away under a plane leaning 30° through its
+/// axis at four, since a foot square to the axis would lean off the bore by
+/// the same sine and the step's least lean could be either. Each of the
+/// bore's lines enters through that slanted floor and leaves through the
+/// slope, at the smaller root of the cone's quadratic, which opens
+/// downwards along a line this steep.
+#[test]
+fn a_bore_leaning_in_the_band_off_parallel_to_a_cone_s_axis_is_noted_unstable() {
+    let lean = 1e-2;
+    let (sin, cos) = 30f64.to_radians().sin_cos();
+    let v = DVec3::new(0.0, cos, sin);
+    let floor = DVec3::X.cross(v);
+    let below = Body::raised(
+        &Contour::rectangle(DVec2::splat(-20.0), DVec2::splat(20.0)),
+        &[],
+        Frame {
+            origin: DVec3::Z * 4.0,
+            u: DVec3::X,
+            v,
+        },
+        floor * -20.0,
+    )
+    .expect("a slab raises");
+    let footed = FRUSTUM.body().cut_by(&below).expect("the foot is cut away");
+    let way = off_z(lean);
+    let center = DVec3::new(0.0, 6.0, 10.0);
+    let (u, v) = square_to(way);
+    let taken = over_an_ellipse(center, (u, 1.0), (v, 1.0), 16, |from| {
+        let enter = floor.dot(DVec3::Z * 4.0 - from) / floor.dot(way);
+        let [a, b, c] = FRUSTUM.quadratic(from, way);
+        let root = (b * b - 4.0 * a * c).sqrt();
+        let leave = ((-b - root) / (2.0 * a)).min((-b + root) / (2.0 * a));
+        leave - enter
+    });
+    let body = holds(
+        footed.cut_by(&cylinder(center, way, 1.0, 25.0)),
+        footed.volume() - taken,
+    );
+    let unstable = body.unstable().expect("the step is noted unstable");
+    assert_eq!(unstable.lean, Lean::Abreast, "the two axes nearly parallel");
+    assert!(
+        ((unstable.degrees - lean) / lean).abs() <= 1e-6,
+        "noted {} degrees off, drawn {lean}",
+        unstable.degrees
     );
 }
 

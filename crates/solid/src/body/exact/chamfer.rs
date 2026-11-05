@@ -2,20 +2,24 @@
 //! distance along each of the edge's two faces, raised past the edge and
 //! cut from the body. Its floor is the one face the step names.
 
+use std::collections::BTreeSet;
+use std::f64::consts::PI;
+
 use glam::{DVec2, DVec3};
 
 use super::{Exact, PIECES, root};
 use crate::body::caught::caught;
-use crate::brep::{self, Curve, Declined, EdgeId, EdgeName, FaceId, Surface};
+use crate::brep::{self, Coedge, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Scale, Surface};
 use crate::profile::{Contour, Frame};
 
 /// A straight edge between two flat faces meeting outwards: a point of it,
-/// the way it runs, for each face the way it faces and the way into it,
-/// square to the edge, and how far the nearer face runs that way to its
-/// nearest corner off the edge — the most a chamfer can set back.
+/// the way it runs, its two faces, for each the way it faces and the way
+/// into it, square to the edge, and how far the nearer face runs that way
+/// from the edge — the most a chamfer can set back.
 struct Wedge {
     point: DVec3,
     along: DVec3,
+    faces: [FaceId; 2],
     outward: [DVec3; 2],
     into: [DVec3; 2],
     reach: f64,
@@ -25,12 +29,17 @@ impl Exact {
     /// The body with the edge a name finds cut off, set back by `distance`
     /// along each of its two faces or by the most they give, and the
     /// distance taken; the face the cut lays numbered where the steps'
-    /// numbers ended. Unsupported: an edge that is not straight
-    /// between two flat faces meeting outwards, and a cut that, carried along
-    /// the edge's line, takes matter beyond it — a face of the slab but its
-    /// floor left on the body, the floor in two pieces, or a corner of it on
-    /// neither of the edge's faces.
+    /// numbers ended. A distance the tolerance holds no length of is
+    /// declined first. Unsupported: an edge that is not straight between two
+    /// flat faces meeting outwards, one running on tangentially into the next
+    /// edge of a face, and a cut that, carried along the edge's line, takes
+    /// matter beyond it — a face of the slab but its floor left on the body,
+    /// the floor in two pieces or with a corner on neither of the edge's
+    /// faces, or a face the body held, but the edge's two, taken away whole.
     pub fn chamfered(&self, name: &EdgeName, distance: f64) -> Result<(Exact, f64), Declined> {
+        if distance.is_nan() || distance < self.brep.scale().eps() {
+            return Err(Declined::Distance);
+        }
         caught(|| {
             let edge = self
                 .brep
@@ -38,15 +47,14 @@ impl Exact {
                 .map_err(Declined::Lost)?;
             let wedge = Wedge::of(&self.brep, edge)?;
             let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
-            let taken = distance.clamp(0.0, wedge.reach);
+            let taken = distance.min(wedge.reach);
             let (outline, frame, travel) = wedge.slab(taken, bounds);
             let tool = Exact {
                 next: 1,
                 ..Exact::raised(&outline, &[], frame, travel)?
             };
-            let made = self.next;
             let cut = self.cut_by(&tool)?;
-            if cut.cut_along(&wedge, made) {
+            if cut.cut_along(&wedge, self) {
                 Ok((cut, taken))
             } else {
                 Err(Declined::Unsupported)
@@ -54,15 +62,19 @@ impl Exact {
         })
     }
 
-    /// Whether the slab left its floor alone on the body, numbered `made`,
-    /// in one piece, every corner of it on one of the edge's two faces.
-    fn cut_along(&self, wedge: &Wedge, made: u32) -> bool {
+    /// Whether the slab left its floor alone on the body, numbered where the
+    /// steps' numbers of `before` ended, in one piece, every corner of it on
+    /// one of the edge's two faces, and every face `before` held but those
+    /// two still there.
+    fn cut_along(&self, wedge: &Wedge, before: &Exact) -> bool {
+        let made = before.next;
         let eps = self.brep.scale().eps();
+        let numbers = |body: &brep::Body, face: FaceId| body.numbers(face).to_vec();
         let stray = self
             .brep
             .face_ids()
-            .flat_map(|face| self.brep.numbers(face))
-            .any(|&number| number > made && number < PIECES);
+            .flat_map(|face| numbers(&self.brep, face))
+            .any(|number| number > made && number < PIECES);
         let parted = self.roots.values().any(|&replaced| replaced == made);
         let on_a_side = self
             .named(made as usize)
@@ -72,7 +84,18 @@ impl Exact {
                 let at = self.brep.vertex(corner).point - wedge.point;
                 wedge.outward.iter().any(|side| side.dot(at).abs() <= eps)
             });
-        !stray && !parted && self.has_face(made as usize) && on_a_side
+        let consumable: BTreeSet<u32> = wedge
+            .faces
+            .iter()
+            .flat_map(|&face| numbers(&before.brep, face))
+            .collect();
+        let kept = before
+            .brep
+            .face_ids()
+            .flat_map(|face| numbers(&before.brep, face))
+            .filter(|number| !consumable.contains(number))
+            .all(|number| self.has_face(number as usize));
+        !stray && !parted && self.has_face(made as usize) && on_a_side && kept
     }
 }
 
@@ -105,26 +128,26 @@ impl Wedge {
         else {
             return Err(Declined::Unsupported);
         };
-        if into_first.dot(second) >= 0.0 {
+        if into_first.dot(second) >= 0.0
+            || [one, other]
+                .into_iter()
+                .any(|face| runs_on(body, face, edge, along))
+        {
             return Err(Declined::Unsupported);
         }
-        let eps = body.scale().eps();
-        let reach = [(one, into_first), (other, into_second)]
-            .into_iter()
-            .flat_map(|(face, into)| {
-                let corners = body.corners_of(face);
-                corners
-                    .into_iter()
-                    .map(move |at| into.dot(at - line.origin))
-            })
-            .filter(|&far| far > eps)
-            .fold(f64::INFINITY, f64::min);
+        let reach_of = |face: FaceId, into: DVec3| reach(body, face, into, line.origin);
+        let (Some(first_reach), Some(second_reach)) =
+            (reach_of(one, into_first), reach_of(other, into_second))
+        else {
+            return Err(Declined::Unsupported);
+        };
         Ok(Wedge {
             point: line.origin,
             along,
+            faces: [one, other],
             outward: [first, second],
             into: [into_first, into_second],
-            reach,
+            reach: first_reach.min(second_reach),
         })
     }
 
@@ -148,5 +171,84 @@ impl Wedge {
             DVec2::new(middle + length, width),
         );
         (outline, frame, frame.normal() * 2.0 * distance)
+    }
+}
+
+/// How far a face runs along `into` from the edge's line through `point`:
+/// to the nearest corner of its boundary off that line, or to the nearest
+/// point where a round or a conic of its boundary turns back along `into`.
+/// None where its boundary holds a curve two walls meet along, which turns
+/// back where no closed form says.
+fn reach(body: &brep::Body, face: FaceId, into: DVec3, point: DVec3) -> Option<f64> {
+    let mut far = Vec::new();
+    for coedge in body.face(face).loops.iter().flatten() {
+        let edge = body.edge(coedge.edge);
+        far.extend(
+            edge.ends
+                .into_iter()
+                .flatten()
+                .map(|end| body.vertex(end).point),
+        );
+        far.extend(turning_back(body, edge, into)?);
+    }
+    let eps = body.scale().eps();
+    Some(
+        far.into_iter()
+            .map(|at| into.dot(at - point))
+            .filter(|&off| off > eps)
+            .fold(f64::INFINITY, f64::min),
+    )
+}
+
+/// The points strictly inside an edge where its curve turns back along
+/// `into`: none on a line, every half turn from the phase of `into` on a
+/// circle, the conic's own turning points.
+fn turning_back(body: &brep::Body, edge: &Edge, into: DVec3) -> Option<Vec<DVec3>> {
+    let curve = body.curve(edge.curve);
+    let (low, high) = (edge.from.min(edge.to), edge.from.max(edge.to));
+    let turns = match curve {
+        Curve::Line(_) => Vec::new(),
+        Curve::Circle(circle) => {
+            let phase = into.dot(circle.v).atan2(into.dot(circle.u));
+            let first = ((low - phase) / PI).ceil() as i64;
+            let last = ((high - phase) / PI).floor() as i64;
+            (first..=last)
+                .map(|turn| phase + PI * turn as f64)
+                .filter(|&at| at > low && at < high)
+                .collect()
+        }
+        Curve::Conic(conic) => conic.turning(into, low, high),
+        Curve::Meet(_) => return None,
+    };
+    Some(turns.into_iter().map(|at| curve.point(at)).collect())
+}
+
+/// Whether, along a loop of `face`, the edge runs on into the edge after it,
+/// or the edge before it runs on into it, along the edge's own way within
+/// the tolerance — over the body's reach, the next edge's way stands no
+/// further off the edge's line than the tolerance: a tangent chain.
+fn runs_on(body: &brep::Body, face: FaceId, edge: EdgeId, along: DVec3) -> bool {
+    body.face(face).loops.iter().any(|lap| {
+        let Some(at) = lap.iter().position(|coedge| coedge.edge == edge) else {
+            return false;
+        };
+        let running = if lap[at].forward { along } else { -along };
+        let [next, before] = [at + 1, at + lap.len() - 1].map(|rank| lap[rank % lap.len()]);
+        let on =
+            |way: DVec3| way.dot(running) > 0.0 && way.cross(running).length() <= Scale::RELATIVE;
+        on(ways(body, next)[0]) || on(ways(body, before)[1])
+    })
+}
+
+/// The way a loop runs along a coedge where it starts and where it ends.
+fn ways(body: &brep::Body, coedge: Coedge) -> [DVec3; 2] {
+    let edge = body.edge(coedge.edge);
+    let curve = body.curve(edge.curve);
+    let sign = (edge.to - edge.from).signum();
+    let [start, end] = [edge.from, edge.to].map(|at| curve.derivative(at).normalize() * sign);
+    if coedge.forward {
+        [start, end]
+    } else {
+        [-end, -start]
     }
 }

@@ -48,7 +48,7 @@
 mod step_reader;
 
 use std::collections::BTreeSet;
-use std::f64::consts::TAU;
+use std::f64::consts::{PI, TAU};
 
 use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
@@ -254,6 +254,14 @@ fn corners_are(body: &Body, face: usize, expected: &[DVec3], what: &str) {
 /// surface closed, no face through another, and the matter its triangles
 /// enclose, as the matter it holds, what arithmetic promised.
 fn sound(body: &Body, promised: f64, what: &str) {
+    sound_drawn_within(body, promised, EXACT * promised, what);
+}
+
+/// Holds what [`sound`] holds of a body with curved faces, whose triangles
+/// stand within the drawing's tolerance of them: the matter they enclose
+/// within `drawn` of what arithmetic promised, the matter the body holds
+/// exactly that.
+fn sound_drawn_within(body: &Body, promised: f64, drawn: f64, what: &str) {
     assert!(
         body.is_exact(),
         "{what}: the exact kernel computed the body"
@@ -266,10 +274,10 @@ fn sound(body: &Body, promised: f64, what: &str) {
         "{what}: the body holds {}, where arithmetic promised {promised}",
         body.volume()
     );
-    let drawn = enclosed(&triangles);
+    let enclosed = enclosed(&triangles);
     assert!(
-        (drawn - promised).abs() <= EXACT * promised,
-        "{what}: its triangles enclose {drawn}, where arithmetic promised {promised}"
+        (enclosed - promised).abs() <= drawn,
+        "{what}: its triangles enclose {enclosed}, where arithmetic promised {promised}"
     );
 }
 
@@ -1005,4 +1013,291 @@ fn a_chamfer_whose_cut_carried_along_its_edge_would_run_into_the_l_s_stem_is_dec
     let declined = ell.chamfer(&arm_back, 1.0).err();
 
     assert_eq!(declined, Some(Declined::Unsupported));
+}
+
+/// The block a chamfer of 3 is asked on its top front edge, 30 long, 10 deep
+/// and 20 high. Today the cut is a slab on the chamfer's plane, z − y = 17,
+/// as long as the part's box along the edge and 3 more at each end, its sides
+/// where y + z is 14 and 26, its top where z − y is 17 + 6√2: the shapes
+/// below are drawn against it.
+fn block_to_chamfer() -> Body {
+    block([30.0, 10.0, 20.0])
+}
+
+/// Holds that a chamfer of 3 on the top front edge of a part built on
+/// [`block_to_chamfer`] is declined as a cut the step cannot make.
+fn declined_on_the_top_front_edge(part: &Body, what: &str) {
+    let edge = edge_between(part, TOP, FRONT);
+
+    let declined = part.chamfer(&edge, 3.0).err();
+
+    assert_eq!(declined, Some(Declined::Unsupported), "{what}");
+}
+
+#[test]
+fn a_chamfer_whose_cut_would_take_a_tab_beside_its_edge_away_whole_is_declined_as_unsupported() {
+    let tabbed = joined_to(
+        &block_to_chamfer(),
+        Contour::rectangle(DVec2::new(-1.0, 0.2), DVec2::new(0.0, 1.0)),
+        19.0,
+        0.8,
+    );
+
+    declined_on_the_top_front_edge(
+        &tabbed,
+        "a tab on the left side, wholly above the chamfer's plane",
+    );
+}
+
+#[test]
+fn a_chamfer_whose_cut_would_take_away_a_lump_clear_of_its_edge_is_declined_as_unsupported() {
+    let with_a_lump = joined_to(
+        &block_to_chamfer(),
+        Contour::rectangle(DVec2::new(10.0, -1.0), DVec2::new(12.0, -0.5)),
+        20.5,
+        0.5,
+    );
+
+    declined_on_the_top_front_edge(
+        &with_a_lump,
+        "a lump standing clear in front of the edge and above it",
+    );
+}
+
+#[test]
+fn a_chamfer_whose_cut_carried_along_its_edge_would_reach_a_second_block_in_line_is_declined_as_unsupported()
+ {
+    let first = block([15.0, 10.0, 10.0]);
+    let in_line = joined_to(
+        &first,
+        Contour::rectangle(DVec2::new(20.0, 0.0), DVec2::new(35.0, 10.0)),
+        0.0,
+        10.0,
+    );
+    let edge = edge_between(&in_line, TOP, FRONT);
+
+    let declined = in_line.chamfer(&edge, 2.0).err();
+
+    assert_eq!(
+        declined,
+        Some(Declined::Unsupported),
+        "the cut would chamfer the second block's top front edge as well"
+    );
+}
+
+#[test]
+fn a_chamfer_whose_cut_would_bite_into_a_rib_beside_its_edge_is_declined_as_unsupported() {
+    let ribbed = joined_to(
+        &block_to_chamfer(),
+        Contour::rectangle(DVec2::new(-1.0, 0.2), DVec2::new(0.0, 3.5)),
+        10.0,
+        9.8,
+    );
+
+    declined_on_the_top_front_edge(
+        &ribbed,
+        "a rib on the left side the chamfer's plane crosses, every face of it kept in part",
+    );
+}
+
+#[test]
+fn a_chamfer_whose_cut_would_run_into_a_lump_above_its_face_is_declined_as_unsupported() {
+    let with_a_lump = joined_to(
+        &block_to_chamfer(),
+        Contour::rectangle(DVec2::new(10.0, -6.0), DVec2::new(12.0, -2.5)),
+        15.0,
+        6.0,
+    );
+
+    declined_on_the_top_front_edge(
+        &with_a_lump,
+        "a lump clear of the chamfer's plane, crossing the cut's top and its side",
+    );
+}
+
+/// A D standing on its flat: a half disc of radius 5 about the frame's
+/// origin raised by 20, its straight front along the frame's first axis from
+/// −5 to 5, its arc behind turning back 5 across. Its floor nought, its top
+/// one, its front two and its arc three.
+fn d_on(frame: Frame) -> Body {
+    raised_on(
+        frame,
+        Contour {
+            corners: vec![DVec2::new(-5.0, 0.0), DVec2::new(5.0, 0.0)],
+            runs: vec![
+                Run::Straight,
+                Run::Round {
+                    center: DVec2::ZERO,
+                    turn: PI,
+                },
+            ],
+        },
+        20.0,
+    )
+}
+
+/// The ground's plane turned about the vertical by `degrees`.
+fn turned_by(degrees: f64) -> Frame {
+    let (sin, cos) = degrees.to_radians().sin_cos();
+    Frame {
+        origin: DVec3::ZERO,
+        u: DVec3::new(cos, sin, 0.0),
+        v: DVec3::new(-sin, cos, 0.0),
+    }
+}
+
+/// The matter a chamfer set back by `distance` takes off the D's top front
+/// edge: over the half disc where y ≤ s, a height of s − y, which is
+/// 2s·∫√(25 − y²) − 2∫y√(25 − y²) from nought to s.
+fn d_cut_off(distance: f64) -> f64 {
+    let s = distance;
+    let under_the_arc = s / 2.0 * (25.0 - s * s).sqrt() + 12.5 * (s / 5.0).asin();
+    let moment = (125.0 - (25.0 - s * s).powf(1.5)) / 3.0;
+    2.0 * s * under_the_arc - 2.0 * moment
+}
+
+/// What the triangles of a D may enclose apart from its matter: the
+/// drawing's tolerance, two ten-thousandths of the part's reach of 20, times
+/// the D's whole surface, 125π + 200, which is all a surface moved that far
+/// can change.
+fn d_drawn_within() -> f64 {
+    2e-4 * 20.0 * (125.0 * PI + 200.0)
+}
+
+/// Holds that a chamfer on the D's top front edge, set back by `taken`,
+/// left a sound body facing halfway between the top and the front.
+fn d_chamfered(part: &Body, frame: Frame, chamfered: &Chamfered, what: &str) {
+    let body = &chamfered.body;
+    sound_drawn_within(
+        body,
+        250.0 * PI - d_cut_off(chamfered.taken),
+        d_drawn_within(),
+        what,
+    );
+    let made: Vec<usize> = numbers(body).difference(&numbers(part)).copied().collect();
+    assert_eq!(made.len(), 1, "{what}: one face made: {made:?}");
+    let at = |point: [f64; 3]| placed(frame, point);
+    faces_toward(body, made[0], at([0.0, -1.0, 1.0]) - at([0.0; 3]), what);
+}
+
+#[test]
+fn a_chamfer_on_the_flat_of_a_d_takes_the_distance_asked_where_the_arc_behind_gives_more() {
+    let d = d_on(ground());
+    let edge = edge_between(&d, TOP, FRONT);
+
+    let chamfered = d
+        .chamfer(&edge, 3.0)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "3 asked on a D whose top reaches 5 back";
+    taken_whole(&chamfered, 3.0, what);
+    d_chamfered(&d, ground(), &chamfered, what);
+}
+
+#[test]
+fn a_chamfer_asked_more_than_a_d_s_top_can_give_takes_it_whole_to_where_its_arc_turns_back() {
+    let d = d_on(ground());
+    let edge = edge_between(&d, TOP, FRONT);
+
+    let chamfered = d
+        .chamfer(&edge, 50.0)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "50 asked on a D whose top reaches 5 back";
+    reduced(&chamfered, 50.0, 5.0, what);
+    d_chamfered(&d, ground(), &chamfered, what);
+    assert!(
+        !chamfered.body.has_face(TOP),
+        "{what}: the top is taken whole"
+    );
+}
+
+#[test]
+fn a_d_turned_about_the_vertical_gives_its_chamfer_the_same_distance() {
+    for degrees in [3.0, 10.0] {
+        let frame = turned_by(degrees);
+        let d = d_on(frame);
+        let edge = edge_between(&d, TOP, FRONT);
+        for (asked, taken) in [(3.0, 3.0), (50.0, 5.0)] {
+            let what = format!("{asked} asked on a D turned by {degrees}°");
+
+            let chamfered = d
+                .chamfer(&edge, asked)
+                .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+            reduced(&chamfered, asked, taken, &what);
+            d_chamfered(&d, frame, &chamfered, &what);
+        }
+    }
+}
+
+#[test]
+fn a_chamfer_on_a_straight_edge_running_on_tangentially_into_a_round_is_declined_as_unsupported() {
+    let rounded = raised(
+        Contour {
+            corners: vec![
+                DVec2::new(2.0, 0.0),
+                DVec2::new(28.0, 0.0),
+                DVec2::new(30.0, 2.0),
+                DVec2::new(30.0, 8.0),
+                DVec2::new(28.0, 10.0),
+                DVec2::new(2.0, 10.0),
+                DVec2::new(0.0, 8.0),
+                DVec2::new(0.0, 2.0),
+            ],
+            runs: [(28.0, 2.0), (28.0, 8.0), (2.0, 8.0), (2.0, 2.0)]
+                .into_iter()
+                .flat_map(|(x, y)| {
+                    [
+                        Run::Straight,
+                        Run::Round {
+                            center: DVec2::new(x, y),
+                            turn: PI / 2.0,
+                        },
+                    ]
+                })
+                .collect(),
+        },
+        20.0,
+    );
+    let edge = edge_between(&rounded, TOP, FRONT);
+
+    let declined = rounded.chamfer(&edge, 1.0).err();
+
+    assert_eq!(
+        declined,
+        Some(Declined::Unsupported),
+        "the front runs on into the corner rounds at both ends: a tangent chain"
+    );
+}
+
+#[test]
+fn a_chamfer_distance_that_is_no_length_the_tolerance_holds_is_declined_saying_so() {
+    let block = block_to_chamfer();
+    let edge = edge_between(&block, TOP, FRONT);
+
+    for distance in [f64::NAN, f64::NEG_INFINITY, -1.0, 0.0, 1e-8, 1e-12] {
+        let declined = block.chamfer(&edge, distance).err();
+
+        assert_eq!(declined, Some(Declined::Distance), "{distance} asked");
+    }
+}
+
+#[test]
+fn a_chamfer_asked_an_infinite_distance_takes_the_most_the_faces_give() {
+    let block = block_to_chamfer();
+    let edge = edge_between(&block, TOP, FRONT);
+
+    let chamfered = block
+        .chamfer(&edge, f64::INFINITY)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "an infinite distance asked on a top 10 wide";
+    assert_eq!(chamfered.asked, f64::INFINITY, "{what}: the value asked");
+    assert!(
+        (chamfered.taken - 10.0).abs() < PLACE,
+        "{what}: took {}, where the top gives 10",
+        chamfered.taken
+    );
+    sound(&chamfered.body, 6000.0 - 30.0 * 10.0 * 10.0 / 2.0, what);
 }

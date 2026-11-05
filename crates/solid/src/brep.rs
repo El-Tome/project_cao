@@ -74,8 +74,9 @@ pub enum Declined {
     /// other angle along a conic, a parallel round or elliptic wall meets an
     /// elliptic one along rulings, and any other round, elliptic or conical
     /// wall along the curve the two meet along, which are built (#552,
-    /// #571, #577). Or a chamfer (#696) on an edge that is not straight
-    /// between two flat faces meeting outwards, or whose cut, carried along
+    /// #571, #577). Or a chamfer (#696) on an edge that is not
+    /// straight between two flat faces meeting outwards, that runs on
+    /// tangentially into the next edge of a face, or whose cut, carried along
     /// the edge's line, would take matter beyond the edge.
     Unsupported,
     /// Two curves touch more closely than their curvatures can order.
@@ -96,6 +97,9 @@ pub enum Declined {
     /// A step pointed at an edge its name no longer finds (#696): gone, or
     /// split in pieces, as [`crate::Body::lost`] says.
     Lost(Lost),
+    /// A chamfer's distance that is no length the tolerance holds: not a
+    /// number, nought or less, or shorter than the tolerance (#696).
+    Distance,
 }
 
 /// A step the kernel built though it reads it unstably (#552): a plane of one

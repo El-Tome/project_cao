@@ -61,6 +61,26 @@ fn two_blocks(from: f64) -> Body {
     )
 }
 
+/// A D standing on its flat: a half disc of radius 5 raised by 20, its
+/// straight front from −5 to 5 and its arc behind; the top one, the front
+/// two.
+fn d_shape() -> Body {
+    joined(
+        &Body::default(),
+        Contour {
+            corners: vec![DVec2::new(-5.0, 0.0), DVec2::new(5.0, 0.0)],
+            runs: vec![
+                Run::Straight,
+                Run::Round {
+                    center: DVec2::ZERO,
+                    turn: PI,
+                },
+            ],
+        },
+        20.0,
+    )
+}
+
 #[test]
 fn every_body_a_chamfer_leaves_lists_what_it_is_made_of_as_its_geometry_stands() {
     let block = block([30.0, 10.0, 20.0]);
@@ -68,6 +88,8 @@ fn every_body_a_chamfer_leaves_lists_what_it_is_made_of_as_its_geometry_stands()
     let trapezoid = trapezoid();
     let abutting = two_blocks(15.0);
     let first_block_s = between(&two_blocks(20.0), &[1], &[2]);
+    let d = d_shape();
+    let flat = between(&d, &[1], &[2]);
     let cases = [
         (
             "the block's top front edge by 3",
@@ -104,6 +126,13 @@ fn every_body_a_chamfer_leaves_lists_what_it_is_made_of_as_its_geometry_stands()
             &abutting,
             first_block_s,
             2.0,
+        ),
+        ("the D's flat top edge by 3", &d, flat.clone(), 3.0),
+        (
+            "the D's flat top edge by 50, the whole top taken",
+            &d,
+            flat,
+            50.0,
         ),
     ];
 

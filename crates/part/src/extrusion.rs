@@ -27,11 +27,27 @@ impl PartState {
     }
 
     /// The faces the part still holds of those the step of matter of that
-    /// rank made, counting the steps in the order they replay.
+    /// rank made, counting the steps in the order they replay, and the
+    /// pieces a later cut parted from them, which answer to numbers of their
+    /// own: a cut makes none of the pieces it leaves of another step's face.
     pub(crate) fn faces_made(&self, rank: usize) -> Vec<usize> {
         self.made.get(rank).map_or_else(Vec::new, |made| {
+            let root = |piece: usize| {
+                std::iter::successors(Some(piece), |&face| self.body.parted_from(face))
+                    .last()
+                    .unwrap_or(piece)
+            };
+            // Walked number by number, which holds only while `profile` hands
+            // exact runs: on the flats, an exact body's pieces would carry the
+            // count past 2^31 and stretch the range with it.
             made.clone()
                 .filter(|face| self.body.has_face(*face))
+                .chain(
+                    self.body
+                        .pieces()
+                        .into_iter()
+                        .filter(|&piece| made.contains(&root(piece))),
+                )
                 .collect()
         })
     }

@@ -10,13 +10,20 @@ impl Body {
         &self.face(face).numbers
     }
 
-    /// The same body, every face's numbers moved up by `by`: what a boolean's
-    /// second operand is handed as, so that its names stand above the
-    /// first's.
-    pub fn renumbered(mut self, by: u32) -> Body {
+    /// The same body, every face's numbers moved up by `by`, so that its
+    /// names stand above another's.
+    pub fn renumbered(self, by: u32) -> Body {
+        self.renumbered_by(|number| number + by)
+    }
+
+    /// The same body, every face's numbers moved to what `moved` makes of
+    /// them: what a boolean's second operand is handed as, so that its names
+    /// stand above the first's. `moved` keeps them in order, as each face
+    /// holds its numbers ascending.
+    pub fn renumbered_by(mut self, moved: impl Fn(u32) -> u32) -> Body {
         for face in &mut self.faces {
             for number in &mut face.numbers {
-                *number += by;
+                *number = moved(*number);
             }
         }
         self

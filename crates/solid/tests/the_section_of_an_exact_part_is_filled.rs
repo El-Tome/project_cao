@@ -117,6 +117,7 @@ fn area(triangles: &[[DVec3; 3]]) -> f64 {
 /// plane `normal · p = offset` within `tolerance`.
 fn faces_on_the_plane(body: &Body, normal: DVec3, offset: f64, tolerance: f64) -> Vec<usize> {
     (0..body.faces_end())
+        .chain(body.pieces())
         .filter(|&face| body.has_face(face) && body.is_flat(face))
         .filter(|&face| {
             body.plane_of(face)
@@ -155,6 +156,7 @@ fn on_a_flat_face_of(part: &Body, point: DVec3, tolerance: f64) -> bool {
     let inside = point.cmpge(low - tolerance).all() && point.cmple(high + tolerance).all();
     inside
         && (0..part.faces_end())
+            .chain(part.pieces())
             .filter(|&face| part.has_face(face) && part.is_flat(face))
             .filter_map(|face| part.plane_of(face))
             .any(|plane| {
@@ -480,6 +482,7 @@ fn an_elliptic_wall_s_section_is_a_filled_face_on_the_plane() {
 /// `normal` its plane stands.
 fn faces_facing_back(body: &Body, normal: DVec3) -> Vec<(usize, f64)> {
     (0..body.faces_end())
+        .chain(body.pieces())
         .filter(|&face| body.has_face(face) && body.is_flat(face))
         .filter_map(|face| Some((face, body.plane_of(face)?)))
         .filter(|(_, plane)| plane.normal.dot(normal) < -1.0 + 1e-9)

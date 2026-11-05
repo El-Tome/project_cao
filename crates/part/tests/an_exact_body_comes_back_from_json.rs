@@ -129,6 +129,17 @@ fn written_as<'a>(
     }
 }
 
+/// Roots as the body writes them: each piece's number, written as text, and
+/// the number of the face it was parted from.
+fn rooted(pieces: &[(usize, usize)]) -> serde_json::Value {
+    serde_json::Value::Object(
+        pieces
+            .iter()
+            .map(|&(piece, from)| (piece.to_string(), serde_json::Value::from(from)))
+            .collect(),
+    )
+}
+
 #[test]
 fn an_exact_body_read_back_with_a_cycle_in_its_roots_still_answers_for_a_name() {
     let block = raised_on(
@@ -152,12 +163,21 @@ fn an_exact_body_read_back_with_a_cycle_in_its_roots_still_answers_for_a_name() 
         .into_iter()
         .find(|name| name.between == [vec![1], vec![2]])
         .expect("an edge between the top and the front");
+    let top = 1;
+    let piece = [5.0, 25.0]
+        .map(|along| {
+            part.ray_hit(DVec3::new(along, 5.0, 20.0), DVec3::NEG_Z)
+                .expect("the ray meets the top")
+                .face
+        })
+        .into_iter()
+        .find(|&face| face != top)
+        .expect("the slot leaves the top in two pieces, the second numbered apart");
+    assert_eq!(part.parted_from(piece), Some(top));
     let mut written = serde_json::to_value(&part).expect("a body writes");
-    let roots = written_as(&mut written, &serde_json::json!({ "12": 1 })).expect(
-        "the body writes that the top's second piece, numbered twelve, was \
-         parted from the top",
-    );
-    *roots = serde_json::json!({ "12": 13, "13": 12 });
+    let roots = written_as(&mut written, &rooted(&[(piece, top)]))
+        .expect("the body writes that the top's second piece was parted from the top");
+    *roots = rooted(&[(piece, piece + 1), (piece + 1, piece)]);
 
     let (answer, answered) = mpsc::channel();
     thread::spawn(move || {

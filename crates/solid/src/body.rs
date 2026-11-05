@@ -209,8 +209,8 @@ impl Body {
         }
     }
 
-    /// The number no face of this body answers to: a face numbered from it on
-    /// is one made since it was read.
+    /// Where the steps' numbers end, which only the flats move to part a face:
+    /// a face a step numbered from it on is one made since it was read.
     pub fn faces_end(&self) -> usize {
         match &self.matter {
             Matter::Exact(exact) => exact.faces_end(),
@@ -257,11 +257,20 @@ impl Body {
     }
 
     /// The face `face` was parted from, when a cut left that face in pieces
-    /// and this one took a fresh number.
+    /// and this one took a number of its own, past every number a step gives.
     pub fn parted_from(&self, face: usize) -> Option<usize> {
         match &self.matter {
             Matter::Exact(exact) => exact.parted_from(face),
             Matter::Flats(_) => None,
+        }
+    }
+
+    /// The faces of the body a cut parted from another, each answering to a
+    /// number past every step's and to [`Body::parted_from`].
+    pub fn pieces(&self) -> Vec<usize> {
+        match &self.matter {
+            Matter::Exact(exact) => exact.pieces(),
+            Matter::Flats(_) => Vec::new(),
         }
     }
 

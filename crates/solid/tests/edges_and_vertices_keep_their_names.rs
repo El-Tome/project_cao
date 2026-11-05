@@ -68,6 +68,31 @@
 //!   `an_exact_body_read_back_with_a_cycle_in_its_roots_still_answers_for_a_name`,
 //!   in `crates/part/tests/an_exact_body_comes_back_from_json.rs`, where a
 //!   body is read back from its text
+//!
+//! A face a cut leaves in pieces keeps its number on one piece, and each
+//! other piece answers to a number of its own, from a range no step's
+//! numbers reach, and to the face it was parted from (#682): a later step's
+//! numbers start where the earlier steps' end, whatever any of them left in
+//! pieces, and a sketch or a name laid on a face a later step made stays on
+//! that face. Not on a piece: the pieces are counted one after the other
+//! across the part, so the pieces a later cut leaves answer to other
+//! numbers when an earlier cut starts or stops parting a face. A tool that
+//! comes with pieces of its own is cut into a part holding some with its
+//! pieces counted past the part's, each still answering to its own face —
+//! `a_tool_s_piece_cut_into_a_part_that_holds_a_piece_answers_to_a_number_of_its_own_and_to_its_own_wall`
+//! — and a face parted after that is counted on past them all —
+//! `a_face_parted_after_a_tool_brought_its_pieces_answers_to_the_number_after_every_piece_before_it`.
+//!
+//! Closes #682.
+//! - The notch of the #582 fixtures is numbered the same whether or not the
+//!   slot before it parts the top face —
+//!   `a_notch_after_a_slot_answers_to_the_same_numbers_whether_or_not_the_slot_parts_the_top`
+//!
+//! The faces a step made, which the variables panel blinks for each step a
+//! change it refuses names, count the pieces of those a later cut parted,
+//! and the cut counts none of them: held by
+//! `a_step_of_matter_names_both_pieces_of_its_face_a_later_cut_parts_and_the_cut_names_neither`,
+//! in `crates/part/tests/extruding.rs`, where a step's faces are read.
 
 use std::collections::BTreeSet;
 use std::f64::consts::TAU;
@@ -200,10 +225,11 @@ fn part(steps: &[Raise], frame: Frame) -> Body {
 
 /// The same part built by the exact kernel alone, what a named edge is found
 /// on: each tool's numbers moved above the numbers the steps before it
-/// raised. The kernel alone parts no face, so it gives no fresh number to a
-/// piece a cut leaves apart, as the body does: a tool cut after such a cut is
-/// numbered here below where the body numbers it, and the names a test looks
-/// up on both are made of numbers they agree on.
+/// raised. The kernel alone parts no face, so it gives no number of its own
+/// to a piece a cut leaves apart, as the body does; the body numbers such a
+/// piece apart from the steps, so a tool cut after it is numbered here as the
+/// body numbers it, and the names a test looks up on both are made of
+/// numbers they agree on.
 fn exactly(steps: &[Raise], frame: Frame) -> brep::Body {
     let mut next = 0;
     let mut built: Option<brep::Body> = None;
@@ -962,7 +988,13 @@ fn right_of_the_slot() -> EdgeName {
 /// The slot, then a notch three wide cut into the edge between the top and
 /// the front, from `from` along it.
 fn slotted_and_notched(from: f64) -> Vec<Raise> {
-    let mut steps = slotted(&SLOTTED);
+    notched_after(&SLOTTED, from)
+}
+
+/// The slot `sizes` gives, then a notch three wide and two deep cut into the
+/// edge between the top and the front, from `from` along it, down to eight.
+fn notched_after(sizes: &Slotted, from: f64) -> Vec<Raise> {
+    let mut steps = slotted(sizes);
     steps.push(cut(
         Contour::rectangle(DVec2::new(from, -1.0), DVec2::new(from + 3.0, 2.0)),
         8.0,
@@ -972,8 +1004,8 @@ fn slotted_and_notched(from: f64) -> Vec<Raise> {
 }
 
 /// The numbers of the notch's walls across the edge, its left one and its
-/// right one: the part numbers the notch past every number the slot named,
-/// the one it gave the top's second piece among them.
+/// right one: the part numbers the notch from where the slot's numbers end,
+/// the top's second piece answering to a number of its own, apart from them.
 fn notch_walls() -> (u32, u32) {
     let notch = part(&slotted(&SLOTTED), ground()).faces_end() as u32;
     (notch + 5, notch + 3)
@@ -990,6 +1022,136 @@ fn cornered() -> Vec<Raise> {
         12.0,
     ));
     steps
+}
+
+/// The face a ray sent from `origin` along `direction` meets first, which a
+/// step pointing there would take, held to meet it `distance` along so that a
+/// ray gone astray is not taken for a face numbered otherwise.
+fn face_met(body: &Body, origin: [f64; 3], direction: DVec3, distance: f64) -> usize {
+    let origin = DVec3::from(origin);
+    let hit = body
+        .ray_hit(origin, direction)
+        .unwrap_or_else(|| panic!("a ray from {origin} along {direction} meets nothing"));
+    assert!(
+        (hit.distance - distance).abs() < PLACE,
+        "a ray from {origin} along {direction} meets a face {} along, where \
+         {distance} was expected",
+        hit.distance
+    );
+    hit.face
+}
+
+/// Of the two faces rays sent from `origins` along `direction` meet,
+/// `distance` along, the one that does not answer to `kept`: the piece of
+/// `kept` a cut left apart, one ray meeting each piece.
+fn piece_apart(
+    body: &Body,
+    kept: usize,
+    origins: [[f64; 3]; 2],
+    direction: DVec3,
+    distance: f64,
+) -> usize {
+    let met = origins.map(|origin| face_met(body, origin, direction, distance));
+    assert!(met.contains(&kept), "one piece answers to {kept}: {met:?}");
+    met.into_iter()
+        .find(|&face| face != kept)
+        .unwrap_or_else(|| panic!("the other piece answers to a number of its own: {met:?}"))
+}
+
+/// The number the top's piece that did not keep the top's answers to, once
+/// the slot has left the top in two: met from above right of the slot, and
+/// the top's own left of it, or the other way round.
+fn second_piece_of_the_top(body: &Body) -> usize {
+    let [_, breadth, height] = SLOTTED.block;
+    let above = |along: f64| [along, breadth / 2.0, height + 10.0];
+    piece_apart(body, 1, [above(5.0), above(25.0)], DVec3::NEG_Z, 10.0)
+}
+
+/// Where the notch is cut along the block, left of the slot: from three to
+/// six, where the top and the front stand alike whether the slot parts the
+/// top or stops short of its right end.
+const NOTCH: f64 = 3.0;
+
+/// The numbers a later step would take the faces of the notch cut at
+/// [`NOTCH`] by, each met by a ray sent into the notch: its floor, its back
+/// wall, its left wall and its right wall.
+fn notch_faces(body: &Body) -> [(&'static str, usize); 4] {
+    let (along, across, up) = (NOTCH + 1.1, 1.3, 9.3);
+    [
+        (
+            "floor",
+            face_met(body, [along, 0.6, 20.0], DVec3::NEG_Z, 12.0),
+        ),
+        (
+            "back wall",
+            face_met(body, [along, -5.0, up], DVec3::Y, 7.0),
+        ),
+        (
+            "left wall",
+            face_met(body, [along, across, up], DVec3::NEG_X, 1.1),
+        ),
+        (
+            "right wall",
+            face_met(body, [along, across, up], DVec3::X, 1.9),
+        ),
+    ]
+}
+
+/// The names of the edges a face numbered from `from` on lies along: those
+/// the notch bounds, in a part whose notch is numbered from `from`.
+fn edges_numbered_from(body: &Body, from: usize) -> BTreeSet<EdgeName> {
+    let numbers = from..body.faces_end();
+    body.edge_names()
+        .into_iter()
+        .filter(|name| {
+            name.between
+                .iter()
+                .flatten()
+                .any(|&number| numbers.contains(&(number as usize)))
+        })
+        .collect()
+}
+
+#[test]
+fn a_notch_after_a_slot_answers_to_the_same_numbers_whether_or_not_the_slot_parts_the_top() {
+    let parting = part(&slotted(&SLOTTED), ground());
+    second_piece_of_the_top(&parting);
+    let parting_nothing = part(&slotted(&SLOTTED_PAST_THE_END), ground());
+    let notched = part(&notched_after(&SLOTTED, NOTCH), ground());
+    let notched_whole = part(&notched_after(&SLOTTED_PAST_THE_END, NOTCH), ground());
+
+    let numbers = notch_faces(&notched);
+    assert_eq!(
+        numbers,
+        notch_faces(&notched_whole),
+        "the notch's faces answer to the same numbers whether the slot before \
+         it left the top in two pieces or whole"
+    );
+    for (face, number) in numbers {
+        assert!(
+            (parting_nothing.faces_end()..notched_whole.faces_end()).contains(&number),
+            "the notch's {face} answers to {number}, among the numbers it \
+             raised past the slot's"
+        );
+    }
+    assert_eq!(
+        parting.faces_end(),
+        parting_nothing.faces_end(),
+        "a step after the slot numbers its faces from where the slot's end, \
+         whether or not it parted the top"
+    );
+    let bounded = edges_numbered_from(&notched_whole, parting_nothing.faces_end());
+    assert_eq!(
+        bounded.len(),
+        11,
+        "the notch bounds four edges round its floor, two up its back \
+         corners, and five along the top and the front: {bounded:?}"
+    );
+    assert_eq!(
+        edges_numbered_from(&notched, parting.faces_end()),
+        bounded,
+        "the edges the notch bounds keep the names a later step takes them by"
+    );
 }
 
 /// Every name of `names` the body reports lost, with what it reports.
@@ -1013,9 +1175,17 @@ fn an_edge_a_later_cut_parts_along_with_its_face_is_reported_split_rather_than_k
  {
     let drawn = part(&block(BLOCK), ground());
     let trenched = part(&slotted(&SLOTTED), ground());
+    let piece = second_piece_of_the_top(&trenched);
+    assert_eq!(
+        trenched.parted_from(piece),
+        Some(1),
+        "the slot leaves the top in two pieces, the second parted from it"
+    );
     assert!(
-        trenched.has_face(12) && !drawn.has_face(12),
-        "the slot leaves the top in two pieces, the second numbered afresh"
+        !drawn.has_face(piece) && !(0..trenched.faces_end()).contains(&piece),
+        "the second piece answers to {piece}, which no step gives, where the \
+         steps' numbers end at {}",
+        trenched.faces_end()
     );
     for name in [top_front(), edge(&[1], &[4], &[&[3]], &[&[5]])] {
         assert!(drawn.edge_names().contains(&name), "{name:?}");
@@ -1634,21 +1804,49 @@ fn a_tool_that_parts_a_face_of_its_own_names_the_part_s_edges_as_cutting_its_are
     let tee = tool(&drawn, bar(), 6.0, 5.0)
         .union(&tool(&drawn, stem(), 6.0, 5.0))
         .expect("the bar and the stem join into one tool");
+    let (bar_s_back, beside_the_stem) = (4, [10.0, 30.0]);
+    let behind = |along: f64| [along, 30.0, 8.5];
+    let piece = piece_apart(
+        &tee,
+        bar_s_back,
+        beside_the_stem.map(behind),
+        DVec3::NEG_Y,
+        21.0,
+    );
+    assert_eq!(
+        tee.parted_from(piece),
+        Some(bar_s_back),
+        "the stem leaves the bar's back wall in two pieces, the second parted \
+         from it within the tool"
+    );
     assert!(
-        tee.has_face(12),
-        "the stem leaves the bar's back wall in two pieces, the second \
-         numbered afresh within the tool"
+        !(0..tee.faces_end()).contains(&piece),
+        "the second piece answers to {piece}, which neither the bar nor the \
+         stem gives, where their numbers end at {}",
+        tee.faces_end()
     );
     let at_once = drawn.difference(&tee).expect("the T is cut at once");
-    assert!(
-        at_once.has_face(18),
-        "the piece keeps its number, moved above the block's"
+    let wall = drawn.faces_end() + bar_s_back;
+    let within = |along: f64| [along, 6.0, 8.5];
+    let piece = piece_apart(&at_once, wall, beside_the_stem.map(within), DVec3::Y, 3.0);
+    assert_eq!(
+        at_once.parted_from(piece),
+        Some(wall),
+        "the piece is still parted from the bar's back wall, which answers to \
+         its number moved above the block's"
     );
+    assert!(
+        !(0..at_once.faces_end()).contains(&piece),
+        "the piece answers to {piece}, which no step gives, where the steps' \
+         numbers end at {}",
+        at_once.faces_end()
+    );
+    let number = u32::try_from(piece).expect("a face's number");
     let names = at_once.edge_names();
     assert!(
         names
             .iter()
-            .all(|name| name.between.iter().all(|side| !side.contains(&18))),
+            .all(|name| name.between.iter().all(|side| !side.contains(&number))),
         "the piece's edges are named by the wall it was parted from: {names:?}"
     );
     let mut one_by_one = stock;
@@ -1658,5 +1856,169 @@ fn a_tool_that_parts_a_face_of_its_own_names_the_part_s_edges_as_cutting_its_are
         names,
         part(&one_by_one, ground()).edge_names(),
         "as cutting the bar and then the stem names them"
+    );
+}
+
+/// The block forty by twenty with a slot milled along it from its left side
+/// to its right, behind where the T's stem ends: it leaves the top in two
+/// pieces, and the T, cut after it, meets neither of its walls.
+fn slotted_behind_the_stem() -> Vec<Raise> {
+    let mut steps = block([40.0, 20.0, 10.0]);
+    steps.push(cut(
+        Contour::rectangle(DVec2::new(-1.0, 17.0), DVec2::new(41.0, 19.0)),
+        7.0,
+        4.0,
+    ));
+    steps
+}
+
+/// The T, its bar and its stem joined into one tool, raised against `part`.
+fn tee(part: &Body) -> Body {
+    tool(part, bar(), 6.0, 5.0)
+        .union(&tool(part, stem(), 6.0, 5.0))
+        .expect("the bar and the stem join into one tool")
+}
+
+/// The number of the top's piece the slot milled behind the stem left apart,
+/// on whichever side of the slot it lies: met from above two along the
+/// block, clear of the T, on both sides of the slot.
+fn piece_of_the_top_behind_the_stem(body: &Body) -> usize {
+    let above = |across: f64| [2.0, across, 20.0];
+    piece_apart(body, 1, [above(10.0), above(19.5)], DVec3::NEG_Z, 10.0)
+}
+
+/// Where the bar's back wall stands along the bar, either side of the stem.
+const BESIDE_THE_STEM: [f64; 2] = [10.0, 30.0];
+
+/// The bar's back wall in a part the T was cut into, the numbers the steps
+/// before the T gave ending at `before`, and the number its piece the stem
+/// left apart answers to: met from inside the bar, either side of the stem.
+fn bar_s_back_wall_and_its_piece(at_once: &Body, before: usize) -> (usize, usize) {
+    let wall = before + 4;
+    let within = |along: f64| [along, 6.0, 8.5];
+    let piece = piece_apart(at_once, wall, BESIDE_THE_STEM.map(within), DVec3::Y, 3.0);
+    (wall, piece)
+}
+
+#[test]
+fn a_tool_s_piece_cut_into_a_part_that_holds_a_piece_answers_to_a_number_of_its_own_and_to_its_own_wall()
+ {
+    let stock = slotted_behind_the_stem();
+    let slotted = part(&stock, ground());
+    let top = 1;
+    let strip = piece_of_the_top_behind_the_stem(&slotted);
+    assert_eq!(
+        slotted.parted_from(strip),
+        Some(top),
+        "the slot leaves the top in two pieces before the T is cut"
+    );
+    let tee = tee(&slotted);
+    let bar_s_back = 4;
+    let behind = |along: f64| [along, 30.0, 8.5];
+    let piece = piece_apart(
+        &tee,
+        bar_s_back,
+        BESIDE_THE_STEM.map(behind),
+        DVec3::NEG_Y,
+        21.0,
+    );
+    assert_eq!(
+        tee.parted_from(piece),
+        Some(bar_s_back),
+        "the stem leaves the bar's back wall in two pieces within the tool"
+    );
+
+    let at_once = slotted.difference(&tee).expect("the T is cut at once");
+
+    let strip = piece_of_the_top_behind_the_stem(&at_once);
+    let (wall, piece) = bar_s_back_wall_and_its_piece(&at_once, slotted.faces_end());
+    assert_eq!(
+        at_once.parted_from(strip),
+        Some(top),
+        "the top's piece is still parted from the top"
+    );
+    assert_eq!(
+        at_once.parted_from(piece),
+        Some(wall),
+        "the tool's piece is parted from the bar's back wall, which answers to \
+         its number moved above the part's"
+    );
+    assert_eq!(
+        piece,
+        strip + 1,
+        "the tool's piece is counted on after the part's own, the pieces \
+         numbered one after the other across the part"
+    );
+    for (what, number) in [("the top's piece", strip), ("the tool's piece", piece)] {
+        assert!(
+            !(0..at_once.faces_end()).contains(&number),
+            "{what} answers to {number}, which no step gives, where the steps' \
+             numbers end at {}",
+            at_once.faces_end()
+        );
+    }
+    let mut one_by_one = stock;
+    one_by_one.push(cut(bar(), 6.0, 5.0));
+    one_by_one.push(cut(stem(), 6.0, 5.0));
+    assert_eq!(
+        at_once.edge_names(),
+        part(&one_by_one, ground()).edge_names(),
+        "as cutting the bar and then the stem after the slot names them"
+    );
+}
+
+#[test]
+fn a_face_parted_after_a_tool_brought_its_pieces_answers_to_the_number_after_every_piece_before_it()
+{
+    let slotted = part(&slotted_behind_the_stem(), ground());
+    let at_once = slotted
+        .difference(&tee(&slotted))
+        .expect("the T is cut at once");
+    let strip = piece_of_the_top_behind_the_stem(&at_once);
+    let (wall, piece) = bar_s_back_wall_and_its_piece(&at_once, slotted.faces_end());
+    let under = tool(
+        &at_once,
+        Contour::rectangle(DVec2::new(37.0, -1.0), DVec2::new(39.0, 21.0)),
+        -1.0,
+        3.0,
+    );
+
+    let cut_under = at_once
+        .difference(&under)
+        .expect("a slot milled across the floor cuts it");
+
+    let floor = 0;
+    let below = |along: f64| [along, 10.0, -10.0];
+    let under_piece = piece_apart(
+        &cut_under,
+        floor,
+        [below(20.0), below(39.5)],
+        DVec3::Z,
+        10.0,
+    );
+    assert_eq!(
+        (
+            piece_of_the_top_behind_the_stem(&cut_under),
+            bar_s_back_wall_and_its_piece(&cut_under, slotted.faces_end()),
+        ),
+        (strip, (wall, piece)),
+        "the earlier pieces keep their numbers"
+    );
+    for (what, number, from) in [
+        ("the top's piece", strip, 1),
+        ("the tool's piece", piece, wall),
+        ("the floor's piece", under_piece, floor),
+    ] {
+        assert_eq!(
+            cut_under.parted_from(number),
+            Some(from),
+            "{what}, {number}, is parted from its own face"
+        );
+    }
+    assert_eq!(
+        under_piece,
+        piece + 1,
+        "the floor's piece answers to the number after every piece parted \
+         before it, the top's {strip} and the tool's {piece}"
     );
 }

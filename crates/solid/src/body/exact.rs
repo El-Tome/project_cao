@@ -1,4 +1,4 @@
-//! A body the exact kernel computed, the count its faces are numbered by, the
+//! A body the exact kernel computed, the counts its faces are numbered by, the
 //! names of its edges and vertices, and the triangles it is drawn with, made
 //! once and only when asked for.
 
@@ -16,12 +16,21 @@ use crate::mesh::Mesh;
 use crate::profile::{Contour, Frame};
 use crate::turning::{Straight, Turn};
 
+/// Where the numbers given to the pieces of parted faces start: far above any
+/// number a step gives, so that a later step's numbers never depend on how
+/// many pieces an earlier one left (#682).
+const PIECES: u32 = 1 << 31;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Exact {
     brep: brep::Body,
-    /// The number the next face made is given: every number a step named,
-    /// kept or not, stands below it, so that no number is ever given twice.
+    /// The number the next face a step makes is given: every number a step
+    /// named, kept or not, stands below it, so that no number is ever given
+    /// twice. Parting a face never moves it.
     next: u32,
+    /// How many pieces cuts have parted from faces: the next piece answers
+    /// to [`PIECES`] past it.
+    pieces: u32,
     /// Each number a cut gave a piece of a face it parted, and the number
     /// that piece answered to before: what an edge or a vertex is named by.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -38,17 +47,18 @@ pub(super) struct Exact {
 
 impl Default for Exact {
     fn default() -> Self {
-        Exact::of(brep::Body::empty(), 0, BTreeMap::new())
+        Exact::of(brep::Body::empty(), 0, 0, BTreeMap::new())
     }
 }
 
-/// Two exact bodies are one when their matter, their count, the numbers
+/// Two exact bodies are one when their matter, their counts, the numbers
 /// their pieces were parted from and the names of their edges and vertices
 /// are: how far either was drawn yet says nothing of what it is.
 impl PartialEq for Exact {
     fn eq(&self, other: &Self) -> bool {
         self.brep == other.brep
             && self.next == other.next
+            && self.pieces == other.pieces
             && self.roots == other.roots
             && self.edges == other.edges
             && self.vertices == other.vertices
@@ -58,11 +68,12 @@ impl PartialEq for Exact {
 impl Exact {
     /// The body, its edges and vertices named, each number taken back to
     /// its root.
-    fn of(brep: brep::Body, next: u32, roots: BTreeMap<u32, u32>) -> Exact {
+    fn of(brep: brep::Body, next: u32, pieces: u32, roots: BTreeMap<u32, u32>) -> Exact {
         let (edges, vertices) = brep.names_rooted(|number| root(&roots, number));
         Exact {
             brep,
             next,
+            pieces,
             roots,
             edges,
             vertices,
@@ -79,7 +90,7 @@ impl Exact {
         let numbers = brep::Body::numbers_raised(outline, holes);
         caught(|| {
             let brep = brep::Body::raised(outline, holes, frame, travel)?;
-            Ok(Exact::of(brep, numbers, BTreeMap::new()))
+            Ok(Exact::of(brep, numbers, 0, BTreeMap::new()))
         })
     }
 
@@ -92,7 +103,7 @@ impl Exact {
     ) -> Result<Exact, Declined> {
         caught(|| {
             let brep = brep::Body::turned(straight, frame, turn)?;
-            Ok(Exact::of(brep, numbers, BTreeMap::new()))
+            Ok(Exact::of(brep, numbers, 0, BTreeMap::new()))
         })
     }
 
@@ -115,38 +126,46 @@ impl Exact {
     }
 
     /// The operation on the two bodies, the second's numbers moved above the
-    /// first's count, and its roots with them, every face a cut left in
-    /// pieces apart told apart, noted unstable only as this operation reads
-    /// it — a body handed back whole, where nothing was combined, carries no
-    /// earlier step's note — and the result drawn: a body the kernel cannot
-    /// draw, or a face of which it cannot cut into triangles, is declined,
-    /// rather than shown with a hole where its matter is and handed on with
-    /// that hole to the flats.
+    /// first's — a step's above its count, a piece's above its pieces — and
+    /// its roots with them, every face a cut left in pieces apart told apart,
+    /// noted unstable only as this operation reads it — a body handed back
+    /// whole, where nothing was combined, carries no earlier step's note —
+    /// and the result drawn: a body the kernel cannot draw, or a face of
+    /// which it cannot cut into triangles, is declined, rather than shown
+    /// with a hole where its matter is and handed on with that hole to the
+    /// flats.
     fn combined(
         &self,
         other: &Exact,
         operation: impl FnOnce(&brep::Body, &brep::Body) -> Result<brep::Body, Declined>,
     ) -> Result<Exact, Declined> {
         caught(|| {
-            let second = other.brep.clone().renumbered(self.next);
+            let moved = |number: u32| {
+                if number < PIECES {
+                    number + self.next
+                } else {
+                    number + self.pieces
+                }
+            };
+            let second = other.brep.clone().renumbered_by(moved);
             let brep = if second.face_ids().next().is_none() {
                 self.brep.clone().noted(None)
             } else {
                 operation(&self.brep, &second)?
             };
-            let mut next = self.next + other.next;
+            let mut pieces = self.pieces + other.pieces;
             let mut roots = self.roots.clone();
             let shifted = other
                 .roots
                 .iter()
-                .map(|(&fresh, &replaced)| (fresh + self.next, replaced + self.next));
+                .map(|(&piece, &replaced)| (moved(piece), moved(replaced)));
             roots.extend(shifted);
-            let brep = parted(brep, &mut next, &mut roots);
+            let brep = parted(brep, &mut pieces, &mut roots);
             let drawn = Drawn::of(&brep);
             if !drawn.is_whole() {
                 return Err(Declined::Undrawn);
             }
-            let exact = Exact::of(brep, next, roots);
+            let exact = Exact::of(brep, self.next + other.next, pieces, roots);
             let _ = exact.drawn.set(drawn);
             Ok(exact)
         })
@@ -186,6 +205,15 @@ impl Exact {
         let number = u32::try_from(face).ok()?;
         let replaced = *self.roots.get(&number)?;
         (replaced < number).then_some(replaced as usize)
+    }
+
+    /// The pieces of parted faces the body still holds.
+    pub fn pieces(&self) -> Vec<usize> {
+        self.roots
+            .keys()
+            .map(|&piece| piece as usize)
+            .filter(|&piece| self.has_face(piece))
+            .collect()
     }
 
     pub fn edge_names(&self) -> &[EdgeName] {
@@ -301,19 +329,20 @@ fn root(roots: &BTreeMap<u32, u32>, mut number: u32) -> u32 {
 
 /// The body with each face a cut left in pieces that no longer touch told
 /// apart: the first piece keeps the number, each other one takes the next
-/// fresh number, as the flats do, and the number it replaced is written
-/// down as its root. A drawing laid on one piece then has no business being
-/// measured from the other.
-fn parted(mut body: brep::Body, next: &mut u32, roots: &mut BTreeMap<u32, u32>) -> brep::Body {
+/// number of the pieces', counted by `pieces`, and the number it replaced is
+/// written down as its root. A drawing laid on one piece then has no
+/// business being measured from the other.
+fn parted(mut body: brep::Body, pieces: &mut u32, roots: &mut BTreeMap<u32, u32>) -> brep::Body {
     let numbers: BTreeSet<u32> = body
         .face_ids()
         .flat_map(|face| body.numbers(face).to_vec())
         .collect();
     for number in numbers {
         for piece in body.pieces_of(number).iter().skip(1) {
-            body.rename(piece, number, *next);
-            roots.insert(*next, number);
-            *next += 1;
+            let fresh = PIECES + *pieces;
+            body.rename(piece, number, fresh);
+            roots.insert(fresh, number);
+            *pieces += 1;
         }
     }
     body

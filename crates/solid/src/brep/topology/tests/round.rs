@@ -39,13 +39,22 @@
 //! is read off its edges and the points it holds; the profile's one corner,
 //! at the top of the tube, puts the face's seam where z turns, and the face
 //! still holds the top of its tube there.
+//!
+//! Three more hold which of its surface's points a face is boxed by. The ring
+//! drawn from a corner at the top of its tube has its chart's cut there.
+//! Notched by half a sleeve, its face still holds the whole tube beyond the
+//! notch, so the cut stays on the top, which the face holds across the notch
+//! where it does not hold the outer equator; with its top cut off, the face
+//! holds the outer equator and none of the cut. A lemon, the inner lobe of a
+//! spindle torus, holds none of the other lobe, which reaches past it along
+//! the axis and across it.
 
 use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_2, PI, TAU};
 
 use glam::{DVec2, DVec3};
 
 use crate::brep::turned::tests::about_y;
-use crate::brep::turned::tests::round::{apple, ball, bent, cap, ring, turned};
+use crate::brep::turned::tests::round::{apple, ball, bent, cap, lemon, ring, turned};
 use crate::brep::{Body, FaceId, Location, Surface};
 use crate::profile::{Contour, Frame, Run};
 use crate::turning::{Axis, ON_THE_AXIS, Straight, Turn};
@@ -91,14 +100,50 @@ fn bowl() -> Straight {
     ]])
 }
 
+/// The ring drawn as one whole circle from a corner at the top of its tube,
+/// `(5, 6)`, where the corner puts the cut its torus's chart ends at.
+fn ring_from_its_top() -> Straight {
+    bent(&[&[([5.0, 6.0], Some(([3.0, 6.0], -TAU)))]])
+}
+
+/// A sleeve between `r = 6.5` and `r = 9`, from `h = 0` to `h = 6`: past the
+/// ring's tube at both ends, it takes off the tube's outer band, where
+/// `r > 6.5`, between the circles at `h = 3 ± √15/2`.
+fn sleeve() -> Straight {
+    bent(&[&[
+        ([0.0, 6.5], None),
+        ([6.0, 6.5], None),
+        ([6.0, 9.0], None),
+        ([0.0, 9.0], None),
+    ]])
+}
+
+/// A disc of radius 10 from `h = 3.5` to `h = 7`: it takes off the ring's
+/// tube above the circles at `r = 6 ± √15/2`.
+fn lid() -> Straight {
+    bent(&[&[
+        ([3.5, 0.0], None),
+        ([7.0, 0.0], None),
+        ([7.0, 10.0], None),
+        ([3.5, 10.0], None),
+    ]])
+}
+
+fn cut(body: Body, tool: &Body) -> Body {
+    body.cut_by(tool).expect("a coaxial tool cuts the ring")
+}
+
 fn between(low: [f64; 3], high: [f64; 3]) -> [DVec3; 2] {
     [DVec3::from(low), DVec3::from(high)]
 }
 
 /// The faces of #625 that cover part of their sphere or torus, the bowl
-/// besides, whose sphere reaches further from the origin than it does.
+/// besides, whose sphere reaches further from the origin than it does; two
+/// faces cut from the ring drawn from its top; and a lemon.
 pub(in crate::brep) fn partial_rounds() -> Vec<Partial> {
     let crest = 6.0 * FRAC_1_SQRT_2;
+    let band = 15f64.sqrt() / 2.0;
+    let tip = 3f64.sqrt();
     vec![
         partial(
             "a quarter torus",
@@ -184,6 +229,54 @@ pub(in crate::brep) fn partial_rounds() -> Vec<Partial> {
                 [0.0, 6.0, 0.0],
             ],
             [0.0, 12.0, 0.0],
+        ),
+        partial(
+            "a ring notched by half a sleeve",
+            cut(
+                turned(&ring_from_its_top(), 360.0),
+                &turned(&sleeve(), 180.0),
+            ),
+            between([-8.0, 1.0, -6.5], [8.0, 5.0, 8.0]),
+            between([-8.0, 1.0, -8.0], [8.0, 5.0, 8.0]),
+            &[
+                [8.0, 3.0, 0.0],
+                [-8.0, 3.0, 0.0],
+                [0.0, 3.0, 8.0],
+                [0.0, 3.0 + band, -6.5],
+                [0.0, 3.0 - band, -6.5],
+                [6.0, 1.0, 0.0],
+            ],
+            [0.0, 3.0, -8.0],
+        ),
+        partial(
+            "a ring with its top cut off",
+            cut(turned(&ring_from_its_top(), 360.0), &turned(&lid(), 360.0)),
+            between([-8.0, 1.0, -8.0], [8.0, 3.5, 8.0]),
+            between([-8.0, 1.0, -8.0], [8.0, 5.0, 8.0]),
+            &[
+                [8.0, 3.0, 0.0],
+                [-8.0, 3.0, 0.0],
+                [0.0, 3.0, 8.0],
+                [0.0, 3.0, -8.0],
+                [6.0 + band, 3.5, 0.0],
+                [6.0, 1.0, 0.0],
+            ],
+            [6.0, 5.0, 0.0],
+        ),
+        partial(
+            "a lemon",
+            turned(&lemon(), 360.0),
+            between([-1.0, -tip, -1.0], [1.0, tip, 1.0]),
+            between([-3.0, -2.0, -3.0], [3.0, 2.0, 3.0]),
+            &[
+                [1.0, 0.0, 0.0],
+                [-1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0],
+                [0.0, 0.0, -1.0],
+                [0.0, tip, 0.0],
+                [0.0, -tip, 0.0],
+            ],
+            [2.5, 0.0, 0.0],
         ),
     ]
 }

@@ -13,22 +13,12 @@ use crate::brep::surface::Surface;
 use crate::brep::tessellation::Cut;
 use crate::brep::topology::Body;
 use crate::brep::turned::tests::round::{
-    apple, ball, ball_at_the_origin, bent, cap, grooved_bore, ring, rounded_shaft, turned, zone,
+    apple, ball, ball_at_the_origin, bent, cap, grooved_bore, lemon, ring, rounded_shaft, turned,
+    zone,
 };
 use crate::brep::turned::tests::{about_y, ground};
 use crate::soundness::{closed, enclosed, repeatable, uncrossed};
 use crate::turning::Straight;
-
-/// A lemon: the arc of the circle of radius 2 about `(0, -1)`, across the
-/// axis, from the axis back to it on the near side — the inner lobe of a
-/// spindle torus.
-fn lemon() -> Straight {
-    let reach = 3f64.sqrt();
-    bent(&[&[
-        ([-reach, 0.0], Some(([0.0, -1.0], -2.0 * PI / 3.0))),
-        ([reach, 0.0], None),
-    ]])
-}
 
 /// A shaft of radius 6 from `h = 0` to `h = 20` with a round-bottomed
 /// groove between `h = 8` and `h = 12`, cut along the circle of radius 2

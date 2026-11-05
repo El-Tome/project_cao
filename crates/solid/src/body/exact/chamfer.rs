@@ -9,7 +9,7 @@ use glam::{DVec2, DVec3};
 
 use super::{Exact, PIECES, root};
 use crate::body::caught::caught;
-use crate::brep::{self, Coedge, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Scale, Surface};
+use crate::brep::{self, Coedge, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Surface};
 use crate::profile::{Contour, Frame};
 
 /// A straight edge between two flat faces meeting outwards: a point of it,
@@ -29,13 +29,16 @@ impl Exact {
     /// The body with the edge a name finds cut off, set back by `distance`
     /// along each of its two faces or by the most they give, and the
     /// distance taken; the face the cut lays numbered where the steps'
-    /// numbers ended. A distance the tolerance holds no length of is
-    /// declined first. Unsupported: an edge that is not straight between two
-    /// flat faces meeting outwards, one running on tangentially into the next
-    /// edge of a face, and a cut that, carried along the edge's line, takes
-    /// matter beyond it — a face of the slab but its floor left on the body,
-    /// the floor in two pieces or with a corner on neither of the edge's
-    /// faces, or a face the body held, but the edge's two, taken away whole.
+    /// numbers ended, and trimmed, as a CAD tool trims it, by the faces it
+    /// meets at the edge's ends — past the end corner where one of them
+    /// leaves the edge at an obtuse angle. A distance the tolerance holds no
+    /// length of is declined first. Unsupported: an edge that is not straight
+    /// between two flat faces meeting outwards, one running on tangentially
+    /// into the next edge of a face, and a cut that, carried along the
+    /// edge's line, takes matter beyond the faces it meets there — a face of
+    /// the slab but its floor left on the body, the floor in two pieces or
+    /// with a corner on neither of the edge's faces, or a face the body
+    /// held, but the edge's two, taken away whole.
     pub fn chamfered(&self, name: &EdgeName, distance: f64) -> Result<(Exact, f64), Declined> {
         if distance.is_nan() || distance < self.brep.scale().eps() {
             return Err(Declined::Distance);
@@ -64,8 +67,8 @@ impl Exact {
 
     /// Whether the slab left its floor alone on the body, numbered where the
     /// steps' numbers of `before` ended, in one piece, every corner of it on
-    /// one of the edge's two faces, and every face `before` held but those
-    /// two still there.
+    /// one of the edge's two faces — where the faces met at the edge's ends
+    /// trim it — and every face `before` held but those two still there.
     fn cut_along(&self, wedge: &Wedge, before: &Exact) -> bool {
         let made = before.next;
         let eps = self.brep.scale().eps();
@@ -177,18 +180,18 @@ impl Wedge {
 /// How far a face runs along `into` from the edge's line through `point`:
 /// to the nearest corner of its boundary off that line, or to the nearest
 /// point where a round or a conic of its boundary turns back along `into`.
-/// None where its boundary holds a curve two walls meet along, which turns
-/// back where no closed form says.
+/// A whole closed edge counts where its turn starts as a corner, so that a
+/// turning point standing there is not lost between the two ends of the
+/// turn. None where its boundary holds a curve two walls meet along, which
+/// turns back where no closed form says.
 fn reach(body: &brep::Body, face: FaceId, into: DVec3, point: DVec3) -> Option<f64> {
     let mut far = Vec::new();
     for coedge in body.face(face).loops.iter().flatten() {
         let edge = body.edge(coedge.edge);
-        far.extend(
-            edge.ends
-                .into_iter()
-                .flatten()
-                .map(|end| body.vertex(end).point),
-        );
+        match edge.ends {
+            Some(ends) => far.extend(ends.map(|end| body.vertex(end).point)),
+            None => far.push(body.point_on(coedge.edge, edge.from)),
+        }
         far.extend(turning_back(body, edge, into)?);
     }
     let eps = body.scale().eps();
@@ -223,10 +226,17 @@ fn turning_back(body: &brep::Body, edge: &Edge, into: DVec3) -> Option<Vec<DVec3
     Some(turns.into_iter().map(|at| curve.point(at)).collect())
 }
 
+/// The sine of the angle under which an edge running on into the next one
+/// is a tangent chain. Well above what a sketch solved within a billionth of
+/// its size leaves between a round and the run it was drawn tangent to —
+/// some 1.5e-8 for a round of 2 in a drawing of 30, ten times that for a
+/// round of 0.2 — and well below any corner a hand draws: a thousandth of
+/// a degree is some 1.7e-5.
+const TANGENT: f64 = 1e-6;
+
 /// Whether, along a loop of `face`, the edge runs on into the edge after it,
 /// or the edge before it runs on into it, along the edge's own way within
-/// the tolerance — over the body's reach, the next edge's way stands no
-/// further off the edge's line than the tolerance: a tangent chain.
+/// [`TANGENT`]: a tangent chain.
 fn runs_on(body: &brep::Body, face: FaceId, edge: EdgeId, along: DVec3) -> bool {
     body.face(face).loops.iter().any(|lap| {
         let Some(at) = lap.iter().position(|coedge| coedge.edge == edge) else {
@@ -234,8 +244,7 @@ fn runs_on(body: &brep::Body, face: FaceId, edge: EdgeId, along: DVec3) -> bool 
         };
         let running = if lap[at].forward { along } else { -along };
         let [next, before] = [at + 1, at + lap.len() - 1].map(|rank| lap[rank % lap.len()]);
-        let on =
-            |way: DVec3| way.dot(running) > 0.0 && way.cross(running).length() <= Scale::RELATIVE;
+        let on = |way: DVec3| way.dot(running) > 0.0 && way.cross(running).length() <= TANGENT;
         on(ways(body, next)[0]) || on(ways(body, before)[1])
     })
 }

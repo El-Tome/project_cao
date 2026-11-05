@@ -160,28 +160,37 @@ It can:
   from the edge, square to it, to the nearest true corner of its boundary
   off the edge's line, or to where a round or a conic of its boundary turns
   back that way, read off the exact curves, so a D's top reaches the crest
-  of its arc whichever way the part is turned — so at most one face is
-  consumed whole, and `Chamfered` reports the distance asked and the
-  distance taken. The cut is a slab standing on the chamfer's plane,
-  running past the body's box at both ends of the edge, cut from the body
-  (`Wedge`); its floor is the one face the step names, numbered where the
-  steps' numbers ended, and the count moves on by one, so no other face
-  changes its number. Two edges a join bridged into one, which both names
+  of its arc whichever way the part is turned, and a hole drawn as one
+  whole turn is read from where its turn starts as well as round it — so
+  at most one face is consumed whole, and `Chamfered` reports the distance
+  asked and the distance taken. The cut is a slab standing on the
+  chamfer's plane, running past the body's box at both ends of the edge,
+  cut from the body (`Wedge`); its floor is the one face the step names,
+  numbered where the steps' numbers ended, and the count moves on by one,
+  so no other face changes its number. The chamfer is trimmed by the faces
+  it meets at the edge's ends, as the usual CAD tools trim it: where one
+  of them leaves the edge at an obtuse corner, or a round meets the edge's
+  end at a few degrees, the chamfer's face runs on past the end corner
+  until it meets that wall — a hexagonal prism's top edge, the slanted top
+  edge of a trapezoid. Two edges a join bridged into one, which both names
   find, are cut whole: one edge on screen, one chamfer (case 2 of #683,
   Tom, 2026-11-05). Declined, never cut wrong: an edge its name no longer
   finds is `Declined::Lost`, gone or split, as `Body::lost` says, and on
   flats every name is gone. `Declined::Unsupported` is an edge that is not
   straight between two flat faces, a concave one, one running on
   tangentially into the next edge of either face's loop — a tangent chain,
-  such as a rounded rectangle's straight side — or one whose cut, carried
-  along the edge's line, would run into matter beyond it. That last one
-  checks what the cut left: no face of the slab but its floor, the floor in
-  one piece, each of its corners on one of the edge's faces, and every face
-  the body held still there but the edge's two, which the chamfer may
-  consume. So an edge ending at a concave corner, an arm's edge running
-  into the stem of an L or a pocket's rim, is declined, where a full CAD
-  chamfer would stop at the wall, and so is a cut that would take a tab or
-  a lump beside the edge away whole.
+  such as a rounded rectangle's straight side, read within a sine of a
+  millionth, well above what a solved sketch leaves between a round and
+  the run drawn tangent to it and well below any corner a hand draws — or
+  one whose cut, carried along the edge's line, would take matter beyond
+  the faces it meets at its ends. That last one checks what the cut left:
+  no face of the slab but its floor, the floor in one piece, each of its
+  corners on one of the edge's faces, and every face the body held still
+  there but the edge's two, which the chamfer may consume. So an edge
+  ending at a concave corner — an arm's edge running into the stem of an
+  L, a pocket's rim — is declined: the slab carried along the line would
+  bite the matter beyond the neighbouring face. So is a cut that would take
+  a tab or a lump beside the edge away whole.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face

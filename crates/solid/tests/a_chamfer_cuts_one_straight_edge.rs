@@ -1451,3 +1451,322 @@ fn a_chamfer_on_an_edge_another_edge_carries_on_in_line_is_declined_as_unsupport
          cut carried along the line would bite the slant behind it"
     );
 }
+
+/// A hole of radius 2 bored through the block to chamfer, drawn as one
+/// whole turn from `start`: one edge round its rim and no vertex on it, the
+/// turn starting wherever the drawing put its corner.
+fn bored_through(centre: DVec2, start: DVec2) -> Body {
+    cut_from(
+        &block_to_chamfer(),
+        Contour {
+            corners: vec![start],
+            runs: vec![Run::Round {
+                center: centre,
+                turn: TAU,
+            }],
+        },
+        -1.0,
+        22.0,
+    )
+}
+
+/// An elliptic hole bored through the block to chamfer, 2 across along X and
+/// 1.5 along Y, drawn as one whole turn from the end of its first axis, at
+/// `start` along X from its centre.
+fn bored_through_an_ellipse(centre: DVec2, start: f64) -> Body {
+    cut_from(
+        &block_to_chamfer(),
+        Contour {
+            corners: vec![centre + DVec2::X * start],
+            runs: vec![Run::Oval {
+                center: centre,
+                first: DVec2::X * start,
+                second: 1.5,
+                turn: TAU,
+            }],
+        },
+        -1.0,
+        22.0,
+    )
+}
+
+/// What the triangles of the block bored through may enclose apart from its
+/// matter: the drawing's tolerance, two ten-thousandths of the block's reach
+/// of 30, times the wall of a round hole of radius 2 through its 20, which no
+/// hole here outgrows; the flat faces are drawn on their planes.
+fn bored_drawn_within() -> f64 {
+    2e-4 * 30.0 * 2.0 * PI * 2.0 * 20.0
+}
+
+/// Holds that 50 asked on the edge between the top and the `side` of a part
+/// bored through 3 from that edge takes the 3 the top gives up to the hole's
+/// near side, and leaves a sound body facing halfway out between them.
+fn stops_at_the_hole(part: &Body, side: usize, outward: DVec3, hole: f64, what: &str) {
+    let edge = edge_between(part, TOP, side);
+
+    let chamfered = part
+        .chamfer(&edge, 50.0)
+        .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+    reduced(&chamfered, 50.0, 3.0, what);
+    let body = &chamfered.body;
+    sound_drawn_within(
+        body,
+        6000.0 - hole * 20.0 - 10.0 * 3.0 * 3.0 / 2.0,
+        bored_drawn_within(),
+        what,
+    );
+    let chamfer = one_flat_face_more(part, body, what);
+    faces_toward(body, chamfer, outward + DVec3::Z, what);
+}
+
+#[test]
+fn a_chamfer_asked_more_than_the_top_gives_up_to_a_round_hole_takes_as_much_on_either_side_of_the_part()
+ {
+    let (left, right) = (5, 3);
+    let round = PI * 2.0 * 2.0;
+    for (what, centre, start, side, outward) in [
+        (
+            "the left edge, the hole drawn from its far side",
+            DVec2::new(5.0, 5.0),
+            DVec2::new(7.0, 5.0),
+            left,
+            -DVec3::X,
+        ),
+        (
+            "the left edge, the hole drawn from its near side",
+            DVec2::new(5.0, 5.0),
+            DVec2::new(3.0, 5.0),
+            left,
+            -DVec3::X,
+        ),
+        (
+            "the right edge, the hole drawn from its near side",
+            DVec2::new(25.0, 5.0),
+            DVec2::new(27.0, 5.0),
+            right,
+            DVec3::X,
+        ),
+        (
+            "the right edge, the hole drawn from its back",
+            DVec2::new(25.0, 5.0),
+            DVec2::new(25.0, 7.0),
+            right,
+            DVec3::X,
+        ),
+    ] {
+        stops_at_the_hole(&bored_through(centre, start), side, outward, round, what);
+    }
+}
+
+#[test]
+fn a_chamfer_asked_more_than_the_top_gives_up_to_an_elliptic_hole_takes_as_much_wherever_its_turn_starts()
+ {
+    let right = 3;
+    let oval = PI * 2.0 * 1.5;
+    for (what, start) in [
+        ("the ellipse drawn from its near side", 2.0),
+        ("the ellipse drawn from its far side", -2.0),
+    ] {
+        stops_at_the_hole(
+            &bored_through_an_ellipse(DVec2::new(25.0, 5.0), start),
+            right,
+            DVec3::X,
+            oval,
+            &format!("the right edge, {what}"),
+        );
+    }
+}
+
+/// A slot 4 wide raised 20: a front 28 long on the X axis, a round end of
+/// half a turn about `(28 + off, 2)` from the front's end, and a straight back
+/// to the Y axis. Off by nought, the round leaves the front tangentially;
+/// moved off, it leaves it at a corner of about `off / 2` radians, outwards
+/// when `off` is positive and inwards when it is negative. Its top one, its
+/// front two.
+fn slot_off_tangent_by(off: f64) -> Body {
+    let (end, centre) = (DVec2::new(28.0, 0.0), DVec2::new(28.0 + off, 2.0));
+    raised(
+        Contour {
+            corners: vec![DVec2::ZERO, end, 2.0 * centre - end, DVec2::new(0.0, 4.0)],
+            runs: vec![
+                Run::Straight,
+                Run::Round {
+                    center: centre,
+                    turn: PI,
+                },
+                Run::Straight,
+                Run::Straight,
+            ],
+        },
+        20.0,
+    )
+}
+
+#[test]
+fn a_chamfer_on_a_slot_s_front_whose_round_end_is_a_hair_off_tangent_is_declined_like_a_tangent_one()
+ {
+    for off in [0.0, 1e-10, -1e-10, 1e-8, -1e-8] {
+        let slot = slot_off_tangent_by(off);
+        let edge = edge_between(&slot, TOP, FRONT);
+
+        let declined = slot.chamfer(&edge, 1.0).err();
+
+        assert_eq!(
+            declined,
+            Some(Declined::Unsupported),
+            "the round's centre {off} off tangent, well within what the sketch solves to: \
+             the front runs on into the round, a tangent chain"
+        );
+    }
+}
+
+/// The slot's own matter: the quadrilateral from the front to the round's
+/// chord, the half disc beyond the chord, raised 20.
+fn slot_volume(off: f64) -> f64 {
+    let radius_squared = 4.0 + off * off;
+    ((56.0 + 2.0 * off) / 2.0 * 4.0 + PI * radius_squared / 2.0) * 20.0
+}
+
+/// The matter a chamfer of 1 on the slot's front takes, trimmed by the
+/// slot's own walls: over every place of the slot's plan less than 1 back
+/// from the front's line, a height of 1 − y. Up to 1 back, the slot runs from
+/// the Y axis to its round, `x = c + √(r² − (y − 2)²)`; moved outwards, the
+/// round also dips below the front's line, `2√(r² − (y − 2)²)` across. With
+/// `t = y − 2`, `∫(1 − y)√(r² − t²)` is `G(t) = (r² − t²)^1.5 / 3 − F(t)`,
+/// `F(t) = t/2·√(r² − t²) + r²/2·asin(t/r)`.
+fn slot_cut_off(off: f64) -> f64 {
+    let (centre, radius) = (28.0 + off, (4.0 + off * off).sqrt());
+    let under = |t: f64| (radius * radius - t * t).max(0.0).sqrt();
+    let g = |t: f64| {
+        let f = t / 2.0 * under(t) + radius * radius / 2.0 * (t / radius).clamp(-1.0, 1.0).asin();
+        under(t).powi(3) / 3.0 - f
+    };
+    let behind = centre / 2.0 + g(-1.0) - g(-2.0);
+    let dipping = if off > 0.0 {
+        2.0 * (g(-2.0) - g(-radius))
+    } else {
+        0.0
+    };
+    behind + dipping
+}
+
+#[test]
+fn a_chamfer_on_a_slot_s_front_runs_on_over_a_round_meeting_it_at_a_few_degrees_trimmed_by_the_round_s_wall()
+ {
+    for off in [-0.1, 0.1] {
+        let what = format!(
+            "the round leaving the front's end {:.1} degrees off its line",
+            (off / 2.0f64).atan().to_degrees()
+        );
+        let slot = slot_off_tangent_by(off);
+        let edge = edge_between(&slot, TOP, FRONT);
+
+        let chamfered = slot
+            .chamfer(&edge, 1.0)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_whole(&chamfered, 1.0, &what);
+        let body = &chamfered.body;
+        let cut_off = slot_cut_off(off);
+        assert!(
+            cut_off > 28.0 * 1.0 * 1.0 / 2.0,
+            "{what}: the chamfer takes {cut_off}, more than the 14 of the edge's own prism"
+        );
+        sound_drawn_within(
+            body,
+            slot_volume(off) - cut_off,
+            2e-4 * 31.0 * PI * 2.01 * 20.0,
+            &what,
+        );
+        let chamfer = one_flat_face_more(&slot, body, &what);
+        let (centre, radius) = (DVec2::new(28.0 + off, 2.0), (4.0 + off * off).sqrt());
+        let plane = body.plane_of(chamfer).expect("a flat face offers a plane");
+        for corner in &plane.corners {
+            let on_the_round = (corner.truncate().distance(centre) - radius).abs() < PLACE;
+            assert!(
+                ((corner.z - corner.y) - 19.0).abs() < PLACE
+                    && ((corner.z - 20.0).abs() < PLACE || corner.y.abs() < PLACE || on_the_round),
+                "{what}: the chamfer has a corner at {corner}, off its plane or off the top, \
+                 the front and the round that trim it"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_chamfer_on_the_trapezoid_s_slanted_top_edge_is_trimmed_by_the_front_and_the_back_it_meets_at_its_ends()
+ {
+    let part = trapezoid(5.0);
+    let edge = edge_between(&part, TOP, SLANT);
+
+    let chamfered = part
+        .chamfer(&edge, 1.0)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "1 asked on the top edge of the slant, which meets the back at 127 degrees";
+    taken_whole(&chamfered, 1.0, what);
+    let body = &chamfered.body;
+    sound(
+        body,
+        (40.0 + 34.0) / 2.0 * 8.0 * 5.0 - 10.0 * 1.0 * 1.0 / 2.0,
+        what,
+    );
+    let chamfer = one_flat_face_more(&part, body, what);
+    faces_toward(body, chamfer, DVec3::new(0.8, 0.6, 1.0), what);
+    corners_are(
+        body,
+        chamfer,
+        &[
+            DVec3::new(38.75, 0.0, 5.0),
+            DVec3::new(32.75, 8.0, 5.0),
+            DVec3::new(34.0, 8.0, 4.0),
+            DVec3::new(40.0, 0.0, 4.0),
+        ],
+        "the chamfer, its line on the top stopping short of the front's end and running on \
+         past the slant's end along the back",
+    );
+}
+
+#[test]
+fn a_chamfer_on_a_top_edge_of_a_hexagonal_prism_runs_on_past_both_its_ends_to_the_walls_beside_it()
+{
+    let half = 5.0 * 3.0f64.sqrt();
+    let part = raised(
+        Contour::straight(vec![
+            DVec2::new(-5.0, -half),
+            DVec2::new(5.0, -half),
+            DVec2::new(10.0, 0.0),
+            DVec2::new(5.0, half),
+            DVec2::new(-5.0, half),
+            DVec2::new(-10.0, 0.0),
+        ]),
+        5.0,
+    );
+    let edge = edge_between(&part, TOP, FRONT);
+
+    let chamfered = part
+        .chamfer(&edge, 1.0)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "1 asked on the top edge of a hexagon's front 10 wide";
+    taken_whole(&chamfered, 1.0, what);
+    let body = &chamfered.body;
+    let hexagon = 1.5 * 3.0f64.sqrt() * 10.0 * 10.0 * 5.0;
+    let cut_off = 5.0 + 1.0 / (3.0 * 3.0f64.sqrt());
+    sound(body, hexagon - cut_off, what);
+    let chamfer = one_flat_face_more(&part, body, what);
+    faces_toward(body, chamfer, DVec3::new(0.0, -1.0, 1.0), what);
+    let past = 5.0 + 1.0 / 3.0f64.sqrt();
+    corners_are(
+        body,
+        chamfer,
+        &[
+            DVec3::new(-past, 1.0 - half, 5.0),
+            DVec3::new(past, 1.0 - half, 5.0),
+            DVec3::new(5.0, -half, 4.0),
+            DVec3::new(-5.0, -half, 4.0),
+        ],
+        "the chamfer, its line on the top longer than the edge, its line on the front the front's width",
+    );
+}

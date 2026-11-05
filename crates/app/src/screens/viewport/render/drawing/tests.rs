@@ -96,6 +96,30 @@ fn painted(active: bool) -> (Vec<cao_render::Vertex>, Vec<cao_render::Vertex>) {
     (lines, surfaces)
 }
 
+/// A sketch drawn whole, as one with its eye lit and nothing lit from the
+/// tree is.
+fn push_sketch(
+    out: &mut Vec<cao_render::Vertex>,
+    surfaces: &mut Vec<cao_render::Vertex>,
+    shown: &Shown<'_>,
+    theme: &Theme,
+    scale: ViewScale,
+    context: &SketchContext<'_>,
+) {
+    Seen::default().draw(out, surfaces, shown, theme, scale, context);
+}
+
+/// The areas of a sketch tinted, as they are with its eye lit and nothing lit
+/// from the tree.
+fn push_regions(
+    surfaces: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    theme: &Theme,
+    active: bool,
+) {
+    tint_regions(surfaces, sketch, theme, active, Seen::default());
+}
+
 fn place(vertex: &cao_render::Vertex, sketch: &Sketch) -> DVec2 {
     sketch
         .plane

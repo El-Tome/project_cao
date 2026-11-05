@@ -980,8 +980,10 @@ fn on_the_trait(at: Vec3, from: Vec3, to: Vec3) -> bool {
     (0.0..=1.0).contains(&along) && (from + (to - from) * along - at).length() < 1e-3
 }
 
-/// The colours of the frame's sketch lines lying in `plane`, on the trait
-/// from `from` to `to` and off it.
+/// The colours of the frame's sketch strokes lying in `plane`, on the trait
+/// from `from` to `to` and off it. A stroke is a pair of vertices, and it lies
+/// on the trait when both its ends do: a neighbouring side touches the trait at
+/// a corner, and is not on it for that.
 fn line_colours(
     frame: &SceneFrame,
     plane: WorkPlane,
@@ -989,26 +991,22 @@ fn line_colours(
     to: Vec3,
 ) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
     let (origin, normal) = (plane.origin.as_vec3(), plane.normal().as_vec3());
-    frame
-        .scene_lines
-        .iter()
-        .filter(|vertex| (Vec3::from(vertex.position) - origin).dot(normal).abs() < 1e-4)
-        .map(|vertex| {
-            (
-                on_the_trait(Vec3::from(vertex.position), from, to),
-                vertex.color,
-            )
-        })
-        .fold(
-            (Vec::new(), Vec::new()),
-            |(mut on, mut off), (lying_on, colour)| {
-                match lying_on {
-                    true => on.push(colour),
-                    false => off.push(colour),
-                }
-                (on, off)
-            },
-        )
+    let (mut on, mut off) = (Vec::new(), Vec::new());
+    for stroke in frame.scene_lines.as_chunks::<2>().0 {
+        let ends = stroke.each_ref().map(|vertex| Vec3::from(vertex.position));
+        if !ends
+            .iter()
+            .all(|end| (*end - origin).dot(normal).abs() < 1e-4)
+        {
+            continue;
+        }
+        let colours = stroke.iter().map(|vertex| vertex.color);
+        match ends.iter().all(|end| on_the_trait(*end, from, to)) {
+            true => on.extend(colours),
+            false => off.extend(colours),
+        }
+    }
+    (on, off)
 }
 
 #[test]

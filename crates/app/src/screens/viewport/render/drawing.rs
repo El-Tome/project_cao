@@ -300,26 +300,4 @@ impl Seen {
 }
 
 #[cfg(test)]
-pub(crate) fn push_regions(
-    surfaces: &mut Vec<cao_render::Vertex>,
-    sketch: &Sketch,
-    theme: &Theme,
-    active: bool,
-) {
-    tint_regions(surfaces, sketch, theme, active, Seen::default());
-}
-
-#[cfg(test)]
-pub(crate) fn push_sketch(
-    out: &mut Vec<cao_render::Vertex>,
-    surfaces: &mut Vec<cao_render::Vertex>,
-    shown: &Shown<'_>,
-    theme: &Theme,
-    scale: ViewScale,
-    context: &SketchContext<'_>,
-) {
-    Seen::default().draw(out, surfaces, shown, theme, scale, context);
-}
-
-#[cfg(test)]
 mod tests;

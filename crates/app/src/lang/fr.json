@@ -121,6 +121,8 @@
   "part_tree.swept": "{angle}° · {mode}",
   "part_tree.mode.add": "ajout de matière",
   "part_tree.mode.cut": "enlèvement de matière",
+  "part_tree.eye.hide": "Ne plus afficher l'esquisse",
+  "part_tree.eye.show": "Afficher l'esquisse",
 
   "plane.off_origin": "Face de la pièce",
   "plane.origin_xy": "Plan XY",

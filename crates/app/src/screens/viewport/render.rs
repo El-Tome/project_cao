@@ -48,7 +48,6 @@ pub(crate) use trim::what_would_go;
 
 use super::{ViewMode, ViewScale, ViewportState};
 use crate::screens::SketchContext;
-use crate::screens::sketch::SketchEditor;
 
 /// A colour from the theme, turned into the space the shader blends in.
 fn tint(color: cao_prefs::theme::Rgba) -> [f32; 4] {
@@ -144,7 +143,8 @@ pub(crate) fn build_frame(
         push_choosable_planes(&mut surfaces, &mut lines, state, context);
     }
 
-    for (index, sketch) in context.document.sketches().iter().enumerate() {
+    let sketches = context.document.sketches().iter().enumerate();
+    for (index, sketch) in sketches.filter(|(index, _)| state.draws_sketch(context, *index)) {
         let active = context.editor.active_sketch() == Some(index);
         // What a tool is offering to lay stands in for the recorded drawing the
         // same way a drag does, and what is new in it is drawn as a promise.
@@ -183,8 +183,7 @@ pub(crate) fn build_frame(
 
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
 
-    let editor: &SketchEditor = context.editor;
-    let drawn = super::matter::shown(state, editor, context.document.body());
+    let drawn = super::matter::shown(state, context.editor, context.document.body());
     let mut solids = Vec::new();
     push_body(
         &mut solids,

@@ -4,9 +4,7 @@
 //! Nothing here draws: the presenter answers what the view asks, and the
 //! drawing lives in [`super::view`].
 
-use cao_prefs::config::ViewportCorner;
-use cao_prefs::theme::Theme;
-use cao_prefs::{Modifier, Shortcuts, ViewportConfig};
+use cao_prefs::{Modifier, Shortcuts, ViewportConfig, config::ViewportCorner, theme::Theme};
 use cao_render::camera::{CubeZone, view_angles_towards};
 use cao_render::{OrbitCamera, ViewTransition, adaptive_step};
 use cao_sketch::{DimensionTarget, SnapSettings, WorkPlane};
@@ -14,9 +12,9 @@ use glam::DVec3;
 
 use crate::screens::SketchContext;
 
-use super::matter::Sections;
 use super::navigation::Drag;
 use super::section::Section;
+use super::{eyes::Eyes, matter::Sections};
 
 /// How close, in pixels, the cursor has to be to take hold of something.
 ///
@@ -59,6 +57,7 @@ pub struct ViewportState {
     pub(super) sections: Sections,
     /// The section view, while it is on.
     pub(super) section: Option<Section>,
+    pub(super) eyes: Eyes,
     blinking: Option<Blinking>,
 }
 
@@ -88,6 +87,7 @@ impl Default for ViewportState {
             aspect: 1.0,
             sections: Sections::default(),
             section: None,
+            eyes: Eyes::default(),
             blinking: None,
         }
     }

@@ -6,6 +6,7 @@
 //! is in [`view`].
 
 mod cube_labels;
+mod eyes;
 mod finish;
 mod input;
 pub(crate) use input::copying::take_up as take_up_the_copy;

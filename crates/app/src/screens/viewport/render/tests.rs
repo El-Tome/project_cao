@@ -76,6 +76,49 @@
 //!   `cao_solid`, with no window" — no test: in this file; held in
 //!   `crates/solid/tests/the_section_of_an_exact_part_is_filled.rs`, under its
 //!   own block for this issue
+//!
+//! Closes #348. The issue carries no "Done when": what follows is what was
+//! left by the comment of 2026-09-17, read with the comment of 2026-11-05, the
+//! issue's own sentences kept word for word between quotes.
+//! - "Once a sketch has been used — extruded, revolved — its traits stop being
+//!   drawn in the viewport, automatically" —
+//!   `a_sketch_once_extruded_draws_neither_its_traits_nor_its_areas`,
+//!   `a_sketch_once_revolved_draws_neither_its_traits_nor_its_areas`
+//! - "An eye in the tree brings them back" —
+//!   `the_eye_of_a_used_sketch_brings_its_traits_back_and_takes_them_away_again`;
+//!   the eye itself, a widget of `part_tree/view.rs` answering
+//!   `TreeAction::ToggleEye`, is reached by no window here
+//! - "A sketch never used keeps its traits on screen, with the eye lit" —
+//!   `a_sketch_never_used_keeps_its_traits_on_screen_with_its_eye_lit`
+//! - reopening a sketch shows it, whatever its eye — decided on the branch —
+//!   `a_used_sketch_reopened_is_drawn_whatever_its_eye`
+//! - the eye is view state, never the document's — no test: `toggle_eye` reads
+//!   the document by shared reference, and `ViewportState` is built afresh on
+//!   opening a part and written nowhere, as the section view's is
+//! - "A click on an element selects it — in the viewport, as if it had been
+//!   clicked there": in the sketch being edited it selects an element, a
+//!   dimension or a rule — no test: in this file; held in
+//!   `crates/app/src/screens/part_tree/state/tests.rs`, under its own block for
+//!   this issue, since what a click on a row means is the tree's presenter's
+//! - in a sketch not open, it lights the element or the area in the viewport,
+//!   and opens nothing —
+//!   `an_element_lit_from_the_tree_is_drawn_lit_in_its_closed_sketch`,
+//!   `an_area_lit_from_the_tree_is_drawn_lit_in_its_closed_sketch`; that it
+//!   opens nothing is held beside the selecting, in the tree's tests
+//! - the double-click still reopens, and a single click on a step still folds
+//!   it — no test: both are the `CollapsingHeader` of `part_tree/view.rs`,
+//!   untouched, and no driver opens the tree
+//! - "Selecting from the viewport, which must agree with selecting from the
+//!   tree — one selection, two ways in" — no test: in this file; held in
+//!   `crates/app/src/screens/part_tree/state/tests.rs`, under its own block
+//! - one display mode for the whole body — invisible, see-through, opaque —
+//!   "opaque by default" — `the_body_is_drawn_opaque_by_default`,
+//!   `the_body_is_drawn_invisible_see_through_or_opaque_as_its_mode_says`; set
+//!   on the « Corps » rubric, a click stepping round the three —
+//!   `the_body_s_mode_steps_round_its_three_states`
+//! - the sketch's own cut of #319 and the section of #193 still apply on top —
+//!   `a_see_through_body_keeps_the_matter_in_front_of_the_sketch_cut_away`,
+//!   `a_see_through_body_keeps_the_side_the_section_hides_hidden`
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_render::MatterInFront;
@@ -708,4 +751,171 @@ fn the_section_is_drawn_filled_on_the_cutting_plane() {
             "{which} kept, the cut across the block 10 by 10 is filled over {filled}, not 100",
         );
     }
+}
+
+/// How many vertices of a frame's sketch lines, and of its tinted areas, lie
+/// in `plane`. The part's own matter goes to the solids, and the grid and the
+/// axes to the world lines, so on a free view these count the drawing alone.
+fn drawn_in(frame: &SceneFrame, plane: WorkPlane) -> (usize, usize) {
+    let (origin, normal) = (plane.origin.as_vec3(), plane.normal().as_vec3());
+    let lying = |vertices: &[cao_render::Vertex]| {
+        vertices
+            .iter()
+            .filter(|vertex| (Vec3::from(vertex.position) - origin).dot(normal).abs() < 1e-4)
+            .count()
+    };
+    (lying(&frame.scene_lines), lying(&frame.scene_surfaces))
+}
+
+fn twenty_over_the_block() -> WorkPlane {
+    WorkPlane {
+        origin: DVec3::Z * 20.0,
+        ..WorkPlane::XY
+    }
+}
+
+/// The block, and a rectangle drawn twenty over it that nothing was raised
+/// from.
+fn a_block_and_a_sketch_never_used() -> PartDocument {
+    let mut document = a_block();
+    document.apply(Operation::CreateSketch {
+        plane: twenty_over_the_block(),
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 10.0)),
+        construction: false,
+    });
+    document
+}
+
+/// A ring a quarter turned, swept off a rectangle drawn on XZ beside the X
+/// axis.
+fn a_quarter_ring() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XZ,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::new(0.0, 5.0)),
+        opposite: PointRef::New(DVec2::new(10.0, 10.0)),
+        construction: false,
+    });
+    document.apply(Operation::Revolve {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(5.0, 7.5)]),
+        axis: cao_part::RevolutionAxis::Sketch(cao_sketch::SketchAxis::U),
+        angle: 90.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document
+}
+
+#[test]
+fn a_sketch_once_extruded_draws_neither_its_traits_nor_its_areas() {
+    let mut document = a_block();
+    let frame = a_frame_of(
+        &ViewportState::default(),
+        &mut document,
+        &mut SketchEditor::default(),
+    );
+
+    assert_eq!(
+        drawn_in(&frame, WorkPlane::XY),
+        (0, 0),
+        "the rectangle the block was raised from is still drawn, as (line, area) vertices",
+    );
+}
+
+#[test]
+fn a_sketch_once_revolved_draws_neither_its_traits_nor_its_areas() {
+    let mut document = a_quarter_ring();
+    assert!(
+        !document.body().triangles().is_empty(),
+        "the fixture sweeps no matter at all",
+    );
+    let frame = a_frame_of(
+        &ViewportState::default(),
+        &mut document,
+        &mut SketchEditor::default(),
+    );
+
+    assert_eq!(
+        drawn_in(&frame, WorkPlane::XZ),
+        (0, 0),
+        "the rectangle the ring was swept from is still drawn, as (line, area) vertices",
+    );
+}
+
+#[test]
+fn a_sketch_never_used_keeps_its_traits_on_screen_with_its_eye_lit() {
+    let mut document = a_block_and_a_sketch_never_used();
+    let state = ViewportState::default();
+
+    assert!(
+        state.eye_lit(&document, 1),
+        "a sketch nothing was raised from has its eye dark",
+    );
+    let frame = a_frame_of(&state, &mut document, &mut SketchEditor::default());
+    let (lines, areas) = drawn_in(&frame, twenty_over_the_block());
+    assert!(
+        lines > 0 && areas > 0,
+        "a sketch nothing was raised from is drawn {lines} line and {areas} area vertices",
+    );
+}
+
+#[test]
+fn the_eye_of_a_used_sketch_brings_its_traits_back_and_takes_them_away_again() {
+    let mut document = a_block();
+    let mut state = ViewportState::default();
+    assert!(
+        !state.eye_lit(&document, 0),
+        "the sketch the block was raised from has its eye lit before anyone touched it",
+    );
+
+    state.toggle_eye(&document, 0);
+    assert!(state.eye_lit(&document, 0), "a click leaves the eye dark");
+    let lit = a_frame_of(&state, &mut document, &mut SketchEditor::default());
+
+    state.toggle_eye(&document, 0);
+    assert!(
+        !state.eye_lit(&document, 0),
+        "a second click leaves the eye lit"
+    );
+    let dark = a_frame_of(&state, &mut document, &mut SketchEditor::default());
+
+    let (lines, areas) = drawn_in(&lit, WorkPlane::XY);
+    assert!(
+        lines > 0 && areas > 0,
+        "its eye lit, the used sketch is drawn {lines} line and {areas} area vertices",
+    );
+    assert_eq!(
+        drawn_in(&dark, WorkPlane::XY),
+        (0, 0),
+        "its eye put out again, the used sketch is still drawn, as (line, area) vertices",
+    );
+}
+
+#[test]
+fn a_used_sketch_reopened_is_drawn_whatever_its_eye() {
+    let mut document = a_block();
+    let state = ViewportState::default();
+    assert!(
+        !state.eye_lit(&document, 0),
+        "the fixture wants the eye of the used sketch dark",
+    );
+    let mut editor = SketchEditor::default();
+    editor.begin_editing(0, WorkPlane::XY);
+
+    let frame = a_frame_of(&state, &mut document, &mut editor);
+
+    let (lines, areas) = drawn_in(&frame, WorkPlane::XY);
+    assert!(
+        lines > 0 && areas > 0,
+        "the sketch being drawn on is drawn {lines} line and {areas} area vertices",
+    );
 }

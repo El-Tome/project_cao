@@ -2,6 +2,8 @@ use cao_part::PartDocument;
 
 use crate::lang::Catalogue;
 use crate::screens::part_tree::state::{Body, Drawn, PartTree, Row};
+use crate::ui::eye::eye;
+use crate::wording::part_tree as said;
 
 /// What the user asked of the tree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -9,18 +11,26 @@ pub enum TreeAction {
     None,
     /// Reopen this sketch for drawing.
     EditSketch(usize),
+    /// Show this sketch on the canvas, or stop showing it.
+    ToggleEye(usize),
 }
 
-/// The panel the tree is shown in, chrome and all.
-pub fn panel(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> TreeAction {
+/// The panel the tree is shown in, chrome and all. `eyes` says, sketch by
+/// sketch, whether the canvas draws it.
+pub fn panel(
+    ui: &mut egui::Ui,
+    document: &PartDocument,
+    eyes: &[bool],
+    lang: &Catalogue,
+) -> TreeAction {
     egui::Panel::left("part_tree_panel")
         .resizable(true)
         .default_size(240.0)
-        .show(ui, |ui| show(ui, document, lang))
+        .show(ui, |ui| show(ui, document, eyes, lang))
         .inner
 }
 
-fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> TreeAction {
+fn show(ui: &mut egui::Ui, document: &PartDocument, eyes: &[bool], lang: &Catalogue) -> TreeAction {
     let mut action = TreeAction::None;
     let tree = PartTree::of(document, lang);
 
@@ -61,9 +71,15 @@ fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> TreeAct
             // A single click folds; only a double-click reopens the sketch, so
             // that walking the tree cannot drop the user into drawing by
             // accident.
-            if drawn(ui, drawing, lang) {
-                action = TreeAction::EditSketch(drawing.sketch);
-            }
+            let lit = eyes.get(drawing.sketch).copied().unwrap_or(true);
+            ui.horizontal_top(|ui| {
+                if eye(ui, lit, said::eye(lang, lit)) {
+                    action = TreeAction::ToggleEye(drawing.sketch);
+                }
+                if ui.vertical(|ui| drawn(ui, drawing, lang)).inner {
+                    action = TreeAction::EditSketch(drawing.sketch);
+                }
+            });
         }
     });
 

@@ -31,7 +31,10 @@ pub(crate) fn beside_the_part(
 ) -> bool {
     let mut changed = false;
     if ribbon.part_tree_open {
-        match screens::part_tree::panel(ui, doc, lang) {
+        let eyes: Vec<bool> = (0..doc.sketches().len())
+            .map(|sketch| viewport.eye_lit(doc, sketch))
+            .collect();
+        match screens::part_tree::panel(ui, doc, &eyes, lang) {
             screens::part_tree::TreeAction::EditSketch(sketch) => {
                 if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
                     editor.begin_editing(sketch, plane);
@@ -39,6 +42,7 @@ pub(crate) fn beside_the_part(
                     viewport.look_at_plane(plane, center, radius);
                 }
             }
+            screens::part_tree::TreeAction::ToggleEye(sketch) => viewport.toggle_eye(doc, sketch),
             screens::part_tree::TreeAction::None => {}
         }
     }

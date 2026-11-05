@@ -79,7 +79,8 @@ It can:
   its own, from a range far above any step's (`PIECES`, `body/exact.rs`)
   and counted apart from the steps' numbers: a later step's numbers start
   where the earlier steps' end, whatever any of them left in pieces, so a
-  drawing or a name laid on a later face stays on that face (#682).
+  drawing laid on a face a later step made stays on that face (#682). A
+  piece's own number is held less well: see what it does not catch, below.
 - **name its edges and its vertices** from the numbers of the faces they lie
   between, so a step pointing at one finds it again when a size changes
   (#582, `brep/names.rs`). An edge answers to the sides of its two faces —
@@ -131,9 +132,17 @@ It can:
   followed only while the number it replaced is smaller, as every one the
   kernel writes is, so roots edited by hand into a cycle cannot hang a part.
 
-  What it does not catch. Two edges a join bridges into one, two blocks
-  come to abut with their tops and fronts merging, are both found on the
-  merged edge: each name's faces still answer, and each keeps one end.
+  What it does not catch. A piece's own number is `PIECES` past the count
+  of every piece parted before it, an earlier cut's included: when an
+  earlier change starts or stops parting a face, the pieces a later cut
+  leaves answer to other numbers, and a drawing laid on such a piece lands
+  on another piece or loses its face. Edge names hold, a piece naming its
+  edges by its root, and so does every face a step made. A number read off
+  the face a piece was parted from and the piece's rank among its pieces,
+  set aside in #682, is what would lift it. Two edges a join bridges into
+  one, two blocks come to abut with their tops and fronts merging, are both
+  found on the merged edge: each name's faces still answer, and each keeps
+  one end.
   Vertex names have no lookup yet and hold the names of their edges, so a
   change at an edge's far end renames a vertex nothing touched: a dimension
   from a vertex (#497) needs a `find` of its own.

@@ -37,6 +37,9 @@ impl PartState {
                     .last()
                     .unwrap_or(piece)
             };
+            // Walked number by number, which holds only while `profile` hands
+            // exact runs: on the flats, an exact body's pieces would carry the
+            // count past 2^31 and stretch the range with it.
             made.clone()
                 .filter(|face| self.body.has_face(*face))
                 .chain(

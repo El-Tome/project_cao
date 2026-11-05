@@ -209,8 +209,8 @@ impl Body {
         }
     }
 
-    /// Where the numbers the steps gave end: a face a step numbered from it
-    /// on is one made since it was read, and parting a face never moves it.
+    /// Where the steps' numbers end, which only the flats move to part a face:
+    /// a face a step numbered from it on is one made since it was read.
     pub fn faces_end(&self) -> usize {
         match &self.matter {
             Matter::Exact(exact) => exact.faces_end(),

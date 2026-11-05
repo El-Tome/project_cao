@@ -73,16 +73,22 @@
 //! other piece answers to a number of its own, from a range no step's
 //! numbers reach, and to the face it was parted from (#682): a later step's
 //! numbers start where the earlier steps' end, whatever any of them left in
-//! pieces, and a sketch or a name laid on a later face stays on that face.
+//! pieces, and a sketch or a name laid on a face a later step made stays on
+//! that face. Not on a piece: the pieces are counted one after the other
+//! across the part, so the pieces a later cut leaves answer to other
+//! numbers when an earlier cut starts or stops parting a face. A tool that
+//! comes with pieces of its own is cut into a part holding some with its
+//! pieces counted past the part's, each still answering to its own face —
+//! `a_tool_s_piece_cut_into_a_part_that_holds_a_piece_answers_to_a_number_of_its_own_and_to_its_own_wall`.
 //!
 //! Closes #682.
 //! - The notch of the #582 fixtures is numbered the same whether or not the
 //!   slot before it parts the top face —
 //!   `a_notch_after_a_slot_answers_to_the_same_numbers_whether_or_not_the_slot_parts_the_top`
 //!
-//! The faces a step made, which the part tree lights when the step is
-//! clicked, count the pieces of those a later cut parted, and the cut counts
-//! none of them: held by
+//! The faces a step made, which the variables panel blinks for each step a
+//! change it refuses names, count the pieces of those a later cut parted,
+//! and the cut counts none of them: held by
 //! `a_step_of_matter_names_both_pieces_of_its_face_a_later_cut_parts_and_the_cut_names_neither`,
 //! in `crates/part/tests/extruding.rs`, where a step's faces are read.
 
@@ -1848,5 +1854,83 @@ fn a_tool_that_parts_a_face_of_its_own_names_the_part_s_edges_as_cutting_its_are
         names,
         part(&one_by_one, ground()).edge_names(),
         "as cutting the bar and then the stem names them"
+    );
+}
+
+/// A slot milled along the block forty by twenty from its left side to its
+/// right, behind where the T's stem ends: it leaves the top in two pieces,
+/// and the T, cut after it, meets neither of its walls.
+fn behind_the_stem() -> Contour {
+    Contour::rectangle(DVec2::new(-1.0, 17.0), DVec2::new(41.0, 19.0))
+}
+
+#[test]
+fn a_tool_s_piece_cut_into_a_part_that_holds_a_piece_answers_to_a_number_of_its_own_and_to_its_own_wall()
+ {
+    let mut stock = block([40.0, 20.0, 10.0]);
+    stock.push(cut(behind_the_stem(), 7.0, 4.0));
+    let slotted = part(&stock, ground());
+    let top = 1;
+    let across_the_slot = [[2.0, 10.0, 20.0], [2.0, 19.5, 20.0]];
+    let strip = piece_apart(&slotted, top, across_the_slot, DVec3::NEG_Z, 10.0);
+    assert_eq!(
+        slotted.parted_from(strip),
+        Some(top),
+        "the slot leaves the top in two pieces before the T is cut"
+    );
+    let tee = tool(&slotted, bar(), 6.0, 5.0)
+        .union(&tool(&slotted, stem(), 6.0, 5.0))
+        .expect("the bar and the stem join into one tool");
+    let (bar_s_back, beside_the_stem) = (4, [10.0, 30.0]);
+    let behind = |along: f64| [along, 30.0, 8.5];
+    let piece = piece_apart(
+        &tee,
+        bar_s_back,
+        beside_the_stem.map(behind),
+        DVec3::NEG_Y,
+        21.0,
+    );
+    assert_eq!(
+        tee.parted_from(piece),
+        Some(bar_s_back),
+        "the stem leaves the bar's back wall in two pieces within the tool"
+    );
+
+    let at_once = slotted.difference(&tee).expect("the T is cut at once");
+
+    let strip = piece_apart(&at_once, top, across_the_slot, DVec3::NEG_Z, 10.0);
+    let wall = slotted.faces_end() + bar_s_back;
+    let within = |along: f64| [along, 6.0, 8.5];
+    let piece = piece_apart(&at_once, wall, beside_the_stem.map(within), DVec3::Y, 3.0);
+    assert_ne!(
+        strip, piece,
+        "the top's piece and the tool's answer to two numbers"
+    );
+    assert_eq!(
+        at_once.parted_from(strip),
+        Some(top),
+        "the top's piece is still parted from the top"
+    );
+    assert_eq!(
+        at_once.parted_from(piece),
+        Some(wall),
+        "the tool's piece is parted from the bar's back wall, which answers to \
+         its number moved above the part's"
+    );
+    for (what, number) in [("the top's piece", strip), ("the tool's piece", piece)] {
+        assert!(
+            !(0..at_once.faces_end()).contains(&number),
+            "{what} answers to {number}, which no step gives, where the steps' \
+             numbers end at {}",
+            at_once.faces_end()
+        );
+    }
+    let mut one_by_one = stock;
+    one_by_one.push(cut(bar(), 6.0, 5.0));
+    one_by_one.push(cut(stem(), 6.0, 5.0));
+    assert_eq!(
+        at_once.edge_names(),
+        part(&one_by_one, ground()).edge_names(),
+        "as cutting the bar and then the stem after the slot names them"
     );
 }

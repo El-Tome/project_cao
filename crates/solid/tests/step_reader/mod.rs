@@ -3,6 +3,12 @@
 //! resolves, the shell is closed, every loop lies on its face's surface, and
 //! the matter its faces enclose is measured from the entities themselves.
 
+// Every test file that says `mod step_reader;` compiles this module afresh,
+// and reads what it needs of a file. What another file relies on is dead code
+// here, which is a fact about the compilation unit rather than about the
+// repository.
+#![allow(dead_code)]
+
 pub mod hand_written;
 mod measure;
 mod text;
@@ -24,6 +30,9 @@ pub struct Solid {
     /// The matter enclosed, from the divergence theorem over every face.
     pub volume: f64,
     pub area: f64,
+    /// The plane of each flat face, as a point of it and the way the face
+    /// faces.
+    pub planes: Vec<(DVec3, DVec3)>,
     /// The furthest a point of any loop, or any vertex, stands from the
     /// surface of its face or the curve of its edge.
     pub worst: f64,
@@ -162,10 +171,19 @@ pub fn read(text: &str) -> Result<Solid, String> {
     let along_splines = along(|curve| matches!(curve, Curve::Spline(_)));
     let along_parabolas = along(|curve| matches!(curve, Curve::Parabola { .. }));
     let along_hyperbolas = along(|curve| matches!(curve, Curve::Hyperbola { .. }));
+    let planes = faces
+        .iter()
+        .filter_map(|face| match &face.surface {
+            Surface::Plane(placement) if face.same_sense => Some((placement.origin, placement.z)),
+            Surface::Plane(placement) => Some((placement.origin, -placement.z)),
+            _ => None,
+        })
+        .collect();
     Ok(Solid {
         faces: faces.len(),
         volume,
         area,
+        planes,
         worst,
         uncertainty,
         metres_per_unit,

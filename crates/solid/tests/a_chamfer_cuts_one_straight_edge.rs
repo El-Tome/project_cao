@@ -40,11 +40,14 @@
 //! - The exact STEP export of a chamfered block writes the new face —
 //!   `a_chamfered_block_written_to_step_writes_its_new_face`
 
-use std::collections::BTreeSet;
+mod step_reader;
 
-use cao_solid::profile::{Contour, Frame, Profile};
+use std::collections::BTreeSet;
+use std::f64::consts::TAU;
+
+use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, Chamfered, Declined, EdgeName, Loop, Lost};
+use cao_solid::{Body, Chamfered, Declined, EdgeName, Loop, Lost, step};
 use glam::{DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it: every face
@@ -136,6 +139,16 @@ fn raised_on(frame: Frame, outline: Contour, height: f64) -> Body {
 /// [`raised_on`] numbers it.
 fn raised(outline: Contour, height: f64) -> Body {
     raised_on(ground(), outline, height)
+}
+
+/// The part with an outline drawn on the ground, raised from `from` up by
+/// `height`, joined to it as `cao_part` joins a step: the tool's faces
+/// numbered past the part's.
+fn joined_to(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    let tool = part
+        .tool_raised(&profile(outline), lifted(ground(), from), DVec3::Z * height)
+        .expect("the tool raises");
+    part.union(&tool).expect("the join is built")
 }
 
 /// The part with an outline drawn on the ground, raised from `from` up by
@@ -654,7 +667,10 @@ const ELL_RESIZED: Ell = Ell {
     height: 12.0,
 };
 
-/// The number an L's stem's back answers to.
+/// The numbers an L's arm's back, its stem's right side and its stem's back
+/// answer to.
+const ARM_BACK: usize = 4;
+const STEM_RIGHT: usize = 5;
 const STEM_BACK: usize = 6;
 
 impl Ell {
@@ -773,4 +789,215 @@ fn a_chamfer_on_an_edge_a_cut_parted_in_two_is_a_broken_step_saying_it_is_split(
     let declined = notched.chamfer(&name, 1.0).err();
 
     assert_eq!(declined, Some(Declined::Lost(Lost::Split { now: 2 })));
+}
+
+#[test]
+fn a_chamfer_on_the_edge_a_join_bridged_from_two_cuts_it_whole() {
+    let [length, breadth, height] = [15.0, 10.0, 10.0];
+    let distance = 2.0;
+    let second_from = |from: f64| {
+        joined_to(
+            &block([length, breadth, height]),
+            Contour::rectangle(DVec2::new(from, 0.0), DVec2::new(from + length, breadth)),
+            0.0,
+            height,
+        )
+    };
+    let apart = second_from(length + 5.0);
+    let (second_top, second_front) = (TOP + 6, FRONT + 6);
+    let names = [
+        ("the first block's", edge_between(&apart, TOP, FRONT)),
+        (
+            "the second block's",
+            edge_between(&apart, second_top, second_front),
+        ),
+    ];
+    let abutting = second_from(length);
+    let merged = [
+        vec![TOP as u32, second_top as u32],
+        vec![FRONT as u32, second_front as u32],
+    ];
+    let bridged: Vec<EdgeName> = abutting
+        .edge_names()
+        .into_iter()
+        .filter(|name| name.between == merged)
+        .collect();
+    assert_eq!(
+        bridged.len(),
+        1,
+        "the tops and the fronts merge, and meet along one edge: {bridged:?}"
+    );
+    let whole = 2.0 * length;
+
+    for (whose, name) in names {
+        let what = format!("by {whose} top front edge");
+        assert_eq!(
+            abutting.lost(&name),
+            None,
+            "{what}: the name finds the edge the join bridged"
+        );
+
+        let chamfered = abutting
+            .chamfer(&name, distance)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_whole(&chamfered, distance, &what);
+        let body = &chamfered.body;
+        sound(
+            body,
+            whole * breadth * height - whole * distance * distance / 2.0,
+            &what,
+        );
+        let chamfer = one_flat_face_more(&abutting, body, &what);
+        faces_toward(body, chamfer, DVec3::new(0.0, -1.0, 1.0), &what);
+        corners_are(
+            body,
+            chamfer,
+            &[
+                DVec3::new(0.0, distance, height),
+                DVec3::new(whole, distance, height),
+                DVec3::new(whole, 0.0, height - distance),
+                DVec3::new(0.0, 0.0, height - distance),
+            ],
+            &format!("the chamfer {what}, all along both blocks"),
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_leaves_every_other_face_of_the_block_answering_to_the_number_it_had() {
+    let block = block([30.0, 10.0, 20.0]);
+    let edge = edge_between(&block, TOP, FRONT);
+
+    let chamfered = block.chamfer(&edge, 3.0).expect("the chamfer is cut");
+
+    let body = &chamfered.body;
+    let before = numbers(&block);
+    let mut kept_and_made = before.clone();
+    kept_and_made.insert(block.faces_end());
+    assert_eq!(
+        numbers(body),
+        kept_and_made,
+        "every number the block's faces answered to, and the chamfer's where the steps' numbers ended"
+    );
+    assert_eq!(
+        body.faces_end(),
+        block.faces_end() + 1,
+        "the chamfer names one face, and the next step numbers its own past it"
+    );
+    for number in before {
+        let was = block
+            .plane_of(number)
+            .expect("a block's face offers a plane");
+        let is = body
+            .plane_of(number)
+            .unwrap_or_else(|| panic!("face {number} offers no plane"));
+        assert!(
+            is.normal.distance(was.normal) < PLACE,
+            "face {number} faces {}, where it faced {}",
+            is.normal,
+            was.normal
+        );
+        for corner in &is.corners {
+            let off = (*corner - was.corners[0]).dot(was.normal);
+            assert!(
+                off.abs() < PLACE,
+                "face {number} has a corner at {corner}, {off} off the plane it lay on"
+            );
+        }
+    }
+    for untouched in [FLOOR, BACK] {
+        let was = block
+            .plane_of(untouched)
+            .expect("a block's face offers a plane");
+        corners_are(
+            body,
+            untouched,
+            &was.corners,
+            &format!("face {untouched}, which the chamfer does not reach"),
+        );
+    }
+}
+
+#[test]
+fn a_chamfered_block_written_to_step_writes_its_new_face() {
+    let [length, breadth, height] = [30.0, 10.0, 20.0];
+    let distance = 3.0;
+    let block = block([length, breadth, height]);
+    let chamfered = block
+        .chamfer(&edge_between(&block, TOP, FRONT), distance)
+        .expect("the chamfer is cut");
+
+    let text = step::of(&chamfered.body, 1.0).expect("an exact body is written");
+
+    let solid = step_reader::read(&text)
+        .unwrap_or_else(|fault| panic!("the file does not read back: {fault}"));
+    assert_eq!(solid.faces, 7, "the block's six faces and the chamfer");
+    assert!(
+        solid.worst <= solid.uncertainty,
+        "a loop stands {} off its face or its edge, the file's tolerance is {}",
+        solid.worst,
+        solid.uncertainty
+    );
+    let promised = length * breadth * height - length * distance * distance / 2.0;
+    assert!(
+        (solid.volume - promised).abs() <= solid.uncertainty * solid.area,
+        "the file encloses {}, where arithmetic promised {promised}",
+        solid.volume
+    );
+    let facing = DVec3::new(0.0, -1.0, 1.0).normalize();
+    let through = [
+        DVec3::new(0.0, distance, height),
+        DVec3::new(length, 0.0, height - distance),
+    ];
+    assert!(
+        solid.planes.iter().any(|&(origin, normal)| {
+            normal.distance(facing) < PLACE
+                && through
+                    .iter()
+                    .all(|point| (*point - origin).dot(normal).abs() <= solid.uncertainty)
+        }),
+        "no face of the file faces {facing} through {through:?}: {:?}",
+        solid.planes
+    );
+}
+
+#[test]
+fn a_chamfer_on_the_inner_corner_of_an_l_where_its_faces_meet_inwards_is_declined_as_unsupported() {
+    let ell = ELL.on(ground());
+    let inner = edge_between(&ell, ARM_BACK, STEM_RIGHT);
+
+    let declined = ell.chamfer(&inner, 1.0).err();
+
+    assert_eq!(declined, Some(Declined::Unsupported));
+}
+
+#[test]
+fn a_chamfer_on_the_round_rim_of_a_disc_is_declined_as_unsupported() {
+    let disc = raised(
+        Contour {
+            corners: vec![DVec2::new(10.0, 0.0)],
+            runs: vec![Run::Round {
+                center: DVec2::ZERO,
+                turn: TAU,
+            }],
+        },
+        5.0,
+    );
+    let rim = edge_between(&disc, TOP, 2);
+
+    let declined = disc.chamfer(&rim, 1.0).err();
+
+    assert_eq!(declined, Some(Declined::Unsupported));
+}
+
+#[test]
+fn a_chamfer_whose_cut_carried_along_its_edge_would_run_into_the_l_s_stem_is_declined_as_unsupported()
+ {
+    let ell = ELL.on(ground());
+    let arm_back = edge_between(&ell, TOP, ARM_BACK);
+
+    let declined = ell.chamfer(&arm_back, 1.0).err();
+
+    assert_eq!(declined, Some(Declined::Unsupported));
 }

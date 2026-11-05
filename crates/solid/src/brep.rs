@@ -61,17 +61,20 @@ pub enum Declined {
     /// short or that nearly whole is read before the kernel as nothing or as
     /// whole: this is the kernel's own net.
     Travel,
-    /// Two surfaces meet along a curve the kernel does not build: a cylinder
-    /// or a cone off a cone's axis, a cone within the tolerance of a plane or
-    /// a cylinder of its axis all across the box, an elliptic wall against a
-    /// cone, or a parallel wall within decision 8's hair of it all round; or
+    /// Two surfaces meet along a curve the kernel does not build: a cone
+    /// within the tolerance of a plane or a cylinder of its axis all across
+    /// the box, or a parallel wall within decision 8's hair of it all round;
     /// two walls nearly parallel, past decision 11, that meet at a sliver of
     /// a lean, stand within the tolerance of each other along a stretch, or
-    /// closer than a chord's sag (#577). A plane meets a cylinder, a cone or
-    /// an elliptic wall at any other angle along a conic, a parallel round
-    /// or elliptic wall meets an elliptic one along rulings, and any other
-    /// round or elliptic wall along the curve the two meet along, which are
-    /// built (#552, #571, #577).
+    /// closer than a chord's sag (#577); or a cone against a wall off its
+    /// axis whose ruling runs along that wall's axis, a hair off coaxial,
+    /// with an apex on the other wall, with a hole in the flank of a face
+    /// holding its apex (#711), or closer than a chord's sag without meeting
+    /// (#706). A plane meets a cylinder, a cone or an elliptic wall at any
+    /// other angle along a conic, a parallel round or elliptic wall meets an
+    /// elliptic one along rulings, and any other round, elliptic or conical
+    /// wall along the curve the two meet along, which are built (#552,
+    /// #571, #577).
     Unsupported,
     /// Two curves touch more closely than their curvatures can order.
     Tie,

@@ -59,8 +59,10 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// own, apart from the steps', so a later step's numbers stay put (#682). 20:
 /// two cylinders or elliptic walls at a skew angle meet along their curve,
 /// where the kernel declined them, and a pair a hair off square or parallel
-/// is laid exactly so (#577).
-const REBUILT_BY: u32 = 20;
+/// is laid exactly so (#577). 21: a cone meets a cylinder, an elliptic wall
+/// or another cone off its axis along the curve read along its rulings,
+/// where the kernel declined it (#577).
+const REBUILT_BY: u32 = 21;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

@@ -5908,6 +5908,46 @@ fn seed_2722_a_torus_joined_with_a_coaxial_tube_touching_its_outer_equator_is_cr
     ));
 }
 
+/// A seed of the slanted or the tilted campaigns lane 3 leaves wrong,
+/// replayed from its draw past the lattice as the campaign drew it.
+fn slanted_seed_on_the_exact_kernel(seed: u64) {
+    random_solids::holds_exactly(&Case::drawn_slanted_off_the_lattice(seed));
+}
+
+fn tilted_seed_on_the_exact_kernel(seed: u64) {
+    random_solids::holds_exactly(&Case::drawn_tilted_off_the_lattice(seed));
+}
+
+#[test]
+#[ignore = "an open cone face, a family lane 3 leaves, #707"]
+fn seed_122431270514586_a_slanted_case_is_drawn_closed() {
+    slanted_seed_on_the_exact_kernel(122431270514586);
+}
+
+#[test]
+#[ignore = "a box floor against a cylinder cap leaning a hair, failing on main too, #707"]
+fn seed_122431270514532_a_floor_against_a_cap_leaning_a_hair_keeps_every_rule() {
+    slanted_seed_on_the_exact_kernel(122431270514532);
+}
+
+#[test]
+#[ignore = "an open cone face, a family lane 3 leaves, #707"]
+fn seed_28743870519278_a_tilted_case_is_drawn_closed() {
+    tilted_seed_on_the_exact_kernel(28743870519278);
+}
+
+#[test]
+#[ignore = "an open cone face, a family lane 3 leaves, #707"]
+fn seed_28743870520828_a_tilted_case_is_drawn_closed() {
+    tilted_seed_on_the_exact_kernel(28743870520828);
+}
+
+#[test]
+#[ignore = "a decline nothing excuses, a family lane 3 leaves, #707"]
+fn seed_28743870518015_a_tilted_case_is_answered() {
+    tilted_seed_on_the_exact_kernel(28743870518015);
+}
+
 /// The campaigns, compiled only when asked for — `--features campaigns` —
 /// so that work on any other issue never pays for them.
 #[cfg(feature = "campaigns")]

@@ -212,9 +212,10 @@ pub fn is_enabled(
         Command::ExtrusionStraight | Command::ExtrusionRevolution => extrusion.is_active(),
         Command::ExtrusionApply => extrusion.is_ready(document.variables()),
         Command::ExtrusionCancel => extrusion.is_active(),
-        Command::ExportStlCoarse | Command::ExportStlNormal | Command::ExportStlFine => {
-            !document.body().is_empty()
-        }
+        Command::ExportStlCoarse
+        | Command::ExportStlNormal
+        | Command::ExportStlFine
+        | Command::ExportStep => !document.body().is_empty(),
         _ => true,
     }
 }

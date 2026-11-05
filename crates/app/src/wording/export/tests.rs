@@ -7,6 +7,11 @@
 //!   `an_export_the_triangles_cannot_cover_says_nothing_was_written_and_names_the_level_that_fits`;
 //!   or that none does —
 //!   `an_export_no_level_covers_says_nothing_was_written_and_that_no_level_fits`
+//!
+//! Closes #581.
+//! - a part on the flats is refused: the message says no STEP was written and
+//!   that the part's surfaces are not exact —
+//!   `a_part_on_the_flats_is_told_no_step_is_written_because_it_is_not_exact`
 
 use cao_prefs::Command;
 
@@ -65,4 +70,22 @@ fn an_export_no_level_covers_says_nothing_was_written_and_that_no_level_fits() {
             "that no level fits reads as a level suggested: {said}",
         );
     }
+}
+
+#[test]
+fn a_part_on_the_flats_is_told_no_step_is_written_because_it_is_not_exact() {
+    let said = faceted(&Catalogue::french());
+
+    assert!(
+        said.contains("n'a pas été écrit"),
+        "the reader is told no file was written: {said}",
+    );
+    assert!(
+        said.contains("STEP"),
+        "the reader is told which export: {said}"
+    );
+    assert!(
+        said.contains("exact"),
+        "the reader is told the part is not exact: {said}",
+    );
 }

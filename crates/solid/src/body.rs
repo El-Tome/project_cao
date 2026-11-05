@@ -11,7 +11,7 @@ use std::borrow::Cow;
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
-use crate::brep::{Declined, Unstable};
+use crate::brep::{self, Declined, Unstable};
 use crate::mesh::{Mesh, Polygon};
 use crate::profile::{Frame, Profile};
 use crate::sweep;
@@ -328,6 +328,13 @@ impl Body {
         match &self.matter {
             Matter::Exact(exact) => exact.volume(),
             Matter::Flats(flats) => flats.mesh.volume(),
+        }
+    }
+
+    pub(crate) fn brep(&self) -> Option<&brep::Body> {
+        match &self.matter {
+            Matter::Exact(exact) => Some(exact.brep()),
+            Matter::Flats(_) => None,
         }
     }
 

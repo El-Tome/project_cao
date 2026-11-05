@@ -1,10 +1,11 @@
 //! The part written out for another program to read.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use cao_part::{Files, PartDocument, PartFileError};
 use cao_prefs::Command;
 
+use crate::lang::Catalogue;
 use crate::screens::SketchContext;
 use crate::wording;
 
@@ -63,12 +64,52 @@ pub(crate) fn stl(
         part.editor.message = Some(wording::export::uncovered(part.lang, asked, fits));
         return;
     };
+    written_where(
+        part,
+        files,
+        destination,
+        error,
+        &bytes,
+        wording::export::written,
+    );
+}
+
+/// The part's exact solid written as a STEP file where `destination` says,
+/// in millimetres. A part the writer refuses asks for no place: the status
+/// line says why.
+pub(crate) fn step(
+    part: &mut SketchContext<'_>,
+    files: &impl Files,
+    destination: impl FnOnce(&str) -> Option<PathBuf>,
+    error: &mut Option<String>,
+) {
+    let text = match cao_solid::step::of(part.document.body(), part.document.scale()) {
+        Ok(text) => text,
+        Err(refused) => {
+            part.editor.message = Some(wording::export::unwritten(part.lang, refused));
+            return;
+        }
+    };
+    let said = wording::export::step_written;
+    written_where(part, files, destination, error, text.as_bytes(), said);
+}
+
+/// An export once made: written where the user picks under the part's name,
+/// the status line saying where, the error bar saying why the disk refused.
+fn written_where(
+    part: &mut SketchContext<'_>,
+    files: &impl Files,
+    destination: impl FnOnce(&str) -> Option<PathBuf>,
+    error: &mut Option<String>,
+    bytes: &[u8],
+    said: fn(&Catalogue, &Path) -> String,
+) {
     part.editor.message = None;
     let Some(path) = destination(part.document.name()) else {
         return;
     };
-    match files.write(&path, &bytes) {
-        Ok(()) => part.editor.message = Some(wording::export::written(part.lang, &path)),
+    match files.write(&path, bytes) {
+        Ok(()) => part.editor.message = Some(said(part.lang, &path)),
         Err(failed) => {
             *error = Some(wording::part_file::say(
                 part.lang,

@@ -4,6 +4,10 @@
 //! - the three levels give the gaps they promise, each hint saying the gap
 //!   its export asks for, from the one figure —
 //!   `each_stl_level_s_hint_says_the_gap_its_export_asks_for`
+//!
+//! Closes #581.
+//! - to try it: each part opens in FreeCAD — the command that writes it reads
+//!   « Exporter en STEP… » — `the_step_export_reads_exporter_en_step`
 
 use std::collections::BTreeMap;
 
@@ -90,4 +94,12 @@ fn each_stl_level_s_hint_says_the_gap_its_export_asks_for() {
             "{level:?} asks for {figure} and its hint reads: {said}"
         );
     }
+}
+
+#[test]
+fn the_step_export_reads_exporter_en_step() {
+    assert_eq!(
+        label(&Catalogue::french(), Command::ExportStep),
+        "Exporter en STEP…"
+    );
 }

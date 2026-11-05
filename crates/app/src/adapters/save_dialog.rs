@@ -10,16 +10,33 @@ pub fn stl_destination(name: &str) -> Option<PathBuf> {
         .map(with_stl_extension)
 }
 
+pub fn step_destination(name: &str) -> Option<PathBuf> {
+    rfd::FileDialog::new()
+        .add_filter("STEP", &["step", "stp"])
+        .set_file_name(format!("{name}.step"))
+        .save_file()
+        .map(with_step_extension)
+}
+
 /// The place chosen, ending in `.stl` whatever the dialog let through.
 pub fn with_stl_extension(path: PathBuf) -> PathBuf {
-    let ends_in_stl = path
+    with_extension_among(path, &["stl"])
+}
+
+pub fn with_step_extension(path: PathBuf) -> PathBuf {
+    with_extension_among(path, &["step", "stp"])
+}
+
+fn with_extension_among(path: PathBuf, kept: &[&str]) -> PathBuf {
+    let ends_in_one = path
         .extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("stl"));
-    if ends_in_stl {
+        .is_some_and(|extension| kept.iter().any(|kept| extension.eq_ignore_ascii_case(kept)));
+    if ends_in_one {
         return path;
     }
     let mut named = path.into_os_string();
-    named.push(".stl");
+    named.push(".");
+    named.push(kept[0]);
     named.into()
 }
 

@@ -259,3 +259,36 @@ pub fn ball() -> String {
     let face = draft.add(format!("ADVANCED_FACE('',(#{bound}),#{sphere},.T.)"));
     draft.file(&[face])
 }
+
+/// The inner part of the spindle of major radius 2 and minor 3 about the
+/// origin's Z axis: a rugby ball, one face bounded by its two apexes.
+pub fn lemon() -> String {
+    let mut draft = Draft::new();
+    let reach = 5f64.sqrt();
+    let apexes = [
+        draft.vertex(DVec3::Z * -reach),
+        draft.vertex(DVec3::Z * reach),
+    ];
+    let center = draft.placement(DVec3::ZERO, DVec3::Z, DVec3::X);
+    let lemon = draft.add(format!(
+        "DEGENERATE_TOROIDAL_SURFACE('',#{center},2.,3.,.F.)"
+    ));
+    let bounds: Vec<String> = apexes
+        .iter()
+        .enumerate()
+        .map(|(index, apex)| {
+            let around = draft.add(format!("VERTEX_LOOP('',#{apex})"));
+            let kind = if index == 0 {
+                "FACE_OUTER_BOUND"
+            } else {
+                "FACE_BOUND"
+            };
+            format!("#{}", draft.add(format!("{kind}('',#{around},.T.)")))
+        })
+        .collect();
+    let face = draft.add(format!(
+        "ADVANCED_FACE('',({}),#{lemon},.F.)",
+        bounds.join(",")
+    ));
+    draft.file(&[face])
+}

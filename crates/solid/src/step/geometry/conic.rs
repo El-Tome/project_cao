@@ -6,14 +6,48 @@
 
 use glam::DVec3;
 
+use super::super::Unwritten;
 use super::super::instances::Instances;
-use super::placed;
-use crate::brep::Conic;
+use super::{placed, reach, spline};
+use crate::brep::{Conic, Curve};
 
-pub fn written(instances: &mut Instances, conic: &Conic) -> usize {
-    if conic.k == 0.0 {
-        return parabola(instances, conic);
+/// How many reaches the centre may stand from the curve before doubles no
+/// longer hold the conic written about it: a reader adds terms that large,
+/// each rounded by a part in 10¹⁶, and a million reaches leaves that at a
+/// hundredth of the kernel's tolerance, a fifty-millionth of the reach. The
+/// kernel leaves a cut along a ruling, a parabola, a `k` of rounding size,
+/// its centre a billion billion reaches away.
+const FAR: f64 = 1e6;
+
+const SAMPLES: usize = 64;
+
+pub fn written(
+    instances: &mut Instances,
+    conic: &Conic,
+    curve: &Curve,
+    from: f64,
+    to: f64,
+) -> Result<usize, Unwritten> {
+    let (low, high) = (from.min(to), from.max(to));
+    let (reach, tolerance) = reach(curve, low, high);
+    if conic.bend.length() / conic.k.abs() > FAR * reach {
+        let strays = (0..=SAMPLES)
+            .map(|index| low + (high - low) * index as f64 / SAMPLES as f64)
+            .map(|t| {
+                let parabola = conic.anchor + conic.tangent * t + conic.bend * (t * t / 2.0);
+                parabola.distance(conic.point(t))
+            })
+            .fold(0.0, f64::max);
+        return if strays <= tolerance {
+            Ok(parabola(instances, conic))
+        } else {
+            spline::written(instances, curve, from, to)
+        };
     }
+    Ok(about_the_centre(instances, conic))
+}
+
+fn about_the_centre(instances: &mut Instances, conic: &Conic) -> usize {
     let omega = conic.k.abs().sqrt();
     let center = conic.anchor + conic.bend / conic.k;
     let (x, y) = (-conic.bend / conic.k, conic.tangent / omega);

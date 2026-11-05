@@ -33,9 +33,9 @@ pub struct Solid {
     /// The box the vertices span.
     pub low: DVec3,
     pub high: DVec3,
-    /// Points along every B-spline edge, thirty-two to a span between knots.
+    /// Points along every B-spline edge, every parabola and every
+    /// hyperbola, as `Edge::samples` places them.
     pub along_splines: Vec<Vec<DVec3>>,
-    /// Points along every parabola and every hyperbola edge, 129 each.
     pub along_parabolas: Vec<Vec<DVec3>>,
     pub along_hyperbolas: Vec<Vec<DVec3>>,
 }
@@ -53,6 +53,23 @@ pub struct Edge {
     /// order the edge runs.
     pub from: f64,
     pub to: f64,
+}
+
+impl Edge {
+    /// Parameters along the edge, ends included: 257 evenly, and on a spline
+    /// eight to every span between its knots besides, where a fit strays
+    /// between the points it was made through.
+    pub fn samples(&self) -> Vec<f64> {
+        let even = (0..=256).map(|index| self.from + (self.to - self.from) * index as f64 / 256.0);
+        let mut samples: Vec<f64> = even.collect();
+        if let Curve::Spline(_) = self.curve {
+            for pair in self.curve.pieces(self.from, self.to).windows(2) {
+                samples
+                    .extend((0..4).map(|index| pair[0] + (pair[1] - pair[0]) * index as f64 / 4.0));
+            }
+        }
+        samples
+    }
 }
 
 /// An edge of a loop, and whether the loop runs along it.
@@ -135,11 +152,8 @@ pub fn read(text: &str) -> Result<Solid, String> {
             .values()
             .filter(|edge| kind(&edge.curve))
             .map(|edge| {
-                let pieces = edge.curve.pieces(edge.from, edge.to);
-                pieces
-                    .windows(2)
-                    .flat_map(|pair| [pair[0], (pair[0] + pair[1]) / 2.0])
-                    .chain(pieces.last().copied())
+                edge.samples()
+                    .into_iter()
                     .map(|t| edge.curve.point(t))
                     .collect()
             })
@@ -365,7 +379,7 @@ fn edge_of(exchange: &Exchange, id: usize) -> Result<Edge, String> {
     let mut from = curve.parameter(start.point);
     let mut to = curve.parameter(end.point);
     match (&curve, curve.period()) {
-        (Curve::Spline(spline), Some(_)) if start.id == end.id => {
+        (Curve::Spline(spline), _) if start.id == end.id => {
             let (low, high) = spline.range();
             (from, to) = if same_sense { (low, high) } else { (high, low) };
         }
@@ -442,8 +456,7 @@ fn worst(faces: &[Face], edges: &BTreeMap<usize, Edge>) -> f64 {
                 Bound::Edges(uses) => {
                     for using in uses {
                         let edge = &edges[&using.edge];
-                        for index in 0..=256 {
-                            let t = edge.from + (edge.to - edge.from) * index as f64 / 256.0;
+                        for t in edge.samples() {
                             worst = worst.max(face.surface.distance(edge.curve.point(t)));
                         }
                     }

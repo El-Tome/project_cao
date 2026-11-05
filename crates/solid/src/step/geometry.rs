@@ -3,12 +3,13 @@
 //! sense.
 
 mod conic;
-mod meet;
+mod spline;
 
 use glam::DVec3;
 
-use super::instances::{Instances, real};
-use crate::brep::{Circle, Cone, Curve, Surface, Torus};
+use super::Unwritten;
+use super::instances::{Instances, flag, real};
+use crate::brep::{Circle, Cone, Curve, Scale, Surface, Torus};
 
 /// The surface's instance, and whether its normal is the kernel's.
 pub fn surface(instances: &mut Instances, surface: &Surface) -> (usize, bool) {
@@ -41,7 +42,7 @@ pub fn surface(instances: &mut Instances, surface: &Surface) -> (usize, bool) {
             let surface = format!("SPHERICAL_SURFACE('',#{placement},{radius})");
             (instances.add(surface), true)
         }
-        Surface::Torus(torus) => (self::torus(instances, torus), true),
+        Surface::Torus(torus) => self::torus(instances, torus),
     }
 }
 
@@ -66,24 +67,33 @@ fn cone(instances: &mut Instances, cone: &Cone) -> (usize, bool) {
 
 /// A spindle's own lobe is the outer part of the torus of radius `|R|` when
 /// its meridian circle's centre stands on the profile's side of the axis,
-/// the inner part when across it.
-fn torus(instances: &mut Instances, torus: &Torus) -> usize {
+/// the inner part when across it. ISO 10303-42's normal `S_u × S_v` is
+/// `(R + r cos v)` times the way out of the tube: out on the outer part, as
+/// the kernel's, and into it on the inner.
+fn torus(instances: &mut Instances, torus: &Torus) -> (usize, bool) {
     let center = torus.origin + torus.axis * torus.center.x;
     let placement = instances.placement(center, torus.axis, torus.u);
     let (major, minor) = (torus.center.y.abs(), torus.radius);
+    let outer = torus.center.y > 0.0;
     let radii = format!("{},{}", instances.length(major), instances.length(minor));
-    if major < minor {
-        let outer = super::instances::flag(torus.center.y > 0.0);
-        instances.add(format!(
-            "DEGENERATE_TOROIDAL_SURFACE('',#{placement},{radii},{outer})"
-        ))
+    let surface = if major < minor {
+        format!(
+            "DEGENERATE_TOROIDAL_SURFACE('',#{placement},{radii},{})",
+            flag(outer)
+        )
     } else {
-        instances.add(format!("TOROIDAL_SURFACE('',#{placement},{radii})"))
-    }
+        format!("TOROIDAL_SURFACE('',#{placement},{radii})")
+    };
+    (instances.add(surface), outer)
 }
 
-pub fn curve(instances: &mut Instances, curve: &Curve, from: f64, to: f64) -> usize {
-    match curve {
+pub fn curve(
+    instances: &mut Instances,
+    curve: &Curve,
+    from: f64,
+    to: f64,
+) -> Result<usize, Unwritten> {
+    Ok(match curve {
         Curve::Line(line) => {
             let origin = instances.point(line.origin);
             let direction = instances.direction(line.direction);
@@ -91,9 +101,9 @@ pub fn curve(instances: &mut Instances, curve: &Curve, from: f64, to: f64) -> us
             instances.add(format!("LINE('',#{origin},#{vector})"))
         }
         Curve::Circle(circle) => self::circle(instances, circle),
-        Curve::Conic(conic) => conic::written(instances, conic),
-        Curve::Meet(_) => meet::written(instances, curve, from, to),
-    }
+        Curve::Conic(conic) => return conic::written(instances, conic, curve, from, to),
+        Curve::Meet(_) => return spline::written(instances, curve, from, to),
+    })
 }
 
 fn circle(instances: &mut Instances, circle: &Circle) -> usize {
@@ -104,4 +114,17 @@ fn circle(instances: &mut Instances, circle: &Circle) -> usize {
 
 fn placed(instances: &mut Instances, origin: DVec3, x: DVec3, y: DVec3) -> usize {
     instances.placement(origin, x.cross(y).normalize(), x)
+}
+
+/// The reach of the curve's stretch, and a quarter of the kernel's widest
+/// tolerance there: what an entity standing in for the curve may stray by.
+fn reach(curve: &Curve, low: f64, high: f64) -> (f64, f64) {
+    const SAMPLES: usize = 32;
+    let scale = Scale::of(
+        (0..=SAMPLES)
+            .map(|index| curve.point(low + (high - low) * index as f64 / SAMPLES as f64))
+            .map(|point| point.abs().max_element())
+            .fold(0.0, f64::max),
+    );
+    (scale.reach(), Scale::HAIR * scale.eps() / 4.0)
 }

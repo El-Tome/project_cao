@@ -252,14 +252,11 @@ impl Exchange {
                         "#{number}: a degenerate torus has its major radius below its minor"
                     ));
                 }
-                if !boolean(at(record, 4)?)? {
-                    return Err(format!("#{number}: this reader does not read a lemon"));
-                }
                 Surface::Torus {
                     placement: placement()?,
                     major,
                     minor,
-                    outer: Some(true),
+                    outer: Some(boolean(at(record, 4)?)?),
                 }
             }
         })
@@ -310,10 +307,12 @@ impl Spline {
         let (low, high) = self.range();
         let t = t.clamp(low, high);
         let last = self.poles.len() - 1;
-        let span = (self.degree..=last)
-            .rfind(|&span| self.knots[span] <= t && self.knots[span] < self.knots[span + 1])
+        let span =
+            (self.knots[..=last].partition_point(|knot| *knot <= t) - 1).clamp(self.degree, last);
+        let span = (self.degree..=span)
+            .rev()
+            .find(|&span| self.knots[span] < self.knots[span + 1])
             .unwrap_or(self.degree);
-        let span = span.min(last);
         let mut points: Vec<(DVec3, f64)> = (0..=self.degree)
             .map(|index| {
                 let pole = span - self.degree + index;
@@ -449,7 +448,7 @@ impl Curve {
     }
 
     /// Where the parameter range between `from` and `to` is cut for
-    /// quadrature: each span between a spline's knots in sixteen, any other
+    /// quadrature: each span between a spline's knots in two, any other
     /// curve in sixty-four.
     pub fn pieces(&self, from: f64, to: f64) -> Vec<f64> {
         let Curve::Spline(spline) = self else {
@@ -471,8 +470,8 @@ impl Curve {
         cuts.push(to);
         let mut pieces = vec![from];
         for pair in cuts.windows(2) {
-            for index in 1..=16 {
-                pieces.push(pair[0] + (pair[1] - pair[0]) * index as f64 / 16.0);
+            for index in 1..=2 {
+                pieces.push(pair[0] + (pair[1] - pair[0]) * index as f64 / 2.0);
             }
         }
         pieces
@@ -523,8 +522,10 @@ pub enum Surface {
         placement: Placement,
         radius: f64,
     },
-    /// `outer` is `Some(true)` on a spindle written as the outer part of
-    /// a degenerate torus.
+    /// `outer` is `Some` on a degenerate torus, its major radius below its
+    /// minor: whether the part selected is the outer one, `R + r cos v ≥ 0`,
+    /// or the inner, `R + r cos v ≤ 0`, the one parametrisation of
+    /// ISO 10303-42 giving both the point and the normal `S_u × S_v`.
     Torus {
         placement: Placement,
         major: f64,
@@ -648,6 +649,19 @@ impl Surface {
                 )
             }
             Surface::Torus {
+                placement,
+                major,
+                outer: Some(false),
+                ..
+            } => {
+                let local = placement.local(point);
+                let across = local.truncate().length();
+                (
+                    local.y.atan2(local.x) + PI,
+                    local.z.atan2(-across - major).rem_euclid(TAU),
+                )
+            }
+            Surface::Torus {
                 placement, major, ..
             } => {
                 let local = placement.local(point);
@@ -705,20 +719,25 @@ impl Surface {
         !matches!(self, Surface::Plane(_))
     }
 
-    /// Where the surface folds to a point, as the parameter `v` there: a
-    /// sphere's two poles, a spindle's two apexes. A cone's apex is where its integrals start, and
-    /// needs no fold.
+    /// Where the surface folds to a point, as the parameter `v` there, the
+    /// lower first: a sphere's two poles, a spindle's two apexes — about
+    /// `v = 0` on the outer part of a degenerate torus, about `v = π` on the
+    /// inner. A cone's apex is where its integrals start, and needs no fold.
     pub fn poles(&self) -> Vec<f64> {
         match self {
             Surface::Sphere { .. } => vec![-FRAC_PI_2, FRAC_PI_2],
             Surface::Torus {
                 major,
                 minor,
-                outer: Some(true),
+                outer: Some(outer),
                 ..
             } => {
                 let apex = (-major / minor).acos();
-                vec![-apex, apex]
+                if *outer {
+                    vec![-apex, apex]
+                } else {
+                    vec![apex, TAU - apex]
+                }
             }
             _ => Vec::new(),
         }

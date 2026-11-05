@@ -2,11 +2,12 @@
 //! curves, loops of oriented edges, faces on their surfaces, one closed
 //! shell.
 
+use super::Unwritten;
 use super::geometry;
 use super::instances::{Instances, flag};
 use crate::brep::{ListedEdge, ListedFace, Listing};
 
-pub fn written(instances: &mut Instances, listing: &Listing) -> usize {
+pub fn written(instances: &mut Instances, listing: &Listing) -> Result<usize, Unwritten> {
     let vertices: Vec<usize> = listing
         .vertices
         .iter()
@@ -19,19 +20,23 @@ pub fn written(instances: &mut Instances, listing: &Listing) -> usize {
         .edges
         .iter()
         .map(|edge| edge_curve(instances, edge, &vertices))
-        .collect();
+        .collect::<Result<_, _>>()?;
     let faces: Vec<String> = listing
         .faces
         .iter()
         .map(|face| format!("#{}", advanced_face(instances, face, &edges, &vertices)))
         .collect();
     let shell = instances.add(format!("CLOSED_SHELL('',({}))", faces.join(",")));
-    instances.add(format!("MANIFOLD_SOLID_BREP('',#{shell})"))
+    Ok(instances.add(format!("MANIFOLD_SOLID_BREP('',#{shell})")))
 }
 
 /// A whole closed curve has no vertex of its own: it starts and ends on one
 /// laid where its parameter starts.
-fn edge_curve(instances: &mut Instances, edge: &ListedEdge, vertices: &[usize]) -> usize {
+fn edge_curve(
+    instances: &mut Instances,
+    edge: &ListedEdge,
+    vertices: &[usize],
+) -> Result<usize, Unwritten> {
     let [start, end] = match edge.ends {
         Some(ends) => ends.map(|end| vertices[end]),
         None => {
@@ -40,11 +45,11 @@ fn edge_curve(instances: &mut Instances, edge: &ListedEdge, vertices: &[usize]) 
             [vertex, vertex]
         }
     };
-    let curve = geometry::curve(instances, &edge.curve, edge.from, edge.to);
-    instances.add(format!(
+    let curve = geometry::curve(instances, &edge.curve, edge.from, edge.to)?;
+    Ok(instances.add(format!(
         "EDGE_CURVE('',#{start},#{end},#{curve},{})",
         flag(edge.to > edge.from)
-    ))
+    )))
 }
 
 /// A face no loop bounds — a ball, a whole spindle — is bounded by the

@@ -236,7 +236,11 @@ fn integrate(
                 let arriving = parameters(edge.curve.point(to - 1e-7 * (to - from))).0;
                 let leaving =
                     parameters(next.curve.point(next_from + 1e-7 * (next_to - next_from))).0;
-                let forward = sense * if pole > 0.0 { -1.0 } else { 1.0 } > 0.0;
+                let top = surface
+                    .poles()
+                    .into_iter()
+                    .fold(f64::NEG_INFINITY, f64::max);
+                let forward = sense * if pole == top { -1.0 } else { 1.0 } > 0.0;
                 let sweep = if forward {
                     (leaving - arriving).rem_euclid(TAU)
                 } else {

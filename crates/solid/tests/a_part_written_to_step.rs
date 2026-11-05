@@ -14,6 +14,7 @@
 //!   `the_reader_measures_a_cone_written_by_hand`,
 //!   `the_reader_measures_a_hemisphere_written_by_hand`,
 //!   `the_reader_measures_a_ball_written_by_hand`,
+//!   `the_reader_measures_a_lemon_written_by_hand`,
 //!   `the_reader_refuses_a_reference_to_nothing`,
 //!   `the_reader_refuses_a_shell_with_a_face_missing` and
 //!   `the_reader_finds_a_loop_standing_off_its_face`. The tolerance is the
@@ -33,6 +34,11 @@
 //!   its cone and its plane all along —
 //!   `a_cone_cut_along_a_ruling_written_to_step_reads_back_as_one_closed_solid_of_its_volume`,
 //!   `a_cone_cut_steeper_than_its_rulings_written_to_step_reads_back_as_one_closed_solid_of_its_volume`;
+//!   a parabola is a parabola whatever azimuth the ruling stands at, on two
+//!   cones — `a_cone_cut_along_a_ruling_at_any_azimuth_is_written_as_its_parabola`;
+//!   a cone cut a hair off a ruling, its conic's centre far beyond the part,
+//!   reads back within the tolerance —
+//!   `a_cone_cut_a_hair_off_a_ruling_reads_back_within_the_tolerance`;
 //!   a cone widening along its axis as well as one narrowing —
 //!   `a_shaft_chamfered_at_its_foot_written_to_step_reads_back_as_one_closed_solid_of_its_volume`;
 //!   beyond the issue's list, since #576 brought them, a sphere and a torus —
@@ -41,10 +47,22 @@
 //!   a spindle, whose major radius is below its minor and which no plain
 //!   `TOROIDAL_SURFACE` holds, is written as the outer part of a
 //!   `DEGENERATE_TOROIDAL_SURFACE` —
-//!   `a_spindle_is_written_as_the_outer_part_of_a_degenerate_torus`;
+//!   `a_spindle_is_written_as_the_outer_part_of_a_degenerate_torus`; and
+//!   its inner part, a rugby ball, faces out —
+//!   `a_rugby_ball_reads_back_as_the_inner_part_of_a_degenerate_torus_facing_out`;
+//!   a hole all but tangent to the shaft is written within the tolerance and
+//!   at a size the tight spot alone does not blow up —
+//!   `a_hole_within_a_tenth_of_a_micron_of_tangency_is_written_within_the_tolerance_and_no_larger_than_four_far_ones`;
 //!   and the meet curve's B-spline stands within the kernel's tolerance of
 //!   the kernel's own closed form —
 //!   `the_meet_curve_is_written_within_the_kernel_s_tolerance_of_its_closed_form`
+//! - beyond the issue, a meet curve the cap on its pieces cannot bring within
+//!   the tolerance is refused rather than written out of it — no test: no
+//!   construction found reaches it. The cap of 16 384 pieces was reached from
+//!   a gap of 10⁻⁶ mm down to 5·10⁻⁸ mm to tangency, and on crossing walls of
+//!   radii 10 and 10 − 10⁻⁶, and every fit stood within 10⁻⁸ mm of both walls
+//!   against a tolerance of 6·10⁻⁷ mm; at 10⁻⁸ mm the kernel takes the walls
+//!   for tangent and the curve needs few pieces
 //! - a part on the flats is refused — `a_body_on_the_flats_is_not_written`;
 //!   the message saying why is `cao_app`'s, held in `wording/export/tests.rs`
 //! - with the step named — no test: since #632 no step sends a body to the
@@ -172,6 +190,61 @@ fn cone() -> Body {
         DVec2::new(0.0, 20.0),
     ];
     turned(corners.clone(), vec![Run::Straight; 3], corners)
+}
+
+/// A cone of `radius` on the ground and `height` along Y, its apex up.
+fn cone_of(radius: f64, height: f64) -> Body {
+    let corners = vec![
+        DVec2::new(0.0, 0.0),
+        DVec2::new(radius, 0.0),
+        DVec2::new(0.0, height),
+    ];
+    turned(corners.clone(), vec![Run::Straight; 3], corners)
+}
+
+/// How far `point` stands from the wall of `cone_of(radius, height)`.
+fn off_the_cone_of(radius: f64, height: f64, point: DVec3) -> f64 {
+    let slope = radius / height;
+    let across = DVec2::new(point.x, point.z).length();
+    (across - radius + point.y * slope).abs() / (1.0 + slope * slope).sqrt()
+}
+
+/// A plane through `origin` holding the directions `along` and `across`, and
+/// `cone_of(radius, height)` with everything beyond it taken away.
+fn cut_by_a_plane(radius: f64, height: f64, origin: DVec3, along: DVec3, across: DVec3) -> Body {
+    let plane = Frame {
+        origin,
+        u: along,
+        v: across,
+    };
+    cone_of(radius, height)
+        .difference(&raised(
+            Contour::rectangle(DVec2::splat(-40.0), DVec2::splat(40.0)),
+            plane,
+            30.0,
+        ))
+        .expect("the exact kernel cuts the cone")
+}
+
+/// The ruling of `cone_of(radius, height)` at `azimuth` about Y, its
+/// direction up the cone, and the direction square to it round the axis.
+fn ruling(radius: f64, height: f64, azimuth: f64) -> (DVec3, DVec3, DVec3) {
+    let out = DVec3::new(azimuth.cos(), 0.0, azimuth.sin());
+    let up = (DVec3::Y * height - out * radius).normalize();
+    (out, up, out.cross(DVec3::Y))
+}
+
+/// `cone_of(radius, height)` cut by the plane through `(radius / 2) out` that
+/// holds the ruling's direction at `azimuth`, tilted from it by `tilt` towards
+/// the axis: at no tilt a parabola, its vertex at three quarters of the
+/// height on the far side.
+fn cut_by_a_ruling(radius: f64, height: f64, azimuth: f64, tilt: f64) -> (Body, DVec3, DVec3) {
+    let (out, up, across) = ruling(radius, height, azimuth);
+    let normal = up.cross(across);
+    let along = up * tilt.cos() + normal * tilt.sin();
+    let origin = out * radius / 2.0;
+    let body = cut_by_a_plane(radius, height, origin, along, across);
+    (body, origin, along.cross(across).normalize())
 }
 
 /// How far `point` stands from the cone's wall, `r = 10 - y / 2`.
@@ -340,6 +413,35 @@ fn turned_spindle() -> Body {
     )
 }
 
+/// An arc of radius 3 about (-2, 0), from the axis back to the axis the
+/// short way, through (1, 0), turned: a rugby ball, the inner part of a
+/// spindle of major radius 2, `π (44 √5 / 3 - 36 asin(√5 / 3))` of matter.
+fn turned_rugby_ball() -> Body {
+    let center = DVec2::new(-2.0, 0.0);
+    let reach = 5f64.sqrt();
+    let from = DVec2::new(2.0, -reach).to_angle();
+    let turn = DVec2::new(2.0, reach).to_angle() - from;
+    turned(
+        vec![DVec2::new(0.0, -reach), DVec2::new(0.0, reach)],
+        vec![Run::Round { center, turn }, Run::Straight],
+        arc(center, 3.0, from, turn),
+    )
+}
+
+/// A shaft of radius 10 standing from 0 to 30, drilled from the side along X
+/// by a hole of radius 4 about `y = 6 - gap, z = 15`: the hole's wall comes
+/// within `gap` of the shaft's, and the curves they meet along all but touch.
+fn drilled_within(gap: f64) -> Body {
+    let side = Frame {
+        origin: DVec3::new(-15.0, 0.0, 0.0),
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    on_a_part(raised(disc(DVec2::ZERO, 10.0), GROUND, 30.0))
+        .difference(&raised(disc(DVec2::new(6.0 - gap, 15.0), 4.0), side, 30.0))
+        .expect("the exact kernel drills it")
+}
+
 /// A disc of radius 20 drawn as 32 flat sides, raised 10 by the flats: the
 /// drawing handed no runs.
 fn flats_disc() -> Body {
@@ -453,7 +555,8 @@ fn a_shaft_chamfered_at_its_foot_written_to_step_reads_back_as_one_closed_solid_
 /// that cut it, and the highest of them at the vertex `top`.
 fn conic_holds(
     points: &[Vec<DVec3>],
-    off_the_plane: fn(DVec3) -> f64,
+    off_the_plane: impl Fn(DVec3) -> f64,
+    off_the_cone: impl Fn(DVec3) -> f64,
     top: f64,
     tolerance: f64,
     kind: &str,
@@ -491,6 +594,7 @@ fn a_cone_cut_along_a_ruling_written_to_step_reads_back_as_one_closed_solid_of_i
     conic_holds(
         &solid.along_parabolas,
         off_the_plane_along_a_ruling,
+        off_the_cone,
         15.0,
         kernel_tolerance(&cut, 1.0),
         "parabola",
@@ -511,9 +615,80 @@ fn a_cone_cut_steeper_than_its_rulings_written_to_step_reads_back_as_one_closed_
     conic_holds(
         &solid.along_hyperbolas,
         |point| (point.x - 4.0).abs(),
+        off_the_cone,
         12.0,
         kernel_tolerance(&cut, 1.0),
         "hyperbola",
+    );
+}
+
+#[test]
+fn a_cone_cut_along_a_ruling_at_any_azimuth_is_written_as_its_parabola() {
+    for (radius, height, degrees) in [(10.0, 20.0, 37.0), (10.0, 20.0, 45.0), (7.0, 14.0, 61.0)] {
+        let (cut, origin, normal) = cut_by_a_ruling(radius, height, f64::to_radians(degrees), 0.0);
+        let text = step::of(&cut, 1.0).expect("the cut cone is written");
+
+        let solid = reads_back_exact(&cut, 1.0);
+        assert!(
+            text.contains("PARABOLA("),
+            "the {radius} by {height} cone cut along its ruling at {degrees}° is written \
+             with no parabola"
+        );
+        conic_holds(
+            &solid.along_parabolas,
+            |point| (point - origin).dot(normal).abs(),
+            |point| off_the_cone_of(radius, height, point),
+            0.75 * height,
+            kernel_tolerance(&cut, 1.0),
+            &format!("parabola at {degrees}°"),
+        );
+    }
+}
+
+#[test]
+fn a_cone_cut_a_hair_off_a_ruling_reads_back_within_the_tolerance() {
+    for tilt in [1e-6, 1e-9, -1e-9] {
+        let (cut, _, _) = cut_by_a_ruling(10.0, 20.0, f64::to_radians(37.0), tilt);
+
+        reads_back_exact(&cut, 1.0);
+    }
+}
+
+#[test]
+fn a_rugby_ball_reads_back_as_the_inner_part_of_a_degenerate_torus_facing_out() {
+    let ball = turned_rugby_ball();
+    let reach = 5f64.sqrt();
+    let volume = PI * (44.0 * reach / 3.0 - 36.0 * (reach / 3.0).asin());
+    assert!(
+        (ball.volume() - volume).abs() <= 1e-9 * volume,
+        "the kernel holds {}, the arithmetic {volume}",
+        ball.volume()
+    );
+    let text = step::of(&ball, 1.0).expect("the rugby ball is written");
+
+    let solid = reads_back_exact(&ball, 1.0);
+    assert!(solid.volume > 0.0, "the ball reads back inside out");
+    assert!(
+        text.lines()
+            .any(|line| line.contains("DEGENERATE_TOROIDAL_SURFACE") && line.ends_with(",.F.);")),
+        "the rugby ball is not written as the inner part of a degenerate torus"
+    );
+}
+
+#[test]
+fn a_hole_within_a_tenth_of_a_micron_of_tangency_is_written_within_the_tolerance_and_no_larger_than_four_far_ones()
+ {
+    let near = drilled_within(1e-4);
+    let far = step::of(&drilled_within(1.0), 1.0).expect("the hole a millimetre off is written");
+    let text = step::of(&near, 1.0).expect("the hole a tenth of a micron off is written");
+
+    reads_back_exact(&near, 1.0);
+    assert!(
+        text.len() <= 4 * far.len(),
+        "a hole a tenth of a micron from tangency writes {} bytes, one a millimetre off {}: \
+         the meet curve is refined everywhere for one tight spot",
+        text.len(),
+        far.len()
     );
 }
 
@@ -721,6 +896,20 @@ fn the_reader_measures_a_ball_written_by_hand() {
         &step_reader::hand_written::ball(),
         32.0 * PI / 3.0,
         16.0 * PI,
+    );
+}
+
+#[test]
+fn the_reader_measures_a_lemon_written_by_hand() {
+    let solid = read(&step_reader::hand_written::lemon());
+
+    let reach = 5f64.sqrt();
+    let volume = PI * (44.0 * reach / 3.0 - 36.0 * (reach / 3.0).asin());
+    assert!(solid.worst < 1e-12, "it stands {} off itself", solid.worst);
+    assert!(
+        (solid.volume - volume).abs() < 1e-9,
+        "it holds {}, not {volume}",
+        solid.volume
     );
 }
 

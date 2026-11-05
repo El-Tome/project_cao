@@ -12,7 +12,12 @@
 //!   of a block, and a distance, leaves a closed body with one more planar
 //!   face, set back by that distance along each of the two faces, and passes
 //!   the soundness checks —
-//!   `a_chamfer_on_a_block_s_top_front_edge_lays_one_flat_face_set_back_by_the_distance_along_the_top_and_the_front`
+//!   `a_chamfer_on_a_block_s_top_front_edge_lays_one_flat_face_set_back_by_the_distance_along_the_top_and_the_front`;
+//!   the one check the public body cannot be asked, that its listing stands
+//!   on its geometry, from inside the crate by
+//!   `every_body_a_chamfer_leaves_lists_what_it_is_made_of_as_its_geometry_stands`
+//!   in `src/body/tests/chamfer.rs`, on this chamfer, one that takes a whole
+//!   face, both of the trapezoid's slanted edges and the edge a join bridged
 //! - The same holds on an edge whose two faces meet at an angle other than a
 //!   right one —
 //!   `a_chamfer_on_an_edge_whose_faces_meet_at_a_slant_is_set_back_by_the_distance_along_each_face`

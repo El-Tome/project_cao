@@ -1066,3 +1066,5 @@ fn a_tool_that_takes_nothing_hands_back_the_part_without_a_note() {
 
     assert_eq!(again.unstable(), None);
 }
+
+mod chamfer;

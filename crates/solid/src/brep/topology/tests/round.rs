@@ -32,6 +32,13 @@
 //! is. Their own boxes are not stated: stating them exactly is what boxing
 //! them is. Each is held instead to the points where a coordinate turns over
 //! its whole surface, those of them that lie on it.
+//!
+//! The guard holds one more, which the round campaign found boxed short (seed
+//! 2722): a whole torus joined with a coaxial tube whose bore touches its
+//! outer equator. The join bounds the torus's face by that circle, so its box
+//! is read off its edges and the points it holds; the profile's one corner,
+//! at the top of the tube, puts the face's seam where z turns, and the face
+//! still holds the top of its tube there.
 
 use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_2, PI, TAU};
 
@@ -40,8 +47,8 @@ use glam::{DVec2, DVec3};
 use crate::brep::turned::tests::about_y;
 use crate::brep::turned::tests::round::{apple, ball, bent, cap, ring, turned};
 use crate::brep::{Body, FaceId, Location, Surface};
-use crate::profile::Frame;
-use crate::turning::Straight;
+use crate::profile::{Contour, Frame, Run};
+use crate::turning::{Axis, ON_THE_AXIS, Straight, Turn};
 
 /// How far, against the size of a box, a box read off closed forms may stand
 /// from the exact one: rounding, a thousandth of the kernel's own tolerance.
@@ -233,9 +240,10 @@ pub(in crate::brep) struct Sampled {
 }
 
 /// Every face the guard samples: the partial faces, with the points where
-/// they reach each side of their own box, and the faces turned about a
-/// slanted axis, with the points of their surface where a coordinate turns
-/// that lie on them.
+/// they reach each side of their own box, the faces turned about a slanted
+/// axis, with the points of their surface where a coordinate turns that lie
+/// on them, and a whole torus cut along its outer equator, with the top of
+/// its tube.
 pub(in crate::brep) fn sampled_rounds() -> Vec<Sampled> {
     partial_rounds()
         .into_iter()
@@ -246,7 +254,98 @@ pub(in crate::brep) fn sampled_rounds() -> Vec<Sampled> {
             named: partial.reached,
         })
         .chain(slanted_rounds())
+        .chain([cut_along_its_outer_equator()])
         .collect()
+}
+
+/// The round campaign's seed 2722 in `random_turned_solids.rs`, laid as the
+/// harness hands it over: a ring torus about the line along −Z through
+/// `(2, 2)`, its tube of radius 5 at 5.5 from the axis, drawn as a whole
+/// circle from one corner at the top of the tube, joined with a tube about
+/// the same line whose bore, of radius 10.5, touches the torus's outer
+/// equator. The join cuts the torus's face along that circle and leaves it
+/// the whole of its torus, the top of the tube, `z = 0`, among it.
+fn cut_along_its_outer_equator() -> Sampled {
+    let whole_turn = |frame: Frame, axis: Axis, furthest: f64, contour: Contour| {
+        let turn = Turn {
+            axis,
+            angle: TAU,
+            resolution: 0.0,
+            on_the_axis: ON_THE_AXIS * furthest,
+        };
+        let straight =
+            Straight::of(&contour, &[], frame, &turn, 0.0).expect("the profile is straight");
+        Body::turned(&straight, frame, &turn).expect("the profile turns")
+    };
+    let torus = whole_turn(
+        Frame {
+            origin: DVec3::new(0.0, 2.0, 0.0),
+            u: DVec3::X,
+            v: DVec3::Z,
+        },
+        Axis {
+            origin: DVec2::new(2.0, 0.0),
+            direction: -DVec2::Y,
+        },
+        10.5,
+        Contour {
+            corners: vec![DVec2::new(7.5, 0.0)],
+            runs: vec![Run::Round {
+                center: DVec2::new(7.5, -5.0),
+                turn: TAU,
+            }],
+        },
+    );
+    let tube = whole_turn(
+        Frame {
+            origin: DVec3::new(2.0, 0.0, 0.0),
+            u: DVec3::Y,
+            v: DVec3::Z,
+        },
+        Axis {
+            origin: DVec2::new(2.0, 0.0),
+            direction: DVec2::Y,
+        },
+        11.0,
+        Contour {
+            corners: vec![
+                DVec2::new(-8.5, -10.0),
+                DVec2::new(-8.5, 0.0),
+                DVec2::new(-9.0, 0.0),
+                DVec2::new(-9.0, -10.0),
+            ],
+            runs: vec![Run::Straight; 4],
+        },
+    );
+    let what = "a whole torus cut along its outer equator by a coaxial tube touching it";
+    let body = torus.joined(&tube).expect("the tube joins the torus");
+    let face = round_face(&body);
+    assert!(
+        !body.face(face).loops.is_empty(),
+        "{what}: the join bounds the torus's face by the circle the tube touches"
+    );
+    let surface = body.surface(body.face(face).surface);
+    let eps = body.scale().eps();
+    let named: Vec<DVec3> = [
+        [7.5, 2.0, 0.0],
+        [-3.5, 2.0, 0.0],
+        [2.0, 7.5, 0.0],
+        [2.0, -3.5, 0.0],
+    ]
+    .map(DVec3::from)
+    .to_vec();
+    for &point in &named {
+        assert!(
+            surface.point(surface.parameters(point)).distance(point) <= eps,
+            "{what}: {point}, at the top of the tube, lies on the torus"
+        );
+    }
+    Sampled {
+        what,
+        body,
+        face,
+        named,
+    }
 }
 
 /// A frame through `(2, −1, 3)` whose second axis, the one the fixtures

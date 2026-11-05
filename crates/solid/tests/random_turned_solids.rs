@@ -5882,6 +5882,31 @@ fn a_spindle_turned_the_other_way_crosses_only_its_own_lobe() {
     ));
 }
 
+/// A ring torus joined with a tube about its own axis whose bore touches its
+/// outer equator: the join cuts the torus's face along that circle, and the
+/// face still holds the whole tube, its top as well. A line through the tube
+/// is crossed there as everywhere else: the rounded campaign's seed 2722,
+/// drawn with seed 625, which the face boxed short of the top of its tube left
+/// uncrossed (#625).
+#[test]
+fn seed_2722_a_torus_joined_with_a_coaxial_tube_touching_its_outer_equator_is_crossed_where_its_tube_is()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(2.0),
+            Axis::second(2.0).backwards(),
+            Section::bands(0.0, &[[10.0, 5.5, 5.5]]).bowed(&[[[5.0, 5.5, -5.0], [5.0, 5.5, 5.0]]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::yz(2.0),
+            Axis::second(2.0),
+            Section::bands(-10.0, &[[10.0, 10.5, 11.0]]),
+            360.0,
+        ))],
+    ));
+}
+
 /// The campaigns, compiled only when asked for — `--features campaigns` —
 /// so that work on any other issue never pays for them.
 #[cfg(feature = "campaigns")]

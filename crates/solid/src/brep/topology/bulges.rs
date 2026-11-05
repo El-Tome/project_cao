@@ -20,8 +20,9 @@ impl Body {
     /// The points of a face's sphere or torus that go furthest along
     /// `direction` or against it — a sphere's two, a torus's four, found
     /// where the surface's gradient along the direction vanishes — kept
-    /// where they stand inside the face or on its boundary, and every one
-    /// where the face's domain cannot be read. None for any other surface.
+    /// where they stand inside the face or on its boundary at any of their
+    /// [`readings`], and every one where the face's domain cannot be read.
+    /// None for any other surface.
     pub(in crate::brep) fn bulges(&self, face: FaceId, direction: DVec3) -> Vec<DVec3> {
         let surface = self.surface(self.face(face).surface);
         let candidates = match surface {
@@ -40,10 +41,9 @@ impl Body {
         candidates
             .into_iter()
             .filter(|point| {
-                !matches!(
-                    self.locate(face, surface.parameters(*point), eps),
-                    Ok(Location::Outside)
-                )
+                readings(surface, *point, eps)
+                    .into_iter()
+                    .any(|at| !matches!(self.locate(face, at, eps), Ok(Location::Outside)))
             })
             .collect()
     }
@@ -57,6 +57,29 @@ impl Body {
             .flat_map(|axis| self.bulges(face, axis))
             .collect()
     }
+}
+
+/// Every reading of a point of a sphere or a torus a face may hold it at: as
+/// the chart reads it and, on a torus, where it stands within the tolerance
+/// of the cut its chart's window ends at, the tolerance inside each end of
+/// the window too. Both ends are one circle of the torus, which the face may
+/// hold from either side, and the chart's own reading of a point on it may
+/// land a rounding past the window's top, where the cut is not counted (seed
+/// 2722). The angle about the axis is read round, and a sphere's chart ends
+/// at its poles, which a face holds as vertices: neither needs another
+/// reading. A point dropped wrongly boxes the face short of it, one kept
+/// wrongly a tolerance too wide.
+fn readings(surface: &Surface, point: DVec3, eps: f64) -> Vec<DVec2> {
+    let at = surface.parameters(point);
+    let mut readings = vec![at];
+    if let Surface::Torus(torus) = surface {
+        let room = eps / torus.radius;
+        let [bottom, top] = [torus.seam - PI, torus.seam + PI];
+        if at.y - bottom <= room || top - at.y <= room {
+            readings.extend([top - room, bottom + room].map(|phi| DVec2::new(at.x, phi)));
+        }
+    }
+    readings
 }
 
 /// Where a torus goes furthest along `direction` or against it: in the

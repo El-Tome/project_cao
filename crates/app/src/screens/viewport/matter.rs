@@ -21,7 +21,6 @@ use crate::screens::sketch::SketchEditor;
 ///
 /// The cut holds only while the view sits on that plane or on one parallel to
 /// it: orbited off it, or landed on a plane across it, the part is seen whole.
-#[derive(Clone)]
 pub(crate) struct Drawn<'a> {
     pub(crate) opaque: Cow<'a, Body>,
     pub(crate) see_through: Option<Body>,
@@ -33,28 +32,35 @@ pub(crate) fn drawn<'a>(
     body: &'a Body,
     eye: Vec3,
 ) -> Drawn<'a> {
-    match Cut::asked(editor, mode, eye) {
-        Some(cut) => cut.of(body),
-        None => Drawn {
+    let Some((cut, see_through)) = Cut::asked(editor, mode, eye) else {
+        return Drawn {
             opaque: Cow::Borrowed(body),
             see_through: None,
-        },
+        };
+    };
+    Drawn {
+        opaque: Cow::Owned(body.behind(cut.towards, cut.offset)),
+        see_through: see_through.then(|| body.in_front(cut.towards, cut.offset)),
     }
 }
 
-/// The last section cut, handed to every frame until what it was cut from
-/// changes: the cut costs the kernel a boolean, which no frame can afford.
+/// The halves last cut, each handed to every frame until the part, the plane
+/// or the side the eye is on changes: a cut costs the kernel a boolean, which
+/// no frame can afford.
 #[derive(Default)]
 pub(crate) struct Sections {
     last: RefCell<Option<Section>>,
     #[cfg(test)]
-    cuts: std::cell::Cell<usize>,
+    behind_cuts: std::cell::Cell<usize>,
+    #[cfg(test)]
+    front_cuts: std::cell::Cell<usize>,
 }
 
 struct Section {
     cut: Cut,
     body: Body,
-    drawn: Drawn<'static>,
+    behind: Option<Body>,
+    in_front: Option<Body>,
 }
 
 impl Sections {
@@ -65,46 +71,68 @@ impl Sections {
         body: &'a Body,
         eye: Vec3,
     ) -> Drawn<'a> {
-        let Some(cut) = Cut::asked(editor, mode, eye) else {
+        let Some((cut, see_through)) = Cut::asked(editor, mode, eye) else {
             return drawn(editor, mode, body, eye);
         };
         let mut last = self.last.borrow_mut();
         // Compared by value: the document keeps no revision of its body, and
         // reading two bodies through costs a fraction of cutting one.
-        let section = match last.take() {
+        let mut section = match last.take() {
             Some(section) if section.cut == cut && section.body == *body => section,
-            _ => {
-                #[cfg(test)]
-                self.cuts.set(self.cuts.get() + 1);
-                Section {
-                    cut,
-                    body: body.clone(),
-                    drawn: cut.of(body),
-                }
-            }
+            _ => Section {
+                cut,
+                body: body.clone(),
+                behind: None,
+                in_front: None,
+            },
         };
-        let drawn = section.drawn.clone();
+        let behind = section
+            .behind
+            .get_or_insert_with(|| {
+                #[cfg(test)]
+                self.behind_cuts.set(self.behind_cuts.get() + 1);
+                body.behind(cut.towards, cut.offset)
+            })
+            .clone();
+        let in_front = see_through.then(|| {
+            section
+                .in_front
+                .get_or_insert_with(|| {
+                    #[cfg(test)]
+                    self.front_cuts.set(self.front_cuts.get() + 1);
+                    body.in_front(cut.towards, cut.offset)
+                })
+                .clone()
+        });
         *last = Some(section);
-        drawn
+        Drawn {
+            opaque: Cow::Owned(behind),
+            see_through: in_front,
+        }
     }
 
     #[cfg(test)]
-    pub(crate) fn cuts(&self) -> usize {
-        self.cuts.get()
+    pub(crate) fn behind_cuts(&self) -> usize {
+        self.behind_cuts.get()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn front_cuts(&self) -> usize {
+        self.front_cuts.get()
     }
 }
 
-/// Where the body is cut, which side is kept, and whether what stands in
-/// front is handed over to be drawn see-through.
+/// Where the body is cut, and which side of the plane is kept.
 #[derive(Clone, Copy, PartialEq)]
 struct Cut {
     towards: DVec3,
     offset: f64,
-    see_through: bool,
 }
 
 impl Cut {
-    fn asked(editor: &SketchEditor, mode: ViewMode, eye: Vec3) -> Option<Cut> {
+    /// The cut a frame asks for, if any, and whether what stands in front is
+    /// handed over to be drawn see-through.
+    fn asked(editor: &SketchEditor, mode: ViewMode, eye: Vec3) -> Option<(Cut, bool)> {
         let plane = sketch_plane_in_view(editor, mode)?;
         let (towards, offset) = plane.near_side(eye.as_dvec3());
         let see_through = match editor.matter_in_front {
@@ -112,26 +140,7 @@ impl Cut {
             MatterInFront::Hidden => false,
             MatterInFront::SeeThrough => true,
         };
-        Some(Cut {
-            towards,
-            offset,
-            see_through,
-        })
-    }
-
-    fn of<'a>(self, body: &Body) -> Drawn<'a> {
-        if self.see_through {
-            let (behind, in_front) = body.parted(self.towards, self.offset);
-            Drawn {
-                opaque: Cow::Owned(behind),
-                see_through: Some(in_front),
-            }
-        } else {
-            Drawn {
-                opaque: Cow::Owned(body.behind(self.towards, self.offset)),
-                see_through: None,
-            }
-        }
+        Some((Cut { towards, offset }, see_through))
     }
 }
 

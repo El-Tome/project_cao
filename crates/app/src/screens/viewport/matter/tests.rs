@@ -61,10 +61,13 @@
 //!   `closing_the_sketch_puts_the_whole_body_back`
 //! - the cut is computed once each time the plane changes, never every frame
 //!   — `the_section_is_cut_once_while_the_plane_stays_put`,
-//!   `the_section_is_cut_again_when_the_plane_moves`; and again when anything
-//!   else it is cut from changes, the part, the side the eye is on or how the
-//!   matter in front is shown —
-//!   `the_section_is_cut_again_when_the_part_the_side_or_the_state_changes`
+//!   `the_section_is_cut_again_when_the_plane_moves`; and again when the part
+//!   or the side the eye is on changes —
+//!   `the_section_is_cut_again_when_the_part_or_the_side_changes`; how the
+//!   matter in front is shown cuts each half once, found in review: Hidden
+//!   cuts what lies behind, See-through reuses it and cuts only what stands in
+//!   front, and going round the three states cuts nothing more —
+//!   `going_round_the_states_of_the_matter_in_front_cuts_each_half_once`
 //! - the rest of #578 is the kernel's, under its own `Closes #578` in
 //!   `crates/solid/tests/the_section_of_an_exact_part_is_filled.rs` — no test:
 //!   here; this block holds only what the view decides
@@ -548,8 +551,8 @@ fn the_section_is_cut_once_while_the_plane_stays_put() {
         .into_owned();
 
     assert_eq!(
-        sections.cuts(),
-        1,
+        (sections.behind_cuts(), sections.front_cuts()),
+        (1, 0),
         "a second frame with nothing changed cut the part again"
     );
     assert!(!reaches_above(&first), "the near half is gone");
@@ -573,7 +576,7 @@ fn the_section_is_cut_again_when_the_plane_moves() {
         .into_owned();
 
     assert_eq!(
-        sections.cuts(),
+        sections.behind_cuts(),
         2,
         "the plane moved and the part was not cut again"
     );
@@ -594,7 +597,7 @@ fn the_section_is_cut_again_when_the_plane_moves() {
 }
 
 #[test]
-fn the_section_is_cut_again_when_the_part_the_side_or_the_state_changes() {
+fn the_section_is_cut_again_when_the_part_or_the_side_changes() {
     let mut editor = SketchEditor::default();
     editor.begin_editing(0, WorkPlane::XY);
     let mode = sitting_on(WorkPlane::XY);
@@ -607,7 +610,11 @@ fn the_section_is_cut_again_when_the_part_the_side_or_the_state_changes() {
         .drawn(&editor, mode, &body, ABOVE)
         .opaque
         .into_owned();
-    assert_eq!(sections.cuts(), 2, "the part changed and was not cut again");
+    assert_eq!(
+        sections.behind_cuts(),
+        2,
+        "the part changed and was not cut again"
+    );
     assert!(
         other_part
             .triangles()
@@ -622,7 +629,7 @@ fn the_section_is_cut_again_when_the_part_the_side_or_the_state_changes() {
         .opaque
         .into_owned();
     assert_eq!(
-        sections.cuts(),
+        sections.behind_cuts(),
         3,
         "the eye crossed the plane and the part was not cut again"
     );
@@ -634,22 +641,69 @@ fn the_section_is_cut_again_when_the_part_the_side_or_the_state_changes() {
             .all(|at| at.z >= -1e-9),
         "the half kept is still the one the eye stood in front of"
     );
+}
 
-    editor.next_matter_in_front();
-    let see_through = sections.drawn(&editor, mode, &body, -ABOVE).see_through;
+#[test]
+fn going_round_the_states_of_the_matter_in_front_cuts_each_half_once() {
+    let mut editor = SketchEditor::default();
+    editor.begin_editing(0, WorkPlane::XY);
+    let mode = sitting_on(WorkPlane::XY);
+    let body = a_body_through_the_plane();
+    let sections = Sections::default();
+    let cuts = |sections: &Sections| (sections.behind_cuts(), sections.front_cuts());
+
+    let hidden = sections.drawn(&editor, mode, &body, ABOVE);
     assert_eq!(
-        sections.cuts(),
-        4,
-        "the matter in front went see-through and the part was not parted"
+        cuts(&sections),
+        (1, 0),
+        "Hidden cut more than what lies behind"
     );
     assert!(
-        see_through.is_some_and(|in_front| reaches_below(&in_front)),
-        "see-through hands over no matter in front"
+        !reaches_above(&hidden.opaque),
+        "Hidden draws the matter in front"
     );
-    sections.drawn(&editor, mode, &body, -ABOVE);
+    assert!(hidden.see_through.is_none());
+    let behind = hidden.opaque.into_owned();
+
+    editor.next_matter_in_front();
+    let see_through = sections.drawn(&editor, mode, &body, ABOVE);
     assert_eq!(
-        sections.cuts(),
-        4,
-        "a second see-through frame parted the part again"
+        cuts(&sections),
+        (1, 1),
+        "See-through cut again what Hidden had cut behind the plane"
     );
+    assert_eq!(
+        *see_through.opaque, behind,
+        "See-through draws another half behind the plane than Hidden"
+    );
+    let in_front = see_through
+        .see_through
+        .expect("See-through hands over no matter in front");
+    assert!(reaches_above(&in_front) && !reaches_below(&in_front));
+
+    editor.next_matter_in_front();
+    let opaque = sections.drawn(&editor, mode, &body, ABOVE);
+    assert_eq!(cuts(&sections), (1, 1), "Opaque cut the part");
+    assert_eq!(*opaque.opaque, body, "Opaque does not draw the part whole");
+    assert!(opaque.see_through.is_none());
+
+    editor.next_matter_in_front();
+    let hidden_again = sections.drawn(&editor, mode, &body, ABOVE);
+    assert_eq!(
+        cuts(&sections),
+        (1, 1),
+        "Hidden again cut what it had cut before Opaque"
+    );
+    assert_eq!(*hidden_again.opaque, behind);
+    assert!(hidden_again.see_through.is_none());
+
+    editor.next_matter_in_front();
+    let see_through_again = sections.drawn(&editor, mode, &body, ABOVE);
+    assert_eq!(
+        cuts(&sections),
+        (1, 1),
+        "See-through again cut what it had cut before"
+    );
+    assert_eq!(*see_through_again.opaque, behind);
+    assert_eq!(see_through_again.see_through, Some(in_front));
 }

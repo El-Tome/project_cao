@@ -11,6 +11,11 @@
 //! `crates/part/tests/a_fillet_rounds_a_corner_with_a_curve.rs`: a plate
 //! rounded beside an arc is tinted over its rounded area —
 //! `a_plate_rounded_beside_an_arc_is_tinted_along_its_rounded_outline`.
+//!
+//! Closes #321.
+//! - the preview updates as soon as the panel holds enough to lay something,
+//!   wherever the pointer is — over the panel, the canvas has no cursor —
+//!   `a_copy_s_preview_shows_with_the_pointer_off_the_drawing`
 
 use cao_part::PartDocument;
 use cao_part::history::{Operation, PointRef};
@@ -24,6 +29,7 @@ use super::*;
 use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::SketchEditor;
+use crate::screens::viewport::input::copying::{copy, enter_in_the_panel};
 
 /// A vertex holds its position in `f32`, so a place read back off one has lost
 /// the tail of its `f64`. Well under the width of anything drawn here.
@@ -357,5 +363,49 @@ fn a_plate_rounded_beside_an_arc_is_tinted_along_its_rounded_outline() {
     assert!(
         (sharp - rounded) > 2.0,
         "less is tinted once the corner is rounded: {sharp} against {rounded}"
+    );
+}
+
+#[test]
+fn a_copy_s_preview_shows_with_the_pointer_off_the_drawing() {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(4.0, 5.0)),
+        end: PointRef::New(DVec2::new(8.0, 5.0)),
+        construction: false,
+    });
+    let mut editor = SketchEditor::default();
+    editor.begin_editing(0, WorkPlane::XY);
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    crate::commands::run(
+        cao_prefs::Command::ToolMirror,
+        &mut context,
+        &mut crate::screens::ribbon::Ribbon::default(),
+        &mut crate::screens::viewport::ViewportState::default(),
+    );
+    let (snap, pixel) = (0.5, 0.05);
+    copy(&mut context, 0, DVec2::new(6.0, 5.0), snap, pixel);
+    enter_in_the_panel(&mut context);
+    copy(&mut context, 0, DVec2::new(20.0, 0.0), snap, pixel);
+
+    context.editor.cursor = None;
+    let sketch = context.document.sketches()[0].clone();
+
+    assert!(
+        what_would_be_laid(&sketch, &context, a_view()).is_some(),
+        "the trait held, mirrored across the axis the panel holds, is shown with \
+         the pointer over the panel"
     );
 }

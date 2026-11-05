@@ -8,7 +8,8 @@ use glam::DVec2;
 use crate::screens::SketchContext;
 use crate::screens::sketch::{CopySlot, CopyTarget, LiveInput, Tool};
 
-use super::{ViewScale, pick};
+use super::super::values::refused_for_what_is_typed;
+use super::{ViewScale, ViewportState, pick};
 
 mod opening;
 mod preview;
@@ -37,9 +38,12 @@ pub(crate) fn copy(
 
 /// A box pulled across the drawing while Elements is active adds what it
 /// takes. True while the box is what the pointer is doing.
+///
+/// A hand moving the view pulls none, as with the Selection tool: the button
+/// that pans, or the one that orbits with its key held.
 pub(crate) fn gather_in_a_box(
+    view: &ViewportState,
     context: &mut SketchContext<'_>,
-    index: usize,
     (pressed, cursor): (DVec2, DVec2),
     response: &egui::Response,
     scale: ViewScale,
@@ -51,15 +55,25 @@ pub(crate) fn gather_in_a_box(
     if panel.active() != CopySlot::Elements {
         return false;
     }
-    if response.dragged() {
-        let from = panel.band.map_or(pressed, |(from, _)| from);
+    if response.drag_started() {
+        let navigating = view.drag.is_some();
+        if navigating || !response.drag_started_by(egui::PointerButton::Primary) {
+            return false;
+        }
+        panel.band = Some((pressed, cursor));
+        return true;
+    }
+    if response.dragged()
+        && let Some((from, _)) = panel.band
+    {
         panel.band = Some((from, cursor));
         return true;
     }
     let Some((from, _)) = panel.band.take().filter(|_| response.drag_stopped()) else {
         return false;
     };
-    let Some(sketch) = context.document.sketches().get(index) else {
+    let index = editor.active_sketch();
+    let Some(sketch) = index.and_then(|index| context.document.sketches().get(index)) else {
         return false;
     };
     let metrics = crate::screens::annotations::metrics(scale.units_per_pixel, DVec2::ZERO);
@@ -80,23 +94,30 @@ pub(crate) fn gather_in_a_box(
 /// copy is laid — or, with a slot still empty, that slot is activated and
 /// marked.
 pub(crate) fn enter_in_the_panel(context: &mut SketchContext<'_>) -> bool {
-    let editor = &mut *context.editor;
-    let Some(panel) = editor.copy_panel.as_mut() else {
+    let Some(leaving) = context.editor.copy_panel().map(|panel| panel.active()) else {
         return false;
     };
-    let leaving = panel.active();
     if leaving == CopySlot::Validate {
+        if refused_for_what_is_typed(context) {
+            return false;
+        }
+        let editor = &mut *context.editor;
+        let Some(panel) = editor.copy_panel.as_mut() else {
+            return false;
+        };
         if !panel.mark_the_first_empty(&editor.live) {
             let laid = editor
                 .active_sketch()
                 .and_then(|index| asked(context, index));
             return lay(context, laid);
         }
-    } else {
+    } else if let Some(panel) = context.editor.copy_panel.as_mut() {
         panel.move_down();
     }
-    let values = panel.values();
-    let untyped = (0..values).all(|rank| editor.live.typed(rank).is_none());
+    let editor = &*context.editor;
+    let untyped = editor.copy_panel().is_some_and(|panel| {
+        (0..panel.value_kinds().len()).all(|rank| editor.live.typed(rank).is_none())
+    });
     if leaving == CopySlot::Elements && untyped {
         opening::fields_open_on(context);
     }

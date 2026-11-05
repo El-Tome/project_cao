@@ -27,6 +27,9 @@ pub fn floating_panel<R>(
         .show(ctx, |ui| {
             egui::Frame::popup(ui.style())
                 .show(ui, |ui| {
+                    // Rows never wrap: the panel takes the width of its widest
+                    // one, frame after frame, as they change.
+                    ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
                     let title = egui::Label::new(egui::RichText::new(title).strong())
                         .sense(egui::Sense::drag());
                     let title = ui.add(title).on_hover_cursor(egui::CursorIcon::Grab);

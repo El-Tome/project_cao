@@ -242,7 +242,7 @@ pub(crate) fn handle_sketch_input(
         return changed;
     }
 
-    if copying::gather_in_a_box(context, index, (raw_pressed, raw_cursor), response, scale) {
+    if copying::gather_in_a_box(state, context, (raw_pressed, raw_cursor), response, scale) {
         return false;
     }
     if !response.clicked() {

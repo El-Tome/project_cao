@@ -19,12 +19,20 @@ use super::render::{
 use super::state::{GestureGoesTo, ViewScale, ViewportState, cube_rect, gesture_goes_to};
 use super::values::refused_for_what_is_typed;
 
-/// Returns true when the part was modified and should be saved.
-pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchContext<'_>) -> bool {
+/// What a frame of the viewport did that the shell above it has to carry out.
+#[derive(Default)]
+pub struct Shown {
+    /// The part was modified and should be saved.
+    pub changed: bool,
+    /// Where the copy tools' panel was let go this frame, to be kept.
+    pub copy_panel_let_go_at: Option<[f32; 2]>,
+}
+
+pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchContext<'_>) -> Shown {
     let (rect, response) =
         ui.allocate_exact_size(ui.available_size(), egui::Sense::click_and_drag());
     if rect.width() < 1.0 || rect.height() < 1.0 {
-        return false;
+        return Shown::default();
     }
 
     let cube_rect = cube_rect(rect, &state.config);
@@ -48,8 +56,13 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         }
         // A click is refused while a field at the cursor holds what cannot be
         // used, rather than laying the shape where the cursor is and dropping
-        // what was typed without a word.
-        GestureGoesTo::TheToolInHand if response.clicked() && refused_for_what_is_typed(sketch) => {
+        // what was typed without a word. A copy tool's click lays nothing: its
+        // panel refuses Validate instead.
+        GestureGoesTo::TheToolInHand
+            if response.clicked()
+                && sketch.editor.copy_panel().is_none()
+                && refused_for_what_is_typed(sketch) =>
+        {
             false
         }
         GestureGoesTo::TheToolInHand => {
@@ -62,7 +75,8 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     // egui::Order::Foreground layer regardless of when it is painted, so moving this earlier does
     // not move it behind anything.
     changed |= advance_on_enter(ui, sketch, scale);
-    changed |= paint_copy_panel(ui, rect, sketch);
+    let (laid, copy_panel_let_go_at) = paint_copy_panel(ui, state.copy_panel_at, rect, sketch);
+    changed |= laid;
 
     // A measure read a moment ago is about a drawing that has just moved, so
     // it goes with the change rather than staying on screen being wrong.
@@ -109,7 +123,10 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
     }
-    changed | paint_dimension_field(ui, state, rect, sketch)
+    Shown {
+        changed: changed | paint_dimension_field(ui, state, rect, sketch),
+        copy_panel_let_go_at,
+    }
 }
 
 /// Escape steps back out of whatever is going on: the shape in progress, the
@@ -126,6 +143,10 @@ fn handle_escape(ui: &egui::Ui, context: &mut SketchContext<'_>) {
         return;
     }
     let editor = &mut context.editor;
+    if editor.copy_panel().is_some() {
+        editor.cancel_the_copy();
+        return;
+    }
     let busy = editor.editing.is_some() || editor.tool_state.is_busy();
     // The tool changes first: reset_pending() reads it to decide the right idle tool_state, and
     // giving Select back after clearing would leave it with none, silently disabling the selection

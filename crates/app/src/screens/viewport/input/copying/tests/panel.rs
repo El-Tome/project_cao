@@ -20,7 +20,9 @@
 //! - Elements: a click on one already held removes it —
 //!   `a_click_on_an_element_already_held_lets_it_go`
 //! - Elements: a box drawn in the drawing adds what it takes —
-//!   `a_box_drawn_in_the_drawing_adds_what_it_takes`
+//!   `a_box_drawn_in_the_drawing_adds_what_it_takes`; a hand moving the view
+//!   pulls no box — `a_box_pulled_with_the_button_that_pans_takes_nothing`,
+//!   `a_box_pulled_while_orbiting_takes_nothing`
 //! - Axis / centre / direction: filled by the next click on a trait, an axis or
 //!   a point, depending on the tool —
 //!   `an_ordinary_trait_clicked_in_the_target_slot_is_the_mirror_s_axis`,
@@ -28,15 +30,17 @@
 //!   `a_trait_clicked_in_the_target_slot_is_the_rectangular_pattern_s_direction`
 //! - Values: step and count for the circular pattern, two steps and two counts
 //!   for the rectangular one, none for the mirror —
-//!   `each_copy_tool_has_the_values_it_needs_and_no_more`
-//! - Validate / cancel — `the_panel_s_cancel_closes_it_and_lays_nothing`;
+//!   `each_copy_tool_has_the_values_it_needs_and_no_more`, each named by its
+//!   kind — `each_value_of_the_panel_is_named_by_its_kind`
+//! - Validate / cancel — `the_panel_s_cancel_hands_its_elements_to_the_selection_tool_and_lays_nothing`;
 //!   Validate is held under Leaving
 //! - one slot is active and shown as such — no test: how it is shown is
 //!   checked on rendered frames; which one it is, by every test below
 //! - a click in the drawing fills the active slot and only that one, so an
 //!   ordinary trait can be an axis and a construction trait can be copied —
 //!   `an_ordinary_trait_clicked_in_the_target_slot_is_the_mirror_s_axis`,
-//!   `a_construction_trait_clicked_while_elements_is_active_is_copied`
+//!   `a_construction_trait_clicked_while_elements_is_active_is_copied`,
+//!   `a_click_in_the_drawing_while_a_value_or_validate_is_active_fills_nothing`
 //! - clicking a slot in the panel makes it active, at any time, to change what
 //!   it holds — `an_axis_already_picked_is_changed_by_clicking_its_slot_again`
 //! - the tool opens on Elements, or on the slot below it when a selection was
@@ -60,7 +64,9 @@
 //!   `a_copy_laid_leaves_the_tool_in_hand_and_the_panel_empty_on_its_elements`
 //! - `Échap` or another tool taken from the ribbon: nothing is laid, the panel
 //!   closes — `another_tool_taken_closes_the_panel_and_lays_nothing`; `Échap`
-//!   in the driver
+//!   and « Annuler » hand what was held to the Selection tool, as decided on
+//!   the branch — `the_panel_s_cancel_hands_its_elements_to_the_selection_tool_and_lays_nothing`,
+//!   and `Échap` in the driver
 //! - the elements held stay selected if the tool reached for works on a
 //!   selection; otherwise the selection is dropped —
 //!   `the_selection_tool_taken_from_the_panel_keeps_its_elements_selected`,
@@ -81,8 +87,10 @@
 //!   operations as today — `enter_on_validate_lays_the_mirror_as_one_step`,
 //!   `a_circular_pattern_laid_from_the_panel_is_one_step`,
 //!   `a_rectangular_pattern_laid_from_the_panel_is_one_step`
-//! - must not break: a mirrored arc comes back as an arc (#317) —
-//!   `an_arc_mirrored_from_the_panel_comes_back_an_arc`
+//! - must not break: a mirrored arc comes back as an arc (#317), the mirror
+//!   image of the original — `an_arc_mirrored_from_the_panel_comes_back_an_arc`
+//! - the panel keeps the width of its widest row as the rows change — no test:
+//!   a look, checked on rendered frames
 
 use cao_part::history::RepeatsAsked;
 use cao_part::{Formula, Operation, PointRef};
@@ -92,8 +100,9 @@ use glam::DVec2;
 
 use super::bench::Bench;
 use crate::screens::SketchContext;
-use crate::screens::sketch::{CopySlot, Tool};
+use crate::screens::sketch::{CopySlot, CopyValue, Tool};
 use crate::screens::viewport::input::handle_sketch_input;
+use crate::screens::viewport::navigation::handle_navigation;
 use crate::screens::viewport::{ViewScale, ViewportState, to_ndc};
 
 const ON_THE_TRAIT_TO_COPY: DVec2 = DVec2::new(-10.0, 0.0);
@@ -323,7 +332,7 @@ fn each_copy_tool_has_the_values_it_needs_and_no_more() {
 }
 
 #[test]
-fn the_panel_s_cancel_closes_it_and_lays_nothing() {
+fn the_panel_s_cancel_hands_its_elements_to_the_selection_tool_and_lays_nothing() {
     let mut bench = three_traits();
     bench.take(Command::ToolMirror);
     bench.click(ON_THE_TRAIT_TO_COPY);
@@ -334,7 +343,73 @@ fn the_panel_s_cancel_closes_it_and_lays_nothing() {
     bench.editor.cancel_the_copy();
 
     assert!(bench.editor.copy_panel().is_none(), "the panel is closed");
-    assert_eq!(bench.laid(), laid_before, "nothing is laid");
+    assert_eq!(bench.editor.tool, Tool::Select);
+    assert_eq!(
+        bench.editor.selection(),
+        [Selection::Element(Element::Segment(TRAIT_TO_COPY))],
+        "what the panel held stays selected"
+    );
+    assert_eq!(
+        bench.editor.message, None,
+        "the copy tool's prompt goes with it"
+    );
+    bench.enter();
+    assert_eq!(
+        bench.laid(),
+        laid_before,
+        "nothing is laid, not even by an Entrée that follows"
+    );
+}
+
+#[test]
+fn each_value_of_the_panel_is_named_by_its_kind() {
+    let kinds = |command: Command| {
+        let mut bench = three_traits();
+        bench.take(command);
+        bench.panel().value_kinds().to_vec()
+    };
+
+    assert_eq!(kinds(Command::ToolMirror), []);
+    assert_eq!(
+        kinds(Command::ToolCircularPattern),
+        [CopyValue::StepInDegrees, CopyValue::Count]
+    );
+    assert_eq!(
+        kinds(Command::ToolRectangularPattern),
+        [
+            CopyValue::StepInMillimetres,
+            CopyValue::Count,
+            CopyValue::StepInMillimetres,
+            CopyValue::Count
+        ]
+    );
+}
+
+#[test]
+fn a_click_in_the_drawing_while_a_value_or_validate_is_active_fills_nothing() {
+    let mut bench = holding_the_trait_to_copy(Command::ToolCircularPattern);
+    let centre = bench.point_at(THE_ORDINARY_TRAIT_S_FOOT);
+    bench.click(THE_ORDINARY_TRAIT_S_FOOT);
+    assert_eq!(bench.active(), CopySlot::Value(0));
+
+    bench.click(THE_ORDINARY_TRAIT_S_HEAD);
+    bench.click(ON_THE_CONSTRUCTION_TRAIT);
+    assert_eq!(bench.active(), CopySlot::Value(0), "a value stays active");
+    bench.click_the_slot(CopySlot::Validate);
+    bench.click(THE_ORDINARY_TRAIT_S_HEAD);
+    bench.click(ON_THE_CONSTRUCTION_TRAIT);
+    assert_eq!(bench.active(), CopySlot::Validate, "Validate stays active");
+    assert_eq!(bench.elements(), vec![Element::Segment(TRAIT_TO_COPY)]);
+    bench.enter();
+
+    assert!(
+        matches!(
+            bench.last_laid(),
+            Some(Operation::CircularPattern { centre: laid_about, .. }) if *laid_about == centre
+        ),
+        "the centre is still the one picked in its slot: {:?}",
+        bench.last_laid()
+    );
 }
 
 #[test]
@@ -567,7 +642,7 @@ fn the_preview_shows_across_the_axis_held_not_under_the_cursor() {
     bench.click(ON_THE_ORDINARY_TRAIT);
 
     assert_eq!(
-        bench.previewed_traits(FAR_FROM_EVERYTHING, 1.0),
+        bench.previewed_traits(1.0),
         Some(1),
         "the one trait held, mirrored across the axis the panel holds"
     );
@@ -581,7 +656,7 @@ fn the_preview_waits_for_the_panel_to_hold_enough() {
     bench.enter();
 
     assert_eq!(
-        bench.previewed_traits(ON_THE_ORDINARY_TRAIT, 1.0),
+        bench.previewed_traits(1.0),
         None,
         "with no axis in the panel there is nothing to lay, whatever the cursor \
          is over"
@@ -669,12 +744,35 @@ fn an_arc_mirrored_from_the_panel_comes_back_an_arc() {
     bench.click(ON_THE_ORDINARY_TRAIT);
     bench.enter();
 
+    let sketch = &bench.document.sketches()[0];
     assert_eq!(
-        bench.document.sketches()[0].live_arcs().count(),
+        sketch.live_arcs().count(),
         2,
         "the original and its copy, both arcs"
     );
+    let (copy, arc) = sketch
+        .live_arcs()
+        .find(|(id, _)| *id != ArcId(0))
+        .expect("the copy is an arc");
+    let near = |place: DVec2, expected: DVec2| (place - expected).length() <= TOLERANCE;
+    assert!(
+        near(sketch.point(arc.center), DVec2::new(24.0, 0.0)),
+        "the centre at x = -20 mirrored across x = 2 lands at x = 24, got {}",
+        sketch.point(arc.center)
+    );
+    assert!((sketch.arc_radius(copy) - 2.0).abs() <= TOLERANCE);
+    let ends = [sketch.point(arc.start), sketch.point(arc.end)];
+    let mirrored = [DVec2::new(22.0, 0.0), DVec2::new(24.0, 2.0)];
+    assert!(
+        mirrored
+            .iter()
+            .all(|end| ends.iter().any(|laid| near(*laid, *end))),
+        "the copy runs between the mirror images of the original's ends: {ends:?}"
+    );
 }
+
+/// A direct geometric comparison after one reflection.
+const TOLERANCE: f64 = 1e-9;
 
 const SCREEN: egui::Rect = egui::Rect {
     min: egui::Pos2::ZERO,
@@ -690,16 +788,21 @@ fn on_the_plane(state: &ViewportState, at: egui::Pos2) -> DVec2 {
         .expect("the place is on the drawing's plane")
 }
 
-/// One frame of the canvas, the pointer having done `events` since the last.
-fn frame(
+/// One frame of the canvas, the pointer having done `events` since the last
+/// and these keys held, the camera's navigation read first as the viewport
+/// reads it.
+fn frame_holding(
     egui: &egui::Context,
     state: &mut ViewportState,
     context: &mut SketchContext<'_>,
     events: Vec<egui::Event>,
+    modifiers: egui::Modifiers,
 ) {
+    let mut held_then_done = vec![egui::Event::ModifiersChanged(modifiers)];
+    held_then_done.extend(events);
     egui.begin_pass(egui::RawInput {
         screen_rect: Some(SCREEN),
-        events,
+        events: held_then_done,
         ..Default::default()
     });
     egui::Area::new(egui::Id::new("the canvas"))
@@ -711,6 +814,7 @@ fn frame(
                 egui::Id::new("the canvas's surface"),
                 egui::Sense::click_and_drag(),
             );
+            handle_navigation(ui, state, &response, egui::Rect::NOTHING);
             let scale = ViewScale::of(&state.camera, SCREEN, 1.0, &state.config, 1.0);
             handle_sketch_input(ui, state, &response, SCREEN, scale, context);
         });
@@ -721,17 +825,23 @@ fn moved(to: egui::Pos2) -> Vec<egui::Event> {
     vec![egui::Event::PointerMoved(to)]
 }
 
-fn button(at: egui::Pos2, pressed: bool) -> Vec<egui::Event> {
+fn pressed_with(
+    button: egui::PointerButton,
+    modifiers: egui::Modifiers,
+    at: egui::Pos2,
+    pressed: bool,
+) -> Vec<egui::Event> {
     vec![egui::Event::PointerButton {
         pos: at,
-        button: egui::PointerButton::Primary,
+        button,
         pressed,
-        modifiers: egui::Modifiers::NONE,
+        modifiers,
     }]
 }
 
-#[test]
-fn a_box_drawn_in_the_drawing_adds_what_it_takes() {
+/// Face on to the drawing, a trait inside the box pulled from `FROM` to `TO`
+/// and another below it, the mirror in hand on its elements.
+fn a_trait_under_a_box() -> (ViewportState, Bench) {
     let mut state = ViewportState::default();
     state
         .camera
@@ -744,22 +854,94 @@ fn a_box_drawn_in_the_drawing_adds_what_it_takes() {
         Bench::a_trait(outside[0], outside[1], false),
     ]);
     bench.take(Command::ToolMirror);
-    let (from, to) = (egui::pos2(760.0, 240.0), egui::pos2(960.0, 360.0));
-    let egui = egui::Context::default();
+    (state, bench)
+}
 
+const FROM: egui::Pos2 = egui::pos2(760.0, 240.0);
+const TO: egui::Pos2 = egui::pos2(960.0, 360.0);
+
+/// The box's gesture made with this button and these keys held, up to the
+/// moment the button would be let go.
+fn pulling_with(
+    egui: &egui::Context,
+    state: &mut ViewportState,
+    bench: &mut Bench,
+    pressing: egui::PointerButton,
+    modifiers: egui::Modifiers,
+) {
     for events in [
         vec![],
-        moved(from),
-        button(from, true),
-        moved(from + egui::vec2(12.0, 12.0)),
-        moved(from + (to - from) * 0.5),
-        moved(to),
-        vec![],
-        button(to, false),
+        moved(FROM),
+        pressed_with(pressing, modifiers, FROM, true),
+        moved(FROM + egui::vec2(12.0, 12.0)),
+        moved(FROM + (TO - FROM) * 0.5),
+        moved(TO),
         vec![],
     ] {
-        frame(&egui, &mut state, &mut bench.context(), events);
+        frame_holding(egui, state, &mut bench.context(), events, modifiers);
     }
+}
+
+fn let_go(
+    egui: &egui::Context,
+    state: &mut ViewportState,
+    bench: &mut Bench,
+    pressing: egui::PointerButton,
+    modifiers: egui::Modifiers,
+) {
+    for events in [pressed_with(pressing, modifiers, TO, false), vec![]] {
+        frame_holding(egui, state, &mut bench.context(), events, modifiers);
+    }
+}
+
+fn pulled_with(
+    state: &mut ViewportState,
+    bench: &mut Bench,
+    pressing: egui::PointerButton,
+    modifiers: egui::Modifiers,
+) {
+    let egui = egui::Context::default();
+    pulling_with(&egui, state, bench, pressing, modifiers);
+    let_go(&egui, state, bench, pressing, modifiers);
+}
+
+/// A gesture that moves the view, held then let go: no box is pulled along
+/// the way, and nothing is added at the end.
+fn moves_the_view_and_takes_nothing(pressing: egui::PointerButton, modifiers: egui::Modifiers) {
+    let (mut state, mut bench) = a_trait_under_a_box();
+    let egui = egui::Context::default();
+
+    pulling_with(&egui, &mut state, &mut bench, pressing, modifiers);
+    assert_eq!(
+        bench.panel().band,
+        None,
+        "no box follows a hand that is moving the view"
+    );
+    let_go(&egui, &mut state, &mut bench, pressing, modifiers);
+
+    assert_eq!(bench.elements(), Vec::new());
+}
+
+#[test]
+fn a_box_pulled_with_the_button_that_pans_takes_nothing() {
+    moves_the_view_and_takes_nothing(egui::PointerButton::Middle, egui::Modifiers::NONE);
+}
+
+#[test]
+fn a_box_pulled_while_orbiting_takes_nothing() {
+    moves_the_view_and_takes_nothing(egui::PointerButton::Primary, egui::Modifiers::ALT);
+}
+
+#[test]
+fn a_box_drawn_in_the_drawing_adds_what_it_takes() {
+    let (mut state, mut bench) = a_trait_under_a_box();
+
+    pulled_with(
+        &mut state,
+        &mut bench,
+        egui::PointerButton::Primary,
+        egui::Modifiers::NONE,
+    );
 
     let below = &bench.document.sketches()[0].segments()[1];
     let (below_start, below_end) = (below.start, below.end);

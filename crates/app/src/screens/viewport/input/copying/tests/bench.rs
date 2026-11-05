@@ -142,11 +142,11 @@ impl Bench {
             .expect("a point of the drawing stands there")
     }
 
-    /// What the drawing would gain if the copy were laid now, the cursor
-    /// resting at `cursor`: how many traits.
-    pub(crate) fn previewed_traits(&self, cursor: DVec2, scale: f64) -> Option<usize> {
+    /// What the drawing would gain if the copy were laid now: how many
+    /// traits. Read with no cursor at all — the panel alone decides it.
+    pub(crate) fn previewed_traits(&self, scale: f64) -> Option<usize> {
         let sketch = &self.document.sketches()[0];
-        previewed(sketch, &self.editor, cursor, SNAP, scale).map(|shown| {
+        previewed(sketch, &self.editor, scale).map(|shown| {
             shown
                 .laid
                 .iter()

@@ -4,14 +4,23 @@
 //! Closes #321.
 //! - `Entrée` with no field focused while the panel is open never closes the
 //!   sketch — `enter_with_the_panel_open_does_not_close_the_sketch`
-//! - `Échap` closes the panel, and nothing is laid: closing it is all `Échap`
-//!   does — `escape_closes_the_panel`
+//! - `Entrée` that validates another field moves nothing in the panel —
+//!   `enter_in_a_field_of_another_panel_leaves_the_copy_panel_alone`
+//! - `Échap` closes the panel, nothing is laid, and what it held stays selected
+//!   with the Selection tool in hand —
+//!   `escape_hands_what_the_panel_held_to_the_selection_tool`
 //! - while the writing cursor is in a field of the panel, no letter shortcut
 //!   fires — `a_letter_typed_in_a_field_of_the_panel_takes_no_tool`
+//! - a value that cannot be used refuses Validate alone: a click still fills
+//!   Elements and the target — `a_broken_value_refuses_validate_and_nothing_else`
 //! - it comes back where it was last left, one position shared by every tool
 //!   that uses it — `the_panel_opens_where_it_was_last_left_whichever_copy_tool_is_taken`
 //! - the place it is let go at is kept across restarts —
-//!   `a_panel_let_go_somewhere_is_saved_there`
+//!   `a_panel_let_go_somewhere_is_saved_there`, and survives the sketch being
+//!   finished or undone away — `finishing_the_sketch_keeps_the_place_the_panel_was_left_at`,
+//!   `undoing_past_the_sketch_keeps_the_place_the_panel_was_left_at`
+//! - with nowhere to keep the settings, letting the panel go raises no error —
+//!   `a_panel_let_go_with_nowhere_to_keep_settings_says_nothing`
 
 mod driver;
 
@@ -70,8 +79,11 @@ fn enter_with_the_panel_open_does_not_close_the_sketch() {
 }
 
 #[test]
-fn escape_closes_the_panel() {
-    let mut app = a_trait_drawn("escape_closes_the_panel", cao_prefs::Settings::default());
+fn escape_hands_what_the_panel_held_to_the_selection_tool() {
+    let mut app = a_trait_drawn(
+        "escape_hands_what_the_panel_held",
+        cao_prefs::Settings::default(),
+    );
     driver::click(&mut app, "Symétrie");
     driver::click_at(&mut app, right(ON_THE_TRAIT));
     assert!(
@@ -87,7 +99,81 @@ fn escape_closes_the_panel() {
         "the panel is closed: {:?}",
         driver::on_screen(&app)
     );
+    assert!(
+        driver::is_on(&app, "Sélection (S)"),
+        "the Selection tool is in hand"
+    );
     assert!(driver::shows(&app, "Terminer"), "the sketch stays open");
+    driver::click(&mut app, "Symétrie");
+    assert!(
+        driver::shows(&app, "Éléments : 1"),
+        "the trait stayed selected, and the mirror starts with it: {:?}",
+        driver::on_screen(&app)
+    );
+}
+
+#[test]
+fn enter_in_a_field_of_another_panel_leaves_the_copy_panel_alone() {
+    let mut app = a_trait_drawn(
+        "enter_in_a_field_of_another_panel",
+        cao_prefs::Settings::default(),
+    );
+    driver::click_the_button(&mut app, "Variables");
+    driver::click(&mut app, "Réseau circulaire");
+    let waiting = "ce qui doit être répété";
+    assert!(driver::says(&app, waiting), "{:?}", driver::said(&app));
+
+    driver::type_into(&mut app, "nom", "w");
+    driver::press(&mut app, egui::Key::Enter);
+    driver::type_into(&mut app, "formule", "3");
+    driver::press(&mut app, egui::Key::Enter);
+
+    assert!(
+        driver::says(&app, waiting),
+        "Elements is still the slot waiting: {:?}",
+        driver::said(&app)
+    );
+}
+
+#[test]
+fn a_broken_value_refuses_validate_and_nothing_else() {
+    let mut app = a_trait_drawn(
+        "a_broken_value_refuses_validate",
+        cao_prefs::Settings::default(),
+    );
+    driver::click(&mut app, "Réseau circulaire");
+    driver::click_at(&mut app, right(ON_THE_TRAIT));
+    driver::press(&mut app, egui::Key::Enter);
+    driver::type_over(&mut app, "90", "1+");
+
+    driver::click(&mut app, "Centre :");
+    driver::click_at(&mut app, right(driver::A_POINT_ABOVE_THE_ORIGIN));
+    assert!(
+        driver::shows(&app, "Centre : choisi"),
+        "a click in the target slot still stores the centre: {:?}",
+        driver::on_screen(&app)
+    );
+    driver::click(&mut app, "Éléments :");
+    driver::click_at(&mut app, right(ON_THE_TRAIT));
+    assert!(
+        driver::shows(&app, "Éléments : 0"),
+        "a click in Elements still takes the trait back out: {:?}",
+        driver::on_screen(&app)
+    );
+    driver::click_at(&mut app, right(ON_THE_TRAIT));
+
+    driver::click(&mut app, "Valider");
+
+    assert!(
+        driver::shows(&app, "Éléments : 1"),
+        "Validate refused, so the panel still holds the trait: {:?}",
+        driver::on_screen(&app)
+    );
+    assert!(
+        driver::says(&app, "La formule s'arrête avant sa dernière valeur"),
+        "and says why: {:?}",
+        driver::said(&app)
+    );
 }
 
 #[test]
@@ -177,5 +263,100 @@ fn a_panel_let_go_somewhere_is_saved_there() {
     assert!(
         (saved - now).length() <= 40.0,
         "what is saved is where the panel now stands: {saved:?}, its title at {now:?}"
+    );
+}
+
+/// The setting as the disk holds it, for the app opened under this test's name.
+fn saved_place(test: &str) -> Option<[f32; 2]> {
+    let root = std::env::temp_dir().join("cao-driver").join(test);
+    let at = Locations {
+        config: root.join("config"),
+        data: root.join("data"),
+        documents: Some(root.join("documents")),
+    };
+    Profiles::load(&cao_app::adapters::files::DiskFiles, &at)
+        .active()
+        .copy_panel_at
+}
+
+/// The mirror's panel taken by its title and let go further down and right.
+fn drag_the_mirror_s_panel(app: &mut driver::App) {
+    driver::click(app, "Symétrie");
+    let title = title_of_the_panel(app, "Symétrie");
+    driver::drag_and_drop(
+        app,
+        title.center(),
+        title.center() + egui::vec2(150.0, 80.0),
+    );
+}
+
+#[test]
+fn finishing_the_sketch_keeps_the_place_the_panel_was_left_at() {
+    let test = "finishing_the_sketch_keeps_the_place";
+    let mut app = a_trait_drawn(test, cao_prefs::Settings::default());
+    drag_the_mirror_s_panel(&mut app);
+    let left_at = saved_place(test);
+    assert!(
+        left_at.is_some(),
+        "the place is written down when the panel is let go"
+    );
+
+    driver::click(&mut app, "Terminer");
+
+    assert_eq!(saved_place(test), left_at);
+}
+
+#[test]
+fn undoing_past_the_sketch_keeps_the_place_the_panel_was_left_at() {
+    let test = "undoing_past_the_sketch_keeps_the_place";
+    let mut app = a_trait_drawn(test, cao_prefs::Settings::default());
+    drag_the_mirror_s_panel(&mut app);
+    let left_at = saved_place(test);
+    assert!(
+        left_at.is_some(),
+        "the place is written down when the panel is let go"
+    );
+
+    for _ in 0..3 {
+        driver::press_with_command(&mut app, egui::Key::Z);
+    }
+
+    assert!(
+        driver::says(&app, "Rien encore. Commencez par une esquisse."),
+        "the sketch is undone away: {:?}",
+        driver::said(&app)
+    );
+    assert_eq!(saved_place(test), left_at);
+}
+
+#[test]
+fn a_panel_let_go_with_nowhere_to_keep_settings_says_nothing() {
+    let root = std::env::temp_dir()
+        .join("cao-driver")
+        .join("a_panel_let_go_with_nowhere_to_keep");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).expect("a place for the part");
+    let (_, part) = cao_part::PartDocument::create_in(
+        &cao_app::adapters::files::DiskFiles,
+        &root,
+        "Platine",
+        chrono::Utc::now(),
+    )
+    .expect("the part is written");
+    let mut app: driver::App = egui_kittest::Harness::builder()
+        .with_size(egui::vec2(WIDE.0, WIDE.1))
+        .with_max_steps(16)
+        .build_eframe(move |cc| cao_app::app::CaoApp::new(cc, None, Some(part)));
+    app.run();
+    driver::click(&mut app, "Nouvelle esquisse");
+    driver::click_at(&mut app, right(driver::ON_ONE_OF_THE_BASE_PLANES));
+
+    drag_the_mirror_s_panel(&mut app);
+
+    let nowhere = "Ce poste n'offre aucun dossier où garder les réglages.";
+    assert!(
+        !driver::says(&app, nowhere) && !driver::shows(&app, nowhere),
+        "nothing is ever written there, and nothing complains: {:?}",
+        driver::said(&app)
     );
 }

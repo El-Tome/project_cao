@@ -16,6 +16,14 @@ pub enum CopySlot {
     Validate,
 }
 
+/// What one of a tool's values is: the view names it and gives it its unit.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CopyValue {
+    StepInMillimetres,
+    StepInDegrees,
+    Count,
+}
+
 /// What fills the target slot: an axis for the mirror and the rectangular
 /// pattern, a point of the drawing for the circular one.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -30,17 +38,22 @@ pub struct CopyPanel {
     marked: Option<CopySlot>,
     elements: Vec<Element>,
     target: Option<CopyTarget>,
-    values: usize,
+    values: &'static [CopyValue],
     /// The box being pulled across the drawing while Elements is active.
     pub(crate) band: Option<(DVec2, DVec2)>,
 }
 
 impl CopyPanel {
     fn opened(tool: Tool, elements: Vec<Element>) -> Self {
-        let values = match tool {
-            Tool::CircularPattern => 2,
-            Tool::RectangularPattern => 4,
-            _ => 0,
+        let values: &[CopyValue] = match tool {
+            Tool::CircularPattern => &[CopyValue::StepInDegrees, CopyValue::Count],
+            Tool::RectangularPattern => &[
+                CopyValue::StepInMillimetres,
+                CopyValue::Count,
+                CopyValue::StepInMillimetres,
+                CopyValue::Count,
+            ],
+            _ => &[],
         };
         let active = match elements.is_empty() {
             true => CopySlot::Elements,
@@ -75,7 +88,7 @@ impl CopyPanel {
         self.target
     }
 
-    pub(crate) fn values(&self) -> usize {
+    pub fn value_kinds(&self) -> &'static [CopyValue] {
         self.values
     }
 
@@ -107,8 +120,8 @@ impl CopyPanel {
     pub(crate) fn move_down(&mut self) {
         self.active = match self.active {
             CopySlot::Elements => CopySlot::Target,
-            CopySlot::Target if self.values > 0 => CopySlot::Value(0),
-            CopySlot::Value(rank) if rank + 1 < self.values => CopySlot::Value(rank + 1),
+            CopySlot::Target if !self.values.is_empty() => CopySlot::Value(0),
+            CopySlot::Value(rank) if rank + 1 < self.values.len() => CopySlot::Value(rank + 1),
             _ => CopySlot::Validate,
         };
     }
@@ -127,7 +140,7 @@ impl CopyPanel {
     pub(crate) fn mark_the_first_empty(&mut self, live: &LiveInput) -> bool {
         let slots = [CopySlot::Elements, CopySlot::Target]
             .into_iter()
-            .chain((0..self.values).map(CopySlot::Value));
+            .chain((0..self.values.len()).map(CopySlot::Value));
         let Some(empty) = slots.into_iter().find(|slot| !self.is_filled(*slot, live)) else {
             return false;
         };
@@ -158,9 +171,12 @@ impl SketchEditor {
         self.copy_panel = Some(CopyPanel::opened(self.tool, elements));
     }
 
-    /// Closes the panel and lays nothing; the tool stays in hand.
+    /// Closes the panel and lays nothing, handing what it held to the
+    /// Selection tool.
     pub fn cancel_the_copy(&mut self) {
+        self.tool = Tool::Select;
         self.reset_pending();
+        self.message = None;
     }
 
     /// The selection a tool reached for from the panel starts with: what the

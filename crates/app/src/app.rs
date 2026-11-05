@@ -174,7 +174,7 @@ impl CaoApp {
         viewport.theme = settings.theme.clone();
         viewport.let_go = settings.shortcuts.let_go;
         editor.sketching = settings.sketching;
-        editor.copy_panel_at = settings.copy_panel_at;
+        viewport.copy_panel_at = settings.copy_panel_at;
 
         let mut back_to_menu = false;
         let mut changed = false;
@@ -257,6 +257,7 @@ impl CaoApp {
         let beside = crate::panels::Beside { ribbon, variables };
         changed |= crate::panels::beside_the_part(ui, doc, editor, viewport, beside, lang);
 
+        let mut copy_panel_let_go_at = None;
         egui::CentralPanel::no_frame().show(ui, |ui| {
             let mut context = screens::SketchContext {
                 document: doc,
@@ -264,9 +265,10 @@ impl CaoApp {
                 extrusion,
                 lang,
             };
-            changed |= screens::viewport::show(ui, viewport, &mut context);
+            let shown = screens::viewport::show(ui, viewport, &mut context);
+            changed |= shown.changed;
+            copy_panel_let_go_at = shown.copy_panel_let_go_at;
         });
-        let copy_panel_at = editor.copy_panel_at;
 
         if changed {
             autosave.touched();
@@ -279,9 +281,12 @@ impl CaoApp {
         {
             self.error = Some(message);
         }
-        if copy_panel_at != settings.copy_panel_at {
-            self.remembered.profiles.active_mut().copy_panel_at = copy_panel_at;
-            self.save_settings();
+        if let Some(at) = copy_panel_let_go_at {
+            self.remembered.profiles.active_mut().copy_panel_at = Some(at);
+            // With nowhere to keep it, the place holds for the session alone.
+            if !self.remembered.has_nowhere_to_keep() {
+                self.save_settings();
+            }
         }
         if back_to_menu {
             self.put_the_part_away();

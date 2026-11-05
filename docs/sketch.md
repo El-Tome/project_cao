@@ -1555,8 +1555,12 @@ Once a slot is filled the one below it becomes active, and `Entrée` moves down
 one slot too: the panel reads as an order of actions. On `Valider`, `Entrée`
 lays the copy if every slot holds something; otherwise the first empty slot
 becomes active and is marked. The copy laid, the tool stays in hand and the
-panel is emptied. `Échap`, `Annuler` or another tool close it without laying
-anything; the Selection tool taken from it keeps the elements selected.
+panel is emptied. `Échap` and `Annuler` close it without laying anything and
+hand what it held to the Selection tool, selected; another tool taken from the
+ribbon closes it too, and only the Selection tool keeps the elements.
+
+A value that cannot be used refuses `Valider` and says why; a click in the
+drawing still fills the elements or the target.
 
 The panel is dragged by its title and comes back where it was last let go, one
 place for every copy tool, kept across restarts.

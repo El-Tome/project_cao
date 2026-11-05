@@ -6,7 +6,7 @@ mod live_input;
 mod typed_dimension;
 
 pub use cao_sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode};
-pub use copy_panel::{CopyPanel, CopySlot, CopyTarget};
+pub use copy_panel::{CopyPanel, CopySlot, CopyTarget, CopyValue};
 pub use live_input::LiveInput;
 pub use typed_dimension::DimensionEdit;
 pub(crate) use typed_dimension::apply_dimension_value;
@@ -117,8 +117,6 @@ pub struct SketchEditor {
     /// gotten. See `cao_sketch::ToolState`.
     pub tool_state: ToolState,
     pub(crate) copy_panel: Option<CopyPanel>,
-    /// Where the copy tools' panel was last let go, as the settings hold it.
-    pub copy_panel_at: Option<[f32; 2]>,
     /// Copied from the profile in use every frame, as the viewport's config is.
     pub sketching: cao_prefs::SketchingConfig,
 }

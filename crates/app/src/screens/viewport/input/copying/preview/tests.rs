@@ -10,7 +10,6 @@ use crate::screens::sketch::CopySlot;
 const ON_THE_TRAIT: DVec2 = DVec2::new(6.0, 5.0);
 const OVER_THE_U_AXIS: DVec2 = DVec2::new(20.0, 0.0);
 const THE_ORIGIN: DVec2 = DVec2::ZERO;
-const FAR_FROM_EVERYTHING: DVec2 = DVec2::new(-30.0, -30.0);
 
 /// A trait standing well clear of both sketch axes, a point at the origin,
 /// and the tool taken with the trait held and its target slot active.
@@ -36,7 +35,7 @@ fn a_mirror_shows_the_copies_across_the_axis_it_holds() {
     bench.click(OVER_THE_U_AXIS);
 
     assert_eq!(
-        bench.previewed_traits(FAR_FROM_EVERYTHING, 1.0),
+        bench.previewed_traits(1.0),
         Some(1),
         "the one trait held is copied once, wherever the cursor has gone"
     );
@@ -58,7 +57,7 @@ fn a_selection_still_being_gathered_shows_nothing() {
     bench.click(ON_THE_TRAIT);
 
     assert_eq!(
-        bench.previewed_traits(OVER_THE_U_AXIS, 1.0),
+        bench.previewed_traits(1.0),
         None,
         "a click still adding to the selection is not a click that lays anything"
     );
@@ -70,7 +69,7 @@ fn a_circular_pattern_shows_every_copy_its_count_asks_for_bar_the_original() {
     bench.click(THE_ORIGIN);
 
     assert_eq!(
-        bench.previewed_traits(FAR_FROM_EVERYTHING, 1.0),
+        bench.previewed_traits(1.0),
         Some(3),
         "a quarter turn four times round: four standing in the end is three laid"
     );
@@ -81,7 +80,7 @@ fn a_pattern_with_its_values_still_untyped_shows_nothing() {
     let mut bench = a_trait_off_to_one_side_held_by(Command::ToolCircularPattern);
     bench.click(THE_ORIGIN);
     assert_eq!(
-        bench.previewed_traits(FAR_FROM_EVERYTHING, 1.0),
+        bench.previewed_traits(1.0),
         Some(3),
         "shown while the values the panel opened on stand"
     );
@@ -90,7 +89,7 @@ fn a_pattern_with_its_values_still_untyped_shows_nothing() {
     bench.type_value(1, "");
 
     assert_eq!(
-        bench.previewed_traits(FAR_FROM_EVERYTHING, 1.0),
+        bench.previewed_traits(1.0),
         None,
         "a pattern with no angle and no count has no copies to show"
     );
@@ -105,14 +104,8 @@ fn a_step_typed_in_millimetres_lands_the_copies_where_the_drawing_measures() {
     }
 
     let sketch = &bench.document.sketches()[0];
-    let shown = super::previewed(
-        sketch,
-        &bench.editor,
-        FAR_FROM_EVERYTHING,
-        super::super::tests::bench::SNAP,
-        2.0,
-    )
-    .expect("a direction held to run along");
+    let shown =
+        super::previewed(sketch, &bench.editor, 2.0).expect("a direction held to run along");
 
     let [cao_sketch::Element::Point(first), ..] = shown.laid.as_slice() else {
         panic!(

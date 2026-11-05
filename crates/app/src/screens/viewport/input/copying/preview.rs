@@ -1,5 +1,4 @@
 use cao_sketch::{Preview, Repeats, Sketch};
-use glam::DVec2;
 
 use crate::screens::sketch::{CopyTarget, SketchEditor, Tool};
 
@@ -9,13 +8,7 @@ use super::{filled, turned};
 ///
 /// Nothing until the panel holds what to copy and where, and the values are
 /// typed: a pattern with no step has no copies to show.
-pub(crate) fn previewed(
-    sketch: &Sketch,
-    editor: &SketchEditor,
-    _cursor: DVec2,
-    _snap: f64,
-    scale: f64,
-) -> Option<Preview> {
+pub(crate) fn previewed(sketch: &Sketch, editor: &SketchEditor, scale: f64) -> Option<Preview> {
     let panel = editor.copy_panel()?;
     let held = panel.elements();
     if held.is_empty() {

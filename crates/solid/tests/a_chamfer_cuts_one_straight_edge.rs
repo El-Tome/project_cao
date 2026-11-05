@@ -40,7 +40,7 @@ use std::collections::BTreeSet;
 
 use cao_solid::profile::{Contour, Frame, Profile};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, EdgeName, Loop};
+use cao_solid::{Body, Chamfered, EdgeName, Loop};
 use glam::{DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it: every face
@@ -50,9 +50,11 @@ const PLACE: f64 = 1e-9;
 /// How near the arithmetic an exact volume comes, as a fraction of it.
 const EXACT: f64 = 1e-9;
 
-/// The numbers a raised block's faces answer to.
+/// The numbers a raised block's faces answer to, and a trapezoid's walls.
 const TOP: usize = 1;
 const FRONT: usize = 2;
+const SLANT: usize = 3;
+const BACK: usize = 4;
 
 /// The ground's plane, which a part is drawn on.
 fn ground() -> Frame {
@@ -63,16 +65,12 @@ fn ground() -> Frame {
     }
 }
 
-/// A block of a length, a breadth and a height standing on the ground's
-/// origin, raised and joined as `cao_part` builds a step: its floor numbered
-/// nought, its top one, and its sides two to five from the front round to the
-/// left.
-fn block([length, breadth, height]: [f64; 3]) -> Body {
+/// An outline drawn on the ground raised up by `height`, and joined as
+/// `cao_part` builds a step: its floor numbered nought, its top one, and its
+/// walls from two on, one for each run of the outline.
+fn raised(outline: Contour, height: f64) -> Body {
     let profile = Profile {
-        exact: Some((
-            Contour::rectangle(DVec2::ZERO, DVec2::new(length, breadth)),
-            Vec::new(),
-        )),
+        exact: Some((outline, Vec::new())),
         sampled: Loop::straight(&[]),
         sampled_holes: Vec::new(),
         triangles: &[],
@@ -81,7 +79,41 @@ fn block([length, breadth, height]: [f64; 3]) -> Body {
     let tool = part
         .tool_raised(&profile, ground(), DVec3::Z * height)
         .expect("the tool raises");
-    part.union(&tool).expect("the block is built")
+    part.union(&tool).expect("the part is built")
+}
+
+/// A block of a length, a breadth and a height standing on the ground's
+/// origin: its floor numbered nought, its top one, and its sides two to five
+/// from the front round to the left.
+fn block([length, breadth, height]: [f64; 3]) -> Body {
+    raised(
+        Contour::rectangle(DVec2::ZERO, DVec2::new(length, breadth)),
+        height,
+    )
+}
+
+/// A right trapezoid raised by `height`: its front 40 long on the X axis, its
+/// back 34 long at Y = 8, both from the Y axis, and between their right ends
+/// a slanted wall 10 long, 6 back and 8 across. The slant meets the front at
+/// an acute corner and the back at an obtuse one, whose cosines are 0.6 and
+/// −0.6 and whose sines are both 0.8. Its walls are numbered from the front
+/// round: the front two, the slant three, the back four and the left five.
+fn trapezoid(height: f64) -> Body {
+    raised(
+        Contour::straight(vec![
+            DVec2::ZERO,
+            DVec2::new(40.0, 0.0),
+            DVec2::new(34.0, 8.0),
+            DVec2::new(0.0, 8.0),
+        ]),
+        height,
+    )
+}
+
+/// The two corners an upright edge of a part raised from the ground stands
+/// between, at the point of its outline `at`.
+fn upright(at: DVec2, height: f64) -> [DVec3; 2] {
+    [at.extend(0.0), at.extend(height)]
 }
 
 /// The name of the one edge between the faces numbered `first` and `second`,
@@ -137,20 +169,54 @@ fn corners_are(body: &Body, face: usize, expected: &[DVec3], what: &str) {
 /// Holds that a body is exact and keeps the rules every solid must: its
 /// surface closed, no face through another, and the matter its triangles
 /// enclose, as the matter it holds, what arithmetic promised.
-fn sound(body: &Body, promised: f64) {
-    assert!(body.is_exact(), "the exact kernel computed the body");
+fn sound(body: &Body, promised: f64, what: &str) {
+    assert!(
+        body.is_exact(),
+        "{what}: the exact kernel computed the body"
+    );
     let triangles = body.triangles();
-    assert_eq!(closed(&triangles), Ok(()));
-    assert_eq!(uncrossed(&triangles), Ok(()));
+    assert_eq!(closed(&triangles), Ok(()), "{what}");
+    assert_eq!(uncrossed(&triangles), Ok(()), "{what}");
     assert!(
         (body.volume() - promised).abs() <= EXACT * promised,
-        "the body holds {}, where arithmetic promised {promised}",
+        "{what}: the body holds {}, where arithmetic promised {promised}",
         body.volume()
     );
     let drawn = enclosed(&triangles);
     assert!(
         (drawn - promised).abs() <= EXACT * promised,
-        "its triangles enclose {drawn}, where arithmetic promised {promised}"
+        "{what}: its triangles enclose {drawn}, where arithmetic promised {promised}"
+    );
+}
+
+/// Holds that a step left every face of the part it was given and made one
+/// face more, flat, and gives back the number that face answers to.
+fn one_flat_face_more(part: &Body, body: &Body, what: &str) -> usize {
+    let (before, after) = (numbers(part), numbers(body));
+    assert!(
+        before.is_subset(&after),
+        "{what}: a face went: {before:?} became {after:?}"
+    );
+    let made: Vec<usize> = after.difference(&before).copied().collect();
+    assert_eq!(
+        made.len(),
+        1,
+        "{what}: one face more: {before:?} became {after:?}"
+    );
+    assert!(
+        body.is_flat(made[0]),
+        "{what}: the face the chamfer lays is flat"
+    );
+    made[0]
+}
+
+/// Holds that a chamfer was given the distance it was asked.
+fn taken_whole(chamfered: &Chamfered, distance: f64, what: &str) {
+    assert!(
+        (chamfered.asked - distance).abs() < PLACE && (chamfered.taken - distance).abs() < PLACE,
+        "{what}: asked {} and took {}, where {distance} fits",
+        chamfered.asked,
+        chamfered.taken
     );
 }
 
@@ -164,26 +230,15 @@ fn a_chamfer_on_a_block_s_top_front_edge_lays_one_flat_face_set_back_by_the_dist
 
     let chamfered = block.chamfer(&edge, distance).expect("the chamfer is cut");
 
-    assert!(
-        (chamfered.asked - distance).abs() < PLACE && (chamfered.taken - distance).abs() < PLACE,
-        "asked {} and took {}, where {distance} fits",
-        chamfered.asked,
-        chamfered.taken
-    );
+    let what = "the top front edge";
+    taken_whole(&chamfered, distance, what);
     let body = &chamfered.body;
     sound(
         body,
         length * breadth * height - length * distance * distance / 2.0,
+        what,
     );
-    let (before, after) = (numbers(&block), numbers(body));
-    assert!(
-        before.is_subset(&after),
-        "a face went: {before:?} became {after:?}"
-    );
-    let made: Vec<usize> = after.difference(&before).copied().collect();
-    assert_eq!(made.len(), 1, "one face more: {before:?} became {after:?}");
-    let chamfer = made[0];
-    assert!(body.is_flat(chamfer), "the face the chamfer lays is flat");
+    let chamfer = one_flat_face_more(&block, body, what);
     let facing = body
         .plane_of(chamfer)
         .expect("a flat face offers a plane")
@@ -223,4 +278,77 @@ fn a_chamfer_on_a_block_s_top_front_edge_lays_one_flat_face_set_back_by_the_dist
         ],
         "what is left of the front",
     );
+}
+
+/// An upright edge of the trapezoid where two of its walls meet at a slant:
+/// the walls, where a set-back of 2 along each ends, the far end of each wall
+/// from the edge, and the way the chamfer faces, all in the ground's plane.
+struct Slanted {
+    what: &'static str,
+    walls: [usize; 2],
+    set_back: [DVec2; 2],
+    far: [DVec2; 2],
+    facing: DVec2,
+}
+
+#[test]
+fn a_chamfer_on_an_edge_whose_faces_meet_at_a_slant_is_set_back_by_the_distance_along_each_face() {
+    let (height, distance) = (5.0, 2.0);
+    let corners = [
+        Slanted {
+            what: "the acute edge between the front and the slant",
+            walls: [FRONT, SLANT],
+            set_back: [DVec2::new(38.0, 0.0), DVec2::new(38.8, 1.6)],
+            far: [DVec2::ZERO, DVec2::new(34.0, 8.0)],
+            facing: DVec2::new(2.0, -1.0),
+        },
+        Slanted {
+            what: "the obtuse edge between the slant and the back",
+            walls: [SLANT, BACK],
+            set_back: [DVec2::new(35.2, 6.4), DVec2::new(32.0, 8.0)],
+            far: [DVec2::new(40.0, 0.0), DVec2::new(0.0, 8.0)],
+            facing: DVec2::new(1.0, 2.0),
+        },
+    ];
+
+    for corner in corners {
+        let what = corner.what;
+        let part = trapezoid(height);
+        let edge = edge_between(&part, corner.walls[0], corner.walls[1]);
+
+        let chamfered = part
+            .chamfer(&edge, distance)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_whole(&chamfered, distance, what);
+        let body = &chamfered.body;
+        let trapezoid = (40.0 + 34.0) / 2.0 * 8.0 * height;
+        let corner_cut_off = distance * distance * 0.8 / 2.0 * height;
+        sound(body, trapezoid - corner_cut_off, what);
+        let chamfer = one_flat_face_more(&part, body, what);
+        let facing = body
+            .plane_of(chamfer)
+            .expect("a flat face offers a plane")
+            .normal;
+        let between = corner.facing.normalize().extend(0.0);
+        assert!(
+            facing.distance(between) < PLACE,
+            "{what}: the chamfer faces {facing}, where it faces {between}, halfway between its walls"
+        );
+        let [first, second] = corner.set_back.map(|at| upright(at, height));
+        let [first_far, second_far] = corner.far.map(|at| upright(at, height));
+        corners_are(body, chamfer, &[first, second].concat(), what);
+        corners_are(
+            body,
+            corner.walls[0],
+            &[first, first_far].concat(),
+            &format!("what is left of the first wall at {what}"),
+        );
+        corners_are(
+            body,
+            corner.walls[1],
+            &[second, second_far].concat(),
+            &format!("what is left of the second wall at {what}"),
+        );
+    }
 }

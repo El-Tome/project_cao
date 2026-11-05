@@ -150,8 +150,14 @@ fn raised(outline: Contour, height: f64) -> Body {
 /// `height`, joined to it as `cao_part` joins a step: the tool's faces
 /// numbered past the part's.
 fn joined_to(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    joined_on(part, lifted(ground(), from), outline, height)
+}
+
+/// The part with an outline drawn on a frame, raised along its normal by
+/// `height`, joined to it as `cao_part` joins a step.
+fn joined_on(part: &Body, frame: Frame, outline: Contour, height: f64) -> Body {
     let tool = part
-        .tool_raised(&profile(outline), lifted(ground(), from), DVec3::Z * height)
+        .tool_raised(&profile(outline), frame, frame.normal() * height)
         .expect("the tool raises");
     part.union(&tool).expect("the join is built")
 }
@@ -1300,4 +1306,148 @@ fn a_chamfer_asked_an_infinite_distance_takes_the_most_the_faces_give() {
         chamfered.taken
     );
     sound(&chamfered.body, 6000.0 - 30.0 * 10.0 * 10.0 / 2.0, what);
+}
+
+#[test]
+fn a_chamfer_on_a_part_whose_top_two_slots_left_in_pieces_cuts_its_edge_and_keeps_every_piece() {
+    let slot = |part: &Body, from: f64| {
+        cut_from(
+            part,
+            Contour::rectangle(DVec2::new(-1.0, from), DVec2::new(31.0, from + 1.0)),
+            15.0,
+            6.0,
+        )
+    };
+    let slotted = slot(&slot(&block_to_chamfer(), 4.0), 7.0);
+    let pieces = slotted.pieces();
+    assert_eq!(
+        pieces.len(),
+        2,
+        "two slots across the top leave it in three pieces, two of them numbered apart: {pieces:?}"
+    );
+    assert_eq!(
+        slotted.parted_from(pieces[0]),
+        Some(TOP),
+        "the first slot parts the top"
+    );
+    assert_eq!(
+        slotted.parted_from(pieces[1]),
+        Some(pieces[0]),
+        "the second slot parts the piece the first left behind it"
+    );
+    let edge = edge_between(&slotted, TOP, FRONT);
+
+    let chamfered = slotted
+        .chamfer(&edge, 3.0)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "3 asked on the top front edge, the top's front piece 4 deep";
+    taken_whole(&chamfered, 3.0, what);
+    let body = &chamfered.body;
+    sound(
+        body,
+        6000.0 - 2.0 * 30.0 * 5.0 - 30.0 * 3.0 * 3.0 / 2.0,
+        what,
+    );
+    let mut kept_and_made = numbers(&slotted);
+    kept_and_made.insert(slotted.faces_end());
+    assert_eq!(
+        numbers(body),
+        kept_and_made,
+        "{what}: every number and every piece's, and the chamfer's where the steps' numbers ended"
+    );
+    assert_eq!(body.pieces(), pieces, "{what}: the pieces");
+    for piece in pieces {
+        assert_eq!(
+            body.parted_from(piece),
+            slotted.parted_from(piece),
+            "{what}: piece {piece} answers to the face it was parted from"
+        );
+    }
+    let chamfer = slotted.faces_end();
+    faces_toward(body, chamfer, DVec3::new(0.0, -1.0, 1.0), what);
+    corners_are(
+        body,
+        chamfer,
+        &[
+            DVec3::new(0.0, 3.0, 20.0),
+            DVec3::new(30.0, 3.0, 20.0),
+            DVec3::new(30.0, 0.0, 17.0),
+            DVec3::new(0.0, 0.0, 17.0),
+        ],
+        what,
+    );
+}
+
+#[test]
+fn a_chamfer_shorter_than_one_on_a_long_edge_cuts_it_from_end_to_end() {
+    let block = block_to_chamfer();
+    let edge = edge_between(&block, TOP, FRONT);
+
+    let chamfered = block
+        .chamfer(&edge, 0.5)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "0.5 asked on an edge 30 long";
+    taken_whole(&chamfered, 0.5, what);
+    let body = &chamfered.body;
+    sound(body, 6000.0 - 30.0 * 0.5 * 0.5 / 2.0, what);
+    let chamfer = one_flat_face_more(&block, body, what);
+    corners_are(
+        body,
+        chamfer,
+        &[
+            DVec3::new(0.0, 0.5, 20.0),
+            DVec3::new(30.0, 0.5, 20.0),
+            DVec3::new(30.0, 0.0, 19.5),
+            DVec3::new(0.0, 0.0, 19.5),
+        ],
+        "the chamfer, from one end of the edge to the other",
+    );
+}
+
+#[test]
+fn a_chamfer_on_an_edge_another_edge_carries_on_in_line_is_declined_as_unsupported() {
+    let across = |at: f64| Frame {
+        origin: DVec3::X * at,
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let upright = joined_on(
+        &Body::default(),
+        across(0.0),
+        Contour::rectangle(DVec2::ZERO, DVec2::new(10.0, 20.0)),
+        15.0,
+    );
+    let carried_on = joined_on(
+        &upright,
+        across(15.0),
+        Contour::straight(vec![
+            DVec2::new(-5.0, 0.0),
+            DVec2::new(10.0, 0.0),
+            DVec2::new(10.0, 20.0),
+            DVec2::new(0.0, 20.0),
+        ]),
+        15.0,
+    );
+    let (top, upright_front, slant) = (vec![4, 10], vec![5], vec![11]);
+    let names = carried_on.edge_names();
+    let named = |front: &Vec<u32>| {
+        names
+            .iter()
+            .find(|name| name.between == [top.clone(), front.clone()])
+            .cloned()
+            .unwrap_or_else(|| panic!("no edge between {top:?} and {front:?}: {names:?}"))
+    };
+    let (edge, _carrying_it_on) = (named(&upright_front), named(&slant));
+
+    let declined = carried_on.chamfer(&edge, 2.0).err();
+
+    assert_eq!(
+        declined,
+        Some(Declined::Unsupported),
+        "the edge between the top and the upright front runs on in line into the edge \
+         between the top and the slant: the tangent chain rule declines it first, and the \
+         cut carried along the line would bite the slant behind it"
+    );
 }

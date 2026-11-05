@@ -583,6 +583,107 @@ fn a_rounded_leaf_joined_with_a_block_apart_from_it_holds_both_volumes() {
     }
 }
 
+/// The ring's quarter, turned 90° from +X toward −Z: what its own points span,
+/// and what its whole torus does.
+const QUARTER: [DVec3; 2] = [DVec3::new(0.0, 1.0, -8.0), DVec3::new(8.0, 5.0, 0.0)];
+const WHOLE: [DVec3; 2] = [DVec3::new(-8.0, 1.0, -8.0), DVec3::new(8.0, 5.0, 8.0)];
+
+/// A slab 2 thick across the whole torus's tube where it stands opposite the
+/// quarter, about `(−6, 3, 0)`: a rectangle 6 by 12, its normal along
+/// `(3, 2, 2)` and its sides along `(2, −3, 0)` and `(6, 4, −13)`, so that no
+/// face of it is square to the torus's axis or holds it.
+fn slanted_wall_past_the_quarter() -> Body {
+    let normal = DVec3::new(3.0, 2.0, 2.0).normalize();
+    let u = normal.cross(DVec3::Z).normalize();
+    let frame = Frame {
+        origin: DVec3::new(-6.0, 3.0, 0.0) - normal,
+        u,
+        v: normal.cross(u),
+    };
+    let outline = Contour::rectangle(DVec2::new(-3.0, -6.0), DVec2::new(3.0, 6.0));
+    Body::raised(&outline, &[], frame, normal * 2.0).expect("a slab raises")
+}
+
+/// What the slab holds.
+const WALL: f64 = 6.0 * 12.0 * 2.0;
+
+fn boxes_meet([low, high]: [DVec3; 2], [from, to]: [DVec3; 2], eps: f64) -> bool {
+    (low - eps).cmple(to + eps).all() && (from - eps).cmple(high + eps).all()
+}
+
+/// The quarter and the slab, held to be a pair the whole torus's box would
+/// relate and the kernel could not: every face of the slab at a slant to the
+/// torus's axis, its matter crossing the whole torus's tube, its box meeting
+/// the whole torus's, and standing clear of the quarter's own grown by the
+/// tolerance the boolean grows every box by.
+fn quarter_and_wall_past_it() -> (Body, Body) {
+    let quarter = turned(&ring(), 90.0);
+    let wall = slanted_wall_past_the_quarter();
+    for face in wall.face_ids() {
+        let Surface::Plane(plane) = wall.surface(wall.face(face).surface) else {
+            panic!("a slab is bounded by planes");
+        };
+        let leaning = plane.normal.dot(DVec3::Y).abs();
+        assert!(
+            0.1 < leaning && leaning < 0.9,
+            "the slab's face of normal {} stands at a slant to the axis",
+            plane.normal
+        );
+    }
+    let crossed = DVec3::new(-6.0, 3.0, 0.0);
+    let eps = quarter.scale().joined(wall.scale()).eps();
+    assert_eq!(
+        turned(&ring(), 360.0).winding(crossed, eps),
+        Ok(1),
+        "{crossed} lies in the whole torus's tube"
+    );
+    assert_eq!(
+        wall.winding(crossed, eps),
+        Ok(1),
+        "{crossed} lies in the slab"
+    );
+    let (low, high) = wall.bounds().expect("a slab has a box");
+    assert!(
+        boxes_meet([low, high], WHOLE, 0.0),
+        "the slab's box {low} .. {high} meets the whole torus's"
+    );
+    assert!(
+        !boxes_meet([low, high], QUARTER, eps),
+        "the slab's box {low} .. {high} stands clear of the quarter's"
+    );
+    (quarter, wall)
+}
+
+#[test]
+fn a_quarter_torus_joined_with_a_slanted_wall_past_its_quarter_holds_both_apart() {
+    let (quarter, wall) = quarter_and_wall_past_it();
+    let joined = quarter
+        .joined(&wall)
+        .unwrap_or_else(|declined| panic!("the quarter joined with the wall: {declined:?}"));
+    held(
+        &joined,
+        RING / 4.0 + WALL,
+        "the quarter joined with the wall",
+    );
+    let joined = wall
+        .joined(&quarter)
+        .unwrap_or_else(|declined| panic!("the wall joined with the quarter: {declined:?}"));
+    held(
+        &joined,
+        RING / 4.0 + WALL,
+        "the wall joined with the quarter",
+    );
+}
+
+#[test]
+fn a_slanted_wall_cut_from_a_quarter_torus_past_its_quarter_leaves_the_quarter_whole() {
+    let (quarter, wall) = quarter_and_wall_past_it();
+    let cut = quarter
+        .cut_by(&wall)
+        .unwrap_or_else(|declined| panic!("the quarter cut by the wall: {declined:?}"));
+    held(&cut, RING / 4.0, "the quarter cut by the wall");
+}
+
 /// Lane T's campaign found a plane crossing a ball, or standing a hair inside
 /// its crest, that `clear` passed as apart, so that the body's faces crossed
 /// (seeds 5576502870, 5576400540): a whole ball's face has no edge to read

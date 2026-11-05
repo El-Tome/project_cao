@@ -53,6 +53,21 @@
 //! - the part's picture in the explorer carries no cut — no test: `picture::of`
 //!   reads `document.body()` and is handed neither the editor nor the view, so
 //!   there is nothing it could cut with
+//!
+//! Closes #578.
+//! - the matter in front of the plane is still hidden while a sketch is
+//!   edited — `the_matter_between_the_eye_and_the_sketch_plane_is_not_drawn`
+//! - leaving the view puts the part back whole —
+//!   `closing_the_sketch_puts_the_whole_body_back`
+//! - the cut is computed once each time the plane changes, never every frame
+//!   — `the_section_is_cut_once_while_the_plane_stays_put`,
+//!   `the_section_is_cut_again_when_the_plane_moves`; and again when anything
+//!   else it is cut from changes, the part, the side the eye is on or how the
+//!   matter in front is shown —
+//!   `the_section_is_cut_again_when_the_part_the_side_or_the_state_changes`
+//! - the rest of #578 is the kernel's, under its own `Closes #578` in
+//!   `crates/solid/tests/the_section_of_an_exact_part_is_filled.rs` — no test:
+//!   here; this block holds only what the view decides
 
 use cao_render::CubeFace;
 use cao_render::camera::CubeZone;
@@ -512,5 +527,129 @@ fn see_through_hands_over_nothing_when_nothing_stands_in_front() {
         on_the_top.is_none_or(|body| body.triangles().is_empty()),
         "a sketch on the top face has nothing in front of it, and the top face \
          is drawn see-through over it",
+    );
+}
+
+#[test]
+fn the_section_is_cut_once_while_the_plane_stays_put() {
+    let mut editor = SketchEditor::default();
+    editor.begin_editing(0, WorkPlane::XY);
+    let body = a_disc_through_the_plane();
+    let mode = sitting_on(WorkPlane::XY);
+    let sections = Sections::default();
+
+    let first = sections
+        .drawn(&editor, mode, &body, ABOVE)
+        .opaque
+        .into_owned();
+    let second = sections
+        .drawn(&editor, mode, &body, ABOVE)
+        .opaque
+        .into_owned();
+
+    assert_eq!(
+        sections.cuts(),
+        1,
+        "a second frame with nothing changed cut the part again"
+    );
+    assert!(!reaches_above(&first), "the near half is gone");
+    assert!(reaches_the_far_end(&first), "the far half is drawn");
+    assert_eq!(first, second, "the second frame draws another section");
+}
+
+#[test]
+fn the_section_is_cut_again_when_the_plane_moves() {
+    let mut editor = SketchEditor::default();
+    editor.begin_editing(0, WorkPlane::XY);
+    let body = a_disc_through_the_plane();
+    let mode = sitting_on(WorkPlane::XY);
+    let sections = Sections::default();
+    sections.drawn(&editor, mode, &body, ABOVE);
+
+    editor.plane = Some(WorkPlane::from_normal(DVec3::Z * 0.5, DVec3::Z));
+    let moved = sections
+        .drawn(&editor, mode, &body, ABOVE)
+        .opaque
+        .into_owned();
+
+    assert_eq!(
+        sections.cuts(),
+        2,
+        "the plane moved and the part was not cut again"
+    );
+    let heights: Vec<f64> = moved
+        .triangles()
+        .into_iter()
+        .flatten()
+        .map(|at| at.z)
+        .collect();
+    assert!(
+        heights.iter().all(|&z| z <= 0.5 + 1e-9),
+        "something stands in front of the plane where it now is"
+    );
+    assert!(
+        heights.iter().any(|&z| z > 0.25),
+        "what lies between where the plane was and where it is is still cut away"
+    );
+}
+
+#[test]
+fn the_section_is_cut_again_when_the_part_the_side_or_the_state_changes() {
+    let mut editor = SketchEditor::default();
+    editor.begin_editing(0, WorkPlane::XY);
+    let mode = sitting_on(WorkPlane::XY);
+    let sections = Sections::default();
+    let mut body = a_disc_through_the_plane();
+    sections.drawn(&editor, mode, &body, ABOVE);
+
+    body = a_body_through_the_plane();
+    let other_part = sections
+        .drawn(&editor, mode, &body, ABOVE)
+        .opaque
+        .into_owned();
+    assert_eq!(sections.cuts(), 2, "the part changed and was not cut again");
+    assert!(
+        other_part
+            .triangles()
+            .iter()
+            .flatten()
+            .all(|at| at.x.abs() <= 1.0 + 1e-9),
+        "the section drawn is still the disc's"
+    );
+
+    let other_side = sections
+        .drawn(&editor, mode, &body, -ABOVE)
+        .opaque
+        .into_owned();
+    assert_eq!(
+        sections.cuts(),
+        3,
+        "the eye crossed the plane and the part was not cut again"
+    );
+    assert!(
+        other_side
+            .triangles()
+            .iter()
+            .flatten()
+            .all(|at| at.z >= -1e-9),
+        "the half kept is still the one the eye stood in front of"
+    );
+
+    editor.next_matter_in_front();
+    let see_through = sections.drawn(&editor, mode, &body, -ABOVE).see_through;
+    assert_eq!(
+        sections.cuts(),
+        4,
+        "the matter in front went see-through and the part was not parted"
+    );
+    assert!(
+        see_through.is_some_and(|in_front| reaches_below(&in_front)),
+        "see-through hands over no matter in front"
+    );
+    sections.drawn(&editor, mode, &body, -ABOVE);
+    assert_eq!(
+        sections.cuts(),
+        4,
+        "a second see-through frame parted the part again"
     );
 }

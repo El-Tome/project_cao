@@ -12,15 +12,20 @@ use crate::profile::{Contour, Frame};
 impl Body {
     /// What is left of the body behind a plane, `normal · p < offset`: a way
     /// of looking inside rather than of taking matter away. An exact body is
-    /// closed by a face on the plane; flats, and for now an exact body whose
-    /// cut the kernel declines, are left open where the plane went through.
+    /// closed by a face on the plane; flats, and an exact body whose cut the
+    /// kernel declines, whose own drawn triangles are clipped, are left open
+    /// where the plane went through.
     pub fn behind(&self, normal: DVec3, offset: f64) -> Body {
-        if let Matter::Exact(exact) = &self.matter
-            && let Ok(behind) = exact.behind(normal, offset)
-        {
-            return Body::of_exact(behind);
+        match &self.matter {
+            Matter::Exact(exact) => exact.behind(normal, offset).map_or_else(
+                |_| {
+                    let clipped = exact.drawn().behind(exact.brep(), normal, offset);
+                    Body::of_flats(clipped, self.faces_end())
+                },
+                Body::of_exact,
+            ),
+            Matter::Flats(flats) => Body::of_flats(flats.mesh.behind(normal, offset), flats.next),
         }
-        Body::of_flats(self.as_flats().behind(normal, offset), self.faces_end())
     }
 
     /// The body parted by a plane: what [`Body::behind`] leaves, and what
@@ -28,18 +33,22 @@ impl Body {
     /// lying on the plane goes behind; an exact body's front is cut a drawing
     /// tolerance off the plane, so that none of it lies on a sketch drawn there.
     pub fn parted(&self, normal: DVec3, offset: f64) -> (Body, Body) {
-        if let Matter::Exact(exact) = &self.matter {
-            let gap = DRAWN * exact.reach();
-            if let (Ok(behind), Ok(in_front)) = (
-                exact.behind(normal, offset),
-                exact.behind(-normal, -offset - gap),
-            ) {
-                return (Body::of_exact(behind), Body::of_exact(in_front));
+        match &self.matter {
+            Matter::Exact(exact) => {
+                let gap = DRAWN * exact.reach();
+                (
+                    self.behind(normal, offset),
+                    self.behind(-normal, -offset - gap),
+                )
+            }
+            Matter::Flats(flats) => {
+                let (behind, in_front) = flats.mesh.parted(normal, offset);
+                (
+                    Body::of_flats(behind, flats.next),
+                    Body::of_flats(in_front, flats.next),
+                )
             }
         }
-        let (behind, in_front) = self.as_flats().parted(normal, offset);
-        let next = self.faces_end();
-        (Body::of_flats(behind, next), Body::of_flats(in_front, next))
     }
 }
 

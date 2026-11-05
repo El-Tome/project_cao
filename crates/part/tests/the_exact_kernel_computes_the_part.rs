@@ -35,7 +35,8 @@
 //!   `a_hole_drawn_on_a_rounded_plate_moves_no_further_than_its_corners_when_they_change`,
 //!   `a_drawing_on_a_top_a_trench_parts_stays_on_its_piece_when_the_trench_moves`
 //! - the section view works on an exact body —
-//!   `the_section_of_an_exact_part_keeps_only_what_lies_behind_the_plane`
+//!   `the_section_of_an_exact_part_keeps_only_what_lies_behind_the_plane`;
+//!   the cut it left open is filled since #578, by a flat face on the plane
 //! - #498's eighteen cases and the harness's fast tests run in the gate, the
 //!   long campaigns stay under `--ignored` — no test: held in `cao_solid`, by
 //!   `a_bored_cylinder_on_two_kernels` and the fast tests of
@@ -602,11 +603,22 @@ fn the_section_of_an_exact_part_keeps_only_what_lies_behind_the_plane() {
         (low.x + 20.0).abs() < 1e-9,
         "the far side of the disc is left: {low}"
     );
+    let cap = behind
+        .ray_hit(DVec3::new(-10.0, 0.0, 5.0), DVec3::X)
+        .expect("the section is open where the plane went through");
     assert!(
-        behind
-            .ray_hit(DVec3::new(-10.0, 0.0, 5.0), DVec3::X)
-            .is_none(),
-        "the section is open where the plane went through",
+        (cap.distance - 15.0).abs() < 1e-9,
+        "the ray meets the section {} along, not on the plane",
+        cap.distance,
+    );
+    assert!(
+        cap.normal.distance(DVec3::X) < 1e-9,
+        "the face met on the plane faces {}, not out of it",
+        cap.normal,
+    );
+    assert!(
+        behind.is_flat(cap.face),
+        "the face filling the section is not flat"
     );
 }
 

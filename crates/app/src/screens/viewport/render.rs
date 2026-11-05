@@ -42,7 +42,6 @@ use reading::push_measure;
 pub(crate) use reading::{Measuring, paint_measure, what_is_measured};
 pub(crate) use trim::what_would_go;
 
-use super::matter;
 use super::{ViewMode, ViewScale, ViewportState};
 use crate::screens::SketchContext;
 use crate::screens::sketch::SketchEditor;
@@ -181,7 +180,9 @@ pub(crate) fn build_frame(
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
 
     let editor: &SketchEditor = context.editor;
-    let drawn = matter::drawn(editor, state.mode, context.document.body(), camera.eye());
+    let drawn = state
+        .sections
+        .drawn(editor, state.mode, context.document.body(), camera.eye());
     let mut solids = Vec::new();
     push_body(
         &mut solids,

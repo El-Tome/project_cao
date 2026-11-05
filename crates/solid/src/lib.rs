@@ -23,6 +23,7 @@ pub mod stl;
 mod sweep;
 pub mod turning;
 
+pub use body::chamfer::Chamfered;
 pub use body::{Body, FaceHit, FacePlane};
 pub use brep::{Declined, EdgeName, Lean, Lost, Unstable, VertexName};
 pub use sweep::Loop;

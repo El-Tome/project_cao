@@ -2,6 +2,8 @@
 //! names of its edges and vertices, and the triangles it is drawn with, made
 //! once and only when asked for.
 
+mod chamfer;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 

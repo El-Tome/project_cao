@@ -174,6 +174,7 @@ impl CaoApp {
         viewport.theme = settings.theme.clone();
         viewport.let_go = settings.shortcuts.let_go;
         editor.sketching = settings.sketching;
+        viewport.copy_panel_at = settings.copy_panel_at;
 
         let mut back_to_menu = false;
         let mut changed = false;
@@ -203,16 +204,9 @@ impl CaoApp {
         asked.extend(ribbon.show(ui, &settings, &mut drawn, lang));
         asked.extend(
             shortcuts_pressed(ui, &settings, |command| {
-                // Enter closes what a tool laying copies is gathering, as its
-                // prompt says, rather than finishing the sketch under it.
-                command == Command::FinishSketch
-                    && matches!(
-                        editor.tool_state,
-                        cao_sketch::ToolState::Copying {
-                            naming_the_target: false,
-                            ..
-                        }
-                    )
+                // Enter moves through the panel of a tool laying copies rather
+                // than finishing the sketch under it.
+                command == Command::FinishSketch && editor.copy_panel().is_some()
             })
             .into_iter()
             .filter(|command| crate::screens::ribbon::is_enabled(*command, doc, editor, extrusion)),
@@ -263,6 +257,7 @@ impl CaoApp {
         let beside = crate::panels::Beside { ribbon, variables };
         changed |= crate::panels::beside_the_part(ui, doc, editor, viewport, beside, lang);
 
+        let mut copy_panel_let_go_at = None;
         egui::CentralPanel::no_frame().show(ui, |ui| {
             let mut context = screens::SketchContext {
                 document: doc,
@@ -270,7 +265,9 @@ impl CaoApp {
                 extrusion,
                 lang,
             };
-            changed |= screens::viewport::show(ui, viewport, &mut context);
+            let shown = screens::viewport::show(ui, viewport, &mut context);
+            changed |= shown.changed;
+            copy_panel_let_go_at = shown.copy_panel_let_go_at;
         });
 
         if changed {
@@ -283,6 +280,13 @@ impl CaoApp {
             && let Some(message) = autosave.write_if_due(&DiskFiles, doc, path, at_rest, lang)
         {
             self.error = Some(message);
+        }
+        if let Some(at) = copy_panel_let_go_at {
+            self.remembered.profiles.active_mut().copy_panel_at = Some(at);
+            // With nowhere to keep it, the place holds for the session alone.
+            if !self.remembered.has_nowhere_to_keep() {
+                self.save_settings();
+            }
         }
         if back_to_menu {
             self.put_the_part_away();

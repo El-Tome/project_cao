@@ -11,6 +11,7 @@ use glam::{DVec2, DVec3, Vec3};
 
 mod arc;
 mod circle;
+mod copy_panel;
 mod curves;
 mod cuts;
 mod dimensions;
@@ -28,6 +29,7 @@ mod reading;
 mod symmetric_line;
 mod trim;
 
+pub(crate) use copy_panel::paint_copy_panel;
 pub(crate) use cuts::cut_label_under;
 pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
 use drawing::{Shown, push_sketch, what_would_be_laid};

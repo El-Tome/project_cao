@@ -1,113 +1,113 @@
 //! What app · screens/viewport/input/copying/preview.rs is held to.
 
-use cao_sketch::{Element, WorkPlane};
+use cao_part::Operation;
+use cao_prefs::Command;
+use glam::DVec2;
 
-use super::*;
+use super::super::tests::bench::Bench;
+use crate::screens::sketch::CopySlot;
 
-/// A trait standing well clear of both sketch axes, and the axis it is
-/// mirrored across running through the origin.
-fn a_trait_off_to_one_side() -> (Sketch, Element) {
-    let mut sketch = Sketch::new(WorkPlane::XY);
-    let low = sketch.add_point(DVec2::new(4.0, 5.0));
-    let high = sketch.add_point(DVec2::new(8.0, 5.0));
-    let drawn = sketch.add_segment(low, high);
-    (sketch, Element::Segment(drawn))
-}
+const ON_THE_TRAIT: DVec2 = DVec2::new(6.0, 5.0);
+const OVER_THE_U_AXIS: DVec2 = DVec2::new(20.0, 0.0);
+const THE_ORIGIN: DVec2 = DVec2::ZERO;
 
-fn holding(tool: Tool, held: Vec<Element>) -> SketchEditor {
-    SketchEditor {
-        tool,
-        tool_state: ToolState::Copying {
-            held,
-            naming_the_target: true,
+/// A trait standing well clear of both sketch axes, a point at the origin,
+/// and the tool taken with the trait held and its target slot active.
+fn a_trait_off_to_one_side_held_by(command: Command) -> Bench {
+    let mut bench = Bench::drawn(vec![
+        Bench::a_trait(DVec2::new(4.0, 5.0), DVec2::new(8.0, 5.0), false),
+        Operation::AddPoint {
+            sketch: 0,
+            position: THE_ORIGIN,
+            on: Vec::new(),
         },
-        ..Default::default()
-    }
+    ]);
+    bench.take(command);
+    bench.click(ON_THE_TRAIT);
+    bench.enter();
+    assert_eq!(bench.active(), CopySlot::Target);
+    bench
 }
 
 #[test]
-fn a_mirror_shows_the_copies_the_axis_under_the_cursor_would_lay() {
-    let (sketch, drawn) = a_trait_off_to_one_side();
-    let editor = holding(Tool::Mirror, vec![drawn]);
-    let over_the_u_axis = DVec2::new(20.0, 0.0);
+fn a_mirror_shows_the_copies_across_the_axis_it_holds() {
+    let mut bench = a_trait_off_to_one_side_held_by(Command::ToolMirror);
+    bench.click(OVER_THE_U_AXIS);
 
-    let shown = previewed(&sketch, &editor, over_the_u_axis, 0.5, 1.0)
-        .expect("an axis under the cursor to mirror across");
-
-    let copies = shown
-        .laid
-        .iter()
-        .filter(|laid| matches!(laid, Element::Segment(_)))
-        .count();
-    assert_eq!(copies, 1, "the one trait held is copied once");
     assert_eq!(
-        sketch.segments().len(),
+        bench.previewed_traits(1.0),
+        Some(1),
+        "the one trait held is copied once, wherever the cursor has gone"
+    );
+    assert_eq!(
+        bench.document.sketches()[0].segments().len(),
         1,
-        "the drawing itself gains nothing until the click"
+        "the drawing itself gains nothing until the copy is laid"
     );
 }
 
 #[test]
 fn a_selection_still_being_gathered_shows_nothing() {
-    let (sketch, drawn) = a_trait_off_to_one_side();
-    let editor = SketchEditor {
-        tool: Tool::Mirror,
-        tool_state: ToolState::Copying {
-            held: vec![drawn],
-            naming_the_target: false,
-        },
-        ..Default::default()
-    };
+    let mut bench = Bench::drawn(vec![Bench::a_trait(
+        DVec2::new(4.0, 5.0),
+        DVec2::new(8.0, 5.0),
+        false,
+    )]);
+    bench.take(Command::ToolMirror);
+    bench.click(ON_THE_TRAIT);
 
-    assert!(
-        previewed(&sketch, &editor, DVec2::new(20.0, 0.0), 0.5, 1.0).is_none(),
+    assert_eq!(
+        bench.previewed_traits(1.0),
+        None,
         "a click still adding to the selection is not a click that lays anything"
     );
 }
 
 #[test]
 fn a_circular_pattern_shows_every_copy_its_count_asks_for_bar_the_original() {
-    let (mut sketch, drawn) = a_trait_off_to_one_side();
-    let centre = sketch.add_point(DVec2::ZERO);
-    let mut editor = holding(Tool::CircularPattern, vec![drawn]);
-    editor.live.field(0).locked = Some(90.0);
-    editor.live.field(1).locked = Some(4.0);
+    let mut bench = a_trait_off_to_one_side_held_by(Command::ToolCircularPattern);
+    bench.click(THE_ORIGIN);
 
-    let shown = previewed(&sketch, &editor, sketch.point(centre), 0.5, 1.0)
-        .expect("a point under the cursor to turn about");
-
-    let copies = shown
-        .laid
-        .iter()
-        .filter(|laid| matches!(laid, Element::Segment(_)))
-        .count();
-    assert_eq!(copies, 3, "four standing in the end is three laid");
+    assert_eq!(
+        bench.previewed_traits(1.0),
+        Some(3),
+        "a quarter turn four times round: four standing in the end is three laid"
+    );
 }
 
 #[test]
 fn a_pattern_with_its_values_still_untyped_shows_nothing() {
-    let (mut sketch, drawn) = a_trait_off_to_one_side();
-    sketch.add_point(DVec2::ZERO);
-    let editor = holding(Tool::CircularPattern, vec![drawn]);
+    let mut bench = a_trait_off_to_one_side_held_by(Command::ToolCircularPattern);
+    bench.click(THE_ORIGIN);
+    assert_eq!(
+        bench.previewed_traits(1.0),
+        Some(3),
+        "shown while the values the panel opened on stand"
+    );
 
-    assert!(
-        previewed(&sketch, &editor, DVec2::ZERO, 0.5, 1.0).is_none(),
+    bench.type_value(0, "");
+    bench.type_value(1, "");
+
+    assert_eq!(
+        bench.previewed_traits(1.0),
+        None,
         "a pattern with no angle and no count has no copies to show"
     );
 }
 
 #[test]
 fn a_step_typed_in_millimetres_lands_the_copies_where_the_drawing_measures() {
-    let (sketch, drawn) = a_trait_off_to_one_side();
-    let mut editor = holding(Tool::RectangularPattern, vec![drawn]);
-    for (rank, value) in [(0, 20.0), (1, 2.0), (2, 0.0), (3, 1.0)] {
-        editor.live.field(rank).locked = Some(value);
+    let mut bench = a_trait_off_to_one_side_held_by(Command::ToolRectangularPattern);
+    bench.click(OVER_THE_U_AXIS);
+    for (rank, value) in [(0, "20"), (1, "2"), (2, "0"), (3, "1")] {
+        bench.type_value(rank, value);
     }
 
-    let shown = previewed(&sketch, &editor, DVec2::new(20.0, 0.0), 0.5, 2.0)
-        .expect("an axis under the cursor to run along");
+    let sketch = &bench.document.sketches()[0];
+    let shown =
+        super::previewed(sketch, &bench.editor, 2.0).expect("a direction held to run along");
 
-    let [Element::Point(first), ..] = shown.laid.as_slice() else {
+    let [cao_sketch::Element::Point(first), ..] = shown.laid.as_slice() else {
         panic!(
             "the copy stands on corners of its own, got {:?}",
             shown.laid

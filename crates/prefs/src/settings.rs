@@ -32,6 +32,9 @@ pub struct Settings {
     /// Which language file the interface reads. A code naming the file, never
     /// a sentence: what it stands for is decided in `cao_app`.
     pub language: String,
+    /// Where the panel of the copy tools was last let go, top-left in screen
+    /// points: one place shared by every tool that opens it.
+    pub copy_panel_at: Option<[f32; 2]>,
 }
 
 impl Default for Settings {
@@ -43,6 +46,7 @@ impl Default for Settings {
             shortcuts: Shortcuts::default(),
             toolbar: ToolbarLayout::default(),
             language: DEFAULT_LANGUAGE.to_string(),
+            copy_panel_at: None,
         }
     }
 }

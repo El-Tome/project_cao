@@ -20,6 +20,9 @@ use cao_sketch::{SketchAxis, WorkPlane};
 
 use super::*;
 
+pub(super) mod bench;
+mod panel;
+
 /// A trait standing well clear of both sketch axes.
 fn a_drawing() -> (Sketch, cao_sketch::SegmentId) {
     let mut sketch = Sketch::new(WorkPlane::XY);

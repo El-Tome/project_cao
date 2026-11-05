@@ -13,6 +13,7 @@ pub mod arc;
 pub mod circle;
 pub mod command;
 pub mod constraints;
+pub mod copy_panel;
 pub mod cube;
 pub mod dimension;
 pub mod ellipse;

@@ -86,11 +86,13 @@ pub(crate) fn what_would_be_laid(
     context: &SketchContext<'_>,
     scale: ViewScale,
 ) -> Option<Preview> {
+    let units = context.document.scale();
+    if context.editor.copy_panel().is_some() {
+        return copying_shows(sketch, context.editor, units);
+    }
     let cursor = context.editor.cursor?;
     let snap = scale.world_size_of(PICK_PIXELS);
-    let units = context.document.scale();
     corner_shows(sketch, context.editor, cursor, snap, units)
-        .or_else(|| copying_shows(sketch, context.editor, cursor, snap, units))
 }
 
 /// A drawing as this frame paints it: the one on record, or what a tool is

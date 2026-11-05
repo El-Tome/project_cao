@@ -39,9 +39,9 @@ staying available everywhere else. See [extrusion.md](extrusion.md).
 | **Division** | One click on a crossing: a point is laid there and every curve running through it is cut in two. |
 | **Chamfer** | The corner, by its point or by its two traits. What is taken off each is typed, then `Entrée`. |
 | **Fillet** | The same corner, then a radius: a curve tangent to both sides replaces the corner, and neither side is trimmed. |
-| **Mirror** | Take what is to be copied, `Entrée`, then click the trait or axis to mirror it across. |
-| **Circular pattern** | The same, then a step and a count, then click the point to turn about. |
-| **Rectangular pattern** | The same, then two steps and two counts, then click the trait or axis to run along. |
+| **Mirror** | A panel opens with the tool: take what is to be copied, click the trait or axis to mirror it across, then `Valider` or `Entrée`. |
+| **Circular pattern** | The same panel, holding the point to turn about, a step and a count. |
+| **Rectangular pattern** | The same panel, holding the trait or axis to run along, two steps and two counts. |
 
 ### Taking several things at once
 
@@ -1540,9 +1540,30 @@ drawn joins it there. The drawing keeps both points; only the walk welds them.
 The mirror tool lays a second copy of what is held across an axis. It **carries
 over whatever the Selection tool was holding** when it was reached for — taking
 things and then saying what to do with them is the gesture the drawing already
-has, box-select included. Inside the tool, clicking an element adds it or takes
-it back out. `Entrée` says the selection is done, and the click after it names
-the axis.
+has, box-select included.
+
+Everything the tool needs stands in **a panel** over the view, from the moment
+the tool is taken: the elements, the axis — or a pattern's centre or direction
+— the values, then `Valider` and `Annuler`. One slot is **active**, and a
+click in the drawing fills that one and only that one: on the elements it adds
+an element or takes it back out, and a box adds what it holds; on the axis it
+names the axis. The tool never guesses from what was clicked, so an ordinary
+trait can be an axis and a construction trait can be copied. Clicking a slot
+makes it active, to change what it holds at any time.
+
+Once a slot is filled the one below it becomes active, and `Entrée` moves down
+one slot too: the panel reads as an order of actions. On `Valider`, `Entrée`
+lays the copy if every slot holds something; otherwise the first empty slot
+becomes active and is marked. The copy laid, the tool stays in hand and the
+panel is emptied. `Échap` and `Annuler` close it without laying anything and
+hand what it held to the Selection tool, selected; another tool taken from the
+ribbon closes it too, and only the Selection tool keeps the elements.
+
+A value that cannot be used refuses `Valider` and says why; a click in the
+drawing still fills the elements or the target.
+
+The panel is dragged by its title and comes back where it was last let go, one
+place for every copy tool, kept across restarts.
 
 The axis is **a trait of the drawing or one of the sketch's own two**, never two
 free clicks: a trait follows the drawing when it moves, where a pair of
@@ -1570,8 +1591,8 @@ copy — otherwise the arc would come back sweeping the long way round.
 ### The same copy, all the way round
 
 The circular pattern takes the mirror's gesture and turns it instead of
-reflecting it: take what is to be repeated, `Entrée`, type the step and the
-count, then click the point of the drawing to turn about.
+reflecting it: its panel holds what is to be repeated, the point of the drawing
+to turn about, the step and the count.
 
 The **count is how many stand there in the end**, the original among them, so
 six lays five. The **step is the angle between one copy and the next**, not the
@@ -1593,11 +1614,11 @@ only the mirror swaps them.
 ### The same copy, in rows
 
 The rectangular pattern takes that same gesture once more and slides it: take
-what is to be repeated, `Entrée`, type a step and a count for the direction and
-a step and a count square to it, then click the trait or axis to run along.
+what is to be repeated, the trait or axis to run along, a step and a count for
+that direction and a step and a count square to it.
 
-The **direction is a trait of the drawing or one of the sketch's own two**, read
-off the last click exactly as the mirror reads its axis, and the second
+The **direction is a trait of the drawing or one of the sketch's own two**,
+named by a click exactly as the mirror's axis is, and the second
 direction is that one turned a quarter. A leaning trait leans the whole grid
 with it, which is what a pattern of holes along a slanted edge wants.
 

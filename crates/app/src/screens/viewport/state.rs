@@ -50,6 +50,8 @@ pub struct ViewportState {
     pub(super) transition: Option<ViewTransition>,
     pub(super) hovered_zone: Option<CubeZone>,
     pub(super) drag: Option<Drag>,
+    /// Where the copy tools' panel was last let go, as the settings hold it.
+    pub copy_panel_at: Option<[f32; 2]>,
     /// Width over height of the canvas, remembered so that framing asked for
     /// from a toolbar button uses the viewport's shape, not the button's.
     pub(super) aspect: f32,
@@ -79,6 +81,7 @@ impl Default for ViewportState {
             transition: None,
             hovered_zone: None,
             drag: None,
+            copy_panel_at: None,
             aspect: 1.0,
             sections: Sections::default(),
             blinking: None,
@@ -301,6 +304,9 @@ pub(crate) fn cube_rect(viewport: egui::Rect, config: &ViewportConfig) -> egui::
     let origin = corner_origin(viewport, config.cube_corner, size, config.cube_margin);
     egui::Rect::from_min_size(origin, size)
 }
+
+/// How much of the plane to show when a sketch has no geometry to frame yet.
+pub const DEFAULT_SKETCH_RADIUS: f64 = 100.0;
 
 /// Work planes are drawn a fixed fraction of the view across, so they stay
 /// clickable however far the camera is.

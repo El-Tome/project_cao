@@ -3414,3 +3414,85 @@ drawn again turned 1e-7 to 1e-4 of a radian, or moved 1e-6 to 5e-4: a hand
 lands far above that, a typed value repeats the first exactly, and a solver's
 residual stays far below. The draw makes such near copies on purpose, far more
 often than a drawing does, and the ellipses draw stays above its bar.
+
+## #577: two walls at any angle
+
+#577's lane 2 builds two cylinders or elliptic walls at a skew angle
+(`docs/exact-kernel.md`, "Two walls at any angle"), and ships before the
+cones as a pull request of its own. Before it, `main` declined every such
+pair where their faces could meet, and the scope rule excused it; the
+campaigns now hold those cases to every rule, and a case `main` declined
+is a regression only where the branch answers it with a wrong body — a
+decline against a decline is none, by the user's decision.
+
+Five rounds of the walls draw (`random_walls_at_any_angle.rs`), and of the
+draws already touching walls, each on fresh seeds for 120 seconds, `main`
+measured on the same seeds:
+
+| Round | What changed | Walls, exact | Walls, body |
+| --- | --- | --- | --- |
+| 1 | the walls a sliver past decision 11, at a touch along a stretch, declined | 6.3 ‰ | 6.8 ‰ |
+| 2 | that decline only where faces may meet | 6.3 ‰ | 7.0 ‰ |
+| 3 | every pair under a sine of 2e-7 that meets declined | 3.4 ‰ | 3.6 ‰ |
+| 4 | walls closer than a chord's sag declined, the scope not yet excusing it (6.1 ‰ of those declines); a conic seen on a skew wall | 9.0 ‰ | 8.5 ‰ |
+| 5 | the scope reading `closer_than_a_sag` | 2.9 ‰ | 2.2 ‰ |
+
+### The last round, against `main`
+
+| Draw | Cases | `main` | Branch | Branch only | `main` only | Branch, ‰ |
+| --- | --- | --- | --- | --- | --- | --- |
+| walls, exact | 10 266 | — | 30 | — | — | 2.9 |
+| walls, body | 28 211 | — | 61 | — | — | 2.2 |
+| square | 31 985 | 1 | 1 | 0 | 0 | 0.03 |
+| crossed ellipses | 1 668 | 1 | 1 | 0 | 0 | 0.6 |
+| tilted ellipses | 7 505 | 9 | 18 | 9 | 0 | 2.4 |
+| slanted | 12 324 | 9 | 10 | 1 | 0 | 0.8 |
+| tilted | 14 029 | 26 | 28 | 2 | 0 | 2.0 |
+
+`main` has no walls draw. No seed `main` holds breaks on any draw. Every
+seed only the branch fails, `main` declined as unsupported. Of the twelve,
+seven the branch declines too, as `Unverified` or as unsupported
+(81295817220299, 81295817220588, 81295817221510, 81295817221781,
+81295817222522, 81295817223551, 78885331430629); four it answers with a
+wrong body — 81295817222352 (`Closed`), 81295817223557 (`Uncrossed`),
+81295817224067 (`Listed`) on the tilted ellipses, 78885331429875
+(`Closed`) on the tilted draw — and one, 5622792629473 on the slanted
+draw, fails the campaign where the step-by-step reading holds it. The
+walls draw stays above one in a thousand.
+
+### What stays above the bar
+
+The families are on #707, their shrunk seeds under `#[ignore]` in
+`random_walls_at_any_angle.rs`. Of the walls draw's 30 in the last round,
+24 are wrong bodies and 5 declines of another reason; 20 hold a pair
+nearly parallel in #552's band, 11 one nearly square.
+
+- **Wrong bodies at a skew pair beside a third wall** — `Closed`,
+  `Uncrossed`, `Volume`, `Listed`, 24 on the walls draw. A post bored
+  square on its flank, then by its radius at 45° (86751972230147, the
+  cap's mesh left open); an elliptic shaft with a skew bore and a skew
+  post (86751972219231) and a post cut by an elliptic bore and a turned
+  one (86751972224624), their triangles crossing; a bore 1e-3° off square
+  to a shaft beside one at 30° (86751972230062), held at square and at
+  0.1°; two posts of one radius at 45°, each a hair off, the triangles
+  enclosing 2 689.80 where the body holds 2 696.04 (86751972229989), held
+  at every other angle tried and with either hair alone.
+- **A triple contact** — a pocket touching a block's side along a line
+  and a bore at 75° reaching that very line (106731298824406). A conic
+  seen on a skew wall a hair beside its plane, and a meet on a plane a
+  hair beside one of its walls, are now traced through the other wall;
+  the corners there are then left `Unverified`. A pocket moved 1e-7 off
+  the side holds.
+- **A tie near a touch** — a square pair standing two or three
+  tolerances from a touch or a node, beyond decision 2's reach, and a
+  third wall at a skew angle passing there (86751972220241,
+  86751972222643), left as a tie; both hold without the hair. Whether
+  decision 2 should reach `G` for walls, as decision 8 does, is open.
+- **Declines of another reason** — `Unverified` and `Tie` where `main`
+  declined as unsupported: five on the walls draw, and most of the twelve
+  above.
+- **Nearly parallel walls**, declined rather than built: past decision 11
+  by a sliver, within the tolerance along a stretch, or closer than a
+  chord's sag, where the two walls' grids, a hair turned, cross their
+  triangles — some built by luck at one lean and not the next. #706 is to
+  sample them on one grid and build them.

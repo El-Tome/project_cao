@@ -156,9 +156,10 @@ It can:
   built: one with a face the triangles cannot cover is declined too
   (`Declined::Undrawn`). The face counter and the pieces' counter only go
   up, so a number is never given twice.
-- **tell faces at a slant that never touch from faces that cross**: two skew
-  cylinders, a cylinder or a cone off a cone's axis, are decided apart on the
-  faces themselves before the kernel declines (`combine/clear.rs`); a plane
+- **tell faces at a slant that never touch from faces that cross**: two
+  walls the kernel declines at a skew angle (#577), a cylinder or a cone off
+  a cone's axis, are decided apart on the faces themselves before the kernel
+  declines (`combine/clear.rs`); a plane
   at a slant to a wall is asked the same first, so that the conic it cuts
   is registered only where two faces may meet along it.
 - refuse a revolution of a profile with an **ellipse** (`Declined::Profile`):
@@ -187,10 +188,11 @@ Left, in the order #497 set:
   another axis, or an elliptic wall: declined as unsupported where the
   faces may cross;
 - a cone against a cylinder or a cone of another axis, such as a radial hole
-  through it, two cylinders at a skew angle, and an elliptic wall against a
-  cone or a wall at a skew angle. A plane crossing a cylinder or a cone at a
-  slant is done (#552), and the elliptic cylinder against planes and walls
-  parallel or square to it (#571);
+  through it, and an elliptic wall against a cone — #577's lane 3. A plane
+  crossing a cylinder or a cone at a slant is done (#552), the elliptic
+  cylinder against planes and walls parallel or square to it (#571), and
+  two cylinders or elliptic walls at any angle (#577, lane 2), but for the
+  pairs nearly parallel it declines (see "Two walls at any angle");
 - an exact STEP;
 - chamfers and fillets on a straight edge, then on a circular one, then where
   fillets meet at a corner;
@@ -235,6 +237,16 @@ Known and still open:
   cylinder at a skew angle to it: a boss raised, or a hole cut, square to
   the elliptic face a slanted cut leaves on a shaft declines, though the
   tool never reaches the shaft's wall;
+- two walls at a skew angle (#577, lane 2): three families set aside on
+  #707, under the bar on the walls draw but above it against `main` on the
+  tilted and slanted draws — a body drawn wrong (triangles crossing or
+  open, a volume short) at a skew pair beside a third wall; a triple
+  contact, a bore reaching the very line a pocket touches a block's side
+  along; a tie where a skew wall passes a pair standing a few tolerances
+  from a touch or a node, which decision 2 does not reach (whether it
+  should reach `G` is open). Nearly parallel walls closer than a chord's
+  sag are declined until #706 samples them on one grid.
+  `exact-kernel-failures.md`, "#577: two walls at any angle";
 - the elliptic walls (#571): a plane in the warning band through a wall's
   tangent line, the same ellipse turned a hair beside a block's planes, two
   touches at the ends of a half-axis beside a third wall, a third surface
@@ -246,8 +258,9 @@ Known and still open:
 - **Surfaces:** planes, circular cylinders, elliptic cylinders (#571),
   circular cones, spheres and tori (#576), nothing else.
 - **Curves:** lines, circles, the conics a plane cuts a cylinder or a cone
-  along at a slant (#552), and the curve where two perpendicular cylinders
-  meet, either of them elliptic (#571). An elliptic wall meets a plane
+  along at a slant (#552), and the curve where two cylinders meet, square to
+  each other (#498) or at any other angle (#577), either of them elliptic
+  (#571). An elliptic wall meets a plane
   square to its axis along an ellipse, a plane along it along the rulings
   it cuts or touches, any other plane along an ellipse, and a round or
   elliptic wall parallel to it along up to four rulings. A cone meets a
@@ -258,12 +271,12 @@ Known and still open:
   its apex alone. A sphere or a torus meets a plane square to its axis
   along latitude circles, a touch at a crest or a root, or its pole; a
   plane holding its axis along its meridians; and a coaxial cylinder, cone,
-  sphere or torus along one or two rims. Two cylinders at any other angle
-  than parallel or square,
-  a cone against a cylinder or a cone of another axis, and a cone within the
+  sphere or torus along one or two rims. A cone against a cylinder or a
+  cone of another axis, and a cone within the
   tolerance of a plane or a cylinder of its axis all across the box, an
-  elliptic wall against a cone or a wall neither parallel nor square to
-  it, a plane at a slant through a sphere or a torus, a wall or a round of
+  elliptic wall against a cone, two walls nearly parallel that stand within
+  the tolerance or a chord's sag of each other (#577), a plane at a slant
+  through a sphere or a torus, a wall or a round of
   another axis, and an elliptic wall against a round, are declined where
   their faces may cross: the operation gives no answer, which
   the harness counts as such rather than as a wrong solid. Where the faces stand clear of each other — a
@@ -283,8 +296,8 @@ Known and still open:
   parallel, square or slanted to the axis, an arc about its own centre;
   join, cut. A turn of an ellipse is a broken step (#632). A turn about a
   line that is no axis of the planes the rest
-  of the part stands on brings cylinders at a skew angle to those, and
-  declines where their faces cross: a broken step, as #533 decided.
+  of the part stands on brings cylinders at a skew angle to those, built
+  since #577 where #533 left a broken step.
 
 ## Deciding once
 
@@ -1091,6 +1104,19 @@ The decisions, in the order taken, once per operation:
     elliptic wall's of the first is laid on that one's bits too, so that
     decision 1 compares the two ellipses exactly.
 
+    Two walls of the two operands — a cylinder, an elliptic wall or a cone
+    each — a hair off square or off parallel to each other are laid so the
+    same way (#577), a bore a ten-millionth of a degree off square to a
+    shaft laid square and meeting it along the curve of two square walls.
+    A direction turned within rounding of square to a direction of the
+    first operand is made exactly square to it, its part along that one
+    taken off, so that a bore laid square to a shaft about Z has a
+    component of exactly nought along Z. A circle the turn moves stays on
+    the turned axis of the wall it was drawn on, and in the turned plane it
+    lay in: turned apart, a pin's rim stood a rounding off its own wall's
+    axis, and a bore's rim touching it inside was read as no touch
+    (121233920454262).
+
     Where the turn is made about decides where the operand ends up, a hair
     either way, and a hair parts what the second held against the first.
     Turned about the middle of its box, a wedge's side drawn on a disc's
@@ -1684,6 +1710,10 @@ covered once from each side.
     their faces near enough to meet and not standing
     clear, may still lean off square to the wall's axis, or off along it,
     by more than decision 11 lays exactly and by a sine under a thousandth.
+    So may two walls, one of each operand, off square or off parallel to
+    each other (#577): the `Lean` is then `Across` or `Abreast`, and the
+    panel names the two axes nearly square, or nearly parallel
+    (`extrusion.unstable_across`, `extrusion.unstable_abreast`).
     The conic it cuts divides by that lean, so the step's rounding is
     magnified up to a thousand times: built, it may change for a change too
     small to see. The step is built as drawn and the body carries the least
@@ -1834,8 +1864,8 @@ Equal half-widths with the axes meeting still give two planar components,
 `(x − κ₁y)/α₁ = ±(z − e − κ₂(y − d))/α₂`. A circle on one wall crosses an
 elliptic wall square to it where the lines its plane cuts that wall along
 cross it; the curve itself crosses a third surface as two cylinders' does.
-An elliptic wall at any other angle than parallel or square to another
-wall still declines where their faces may cross.
+At any other angle than parallel or square, the same structure holds
+with a shear and a scale (#577, the next section).
 
 Still open on square walls with an elliptic one among them, under one
 case in a thousand of the crossed draw on fresh seeds: a third surface
@@ -1846,6 +1876,70 @@ the two within a chord's sag of each other far along it, and a round bar
 touching an elliptic hole at a point, drawn crossing; a crescent between
 two parallel walls a hair apart, each at a node of an elliptic wall,
 read backwards by the listing.
+
+## Two walls at any angle (#577)
+
+The curve two walls meet along at any angle is the square pair's, read in
+a frame that is no longer square. The height `y` runs along the line
+square to both axes, as before; the first wall is still `x² + y² = a²`
+across its own axis; the second's section is read across its own axis,
+its coordinate across the chords `ζ = z sin φ − x cos φ`, `φ` the angle
+between the axes. Each ruling of the first wall, a line of fixed `x` and
+`y`, meets the second where that section does, so the span, its ends, the
+gaps, the configurations, the nodes, the contact, the parameter and the
+factored roots are the square pair's, an elliptic wall's shear and scale
+included, and only the map to the world changes:
+
+    z = (ζ + x cos φ) / sin φ.
+
+Each point is closed form on both walls to rounding. A pair square to
+within rounding — the cosine under half `RELATIVE` — keeps the square
+pair's own expressions, bit for bit. Nearly parallel, the direction
+square to both axes is a difference of nearly equal vectors: plainly
+subtracted, axes 1e-5 apart lost five digits of it, which the height
+then magnified again, and the meet stood microns off both walls. It is
+taken from a cross product whose two products each keep their rounding
+by a fused multiply-add (`meet/pair.rs`). Soundness reads an elliptic
+pair by its own formula at any angle, with its own compensated product.
+
+The relation reads two cylinders, or a cylinder and an elliptic wall, or
+two elliptic walls, at any angle but parallel this way; decision 2 snaps
+the pair onto a touch or a node within the tolerance as it does square.
+A circle against a wall at a skew angle to its own cylinder crosses it
+where the curve its own cylinder meets that wall along crosses its own
+plane: the triple read from its most degenerate pair, as the curve
+itself reaches that corner.
+
+Three pairs are declined as unsupported, where their faces may meet and
+do not stand clear, each giving back a decline `main` gave rather than a
+wrong answer:
+
+- **A sliver past decision 11.** Two walls leaning off parallel by a sine
+  under `2·RELATIVE / STRETCH`, 2e-7, whose sections meet in the box
+  where their faces may — touching or crossing. Crossing at 1e-5°, the
+  corners where caps cut them left a body the kernel could not close
+  (134820673287757).
+- **Along a stretch.** Two walls in #552's band, their sections one, or
+  touching inside or outside, within the tolerance along a hundredth of
+  the reach or more where their faces may meet. Square to the first
+  wall's axis the second's stands at an offset affine in the height; the
+  stretch is solved from that quadratic. It is `2·EPS/s` where the walls
+  part fastest — one size, axes crossing — and much longer where the
+  second's axis drifts across the line they touch along, the gap growing
+  as the square of the height: a bore touching a post inside, leaning
+  1e-3°, stays within the tolerance of it over the whole post.
+- **Closer than a chord's sag** (`closer_than_a_sag`). Two walls in the
+  band such that, at some height across the box where their faces may
+  meet, two consecutive steps of one wall's grid — the grid its triangles
+  take at a thousandth of the reach — both stand within that grid's sag
+  of the other wall. Each wall is sampled on its own grid, a hair turned
+  from the other's; the sweep orders the near-duplicate samples of the
+  two faces differently, and their triangles cross. Built by luck at
+  some leans and not at others, they are declined until #706 samples
+  nearly parallel walls on one grid.
+
+Still declined: a cone against a wall or a cone of another axis, an
+elliptic wall against a cone — #577's lane 3.
 
 ## Triangles
 
@@ -2430,4 +2524,9 @@ The tests that hold it:
 - `a_plane_a_hair_off_square_to_a_wall.rs`, decision 11 held to the
   arithmetic: a post cut a ten-millionth of a degree off square, a bore cut
   a hair off along its axis, a tool a hair off a bore of its radius merged
-  onto it.
+  onto it;
+- `two_walls_at_any_angle.rs`, holes slanted at 30° and 80° through a
+  shaft held to a quadrature, square and parallel pairs pinned to their
+  bits, and decisions 2 and 11 for walls; `random_walls_at_any_angle.rs`,
+  #448's harness drawing walls at any angle, the campaigns' seeds shrunk,
+  and the families #707 holds under `#[ignore]` with their reason.

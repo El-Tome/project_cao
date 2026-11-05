@@ -1,83 +1,18 @@
-//! A face on a sphere or a torus, read along a direction and about a line
-//! (#576). A round face bulges between its edges — a zone across the
-//! equator, a lune between its meridians, a whole ball with no edge at all —
-//! so its reach along a direction is read off its edges and off the points
-//! of its surface that go furthest along that direction, where they stand
-//! inside the face; and how far it stands from a line at most is read off
-//! the whole surface. A face stands apart from a round's as from a cone's:
-//! beyond a plane touching the round, or, a ring, inside the hollow its tube
-//! leaves about the axis.
+//! A face on a sphere or a torus, read about a line (#576). A round face
+//! bulges between its edges — a zone across the equator, a lune between its
+//! meridians, a whole ball with no edge at all — so how far it stands from a
+//! line at most is read off the whole surface, and its reach along a
+//! direction off its edges and off where it bulges ([`Body::bulges`]). A
+//! face stands apart from a round's as from a cone's: beyond a plane
+//! touching the round, or, a ring, inside the hollow its tube leaves about
+//! the axis.
 
-use std::f64::consts::{PI, TAU};
-
-use glam::{DVec2, DVec3};
+use glam::DVec3;
 
 use super::hollow::corners;
 use super::{farthest, from_the_axis, reach};
-use crate::brep::domain::Location;
-use crate::brep::surface::{Surface, Torus};
+use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, FaceId};
-
-/// The points of a face's sphere or torus that go furthest along
-/// `direction` or against it — a sphere's two, a torus's four, found where
-/// the surface's gradient along the direction vanishes — kept where they
-/// stand inside the face or on its boundary, and every one where the face's
-/// domain cannot be read. None for any other surface.
-pub(super) fn bulges((body, face): (&Body, FaceId), direction: DVec3) -> Vec<DVec3> {
-    let surface = body.surface(body.face(face).surface);
-    let candidates = match surface {
-        Surface::Sphere(sphere) => [1.0, -1.0]
-            .map(|way| sphere.middle() + direction * (way * sphere.radius))
-            .to_vec(),
-        Surface::Torus(torus) => bulges_of_a_torus(torus, direction),
-        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
-            return Vec::new();
-        }
-    };
-    if body.face(face).loops.is_empty() {
-        return candidates;
-    }
-    let eps = body.scale().eps();
-    candidates
-        .into_iter()
-        .filter(|point| {
-            !matches!(
-                body.locate(face, surface.parameters(*point), eps),
-                Ok(Location::Outside)
-            )
-        })
-        .collect()
-}
-
-/// Where a torus goes furthest along `direction` or against it: in the
-/// meridian half-plane of the direction's part square to the axis and in
-/// the one across from it, at the angle along the meridian whose tangent is
-/// the direction's part along the axis over its part across, and half a
-/// turn from it; on the own lobe only. The angle about the axis is kept in
-/// the chart's own range, so that a point on the line `θ = 0` is read there
-/// and not a rounding below a whole turn.
-fn bulges_of_a_torus(torus: &Torus, direction: DVec3) -> Vec<DVec3> {
-    let along = direction.dot(torus.axis);
-    let across = direction - torus.axis * along;
-    let theta = across.dot(torus.v).atan2(across.dot(torus.u));
-    let (big, radius) = (torus.center.y, torus.radius);
-    let mut found = Vec::new();
-    for turn in [0.0, PI] {
-        let phi = along.atan2(across.length() * turn.cos());
-        let about = if theta + turn > PI {
-            theta + turn - TAU
-        } else {
-            theta + turn
-        };
-        for half in [0.0, PI] {
-            let phi = phi + half;
-            if big + radius * phi.cos() >= 0.0 {
-                found.push(torus.point(DVec2::new(about, phi)));
-            }
-        }
-    }
-    found
-}
 
 /// How far a face's sphere or torus stands from the line through `origin`
 /// along `axis` at most, read off the whole surface: its centre's distance

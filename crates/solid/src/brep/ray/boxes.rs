@@ -5,18 +5,21 @@
 //! between two points of the boundary, and on a cylinder or a cone between
 //! two points of the boundary on the ruling through it — or, on a cone whose
 //! face holds its apex within it, between one and the apex, which is boxed
-//! too, as every pole a face holds is. The box of a line is that of its
-//! ends, of an arc of a circle that of
-//! its ends and of the places each coordinate turns, both exact to rounding;
-//! the curve two cylinders meet along is boxed by what its height across
-//! both axes leaves each root.
+//! too, as every pole a face holds is. A face on a sphere or a torus bulges
+//! past its boundary: a coordinate is largest or smallest over it on its
+//! boundary or where it is over the whole surface, and those of the
+//! surface's points the face holds are boxed with its boundary
+//! ([`Body::bulges_held`]). The box of a line is that of its ends, of an arc
+//! of a circle that of its ends and of the places each coordinate turns,
+//! both exact to rounding; the curve two cylinders meet along is boxed by
+//! what its height across both axes leaves each root.
 
 use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
 use crate::brep::curve::{Circle, Curve};
-use crate::brep::topology::{Body, Edge, FaceId, round_box};
+use crate::brep::topology::{Body, Edge, FaceId};
 
 pub(super) struct Boxes {
     boxes: Vec<[DVec3; 2]>,
@@ -36,12 +39,14 @@ impl Boxes {
         let boxes = body
             .face_ids()
             .map(|face| {
-                let own = round_box(body.surface(body.face(face).surface))
-                    .unwrap_or([DVec3::INFINITY, DVec3::NEG_INFINITY]);
                 let held = body
                     .poles_held(face)
                     .into_iter()
-                    .fold(own, |[low, high], pole| [low.min(pole), high.max(pole)]);
+                    .chain(body.bulges_held(face))
+                    .fold(
+                        [DVec3::INFINITY, DVec3::NEG_INFINITY],
+                        |[low, high], held| [low.min(held), high.max(held)],
+                    );
                 body.face(face)
                     .loops
                     .iter()

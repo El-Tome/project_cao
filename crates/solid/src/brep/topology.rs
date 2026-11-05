@@ -12,6 +12,7 @@ use super::curve::{Circle, Curve};
 use super::scale::Scale;
 use super::surface::Surface;
 
+mod bulges;
 mod numbers;
 mod poles;
 mod rotated;
@@ -200,24 +201,16 @@ impl Body {
 
     /// The largest coordinate, in absolute value, any point of the body
     /// reaches: what its scale is taken against. A face on a sphere or a
-    /// torus reaches as far as its surface does, whose bulge no edge stands
-    /// on.
+    /// torus reaches as far as it bulges, where no edge of it need stand.
     pub fn reach(&self) -> f64 {
         let corners = self.vertices.iter().map(|vertex| vertex.point);
         let arcs = self.edges.iter().flat_map(|edge| self.extremes(edge));
+        let rounds = self.face_ids().flat_map(|face| self.bulges_held(face));
         corners
             .chain(arcs)
-            .chain(self.round_boxes().flatten())
+            .chain(rounds)
             .map(|point| point.abs().max_element())
             .fold(0.0, f64::max)
-    }
-
-    /// The box round each face lying on a sphere or a torus: its surface's
-    /// own, which no edge of the face need reach.
-    fn round_boxes(&self) -> impl Iterator<Item = [DVec3; 2]> + '_ {
-        self.faces
-            .iter()
-            .filter_map(|face| round_box(self.surface(face.surface)))
     }
 
     /// The corners of a face, the points of its edges where a coordinate
@@ -251,11 +244,12 @@ impl Body {
     }
 
     /// The lowest and the highest corner of the box the body fits in, read
-    /// off its corners and the points where its curves turn back.
+    /// off its corners, the points where its curves turn back and where its
+    /// faces on a sphere or a torus bulge.
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
         let corners = self.vertices.iter().map(|vertex| vertex.point);
         let arcs = self.edges.iter().flat_map(|edge| self.extremes(edge));
-        let rounds = self.round_boxes().flatten();
+        let rounds = self.face_ids().flat_map(|face| self.bulges_held(face));
         corners
             .chain(arcs)
             .chain(rounds)
@@ -265,18 +259,19 @@ impl Body {
             })
     }
 
-    /// The box round a face, from the extremes of its edges and the poles it
-    /// holds within it, grown by `eps`; round a face on a sphere or a torus,
-    /// its surface's own box.
+    /// The box round a face, from the extremes of its edges, the poles it
+    /// holds within it and, on a sphere or a torus, where it bulges, grown
+    /// by `eps`.
     pub(in crate::brep) fn boxed(&self, face: FaceId, eps: f64) -> [DVec3; 2] {
         let mut low = DVec3::INFINITY;
         let mut high = DVec3::NEG_INFINITY;
-        if let Some([lowest, highest]) = round_box(self.surface(self.face(face).surface)) {
-            (low, high) = (lowest, highest);
-        }
-        for pole in self.poles_held(face) {
-            low = low.min(pole);
-            high = high.max(pole);
+        for held in self
+            .poles_held(face)
+            .into_iter()
+            .chain(self.bulges_held(face))
+        {
+            low = low.min(held);
+            high = high.max(held);
         }
         for coedge in self.face(face).loops.iter().flatten() {
             for point in self.extremes(self.edge(coedge.edge)) {
@@ -323,17 +318,6 @@ impl Body {
             })
             .collect()
     }
-}
-
-/// The box round a whole sphere or torus; none for any other surface.
-pub(super) fn round_box(surface: &Surface) -> Option<[DVec3; 2]> {
-    let extent = |direction: DVec3| match surface {
-        Surface::Sphere(sphere) => Some(sphere.extent(direction)),
-        Surface::Torus(torus) => Some(torus.extent(direction)),
-        Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => None,
-    };
-    let [x, y, z] = [extent(DVec3::X)?, extent(DVec3::Y)?, extent(DVec3::Z)?];
-    Some([DVec3::new(x[0], y[0], z[0]), DVec3::new(x[1], y[1], z[1])])
 }
 
 /// The points of a circle, between two of its parameters, where a coordinate

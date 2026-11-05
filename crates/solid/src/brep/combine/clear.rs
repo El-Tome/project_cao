@@ -210,7 +210,7 @@ fn reach((body, face): (&Body, FaceId), direction: DVec3) -> Option<[f64; 2]> {
     for point in body
         .poles_held(face)
         .into_iter()
-        .chain(round::bulges((body, face), direction))
+        .chain(body.bulges(face, direction))
     {
         low = low.min(direction.dot(point));
         high = high.max(direction.dot(point));

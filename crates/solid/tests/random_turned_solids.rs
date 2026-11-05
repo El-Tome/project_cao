@@ -159,6 +159,15 @@
 //! fingerprints are what holds it on both platforms.
 //! - a case drawn differently still changes the fingerprint —
 //!   `a_case_drawn_differently_changes_the_fingerprint`
+//!
+//! Closes #625.
+//! - #576's harness excuses a round against a wall only where the face's own
+//!   box meets it — `a_partial_round_asks_no_wall_that_meets_its_whole_surface_but_not_its_leaf`
+//! - and the `random_solids` campaign holds with no new broken case — no test:
+//!   a campaign, `a_campaign_of_rounded_solids_on_the_exact_kernel_keeps_every_rule`
+//!   and its run through the application's body, behind `--ignored` and too
+//!   long for the gate; its count of broken cases against `main`'s is what
+//!   the pull request reports
 
 // The drawing, the promise and the checks are shared with the other
 // campaigns; each file uses its own part of them.

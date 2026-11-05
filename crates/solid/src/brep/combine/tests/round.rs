@@ -3,6 +3,13 @@
 //! sphere or torus. Each body is listed sound and holds the arithmetic's
 //! volume, by Pappus, to the bit the cone's booleans hold; everything else
 //! declines as unsupported, unless the faces stand clear of each other.
+//!
+//! Closes #625.
+//! - a quarter of a torus and a slanted wall that meet the whole torus's box
+//!   but not the quarter's are joined and cut without `Unsupported`: the
+//!   union holds both apart, the cut leaves the quarter whole —
+//!   `a_quarter_torus_joined_with_a_slanted_wall_past_its_quarter_holds_both_apart`,
+//!   `a_slanted_wall_cut_from_a_quarter_torus_past_its_quarter_leaves_the_quarter_whole`
 
 use std::f64::consts::{PI, TAU};
 

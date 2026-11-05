@@ -16,6 +16,7 @@ use crate::screens::SketchContext;
 
 use super::matter::Sections;
 use super::navigation::Drag;
+use super::section::Section;
 
 /// How close, in pixels, the cursor has to be to take hold of something.
 ///
@@ -56,6 +57,8 @@ pub struct ViewportState {
     /// from a toolbar button uses the viewport's shape, not the button's.
     pub(super) aspect: f32,
     pub(super) sections: Sections,
+    /// The section view, while it is on.
+    pub(super) section: Option<Section>,
     blinking: Option<Blinking>,
 }
 
@@ -84,6 +87,7 @@ impl Default for ViewportState {
             copy_panel_at: None,
             aspect: 1.0,
             sections: Sections::default(),
+            section: None,
             blinking: None,
         }
     }

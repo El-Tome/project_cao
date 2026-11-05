@@ -182,9 +182,7 @@ pub(crate) fn build_frame(
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
 
     let editor: &SketchEditor = context.editor;
-    let drawn = state
-        .sections
-        .drawn(editor, state.mode, context.document.body(), camera.eye());
+    let drawn = super::matter::shown(state, editor, context.document.body());
     let mut solids = Vec::new();
     push_body(
         &mut solids,

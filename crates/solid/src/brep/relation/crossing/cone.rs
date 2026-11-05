@@ -19,7 +19,7 @@ use super::super::cylinders::cylinders;
 use super::super::revolved::in_the_box;
 use super::super::{Relation, parallel, relation, square};
 use super::section::ROUNDING;
-use super::{Solved, Touches, circle_through, line_and_cylinder, touches};
+use super::{Solved, Touches, circle_through, line_and_cylinder, through_the_meet, touches};
 use crate::brep::curve::{Circle, Line};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder, Plane, Surface};
@@ -171,7 +171,15 @@ pub(super) fn circle_and_cone(
     let Relation::Rulings { lines, .. } =
         relation(&Surface::Plane(own_plane), &Surface::Cone(*cone), scale)
     else {
-        return Solved::Unsupported;
+        let own = Cylinder::about(circle.center, circle.axis, circle.radius);
+        return through_the_meet(
+            circle,
+            &own_plane,
+            own,
+            &Surface::Cone(*cone),
+            scale,
+            touching,
+        );
     };
     let apex = cone.apex();
     match circle_through(

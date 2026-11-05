@@ -632,7 +632,7 @@ fn a_circle_in_a_plane_holding_the_axis_crosses_its_rulings_on_its_nappe_only() 
 }
 
 #[test]
-fn a_circle_at_a_slant_to_a_cone_is_unsupported() {
+fn a_circle_at_a_slant_to_a_cone_crosses_it_at_the_two_points_they_share() {
     let slanted = Curve::Circle(Circle {
         center: DVec3::new(0.0, 0.0, 4.0),
         axis: DVec3::new(0.0, 0.6, 0.8),
@@ -640,10 +640,14 @@ fn a_circle_at_a_slant_to_a_cone_is_unsupported() {
         u: DVec3::X,
         v: DVec3::new(0.0, 0.8, -0.6),
     });
-    assert_eq!(
-        crossings(&slanted, &point(), scale()),
-        Crossings::Unsupported
-    );
+    let found = found(&slanted, &point(), 1e-12 * REACH);
+    assert_eq!(tangents(&found), [false, false]);
+    for (crossing, x) in found.iter().zip([3.0, -3.0]) {
+        assert!(
+            crossing.point.distance(DVec3::new(x, 0.0, 4.0)) <= 1e-12 * REACH,
+            "{crossing:?}"
+        );
+    }
 }
 
 #[test]

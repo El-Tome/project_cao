@@ -1,7 +1,7 @@
 use glam::{DVec2, DVec3};
 
 use super::*;
-use crate::brep::surface::{Cone, Cylinder, Plane};
+use crate::brep::surface::{Cone, Cylinder, Plane, Sphere};
 
 fn rim() -> [Surface; 2] {
     let (floor, _) = Plane::through(DVec3::ZERO, DVec3::Z);
@@ -25,7 +25,12 @@ fn a_crossing_left_unsolved_on_a_pair_the_kernel_builds_declines_rather_than_bei
         [DVec2::new(0.0, 3.0), DVec2::new(6.0, 0.0)],
     );
     assert!(
-        left_to_a_declined_pair(&support, &Surface::Cone(point)),
-        "a cone off the rim's axis is a pair the kernel declines unless clear"
+        !left_to_a_declined_pair(&support, &Surface::Cone(point)),
+        "a cone off the rim's axis is built since #577, and owes the crossing"
+    );
+    let ball = Sphere::through(DVec3::new(3.0, 0.0, 2.0), DVec3::X, 0.0, 2.0);
+    assert!(
+        left_to_a_declined_pair(&support, &Surface::Sphere(ball)),
+        "a ball off the rim's axis is a pair the kernel declines unless clear"
     );
 }

@@ -63,5 +63,6 @@ pub(super) fn round(meet: &Meet, plane: &Plane) -> Round {
     match wall {
         Wall::Cylinder(cylinder) => Round::Cylinder(cylinder),
         Wall::Elliptic(oval) => Round::Elliptic(oval),
+        Wall::Cone(cone) => Round::Cone(cone),
     }
 }

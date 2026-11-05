@@ -1,11 +1,14 @@
 //! How a cone meets a plane, a cylinder or another cone (#536): every pair of
 //! one axis read as two lines of the meridian half-plane, a plane holding the
 //! axis as the two rulings it cuts, a plane at a slant as the conic it cuts
-//! (#552, `sliced.rs`), anything else declined.
+//! (#552, `sliced.rs`), a wall or a cone off its axis as the curve read along
+//! the rulings (#577); declined, a wall a hair off coaxial and two cones each
+//! with rulings within the other's slope.
 
 use glam::DVec2;
 
 use super::*;
+use crate::brep::meet::Configuration;
 use crate::brep::surface::{Cone, Cylinder};
 
 /// The cone about the line through `point` along `axis` its run from
@@ -213,9 +216,9 @@ fn a_cylinder_a_hair_off_coaxial_is_coaxial() {
 }
 
 #[test]
-fn a_cylinder_further_off_coaxial_is_unsupported() {
+fn a_cylinder_a_hair_off_coaxial_is_unsupported_and_one_further_off_meets_the_cone() {
     let eps = scale().eps();
-    for off in [2.0 * eps, 0.5, 30.0] {
+    for off in [2.0 * eps, 10.0 * eps] {
         let bore = cylinder(DVec3::new(0.0, off, 0.0), DVec3::Z, 2.0);
         assert_eq!(
             relation(&Surface::Cone(point()), &bore, scale()),
@@ -223,21 +226,63 @@ fn a_cylinder_further_off_coaxial_is_unsupported() {
             "{off}"
         );
     }
+    let aside = cylinder(DVec3::new(0.0, 0.5, 0.0), DVec3::Z, 2.0);
+    let found = relation(&Surface::Cone(point()), &aside, scale());
+    let Relation::Meet(meeting) = &found else {
+        panic!("a meeting expected, got {found:?}");
+    };
+    assert_eq!(meeting.configuration, Configuration::OneLoop);
+    assert_on_both(&found, &Surface::Cone(point()), &aside, 1e-9);
 }
 
 #[test]
-fn a_radial_cylinder_and_a_cone_at_a_skew_angle_are_unsupported() {
+fn a_radial_cylinder_and_a_cone_at_a_skew_angle_meet_along_their_curve() {
     for axis in [DVec3::X, DVec3::new(1.0, 1.0, 1.0)] {
         let hole = cylinder(DVec3::new(0.0, 0.0, 3.0), axis, 1.0);
-        assert_eq!(
-            relation(&Surface::Cone(point()), &hole, scale()),
-            Relation::Unsupported
-        );
-        assert_eq!(
-            relation(&hole, &Surface::Cone(point()), scale()),
-            Relation::Unsupported
-        );
+        let found = relation(&Surface::Cone(point()), &hole, scale());
+        let Relation::Meet(meeting) = &found else {
+            panic!("a meeting expected, got {found:?}");
+        };
+        assert_eq!(meeting.configuration, Configuration::TwoLoops, "{axis}");
+        assert_on_both(&found, &Surface::Cone(point()), &hole, 1e-9);
+        assert_eq!(relation(&hole, &Surface::Cone(point()), scale()), found);
     }
+}
+
+/// A cylinder along one of the point's rulings: that ruling meets it
+/// nowhere, `A` vanishes there, and the curve runs off to infinity.
+#[test]
+fn a_cylinder_along_one_of_the_cone_s_rulings_is_unsupported() {
+    let along = cylinder(
+        DVec3::new(1.0, 0.0, 3.0),
+        DVec3::new(1.0, 0.0, -2.0).normalize(),
+        1.0,
+    );
+    assert_eq!(
+        relation(&Surface::Cone(point()), &along, scale()),
+        Relation::Unsupported
+    );
+}
+
+/// A point whose axis leans 11° off the first's, both of half-angle
+/// 26.6°: each one's rulings fall within the other's slope, so neither's
+/// meet the other in a true quadratic all round — still unsupported.
+#[test]
+fn two_cones_each_with_rulings_within_the_other_s_slope_are_unsupported() {
+    let leaning = Surface::Cone(cone(
+        DVec3::new(0.0, 1.0, 0.0),
+        DVec3::new(0.2, 0.0, 1.0),
+        [0.0, 3.0],
+        [6.0, 0.0],
+    ));
+    assert_eq!(
+        relation(&Surface::Cone(point()), &leaning, scale()),
+        Relation::Unsupported
+    );
+    assert_eq!(
+        relation(&leaning, &Surface::Cone(point()), scale()),
+        Relation::Unsupported
+    );
 }
 
 #[test]

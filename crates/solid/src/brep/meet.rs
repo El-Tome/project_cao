@@ -40,10 +40,13 @@
 
 mod meeting;
 mod pair;
+mod ruled;
 mod section;
 mod seen;
 
+use std::cell::RefCell;
 use std::f64::consts::{PI, TAU};
+use std::rc::Rc;
 
 use glam::DVec3;
 
@@ -53,12 +56,93 @@ pub use meeting::{Meeting, Node};
 pub(super) use meeting::{goes_first, moved, moved_instead};
 pub use pair::Configuration;
 use pair::Pair;
+use ruled::{Lap, Ruled};
 
 /// Newton doubles the digits at each step: from the height's guess, a few
 /// are enough, and the count is fixed so the same point gives the same bits.
 const NEWTON_STEPS: usize = 8;
 
+/// How many pairs of a cone and a wall the reading of their curve is kept
+/// for: finding where `D` vanishes costs hundreds of evaluations, and each
+/// point asked of the curve would pay it again.
+const KEPT: usize = 16;
+
+thread_local! {
+    static READ: RefCell<Vec<(Wall, Wall, Rc<Ruled>)>> = const { RefCell::new(Vec::new()) };
+}
+
+/// The curve a cone meets another wall along, read once per pair.
+fn ruled(cone: &Wall, other: &Wall) -> Option<Rc<Ruled>> {
+    let Wall::Cone(own) = cone else {
+        return None;
+    };
+    READ.with(|read| {
+        let mut read = read.borrow_mut();
+        if let Some((_, _, ruled)) = read
+            .iter()
+            .find(|(one, two, _)| one == cone && two == other)
+        {
+            return Some(ruled.clone());
+        }
+        let ruled = Rc::new(Ruled::of(own, other)?);
+        if read.len() == KEPT {
+            read.remove(0);
+        }
+        read.push((*cone, *other, ruled.clone()));
+        Some(ruled)
+    })
+}
+
+/// Whether a cone's rulings meet `other` in a true quadratic all round, or,
+/// `other` a cone, the other's rulings meet the first so: the pairs
+/// `ruled.rs` reads.
+pub(super) fn steady(cone: &super::surface::Cone, other: &Wall) -> bool {
+    ruled(&Wall::Cone(*cone), other).is_some()
+        || matches!(other, Wall::Cone(_) if ruled(other, &Wall::Cone(*cone)).is_some())
+}
+
+/// Where the rulings of a cone come nearest `other` — at each angle where
+/// `D` turns, the double root, kept on the cone's own nappe — read along the
+/// cone's rulings or, `other` a cone, along its own: where two walls that
+/// do not quite meet come closest, or barely cross.
+pub(in crate::brep) fn nearest_approaches(cone: &super::surface::Cone, other: &Wall) -> Vec<DVec3> {
+    let mut readings = vec![ruled(&Wall::Cone(*cone), other)];
+    if let Wall::Cone(_) = other {
+        readings.push(ruled(other, &Wall::Cone(*cone)));
+    }
+    readings
+        .into_iter()
+        .flatten()
+        .flat_map(|read| read.nearest())
+        .collect()
+}
+
 impl Meet {
+    /// The curve read along a cone's rulings, and the lap this component
+    /// runs; none for two cylinders or elliptic walls.
+    fn ruled(&self) -> Option<(Rc<Ruled>, Option<Lap>)> {
+        let ruled = ruled(&self.first, &self.second)?;
+        let lap = ruled.laps.get(usize::from(self.component)).cloned();
+        Some((ruled, lap))
+    }
+
+    /// Whether the component goes round the axis of `wall`, one of its
+    /// two cones: on the cone giving the rulings, a lap over a whole turn of
+    /// `θ`; on the other, a lap its angle winds round. None for a wall the
+    /// curve is not read along a cone's rulings on.
+    pub(in crate::brep) fn winds_round(&self, wall: &Wall) -> Option<bool> {
+        let (_, lap) = self.ruled()?;
+        let lap = lap?;
+        if *wall == self.first {
+            Some(lap.span.is_none())
+        } else if *wall == self.second {
+            let [first, last] = [lap.around[0][1], lap.around[lap.around.len() - 1][1]];
+            Some(((last - first) / TAU).round() != 0.0)
+        } else {
+            None
+        }
+    }
+
     fn pair(&self) -> Pair {
         Pair::of(&self.first, &self.second)
     }
@@ -70,11 +154,17 @@ impl Meet {
     }
 
     pub fn point(&self, t: f64) -> DVec3 {
+        if let Some((ruled, Some(lap))) = self.ruled() {
+            return ruled.point(&lap, t);
+        }
         let (pair, [point, ..]) = self.local(t);
         pair.world(point)
     }
 
     pub fn derivative(&self, t: f64) -> DVec3 {
+        if let Some((ruled, Some(lap))) = self.ruled() {
+            return ruled.derivative(&lap, t);
+        }
         let (pair, [_, speed, _]) = self.local(t);
         pair.direction(speed)
     }
@@ -84,6 +174,9 @@ impl Meet {
     /// the nearest kept: near an end of the span the height says little, and
     /// near a node two branches pass the same height.
     pub fn parameter(&self, point: DVec3) -> f64 {
+        if let Some((ruled, Some(lap))) = self.ruled() {
+            return ruled.parameter(&lap, point);
+        }
         let pair = self.pair();
         let signs = pair.signs(self.component);
         let period = pair.period();
@@ -123,6 +216,15 @@ impl Meet {
     /// curve standing within `eps` of `point`, in order: a vertex there cuts
     /// the curve at each. Nothing where no node stands.
     pub fn passes(&self, point: DVec3, eps: f64) -> Vec<f64> {
+        if let Some((ruled, _)) = self.ruled() {
+            return meeting::ruled_nodes(&ruled)
+                .into_iter()
+                .filter(|node| node.point.distance(point) <= eps)
+                .flat_map(|node| node.on)
+                .filter(|(component, _)| *component == self.component)
+                .map(|(_, t)| t)
+                .collect();
+        }
         meeting::nodes(&self.pair())
             .into_iter()
             .filter(|node| node.point.distance(point) <= eps)
@@ -146,9 +248,15 @@ impl Meet {
             (Wall::Elliptic(own), Wall::Elliptic(oval)) => {
                 own.axis.cross(oval.axis).length() <= Scale::RELATIVE && own.within(oval, eps)
             }
-            (Wall::Cylinder(_), Wall::Elliptic(_)) | (Wall::Elliptic(_), Wall::Cylinder(_)) => {
-                false
+            (Wall::Cone(own), Wall::Cone(cone)) => {
+                own.axis.cross(cone.axis).length() <= Scale::RELATIVE
+                    && (own.origin - cone.origin).length() <= eps
+                    && (own.foot - cone.foot).length() <= eps
+                    && (own.ruling - cone.ruling).length() <= Scale::RELATIVE
             }
+            (Wall::Cylinder(_), Wall::Elliptic(_) | Wall::Cone(_))
+            | (Wall::Elliptic(_), Wall::Cylinder(_) | Wall::Cone(_))
+            | (Wall::Cone(_), Wall::Cylinder(_) | Wall::Elliptic(_)) => false,
         };
         if alike(&self.first) {
             Some(true)
@@ -162,6 +270,9 @@ impl Meet {
     /// How far `t` runs round the component, or nothing when the pair has no
     /// such component.
     pub fn period(&self) -> Option<f64> {
+        if let Some((_, lap)) = self.ruled() {
+            return lap.map(|_| TAU);
+        }
         let pair = self.pair();
         (self.component < pair.components()).then(|| pair.period())
     }
@@ -172,6 +283,9 @@ impl Meet {
     /// `(z − e)² = b² − (y − d)²`, whichever its sign — on an elliptic wall
     /// scaled by `α` about the middles `κy` of the chords over that height.
     pub(in crate::brep) fn bounds(&self, from: f64, to: f64) -> [DVec3; 2] {
+        if let Some((ruled, Some(lap))) = self.ruled() {
+            return ruled.bounds(&lap, from.min(to), from.max(to));
+        }
         let pair = self.pair();
         let (from, to) = (from.min(to), from.max(to));
         let half = (pair.high - pair.low) / 2.0;

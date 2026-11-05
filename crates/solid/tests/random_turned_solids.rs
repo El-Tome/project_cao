@@ -1287,14 +1287,19 @@ fn a_case_asking_beyond_the_conics_is_told_from_one_that_does_not() {
         ),
         ("a cone about its axis", about(Axis::first(0.0)), false),
         (
-            "a cylinder parallel to its axis and off it",
+            "a cylinder parallel to its axis and off it, its wall through the cone's apex at six",
             Leaf::prism(Plane::yz(1.0), Outline::circle([1.0, 0.0], 1.0), 2.0),
             true,
         ),
         (
-            "a hole across it",
+            "a cylinder parallel to its axis and off it, clear of its apex, built since #577",
+            Leaf::prism(Plane::yz(1.0), Outline::circle([0.5, 0.0], 1.0), 2.0),
+            false,
+        ),
+        (
+            "a hole across it, built since #577",
             Leaf::prism(Plane::xz(5.0), Outline::circle([2.0, 0.0], 1.0), 10.0),
-            true,
+            false,
         ),
         ("a cone a hair off its axis", about(Axis::first(1e-7)), true),
         (
@@ -1317,8 +1322,9 @@ fn a_case_asking_beyond_the_conics_is_told_from_one_that_does_not() {
         .filter(|seed| Case::drawn_slanted(*seed).asks_beyond_the_conics())
         .count();
     assert!(
-        (200..450).contains(&asking),
-        "{asking} slanted cases ask beyond the conics"
+        (50..200).contains(&asking),
+        "{asking} slanted cases ask beyond the conics, fewer since #577 builds a cone \
+         against a wall or a cone off its axis"
     );
 }
 

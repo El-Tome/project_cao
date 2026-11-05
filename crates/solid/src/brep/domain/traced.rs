@@ -154,6 +154,21 @@ pub(in crate::brep) fn traced(
                 to: DVec2::new(end, height),
             })
         }
+        (Surface::Cone(_) | Surface::Cylinder(_) | Surface::Elliptic(_), Curve::Meet(meet))
+            if matches!(meet.first, Wall::Cone(_)) =>
+        {
+            let own = Wall::of(surface).and_then(|wall| meet.own(&wall, eps));
+            match own {
+                Some(on_first) => Ok(Trace::Graph {
+                    meet: *meet,
+                    on_first,
+                    beside: None,
+                    from,
+                    to,
+                }),
+                None => chord(curve, surface, from, to, eps),
+            }
+        }
         (Surface::Cylinder(cylinder), Curve::Meet(meet))
             if parallel(cylinder.axis, meet.first.axis())
                 || parallel(cylinder.axis, meet.second.axis()) =>
@@ -248,6 +263,7 @@ pub(in crate::brep) fn traced(
                             .map(|wall| match wall {
                                 Wall::Cylinder(cylinder) => Round::Cylinder(cylinder),
                                 Wall::Elliptic(oval) => Round::Elliptic(oval),
+                                Wall::Cone(cone) => Round::Cone(cone),
                             })
                             .find(|wall| *wall != round)?;
                         beside(curve, (plane, &other), surface, [from, to], eps)

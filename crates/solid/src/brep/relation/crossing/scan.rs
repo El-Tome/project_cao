@@ -32,15 +32,18 @@ pub(super) fn meet_and_surface(meet: &Meet, surface: &Surface, scale: Scale) -> 
             Wall::Cylinder(own) => {
                 matches!(cylinders(own, cylinder, scale), Relation::Same { .. })
             }
-            Wall::Elliptic(_) => false,
+            Wall::Elliptic(_) | Wall::Cone(_) => false,
         }),
         Surface::Elliptic(oval) => [meet.first, meet.second].iter().any(|own| match own {
             Wall::Elliptic(own) => {
                 matches!(walls(own, oval, scale), Relation::Same { .. })
             }
-            Wall::Cylinder(_) => false,
+            Wall::Cylinder(_) | Wall::Cone(_) => false,
         }),
-        Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => false,
+        Surface::Cone(cone) => [meet.first, meet.second]
+            .iter()
+            .any(|own| matches!(own, Wall::Cone(own) if own == cone)),
+        Surface::Plane(_) | Surface::Sphere(_) | Surface::Torus(_) => false,
     };
     if along {
         return Solved::Along;

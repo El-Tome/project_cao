@@ -272,7 +272,13 @@ fn walls_alike(one: &Wall, other: &Wall, scale: Scale, eps: f64) -> bool {
         (Wall::Elliptic(one), Wall::Elliptic(other)) => {
             parallel(one.axis, other.axis, scale) && one.within(other, eps)
         }
-        (Wall::Cylinder(_), Wall::Elliptic(_)) | (Wall::Elliptic(_), Wall::Cylinder(_)) => false,
+        (Wall::Cone(one), Wall::Cone(other)) => {
+            parallel(one.axis, other.axis, scale)
+                && one.origin.distance(other.origin) <= eps
+                && (one.foot - other.foot).length() <= eps
+                && (one.ruling - other.ruling).length() <= Scale::RELATIVE
+        }
+        _ => false,
     }
 }
 

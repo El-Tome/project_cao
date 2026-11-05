@@ -8,6 +8,8 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use super::pair::{Configuration, Pair};
+use super::ruled;
+pub(super) use super::ruled::ruled_nodes;
 use crate::brep::curve::{Meet, Wall};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, EllipticCylinder};
@@ -49,6 +51,9 @@ impl Meeting {
     }
 
     fn snapped_within(one: &Wall, other: &Wall, eps: f64) -> Meeting {
+        if let Some(meeting) = coned(one, other, eps) {
+            return meeting;
+        }
         let (first, second) = match ordered(one, other) {
             Ordering::Less | Ordering::Equal => (*one, *other),
             Ordering::Greater => (*other, *one),
@@ -79,6 +84,18 @@ impl Meeting {
 /// touch it decides, by its rank in the pair as asked, and where it moves it
 /// to; none where nothing moves.
 pub(in crate::brep) fn moved(one: &Wall, other: &Wall, scale: Scale) -> Option<(usize, Wall)> {
+    match (one, other) {
+        (Wall::Cone(_), Wall::Cone(_)) => return None,
+        (Wall::Cone(_), _) => {
+            let snapped = ruled::snapped(one, other, scale.eps())?;
+            return (snapped != *other).then_some((1, snapped));
+        }
+        (_, Wall::Cone(_)) => {
+            let snapped = ruled::snapped(other, one, scale.eps())?;
+            return (snapped != *one).then_some((0, snapped));
+        }
+        _ => {}
+    }
     let (first, second, rank) = match ordered(one, other) {
         Ordering::Greater => (other, one, 0),
         Ordering::Less | Ordering::Equal => (one, other, 1),
@@ -96,6 +113,9 @@ pub(in crate::brep) fn moved_instead(
     other: &Wall,
     scale: Scale,
 ) -> Option<(usize, Wall)> {
+    if matches!(one, Wall::Cone(_)) || matches!(other, Wall::Cone(_)) {
+        return None;
+    }
     let (first, second, rank) = match ordered(one, other) {
         Ordering::Greater => (other, one, 1),
         Ordering::Less | Ordering::Equal => (one, other, 0),
@@ -118,8 +138,34 @@ pub(in crate::brep) fn moved_instead(
                     widened(&moved, pair.axes[1], kept)
                 })
             }
+            Wall::Cone(_) => *first,
         },
     ))
+}
+
+/// The meeting of a cone and a cylinder or an elliptic wall, read along the
+/// cone's rulings, the cone first; a pair of two cones meets in nothing the
+/// kernel builds. None for a pair with no cone.
+fn coned(one: &Wall, other: &Wall, eps: f64) -> Option<Meeting> {
+    let (cone, wall) = match (one, other) {
+        (Wall::Cone(first), Wall::Cone(second)) => {
+            let ruling = |cone, other: &Wall| ruled::Ruled::steadiness(cone, other);
+            if ruling(first, other) >= ruling(second, one) {
+                (one, other)
+            } else {
+                (other, one)
+            }
+        }
+        (Wall::Cone(_), wall) => (one, wall),
+        (wall, Wall::Cone(_)) => (other, wall),
+        _ => return None,
+    };
+    Some(ruled::meeting(cone, wall, eps).unwrap_or(Meeting {
+        configuration: Configuration::Apart,
+        components: Vec::new(),
+        nodes: Vec::new(),
+        contact: None,
+    }))
 }
 
 /// Where the curve of a pair crosses itself, each node with the parameter
@@ -172,7 +218,7 @@ fn snapped(first: &Wall, second: &Wall, eps: f64) -> Wall {
                 widened(&moved, pair.axes[1], half)
             })
         }
-        (None, _) => *second,
+        (None, _) | (_, Wall::Cone(_)) => *second,
     }
 }
 
@@ -234,6 +280,7 @@ fn size(wall: &Wall) -> f64 {
     match wall {
         Wall::Cylinder(cylinder) => cylinder.radius,
         Wall::Elliptic(oval) => oval.major,
+        Wall::Cone(cone) => cone.foot.y.abs(),
     }
 }
 

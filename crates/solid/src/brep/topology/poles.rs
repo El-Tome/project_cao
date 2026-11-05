@@ -71,8 +71,8 @@ impl Body {
 
     /// The apex of the cone a face lies on, where the face holds it within
     /// itself: no corner of the face stands there, and its circles about the
-    /// axis and its conics go round it once, net, a conic by the angle its
-    /// trace on the cone turns through — the tip a plane at a slant cuts off
+    /// axis and its conics and meets go round it once, net, either by the
+    /// angle its trace on the cone turns through — the tip a plane at a slant cuts off
     /// a point, held by an ellipse alone. A ruling goes round nothing. A face
     /// with a corner at its apex is held by that corner already.
     fn apex_within(&self, face: &Face) -> Option<DVec3> {
@@ -101,12 +101,12 @@ impl Body {
                     let way = circle.axis.dot(cone.axis).signum();
                     swept += way * run * (edge.to - edge.from);
                 }
-                curve @ Curve::Conic(_) => {
+                curve @ (Curve::Conic(_) | Curve::Meet(_)) => {
                     if let Ok(trace) = traced(curve, &surface, edge.from, edge.to, eps) {
                         swept += run * (trace.end().x - trace.start().x);
                     }
                 }
-                Curve::Line(_) | Curve::Circle(_) | Curve::Meet(_) => {}
+                Curve::Line(_) | Curve::Circle(_) => {}
             }
         }
         (swept.abs() > PI).then_some(apex)

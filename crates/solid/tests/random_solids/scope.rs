@@ -7,14 +7,20 @@
 //! case's planes meet its cylinders and cones along, told kind by kind. The
 //! kernel builds the conics, so only the first excuses a decline.
 //!
-//! An elliptic wall (#571) is a cylinder to the rule: it asks against a cone
-//! about any axis, its own included, where their leaves' boxes meet. Two
-//! walls at a skew angle, round or elliptic, ask nothing since #577 builds
-//! the curve they meet along — but for the cases it declines, two walls
-//! nearly parallel past what decision 11 lays: within the kernel's
+//! Two walls at a skew angle, round or elliptic, ask nothing since #577
+//! builds the curve they meet along — but for the cases it declines, two
+//! walls nearly parallel past what decision 11 lays: within the kernel's
 //! tolerance of each other along a stretch rather than at points, as
-//! `relation/perpendicular.rs` measures it, or leaning a sliver and meeting
-//! at all (`Case::asks_of_walls_along_a_stretch`).
+//! `relation/nearly_parallel.rs` measures it, leaning a sliver and meeting
+//! at all, or closer than a chord's sag (`Case::asks_of_walls_along_a_stretch`).
+//! A cone against a cylinder, an elliptic wall or a cone of another axis
+//! asks nothing either since #577, but where the kernel still declines it:
+//! within a hair of coaxial, an elliptic wall about its axis, a ruling along
+//! the other's axis or two cones each within the other's slope, an apex on
+//! the other wall, a curve on a cone face holding its apex, closer than a
+//! chord's sag, and grazing
+//! without meeting (`Case::asks_of_a_cone_off_its_axis`). A sphere or a
+//! torus against a cone off its axis still asks.
 //!
 //! A sphere or a torus (#576) is built along circles alone: against a plane
 //! square to its axis or holding it, and against a cylinder, a cone, a
@@ -27,7 +33,7 @@
 
 use std::f64::consts::{PI, TAU};
 
-use cao_solid::brep::{Cylinder, EllipticCylinder};
+use cao_solid::brep::{Cone, Cylinder, EllipticCylinder};
 use cao_solid::profile::Run;
 use glam::{DVec2, DVec3};
 
@@ -86,10 +92,11 @@ const GRAZED: f64 = 1e-8;
 impl Wall {
     /// Whether this wall meets a cone of `axis` through `point`, whose leaf
     /// reaches `radius` from the axis, in a curve the kernel does not build:
-    /// anything but a plane square to the axis, holding it or parallel to it
-    /// further off than the leaf reaches by more than the kernel tells
-    /// clear, or a cylinder or a cone about the same line. An elliptic wall
-    /// always does, about the cone's axis or off it (#571).
+    /// read for a plane — anything but square to the axis, holding it or
+    /// parallel to it further off than the leaf reaches by more than the
+    /// kernel tells clear — and for a sphere or a torus off the cone's axis.
+    /// A cylinder, an elliptic wall or a cone is read by
+    /// `asks_of_a_cone_off_its_axis` since #577 builds them.
     fn asks_of_a_cone(&self, axis: DVec3, point: DVec3, radius: f64, reach: f64) -> bool {
         let axis = axis.normalize();
         match *self {
@@ -352,9 +359,13 @@ const STRETCH: f64 = 1e-2;
 /// lane 2's rounds).
 const SLIVER: f64 = 2e-7;
 
+/// The least `A` round a cone, as a share of the greatest, past which its
+/// rulings meet another wall in a true quadratic: `meet/ruled.rs`'s.
+const STEADY: f64 = 1e-6;
+
 /// The tolerance a wall's triangles are cut to, as a share of the reach,
 /// and how many heights across a box two walls are compared at for a
-/// chord's sag, as `relation/perpendicular.rs` reads them.
+/// chord's sag, as `relation/nearly_parallel.rs` reads them.
 const DRAWN_AT: f64 = 1e-3;
 const HEIGHTS: usize = 9;
 
@@ -411,20 +422,31 @@ impl Barrel {
 enum Exact {
     Round(Cylinder),
     Oval(EllipticCylinder),
+    Pointed(Cone),
+}
+
+/// The length along a cone's ruling at `height` along its axis.
+fn along_the_ruling(cone: &Cone, height: f64) -> f64 {
+    (height - cone.foot.x) / cone.ruling.x
 }
 
 impl Exact {
-    fn size(&self) -> f64 {
-        match self {
-            Exact::Round(cylinder) => cylinder.radius,
-            Exact::Oval(oval) => oval.major,
-        }
-    }
-
     fn origin_and_axis(&self) -> (DVec3, DVec3) {
         match self {
             Exact::Round(cylinder) => (cylinder.origin, cylinder.axis),
             Exact::Oval(oval) => (oval.origin, oval.axis),
+            Exact::Pointed(cone) => (cone.origin, cone.axis),
+        }
+    }
+
+    /// How far the wall reaches from its axis at `height` along it, as the
+    /// kernel sizes its grid: a cylinder's radius, an elliptic wall's major
+    /// half-axis, a cone's radius there, nought past its apex.
+    fn size_at(&self, height: f64) -> f64 {
+        match self {
+            Exact::Round(cylinder) => cylinder.radius,
+            Exact::Oval(oval) => oval.major,
+            Exact::Pointed(cone) => cone.radius_at(along_the_ruling(cone, height)).max(0.0),
         }
     }
 
@@ -432,17 +454,19 @@ impl Exact {
         match self {
             Exact::Round(cylinder) => cylinder.point(DVec2::new(angle, height)),
             Exact::Oval(oval) => oval.point(DVec2::new(angle, height)),
+            Exact::Pointed(cone) => cone.point(DVec2::new(angle, along_the_ruling(cone, height))),
         }
     }
 
-    /// How far a point stands from the wall: exactly from a cylinder, to
-    /// first order from an elliptic wall, as the kernel measures it.
+    /// How far a point stands from the wall: exactly from a cylinder or a
+    /// cone, to first order from an elliptic wall, as the kernel measures it.
     fn gap(&self, point: DVec3) -> f64 {
         match self {
             Exact::Round(cylinder) => {
                 let from = point - cylinder.origin;
                 ((from - cylinder.axis * from.dot(cylinder.axis)).length() - cylinder.radius).abs()
             }
+            Exact::Pointed(cone) => cone.distance(point).abs(),
             Exact::Oval(oval) => {
                 let from = point - oval.origin;
                 let [x, y] = [from.dot(oval.u), from.dot(oval.v)];
@@ -457,6 +481,220 @@ impl Exact {
             }
         }
     }
+
+    /// Whether `point` stands inside the solid the wall bounds, as
+    /// `meet/ruled/quadric.rs`'s `inside` reads it: a cone's off its
+    /// meridian line, on its own nappe.
+    fn contains(&self, point: DVec3) -> bool {
+        match self {
+            Exact::Round(cylinder) => {
+                let from = point - cylinder.origin;
+                (from - cylinder.axis * from.dot(cylinder.axis)).length() < cylinder.radius
+            }
+            Exact::Oval(oval) => {
+                let from = point - oval.origin;
+                (from.dot(oval.u) / oval.major).powi(2) + (from.dot(oval.v) / oval.minor).powi(2)
+                    < 1.0
+            }
+            Exact::Pointed(cone) => {
+                let from = point - cone.origin;
+                let (h, rho) = (
+                    from.dot(cone.axis),
+                    (from - cone.axis * from.dot(cone.axis)).length(),
+                );
+                let line =
+                    cone.ruling.x * cone.foot.y - cone.ruling.y * cone.foot.x + cone.ruling.y * h;
+                (cone.ruling.x * rho).abs() < line.abs() && line * cone.ruling.x > 0.0
+            }
+        }
+    }
+
+    /// The square term `A` a line along `way` meets the wall's quadric by,
+    /// as `meet/ruled/quadric.rs` writes it: a cone's read off its meridian.
+    fn steepness(&self, way: DVec3) -> f64 {
+        match self {
+            Exact::Round(cylinder) => {
+                [cylinder.u, cylinder.v]
+                    .map(|e| way.dot(e).powi(2))
+                    .iter()
+                    .sum::<f64>()
+                    / (cylinder.radius * cylinder.radius)
+            }
+            Exact::Oval(oval) => {
+                way.dot(oval.u).powi(2) / (oval.major * oval.major)
+                    + way.dot(oval.v).powi(2) / (oval.minor * oval.minor)
+            }
+            Exact::Pointed(cone) => {
+                let across = way - cone.axis * way.dot(cone.axis);
+                cone.ruling.x * cone.ruling.x * across.length_squared()
+                    - cone.ruling.y * cone.ruling.y * way.dot(cone.axis).powi(2)
+            }
+        }
+    }
+}
+
+/// The least `A` round `cone`, its rulings read against `other`, as a
+/// share of the greatest: sampled at 720 angles, the least brought down by
+/// eighty thirds, since a ruling parallel to the other wall's axis is a
+/// double zero of `A` — `meet/ruled.rs`'s `steadiness`. Above `STEADY`,
+/// every ruling meets the other wall in a true quadratic.
+fn steadiness(cone: &Cone, other: &Exact) -> f64 {
+    let a = |theta: f64| {
+        let (sin, cos) = theta.sin_cos();
+        let ruling = cone.axis * cone.ruling.x + (cone.u * cos + cone.v * sin) * cone.ruling.y;
+        other.steepness(ruling)
+    };
+    let samples = 720;
+    let step = TAU / samples as f64;
+    let values: Vec<f64> = (0..samples).map(|rank| a(step * rank as f64)).collect();
+    let greatest = values.iter().copied().fold(0.0, f64::max);
+    let least = (0..samples)
+        .min_by(|one, other| values[*one].total_cmp(&values[*other]))
+        .map_or(0.0, |rank| step * rank as f64);
+    let (mut from, mut to) = (least - step, least + step);
+    for _ in 0..80 {
+        let [one, two] = [(2.0 * from + to) / 3.0, (from + 2.0 * to) / 3.0];
+        if a(one) < a(two) {
+            to = two;
+        } else {
+            from = one;
+        }
+    }
+    if greatest > 0.0 {
+        a((from + to) / 2.0) / greatest
+    } else {
+        0.0
+    }
+}
+/// `A`, `B` and `C` of the ruling of `cone` at `theta` against `other`'s
+/// quadric, each with its derivative in `theta`: `meet/ruled/quadric.rs`'s.
+fn terms(cone: &Cone, other: &Exact, theta: f64) -> [[f64; 2]; 3] {
+    let (sin, cos) = theta.sin_cos();
+    let radial = cone.u * cos + cone.v * sin;
+    let turned = cone.v * cos - cone.u * sin;
+    let foot = cone.origin + cone.axis * cone.foot.x + radial * cone.foot.y;
+    let foot1 = turned * cone.foot.y;
+    let d = cone.axis * cone.ruling.x + radial * cone.ruling.y;
+    let d1 = turned * cone.ruling.y;
+    let (origin, axis) = other.origin_and_axis();
+    let g = foot - origin;
+    let halves = |x: DVec3, y: DVec3, halves: [(DVec3, f64); 2]| {
+        halves
+            .iter()
+            .map(|(e, s)| x.dot(*e) * y.dot(*e) / (s * s))
+            .sum::<f64>()
+    };
+    let quadric = |halved: [(DVec3, f64); 2]| {
+        let q = |x: DVec3, y: DVec3| halves(x, y, halved);
+        [
+            [q(d, d), 2.0 * q(d1, d)],
+            [2.0 * q(g, d), 2.0 * (q(foot1, d) + q(g, d1))],
+            [q(g, g) - 1.0, 2.0 * q(foot1, g)],
+        ]
+    };
+    match other {
+        Exact::Round(cylinder) => {
+            quadric([(cylinder.u, cylinder.radius), (cylinder.v, cylinder.radius)])
+        }
+        Exact::Oval(oval) => quadric([(oval.u, oval.major), (oval.v, oval.minor)]),
+        Exact::Pointed(along) => {
+            let a = axis;
+            let (wh, wr) = (along.ruling.x * along.ruling.x, along.ruling.y);
+            let k = along.ruling.x * along.foot.y - wr * along.foot.x;
+            let flat = |x: DVec3| x - a * x.dot(a);
+            let (gf, g1f, df, d1f) = (flat(g), flat(foot1), flat(d), flat(d1));
+            let lift = k + wr * g.dot(a);
+            [
+                [
+                    wh * df.dot(df) - wr * wr * d.dot(a).powi(2),
+                    2.0 * (wh * df.dot(d1f) - wr * wr * d.dot(a) * d1.dot(a)),
+                ],
+                [
+                    2.0 * (wh * gf.dot(df) - wr * lift * d.dot(a)),
+                    2.0 * (wh * (g1f.dot(df) + gf.dot(d1f))
+                        - wr * (wr * foot1.dot(a) * d.dot(a) + lift * d1.dot(a))),
+                ],
+                [
+                    wh * gf.dot(gf) - lift * lift,
+                    2.0 * (wh * gf.dot(g1f) - lift * wr * foot1.dot(a)),
+                ],
+            ]
+        }
+    }
+}
+
+/// `D = B² − 4AC` of the ruling at `theta`, and its derivative.
+fn discriminant(cone: &Cone, other: &Exact, theta: f64) -> [f64; 2] {
+    let [[a, a1], [b, b1], [c, c1]] = terms(cone, other, theta);
+    [b * b - 4.0 * a * c, 2.0 * b * b1 - 4.0 * (a1 * c + a * c1)]
+}
+
+/// Where `cone`'s rulings come nearest to `other`, read along them — the
+/// double root at each angle `D` turns, kept on the cone's nappe —
+/// `meet/ruled.rs`'s `nearest`, its turns found as the kernel finds them,
+/// at 720 angles, each bracket halved eighty times.
+fn nearest(cone: &Cone, other: &Exact) -> Vec<DVec3> {
+    let samples = 720;
+    let step = TAU / samples as f64;
+    let slopes: Vec<f64> = (0..samples)
+        .map(|rank| discriminant(cone, other, step * rank as f64)[1])
+        .collect();
+    (0..samples)
+        .filter(|&rank| slopes[rank].signum() != slopes[(rank + 1) % samples].signum())
+        .filter_map(|rank| {
+            let (mut from, mut to) = (step * rank as f64, step * (rank + 1) as f64);
+            let start = discriminant(cone, other, from)[1].signum();
+            for _ in 0..80 {
+                let middle = (from + to) / 2.0;
+                if middle <= from || middle >= to {
+                    break;
+                }
+                if discriminant(cone, other, middle)[1].signum() == start {
+                    from = middle;
+                } else {
+                    to = middle;
+                }
+            }
+            let theta = ((from + to) / 2.0).rem_euclid(TAU);
+            let [[a, _], [b, _], _] = terms(cone, other, theta);
+            let l = -b / (2.0 * a);
+            (l >= cone.apex_at()).then(|| cone.point(DVec2::new(theta, l)))
+        })
+        .collect()
+}
+
+/// Whether a cone and a wall come closer to each other than the coarsest
+/// drawn chord's sag without meeting within the tolerance, near the box
+/// `[low, high]`: at a nearest approach of a cone's rulings to the other
+/// wall, read along whichever of the two the kernel reads steadily, the gap
+/// over `eps` and under the larger of the two walls' sags there —
+/// `relation/nearly_parallel.rs`'s `grazing`.
+fn grazing(cone: &Cone, wall: &Exact, low: DVec3, high: DVec3, reach: f64) -> bool {
+    let eps = TOLERANCE * reach;
+    let tolerance = DRAWN_AT * reach;
+    let sag = |size: f64| size * (1.0 - (PI / divisions(size, tolerance) as f64).cos());
+    let size = |point: DVec3| match wall {
+        Exact::Round(cylinder) => cylinder.radius,
+        Exact::Oval(oval) => oval.major,
+        Exact::Pointed(other) => other.off_axis(point),
+    };
+    let mut approaches = Vec::new();
+    if steadiness(cone, wall) > STEADY {
+        approaches.extend(nearest(cone, wall));
+    }
+    if let Exact::Pointed(other) = wall
+        && steadiness(other, &Exact::Pointed(*cone)) > STEADY
+    {
+        approaches.extend(nearest(other, &Exact::Pointed(*cone)));
+    }
+    approaches.into_iter().any(|point| {
+        let room = sag(cone.off_axis(point)).max(sag(size(point)));
+        let apart = wall.gap(point);
+        apart > eps
+            && apart <= room
+            && point.cmpge(low - DVec3::splat(room)).all()
+            && point.cmple(high + DVec3::splat(room)).all()
+    })
 }
 
 /// How many steps a whole turn of a wall of `size` is cut into for its
@@ -473,15 +711,14 @@ fn divisions(size: f64, tolerance: f64) -> usize {
 /// Whether two walls stand closer to each other than a chord's sag over a
 /// step of either's grid, in the box `[low, high]`: at `HEIGHTS` heights
 /// across it, two consecutive steps of one wall's grid both within that
-/// sag of the other wall, as `relation/perpendicular.rs` reads it.
-fn closer_than_a_sag(first: &Barrel, second: &Barrel, low: DVec3, high: DVec3, reach: f64) -> bool {
+/// sag of the other wall, a cone's grid sized by its widest across the box
+/// and its sag by its radius at each height, as `relation/nearly_parallel.rs`
+/// reads it.
+fn closer_than_a_sag(first: &Exact, second: &Exact, low: DVec3, high: DVec3, reach: f64) -> bool {
     let tolerance = DRAWN_AT * reach;
-    let (one, other) = (first.exact(), second.exact());
-    [(one, other), (other, one)]
+    [(first, second), (second, first)]
         .into_iter()
         .any(|(wall, other)| {
-            let steps = divisions(wall.size(), tolerance);
-            let sag = wall.size() * (1.0 - (PI / steps as f64).cos());
             let (origin, axis) = wall.origin_and_axis();
             let (from, to) = (0..8)
                 .map(|corner: usize| {
@@ -492,8 +729,10 @@ fn closer_than_a_sag(first: &Barrel, second: &Barrel, low: DVec3, high: DVec3, r
                 .fold((f64::INFINITY, f64::NEG_INFINITY), |(from, to), height| {
                     (from.min(height), to.max(height))
                 });
+            let steps = divisions(wall.size_at(from).max(wall.size_at(to)), tolerance);
             (0..HEIGHTS).any(|rank| {
                 let height = from + (to - from) * rank as f64 / (HEIGHTS - 1) as f64;
+                let sag = wall.size_at(height) * (1.0 - (PI / steps as f64).cos());
                 let near = |step: usize| {
                     let angle = TAU * (step % steps) as f64 / steps as f64;
                     other.gap(wall.point(angle, height)) <= sag
@@ -503,6 +742,79 @@ fn closer_than_a_sag(first: &Barrel, second: &Barrel, low: DVec3, high: DVec3, r
         })
 }
 
+/// The cones of a leaf as the kernel holds them: each slanted edge of a
+/// turned leaf's section that does not bow, from where its band starts to
+/// where it ends, on the side of the axis it stands; each with whether its
+/// face holds the apex, the edge reaching the axis at one end.
+fn cones(leaf: &Leaf) -> Vec<(Cone, bool)> {
+    let Some(turned) = leaf.as_turned() else {
+        return Vec::new();
+    };
+    let section = &turned.section;
+    let swept = turned.swept(1.0);
+    let ends = section.ends();
+    (0..section.bands.len())
+        .flat_map(|index| {
+            let (start, end) = section.edges(index);
+            let (from, to) = (ends[index], ends[index + 1]);
+            [0, 1]
+                .into_iter()
+                .filter(move |&edge| {
+                    start[edge] != end[edge]
+                        && section.bow(index, edge).is_none()
+                        && start[edge] * end[edge] >= 0.0
+                })
+                .map(move |edge| {
+                    let cone = Cone::through(
+                        swept.origin,
+                        swept.along,
+                        [
+                            DVec2::new(from, start[edge].abs()),
+                            DVec2::new(to, end[edge].abs()),
+                        ],
+                    );
+                    (cone, start[edge] == 0.0 || end[edge] == 0.0)
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+/// Whether the kernel declines a cone against `wall`, off its axis (#577):
+/// a cylinder or a cone about the cone's very axis is built as before; one
+/// within a hair of it, the hair `HAIR` tolerances, and an elliptic wall
+/// about it, are declined; so is a pair no ruling meets in a true quadratic
+/// all round, `A` reaching nought — a wall's axis along a ruling, or two
+/// cones each with rulings within the other's slope; an apex of either
+/// standing on the other wall, `on_the_apex`; a curve on a cone face
+/// holding its apex, `pointed`, that does not go round the cone's axis —
+/// its apex outside the other wall — as `combine/related.rs`'s
+/// `on_a_pointed_face` reads it; two walls in #552's band closer than a
+/// chord's sag in the box `[low, high]`; and a cone and a wall grazing each
+/// other closer than a sag without meeting. As `relation/conical.rs` and
+/// `relation/nearly_parallel.rs` read it.
+fn declines(cone: &Cone, pointed: bool, wall: &Exact, low: DVec3, high: DVec3, reach: f64) -> bool {
+    let (origin, axis) = wall.origin_and_axis();
+    let sine = cone.axis.cross(axis).length();
+    let between = origin - cone.origin;
+    let off = (between - cone.axis * cone.axis.dot(between)).length();
+    let coaxial = |within: f64| sine * 2.0 <= TOLERANCE && off <= TOLERANCE * within;
+    if matches!(wall, Exact::Round(_) | Exact::Pointed(_)) && coaxial(reach) {
+        return false;
+    }
+    if coaxial(reach * HAIR) {
+        return true;
+    }
+    let steady = steadiness(cone, wall) > STEADY
+        || matches!(wall, Exact::Pointed(other) if steadiness(other, &Exact::Pointed(*cone)) > STEADY);
+    let eps = TOLERANCE * reach;
+    let on_the_apex = wall.gap(cone.apex()) <= eps
+        || matches!(wall, Exact::Pointed(other) if cone.distance(other.apex()).abs() <= eps);
+    !steady
+        || on_the_apex
+        || (pointed && !wall.contains(cone.apex()))
+        || (sine < BAND && closer_than_a_sag(&Exact::Pointed(*cone), wall, low, high, reach))
+        || grazing(cone, wall, low, high, reach)
+}
 /// The barrels of a leaf: every round or elliptic wall of a prism — a
 /// circle, a ring's two, a rounded rectangle's four corners, a slot's two
 /// ends, the arcs an ellipse bounds — and of a turned leaf each edge off the
@@ -913,10 +1225,63 @@ impl Case {
             else {
                 return false;
             };
-            !matches!(other, Wall::Plane { .. })
+            matches!(other, Wall::Sphere { .. } | Wall::Torus { .. })
                 && other.asks_of_a_cone(axis, point, radius, walled.reach)
         });
-        coned || self.asks_of_walls_along_a_stretch()
+        coned || self.asks_of_a_cone_off_its_axis() || self.asks_of_walls_along_a_stretch()
+    }
+
+    /// Whether a cone of one leaf and a cylinder, an elliptic wall or a cone
+    /// of another, their boxes meeting, stand where the kernel still declines
+    /// them (#577, `declines`), read in the box the two leaves share and at
+    /// the reach of the leaves up to the later one.
+    pub fn asks_of_a_cone_off_its_axis(&self) -> bool {
+        let walled = Walled::of(self);
+        let leaves: Vec<(&Leaf, Spanned)> = self
+            .leaves()
+            .map(|leaf| (leaf, leaf.is_solid().then(|| leaf.bounds()).flatten()))
+            .collect();
+        let reach_up_to = |last: usize| {
+            leaves[..=last]
+                .iter()
+                .filter_map(|(_, bounds)| *bounds)
+                .map(|(low, high)| low.abs().max(high.abs()).max_element())
+                .fold(1.0, f64::max)
+        };
+        let walls = |leaf: &Leaf| -> Vec<Exact> {
+            barrels(leaf)
+                .iter()
+                .map(Barrel::exact)
+                .chain(
+                    cones(leaf)
+                        .into_iter()
+                        .map(|(cone, _)| Exact::Pointed(cone)),
+                )
+                .collect()
+        };
+        leaves.iter().enumerate().any(|(index, (one, bounds))| {
+            leaves
+                .iter()
+                .enumerate()
+                .any(|(other_index, (other, other_bounds))| {
+                    if other_index == index || !walled.near(*bounds, *other_bounds) {
+                        return false;
+                    }
+                    let (Some((low, high)), Some((other_low, other_high))) = (bounds, other_bounds)
+                    else {
+                        return false;
+                    };
+                    let margin = DVec3::splat(1e-6 * walled.reach);
+                    let (shared_low, shared_high) =
+                        (low.max(*other_low) - margin, high.min(*other_high) + margin);
+                    let reach = reach_up_to(index.max(other_index));
+                    cones(one).iter().any(|(cone, pointed)| {
+                        walls(other).iter().any(|wall| {
+                            declines(cone, *pointed, wall, shared_low, shared_high, reach)
+                        })
+                    })
+                })
+        })
     }
 
     /// Whether two walls of two leaves whose boxes meet, round or elliptic,
@@ -971,7 +1336,13 @@ impl Case {
                             let leaning = Leaning::of(first, second, shared_low, shared_high);
                             leaning.stretch(eps) >= STRETCH * reach
                                 || (sine < SLIVER && leaning.meet(eps))
-                                || closer_than_a_sag(first, second, shared_low, shared_high, reach)
+                                || closer_than_a_sag(
+                                    &first.exact(),
+                                    &second.exact(),
+                                    shared_low,
+                                    shared_high,
+                                    reach,
+                                )
                         })
                     })
                 })

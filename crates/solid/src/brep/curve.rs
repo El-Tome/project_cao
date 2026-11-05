@@ -7,7 +7,7 @@ use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
 use super::conic::Conic;
-use super::surface::{Cylinder, EllipticCylinder, Surface, canonical_direction, reference};
+use super::surface::{Cone, Cylinder, EllipticCylinder, Surface, canonical_direction, reference};
 
 /// The line through `origin`, its point nearest the world's origin, along
 /// `direction`, of unit length and with its sign fixed. Its parameter is the
@@ -38,11 +38,13 @@ pub struct Meet {
     pub component: u8,
 }
 
-/// A wall the curve two perpendicular walls meet along runs round.
+/// A wall the curve two walls meet along runs round: a cylinder, an
+/// elliptic wall, or a cone, whose rulings the curve is read along (#577).
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Wall {
     Cylinder(Cylinder),
     Elliptic(EllipticCylinder),
+    Cone(Cone),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -121,7 +123,8 @@ impl Wall {
         match surface {
             Surface::Cylinder(cylinder) => Some(Wall::Cylinder(*cylinder)),
             Surface::Elliptic(wall) => Some(Wall::Elliptic(*wall)),
-            Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => None,
+            Surface::Cone(cone) => Some(Wall::Cone(*cone)),
+            Surface::Plane(_) | Surface::Sphere(_) | Surface::Torus(_) => None,
         }
     }
 
@@ -129,6 +132,7 @@ impl Wall {
         match self {
             Wall::Cylinder(cylinder) => Surface::Cylinder(*cylinder),
             Wall::Elliptic(wall) => Surface::Elliptic(*wall),
+            Wall::Cone(cone) => Surface::Cone(*cone),
         }
     }
 
@@ -136,6 +140,7 @@ impl Wall {
         match self {
             Wall::Cylinder(cylinder) => cylinder.origin,
             Wall::Elliptic(wall) => wall.origin,
+            Wall::Cone(cone) => cone.origin,
         }
     }
 
@@ -143,6 +148,7 @@ impl Wall {
         match self {
             Wall::Cylinder(cylinder) => cylinder.axis,
             Wall::Elliptic(wall) => wall.axis,
+            Wall::Cone(cone) => cone.axis,
         }
     }
 }

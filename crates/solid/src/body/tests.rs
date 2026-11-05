@@ -346,7 +346,8 @@ fn slanted_bore(part: &Body, origin: DVec3) -> Body {
 }
 
 #[test]
-fn a_slant_across_a_post_is_built_and_a_cone_across_it_is_handed_back_as_a_decline() {
+fn a_slant_and_a_frustum_across_a_post_are_built_and_a_point_or_a_frustum_within_its_slope_are_handed_back_as_declines()
+ {
     let post = raised(
         &Body::default(),
         &exact(disc(DVec2::splat(10.0), 8.0), vec![]),
@@ -363,13 +364,51 @@ fn a_slant_across_a_post_is_built_and_a_cone_across_it_is_handed_back_as_a_decli
         bore.volume()
     );
 
-    let tip = [DVec2::ZERO, DVec2::new(8.0, 0.0), DVec2::new(0.0, 10.0)];
-    let triangles = fan(&tip);
-    let point = straight(&tip, &triangles);
+    let sides = [
+        DVec2::ZERO,
+        DVec2::new(8.0, 0.0),
+        DVec2::new(2.0, 7.5),
+        DVec2::new(0.0, 7.5),
+    ];
+    let triangles = fan(&sides);
+    let frustum = straight(&sides, &triangles);
     let cone = post
+        .tool_turned(&frustum, FLAT, &about_v(&frustum, TAU))
+        .expect("a frustum turns");
+    let cut = post
+        .difference(&cone)
+        .expect("a frustum across the post is built");
+    assert!(cut.is_exact());
+    assert!(
+        cut.volume() < post.volume() && cut.volume() > post.volume() - cone.volume(),
+        "{} out of {}, the frustum {}",
+        cut.volume(),
+        post.volume(),
+        cone.volume()
+    );
+
+    let tip = [DVec2::ZERO, DVec2::new(8.0, 0.0), DVec2::new(0.0, 10.0)];
+    let tip_triangles = fan(&tip);
+    let point = straight(&tip, &tip_triangles);
+    let pointed = post
         .tool_turned(&point, FLAT, &about_v(&point, TAU))
         .expect("a point turns");
-    assert_eq!(post.difference(&cone), Err(Declined::Unsupported));
+    assert_eq!(
+        post.difference(&pointed),
+        Err(Declined::Unsupported),
+        "a curve on a face holding its apex"
+    );
+
+    let (sin, cos) = 10f64.to_radians().sin_cos();
+    let leaning = Frame {
+        origin: DVec3::new(1.0, 0.0, 0.0),
+        u: DVec3::new(cos, sin, 0.0),
+        v: DVec3::new(-sin, cos, 0.0),
+    };
+    let within = cut
+        .tool_turned(&frustum, leaning, &about_v(&frustum, TAU))
+        .expect("a frustum turns");
+    assert_eq!(cut.difference(&within), Err(Declined::Unsupported));
 }
 
 #[test]

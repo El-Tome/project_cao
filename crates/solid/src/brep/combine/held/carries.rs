@@ -48,7 +48,7 @@ pub(in crate::brep::combine) fn carries(surface: &Surface, curve: &Curve, scale:
         (Surface::Plane(_), Curve::Meet(_)) => false,
         (Surface::Cone(cone), Curve::Line(line)) => cone.rules(line, scale),
         (Surface::Cone(cone), Curve::Circle(circle)) => cone.holds(circle, eps),
-        (Surface::Cone(_), Curve::Meet(_)) => false,
+        (Surface::Cone(cone), Curve::Meet(meet)) => meet.own(&Wall::Cone(*cone), eps).is_some(),
         (Surface::Elliptic(wall), Curve::Line(line)) => parallel(line.direction, wall.axis),
         (Surface::Elliptic(wall), Curve::Meet(meet)) => {
             meet.own(&Wall::Elliptic(*wall), eps).is_some()

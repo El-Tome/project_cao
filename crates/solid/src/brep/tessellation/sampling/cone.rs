@@ -33,10 +33,11 @@ use std::f64::consts::TAU;
 use glam::DVec3;
 
 use super::capped::beyond_most;
+use super::meet::size;
 use super::round::{Rounded, SHARE};
 use super::{MOST, divisions};
 use crate::brep::conic::{Conic, Round};
-use crate::brep::curve::{Circle, Curve};
+use crate::brep::curve::{Circle, Curve, Meet, Wall};
 use crate::brep::surface::{Cone, Cylinder, Surface};
 use crate::brep::topology::{Body, Edge, Face, SurfaceId};
 use crate::brep::trace::Trace;
@@ -126,8 +127,8 @@ impl Grid {
 }
 
 /// The grid of every cone, sphere and torus of the body, read at the
-/// furthest any circle lying on it, conic cut on it, vertex on it or face on
-/// it stands from the axis: a ring a plane cuts at a slant has no vertex to
+/// furthest any circle lying on it, conic or meet on it, vertex on it or face
+/// on it stands from the axis: a ring a plane cuts at a slant has no vertex to
 /// read its width off, and may stand further out than every rim; a face of a
 /// round across its crest reaches further than its rims.
 pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
@@ -145,6 +146,13 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
         .filter_map(|edge| match body.curve(edge.curve) {
             Curve::Conic(conic) => Some((conic, edge)),
             Curve::Line(_) | Curve::Circle(_) | Curve::Meet(_) => None,
+        })
+        .collect();
+    let meets: Vec<&Meet> = body
+        .edge_ids()
+        .filter_map(|id| match body.curve(body.edge(id).curve) {
+            Curve::Meet(meet) => Some(meet),
+            Curve::Line(_) | Curve::Circle(_) | Curve::Conic(_) => None,
         })
         .collect();
     (0..body.surfaces.len() as u32)
@@ -165,6 +173,12 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
                 for (conic, edge) in &conics {
                     if conic.round == Round::Cone(cone) {
                         widest = widest.max(conic.widest(edge.from, edge.to));
+                    }
+                }
+                for meet in &meets {
+                    let wall = Wall::Cone(cone);
+                    if meet.first == wall || meet.second == wall {
+                        widest = widest.max(size(&wall, meet));
                     }
                 }
             }

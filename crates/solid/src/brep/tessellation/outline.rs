@@ -1,6 +1,7 @@
 //! A face's loops laid out in its surface's parameters, the region on the
 //! left of every segment: what the sweep cuts.
 
+mod columns;
 mod cone;
 mod cylinder;
 mod round;

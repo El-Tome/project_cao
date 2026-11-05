@@ -144,15 +144,20 @@ fn the_draw_of_walls_at_any_angle_draws_every_pair_the_issue_names() {
     for (family, drawn) in families {
         assert!(drawn >= 10, "{family}: {drawn} pairs in 400 cases");
     }
-    let coned = |case: &&Case| case.leaves().any(|leaf| kind_of(leaf) == Kind::Cone);
-    let asking = cases
+    let coned: Vec<&Case> = cases
         .iter()
         .filter(|case| !case.steps.is_empty())
-        .filter(coned)
-        .all(Case::asks_beyond_the_conics);
+        .filter(|case| case.leaves().any(|leaf| kind_of(leaf) == Kind::Cone))
+        .collect();
+    let asking = coned
+        .iter()
+        .filter(|case| case.asks_beyond_the_conics())
+        .count();
     assert!(
-        asking,
-        "a case with a cone that asks nothing beyond the conics"
+        asking < coned.len(),
+        "{asking} of {} cases with a cone ask beyond the conics: since #577 a cone \
+         off its axis is built but where the kernel still declines it",
+        coned.len()
     );
     let empty = cases.iter().filter(|case| case.steps.is_empty()).count();
     assert!(empty * 50 < cases.len(), "{empty} cases with no tool");

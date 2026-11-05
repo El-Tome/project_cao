@@ -31,13 +31,18 @@ impl Meet {
     /// The point at `t` in the parameters `(θ, h)` of the first cylinder or of
     /// the second, with its first and second derivatives with respect to `t`.
     pub fn seen_on(&self, on_first: bool, t: f64) -> [DVec2; 3] {
+        if let Some((ruled, lap)) = self.ruled() {
+            return lap.map_or([DVec2::ZERO; 3], |lap| ruled.seen_on(&lap, on_first, t));
+        }
         let pair = self.pair();
         let signs = pair.signs(self.component);
         let [point, speed, bend] = pair.local(signs, t);
         let start = self.start(&pair, on_first);
         if on_first {
             let across = match self.first {
-                Wall::Cylinder(_) => [point, speed, bend].map(|v| DVec2::new(v.x, v.y)),
+                Wall::Cylinder(_) | Wall::Cone(_) => {
+                    [point, speed, bend].map(|v| DVec2::new(v.x, v.y))
+                }
                 Wall::Elliptic(_) => {
                     let (y, [x, _]) = pair.roots(signs, t);
                     [0, 1, 2].map(|order| DVec2::new(x[order], y[order]))
@@ -52,7 +57,7 @@ impl Meet {
             ]
         } else {
             let across = match self.second {
-                Wall::Cylinder(_) => {
+                Wall::Cylinder(_) | Wall::Cone(_) => {
                     let mut across = [point, speed, bend].map(|v| DVec2::new(v.y, v.z));
                     across[0] -= DVec2::new(pair.d, pair.e);
                     across
@@ -88,10 +93,15 @@ impl Meet {
         t: f64,
     ) -> [DVec2; 3] {
         let [own, own_speed, own_bend] = self.seen_on(on_first, t);
-        let pair = self.pair();
-        let [point, speed, bend] = pair.local(pair.signs(self.component), t);
-        let point = pair.world(point);
-        let [speed, bend] = [speed, bend].map(|local| pair.direction(local));
+        let [point, speed, bend] = match self.ruled() {
+            Some((ruled, Some(lap))) => ruled.world(&lap, t),
+            _ => {
+                let pair = self.pair();
+                let [point, speed, bend] = pair.local(pair.signs(self.component), t);
+                let [speed, bend] = [speed, bend].map(|local| pair.direction(local));
+                [pair.world(point), speed, bend]
+            }
+        };
         let wall = if on_first { &self.first } else { &self.second };
         let across = |origin: DVec3| {
             [point - origin, speed, bend].map(|v| DVec2::new(v.dot(beside.u), v.dot(beside.v)))
@@ -118,6 +128,9 @@ impl Meet {
     /// that end, so where the component turns back at that angle it is found
     /// once rather than as two roots a square root of the rounding apart.
     pub fn at_angle(&self, on_first: bool, theta: f64) -> Vec<f64> {
+        if let Some((ruled, lap)) = self.ruled() {
+            return lap.map_or_else(Vec::new, |lap| ruled.at_angle(&lap, on_first, theta));
+        }
         let pair = self.pair();
         if self.component >= pair.components() {
             return Vec::new();
@@ -183,6 +196,9 @@ impl Meet {
     /// height across both axes is monotone and the root keeps its sign, so
     /// the angle is monotone too.
     pub fn turns(&self, on_first: bool) -> Vec<f64> {
+        if let Some((ruled, lap)) = self.ruled() {
+            return lap.map_or_else(Vec::new, |lap| ruled.turns(&lap, on_first));
+        }
         let pair = self.pair();
         if self.component >= pair.components() {
             return Vec::new();
@@ -240,6 +256,9 @@ impl Meet {
             Wall::Cylinder(cylinder) => start(cylinder, pair.axes[rank]),
             Wall::Elliptic(oval) if on_first => reached(oval, pair.axes[1]) - FRAC_PI_2,
             Wall::Elliptic(oval) => reached(oval, pair.axes[1]),
+            Wall::Cone(cone) => pair.axes[rank]
+                .dot(cone.v)
+                .atan2(pair.axes[rank].dot(cone.u)),
         }
     }
 }

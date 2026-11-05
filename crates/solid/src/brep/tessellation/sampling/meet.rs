@@ -21,10 +21,12 @@ use std::collections::BTreeMap;
 use glam::DVec3;
 
 use super::chords::halved;
+use super::cone::{Grid, Spun};
 use super::elliptic::{on_the_wall, reached_by_planes};
 use super::ends::grazed;
 use super::{divisions, on_a_plane, taken, touching_planes};
 use crate::brep::curve::{Meet, Wall};
+use crate::brep::surface::Cone;
 use crate::brep::tessellation::contact::{self, Contact, Zones};
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
@@ -43,12 +45,29 @@ enum Reason {
 /// start at its start and do not come back to it. `rays` are the angles the
 /// sections of its first wall and of its second take besides their grid;
 /// a place on the grid or on a ray is kept only where `clear` says so.
+#[cfg(test)]
 pub(super) fn on_meet(
     meet: &Meet,
     edge: &Edge,
     tolerance: f64,
     eps: f64,
     rays: [&[f64]; 2],
+    clear: &dyn Fn(DVec3) -> bool,
+) -> Vec<DVec3> {
+    let steps = [meet.first, meet.second].map(|wall| divisions(size(&wall, meet), tolerance));
+    on_meet_by(meet, edge, tolerance, eps, rays, steps, clear)
+}
+
+/// The points of an edge along a meet, as `on_meet` places them, each
+/// wall's grid cut into `steps` steps a turn: a cone's its own grid's, which
+/// the faces on it are laid out by.
+fn on_meet_by(
+    meet: &Meet,
+    edge: &Edge,
+    tolerance: f64,
+    eps: f64,
+    rays: [&[f64]; 2],
+    steps: [usize; 2],
     clear: &dyn Fn(DVec3) -> bool,
 ) -> Vec<DVec3> {
     let Some(period) = meet.period() else {
@@ -61,9 +80,7 @@ pub(super) fn on_meet(
         (edge.from.min(edge.to), edge.from.max(edge.to))
     };
     let mut marks = vec![(low, Reason::End), (high, Reason::End)];
-    for (on_first, taken) in [true, false].into_iter().zip(rays) {
-        let wall = if on_first { &meet.first } else { &meet.second };
-        let steps = divisions(size(wall), tolerance);
+    for ((on_first, taken), steps) in [true, false].into_iter().zip(rays).zip(steps) {
         let turns = meet.turns(on_first).into_iter().map(|t| (t, Reason::Turn));
         let grid = (0..steps)
             .flat_map(|step| meet.at_angle(on_first, TAU * step as f64 / steps as f64))
@@ -128,10 +145,23 @@ pub(super) fn of_edge(
     edge: &Edge,
     meet: &Meet,
     (walls, zones, contacts): (&[contact::Wall], &Zones, &BTreeMap<SurfaceId, Contact>),
+    grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
 ) -> Vec<DVec3> {
     let eps = body.scale().eps();
     let own = [meet.first, meet.second];
+    let grid = |cone: &Cone| {
+        grids
+            .values()
+            .find(|grid| matches!(grid.spun, Spun::Cone(own) if own == *cone))
+    };
+    let steps = own.map(|wall| match wall {
+        Wall::Cone(cone) => grid(&cone).map_or_else(
+            || divisions(size(&wall, meet), tolerance),
+            |grid| grid.steps,
+        ),
+        _ => divisions(size(&wall, meet), tolerance),
+    });
     let rays = own.map(|wall| match wall {
         Wall::Cylinder(cylinder) => taken(&cylinder, walls, contacts),
         Wall::Elliptic(oval) => {
@@ -147,14 +177,20 @@ pub(super) fn of_edge(
                 .chain(beneath)
                 .collect()
         }
+        Wall::Cone(cone) => grid(&cone).map_or_else(Vec::new, |grid| grid.vertex_angles().to_vec()),
     });
     let planes = own.map(|wall| match wall {
         Wall::Cylinder(cylinder) => {
             touching_planes(body, cylinder.origin, cylinder.axis, cylinder.radius)
         }
-        Wall::Elliptic(_) => Vec::new(),
+        Wall::Elliptic(_) | Wall::Cone(_) => Vec::new(),
     });
-    let grazed = grazing_ends(body, edge, &own, tolerance);
+    let grazed = grazing_ends(
+        body,
+        edge,
+        &own,
+        [0, 1].map(|rank| (size(&own[rank], meet), steps[rank])),
+    );
     let clear = |point: DVec3| {
         !grazed(point, eps * contact::APART)
             && own.iter().zip(&planes).all(|(wall, planes)| match wall {
@@ -164,18 +200,29 @@ pub(super) fn of_edge(
                             on_a_plane(plane, cylinder.origin, cylinder.axis, point, eps)
                         })
                 }
-                Wall::Elliptic(_) => true,
+                Wall::Elliptic(_) | Wall::Cone(_) => true,
             })
     };
-    on_meet(meet, edge, tolerance, eps, [&rays[0], &rays[1]], &clear)
+    on_meet_by(
+        meet,
+        edge,
+        tolerance,
+        eps,
+        [&rays[0], &rays[1]],
+        steps,
+        &clear,
+    )
 }
 
 /// What a wall is divided as: a cylinder its radius, an elliptic wall the
-/// circle of its major half-axis.
-fn size(wall: &Wall) -> f64 {
+/// circle of its major half-axis, a cone the widest the curve reaches on it.
+pub(super) fn size(wall: &Wall, meet: &Meet) -> f64 {
     match wall {
         Wall::Cylinder(cylinder) => cylinder.radius,
         Wall::Elliptic(oval) => oval.major,
+        Wall::Cone(cone) => (0..64)
+            .map(|step| cone.off_axis(meet.point(TAU * step as f64 / 64.0)))
+            .fold(0.0, f64::max),
     }
 }
 
@@ -190,16 +237,18 @@ fn grazing_ends<'a>(
     body: &'a Body,
     edge: &'a Edge,
     walls: &[Wall; 2],
-    tolerance: f64,
+    grids: [(f64, usize); 2],
 ) -> impl Fn(DVec3, f64) -> bool + 'a {
     let step = walls
         .iter()
-        .map(|wall| {
+        .zip(grids)
+        .map(|(wall, (size, steps))| {
             let shortest = match wall {
                 Wall::Cylinder(cylinder) => cylinder.radius,
                 Wall::Elliptic(oval) => oval.minor,
+                Wall::Cone(_) => size,
             };
-            TAU * shortest / divisions(size(wall), tolerance) as f64
+            TAU * shortest / steps as f64
         })
         .fold(f64::INFINITY, f64::min);
     grazed(body, edge, &walls.map(|wall| wall.surface()), step)

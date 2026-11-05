@@ -22,14 +22,16 @@
 //!   `a_drawing_after_a_turn_keeps_its_face_when_a_size_slants_a_run_into_a_cone`,
 //!   `a_drawing_on_the_end_of_a_chamfered_shaft_rides_it_when_the_chamfer_grows`
 //! - what a cone meets at a slant or across is a broken step, with its reason kept —
-//!   `a_radial_hole_through_a_cone_is_a_broken_step_with_its_reason`,
-//!   `a_cone_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_reason`,
-//!   `a_cone_of_another_axis_through_a_cone_is_a_broken_step_with_its_reason`
-//!   (each, its tool meeting the frustum's cone alone:
+//!   `a_cone_within_another_s_slope_either_way_is_a_broken_step_with_its_reason`
+//!   (its tool meeting the frustum's cone alone:
 //!   `declined_because(step) == Some(Declined::Unsupported)`, volume unchanged,
 //!   part still exact), `a_step_after_a_declined_cone_numbers_its_faces_as_if_it_had_stood`
 //!   (the flat and the slanted plane are built since #552, in
-//!   `the_exact_kernel_cuts_at_a_slant.rs`)
+//!   `the_exact_kernel_cuts_at_a_slant.rs`; the radial hole, the skew rod and
+//!   the cone of another axis since #577,
+//!   `a_radial_hole_through_a_cone_holds_its_volume`,
+//!   `a_cone_crossing_a_raised_cylinder_at_a_skew_angle_holds_its_volume`,
+//!   `a_cone_of_another_axis_through_a_cone_holds_its_volume`)
 //! - #448's harness draws turns with slanted runs before the kernel code — no test:
 //!   held in `cao_solid` by `random_turned_solids.rs` (`Case::drawn_slanted`, its draw
 //!   tests `the_slanted_generator_draws_every_kind_it_keeps` and
@@ -1693,8 +1695,93 @@ fn declined_on_the_frustum(history: &History, what: &str) {
     assert!(part.body().is_exact(), "the part stays exact");
 }
 
+/// The nodes and weights of Gauss–Legendre's rule of `count` points on
+/// `[0, 1]`, each node found by Newton from Tricomi's guess.
+fn gauss(count: usize) -> Vec<(f64, f64)> {
+    (1..=count)
+        .map(|index| {
+            let legendre = |x: f64| {
+                let (mut before, mut now) = (1.0, x);
+                for degree in 2..=count {
+                    let degree = degree as f64;
+                    (before, now) = (
+                        now,
+                        ((2.0 * degree - 1.0) * x * now - (degree - 1.0) * before) / degree,
+                    );
+                }
+                (now, count as f64 * (x * now - before) / (x * x - 1.0))
+            };
+            let mut x = (PI * (index as f64 - 0.25) / (count as f64 + 0.5)).cos();
+            for _ in 0..100 {
+                let (value, slope) = legendre(x);
+                let step = value / slope;
+                x -= step;
+                if step.abs() < 1e-16 {
+                    break;
+                }
+            }
+            let (_, slope) = legendre(x);
+            ((x + 1.0) / 2.0, 1.0 / ((1.0 - x * x) * slope * slope))
+        })
+        .collect()
+}
+
+/// Where the line through `from` along `way`, of unit length, enters and
+/// leaves the frustum's cone `x² + z² = (10 − y/4)²`.
+fn through_the_frustum(from: DVec3, way: DVec3) -> [f64; 2] {
+    let radius = 10.0 - 0.25 * from.y;
+    let a = way.x * way.x + way.z * way.z - 0.0625 * way.y * way.y;
+    let b = 2.0 * (from.x * way.x + from.z * way.z) + 0.5 * radius * way.y;
+    let c = from.x * from.x + from.z * from.z - radius * radius;
+    let root = (b * b - 4.0 * a * c).max(0.0).sqrt();
+    [(-b - root) / (2.0 * a), (-b + root) / (2.0 * a)]
+}
+
+/// `∫∫ f` over a disc of `radius` about `center` square to `way`, by Gauss
+/// over the radius and trapezoids round the turn: the integrands below are
+/// smooth, and sixteen nodes agree with thirty-two to the last digit or two.
+fn over_a_disc(center: DVec3, way: DVec3, radius: f64, f: impl Fn(DVec3) -> f64) -> f64 {
+    let u = way.any_orthonormal_vector();
+    let v = way.cross(u);
+    let turns = 64;
+    gauss(16)
+        .into_iter()
+        .map(|(share, weight)| {
+            let round: f64 = (0..turns)
+                .map(|step| {
+                    let (sin, cos) = (TAU * step as f64 / turns as f64).sin_cos();
+                    f(center + (u * cos + v * sin) * (radius * share))
+                })
+                .sum();
+            weight * radius * radius * share * round * TAU / turns as f64
+        })
+        .sum()
+}
+
+/// What a cylinder of `radius` along `way` through `center` shares with the
+/// frustum: each of its lines' chord inside the frustum's cone, every line
+/// crossing its wall, none its ends.
+fn shared_with_the_frustum(center: DVec3, way: DVec3, radius: f64) -> f64 {
+    over_a_disc(center, way, radius, |from| {
+        let [enter, leave] = through_the_frustum(from, way);
+        leave - enter
+    })
+}
+
+/// The part `history` describes, applied live, its last step built on the
+/// exact kernel, closed, with the volume reasoned out.
+fn built_on_the_frustum(history: &History, reasoned: f64, what: &str) {
+    let part = applied_live(history);
+    assert_eq!(part.declined_because(last_step(history)), None, "{what}");
+    assert!(part.body().is_exact(), "{what}: the part stays exact");
+    assert_eq!(closed(&part.body().triangles()), Ok(()), "{what}");
+    assert_near(part.body().volume(), reasoned, what);
+}
+
+const FRUSTUM: f64 = 3500.0 * PI / 3.0;
+
 #[test]
-fn a_radial_hole_through_a_cone_is_a_broken_step_with_its_reason() {
+fn a_radial_hole_through_a_cone_holds_its_volume() {
     let history = a_frustum_then(|history| {
         sketch_on(
             history,
@@ -1707,13 +1794,17 @@ fn a_radial_hole_through_a_cone_is_a_broken_step_with_its_reason() {
         raise(history, 1, DVec2::new(0.0, 10.0), 30.0, ExtrusionMode::Cut);
     });
 
-    declined_on_the_frustum(&history, "a cylinder square to the cone's axis crosses it");
+    built_on_the_frustum(
+        &history,
+        FRUSTUM - shared_with_the_frustum(DVec3::Y * 10.0, DVec3::Z, 2.0),
+        "a cylinder square to the cone's axis through it",
+    );
 }
 
 #[test]
-fn a_cone_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_reason() {
+fn a_cone_crossing_a_raised_cylinder_at_a_skew_angle_holds_its_volume() {
+    let along = DVec3::new(2.0, 1.0, 0.0).normalize();
     let history = a_frustum_then(|history| {
-        let along = DVec3::new(2.0, 1.0, 0.0).normalize();
         sketch_on(
             history,
             WorkPlane {
@@ -1726,14 +1817,84 @@ fn a_cone_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_r
         raise(history, 1, DVec2::ZERO, 40.0, ExtrusionMode::Cut);
     });
 
-    declined_on_the_frustum(
+    built_on_the_frustum(
         &history,
-        "a cylinder at 27° from square to the cone's axis crosses its slope alone",
+        FRUSTUM - shared_with_the_frustum(DVec3::Y * 10.0, along, 1.0),
+        "a cylinder at 27° from square to the cone's axis across its slope alone",
     );
 }
 
+/// A truncated cone about X through the frustum's axis at ten, from radius
+/// one at four to three at nine, its apex at one and a half inside the
+/// frustum: every ray from that apex runs inside the frustum from the plane
+/// at four, `2.5/cos ψ` out, to the frustum's wall, short of the plane at
+/// nine. What it takes is each ray's `(ρ_out³ − ρ_in³)/3` over its solid
+/// angle.
 #[test]
-fn a_cone_of_another_axis_through_a_cone_is_a_broken_step_with_its_reason() {
+fn a_cone_of_another_axis_through_a_cone_holds_its_volume() {
+    let history = a_frustum_then(|history| {
+        sketch_on(
+            history,
+            WorkPlane {
+                origin: DVec3::Y * 10.0,
+                ..WorkPlane::XY
+            },
+        );
+        polygon(
+            history,
+            1,
+            &[
+                DVec2::new(4.0, 0.0),
+                DVec2::new(9.0, 0.0),
+                DVec2::new(9.0, 3.0),
+                DVec2::new(4.0, 1.0),
+            ],
+        );
+        turn(
+            history,
+            1,
+            DVec2::new(6.0, 1.0),
+            RevolutionAxis::Sketch(SketchAxis::U),
+            360.0,
+            ExtrusionMode::Cut,
+        );
+    });
+    let apex = DVec3::new(1.5, 10.0, 0.0);
+    let half = 0.4f64.atan();
+    let turns = 64;
+    let taken: f64 = gauss(16)
+        .into_iter()
+        .map(|(share, weight)| {
+            let tilt = share * half;
+            let round: f64 = (0..turns)
+                .map(|step| {
+                    let (sin, cos) = (TAU * step as f64 / turns as f64).sin_cos();
+                    let ray =
+                        DVec3::X * tilt.cos() + (DVec3::Y * cos + DVec3::Z * sin) * tilt.sin();
+                    let [_, leave] = through_the_frustum(apex, ray);
+                    let enter = 2.5 / tilt.cos();
+                    (leave.powi(3) - enter.powi(3)) / 3.0
+                })
+                .sum();
+            weight * half * tilt.sin() * round * TAU / turns as f64
+        })
+        .sum();
+
+    built_on_the_frustum(
+        &history,
+        FRUSTUM - taken,
+        "a truncated cone about X across the cone about Y",
+    );
+}
+
+/// Two points about X tip to tip at their feet at nine: the one whose apex
+/// stands inside the frustum, at four, crosses its slope all round its own
+/// axis, which parts the apex from the rest — built; every ray of it leaves
+/// the frustum's cone short of its foot, and the other point stands outside
+/// the frustum. What they take is each ray's `ρ³/3` out to the frustum's
+/// wall, over that point's solid angle.
+#[test]
+fn two_points_of_another_axis_through_a_cone_hold_their_volume() {
     let history = a_frustum_then(|history| {
         sketch_on(
             history,
@@ -1760,17 +1921,137 @@ fn a_cone_of_another_axis_through_a_cone_is_a_broken_step_with_its_reason() {
             ExtrusionMode::Cut,
         );
     });
+    let apex = DVec3::new(4.0, 10.0, 0.0);
+    let half = 0.6f64.atan();
+    let turns = 64;
+    let taken: f64 = gauss(16)
+        .into_iter()
+        .map(|(share, weight)| {
+            let tilt = share * half;
+            let round: f64 = (0..turns)
+                .map(|step| {
+                    let (sin, cos) = (TAU * step as f64 / turns as f64).sin_cos();
+                    let ray =
+                        DVec3::X * tilt.cos() + (DVec3::Y * cos + DVec3::Z * sin) * tilt.sin();
+                    let [_, leave] = through_the_frustum(apex, ray);
+                    leave.powi(3) / 3.0
+                })
+                .sum();
+            weight * half * tilt.sin() * round * TAU / turns as f64
+        })
+        .sum();
+
+    built_on_the_frustum(
+        &history,
+        FRUSTUM - taken,
+        "two cones about X, tip to tip at their foot, across the cone about Y",
+    );
+}
+/// A taper turned about a line leaning ten degrees off the frustum's axis,
+/// its slope of eight and a half and the frustum's of fourteen: each one's
+/// rulings fall within the other's slope, and neither's meet the other in a
+/// true quadratic all round — still declined.
+#[test]
+fn a_cone_within_another_s_slope_either_way_is_a_broken_step_with_its_reason() {
+    let (sin, cos) = 10f64.to_radians().sin_cos();
+    let history = a_frustum_then(|history| {
+        sketch_on(
+            history,
+            WorkPlane {
+                origin: DVec3::new(2.0, 0.0, 0.0),
+                u: DVec3::new(cos, sin, 0.0),
+                v: DVec3::new(-sin, cos, 0.0),
+            },
+        );
+        polygon(
+            history,
+            1,
+            &[
+                DVec2::new(0.0, 0.0),
+                DVec2::new(6.0, 0.0),
+                DVec2::new(3.0, 20.0),
+                DVec2::new(0.0, 20.0),
+            ],
+        );
+        turn(
+            history,
+            1,
+            DVec2::new(1.0, 5.0),
+            ABOUT_V,
+            360.0,
+            ExtrusionMode::Cut,
+        );
+    });
 
     declined_on_the_frustum(
         &history,
-        "two cones about X, tip to tip at their foot, cross the cone about Y across its slope",
+        "a taper leaning ten degrees off the frustum, each within the other's slope",
     );
+}
+/// A ball of radius 3 about `(at, 0, 0)`, then the turn of
+/// `turned_at_thirty_degrees_beside_a_cylinder_at` with its far run
+/// slanting to 4: a cone, which crosses the ball off its centre — a pair
+/// the kernel declines — where the ball stands at the origin.
+fn a_cone_turned_at_thirty_degrees_beside_a_ball_at(at: f64) -> History {
+    let mut history = History::default();
+    sketch_on(
+        &mut history,
+        WorkPlane {
+            origin: DVec3::X * at,
+            ..WorkPlane::XY
+        },
+    );
+    let first = PartState::rebuild(&history).sketches[0].points().len();
+    history.push(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        start: PointRef::New(DVec2::new(0.0, -3.0)),
+        end: PointRef::New(DVec2::new(0.0, 3.0)),
+        construction: false,
+    });
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(PointId(first + 2)),
+        end: PointRef::Existing(PointId(first + 1)),
+        construction: false,
+    });
+    turn(
+        &mut history,
+        0,
+        DVec2::new(1.0, 0.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Add,
+    );
+    sketch_on(&mut history, WorkPlane::XY);
+    let along = DVec2::from_angle(PI / 6.0);
+    let at = |h: f64, s: f64| along * h + along.perp() * s;
+    history.push(Operation::AddSegment {
+        sketch: 1,
+        start: PointRef::New(at(-3.0, 0.0)),
+        end: PointRef::New(at(-1.0, 0.0)),
+        construction: false,
+    });
+    polygon(
+        &mut history,
+        1,
+        &[at(1.0, 1.0), at(6.0, 1.0), at(6.0, 3.0), at(1.0, 4.0)],
+    );
+    turn(
+        &mut history,
+        1,
+        at(3.0, 2.0),
+        RevolutionAxis::Segment(SegmentId(0)),
+        360.0,
+        ExtrusionMode::Add,
+    );
+    history
 }
 
 #[test]
 fn a_step_after_a_declined_cone_numbers_its_faces_as_if_it_had_stood() {
     let with_a_plate_after = |at: f64| {
-        let mut history = turned_at_thirty_degrees_beside_a_cylinder_at(at, 4.0);
+        let mut history = a_cone_turned_at_thirty_degrees_beside_a_ball_at(at);
         sketch_on(&mut history, WorkPlane::XY);
         rectangle(
             &mut history,
@@ -1787,6 +2068,8 @@ fn a_step_after_a_declined_cone_numbers_its_faces_as_if_it_had_stood() {
         );
         history
     };
+    // The three numbers the ball's turn takes; the cone's four runs, none
+    // on its axis; then the plate's floor and top.
     let plates_top = 3 + 4 + 1;
     let declined = with_a_plate_after(0.0);
     let stood = with_a_plate_after(50.0);

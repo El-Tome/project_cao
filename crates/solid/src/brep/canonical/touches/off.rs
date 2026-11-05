@@ -136,8 +136,7 @@ pub(super) fn off(
                         from.origin.distance(to.origin) + (from.radius - to.radius).abs()
                     }
                     (Wall::Elliptic(from), Wall::Elliptic(to)) => from.gap(&to),
-                    (Wall::Cylinder(_), Wall::Elliptic(_))
-                    | (Wall::Elliptic(_), Wall::Cylinder(_)) => f64::INFINITY,
+                    _ => f64::INFINITY,
                 }
             }))
         }

@@ -94,15 +94,18 @@ fn normal(one: DVec3, other: DVec3) -> DVec3 {
     )
 }
 
-/// Whether a meet runs round an elliptic wall.
+/// Whether a meet runs round an elliptic wall and no cone: a cone's curve
+/// is read by the kernel's own formula (#577).
 pub(super) fn elliptic(meet: &Meet) -> bool {
-    matches!(meet.first, Wall::Elliptic(_)) || matches!(meet.second, Wall::Elliptic(_))
+    let has = |wall: fn(&Wall) -> bool| wall(&meet.first) || wall(&meet.second);
+    has(|wall| matches!(wall, Wall::Elliptic(_))) && !has(|wall| matches!(wall, Wall::Cone(_)))
 }
 
 fn axis(wall: &Wall) -> DVec3 {
     match wall {
         Wall::Cylinder(cylinder) => cylinder.axis.normalize(),
         Wall::Elliptic(oval) => oval.axis.normalize(),
+        Wall::Cone(cone) => cone.axis.normalize(),
     }
 }
 
@@ -110,6 +113,7 @@ fn origin(wall: &Wall) -> DVec3 {
     match wall {
         Wall::Cylinder(cylinder) => cylinder.origin,
         Wall::Elliptic(oval) => oval.origin,
+        Wall::Cone(cone) => cone.origin,
     }
 }
 
@@ -117,6 +121,7 @@ fn extent(wall: &Wall) -> f64 {
     match wall {
         Wall::Cylinder(cylinder) => cylinder.radius,
         Wall::Elliptic(oval) => oval.major,
+        Wall::Cone(cone) => cone.foot.y.abs(),
     }
 }
 
@@ -124,6 +129,7 @@ fn extent(wall: &Wall) -> f64 {
 fn reach(wall: &Wall, way: DVec3) -> f64 {
     match wall {
         Wall::Cylinder(cylinder) => cylinder.radius,
+        Wall::Cone(cone) => cone.foot.y.abs(),
         Wall::Elliptic(oval) => {
             let [u, v] = [oval.u.normalize(), oval.v.normalize()];
             (oval.major * way.dot(u)).hypot(oval.minor * way.dot(v))
@@ -138,7 +144,7 @@ fn reach(wall: &Wall, way: DVec3) -> f64 {
 /// and the discriminant is `(w² − h²)/(A² B²)`, `w = A B √a`.
 fn chord(wall: &Wall, across: DVec3, way: DVec3) -> [f64; 2] {
     match wall {
-        Wall::Cylinder(_) => [0.0, 1.0],
+        Wall::Cylinder(_) | Wall::Cone(_) => [0.0, 1.0],
         Wall::Elliptic(oval) => {
             let [u, v] = [oval.u.normalize(), oval.v.normalize()];
             let (major, minor) = (oval.major, oval.minor);

@@ -121,6 +121,40 @@ fn hexagon() -> Body {
     )
 }
 
+/// A knife: the triangle (0, 0), (100, 0), (100, 100·tan α) raised 10, its
+/// front two, its right three and its long side four, which meet its front
+/// at the upright edge through the origin at `degrees`.
+fn knife(degrees: f64) -> Body {
+    let rise = 100.0 * degrees.to_radians().tan();
+    joined(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::ZERO,
+            DVec2::new(100.0, 0.0),
+            DVec2::new(100.0, rise),
+        ]),
+        10.0,
+    )
+}
+
+/// A block 100 by 20 raised 10 whose front bends up by `degrees` halfway
+/// along: its front two up to (50, 0) and three past it, which meet at the
+/// upright edge there at 180 degrees less `degrees`.
+fn nearly_flat(degrees: f64) -> Body {
+    let rise = 50.0 * degrees.to_radians().tan();
+    joined(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::ZERO,
+            DVec2::new(50.0, 0.0),
+            DVec2::new(100.0, rise),
+            DVec2::new(100.0, 20.0),
+            DVec2::new(0.0, 20.0),
+        ]),
+        10.0,
+    )
+}
+
 #[test]
 fn every_body_a_chamfer_leaves_lists_what_it_is_made_of_as_its_geometry_stands() {
     let block = block([30.0, 10.0, 20.0]);
@@ -131,6 +165,8 @@ fn every_body_a_chamfer_leaves_lists_what_it_is_made_of_as_its_geometry_stands()
     let d = d_shape();
     let flat = between(&d, &[1], &[2]);
     let (inwards, outwards, hexagon) = (slot(-0.1), slot(0.1), hexagon());
+    let (knife_of_5, knife_of_1) = (knife(5.0), knife(1.0));
+    let (bent_by_1, bent_by_a_tenth) = (nearly_flat(1.0), nearly_flat(0.1));
     let cases = [
         (
             "the block's top front edge by 3",
@@ -198,6 +234,30 @@ fn every_body_a_chamfer_leaves_lists_what_it_is_made_of_as_its_geometry_stands()
             &hexagon,
             between(&hexagon, &[1], &[2]),
             1.0,
+        ),
+        (
+            "a knife of 5 degrees by 50",
+            &knife_of_5,
+            between(&knife_of_5, &[2], &[4]),
+            50.0,
+        ),
+        (
+            "a knife of 1 degree by 50",
+            &knife_of_1,
+            between(&knife_of_1, &[2], &[4]),
+            50.0,
+        ),
+        (
+            "a front bent by 1 degree, by 10",
+            &bent_by_1,
+            between(&bent_by_1, &[2], &[3]),
+            10.0,
+        ),
+        (
+            "a front bent by a tenth of a degree, by 10",
+            &bent_by_a_tenth,
+            between(&bent_by_a_tenth, &[2], &[3]),
+            10.0,
         ),
     ];
 
@@ -287,5 +347,76 @@ fn a_chamfer_leaves_the_part_s_reach_as_it_was_within_a_quarter_of_its_distance(
              every later step would read it coarser",
             chamfered.taken
         );
+    }
+}
+
+#[test]
+fn a_chamfer_on_a_knife_or_a_nearly_flat_edge_leaves_the_part_s_reach_within_its_distance() {
+    let sine = |degrees: f64| degrees.to_radians().sin();
+    let knife_whole = |degrees: f64| 50000.0 * degrees.to_radians().tan();
+    let bent_whole = |degrees: f64| (2000.0 - 1250.0 * degrees.to_radians().tan()) * 10.0;
+    let cases = [
+        (
+            "a knife of 5 degrees by 50",
+            knife(5.0),
+            [2, 4],
+            50.0,
+            knife_whole(5.0),
+            sine(5.0),
+        ),
+        (
+            "a knife of 1 degree by 50",
+            knife(1.0),
+            [2, 4],
+            50.0,
+            knife_whole(1.0),
+            sine(1.0),
+        ),
+        (
+            "a front bent by 1 degree, by 10",
+            nearly_flat(1.0),
+            [2, 3],
+            10.0,
+            bent_whole(1.0),
+            sine(1.0),
+        ),
+        (
+            "a front bent by a tenth of a degree, by 10",
+            nearly_flat(0.1),
+            [2, 3],
+            10.0,
+            bent_whole(0.1),
+            sine(0.1),
+        ),
+    ];
+
+    for (what, part, [first, second], distance, whole, sine) in cases {
+        let name = between(&part, &[first], &[second]);
+
+        let chamfered = part
+            .chamfer(&name, distance)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        let (before, after) = (reach_of(&part), reach_of(&chamfered.body));
+        assert!(
+            after <= before + chamfered.taken,
+            "{what}: the part reached {before} and reaches {after} after a chamfer of {}: \
+             the cut stood further outside the part than the distance it took",
+            chamfered.taken
+        );
+        assert!(
+            (chamfered.taken - distance).abs() < 1e-9,
+            "{what}: took {}",
+            chamfered.taken
+        );
+        let promised = whole - 5.0 * distance * distance * sine;
+        let held = chamfered.body.volume();
+        assert!(
+            (held - promised).abs() <= 1e-9 * promised,
+            "{what}: the body holds {held}, where arithmetic promised {promised}"
+        );
+        let triangles = chamfered.body.triangles();
+        assert_eq!(crate::soundness::closed(&triangles), Ok(()), "{what}");
+        assert_eq!(crate::soundness::uncrossed(&triangles), Ok(()), "{what}");
     }
 }

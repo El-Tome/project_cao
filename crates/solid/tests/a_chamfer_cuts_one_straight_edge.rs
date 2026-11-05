@@ -1770,11 +1770,11 @@ fn a_chamfer_on_the_trapezoid_s_slanted_top_edge_is_trimmed_by_the_front_and_the
     );
 }
 
-#[test]
-fn a_chamfer_on_a_top_edge_of_a_hexagonal_prism_runs_on_past_both_its_ends_to_the_walls_beside_it()
-{
+/// A regular hexagon of side 10 raised 5, its front the side along the
+/// bottom, at y = −5√3: the top one, the front two.
+fn hexagonal_prism() -> Body {
     let half = 5.0 * 3.0f64.sqrt();
-    let part = raised(
+    raised(
         Contour::straight(vec![
             DVec2::new(-5.0, -half),
             DVec2::new(5.0, -half),
@@ -1784,7 +1784,14 @@ fn a_chamfer_on_a_top_edge_of_a_hexagonal_prism_runs_on_past_both_its_ends_to_th
             DVec2::new(-10.0, 0.0),
         ]),
         5.0,
-    );
+    )
+}
+
+#[test]
+fn a_chamfer_on_a_top_edge_of_a_hexagonal_prism_runs_on_past_both_its_ends_to_the_walls_beside_it()
+{
+    let half = 5.0 * 3.0f64.sqrt();
+    let part = hexagonal_prism();
     let edge = edge_between(&part, TOP, FRONT);
 
     let chamfered = part
@@ -1944,5 +1951,84 @@ fn a_chamfer_on_an_edge_running_on_tangentially_into_a_round_at_one_end_only_is_
             Some(Declined::Unsupported),
             "{what}: the front runs on into the round at that end, a tangent chain"
         );
+    }
+}
+
+#[test]
+fn a_chamfer_of_a_hundred_thousandth_on_a_block_and_a_ten_thousandth_on_a_hexagon_is_cut_as_asked()
+{
+    let block = block_to_chamfer();
+    let distance = 1e-5;
+    let what = "a hundred thousandth on the block's top front edge";
+    let chamfered = block
+        .chamfer(&edge_between(&block, TOP, FRONT), distance)
+        .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+    taken_whole(&chamfered, distance, what);
+    let body = &chamfered.body;
+    sound(body, 6000.0 - 30.0 * distance * distance / 2.0, what);
+    let chamfer = one_flat_face_more(&block, body, what);
+    corners_are(
+        body,
+        chamfer,
+        &[
+            DVec3::new(0.0, distance, 20.0),
+            DVec3::new(30.0, distance, 20.0),
+            DVec3::new(30.0, 0.0, 20.0 - distance),
+            DVec3::new(0.0, 0.0, 20.0 - distance),
+        ],
+        what,
+    );
+
+    let hexagon = hexagonal_prism();
+    let distance = 1e-4;
+    let what = "a ten thousandth on the hexagon's top front edge";
+    let chamfered = hexagon
+        .chamfer(&edge_between(&hexagon, TOP, FRONT), distance)
+        .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+    taken_whole(&chamfered, distance, what);
+    let body = &chamfered.body;
+    let whole = 1.5 * 3.0f64.sqrt() * 10.0 * 10.0 * 5.0;
+    let cut_off = 5.0 * distance * distance + distance.powi(3) / (3.0 * 3.0f64.sqrt());
+    sound(body, whole - cut_off, what);
+    let chamfer = one_flat_face_more(&hexagon, body, what);
+    let (half, past) = (5.0 * 3.0f64.sqrt(), 5.0 + distance / 3.0f64.sqrt());
+    corners_are(
+        body,
+        chamfer,
+        &[
+            DVec3::new(-past, distance - half, 5.0),
+            DVec3::new(past, distance - half, 5.0),
+            DVec3::new(5.0, -half, 5.0 - distance),
+            DVec3::new(-5.0, -half, 5.0 - distance),
+        ],
+        what,
+    );
+}
+
+#[test]
+fn a_chamfer_a_hair_above_the_kernel_s_tolerance_is_cut_or_named_too_short_and_declined_for_nothing_else()
+ {
+    let block = block_to_chamfer();
+    let edge = edge_between(&block, TOP, FRONT);
+
+    for distance in [4e-8, 1e-7, 5e-7] {
+        let what = format!("{distance} asked, the block's tolerance 3e-8");
+
+        match block.chamfer(&edge, distance) {
+            Err(Declined::Distance) => {}
+            Ok(chamfered) => {
+                taken_whole(&chamfered, distance, &what);
+                sound(
+                    &chamfered.body,
+                    6000.0 - 30.0 * distance * distance / 2.0,
+                    &what,
+                );
+                one_flat_face_more(&block, &chamfered.body, &what);
+            }
+            Err(other) => panic!(
+                "{what}: declined {other:?}, where a distance is either cut or named too short \
+                 for the kernel to set back"
+            ),
+        }
     }
 }

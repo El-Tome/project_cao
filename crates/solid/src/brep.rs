@@ -97,8 +97,10 @@ pub enum Declined {
     /// A step pointed at an edge its name no longer finds (#696): gone, or
     /// split in pieces, as [`crate::Body::lost`] says.
     Lost(Lost),
-    /// A chamfer's distance that is no length the tolerance holds: not a
-    /// number, nought or less, or shorter than the tolerance (#696).
+    /// A chamfer's distance that is no length the kernel can set a cut back
+    /// by: not a number, nought or less, or within a few `Scale::HAIR`
+    /// tolerances of the edge, where the kernel would read the cut back onto
+    /// it (#696).
     Distance,
 }
 

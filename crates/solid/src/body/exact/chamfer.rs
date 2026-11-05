@@ -3,15 +3,16 @@
 //! along each, cut from the body. Its wall on that plane is the one face
 //! the step names.
 
+mod prism;
+
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
 
-use glam::{DVec2, DVec3};
+use glam::DVec3;
 
 use super::{Exact, PIECES, root};
 use crate::body::caught::caught;
 use crate::brep::{self, Coedge, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Scale, Surface};
-use crate::profile::{Contour, Frame};
 
 /// A straight edge between two flat faces meeting outwards: a point of it,
 /// the way it runs, its two faces, for each the way it faces and the way
@@ -33,17 +34,19 @@ impl Exact {
     /// numbers ended, and trimmed, as a CAD tool trims it, by the faces it
     /// meets at the edge's ends — past the end corner where one of them
     /// leaves the edge at an obtuse angle, or a round leaves it at a few
-    /// degrees either way. A distance the tolerance holds no length of is
-    /// declined first. Unsupported: an edge that is not straight between two
-    /// flat faces meeting outwards, one running on tangentially into the next
-    /// edge of a face, and a cut that, carried along the edge's line, takes
+    /// degrees either way. A distance shorter than the kernel can set a cut
+    /// back from an edge is declined first. Unsupported: an edge that is not
+    /// straight between two flat faces meeting outwards, one running on
+    /// tangentially into the next edge of a face, a face so nearly flush with
+    /// the chamfer's plane that the prism cannot stand off it, and a cut
+    /// that, carried along the edge's line, takes
     /// matter beyond the faces it meets there — a flat wall leaving the edge
     /// at a concave corner, which the cut would run on along — seen as a face
     /// of the prism but its chamfer left on the body, the chamfer in two
     /// pieces or with a corner on neither of the edge's faces, or a face the
     /// body held, but the edge's two, taken away whole.
     pub fn chamfered(&self, name: &EdgeName, distance: f64) -> Result<(Exact, f64), Declined> {
-        if distance.is_nan() || distance < self.brep.scale().eps() {
+        if distance.is_nan() || distance < SHORTEST * Scale::HAIR * self.brep.scale().eps() {
             return Err(Declined::Distance);
         }
         caught(|| {
@@ -54,8 +57,9 @@ impl Exact {
             let wedge = Wedge::of(&self.brep, edge)?;
             let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
             let taken = distance.min(wedge.reach);
-            let margin = (taken * MARGIN).max(2.0 * Scale::HAIR * self.brep.scale().eps());
-            let (outline, frame, travel) = wedge.prism(taken, margin, bounds);
+            let (outline, frame, travel) = wedge
+                .prism(taken, self.brep.scale(), bounds)
+                .ok_or(Declined::Unsupported)?;
             let raised = Exact::raised(&outline, &[], frame, travel)?;
             let tool = Exact {
                 brep: raised.brep.renumbered_by(|number| match number {
@@ -163,54 +167,19 @@ impl Wedge {
             reach: first_reach.min(second_reach),
         })
     }
-
-    /// The prism the chamfer is cut with, raised along the edge: in a
-    /// section square to it, the wedge between the chamfer's plane and the
-    /// edge's two faces, each face pushed out by `margin`, its first run on
-    /// the chamfer's plane; carried over the body's box along the edge's
-    /// line and `margin` past either end. Nothing of it but that run meets
-    /// the two faces near the edge, and the part reaches little further.
-    fn prism(
-        &self,
-        distance: f64,
-        margin: f64,
-        (low, high): (DVec3, DVec3),
-    ) -> (Contour, Frame, DVec3) {
-        let [first, second] = self.outward;
-        let [on_first, on_second] = self.into.map(|into| into * distance);
-        let across = (on_first - on_second).normalize();
-        let corners = [
-            on_second - across * (margin / -second.dot(across)),
-            on_first + across * (margin / first.dot(across)),
-            (first + second) * (margin / (1.0 + first.dot(second))),
-        ];
-        let middle = self.along.dot((low + high) / 2.0 - self.point);
-        let half = self.along.abs().dot((high - low) / 2.0) + margin;
-        let frame = Frame {
-            origin: self.point + self.along * (middle - half),
-            u: across,
-            v: self.along.cross(across),
-        };
-        let outline = Contour::straight(
-            corners
-                .map(|corner| DVec2::new(corner.dot(frame.u), corner.dot(frame.v)))
-                .to_vec(),
-        );
-        (outline, frame, self.along * 2.0 * half)
-    }
 }
+
+/// The shortest distance a chamfer is set back, in `Scale::HAIR`
+/// tolerances: the kernel moves an operand that far to lay it on another,
+/// and reads a plane or a corner that near an edge or a corner onto it, so
+/// a chamfer within a few such moves of its edge is read back onto it. On
+/// every edge of a block, a hexagonal prism and a trapezoid, chamfers of
+/// one and a half came back declined or unsound, and from two and a half
+/// every edge was cut; four leaves room.
+const SHORTEST: f64 = 4.0;
 
 /// The number a raise gives the wall of its profile's first run.
 const CHAMFER: u32 = 2;
-
-/// How far the prism stands off the edge's two faces, and past the body's
-/// box along the edge, as a share of the distance taken: far enough that no
-/// face of it lies nearly flush with one of the body's, near enough that
-/// the part's reach, which every later step's tolerance is taken against,
-/// grows by an eighth of the distance at a square edge. Never nearer than
-/// twice the furthest the kernel moves one operand onto another's face
-/// (`Scale::HAIR` tolerances), which would lay the two flush.
-const MARGIN: f64 = 0.125;
 
 /// How far a face runs along `into` from the edge's line through `point`:
 /// to the nearest corner of its boundary off that line, or to the nearest

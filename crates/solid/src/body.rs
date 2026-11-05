@@ -4,6 +4,7 @@ mod caught;
 mod drawn;
 mod exact;
 mod names;
+mod section;
 mod turned;
 
 use std::borrow::Cow;
@@ -157,20 +158,6 @@ impl Body {
             }
             _ => Ok(self.on_flats(other, Mesh::difference_counted)),
         }
-    }
-
-    /// What is left of the body behind a plane, left open where the plane
-    /// went through: a way of looking inside rather than of taking matter away.
-    pub fn behind(&self, normal: DVec3, offset: f64) -> Body {
-        Body::of_flats(self.as_flats().behind(normal, offset), self.faces_end())
-    }
-
-    /// The body parted by a plane: what [`Body::behind`] leaves, and what
-    /// stands strictly in front, cut from one reading of the matter.
-    pub fn parted(&self, normal: DVec3, offset: f64) -> (Body, Body) {
-        let (behind, in_front) = self.as_flats().parted(normal, offset);
-        let next = self.faces_end();
-        (Body::of_flats(behind, next), Body::of_flats(in_front, next))
     }
 
     /// Whether the step that made the body is one the exact kernel built

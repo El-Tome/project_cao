@@ -14,6 +14,7 @@ use glam::DVec3;
 
 use crate::screens::SketchContext;
 
+use super::matter::Sections;
 use super::navigation::Drag;
 
 /// How close, in pixels, the cursor has to be to take hold of something.
@@ -52,6 +53,7 @@ pub struct ViewportState {
     /// Width over height of the canvas, remembered so that framing asked for
     /// from a toolbar button uses the viewport's shape, not the button's.
     pub(super) aspect: f32,
+    pub(super) sections: Sections,
     blinking: Option<Blinking>,
 }
 
@@ -78,6 +80,7 @@ impl Default for ViewportState {
             hovered_zone: None,
             drag: None,
             aspect: 1.0,
+            sections: Sections::default(),
             blinking: None,
         }
     }

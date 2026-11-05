@@ -77,13 +77,45 @@ impl Drawn {
 
     /// The triangles as flat pieces, each on the first number of its face.
     pub fn flats(&self, body: &brep::Body) -> Mesh {
-        Mesh::of_triangles(
-            self.triangles
-                .iter()
-                .zip(&self.faces)
-                .filter_map(|(triangle, id)| {
-                    Some((*triangle, *body.numbers(*id).first()? as usize))
-                }),
-        )
+        Mesh::of_triangles(self.numbered(body))
     }
+
+    /// The triangles clipped to `normal · p ≤ offset` as flat pieces, each on
+    /// the first number of its face, left open where the plane went through.
+    pub fn behind(&self, body: &brep::Body, normal: DVec3, offset: f64) -> Mesh {
+        Mesh::of_triangles(self.numbered(body).flat_map(|(triangle, face)| {
+            clipped(triangle, normal, offset)
+                .into_iter()
+                .map(move |piece| (piece, face))
+        }))
+    }
+
+    fn numbered<'a>(
+        &'a self,
+        body: &'a brep::Body,
+    ) -> impl Iterator<Item = ([DVec3; 3], usize)> + 'a {
+        self.triangles
+            .iter()
+            .zip(&self.faces)
+            .filter_map(|(triangle, id)| Some((*triangle, *body.numbers(*id).first()? as usize)))
+    }
+}
+
+/// What of a triangle lies on `normal · p ≤ offset`, cut into triangles
+/// turned as it is.
+fn clipped(corners: [DVec3; 3], normal: DVec3, offset: f64) -> Vec<[DVec3; 3]> {
+    let mut kept = Vec::with_capacity(4);
+    for index in 0..3 {
+        let (from, to) = (corners[index], corners[(index + 1) % 3]);
+        let (here, there) = (from.dot(normal) - offset, to.dot(normal) - offset);
+        if here <= 0.0 {
+            kept.push(from);
+        }
+        if (here < 0.0 && there > 0.0) || (here > 0.0 && there < 0.0) {
+            kept.push(from + (to - from) * (here / (here - there)));
+        }
+    }
+    (1..kept.len().saturating_sub(1))
+        .map(|index| [kept[0], kept[index], kept[index + 1]])
+        .collect()
 }

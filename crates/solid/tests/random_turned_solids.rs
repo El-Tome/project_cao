@@ -5043,9 +5043,15 @@ fn seed_5576800642_bowed_sections_about_axes_leaning_a_hair_are_laid_and_keep_ev
     assert_eq!(measured.bowed, 0, "every section laid");
 }
 
+/// Seed 5576800195 was declined as unsupported, and the decline counted as
+/// asked (#576): the round groove its quarter turn draws lies on a torus whose
+/// whole surface's box met the prisms beside it. The kernel boxes the groove
+/// by its own extent since #625, which meets no other leaf's box: the case is
+/// held, and a decline there would no longer be excused.
 #[test]
-fn seed_5576800195_a_torus_asking_beyond_its_circles_is_declined_and_counted_no_answer() {
-    random_solids::holds_exactly(&Case::new(
+fn seed_5576800195_a_quarter_torus_clear_of_the_prisms_its_whole_torus_meets_is_held_not_declined()
+{
+    let case = Case::new(
         Leaf::prism(
             Plane::xy(-10.0),
             Outline::slot([25.0, 25.0], [25.0, 0.0], 10.0),
@@ -5083,7 +5089,35 @@ fn seed_5576800195_a_torus_asking_beyond_its_circles_is_declined_and_counted_no_
                 10.0,
             )),
         ],
-    ));
+    );
+    let whole = (DVec3::new(10.0, -5.0, -35.0), DVec3::new(70.0, 0.0, 25.0));
+    let swept = (DVec3::new(40.0, -5.0, -5.0), DVec3::new(67.5, 0.0, 22.5));
+    let meet = |(low, high): (DVec3, DVec3), (from, to): (DVec3, DVec3)| {
+        low.cmple(to).all() && from.cmple(high).all()
+    };
+    let prisms: Vec<(DVec3, DVec3)> = case
+        .leaves()
+        .filter(|leaf| matches!(leaf, Leaf::Prism { .. }))
+        .map(|leaf| leaf.bounds().expect("a prism has a box"))
+        .collect();
+    assert!(
+        prisms.iter().any(|&boxed| meet(boxed, whole)),
+        "the whole torus's box {whole:?} meets a prism's among {prisms:?}"
+    );
+    assert!(
+        prisms.iter().all(|&boxed| !meet(boxed, swept)),
+        "the groove's own box {swept:?} meets no prism's among {prisms:?}"
+    );
+    let measured = random_solids::held_to_arithmetic(&case, &Exact)
+        .unwrap_or_else(|flaw| panic!("{:?} broke the rule: {flaw:?}\n{case}", flaw.rule()));
+    assert_eq!(
+        measured.declined, 0,
+        "the kernel holds the case, declining none of it"
+    );
+    assert!(
+        !case.asks_a_round_beyond_its_circles(),
+        "the excuse asks the case no more"
+    );
 }
 
 #[test]

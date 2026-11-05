@@ -163,11 +163,17 @@ It can:
   of its arc whichever way the part is turned, and a hole drawn as one
   whole turn is read from where its turn starts as well as round it — so
   at most one face is consumed whole, and `Chamfered` reports the distance
-  asked and the distance taken. The cut is a slab standing on the
-  chamfer's plane, running past the body's box at both ends of the edge,
-  cut from the body (`Wedge`); its floor is the one face the step names,
-  numbered where the steps' numbers ended, and the count moves on by one,
-  so no other face changes its number. The chamfer is trimmed by the faces
+  asked and the distance taken. The cut is a prism raised along the edge
+  and cut from the body (`Wedge`): in a section square to the edge, the
+  wedge between the chamfer's plane and the edge's two faces, each pushed
+  out by an eighth of the distance — never less than twice `Scale::HAIR`
+  tolerances, so that no face of the prism lies nearly flush with one of
+  the body's — carried over the body's box along the edge's line and as far
+  past either end. It reaches little further than the part, which matters:
+  a result carries the larger reach of its operands, and every later step
+  decides and draws at it. Its wall on the chamfer's plane is the one face
+  the step names, numbered where the steps' numbers ended, and the count
+  moves on by one, so no other face changes its number. The chamfer is trimmed by the faces
   it meets at the edge's ends, as the usual CAD tools trim it: where one
   of them leaves the edge at an obtuse corner, or a round meets the edge's
   end at a few degrees, the chamfer's face runs on past the end corner
@@ -184,8 +190,8 @@ It can:
   the run drawn tangent to it and well below any corner a hand draws — or
   one whose cut, carried along the edge's line, would take matter beyond
   the faces it meets at its ends. That last one checks what the cut left:
-  no face of the slab but its floor, the floor in one piece, each of its
-  corners on one of the edge's faces, and every face the body held still
+  no face of the prism but its chamfer, the chamfer in one piece, each of
+  its corners on one of the edge's faces, and every face the body held still
   there but the edge's two, which the chamfer may consume. So an edge
   ending at a concave corner where a flat wall leaves it — an arm's edge
   running into the stem of an L, a pocket's rim — is declined: the cut

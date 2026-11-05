@@ -1022,10 +1022,11 @@ fn a_chamfer_whose_cut_carried_along_its_edge_would_run_into_the_l_s_stem_is_dec
 }
 
 /// The block a chamfer of 3 is asked on its top front edge, 30 long, 10 deep
-/// and 20 high. Today the cut is a slab on the chamfer's plane, z − y = 17,
-/// as long as the part's box along the edge and 3 more at each end, its sides
-/// where y + z is 14 and 26, its top where z − y is 17 + 6√2: the shapes
-/// below are drawn against it.
+/// and 20 high. Today the cut is a prism along the edge over the wedge the
+/// chamfer takes, each of the edge's two faces pushed out by an eighth of
+/// the distance: z − y ≥ 17, z ≤ 20.375 and y ≥ −0.375, from 0.375 before the
+/// part's box along the edge to 0.375 past it. The shapes below are drawn
+/// against it, each to be caught by one guard alone.
 fn block_to_chamfer() -> Body {
     block([30.0, 10.0, 20.0])
 }
@@ -1044,14 +1045,14 @@ fn declined_on_the_top_front_edge(part: &Body, what: &str) {
 fn a_chamfer_whose_cut_would_take_a_tab_beside_its_edge_away_whole_is_declined_as_unsupported() {
     let tabbed = joined_to(
         &block_to_chamfer(),
-        Contour::rectangle(DVec2::new(-1.0, 0.2), DVec2::new(0.0, 1.0)),
+        Contour::rectangle(DVec2::new(-0.3, 0.2), DVec2::new(0.0, 1.0)),
         19.0,
         0.8,
     );
 
     declined_on_the_top_front_edge(
         &tabbed,
-        "a tab on the left side, wholly above the chamfer's plane",
+        "a tab on the left side, wholly above the chamfer's plane and within the cut",
     );
 }
 
@@ -1059,14 +1060,14 @@ fn a_chamfer_whose_cut_would_take_a_tab_beside_its_edge_away_whole_is_declined_a
 fn a_chamfer_whose_cut_would_take_away_a_lump_clear_of_its_edge_is_declined_as_unsupported() {
     let with_a_lump = joined_to(
         &block_to_chamfer(),
-        Contour::rectangle(DVec2::new(10.0, -1.0), DVec2::new(12.0, -0.5)),
-        20.5,
-        0.5,
+        Contour::rectangle(DVec2::new(10.0, -0.3), DVec2::new(12.0, -0.1)),
+        20.1,
+        0.2,
     );
 
     declined_on_the_top_front_edge(
         &with_a_lump,
-        "a lump standing clear in front of the edge and above it",
+        "a lump standing clear of the edge, in front of it and above it, wholly within the cut",
     );
 }
 
@@ -1095,7 +1096,7 @@ fn a_chamfer_whose_cut_carried_along_its_edge_would_reach_a_second_block_in_line
 fn a_chamfer_whose_cut_would_bite_into_a_rib_beside_its_edge_is_declined_as_unsupported() {
     let ribbed = joined_to(
         &block_to_chamfer(),
-        Contour::rectangle(DVec2::new(-1.0, 0.2), DVec2::new(0.0, 3.5)),
+        Contour::rectangle(DVec2::new(-0.3, 0.2), DVec2::new(0.0, 3.5)),
         10.0,
         9.8,
     );
@@ -1107,17 +1108,58 @@ fn a_chamfer_whose_cut_would_bite_into_a_rib_beside_its_edge_is_declined_as_unsu
 }
 
 #[test]
-fn a_chamfer_whose_cut_would_run_into_a_lump_above_its_face_is_declined_as_unsupported() {
+fn a_chamfer_whose_cut_would_run_into_a_lump_in_front_of_its_edge_is_declined_as_unsupported() {
     let with_a_lump = joined_to(
         &block_to_chamfer(),
-        Contour::rectangle(DVec2::new(10.0, -6.0), DVec2::new(12.0, -2.5)),
-        15.0,
-        6.0,
+        Contour::rectangle(DVec2::new(10.0, -1.0), DVec2::new(12.0, -0.2)),
+        19.0,
+        2.0,
     );
 
     declined_on_the_top_front_edge(
         &with_a_lump,
-        "a lump clear of the chamfer's plane, crossing the cut's top and its side",
+        "a lump in front of the edge crossing the cut's front and its top, clear of the \
+         chamfer's plane, every face of it kept in part",
+    );
+}
+
+#[test]
+fn a_chamfer_leaves_a_lump_standing_clear_of_its_cut_whole() {
+    let block = block_to_chamfer();
+    let with_a_lump = joined_to(
+        &block,
+        Contour::rectangle(DVec2::new(10.0, -1.0), DVec2::new(12.0, -0.5)),
+        20.5,
+        0.5,
+    );
+    let edge = edge_between(&with_a_lump, TOP, FRONT);
+
+    let chamfered = with_a_lump
+        .chamfer(&edge, 3.0)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "a lump in front of the edge and above it, clear of the cut";
+    taken_whole(&chamfered, 3.0, what);
+    let body = &chamfered.body;
+    let lump = 2.0 * 0.5 * 0.5;
+    sound(body, 6000.0 - 30.0 * 3.0 * 3.0 / 2.0 + lump, what);
+    let mut kept_and_made = numbers(&with_a_lump);
+    kept_and_made.insert(with_a_lump.faces_end());
+    assert_eq!(
+        numbers(body),
+        kept_and_made,
+        "{what}: every face of the block and of the lump, and the chamfer"
+    );
+    corners_are(
+        body,
+        with_a_lump.faces_end(),
+        &[
+            DVec3::new(0.0, 3.0, 20.0),
+            DVec3::new(30.0, 3.0, 20.0),
+            DVec3::new(30.0, 0.0, 17.0),
+            DVec3::new(0.0, 0.0, 17.0),
+        ],
+        what,
     );
 }
 

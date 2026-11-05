@@ -1,6 +1,7 @@
-//! The cut a chamfer makes: a slab standing on the plane set back by the
-//! distance along each of the edge's two faces, raised past the edge and
-//! cut from the body. Its floor is the one face the step names.
+//! The cut a chamfer makes: a prism raised along the edge over the wedge
+//! between the edge's two faces and the plane set back by the distance
+//! along each, cut from the body. Its wall on that plane is the one face
+//! the step names.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -9,7 +10,7 @@ use glam::{DVec2, DVec3};
 
 use super::{Exact, PIECES, root};
 use crate::body::caught::caught;
-use crate::brep::{self, Coedge, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Surface};
+use crate::brep::{self, Coedge, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Scale, Surface};
 use crate::profile::{Contour, Frame};
 
 /// A straight edge between two flat faces meeting outwards: a point of it,
@@ -38,9 +39,9 @@ impl Exact {
     /// edge of a face, and a cut that, carried along the edge's line, takes
     /// matter beyond the faces it meets there — a flat wall leaving the edge
     /// at a concave corner, which the cut would run on along — seen as a face
-    /// of the slab but its floor left on the body, the floor in two pieces or
-    /// with a corner on neither of the edge's faces, or a face the body
-    /// held, but the edge's two, taken away whole.
+    /// of the prism but its chamfer left on the body, the chamfer in two
+    /// pieces or with a corner on neither of the edge's faces, or a face the
+    /// body held, but the edge's two, taken away whole.
     pub fn chamfered(&self, name: &EdgeName, distance: f64) -> Result<(Exact, f64), Declined> {
         if distance.is_nan() || distance < self.brep.scale().eps() {
             return Err(Declined::Distance);
@@ -53,10 +54,17 @@ impl Exact {
             let wedge = Wedge::of(&self.brep, edge)?;
             let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
             let taken = distance.min(wedge.reach);
-            let (outline, frame, travel) = wedge.slab(taken, bounds);
+            let margin = (taken * MARGIN).max(2.0 * Scale::HAIR * self.brep.scale().eps());
+            let (outline, frame, travel) = wedge.prism(taken, margin, bounds);
+            let raised = Exact::raised(&outline, &[], frame, travel)?;
             let tool = Exact {
+                brep: raised.brep.renumbered_by(|number| match number {
+                    0 => CHAMFER,
+                    CHAMFER => 0,
+                    other => other,
+                }),
                 next: 1,
-                ..Exact::raised(&outline, &[], frame, travel)?
+                ..raised
             };
             let cut = self.cut_by(&tool)?;
             if cut.cut_along(&wedge, self) {
@@ -67,10 +75,10 @@ impl Exact {
         })
     }
 
-    /// Whether the slab left its floor alone on the body, numbered where the
-    /// steps' numbers of `before` ended, in one piece, every corner of it on
-    /// one of the edge's two faces — where the faces met at the edge's ends
-    /// trim it — and every face `before` held but those two still there.
+    /// Whether the prism left its chamfer alone on the body, numbered where
+    /// the steps' numbers of `before` ended, in one piece, every corner of it
+    /// on one of the edge's two faces — where the faces met at the edge's
+    /// ends trim it — and every face `before` held but those two still there.
     fn cut_along(&self, wedge: &Wedge, before: &Exact) -> bool {
         let made = before.next;
         let eps = self.brep.scale().eps();
@@ -156,28 +164,53 @@ impl Wedge {
         })
     }
 
-    /// The slab whose floor is the chamfer's plane: as long as the body's box
-    /// along the edge and a distance more at each end, twice the chamfer's
-    /// width across, and twice the distance high, which clears the edge.
-    /// Nothing of it but its floor meets the two faces.
-    fn slab(&self, distance: f64, (low, high): (DVec3, DVec3)) -> (Contour, Frame, DVec3) {
-        let [into_first, into_second] = self.into;
-        let facing = (self.outward[0] + self.outward[1]).normalize();
+    /// The prism the chamfer is cut with, raised along the edge: in a
+    /// section square to it, the wedge between the chamfer's plane and the
+    /// edge's two faces, each face pushed out by `margin`, its first run on
+    /// the chamfer's plane; carried over the body's box along the edge's
+    /// line and `margin` past either end. Nothing of it but that run meets
+    /// the two faces near the edge, and the part reaches little further.
+    fn prism(
+        &self,
+        distance: f64,
+        margin: f64,
+        (low, high): (DVec3, DVec3),
+    ) -> (Contour, Frame, DVec3) {
+        let [first, second] = self.outward;
+        let [on_first, on_second] = self.into.map(|into| into * distance);
+        let across = (on_first - on_second).normalize();
+        let corners = [
+            on_second - across * (margin / -second.dot(across)),
+            on_first + across * (margin / first.dot(across)),
+            (first + second) * (margin / (1.0 + first.dot(second))),
+        ];
+        let middle = self.along.dot((low + high) / 2.0 - self.point);
+        let half = self.along.abs().dot((high - low) / 2.0) + margin;
         let frame = Frame {
-            origin: self.point + (into_first + into_second) * distance / 2.0,
-            u: self.along,
-            v: facing.cross(self.along),
+            origin: self.point + self.along * (middle - half),
+            u: across,
+            v: self.along.cross(across),
         };
-        let middle = self.along.dot((low + high) / 2.0 - frame.origin);
-        let length = self.along.abs().dot((high - low) / 2.0) + distance;
-        let width = (into_first - into_second).length() * distance;
-        let outline = Contour::rectangle(
-            DVec2::new(middle - length, -width),
-            DVec2::new(middle + length, width),
+        let outline = Contour::straight(
+            corners
+                .map(|corner| DVec2::new(corner.dot(frame.u), corner.dot(frame.v)))
+                .to_vec(),
         );
-        (outline, frame, frame.normal() * 2.0 * distance)
+        (outline, frame, self.along * 2.0 * half)
     }
 }
+
+/// The number a raise gives the wall of its profile's first run.
+const CHAMFER: u32 = 2;
+
+/// How far the prism stands off the edge's two faces, and past the body's
+/// box along the edge, as a share of the distance taken: far enough that no
+/// face of it lies nearly flush with one of the body's, near enough that
+/// the part's reach, which every later step's tolerance is taken against,
+/// grows by an eighth of the distance at a square edge. Never nearer than
+/// twice the furthest the kernel moves one operand onto another's face
+/// (`Scale::HAIR` tolerances), which would lay the two flush.
+const MARGIN: f64 = 0.125;
 
 /// How far a face runs along `into` from the edge's line through `point`:
 /// to the nearest corner of its boundary off that line, or to the nearest

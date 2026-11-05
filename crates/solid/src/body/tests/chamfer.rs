@@ -217,3 +217,75 @@ fn every_body_a_chamfer_leaves_lists_what_it_is_made_of_as_its_geometry_stands()
         );
     }
 }
+
+/// A block 16 wide and 25 high whose back is an arc of radius 10 about
+/// `(8, 12)`, from `(16, 18)` over its crest at `(8, 22)` to `(0, 18)`: the
+/// top one, the front two.
+fn arc_backed() -> Body {
+    joined(
+        &Body::default(),
+        Contour {
+            corners: vec![
+                DVec2::ZERO,
+                DVec2::new(16.0, 0.0),
+                DVec2::new(16.0, 18.0),
+                DVec2::new(0.0, 18.0),
+            ],
+            runs: vec![
+                Run::Straight,
+                Run::Straight,
+                Run::Round {
+                    center: DVec2::new(8.0, 12.0),
+                    turn: PI - 2.0 * 0.75f64.atan(),
+                },
+                Run::Straight,
+            ],
+        },
+        25.0,
+    )
+}
+
+/// How far the kernel reads a body as reaching, which every tolerance of a
+/// later step on it is taken against.
+fn reach_of(body: &Body) -> f64 {
+    body.brep().expect("an exact body").scale().reach()
+}
+
+#[test]
+fn a_chamfer_leaves_the_part_s_reach_as_it_was_within_a_quarter_of_its_distance() {
+    let arc_backed = arc_backed();
+    let arc_front = between(&arc_backed, &[1], &[2]);
+    let block = block([30.0, 10.0, 20.0]);
+    let block_front = between(&block, &[1], &[2]);
+    let cases = [
+        ("the arc-backed part by 1", &arc_backed, &arc_front, 1.0),
+        ("the arc-backed part by 5", &arc_backed, &arc_front, 5.0),
+        (
+            "the arc-backed part by 18, all its top gives",
+            &arc_backed,
+            &arc_front,
+            18.0,
+        ),
+        ("the block by 3", &block, &block_front, 3.0),
+        (
+            "the block asked 50, taking the 10 its top gives",
+            &block,
+            &block_front,
+            50.0,
+        ),
+    ];
+
+    for (what, part, name, distance) in cases {
+        let chamfered = part
+            .chamfer(name, distance)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        let (before, after) = (reach_of(part), reach_of(&chamfered.body));
+        assert!(
+            after <= before + chamfered.taken / 4.0,
+            "{what}: the part reached {before} and reaches {after} after a chamfer of {}: \
+             every later step would read it coarser",
+            chamfered.taken
+        );
+    }
+}

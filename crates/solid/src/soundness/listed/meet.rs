@@ -13,7 +13,7 @@
 
 use glam::DVec3;
 
-use crate::brep::{Meet, Scale, Wall};
+use crate::brep::{Cylinder, EllipticCylinder, Meet, Scale, Wall};
 
 /// Below this, relative to the size of the pair, an end of the span is
 /// where both walls reach: the kernel's own reading, since which ends a
@@ -21,28 +21,33 @@ use crate::brep::{Meet, Scale, Wall};
 const ROUNDING: f64 = 256.0 * f64::EPSILON;
 
 /// The place an elliptic meet reaches at its parameter `at`.
+/// Not a number where a wall of the pair is a cone, which the formula does
+/// not read.
 pub(super) fn point(meet: &Meet, at: f64) -> DVec3 {
-    let third = axis(&meet.first);
-    let along = axis(&meet.second);
+    let (Some(one), Some(other)) = (Round::of(&meet.first), Round::of(&meet.second)) else {
+        return DVec3::NAN;
+    };
+    let third = axis(&one);
+    let along = axis(&other);
     let square = 2.0 * third.dot(along).abs() <= Scale::RELATIVE;
-    let one = if square {
+    let side = if square {
         (along - third * third.dot(along)).normalize()
     } else {
         normal(third, along).cross(third).normalize()
     };
-    let two = third.cross(one);
+    let two = third.cross(side);
     let across = if square {
         third
     } else {
         along.cross(two).normalize()
     };
-    let between = origin(&meet.second) - origin(&meet.first);
+    let between = origin(&other) - origin(&one);
     let (d, e) = (between.dot(two), between.dot(across));
-    let [first, second] = [(&meet.first, one), (&meet.second, across)]
+    let [first, second] = [(&one, side), (&other, across)]
         .map(|(wall, across)| (reach(wall, two), chord(wall, across, two)));
     let (a, b) = (first.0, second.0);
-    let size = 1.0 + origin(&meet.first).length() + origin(&meet.second).length();
-    let rounding = ROUNDING * (size + extent(&meet.first) + extent(&meet.second));
+    let size = 1.0 + origin(&one).length() + origin(&other).length();
+    let rounding = ROUNDING * (size + extent(&one) + extent(&other));
     let (mut low, mut high) = ((-a).max(d - b), a.min(d + b));
     let mut x_gaps = [low + a, a - high];
     let mut z_gaps = [low - (d - b), (d + b) - high];
@@ -74,10 +79,10 @@ pub(super) fn point(meet: &Meet, at: f64) -> DVec3 {
     let x = x_middle * y + signs[0] * x_half * root(x_gaps);
     let z = e + z_middle * (y - d) + signs[1] * z_half * root(z_gaps);
     if square {
-        return origin(&meet.first) + one * x + two * y + third * z;
+        return origin(&one) + side * x + two * y + third * z;
     }
-    let foot = one * x + two * y;
-    origin(&meet.first) + foot + third * ((z - foot.dot(across)) / third.dot(across))
+    let foot = side * x + two * y;
+    origin(&one) + foot + third * ((z - foot.dot(across)) / third.dot(across))
 }
 
 /// The normal of two directions, each component's two products kept apart
@@ -101,36 +106,48 @@ pub(super) fn elliptic(meet: &Meet) -> bool {
     has(|wall| matches!(wall, Wall::Elliptic(_))) && !has(|wall| matches!(wall, Wall::Cone(_)))
 }
 
-fn axis(wall: &Wall) -> DVec3 {
-    match wall {
-        Wall::Cylinder(cylinder) => cylinder.axis.normalize(),
-        Wall::Elliptic(oval) => oval.axis.normalize(),
-        Wall::Cone(cone) => cone.axis.normalize(),
+/// A wall the formula reads: a cylinder or an elliptic wall.
+enum Round<'a> {
+    Cylinder(&'a Cylinder),
+    Elliptic(&'a EllipticCylinder),
+}
+
+impl Round<'_> {
+    fn of(wall: &Wall) -> Option<Round<'_>> {
+        match wall {
+            Wall::Cylinder(cylinder) => Some(Round::Cylinder(cylinder)),
+            Wall::Elliptic(oval) => Some(Round::Elliptic(oval)),
+            Wall::Cone(_) => None,
+        }
     }
 }
 
-fn origin(wall: &Wall) -> DVec3 {
+fn axis(wall: &Round) -> DVec3 {
     match wall {
-        Wall::Cylinder(cylinder) => cylinder.origin,
-        Wall::Elliptic(oval) => oval.origin,
-        Wall::Cone(cone) => cone.origin,
+        Round::Cylinder(cylinder) => cylinder.axis.normalize(),
+        Round::Elliptic(oval) => oval.axis.normalize(),
     }
 }
 
-fn extent(wall: &Wall) -> f64 {
+fn origin(wall: &Round) -> DVec3 {
     match wall {
-        Wall::Cylinder(cylinder) => cylinder.radius,
-        Wall::Elliptic(oval) => oval.major,
-        Wall::Cone(cone) => cone.foot.y.abs(),
+        Round::Cylinder(cylinder) => cylinder.origin,
+        Round::Elliptic(oval) => oval.origin,
+    }
+}
+
+fn extent(wall: &Round) -> f64 {
+    match wall {
+        Round::Cylinder(cylinder) => cylinder.radius,
+        Round::Elliptic(oval) => oval.major,
     }
 }
 
 /// How far a wall reaches from its axis along `way`, square to it.
-fn reach(wall: &Wall, way: DVec3) -> f64 {
+fn reach(wall: &Round, way: DVec3) -> f64 {
     match wall {
-        Wall::Cylinder(cylinder) => cylinder.radius,
-        Wall::Cone(cone) => cone.foot.y.abs(),
-        Wall::Elliptic(oval) => {
+        Round::Cylinder(cylinder) => cylinder.radius,
+        Round::Elliptic(oval) => {
             let [u, v] = [oval.u.normalize(), oval.v.normalize()];
             (oval.major * way.dot(u)).hypot(oval.minor * way.dot(v))
         }
@@ -142,10 +159,10 @@ fn reach(wall: &Wall, way: DVec3) -> f64 {
 /// root `√((w − h)(w + h))` is worth along it. The section is
 /// `a c² + 2 b h c + c' h² = 1` in `(c, h)`, so the middle is `−b h / a`,
 /// and the discriminant is `(w² − h²)/(A² B²)`, `w = A B √a`.
-fn chord(wall: &Wall, across: DVec3, way: DVec3) -> [f64; 2] {
+fn chord(wall: &Round, across: DVec3, way: DVec3) -> [f64; 2] {
     match wall {
-        Wall::Cylinder(_) | Wall::Cone(_) => [0.0, 1.0],
-        Wall::Elliptic(oval) => {
+        Round::Cylinder(_) => [0.0, 1.0],
+        Round::Elliptic(oval) => {
             let [u, v] = [oval.u.normalize(), oval.v.normalize()];
             let (major, minor) = (oval.major, oval.minor);
             let [cu, cv] = [across.dot(u) / major, across.dot(v) / minor];

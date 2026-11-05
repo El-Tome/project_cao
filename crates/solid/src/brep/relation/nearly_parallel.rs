@@ -135,10 +135,11 @@ pub(in crate::brep) fn too_near_to_build(
 
 /// Whether a cone and a wall, at any angle, come closer to each other than
 /// the coarsest drawn chord's sag without meeting within the tolerance, at
-/// a place where their faces may meet: at a nearest approach of the cone's
-/// rulings to the other wall (`meet::nearest_approaches`), the gap is over
-/// `eps` and under the larger of the two walls' sags there, each cut into
-/// `divisions(size, COARSEST_DRAWN · reach)` steps. Their triangles would
+/// a place where their faces may meet: at a nearest approach of one cone's
+/// rulings to the other wall (`meet::nearest_approaches`), the gap to the
+/// wall the point does not lie on is over `eps` and under the larger of the
+/// two walls' sags there, each cut into `divisions(size, COARSEST_DRAWN ·
+/// reach)` steps. Their triangles would
 /// have to be sampled in common there, as `tessellation/contact` does for
 /// two cylinders and not yet for a cone (#706).
 pub(in crate::brep) fn grazing(
@@ -161,16 +162,19 @@ pub(in crate::brep) fn grazing(
         Wall::Elliptic(oval) => oval.major,
         Wall::Cone(cone) => cone.off_axis(point),
     };
-    nearest_approaches(&cone, &wall).into_iter().any(|point| {
-        let room = sag(size(&Wall::Cone(cone), point)).max(sag(size(&wall, point)));
-        let apart = gap(&wall, point);
-        apart > scale.eps()
-            && apart <= room
-            && within.iter().any(|[low, high]| {
-                point.cmpge(*low - DVec3::splat(room)).all()
-                    && point.cmple(*high + DVec3::splat(room)).all()
-            })
-    })
+    nearest_approaches(&cone, &wall)
+        .into_iter()
+        .any(|(point, on)| {
+            let room = sag(size(&Wall::Cone(cone), point)).max(sag(size(&wall, point)));
+            let away = if on == wall { Wall::Cone(cone) } else { wall };
+            let apart = gap(&away, point);
+            apart > scale.eps()
+                && apart <= room
+                && within.iter().any(|[low, high]| {
+                    point.cmpge(*low - DVec3::splat(room)).all()
+                        && point.cmple(*high + DVec3::splat(room)).all()
+                })
+        })
 }
 
 /// Whether two walls in the band stand closer to each other than a chord's

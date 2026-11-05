@@ -20,10 +20,9 @@ use crate::brep::surface::{Cone, Plane, Surface};
 /// rulings (`meet/ruled.rs`); unsupported where a ruling does not meet the
 /// other in a true quadratic — a wall's axis along a ruling of the cone, at
 /// the cone's own slope to its axis, where the curve runs off to infinity —
-/// within a hair of coaxial, where the
-/// curve is all but a circle of each and the boolean reads the two faces as
-/// too near to part (seed 5361127255), and where an apex stands on the other
-/// wall.
+/// within a hair of coaxial, where the curve is all but a circle of each
+/// and the boolean reads the two faces as too near to part (seed
+/// 5361127255), and where an apex stands on the other wall.
 fn ruled(cone: &Cone, wall: &Wall, scale: Scale) -> Relation {
     let hair = Scale::of(scale.reach() * Scale::HAIR);
     if !steady(cone, wall)

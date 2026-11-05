@@ -8,7 +8,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::{DVec2, DVec3};
 
-use super::{Lap, Ruled};
+use super::{Lap, Ruled, halved};
 
 /// How many steps round a lap the other wall's angle is unwrapped over, at
 /// the least — the table where it reaches a value or turns back is found
@@ -18,8 +18,6 @@ const AROUND: usize = 256;
 const LEAP: f64 = PI / 8.0;
 const DEEPEST: u32 = 40;
 const MOST: usize = 16 * AROUND;
-/// Enough halvings to bring a bracket down to the rounding of a parameter.
-const HALVINGS: usize = 64;
 /// The step central differences are taken over, in the parameter.
 const STEP: f64 = 1e-5;
 
@@ -201,7 +199,9 @@ impl Ruled {
     }
 
     /// Every parameter in the first turn where lap `lap` turns back in the
-    /// angle of the cone, or of the other wall, sorted.
+    /// angle of the cone, or of the other wall, sorted: on the other wall,
+    /// across the seam too, the table's last step before it read a turn
+    /// back, shifted by the turns the lap winds.
     pub fn turns(&self, lap: &Lap, on_cone: bool) -> Vec<f64> {
         if on_cone {
             return match lap.span {
@@ -214,14 +214,22 @@ impl Ruled {
             p.perp_dot(self.flat(self.derivative(lap, t)))
         };
         let around = &lap.around;
+        let count = around.len();
+        let winding = around[count - 1][1] - around[0][1];
+        let at = |rank: usize| around[rank];
         let mut found = Vec::new();
-        for rank in 1..around.len().saturating_sub(1) {
-            let [before, here, after] = [rank - 1, rank, rank + 1].map(|rank| around[rank][1]);
-            if (here - before).signum() != (after - here).signum() {
-                let [from, to] = [around[rank - 1][0], around[rank + 1][0]];
-                if turn(from).signum() != turn(to).signum() {
-                    found.push(halved(turn, from, to).rem_euclid(TAU));
-                }
+        for rank in 0..count.saturating_sub(1) {
+            let [before_t, before] = if rank == 0 {
+                let [t, angle] = at(count - 2);
+                [t - TAU, angle - winding]
+            } else {
+                at(rank - 1)
+            };
+            let ([_, here], [after_t, after]) = (at(rank), at(rank + 1));
+            if (here - before).signum() != (after - here).signum()
+                && turn(before_t).signum() != turn(after_t).signum()
+            {
+                found.push(halved(turn, before_t, after_t).rem_euclid(TAU));
             }
         }
         found.sort_by(f64::total_cmp);
@@ -273,17 +281,4 @@ fn unwrap(
     }
     unwrap(angle, from, middle, unwrapped, depth - 1);
     unwrap(angle, middle, to, unwrapped, depth - 1);
-}
-
-fn halved(f: impl Fn(f64) -> f64, mut from: f64, mut to: f64) -> f64 {
-    let start = f(from).signum();
-    for _ in 0..HALVINGS {
-        let middle = (from + to) / 2.0;
-        if f(middle).signum() == start {
-            from = middle;
-        } else {
-            to = middle;
-        }
-    }
-    (from + to) / 2.0
 }

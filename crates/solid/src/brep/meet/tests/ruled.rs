@@ -1,0 +1,91 @@
+//! The curve a cone meets a wall along, read along the cone's rulings (#577),
+//! across the seam where a lap's parameter comes back to nought.
+
+use std::f64::consts::{PI, TAU};
+
+use glam::{DVec2, DVec3};
+
+use super::super::*;
+use super::scale;
+use crate::brep::curve::Wall;
+use crate::brep::surface::{Cone, Cylinder};
+
+/// A cone of `degrees` from its apex at `apex` along `axis`.
+fn pin(apex: DVec3, axis: DVec3, degrees: f64) -> Cone {
+    let slope = degrees.to_radians().tan();
+    Cone::through(apex, axis, [DVec2::ZERO, DVec2::new(12.0, 12.0 * slope)])
+}
+
+/// A pin of five degrees, its apex four radii above a rod of radius two
+/// lying along Y, leaning towards X until its steepest ruling touches the
+/// rod's side: every other ruling crosses the rod twice.
+fn touching_the_rod() -> (Wall, Wall) {
+    let edge = (2.0f64 / 8.0).asin();
+    let lean = edge - 5f64.to_radians();
+    let pin = pin(
+        DVec3::new(0.0, 0.0, 8.0),
+        DVec3::new(lean.sin(), 0.0, -lean.cos()),
+        5.0,
+    );
+    let rod = Cylinder::about(DVec3::ZERO, DVec3::Y, 2.0);
+    (Wall::Cone(pin), Wall::Cylinder(rod))
+}
+
+#[test]
+fn a_lap_round_a_cone_through_a_single_node_closes_on_itself() {
+    let (pin, rod) = touching_the_rod();
+    let read = ruled(&pin, &rod).expect("the pin's rulings are read against the rod");
+    assert_eq!(read.configuration, Configuration::TwoEllipses);
+    assert_eq!(read.doubles.len(), 1, "{:?}", read.doubles);
+    for component in 0..2 {
+        let meet = Meet {
+            first: pin,
+            second: rod,
+            component,
+        };
+        let period = meet.period().expect("each lap closes on itself");
+        let [start, end] = [meet.point(0.0), meet.point(period)];
+        assert!(
+            start.distance(end) <= scale().eps(),
+            "lap {component} starts at {start} and ends at {end}"
+        );
+    }
+}
+
+/// A pin of five degrees standing straight over a rod of radius two along
+/// its own `v`, the rod turned `degrees` about the pin's axis: the curve on
+/// the rod turns back in the rod's angle where the pin's own is nought,
+/// along the rod, and at a half-turn.
+fn over_the_rod(degrees: f64) -> (Wall, Wall) {
+    let pin = pin(DVec3::new(0.0, 0.0, 8.0), -DVec3::Z, 5.0);
+    let (sin, cos) = degrees.to_radians().sin_cos();
+    let along = pin.v * cos - pin.u * sin;
+    let rod = Cylinder::about(DVec3::ZERO, along, 2.0);
+    (Wall::Cone(pin), Wall::Cylinder(rod))
+}
+
+#[test]
+fn a_lap_turning_back_on_the_other_wall_at_its_seam_turns_there() {
+    let step = TAU / 256.0;
+    for degrees in [0.0, 0.3] {
+        let (pin, rod) = over_the_rod(degrees);
+        for component in 0..2 {
+            let meet = Meet {
+                first: pin,
+                second: rod,
+                component,
+            };
+            assert!(meet.period().is_some(), "lap {component} at {degrees}°");
+            let turns = meet.turns(false);
+            for (place, name) in [(0.0, "its seam"), (PI, "a half-turn")] {
+                assert!(
+                    turns.iter().any(|&t| {
+                        let off = (t - place).rem_euclid(TAU);
+                        off.min(TAU - off) < step && meet.seen_on(false, t)[1].x.abs() < 1e-9
+                    }),
+                    "lap {component} at {degrees}° turns back at {name}, found {turns:?}"
+                );
+            }
+        }
+    }
+}

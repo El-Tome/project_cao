@@ -143,9 +143,9 @@ pub(in crate::brep) fn moved_instead(
     ))
 }
 
-/// The meeting of a cone and a cylinder or an elliptic wall, read along the
-/// cone's rulings, the cone first; a pair of two cones meets in nothing the
-/// kernel builds. None for a pair with no cone.
+/// The meeting of a cone and a cylinder, an elliptic wall or another cone,
+/// read along the cone's rulings, the cone first — of two cones, the one
+/// whose least `A` is the larger. None for a pair with no cone.
 fn coned(one: &Wall, other: &Wall, eps: f64) -> Option<Meeting> {
     let (cone, wall) = match (one, other) {
         (Wall::Cone(first), Wall::Cone(second)) => {

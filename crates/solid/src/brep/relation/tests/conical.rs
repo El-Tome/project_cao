@@ -554,3 +554,34 @@ fn a_cylinder_closer_to_a_cone_than_a_chord_s_sag_but_apart_grazes_it() {
     assert!(!grazes(0.0), "touching");
     assert!(!grazes(0.1 * REACH), "a tenth of the reach apart");
 }
+
+/// A cone of ten degrees about an axis leaning five off Z, its apex a
+/// ten-thousandth of the reach outside the point's base and opening upward
+/// beside its wall: its rulings stand within the point's slope, so only the
+/// point's rulings are read against it.
+fn beside_the_point() -> Cone {
+    let lean = 5f64.to_radians();
+    cone(
+        DVec3::new(5.0 + 1e-4 * REACH, 0.0, 0.0),
+        DVec3::new(lean.sin(), 0.0, lean.cos()),
+        [0.0, 0.0],
+        [10.0, 10.0 * 10f64.to_radians().tan()],
+    )
+}
+
+#[test]
+fn two_cones_closer_than_a_chord_s_sag_but_apart_graze_whichever_is_read_along() {
+    let boxed = [[DVec3::new(-10.0, -10.0, -1.0), DVec3::new(10.0, 10.0, 11.0)]];
+    let (wide, narrow) = (point(), beside_the_point());
+    assert_eq!(between(&wide, &narrow), Relation::Apart);
+    let grazes = |one: &Cone, other: &Cone| {
+        super::grazing(
+            &Surface::Cone(*one),
+            &Surface::Cone(*other),
+            &boxed,
+            scale(),
+        )
+    };
+    assert!(grazes(&wide, &narrow), "the cone read along first");
+    assert!(grazes(&narrow, &wide), "the cone read along second");
+}

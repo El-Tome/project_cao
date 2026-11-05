@@ -106,14 +106,9 @@ impl Terms {
 }
 
 impl Ruled {
-    /// The least `A` round the cone, its rulings read against `other`, as a
-    /// share of the greatest: above `STEADY`, every ruling meets the other
-    /// wall in a true quadratic, its far root no further than the walls'
-    /// size over `STEADY`; and of two cones the one that gives it the
-    /// rulings. Sampled, then the least brought down by thirds, since a
-    /// ruling parallel to the other wall's axis is a double zero of `A`.
-    pub fn steadiness(cone: &Cone, other: &Wall) -> f64 {
-        let read = Ruled {
+    /// The pair before the curve is read: its terms alone, and no lap.
+    pub(super) fn unread(cone: &Cone, other: &Wall) -> Ruled {
+        Ruled {
             cone: *cone,
             other: Quadric::of(other),
             laps: Vec::new(),
@@ -123,7 +118,17 @@ impl Ruled {
             doubles: Vec::new(),
             turning: Vec::new(),
             rounding: 0.0,
-        };
+        }
+    }
+
+    /// The least `A` round the cone, its rulings read against `other`, as a
+    /// share of the greatest: above `STEADY`, every ruling meets the other
+    /// wall in a true quadratic, its far root no further than the walls'
+    /// size over `STEADY`; and of two cones the one that gives it the
+    /// rulings. Sampled, then the least brought down by thirds, since a
+    /// ruling parallel to the other wall's axis is a double zero of `A`.
+    pub fn steadiness(cone: &Cone, other: &Wall) -> f64 {
+        let read = Ruled::unread(cone, other);
         let a = |theta: f64| read.terms(theta).a[0];
         let step = TAU / SAMPLES as f64;
         let at = |rank: usize| step * rank as f64;
@@ -152,18 +157,7 @@ impl Ruled {
         if Ruled::steadiness(cone, other) <= STEADY {
             return None;
         }
-        let other = Quadric::of(other);
-        let mut ruled = Ruled {
-            cone: *cone,
-            other,
-            laps: Vec::new(),
-            configuration: Configuration::Apart,
-            contact: None,
-            zeros: Vec::new(),
-            doubles: Vec::new(),
-            turning: Vec::new(),
-            rounding: 0.0,
-        };
+        let mut ruled = Ruled::unread(cone, other);
         ruled.laid();
         Some(ruled)
     }
@@ -273,7 +267,7 @@ impl Ruled {
         for double in &self.doubles {
             let off = theta - (double + TAU * ((theta - double) / TAU).round());
             if off.abs() < NEAR_A_NODE {
-                let curve = curvature(|theta| self.discriminant(theta)[1], *double);
+                let curve = derivative_at(|theta| self.discriminant(theta)[1], *double);
                 return sign * off.abs() * (curve / 2.0).max(0.0).sqrt();
             }
         }
@@ -281,13 +275,26 @@ impl Ruled {
     }
 
     /// The sign of the root a lap runs on at `θ`, the half `positive` of
-    /// its span: across each node the branch going straight through.
+    /// its span: across each node the branch going straight through. A lap
+    /// round the cone counts its nodes from its start; through an odd number
+    /// of them it keeps its root, closing on itself with a corner at each —
+    /// going straight through, the two laps would be one curve round twice.
     pub fn sign(&self, lap: &Lap, theta: f64, positive: bool) -> f64 {
         let half = if positive { 1.0 } else { -1.0 };
-        lap.nodes.iter().fold(
-            lap.sign * half,
-            |sign, node| if theta < *node { -sign } else { sign },
-        )
+        let from = |angle: f64| match lap.span {
+            Some(_) => angle,
+            None => (angle - lap.start).rem_euclid(TAU),
+        };
+        if lap.span.is_none() && lap.nodes.len() % 2 == 1 {
+            return lap.sign * half;
+        }
+        lap.nodes.iter().fold(lap.sign * half, |sign, node| {
+            if from(theta) < from(*node) {
+                -sign
+            } else {
+                sign
+            }
+        })
     }
 
     /// The point where the ruling at `θ` touches the other wall: the double
@@ -354,7 +361,7 @@ pub(super) fn halved(f: impl Fn(f64) -> f64, mut from: f64, mut to: f64) -> f64 
 }
 
 /// The derivative of `f` at `x`, centred.
-pub(super) fn curvature(f: impl Fn(f64) -> f64, x: f64) -> f64 {
+pub(super) fn derivative_at(f: impl Fn(f64) -> f64, x: f64) -> f64 {
     let step = 1e-4;
     (f(x + step) - f(x - step)) / (2.0 * step)
 }

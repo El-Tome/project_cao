@@ -5,7 +5,7 @@
 
 use glam::{DVec2, DVec3};
 
-use super::{Quadric, Ruled};
+use super::{NEAR, Quadric, Ruled, angle_between};
 use crate::brep::curve::{Meet, Wall};
 use crate::brep::meet::{Meeting, Node, ruled};
 use crate::brep::surface::Cylinder;
@@ -36,29 +36,29 @@ pub(in crate::brep::meet) fn meeting(cone: &Wall, other: &Wall, eps: f64) -> Opt
 }
 
 /// Where the curve crosses itself, each node with the parameter of every
-/// pass of a component through it.
+/// pass of a component through it: two laps passing one node pass it at
+/// the angle of the same double zero of `D`, within `NEAR`.
 pub(in crate::brep::meet) fn nodes(read: &Ruled) -> Vec<Node> {
-    let mut nodes: Vec<Node> = Vec::new();
+    let mut nodes: Vec<(f64, Node)> = Vec::new();
     for (rank, lap) in read.laps.iter().enumerate() {
-        for node in &lap.nodes {
-            let point = read.touching(*node);
-            let on = read
-                .through(lap, *node)
-                .into_iter()
-                .map(|t| (rank as u8, t));
+        for &node in &lap.nodes {
+            let on = read.through(lap, node).into_iter().map(|t| (rank as u8, t));
             match nodes
                 .iter_mut()
-                .find(|known| known.point.distance(point) <= read.rounding)
+                .find(|(known, _)| angle_between(*known, node) <= NEAR)
             {
-                Some(known) => known.on.extend(on),
-                None => nodes.push(Node {
-                    point,
-                    on: on.collect(),
-                }),
+                Some((_, known)) => known.on.extend(on),
+                None => nodes.push((
+                    node,
+                    Node {
+                        point: read.touching(node),
+                        on: on.collect(),
+                    },
+                )),
             }
         }
     }
-    nodes
+    nodes.into_iter().map(|(_, node)| node).collect()
 }
 
 /// The other wall moved across its axis so that a touch within `eps` of

@@ -31,8 +31,10 @@ impl Meet {
     /// The point at `t` in the parameters `(θ, h)` of the first cylinder or of
     /// the second, with its first and second derivatives with respect to `t`.
     pub fn seen_on(&self, on_first: bool, t: f64) -> [DVec2; 3] {
-        if let Some((ruled, lap)) = self.ruled() {
-            return lap.map_or([DVec2::ZERO; 3], |lap| ruled.seen_on(&lap, on_first, t));
+        if let Some(read) = self.ruled() {
+            return self
+                .lap(&read)
+                .map_or([DVec2::NAN; 3], |lap| read.seen_on(lap, on_first, t));
         }
         let pair = self.pair();
         let signs = pair.signs(self.component);
@@ -93,9 +95,13 @@ impl Meet {
         t: f64,
     ) -> [DVec2; 3] {
         let [own, own_speed, own_bend] = self.seen_on(on_first, t);
-        let [point, speed, bend] = match self.ruled() {
-            Some((ruled, Some(lap))) => ruled.world(&lap, t),
-            _ => {
+        let ruled = self.ruled();
+        let [point, speed, bend] = match &ruled {
+            Some(read) => match self.lap(read) {
+                Some(lap) => read.world(lap, t),
+                None => return [DVec2::NAN; 3],
+            },
+            None => {
                 let pair = self.pair();
                 let [point, speed, bend] = pair.local(pair.signs(self.component), t);
                 let [speed, bend] = [speed, bend].map(|local| pair.direction(local));
@@ -128,8 +134,10 @@ impl Meet {
     /// that end, so where the component turns back at that angle it is found
     /// once rather than as two roots a square root of the rounding apart.
     pub fn at_angle(&self, on_first: bool, theta: f64) -> Vec<f64> {
-        if let Some((ruled, lap)) = self.ruled() {
-            return lap.map_or_else(Vec::new, |lap| ruled.at_angle(&lap, on_first, theta));
+        if let Some(read) = self.ruled() {
+            return self
+                .lap(&read)
+                .map_or_else(Vec::new, |lap| read.at_angle(lap, on_first, theta));
         }
         let pair = self.pair();
         if self.component >= pair.components() {
@@ -196,8 +204,10 @@ impl Meet {
     /// height across both axes is monotone and the root keeps its sign, so
     /// the angle is monotone too.
     pub fn turns(&self, on_first: bool) -> Vec<f64> {
-        if let Some((ruled, lap)) = self.ruled() {
-            return lap.map_or_else(Vec::new, |lap| ruled.turns(&lap, on_first));
+        if let Some(read) = self.ruled() {
+            return self
+                .lap(&read)
+                .map_or_else(Vec::new, |lap| read.turns(lap, on_first));
         }
         let pair = self.pair();
         if self.component >= pair.components() {

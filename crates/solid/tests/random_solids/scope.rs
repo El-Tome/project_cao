@@ -663,11 +663,125 @@ fn nearest(cone: &Cone, other: &Exact) -> Vec<DVec3> {
         .collect()
 }
 
+/// The root `l` on the side `sign` of the ruling of `cone` at `theta`
+/// against `other`, free of cancellation: `meet/ruled.rs`'s `solved`.
+fn root(cone: &Cone, other: &Exact, theta: f64, sign: f64) -> f64 {
+    let [[a, _], [b, _], [c, _]] = terms(cone, other, theta);
+    let root = sign * (b * b - 4.0 * a * c).max(0.0).sqrt();
+    if -b * root >= 0.0 && a != 0.0 {
+        (-b + root) / (2.0 * a)
+    } else if -b - root != 0.0 {
+        2.0 * c / (-b - root)
+    } else {
+        -b / (2.0 * a)
+    }
+}
+
+/// The laps of the curve `cone`'s rulings meet `other` along, each a span
+/// of `θ` its two roots run over or a whole turn on the root of a sign, as
+/// `meet/ruled/configured.rs` lays them but for nodes: the apex inside
+/// `other`, one turn; `D` positive all round, a turn on each root on the
+/// nappe and on `other`'s own; else a span between two zeros of `D`, found
+/// at 720 angles and halved eighty times, where it is positive.
+fn laps(cone: &Cone, other: &Exact) -> Vec<(Option<[f64; 2]>, f64)> {
+    if other.contains(cone.apex()) {
+        return vec![(None, 1.0)];
+    }
+    let held = |point: DVec3| match other {
+        Exact::Pointed(along) => along.radius_at(along.parameters(point).y) >= 0.0,
+        Exact::Round(_) | Exact::Oval(_) => true,
+    };
+    let above = |theta: f64, sign: f64| {
+        let l = root(cone, other, theta, sign);
+        l >= cone.apex_at() && held(cone.point(DVec2::new(theta, l)))
+    };
+    let d = |theta: f64| discriminant(cone, other, theta)[0];
+    let samples = 720;
+    let at = |rank: usize| TAU * rank as f64 / samples as f64;
+    let mut zeros: Vec<f64> = (0..samples)
+        .filter(|&rank| d(at(rank)).signum() != d(at(rank + 1)).signum())
+        .map(|rank| {
+            let (mut from, mut to) = (at(rank), at(rank + 1));
+            let start = d(from).signum();
+            for _ in 0..80 {
+                let middle = (from + to) / 2.0;
+                if d(middle).signum() == start {
+                    from = middle;
+                } else {
+                    to = middle;
+                }
+            }
+            ((from + to) / 2.0).rem_euclid(TAU)
+        })
+        .collect();
+    zeros.sort_by(f64::total_cmp);
+    if zeros.is_empty() {
+        if d(0.0) <= 0.0 {
+            return Vec::new();
+        }
+        return [1.0, -1.0]
+            .into_iter()
+            .filter(|&sign| above(0.1, sign))
+            .map(|sign| (None, sign))
+            .collect();
+    }
+    let count = zeros.len();
+    (0..count)
+        .filter_map(|index| {
+            let from = zeros[index];
+            let to = zeros[(index + 1) % count] + if index + 1 == count { TAU } else { 0.0 };
+            let middle = (from + to) / 2.0;
+            (d(middle) > 0.0 && above(middle, 1.0)).then_some((Some([from, to]), 1.0))
+        })
+        .collect()
+}
+
+/// Whether every component of the curve `cone` meets `wall` along goes
+/// round `cone`'s axis, as `meet.rs`'s `winds_round` reads it: read along
+/// `cone`'s rulings, each lap a whole turn; read along the other cone's,
+/// the steadier as the kernel picks it, `cone`'s angle winding round along
+/// each lap, sampled at 2048 parameters.
+fn goes_round(cone: &Cone, wall: &Exact) -> bool {
+    let reader = match wall {
+        Exact::Pointed(other)
+            if steadiness(other, &Exact::Pointed(*cone)) > steadiness(cone, wall) =>
+        {
+            *other
+        }
+        _ => return laps(cone, wall).iter().all(|(span, _)| span.is_none()),
+    };
+    let read = Exact::Pointed(*cone);
+    laps(&reader, &read).into_iter().all(|(span, sign)| {
+        let samples = 2048;
+        let angle = |rank: usize| {
+            let t = TAU * rank as f64 / samples as f64;
+            let (theta, sign) = match span {
+                Some([from, to]) => (
+                    (from + to) / 2.0 - (to - from) / 2.0 * t.cos(),
+                    if t.sin() >= 0.0 { sign } else { -sign },
+                ),
+                None => (t, sign),
+            };
+            let point = reader.point(DVec2::new(theta, root(&reader, &read, theta, sign)));
+            let from = point - cone.origin;
+            from.dot(cone.v).atan2(from.dot(cone.u))
+        };
+        let turned: f64 = (0..samples)
+            .map(|rank| {
+                let step = angle(rank + 1) - angle(rank);
+                step - TAU * (step / TAU).round()
+            })
+            .sum();
+        (turned / TAU).round() != 0.0
+    })
+}
+
 /// Whether a cone and a wall come closer to each other than the coarsest
 /// drawn chord's sag without meeting within the tolerance, near the box
 /// `[low, high]`: at a nearest approach of a cone's rulings to the other
 /// wall, read along whichever of the two the kernel reads steadily, the gap
-/// over `eps` and under the larger of the two walls' sags there —
+/// to the wall the point is not on over `eps` and under the larger of the
+/// two walls' sags there —
 /// `relation/nearly_parallel.rs`'s `grazing`.
 fn grazing(cone: &Cone, wall: &Exact, low: DVec3, high: DVec3, reach: f64) -> bool {
     let eps = TOLERANCE * reach;
@@ -680,16 +794,21 @@ fn grazing(cone: &Cone, wall: &Exact, low: DVec3, high: DVec3, reach: f64) -> bo
     };
     let mut approaches = Vec::new();
     if steadiness(cone, wall) > STEADY {
-        approaches.extend(nearest(cone, wall));
+        approaches.extend(nearest(cone, wall).into_iter().map(|point| (point, *wall)));
     }
     if let Exact::Pointed(other) = wall
         && steadiness(other, &Exact::Pointed(*cone)) > STEADY
     {
-        approaches.extend(nearest(other, &Exact::Pointed(*cone)));
+        let on_the_other = nearest(other, &Exact::Pointed(*cone));
+        approaches.extend(
+            on_the_other
+                .into_iter()
+                .map(|point| (point, Exact::Pointed(*cone))),
+        );
     }
-    approaches.into_iter().any(|point| {
+    approaches.into_iter().any(|(point, facing)| {
         let room = sag(cone.off_axis(point)).max(sag(size(point)));
-        let apart = wall.gap(point);
+        let apart = facing.gap(point);
         apart > eps
             && apart <= room
             && point.cmpge(low - DVec3::splat(room)).all()
@@ -786,8 +905,8 @@ fn cones(leaf: &Leaf) -> Vec<(Cone, bool)> {
 /// all round, `A` reaching nought — a wall's axis along a ruling, or two
 /// cones each with rulings within the other's slope; an apex of either
 /// standing on the other wall, `on_the_apex`; a curve on a cone face
-/// holding its apex, `pointed`, that does not go round the cone's axis —
-/// its apex outside the other wall — as `combine/related.rs`'s
+/// holding its apex, `pointed`, a component of which does not go round the
+/// cone's axis (`goes_round`), as `combine/related.rs`'s
 /// `on_a_pointed_face` reads it; two walls in #552's band closer than a
 /// chord's sag in the box `[low, high]`; and a cone and a wall grazing each
 /// other closer than a sag without meeting. As `relation/conical.rs` and
@@ -811,7 +930,7 @@ fn declines(cone: &Cone, pointed: bool, wall: &Exact, low: DVec3, high: DVec3, r
         || matches!(wall, Exact::Pointed(other) if cone.distance(other.apex()).abs() <= eps);
     !steady
         || on_the_apex
-        || (pointed && !wall.contains(cone.apex()))
+        || (pointed && !goes_round(cone, wall))
         || (sine < BAND && closer_than_a_sag(&Exact::Pointed(*cone), wall, low, high, reach))
         || grazing(cone, wall, low, high, reach)
 }

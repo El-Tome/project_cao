@@ -613,3 +613,4 @@ fn a_cylinder_moved_instead_onto_a_node_takes_its_partner_s_radius() {
 }
 
 mod elliptic;
+mod ruled;

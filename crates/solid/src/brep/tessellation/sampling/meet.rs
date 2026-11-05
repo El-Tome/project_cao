@@ -42,25 +42,11 @@ enum Reason {
 
 /// The points of an edge along a meet between its ends, in the way the edge
 /// runs: none for a component the pair does not have. A whole loop's points
-/// start at its start and do not come back to it. `rays` are the angles the
-/// sections of its first wall and of its second take besides their grid;
-/// a place on the grid or on a ray is kept only where `clear` says so.
-#[cfg(test)]
-pub(super) fn on_meet(
-    meet: &Meet,
-    edge: &Edge,
-    tolerance: f64,
-    eps: f64,
-    rays: [&[f64]; 2],
-    clear: &dyn Fn(DVec3) -> bool,
-) -> Vec<DVec3> {
-    let steps = [meet.first, meet.second].map(|wall| divisions(size(&wall, meet), tolerance));
-    on_meet_by(meet, edge, tolerance, eps, rays, steps, clear)
-}
-
-/// The points of an edge along a meet, as `on_meet` places them, each
-/// wall's grid cut into `steps` steps a turn: a cone's its own grid's, which
-/// the faces on it are laid out by.
+/// start at its start and do not come back to it. Each wall's grid is cut
+/// into `steps` steps a turn — a cone's its own grid's, which the faces on
+/// it are laid out by. `rays` are the angles the sections of its first wall
+/// and of its second take besides their grid; a place on the grid or on a
+/// ray is kept only where `clear` says so.
 fn on_meet_by(
     meet: &Meet,
     edge: &Edge,
@@ -134,7 +120,7 @@ fn on_meet_by(
     points
 }
 
-/// The points of an edge along a meet between its ends, as [`on_meet`]
+/// The points of an edge along a meet between its ends, as [`on_meet_by`]
 /// places them: on a cylinder of the body, on the rays its circles take in
 /// `contacts`, and none where it all but lies on a wall facing it, nor on a
 /// plane touching it but off the line they touch along, as a circle takes
@@ -252,4 +238,18 @@ fn grazing_ends<'a>(
         })
         .fold(f64::INFINITY, f64::min);
     grazed(body, edge, &walls.map(|wall| wall.surface()), step)
+}
+
+/// [`on_meet_by`], each wall's grid cut for its own size.
+#[cfg(test)]
+pub(super) fn on_meet(
+    meet: &Meet,
+    edge: &Edge,
+    tolerance: f64,
+    eps: f64,
+    rays: [&[f64]; 2],
+    clear: &dyn Fn(DVec3) -> bool,
+) -> Vec<DVec3> {
+    let steps = [meet.first, meet.second].map(|wall| divisions(size(&wall, meet), tolerance));
+    on_meet_by(meet, edge, tolerance, eps, rays, steps, clear)
 }

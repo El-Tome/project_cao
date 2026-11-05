@@ -93,6 +93,9 @@ pub enum Declined {
     /// itself: [`crate::Body`] catches the stop, so that a shape nobody tried
     /// costs the step, not the user's work.
     Panicked,
+    /// A step pointed at an edge its name no longer finds (#696): gone, or
+    /// split in pieces, as [`crate::Body::lost`] says.
+    Lost(Lost),
 }
 
 /// A step the kernel built though it reads it unstably (#552): a plane of one

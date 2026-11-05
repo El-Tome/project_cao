@@ -35,7 +35,7 @@ impl Exact {
             let edge = self
                 .brep
                 .find_rooted(name, |number| root(&self.roots, number))
-                .map_err(|_| Declined::Unfinished)?;
+                .map_err(Declined::Lost)?;
             let wedge = Wedge::of(&self.brep, edge)?;
             let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
             let taken = distance.clamp(0.0, wedge.reach);

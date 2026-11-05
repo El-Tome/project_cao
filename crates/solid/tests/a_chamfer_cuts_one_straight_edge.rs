@@ -44,7 +44,7 @@ use std::collections::BTreeSet;
 
 use cao_solid::profile::{Contour, Frame, Profile};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, Chamfered, EdgeName, Loop};
+use cao_solid::{Body, Chamfered, Declined, EdgeName, Loop, Lost};
 use glam::{DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it: every face
@@ -70,21 +70,82 @@ fn ground() -> Frame {
     }
 }
 
-/// An outline drawn on the ground raised up by `height`, and joined as
-/// `cao_part` builds a step: its floor numbered nought, its top one, and its
-/// walls from two on, one for each run of the outline.
-fn raised(outline: Contour, height: f64) -> Body {
-    let profile = Profile {
+/// Where a part is moved to, whole.
+const ELSEWHERE: [f64; 3] = [100.0, -40.0, 7.0];
+
+/// The ground's plane with its origin moved to `to`.
+fn moved(to: [f64; 3]) -> Frame {
+    Frame {
+        origin: DVec3::from(to),
+        ..ground()
+    }
+}
+
+/// The ground's plane turned about the vertical by a quarter turn, `quarters`
+/// times, its axes written out so that no rounding leans them.
+fn quarter_turns(quarters: u32) -> Frame {
+    let (u, v) = match quarters % 4 {
+        0 => (DVec3::X, DVec3::Y),
+        1 => (DVec3::Y, -DVec3::X),
+        2 => (-DVec3::X, -DVec3::Y),
+        _ => (-DVec3::Y, DVec3::X),
+    };
+    Frame {
+        origin: DVec3::ZERO,
+        u,
+        v,
+    }
+}
+
+/// The frame raised along its normal by `height`.
+fn lifted(frame: Frame, height: f64) -> Frame {
+    Frame {
+        origin: frame.origin + frame.normal() * height,
+        ..frame
+    }
+}
+
+/// A point given in the part's own axes, along, across and up, where the
+/// frame puts it.
+fn placed(frame: Frame, [along, across, up]: [f64; 3]) -> DVec3 {
+    frame.at(DVec2::new(along, across)) + frame.normal() * up
+}
+
+/// An outline with its runs, as the drawing hands it to the exact kernel.
+fn profile(outline: Contour) -> Profile<'static> {
+    Profile {
         exact: Some((outline, Vec::new())),
         sampled: Loop::straight(&[]),
         sampled_holes: Vec::new(),
         triangles: &[],
-    };
+    }
+}
+
+/// An outline drawn on a frame raised along its normal by `height`, and
+/// joined as `cao_part` builds a step: its floor numbered nought, its top
+/// one, and its walls from two on, one for each run of the outline.
+fn raised_on(frame: Frame, outline: Contour, height: f64) -> Body {
     let part = Body::default();
     let tool = part
-        .tool_raised(&profile, ground(), DVec3::Z * height)
+        .tool_raised(&profile(outline), frame, frame.normal() * height)
         .expect("the tool raises");
     part.union(&tool).expect("the part is built")
+}
+
+/// An outline drawn on the ground raised up by `height`, numbered as
+/// [`raised_on`] numbers it.
+fn raised(outline: Contour, height: f64) -> Body {
+    raised_on(ground(), outline, height)
+}
+
+/// The part with an outline drawn on the ground, raised from `from` up by
+/// `height`, cut from it as `cao_part` cuts a step: the tool's faces numbered
+/// past the part's.
+fn cut_from(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    let tool = part
+        .tool_raised(&profile(outline), lifted(ground(), from), DVec3::Z * height)
+        .expect("the tool raises");
+    part.difference(&tool).expect("the cut is built")
 }
 
 /// A block of a length, a breadth and a height standing on the ground's
@@ -560,4 +621,156 @@ fn a_chamfer_asked_more_than_a_slanted_wall_can_give_takes_the_wall_s_whole_widt
         &[on_back, upright(DVec2::new(0.0, 8.0), height)].concat(),
         "the back, whole",
     );
+}
+
+/// An L lying on its frame: an arm `length` long and `depth` deep along the
+/// frame's first axis, and at the arm's left end a stem `stem` wide reaching
+/// back to `back`, raised by `height`. Nothing turns it onto itself, so a cut
+/// on one of its edges can land on no twin. Its walls are numbered from the
+/// front round: the front two, the arm's right end three, the arm's back
+/// four, the stem's right side five, the stem's back six and the left seven.
+#[derive(Clone, Copy)]
+struct Ell {
+    length: f64,
+    depth: f64,
+    stem: f64,
+    back: f64,
+    height: f64,
+}
+
+const ELL: Ell = Ell {
+    length: 30.0,
+    depth: 6.0,
+    stem: 12.0,
+    back: 14.0,
+    height: 10.0,
+};
+
+const ELL_RESIZED: Ell = Ell {
+    length: 40.0,
+    depth: 8.0,
+    stem: 16.0,
+    back: 20.0,
+    height: 12.0,
+};
+
+/// The number an L's stem's back answers to.
+const STEM_BACK: usize = 6;
+
+impl Ell {
+    fn on(&self, frame: Frame) -> Body {
+        let Ell {
+            length,
+            depth,
+            stem,
+            back,
+            height,
+        } = *self;
+        raised_on(
+            frame,
+            Contour::straight(vec![
+                DVec2::ZERO,
+                DVec2::new(length, 0.0),
+                DVec2::new(length, depth),
+                DVec2::new(stem, depth),
+                DVec2::new(stem, back),
+                DVec2::new(0.0, back),
+            ]),
+            height,
+        )
+    }
+
+    fn volume(&self) -> f64 {
+        (self.length * self.depth + self.stem * (self.back - self.depth)) * self.height
+    }
+}
+
+#[test]
+fn a_chamfer_cuts_the_edge_its_name_finds_again_after_a_change_of_size_a_move_and_a_turn() {
+    let distance = 2.0;
+    let name = edge_between(&ELL.on(ground()), TOP, STEM_BACK);
+    let moved_and_turned = Frame {
+        origin: DVec3::from(ELSEWHERE),
+        ..quarter_turns(1)
+    };
+
+    for (what, ell, frame) in [
+        ("as drawn", ELL, ground()),
+        ("resized", ELL_RESIZED, ground()),
+        ("moved", ELL, moved(ELSEWHERE)),
+        ("turned a quarter", ELL, quarter_turns(1)),
+        ("turned a half", ELL, quarter_turns(2)),
+        ("turned three quarters", ELL, quarter_turns(3)),
+        ("resized, moved and turned", ELL_RESIZED, moved_and_turned),
+    ] {
+        let part = ell.on(frame);
+
+        let chamfered = part
+            .chamfer(&name, distance)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_whole(&chamfered, distance, what);
+        let body = &chamfered.body;
+        let corner_cut_off = ell.stem * distance * distance / 2.0;
+        sound(body, ell.volume() - corner_cut_off, what);
+        let chamfer = one_flat_face_more(&part, body, what);
+        let at = |point: [f64; 3]| placed(frame, point);
+        faces_toward(body, chamfer, at([0.0, 1.0, 1.0]) - at([0.0; 3]), what);
+        let Ell {
+            stem, back, height, ..
+        } = ell;
+        corners_are(
+            body,
+            chamfer,
+            &[
+                at([0.0, back - distance, height]),
+                at([stem, back - distance, height]),
+                at([stem, back, height - distance]),
+                at([0.0, back, height - distance]),
+            ],
+            &format!("the chamfer on the stem's back, {what}"),
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_on_an_edge_a_cut_took_away_is_a_broken_step_saying_it_is_gone() {
+    let drawn = block([30.0, 10.0, 10.0]);
+    let name = edge_between(&drawn, TOP, FRONT);
+    let rabbeted = cut_from(
+        &drawn,
+        Contour::rectangle(DVec2::new(-1.0, -1.0), DVec2::new(31.0, 2.0)),
+        8.0,
+        3.0,
+    );
+    assert_eq!(
+        rabbeted.lost(&name),
+        Some(Lost::Gone),
+        "a rabbet all along the edge leaves the top and the front meeting nowhere"
+    );
+
+    let declined = rabbeted.chamfer(&name, 1.0).err();
+
+    assert_eq!(declined, Some(Declined::Lost(Lost::Gone)));
+}
+
+#[test]
+fn a_chamfer_on_an_edge_a_cut_parted_in_two_is_a_broken_step_saying_it_is_split() {
+    let drawn = block([30.0, 10.0, 10.0]);
+    let name = edge_between(&drawn, TOP, FRONT);
+    let notched = cut_from(
+        &drawn,
+        Contour::rectangle(DVec2::new(10.0, -1.0), DVec2::new(20.0, 3.0)),
+        7.0,
+        4.0,
+    );
+    assert_eq!(
+        notched.lost(&name),
+        Some(Lost::Split { now: 2 }),
+        "a notch a third of the way along leaves the edge in two pieces"
+    );
+
+    let declined = notched.chamfer(&name, 1.0).err();
+
+    assert_eq!(declined, Some(Declined::Lost(Lost::Split { now: 2 })));
 }

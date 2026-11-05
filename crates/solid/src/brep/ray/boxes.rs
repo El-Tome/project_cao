@@ -10,9 +10,10 @@
 //! boundary or where it is over the whole surface, and those of the
 //! surface's points the face holds are boxed with its boundary
 //! ([`Body::bulges_held`]) — read only once a place past the box of its
-//! boundary is asked about, since a ray asks of the places it meets each
-//! surface at alone, and most lie within it or nowhere near the face. The
-//! box of a line is that of its ends, of an arc
+//! boundary is asked about: a ray asks of the places it meets each surface
+//! at alone, so a face whose surface it never meets, or meets only within
+//! that box, never has them read. The box of a line is that of its ends, of
+//! an arc
 //! of a circle that of its ends and of the places each coordinate turns,
 //! both exact to rounding; the curve two cylinders meet along is boxed by
 //! what its height across both axes leaves each root.

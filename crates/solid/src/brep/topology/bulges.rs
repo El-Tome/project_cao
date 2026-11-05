@@ -27,21 +27,28 @@ impl Body {
 
     /// The points of a face's sphere or torus where a coordinate is largest
     /// or smallest, kept where the face holds them and where they stand past
-    /// the box of its edges' extremes and its poles: with those, what its
-    /// own box is read off. A point within that box widens no box and no
-    /// reach read off the face, and is never located.
+    /// its [`Body::edged`] box, a point within which is never located. What
+    /// reads these reads that box's points too, or a box round them, so a
+    /// point left out widens nothing: [`Body::boxed`] is written on that
+    /// box, [`Body::bounds`] and [`Body::reach`] read every vertex — a held
+    /// pole among them — and every edge's extremes, and the ray's boxes hold
+    /// every pole and each edge's whole box, which holds its extremes to
+    /// rounding. None, and no box read, for any other surface.
     pub(in crate::brep) fn bulges_held(&self, face: FaceId) -> Vec<DVec3> {
+        match self.surface(self.face(face).surface) {
+            Surface::Sphere(_) | Surface::Torus(_) => self.bulges_past(face, self.edged(face)),
+            Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_) => {
+                Vec::new()
+            }
+        }
+    }
+
+    /// The same, past a box already read off the face.
+    pub(in crate::brep) fn bulges_past(&self, face: FaceId, [low, high]: [DVec3; 2]) -> Vec<DVec3> {
         let surface = self.surface(self.face(face).surface);
-        let candidates: Vec<DVec3> = DVec3::AXES
+        let past = DVec3::AXES
             .into_iter()
             .flat_map(|axis| furthest(surface, axis))
-            .collect();
-        if candidates.is_empty() {
-            return candidates;
-        }
-        let [low, high] = self.edged(face);
-        let past = candidates
-            .into_iter()
             .filter(|point| point.cmplt(low).any() || point.cmpgt(high).any())
             .collect();
         self.held(face, past)
@@ -49,7 +56,7 @@ impl Body {
 
     /// The box of a face's edges' extremes and of the poles it holds within
     /// it, empty for a face with neither.
-    fn edged(&self, face: FaceId) -> [DVec3; 2] {
+    pub(in crate::brep) fn edged(&self, face: FaceId) -> [DVec3; 2] {
         let edges = self
             .face(face)
             .loops
@@ -80,16 +87,16 @@ impl Body {
         let Ok(found) = self.locate_each(face, &all, eps) else {
             return points;
         };
-        let mut found = found.into_iter();
-        points
-            .into_iter()
-            .zip(read)
-            .filter(|(_, readings)| {
-                let locations: Vec<Location> = found.by_ref().take(readings.len()).collect();
-                locations.iter().any(|at| *at != Location::Outside)
-            })
-            .map(|(point, _)| point)
-            .collect()
+        let mut kept = Vec::new();
+        let mut start = 0;
+        for (point, readings) in points.into_iter().zip(&read) {
+            let located = &found[start..start + readings.len()];
+            start += readings.len();
+            if located.iter().any(|at| *at != Location::Outside) {
+                kept.push(point);
+            }
+        }
+        kept
     }
 }
 

@@ -263,22 +263,13 @@ impl Body {
     /// holds within it and, on a sphere or a torus, where it bulges, grown
     /// by `eps`.
     pub(in crate::brep) fn boxed(&self, face: FaceId, eps: f64) -> [DVec3; 2] {
-        let mut low = DVec3::INFINITY;
-        let mut high = DVec3::NEG_INFINITY;
-        for held in self
-            .poles_held(face)
+        let edged = self.edged(face);
+        let [low, high] = self
+            .bulges_past(face, edged)
             .into_iter()
-            .chain(self.bulges_held(face))
-        {
-            low = low.min(held);
-            high = high.max(held);
-        }
-        for coedge in self.face(face).loops.iter().flatten() {
-            for point in self.extremes(self.edge(coedge.edge)) {
-                low = low.min(point);
-                high = high.max(point);
-            }
-        }
+            .fold(edged, |[low, high], bulge| {
+                [low.min(bulge), high.max(bulge)]
+            });
         [low - DVec3::splat(eps), high + DVec3::splat(eps)]
     }
 

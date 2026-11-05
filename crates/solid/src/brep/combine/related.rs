@@ -22,7 +22,7 @@ use super::clear::clear;
 use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::Registry;
-use crate::brep::relation::{Relation, along_a_stretch, at_a_slant, relation};
+use crate::brep::relation::{Relation, at_a_slant, relation, too_near_to_build};
 use crate::brep::topology::{FaceId, SurfaceId};
 
 /// A point a relation says must be a corner, on both surfaces of its pair
@@ -54,9 +54,9 @@ pub(super) fn related(
                 continue;
             }
             let found = relation(&list[one], &list[other], scale);
-            let stretched = matches!(found, Relation::Meet(_))
-                && along_a_stretch(&list[one], &list[other], &operands.meeting(pair), scale);
-            if found == Relation::Unsupported || stretched {
+            let too_near = matches!(found, Relation::Meet(_))
+                && too_near_to_build(&list[one], &list[other], &operands.meeting(pair), scale);
+            if found == Relation::Unsupported || too_near {
                 if clear(operands, pair) {
                     continue;
                 }

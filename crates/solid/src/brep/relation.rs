@@ -2,11 +2,12 @@
 //! and the only place a tangency is decided. What is decided is built exactly
 //! from a formula — a tangent line is never a double root.
 
+mod at_any_angle;
 mod conical;
 mod crossing;
 mod cylinders;
 mod elliptic;
-mod perpendicular;
+mod nearly_parallel;
 mod planar;
 mod revolved;
 mod round;
@@ -23,7 +24,7 @@ use super::surface::Surface;
 pub use crossing::{
     Crossing, Crossings, Lying, Touches, crossings, crossings_given, crossings_lying,
 };
-pub(in crate::brep) use perpendicular::along_a_stretch;
+pub(in crate::brep) use nearly_parallel::too_near_to_build;
 pub(in crate::brep) use revolved::apart_by;
 pub(in crate::brep) use round::{Gap, off_the_rim, untouched};
 pub use walls::Ruled;
@@ -120,7 +121,7 @@ pub fn relation(one: &Surface, other: &Surface, scale: Scale) -> Relation {
         }
         (Surface::Elliptic(_), Surface::Cylinder(_) | Surface::Elliptic(_))
         | (Surface::Cylinder(_), Surface::Elliptic(_))
-            if let Some(met) = perpendicular::walls(one, other, scale) =>
+            if let Some(met) = at_any_angle::walls(one, other, scale) =>
         {
             met
         }

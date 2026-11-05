@@ -1,25 +1,21 @@
-//! Two walls not parallel, an elliptic one among them (#571, #577): they
-//! meet along the curve `meet.rs` builds, decided once by `Meeting::of` —
-//! moved onto a touch or a node within the tolerance — or stand apart. Two
-//! cylinders are `cylinders.rs`'s; parallel walls are not read here.
+//! Two walls nearly parallel, past decision 11 and in #552's band, that the
+//! kernel declines where their faces may meet (#577): each gives back the
+//! decline `main` gave rather than a wrong answer.
 //!
-//! Two walls leaning off parallel by a sine `s`, their sections one or
-//! touching, inside or outside, at a height where faces of theirs may meet,
-//! stand within the tolerance of each other along `2·eps/s` where they part
-//! fastest — one size, their axes crossing — and much longer where the
-//! second's axis drifts across the line they touch along, the gap growing
-//! as the square of the height. Along a hundredth of the reach or more they
-//! are as two parallel walls within the tolerance all round though not
-//! one, and unsupported (#577): at 1e-5° the kernel built them in bands no
+//! Leaning off parallel by a sine `s`, their sections one or touching,
+//! inside or outside, they stand within the tolerance of each other along
+//! `2·eps/s` where they part fastest — one size, their axes crossing — and
+//! much longer where the second's axis drifts across the line they touch
+//! along, the gap growing as the square of the height. Along a hundredth of
+//! the reach or more they are as two parallel walls within the tolerance
+//! all round though not one: at 1e-5° the kernel built them in bands no
 //! corner tells apart.
 
 use std::f64::consts::{PI, TAU};
 
 use glam::{DVec2, DVec3};
 
-use super::{Relation, parallel};
 use crate::brep::curve::Wall;
-use crate::brep::meet::{Configuration, Meeting};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::tessellation::divisions;
@@ -39,40 +35,29 @@ const BAND: f64 = 1e-3;
 /// body the kernel could not close (134820673287757).
 const SLIVER: f64 = 2.0 * Scale::RELATIVE / STRETCH;
 
-/// The coarsest tolerance the kernel's triangles are asked to keep, as a
-/// share of the reach: the tests' (`random_solids::TESSELLATION`); the
-/// application draws five times finer.
-const DRAWN_AT: f64 = 1e-3;
+/// The coarsest tolerance a consumer is expected to draw a body's triangles
+/// at, as a share of the reach the boolean reads, chosen against those that
+/// exist: the tests' campaigns draw at it, the view five times finer of the
+/// body's own reach. A stopgap with no exact value — an STL exported coarse
+/// from a part under a hundred units, or a part a later step makes wider,
+/// samples coarser and may still cross — until #706 lays such pairs on one
+/// shared order and this goes.
+const COARSEST_DRAWN: f64 = 1e-3;
 
 /// How many heights across a box two walls are compared at for a sag.
 const HEIGHTS: usize = 9;
 
-/// The relation of two walls not parallel, one of them elliptic; none for
-/// any other pair.
-pub(super) fn walls(one: &Surface, other: &Surface, scale: Scale) -> Option<Relation> {
-    let (first, second) = (Wall::of(one)?, Wall::of(other)?);
-    if matches!((first, second), (Wall::Cylinder(_), Wall::Cylinder(_)))
-        || parallel(first.axis(), second.axis(), scale)
-    {
-        return None;
-    }
-    let meeting = Meeting::as_they_stand(&first, &second);
-    Some(if meeting.configuration == Configuration::Apart {
-        Relation::Apart
-    } else {
-        Relation::Meet(meeting)
-    })
-}
-
 /// Whether two walls not parallel, leaning off it by less than a
-/// thousandth, stand within the tolerance of each other along a stretch of
-/// a hundredth of the reach or more, in one of the boxes `within` where
-/// their faces may meet — or, leaning under `SLIVER`, meet there at all. Square to the first wall's axis, the second's
-/// stands at an offset affine in the height; the walls are one, or touch
-/// inside or outside, within the tolerance where that offset's length is
-/// within it of the difference or the sum of their reaches along it, a
-/// quadratic in the height solved for the stretch.
-pub(in crate::brep) fn along_a_stretch(
+/// thousandth, are declined in one of the boxes `within` where their faces
+/// may meet: leaning under `SLIVER`, their sections meet there at all; or
+/// they stand within the tolerance of each other along a stretch of a
+/// hundredth of the reach or more; or closer than a chord's sag. Square to
+/// the first wall's axis, the second's stands at an offset affine in the
+/// height; the walls are one, or touch inside or outside, within the
+/// tolerance where that offset's length is within it of the difference or
+/// the sum of their reaches along it, a quadratic in the height solved for
+/// the stretch.
+pub(in crate::brep) fn too_near_to_build(
     one: &Surface,
     other: &Surface,
     within: &[[DVec3; 2]],
@@ -145,19 +130,15 @@ pub(in crate::brep) fn along_a_stretch(
 
 /// Whether two walls in the band stand closer to each other than a chord's
 /// sag over a step of a grid, where their faces may meet (#577): each wall
-/// cut into `divisions(size, DRAWN_AT · reach)` steps, as its triangles
-/// are, its sag `size · (1 − cos(π / steps))`; at `HEIGHTS` heights evenly
-/// across each box `within`, along its axis, two consecutive steps of its
-/// grid both stand within that sag of the other wall. The triangles of two
+/// cut into `divisions(size, COARSEST_DRAWN · reach)` steps, as its
+/// triangles would be at that tolerance, its sag
+/// `size · (1 − cos(π / steps))`; at `HEIGHTS` heights evenly across each
+/// box `within`, along its axis, two consecutive steps of its grid both
+/// stand within that sag of the other wall. The triangles of two
 /// such walls, each sampled on its own grid a hair turned from the other's,
 /// cross where the sweep orders their samples differently.
-pub(in crate::brep) fn closer_than_a_sag(
-    first: &Wall,
-    second: &Wall,
-    within: &[[DVec3; 2]],
-    scale: Scale,
-) -> bool {
-    let tolerance = DRAWN_AT * scale.reach();
+fn closer_than_a_sag(first: &Wall, second: &Wall, within: &[[DVec3; 2]], scale: Scale) -> bool {
+    let tolerance = COARSEST_DRAWN * scale.reach();
     [(first, second), (second, first)]
         .into_iter()
         .any(|(wall, other)| {

@@ -1930,13 +1930,21 @@ wrong answer:
   1e-3°, stays within the tolerance of it over the whole post.
 - **Closer than a chord's sag** (`closer_than_a_sag`). Two walls in the
   band such that, at some height across the box where their faces may
-  meet, two consecutive steps of one wall's grid — the grid its triangles
-  take at a thousandth of the reach — both stand within that grid's sag
-  of the other wall. Each wall is sampled on its own grid, a hair turned
-  from the other's; the sweep orders the near-duplicate samples of the
-  two faces differently, and their triangles cross. Built by luck at
-  some leans and not at others, they are declined until #706 samples
-  nearly parallel walls on one grid.
+  meet, two consecutive steps of one wall's grid both stand within that
+  grid's sag of the other wall. Each wall is sampled on its own grid, a
+  hair turned from the other's; the sweep orders the near-duplicate
+  samples of the two faces differently, and their triangles cross. Built
+  by luck at some leans and not at others, they are declined. The grid
+  checked is the one `tessellation::divisions` gives at a thousandth of
+  the reach the boolean reads (`COARSEST_DRAWN`), the coarsest a consumer
+  is expected to draw at: the tests' campaigns draw there, the view five
+  times finer of the body's own reach. No density makes it exact — a
+  coarser grid always has a larger sag: an STL exported at a fixed gap
+  coarser than that, a part under a hundred units exported coarse, or a
+  part a later step makes wider, samples coarser, and a pair built just
+  outside the sag checked may still cross there. It is a stopgap, moved
+  by any change to `LEAST` or `MOST` in `divisions`, until #706 lays such
+  pairs on one shared order and removes it.
 
 Still declined: a cone against a wall or a cone of another axis, an
 elliptic wall against a cone — #577's lane 3.

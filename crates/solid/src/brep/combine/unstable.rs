@@ -14,7 +14,7 @@
 use super::clear::clear;
 use super::operands::Operands;
 use super::related::facing;
-use crate::brep::canonical::{laid_exactly, leaning};
+use crate::brep::canonical::{Off, laid_exactly, leaning};
 use crate::brep::surface::Surface;
 use crate::brep::topology::SurfaceId;
 use crate::brep::{Lean, Unstable};
@@ -65,14 +65,17 @@ fn lean_of(one: &Surface, other: &Surface) -> Option<(Lean, f64)> {
     };
     match (one, other) {
         (Surface::Plane(plane), wall) | (wall, Surface::Plane(plane)) => {
-            Some(leaning(plane.normal, axis(wall)?))
+            Some(match leaning(plane.normal, axis(wall)?) {
+                (Off::Parallel, sine) => (Lean::Square, sine),
+                (Off::Square, sine) => (Lean::Along, sine),
+            })
         }
         (
             Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_),
             Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_),
         ) => match leaning(axis(one)?, axis(other)?) {
-            (Lean::Square, sine) => Some((Lean::Abreast, sine)),
-            (_, sine) => Some((Lean::Across, sine)),
+            (Off::Parallel, sine) => Some((Lean::Abreast, sine)),
+            (Off::Square, sine) => Some((Lean::Across, sine)),
         },
         _ => None,
     }

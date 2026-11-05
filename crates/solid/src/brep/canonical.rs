@@ -33,7 +33,7 @@ pub(super) use curves::{Registered, Registry, distance, same, within};
 pub(super) use edged::edged;
 pub(super) use flush::flush;
 pub(super) use planes::{Place, Planes};
-pub(super) use squared::{laid_exactly, leaning, squared};
+pub(super) use squared::{Off, laid_exactly, leaning, squared};
 pub(super) use surfaces::Surfaces;
 pub(super) use tangent::tangent;
 

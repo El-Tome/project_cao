@@ -49,16 +49,14 @@ pub(super) fn circle_and_surface(
                 plane: &own_plane,
             }),
         ),
-        Surface::Elliptic(wall) if parallel(circle.axis, wall.axis, scale) => {
-            (round_and_elliptic(&own_cylinder, wall, scale), false, None)
-        }
+        Surface::Elliptic(wall) => (round_and_elliptic(&own_cylinder, wall, scale), false, None),
         Surface::Sphere(sphere) => {
             return super::round::circle_and_sphere(circle, sphere, scale, touching);
         }
         Surface::Torus(torus) => {
             return super::round::circle_and_torus(circle, torus, scale, touching);
         }
-        Surface::Cone(_) | Surface::Elliptic(_) => return Solved::Unsupported,
+        Surface::Cone(_) => return Solved::Unsupported,
     };
     circle_through(circle, relation, (across, cut), scale, touching)
 }

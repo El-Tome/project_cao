@@ -4879,13 +4879,104 @@ fn a_case_asking_a_round_beyond_its_circles_is_told_from_one_that_does_not() {
     assert!(asks(&knob, post), "a post across a ball");
 }
 
+/// The kernel boxes a face on a sphere or a torus by its own extent (#625),
+/// so a wall that crosses the whole surface where the turn drew none of it is
+/// never related to the face, and a decline there is no longer excused; a
+/// wall across the leaf itself still is. The face's extent is not the leaf's:
+/// a groove in a shaft beside its rounded end meets the shaft and the cap's
+/// whole sphere, and the kernel relates it to no face on the sphere.
 #[test]
-fn a_partial_round_asks_a_wall_that_meets_its_whole_surface_but_not_its_leaf() {
-    let quarter = ball(90.0);
-    let below = Leaf::prism(Plane::xy(0.0), Outline::circle([0.0, -1.5], 0.5), 1.0);
+fn a_partial_round_asks_no_wall_that_meets_its_whole_surface_but_not_its_leaf() {
+    let whole_ball = (DVec3::splat(-2.0), DVec3::splat(2.0));
+    let whole_ring = (DVec3::new(-1.0, -4.0, -4.0), DVec3::new(1.0, 4.0, 4.0));
+    let meet = |(low, high): (DVec3, DVec3), (from, to): (DVec3, DVec3)| {
+        low.cmple(to).all() && from.cmple(high).all()
+    };
+    let post = |at: [f64; 2], level: f64, length: f64| {
+        Leaf::prism(Plane::xy(level), Outline::circle(at, 0.5), length)
+    };
+    let told = [
+        (
+            "a quarter ball and a post below it",
+            ball(90.0),
+            whole_ball,
+            post([0.0, -1.5], 0.0, 1.0),
+            false,
+        ),
+        (
+            "a quarter ring and a post through the tube below it",
+            ring(90.0),
+            whole_ring,
+            post([0.0, -3.0], 0.0, 1.0),
+            false,
+        ),
+        (
+            "a quarter ball and a post across it",
+            ball(90.0),
+            whole_ball,
+            post([0.0, 1.0], -3.0, 6.0),
+            true,
+        ),
+        (
+            "a quarter ring and a post across its tube",
+            ring(90.0),
+            whole_ring,
+            post([0.0, 3.0], -5.0, 10.0),
+            true,
+        ),
+    ];
+    let mut wrong = Vec::new();
+    for (what, quarter, whole, wall, asking) in told {
+        let own = quarter.bounds().expect("a quarter has a box");
+        let walled = wall.bounds().expect("a post has a box");
+        assert!(
+            meet(walled, whole),
+            "{what}: the post's box {walled:?} meets the whole surface's {whole:?}"
+        );
+        assert_eq!(
+            meet(walled, own),
+            asking,
+            "{what}: the post's box {walled:?} against the quarter's own {own:?}"
+        );
+        if Case::new(quarter, vec![Step::cut(wall)]).asks_a_round_beyond_its_circles() != asking {
+            wrong.push((what, asking));
+        }
+    }
+    let what = "a shaft's rounded end and a groove beside it";
+    let ended = Leaf::turned(
+        Plane::xy(0.0),
+        Axis::first(0.0),
+        Section::bands(-6.0, &[[6.0, 0.0, 2.0], [2.0, 0.0, 2.0]])
+            .sloping_to(&[[0.0, 2.0], [0.0, 0.0]])
+            .bowed(&[[[0.0; 3]; 2], [[0.0; 3], [0.0, 0.0, 2.0]]]),
+        360.0,
+    );
+    let cap = (DVec3::new(0.0, -2.0, -2.0), DVec3::splat(2.0));
+    let groove = Leaf::prism(
+        Plane::xy(-5.0),
+        Outline::rectangle([-1.5, 1.0], [-0.5, 5.0]),
+        10.0,
+    );
+    let walled = groove.bounds().expect("a groove has a box");
+    let shaft = ended.bounds().expect("a shaft has a box");
     assert!(
-        Case::new(quarter, vec![Step::cut(below)]).asks_a_round_beyond_its_circles(),
-        "a wall below the leaf still meets the ball's whole surface"
+        meet(walled, whole_ball) && meet(walled, shaft) && !meet(walled, cap),
+        "{what}: the groove's box {walled:?} meets the cap's whole sphere's {whole_ball:?} \
+         and the shaft's {shaft:?}, and stands clear of the cap's own {cap:?}"
+    );
+    let case = Case::new(ended, vec![Step::cut(groove)]);
+    let measured = random_solids::held_to_arithmetic(&case, &Exact)
+        .unwrap_or_else(|flaw| panic!("{what}: {:?} broke the rule: {flaw:?}", flaw.rule()));
+    assert_eq!(
+        measured.declined, 0,
+        "{what}: the kernel relates the groove to no face on the sphere"
+    );
+    if case.asks_a_round_beyond_its_circles() {
+        wrong.push((what, false));
+    }
+    assert!(
+        wrong.is_empty(),
+        "told wrong, each with whether it should ask: {wrong:?}"
     );
 }
 

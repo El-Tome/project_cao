@@ -34,7 +34,7 @@ mod rectangle;
 pub(crate) use rectangle::{rectangle_corner, two_click_shape};
 
 mod planes;
-use planes::choose_a_plane;
+pub(super) use planes::{choose_a_plane, point_the_section};
 
 mod symmetric_line;
 pub(crate) use symmetric_line::draw_symmetric_line_point;

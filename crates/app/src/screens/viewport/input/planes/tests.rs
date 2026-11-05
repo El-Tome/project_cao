@@ -33,6 +33,11 @@
 use glam::{DVec2, DVec3};
 
 use super::*;
+use crate::lang::Catalogue;
+use crate::screens::extrusion::ExtrusionState;
+use crate::screens::sketch::SketchEditor;
+use crate::screens::viewport::section::Section;
+use cao_part::PartDocument;
 use cao_render::OrbitCamera;
 use cao_solid::profile::{Contour, Run};
 
@@ -264,5 +269,202 @@ fn a_click_on_an_exact_elliptic_wall_lands_on_its_one_curved_face() {
     assert!(
         walls.iter().all(|face| *face == walls[0]),
         "the wall answered to several faces: {walls:?}",
+    );
+}
+
+/// A section on, waiting for a face to cut along, XY at mid-height before one
+/// is clicked.
+fn waiting_for_a_face() -> ViewportState {
+    let mut section = Section::new(WorkPlane::XY);
+    section.offset = 2.0;
+    section.wait_for_a_face();
+    let mut state = ViewportState::default();
+    state.section = Some(section);
+    state
+}
+
+#[test]
+fn a_flat_face_clicked_becomes_the_cutting_plane() {
+    let body = block(10.0, 10.0, 4.0);
+    let mut state = waiting_for_a_face();
+
+    let taken = choose_a_cutting_face(
+        &mut state,
+        &body,
+        true,
+        DVec3::new(50.0, 5.0, 1.0),
+        DVec3::NEG_X,
+    );
+
+    let section = state.section.as_ref().expect("the section stays on");
+    assert!(taken, "a click on the side of the block takes nothing");
+    assert!(
+        section.plane.normal().distance(DVec3::X) < 1e-9,
+        "the side facing +X is cut along a plane facing {:?}, not outwards",
+        section.plane.normal(),
+    );
+    assert!(
+        (section.plane.origin.x - 10.0).abs() < 1e-9 && section.offset.abs() < 1e-9,
+        "the cut does not start on the face clicked: the plane passes x = {} and the \
+         distance reads {}",
+        section.plane.origin.x,
+        section.offset,
+    );
+    assert!(
+        !section.is_waiting_for_a_face(),
+        "a face taken, the panel still waits for one",
+    );
+}
+
+#[test]
+fn a_curved_face_clicked_is_no_cutting_plane() {
+    let body = cylinder(10.0, 20.0);
+    let mut state = waiting_for_a_face();
+
+    let taken = choose_a_cutting_face(
+        &mut state,
+        &body,
+        true,
+        DVec3::new(40.0, 0.0, 10.0),
+        DVec3::NEG_X,
+    );
+
+    let section = state.section.as_ref().expect("the section stays on");
+    assert!(!taken, "a click on a curved wall takes it as a plane");
+    assert_eq!(
+        section.plane,
+        WorkPlane::XY,
+        "a click on a curved wall moved the cut"
+    );
+    assert!(
+        section.is_waiting_for_a_face(),
+        "a curved wall refused, the panel no longer waits for a face",
+    );
+}
+
+/// A part holding a block 10 by 10 from 0 to 4 over XY, with nothing open.
+fn a_part_holding_a_block() -> PartDocument {
+    use cao_part::{ExtrusionMode, PointRef};
+
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 10.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(5.0, 5.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document
+}
+
+/// What happened once a plane was chosen for a new sketch, the block cut by a
+/// section through XY at mid-height, its upper half hidden.
+struct Started {
+    state: ViewportState,
+    document: PartDocument,
+    editor: SketchEditor,
+    offered: Option<PlaneChoice>,
+    started: bool,
+}
+
+/// The cursor brought over a place, then a click there.
+fn a_sketch_started_through_a_section(origin: DVec3, direction: DVec3) -> Started {
+    let mut document = a_part_holding_a_block();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    editor.start_choosing_plane(&lang);
+    let mut section = Section::new(WorkPlane::XY);
+    section.offset = 2.0;
+    let mut state = ViewportState::default();
+    state.section = Some(section);
+
+    let (offered, started) = {
+        let mut context = SketchContext {
+            document: &mut document,
+            editor: &mut editor,
+            extrusion: &mut extrusion,
+            lang: &lang,
+        };
+        choose_a_plane(&mut state, &mut context, false, origin, direction);
+        let offered = context.editor.hovered_plane;
+        let started = choose_a_plane(&mut state, &mut context, true, origin, direction);
+        (offered, started)
+    };
+    Started {
+        state,
+        document,
+        editor,
+        offered,
+        started,
+    }
+}
+
+#[test]
+fn a_click_on_the_section_starts_a_sketch_on_the_cutting_plane() {
+    let Started {
+        state,
+        document,
+        editor,
+        offered,
+        started,
+    } = a_sketch_started_through_a_section(DVec3::new(5.0, 5.0, 50.0), DVec3::NEG_Z);
+
+    assert!(
+        matches!(offered, Some(PlaneChoice::Section(_))),
+        "the section is offered as {offered:?}, not as the cutting plane",
+    );
+    assert!(started, "a click on the section starts no sketch");
+    let Some(Operation::CreateSketch { plane, on }) = document.history.operations().last() else {
+        panic!("the click recorded no sketch");
+    };
+    assert_eq!(
+        *on, None,
+        "the sketch is anchored to a face of the part, not laid on the cutting plane",
+    );
+    for local in [DVec2::ZERO, DVec2::new(3.0, 4.0)] {
+        let at = plane.to_world(local);
+        assert!(
+            (at.z - 2.0).abs() < 1e-9,
+            "the sketch is drawn through {at}, off the cutting plane at mid-height",
+        );
+    }
+    assert_eq!(
+        editor.plane,
+        Some(*plane),
+        "the sketch opened is on another plane"
+    );
+    assert!(
+        state.section.is_none(),
+        "a sketch started, the section view is still on over the sketch's own cut",
+    );
+}
+
+#[test]
+fn starting_a_sketch_on_a_plane_of_the_origin_turns_the_section_view_off() {
+    let Started {
+        state,
+        offered,
+        started,
+        ..
+    } = a_sketch_started_through_a_section(DVec3::new(-30.0, -30.0, 50.0), DVec3::NEG_Z);
+
+    assert!(
+        matches!(offered, Some(PlaneChoice::Origin(_))),
+        "beside the block, the click landed on {offered:?}",
+    );
+    assert!(started, "a click on XY beside the block starts no sketch");
+    assert!(
+        state.section.is_none(),
+        "a sketch started, the section view is still on over the sketch's own cut",
     );
 }

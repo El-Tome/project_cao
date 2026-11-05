@@ -19,6 +19,7 @@ impl Default for ToolbarLayout {
                     "sketch",
                     vec![
                         Item::Command(C::NewSketch),
+                        Item::Command(C::SectionView),
                         Item::Separator,
                         Item::group(
                             "drawing",

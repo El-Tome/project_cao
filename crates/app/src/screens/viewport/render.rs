@@ -26,6 +26,7 @@ mod overlays;
 mod planes;
 mod preview;
 mod reading;
+mod section_panel;
 mod symmetric_line;
 mod trim;
 
@@ -42,6 +43,7 @@ use planes::{push_choosable_planes, push_hovered_face};
 use preview::pending_annotation;
 use reading::push_measure;
 pub(crate) use reading::{Measuring, paint_measure, what_is_measured};
+pub(crate) use section_panel::{paint_section_handle, paint_section_panel};
 pub(crate) use trim::what_would_go;
 
 use super::{ViewMode, ViewScale, ViewportState};

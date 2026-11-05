@@ -278,3 +278,25 @@ fn the_history_says_a_place_to_a_tenth_of_a_micron() {
         "Esquisse 0 · (12.5, 37.4618)",
     );
 }
+
+#[test]
+fn a_sketch_on_a_cutting_plane_is_not_called_a_face_of_the_part() {
+    let mid_height = WorkPlane::from_normal(glam::DVec3::Z * 2.0, glam::DVec3::Z);
+    let on_the_section = said(&Operation::CreateSketch {
+        plane: mid_height,
+        on: None,
+    });
+    let on_a_face = said(&Operation::CreateSketch {
+        plane: mid_height,
+        on: Some(cao_part::history::FaceAnchor {
+            face: 0,
+            up: glam::DVec3::Y,
+        }),
+    });
+
+    assert_eq!(on_a_face, "Esquisse — Face de la pièce");
+    assert!(
+        on_the_section.starts_with("Esquisse — ") && on_the_section != on_a_face,
+        "a sketch laid on a cutting plane, held by no face, reads « {on_the_section} »",
+    );
+}

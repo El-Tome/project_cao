@@ -382,3 +382,26 @@ fn the_step_export_sits_under_the_export_tab_and_nowhere_else() {
         .count();
     assert_eq!(elsewhere, 0, "the STEP export is offered outside its tab");
 }
+
+#[test]
+fn the_section_view_is_offered_while_the_part_holds_matter() {
+    let editor = SketchEditor::default();
+    let extrusion = ExtrusionState::default();
+
+    assert!(
+        !is_enabled(Command::SectionView, &a_part(), &editor, &extrusion),
+        "the section view is offered on a part with no matter to cut",
+    );
+    assert!(
+        is_enabled(Command::SectionView, &a_raised_block(), &editor, &extrusion),
+        "the section view is not offered on a part holding a block",
+    );
+    assert_eq!(
+        wording::label(&Catalogue::french(), Command::SectionView),
+        "Vue en coupe",
+    );
+    assert!(
+        reached(&Settings::default().toolbar.items).contains(&Command::SectionView),
+        "the ribbon offers no « Vue en coupe » button",
+    );
+}

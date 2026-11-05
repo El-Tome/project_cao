@@ -94,6 +94,19 @@ impl Default for ViewportState {
 }
 
 impl ViewportState {
+    pub(crate) fn section(&self) -> Option<&Section> {
+        self.section.as_ref()
+    }
+
+    /// Turns the section view on, along XY through the middle of the part, or
+    /// off when it is on.
+    pub(crate) fn toggle_section(&mut self, body: &cao_solid::Body) {
+        self.section = match self.section {
+            Some(_) => None,
+            None => Some(Section::through_the_middle(WorkPlane::XY, body)),
+        };
+    }
+
     /// Has what a refusal named blink from `now` — these values on the
     /// drawing, these faces of the part — so that it is seen where it is.
     pub fn blink(&mut self, values: Vec<(usize, DimensionTarget)>, faces: Vec<usize>, now: f64) {

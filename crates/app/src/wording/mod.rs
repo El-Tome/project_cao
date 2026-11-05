@@ -27,6 +27,7 @@ pub mod outcome;
 pub mod part_file;
 pub mod pattern;
 pub mod plane;
+pub mod section;
 pub mod settings;
 pub mod shortcuts;
 pub mod storage;

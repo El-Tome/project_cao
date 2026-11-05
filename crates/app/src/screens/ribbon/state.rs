@@ -215,7 +215,8 @@ pub fn is_enabled(
         Command::ExportStlCoarse
         | Command::ExportStlNormal
         | Command::ExportStlFine
-        | Command::ExportStep => !document.body().is_empty(),
+        | Command::ExportStep
+        | Command::SectionView => !document.body().is_empty(),
         _ => true,
     }
 }

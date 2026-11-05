@@ -1,6 +1,7 @@
 pub mod dropping;
 pub mod floating_panel;
 pub mod formula_field;
+pub mod number_field;
 pub mod slider;
 pub mod text_edit;
 pub mod tool_button;

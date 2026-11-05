@@ -181,3 +181,81 @@ fn an_stl_export_asked_from_a_part_drawn_at_a_scale_carries_its_millimetres_per_
         );
     }
 }
+
+/// Runs `command` on `document`, the way a click on its button does, and
+/// says whether the part was left needing to be saved.
+fn clicked(command: Command, document: &mut PartDocument, viewport: &mut ViewportState) -> bool {
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut part = SketchContext {
+        document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    run(command, &mut part, &mut Ribbon::default(), viewport)
+}
+
+#[test]
+fn the_section_view_opens_a_section_through_the_middle_of_the_part_and_closes_it() {
+    let mut document = a_raised_block(None);
+    let mut viewport = ViewportState::default();
+
+    clicked(Command::SectionView, &mut document, &mut viewport);
+    let opened = viewport.section().map(|section| {
+        (
+            section.plane,
+            section.offset,
+            section.behind,
+            section.in_front,
+        )
+    });
+    clicked(Command::SectionView, &mut document, &mut viewport);
+
+    let Some((plane, offset, behind, in_front)) = opened else {
+        panic!("« Vue en coupe » turns no section on");
+    };
+    assert_eq!(
+        plane,
+        WorkPlane::XY,
+        "the section opens on another plane than XY"
+    );
+    assert!(
+        (offset - 2.0).abs() < 1e-9,
+        "the section opens {offset} along Z, not through the middle of a block 4 high",
+    );
+    assert_eq!(
+        (behind, in_front),
+        (MatterInFront::Opaque, MatterInFront::Hidden),
+        "the section opens with its sides set otherwise than one opaque, one hidden",
+    );
+    assert!(
+        viewport.section().is_none(),
+        "« Vue en coupe » clicked again leaves the section on",
+    );
+}
+
+#[test]
+fn the_section_view_leaves_the_history_and_the_document_untouched() {
+    let mut document = a_raised_block(None);
+    let before = document.clone();
+    let mut viewport = ViewportState::default();
+
+    let turned_on = clicked(Command::SectionView, &mut document, &mut viewport);
+    let turned_off = clicked(Command::SectionView, &mut document, &mut viewport);
+
+    assert!(
+        !turned_on && !turned_off,
+        "turning the section view on or off leaves the part needing to be saved",
+    );
+    assert_eq!(
+        document.history, before.history,
+        "the section view entered the history",
+    );
+    assert_eq!(
+        document.body(),
+        before.body(),
+        "the section view changed the part itself",
+    );
+}

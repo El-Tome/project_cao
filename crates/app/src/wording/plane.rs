@@ -17,5 +17,14 @@ pub fn label(lang: &Catalogue, kind: PlaneKind) -> String {
     })
 }
 
+/// The plane a sketch was laid on: off the origin and held by no face of the
+/// part, it is a cutting plane.
+pub fn of_sketch(lang: &Catalogue, kind: PlaneKind, on_a_face: bool) -> String {
+    match (kind, on_a_face) {
+        (PlaneKind::OffOrigin, false) => lang.t("plane.cutting"),
+        _ => label(lang, kind),
+    }
+}
+
 #[cfg(test)]
 mod tests;

@@ -13,54 +13,66 @@
 //! Closes #193. The issue carries no "Done when": what follows is read from
 //! "What the user does", "The section is a surface", "How it is verified",
 //! "Left open" and the comment of 2026-11-05, reworded into criteria.
-//! - a « Vue en coupe » button in the ribbon, offered while a part with matter
-//!   is open — `the_section_view_is_offered_while_the_part_holds_matter`, in
-//!   `crates/app/src/screens/ribbon/state/tests.rs`; it opens a floating panel,
-//!   and closing the panel turns the view off —
-//!   `the_section_view_button_opens_its_panel_and_closing_it_turns_the_view_off`;
-//!   it starts off when the part is reopened —
-//!   `a_part_reopened_starts_with_the_section_view_off`, both in
-//!   `crates/app/tests/section_view.rs`
+//! - a « Vue en coupe » button in the ribbon, offered while the part holds
+//!   matter — `the_section_view_is_offered_while_the_part_holds_matter`, in
+//!   `crates/app/src/screens/ribbon/state/tests.rs`; it opens a section, on XY
+//!   through the middle of the part, and clicked again turns it off —
+//!   `the_section_view_opens_a_section_through_the_middle_of_the_part_and_closes_it`,
+//!   in `crates/app/src/commands/tests.rs`; it opens a floating panel, and
+//!   closing the panel, by the button again or by Échap, turns the view off —
+//!   `the_section_view_button_opens_its_panel_and_closing_it_turns_the_view_off`,
+//!   in `crates/app/tests/section_view.rs`; it starts off when the part is
+//!   reopened — no test: the section lives in `ViewportState`, which opening a
+//!   part builds afresh, and nothing of it reaches the file, as the criterion
+//!   on the document holds
 //! - the cutting plane is one of the three origin planes —
 //!   `the_section_cuts_along_whichever_origin_plane_is_chosen` — or a flat face
-//!   of the part clicked — `a_flat_face_clicked_becomes_the_cutting_plane`,
+//!   of the part clicked once the panel waits for one —
+//!   `the_panel_waits_for_a_face_until_one_is_clicked_or_a_plane_chosen`, in
+//!   `crates/app/src/screens/viewport/section/tests.rs`;
+//!   `a_flat_face_clicked_becomes_the_cutting_plane`,
 //!   `a_curved_face_clicked_is_no_cutting_plane`, in
 //!   `crates/app/src/screens/viewport/input/planes/tests.rs`
 //! - the distance is typed in the panel, from the chosen plane or face, signed
 //!   along its normal — `the_distance_moves_the_cut_along_the_normal_of_the_plane`,
 //!   `a_distance_from_a_face_is_signed_along_its_outward_normal`; a handle on
-//!   the plane is pulled in the view — where a pointer ray lands along the
-//!   normal, `a_ray_across_the_normal_pulls_the_handle_to_the_closest_point`,
-//!   `a_ray_along_the_normal_pulls_the_handle_nowhere`, and a press on the
-//!   handle is the handle's, not the camera's —
-//!   `a_press_on_the_section_handle_goes_to_the_handle`; each follows the other
-//!   — `the_handle_stands_where_the_distance_typed_puts_the_plane`,
-//!   `pulling_the_handle_changes_the_distance_the_panel_shows`, in
-//!   `crates/app/src/screens/viewport/state/tests.rs`
+//!   the plane is pulled in the view, where a pointer ray lands along the
+//!   normal — `a_ray_across_the_normal_pulls_the_handle_to_the_closest_point`,
+//!   `a_ray_along_the_normal_pulls_the_handle_nowhere`,
+//!   `a_ray_far_from_the_handle_takes_no_hold_of_it`; each follows the other —
+//!   `the_handle_stands_where_the_distance_typed_puts_the_plane`,
+//!   `pulling_the_handle_changes_the_distance_the_panel_shows`, all five in
+//!   `crates/app/src/screens/viewport/section/tests.rs`
 //! - one state per side, behind and in front of the plane: hidden, see-through
 //!   or opaque; by default one side hidden, the other opaque; « Inverser »
 //!   swaps them — read as: the sides belong to the plane, behind against its
 //!   normal and in front along it, not to the eye —
 //!   `a_section_draws_what_lies_behind_opaque_and_hides_what_stands_in_front`,
 //!   `each_side_of_the_section_is_hidden_see_through_or_opaque_on_its_own`,
-//!   `inverting_the_section_swaps_the_states_of_its_two_sides`; the cut is
-//!   computed once per plane, distance and part, never every frame, whatever
-//!   the states or the eye — `the_section_is_cut_once_per_plane_distance_and_part`
+//!   `inverting_the_section_swaps_the_states_of_its_two_sides`, and a click on
+//!   a side's row steps it round the three —
+//!   `each_side_steps_round_its_three_states_on_its_own`, in
+//!   `crates/app/src/screens/viewport/section/tests.rs`; the cut is computed
+//!   once per plane, distance and part, never every frame, whatever the states
+//!   or the eye — `the_section_is_cut_once_per_plane_distance_and_part`
 //! - the section is drawn filled, the exact cut of #578 —
 //!   `the_section_is_drawn_filled_on_the_cutting_plane`; it can be picked to
 //!   start a sketch on, and the sketch lands on the cutting plane, a plane and
-//!   not a face of the part — `a_click_on_the_section_starts_a_sketch_on_the_cutting_plane`,
-//!   in `crates/app/src/screens/viewport/input/planes/tests.rs`, and
+//!   not a face of the part —
+//!   `a_click_on_the_section_starts_a_sketch_on_the_cutting_plane`, in
+//!   `crates/app/src/screens/viewport/input/planes/tests.rs`, and
 //!   `a_sketch_on_a_cutting_plane_is_not_called_a_face_of_the_part`, in
-//!   `crates/app/src/wording/plane/tests.rs`; starting a sketch turns the
+//!   `crates/app/src/wording/history/tests.rs`; starting a sketch turns the
 //!   section view off, the sketch's own cut of #319 taking over — decided by
-//!   the orchestrator, not the issue —
-//!   `starting_a_sketch_turns_the_section_view_off`, in
+//!   the orchestrator, not the issue — the same test and
+//!   `starting_a_sketch_on_a_plane_of_the_origin_turns_the_section_view_off`,
+//!   beside it, and `starting_a_sketch_turns_the_section_view_off`, in
 //!   `crates/app/tests/section_view.rs`
 //! - the section view never touches the document: nothing enters the history,
 //!   the `.caopart` is unchanged —
 //!   `the_section_view_leaves_the_history_and_the_document_untouched`, in
-//!   `crates/app/tests/section_view.rs`
+//!   `crates/app/src/commands/tests.rs`; moving, inverting and pointing the
+//!   section are `Section`'s, which is handed no document
 //! - "slicing a cube at mid-height gives the expected cross-section, in
 //!   `cao_solid`, with no window" —
 //!   `a_block_sliced_at_mid_height_leaves_its_footprint_on_the_plane`, in
@@ -388,9 +400,7 @@ fn seen(state: MatterInFront) -> Seen {
 /// How the triangles `on_this_side` picks out of a frame are drawn: opaque
 /// with the solids, see-through with the surfaces, or not at all.
 fn how_drawn(frame: &SceneFrame, on_this_side: impl Fn(&[&cao_render::Vertex; 3]) -> bool) -> Seen {
-    let opaque = triangles(&frame.scene_solids)
-        .iter()
-        .any(|triangle| on_this_side(triangle));
+    let opaque = triangles(&frame.scene_solids).iter().any(&on_this_side);
     let veiled: Vec<_> = triangles(&frame.scene_surfaces)
         .into_iter()
         .filter(|triangle| on_this_side(triangle))
@@ -596,4 +606,109 @@ fn the_section_is_cut_once_per_plane_distance_and_part() {
     let mut lower = a_block_up_to(3.0);
     a_frame_of(&state, &mut lower, &mut editor);
     assert_eq!(cuts(&state), 5, "the part changed and was not cut again");
+}
+
+/// How far along `normal` the matter drawn opaque reaches, nearest and
+/// furthest.
+fn opaque_reach(frame: &SceneFrame, normal: DVec3) -> (f64, f64) {
+    assert!(!frame.scene_solids.is_empty(), "nothing is drawn opaque");
+    frame
+        .scene_solids
+        .iter()
+        .map(|vertex| Vec3::from(vertex.position).as_dvec3().dot(normal))
+        .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), at| {
+            (low.min(at), high.max(at))
+        })
+}
+
+fn sectioned_along(plane: WorkPlane, offset: f64) -> SceneFrame {
+    a_view_of_the_block(&sectioned(|section| {
+        section.plane = plane;
+        section.offset = offset;
+    }))
+}
+
+#[test]
+fn the_section_cuts_along_whichever_origin_plane_is_chosen() {
+    let middle = DVec3::new(5.0, 5.0, 2.0);
+
+    for plane in WorkPlane::ORIGIN_PLANES {
+        let normal = plane.normal();
+        let offset = normal.dot(middle) + 0.5;
+
+        let (nearest, furthest) = opaque_reach(&sectioned_along(plane, offset), normal);
+
+        assert!(
+            (furthest - offset).abs() <= 1e-3,
+            "along {plane:?}, the matter drawn reaches {furthest} along its normal, \
+             not the cut at {offset}",
+        );
+        assert!(
+            nearest < offset - 1.0,
+            "along {plane:?}, the matter behind the cut is not drawn",
+        );
+    }
+}
+
+#[test]
+fn the_distance_moves_the_cut_along_the_normal_of_the_plane() {
+    for offset in [1.0, 3.0] {
+        let (_, top) = opaque_reach(&sectioned_along(WorkPlane::XY, offset), DVec3::Z);
+
+        assert!(
+            (top - offset).abs() <= 1e-3,
+            "a distance of {offset} from XY draws the block up to {top}",
+        );
+    }
+}
+
+#[test]
+fn a_distance_from_a_face_is_signed_along_its_outward_normal() {
+    let top = WorkPlane::from_normal(DVec3::Z * 4.0, DVec3::Z);
+    let bottom = WorkPlane::from_normal(DVec3::ZERO, DVec3::NEG_Z);
+
+    let (_, under_the_top) = opaque_reach(&sectioned_along(top, -1.0), DVec3::Z);
+    let (over_the_bottom, _) = opaque_reach(&sectioned_along(bottom, -1.0), DVec3::Z);
+
+    assert!(
+        (under_the_top - 3.0).abs() <= 1e-3,
+        "a unit into the part from its top face cuts at {under_the_top}, not 3",
+    );
+    assert!(
+        (over_the_bottom - 1.0).abs() <= 1e-3,
+        "a unit into the part from its bottom face cuts at {over_the_bottom}, not 1",
+    );
+}
+
+/// How much of the frame's opaque matter lies flat within a hundredth of
+/// `height`: what stands in front is closed a drawing tolerance ahead of the
+/// plane, by #578's design, so that none of it lies on a sketch drawn there.
+fn area_lying_at(frame: &SceneFrame, height: f32) -> f32 {
+    triangles(&frame.scene_solids)
+        .into_iter()
+        .filter(|triangle| {
+            triangle
+                .iter()
+                .all(|corner| (corner.position[2] - height).abs() <= 1e-2)
+        })
+        .map(|[a, b, c]| {
+            let [a, b, c] = [a, b, c].map(|corner| Vec3::from(corner.position));
+            (b - a).cross(c - a).length() / 2.0
+        })
+        .sum()
+}
+
+#[test]
+fn the_section_is_drawn_filled_on_the_cutting_plane() {
+    for (state, which) in [
+        (sectioned(|_| {}), "the matter behind"),
+        (sectioned(Section::invert), "the matter in front"),
+    ] {
+        let filled = area_lying_at(&a_view_of_the_block(&state), MID_HEIGHT);
+
+        assert!(
+            (filled - 100.0).abs() <= 1e-2,
+            "{which} kept, the cut across the block 10 by 10 is filled over {filled}, not 100",
+        );
+    }
 }

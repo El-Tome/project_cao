@@ -146,6 +146,32 @@ It can:
   Vertex names have no lookup yet and hold the names of their edges, so a
   change at an edge's far end renames a vertex nothing touched: a dimension
   from a vertex (#497) needs a `find` of its own.
+- **chamfer one straight edge** (#696, `Body::chamfer` in `body/chamfer.rs`,
+  the cut in `body/exact/chamfer.rs`), a step of the kernel beside the join
+  and the cut; the step of the history that calls it comes with the
+  application (#695). The edge is found by its name, as above, so a change
+  of size, a move or a turn upstream cuts the same edge again. The distance
+  is the set-back along each of the edge's two faces, as in every CAD tool,
+  not the width of the face laid between them. A distance the faces cannot
+  give is reduced to the nearer face's reach — how far it runs from the
+  edge, square to it, to its nearest corner off the edge — so at most one
+  face is consumed whole, and `Chamfered` reports the distance asked and the
+  distance taken. The cut is a slab standing on the chamfer's plane, running
+  past the body's box at both ends of the edge, cut from the body
+  (`Wedge`); its floor is the one face the step names, numbered where the
+  steps' numbers ended, and the count moves on by one, so no other face
+  changes its number. Two
+  edges a join bridged into one, which both names find, are cut whole: one
+  edge on screen, one chamfer (case 2 of #683, Tom, 2026-11-05). Declined,
+  never cut wrong: an edge its name no longer finds is `Declined::Lost`,
+  gone or split, as `Body::lost` says, and on flats every name is gone; an
+  edge that is not straight between two flat faces, a concave one, or one
+  whose cut, carried along the edge's line, would run into matter beyond it
+  is `Declined::Unsupported`. That last one checks what the cut left — no
+  face of the slab but its floor, the floor in one piece, each of its
+  corners on one of the edge's faces — so an edge ending at a concave
+  corner, an arm's edge running into the stem of an L or a pocket's rim, is
+  declined, where a full CAD chamfer would stop at the wall.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face
@@ -196,8 +222,10 @@ Left, in the order #497 set:
   or square to it (#571), and two cylinders, elliptic walls or cones at any
   angle (#577);
 - an exact STEP;
-- chamfers and fillets on a straight edge, then on a circular one, then where
-  fillets meet at a corner;
+- fillets on a straight edge, then on a circular one, then where fillets
+  meet at a corner; a chamfer on one straight edge is done (#696), and a
+  chamfer on several edges at once, on a curved edge, or stopping at the
+  wall of a concave corner is still to come;
 - draft, shell, loft.
 
 Known and still open:
@@ -301,7 +329,8 @@ Known and still open:
 - **Operations:** raise a profile of straight runs, arcs and ellipses along
   its plane's normal; turn a profile of straight runs and arcs, each
   parallel, square or slanted to the axis, an arc about its own centre;
-  join, cut. A turn of an ellipse is a broken step (#632). A turn about a
+  join, cut; chamfer one straight edge between two flat faces (#696). A
+  turn of an ellipse is a broken step (#632). A turn about a
   line that is no axis of the planes the rest
   of the part stands on brings cylinders at a skew angle to those, built
   since #577 where #533 left a broken step.

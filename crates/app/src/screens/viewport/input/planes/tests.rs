@@ -40,8 +40,9 @@
 //!   sketch turns the section view off —
 //!   `a_click_on_the_section_starts_a_sketch_on_the_cutting_plane`,
 //!   `starting_a_sketch_on_a_plane_of_the_origin_turns_the_section_view_off`;
-//!   the history reads it as laid on a cut, from what was recorded —
-//!   `a_sketch_started_on_the_section_reads_as_laid_on_a_cut_in_the_history`
+//!   the history reads it as laid on a plane off the origin held by no face,
+//!   not on a face of the part —
+//!   `a_sketch_started_on_the_section_reads_as_laid_on_an_offset_plane_in_the_history`
 //! - found in review: a face of the part picked through the section is
 //!   anchored to the part's own face, and the face lit under the cursor is
 //!   that same face —
@@ -687,7 +688,7 @@ fn the_face_a_section_was_laid_on_is_still_a_face_of_the_part() {
 }
 
 #[test]
-fn a_sketch_started_on_the_section_reads_as_laid_on_a_cut_in_the_history() {
+fn a_sketch_started_on_the_section_reads_as_laid_on_an_offset_plane_in_the_history() {
     let Started { document, .. } =
         a_sketch_started_through_a_section(DVec3::new(5.0, 5.0, 50.0), DVec3::NEG_Z);
 
@@ -702,10 +703,7 @@ fn a_sketch_started_on_the_section_reads_as_laid_on_a_cut_in_the_history() {
         recorded,
     );
 
-    assert!(
-        said.starts_with("Esquisse — ") && said != "Esquisse — Face de la pièce",
-        "a sketch started on the cut reads « {said} » in the history",
-    );
+    assert_eq!(said, "Esquisse — Plan décalé");
 }
 
 const SCREEN: egui::Rect = egui::Rect {

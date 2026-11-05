@@ -34,10 +34,13 @@ pub fn label(lang: &Catalogue, variables: &Variables, operation: &Operation) -> 
             .map(|first| label(lang, variables, first))
             .unwrap_or_default(),
         Operation::Variable(change) => variable(lang, variables, change),
-        Operation::CreateSketch { plane, .. } => lang.t_with(
-            "history.sketch",
-            &[("plane", &plane::label(lang, plane.kind()))],
-        ),
+        Operation::CreateSketch { plane, on } => {
+            let where_laid = match (plane.kind(), on) {
+                (cao_sketch::PlaneKind::OffOrigin, None) => lang.t("plane.offset"),
+                (kind, _) => plane::label(lang, kind),
+            };
+            lang.t_with("history.sketch", &[("plane", &where_laid)])
+        }
         Operation::AddPoint { .. } => lang.t("history.point"),
         Operation::AddSegment { .. } => lang.t("history.segment"),
         Operation::AddSymmetricSegment { .. } => lang.t("history.symmetric_segment"),

@@ -9,11 +9,17 @@
 //!   `a_side_moved_and_a_shape_turned_say_so_and_unfold_into_what_they_did`
 //!
 //! Closes #193.
-//! - decided in review: a sketch laid on a cut is recorded as such, and only
-//!   that record reads as a cut — no test: in this file; held where the sketch
-//!   is started, in `crates/app/src/screens/viewport/input/planes/tests.rs`
-//! - a face sketch from a file older than its anchor still reads « Face de la
-//!   pièce » — `a_face_sketch_from_a_file_older_than_its_anchor_still_reads_as_a_face`
+//! - decided in review: a sketch off the origin held by no face reads « Plan
+//!   décalé », and one anchored to a face « Face de la pièce » —
+//!   `an_unanchored_sketch_off_the_origin_reads_as_an_offset_plane`,
+//!   `a_sketch_anchored_to_a_face_reads_as_a_face_of_the_part`; the one laid on
+//!   a cut is held where it is started, in
+//!   `crates/app/src/screens/viewport/input/planes/tests.rs`
+//! - a face sketch from a file older than its anchor is that same value, a
+//!   plane off the origin and no face: it reads « Plan décalé » too, which is
+//!   true of it, rather than « Face de la pièce », which the file no longer
+//!   proves. Telling it from a sketch laid on a cut would take a mark in the
+//!   format, set aside — `a_face_sketch_from_a_file_older_than_its_anchor_reads_as_an_offset_plane`
 
 use cao_part::history::{PointRef, RevolutionAxis};
 use cao_sketch::{Area, CircleId, CurveId, PointId, SegmentId, SketchAxis, WorkPlane};
@@ -286,11 +292,37 @@ fn the_history_says_a_place_to_a_tenth_of_a_micron() {
     );
 }
 
+fn on_the_top() -> WorkPlane {
+    WorkPlane::from_normal(glam::DVec3::Z * 4.0, glam::DVec3::Z)
+}
+
 #[test]
-fn a_face_sketch_from_a_file_older_than_its_anchor_still_reads_as_a_face() {
-    let on_the_top = WorkPlane::from_normal(glam::DVec3::Z * 4.0, glam::DVec3::Z);
+fn an_unanchored_sketch_off_the_origin_reads_as_an_offset_plane() {
+    let unanchored = Operation::CreateSketch {
+        plane: on_the_top(),
+        on: None,
+    };
+
+    assert_eq!(said(&unanchored), "Esquisse — Plan décalé");
+}
+
+#[test]
+fn a_sketch_anchored_to_a_face_reads_as_a_face_of_the_part() {
+    let anchored = Operation::CreateSketch {
+        plane: on_the_top(),
+        on: Some(cao_part::history::FaceAnchor {
+            face: 0,
+            up: glam::DVec3::Y,
+        }),
+    };
+
+    assert_eq!(said(&anchored), "Esquisse — Face de la pièce");
+}
+
+#[test]
+fn a_face_sketch_from_a_file_older_than_its_anchor_reads_as_an_offset_plane() {
     let mut written = serde_json::to_value(Operation::CreateSketch {
-        plane: on_the_top,
+        plane: on_the_top(),
         on: None,
     })
     .expect("a sketch is written");
@@ -303,7 +335,7 @@ fn a_face_sketch_from_a_file_older_than_its_anchor_still_reads_as_a_face() {
 
     assert_eq!(
         said(&read),
-        "Esquisse — Face de la pièce",
-        "a sketch laid on a face before faces were recorded reads as something else",
+        "Esquisse — Plan décalé",
+        "a sketch from before faces were recorded reads as a cut, which it may never have been",
     );
 }

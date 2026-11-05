@@ -127,6 +127,7 @@
   "plane.origin_xz": "Plan XZ",
   "plane.origin_yz": "Plan YZ",
   "plane.origin_slanted": "Plan d'esquisse",
+  "plane.offset": "Plan décalé",
 
   "cube.front": "FACE",
   "cube.back": "ARRIÈRE",

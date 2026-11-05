@@ -16,7 +16,8 @@ mod driver;
 
 use egui_kittest::kittest::{NodeT, Queryable};
 
-/// A block raised off a rectangle drawn on a plane of the origin.
+/// A block raised off a rectangle drawn on a plane of the origin, its sketch
+/// then finished.
 fn a_block(test: &str) -> driver::App {
     let mut app = driver::open(test);
     driver::create_a_part(&mut app, "Bloc");
@@ -29,6 +30,14 @@ fn a_block(test: &str) -> driver::App {
     driver::click(&mut app, "Ajout de matière");
     driver::click_at(&mut app, (850.0, 510.0));
     driver::click(&mut app, "Appliquer");
+    driver::press(&mut app, egui::Key::Escape);
+    click_in_the_ribbon(&mut app, "Terminer");
+    driver::click_the_button(&mut app, "Esquisse");
+    assert!(
+        !driver::is_enabled(&app, "Terminer"),
+        "the sketch the block was raised from is still being edited, showing {:?}",
+        driver::on_screen(&app),
+    );
     app
 }
 

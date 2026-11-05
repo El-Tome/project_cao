@@ -53,9 +53,9 @@
 //! a parabola, a hyperbola, two lines through an apex, the apex alone or a
 //! ruling it touches along: `Case::conics` tells which. The kernel builds
 //! them, so a decline as unsupported is excused only on a case asking
-//! beyond the conics (`Case::asks_beyond_the_conics`): two cylinders at a
-//! skew angle, or a cone against a wall off its axis, where their leaves'
-//! boxes meet. The volume a
+//! beyond the conics (`Case::asks_beyond_the_conics`): a cone against a wall
+//! off its axis, where their leaves' boxes meet, or since #577, which builds
+//! two cylinders at a skew angle, two walls nearly parallel along a stretch. The volume a
 //! round leaf keeps under a slanted plane is held besides to its slices
 //! (`Leaf::kept_by_a_half_space`), which owe nothing to the lines. The flats
 //! answered 244 of the first 300 tilted cases by their own rules when the
@@ -1179,7 +1179,10 @@ fn a_case_asking_beyond_the_conics_is_told_from_one_that_does_not() {
     }
     let slanted = Axis::first(0.0).leaning(30.0);
     assert!(!asks(&shaft(360.0, slanted), &block));
-    assert!(asks(&shaft(360.0, slanted), &bar));
+    assert!(
+        !asks(&shaft(360.0, slanted), &bar),
+        "skew walls, built since #577"
+    );
     assert!(!Case::new(shaft(45.0, slanted), vec![]).asks_beyond_the_conics());
     assert!(!asks(&post, &block));
 
@@ -1187,8 +1190,9 @@ fn a_case_asking_beyond_the_conics_is_told_from_one_that_does_not() {
         .filter(|seed| Case::drawn_turned_off_the_lattice(*seed).asks_beyond_the_conics())
         .count();
     assert!(
-        (50..250).contains(&asking),
-        "{asking} cases ask beyond the conics"
+        asking < 10,
+        "{asking} cases ask beyond the conics, where turns of straight runs draw no \
+         cone and their skew walls are built since #577"
     );
 
     let cone = |degrees: f64| {
@@ -3983,8 +3987,8 @@ fn a_case_that_asked_for_a_conic_is_built_now() {
 
 #[test]
 fn a_case_asking_beyond_the_conics_is_declined_as_unsupported_or_held() {
-    let turned = picked(
-        Case::drawn_turned_off_the_lattice,
+    let tilted = picked(
+        Case::drawn_tilted_off_the_lattice,
         Case::asks_beyond_the_conics,
         12,
     );
@@ -3993,9 +3997,9 @@ fn a_case_asking_beyond_the_conics_is_declined_as_unsupported_or_held() {
         Case::asks_beyond_the_conics,
         8,
     );
-    assert_eq!(turned.len(), 12, "{} turned cases", turned.len());
+    assert_eq!(tilted.len(), 12, "{} tilted cases", tilted.len());
     assert_eq!(slanted.len(), 8, "{} slanted cases", slanted.len());
-    let asking: Vec<Case> = turned.into_iter().chain(slanted).collect();
+    let asking: Vec<Case> = tilted.into_iter().chain(slanted).collect();
     let weighed = random_solids::on_every_core(&asking, |case| {
         random_solids::held_to_arithmetic(case, &Exact)
     });

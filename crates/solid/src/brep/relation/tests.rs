@@ -247,7 +247,7 @@ fn parallel_cylinders_touching_exactly_meet_along_the_line_where_they_touch() {
 }
 
 #[test]
-fn perpendicular_cylinders_meet_along_their_curve_and_skew_ones_are_not_supported() {
+fn perpendicular_cylinders_and_skew_ones_meet_along_their_curve() {
     let stock = cylinder(DVec3::ZERO, DVec3::Z, 20.0);
     let across = cylinder(DVec3::new(0.0, 15.0, 5.0), DVec3::X, 5.0);
     let found = relation(&stock, &across, scale());
@@ -263,7 +263,13 @@ fn perpendicular_cylinders_meet_along_their_curve_and_skew_ones_are_not_supporte
     assert_eq!(relation(&stock, &far, scale()), Relation::Apart);
 
     let skew = cylinder(DVec3::ZERO, DVec3::new(1.0, 0.0, 1.0), 5.0);
-    assert_eq!(relation(&stock, &skew, scale()), Relation::Unsupported);
+    let found = relation(&stock, &skew, scale());
+    let Relation::Meet(meeting) = &found else {
+        panic!("a meeting expected, got {found:?}");
+    };
+    assert_eq!(meeting.configuration, Configuration::TwoLoops);
+    assert_on_both(&found, &stock, &skew, 1e-12 * REACH);
+    assert_eq!(relation(&skew, &stock, scale()), found);
 }
 
 #[test]

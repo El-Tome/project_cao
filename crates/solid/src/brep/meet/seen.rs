@@ -15,7 +15,8 @@ use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 use glam::{DVec2, DVec3};
 
-use super::pair::{Pair, Section, reached};
+use super::pair::Pair;
+use super::section::{Section, reached};
 use crate::brep::curve::{Meet, Wall};
 use crate::brep::surface::Cylinder;
 
@@ -45,9 +46,9 @@ impl Meet {
             let around = around_first(&pair, signs[0], t);
             let [angle, turn, sway] = angles(across, around, start);
             [
-                DVec2::new(angle, point.z),
-                DVec2::new(turn, speed.z),
-                DVec2::new(sway, bend.z),
+                DVec2::new(angle, pair.rise(point)),
+                DVec2::new(turn, pair.rise(speed)),
+                DVec2::new(sway, pair.rise(bend)),
             ]
         } else {
             let across = match self.second {

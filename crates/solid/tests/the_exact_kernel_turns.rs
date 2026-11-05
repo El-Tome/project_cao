@@ -473,19 +473,43 @@ fn a_stepped_profile_turned_holds_what_its_slabs_raised_and_joined_hold() {
     }
 }
 
+/// The volume two endless cylinders of radii `big` and `small` share,
+/// their axes meeting at `degrees`: each line of the smaller one `a` across
+/// from the larger's axis, along the line square to both, runs
+/// `2√(R² − a²)/sin θ` inside the larger, and over the smaller's disc
+/// `a = r sin φ`, the whole turn counting the disc twice. The integrand is
+/// periodic and smooth, so the trapezoid rule over the turn converges
+/// geometrically.
+fn shared(big: f64, small: f64, degrees: f64) -> f64 {
+    let samples = 256;
+    let sum: f64 = (0..samples)
+        .map(|k| {
+            let (sin, cos) = (TAU * k as f64 / samples as f64).sin_cos();
+            cos * cos * (big * big - small * small * sin * sin).sqrt()
+        })
+        .sum();
+    2.0 * small * small / degrees.to_radians().sin() * sum * TAU / samples as f64
+}
+
 #[test]
-fn a_turn_about_a_slanted_axis_crossing_a_raised_cylinder_declines_as_unsupported() {
+fn a_turn_about_a_slanted_axis_crossing_a_raised_cylinder_at_a_skew_angle_holds_its_volume() {
     let leaning = Turning {
         origin: DVec3::ZERO,
         along: DVec3::new(3.0_f64.sqrt() / 2.0, 0.5, 0.0),
         side: DVec3::new(-0.5, 3.0_f64.sqrt() / 2.0, 0.0),
     };
-    let ring = laid(1.0, &[&[[-5.0, 2.0], [5.0, 2.0], [5.0, 4.0], [-5.0, 4.0]]]);
-    let ring = turned(&ring, leaning, TAU).expect("the ring turns");
-    assert_eq!(
-        bore(3.0, -20.0, 20.0).joined(&ring),
-        Err(Declined::Unsupported)
+    let ring = laid(
+        1.0,
+        &[&[[-10.0, 2.0], [10.0, 2.0], [10.0, 4.0], [-10.0, 4.0]]],
     );
+    let ring = turned(&ring, leaning, TAU).expect("the ring turns");
+    let joined = bore(3.0, -20.0, 20.0)
+        .joined(&ring)
+        .expect("the kernel answers");
+    let bore = PI * 9.0 * 40.0;
+    let tube = PI * (16.0 - 4.0) * 20.0;
+    let common = shared(4.0, 3.0, 60.0) - shared(3.0, 2.0, 60.0);
+    holds(&joined, bore + tube - common);
 }
 
 /// A profile drawn in XY as its corners and the triangles its area is cut

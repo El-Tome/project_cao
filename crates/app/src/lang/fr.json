@@ -759,6 +759,8 @@
   "extrusion.declined": "Le noyau exact ne sait pas encore construire cette opération : la pièce reste comme elle était.",
   "extrusion.unstable_square": "Cas instable : un plan est presque perpendiculaire à l'axe d'un cylindre, d'un cône, d'un cylindre elliptique, d'une sphère ou d'un tore (écart de {angle}°). Le résultat peut changer pour une modification infime.",
   "extrusion.unstable_along": "Cas instable : un plan est presque parallèle à l'axe d'un cylindre, d'un cône, d'un cylindre elliptique, d'une sphère ou d'un tore (écart de {angle}°). Le résultat peut changer pour une modification infime.",
+  "extrusion.unstable_across": "Cas instable : les axes de deux cylindres, cônes ou cylindres elliptiques sont presque perpendiculaires (écart de {angle}°). Le résultat peut changer pour une modification infime.",
+  "extrusion.unstable_abreast": "Cas instable : les axes de deux cylindres, cônes ou cylindres elliptiques sont presque parallèles (écart de {angle}°). Le résultat peut changer pour une modification infime.",
   "extrusion.nothing_from_revolution": "La révolution n'a rien changé à la pièce.",
 
   "viewport.read_only": "{value} {unit} (lecture seule)",

@@ -34,7 +34,6 @@ mod solved;
 use glam::{DQuat, DVec3};
 
 use super::placed::{Laying, placed};
-use crate::brep::Lean;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, SurfaceId};
@@ -52,18 +51,26 @@ const ROUNDING: f64 = 1e-6;
 struct Pair {
     first: DVec3,
     second: DVec3,
-    lean: Lean,
+    lean: Off,
     sine: f64,
 }
 
+/// Which way one direction leans off another: nearly parallel to it, or
+/// nearly square to it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::brep) enum Off {
+    Parallel,
+    Square,
+}
+
 /// How one direction leans off another, and by what sine.
-pub(in crate::brep) fn leaning(first: DVec3, second: DVec3) -> (Lean, f64) {
-    let square = first.cross(second).length();
-    let along = first.dot(second).abs();
-    if square <= along {
-        (Lean::Square, square)
+pub(in crate::brep) fn leaning(first: DVec3, second: DVec3) -> (Off, f64) {
+    let parallel = first.cross(second).length();
+    let square = first.dot(second).abs();
+    if parallel <= square {
+        (Off::Parallel, parallel)
     } else {
-        (Lean::Along, along)
+        (Off::Square, square)
     }
 }
 
@@ -106,8 +113,8 @@ impl Pair {
     fn off(&self, turn: DQuat) -> f64 {
         let second = turn * self.second;
         match self.lean {
-            Lean::Square => self.first.cross(second).length(),
-            Lean::Along => self.first.dot(second).abs(),
+            Off::Parallel => self.first.cross(second).length(),
+            Off::Square => self.first.dot(second).abs(),
         }
     }
 }
@@ -191,10 +198,11 @@ fn paired(
     for &(one, other) in facing {
         let [surface, tool] = [first.surface(one), second.surface(other)];
         let pair = Pair::of(direction(surface), direction(tool));
-        let walled = matches!(surface, Surface::Plane(_)) != matches!(tool, Surface::Plane(_));
+        let walled = matches!(surface, Surface::Plane(_)) != matches!(tool, Surface::Plane(_))
+            || ruled(surface) && ruled(tool);
         let parallel = abreast
             && matches!((surface, tool), (Surface::Plane(_), Surface::Plane(_)))
-            && matches!(pair.lean, Lean::Square);
+            && matches!(pair.lean, Off::Parallel);
         if pair.sine <= exact {
             held.push(pair);
         } else if (walled || parallel) && pair.sine <= hair {
@@ -203,6 +211,15 @@ fn paired(
         }
     }
     (near, held, planes)
+}
+
+/// Whether a surface is a wall whose rulings run along or through its axis:
+/// two such walls a hair off square or parallel are laid so (#577).
+fn ruled(surface: &Surface) -> bool {
+    matches!(
+        surface,
+        Surface::Cylinder(_) | Surface::Elliptic(_) | Surface::Cone(_)
+    )
 }
 
 /// The direction a surface leans by: a plane's normal, a wall's axis.

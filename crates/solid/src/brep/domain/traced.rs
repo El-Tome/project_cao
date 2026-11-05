@@ -112,7 +112,9 @@ pub(in crate::brep) fn traced(
             ) {
                 Some(trace) => Ok(trace),
                 None => chord(curve, surface, from, to, eps).or_else(|declined| {
-                    square::rim(curve, conic, surface, [from, to], eps).ok_or(declined)
+                    square::rim(curve, conic, surface, [from, to], eps)
+                        .or_else(|| walled(curve, conic, surface, [from, to], eps))
+                        .ok_or(declined)
                 }),
             }
         }
@@ -239,13 +241,43 @@ pub(in crate::brep) fn traced(
         (Surface::Plane(plane), Curve::Meet(meet)) => {
             let round = square::round(meet, plane);
             chord(curve, surface, from, to, eps).or_else(|declined| {
-                beside(curve, (plane, &round), surface, [from, to], eps).ok_or(declined)
+                beside(curve, (plane, &round), surface, [from, to], eps)
+                    .or_else(|| {
+                        let other = [meet.first, meet.second]
+                            .into_iter()
+                            .map(|wall| match wall {
+                                Wall::Cylinder(cylinder) => Round::Cylinder(cylinder),
+                                Wall::Elliptic(oval) => Round::Elliptic(oval),
+                            })
+                            .find(|wall| *wall != round)?;
+                        beside(curve, (plane, &other), surface, [from, to], eps)
+                    })
+                    .ok_or(declined)
             })
         }
         (Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_), _) => {
             chord(curve, surface, from, to, eps)
         }
     }
+}
+
+/// A stretch of a conic seen on a wall a hair beside its plane, at a skew
+/// angle to the conic's own wall (#577): the curve the two walls meet
+/// along, as a circle square to a wall is seen. None for a conic on a cone,
+/// or on any other surface.
+fn walled(
+    curve: &Curve,
+    conic: &Conic,
+    surface: &Surface,
+    stretch: [f64; 2],
+    eps: f64,
+) -> Option<Trace> {
+    let own = match conic.round {
+        Round::Cylinder(cylinder) => Wall::Cylinder(cylinder),
+        Round::Elliptic(oval) => Wall::Elliptic(oval),
+        Round::Cone(_) => return None,
+    };
+    met(curve, own, Wall::of(surface)?, stretch, eps)
 }
 
 fn own(conic: &Conic, on: On, from: f64, to: f64) -> Trace {

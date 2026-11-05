@@ -1,17 +1,19 @@
 //! Where a circle crosses a surface: its own plane cut by its own cylinder,
 //! what the surface makes with the one or the other, against the circle.
 
-use crate::brep::curve::{Circle, Line};
+use glam::DVec3;
+
+use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::relation::cylinders::cylinders;
 use crate::brep::relation::elliptic::plane_and_elliptic;
 use crate::brep::relation::planar::{plane_and_cylinder, planes};
 use crate::brep::relation::walls::round_and_elliptic;
-use crate::brep::relation::{Relation, parallel, square};
+use crate::brep::relation::{Relation, parallel, relation, square};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 
 use super::cut::Cut;
-use super::{Solved, Touches, touches};
+use super::{Crossings, Solved, Touches, crossings_given, touches};
 
 /// A circle is its own plane cut by its own cylinder: what the surface makes
 /// with the one or the other — decided as the relation of that pair decides
@@ -33,6 +35,12 @@ pub(super) fn circle_and_surface(
         Surface::Cylinder(cylinder) if parallel(circle.axis, cylinder.axis, scale) => {
             (cylinders(&own_cylinder, cylinder, scale), false, None)
         }
+        Surface::Cylinder(cylinder) if !square(circle.axis, cylinder.axis, scale) => {
+            return through_the_meet(circle, &own_plane, own_cylinder, surface, scale, touching);
+        }
+        Surface::Elliptic(wall) if !parallel(circle.axis, wall.axis, scale) => {
+            return through_the_meet(circle, &own_plane, own_cylinder, surface, scale, touching);
+        }
         Surface::Cylinder(cylinder) => (
             plane_and_cylinder(&own_plane, cylinder, scale),
             true,
@@ -41,18 +49,69 @@ pub(super) fn circle_and_surface(
                 plane: &own_plane,
             }),
         ),
-        Surface::Elliptic(wall) if parallel(circle.axis, wall.axis, scale) => {
-            (round_and_elliptic(&own_cylinder, wall, scale), false, None)
-        }
+        Surface::Elliptic(wall) => (round_and_elliptic(&own_cylinder, wall, scale), false, None),
         Surface::Sphere(sphere) => {
             return super::round::circle_and_sphere(circle, sphere, scale, touching);
         }
         Surface::Torus(torus) => {
             return super::round::circle_and_torus(circle, torus, scale, touching);
         }
-        Surface::Cone(_) | Surface::Elliptic(_) => return Solved::Unsupported,
+        Surface::Cone(_) => return Solved::Unsupported,
     };
     circle_through(circle, relation, (across, cut), scale, touching)
+}
+
+/// A circle against a wall at a skew angle to its own cylinder: the curve
+/// the two walls meet along, crossing the circle's own plane — the triple
+/// read from its most degenerate pair, as the curve itself reaches that
+/// corner (#577).
+fn through_the_meet(
+    circle: &Circle,
+    own_plane: &Plane,
+    own_cylinder: Cylinder,
+    surface: &Surface,
+    scale: Scale,
+    touching: &Touches,
+) -> Solved {
+    let meeting = match relation(&Surface::Cylinder(own_cylinder), surface, scale) {
+        Relation::Apart => return Solved::At(Vec::new()),
+        Relation::Meet(meeting) => meeting,
+        _ => return Solved::Unsupported,
+    };
+    let eps = scale.eps();
+    let plane = Surface::Plane(*own_plane);
+    let mut points: Vec<(DVec3, bool)> = meeting
+        .contact
+        .filter(|contact| own_plane.distance(*contact).abs() <= eps)
+        .map(|contact| (contact, true))
+        .into_iter()
+        .collect();
+    for component in meeting.components {
+        match crossings_given(&Curve::Meet(component), &plane, scale, touching) {
+            Crossings::At(found) => points.extend(
+                found
+                    .into_iter()
+                    .map(|crossing| (crossing.point, crossing.tangent)),
+            ),
+            Crossings::Along | Crossings::Unsupported => return Solved::Unsupported,
+        }
+    }
+    let mut found: Vec<(DVec3, bool)> = Vec::new();
+    for (point, tangent) in points {
+        match found
+            .iter_mut()
+            .find(|(seen, _)| seen.distance(point) <= eps)
+        {
+            Some(seen) => seen.1 |= tangent,
+            None => found.push((point, tangent)),
+        }
+    }
+    Solved::At(
+        found
+            .into_iter()
+            .map(|(point, tangent)| (circle.parameter(point), tangent))
+            .collect(),
+    )
 }
 
 /// What the circle's own plane, `across`, or its own cylinder makes with a

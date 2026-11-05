@@ -61,15 +61,17 @@ pub enum Declined {
     /// short or that nearly whole is read before the kernel as nothing or as
     /// whole: this is the kernel's own net.
     Travel,
-    /// Two surfaces meet along a curve the kernel does not build: two
-    /// cylinders at a skew angle, a cylinder or a cone off a cone's axis, a
-    /// cone within the tolerance of a plane or a cylinder of its axis all
-    /// across the box, an elliptic wall against a cone or a wall neither
-    /// parallel nor square to it, or a parallel wall within decision 8's hair
-    /// of it all round. A plane meets a cylinder, a cone or an elliptic wall
-    /// at any other angle along a conic, a parallel round or elliptic wall
-    /// meets an elliptic one along rulings, and a square one along the curve
-    /// the two meet along, which are built (#552, #571).
+    /// Two surfaces meet along a curve the kernel does not build: a cylinder
+    /// or a cone off a cone's axis, a cone within the tolerance of a plane or
+    /// a cylinder of its axis all across the box, an elliptic wall against a
+    /// cone, or a parallel wall within decision 8's hair of it all round; or
+    /// two walls nearly parallel, past decision 11, that meet at a sliver of
+    /// a lean, stand within the tolerance of each other along a stretch, or
+    /// closer than a chord's sag (#577). A plane meets a cylinder, a cone or
+    /// an elliptic wall at any other angle along a conic, a parallel round
+    /// or elliptic wall meets an elliptic one along rulings, and any other
+    /// round or elliptic wall along the curve the two meet along, which are
+    /// built (#552, #571, #577).
     Unsupported,
     /// Two curves touch more closely than their curvatures can order.
     Tie,
@@ -90,7 +92,8 @@ pub enum Declined {
 
 /// A step the kernel built though it reads it unstably (#552): a plane of one
 /// operand leans off square to, or along, the axis of a cylinder, a cone or an
-/// elliptic wall (#571) of the other, their faces near enough to meet, by more than decision 11 lays
+/// elliptic wall (#571) of the other — or a wall's axis off square or
+/// parallel to another's (#577) — their faces near enough to meet, by more than decision 11 lays
 /// exactly and less than the kernel reads without magnifying its rounding.
 /// The conic such a plane cuts divides by the lean, so a change too small to
 /// see may change what is built. Said, never declined.
@@ -101,11 +104,16 @@ pub struct Unstable {
     pub degrees: f64,
 }
 
-/// Which way a plane leans off a wall's axis, a hair or a little.
+/// Which way a plane leans off a wall's axis, or a wall off another's
+/// (#577), a hair or a little.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Lean {
     /// Nearly square to the axis: its normal nearly along it.
     Square,
     /// Nearly along the axis: its normal nearly square to it.
     Along,
+    /// Two walls whose axes are nearly square to each other.
+    Across,
+    /// Two walls whose axes are nearly parallel.
+    Abreast,
 }

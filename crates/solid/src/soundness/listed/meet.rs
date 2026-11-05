@@ -1,16 +1,19 @@
-//! The curve two square walls meet along, an elliptic one among them (#571),
-//! as a listing gives it, read by its own formula: the height across both
-//! axes its parameter stands for, and at that height each wall's chord
-//! solved from the wall's own quadratic — its middle `−b/a` and its half
-//! `√(b² − ac)/a`, the discriminant read through the half-widths so that it
-//! keeps its digits at an end of the span — not the kernel's shear and
-//! scale, so that a slip in one is not checked by the same slip. The
-//! parameter keeps the kernel's convention, as a conic's does: the height
-//! `m − l cos t`, each root changing sign through an end where it vanishes.
+//! The curve two walls meet along, an elliptic one among them (#571), at
+//! any angle (#577), as a listing gives it, read by its own formula: the
+//! height across both axes its parameter stands for, and at that height
+//! each wall's chord solved from the wall's own quadratic — its middle
+//! `−b/a` and its half `√(b² − ac)/a`, the discriminant read through the
+//! half-widths so that it keeps its digits at an end of the span — not the
+//! kernel's shear and scale, so that a slip in one is not checked by the
+//! same slip. At a slant, the second wall's chord runs across its own axis,
+//! and the point is found along the first's axis where the second's
+//! coordinate across its chords is met. The parameter keeps the kernel's
+//! convention, as a conic's does: the height `m − l cos t`, each root
+//! changing sign through an end where it vanishes.
 
 use glam::DVec3;
 
-use crate::brep::{Meet, Wall};
+use crate::brep::{Meet, Scale, Wall};
 
 /// Below this, relative to the size of the pair, an end of the span is
 /// where both walls reach: the kernel's own reading, since which ends a
@@ -21,11 +24,21 @@ const ROUNDING: f64 = 256.0 * f64::EPSILON;
 pub(super) fn point(meet: &Meet, at: f64) -> DVec3 {
     let third = axis(&meet.first);
     let along = axis(&meet.second);
-    let one = (along - third * third.dot(along)).normalize();
+    let square = 2.0 * third.dot(along).abs() <= Scale::RELATIVE;
+    let one = if square {
+        (along - third * third.dot(along)).normalize()
+    } else {
+        normal(third, along).cross(third).normalize()
+    };
     let two = third.cross(one);
+    let across = if square {
+        third
+    } else {
+        along.cross(two).normalize()
+    };
     let between = origin(&meet.second) - origin(&meet.first);
-    let (d, e) = (between.dot(two), between.dot(third));
-    let [first, second] = [(&meet.first, one), (&meet.second, third)]
+    let (d, e) = (between.dot(two), between.dot(across));
+    let [first, second] = [(&meet.first, one), (&meet.second, across)]
         .map(|(wall, across)| (reach(wall, two), chord(wall, across, two)));
     let (a, b) = (first.0, second.0);
     let size = 1.0 + origin(&meet.first).length() + origin(&meet.second).length();
@@ -60,7 +73,25 @@ pub(super) fn point(meet: &Meet, at: f64) -> DVec3 {
     let ([x_middle, x_half], [z_middle, z_half]) = (first.1, second.1);
     let x = x_middle * y + signs[0] * x_half * root(x_gaps);
     let z = e + z_middle * (y - d) + signs[1] * z_half * root(z_gaps);
-    origin(&meet.first) + one * x + two * y + third * z
+    if square {
+        return origin(&meet.first) + one * x + two * y + third * z;
+    }
+    let foot = one * x + two * y;
+    origin(&meet.first) + foot + third * ((z - foot.dot(across)) / third.dot(across))
+}
+
+/// The normal of two directions, each component's two products kept apart
+/// to their rounding, so that two nearly parallel axes keep its digits.
+fn normal(one: DVec3, other: DVec3) -> DVec3 {
+    let minor = |a: f64, b: f64, c: f64, d: f64| {
+        let kept = c * d;
+        a.mul_add(b, -kept) - c.mul_add(d, -kept)
+    };
+    DVec3::new(
+        minor(one.y, other.z, one.z, other.y),
+        minor(one.z, other.x, one.x, other.z),
+        minor(one.x, other.y, one.y, other.x),
+    )
 }
 
 /// Whether a meet runs round an elliptic wall.

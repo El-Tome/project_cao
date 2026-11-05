@@ -44,8 +44,8 @@
 
 use cao_part::history::{FaceAnchor, PointRef, RevolutionAxis};
 use cao_sketch::{
-    Constraint, DimensionTarget, Element, Rule, RulePick, SegmentId, Selection, SketchAxis,
-    ToolState, WorkPlane,
+    Constraint, DimensionTarget, Element, PointId, Rule, RulePick, SegmentId, Selection,
+    SketchAxis, ToolState, WorkPlane,
 };
 use chrono::{DateTime, Utc};
 use glam::{DVec2, DVec3};
@@ -219,27 +219,46 @@ fn a_sketch_that_lost_its_face_is_marked_in_the_tree() {
     );
 }
 
-/// A post Ø8 about (5, 10) raised 4, then a circle on a plane tilted 30°
-/// about X raised down across its wall.
-fn a_post_under_a_slanted_circle_raised() -> PartDocument {
-    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+/// A ball of `radius` about `center`: a half disc drawn on the plane holding
+/// the upright through it, turned whole about that line.
+fn a_ball(document: &mut PartDocument, center: DVec3, radius: f64) {
+    let sketch = document.sketches().len();
     document.apply(Operation::CreateSketch {
-        plane: WorkPlane::XY,
+        plane: WorkPlane {
+            origin: center,
+            u: DVec3::X,
+            v: DVec3::Z,
+        },
         on: None,
     });
-    document.apply(Operation::AddCircle {
-        sketch: 0,
-        center: PointRef::New(DVec2::new(5.0, 10.0)),
-        radius: 4.0,
-        rim: Vec::new(),
+    let first = document.sketches()[sketch].points().len();
+    document.apply(Operation::AddArc {
+        sketch,
+        center: PointRef::New(DVec2::ZERO),
+        start: PointRef::New(DVec2::new(0.0, -radius)),
+        end: PointRef::New(DVec2::new(0.0, radius)),
         construction: false,
     });
-    document.apply(Operation::Extrude {
-        sketch: 0,
-        areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
-        distance: 4.0.into(),
+    document.apply(Operation::AddSegment {
+        sketch,
+        start: PointRef::Existing(PointId(first + 2)),
+        end: PointRef::Existing(PointId(first + 1)),
+        construction: false,
+    });
+    document.apply(Operation::Revolve {
+        sketch,
+        areas: document.areas_at(sketch, &[DVec2::new(radius / 4.0, 0.0)]),
+        axis: RevolutionAxis::Sketch(SketchAxis::V),
+        angle: 360.0.into(),
         mode: ExtrusionMode::Add,
     });
+}
+
+/// A ball of radius 4 about (5, 10, 0), then a circle on a plane tilted 30°
+/// about X raised down across its sphere, three off its centre.
+fn a_ball_under_a_slanted_circle_raised() -> PartDocument {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    a_ball(&mut document, DVec3::new(5.0, 10.0, 0.0), 4.0);
     let (sin, cos) = (std::f64::consts::PI / 6.0).sin_cos();
     document.apply(Operation::CreateSketch {
         plane: WorkPlane {
@@ -267,14 +286,14 @@ fn a_post_under_a_slanted_circle_raised() -> PartDocument {
 
 #[test]
 fn a_step_the_kernel_declines_is_marked_in_the_tree() {
-    let tree = PartTree::of(&a_post_under_a_slanted_circle_raised(), &french());
+    let tree = PartTree::of(&a_ball_under_a_slanted_circle_raised(), &french());
 
     assert!(
         tree.bodies[1].declined,
-        "a circle raised across the post's wall at a slant meets it as two \
-         cylinders at a skew angle, which the exact kernel declines",
+        "a circle raised across the ball's sphere off its centre meets it \
+         where the exact kernel cannot follow, and declines",
     );
-    assert!(!tree.bodies[0].declined, "the post itself was built");
+    assert!(!tree.bodies[0].declined, "the ball itself was built");
 }
 
 /// A shaft Ø20 raised 30 on XY, and a slice of it turned a hundredth of a

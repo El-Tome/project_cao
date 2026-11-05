@@ -346,15 +346,30 @@ fn slanted_bore(part: &Body, origin: DVec3) -> Body {
 }
 
 #[test]
-fn a_slant_across_a_post_is_handed_back_as_a_decline() {
+fn a_slant_across_a_post_is_built_and_a_cone_across_it_is_handed_back_as_a_decline() {
     let post = raised(
         &Body::default(),
         &exact(disc(DVec2::splat(10.0), 8.0), vec![]),
         10.0,
     );
     let bore = slanted_bore(&post, DVec3::new(10.0, 10.0, -5.0));
+    let bored = post.difference(&bore).expect("a skew bore is built");
+    assert!(bored.is_exact());
+    assert!(
+        bored.volume() < post.volume() && bored.volume() > post.volume() - bore.volume(),
+        "{} out of {}, the bore {}",
+        bored.volume(),
+        post.volume(),
+        bore.volume()
+    );
 
-    assert_eq!(post.difference(&bore), Err(Declined::Unsupported));
+    let tip = [DVec2::ZERO, DVec2::new(8.0, 0.0), DVec2::new(0.0, 10.0)];
+    let triangles = fan(&tip);
+    let point = straight(&tip, &triangles);
+    let cone = post
+        .tool_turned(&point, FLAT, &about_v(&point, TAU))
+        .expect("a point turns");
+    assert_eq!(post.difference(&cone), Err(Declined::Unsupported));
 }
 
 #[test]

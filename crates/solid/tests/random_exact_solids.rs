@@ -43,7 +43,8 @@
 //! the flats as the application samples it, and held along every line to
 //! the true curve, the flats within the sagitta of the 48-gon. A case with
 //! an ellipse may be declined as unsupported only where an elliptic wall
-//! meets a cone or a wall at a skew angle (`Case::asks_beyond_the_conics`).
+//! meets a cone, or a wall nearly parallel to it along a stretch (#577,
+//! `Case::asks_beyond_the_conics`).
 //! Through the application's body an ellipse is the exact kernel's as
 //! well: a decline is a broken step, never the flats. The flats answered 199, 280 and 272 of
 //! the first 300 cases of the three draws by their own rules when they were
@@ -2720,7 +2721,7 @@ fn an_ellipse_shrinks_into_a_circle_onto_the_plane_s_axes_and_into_round_numbers
 }
 
 #[test]
-fn an_elliptic_wall_asks_beyond_the_conics_only_against_a_cone_or_a_wall_at_a_skew_angle_near_it() {
+fn an_elliptic_wall_asks_beyond_the_conics_only_against_a_cone_near_it() {
     let oval = Leaf::prism(
         Plane::xy(0.0),
         Outline::ellipse([0.0, 0.0], [4.0, 0.0], 2.0),
@@ -2797,7 +2798,7 @@ fn an_elliptic_wall_asks_beyond_the_conics_only_against_a_cone_or_a_wall_at_a_sk
             ),
             false,
         ),
-        ("a round bore at a skew angle", skew([0.0, 0.0, 0.0]), true),
+        ("a round bore at a skew angle", skew([0.0, 0.0, 0.0]), false),
         (
             "an elliptic bore at a skew angle",
             Leaf::prism(
@@ -2805,7 +2806,7 @@ fn an_elliptic_wall_asks_beyond_the_conics_only_against_a_cone_or_a_wall_at_a_sk
                 Outline::ellipse([0.0, 0.0], [1.0, 0.0], 2.0),
                 4.0,
             ),
-            true,
+            false,
         ),
         (
             "a round bore at a skew angle far off",

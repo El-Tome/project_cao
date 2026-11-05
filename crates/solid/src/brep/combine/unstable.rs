@@ -1,6 +1,7 @@
 //! Whether the kernel reads a step unstably (#552): a plane of one operand
 //! leaning off square to, or along, the axis of a cylinder, a cone or an
-//! elliptic wall (#571) of the other, their faces near enough to meet, by
+//! elliptic wall (#571) of the other, or two such walls off square or
+//! parallel to each other (#577), their faces near enough to meet, by
 //! more than decision 11 lays exactly and less than `UNSTABLE`. The conic
 //! such a plane cuts divides by the lean, so the rounding of a step is
 //! magnified by about one over it: the step is built, and said to the
@@ -13,7 +14,7 @@
 use super::clear::clear;
 use super::operands::Operands;
 use super::related::facing;
-use crate::brep::canonical::{laid_exactly, leaning};
+use crate::brep::canonical::{Off, laid_exactly, leaning};
 use crate::brep::surface::Surface;
 use crate::brep::topology::SurfaceId;
 use crate::brep::{Lean, Unstable};
@@ -51,8 +52,8 @@ pub(super) fn unstable(operands: &Operands) -> Option<Unstable> {
     })
 }
 
-/// How a plane leans off a wall's axis, and by what sine; none for any
-/// other pair.
+/// How a plane leans off a wall's axis, or a wall off another's, and by
+/// what sine; none for any other pair.
 fn lean_of(one: &Surface, other: &Surface) -> Option<(Lean, f64)> {
     let axis = |wall: &Surface| match wall {
         Surface::Cylinder(cylinder) => Some(cylinder.axis),
@@ -64,8 +65,18 @@ fn lean_of(one: &Surface, other: &Surface) -> Option<(Lean, f64)> {
     };
     match (one, other) {
         (Surface::Plane(plane), wall) | (wall, Surface::Plane(plane)) => {
-            Some(leaning(plane.normal, axis(wall)?))
+            Some(match leaning(plane.normal, axis(wall)?) {
+                (Off::Parallel, sine) => (Lean::Square, sine),
+                (Off::Square, sine) => (Lean::Along, sine),
+            })
         }
+        (
+            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_),
+            Surface::Cylinder(_) | Surface::Cone(_) | Surface::Elliptic(_),
+        ) => match leaning(axis(one)?, axis(other)?) {
+            (Off::Parallel, sine) => Some((Lean::Abreast, sine)),
+            (Off::Square, sine) => Some((Lean::Across, sine)),
+        },
         _ => None,
     }
 }

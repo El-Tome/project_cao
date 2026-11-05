@@ -56,8 +56,11 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// corners laid on it (#574). 18: an exact body carries the names of its
 /// edges and its vertices, and the number each piece of a parted face
 /// replaced (#582). 19: a piece of a parted face answers to a number of its
-/// own, apart from the steps', so a later step's numbers stay put (#682).
-const REBUILT_BY: u32 = 19;
+/// own, apart from the steps', so a later step's numbers stay put (#682). 20:
+/// two cylinders or elliptic walls at a skew angle meet along their curve,
+/// where the kernel declined them, and a pair a hair off square or parallel
+/// is laid exactly so (#577).
+const REBUILT_BY: u32 = 20;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

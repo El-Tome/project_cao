@@ -33,6 +33,7 @@ use super::topology::{Body, FaceId};
 use folds::Drawn;
 use outline::Outline;
 use sampling::Samples;
+pub(in crate::brep) use sampling::divisions;
 
 impl Body {
     /// Triangles standing within `tolerance` of the true surfaces, closed,

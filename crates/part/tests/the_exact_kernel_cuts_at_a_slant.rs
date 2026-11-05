@@ -18,10 +18,11 @@
 //!   `a_point_cut_parallel_to_its_slope_holds_the_arithmetics_volume`
 //!   (250π/3 − [10(25·acos 0.7 − 3.5√12.75) + 17√12.75]/3)
 //! - the steps #526, #533 and #536 declined because they asked for a conic are built;
-//!   what still declines is a skew pair or a non-conic curve, with its reason —
-//!   `a_plane_at_a_slant_across_a_cone_holds_the_arithmetics_volume` (slab 2),
-//!   `a_slanted_hole_crossing_a_bore_at_a_skew_angle_is_a_broken_step_with_its_reason`
-//!   (8000 − 50π, `declined_because == Some(Unsupported)`, still exact); also
+//!   what still declines is a non-conic curve, with its reason —
+//!   `a_plane_at_a_slant_across_a_cone_holds_the_arithmetics_volume` (slab 2);
+//!   the skew pair it named is built since #577,
+//!   `a_slanted_hole_crossing_a_bore_at_a_skew_angle_holds_the_arithmetics_volume`
+//!   (8000 − 45√5π − 50π + half of what the two walls share); also
 //!   `a_raise_meeting_a_block_at_a_slant_is_built_exactly` in
 //!   `the_exact_kernel_computes_the_part.rs`
 //! - #448's harness draws slanted planes against cylinders and cones before the
@@ -58,7 +59,8 @@
 //!   sentences are held in `cao_app` (`wording/unstable/tests.rs`, the extrusion
 //!   screen's and the part tree's tests)
 //! - a decline stays a broken step with its reason, never a note —
-//!   `a_slanted_hole_crossing_a_bore_at_a_skew_angle_is_a_broken_step_with_its_reason`
+//!   `a_slanted_cut_through_a_ball_is_a_broken_step_with_its_reason`, since
+//!   #577 built the skew bore that held it
 //!
 //! A part cut at a slant, as the application builds it: a plane meets a
 //! cylinder or a cone at any angle along a conic the exact kernel builds — an
@@ -243,11 +245,31 @@ fn a_hole_drilled_square_into_a_wedge_s_slant_through_its_floor_holds_the_arithm
     );
 }
 
+/// The volume a hole of radius 3 and a bore of radius 2 would share, both
+/// endless, their axes meeting at the angle whose sine is `1/√5`: each line
+/// of the hole `β` across from the bore's axis, along the line square to
+/// both, runs `2√(4 − β²)/sin θ` inside the bore, and the hole's disc is
+/// `2√(9 − β²)` long at `β = 2 sin φ`. The integrand is periodic and smooth
+/// over the whole turn, which counts the disc twice, so the trapezoid rule
+/// converges geometrically.
+fn hole_and_bore_share() -> f64 {
+    let samples = 256;
+    let sum: f64 = (0..samples)
+        .map(|k| {
+            let (sin, cos) = (std::f64::consts::TAU * k as f64 / samples as f64).sin_cos();
+            cos * cos * (9.0 - 4.0 * sin * sin).sqrt()
+        })
+        .sum();
+    8.0 * 5f64.sqrt() * sum * std::f64::consts::TAU / samples as f64
+}
+
 /// A bore Ø4 through the wedge from its floor up at (15, −10), then the
 /// hole drilled into the slant, whose wall crosses the bore's at a skew
-/// angle: the second is declined, the first stands.
+/// angle. Their axes meet on the floor, where what the two share is cut in
+/// half by symmetry about that point, and none of it reaches the slant: the
+/// wedge loses both, less the half they share.
 #[test]
-fn a_slanted_hole_crossing_a_bore_at_a_skew_angle_is_a_broken_step_with_its_reason() {
+fn a_slanted_hole_crossing_a_bore_at_a_skew_angle_holds_the_arithmetics_volume() {
     let mut history = a_wedge();
     sketch_on(&mut history, WorkPlane::XY);
     circle(&mut history, 1, DVec2::new(15.0, -10.0), 2.0);
@@ -260,20 +282,11 @@ fn a_slanted_hole_crossing_a_bore_at_a_skew_angle_is_a_broken_step_with_its_reas
     );
     a_hole_drilled_into_the_slant(&mut history);
 
-    let part = applied_live(&history);
-
-    assert_eq!(
-        part.declined_because(last_step(&history)),
-        Some(Declined::Unsupported),
-        "two cylinders at a skew angle",
+    built_exactly(
+        &history,
+        8000.0 - 45.0 * 5f64.sqrt() * PI - 50.0 * PI + hole_and_bore_share() / 2.0,
+        "a bore Ø4 and a hole Ø6 square to the slant crossing it",
     );
-    let volume = part.body().volume();
-    let arithmetic = 8000.0 - 50.0 * PI;
-    assert!(
-        (volume - arithmetic).abs() <= EXACT * arithmetic,
-        "the wedge and its bore, as they stood before: {volume}",
-    );
-    assert!(part.body().is_exact(), "the part stays exact");
 }
 
 #[test]
@@ -535,4 +548,53 @@ fn a_shaft_cut_by_a_slice_turned_a_hundredth_of_a_degree_is_built_and_its_step_n
         "noted at {}°",
         unstable.degrees,
     );
+}
+
+/// A ball of radius 5 about the origin, then a block leaning 45° cutting
+/// through its centre: a plane at a slant against a sphere, which the exact
+/// kernel does not build.
+#[test]
+fn a_slanted_cut_through_a_ball_is_a_broken_step_with_its_reason() {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    let first = PartState::rebuild(&history).sketches[0].points().len();
+    history.push(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        start: PointRef::New(DVec2::new(0.0, -5.0)),
+        end: PointRef::New(DVec2::new(0.0, 5.0)),
+        construction: false,
+    });
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(PointId(first + 2)),
+        end: PointRef::Existing(PointId(first + 1)),
+        construction: false,
+    });
+    history.push(Operation::Revolve {
+        sketch: 0,
+        areas: clicked(&history, 0, DVec2::new(2.0, 0.0)),
+        axis: RevolutionAxis::Sketch(SketchAxis::V),
+        angle: 360.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    let normal = DVec3::new(1.0, 1.0, 0.0).normalize();
+    let u = DVec3::new(1.0, -1.0, 0.0).normalize();
+    sketch_on(&mut history, plane(DVec3::ZERO, u, normal.cross(u)));
+    rectangle(&mut history, 1, DVec2::splat(-20.0), DVec2::splat(20.0));
+    raise(&mut history, 1, DVec2::ZERO, 10.0, ExtrusionMode::Cut);
+
+    let part = applied_live(&history);
+    assert_eq!(
+        part.declined_because(last_step(&history)),
+        Some(Declined::Unsupported),
+        "a plane at 45° through the ball's centre",
+    );
+    let volume = part.body().volume();
+    let ball = 500.0 * PI / 3.0;
+    assert!(
+        (volume - ball).abs() <= EXACT * ball,
+        "the ball, as it stood before: {volume}",
+    );
+    assert!(part.body().is_exact(), "the part stays exact");
 }

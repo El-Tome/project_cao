@@ -1,6 +1,6 @@
 //! Two walls square to each other, an elliptic one among them (#571): they
-//! meet along the curve `meet.rs` builds, or stand apart; at any other
-//! angle the pair is unsupported.
+//! meet along the curve `meet.rs` builds, or stand apart; at a skew angle
+//! too since #577.
 
 use glam::DVec3;
 
@@ -71,14 +71,20 @@ fn an_elliptic_wall_square_to_another_wall_beyond_its_reach_stands_apart() {
 }
 
 #[test]
-fn an_elliptic_wall_at_a_skew_angle_to_another_wall_is_unsupported() {
+fn an_elliptic_wall_at_a_skew_angle_to_another_wall_meets_it_along_their_curve_on_both() {
     let skew = cylinder(DVec3::new(0.0, 1.0, 2.0), DVec3::new(1.0, 0.0, 0.3), 1.5);
-    assert_eq!(relation(&post(0.0), &skew, scale()), Relation::Unsupported);
-    let skew = bar(
+    let bar_skew = bar(
         DVec3::new(0.0, 1.0, 2.0),
         DVec3::new(1.0, 0.2, 0.3),
         DVec3::Z * 2.0,
         1.0,
     );
-    assert_eq!(relation(&skew, &post(0.0), scale()), Relation::Unsupported);
+    for (one, other) in [(post(0.0), skew), (bar_skew, post(0.0))] {
+        let found = relation(&one, &other, scale());
+        let Relation::Meet(meeting) = &found else {
+            panic!("a meet expected, got {found:?}");
+        };
+        assert_eq!(meeting.configuration, Configuration::TwoLoops);
+        assert_on_both(&found, &one, &other, 1e-12 * REACH);
+    }
 }

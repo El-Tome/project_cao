@@ -56,11 +56,11 @@
 //!   the hair is 2 nm on a 100 mm part); an arc of ellipse keeps the
 //!   tolerance, held in `cao_solid` by
 //!   `an_ellipse_whose_half_axes_are_one_within_the_tolerance_is_raised_as_a_circular_cylinder`.
-//! - what still declines is an elliptic wall against a cone or a skew wall,
-//!   where the faces may cross, with its reason: a broken step, never the
-//!   flats —
-//!   `an_elliptic_hole_crossing_a_bore_at_a_skew_angle_is_a_broken_step_with_its_reason`,
-//!   `an_elliptic_hole_through_a_cone_about_its_axis_is_a_broken_step_with_its_reason`
+//! - what still declines is an elliptic wall against a cone, where the faces
+//!   may cross, with its reason: a broken step, never the flats —
+//!   `an_elliptic_hole_through_a_cone_about_its_axis_is_a_broken_step_with_its_reason`;
+//!   against a skew wall it is built since #577 —
+//!   `an_elliptic_hole_crossing_a_bore_at_a_skew_angle_holds_the_arithmetics_volume`
 //! - #448's harness draws ellipses before the kernel code: raised and cut, whole
 //!   and in arcs, beside and through blocks, round and elliptic walls parallel
 //!   and square to them, slanted planes, weighted towards hairs and tangencies
@@ -787,6 +787,11 @@ fn slant_normal() -> DVec3 {
 /// An ellipse 8 by 4 drawn on the wedge's slant at its middle, laid there as
 /// a click lays it, and cut 30 into it, square to it.
 fn an_elliptic_hole_drilled_into_the_slant(history: &mut History) {
+    an_elliptic_hole_of(history, 4.0);
+}
+
+/// The same, its half-axis along the slant's fall `first` rather than 4.
+fn an_elliptic_hole_of(history: &mut History, first: f64) {
     let state = PartState::rebuild(history);
     let hit = state
         .body
@@ -803,7 +808,7 @@ fn an_elliptic_hole_drilled_into_the_slant(history: &mut History) {
     });
     let laid = PartState::rebuild(history).sketches[sketch].plane;
     let center = laid.to_local(SLANT_MIDDLE);
-    ellipse(history, sketch, center, DVec2::X * 4.0, 2.0);
+    ellipse(history, sketch, center, DVec2::X * first, 2.0);
     raise(history, sketch, center, -30.0, ExtrusionMode::Cut);
 }
 
@@ -925,11 +930,18 @@ fn a_whole_ellipse_ten_tolerances_from_round_is_raised_on_a_circular_wall() {
     );
 }
 
-/// A bore Ø4 through the wedge from its floor up at (15, −10), then the
-/// elliptic hole drilled into the slant, whose wall crosses the bore's at a
-/// skew angle.
+/// A bore Ø4 through the wedge from its floor up at (15, −10), then an
+/// elliptic hole 6 by 4 drilled into the slant, whose wall crosses the
+/// bore's at a skew angle, its half-axis of 2 along Y as wide as the bore.
+/// The two axes meet on the floor at the angle whose sine is `1/√5`:
+/// endless, each line of the hole `β` across along Y runs
+/// `2√(4 − β²)/sin θ` inside the bore, and the hole's section is
+/// `3√(4 − β²)` long there, so they share `(6/sin θ)·∫(4 − β²) = 64√5`,
+/// half of it above the floor by symmetry about the point where the axes
+/// meet. All of it stays under the slant, which a half-axis of 4 would
+/// reach.
 #[test]
-fn an_elliptic_hole_crossing_a_bore_at_a_skew_angle_is_a_broken_step_with_its_reason() {
+fn an_elliptic_hole_crossing_a_bore_at_a_skew_angle_holds_the_arithmetics_volume() {
     let mut history = a_wedge();
     let sketch = sketch_on(&mut history, WorkPlane::XY);
     circle(&mut history, sketch, DVec2::new(15.0, -10.0), 2.0);
@@ -940,13 +952,12 @@ fn an_elliptic_hole_crossing_a_bore_at_a_skew_angle_is_a_broken_step_with_its_re
         30.0,
         ExtrusionMode::Cut,
     );
-    an_elliptic_hole_drilled_into_the_slant(&mut history);
+    an_elliptic_hole_of(&mut history, 3.0);
 
-    broken_with(
+    built_exactly(
         &history,
-        Declined::Unsupported,
-        8000.0 - 50.0 * PI,
-        "an elliptic wall and a round one at a skew angle",
+        8000.0 - 30.0 * 5f64.sqrt() * PI - 50.0 * PI + 32.0 * 5f64.sqrt(),
+        "a bore Ø4 and an elliptic hole 6 by 4 square to the slant crossing it",
     );
 }
 

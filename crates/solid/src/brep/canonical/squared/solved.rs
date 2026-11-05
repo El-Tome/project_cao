@@ -5,8 +5,8 @@ use std::f64::consts::{PI, TAU};
 
 use glam::{DQuat, DVec3};
 
+use super::Off;
 use super::Pair;
-use crate::brep::Lean;
 
 /// The largest single step of a turn, in radians: past it the leans are not
 /// a hair.
@@ -18,7 +18,7 @@ const STEP: f64 = 1e-3;
 /// laid by a turn about the locked axis; none where no turn about it can.
 pub(super) fn solved(near: &[Pair], held: &[Pair], exact: f64) -> Option<DQuat> {
     let mut locked: Option<DVec3> = None;
-    for pair in held.iter().filter(|pair| pair.lean == Lean::Square) {
+    for pair in held.iter().filter(|pair| pair.lean == Off::Parallel) {
         match locked {
             None => locked = Some(pair.first),
             Some(axis) if axis.cross(pair.first).length() <= exact => {}
@@ -27,8 +27,8 @@ pub(super) fn solved(near: &[Pair], held: &[Pair], exact: f64) -> Option<DQuat> 
     }
     let mut ordered = near.to_vec();
     ordered.sort_by(|one, other| {
-        (one.lean == Lean::Along)
-            .cmp(&(other.lean == Lean::Along))
+        (one.lean == Off::Square)
+            .cmp(&(other.lean == Off::Square))
             .then(other.sine.total_cmp(&one.sine))
     });
     let mut turn = DQuat::IDENTITY;
@@ -38,11 +38,11 @@ pub(super) fn solved(near: &[Pair], held: &[Pair], exact: f64) -> Option<DQuat> 
         }
         let now = turn * pair.second;
         let step = match (pair.lean, locked) {
-            (Lean::Square, None) => {
+            (Off::Parallel, None) => {
                 locked = Some(pair.first);
                 arc(now, pair.first * pair.first.dot(now).signum())
             }
-            (Lean::Along, None) => {
+            (Off::Square, None) => {
                 let laid = (now - pair.first * pair.first.dot(now)).normalize();
                 locked = Some(laid);
                 arc(now, laid)
@@ -82,7 +82,7 @@ fn about(axis: DVec3, now: DVec3, pair: &Pair) -> Option<DQuat> {
     let side = axis.cross(across);
     let target = pair.first;
     let angle = match pair.lean {
-        Lean::Along => {
+        Off::Square => {
             let (a, b, c) = (across.dot(target), side.dot(target), along.dot(target));
             let reach = a.hypot(b);
             if reach <= c.abs() {
@@ -95,7 +95,7 @@ fn about(axis: DVec3, now: DVec3, pair: &Pair) -> Option<DQuat> {
                 .into_iter()
                 .min_by(|one, other| one.abs().total_cmp(&other.abs()))?
         }
-        Lean::Square => {
+        Off::Parallel => {
             let target = target * target.dot(now).signum();
             if (axis.dot(target) - axis.dot(now)).abs() > 1e-12 {
                 return None;

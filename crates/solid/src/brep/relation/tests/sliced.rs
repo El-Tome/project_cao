@@ -366,7 +366,7 @@ fn a_plane_meeting_only_the_other_nappe_stands_apart() {
 }
 
 #[test]
-fn skew_walls_and_a_wall_off_a_cone_s_axis_stay_unsupported() {
+fn skew_walls_meet_along_their_curve_and_a_wall_off_a_cone_s_axis_stays_unsupported() {
     let skew = cylinder(DVec3::new(0.0, 0.0, 5.0), DVec3::new(1.0, 1.0, 0.3), 2.0);
     let off_the_axis = cylinder(DVec3::new(1.0, 0.0, 0.0), DVec3::Z, 2.0);
     let leaning_point = Surface::Cone(Cone::through(
@@ -374,8 +374,10 @@ fn skew_walls_and_a_wall_off_a_cone_s_axis_stay_unsupported() {
         DVec3::new(0.2, 0.0, 1.0),
         [DVec2::new(0.0, 3.0), DVec2::new(6.0, 0.0)],
     ));
+    assert!(!at_a_slant(&shaft(), &skew, scale()));
+    let met = decided(&shaft(), &skew);
+    assert!(matches!(met, Relation::Meet(_)), "{met:?}");
     for (one, other) in [
-        (&shaft(), &skew),
         (&point(), &skew),
         (&point(), &off_the_axis),
         (&point(), &leaning_point),

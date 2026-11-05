@@ -17,7 +17,8 @@ impl Body {
     /// The body turned by `turn` about `pivot` and moved by `shift`, each
     /// direction it turns to
     /// within a sine of `within` of one of `anchors` laid on that one's
-    /// bits, so that a pair the turn lays square or along compares exactly;
+    /// bits, and one within it of square to anchors made exactly square to
+    /// them, so that a pair the turn lays square or along compares exactly;
     /// none where a canonical direction would turn round, the way its curves
     /// run with it, or the body holds a curve the turn does not rebuild — a
     /// conic but an elliptic wall's whole section, or the curve two
@@ -83,8 +84,9 @@ impl Body {
                 Curve::Circle(circle) => {
                     let axis = turning.direction(circle.axis)?;
                     let u = reference(axis);
+                    let center = laid(self, &moved, circle, turning.place(circle.center), axis);
                     Curve::Circle(Circle {
-                        center: turning.place(circle.center),
+                        center,
                         axis,
                         radius: circle.radius,
                         u,
@@ -142,6 +144,48 @@ impl Body {
     }
 }
 
+/// Under this, relative to its distance from the origin, a circle's centre
+/// stands on an axis or a plane of the body as drawn.
+const ROUNDING: f64 = 16.0 * f64::EPSILON;
+
+/// A circle's turned centre laid on the turned axis of a wall about the
+/// circle's own axis, then on the turned plane square to it, where the
+/// centre stood on them as drawn: the turn rounds the centre and the
+/// surfaces apart, and a rim a rounding off its own wall's axis was read
+/// against a tool's rim touching it inside as no touch (121233920454262).
+fn laid(before: &Body, after: &Body, circle: &Circle, center: DVec3, axis: DVec3) -> DVec3 {
+    let held = |distance: f64| distance <= ROUNDING * (1.0 + circle.center.length());
+    let pairs = || before.surfaces.iter().zip(&after.surfaces);
+    let center = pairs()
+        .find_map(|pair| match pair {
+            (Surface::Cylinder(was), Surface::Cylinder(is))
+                if is.axis.cross(axis) == DVec3::ZERO
+                    && held(across(was.origin, was.axis, circle.center)) =>
+            {
+                Some(is.origin + is.axis * is.axis.dot(center - is.origin))
+            }
+            _ => None,
+        })
+        .unwrap_or(center);
+    pairs()
+        .find_map(|pair| match pair {
+            (Surface::Plane(was), Surface::Plane(is))
+                if is.normal.cross(axis) == DVec3::ZERO
+                    && held(was.distance(circle.center).abs()) =>
+            {
+                Some(center - is.normal * is.distance(center))
+            }
+            _ => None,
+        })
+        .unwrap_or(center)
+}
+
+/// How far `point` stands from the line through `origin` along `axis`.
+fn across(origin: DVec3, axis: DVec3, point: DVec3) -> f64 {
+    let from = point - origin;
+    (from - axis * axis.dot(from)).length()
+}
+
 /// A turn about `pivot` and the shift after it, and the directions of the
 /// first operand a direction it turns to within a sine of `within` is laid
 /// on.
@@ -159,8 +203,9 @@ impl Turning<'_> {
         self.pivot + self.turn * (point - self.pivot) + self.shift
     }
 
-    /// The direction turned and laid on an anchor within `within` of it,
-    /// canonical, the same for the same bits; none where it turns round.
+    /// The direction turned and laid on an anchor within `within` of it, or
+    /// square to those it stands within `within` of square to, canonical,
+    /// the same for the same bits; none where it turns round.
     fn direction(&mut self, before: DVec3) -> Option<DVec3> {
         let key = before.to_array().map(f64::to_bits);
         if let Some(found) = self.turned.get(&key) {
@@ -173,6 +218,12 @@ impl Turning<'_> {
             .find(|anchor| anchor.cross(after).length() <= self.within)
         {
             after = *anchor * anchor.dot(after).signum();
+        } else {
+            for anchor in self.anchors {
+                if anchor.dot(after).abs() <= self.within {
+                    after -= *anchor * anchor.dot(after);
+                }
+            }
         }
         let (canonical, round) = canonical_direction(after);
         if round {

@@ -1770,3 +1770,137 @@ fn a_chamfer_on_a_top_edge_of_a_hexagonal_prism_runs_on_past_both_its_ends_to_th
         "the chamfer, its line on the top longer than the edge, its line on the front the front's width",
     );
 }
+
+/// What the triangles of the part with an arc for a back, chamfered by 18,
+/// may enclose apart from its matter: the drawing's tolerance, two
+/// ten-thousandths of the reach the body carries after the cut, which is its
+/// slab's, some 59.5 against the part's own 25, times the arc's wall, `arc`
+/// radians of a round of 10 standing 25 high.
+fn arc_drawn_within(arc: f64) -> f64 {
+    2e-4 * 60.0 * 10.0 * arc * 25.0
+}
+
+#[test]
+fn a_chamfer_asked_more_than_the_top_gives_counts_only_where_a_round_turns_back_along_its_own_arc()
+{
+    let arc = PI - 2.0 * 0.75f64.atan();
+    let part = raised(
+        Contour {
+            corners: vec![
+                DVec2::ZERO,
+                DVec2::new(16.0, 0.0),
+                DVec2::new(16.0, 18.0),
+                DVec2::new(0.0, 18.0),
+            ],
+            runs: vec![
+                Run::Straight,
+                Run::Straight,
+                Run::Round {
+                    center: DVec2::new(8.0, 12.0),
+                    turn: arc,
+                },
+                Run::Straight,
+            ],
+        },
+        25.0,
+    );
+    let edge = edge_between(&part, TOP, FRONT);
+
+    let chamfered = part
+        .chamfer(&edge, 50.0)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "50 asked on a top whose back is an arc from 18 back to 22 and down again, \
+                its circle turning back at 2 off the arc";
+    reduced(&chamfered, 50.0, 18.0, what);
+    let body = &chamfered.body;
+    let segment = 10.0 * 10.0 * arc / 2.0 - 16.0 * 6.0 / 2.0;
+    sound_drawn_within(
+        body,
+        (16.0 * 18.0 + segment) * 25.0 - 16.0 * 18.0 * 18.0 / 2.0,
+        arc_drawn_within(arc),
+        what,
+    );
+    let chamfer = one_flat_face_more(&part, body, what);
+    faces_toward(body, chamfer, DVec3::new(0.0, -1.0, 1.0), what);
+    corners_are(
+        body,
+        chamfer,
+        &[
+            DVec3::new(0.0, 18.0, 25.0),
+            DVec3::new(16.0, 18.0, 25.0),
+            DVec3::new(16.0, 0.0, 7.0),
+            DVec3::new(0.0, 0.0, 7.0),
+        ],
+        "the chamfer, up to the arc's two ends",
+    );
+}
+
+/// A block 30 by 10 whose front runs on tangentially into a quarter round
+/// of radius 2 at one end, `right` or left, and meets a square corner at the
+/// other, raised by `height`: upwards, or downwards for a negative height,
+/// which turns its top over. Its top one, its front two.
+fn rounded_at_one_end(right: bool, height: f64) -> Body {
+    let quarter = |center: DVec2| Run::Round {
+        center,
+        turn: PI / 2.0,
+    };
+    let outline = if right {
+        Contour {
+            corners: vec![
+                DVec2::ZERO,
+                DVec2::new(28.0, 0.0),
+                DVec2::new(30.0, 2.0),
+                DVec2::new(30.0, 10.0),
+                DVec2::new(0.0, 10.0),
+            ],
+            runs: vec![
+                Run::Straight,
+                quarter(DVec2::new(28.0, 2.0)),
+                Run::Straight,
+                Run::Straight,
+                Run::Straight,
+            ],
+        }
+    } else {
+        Contour {
+            corners: vec![
+                DVec2::new(2.0, 0.0),
+                DVec2::new(30.0, 0.0),
+                DVec2::new(30.0, 10.0),
+                DVec2::new(0.0, 10.0),
+                DVec2::new(0.0, 2.0),
+            ],
+            runs: vec![
+                Run::Straight,
+                Run::Straight,
+                Run::Straight,
+                Run::Straight,
+                quarter(DVec2::new(2.0, 2.0)),
+            ],
+        }
+    };
+    raised(outline, height)
+}
+
+#[test]
+fn a_chamfer_on_an_edge_running_on_tangentially_into_a_round_at_one_end_only_is_declined_whichever_end()
+ {
+    for (what, right, height) in [
+        ("the round at the right end, raised up", true, 20.0),
+        ("the round at the left end, raised up", false, 20.0),
+        ("the round at the right end, raised down", true, -20.0),
+        ("the round at the left end, raised down", false, -20.0),
+    ] {
+        let part = rounded_at_one_end(right, height);
+        let edge = edge_between(&part, TOP, FRONT);
+
+        let declined = part.chamfer(&edge, 1.0).err();
+
+        assert_eq!(
+            declined,
+            Some(Declined::Unsupported),
+            "{what}: the front runs on into the round at that end, a tangent chain"
+        );
+    }
+}

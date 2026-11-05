@@ -1,19 +1,22 @@
 //! A panel standing over a view, always in front, dragged anywhere in it by
 //! its title.
 
-/// What the panel's contents answered, and where the panel was let go when its
-/// title was dropped this frame.
+/// What the panel's contents answered, where the panel was let go when its
+/// title was dropped this frame, and whether the control beside the title
+/// closed it.
 pub struct Floated<R> {
     pub inner: R,
     pub let_go_at: Option<egui::Pos2>,
+    pub closed: bool,
 }
 
 /// Shows the panel at the place it was last left this session, or else at
-/// `left_at`, brought back inside `view` whenever it no longer fits there.
+/// `left_at`, brought back inside `view` whenever it no longer fits there. The
+/// title carries a control reading `close`.
 pub fn floating_panel<R>(
     ctx: &egui::Context,
     id: egui::Id,
-    title: &str,
+    (title, close): (&str, &str),
     (left_at, view): (egui::Pos2, egui::Rect),
     contents: impl FnOnce(&mut egui::Ui) -> R,
 ) -> Floated<R> {
@@ -21,6 +24,7 @@ pub fn floating_panel<R>(
     let (at, size) = held.unwrap_or((left_at, egui::Vec2::ZERO));
     let at = kept_inside(at, size, view);
     let (mut moved, mut let_go, mut titled) = (egui::Vec2::ZERO, false, None);
+    let mut closed = false;
     let shown = egui::Area::new(id)
         .order(egui::Order::Foreground)
         .fixed_pos(at)
@@ -30,9 +34,14 @@ pub fn floating_panel<R>(
                     // Rows never wrap: the panel takes the width of its widest
                     // one, frame after frame, as they change.
                     ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
-                    let title = egui::Label::new(egui::RichText::new(title).strong())
-                        .sense(egui::Sense::drag());
-                    let title = ui.add(title).on_hover_cursor(egui::CursorIcon::Grab);
+                    let title = ui.horizontal(|ui| {
+                        let title = egui::Label::new(egui::RichText::new(title).strong())
+                            .sense(egui::Sense::drag());
+                        let title = ui.add(title).on_hover_cursor(egui::CursorIcon::Grab);
+                        closed = ui.small_button(close).clicked();
+                        title
+                    });
+                    let title = title.inner;
                     moved = title.drag_delta();
                     let_go = title.drag_stopped();
                     titled = Some(title.id);
@@ -49,6 +58,7 @@ pub fn floating_panel<R>(
     Floated {
         inner: shown.inner,
         let_go_at: let_go.then_some(now),
+        closed,
     }
 }
 

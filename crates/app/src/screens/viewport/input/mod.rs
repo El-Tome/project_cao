@@ -8,8 +8,7 @@
 use cao_part::Outcome;
 use cao_part::history::{Operation, PointRef};
 use cao_sketch::{
-    ChainAnchor, DimensionTarget, PointId, Rule, RuleIntent, SegmentId, Selection, ToolState,
-    rule_intent,
+    ChainAnchor, PointId, Rule, RuleIntent, SegmentId, Selection, ToolState, rule_intent,
 };
 use glam::DVec2;
 
@@ -35,6 +34,7 @@ pub(crate) use rectangle::{rectangle_corner, two_click_shape};
 
 mod planes;
 use planes::choose_a_plane;
+pub(super) use planes::point_the_section;
 
 mod symmetric_line;
 pub(crate) use symmetric_line::draw_symmetric_line_point;
@@ -352,26 +352,6 @@ fn constrain(
     }
     context.editor.message = Some(constraints::rule_asks_for(context.lang, rule));
     true
-}
-
-/// The second half a dimension in hand can still take: another segment makes it
-/// an angle, a point makes it a distance to a line, an axis a direction.
-///
-/// Without this, clicking a segment could only ever mean its length, and an
-/// angle between two traits had to be asked for through the Mesurer row — which
-/// is exactly what one expects the smart dimension to do on its own.
-pub(crate) fn refine(
-    context: &SketchContext<'_>,
-    index: usize,
-    target: DimensionTarget,
-    cursor: DVec2,
-    snap: f64,
-) -> Option<DimensionTarget> {
-    context
-        .document
-        .sketches()
-        .get(index)?
-        .refine(target, cursor, snap)
 }
 
 /// One click of the line tool. The first click only remembers where the chain

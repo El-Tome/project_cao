@@ -115,6 +115,7 @@ impl Ribbon {
             editor: drawn.editor,
             extrusion: drawn.extrusion,
             lang,
+            section_on: self.section_on,
         };
 
         // The open tab, then whatever sits at the top level outside any group. A

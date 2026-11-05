@@ -10,7 +10,7 @@ use crate::screens::SketchContext;
 use crate::screens::viewport::{HOLD_PIXELS, values::held_as_shown};
 use crate::wording::{constraints, dimension, outcome};
 
-use super::{annotation_position, nearest_annotation, refine};
+use super::{annotation_position, nearest_annotation};
 
 /// The smart dimension tool: works out what is under the cursor and measures
 /// it, unless a mode is forcing one kind.
@@ -36,7 +36,8 @@ pub(super) fn measure(
     };
     if let Some(target) = placing {
         if mode == DimensionMode::Auto
-            && let Some(refined) = refine(context, index, target, cursor, snap)
+            && let Some(refined) = (context.document.sketches().get(index))
+                .and_then(|sketch| sketch.refine(target, cursor, snap))
         {
             if let ToolState::Dimension { placing, .. } = &mut context.editor.tool_state {
                 *placing = Some(refined);

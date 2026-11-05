@@ -16,6 +16,7 @@ use crate::screens::SketchContext;
 
 use super::matter::Sections;
 use super::navigation::Drag;
+use super::section::Section;
 
 /// How close, in pixels, the cursor has to be to take hold of something.
 ///
@@ -56,6 +57,8 @@ pub struct ViewportState {
     /// from a toolbar button uses the viewport's shape, not the button's.
     pub(super) aspect: f32,
     pub(super) sections: Sections,
+    /// The section view, while it is on.
+    pub(super) section: Option<Section>,
     blinking: Option<Blinking>,
 }
 
@@ -84,12 +87,30 @@ impl Default for ViewportState {
             copy_panel_at: None,
             aspect: 1.0,
             sections: Sections::default(),
+            section: None,
             blinking: None,
         }
     }
 }
 
 impl ViewportState {
+    pub(crate) fn section(&self) -> Option<&Section> {
+        self.section.as_ref()
+    }
+
+    /// Turns the section view on, along XY through the middle of the part, or
+    /// off when it is on.
+    pub(crate) fn toggle_section(&mut self, body: &cao_solid::Body) {
+        self.section = match self.section {
+            Some(_) => None,
+            None => Some(Section::through_the_middle(WorkPlane::XY, body)),
+        };
+    }
+
+    pub(crate) fn close_section(&mut self) {
+        self.section = None;
+    }
+
     /// Has what a refusal named blink from `now` — these values on the
     /// drawing, these faces of the part — so that it is seen where it is.
     pub fn blink(&mut self, values: Vec<(usize, DimensionTarget)>, faces: Vec<usize>, now: f64) {

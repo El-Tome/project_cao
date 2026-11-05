@@ -201,6 +201,7 @@ impl CaoApp {
             extrusion,
             explorer_open: self.explorer.is_open(),
         };
+        ribbon.section_on = viewport.section().is_some();
         asked.extend(ribbon.show(ui, &settings, &mut drawn, lang));
         asked.extend(
             shortcuts_pressed(ui, &settings, |command| {

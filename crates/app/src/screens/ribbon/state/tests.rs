@@ -29,6 +29,15 @@
 //!   `the_step_export_is_offered_only_while_the_part_holds_matter` — under the
 //!   tab « Export », beside the STL menu —
 //!   `the_step_export_sits_under_the_export_tab_and_nowhere_else`
+//!
+//! Closes #193.
+//! - « Vue en coupe » is offered while the part holds matter —
+//!   `the_section_view_is_offered_while_the_part_holds_matter`; decided in
+//!   review, not while a sketch is edited, whose own cut wins —
+//!   `the_section_view_is_not_offered_while_a_sketch_is_edited`
+//! - found in review: the button shows pressed while the section is on, the
+//!   ribbon learning it from its context —
+//!   `the_section_view_button_shows_pressed_while_the_section_is_on`
 
 use super::*;
 use cao_sketch::WorkPlane;
@@ -104,6 +113,7 @@ fn the_tool_in_hand_is_the_one_shown_as_pressed() {
         editor: &editor,
         extrusion: &extrusion,
         lang: &lang,
+        section_on: false,
     };
 
     assert!(active(Command::ToolLine, &state));
@@ -151,6 +161,7 @@ fn the_matter_in_front_button_names_the_state_it_is_in() {
             editor: &editor,
             extrusion: &extrusion,
             lang: &lang,
+            section_on: false,
         };
         faces.push(label(Command::NextMatterInFront, &state));
         editor.next_matter_in_front();
@@ -186,6 +197,7 @@ fn faces_of_the_three_states(face: fn(Command, &Context<'_>) -> String) -> Vec<S
             editor: &editor,
             extrusion: &extrusion,
             lang: &lang,
+            section_on: false,
         };
         faces.push(face(Command::NextMatterInFront, &state));
         editor.next_matter_in_front();
@@ -216,6 +228,7 @@ fn with_labels_off_every_other_button_keeps_its_two_letters() {
         editor: &editor,
         extrusion: &extrusion,
         lang: &lang,
+        section_on: false,
     };
 
     for command in Command::ALL
@@ -381,4 +394,73 @@ fn the_step_export_sits_under_the_export_tab_and_nowhere_else() {
         .filter(|command| *command == Command::ExportStep)
         .count();
     assert_eq!(elsewhere, 0, "the STEP export is offered outside its tab");
+}
+
+#[test]
+fn the_section_view_is_offered_while_the_part_holds_matter() {
+    let editor = SketchEditor::default();
+    let extrusion = ExtrusionState::default();
+
+    assert!(
+        !is_enabled(Command::SectionView, &a_part(), &editor, &extrusion),
+        "the section view is offered on a part with no matter to cut",
+    );
+    assert!(
+        is_enabled(Command::SectionView, &a_raised_block(), &editor, &extrusion),
+        "the section view is not offered on a part holding a block",
+    );
+    assert_eq!(
+        wording::label(&Catalogue::french(), Command::SectionView),
+        "Vue en coupe",
+    );
+    assert!(
+        reached(&Settings::default().toolbar.items).contains(&Command::SectionView),
+        "the ribbon offers no « Vue en coupe » button",
+    );
+}
+
+#[test]
+fn the_section_view_is_not_offered_while_a_sketch_is_edited() {
+    assert!(
+        !is_enabled(
+            Command::SectionView,
+            &a_raised_block(),
+            &drawing_on_a_sketch(),
+            &ExtrusionState::default(),
+        ),
+        "« Vue en coupe » is offered over a sketch, whose own cut already wins",
+    );
+}
+
+#[test]
+fn the_section_view_button_shows_pressed_while_the_section_is_on() {
+    let settings = Settings::default();
+    let (part, editor, extrusion, lang) = (
+        a_raised_block(),
+        SketchEditor::default(),
+        ExtrusionState::default(),
+        Catalogue::french(),
+    );
+    let pressed = |section_on| {
+        active(
+            Command::SectionView,
+            &Context {
+                settings: &settings,
+                document: &part,
+                editor: &editor,
+                extrusion: &extrusion,
+                lang: &lang,
+                section_on,
+            },
+        )
+    };
+
+    assert!(
+        pressed(true),
+        "« Vue en coupe » does not show pressed while the section is on"
+    );
+    assert!(
+        !pressed(false),
+        "« Vue en coupe » shows pressed with no section on"
+    );
 }

@@ -77,6 +77,10 @@ pub(crate) fn run(
             editor.next_matter_in_front();
             false
         }
+        Command::SectionView => {
+            viewport.toggle_section(doc.body());
+            false
+        }
         Command::Undo | Command::Redo => {
             let changed = if command == Command::Undo {
                 doc.undo()
@@ -85,6 +89,9 @@ pub(crate) fn run(
             };
             if changed {
                 clamp_editor_to_document(editor, doc);
+            }
+            if doc.body().is_empty() {
+                viewport.close_section();
             }
             changed
         }

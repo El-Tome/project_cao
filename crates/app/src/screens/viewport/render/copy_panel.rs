@@ -43,13 +43,14 @@ pub(crate) fn paint_copy_panel(
         data.insert_temp(id.with("active"), active);
         before != Some(active)
     });
-    let floated = floating_panel(ui.ctx(), id, &title, (left_at, view), |ui| {
+    let close = context.lang.t("panel.close");
+    let floated = floating_panel(ui.ctx(), id, (&title, &close), (left_at, view), |ui| {
         slots(ui, context, arrived)
     });
     let let_go_at = floated.let_go_at.map(|at| [at.x, at.y]);
 
     let asked = floated.inner;
-    if asked.cancel {
+    if asked.cancel || floated.closed {
         context.editor.cancel_the_copy();
         return (false, let_go_at);
     }

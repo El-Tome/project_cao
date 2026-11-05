@@ -29,6 +29,8 @@ pub struct Ribbon {
     /// rather than only in the panel's own frame, so the warning survives to
     /// the next one instead of closing the moment the mouse moves.
     pub history_compact_confirm: bool,
+    /// Whether the viewport's section view is on, so its button shows pressed.
+    pub section_on: bool,
 }
 
 impl Ribbon {
@@ -39,6 +41,7 @@ impl Ribbon {
             history_open: false,
             variables_open: false,
             history_compact_confirm: false,
+            section_on: false,
         }
     }
 }
@@ -50,6 +53,7 @@ pub(super) struct Context<'a> {
     pub(super) editor: &'a SketchEditor,
     pub(super) extrusion: &'a ExtrusionState,
     pub(super) lang: &'a Catalogue,
+    pub(super) section_on: bool,
 }
 
 /// Whether the chamfer tool is in hand and saying what it takes this way.
@@ -121,6 +125,7 @@ pub(super) fn active(command: Command, state: &Context<'_>) -> bool {
         Command::ExtrusionCut => state.extrusion.mode == Some(cao_part::ExtrusionMode::Cut),
         Command::ExtrusionStraight => state.extrusion.shape == Shape::Straight,
         Command::ExtrusionRevolution => state.extrusion.shape == Shape::Revolution,
+        Command::SectionView => state.section_on,
         _ => false,
     }
 }
@@ -216,6 +221,7 @@ pub fn is_enabled(
         | Command::ExportStlNormal
         | Command::ExportStlFine
         | Command::ExportStep => !document.body().is_empty(),
+        Command::SectionView => !drawing && !document.body().is_empty(),
         _ => true,
     }
 }

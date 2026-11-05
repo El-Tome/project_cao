@@ -135,6 +135,8 @@ pub enum PlaneChoice {
     Face { plane: WorkPlane, face: usize },
     /// A face of the part no drawing can be laid on, because it is not flat.
     Curved(usize),
+    /// The cut of the section view, held by no face of the part.
+    Section(WorkPlane),
 }
 
 impl PlaneChoice {
@@ -142,7 +144,7 @@ impl PlaneChoice {
     pub fn plane(self) -> Option<WorkPlane> {
         match self {
             Self::Origin(index) => Some(WorkPlane::ORIGIN_PLANES[index]),
-            Self::Face { plane, .. } => Some(plane),
+            Self::Face { plane, .. } | Self::Section(plane) => Some(plane),
             Self::Curved(_) => None,
         }
     }

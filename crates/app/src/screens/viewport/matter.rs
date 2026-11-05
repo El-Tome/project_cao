@@ -1,4 +1,5 @@
-//! How much of the part a frame draws while a sketch is open.
+//! How much of the part a frame draws while a sketch is open or a section is
+//! on.
 
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -8,12 +9,14 @@ use cao_sketch::WorkPlane;
 use cao_solid::Body;
 use glam::{DVec3, Vec3};
 
-use super::ViewMode;
+use super::section::Section;
+use super::{ViewMode, ViewportState};
 use crate::screens::sketch::SketchEditor;
 
-/// The matter a frame draws: opaque, the whole body or what is left of it
-/// behind the plane of the sketch being edited; see-through, what stands in
-/// front of that plane, when that is how it is to be shown.
+/// The matter a frame draws: opaque, the whole body, a side of a cut or
+/// nothing; see-through, what of it is to be shown that way. While a sketch
+/// is edited, what is opaque is what lies behind its plane, and see-through
+/// what stands in front of it, when that is how it is to be shown.
 ///
 /// Drawing the body whole while a sketch is open means drawing inside the part
 /// without seeing what one draws. What lies behind the plane stays — that is
@@ -44,19 +47,32 @@ pub(crate) fn drawn<'a>(
     }
 }
 
+/// What a frame draws of the part: the sketch's own cut while a sketch is
+/// edited, the section's while one is on, the part whole otherwise.
+pub(crate) fn shown<'a>(state: &ViewportState, editor: &SketchEditor, body: &'a Body) -> Drawn<'a> {
+    match &state.section {
+        Some(section) if editor.active_sketch().is_none() => {
+            state.sections.sectioned(section, body)
+        }
+        _ => state
+            .sections
+            .drawn(editor, state.mode, body, state.camera.eye()),
+    }
+}
+
 /// The halves last cut, each handed to every frame until the part, the plane
 /// or the side the eye is on changes: a cut costs the kernel a boolean, which
 /// no frame can afford.
 #[derive(Default)]
 pub(crate) struct Sections {
-    last: RefCell<Option<Section>>,
+    last: RefCell<Option<Halves>>,
     #[cfg(test)]
     behind_cuts: std::cell::Cell<usize>,
     #[cfg(test)]
     front_cuts: std::cell::Cell<usize>,
 }
 
-struct Section {
+struct Halves {
     cut: Cut,
     body: Body,
     behind: Option<Body>,
@@ -74,28 +90,78 @@ impl Sections {
         let Some((cut, see_through)) = Cut::asked(editor, mode, eye) else {
             return drawn(editor, mode, body, eye);
         };
+        let (behind, in_front) = self.halves(cut, body, true, see_through);
+        Drawn {
+            opaque: Cow::Owned(behind.unwrap_or_default()),
+            see_through: in_front,
+        }
+    }
+
+    /// Each side of the section drawn as it is set; both sides alike, the
+    /// part is drawn whole and nothing is cut.
+    pub(crate) fn sectioned<'a>(&self, section: &Section, body: &'a Body) -> Drawn<'a> {
+        let parts: Vec<(Cow<'a, Body>, MatterInFront)> = if section.behind == section.in_front {
+            vec![(Cow::Borrowed(body), section.behind)]
+        } else {
+            let towards = section.plane.normal();
+            let cut = Cut {
+                towards,
+                offset: towards.dot(section.plane.origin) + section.offset,
+            };
+            let shown = |state| state != MatterInFront::Hidden;
+            let (behind, in_front) =
+                self.halves(cut, body, shown(section.behind), shown(section.in_front));
+            [(behind, section.behind), (in_front, section.in_front)]
+                .into_iter()
+                .filter_map(|(half, state)| Some((Cow::Owned(half?), state)))
+                .collect()
+        };
+        let mut drawn = Drawn {
+            opaque: Cow::Owned(Body::default()),
+            see_through: None,
+        };
+        for (part, state) in parts {
+            match state {
+                MatterInFront::Opaque => drawn.opaque = part,
+                MatterInFront::SeeThrough => drawn.see_through = Some(part.into_owned()),
+                MatterInFront::Hidden => {}
+            }
+        }
+        drawn
+    }
+
+    /// The halves of `body` asked for, each cut only the first time it is.
+    fn halves(
+        &self,
+        cut: Cut,
+        body: &Body,
+        behind: bool,
+        in_front: bool,
+    ) -> (Option<Body>, Option<Body>) {
         let mut last = self.last.borrow_mut();
         // Compared by value: the document keeps no revision of its body, and
         // reading two bodies through costs a fraction of cutting one.
-        let mut section = match last.take() {
-            Some(section) if section.cut == cut && section.body == *body => section,
-            _ => Section {
+        let mut halves = match last.take() {
+            Some(halves) if halves.cut == cut && halves.body == *body => halves,
+            _ => Halves {
                 cut,
                 body: body.clone(),
                 behind: None,
                 in_front: None,
             },
         };
-        let behind = section
-            .behind
-            .get_or_insert_with(|| {
-                #[cfg(test)]
-                self.behind_cuts.set(self.behind_cuts.get() + 1);
-                body.behind(cut.towards, cut.offset)
-            })
-            .clone();
-        let in_front = see_through.then(|| {
-            section
+        let behind = behind.then(|| {
+            halves
+                .behind
+                .get_or_insert_with(|| {
+                    #[cfg(test)]
+                    self.behind_cuts.set(self.behind_cuts.get() + 1);
+                    body.behind(cut.towards, cut.offset)
+                })
+                .clone()
+        });
+        let in_front = in_front.then(|| {
+            halves
                 .in_front
                 .get_or_insert_with(|| {
                     #[cfg(test)]
@@ -104,11 +170,8 @@ impl Sections {
                 })
                 .clone()
         });
-        *last = Some(section);
-        Drawn {
-            opaque: Cow::Owned(behind),
-            see_through: in_front,
-        }
+        *last = Some(halves);
+        (behind, in_front)
     }
 
     #[cfg(test)]

@@ -13,6 +13,7 @@ pub(crate) use input::{chamfer_to_swap, corner_picks_with, swap_held_chamfer, sw
 mod matter;
 mod navigation;
 mod render;
+mod section;
 mod state;
 mod values;
 mod view;

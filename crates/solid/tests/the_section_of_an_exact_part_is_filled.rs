@@ -45,6 +45,12 @@
 //!   `the_section_is_cut_again_when_the_plane_moves` and
 //!   `the_section_is_cut_again_when_the_part_the_side_or_the_state_changes`
 //!   in the same matter tests, through the view's `Sections`
+//!
+//! Closes #193.
+//! - slicing a cube at mid-height gives the expected cross-section, with no
+//!   window — `a_block_sliced_at_mid_height_leaves_its_footprint_on_the_plane`;
+//!   the rest of #193 is the view's, transcribed in
+//!   `crates/app/src/screens/viewport/render/tests.rs`
 
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
@@ -662,4 +668,43 @@ fn a_part_on_the_flats_is_clipped_as_before() {
     is_its_drawing_clipped(&part, DVec3::new(1.0, 0.0, 0.5).normalize(), 3.0);
 
     assert!(!part.behind(DVec3::X, 3.0).is_exact());
+}
+
+#[test]
+fn a_block_sliced_at_mid_height_leaves_its_footprint_on_the_plane() {
+    let part = block();
+    let tolerance = tolerance(&part);
+
+    let section = part.behind(DVec3::Z, 5.0);
+
+    let faces = faces_on_the_plane(&section, DVec3::Z, 5.0, tolerance);
+    assert_eq!(
+        faces.len(),
+        1,
+        "one face lies on the plane at mid-height: {faces:?}"
+    );
+    assert_eq!(
+        closed(&section.triangles()),
+        Ok(()),
+        "the section is filled"
+    );
+    let face: Vec<[DVec3; 3]> = section.triangles_of(faces[0]).collect();
+    assert!(
+        (area(&face) - 600.0).abs() <= 1e-9 * 600.0,
+        "the cut across a block 30 by 20 covers {}, not its footprint, 600",
+        area(&face),
+    );
+    assert!(
+        (section.volume() - 3000.0).abs() <= 1e-9 * 3000.0,
+        "the lower half of the block encloses {}, not 3000",
+        section.volume(),
+    );
+    assert!(
+        section
+            .triangles()
+            .iter()
+            .flatten()
+            .all(|at| at.z <= 5.0 + tolerance),
+        "something of the block stands over the plane it was sliced at",
+    );
 }

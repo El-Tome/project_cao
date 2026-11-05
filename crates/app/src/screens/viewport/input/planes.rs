@@ -1,4 +1,6 @@
-//! Which plane a click lands on, before there is any sketch to draw in.
+//! Which plane a click lands on, before there is any sketch to draw in, and
+//! what the pointer does to the section view: a face clicked to cut along,
+//! the handle pulled along the normal.
 
 use cao_part::history::{FaceAnchor, Operation};
 use cao_render::camera::view_angles_towards;
@@ -9,13 +11,16 @@ use glam::{DVec2, DVec3};
 use crate::screens::SketchContext;
 use crate::screens::sketch::PlaneChoice;
 
-use super::{ViewportState, plane_half_size};
-use crate::screens::viewport::DEFAULT_SKETCH_RADIUS;
+use super::{PICK_PIXELS, ViewScale, ViewportState, plane_half_size, to_ndc};
+use crate::screens::viewport::matter::shown;
+use crate::screens::viewport::navigation::drag_asked;
+use crate::screens::viewport::{DEFAULT_SKETCH_RADIUS, section::Section};
 
 /// The step where the cursor is offering planes to draw on, and a click takes
 /// one: a fresh sketch on it, and the view swung round to face it.
 ///
-/// Returns true when a sketch was started.
+/// Returns true when a sketch was started; the section view, if on, is turned
+/// off, the sketch's own cut taking over.
 pub(super) fn choose_a_plane(
     state: &mut ViewportState,
     context: &mut SketchContext<'_>,
@@ -62,6 +67,84 @@ pub(super) fn choose_a_plane(
         .map(|local| plane.to_world(local))
         .unwrap_or(plane.origin);
     state.look_at_plane(plane, center, DEFAULT_SKETCH_RADIUS);
+    state.section = None;
+    true
+}
+
+/// While the section waits for a face, a click on a flat one makes its plane
+/// the cutting plane, facing out of the part, at a distance of nothing.
+pub(super) fn choose_a_cutting_face(
+    state: &mut ViewportState,
+    body: &Body,
+    clicked: bool,
+    origin: DVec3,
+    direction: DVec3,
+) -> bool {
+    if !clicked || !state.section().is_some_and(Section::is_waiting_for_a_face) {
+        return false;
+    }
+    let offered =
+        what_the_part_offers(body, origin, direction, |normal| once_facing(state, normal));
+    let (Some(PlaneChoice::Face { plane, .. }), Some(section)) = (offered, state.section.as_mut())
+    else {
+        return false;
+    };
+    section.choose_face(plane);
+    true
+}
+
+/// Whether the gesture this frame belongs to the section view: a click while
+/// it waits for a face, or a drag of the primary button, navigating nothing,
+/// that took hold of its handle. A sketch being edited takes every gesture.
+pub(crate) fn point_the_section(
+    ui: &egui::Ui,
+    state: &mut ViewportState,
+    response: &egui::Response,
+    (rect, scale): (egui::Rect, ViewScale),
+    context: &SketchContext<'_>,
+) -> bool {
+    if context.editor.active_sketch().is_some() {
+        return false;
+    }
+    let camera = state.camera;
+    let ray = |at| {
+        let (origin, direction) = camera.ray(to_ndc(at, rect), rect.width() / rect.height());
+        (origin.as_dvec3(), direction.as_dvec3())
+    };
+    let body = context.document.body();
+    if state.section().is_some_and(Section::is_waiting_for_a_face) {
+        let Some(at) = response
+            .interact_pointer_pos()
+            .filter(|_| response.clicked())
+        else {
+            return false;
+        };
+        let (origin, direction) = ray(at);
+        let drawn = shown(state, context.editor, body);
+        choose_a_cutting_face(state, &drawn.opaque, true, origin, direction);
+        return true;
+    }
+    let navigating = ui.input(|input| drag_asked(input, &state.config).is_some());
+    let Some(section) = state.section.as_mut() else {
+        return false;
+    };
+    if response.drag_started_by(egui::PointerButton::Primary)
+        && !navigating
+        && let Some(at) = ui.input(|input| input.pointer.press_origin())
+    {
+        let (origin, direction) = ray(at);
+        section.grab(body, origin, direction, scale.world_size_of(PICK_PIXELS));
+    }
+    if !section.is_held() {
+        return false;
+    }
+    match response.interact_pointer_pos() {
+        Some(at) if response.dragged_by(egui::PointerButton::Primary) => {
+            let (origin, direction) = ray(at);
+            section.pull(origin, direction);
+        }
+        _ => section.let_go(),
+    }
     true
 }
 
@@ -78,10 +161,7 @@ fn plane_under(
     origin: DVec3,
     direction: DVec3,
 ) -> Option<PlaneChoice> {
-    let offered = what_the_part_offers(context.document.body(), origin, direction, |normal| {
-        once_facing(state, normal)
-    });
-    if let Some(choice) = offered {
+    if let Some(choice) = what_is_drawn_offers(state, context, origin, direction) {
         return Some(choice);
     }
 
@@ -95,6 +175,43 @@ fn plane_under(
         })
         .min_by(|a, b| a.0.total_cmp(&b.0))
         .map(|(_, index)| PlaneChoice::Origin(index))
+}
+
+/// What the part as drawn offers under the ray. A face the cut left in pieces
+/// is offered as the part's own face it was parted from; a face the part does
+/// not have at all is the cut itself, offered as its plane, turned the way the
+/// face met looks.
+fn what_is_drawn_offers(
+    state: &ViewportState,
+    context: &SketchContext<'_>,
+    origin: DVec3,
+    direction: DVec3,
+) -> Option<PlaneChoice> {
+    let part = context.document.body();
+    let drawn = shown(state, context.editor, part);
+    let hit = drawn.opaque.ray_hit(origin, direction)?;
+    let up = |normal| once_facing(state, normal);
+    match own_face(&drawn.opaque, part, hit.face) {
+        Some(face) => offered_by(part, face, hit.normal, up),
+        None => {
+            let cut = state.section()?.cutting_plane();
+            Some(PlaneChoice::Section(
+                match hit.normal.dot(cut.normal()) > 0.0 {
+                    true => cut,
+                    false => WorkPlane::from_normal(cut.origin, -cut.normal()),
+                },
+            ))
+        }
+    }
+}
+
+/// The part's own face a face of `drawn` stands for, or `None` for one the
+/// part does not have.
+fn own_face(drawn: &Body, part: &Body, mut face: usize) -> Option<usize> {
+    while !part.has_face(face) {
+        face = drawn.parted_from(face)?;
+    }
+    Some(face)
 }
 
 /// What the face under the ray offers a drawing: its plane when the face is
@@ -114,7 +231,15 @@ fn what_the_part_offers(
     screen_up: impl Fn(DVec3) -> DVec3,
 ) -> Option<PlaneChoice> {
     let hit = body.ray_hit(origin, direction)?;
-    let face = hit.face;
+    offered_by(body, hit.face, hit.normal, screen_up)
+}
+
+fn offered_by(
+    body: &Body,
+    face: usize,
+    normal: DVec3,
+    screen_up: impl Fn(DVec3) -> DVec3,
+) -> Option<PlaneChoice> {
     if !body.is_flat(face) {
         return Some(PlaneChoice::Curved(face));
     }
@@ -122,7 +247,6 @@ fn what_the_part_offers(
     // is stored as several pieces, and the corner a drawing is read from has
     // to be one of the face's own.
     let corners = body.plane_of(face)?.corners;
-    let normal = hit.normal;
     let plane = WorkPlane::from_face(&corners, normal, screen_up(normal));
     Some(PlaneChoice::Face { plane, face })
 }

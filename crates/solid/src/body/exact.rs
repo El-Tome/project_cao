@@ -182,6 +182,12 @@ impl Exact {
         self.next as usize
     }
 
+    pub fn parted_from(&self, face: usize) -> Option<usize> {
+        let number = u32::try_from(face).ok()?;
+        let replaced = *self.roots.get(&number)?;
+        (replaced < number).then_some(replaced as usize)
+    }
+
     pub fn edge_names(&self) -> &[EdgeName] {
         &self.edges
     }

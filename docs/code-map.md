@@ -350,8 +350,12 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: what the mirror and the two patterns take hold of — a click or a box filling the panel's active slot — and what `Entrée` does in their panel | `app/src/screens/viewport/input/copying.rs` | `copy`, `gather_in_a_box`, `enter_in_the_panel`, `take_up`, `axis_at`, `turned`, `filled` |
 | The panel of the mirror and the two patterns: its slots, which one is active and which one is marked, the elements and the target it holds | `app/src/screens/sketch/copy_panel.rs` | `CopyPanel`, `CopySlot`, `CopyTarget`, `CopyValue`, `SketchEditor::copy_panel`, `SketchEditor::cancel_the_copy` |
 | Canvas: that panel drawn over the view, its rows, its value fields, Valider and Annuler | `app/src/screens/viewport/render/copy_panel.rs` | `paint_copy_panel` |
+| Canvas: the section view — its plane, its distance, each side's state, its handle pulled along the normal | `app/src/screens/viewport/section.rs` | `Section`, `closest_along`, `to_the_middle` |
+| Canvas: the section view's panel and its handle drawn over the view | `app/src/screens/viewport/render/section_panel.rs` | `paint_section_panel`, `paint_section_handle` |
+| Canvas: a face clicked to cut along, the handle taken and pulled, the section's cut picked to start a sketch on | `app/src/screens/viewport/input/planes.rs` | `choose_a_cutting_face`, `point_the_section`, `choose_a_plane` |
+| What the rows of the section view's panel say | `app/src/wording/section.rs` | `side`, `Side` |
 | What the rows of that panel say | `app/src/wording/copy_panel.rs` | `elements`, `target`, `Target` |
-| A panel over a view, in front, dragged by its title and brought back inside a view it no longer fits | `app/src/ui/floating_panel.rs` | `floating_panel`, `panel_row`, `kept_inside` |
+| A panel over a view, in front, dragged by its title, closed from a control beside it, and brought back inside a view it no longer fits | `app/src/ui/floating_panel.rs` | `floating_panel`, `panel_row`, `kept_inside` |
 | Canvas: the copies a mirror or a pattern would lay, shown once its panel holds enough to lay them | `app/src/screens/viewport/input/copying/preview.rs` | `previewed` |
 | Canvas: the values a pattern's fields open on | `app/src/screens/viewport/input/copying/opening.rs` | `fields_open_on` |
 | Canvas: which closed areas an extrusion is offered, and which one a click takes | `app/src/screens/viewport/input/areas.rs` | `pick_areas` |

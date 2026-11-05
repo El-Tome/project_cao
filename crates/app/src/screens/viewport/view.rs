@@ -9,12 +9,12 @@ use crate::screens::SketchContext;
 use crate::screens::sketch::Tool;
 
 use super::finish::advance_on_enter;
-use super::input::{handle_sketch_input, pick_areas};
+use super::input::{handle_sketch_input, pick_areas, point_the_section};
 use super::navigation::{advance_transition, handle_navigation};
 use super::render::{
     build_frame, paint_band, paint_copy_panel, paint_dimension_field, paint_dimension_labels,
-    paint_face_labels, paint_measure, paint_rule_marks, paint_ruler, push_blinking_matter,
-    what_is_measured, what_would_go,
+    paint_face_labels, paint_measure, paint_rule_marks, paint_ruler, paint_section_handle,
+    paint_section_panel, push_blinking_matter, what_is_measured, what_would_go,
 };
 use super::state::{GestureGoesTo, ViewScale, ViewportState, cube_rect, gesture_goes_to};
 use super::values::refused_for_what_is_typed;
@@ -48,7 +48,10 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         &state.config,
         sketch.document.scale(),
     );
+    let sectioning =
+        !handled_cube && point_the_section(ui, state, &response, (rect, scale), sketch);
     let mut changed = match gesture_goes_to(handled_cube, sketch) {
+        _ if sectioning => false,
         GestureGoesTo::TheCube => false,
         GestureGoesTo::PickingAnArea => {
             pick_areas(state, &response, rect, scale, sketch);
@@ -77,6 +80,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     changed |= advance_on_enter(ui, sketch, scale);
     let (laid, copy_panel_let_go_at) = paint_copy_panel(ui, state.copy_panel_at, rect, sketch);
     changed |= laid;
+    paint_section_panel(ui, state, rect, sketch);
 
     // A measure read a moment ago is about a drawing that has just moved, so
     // it goes with the change rather than staying on screen being wrong.
@@ -115,6 +119,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         ViewportCallback { frame },
     ));
 
+    paint_section_handle(ui, state, rect, scale, sketch);
     paint_face_labels(ui, state, cube_rect, sketch.lang);
     paint_band(ui, state, rect, sketch);
     paint_rule_marks(ui, state, rect, sketch, going.as_ref());

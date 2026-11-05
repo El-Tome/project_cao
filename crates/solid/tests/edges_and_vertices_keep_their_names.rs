@@ -79,7 +79,9 @@
 //! numbers when an earlier cut starts or stops parting a face. A tool that
 //! comes with pieces of its own is cut into a part holding some with its
 //! pieces counted past the part's, each still answering to its own face —
-//! `a_tool_s_piece_cut_into_a_part_that_holds_a_piece_answers_to_a_number_of_its_own_and_to_its_own_wall`.
+//! `a_tool_s_piece_cut_into_a_part_that_holds_a_piece_answers_to_a_number_of_its_own_and_to_its_own_wall`
+//! — and a face parted after that is counted on past them all —
+//! `a_face_parted_after_a_tool_brought_its_pieces_answers_to_the_number_after_every_piece_before_it`.
 //!
 //! Closes #682.
 //! - The notch of the #582 fixtures is numbered the same whether or not the
@@ -1857,36 +1859,66 @@ fn a_tool_that_parts_a_face_of_its_own_names_the_part_s_edges_as_cutting_its_are
     );
 }
 
-/// A slot milled along the block forty by twenty from its left side to its
-/// right, behind where the T's stem ends: it leaves the top in two pieces,
-/// and the T, cut after it, meets neither of its walls.
-fn behind_the_stem() -> Contour {
-    Contour::rectangle(DVec2::new(-1.0, 17.0), DVec2::new(41.0, 19.0))
+/// The block forty by twenty with a slot milled along it from its left side
+/// to its right, behind where the T's stem ends: it leaves the top in two
+/// pieces, and the T, cut after it, meets neither of its walls.
+fn slotted_behind_the_stem() -> Vec<Raise> {
+    let mut steps = block([40.0, 20.0, 10.0]);
+    steps.push(cut(
+        Contour::rectangle(DVec2::new(-1.0, 17.0), DVec2::new(41.0, 19.0)),
+        7.0,
+        4.0,
+    ));
+    steps
+}
+
+/// The T, its bar and its stem joined into one tool, raised against `part`.
+fn tee(part: &Body) -> Body {
+    tool(part, bar(), 6.0, 5.0)
+        .union(&tool(part, stem(), 6.0, 5.0))
+        .expect("the bar and the stem join into one tool")
+}
+
+/// The number of the top's piece the slot milled behind the stem left apart,
+/// on whichever side of the slot it lies: met from above two along the
+/// block, clear of the T, on both sides of the slot.
+fn piece_of_the_top_behind_the_stem(body: &Body) -> usize {
+    let above = |across: f64| [2.0, across, 20.0];
+    piece_apart(body, 1, [above(10.0), above(19.5)], DVec3::NEG_Z, 10.0)
+}
+
+/// Where the bar's back wall stands along the bar, either side of the stem.
+const BESIDE_THE_STEM: [f64; 2] = [10.0, 30.0];
+
+/// The bar's back wall in a part the T was cut into, the numbers the steps
+/// before the T gave ending at `before`, and the number its piece the stem
+/// left apart answers to: met from inside the bar, either side of the stem.
+fn bar_s_back_wall_and_its_piece(at_once: &Body, before: usize) -> (usize, usize) {
+    let wall = before + 4;
+    let within = |along: f64| [along, 6.0, 8.5];
+    let piece = piece_apart(at_once, wall, BESIDE_THE_STEM.map(within), DVec3::Y, 3.0);
+    (wall, piece)
 }
 
 #[test]
 fn a_tool_s_piece_cut_into_a_part_that_holds_a_piece_answers_to_a_number_of_its_own_and_to_its_own_wall()
  {
-    let mut stock = block([40.0, 20.0, 10.0]);
-    stock.push(cut(behind_the_stem(), 7.0, 4.0));
+    let stock = slotted_behind_the_stem();
     let slotted = part(&stock, ground());
     let top = 1;
-    let across_the_slot = [[2.0, 10.0, 20.0], [2.0, 19.5, 20.0]];
-    let strip = piece_apart(&slotted, top, across_the_slot, DVec3::NEG_Z, 10.0);
+    let strip = piece_of_the_top_behind_the_stem(&slotted);
     assert_eq!(
         slotted.parted_from(strip),
         Some(top),
         "the slot leaves the top in two pieces before the T is cut"
     );
-    let tee = tool(&slotted, bar(), 6.0, 5.0)
-        .union(&tool(&slotted, stem(), 6.0, 5.0))
-        .expect("the bar and the stem join into one tool");
-    let (bar_s_back, beside_the_stem) = (4, [10.0, 30.0]);
+    let tee = tee(&slotted);
+    let bar_s_back = 4;
     let behind = |along: f64| [along, 30.0, 8.5];
     let piece = piece_apart(
         &tee,
         bar_s_back,
-        beside_the_stem.map(behind),
+        BESIDE_THE_STEM.map(behind),
         DVec3::NEG_Y,
         21.0,
     );
@@ -1898,14 +1930,8 @@ fn a_tool_s_piece_cut_into_a_part_that_holds_a_piece_answers_to_a_number_of_its_
 
     let at_once = slotted.difference(&tee).expect("the T is cut at once");
 
-    let strip = piece_apart(&at_once, top, across_the_slot, DVec3::NEG_Z, 10.0);
-    let wall = slotted.faces_end() + bar_s_back;
-    let within = |along: f64| [along, 6.0, 8.5];
-    let piece = piece_apart(&at_once, wall, beside_the_stem.map(within), DVec3::Y, 3.0);
-    assert_ne!(
-        strip, piece,
-        "the top's piece and the tool's answer to two numbers"
-    );
+    let strip = piece_of_the_top_behind_the_stem(&at_once);
+    let (wall, piece) = bar_s_back_wall_and_its_piece(&at_once, slotted.faces_end());
     assert_eq!(
         at_once.parted_from(strip),
         Some(top),
@@ -1916,6 +1942,12 @@ fn a_tool_s_piece_cut_into_a_part_that_holds_a_piece_answers_to_a_number_of_its_
         Some(wall),
         "the tool's piece is parted from the bar's back wall, which answers to \
          its number moved above the part's"
+    );
+    assert_eq!(
+        piece,
+        strip + 1,
+        "the tool's piece is counted on after the part's own, the pieces \
+         numbered one after the other across the part"
     );
     for (what, number) in [("the top's piece", strip), ("the tool's piece", piece)] {
         assert!(
@@ -1932,5 +1964,61 @@ fn a_tool_s_piece_cut_into_a_part_that_holds_a_piece_answers_to_a_number_of_its_
         at_once.edge_names(),
         part(&one_by_one, ground()).edge_names(),
         "as cutting the bar and then the stem after the slot names them"
+    );
+}
+
+#[test]
+fn a_face_parted_after_a_tool_brought_its_pieces_answers_to_the_number_after_every_piece_before_it()
+{
+    let slotted = part(&slotted_behind_the_stem(), ground());
+    let at_once = slotted
+        .difference(&tee(&slotted))
+        .expect("the T is cut at once");
+    let strip = piece_of_the_top_behind_the_stem(&at_once);
+    let (wall, piece) = bar_s_back_wall_and_its_piece(&at_once, slotted.faces_end());
+    let under = tool(
+        &at_once,
+        Contour::rectangle(DVec2::new(37.0, -1.0), DVec2::new(39.0, 21.0)),
+        -1.0,
+        3.0,
+    );
+
+    let cut_under = at_once
+        .difference(&under)
+        .expect("a slot milled across the floor cuts it");
+
+    let floor = 0;
+    let below = |along: f64| [along, 10.0, -10.0];
+    let under_piece = piece_apart(
+        &cut_under,
+        floor,
+        [below(20.0), below(39.5)],
+        DVec3::Z,
+        10.0,
+    );
+    assert_eq!(
+        (
+            piece_of_the_top_behind_the_stem(&cut_under),
+            bar_s_back_wall_and_its_piece(&cut_under, slotted.faces_end()),
+        ),
+        (strip, (wall, piece)),
+        "the earlier pieces keep their numbers"
+    );
+    for (what, number, from) in [
+        ("the top's piece", strip, 1),
+        ("the tool's piece", piece, wall),
+        ("the floor's piece", under_piece, floor),
+    ] {
+        assert_eq!(
+            cut_under.parted_from(number),
+            Some(from),
+            "{what}, {number}, is parted from its own face"
+        );
+    }
+    assert_eq!(
+        under_piece,
+        piece + 1,
+        "the floor's piece answers to the number after every piece parted \
+         before it, the top's {strip} and the tool's {piece}"
     );
 }

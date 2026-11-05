@@ -432,6 +432,19 @@ fn a_stop_the_kernel_catches_never_reaches_the_hook_that_writes_crashes_down() {
 }
 
 #[test]
+fn two_blocks_numbered_and_named_alike_but_of_different_sizes_are_not_one_body() {
+    let short = block(DVec2::ZERO, DVec2::splat(10.0), 10.0);
+    let long = block(DVec2::ZERO, DVec2::new(20.0, 10.0), 10.0);
+
+    assert_eq!(short.faces_end(), long.faces_end());
+    assert!(short.pieces().is_empty() && long.pieces().is_empty());
+    assert_eq!(short.edge_names(), long.edge_names());
+    assert_eq!(short.vertex_names(), long.vertex_names());
+    assert_ne!(short, long, "the matter tells them apart");
+    assert_eq!(short, short.clone(), "and a block is one with itself");
+}
+
+#[test]
 fn a_tools_faces_are_numbered_above_every_number_the_part_gave() {
     let part = block(DVec2::ZERO, DVec2::splat(10.0), 10.0);
     let boss = block(DVec2::splat(2.0), DVec2::splat(5.0), 20.0);

@@ -48,6 +48,8 @@ pub(crate) fn beside_the_part(
             screens::part_tree::TreeAction::NextBodyMode => viewport.next_body_mode(),
             screens::part_tree::TreeAction::None => {}
         }
+    } else {
+        viewport.light_out();
     }
 
     if ribbon.history_open {
@@ -67,8 +69,7 @@ pub(crate) fn beside_the_part(
                 }
             }
             HistoryAction::CompactHistory => {
-                doc.compact_history();
-                commands::clamp_editor_to_document(editor, doc);
+                commands::compact_history(doc, editor, viewport);
                 changed = true;
             }
             HistoryAction::None => {}

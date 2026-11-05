@@ -13,11 +13,13 @@
 
 use cao_part::PartDocument;
 use cao_part::history::{ExtrusionMode, Operation};
-use cao_sketch::{Area, Element, Selection, Sketch};
+use cao_sketch::{Area, Element, Sketch};
 
 use crate::lang::Catalogue;
-use crate::screens::sketch::{SketchEditor, Tool};
 use crate::wording::{self, formula};
+
+mod clicks;
+pub use clicks::*;
 
 /// What a line of the tree points at, so that clicking it can find the thing
 /// itself.
@@ -37,70 +39,6 @@ impl Points {
             | Self::Rule { sketch, .. }
             | Self::Area { sketch, .. } => sketch,
         }
-    }
-}
-
-/// What the user asked of the tree.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum TreeAction {
-    None,
-    /// Reopen this sketch for drawing.
-    EditSketch(usize),
-    /// Show this sketch on the canvas, or stop showing it.
-    ToggleEye(usize),
-    /// Take this into the open sketch's selection, alone or added to it.
-    Select {
-        what: Selection,
-        adding: bool,
-    },
-    /// Light this on the canvas, in a sketch that is not open.
-    Light(Points),
-    /// Draw the body the next way round: invisible, see-through, opaque.
-    NextBodyMode,
-}
-
-/// What a click on a row asks: in the open sketch, to select what it names,
-/// as a click on the canvas would; in another, to light it, opening nothing.
-pub fn clicked(
-    document: &PartDocument,
-    editor: &SketchEditor,
-    row: Points,
-    adding: bool,
-) -> TreeAction {
-    let open = editor.active_sketch() == Some(row.sketch());
-    match (open, row) {
-        (true, _) => selection_of(document, row)
-            .map_or(TreeAction::None, |what| TreeAction::Select { what, adding }),
-        (false, Points::Element { .. } | Points::Area { .. }) => TreeAction::Light(row),
-        (false, _) => TreeAction::None,
-    }
-}
-
-/// Takes what a row names into the selection, the selection tool put in hand.
-pub fn take(editor: &mut SketchEditor, what: Selection, adding: bool) {
-    if editor.tool != Tool::Select {
-        editor.tool = Tool::Select;
-        editor.reset_pending();
-    }
-    crate::screens::viewport::take_a_selection(editor, Some(what), adding);
-}
-
-/// Whether the open sketch's selection holds what a row names.
-pub fn holds(document: &PartDocument, editor: &SketchEditor, row: Points) -> bool {
-    editor.active_sketch() == Some(row.sketch())
-        && selection_of(document, row).is_some_and(|what| editor.is_selected(what))
-}
-
-fn selection_of(document: &PartDocument, row: Points) -> Option<Selection> {
-    let sketch = document.sketches().get(row.sketch())?;
-    match row {
-        Points::Element { element, .. } => Some(Selection::Element(element)),
-        Points::Dimension { rank, .. } => {
-            let dimension = sketch.dimensions().get(rank)?;
-            Some(Selection::Dimension(dimension.target))
-        }
-        Points::Rule { rank, .. } => sketch.constraints().get(rank).copied().map(Selection::Rule),
-        Points::Area { .. } => None,
     }
 }
 

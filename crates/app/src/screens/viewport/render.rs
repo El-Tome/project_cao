@@ -7,9 +7,10 @@
 use cao_prefs::theme::{Background, Theme};
 use cao_render::{AxisStyle, BackgroundShape, SceneFrame, ViewportRect, cube, push_axes, srgb};
 use cao_sketch::{DimensionTarget, Going};
-use glam::{DVec2, DVec3, Vec3};
+use glam::DVec2;
 
 mod arc;
+mod body;
 mod circle;
 mod copy_panel;
 mod curves;
@@ -57,21 +58,6 @@ fn tint(color: cao_prefs::theme::Rgba) -> [f32; 4] {
 /// The same, with the opacity replaced.
 fn tint_at(color: cao_prefs::theme::Rgba, alpha: f32) -> [f32; 4] {
     tint(color.with_alpha(alpha))
-}
-
-const SEE_THROUGH_OPACITY: f32 = 0.25;
-
-fn push_body(
-    out: &mut Vec<cao_render::Vertex>,
-    triangles: Vec<[DVec3; 3]>,
-    color: [f32; 4],
-    towards: Vec3,
-) {
-    let triangles: Vec<_> = triangles
-        .iter()
-        .map(|corners| corners.map(|corner| corner.as_vec3()))
-        .collect();
-    cao_render::push_solid(out, &triangles, color, towards);
 }
 
 fn axis_style(theme: &Theme) -> AxisStyle {
@@ -182,26 +168,8 @@ pub(crate) fn build_frame(
 
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
 
-    let drawn = super::matter::shown(state, context.editor, context.document.body());
     let mut solids = Vec::new();
-    push_body(
-        &mut solids,
-        drawn.opaque.triangles(),
-        tint(theme.solid),
-        camera.forward(),
-    );
-    if let Some(in_front) = drawn.see_through {
-        // The surface pass culls nothing: a far side left in would be stacked
-        // behind the near one.
-        let eye = camera.eye().as_dvec3();
-        let facing = in_front
-            .triangles()
-            .into_iter()
-            .filter(|[a, b, c]| (*b - *a).cross(*c - *a).dot(eye - *a) > 0.0)
-            .collect();
-        let veiled = tint_at(theme.solid, SEE_THROUGH_OPACITY);
-        push_body(&mut surfaces, facing, veiled, camera.forward());
-    }
+    body::push_matter(&mut solids, &mut surfaces, state, context);
 
     let mut cube_triangles = Vec::new();
     let mut cube_edges = Vec::new();

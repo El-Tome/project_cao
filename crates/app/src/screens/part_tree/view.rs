@@ -1,7 +1,9 @@
 use cao_part::PartDocument;
 
 use crate::lang::Catalogue;
-use crate::screens::part_tree::state::{Body, Drawn, PartTree, Row, TreeAction, clicked, holds};
+use crate::screens::part_tree::state::{
+    Body, Drawn, PartTree, Row, TreeAction, clickable, clicked, marked,
+};
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
 use crate::ui::eye::eye;
@@ -184,11 +186,16 @@ fn kind(
         });
 }
 
-/// One row, marked while the open sketch holds it or the canvas lights it.
+/// One row: a click where it asks something, marked while the open sketch
+/// holds it or the canvas lights it; a plain line where it asks nothing.
 fn row(ui: &mut egui::Ui, row: &Row, asked: &mut Asked<'_>) {
-    let marked =
-        holds(asked.document, asked.editor, row.points) || asked.viewport.lit() == Some(row.points);
-    if panel_row(ui, row.name.clone(), marked, false).clicked() {
-        asked.action = clicked(asked.document, asked.editor, row.points, asked.adding);
+    let (document, editor) = (asked.document, asked.editor);
+    if !clickable(document, editor, row.points) {
+        ui.label(&row.name);
+        return;
+    }
+    let lit = marked(document, editor, asked.viewport, row.points);
+    if panel_row(ui, row.name.clone(), lit, false).clicked() {
+        asked.action = clicked(document, editor, row.points, asked.adding);
     }
 }

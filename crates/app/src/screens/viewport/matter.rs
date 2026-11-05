@@ -48,33 +48,15 @@ pub(crate) fn drawn<'a>(
 }
 
 /// What a frame draws of the part: the sketch's own cut while a sketch is
-/// edited, the section's while one is on, the part whole otherwise — and what
-/// of that is left, drawn the way the body's mode says.
+/// edited, the section's while one is on, the part whole otherwise.
 pub(crate) fn shown<'a>(state: &ViewportState, editor: &SketchEditor, body: &'a Body) -> Drawn<'a> {
-    let drawn = match &state.section {
+    match &state.section {
         Some(section) if editor.active_sketch().is_none() => {
             state.sections.sectioned(section, body)
         }
         _ => state
             .sections
             .drawn(editor, state.mode, body, state.camera.eye()),
-    };
-    let nothing = Cow::Owned(Body::default());
-    match state.body_mode() {
-        MatterInFront::Opaque => drawn,
-        MatterInFront::Hidden => Drawn {
-            opaque: nothing,
-            see_through: None,
-        },
-        // Both sides see-through come to the whole part see-through, and the
-        // drawing holds a single see-through layer.
-        MatterInFront::SeeThrough => Drawn {
-            see_through: Some(match drawn.see_through {
-                Some(_) => body.clone(),
-                None => drawn.opaque.into_owned(),
-            }),
-            opaque: nothing,
-        },
     }
 }
 

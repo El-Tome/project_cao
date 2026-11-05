@@ -31,10 +31,21 @@
 //! - "Selecting from the viewport, which must agree with selecting from the
 //!   tree — one selection, two ways in": the tree marks what the viewport
 //!   holds — `the_tree_marks_what_the_viewport_holds`
+//! - found in review: a row lit on the canvas is marked in the tree only while
+//!   its sketch is not being drawn on —
+//!   `a_lit_row_is_marked_only_while_its_sketch_is_not_being_drawn_on`
+//! - decided in review: a click in the tree while the tool in hand is part-way
+//!   through something does nothing —
+//!   `a_click_in_the_tree_while_a_rule_waits_for_its_second_pick_does_nothing`
+//! - decided in review: an area row of the open sketch lights the area —
+//!   `an_area_row_of_the_open_sketch_lights_the_area`; a dimension or a rule
+//!   row of a closed sketch is no click at all —
+//!   `a_dimension_or_a_rule_of_a_closed_sketch_is_no_click_at_all`
 
 use cao_part::history::{FaceAnchor, PointRef, RevolutionAxis};
 use cao_sketch::{
-    Constraint, DimensionTarget, Element, SegmentId, Selection, SketchAxis, WorkPlane,
+    Constraint, DimensionTarget, Element, Rule, RulePick, SegmentId, Selection, SketchAxis,
+    ToolState, WorkPlane,
 };
 use chrono::{DateTime, Utc};
 use glam::{DVec2, DVec3};
@@ -42,6 +53,7 @@ use glam::{DVec2, DVec3};
 use super::*;
 use crate::screens::part_tree::TreeAction;
 use crate::screens::sketch::{SketchEditor, Tool};
+use crate::screens::viewport::ViewportState;
 
 fn at(text: &str) -> DateTime<Utc> {
     text.parse().expect("a date")
@@ -494,4 +506,113 @@ fn the_tree_marks_what_the_viewport_holds() {
         !holds(&document, &editor, the_row_of(1, 0)),
         "the same trait in a sketch that is not open is marked in the tree",
     );
+}
+
+#[test]
+fn a_lit_row_is_marked_only_while_its_sketch_is_not_being_drawn_on() {
+    let document = a_part();
+    let mut viewport = ViewportState::default();
+    viewport.light(the_row_of(0, 0));
+    let nothing_open = SketchEditor::default();
+    let (_, drawing_on_it) = the_first_sketch_open();
+
+    assert!(
+        marked(&document, &nothing_open, &viewport, the_row_of(0, 0)),
+        "a row lit on the canvas is not marked in the tree",
+    );
+    assert!(
+        !marked(&document, &nothing_open, &viewport, the_row_of(0, 1)),
+        "a row nothing lit is marked in the tree",
+    );
+    assert!(
+        !marked(&document, &drawing_on_it, &viewport, the_row_of(0, 0)),
+        "a row lit before its sketch was opened is still marked while it is drawn on",
+    );
+}
+
+#[test]
+fn a_click_in_the_tree_while_a_rule_waits_for_its_second_pick_does_nothing() {
+    let (document, mut editor) = the_first_sketch_open();
+    let rule = Tool::Constrain(Rule::Perpendicular);
+    let first_pick = RulePick::Element(Element::Segment(SegmentId(1)));
+    editor.tool = rule;
+    editor.tool_state = ToolState::Constrain {
+        picks: vec![first_pick],
+    };
+
+    let action = click_on(&document, &mut editor, the_row_of(0, 0), false);
+
+    assert_eq!(
+        action,
+        TreeAction::None,
+        "a click in the tree asks something of a busy tool"
+    );
+    assert_eq!(
+        editor.tool, rule,
+        "a click in the tree took the rule out of hand"
+    );
+    assert_eq!(
+        editor.rule_picks(),
+        [first_pick],
+        "a click in the tree dropped the rule's first pick",
+    );
+    assert!(
+        editor.selection().is_empty(),
+        "a click in the tree selected something"
+    );
+}
+
+#[test]
+fn an_area_row_of_the_open_sketch_lights_the_area() {
+    let (document, editor) = the_first_sketch_open();
+    let area = Points::Area { sketch: 0, rank: 0 };
+
+    assert!(
+        clickable(&document, &editor, area),
+        "the open sketch's area row is no click"
+    );
+    assert_eq!(
+        clicked(&document, &editor, area, false),
+        TreeAction::Light(area)
+    );
+}
+
+#[test]
+fn a_dimension_or_a_rule_of_a_closed_sketch_is_no_click_at_all() {
+    let mut document = a_part();
+    document.apply(Operation::Constrain {
+        sketch: 0,
+        constraint: Constraint::Equal {
+            first: SegmentId(0),
+            second: SegmentId(2),
+        },
+    });
+    let nothing_open = SketchEditor::default();
+    let (_, drawing_on_it) = the_first_sketch_open();
+    let read_only = [
+        Points::Dimension { sketch: 0, rank: 0 },
+        Points::Rule { sketch: 0, rank: 0 },
+    ];
+    let live = [the_row_of(0, 0), Points::Area { sketch: 0, rank: 0 }];
+
+    for row in read_only {
+        assert!(
+            !clickable(&document, &nothing_open, row),
+            "{row:?} of a closed sketch is drawn as a click that does nothing",
+        );
+        assert_eq!(
+            clicked(&document, &nothing_open, row, false),
+            TreeAction::None
+        );
+        assert!(
+            clickable(&document, &drawing_on_it, row),
+            "{row:?} of the open sketch is no click, though a click selects it",
+        );
+    }
+    for row in live {
+        assert!(
+            clickable(&document, &nothing_open, row),
+            "{row:?} of a closed sketch is no click, though a click lights it",
+        );
+    }
 }

@@ -123,7 +123,27 @@
 //!   `the_body_s_mode_steps_round_its_three_states`
 //! - the sketch's own cut of #319 and the section of #193 still apply on top —
 //!   `a_see_through_body_keeps_the_matter_in_front_of_the_sketch_cut_away`,
-//!   `a_see_through_body_keeps_the_side_the_section_hides_hidden`
+//!   `a_see_through_body_keeps_the_side_the_section_hides_hidden`; found in
+//!   review: whatever each side of the section is set to, a see-through body
+//!   shows see-through what the section shows and nothing it hides —
+//!   `a_see_through_body_shows_what_the_section_shows_and_nothing_it_hides`;
+//!   an invisible body draws nothing, whatever the section or the sketch's cut
+//!   — `an_invisible_body_draws_nothing_whatever_the_section_or_the_sketch_shows`
+//! - found in review: what is offered to draw on or to cut along is what is
+//!   drawn — a face of a see-through body is offered, nothing of an invisible
+//!   one — no test: in this file; held in
+//!   `crates/app/src/screens/viewport/input/planes/tests.rs`, under its own
+//!   block for this issue
+//! - found in review: the light goes out on undo, redo and compaction, and a
+//!   compaction puts every eye back to its default — no test: in this file;
+//!   held in `crates/app/src/commands/tests.rs`, under its own block for this
+//!   issue; that it goes out when the tree is closed — no test: the tree is
+//!   closed by a `toggle_value` in `ribbon/view.rs`, which no presenter sees
+//! - decided in review: an area row of the open sketch lights the area —
+//!   `an_area_of_the_open_sketch_lit_from_the_tree_is_drawn_lit`; a dimension
+//!   or a rule row of a closed sketch is no click at all, and a click while a
+//!   tool is part-way through something does nothing — held in the tree's
+//!   tests
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_render::MatterInFront;
@@ -1179,5 +1199,99 @@ fn a_see_through_body_keeps_the_side_the_section_hides_hidden() {
         sides(&a_view_of_the_block(&state)),
         (Seen::SeeThrough, Seen::Hidden),
         "a see-through body cut by a section that hides its front side, as (behind, in front)",
+    );
+}
+
+fn shown_or_hidden(state: MatterInFront) -> Seen {
+    match state {
+        MatterInFront::Hidden => Seen::Hidden,
+        MatterInFront::SeeThrough | MatterInFront::Opaque => Seen::SeeThrough,
+    }
+}
+
+#[test]
+fn a_see_through_body_shows_what_the_section_shows_and_nothing_it_hides() {
+    for behind in EVERY_STATE {
+        for in_front in EVERY_STATE {
+            let mut state = sectioned(|section| {
+                section.behind = behind;
+                section.in_front = in_front;
+            });
+            body_drawn(&mut state, MatterInFront::SeeThrough);
+
+            assert_eq!(
+                sides(&a_view_of_the_block(&state)),
+                (shown_or_hidden(behind), shown_or_hidden(in_front)),
+                "a see-through body cut by a section {behind:?} behind and {in_front:?} in \
+                 front, as (behind, in front)",
+            );
+        }
+    }
+}
+
+#[test]
+fn an_invisible_body_draws_nothing_whatever_the_section_or_the_sketch_shows() {
+    for behind in EVERY_STATE {
+        for in_front in EVERY_STATE {
+            let mut state = sectioned(|section| {
+                section.behind = behind;
+                section.in_front = in_front;
+            });
+            body_drawn(&mut state, MatterInFront::Hidden);
+
+            assert_eq!(
+                sides(&a_view_of_the_block(&state)),
+                (Seen::Hidden, Seen::Hidden),
+                "an invisible body cut by a section {behind:?} behind and {in_front:?} in \
+                 front, as (behind, in front)",
+            );
+        }
+    }
+    for clicks in 0..3 {
+        let frame = a_frame_through_a_block_seen(HALFWAY, clicks, |state| {
+            body_drawn(state, MatterInFront::Hidden);
+        });
+
+        assert_eq!(
+            (under(&frame, HALFWAY), over(&frame, HALFWAY)),
+            (Seen::Hidden, Seen::Hidden),
+            "an invisible body under a sketch after {clicks} clicks on its own cut, as \
+             (behind, in front)",
+        );
+    }
+}
+
+#[test]
+fn an_area_of_the_open_sketch_lit_from_the_tree_is_drawn_lit() {
+    let mut document = a_block();
+    let tinted = |frame: &SceneFrame| -> Vec<[f32; 4]> {
+        frame
+            .scene_surfaces
+            .iter()
+            .filter(|vertex| vertex.position[2].abs() < 1e-4)
+            .map(|vertex| vertex.color)
+            .collect()
+    };
+    let open = || {
+        let mut editor = SketchEditor::default();
+        editor.begin_editing(0, WorkPlane::XY);
+        editor
+    };
+    let plain = tinted(&a_frame_of(
+        &ViewportState::default(),
+        &mut document,
+        &mut open(),
+    ));
+    let mut state = ViewportState::default();
+    state.light(Points::Area { sketch: 0, rank: 0 });
+    let lit = tinted(&a_frame_of(&state, &mut document, &mut open()));
+
+    assert!(
+        !plain.is_empty(),
+        "the open sketch's area is not tinted at all"
+    );
+    assert!(
+        !lit.is_empty() && lit.iter().all(|colour| !plain.contains(colour)),
+        "an area of the open sketch lit from the tree is tinted as it was, {lit:?}",
     );
 }

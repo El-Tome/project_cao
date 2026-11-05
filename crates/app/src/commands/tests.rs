@@ -36,19 +36,32 @@
 //!   `the_section_view_leaves_the_history_and_the_document_untouched`
 //! - found in review: an undo that leaves the part with no matter turns the
 //!   section off — `undoing_the_part_s_last_matter_away_turns_the_section_off`
+//!
+//! Closes #348 — the whole transcription is in
+//! `crates/app/src/screens/viewport/render/tests.rs`; these bullets are the
+//! ones a change to the history answers.
+//! - found in review: the light goes out on undo and on redo —
+//!   `an_undo_or_a_redo_puts_the_light_out`; a sketch drawn anew after an undo
+//!   took one away is neither lit nor marked in the tree by its light —
+//!   `a_sketch_drawn_anew_after_an_undo_takes_no_light_from_the_one_undone`
+//! - found in review: the light goes out on compaction —
+//!   `compacting_the_history_puts_the_light_out`; decided in review: compaction
+//!   puts every eye back to its default —
+//!   `compacting_the_history_puts_every_eye_back_to_its_default`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::Command;
 use cao_render::MatterInFront;
-use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
+use cao_sketch::{DimensionTarget, Element, SegmentId, WorkPlane};
 use chrono::Utc;
 use glam::DVec2;
 
-use super::run;
+use super::{compact_history, run};
 use crate::export::{ExportRequest, export_request};
 use crate::lang::Catalogue;
 use crate::screens::SketchContext;
 use crate::screens::extrusion::ExtrusionState;
+use crate::screens::part_tree::state::{Points, marked};
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
@@ -289,5 +302,135 @@ fn undoing_the_part_s_last_matter_away_turns_the_section_off() {
     assert!(
         viewport.section().is_none(),
         "the part holds no matter any more, and a section is still on with nothing to cut",
+    );
+}
+
+/// The block, and a rectangle drawn on a second sketch that nothing was
+/// raised from.
+fn a_raised_block_and_a_sketch_never_used() -> PartDocument {
+    let mut document = a_raised_block(None);
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XZ,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 10.0)),
+        construction: false,
+    });
+    document
+}
+
+fn the_first_trait_of(sketch: usize) -> Points {
+    Points::Element {
+        sketch,
+        element: Element::Segment(SegmentId(0)),
+    }
+}
+
+#[test]
+fn an_undo_or_a_redo_puts_the_light_out() {
+    let mut document = a_raised_block_and_a_sketch_never_used();
+    let mut viewport = ViewportState::default();
+
+    viewport.light(the_first_trait_of(0));
+    clicked(Command::Undo, &mut document, &mut viewport);
+    assert_eq!(viewport.lit(), None, "an undo leaves a row of the tree lit");
+
+    viewport.light(the_first_trait_of(0));
+    assert!(
+        clicked(Command::Redo, &mut document, &mut viewport),
+        "the fixture has nothing to redo",
+    );
+    assert_eq!(viewport.lit(), None, "a redo leaves a row of the tree lit");
+}
+
+#[test]
+fn a_sketch_drawn_anew_after_an_undo_takes_no_light_from_the_one_undone() {
+    let mut document = a_raised_block_and_a_sketch_never_used();
+    let mut viewport = ViewportState::default();
+    viewport.light(the_first_trait_of(1));
+
+    clicked(Command::Undo, &mut document, &mut viewport);
+    clicked(Command::Undo, &mut document, &mut viewport);
+    assert_eq!(
+        document.sketches().len(),
+        1,
+        "two undos kept the second sketch"
+    );
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::YZ,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(5.0, 5.0)),
+        construction: false,
+    });
+
+    assert_eq!(
+        viewport.lit(),
+        None,
+        "a sketch just drawn is lit by the light of the sketch undone",
+    );
+    assert!(
+        !marked(
+            &document,
+            &SketchEditor::default(),
+            &viewport,
+            the_first_trait_of(1),
+        ),
+        "a trait of a sketch just drawn is marked in the tree by the light of the sketch undone",
+    );
+}
+
+/// The history compacted, the way the panel of operations does it once its
+/// warning is confirmed.
+fn compacted(document: &mut PartDocument, viewport: &mut ViewportState) {
+    compact_history(document, &mut SketchEditor::default(), viewport);
+    assert_eq!(
+        document.sketches().len(),
+        2,
+        "the compaction dropped a sketch the part still holds",
+    );
+}
+
+#[test]
+fn compacting_the_history_puts_the_light_out() {
+    let mut document = a_raised_block_and_a_sketch_never_used();
+    let mut viewport = ViewportState::default();
+    viewport.light(the_first_trait_of(1));
+
+    compacted(&mut document, &mut viewport);
+
+    assert_eq!(
+        viewport.lit(),
+        None,
+        "a compaction leaves a row of the tree lit"
+    );
+}
+
+#[test]
+fn compacting_the_history_puts_every_eye_back_to_its_default() {
+    let mut document = a_raised_block_and_a_sketch_never_used();
+    let mut viewport = ViewportState::default();
+    viewport.toggle_eye(&document, 0);
+    viewport.toggle_eye(&document, 1);
+    assert!(
+        viewport.eye_lit(&document, 0) && !viewport.eye_lit(&document, 1),
+        "the fixture wants the used sketch's eye lit and the other's put out",
+    );
+
+    compacted(&mut document, &mut viewport);
+
+    assert!(
+        !viewport.eye_lit(&document, 0),
+        "after a compaction, the sketch the block was raised from keeps the eye lit by hand",
+    );
+    assert!(
+        viewport.eye_lit(&document, 1),
+        "after a compaction, the sketch never used keeps the eye put out by hand",
     );
 }

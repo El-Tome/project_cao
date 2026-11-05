@@ -63,6 +63,13 @@ impl ViewportState {
         self.visibility.lit = None;
     }
 
+    /// Puts the light out and every eye back to its default, once the history
+    /// is numbered anew and no sketch is named the way it was.
+    pub(crate) fn forget_the_sketches(&mut self) {
+        self.visibility.eyes.clear();
+        self.light_out();
+    }
+
     pub(crate) fn lit(&self) -> Option<Points> {
         self.visibility.lit
     }
@@ -71,16 +78,22 @@ impl ViewportState {
         self.visibility.body
     }
 
+    /// Opaque, see-through, invisible, and round again: the body fades out
+    /// a step at a time.
     pub(crate) fn next_body_mode(&mut self) {
-        self.visibility.body = self.visibility.body.next();
+        self.visibility.body = match self.visibility.body {
+            MatterInFront::Opaque => MatterInFront::SeeThrough,
+            MatterInFront::SeeThrough => MatterInFront::Hidden,
+            MatterInFront::Hidden => MatterInFront::Opaque,
+        };
     }
 
     /// Each sketch a frame draws, and how.
     ///
     /// The sketch being drawn on, and the one areas are being picked on for a
     /// new extrusion, are drawn whole whatever their eye: what is worked on is
-    /// seen. Nothing is lit in the sketch being drawn on, which has its own
-    /// selection.
+    /// seen. No element is lit in the sketch being drawn on, which has its own
+    /// selection; an area, which has none, is.
     pub(crate) fn sketches_seen<'a>(
         &'a self,
         context: &'a SketchContext<'_>,
@@ -93,7 +106,9 @@ impl ViewportState {
         let active = context.editor.active_sketch() == Some(sketch);
         let picking = context.extrusion.is_active() && context.extrusion.sketch == Some(sketch);
         let hidden = !active && !picking && !self.eye_lit(context.document, sketch);
-        let lit = self.lit().filter(|row| !active && row.sketch() == sketch);
+        let lit = self.lit().filter(|row| {
+            row.sketch() == sketch && (!active || matches!(row, Points::Area { .. }))
+        });
         (!hidden || lit.is_some()).then_some(Seen { hidden, lit })
     }
 }

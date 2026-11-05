@@ -56,6 +56,16 @@
 //!   orbits does not — `only_the_primary_button_pulls_the_handle`; and the
 //!   section takes no gesture while a sketch is edited —
 //!   `the_section_takes_no_gesture_while_a_sketch_is_edited`
+//!
+//! Closes #348 — the whole transcription is in
+//! `crates/app/src/screens/viewport/render/tests.rs`; these bullets are the
+//! ones a click on the part answers.
+//! - found in review: a face of a see-through body is offered to draw on, and
+//!   anchored, rather than the plane of the origin behind it —
+//!   `a_face_of_a_see_through_body_is_offered_to_draw_on`
+//! - found in review: nothing of an invisible body is offered, neither to draw
+//!   on nor to cut along — `an_invisible_body_offers_nothing_of_itself_to_draw_on`,
+//!   `an_invisible_body_offers_no_face_to_cut_along`
 
 use glam::{DVec2, DVec3};
 
@@ -65,7 +75,7 @@ use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::section::Section;
 use cao_part::PartDocument;
-use cao_render::OrbitCamera;
+use cao_render::{MatterInFront, OrbitCamera};
 use cao_solid::profile::{Contour, Run};
 
 /// Which way is up on screen once the view has swung onto a face — the same
@@ -834,5 +844,131 @@ fn the_section_takes_no_gesture_while_a_sketch_is_edited() {
     assert!(
         !taken && (offset - 2.0).abs() < 1e-9,
         "with a sketch being edited, a drag over the section's handle moved its cut to {offset}",
+    );
+}
+
+/// A view with the body drawn `mode`, reached one click at a time, as the
+/// rubric of the bodies reaches it.
+fn with_the_body(mode: MatterInFront) -> ViewportState {
+    let mut state = ViewportState::default();
+    for _ in 0..3 {
+        if state.body_mode() == mode {
+            break;
+        }
+        state.next_body_mode();
+    }
+    assert_eq!(state.body_mode(), mode, "three clicks never reach {mode:?}");
+    state
+}
+
+/// The cursor brought over a place, then a click there, choosing the plane of
+/// a new sketch on the block, its body drawn `mode`.
+fn a_sketch_started_on_a_body(mode: MatterInFront, origin: DVec3, direction: DVec3) -> Started {
+    let mut document = a_part_holding_a_block();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    editor.start_choosing_plane(&lang);
+    let mut state = with_the_body(mode);
+
+    let (offered, started) = {
+        let mut context = SketchContext {
+            document: &mut document,
+            editor: &mut editor,
+            extrusion: &mut extrusion,
+            lang: &lang,
+        };
+        choose_a_plane(&mut state, &mut context, false, origin, direction);
+        let offered = context.editor.hovered_plane;
+        let started = choose_a_plane(&mut state, &mut context, true, origin, direction);
+        (offered, started)
+    };
+    Started {
+        state,
+        document,
+        editor,
+        offered,
+        started,
+    }
+}
+
+#[test]
+fn a_face_of_a_see_through_body_is_offered_to_draw_on() {
+    let started = a_sketch_started_on_a_body(
+        MatterInFront::SeeThrough,
+        DVec3::new(5.0, 5.0, 50.0),
+        DVec3::NEG_Z,
+    );
+
+    assert!(
+        matches!(started.offered, Some(PlaneChoice::Face { .. })),
+        "the top of a see-through block is offered as {:?}, not as a face",
+        started.offered,
+    );
+    assert!(
+        started.started,
+        "a click on the top of a see-through block starts no sketch"
+    );
+    let face = anchored_face(&started.document);
+    assert!(
+        lies_flat_at(&started.document, face, 4.0, (0.0, 10.0)),
+        "the sketch is anchored to face {face}, not the top of the block",
+    );
+}
+
+#[test]
+fn an_invisible_body_offers_nothing_of_itself_to_draw_on() {
+    for (origin, direction) in [
+        (DVec3::new(5.0, 5.0, 50.0), DVec3::NEG_Z),
+        (DVec3::new(50.0, 5.0, 1.0), DVec3::NEG_X),
+    ] {
+        let started = a_sketch_started_on_a_body(MatterInFront::Hidden, origin, direction);
+
+        assert!(
+            !matches!(
+                started.offered,
+                Some(PlaneChoice::Face { .. } | PlaneChoice::Curved(_) | PlaneChoice::Section(_))
+            ),
+            "an invisible block offers {:?} under a ray from {origin} along {direction}",
+            started.offered,
+        );
+        assert!(
+            !matches!(
+                started.document.history.operations().last(),
+                Some(Operation::CreateSketch { on: Some(_), .. })
+            ),
+            "a click on an invisible block anchors a sketch to it",
+        );
+    }
+}
+
+#[test]
+fn an_invisible_body_offers_no_face_to_cut_along() {
+    let body = block(10.0, 10.0, 4.0);
+    let mut state = waiting_for_a_face();
+    for _ in 0..3 {
+        if state.body_mode() == MatterInFront::Hidden {
+            break;
+        }
+        state.next_body_mode();
+    }
+    assert_eq!(state.body_mode(), MatterInFront::Hidden);
+
+    let taken = choose_a_cutting_face(
+        &mut state,
+        &body,
+        true,
+        DVec3::new(50.0, 5.0, 1.0),
+        DVec3::NEG_X,
+    );
+
+    let section = state.section.as_ref().expect("the section stays on");
+    assert!(
+        !taken,
+        "a click on the side of an invisible block takes it as the cutting face"
+    );
+    assert!(
+        section.is_waiting_for_a_face(),
+        "a click on an invisible block, the panel no longer waits for a face",
     );
 }

@@ -73,7 +73,8 @@ pub(crate) use cut_changes::{
 };
 
 mod selecting;
-use selecting::{aim_from, band_select, erase_what_is_held, lights_nothing, pick, take};
+pub(crate) use selecting::take;
+use selecting::{aim_from, band_select, erase_what_is_held, lights_nothing, pick};
 mod marks;
 use marks::Marks;
 
@@ -200,7 +201,7 @@ pub(crate) fn handle_sketch_input(
                 .map(Selection::Cut)
                 .or_else(|| marks.under(pointer))
                 .or_else(|| pick(context, index, raw_cursor, snap, pixel));
-            take(context, picked, adding);
+            take(context.editor, picked, adding);
             // A dimension picked with the selection tool opens its value too:
             // reaching for the dimension tool again to change a number one is
             // already pointing at is a step for nothing.

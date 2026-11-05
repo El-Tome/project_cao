@@ -33,7 +33,7 @@ mod trim;
 pub(crate) use copy_panel::paint_copy_panel;
 pub(crate) use cuts::cut_label_under;
 pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
-use drawing::{Shown, push_sketch, what_would_be_laid};
+use drawing::{Shown, what_would_be_laid};
 use extrusion::push_chosen_areas;
 pub(crate) use live_fields::paint_live_input;
 pub(crate) use overlays::{
@@ -143,8 +143,7 @@ pub(crate) fn build_frame(
         push_choosable_planes(&mut surfaces, &mut lines, state, context);
     }
 
-    let sketches = context.document.sketches().iter().enumerate();
-    for (index, sketch) in sketches.filter(|(index, _)| state.draws_sketch(context, *index)) {
+    for (index, sketch, seen) in state.sketches_seen(context) {
         let active = context.editor.active_sketch() == Some(index);
         // What a tool is offering to lay stands in for the recorded drawing the
         // same way a drag does, and what is new in it is drawn as a promise.
@@ -164,7 +163,7 @@ pub(crate) fn build_frame(
             going: active.then_some(going).flatten(),
             active,
         };
-        push_sketch(&mut lines, &mut surfaces, &shown, theme, scale, context);
+        seen.draw(&mut lines, &mut surfaces, &shown, theme, scale, context);
     }
 
     if let Some(index) = context.editor.active_sketch()

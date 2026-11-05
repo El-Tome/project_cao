@@ -1,45 +1,53 @@
 use cao_part::PartDocument;
 
 use crate::lang::Catalogue;
-use crate::screens::part_tree::state::{Body, Drawn, PartTree, Row};
+use crate::screens::part_tree::state::{Body, Drawn, PartTree, Row, TreeAction, clicked, holds};
+use crate::screens::sketch::SketchEditor;
+use crate::screens::viewport::ViewportState;
 use crate::ui::eye::eye;
+use crate::ui::floating_panel::panel_row;
 use crate::wording::part_tree as said;
 
-/// What the user asked of the tree.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TreeAction {
-    None,
-    /// Reopen this sketch for drawing.
-    EditSketch(usize),
-    /// Show this sketch on the canvas, or stop showing it.
-    ToggleEye(usize),
+/// What the tree reads to mark its rows, and the one thing asked of it.
+struct Asked<'a> {
+    document: &'a PartDocument,
+    editor: &'a SketchEditor,
+    viewport: &'a ViewportState,
+    adding: bool,
+    action: TreeAction,
 }
 
-/// The panel the tree is shown in, chrome and all. `eyes` says, sketch by
-/// sketch, whether the canvas draws it.
+/// The panel the tree is shown in, chrome and all.
 pub fn panel(
     ui: &mut egui::Ui,
     document: &PartDocument,
-    eyes: &[bool],
+    editor: &SketchEditor,
+    viewport: &ViewportState,
     lang: &Catalogue,
 ) -> TreeAction {
+    let mut asked = Asked {
+        document,
+        editor,
+        viewport,
+        adding: ui.input(|input| input.modifiers.command || input.modifiers.shift),
+        action: TreeAction::None,
+    };
     egui::Panel::left("part_tree_panel")
         .resizable(true)
         .default_size(240.0)
-        .show(ui, |ui| show(ui, document, eyes, lang))
-        .inner
+        .show(ui, |ui| show(ui, &mut asked, lang));
+    asked.action
 }
 
-fn show(ui: &mut egui::Ui, document: &PartDocument, eyes: &[bool], lang: &Catalogue) -> TreeAction {
-    let mut action = TreeAction::None;
-    let tree = PartTree::of(document, lang);
+fn show(ui: &mut egui::Ui, asked: &mut Asked<'_>, lang: &Catalogue) {
+    let tree = PartTree::of(asked.document, lang);
 
     ui.heading(lang.t("part_tree.title"));
     ui.add_space(4.0);
 
     if tree.is_empty() {
         ui.weak(lang.t("part_tree.empty"));
-        return action;
+        return;
     }
 
     egui::ScrollArea::vertical().show(ui, |ui| {
@@ -59,9 +67,12 @@ fn show(ui: &mut egui::Ui, document: &PartDocument, eyes: &[bool], lang: &Catalo
         ui.add_space(8.0);
 
         if !tree.bodies.is_empty() {
-            ui.label(lang.t("part_tree.bodies"));
+            let mode = said::body(lang, asked.viewport.body_mode());
+            if panel_row(ui, mode, false, false).clicked() {
+                asked.action = TreeAction::NextBodyMode;
+            }
             for body in &tree.bodies {
-                made_of_matter(ui, body, lang);
+                made_of_matter(ui, body, asked, lang);
             }
             ui.add_space(8.0);
         }
@@ -71,22 +82,20 @@ fn show(ui: &mut egui::Ui, document: &PartDocument, eyes: &[bool], lang: &Catalo
             // A single click folds; only a double-click reopens the sketch, so
             // that walking the tree cannot drop the user into drawing by
             // accident.
-            let lit = eyes.get(drawing.sketch).copied().unwrap_or(true);
+            let lit = asked.viewport.eye_lit(asked.document, drawing.sketch);
             ui.horizontal_top(|ui| {
                 if eye(ui, lit, said::eye(lang, lit)) {
-                    action = TreeAction::ToggleEye(drawing.sketch);
+                    asked.action = TreeAction::ToggleEye(drawing.sketch);
                 }
-                if ui.vertical(|ui| drawn(ui, drawing, lang)).inner {
-                    action = TreeAction::EditSketch(drawing.sketch);
+                if ui.vertical(|ui| drawn(ui, drawing, asked, lang)).inner {
+                    asked.action = TreeAction::EditSketch(drawing.sketch);
                 }
             });
         }
     });
-
-    action
 }
 
-fn made_of_matter(ui: &mut egui::Ui, body: &Body, lang: &Catalogue) {
+fn made_of_matter(ui: &mut egui::Ui, body: &Body, asked: &mut Asked<'_>, lang: &Catalogue) {
     let name = &[("name", body.name.as_str())];
     let heading = match (body.declined, body.lost, &body.unstable) {
         (true, _, _) => lang.t_with("part_tree.declined", name),
@@ -100,7 +109,7 @@ fn made_of_matter(ui: &mut egui::Ui, body: &Body, lang: &Catalogue) {
         .show(ui, |ui| {
             ui.weak(&body.reads);
             for area in &body.areas {
-                row(ui, area);
+                row(ui, area, asked);
             }
         });
     if let Some(said) = &body.unstable {
@@ -109,7 +118,7 @@ fn made_of_matter(ui: &mut egui::Ui, body: &Body, lang: &Catalogue) {
 }
 
 /// Draws one sketch, and says whether it was asked to be reopened.
-fn drawn(ui: &mut egui::Ui, drawing: &Drawn, lang: &Catalogue) -> bool {
+fn drawn(ui: &mut egui::Ui, drawing: &Drawn, asked: &mut Asked<'_>, lang: &Catalogue) -> bool {
     let heading = match drawing.adrift {
         true => lang.t_with("part_tree.adrift", &[("name", &drawing.name)]),
         false => drawing.name.clone(),
@@ -120,6 +129,7 @@ fn drawn(ui: &mut egui::Ui, drawing: &Drawn, lang: &Catalogue) -> bool {
         .show(ui, |ui| {
             kind(
                 ui,
+                asked,
                 lang.t("part_tree.areas"),
                 &drawing.areas,
                 drawing.step,
@@ -127,6 +137,7 @@ fn drawn(ui: &mut egui::Ui, drawing: &Drawn, lang: &Catalogue) -> bool {
             );
             kind(
                 ui,
+                asked,
                 lang.t("part_tree.strokes"),
                 &drawing.strokes,
                 drawing.step,
@@ -134,6 +145,7 @@ fn drawn(ui: &mut egui::Ui, drawing: &Drawn, lang: &Catalogue) -> bool {
             );
             kind(
                 ui,
+                asked,
                 lang.t("part_tree.dimensions"),
                 &drawing.dimensions,
                 drawing.step,
@@ -141,6 +153,7 @@ fn drawn(ui: &mut egui::Ui, drawing: &Drawn, lang: &Catalogue) -> bool {
             );
             kind(
                 ui,
+                asked,
                 lang.t("part_tree.rules"),
                 &drawing.rules,
                 drawing.step,
@@ -150,7 +163,14 @@ fn drawn(ui: &mut egui::Ui, drawing: &Drawn, lang: &Catalogue) -> bool {
     header.header_response.double_clicked()
 }
 
-fn kind(ui: &mut egui::Ui, heading: String, rows: &[Row], step: usize, rank: usize) {
+fn kind(
+    ui: &mut egui::Ui,
+    asked: &mut Asked<'_>,
+    heading: String,
+    rows: &[Row],
+    step: usize,
+    rank: usize,
+) {
     if rows.is_empty() {
         return;
     }
@@ -159,11 +179,16 @@ fn kind(ui: &mut egui::Ui, heading: String, rows: &[Row], step: usize, rank: usi
         .default_open(false)
         .show(ui, |ui| {
             for one in rows {
-                row(ui, one);
+                row(ui, one, asked);
             }
         });
 }
 
-fn row(ui: &mut egui::Ui, row: &Row) {
-    ui.label(&row.name);
+/// One row, marked while the open sketch holds it or the canvas lights it.
+fn row(ui: &mut egui::Ui, row: &Row, asked: &mut Asked<'_>) {
+    let marked =
+        holds(asked.document, asked.editor, row.points) || asked.viewport.lit() == Some(row.points);
+    if panel_row(ui, row.name.clone(), marked, false).clicked() {
+        asked.action = clicked(asked.document, asked.editor, row.points, asked.adding);
+    }
 }

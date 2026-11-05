@@ -97,7 +97,6 @@
   "part_tree.variables": "Variables",
   "part_tree.no_variables": "Aucune pour l'instant.",
   "part_tree.variable": "{name} = {value}",
-  "part_tree.bodies": "Corps",
   "part_tree.sketches": "Esquisses",
   "part_tree.areas": "Aires",
   "part_tree.strokes": "Traits",
@@ -123,6 +122,10 @@
   "part_tree.mode.cut": "enlèvement de matière",
   "part_tree.eye.hide": "Ne plus afficher l'esquisse",
   "part_tree.eye.show": "Afficher l'esquisse",
+  "part_tree.bodies_drawn": "Corps : {mode}",
+  "part_tree.body.hidden": "invisible",
+  "part_tree.body.see_through": "transparent",
+  "part_tree.body.opaque": "opaque",
 
   "plane.off_origin": "Face de la pièce",
   "plane.origin_xy": "Plan XY",

@@ -92,19 +92,24 @@
 //!   `a_sketch_never_used_keeps_its_traits_on_screen_with_its_eye_lit`
 //! - reopening a sketch shows it, whatever its eye — decided on the branch —
 //!   `a_used_sketch_reopened_is_drawn_whatever_its_eye`
+//! - found on the branch: an eye switched by hand belongs to its sketch, and a
+//!   sketch drawn anew where a rewind took one away does not inherit it —
+//!   `a_sketch_drawn_anew_where_one_was_rewound_away_does_not_inherit_its_eye`
 //! - the eye is view state, never the document's — no test: `toggle_eye` reads
 //!   the document by shared reference, and `ViewportState` is built afresh on
 //!   opening a part and written nowhere, as the section view's is
 //! - "A click on an element selects it — in the viewport, as if it had been
 //!   clicked there": in the sketch being edited it selects an element, a
-//!   dimension or a rule — no test: in this file; held in
-//!   `crates/app/src/screens/part_tree/state/tests.rs`, under its own block for
-//!   this issue, since what a click on a row means is the tree's presenter's
+//!   dimension or a rule, alone or, the modifier held, added — no test: in
+//!   this file; held in `crates/app/src/screens/part_tree/state/tests.rs`,
+//!   under its own block for this issue, since what a click on a row means is
+//!   the tree's presenter's
 //! - in a sketch not open, it lights the element or the area in the viewport,
 //!   and opens nothing —
 //!   `an_element_lit_from_the_tree_is_drawn_lit_in_its_closed_sketch`,
-//!   `an_area_lit_from_the_tree_is_drawn_lit_in_its_closed_sketch`; that it
-//!   opens nothing is held beside the selecting, in the tree's tests
+//!   `an_area_lit_from_the_tree_is_drawn_lit_in_its_closed_sketch`; that the
+//!   click lights rather than opens is held beside the selecting, in the
+//!   tree's tests
 //! - the double-click still reopens, and a single click on a step still folds
 //!   it — no test: both are the `CollapsingHeader` of `part_tree/view.rs`,
 //!   untouched, and no driver opens the tree
@@ -123,13 +128,14 @@ use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_render::MatterInFront;
 use cao_render::camera::{OrbitCamera, ViewTransition};
-use cao_sketch::WorkPlane;
+use cao_sketch::{Element, WorkPlane};
 use chrono::Utc;
 use glam::{DVec2, DVec3, Vec3};
 
 use super::*;
 use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
+use crate::screens::part_tree::state::Points;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::section::Section;
 
@@ -293,6 +299,15 @@ fn a_frame_of(
 /// it, after `clicks` on the button that says how the matter in front of the
 /// sketch is drawn.
 fn a_frame_through_a_block(sketched_at: f32, clicks: usize) -> SceneFrame {
+    a_frame_through_a_block_seen(sketched_at, clicks, |_| {})
+}
+
+/// The same, the view then left as `prepare` says.
+fn a_frame_through_a_block_seen(
+    sketched_at: f32,
+    clicks: usize,
+    prepare: impl FnOnce(&mut ViewportState),
+) -> SceneFrame {
     let mut document = a_block();
     let across = WorkPlane {
         origin: DVec3::Z * f64::from(sketched_at),
@@ -314,6 +329,7 @@ fn a_frame_through_a_block(sketched_at: f32, clicks: usize) -> SceneFrame {
         state.camera.eye().z > ON_THE_TOP,
         "the fixture looks at the block from under its top",
     );
+    prepare(&mut state);
 
     a_frame_of(&state, &mut document, &mut editor)
 }
@@ -917,5 +933,253 @@ fn a_used_sketch_reopened_is_drawn_whatever_its_eye() {
     assert!(
         lines > 0 && areas > 0,
         "the sketch being drawn on is drawn {lines} line and {areas} area vertices",
+    );
+}
+
+#[test]
+fn a_sketch_drawn_anew_where_one_was_rewound_away_does_not_inherit_its_eye() {
+    let mut document = a_block_and_a_sketch_never_used();
+    let mut state = ViewportState::default();
+    state.toggle_eye(&document, 1);
+    assert!(
+        !state.eye_lit(&document, 1),
+        "the fixture wants the eye of the second sketch put out",
+    );
+
+    document.rewind_to(3);
+    assert_eq!(
+        document.sketches().len(),
+        1,
+        "the rewind kept the second sketch"
+    );
+    document.apply(Operation::CreateSketch {
+        plane: twenty_over_the_block(),
+        on: None,
+    });
+
+    assert!(
+        state.eye_lit(&document, 1),
+        "a sketch just drawn, never used, has its eye put out by the sketch rewound away",
+    );
+}
+
+/// The first trait of a sketch, and where its ends stand in the world.
+fn the_first_trait(document: &PartDocument, sketch: usize) -> (Element, Vec3, Vec3) {
+    let drawing = &document.sketches()[sketch];
+    let (id, segment) = drawing
+        .live_segments()
+        .next()
+        .expect("the sketch holds a trait");
+    let [from, to] = [segment.start, segment.end]
+        .map(|point| drawing.plane.to_world(drawing.point(point)).as_vec3());
+    (Element::Segment(id), from, to)
+}
+
+fn on_the_trait(at: Vec3, from: Vec3, to: Vec3) -> bool {
+    let along = (at - from).dot(to - from) / (to - from).length_squared();
+    (0.0..=1.0).contains(&along) && (from + (to - from) * along - at).length() < 1e-3
+}
+
+/// The colours of the frame's sketch lines lying in `plane`, on the trait
+/// from `from` to `to` and off it.
+fn line_colours(
+    frame: &SceneFrame,
+    plane: WorkPlane,
+    from: Vec3,
+    to: Vec3,
+) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
+    let (origin, normal) = (plane.origin.as_vec3(), plane.normal().as_vec3());
+    frame
+        .scene_lines
+        .iter()
+        .filter(|vertex| (Vec3::from(vertex.position) - origin).dot(normal).abs() < 1e-4)
+        .map(|vertex| {
+            (
+                on_the_trait(Vec3::from(vertex.position), from, to),
+                vertex.color,
+            )
+        })
+        .fold(
+            (Vec::new(), Vec::new()),
+            |(mut on, mut off), (lying_on, colour)| {
+                match lying_on {
+                    true => on.push(colour),
+                    false => off.push(colour),
+                }
+                (on, off)
+            },
+        )
+}
+
+#[test]
+fn an_element_lit_from_the_tree_is_drawn_lit_in_its_closed_sketch() {
+    let mut used = a_block();
+    let (element, from, to) = the_first_trait(&used, 0);
+    let mut state = ViewportState::default();
+    state.light(Points::Element { sketch: 0, element });
+    let frame = a_frame_of(&state, &mut used, &mut SketchEditor::default());
+
+    let (on, off) = line_colours(&frame, WorkPlane::XY, from, to);
+    assert!(
+        !on.is_empty(),
+        "a trait lit from the tree in a sketch whose eye is out is not drawn at all",
+    );
+    assert!(
+        off.is_empty(),
+        "lighting one trait of a sketch whose eye is out draws {} vertices of the others",
+        off.len(),
+    );
+
+    let mut shown = a_block_and_a_sketch_never_used();
+    let (element, from, to) = the_first_trait(&shown, 1);
+    let plain = a_frame_of(
+        &ViewportState::default(),
+        &mut shown,
+        &mut SketchEditor::default(),
+    );
+    let mut state = ViewportState::default();
+    state.light(Points::Element { sketch: 1, element });
+    let lit = a_frame_of(&state, &mut shown, &mut SketchEditor::default());
+
+    let (plain_on, plain_off) = line_colours(&plain, twenty_over_the_block(), from, to);
+    let (lit_on, lit_off) = line_colours(&lit, twenty_over_the_block(), from, to);
+    assert!(
+        !lit_on.is_empty() && lit_on.iter().all(|colour| !plain_on.contains(colour)),
+        "a trait lit from the tree in a sketch on screen is drawn as it was, {lit_on:?}",
+    );
+    assert_eq!(
+        lit_off, plain_off,
+        "lighting one trait changed how the others are drawn"
+    );
+}
+
+#[test]
+fn an_area_lit_from_the_tree_is_drawn_lit_in_its_closed_sketch() {
+    let mut used = a_block();
+    let mut state = ViewportState::default();
+    state.light(Points::Area { sketch: 0, rank: 0 });
+    let frame = a_frame_of(&state, &mut used, &mut SketchEditor::default());
+
+    let (_, areas) = drawn_in(&frame, WorkPlane::XY);
+    assert!(
+        areas > 0,
+        "an area lit from the tree in a sketch whose eye is out is not drawn at all",
+    );
+
+    let mut shown = a_block_and_a_sketch_never_used();
+    let tinted = |frame: &SceneFrame| -> Vec<[f32; 4]> {
+        let plane = twenty_over_the_block();
+        frame
+            .scene_surfaces
+            .iter()
+            .filter(|vertex| (vertex.position[2] - plane.origin.z as f32).abs() < 1e-4)
+            .map(|vertex| vertex.color)
+            .collect()
+    };
+    let plain = tinted(&a_frame_of(
+        &ViewportState::default(),
+        &mut shown,
+        &mut SketchEditor::default(),
+    ));
+    let mut state = ViewportState::default();
+    state.light(Points::Area { sketch: 1, rank: 0 });
+    let lit = tinted(&a_frame_of(
+        &state,
+        &mut shown,
+        &mut SketchEditor::default(),
+    ));
+
+    assert!(
+        !lit.is_empty() && lit.iter().all(|colour| !plain.contains(colour)),
+        "an area lit from the tree in a sketch on screen is tinted as it was, {lit:?}",
+    );
+}
+
+/// The view with the body drawn `mode`, reached the way the user reaches it,
+/// one click at a time.
+fn body_drawn(state: &mut ViewportState, mode: MatterInFront) {
+    for _ in 0..3 {
+        if state.body_mode() == mode {
+            return;
+        }
+        state.next_body_mode();
+    }
+    assert_eq!(state.body_mode(), mode, "three clicks never reach {mode:?}");
+}
+
+/// How the block's matter is drawn, leaving out the ground its sketch lies on.
+fn the_block_seen(frame: &SceneFrame) -> Seen {
+    how_drawn(frame, |triangle| !lies_at(triangle, 0.0))
+}
+
+#[test]
+fn the_body_is_drawn_opaque_by_default() {
+    let state = ViewportState::default();
+
+    assert_eq!(state.body_mode(), MatterInFront::Opaque);
+    assert_eq!(
+        the_block_seen(&a_view_of_the_block(&state)),
+        Seen::Opaque,
+        "a part just opened does not show its matter opaque",
+    );
+}
+
+#[test]
+fn the_body_is_drawn_invisible_see_through_or_opaque_as_its_mode_says() {
+    for mode in EVERY_STATE {
+        let mut state = ViewportState::default();
+        body_drawn(&mut state, mode);
+
+        assert_eq!(
+            the_block_seen(&a_view_of_the_block(&state)),
+            seen(mode),
+            "the body set {mode:?} is drawn otherwise",
+        );
+    }
+}
+
+#[test]
+fn the_body_s_mode_steps_round_its_three_states() {
+    let mut state = ViewportState::default();
+    let mut met = vec![state.body_mode()];
+    for _ in 0..3 {
+        state.next_body_mode();
+        met.push(state.body_mode());
+    }
+
+    assert_eq!(
+        met[3], met[0],
+        "three clicks do not come back to where they started: {met:?}"
+    );
+    for mode in EVERY_STATE {
+        assert!(
+            met[..3].contains(&mode),
+            "the clicks never reach {mode:?}: {met:?}"
+        );
+    }
+}
+
+#[test]
+fn a_see_through_body_keeps_the_matter_in_front_of_the_sketch_cut_away() {
+    let frame = a_frame_through_a_block_seen(HALFWAY, 0, |state| {
+        body_drawn(state, MatterInFront::SeeThrough);
+    });
+
+    assert_eq!(
+        (under(&frame, HALFWAY), over(&frame, HALFWAY)),
+        (Seen::SeeThrough, Seen::Hidden),
+        "a see-through body under a sketch that hides what stands in front, as (behind, in front)",
+    );
+}
+
+#[test]
+fn a_see_through_body_keeps_the_side_the_section_hides_hidden() {
+    let mut state = sectioned(|_| {});
+    body_drawn(&mut state, MatterInFront::SeeThrough);
+
+    assert_eq!(
+        sides(&a_view_of_the_block(&state)),
+        (Seen::SeeThrough, Seen::Hidden),
+        "a see-through body cut by a section that hides its front side, as (behind, in front)",
     );
 }

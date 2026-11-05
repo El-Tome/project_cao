@@ -7,7 +7,8 @@ use cao_sketch::{Selection, Snap, ToolState};
 use glam::DVec2;
 
 use super::marks::Marks;
-use crate::screens::{SketchContext, sketch::Tool};
+use crate::screens::SketchContext;
+use crate::screens::sketch::{SketchEditor, Tool};
 
 /// Pulls a box across the drawing and takes everything inside it.
 ///
@@ -93,18 +94,18 @@ pub(super) fn aim_from(
 }
 
 /// Takes what a click landed on, alone or into the selection.
-pub(super) fn take(context: &mut SketchContext<'_>, picked: Option<Selection>, adding: bool) {
+pub(crate) fn take(editor: &mut SketchEditor, picked: Option<Selection>, adding: bool) {
     match (picked, adding) {
         // Holding the modifier gathers things up one by one, which is how one
         // picks out three traits that no box can enclose alone.
-        (Some(what), true) => context.editor.toggle(what),
+        (Some(what), true) => editor.toggle(what),
         (Some(what), false) => {
-            if let ToolState::Select(select) = &mut context.editor.tool_state {
+            if let ToolState::Select(select) = &mut editor.tool_state {
                 select.held = vec![what];
             }
         }
         (None, false) => {
-            if let ToolState::Select(select) = &mut context.editor.tool_state {
+            if let ToolState::Select(select) = &mut editor.tool_state {
                 select.held.clear();
             }
         }

@@ -14,7 +14,7 @@ use crate::screens::SketchContext;
 
 use super::navigation::Drag;
 use super::section::Section;
-use super::{eyes::Eyes, matter::Sections};
+use super::{matter::Sections, visibility::Visibility};
 
 /// How close, in pixels, the cursor has to be to take hold of something.
 ///
@@ -57,7 +57,7 @@ pub struct ViewportState {
     pub(super) sections: Sections,
     /// The section view, while it is on.
     pub(super) section: Option<Section>,
-    pub(super) eyes: Eyes,
+    pub(super) visibility: Visibility,
     blinking: Option<Blinking>,
 }
 
@@ -87,7 +87,7 @@ impl Default for ViewportState {
             aspect: 1.0,
             sections: Sections::default(),
             section: None,
-            eyes: Eyes::default(),
+            visibility: Visibility::default(),
             blinking: None,
         }
     }

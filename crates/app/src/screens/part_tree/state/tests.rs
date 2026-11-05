@@ -15,13 +15,33 @@
 //! - a step the exact kernel built at a lean it reads unstably is marked in the
 //!   tree, with the sentence that says why, and a step it built stably is not
 //!   — `a_step_built_at_an_unstable_lean_is_marked_in_the_tree`
+//!
+//! Closes #348 — the whole transcription is in
+//! `crates/app/src/screens/viewport/render/tests.rs`; these bullets are the
+//! ones the tree's presenter holds.
+//! - "A click on an element selects it — in the viewport, as if it had been
+//!   clicked there": in the sketch being edited, a click on a trait, a
+//!   dimension or a rule takes it alone, as a click in the viewport does —
+//!   `a_click_on_a_trait_of_the_open_sketch_selects_it_alone`,
+//!   `a_click_on_a_dimension_or_a_rule_of_the_open_sketch_selects_it`; with
+//!   the modifier held, it is added, and taken back on a second click —
+//!   `a_click_with_the_modifier_adds_to_what_the_open_sketch_holds_and_takes_it_back`
+//! - in a sketch not open, a click on an element or an area lights it, and
+//!   opens nothing — `a_click_on_a_row_of_a_closed_sketch_lights_it_and_opens_nothing`
+//! - "Selecting from the viewport, which must agree with selecting from the
+//!   tree — one selection, two ways in": the tree marks what the viewport
+//!   holds — `the_tree_marks_what_the_viewport_holds`
 
 use cao_part::history::{FaceAnchor, PointRef, RevolutionAxis};
-use cao_sketch::{DimensionTarget, Element, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{
+    Constraint, DimensionTarget, Element, SegmentId, Selection, SketchAxis, WorkPlane,
+};
 use chrono::{DateTime, Utc};
 use glam::{DVec2, DVec3};
 
 use super::*;
+use crate::screens::part_tree::TreeAction;
+use crate::screens::sketch::{SketchEditor, Tool};
 
 fn at(text: &str) -> DateTime<Utc> {
     text.parse().expect("a date")
@@ -302,4 +322,176 @@ fn a_step_built_at_an_unstable_lean_is_marked_in_the_tree() {
     );
     assert!(!tree.bodies[1].declined, "built, not declined");
     assert_eq!(tree.bodies[0].unstable, None, "the shaft stands square");
+}
+
+/// The part, with its first sketch open for drawing, the line in hand as
+/// reopening a sketch leaves it.
+fn the_first_sketch_open() -> (PartDocument, SketchEditor) {
+    let document = a_part();
+    let mut editor = SketchEditor::default();
+    editor.begin_editing(0, WorkPlane::XY);
+    (document, editor)
+}
+
+fn a_trait(rank: usize) -> Selection {
+    Selection::Element(Element::Segment(SegmentId(rank)))
+}
+
+fn the_row_of(sketch: usize, rank: usize) -> Points {
+    Points::Element {
+        sketch,
+        element: Element::Segment(SegmentId(rank)),
+    }
+}
+
+/// A click on a row, carried out the way the panel carries it out.
+fn click_on(
+    document: &PartDocument,
+    editor: &mut SketchEditor,
+    row: Points,
+    adding: bool,
+) -> TreeAction {
+    let action = clicked(document, editor, row, adding);
+    if let TreeAction::Select { what, adding } = action {
+        take(editor, what, adding);
+    }
+    action
+}
+
+#[test]
+fn a_click_on_a_trait_of_the_open_sketch_selects_it_alone() {
+    let (document, mut editor) = the_first_sketch_open();
+
+    click_on(&document, &mut editor, the_row_of(0, 1), false);
+    let action = click_on(&document, &mut editor, the_row_of(0, 0), false);
+
+    assert_eq!(
+        action,
+        TreeAction::Select {
+            what: a_trait(0),
+            adding: false,
+        },
+    );
+    assert_eq!(
+        editor.selection(),
+        [a_trait(0)],
+        "a plain click in the tree does not replace what was held, as one in the viewport does",
+    );
+    assert!(
+        editor.is_selected(a_trait(0)) && !editor.is_selected(a_trait(1)),
+        "the viewport draws as held something other than what the tree took",
+    );
+    assert_eq!(
+        editor.active_sketch(),
+        Some(0),
+        "the click closed the sketch"
+    );
+}
+
+#[test]
+fn a_click_with_the_modifier_adds_to_what_the_open_sketch_holds_and_takes_it_back() {
+    let (document, mut editor) = the_first_sketch_open();
+
+    click_on(&document, &mut editor, the_row_of(0, 1), false);
+    click_on(&document, &mut editor, the_row_of(0, 0), true);
+    assert_eq!(
+        editor.selection(),
+        [a_trait(1), a_trait(0)],
+        "the modifier held, a click does not add to what is held",
+    );
+
+    click_on(&document, &mut editor, the_row_of(0, 1), true);
+    assert_eq!(
+        editor.selection(),
+        [a_trait(0)],
+        "the modifier held, a click on what is held does not take it back",
+    );
+}
+
+#[test]
+fn a_click_on_a_dimension_or_a_rule_of_the_open_sketch_selects_it() {
+    let (mut document, mut editor) = the_first_sketch_open();
+    document.apply(Operation::Constrain {
+        sketch: 0,
+        constraint: Constraint::Equal {
+            first: SegmentId(0),
+            second: SegmentId(2),
+        },
+    });
+    let drawing = &document.sketches()[0];
+    assert!(
+        !drawing.constraints().is_empty(),
+        "the two opposite sides of the rectangle were refused an equal length",
+    );
+    let dimension = Selection::Dimension(drawing.dimensions()[0].target);
+    let rule = Selection::Rule(drawing.constraints()[0]);
+
+    for (row, what) in [
+        (Points::Dimension { sketch: 0, rank: 0 }, dimension),
+        (Points::Rule { sketch: 0, rank: 0 }, rule),
+    ] {
+        let action = click_on(&document, &mut editor, row, false);
+
+        assert_eq!(
+            action,
+            TreeAction::Select {
+                what,
+                adding: false
+            }
+        );
+        assert_eq!(
+            editor.selection(),
+            [what],
+            "a click on {row:?} does not leave it held",
+        );
+    }
+}
+
+#[test]
+fn a_click_on_a_row_of_a_closed_sketch_lights_it_and_opens_nothing() {
+    let document = a_part();
+    let nothing_open = SketchEditor::default();
+    let mut the_other_open = SketchEditor::default();
+    the_other_open.begin_editing(1, WorkPlane::XZ);
+
+    for editor in [&nothing_open, &the_other_open] {
+        for row in [the_row_of(0, 0), Points::Area { sketch: 0, rank: 0 }] {
+            assert_eq!(
+                clicked(&document, editor, row, false),
+                TreeAction::Light(row),
+                "a click on {row:?} of a sketch that is not open, while {:?} is, \
+                 does something other than light it",
+                editor.active_sketch(),
+            );
+        }
+    }
+}
+
+#[test]
+fn the_tree_marks_what_the_viewport_holds() {
+    let (document, mut editor) = the_first_sketch_open();
+    editor.tool = Tool::Select;
+    editor.reset_pending();
+    let dimension = Selection::Dimension(document.sketches()[0].dimensions()[0].target);
+    editor
+        .select_state()
+        .expect("the selection tool is in hand")
+        .held = vec![a_trait(0), dimension];
+
+    assert!(
+        holds(&document, &editor, the_row_of(0, 0)),
+        "the trait the viewport holds is not marked in the tree",
+    );
+    assert!(
+        holds(&document, &editor, Points::Dimension { sketch: 0, rank: 0 }),
+        "the dimension the viewport holds is not marked in the tree",
+    );
+    assert!(
+        !holds(&document, &editor, the_row_of(0, 1)),
+        "a trait the viewport does not hold is marked in the tree",
+    );
+    assert!(
+        !holds(&document, &editor, the_row_of(1, 0)),
+        "the same trait in a sketch that is not open is marked in the tree",
+    );
 }

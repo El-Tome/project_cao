@@ -3,9 +3,10 @@
 
 use cao_sketch::ToolState;
 
+use super::input::copying::enter_in_the_panel;
 use super::input::{
     CornerEnter, corner_on_enter, cut_the_corner, draw_arc, draw_circle, draw_ellipse,
-    draw_line_point, draw_symmetric_line_point, hold_is_done, rectangle_corner, two_click_shape,
+    draw_line_point, draw_symmetric_line_point, rectangle_corner, two_click_shape,
 };
 use super::render::paint_live_input;
 use super::values::refused_for_what_is_typed;
@@ -33,7 +34,7 @@ pub(crate) fn advance_on_enter(
             paint_live_input(ui, sketch);
             return false;
         }
-        return ui.input(|input| input.key_pressed(egui::Key::Enter)) && hold_is_done(sketch);
+        return ui.input(|input| input.key_pressed(egui::Key::Enter)) && enter_in_the_panel(sketch);
     }
 
     let drawing = matches!(

@@ -77,8 +77,8 @@ use selecting::{aim_from, band_select, erase_what_is_held, lights_nothing, pick,
 mod marks;
 use marks::Marks;
 
-mod copying;
-pub(crate) use copying::{copy, count_brought_down, hold_is_done, previewed as copying_shows};
+pub(crate) mod copying;
+pub(crate) use copying::{copy, count_brought_down, previewed as copying_shows};
 
 mod corner;
 pub(crate) use corner::{

@@ -1,10 +1,12 @@
 use cao_sketch::{DimensionTarget, PointId, Rule, RulePick, Selection, ToolState, WorkPlane};
 use glam::DVec2;
 
+mod copy_panel;
 mod live_input;
 mod typed_dimension;
 
 pub use cao_sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode};
+pub use copy_panel::{CopyPanel, CopySlot};
 pub use live_input::LiveInput;
 pub use typed_dimension::DimensionEdit;
 pub(crate) use typed_dimension::apply_dimension_value;
@@ -114,6 +116,7 @@ pub struct SketchEditor {
     /// How far the shape, dimension or rule the tool in hand is drawing has
     /// gotten. See `cao_sketch::ToolState`.
     pub tool_state: ToolState,
+    pub(crate) copy_panel: Option<CopyPanel>,
     /// Copied from the profile in use every frame, as the viewport's config is.
     pub sketching: cao_prefs::SketchingConfig,
 }
@@ -171,6 +174,7 @@ impl SketchEditor {
             Tool::Select => ToolState::Select(Box::default()),
             _ => ToolState::None,
         };
+        self.copy_panel = None;
         self.live.clear();
         self.editing = None;
     }
@@ -335,12 +339,7 @@ impl SketchEditor {
             return true;
         }
         // The mirror holds its own, so what it has taken is drawn as taken.
-        match (what, &self.tool_state) {
-            (Selection::Element(element), ToolState::Copying { held, .. }) => {
-                held.contains(&element)
-            }
-            _ => false,
-        }
+        matches!(what, Selection::Element(element) if self.copied().contains(&element))
     }
 
     /// Adds or removes one thing, the way holding the modifier does.

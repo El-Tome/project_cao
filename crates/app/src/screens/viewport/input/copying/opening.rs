@@ -26,9 +26,10 @@ const THE_ORIGINAL_AND_ONE: f64 = 2.0;
 ///
 /// The mirror asks for no values and opens nothing.
 pub(super) fn fields_open_on(context: &mut SketchContext<'_>) {
-    let ToolState::Copying { held, .. } = &context.editor.tool_state else {
+    let ToolState::Copying { .. } = context.editor.tool_state else {
         return;
     };
+    let held = context.editor.copied();
     let values = match context.editor.tool {
         Tool::CircularPattern => [Some(A_QUARTER_TURN), Some(FOUR_TIMES_ROUND), None, None],
         Tool::RectangularPattern => {

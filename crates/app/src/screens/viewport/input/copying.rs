@@ -7,7 +7,7 @@ use cao_sketch::{
 use glam::DVec2;
 
 use crate::screens::SketchContext;
-use crate::screens::sketch::{LiveInput, Tool};
+use crate::screens::sketch::{CopyPanel, CopySlot, LiveInput, Tool};
 
 use super::pick;
 
@@ -16,8 +16,7 @@ mod preview;
 pub(crate) use preview::previewed;
 
 /// One click of a tool that lays a copy down — the mirror, or either pattern.
-/// All three gather what is held until `Entrée` says the selection is done, and
-/// then name the one thing they each need: an axis, a centre, a direction.
+/// It fills the active slot of the panel, and only that one.
 pub(crate) fn copy(
     context: &mut SketchContext<'_>,
     index: usize,
@@ -25,17 +24,44 @@ pub(crate) fn copy(
     snap: f64,
     pixel: f64,
 ) -> bool {
-    let ToolState::Copying {
-        naming_the_target, ..
-    } = context.editor.tool_state
-    else {
+    let Some(panel) = context.editor.copy_panel() else {
         take_hold(context, Vec::new());
         return false;
     };
-    match naming_the_target {
-        true => lay_the_copy(context, index, cursor, snap),
-        false => gather(context, index, cursor, snap, pixel),
+    match (panel.active(), context.editor.tool) {
+        (CopySlot::Elements, _) => gather(context, index, cursor, snap, pixel),
+        (CopySlot::Target, Tool::Mirror) => name_the_axis(context, index, cursor, snap),
+        (CopySlot::Target, _) => lay_the_pattern(context, index, cursor, snap),
+        _ => false,
     }
+}
+
+/// `Entrée` in the panel: the slot below becomes active, and on Validate the
+/// copy is laid.
+pub(crate) fn enter_in_the_panel(context: &mut SketchContext<'_>) -> bool {
+    let Some(active) = context.editor.copy_panel().map(CopyPanel::active) else {
+        return false;
+    };
+    if active == CopySlot::Validate {
+        if let Some(panel) = context.editor.copy_panel_mut()
+            && let Some(empty) = panel.first_empty()
+        {
+            panel.activate(empty);
+            return false;
+        }
+        let laid = match (context.editor.tool, context.editor.active_sketch()) {
+            (Tool::Mirror, Some(index)) => across(context, index),
+            _ => None,
+        };
+        return lay(context, laid);
+    }
+    if active == CopySlot::Elements && context.editor.tool != Tool::Mirror {
+        hold_is_done(context);
+    }
+    if let Some(panel) = context.editor.copy_panel_mut() {
+        panel.move_down();
+    }
+    true
 }
 
 /// What a tool laying copies calls the stage it is at, so the drawing says the
@@ -58,28 +84,24 @@ fn asking(context: &SketchContext<'_>) -> &'static str {
 /// Starts the tool holding what it is given — whatever the selection tool had
 /// in hand when the tool was reached for.
 fn take_hold(context: &mut SketchContext<'_>, held: Vec<Element>) {
-    context.editor.tool_state = ToolState::Copying {
-        held,
-        naming_the_target: false,
-    };
+    context.editor.open_copy_panel(held);
     let said = gathering(context);
     context.editor.message = Some(context.lang.t(said));
 }
 
-/// `Entrée`: what is held is what will be copied, and the next click names
-/// where it goes. Nothing held is nothing to copy, so the tool stays where it
-/// is.
-pub(crate) fn hold_is_done(context: &mut SketchContext<'_>) -> bool {
-    let ToolState::Copying { held, .. } = &context.editor.tool_state else {
-        return false;
-    };
-    if held.is_empty() {
+/// A pattern's values open once what is held is known, and the next click
+/// names where it goes. Nothing held is nothing to copy.
+fn hold_is_done(context: &mut SketchContext<'_>) -> bool {
+    if context.editor.copied().is_empty() {
         return false;
     }
-    context.editor.tool_state = ToolState::Copying {
-        held: held.clone(),
-        naming_the_target: true,
+    let ToolState::Copying {
+        naming_the_target, ..
+    } = &mut context.editor.tool_state
+    else {
+        return false;
     };
+    *naming_the_target = true;
     opening::fields_open_on(context);
     let said = asking(context);
     context.editor.message = Some(context.lang.t(said));
@@ -96,57 +118,60 @@ fn gather(
     let Some(Selection::Element(element)) = pick(context, index, cursor, snap, pixel) else {
         return false;
     };
-    let ToolState::Copying { held, .. } = &mut context.editor.tool_state else {
+    let Some(panel) = context.editor.copy_panel_mut() else {
         return false;
     };
-    match held.iter().position(|already| *already == element) {
-        Some(rank) => {
-            held.remove(rank);
-        }
-        None => held.push(element),
-    }
+    panel.toggle(element);
     let said = gathering(context);
     context.editor.message = Some(context.lang.t(said));
     true
 }
 
-fn lay_the_copy(context: &mut SketchContext<'_>, index: usize, cursor: DVec2, snap: f64) -> bool {
-    let ToolState::Copying { held, .. } = &context.editor.tool_state else {
+/// The mirror's axis is kept from the click that names it, whatever the cursor
+/// is over when the copy is laid.
+fn name_the_axis(context: &mut SketchContext<'_>, index: usize, cursor: DVec2, snap: f64) -> bool {
+    let sketch = context.document.sketches().get(index);
+    let axis = sketch.and_then(|sketch| axis_at(sketch, cursor, snap));
+    let (Some(axis), Some(panel)) = (axis, context.editor.copy_panel_mut()) else {
+        context.editor.message = Some(context.lang.t("sketch.mirror_needs_an_axis"));
         return false;
     };
-    let elements = held.clone();
+    panel.name_the_axis(axis);
+    true
+}
+
+fn lay_the_pattern(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    cursor: DVec2,
+    snap: f64,
+) -> bool {
+    let elements = context.editor.copied().to_vec();
     let asked = match context.editor.tool {
         Tool::CircularPattern => around(context, index, elements, cursor, snap),
-        Tool::RectangularPattern => in_rows(context, index, elements, cursor, snap),
-        _ => across(context, index, elements, cursor, snap),
+        _ => in_rows(context, index, elements, cursor, snap),
     };
+    lay(context, asked)
+}
+
+/// Lays the copy as one step, and leaves the tool in hand with its panel
+/// emptied.
+fn lay(context: &mut SketchContext<'_>, asked: Option<Operation>) -> bool {
     let Some(operation) = asked else {
         return false;
     };
-
     context.document.apply(operation);
     take_hold(context, Vec::new());
     context.editor.live.clear();
     true
 }
 
-/// The mirror's own reading of the last click: the axis to lay the copy across.
-fn across(
-    context: &mut SketchContext<'_>,
-    index: usize,
-    elements: Vec<Element>,
-    cursor: DVec2,
-    snap: f64,
-) -> Option<Operation> {
-    let sketch = context.document.sketches().get(index)?;
-    let Some(axis) = axis_at(sketch, cursor, snap) else {
-        context.editor.message = Some(context.lang.t("sketch.mirror_needs_an_axis"));
-        return None;
-    };
+/// The mirror's operation, across the axis its panel holds.
+fn across(context: &SketchContext<'_>, index: usize) -> Option<Operation> {
     Some(Operation::Mirror {
         sketch: index,
-        elements,
-        axis,
+        elements: context.editor.copied().to_vec(),
+        axis: context.editor.copy_panel()?.axis()?,
     })
 }
 

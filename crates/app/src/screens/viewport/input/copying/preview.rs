@@ -1,15 +1,15 @@
 use cao_sketch::{Preview, Repeats, Sketch, ToolState};
 use glam::DVec2;
 
-use crate::screens::sketch::{SketchEditor, Tool};
+use crate::screens::sketch::{CopyPanel, SketchEditor, Tool};
 
 use super::{axis_at, filled, turned};
 
 /// What a tool that lays copies would leave, shown before the click that names
 /// where the copies go.
 ///
-/// Nothing until the selection is closed and the values are typed: a pattern
-/// with no step has no copies to show.
+/// Nothing until the selection is closed or the axis is held, and the values
+/// are typed: a pattern with no step has no copies to show.
 pub(crate) fn previewed(
     sketch: &Sketch,
     editor: &SketchEditor,
@@ -17,20 +17,22 @@ pub(crate) fn previewed(
     snap: f64,
     scale: f64,
 ) -> Option<Preview> {
-    let ToolState::Copying {
-        held,
-        naming_the_target: true,
-    } = &editor.tool_state
-    else {
-        return None;
-    };
-    if held.is_empty() {
+    let held = editor.copied();
+    let axis = editor.copy_panel().and_then(CopyPanel::axis);
+    let naming = matches!(
+        editor.tool_state,
+        ToolState::Copying {
+            naming_the_target: true,
+            ..
+        }
+    );
+    if held.is_empty() || (axis.is_none() && !naming) {
         return None;
     }
 
     match editor.tool {
         Tool::Mirror => {
-            let axis = axis_at(sketch, cursor, snap)?;
+            let axis = axis.or_else(|| axis_at(sketch, cursor, snap))?;
             sketch.preview(|trial| trial.mirror(held, axis))
         }
         Tool::CircularPattern => {

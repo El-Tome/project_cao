@@ -41,11 +41,13 @@
 //!
 //! #706 tried to build two cylinders nearly parallel and closer than a
 //! chord's sag, and was set aside: beside the leaning line they cross along,
-//! each wall cuts the cell into triangles of its own, and where those held
-//! they lay on the other's within the rules' margin by luck. What it reached
-//! is kept under `#[ignore]`, to be built uncrossed once the two walls share
-//! one order there; the cases it would still have declined run, and hold the
-//! decline `main` gives (`docs/exact-kernel-failures.md`, #706).
+//! each wall cuts the cell into triangles of its own. Where it failed, the
+//! two faces lie on each other over an area wider than the margin the rules
+//! excuse as rounding (`soundness/crossing.rs`); where it held, the overlap
+//! only happened to stay thinner. What it reached is kept under `#[ignore]`,
+//! to be built uncrossed once the two walls share one order there; the
+//! cases it would still have declined run, and hold the decline `main`
+//! gives (`docs/exact-kernel-failures.md`, #706).
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -338,19 +340,23 @@ fn nearly_coaxial(degrees: f64) -> Case {
     )
 }
 
-/// What the exact kernel answers on a case: its body, or the first decline.
-fn answered(case: &Case) -> Result<Body, Declined> {
-    let mut body = Exact.raised(&case.start)?;
+/// What a kernel answers on a case: its body, or the first decline.
+fn answered<K: Kernel>(case: &Case, kernel: &K) -> Result<K::Body, Declined> {
+    let mut body = kernel.raised(&case.start)?;
     for step in &case.steps {
-        let tool = Exact.raised(&step.tool)?;
-        body = Exact.combined(&body, &tool, step.mode)?;
+        let tool = kernel.raised(&step.tool)?;
+        body = kernel.combined(&body, &tool, step.mode)?;
     }
     Ok(body)
 }
 
 /// A decline the scope rule excuses, and only as unsupported.
 fn declined_along_a_stretch(case: &Case) {
-    assert_eq!(answered(case).err(), Some(Declined::Unsupported), "{case}");
+    assert_eq!(
+        answered(case, &Exact).err(),
+        Some(Declined::Unsupported),
+        "{case}"
+    );
     assert!(case.asks_of_walls_along_a_stretch(), "{case}");
 }
 
@@ -358,27 +364,17 @@ fn declined_along_a_stretch(case: &Case) {
 fn declined_along_a_stretch_on_both_kernels(case: &Case) {
     declined_along_a_stretch(case);
     assert_eq!(
-        answered_through_the_application(case).err(),
+        answered(case, &Application).err(),
         Some(Declined::Unsupported),
         "{case}"
     );
-}
-
-/// What the application answers on a case: its body, or the first decline.
-fn answered_through_the_application(case: &Case) -> Result<cao_solid::Body, Declined> {
-    let mut body = Application.raised(&case.start)?;
-    for step in &case.steps {
-        let tool = Application.raised(&step.tool)?;
-        body = Application.combined(&body, &tool, step.mode)?;
-    }
-    Ok(body)
 }
 
 /// Two walls nearly parallel, leaning `degrees` off each other at the last
 /// step, built on both kernels, their triangles uncrossed and every other
 /// rule kept, and the lean noted unstable.
 fn built_uncrossed_and_noted_unstable(case: &Case, degrees: f64) {
-    let body = answered(case).unwrap_or_else(|declined| panic!("{declined:?}\n{case}"));
+    let body = answered(case, &Exact).unwrap_or_else(|declined| panic!("{declined:?}\n{case}"));
     let unstable = body.unstable().expect("a lean in the band is noted");
     assert!(
         matches!(
@@ -395,9 +391,13 @@ fn built_uncrossed_and_noted_unstable(case: &Case, degrees: f64) {
         unstable.degrees
     );
     random_solids::holds_exactly(case);
-    if let Err(declined) = answered_through_the_application(case) {
-        panic!("declined through the application: {declined:?}\n{case}");
-    }
+    let applied = answered(case, &Application).unwrap_or_else(|declined| {
+        panic!("declined through the application: {declined:?}\n{case}")
+    });
+    assert!(
+        Application.unstable(&applied),
+        "the application's body notes the lean too\n{case}"
+    );
     random_solids::holds_through_the_application(case);
 }
 
@@ -565,7 +565,7 @@ fn two_shafts_crossing_at_1e_5_degrees_a_sliver_past_decision_11_are_declined_as
 #[test]
 fn the_same_shafts_crossing_at_3e_5_degrees_are_built_and_keep_every_rule() {
     let case = crossing_a_sliver_past_decision_11(3e-5);
-    let body = answered(&case).unwrap_or_else(|declined| panic!("{declined:?}\n{case}"));
+    let body = answered(&case, &Exact).unwrap_or_else(|declined| panic!("{declined:?}\n{case}"));
     let unstable = body.unstable().expect("a lean in the band is noted");
     assert!(
         matches!(
@@ -673,7 +673,7 @@ fn seed_106731298824406_a_bore_at_75_degrees_through_a_pocket_s_wall_keeps_every
         ],
     );
     assert!(!case.asks_beyond_the_conics(), "{case}");
-    assert!(answered(&case).is_ok(), "{case}");
+    assert!(answered(&case, &Exact).is_ok(), "{case}");
     random_solids::holds_exactly(&case);
 }
 
@@ -908,7 +908,7 @@ fn the_same_bore_refilled_by_a_bar_ending_flush_on_both_faces_is_built_uncrossed
 /// round, and #706's attempt kept the decline for an elliptic wall.
 #[test]
 fn an_elliptic_shaft_bored_round_closer_than_a_sag_at_1e_4_degrees_is_declined_as_unsupported() {
-    declined_along_a_stretch(&a_shaft_bored_nearly_coaxially(
+    declined_along_a_stretch_on_both_kernels(&a_shaft_bored_nearly_coaxially(
         Outline::ellipse([0.0, 0.0], [10.0, 0.0], 9.995),
         9.99,
         0.0,
@@ -1082,7 +1082,7 @@ fn seed_3408641393912_two_bores_a_hair_off_square_to_each_other_keep_every_rule(
             )),
         ],
     );
-    assert!(answered(&case).is_ok(), "{case}");
+    assert!(answered(&case, &Exact).is_ok(), "{case}");
     random_solids::holds_exactly(&case);
 }
 

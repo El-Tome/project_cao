@@ -3569,8 +3569,11 @@ What is left, by family:
 
 #706 tried to build the pairs lane 2 declines closer than a chord's sag
 when both walls are cylinders, and was not merged: `main` keeps the
-decline `closer_than_a_sag` for every pair. The attempt is kept on the
-local branch `wip/706-crossing-line-and-targeted-declines`. The cases it
+decline `closer_than_a_sag` for every pair. The attempt lives on the
+branch `wip/706-crossing-line-and-targeted-declines`, and the commits named
+below are on it: both are local to one machine and are not pushed, since
+the branch's tip holds red tests and every pushed branch runs the CI. The
+reasoning is carried by #706's comments. The cases it
 reached stand as ignored tests in `random_walls_at_any_angle.rs`, to be
 built uncrossed once the two walls share one order beside the line they
 cross along; the cases it still declined run there against the decline
@@ -3637,14 +3640,18 @@ and a bore of its own radius nearly coaxial, at 0.01° and 1e-4°, with no
 third wall, the triangles crossing on the line between the cap and the
 place the two axes cross — the family of the first round's
 318277455102885, which held. The first crosses on the exact kernel too;
-the second only through the body.
+the second only through the body. The exact round on fresh seeds stopped
+before it reached 331906274213776, which is why its row shows no seed only
+the branch fails.
 
-**Why it was set aside.** On those two seeds the two walls cut the cell
-beside the leaning crossing line into triangles of their own, which lie on
-each other within the margin the rules allow two faces, `soundness::NEAR`
-times the reach. The cases
-that held did so only because that overlap stayed under the margin: the
-fix reached them by luck rather than by laying both walls on one order.
+**Why it was set aside.** Beside the leaning crossing line, each wall
+cuts the cell into triangles of its own. The rules excuse an overlap
+thinner than `soundness::NEAR` times the reach as what rounding leaves,
+and count two faces lying on each other over an area as a flaw
+(`soundness/crossing.rs`). On those two seeds the two faces lie on each
+other over an area wider than that margin; on the cases that held, the
+overlap stayed thinner than it. The fix reached them by luck rather than
+by laying both walls on one order.
 The owner kept `main`'s decline on 2026-11-06. Sharing one order needs a
 correspondence between the two walls' rays beside the line, a redesign
 left for later.

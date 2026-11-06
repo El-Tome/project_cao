@@ -165,10 +165,17 @@ fn clicked_step(
 ) -> Option<usize> {
     let mut clicked = None;
     let start = run.start;
-    for (offset, operation) in document.history.operations()[run].iter().enumerate() {
+    let operations = document.history.operations();
+    // Numbered as the list reads, the hidden section steps left out.
+    let mut shown = operations[..start]
+        .iter()
+        .filter(|operation| !operation.is_about_a_section())
+        .count();
+    for (offset, operation) in operations[run].iter().enumerate() {
         if operation.is_about_a_section() {
             continue;
         }
+        shown += 1;
         let step = start + offset;
         let capped = document
             .history
@@ -181,7 +188,7 @@ fn clicked_step(
             ui,
             document.variables(),
             (operation, capped),
-            (step, ends),
+            (shown, step, ends),
             applied,
             lang,
         ) {
@@ -198,7 +205,7 @@ fn entry(
     ui: &mut egui::Ui,
     variables: &cao_part::Variables,
     (operation, capped): (&Operation, Option<cao_part::Capped>),
-    (step, ends): (usize, usize),
+    (shown, step, ends): (usize, usize, usize),
     applied: usize,
     lang: &Catalogue,
 ) -> bool {
@@ -207,7 +214,7 @@ fn entry(
 
     let mut text = egui::RichText::new(format!(
         "{}. {}",
-        step + 1,
+        shown,
         wording::history::label(lang, variables, operation)
     ));
     if undone {

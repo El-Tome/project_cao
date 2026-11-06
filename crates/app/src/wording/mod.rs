@@ -35,3 +35,4 @@ pub mod storage;
 pub mod toolbar;
 pub mod unstable;
 pub mod variables;
+pub mod view;

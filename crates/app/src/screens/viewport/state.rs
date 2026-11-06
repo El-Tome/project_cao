@@ -38,6 +38,15 @@ pub enum ViewMode {
     Plane(WorkPlane),
 }
 
+impl ViewMode {
+    pub fn plane(self) -> Option<WorkPlane> {
+        match self {
+            Self::Free => None,
+            Self::Plane(plane) => Some(plane),
+        }
+    }
+}
+
 pub struct ViewportState {
     pub config: ViewportConfig,
     /// Every colour the viewport draws with, copied from the profile in use.

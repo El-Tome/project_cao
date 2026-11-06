@@ -144,7 +144,10 @@ fn close_the_panel(app: &mut driver::App) {
 /// double-click: each frame of the harness otherwise moves the clock a quarter
 /// of a second, past what a double-click allows.
 fn double_click(app: &mut driver::App, label: &str) {
-    let at = app.get_by_label(label).rect().center();
+    let at = the_row(app, label)
+        .unwrap_or_else(|| panic!("no button reads « {label} »"))
+        .rect()
+        .center();
     app.hover_at(at);
     app.run();
     let start = app.ctx.input(|input| input.time);
@@ -163,7 +166,10 @@ fn double_click(app: &mut driver::App, label: &str) {
 }
 
 fn right_click(app: &mut driver::App, label: &str) {
-    let at = app.get_by_label(label).rect().center();
+    let at = the_row(app, label)
+        .unwrap_or_else(|| panic!("no button reads « {label} »"))
+        .rect()
+        .center();
     app.hover_at(at);
     app.run();
     for pressed in [true, false] {
@@ -186,8 +192,16 @@ fn save_a_section(app: &mut driver::App, plane: &str) {
     close_the_panel(app);
 }
 
+/// The button of the tree, or of a panel, that reads exactly this — never the
+/// header above the view, which names the same section while a sketch on it is
+/// open.
+fn the_row<'a>(app: &'a driver::App, name: &str) -> Option<egui_kittest::Node<'a>> {
+    app.query_all_by_role(egui::accesskit::Role::Button)
+        .find(|node| node.accesskit_node().label().as_deref() == Some(name))
+}
+
 fn in_the_tree(app: &driver::App, name: &str) -> bool {
-    app.query_all_by_label(name).next().is_some()
+    the_row(app, name).is_some()
 }
 
 fn is_active(app: &driver::App, name: &str) -> bool {
@@ -196,12 +210,14 @@ fn is_active(app: &driver::App, name: &str) -> bool {
         "the tree holds no « {name} », showing {:?}",
         driver::on_screen(app),
     );
-    driver::is_on(app, name)
+    the_row(app, name)
+        .is_some_and(|row| row.accesskit_node().toggled() == Some(egui::accesskit::Toggled::True))
 }
 
 fn switch_on(app: &mut driver::App, name: &str) {
     if !is_active(app, name) {
-        driver::click_exactly(app, name);
+        the_row(app, name).expect("the row is in the tree").click();
+        app.run();
     }
 }
 
@@ -634,5 +650,63 @@ fn a_section_whose_face_is_gone_reads_face_lost_in_the_tree() {
         sections_in_the_tree(&app),
         ["Coupe 1 — face perdue"],
         "the rectangle under the block erased, the section on its face is not marked",
+    );
+}
+
+#[test]
+fn the_history_numbers_its_rows_one_after_another_around_the_hidden_section_steps() {
+    let mut app = a_block("keeping_a_section_history_numbers");
+    save_a_section(&mut app, "Plan YZ");
+    save_a_section(&mut app, "Plan XZ");
+    double_click(&mut app, "Coupe 1");
+    let read = driver::fields(&app)[0].clone();
+    driver::type_over(&mut app, &read, "4");
+    driver::click_the_button(&mut app, "Enregistrer la coupe");
+    close_the_panel(&mut app);
+    switch_on(&mut app, "Coupe 1");
+    a_sketch_on_the_cut(&mut app);
+    driver::open_the_history(&mut app);
+
+    let mut numbers: Vec<usize> = history_rows(&app)
+        .into_iter()
+        .map(|(number, _)| number)
+        .collect();
+    numbers.sort_unstable();
+
+    let one_after_another: Vec<usize> = (1..=numbers.len()).collect();
+    assert_eq!(
+        numbers, one_after_another,
+        "the history skips numbers where the section steps are hidden",
+    );
+}
+
+/// What the bar above the view says, beside the part's name: the plane the
+/// view is on.
+fn the_header(app: &driver::App) -> Vec<String> {
+    app.query_all_by_role(egui::accesskit::Role::Label)
+        .filter(|node| node.rect().max.y < 22.0)
+        .filter_map(|node| node.accesskit_node().value())
+        .collect()
+}
+
+#[test]
+fn a_sketch_on_a_section_names_the_section_above_the_view() {
+    let mut app = a_block("keeping_a_section_header");
+    save_a_section(&mut app, "Plan YZ");
+    switch_on(&mut app, "Coupe 1");
+
+    click_in_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::click_at(&mut app, ON_THE_BLOCK);
+    let header = the_header(&app);
+
+    assert!(
+        driver::is_enabled(&app, "Terminer"),
+        "the click on the cut started no sketch, showing {:?}",
+        driver::on_screen(&app),
+    );
+    assert!(
+        header.iter().any(|said| said.contains("Coupe 1"))
+            && !header.iter().any(|said| said.contains("Face de la pièce")),
+        "a sketch on « Coupe 1 » is announced above the view as {header:?}",
     );
 }

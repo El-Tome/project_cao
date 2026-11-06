@@ -4,10 +4,9 @@ use cao_part::PartDocument;
 use cao_prefs::{Command, Locations};
 use cao_render::SceneRenderer;
 
-use crate::lang::Catalogue;
 use crate::remembered::Remembered;
 use crate::screens::explorer::Explorer;
-use crate::screens::viewport::{ViewMode, ViewportState};
+use crate::screens::viewport::ViewportState;
 use crate::screens::{
     self, OpenPart, Screen, extrusion::ExtrusionState, ribbon::Ribbon, sketch::SketchEditor,
     start_menu::StartMenuAction,
@@ -187,7 +186,14 @@ impl CaoApp {
                 ui.strong(doc.name())
                     .on_hover_text(path.display().to_string());
                 ui.separator();
-                ui.weak(mode_label(lang, viewport.mode()));
+                let section = editor
+                    .active_sketch()
+                    .and_then(|open| doc.section_under(open));
+                ui.weak(wording::view::standing_on(
+                    lang,
+                    viewport.mode().plane(),
+                    section,
+                ));
                 if let Some(message) = &editor.message {
                     ui.separator();
                     ui.colored_label(egui::Color32::from_rgb(250, 220, 120), message);
@@ -360,13 +366,6 @@ impl CaoApp {
         if touched {
             self.save_settings();
         }
-    }
-}
-
-fn mode_label(lang: &Catalogue, mode: ViewMode) -> String {
-    match mode {
-        ViewMode::Free => lang.t("app.free_view"),
-        ViewMode::Plane(work_plane) => wording::plane::label(lang, work_plane.kind()),
     }
 }
 

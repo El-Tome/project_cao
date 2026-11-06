@@ -23,7 +23,9 @@ use std::f64::consts::{PI, TAU};
 
 use glam::{DQuat, DVec3};
 
-use super::facing::Facing;
+use super::facing::{Facing, Zones};
+use crate::brep::scale::Scale;
+use crate::brep::surface::Cylinder;
 use crate::brep::tessellation::sampling::divisions;
 use crate::brep::topology::SurfaceId;
 
@@ -61,10 +63,9 @@ pub(super) fn shared(
     let mut withheld: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
     for facing in leaning {
         let walls = facing.walls();
-        let [nearest, farthest] = facing.apart();
-        if nearest > farthest - nearest {
+        let Some(drift) = drift(facing) else {
             continue;
-        }
+        };
         let turn = DQuat::from_rotation_arc(walls[1].1.axis, walls[0].1.axis);
         let onto = |side: usize, way: DVec3| match side {
             0 => [way, turn.inverse() * way],
@@ -97,9 +98,6 @@ pub(super) fn shared(
         rays.sort_by_key(|ray| (ray.kind.rank(), ray.side));
         let frame = walls[0].1;
         let angle = |ray: &Ray| ray.ways[0].dot(frame.v).atan2(ray.ways[0].dot(frame.u));
-        let radius = walls[0].1.radius.min(walls[1].1.radius);
-        let sine = walls[0].1.axis.cross(walls[1].1.axis).length();
-        let drift = farthest / radius + sine;
         let mut kept: Vec<Ray> = Vec::with_capacity(rays.len());
         for ray in rays {
             let at = angle(&ray);
@@ -133,5 +131,33 @@ impl Kind {
             Kind::Step(_) => 1,
             Kind::Beneath => 2,
         }
+    }
+}
+
+/// How far round, in radians, a ray of a pair drifts from one wall's axis to
+/// the other's, when the two share their rays: their axes cross, or all
+/// but, where the walls hold their circles, standing nearest each other no
+/// further apart than that changes.
+fn drift(facing: &Facing) -> Option<f64> {
+    let [(_, one), (_, other)] = facing.walls();
+    let [nearest, farthest] = facing.apart();
+    let sine = one.axis.cross(other.axis).length();
+    (nearest <= farthest - nearest).then(|| farthest / one.radius.min(other.radius) + sine)
+}
+
+impl Zones<'_> {
+    /// The pairs of walls leaning a hair off parallel that share their rays,
+    /// in the order they were taken, each with its drift.
+    pub(in crate::brep::tessellation) fn sharing(
+        &self,
+    ) -> impl Iterator<Item = ([Cylinder; 2], f64)> {
+        self.pairs.iter().filter_map(|facing| {
+            let walls = facing.walls().map(|(_, wall)| wall);
+            let leaning = walls[0].axis.cross(walls[1].axis).length() > Scale::RELATIVE;
+            leaning
+                .then(|| drift(facing))
+                .flatten()
+                .map(|drift| (walls, drift))
+        })
     }
 }

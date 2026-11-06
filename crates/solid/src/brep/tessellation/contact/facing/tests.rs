@@ -1,10 +1,10 @@
-//! Two walls leaning a hair off parallel, face to face and on one set of
-//! rays: the first steps of the shared order #706 now needs, as its last
-//! comment lays it out. Each of the
-//! first four steps lands with `closer_than_a_sag` still in place and every
-//! campaign identical to `main` seed by seed; the fifth lifts the decline, and
-//! is held in `crates/solid/tests/random_walls_at_any_angle.rs` with the
-//! issue's Done when.
+//! Two walls leaning a hair off parallel, face to face, on one set of rays,
+//! cut alike beside the line they cross along and met alike by a third wall:
+//! the first four steps of the shared order #706 now needs, as its last
+//! comment lays it out. Each lands with `closer_than_a_sag` still in place
+//! and every campaign identical to `main` seed by seed; the fifth lifts the
+//! decline, and is held in `crates/solid/tests/random_walls_at_any_angle.rs`
+//! with the issue's Done when.
 //!
 //! Closes #706.
 //! - face to face: `Facing` and `Zones` take band pairs of cylinders within
@@ -22,10 +22,11 @@
 //! - the crossing line sampled at its ends, each wall pinning in its own
 //!   chart the angles of both ends and nothing sampled in the wedge between
 //!   them, so that both faces cut the cell alike and cancel —
-//!   `beside_the_line_two_walls_leaning_a_hair_off_parallel_cross_along_both_faces_are_cut_alike_and_cancel`
+//!   `beside_the_line_two_walls_leaning_a_hair_off_parallel_cross_along_both_faces_are_cut_alike_and_cancel`,
+//!   `beside_a_line_running_far_from_the_node_both_faces_are_still_cut_alike_and_cancel`
 //! - a third wall crossing the pair has its two meets sampled on the pair's
-//!   shared rays, so that near-duplicates merge — no test: put off to the
-//!   fourth step, whose red is written in its own turn
+//!   shared rays, so that near-duplicates merge —
+//!   `a_third_wall_crossing_two_walls_leaning_a_hair_off_parallel_meets_both_on_the_same_rays`
 
 use std::collections::BTreeMap;
 use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, PI, TAU};
@@ -224,21 +225,23 @@ fn the_loop_two_walls_leaning_a_hair_off_parallel_cross_along_is_sampled_at_ever
     }
 }
 
-fn leaning_rings(
+fn leaning_pair_built(
     lean: f64,
     toward: f64,
     radii: [f64; 2],
     vertices: [Option<f64>; 2],
-) -> (Body, [Wall; 2], [[EdgeId; 2]; 2]) {
+) -> (fixtures::Build, [Wall; 2], [[EdgeId; 2]; 2]) {
     let mut build = fixtures::Build::new();
     let crossing = DVec3::X * FOOT;
     let (sin, cos) = toward.sin_cos();
     let leaning = DVec3::new(lean * cos, lean * sin, (1.0 - lean * lean).sqrt());
     let use_of = |edge, forward| Coedge { edge, forward };
     let mut rings = [[EdgeId(0); 2]; 2];
+    let mut walls = [(SurfaceId(0), Cylinder::about(crossing, DVec3::Z, radii[0])); 2];
     for side in 0..2 {
         let wall = Cylinder::about(crossing, [DVec3::Z, leaning][side], radii[side]);
         let id = build.surface(Surface::Cylinder(wall));
+        walls[side] = (id, wall);
         let [low, high] =
             [-HALF, HALF].map(|z| wall.parameters(crossing + wall.axis * (z / wall.axis.z)).y);
         let through = vertices[side].map(|angle| build.vertex(wall.point(DVec2::new(angle, low))));
@@ -252,6 +255,16 @@ fn leaning_rings(
             ],
         );
     }
+    (build, walls, rings)
+}
+
+fn leaning_rings(
+    lean: f64,
+    toward: f64,
+    radii: [f64; 2],
+    vertices: [Option<f64>; 2],
+) -> (Body, [Wall; 2], [[EdgeId; 2]; 2]) {
+    let (build, _, rings) = leaning_pair_built(lean, toward, radii, vertices);
     let body = build.finish(REACH);
     let found = walls(&body);
     (body, [found[0], found[1]], rings)
@@ -479,8 +492,17 @@ fn shaft_bored_above_its_node(radius: f64, lean: f64, height: f64) -> Sliver {
 #[test]
 fn beside_the_line_two_walls_leaning_a_hair_off_parallel_cross_along_both_faces_are_cut_alike_and_cancel()
  {
+    cut_alike_and_cancelled(&[(5.0, 1e-4, 1.125), (17.5, 0.01, 6.5)]);
+}
+
+#[test]
+fn beside_a_line_running_far_from_the_node_both_faces_are_still_cut_alike_and_cancel() {
+    cut_alike_and_cancelled(&[(5.0, 0.03, 12.5), (17.5, 0.03, 43.75)]);
+}
+
+fn cut_alike_and_cancelled(shapes: &[(f64, f64, f64)]) {
     let key = |point: DVec3| point.to_array().map(f64::to_bits);
-    for (radius, degrees, height) in [(5.0, 1e-4f64, 1.125), (17.5, 0.01, 6.5)] {
+    for &(radius, degrees, height) in shapes {
         let sliver = shaft_bored_above_its_node(radius, degrees.to_radians(), height);
         let body = &sliver.body;
         for share in [1e-3, 2e-4] {
@@ -541,6 +563,113 @@ fn beside_the_line_two_walls_leaning_a_hair_off_parallel_cross_along_both_faces_
                 open, 0,
                 "{open} sides met one way only, radius {radius} within {tolerance}"
             );
+        }
+    }
+}
+
+fn a_leaning_pair_crossed_by_a_third_wall(
+    third: f64,
+) -> (Body, [Wall; 2], [EdgeId; 2], [[EdgeId; 2]; 2]) {
+    let (mut build, walls, rings) = leaning_pair_built(LEAN, 0.0, [RADIUS; 2], [None; 2]);
+    let across = DVec3::new(1.0, 1.0, 0.0).normalize();
+    let center = DVec3::new(FOOT, 0.0, HALF / 2.0);
+    let bore = Cylinder::about(center, across, third);
+    let pierced = center + across * RADIUS;
+    let meets = walls.map(|(_, wall)| {
+        let meet = (0..4)
+            .map(|component| Meet {
+                first: Round::Cylinder(wall),
+                second: Round::Cylinder(bore),
+                component,
+            })
+            .filter(|meet| meet.period().is_some())
+            .min_by(|one, other| {
+                let off = |meet: &Meet| meet.point(meet.parameter(pierced)).distance(pierced);
+                off(one).total_cmp(&off(other))
+            })
+            .expect("the third wall pierces both walls");
+        let period = meet.period().expect("a closed loop");
+        build.meet_edge(meet, None, 0.0, period)
+    });
+    let body = build.finish(REACH);
+    (body, walls, meets, rings)
+}
+
+fn seen_round_the_first(
+    samples: &Samples,
+    edge: EdgeId,
+    wall: &Cylinder,
+    frame: &Cylinder,
+) -> Vec<f64> {
+    let turn = DQuat::from_rotation_arc(wall.axis, frame.axis);
+    samples
+        .edge(edge)
+        .iter()
+        .map(|id| {
+            let from = samples.point(*id) - wall.origin;
+            let way = turn * (from - wall.axis * wall.axis.dot(from));
+            way.dot(frame.v).atan2(way.dot(frame.u))
+        })
+        .collect()
+}
+
+#[test]
+fn a_third_wall_crossing_two_walls_leaning_a_hair_off_parallel_meets_both_on_the_same_rays() {
+    for tolerance in [1e-3, 0.02, 0.1] {
+        let (body, walls, meets, rings) = a_leaning_pair_crossed_by_a_third_wall(1.0);
+        let samples = Samples::of(&body, tolerance);
+        let frame = walls[0].1;
+        let seen =
+            [0, 1].map(|side| seen_round_the_first(&samples, meets[side], &walls[side].1, &frame));
+
+        for (one, other) in [(0, 1), (1, 0)] {
+            for way in &seen[one] {
+                let nearest = seen[other]
+                    .iter()
+                    .map(|seen| round_off(*way, *seen))
+                    .fold(f64::INFINITY, f64::min);
+                assert!(
+                    nearest < 1e-9,
+                    "the third wall meets the wall about {} at {way} round the first's axis, \
+                     {nearest} from the nearest of the {} places it meets the other at, \
+                     within {tolerance}",
+                    walls[one].1.axis,
+                    seen[other].len(),
+                );
+            }
+        }
+        assert_eq!(seen[0].len(), seen[1].len(), "within {tolerance}");
+        for (side, meet) in meets.into_iter().enumerate() {
+            let points: Vec<DVec3> = samples
+                .edge(meet)
+                .iter()
+                .map(|id| samples.point(*id))
+                .collect();
+            for (at, point) in points.iter().enumerate() {
+                let next = points[(at + 1) % points.len()];
+                assert!(
+                    point.distance(next) > 1e-4,
+                    "the third wall meets the wall about {} at {point} and {next}, a hair \
+                     apart, within {tolerance}",
+                    walls[side].1.axis,
+                );
+            }
+        }
+        for (side, pair) in rings.into_iter().enumerate() {
+            let wall = walls[side].1;
+            for ring in pair {
+                let mut ways = ways_seen_from(&samples, &body, ring, &wall);
+                ways.sort_by(f64::total_cmp);
+                for (at, way) in ways.iter().enumerate() {
+                    let next = ways[(at + 1) % ways.len()];
+                    assert!(
+                        round_off(*way, next) * wall.radius > 1e-3,
+                        "a ring of the wall about {} takes rays at {way} and {next}, a hair \
+                         apart, within {tolerance}",
+                        wall.axis,
+                    );
+                }
+            }
         }
     }
 }

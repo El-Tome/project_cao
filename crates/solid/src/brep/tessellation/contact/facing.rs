@@ -304,7 +304,7 @@ struct Known {
 /// within two chords' sags of each other where either holds a face, and
 /// where they face each other.
 pub(in crate::brep::tessellation) struct Zones<'a> {
-    pairs: Vec<Facing<'a>>,
+    pub(super) pairs: Vec<Facing<'a>>,
 }
 
 impl<'a> Zones<'a> {

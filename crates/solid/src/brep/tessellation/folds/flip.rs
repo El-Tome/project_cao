@@ -123,7 +123,7 @@ impl Folds<'_> {
     /// Replaces two triangles of a face sharing a side by the two the other
     /// diagonal makes, when they make a convex corner of four; the two
     /// replaced, to put back.
-    fn flip(&mut self, at: At, partner: At) -> Option<[[usize; 3]; 2]> {
+    pub(super) fn flip(&mut self, at: At, partner: At) -> Option<[[usize; 3]; 2]> {
         let face = at.0;
         let (old, theirs) = (
             self.drawn[face].triangles[at.1],

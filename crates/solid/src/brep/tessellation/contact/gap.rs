@@ -4,13 +4,16 @@
 use glam::DVec3;
 
 use super::APART;
+use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
 
-/// Two parallel walls, whether they were decided to touch — inside or side
-/// by side — and the room no sample of either is taken within.
+/// Two walls parallel or leaning a hair off it, whether they were decided to
+/// touch — inside or side by side, parallel — and the room no sample of
+/// either is taken within.
 #[derive(Clone, Copy, Debug)]
 pub(in crate::brep::tessellation) struct Gap {
     walls: [Cylinder; 2],
+    leaning: bool,
     touch: bool,
     room: f64,
 }
@@ -20,9 +23,12 @@ impl Gap {
         let between = other.origin - one.origin;
         let apart = (between - one.axis * one.axis.dot(between)).length();
         let [near, far] = [(one.radius - other.radius).abs(), one.radius + other.radius];
+        let leaning = one.axis.cross(other.axis).length() > Scale::RELATIVE;
         Gap {
             walls: [*one, *other],
-            touch: (apart - far).abs() <= eps || ((apart - near).abs() <= eps && near > eps),
+            leaning,
+            touch: !leaning
+                && ((apart - far).abs() <= eps || ((apart - near).abs() <= eps && near > eps)),
             room: eps * APART,
         }
     }
@@ -66,8 +72,12 @@ impl Gap {
     /// sampled on common rays from that axis, and the gap is measured along
     /// the ray through `point`, from the smaller wall out to the larger:
     /// the same sum whichever of the two the place is taken on, so that a
-    /// ray is crowded for both or for neither.
+    /// ray is crowded for both or for neither. Two walls leaning off
+    /// parallel share no such ray: the gap is read from the other wall.
     fn clearance(&self, wall: &Cylinder, point: DVec3) -> f64 {
+        if self.leaning {
+            return self.other(wall).distance(point);
+        }
         let [first, second] = self.walls;
         let (outer, inner) = if first.radius >= second.radius {
             (first, second)

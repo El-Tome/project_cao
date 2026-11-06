@@ -199,15 +199,19 @@ pub(super) fn of_edge(
     );
     let clear = |point: DVec3| {
         !grazed(point, eps * contact::APART)
-            && own.iter().zip(&planes).all(|(wall, planes)| match wall {
-                Wall::Cylinder(cylinder) => {
-                    !zones.crowded(cylinder, point)
-                        && !planes.iter().any(|plane| {
-                            on_a_plane(plane, cylinder.origin, cylinder.axis, point, eps)
-                        })
-                }
-                Wall::Elliptic(_) | Wall::Cone(_) => true,
-            })
+            && own
+                .iter()
+                .zip(&planes)
+                .zip(own.iter().rev())
+                .all(|((wall, planes), partner)| match wall {
+                    Wall::Cylinder(cylinder) => {
+                        !zones.crowded_off_the_meet(cylinder, partner, point)
+                            && !planes.iter().any(|plane| {
+                                on_a_plane(plane, cylinder.origin, cylinder.axis, point, eps)
+                            })
+                    }
+                    Wall::Elliptic(_) | Wall::Cone(_) => true,
+                })
     };
     on_meet_by(
         meet,

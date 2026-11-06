@@ -48,6 +48,29 @@
 //! to be built uncrossed once the two walls share one order there; the
 //! cases it would still have declined run, and hold the decline `main`
 //! gives (`docs/exact-kernel-failures.md`, #706).
+//!
+//! #706 lays the two walls on that one order in five steps; the first four
+//! are held beside the code they change, from
+//! `crates/solid/src/brep/tessellation/contact/facing/tests.rs`, and land
+//! with every campaign identical to `main` seed by seed.
+//!
+//! Closes #706.
+//! - the B reds of #577 (the nearly coaxial posts at 1e-3°, seeds
+//!   224442167739556 and 224442167740434) are built, uncrossed and noted
+//!   unstable, not declined —
+//!   `two_posts_of_one_radius_crossing_nearly_coaxially_at_1e_3_degrees_are_built_uncrossed_and_noted_unstable`,
+//!   `seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable`;
+//!   224442167740434 stays declined by the owner's decision of 2026-11-06,
+//!   and goes to #720 —
+//!   `seed_224442167740434_two_posts_of_radius_22_5_crossing_at_1e_4_degrees_are_declined_as_unsupported`
+//! - the walls-at-any-angle draw keeps its rate or improves, with no
+//!   regression against `main` — no test: the campaigns above, run by hand
+//!   on `main` and on the branch, compared seed by seed
+//! - the fifth step lifts `closer_than_a_sag` for two cylinders: every case
+//!   under `#[ignore = "#706: …"]` here runs, built uncrossed and noted
+//!   unstable —
+//!   `the_same_shafts_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable`,
+//!   `seed_331906274213776_a_shaft_cut_by_a_bore_of_its_radius_at_0_01_degrees_is_built_uncrossed_and_noted_unstable`
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;

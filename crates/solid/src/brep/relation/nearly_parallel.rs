@@ -73,7 +73,7 @@ pub(in crate::brep) fn too_near_to_build(
         return false;
     }
     if matches!(first, Wall::Cone(_)) || matches!(second, Wall::Cone(_)) {
-        return closer_than_a_sag(&first, &second, within, scale);
+        return closer_than_a_sag(&first, &second, within, scale, 1.0);
     }
     let eps = scale.eps();
     let reach = |wall: &Wall, way: DVec3| match wall {
@@ -130,7 +130,26 @@ pub(in crate::brep) fn too_near_to_build(
         let farthest = offset(from).length().max(offset(to).length());
         let meet = closest.sqrt() <= near + far + eps && farthest >= (near - far).abs() - eps;
         longest >= STRETCH * scale.reach() || sine < SLIVER && meet
-    }) || closer_than_a_sag(&first, &second, within, scale)
+    }) || closer_than_a_sag(&first, &second, within, scale, 1.0)
+}
+
+/// Whether two cylinders in the band stand within two chords' sags of each
+/// other in one of the boxes `within`, as [`closer_than_a_sag`] reads it: the
+/// pairs whose places tessellation tells crowded, as it does two parallel
+/// walls (#706).
+pub(in crate::brep) fn within_two_sags(
+    one: &Surface,
+    other: &Surface,
+    within: &[[DVec3; 2]],
+    scale: Scale,
+) -> bool {
+    let (Some(first @ Wall::Cylinder(_)), Some(second @ Wall::Cylinder(_))) =
+        (Wall::of(one), Wall::of(other))
+    else {
+        return false;
+    };
+    let sine = first.axis().cross(second.axis()).length();
+    sine > Scale::RELATIVE && sine < BAND && closer_than_a_sag(&first, &second, within, scale, 2.0)
 }
 
 /// Whether a cone and a wall, at any angle, come closer to each other than
@@ -177,16 +196,22 @@ pub(in crate::brep) fn grazing(
         })
 }
 
-/// Whether two walls in the band stand closer to each other than a chord's
-/// sag over a step of a grid, where their faces may meet (#577): each wall
-/// cut into `divisions(size, COARSEST_DRAWN · reach)` steps, as its
+/// Whether two walls in the band stand closer to each other than `sags`
+/// chords' sags over a step of a grid, where their faces may meet (#577):
+/// each wall cut into `divisions(size, COARSEST_DRAWN · reach)` steps, as its
 /// triangles would be at that tolerance, its sag
 /// `size · (1 − cos(π / steps))`; at `HEIGHTS` heights evenly across each
 /// box `within`, along its axis, two consecutive steps of its grid both
 /// stand within that sag of the other wall. The triangles of two
 /// such walls, each sampled on its own grid a hair turned from the other's,
 /// cross where the sweep orders their samples differently.
-fn closer_than_a_sag(first: &Wall, second: &Wall, within: &[[DVec3; 2]], scale: Scale) -> bool {
+fn closer_than_a_sag(
+    first: &Wall,
+    second: &Wall,
+    within: &[[DVec3; 2]],
+    scale: Scale,
+    sags: f64,
+) -> bool {
     let tolerance = COARSEST_DRAWN * scale.reach();
     [(first, second), (second, first)]
         .into_iter()
@@ -202,7 +227,7 @@ fn closer_than_a_sag(first: &Wall, second: &Wall, within: &[[DVec3; 2]], scale: 
                 let steps = divisions(size(from).max(size(to)), tolerance);
                 (0..HEIGHTS).any(|rank| {
                     let height = from + (to - from) * rank as f64 / (HEIGHTS - 1) as f64;
-                    let sag = size(height) * (1.0 - (PI / steps as f64).cos());
+                    let sag = sags * size(height) * (1.0 - (PI / steps as f64).cos());
                     let near = |step: usize| {
                         let angle = TAU * (step % steps) as f64 / steps as f64;
                         let point = match wall {

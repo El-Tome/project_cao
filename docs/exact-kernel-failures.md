@@ -3567,6 +3567,11 @@ What is left, by family:
 
 ### #706: two cylinders closer than a sag, an attempt set aside
 
+Two cylinders closer than a sag are now built: #706's five steps lay the
+two walls on one shared order (`docs/exact-kernel.md`, "Two walls at any
+angle"), and `closer_than_a_sag` declines only a cone or an elliptic wall
+(#720). What follows is the attempt that came before them.
+
 #706 tried to build the pairs lane 2 declines closer than a chord's sag
 when both walls are cylinders, and was not merged: `main` keeps the
 decline `closer_than_a_sag` for every pair. The attempt lives on the

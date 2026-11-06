@@ -261,7 +261,8 @@ Left, in the order #497 set:
   another axis, or an elliptic wall: declined as unsupported where the
   faces may cross;
 - a few pairs of walls at any angle that the kernel still declines (see
-  "Two walls at any angle"): two walls nearly parallel, a cone whose
+  "Two walls at any angle"): two walls nearly parallel — closer than a
+  chord's sag only where a cone or an elliptic wall is one of them — a cone whose
   rulings run along the other wall's axis, a hole in the flank of a
   pointed cone (#711), and a cone and a wall closer than a chord's sag
   without meeting (#706). A plane crossing a cylinder or a cone at a slant
@@ -2013,7 +2014,13 @@ wrong answer:
   second's axis drifts across the line they touch along, the gap growing
   as the square of the height: a bore touching a post inside, leaning
   1e-3°, stays within the tolerance of it over the whole post.
-- **Closer than a chord's sag** (`closer_than_a_sag`). Two walls in the
+- **Closer than a chord's sag** (`closer_than_a_sag`), where a cone or an
+  elliptic wall is one of the two (#720): two cylinders that close are
+  built since #706, each wall's heights read along its own axis, their
+  rays shared, the line they cross along sampled at its ends with nothing
+  in the wedge beside it, and a third wall meeting both on the same rays
+  (`tessellation/contact/leaning.rs`, `sampling/wedge.rs`,
+  `sampling/meet/twin.rs`, `folds/lines.rs`). Two walls in the
   band such that, at some height across the box where their faces may
   meet, two consecutive steps of one wall's grid both stand within that
   grid's sag of the other wall. Each wall is sampled on its own grid, a
@@ -2028,8 +2035,8 @@ wrong answer:
   coarser than that, a part under a hundred units exported coarse, or a
   part a later step makes wider, samples coarser, and a pair built just
   outside the sag checked may still cross there. It is a stopgap, moved
-  by any change to `LEAST` or `MOST` in `divisions`, until #706 lays such
-  pairs on one shared order and removes it.
+  by any change to `LEAST` or `MOST` in `divisions`, until #720 lays a cone
+  or an elliptic wall on one shared order as #706 laid two cylinders.
 
 ### A cone against another wall
 

@@ -41,8 +41,9 @@ const SLIVER: f64 = 2.0 * Scale::RELATIVE / STRETCH;
 /// exist: the tests' campaigns draw at it, the view five times finer of the
 /// body's own reach. A stopgap with no exact value — an STL exported coarse
 /// from a part under a hundred units, or a part a later step makes wider,
-/// samples coarser and may still cross — until #706 lays such pairs on one
-/// shared order and this goes.
+/// samples coarser and may still cross — for a cone or an elliptic wall,
+/// until #720 lays them on one shared order as #706 laid two cylinders.
+/// Two cylinders read it only to be laid so (`within_two_sags`).
 const COARSEST_DRAWN: f64 = 1e-3;
 
 /// How many heights across a box two walls are compared at for a sag.
@@ -52,7 +53,9 @@ const HEIGHTS: usize = 9;
 /// thousandth, are declined in one of the boxes `within` where their faces
 /// may meet: leaning under `SLIVER`, their sections meet there at all; or
 /// they stand within the tolerance of each other along a stretch of a
-/// hundredth of the reach or more; or closer than a chord's sag. Square to
+/// hundredth of the reach or more; or, a cone or an elliptic wall among them,
+/// closer than a chord's sag — two cylinders that close are built, sampled
+/// on one shared order (`tessellation/contact`, #706). Square to
 /// the first wall's axis, the second's stands at an offset affine in the
 /// height; the walls are one, or touch inside or outside, within the
 /// tolerance where that offset's length is within it of the difference or
@@ -130,7 +133,8 @@ pub(in crate::brep) fn too_near_to_build(
         let farthest = offset(from).length().max(offset(to).length());
         let meet = closest.sqrt() <= near + far + eps && farthest >= (near - far).abs() - eps;
         longest >= STRETCH * scale.reach() || sine < SLIVER && meet
-    }) || closer_than_a_sag(&first, &second, within, scale, 1.0)
+    }) || (matches!(first, Wall::Elliptic(_)) || matches!(second, Wall::Elliptic(_)))
+        && closer_than_a_sag(&first, &second, within, scale, 1.0)
 }
 
 /// Whether two cylinders in the band stand within two chords' sags of each

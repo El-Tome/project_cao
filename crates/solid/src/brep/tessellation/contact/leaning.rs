@@ -24,26 +24,37 @@ use std::f64::consts::{PI, TAU};
 use glam::{DQuat, DVec3};
 
 use super::facing::{Facing, Zones};
+use super::own::flat_from;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
 use crate::brep::tessellation::sampling::divisions;
 use crate::brep::topology::SurfaceId;
 
 /// What a ray of the pair stands for, in the order one gives way to another
-/// within the drift: a ray a wall took on its own, which is never given up,
-/// but of two of them within the drift, one of each wall, each wall takes
-/// its own alone — its vertex stands on it there, on every rim, and a
-/// vertex on both walls, read from either axis, stands a hair round on
-/// each, the two rays, handed on along the curves through it, parting a
-/// hair further pass after pass; a step of a wall's grid, the first wall's
-/// before the second's; a ray through a point standing just inside a wall,
-/// which gives way to any ray of either.
+/// within the drift: a ray through a vertex on its wall, never given up —
+/// the vertex stands on it there, on every rim — and taken by the other
+/// wall too where the vertex lies on both, so that two rims a hair apart
+/// keep in step there; but not where it lies on its own wall alone and the
+/// other has one of its own beside it. Read from two axes, a vertex on both
+/// walls stands up to the drift round on each, further than two vertices
+/// can stand apart: no angle tells the one from the other, and the vertex
+/// itself does. Then a ray a wall took otherwise on its own, through the
+/// samples of a curve, the second wall's giving way to one the first took:
+/// handed on along the curves through a vertex, two such rays part a hair
+/// further pass after pass (318277455101196). Then a step of a wall's grid,
+/// the first wall's before the second's; then a ray through a point
+/// standing just inside a wall, which gives way to any ray of either.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
+    /// Whether the vertex lies on both walls.
+    Vertex(bool),
     Own,
     Step(usize),
     Beneath,
 }
+
+/// For each wall, points of the body.
+type Points = BTreeMap<SurfaceId, Vec<DVec3>>;
 
 /// A ray of the pair: the wall it comes from, what it stands for, and the
 /// way it runs from either axis.
@@ -56,12 +67,12 @@ struct Ray {
 /// Gives each wall of every pair in `leaning` the rays of the other, turned
 /// onto its own axis, two rays within the pair's drift one; `own` holds the
 /// rays each wall took on its own, `beneath` those of them through a point
-/// standing just inside it. Returns the steps of each wall's grid that gave
-/// way to a ray of the other.
+/// standing just inside it, `anchors` the vertices lying on it. Returns the
+/// steps of each wall's grid that gave way to a ray of the other.
 pub(super) fn shared(
     leaning: &[&Facing],
     own: &mut BTreeMap<SurfaceId, Vec<DVec3>>,
-    beneath: &BTreeMap<SurfaceId, Vec<DVec3>>,
+    (beneath, anchors): (&Points, &Points),
     tolerance: f64,
 ) -> BTreeMap<SurfaceId, Vec<usize>> {
     let mut withheld: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
@@ -88,11 +99,21 @@ pub(super) fn shared(
                         ways: onto(side, wall.radial(TAU * step as f64 / steps as f64)),
                     }),
             );
+            let held = |id: SurfaceId| anchors.get(&id).map_or(&[][..], Vec::as_slice);
+            let other = walls[1 - side].0;
+            let through = |way: &DVec3| {
+                held(id)
+                    .iter()
+                    .find(|point| flat_from(&wall, **point).normalize() == *way)
+                    .map(|point| held(other).contains(point))
+            };
             let inside = beneath.get(&id).map_or(&[][..], Vec::as_slice);
             rays.extend(own.get(&id).into_iter().flatten().map(|way| Ray {
                 side,
                 kind: if inside.contains(way) {
                     Kind::Beneath
+                } else if let Some(on_both) = through(way) {
+                    Kind::Vertex(on_both)
                 } else {
                     Kind::Own
                 },
@@ -109,7 +130,11 @@ pub(super) fn shared(
             let gives_way = kept.iter().any(|other| {
                 near(&ray, other)
                     && match ray.kind {
-                        Kind::Own => false,
+                        Kind::Vertex(_) => false,
+                        Kind::Own => {
+                            other.side != ray.side
+                                && matches!(other.kind, Kind::Own | Kind::Vertex(_))
+                        }
                         Kind::Step(_) => other.side != ray.side,
                         Kind::Beneath => true,
                     }
@@ -121,12 +146,12 @@ pub(super) fn shared(
             }
         }
         for (side, (id, _)) in walls.into_iter().enumerate() {
-            let mine = |ray: &Ray| ray.side == side && ray.kind == Kind::Own;
-            let theirs = |ray: &Ray| kept.iter().any(|other| mine(other) && near(ray, other));
+            let mine = |ray: &Ray| ray.side == side && matches!(ray.kind, Kind::Vertex(_));
+            let beside_mine = |ray: &Ray| kept.iter().any(|other| mine(other) && near(ray, other));
             let taken = kept
                 .iter()
+                .filter(|ray| ray.side == side || !ray.kind.left_out(beside_mine(ray)))
                 .filter(|ray| !(ray.side == side && matches!(ray.kind, Kind::Step(_))))
-                .filter(|ray| ray.side == side || ray.kind != Kind::Own || !theirs(ray))
                 .map(|ray| ray.ways[side])
                 .collect();
             own.insert(id, taken);
@@ -136,8 +161,19 @@ pub(super) fn shared(
 }
 
 impl Kind {
+    /// Whether a ray of the other wall is left out of this one: through a
+    /// vertex on that wall alone, `beside` one through a vertex of this
+    /// wall's own.
+    fn left_out(self, beside: bool) -> bool {
+        match self {
+            Kind::Vertex(on_both) => !on_both && beside,
+            Kind::Own | Kind::Step(_) | Kind::Beneath => false,
+        }
+    }
+
     fn rank(self) -> usize {
         match self {
+            Kind::Vertex(_) => 0,
             Kind::Own => 0,
             Kind::Step(_) => 1,
             Kind::Beneath => 2,

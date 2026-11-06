@@ -19,13 +19,12 @@ use glam::{DQuat, DVec3};
 use super::Samples;
 use crate::brep::curve::{Curve, Wall};
 use crate::brep::relation::BAND;
+use crate::brep::surface::Cylinder;
 use crate::brep::topology::Body;
 
-/// How far round, in radians, the ends of a line two walls cross along may
-/// stand from each other, read from either axis, for the line to stand in a
-/// wedge: far under a step of the finest grid, `2π/1024`. Two walls whose
-/// axes stand apart read a point from either at angles wholly apart, and
-/// share no rays (`contact/leaning.rs`).
+/// How far round either wall, in radians, the ends of a line two walls
+/// cross along may stand from each other for the line to stand in a wedge:
+/// far under a step of the finest grid, `2π/1024`.
 const WEDGE: f64 = 1e-3;
 
 /// Leaves out of every curve leaving an end of such a line its samples in
@@ -57,15 +56,10 @@ pub(super) fn cleared(body: &Body, samples: &mut Samples, eps: f64) {
             way.dot(one.v).atan2(way.dot(one.u))
         };
         let round = |angle: f64| (angle + PI).rem_euclid(TAU) - PI;
-        let readings = vertices
-            .map(|end| body.vertex(end).point)
-            .map(|at| [read(0, at), read(1, at)]);
-        let readings = readings.as_flattened();
-        if readings.iter().any(|one| {
-            readings
-                .iter()
-                .any(|other| round(one - other).abs() > WEDGE)
-        }) {
+        let ends = vertices.map(|end| body.vertex(end).point);
+        let wide =
+            (0..2).any(|side| round(read(side, ends[0]) - read(side, ends[1])).abs() > WEDGE);
+        if wide || !crossing(&one, &other, ends) {
             continue;
         }
         let radius = one.radius.max(other.radius);
@@ -108,4 +102,23 @@ pub(super) fn cleared(body: &Body, samples: &mut Samples, eps: f64) {
             }
         }
     }
+}
+
+/// Whether the axes of two walls cross, or all but, over the heights between
+/// `ends`: they stand nearest each other there no further apart than that
+/// changes. Two walls whose axes stand apart read a point from either at
+/// angles wholly apart, and share no rays (`contact/leaning.rs`).
+fn crossing(one: &Cylinder, other: &Cylinder, ends: [DVec3; 2]) -> bool {
+    let flat = |vector: DVec3| vector - other.axis * other.axis.dot(vector);
+    let (rate, at) = (flat(one.axis), flat(one.origin - other.origin));
+    let [low, high] = ends.map(|end| (end - one.origin).dot(one.axis));
+    let (low, high) = (low.min(high), low.max(high));
+    let between = |height: f64| (at + rate * height).length();
+    let nearest = if rate.length_squared() > 0.0 {
+        (-at.dot(rate) / rate.length_squared()).clamp(low, high)
+    } else {
+        low
+    };
+    let [nearest, farthest] = [between(nearest), between(low).max(between(high))];
+    nearest <= farthest - nearest
 }

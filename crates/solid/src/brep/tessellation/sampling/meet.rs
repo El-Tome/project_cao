@@ -31,6 +31,8 @@ use crate::brep::surface::Cone;
 use crate::brep::tessellation::contact::{self, Contact, Zones};
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
+mod twin;
+
 /// Why a parameter is a sample, the stronger reason first: of two places
 /// closer than the kernel's tolerance, the one kept is the stronger. Either
 /// end takes every place within a hair ([`Scale::HAIR`]) of it: two a few
@@ -150,7 +152,28 @@ pub(super) fn of_edge(
     body: &Body,
     edge: &Edge,
     meet: &Meet,
-    (walls, zones, contacts): (&[contact::Wall], &Zones, &BTreeMap<SurfaceId, Contact>),
+    around: Around,
+    grids: &BTreeMap<SurfaceId, Grid>,
+    tolerance: f64,
+) -> Vec<DVec3> {
+    let points = alone(body, edge, meet, around, grids, tolerance);
+    twin::shared(body, edge, meet, around, grids, tolerance, points)
+}
+
+/// The walls of the body, the pairs of them face to face, and what each
+/// takes besides its grid.
+type Around<'a> = (
+    &'a [contact::Wall],
+    &'a Zones<'a>,
+    &'a BTreeMap<SurfaceId, Contact>,
+);
+
+/// [`of_edge`], the edge sampled on its own.
+fn alone(
+    body: &Body,
+    edge: &Edge,
+    meet: &Meet,
+    (walls, zones, contacts): Around,
     grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
 ) -> Vec<DVec3> {

@@ -73,8 +73,8 @@ pub(crate) use cut_changes::{
 };
 
 mod selecting;
-pub(crate) use selecting::take;
 use selecting::{aim_from, band_select, erase_what_is_held, lights_nothing, pick};
+pub(crate) use selecting::{take, take_everything};
 mod marks;
 use marks::Marks;
 

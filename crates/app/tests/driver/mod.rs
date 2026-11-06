@@ -311,3 +311,42 @@ pub fn said(app: &App) -> Vec<String> {
         .filter_map(|node| node.accesskit_node().value())
         .collect()
 }
+
+/// Every right-angle mark painted on the last frame: what it says, where, in
+/// what colour.
+pub fn right_angle_marks(app: &App) -> Vec<(String, egui::Pos2, egui::Color32)> {
+    fn walk(shape: &egui::epaint::Shape, out: &mut Vec<(String, egui::Pos2, egui::Color32)>) {
+        match shape {
+            egui::epaint::Shape::Vec(shapes) => shapes.iter().for_each(|shape| walk(shape, out)),
+            egui::epaint::Shape::Text(text) if text.galley.text() == "|_" => out.push((
+                text.galley.text().to_owned(),
+                text.visual_bounding_rect().center(),
+                text.fallback_color,
+            )),
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    for clipped in &app.output().shapes {
+        walk(&clipped.shape, &mut out);
+    }
+    out
+}
+
+/// A click with these modifiers held, from the press to the release.
+pub fn click_with(app: &mut App, at: egui::Pos2, modifiers: egui::Modifiers) {
+    app.hover_at(at);
+    app.event(egui::Event::ModifiersChanged(modifiers));
+    app.run();
+    for pressed in [true, false] {
+        app.event(egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers,
+        });
+        app.run();
+    }
+    app.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
+    app.run();
+}

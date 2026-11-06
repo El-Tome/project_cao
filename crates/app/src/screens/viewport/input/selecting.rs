@@ -1,8 +1,8 @@
 //! What a click or a box takes hold of, and what deleting a selection takes
 //! with it.
 
-use cao_part::Operation;
 use cao_part::history::CutChange;
+use cao_part::{Operation, PartDocument};
 use cao_sketch::{Selection, Snap, ToolState};
 use glam::DVec2;
 
@@ -110,6 +110,31 @@ pub(crate) fn take(editor: &mut SketchEditor, picked: Option<Selection>, adding:
             }
         }
         (None, true) => {}
+    }
+}
+
+/// Takes, in place of what was held, what a box pulled over the whole drawing
+/// would: every element, the origin aside. Dimensions and rules stay out, as
+/// they do not move. Only the selection tool holds anything to replace.
+pub(crate) fn take_everything(editor: &mut SketchEditor, document: &PartDocument) {
+    let Some(sketch) = editor
+        .active_sketch()
+        .and_then(|index| document.sketches().get(index))
+    else {
+        return;
+    };
+    let everywhere = DVec2::splat(f64::INFINITY);
+    let every = sketch
+        .inside_band(
+            -everywhere,
+            everywhere,
+            crate::screens::annotations::metrics(1.0, DVec2::ZERO),
+        )
+        .into_iter()
+        .filter(|caught| matches!(caught, Selection::Element(_)))
+        .collect();
+    if let Some(state) = editor.select_state() {
+        state.held = every;
     }
 }
 

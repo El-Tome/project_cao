@@ -1,6 +1,7 @@
 //! The matter, as the rest of the workspace is allowed to see it.
 
 mod caught;
+pub(crate) mod chamfer;
 mod drawn;
 mod exact;
 mod names;

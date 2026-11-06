@@ -146,6 +146,79 @@ It can:
   Vertex names have no lookup yet and hold the names of their edges, so a
   change at an edge's far end renames a vertex nothing touched: a dimension
   from a vertex (#497) needs a `find` of its own.
+- **chamfer one straight edge** (#696, `Body::chamfer` in `body/chamfer.rs`,
+  the cut in `body/exact/chamfer.rs`), a step of the kernel beside the join
+  and the cut; the step of the history that calls it comes with the
+  application (#695). The edge is found by its name, as above, so a change
+  of size, a move or a turn upstream cuts the same edge again. The distance
+  is the set-back along each of the edge's two faces, as in every CAD tool,
+  not the width of the face laid between them. A distance the kernel
+  cannot set a cut back by — not a number, nought or less, or shorter than
+  four `Scale::HAIR` tolerances, within which the kernel would read the
+  chamfer's plane and corners back onto the edge and its corners — is
+  `Declined::Distance`, before the edge is looked for; past that floor a
+  chamfer is cut, a hundred-thousandth on a block as well as a ten on it.
+  An infinite distance is reduced like any other too large. A distance the
+  faces cannot give is reduced to the nearer face's reach — how far it runs
+  from the edge, square to it, to the nearest true corner of its boundary
+  off the edge's line, or to where a round or a conic of its boundary turns
+  back that way, read off the exact curves, so a D's top reaches the crest
+  of its arc whichever way the part is turned, and a hole drawn as one
+  whole turn is read from where its turn starts as well as round it — so
+  at most one face is consumed whole, and `Chamfered` reports the distance
+  asked and the distance taken. The cut is a prism raised along the edge
+  and cut from the body (`Wedge`, `body/exact/chamfer/prism.rs`): in a
+  section square to the edge, the corner between the chamfer's plane and
+  the edge's two faces, each face pushed out by a margin, an eighth of the
+  distance; capped a margin above the edge where the faces meet so sharply
+  that the cap is wider than the margin, as on a knife; and carried over the
+  body's box along the edge's line and a margin past either end. Where the
+  chamfer's plane lies nearly flush with a face, as on an edge bent a
+  degree off flat, the face is pushed out by less, so that the prism's run
+  on the chamfer's plane ends no further than the distance past its
+  set-back; a face too nearly flush for that — pushed out by less than twice
+  `Scale::HAIR` tolerances — is declined `Unsupported`. However short the
+  distance, the margin is never under three square roots of the relative
+  tolerance times the part's reach, more as the edge flattens: a raise
+  refuses a section whose area is under its tolerance times its reach. So
+  the prism stands outside the part by no more than about the distance
+  taken, or that least margin where it is larger, which matters: a result
+  carries the larger reach of its operands, and every later step decides
+  and draws at it. Its wall on the chamfer's plane is the one face the step
+  names, numbered where the steps' numbers ended, and the count moves on by
+  one, so no other face changes its number. The chamfer is trimmed by the
+  faces it meets at the edge's ends, as the usual CAD tools trim it: where
+  one of them leaves the edge at an obtuse corner, or a round meets the
+  edge's end at a few degrees, the chamfer's face runs on past the end
+  corner until it meets that wall — a hexagonal prism's top edge, the
+  slanted top edge of a trapezoid. Two edges a join bridged into one, which
+  both names find, are cut whole: one edge on screen, one chamfer (case 2
+  of #683, Tom, 2026-11-05). Declined, never cut wrong: an edge its name no
+  longer finds is `Declined::Lost`, gone or split, as `Body::lost` says,
+  and on flats every name is gone. `Declined::Unsupported` is an edge that
+  is not straight between two flat faces, a concave one, one running on
+  tangentially into the next edge of either face's loop — a tangent chain,
+  such as a rounded rectangle's straight side, read within a sine of a
+  millionth, well above what a solved sketch leaves between a round and
+  the run drawn tangent to it and well below any corner a hand draws — or
+  one whose cut, carried along the edge's line, would take matter beyond
+  the faces it meets at its ends. That last one checks what the cut left:
+  no face of the prism but its chamfer, the chamfer in one piece, each of
+  its corners on one of the edge's faces, and every face the body held
+  still there but the edge's two, which the chamfer may consume. So an
+  edge ending at a concave corner where a flat wall leaves it — an arm's
+  edge running into the stem of an L, a pocket's rim — is declined: the
+  cut carried along the line would run on along that wall. A round leaving
+  the edge's end at a few degrees inwards trims the chamfer like any other
+  end face; one leaving it outwards dips outside the edge's face past the
+  end corner, and is covered only while the prism's side, a margin out,
+  reaches that dip: a round of radius `r` leaving outwards at an angle `θ`
+  trims a chamfer of at least about `8·r·(1 − cos θ)`, and below that the
+  chamfer is declined — a slot whose round leaves its front at some 8.5°,
+  radius 2, is cut at 0.2 and declined at 0.1 — unless the least margin
+  above still reaches the dip, as it does for a slot leaving at 2.9° down
+  to a chamfer of some 0.005. A cut that would take a tab or a lump beside
+  the edge away whole is declined too.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face
@@ -196,8 +269,10 @@ Left, in the order #497 set:
   or square to it (#571), and two cylinders, elliptic walls or cones at any
   angle (#577);
 - an exact STEP;
-- chamfers and fillets on a straight edge, then on a circular one, then where
-  fillets meet at a corner;
+- fillets on a straight edge, then on a circular one, then where fillets
+  meet at a corner; a chamfer on one straight edge is done (#696), and a
+  chamfer on several edges at once, on a curved edge, or stopping at the
+  wall of a concave corner is still to come;
 - draft, shell, loft.
 
 Known and still open:
@@ -301,7 +376,8 @@ Known and still open:
 - **Operations:** raise a profile of straight runs, arcs and ellipses along
   its plane's normal; turn a profile of straight runs and arcs, each
   parallel, square or slanted to the axis, an arc about its own centre;
-  join, cut. A turn of an ellipse is a broken step (#632). A turn about a
+  join, cut; chamfer one straight edge between two flat faces (#696). A
+  turn of an ellipse is a broken step (#632). A turn about a
   line that is no axis of the planes the rest
   of the part stands on brings cylinders at a skew angle to those, built
   since #577 where #533 left a broken step.

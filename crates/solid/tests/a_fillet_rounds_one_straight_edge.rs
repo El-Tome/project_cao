@@ -76,11 +76,15 @@ const EXACT: f64 = 1e-9;
 const DRAWN: f64 = 2e-4;
 
 /// The numbers a raised block's faces answer to: its floor nought, its top
-/// one, and its sides from the front round to the left, two to five.
+/// one, and its sides from the front round to the left, two to five; and the
+/// leaning trapezoid's slant and back.
+const FLOOR: usize = 0;
 const TOP: usize = 1;
 const FRONT: usize = 2;
 const RIGHT: usize = 3;
 const LEFT: usize = 5;
+const SLANT: usize = 3;
+const BACK: usize = 4;
 
 /// The ground's plane, which a part is drawn on.
 fn ground() -> Frame {
@@ -119,6 +123,32 @@ fn block([length, breadth, height]: [f64; 3]) -> Body {
         Contour::rectangle(DVec2::ZERO, DVec2::new(length, breadth)),
         height,
     )
+}
+
+/// The outline of a right trapezoid: its front 40 long on the X axis, its
+/// back 37 long at Y = 9, both from the Y axis, and between their right ends
+/// a slant rising 3 for every 1 it comes back. The slant meets the front at
+/// an acute corner and the back at an obtuse one, whose cosines are 1/√10
+/// and −1/√10: the tangents of their halves, 3/(√10 + 1) and 3/(√10 − 1),
+/// are no round numbers, and nor are the set-backs a round asks there.
+const LEANING: [DVec2; 4] = [
+    DVec2::ZERO,
+    DVec2::new(40.0, 0.0),
+    DVec2::new(37.0, 9.0),
+    DVec2::new(0.0, 9.0),
+];
+
+/// The [`LEANING`] trapezoid raised by `height`, its walls numbered from the
+/// front round: the front two, the slant three, the back four and the left
+/// five.
+fn leaning_trapezoid(height: f64) -> Body {
+    raised(Contour::straight(LEANING.to_vec()), height)
+}
+
+/// The two corners an upright edge of a part raised from the ground stands
+/// between, at the point of its outline `at`.
+fn upright(at: DVec2, height: f64) -> [DVec3; 2] {
+    [at.extend(0.0), at.extend(height)]
 }
 
 /// The name of the one edge between the faces numbered `first` and `second`,
@@ -458,5 +488,116 @@ fn a_fillet_on_a_block_s_top_front_edge_lays_one_round_of_the_radius_tangent_to_
             end,
             &format!("the wall at x = {x}, the round's end on it"),
         );
+    }
+}
+
+/// An upright edge of the leaning trapezoid where two of its walls meet at a
+/// slant: the walls, the corner of the outline it stands on, the far end of
+/// each wall from it, and the way each wall faces, all in the ground's plane.
+struct Upright {
+    what: &'static str,
+    walls: [usize; 2],
+    corner: DVec2,
+    far: [DVec2; 2],
+    outward: [DVec2; 2],
+}
+
+#[test]
+fn a_fillet_on_an_edge_whose_faces_meet_at_a_slant_is_set_back_by_the_radius_over_the_tangent_of_half_the_angle()
+ {
+    let (height, radius) = (5.0, 2.0);
+    let slant = DVec2::new(3.0, 1.0) / 10.0f64.sqrt();
+    let edges = [
+        Upright {
+            what: "the acute edge between the front and the slant",
+            walls: [FRONT, SLANT],
+            corner: LEANING[1],
+            far: [LEANING[0], LEANING[2]],
+            outward: [-DVec2::Y, slant],
+        },
+        Upright {
+            what: "the obtuse edge between the slant and the back",
+            walls: [SLANT, BACK],
+            corner: LEANING[2],
+            far: [LEANING[1], LEANING[3]],
+            outward: [slant, DVec2::Y],
+        },
+    ];
+
+    for edge in edges {
+        let what = edge.what;
+        let part = leaning_trapezoid(height);
+        let name = edge_between(&part, edge.walls[0], edge.walls[1]);
+
+        let filleted = part
+            .fillet(&name, radius)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_whole(&filleted, radius, what);
+        let body = &filleted.body;
+        let into = edge.far.map(|far| (far - edge.corner).normalize());
+        let angle = into[0].dot(into[1]).acos();
+        let set_back = radius / (angle / 2.0).tan();
+        let touching = into.map(|into| edge.corner + into * set_back);
+        let round = Round {
+            start: (touching[0] - edge.outward[0] * radius).extend(0.0),
+            along: DVec3::Z,
+            length: height,
+            radius,
+            facing: edge.outward.map(|outward| outward.extend(0.0)),
+        };
+        let trapezoid = (40.0 + 37.0) / 2.0 * 9.0 * height;
+        let corner_rounded_off =
+            (set_back * radius - radius * radius * (PI - angle) / 2.0) * height;
+        sound_drawn_within(
+            body,
+            trapezoid - corner_rounded_off,
+            round.drawn_within(2.0 * 40.0),
+            what,
+        );
+        let fillet = one_round_more(&part, body, what);
+        is_the_round(
+            body,
+            fillet,
+            &round,
+            &format!("the round on {what}, its axis the radius off both walls"),
+        );
+        let mut sides = [FLOOR, TOP, edge.walls[0], edge.walls[1]];
+        sides.sort();
+        assert_eq!(
+            sides_met(body, fillet),
+            sides.map(|side| vec![side as u32]),
+            "{what}: the round meets its two walls along its sides, and the floor and the top \
+             at its ends, by one edge each"
+        );
+        assert!(
+            body.edge_names().iter().all(
+                |name| name.between != [vec![edge.walls[0] as u32], vec![edge.walls[1] as u32]]
+            ),
+            "{what}: the two walls no longer meet: the round stands between them"
+        );
+        for ((wall, touching), far) in edge.walls.into_iter().zip(touching).zip(edge.far) {
+            corners_are(
+                body,
+                wall,
+                &[upright(touching, height), upright(far, height)].concat(),
+                &format!("what is left of wall {wall} at {what}, set back by {set_back}"),
+            );
+        }
+        let others: Vec<DVec2> = LEANING
+            .into_iter()
+            .filter(|&corner| corner != edge.corner)
+            .collect();
+        for (wall, z, end) in [(FLOOR, 0.0, 0.0), (TOP, height, 1.0)] {
+            let kept: Vec<DVec3> = others.iter().map(|corner| corner.extend(z)).collect();
+            trimmed_by_the_round(
+                body,
+                wall,
+                &kept,
+                &round,
+                end,
+                &format!("face {wall} at {what}, the round's end on it"),
+            );
+        }
     }
 }

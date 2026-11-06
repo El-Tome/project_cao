@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>CAO — Accueil</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+a{color:#F2A541}a:hover{color:#FFC876}
+.ic{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.rp{display:grid;grid-template-columns:64px minmax(0,1fr) auto 16px;align-items:center;gap:16px;padding:10px 12px;border-radius:8px;text-decoration:none;color:#E6E8EC}
+.rp:hover{background:#1F232B;color:#E6E8EC}
+.rp + .rp{border-top:1px solid #20242C}
+.ft{display:flex;align-items:center;gap:7px;height:30px;padding:0 8px;border-radius:5px;color:#D5D9E0;font:400 13px Inter,sans-serif;text-decoration:none;cursor:pointer}
+.ft:hover{background:#1F232B;color:#F4F5F7}
+.ft.sel{background:rgba(242,165,65,.12);color:#F7D29E}
+.ft .m{margin-left:auto;font:400 11px 'JetBrains Mono',monospace;color:#8A919D}
+.ft svg{flex:none}
+.th{width:22px;height:18px;border-radius:3px;background:#121419;border:1px solid #2A2E37;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.gb{height:28px;padding:0 10px;border-radius:5px;border:1px solid #2E333D;background:transparent;color:#C9CFD8;font:500 12px Inter,sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.gb:hover{background:#232731}
+.seg{display:inline-flex;background:#121419;border:1px solid #2A2E37;border-radius:7px;padding:2px}
+.seg button{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:0;border-radius:5px;background:transparent;color:#A9B0BC;font:500 12.5px Inter,sans-serif;cursor:pointer}
+.seg button.on{background:#2C313B;color:#F4F5F7}
+.seg button:disabled{color:#5B626E;cursor:default}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 900px; display: flex; flex-direction: column; background: #121419; color: #E6E8EC; font-family: Inter, system-ui, sans-serif; font-size: 13px">
+
+<header style="display: flex; align-items: center; justify-content: space-between; height: 44px; padding: 0 16px; border-bottom: 1px solid #22262E; background: #15171C; flex: none">
+<span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 5px; background: #1F232B; color: #F4F5F7; font-size: 13px"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Accueil</span>
+<a href="Preferences.dc.html" style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 5px; color: #A9B0BC; text-decoration: none; font: 500 12px Inter, sans-serif"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Préférences</a>
+</header>
+
+<div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0">
+
+<!-- All parts, in their folder tree -->
+<aside aria-labelledby="tp" style="flex: 1 1 280px; max-width: 320px; box-sizing: border-box; padding: 18px 12px; border-right: 1px solid #22262E; background: #16181D; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 0 6px">
+<h2 id="tp" style="margin: 0; font: 600 14px Inter, sans-serif; color: #F4F5F7">Toutes les pièces</h2>
+<button aria-label="Actualiser" style="width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: #A9B0BC; cursor: pointer; padding: 0"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
+</div>
+<div style="display: flex; gap: 6px; padding: 0 6px">
+<button class="gb">+ Dossier</button>
+<button class="gb">Renommer</button>
+<button class="gb">Supprimer</button>
+</div>
+<div style="padding: 0 6px">
+<label for="filtre" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Filtrer les pièces</label>
+<input id="filtre" placeholder="Filtrer…" style="width: 100%; box-sizing: border-box; height: 32px; padding: 0 10px; border-radius: 6px; border: 1px solid #2E333D; background: #121419; color: #F4F5F7; font: 400 12.5px Inter, sans-serif; outline: none">
+</div>
+<nav aria-label="Arborescence des pièces" style="display: flex; flex-direction: column; gap: 1px">
+<div class="ft"><svg class="ic" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" style="color: #8A919D"><path d="M2 3.5l3 3 3-3"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" style="color: #C9CFD8"><path d="M3 6h6l2 2h10v11H3z"/></svg>Dossier des pièces<span class="m">5</span></div>
+<div style="margin-left: 14px; border-left: 1px solid #2A2E37; padding-left: 4px; display: flex; flex-direction: column; gap: 1px">
+<div class="ft"><svg class="ic" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" style="color: #8A919D"><path d="M2 3.5l3 3 3-3"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" style="color: #C9CFD8"><path d="M3 6h6l2 2h10v11H3z"/></svg>[Dossier A]<span class="m">2</span></div>
+<div style="margin-left: 14px; border-left: 1px solid #2A2E37; padding-left: 4px; display: flex; flex-direction: column; gap: 1px">
+<a class="ft sel" href="Main.dc.html"><span class="th"><svg viewBox="0 0 64 48" width="18" height="14" aria-hidden="true"><polygon points="18,20 42,32 36,36 26,30 18,34 8,28" fill="rgba(54,179,126,.5)" stroke="#5FD3A0"/></svg></span>test-v3</a>
+<a class="ft" href="Main.dc.html"><span class="th"><svg viewBox="0 0 64 48" width="18" height="14" aria-hidden="true"><polygon points="32,12 50,21 32,30 14,21" fill="#3A404C" stroke="#9AA6B8"/></svg></span>test</a>
+</div>
+<div class="ft"><svg class="ic" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" style="color: #8A919D"><path d="M3.5 2l3 3-3 3"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" style="color: #C9CFD8"><path d="M3 6h6l2 2h10v11H3z"/></svg>[Dossier B]<span class="m">2</span></div>
+<a class="ft" href="Main.dc.html" style="margin-left: 17px"><span class="th"><svg viewBox="0 0 64 48" width="18" height="14" aria-hidden="true"><ellipse cx="32" cy="22" rx="14" ry="8" fill="#3A404C" stroke="#9AA6B8"/></svg></span>essai</a>
+</div>
+</nav>
+<p style="margin: 4px 6px 0; font-size: 11.5px; line-height: 1.45; color: #8A919D">Double-clic pour ouvrir. Glissez une pièce sur un dossier pour la déplacer.</p>
+</aside>
+
+<main style="flex: 999 1 640px; min-width: 0; box-sizing: border-box; padding: 64px 40px; display: flex; flex-direction: column; gap: 40px">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<h1 style="margin: 0; font: 600 52px/1 Inter, sans-serif; letter-spacing: .12em; color: #F2A541">CAO</h1>
+<p style="margin: 0; font-size: 16px; color: #A9B0BC">[Sous-titre de l'application]</p>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+
+<section aria-labelledby="np" style="flex: 1 1 320px; max-width: 380px; display: flex; flex-direction: column; gap: 18px; padding: 24px; border-radius: 12px; background: #181B21; border: 1px solid #262A33">
+<h2 id="np" style="margin: 0; font: 600 16px Inter, sans-serif; color: #F4F5F7">Nouveau</h2>
+<div style="display: flex; flex-direction: column; gap: 7px">
+<span style="font-size: 12.5px; color: #A9B0BC">Type</span>
+<div class="seg" role="group" aria-label="Type de document" style="align-self: flex-start">
+<button class="on" aria-pressed="true"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>Pièce</button>
+<button disabled><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="8" height="8"/><rect x="13" y="5" width="8" height="8"/><path d="M11 15h4v-2"/></svg>Assemblage<span style="font: 500 10px Inter, sans-serif; padding: 2px 6px; border-radius: 8px; background: #22262E; color: #8A919D">bientôt</span></button>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 7px">
+<label for="nom" style="font-size: 12.5px; color: #A9B0BC">Nom :</label>
+<input id="nom" placeholder="support-moteur" style="height: 40px; padding: 0 12px; border-radius: 7px; border: 1px solid #353A45; background: #121419; color: #F4F5F7; font: 400 14px Inter, sans-serif; outline: none">
+</div>
+<div style="display: flex; flex-direction: column; gap: 7px">
+<label for="lieu" style="font-size: 12.5px; color: #A9B0BC">Enregistrer dans :</label>
+<div style="display: flex; gap: 8px">
+<div style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-radius: 7px; border: 1px solid #353A45; background: #121419">
+<svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" style="color: #A9B0BC; flex: none"><path d="M3 6h6l2 2h10v11H3z"/></svg>
+<input id="lieu" value="Dossier des pièces / [Dossier A]" style="flex: 1; min-width: 0; border: 0; background: transparent; color: #F4F5F7; font: 400 13px Inter, sans-serif; outline: none">
+</div>
+<button style="height: 40px; padding: 0 12px; border-radius: 7px; border: 1px solid #353A45; background: transparent; color: #D5D9E0; font: 500 12.5px Inter, sans-serif; cursor: pointer">Choisir…</button>
+</div>
+<span style="font-size: 11.5px; color: #8A919D">Par défaut : le dossier choisi à gauche.</span>
+</div>
+<a href="Main.dc.html" style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; border-radius: 8px; background: #F2A541; color: #1A1206; font: 600 14px Inter, sans-serif; text-decoration: none">Créer<span style="font: 500 11px 'JetBrains Mono', monospace; opacity: .7">↵</span></a>
+</section>
+
+<section aria-labelledby="pr" style="flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; align-items: baseline; justify-content: space-between; padding: 0 12px">
+<h2 id="pr" style="margin: 0; font: 600 16px Inter, sans-serif; color: #F4F5F7">Pièces récentes</h2>
+<sc-if value="{{hasParts}}" hint-placeholder-val="{{ true }}"><span style="font-size: 12px; color: #8A919D">3 pièces</span></sc-if>
+</div>
+
+<sc-if value="{{hasParts}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; border-radius: 12px; background: #181B21; border: 1px solid #262A33; padding: 6px">
+<a class="rp" href="Main.dc.html">
+<span style="width: 64px; height: 48px; border-radius: 6px; background: #121419; border: 1px solid #262A33; display: flex; align-items: center; justify-content: center">
+<svg viewBox="0 0 64 48" width="56" height="42" aria-hidden="true"><g stroke="#5FD3A0" stroke-width="1" stroke-linejoin="round"><polygon points="18,20 42,32 36,36 26,30 18,34 8,28" fill="rgba(54,179,126,.35)"/><polygon points="18,34 8,28 8,24 18,30" fill="rgba(54,179,126,.25)"/></g></svg>
+</span>
+<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><span style="font: 500 14px Inter, sans-serif">test-v3</span><span style="font-size: 12px; color: #8A919D">[Dossier A] · 3 esquisses · 3 extrusions</span></span>
+<span style="font: 400 12px 'JetBrains Mono', monospace; color: #A9B0BC">05/11/2026 15:32</span>
+<svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="color: #6F7682"><path d="M9 5l7 7-7 7"/></svg>
+</a>
+<a class="rp" href="Main.dc.html">
+<span style="width: 64px; height: 48px; border-radius: 6px; background: #121419; border: 1px solid #262A33; display: flex; align-items: center; justify-content: center">
+<svg viewBox="0 0 64 48" width="56" height="42" aria-hidden="true"><g stroke="#9AA6B8" stroke-width="1" stroke-linejoin="round"><polygon points="32,12 50,21 32,30 14,21" fill="#2C313B"/><polygon points="14,21 32,30 32,38 14,29" fill="#22262E"/><polygon points="32,30 50,21 50,29 32,38" fill="#1C1F26"/></g></svg>
+</span>
+<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><span style="font: 500 14px Inter, sans-serif">test</span><span style="font-size: 12px; color: #8A919D">[Dossier A] · [résumé]</span></span>
+<span style="font: 400 12px 'JetBrains Mono', monospace; color: #A9B0BC">[JJ/MM/AAAA HH:MM]</span>
+<svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="color: #6F7682"><path d="M9 5l7 7-7 7"/></svg>
+</a>
+<a class="rp" href="Main.dc.html">
+<span style="width: 64px; height: 48px; border-radius: 6px; background: #121419; border: 1px solid #262A33; display: flex; align-items: center; justify-content: center">
+<svg viewBox="0 0 64 48" width="56" height="42" aria-hidden="true"><g stroke="#9AA6B8" stroke-width="1"><ellipse cx="32" cy="18" rx="14" ry="6" fill="#2C313B"/><path d="M18 18v12c0 3.3 6.3 6 14 6s14-2.7 14-6V18" fill="#22262E"/></g></svg>
+</span>
+<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><span style="font: 500 14px Inter, sans-serif">essai</span><span style="font-size: 12px; color: #8A919D">Dossier des pièces · [résumé]</span></span>
+<span style="font: 400 12px 'JetBrains Mono', monospace; color: #A9B0BC">[JJ/MM/AAAA HH:MM]</span>
+<svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="color: #6F7682"><path d="M9 5l7 7-7 7"/></svg>
+</a>
+</div>
+</sc-if>
+
+<sc-if value="{{empty}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 56px 24px; border-radius: 12px; border: 1px dashed #353A45; text-align: center">
+<svg class="ic" width="36" height="36" viewBox="0 0 24 24" aria-hidden="true" style="color: #6F7682"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>
+<p style="margin: 0; font-size: 14px; color: #C9CFD8">Aucune pièce ouverte pour le moment.</p>
+<p style="margin: 0; font-size: 12.5px; color: #8A919D">Donnez un nom à gauche, puis Créer.</p>
+</div>
+</sc-if>
+</section>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"vide":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const vide = !!this.props.vide;
+    return { hasParts: !vide, empty: vide };
+  }
+}
+</script>
+</body>
+</html>

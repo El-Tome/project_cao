@@ -85,7 +85,7 @@ there. See the `architecture-rust` skill.
 | The commands of the interface | `prefs/src/command.rs` | `Command`, `CommandFamily`, `family` — what a command is *called* is in `app/src/wording/command.rs` |
 | Settings and named profiles | `prefs/src/settings.rs` | `Settings`, `Profile`, `Profiles`, `DEFAULT_PROFILE` — what it is *called* is in `app/src/wording/settings.rs` |
 | Viewport and navigation settings | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
-| Colours, gradients | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
+| Colours, gradients | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` — the viewport's, which the user sets |
 | Keyboard shortcuts | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` — what a chord is *called* is in `app/src/wording/shortcuts.rs` |
 | Arrangement of the toolbar | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge` — what a placement and an entry are *called* is in `app/src/wording/toolbar.rs` |
 

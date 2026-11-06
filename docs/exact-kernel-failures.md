@@ -3470,13 +3470,21 @@ nearly parallel in #552's band, 11 one nearly square.
 - **Wrong bodies at a skew pair beside a third wall** — `Closed`,
   `Uncrossed`, `Volume`, `Listed`, 24 on the walls draw. A post bored
   square on its flank, then by its radius at 45° (86751972230147, the
-  cap's mesh left open); an elliptic shaft with a skew bore and a skew
+  cap's mesh left open — fixed: a wall's face spanning more than a turn
+  without winding had its hole laid a turn off, in the turn where the face
+  does not hold it); an elliptic shaft with a skew bore and a skew
   post (86751972219231) and a post cut by an elliptic bore and a turned
   one (86751972224624), their triangles crossing; a bore 1e-3° off square
   to a shaft beside one at 30° (86751972230062), held at square and at
   0.1°; two posts of one radius at 45°, each a hair off, the triangles
   enclosing 2 689.80 where the body holds 2 696.04 (86751972229989), held
-  at every other angle tried and with either hair alone.
+  at every other angle tried and with either hair alone — fixed: `folds`
+  flipped a diagonal on a round face across two steps of the grid, its
+  chord sagging four times the tolerance; a diagonal whose middle stands
+  further from the surface than the tolerance, and than the old diagonal's
+  middle, is no longer taken. A bound on its span in angle, half again the
+  widest side's, was tried first and left folds on five seeds `main`
+  holds.
 - **A triple contact** — a pocket touching a block's side along a line
   and a bore at 75° reaching that very line (106731298824406). A conic
   seen on a skew wall a hair beside its plane, and a meet on a plane a
@@ -3538,8 +3546,14 @@ What is left, by family:
 - **Closed or refused beside a tangent or a hair** (#707) — a cone face
   bounded by a conic and the curve of a bore tangent to the plane of that
   conic, their chords crossing at the vertex (93075255850420); a cone's
-  rim touching the body's wall within the tolerance (122431270514586); a
-  ruling crossing a curve sampled coarse on a wide wall (28743870519278);
+  rim touching the body's wall within the tolerance (122431270514586 —
+  fixed: two samples of a meet a few tolerances off its end vertex, out
+  of order, are now merged into either end within a hair; only into an
+  end, since merging any two samples that close drops the grid angle of one
+  of two walls a hair apart, and the face is left uncut, 25875769010204); a
+  ruling crossing a curve sampled coarse on a wide wall (28743870519278 —
+  fixed: a sample of a conic lying on a parallel wall the conic's wall
+  crosses was withheld as crowded; it stands on the line both walls take);
   a cone added a hair from a cylinder (28743870520828); a cone stepping
   1e-8 off a coaxial cylinder's rim, crossed by a wall at 60°, left
   `Unverified` (28743870518015); a body the application does not draw

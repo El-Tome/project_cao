@@ -721,7 +721,6 @@ fn seed_3408641393912_two_bores_a_hair_off_square_to_each_other_keep_every_rule(
 /// 45.5° to the first: two ellipses crossing at two nodes, a hair off;
 /// built with a volume off the promise (seed 86751972229989, shrunk).
 #[test]
-#[ignore = "an oblique family lane 2 leaves, #707"]
 fn seed_86751972229989_two_posts_of_one_radius_crossing_at_45_degrees_keep_every_rule() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(-1.0), Outline::circle([-1.0, -1.0], 4.5), 8.0),
@@ -878,7 +877,6 @@ fn seed_86751972230062_a_shaft_cut_by_a_bore_1e_3_degrees_off_square_and_one_at_
 /// radius at 45° a hair off its axis: built open (seed 86751972230147,
 /// shrunk).
 #[test]
-#[ignore = "an oblique family lane 2 leaves, #707"]
 fn seed_86751972230147_a_post_bored_square_then_by_its_radius_at_45_degrees_keeps_every_rule() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xz(-2.5), Outline::circle([-2.0, 1.0], 2.0), -7.0),

@@ -128,7 +128,7 @@ impl Outline {
 /// How many times the outline winds round `at`, counterclockwise counted
 /// up: a ray from it along the first coordinate, each segment crossing it
 /// counted by the way it runs, half-open at its ends.
-fn winding(points: &[DVec2], segments: &[[usize; 2]], at: DVec2) -> i64 {
+pub(super) fn winding(points: &[DVec2], segments: &[[usize; 2]], at: DVec2) -> i64 {
     segments
         .iter()
         .map(|&[from, to]| (points[from], points[to]))

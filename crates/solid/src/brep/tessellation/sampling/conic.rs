@@ -84,7 +84,7 @@ pub(super) fn of_edge(
             let grazing = grazed(body, edge, &own, step);
             let clear = |point: DVec3| {
                 !grazing(point, eps * contact::APART)
-                    && !zones.crowded(&cylinder, point)
+                    && !zones.crowded_beside_the_line(&cylinder, point)
                     && !planes
                         .iter()
                         .any(|plane| on_a_plane(plane, cylinder.origin, cylinder.axis, point, eps))

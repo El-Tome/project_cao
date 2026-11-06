@@ -266,12 +266,32 @@ impl<'a> Zones<'a> {
     /// wall that faces that one there: a sample there would be as good as on
     /// the other wall.
     pub(in crate::brep::tessellation) fn crowded(&self, cylinder: &Cylinder, point: DVec3) -> bool {
-        self.pairs.iter().any(|facing| {
+        self.crowding(*cylinder, point).next().is_some()
+    }
+
+    /// The same for a sample of a conic, but for one on the other wall
+    /// itself, within the kernel's tolerance, of two walls not decided to
+    /// touch: it stands on the line they cross along, which both take, and
+    /// withheld, the conic's chord would pass a corner there on the wrong
+    /// side (28743870519278).
+    pub(in crate::brep::tessellation) fn crowded_beside_the_line(
+        &self,
+        cylinder: &Cylinder,
+        point: DVec3,
+    ) -> bool {
+        self.crowding(*cylinder, point).any(|facing| {
+            facing.gap.touch()
+                || facing.gap.other(cylinder).distance(point).abs() > facing.body.scale().eps()
+        })
+    }
+
+    fn crowding(&self, cylinder: Cylinder, point: DVec3) -> impl Iterator<Item = &Facing<'a>> {
+        self.pairs.iter().filter(move |facing| {
             let [one, other] = facing.walls;
-            if one.1 != *cylinder && other.1 != *cylinder {
+            if one.1 != cylinder && other.1 != cylinder {
                 return false;
             }
-            facing.crowds(cylinder, point) && facing.at(point)
+            facing.crowds(&cylinder, point) && facing.at(point)
         })
     }
 }

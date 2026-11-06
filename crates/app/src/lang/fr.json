@@ -361,6 +361,8 @@
   "panel.close": "Fermer",
   "section.clicked_face": "Face cliquée",
   "section.distance": "Distance",
+  "section.tilt_u": "Inclinaison 1",
+  "section.tilt_v": "Inclinaison 2",
   "section.behind": "Derrière : {state}",
   "section.in_front": "Devant : {state}",
   "section.hidden": "cachée",

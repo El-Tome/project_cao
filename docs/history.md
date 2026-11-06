@@ -210,9 +210,18 @@ format: a part written before that kind existed names only the kinds it knew.
 
 « Enregistrer la coupe » (#692) records a `SaveSection`, which opens a step of
 the kind `section`. Its index line holds the plane and, when it was laid on a
-face, the face it follows; its folder holds the distance and how each side is
-drawn, then every `EditSection` and `DeleteSection` made to it since. A
-deletion is a record, as erasing a trait is, so undo brings the section back.
+face, the face it follows; its folder holds the distance, how each side is
+drawn and the two angles the plane is tilted by (#693), then every
+`EditSection` and `DeleteSection` made to it since. A deletion is a record, as
+erasing a trait is, so undo brings the section back.
+
+The two angles turn the plane about its own `u`, then its own `v`, around a
+pivot worked out where the section is used, and never saved: the middle of the
+part as it stands, or, for a section on a face, the point of that face under
+the middle. The distance then moves the plane along its tilted normal from the
+pivot; at 0 and 0 the cut is the one an untilted section made. A section
+written before the angles existed — in its folder or in the cache of the
+geometry — reads both as 0.
 
 That makes a section a step like the others for undo, for the file and for the
 replay order, and it touches none of the matter: the body, its volume and its

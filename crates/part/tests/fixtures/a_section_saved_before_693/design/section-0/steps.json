@@ -1,0 +1,9 @@
+{
+  "opening": {
+    "opens": "section",
+    "offset": 15.0,
+    "behind": "see-through",
+    "in_front": "opaque"
+  },
+  "operations": []
+}

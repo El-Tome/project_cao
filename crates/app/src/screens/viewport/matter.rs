@@ -103,10 +103,11 @@ impl Sections {
         let parts: Vec<(Cow<'a, Body>, MatterInFront)> = if section.behind == section.in_front {
             vec![(Cow::Borrowed(body), section.behind)]
         } else {
-            let towards = section.plane.normal();
+            let tilted = section.tilted();
+            let towards = tilted.normal();
             let cut = Cut {
                 towards,
-                offset: towards.dot(section.plane.origin) + section.offset,
+                offset: towards.dot(tilted.origin) + section.offset,
             };
             let shown = |state| state != MatterInFront::Hidden;
             let (behind, in_front) =

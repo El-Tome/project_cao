@@ -1,12 +1,14 @@
-//! The section view's panel — the plane, the distance, each side's state,
-//! « Inverser » and « Enregistrer la coupe » — and its handle on the cutting
-//! plane.
+//! The section view's panel — the plane, the distance, the two tilts, each
+//! side's state, « Inverser » and « Enregistrer la coupe » — and, on the
+//! cutting plane, its square, its arrow and its handle.
 
 use cao_prefs::Command;
+use cao_render::{push_plane_outline, push_plane_quad};
 use cao_sketch::WorkPlane;
 
 use super::live_fields::value_field;
 use super::overlays::{tint_to_color, to_screen};
+use super::{tint, tint_at};
 use crate::screens::SketchContext;
 use crate::screens::viewport::section::Section;
 use crate::screens::viewport::{ViewScale, ViewportState};
@@ -65,7 +67,35 @@ fn rows(ui: &mut egui::Ui, section: &mut Section, context: &SketchContext<'_>) -
     if panel_row(ui, lang.t("section.clicked_face"), on_a_face, waiting).clicked() {
         section.wait_for_a_face();
     }
-    ui.horizontal(|ui| distance(ui, section, context));
+    let millimetres = context.document.scale();
+    let now = section.distance_text(millimetres);
+    let distance = ("section_distance", lang.t("section.distance"), "mm");
+    if let Some(typed) = ui
+        .horizontal(|ui| typed_row(ui, distance, now, context))
+        .inner
+    {
+        section.type_distance(typed, millimetres);
+    }
+    for (id, key, tilt) in [
+        (
+            "section_tilt_u",
+            "section.tilt_u",
+            &mut section.tilt_about_u_degrees,
+        ),
+        (
+            "section_tilt_v",
+            "section.tilt_v",
+            &mut section.tilt_about_v_degrees,
+        ),
+    ] {
+        let now = crate::wording::dimension::short(*tilt);
+        if let Some(typed) = ui
+            .horizontal(|ui| typed_row(ui, (id, lang.t(key), "°"), now, context))
+            .inner
+        {
+            *tilt = typed;
+        }
+    }
     if panel_row(
         ui,
         said::side(lang, Side::Behind, section.behind),
@@ -92,55 +122,89 @@ fn rows(ui: &mut egui::Ui, section: &mut Section, context: &SketchContext<'_>) -
     ui.button(lang.t("section.save")).clicked()
 }
 
-/// The distance, in millimetres, typed or read from the formula field: while
-/// the field is not being typed in, it follows the cut wherever the handle
-/// takes it.
-fn distance(ui: &mut egui::Ui, section: &mut Section, context: &SketchContext<'_>) {
-    let millimetres = context.document.scale();
+/// A field after its label, taking a number typed or read from the formula
+/// field: while it is not being typed in, it reads `now`, which follows the
+/// handle for the distance. Returns what was typed.
+fn typed_row(
+    ui: &mut egui::Ui,
+    (id, label, unit): (&str, String, &str),
+    now: String,
+    context: &SketchContext<'_>,
+) -> Option<f64> {
     let variables = context.document.variables();
-    let id = egui::Id::new("section_distance");
+    let id = egui::Id::new(id);
     let typing = ui.memory(|memory| memory.has_focus(id));
     let mut text = match typing {
         true => ui.data(|data| data.get_temp::<String>(id.with("text"))),
         false => None,
     }
-    .unwrap_or_else(|| section.distance_text(millimetres));
-    ui.label(context.lang.t("section.distance"));
+    .unwrap_or(now);
+    ui.label(label);
     let field = value_field(ui, id, &mut text, "", false, variables);
-    ui.label("mm");
-    if field.response.response.changed()
-        && let Ok((_, typed)) = variables.size_of(&text)
-    {
-        section.type_distance(typed, millimetres);
-    }
+    ui.label(unit);
+    let typed = match field.response.response.changed() {
+        true => variables.size_of(&text).ok().map(|(_, typed)| typed),
+        false => None,
+    };
     ui.data_mut(|data| data.insert_temp(id.with("text"), text));
+    typed
 }
 
-/// The handle: a dot on the cutting plane over the middle of the part, and a
-/// stroke along the normal it is pulled along.
+/// The handle: a dot on the cutting plane over the middle of the part.
 pub(crate) fn paint_section_handle(
     ui: &egui::Ui,
     state: &ViewportState,
     rect: egui::Rect,
-    scale: ViewScale,
     context: &SketchContext<'_>,
 ) {
     let Some(section) = state.section() else {
         return;
     };
     let handle = section.handle(context.document.body());
-    let reach = section.plane.normal() * scale.world_size_of(HANDLE_PIXELS);
     let view_projection = state.camera.view_projection(rect.width() / rect.height());
-    let color = tint_to_color(state.theme.highlight);
-    let (Some(at), Some(tip)) = (
-        to_screen(handle, view_projection, rect),
-        to_screen(handle + reach, view_projection, rect),
-    ) else {
-        return;
-    };
-    let painter = ui.painter_at(rect);
-    painter.line_segment([at, tip], egui::Stroke::new(2.0, color));
-    painter.circle_filled(at, 6.0, color);
+    if let Some(at) = to_screen(handle, view_projection, rect) {
+        let color = tint_to_color(state.theme.highlight);
+        ui.painter_at(rect).circle_filled(at, 6.0, color);
+    }
 }
 
-const HANDLE_PIXELS: f64 = 60.0;
+/// While the section tool is open, the cutting plane as a see-through square
+/// centred on the handle, outlined, and the arrow the way it faces, both the
+/// same size on screen at any zoom.
+pub(super) fn push_section_plane(
+    surfaces: &mut Vec<cao_render::Vertex>,
+    lines: &mut Vec<cao_render::Vertex>,
+    state: &ViewportState,
+    scale: ViewScale,
+    context: &SketchContext<'_>,
+) {
+    let Some(section) = state.section() else {
+        return;
+    };
+    let cut = section.cutting_plane();
+    let centre = section.handle(context.document.body());
+    let (u, v) = (cut.u.as_vec3(), cut.v.as_vec3());
+    let half_size = scale.world_size_of(SQUARE_PIXELS) as f32;
+    let highlight = state.theme.highlight;
+    push_plane_quad(
+        surfaces,
+        centre.as_vec3(),
+        u,
+        v,
+        half_size,
+        tint_at(highlight, 0.15),
+    );
+    let outline = tint(highlight);
+    push_plane_outline(lines, centre.as_vec3(), u, v, half_size, outline, 1.5);
+    let facing = section.facing();
+    let length = scale.world_size_of(ARROW_PIXELS);
+    let tip = centre + facing * length;
+    let barb = |side: glam::DVec3| tip + (side * 0.5 - facing) * length * 0.2;
+    for (from, to) in [(centre, tip), (tip, barb(cut.u)), (tip, barb(-cut.u))] {
+        lines.push(cao_render::Vertex::line(from.as_vec3(), outline, 2.0));
+        lines.push(cao_render::Vertex::line(to.as_vec3(), outline, 2.0));
+    }
+}
+
+const SQUARE_PIXELS: f64 = 80.0;
+const ARROW_PIXELS: f64 = 60.0;

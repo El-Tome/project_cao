@@ -50,6 +50,6 @@ pub use history::{ExtrusionMode, History, Operation, PointRef, RevolutionAxis};
 pub use outcome::Outcome;
 pub use picture::Picture;
 pub use ports::{Entry, FileError, Files, Folders};
-pub use sections::SavedSection;
+pub use sections::{SavedSection, pivot_of, tilted_plane};
 pub use state::PartState;
 pub use variables::{NameProblem, Unusable, Variable, VariableChange, VariableId, Variables};

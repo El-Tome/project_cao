@@ -170,6 +170,7 @@ pub(crate) fn build_frame(
 
     let mut solids = Vec::new();
     body::push_matter(&mut solids, &mut surfaces, state, context);
+    section_panel::push_section_plane(&mut surfaces, &mut lines, state, scale, context);
 
     let mut cube_triangles = Vec::new();
     let mut cube_edges = Vec::new();

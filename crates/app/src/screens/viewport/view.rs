@@ -119,7 +119,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         ViewportCallback { frame },
     ));
 
-    paint_section_handle(ui, state, rect, scale, sketch);
+    paint_section_handle(ui, state, rect, sketch);
     paint_face_labels(ui, state, cube_rect, sketch.lang);
     paint_band(ui, state, rect, sketch);
     paint_rule_marks(ui, state, rect, sketch, going.as_ref());

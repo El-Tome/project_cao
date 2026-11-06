@@ -87,6 +87,10 @@ enum Opening {
         offset: f64,
         behind: SideDrawing,
         in_front: SideDrawing,
+        #[serde(default)]
+        tilt_about_u_degrees: f64,
+        #[serde(default)]
+        tilt_about_v_degrees: f64,
     },
 }
 

@@ -3,6 +3,8 @@
 //! once and only when asked for.
 
 mod chamfer;
+mod fillet;
+mod wedge;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;

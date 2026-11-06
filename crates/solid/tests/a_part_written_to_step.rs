@@ -860,6 +860,22 @@ fn the_reader_measures_a_cylinder_written_by_hand() {
     );
 }
 
+#[test]
+fn the_reader_finds_the_cylinder_a_wall_written_by_hand_stands_on() {
+    let solid = read(&step_reader::hand_written::cylinder());
+
+    let [(origin, axis, radius)] = solid.cylinders[..] else {
+        panic!("one cylinder, under the wall: {:?}", solid.cylinders);
+    };
+    assert!(
+        origin.distance(DVec3::new(1.0, 1.0, 0.0)) < 1e-12
+            && axis.distance(DVec3::Z) < 1e-12
+            && (radius - 2.0).abs() < 1e-12,
+        "the wall stands on the cylinder of radius 2 about the upright through (1, 1, 0), \
+         the file says {radius} about {origin} along {axis}"
+    );
+}
+
 fn measures(text: &str, volume: f64, area: f64) {
     let solid = read(text);
 

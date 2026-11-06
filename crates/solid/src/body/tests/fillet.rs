@@ -1,11 +1,16 @@
 //! The bodies a fillet leaves (#697), held to the one rule of `soundness`
 //! the public body cannot be asked about, since it needs the exact body
-//! itself: what it lists itself as made of stands on its geometry. The rest of
-//! the fillet's tests are `tests/a_fillet_rounds_one_straight_edge.rs`.
+//! itself: what it lists itself as made of stands on its geometry; and the
+//! floor its radius is held to, which is read at the part's own tolerance.
+//! The rest of the fillet's tests are
+//! `tests/a_fillet_rounds_one_straight_edge.rs`.
+
+use std::collections::BTreeSet;
 
 use super::*;
 use crate::EdgeName;
-use crate::soundness::listed;
+use crate::brep::Scale;
+use crate::soundness::{closed, listed, uncrossed};
 
 /// An outline on the ground raised by `height` and joined to the matter so
 /// far, as `cao_part` builds a step: the outline's faces numbered past the
@@ -250,6 +255,170 @@ fn every_body_a_fillet_leaves_lists_what_it_is_made_of_as_its_geometry_stands() 
             listed(&body.listing(), body.scale().reach()),
             Ok(()),
             "{what}"
+        );
+    }
+}
+
+/// How many `Scale::HAIR` tolerances, at the part's scale, a fillet's round
+/// must stand off the edge's two faces, at the middle of its turn, not to be
+/// declined as too short: the floor `docs/exact-kernel.md` and
+/// `Declined::Distance` give it, the chamfer's own.
+const FLOOR_IN_HAIRS: f64 = 4.0;
+
+/// Every number some face of the body answers to.
+fn numbers(body: &Body) -> BTreeSet<usize> {
+    (0..body.faces_end())
+        .filter(|&number| body.has_face(number))
+        .collect()
+}
+
+/// An edge to fillet, and the round a radius lays on it: how far a round of
+/// radius one stands off the two faces, `1 − sin(α/2)`; the matter a round
+/// of radius one takes, the section between the faces and the round times the
+/// edge's length; and whether a point lies on the round of a radius, its
+/// cylinder's axis read off the faces.
+struct Edge {
+    what: &'static str,
+    part: Body,
+    sides: [u32; 2],
+    standing: f64,
+    taken_per_square: f64,
+    on_the_round: fn(DVec3, f64, f64) -> bool,
+}
+
+/// The radius whose round stands off the edge's two faces by exactly the
+/// floor, at the part's scale.
+fn floor_radius(edge: &Edge) -> f64 {
+    let scale = edge
+        .part
+        .brep()
+        .expect("the exact kernel computed the part")
+        .scale();
+    FLOOR_IN_HAIRS * Scale::HAIR * scale.eps() / edge.standing
+}
+
+/// What is wrong with the body a fillet of `radius` left on the edge, when
+/// it is no sound round of its own: one face more, answering to the number
+/// the steps' numbers ended at and to nothing else, curved, every corner of
+/// its triangles on the round within the part's tolerance; the edge gone,
+/// every other face kept, the body closed, uncrossed, and holding what
+/// arithmetic says.
+fn fault_of_the_round(edge: &Edge, name: &EdgeName, radius: f64) -> Option<String> {
+    let part = &edge.part;
+    let filleted = match part.fillet(name, radius) {
+        Ok(filleted) => filleted,
+        Err(declined) => return Some(format!("declined {declined:?}")),
+    };
+    let body = &filleted.body;
+    let Some(brep) = body.brep() else {
+        return Some("left flats".to_string());
+    };
+    let eps = part.brep().expect("the part is exact").scale().eps();
+    let made = part.faces_end();
+    let triangles = body.triangles();
+    let faces: Vec<_> = brep
+        .face_ids()
+        .filter(|&face| brep.numbers(face).contains(&(made as u32)))
+        .collect();
+    let (before, after) = (numbers(part), numbers(body));
+    let kept: BTreeSet<usize> = before
+        .iter()
+        .copied()
+        .filter(|number| !edge.sides.contains(&(*number as u32)))
+        .collect();
+    let mut made_and_kept = before.clone();
+    made_and_kept.insert(made);
+    let promised = part.volume() - edge.taken_per_square * radius * radius;
+    if (filleted.taken - radius).abs() > 1e-9 * radius {
+        Some(format!("took {}", filleted.taken))
+    } else if closed(&triangles).is_err() || uncrossed(&triangles).is_err() {
+        Some("left a body not closed, or with a face through another".to_string())
+    } else if faces.is_empty()
+        || faces
+            .iter()
+            .any(|&face| brep.numbers(face) != [made as u32])
+        || body.is_flat(made)
+        || body.plane_of(made).is_some()
+    {
+        Some(format!("left no curved face answering to {made} alone"))
+    } else if body
+        .triangles_of(made)
+        .flatten()
+        .any(|corner| !(edge.on_the_round)(corner, radius, eps))
+    {
+        Some("drew its round off the cylinder of the radius".to_string())
+    } else if body.lost(name).is_none() {
+        Some("left the edge where it was".to_string())
+    } else if !kept.is_subset(&after) || !after.is_subset(&made_and_kept) {
+        Some(format!(
+            "left the faces {after:?}, where the part had {before:?}"
+        ))
+    } else if (body.volume() - promised).abs() > 1e-9 * promised {
+        Some(format!(
+            "holds {}, where arithmetic promised {promised}",
+            body.volume()
+        ))
+    } else {
+        None
+    }
+}
+
+#[test]
+fn a_fillet_whose_round_stands_just_under_four_hair_tolerances_off_its_faces_is_declined_and_just_over_is_laid()
+ {
+    let turn = 1f64.to_radians();
+    let edges = [
+        Edge {
+            what: "a block's square top front edge, 30 long",
+            part: block([30.0, 10.0, 20.0]),
+            sides: [1, 2],
+            standing: 1.0 - std::f64::consts::FRAC_1_SQRT_2,
+            taken_per_square: 30.0 * (1.0 - PI / 4.0),
+            on_the_round: |corner, radius, eps| {
+                let axis = DVec2::new(radius, 20.0 - radius);
+                ((DVec2::new(corner.y, corner.z) - axis).length() - radius).abs() <= eps
+                    && (-eps..=30.0 + eps).contains(&corner.x)
+            },
+        },
+        Edge {
+            what: "a front bent to 179 degrees halfway along, 5 high",
+            part: bent_front(turn),
+            sides: [2, 3],
+            standing: 2.0 * (turn / 4.0).sin().powi(2),
+            taken_per_square: ((turn / 2.0).tan() - turn / 2.0) * 5.0,
+            on_the_round: |corner, radius, eps| {
+                let turn = 1f64.to_radians();
+                let axis = DVec2::new(15.0 - radius * (turn / 2.0).tan(), radius);
+                (corner.truncate().distance(axis) - radius).abs() <= eps
+                    && (-eps..=5.0 + eps).contains(&corner.z)
+            },
+        },
+    ];
+
+    for edge in &edges {
+        let what = edge.what;
+        let name = between(&edge.part, &[edge.sides[0]], &[edge.sides[1]]);
+        let floor = floor_radius(edge);
+        let (under, over) = (0.99 * floor, 1.01 * floor);
+
+        let declined = edge.part.fillet(&name, under).err();
+        let fault = fault_of_the_round(edge, &name, over);
+
+        assert_eq!(
+            declined,
+            Some(Declined::Distance),
+            "{what}: {under:e} asked, its round standing {:e} off the faces, under the floor of \
+             {:e}",
+            under * edge.standing,
+            floor * edge.standing
+        );
+        assert_eq!(
+            fault,
+            None,
+            "{what}: {over:e} asked, its round standing {:e} off the faces, over the floor of \
+             {:e}, is a sound round of its own",
+            over * edge.standing,
+            floor * edge.standing
         );
     }
 }

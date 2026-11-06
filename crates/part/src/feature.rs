@@ -24,6 +24,9 @@ impl Feature {
         let mut sketches = 0;
 
         for (at, operation) in history.operations().iter().enumerate() {
+            if operation.is_about_a_section() {
+                continue;
+            }
             let Some(kind) = StepKind::opened_by(operation) else {
                 match features.last_mut() {
                     Some(feature) => feature.end = at + 1,

@@ -235,15 +235,16 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | List of operations, undo, redo | `part/src/history.rs` | `History`, `Operation` |
 | The number each operation is given, the next one to be given, and the one at a place in the list | `part/src/history/numbering.rs` | `History::next_number`, `number_at` |
 | The major steps a design is grouped into | `part/src/history/step.rs` | `Step`, `StepKind` |
-| Which sketch an operation edits, and so which step it is filed under | `part/src/history/operation/edits.rs` | `Operation::edits` |
+| Which sketch an operation edits, and so which step it is filed under | `part/src/history/edits.rs` | `Operation::edits` |
+| Which step an operation that opens none is filed under: the sketch it edits, or the section it changes | `part/src/history/step.rs` | `StepKind::owner`, `StepKind::opened_by` |
 | Where a step begins and ends in the list | `part/src/feature.rs` | `Feature::all` |
 | Replaying the history for the geometry | `part/src/replay.rs`, `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` → `Outcome` |
 | What a replay notes: what each operation laid, what was raised, which values left the drawing | `part/src/replay.rs` | `Replay`, `Laid`, `SetBy`, `next_value_set` |
 | The ways a curve of a drawing is replaced by other curves — trimmed as a trait, an arc, a circle or an ellipse, divided, chamfered or rounded — and the fillets and chamfers laid as cuts on corners, one group per gesture, their values in millimetres | `part/src/cutting.rs` | `PartState::trim`, `trim_arc`, `trim_circle`, `trim_ellipse`, `split`, `chamfer`, `fillet`, `lay_cuts`, `sides_now`, `PartState::area_rank` |
 | Laying every cut still standing again after compaction, one operation per group so the corners keep changing together | `part/src/compaction/cuts.rs` | `add_cuts` |
-| A cut changed in place after it was laid, as one step: the operation, and its replay | `part/src/history/operation/cut_change.rs`, `part/src/recutting.rs` | `CutChange`, `CutAsked`, `PartState::change_cut`, `PartDocument::cut_written` |
+| A cut changed in place after it was laid, as one step: the operation, and its replay | `part/src/history/cut_change.rs`, `part/src/recutting.rs` | `CutChange`, `CutAsked`, `PartState::change_cut`, `PartDocument::cut_written` |
 | A circle, an arc or an ellipse laid down again as the history replays it | `part/src/curves.rs` | `PartState::add_circle`, `add_arc`, `add_ellipse` |
-| A side moved across or a shape turned, replayed | `part/src/pulled.rs` | `PartState::move_segment`, `turn_shape` |
+| A selection dragged, a side moved across or a shape turned, replayed | `part/src/pulled.rs` | `PartState::move_many`, `move_segment`, `turn_shape` |
 | A point, a trait, a symmetric trait or a rectangle laid down again as the history replays it | `part/src/straight.rs` | `PartState::add_point`, `add_segment`, `add_symmetric_segment`, `add_rectangle` |
 | What a drawing's curves became, so a name written before a cut can be read after it | `part/src/descent.rs` | `Descent::record`, `Descent::follow` |
 | What a part does when a tool lays copies down | `part/src/copying.rs` | `PartState::mirror`, `PartState::pattern_around`, `PartState::pattern_along` |
@@ -252,7 +253,7 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | A size as the user wrote it: read, worked out, written back | `part/src/formula.rs`, `formula/reading.rs`, `formula/writing.rs` | `Formula::read`, `value`, `whole`, `written`, `stored` |
 | The part's table of variables: names, loops, what a typed size comes to | `part/src/variables.rs` | `Variables`, `VariableChange`, `check_name`, `loop_through`, `size_of` |
 | Where the changes to the variables sit in the history | `part/src/history/table.rs` | `History::variable_changes`, `table_operations` |
-| The sizes a chamfer or a pattern was asked for, as written | `part/src/history/operation/sizes.rs` | `ChamferAsked`, `RepeatsAsked`, `Operation::sizes` |
+| The sizes a chamfer or a pattern was asked for, as written | `part/src/history/sizes.rs` | `ChamferAsked`, `RepeatsAsked`, `Operation::sizes` |
 | A size that does not hold once the part is rebuilt | `part/src/broken.rs` | `Broken`, `PartState::size`, `broken_since` |
 | Which faces of the part a step of matter made, the pieces a later cut parted from them among them | `part/src/extrusion.rs`, `part/src/document/matter.rs` | `PartState::raising`, `PartState::faces_made`, `Body::pieces`, `PartDocument::faces_made_by` |
 | An area handed to the kernel as runs and as steps, an ellipse as its arcs | `part/src/profile.rs` | `profile` |
@@ -266,7 +267,8 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | Changing the variables, and what is refused | `part/src/document/variables.rs` | `PartDocument::change_variable`, `Refused`, `Use`, `uses_of`, `formula_of` |
 | The variables through a compaction | `part/src/compaction/variables.rs` | `compact_variables`, `Renumbered` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 6` |
-| The design folder: the index, one folder per step, and the line between them | `part/src/document/design.rs` | `laid_out`, `read`, `taken_apart`, `put_together` |
+| The design folder: the index, one folder per step, and the line between them | `part/src/document/design.rs`, `part/src/document/design/opening.rs` | `laid_out`, `read`, `taken_apart`, `put_together` |
+| A section kept in the part: what making or changing one asks, the step it is, the plane it is found on again at every replay, broken when its face is gone, and the drawings laid on it (#692) | `part/src/history/section.rs`, `part/src/sections.rs`, `part/src/document/sections.rs` | `SectionAsked`, `SideDrawing`, `SavedSection::cutting_plane`, `PartState::apply_to_sections`, `PartDocument::sections`, `section_under`, `is_stood_on` |
 | The geometry a part is cached with | `part/src/document/geometry_cache.rs` | `write`, `read`, `GEOMETRY_ENTRY` |
 | A part drawn to order, for a test or a measurement | `part/src/drawn_to_order.rs` | `Recipe`, `Recipe::drawn` |
 | Writing one out, and timing what it costs | `part/examples/draw_a_part.rs` | `cargo run --release -p cao_part --features test-support --example draw_a_part -- /tmp/big.caopart sketches=6 storeys=4` |
@@ -358,7 +360,9 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | The panel of the mirror and the two patterns: its slots, which one is active and which one is marked, the elements and the target it holds | `app/src/screens/sketch/copy_panel.rs` | `CopyPanel`, `CopySlot`, `CopyTarget`, `CopyValue`, `SketchEditor::copy_panel`, `SketchEditor::cancel_the_copy` |
 | Canvas: that panel drawn over the view, its rows, its value fields, Valider and Annuler | `app/src/screens/viewport/render/copy_panel.rs` | `paint_copy_panel` |
 | Canvas: the section view — its plane, its distance, each side's state, its handle pulled along the normal | `app/src/screens/viewport/section.rs` | `Section`, `closest_along`, `to_the_middle` |
-| Canvas: the section view's panel and its handle drawn over the view | `app/src/screens/viewport/render/section_panel.rs` | `paint_section_panel`, `paint_section_handle` |
+| Canvas: the section view's panel and its handle drawn over the view; « Enregistrer la coupe » keeps it in the part | `app/src/screens/viewport/render/section_panel.rs` | `paint_section_panel`, `paint_section_handle` |
+| Canvas: a kept section taken up by the section view and handed back to the part, each side's drawing mapped between the part's words and the renderer's | `app/src/screens/viewport/section/kept.rs` | `Section::reopened`, `asked`, `keep_in` |
+| Canvas: which kept section is switched on — the viewport's, never saved — and the one a drawing laid on a section switches on while it is open | `app/src/screens/viewport/kept_sections.rs` | `KeptSections`, `toggle`, `keep_up_with`, `ViewportState::section_shown` |
 | Canvas: a face clicked to cut along, the handle taken and pulled, the section's cut picked to start a sketch on | `app/src/screens/viewport/input/planes.rs` | `choose_a_cutting_face`, `point_the_section`, `choose_a_plane` |
 | What the rows of the section view's panel say | `app/src/wording/section.rs` | `side`, `Side` |
 | What the rows of that panel say | `app/src/wording/copy_panel.rs` | `elements`, `target`, `Target` |
@@ -382,8 +386,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | A value typed into a dimension already on the drawing, and into the first one placed | `app/src/screens/sketch/typed_dimension.rs` | `apply_dimension_value`, `take_back_the_first_placing` |
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
 | Extrusion and revolution, UI side, and what it says when nothing was made or the kernel declined | `app/src/screens/extrusion.rs` | `ExtrusionState`, `apply_extrusion` |
-| The tree of a part: its bodies and sketches, a step marked when an area is lost or the kernel declined it, a sketch when its face is gone | `app/src/screens/part_tree/` | `state.rs` `PartTree::of`, `view.rs` `panel` |
-| The tree's rows clicked: in the open sketch they select, as a click on the canvas does; in another they light an element or an area on the canvas; the eye of a sketch and the « Corps » rubric stepping the body's mode | `app/src/screens/part_tree/state/clicks.rs`, `app/src/screens/part_tree/view.rs` | `TreeAction`, `clicked`, `clickable`, `marked`, `take` |
+| The tree of a part: its bodies, its sketches and its kept sections, a step marked when an area is lost or the kernel declined it, a sketch or a section when its face is gone | `app/src/screens/part_tree/` | `state.rs` `PartTree::of`, `view.rs` `panel` |
+| The tree's rows clicked: in the open sketch they select, as a click on the canvas does; in another they light an element or an area on the canvas; the eye of a sketch and the « Corps » rubric stepping the body's mode; a kept section switched on by a click, reopened by a double-click, deleted from its menu after a question when a drawing stands on it | `app/src/screens/part_tree/state/clicks.rs`, `app/src/screens/part_tree/view.rs`, `app/src/panels.rs` | `TreeAction`, `clicked`, `clickable`, `marked`, `take`, `section_delete_confirm` |
 | Canvas: which sketches are drawn — one an extrusion or a revolution was made from only with its eye lit, the eyes kept by the number of the operation that created their sketch and put back to their defaults by a compaction — the row lit from the tree, and the body's mode, opaque, see-through or invisible | `app/src/screens/viewport/visibility.rs`, `app/src/commands.rs` | `eye_lit`, `toggle_eye`, `light`, `body_mode`, `next_body_mode`, `sketches_seen`; `compact_history` |
 | Canvas: the part's matter in a frame, drawn as the body's mode says over what the sketch's cut or the section leaves | `app/src/screens/viewport/render/body.rs` | `push_matter` |
 | The eye beside a row, lit or faded | `app/src/ui/eye.rs` | `eye` |

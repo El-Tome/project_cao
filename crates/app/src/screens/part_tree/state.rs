@@ -92,6 +92,16 @@ pub struct PartTree {
     pub variables: Vec<String>,
     pub bodies: Vec<Body>,
     pub sketches: Vec<Drawn>,
+    pub sections: Vec<Kept>,
+}
+
+/// One section the part keeps.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Kept {
+    pub id: usize,
+    pub name: String,
+    /// Whether the face it was laid on is gone, which leaves it cutting nothing.
+    pub broken: bool,
 }
 
 impl PartTree {
@@ -126,7 +136,7 @@ impl PartTree {
                 .and_then(|number| document.unstable_at(number))
                 .map(|unstable| wording::unstable::notice(lang, unstable));
             match operation {
-                Operation::CreateSketch { .. } => {
+                Operation::CreateSketch { .. } | Operation::CreateSketchOnSection { .. } => {
                     let sketch = sketches;
                     sketches += 1;
                     let Some(drawing) = document.sketches().get(sketch) else {
@@ -196,11 +206,23 @@ impl PartTree {
                 _ => {}
             }
         }
+        tree.sections = document
+            .sections()
+            .into_iter()
+            .map(|kept| Kept {
+                id: kept.id,
+                name: numbered(lang, "part_tree.section", kept.id + 1),
+                broken: kept.broken,
+            })
+            .collect();
         tree
     }
 
     pub fn is_empty(&self) -> bool {
-        self.variables.is_empty() && self.bodies.is_empty() && self.sketches.is_empty()
+        self.variables.is_empty()
+            && self.bodies.is_empty()
+            && self.sketches.is_empty()
+            && self.sections.is_empty()
     }
 }
 

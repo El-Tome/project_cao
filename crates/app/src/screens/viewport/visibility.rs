@@ -5,6 +5,7 @@
 
 use std::collections::BTreeMap;
 
+use cao_part::history::StepKind;
 use cao_part::{Operation, PartDocument};
 use cao_render::MatterInFront;
 use cao_sketch::Sketch;
@@ -132,7 +133,7 @@ fn created_by(document: &PartDocument, sketch: usize) -> Option<u32> {
         .applied_operations()
         .iter()
         .enumerate()
-        .filter(|(_, operation)| matches!(operation, Operation::CreateSketch { .. }))
+        .filter(|(_, operation)| StepKind::opened_by(operation) == Some(StepKind::Sketch))
         .nth(sketch)?;
     history.number_at(step)
 }

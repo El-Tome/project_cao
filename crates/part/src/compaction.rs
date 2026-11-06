@@ -39,15 +39,8 @@ pub fn compact(history: &History) -> History {
 
     for operation in operations {
         match operation {
-            Operation::CreateSketch { plane, on } => {
-                record(
-                    Operation::CreateSketch {
-                        plane: *plane,
-                        on: *on,
-                    },
-                    &mut new_history,
-                    &mut new_state,
-                );
+            Operation::CreateSketch { .. } | Operation::CreateSketchOnSection { .. } => {
+                record(operation.clone(), &mut new_history, &mut new_state);
                 let sketch_index = sketch_maps.len();
                 let old_sketch = &old_state.sketches[sketch_index];
                 let axis_segments = revolve_axis_segments(sketch_index, operations);
@@ -111,6 +104,11 @@ pub fn compact(history: &History) -> History {
                     &mut new_history,
                     &mut new_state,
                 );
+            }
+            Operation::SaveSection(_)
+            | Operation::EditSection { .. }
+            | Operation::DeleteSection { .. } => {
+                record(operation.clone(), &mut new_history, &mut new_state)
             }
             // Every other operation reshapes a sketch already covered, in full,
             // by the `CreateSketch` branch above.

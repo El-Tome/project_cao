@@ -80,7 +80,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     changed |= advance_on_enter(ui, sketch, scale);
     let (laid, copy_panel_let_go_at) = paint_copy_panel(ui, state.copy_panel_at, rect, sketch);
     changed |= laid;
-    paint_section_panel(ui, state, rect, sketch);
+    changed |= paint_section_panel(ui, state, rect, sketch);
 
     // A measure read a moment ago is about a drawing that has just moved, so
     // it goes with the change rather than staying on screen being wrong.

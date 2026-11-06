@@ -36,6 +36,7 @@ pub(crate) fn beside_the_part(
                 if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
                     viewport.light_out();
                     editor.begin_editing(sketch, plane);
+                    ribbon.tab = 0;
                     let (center, radius) = commands::sketch_framing(doc, Some(sketch), plane);
                     viewport.look_at_plane(plane, center, radius);
                 }
@@ -46,10 +47,32 @@ pub(crate) fn beside_the_part(
             }
             screens::part_tree::TreeAction::Light(row) => viewport.light(row),
             screens::part_tree::TreeAction::NextBodyMode => viewport.next_body_mode(),
+            screens::part_tree::TreeAction::ToggleSection(section) => {
+                viewport.kept_sections.toggle(section);
+            }
+            screens::part_tree::TreeAction::EditSection(section) => {
+                if let Some(kept) = doc.sections().iter().find(|kept| kept.id == section) {
+                    viewport.reopen_section(kept);
+                }
+            }
+            screens::part_tree::TreeAction::DeleteSection(section) => {
+                match doc.is_stood_on(section) {
+                    true => ribbon.section_delete_confirm = Some(section),
+                    false => changed |= delete_section(doc, section),
+                }
+            }
             screens::part_tree::TreeAction::None => {}
         }
     } else {
         viewport.light_out();
+    }
+    if let Some(section) = ribbon.section_delete_confirm
+        && let Some(confirmed) = screens::part_tree::view::section_delete_confirm(ui, lang)
+    {
+        ribbon.section_delete_confirm = None;
+        if confirmed {
+            changed |= delete_section(doc, section);
+        }
     }
 
     if ribbon.history_open {
@@ -96,5 +119,16 @@ pub(crate) fn beside_the_part(
             variables.blink(named.variables, now);
         }
     }
+    if viewport
+        .kept_sections
+        .keep_up_with(doc, editor.active_sketch())
+    {
+        ui.ctx().request_repaint();
+    }
     changed
+}
+
+fn delete_section(doc: &mut PartDocument, section: usize) -> bool {
+    doc.apply(cao_part::Operation::DeleteSection { section });
+    true
 }

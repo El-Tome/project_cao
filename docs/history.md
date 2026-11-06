@@ -118,6 +118,8 @@ A `.caopart` is a **zip archive**, and no longer a single JSON object:
     ├── sketch-0/steps.json       what was drawn on that sketch
     ├── extrusion-0/steps.json    how far it went, and which way
     ├── sketch-1/steps.json
+    ├── section-0/steps.json      how far a kept section stands from its plane,
+    │                             how each side is drawn, and what changed it
     └── variables.json            every change made to the part's variables,
                                   when it has any
 ```
@@ -144,8 +146,8 @@ produce it, and a `simulation/` folder run against the part as a whole.
 ### The index says what each step stands on, the folder says what it does
 
 `design/history.json` names the **major steps** in the order they were made —
-today a sketch, an extrusion, a revolution; tomorrow a drilling, a section
-view. Per step it holds what that step **stands on**, and the numbers of the
+today a sketch, an extrusion, a revolution and a kept section; tomorrow a
+drilling. Per step it holds what that step **stands on**, and the numbers of the
 operations recorded under it. What the step *does* is in its folder.
 
 The line between the two is not a matter of taste:
@@ -203,6 +205,36 @@ the whole tree back in the order things were done; the step's rank says *where*.
 
 The kinds are **written out by name**, so a kind added later costs no change of
 format: a part written before that kind existed names only the kinds it knew.
+
+### A kept section is a step that raises nothing
+
+« Enregistrer la coupe » (#692) records a `SaveSection`, which opens a step of
+the kind `section`. Its index line holds the plane and, when it was laid on a
+face, the face it follows; its folder holds the distance and how each side is
+drawn, then every `EditSection` and `DeleteSection` made to it since. A
+deletion is a record, as erasing a trait is, so undo brings the section back.
+
+That makes a section a step like the others for undo, for the file and for the
+replay order, and it touches none of the matter: the body, its volume and its
+exports are what they are without it. The history panel leaves these
+operations out — it lists what was done to the drawing or the matter.
+
+A section is named by its rank among the sections ever made, the way a sketch
+is, so deleting one leaves the others' names alone. Its plane is found again at
+every replay from the part as it then stands, through the face it was laid on;
+a face the part no longer has leaves the section broken, cutting nothing, until
+it is moved to another plane.
+
+A drawing started on the cut of a kept section opens its step with
+`CreateSketchOnSection`, written in the index as a sketch line carrying
+`"section": n`. It follows the section, replayed after it, and is adrift where
+it was laid when the section is broken or deleted. A drawing started on the cut
+of a section view never kept is a plain `CreateSketch` on a fixed plane.
+
+Which section is switched on is the viewport's, never the file's: a part opens
+whole. No version changed: a part written before sections reads exactly as it
+did, and the sketch line of one written since says nothing new until it stands
+on a section.
 
 The grouping this describes is no longer worked out from the list of
 operations. The history records it, `Feature::all` turns it into the positions

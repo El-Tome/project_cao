@@ -14,7 +14,7 @@ use super::Operation;
 /// What kind of major step it is.
 ///
 /// Written out by name in the index, so a kind added later — a drilling, a
-/// section view — costs no change of format: a part written before that kind
+/// section — costs no change of format: a part written before that kind
 /// existed names only the kinds it knew.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -22,16 +22,21 @@ pub enum StepKind {
     Sketch,
     Extrusion,
     Revolution,
+    /// A section kept in the part: a way of looking, which raises nothing.
+    Section,
 }
 
 impl StepKind {
     /// The step this operation opens, when it opens one. Every other operation
     /// is recorded under the step already open.
-    pub(crate) fn opened_by(operation: &Operation) -> Option<Self> {
+    pub fn opened_by(operation: &Operation) -> Option<Self> {
         match operation {
-            Operation::CreateSketch { .. } => Some(Self::Sketch),
+            Operation::CreateSketch { .. } | Operation::CreateSketchOnSection { .. } => {
+                Some(Self::Sketch)
+            }
             Operation::Extrude { .. } => Some(Self::Extrusion),
             Operation::Revolve { .. } => Some(Self::Revolution),
+            Operation::SaveSection(_) => Some(Self::Section),
             _ => None,
         }
     }
@@ -42,7 +47,24 @@ impl StepKind {
             Self::Sketch => "sketch",
             Self::Extrusion => "extrusion",
             Self::Revolution => "revolution",
+            Self::Section => "section",
         }
+    }
+
+    /// Which of these steps an operation that opens none is recorded under:
+    /// the sketch it edits, or the section it changes, by rank in its kind.
+    pub(crate) fn owner(kinds: &[Self], operation: &Operation) -> Option<usize> {
+        let (kind, rank) = match (operation.edits(), operation.edits_section()) {
+            (Some(sketch), _) => (Self::Sketch, sketch),
+            (None, Some(section)) => (Self::Section, section),
+            (None, None) => return None,
+        };
+        kinds
+            .iter()
+            .enumerate()
+            .filter(|(_, given)| **given == kind)
+            .map(|(at, _)| at)
+            .nth(rank)
     }
 }
 

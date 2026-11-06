@@ -1,6 +1,8 @@
 //! The section view: a plane through the part, and how the matter on each of
-//! its sides is drawn. A way of looking — nothing of it enters the document.
+//! its sides is drawn. A way of looking — nothing of it enters the document
+//! until it is kept.
 
+use cao_part::history::FaceAnchor;
 use cao_render::MatterInFront;
 use cao_sketch::WorkPlane;
 use cao_solid::Body;
@@ -13,6 +15,10 @@ pub(crate) struct Section {
     pub offset: f64,
     pub behind: MatterInFront,
     pub in_front: MatterInFront,
+    /// The face the plane was taken off, which a kept section follows.
+    pub on: Option<FaceAnchor>,
+    /// The kept section this one was reopened from, which keeping it edits.
+    pub editing: Option<usize>,
     waiting_for_a_face: bool,
     held: Option<Held>,
 }
@@ -38,6 +44,8 @@ impl Section {
             offset: 0.0,
             behind: MatterInFront::Opaque,
             in_front: MatterInFront::Hidden,
+            on: None,
+            editing: None,
             waiting_for_a_face: false,
             held: None,
         }
@@ -73,12 +81,14 @@ impl Section {
     pub(crate) fn choose_origin_plane(&mut self, plane: WorkPlane, body: &Body) {
         self.plane = plane;
         self.offset = to_the_middle(plane, body);
+        self.on = None;
         self.waiting_for_a_face = false;
     }
 
     pub(crate) fn choose_face(&mut self, plane: WorkPlane) {
         self.plane = plane;
         self.offset = 0.0;
+        self.on = None;
         self.waiting_for_a_face = false;
     }
 
@@ -207,6 +217,8 @@ pub(crate) fn closest_along(line: (DVec3, DVec3), ray: (DVec3, DVec3)) -> Option
     let denominator = a * c - b * b;
     (denominator > 1e-12 * a * c).then(|| (b * e - c * d) / denominator)
 }
+
+mod kept;
 
 #[cfg(test)]
 mod tests;

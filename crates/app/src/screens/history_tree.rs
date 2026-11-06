@@ -183,6 +183,9 @@ fn clicked_step(
     let mut clicked = None;
     let start = run.start;
     for (offset, operation) in document.history.operations()[run].iter().enumerate() {
+        if operation.is_about_a_section() {
+            continue;
+        }
         let step = start + offset;
         let capped = document
             .history

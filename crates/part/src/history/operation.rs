@@ -8,26 +8,17 @@ use cao_sketch::{
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
-use crate::formula::Formula;
-use crate::variables::VariableChange;
-
-mod cut_change;
-mod edits;
-mod point_ref;
-mod raising;
-mod sizes;
-pub use cut_change::{CutAsked, CutChange};
-pub use point_ref::PointRef;
-pub use raising::{ExtrusionMode, FaceAnchor, RevolutionAxis};
-pub(crate) use sizes::FirstValue;
-pub use sizes::{ChamferAsked, RepeatsAsked};
+use super::{
+    ChamferAsked, CutChange, ExtrusionMode, FaceAnchor, PointRef, RepeatsAsked, RevolutionAxis,
+    SectionAsked,
+};
+use crate::{formula::Formula, variables::VariableChange};
 
 /// One step of the part's history. Replaying the list from the start rebuilds
 /// the whole part, which is what makes rolling back to any point possible.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Operation {
-    /// Several operations the user did as one gesture: they are replayed in
-    /// order, and undo takes the whole of it back rather than a piece.
+    /// Several operations done as one gesture: replayed in order, undone whole.
     Gesture(Vec<Operation>),
     /// A change to the part's variables. It belongs to no step: the variables
     /// are a table of the whole part, which every step reads its sizes from.
@@ -393,4 +384,17 @@ pub enum Operation {
     },
     /// A fillet or a chamfer changed after it was laid.
     CutChange(CutChange),
+    SaveSection(SectionAsked),
+    EditSection {
+        section: usize,
+        to: SectionAsked,
+    },
+    DeleteSection {
+        section: usize,
+    },
+    /// A drawing on a kept section's cut, following it; `plane` is the cut as made.
+    CreateSketchOnSection {
+        section: usize,
+        plane: WorkPlane,
+    },
 }

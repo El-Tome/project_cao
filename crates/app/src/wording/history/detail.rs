@@ -32,7 +32,7 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
             .get(*variable)
             .map(|found| found.name().to_string())
             .unwrap_or_default(),
-        Operation::CreateSketch { plane, .. } => {
+        Operation::CreateSketch { plane, .. } | Operation::CreateSketchOnSection { plane, .. } => {
             let normal = plane.normal();
             lang.t_with(
                 "history.detail.plane",
@@ -173,6 +173,9 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
             ..
         } => sized::fillet(lang, variables, *sketch, corners.len(), radius),
         Operation::CutChange(change) => super::cut_change::detail(lang, variables, change),
+        Operation::SaveSection(_)
+        | Operation::EditSection { .. }
+        | Operation::DeleteSection { .. } => String::new(),
         Operation::Mirror {
             sketch,
             elements,

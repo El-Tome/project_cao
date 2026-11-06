@@ -11,10 +11,11 @@ impl Operation {
     /// was raised from it is still the first sketch's business, and is played
     /// before that extrusion.
     ///
-    /// The three that open a step answer `None` — they are a step rather than
+    /// Those that open a step answer `None` — they are a step rather than
     /// something recorded under one, and `Extrude` and `Revolve` name the
     /// sketch they stand on rather than one they change. A change to the
-    /// variables answers `None` too: it belongs to the part, not to a step.
+    /// variables answers `None` too: it belongs to the part, not to a step;
+    /// and so does a change to a section, which is a step of its own.
     ///
     /// The match has no wildcard arm, so an operation added later has to say
     /// where it belongs instead of quietly landing wherever the list ends.
@@ -23,7 +24,11 @@ impl Operation {
             Self::CreateSketch { .. }
             | Self::Extrude { .. }
             | Self::Revolve { .. }
-            | Self::Variable(_) => None,
+            | Self::CreateSketchOnSection { .. }
+            | Self::Variable(_)
+            | Self::SaveSection(_)
+            | Self::EditSection { .. }
+            | Self::DeleteSection { .. } => None,
             Self::Gesture(done) => done.iter().find_map(Self::edits),
             Self::AddPoint { sketch, .. }
             | Self::AddSegment { sketch, .. }

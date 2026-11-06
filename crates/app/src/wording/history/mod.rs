@@ -41,6 +41,13 @@ pub fn label(lang: &Catalogue, variables: &Variables, operation: &Operation) -> 
             };
             lang.t_with("history.sketch", &[("plane", &where_laid)])
         }
+        Operation::CreateSketchOnSection { section, .. } => {
+            let name = lang.t_with("part_tree.section", &[("rank", &(section + 1).to_string())]);
+            lang.t_with("history.sketch", &[("plane", &name)])
+        }
+        Operation::SaveSection(_)
+        | Operation::EditSection { .. }
+        | Operation::DeleteSection { .. } => lang.t("command.label.section_view"),
         Operation::AddPoint { .. } => lang.t("history.point"),
         Operation::AddSegment { .. } => lang.t("history.segment"),
         Operation::AddSymmetricSegment { .. } => lang.t("history.symmetric_segment"),

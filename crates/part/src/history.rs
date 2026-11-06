@@ -5,15 +5,23 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+mod cut_change;
+mod edits;
 mod numbering;
 mod operation;
+mod point_ref;
+mod raising;
+mod section;
+mod sizes;
 mod step;
 mod table;
-pub(crate) use operation::FirstValue;
-pub use operation::{
-    ChamferAsked, CutAsked, CutChange, ExtrusionMode, FaceAnchor, Operation, PointRef,
-    RepeatsAsked, RevolutionAxis,
-};
+pub use cut_change::{CutAsked, CutChange};
+pub use operation::Operation;
+pub use point_ref::PointRef;
+pub use raising::{ExtrusionMode, FaceAnchor, RevolutionAxis};
+pub use section::{SectionAsked, SideDrawing};
+pub(crate) use sizes::FirstValue;
+pub use sizes::{ChamferAsked, RepeatsAsked};
 pub use step::{Step, StepKind};
 
 /// Everything done to a part, in order, with a cursor separating what is
@@ -209,10 +217,8 @@ impl History {
                     opened - 1
                 }
                 None => {
-                    let Some(step) = operation
-                        .edits()
-                        .and_then(|sketch| step_of(&kinds, sketch))
-                        .filter(|step| *step < opened)
+                    let Some(step) =
+                        StepKind::owner(&kinds, operation).filter(|step| *step < opened)
                     else {
                         continue;
                     };
@@ -287,13 +293,13 @@ impl History {
                 self.steps.push(Step::opened(kind));
                 self.steps.len() - 1
             }
-            None => match operation
-                .edits()
-                .and_then(|sketch| self.step_of_sketch(sketch))
-            {
-                Some(step) => step,
-                None => return,
-            },
+            None => {
+                let kinds: Vec<StepKind> = self.steps.iter().map(Step::kind).collect();
+                match StepKind::owner(&kinds, &operation) {
+                    Some(step) => step,
+                    None => return,
+                }
+            }
         };
         let number = self.number(operation);
         self.steps[owner].record(number);
@@ -326,14 +332,6 @@ impl History {
         });
         self.variables.retain(|number| left.contains(number));
         self.applied = self.operations.len();
-    }
-
-    /// Which step a sketch is: the rank-th step that opened a sketch.
-    fn step_of_sketch(&self, sketch: usize) -> Option<usize> {
-        step_of(
-            &self.steps.iter().map(Step::kind).collect::<Vec<_>>(),
-            sketch,
-        )
     }
 
     pub(crate) fn drop_what_was_undone(&mut self) {
@@ -371,16 +369,6 @@ impl History {
     pub fn rewind_to(&mut self, applied: usize) {
         self.applied = applied.min(self.operations.len());
     }
-}
-
-/// Which step a sketch is: the rank-th step that opened a sketch.
-fn step_of(kinds: &[StepKind], sketch: usize) -> Option<usize> {
-    kinds
-        .iter()
-        .enumerate()
-        .filter(|(_, kind)| **kind == StepKind::Sketch)
-        .map(|(rank, _)| rank)
-        .nth(sketch)
 }
 
 #[cfg(test)]

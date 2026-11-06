@@ -25,7 +25,12 @@
 //!   for the chamfer (hexagon, trapezoid, slot) —
 //!   `a_fillet_on_a_top_edge_of_a_hexagonal_prism_runs_on_past_both_its_ends_to_the_walls_beside_it`,
 //!   `a_fillet_on_the_trapezoid_s_slanted_top_edge_is_trimmed_by_the_front_and_the_back_it_meets_at_its_ends`,
-//!   `a_fillet_on_a_slot_s_front_runs_on_over_a_round_meeting_it_at_a_few_degrees_trimmed_by_the_round_s_wall`
+//!   `a_fillet_on_a_slot_s_front_runs_on_over_a_round_meeting_it_at_a_few_degrees_trimmed_by_the_round_s_wall`,
+//!   the slot's round turning in; turning out, it stands past the front's
+//!   line, where no one cylinder takes the matter, and is declined
+//!   `Unsupported`, as the issue's "an end the kernel cannot build is declined
+//!   with its reason" lets it —
+//!   `a_fillet_on_a_slot_s_front_whose_round_end_bulges_out_past_the_front_is_declined_as_unsupported`
 //! - A radius larger than the neighbouring faces can give is reduced to the
 //!   largest that fits, and the step reports the radius asked and the radius
 //!   taken —
@@ -59,9 +64,9 @@
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
 
-use cao_solid::profile::{Contour, Frame, Profile};
+use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, EdgeName, Filleted, Loop};
+use cao_solid::{Body, Declined, EdgeName, Filleted, Loop};
 use glam::{DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it, on a plane
@@ -180,12 +185,24 @@ fn numbers(body: &Body) -> BTreeSet<usize> {
 /// Holds that a face's corners are the points expected: each of them a
 /// corner, and no corner anywhere else.
 fn corners_are(body: &Body, face: usize, expected: &[DVec3], what: &str) {
+    corners_are_or_on(body, face, expected, |_| false, what);
+}
+
+/// Holds that a face's corners are the points expected, each of them a
+/// corner, and every other corner on the curve `on` says it is on.
+fn corners_are_or_on(
+    body: &Body,
+    face: usize,
+    expected: &[DVec3],
+    on: impl Fn(DVec3) -> bool,
+    what: &str,
+) {
     let plane = body
         .plane_of(face)
         .unwrap_or_else(|| panic!("{what}: the body offers no plane on face {face}"));
     for corner in &plane.corners {
         assert!(
-            expected.iter().any(|point| point.distance(*corner) < PLACE),
+            on(*corner) || expected.iter().any(|point| point.distance(*corner) < PLACE),
             "{what}: a corner at {corner}, where the corners are {expected:?}"
         );
     }
@@ -298,15 +315,25 @@ impl Round {
             && across.dot(second) >= least - PLACE
     }
 
-    /// What the triangles of a body whose one curved face is this round may
-    /// enclose apart from its matter: the drawing's tolerance at the reach the
-    /// body carries, over the round's area. That reach is taken at `reach`,
-    /// twice the part's own, for whatever the round is cut with reaching
-    /// past the part.
-    fn drawn_within(&self, reach: f64) -> f64 {
-        let [first, second] = self.facing;
-        DRAWN * reach * first.dot(second).acos() * self.radius * self.length
+    /// The two points where the round's sides meet a wall square to it,
+    /// `end` of the way along it.
+    fn sides_at(&self, end: f64) -> [DVec3; 2] {
+        [0.0, 1.0].map(|share| self.axis_at(end) + self.facing_at(share) * self.radius)
     }
+
+    /// The round's area, its turn times its radius times its length.
+    fn area(&self) -> f64 {
+        let [first, second] = self.facing;
+        first.dot(second).acos() * self.radius * self.length
+    }
+}
+
+/// What the triangles of a body may enclose apart from its matter, its curved
+/// faces `area` in all: the drawing's tolerance at the reach the body carries,
+/// over them. That reach is taken at `reach`, twice the part's own, for
+/// whatever the round is cut with reaching past the part.
+fn drawn_within(reach: f64, area: f64) -> f64 {
+    DRAWN * reach * area
 }
 
 /// Holds that the face numbered `face` is the round expected: every corner
@@ -347,41 +374,12 @@ fn is_the_round(body: &Body, face: usize, round: &Round, what: &str) {
     }
 }
 
-/// Holds that a wall at one end of the edge, `end` of the way along it, is
-/// trimmed by the round: its corners the points `kept` and the two where the
-/// round's sides meet it, and every other corner on the round's end, an arc of
-/// its radius.
-fn trimmed_by_the_round(
-    body: &Body,
-    wall: usize,
-    kept: &[DVec3],
-    round: &Round,
-    end: f64,
-    what: &str,
-) {
-    let plane = body
-        .plane_of(wall)
-        .unwrap_or_else(|| panic!("{what}: the body offers no plane on face {wall}"));
-    let at = round.axis_at(end);
-    let sides = [0.0, 1.0].map(|share| at + round.facing_at(share) * round.radius);
-    let expected: Vec<DVec3> = kept.iter().copied().chain(sides).collect();
-    for corner in &plane.corners {
-        let on_the_end = round.holds(*corner) && (*corner - at).dot(round.along).abs() < PLACE;
-        assert!(
-            on_the_end || expected.iter().any(|point| point.distance(*corner) < PLACE),
-            "{what}: a corner at {corner}, neither on the round's end nor among {expected:?}"
-        );
-    }
-    for point in &expected {
-        assert!(
-            plane
-                .corners
-                .iter()
-                .any(|corner| corner.distance(*point) < PLACE),
-            "{what}: no corner at {point}, among {:?}",
-            plane.corners
-        );
-    }
+/// Holds that a flat wall at one end of the edge is trimmed by the round: its
+/// corners the points `expected`, which hold the two where the round's sides
+/// meet it, and every other corner on the round's end — an arc of its radius
+/// on a wall square to it, of an ellipse on an oblique one.
+fn trimmed_by_the_round(body: &Body, wall: usize, expected: &[DVec3], round: &Round, what: &str) {
+    corners_are_or_on(body, wall, expected, |corner| round.holds(corner), what);
 }
 
 /// The sides of the faces the face numbered `face` meets, one for each edge
@@ -429,7 +427,7 @@ fn a_fillet_on_a_block_s_top_front_edge_lays_one_round_of_the_radius_tangent_to_
     sound_drawn_within(
         body,
         length * breadth * height - length * radius * radius * (1.0 - PI / 4.0),
-        round.drawn_within(2.0 * length),
+        drawn_within(2.0 * length, round.area()),
         what,
     );
     let fillet = one_round_more(&block, body, what);
@@ -476,16 +474,16 @@ fn a_fillet_on_a_block_s_top_front_edge_lays_one_round_of_the_radius_tangent_to_
         "what is left of the front, set back by the radius",
     );
     for (wall, x, end) in [(LEFT, 0.0, 0.0), (RIGHT, length, 1.0)] {
+        let kept = [
+            DVec3::new(x, 0.0, 0.0),
+            DVec3::new(x, breadth, 0.0),
+            DVec3::new(x, breadth, height),
+        ];
         trimmed_by_the_round(
             body,
             wall,
-            &[
-                DVec3::new(x, 0.0, 0.0),
-                DVec3::new(x, breadth, 0.0),
-                DVec3::new(x, breadth, height),
-            ],
+            &[&kept[..], &round.sides_at(end)].concat(),
             &round,
-            end,
             &format!("the wall at x = {x}, the round's end on it"),
         );
     }
@@ -552,7 +550,7 @@ fn a_fillet_on_an_edge_whose_faces_meet_at_a_slant_is_set_back_by_the_radius_ove
         sound_drawn_within(
             body,
             trapezoid - corner_rounded_off,
-            round.drawn_within(2.0 * 40.0),
+            drawn_within(2.0 * 40.0, round.area()),
             what,
         );
         let fillet = one_round_more(&part, body, what);
@@ -589,15 +587,399 @@ fn a_fillet_on_an_edge_whose_faces_meet_at_a_slant_is_set_back_by_the_radius_ove
             .filter(|&corner| corner != edge.corner)
             .collect();
         for (wall, z, end) in [(FLOOR, 0.0, 0.0), (TOP, height, 1.0)] {
-            let kept: Vec<DVec3> = others.iter().map(|corner| corner.extend(z)).collect();
+            let mut expected: Vec<DVec3> = others.iter().map(|corner| corner.extend(z)).collect();
+            expected.extend(round.sides_at(end));
             trimmed_by_the_round(
                 body,
                 wall,
-                &kept,
+                &expected,
                 &round,
-                end,
                 &format!("face {wall} at {what}, the round's end on it"),
             );
         }
     }
+}
+
+/// A regular hexagon of side 10 raised 5, its front the side along the
+/// bottom, at y = −5√3: the top one, the front two, and the walls beside the
+/// front three on its right and seven on its left, each meeting it at 120
+/// degrees.
+fn hexagonal_prism() -> Body {
+    let half = 5.0 * 3.0f64.sqrt();
+    raised(
+        Contour::straight(vec![
+            DVec2::new(-5.0, -half),
+            DVec2::new(5.0, -half),
+            DVec2::new(10.0, 0.0),
+            DVec2::new(5.0, half),
+            DVec2::new(-5.0, half),
+            DVec2::new(-10.0, 0.0),
+        ]),
+        5.0,
+    )
+}
+
+#[test]
+fn a_fillet_on_a_top_edge_of_a_hexagonal_prism_runs_on_past_both_its_ends_to_the_walls_beside_it() {
+    let (half, root) = (5.0 * 3.0f64.sqrt(), 3.0f64.sqrt());
+    let (radius, right, left) = (1.0, 3, 7);
+    let part = hexagonal_prism();
+    let edge = edge_between(&part, TOP, FRONT);
+
+    let filleted = part
+        .fillet(&edge, radius)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "1 asked on the top edge of a hexagon's front 10 wide";
+    taken_whole(&filleted, radius, what);
+    let body = &filleted.body;
+    let past = 5.0 + radius / root;
+    let round = Round {
+        start: DVec3::new(-past, radius - half, 5.0 - radius),
+        along: DVec3::X,
+        length: 2.0 * past,
+        radius,
+        facing: [DVec3::Z, -DVec3::Y],
+    };
+    let hexagon = 1.5 * root * 10.0 * 10.0 * 5.0;
+    let rounded_off = 10.0 * radius * radius * (1.0 - PI / 4.0)
+        + 2.0 / root * radius.powi(3) * (5.0 / 6.0 - PI / 4.0);
+    sound_drawn_within(
+        body,
+        hexagon - rounded_off,
+        drawn_within(2.0 * 10.0, round.area()),
+        what,
+    );
+    let fillet = one_round_more(&part, body, what);
+    is_the_round(
+        body,
+        fillet,
+        &round,
+        "the round, from the wall on the front's left to the one on its right",
+    );
+    assert_eq!(
+        sides_met(body, fillet),
+        [TOP, FRONT, right, left].map(|side| vec![side as u32]),
+        "the round meets the top and the front along its sides, and the walls beside the front \
+         at its ends, by one edge each"
+    );
+    corners_are(
+        body,
+        TOP,
+        &[
+            DVec3::new(-past, radius - half, 5.0),
+            DVec3::new(past, radius - half, 5.0),
+            DVec3::new(10.0, 0.0, 5.0),
+            DVec3::new(5.0, half, 5.0),
+            DVec3::new(-5.0, half, 5.0),
+            DVec3::new(-10.0, 0.0, 5.0),
+        ],
+        "the top, its line along the round longer than the edge",
+    );
+    corners_are(
+        body,
+        FRONT,
+        &[
+            DVec3::new(-5.0, -half, 0.0),
+            DVec3::new(5.0, -half, 0.0),
+            DVec3::new(5.0, -half, 5.0 - radius),
+            DVec3::new(-5.0, -half, 5.0 - radius),
+        ],
+        "the front, its line along the round the front's width",
+    );
+    for (wall, side) in [(right, 1.0), (left, -1.0)] {
+        let at = |x: f64, y: f64, z: f64| DVec3::new(side * x, y, z);
+        trimmed_by_the_round(
+            body,
+            wall,
+            &[
+                at(5.0, -half, 0.0),
+                at(10.0, 0.0, 0.0),
+                at(10.0, 0.0, 5.0),
+                at(past, radius - half, 5.0),
+                at(5.0, -half, 5.0 - radius),
+            ],
+            &round,
+            &format!("wall {wall}, beside the front, the round's end on it an arc of an ellipse"),
+        );
+    }
+}
+
+/// A right trapezoid raised by `height`: its front 40 long on the X axis, its
+/// back 34 long at Y = 8, both from the Y axis, and between their right ends
+/// a slanted wall 10 long, 6 back and 8 across, facing (0.8, 0.6). Its walls
+/// are numbered from the front round: the front two, the slant three, the
+/// back four and the left five.
+fn trapezoid(height: f64) -> Body {
+    raised(
+        Contour::straight(vec![
+            DVec2::ZERO,
+            DVec2::new(40.0, 0.0),
+            DVec2::new(34.0, 8.0),
+            DVec2::new(0.0, 8.0),
+        ]),
+        height,
+    )
+}
+
+#[test]
+fn a_fillet_on_the_trapezoid_s_slanted_top_edge_is_trimmed_by_the_front_and_the_back_it_meets_at_its_ends()
+ {
+    let (height, radius) = (5.0, 1.0);
+    let part = trapezoid(height);
+    let edge = edge_between(&part, TOP, SLANT);
+
+    let filleted = part
+        .fillet(&edge, radius)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "1 asked on the top edge of the slant, which meets the back at 127 degrees";
+    taken_whole(&filleted, radius, what);
+    let body = &filleted.body;
+    let (slant, up_the_slant) = (DVec3::new(0.8, 0.6, 0.0), DVec3::new(-0.6, 0.8, 0.0));
+    let start = DVec3::new(40.0, 0.0, height) - (slant + DVec3::Z) * radius;
+    let round = Round {
+        start,
+        along: up_the_slant,
+        length: (8.0 - start.y) / up_the_slant.y,
+        radius,
+        facing: [DVec3::Z, slant],
+    };
+    let trapezoid = (40.0 + 34.0) / 2.0 * 8.0 * height;
+    let rounded_off = 10.0 * radius * radius * (1.0 - PI / 4.0);
+    sound_drawn_within(
+        body,
+        trapezoid - rounded_off,
+        drawn_within(2.0 * 40.0, round.area()),
+        what,
+    );
+    let fillet = one_round_more(&part, body, what);
+    is_the_round(
+        body,
+        fillet,
+        &round,
+        "the round, its axis the radius under the top and the radius inside the slant",
+    );
+    assert_eq!(
+        sides_met(body, fillet),
+        [TOP, FRONT, SLANT, BACK].map(|side| vec![side as u32]),
+        "the round meets the top and the slant along its sides, and the front and the back at \
+         its ends, by one edge each"
+    );
+    let on_top = [
+        DVec3::new(40.0 - 1.25 * radius, 0.0, height),
+        DVec3::new(34.0 - 1.25 * radius, 8.0, height),
+    ];
+    let on_slant = [
+        DVec3::new(40.0, 0.0, height - radius),
+        DVec3::new(34.0, 8.0, height - radius),
+    ];
+    corners_are(
+        body,
+        TOP,
+        &[
+            DVec3::new(0.0, 0.0, height),
+            on_top[0],
+            on_top[1],
+            DVec3::new(0.0, 8.0, height),
+        ],
+        "the top, its line along the round stopping short of the front's end and running on \
+         past the slant's end along the back",
+    );
+    corners_are(
+        body,
+        SLANT,
+        &[
+            DVec3::new(40.0, 0.0, 0.0),
+            DVec3::new(34.0, 8.0, 0.0),
+            on_slant[1],
+            on_slant[0],
+        ],
+        "the slant, set back by the radius under the top",
+    );
+    for (wall, y, far, end) in [(FRONT, 0.0, 40.0, 0), (BACK, 8.0, 34.0, 1)] {
+        trimmed_by_the_round(
+            body,
+            wall,
+            &[
+                DVec3::new(0.0, y, 0.0),
+                DVec3::new(far, y, 0.0),
+                DVec3::new(0.0, y, height),
+                on_top[end],
+                on_slant[end],
+            ],
+            &round,
+            &format!("wall {wall}, the round's end on it an arc of an ellipse"),
+        );
+    }
+}
+
+/// A slot 4 wide raised 20: a front 28 long on the X axis, a round end of
+/// half a turn about `(28 + off, 2)` from the front's end, and a straight back
+/// to the Y axis. Off by nought, the round leaves the front tangentially;
+/// moved off, it leaves it at a corner of about `off / 2` radians, outwards
+/// when `off` is positive and inwards when it is negative. Its top one, its
+/// front two, its round three, its back four and its left five.
+fn slot_off_tangent_by(off: f64) -> Body {
+    let (end, centre) = (DVec2::new(28.0, 0.0), DVec2::new(28.0 + off, 2.0));
+    raised(
+        Contour {
+            corners: vec![DVec2::ZERO, end, 2.0 * centre - end, DVec2::new(0.0, 4.0)],
+            runs: vec![
+                Run::Straight,
+                Run::Round {
+                    center: centre,
+                    turn: PI,
+                },
+                Run::Straight,
+                Run::Straight,
+            ],
+        },
+        20.0,
+    )
+}
+
+/// The slot's own matter: the quadrilateral from the front to the round's
+/// chord, the half disc beyond the chord, raised 20.
+fn slot_volume(off: f64) -> f64 {
+    let radius_squared = 4.0 + off * off;
+    ((56.0 + 2.0 * off) / 2.0 * 4.0 + PI * radius_squared / 2.0) * 20.0
+}
+
+/// How many steps [`slot_rounded_off`] is summed over: the slot's round,
+/// read along the fillet's, has its nearest singularity some 0.07 off the
+/// quarter turn of the sum, and Simpson's rule over this many steps comes
+/// within a millionth of the body's tolerance of it.
+const STEPS: usize = 1 << 16;
+
+/// The matter a fillet of 1 on the slot's front takes, trimmed by the slot's
+/// own walls: over every place of the slot's plan less than 1 back from the
+/// front's line, the height the round stands under the top, 1 − √(1 − (1 −
+/// y)²). Up to 1 back, the slot runs from the Y axis to its round,
+/// `x = c + √(r² − (y − 2)²)`. Read with `y = 1 − cos θ`, under which the
+/// height is `1 − sin θ` and the product has no closed form, so it is summed
+/// by Simpson's rule.
+fn slot_rounded_off(off: f64) -> f64 {
+    let (centre, radius) = (28.0 + off, (4.0 + off * off).sqrt());
+    let reach = |y: f64| centre + (radius * radius - (y - 2.0).powi(2)).max(0.0).sqrt();
+    let at = |theta: f64| {
+        let y = 1.0 - f64::cos(theta);
+        reach(y) * (1.0 - theta.sin()) * theta.sin()
+    };
+    let step = PI / 2.0 / STEPS as f64;
+    let inner: f64 = (1..STEPS)
+        .map(|index| at(step * index as f64) * if index % 2 == 1 { 4.0 } else { 2.0 })
+        .sum();
+    (at(0.0) + inner + at(PI / 2.0)) * step / 3.0
+}
+
+#[test]
+fn a_fillet_on_a_slot_s_front_runs_on_over_a_round_meeting_it_at_a_few_degrees_trimmed_by_the_round_s_wall()
+ {
+    let (radius, round_end) = (1.0, 3);
+    let off = -0.1;
+    let what = format!(
+        "the round turning in from the front's end at {:.1} degrees",
+        (-off / 2.0f64).atan().to_degrees()
+    );
+    let slot = slot_off_tangent_by(off);
+    let edge = edge_between(&slot, TOP, FRONT);
+
+    let filleted = slot
+        .fillet(&edge, radius)
+        .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+    taken_whole(&filleted, radius, &what);
+    let body = &filleted.body;
+    let (centre, wall) = (DVec2::new(28.0 + off, 2.0), (4.0 + off * off).sqrt());
+    let reach = |y: f64| centre.x + (wall * wall - (y - 2.0).powi(2)).sqrt();
+    let round = Round {
+        start: DVec3::new(0.0, radius, 20.0 - radius),
+        along: DVec3::X,
+        length: reach(radius),
+        radius,
+        facing: [DVec3::Z, -DVec3::Y],
+    };
+    sound_drawn_within(
+        body,
+        slot_volume(off) - slot_rounded_off(off),
+        drawn_within(2.0 * 31.0, round.area() + PI * wall * 20.0),
+        &what,
+    );
+    let fillet = one_round_more(&slot, body, &what);
+    is_the_round(body, fillet, &round, &what);
+    let drawn: Vec<DVec3> = body.triangles_of(fillet).flatten().collect();
+    for corner in &drawn {
+        assert!(
+            corner.x <= centre.x || corner.truncate().distance(centre) <= wall + PLACE,
+            "{what}: the round is drawn through {corner}, past the slot's round wall"
+        );
+    }
+    let furthest = drawn.iter().map(|corner| corner.x).fold(0.0, f64::max);
+    assert!(
+        (furthest - reach(radius)).abs() < PLACE,
+        "{what}: the round runs on to {furthest}, where its side on the top meets the slot's \
+         round wall at {}",
+        reach(radius)
+    );
+    assert_eq!(
+        sides_met(body, fillet),
+        [TOP, FRONT, round_end, LEFT].map(|side| vec![side as u32]),
+        "{what}: the round meets the top and the front along its sides, and the left and \
+         the slot's round wall at its ends, by one edge each"
+    );
+    corners_are(
+        body,
+        FRONT,
+        &[
+            DVec3::ZERO,
+            DVec3::new(28.0, 0.0, 0.0),
+            DVec3::new(28.0, 0.0, 20.0 - radius),
+            DVec3::new(0.0, 0.0, 20.0 - radius),
+        ],
+        &format!("the front, {what}"),
+    );
+    corners_are_or_on(
+        body,
+        TOP,
+        &[
+            DVec3::new(0.0, radius, 20.0),
+            DVec3::new(reach(radius), radius, 20.0),
+            DVec3::new(28.0 + 2.0 * off, 4.0, 20.0),
+            DVec3::new(0.0, 4.0, 20.0),
+        ],
+        |corner| {
+            (corner.truncate().distance(centre) - wall).abs() < PLACE && corner.y >= radius - PLACE
+        },
+        &format!("the top, {what}, its line along the round running on to the round wall"),
+    );
+    let kept = [
+        DVec3::ZERO,
+        DVec3::new(0.0, 4.0, 0.0),
+        DVec3::new(0.0, 4.0, 20.0),
+    ];
+    trimmed_by_the_round(
+        body,
+        LEFT,
+        &[&kept[..], &round.sides_at(0.0)].concat(),
+        &round,
+        &format!("the left, {what}"),
+    );
+}
+
+#[test]
+fn a_fillet_on_a_slot_s_front_whose_round_end_bulges_out_past_the_front_is_declined_as_unsupported()
+{
+    let slot = slot_off_tangent_by(0.1);
+    let edge = edge_between(&slot, TOP, FRONT);
+
+    let declined = slot.fillet(&edge, 1.0).err();
+
+    assert_eq!(
+        declined,
+        Some(Declined::Unsupported),
+        "the round leaves the front's end 2.9 degrees outwards and stands 0.0025 past its line \
+         from 28 to 28.2: the matter there above the round's side is neither the round nor the \
+         front, and no one cylinder takes it"
+    );
 }

@@ -52,10 +52,69 @@ fn leaning_trapezoid() -> Body {
     )
 }
 
+/// The trapezoid of the chamfer's tests: a front 40 long, a back 34 long at
+/// Y = 8, and a slant between them; the top one, the front two, the slant
+/// three, the back four.
+fn trapezoid() -> Body {
+    joined(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::ZERO,
+            DVec2::new(40.0, 0.0),
+            DVec2::new(34.0, 8.0),
+            DVec2::new(0.0, 8.0),
+        ]),
+        5.0,
+    )
+}
+
+/// A regular hexagon of side 10 raised 5, its front the side along the
+/// bottom: the top one, the front two.
+fn hexagon() -> Body {
+    let half = 5.0 * 3.0f64.sqrt();
+    joined(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::new(-5.0, -half),
+            DVec2::new(5.0, -half),
+            DVec2::new(10.0, 0.0),
+            DVec2::new(5.0, half),
+            DVec2::new(-5.0, half),
+            DVec2::new(-10.0, 0.0),
+        ]),
+        5.0,
+    )
+}
+
+/// A slot 4 wide raised 20, its front 28 long, its round end of half a turn
+/// about `(28 + off, 2)`: turning in from the front at a few degrees once
+/// moved back.
+fn slot(off: f64) -> Body {
+    let (end, centre) = (DVec2::new(28.0, 0.0), DVec2::new(28.0 + off, 2.0));
+    joined(
+        &Body::default(),
+        Contour {
+            corners: vec![DVec2::ZERO, end, 2.0 * centre - end, DVec2::new(0.0, 4.0)],
+            runs: vec![
+                Run::Straight,
+                Run::Round {
+                    center: centre,
+                    turn: PI,
+                },
+                Run::Straight,
+                Run::Straight,
+            ],
+        },
+        20.0,
+    )
+}
+
 #[test]
 fn every_body_a_fillet_leaves_lists_what_it_is_made_of_as_its_geometry_stands() {
     let block = block([30.0, 10.0, 20.0]);
     let leaning = leaning_trapezoid();
+    let (trapezoid, hexagon) = (trapezoid(), hexagon());
+    let inwards = slot(-0.1);
     let cases = [
         (
             "the block's top front edge by 3",
@@ -74,6 +133,24 @@ fn every_body_a_fillet_leaves_lists_what_it_is_made_of_as_its_geometry_stands() 
             &leaning,
             between(&leaning, &[3], &[4]),
             2.0,
+        ),
+        (
+            "the hexagon's front top edge by 1, running on past both its ends",
+            &hexagon,
+            between(&hexagon, &[1], &[2]),
+            1.0,
+        ),
+        (
+            "the trapezoid's slanted top edge by 1, trimmed by the front and the back",
+            &trapezoid,
+            between(&trapezoid, &[1], &[3]),
+            1.0,
+        ),
+        (
+            "the slot's front, its round turning in at a few degrees, by 1",
+            &inwards,
+            between(&inwards, &[1], &[2]),
+            1.0,
         ),
     ];
 

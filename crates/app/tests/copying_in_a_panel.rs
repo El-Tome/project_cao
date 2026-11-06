@@ -106,9 +106,9 @@ fn escape_hands_what_the_panel_held_to_the_selection_tool() {
     assert!(driver::shows(&app, "Terminer"), "the sketch stays open");
     driver::click(&mut app, "Symétrie");
     assert!(
-        driver::shows(&app, "Éléments : 3"),
-        "the trait and its two ends stayed selected, and the mirror starts with \
-         all three: {:?}",
+        driver::shows(&app, "Éléments : 1"),
+        "the trait picked stayed selected without its ends, and the mirror \
+         starts with it alone: {:?}",
         driver::on_screen(&app)
     );
 }

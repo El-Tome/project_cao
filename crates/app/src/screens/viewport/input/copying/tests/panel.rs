@@ -350,12 +350,8 @@ fn the_panel_s_cancel_hands_its_elements_to_the_selection_tool_and_lays_nothing(
     assert_eq!(bench.editor.tool, Tool::Select);
     assert_eq!(
         bench.editor.selection(),
-        bench
-            .a_trait_and_its_ends(TRAIT_TO_COPY)
-            .into_iter()
-            .map(Selection::Element)
-            .collect::<Vec<_>>(),
-        "what the panel held stays selected"
+        [Selection::Element(Element::Segment(TRAIT_TO_COPY))],
+        "what was picked stays selected, without the ends the trait brought in"
     );
     assert_eq!(
         bench.editor.message, None,
@@ -623,14 +619,13 @@ fn the_selection_tool_taken_from_the_panel_keeps_its_elements_selected() {
 
     bench.take(Command::ToolSelect);
 
-    let held = [
-        bench.a_trait_and_its_ends(TRAIT_TO_COPY),
-        bench.a_trait_and_its_ends(CONSTRUCTION_TRAIT),
-    ]
-    .concat();
     assert_eq!(
         bench.editor.selection(),
-        held.into_iter().map(Selection::Element).collect::<Vec<_>>()
+        [
+            Selection::Element(Element::Segment(TRAIT_TO_COPY)),
+            Selection::Element(Element::Segment(CONSTRUCTION_TRAIT))
+        ],
+        "what was picked, without the ends the traits brought in"
     );
 }
 

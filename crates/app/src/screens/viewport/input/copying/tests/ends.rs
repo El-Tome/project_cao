@@ -13,6 +13,12 @@
 //! - Clicking the trait again lets go of the trait and of the ends that no
 //!   other taken trait still holds —
 //!   `a_trait_clicked_again_lets_go_of_the_ends_no_other_held_trait_holds`
+//! - decided on the branch: the ends a trait brings in are kept apart from
+//!   what was picked, and leaving the panel hands on only what was picked —
+//!   `escape_then_delete_erases_the_trait_picked_and_spares_the_one_beside_it`,
+//!   `the_selection_tool_taken_then_delete_erases_the_trait_picked_and_spares_the_one_beside_it`;
+//!   so a point picked on its own outlives a trait ending on it let go —
+//!   `a_point_clicked_alone_stays_held_when_a_trait_ending_on_it_is_let_go`
 //! - A box pulled across the drawing, and a click on a circle, an arc or an
 //!   ellipse, work as today — `a_box_takes_exactly_what_it_took_before`,
 //!   `a_click_on_a_circle_an_arc_or_an_ellipse_takes_that_curve_alone`
@@ -46,6 +52,7 @@ use super::super::{previewed, take_up};
 use super::bench::Bench;
 use super::panel::{a_trait_under_a_box, pulled_with};
 use crate::screens::sketch::CopySlot;
+use crate::screens::viewport::input::selecting::erase_what_is_held;
 
 const COPY_TOOLS: [Command; 3] = [
     Command::ToolMirror,
@@ -181,6 +188,64 @@ fn a_trait_clicked_again_lets_go_of_the_ends_no_other_held_trait_holds() {
         bench.elements(),
         Vec::new(),
         "nothing holds the corner any more"
+    );
+}
+
+#[test]
+fn a_point_clicked_alone_stays_held_when_a_trait_ending_on_it_is_let_go() {
+    let mut bench = a_corner_and_a_target();
+    bench.take(Command::ToolMirror);
+    bench.click(THE_FOOT);
+    assert_eq!(bench.elements(), vec![point(&bench, THE_FOOT)]);
+
+    bench.click(ON_THE_UPRIGHT);
+    bench.click(ON_THE_UPRIGHT);
+
+    assert_eq!(
+        bench.elements(),
+        vec![point(&bench, THE_FOOT)],
+        "the foot was picked on its own, not brought in by the upright"
+    );
+}
+
+/// The upright of the corner clicked into the mirror's panel, the panel left
+/// the way `leave` leaves it, and `Suppr` pressed over the drawing.
+fn erased_after_leaving_the_panel(leave: impl Fn(&mut Bench)) -> Bench {
+    let mut bench = a_corner_and_a_target();
+    bench.take(Command::ToolMirror);
+    bench.click(ON_THE_UPRIGHT);
+    leave(&mut bench);
+    erase_what_is_held(&mut bench.context(), 0);
+    bench
+}
+
+fn standing(bench: &Bench, side: SegmentId) -> bool {
+    bench.document.sketches()[0]
+        .live_segments()
+        .any(|(id, _)| id == side)
+}
+
+#[test]
+fn escape_then_delete_erases_the_trait_picked_and_spares_the_one_beside_it() {
+    let bench = erased_after_leaving_the_panel(|bench| bench.editor.cancel_the_copy());
+
+    assert!(!standing(&bench, UPRIGHT), "the trait picked is erased");
+    assert!(
+        standing(&bench, TOP),
+        "the top was never picked: its corner, brought in by the upright, is \
+         not handed on to be erased with everything standing on it"
+    );
+}
+
+#[test]
+fn the_selection_tool_taken_then_delete_erases_the_trait_picked_and_spares_the_one_beside_it() {
+    let bench = erased_after_leaving_the_panel(|bench| bench.take(Command::ToolSelect));
+
+    assert!(!standing(&bench, UPRIGHT), "the trait picked is erased");
+    assert!(
+        standing(&bench, TOP),
+        "the top was never picked: its corner, brought in by the upright, is \
+         not handed on to be erased with everything standing on it"
     );
 }
 

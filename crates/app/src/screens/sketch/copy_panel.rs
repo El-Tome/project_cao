@@ -1,4 +1,4 @@
-use cao_sketch::{ChosenAxis, Element, PointId, Selection, ToolState};
+use cao_sketch::{ChosenAxis, Element, PointId, Selection, Sketch, ToolState};
 use glam::DVec2;
 
 use super::{LiveInput, SketchEditor, Tool};
@@ -37,6 +37,7 @@ pub struct CopyPanel {
     active: CopySlot,
     marked: Option<CopySlot>,
     elements: Vec<Element>,
+    brought_in: Vec<PointId>,
     target: Option<CopyTarget>,
     values: &'static [CopyValue],
     /// The box being pulled across the drawing while Elements is active.
@@ -92,31 +93,43 @@ impl CopyPanel {
         self.values
     }
 
-    /// Takes or lets go of one element with the ends it stands on: an end
-    /// stays held while another held element still stands on it.
-    pub(crate) fn toggle(&mut self, element: Element, ends: impl Fn(Element) -> Vec<PointId>) {
-        match self.elements.iter().position(|held| *held == element) {
-            Some(rank) => {
-                self.elements.remove(rank);
-                let still: Vec<PointId> =
-                    self.elements.iter().flat_map(|held| ends(*held)).collect();
-                let freed: Vec<PointId> = ends(element)
-                    .into_iter()
-                    .filter(|end| !still.contains(end))
-                    .collect();
-                self.elements
-                    .retain(|held| !matches!(held, Element::Point(point) if freed.contains(point)));
+    /// Takes or lets go of one element, a trait with its two ends. An end a
+    /// trait brought in is let go with the last held trait standing on it; a
+    /// point picked on its own is never let go by a trait.
+    pub(crate) fn toggle(&mut self, element: Element, sketch: &Sketch) {
+        let Some(rank) = self.elements.iter().position(|held| *held == element) else {
+            self.elements.push(element);
+            for end in ends(sketch, element) {
+                if !self.elements.contains(&Element::Point(end)) {
+                    self.elements.push(Element::Point(end));
+                    self.brought_in.push(end);
+                }
             }
-            None => {
-                self.elements.push(element);
-                self.take_in(ends(element).into_iter().map(Element::Point));
-            }
+            return;
+        };
+        self.elements.remove(rank);
+        if let Element::Point(point) = element {
+            self.brought_in.retain(|end| *end != point);
         }
+        let still: Vec<PointId> = self
+            .elements
+            .iter()
+            .flat_map(|held| ends(sketch, *held))
+            .collect();
+        let freed: Vec<PointId> = ends(sketch, element)
+            .into_iter()
+            .filter(|end| self.brought_in.contains(end) && !still.contains(end))
+            .collect();
+        self.elements
+            .retain(|held| !matches!(held, Element::Point(point) if freed.contains(point)));
+        self.brought_in.retain(|end| !freed.contains(end));
     }
 
     /// Adds what a box took that is not held already.
     pub(crate) fn take_in(&mut self, caught: impl IntoIterator<Item = Element>) {
         for element in caught {
+            self.brought_in
+                .retain(|end| element != Element::Point(*end));
             if !self.elements.contains(&element) {
                 self.elements.push(element);
             }
@@ -195,7 +208,26 @@ impl SketchEditor {
     /// The selection a tool reached for from the panel starts with: what the
     /// panel held, when that tool works on a selection.
     pub(super) fn what_the_panel_hands_on(&mut self) -> Vec<Selection> {
-        let held = self.copy_panel.take().map(|panel| panel.elements);
-        held.into_iter().flatten().map(Selection::Element).collect()
+        let Some(panel) = self.copy_panel.take() else {
+            return Vec::new();
+        };
+        let picked =
+            |held: &Element| !matches!(held, Element::Point(end) if panel.brought_in.contains(end));
+        panel
+            .elements
+            .iter()
+            .filter(|held| picked(held))
+            .map(|held| Selection::Element(*held))
+            .collect()
+    }
+}
+
+fn ends(sketch: &Sketch, element: Element) -> Vec<PointId> {
+    match element {
+        Element::Segment(side) => sketch
+            .segments()
+            .get(side.0)
+            .map_or_else(Vec::new, |side| vec![side.start, side.end]),
+        _ => Vec::new(),
     }
 }

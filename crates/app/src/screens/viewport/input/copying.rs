@@ -1,7 +1,7 @@
 use cao_part::history::RepeatsAsked;
 use cao_part::{Formula, Operation, Variables};
 use cao_sketch::{
-    ChosenAxis, Element, LockedInput, Repeats, Selection, Sketch, axis_under, largest_count_around,
+    ChosenAxis, LockedInput, Repeats, Selection, Sketch, axis_under, largest_count_around,
 };
 use glam::DVec2;
 
@@ -172,14 +172,7 @@ fn gather(
     ) else {
         return false;
     };
-    let ends = |held: Element| match held {
-        Element::Segment(side) => sketch
-            .segments()
-            .get(side.0)
-            .map_or_else(Vec::new, |side| vec![side.start, side.end]),
-        _ => Vec::new(),
-    };
-    panel.toggle(element, ends);
+    panel.toggle(element, sketch);
     panel.unmark_if_filled(&context.editor.live);
     false
 }

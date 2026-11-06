@@ -21,13 +21,14 @@
 //!   `two_walls_leaning_a_hair_off_parallel_take_no_two_rays_a_hair_apart`
 //! - the crossing line sampled at its ends, each wall pinning in its own
 //!   chart the angles of both ends and nothing sampled in the wedge between
-//!   them, so that both faces cut the cell alike — no test: put off to the
-//!   third step, whose red is written in its own turn
+//!   them, so that both faces cut the cell alike and cancel —
+//!   `beside_the_line_two_walls_leaning_a_hair_off_parallel_cross_along_both_faces_are_cut_alike_and_cancel`
 //! - a third wall crossing the pair has its two meets sampled on the pair's
 //!   shared rays, so that near-duplicates merge — no test: put off to the
 //!   fourth step, whose red is written in its own turn
 
-use std::f64::consts::{FRAC_PI_2, PI, TAU};
+use std::collections::BTreeMap;
+use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, PI, TAU};
 
 use glam::{DQuat, DVec3};
 
@@ -37,7 +38,7 @@ use crate::brep::surface::Surface;
 use crate::brep::tessellation::contact::walls;
 use crate::brep::tessellation::sampling::{Samples, divisions};
 use crate::brep::tessellation::tests::fixtures;
-use crate::brep::topology::{Coedge, EdgeId};
+use crate::brep::topology::{Coedge, EdgeId, VertexId};
 
 const RADIUS: f64 = 5.0;
 const LEAN: f64 = 1e-5;
@@ -348,6 +349,198 @@ fn two_walls_leaning_a_hair_off_parallel_take_no_two_rays_a_hair_apart() {
                     );
                 }
             }
+        }
+    }
+}
+
+struct Sliver {
+    body: Body,
+    lines: [EdgeId; 2],
+    ends: [[DVec3; 2]; 2],
+}
+
+fn stretch(
+    period: f64,
+    parameter: impl Fn(DVec3) -> f64,
+    point: impl Fn(f64) -> DVec3,
+    [from, to]: [DVec3; 2],
+    through: DVec3,
+) -> (bool, f64, f64) {
+    let [start, end] = [from, to].map(&parameter);
+    let ahead = start + (end - start).rem_euclid(period);
+    let back = end + (start - end).rem_euclid(period);
+    let off = |low: f64, high: f64| point((low + high) / 2.0).distance(through);
+    if off(start, ahead) <= off(end, back) {
+        (true, start, ahead)
+    } else {
+        (false, end, back)
+    }
+}
+
+fn shaft_bored_above_its_node(radius: f64, lean: f64, height: f64) -> Sliver {
+    let mut build = fixtures::Build::new();
+    let away = DVec3::new(1.0, 1.0, 0.0).normalize();
+    let shaft = Cylinder::about(DVec3::ZERO, DVec3::Z, radius);
+    let bore = Cylinder::about(
+        DVec3::ZERO,
+        (-away * lean.sin() + DVec3::Z * lean.cos()).normalize(),
+        radius,
+    );
+    let ids = [shaft, bore].map(|wall| build.surface(Surface::Cylinder(wall)));
+    let side = shaft.axis.cross(bore.axis).normalize() * radius;
+    let nodes = [side, -side];
+    let rise =
+        (height * (1.0 - bore.axis.z) / (radius * bore.axis.cross(DVec3::Z).length())).asin();
+    let tops = [-FRAC_PI_4 - rise, 3.0 * FRAC_PI_4 + rise]
+        .map(|angle| shaft.point(DVec2::new(angle, height)));
+    let [n1, n2, t1, t2] = [nodes[0], nodes[1], tops[0], tops[1]].map(|point| build.vertex(point));
+    let meet_between =
+        |build: &mut fixtures::Build, ends: [DVec3; 2], ids: [VertexId; 2], through: DVec3| {
+            let meet = (0..2)
+                .map(|component| Meet {
+                    first: Round::Cylinder(shaft),
+                    second: Round::Cylinder(bore),
+                    component,
+                })
+                .filter(|meet| {
+                    meet.period().is_some()
+                        && ends
+                            .iter()
+                            .all(|end| meet.point(meet.parameter(*end)).distance(*end) < 1e-9)
+                })
+                .min_by(|one, other| {
+                    let off = |meet: &Meet| meet.point(meet.parameter(through)).distance(through);
+                    off(one).total_cmp(&off(other))
+                })
+                .expect("both ends and the way through lie on one component");
+            let (forward, from, to) = stretch(
+                meet.period().unwrap(),
+                |p| meet.parameter(p),
+                |t| meet.point(t),
+                ends,
+                through,
+            );
+            let order = if forward { ids } else { [ids[1], ids[0]] };
+            build.meet_edge(meet, Some(order), from, to)
+        };
+    let lines = [
+        meet_between(
+            &mut build,
+            [nodes[0], tops[0]],
+            [n1, t1],
+            (nodes[0] + tops[0]) / 2.0,
+        ),
+        meet_between(
+            &mut build,
+            [nodes[1], tops[1]],
+            [n2, t2],
+            (nodes[1] + tops[1]) / 2.0,
+        ),
+    ];
+    let half_loop = meet_between(&mut build, nodes, [n1, n2], away * radius);
+    let rim = build.arc(ids[0], height, t1, t2);
+    let (cap, cap_flipped) = build.plane(DVec3::Z * height, DVec3::Z);
+    let conic = build.conic(cap, ids[1], 2.0 * radius)[0];
+    let (forward, from, to) = stretch(
+        conic.period().unwrap(),
+        |p| conic.parameter(p),
+        |t| conic.point(t),
+        tops,
+        away * radius + DVec3::Z * height,
+    );
+    let mouth = build.conic_edge(
+        conic,
+        Some(if forward { [t1, t2] } else { [t2, t1] }),
+        from,
+        to,
+    );
+    let lap = |build: &fixtures::Build, steps: [(EdgeId, VertexId); 4]| {
+        steps.map(|(edge, from)| build.leaving(edge, from)).to_vec()
+    };
+    let outer = lap(
+        &build,
+        [(half_loop, n1), (lines[1], n2), (rim, t2), (lines[0], t1)],
+    );
+    build.face(ids[0], false, vec![outer]);
+    let inner = lap(
+        &build,
+        [(lines[0], n1), (mouth, t1), (lines[1], t2), (half_loop, n2)],
+    );
+    build.face(ids[1], true, vec![inner]);
+    let top = vec![build.leaving(rim, t1), build.leaving(mouth, t2)];
+    build.face(cap, cap_flipped, vec![top]);
+    Sliver {
+        body: build.finish(2.0 * radius + height),
+        lines,
+        ends: [[nodes[0], tops[0]], [nodes[1], tops[1]]],
+    }
+}
+
+#[test]
+fn beside_the_line_two_walls_leaning_a_hair_off_parallel_cross_along_both_faces_are_cut_alike_and_cancel()
+ {
+    let key = |point: DVec3| point.to_array().map(f64::to_bits);
+    for (radius, degrees, height) in [(5.0, 1e-4f64, 1.125), (17.5, 0.01, 6.5)] {
+        let sliver = shaft_bored_above_its_node(radius, degrees.to_radians(), height);
+        let body = &sliver.body;
+        for share in [1e-3, 2e-4] {
+            let tolerance = share * body.scale().reach();
+            let samples = Samples::of(body, tolerance);
+            let cut = body.triangles_by_face(tolerance);
+
+            assert!(
+                cut.uncut.is_empty(),
+                "{:?} left uncut within {tolerance}",
+                cut.uncut
+            );
+            for (line, ends) in sliver.lines.into_iter().zip(sliver.ends) {
+                let taken: Vec<DVec3> = samples
+                    .edge(line)
+                    .iter()
+                    .map(|id| samples.point(*id))
+                    .collect();
+                let mut keys: Vec<_> = taken.iter().map(|point| key(*point)).collect();
+                keys.sort_unstable();
+                let mut wanted = ends.map(key).to_vec();
+                wanted.sort_unstable();
+                assert_eq!(
+                    keys, wanted,
+                    "the line from {} to {} is sampled at {taken:?} within {tolerance}",
+                    ends[0], ends[1],
+                );
+                let on_the_chord: Vec<_> = cut
+                    .triangles
+                    .iter()
+                    .zip(&cut.faces)
+                    .filter(|(corners, _)| {
+                        ends.iter()
+                            .all(|end| corners.iter().any(|corner| key(*corner) == key(*end)))
+                    })
+                    .collect();
+                assert!(
+                    on_the_chord.is_empty(),
+                    "beside the line from {} to {}, radius {radius} leaning {degrees}° within \
+                     {tolerance}, the two faces are cut apart and drawn: {on_the_chord:?}",
+                    ends[0],
+                    ends[1],
+                );
+            }
+            let mut sides: BTreeMap<_, i32> = BTreeMap::new();
+            for corners in &cut.triangles {
+                for at in 0..3 {
+                    *sides
+                        .entry((key(corners[at]), key(corners[(at + 1) % 3])))
+                        .or_default() += 1;
+                }
+            }
+            let open = sides
+                .iter()
+                .filter(|((from, to), uses)| sides.get(&(*to, *from)) != Some(*uses))
+                .count();
+            assert_eq!(
+                open, 0,
+                "{open} sides met one way only, radius {radius} within {tolerance}"
+            );
         }
     }
 }

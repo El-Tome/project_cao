@@ -51,6 +51,7 @@ mod meet;
 mod planes;
 mod round;
 mod touches;
+mod wedge;
 
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
@@ -294,6 +295,7 @@ impl Samples {
                 samples.edges[id.0 as usize].splice(1..1, on);
             }
         }
+        wedge::cleared(body, &mut samples, eps);
         samples
     }
 

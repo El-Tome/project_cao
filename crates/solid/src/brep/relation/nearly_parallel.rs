@@ -27,7 +27,7 @@ const STRETCH: f64 = 1e-2;
 
 /// The sine of a lean off parallel past which two walls are not read for
 /// a stretch: #552's band.
-const BAND: f64 = 1e-3;
+pub(in crate::brep) const BAND: f64 = 1e-3;
 
 /// The sine of a lean off parallel under which two walls whose sections
 /// meet where their faces may, touching or crossing, are unsupported: the

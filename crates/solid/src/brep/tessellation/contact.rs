@@ -259,7 +259,7 @@ pub(super) fn contacts(
             }
         }
     }
-    for (wall, steps) in leaning::shared(&leaning, &mut own, &beneath, tolerance) {
+    for (wall, steps) in leaning::shared(&leaning, &mut own, (&beneath, &anchors), tolerance) {
         let every = [f64::NEG_INFINITY, f64::INFINITY];
         let withheld = steps.into_iter().map(|step| (step, every));
         contacts.entry(wall).or_default().withheld.extend(withheld);

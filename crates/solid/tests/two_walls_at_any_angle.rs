@@ -38,20 +38,23 @@
 //!   `two_shafts_of_one_radius_crossing_nearly_coaxially_at_1e_5_degrees_are_declined_as_unsupported`,
 //!   `seed_214398260937555_a_bar_touching_an_elliptic_shaft_inside_leaning_1e_5_degrees_is_declined`,
 //!   `seed_175696479588841_two_posts_of_one_radius_crossing_at_1e_5_degrees_are_declined_as_unsupported`,
-//!   and the same pair at 1e-4°, closer than a chord's sag, declined too,
-//!   `the_same_shafts_crossing_at_1e_4_degrees_are_declined_closer_than_a_sag`.
+//!   and the same pair at 1e-4°, closer than a chord's sag, declined too
+//!   until #706 laid such pairs on one shared order, and built since,
+//!   `the_same_shafts_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable`.
 //!   Decided in lane 2's rounds: two walls leaning a sliver past decision
 //!   11, under a sine of 2e-7, are declined where they meet —
 //!   `two_shafts_crossing_at_1e_5_degrees_a_sliver_past_decision_11_are_declined_as_unsupported`,
 //!   `seed_12099367009951_a_bore_crossing_a_post_s_wall_at_1e_5_degrees_is_declined_as_unsupported`,
 //!   the same at 3e-5° still built,
 //!   `the_same_shafts_crossing_at_3e_5_degrees_are_built_and_keep_every_rule`;
-//!   two walls in the band closer than a chord's sag of their grids are
-//!   declined, until #706 lays them on one shared order —
-//!   `two_posts_of_one_radius_crossing_nearly_coaxially_at_1e_3_degrees_are_declined_as_unsupported`,
-//!   `seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_declined_as_unsupported`,
-//!   `seed_224442167740434_two_posts_of_radius_22_5_crossing_at_1e_4_degrees_are_declined_as_unsupported`,
-//!   `the_same_posts_crossing_at_3e_4_or_1e_4_degrees_are_declined_closer_than_a_sag`.
+//!   two walls in the band closer than a chord's sag of their grids were
+//!   declined until #706 laid two cylinders on one shared order, and are
+//!   built since —
+//!   `two_posts_of_one_radius_crossing_nearly_coaxially_at_1e_3_degrees_are_built_uncrossed_and_noted_unstable`,
+//!   `seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable`,
+//!   `seed_224442167740434_two_posts_of_radius_22_5_bored_at_30_degrees_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable`,
+//!   `the_same_posts_crossing_at_3e_4_or_1e_4_degrees_are_built_uncrossed_and_noted_unstable`;
+//!   an elliptic wall or a cone that close still is (#720).
 //!   A lean in the band built and noted unstable stays answered, off square
 //!   by `a_bore_leaning_in_the_band_off_square_is_noted_unstable` and off
 //!   parallel by `a_bore_leaning_in_the_band_off_parallel_is_built_and_noted_unstable`.

@@ -17,7 +17,15 @@
 //!   the one check the public body cannot be asked, that its listing stands
 //!   on its geometry, from inside the crate by
 //!   `every_body_a_fillet_leaves_lists_what_it_is_made_of_as_its_geometry_stands`
-//!   in `src/body/tests/fillet.rs`
+//!   in `src/body/tests/fillet.rs`; and never a body without that face: a
+//!   round that would stand within the tolerance of the two faces it
+//!   replaces, on an edge nearly flat, is declined as too short, whatever the
+//!   angle and the radius —
+//!   `a_fillet_on_an_edge_nearly_flat_or_not_is_declined_as_too_short_or_lays_a_round_of_its_own_at_every_radius`,
+//!   the radii the review found rounding nothing by
+//!   `a_fillet_whose_round_stands_within_the_tolerance_of_the_faces_it_replaces_is_declined_as_too_short`,
+//!   and a round standing clear of them still laid by
+//!   `a_fillet_on_a_nearly_flat_edge_rounds_it_once_its_round_stands_clear_of_the_faces`
 //! - The same holds on an edge whose two faces meet at an angle other than a
 //!   right one (set-back along each face: r / tan(angle / 2)) —
 //!   `a_fillet_on_an_edge_whose_faces_meet_at_a_slant_is_set_back_by_the_radius_over_the_tangent_of_half_the_angle`
@@ -446,12 +454,14 @@ impl Round {
     }
 }
 
-/// What the triangles of a body may enclose apart from its matter, its curved
-/// faces `area` in all: the drawing's tolerance at the reach the body carries,
-/// over them. That reach is taken at `reach`, twice the part's own, for
-/// whatever the round is cut with reaching past the part.
-fn drawn_within(reach: f64, area: f64) -> f64 {
-    DRAWN * reach * area
+/// What the triangles of the body a step left on `part` may enclose apart
+/// from its matter, its curved faces `area` in all: the drawing's tolerance
+/// at the part's own reach, over them. The body carries a reach larger by an
+/// eighth of the set-back at most, the margin its cut stands off by; a chord
+/// leaves at most two thirds of its sag between itself and its round, which
+/// more than makes up for it.
+fn drawn_within(part: &Body, area: f64) -> f64 {
+    DRAWN * reach_of(part) * area
 }
 
 /// Holds that the face numbered `face` is the round expected: every corner
@@ -545,7 +555,7 @@ fn a_fillet_on_a_block_s_top_front_edge_lays_one_round_of_the_radius_tangent_to_
     sound_drawn_within(
         body,
         length * breadth * height - length * radius * radius * (1.0 - PI / 4.0),
-        drawn_within(2.0 * length, round.area()),
+        drawn_within(&block, round.area()),
         what,
     );
     let fillet = one_round_more(&block, body, what);
@@ -668,7 +678,7 @@ fn a_fillet_on_an_edge_whose_faces_meet_at_a_slant_is_set_back_by_the_radius_ove
         sound_drawn_within(
             body,
             trapezoid - corner_rounded_off,
-            drawn_within(2.0 * 40.0, round.area()),
+            drawn_within(&part, round.area()),
             what,
         );
         let fillet = one_round_more(&part, body, what);
@@ -765,7 +775,7 @@ fn a_fillet_on_a_top_edge_of_a_hexagonal_prism_runs_on_past_both_its_ends_to_the
     sound_drawn_within(
         body,
         hexagon - rounded_off,
-        drawn_within(2.0 * 10.0, round.area()),
+        drawn_within(&part, round.area()),
         what,
     );
     let fillet = one_round_more(&part, body, what);
@@ -868,7 +878,7 @@ fn a_fillet_on_the_trapezoid_s_slanted_top_edge_is_trimmed_by_the_front_and_the_
     sound_drawn_within(
         body,
         trapezoid - rounded_off,
-        drawn_within(2.0 * 40.0, round.area()),
+        drawn_within(&part, round.area()),
         what,
     );
     let fillet = one_round_more(&part, body, what);
@@ -1021,7 +1031,7 @@ fn a_fillet_on_a_slot_s_front_runs_on_over_a_round_meeting_it_at_a_few_degrees_t
     sound_drawn_within(
         body,
         slot_volume(off) - slot_rounded_off(off),
-        drawn_within(2.0 * 31.0, round.area() + PI * wall * 20.0),
+        drawn_within(&slot, round.area() + PI * wall * 20.0),
         &what,
     );
     let fillet = one_round_more(&slot, body, &what);
@@ -1126,7 +1136,7 @@ fn a_fillet_asked_more_than_the_top_can_give_takes_the_whole_top_and_reports_bot
     sound_drawn_within(
         body,
         length * breadth * height - length * radius * radius * (1.0 - PI / 4.0),
-        drawn_within(2.0 * length, round.area()),
+        drawn_within(&block, round.area()),
         what,
     );
     let fillet = one_round_for_another(&block, body, TOP, what);
@@ -1209,7 +1219,7 @@ fn a_fillet_asked_more_than_a_slanted_wall_can_give_takes_the_radius_whose_set_b
     sound_drawn_within(
         body,
         trapezoid - corner_rounded_off,
-        drawn_within(2.0 * 40.0, round.area()),
+        drawn_within(&part, round.area()),
         what,
     );
     let fillet = one_round_for_another(&part, body, SLANT, what);
@@ -1360,7 +1370,7 @@ fn a_fillet_rounds_the_edge_its_name_finds_again_after_a_change_of_size_a_move_a
         sound_drawn_within(
             body,
             ell.volume() - stem * radius * radius * (1.0 - PI / 4.0),
-            drawn_within(2.0 * reach_of(&part), round.area()),
+            drawn_within(&part, round.area()),
             what,
         );
         let fillet = one_round_more(&part, body, what);
@@ -1513,7 +1523,7 @@ fn a_fillet_on_the_edge_a_join_bridged_from_two_rounds_it_whole() {
         sound_drawn_within(
             body,
             whole * breadth * height - whole * radius * radius * (1.0 - PI / 4.0),
-            drawn_within(2.0 * whole, round.area()),
+            drawn_within(&abutting, round.area()),
             &what,
         );
         let fillet = one_round_more(&abutting, body, &what);
@@ -1579,7 +1589,7 @@ fn a_fillet_asked_an_infinite_radius_takes_the_most_the_faces_give() {
     let leaning_radius = width * (angle / 2.0).tan();
     let block = block([30.0, 10.0, 20.0]);
     let leaning = leaning_trapezoid(5.0);
-    for (what, part, edge, consumed, radius, promised, turn, length, reach) in [
+    for (what, part, edge, consumed, radius, promised, turn, length) in [
         (
             "an infinite radius asked on the top front edge of a top 10 wide",
             &block,
@@ -1588,7 +1598,6 @@ fn a_fillet_asked_an_infinite_radius_takes_the_most_the_faces_give() {
             10.0,
             6000.0 - 30.0 * 10.0 * 10.0 * (1.0 - PI / 4.0),
             PI / 2.0,
-            30.0,
             30.0,
         ),
         (
@@ -1602,7 +1611,6 @@ fn a_fillet_asked_an_infinite_radius_takes_the_most_the_faces_give() {
                     * 5.0,
             PI - angle,
             5.0,
-            40.0,
         ),
     ] {
         let filleted = part
@@ -1619,7 +1627,7 @@ fn a_fillet_asked_an_infinite_radius_takes_the_most_the_faces_give() {
         sound_drawn_within(
             body,
             promised,
-            drawn_within(2.0 * reach, turn * radius * length),
+            drawn_within(part, turn * radius * length),
             what,
         );
         one_round_for_another(part, body, consumed, what);
@@ -1775,5 +1783,210 @@ fn a_filleted_block_written_to_step_writes_its_round_on_a_cylinder_of_the_radius
         (off - DVec3::X * off.x).length() <= solid.uncertainty,
         "the round's cylinder stands about the line through {origin}, where its axis is the \
          radius under the top and the radius behind the front"
+    );
+}
+
+/// The outline of a block 30 by 10 whose front bends back by `turn` halfway
+/// along: the front's first half from the origin to (15, 0), its second half
+/// 15 long and `turn` off the X axis, a right wall up to (30, 10), the back
+/// and the left. The two halves meet at the upright edge through (15, 0) at
+/// 180 degrees less `turn`.
+fn bent_outline(turn: f64) -> Vec<DVec2> {
+    vec![
+        DVec2::ZERO,
+        DVec2::new(15.0, 0.0),
+        DVec2::new(15.0, 0.0) + DVec2::from_angle(turn) * 15.0,
+        DVec2::new(30.0, 10.0),
+        DVec2::new(0.0, 10.0),
+    ]
+}
+
+/// The number the bent front's second half answers to; its first half is
+/// the front, two.
+const SECOND_HALF: usize = 3;
+
+/// The [`bent_outline`] raised 5: the front's first half two, its second
+/// half three.
+fn bent_front(turn: f64) -> Body {
+    raised(Contour::straight(bent_outline(turn)), 5.0)
+}
+
+/// The round a fillet of `radius` lays on the bent front's edge: tangent to
+/// both halves, set back along each by `radius · tan(turn / 2)`, which is
+/// the radius over the tangent of half the angle they meet at.
+fn round_on_the_bend(turn: f64, radius: f64) -> Round {
+    let set_back = radius * (turn / 2.0).tan();
+    Round {
+        start: DVec3::new(15.0 - set_back, radius, 0.0),
+        along: DVec3::Z,
+        length: 5.0,
+        radius,
+        facing: [-DVec3::Y, DVec3::new(turn.sin(), -turn.cos(), 0.0)],
+    }
+}
+
+/// The largest radius the bent front's two halves give, each 15 long: the one
+/// set back by their whole length.
+fn most_on_the_bend(turn: f64) -> f64 {
+    15.0 / (turn / 2.0).tan()
+}
+
+/// What a fillet of `asked` on the bent front's edge did, when it did what
+/// it may: declined as too short, `false`, or rounded, `true`, the body
+/// holding its round as a face of its own — one number, curved, on the
+/// cylinder of the radius taken, standing between the two halves rather than
+/// lying in them, the edge gone, and the matter it takes what arithmetic
+/// says. What it did instead otherwise. What its triangles enclose is not
+/// asked: the kernel draws an arc this shallow and this wide coarser than its
+/// tolerance whatever made it — a front raised on an arc of 3437 over half a
+/// degree is drawn 1.6e-2 off it, where 30 of reach allows 6e-3 — and the
+/// rounds of the other tests hold the drawing.
+fn rounded_on_the_bend(
+    part: &Body,
+    name: &EdgeName,
+    turn: f64,
+    asked: f64,
+) -> Result<bool, String> {
+    let filleted = match part.fillet(name, asked) {
+        Err(Declined::Distance) => return Ok(false),
+        Err(other) => return Err(format!("declined {other:?}, neither too short nor rounded")),
+        Ok(filleted) => filleted,
+    };
+    let (body, radius) = (&filleted.body, filleted.taken);
+    if (radius - asked).abs() > EXACT * asked {
+        return Err(format!(
+            "took {radius}, where the halves give what was asked"
+        ));
+    }
+    if !body.is_exact() {
+        return Err("left a body the exact kernel did not compute".to_string());
+    }
+    let triangles = body.triangles();
+    if let Err(fault) = closed(&triangles) {
+        return Err(format!("left a body that is not closed: {fault:?}"));
+    }
+    if let Err(fault) = uncrossed(&triangles) {
+        return Err(format!(
+            "left a body with a face through another: {fault:?}"
+        ));
+    }
+    let made = part.faces_end();
+    if !body.has_face(made) || body.is_flat(made) || body.plane_of(made).is_some() {
+        return Err(format!(
+            "returned a body whose face {made} is no round of its own: there {}, flat {}, a \
+             plane offered {:?}",
+            body.has_face(made),
+            body.is_flat(made),
+            body.plane_of(made).map(|plane| plane.normal)
+        ));
+    }
+    if body.lost(name).is_none() {
+        return Err("returned a body where the edge is still there".to_string());
+    }
+    let (before, after) = (numbers(part), numbers(body));
+    let gone: BTreeSet<usize> = before.difference(&after).copied().collect();
+    let made_more: BTreeSet<usize> = after.difference(&before).copied().collect();
+    if !gone.is_subset(&BTreeSet::from([FRONT, SECOND_HALF])) || made_more != BTreeSet::from([made])
+    {
+        return Err(format!(
+            "left the faces {after:?}, where the part had {before:?}"
+        ));
+    }
+    let round = round_on_the_bend(turn, radius);
+    if let Some(off) = body
+        .triangles_of(made)
+        .flatten()
+        .find(|corner| !round.holds(*corner))
+    {
+        return Err(format!(
+            "drew its round through {off}, off the cylinder of {radius} about {}",
+            round.start
+        ));
+    }
+    let promised = part.volume() - radius * radius * ((turn / 2.0).tan() - turn / 2.0) * 5.0;
+    if (body.volume() - promised).abs() > EXACT * promised {
+        return Err(format!(
+            "left {} of matter, where arithmetic promised {promised}",
+            body.volume()
+        ));
+    }
+    Ok(true)
+}
+
+#[test]
+fn a_fillet_on_an_edge_nearly_flat_or_not_is_declined_as_too_short_or_lays_a_round_of_its_own_at_every_radius()
+ {
+    let mut faults = Vec::new();
+    for degrees in [150.0, 170.0, 178.0, 179.0, 179.5, 179.9] {
+        let turn = f64::to_radians(180.0 - degrees);
+        let part = bent_front(turn);
+        let name = edge_between(&part, FRONT, SECOND_HALF);
+        let mut rounded = 0;
+        for step in 0..=26 {
+            let asked = most_on_the_bend(turn) * 10f64.powf(-0.5 * step as f64);
+            match rounded_on_the_bend(&part, &name, turn, asked) {
+                Err(fault) => faults.push(format!("{degrees}°, {asked:e} asked: {fault}")),
+                Ok(true) => rounded += 1,
+                Ok(false) => {}
+            }
+        }
+        if rounded == 0 {
+            faults.push(format!(
+                "{degrees}°: no radius up to the {} the halves give is rounded",
+                most_on_the_bend(turn)
+            ));
+        }
+    }
+
+    assert!(
+        faults.is_empty(),
+        "a fillet that neither declines as too short nor lays a sound round of its own:\n{}",
+        faults.join("\n")
+    );
+}
+
+#[test]
+fn a_fillet_whose_round_stands_within_the_tolerance_of_the_faces_it_replaces_is_declined_as_too_short()
+ {
+    for (degrees, radii) in [
+        (179.9, &[3e-6, 1e-5, 1e-3, 3e-3, 1e-2, 0.03, 0.05, 0.07][..]),
+        (179.5, &[0.001, 0.002, 0.003][..]),
+        (179.0, &[3e-5][..]),
+        (178.0, &[1e-4][..]),
+    ] {
+        let turn = f64::to_radians(180.0 - degrees);
+        let part = bent_front(turn);
+        let name = edge_between(&part, FRONT, SECOND_HALF);
+        for &radius in radii {
+            let standing = radius * (1.0 / (turn / 2.0).cos() - 1.0);
+
+            let declined = part.fillet(&name, radius).err();
+
+            assert_eq!(
+                declined,
+                Some(Declined::Distance),
+                "{radius} asked on a front bent to {degrees}°: its round would stand {standing:e} \
+                 off the corner, within the tolerance of the part's two halves"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_fillet_on_a_nearly_flat_edge_rounds_it_once_its_round_stands_clear_of_the_faces() {
+    let (degrees, radius) = (179.9, 1000.0);
+    let turn = f64::to_radians(180.0 - degrees);
+    let part = bent_front(turn);
+    let name = edge_between(&part, FRONT, SECOND_HALF);
+
+    let rounded = rounded_on_the_bend(&part, &name, turn, radius);
+
+    assert_eq!(
+        rounded,
+        Ok(true),
+        "{radius} asked on a front bent to {degrees}°, its round standing {:e} off the corner and \
+         set back {:e} along each half",
+        radius * (1.0 / (turn / 2.0).cos() - 1.0),
+        radius * (turn / 2.0).tan()
     );
 }

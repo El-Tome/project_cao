@@ -6,7 +6,6 @@
 mod prism;
 
 use super::Exact;
-use super::wedge::Wedge;
 use crate::brep::{Declined, EdgeName};
 
 impl Exact {
@@ -28,6 +27,15 @@ impl Exact {
     /// pieces or with a corner on neither of the edge's faces, or a face the
     /// body held, but the edge's two, taken away whole.
     pub fn chamfered(&self, name: &EdgeName, distance: f64) -> Result<(Exact, f64), Declined> {
-        self.cut_off(name, distance, |wedge| wedge.reach, Wedge::prism)
+        self.cut_off(
+            name,
+            distance,
+            |wedge| wedge.reach,
+            |wedge, taken, scale, bounds| {
+                wedge
+                    .prism(taken, scale, bounds)
+                    .ok_or(Declined::Unsupported)
+            },
+        )
     }
 }

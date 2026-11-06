@@ -97,10 +97,13 @@ pub enum Declined {
     /// A step pointed at an edge its name no longer finds (#696): gone, or
     /// split in pieces, as [`crate::Body::lost`] says.
     Lost(Lost),
-    /// A chamfer's distance, or a fillet's radius (#697), that is no length
-    /// the kernel can set a cut back by: not a number, nought or less, or
-    /// within a few `Scale::HAIR` tolerances of the edge, where the kernel
-    /// would read the cut back onto it (#696).
+    /// A chamfer's distance (#696) or a fillet's radius (#697) that is no
+    /// length the kernel can set a cut back by: not a number, nought or less,
+    /// or within a few `Scale::HAIR` tolerances, where the kernel would read
+    /// the cut back onto the edge. A chamfer's distance is measured as it is
+    /// asked; a fillet's radius both so and by how far its round would stand
+    /// off the edge's two faces at the middle of its turn, which an edge
+    /// bent nearly flat makes small at any radius it gives.
     Distance,
 }
 

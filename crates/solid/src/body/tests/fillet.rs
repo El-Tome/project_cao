@@ -137,6 +137,23 @@ fn ell() -> Body {
     )
 }
 
+/// A block 30 by 10 raised 5 whose front bends back by `turn` halfway along:
+/// its first half two, from the origin to (15, 0), and its second half
+/// three, 15 long, meeting at 180 degrees less `turn`.
+fn bent_front(turn: f64) -> Body {
+    joined(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::ZERO,
+            DVec2::new(15.0, 0.0),
+            DVec2::new(15.0, 0.0) + DVec2::from_angle(turn) * 15.0,
+            DVec2::new(30.0, 10.0),
+            DVec2::new(0.0, 10.0),
+        ]),
+        5.0,
+    )
+}
+
 #[test]
 fn every_body_a_fillet_leaves_lists_what_it_is_made_of_as_its_geometry_stands() {
     let block = block([30.0, 10.0, 20.0]);
@@ -146,7 +163,21 @@ fn every_body_a_fillet_leaves_lists_what_it_is_made_of_as_its_geometry_stands() 
     let abutting = two_blocks(15.0);
     let first_block_s = between(&two_blocks(20.0), &[1], &[2]);
     let ell = ell();
+    let bent_by_30 = bent_front(30f64.to_radians());
+    let bent_by_a_tenth = bent_front(0.1f64.to_radians());
     let cases = [
+        (
+            "a front bent to 150 degrees, by 5",
+            &bent_by_30,
+            between(&bent_by_30, &[2], &[3]),
+            5.0,
+        ),
+        (
+            "a front bent to 179.9 degrees, by 1000, its round standing clear of both halves",
+            &bent_by_a_tenth,
+            between(&bent_by_a_tenth, &[2], &[3]),
+            1000.0,
+        ),
         (
             "the block's top front edge by 50, the whole top taken",
             &block,

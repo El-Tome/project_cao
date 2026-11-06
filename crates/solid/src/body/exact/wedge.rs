@@ -41,17 +41,17 @@ impl Exact {
     /// most `most` says the edge's two faces give. The wall of the prism's
     /// first run is numbered where the steps' numbers ended. A value shorter
     /// than the kernel can set a cut back from an edge is declined first; an
-    /// edge that is not a wedge, a prism the tool cannot raise, and a cut that
-    /// left something else than its one face, as [`Exact::cut_along`] reads
-    /// it, are declined `Unsupported`.
+    /// edge that is not a wedge, and a cut that left something else than its
+    /// one face, as [`Exact::cut_along`] reads it, are declined
+    /// `Unsupported`; a prism the tool cannot raise, as the tool says.
     pub(super) fn cut_off(
         &self,
         name: &EdgeName,
         asked: f64,
         most: impl FnOnce(&Wedge) -> f64,
-        tool: impl FnOnce(&Wedge, f64, Scale, (DVec3, DVec3)) -> Option<Prism>,
+        tool: impl FnOnce(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
     ) -> Result<(Exact, f64), Declined> {
-        if asked.is_nan() || asked < SHORTEST * Scale::HAIR * self.brep.scale().eps() {
+        if too_short(asked, self.brep.scale()) {
             return Err(Declined::Distance);
         }
         caught(|| {
@@ -62,8 +62,7 @@ impl Exact {
             let wedge = Wedge::of(&self.brep, edge)?;
             let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
             let taken = asked.min(most(&wedge));
-            let (outline, frame, travel) =
-                tool(&wedge, taken, self.brep.scale(), bounds).ok_or(Declined::Unsupported)?;
+            let (outline, frame, travel) = tool(&wedge, taken, self.brep.scale(), bounds)?;
             let raised = Exact::raised(&outline, &[], frame, travel)?;
             let tool = Exact {
                 brep: raised.brep.renumbered_by(|number| match number {
@@ -181,6 +180,13 @@ impl Wedge {
 /// one and a half came back declined or unsound, and from two and a half
 /// every edge was cut; four leaves room.
 const SHORTEST: f64 = 4.0;
+
+/// Whether a length is none the kernel can set a cut back by, at the scale
+/// of the part: not a number, or shorter than [`SHORTEST`] `Scale::HAIR`
+/// tolerances.
+pub(super) fn too_short(length: f64, scale: Scale) -> bool {
+    length.is_nan() || length < SHORTEST * Scale::HAIR * scale.eps()
+}
 
 /// The number a raise gives the wall of its profile's first run.
 const MADE: u32 = 2;

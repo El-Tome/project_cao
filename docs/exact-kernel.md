@@ -347,7 +347,7 @@ Left, in the order #497 set:
   chord's sag only where a cone or an elliptic wall is one of them — a cone whose
   rulings run along the other wall's axis, a hole in the flank of a
   pointed cone (#711), and a cone and a wall closer than a chord's sag
-  without meeting (#706). A plane crossing a cylinder or a cone at a slant
+  without meeting (#720). A plane crossing a cylinder or a cone at a slant
   is done (#552), the elliptic cylinder against planes and walls parallel
   or square to it (#571), and two cylinders, elliptic walls or cones at any
   angle (#577);
@@ -2101,8 +2101,8 @@ wrong answer:
   built since #706, each wall's heights read along its own axis, their
   rays shared, the line they cross along sampled at its ends with nothing
   in the wedge beside it, and a third wall meeting both on the same rays
-  (`tessellation/contact/leaning.rs`, `sampling/wedge.rs`,
-  `sampling/meet/twin.rs`, `folds/lines.rs`). Two walls in the
+  (`tessellation/contact/leaning.rs`, `sampling/crossing.rs`,
+  `sampling/wedge.rs`, `sampling/meet/twin.rs`, `folds/lines.rs`). Two walls in the
   band such that, at some height across the box where their faces may
   meet, two consecutive steps of one wall's grid both stand within that
   grid's sag of the other wall. Each wall is sampled on its own grid, a

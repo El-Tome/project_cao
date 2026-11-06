@@ -339,7 +339,7 @@ impl<'a> Zones<'a> {
         Zones { pairs }
     }
 
-    /// Where two parallel walls, by id, face each other.
+    /// Where two walls, parallel or leaning a hair off it, face each other.
     pub(super) fn between(&self, one: SurfaceId, other: SurfaceId) -> Option<&Facing<'a>> {
         self.pairs.iter().find(|facing| {
             let [first, second] = facing.walls.map(|(id, _)| id);
@@ -347,9 +347,9 @@ impl<'a> Zones<'a> {
         })
     }
 
-    /// Whether `point`, on `cylinder`, stands within the room of a parallel
-    /// wall that faces that one there: a sample there would be as good as on
-    /// the other wall.
+    /// Whether `point`, on `cylinder`, stands within the room of a wall,
+    /// parallel or leaning a hair off it, that faces it there: a sample there
+    /// would be as good as on the other wall.
     pub(in crate::brep::tessellation) fn crowded(&self, cylinder: &Cylinder, point: DVec3) -> bool {
         self.crowding(*cylinder, point).next().is_some()
     }

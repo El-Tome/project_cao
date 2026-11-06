@@ -55,12 +55,14 @@
 //!   unstable, not declined —
 //!   `two_posts_of_one_radius_crossing_nearly_coaxially_at_1e_3_degrees_are_built_uncrossed_and_noted_unstable`,
 //!   `seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable`;
-//!   224442167740434, bored at 30° besides, built too by the owner's later
-//!   decision of 2026-11-06 —
+//!   224442167740434, bored at 30° besides, built too by the owner's
+//!   decision —
 //!   `seed_224442167740434_two_posts_of_radius_22_5_bored_at_30_degrees_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable`
 //! - the walls-at-any-angle draw keeps its rate or improves, with no
-//!   regression against `main` — no test: the campaigns above, run by hand
-//!   on `main` and on the branch, compared seed by seed
+//!   regression against `main` — no test: a campaign fails on any finding,
+//!   so the rate is measured by hand, the campaigns above run on `main` and
+//!   on the branch over the same seeds and compared seed by seed, and the
+//!   comparison is reported on the issue
 //! - the fifth step lifts `closer_than_a_sag` for two cylinders: the cases
 //!   it declined are built, uncrossed and noted unstable, a third wall or a
 //!   cap among them —
@@ -70,6 +72,8 @@
 //!   `seed_318277455101196_two_shafts_of_one_radius_at_1e_4_degrees_bored_at_30_degrees_are_built_and_keep_every_rule`,
 //!   `seed_318277455100734_two_shafts_of_one_radius_at_0_05_degrees_beside_a_cut_at_45_degrees_are_built_uncrossed_and_noted_unstable`,
 //!   `seed_318277455103234_a_bore_of_radius_0_5_at_0_01_degrees_refilled_by_a_bar_running_through_the_block_is_built_uncrossed_and_noted_unstable`;
+//!   drawn coarser than the campaigns, they stay uncrossed —
+//!   `two_walls_closer_than_a_sag_are_drawn_uncrossed_and_closed_three_and_ten_times_coarser_than_the_campaigns`;
 //!   an elliptic wall that close stays declined —
 //!   `an_elliptic_shaft_bored_round_closer_than_a_sag_at_1e_4_degrees_is_declined_as_unsupported`
 
@@ -423,6 +427,44 @@ fn built_uncrossed_and_noted_unstable(case: &Case, degrees: f64) {
         "the application's body notes the lean too\n{case}"
     );
     random_solids::holds_through_the_application(case);
+}
+
+#[test]
+fn two_walls_closer_than_a_sag_are_drawn_uncrossed_and_closed_three_and_ten_times_coarser_than_the_campaigns()
+ {
+    for case in [
+        nearly_coaxial(1e-4),
+        posts_crossing_at(1e-3),
+        posts_crossing_at(1e-4),
+        posts_from(Outline::circle([-1.0, 1.0], 4.0), Step::add, 1e-3),
+        Case::new(
+            Leaf::prism(Plane::xy(-15.0), Outline::circle([-5.0, 0.0], 15.0), 20.0),
+            vec![Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-4.998832302166697, 0.0, -72.43055956539959],
+                    [0.0, -0.001, 0.0],
+                ),
+                Outline::circle([0.0, 0.0], 15.0),
+                134.0,
+            ))],
+        ),
+    ] {
+        let body = built(&case);
+        for share in [3e-3, 1e-2] {
+            let tolerance = share * body.scale().reach();
+            let triangles = body.triangles(tolerance);
+            assert_eq!(
+                cao_solid::soundness::uncrossed(&triangles),
+                Ok(()),
+                "drawn within {tolerance}\n{case}"
+            );
+            assert_eq!(
+                cao_solid::soundness::closed(&triangles),
+                Ok(()),
+                "drawn within {tolerance}\n{case}"
+            );
+        }
+    }
 }
 
 /// The same, the lean at an earlier step than the last, which notes nothing

@@ -180,6 +180,15 @@ agree without the primitive knowing either.
 Layout containers — `Frame`, `Area`, `ScrollArea`, the panels — are not
 primitives. Arranging a screen is the screen's own business.
 
+**A colour of the shell is named in `ui/theme`.** `ui/theme/tokens.rs` holds
+the redesign's tokens, each after its path in `docs/redesign/tokens.json`, and
+`ui/theme.rs` builds the `Visuals` and `Style` from them. Anywhere else in
+`cao_app`, a `Color32` written out — a named constant other than
+`TRANSPARENT`, or a constructor fed only numbers — fails
+`architecture.rs`: a screen names the token, so a palette change is one file.
+The viewport's colours are not these: they are `cao_prefs::Theme`, which the
+user sets.
+
 ## Names
 
 Files and folders are **snake_case**, because a module name is an identifier.

@@ -22,11 +22,12 @@ mod cut;
 
 use super::curves::push_line;
 use super::overlays::{tint_to_color, to_screen};
-use super::{tint, tint_at};
+use super::{canvas_background, tint, tint_at};
 use crate::screens::SketchContext;
 use crate::screens::annotations::metrics;
 use crate::screens::viewport::input::measure_showing;
 use crate::screens::viewport::{ViewScale, ViewportState};
+use crate::ui::theme::tokens;
 use crate::wording::measure::Said;
 
 /// How big the numbers are drawn, matching the dimensions' own labels.
@@ -276,7 +277,7 @@ pub(crate) fn paint_measure(
                     beside(start, end),
                     &number,
                     colour,
-                    theme,
+                    backdrop(state),
                     &mut taken,
                 );
             }
@@ -300,7 +301,7 @@ pub(crate) fn paint_measure(
                 at,
                 &lines.join("\n"),
                 theme.measure,
-                theme,
+                backdrop(state),
                 &mut taken,
             );
         }
@@ -350,30 +351,26 @@ fn write(
     wanted: egui::Pos2,
     number: &str,
     colour: Rgba,
-    theme: &Theme,
+    backdrop: egui::Color32,
     taken: &mut Vec<egui::Rect>,
 ) {
     let painter = ui.painter_at(rect);
     let text = painter.layout_no_wrap(
         number.to_owned(),
-        egui::FontId::proportional(TEXT_POINTS),
+        egui::FontId::monospace(TEXT_POINTS),
         tint_to_color(colour),
     );
     let size = text.size() + egui::vec2(8.0, 4.0);
     let pill = egui::Rect::from_center_size(onto_a_free_line(wanted, size, taken), size);
     taken.push(pill);
-    painter.rect_filled(pill, 4.0, backdrop(theme));
-    painter.galley(
-        pill.center() - text.size() / 2.0,
-        text,
-        egui::Color32::WHITE,
-    );
+    painter.rect_filled(pill, 4.0, backdrop);
+    painter.galley(pill.center() - text.size() / 2.0, text, tokens::TEXT_TITLE);
 }
 
-/// The pill's own colour: the canvas's background, held back from opaque so
-/// the drawing stays readable through it.
-fn backdrop(theme: &Theme) -> egui::Color32 {
-    tint_to_color(theme.background.sample(0.0).with_alpha(0.82))
+/// The pill's own colour: the background of the canvas it sits on, held back
+/// from opaque so the drawing stays readable through it.
+fn backdrop(state: &ViewportState) -> egui::Color32 {
+    tint_to_color(canvas_background(state).sample(0.0).with_alpha(0.82))
 }
 
 #[cfg(test)]

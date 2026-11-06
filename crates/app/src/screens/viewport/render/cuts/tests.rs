@@ -27,6 +27,11 @@
 //! `the_dashes_of_a_curve_up_to_its_sharp_corner_light_with_their_cut` — and a
 //! fillet beside a curve that does not fit is red —
 //! `a_fillet_beside_a_curve_that_does_not_fit_is_painted_red`.
+//!
+//! Closes #724.
+//! - found in review: every number in JetBrains Mono, as "To try it" promises —
+//!   the value a fillet or a chamfer is labelled with is written in the
+//!   monospace family — `a_cut_s_value_is_written_in_the_monospace_family`
 
 use cao_part::history::PointRef;
 use cao_part::{Operation, PartDocument};
@@ -951,4 +956,99 @@ fn a_fillet_beside_a_curve_that_does_not_fit_is_painted_red() {
         !on_the_fillet.is_empty() && on_the_fillet.iter().all(|colour| *colour == refused),
         "the fillet that does not fit is painted in the colour of a refusal: {on_the_fillet:?}"
     );
+}
+
+/// The family each piece of text a frame painted is written in, beside the
+/// text itself.
+fn families(shapes: &[egui::Shape]) -> Vec<(String, egui::FontFamily)> {
+    shapes
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Text(text) => Some(&text.galley),
+            _ => None,
+        })
+        .flat_map(|galley| {
+            galley
+                .job
+                .sections
+                .iter()
+                .map(|section| {
+                    (
+                        galley.text().to_string(),
+                        section.format.font_id.family.clone(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+/// The labels of the plate's four fillets, painted in one pass of `egui` with
+/// no window and no GPU.
+fn the_plate_s_cut_labels() -> Vec<egui::Shape> {
+    let document = a_rounded_plate();
+    let sketch = &document.sketches()[0];
+    let state = ViewportState::default();
+    let view_projection = state
+        .camera
+        .view_projection(SCREEN.width() / SCREEN.height());
+    let pixel = state.camera.world_units_per_pixel(SCREEN.height()) as f64;
+    let egui = egui::Context::default();
+    let mut output = egui::FullOutput::default();
+    for _ in 0..2 {
+        output.textures_delta.clear();
+        egui.begin_pass(egui::RawInput {
+            screen_rect: Some(SCREEN),
+            ..Default::default()
+        });
+        egui::Area::new(egui::Id::new("the canvas"))
+            .fixed_pos(SCREEN.min)
+            .fade_in(false)
+            .show(&egui, |ui| {
+                let painter = ui.painter_at(SCREEN);
+                paint_cut_labels(
+                    &painter,
+                    sketch,
+                    &state,
+                    1.0,
+                    view_projection,
+                    (SCREEN, pixel),
+                );
+            });
+        output = egui.end_pass();
+    }
+    output.textures_delta.clear();
+    let mut flat = Vec::new();
+    let mut pending: Vec<egui::Shape> = output
+        .shapes
+        .into_iter()
+        .map(|clipped| clipped.shape)
+        .collect();
+    while let Some(shape) = pending.pop() {
+        match shape {
+            egui::Shape::Vec(shapes) => pending.extend(shapes),
+            shape => flat.push(shape),
+        }
+    }
+    flat
+}
+
+#[test]
+fn a_cut_s_value_is_written_in_the_monospace_family() {
+    let written = families(&the_plate_s_cut_labels());
+
+    assert!(
+        written.iter().any(|(text, _)| holds_a_figure(text))
+            && written
+                .iter()
+                .filter(|(text, _)| holds_a_figure(text))
+                .all(|(_, family)| *family == egui::FontFamily::Monospace),
+        "a cut's value is written {written:?}: the figures go in the monospace family",
+    );
+}
+
+/// Whether a piece of text holds a figure: a label may set a word beside it,
+/// « Distance » or « R », and the word may stay in the proportional family.
+fn holds_a_figure(text: &str) -> bool {
+    text.chars().any(|character| character.is_ascii_digit())
 }

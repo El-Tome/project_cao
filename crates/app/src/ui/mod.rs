@@ -5,4 +5,5 @@ pub mod formula_field;
 pub mod question;
 pub mod slider;
 pub mod text_edit;
+pub mod theme;
 pub mod tool_button;

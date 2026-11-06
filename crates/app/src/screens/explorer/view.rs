@@ -4,6 +4,7 @@ use cao_part::library::{self, Folder};
 
 use crate::lang::Catalogue;
 use crate::ui::text_edit::text_edit;
+use crate::ui::theme::tokens;
 use crate::wording;
 
 use super::state::{Explorer, Naming};
@@ -102,7 +103,7 @@ fn show(ui: &mut egui::Ui, explorer: &mut Explorer, lang: &Catalogue) -> Explore
     if let Some(fate) = explorer.trouble() {
         ui.separator();
         ui.colored_label(
-            egui::Color32::from_rgb(230, 140, 140),
+            tokens::STATE_ERROR_TEXT,
             wording::part_file::say(lang, fate),
         );
     }

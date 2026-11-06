@@ -67,6 +67,16 @@
 //!   in `crates/part/src/document/geometry_cache/tests.rs`, written before the
 //!   move and a bullet may only name a test of its own file
 //!
+//! Closes #724.
+//! - colours written as literals elsewhere go through the theme: the amber of
+//!   the message, the history, the dimension labels and the cut labels; the
+//!   greys of the overlays; the red error bar while it exists — no
+//!   `egui::Color32` is written out in `crates/app/src` outside `ui/theme.rs`
+//!   and `ui/theme/`, and the refusal names each file and line —
+//!   `a_colour_of_the_shell_is_written_in_its_theme_and_nowhere_else`; what
+//!   counts as writing one out, `Color32::TRANSPARENT` and a comment left
+//!   aside — `writing_a_colour_out_is_told_from_naming_one`
+//!
 //! The rules themselves live in `.claude/skills/architecture-rust`. Prose holds
 //! until someone moves something; this is the part that keeps holding after.
 //!
@@ -818,6 +828,73 @@ fn a_word_the_user_reads_is_said_without_drawing_it() {
 }
 
 #[test]
+fn a_colour_of_the_shell_is_written_in_its_theme_and_nowhere_else() {
+    let mut written_out = Vec::new();
+
+    for (path, source) in sources_of("app") {
+        if is_the_shell_s_theme(&path) || is_nothing_but_tests(&path) {
+            continue;
+        }
+        for line in colours_written_out(production(&source)) {
+            let code = source.lines().nth(line - 1).unwrap_or_default().trim();
+            written_out.push(format!("{path}:{line}  {code}"));
+        }
+    }
+
+    assert!(
+        written_out.is_empty(),
+        "colours written out away from the theme:\n  {}\n\
+         A colour the shell draws with is a token of crates/app/src/ui/theme/: \
+         name it there and reach for it, so that the palette changes in one place.",
+        written_out.join("\n  "),
+    );
+}
+
+#[test]
+fn writing_a_colour_out_is_told_from_naming_one() {
+    for (source, written_out) in [
+        ("ui.colored_label(egui::Color32::RED, message);", vec![1]),
+        (
+            "const WARNING: egui::Color32 = egui::Color32::from_rgb(250, 220, 120);",
+            vec![1],
+        ),
+        ("let grey = egui::Color32::from_gray(60);", vec![1]),
+        ("Color32::from_rgba_unmultiplied(242, 165, 65, 33)", vec![1]),
+        ("Color32::from_black_alpha(80)", vec![1]),
+        ("Color32::from_hex(\"#F2A541\")", vec![1]),
+        ("fill: egui::Color32::TRANSPARENT,", vec![]),
+        ("fn backdrop(theme: &Theme) -> egui::Color32 {", vec![]),
+        (
+            "// egui::Color32::RED was the colour before the theme",
+            vec![],
+        ),
+        ("let said = \"Color32::RED\";", vec![]),
+        (
+            "fn to_egui_color(color: Rgba) -> egui::Color32 {\n\
+             \x20   egui::Color32::from_rgba_unmultiplied(\n\
+             \x20       (color.r * 255.0).round() as u8,\n\
+             \x20       (color.g * 255.0).round() as u8,\n\
+             \x20       (color.b * 255.0).round() as u8,\n\
+             \x20       (color.a * 255.0).round() as u8,\n\
+             \x20   )\n\
+             }",
+            vec![],
+        ),
+        (
+            "let quiet = theme::TEXT_QUIET;\n\
+             let stroke = egui::Stroke::new(1.0, egui::Color32::WHITE);",
+            vec![2],
+        ),
+    ] {
+        assert_eq!(
+            colours_written_out(source),
+            written_out,
+            "the lines of this source writing a colour out:\n{source}",
+        );
+    }
+}
+
+#[test]
 fn a_presenter_never_takes_the_interface() {
     for (path, source) in sources_of("app") {
         if !path.ends_with("/state.rs") && !path.ends_with("/presenter.rs") {
@@ -1276,6 +1353,73 @@ fn widgets_dressed_by_hand(source: &str) -> usize {
         .iter()
         .map(|widget| body.matches(widget).count())
         .sum()
+}
+
+fn is_the_shell_s_theme(path: &str) -> bool {
+    path == "crates/app/src/ui/theme.rs" || path.starts_with("crates/app/src/ui/theme/")
+}
+
+/// The lines of a source where an `egui::Color32` is written out: a named
+/// colour other than `TRANSPARENT`, or a constructor handed nothing but
+/// numbers — or a string, which is all `from_hex` takes. A constructor handed
+/// values converts a colour someone chose rather than writing one, and is left
+/// alone, as is a mention in a comment or a string.
+fn colours_written_out(source: &str) -> Vec<usize> {
+    let lines: Vec<String> = source.lines().map(code_of).collect();
+    let code = lines.join("\n");
+    let line_of = |offset: usize| code[..offset].matches('\n').count() + 1;
+    let is_identifier = |character: char| character.is_alphanumeric() || character == '_';
+
+    let mut found = Vec::new();
+    for (at, path) in code.match_indices("Color32::") {
+        if code[..at].chars().next_back().is_some_and(is_identifier) {
+            continue;
+        }
+        let after = &code[at + path.len()..];
+        let item: String = after.chars().take_while(|&c| is_identifier(c)).collect();
+        let named = !item.is_empty()
+            && item != "TRANSPARENT"
+            && item
+                .chars()
+                .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_');
+        let built_of_numbers = item.starts_with("from_")
+            && arguments_of(&after[item.len()..]).is_some_and(|arguments| {
+                arguments.iter().all(|argument| {
+                    argument.is_empty()
+                        || (argument.starts_with(|c: char| c.is_ascii_digit())
+                            && argument.chars().all(|c| is_identifier(c) || c == '.'))
+                })
+            });
+        if named || built_of_numbers {
+            found.push(line_of(at));
+        }
+    }
+    found
+}
+
+/// The arguments of the call `text` opens on, split at the commas that are
+/// not inside a nested call, each trimmed.
+fn arguments_of(text: &str) -> Option<Vec<String>> {
+    let inside = text.trim_start().strip_prefix('(')?;
+    let (mut depth, mut arguments, mut current) = (0usize, Vec::new(), String::new());
+    for character in inside.chars() {
+        match character {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' if depth == 0 => {
+                arguments.push(current.trim().to_string());
+                return Some(arguments);
+            }
+            ')' | ']' | '}' => depth -= 1,
+            ',' if depth == 0 => {
+                arguments.push(current.trim().to_string());
+                current.clear();
+                continue;
+            }
+            _ => {}
+        }
+        current.push(character);
+    }
+    None
 }
 
 fn rust_files(directory: &Path) -> Vec<PathBuf> {

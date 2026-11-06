@@ -17,6 +17,13 @@
 //!   the canvas takes, and wants it brighter than the resting mark by a contrast
 //!   of `CONTRAST_TO_STAND_OUT` or more, and brighter than the resting mark
 //!   would be at the same opacity
+//!
+//! Closes #724.
+//! - found in review: every number in JetBrains Mono, as "To try it" promises —
+//!   the scale bar's figure is written in the monospace family —
+//!   `the_scale_bar_s_figure_is_written_in_the_monospace_family`; the words
+//!   stay in Inter, the cube's face names among them —
+//!   `the_names_of_the_cube_s_faces_stay_in_the_proportional_family`
 
 use cao_part::history::PointRef;
 use cao_part::{Operation, PartDocument};
@@ -110,6 +117,63 @@ fn the_scale_bar_says_how_long_one_grid_step_is() {
         words(&painted).contains(&expected),
         "the scale bar is drawn without saying what it measures; it said {:?}",
         words(&painted),
+    );
+}
+
+/// The family each piece of text a frame painted is written in, beside the
+/// text itself.
+fn families(shapes: &[egui::Shape]) -> Vec<(String, egui::FontFamily)> {
+    shapes
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Text(text) => Some(&text.galley),
+            _ => None,
+        })
+        .flat_map(|galley| {
+            galley
+                .job
+                .sections
+                .iter()
+                .map(|section| {
+                    (
+                        galley.text().to_string(),
+                        section.format.font_id.family.clone(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+#[test]
+fn the_scale_bar_s_figure_is_written_in_the_monospace_family() {
+    let (state, scale) = a_view();
+
+    let written = families(&shapes(|ui| paint_ruler(ui, &state, SCREEN, scale)));
+
+    assert!(
+        written.iter().any(|(text, _)| holds_a_figure(text))
+            && written
+                .iter()
+                .filter(|(text, _)| holds_a_figure(text))
+                .all(|(_, family)| *family == egui::FontFamily::Monospace),
+        "the scale bar's figure is written {written:?}: the figures go in the monospace family",
+    );
+}
+
+#[test]
+fn the_names_of_the_cube_s_faces_stay_in_the_proportional_family() {
+    let (state, _) = a_view();
+    let lang = Catalogue::french();
+
+    let written = families(&shapes(|ui| paint_face_labels(ui, &state, SCREEN, &lang)));
+
+    assert!(
+        !written.is_empty()
+            && written
+                .iter()
+                .all(|(_, family)| *family == egui::FontFamily::Proportional),
+        "the cube's face names are written {written:?}",
     );
 }
 
@@ -442,4 +506,10 @@ fn a_mark_set_aside_by_another_is_taken_where_it_was_set() {
             "and no further"
         );
     }
+}
+
+/// Whether a piece of text holds a figure: a label may set a word beside it,
+/// « Distance » or « R », and the word may stay in the proportional family.
+fn holds_a_figure(text: &str) -> bool {
+    text.chars().any(|character| character.is_ascii_digit())
 }

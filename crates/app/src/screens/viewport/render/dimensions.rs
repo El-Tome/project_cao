@@ -14,6 +14,7 @@ use super::preview::PendingAnnotation;
 use super::{live_offset, pending_annotation};
 use crate::screens::SketchContext;
 use crate::ui::dropping::take_a_dropped_name;
+use crate::ui::theme::tokens;
 use crate::wording::dimension::{degrees, short};
 
 /// Each dimension is drawn where it applies, with the value it stands for.
@@ -101,7 +102,7 @@ pub(crate) fn paint_dimension_labels(
             position,
             egui::Align2::CENTER_CENTER,
             text,
-            egui::FontId::proportional(13.0),
+            egui::FontId::monospace(13.0),
             color,
         );
     }
@@ -145,7 +146,7 @@ pub(crate) fn paint_dimension_labels(
             position,
             egui::Align2::CENTER_CENTER,
             text,
-            egui::FontId::proportional(13.0),
+            egui::FontId::monospace(13.0),
             color,
         );
     }
@@ -155,8 +156,8 @@ pub(crate) fn paint_dimension_labels(
 /// reports rather than decides.
 fn as_label(text: String, read_only: bool) -> (String, egui::Color32) {
     match read_only {
-        true => (format!("({text})"), egui::Color32::from_gray(170)),
-        false => (text, egui::Color32::from_rgb(250, 220, 120)),
+        true => (format!("({text})"), tokens::TEXT_SUBDUED),
+        false => (text, tokens::ACCENT_AMBER_TEXT),
     }
 }
 
@@ -273,3 +274,6 @@ fn annotation_screen_position(
         rect,
     )
 }
+
+#[cfg(test)]
+mod tests;

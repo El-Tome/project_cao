@@ -121,7 +121,7 @@ fn starting_a_sketch_turns_the_section_view_off() {
     );
 
     click_in_the_ribbon(&mut app, "Nouvelle esquisse");
-    driver::click_at(&mut app, driver::ON_ONE_OF_THE_BASE_PLANES);
+    driver::click_on_canvas(&mut app, driver::ON_ONE_OF_THE_BASE_PLANES);
 
     assert!(
         driver::shows(&app, "Terminer"),

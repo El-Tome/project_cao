@@ -7,8 +7,23 @@
 //! Both places the interface keeps its words are read: the language file, and
 //! the string literals of `cao_app`. Asking the fonts themselves rather than
 //! holding a list of allowed characters is what makes it one rule — the day
-//! `egui` ships a font covering an arrow, the arrow is allowed here with no
-//! edit.
+//! the application embeds a font covering an arrow, the arrow is allowed here
+//! with no edit.
+//!
+//! The fonts asked are the ones the application installs, read off
+//! `cao_app::theme::font_definitions()`: Inter or JetBrains Mono first, then
+//! every face `egui` ships behind it, which is where a mark they lack is drawn
+//! from.
+//!
+//! Closes #724.
+//! - every mark drawn (✓, ⌘, ⇧, ↵, ▾, Ø, ⊥, ∥…) is in the embedded fonts, or
+//!   the test says which is missing —
+//!   `every_mark_the_language_file_writes_is_one_the_fonts_can_draw`,
+//!   `every_mark_written_into_the_interface_sources_is_one_the_fonts_can_draw`,
+//!   and the one missing named with its codepoint —
+//!   `a_mark_no_font_carries_is_named_with_its_codepoint`; in both families,
+//!   since the figures are written in the monospace one (found in review) —
+//!   `a_mark_only_the_proportional_family_carries_is_named_with_the_family_it_lacks`
 //!
 //! `Fonts::has_glyph` is the obvious way in and the wrong one: it answers by
 //! comparing which face owns the character against the face owning the
@@ -17,19 +32,21 @@
 //! `Font::characters` lists what the family really reaches, and agrees with
 //! what the running application draws.
 //!
-//! Only the proportional family is read, because nothing here asks for another
-//! one. Only characters outside ASCII are read: `Ubuntu-Light` carries all of
+//! Both families are read. The interface writes its words in the proportional
+//! one and its figures in the monospace one, and a string literal does not say
+//! which it will be written in, so a mark has to be drawable in each: one the
+//! monospace chain lacks is an empty box the day it lands in a figure. Only
+//! characters outside ASCII are read: Inter and JetBrains Mono carry all of
 //! ASCII, and a literal holds its escapes unresolved, so `\n` would arrive as
 //! a backslash and an `n`.
 //!
-//! What it does not catch: a mark assembled at run time from codepoints, and a
-//! font handed to `egui` at start-up, since nothing here does either.
+//! What it does not catch: a mark assembled at run time from codepoints, since
+//! nothing here does that.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use egui::FontDefinitions;
 use egui::epaint::{FontFamily, Fonts, TextOptions};
 
 const FRENCH_FILE: &str = "crates/app/src/lang/fr.json";
@@ -50,7 +67,7 @@ fn every_mark_the_language_file_writes_is_one_the_fonts_can_draw() {
 
     assert!(
         undrawable.is_empty(),
-        "Marks the fonts shipped with egui cannot draw:\n  {}\n\
+        "Marks the application's fonts cannot draw in both families:\n  {}\n\
          Each one shows as an empty box. Say it in words, or pick a mark the\n\
          fonts carry — ↺ ⚙ ✏ ✔ ↖ ↗ ↙ ↘ ⬅ ➡ ⬆ ⬇ ✖ « » — · all draw.",
         undrawable.join("\n  "),
@@ -70,7 +87,7 @@ fn every_mark_written_into_the_interface_sources_is_one_the_fonts_can_draw() {
 
     assert!(
         undrawable.is_empty(),
-        "Marks the fonts shipped with egui cannot draw:\n  {}\n\
+        "Marks the application's fonts cannot draw in both families:\n  {}\n\
          Each one shows as an empty box. A mark a reader sees belongs in\n\
          {FRENCH_FILE} anyway, where a translator can reach it.",
         undrawable.join("\n  "),
@@ -94,35 +111,67 @@ fn a_mark_no_font_carries_is_named_with_its_codepoint() {
     let drawable = marks_the_fonts_draw();
 
     assert_eq!(
-        marks_missing_from(&drawable, "⌂ Accueil"),
-        vec!["'⌂' U+2302".to_string()],
+        marks_missing_from(&drawable, "⏚ Terre"),
+        vec!["'⏚' U+23DA missing from Proportional and Monospace".to_string()],
     );
 }
 
-/// Every character the proportional family reaches, across the whole fallback
-/// chain. These are the fonts `egui` ships with, which is what the shell runs
-/// on: nothing here hands it any other.
-fn marks_the_fonts_draw() -> BTreeSet<char> {
-    let mut fonts = Fonts::new(TextOptions::default(), FontDefinitions::default());
-    fonts
-        .fonts
-        .font(&FontFamily::Proportional)
-        .characters()
-        .keys()
-        .copied()
+#[test]
+fn a_mark_only_the_proportional_family_carries_is_named_with_the_family_it_lacks() {
+    let proportional_only = BTreeSet::from(['é', '→']);
+    let drawable = vec![
+        (FontFamily::Proportional, proportional_only),
+        (FontFamily::Monospace, BTreeSet::from(['é'])),
+    ];
+
+    assert_eq!(
+        marks_missing_from(&drawable, "é → ici"),
+        vec!["'→' U+2192 missing from Monospace".to_string()],
+    );
+}
+
+/// Every character each family reaches, across its whole fallback chain. These
+/// are the fonts the application installs at start-up — the embedded ones,
+/// and `egui`'s behind them.
+fn marks_the_fonts_draw() -> Vec<(FontFamily, BTreeSet<char>)> {
+    let mut fonts = Fonts::new(TextOptions::default(), cao_app::theme::font_definitions());
+    [FontFamily::Proportional, FontFamily::Monospace]
+        .into_iter()
+        .map(|family| {
+            let reached = fonts
+                .fonts
+                .font(&family)
+                .characters()
+                .keys()
+                .copied()
+                .collect();
+            (family, reached)
+        })
         .collect()
 }
 
-/// Every character of `said` the fonts have no glyph for, named once each and
-/// with its codepoint — an empty box is not something one can paste into a
-/// search.
-fn marks_missing_from(drawable: &BTreeSet<char>, said: &str) -> Vec<String> {
+/// Every character of `said` a family has no glyph for, named once each, with
+/// its codepoint — an empty box is not something one can paste into a search
+/// — and the families that lack it.
+fn marks_missing_from(drawable: &[(FontFamily, BTreeSet<char>)], said: &str) -> Vec<String> {
     said.chars()
         .filter(|mark| !mark.is_ascii())
         .collect::<BTreeSet<char>>()
         .into_iter()
-        .filter(|mark| !drawable.contains(mark))
-        .map(|mark| format!("'{mark}' U+{:04X}", mark as u32))
+        .filter_map(|mark| {
+            let lacking: Vec<String> = drawable
+                .iter()
+                .filter(|(_, reached)| !reached.contains(&mark))
+                .map(|(family, _)| format!("{family:?}"))
+                .collect();
+            (!lacking.is_empty()).then(|| {
+                format!(
+                    "'{mark}' U+{:04X} missing from {}",
+                    mark as u32,
+                    lacking.join(" and ")
+                )
+            })
+        })
         .collect()
 }
 

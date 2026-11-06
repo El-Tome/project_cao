@@ -17,6 +17,7 @@ use super::overlays::{tint_to_color, to_screen};
 use super::{emphasis, tint, tint_at};
 use crate::screens::SketchContext;
 use crate::screens::viewport::ViewScale;
+use crate::ui::theme::tokens;
 use crate::wording::dimension;
 
 mod curve_sides;
@@ -355,14 +356,14 @@ pub(super) fn paint_cut_labels(
             continue;
         };
         let color = match cut.fits {
-            true => egui::Color32::from_rgb(250, 220, 120),
+            true => tokens::ACCENT_AMBER_TEXT,
             false => tint_to_color(state.theme.refused),
         };
         painter.text(
             position,
             egui::Align2::CENTER_CENTER,
             text,
-            egui::FontId::proportional(13.0),
+            egui::FontId::monospace(13.0),
             color,
         );
     }

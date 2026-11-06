@@ -4,10 +4,8 @@ use cao_part::history::Operation;
 
 use crate::lang::Catalogue;
 use crate::ui::question::{Question, ask};
+use crate::ui::theme::tokens;
 use crate::wording;
-
-/// The yellow the shell already writes its messages in.
-const WARNING: egui::Color32 = egui::Color32::from_rgb(250, 220, 120);
 
 /// The history panel: everything done to the part, newest last, with the steps
 /// that have been undone shown greyed out below the current position.
@@ -222,7 +220,7 @@ fn entry(
     }
     let mut detail = wording::history::detail(lang, variables, operation);
     if let Some(capped) = capped {
-        text = text.color(WARNING);
+        text = text.color(tokens::STATE_WARNING_TEXT);
         detail = format!("{}\n{detail}", wording::pattern::step_capped(lang, capped));
     }
 

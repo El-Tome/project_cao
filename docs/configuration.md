@@ -17,7 +17,7 @@ The ⚙ button of the toolbar, or `Cmd/Ctrl + ,`. Six sections:
 | **Profils** | Switch, duplicate, delete, import, export, reset everything |
 | **Viewport** | Orientation cube, grid and magnets, ruler, camera bounds |
 | **Navigation** | Mouse habits, sensitivities, trackpad gestures |
-| **Apparence** | The background, and every colour and width |
+| **Apparence** | The two backgrounds, and every colour and width |
 | **Raccourcis** | The key of each command |
 | **Barre d'outils** | The place, the logo, and the arrangement of the buttons |
 
@@ -65,12 +65,15 @@ the default values, failing which the user would have no way in to repair it.
 
 ## Appearance
 
-### The background
+### The backgrounds
 
-Plain, a linear gradient at any angle, or a radial gradient whose centre and
-radius one places. In both cases the colour is described by a **list of
-stops** — they are added and removed at will. Two-colour gradients are what one
-asks for first and three-colour ones just after; a list costs no more to draw.
+Two of them: the free view's, a radial gradient by default, and a sketch's,
+plain by default — the redesign's `view3d_*` and `sketch_view`. Each is set
+apart, and each is plain, a linear gradient at any angle, or a radial gradient
+whose centre and radius one places. In both cases the colour is described by a
+**list of stops** — they are added and removed at will. Two-colour gradients
+are what one asks for first and three-colour ones just after; a list costs no
+more to draw.
 
 The background is emitted in screen coordinates, with no camera: it does not
 move when the view turns. Changing the kind of gradient keeps the colours
@@ -154,8 +157,9 @@ in the palette of the toolbar and in the list of shortcuts.
   the camera (45°).
 - The width of the cube borders that select an edge or a corner (22 %).
 - The logo is a text: there is no image file to load yet.
-- The colours of the interface itself (panels, buttons) are egui's; only the
-  viewport follows the theme.
+- The colours of the interface itself (panels, buttons) are the redesign's
+  dark theme, fixed in `cao_app`'s `ui/theme`; only the viewport follows the
+  settings.
 - Mouse gestures go through presets (Fusion, SolidWorks, Blender) and are not
   set button by button.
 - No setting belongs to a part: everything is global.

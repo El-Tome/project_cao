@@ -10,14 +10,30 @@
 
 use cao_app::app::CaoApp;
 use cao_prefs::Locations;
+use egui::accesskit::Action;
 use egui_kittest::Harness;
-use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::kittest::{NodeT, Queryable, by};
 
 pub const SCREEN: (f32, f32) = (1280.0, 800.0);
 
+/// A point of the drawing area given from its centre, right and down, in
+/// pixels of a canvas as tall as the one the points are written for — not a
+/// point of the screen. A type of its own, so that handing one to a gesture
+/// that takes a point of the screen does not compile.
+#[derive(Clone, Copy, Debug)]
+pub struct FromTheCentre(pub f32, pub f32);
+
+/// On the YZ plane, as a new part shows the three base planes.
+pub const ON_ONE_OF_THE_BASE_PLANES: FromTheCentre = FromTheCentre(-197.3, 59.5);
+
+/// The height of the drawing area the points given from its centre are written
+/// for: the canvas a sketch showed on a 1280×800 screen before #724 dressed the
+/// chrome, which is where most of them were first read off a rendered frame.
+const CANVAS_HEIGHT_THE_POINTS_ARE_WRITTEN_FOR: f32 = 612.0;
+
 /// Inside the drawing area, which starts to the right of the file list and the
-/// panel beside it. Read off a rendered frame of that same screen size.
-pub const ON_ONE_OF_THE_BASE_PLANES: (f32, f32) = (700.0, 545.0);
+/// panel beside it. Read off a rendered frame of that same screen size, so they
+/// move with the chrome around the canvas, as the plane above no longer does.
 pub const A_POINT_ABOVE_THE_ORIGIN: (f32, f32) = (700.0, 400.0);
 pub const A_POINT_BELOW_AND_RIGHT: (f32, f32) = (1000.0, 620.0);
 
@@ -39,11 +55,7 @@ pub fn open_with(test: &str, (width, height): (f32, f32), settings: cao_prefs::S
     let root = std::env::temp_dir().join("cao-driver").join(test);
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("documents")).expect("a place to keep the parts");
-    let at = Locations {
-        config: root.join("config"),
-        data: root.join("data"),
-        documents: Some(root.join("documents")),
-    };
+    let at = locations_of(test);
     let mut profiles = cao_prefs::Profiles::default();
     *profiles.active_mut() = settings;
     profiles
@@ -65,6 +77,24 @@ pub fn open_with(test: &str, (width, height): (f32, f32), settings: cao_prefs::S
         });
     app.run();
     app
+}
+
+/// Where the application opened for `test` keeps what it writes.
+fn locations_of(test: &str) -> Locations {
+    let root = std::env::temp_dir().join("cao-driver").join(test);
+    Locations {
+        config: root.join("config"),
+        data: root.join("data"),
+        documents: Some(root.join("documents")),
+    }
+}
+
+/// The settings the application opened for `test` has written down, as the
+/// next start would read them.
+pub fn saved_settings(test: &str) -> cao_prefs::Settings {
+    cao_prefs::Profiles::load(&cao_app::adapters::files::DiskFiles, &locations_of(test))
+        .active()
+        .clone()
 }
 
 pub fn click(app: &mut App, label: &str) {
@@ -93,6 +123,45 @@ fn within_reach(label: &str, centre: egui::Pos2, screen: egui::Rect) {
         "{label} sits at {centre:?}, off the {screen:?} screen, where a click \
          reaches nothing: open the application wider, with `open_on`",
     );
+}
+
+/// The drawing area, as the accessibility tree has it: the largest node that
+/// takes a click and carries no name. `egui` names every button, field and
+/// label; the canvas is the one surface it has nothing to call. A modal's
+/// backdrop takes a click and carries no name too, but it covers the whole
+/// screen, which the canvas, with the chrome around it, never does.
+pub fn canvas(app: &App) -> egui::Rect {
+    let screen = app.ctx.content_rect();
+    app.query_all(
+        by().predicate(|node| node.data().supports_action(Action::Click) && node.label().is_none()),
+    )
+    .map(|node| node.rect())
+    .filter(|rect| !rect.contains_rect(screen))
+    .max_by(|one, other| one.area().total_cmp(&other.area()))
+    .expect("no drawing area on screen: no part is open")
+}
+
+/// Where a point given from the centre of the drawing area stands on screen
+/// now. The view is centred on the canvas and its field of view is vertical,
+/// so scaled by the canvas's height the point stays on the same spot of the
+/// scene, however much room the chrome around it takes. A point that lands
+/// outside the canvas would be a click on the chrome, so it is refused here,
+/// in the spirit of `within_reach`.
+pub fn on_canvas(app: &App, FromTheCentre(right, down): FromTheCentre) -> egui::Pos2 {
+    let canvas = canvas(app);
+    let scale = canvas.height() / CANVAS_HEIGHT_THE_POINTS_ARE_WRITTEN_FOR;
+    let at = canvas.center() + egui::vec2(right, down) * scale;
+    assert!(
+        canvas.contains(at),
+        "({right}, {down}) from the centre of the drawing area lands at {at:?}, \
+         outside the canvas {canvas:?}, where a click reaches the chrome instead",
+    );
+    at
+}
+
+pub fn click_on_canvas(app: &mut App, from_its_centre: FromTheCentre) {
+    let at = on_canvas(app, from_its_centre);
+    click_at(app, (at.x, at.y));
 }
 
 pub fn click_at(app: &mut App, (x, y): (f32, f32)) {
@@ -150,7 +219,7 @@ pub fn create_a_part(app: &mut App, named: &str) {
 
 pub fn start_a_sketch(app: &mut App) {
     click(app, "Nouvelle esquisse");
-    click_at(app, ON_ONE_OF_THE_BASE_PLANES);
+    click_on_canvas(app, ON_ONE_OF_THE_BASE_PLANES);
 }
 
 pub fn draw_a_segment(app: &mut App) {

@@ -148,7 +148,8 @@ wording. Where a term carries a rule, the rule is on the line under it.
 | Code | Interface | What it names |
 | --- | --- | --- |
 | `Profile`, `Profiles` | profil | A named, exportable set of preferences. |
-| `Theme`, `Background` | thème, dégradé | Colours. |
+| `Theme`, `Background` | thème, dégradé | The viewport's colours, which the user sets. |
+| `ui::theme` | — | The chrome's colours and typefaces, the redesign's, fixed. |
 | `Shortcuts`, `Chord`, `Key` | raccourci | A key combination bound to a `Command`. |
 | `ToolbarLayout`, `Edge` | disposition | Where the toolbar sits and what is on it. |
 | `RecentList` | récents | Parts opened lately. |

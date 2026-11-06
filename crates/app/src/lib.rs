@@ -13,6 +13,8 @@ mod shortcuts;
 mod ui;
 mod wording;
 
+pub use ui::theme;
+
 /// Multisampling for the whole surface: the viewport is drawn with thin lines,
 /// which alias badly without it. The renderer's pipelines must be built with
 /// this same count.

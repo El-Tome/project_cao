@@ -53,6 +53,15 @@
 //!   confused — `a_measure_is_not_drawn_in_the_colour_a_dimension_drives_with`,
 //!   which reads the colour off the vertices rather than comparing two entries
 //!   of the theme, since it is the drawing that has to differ
+//!
+//! Closes #724.
+//! - found on the branch: the pill under a number wears the background of the
+//!   canvas it sits on, held back to 0.82 — the sketch's plain colour while the
+//!   view is on a plane, the free view's gradient once it is turned away —
+//!   `a_measure_s_pill_wears_the_background_of_the_canvas_it_sits_on`
+//! - found in review: every number in JetBrains Mono, as "To try it" promises —
+//!   the numbers a measure reads are written in the monospace family —
+//!   `a_measure_s_numbers_are_written_in_the_monospace_family`
 
 use cao_part::Formula;
 use cao_part::PartDocument;
@@ -70,6 +79,7 @@ use super::*;
 use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{SketchEditor, Tool};
+use crate::screens::viewport::ViewMode;
 
 const SCREEN: egui::Rect = egui::Rect {
     min: egui::Pos2::ZERO,
@@ -296,6 +306,15 @@ fn painted(showing: Option<DimensionTarget>) -> Vec<egui::Shape> {
 }
 
 fn painted_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<egui::Shape> {
+    painted_seen(to, showing, &ViewportState::default())
+}
+
+/// The same, painted the way `state` says, its theme included.
+fn painted_seen(
+    to: DVec2,
+    showing: Option<DimensionTarget>,
+    state: &ViewportState,
+) -> Vec<egui::Shape> {
     let (mut document, mut editor) = measuring_a_run(to, showing);
     let mut extrusion = ExtrusionState::default();
     let lang = Catalogue::french();
@@ -305,7 +324,6 @@ fn painted_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<egui::Shape> {
         extrusion: &mut extrusion,
         lang: &lang,
     };
-    let state = ViewportState::default();
     let measuring = what_is_measured(&context);
     let egui = egui::Context::default();
     let mut output = egui::FullOutput::default();
@@ -317,10 +335,13 @@ fn painted_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<egui::Shape> {
             screen_rect: Some(SCREEN),
             ..Default::default()
         });
+        // An area fades in over its first frames, which would tint every
+        // colour painted in it by how far the fade has got.
         egui::Area::new(egui::Id::new("the canvas"))
             .fixed_pos(SCREEN.min)
+            .fade_in(false)
             .show(&egui, |ui| {
-                paint_measure(ui, &state, SCREEN, &context, measuring.as_ref());
+                paint_measure(ui, state, SCREEN, &context, measuring.as_ref());
             });
         output = egui.end_pass();
     }
@@ -436,6 +457,80 @@ fn every_number_sits_on_a_pill_so_the_drawing_cannot_swallow_it() {
             "{number:?} has no pill under it",
         );
     }
+}
+
+#[test]
+fn a_measure_s_pill_wears_the_background_of_the_canvas_it_sits_on() {
+    let mut state = ViewportState::default();
+    state.theme.background = cao_prefs::theme::Background::Solid(Rgba::opaque(0.30, 0.10, 0.20));
+    state.theme.sketch_background =
+        cao_prefs::theme::Background::Solid(Rgba::opaque(0.10, 0.30, 0.20));
+    let held_back = |background: &cao_prefs::theme::Background| {
+        tint_to_color(background.sample(0.0).with_alpha(0.82))
+    };
+
+    for (mode, wears) in [
+        (
+            ViewMode::Plane(WorkPlane::XY),
+            held_back(&state.theme.sketch_background),
+        ),
+        (ViewMode::Free, held_back(&state.theme.background)),
+    ] {
+        state.mode = mode;
+        let fills: Vec<egui::Color32> =
+            painted_seen(DVec2::new(ACROSS, UP), Some(the_distance()), &state)
+                .iter()
+                .filter_map(|shape| match shape {
+                    egui::Shape::Rect(pill) => Some(pill.fill),
+                    _ => None,
+                })
+                .collect();
+
+        assert!(
+            !fills.is_empty() && fills.iter().all(|fill| *fill == wears),
+            "in a {mode:?} view the pills are filled {fills:?}, where the canvas under \
+             them, held back, is {wears:?}",
+        );
+    }
+}
+
+/// The family each piece of text a frame painted is written in, beside the
+/// text itself.
+fn families(shapes: &[egui::Shape]) -> Vec<(String, egui::FontFamily)> {
+    shapes
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Text(text) => Some(&text.galley),
+            _ => None,
+        })
+        .flat_map(|galley| {
+            galley
+                .job
+                .sections
+                .iter()
+                .map(|section| {
+                    (
+                        galley.text().to_string(),
+                        section.format.font_id.family.clone(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+#[test]
+fn a_measure_s_numbers_are_written_in_the_monospace_family() {
+    let written = families(&painted(Some(the_distance())));
+
+    assert!(
+        written.iter().any(|(text, _)| holds_a_figure(text))
+            && written
+                .iter()
+                .filter(|(text, _)| holds_a_figure(text))
+                .all(|(_, family)| *family == egui::FontFamily::Monospace),
+        "a measure's numbers are written {written:?}: the figures go in the monospace family",
+    );
 }
 
 /// A trait a hair off the horizontal: forty across and a third of a millimetre
@@ -820,4 +915,10 @@ fn a_fillet_measured_marks_its_centre_and_draws_its_radius() {
         (furthest - 8.0).abs() < A_DASH,
         "and the radius runs out to the arc, eight away, reaching {furthest}"
     );
+}
+
+/// Whether a piece of text holds a figure: a label may set a word beside it,
+/// « Distance » or « R », and the word may stay in the proportional family.
+fn holds_a_figure(text: &str) -> bool {
+    text.chars().any(|character| character.is_ascii_digit())
 }

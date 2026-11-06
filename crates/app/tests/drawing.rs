@@ -210,18 +210,20 @@ fn an_ellipse_drawn_with_three_clicks_becomes_a_step_of_the_sketch() {
 }
 
 /// A block raised off a sketch, and that sketch reopened from the history, so
-/// that the block stands between the eye and the plane being drawn on.
+/// that the block stands between the eye and the plane being drawn on. Its
+/// points, and the ones drawn behind it, are given from the centre of the
+/// drawing area, as `driver::on_canvas` reads them.
 fn a_sketch_reopened_under_its_own_block(test: &str) -> driver::App {
     let mut app = driver::open(test);
     driver::create_a_part(&mut app, "Bloc");
     driver::start_a_sketch(&mut app);
     driver::click(&mut app, "Rectangle (R)");
-    driver::click_at(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
-    driver::click_at(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::click_on_canvas(&mut app, driver::FromTheCentre(-178.55, -94.0));
+    driver::click_on_canvas(&mut app, driver::FromTheCentre(121.45, 126.0));
     driver::click_exactly(&mut app, "Extrusion");
     driver::click_exactly(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");
-    driver::click_at(&mut app, (850.0, 510.0));
+    driver::click_on_canvas(&mut app, driver::FromTheCentre(-24.89, 53.18));
     driver::click(&mut app, "Appliquer");
     driver::open_the_history(&mut app);
     driver::click(&mut app, "Modifier");
@@ -248,8 +250,8 @@ fn a_click_lands_on_the_sketch_plane_whatever_the_matter_in_front() {
         let mut app = reopened_after(clicks, &format!("a_click_lands_{state}"));
 
         driver::click(&mut app, "Ligne (L)");
-        driver::click_at(&mut app, (780.0, 450.0));
-        driver::click_at(&mut app, (920.0, 580.0));
+        driver::click_on_canvas(&mut app, driver::FromTheCentre(-182.44, -32.39));
+        driver::click_on_canvas(&mut app, driver::FromTheCentre(-47.08, 93.3));
         driver::press(&mut app, egui::Key::Escape);
 
         assert!(
@@ -267,13 +269,15 @@ fn the_dimension_tool_takes_a_segment_behind_the_matter_whatever_its_state() {
     for (clicks, state) in HIDDEN_SEE_THROUGH_OPAQUE.into_iter().enumerate() {
         let mut app = reopened_after(clicks, &format!("the_dimension_takes_{state}"));
         driver::click(&mut app, "Ligne (L)");
-        driver::click_at(&mut app, (780.0, 450.0));
-        driver::click_at(&mut app, (920.0, 450.0));
+        driver::click_on_canvas(&mut app, driver::FromTheCentre(-182.44, -32.39));
+        driver::click_on_canvas(&mut app, driver::FromTheCentre(-47.08, -32.39));
         driver::press(&mut app, egui::Key::Escape);
 
         driver::click(&mut app, "Cote (D)");
-        driver::click_at(&mut app, (850.0, 452.0));
-        driver::click_at(&mut app, (850.0, 520.0));
+        let beside_the_segment =
+            driver::on_canvas(&app, driver::FromTheCentre(-114.76, -32.39)) + egui::vec2(0.0, 2.0);
+        driver::click_at(&mut app, (beside_the_segment.x, beside_the_segment.y));
+        driver::click_on_canvas(&mut app, driver::FromTheCentre(-114.76, 35.29));
 
         assert!(
             driver::shows(&app, "Largeur"),

@@ -306,7 +306,7 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | What one profile is | `prefs/src/settings.rs` | `Settings`, `Profile`, `DEFAULT_PROFILE` — what it is *called* is in `app/src/wording/settings.rs` |
 | The set of profiles, read and written | `prefs/src/profiles.rs` | `Profiles` |
 | Viewport and navigation settings | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
-| Colours and gradients | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
+| Colours and gradients of the viewport | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` — the chrome's own colours are `app/src/ui/theme.rs` |
 | Keyboard shortcuts | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key`, `Modifier`, `adopt_new_bindings` |
 | Toolbar | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge`, `adopt_new_commands` |
 | Which buttons a fresh installation shows | `prefs/src/toolbar/standard.rs` | `impl Default for ToolbarLayout` |
@@ -398,6 +398,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: which sketches are drawn — one an extrusion or a revolution was made from only with its eye lit, the eyes kept by the number of the operation that created their sketch and put back to their defaults by a compaction — the row lit from the tree, and the body's mode, opaque, see-through or invisible | `app/src/screens/viewport/visibility.rs`, `app/src/commands.rs` | `eye_lit`, `toggle_eye`, `light`, `body_mode`, `next_body_mode`, `sketches_seen`; `compact_history` |
 | Canvas: the part's matter in a frame, drawn as the body's mode says over what the sketch's cut or the section leaves | `app/src/screens/viewport/render/body.rs` | `push_matter` |
 | The eye beside a row, lit or faded | `app/src/ui/eye.rs` | `eye` |
+| The chrome's theme: dark whatever the system says, its `Visuals` and `Style`, the two typefaces | `app/src/ui/theme.rs` | `install`, `font_definitions` |
+| The redesign's tokens the chrome wears, each named after its path in `docs/redesign/tokens.json` | `app/src/ui/theme/tokens.rs` | `BACKGROUND_PANEL`, `TEXT_PRIMARY`, `ACCENT_AMBER_TEXT`, … |
 | What the tree says by a case: its eye's hover, the « Corps » rubric with the body's mode | `app/src/wording/part_tree.rs` | `eye`, `body` |
 | The panels beside a part, and what is asked in them | `app/src/panels.rs` | `beside_the_part` |
 | Variables panel: the rows, what is typed into them, what was refused | `app/src/screens/variables/` | `state.rs` `VariablesPanel`, `Named`, `view.rs` `panel`, `mod.rs` `run` |
@@ -453,12 +455,13 @@ on screen rather than at build time. `crates/app/tests/language_keys.rs` closes
 that: a key named in Rust with no entry fails the gate, and so does an entry no
 Rust file names, which is what a rename leaves behind.
 
-A sentence still has to be drawable. The fonts `egui` ships with carry no glyph
-for `⌂`, `✕` or the four plain arrows, and what they draw instead is an empty
-box — five buttons in a row once read as the same square.
-`crates/app/tests/glyphs.rs` asks those fonts, for every entry of the language
-file and every literal of `cao_app`, so a mark nobody can draw cannot reach a
-screen.
+A sentence still has to be drawable. The application draws text in Inter and
+figures in JetBrains Mono, each with the fonts `egui` ships behind it. A mark
+neither chain carries comes out as an empty box — five buttons in a row once
+read as the same square, and the text chain still has no `⌂`.
+`crates/app/tests/glyphs.rs` asks the application's own fonts, for every entry
+of the language file and every literal of `cao_app`, so a mark nobody can draw
+cannot reach a screen.
 
 ## The invariants
 

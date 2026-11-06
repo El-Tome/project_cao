@@ -43,7 +43,7 @@ fn a_trait_drawn(test: &str, settings: cao_prefs::Settings) -> driver::App {
     let mut app = driver::open_with(test, WIDE, settings);
     driver::create_a_part(&mut app, "Platine");
     driver::click(&mut app, "Nouvelle esquisse");
-    driver::click_at(&mut app, right(driver::ON_ONE_OF_THE_BASE_PLANES));
+    driver::click_on_canvas(&mut app, driver::ON_ONE_OF_THE_BASE_PLANES);
     driver::click(&mut app, "Ligne (L)");
     driver::click_at(&mut app, right(driver::A_POINT_ABOVE_THE_ORIGIN));
     driver::click_at(&mut app, right(driver::A_POINT_BELOW_AND_RIGHT));
@@ -228,7 +228,9 @@ fn a_letter_typed_in_a_field_of_the_panel_takes_no_tool() {
 
 #[test]
 fn the_panel_opens_where_it_was_last_left_whichever_copy_tool_is_taken() {
-    let left_at = egui::pos2(900.0, 200.0);
+    // Low enough to lie inside the drawing area whatever the chrome above it
+    // takes: a panel left above it is brought back down into it.
+    let left_at = egui::pos2(900.0, 450.0);
     let settings = cao_prefs::Settings {
         copy_panel_at: Some([left_at.x, left_at.y]),
         ..cao_prefs::Settings::default()
@@ -367,7 +369,7 @@ fn a_panel_let_go_with_nowhere_to_keep_settings_says_nothing() {
         .build_eframe(move |cc| cao_app::app::CaoApp::new(cc, None, Some(part)));
     app.run();
     driver::click(&mut app, "Nouvelle esquisse");
-    driver::click_at(&mut app, right(driver::ON_ONE_OF_THE_BASE_PLANES));
+    driver::click_on_canvas(&mut app, driver::ON_ONE_OF_THE_BASE_PLANES);
 
     drag_the_mirror_s_panel(&mut app);
 

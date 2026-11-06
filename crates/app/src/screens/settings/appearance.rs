@@ -11,6 +11,10 @@ pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalog
     background_editor(ui, &mut theme.background, lang);
 
     ui.add_space(10.0);
+    ui.heading(lang.t("settings.appearance.sketch_background"));
+    background_editor(ui, &mut theme.sketch_background, lang);
+
+    ui.add_space(10.0);
     ui.heading(lang.t("settings.appearance.axes_and_grid"));
     color_row(ui, &lang.t("settings.appearance.axis_x"), &mut theme.axis_x);
     color_row(ui, &lang.t("settings.appearance.axis_y"), &mut theme.axis_y);
@@ -211,10 +215,7 @@ fn keep_stops(background: &Background) -> Vec<Stop> {
     match background {
         Background::Solid(color) => vec![Stop::new(0.0, *color), Stop::new(1.0, *color)],
         _ if background.stops().len() >= 2 => background.stops().to_vec(),
-        _ => vec![
-            Stop::new(0.0, Rgba::opaque(0.04, 0.05, 0.07)),
-            Stop::new(1.0, Rgba::opaque(0.10, 0.12, 0.16)),
-        ],
+        _ => Theme::default().background.stops().to_vec(),
     }
 }
 

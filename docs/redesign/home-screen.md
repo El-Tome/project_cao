@@ -25,7 +25,7 @@ Screenshots: `screens/08-home.png` and `screens/09-home-empty.png`.
   - a « Choisir… » button that opens the folder selector;
   - the help « Par défaut : le dossier choisi à gauche. ».
 - Primary button « Créer ↵ », full width, 44 px.
-> Decided otherwise in #722 (inventory M2): « Enregistrer dans » only chooses a folder inside the parts folder.
+> Decided otherwise in #722 (inventory M2): « Enregistrer dans » only chooses a folder inside the parts folder, and « Choisir… » opens a list of those folders drawn by the application, not the system's dialog.
 
 ## A3 — Recent parts
 - Card list. Each row holds:

@@ -173,3 +173,8 @@ The designer's ids were French; each file was renamed to the English id below (#
 | `orbit` | `orbite` | « Orbite » |
 | `pan` | `deplacer` | « Déplacer (pan) » |
 | `zoom` | `zoom` | « Zoom » |
+
+## Decided otherwise in #722
+
+- `item-area` is shown « Aire », not « Zone », and `constraints` names the menu « Contraintes » (inventory P3).
+- `files` stays for the home screen: the « Fichiers » toggle leaves the part screen (inventory T6).

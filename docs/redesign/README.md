@@ -38,6 +38,8 @@ The designer's `backlog.md` — 27 proposed tickets (UI-01 … UI-42), with depe
 
 ## Changes from the current interface (inventory of 2026-11-05)
 
+> Where #722 decided otherwise, each spec says so in a quoted line that starts « Decided otherwise in #722 ». Here: the step reader also inserts a step at its reading point (inventory L2), and the save location is a folder inside the parts folder (inventory M2).
+
 1. **Sketch ribbon reorganised** into groups. Frequent tools are large buttons, the others small buttons over 2 or 3 rows. It fits in 1440 px.
 2. **« Recadrer », « Vue en coupe » and « Matière devant »** move into a view bar at the bottom right of the 3D. **« Terminer »** moves into a context pill at the top of the view.
 3. **Alerts**: a dedicated button and a list, with two levels (yellow warning, red error), separate from the help messages.

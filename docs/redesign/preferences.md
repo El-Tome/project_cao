@@ -27,6 +27,7 @@ Screenshot: `screens/10-preferences-toolbar.png`. Window of 1120 × 760, radius 
   - the list of commands missing from the bar, each with an « Ajouter » button, and which can also be dragged into the tree. List: « Cote intelligente », « Cote point à point », « Cote de trait », « Cote d'angle », « Cote de rayon », « Inverser les côtés », « Appliquer l'extrusion », « Annuler l'extrusion », « Compacter l'historique », « Ancrer / détacher la barre », « Accueil ».
 - Footer: the help « Glissez une commande vers l'arbre pour la placer. » and « Réinitialiser la barre d'outils ».
 - **The tree's default content must reflect the new ribbon** (P4): groups « Dessin », « Cotes et règles », « Modifier », « Édition ».
+> Decided otherwise in #722 (inventory P3, R3, R9): the default tree is #722's ribbon, with « Cotes et contraintes »; a profile created by the user keeps its own bar until it is reset.
 
 ## Sections not mocked
 - « Profils », « Vue 3D », « Esquisse », « Navigation », « Apparence » and « Raccourcis »: keep the current content, laid out with the C6, C7 and C10 components.

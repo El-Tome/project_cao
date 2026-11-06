@@ -150,7 +150,7 @@ From top to bottom:
   - « Autour d'un axe » and « Inverser le sens » switches;
   - « Annuler » / « Appliquer ↵ ».
 - In the view: a preview of the volume in the addition colour (faces at 22, 30 and 40% opacity) and an amber height handle with its value (« 30 mm »).
-> Decided otherwise in #722 (inventory O6, O7, O8): the panel ships with no draft field; the preview draws the volume alone, not yet fused; and the depth is dragged by a handle in the view.
+> Decided otherwise in #722 (inventory O6, O7, O8, P3): the field is « Aires », not « Zones »; the panel ships with no draft field; the preview draws the volume alone, not yet fused; and the depth is dragged by a handle in the view.
 
 ## P13 — Circular pattern panel (C13 in steps) — model of the tools with several fields
 1. **« Éléments à copier »**: chips, and « + cliquer dans la vue ».

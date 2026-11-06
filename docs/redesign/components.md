@@ -31,6 +31,7 @@ Colours, sizes and radii refer to `tokens.json`.
 ## C5 — Panel toggle (« Pièce », « Historique », « Variables », « Fichiers », « Préférences »)
 - 28 px high, 15 px icon and name.
 - Enabled: background `#20242C` and border `border.control`.
+> Decided otherwise in #722 (inventory T6, T8): only « Pièce » and « Variables » stay as toggles, then « Préférences »; the history sits at the bottom of the Part panel and the files on the home screen.
 
 ## C6 — Segmented selector
 - Container with background `#15181D`, border `#2A2E37`, radius 6, inner margin of 2 px. Buttons of 24 px (28 to 30 px on wide screens).
@@ -71,6 +72,7 @@ Colours, sizes and radii refer to `tokens.json`.
 - Pill of 10 px, weight 600.
 - Warning: background `state.warning_background`, text `state.warning_text` (e.g. « instable »).
 - Error: background `state.error_background`, text `state.error_text` (e.g. « cote perdue »).
+> Decided otherwise in #722 (inventory A1): « cote perdue » is only an example; it does not exist today. Each kind of problem has its level there.
 
 ## C13 — Floating tool panel (common model)
 - 300 px wide, placed 14 px from the top left corner of the 3D view.
@@ -84,6 +86,7 @@ Colours, sizes and radii refer to `tokens.json`.
 - Footer: « Annuler » (secondary button) and the amber primary button « Valider ↵ » or « Appliquer ↵ ».
 - Used for: « Extrusion », « Réseau circulaire », and to be declined for « Symétrie », « Réseau rectangulaire », « Chanfrein », « Congé », « Vue en coupe ».
 > Decided otherwise in #722 (inventory O1): the panel can still be dragged by hand and keeps its place, as today.
+> Decided otherwise in #722 (inventory O4): the sketch's « Chanfrein » and « Congé » keep their fields by the cursor; the 3D chamfer and fillet take this panel.
 
 ## C14 — Key, chip, field
 - **Key**: monospace 10.5 px, border `#454B57`, radius 3.

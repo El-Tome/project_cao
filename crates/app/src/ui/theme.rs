@@ -7,14 +7,18 @@ use std::sync::Arc;
 
 use egui::style::{Selection, WidgetVisuals, Widgets};
 use egui::{
-    Color32, Context, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Stroke, Style,
-    TextStyle, Theme, ThemePreference, Visuals, vec2,
+    Color32, Context, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Margin, Stroke,
+    Style, TextStyle, Theme, ThemePreference, Visuals, vec2,
 };
 
 use tokens::*;
 
 const INTER: &[u8] = include_bytes!("../../assets/fonts/inter_regular.ttf");
 const JETBRAINS_MONO: &[u8] = include_bytes!("../../assets/fonts/jetbrains_mono_regular.ttf");
+
+/// The border every state of a widget wears, and how far its frame reaches
+/// past the room it takes, in points.
+const BORDER: i8 = 1;
 
 /// Dark whatever the system asks for, in the tokens' colours, sizes and
 /// typefaces.
@@ -66,6 +70,9 @@ fn style() -> Style {
     };
     style.spacing.item_spacing = vec2(SPACING_L, SPACING_M);
     style.spacing.button_padding = vec2(SPACING_L, SPACING_S);
+    // A frame reaching past its room is clipped at a scroll area's edge, where
+    // the content would otherwise stand flush.
+    style.spacing.scroll.content_margin = Margin::same(BORDER);
     style.text_styles = [
         (
             TextStyle::Small,
@@ -112,9 +119,16 @@ fn visuals() -> Visuals {
 }
 
 /// The colours of each state over `egui`'s own dark ones. The text keeps
-/// `egui`'s stroke widths; every border is one point wide, the one at rest
-/// included, so that a button at rest is drawn transparent within a border, as
-/// the redesign's secondary button is.
+/// `egui`'s stroke widths; every state wears a border of `BORDER`, the one at
+/// rest included, so that a button at rest is drawn transparent within a
+/// border, as the redesign's secondary button is.
+///
+/// Every state's frame also reaches `BORDER` past its room. A button framed
+/// only under the pointer, as `Button::selectable` draws one not chosen, is
+/// padded at rest by its padding plus that reach less its border, and framed by
+/// its padding alone: the two agree only when the reach is the border, or the
+/// pointer coming onto it moves it and what stands beside it. And a frame keeps
+/// its size from one state to the next only when every state reaches alike.
 fn widgets() -> Widgets {
     let egui = Widgets::dark();
     Widgets {
@@ -166,12 +180,12 @@ fn worn(
     WidgetVisuals {
         weak_bg_fill,
         bg_fill,
-        bg_stroke: Stroke::new(1.0, border),
+        bg_stroke: Stroke::new(f32::from(BORDER), border),
         fg_stroke: Stroke {
             color: text,
             ..state.fg_stroke
         },
         corner_radius: CornerRadius::same(RADIUS_CONTROL),
-        ..state
+        expansion: f32::from(BORDER),
     }
 }

@@ -29,6 +29,11 @@
 //!   `render/overlays.rs`, each under its own block; the keys are drawn by
 //!   components still to come, #731 and #746, and no test here can see a
 //!   label's typeface through the driver
+//! - found when Tom tried the branch, « le carré en contour fait déplacer les
+//!   éléments »: a button keeps its size, and its text its place, when the
+//!   pointer comes onto it — one framed only under the pointer, its neighbour
+//!   beside it included, and one framed at rest —
+//!   `a_button_keeps_its_size_and_its_text_its_place_when_the_pointer_comes_onto_it`
 //! - the application is dark whatever the OS says —
 //!   `the_chrome_stays_dark_when_the_system_asks_for_light`; and it is from
 //!   the first frame, `CaoApp::new` installing the theme —
@@ -61,6 +66,7 @@ use egui::{
     Color32, Context, CornerRadius, FontDefinitions, FontFamily, FontId, RawInput, TextStyle,
     Theme, Vec2, vec2,
 };
+use egui_kittest::kittest::Queryable;
 
 const TOKENS: &str = "docs/redesign/tokens.json";
 
@@ -442,6 +448,82 @@ fn tokens_declared() -> Vec<String> {
         .filter_map(|rest| rest.split(':').next())
         .map(|name| name.trim().to_string())
         .collect()
+}
+
+/// A row of the start menu's file list, and a neighbour beside it: buttons
+/// framed only under the pointer, as `Button::selectable` draws one not chosen.
+/// Below them a button framed at rest.
+fn two_files_and_a_button(ui: &mut egui::Ui) {
+    ui.horizontal(|ui| {
+        let _ = ui.add(egui::Button::selectable(false, "Bloc.caopart"));
+        let _ = ui.add(egui::Button::selectable(false, "Came.caopart"));
+    });
+    let _ = ui.button("Créer");
+}
+
+/// Where a widget stands, and where its text was painted on the last frame.
+fn where_it_stands(harness: &egui_kittest::Harness<'_>, label: &str) -> (egui::Rect, egui::Pos2) {
+    let rect = harness.get_by_label(label).rect();
+    let mut pending: Vec<egui::Shape> = harness
+        .output()
+        .shapes
+        .iter()
+        .map(|clipped| clipped.shape.clone())
+        .collect();
+    let mut text_at = None;
+    while let Some(shape) = pending.pop() {
+        match shape {
+            egui::Shape::Vec(shapes) => pending.extend(shapes),
+            egui::Shape::Text(text) if text.galley.text() == label => text_at = Some(text.pos),
+            _ => {}
+        }
+    }
+    (
+        rect,
+        text_at.unwrap_or_else(|| panic!("« {label} » was painted no text")),
+    )
+}
+
+#[test]
+fn a_button_keeps_its_size_and_its_text_its_place_when_the_pointer_comes_onto_it() {
+    let mut harness = egui_kittest::Harness::new_ui(two_files_and_a_button);
+    cao_app::theme::install(&harness.ctx);
+    harness.run();
+    let at_rest: Vec<(egui::Rect, egui::Pos2)> = ["Bloc.caopart", "Came.caopart", "Créer"]
+        .iter()
+        .map(|label| where_it_stands(&harness, label))
+        .collect();
+
+    let mut moved = Vec::new();
+    for (hovered, watched) in [
+        (
+            "Bloc.caopart",
+            vec![(0, "Bloc.caopart"), (1, "Came.caopart")],
+        ),
+        ("Créer", vec![(2, "Créer")]),
+    ] {
+        harness.get_by_label(hovered).hover();
+        harness.run();
+        for (rank, label) in watched {
+            let (rect, text) = where_it_stands(&harness, label);
+            let (rect_at_rest, text_at_rest) = at_rest[rank];
+            if (rect.min - rect_at_rest.min).length() > TOLERANCE
+                || (rect.max - rect_at_rest.max).length() > TOLERANCE
+                || (text - text_at_rest).length() > TOLERANCE
+            {
+                moved.push(format!(
+                    "« {label} », the pointer on « {hovered} »: {rect:?} with its text at \
+                     {text:?}, where at rest it was {rect_at_rest:?} with its text at {text_at_rest:?}"
+                ));
+            }
+        }
+    }
+
+    assert!(
+        moved.is_empty(),
+        "The pointer moves what it comes onto:\n  {}",
+        moved.join("\n  "),
+    );
 }
 
 #[test]

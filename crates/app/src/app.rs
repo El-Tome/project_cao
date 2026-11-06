@@ -35,6 +35,7 @@ impl CaoApp {
         locations: Option<Locations>,
         opening: Option<PathBuf>,
     ) -> Self {
+        crate::ui::theme::install(&cc.egui_ctx);
         if let Some(render_state) = &cc.wgpu_render_state {
             let renderer = SceneRenderer::new(
                 &render_state.device,
@@ -196,7 +197,7 @@ impl CaoApp {
                 ));
                 if let Some(message) = &editor.message {
                     ui.separator();
-                    ui.colored_label(egui::Color32::from_rgb(250, 220, 120), message);
+                    ui.colored_label(crate::ui::theme::tokens::ACCENT_AMBER_TEXT, message);
                 }
             });
         });
@@ -374,7 +375,7 @@ impl eframe::App for CaoApp {
         if let Some(error) = &self.error {
             let message = error.clone();
             egui::Panel::bottom("error_bar").show(ui, |ui| {
-                ui.colored_label(egui::Color32::RED, message);
+                ui.colored_label(crate::ui::theme::tokens::STATE_ERROR_TEXT, message);
             });
         }
 

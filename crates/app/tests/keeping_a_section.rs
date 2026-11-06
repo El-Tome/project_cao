@@ -64,8 +64,18 @@ use cao_sketch::WorkPlane;
 use egui_kittest::kittest::{NodeT, Queryable};
 
 /// Where the block's face stands in front of the eye, and so where a section
-/// across it shows its cut.
-const ON_THE_BLOCK: (f32, f32) = (850.0, 510.0);
+/// across it shows its cut: given from the centre of the drawing area, as
+/// `driver::on_canvas` reads it.
+const ON_THE_BLOCK: (f32, f32) = (-28.55, 16.0);
+
+/// The same, lower: halfway down the half of the block the section opened
+/// through its middle leaves standing, well clear of the line it cuts along.
+const ON_THE_BLOCK_UNDER_THE_CUT: (f32, f32) = (-27.6, 60.0);
+
+/// The corners of the rectangle the block is raised off, given from the centre
+/// of the drawing area: the clicks aimed at the block land on it only if the
+/// block was drawn in the same terms.
+const THE_BLOCK_S_CORNERS: [(f32, f32); 2] = [(-178.55, -94.0), (121.45, 126.0)];
 
 /// A block raised off a rectangle drawn on a plane of the origin, its sketch
 /// then finished.
@@ -74,12 +84,12 @@ fn a_block(test: &str) -> driver::App {
     driver::create_a_part(&mut app, "Bloc");
     driver::start_a_sketch(&mut app);
     driver::click(&mut app, "Rectangle (R)");
-    driver::click_at(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
-    driver::click_at(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::click_on_canvas(&mut app, THE_BLOCK_S_CORNERS[0]);
+    driver::click_on_canvas(&mut app, THE_BLOCK_S_CORNERS[1]);
     driver::click_exactly(&mut app, "Extrusion");
     driver::click_exactly(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");
-    driver::click_at(&mut app, ON_THE_BLOCK);
+    driver::click_on_canvas(&mut app, ON_THE_BLOCK);
     driver::click(&mut app, "Appliquer");
     driver::press(&mut app, egui::Key::Escape);
     click_in_the_ribbon(&mut app, "Terminer");
@@ -225,7 +235,7 @@ fn switch_on(app: &mut driver::App, name: &str) {
 /// across it shows one, and finishes it.
 fn a_sketch_on_the_cut(app: &mut driver::App) {
     click_in_the_ribbon(app, "Nouvelle esquisse");
-    driver::click_at(app, ON_THE_BLOCK);
+    driver::click_on_canvas(app, ON_THE_BLOCK);
     assert!(
         driver::is_enabled(app, "Terminer"),
         "the click on the cut started no sketch, showing {:?}",
@@ -633,13 +643,14 @@ fn a_section_whose_face_is_gone_reads_face_lost_in_the_tree() {
     let mut app = a_block("keeping_a_section_face_lost");
     click_in_the_ribbon(&mut app, "Vue en coupe");
     driver::click(&mut app, "Face cliquée");
-    driver::click_at(&mut app, ON_THE_BLOCK);
+    driver::click_on_canvas(&mut app, ON_THE_BLOCK_UNDER_THE_CUT);
     driver::click_the_button(&mut app, "Enregistrer la coupe");
     close_the_panel(&mut app);
     double_click(&mut app, "Esquisse 1");
     driver::click(&mut app, "Sélection (S)");
     driver::press_with_command(&mut app, egui::Key::A);
-    app.hover_at(egui::pos2(1200.0, 650.0));
+    let away_from_the_drawing = driver::on_canvas(&app, (321.45, 156.0));
+    app.hover_at(away_from_the_drawing);
     app.run();
     driver::press(&mut app, egui::Key::Delete);
     click_in_the_ribbon(&mut app, "Terminer");
@@ -678,11 +689,21 @@ fn the_history_numbers_its_rows_one_after_another_around_the_hidden_section_step
 }
 
 /// What the bar above the view says, beside the part's name: the plane the
-/// view is on.
+/// view is on. The bar is the screen's first row, so its labels are the ones
+/// standing level with the highest label of all.
 fn the_header(app: &driver::App) -> Vec<String> {
-    app.query_all_by_role(egui::accesskit::Role::Label)
-        .filter(|node| node.rect().max.y < 22.0)
-        .filter_map(|node| node.accesskit_node().value())
+    let labels: Vec<_> = app
+        .query_all_by_role(egui::accesskit::Role::Label)
+        .map(|node| (node.rect(), node.accesskit_node().value()))
+        .collect();
+    let first_row = labels
+        .iter()
+        .map(|(rect, _)| rect.min.y)
+        .fold(f32::INFINITY, f32::min);
+    labels
+        .into_iter()
+        .filter(|(rect, _)| rect.min.y < first_row + 1.0)
+        .filter_map(|(_, said)| said)
         .collect()
 }
 
@@ -693,7 +714,7 @@ fn a_sketch_on_a_section_names_the_section_above_the_view() {
     switch_on(&mut app, "Coupe 1");
 
     click_in_the_ribbon(&mut app, "Nouvelle esquisse");
-    driver::click_at(&mut app, ON_THE_BLOCK);
+    driver::click_on_canvas(&mut app, ON_THE_BLOCK);
     let header = the_header(&app);
 
     assert!(

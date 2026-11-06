@@ -61,13 +61,16 @@ fn steps_at_the_end(app: &mut driver::App) -> Vec<String> {
     steps(app)
 }
 
-/// Corners at (850, 250) and (1100, 350): the top side runs along y = 250,
-/// away from the plane's axes and from anything else drawn.
+/// Corners at (-28.55, -244) and (221.45, -144) from the centre of the
+/// drawing area, as `driver::on_canvas` reads them: the top side runs 244
+/// above the centre, away from the plane's axes and from anything else drawn.
 fn a_rectangle(app: &mut driver::App) {
     driver::click(app, "Rectangle (R)");
-    driver::click_at(app, (850.0, 250.0));
-    driver::click_at(app, (1100.0, 350.0));
+    driver::click_on_canvas(app, TOP_LEFT_CORNER);
+    driver::click_on_canvas(app, (221.45, -144.0));
 }
+
+const TOP_LEFT_CORNER: (f32, f32) = (-28.55, -244.0);
 
 const LINE_START: (f32, f32) = driver::A_POINT_ABOVE_THE_ORIGIN;
 const LINE_END: (f32, f32) = driver::A_POINT_BELOW_AND_RIGHT;
@@ -129,7 +132,9 @@ fn a_press_22_px_from_a_side_pulls_a_box_and_moves_no_side() {
     let mut app =
         a_sketch_in_the_selection_tool("a_press_22_px_from_a_side_pulls_a_box", a_rectangle);
     let boxes_before = boxes(&app);
-    let (pressed, held) = (egui::pos2(920.0, 228.0), egui::pos2(990.0, 300.0));
+    let on_the_top_side = driver::on_canvas(&app, (TOP_LEFT_CORNER.0 + 70.0, TOP_LEFT_CORNER.1));
+    let pressed = on_the_top_side - egui::vec2(0.0, 22.0);
+    let held = driver::on_canvas(&app, (111.45, -194.0));
 
     app.hover_at(pressed);
     app.run();

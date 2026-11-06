@@ -8,6 +8,8 @@
 use cao_render::CubeFace;
 use cao_render::cube;
 
+use crate::ui::theme::tokens;
+
 /// The smallest a label is still drawn at; below this it is dropped instead.
 pub(super) const MINIMUM_READABLE_FONT: f32 = 8.0;
 
@@ -36,7 +38,7 @@ pub(super) fn face_label(
         .layout_no_wrap(
             text.to_string(),
             egui::FontId::proportional(REFERENCE_FONT_SIZE),
-            egui::Color32::WHITE,
+            tokens::TEXT_TITLE,
         )
         .size()
         * 0.5;

@@ -119,7 +119,8 @@ fn the_last_step_in_detail(app: &mut driver::App) -> String {
 /// Delete is read only while the pointer is over the drawing, so the pointer
 /// is first brought to a spot every drawing of this file leaves empty.
 fn delete_over_the_drawing(app: &mut driver::App) {
-    app.hover_at(egui::pos2(1200.0, 650.0));
+    let empty = driver::on_canvas(app, (321.45, 156.0));
+    app.hover_at(empty);
     app.run();
     driver::press(app, egui::Key::Delete);
 }
@@ -136,10 +137,12 @@ fn erased(traits: usize) -> String {
     format!("Esquisse 0 · {traits} tracé(s), 0 cote(s), 0 contrainte(s)")
 }
 
+/// Every point of this file is given from the centre of the drawing area, as
+/// `driver::on_canvas` reads it.
 fn a_line(app: &mut driver::App, from: (f32, f32), to: (f32, f32)) {
     driver::click(app, "Ligne (L)");
-    driver::click_at(app, from);
-    driver::click_at(app, to);
+    driver::click_on_canvas(app, from);
+    driver::click_on_canvas(app, to);
     driver::press(app, egui::Key::Escape);
 }
 
@@ -149,43 +152,44 @@ fn a_line(app: &mut driver::App, from: (f32, f32), to: (f32, f32)) {
 /// all of it takes those 22 and 2 rules besides.
 fn one_of_every_kind(app: &mut driver::App) {
     driver::click(app, "Point (P)");
-    driver::click_at(app, (1150.0, 250.0));
+    driver::click_on_canvas(app, (271.45, -244.0));
     driver::press(app, egui::Key::Escape);
 
-    a_line(app, (760.0, 250.0), (860.0, 280.0));
+    a_line(app, (-118.55, -244.0), (-18.55, -214.0));
 
     driver::click_exactly(app, "Cercle (C)");
-    driver::click_at(app, (950.0, 260.0));
-    driver::click_at(app, (990.0, 260.0));
+    driver::click_on_canvas(app, (71.45, -234.0));
+    driver::click_on_canvas(app, (111.45, -234.0));
     driver::press(app, egui::Key::Escape);
 
     driver::click_exactly(app, "Arc");
-    driver::click_at(app, (1150.0, 450.0));
-    driver::click_at(app, (1200.0, 450.0));
-    driver::click_at(app, (1150.0, 400.0));
+    driver::click_on_canvas(app, (271.45, -44.0));
+    driver::click_on_canvas(app, (321.45, -44.0));
+    driver::click_on_canvas(app, (271.45, -94.0));
     driver::press(app, egui::Key::Escape);
 
     driver::click_exactly(app, "Ellipse");
-    driver::click_at(app, (1000.0, 470.0));
-    driver::click_at(app, (1100.0, 543.0));
-    app.hover_at(egui::pos2(1020.0, 523.0));
+    driver::click_on_canvas(app, (121.45, -24.0));
+    driver::click_on_canvas(app, (221.45, 49.0));
+    let on_the_ellipse = driver::on_canvas(app, (141.45, 29.0));
+    app.hover_at(on_the_ellipse);
     app.run();
-    driver::click_at(app, (1020.0, 523.0));
+    driver::click_on_canvas(app, (141.45, 29.0));
     driver::press(app, egui::Key::Escape);
 
     driver::click(app, "Construction");
-    a_line(app, (760.0, 620.0), (860.0, 640.0));
+    a_line(app, (-118.55, 126.0), (-18.55, 146.0));
     driver::click(app, "Construction");
 }
 
 const EVERY_ELEMENT_OF_ONE_OF_EVERY_KIND: usize = 22;
 
-/// Corners at (850, 250) and (1100, 350), its right angles held by rules:
-/// four points and four sides.
+/// Corners at (-28.55, -244) and (221.45, -144) from the centre of the
+/// drawing area, its right angles held by rules: four points and four sides.
 fn a_rectangle(app: &mut driver::App) {
     driver::click(app, "Rectangle (R)");
-    driver::click_at(app, (850.0, 250.0));
-    driver::click_at(app, (1100.0, 350.0));
+    driver::click_on_canvas(app, (-28.55, -244.0));
+    driver::click_on_canvas(app, (221.45, -144.0));
     driver::press(app, egui::Key::Escape);
 }
 
@@ -209,10 +213,10 @@ fn command_a_in_the_selection_tool_takes_one_of_every_kind_construction_included
 fn command_a_leaves_the_dimensions_and_the_rules_out() {
     let mut app = a_sketch("command_a_leaves_the_dimensions_and_the_rules_out");
     a_rectangle(&mut app);
-    driver::draw_a_segment(&mut app);
+    a_line(&mut app, (-178.55, -94.0), (121.45, 126.0));
     driver::click(&mut app, "Cote");
-    driver::click_at(&mut app, (850.0, 510.0));
-    driver::click_at(&mut app, (900.0, 440.0));
+    driver::click_on_canvas(&mut app, (-28.55, 16.0));
+    driver::click_on_canvas(&mut app, (21.45, -54.0));
     driver::press(&mut app, egui::Key::Enter);
     in_the_selection_tool(&mut app);
 
@@ -231,7 +235,7 @@ fn command_a_leaves_a_fillet_s_cut_out() {
     let mut app = a_sketch("command_a_leaves_a_fillet_s_cut_out");
     a_rectangle(&mut app);
     driver::click(&mut app, "Congé");
-    driver::click_at(&mut app, (1100.0, 250.0));
+    driver::click_on_canvas(&mut app, (221.45, -244.0));
     driver::key(&mut app, egui::Key::Num5, "5");
     driver::press(&mut app, egui::Key::Enter);
     in_the_selection_tool(&mut app);
@@ -287,10 +291,10 @@ fn in_an_empty_sketch_command_a_takes_nothing_and_says_nothing() {
 fn with_another_tool_in_hand_command_a_leaves_the_tool_at_its_work() {
     let mut app = a_sketch("with_another_tool_command_a_leaves_the_tool");
     driver::click(&mut app, "Ligne (L)");
-    driver::click_at(&mut app, (760.0, 250.0));
+    driver::click_on_canvas(&mut app, (-118.55, -244.0));
 
     select_all(&mut app);
-    driver::click_at(&mut app, (860.0, 280.0));
+    driver::click_on_canvas(&mut app, (-18.55, -214.0));
     driver::press(&mut app, egui::Key::Escape);
 
     assert_eq!(
@@ -318,7 +322,7 @@ fn outside_a_sketch_command_a_changes_nothing() {
 #[test]
 fn a_field_being_edited_keeps_command_a_for_its_own_text() {
     let mut app = a_sketch("a_field_being_edited_keeps_command_a");
-    a_line(&mut app, (760.0, 250.0), (860.0, 280.0));
+    a_line(&mut app, (-118.55, -244.0), (-18.55, -214.0));
     in_the_selection_tool(&mut app);
     driver::click_the_button(&mut app, "Variables");
     driver::type_into(&mut app, "nom", "width");
@@ -339,7 +343,7 @@ fn a_field_being_edited_keeps_command_a_for_its_own_text() {
 #[test]
 fn command_shift_a_takes_nothing() {
     let mut app = a_sketch("command_shift_a_takes_nothing");
-    a_line(&mut app, (760.0, 250.0), (860.0, 280.0));
+    a_line(&mut app, (-118.55, -244.0), (-18.55, -214.0));
     in_the_selection_tool(&mut app);
 
     driver::press_with(
@@ -361,8 +365,9 @@ fn a_shift_click_still_adds_to_what_a_click_took() {
     a_rectangle(&mut app);
     in_the_selection_tool(&mut app);
 
-    driver::click_at(&mut app, (975.0, 250.0));
-    driver::click_with(&mut app, egui::pos2(975.0, 350.0), egui::Modifiers::SHIFT);
+    driver::click_on_canvas(&mut app, (96.45, -244.0));
+    let on_the_bottom_side = driver::on_canvas(&app, (96.45, -144.0));
+    driver::click_with(&mut app, on_the_bottom_side, egui::Modifiers::SHIFT);
 
     assert_eq!(
         what_delete_takes(&mut app),
@@ -375,11 +380,15 @@ fn a_shift_click_still_adds_to_what_a_click_took() {
 fn a_drag_on_a_trait_carries_everything_command_a_took() {
     let mut app = a_sketch("a_drag_carries_everything_command_a_took");
     a_rectangle(&mut app);
-    a_line(&mut app, (760.0, 450.0), (820.0, 500.0));
+    a_line(&mut app, (-118.55, -44.0), (-58.55, 6.0));
     in_the_selection_tool(&mut app);
 
     select_all(&mut app);
-    driver::drag_and_drop(&mut app, egui::pos2(975.0, 250.0), egui::pos2(975.0, 200.0));
+    let (on_the_top_side, above_it) = (
+        driver::on_canvas(&app, (96.45, -244.0)),
+        driver::on_canvas(&app, (96.45, -294.0)),
+    );
+    driver::drag_and_drop(&mut app, on_the_top_side, above_it);
 
     let moved = the_last_step_in_detail(&mut app);
     assert!(
@@ -419,7 +428,7 @@ fn select_all_is_offered_in_the_toolbar_palette() {
 #[test]
 fn a_rebound_select_all_takes_everything_from_its_new_key() {
     let mut app = a_sketch("a_rebound_select_all_takes_everything");
-    a_line(&mut app, (760.0, 250.0), (860.0, 280.0));
+    a_line(&mut app, (-118.55, -244.0), (-18.55, -214.0));
     in_the_selection_tool(&mut app);
     the_shortcuts_in_the_preferences(&mut app);
     let chord = app

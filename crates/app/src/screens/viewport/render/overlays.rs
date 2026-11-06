@@ -22,6 +22,7 @@ const MARK_REACH: f32 = 7.0;
 use crate::lang::Catalogue;
 use crate::screens::SketchContext;
 use crate::screens::viewport::{ViewScale, ViewportState, corner_origin};
+use crate::ui::theme::tokens;
 use crate::wording::constraints;
 
 /// Where a world point lands on screen, or `None` when it is behind the camera.
@@ -66,9 +67,9 @@ pub(crate) fn paint_face_labels(
             continue;
         };
         let color = if state.hovered_zone == Some(CubeZone::Face(face)) {
-            egui::Color32::WHITE
+            tokens::TEXT_TITLE
         } else {
-            egui::Color32::from_gray(60)
+            tokens::TEXT_ON_ACCENT
         };
         painter.text(
             position,
@@ -260,7 +261,7 @@ pub(crate) fn paint_ruler(
     let origin = corner_origin(viewport, config.ruler_corner, size, config.cube_margin);
 
     let painter = ui.painter_at(viewport);
-    let color = egui::Color32::from_gray(200);
+    let color = tokens::TEXT_SECONDARY;
     let stroke = egui::Stroke::new(1.5, color);
     let baseline = origin.y + size.y;
     let (left, right) = (origin.x, origin.x + length);

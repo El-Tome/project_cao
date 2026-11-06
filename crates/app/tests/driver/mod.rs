@@ -10,14 +10,24 @@
 
 use cao_app::app::CaoApp;
 use cao_prefs::Locations;
+use egui::accesskit::Action;
 use egui_kittest::Harness;
-use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::kittest::{NodeT, Queryable, by};
 
 pub const SCREEN: (f32, f32) = (1280.0, 800.0);
 
+/// On the YZ plane, as a new part shows the three base planes: given from the
+/// centre of the drawing area, as [`on_canvas`] reads it.
+pub const ON_ONE_OF_THE_BASE_PLANES: (f32, f32) = (-197.3, 59.5);
+
+/// The height of the drawing area the points given from its centre are written
+/// for: the canvas a sketch showed on a 1280×800 screen before #724 dressed the
+/// chrome, which is where most of them were first read off a rendered frame.
+const CANVAS_HEIGHT_THE_POINTS_ARE_WRITTEN_FOR: f32 = 612.0;
+
 /// Inside the drawing area, which starts to the right of the file list and the
-/// panel beside it. Read off a rendered frame of that same screen size.
-pub const ON_ONE_OF_THE_BASE_PLANES: (f32, f32) = (700.0, 545.0);
+/// panel beside it. Read off a rendered frame of that same screen size, so they
+/// move with the chrome around the canvas, as the plane above no longer does.
 pub const A_POINT_ABOVE_THE_ORIGIN: (f32, f32) = (700.0, 400.0);
 pub const A_POINT_BELOW_AND_RIGHT: (f32, f32) = (1000.0, 620.0);
 
@@ -95,6 +105,34 @@ fn within_reach(label: &str, centre: egui::Pos2, screen: egui::Rect) {
     );
 }
 
+/// The drawing area, as the accessibility tree has it: the largest node that
+/// takes a click and carries no name. `egui` names every button, field and
+/// label; the canvas is the one surface it has nothing to call.
+pub fn canvas(app: &App) -> egui::Rect {
+    app.query_all(
+        by().predicate(|node| node.data().supports_action(Action::Click) && node.label().is_none()),
+    )
+    .map(|node| node.rect())
+    .max_by(|one, other| one.area().total_cmp(&other.area()))
+    .expect("no drawing area on screen: no part is open")
+}
+
+/// Where a point given from the centre of the drawing area stands on screen
+/// now — right and down, in pixels of a canvas as tall as the one the points
+/// are written for. The view is centred on the canvas and its field of view
+/// is vertical, so scaled by the canvas's height the point stays on the same
+/// spot of the scene, however much room the chrome around it takes.
+pub fn on_canvas(app: &App, (right, down): (f32, f32)) -> egui::Pos2 {
+    let canvas = canvas(app);
+    let scale = canvas.height() / CANVAS_HEIGHT_THE_POINTS_ARE_WRITTEN_FOR;
+    canvas.center() + egui::vec2(right, down) * scale
+}
+
+pub fn click_on_canvas(app: &mut App, from_its_centre: (f32, f32)) {
+    let at = on_canvas(app, from_its_centre);
+    click_at(app, (at.x, at.y));
+}
+
 pub fn click_at(app: &mut App, (x, y): (f32, f32)) {
     let pos = egui::pos2(x, y);
     app.hover_at(pos);
@@ -150,7 +188,7 @@ pub fn create_a_part(app: &mut App, named: &str) {
 
 pub fn start_a_sketch(app: &mut App) {
     click(app, "Nouvelle esquisse");
-    click_at(app, ON_ONE_OF_THE_BASE_PLANES);
+    click_on_canvas(app, ON_ONE_OF_THE_BASE_PLANES);
 }
 
 pub fn draw_a_segment(app: &mut App) {

@@ -1,4 +1,10 @@
 //! What prefs · profiles.rs is held to.
+//!
+//! Closes #724.
+//! - the « Par défaut » profile takes the redesign's viewport colours as
+//!   defaults; a profile Tom saved keeps its own —
+//!   `a_profile_saved_with_viewport_colours_of_its_own_reads_back_with_them`;
+//!   the new defaults themselves are held in `crates/prefs/src/theme/tests.rs`
 
 use std::path::Path;
 

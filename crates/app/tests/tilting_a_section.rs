@@ -12,8 +12,14 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use glam::DVec3;
 
 /// Where the block's face stands in front of the eye, and so where a section
-/// across it shows its cut.
-const ON_THE_BLOCK: (f32, f32) = (850.0, 510.0);
+/// across it shows its cut: given from the centre of the drawing area, as
+/// `driver::on_canvas` reads it.
+const ON_THE_BLOCK: (f32, f32) = (-28.55, 16.0);
+
+/// The corners of the rectangle the block is raised off, given from the centre
+/// of the drawing area: the clicks aimed at the block land on it only if the
+/// block was drawn in the same terms.
+const THE_BLOCK_S_CORNERS: [(f32, f32); 2] = [(-178.55, -94.0), (121.45, 126.0)];
 
 /// A block raised off a rectangle drawn on a plane of the origin, its sketch
 /// then finished.
@@ -22,12 +28,12 @@ fn a_block(test: &str) -> driver::App {
     driver::create_a_part(&mut app, "Bloc");
     driver::start_a_sketch(&mut app);
     driver::click(&mut app, "Rectangle (R)");
-    driver::click_at(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
-    driver::click_at(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::click_on_canvas(&mut app, THE_BLOCK_S_CORNERS[0]);
+    driver::click_on_canvas(&mut app, THE_BLOCK_S_CORNERS[1]);
     driver::click_exactly(&mut app, "Extrusion");
     driver::click_exactly(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");
-    driver::click_at(&mut app, ON_THE_BLOCK);
+    driver::click_on_canvas(&mut app, ON_THE_BLOCK);
     driver::click(&mut app, "Appliquer");
     driver::press(&mut app, egui::Key::Escape);
     click_in_the_ribbon(&mut app, "Terminer");
@@ -130,7 +136,7 @@ fn double_click(app: &mut driver::App, label: &str) {
 /// across it shows one, and finishes it.
 fn a_sketch_on_the_cut(app: &mut driver::App) {
     click_in_the_ribbon(app, "Nouvelle esquisse");
-    driver::click_at(app, ON_THE_BLOCK);
+    driver::click_on_canvas(app, ON_THE_BLOCK);
     assert!(
         driver::is_enabled(app, "Terminer"),
         "the click on the tilted cut started no sketch, showing {:?}",

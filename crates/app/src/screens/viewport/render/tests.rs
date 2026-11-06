@@ -200,6 +200,16 @@
 //!   `a_kept_tilted_section_stays_where_it_was_kept_when_matter_is_raised_away_from_it`,
 //!   `a_sketch_laid_on_a_kept_tilted_section_still_lies_on_its_cut_once_matter_is_raised_and_the_part_reopened`,
 //!   `a_kept_tilted_section_on_a_face_follows_the_face_when_its_extrusion_grows_and_not_the_matter_raised_aside`
+//!
+//! Closes #724.
+//! - the view's background: plain `vue_esquisse` — `background.sketch_view`
+//!   since #749 put the tokens in English — in a sketch, a radial gradient in
+//!   the free view, as the default of the existing background setting — the
+//!   frame built while a sketch is edited is painted with the theme's sketch
+//!   background, `a_sketch_being_edited_is_drawn_on_the_sketch_background`,
+//!   and the free view with its own,
+//!   `the_free_view_is_drawn_on_the_view_background`; the defaults themselves
+//!   are held in `crates/prefs/src/theme/tests.rs`
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_render::MatterInFront;

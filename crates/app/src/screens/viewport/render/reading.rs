@@ -27,6 +27,7 @@ use crate::screens::SketchContext;
 use crate::screens::annotations::metrics;
 use crate::screens::viewport::input::measure_showing;
 use crate::screens::viewport::{ViewScale, ViewportState};
+use crate::ui::theme::tokens;
 use crate::wording::measure::Said;
 
 /// How big the numbers are drawn, matching the dimensions' own labels.
@@ -363,11 +364,7 @@ fn write(
     let pill = egui::Rect::from_center_size(onto_a_free_line(wanted, size, taken), size);
     taken.push(pill);
     painter.rect_filled(pill, 4.0, backdrop(theme));
-    painter.galley(
-        pill.center() - text.size() / 2.0,
-        text,
-        egui::Color32::WHITE,
-    );
+    painter.galley(pill.center() - text.size() / 2.0, text, tokens::TEXT_TITLE);
 }
 
 /// The pill's own colour: the canvas's background, held back from opaque so

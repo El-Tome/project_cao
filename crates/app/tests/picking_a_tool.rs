@@ -21,7 +21,7 @@ fn the_fillet_picked_from_the_toolbar_rounds_the_corner_clicked_next() {
     let right = |(x, y): (f32, f32)| (x + 320.0, y);
     driver::create_a_part(&mut app, "Platine");
     driver::click(&mut app, "Nouvelle esquisse");
-    driver::click_at(&mut app, right(driver::ON_ONE_OF_THE_BASE_PLANES));
+    driver::click_on_canvas(&mut app, driver::ON_ONE_OF_THE_BASE_PLANES);
     driver::click(&mut app, "Ligne (L)");
     driver::click_at(&mut app, right(driver::A_POINT_ABOVE_THE_ORIGIN));
     driver::click_at(&mut app, right(driver::A_POINT_BELOW_AND_RIGHT));

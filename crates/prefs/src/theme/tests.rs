@@ -6,6 +6,22 @@
 //!   `a_theme_saved_before_the_alert_colour_existed_still_reads`
 //! - it is edited in the settings like the others — no test: the row is one
 //!   call in `settings/appearance.rs`, which draws and decides nothing
+//!
+//! Closes #724.
+//! - the view's background: plain `vue_esquisse` — `background.sketch_view`
+//!   since #749 put the tokens in English — in a sketch, a radial gradient in
+//!   the free view, as the default of the existing background setting —
+//!   `a_sketch_is_drawn_on_the_plain_sketch_view_colour_by_default`,
+//!   `the_free_view_is_drawn_on_the_redesign_s_radial_gradient_by_default`;
+//!   which of the two a frame draws is held in
+//!   `crates/app/src/screens/viewport/render/tests.rs`, under its own block
+//! - the « Par défaut » profile takes the redesign's viewport colours as
+//!   defaults — `the_default_grid_and_axes_are_the_redesign_s`, and every
+//!   colour the redesign does not name keeps the value it had —
+//!   `every_colour_the_redesign_does_not_name_keeps_its_default`
+//! - a profile Tom saved keeps its own — no test: in this file; held by
+//!   `a_profile_saved_with_viewport_colours_of_its_own_reads_back_with_them`,
+//!   in `crates/prefs/src/profiles/tests.rs`, under its own block
 
 use super::*;
 

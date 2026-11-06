@@ -30,10 +30,12 @@ use crate::brep::tessellation::sampling::divisions;
 use crate::brep::topology::SurfaceId;
 
 /// What a ray of the pair stands for, in the order one gives way to another
-/// within the drift: a ray a wall took on its own, which is never given up;
-/// a step of a wall's grid, the first wall's before the second's; a ray
-/// through a point standing just inside a wall, which gives way to any ray
-/// of either.
+/// within the drift: a ray a wall took on its own, which gives way only to
+/// one the first wall took — a vertex on both walls, read from either
+/// axis, stands a hair round on each, and the two rays, handed on along the
+/// curves through it, part a hair further pass after pass; a step of a
+/// wall's grid, the first wall's before the second's; a ray through a point
+/// standing just inside a wall, which gives way to any ray of either.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
     Own,
@@ -101,11 +103,15 @@ pub(super) fn shared(
         let mut kept: Vec<Ray> = Vec::with_capacity(rays.len());
         for ray in rays {
             let at = angle(&ray);
-            let gives_way = ray.kind != Kind::Own
-                && kept.iter().any(|other| {
-                    (other.side != ray.side || ray.kind == Kind::Beneath)
-                        && ((at - angle(other) + PI).rem_euclid(TAU) - PI).abs() <= drift
-                });
+            let gives_way = kept.iter().any(|other| {
+                let near = ((at - angle(other) + PI).rem_euclid(TAU) - PI).abs() <= drift;
+                let across = other.side != ray.side;
+                near && match ray.kind {
+                    Kind::Own => across && other.kind == Kind::Own,
+                    Kind::Step(_) => across,
+                    Kind::Beneath => true,
+                }
+            });
             if !gives_way {
                 kept.push(ray);
             } else if let Kind::Step(step) = ray.kind {
@@ -134,15 +140,25 @@ impl Kind {
     }
 }
 
+/// The widest drift, in radians, two walls whose axes do not cross share
+/// their rays within: far under a step of the finest grid, `2π/1024`, so
+/// that no two rays a grid tells apart are made one. Their axes a hair off
+/// each other over the whole part, each wall's rays taken through the
+/// other's samples come back to it a hair round from its own, pass after
+/// pass, and a third wall's face cut among them crosses (318277455101196).
+const DRIFT: f64 = 1e-3;
+
 /// How far round, in radians, a ray of a pair drifts from one wall's axis to
 /// the other's, when the two share their rays: their axes cross, or all
 /// but, where the walls hold their circles, standing nearest each other no
-/// further apart than that changes.
+/// further apart than that changes; or they stand so near each other there
+/// that a ray drifts by less than [`DRIFT`].
 fn drift(facing: &Facing) -> Option<f64> {
     let [(_, one), (_, other)] = facing.walls();
     let [nearest, farthest] = facing.apart();
     let sine = one.axis.cross(other.axis).length();
-    (nearest <= farthest - nearest).then(|| farthest / one.radius.min(other.radius) + sine)
+    let drift = farthest / one.radius.min(other.radius) + sine;
+    (nearest <= farthest - nearest || drift <= DRIFT).then_some(drift)
 }
 
 impl Zones<'_> {

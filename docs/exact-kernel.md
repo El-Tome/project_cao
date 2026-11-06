@@ -167,7 +167,8 @@ It can:
   whole turn is read from where its turn starts as well as round it — so
   at most one face is consumed whole, and `Chamfered` reports the distance
   asked and the distance taken. The cut is a prism raised along the edge
-  and cut from the body (`Wedge`, `body/exact/chamfer/prism.rs`): in a
+  and cut from the body (`Wedge` in `body/exact/wedge.rs`, the section in
+  `body/exact/chamfer/prism.rs`): in a
   section square to the edge, the corner between the chamfer's plane and
   the edge's two faces, each face pushed out by a margin, an eighth of the
   distance; capped a margin above the edge where the faces meet so sharply
@@ -219,6 +220,65 @@ It can:
   above still reaches the dip, as it does for a slot leaving at 2.9° down
   to a chamfer of some 0.005. A cut that would take a tab or a lump beside
   the edge away whole is declined too.
+- **fillet one straight edge** (#697, `Body::fillet` in `body/fillet.rs`,
+  the cut in `body/exact/fillet.rs`): the chamfer's step with a radius, the
+  edge replaced by one cylinder of that radius tangent to both its faces.
+  The two are one step (`Exact::cut_off` in `body/exact/wedge.rs`): the
+  edge found by its name and read as a `Wedge` — straight, between two flat
+  faces meeting outwards, on no tangent chain, each face with the way it
+  faces, the way into it and its reach — a prism raised along it and cut
+  from the body, the wall of the prism's first run renumbered as the face
+  the step names, and the same check of what the cut left. What differs is
+  the value and the section. The radius is not the set-back: each face
+  stops where the round takes over, `r / tan(α/2)` from the edge, `α` the
+  angle the faces meet at inside the matter — the radius itself at a square
+  edge, more at a sharper one, less at an obtuse one. A radius the faces
+  cannot give is reduced to the one whose set-back is the nearer face's
+  reach, `reach · tan(α/2)`, the reach read as the chamfer reads it, so at
+  most one face is consumed whole and the round runs on to what lay beyond
+  it — a block's top taken whole leaves the round meeting the back. An
+  infinite radius is reduced like any other too large, and `Filleted`
+  reports the radius asked and the radius taken. The floor is the
+  chamfer's, read on the radius: not a number, nought or less, or shorter
+  than four `Scale::HAIR` tolerances is `Declined::Distance`. The section
+  square to the edge (`Wedge::rounded`) starts with the arc from where the
+  round touches the second face to where it touches the first, about a
+  centre a radius in from each; it goes on square off the first face to a
+  margin outside it, along that margin to the cap or the corner the
+  chamfer's section is topped with (`Side::top`, `wedge/section.rs`), back
+  along the second face's margin, and square down to the round. The margin
+  is the chamfer's — an eighth of the set-back, never under the least
+  margin — and the prism is carried over the body's box as the chamfer's
+  is. The round's cylinder touches each face along the line its side lies
+  on, which the cut reads as a tangency (`Relation::Tangent`), as it reads a
+  hole bored flush against a wall; the prism's wall off the round, square to
+  the face, meets it along the same line, and that line is an edge of the
+  face and of the round. The round is numbered where the steps' numbers
+  ended, the count moves on by one, and no other face changes its number;
+  the STEP export writes the round on its cylinder. It is trimmed at the
+  edge's ends as the chamfer is: a hexagonal prism's top edge runs on past
+  both its ends to the walls beside them, a trapezoid's slanted top edge is
+  trimmed by the front and the back it meets, and a slot's front runs on
+  over a round turning in from its end at a few degrees, trimmed by the
+  round's wall. Two edges a join bridged into one are rounded whole.
+  Declined: what the chamfer declines, `Lost` and `Unsupported` alike — a
+  concave edge among them, the inner corner of an L, since rounding it
+  fills matter in rather than cutting it away, a different step left to an
+  issue of its own (Tom, 2026-11-06). One end the chamfer takes and the
+  fillet does not: a round leaving the edge's end outwards bulges past the
+  edge's face beyond the end corner. The chamfer's face runs on over that
+  bulge while the prism's side reaches it; the matter the bulge holds above
+  the round's side belongs neither to the round nor to the face, and no one
+  cylinder takes it, so the prism's wall square to the face cuts it off
+  there and leaves a face of its own, and the step is declined
+  `Unsupported` — a slot whose round leaves its front at 2.9° outwards,
+  standing a quarter of a hundredth past it, rounded by 1. Set aside: that
+  end, which only a blend of its own would round; a floor read on the
+  set-back rather than on the radius, which an obtuse edge sets back by
+  less than the radius; and the knife and the nearly flat edges the
+  chamfer is tested on, which the fillet has no test for — its walls off
+  the round stand square to the faces, so it needs none of the chamfer's
+  narrowing where a face lies nearly flush, but nothing shows it yet.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face

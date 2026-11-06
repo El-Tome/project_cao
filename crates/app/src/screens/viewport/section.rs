@@ -8,11 +8,14 @@ use cao_sketch::WorkPlane;
 use cao_solid::Body;
 use glam::DVec3;
 
-/// The plane moved `offset` along its normal; behind is against the normal,
-/// in front along it, whichever side the eye is on.
+/// The plane tilted about its own `u` and `v` around its pivot, then moved
+/// `offset` along its tilted normal; behind is against that normal, in front
+/// along it, whichever side the eye is on.
 pub(crate) struct Section {
     pub plane: WorkPlane,
     pub offset: f64,
+    pub tilt_about_u_degrees: f64,
+    pub tilt_about_v_degrees: f64,
     pub behind: MatterInFront,
     pub in_front: MatterInFront,
     /// The face the plane was taken off, which a kept section follows.
@@ -21,6 +24,14 @@ pub(crate) struct Section {
     pub editing: Option<usize>,
     waiting_for_a_face: bool,
     held: Option<Held>,
+    /// The middle of the part when the section was opened, which a face
+    /// chosen brings the pivot under.
+    middle: DVec3,
+    /// What the tilts turn about, chosen with the plane: the middle of the
+    /// part, or the point of the face under it.
+    pivot: DVec3,
+    /// Whether « Inverser » has turned the arrow against the normal.
+    inverted: bool,
 }
 
 /// Where the handle was taken: the line it slides along, how far along it the
@@ -42,12 +53,17 @@ impl Section {
         Self {
             plane,
             offset: 0.0,
+            tilt_about_u_degrees: 0.0,
+            tilt_about_v_degrees: 0.0,
             behind: MatterInFront::Opaque,
             in_front: MatterInFront::Hidden,
             on: None,
             editing: None,
             waiting_for_a_face: false,
             held: None,
+            middle: plane.origin,
+            pivot: plane.origin,
+            inverted: false,
         }
     }
 
@@ -55,11 +71,14 @@ impl Section {
     pub(crate) fn through_the_middle(plane: WorkPlane, body: &Body) -> Self {
         let mut section = Self::new(plane);
         section.offset = to_the_middle(plane, body);
+        section.middle = middle(body, plane);
+        section.pivot = section.middle;
         section
     }
 
     pub(crate) fn invert(&mut self) {
         std::mem::swap(&mut self.behind, &mut self.in_front);
+        self.inverted = !self.inverted;
     }
 
     pub(crate) fn next_behind(&mut self) {
@@ -81,6 +100,8 @@ impl Section {
     pub(crate) fn choose_origin_plane(&mut self, plane: WorkPlane, body: &Body) {
         self.plane = plane;
         self.offset = to_the_middle(plane, body);
+        self.middle = middle(body, plane);
+        self.pivot = self.middle;
         self.on = None;
         self.waiting_for_a_face = false;
     }
@@ -88,6 +109,7 @@ impl Section {
     pub(crate) fn choose_face(&mut self, plane: WorkPlane) {
         self.plane = plane;
         self.offset = 0.0;
+        self.pivot = cao_part::pivot_of(plane, true, self.middle);
         self.on = None;
         self.waiting_for_a_face = false;
     }
@@ -104,21 +126,36 @@ impl Section {
         crate::wording::dimension::short(self.distance_in_millimetres(millimetres_per_unit))
     }
 
-    /// The plane the part is cut along: the one chosen, moved by the distance.
+    /// The plane chosen, tilted, before the distance moves it.
+    pub(crate) fn tilted(&self) -> WorkPlane {
+        let tilts = (self.tilt_about_u_degrees, self.tilt_about_v_degrees);
+        self.plane.tilted(tilts, self.pivot)
+    }
+
+    /// The plane the part is cut along: the one chosen, tilted, moved by the
+    /// distance.
     pub(crate) fn cutting_plane(&self) -> WorkPlane {
+        let tilted = self.tilted();
         WorkPlane {
-            origin: self.plane.origin + self.plane.normal() * self.offset,
-            ..self.plane
+            origin: tilted.origin + tilted.normal() * self.offset,
+            ..tilted
         }
     }
 
-    /// Where the handle stands: on the cutting plane, over the middle of the
-    /// part.
-    pub(crate) fn handle(&self, body: &Body) -> DVec3 {
+    /// The way the plane faces, which « Inverser » turns round.
+    pub(crate) fn facing(&self) -> DVec3 {
+        match self.inverted {
+            true => -self.cutting_plane().normal(),
+            false => self.cutting_plane().normal(),
+        }
+    }
+
+    /// Where the handle stands: on the cutting plane, over the point it is
+    /// tilted about.
+    pub(crate) fn handle(&self, _body: &Body) -> DVec3 {
         let cut = self.cutting_plane();
         let normal = cut.normal();
-        let middle = middle(body, cut);
-        middle - normal * normal.dot(middle - cut.origin)
+        self.pivot - normal * normal.dot(self.pivot - cut.origin)
     }
 
     /// Takes hold of the handle when the ray passes within `reach` of it, and
@@ -132,7 +169,8 @@ impl Section {
     ) -> bool {
         let handle = self.handle(body);
         let direction = direction.normalize_or_zero();
-        let normal = self.plane.normal();
+        let tilted = self.tilted();
+        let normal = tilted.normal();
         if grazes(normal, direction) {
             return false;
         }
@@ -141,7 +179,7 @@ impl Section {
             return false;
         }
         let line = (handle, normal);
-        let reach = extent(body, self.plane);
+        let reach = extent(body, tilted);
         self.held = closest_along(line, (origin, direction)).map(|taken_at| Held {
             line,
             taken_at,

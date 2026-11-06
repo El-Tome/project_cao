@@ -350,3 +350,58 @@ pub fn click_with(app: &mut App, at: egui::Pos2, modifiers: egui::Modifiers) {
     app.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
     app.run();
 }
+
+/// The field a label names: the one it is attached to, or else the first drawn
+/// to its right on the same row — a panel lays a label and its field side by
+/// side.
+pub fn the_field_beside<'tree>(app: &'tree App, label: &str) -> egui_kittest::Node<'tree> {
+    use egui::accesskit::Role;
+
+    if let Some(field) = app
+        .query_all_by_role(Role::TextInput)
+        .find(|field| field.accesskit_node().label().as_deref() == Some(label))
+    {
+        return field;
+    }
+    let named = app
+        .get_all_by(|_| true)
+        .find(|node| {
+            let node = node.accesskit_node();
+            node.role() != Role::TextInput
+                && (node.label().as_deref() == Some(label)
+                    || node.value().as_deref() == Some(label))
+        })
+        .unwrap_or_else(|| panic!("nothing on screen reads « {label} »: {:?}", on_screen(app)));
+    let row = named.rect();
+    app.query_all_by_role(Role::TextInput)
+        .filter(|field| {
+            let at = field.rect();
+            at.min.x >= row.max.x - 1.0 && at.min.y <= row.center().y && row.center().y <= at.max.y
+        })
+        .min_by(|a, b| a.rect().min.x.total_cmp(&b.rect().min.x))
+        .unwrap_or_else(|| panic!("no field stands beside « {label} »"))
+}
+
+/// What the field beside a label holds.
+pub fn field_beside(app: &App, label: &str) -> String {
+    the_field_beside(app, label)
+        .accesskit_node()
+        .value()
+        .unwrap_or_default()
+}
+
+/// Types over the field beside a label, the way selecting all of it first
+/// would.
+pub fn type_beside(app: &mut App, label: &str, text: &str) {
+    the_field_beside(app, label).focus();
+    app.run();
+    app.event(egui::Event::Key {
+        key: egui::Key::A,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: egui::Modifiers::COMMAND,
+    });
+    app.event(egui::Event::Text(text.to_owned()));
+    app.run();
+}

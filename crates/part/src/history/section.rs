@@ -2,6 +2,7 @@
 //! step of matter.
 
 use cao_sketch::WorkPlane;
+use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
 use super::{FaceAnchor, Operation};
@@ -17,7 +18,8 @@ pub enum SideDrawing {
 
 /// A section as it is made or edited: the plane it starts from, the face that
 /// plane was taken off when it was, how far along its normal the cut stands,
-/// and how each side of it is drawn.
+/// how each side of it is drawn, and how far the plane is turned about its own
+/// `u` and `v`, in degrees.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SectionAsked {
     /// On a face, what is left to fall back on when the face is gone.
@@ -26,6 +28,14 @@ pub struct SectionAsked {
     pub offset: f64,
     pub behind: SideDrawing,
     pub in_front: SideDrawing,
+    #[serde(default)]
+    pub tilt_about_u_degrees: f64,
+    #[serde(default)]
+    pub tilt_about_v_degrees: f64,
+    /// The point the tilts turn about, along `plane`'s `u`, `v` and normal as
+    /// the part finds that plane; a part saved before reads the plane's origin.
+    #[serde(default)]
+    pub pivot: DVec3,
 }
 
 impl Operation {

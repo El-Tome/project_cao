@@ -264,7 +264,7 @@ fn the_section_tool_closed_without_saving_leaves_nothing_behind_and_a_sketch_on_
     let mut app = a_block(test);
     click_in_the_ribbon(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
-    let distance: f64 = driver::fields(&app)[0]
+    let distance: f64 = driver::field_beside(&app, "Distance")
         .parse()
         .expect("the panel reads its distance");
     a_sketch_on_the_cut(&mut app);
@@ -311,8 +311,7 @@ fn a_saved_section_reopened_from_the_tree_comes_back_on_its_plane_its_offset_and
     let mut app = a_block("keeping_a_section_reopened_from_the_tree");
     click_in_the_ribbon(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
-    let read = driver::fields(&app)[0].clone();
-    driver::type_over(&mut app, &read, "3");
+    driver::type_beside(&mut app, "Distance", "3");
     driver::click(&mut app, "Derrière");
     driver::click(&mut app, "Devant");
     driver::click(&mut app, "Devant");
@@ -342,8 +341,8 @@ fn a_saved_section_reopened_from_the_tree_comes_back_on_its_plane_its_offset_and
         "the section came back off YZ"
     );
     assert_eq!(
-        driver::fields(&app),
-        ["3"],
+        driver::field_beside(&app, "Distance"),
+        "3",
         "the section came back at another distance",
     );
     assert_eq!(
@@ -566,8 +565,7 @@ fn editing_a_saved_section_through_its_panel_keeps_one_section_at_the_new_distan
     let mut app = a_block("keeping_a_section_edited_in_its_panel");
     save_a_section(&mut app, "Plan YZ");
     double_click(&mut app, "Coupe 1");
-    let read = driver::fields(&app)[0].clone();
-    driver::type_over(&mut app, &read, "2");
+    driver::type_beside(&mut app, "Distance", "2");
     driver::click_the_button(&mut app, "Enregistrer la coupe");
     close_the_panel(&mut app);
 
@@ -576,8 +574,8 @@ fn editing_a_saved_section_through_its_panel_keeps_one_section_at_the_new_distan
 
     assert_eq!(kept, ["Coupe 1"], "editing the section made another one");
     assert_eq!(
-        driver::fields(&app),
-        ["2"],
+        driver::field_beside(&app, "Distance"),
+        "2",
         "the section edited to 2 came back at another distance",
     );
 }
@@ -659,8 +657,7 @@ fn the_history_numbers_its_rows_one_after_another_around_the_hidden_section_step
     save_a_section(&mut app, "Plan YZ");
     save_a_section(&mut app, "Plan XZ");
     double_click(&mut app, "Coupe 1");
-    let read = driver::fields(&app)[0].clone();
-    driver::type_over(&mut app, &read, "4");
+    driver::type_beside(&mut app, "Distance", "4");
     driver::click_the_button(&mut app, "Enregistrer la coupe");
     close_the_panel(&mut app);
     switch_on(&mut app, "Coupe 1");

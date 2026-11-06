@@ -143,7 +143,7 @@ fn the_handle_stands_where_the_distance_typed_puts_the_plane() {
         (WorkPlane::YZ, 7.0, DVec3::new(7.0, 5.0, 2.0)),
         (top, -1.0, DVec3::new(5.0, 5.0, 3.0)),
     ] {
-        let mut section = Section::new(plane);
+        let mut section = Section::through_the_middle(plane, &body);
         section.offset = offset;
 
         let handle = section.handle(&body);
@@ -159,7 +159,7 @@ fn the_handle_stands_where_the_distance_typed_puts_the_plane() {
 #[test]
 fn pulling_the_handle_changes_the_distance_the_panel_shows() {
     let body = block();
-    let mut section = Section::new(WorkPlane::XY);
+    let mut section = Section::through_the_middle(WorkPlane::XY, &body);
     section.offset = 2.0;
 
     assert!(
@@ -357,9 +357,9 @@ fn down_through_the_handle_at(degrees: f64) -> (DVec3, DVec3) {
 #[test]
 fn a_ray_grazing_the_normal_takes_no_hold_of_the_handle() {
     let body = block();
-    let mut at_three_degrees = Section::new(WorkPlane::XY);
+    let mut at_three_degrees = Section::through_the_middle(WorkPlane::XY, &body);
     at_three_degrees.offset = 2.0;
-    let mut at_ten_degrees = Section::new(WorkPlane::XY);
+    let mut at_ten_degrees = Section::through_the_middle(WorkPlane::XY, &body);
     at_ten_degrees.offset = 2.0;
 
     let (origin, direction) = down_through_the_handle_at(3.0);
@@ -381,7 +381,7 @@ fn a_ray_grazing_the_normal_takes_no_hold_of_the_handle() {
 #[test]
 fn a_pull_grazing_the_normal_leaves_the_distance_where_it_was() {
     let body = block();
-    let mut section = Section::new(WorkPlane::XY);
+    let mut section = Section::through_the_middle(WorkPlane::XY, &body);
     section.offset = 2.0;
     assert!(section.grab(&body, DVec3::new(20.0, 5.0, 2.0), DVec3::NEG_X, 0.5));
     section.pull(DVec3::new(20.0, 5.0, 3.0), DVec3::NEG_X);
@@ -405,7 +405,7 @@ fn the_handle_is_pulled_no_further_than_the_part_reaches() {
     for (plane, offset, (lowest, highest)) in
         [(WorkPlane::XY, 2.0, (0.0, 4.0)), (top, -1.0, (-4.0, 0.0))]
     {
-        let mut section = Section::new(plane);
+        let mut section = Section::through_the_middle(plane, &body);
         section.offset = offset;
         let handle_height = plane.origin.z + offset;
         assert!(

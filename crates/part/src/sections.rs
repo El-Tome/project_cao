@@ -6,6 +6,7 @@
 //! nothing.
 
 use cao_sketch::{Sketch, WorkPlane};
+use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
 use crate::history::{FaceAnchor, Operation, SectionAsked, SideDrawing};
@@ -23,19 +24,46 @@ pub struct SavedSection {
     pub offset: f64,
     pub behind: SideDrawing,
     pub in_front: SideDrawing,
+    pub tilt_about_u_degrees: f64,
+    pub tilt_about_v_degrees: f64,
+    /// The point its plane is tilted about, where it was kept on that plane.
+    pub pivot: DVec3,
     /// Whether the face it was laid on is gone, which leaves it cutting nothing.
     pub broken: bool,
 }
 
 impl SavedSection {
     /// The plane the part is cut along, when the section still stands on
-    /// something.
+    /// something: the one it starts from, tilted, moved along its own normal.
     pub fn cutting_plane(&self) -> Option<WorkPlane> {
+        let tilts = (self.tilt_about_u_degrees, self.tilt_about_v_degrees);
+        let tilted = self.plane.tilted(tilts, self.pivot);
         (!self.broken).then(|| WorkPlane {
-            origin: self.plane.origin + self.plane.normal() * self.offset,
-            ..self.plane
+            origin: tilted.origin + tilted.normal() * self.offset,
+            ..tilted
         })
     }
+}
+
+/// The point a section's plane is tilted about, chosen with the plane: the
+/// middle of the part, brought onto `plane` when that plane is a face's.
+pub fn pivot_of(plane: WorkPlane, on_a_face: bool, middle: DVec3) -> DVec3 {
+    let normal = plane.normal();
+    match on_a_face {
+        true => middle - normal * normal.dot(middle - plane.origin),
+        false => middle,
+    }
+}
+
+/// A pivot as a section keeps it: along `plane`'s `u`, its `v` and its normal,
+/// so that it follows a face the plane is taken off.
+pub fn pivot_kept_on(plane: WorkPlane, pivot: DVec3) -> DVec3 {
+    let along = plane.to_local(pivot);
+    along.extend(plane.normal().dot(pivot - plane.origin))
+}
+
+fn pivot_found_on(plane: WorkPlane, kept: DVec3) -> DVec3 {
+    plane.to_world(kept.truncate()) + plane.normal() * kept.z
 }
 
 /// A section as the history leaves it: what it was last asked to be, its face
@@ -98,13 +126,17 @@ impl PartState {
     fn found(&self, id: usize, kept: &Kept) -> SavedSection {
         let asked = &kept.asked;
         let face = asked.on.as_ref().map(|anchor| self.face_now(anchor));
+        let plane = face.flatten().unwrap_or(asked.plane);
         SavedSection {
             id,
-            plane: face.flatten().unwrap_or(asked.plane),
+            plane,
             on: asked.on,
             offset: asked.offset,
             behind: asked.behind,
             in_front: asked.in_front,
+            tilt_about_u_degrees: asked.tilt_about_u_degrees,
+            tilt_about_v_degrees: asked.tilt_about_v_degrees,
+            pivot: pivot_found_on(plane, asked.pivot),
             broken: matches!(face, Some(None)),
         }
     }

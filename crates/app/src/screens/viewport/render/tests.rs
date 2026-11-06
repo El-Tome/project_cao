@@ -144,6 +144,62 @@
 //!   or a rule row of a closed sketch is no click at all, and a click while a
 //!   tool is part-way through something does nothing — held in the tree's
 //!   tests
+//!
+//! Closes #693.
+//! - With the section tool open, a square and an arrow are drawn on the
+//!   cutting plane, the arrow along its normal; « Inverser » turns the arrow
+//!   round —
+//!   `with_the_section_tool_open_a_square_and_an_arrow_stand_on_the_cutting_plane`,
+//!   `inverser_turns_the_arrow_round`; the arrow only shows: pressed and
+//!   dragged, it moves nothing —
+//!   `pressing_on_the_arrow_s_tip_changes_neither_the_distance_nor_the_direction`
+//! - The square keeps its size on screen when the view is zoomed in and out —
+//!   `the_square_keeps_its_size_on_screen_when_the_view_is_zoomed_in_and_out`
+//! - Typing an angle tilts the cut, the square and the arrow together, about
+//!   the square's centre; 0 and 0 gives today's cut exactly —
+//!   `typing_an_angle_tilts_the_cut_the_square_and_the_arrow_together_about_the_square_s_centre`,
+//!   `zero_and_zero_typed_back_give_today_s_cut_exactly`; the cut filled on
+//!   the tilted plane — `the_filled_cut_lies_on_the_tilted_plane`; an angle
+//!   typed as every value is, a formula or a variable —
+//!   `a_formula_typed_in_an_angle_field_takes_its_value_as_the_distance_field_does`;
+//!   read as: the fields
+//!   « Inclinaison 1 » and « Inclinaison 2 » turn the plane about the first and
+//!   the second of its own axes, and the centre is held where the section
+//!   opens, through the middle of the part; decided on the branch: a section
+//!   on a face turns about the point of the face under the middle of the part,
+//!   where its square stood when the face was picked —
+//!   `a_section_on_a_face_turns_about_the_point_of_the_face_its_square_stood_on`,
+//!   and kept so through the `.caopart` —
+//!   `a_kept_face_section_reopened_from_the_caopart_cuts_where_it_cut_when_kept`,
+//!   and `a_kept_section_on_a_face_turns_about_the_point_of_the_face_under_the_middle_of_the_part`,
+//!   in `crates/part/tests/a_section_keeps_its_tilt.rs`; moved onto another
+//!   face and kept again, it is kept where it cut on screen —
+//!   `a_kept_tilted_section_moved_onto_another_face_is_kept_where_it_cut_on_screen`
+//! - The typed distance moves a tilted plane along its tilted normal —
+//!   `the_typed_distance_moves_a_tilted_plane_along_its_tilted_normal`, and on
+//!   a face from the point it turns about —
+//!   `a_distance_typed_on_a_tilted_face_section_moves_it_that_far_along_its_tilted_normal_from_the_face`;
+//!   the handle dragged does the same, as far as the part reaches along that
+//!   normal —
+//!   `dragging_the_handle_of_a_tilted_plane_moves_it_along_the_tilted_normal_as_far_as_the_part_reaches`
+//! - A sketch started on a tilted cut lands on the tilted plane — no test: held
+//!   by `a_sketch_started_on_a_tilted_cut_lands_on_the_tilted_plane`, in
+//!   `crates/app/tests/tilting_a_section.rs`, and on a kept tilted section
+//!   switched on by `a_sketch_on_a_kept_tilted_section_lands_on_the_tilted_plane`,
+//!   beside it
+//! - decided on the issue, 2026-11-06: the two angles are kept with a saved
+//!   section, and a part saved before reads them as 0 and 0 — no test: held by
+//!   `a_tilted_section_comes_back_with_its_two_angles_from_the_caopart_and_from_the_tree`,
+//!   in `crates/app/tests/tilting_a_section.rs`, and by
+//!   `a_tilted_section_comes_back_from_the_caopart_with_its_two_angles` and
+//!   `a_section_saved_before_its_angles_existed_reads_both_as_zero_and_cuts_where_it_did`,
+//!   in `crates/part/tests/a_section_keeps_its_tilt.rs`
+//! - decided on the issue, revised: the point a kept section turns about is
+//!   kept with it at « Enregistrer la coupe », on a face in the face's own
+//!   terms, so matter raised elsewhere moves nothing and the face carries it —
+//!   `a_kept_tilted_section_stays_where_it_was_kept_when_matter_is_raised_away_from_it`,
+//!   `a_sketch_laid_on_a_kept_tilted_section_still_lies_on_its_cut_once_matter_is_raised_and_the_part_reopened`,
+//!   `a_kept_tilted_section_on_a_face_follows_the_face_when_its_extrusion_grows_and_not_the_matter_raised_aside`
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_render::MatterInFront;
@@ -1293,5 +1349,1008 @@ fn an_area_of_the_open_sketch_lit_from_the_tree_is_drawn_lit() {
     assert!(
         !lit.is_empty() && lit.iter().all(|colour| !plain.contains(colour)),
         "an area of the open sketch lit from the tree is tinted as it was, {lit:?}",
+    );
+}
+
+/// Where a point of a frame stands, in the world.
+fn at(vertex: &cao_render::Vertex) -> DVec3 {
+    Vec3::from(vertex.position).as_dvec3()
+}
+
+/// How far from `plane` a point drawn in single precision may stand and still
+/// be read as lying in it.
+const ON_THE_PLANE: f64 = 1e-4;
+
+fn lies_in(point: DVec3, plane: WorkPlane) -> bool {
+    plane.normal().dot(point - plane.origin).abs() < ON_THE_PLANE
+}
+
+/// The frame's lines, as the pairs of points each is drawn between.
+fn segments(frame: &SceneFrame) -> Vec<(DVec3, DVec3)> {
+    frame
+        .scene_lines
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|[from, to]| (at(from), at(to)))
+        .collect()
+}
+
+/// The see-through square drawn on a plane: where its middle stands, how far
+/// its corners reach from it, and how many lines lie in the plane with it.
+#[derive(Debug)]
+struct Square {
+    centre: DVec3,
+    half_diagonal: f64,
+    outlined_by: usize,
+}
+
+/// The square drawn see-through on `plane`, read off its two furthest corners,
+/// which a square holds across its diagonal; `None` when nothing translucent
+/// lies there.
+fn the_square(frame: &SceneFrame, plane: WorkPlane) -> Option<Square> {
+    let veiled: Vec<&cao_render::Vertex> = frame
+        .scene_surfaces
+        .iter()
+        .filter(|vertex| lies_in(at(vertex), plane))
+        .collect();
+    if veiled.is_empty() {
+        return None;
+    }
+    assert!(
+        veiled
+            .iter()
+            .all(|vertex| vertex.color[3] > 0.0 && vertex.color[3] < 1.0),
+        "what is drawn on the cutting plane is not see-through",
+    );
+    let corners: Vec<DVec3> = veiled.iter().map(|vertex| at(vertex)).collect();
+    let (from, to) = corners
+        .iter()
+        .flat_map(|a| corners.iter().map(move |b| (*a, *b)))
+        .max_by(|(a, b), (c, d)| a.distance(*b).total_cmp(&c.distance(*d)))
+        .expect("there is a corner");
+    let outlined_by = segments(frame)
+        .into_iter()
+        .filter(|(a, b)| lies_in(*a, plane) && lies_in(*b, plane) && a.distance(*b) > 1e-6)
+        .count();
+    Some(Square {
+        centre: (from + to) / 2.0,
+        half_diagonal: from.distance(to) / 2.0,
+        outlined_by,
+    })
+}
+
+/// The way the arrow points: a line leaving `centre` along `normal`, one way or
+/// the other, read from the centre outwards.
+fn the_arrow(frame: &SceneFrame, centre: DVec3, normal: DVec3) -> Option<DVec3> {
+    segments(frame).into_iter().find_map(|(a, b)| {
+        let (from, to) = match (a.distance(centre) < 1e-3, b.distance(centre) < 1e-3) {
+            (true, false) => (a, b),
+            (false, true) => (b, a),
+            _ => return None,
+        };
+        let pointing = (to - from).normalize_or_zero();
+        (pointing.dot(normal).abs() > 1.0 - 1e-4).then_some(pointing)
+    })
+}
+
+/// The cutting plane, the middle of the block it cuts through, and a frame of
+/// the block, with the section as `prepare` leaves it.
+fn the_section_drawn(prepare: impl FnOnce(&mut Section)) -> (WorkPlane, DVec3, SceneFrame) {
+    let state = sectioned(prepare);
+    let document = a_block();
+    let section = state.section.as_ref().expect("the section is on");
+    let cut = section.cutting_plane();
+    let handle = section.handle(document.body());
+    (cut, handle, a_view_of_the_block(&state))
+}
+
+#[test]
+fn with_the_section_tool_open_a_square_and_an_arrow_stand_on_the_cutting_plane() {
+    let (cut, handle, frame) = the_section_drawn(|_| {});
+
+    let square = the_square(&frame, cut).unwrap_or_else(|| {
+        panic!(
+            "with the section tool open, nothing see-through is drawn on the cutting plane {cut:?}"
+        )
+    });
+
+    assert!(
+        square.centre.distance(handle) < 1e-3,
+        "the square stands around {:?}, not where the handle stands, {handle:?}",
+        square.centre,
+    );
+    assert!(
+        square.half_diagonal > 1e-3,
+        "the square on the cutting plane has no size: {square:?}",
+    );
+    assert!(
+        square.outlined_by >= 4,
+        "the square on the cutting plane is drawn without its outline: {square:?}",
+    );
+    assert!(
+        the_arrow(&frame, square.centre, cut.normal()).is_some(),
+        "no arrow stands on the square's centre along the normal {:?}",
+        cut.normal(),
+    );
+}
+
+#[test]
+fn inverser_turns_the_arrow_round() {
+    let pointing = |prepare: fn(&mut Section)| {
+        let (cut, _, frame) = the_section_drawn(prepare);
+        let square = the_square(&frame, cut).expect("a square stands on the cutting plane");
+        the_arrow(&frame, square.centre, cut.normal())
+            .expect("an arrow stands on the square along the normal")
+    };
+
+    let before = pointing(|_| {});
+    let inverted = pointing(Section::invert);
+    let inverted_twice = pointing(|section| {
+        section.invert();
+        section.invert();
+    });
+
+    assert!(
+        before.dot(inverted) < -0.99,
+        "« Inverser » left the arrow pointing {inverted:?}, where it pointed {before:?}",
+    );
+    assert!(
+        before.dot(inverted_twice) > 0.99,
+        "« Inverser » twice left the arrow pointing {inverted_twice:?}, not back to {before:?}",
+    );
+}
+
+/// One frame of the block with the section on, and the scale it was drawn at,
+/// both read from the view's own camera.
+fn a_frame_at_its_own_zoom(state: &ViewportState) -> (SceneFrame, ViewScale) {
+    let mut document = a_block();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let millimetres = document.scale();
+    let scale = ViewScale::of(
+        &state.camera,
+        SCREEN,
+        1.0,
+        &ViewportConfig::default(),
+        millimetres,
+    );
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    (
+        build_frame(state, SCREEN, SCREEN, scale, &context, None, None),
+        scale,
+    )
+}
+
+#[test]
+fn the_square_keeps_its_size_on_screen_when_the_view_is_zoomed_in_and_out() {
+    let mut measured = Vec::new();
+    for zoom in [1.0, 2.5, 0.4] {
+        let mut state = sectioned(|_| {});
+        state.camera.zoom_by_factor(zoom);
+        let cut = state.section().expect("the section is on").cutting_plane();
+        let (frame, scale) = a_frame_at_its_own_zoom(&state);
+        let square = the_square(&frame, cut)
+            .unwrap_or_else(|| panic!("zoomed by {zoom}, no square is drawn on the cutting plane"));
+        measured.push((
+            zoom,
+            square.half_diagonal,
+            square.half_diagonal / scale.world_size_of(1.0),
+        ));
+    }
+
+    let (_, unzoomed, pixels) = measured[0];
+    for (zoom, world, on_screen) in &measured[1..] {
+        assert!(
+            (world - unzoomed).abs() > 1e-6,
+            "zoomed by {zoom}, the view's scale did not change: the test measures nothing",
+        );
+        assert!(
+            (on_screen - pixels).abs() <= 1e-3 * pixels,
+            "zoomed by {zoom}, the square reaches {on_screen} pixels from its centre, \
+             where it reached {pixels}",
+        );
+    }
+}
+
+/// The section panel, over the block, and what it acts on.
+struct OnTheBench {
+    state: ViewportState,
+    document: PartDocument,
+    editor: SketchEditor,
+    extrusion: ExtrusionState,
+    lang: Catalogue,
+}
+
+/// The section panel over the block, the section opened as the ribbon opens
+/// it: along XY, through the middle of the part.
+fn the_section_panel() -> egui_kittest::Harness<'static, OnTheBench> {
+    the_section_panel_over(a_block())
+}
+
+/// The section panel over a part, the section opened as the ribbon opens it.
+fn the_section_panel_over(document: PartDocument) -> egui_kittest::Harness<'static, OnTheBench> {
+    let mut state = ViewportState::default();
+    state.toggle_section(document.body());
+    let bench = OnTheBench {
+        state,
+        document,
+        editor: SketchEditor::default(),
+        extrusion: ExtrusionState::default(),
+        lang: Catalogue::french(),
+    };
+    let mut panel = egui_kittest::Harness::builder()
+        .with_size(SCREEN.size())
+        .build_ui_state(
+            |ui, bench: &mut OnTheBench| {
+                let mut context = SketchContext {
+                    document: &mut bench.document,
+                    editor: &mut bench.editor,
+                    extrusion: &mut bench.extrusion,
+                    lang: &bench.lang,
+                };
+                paint_section_panel(ui, &mut bench.state, SCREEN, &mut context);
+            },
+            bench,
+        );
+    panel.run();
+    panel
+}
+
+/// The field a label names: the one it is attached to, or the first drawn to
+/// its right on the same row.
+fn the_field_beside<'tree>(
+    panel: &'tree egui_kittest::Harness<'_, OnTheBench>,
+    label: &str,
+) -> egui_kittest::Node<'tree> {
+    use egui::accesskit::Role;
+    use egui_kittest::kittest::{NodeT, Queryable};
+
+    let reads = |node: &egui_kittest::Node<'_>| {
+        let node = node.accesskit_node();
+        node.label().as_deref() == Some(label) || node.value().as_deref() == Some(label)
+    };
+    if let Some(field) = panel
+        .query_all_by_role(Role::TextInput)
+        .find(|field| field.accesskit_node().label().as_deref() == Some(label))
+    {
+        return field;
+    }
+    let named = panel
+        .get_all_by(|_| true)
+        .find(|node| node.accesskit_node().role() != Role::TextInput && reads(node))
+        .unwrap_or_else(|| panic!("the section panel shows no « {label} »"));
+    let row = named.rect();
+    panel
+        .query_all_by_role(Role::TextInput)
+        .filter(|field| {
+            let at = field.rect();
+            at.min.x >= row.max.x - 1.0 && at.min.y <= row.center().y && row.center().y <= at.max.y
+        })
+        .min_by(|a, b| a.rect().min.x.total_cmp(&b.rect().min.x))
+        .unwrap_or_else(|| panic!("no field stands beside « {label} » in the section panel"))
+}
+
+/// Types over the field beside a label, the way selecting all of it first
+/// would.
+fn type_beside(panel: &mut egui_kittest::Harness<'_, OnTheBench>, label: &str, text: &str) {
+    the_field_beside(panel, label).focus();
+    panel.run();
+    panel.event(egui::Event::Key {
+        key: egui::Key::A,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: egui::Modifiers::COMMAND,
+    });
+    panel.event(egui::Event::Text(text.to_owned()));
+    panel.run();
+}
+
+fn the_section_on_the_bench<'bench>(
+    panel: &'bench egui_kittest::Harness<'_, OnTheBench>,
+) -> &'bench Section {
+    panel
+        .state()
+        .state
+        .section()
+        .expect("the section panel closed its section")
+}
+
+fn the_bench_drawn(panel: &mut egui_kittest::Harness<'_, OnTheBench>) -> SceneFrame {
+    let bench = panel.state_mut();
+    a_frame_of(&bench.state, &mut bench.document, &mut bench.editor)
+}
+
+#[test]
+fn typing_an_angle_tilts_the_cut_the_square_and_the_arrow_together_about_the_square_s_centre() {
+    let thirty = 30_f64.to_radians();
+    for (field, turned_about) in [("Inclinaison 1", DVec3::X), ("Inclinaison 2", DVec3::Y)] {
+        let mut panel = the_section_panel();
+        let centre = {
+            let bench = panel.state();
+            the_section_on_the_bench(&panel).handle(bench.document.body())
+        };
+
+        type_beside(&mut panel, field, "30");
+
+        let cut = the_section_on_the_bench(&panel).cutting_plane();
+        let normal = cut.normal();
+        let frame = the_bench_drawn(&mut panel);
+        assert!(
+            (normal.dot(DVec3::Z) - thirty.cos()).abs() < 1e-9,
+            "« {field} » at 30 left the cut facing {normal:?}, {}° off XY's normal",
+            normal.dot(DVec3::Z).clamp(-1.0, 1.0).acos().to_degrees(),
+        );
+        assert!(
+            normal.dot(turned_about).abs() < 1e-9,
+            "« {field} » turned the cut about another axis than {turned_about:?}, \
+             which lies in XY: it faces {normal:?}",
+        );
+        assert!(
+            normal.dot(centre - cut.origin).abs() < 1e-9,
+            "« {field} » at 30 turned the cut off the square's centre {centre:?}",
+        );
+        let (nearest, furthest) = opaque_reach(&frame, normal);
+        assert!(
+            (furthest - normal.dot(centre)).abs() <= 1e-3 && nearest < furthest - 1.0,
+            "« {field} » at 30: the matter kept is drawn from {nearest} to {furthest} along \
+             the tilted normal, not up to the tilted cut at {}",
+            normal.dot(centre),
+        );
+        let square = the_square(&frame, cut).unwrap_or_else(|| {
+            panic!("« {field} » at 30: no square is drawn on the tilted cutting plane")
+        });
+        assert!(
+            square.centre.distance(centre) < 1e-3,
+            "« {field} » at 30 moved the square's centre from {centre:?} to {:?}",
+            square.centre,
+        );
+        assert!(
+            the_arrow(&frame, square.centre, normal).is_some(),
+            "« {field} » at 30: no arrow stands on the square along the tilted normal {normal:?}",
+        );
+    }
+}
+
+#[test]
+fn zero_and_zero_typed_back_give_today_s_cut_exactly() {
+    let mut panel = the_section_panel();
+    let section = the_section_on_the_bench(&panel);
+    let today = WorkPlane {
+        origin: section.plane.origin + section.plane.normal() * section.offset,
+        ..section.plane
+    };
+    let drawn_today: Vec<[f32; 3]> = the_bench_drawn(&mut panel)
+        .scene_solids
+        .iter()
+        .map(|vertex| vertex.position)
+        .collect();
+
+    type_beside(&mut panel, "Inclinaison 1", "30");
+    type_beside(&mut panel, "Inclinaison 2", "-20");
+    let tilted = the_section_on_the_bench(&panel).cutting_plane();
+    type_beside(&mut panel, "Inclinaison 1", "0");
+    type_beside(&mut panel, "Inclinaison 2", "0");
+    let back = the_section_on_the_bench(&panel).cutting_plane();
+    let drawn_back: Vec<[f32; 3]> = the_bench_drawn(&mut panel)
+        .scene_solids
+        .iter()
+        .map(|vertex| vertex.position)
+        .collect();
+
+    assert_ne!(tilted, today, "30 and -20 typed tilted nothing");
+    assert_eq!(
+        back, today,
+        "0 and 0 typed back, the section cuts along {back:?}, not where it cut before any angle",
+    );
+    assert!(
+        drawn_back == drawn_today,
+        "0 and 0 typed back, the matter is drawn otherwise than before any angle",
+    );
+}
+
+#[test]
+fn the_typed_distance_moves_a_tilted_plane_along_its_tilted_normal() {
+    let mut panel = the_section_panel();
+    type_beside(&mut panel, "Inclinaison 2", "20");
+    let read = |panel: &mut egui_kittest::Harness<'_, OnTheBench>| {
+        let cut = the_section_on_the_bench(panel).cutting_plane();
+        let frame = the_bench_drawn(panel);
+        let square = the_square(&frame, cut)
+            .unwrap_or_else(|| panic!("no square is drawn on the cutting plane {cut:?}"));
+        (cut, opaque_reach(&frame, cut.normal()).1, square.centre)
+    };
+
+    type_beside(&mut panel, "Distance", "1");
+    let (at_one, drawn_at_one, centre_at_one) = read(&mut panel);
+    type_beside(&mut panel, "Distance", "3");
+    let (at_three, drawn_at_three, centre_at_three) = read(&mut panel);
+
+    let normal = at_one.normal();
+    assert!(
+        (normal.dot(DVec3::Z) - 20_f64.to_radians().cos()).abs() < 1e-9,
+        "« Inclinaison 2 » at 20 left the cut facing {normal:?}",
+    );
+    assert!(
+        at_three.normal().abs_diff_eq(normal, 1e-12),
+        "the distance typed turned the tilted cut from {normal:?} to {:?}",
+        at_three.normal(),
+    );
+    assert!(
+        (normal.dot(at_three.origin - at_one.origin) - 2.0).abs() < 1e-9,
+        "from 1 to 3, the tilted cut moved {} along its normal, not 2",
+        normal.dot(at_three.origin - at_one.origin),
+    );
+    assert!(
+        (drawn_at_three - drawn_at_one - 2.0).abs() <= 1e-3,
+        "from 1 to 3, the matter kept is drawn {} further along the tilted normal, not 2",
+        drawn_at_three - drawn_at_one,
+    );
+    assert!(
+        (centre_at_three - centre_at_one - normal * 2.0).length() < 1e-3,
+        "from 1 to 3, the square went from {centre_at_one:?} to {centre_at_three:?}, \
+         not 2 along the tilted normal",
+    );
+}
+
+/// The top of the block, as the replay numbers its faces.
+fn the_top_face(document: &PartDocument) -> usize {
+    (0..200)
+        .find(|face| {
+            document.body().plane_of(*face).is_some_and(|plane| {
+                plane.normal.abs_diff_eq(DVec3::Z, 1e-9)
+                    && plane
+                        .corners
+                        .iter()
+                        .all(|corner| (corner.z - f64::from(ON_THE_TOP)).abs() < 1e-9)
+            })
+        })
+        .expect("the block has a top")
+}
+
+/// The section panel over the block, the section laid on its top as a click
+/// on that face lays it, and the point of the face its square stands on.
+fn the_section_panel_on_the_top() -> (egui_kittest::Harness<'static, OnTheBench>, DVec3) {
+    the_section_panel_on_the_top_of(a_block())
+}
+
+/// The same over another part 10 by 10 from 0 to 4 over XY.
+fn the_section_panel_on_the_top_of(
+    document: PartDocument,
+) -> (egui_kittest::Harness<'static, OnTheBench>, DVec3) {
+    let mut panel = the_section_panel_over(document);
+    let bench = panel.state_mut();
+    let face = the_top_face(&bench.document);
+    let top = bench
+        .document
+        .body()
+        .plane_of(face)
+        .expect("the top is flat");
+    let laid = WorkPlane::from_face(&top.corners, top.normal, DVec3::Y);
+    let section = bench.state.section.as_mut().expect("the section is on");
+    section.choose_face(laid);
+    section.on = Some(cao_part::history::FaceAnchor { face, up: DVec3::Y });
+    panel.run();
+    let stood = {
+        let bench = panel.state();
+        the_section_on_the_bench(&panel).handle(bench.document.body())
+    };
+    assert!(
+        stood.abs_diff_eq(DVec3::new(5.0, 5.0, 4.0), 1e-9),
+        "laid on the top of the block, the square stands at {stood:?}, not over its middle",
+    );
+    (panel, stood)
+}
+
+#[test]
+fn a_section_on_a_face_turns_about_the_point_of_the_face_its_square_stood_on() {
+    let ten = 10_f64.to_radians();
+    for field in ["Inclinaison 1", "Inclinaison 2"] {
+        let (mut panel, stood) = the_section_panel_on_the_top();
+
+        type_beside(&mut panel, field, "10");
+
+        let cut = the_section_on_the_bench(&panel).cutting_plane();
+        let normal = cut.normal();
+        let frame = the_bench_drawn(&mut panel);
+        assert!(
+            (normal.dot(DVec3::Z) - ten.cos()).abs() < 1e-9,
+            "« {field} » at 10 left the section on the top facing {normal:?}",
+        );
+        assert!(
+            normal.dot(stood - cut.origin).abs() < 1e-9,
+            "« {field} » at 10 turned the section on the top off the point {stood:?} its \
+             square stood on: the cut passes {} from it",
+            normal.dot(stood - cut.origin),
+        );
+        let square = the_square(&frame, cut).unwrap_or_else(|| {
+            panic!("« {field} » at 10: no square is drawn on the tilted cut of the top")
+        });
+        assert!(
+            square.centre.distance(stood) < 1e-3,
+            "« {field} » at 10 moved the square on the top from {stood:?} to {:?}",
+            square.centre,
+        );
+    }
+}
+
+#[test]
+fn a_distance_typed_on_a_tilted_face_section_moves_it_that_far_along_its_tilted_normal_from_the_face()
+ {
+    let (mut panel, stood) = the_section_panel_on_the_top();
+    type_beside(&mut panel, "Inclinaison 1", "10");
+
+    type_beside(&mut panel, "Distance", "-1");
+
+    let cut = the_section_on_the_bench(&panel).cutting_plane();
+    let normal = cut.normal();
+    let frame = the_bench_drawn(&mut panel);
+    assert!(
+        (normal.dot(DVec3::Z) - 10_f64.to_radians().cos()).abs() < 1e-9,
+        "the distance typed turned the tilted section on the top to face {normal:?}",
+    );
+    assert!(
+        (normal.dot(cut.origin - stood) + 1.0).abs() < 1e-9,
+        "-1 typed, the tilted cut stands {} from the point {stood:?} of the top along its \
+         normal, not -1",
+        normal.dot(cut.origin - stood),
+    );
+    let square = the_square(&frame, cut)
+        .unwrap_or_else(|| panic!("no square is drawn on the tilted cut {cut:?}"));
+    assert!(
+        (square.centre - (stood - normal)).length() < 1e-3,
+        "-1 typed, the square stands at {:?}, not 1 under the top along the tilted normal, {:?}",
+        square.centre,
+        stood - normal,
+    );
+}
+
+#[test]
+fn a_kept_face_section_reopened_from_the_caopart_cuts_where_it_cut_when_kept() {
+    let (mut panel, stood) = the_section_panel_on_the_top();
+    type_beside(&mut panel, "Inclinaison 2", "10");
+    type_beside(&mut panel, "Distance", "-1");
+    let live = the_section_on_the_bench(&panel).cutting_plane();
+    {
+        use egui_kittest::kittest::Queryable;
+        panel.get_by_label("Enregistrer la coupe").click();
+    }
+    panel.run();
+    let files = cao_part::InMemoryFiles::default();
+    let path = std::path::Path::new("/parts/tilted-on-its-top.caopart");
+    panel
+        .state()
+        .document
+        .save(&files, path, Utc::now())
+        .expect("the part is saved");
+
+    let reopened = PartDocument::load(&files, path).expect("the part opens again");
+    let sections = reopened.sections();
+    assert_eq!(sections.len(), 1, "the part came back with {sections:?}");
+    let kept = sections[0]
+        .cutting_plane()
+        .expect("a section whose face stands cuts somewhere");
+    let shown = Section::reopened(&sections[0]).cutting_plane();
+
+    let normal = live.normal();
+    for (what, plane) in [("the part", kept), ("the section view", shown)] {
+        assert!(
+            plane.normal().abs_diff_eq(normal, 1e-9)
+                && normal.dot(plane.origin - live.origin).abs() < 1e-9,
+            "reopened from the .caopart, {what} cuts along {plane:?}, where the section \
+             cut along {live:?} when it was kept",
+        );
+        assert!(
+            (normal.dot(plane.origin - stood) + 1.0).abs() < 1e-9,
+            "reopened from the .caopart, {what} cuts {} from the point {stood:?} of the top \
+             along the tilted normal, not -1",
+            normal.dot(plane.origin - stood),
+        );
+    }
+}
+
+/// Whether two planes are one, whichever way each faces.
+fn the_same_plane(a: WorkPlane, b: WorkPlane) -> bool {
+    a.normal().dot(b.normal()).abs() > 1.0 - 1e-12
+        && a.normal().dot(b.origin - a.origin).abs() < 1e-9
+}
+
+/// Keeps the section on the bench in the part, as « Enregistrer la coupe » does.
+fn keep(panel: &mut egui_kittest::Harness<'_, OnTheBench>) {
+    {
+        use egui_kittest::kittest::Queryable;
+        panel.get_by_label("Enregistrer la coupe").click();
+    }
+    panel.run();
+}
+
+/// The plane the part's first kept section cuts along.
+fn the_kept_cut(document: &PartDocument) -> WorkPlane {
+    let sections = document.sections();
+    assert!(
+        sections.len() == 1 && !sections[0].broken,
+        "the part keeps {sections:?}, not the one section standing",
+    );
+    sections[0]
+        .cutting_plane()
+        .expect("a section that stands cuts somewhere")
+}
+
+/// A block 40 by 20 from 0 to 10 over XY.
+fn a_slab() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(40.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(20.0, 10.0)]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document
+}
+
+/// Raises a boss from XY, apart from everything else: its rectangle drawn in
+/// a sketch of its own, the next one.
+fn raise_a_boss(document: &mut PartDocument, (from, to): (DVec2, DVec2), height: f64) {
+    let sketch = document.sketches().len();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch,
+        corner: PointRef::New(from),
+        opposite: PointRef::New(to),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch,
+        areas: document.areas_at(sketch, &[(from + to) / 2.0]),
+        distance: height.into(),
+        mode: ExtrusionMode::Add,
+    });
+}
+
+/// The slab, a section across it along YZ through its middle tilted 30° and
+/// kept, and the cut it showed when it was kept.
+fn a_slab_with_a_tilted_section_kept() -> (PartDocument, WorkPlane) {
+    let mut panel = the_section_panel_over(a_slab());
+    {
+        use egui_kittest::kittest::Queryable;
+        panel.get_by_label("Plan YZ").click();
+    }
+    panel.run();
+    type_beside(&mut panel, "Inclinaison 1", "30");
+    let live = the_section_on_the_bench(&panel).cutting_plane();
+    keep(&mut panel);
+    let document = panel.state().document.clone();
+    assert!(
+        the_same_plane(the_kept_cut(&document), live),
+        "the part keeps the section cutting along {:?}, where it cut along {live:?} on screen",
+        the_kept_cut(&document),
+    );
+    (document, live)
+}
+
+#[test]
+fn a_kept_tilted_section_stays_where_it_was_kept_when_matter_is_raised_away_from_it() {
+    let (mut document, live) = a_slab_with_a_tilted_section_kept();
+
+    raise_a_boss(
+        &mut document,
+        (DVec2::new(60.0, 0.0), DVec2::new(70.0, 10.0)),
+        40.0,
+    );
+
+    let after = the_kept_cut(&document);
+    assert!(
+        the_same_plane(after, live),
+        "a boss raised away from the slab moved its kept section {} along the normal, \
+         to {after:?}",
+        live.normal().dot(after.origin - live.origin),
+    );
+}
+
+#[test]
+fn a_sketch_laid_on_a_kept_tilted_section_still_lies_on_its_cut_once_matter_is_raised_and_the_part_reopened()
+ {
+    let (mut document, live) = a_slab_with_a_tilted_section_kept();
+    let section = document.sections()[0].id;
+    document.apply(Operation::CreateSketchOnSection {
+        section,
+        plane: live,
+    });
+    raise_a_boss(
+        &mut document,
+        (DVec2::new(60.0, 0.0), DVec2::new(70.0, 10.0)),
+        40.0,
+    );
+    let files = cao_part::InMemoryFiles::default();
+    let path = std::path::Path::new("/parts/a-sketch-on-a-tilted-section.caopart");
+    document
+        .save(&files, path, Utc::now())
+        .expect("the part is saved");
+
+    let reopened = PartDocument::load(&files, path).expect("the part opens again");
+
+    let cut = the_kept_cut(&reopened);
+    let laid = reopened.sketches()[1].plane;
+    assert!(
+        the_same_plane(cut, laid),
+        "reopened, the section cuts along {cut:?} and the sketch laid on it lies on {laid:?}",
+    );
+}
+
+/// A block 10 by 10 over XY raised as thick as the variable `thickness`, 4.
+fn a_block_as_thick_as_a_variable() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::Variable(cao_part::VariableChange::Added {
+        name: "thickness".to_string(),
+        formula: cao_part::Formula::Number(f64::from(ON_THE_TOP)),
+    }));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 10.0)),
+        construction: false,
+    });
+    let distance = document
+        .variables()
+        .read("thickness")
+        .expect("a formula that reads");
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(5.0, 5.0)]),
+        distance,
+        mode: ExtrusionMode::Add,
+    });
+    document
+}
+
+#[test]
+fn a_kept_tilted_section_on_a_face_follows_the_face_when_its_extrusion_grows_and_not_the_matter_raised_aside()
+ {
+    let (mut panel, _) = the_section_panel_on_the_top_of(a_block_as_thick_as_a_variable());
+    type_beside(&mut panel, "Inclinaison 1", "10");
+    type_beside(&mut panel, "Distance", "-1");
+    keep(&mut panel);
+    let mut document = panel.state().document.clone();
+    let kept = the_kept_cut(&document);
+
+    raise_a_boss(
+        &mut document,
+        (DVec2::new(0.0, 20.0), DVec2::new(5.0, 25.0)),
+        2.0,
+    );
+    document.apply(Operation::Variable(cao_part::VariableChange::Edited {
+        variable: cao_part::VariableId(0),
+        name: "thickness".to_string(),
+        formula: cao_part::Formula::Number(6.0),
+    }));
+
+    let grown = the_kept_cut(&document);
+    let followed = WorkPlane {
+        origin: kept.origin + DVec3::Z * 2.0,
+        ..kept
+    };
+    assert!(
+        grown.normal().abs_diff_eq(kept.normal(), 1e-9),
+        "the top grown 2 higher, its section turned from {:?} to {:?}",
+        kept.normal(),
+        grown.normal(),
+    );
+    assert!(
+        the_same_plane(grown, followed),
+        "the top grown 2 higher, its tilted section stands {} from where the face took it",
+        kept.normal().dot(grown.origin - followed.origin),
+    );
+}
+
+/// The face of the part lying flat with this normal, `along` it from the origin.
+fn the_face_facing(document: &PartDocument, normal: DVec3, along: f64) -> usize {
+    (0..200)
+        .find(|face| {
+            document.body().plane_of(*face).is_some_and(|plane| {
+                plane.normal.abs_diff_eq(normal, 1e-9)
+                    && plane
+                        .corners
+                        .iter()
+                        .all(|corner| (corner.dot(normal) - along).abs() < 1e-9)
+            })
+        })
+        .unwrap_or_else(|| panic!("the part has no face facing {normal:?} at {along}"))
+}
+
+#[test]
+fn a_kept_tilted_section_moved_onto_another_face_is_kept_where_it_cut_on_screen() {
+    let (mut panel, _) = the_section_panel_on_the_top();
+    type_beside(&mut panel, "Inclinaison 1", "10");
+    keep(&mut panel);
+    {
+        let bench = panel.state_mut();
+        let reopened = Section::reopened(&bench.document.sections()[0]);
+        bench.state.section = Some(reopened);
+        let face = the_face_facing(&bench.document, DVec3::X, 10.0);
+        let side = bench
+            .document
+            .body()
+            .plane_of(face)
+            .expect("the side is flat");
+        let section = bench.state.section.as_mut().expect("the section is on");
+        section.choose_face(WorkPlane::from_face(&side.corners, side.normal, DVec3::Z));
+        section.on = Some(cao_part::history::FaceAnchor { face, up: DVec3::Z });
+    }
+    panel.run();
+    let live = the_section_on_the_bench(&panel).cutting_plane();
+
+    keep(&mut panel);
+
+    let kept = the_kept_cut(&panel.state().document);
+    assert!(
+        the_same_plane(kept, live),
+        "moved onto the side and kept again, the section cuts along {live:?} on screen and \
+         along {kept:?} in the part",
+    );
+}
+
+#[test]
+fn a_formula_typed_in_an_angle_field_takes_its_value_as_the_distance_field_does() {
+    let mut document = a_block();
+    document.apply(Operation::Variable(cao_part::VariableChange::Added {
+        name: "slope".to_string(),
+        formula: cao_part::Formula::Number(30.0),
+    }));
+    let mut panel = the_section_panel_over(document);
+
+    for typed in ["15*2", "slope"] {
+        type_beside(&mut panel, "Inclinaison 1", "0");
+        type_beside(&mut panel, "Inclinaison 1", typed);
+
+        let normal = the_section_on_the_bench(&panel).cutting_plane().normal();
+        assert!(
+            (normal.dot(DVec3::Z) - 30_f64.to_radians().cos()).abs() < 1e-9,
+            "« {typed} » typed in « Inclinaison 1 » left the cut facing {normal:?}, not 30° off XY",
+        );
+    }
+}
+
+#[test]
+fn dragging_the_handle_of_a_tilted_plane_moves_it_along_the_tilted_normal_as_far_as_the_part_reaches()
+ {
+    let document = a_block();
+    let body = document.body();
+    let mut section = Section::through_the_middle(WorkPlane::XY, body);
+    section.tilt_about_u_degrees = 30.0;
+    let taken = section.cutting_plane();
+    let normal = taken.normal();
+    let from = section.handle(body) - taken.u * 50.0;
+
+    assert!(
+        section.grab(body, from, taken.u, 0.5),
+        "a ray straight through the handle of a tilted plane takes no hold of it",
+    );
+    section.pull(from + normal * 1.5, taken.u);
+    let pulled = section.cutting_plane();
+    section.pull(from + normal * 100.0, taken.u);
+    let furthest = section.cutting_plane();
+    section.let_go();
+
+    assert!(
+        pulled.normal().abs_diff_eq(normal, 1e-9)
+            && (normal.dot(pulled.origin - taken.origin) - 1.5).abs() < 1e-9,
+        "pulled 1.5 along the tilted normal, the cut went to {pulled:?} from {taken:?}",
+    );
+    let reach = (0..8)
+        .map(|corner| {
+            let at = DVec3::new(
+                if corner & 1 == 0 { 0.0 } else { 10.0 },
+                if corner & 2 == 0 { 0.0 } else { 10.0 },
+                if corner & 4 == 0 {
+                    0.0
+                } else {
+                    f64::from(ON_THE_TOP)
+                },
+            );
+            normal.dot(at)
+        })
+        .fold(f64::NEG_INFINITY, f64::max);
+    assert!(
+        (normal.dot(furthest.origin) - reach).abs() < 1e-9,
+        "pulled far along the tilted normal, the cut stops at {}, not where the block ends \
+         along it, {reach}",
+        normal.dot(furthest.origin),
+    );
+}
+
+#[test]
+fn the_filled_cut_lies_on_the_tilted_plane() {
+    let document = a_block();
+    let mut section = Section::through_the_middle(WorkPlane::XY, document.body());
+    section.offset = f64::from(MID_HEIGHT);
+    section.tilt_about_u_degrees = 30.0;
+    let cut = section.cutting_plane();
+    let mut state = ViewportState::default();
+    state.section = Some(section);
+    let frame = a_view_of_the_block(&state);
+
+    let filled: f64 = triangles(&frame.scene_solids)
+        .into_iter()
+        .map(|triangle| triangle.map(at))
+        .filter(|corners| {
+            corners
+                .iter()
+                .all(|corner| cut.normal().dot(*corner - cut.origin).abs() <= 1e-2)
+        })
+        .map(|[a, b, c]| (b - a).cross(c - a).length() / 2.0)
+        .sum();
+
+    assert!(
+        (filled - 80.0).abs() <= 1e-2,
+        "tilted 30° through the middle of the block 10 by 10 by 4, the cut is filled over \
+         {filled} on its plane, not 80",
+    );
+}
+
+#[test]
+fn pressing_on_the_arrow_s_tip_changes_neither_the_distance_nor_the_direction() {
+    let mut state = sectioned(|section| section.tilt_about_u_degrees = 30.0);
+    let document = a_block();
+    let body = document.body();
+    let (frame, scale) = a_frame_at_its_own_zoom(&state);
+    let section = state.section.as_mut().expect("the section is on");
+    let (cut, facing, offset) = (section.cutting_plane(), section.facing(), section.offset);
+    let centre = the_square(&frame, cut)
+        .expect("a square stands on the cutting plane")
+        .centre;
+    let tip = segments(&frame)
+        .into_iter()
+        .filter_map(
+            |(a, b)| match (a.distance(centre) < 1e-3, b.distance(centre) < 1e-3) {
+                (true, false) => Some(b),
+                (false, true) => Some(a),
+                _ => None,
+            },
+        )
+        .find(|far| (*far - centre).normalize_or_zero().dot(facing) > 1.0 - 1e-4)
+        .expect("an arrow stands on the square the way the plane faces");
+    let eye = state.camera.eye().as_dvec3();
+
+    section.grab(
+        body,
+        eye,
+        tip - eye,
+        scale.world_size_of(crate::screens::viewport::PICK_PIXELS),
+    );
+    section.pull(eye, tip + facing * 3.0 - eye);
+    section.let_go();
+
+    assert_eq!(
+        section.offset, offset,
+        "pressed on the arrow's tip and dragged, the section moved"
+    );
+    assert!(
+        section.facing().abs_diff_eq(facing, 1e-12),
+        "pressed on the arrow's tip, the section turned to face {:?}",
+        section.facing(),
     );
 }

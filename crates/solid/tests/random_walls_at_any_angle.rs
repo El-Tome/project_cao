@@ -1124,6 +1124,54 @@ fn seed_86751972229989_two_posts_of_one_radius_crossing_at_45_degrees_keep_every
     ));
 }
 
+fn a_shaft_with_a_post_a_thousandth_of_a_degree_off_touching_it_inside(cut: Option<Step>) -> Case {
+    Case::new(
+        Leaf::prism(Plane::yz(-5.0), Outline::circle([0.0, 7.5], 15.0), 23.0),
+        cut.into_iter()
+            .chain([Step::add(Leaf::prism(
+                Plane::tilted(
+                    [
+                        -62.899457621699895,
+                        0.0011872328530238138,
+                        7.4999999999999964,
+                    ],
+                    [90.0, 89.999, 0.0],
+                ),
+                Outline::circle([-0.0, -7.4999899999999995], 7.5),
+                136.0,
+            ))])
+            .collect(),
+    )
+}
+
+/// A shaft of radius 15 about X joined to a post of half its radius leaning
+/// 0.001° off it, touching it inside along its top: held on `main`, left
+/// open beside the line they touch along by #706's second step (seed
+/// 352000000014902, shrunk).
+#[test]
+fn seed_352000000014902_a_post_touching_a_shaft_inside_a_thousandth_of_a_degree_off_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_with_a_post_a_thousandth_of_a_degree_off_touching_it_inside(None),
+    );
+}
+
+/// The same, a slot cut through the shaft first: answered on `main`,
+/// refused through the application's body by #706's second step.
+#[test]
+fn seed_352000000014902_the_same_post_beside_a_slot_keeps_every_rule_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(
+        &a_shaft_with_a_post_a_thousandth_of_a_degree_off_touching_it_inside(Some(Step::cut(
+            Leaf::prism(
+                Plane::xy(-51.0),
+                Outline::rectangle([-5.0, 2.0], [5.0, 17.0]),
+                136.0,
+            ),
+        ))),
+    );
+}
+
 /// An elliptic shaft cut by a bore at a skew angle and joined to a post at
 /// another: built with crossed triangles (seed 86751972219231, shrunk).
 #[test]

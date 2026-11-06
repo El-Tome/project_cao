@@ -67,17 +67,23 @@ impl<'a> Facing<'a> {
         self.walls
     }
 
-    /// How far apart the two axes stand, at most, at the heights a circle or
-    /// a vertex of either stands at.
-    pub(super) fn apart(&self) -> f64 {
+    /// How near and how far the two axes stand from each other between the
+    /// lowest and the highest a circle or a vertex of either stands at.
+    pub(super) fn apart(&self) -> [f64; 2] {
         let [(_, one), (_, other)] = self.walls;
-        self.known().levels[0]
-            .iter()
-            .map(|height| {
-                let from = one.origin + one.axis * *height - other.origin;
-                (from - other.axis * other.axis.dot(from)).length()
-            })
-            .fold(0.0, f64::max)
+        let levels = &self.known().levels[0];
+        let (Some(low), Some(high)) = (levels.first(), levels.last()) else {
+            return [0.0; 2];
+        };
+        let flat = |vector: DVec3| vector - other.axis * other.axis.dot(vector);
+        let (rate, at) = (flat(one.axis), flat(one.origin - other.origin));
+        let between = |height: f64| (at + rate * height).length();
+        let nearest = if rate.length_squared() > 0.0 {
+            (-at.dot(rate) / rate.length_squared()).clamp(*low, *high)
+        } else {
+            *low
+        };
+        [between(nearest), between(*low).max(between(*high))]
     }
 
     fn known(&self) -> &Known {

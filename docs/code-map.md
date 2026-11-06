@@ -8,6 +8,11 @@ It answers "where is this already written". For "where does a new file go" —
 which folder, what it may import, what size it does not exceed — that is
 [`code-layout.md`](code-layout.md), and the architecture test checks it.
 
+For what the interface is to look like — the redesign of November 2026, its
+specs by screen, its screenshots, its design tokens and its icons — that is
+[`redesign/`](redesign/README.md). The decisions that overrule it are in the
+body of #722.
+
 ## The six crates
 
 ```

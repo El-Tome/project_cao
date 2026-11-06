@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>CAO — Pièce</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+a{color:#F2A541}a:hover{color:#FFC876}
+.ic{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.tb{position:relative;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:50px;height:64px;padding:6px 6px 5px;background:transparent;border:1px solid transparent;border-radius:6px;color:#D5D9E0;font:500 11.5px/1.15 Inter,system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+.tb:hover{background:#232731}
+.tb.on{background:rgba(242,165,65,.13);border-color:rgba(242,165,65,.5);color:#F7B95E}
+.tb:disabled{color:#5B626E;cursor:default;background:transparent}
+.tb.w2{white-space:normal;width:70px;text-align:center}
+.tb > svg{width:22px;height:22px}
+.sc{position:absolute;top:3px;right:4px;font:500 9.5px/1 'JetBrains Mono',monospace;color:#80889A}
+.tb.on .sc{color:#F2A541}
+.dd{display:inline-flex;align-items:center;gap:3px}
+.dd svg{width:8px;height:8px;stroke-width:2.2}
+.sb{display:inline-flex;align-items:center;gap:7px;height:20px;padding:0 8px 0 5px;background:transparent;border:1px solid transparent;border-radius:4px;color:#D5D9E0;font:500 11.5px/1 Inter,system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+.sb:hover{background:#232731}
+.sb.on{background:rgba(242,165,65,.13);border-color:rgba(242,165,65,.5);color:#F7B95E}
+.sb:disabled{color:#5B626E;cursor:default;background:transparent}
+.sb > svg{width:15px;height:15px;flex:none}
+.sb .k{margin-left:auto;padding-left:10px;font:500 10px/1 'JetBrains Mono',monospace;color:#80889A}
+.grp{display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:5px;padding:0 10px;border-right:1px solid #262A33}
+.grp:last-child{border-right:0}
+.gl{font:600 10px/1 Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#8A919D}
+.row{display:flex;gap:1px;align-items:center}
+.col3{display:grid;grid-template-rows:repeat(3,20px);grid-auto-flow:column;gap:2px 6px;align-content:center;height:64px}
+.col2{display:grid;grid-template-rows:repeat(2,26px);grid-auto-flow:column;gap:4px 6px;align-content:center;height:64px}
+.col2 .sb{height:26px}
+.tab{height:36px;padding:0 14px;background:transparent;border:0;border-bottom:2px solid transparent;color:#A9B0BC;font:500 13px Inter,sans-serif;cursor:pointer}
+.tab:hover{color:#F4F5F7}
+.tab.on{color:#F4F5F7;border-bottom-color:#F2A541}
+.pt{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:5px;background:transparent;border:1px solid transparent;color:#A9B0BC;font:500 12px Inter,sans-serif;cursor:pointer;text-decoration:none}
+.pt:hover{color:#F4F5F7}
+.pt.on{color:#F4F5F7;background:#20242C;border-color:#2E333D}
+.pt svg{width:15px;height:15px}
+.sec{display:flex;align-items:center;justify-content:space-between;font:600 10px/1 Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#8A919D;padding:14px 12px 6px}
+.tr{display:flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:5px;color:#D5D9E0;font:400 12.5px Inter,sans-serif;cursor:pointer}
+.tr:hover{background:#1F232B}
+.tr.sel{background:rgba(242,165,65,.12);color:#F7D29E}
+.tr.dim{color:#8A919D}
+.tr .m{margin-left:auto;font:400 11px 'JetBrains Mono',monospace;color:#8A919D}
+.tr > svg{width:14px;height:14px;flex:none}
+.car{width:10px!important;height:10px!important;color:#8A919D}
+.eye{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;border:0;background:transparent;color:#C9CFD8;cursor:pointer;padding:0;flex:none}
+.eye:hover{background:#2A2F39}
+.eye.off{color:#5B626E}
+.eye svg{width:15px;height:15px}
+.badge{font:600 10px/1 Inter,sans-serif;padding:3px 6px;border-radius:10px;background:rgba(232,197,71,.15);color:#F0D66E}
+.seg{display:inline-flex;background:#15181D;border:1px solid #2A2E37;border-radius:6px;padding:2px}
+.seg button{height:24px;padding:0 9px;border:0;border-radius:4px;background:transparent;color:#A9B0BC;font:500 11.5px Inter,sans-serif;cursor:pointer}
+.seg button.on{background:#2C313B;color:#F4F5F7}
+.hs{display:grid;grid-template-columns:20px 1fr;gap:1px 8px;padding:5px 10px;border-radius:5px;font:400 12px Inter,sans-serif;color:#D5D9E0;cursor:pointer}
+.hs:hover{background:#1F232B}
+.hs .n{font:500 11px 'JetBrains Mono',monospace;color:#80889A;padding-top:1px}
+.hs .d{grid-column:2;color:#8A919D;font-size:11.5px}
+.hs.cur{background:rgba(242,165,65,.10)}
+.hs.cur .n{color:#F2A541}
+.hs.fut{color:#6F7682}
+.hs.fut .d{color:#5B626E}
+.st{display:inline-flex;align-items:center;justify-content:center;width:22px;height:24px;padding:0;border-radius:4px;border:1px solid #2E333D;background:#20242C;color:#C9CFD8;cursor:pointer;flex:none}
+.st svg{width:13px;height:13px}
+.st:hover{border-color:#4A505B}
+.st.cur{border-color:#F2A541;background:rgba(242,165,65,.18);color:#F7B95E}
+.st.fut{background:transparent;border-style:dashed;color:#5B626E}
+.st.warn{border-color:#E8C547;background:rgba(232,197,71,.16);color:#F0D66E}
+.st.err{border-color:#F08A7E;background:rgba(240,138,126,.18);color:#F5A99F}
+.st.cur.warn,.st.cur.err{box-shadow:0 0 0 1.5px #F2A541}
+.st{position:relative}
+.st .dot{position:absolute;top:-3px;right:-3px;width:7px;height:7px;border-radius:50%;border:1.5px solid #1C1F26}
+.pb{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border-radius:5px;border:0;background:transparent;color:#C9CFD8;cursor:pointer}
+.pb:hover{background:#2A2F39}
+.pb svg{width:14px;height:14px}
+.vb{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 10px;border:0;border-radius:5px;background:transparent;color:#D5D9E0;font:500 12px Inter,sans-serif;cursor:pointer}
+.vb:hover{background:#2A2F39}
+.vb svg{width:15px;height:15px}
+.fl{display:flex;flex-direction:column;gap:6px}
+.flab{font:500 11.5px Inter,sans-serif;color:#A9B0BC}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:12px;font:500 11.5px Inter,sans-serif}
+.sw{appearance:none;-webkit-appearance:none;width:30px;height:18px;border-radius:9px;background:#2C313B;position:relative;margin:0;cursor:pointer;flex:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:#A9B0BC}
+.sw:checked{background:#F2A541}
+.sw:checked::after{left:15px;background:#1A1206}
+.mi{display:flex;align-items:center;gap:10px;height:30px;padding:0 10px;border-radius:4px;font:400 12.5px Inter,sans-serif;color:#D5D9E0;cursor:pointer}
+.mi:hover{background:#2A2F39}
+.mi .k{margin-left:auto;font:400 11px 'JetBrains Mono',monospace;color:#8A919D}
+.ps{display:grid;grid-template-columns:22px 1fr;gap:6px 10px;align-items:start}
+.pn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font:600 11px Inter,sans-serif;background:#2C313B;color:#C9CFD8}
+.pn.ok{background:rgba(95,211,160,.18);color:#8FE3BC}
+.pn.now{background:#F2A541;color:#1A1206}
+.al{display:grid;grid-template-columns:18px 1fr;gap:4px 10px;padding:10px;border-radius:6px}
+.al:hover{background:#262A33}
+.al .lk{display:flex;gap:6px;grid-column:2;margin-top:4px}
+.al .lk button{height:24px;padding:0 9px;border-radius:4px;border:1px solid #3A404C;background:transparent;color:#D5D9E0;font:500 11.5px Inter,sans-serif;cursor:pointer}
+</style>
+</helmet>
+<div style="width: 100%; height: 900px; display: flex; flex-direction: column; background: #121419; color: #E6E8EC; font-family: Inter, system-ui, sans-serif; font-size: 13px; overflow: hidden">
+
+<!-- Title bar -->
+<div style="position: relative; z-index: 20; display: flex; align-items: center; gap: 16px; height: 44px; padding: 0 14px; border-bottom: 1px solid #22262E; background: #15171C; flex: none">
+<nav aria-label="Fil d'Ariane" style="display: flex; align-items: center; gap: 8px; font-size: 13px; flex: none">
+<a href="Accueil.dc.html" style="display: inline-flex; align-items: center; gap: 6px; color: #A9B0BC; text-decoration: none; padding: 4px 8px; border-radius: 5px"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Accueil</a>
+<span style="color: #4A505B">/</span>
+<span style="color: #F4F5F7; font-weight: 500">test-v3</span>
+<span style="color: #4A505B">/</span>
+<span style="padding: 3px 8px; border-radius: 5px; background: #1F232B; color: #D5D9E0; font-size: 12px">{{viewName}}</span>
+</nav>
+<div role="status" style="flex: 1; min-width: 0; display: flex; justify-content: center">
+<div style="display: inline-flex; align-items: center; gap: 9px; max-width: 640px; height: 28px; padding: 0 14px; border-radius: 14px; background: #1C1F26; border: 1px solid #2A2E37; font-size: 12.5px; color: #D5D9E0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">
+<span style="width: 7px; height: 7px; border-radius: 50%; background: #F2A541; flex: none"></span>{{message}}
+</div>
+</div>
+<div style="width: 180px; flex: none; display: flex; justify-content: flex-end">
+<button onClick="{{toggleAlerts}}" aria-expanded="{{alertsOpen}}" aria-label="2 alertes" style="display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 11px; border-radius: 15px; border: 1px solid rgba(240,138,126,.45); background: rgba(240,138,126,.12); color: #F5A99F; font: 600 12px Inter, sans-serif; cursor: pointer">
+<svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4L2.5 20h19z"/><path d="M12 10v5M12 17.5v.5"/></svg>2 alertes
+</button>
+</div>
+
+<sc-if value="{{alertsOpen}}" hint-placeholder-val="{{ false }}">
+<section aria-label="Alertes" style="position: absolute; top: 40px; right: 12px; width: 340px; padding: 8px; border-radius: 10px; background: #1F232B; border: 1px solid #353A45; box-shadow: 0 12px 32px rgba(0,0,0,.5)">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 8px">
+<h3 style="margin: 0; font: 600 13px Inter, sans-serif; color: #F4F5F7">Alertes de la pièce</h3>
+<button onClick="{{toggleAlerts}}" aria-label="Fermer les alertes" style="width: 26px; height: 26px; border: 0; border-radius: 5px; background: transparent; color: #A9B0BC; cursor: pointer; padding: 0"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+</div>
+<div class="al">
+<svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="color: #E8C547; margin-top: 1px"><path d="M12 4L2.5 20h19z"/><path d="M12 10v5M12 17.5v.5"/></svg>
+<div><div style="font: 600 12.5px Inter, sans-serif; color: #F4F5F7">Extrusion 3 · instable</div><div style="margin-top: 3px; font-size: 12px; line-height: 1.4; color: #B4BAC5">La face d'appui a changé depuis Esquisse 2 ; le résultat peut varier.</div></div>
+<div class="lk"><button>Montrer</button><button>Modifier</button></div>
+</div>
+<div class="al">
+<svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="color: #F08A7E; margin-top: 1px"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v5M12 15.5v.5"/></svg>
+<div><div style="font: 600 12.5px Inter, sans-serif; color: #F4F5F7">Esquisse 2 · cote perdue</div><div style="margin-top: 3px; font-size: 12px; line-height: 1.4; color: #B4BAC5">La cote Ø 24 mm ne trouve plus son cercle.</div></div>
+<div class="lk"><button>Montrer</button><button>Supprimer la cote</button></div>
+</div>
+</section>
+</sc-if>
+</div>
+
+<!-- Tabs + panel toggles -->
+<div style="display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 0 10px; border-bottom: 1px solid #22262E; background: #15171C; flex: none">
+<span style="font: 600 13px/1 Inter, sans-serif; letter-spacing: .14em; color: #F2A541; padding: 0 12px 0 4px">CAO</span>
+<div role="tablist" style="display: flex">
+<button role="tab" class="tab {{tabSketch}}" onClick="{{toSketch}}">Esquisse</button>
+<button role="tab" class="tab {{tabExtrude}}" onClick="{{toExtrude}}">Extrusion</button>
+<button role="tab" class="tab {{tabExport}}" onClick="{{toExport}}">Export</button>
+</div>
+<div style="margin-left: auto; display: flex; align-items: center; gap: 2px; padding: 4px 0">
+<button class="pt on" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg>Pièce</button>
+<button class="pt on" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg>Historique</button>
+<button class="pt" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5l6 6M11 5l-6 6M14 15h6M14 19h6"/></svg>Variables</button>
+<button class="pt" aria-pressed="false"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg>Fichiers</button>
+<span style="width: 1px; height: 18px; background: #2A2E37; margin: 0 6px"></span>
+<a class="pt" href="Preferences.dc.html" aria-label="Préférences"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Préférences</a>
+</div>
+</div>
+
+<!-- Ribbon -->
+<div style="display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px 0; padding: 8px 6px 7px; border-bottom: 1px solid #22262E; background: #181A20; flex: none; position: relative; z-index: 10">
+
+<sc-if value="{{sketch}}" hint-placeholder-val="{{ true }}">
+<div class="grp">
+<div class="row">
+<button class="tb w2"><span class="sc">⌘N</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></svg>Nouvelle esquisse</button>
+</div>
+<span class="gl">Esquisse</span>
+</div>
+<div class="grp">
+<div class="row">
+<button class="tb"><span class="sc">S</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3l13 8-6 1.6L10 19z"/></svg>Sélection</button>
+<button class="tb {{lineOn}}" onClick="{{setLine}}"><span class="sc">L</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 18.5l13-13"/><circle cx="5" cy="19" r="1.7"/><circle cx="19" cy="5" r="1.7"/></svg>Ligne</button>
+<button class="tb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18L20 6"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M15.3 6.4L20 6l-1.7 4.4M8.7 17.6L4 18l1.7-4.4"/></svg>Ligne sym.</button>
+<button class="tb"><span class="sc">R</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6" width="16" height="12" rx="1"/></svg>Rectangle</button>
+<button class="tb"><span class="sc">C</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M12 11v2M11 12h2"/></svg><span class="dd">Cercle<svg class="ic" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></span></button>
+<button class="tb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17A9 9 0 0 1 20 17"/><circle cx="4" cy="17" r="1.3"/><circle cx="20" cy="17" r="1.3"/></svg><span class="dd">Arc<svg class="ic" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></span></button>
+<button class="tb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="8.5" ry="5.5"/></svg><span class="dd">Ellipse<svg class="ic" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></span></button>
+<button class="tb"><span class="sc">P</span><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6v12M6 12h12"/><circle cx="12" cy="12" r="1.6"/></svg>Point</button>
+</div>
+<span class="gl">Dessin</span>
+</div>
+<div class="grp">
+<div class="col3">
+<button class="sb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7v10M20 7v10M4 12h16M7 9.5L4 12l3 2.5M17 9.5l3 2.5-3 2.5"/></svg>Cote<span class="k">D</span></button>
+<button class="sb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 15L15 3l6 6L9 21z"/><path d="M7 11l2 2M10 8l2 2M13 5l2 2"/></svg>Mesurer<span class="k">M</span></button>
+<button class="sb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h14M9 19V5"/><path d="M9 15h4v4"/></svg><span class="dd">Contraintes<svg class="ic" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></span></button>
+</div>
+<span class="gl">Cotes et règles</span>
+</div>
+<div class="grp">
+<div class="col3">
+<button class="sb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><path d="M8.2 8.4L20 17M8.2 15.6L20 7"/></svg>Ajuster</button>
+<button class="sb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h7M14 12h7"/><path d="M12 5v14" stroke-dasharray="2 2.5"/></svg>Diviser</button>
+<button class="sb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18" stroke-dasharray="2 2.5"/><path d="M9 7L4 17h5zM15 7l5 10h-5z"/></svg>Symétrie</button>
+<button class="sb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v8a8 8 0 0 0 8 8h7"/></svg>Congé</button>
+<button class="sb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v9l7 7h8"/></svg><span class="dd">Chanfrein<svg class="ic" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></span></button>
+<button class="sb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20L20 4" stroke-dasharray="3 3"/></svg>Construction</button>
+<button class="sb {{patOn}}" onClick="{{setPattern}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" stroke-dasharray="2 3"/><circle cx="12" cy="5" r="1.7"/><circle cx="18" cy="15.5" r="1.7"/><circle cx="6" cy="15.5" r="1.7"/></svg>Réseau circulaire</button>
+<button class="sb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="5" height="5"/><rect x="15" y="4" width="5" height="5"/><rect x="4" y="15" width="5" height="5"/><rect x="15" y="15" width="5" height="5"/></svg>Réseau rectangulaire</button>
+</div>
+<span class="gl">Modifier</span>
+</div>
+<div class="grp">
+<div class="col2">
+<button class="sb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>Annuler<span class="k">⌘Z</span></button>
+<button class="sb" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>Rétablir<span class="k" style="color: #5B626E">⇧⌘Z</span></button>
+</div>
+<span class="gl">Édition</span>
+</div>
+<sc-if value="{{lineTool}}" hint-placeholder-val="{{ true }}">
+<div role="tooltip" style="position: absolute; left: 196px; top: 86px; z-index: 5; width: 230px; padding: 9px 11px; border-radius: 7px; background: #262A33; border: 1px solid #353A45; box-shadow: 0 8px 24px rgba(0,0,0,.45)">
+<div style="display: flex; align-items: center; gap: 8px; font: 600 12.5px Inter, sans-serif; color: #F4F5F7">Ligne <span style="font: 500 10.5px 'JetBrains Mono', monospace; color: #C9CFD8; border: 1px solid #454B57; border-radius: 3px; padding: 1px 5px">L</span></div>
+<div style="margin-top: 4px; font-size: 12px; line-height: 1.4; color: #B4BAC5">Segments enchaînés : cliquez chaque point, Échap pour arrêter.</div>
+</div>
+</sc-if>
+</sc-if>
+
+<sc-if value="{{extrude}}" hint-placeholder-val="{{ false }}">
+<div class="grp">
+<div class="row">
+<button class="tb w2 on" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16l8 4 8-4-8-4z"/><path d="M12 12V3M9 6l3-3 3 3"/></svg>Ajout de matière</button>
+<button class="tb w2"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8 4 8-4-8-4z"/><path d="M12 12v9M9 18l3 3 3-3"/></svg>Enlèvement de matière</button>
+</div>
+<span class="gl">Matière</span>
+</div>
+<div class="grp">
+<div class="row">
+<button class="tb w2 on" aria-pressed="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h11v11H5z"/><path d="M5 9l4-5h11l-4 5M16 20l4-5V4"/></svg>Extrusion droite</button>
+<button class="tb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20" stroke-dasharray="2 2.5"/><ellipse cx="12" cy="8" rx="7" ry="2.5"/><path d="M5 8v8c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V8"/></svg>Révolution</button>
+</div>
+<span class="gl">Forme</span>
+</div>
+<div class="grp">
+<div class="col2">
+<button class="sb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>Annuler<span class="k">⌘Z</span></button>
+<button class="sb" disabled><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>Rétablir<span class="k" style="color: #5B626E">⇧⌘Z</span></button>
+</div>
+<span class="gl">Édition</span>
+</div>
+</sc-if>
+
+<sc-if value="{{exportTab}}" hint-placeholder-val="{{ false }}">
+<div class="grp">
+<div class="row">
+<button class="tb w2 on" aria-expanded="true"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5L12 12l8-4.5M12 12v9M8 5.3l8 4.5"/></svg><span class="dd">Exporter en STL…<svg class="ic" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg></span></button>
+<button class="tb w2"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 13h7M9 17h5"/></svg>Exporter en STEP…</button>
+</div>
+<span class="gl">Exporter</span>
+</div>
+<div role="menu" aria-label="Finesse du maillage" style="position: absolute; left: 14px; top: 86px; z-index: 5; width: 230px; padding: 5px; border-radius: 8px; background: #22262E; border: 1px solid #353A45; box-shadow: 0 10px 28px rgba(0,0,0,.5)">
+<div class="mi" role="menuitem">Grossière<span class="k">rapide</span></div>
+<div class="mi" role="menuitem" style="background: #2C313B">Normale<span class="k">par défaut</span></div>
+<div class="mi" role="menuitem">Fine<span class="k">lourd</span></div>
+</div>
+</sc-if>
+</div>
+
+<!-- Body -->
+<div style="flex: 1; min-height: 0; display: flex">
+
+<!-- Left dock -->
+<aside style="width: 290px; flex: none; display: flex; flex-direction: column; border-right: 1px solid #22262E; background: #16181D; min-height: 0">
+<div style="flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 6px 8px">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 8px 2px">
+<h2 style="margin: 0; font: 600 14px Inter, sans-serif; color: #F4F5F7">Pièce</h2>
+<span style="font-size: 11.5px; color: #8A919D">test-v3</span>
+</div>
+
+<div class="sec">Esquisses</div>
+<div class="tr dim"><button class="eye off" aria-label="Afficher Esquisse 1"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><path d="M4 4l16 16"/></svg></button><svg class="ic car" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3"/></svg>Esquisse 1<span class="m">XY</span></div>
+<div class="tr"><button class="eye" aria-label="Masquer Esquisse 2"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.5"/></svg></button><svg class="ic car" viewBox="0 0 10 10" aria-hidden="true"><path d="M3.5 2l3 3-3 3"/></svg>Esquisse 2<span class="badge" style="margin-left: auto; background: rgba(240,138,126,.15); color: #F5A99F">cote perdue</span></div>
+<div class="tr sel"><button class="eye" aria-label="Masquer Esquisse 3"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.5"/></svg></button><svg class="ic car" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"/></svg>Esquisse 3<span class="m">XY</span></div>
+<div style="margin-left: 26px; border-left: 1px solid #2A2E37; padding-left: 4px">
+<div class="tr"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5"/></svg>Ligne 1<span class="m">180 mm</span></div>
+<div class="tr"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5"/></svg>Ligne 2<span class="m">50 mm</span></div>
+<div class="tr"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5"/></svg>Ligne 3<span class="m">90 mm</span></div>
+<div class="tr"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5"/></svg>Ligne 4<span class="m">65 mm</span></div>
+<div class="tr"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19L19 5"/></svg>Ligne 5<span class="m">90 mm</span></div>
+<div class="tr"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/></svg>Cercle 1<span class="m">Ø 38</span></div>
+<div class="tr"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7v10M20 7v10M4 12h16"/></svg>Cotes<span class="m">4</span></div>
+<div class="tr"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19h14M9 19V5M9 15h4v4"/></svg>Règles<span class="m">6</span></div>
+</div>
+
+<div class="sec">Volumes</div>
+<sc-for list="{{volumes}}" as="v" hint-placeholder-count="3">
+<div class="tr {{v.rowCls}}">
+<button class="eye" onClick="{{v.cycle}}" title="{{v.label}} — cliquer pour changer" aria-label="{{v.name}} : {{v.label}}, cliquer pour changer">
+<sc-if value="{{v.isOp}}" hint-placeholder-val="{{ true }}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5" fill="currentColor"/></svg></sc-if>
+<sc-if value="{{v.isTr}}" hint-placeholder-val="{{ false }}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 5.5a6.5 6.5 0 0 0 0 13z" fill="currentColor" opacity=".55"/></svg></sc-if>
+<sc-if value="{{v.isHid}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><path d="M4 4l16 16"/></svg></sc-if>
+</button>
+<sc-if value="{{v.add}}" hint-placeholder-val="{{ true }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #5FD3A0"><path d="M4 16l8 4 8-4-8-4z"/><path d="M12 12V4"/></svg></sc-if>
+<sc-if value="{{v.cut}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="width: 14px; height: 14px; color: #F08A7E"><path d="M4 8l8 4 8-4-8-4z"/><path d="M12 12v8"/></svg></sc-if>
+<span>{{v.name}}</span>
+<sc-if value="{{v.unstable}}" hint-placeholder-val="{{ false }}"><span class="badge" style="margin-left: auto">instable</span></sc-if>
+<span class="m" style="{{v.mStyle}}">{{v.label}}</span>
+</div>
+</sc-for>
+
+<div class="sec">Tout le corps</div>
+<div style="padding: 0 10px">
+<div class="seg" role="group" aria-label="Appliquer à toutes les extrusions"><button class="{{allHid}}" onClick="{{setAllHid}}">Invisible</button><button class="{{allTr}}" onClick="{{setAllTr}}">Transparent</button><button class="{{allOp}}" onClick="{{setAllOp}}">Opaque</button></div>
+</div>
+
+<div class="sec">Variables <span style="text-transform: none; letter-spacing: 0; font-weight: 400">lecture seule</span></div>
+<div class="tr" style="cursor: default"><span style="font: 500 12px 'JetBrains Mono', monospace; color: #9FC6FF">épaisseur</span><span class="m">15 mm</span></div>
+</div>
+
+<!-- Step player: its own tool, separate from the history -->
+<section aria-label="Lecture des étapes" style="flex: none; margin: 0 8px 8px; padding: 8px 8px 7px; border-radius: 8px; background: #1C1F26; border: 1px solid #2E333D">
+<div style="display: flex; align-items: center; gap: 2px">
+<button class="pb" onClick="{{phPrev}}" aria-label="Étape précédente"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+<div role="group" aria-label="Étapes de la pièce" style="flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 0">
+<sc-for list="{{phases}}" as="p" hint-placeholder-count="6">
+<sc-if value="{{p.notFirst}}" hint-placeholder-val="{{ true }}"><svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true" style="flex: none; color: {{p.arrow}}"><path d="M1 5h6M4.5 2.5L7 5 4.5 7.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></sc-if>
+<button class="st {{p.cls}}" onClick="{{p.go}}" title="{{p.title}}" aria-label="{{p.title}}">
+<sc-if value="{{p.hasAlert}}" hint-placeholder-val="{{ false }}"><span class="dot" style="background: {{p.dotColor}}"></span></sc-if>
+<sc-if value="{{p.isEsq}}" hint-placeholder-val="{{ true }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4-1 11-11-3-3L5 16z"/></svg></sc-if>
+<sc-if value="{{p.isExt}}" hint-placeholder-val="{{ false }}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16l8 4 8-4-8-4z"/><path d="M12 12V3"/></svg></sc-if>
+</button>
+</sc-for>
+</div>
+<button class="pb" onClick="{{phNext}}" aria-label="Étape suivante"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; padding: 0 4px; font-size: 11.5px">
+<span style="color: {{phNameColor}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{phName}}</span>
+<span style="font: 400 11px 'JetBrains Mono', monospace; color: #8A919D; flex: none">{{phCur}} / {{phTotal}}</span>
+</div>
+<div style="display: flex; gap: 12px; margin-top: 5px; padding: 0 4px; font-size: 11px; color: #A9B0BC">
+<span style="display: inline-flex; align-items: center; gap: 5px"><span style="width: 7px; height: 7px; border-radius: 50%; background: #E8C547"></span>avertissement</span>
+<span style="display: inline-flex; align-items: center; gap: 5px"><span style="width: 7px; height: 7px; border-radius: 50%; background: #F08A7E"></span>erreur</span>
+</div>
+</section>
+
+<!-- History: folded by default -->
+<section aria-label="Historique" style="flex: none; border-top: 1px solid #22262E; background: #15171C; padding: 6px 10px">
+<button onClick="{{toggleHist}}" aria-expanded="{{histOpen}}" style="display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 4px; border: 0; border-radius: 5px; background: transparent; color: #F4F5F7; font: 600 13px Inter, sans-serif; cursor: pointer; text-align: left">
+<sc-if value="{{histOpen}}" hint-placeholder-val="{{ false }}"><svg class="ic" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" style="color: #8A919D"><path d="M2 3.5l3 3 3-3"/></svg></sc-if>
+<sc-if value="{{histClosed}}" hint-placeholder-val="{{ true }}"><svg class="ic" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" style="color: #8A919D"><path d="M3.5 2l3 3-3 3"/></svg></sc-if>
+Historique
+<span style="margin-left: auto; font: 400 11.5px 'JetBrains Mono', monospace; color: #A9B0BC">{{total}} actions</span>
+</button>
+<sc-if value="{{histOpen}}" hint-placeholder-val="{{ false }}">
+<div style="max-height: 230px; overflow: auto; margin: 4px 0">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="10">
+<div class="hs {{s.cls}}" onClick="{{s.go}}"><span class="n">{{s.n}}</span>{{s.name}}<span class="d">{{s.detail}}</span></div>
+</sc-for>
+<button style="margin: 6px 10px 2px; height: 26px; padding: 0; border: 0; background: transparent; color: #A9B0BC; font: 500 11.5px Inter, sans-serif; text-decoration: underline; cursor: pointer">Compacter l'historique…</button>
+</div>
+</sc-if>
+</section>
+</aside>
+
+<!-- Viewport -->
+<main style="flex: 1; min-width: 0; position: relative; background: #111318; overflow: hidden">
+
+<sc-if value="{{sketch}}" hint-placeholder-val="{{ true }}">
+<svg viewBox="0 0 1100 640" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Esquisse 3 : profil en L" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block">
+<defs>
+<pattern id="gFine" width="20" height="20" patternUnits="userSpaceOnUse" x="430" y="400"><path d="M20 0H0V20" fill="none" stroke="#1B1F27" stroke-width="1"/></pattern>
+<pattern id="gMain" width="100" height="100" patternUnits="userSpaceOnUse" x="430" y="400"><path d="M100 0H0V100" fill="none" stroke="#262B35" stroke-width="1"/></pattern>
+</defs>
+<rect x="-200" y="-200" width="1500" height="1040" fill="url(#gFine)"/>
+<rect x="-200" y="-200" width="1500" height="1040" fill="url(#gMain)"/>
+<line x1="-200" y1="400" x2="1300" y2="400" stroke="#E5534B" stroke-width="1.5" opacity=".75"/>
+<line x1="430" y1="-200" x2="430" y2="840" stroke="#57AB5A" stroke-width="1.5" opacity=".75"/>
+
+<circle cx="520" cy="250" r="38" fill="rgba(108,182,255,.10)"/>
+<line x1="462" y1="250" x2="578" y2="250" stroke="#8E96A3" stroke-width="1.2" stroke-dasharray="7 5"/>
+<polyline points="{{profile}}" fill="none" stroke="#E6E8EC" stroke-width="2" stroke-linejoin="round"/>
+<circle cx="520" cy="250" r="38" fill="none" stroke="{{circleStroke}}" stroke-width="2"/>
+<path d="M516 250h8M520 246v8" stroke="#E6E8EC" stroke-width="1.4"/>
+<g fill="#121419" stroke="#E6E8EC" stroke-width="1.4">
+<rect x="786" y="396" width="8" height="8"/><rect x="786" y="296" width="8" height="8"/><rect x="606" y="296" width="8" height="8"/><rect x="606" y="166" width="8" height="8"/><rect x="426" y="166" width="8" height="8"/>
+</g>
+
+<sc-if value="{{lineTool}}" hint-placeholder-val="{{ true }}">
+<line x1="430" y1="150" x2="430" y2="470" stroke="#F2A541" stroke-width="1" stroke-dasharray="4 4" opacity=".55"/>
+<line x1="430" y1="170" x2="430" y2="400" stroke="#F2A541" stroke-width="2.2"/>
+<circle cx="430" cy="400" r="10" fill="none" stroke="#F2A541" stroke-width="1.8"/>
+<circle cx="430" cy="400" r="3" fill="#F2A541"/>
+<rect x="446" y="410" width="92" height="22" rx="5" fill="#2A2216" stroke="#7A5A2A"/>
+<text x="492" y="425" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="#F7C47A">Coïncidence</text>
+<path d="M470 170A40 40 0 0 1 430 210" fill="none" stroke="#F2A541" stroke-width="1.2" opacity=".8"/>
+<rect x="452" y="194" width="40" height="22" rx="4" fill="#1B1E25" stroke="#4A4F5A"/>
+<text x="472" y="209" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11.5" fill="#E6E8EC">90°</text>
+<rect x="318" y="272" width="98" height="28" rx="5" fill="#1B1E25" stroke="#F2A541" stroke-width="1.4"/>
+<text x="330" y="291" font-family="JetBrains Mono, monospace" font-size="13" fill="#F4F5F7">115,0</text>
+<text x="404" y="291" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="11" fill="#8A919D">mm</text>
+<line x1="375" y1="276" x2="375" y2="296" stroke="#F4F5F7" stroke-width="1.2"/>
+<path d="M436 406v17l4.5-4.2 3.2 7 2.4-1.1-3.1-6.9h6.2z" fill="#F4F5F7" stroke="#111318" stroke-width="1"/>
+</sc-if>
+
+<sc-if value="{{patTool}}" hint-placeholder-val="{{ false }}">
+<g fill="none" stroke="#F2A541" stroke-width="1.5" stroke-dasharray="5 4" opacity=".85">
+<circle cx="608.4" cy="197" r="38"/>
+<circle cx="698.3" cy="247.1" r="38"/>
+<circle cx="700" cy="350.1" r="38"/>
+<circle cx="611.6" cy="403" r="38"/>
+<circle cx="521.7" cy="352.9" r="38"/>
+</g>
+<circle cx="610" cy="300" r="103" fill="none" stroke="#F2A541" stroke-width="1" stroke-dasharray="2 5" opacity=".5"/>
+<path d="M610 300L520 250" stroke="#F2A541" stroke-width="1" opacity=".5"/>
+<circle cx="610" cy="300" r="9" fill="none" stroke="#F2A541" stroke-width="1.8"/>
+<path d="M602 300h16M610 292v16" stroke="#F2A541" stroke-width="1.4"/>
+<rect x="624" y="306" width="62" height="22" rx="5" fill="#2A2216" stroke="#7A5A2A"/>
+<text x="655" y="321" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="#F7C47A">Centre</text>
+<path d="M548 214A75 75 0 0 1 600 226" fill="none" stroke="#F2A541" stroke-width="1.4"/>
+<path d="M594 220l7 6-9 3z" fill="#F2A541"/>
+<rect x="540" y="182" width="44" height="22" rx="4" fill="#1B1E25" stroke="#4A4F5A"/>
+<text x="562" y="197" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11.5" fill="#E6E8EC">60°</text>
+</sc-if>
+
+<g stroke="#9AA6B8" stroke-width="1" fill="none">
+<path d="M430 406v42M790 406v42M430 440h360"/>
+<path d="M438 436l-8 4 8 4M782 436l8 4-8 4"/>
+<path d="M796 300h42M796 400h42M830 300v100"/>
+<path d="M826 308l4-8 4 8M826 392l4 8 4-8"/>
+<path d="M430 164v-36M610 164v-36M430 136h180"/>
+<path d="M438 132l-8 4 8 4M602 132l8 4-8 4"/>
+<path d="M616 170h42M616 300h42M650 170v130"/>
+<path d="M646 178l4-8 4 8M646 292l4 8 4-8"/>
+</g>
+<g font-family="JetBrains Mono, monospace" font-size="12" fill="#DCE3EE" text-anchor="middle">
+<rect x="590" y="430" width="40" height="20" rx="3" fill="#111318"/><text x="610" y="444">180</text>
+<rect x="814" y="340" width="32" height="20" rx="3" fill="#111318"/><text x="830" y="354">50</text>
+<rect x="504" y="126" width="32" height="20" rx="3" fill="#111318"/><text x="520" y="140">90</text>
+<rect x="634" y="225" width="32" height="20" rx="3" fill="#111318"/><text x="650" y="239">65</text>
+</g>
+<g font-family="Inter, sans-serif" font-size="11" fill="#C9CFD8" text-anchor="middle">
+<rect x="762" y="372" width="18" height="18" rx="3" fill="#20242C" stroke="#3A404C"/><text x="771" y="385">⊥</text>
+<rect x="582" y="180" width="18" height="18" rx="3" fill="#20242C" stroke="#3A404C"/><text x="591" y="193">∥</text>
+</g>
+<g>
+<path d="M40 600v6h100v-6" fill="none" stroke="#C9CFD8" stroke-width="1.4"/>
+<text x="90" y="594" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="#C9CFD8">50 mm</text>
+</g>
+</svg>
+
+<div style="position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 6px 0 14px; border-radius: 19px; background: rgba(28,31,38,.94); border: 1px solid #2E333D; box-shadow: 0 6px 20px rgba(0,0,0,.35); white-space: nowrap">
+<span style="font-size: 12.5px; color: #D5D9E0"><strong style="font-weight: 600; color: #F4F5F7">Esquisse 3</strong> · Plan XY</span>
+<span style="font-size: 11.5px; color: #8A919D">2 libertés restantes</span>
+<button style="height: 28px; padding: 0 12px; border-radius: 14px; border: 0; background: #F2A541; color: #1A1206; font: 600 12px Inter, sans-serif; cursor: pointer">Terminer ↵</button>
+</div>
+</sc-if>
+
+<sc-if value="{{view3d}}" hint-placeholder-val="{{ false }}">
+<svg viewBox="0 0 1100 640" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Vue 3D : aperçu de l'extrusion du profil en L" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block">
+<defs>
+<radialGradient id="bg3d" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="#1A1D24"/><stop offset="1" stop-color="#0F1115"/></radialGradient>
+</defs>
+<rect x="-200" y="-200" width="1500" height="1040" fill="url(#bg3d)"/>
+<line x1="104" y1="120" x2="1074" y2="680" stroke="#E5534B" stroke-width="1.4" opacity=".7"/>
+<line x1="936" y1="120" x2="-34" y2="680" stroke="#57AB5A" stroke-width="1.4" opacity=".7"/>
+<line x1="520" y1="-10" x2="520" y2="660" stroke="#539BF5" stroke-width="1.4" opacity=".7"/>
+<g stroke="#5FD3A0" stroke-width="1.4" stroke-linejoin="round">
+<polygon points="485.4,524 360.7,452 360.7,404 485.4,476" fill="rgba(54,179,126,.30)"/>
+<polygon points="575.4,472 485.4,524 485.4,476 575.4,424" fill="rgba(54,179,126,.22)"/>
+<polygon points="700.1,544 575.4,472 575.4,424 700.1,496" fill="rgba(54,179,126,.30)"/>
+<polygon points="769.4,504 700.1,544 700.1,496 769.4,456" fill="rgba(54,179,126,.22)"/>
+<polygon points="520,312 769.4,456 700.1,496 575.4,424 485.4,476 360.7,404" fill="rgba(54,179,126,.40)"/>
+</g>
+<polyline points="520,360 769.4,504 700.1,544 575.4,472 485.4,524 360.7,452 520,360" fill="none" stroke="#E6E8EC" stroke-width="1.2" stroke-dasharray="4 3" opacity=".7"/>
+<ellipse cx="478.4" cy="408" rx="37.2" ry="21.5" fill="#101216" stroke="#5FD3A0" stroke-width="1.4"/>
+<line x1="600" y1="420" x2="600" y2="342" stroke="#F2A541" stroke-width="1.8"/>
+<path d="M594 350l6-10 6 10z" fill="#F2A541"/>
+<rect x="612" y="334" width="66" height="24" rx="12" fill="#2A2216" stroke="#7A5A2A"/>
+<text x="645" y="350" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" fill="#F7C47A">30 mm</text>
+<g>
+<path d="M40 600v6h100v-6" fill="none" stroke="#C9CFD8" stroke-width="1.4"/>
+<text x="90" y="594" text-anchor="middle" font-family="Inter, sans-serif" font-size="11.5" fill="#C9CFD8">50 mm</text>
+</g>
+</svg>
+</sc-if>
+
+<!-- Orientation cube: a real 3D cube in every view -->
+<div style="position: absolute; top: 12px; right: 12px; width: 104px; display: flex; flex-direction: column; align-items: center; gap: 2px">
+<svg viewBox="0 0 100 100" role="img" aria-label="Cube d'orientation" style="width: 104px; height: 104px">
+<path d="M8 50A42 42 0 0 1 30 13" fill="none" stroke="#454B57" stroke-width="1.2"/>
+<path d="M27 10l5 2-2 5" fill="none" stroke="#454B57" stroke-width="1.2"/>
+<g stroke-width="1.1" stroke-linejoin="round">
+<polygon points="50,12 86,32 50,52 14,32" fill="{{cubeTop}}" stroke="{{cubeTopStroke}}"/>
+<polygon points="14,32 50,52 50,90 14,70" fill="#262A33" stroke="#454B57"/>
+<polygon points="50,52 86,32 86,70 50,90" fill="#1D2027" stroke="#454B57"/>
+</g>
+<g font-family="Inter, sans-serif" font-size="8.5" font-weight="600" text-anchor="middle">
+<text transform="matrix(0.874 0.485 -0.874 0.485 50 32)" y="3" fill="{{cubeTopText}}">DESSUS</text>
+<text transform="matrix(0.874 0.485 0 1 32 61)" y="3" fill="#C9CFD8">FACE</text>
+<text transform="matrix(0.874 -0.485 0 1 68 61)" y="3" fill="#C9CFD8">DROITE</text>
+</g>
+<g stroke-width="1.6"><line x1="14" y1="70" x2="26" y2="76.7" stroke="#E5534B"/><line x1="14" y1="70" x2="14" y2="58" stroke="#539BF5"/><line x1="14" y1="70" x2="4" y2="64.4" stroke="#57AB5A"/></g>
+</svg>
+<button aria-label="Vue par défaut" style="display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 12px; border: 1px solid #2E333D; background: rgba(28,31,38,.9); color: #A9B0BC; font: 500 11px Inter, sans-serif; cursor: pointer"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Vue d'origine</button>
+</div>
+
+<sc-if value="{{extrude}}" hint-placeholder-val="{{ false }}">
+<section aria-label="Extrusion" style="position: absolute; top: 14px; left: 14px; width: 300px; display: flex; flex-direction: column; gap: 14px; padding: 14px; border-radius: 10px; background: rgba(28,31,38,.97); border: 1px solid #2E333D; box-shadow: 0 10px 30px rgba(0,0,0,.45)">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<h3 style="margin: 0; font: 600 14px Inter, sans-serif; color: #F4F5F7">Extrusion droite</h3>
+<span style="font-size: 11.5px; color: #8A919D">Esquisse 3</span>
+</div>
+<div class="fl">
+<span class="flab">Zones</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<span class="chip" style="background: rgba(54,179,126,.16); color: #8FE3BC; border: 1px solid rgba(95,211,160,.45)">Zone 1</span>
+<span class="chip" style="color: #A9B0BC; border: 1px dashed #3A404C">+ cliquer dans la vue</span>
+</div>
+</div>
+<div class="fl">
+<span class="flab">Matière</span>
+<div class="seg" role="group" aria-label="Matière" style="align-self: flex-start"><button class="on" aria-pressed="true">Ajout</button><button>Enlèvement</button></div>
+</div>
+<div class="fl">
+<label class="flab" for="prof">Profondeur</label>
+<div style="display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 6px 0 4px; border-radius: 6px; background: #121419; border: 1px solid #F2A541">
+<span style="padding: 3px 7px; border-radius: 4px; background: rgba(108,182,255,.16); color: #9FC6FF; font: 500 12px 'JetBrains Mono', monospace">épaisseur</span>
+<input id="prof" value="× 2" style="flex: 1; min-width: 0; height: 30px; border: 0; background: transparent; color: #F4F5F7; font: 400 12.5px 'JetBrains Mono', monospace; outline: none">
+<span style="font: 400 12px 'JetBrains Mono', monospace; color: #8A919D">= 30 mm</span>
+</div>
+</div>
+<div class="fl">
+<label class="flab" for="angle">Dépouille</label>
+<div style="display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border-radius: 6px; background: #121419; border: 1px solid #2E333D">
+<input id="angle" value="0" style="flex: 1; min-width: 0; height: 30px; border: 0; background: transparent; color: #F4F5F7; font: 400 12.5px 'JetBrains Mono', monospace; outline: none">
+<span style="font: 400 12px 'JetBrains Mono', monospace; color: #8A919D">°</span>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px">
+<label style="display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: #D5D9E0">Autour d'un axe<input type="checkbox" class="sw"></label>
+<label style="display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: #D5D9E0">Inverser le sens<input type="checkbox" class="sw"></label>
+</div>
+<div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 2px">
+<button style="height: 32px; padding: 0 14px; border-radius: 6px; border: 1px solid #353A45; background: transparent; color: #D5D9E0; font: 500 12.5px Inter, sans-serif; cursor: pointer">Annuler</button>
+<button style="height: 32px; padding: 0 14px; border-radius: 6px; border: 0; background: #F2A541; color: #1A1206; font: 600 12.5px Inter, sans-serif; cursor: pointer">Appliquer ↵</button>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{patPanel}}" hint-placeholder-val="{{ false }}">
+<section aria-label="Réseau circulaire" style="position: absolute; top: 14px; left: 14px; width: 300px; display: flex; flex-direction: column; gap: 14px; padding: 14px; border-radius: 10px; background: rgba(28,31,38,.97); border: 1px solid #2E333D; box-shadow: 0 10px 30px rgba(0,0,0,.45)">
+<div style="display: flex; align-items: center; justify-content: space-between">
+<h3 style="margin: 0; font: 600 14px Inter, sans-serif; color: #F4F5F7">Réseau circulaire</h3>
+<span style="font-size: 11.5px; color: #8A919D">Esquisse 3</span>
+</div>
+<div class="ps">
+<span class="pn ok">✓</span>
+<div class="fl">
+<span class="flab">Éléments à copier</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<span class="chip" style="background: rgba(242,165,65,.14); color: #F7C47A; border: 1px solid rgba(242,165,65,.45)">Cercle 1</span>
+<span class="chip" style="color: #A9B0BC; border: 1px dashed #3A404C">+ cliquer dans la vue</span>
+</div>
+</div>
+</div>
+<div class="ps">
+<span class="pn ok">✓</span>
+<div class="fl">
+<span class="flab">Centre</span>
+<div style="display: flex; align-items: center; gap: 8px">
+<span class="chip" style="background: #262A33; color: #E6E8EC; border: 1px solid #3A404C; font-family: 'JetBrains Mono', monospace">Point (90 ; 50)</span>
+<button style="height: 24px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; color: #A9B0BC; font: 500 11.5px Inter, sans-serif; text-decoration: underline; cursor: pointer">Changer</button>
+</div>
+</div>
+</div>
+<div class="ps">
+<span class="pn now">3</span>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div class="fl">
+<label class="flab" for="nb">Nombre</label>
+<div style="display: flex; align-items: center; height: 34px; border-radius: 6px; background: #121419; border: 1px solid #F2A541">
+<button aria-label="Moins" style="width: 28px; height: 32px; border: 0; background: transparent; color: #C9CFD8; cursor: pointer">−</button>
+<input id="nb" value="6" style="flex: 1; min-width: 0; height: 30px; border: 0; background: transparent; color: #F4F5F7; text-align: center; font: 500 13px 'JetBrains Mono', monospace; outline: none">
+<button aria-label="Plus" style="width: 28px; height: 32px; border: 0; background: transparent; color: #C9CFD8; cursor: pointer">+</button>
+</div>
+</div>
+<div class="fl">
+<label class="flab" for="pas">Pas</label>
+<div style="display: flex; align-items: center; gap: 4px; height: 34px; padding: 0 10px; border-radius: 6px; background: #121419; border: 1px solid #2E333D">
+<input id="pas" value="360 / 6" style="flex: 1; min-width: 0; height: 30px; border: 0; background: transparent; color: #F4F5F7; font: 400 12.5px 'JetBrains Mono', monospace; outline: none">
+<span style="font: 400 11.5px 'JetBrains Mono', monospace; color: #8A919D">60°</span>
+</div>
+</div>
+</div>
+</div>
+<div class="ps">
+<span class="pn">4</span>
+<div class="fl">
+<span class="flab">Sens</span>
+<div class="seg" role="group" aria-label="Sens" style="align-self: flex-start"><button class="on" aria-pressed="true">Anti-horaire</button><button>Horaire</button></div>
+</div>
+</div>
+<div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 2px">
+<button onClick="{{setLine}}" style="height: 32px; padding: 0 14px; border-radius: 6px; border: 1px solid #353A45; background: transparent; color: #D5D9E0; font: 500 12.5px Inter, sans-serif; cursor: pointer">Annuler</button>
+<button style="height: 32px; padding: 0 14px; border-radius: 6px; border: 0; background: #F2A541; color: #1A1206; font: 600 12.5px Inter, sans-serif; cursor: pointer">Valider ↵</button>
+</div>
+</section>
+</sc-if>
+
+<div style="position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 8px; background: rgba(28,31,38,.94); border: 1px solid #2E333D">
+<button class="vb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>Recadrer<span style="font: 500 10px 'JetBrains Mono', monospace; color: #80889A">F</span></button>
+<button class="vb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 15l16-7"/></svg>Vue en coupe</button>
+<button class="vb"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="11" height="11"/><rect x="9" y="9" width="11" height="11" stroke-dasharray="2 2"/></svg>Matière devant : cachée<svg class="ic" viewBox="0 0 10 10" aria-hidden="true" style="width: 9px; height: 9px"><path d="M2 3.5l3 3 3-3"/></svg></button>
+<span style="width: 1px; height: 18px; background: #2E333D; margin: 0 6px"></span>
+<span style="font: 400 11.5px 'JetBrains Mono', monospace; color: #A9B0BC; padding: 0 8px 0 2px">X 0,00  Y 0,00 mm</span>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;mode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;esquisse&quot;,&quot;esquisse-réseau&quot;,&quot;extrusion&quot;,&quot;export&quot;],&quot;default&quot;:&quot;esquisse&quot;},&quot;alertes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false},&quot;historiqueOuvert&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false},&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const propMode = this.props.mode || 'esquisse';
+    const mode = st.mode || (propMode === 'esquisse-réseau' ? 'esquisse' : propMode);
+    const tool = st.tool || (propMode === 'esquisse-réseau' ? 'reseau' : 'ligne');
+    const sketch = mode === 'esquisse';
+    const lineTool = sketch && tool === 'ligne';
+    const patTool = sketch && tool === 'reseau';
+
+    const msgs = {
+      ligne: 'Ligne — cliquez le point d’arrivée ou tapez une longueur',
+      reseau: 'Réseau circulaire — étape 3 : nombre de copies',
+      extrusion: 'Extrusion — choisissez les zones, puis la profondeur',
+      export: 'Export — choisissez la finesse du maillage STL'
+    };
+
+    const vis = st.vis || { e1: 'opaque', e2: 'transparent', e3: 'invisible' };
+    const next = { opaque: 'transparent', transparent: 'invisible', invisible: 'opaque' };
+    const labels = { opaque: 'opaque', transparent: 'transparente', invisible: 'invisible' };
+    const vdefs = [
+      { id: 'e1', name: 'Extrusion 1', add: true, unstable: false },
+      { id: 'e2', name: 'Extrusion 2', add: true, unstable: false },
+      { id: 'e3', name: 'Extrusion 3', add: false, unstable: true }
+    ];
+    const volumes = vdefs.map((d) => {
+      const s = vis[d.id];
+      return {
+        name: d.name, add: d.add, cut: !d.add, unstable: d.unstable,
+        isOp: s === 'opaque', isTr: s === 'transparent', isHid: s === 'invisible',
+        label: labels[s],
+        rowCls: s === 'invisible' ? 'dim' : '',
+        mStyle: d.unstable ? 'margin-left: 6px' : '',
+        cycle: () => this.setState({ vis: Object.assign({}, vis, { [d.id]: next[s] }) })
+      };
+    });
+    const same = (vis.e1 === vis.e2 && vis.e2 === vis.e3) ? vis.e1 : null;
+    const setAll = (v) => () => this.setState({ vis: { e1: v, e2: v, e3: v } });
+
+    const sdefs = [
+      ['Esquisse 1', 'Plan XY', 'esq'], ['Rectangle', '120 × 80 mm', 'geo'],
+      ['Extrusion 1', 'ajout de matière · 10 mm', 'ext'], ['Esquisse 2', 'Face de la pièce', 'esq'],
+      ['Cercle', 'Ø 24 mm', 'geo'], ['Extrusion 2', 'ajout de matière · 30 mm', 'ext'],
+      ['Extrusion 3', 'enlèvement de matière · 5 mm', 'ext'], ['Esquisse 3', 'Plan XY', 'esq'],
+      ['Ligne × 5', 'profil en L', 'geo'], ['Cercle', 'Ø 38 mm', 'geo']
+    ];
+    const total = sdefs.length;
+    const cur = Math.min(Math.max(st.step || total, 1), total);
+    const steps = sdefs.map((d, i) => ({
+      n: i + 1, name: d[0], detail: (i + 1 > cur ? 'non jouée · ' : '') + d[1],
+      isEsq: d[2] === 'esq', isGeo: d[2] === 'geo', isExt: d[2] === 'ext',
+      cls: i + 1 === cur ? 'cur' : (i + 1 > cur ? 'fut' : ''),
+      go: () => this.setState({ step: i + 1 })
+    }));
+    const pdefs = [['Esquisse 1', 'esq', '', ''], ['Extrusion 1', 'ext', '', ''], ['Esquisse 2', 'esq', 'err', 'cote perdue'], ['Extrusion 2', 'ext', '', ''], ['Extrusion 3', 'ext', 'warn', 'instable'], ['Esquisse 3', 'esq', '', '']];
+    const lvlColor = { warn: '#E8C547', err: '#F08A7E' };
+    const phTotal = pdefs.length;
+    const phCur = Math.min(Math.max(st.phase || phTotal, 1), phTotal);
+    const phases = pdefs.map((d, i) => ({
+      name: d[0], isEsq: d[1] === 'esq', isExt: d[1] === 'ext', notFirst: i > 0,
+      cls: (i + 1 === phCur ? 'cur' : (i + 1 > phCur ? 'fut' : '')) + (d[2] && i + 1 <= phCur ? ' ' + d[2] : ''),
+      hasAlert: !!d[2], dotColor: lvlColor[d[2]] || 'transparent',
+      title: d[0] + (d[3] ? ' — ' + d[3] : ''),
+      arrow: i + 1 > phCur ? '#454B57' : '#8A919D',
+      go: () => this.setState({ phase: i + 1 })
+    }));
+    const histOpen = st.histOpen !== undefined ? st.histOpen : !!this.props.historiqueOuvert;
+    const alertsOpen = st.alertsOpen !== undefined ? st.alertsOpen : !!this.props.alertes;
+
+    return {
+      sketch, lineTool, patTool, patPanel: patTool,
+      extrude: mode === 'extrusion',
+      exportTab: mode === 'export',
+      view3d: !sketch,
+      tabSketch: sketch ? 'on' : '',
+      tabExtrude: mode === 'extrusion' ? 'on' : '',
+      tabExport: mode === 'export' ? 'on' : '',
+      toSketch: () => this.setState({ mode: 'esquisse' }),
+      toExtrude: () => this.setState({ mode: 'extrusion' }),
+      toExport: () => this.setState({ mode: 'export' }),
+      lineOn: lineTool ? 'on' : '',
+      patOn: patTool ? 'on' : '',
+      setLine: () => this.setState({ tool: 'ligne' }),
+      setPattern: () => this.setState({ tool: 'reseau' }),
+      profile: patTool ? '430,400 790,400 790,300 610,300 610,170 430,170 430,400' : '430,400 790,400 790,300 610,300 610,170 430,170',
+      circleStroke: patTool ? '#F2A541' : '#E6E8EC',
+      viewName: sketch ? 'Esquisse 3' : 'Vue 3D libre',
+      message: sketch ? msgs[tool] : msgs[mode],
+      cubeTop: sketch ? 'rgba(242,165,65,.22)' : '#30353F',
+      cubeTopStroke: sketch ? '#F2A541' : '#454B57',
+      cubeTopText: sketch ? '#F7C47A' : '#E6E8EC',
+      volumes,
+      allOp: same === 'opaque' ? 'on' : '',
+      allTr: same === 'transparent' ? 'on' : '',
+      allHid: same === 'invisible' ? 'on' : '',
+      setAllOp: setAll('opaque'), setAllTr: setAll('transparent'), setAllHid: setAll('invisible'),
+      steps, cur, total,
+      phases, phCur, phTotal,
+      phName: pdefs[phCur - 1][0] + (pdefs[phCur - 1][3] ? ' — ' + pdefs[phCur - 1][3] : '') + (phCur < phTotal ? ' · la suite est masquée' : ''),
+      phNameColor: lvlColor[pdefs[phCur - 1][2]] || '#D5D9E0',
+      phPrev: () => this.setState({ phase: Math.max(1, phCur - 1) }),
+      phNext: () => this.setState({ phase: Math.min(phTotal, phCur + 1) }),
+      curName: sdefs[cur - 1][0] + ' — ' + sdefs[cur - 1][1],
+      goFirst: () => this.setState({ step: 1 }),
+      goPrev: () => this.setState({ step: Math.max(1, cur - 1) }),
+      goNext: () => this.setState({ step: Math.min(total, cur + 1) }),
+      goLast: () => this.setState({ step: total }),
+      histOpen, histClosed: !histOpen,
+      toggleHist: () => this.setState({ histOpen: !histOpen }),
+      alertsOpen,
+      toggleAlerts: () => this.setState({ alertsOpen: !alertsOpen })
+    };
+  }
+}
+</script>
+</body>
+</html>

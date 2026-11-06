@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>CAO — Icônes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1014}
+a{color:#F2A541}a:hover{color:#FFC876}
+.g{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px}
+.t{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;height:104px;padding:8px 6px;box-sizing:border-box;border-radius:8px;background:#181B21;border:1px solid #262A33;text-align:center}
+.t svg{width:32px;height:32px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;color:#E6E8EC}
+.t .n{font:500 11.5px/1.2 Inter,sans-serif;color:#D5D9E0}
+.t .i{font:400 10px/1 'JetBrains Mono',monospace;color:#8A919D}
+.h{display:flex;align-items:baseline;gap:12px;margin:28px 0 12px}
+.h h2{margin:0;font:600 15px Inter,sans-serif;color:#F4F5F7}
+.h span{font:400 12px Inter,sans-serif;color:#8A919D}
+.f{fill:currentColor;stroke:none}
+</style>
+</helmet>
+<div style="width: 1440px; min-height: 2800px; box-sizing: border-box; padding: 48px 56px; background: #121419; color: #E6E8EC; font-family: Inter, system-ui, sans-serif">
+<h1 style="margin: 0; font: 600 28px Inter, sans-serif; color: #F4F5F7">Icônes</h1>
+<p style="margin: 8px 0 0; max-width: 820px; font-size: 13.5px; line-height: 1.5; color: #A9B0BC">Une icône par fonctionnalité. Grille 24 × 24, trait 1,6, bouts arrondis, couleur <span style="font-family: 'JetBrains Mono', monospace; color: #D5D9E0">currentColor</span> : l'icône prend la couleur du texte du bouton. Le nom en dessous est l'identifiant du fichier SVG.</p>
+
+<div class="h"><h2>Esquisse et vue</h2><span>onglet Esquisse, barre de vue</span></div>
+<div class="g">
+<div class="t"><svg viewBox="0 0 24 24" data-id="nouvelle-esquisse" aria-hidden="true"><path d="M4 20l4-1 10-10-3-3L5 16z"/><path d="M13 8l3 3"/><path d="M19 15v6M16 18h6"/></svg><span class="n">Nouvelle esquisse</span><span class="i">nouvelle-esquisse</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="terminer" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg><span class="n">Terminer</span><span class="i">terminer</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="vue-en-coupe" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 15l16-7"/><path class="f" d="M4 15l16-7v12H4z" fill-opacity=".3"/></svg><span class="n">Vue en coupe</span><span class="i">vue-en-coupe</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="recadrer" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg><span class="n">Recadrer</span><span class="i">recadrer</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="matiere-devant-cachee" aria-hidden="true"><rect x="9" y="9" width="11" height="11"/><path d="M4 9V4h11v5M4 9v6h5" stroke-dasharray="2 2"/></svg><span class="n">Matière devant : cachée</span><span class="i">matiere-devant-cachee</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="matiere-devant-transparente" aria-hidden="true"><rect x="9" y="9" width="11" height="11"/><rect x="4" y="4" width="11" height="11"/><rect class="f" x="4" y="4" width="11" height="11" fill-opacity=".3"/></svg><span class="n">Matière devant : transparente</span><span class="i">matiere-devant-transparente</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="matiere-devant-opaque" aria-hidden="true"><rect x="9" y="9" width="11" height="11"/><rect class="f" x="4" y="4" width="11" height="11"/></svg><span class="n">Matière devant : opaque</span><span class="i">matiere-devant-opaque</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="annuler" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span class="n">Annuler</span><span class="i">annuler</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="retablir" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg><span class="n">Rétablir</span><span class="i">retablir</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="construction" aria-hidden="true"><path d="M4 20L20 4" stroke-dasharray="3 3"/></svg><span class="n">Construction</span><span class="i">construction</span></div>
+</div>
+
+<div class="h"><h2>Dessin</h2><span>avec les variantes des menus Cercles, Arcs, Ellipses</span></div>
+<div class="g">
+<div class="t"><svg viewBox="0 0 24 24" data-id="selection" aria-hidden="true"><path d="M6 3l13 8-6 1.6L10 19z"/></svg><span class="n">Sélection</span><span class="i">selection</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="ligne" aria-hidden="true"><path d="M6.2 17.8L17.8 6.2"/><circle cx="5" cy="19" r="1.7"/><circle cx="19" cy="5" r="1.7"/></svg><span class="n">Ligne</span><span class="i">ligne</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="ligne-symetrique" aria-hidden="true"><path d="M4 18L20 6"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/><path d="M15.3 6.4L20 6l-1.7 4.4M8.7 17.6L4 18l1.7-4.4"/></svg><span class="n">Ligne symétrique</span><span class="i">ligne-symetrique</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="rectangle" aria-hidden="true"><rect x="4" y="6" width="16" height="12" rx="1"/></svg><span class="n">Rectangle</span><span class="i">rectangle</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="point" aria-hidden="true"><path d="M12 4v5M12 15v5M4 12h5M15 12h5"/><circle class="f" cx="12" cy="12" r="2"/></svg><span class="n">Point</span><span class="i">point</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="cercle-centre-diametre" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M4 12h16"/><circle class="f" cx="12" cy="12" r="1.3"/></svg><span class="n">Cercle : centre et diamètre</span><span class="i">cercle-centre-diametre</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="cercle-deux-points" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle class="f" cx="4" cy="12" r="1.8"/><circle class="f" cx="20" cy="12" r="1.8"/></svg><span class="n">Cercle : deux points du bord</span><span class="i">cercle-deux-points</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="cercle-deux-points-centre" aria-hidden="true"><circle cx="12" cy="13" r="7"/><circle class="f" cx="5" cy="13" r="1.7"/><circle class="f" cx="17" cy="8" r="1.7"/><path d="M10.5 13h3M12 11.5v3"/></svg><span class="n">Cercle : deux points puis centre</span><span class="i">cercle-deux-points-centre</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="cercle-tangent-deux-droites" aria-hidden="true"><path d="M3 20h18M3 20L15 4"/><circle cx="12" cy="15.5" r="4.5"/></svg><span class="n">Cercle tangent à deux droites</span><span class="i">cercle-tangent-deux-droites</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="cercle-tangent-trois-droites" aria-hidden="true"><path d="M3 20h18L12 4z"/><circle cx="12" cy="14.7" r="5.2"/></svg><span class="n">Cercle tangent à trois droites</span><span class="i">cercle-tangent-trois-droites</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="arc-centre-depart-arrivee" aria-hidden="true"><path d="M5 17A7 7 0 0 1 17 12"/><path d="M12 17H5M12 17l5-5" stroke-dasharray="1.5 2"/><circle class="f" cx="12" cy="17" r="1.3"/></svg><span class="n">Arc : centre, départ, arrivée</span><span class="i">arc-centre-depart-arrivee</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="arc-trois-points" aria-hidden="true"><path d="M4 17A9 9 0 0 1 20 17"/><circle class="f" cx="4" cy="17" r="1.6"/><circle class="f" cx="12" cy="12.1" r="1.6"/><circle class="f" cx="20" cy="17" r="1.6"/></svg><span class="n">Arc : deux bouts et un point</span><span class="i">arc-trois-points</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="ellipse-centre-axes" aria-hidden="true"><ellipse cx="12" cy="12" rx="9" ry="5.5"/><path d="M12 12h9M12 12V6.5" stroke-dasharray="1.5 2"/><circle class="f" cx="12" cy="12" r="1.2"/></svg><span class="n">Ellipse : centre et deux axes</span><span class="i">ellipse-centre-axes</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="ellipse-deux-bouts-fleche" aria-hidden="true"><ellipse cx="12" cy="12" rx="9" ry="5.5"/><circle class="f" cx="3" cy="12" r="1.6"/><circle class="f" cx="21" cy="12" r="1.6"/><path d="M12 12V7M10.5 8.5L12 7l1.5 1.5"/></svg><span class="n">Ellipse : deux bouts et flèche</span><span class="i">ellipse-deux-bouts-fleche</span></div>
+</div>
+
+<div class="h"><h2>Cotes et mesure</h2></div>
+<div class="g">
+<div class="t"><svg viewBox="0 0 24 24" data-id="cote" aria-hidden="true"><path d="M4 7v10M20 7v10M4 12h16M7 9.5L4 12l3 2.5M17 9.5l3 2.5-3 2.5"/></svg><span class="n">Cote</span><span class="i">cote</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="cote-intelligente" aria-hidden="true"><path d="M4 11v9M20 11v9M4 16h16M7 13.5L4 16l3 2.5M17 13.5l3 2.5-3 2.5"/><path d="M12 2.5l1 2.5 2.5 1-2.5 1L12 9.5 11 7 8.5 6 11 5z"/></svg><span class="n">Cote intelligente</span><span class="i">cote-intelligente</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="cote-point-a-point" aria-hidden="true"><circle class="f" cx="5" cy="18" r="2"/><circle class="f" cx="19" cy="6" r="2"/><path d="M7 16.3L17 7.7"/><path d="M10.5 11.5l2 2.3"/></svg><span class="n">Cote point à point</span><span class="i">cote-point-a-point</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="cote-de-trait" aria-hidden="true"><path d="M4 19h16" stroke-width="2.4"/><path d="M4 16V7M20 16V7M4 10h16M7 8.2L4 10l3 1.8M17 8.2l3 1.8-3 1.8"/></svg><span class="n">Cote de trait</span><span class="i">cote-de-trait</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="cote-angle" aria-hidden="true"><path d="M4 19h16M4 19L16 6"/><path d="M13 19A9 9 0 0 0 10.1 12.4"/></svg><span class="n">Cote d'angle</span><span class="i">cote-angle</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="cote-rayon" aria-hidden="true"><circle cx="11" cy="13" r="8"/><path d="M11 13l5.6-5.6"/><path d="M13.6 7.6l3-.2-.2 3"/><circle class="f" cx="11" cy="13" r="1.2"/></svg><span class="n">Cote de rayon</span><span class="i">cote-rayon</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="mesurer" aria-hidden="true"><path d="M3 15L15 3l6 6L9 21z"/><path d="M7 11l2 2M10 8l2 2M13 5l2 2"/></svg><span class="n">Mesurer</span><span class="i">mesurer</span></div>
+</div>
+
+<div class="h"><h2>Modifier</h2><span>avec les variantes du menu Chanfreins</span></div>
+<div class="g">
+<div class="t"><svg viewBox="0 0 24 24" data-id="ajuster" aria-hidden="true"><circle cx="6" cy="7" r="2.5"/><circle cx="6" cy="17" r="2.5"/><path d="M8.2 8.4L20 17M8.2 15.6L20 7"/></svg><span class="n">Ajuster</span><span class="i">ajuster</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="diviser" aria-hidden="true"><path d="M3 12h7M14 12h7"/><path d="M12 5v14" stroke-dasharray="2 2.5"/></svg><span class="n">Diviser</span><span class="i">diviser</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="symetrie" aria-hidden="true"><path d="M12 3v18" stroke-dasharray="2 2.5"/><path d="M9 7L4 17h5zM15 7l5 10h-5z"/></svg><span class="n">Symétrie</span><span class="i">symetrie</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="reseau-circulaire" aria-hidden="true"><circle cx="12" cy="12" r="7" stroke-dasharray="2 3"/><circle cx="12" cy="5" r="1.8"/><circle cx="18" cy="15.5" r="1.8"/><circle cx="6" cy="15.5" r="1.8"/></svg><span class="n">Réseau circulaire</span><span class="i">reseau-circulaire</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="reseau-rectangulaire" aria-hidden="true"><rect x="4" y="4" width="5" height="5"/><rect x="15" y="4" width="5" height="5"/><rect x="4" y="15" width="5" height="5"/><rect x="15" y="15" width="5" height="5"/></svg><span class="n">Réseau rectangulaire</span><span class="i">reseau-rectangulaire</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="conge" aria-hidden="true"><path d="M5 4v8a8 8 0 0 0 8 8h7"/></svg><span class="n">Congé</span><span class="i">conge</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="chanfrein" aria-hidden="true"><path d="M5 4v8l8 8h7"/></svg><span class="n">Chanfrein</span><span class="i">chanfrein</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="chanfrein-distance-egale" aria-hidden="true"><path d="M5 3v8l8 8h7"/><path d="M5 11v8h8" stroke-dasharray="1.5 2"/><path d="M2 11v8M1 11h2M1 19h2M5 22h8M5 21v2M13 21v2M1 15.8l2-1.6M8.2 23l1.6-2" stroke-width="1.1"/></svg><span class="n">Chanfrein : distance égale</span><span class="i">chanfrein-distance-egale</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="chanfrein-distance-angle" aria-hidden="true"><path d="M5 3v8l8 8h7"/><path d="M5 11v8h8" stroke-dasharray="1.5 2"/><path d="M2 11v8M1 11h2M1 19h2" stroke-width="1.1"/><path d="M7.5 19A5.5 5.5 0 0 1 9.1 15.1" stroke-width="1.3"/></svg><span class="n">Chanfrein : distance et angle</span><span class="i">chanfrein-distance-angle</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="chanfrein-deux-distances" aria-hidden="true"><path d="M5 3v10l11 6h4"/><path d="M5 13v6h11" stroke-dasharray="1.5 2"/><path d="M2 13v6M1 13h2M1 19h2M5 22h11M5 21v2M16 21v2" stroke-width="1.1"/></svg><span class="n">Chanfrein : deux distances</span><span class="i">chanfrein-deux-distances</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="inverser-cotes" aria-hidden="true"><path d="M5 4v6l10 10h5"/><path d="M13 4h7M18 2l2 2-2 2M20 10h-7M15 8l-2 2 2 2"/></svg><span class="n">Inverser les côtés</span><span class="i">inverser-cotes</span></div>
+</div>
+
+<div class="h"><h2>Contraintes</h2><span>menu Contraintes et marques sur les éléments</span></div>
+<div class="g">
+<div class="t"><svg viewBox="0 0 24 24" data-id="perpendiculaire" aria-hidden="true"><path d="M5 19h14M9 19V5"/><path d="M9 15h4v4"/></svg><span class="n">Perpendiculaire</span><span class="i">perpendiculaire</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="parallele" aria-hidden="true"><path d="M5 17L15 5M9 19L19 7"/></svg><span class="n">Parallèle</span><span class="i">parallele</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="egalite" aria-hidden="true"><path d="M5 9h14M5 15h14"/></svg><span class="n">Égalité</span><span class="i">egalite</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="coincidence" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M3 21l6.9-6.9M14.1 9.9L21 3"/></svg><span class="n">Coïncidence</span><span class="i">coincidence</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="colineaire" aria-hidden="true"><path d="M4.5 18l5-4M14.5 10l5-4"/><path d="M10.9 12.9l2.3-1.8M12.63 12.96L13.2 11.1l-1.93.14" stroke-width="1.3"/><circle class="f" cx="4" cy="18.4" r="1.6"/><circle class="f" cx="10" cy="13.6" r="1.6"/><circle class="f" cx="14" cy="10.4" r="1.6"/><circle class="f" cx="20" cy="5.6" r="1.6"/></svg><span class="n">Colinéaire</span><span class="i">colineaire</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="tangence" aria-hidden="true"><circle cx="12" cy="14" r="6"/><path d="M3 8h18"/></svg><span class="n">Tangence</span><span class="i">tangence</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="milieu" aria-hidden="true"><path d="M3 16h18"/><path d="M12 15l-3.5-6h7z"/></svg><span class="n">Milieu</span><span class="i">milieu</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="fixe" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span class="n">Fixe</span><span class="i">fixe</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="concentrique" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle class="f" cx="12" cy="12" r="1"/></svg><span class="n">Concentrique</span><span class="i">concentrique</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="contraintes" aria-hidden="true"><path d="M10 14l4-4"/><path d="M8.5 11.5L6 14a3 3 0 0 0 4 4l2.5-2.5M15.5 12.5L18 10a3 3 0 0 0-4-4l-2.5 2.5"/></svg><span class="n">Contraintes (menu, règle)</span><span class="i">contraintes</span></div>
+</div>
+
+<div class="h"><h2>Extrusion</h2></div>
+<div class="g">
+<div class="t"><svg viewBox="0 0 24 24" data-id="ajout-matiere" aria-hidden="true"><path d="M4 16l8 4 8-4-8-4z"/><path d="M12 12V3M9 6l3-3 3 3"/></svg><span class="n">Ajout de matière</span><span class="i">ajout-matiere</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="enlevement-matiere" aria-hidden="true"><path d="M4 8l8 4 8-4-8-4z"/><path d="M12 12v9M9 18l3 3 3-3"/></svg><span class="n">Enlèvement de matière</span><span class="i">enlevement-matiere</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="extrusion-droite" aria-hidden="true"><path d="M5 9h11v11H5z"/><path d="M5 9l4-5h11l-4 5M16 20l4-5V4"/></svg><span class="n">Extrusion droite</span><span class="i">extrusion-droite</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="revolution" aria-hidden="true"><path d="M12 2v20" stroke-dasharray="2 2.5"/><ellipse cx="12" cy="8" rx="7" ry="2.5"/><path d="M5 8v8c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V8"/></svg><span class="n">Révolution</span><span class="i">revolution</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="appliquer-extrusion" aria-hidden="true"><path d="M3 9l8-4 8 4-8 4z"/><path d="M3 9v7l8 4M11 13v7"/><path d="M15 17l2 2 4-4"/></svg><span class="n">Appliquer l'extrusion</span><span class="i">appliquer-extrusion</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="annuler-extrusion" aria-hidden="true"><path d="M3 9l8-4 8 4-8 4z"/><path d="M3 9v7l8 4M11 13v7"/><path d="M16 15l4 4M20 15l-4 4"/></svg><span class="n">Annuler l'extrusion</span><span class="i">annuler-extrusion</span></div>
+</div>
+
+<div class="h"><h2>Export</h2><span>avec la finesse du maillage STL</span></div>
+<div class="g">
+<div class="t"><svg viewBox="0 0 24 24" data-id="exporter-stl" aria-hidden="true"><path d="M10 3l6 3.5v7L10 17l-6-3.5v-7z"/><path d="M4 6.5L10 10l6-3.5M10 10v7"/><path d="M19 14v7M16.5 18.5L19 21l2.5-2.5"/></svg><span class="n">Exporter en STL</span><span class="i">exporter-stl</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="stl-grossiere" aria-hidden="true"><path d="M4 20L12 4l8 16z"/><path d="M8 12h8"/></svg><span class="n">STL grossière</span><span class="i">stl-grossiere</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="stl-normale" aria-hidden="true"><path d="M4 20L12 4l8 16z"/><path d="M8 12h8M8 12l4 8 4-8"/></svg><span class="n">STL normale</span><span class="i">stl-normale</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="stl-fine" aria-hidden="true"><path d="M4 20L12 4l8 16z"/><path d="M8 12h8M8 12l4 8 4-8M10 8h4M10 8l2 4 2-4M6 16h12M6 16l2 4M18 16l-2 4"/></svg><span class="n">STL fine</span><span class="i">stl-fine</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="exporter-step" aria-hidden="true"><path d="M14 3H5v18h8"/><path d="M14 3l4 4v6M14 3v4h4"/><path d="M8 11h6M8 15h3"/><path d="M19 15v6M16.5 18.5L19 21l2.5-2.5"/></svg><span class="n">Exporter en STEP</span><span class="i">exporter-step</span></div>
+</div>
+
+<div class="h"><h2>Panneaux, barre et alertes</h2></div>
+<div class="g">
+<div class="t"><svg viewBox="0 0 24 24" data-id="accueil" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg><span class="n">Accueil</span><span class="i">accueil</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="piece" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg><span class="n">Pièce</span><span class="i">piece</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="historique" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg><span class="n">Historique</span><span class="i">historique</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="variables" aria-hidden="true"><path d="M5 5l6 6M11 5l-6 6M14 15h6M14 19h6"/></svg><span class="n">Variables</span><span class="i">variables</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="fichiers" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg><span class="n">Fichiers</span><span class="i">fichiers</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="preferences" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="n">Préférences</span><span class="i">preferences</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="compacter-historique" aria-hidden="true"><path d="M5 11h14M5 14h14"/><path d="M12 2v5M9.5 4.5L12 7l2.5-2.5M12 22v-4M9.5 20.5L12 18l2.5 2.5"/></svg><span class="n">Compacter l'historique</span><span class="i">compacter-historique</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="ancrer-barre" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3z"/><path d="M12 13v8"/></svg><span class="n">Ancrer / détacher la barre</span><span class="i">ancrer-barre</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="avertissement" aria-hidden="true"><path d="M12 4L2.5 20h19z"/><path d="M12 10v5M12 17.5v.5"/></svg><span class="n">Avertissement</span><span class="i">avertissement</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="erreur" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v5M12 15.5v.5"/></svg><span class="n">Erreur</span><span class="i">erreur</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="alertes" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="n">Alertes</span><span class="i">alertes</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="fermer" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span class="n">Fermer</span><span class="i">fermer</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="deplier" aria-hidden="true"><path d="M7 10l5 5 5-5"/></svg><span class="n">Déplier (menu)</span><span class="i">deplier</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="replier" aria-hidden="true"><path d="M10 7l5 5-5 5"/></svg><span class="n">Replier (arbre)</span><span class="i">replier</span></div>
+</div>
+
+<div class="h"><h2>Arbre de la pièce et affichage</h2></div>
+<div class="g">
+<div class="t"><svg viewBox="0 0 24 24" data-id="oeil" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg><span class="n">Afficher</span><span class="i">oeil</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="oeil-barre" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><path d="M4 4l16 16"/></svg><span class="n">Masquer</span><span class="i">oeil-barre</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="corps-opaque" aria-hidden="true"><circle class="f" cx="12" cy="12" r="7"/></svg><span class="n">Opaque</span><span class="i">corps-opaque</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="corps-transparent" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path class="f" d="M12 5a7 7 0 0 0 0 14z" fill-opacity=".55"/></svg><span class="n">Transparent</span><span class="i">corps-transparent</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="corps-invisible" aria-hidden="true"><circle cx="12" cy="12" r="7" stroke-dasharray="2 2.5"/></svg><span class="n">Invisible</span><span class="i">corps-invisible</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="element-esquisse" aria-hidden="true"><path d="M3 17l9 4 9-4-9-4z"/><path d="M14 3.5l3 3-6 6H8v-3z"/></svg><span class="n">Esquisse (élément)</span><span class="i">element-esquisse</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="element-zone" aria-hidden="true"><path d="M4 7l8-3 8 5-3 11H6z"/><path class="f" d="M4 7l8-3 8 5-3 11H6z" fill-opacity=".25"/></svg><span class="n">Zone</span><span class="i">element-zone</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="element-variable" aria-hidden="true"><path d="M8 4C6 4 5 5 5 7v2c0 1.5-1 3-2 3 1 0 2 1.5 2 3v2c0 2 1 3 3 3M16 4c2 0 3 1 3 3v2c0 1.5 1 3 2 3-1 0-2 1.5-2 3v2c0 2-1 3-3 3"/><path d="M10 10l4 4M14 10l-4 4"/></svg><span class="n">Variable</span><span class="i">element-variable</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="element-corps" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path class="f" d="M12 3l8 4.5-8 4.5-8-4.5z" fill-opacity=".35"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg><span class="n">Corps</span><span class="i">element-corps</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="glisser" aria-hidden="true"><circle class="f" cx="9" cy="6" r="1.4"/><circle class="f" cx="15" cy="6" r="1.4"/><circle class="f" cx="9" cy="12" r="1.4"/><circle class="f" cx="15" cy="12" r="1.4"/><circle class="f" cx="9" cy="18" r="1.4"/><circle class="f" cx="15" cy="18" r="1.4"/></svg><span class="n">Glisser (poignée)</span><span class="i">glisser</span></div>
+</div>
+
+<div class="h"><h2>Fichiers et accueil</h2></div>
+<div class="g">
+<div class="t"><svg viewBox="0 0 24 24" data-id="nouvelle-piece" aria-hidden="true"><path d="M11 3l7 4v4"/><path d="M11 3L4 7v9l7 4"/><path d="M4 7l7 4 7-4M11 11v9"/><path d="M19 14v7M15.5 17.5h7"/></svg><span class="n">Nouvelle pièce</span><span class="i">nouvelle-piece</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="assemblage" aria-hidden="true"><rect x="3" y="11" width="8" height="8"/><rect x="13" y="5" width="8" height="8"/><path d="M11 15h4v-2"/></svg><span class="n">Assemblage</span><span class="i">assemblage</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="dossier" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg><span class="n">Dossier</span><span class="i">dossier</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="nouveau-dossier" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/><path d="M12 11v6M9 14h6"/></svg><span class="n">Nouveau dossier</span><span class="i">nouveau-dossier</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="renommer" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="1.5"/><path d="M20 5v14M18 5h4M18 19h4M7 12h5"/></svg><span class="n">Renommer</span><span class="i">renommer</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="supprimer" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg><span class="n">Supprimer</span><span class="i">supprimer</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="actualiser" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg><span class="n">Actualiser</span><span class="i">actualiser</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="choisir-emplacement" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/><circle cx="12" cy="13" r="2.5"/><path d="M12 15.5V18"/></svg><span class="n">Choisir l'emplacement</span><span class="i">choisir-emplacement</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="filtrer" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg><span class="n">Filtrer / chercher</span><span class="i">filtrer</span></div>
+</div>
+
+<div class="h"><h2>Lecture des étapes</h2></div>
+<div class="g">
+<div class="t"><svg viewBox="0 0 24 24" data-id="etape-premiere" aria-hidden="true"><path d="M6 5v14M18 6l-8 6 8 6z"/></svg><span class="n">Première étape</span><span class="i">etape-premiere</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="etape-precedente" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg><span class="n">Étape précédente</span><span class="i">etape-precedente</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="etape-suivante" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg><span class="n">Étape suivante</span><span class="i">etape-suivante</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="etape-derniere" aria-hidden="true"><path d="M18 5v14M6 6l8 6-8 6z"/></svg><span class="n">Dernière étape</span><span class="i">etape-derniere</span></div>
+</div>
+
+<div class="h"><h2>Plans et caméra</h2><span>choix du plan au début d'une esquisse, navigation</span></div>
+<div class="g">
+<div class="t"><svg viewBox="0 0 24 24" data-id="plan-xy" aria-hidden="true"><path d="M2 16l6-6h14l-6 6z"/></svg><span class="n">Plan XY</span><span class="i">plan-xy</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="plan-xz" aria-hidden="true"><path d="M5 5h14v14H5z"/></svg><span class="n">Plan XZ</span><span class="i">plan-xz</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="plan-yz" aria-hidden="true"><path d="M8 3l8 4v14l-8-4z"/></svg><span class="n">Plan YZ</span><span class="i">plan-yz</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="face-piece" aria-hidden="true"><path class="f" d="M12 3l8 4.5-8 4.5-8-4.5z" fill-opacity=".4"/><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg><span class="n">Face de la pièce</span><span class="i">face-piece</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="plan-decale" aria-hidden="true"><path d="M2 20l5-4h15l-5 4z"/><path d="M2 9l5-4h15l-5 4z" stroke-dasharray="2 2"/><path d="M12 16v-5M10 13l2-2 2 2"/></svg><span class="n">Plan décalé</span><span class="i">plan-decale</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="cube-orientation" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/><path d="M14 8.5l2-1.1M8 11.2l2 1.1" /></svg><span class="n">Cube d'orientation</span><span class="i">cube-orientation</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="vue-origine" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M9 15v-3l3-2.5 3 2.5v3z"/></svg><span class="n">Vue d'origine</span><span class="i">vue-origine</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="orbite" aria-hidden="true"><ellipse cx="12" cy="12" rx="9" ry="4"/><circle cx="12" cy="12" r="2.5"/><path d="M18.5 7.5l2.5 1.5-1.5 2.5"/></svg><span class="n">Orbite</span><span class="i">orbite</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="deplacer" aria-hidden="true"><path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/></svg><span class="n">Déplacer (pan)</span><span class="i">deplacer</span></div>
+<div class="t"><svg viewBox="0 0 24 24" data-id="zoom" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5M8 10.5h5M10.5 8v5"/></svg><span class="n">Zoom</span><span class="i">zoom</span></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -9,6 +9,14 @@
 //! drifts by up to how far apart the axes stand where the walls hold their
 //! circles: two rays of the pair within that drift are one, and which of
 //! the two stays is decided by one rule for the whole pair.
+//!
+//! Only for two walls whose axes cross, or all but, where they hold their
+//! circles. A small wall touching a large one inside, its axis far off the
+//! other's, would be cut along rays from its own axis, as two parallel ones
+//! are; but sampled on them alone, without the steps withheld beside the
+//! line they touch along nor that line taken, a cap's rim and the conic the
+//! small wall leaves on it, each a hair off those rays where the two all but
+//! meet, cross there, and the cap is left uncut (352000000014902).
 
 use std::collections::BTreeMap;
 use std::f64::consts::{PI, TAU};
@@ -53,6 +61,10 @@ pub(super) fn shared(
     let mut withheld: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
     for facing in leaning {
         let walls = facing.walls();
+        let [nearest, farthest] = facing.apart();
+        if nearest > farthest - nearest {
+            continue;
+        }
         let turn = DQuat::from_rotation_arc(walls[1].1.axis, walls[0].1.axis);
         let onto = |side: usize, way: DVec3| match side {
             0 => [way, turn.inverse() * way],
@@ -87,7 +99,7 @@ pub(super) fn shared(
         let angle = |ray: &Ray| ray.ways[0].dot(frame.v).atan2(ray.ways[0].dot(frame.u));
         let radius = walls[0].1.radius.min(walls[1].1.radius);
         let sine = walls[0].1.axis.cross(walls[1].1.axis).length();
-        let drift = facing.apart() / radius + sine;
+        let drift = farthest / radius + sine;
         let mut kept: Vec<Ray> = Vec::with_capacity(rays.len());
         for ray in rays {
             let at = angle(&ray);

@@ -8,7 +8,9 @@
 //!   `the_section_tool_closed_without_saving_leaves_nothing_behind_and_a_sketch_on_its_cut_stays_put`
 //! - A section made, closed, then reopened from the tree comes back on its
 //!   plane, its offset and its ways of drawing —
-//!   `a_saved_section_reopened_from_the_tree_comes_back_on_its_plane_its_offset_and_its_sides`
+//!   `a_saved_section_reopened_from_the_tree_comes_back_on_its_plane_its_offset_and_its_sides`,
+//!   and changed there and kept again by
+//!   `editing_a_saved_section_through_its_panel_keeps_one_section_at_the_new_distance`
 //! - Two sections in one part: switching the second on switches the first off
 //!   — `switching_the_second_section_on_switches_the_first_off`
 //! - Saving and reopening keeps every section, and the part opens with none
@@ -20,27 +22,37 @@
 //!   — no test: held by `a_section_on_a_face_moves_with_the_face_when_a_size_changes`,
 //!   in `crates/part/tests/a_section_is_kept_in_the_part.rs`
 //! - Deleting the face's extrusion leaves the section marked broken and cutting
-//!   nothing; picking another plane mends it — no test: held by
-//!   `a_section_whose_face_is_gone_is_broken_cuts_nothing_and_another_plane_mends_it`,
+//!   nothing; picking another plane mends it —
+//!   `a_section_whose_face_is_gone_reads_face_lost_in_the_tree`; that it cuts
+//!   nothing and is mended by
+//!   `a_section_whose_face_is_gone_is_broken_cuts_nothing_and_another_plane_mends_it`
+//!   and `a_section_whose_face_a_later_step_takes_away_is_broken_and_cuts_nothing`,
 //!   in `crates/part/tests/a_section_is_kept_in_the_part.rs`. Nothing deletes a
 //!   step of matter today, so the face is taken away by erasing the rectangle
 //!   its extrusion was raised from
 //! - The volume and the exported STL of a part are the same with a section
 //!   active as without — no test: held by
-//!   `a_saved_section_leaves_the_volume_and_the_stl_as_they_were`, in
+//!   `a_saved_section_leaves_the_volume_the_stl_and_the_step_as_they_were`, in
 //!   `crates/part/tests/a_section_is_kept_in_the_part.rs`; which section is
 //!   active lives in the viewport, and the export is handed the document alone
 //! - A sketch made on a section moves with it when the section's offset is
 //!   edited, and what was extruded from it is rebuilt — no test: held by
-//!   `a_sketch_on_a_section_moves_with_its_offset_and_what_was_cut_from_it_is_rebuilt`,
+//!   `a_sketch_on_a_section_moves_with_its_offset_and_what_was_cut_from_it_is_rebuilt`
+//!   and, through the file and a compaction,
+//!   `a_sketch_on_a_section_still_follows_it_after_the_caopart_and_a_compaction`,
 //!   in `crates/part/tests/a_section_is_kept_in_the_part.rs`
 //! - Opening that sketch switches its section on; leaving it puts the sections
 //!   back as they were —
 //!   `opening_a_sketch_made_on_a_section_switches_it_on_and_leaving_puts_the_sections_back`
 //! - Deleting a section a sketch stands on asks first —
-//!   `deleting_a_section_a_sketch_stands_on_asks_first`
+//!   `deleting_a_section_a_sketch_stands_on_asks_first`, and the sketch left
+//!   where the question says by
+//!   `deleting_a_section_leaves_the_sketch_on_it_where_it_last_stood` and
+//!   `deleting_a_section_on_a_face_leaves_the_sketch_on_it_where_the_face_had_taken_it`,
+//!   in `crates/part/tests/a_section_is_kept_in_the_part.rs`
 //! - Undo takes back making, editing and deleting a section —
-//!   `undo_takes_back_a_section_saved_from_its_panel`, and the editing and the
+//!   `undo_takes_back_a_section_saved_from_its_panel` and
+//!   `saving_again_after_the_save_was_undone_keeps_a_section_again`, and the editing and the
 //!   deleting by `undo_takes_back_making_editing_and_deleting_a_section`, in
 //!   `crates/part/tests/a_section_is_kept_in_the_part.rs`
 
@@ -472,4 +484,155 @@ fn undo_takes_back_a_section_saved_from_its_panel() {
     );
     assert!(undone, "undo left « Coupe 1 » in the tree");
     assert!(redone, "redo did not bring « Coupe 1 » back");
+}
+
+/// The rows of the tree that name a section, whatever mark they carry.
+fn sections_in_the_tree(app: &driver::App) -> Vec<String> {
+    app.query_all_by_role(egui::accesskit::Role::Button)
+        .filter_map(|node| node.accesskit_node().label())
+        .filter(|read| {
+            read.strip_prefix("Coupe ")
+                .is_some_and(|rest| rest.starts_with(|first: char| first.is_ascii_digit()))
+        })
+        .collect()
+}
+
+#[test]
+fn saving_again_after_the_save_was_undone_keeps_a_section_again() {
+    let mut app = a_block("keeping_a_section_saved_undone_saved");
+    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click(&mut app, "Plan YZ");
+    driver::click_the_button(&mut app, "Enregistrer la coupe");
+    driver::press_with_command(&mut app, egui::Key::Z);
+    assert!(
+        sections_in_the_tree(&app).is_empty() && the_panel_is_open(&app),
+        "undo should leave the panel open and no section in the tree, showing {:?}",
+        driver::on_screen(&app),
+    );
+
+    driver::click_the_button(&mut app, "Enregistrer la coupe");
+
+    assert_eq!(
+        sections_in_the_tree(&app).len(),
+        1,
+        "« Enregistrer la coupe » after an undo kept nothing, showing {:?}",
+        driver::on_screen(&app),
+    );
+}
+
+#[test]
+fn saving_after_the_section_was_deleted_from_the_tree_makes_a_new_one() {
+    let mut app = a_block("keeping_a_section_saved_deleted_saved");
+    driver::click_the_button(&mut app, "Fichiers");
+    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click(&mut app, "Plan YZ");
+    driver::click_the_button(&mut app, "Enregistrer la coupe");
+    right_click(&mut app, "Coupe 1");
+    driver::click_the_button(&mut app, "Supprimer");
+    assert!(
+        sections_in_the_tree(&app).is_empty() && the_panel_is_open(&app),
+        "deleting should leave the panel open and no section in the tree, showing {:?}",
+        driver::on_screen(&app),
+    );
+
+    driver::click_the_button(&mut app, "Enregistrer la coupe");
+
+    assert_eq!(
+        sections_in_the_tree(&app).len(),
+        1,
+        "« Enregistrer la coupe » after the section was deleted kept nothing, showing {:?}",
+        driver::on_screen(&app),
+    );
+}
+
+#[test]
+fn editing_a_saved_section_through_its_panel_keeps_one_section_at_the_new_distance() {
+    let mut app = a_block("keeping_a_section_edited_in_its_panel");
+    save_a_section(&mut app, "Plan YZ");
+    double_click(&mut app, "Coupe 1");
+    let read = driver::fields(&app)[0].clone();
+    driver::type_over(&mut app, &read, "2");
+    driver::click_the_button(&mut app, "Enregistrer la coupe");
+    close_the_panel(&mut app);
+
+    let kept = sections_in_the_tree(&app);
+    double_click(&mut app, "Coupe 1");
+
+    assert_eq!(kept, ["Coupe 1"], "editing the section made another one");
+    assert_eq!(
+        driver::fields(&app),
+        ["2"],
+        "the section edited to 2 came back at another distance",
+    );
+}
+
+/// The rows of the history panel, numbered as it numbers them, each with
+/// whether it reads as the current one.
+fn history_rows(app: &driver::App) -> Vec<(usize, bool)> {
+    app.query_all_by_role(egui::accesskit::Role::Button)
+        .filter_map(|node| {
+            let node = node.accesskit_node();
+            let label = node.label()?;
+            let number = label.split_once(". ")?.0.parse().ok()?;
+            let current = node.toggled() == Some(egui::accesskit::Toggled::True);
+            Some((number, current))
+        })
+        .collect()
+}
+
+#[test]
+fn the_history_still_reads_its_last_row_as_current_once_a_section_is_saved_and_clicking_it_keeps_the_section()
+ {
+    let mut app = a_block("keeping_a_section_history");
+    save_a_section(&mut app, "Plan YZ");
+    driver::open_the_history(&mut app);
+
+    let rows = history_rows(&app);
+    let &(last, current) = rows
+        .iter()
+        .max_by_key(|(number, _)| *number)
+        .unwrap_or_else(|| {
+            panic!(
+                "the history lists no row, showing {:?}",
+                driver::on_screen(&app)
+            )
+        });
+    let label = app
+        .query_all_by_role(egui::accesskit::Role::Button)
+        .filter_map(|node| node.accesskit_node().label())
+        .find(|read| read.starts_with(&format!("{last}. ")))
+        .expect("the last row is on screen");
+    driver::click_exactly(&mut app, &label);
+
+    assert!(
+        current,
+        "with a section saved last, no row of the history reads as current: {rows:?}",
+    );
+    assert!(
+        in_the_tree(&app, "Coupe 1"),
+        "clicking the last row of the history took « Coupe 1 » away",
+    );
+}
+
+#[test]
+fn a_section_whose_face_is_gone_reads_face_lost_in_the_tree() {
+    let mut app = a_block("keeping_a_section_face_lost");
+    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click(&mut app, "Face cliquée");
+    driver::click_at(&mut app, ON_THE_BLOCK);
+    driver::click_the_button(&mut app, "Enregistrer la coupe");
+    close_the_panel(&mut app);
+    double_click(&mut app, "Esquisse 1");
+    driver::click(&mut app, "Sélection (S)");
+    driver::press_with_command(&mut app, egui::Key::A);
+    app.hover_at(egui::pos2(1200.0, 650.0));
+    app.run();
+    driver::press(&mut app, egui::Key::Delete);
+    click_in_the_ribbon(&mut app, "Terminer");
+
+    assert_eq!(
+        sections_in_the_tree(&app),
+        ["Coupe 1 — face perdue"],
+        "the rectangle under the block erased, the section on its face is not marked",
+    );
 }

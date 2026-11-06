@@ -95,12 +95,10 @@ pub struct PartTree {
     pub sections: Vec<Kept>,
 }
 
-/// One section the part keeps.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Kept {
     pub id: usize,
     pub name: String,
-    /// Whether the face it was laid on is gone, which leaves it cutting nothing.
     pub broken: bool,
 }
 

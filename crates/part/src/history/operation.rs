@@ -18,7 +18,8 @@ use crate::{formula::Formula, variables::VariableChange};
 /// the whole part, which is what makes rolling back to any point possible.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Operation {
-    /// Several operations done as one gesture: replayed in order, undone whole.
+    /// Several operations the user did as one gesture: they are replayed in
+    /// order, and undo takes the whole of it back rather than a piece.
     Gesture(Vec<Operation>),
     /// A change to the part's variables. It belongs to no step: the variables
     /// are a table of the whole part, which every step reads its sizes from.
@@ -392,7 +393,6 @@ pub enum Operation {
     DeleteSection {
         section: usize,
     },
-    /// A drawing on a kept section's cut, following it; `plane` is the cut as made.
     CreateSketchOnSection {
         section: usize,
         plane: WorkPlane,

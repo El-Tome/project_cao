@@ -31,10 +31,15 @@ impl Section {
     }
 
     /// Keeps the section in the part: a new one, or the one it was reopened
-    /// from, changed. Kept again later, it changes the same one.
+    /// from, changed. Kept again later, it changes the same one — while the
+    /// part still has it: undone or deleted, keeping it makes a new one.
     pub(crate) fn keep_in(&mut self, document: &mut PartDocument) {
         let to = self.asked();
-        match self.editing {
+        let standing = document.sections();
+        let editing = self
+            .editing
+            .filter(|section| standing.iter().any(|kept| kept.id == *section));
+        match editing {
             Some(section) => {
                 document.apply(Operation::EditSection { section, to });
             }

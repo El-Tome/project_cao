@@ -10,7 +10,7 @@ use crate::descent::Descent;
 use crate::history::{History, Operation, PointRef};
 use crate::outcome::Outcome;
 use crate::replay::Replay;
-use crate::sections::SavedSection;
+use crate::sections::Kept;
 use crate::variables::Variables;
 
 /// The geometry of a part at a given point in its history.
@@ -30,9 +30,9 @@ pub struct PartState {
     /// quietly catch another face.
     #[serde(default)]
     pub adrift: BTreeSet<usize>,
-    /// Every section ever made, by rank; a deleted one leaves its place empty.
+    /// Every section ever made, by rank, a deleted one among them.
     #[serde(default)]
-    pub(crate) sections: Vec<Option<SavedSection>>,
+    pub(crate) sections: Vec<Kept>,
     /// What each drawing's curves became, as the replay cut them. It is what
     /// lets a step of matter find the area it was raised from after a corner
     /// of that area has been rounded or a border of it divided.

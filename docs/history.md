@@ -220,15 +220,19 @@ exports are what they are without it. The history panel leaves these
 operations out — it lists what was done to the drawing or the matter.
 
 A section is named by its rank among the sections ever made, the way a sketch
-is, so deleting one leaves the others' names alone. Its plane is found again at
-every replay from the part as it then stands, through the face it was laid on;
-a face the part no longer has leaves the section broken, cutting nothing, until
-it is moved to another plane.
+is, so deleting one leaves the others' names alone. Its step replays before
+everything raised after it, so the replay keeps only what the section was last
+asked to be, and its face is looked for where the section is used: on the part
+as it stands for the tree and the view, on the part as the replay has built it
+for a drawing laid on it. A face the part no longer has leaves the section
+broken, cutting nothing, until it is moved to another plane.
 
 A drawing started on the cut of a kept section opens its step with
 `CreateSketchOnSection`, written in the index as a sketch line carrying
-`"section": n`. It follows the section, replayed after it, and is adrift where
-it was laid when the section is broken or deleted. A drawing started on the cut
+`"section": n`. It follows the section, and is adrift where it was laid when
+the section's face is gone. Deleting the section takes it out of the tree and
+out of reach of any change, but leaves the drawing standing where the section
+put it: on the plane it last cut along, or on its face as the part carries it. A drawing started on the cut
 of a section view never kept is a plain `CreateSketch` on a fixed plane.
 
 Which section is switched on is the viewport's, never the file's: a part opens

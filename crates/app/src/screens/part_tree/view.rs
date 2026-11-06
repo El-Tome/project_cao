@@ -8,6 +8,7 @@ use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
 use crate::ui::eye::eye;
 use crate::ui::floating_panel::panel_row;
+use crate::ui::question::{Question, ask};
 use crate::wording::part_tree as said;
 
 /// What the tree reads to mark its rows, and the one thing asked of it.
@@ -127,31 +128,15 @@ fn section(ui: &mut egui::Ui, kept: &Kept, asked: &mut Asked<'_>, lang: &Catalog
     });
 }
 
-/// The question asked before deleting a section a drawing stands on:
-/// `Some(true)` once confirmed, `Some(false)` once backed out of, `None` while
-/// the user has not decided.
-pub fn section_delete_confirm(ui: &mut egui::Ui, lang: &Catalogue) -> Option<bool> {
-    let mut decision = None;
-    let modal = egui::Modal::new(egui::Id::new("section_delete_confirm")).show(ui.ctx(), |ui| {
-        ui.heading(lang.t("part_tree.delete_section_title"));
-        ui.label(lang.t("part_tree.delete_section_body"));
-        ui.add_space(8.0);
-        ui.horizontal(|ui| {
-            if ui.button(lang.t("part_tree.delete")).clicked() {
-                decision = Some(true);
-            }
-            if ui
-                .button(lang.t("part_tree.delete_section_cancel"))
-                .clicked()
-            {
-                decision = Some(false);
-            }
-        });
-    });
-    if decision.is_none() && modal.should_close() {
-        decision = Some(false);
-    }
-    decision
+/// The question asked before deleting a section a drawing stands on.
+pub fn section_delete_confirm(ui: &egui::Ui, lang: &Catalogue) -> Option<bool> {
+    let question = Question {
+        title: lang.t("part_tree.delete_section_title"),
+        body: lang.t("part_tree.delete_section_body"),
+        yes: lang.t("part_tree.delete"),
+        no: lang.t("part_tree.delete_section_cancel"),
+    };
+    ask(ui, "section_delete_confirm", &question)
 }
 
 fn made_of_matter(ui: &mut egui::Ui, body: &Body, asked: &mut Asked<'_>, lang: &Catalogue) {

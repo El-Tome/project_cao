@@ -3,6 +3,7 @@ use cao_part::feature::Feature;
 use cao_part::history::Operation;
 
 use crate::lang::Catalogue;
+use crate::ui::question::{Question, ask};
 use crate::wording;
 
 /// The yellow the shell already writes its messages in.
@@ -142,33 +143,15 @@ fn show(
 }
 
 /// The compaction warning: `Some(true)` once confirmed, `Some(false)` once
-/// backed out of (including by the backdrop or Escape), `None` while the user
-/// has not yet decided.
-fn compact_confirm(ui: &mut egui::Ui, lang: &Catalogue) -> Option<bool> {
-    let mut decision = None;
-    let modal = egui::Modal::new(egui::Id::new("history_compact_confirm")).show(ui.ctx(), |ui| {
-        ui.heading(lang.t("history_tree.compact_confirm_title"));
-        ui.label(lang.t("history_tree.compact_confirm_body"));
-        ui.add_space(8.0);
-        ui.horizontal(|ui| {
-            if ui
-                .button(lang.t("history_tree.compact_confirm_ok"))
-                .clicked()
-            {
-                decision = Some(true);
-            }
-            if ui
-                .button(lang.t("history_tree.compact_confirm_cancel"))
-                .clicked()
-            {
-                decision = Some(false);
-            }
-        });
-    });
-    if decision.is_none() && modal.should_close() {
-        decision = Some(false);
-    }
-    decision
+/// backed out of, `None` while the user has not yet decided.
+fn compact_confirm(ui: &egui::Ui, lang: &Catalogue) -> Option<bool> {
+    let question = Question {
+        title: lang.t("history_tree.compact_confirm_title"),
+        body: lang.t("history_tree.compact_confirm_body"),
+        yes: lang.t("history_tree.compact_confirm_ok"),
+        no: lang.t("history_tree.compact_confirm_cancel"),
+    };
+    ask(ui, "history_compact_confirm", &question)
 }
 
 /// Shows a run of history lines, returning where to rewind to if one was
@@ -191,15 +174,18 @@ fn clicked_step(
             .history
             .number_at(step)
             .and_then(|number| document.capped_at(number));
+        // The sections kept right after a line are read with it: it is current
+        // while they are in effect, and going back to it keeps the ones that are.
+        let ends = Feature::line_ends(&document.history, step);
         if entry(
             ui,
             document.variables(),
             (operation, capped),
-            step,
+            (step, ends),
             applied,
             lang,
         ) {
-            clicked = Some(step + 1);
+            clicked = Some(applied.clamp(step + 1, ends));
         }
     }
     clicked
@@ -212,11 +198,11 @@ fn entry(
     ui: &mut egui::Ui,
     variables: &cao_part::Variables,
     (operation, capped): (&Operation, Option<cao_part::Capped>),
-    step: usize,
+    (step, ends): (usize, usize),
     applied: usize,
     lang: &Catalogue,
 ) -> bool {
-    let is_current = step + 1 == applied;
+    let is_current = step < applied && applied <= ends;
     let undone = step >= applied;
 
     let mut text = egui::RichText::new(format!(

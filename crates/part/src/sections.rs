@@ -1,5 +1,9 @@
 //! The sections kept in a part: planes it is looked through, found again on the
-//! part as it stands at every replay, and which drawings can be laid on.
+//! part as it stands, and which drawings can be laid on.
+//!
+//! A drawing laid on one, `Operation::CreateSketchOnSection`, follows its cut,
+//! and keeps the cut as it was when laid to fall back on when the section cuts
+//! nothing.
 
 use cao_sketch::{Sketch, WorkPlane};
 use serde::{Deserialize, Serialize};
@@ -34,33 +38,43 @@ impl SavedSection {
     }
 }
 
+/// A section as the history leaves it: what it was last asked to be, its face
+/// not yet found. The face is looked for where the section is used — on the
+/// part as it stands for the tree, on the part a drawing is laid on for that
+/// drawing — since the section's own step replays before what was raised after
+/// it.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub(crate) struct Kept {
+    asked: SectionAsked,
+    /// Gone from the tree and changed no more, but the drawings laid on it
+    /// still stand where it puts them.
+    deleted: bool,
+}
+
 impl PartState {
     /// Keeps, changes or drops a section, or lays a drawing on one. None of it
     /// touches the matter.
     pub(crate) fn apply_to_sections(&mut self, operation: &Operation) {
         match operation {
-            Operation::SaveSection(asked) => {
-                let kept = self.section_from(self.sections.len(), asked);
-                self.sections.push(Some(kept));
-            }
+            Operation::SaveSection(asked) => self.sections.push(Kept {
+                asked: *asked,
+                deleted: false,
+            }),
             Operation::EditSection { section, to } => {
-                let kept = self.section_from(*section, to);
-                if let Some(slot @ Some(_)) = self.sections.get_mut(*section) {
-                    *slot = Some(kept);
+                if let Some(kept) = self.sections.get_mut(*section).filter(|kept| !kept.deleted) {
+                    kept.asked = *to;
                 }
             }
             Operation::DeleteSection { section } => {
-                if let Some(slot) = self.sections.get_mut(*section) {
-                    *slot = None;
+                if let Some(kept) = self.sections.get_mut(*section) {
+                    kept.deleted = true;
                 }
             }
             Operation::CreateSketchOnSection { section, plane } => {
                 let cut = self
                     .sections
                     .get(*section)
-                    .copied()
-                    .flatten()
-                    .and_then(|kept| kept.cutting_plane())
+                    .and_then(|kept| self.found(*section, kept).cutting_plane())
                     .map(|cut| facing_as(cut, plane));
                 if cut.is_none() {
                     self.adrift.insert(self.sketches.len());
@@ -71,16 +85,27 @@ impl PartState {
         }
     }
 
-    fn section_from(&self, id: usize, asked: &SectionAsked) -> SavedSection {
-        let found = asked.on.as_ref().map(|anchor| self.face_now(anchor));
+    /// The sections still kept, each found on the part as it stands.
+    pub(crate) fn sections_standing(&self) -> Vec<SavedSection> {
+        self.sections
+            .iter()
+            .enumerate()
+            .filter(|(_, kept)| !kept.deleted)
+            .map(|(id, kept)| self.found(id, kept))
+            .collect()
+    }
+
+    fn found(&self, id: usize, kept: &Kept) -> SavedSection {
+        let asked = &kept.asked;
+        let face = asked.on.as_ref().map(|anchor| self.face_now(anchor));
         SavedSection {
             id,
-            plane: found.flatten().unwrap_or(asked.plane),
+            plane: face.flatten().unwrap_or(asked.plane),
             on: asked.on,
             offset: asked.offset,
             behind: asked.behind,
             in_front: asked.in_front,
-            broken: matches!(found, Some(None)),
+            broken: matches!(face, Some(None)),
         }
     }
 }

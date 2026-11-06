@@ -6,9 +6,10 @@ use crate::history::{Operation, StepKind};
 use crate::sections::SavedSection;
 
 impl PartDocument {
-    /// The sections the part keeps, in the order they were made.
+    /// The sections the part keeps, in the order they were made, each found
+    /// on the part as it stands now.
     pub fn sections(&self) -> Vec<SavedSection> {
-        self.state.sections.iter().flatten().copied().collect()
+        self.state.sections_standing()
     }
 
     /// The kept section a drawing was laid on, when it was laid on one.
@@ -20,7 +21,7 @@ impl PartDocument {
     }
 
     /// Whether a drawing stands on that section, which deleting it would leave
-    /// adrift.
+    /// following nothing more.
     pub fn is_stood_on(&self, section: usize) -> bool {
         self.sketch_openings().any(|opening| {
             matches!(opening, Operation::CreateSketchOnSection { section: under, .. } if *under == section)

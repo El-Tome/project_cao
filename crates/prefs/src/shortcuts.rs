@@ -285,6 +285,7 @@ impl Default for Shortcuts {
             bindings: vec![
                 (C::Undo, Chord::new(Key::Z).cmd()),
                 (C::Redo, Chord::new(Key::Z).cmd().shift()),
+                (C::SelectAll, Chord::new(Key::A).cmd()),
                 (C::NewSketch, Chord::new(Key::N).cmd()),
                 (C::FinishSketch, Chord::new(Key::Enter)),
                 (C::RecenterOnSketch, Chord::new(Key::F)),

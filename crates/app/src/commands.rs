@@ -8,7 +8,8 @@ use crate::screens::extrusion::apply_extrusion;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::{
-    ViewportState, corner_picks_with, swap_held_chamfer, switch_held_cuts, take_up_the_copy,
+    ViewportState, corner_picks_with, swap_held_chamfer, switch_held_cuts, take_everything,
+    take_up_the_copy,
 };
 use crate::{screens, wording};
 
@@ -105,6 +106,10 @@ pub(crate) fn run(
         }
         Command::ToolSelect => {
             tool(editor, Tool::Select);
+            false
+        }
+        Command::SelectAll => {
+            take_everything(editor, doc);
             false
         }
         Command::ToolLine => {

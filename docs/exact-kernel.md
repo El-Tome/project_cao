@@ -243,10 +243,11 @@ It can:
   not a number, nought or less, or shorter than four `Scale::HAIR`
   tolerances — and on how far the round taken would stand off the two faces
   at the middle of its turn, where it stands furthest from both,
-  `r · (1 − sin(α/2))`. The second is what an edge bent nearly flat makes
-  small at any radius it gives: on a part of 30 bent to 179.9°, the round
+  `r · (1 − sin(α/2))`. The second grows with the radius, and an edge bent
+  nearly flat keeps it small: on a part of 30 bent to 179.9°, the round
   stands off the two halves by under four tenths of a millionth of its
-  radius, and a radius under about 6.3 is declined. Within about one
+  radius, so a radius under about 6.3 is declined, and a larger one, up to
+  the 17 189 the halves give, rounds the edge soundly. Within about one
   tolerance of the faces the kernel reads the round onto them: on fronts
   bent from 170° to 179.9°, such a round came back flat on one of the
   halves, or was declined for another reason — `Unverified`, `Tie`,

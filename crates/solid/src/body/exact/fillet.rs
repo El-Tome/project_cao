@@ -11,20 +11,22 @@ use crate::profile::{Contour, Run};
 
 impl Exact {
     /// The body with the edge a name finds rounded off by a cylinder of
-    /// `radius`, or of the largest radius the edge's two faces give, tangent
-    /// to both, and the radius taken: each face stops where the round takes
-    /// over, set back by the radius over the tangent of half the angle they
-    /// meet at. The round is numbered where the steps' numbers ended.
-    /// Declined `Distance`: a radius that is no length, or one whose round
-    /// would stand off the faces it replaces by less than the kernel can set
-    /// a cut back by. `Lost`: an edge its name no longer finds. `Unsupported`:
-    /// an edge that is not straight between two flat faces meeting outwards,
-    /// one running on tangentially into the next edge of a face, and a cut
-    /// that left anything but its round — a face of the prism, the round in
-    /// two pieces or with a corner on neither of the edge's faces, a face the
-    /// body held, but the edge's two, taken away whole — as where a round
-    /// leaving the edge's end outwards bulges past the edge's face, and the
-    /// prism's wall square to that face cuts the bulge off.
+    /// `radius`, or of the largest radius the edge's two faces give, tangent to
+    /// both, and the radius taken: each face stops where the round takes over,
+    /// set back by the radius over the tangent of half the angle they meet at.
+    /// The round is numbered where the steps' numbers ended. Declined
+    /// `Distance`: a radius that is no length, one whose round would stand off
+    /// the faces it replaces by less than the kernel can set a cut back by — a
+    /// larger radius stands further off, and on an edge bent nearly flat is
+    /// what rounds it — and a round the kernel read onto those faces even so.
+    /// `Lost`: an edge its name no longer finds. `Unsupported`: an edge that is
+    /// not straight between two flat faces meeting outwards, one running on
+    /// tangentially into the next edge of a face, and a cut that left anything
+    /// but its round — a face of the prism, the round in two pieces or with a
+    /// corner on neither of the edge's faces, a face the body held, but the
+    /// edge's two, taken away whole — as where a round leaving the edge's end
+    /// outwards bulges past the edge's face, and the prism's wall square to
+    /// that face cuts the bulge off.
     pub fn filleted(&self, name: &EdgeName, radius: f64) -> Result<(Exact, f64), Declined> {
         let (cut, taken) = self.cut_off(
             name,
@@ -90,8 +92,8 @@ impl Wedge {
     /// over the body's box along the edge's line and a margin past either
     /// end. Declined `Distance` where the round would stand off the two faces
     /// by less than the kernel can set a cut back by: within that, the kernel
-    /// reads it onto them, and an edge bent nearly flat gives a round of a
-    /// large radius that little.
+    /// reads it onto them. How far it stands grows with the radius, and an
+    /// edge bent nearly flat needs a large one to stand clear.
     fn rounded(
         &self,
         radius: f64,

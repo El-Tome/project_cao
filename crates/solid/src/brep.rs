@@ -99,11 +99,15 @@ pub enum Declined {
     Lost(Lost),
     /// A chamfer's distance (#696) or a fillet's radius (#697) that is no
     /// length the kernel can set a cut back by: not a number, nought or less,
-    /// or within a few `Scale::HAIR` tolerances, where the kernel would read
-    /// the cut back onto the edge. A chamfer's distance is measured as it is
-    /// asked; a fillet's radius both so and by how far its round would stand
-    /// off the edge's two faces at the middle of its turn, which an edge
-    /// bent nearly flat makes small at any radius it gives.
+    /// or within a few `Scale::HAIR` tolerances of what the cut replaces,
+    /// where the kernel would read it back onto that — a chamfer onto its
+    /// edge, a fillet's round onto the edge's two faces. A chamfer's distance
+    /// is measured as it is asked. A fillet's radius is measured so too, and
+    /// by how far its round would stand off the two faces at the middle of
+    /// its turn, which grows with the radius: on an edge bent nearly flat a
+    /// small radius stands too near them, and a larger one, up to the most
+    /// the faces give, rounds the edge. A fillet whose round the kernel read
+    /// onto the faces even so, no face of its own, is declined so too.
     Distance,
 }
 

@@ -62,9 +62,8 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// is laid exactly so (#577). 21: a cone meets a cylinder, an elliptic wall
 /// or another cone off its axis along the curve read along its rulings,
 /// where the kernel declined it (#577). 22: a face of a wall wider than a
-/// turn, a meet with two samples beside its end, and a conic sampled on a
-/// wall it crosses are cut into triangles, where the step was declined as
-/// undrawn (#707).
+/// turn and a meet with two samples beside its end are cut into triangles,
+/// where the step was declined as undrawn (#707).
 const REBUILT_BY: u32 = 22;
 
 #[derive(Serialize, Deserialize)]

@@ -270,17 +270,18 @@ impl<'a> Zones<'a> {
     }
 
     /// The same for a sample of a conic, but for one on the other wall
-    /// itself, within `eps`, of two walls not decided to touch: it stands on
-    /// the line they cross along, which both take, and withheld, the conic's
-    /// chord would pass a corner there on the wrong side (28743870519278).
+    /// itself, within the kernel's tolerance, of two walls not decided to
+    /// touch: it stands on the line they cross along, which both take, and
+    /// withheld, the conic's chord would pass a corner there on the wrong
+    /// side (28743870519278).
     pub(in crate::brep::tessellation) fn crowded_beside_the_line(
         &self,
         cylinder: &Cylinder,
         point: DVec3,
-        eps: f64,
     ) -> bool {
         self.crowding(*cylinder, point).any(|facing| {
-            facing.gap.touch() || facing.gap.other(cylinder).distance(point).abs() > eps
+            facing.gap.touch()
+                || facing.gap.other(cylinder).distance(point).abs() > facing.body.scale().eps()
         })
     }
 

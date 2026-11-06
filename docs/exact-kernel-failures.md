@@ -3481,9 +3481,10 @@ nearly parallel in #552's band, 11 one nearly square.
   at every other angle tried and with either hair alone — fixed: `folds`
   flipped a diagonal on a round face across two steps of the grid, its
   chord sagging four times the tolerance; a diagonal whose middle stands
-  further from the surface than the tolerance is no longer taken. A bound
-  on its span in angle, half again the widest side's, was tried first and
-  left folds on five seeds `main` holds.
+  further from the surface than the tolerance, and than the old diagonal's
+  middle, is no longer taken. A bound on its span in angle, half again the
+  widest side's, was tried first and left folds on five seeds `main`
+  holds.
 - **A triple contact** — a pocket touching a block's side along a line
   and a bore at 75° reaching that very line (106731298824406). A conic
   seen on a skew wall a hair beside its plane, and a meet on a plane a
@@ -3547,9 +3548,9 @@ What is left, by family:
   conic, their chords crossing at the vertex (93075255850420); a cone's
   rim touching the body's wall within the tolerance (122431270514586 —
   fixed: two samples of a meet a few tolerances off its end vertex, out
-  of order, are now merged into the end within a hair; only into an end,
-  since merging any two samples that close drops the grid angle of one of
-  two walls a hair apart, and the face is left uncut, 25875769010204); a
+  of order, are now merged into either end within a hair; only into an
+  end, since merging any two samples that close drops the grid angle of one
+  of two walls a hair apart, and the face is left uncut, 25875769010204); a
   ruling crossing a curve sampled coarse on a wide wall (28743870519278 —
   fixed: a sample of a conic lying on a parallel wall the conic's wall
   crosses was withheld as crowded; it stands on the line both walls take);

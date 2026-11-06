@@ -20,8 +20,10 @@
 //! lies on another face or passes through one — a chord of a round a hair off
 //! a vertex of the face beside it sinks under it by a fraction of the
 //! tolerance; nor where its middle stands further from a round surface than
-//! the tolerance — across two steps of the grid, a chord sags four times as
-//! far as across one (86751972229989). Where the diagonal runs into a point
+//! the tolerance and than the old diagonal's middle — across two steps of
+//! the grid, a chord sags four times as far as across one (86751972229989),
+//! but beside a line two walls touch along, where folds arise, a cell wider
+//! than a step sags as far either way. Where the diagonal runs into a point
 //! of the boundary, the triangle beyond is cut the other way first; where a
 //! triangle it makes is held by one of another face, that one is cut the
 //! other way too, and the two flips stand or fall together. Two faces whose
@@ -72,7 +74,8 @@ const CLEAR: f64 = 1e-2;
 const ROUNDINGS: f64 = 1e3;
 
 /// Undoes every fold between the faces of `drawn`, as far as a diagonal
-/// standing within `tolerance` of its face's surface can.
+/// standing within `tolerance` of its face's surface, or no further than the
+/// one it replaces, can.
 pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64, tolerance: f64) {
     let mut folds = Folds {
         drawn,

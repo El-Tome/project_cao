@@ -20,7 +20,9 @@
 //!   out of order —
 //!   `a_pin_widening_by_a_cone_astride_a_disc_s_wall_is_drawn_closed`, and
 //!   `seed_122431270514586_a_slanted_case_is_drawn_closed` in
-//!   `random_turned_solids.rs`, un-ignored
+//!   `random_turned_solids.rs`, un-ignored; beside the last vertex as well
+//!   as the first —
+//!   `the_pin_astride_the_disc_s_wall_mirrored_is_drawn_closed`
 //! - 28743870519278, `Closed`: a conic sample lying on another wall withheld
 //!   as crowded — `two_turned_cuts_and_a_leaning_slab_are_drawn_closed`, and
 //!   `seed_28743870519278_a_tilted_case_is_drawn_closed` in
@@ -42,6 +44,24 @@ fn a_pin_widening_by_a_cone_astride_a_disc_s_wall_is_drawn_closed() {
         vec![Step::add(Leaf::turned(
             Plane::xy(-2.0),
             Axis::second(14.5).backwards(),
+            Section::bands(-9.0, &[[6.5, 0.0, 1.5], [0.5, 0.0, 1.5]])
+                .sloping_to(&[[0.0, 1.5], [0.0, 2.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// The same pin and disc mirrored across `x = 0`: the meet runs the other
+/// way along the curve, and the strays at its stationary angle stand
+/// beside the last vertex of the meet rather than the first. Both ends take
+/// the places within a hair of them.
+#[test]
+fn the_pin_astride_the_disc_s_wall_mirrored_is_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(0.0), Outline::circle([-8.0, 0.0], 6.5), -7.0),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(-2.0),
+            Axis::second(-14.5).backwards(),
             Section::bands(-9.0, &[[6.5, 0.0, 1.5], [0.5, 0.0, 1.5]])
                 .sloping_to(&[[0.0, 1.5], [0.0, 2.0]]),
             360.0,

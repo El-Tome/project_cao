@@ -130,22 +130,25 @@ impl Outline {
             .map(|(ids, raw)| Lap::from(raw, ids, 0, raw[0].x))
             .collect();
         if laid.iter().all(|lap| lap.turns == 0) {
-            let outer = laid
+            let (outer_at, outer) = laid
                 .iter()
-                .max_by(|one, other| one.area().total_cmp(&other.area()))?;
+                .enumerate()
+                .max_by(|(_, one), (_, other)| one.area().total_cmp(&other.area()))?;
             let low = outer.lowest();
             let ring: Vec<DVec2> = outer.placed.iter().map(|(at, _)| *at).collect();
             let high = ring.iter().map(|at| at.x).fold(f64::NEG_INFINITY, f64::max);
             let sides: Vec<[usize; 2]> = (1..ring.len()).map(|at| [at - 1, at]).collect();
-            for ((ids, raw), lap) in laps.iter().zip(raws).zip(&laid) {
+            for (at, ((ids, raw), lap)) in laps.iter().zip(raws).zip(&laid).enumerate() {
                 let first = ((low - lap.lowest()) / TAU).ceil();
                 let copy =
                     |turns: f64| Lap::from(raw, ids, 0, lap.placed[0].0.x + TAU * turns).placed;
+                if at == outer_at {
+                    self.chain(&copy(first));
+                    continue;
+                }
                 let placed = (0..)
                     .map(|more| first + f64::from(more))
-                    .take_while(|turns| {
-                        !std::ptr::eq(lap, outer) && lap.lowest() + TAU * turns <= high
-                    })
+                    .take_while(|turns| lap.lowest() + TAU * turns <= high)
                     .map(copy)
                     .find(|placed| {
                         placed

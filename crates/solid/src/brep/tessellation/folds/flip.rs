@@ -141,8 +141,12 @@ impl Folds<'_> {
             return None;
         }
         let drawn = &self.drawn[face];
-        let [c_at, d_at] = [c, d].map(|corner| self.samples.point(drawn.outline.samples[corner]));
-        if drawn.surface.distance((c_at + d_at) / 2.0).abs() > self.tolerance {
+        let sag = |one: usize, other: usize| {
+            let [one, other] =
+                [one, other].map(|corner| self.samples.point(drawn.outline.samples[corner]));
+            drawn.surface.distance((one + other) / 2.0).abs()
+        };
+        if sag(c, d) > self.tolerance.max(sag(u, v) + self.eps) {
             return None;
         }
         self.replace(at, partner, [c, u, d], [c, d, v]);

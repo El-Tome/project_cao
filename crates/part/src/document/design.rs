@@ -29,9 +29,13 @@ use serde::{Deserialize, Serialize};
 use crate::errors::PartFileError;
 use crate::formula::Formula;
 use crate::history::{
-    ExtrusionMode, FaceAnchor, History, Index, Operation, RevolutionAxis, Step, StepKind,
+    ExtrusionMode, FaceAnchor, History, Index, Operation, RevolutionAxis, SideDrawing, Step,
+    StepKind,
 };
 use crate::variables::VariableChange;
+use opening::{kind_of, put_together, taken_apart};
+
+mod opening;
 
 pub(super) const INDEX_ENTRY: &str = "design/history.json";
 /// The changes made to the part's variables. A table of the whole part rather
@@ -46,6 +50,9 @@ enum Stands {
         plane: WorkPlane,
         #[serde(default)]
         on: Option<FaceAnchor>,
+        /// The kept section it was laid on, which it follows.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        section: Option<usize>,
     },
     Extrusion {
         sketch: usize,
@@ -55,6 +62,11 @@ enum Stands {
         sketch: usize,
         areas: Vec<Area>,
         axis: RevolutionAxis,
+    },
+    Section {
+        plane: WorkPlane,
+        #[serde(default)]
+        on: Option<FaceAnchor>,
     },
 }
 
@@ -70,6 +82,11 @@ enum Opening {
     Revolution {
         angle: Formula,
         mode: ExtrusionMode,
+    },
+    Section {
+        offset: f64,
+        behind: SideDrawing,
+        in_front: SideDrawing,
     },
 }
 
@@ -238,6 +255,7 @@ struct Ranks {
     sketches: usize,
     extrusions: usize,
     revolutions: usize,
+    sections: usize,
 }
 
 impl Ranks {
@@ -246,95 +264,11 @@ impl Ranks {
             StepKind::Sketch => &mut self.sketches,
             StepKind::Extrusion => &mut self.extrusions,
             StepKind::Revolution => &mut self.revolutions,
+            StepKind::Section => &mut self.sections,
         };
         *seen += 1;
         format!("design/{}-{}/steps.json", kind.folder(), *seen - 1)
     }
-}
-
-fn kind_of(stands_on: &Stands) -> StepKind {
-    match stands_on {
-        Stands::Sketch { .. } => StepKind::Sketch,
-        Stands::Extrusion { .. } => StepKind::Extrusion,
-        Stands::Revolution { .. } => StepKind::Revolution,
-    }
-}
-
-/// The operation opening a step, split into what the index holds and what its
-/// folder keeps.
-fn taken_apart(opening: &Operation) -> Result<(Stands, Option<Opening>), PartFileError> {
-    Ok(match opening {
-        Operation::CreateSketch { plane, on } => (
-            Stands::Sketch {
-                plane: *plane,
-                on: *on,
-            },
-            None,
-        ),
-        Operation::Extrude {
-            sketch,
-            areas,
-            distance,
-            mode,
-        } => (
-            Stands::Extrusion {
-                sketch: *sketch,
-                areas: areas.clone(),
-            },
-            Some(Opening::Extrusion {
-                distance: distance.clone(),
-                mode: *mode,
-            }),
-        ),
-        Operation::Revolve {
-            sketch,
-            areas,
-            axis,
-            angle,
-            mode,
-        } => (
-            Stands::Revolution {
-                sketch: *sketch,
-                areas: areas.clone(),
-                axis: *axis,
-            },
-            Some(Opening::Revolution {
-                angle: angle.clone(),
-                mode: *mode,
-            }),
-        ),
-        _ => return Err(PartFileError::BrokenDesign),
-    })
-}
-
-/// The same operation, back in one piece.
-fn put_together(stands_on: Stands, opening: Option<Opening>) -> Result<Operation, PartFileError> {
-    Ok(match (stands_on, opening) {
-        (Stands::Sketch { plane, on }, None) => Operation::CreateSketch { plane, on },
-        (Stands::Extrusion { sketch, areas }, Some(Opening::Extrusion { distance, mode })) => {
-            Operation::Extrude {
-                sketch,
-                areas,
-                distance,
-                mode,
-            }
-        }
-        (
-            Stands::Revolution {
-                sketch,
-                areas,
-                axis,
-            },
-            Some(Opening::Revolution { angle, mode }),
-        ) => Operation::Revolve {
-            sketch,
-            areas,
-            axis,
-            angle,
-            mode,
-        },
-        _ => return Err(PartFileError::BrokenDesign),
-    })
 }
 
 #[cfg(test)]

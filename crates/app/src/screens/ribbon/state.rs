@@ -29,6 +29,9 @@ pub struct Ribbon {
     /// rather than only in the panel's own frame, so the warning survives to
     /// the next one instead of closing the moment the mouse moves.
     pub history_compact_confirm: bool,
+    /// The kept section the tree is asking to confirm the deletion of, held
+    /// here for the reason the compaction's question is.
+    pub section_delete_confirm: Option<usize>,
     /// Whether the viewport's section view is on, so its button shows pressed.
     pub section_on: bool,
 }
@@ -41,6 +44,7 @@ impl Ribbon {
             history_open: false,
             variables_open: false,
             history_compact_confirm: false,
+            section_delete_confirm: None,
             section_on: false,
         }
     }

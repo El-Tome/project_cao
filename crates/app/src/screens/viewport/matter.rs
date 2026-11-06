@@ -50,7 +50,7 @@ pub(crate) fn drawn<'a>(
 /// What a frame draws of the part: the sketch's own cut while a sketch is
 /// edited, the section's while one is on, the part whole otherwise.
 pub(crate) fn shown<'a>(state: &ViewportState, editor: &SketchEditor, body: &'a Body) -> Drawn<'a> {
-    match &state.section {
+    match state.section_shown() {
         Some(section) if editor.active_sketch().is_none() => {
             state.sections.sectioned(section, body)
         }

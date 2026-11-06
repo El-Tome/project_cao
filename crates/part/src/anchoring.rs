@@ -31,7 +31,7 @@ impl PartState {
     }
 
     /// The plane the anchored face offers as the part stands now.
-    fn face_now(&self, anchor: &FaceAnchor) -> Option<WorkPlane> {
+    pub(crate) fn face_now(&self, anchor: &FaceAnchor) -> Option<WorkPlane> {
         let face = self.body.plane_of(anchor.face)?;
         Some(WorkPlane::from_face(&face.corners, face.normal, anchor.up))
     }

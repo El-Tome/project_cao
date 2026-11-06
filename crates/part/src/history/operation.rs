@@ -8,19 +8,11 @@ use cao_sketch::{
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
-use crate::formula::Formula;
-use crate::variables::VariableChange;
-
-mod cut_change;
-mod edits;
-mod point_ref;
-mod raising;
-mod sizes;
-pub use cut_change::{CutAsked, CutChange};
-pub use point_ref::PointRef;
-pub use raising::{ExtrusionMode, FaceAnchor, RevolutionAxis};
-pub(crate) use sizes::FirstValue;
-pub use sizes::{ChamferAsked, RepeatsAsked};
+use super::{
+    ChamferAsked, CutChange, ExtrusionMode, FaceAnchor, PointRef, RepeatsAsked, RevolutionAxis,
+    SectionAsked,
+};
+use crate::{formula::Formula, variables::VariableChange};
 
 /// One step of the part's history. Replaying the list from the start rebuilds
 /// the whole part, which is what makes rolling back to any point possible.
@@ -393,4 +385,16 @@ pub enum Operation {
     },
     /// A fillet or a chamfer changed after it was laid.
     CutChange(CutChange),
+    SaveSection(SectionAsked),
+    EditSection {
+        section: usize,
+        to: SectionAsked,
+    },
+    DeleteSection {
+        section: usize,
+    },
+    CreateSketchOnSection {
+        section: usize,
+        plane: WorkPlane,
+    },
 }

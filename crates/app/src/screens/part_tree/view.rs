@@ -2,12 +2,13 @@ use cao_part::PartDocument;
 
 use crate::lang::Catalogue;
 use crate::screens::part_tree::state::{
-    Body, Drawn, PartTree, Row, TreeAction, clickable, clicked, marked,
+    Body, Drawn, Kept, PartTree, Row, TreeAction, clickable, clicked, marked,
 };
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
 use crate::ui::eye::eye;
 use crate::ui::floating_panel::panel_row;
+use crate::ui::question::{Question, ask};
 use crate::wording::part_tree as said;
 
 /// What the tree reads to mark its rows, and the one thing asked of it.
@@ -94,7 +95,48 @@ fn show(ui: &mut egui::Ui, asked: &mut Asked<'_>, lang: &Catalogue) {
                 }
             });
         }
+
+        if !tree.sections.is_empty() {
+            ui.add_space(8.0);
+            ui.label(lang.t("part_tree.sections"));
+        }
+        for kept in &tree.sections {
+            section(ui, kept, asked, lang);
+        }
     });
+}
+
+/// One kept section: a click switches it on or off, a double-click reopens it,
+/// and its menu deletes it.
+fn section(ui: &mut egui::Ui, kept: &Kept, asked: &mut Asked<'_>, lang: &Catalogue) {
+    let name = match kept.broken {
+        true => lang.t_with("part_tree.adrift", &[("name", &kept.name)]),
+        false => kept.name.clone(),
+    };
+    let on = asked.viewport.kept_sections.is_on(kept.id);
+    let response = panel_row(ui, name, on, kept.broken);
+    if response.double_clicked() {
+        asked.action = TreeAction::EditSection(kept.id);
+    } else if response.clicked() {
+        asked.action = TreeAction::ToggleSection(kept.id);
+    }
+    response.context_menu(|ui| {
+        if ui.button(lang.t("part_tree.delete")).clicked() {
+            asked.action = TreeAction::DeleteSection(kept.id);
+            ui.close();
+        }
+    });
+}
+
+/// The question asked before deleting a section a drawing stands on.
+pub fn section_delete_confirm(ui: &egui::Ui, lang: &Catalogue) -> Option<bool> {
+    let question = Question {
+        title: lang.t("part_tree.delete_section_title"),
+        body: lang.t("part_tree.delete_section_body"),
+        yes: lang.t("part_tree.delete"),
+        no: lang.t("part_tree.delete_section_cancel"),
+    };
+    ask(ui, "section_delete_confirm", &question)
 }
 
 fn made_of_matter(ui: &mut egui::Ui, body: &Body, asked: &mut Asked<'_>, lang: &Catalogue) {

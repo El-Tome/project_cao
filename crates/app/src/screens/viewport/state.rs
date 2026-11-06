@@ -12,6 +12,7 @@ use glam::DVec3;
 
 use crate::screens::SketchContext;
 
+use super::kept_sections::KeptSections;
 use super::navigation::Drag;
 use super::section::Section;
 use super::{matter::Sections, visibility::Visibility};
@@ -37,6 +38,15 @@ pub enum ViewMode {
     Plane(WorkPlane),
 }
 
+impl ViewMode {
+    pub fn plane(self) -> Option<WorkPlane> {
+        match self {
+            Self::Free => None,
+            Self::Plane(plane) => Some(plane),
+        }
+    }
+}
+
 pub struct ViewportState {
     pub config: ViewportConfig,
     /// Every colour the viewport draws with, copied from the profile in use.
@@ -57,6 +67,7 @@ pub struct ViewportState {
     pub(super) sections: Sections,
     /// The section view, while it is on.
     pub(super) section: Option<Section>,
+    pub(crate) kept_sections: KeptSections,
     pub(super) visibility: Visibility,
     blinking: Option<Blinking>,
 }
@@ -87,6 +98,7 @@ impl Default for ViewportState {
             aspect: 1.0,
             sections: Sections::default(),
             section: None,
+            kept_sections: KeptSections::default(),
             visibility: Visibility::default(),
             blinking: None,
         }
@@ -109,6 +121,17 @@ impl ViewportState {
 
     pub(crate) fn close_section(&mut self) {
         self.section = None;
+    }
+
+    /// The section the frame cuts with: the section view's while it is open,
+    /// otherwise the kept one switched on.
+    pub(crate) fn section_shown(&self) -> Option<&Section> {
+        self.section.as_ref().or(self.kept_sections.shown())
+    }
+
+    /// Opens the section view on a section the part keeps, to change it.
+    pub(crate) fn reopen_section(&mut self, kept: &cao_part::SavedSection) {
+        self.section = Some(Section::reopened(kept));
     }
 
     /// Has what a refusal named blink from `now` — these values on the

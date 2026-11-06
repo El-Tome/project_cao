@@ -26,6 +26,12 @@ pub enum TreeAction {
     Light(Points),
     /// Draw the body the next way round: opaque, see-through, invisible.
     NextBodyMode,
+    /// Switch this kept section on, or off when it is on.
+    ToggleSection(usize),
+    /// Reopen the section view on this kept section, to change it.
+    EditSection(usize),
+    /// Delete this kept section, asking first when a drawing stands on it.
+    DeleteSection(usize),
 }
 
 /// What a click on a row asks: in the open sketch, to select what it names,

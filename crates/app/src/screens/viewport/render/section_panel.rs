@@ -1,5 +1,6 @@
-//! The section view's panel — the plane, the distance, each side's state and
-//! « Inverser » — and its handle on the cutting plane.
+//! The section view's panel — the plane, the distance, each side's state,
+//! « Inverser » and « Enregistrer la coupe » — and its handle on the cutting
+//! plane.
 
 use cao_prefs::Command;
 use cao_sketch::WorkPlane;
@@ -14,34 +15,41 @@ use crate::wording::section::{self as said, Side};
 
 /// Draws the panel while the section is on, and carries out what was done in
 /// it. Échap or the control in its title closes it, and with it the section.
+/// Returns true when the section was kept in the part.
 pub(crate) fn paint_section_panel(
     ui: &egui::Ui,
     state: &mut ViewportState,
     view: egui::Rect,
-    context: &SketchContext<'_>,
-) {
+    context: &mut SketchContext<'_>,
+) -> bool {
     let escaped = ui.input(|input| input.key_pressed(egui::Key::Escape))
         && !crate::ui::formula_field::keeps_escape(ui.ctx());
     if escaped {
         state.section = None;
     }
     let Some(section) = state.section.as_mut() else {
-        return;
+        return false;
     };
     let lang = context.lang;
     let title = crate::wording::command::label(lang, Command::SectionView);
     let left_at = view.min + egui::vec2(16.0, 16.0);
     let id = egui::Id::new("section_panel");
     let close = lang.t("panel.close");
+    let mut keep = false;
     let floated = floating_panel(ui.ctx(), id, (&title, &close), (left_at, view), |ui| {
-        rows(ui, section, context)
+        keep = rows(ui, section, context);
     });
+    if keep {
+        section.keep_in(context.document);
+    }
     if floated.closed {
         state.section = None;
     }
+    keep
 }
 
-fn rows(ui: &mut egui::Ui, section: &mut Section, context: &SketchContext<'_>) {
+/// Draws the rows, and says whether the section was asked to be kept.
+fn rows(ui: &mut egui::Ui, section: &mut Section, context: &SketchContext<'_>) -> bool {
     let (lang, body) = (context.lang, context.document.body());
     let waiting = section.is_waiting_for_a_face();
     let mut on_an_origin_plane = false;
@@ -81,6 +89,7 @@ fn rows(ui: &mut egui::Ui, section: &mut Section, context: &SketchContext<'_>) {
     if ui.button(lang.t("section.invert")).clicked() {
         section.invert();
     }
+    ui.button(lang.t("section.save")).clicked()
 }
 
 /// The distance, in millimetres, typed or read from the formula field: while

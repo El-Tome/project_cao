@@ -24,6 +24,9 @@ impl Feature {
         let mut sketches = 0;
 
         for (at, operation) in history.operations().iter().enumerate() {
+            if operation.is_about_a_section() {
+                continue;
+            }
             let Some(kind) = StepKind::opened_by(operation) else {
                 match features.last_mut() {
                     Some(feature) => feature.end = at + 1,
@@ -48,6 +51,15 @@ impl Feature {
             });
         }
         features
+    }
+
+    /// Where the line at `at` ends: past the sections kept right after it,
+    /// which the list leaves out, so that going back to that line keeps them.
+    pub fn line_ends(history: &History, at: usize) -> usize {
+        let operations = history.operations();
+        (at + 1..operations.len())
+            .find(|after| !operations[*after].is_about_a_section())
+            .unwrap_or(operations.len())
     }
 }
 

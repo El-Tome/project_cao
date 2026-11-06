@@ -3,7 +3,6 @@ use std::ops::Range;
 
 use cao_sketch::{LengthOutcome, Sketch, Support};
 use cao_solid::{Body, Declined, Unstable};
-use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::broken::Broken;
@@ -11,6 +10,7 @@ use crate::descent::Descent;
 use crate::history::{History, Operation, PointRef};
 use crate::outcome::Outcome;
 use crate::replay::Replay;
+use crate::sections::Kept;
 use crate::variables::Variables;
 
 /// The geometry of a part at a given point in its history.
@@ -30,6 +30,9 @@ pub struct PartState {
     /// quietly catch another face.
     #[serde(default)]
     pub adrift: BTreeSet<usize>,
+    /// Every section ever made, by rank, a deleted one among them.
+    #[serde(default)]
+    pub(crate) sections: Vec<Kept>,
     /// What each drawing's curves became, as the replay cut them. It is what
     /// lets a step of matter find the area it was raised from after a corner
     /// of that area has been rounded or a border of it divided.
@@ -212,24 +215,7 @@ impl PartState {
                 ellipse,
                 reach,
             } => self.resize_ellipse(*sketch, *ellipse, *reach),
-            Operation::MoveMany { sketch, points, by } => {
-                let scale = self.scale();
-                let sketch = self.sketches.get_mut(*sketch)?;
-                // Every point of the selection travels by the same step and is
-                // held there: a shape moved as a block keeps its shape, and the
-                // rest of the drawing settles around it.
-                let dropped: Vec<(cao_sketch::PointId, DVec2)> = points
-                    .iter()
-                    .filter_map(|point| {
-                        sketch
-                            .points()
-                            .get(point.0)
-                            .map(|place| (*point, *place + *by))
-                    })
-                    .collect();
-                sketch.settle_around_all(&dropped, scale);
-                None
-            }
+            Operation::MoveMany { sketch, points, by } => self.move_many(*sketch, points, *by),
             Operation::MoveSegment {
                 sketch,
                 segment,
@@ -343,6 +329,13 @@ impl PartState {
                 construction,
             } => self.fillet(*sketch, corners, radius, *construction),
             Operation::CutChange(change) => self.change_cut(change),
+            Operation::SaveSection(_)
+            | Operation::EditSection { .. }
+            | Operation::DeleteSection { .. }
+            | Operation::CreateSketchOnSection { .. } => {
+                self.apply_to_sections(operation);
+                None
+            }
             Operation::Mirror {
                 sketch,
                 elements,

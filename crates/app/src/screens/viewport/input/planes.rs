@@ -54,10 +54,20 @@ pub(super) fn choose_a_plane(
         }),
         _ => None,
     };
+    // The cut of a kept section switched on is a plane the drawing hangs on
+    // and follows; the section view's own cut is taken once and stays put.
+    let laid = match (choice, state.section.is_none()) {
+        (PlaneChoice::Section(_), true) => state
+            .kept_sections
+            .cutting()
+            .map(|section| Operation::CreateSketchOnSection { section, plane }),
+        _ => None,
+    };
     context
         .document
-        .apply(Operation::CreateSketch { plane, on });
+        .apply(laid.unwrap_or(Operation::CreateSketch { plane, on }));
     let sketch = context.document.sketches().len() - 1;
+    let plane = context.document.sketches()[sketch].plane;
     context.editor.begin_editing(sketch, plane);
     // A fresh sketch has nothing to frame yet, so we show a patch of plane big
     // enough to draw in, centred where the click landed. On a face of the part
@@ -125,7 +135,9 @@ pub(crate) fn point_the_section(
         let drawn = shown(state, context.editor, body);
         let met = drawn_under(state, &drawn, origin, direction);
         let piece = met.map_or(&*drawn.opaque, |(piece, _)| piece);
-        choose_a_cutting_face(state, piece, true, origin, direction);
+        if choose_a_cutting_face(state, piece, true, origin, direction) {
+            anchor_the_cut(state, piece, body, (origin, direction));
+        }
         return true;
     }
     let navigating = ui.input(|input| drag_asked(input, &state.config).is_some());
@@ -150,6 +162,18 @@ pub(crate) fn point_the_section(
         _ => section.let_go(),
     }
     true
+}
+
+/// The part's own face the section was just laid on, kept with it so that a
+/// section kept in the part follows that face.
+fn anchor_the_cut(state: &mut ViewportState, piece: &Body, part: &Body, ray: (DVec3, DVec3)) {
+    let Some(hit) = piece.ray_hit(ray.0, ray.1) else {
+        return;
+    };
+    let up = once_facing(state, hit.normal);
+    if let Some(section) = state.section.as_mut() {
+        section.on = own_face(piece, part, hit.face).map(|face| FaceAnchor { face, up });
+    }
 }
 
 /// What is offered to sketch on under the cursor: a face of the part where
@@ -198,7 +222,7 @@ fn what_is_drawn_offers(
     match own_face(piece, part, hit.face) {
         Some(face) => offered_by(part, face, hit.normal, up),
         None => {
-            let cut = state.section()?.cutting_plane();
+            let cut = state.section_shown()?.cutting_plane();
             Some(PlaneChoice::Section(
                 match hit.normal.dot(cut.normal()) > 0.0 {
                     true => cut,

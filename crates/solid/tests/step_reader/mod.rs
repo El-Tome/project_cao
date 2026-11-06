@@ -33,6 +33,9 @@ pub struct Solid {
     /// The plane of each flat face, as a point of it and the way the face
     /// faces.
     pub planes: Vec<(DVec3, DVec3)>,
+    /// The cylinder of each round face, as a point of its axis, the way the
+    /// axis runs, and its radius.
+    pub cylinders: Vec<(DVec3, DVec3, f64)>,
     /// The furthest a point of any loop, or any vertex, stands from the
     /// surface of its face or the curve of its edge.
     pub worst: f64,
@@ -179,11 +182,21 @@ pub fn read(text: &str) -> Result<Solid, String> {
             _ => None,
         })
         .collect();
+    let cylinders = faces
+        .iter()
+        .filter_map(|face| match &face.surface {
+            Surface::Cylinder { placement, radius } => {
+                Some((placement.origin, placement.z, *radius))
+            }
+            _ => None,
+        })
+        .collect();
     Ok(Solid {
         faces: faces.len(),
         volume,
         area,
         planes,
+        cylinders,
         worst,
         uncertainty,
         metres_per_unit,

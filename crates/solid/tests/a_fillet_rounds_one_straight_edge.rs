@@ -61,12 +61,14 @@
 //!   `a_chamfer_cuts_one_straight_edge.rs` and `src/body/tests/chamfer.rs`,
 //!   left as it was, is the answer
 
+mod step_reader;
+
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
 
 use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, Declined, EdgeName, Filleted, Loop, Lost};
+use cao_solid::{Body, Declined, EdgeName, Filleted, Loop, Lost, step};
 use glam::{DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it, on a plane
@@ -1566,4 +1568,212 @@ fn a_fillet_radius_that_is_no_length_the_tolerance_holds_is_declined_saying_so()
 
         assert_eq!(declined, Some(Declined::Distance), "{radius} asked");
     }
+}
+
+#[test]
+fn a_fillet_asked_an_infinite_radius_takes_the_most_the_faces_give() {
+    let (corner, far) = (LEANING[1], [LEANING[0], LEANING[2]]);
+    let into = far.map(|far| (far - corner).normalize());
+    let angle = into[0].dot(into[1]).acos();
+    let width = corner.distance(LEANING[2]);
+    let leaning_radius = width * (angle / 2.0).tan();
+    let block = block([30.0, 10.0, 20.0]);
+    let leaning = leaning_trapezoid(5.0);
+    for (what, part, edge, consumed, radius, promised, turn, length, reach) in [
+        (
+            "an infinite radius asked on the top front edge of a top 10 wide",
+            &block,
+            edge_between(&block, TOP, FRONT),
+            TOP,
+            10.0,
+            6000.0 - 30.0 * 10.0 * 10.0 * (1.0 - PI / 4.0),
+            PI / 2.0,
+            30.0,
+            30.0,
+        ),
+        (
+            "an infinite radius asked on the leaning trapezoid's acute edge, its slant 3√10 wide",
+            &leaning,
+            edge_between(&leaning, FRONT, SLANT),
+            SLANT,
+            leaning_radius,
+            (40.0 + 37.0) / 2.0 * 9.0 * 5.0
+                - (width * leaning_radius - leaning_radius * leaning_radius * (PI - angle) / 2.0)
+                    * 5.0,
+            PI - angle,
+            5.0,
+            40.0,
+        ),
+    ] {
+        let filleted = part
+            .fillet(&edge, f64::INFINITY)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        assert_eq!(filleted.asked, f64::INFINITY, "{what}: the radius asked");
+        assert!(
+            (filleted.taken - radius).abs() < PLACE,
+            "{what}: took {}, where the faces give {radius}",
+            filleted.taken
+        );
+        let body = &filleted.body;
+        sound_drawn_within(
+            body,
+            promised,
+            drawn_within(2.0 * reach, turn * radius * length),
+            what,
+        );
+        one_round_for_another(part, body, consumed, what);
+    }
+}
+
+#[test]
+fn a_fillet_leaves_every_other_face_of_the_block_answering_to_the_number_it_had_and_numbers_its_round_after_the_steps_last()
+ {
+    let block = block([30.0, 10.0, 20.0]);
+    let edge = edge_between(&block, TOP, FRONT);
+    assert_eq!(
+        block.faces_end(),
+        6,
+        "the block's one step numbered its six faces nought to five"
+    );
+
+    let filleted = block.fillet(&edge, 3.0).expect("the fillet is laid");
+
+    let body = &filleted.body;
+    let before = numbers(&block);
+    let round = 6;
+    let mut kept_and_made = before.clone();
+    kept_and_made.insert(round);
+    assert_eq!(
+        numbers(body),
+        kept_and_made,
+        "every number the block's faces answered to, and the round's, 6, where the steps' \
+         numbers ended"
+    );
+    assert!(
+        body.has_face(round) && !body.is_flat(round),
+        "face 6 is the round"
+    );
+    assert_eq!(
+        body.faces_end(),
+        round + 1,
+        "the fillet names one face, and the next step numbers its own past it"
+    );
+    for number in before {
+        let was = block
+            .plane_of(number)
+            .expect("a block's face offers a plane");
+        let is = body
+            .plane_of(number)
+            .unwrap_or_else(|| panic!("face {number} offers no plane"));
+        assert!(
+            is.normal.distance(was.normal) < PLACE,
+            "face {number} faces {}, where it faced {}",
+            is.normal,
+            was.normal
+        );
+        for corner in &is.corners {
+            let off = (*corner - was.corners[0]).dot(was.normal);
+            assert!(
+                off.abs() < PLACE,
+                "face {number} has a corner at {corner}, {off} off the plane it lay on"
+            );
+        }
+    }
+    for untouched in [FLOOR, BACK] {
+        let was = block
+            .plane_of(untouched)
+            .expect("a block's face offers a plane");
+        corners_are(
+            body,
+            untouched,
+            &was.corners,
+            &format!("face {untouched}, which the fillet does not reach"),
+        );
+    }
+
+    let then = joined_to(
+        body,
+        Contour::rectangle(DVec2::new(40.0, 0.0), DVec2::new(50.0, 10.0)),
+        0.0,
+        5.0,
+    );
+
+    let mut after_the_next_step = kept_and_made.clone();
+    after_the_next_step.extend(round + 1..round + 7);
+    assert_eq!(
+        numbers(&then),
+        after_the_next_step,
+        "a block joined after the fillet numbers its six faces past the round, from 7"
+    );
+    assert!(
+        then.has_face(round) && !then.is_flat(round),
+        "the round still answers to 6 after the next step"
+    );
+}
+
+#[test]
+fn a_filleted_block_written_to_step_writes_its_round_on_a_cylinder_of_the_radius() {
+    let [length, breadth, height] = [30.0, 10.0, 20.0];
+    let radius = 3.0;
+    let block = block([length, breadth, height]);
+    let filleted = block
+        .fillet(&edge_between(&block, TOP, FRONT), radius)
+        .expect("the fillet is laid");
+
+    let text = step::of(&filleted.body, 1.0).expect("an exact body is written");
+
+    let solid = step_reader::read(&text)
+        .unwrap_or_else(|fault| panic!("the file does not read back: {fault}"));
+    assert_eq!(solid.faces, 7, "the block's six faces and the round");
+    assert_eq!(
+        solid.faces,
+        numbers(&filleted.body).len(),
+        "the file holds the faces the body does"
+    );
+    assert!(
+        solid.worst <= solid.uncertainty,
+        "a loop stands {} off its face or its edge, the file's tolerance is {}",
+        solid.worst,
+        solid.uncertainty
+    );
+    let promised = length * breadth * height - length * radius * radius * (1.0 - PI / 4.0);
+    for (what, volume) in [
+        ("arithmetic promised", promised),
+        ("the body holds", filleted.body.volume()),
+    ] {
+        assert!(
+            (solid.volume - volume).abs() <= solid.uncertainty * solid.area,
+            "the file encloses {}, where {what} {volume}",
+            solid.volume
+        );
+    }
+    let area = 2.0 * (length * breadth + length * height + breadth * height)
+        - 2.0 * radius * length
+        + PI / 2.0 * radius * length
+        - 2.0 * radius * radius * (1.0 - PI / 4.0);
+    let edges = 8.0 * (length + breadth + height);
+    assert!(
+        (solid.area - area).abs() <= solid.uncertainty * edges,
+        "the file's faces cover {}, where arithmetic promised {area}: the top and the front each \
+         {radius} narrower, the ends each a corner less, and a quarter round",
+        solid.area
+    );
+    let [(origin, axis, written)] = solid.cylinders[..] else {
+        panic!("one cylinder, under the round: {:?}", solid.cylinders);
+    };
+    assert!(
+        (written - radius).abs() <= solid.uncertainty,
+        "the round is written on a cylinder of radius {written}, where it is {radius}"
+    );
+    assert!(
+        axis.cross(DVec3::X).length() < PLACE,
+        "the round's cylinder runs along {axis}, where its edge ran along the X axis"
+    );
+    let off = origin - DVec3::new(0.0, radius, height - radius);
+    assert!(
+        (off - DVec3::X * off.x).length() <= solid.uncertainty,
+        "the round's cylinder stands about the line through {origin}, where its axis is the \
+         radius under the top and the radius behind the front"
+    );
 }

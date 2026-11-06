@@ -1,10 +1,8 @@
 //! Two walls leaning a hair off parallel, face to face, on one set of rays,
 //! cut alike beside the line they cross along and met alike by a third wall:
-//! the first four steps of the shared order #706 now needs, as its last
-//! comment lays it out. Each lands with `closer_than_a_sag` still in place
-//! and every campaign identical to `main` seed by seed; the fifth lifts the
-//! decline, and is held in `crates/solid/tests/random_walls_at_any_angle.rs`
-//! with the issue's Done when.
+//! the first four steps of the shared order #706 laid them on. The fifth,
+//! which builds them, is held with the issue's Done when in
+//! `crates/solid/tests/random_walls_at_any_angle.rs`.
 //!
 //! Closes #706.
 //! - face to face: `Facing` and `Zones` take band pairs of cylinders within
@@ -19,16 +17,20 @@
 //!   `two_walls_leaning_a_hair_off_parallel_are_sampled_on_one_set_of_rays_whichever_holds_a_vertex`,
 //!   `each_of_two_walls_leaning_a_hair_off_parallel_samples_every_ring_at_its_own_vertex_however_near_the_other_s`;
 //!   rays within the pair's drift merged by one rule decided once per pair —
-//!   `two_walls_leaning_a_hair_off_parallel_take_no_two_rays_a_hair_apart`
-//! - the crossing line sampled at its ends, each wall pinning in its own
-//!   chart the angles of both ends and nothing sampled in the wedge between
-//!   them, so that both faces cut the cell alike and cancel —
+//!   `two_walls_leaning_a_hair_off_parallel_take_no_two_rays_a_hair_apart`;
+//!   three such walls on one set too —
+//!   `three_walls_leaning_a_hair_off_one_another_are_sampled_on_one_set_of_rays`
+//! - the crossing line sampled at its ends, the samples standing in the
+//!   wedge just past an end's angle cleared, and each face's triangle on the
+//!   line's chord flipped onto the sample of the curve both faces share
+//!   beside that end, so that both hold the same chord triangle and cancel —
 //!   `beside_the_line_two_walls_leaning_a_hair_off_parallel_cross_along_both_faces_are_cut_alike_and_cancel`,
-//!   `beside_a_line_running_far_from_the_node_both_faces_are_still_cut_alike_and_cancel`
+//!   `beside_a_line_running_far_from_the_node_both_faces_are_still_cut_alike_and_cancel`,
+//!   `beside_a_line_leaning_past_a_thousandth_of_a_radian_both_faces_are_still_cut_alike_and_cancel`
 //! - a third wall crossing the pair has its two meets sampled on the pair's
 //!   shared rays, so that near-duplicates merge —
 //!   `a_third_wall_crossing_two_walls_leaning_a_hair_off_parallel_meets_both_on_the_same_rays`,
-//!   `a_third_wall_crossing_two_walls_leaning_a_hair_off_parallel_whose_axes_never_cross_is_drawn_uncrossed`
+//!   `a_third_wall_crossing_two_walls_drifting_further_than_the_tolerance_meets_both_on_the_same_rays`
 
 use std::collections::BTreeMap;
 use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, PI, TAU};
@@ -42,9 +44,6 @@ use crate::brep::tessellation::contact::walls;
 use crate::brep::tessellation::sampling::{Samples, divisions};
 use crate::brep::tessellation::tests::fixtures;
 use crate::brep::topology::{Coedge, EdgeId, VertexId};
-use crate::soundness::uncrossed;
-
-mod seed_318277455101196;
 
 const RADIUS: f64 = 5.0;
 const LEAN: f64 = 1e-5;
@@ -614,9 +613,10 @@ fn each_of_two_walls_leaning_a_hair_off_parallel_samples_every_ring_at_its_own_v
 }
 
 fn a_leaning_pair_crossed_by_a_third_wall(
+    lean: f64,
     third: f64,
 ) -> (Body, [Wall; 2], [EdgeId; 2], [[EdgeId; 2]; 2]) {
-    let (mut build, walls, rings) = leaning_pair_built(LEAN, 0.0, [RADIUS; 2], [None; 2]);
+    let (mut build, walls, rings) = leaning_pair_built(lean, 0.0, [RADIUS; 2], [None; 2]);
     let across = DVec3::new(1.0, 1.0, 0.0).normalize();
     let center = DVec3::new(FOOT, 0.0, HALF / 2.0);
     let bore = Cylinder::about(center, across, third);
@@ -661,8 +661,90 @@ fn seen_round_the_first(
 
 #[test]
 fn a_third_wall_crossing_two_walls_leaning_a_hair_off_parallel_meets_both_on_the_same_rays() {
-    for tolerance in [1e-3, 0.02, 0.1] {
-        let (body, walls, meets, rings) = a_leaning_pair_crossed_by_a_third_wall(1.0);
+    met_alike(LEAN, &[1e-3, 0.02, 0.1]);
+}
+
+#[test]
+fn a_third_wall_crossing_two_walls_drifting_further_than_the_tolerance_meets_both_on_the_same_rays()
+{
+    met_alike(5e-4, &[1e-3, 2e-3]);
+}
+
+#[test]
+fn beside_a_line_leaning_past_a_thousandth_of_a_radian_both_faces_are_still_cut_alike_and_cancel() {
+    cut_alike_and_cancelled(&[(5.0, 0.05, 25.0), (17.5, 0.05, 87.5)]);
+}
+
+fn three_walls_leaning_a_hair_off_one_another(
+    vertices: [f64; 3],
+) -> (Body, Vec<Wall>, [[EdgeId; 2]; 3]) {
+    let mut build = fixtures::Build::new();
+    let crossing = DVec3::X * FOOT;
+    let leaning = |toward: f64| {
+        let (sin, cos) = toward.sin_cos();
+        DVec3::new(LEAN * cos, LEAN * sin, (1.0 - LEAN * LEAN).sqrt())
+    };
+    let axes = [DVec3::Z, leaning(0.0), leaning(FRAC_PI_2)];
+    let use_of = |edge, forward| Coedge { edge, forward };
+    let mut rings = [[EdgeId(0); 2]; 3];
+    for side in 0..3 {
+        let wall = Cylinder::about(crossing, axes[side], RADIUS);
+        let id = build.surface(Surface::Cylinder(wall));
+        let [low, high] =
+            [-HALF, HALF].map(|z| wall.parameters(crossing + wall.axis * (z / wall.axis.z)).y);
+        let through = build.vertex(wall.point(DVec2::new(vertices[side], low)));
+        rings[side] = [
+            build.circle(id, low, Some(through)),
+            build.circle(id, high, None),
+        ];
+        build.face(
+            id,
+            false,
+            vec![
+                vec![use_of(rings[side][0], true)],
+                vec![use_of(rings[side][1], false)],
+            ],
+        );
+    }
+    let body = build.finish(REACH);
+    let found = walls(&body);
+    (body, found, rings)
+}
+
+#[test]
+fn three_walls_leaning_a_hair_off_one_another_are_sampled_on_one_set_of_rays() {
+    let (body, walls, rings) = three_walls_leaning_a_hair_off_one_another([0.3, 1.0, 2.0]);
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let frame = walls[0].1;
+        let seen: Vec<Vec<f64>> = rings
+            .iter()
+            .flatten()
+            .map(|ring| ways_seen_from(&samples, &body, *ring, &frame))
+            .collect();
+        for (one, ring) in seen.iter().zip(rings.iter().flatten()) {
+            for (other, other_ring) in seen.iter().zip(rings.iter().flatten()) {
+                for way in one {
+                    let nearest = other
+                        .iter()
+                        .map(|seen| round_off(*way, *seen))
+                        .fold(f64::INFINITY, f64::min);
+                    assert!(
+                        nearest < 1e-9,
+                        "ring {ring:?} takes a ray at {way}, turned onto the first wall's axis, \
+                         {nearest} round from the nearest of the {} of ring {other_ring:?}, within \
+                         {tolerance}",
+                        other.len(),
+                    );
+                }
+            }
+        }
+    }
+}
+
+fn met_alike(lean: f64, tolerances: &[f64]) {
+    for &tolerance in tolerances {
+        let (body, walls, meets, rings) = a_leaning_pair_crossed_by_a_third_wall(lean, 1.0);
         let samples = Samples::of(&body, tolerance);
         let frame = walls[0].1;
         let seen =
@@ -718,18 +800,4 @@ fn a_third_wall_crossing_two_walls_leaning_a_hair_off_parallel_meets_both_on_the
             }
         }
     }
-}
-
-#[test]
-fn a_third_wall_crossing_two_walls_leaning_a_hair_off_parallel_whose_axes_never_cross_is_drawn_uncrossed()
- {
-    let body = seed_318277455101196::body();
-    let tolerance = 1e-3 * body.scale().reach();
-    let triangles = body.triangles(tolerance);
-
-    assert!(
-        uncrossed(&triangles).is_ok(),
-        "drawn within {tolerance}: {:?}",
-        uncrossed(&triangles).err()
-    );
 }

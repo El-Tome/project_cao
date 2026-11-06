@@ -12,14 +12,12 @@
 //! ([`super::super::skins`]).
 
 use super::{Drawn, Folds};
-use crate::brep::curve::{Curve, Wall};
-use crate::brep::relation::BAND;
 use crate::brep::tessellation::sampling::Samples;
 use crate::brep::topology::{Body, EdgeId, FaceId};
 
-/// Cuts alike, beside every line two cylinders leaning within #552's band
-/// cross along and sampled at its ends alone, the two faces it bounds where
-/// they also share a curve leaving one of its ends.
+/// Cuts alike, beside every line two walls sharing their rays cross along
+/// (`sampling/crossing.rs`), the two faces it bounds where they also share
+/// a curve leaving one of its ends.
 pub(in crate::brep::tessellation) fn cut_alike(
     drawn: &mut [Drawn],
     body: &Body,
@@ -27,11 +25,16 @@ pub(in crate::brep::tessellation) fn cut_alike(
     eps: f64,
     tolerance: f64,
 ) {
+    let lines: Vec<_> = samples
+        .lines
+        .iter()
+        .filter_map(|id| line(body, samples, *id))
+        .collect();
+    if lines.is_empty() {
+        return;
+    }
     let mut folds = Folds::of(drawn, samples, eps, tolerance);
-    for id in body.edge_ids() {
-        let Some(([foot, head], beside, faces)) = line(body, samples, id) else {
-            continue;
-        };
+    for ([foot, head], beside, faces) in lines {
         for face in faces {
             let Some(at) = folds.drawn.iter().position(|drawn| drawn.face == face) else {
                 continue;
@@ -65,24 +68,13 @@ pub(in crate::brep::tessellation) fn cut_alike(
     }
 }
 
-/// The ends of edge `id`, foot first, the sample beside the foot along a
-/// curve leaving it, and the two faces the edge and that curve both bound,
-/// when it is a line two cylinders leaning within the band cross along,
-/// sampled at its ends alone.
+/// The ends of the line `id`, foot first, the sample beside the foot along a
+/// curve leaving it, and the two faces the line and that curve both bound.
 fn line(body: &Body, samples: &Samples, id: EdgeId) -> Option<([usize; 2], usize, [FaceId; 2])> {
     let edge = body.edge(id);
-    let Curve::Meet(meet) = body.curve(edge.curve) else {
-        return None;
-    };
-    let (Wall::Cylinder(one), Wall::Cylinder(other)) = (meet.first, meet.second) else {
-        return None;
-    };
     let &[from, to] = samples.edge(id) else {
         return None;
     };
-    if one.axis.cross(other.axis).length() >= BAND {
-        return None;
-    }
     let [first, second] = match body.uses(id).as_slice() {
         [(one, _), (other, _)] if one != other => [*one, *other],
         _ => return None,

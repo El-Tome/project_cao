@@ -68,11 +68,10 @@ pub enum Declined {
     /// a lean, stand within the tolerance of each other along a stretch, or,
     /// one of them a cone or an elliptic wall, closer than a chord's sag
     /// (#577, #720) — two cylinders that close are built (#706); or a cone
-    /// against a wall off its
-    /// axis whose ruling runs along that wall's axis, a hair off coaxial,
-    /// with an apex on the other wall, with a hole in the flank of a face
-    /// holding its apex (#711), or closer than a chord's sag without meeting
-    /// (#706). A plane meets a cylinder, a cone or an elliptic wall at any
+    /// against a wall off its axis whose ruling runs along that wall's axis,
+    /// a hair off coaxial, with an apex on the other wall, with a hole in the
+    /// flank of a face holding its apex (#711), or closer than a chord's sag
+    /// without meeting (#720). A plane meets a cylinder, a cone or an elliptic wall at any
     /// other angle along a conic, a parallel round or elliptic wall meets an
     /// elliptic one along rulings, and any other round, elliptic or conical
     /// wall along the curve the two meet along, which are built (#552,

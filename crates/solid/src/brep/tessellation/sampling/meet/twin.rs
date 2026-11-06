@@ -9,9 +9,12 @@
 //! circles stand on pairs of rays a hair apart. Each loop is sampled instead
 //! at the angles round its wall that either took, turned onto the pair's
 //! first wall, two within the pair's drift one, the first wall's loop's
-//! kept. Where a loop turns back in that angle, the two turn a drift apart,
-//! and each takes, for that turn, the angle a drift inside the nearer one:
-//! both cross it twice there.
+//! kept — or within what the tolerance spans round the wall, where the
+//! drift is wider: two places that far apart are both needed. Where a loop
+//! turns back in that angle, the two turn up to a drift apart, and each
+//! takes, for that turn, the angle a hair inside the nearer one: both cross
+//! it twice there, and the further one's tip, beyond, stands off the chord
+//! by about as far as the two walls stand apart there.
 
 use std::collections::BTreeMap;
 use std::f64::consts::{PI, TAU};
@@ -20,14 +23,14 @@ use glam::{DQuat, DVec3};
 
 use super::{Around, alone};
 use crate::brep::curve::{Curve, Meet, Wall};
+use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
 use crate::brep::tessellation::sampling::cone::Grid;
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
 /// The points of a whole loop along `meet`, `points` as sampled on its own,
 /// sampled at the same angles as the loop the same third wall leaves on the
-/// wall its wall shares its rays with; `points` when there is none, or the
-/// pair's drift is wider than `tolerance` along the wall.
+/// wall its wall shares its rays with; `points` when there is none.
 pub(super) fn shared(
     body: &Body,
     edge: &Edge,
@@ -42,9 +45,9 @@ pub(super) fn shared(
     };
     let eps = body.scale().eps();
     for (pair, drift) in around.1.sharing() {
-        if drift * pair[0].radius.max(pair[1].radius) > tolerance {
-            continue;
-        }
+        let radius = pair[0].radius.min(pair[1].radius);
+        let apart = drift.min(tolerance / radius);
+        let hair = Scale::HAIR * eps / radius;
         let Some(side) =
             (0..2).find(|side| [meet.first, meet.second].contains(&Wall::Cylinder(pair[*side])))
         else {
@@ -55,27 +58,32 @@ pub(super) fn shared(
         } else {
             meet.first
         };
-        let Some((twin_edge, twin)) = twin_of(body, &pair[1 - side], &third, *first, tolerance)
-        else {
+        let reach = 2.0 * drift * pair[0].radius.max(pair[1].radius) + tolerance;
+        let Some((twin_edge, twin)) = twin_of(body, &pair[1 - side], &third, *first, reach) else {
             continue;
         };
         let theirs = alone(body, twin_edge, &twin, around, grids, tolerance);
+        if theirs.is_empty() {
+            continue;
+        }
         let reading = Reading::of(pair);
         let loops = [(side, meet, &points), (1 - side, &twin, &theirs)];
-        let angles = reading.common(loops, drift);
+        let angles = reading.common(loops, apart, hair);
         return reading.sampled(side, meet, edge, &angles, eps);
     }
     points
 }
 
 /// The whole loop along a meet of `wall` with `third` standing within
-/// `tolerance` of `near`.
+/// `reach` of `near`: the two loops stand about as far apart as the two
+/// walls do, up to the pair's drift along the wall, further along a third
+/// wall crossing them at a slant.
 fn twin_of<'a>(
     body: &'a Body,
     wall: &Cylinder,
     third: &Wall,
     near: DVec3,
-    tolerance: f64,
+    reach: f64,
 ) -> Option<(&'a Edge, Meet)> {
     body.edge_ids().find_map(|id| {
         let edge = body.edge(id);
@@ -84,7 +92,7 @@ fn twin_of<'a>(
         };
         let walls = [meet.first, meet.second];
         let ours = walls.contains(&Wall::Cylinder(*wall)) && walls.contains(third);
-        let close = meet.point(meet.parameter(near)).distance(near) <= tolerance;
+        let close = meet.point(meet.parameter(near)).distance(near) <= reach;
         (edge.ends.is_none() && ours && close).then_some((edge, *meet))
     })
 }
@@ -127,15 +135,16 @@ impl Reading {
     }
 
     /// The angles, read round the first wall, both loops are sampled at:
-    /// those of the places either took, two within `drift` one, the first
-    /// wall's loop's kept; within the span both loops reach, a drift inside
+    /// those of the places either took, two within `apart` one, the first
+    /// wall's loop's kept; within the span both loops reach, a `hair` inside
     /// where either turns back.
-    fn common(&self, loops: [(usize, &Meet, &Vec<DVec3>); 2], drift: f64) -> Vec<f64> {
+    fn common(&self, loops: [(usize, &Meet, &Vec<DVec3>); 2], apart: f64, hair: f64) -> Vec<f64> {
         let round = |angle: f64| (angle + PI).rem_euclid(TAU) - PI;
-        let base = loops
+        let mut ordered = loops;
+        ordered.sort_by_key(|(side, _, _)| *side);
+        let base = ordered
             .iter()
-            .find(|(side, _, _)| *side == 0)
-            .map(|(_, _, points)| self.read(0, points[0]))
+            .find_map(|(side, _, points)| points.first().map(|point| self.read(*side, *point)))
             .unwrap_or_default();
         let read = |(side, _, points): &(usize, &Meet, &Vec<DVec3>)| -> Vec<f64> {
             points
@@ -160,17 +169,17 @@ impl Reading {
                 (low.max(span.2), high.min(span.3))
             });
         if turning {
-            found.extend([(0, low + drift), (0, high - drift)]);
+            found.extend([(0, low + hair), (0, high - hair)]);
         }
         let mut each: Vec<(usize, f64)> = spans
             .iter()
             .flat_map(|(side, angles, _, _)| angles.iter().map(move |angle| (*side, *angle)))
-            .filter(|(_, angle)| !turning || (low + drift < *angle && *angle < high - drift))
+            .filter(|(_, angle)| !turning || (low + hair < *angle && *angle < high - hair))
             .collect();
         each.sort_by_key(|(side, _)| *side);
         let mut kept: Vec<f64> = Vec::new();
         for (_, angle) in found.into_iter().chain(each) {
-            if kept.iter().all(|other| round(angle - other).abs() > drift) {
+            if kept.iter().all(|other| round(angle - other).abs() > apart) {
                 kept.push(angle);
             }
         }

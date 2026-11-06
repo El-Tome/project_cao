@@ -7,7 +7,9 @@
 //! of either cylinder take, so that it stands on the same rays as a wall a
 //! hair inside its own, whose chords would otherwise stand shallower than
 //! its own between two of its points. Then, between two of those, wherever
-//! the chord would stand further from the curve than the tolerance.
+//! the chord would stand further from the curve than the tolerance. A line
+//! two walls sharing their rays cross along is sampled at its ends alone
+//! (`crossing.rs`).
 //!
 //! An elliptic wall (#571) is divided as a circle of its major half-axis,
 //! as its rims are, its grid an eccentric angle's; it takes the angles its
@@ -177,6 +179,9 @@ fn alone(
     grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
 ) -> Vec<DVec3> {
+    if super::crossing::is_line(meet, edge, zones) {
+        return Vec::new();
+    }
     let eps = body.scale().eps();
     let own = [meet.first, meet.second];
     let grid = |cone: &Cone| {

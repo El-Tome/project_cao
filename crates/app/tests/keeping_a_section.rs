@@ -66,16 +66,19 @@ use egui_kittest::kittest::{NodeT, Queryable};
 /// Where the block's face stands in front of the eye, and so where a section
 /// across it shows its cut: given from the centre of the drawing area, as
 /// `driver::on_canvas` reads it.
-const ON_THE_BLOCK: (f32, f32) = (-28.55, 16.0);
+const ON_THE_BLOCK: driver::FromTheCentre = driver::FromTheCentre(-28.55, 16.0);
 
 /// The same, lower: halfway down the half of the block the section opened
 /// through its middle leaves standing, well clear of the line it cuts along.
-const ON_THE_BLOCK_UNDER_THE_CUT: (f32, f32) = (-27.6, 60.0);
+const ON_THE_BLOCK_UNDER_THE_CUT: driver::FromTheCentre = driver::FromTheCentre(-27.6, 60.0);
 
 /// The corners of the rectangle the block is raised off, given from the centre
 /// of the drawing area: the clicks aimed at the block land on it only if the
 /// block was drawn in the same terms.
-const THE_BLOCK_S_CORNERS: [(f32, f32); 2] = [(-178.55, -94.0), (121.45, 126.0)];
+const THE_BLOCK_S_CORNERS: [driver::FromTheCentre; 2] = [
+    driver::FromTheCentre(-178.55, -94.0),
+    driver::FromTheCentre(121.45, 126.0),
+];
 
 /// A block raised off a rectangle drawn on a plane of the origin, its sketch
 /// then finished.
@@ -649,7 +652,7 @@ fn a_section_whose_face_is_gone_reads_face_lost_in_the_tree() {
     double_click(&mut app, "Esquisse 1");
     driver::click(&mut app, "Sélection (S)");
     driver::press_with_command(&mut app, egui::Key::A);
-    let away_from_the_drawing = driver::on_canvas(&app, (321.45, 156.0));
+    let away_from_the_drawing = driver::on_canvas(&app, driver::FromTheCentre(321.45, 156.0));
     app.hover_at(away_from_the_drawing);
     app.run();
     driver::press(&mut app, egui::Key::Delete);

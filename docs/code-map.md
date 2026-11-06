@@ -455,12 +455,13 @@ on screen rather than at build time. `crates/app/tests/language_keys.rs` closes
 that: a key named in Rust with no entry fails the gate, and so does an entry no
 Rust file names, which is what a rename leaves behind.
 
-A sentence still has to be drawable. The application draws in Inter and
-JetBrains Mono, with the fonts `egui` ships behind them; none of them carries a
-glyph for `⌂`, and what they draw instead is an empty box — five buttons in a
-row once read as the same square. `crates/app/tests/glyphs.rs` asks the
-application's own fonts, for every entry of the language file and every literal
-of `cao_app`, so a mark nobody can draw cannot reach a screen.
+A sentence still has to be drawable. The application draws text in Inter and
+figures in JetBrains Mono, each with the fonts `egui` ships behind it. A mark
+neither chain carries comes out as an empty box — five buttons in a row once
+read as the same square, and the text chain still has no `⌂`.
+`crates/app/tests/glyphs.rs` asks the application's own fonts, for every entry
+of the language file and every literal of `cao_app`, so a mark nobody can draw
+cannot reach a screen.
 
 ## The invariants
 

@@ -55,10 +55,13 @@
 //!   of the theme, since it is the drawing that has to differ
 //!
 //! Closes #724.
-//! - found on the branch: a measure is only drawn in a sketch, and a sketch
-//!   now has a background of its own, so the pill under a number wears that
-//!   one, held back to 0.82, rather than the free view's —
-//!   `a_measure_s_pill_wears_the_background_of_the_sketch_it_is_read_in`
+//! - found on the branch: the pill under a number wears the background of the
+//!   canvas it sits on, held back to 0.82 — the sketch's plain colour while the
+//!   view is on a plane, the free view's gradient once it is turned away —
+//!   `a_measure_s_pill_wears_the_background_of_the_canvas_it_sits_on`
+//! - found in review: every number in JetBrains Mono, as "To try it" promises —
+//!   the numbers a measure reads are written in the monospace family —
+//!   `a_measure_s_numbers_are_written_in_the_monospace_family`
 
 use cao_part::Formula;
 use cao_part::PartDocument;
@@ -76,6 +79,7 @@ use super::*;
 use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{SketchEditor, Tool};
+use crate::screens::viewport::ViewMode;
 
 const SCREEN: egui::Rect = egui::Rect {
     min: egui::Pos2::ZERO,
@@ -456,7 +460,7 @@ fn every_number_sits_on_a_pill_so_the_drawing_cannot_swallow_it() {
 }
 
 #[test]
-fn a_measure_s_pill_wears_the_background_of_the_sketch_it_is_read_in() {
+fn a_measure_s_pill_wears_the_background_of_the_canvas_it_sits_on() {
     let mut state = ViewportState::default();
     state.theme.background = cao_prefs::theme::Background::Solid(Rgba::opaque(0.30, 0.10, 0.20));
     state.theme.sketch_background =
@@ -465,24 +469,67 @@ fn a_measure_s_pill_wears_the_background_of_the_sketch_it_is_read_in() {
         tint_to_color(background.sample(0.0).with_alpha(0.82))
     };
 
-    let fills: Vec<egui::Color32> =
-        painted_seen(DVec2::new(ACROSS, UP), Some(the_distance()), &state)
-            .iter()
-            .filter_map(|shape| match shape {
-                egui::Shape::Rect(pill) => Some(pill.fill),
-                _ => None,
-            })
-            .collect();
+    for (mode, wears) in [
+        (
+            ViewMode::Plane(WorkPlane::XY),
+            held_back(&state.theme.sketch_background),
+        ),
+        (ViewMode::Free, held_back(&state.theme.background)),
+    ] {
+        state.mode = mode;
+        let fills: Vec<egui::Color32> =
+            painted_seen(DVec2::new(ACROSS, UP), Some(the_distance()), &state)
+                .iter()
+                .filter_map(|shape| match shape {
+                    egui::Shape::Rect(pill) => Some(pill.fill),
+                    _ => None,
+                })
+                .collect();
+
+        assert!(
+            !fills.is_empty() && fills.iter().all(|fill| *fill == wears),
+            "in a {mode:?} view the pills are filled {fills:?}, where the canvas under \
+             them, held back, is {wears:?}",
+        );
+    }
+}
+
+/// The family each piece of text a frame painted is written in, beside the
+/// text itself.
+fn families(shapes: &[egui::Shape]) -> Vec<(String, egui::FontFamily)> {
+    shapes
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Text(text) => Some(&text.galley),
+            _ => None,
+        })
+        .flat_map(|galley| {
+            galley
+                .job
+                .sections
+                .iter()
+                .map(|section| {
+                    (
+                        galley.text().to_string(),
+                        section.format.font_id.family.clone(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+#[test]
+fn a_measure_s_numbers_are_written_in_the_monospace_family() {
+    let written = families(&painted(Some(the_distance())));
 
     assert!(
-        !fills.is_empty()
-            && fills
+        written.iter().any(|(text, _)| holds_a_figure(text))
+            && written
                 .iter()
-                .all(|fill| *fill == held_back(&state.theme.sketch_background)),
-        "the pills are filled {fills:?}: the sketch they sit on is {:?} held back, the \
-         free view {:?}",
-        held_back(&state.theme.sketch_background),
-        held_back(&state.theme.background),
+                .filter(|(text, _)| holds_a_figure(text))
+                .all(|(_, family)| *family == egui::FontFamily::Monospace),
+        "a measure's numbers are written {written:?}: the figures go in the monospace family",
     );
 }
 
@@ -868,4 +915,10 @@ fn a_fillet_measured_marks_its_centre_and_draws_its_radius() {
         (furthest - 8.0).abs() < A_DASH,
         "and the radius runs out to the arc, eight away, reaching {furthest}"
     );
+}
+
+/// Whether a piece of text holds a figure: a label may set a word beside it,
+/// « Distance » or « R », and the word may stay in the proportional family.
+fn holds_a_figure(text: &str) -> bool {
+    text.chars().any(|character| character.is_ascii_digit())
 }

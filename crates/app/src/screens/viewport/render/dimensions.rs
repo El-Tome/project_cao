@@ -102,7 +102,7 @@ pub(crate) fn paint_dimension_labels(
             position,
             egui::Align2::CENTER_CENTER,
             text,
-            egui::FontId::proportional(13.0),
+            egui::FontId::monospace(13.0),
             color,
         );
     }
@@ -146,7 +146,7 @@ pub(crate) fn paint_dimension_labels(
             position,
             egui::Align2::CENTER_CENTER,
             text,
-            egui::FontId::proportional(13.0),
+            egui::FontId::monospace(13.0),
             color,
         );
     }
@@ -274,3 +274,6 @@ fn annotation_screen_position(
         rect,
     )
 }
+
+#[cfg(test)]
+mod tests;

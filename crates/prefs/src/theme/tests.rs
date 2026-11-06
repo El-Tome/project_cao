@@ -96,14 +96,46 @@ fn bytes(color: Rgba) -> [u8; 4] {
         .map(|channel| (channel * 255.0).round() as u8)
 }
 
+/// The design file the chrome's tests read too, taken in when the tests are
+/// built rather than opened from the disk: a token delivered anew fails here
+/// as it fails there.
+const DESIGN: &str = include_str!("../../../../docs/redesign/tokens.json");
+
+/// A colour of `color.`, written `#RRGGBB`, as the bytes of an opaque colour.
+fn written(path: &str) -> [u8; 4] {
+    let tokens: serde_json::Value = serde_json::from_str(DESIGN).expect("the design file is JSON");
+    let hex = path
+        .split('.')
+        .try_fold(&tokens["color"], |value, key| value.get(key))
+        .and_then(serde_json::Value::as_str)
+        .and_then(|text| text.strip_prefix('#'))
+        .unwrap_or_else(|| panic!("color.{path} is no #RRGGBB in the design file"));
+    let channel = |at: usize| {
+        u8::from_str_radix(&hex[at..at + 2], 16)
+            .unwrap_or_else(|_| panic!("color.{path} is no #RRGGBB in the design file"))
+    };
+    [channel(0), channel(2), channel(4), 0xFF]
+}
+
+/// The same, at the opacity the design file gives the axes.
+fn written_at_the_axes_opacity(path: &str) -> [u8; 4] {
+    let tokens: serde_json::Value = serde_json::from_str(DESIGN).expect("the design file is JSON");
+    let opacity = tokens["color"]["axes"]["opacity"]
+        .as_f64()
+        .expect("color.axes.opacity is a number");
+    let [r, g, b, _] = written(path);
+    [r, g, b, (opacity * 255.0).round() as u8]
+}
+
 #[test]
 fn a_sketch_is_drawn_on_the_plain_sketch_view_colour_by_default() {
     let background = Theme::default().sketch_background;
 
     assert!(
-        matches!(background, Background::Solid(colour) if bytes(colour) == [0x11, 0x13, 0x18, 0xFF]),
+        matches!(background, Background::Solid(colour) if bytes(colour) == written("background.sketch_view")),
         "a sketch's default background is {background:?}, not background.sketch_view, \
-         a plain #111318",
+         a plain {:?}",
+        written("background.sketch_view"),
     );
 }
 
@@ -132,8 +164,8 @@ fn the_free_view_is_drawn_on_the_redesign_s_radial_gradient_by_default() {
     assert_eq!(
         stops,
         [
-            (0.0, [0x1A, 0x1D, 0x24, 0xFF]),
-            (1.0, [0x0F, 0x11, 0x15, 0xFF])
+            (0.0, written("background.view3d_centre")),
+            (1.0, written("background.view3d_edge"))
         ],
         "background.view3d_centre to background.view3d_edge",
     );
@@ -142,32 +174,31 @@ fn the_free_view_is_drawn_on_the_redesign_s_radial_gradient_by_default() {
 #[test]
 fn the_default_grid_and_axes_are_the_redesign_s() {
     let theme = Theme::default();
-    let at_three_quarters = 191;
 
     let wrong: Vec<String> = [
-        ("grid_minor", theme.grid_minor, [0x1B, 0x1F, 0x27, 0xFF]),
-        ("grid_major", theme.grid_major, [0x26, 0x2B, 0x35, 0xFF]),
+        ("grid_minor", theme.grid_minor, written("sketch.grid_minor")),
+        ("grid_major", theme.grid_major, written("sketch.grid_major")),
         (
             "axis_x",
             theme.axis_x,
-            [0xE5, 0x53, 0x4B, at_three_quarters],
+            written_at_the_axes_opacity("axes.x"),
         ),
         (
             "axis_y",
             theme.axis_y,
-            [0x57, 0xAB, 0x5A, at_three_quarters],
+            written_at_the_axes_opacity("axes.y"),
         ),
         (
             "axis_z",
             theme.axis_z,
-            [0x53, 0x9B, 0xF5, at_three_quarters],
+            written_at_the_axes_opacity("axes.z"),
         ),
     ]
     .into_iter()
-    .filter(|(_, worn, written)| bytes(*worn) != *written)
-    .map(|(name, worn, written)| {
+    .filter(|(_, worn, design)| bytes(*worn) != *design)
+    .map(|(name, worn, design)| {
         format!(
-            "{name} is {:?}, the redesign writes {written:?}",
+            "{name} is {:?}, the redesign writes {design:?}",
             bytes(worn)
         )
     })

@@ -124,6 +124,8 @@ A folder appears only where the role exists. `cao_sketch` and `cao_solid` do
 mathematics and stay flat: a port there removes no disk, no clock, no network,
 and buys nothing.
 
+- **A colour of the shell is a token of `ui/theme`.** No `Color32` is written
+  out anywhere else in `cao_app`; a screen names the token.
 - **`ui/` knows no `cao_*` crate.** A primitive takes plain values and hands
   back what the user did. A screen that dresses an `egui::Slider` by hand is
   writing the same slider for the twenty-third time.

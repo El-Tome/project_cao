@@ -16,9 +16,15 @@ use egui_kittest::kittest::{NodeT, Queryable, by};
 
 pub const SCREEN: (f32, f32) = (1280.0, 800.0);
 
-/// On the YZ plane, as a new part shows the three base planes: given from the
-/// centre of the drawing area, as [`on_canvas`] reads it.
-pub const ON_ONE_OF_THE_BASE_PLANES: (f32, f32) = (-197.3, 59.5);
+/// A point of the drawing area given from its centre, right and down, in
+/// pixels of a canvas as tall as the one the points are written for — not a
+/// point of the screen. A type of its own, so that handing one to a gesture
+/// that takes a point of the screen does not compile.
+#[derive(Clone, Copy, Debug)]
+pub struct FromTheCentre(pub f32, pub f32);
+
+/// On the YZ plane, as a new part shows the three base planes.
+pub const ON_ONE_OF_THE_BASE_PLANES: FromTheCentre = FromTheCentre(-197.3, 59.5);
 
 /// The height of the drawing area the points given from its centre are written
 /// for: the canvas a sketch showed on a 1280×800 screen before #724 dressed the
@@ -121,28 +127,39 @@ fn within_reach(label: &str, centre: egui::Pos2, screen: egui::Rect) {
 
 /// The drawing area, as the accessibility tree has it: the largest node that
 /// takes a click and carries no name. `egui` names every button, field and
-/// label; the canvas is the one surface it has nothing to call.
+/// label; the canvas is the one surface it has nothing to call. A modal's
+/// backdrop takes a click and carries no name too, but it covers the whole
+/// screen, which the canvas, with the chrome around it, never does.
 pub fn canvas(app: &App) -> egui::Rect {
+    let screen = app.ctx.content_rect();
     app.query_all(
         by().predicate(|node| node.data().supports_action(Action::Click) && node.label().is_none()),
     )
     .map(|node| node.rect())
+    .filter(|rect| !rect.contains_rect(screen))
     .max_by(|one, other| one.area().total_cmp(&other.area()))
     .expect("no drawing area on screen: no part is open")
 }
 
 /// Where a point given from the centre of the drawing area stands on screen
-/// now — right and down, in pixels of a canvas as tall as the one the points
-/// are written for. The view is centred on the canvas and its field of view
-/// is vertical, so scaled by the canvas's height the point stays on the same
-/// spot of the scene, however much room the chrome around it takes.
-pub fn on_canvas(app: &App, (right, down): (f32, f32)) -> egui::Pos2 {
+/// now. The view is centred on the canvas and its field of view is vertical,
+/// so scaled by the canvas's height the point stays on the same spot of the
+/// scene, however much room the chrome around it takes. A point that lands
+/// outside the canvas would be a click on the chrome, so it is refused here,
+/// in the spirit of `within_reach`.
+pub fn on_canvas(app: &App, FromTheCentre(right, down): FromTheCentre) -> egui::Pos2 {
     let canvas = canvas(app);
     let scale = canvas.height() / CANVAS_HEIGHT_THE_POINTS_ARE_WRITTEN_FOR;
-    canvas.center() + egui::vec2(right, down) * scale
+    let at = canvas.center() + egui::vec2(right, down) * scale;
+    assert!(
+        canvas.contains(at),
+        "({right}, {down}) from the centre of the drawing area lands at {at:?}, \
+         outside the canvas {canvas:?}, where a click reaches the chrome instead",
+    );
+    at
 }
 
-pub fn click_on_canvas(app: &mut App, from_its_centre: (f32, f32)) {
+pub fn click_on_canvas(app: &mut App, from_its_centre: FromTheCentre) {
     let at = on_canvas(app, from_its_centre);
     click_at(app, (at.x, at.y));
 }

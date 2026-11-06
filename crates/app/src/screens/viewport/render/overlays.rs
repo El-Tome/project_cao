@@ -280,7 +280,7 @@ pub(crate) fn paint_ruler(
         egui::pos2((left + right) * 0.5, baseline - tick - 2.0),
         egui::Align2::CENTER_BOTTOM,
         label,
-        egui::FontId::proportional(12.0),
+        egui::FontId::monospace(12.0),
         color,
     );
 }

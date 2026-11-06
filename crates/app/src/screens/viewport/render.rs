@@ -6,7 +6,7 @@
 
 use cao_prefs::theme::{Background, Theme};
 use cao_render::{AxisStyle, BackgroundShape, SceneFrame, ViewportRect, cube, push_axes, srgb};
-use cao_sketch::{DimensionTarget, Going};
+use cao_sketch::{DimensionTarget, Going, WorkPlane};
 use glam::DVec2;
 
 mod arc;
@@ -87,21 +87,10 @@ pub(crate) fn build_frame(
     let mut surfaces = Vec::new();
 
     let mut background = Vec::new();
-    let backdrop = match context.editor.active_sketch() {
-        Some(_) => &theme.sketch_background,
-        None => &theme.background,
-    };
-    let (shape, sample) = background_shape(backdrop);
+    let (shape, sample) = background_shape(canvas_background(state));
     cao_render::push_background(&mut background, shape, sample);
 
-    // The grid and the drawing's own axes are only drawn once the view has
-    // actually landed on the plane. Mid-animation the view is oblique, and a
-    // grid of finite size seen at an angle reads as a disc floating in the
-    // middle of the screen.
-    let landed = match (state.mode, &state.transition) {
-        (ViewMode::Plane(plane), None) => Some(plane),
-        _ => None,
-    };
+    let landed = landed_on(state);
     if let Some(plane) = landed {
         grid::push(
             &mut world_lines,
@@ -210,6 +199,25 @@ pub(crate) fn push_blinking_matter(
     let fill = tint(state.theme.refused);
     for face in faces {
         push_hovered_face(surfaces, fill, context, *face);
+    }
+}
+
+/// The plane the view has come to rest on. The grid and the drawing's own axes
+/// wait for it: mid-animation the view is oblique, and a grid of finite size
+/// seen at an angle reads as a disc floating in the middle of the screen.
+fn landed_on(state: &ViewportState) -> Option<WorkPlane> {
+    match (state.mode, &state.transition) {
+        (ViewMode::Plane(plane), None) => Some(plane),
+        _ => None,
+    }
+}
+
+/// What the canvas stands on: the sketch's plain colour wherever the grid is
+/// drawn, the free view's background anywhere else, a sketch open or not.
+fn canvas_background(state: &ViewportState) -> &Background {
+    match landed_on(state) {
+        Some(_) => &state.theme.sketch_background,
+        None => &state.theme.background,
     }
 }
 

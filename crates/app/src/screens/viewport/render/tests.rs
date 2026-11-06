@@ -210,6 +210,11 @@
 //!   and the free view with its own,
 //!   `the_free_view_is_drawn_on_the_view_background`; the defaults themselves
 //!   are held in `crates/prefs/src/theme/tests.rs`
+//! - found in review: the plain colour goes where the grid goes, with the view
+//!   on a plane, and the gradient with the free view, a sketch open or not —
+//!   `a_plane_view_with_no_sketch_open_is_drawn_on_the_sketch_background`,
+//!   and the free view with a sketch open in
+//!   `the_free_view_is_drawn_on_the_view_background`
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_render::MatterInFront;
@@ -370,12 +375,18 @@ fn a_sketch_being_edited_is_drawn_on_the_sketch_background() {
     );
 }
 
+/// A sketch open and the view turned away from its plane: the grid is gone,
+/// and so is the plain colour it is drawn on.
 #[test]
 fn the_free_view_is_drawn_on_the_view_background() {
-    let colours = background_colours(&a_frame(|state| {
-        state.mode = ViewMode::Free;
-        state.theme = a_theme_with_two_backgrounds();
-    }));
+    let mut document = a_block();
+    let mut state = ViewportState::default();
+    state.mode = ViewMode::Free;
+    state.theme = a_theme_with_two_backgrounds();
+    let mut editor = SketchEditor::default();
+    editor.begin_editing(0, WorkPlane::XY);
+
+    let colours = background_colours(&a_frame_of(&state, &mut document, &mut editor));
 
     assert!(
         !colours.is_empty()
@@ -385,6 +396,28 @@ fn the_free_view_is_drawn_on_the_view_background() {
         "the free view is painted {:?}, its background is {:?}",
         colours.first(),
         tint(FREE_VIEW_BACKGROUND),
+    );
+}
+
+/// The view left on a plane once « Terminer » is pressed, or once a face of
+/// the cube is clicked: the grid is still drawn, and it is drawn on the plain
+/// colour it was made to be seen on.
+#[test]
+fn a_plane_view_with_no_sketch_open_is_drawn_on_the_sketch_background() {
+    let colours = background_colours(&a_frame(|state| {
+        state.mode = ViewMode::Plane(WorkPlane::XY);
+        state.theme = a_theme_with_two_backgrounds();
+    }));
+
+    assert!(
+        !colours.is_empty()
+            && colours
+                .iter()
+                .all(|colour| *colour == tint(SKETCH_BACKGROUND)),
+        "a view on a plane with no sketch open is painted {:?}, the sketch's \
+         background is {:?}",
+        colours.first(),
+        tint(SKETCH_BACKGROUND),
     );
 }
 

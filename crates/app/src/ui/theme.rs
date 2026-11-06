@@ -111,9 +111,10 @@ fn visuals() -> Visuals {
     }
 }
 
-/// The colours of each state over `egui`'s own dark ones, whose stroke widths
-/// stay: a button at rest is drawn transparent within a border, as the
-/// redesign's secondary button is.
+/// The colours of each state over `egui`'s own dark ones. The text keeps
+/// `egui`'s stroke widths; every border is one point wide, the one at rest
+/// included, so that a button at rest is drawn transparent within a border, as
+/// the redesign's secondary button is.
 fn widgets() -> Widgets {
     let egui = Widgets::dark();
     Widgets {

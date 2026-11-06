@@ -14,12 +14,15 @@ use glam::DVec3;
 /// Where the block's face stands in front of the eye, and so where a section
 /// across it shows its cut: given from the centre of the drawing area, as
 /// `driver::on_canvas` reads it.
-const ON_THE_BLOCK: (f32, f32) = (-28.55, 16.0);
+const ON_THE_BLOCK: driver::FromTheCentre = driver::FromTheCentre(-28.55, 16.0);
 
 /// The corners of the rectangle the block is raised off, given from the centre
 /// of the drawing area: the clicks aimed at the block land on it only if the
 /// block was drawn in the same terms.
-const THE_BLOCK_S_CORNERS: [(f32, f32); 2] = [(-178.55, -94.0), (121.45, 126.0)];
+const THE_BLOCK_S_CORNERS: [driver::FromTheCentre; 2] = [
+    driver::FromTheCentre(-178.55, -94.0),
+    driver::FromTheCentre(121.45, 126.0),
+];
 
 /// A block raised off a rectangle drawn on a plane of the origin, its sketch
 /// then finished.

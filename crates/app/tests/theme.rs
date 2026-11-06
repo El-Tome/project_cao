@@ -20,7 +20,15 @@
 //!   backgrounds, borders, text levels, the amber accent, radii, spacing —
 //!   `the_chrome_s_colours_are_the_tokens`,
 //!   `the_chrome_s_corners_and_spacing_are_the_tokens`,
-//!   `the_chrome_s_text_sizes_are_the_tokens`
+//!   `the_chrome_s_text_sizes_are_the_tokens`; and every token the theme holds,
+//!   used yet or not, is the design file's (found in review) —
+//!   `every_token_the_chrome_holds_is_the_design_file_s`
+//! - every number in JetBrains Mono, as "To try it" promises (found in review)
+//!   — no test: in this file; the viewport's figures are held in the tests of
+//!   `render/dimensions.rs`, `render/cuts.rs`, `render/reading.rs` and
+//!   `render/overlays.rs`, each under its own block; the keys are drawn by
+//!   components still to come, #731 and #746, and no test here can see a
+//!   label's typeface through the driver
 //! - the application is dark whatever the OS says —
 //!   `the_chrome_stays_dark_when_the_system_asks_for_light`; and it is from
 //!   the first frame, `CaoApp::new` installing the theme —
@@ -44,6 +52,7 @@
 
 mod driver;
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -265,6 +274,174 @@ fn the_chrome_s_text_sizes_are_the_tokens() {
         "The chrome writes at sizes the design file does not:\n  {}",
         wrong.join("\n  "),
     );
+}
+
+#[test]
+fn every_token_the_chrome_holds_is_the_design_file_s() {
+    use cao_app::theme::tokens;
+
+    let design = Tokens::read();
+    let colours = [
+        (
+            "BACKGROUND_PANEL",
+            tokens::BACKGROUND_PANEL,
+            "background.panel",
+        ),
+        (
+            "BACKGROUND_CARD",
+            tokens::BACKGROUND_CARD,
+            "background.card",
+        ),
+        (
+            "BACKGROUND_FLOATING",
+            tokens::BACKGROUND_FLOATING,
+            "background.floating",
+        ),
+        (
+            "BACKGROUND_HOVER",
+            tokens::BACKGROUND_HOVER,
+            "background.hover",
+        ),
+        (
+            "BACKGROUND_HOVER_STRONG",
+            tokens::BACKGROUND_HOVER_STRONG,
+            "background.hover_strong",
+        ),
+        (
+            "BACKGROUND_ACTIVE_NEUTRAL",
+            tokens::BACKGROUND_ACTIVE_NEUTRAL,
+            "background.active_neutral",
+        ),
+        (
+            "BACKGROUND_FIELD",
+            tokens::BACKGROUND_FIELD,
+            "background.field",
+        ),
+        (
+            "BORDER_SEPARATOR",
+            tokens::BORDER_SEPARATOR,
+            "border.separator",
+        ),
+        ("BORDER_GROUP", tokens::BORDER_GROUP, "border.group"),
+        ("BORDER_CONTROL", tokens::BORDER_CONTROL, "border.control"),
+        ("BORDER_STRONG", tokens::BORDER_STRONG, "border.strong"),
+        ("TEXT_TITLE", tokens::TEXT_TITLE, "text.title"),
+        ("TEXT_PRIMARY", tokens::TEXT_PRIMARY, "text.primary"),
+        ("TEXT_BUTTON", tokens::TEXT_BUTTON, "text.button"),
+        ("TEXT_SECONDARY", tokens::TEXT_SECONDARY, "text.secondary"),
+        ("TEXT_SUBDUED", tokens::TEXT_SUBDUED, "text.subdued"),
+        ("TEXT_QUIET", tokens::TEXT_QUIET, "text.quiet"),
+        ("TEXT_ON_ACCENT", tokens::TEXT_ON_ACCENT, "text.on_accent"),
+        ("ACCENT_AMBER", tokens::ACCENT_AMBER, "accent.amber"),
+        (
+            "ACCENT_AMBER_TEXT",
+            tokens::ACCENT_AMBER_TEXT,
+            "accent.amber_text",
+        ),
+        (
+            "ACCENT_AMBER_BACKGROUND",
+            tokens::ACCENT_AMBER_BACKGROUND,
+            "accent.amber_background",
+        ),
+        (
+            "STATE_WARNING_TEXT",
+            tokens::STATE_WARNING_TEXT,
+            "state.warning_text",
+        ),
+        (
+            "STATE_ERROR_TEXT",
+            tokens::STATE_ERROR_TEXT,
+            "state.error_text",
+        ),
+    ];
+    let numbers = [
+        (
+            "RADIUS_CONTROL",
+            f32::from(tokens::RADIUS_CONTROL),
+            "radius.control",
+        ),
+        ("RADIUS_CARD", f32::from(tokens::RADIUS_CARD), "radius.card"),
+        ("SPACING_S", tokens::SPACING_S, "spacing.s"),
+        ("SPACING_M", tokens::SPACING_M, "spacing.m"),
+        ("SPACING_L", tokens::SPACING_L, "spacing.l"),
+        (
+            "TYPOGRAPHY_SIZES_SECTION_TITLE",
+            tokens::TYPOGRAPHY_SIZES_SECTION_TITLE,
+            "typography.sizes.section_title",
+        ),
+        (
+            "TYPOGRAPHY_SIZES_BODY",
+            tokens::TYPOGRAPHY_SIZES_BODY,
+            "typography.sizes.body",
+        ),
+        (
+            "TYPOGRAPHY_SIZES_BUTTON",
+            tokens::TYPOGRAPHY_SIZES_BUTTON,
+            "typography.sizes.button",
+        ),
+        (
+            "TYPOGRAPHY_SIZES_DETAIL",
+            tokens::TYPOGRAPHY_SIZES_DETAIL,
+            "typography.sizes.detail",
+        ),
+        (
+            "TYPOGRAPHY_SIZES_MONO_VALUE",
+            tokens::TYPOGRAPHY_SIZES_MONO_VALUE,
+            "typography.sizes.mono_value",
+        ),
+    ];
+
+    let mut wrong: Vec<String> = colours
+        .iter()
+        .filter(|(_, held, path)| *held != design.colour(path))
+        .map(|(name, held, path)| {
+            format!(
+                "{name} is {held:?}, color.{path} is {:?}",
+                design.colour(path)
+            )
+        })
+        .collect();
+    wrong.extend(
+        numbers
+            .iter()
+            .filter(|(_, held, path)| (held - design.number(path)).abs() >= TOLERANCE)
+            .map(|(name, held, path)| {
+                format!("{name} is {held}, {path} is {}", design.number(path))
+            }),
+    );
+    let checked: BTreeSet<&str> = colours
+        .iter()
+        .map(|(name, ..)| *name)
+        .chain(numbers.iter().map(|(name, ..)| *name))
+        .collect();
+    wrong.extend(
+        tokens_declared()
+            .into_iter()
+            .filter(|name| !checked.contains(name.as_str()))
+            .map(|name| format!("{name} is held in {TOKENS_RS} and checked against nothing here")),
+    );
+
+    assert!(
+        wrong.is_empty(),
+        "The chrome's tokens and the design file disagree:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+const TOKENS_RS: &str = "crates/app/src/ui/theme/tokens.rs";
+
+/// The name of every constant `tokens.rs` declares, read off its source: a
+/// test cannot list a module's constants, and one added there and missing from
+/// the table above would otherwise go unchecked.
+fn tokens_declared() -> Vec<String> {
+    let source = fs::read_to_string(workspace_root().join(TOKENS_RS))
+        .unwrap_or_else(|_| panic!("{TOKENS_RS} is readable"));
+    source
+        .lines()
+        .filter_map(|line| line.trim_start().strip_prefix("pub const "))
+        .filter_map(|rest| rest.split(':').next())
+        .map(|name| name.trim().to_string())
+        .collect()
 }
 
 #[test]

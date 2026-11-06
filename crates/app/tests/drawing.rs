@@ -218,12 +218,12 @@ fn a_sketch_reopened_under_its_own_block(test: &str) -> driver::App {
     driver::create_a_part(&mut app, "Bloc");
     driver::start_a_sketch(&mut app);
     driver::click(&mut app, "Rectangle (R)");
-    driver::click_on_canvas(&mut app, (-178.55, -94.0));
-    driver::click_on_canvas(&mut app, (121.45, 126.0));
+    driver::click_on_canvas(&mut app, driver::FromTheCentre(-178.55, -94.0));
+    driver::click_on_canvas(&mut app, driver::FromTheCentre(121.45, 126.0));
     driver::click_exactly(&mut app, "Extrusion");
     driver::click_exactly(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");
-    driver::click_on_canvas(&mut app, (-24.89, 53.18));
+    driver::click_on_canvas(&mut app, driver::FromTheCentre(-24.89, 53.18));
     driver::click(&mut app, "Appliquer");
     driver::open_the_history(&mut app);
     driver::click(&mut app, "Modifier");
@@ -250,8 +250,8 @@ fn a_click_lands_on_the_sketch_plane_whatever_the_matter_in_front() {
         let mut app = reopened_after(clicks, &format!("a_click_lands_{state}"));
 
         driver::click(&mut app, "Ligne (L)");
-        driver::click_on_canvas(&mut app, (-182.44, -32.39));
-        driver::click_on_canvas(&mut app, (-47.08, 93.3));
+        driver::click_on_canvas(&mut app, driver::FromTheCentre(-182.44, -32.39));
+        driver::click_on_canvas(&mut app, driver::FromTheCentre(-47.08, 93.3));
         driver::press(&mut app, egui::Key::Escape);
 
         assert!(
@@ -269,14 +269,15 @@ fn the_dimension_tool_takes_a_segment_behind_the_matter_whatever_its_state() {
     for (clicks, state) in HIDDEN_SEE_THROUGH_OPAQUE.into_iter().enumerate() {
         let mut app = reopened_after(clicks, &format!("the_dimension_takes_{state}"));
         driver::click(&mut app, "Ligne (L)");
-        driver::click_on_canvas(&mut app, (-182.44, -32.39));
-        driver::click_on_canvas(&mut app, (-47.08, -32.39));
+        driver::click_on_canvas(&mut app, driver::FromTheCentre(-182.44, -32.39));
+        driver::click_on_canvas(&mut app, driver::FromTheCentre(-47.08, -32.39));
         driver::press(&mut app, egui::Key::Escape);
 
         driver::click(&mut app, "Cote (D)");
-        let beside_the_segment = driver::on_canvas(&app, (-114.76, -32.39)) + egui::vec2(0.0, 2.0);
+        let beside_the_segment =
+            driver::on_canvas(&app, driver::FromTheCentre(-114.76, -32.39)) + egui::vec2(0.0, 2.0);
         driver::click_at(&mut app, (beside_the_segment.x, beside_the_segment.y));
-        driver::click_on_canvas(&mut app, (-114.76, 35.29));
+        driver::click_on_canvas(&mut app, driver::FromTheCentre(-114.76, 35.29));
 
         assert!(
             driver::shows(&app, "Largeur"),

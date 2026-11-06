@@ -21,6 +21,7 @@ use cao_sketch::{SketchAxis, WorkPlane};
 use super::*;
 
 pub(super) mod bench;
+mod ends;
 mod panel;
 
 /// A trait standing well clear of both sketch axes.

@@ -4,7 +4,7 @@
 
 use cao_part::{Operation, PartDocument, PointRef, Variables};
 use cao_prefs::Command;
-use cao_sketch::{Element, PointId, Selection, WorkPlane};
+use cao_sketch::{Element, PointId, SegmentId, Selection, WorkPlane};
 use chrono::Utc;
 use glam::DVec2;
 
@@ -134,6 +134,17 @@ impl Bench {
 
     pub(crate) fn last_laid(&self) -> Option<&Operation> {
         self.document.history.applied_operations().last()
+    }
+
+    /// What a click on this trait leaves in the panel: the trait, then the
+    /// point it starts from and the one it ends on.
+    pub(crate) fn a_trait_and_its_ends(&self, segment: SegmentId) -> Vec<Element> {
+        let side = self.document.sketches()[0].segments()[segment.0];
+        vec![
+            Element::Segment(segment),
+            Element::Point(side.start),
+            Element::Point(side.end),
+        ]
     }
 
     pub(crate) fn point_at(&self, at: DVec2) -> PointId {

@@ -166,12 +166,14 @@ fn gather(
     let Some(Selection::Element(element)) = pick(context, index, cursor, snap, pixel) else {
         return false;
     };
-    let editor = &mut *context.editor;
-    let Some(panel) = editor.copy_panel.as_mut() else {
+    let (Some(sketch), Some(panel)) = (
+        context.document.sketches().get(index),
+        context.editor.copy_panel.as_mut(),
+    ) else {
         return false;
     };
-    panel.toggle(element);
-    panel.unmark_if_filled(&editor.live);
+    panel.toggle(element, sketch);
+    panel.unmark_if_filled(&context.editor.live);
     false
 }
 

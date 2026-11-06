@@ -30,12 +30,14 @@ use crate::brep::tessellation::sampling::divisions;
 use crate::brep::topology::SurfaceId;
 
 /// What a ray of the pair stands for, in the order one gives way to another
-/// within the drift: a ray a wall took on its own, which gives way only to
-/// one the first wall took — a vertex on both walls, read from either
-/// axis, stands a hair round on each, and the two rays, handed on along the
-/// curves through it, part a hair further pass after pass; a step of a
-/// wall's grid, the first wall's before the second's; a ray through a point
-/// standing just inside a wall, which gives way to any ray of either.
+/// within the drift: a ray a wall took on its own, which is never given up,
+/// but of two of them within the drift, one of each wall, each wall takes
+/// its own alone — its vertex stands on it there, on every rim, and a
+/// vertex on both walls, read from either axis, stands a hair round on
+/// each, the two rays, handed on along the curves through it, parting a
+/// hair further pass after pass; a step of a wall's grid, the first wall's
+/// before the second's; a ray through a point standing just inside a wall,
+/// which gives way to any ray of either.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
     Own,
@@ -100,17 +102,17 @@ pub(super) fn shared(
         rays.sort_by_key(|ray| (ray.kind.rank(), ray.side));
         let frame = walls[0].1;
         let angle = |ray: &Ray| ray.ways[0].dot(frame.v).atan2(ray.ways[0].dot(frame.u));
+        let round = |angle: f64| (angle + PI).rem_euclid(TAU) - PI;
+        let near = |one: &Ray, other: &Ray| round(angle(one) - angle(other)).abs() <= drift;
         let mut kept: Vec<Ray> = Vec::with_capacity(rays.len());
         for ray in rays {
-            let at = angle(&ray);
             let gives_way = kept.iter().any(|other| {
-                let near = ((at - angle(other) + PI).rem_euclid(TAU) - PI).abs() <= drift;
-                let across = other.side != ray.side;
-                near && match ray.kind {
-                    Kind::Own => across && other.kind == Kind::Own,
-                    Kind::Step(_) => across,
-                    Kind::Beneath => true,
-                }
+                near(&ray, other)
+                    && match ray.kind {
+                        Kind::Own => false,
+                        Kind::Step(_) => other.side != ray.side,
+                        Kind::Beneath => true,
+                    }
             });
             if !gives_way {
                 kept.push(ray);
@@ -119,9 +121,12 @@ pub(super) fn shared(
             }
         }
         for (side, (id, _)) in walls.into_iter().enumerate() {
+            let mine = |ray: &Ray| ray.side == side && ray.kind == Kind::Own;
+            let theirs = |ray: &Ray| kept.iter().any(|other| mine(other) && near(ray, other));
             let taken = kept
                 .iter()
                 .filter(|ray| !(ray.side == side && matches!(ray.kind, Kind::Step(_))))
+                .filter(|ray| ray.side == side || ray.kind != Kind::Own || !theirs(ray))
                 .map(|ray| ray.ways[side])
                 .collect();
             own.insert(id, taken);

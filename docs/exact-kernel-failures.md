@@ -3564,3 +3564,87 @@ What is left, by family:
 - **A cone and a wall closer than a chord's sag** (#706) — declined
   (`grazing`) until `tessellation/contact` samples a cone in common with
   the other wall.
+
+### #706: two cylinders closer than a sag, an attempt set aside
+
+#706 tried to build the pairs lane 2 declines closer than a chord's sag
+when both walls are cylinders, and was not merged: `main` keeps the
+decline `closer_than_a_sag` for every pair. The attempt is kept on the
+local branch `wip/706-crossing-line-and-targeted-declines`. The cases it
+reached stand as ignored tests in `random_walls_at_any_angle.rs`, to be
+built uncrossed once the two walls share one order beside the line they
+cross along; the cases it still declined run there against the decline
+`main` gives.
+
+**What it did.** It lifted the decline for two cylinders, kept it for an
+elliptic wall and a cone, and sampled the line two such cylinders cross
+along at its two ends alone, so that neither wall fanned across it. A band
+wall was read as a parallel one where a wall ends on a cap. Where that was
+not enough it declined again, as unsupported: where a third wall really
+meets the pair inside the box they stand closer than a sag in, and where
+one wall of the pair runs through a cap the other ends on at a slant.
+
+**How it was measured.** Each round ran all eight draws, the branch for
+120 seconds per draw and `main` (0516b97f) on exactly the seeds the branch
+reached, compared seed by seed. A machine loaded by other campaigns is why
+the counts are lower than in the rounds above.
+
+**The first round**, at 2538a951 and again at be996413, from seed
+318277455100000, failed the same seeds on both commits. On the walls draw
+10 seeds `main` declined were answered with a wrong body — 4 on the exact
+kernel and 9 through the body, 3 of them on both, `Uncrossed` but for one
+`Closed`. Shrunk, each was two cylinders of one radius nearly coaxial,
+leaning 1e-4° to 0.05°, most beside a third wall at 30° to 67°, one a
+shaft and its bore alone. The targeted declines above came from it, and
+the scope rule excused two cylinders closer than a sag whenever a third
+leaf met their shared box. An intermediate tip, eee422fa, declined a tube
+cut by a post of its outer radius and a shaft with such a post added,
+unexcused — refusals on 7 of the first round's seeds and 16 of the fresh
+ones below; none was left at 0a81ac0f.
+
+**The last round**, at 0a81ac0f: the first round's seeds again, and a
+fresh base, 331906274200000, on the case counts eee422fa reached in 120
+seconds.
+
+| Draw | Cases | `main` | Branch | Branch only | `main` only | Branch, ‰ |
+| --- | --- | --- | --- | --- | --- | --- |
+| walls, exact | 2 449 | 32 | 32 | 0 | 0 | 13.1 |
+| walls, body | 8 424 | 94 | 94 | 0 | 0 | 11.2 |
+| square | 25 730 | 0 | 0 | 0 | 0 | 0 |
+| crossed ellipses | 927 | 2 | 2 | 0 | 0 | 2.2 |
+| tilted ellipses | 3 407 | 5 | 5 | 0 | 0 | 1.5 |
+| slanted | 2 732 | 11 | 10 | 0 | 1 | 3.7 |
+| tilted | 7 005 | 19 | 19 | 0 | 0 | 2.7 |
+| turned | 6 122 | 1 | 1 | 0 | 0 | 0.2 |
+
+| Draw, fresh seeds | Cases | `main` | Branch | Branch only | `main` only | Branch, ‰ |
+| --- | --- | --- | --- | --- | --- | --- |
+| walls, exact | 7 166 | 98 | 98 | 0 | 0 | 13.7 |
+| walls, body | 22 683 | 262 | 264 | 2 | 0 | 11.6 |
+| square | 50 463 | 4 | 4 | 0 | 0 | 0.08 |
+| crossed ellipses | 2 148 | 2 | 2 | 0 | 0 | 0.9 |
+| tilted ellipses | 8 927 | 14 | 14 | 0 | 0 | 1.6 |
+| slanted | 8 904 | 37 | 37 | 0 | 0 | 4.2 |
+| tilted | 16 232 | 56 | 56 | 0 | 0 | 3.5 |
+| turned | 13 915 | 18 | 18 | 0 | 0 | 1.3 |
+
+The first round's wrong bodies were gone, and no seed failed under
+another rule than on `main`. The slanted seed only `main` fails,
+318277455102178, is a refusal the branch answered. Two seeds only the
+branch failed, both `Uncrossed` through the body where `main` declined as
+unsupported: 331906274213776 and 331906274218763, each shrunk to a shaft
+and a bore of its own radius nearly coaxial, at 0.01° and 1e-4°, with no
+third wall, the triangles crossing on the line between the cap and the
+place the two axes cross — the family of the first round's
+318277455102885, which held. The first crosses on the exact kernel too;
+the second only through the body.
+
+**Why it was set aside.** On those two seeds the two walls cut the cell
+beside the leaning crossing line into triangles of their own, which lie on
+each other within the margin the rules allow two faces, `soundness::NEAR`
+times the reach. The cases
+that held did so only because that overlap stayed under the margin: the
+fix reached them by luck rather than by laying both walls on one order.
+The owner kept `main`'s decline on 2026-11-06. Sharing one order needs a
+correspondence between the two walls' rays beside the line, a redesign
+left for later.

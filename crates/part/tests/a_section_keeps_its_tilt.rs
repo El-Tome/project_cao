@@ -54,6 +54,7 @@ fn a_tilted_section_comes_back_from_the_caopart_with_its_two_angles() {
         in_front: SideDrawing::Hidden,
         tilt_about_u_degrees: 30.0,
         tilt_about_v_degrees: -12.5,
+        pivot: DVec3::ZERO,
     }));
     let files = Memory::default();
     let saved = Path::new("/parts/saved.caopart");
@@ -199,6 +200,7 @@ fn a_kept_section_on_a_face_turns_about_the_point_of_the_face_under_the_middle_o
         in_front: SideDrawing::Hidden,
         tilt_about_u_degrees: 10.0,
         tilt_about_v_degrees: 0.0,
+        pivot: DVec3::new(20.0, 10.0, 0.0),
     }));
     let files = Memory::default();
     let path = Path::new("/parts/tilted-on-its-top.caopart");

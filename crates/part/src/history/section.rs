@@ -2,6 +2,7 @@
 //! step of matter.
 
 use cao_sketch::WorkPlane;
+use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
 use super::{FaceAnchor, Operation};
@@ -31,6 +32,10 @@ pub struct SectionAsked {
     pub tilt_about_u_degrees: f64,
     #[serde(default)]
     pub tilt_about_v_degrees: f64,
+    /// The point the tilts turn about, along `plane`'s `u`, `v` and normal as
+    /// the part finds that plane; a part saved before reads the plane's origin.
+    #[serde(default)]
+    pub pivot: DVec3,
 }
 
 impl Operation {

@@ -24,6 +24,7 @@
 use std::io::{Read, Seek, Write};
 
 use cao_sketch::{Area, WorkPlane};
+use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::PartFileError;
@@ -91,6 +92,8 @@ enum Opening {
         tilt_about_u_degrees: f64,
         #[serde(default)]
         tilt_about_v_degrees: f64,
+        #[serde(default)]
+        pivot: DVec3,
     },
 }
 

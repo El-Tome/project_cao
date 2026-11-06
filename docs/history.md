@@ -216,12 +216,14 @@ drawn and the two angles the plane is tilted by (#693), then every
 erasing a trait is, so undo brings the section back.
 
 The two angles turn the plane about its own `u`, then its own `v`, around a
-pivot worked out where the section is used, and never saved: the middle of the
-part as it stands, or, for a section on a face, the point of that face under
-the middle. The distance then moves the plane along its tilted normal from the
-pivot; at 0 and 0 the cut is the one an untilted section made. A section
-written before the angles existed — in its folder or in the cache of the
-geometry — reads both as 0.
+pivot chosen with the plane and saved with the section: the middle of the
+part when an origin plane is chosen, the point of the face under that middle
+when a face is. It is kept along the plane's `u`, `v` and normal, so a section
+on a face follows the face, and matter raised elsewhere moves nothing. The
+distance then moves the plane along its tilted normal from the pivot; at 0 and
+0 the cut is the one an untilted section made. A section written before the
+angles existed — in its folder or in the cache of the geometry — reads both as
+0 and no pivot, which it never needs.
 
 That makes a section a step like the others for undo, for the file and for the
 replay order, and it touches none of the matter: the body, its volume and its

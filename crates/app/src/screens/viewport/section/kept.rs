@@ -15,7 +15,8 @@ impl Section {
         section.offset = saved.offset;
         section.tilt_about_u_degrees = saved.tilt_about_u_degrees;
         section.tilt_about_v_degrees = saved.tilt_about_v_degrees;
-        section.middle = Some(saved.pivot);
+        section.middle = saved.pivot;
+        section.pivot = saved.pivot;
         section.behind = drawn_as(saved.behind);
         section.in_front = drawn_as(saved.in_front);
         section.on = saved.on;
@@ -32,6 +33,7 @@ impl Section {
             in_front: kept_as(self.in_front),
             tilt_about_u_degrees: self.tilt_about_u_degrees,
             tilt_about_v_degrees: self.tilt_about_v_degrees,
+            pivot: cao_part::pivot_kept_on(self.plane, self.pivot),
         }
     }
 

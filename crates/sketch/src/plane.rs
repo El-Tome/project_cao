@@ -1,6 +1,6 @@
 //! Where a sketch is drawn, and which way round it reads.
 
-use glam::{DVec2, DVec3};
+use glam::{DQuat, DVec2, DVec3};
 use serde::{Deserialize, Serialize};
 
 /// The plane a sketch is drawn on: an origin and two unit tangents. Storing the
@@ -105,6 +105,19 @@ impl WorkPlane {
             false => normal,
         };
         (towards, towards.dot(self.origin))
+    }
+
+    /// The plane turned about its own `u` then its own `v` by `degrees`, around
+    /// `about`; turned by nothing, it is the plane itself, to the bit.
+    pub fn tilted(&self, degrees: (f64, f64), about: DVec3) -> Self {
+        let turn = DQuat::from_axis_angle(self.u, degrees.0.to_radians())
+            * DQuat::from_axis_angle(self.v, degrees.1.to_radians());
+        let lever = about - self.origin;
+        Self {
+            origin: self.origin + (lever - turn * lever),
+            u: turn * self.u,
+            v: turn * self.v,
+        }
     }
 
     pub fn to_world(&self, point: DVec2) -> DVec3 {

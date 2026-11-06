@@ -97,6 +97,7 @@ fn across(offset: f64) -> SectionAsked {
         in_front: SideDrawing::Hidden,
         tilt_about_u_degrees: 0.0,
         tilt_about_v_degrees: 0.0,
+        pivot: DVec3::ZERO,
     }
 }
 
@@ -118,6 +119,7 @@ fn on_the_top(thickness: f64, offset: f64) -> SectionAsked {
         in_front: SideDrawing::Hidden,
         tilt_about_u_degrees: 0.0,
         tilt_about_v_degrees: 0.0,
+        pivot: DVec3::ZERO,
     }
 }
 
@@ -152,6 +154,7 @@ fn every_section_comes_back_from_the_caopart_with_its_plane_its_offset_and_its_s
         in_front: SideDrawing::Opaque,
         tilt_about_u_degrees: 0.0,
         tilt_about_v_degrees: 0.0,
+        pivot: DVec3::ZERO,
     }));
     document.apply(Operation::SaveSection(on_the_top(10.0, -4.0)));
     let files = Memory::default();
@@ -262,6 +265,7 @@ fn a_section_whose_face_is_gone_is_broken_cuts_nothing_and_another_plane_mends_i
             in_front: SideDrawing::Hidden,
             tilt_about_u_degrees: 0.0,
             tilt_about_v_degrees: 0.0,
+            pivot: DVec3::ZERO,
         },
     });
 
@@ -529,6 +533,7 @@ fn a_section_edited_onto_a_face_raised_after_it_cuts_at_that_face() {
             in_front: SideDrawing::Hidden,
             tilt_about_u_degrees: 0.0,
             tilt_about_v_degrees: 0.0,
+            pivot: DVec3::ZERO,
         },
     });
 

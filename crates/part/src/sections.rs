@@ -6,7 +6,7 @@
 //! nothing.
 
 use cao_sketch::{Sketch, WorkPlane};
-use glam::{DQuat, DVec3};
+use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
 use crate::history::{FaceAnchor, Operation, SectionAsked, SideDrawing};
@@ -26,8 +26,7 @@ pub struct SavedSection {
     pub in_front: SideDrawing,
     pub tilt_about_u_degrees: f64,
     pub tilt_about_v_degrees: f64,
-    /// The point its plane is tilted about: the middle of the part it was
-    /// found on, or on a face the point of the face under that middle.
+    /// The point its plane is tilted about, where it was kept on that plane.
     pub pivot: DVec3,
     /// Whether the face it was laid on is gone, which leaves it cutting nothing.
     pub broken: bool,
@@ -38,7 +37,7 @@ impl SavedSection {
     /// something: the one it starts from, tilted, moved along its own normal.
     pub fn cutting_plane(&self) -> Option<WorkPlane> {
         let tilts = (self.tilt_about_u_degrees, self.tilt_about_v_degrees);
-        let tilted = tilted_plane(self.plane, tilts, self.pivot);
+        let tilted = self.plane.tilted(tilts, self.pivot);
         (!self.broken).then(|| WorkPlane {
             origin: tilted.origin + tilted.normal() * self.offset,
             ..tilted
@@ -46,8 +45,8 @@ impl SavedSection {
     }
 }
 
-/// The point a section's plane is tilted about: the middle of the part, brought
-/// onto `plane` when that plane is a face's.
+/// The point a section's plane is tilted about, chosen with the plane: the
+/// middle of the part, brought onto `plane` when that plane is a face's.
 pub fn pivot_of(plane: WorkPlane, on_a_face: bool, middle: DVec3) -> DVec3 {
     let normal = plane.normal();
     match on_a_face {
@@ -56,17 +55,15 @@ pub fn pivot_of(plane: WorkPlane, on_a_face: bool, middle: DVec3) -> DVec3 {
     }
 }
 
-/// `plane` turned about its own `u` then its own `v` by `degrees`, around
-/// `about`; turned by nothing, it is `plane` itself, to the bit.
-pub fn tilted_plane(plane: WorkPlane, degrees: (f64, f64), about: DVec3) -> WorkPlane {
-    let turn = DQuat::from_axis_angle(plane.u, degrees.0.to_radians())
-        * DQuat::from_axis_angle(plane.v, degrees.1.to_radians());
-    let lever = about - plane.origin;
-    WorkPlane {
-        origin: plane.origin + (lever - turn * lever),
-        u: turn * plane.u,
-        v: turn * plane.v,
-    }
+/// A pivot as a section keeps it: along `plane`'s `u`, its `v` and its normal,
+/// so that it follows a face the plane is taken off.
+pub fn pivot_kept_on(plane: WorkPlane, pivot: DVec3) -> DVec3 {
+    let along = plane.to_local(pivot);
+    along.extend(plane.normal().dot(pivot - plane.origin))
+}
+
+fn pivot_found_on(plane: WorkPlane, kept: DVec3) -> DVec3 {
+    plane.to_world(kept.truncate()) + plane.normal() * kept.z
 }
 
 /// A section as the history leaves it: what it was last asked to be, its face
@@ -130,10 +127,6 @@ impl PartState {
         let asked = &kept.asked;
         let face = asked.on.as_ref().map(|anchor| self.face_now(anchor));
         let plane = face.flatten().unwrap_or(asked.plane);
-        let middle = self
-            .body
-            .bounds()
-            .map_or(plane.origin, |(low, high)| (low + high) / 2.0);
         SavedSection {
             id,
             plane,
@@ -143,7 +136,7 @@ impl PartState {
             in_front: asked.in_front,
             tilt_about_u_degrees: asked.tilt_about_u_degrees,
             tilt_about_v_degrees: asked.tilt_about_v_degrees,
-            pivot: pivot_of(plane, asked.on.is_some(), middle),
+            pivot: pivot_found_on(plane, asked.pivot),
             broken: matches!(face, Some(None)),
         }
     }

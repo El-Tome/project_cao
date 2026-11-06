@@ -45,6 +45,7 @@ pub(super) fn taken_apart(opening: &Operation) -> Result<(Stands, Option<Opening
                 in_front: asked.in_front,
                 tilt_about_u_degrees: asked.tilt_about_u_degrees,
                 tilt_about_v_degrees: asked.tilt_about_v_degrees,
+                pivot: asked.pivot,
             }),
         ),
         Operation::Extrude {
@@ -113,6 +114,7 @@ pub(super) fn put_together(
                 in_front,
                 tilt_about_u_degrees,
                 tilt_about_v_degrees,
+                pivot,
             }),
         ) => Operation::SaveSection(SectionAsked {
             plane,
@@ -122,6 +124,7 @@ pub(super) fn put_together(
             in_front,
             tilt_about_u_degrees,
             tilt_about_v_degrees,
+            pivot,
         }),
         (Stands::Extrusion { sketch, areas }, Some(Opening::Extrusion { distance, mode })) => {
             Operation::Extrude {

@@ -32,28 +32,6 @@
 
 mod driver;
 
-use egui::epaint::Shape;
-
-/// Every mark painted on the last frame: what it says, where, in what colour.
-fn marks(app: &driver::App) -> Vec<(String, egui::Pos2, egui::Color32)> {
-    fn walk(shape: &Shape, out: &mut Vec<(String, egui::Pos2, egui::Color32)>) {
-        match shape {
-            Shape::Vec(shapes) => shapes.iter().for_each(|shape| walk(shape, out)),
-            Shape::Text(text) if text.galley.text() == "|_" => out.push((
-                text.galley.text().to_owned(),
-                text.visual_bounding_rect().center(),
-                text.fallback_color,
-            )),
-            _ => {}
-        }
-    }
-    let mut out = Vec::new();
-    for clipped in &app.output().shapes {
-        walk(&clipped.shape, &mut out);
-    }
-    out
-}
-
 /// A rectangle, its right angles marked, in the selection tool.
 fn a_rectangle(test: &str) -> driver::App {
     let mut app = driver::open(test);
@@ -65,15 +43,15 @@ fn a_rectangle(test: &str) -> driver::App {
     driver::click(&mut app, "Sélection (S)");
     app.run();
     assert!(
-        marks(&app).len() >= 2,
+        driver::right_angle_marks(&app).len() >= 2,
         "the rectangle's right angles are marked: {:?}",
-        marks(&app)
+        driver::right_angle_marks(&app)
     );
     app
 }
 
 fn first_mark(app: &driver::App) -> egui::Pos2 {
-    marks(app)[0].1
+    driver::right_angle_marks(app)[0].1
 }
 
 fn delete_and_read_the_history(app: &mut driver::App) -> Vec<String> {
@@ -82,27 +60,10 @@ fn delete_and_read_the_history(app: &mut driver::App) -> Vec<String> {
     driver::on_screen(app)
 }
 
-fn click_with(app: &mut driver::App, at: egui::Pos2, modifiers: egui::Modifiers) {
-    app.hover_at(at);
-    app.event(egui::Event::ModifiersChanged(modifiers));
-    app.run();
-    for pressed in [true, false] {
-        app.event(egui::Event::PointerButton {
-            pos: at,
-            button: egui::PointerButton::Primary,
-            pressed,
-            modifiers,
-        });
-        app.run();
-    }
-    app.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
-    app.run();
-}
-
 /// The mark of the rectangle's top right corner, up and to the right of it,
 /// where nothing else of the drawing is near.
 fn the_mark_out_in_the_open(app: &driver::App) -> egui::Pos2 {
-    marks(app)
+    driver::right_angle_marks(app)
         .into_iter()
         .map(|(_, at, _)| at)
         .max_by(|one, other| (one.x - one.y).total_cmp(&(other.x - other.y)))
@@ -112,13 +73,13 @@ fn the_mark_out_in_the_open(app: &driver::App) -> egui::Pos2 {
 #[test]
 fn pointing_at_a_mark_lights_it() {
     let mut app = a_rectangle("pointing_at_a_mark_lights_it");
-    let (_, at, resting) = marks(&app)[0].clone();
+    let (_, at, resting) = driver::right_angle_marks(&app)[0].clone();
 
     app.hover_at(at);
     app.run();
     app.run();
 
-    let lit = marks(&app)
+    let lit = driver::right_angle_marks(&app)
         .into_iter()
         .find(|(_, place, _)| place.distance(at) < 1.0)
         .expect("the mark is still there");
@@ -144,10 +105,13 @@ fn a_click_on_a_mark_takes_its_rule_and_delete_erases_it() {
 #[test]
 fn a_command_click_on_a_second_mark_adds_its_rule() {
     let mut app = a_rectangle("a_command_click_on_a_second_mark");
-    let (first, second) = (marks(&app)[0].1, marks(&app)[1].1);
+    let (first, second) = (
+        driver::right_angle_marks(&app)[0].1,
+        driver::right_angle_marks(&app)[1].1,
+    );
 
     driver::click_at(&mut app, (first.x, first.y));
-    click_with(&mut app, second, egui::Modifiers::COMMAND);
+    driver::click_with(&mut app, second, egui::Modifiers::COMMAND);
     let history = delete_and_read_the_history(&mut app);
 
     assert!(

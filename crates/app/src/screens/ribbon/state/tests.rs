@@ -464,3 +464,31 @@ fn the_section_view_button_shows_pressed_while_the_section_is_on() {
         "« Vue en coupe » shows pressed with no section on"
     );
 }
+
+#[test]
+fn select_all_is_offered_only_in_a_sketch_with_the_selection_tool() {
+    let part = a_part();
+    let extrusion = ExtrusionState::default();
+    let mut selecting = drawing_on_a_sketch();
+    selecting.tool = Tool::Select;
+    let mut lining = drawing_on_a_sketch();
+    lining.tool = Tool::Line;
+
+    assert!(
+        is_enabled(Command::SelectAll, &part, &selecting, &extrusion),
+        "in a sketch with the selection tool",
+    );
+    assert!(
+        !is_enabled(Command::SelectAll, &part, &lining, &extrusion),
+        "with the line tool in hand",
+    );
+    assert!(
+        !is_enabled(
+            Command::SelectAll,
+            &part,
+            &SketchEditor::default(),
+            &extrusion
+        ),
+        "with no sketch open",
+    );
+}

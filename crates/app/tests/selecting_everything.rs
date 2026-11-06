@@ -29,9 +29,12 @@
 //!   text fields keep their own Cmd+A / Ctrl+A —
 //!   `with_another_tool_in_hand_command_a_leaves_the_tool_at_its_work`,
 //!   `outside_a_sketch_command_a_changes_nothing`,
-//!   `a_field_being_edited_keeps_command_a_for_its_own_text`
+//!   `a_field_being_edited_keeps_command_a_for_its_own_text`, and the command
+//!   greyed out there, in `select_all_is_offered_only_in_a_sketch_with_the_selection_tool`
+//!   in `crates/app/src/screens/ribbon/state/tests.rs`
 //! - A box selection, a click and Shift+click selection, and dragging a
-//!   selection, must not break — `a_shift_click_still_adds_to_what_a_click_took`;
+//!   selection, must not break — `a_shift_click_still_adds_to_what_a_click_took`,
+//!   `a_drag_on_a_trait_carries_everything_command_a_took`;
 //!   the rest held by `a_box_over_the_whole_drawing_catches_one_of_every_kind`
 //!   in `crates/sketch/src/banding/tests.rs`,
 //!   `the_box_drawn_on_the_canvas_starts_and_ends_under_the_hand` in
@@ -85,11 +88,16 @@ fn steps(app: &driver::App) -> Vec<String> {
         .collect()
 }
 
-/// Delete pressed, then the last step read in detail — the line the history
-/// shows when the hand rests on it, which for an erasure counts the traits,
-/// the dimensions and the rules taken away apart.
+/// Delete pressed, then the step it wrote read in detail, which for an
+/// erasure counts the traits, the dimensions and the rules taken away apart.
 fn what_delete_takes(app: &mut driver::App) -> String {
     delete_over_the_drawing(app);
+    the_last_step_in_detail(app)
+}
+
+/// The last step of the history read in detail — the line the history shows
+/// when the hand rests on it.
+fn the_last_step_in_detail(app: &mut driver::App) -> String {
     driver::open_the_history(app);
     let last = steps(app)
         .last()
@@ -244,8 +252,10 @@ fn command_a_lets_go_of_what_was_held_before() {
     a_rectangle(&mut app);
     in_the_selection_tool(&mut app);
     app.run();
-    let right_angle =
-        the_first_right_angle_mark(&app).expect("the rectangle's right angles are marked");
+    let (_, right_angle, _) = driver::right_angle_marks(&app)
+        .into_iter()
+        .next()
+        .expect("the rectangle's right angles are marked");
     driver::click_at(&mut app, (right_angle.x, right_angle.y));
 
     select_all(&mut app);
@@ -352,12 +362,30 @@ fn a_shift_click_still_adds_to_what_a_click_took() {
     in_the_selection_tool(&mut app);
 
     driver::click_at(&mut app, (975.0, 250.0));
-    click_with(&mut app, egui::pos2(975.0, 350.0), egui::Modifiers::SHIFT);
+    driver::click_with(&mut app, egui::pos2(975.0, 350.0), egui::Modifiers::SHIFT);
 
     assert_eq!(
         what_delete_takes(&mut app),
         "Esquisse 0 · 2 tracé(s), 0 cote(s), 0 contrainte(s)",
         "the top side clicked, then the bottom one Shift+clicked, are both held",
+    );
+}
+
+#[test]
+fn a_drag_on_a_trait_carries_everything_command_a_took() {
+    let mut app = a_sketch("a_drag_carries_everything_command_a_took");
+    a_rectangle(&mut app);
+    a_line(&mut app, (760.0, 450.0), (820.0, 500.0));
+    in_the_selection_tool(&mut app);
+
+    select_all(&mut app);
+    driver::drag_and_drop(&mut app, egui::pos2(975.0, 250.0), egui::pos2(975.0, 200.0));
+
+    let moved = the_last_step_in_detail(&mut app);
+    assert!(
+        moved.starts_with("Esquisse 0 · 6 points de"),
+        "the rectangle's four corners and the line's two ends moved together, in \
+         one step: {moved}",
     );
 }
 
@@ -453,38 +481,4 @@ fn the_shortcut_of(app: &driver::App, command: &str) -> Option<String> {
             })
             .map(|(_, label)| label.clone())
     })
-}
-
-fn the_first_right_angle_mark(app: &driver::App) -> Option<egui::Pos2> {
-    fn walk(shape: &egui::epaint::Shape, out: &mut Vec<egui::Pos2>) {
-        match shape {
-            egui::epaint::Shape::Vec(shapes) => shapes.iter().for_each(|shape| walk(shape, out)),
-            egui::epaint::Shape::Text(text) if text.galley.text() == "|_" => {
-                out.push(text.visual_bounding_rect().center());
-            }
-            _ => {}
-        }
-    }
-    let mut out = Vec::new();
-    for clipped in &app.output().shapes {
-        walk(&clipped.shape, &mut out);
-    }
-    out.into_iter().next()
-}
-
-fn click_with(app: &mut driver::App, at: egui::Pos2, modifiers: egui::Modifiers) {
-    app.hover_at(at);
-    app.event(egui::Event::ModifiersChanged(modifiers));
-    app.run();
-    for pressed in [true, false] {
-        app.event(egui::Event::PointerButton {
-            pos: at,
-            button: egui::PointerButton::Primary,
-            pressed,
-            modifiers,
-        });
-        app.run();
-    }
-    app.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
-    app.run();
 }

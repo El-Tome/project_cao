@@ -61,8 +61,11 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// where the kernel declined them, and a pair a hair off square or parallel
 /// is laid exactly so (#577). 21: a cone meets a cylinder, an elliptic wall
 /// or another cone off its axis along the curve read along its rulings,
-/// where the kernel declined it (#577).
-const REBUILT_BY: u32 = 21;
+/// where the kernel declined it (#577). 22: a face of a wall wider than a
+/// turn, a meet with two samples beside its end, and a conic sampled on a
+/// wall it crosses are cut into triangles, where the step was declined as
+/// undrawn (#707).
+const REBUILT_BY: u32 = 22;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

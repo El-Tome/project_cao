@@ -25,13 +25,18 @@ use super::cone::{Grid, Spun};
 use super::elliptic::{on_the_wall, reached_by_planes};
 use super::ends::grazed;
 use super::{divisions, on_a_plane, taken, touching_planes};
+use crate::brep::Scale;
 use crate::brep::curve::{Meet, Wall};
 use crate::brep::surface::Cone;
 use crate::brep::tessellation::contact::{self, Contact, Zones};
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
 /// Why a parameter is a sample, the stronger reason first: of two places
-/// closer than the kernel's tolerance, the one kept is the stronger.
+/// closer than the kernel's tolerance, the one kept is the stronger. An end
+/// takes the places within a hair ([`Scale::HAIR`]) of it: two a few
+/// tolerances off it at a stationary angle, out of order, would zigzag
+/// (122431270514586). Only an end: two walls a hair apart have grid angles
+/// a few tolerances apart along the meet, and each needs its own.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Reason {
     End,
@@ -83,6 +88,10 @@ fn on_meet_by(
     }
     marks.sort_by(|one, other| one.0.total_cmp(&other.0).then(one.1.cmp(&other.1)));
 
+    let reach = |stronger: Reason| match stronger {
+        Reason::End => eps * Scale::HAIR,
+        _ => eps,
+    };
     let mut kept: Vec<(f64, Reason, DVec3)> = Vec::with_capacity(marks.len());
     for (t, reason) in marks {
         let point = meet.point(t);
@@ -90,7 +99,7 @@ fn on_meet_by(
             continue;
         }
         match kept.last_mut() {
-            Some(last) if (last.2 - point).length() <= eps => {
+            Some(last) if (last.2 - point).length() <= reach(last.1.min(reason)) => {
                 if reason < last.1 {
                     *last = (t, reason, point);
                 }

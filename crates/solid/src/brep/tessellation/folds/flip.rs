@@ -140,6 +140,11 @@ impl Folds<'_> {
         if !(convex(c, u, d) && convex(c, d, v)) {
             return None;
         }
+        let drawn = &self.drawn[face];
+        let [c_at, d_at] = [c, d].map(|corner| self.samples.point(drawn.outline.samples[corner]));
+        if drawn.surface.distance((c_at + d_at) / 2.0).abs() > self.tolerance {
+            return None;
+        }
         self.replace(at, partner, [c, u, d], [c, d, v]);
         Some([old, theirs])
     }

@@ -2,16 +2,17 @@
 //! loop jumps by a turn.
 //!
 //! A face whose loops come back to their start without going round the axis is
-//! laid out as it is, its holes placed within the turn its outer loop spans. A
-//! face going all the way round — a band between two rings, say — has loops
-//! that come back a turn further on, and no seam to lay them out against: it
-//! is cut open at a grid angle that every loop passes at one of its own
-//! samples, never between two and never at a vertex. Each loop falls into
-//! pieces between the places it passes that angle, each piece laid within the
-//! turn from it; walls between those places, standing once at the angle of
-//! the cut and once a turn further on, close the pieces into one region. A
-//! hole the cut passes through is two pieces like any other, so that a window
-//! leaving a strut too narrow for a grid angle is cut through the window.
+//! laid out as it is, each hole placed in the first turn its outer loop holds
+//! it in — a turn on, when that loop spans more than one. A face going all the
+//! way round — a band between two rings, say — has loops that come back a turn
+//! further on, and no seam to lay them out against: it is cut open at a grid
+//! angle that every loop passes at one of its own samples, never between two
+//! and never at a vertex. Each loop falls into pieces between the places it
+//! passes that angle, each piece laid within the turn from it; walls between
+//! those places, standing once at the angle of the cut and once a turn
+//! further on, close the pieces into one region. A hole the cut passes
+//! through is two pieces like any other, so that a window leaving a strut too
+//! narrow for a grid angle is cut through the window.
 
 use std::f64::consts::{PI, TAU};
 
@@ -19,6 +20,7 @@ use glam::DVec2;
 
 use super::super::sampling::Samples;
 use super::Outline;
+use super::columns::winding;
 use crate::brep::surface::Cylinder;
 
 /// A loop laid out from one of its points round to the same point again,
@@ -132,9 +134,25 @@ impl Outline {
                 .iter()
                 .max_by(|one, other| one.area().total_cmp(&other.area()))?;
             let low = outer.lowest();
+            let ring: Vec<DVec2> = outer.placed.iter().map(|(at, _)| *at).collect();
+            let high = ring.iter().map(|at| at.x).fold(f64::NEG_INFINITY, f64::max);
+            let sides: Vec<[usize; 2]> = (1..ring.len()).map(|at| [at - 1, at]).collect();
             for ((ids, raw), lap) in laps.iter().zip(raws).zip(&laid) {
-                let turns = ((low - lap.lowest()) / TAU).ceil();
-                let placed = Lap::from(raw, ids, 0, lap.placed[0].0.x + TAU * turns).placed;
+                let first = ((low - lap.lowest()) / TAU).ceil();
+                let copy =
+                    |turns: f64| Lap::from(raw, ids, 0, lap.placed[0].0.x + TAU * turns).placed;
+                let placed = (0..)
+                    .map(|more| first + f64::from(more))
+                    .take_while(|turns| {
+                        !std::ptr::eq(lap, outer) && lap.lowest() + TAU * turns <= high
+                    })
+                    .map(copy)
+                    .find(|placed| {
+                        placed
+                            .iter()
+                            .any(|(at, _)| winding(&ring, &sides, *at) != 0)
+                    })
+                    .unwrap_or_else(|| copy(first));
                 self.chain(&placed);
             }
             return Some(());

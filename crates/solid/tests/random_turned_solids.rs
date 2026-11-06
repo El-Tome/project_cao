@@ -5919,7 +5919,6 @@ fn tilted_seed_on_the_exact_kernel(seed: u64) {
 }
 
 #[test]
-#[ignore = "an open cone face, a family lane 3 leaves, #707"]
 fn seed_122431270514586_a_slanted_case_is_drawn_closed() {
     slanted_seed_on_the_exact_kernel(122431270514586);
 }
@@ -5931,7 +5930,6 @@ fn seed_122431270514532_a_floor_against_a_cap_leaning_a_hair_keeps_every_rule() 
 }
 
 #[test]
-#[ignore = "an open cone face, a family lane 3 leaves, #707"]
 fn seed_28743870519278_a_tilted_case_is_drawn_closed() {
     tilted_seed_on_the_exact_kernel(28743870519278);
 }

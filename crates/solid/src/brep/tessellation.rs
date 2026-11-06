@@ -65,14 +65,16 @@ impl Body {
                 face: id,
                 outline,
                 triangles: cut,
+                surface: *self.surface(self.face(id).surface),
             });
         }
-        folds::unfolded(&mut drawn, &samples, self.scale().eps());
+        folds::unfolded(&mut drawn, &samples, self.scale().eps(), tolerance);
         let mut oriented = Vec::new();
         for Drawn {
             face: id,
             outline,
             triangles: cut,
+            ..
         } in drawn
         {
             for corners in cut {

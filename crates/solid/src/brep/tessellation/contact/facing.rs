@@ -62,6 +62,24 @@ impl<'a> Facing<'a> {
         self.gap
     }
 
+    /// The two walls, in the order the pair was taken.
+    pub(super) fn walls(&self) -> [Wall; 2] {
+        self.walls
+    }
+
+    /// How far apart the two axes stand, at most, at the heights a circle or
+    /// a vertex of either stands at.
+    pub(super) fn apart(&self) -> f64 {
+        let [(_, one), (_, other)] = self.walls;
+        self.known().levels[0]
+            .iter()
+            .map(|height| {
+                let from = one.origin + one.axis * *height - other.origin;
+                (from - other.axis * other.axis.dot(from)).length()
+            })
+            .fold(0.0, f64::max)
+    }
+
     fn known(&self) -> &Known {
         self.known.get_or_init(|| {
             let body = self.body;

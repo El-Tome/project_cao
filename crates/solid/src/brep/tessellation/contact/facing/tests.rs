@@ -1,5 +1,6 @@
-//! Two walls leaning a hair off parallel, face to face: the first step of the
-//! shared order #706 now needs, as its last comment lays it out. Each of the
+//! Two walls leaning a hair off parallel, face to face and on one set of
+//! rays: the first steps of the shared order #706 now needs, as its last
+//! comment lays it out. Each of the
 //! first four steps lands with `closer_than_a_sag` still in place and every
 //! campaign identical to `main` seed by seed; the fifth lifts the decline, and
 //! is held in `crates/solid/tests/random_walls_at_any_angle.rs` with the
@@ -14,9 +15,10 @@
 //! - a point on the pair's own meet is never counted as crowded —
 //!   `the_loop_two_walls_leaning_a_hair_off_parallel_cross_along_is_sampled_at_every_step_of_their_grids`
 //! - one set of rays: a correspondence between the two walls' rays, each
-//!   taking the other's grid and own rays, rays within the pair's drift
-//!   merged by one rule decided once per pair — no test: put off to the
-//!   second step, whose red is written in its own turn
+//!   taking the other's grid and own rays —
+//!   `two_walls_leaning_a_hair_off_parallel_are_sampled_on_one_set_of_rays_whichever_holds_a_vertex`;
+//!   rays within the pair's drift merged by one rule decided once per pair —
+//!   `two_walls_leaning_a_hair_off_parallel_take_no_two_rays_a_hair_apart`
 //! - the crossing line sampled at its ends, each wall pinning in its own
 //!   chart the angles of both ends and nothing sampled in the wedge between
 //!   them, so that both faces cut the cell alike — no test: put off to the
@@ -27,7 +29,7 @@
 
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
-use glam::DVec3;
+use glam::{DQuat, DVec3};
 
 use super::*;
 use crate::brep::curve::{Meet, Wall as Round};
@@ -216,6 +218,135 @@ fn the_loop_two_walls_leaning_a_hair_off_parallel_cross_along_is_sampled_at_ever
                     wall.axis,
                     points.len(),
                 );
+            }
+        }
+    }
+}
+
+fn leaning_rings(
+    lean: f64,
+    toward: f64,
+    radii: [f64; 2],
+    vertices: [Option<f64>; 2],
+) -> (Body, [Wall; 2], [[EdgeId; 2]; 2]) {
+    let mut build = fixtures::Build::new();
+    let crossing = DVec3::X * FOOT;
+    let (sin, cos) = toward.sin_cos();
+    let leaning = DVec3::new(lean * cos, lean * sin, (1.0 - lean * lean).sqrt());
+    let use_of = |edge, forward| Coedge { edge, forward };
+    let mut rings = [[EdgeId(0); 2]; 2];
+    for side in 0..2 {
+        let wall = Cylinder::about(crossing, [DVec3::Z, leaning][side], radii[side]);
+        let id = build.surface(Surface::Cylinder(wall));
+        let [low, high] =
+            [-HALF, HALF].map(|z| wall.parameters(crossing + wall.axis * (z / wall.axis.z)).y);
+        let through = vertices[side].map(|angle| build.vertex(wall.point(DVec2::new(angle, low))));
+        rings[side] = [build.circle(id, low, through), build.circle(id, high, None)];
+        build.face(
+            id,
+            false,
+            vec![
+                vec![use_of(rings[side][0], true)],
+                vec![use_of(rings[side][1], false)],
+            ],
+        );
+    }
+    let body = build.finish(REACH);
+    let found = walls(&body);
+    (body, [found[0], found[1]], rings)
+}
+
+fn ways_seen_from(samples: &Samples, body: &Body, ring: EdgeId, frame: &Cylinder) -> Vec<f64> {
+    let Curve::Circle(circle) = body.curve(body.edge(ring).curve) else {
+        panic!("a band is bounded by rings");
+    };
+    let turn = DQuat::from_rotation_arc(circle.axis, frame.axis);
+    let mut ids = samples.edge(ring).to_vec();
+    if ids.len() > 1 && ids[0] == ids[ids.len() - 1] {
+        ids.pop();
+    }
+    ids.iter()
+        .map(|id| {
+            let way = turn * (samples.point(*id) - circle.center);
+            way.dot(frame.v).atan2(way.dot(frame.u))
+        })
+        .collect()
+}
+
+fn round_off(one: f64, other: f64) -> f64 {
+    ((one - other + PI).rem_euclid(TAU) - PI).abs()
+}
+
+fn first_radius_whose_grid_grows(tolerance: f64, below: f64) -> Option<f64> {
+    (0..250_000)
+        .map(|step| RADIUS + step as f64 * 1e-4)
+        .find(|radius| divisions(*radius, tolerance) > divisions(radius - below, tolerance))
+}
+
+#[test]
+fn two_walls_leaning_a_hair_off_parallel_are_sampled_on_one_set_of_rays_whichever_holds_a_vertex() {
+    let below = 5e-5;
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let mut cases = vec![[RADIUS, RADIUS]];
+        cases.extend(
+            first_radius_whose_grid_grows(tolerance, below).map(|radius| [radius, radius - below]),
+        );
+        for radii in cases {
+            let (body, walls, rings) = leaning_rings(LEAN, 0.0, radii, [Some(0.3), Some(1.0)]);
+            let samples = Samples::of(&body, tolerance);
+            let frame = walls[0].1;
+            let seen =
+                rings.map(|pair| pair.map(|ring| ways_seen_from(&samples, &body, ring, &frame)));
+            for one in seen.iter().flatten() {
+                for other in seen.iter().flatten() {
+                    for way in one {
+                        let nearest = other
+                            .iter()
+                            .map(|seen| round_off(*way, *seen))
+                            .fold(f64::INFINITY, f64::min);
+                        assert!(
+                            nearest < 1e-9,
+                            "a ray at {way}, turned onto the post's axis, stands {nearest} \
+                             round from the nearest of {} on another ring, radii {radii:?} \
+                             within {tolerance}",
+                            other.len(),
+                        );
+                    }
+                    assert_eq!(one.len(), other.len(), "radii {radii:?} within {tolerance}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn two_walls_leaning_a_hair_off_parallel_take_no_two_rays_a_hair_apart() {
+    let below = 5e-5;
+    let mut cases = vec![
+        (9e-4, 1.0, [RADIUS; 2], 0.02),
+        (9e-4, 1.0, [RADIUS; 2], 0.5),
+    ];
+    for tolerance in [1e-3, 0.02] {
+        let radius = first_radius_whose_grid_grows(tolerance, below).expect("a grid grows past 5");
+        cases.push((LEAN, 0.0, [radius, radius - below], tolerance));
+    }
+    for (lean, toward, radii, tolerance) in cases {
+        let (body, walls, rings) = leaning_rings(lean, toward, radii, [None; 2]);
+        let samples = Samples::of(&body, tolerance);
+        for (side, pair) in rings.into_iter().enumerate() {
+            let wall = walls[side].1;
+            for ring in pair {
+                let mut ways = ways_seen_from(&samples, &body, ring, &wall);
+                ways.sort_by(f64::total_cmp);
+                for (at, way) in ways.iter().enumerate() {
+                    let next = ways[(at + 1) % ways.len()];
+                    assert!(
+                        round_off(*way, next) * wall.radius > 1e-3,
+                        "a ring of the wall about {} takes rays at {way} and {next}, a hair \
+                         apart, radii {radii:?} leaning {lean} within {tolerance}",
+                        wall.axis,
+                    );
+                }
             }
         }
     }

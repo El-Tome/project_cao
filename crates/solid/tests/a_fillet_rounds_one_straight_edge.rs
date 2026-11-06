@@ -1825,6 +1825,14 @@ fn round_on_the_bend(turn: f64, radius: f64) -> Round {
     }
 }
 
+/// How far a round of `radius` on the bent front's edge stands off its two
+/// halves at the middle of its turn, where it stands furthest from both:
+/// `r · (1 − cos(turn / 2))`, read as `2r · sin²(turn / 4)` so that it keeps
+/// its digits on an edge nearly flat.
+fn standing_off_the_halves(turn: f64, radius: f64) -> f64 {
+    2.0 * radius * (turn / 4.0).sin().powi(2)
+}
+
 /// The largest radius the bent front's two halves give, each 15 long: the one
 /// set back by their whole length.
 fn most_on_the_bend(turn: f64) -> f64 {
@@ -1838,8 +1846,9 @@ fn most_on_the_bend(turn: f64) -> f64 {
 /// lying in them, the edge gone, and the matter it takes what arithmetic
 /// says. What it did instead otherwise. What its triangles enclose is not
 /// asked: the kernel draws an arc this shallow and this wide coarser than its
-/// tolerance whatever made it — a front raised on an arc of 3437 over half a
-/// degree is drawn 1.6e-2 off it, where 30 of reach allows 6e-3 — and the
+/// tolerance, whatever made it — a wall raised on the arc of radius 3437
+/// about (0, 3437), from the origin over half a degree, is cut once, 21 along
+/// its 30, and drawn 1.6e-2 off it, where 30 of reach allows 6e-3 — and the
 /// rounds of the other tests hold the drawing.
 fn rounded_on_the_bend(
     part: &Body,
@@ -1958,7 +1967,7 @@ fn a_fillet_whose_round_stands_within_the_tolerance_of_the_faces_it_replaces_is_
         let part = bent_front(turn);
         let name = edge_between(&part, FRONT, SECOND_HALF);
         for &radius in radii {
-            let standing = radius * (1.0 / (turn / 2.0).cos() - 1.0);
+            let standing = standing_off_the_halves(turn, radius);
 
             let declined = part.fillet(&name, radius).err();
 
@@ -1966,7 +1975,7 @@ fn a_fillet_whose_round_stands_within_the_tolerance_of_the_faces_it_replaces_is_
                 declined,
                 Some(Declined::Distance),
                 "{radius} asked on a front bent to {degrees}°: its round would stand {standing:e} \
-                 off the corner, within the tolerance of the part's two halves"
+                 off the part's two halves, too near for the tolerance to tell them apart"
             );
         }
     }
@@ -1984,9 +1993,9 @@ fn a_fillet_on_a_nearly_flat_edge_rounds_it_once_its_round_stands_clear_of_the_f
     assert_eq!(
         rounded,
         Ok(true),
-        "{radius} asked on a front bent to {degrees}°, its round standing {:e} off the corner and \
-         set back {:e} along each half",
-        radius * (1.0 / (turn / 2.0).cos() - 1.0),
+        "{radius} asked on a front bent to {degrees}°, its round standing {:e} off the two halves \
+         and set back {:e} along each",
+        standing_off_the_halves(turn, radius),
         radius * (turn / 2.0).tan()
     );
 }

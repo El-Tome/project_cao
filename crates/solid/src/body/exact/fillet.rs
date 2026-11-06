@@ -131,3 +131,6 @@ impl Wedge {
         Ok((Contour { corners, runs }, frame, travel))
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -29,6 +29,7 @@
 
 mod facing;
 mod gap;
+mod leaning;
 mod own;
 mod parallel;
 mod point;
@@ -203,15 +204,17 @@ pub(super) fn contacts(
     } = through_vertices(body, walls, inside, tolerance, &mut own);
     one_place(walls, eps, &mut own);
     let mut close = Vec::new();
+    let mut leaning = Vec::new();
     let mut contacts: BTreeMap<SurfaceId, Contact> = BTreeMap::new();
     for (at, one) in walls.iter().enumerate() {
         for other in &walls[at + 1..] {
-            if one.1.axis.cross(other.1.axis).length() > Scale::RELATIVE {
-                continue;
-            }
             let Some(facing) = zones.between(one.0, other.0) else {
                 continue;
             };
+            if one.1.axis.cross(other.1.axis).length() > Scale::RELATIVE {
+                leaning.push(facing);
+                continue;
+            }
             let lines = meeting_lines(&one.1, &other.1, eps);
             if !lines.is_empty() {
                 for wall in [one, other] {
@@ -255,6 +258,11 @@ pub(super) fn contacts(
                 }
             }
         }
+    }
+    for (wall, steps) in leaning::shared(&leaning, &mut own, &beneath, tolerance) {
+        let every = [f64::NEG_INFINITY, f64::INFINITY];
+        let withheld = steps.into_iter().map(|step| (step, every));
+        contacts.entry(wall).or_default().withheld.extend(withheld);
     }
     let planes = close
         .iter()

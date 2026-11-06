@@ -324,6 +324,70 @@ fn a_frame_carries_the_orientation_cube_wherever_the_view_is() {
     }
 }
 
+/// Two backgrounds no default wears, so that a frame painted with either can
+/// only have taken it from the theme it was handed.
+fn a_theme_with_two_backgrounds() -> cao_prefs::Theme {
+    cao_prefs::Theme {
+        background: cao_prefs::theme::Background::Solid(FREE_VIEW_BACKGROUND),
+        sketch_background: cao_prefs::theme::Background::Solid(SKETCH_BACKGROUND),
+        ..cao_prefs::Theme::default()
+    }
+}
+
+const FREE_VIEW_BACKGROUND: cao_prefs::theme::Rgba =
+    cao_prefs::theme::Rgba::opaque(0.30, 0.10, 0.20);
+const SKETCH_BACKGROUND: cao_prefs::theme::Rgba = cao_prefs::theme::Rgba::opaque(0.10, 0.30, 0.20);
+
+fn background_colours(frame: &SceneFrame) -> Vec<[f32; 4]> {
+    frame
+        .scene_background
+        .iter()
+        .map(|vertex| vertex.color)
+        .collect()
+}
+
+#[test]
+fn a_sketch_being_edited_is_drawn_on_the_sketch_background() {
+    let mut document = a_block();
+    let mut state = ViewportState::default();
+    state.mode = ViewMode::Plane(WorkPlane::XY);
+    state.theme = a_theme_with_two_backgrounds();
+    let mut editor = SketchEditor::default();
+    editor.begin_editing(0, WorkPlane::XY);
+
+    let colours = background_colours(&a_frame_of(&state, &mut document, &mut editor));
+
+    assert!(
+        !colours.is_empty()
+            && colours
+                .iter()
+                .all(|colour| *colour == tint(SKETCH_BACKGROUND)),
+        "a sketch being edited is painted {:?}, the sketch's background is {:?} and the free \
+         view's {:?}",
+        colours.first(),
+        tint(SKETCH_BACKGROUND),
+        tint(FREE_VIEW_BACKGROUND),
+    );
+}
+
+#[test]
+fn the_free_view_is_drawn_on_the_view_background() {
+    let colours = background_colours(&a_frame(|state| {
+        state.mode = ViewMode::Free;
+        state.theme = a_theme_with_two_backgrounds();
+    }));
+
+    assert!(
+        !colours.is_empty()
+            && colours
+                .iter()
+                .all(|colour| *colour == tint(FREE_VIEW_BACKGROUND)),
+        "the free view is painted {:?}, its background is {:?}",
+        colours.first(),
+        tint(FREE_VIEW_BACKGROUND),
+    );
+}
+
 const HALFWAY: f32 = 2.0;
 const ON_THE_TOP: f32 = 4.0;
 

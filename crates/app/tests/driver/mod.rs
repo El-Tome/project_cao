@@ -49,11 +49,7 @@ pub fn open_with(test: &str, (width, height): (f32, f32), settings: cao_prefs::S
     let root = std::env::temp_dir().join("cao-driver").join(test);
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("documents")).expect("a place to keep the parts");
-    let at = Locations {
-        config: root.join("config"),
-        data: root.join("data"),
-        documents: Some(root.join("documents")),
-    };
+    let at = locations_of(test);
     let mut profiles = cao_prefs::Profiles::default();
     *profiles.active_mut() = settings;
     profiles
@@ -75,6 +71,24 @@ pub fn open_with(test: &str, (width, height): (f32, f32), settings: cao_prefs::S
         });
     app.run();
     app
+}
+
+/// Where the application opened for `test` keeps what it writes.
+fn locations_of(test: &str) -> Locations {
+    let root = std::env::temp_dir().join("cao-driver").join(test);
+    Locations {
+        config: root.join("config"),
+        data: root.join("data"),
+        documents: Some(root.join("documents")),
+    }
+}
+
+/// The settings the application opened for `test` has written down, as the
+/// next start would read them.
+pub fn saved_settings(test: &str) -> cao_prefs::Settings {
+    cao_prefs::Profiles::load(&cao_app::adapters::files::DiskFiles, &locations_of(test))
+        .active()
+        .clone()
 }
 
 pub fn click(app: &mut App, label: &str) {

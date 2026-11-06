@@ -53,6 +53,12 @@
 //!   confused — `a_measure_is_not_drawn_in_the_colour_a_dimension_drives_with`,
 //!   which reads the colour off the vertices rather than comparing two entries
 //!   of the theme, since it is the drawing that has to differ
+//!
+//! Closes #724.
+//! - found on the branch: a measure is only drawn in a sketch, and a sketch
+//!   now has a background of its own, so the pill under a number wears that
+//!   one, held back to 0.82, rather than the free view's —
+//!   `a_measure_s_pill_wears_the_background_of_the_sketch_it_is_read_in`
 
 use cao_part::Formula;
 use cao_part::PartDocument;
@@ -296,6 +302,15 @@ fn painted(showing: Option<DimensionTarget>) -> Vec<egui::Shape> {
 }
 
 fn painted_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<egui::Shape> {
+    painted_seen(to, showing, &ViewportState::default())
+}
+
+/// The same, painted the way `state` says, its theme included.
+fn painted_seen(
+    to: DVec2,
+    showing: Option<DimensionTarget>,
+    state: &ViewportState,
+) -> Vec<egui::Shape> {
     let (mut document, mut editor) = measuring_a_run(to, showing);
     let mut extrusion = ExtrusionState::default();
     let lang = Catalogue::french();
@@ -305,7 +320,6 @@ fn painted_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<egui::Shape> {
         extrusion: &mut extrusion,
         lang: &lang,
     };
-    let state = ViewportState::default();
     let measuring = what_is_measured(&context);
     let egui = egui::Context::default();
     let mut output = egui::FullOutput::default();
@@ -317,10 +331,13 @@ fn painted_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<egui::Shape> {
             screen_rect: Some(SCREEN),
             ..Default::default()
         });
+        // An area fades in over its first frames, which would tint every
+        // colour painted in it by how far the fade has got.
         egui::Area::new(egui::Id::new("the canvas"))
             .fixed_pos(SCREEN.min)
+            .fade_in(false)
             .show(&egui, |ui| {
-                paint_measure(ui, &state, SCREEN, &context, measuring.as_ref());
+                paint_measure(ui, state, SCREEN, &context, measuring.as_ref());
             });
         output = egui.end_pass();
     }
@@ -436,6 +453,37 @@ fn every_number_sits_on_a_pill_so_the_drawing_cannot_swallow_it() {
             "{number:?} has no pill under it",
         );
     }
+}
+
+#[test]
+fn a_measure_s_pill_wears_the_background_of_the_sketch_it_is_read_in() {
+    let mut state = ViewportState::default();
+    state.theme.background = cao_prefs::theme::Background::Solid(Rgba::opaque(0.30, 0.10, 0.20));
+    state.theme.sketch_background =
+        cao_prefs::theme::Background::Solid(Rgba::opaque(0.10, 0.30, 0.20));
+    let held_back = |background: &cao_prefs::theme::Background| {
+        tint_to_color(background.sample(0.0).with_alpha(0.82))
+    };
+
+    let fills: Vec<egui::Color32> =
+        painted_seen(DVec2::new(ACROSS, UP), Some(the_distance()), &state)
+            .iter()
+            .filter_map(|shape| match shape {
+                egui::Shape::Rect(pill) => Some(pill.fill),
+                _ => None,
+            })
+            .collect();
+
+    assert!(
+        !fills.is_empty()
+            && fills
+                .iter()
+                .all(|fill| *fill == held_back(&state.theme.sketch_background)),
+        "the pills are filled {fills:?}: the sketch they sit on is {:?} held back, the \
+         free view {:?}",
+        held_back(&state.theme.sketch_background),
+        held_back(&state.theme.background),
+    );
 }
 
 /// A trait a hair off the horizontal: forty across and a third of a millimetre

@@ -589,7 +589,8 @@
   "settings.navigation.gesture.zoom": "Zoomer",
   "settings.navigation.gesture.ignore": "Rien",
 
-  "settings.appearance.background": "Fond",
+  "settings.appearance.background": "Fond de la vue 3D",
+  "settings.appearance.sketch_background": "Fond en esquisse",
   "settings.appearance.kind.solid": "Uni",
   "settings.appearance.kind.linear": "Dégradé linéaire",
   "settings.appearance.kind.radial": "Dégradé radial",

@@ -87,7 +87,11 @@ pub(crate) fn build_frame(
     let mut surfaces = Vec::new();
 
     let mut background = Vec::new();
-    let (shape, sample) = background_shape(&theme.background);
+    let backdrop = match context.editor.active_sketch() {
+        Some(_) => &theme.sketch_background,
+        None => &theme.background,
+    };
+    let (shape, sample) = background_shape(backdrop);
     cao_render::push_background(&mut background, shape, sample);
 
     // The grid and the drawing's own axes are only drawn once the view has

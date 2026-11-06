@@ -22,6 +22,12 @@ impl Rgba {
         Self::new(r, g, b, 1.0)
     }
 
+    /// An opaque colour from the bytes a hex code writes, `#111318` being
+    /// `from_bytes(0x11, 0x13, 0x18)`.
+    const fn from_bytes(r: u8, g: u8, b: u8) -> Self {
+        Self::opaque(r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0)
+    }
+
     pub fn with_alpha(self, a: f32) -> Self {
         Self { a, ..self }
     }
@@ -135,6 +141,9 @@ impl Background {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Theme {
     pub background: Background,
+    /// What is painted behind a sketch being edited.
+    #[serde(default = "Theme::default_sketch_background")]
+    pub sketch_background: Background,
 
     pub axis_x: Rgba,
     pub axis_y: Rgba,
@@ -219,26 +228,32 @@ impl Theme {
     fn default_going() -> Rgba {
         Rgba::new(0.95, 0.25, 0.25, 1.0)
     }
+
+    fn default_sketch_background() -> Background {
+        Background::Solid(Rgba::from_bytes(0x11, 0x13, 0x18))
+    }
 }
 
 impl Default for Theme {
     fn default() -> Self {
         Self {
-            background: Background::Linear {
-                angle_degrees: 0.0,
+            background: Background::Radial {
+                center: [0.5, 0.55],
+                radius: 0.7,
                 stops: vec![
-                    Stop::new(0.0, Rgba::opaque(0.04, 0.05, 0.07)),
-                    Stop::new(1.0, Rgba::opaque(0.10, 0.12, 0.16)),
+                    Stop::new(0.0, Rgba::from_bytes(0x1A, 0x1D, 0x24)),
+                    Stop::new(1.0, Rgba::from_bytes(0x0F, 0x11, 0x15)),
                 ],
             },
+            sketch_background: Theme::default_sketch_background(),
 
-            axis_x: Rgba::opaque(0.90, 0.30, 0.35),
-            axis_y: Rgba::opaque(0.45, 0.75, 0.30),
-            axis_z: Rgba::opaque(0.30, 0.55, 0.95),
+            axis_x: Rgba::from_bytes(0xE5, 0x53, 0x4B).with_alpha(0.75),
+            axis_y: Rgba::from_bytes(0x57, 0xAB, 0x5A).with_alpha(0.75),
+            axis_z: Rgba::from_bytes(0x53, 0x9B, 0xF5).with_alpha(0.75),
             axis_width: 2.0,
 
-            grid_minor: Rgba::new(0.55, 0.58, 0.62, 0.35),
-            grid_major: Rgba::new(0.65, 0.68, 0.73, 0.60),
+            grid_minor: Rgba::from_bytes(0x1B, 0x1F, 0x27),
+            grid_major: Rgba::from_bytes(0x26, 0x2B, 0x35),
             grid_minor_width: 1.0,
             grid_major_width: 1.5,
             grid_major_every: 10,

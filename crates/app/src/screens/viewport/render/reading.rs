@@ -367,10 +367,10 @@ fn write(
     painter.galley(pill.center() - text.size() / 2.0, text, tokens::TEXT_TITLE);
 }
 
-/// The pill's own colour: the canvas's background, held back from opaque so
-/// the drawing stays readable through it.
+/// The pill's own colour: the background of the sketch it is read in, held
+/// back from opaque so the drawing stays readable through it.
 fn backdrop(theme: &Theme) -> egui::Color32 {
-    tint_to_color(theme.background.sample(0.0).with_alpha(0.82))
+    tint_to_color(theme.sketch_background.sample(0.0).with_alpha(0.82))
 }
 
 #[cfg(test)]

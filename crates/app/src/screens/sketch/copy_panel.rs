@@ -92,12 +92,25 @@ impl CopyPanel {
         self.values
     }
 
-    pub(crate) fn toggle(&mut self, element: Element) {
+    /// Takes or lets go of one element with the ends it stands on: an end
+    /// stays held while another held element still stands on it.
+    pub(crate) fn toggle(&mut self, element: Element, ends: impl Fn(Element) -> Vec<PointId>) {
         match self.elements.iter().position(|held| *held == element) {
             Some(rank) => {
                 self.elements.remove(rank);
+                let still: Vec<PointId> =
+                    self.elements.iter().flat_map(|held| ends(*held)).collect();
+                let freed: Vec<PointId> = ends(element)
+                    .into_iter()
+                    .filter(|end| !still.contains(end))
+                    .collect();
+                self.elements
+                    .retain(|held| !matches!(held, Element::Point(point) if freed.contains(point)));
             }
-            None => self.elements.push(element),
+            None => {
+                self.elements.push(element);
+                self.take_in(ends(element).into_iter().map(Element::Point));
+            }
         }
     }
 

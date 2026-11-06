@@ -1551,6 +1551,13 @@ names the axis. The tool never guesses from what was clicked, so an ordinary
 trait can be an axis and a construction trait can be copied. Clicking a slot
 makes it active, to change what it holds at any time.
 
+A trait clicked into the elements comes **with its two ends**, shown taken
+with it, so the user sees the points that will be copied; an end another trait
+shares is taken all the same. Clicking the trait again lets go of it and of
+those of its ends no other held trait stands on. The box, and a click on a
+circle, an arc, an ellipse or a point, take what they took before. The copy
+comes out the same either way: a trait always carried its ends with it.
+
 Once a slot is filled the one below it becomes active, and `Entrée` moves down
 one slot too: the panel reads as an order of actions. On `Valider`, `Entrée`
 lays the copy if every slot holds something; otherwise the first empty slot

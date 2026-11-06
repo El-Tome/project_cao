@@ -106,8 +106,9 @@ fn escape_hands_what_the_panel_held_to_the_selection_tool() {
     assert!(driver::shows(&app, "Terminer"), "the sketch stays open");
     driver::click(&mut app, "Symétrie");
     assert!(
-        driver::shows(&app, "Éléments : 1"),
-        "the trait stayed selected, and the mirror starts with it: {:?}",
+        driver::shows(&app, "Éléments : 3"),
+        "the trait and its two ends stayed selected, and the mirror starts with \
+         all three: {:?}",
         driver::on_screen(&app)
     );
 }
@@ -165,14 +166,31 @@ fn a_broken_value_refuses_validate_and_nothing_else() {
     driver::click(&mut app, "Valider");
 
     assert!(
-        driver::shows(&app, "Éléments : 1"),
-        "Validate refused, so the panel still holds the trait: {:?}",
+        driver::shows(&app, "Éléments : 3"),
+        "Validate refused, so the panel still holds the trait and its two ends: {:?}",
         driver::on_screen(&app)
     );
     assert!(
         driver::says(&app, "La formule s'arrête avant sa dernière valeur"),
         "and says why: {:?}",
         driver::said(&app)
+    );
+}
+
+#[test]
+fn a_trait_clicked_into_the_panel_is_counted_with_its_two_ends() {
+    let mut app = a_trait_drawn(
+        "a_trait_clicked_into_the_panel",
+        cao_prefs::Settings::default(),
+    );
+    driver::click(&mut app, "Symétrie");
+
+    driver::click_at(&mut app, right(ON_THE_TRAIT));
+
+    assert!(
+        driver::shows(&app, "Éléments : 3"),
+        "the trait and its two ends are held: {:?}",
+        driver::on_screen(&app)
     );
 }
 

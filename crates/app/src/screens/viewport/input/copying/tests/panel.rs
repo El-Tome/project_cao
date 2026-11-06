@@ -160,10 +160,11 @@ fn a_click_in_the_drawing_adds_the_element_under_it() {
 
     assert_eq!(
         bench.elements(),
-        vec![
-            Element::Segment(TRAIT_TO_COPY),
-            Element::Segment(ORDINARY_TRAIT)
+        [
+            bench.a_trait_and_its_ends(TRAIT_TO_COPY),
+            bench.a_trait_and_its_ends(ORDINARY_TRAIT)
         ]
+        .concat()
     );
     assert_eq!(
         bench.active(),
@@ -181,7 +182,7 @@ fn a_click_on_an_element_already_held_lets_it_go() {
 
     bench.click(ON_THE_TRAIT_TO_COPY);
 
-    assert_eq!(bench.elements(), vec![Element::Segment(ORDINARY_TRAIT)]);
+    assert_eq!(bench.elements(), bench.a_trait_and_its_ends(ORDINARY_TRAIT));
 }
 
 #[test]
@@ -191,7 +192,10 @@ fn a_construction_trait_clicked_while_elements_is_active_is_copied() {
 
     bench.click(ON_THE_CONSTRUCTION_TRAIT);
 
-    assert_eq!(bench.elements(), vec![Element::Segment(CONSTRUCTION_TRAIT)]);
+    assert_eq!(
+        bench.elements(),
+        bench.a_trait_and_its_ends(CONSTRUCTION_TRAIT)
+    );
     assert_eq!(
         bench.active(),
         CopySlot::Elements,
@@ -216,7 +220,7 @@ fn an_ordinary_trait_clicked_in_the_target_slot_is_the_mirror_s_axis() {
         bench.last_laid(),
         Some(&Operation::Mirror {
             sketch: 0,
-            elements: vec![Element::Segment(TRAIT_TO_COPY)],
+            elements: bench.a_trait_and_its_ends(TRAIT_TO_COPY),
             axis: ChosenAxis::Trait(ORDINARY_TRAIT),
         }),
         "the axis is the trait clicked while its slot was active, picked before \
@@ -244,7 +248,7 @@ fn a_point_clicked_in_the_target_slot_is_the_circular_pattern_s_centre() {
         bench.last_laid(),
         Some(&Operation::CircularPattern {
             sketch: 0,
-            elements: vec![Element::Segment(TRAIT_TO_COPY)],
+            elements: bench.a_trait_and_its_ends(TRAIT_TO_COPY),
             centre,
             degrees: Formula::Number(90.0),
             count: Formula::Number(4.0),
@@ -280,7 +284,7 @@ fn a_trait_clicked_in_the_target_slot_is_the_rectangular_pattern_s_direction() {
     else {
         panic!("a rectangular pattern is laid: {:?}", bench.last_laid());
     };
-    assert_eq!(elements, &vec![Element::Segment(TRAIT_TO_COPY)]);
+    assert_eq!(elements, &bench.a_trait_and_its_ends(TRAIT_TO_COPY));
     assert_eq!(direction, &ChosenAxis::Trait(ORDINARY_TRAIT));
     let opened = RepeatsAsked {
         step: Formula::Number(10.0),
@@ -346,7 +350,11 @@ fn the_panel_s_cancel_hands_its_elements_to_the_selection_tool_and_lays_nothing(
     assert_eq!(bench.editor.tool, Tool::Select);
     assert_eq!(
         bench.editor.selection(),
-        [Selection::Element(Element::Segment(TRAIT_TO_COPY))],
+        bench
+            .a_trait_and_its_ends(TRAIT_TO_COPY)
+            .into_iter()
+            .map(Selection::Element)
+            .collect::<Vec<_>>(),
         "what the panel held stays selected"
     );
     assert_eq!(
@@ -399,7 +407,7 @@ fn a_click_in_the_drawing_while_a_value_or_validate_is_active_fills_nothing() {
     bench.click(THE_ORDINARY_TRAIT_S_HEAD);
     bench.click(ON_THE_CONSTRUCTION_TRAIT);
     assert_eq!(bench.active(), CopySlot::Validate, "Validate stays active");
-    assert_eq!(bench.elements(), vec![Element::Segment(TRAIT_TO_COPY)]);
+    assert_eq!(bench.elements(), bench.a_trait_and_its_ends(TRAIT_TO_COPY));
     bench.enter();
 
     assert!(
@@ -426,7 +434,7 @@ fn an_axis_already_picked_is_changed_by_clicking_its_slot_again() {
         bench.last_laid(),
         Some(&Operation::Mirror {
             sketch: 0,
-            elements: vec![Element::Segment(TRAIT_TO_COPY)],
+            elements: bench.a_trait_and_its_ends(TRAIT_TO_COPY),
             axis: ChosenAxis::Trait(CONSTRUCTION_TRAIT),
         }),
         "the second axis picked replaces the first"
@@ -466,7 +474,7 @@ fn picking_the_mirror_s_axis_lands_on_validate() {
     assert_eq!(bench.active(), CopySlot::Validate);
     assert_eq!(
         bench.elements(),
-        vec![Element::Segment(TRAIT_TO_COPY)],
+        bench.a_trait_and_its_ends(TRAIT_TO_COPY),
         "the trait clicked for the axis is not added to what is copied"
     );
 }
@@ -615,12 +623,14 @@ fn the_selection_tool_taken_from_the_panel_keeps_its_elements_selected() {
 
     bench.take(Command::ToolSelect);
 
+    let held = [
+        bench.a_trait_and_its_ends(TRAIT_TO_COPY),
+        bench.a_trait_and_its_ends(CONSTRUCTION_TRAIT),
+    ]
+    .concat();
     assert_eq!(
         bench.editor.selection(),
-        [
-            Selection::Element(Element::Segment(TRAIT_TO_COPY)),
-            Selection::Element(Element::Segment(CONSTRUCTION_TRAIT))
-        ]
+        held.into_iter().map(Selection::Element).collect::<Vec<_>>()
     );
 }
 
@@ -841,7 +851,7 @@ fn pressed_with(
 
 /// Face on to the drawing, a trait inside the box pulled from `FROM` to `TO`
 /// and another below it, the mirror in hand on its elements.
-fn a_trait_under_a_box() -> (ViewportState, Bench) {
+pub(super) fn a_trait_under_a_box() -> (ViewportState, Bench) {
     let mut state = ViewportState::default();
     state
         .camera
@@ -894,7 +904,7 @@ fn let_go(
     }
 }
 
-fn pulled_with(
+pub(super) fn pulled_with(
     state: &mut ViewportState,
     bench: &mut Bench,
     pressing: egui::PointerButton,

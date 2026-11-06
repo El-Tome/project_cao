@@ -16,7 +16,8 @@
 //!   `the_loop_two_walls_leaning_a_hair_off_parallel_cross_along_is_sampled_at_every_step_of_their_grids`
 //! - one set of rays: a correspondence between the two walls' rays, each
 //!   taking the other's grid and own rays —
-//!   `two_walls_leaning_a_hair_off_parallel_are_sampled_on_one_set_of_rays_whichever_holds_a_vertex`;
+//!   `two_walls_leaning_a_hair_off_parallel_are_sampled_on_one_set_of_rays_whichever_holds_a_vertex`,
+//!   `each_of_two_walls_leaning_a_hair_off_parallel_samples_every_ring_at_its_own_vertex_however_near_the_other_s`;
 //!   rays within the pair's drift merged by one rule decided once per pair —
 //!   `two_walls_leaning_a_hair_off_parallel_take_no_two_rays_a_hair_apart`
 //! - the crossing line sampled at its ends, each wall pinning in its own
@@ -567,6 +568,47 @@ fn cut_alike_and_cancelled(shapes: &[(f64, f64, f64)]) {
                 open, 0,
                 "{open} sides met one way only, radius {radius} within {tolerance}"
             );
+        }
+    }
+}
+
+#[test]
+fn each_of_two_walls_leaning_a_hair_off_parallel_samples_every_ring_at_its_own_vertex_however_near_the_other_s()
+ {
+    let post = Cylinder::about(DVec3::X * FOOT, DVec3::Z, RADIUS);
+    let leaning = DVec3::new(LEAN, 0.0, (1.0 - LEAN * LEAN).sqrt());
+    let leaning = Cylinder::about(DVec3::X * FOOT, leaning, RADIUS);
+    let way = DQuat::from_rotation_arc(post.axis, leaning.axis) * post.radial(0.3);
+    let facing = way.dot(leaning.v).atan2(way.dot(leaning.u));
+    for hair in [1e-7, 1e-6, 5e-6] {
+        let vertices = [0.3, facing + hair];
+        let (body, walls, rings) = leaning_rings(LEAN, 0.0, [RADIUS; 2], vertices.map(Some));
+        for tolerance in [1e-3, 0.02] {
+            let samples = Samples::of(&body, tolerance);
+            for (side, pair) in rings.into_iter().enumerate() {
+                let wall = walls[side].1;
+                for ring in pair {
+                    let mut ways = ways_seen_from(&samples, &body, ring, &wall);
+                    ways.sort_by(f64::total_cmp);
+                    assert!(
+                        ways.iter()
+                            .any(|way| round_off(*way, vertices[side]) < 1e-9),
+                        "a ring of the wall about {} misses its own vertex at {}, the other's \
+                         {hair} round from it, within {tolerance}",
+                        wall.axis,
+                        vertices[side],
+                    );
+                    for (at, way) in ways.iter().enumerate() {
+                        let next = ways[(at + 1) % ways.len()];
+                        assert!(
+                            round_off(*way, next) * wall.radius > 1e-3,
+                            "a ring of the wall about {} takes rays at {way} and {next}, a hair \
+                             apart, the vertices {hair} apart, within {tolerance}",
+                            wall.axis,
+                        );
+                    }
+                }
+            }
         }
     }
 }

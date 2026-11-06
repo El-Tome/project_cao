@@ -66,7 +66,7 @@ use std::f64::consts::PI;
 
 use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, Declined, EdgeName, Filleted, Loop};
+use cao_solid::{Body, Declined, EdgeName, Filleted, Loop, Lost};
 use glam::{DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it, on a plane
@@ -110,15 +110,82 @@ fn profile(outline: Contour) -> Profile<'static> {
     }
 }
 
-/// An outline drawn on the ground raised up by `height`, and joined as
-/// `cao_part` builds a step: its floor numbered nought, its top one, and its
-/// walls from two on, one for each run of the outline.
-fn raised(outline: Contour, height: f64) -> Body {
+/// Where a part is moved to, whole.
+const ELSEWHERE: [f64; 3] = [100.0, -40.0, 7.0];
+
+/// The ground's plane with its origin moved to `to`.
+fn moved(to: [f64; 3]) -> Frame {
+    Frame {
+        origin: DVec3::from(to),
+        ..ground()
+    }
+}
+
+/// The ground's plane turned about the vertical by a quarter turn, `quarters`
+/// times, its axes written out so that no rounding leans them.
+fn quarter_turns(quarters: u32) -> Frame {
+    let (u, v) = match quarters % 4 {
+        0 => (DVec3::X, DVec3::Y),
+        1 => (DVec3::Y, -DVec3::X),
+        2 => (-DVec3::X, -DVec3::Y),
+        _ => (-DVec3::Y, DVec3::X),
+    };
+    Frame {
+        origin: DVec3::ZERO,
+        u,
+        v,
+    }
+}
+
+/// The frame raised along its normal by `height`.
+fn lifted(frame: Frame, height: f64) -> Frame {
+    Frame {
+        origin: frame.origin + frame.normal() * height,
+        ..frame
+    }
+}
+
+/// A point given in the part's own axes, along, across and up, where the
+/// frame puts it.
+fn placed(frame: Frame, [along, across, up]: [f64; 3]) -> DVec3 {
+    frame.at(DVec2::new(along, across)) + frame.normal() * up
+}
+
+/// An outline drawn on a frame raised along its normal by `height`, and
+/// joined as `cao_part` builds a step: its floor numbered nought, its top
+/// one, and its walls from two on, one for each run of the outline.
+fn raised_on(frame: Frame, outline: Contour, height: f64) -> Body {
     let part = Body::default();
     let tool = part
-        .tool_raised(&profile(outline), ground(), DVec3::Z * height)
+        .tool_raised(&profile(outline), frame, frame.normal() * height)
         .expect("the tool raises");
     part.union(&tool).expect("the part is built")
+}
+
+/// An outline drawn on the ground raised up by `height`, numbered as
+/// [`raised_on`] numbers it.
+fn raised(outline: Contour, height: f64) -> Body {
+    raised_on(ground(), outline, height)
+}
+
+/// The part with an outline drawn on the ground, raised from `from` up by
+/// `height`, joined to it as `cao_part` joins a step: the tool's faces
+/// numbered past the part's.
+fn joined_to(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    let tool = part
+        .tool_raised(&profile(outline), lifted(ground(), from), DVec3::Z * height)
+        .expect("the tool raises");
+    part.union(&tool).expect("the join is built")
+}
+
+/// The part with an outline drawn on the ground, raised from `from` up by
+/// `height`, cut from it as `cao_part` cuts a step: the tool's faces numbered
+/// past the part's.
+fn cut_from(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    let tool = part
+        .tool_raised(&profile(outline), lifted(ground(), from), DVec3::Z * height)
+        .expect("the tool raises");
+    part.difference(&tool).expect("the cut is built")
 }
 
 /// A block of a length, a breadth and a height standing on the ground's
@@ -251,6 +318,55 @@ fn taken_whole(filleted: &Filleted, radius: f64, what: &str) {
         filleted.asked,
         filleted.taken
     );
+}
+
+/// Holds that a fillet reports the radius it was asked, and the smaller one
+/// the edge's two faces gave it.
+fn reduced(filleted: &Filleted, asked: f64, taken: f64, what: &str) {
+    assert!(
+        (filleted.asked - asked).abs() < PLACE,
+        "{what}: reports {} asked, where {asked} was",
+        filleted.asked
+    );
+    assert!(
+        (filleted.taken - taken).abs() < PLACE,
+        "{what}: took {}, where the faces give {taken}",
+        filleted.taken
+    );
+}
+
+/// Holds that a step took the face numbered `consumed` away whole, left every
+/// other face of the part it was given, and made one face more, curved; and
+/// gives back the number that face answers to.
+fn one_round_for_another(part: &Body, body: &Body, consumed: usize, what: &str) -> usize {
+    let mut kept = numbers(part);
+    kept.remove(&consumed);
+    let after = numbers(body);
+    assert!(
+        !after.contains(&consumed),
+        "{what}: face {consumed} still answers: {after:?}"
+    );
+    assert!(
+        kept.is_subset(&after),
+        "{what}: a face other than {consumed} went: {after:?}"
+    );
+    let made: Vec<usize> = after.difference(&kept).copied().collect();
+    assert_eq!(
+        made.len(),
+        1,
+        "{what}: one face for face {consumed}: {after:?}"
+    );
+    assert!(
+        !body.is_flat(made[0]) && body.plane_of(made[0]).is_none(),
+        "{what}: the face the fillet lays is curved, and offers no plane to draw on"
+    );
+    made[0]
+}
+
+/// The largest coordinate a body reaches, on either side of the origin.
+fn reach_of(body: &Body) -> f64 {
+    let (low, high) = body.bounds().expect("a part has a box");
+    low.abs().max(high.abs()).max_element()
 }
 
 /// Holds that a step left every face of the part it was given and made one
@@ -982,4 +1098,472 @@ fn a_fillet_on_a_slot_s_front_whose_round_end_bulges_out_past_the_front_is_decli
          from 28 to 28.2: the matter there above the round's side is neither the round nor the \
          front, and no one cylinder takes it"
     );
+}
+
+#[test]
+fn a_fillet_asked_more_than_the_top_can_give_takes_the_whole_top_and_reports_both_radii() {
+    let [length, breadth, height] = [30.0, 10.0, 20.0];
+    let block = block([length, breadth, height]);
+    let edge = edge_between(&block, TOP, FRONT);
+
+    let filleted = block
+        .fillet(&edge, 50.0)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "50 asked on the top front edge, the top 10 wide";
+    reduced(&filleted, 50.0, breadth, what);
+    let body = &filleted.body;
+    let radius = breadth;
+    let round = Round {
+        start: DVec3::new(0.0, radius, height - radius),
+        along: DVec3::X,
+        length,
+        radius,
+        facing: [DVec3::Z, -DVec3::Y],
+    };
+    sound_drawn_within(
+        body,
+        length * breadth * height - length * radius * radius * (1.0 - PI / 4.0),
+        drawn_within(2.0 * length, round.area()),
+        what,
+    );
+    let fillet = one_round_for_another(&block, body, TOP, what);
+    is_the_round(
+        body,
+        fillet,
+        &round,
+        "the round, from the front to the top of the back",
+    );
+    assert_eq!(
+        sides_met(body, fillet),
+        [FRONT, RIGHT, BACK, LEFT].map(|side| vec![side as u32]),
+        "the round meets the front it is tangent to and the back where the top was, along its \
+         sides, and the right and the left walls at its ends, by one edge each"
+    );
+    corners_are(
+        body,
+        FRONT,
+        &[
+            DVec3::ZERO,
+            DVec3::new(length, 0.0, 0.0),
+            DVec3::new(length, 0.0, height - radius),
+            DVec3::new(0.0, 0.0, height - radius),
+        ],
+        "what is left of the front, set back by the radius",
+    );
+    corners_are(
+        body,
+        BACK,
+        &[
+            DVec3::new(0.0, breadth, 0.0),
+            DVec3::new(length, breadth, 0.0),
+            DVec3::new(length, breadth, height),
+            DVec3::new(0.0, breadth, height),
+        ],
+        "the back, whole",
+    );
+    for (wall, x, end) in [(LEFT, 0.0, 0.0), (RIGHT, length, 1.0)] {
+        let kept = [DVec3::new(x, 0.0, 0.0), DVec3::new(x, breadth, 0.0)];
+        trimmed_by_the_round(
+            body,
+            wall,
+            &[&kept[..], &round.sides_at(end)].concat(),
+            &round,
+            &format!("the wall at x = {x}, the round's end on it"),
+        );
+    }
+}
+
+#[test]
+fn a_fillet_asked_more_than_a_slanted_wall_can_give_takes_the_radius_whose_set_back_is_the_wall_s_whole_width()
+ {
+    let height = 5.0;
+    let part = leaning_trapezoid(height);
+    let edge = edge_between(&part, FRONT, SLANT);
+
+    let filleted = part
+        .fillet(&edge, 50.0)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = "50 asked on the leaning trapezoid's acute edge, its slant 3√10 wide";
+    let (corner, far) = (LEANING[1], [LEANING[0], LEANING[2]]);
+    let into = far.map(|far| (far - corner).normalize());
+    let angle = into[0].dot(into[1]).acos();
+    let width = corner.distance(LEANING[2]);
+    let radius = width * (angle / 2.0).tan();
+    reduced(&filleted, 50.0, radius, what);
+    let body = &filleted.body;
+    let outward = [-DVec2::Y, DVec2::new(3.0, 1.0) / 10.0f64.sqrt()];
+    let on_the_front = corner + into[0] * width;
+    let round = Round {
+        start: (on_the_front - outward[0] * radius).extend(0.0),
+        along: DVec3::Z,
+        length: height,
+        radius,
+        facing: outward.map(|outward| outward.extend(0.0)),
+    };
+    let trapezoid = (40.0 + 37.0) / 2.0 * 9.0 * height;
+    let corner_rounded_off = (width * radius - radius * radius * (PI - angle) / 2.0) * height;
+    sound_drawn_within(
+        body,
+        trapezoid - corner_rounded_off,
+        drawn_within(2.0 * 40.0, round.area()),
+        what,
+    );
+    let fillet = one_round_for_another(&part, body, SLANT, what);
+    is_the_round(
+        body,
+        fillet,
+        &round,
+        "the round, from the front to the end of the back, tangent to the front",
+    );
+    assert_eq!(
+        sides_met(body, fillet),
+        [FLOOR, TOP, FRONT, BACK].map(|side| vec![side as u32]),
+        "the round meets the front it is tangent to and the back where the slant was, along its \
+         sides, and the floor and the top at its ends, by one edge each"
+    );
+    corners_are(
+        body,
+        FRONT,
+        &[upright(LEANING[0], height), upright(on_the_front, height)].concat(),
+        "what is left of the front, set back by the slant's whole width",
+    );
+    corners_are(
+        body,
+        BACK,
+        &[upright(LEANING[2], height), upright(LEANING[3], height)].concat(),
+        "the back, whole",
+    );
+    for (wall, z, end) in [(FLOOR, 0.0, 0.0), (TOP, height, 1.0)] {
+        let kept = [LEANING[0], LEANING[2], LEANING[3]].map(|corner| corner.extend(z));
+        trimmed_by_the_round(
+            body,
+            wall,
+            &[&kept[..], &round.sides_at(end)].concat(),
+            &round,
+            &format!("face {wall}, the round's end on it"),
+        );
+    }
+}
+
+/// An L lying on its frame: an arm `length` long and `depth` deep along the
+/// frame's first axis, and at the arm's left end a stem `stem` wide reaching
+/// back to `back`, raised by `height`. Nothing turns it onto itself, so a
+/// fillet on one of its edges can land on no twin. Its walls are numbered
+/// from the front round: the front two, the arm's right end three, the arm's
+/// back four, the stem's right side five, the stem's back six and the left
+/// seven.
+#[derive(Clone, Copy)]
+struct Ell {
+    length: f64,
+    depth: f64,
+    stem: f64,
+    back: f64,
+    height: f64,
+}
+
+const ELL: Ell = Ell {
+    length: 30.0,
+    depth: 6.0,
+    stem: 12.0,
+    back: 14.0,
+    height: 10.0,
+};
+
+const ELL_RESIZED: Ell = Ell {
+    length: 40.0,
+    depth: 8.0,
+    stem: 16.0,
+    back: 20.0,
+    height: 12.0,
+};
+
+/// The numbers an L's arm's back, its stem's right side, its stem's back and
+/// its left answer to.
+const ARM_BACK: usize = 4;
+const STEM_RIGHT: usize = 5;
+const STEM_BACK: usize = 6;
+const ELL_LEFT: usize = 7;
+
+impl Ell {
+    fn on(&self, frame: Frame) -> Body {
+        let Ell {
+            length,
+            depth,
+            stem,
+            back,
+            height,
+        } = *self;
+        raised_on(
+            frame,
+            Contour::straight(vec![
+                DVec2::ZERO,
+                DVec2::new(length, 0.0),
+                DVec2::new(length, depth),
+                DVec2::new(stem, depth),
+                DVec2::new(stem, back),
+                DVec2::new(0.0, back),
+            ]),
+            height,
+        )
+    }
+
+    fn volume(&self) -> f64 {
+        (self.length * self.depth + self.stem * (self.back - self.depth)) * self.height
+    }
+}
+
+#[test]
+fn a_fillet_rounds_the_edge_its_name_finds_again_after_a_change_of_size_a_move_and_a_turn() {
+    let radius = 2.0;
+    let name = edge_between(&ELL.on(ground()), TOP, STEM_BACK);
+    let moved_and_turned = Frame {
+        origin: DVec3::from(ELSEWHERE),
+        ..quarter_turns(1)
+    };
+
+    for (what, ell, frame) in [
+        ("as drawn", ELL, ground()),
+        ("resized", ELL_RESIZED, ground()),
+        ("moved", ELL, moved(ELSEWHERE)),
+        ("turned a quarter", ELL, quarter_turns(1)),
+        ("turned a half", ELL, quarter_turns(2)),
+        ("turned three quarters", ELL, quarter_turns(3)),
+        ("resized, moved and turned", ELL_RESIZED, moved_and_turned),
+    ] {
+        let part = ell.on(frame);
+
+        let filleted = part
+            .fillet(&name, radius)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_whole(&filleted, radius, what);
+        let body = &filleted.body;
+        let Ell {
+            depth,
+            stem,
+            back,
+            height,
+            ..
+        } = ell;
+        let at = |point: [f64; 3]| placed(frame, point);
+        let round = Round {
+            start: at([0.0, back - radius, height - radius]),
+            along: at([1.0, 0.0, 0.0]) - at([0.0; 3]),
+            length: stem,
+            radius,
+            facing: [frame.normal(), at([0.0, 1.0, 0.0]) - at([0.0; 3])],
+        };
+        sound_drawn_within(
+            body,
+            ell.volume() - stem * radius * radius * (1.0 - PI / 4.0),
+            drawn_within(2.0 * reach_of(&part), round.area()),
+            what,
+        );
+        let fillet = one_round_more(&part, body, what);
+        is_the_round(
+            body,
+            fillet,
+            &round,
+            &format!("the round on the stem's back, {what}"),
+        );
+        assert_eq!(
+            sides_met(body, fillet),
+            [TOP, STEM_RIGHT, STEM_BACK, ELL_LEFT].map(|side| vec![side as u32]),
+            "{what}: the round meets the top and the stem's back along its sides, and the stem's \
+             right side and the left at its ends, by one edge each"
+        );
+        corners_are(
+            body,
+            STEM_BACK,
+            &[
+                at([stem, back, 0.0]),
+                at([0.0, back, 0.0]),
+                at([0.0, back, height - radius]),
+                at([stem, back, height - radius]),
+            ],
+            &format!("what is left of the stem's back, {what}"),
+        );
+        for (wall, kept, end) in [
+            (
+                ELL_LEFT,
+                [[0.0, 0.0, 0.0], [0.0, 0.0, height], [0.0, back, 0.0]],
+                0.0,
+            ),
+            (
+                STEM_RIGHT,
+                [[stem, depth, 0.0], [stem, depth, height], [stem, back, 0.0]],
+                1.0,
+            ),
+        ] {
+            trimmed_by_the_round(
+                body,
+                wall,
+                &[&kept.map(at)[..], &round.sides_at(end)].concat(),
+                &round,
+                &format!("wall {wall}, the round's end on it, {what}"),
+            );
+        }
+    }
+}
+
+#[test]
+fn a_fillet_on_an_edge_a_cut_took_away_is_declined_saying_it_is_gone() {
+    let drawn = block([30.0, 10.0, 10.0]);
+    let name = edge_between(&drawn, TOP, FRONT);
+    let rabbeted = cut_from(
+        &drawn,
+        Contour::rectangle(DVec2::new(-1.0, -1.0), DVec2::new(31.0, 2.0)),
+        8.0,
+        3.0,
+    );
+    assert_eq!(
+        rabbeted.lost(&name),
+        Some(Lost::Gone),
+        "a rabbet all along the edge leaves the top and the front meeting nowhere"
+    );
+
+    let declined = rabbeted.fillet(&name, 1.0).err();
+
+    assert_eq!(declined, Some(Declined::Lost(Lost::Gone)));
+}
+
+#[test]
+fn a_fillet_on_an_edge_a_cut_parted_in_two_is_declined_saying_it_is_split() {
+    let drawn = block([30.0, 10.0, 10.0]);
+    let name = edge_between(&drawn, TOP, FRONT);
+    let notched = cut_from(
+        &drawn,
+        Contour::rectangle(DVec2::new(10.0, -1.0), DVec2::new(20.0, 3.0)),
+        7.0,
+        4.0,
+    );
+    assert_eq!(
+        notched.lost(&name),
+        Some(Lost::Split { now: 2 }),
+        "a notch a third of the way along leaves the edge in two pieces"
+    );
+
+    let declined = notched.fillet(&name, 1.0).err();
+
+    assert_eq!(declined, Some(Declined::Lost(Lost::Split { now: 2 })));
+}
+
+#[test]
+fn a_fillet_on_the_edge_a_join_bridged_from_two_rounds_it_whole() {
+    let [length, breadth, height] = [15.0, 10.0, 10.0];
+    let radius = 2.0;
+    let second_from = |from: f64| {
+        joined_to(
+            &block([length, breadth, height]),
+            Contour::rectangle(DVec2::new(from, 0.0), DVec2::new(from + length, breadth)),
+            0.0,
+            height,
+        )
+    };
+    let apart = second_from(length + 5.0);
+    let (second_top, second_front, second_right) = (TOP + 6, FRONT + 6, RIGHT + 6);
+    let names = [
+        ("the first block's", edge_between(&apart, TOP, FRONT)),
+        (
+            "the second block's",
+            edge_between(&apart, second_top, second_front),
+        ),
+    ];
+    let abutting = second_from(length);
+    let merged = [
+        vec![TOP as u32, second_top as u32],
+        vec![FRONT as u32, second_front as u32],
+    ];
+    let bridged = abutting
+        .edge_names()
+        .into_iter()
+        .filter(|name| name.between == merged)
+        .count();
+    assert_eq!(
+        bridged, 1,
+        "the tops and the fronts merge, and meet along one edge"
+    );
+    let whole = 2.0 * length;
+    let round = Round {
+        start: DVec3::new(0.0, radius, height - radius),
+        along: DVec3::X,
+        length: whole,
+        radius,
+        facing: [DVec3::Z, -DVec3::Y],
+    };
+
+    for (whose, name) in names {
+        let what = format!("by {whose} top front edge");
+        assert_eq!(
+            abutting.lost(&name),
+            None,
+            "{what}: the name finds the edge the join bridged"
+        );
+
+        let filleted = abutting
+            .fillet(&name, radius)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_whole(&filleted, radius, &what);
+        let body = &filleted.body;
+        sound_drawn_within(
+            body,
+            whole * breadth * height - whole * radius * radius * (1.0 - PI / 4.0),
+            drawn_within(2.0 * whole, round.area()),
+            &what,
+        );
+        let fillet = one_round_more(&abutting, body, &what);
+        is_the_round(
+            body,
+            fillet,
+            &round,
+            &format!("the round {what}, all along both blocks"),
+        );
+        let mut met = merged.to_vec();
+        met.extend([vec![LEFT as u32], vec![second_right as u32]]);
+        assert_eq!(
+            sides_met(body, fillet),
+            met,
+            "{what}: the round meets the merged top and front along its sides, and the first \
+             block's left and the second's right at its ends, by one edge each"
+        );
+        for (wall, x, end) in [(LEFT, 0.0, 0.0), (second_right, whole, 1.0)] {
+            let kept = [
+                DVec3::new(x, 0.0, 0.0),
+                DVec3::new(x, breadth, 0.0),
+                DVec3::new(x, breadth, height),
+            ];
+            trimmed_by_the_round(
+                body,
+                wall,
+                &[&kept[..], &round.sides_at(end)].concat(),
+                &round,
+                &format!("wall {wall}, the round's end on it, {what}"),
+            );
+        }
+    }
+}
+
+#[test]
+fn a_fillet_on_the_inner_corner_of_an_l_where_its_faces_meet_inwards_is_declined_as_unsupported() {
+    let ell = ELL.on(ground());
+    let inner = edge_between(&ell, ARM_BACK, STEM_RIGHT);
+
+    let declined = ell.fillet(&inner, 1.0).err();
+
+    assert_eq!(declined, Some(Declined::Unsupported));
+}
+
+#[test]
+fn a_fillet_radius_that_is_no_length_the_tolerance_holds_is_declined_saying_so() {
+    let block = block([30.0, 10.0, 20.0]);
+    let edge = edge_between(&block, TOP, FRONT);
+
+    for radius in [f64::NAN, f64::NEG_INFINITY, -1.0, 0.0, 1e-8, 1e-12] {
+        let declined = block.fillet(&edge, radius).err();
+
+        assert_eq!(declined, Some(Declined::Distance), "{radius} asked");
+    }
 }

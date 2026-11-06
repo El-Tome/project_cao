@@ -109,13 +109,68 @@ fn slot(off: f64) -> Body {
     )
 }
 
+/// Two blocks 15 by 10 by 10 side by side, the second `from` along: apart,
+/// or abutting so that their tops and their fronts merge.
+fn two_blocks(from: f64) -> Body {
+    joined(
+        &block([15.0, 10.0, 10.0]),
+        Contour::rectangle(DVec2::new(from, 0.0), DVec2::new(from + 15.0, 10.0)),
+        10.0,
+    )
+}
+
+/// The L of the fillet's tests: an arm 30 long and 6 deep, and at its left
+/// end a stem 12 wide reaching back to 14, raised 10; the top one, the
+/// stem's back six.
+fn ell() -> Body {
+    joined(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::ZERO,
+            DVec2::new(30.0, 0.0),
+            DVec2::new(30.0, 6.0),
+            DVec2::new(12.0, 6.0),
+            DVec2::new(12.0, 14.0),
+            DVec2::new(0.0, 14.0),
+        ]),
+        10.0,
+    )
+}
+
 #[test]
 fn every_body_a_fillet_leaves_lists_what_it_is_made_of_as_its_geometry_stands() {
     let block = block([30.0, 10.0, 20.0]);
     let leaning = leaning_trapezoid();
     let (trapezoid, hexagon) = (trapezoid(), hexagon());
     let inwards = slot(-0.1);
+    let abutting = two_blocks(15.0);
+    let first_block_s = between(&two_blocks(20.0), &[1], &[2]);
+    let ell = ell();
     let cases = [
+        (
+            "the block's top front edge by 50, the whole top taken",
+            &block,
+            between(&block, &[1], &[2]),
+            50.0,
+        ),
+        (
+            "the leaning trapezoid's acute edge by 50, the whole slant taken",
+            &leaning,
+            between(&leaning, &[2], &[3]),
+            50.0,
+        ),
+        (
+            "the edge a join bridged from two blocks' by 2",
+            &abutting,
+            first_block_s,
+            2.0,
+        ),
+        (
+            "the L's stem's back top edge by 2",
+            &ell,
+            between(&ell, &[1], &[6]),
+            2.0,
+        ),
         (
             "the block's top front edge by 3",
             &block,

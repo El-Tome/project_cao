@@ -1,6 +1,5 @@
 //! Two triangles of a face sharing a side cut the other way, so that none
-//! of the triangles made lies on another face or passes through one; and
-//! put back where that fails.
+//! of the triangles made crosses another face; and put back where that fails.
 
 use std::collections::BTreeSet;
 
@@ -12,8 +11,8 @@ type Undo = Vec<(At, At, [[usize; 3]; 2])>;
 impl Folds<'_> {
     /// Cuts the triangle at `at` the other way, with one of the triangles of
     /// its face across an inner side, so that none of the triangles it makes
-    /// lies on another face or passes through one. One that does is cut the
-    /// other way in turn, `depth` times over. The flips made, to undo them.
+    /// crosses another face. One that does is cut the other way in turn,
+    /// `depth` times over. The flips made, to undo them.
     pub(super) fn unfold(&mut self, at: At, depth: usize) -> Option<Undo> {
         for side in self.inner_sides(at) {
             let Some(partner) = self.beyond(at, side) else {
@@ -49,9 +48,9 @@ impl Folds<'_> {
         None
     }
 
-    /// Whether the triangles the flips of `undo` made lie on or pass through
-    /// no triangle of another face, once those they do are cut the other way
-    /// within `depth`: the flips that took, if any were needed.
+    /// Whether the triangles the flips of `undo` made cross no triangle of
+    /// another face, once those they do are cut the other way within `depth`:
+    /// the flips that took, if any were needed.
     fn settled(&mut self, undo: &Undo, depth: usize) -> Option<Undo> {
         let made: Vec<At> = undo
             .iter()
@@ -59,8 +58,7 @@ impl Folds<'_> {
             .collect();
         let blocking = |folds: &Self| -> Vec<At> {
             made.iter()
-                .flat_map(|each| [folds.lying(*each), folds.crossing(*each)])
-                .flatten()
+                .filter_map(|each| folds.crossing(*each))
                 .collect()
         };
         let blockers = blocking(self);

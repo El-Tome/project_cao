@@ -17,13 +17,12 @@
 //! corner of four, by the exact signs the sweep decides with and by more than
 //! the rounding the parameters were read with, so the cut stays a cut of the
 //! region in space as in parameters, and only where neither triangle it makes
-//! lies on, or is lain on by, another face, or passes through one — a chord
-//! of a round a hair off a vertex of the face beside it sinks under it by a
-//! fraction of the tolerance; nor where its middle stands further from a round surface than
-//! the tolerance and than the old diagonal's middle — across two steps of
-//! the grid, a chord sags four times as far as across one (86751972229989),
-//! but beside a line two walls touch along, where folds arise, a cell wider
-//! than a step sags as far either way. Where the diagonal runs into a point
+//! crosses a triangle of another face as [`crate::brep::crossing`] judges
+//! two, the rules' own definition; nor where its middle stands further from a
+//! round surface than the tolerance and than the old diagonal's middle —
+//! across two steps of the grid, a chord sags four times as far as across one
+//! (86751972229989), but beside a line two walls touch along, where folds
+//! arise, a cell wider than a step sags as far either way. Where the diagonal runs into a point
 //! of the boundary, the triangle beyond is cut the other way first; where a
 //! triangle it makes is held by one of another face, that one is cut the
 //! other way too, and the two flips stand or fall together. Two faces whose
@@ -37,10 +36,11 @@ mod through;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
-use glam::DVec2;
+use glam::{DVec2, DVec3};
 
 use super::outline::Outline;
 use super::sampling::Samples;
+use crate::brep::crossing::{Facet, NEAR, crossing, reach};
 use crate::brep::surface::Surface;
 use crate::brep::topology::FaceId;
 use crate::orientation::{beside, turn};
@@ -59,10 +59,10 @@ pub(super) struct Drawn {
 /// A triangle, by its drawing and its place there.
 type At = (usize, usize);
 
-/// How many times over a triangle a flip makes lie on or pass through
-/// another is itself cut the other way: once, two folds that hold each other
-/// — a needle lying on one face beside a triangle of a third passing through
-/// the first — come undone together.
+/// How many times over a triangle a flip makes crossing another is itself
+/// cut the other way: once, two folds that hold each other — a needle lying
+/// on one face beside a triangle of a third passing through the first — come
+/// undone together.
 const DEPTH: usize = 1;
 
 /// How far off a triangle's plane, as a share of the tolerance, a corner of
@@ -97,6 +97,8 @@ struct Folds<'a> {
     samples: &'a Samples,
     eps: f64,
     tolerance: f64,
+    /// Within this of each other, two triangles meet rather than cross.
+    room: f64,
     /// Each edge between two samples, and the triangles along it.
     edges: BTreeMap<[usize; 2], Vec<At>>,
     /// Each sample, and the triangles with a corner there.
@@ -105,11 +107,19 @@ struct Folds<'a> {
 
 impl<'a> Folds<'a> {
     fn of(drawn: &'a mut [Drawn], samples: &'a Samples, eps: f64, tolerance: f64) -> Folds<'a> {
+        let triangles: Vec<[DVec3; 3]> = drawn
+            .iter()
+            .flat_map(|each| {
+                let point = |corner: usize| samples.point(each.outline.samples[corner]);
+                each.triangles.iter().map(move |corners| corners.map(point))
+            })
+            .collect();
         let mut folds = Folds {
             drawn,
             samples,
             eps,
             tolerance,
+            room: NEAR * reach(&triangles),
             edges: BTreeMap::new(),
             around: BTreeMap::new(),
         };
@@ -151,7 +161,8 @@ impl<'a> Folds<'a> {
         }
     }
 
-    /// A triangle of another face the triangle at `at` passes through.
+    /// A triangle of another face the triangle at `at` crosses; not its twin
+    /// on the same three samples, which [`super::skins`] leaves out with it.
     fn crossing(&self, at: At) -> Option<At> {
         let corners = self.corners(at)?;
         let reach = |corners: [usize; 3]| {
@@ -170,7 +181,8 @@ impl<'a> Folds<'a> {
                         let (from, to) = reach(theirs);
                         low.cmple(to).all()
                             && from.cmple(high).all()
-                            && self.pass_through(corners, theirs)
+                            && !theirs.iter().all(|id| corners.contains(id))
+                            && self.crosses(corners, theirs)
                     })
                 })
         })
@@ -194,6 +206,11 @@ impl<'a> Folds<'a> {
                 })
             })
         })
+    }
+
+    fn crosses(&self, one: [usize; 3], other: [usize; 3]) -> bool {
+        let facet = |corners: [usize; 3]| Facet::of(&corners.map(|id| self.samples.point(id)));
+        crossing(&facet(one), &facet(other), self.room)
     }
 
     /// Whether the triangles on two sets of samples pass through each other.

@@ -3,6 +3,7 @@
 use glam::DVec3;
 
 use super::{Flaw, NEAR, Triangle, reach};
+use crate::brep::crossing::{Facet, clear, cross, crossing, resting, sides, sliver};
 
 mod pairs;
 
@@ -45,23 +46,6 @@ pub fn uncrossed(triangles: &[Triangle]) -> Result<(), Flaw> {
     })
 }
 
-/// Whether a triangle's corners all lie within `room` of one line, as a fan
-/// leaves across three corners in a row: nothing inside it to cross.
-fn sliver(corners: &Triangle, room: f64) -> bool {
-    let [a, b, c] = *corners;
-    let longest = a.distance(b).max(b.distance(c)).max(c.distance(a));
-    (b - a).cross(c - a).length() <= room * longest
-}
-
-/// `one × other` by Kahan's difference of products, each coordinate rounded
-/// once: across a face a few billionths wide the plain product tilts the plane
-/// enough to lift one end of a parallel neighbour and sink the other.
-fn cross(one: DVec3, other: DVec3) -> DVec3 {
-    let difference = |a: f64, b: f64, c: f64, d: f64| a.mul_add(b, -c * d) - c.mul_add(d, -c * d);
-    let across = |(i, j)| difference(one[i], other[j], one[j], other[i]);
-    DVec3::from_array([(1, 2), (2, 0), (0, 1)].map(across))
-}
-
 /// Faces found crossing, and faces lying along another's edge, left for later.
 #[derive(Default)]
 struct Found {
@@ -73,51 +57,38 @@ impl Found {
     /// Weighs two faces against each other, both ways round. Faces with every
     /// corner more than `room` to one side of the other's plane cannot meet.
     fn weigh(&mut self, one: &Face, other: &Face, room: f64) {
-        let resting = |heights: [f64; 3]| heights.iter().filter(|high| high.abs() <= room).count();
-        let clear = |heights| resting(heights) == 0 && sides(heights, room) != [true; 2];
-        if clear(one.heights(other)) || clear(other.heights(one)) {
+        let (over_one, over_other) = (
+            one.facet.heights(&other.facet),
+            other.facet.heights(&one.facet),
+        );
+        if clear(over_one, room) || clear(over_other, room) {
             return;
         }
-        let (over_one, over_other) = (one.heights(other), other.heights(one));
-        self.meet(one, other, over_one, over_other, room);
-        self.meet(other, one, over_other, over_one, room);
-        if resting(over_one) > 1 && resting(over_other) > 1 {
+        if crossing(&one.facet, &other.facet, room) {
+            self.crossings.push((one.index, other.index));
+        }
+        self.lean(one, other, over_one, room);
+        self.lean(other, one, over_other, room);
+        if resting(over_one, room) > 1 && resting(over_other, room) > 1 {
             self.share_edges(one, other, room);
         }
     }
 
-    /// Notes how `by`, its corners `heights` above `on`, meets it; `back` is
-    /// the other way round. Faces cross only where each has corners more than
-    /// `room` away on both sides of the other: a corner sunk by less rests on
-    /// the face, and a thin face's plane, which rounding tilts, is not enough.
-    fn meet(&mut self, on: &Face, by: &Face, heights: [f64; 3], back: [f64; 3], room: f64) {
-        let [above, below] = sides(heights, room);
+    /// Notes the stretch of an edge of `by`, its corners `heights` above `on`,
+    /// that rests on `on` inside it while its third corner stands to one side.
+    fn lean(&mut self, on: &Face, by: &Face, heights: [f64; 3], room: f64) {
         let rests = |at: usize| heights[at].abs() <= room;
-        let edge_down = (0..3).find(|at| rests(*at) && rests((at + 1) % 3));
-        if !above && !below {
-            if on.overlaps(by, room) {
-                self.crossings.push((on.index, by.index));
-            }
-        } else if let (Some(at), false) = (edge_down, above && below) {
-            let edge = [by.corners[at], by.corners[(at + 1) % 3]];
-            let inside = on.inside(edge, room);
-            if let Some(span) = inside.and_then(|along| stretch(edge, along, room)) {
-                self.note(3 * by.index + at, on.index, span, None);
-            }
-        } else if above && below && sides(back, room) == [true; 2] {
-            let mut meeting = Vec::with_capacity(2);
-            for here in 0..3 {
-                let (next, height) = ((here + 1) % 3, heights[here]);
-                if rests(here) {
-                    meeting.push(by.corners[here]);
-                } else if !rests(next) && (height > 0.0) != (heights[next] > 0.0) {
-                    let along = height / (height - heights[next]);
-                    meeting.push(by.corners[here].lerp(by.corners[next], along));
-                }
-            }
-            if on.inside([meeting[0], meeting[1]], room).is_some() {
-                self.crossings.push((on.index, by.index));
-            }
+        let Some(at) = (0..3).find(|at| rests(*at) && rests((at + 1) % 3)) else {
+            return;
+        };
+        let [above, below] = sides(heights, room);
+        if above == below {
+            return;
+        }
+        let edge = [by.facet.corners[at], by.facet.corners[(at + 1) % 3]];
+        let inside = on.facet.inside(edge, room);
+        if let Some(span) = inside.and_then(|along| stretch(edge, along, room)) {
+            self.note(3 * by.index + at, on.index, span, None);
         }
     }
 
@@ -125,10 +96,13 @@ impl Found {
     fn share_edges(&mut self, one: &Face, other: &Face, room: f64) {
         for (this, that) in [(one, other), (other, one)] {
             for (mine, theirs) in (0..9).map(|pair| (pair / 3, pair % 3)) {
-                let edge = [this.corners[mine], this.corners[(mine + 1) % 3]];
-                let [from, to] = [that.corners[theirs], that.corners[(theirs + 1) % 3]];
+                let edge = [this.facet.corners[mine], this.facet.corners[(mine + 1) % 3]];
+                let [from, to] = [
+                    that.facet.corners[theirs],
+                    that.facet.corners[(theirs + 1) % 3],
+                ];
                 if let Some(span) = stretch(edge, [from, to], room) {
-                    let wing = that.corners[(theirs + 2) % 3];
+                    let wing = that.facet.corners[(theirs + 2) % 3];
                     let ahead = (edge[1] - edge[0]).dot(to - from) > 0.0;
                     self.note(3 * this.index + mine, that.index, span, Some((wing, ahead)));
                 }
@@ -208,11 +182,6 @@ impl Found {
     }
 }
 
-/// Whether some corner stands more than `room` above a plane, and some below.
-fn sides(heights: [f64; 3], room: f64) -> [bool; 2] {
-    [1.0, -1.0].map(|sign| heights.iter().any(|height| sign * height > room))
-}
-
 /// A face along a `span` of `anchor`, another face's edge counted three to a
 /// face. One that `ends` on the line reaches a corner out from it and runs
 /// ahead, the anchor's way, or not; one the line lies inside does neither.
@@ -234,14 +203,10 @@ fn stretch([start, end]: [DVec3; 2], other: [DVec3; 2], room: f64) -> Option<[f6
     (shared && !other.iter().any(off)).then_some(span)
 }
 
-/// A triangle with its plane, and the edges bounding it within that plane.
-#[derive(Default)]
+/// A triangle by its index among the faces, with its box and its fans.
 struct Face {
     index: usize,
-    corners: Triangle,
-    normal: DVec3,
-    /// Each edge as a plane square to the face: the way in, and how far along it.
-    walls: [(DVec3, f64); 3],
+    facet: Facet,
     bounds: [DVec3; 2],
     /// The fan round each corner this face belongs to, from one; none is nought.
     fans: [usize; 3],
@@ -250,74 +215,17 @@ struct Face {
 impl Face {
     fn of(index: usize, corners: &Triangle) -> Self {
         let [a, b, c] = *corners;
-        let normal = cross(b - a, c - a).normalize_or_zero();
-        let walls = [0, 1, 2].map(|at| {
-            let [start, end] = [corners[at], corners[(at + 1) % 3]];
-            let inward = normal.cross(end - start).normalize_or_zero();
-            (inward, inward.dot(start))
-        });
-        let (corners, bounds) = (*corners, [a.min(b).min(c), a.max(b).max(c)]);
         Self {
             index,
-            corners,
-            normal,
-            walls,
-            bounds,
-            ..Self::default()
+            facet: Facet::of(corners),
+            bounds: [a.min(b).min(c), a.max(b).max(c)],
+            fans: [0; 3],
         }
     }
 
     fn span(&self, way: DVec3) -> [f64; 2] {
-        let [a, b, c] = self.corners.map(|corner| corner.dot(way));
+        let [a, b, c] = self.facet.corners.map(|corner| corner.dot(way));
         [a.min(b).min(c), a.max(b).max(c)]
-    }
-
-    /// How far above this face's plane each corner of `other` stands.
-    fn heights(&self, other: &Face) -> [f64; 3] {
-        let base = self.corners[0];
-        other.corners.map(|corner| self.normal.dot(corner - base))
-    }
-
-    /// What of `points` — a segment, or a polygon in this face's plane —
-    /// stands over this face, deeper inside it than `margin` from each edge.
-    fn clip(&self, points: &[DVec3], margin: f64) -> Vec<DVec3> {
-        let mut kept = points.to_vec();
-        for (inward, level) in self.walls {
-            let depth = |point: DVec3| inward.dot(point) - level - margin;
-            let mut cut = Vec::with_capacity(kept.len() + 1);
-            for (at, here) in kept.iter().enumerate() {
-                let next = kept[(at + 1) % kept.len()];
-                let (deep, onward) = (depth(*here), depth(next));
-                cut.extend((deep >= 0.0).then_some(*here));
-                let crossed = (deep >= 0.0) != (onward >= 0.0);
-                cut.extend(crossed.then(|| here.lerp(next, deep / (deep - onward))));
-            }
-            kept = cut;
-        }
-        kept
-    }
-
-    /// The part of a segment standing over this face more than `room` inside
-    /// its edges, when that part is longer than `room`.
-    fn inside(&self, segment: [DVec3; 2], room: f64) -> Option<[DVec3; 2]> {
-        let along = |point: &DVec3| point.dot(segment[1] - segment[0]);
-        let mut kept = self.clip(&segment, room);
-        kept.sort_by(|one, other| along(one).total_cmp(&along(other)));
-        let (from, to) = (*kept.first()?, *kept.last()?);
-        (from.distance(to) > room).then_some([from, to])
-    }
-
-    /// Whether `other`, lying in this face's plane, covers it thicker than `room`
-    /// — twice the area shared over its outline, as a strip's thickness is.
-    fn overlaps(&self, other: &Face, room: f64) -> bool {
-        let kept = self.clip(&other.corners, 0.0);
-        let (mut doubled_area, mut outline) = (0.0, 0.0);
-        for (at, here) in kept.iter().enumerate() {
-            let next = kept[(at + 1) % kept.len()];
-            doubled_area += (*here - kept[0]).cross(next - kept[0]).dot(self.normal);
-            outline += here.distance(next);
-        }
-        doubled_area.abs() > room * outline
     }
 }
 

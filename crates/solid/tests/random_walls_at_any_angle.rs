@@ -104,10 +104,27 @@
 //!   was measured on — the walls campaigns above run on `main` and on the
 //!   branch over those seeds and compared seed by seed, reported on the
 //!   pull request; the draw they found held on `main` and crossed on the
-//!   branch, 353000000013767, is carried by #762, its tests ignored until
-//!   then:
+//!   branch, 353000000013767, is answered by #762:
 //!   `seed_353000000013767_a_shaft_bored_three_times_one_bore_grazing_is_drawn_uncrossed`,
 //!   `seed_353000000013767_the_same_bores_are_drawn_uncrossed_through_the_application_s_body`
+//!
+//! Closes #762.
+//! - `seed_353000000013767_a_shaft_bored_three_times_one_bore_grazing_is_drawn_uncrossed`
+//!   and `seed_353000000013767_the_same_bores_are_drawn_uncrossed_through_the_application_s_body`
+//!   lose their `#[ignore]` and pass — both, here; the mechanism in
+//!   miniature, a flip taken though a thin triangle stands two thirds of a
+//!   tolerance above what it makes, is held beside the folds in
+//!   `crates/solid/src/brep/tessellation/folds/tests.rs`
+//! - 352000000007085's two tests and the hair-high unit test stay green —
+//!   `seed_352000000007085_a_tube_slotted_along_its_bore_banded_and_posted_is_drawn_uncrossed`,
+//!   `seed_352000000007085_the_same_tube_is_drawn_uncrossed_through_the_application_s_body`,
+//!   and `a_triangle_a_hair_high_and_a_wide_one_lying_on_it_across_their_edge_are_folded_from_either`
+//!   beside the folds
+//! - No draw regresses against `main`, seed by seed, on sets
+//!   352000000000000, 353000000000000 and 354000000000000, both kernels —
+//!   no test: a campaign fails on any finding, so the walls campaigns above
+//!   are run on `main` and on the branch over those seeds and compared seed
+//!   by seed, reported on the pull request
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -1492,13 +1509,11 @@ fn a_shaft_bored_three_times_one_bore_grazing() -> Case {
 }
 
 #[test]
-#[ignore = "#762: a bore grazing the shaft beside two others is drawn crossed"]
 fn seed_353000000013767_a_shaft_bored_three_times_one_bore_grazing_is_drawn_uncrossed() {
     random_solids::holds_exactly(&a_shaft_bored_three_times_one_bore_grazing());
 }
 
 #[test]
-#[ignore = "#762: a bore grazing the shaft beside two others is drawn crossed"]
 fn seed_353000000013767_the_same_bores_are_drawn_uncrossed_through_the_application_s_body() {
     random_solids::holds_through_the_application(&a_shaft_bored_three_times_one_bore_grazing());
 }

@@ -215,6 +215,7 @@ What it does: [`sketch.md`](sketch.md).
 | A body written as a binary STL at a gap in millimetres, declined when some round is too wide for the most steps a turn is cut into (#580) | `solid/src/stl.rs`, `brep/tessellation/sampling/capped.rs` | `stl::of`, `stl::Uncovered`, `Cut::capped` |
 | Which side of a line or of an edge a point stands on, and which way a loop turns, decided exactly: the triangles' sweep and folds, the laid profile of a turn (#585) | `solid/src/orientation.rs`, `orientation/expansion.rs` | `turn`, `rotation`, `beside`, `Expansion` |
 | The rules every solid must keep, for the tests | `solid/src/soundness.rs` and `soundness/` | `closed`, `uncrossed`, `Lines`, `repeatable`, `campaign`, `listed` (an exact body's listing held to its geometry) |
+| Whether two triangles cross or lie on each other: the one definition the tessellation's folds refuse a flip by and `uncrossed` reads, with `NEAR` and `reach` (#762) | `solid/src/brep/crossing.rs` | `crossing`, `Facet`, `NEAR`, `reach` |
 | Solids drawn at random, shrunk and printed as Rust | `solid/tests/random_solids/` | `Case::drawn`, `Case::smaller`, `check` |
 | A campaign over random solids | `solid/tests/every_solid_keeps_its_rules.rs` | `a_campaign_of_random_solids_keeps_every_rule` |
 | A campaign over random parts, every gesture undone | `part/tests/an_undo_gives_back_the_part.rs` | `undoes` |

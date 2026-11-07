@@ -32,7 +32,11 @@
 //! - a third wall crossing the pair has its two meets sampled on the pair's
 //!   shared rays, so that near-duplicates merge —
 //!   `a_third_wall_crossing_two_walls_leaning_a_hair_off_parallel_meets_both_on_the_same_rays`,
-//!   `a_third_wall_crossing_two_walls_drifting_further_than_the_tolerance_meets_both_on_the_same_rays`
+//!   `a_third_wall_crossing_two_walls_drifting_further_than_the_tolerance_meets_both_on_the_same_rays`;
+//!   and on the body the kernel builds for seed 318277455101196 once the
+//!   decline is lifted, two walls whose axes never cross passing each other
+//!   their own rays as one —
+//!   `a_third_wall_crossing_two_walls_leaning_a_hair_off_parallel_whose_axes_never_cross_is_drawn_uncrossed`
 
 use std::collections::BTreeMap;
 use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, PI, TAU};
@@ -46,6 +50,9 @@ use crate::brep::tessellation::contact::walls;
 use crate::brep::tessellation::sampling::{Samples, divisions};
 use crate::brep::tessellation::tests::fixtures;
 use crate::brep::topology::{Coedge, EdgeId, VertexId};
+use crate::soundness::uncrossed;
+
+mod seed_318277455101196;
 
 const RADIUS: f64 = 5.0;
 const LEAN: f64 = 1e-5;
@@ -802,4 +809,18 @@ fn met_alike(lean: f64, tolerances: &[f64]) {
             }
         }
     }
+}
+
+#[test]
+fn a_third_wall_crossing_two_walls_leaning_a_hair_off_parallel_whose_axes_never_cross_is_drawn_uncrossed()
+ {
+    let body = seed_318277455101196::body();
+    let tolerance = 1e-3 * body.scale().reach();
+    let triangles = body.triangles(tolerance);
+
+    assert!(
+        uncrossed(&triangles).is_ok(),
+        "drawn within {tolerance}: {:?}",
+        uncrossed(&triangles).err()
+    );
 }

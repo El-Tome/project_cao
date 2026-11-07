@@ -3571,7 +3571,7 @@ What is left, by family:
 steps the tessellation lays two such cylinders on one shared order
 (`docs/exact-kernel.md`, "Two walls at any angle"), should the decline be
 lifted for them; the fifth, the lift itself, was set aside, the campaigns
-finding wrong bodies where `main` declined (`wip/706-lift-attempt`, local).
+finding wrong bodies where `main` declined (branch `fix/706-lift-attempt-set-aside`).
 What follows is the attempt that came before them.
 
 #706 tried to build the pairs lane 2 declines closer than a chord's sag
@@ -3667,7 +3667,7 @@ left for later.
 
 With steps 1 to 4 in place, the fifth lifted `closer_than_a_sag` for two
 cylinders, and was measured at 77da1b4b. It was set aside on 2026-11-07:
-it lives on `wip/706-lift-attempt`, local and unpushed, its tip 77da1b4b,
+it lives on the branch `fix/706-lift-attempt-set-aside`, its tip 77da1b4b,
 and the issue's branch keeps the decline.
 
 **How it was measured.** The walls draw on both kernels, the lift and

@@ -65,6 +65,24 @@
 //!   fails on any finding, so the rate is measured by hand, the campaigns
 //!   above run on `main` and on the branch over the same seeds and compared
 //!   seed by seed, and the comparison is reported on the issue
+//!
+//! Closes #754.
+//! - The case 352000000000597 above is pinned and holds on both kernels —
+//!   `seed_352000000000597_a_shaft_bored_by_its_radius_two_thousandths_off_its_axis_then_twice_more_keeps_every_rule`,
+//!   `seed_352000000000597_the_same_bores_keep_every_rule_through_the_application_s_body`;
+//!   the case 352000000002028 holds with the decline lifted — waits on
+//!   #706's lift:
+//!   `seed_352000000002028_a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees_is_built_uncrossed_and_noted_unstable`,
+//!   ignored, the case held declined meanwhile by
+//!   `seed_352000000002028_a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees_is_declined_as_unsupported`
+//! - No draw regresses against `main`, seed by seed — no test: a campaign
+//!   fails on any finding, so the walls campaigns above, on both kernels,
+//!   are run on `main` and on the branch over the same seeds and compared
+//!   seed by seed, and the comparison is reported on the pull request
+//!
+//! The second criterion, that one rule tells a wall from its snapped copy,
+//! is held beside the tessellation, in
+//! `crates/solid/src/brep/tessellation/contact/facing/tests/snapped_copies.rs`.
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -1202,6 +1220,103 @@ fn seed_352000000014902_the_same_post_beside_a_slot_keeps_every_rule_through_the
                 136.0,
             ),
         ))),
+    );
+}
+
+/// A shaft of radius 2.5 about Y bored by one of its radius two thousandths
+/// off its axis, then across along Z, then by one of its radius at ten
+/// degrees: on `main`, the third bore, snapped a few ulps onto its touch at
+/// one meet, was taken for a surface the meet grazes at the vertex, and the
+/// mesh opened on the exact kernel and crossed through the application's
+/// body (seed 352000000000597, shrunk on #706's lift).
+fn a_shaft_bored_by_its_radius_two_thousandths_off_its_axis_then_twice_more() -> Case {
+    Case::new(
+        Leaf::prism(Plane::xz(-0.5), Outline::circle([0.0, 1.0], 2.5), -6.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [
+                        -0.002174372436540451,
+                        14.708236243834666,
+                        0.9999999999999983,
+                    ],
+                    [90.0, 0.0, 0.0],
+                ),
+                Outline::circle([0.0, 0.0], 2.5),
+                25.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-8.0),
+                Outline::circle([1.0, 0.0], 1.5),
+                25.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([0.0, 16.0, -1.0], [79.89117639215662, 0.0, 0.0]),
+                Outline::circle([0.0, 0.0], 2.5),
+                25.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_352000000000597_a_shaft_bored_by_its_radius_two_thousandths_off_its_axis_then_twice_more_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_bored_by_its_radius_two_thousandths_off_its_axis_then_twice_more(),
+    );
+}
+
+#[test]
+fn seed_352000000000597_the_same_bores_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &a_shaft_bored_by_its_radius_two_thousandths_off_its_axis_then_twice_more(),
+    );
+}
+
+/// A shaft of radius 4 about Z bored at 15° by one of radius 2, then by one
+/// of its own radius leaning 1e-4° off it: the skew family #706's lift
+/// reaches, built open on the lift where a third wall's snapped copy was
+/// taken for another surface (seed 352000000002028, shrunk on the lift).
+fn a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees() -> Case {
+    Case::new(
+        Leaf::prism(Plane::xy(-3.0), Outline::circle([-1.5, 0.0], 4.0), 6.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-1.5, 4.608596227122955, -17.199515271193107],
+                    [15.0, 0.0, 0.0],
+                ),
+                Outline::circle([-2.0, -0.0], 2.0),
+                36.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-1.5, -3.107776633144674e-5, -19.273794477160152],
+                    [-0.0001, 0.0, 0.0],
+                ),
+                Outline::circle([-0.0, -0.0], 4.0),
+                36.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_352000000002028_a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees_is_declined_as_unsupported()
+ {
+    declined_along_a_stretch_on_both_kernels(
+        &a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees(),
+    );
+}
+
+#[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
+fn seed_352000000002028_a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees_is_built_uncrossed_and_noted_unstable()
+ {
+    built_uncrossed_and_noted_unstable(
+        &a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees(),
+        1e-4,
     );
 }
 

@@ -53,6 +53,7 @@ use crate::brep::topology::{Coedge, EdgeId, VertexId};
 use crate::soundness::uncrossed;
 
 mod seed_318277455101196;
+mod snapped_copies;
 
 const RADIUS: f64 = 5.0;
 const LEAN: f64 = 1e-5;
@@ -514,69 +515,73 @@ fn beside_a_line_running_far_from_the_node_both_faces_are_still_cut_alike_and_ca
 }
 
 fn cut_alike_and_cancelled(shapes: &[(f64, f64, f64)]) {
-    let key = |point: DVec3| point.to_array().map(f64::to_bits);
     for &(radius, degrees, height) in shapes {
         let sliver = shaft_bored_above_its_node(radius, degrees.to_radians(), height);
-        let body = &sliver.body;
-        for share in [1e-3, 2e-4] {
-            let tolerance = share * body.scale().reach();
-            let samples = Samples::of(body, tolerance);
-            let cut = body.triangles_by_face(tolerance);
+        sliver_cut_alike_and_cancelled(&sliver, radius, degrees);
+    }
+}
 
-            assert!(
-                cut.uncut.is_empty(),
-                "{:?} left uncut within {tolerance}",
-                cut.uncut
-            );
-            for (line, ends) in sliver.lines.into_iter().zip(sliver.ends) {
-                let taken: Vec<DVec3> = samples
-                    .edge(line)
-                    .iter()
-                    .map(|id| samples.point(*id))
-                    .collect();
-                let mut keys: Vec<_> = taken.iter().map(|point| key(*point)).collect();
-                keys.sort_unstable();
-                let mut wanted = ends.map(key).to_vec();
-                wanted.sort_unstable();
-                assert_eq!(
-                    keys, wanted,
-                    "the line from {} to {} is sampled at {taken:?} within {tolerance}",
-                    ends[0], ends[1],
-                );
-                let on_the_chord: Vec<_> = cut
-                    .triangles
-                    .iter()
-                    .zip(&cut.faces)
-                    .filter(|(corners, _)| {
-                        ends.iter()
-                            .all(|end| corners.iter().any(|corner| key(*corner) == key(*end)))
-                    })
-                    .collect();
-                assert!(
-                    on_the_chord.is_empty(),
-                    "beside the line from {} to {}, radius {radius} leaning {degrees}° within \
-                     {tolerance}, the two faces are cut apart and drawn: {on_the_chord:?}",
-                    ends[0],
-                    ends[1],
-                );
-            }
-            let mut sides: BTreeMap<_, i32> = BTreeMap::new();
-            for corners in &cut.triangles {
-                for at in 0..3 {
-                    *sides
-                        .entry((key(corners[at]), key(corners[(at + 1) % 3])))
-                        .or_default() += 1;
-                }
-            }
-            let open = sides
+fn sliver_cut_alike_and_cancelled(sliver: &Sliver, radius: f64, degrees: f64) {
+    let key = |point: DVec3| point.to_array().map(f64::to_bits);
+    let body = &sliver.body;
+    for share in [1e-3, 2e-4] {
+        let tolerance = share * body.scale().reach();
+        let samples = Samples::of(body, tolerance);
+        let cut = body.triangles_by_face(tolerance);
+
+        assert!(
+            cut.uncut.is_empty(),
+            "{:?} left uncut within {tolerance}",
+            cut.uncut
+        );
+        for (line, ends) in sliver.lines.into_iter().zip(sliver.ends) {
+            let taken: Vec<DVec3> = samples
+                .edge(line)
                 .iter()
-                .filter(|((from, to), uses)| sides.get(&(*to, *from)) != Some(*uses))
-                .count();
+                .map(|id| samples.point(*id))
+                .collect();
+            let mut keys: Vec<_> = taken.iter().map(|point| key(*point)).collect();
+            keys.sort_unstable();
+            let mut wanted = ends.map(key).to_vec();
+            wanted.sort_unstable();
             assert_eq!(
-                open, 0,
-                "{open} sides met one way only, radius {radius} within {tolerance}"
+                keys, wanted,
+                "the line from {} to {} is sampled at {taken:?} within {tolerance}",
+                ends[0], ends[1],
+            );
+            let on_the_chord: Vec<_> = cut
+                .triangles
+                .iter()
+                .zip(&cut.faces)
+                .filter(|(corners, _)| {
+                    ends.iter()
+                        .all(|end| corners.iter().any(|corner| key(*corner) == key(*end)))
+                })
+                .collect();
+            assert!(
+                on_the_chord.is_empty(),
+                "beside the line from {} to {}, radius {radius} leaning {degrees}° within \
+                     {tolerance}, the two faces are cut apart and drawn: {on_the_chord:?}",
+                ends[0],
+                ends[1],
             );
         }
+        let mut sides: BTreeMap<_, i32> = BTreeMap::new();
+        for corners in &cut.triangles {
+            for at in 0..3 {
+                *sides
+                    .entry((key(corners[at]), key(corners[(at + 1) % 3])))
+                    .or_default() += 1;
+            }
+        }
+        let open = sides
+            .iter()
+            .filter(|((from, to), uses)| sides.get(&(*to, *from)) != Some(*uses))
+            .count();
+        assert_eq!(
+            open, 0,
+            "{open} sides met one way only, radius {radius} within {tolerance}"
+        );
     }
 }
 

@@ -31,7 +31,7 @@ use crate::brep::Scale;
 use crate::brep::curve::{Meet, Wall};
 use crate::brep::surface::Cone;
 use crate::brep::tessellation::contact::{self, Contact, Zones};
-use crate::brep::topology::{Body, Edge, SurfaceId};
+use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId};
 
 mod twin;
 
@@ -152,7 +152,7 @@ fn on_meet_by(
 /// their grid.
 pub(super) fn of_edge(
     body: &Body,
-    edge: &Edge,
+    edge: EdgeId,
     meet: &Meet,
     around: Around,
     grids: &BTreeMap<SurfaceId, Grid>,
@@ -173,31 +173,33 @@ type Around<'a> = (
 /// [`of_edge`], the edge sampled on its own.
 fn alone(
     body: &Body,
-    edge: &Edge,
+    id: EdgeId,
     meet: &Meet,
     (walls, zones, contacts): Around,
     grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
 ) -> Vec<DVec3> {
-    if super::crossing::is_line(meet, edge, zones) {
+    let edge = body.edge(id);
+    let own = contact::held(body, id, meet);
+    if super::crossing::is_line(meet, own, edge, zones) {
         return Vec::new();
     }
     let eps = body.scale().eps();
-    let own = [meet.first, meet.second];
+    let carried = [meet.first, meet.second];
     let grid = |cone: &Cone| {
         grids
             .values()
             .find(|grid| matches!(grid.spun, Spun::Cone(own) if own == *cone))
     };
-    let steps = own.map(|wall| match wall {
+    let steps = carried.map(|wall| match wall {
         Wall::Cone(cone) => grid(&cone).map_or_else(
             || divisions(size(&wall, meet), tolerance),
             |grid| grid.steps,
         ),
         _ => divisions(size(&wall, meet), tolerance),
     });
-    let rays = own.map(|wall| match wall {
-        Wall::Cylinder(cylinder) => taken(&cylinder, walls, contacts),
+    let rays = [0, 1].map(|rank| match carried[rank] {
+        Wall::Cylinder(cylinder) => taken(&own[rank], &cylinder, walls, contacts),
         Wall::Elliptic(oval) => {
             let steps = divisions(oval.major, tolerance);
             let beneath = contacts
@@ -213,7 +215,7 @@ fn alone(
         }
         Wall::Cone(cone) => grid(&cone).map_or_else(Vec::new, |grid| grid.vertex_angles().to_vec()),
     });
-    let planes = own.map(|wall| match wall {
+    let planes = carried.map(|wall| match wall {
         Wall::Cylinder(cylinder) => {
             touching_planes(body, cylinder.origin, cylinder.axis, cylinder.radius)
         }
@@ -223,7 +225,7 @@ fn alone(
         body,
         edge,
         &own,
-        [0, 1].map(|rank| (size(&own[rank], meet), steps[rank])),
+        [0, 1].map(|rank| (size(&carried[rank], meet), steps[rank])),
     );
     let clear = |point: DVec3| {
         !grazed(point, eps * contact::APART)

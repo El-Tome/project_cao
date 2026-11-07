@@ -60,7 +60,7 @@ use std::f64::consts::PI;
 use glam::DVec3;
 
 use super::contact::{self, Contact, Zones};
-use crate::brep::curve::{Circle, Curve};
+use crate::brep::curve::{Circle, Curve, Wall};
 use crate::brep::surface::Cylinder;
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
 use abreast::Abreast;
@@ -366,7 +366,7 @@ fn on_meets(
             let edge = body.edge(id);
             match body.curve(edge.curve) {
                 Curve::Meet(meet) => {
-                    meet::of_edge(body, edge, meet, (walls, zones, contacts), grids, tolerance)
+                    meet::of_edge(body, id, meet, (walls, zones, contacts), grids, tolerance)
                 }
                 Curve::Line(_) | Curve::Circle(_) | Curve::Conic(_) => Vec::new(),
             }
@@ -374,16 +374,17 @@ fn on_meets(
         .collect()
 }
 
-/// The angles from its `u` of the rays the circles of `cylinder` take in
-/// `contacts`, if it is one of the walls.
+/// The angles from the `u` of `cylinder` of the rays the circles of the wall
+/// it is `held` as take in `contacts`, if that is one of the walls.
 fn taken(
+    held: &Wall,
     cylinder: &Cylinder,
     walls: &[contact::Wall],
     contacts: &BTreeMap<SurfaceId, Contact>,
 ) -> Vec<f64> {
     walls
         .iter()
-        .find(|(_, wall)| wall == cylinder)
+        .find(|(_, wall)| Wall::Cylinder(*wall) == *held)
         .and_then(|(id, _)| contacts.get(id))
         .map_or_else(Vec::new, |contact| {
             contact

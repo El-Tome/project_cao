@@ -202,9 +202,12 @@ impl<'a> Folds<'a> {
         through(points(one), points(other), self.eps * CLEAR)
     }
 
-    /// A triangle of another face the triangle at `at` lies on, if any. Its
-    /// twin on the same three samples is not one: the two are a skin of no
-    /// thickness, left out together ([`super::skins`]).
+    /// A triangle of another face the triangle at `at` lies on, or that lies
+    /// on it, if any: the plane of a triangle a hair wide tilts with the
+    /// rounding of its corners, and a far corner of the other stands off it
+    /// though the two lie on each other (352000000007085). Its twin on the
+    /// same three samples is not one: the two are a skin of no thickness,
+    /// left out together ([`super::skins`]).
     fn lying(&self, at: At) -> Option<At> {
         let corners = self.corners(at)?;
         (0..3).find_map(|side| {
@@ -214,7 +217,8 @@ impl<'a> Folds<'a> {
                 beside.0 != at.0
                     && self.corners(*beside).is_some_and(|under| {
                         !under.iter().all(|id| corners.contains(id))
-                            && self.lies_on(corners, under, edge)
+                            && (self.lies_on(corners, under, edge)
+                                || self.lies_on(under, corners, edge))
                     })
             })
         })

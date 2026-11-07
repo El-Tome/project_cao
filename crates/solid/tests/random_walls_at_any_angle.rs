@@ -81,15 +81,30 @@
 //!   draws they found held on `main` and crossed on the branch are pinned:
 //!   `seed_354000000008476_an_elliptic_shaft_bored_round_along_its_wall_a_thousandth_of_a_degree_off_is_drawn_uncrossed`,
 //!   `seed_354000000008476_the_same_bore_is_drawn_uncrossed_through_the_application_s_body`;
-//!   seeds 354000000005870 and 352000000007085 are carried by #759, their
-//!   tests ignored until then:
-//!   `seed_354000000005870_a_shaft_bored_at_80_degrees_then_by_a_cone_leaning_24_degrees_is_drawn_uncrossed`,
+//!   seed 352000000007085 is answered by #759 —
 //!   `seed_352000000007085_a_tube_slotted_along_its_bore_banded_and_posted_is_drawn_uncrossed`,
-//!   `seed_352000000007085_the_same_tube_is_drawn_uncrossed_through_the_application_s_body`
+//!   `seed_352000000007085_the_same_tube_is_drawn_uncrossed_through_the_application_s_body`;
+//!   seed 354000000005870 is carried by #761, its test ignored until then:
+//!   `seed_354000000005870_a_shaft_bored_at_80_degrees_then_by_a_cone_leaning_24_degrees_is_drawn_uncrossed`
 //!
 //! The second criterion, that one rule tells a wall from its snapped copy,
 //! is held beside the tessellation, in
 //! `crates/solid/src/brep/tessellation/contact/facing/tests/snapped_copies.rs`.
+//!
+//! Closes #759.
+//! - `seed_352000000007085_a_tube_slotted_along_its_bore_banded_and_posted_is_drawn_uncrossed`
+//!   and `seed_352000000007085_the_same_tube_is_drawn_uncrossed_through_the_application_s_body`
+//!   in `crates/solid/tests/random_walls_at_any_angle.rs` lose their
+//!   `#[ignore]` and pass — both, here
+//! - 354000000005870's test too loses its `#[ignore]` and passes (the
+//!   issue's comment) — no test: its crossing is another mechanism, the
+//!   shaft's fan against a bore touching it inside at a point, carried by
+//!   #761
+//! - No draw regresses against `main`, seed by seed, on the three sets #754
+//!   was measured on — no test: a campaign fails on any finding, so the
+//!   walls campaigns above are run on `main` and on the branch over those
+//!   seeds and compared seed by seed, and the comparison is reported on the
+//!   pull request
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -1331,7 +1346,7 @@ fn seed_352000000002028_a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_d
 /// leaning 24°: held on `main`, drawn crossed on the exact kernel once a
 /// wall's snapped copy is told for its own (seed 354000000005870).
 #[test]
-#[ignore = "#759: four meets ending at the node where the bore touches the shaft inside cross beside it"]
+#[ignore = "#761: the shaft's fan crosses the bore touching it inside at a point"]
 fn seed_354000000005870_a_shaft_bored_at_80_degrees_then_by_a_cone_leaning_24_degrees_is_drawn_uncrossed()
  {
     random_solids::holds_exactly(&Case::new(
@@ -1437,13 +1452,11 @@ fn a_tube_slotted_along_its_bore_banded_and_posted() -> Case {
 }
 
 #[test]
-#[ignore = "#759: a corner a millionth of a radian wide is cut crossed by the face's sweep"]
 fn seed_352000000007085_a_tube_slotted_along_its_bore_banded_and_posted_is_drawn_uncrossed() {
     random_solids::holds_exactly(&a_tube_slotted_along_its_bore_banded_and_posted());
 }
 
 #[test]
-#[ignore = "#759: a corner a millionth of a radian wide is cut crossed by the face's sweep"]
 fn seed_352000000007085_the_same_tube_is_drawn_uncrossed_through_the_application_s_body() {
     random_solids::holds_through_the_application(&a_tube_slotted_along_its_bore_banded_and_posted());
 }

@@ -124,7 +124,10 @@
 //!   352000000000000, 353000000000000 and 354000000000000, both kernels —
 //!   no test: a campaign fails on any finding, so the walls campaigns above
 //!   are run on `main` and on the branch over those seeds and compared seed
-//!   by seed, reported on the pull request
+//!   by seed, reported on the pull request; the draws they found held on
+//!   `main` and crossed on the branch are pinned, shrunk:
+//!   `seed_354000000005119_a_cone_bored_at_89_99_degrees_by_a_hole_of_radius_2_577_is_drawn_uncrossed`,
+//!   `seed_353000000010626_an_elliptic_shaft_bored_along_its_wall_a_hair_inside_then_across_at_75_degrees_is_drawn_uncrossed_through_the_application_s_body`
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -1516,6 +1519,60 @@ fn seed_353000000013767_a_shaft_bored_three_times_one_bore_grazing_is_drawn_uncr
 #[test]
 fn seed_353000000013767_the_same_bores_are_drawn_uncrossed_through_the_application_s_body() {
     random_solids::holds_through_the_application(&a_shaft_bored_three_times_one_bore_grazing());
+}
+
+/// A cone of radius 4.5 tapering to its tip over 9 about Y, bored by a hole
+/// of radius 2.577 standing a hundredth of a degree off square to the
+/// plane it is raised on: held on `main`, drawn crossed on #762's branch
+/// (seed 354000000005119, shrunk).
+#[test]
+fn seed_354000000005119_a_cone_bored_at_89_99_degrees_by_a_hole_of_radius_2_577_is_drawn_uncrossed()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::yz(-1.0),
+            Axis::second(-1.0),
+            Section::bands(-4.0, &[[9.0, 0.0, 4.5]]).sloping_to(&[[0.0, 0.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted(
+                [-1.0, 18.16551555484623, -0.157462170794368],
+                [89.99, 0.0, 0.0],
+            ),
+            Outline::circle([9.99999987845058e-9, 0.0], 2.5770585586338313),
+            38.0,
+        ))],
+    ));
+}
+
+/// An elliptic shaft of half-axes 60 and 90 bored along its wall by a hole
+/// of radius 15 leaning a ten-thousandth of a degree, six ten-millionths
+/// inside the wall, then by a bore of radius 90 at 75°: held on `main`,
+/// drawn crossed through the application's body on #762's branch (seed
+/// 353000000010626, shrunk).
+#[test]
+fn seed_353000000010626_an_elliptic_shaft_bored_along_its_wall_a_hair_inside_then_across_at_75_degrees_is_drawn_uncrossed_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(-45.0),
+            Outline::ellipse([0.0, -30.0], [-60.0, 0.0], 90.0),
+            300.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([0.0, -30.0, -393.0], [0.0, -0.0001, 0.0]),
+                Outline::circle([0.0, 74.9999994], 15.0),
+                980.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([-473.0, -30.0, -57.0], [0.0, 75.0, 0.0]),
+                Outline::circle([0.0, 0.0], 90.0),
+                980.0,
+            )),
+        ],
+    ));
 }
 
 /// An elliptic shaft cut by a bore at a skew angle and joined to a post at

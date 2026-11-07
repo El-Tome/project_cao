@@ -1,7 +1,7 @@
 //! Two triangles of a face sharing a side cut the other way, so that none
 //! of the triangles made crosses another face; and put back where that fails.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::{At, Folds, opens};
 
@@ -49,30 +49,48 @@ impl Folds<'_> {
     }
 
     /// Whether the triangles the flips of `undo` made cross no triangle of
-    /// another face, once those they do are cut the other way within `depth`:
-    /// the flips that took, if any were needed.
+    /// another face, or fewer than those they replaced did, once those they
+    /// cross are cut the other way within `depth`: the flips that took, if
+    /// any were needed. Fewer, never as many: a flip that only trades one
+    /// crossing for another would be taken back by the next.
     fn settled(&mut self, undo: &Undo, depth: usize) -> Option<Undo> {
-        let made: Vec<At> = undo
+        let mut made: Vec<At> = undo
             .iter()
             .flat_map(|(one, other, _)| [*one, *other])
             .collect();
-        let blocking = |folds: &Self| -> Vec<At> {
-            made.iter()
-                .filter_map(|each| folds.crossing(*each))
-                .collect()
+        made.sort_unstable();
+        made.dedup();
+        let mut was = BTreeMap::new();
+        for (one, other, [mine, theirs]) in undo {
+            was.entry(*one).or_insert(*mine);
+            was.entry(*other).or_insert(*theirs);
+        }
+        let before: usize = was
+            .iter()
+            .map(|(at, corners)| self.crossings(at.0, *corners))
+            .sum();
+        let worse = |folds: &Self| {
+            let after: usize = made
+                .iter()
+                .map(|&(face, each)| folds.crossings(face, folds.drawn[face].triangles[each]))
+                .sum();
+            after > 0 && after >= before
         };
-        let blockers = blocking(self);
-        if blockers.is_empty() {
+        if !worse(self) {
             return Some(Undo::new());
         }
         if depth == 0 {
             return None;
         }
+        let blockers: Vec<At> = made
+            .iter()
+            .filter_map(|each| self.crossing(*each))
+            .collect();
         for blocker in blockers {
             let Some(more) = self.unfold(blocker, depth - 1) else {
                 continue;
             };
-            if blocking(self).is_empty() {
+            if !worse(self) {
                 return Some(more);
             }
             self.undo(more);

@@ -77,18 +77,18 @@ const ROUNDINGS: f64 = 1e3;
 
 /// Undoes every fold between the faces of `drawn`, as far as a diagonal
 /// standing within `tolerance` of its face's surface, or no further than the
-/// one it replaces, can.
+/// one it replaces, can. A flip cures a fold behind the one being undone as
+/// often as ahead of it, so the faces are passed over again while a pass takes
+/// a flip and finds fewer folds than the one before: a count that only falls.
 pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64, tolerance: f64) {
     let mut folds = Folds::of(drawn, samples, eps, tolerance);
-    for face in 0..folds.drawn.len() {
-        for triangle in 0..folds.drawn[face].triangles.len() {
-            let Some(other) = folds.folded((face, triangle)) else {
-                continue;
-            };
-            if folds.unfold((face, triangle), DEPTH).is_none() && folds.folded(other).is_some() {
-                folds.unfold(other, DEPTH);
-            }
+    let mut fewest = usize::MAX;
+    loop {
+        let (found, taken) = folds.pass();
+        if !taken || found >= fewest {
+            return;
         }
+        fewest = found;
     }
 }
 
@@ -131,6 +131,23 @@ impl<'a> Folds<'a> {
         folds
     }
 
+    /// Undoes each fold, face by face: how many it found, and whether a flip
+    /// was taken.
+    fn pass(&mut self) -> (usize, bool) {
+        let (mut found, mut taken) = (0, false);
+        for face in 0..self.drawn.len() {
+            for triangle in 0..self.drawn[face].triangles.len() {
+                let Some(other) = self.folded((face, triangle)) else {
+                    continue;
+                };
+                found += 1;
+                taken |= self.unfold((face, triangle), DEPTH).is_some()
+                    || (self.folded(other).is_some() && self.unfold(other, DEPTH).is_some());
+            }
+        }
+        (found, taken)
+    }
+
     /// The samples at the corners of a triangle, None when two are one: such
     /// a triangle is not drawn.
     fn corners(&self, (face, triangle): At) -> Option<[usize; 3]> {
@@ -161,31 +178,44 @@ impl<'a> Folds<'a> {
         }
     }
 
-    /// A triangle of another face the triangle at `at` crosses; not its twin
-    /// on the same three samples, which [`super::skins`] leaves out with it.
+    /// A triangle of another face the triangle at `at` crosses.
     fn crossing(&self, at: At) -> Option<At> {
-        let corners = self.corners(at)?;
+        self.crossed(at.0, self.corners(at)?).next()
+    }
+
+    /// How many triangles of other faces a triangle of `face`, by its corners
+    /// in the outline, crosses.
+    fn crossings(&self, face: usize, triangle: [usize; 3]) -> usize {
+        let [a, b, c] = triangle.map(|corner| self.drawn[face].outline.samples[corner]);
+        if a == b || b == c || c == a {
+            return 0;
+        }
+        self.crossed(face, [a, b, c]).count()
+    }
+
+    /// The triangles of faces other than `face` the triangle on the samples
+    /// `corners` crosses; not its twin on the same three samples, which
+    /// [`super::skins`] leaves out with it.
+    fn crossed(&self, face: usize, corners: [usize; 3]) -> impl Iterator<Item = At> + '_ {
         let boxed = |corners: [usize; 3]| {
             let [a, b, c] = corners.map(|id| self.samples.point(id));
             (a.min(b).min(c) - self.eps, a.max(b).max(c) + self.eps)
         };
         let (low, high) = boxed(corners);
-        self.drawn.iter().enumerate().find_map(|(face, drawn)| {
-            if face == at.0 {
-                return None;
-            }
-            (0..drawn.triangles.len())
-                .map(|triangle| (face, triangle))
-                .find(|other| {
-                    self.corners(*other).is_some_and(|theirs| {
-                        let (from, to) = boxed(theirs);
-                        low.cmple(to).all()
-                            && from.cmple(high).all()
-                            && !theirs.iter().all(|id| corners.contains(id))
-                            && self.crosses(corners, theirs)
-                    })
+        (0..self.drawn.len())
+            .filter(move |other| *other != face)
+            .flat_map(move |other| {
+                (0..self.drawn[other].triangles.len()).map(move |each| (other, each))
+            })
+            .filter(move |other| {
+                self.corners(*other).is_some_and(|theirs| {
+                    let (from, to) = boxed(theirs);
+                    low.cmple(to).all()
+                        && from.cmple(high).all()
+                        && !theirs.iter().all(|id| corners.contains(id))
+                        && self.crosses(corners, theirs)
                 })
-        })
+            })
     }
 
     /// A triangle of another face the triangle at `at` lies on, or is lain on

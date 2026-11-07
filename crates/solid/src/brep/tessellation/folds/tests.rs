@@ -1,6 +1,9 @@
 use glam::{DVec2, DVec3};
 
-use super::{opens, through};
+use super::{Drawn, Folds, opens, through};
+use crate::brep::tessellation::outline::Outline;
+use crate::brep::tessellation::sampling::Samples;
+use crate::brep::tessellation::tests::fixtures;
 
 const CLEAR: f64 = 1e-10;
 
@@ -63,4 +66,53 @@ fn a_sliver_a_few_billionths_of_a_turn_wide_still_opens() {
         DVec2::new(2.498091544796509, 0.5),
     ];
     assert!(opens(sliver[0], sliver[1], sliver[2]));
+}
+
+#[test]
+fn a_triangle_a_hair_high_and_a_wide_one_lying_on_it_across_their_edge_are_folded_from_either() {
+    let reach = 12.0;
+    let tilt = 2e-9;
+    let mut build = fixtures::Build::new();
+    let [a, b, hair, far] = [
+        at(0.0, 0.0, 0.0),
+        at(reach, 0.0, 0.0),
+        at(reach / 2.0, 3e-5, tilt),
+        at(reach / 2.0, reach, 0.0),
+    ];
+    let [a, b, hair_corner, far_corner] = [a, b, hair, far].map(|point| build.vertex(point));
+    let outward = (at(reach, 0.0, 0.0))
+        .cross(at(reach / 2.0, 3e-5, tilt))
+        .normalize();
+    let faces = [
+        build.polygon(&[a, b, hair_corner], outward),
+        build.polygon(&[a, b, far_corner], DVec3::Z),
+    ];
+    let body = build.finish(reach);
+    let eps = body.scale().eps();
+    let tolerance = 1e-3 * reach;
+    let mut samples = Samples::of(&body, tolerance);
+    let mut drawn: Vec<Drawn> = faces
+        .iter()
+        .map(|face| {
+            let outline = Outline::of(&body, &mut samples, *face, tolerance)
+                .expect("a flat face is laid out");
+            assert_eq!(outline.samples.len(), 3, "a triangle's outline");
+            Drawn {
+                face: *face,
+                outline,
+                triangles: vec![[0, 1, 2]],
+                surface: *body.surface(body.face(*face).surface),
+            }
+        })
+        .collect();
+    let folds = Folds::of(&mut drawn, &samples, eps, tolerance);
+
+    for (face, other) in [(0, 1), (1, 0)] {
+        assert_eq!(
+            folds.lying((face, 0)),
+            Some((other, 0)),
+            "the fold is found from the {} triangle, within {eps}",
+            ["hair high", "wide"][face],
+        );
+    }
 }

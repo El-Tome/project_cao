@@ -187,14 +187,14 @@ pub(super) fn of_edge(
 /// `meets`, each edge along a curve a cone meets another wall along sampled
 /// again on the rays `around` gives, where that wall also meets a wall that
 /// is no cone. The rounds that sample the curves on the rays their samples
-/// give stop at two, each handing on rays the next takes, and such a curve
-/// lags the last: the wall's face it bounds is fanned across the rays the
-/// wall's curve with the other wall took last, through that wall where it
-/// touches the first at a point from inside (354000000005870). A cone takes
-/// no ray, so the walls take the rays through the new samples in one more
-/// pass and the chain stops. Not where the wall meets cones alone: there no
-/// ray is missing, and each new sample is one more fan across a column of
-/// the cone (352000000005298).
+/// give stop at two and never converge, so a curve can still miss rays its
+/// wall took last; and the walls take the rays through the new samples in
+/// one more pass, which the wall's other curves do not take. A trade-off, as
+/// measured: sampled again, such a curve stands on the rays a third wall's
+/// curve handed its wall, where the wall's face fanned through the third
+/// wall (354000000005870); but each new sample is one more fan across a
+/// column of the cone (352000000005298). So only where a third wall that is
+/// no cone hands the wall rays.
 pub(super) fn on_last_rays(
     body: &Body,
     around: Around,

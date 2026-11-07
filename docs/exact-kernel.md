@@ -2185,13 +2185,15 @@ angles of the cone's vertices as rays, so that the face's edges stand on
 the same rulings. Where its other wall also meets a wall that is no cone,
 it is sampled once more on that wall's rays after the last round of the
 curves the walls meet along, and the walls take the rays through its new
-samples in one more pass: those rounds stop at two, each handing on rays
-the next takes, but a cone takes none, and the chain stops there. Sampled
-a round behind, it left a shaft's face fanned from one of its samples
-across the rays a bore touching the shaft inside at a point had handed
-on, through the bore (354000000005870). Where the wall meets cones alone
-no ray is missing, and a sample more is only one more fan across a column
-of the cone (352000000005298). A cone face away from its apex is cut in columns between
+samples in one more pass, which the wall's other curves do not take. A
+trade-off, as measured: sampled a round behind, it left a shaft's face
+fanned from one of its samples across the rays a bore touching the shaft
+inside at a point had handed on, through the bore (354000000005870); but
+each new sample is one more fan across a column of the cone
+(352000000005298), so it is sampled again only where a third wall that is
+no cone hands the wall rays. The rounds do not converge, each handing on
+rays the next takes: a curve can still miss rays its wall took last. A
+cone face away from its apex is cut in columns between
 the rulings of its grid (`tessellation/outline/columns.rs`): a sample on a
 ruling is laid on it to the bit, each interval of a ruling is decided in
 or out of the face by the winding of its outline, and each column is

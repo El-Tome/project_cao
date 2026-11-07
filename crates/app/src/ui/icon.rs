@@ -10,9 +10,6 @@ pub struct Icon {
 }
 
 /// The sizes `docs/redesign/icons.md` draws an icon at.
-// Only the ribbon draws an icon yet: the panel toggles and the menus of #725
-// take the two others, and `expect` then asks for this to go.
-#[cfg_attr(not(test), expect(dead_code))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IconSize {
     /// A large ribbon button.
@@ -113,6 +110,8 @@ embedded! {
     EXTRUSION_CANCEL = "extrusion-cancel";
     EXTRUSION_CUT = "extrusion-cut";
     EXTRUSION_STRAIGHT = "extrusion-straight";
+    EYE = "eye";
+    EYE_OFF = "eye-off";
     FILES = "files";
     FILLET = "fillet";
     FINISH = "finish";
@@ -129,6 +128,7 @@ embedded! {
     MIRROR = "mirror";
     NEW_SKETCH = "new-sketch";
     PARALLEL = "parallel";
+    PART = "part";
     PERPENDICULAR = "perpendicular";
     POINT = "point";
     PREFERENCES = "preferences";
@@ -147,6 +147,7 @@ embedded! {
     TANGENT = "tangent";
     TRIM = "trim";
     UNDO = "undo";
+    VARIABLES = "variables";
 }
 
 #[cfg(test)]

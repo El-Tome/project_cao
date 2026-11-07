@@ -3662,3 +3662,102 @@ by laying both walls on one order.
 The owner kept `main`'s decline on 2026-11-06. Sharing one order needs a
 correspondence between the two walls' rays beside the line, a redesign
 left for later.
+
+### #706's fifth step: the decline lifted on one shared order, measured
+
+With steps 1 to 4 in place, the fifth lifted `closer_than_a_sag` for two
+cylinders, and was measured at 77da1b4b. It was set aside on 2026-11-07:
+it lives on `wip/706-lift-attempt`, local and unpushed, its tip 77da1b4b,
+and the issue's branch keeps the decline.
+
+**How it was measured.** The walls draw on both kernels, the lift and
+`main` (4dc4f3b5) on exactly the same cases: three sets of seeds, from
+352000000000000, 353000000000000 and 354000000000000, each of 5 887 cases
+on the exact kernel and 18 015 through the body, run whole with no
+shrinking, then compared seed by seed. Every seed only the lift failed
+was replayed on both trees, then shrunk on the lift.
+
+| Set | Exact, `main` | Exact, lift | Only the lift | Body, `main` | Body, lift | Only the lift |
+| --- | --- | --- | --- | --- | --- | --- |
+| 352… | 82 (13.9 ‰) | 94 (15.9 ‰) | 12 | 184 (10.2 ‰) | 210 (11.6 ‰) | 26 |
+| 353… | 66 (11.2 ‰) | 77 (13.0 ‰) | 11 | 188 (10.4 ‰) | 213 (11.8 ‰) | 25 |
+| 354… | 72 (12.2 ‰) | 79 (13.4 ‰) | 7 | 185 (10.2 ‰) | 210 (11.6 ‰) | 25 |
+
+No seed `main` fails held on the lift, and none failed under another
+rule. Of the 106 regressions, 82 distinct seeds, 24 on both kernels: on
+the exact kernel 17 `Closed`, 12 `Uncrossed` and one `Answers`; through
+the body 54 `Answers` and 22 `Uncrossed`. All replay but one,
+352000000014151, late in the campaign and held on both trees replayed.
+The lift turned about 150 declines into bodies on the exact kernel and
+about 450 through the body; some 30 and 75 of them are wrong.
+
+**The shrinker keeps a case that fails, never one `main` holds**, so a
+shrunk case can slide to a shape `main` fails too: the drawn cases are
+the regressions, and a family is read on them. Twenty seeds shrank to a
+case `main` itself fails, replayed at 4dc4f3b5: one is on #754, the
+nineteen others on #755.
+
+What the regressions come from, by family. Each drawn case leans in the
+band, whatever its shrunk case became.
+
+- **The pair alone**, no third leaf. Radii a hair off — 1.99999 against 2,
+  22.49999 against 22.5 — or axes 1e-5 askew split the cross of the two
+  lines the walls cross along into U-shaped meets, which
+  `sampling/crossing.rs::is_line` does not take for a line. Two causes
+  were found. The `Round::Cylinder` arm of `sampling/conic.rs::of_edge`
+  samples a cap's conic on the whole grid, steps `leaning::shared`
+  withheld included, where `circle.rs` honours them, and the cap's
+  crescent outline crosses itself (353000000005278, 352000000008350,
+  354000000006290, 353000000010403, 354000000008349; 0.05°). A U-shaped
+  meet keeps a sample within the drift of its cap end, where step 3's
+  wedge goes only to whole lines (353000000007237, 353000000001453; 1e-4°).
+  A probe fixing both held 7 of 15 such seeds and made 354000000004778
+  worse.
+- **A skew cylinder as third wall**, the largest family.
+  - Walls are told apart by exact `==`. `Meeting::of` snaps the third
+    wall by a few ulps, the meet keeps that copy, and
+    `sampling/ends.rs::grazed_near` takes the wall for a surface grazed at
+    4e-16: grid and ray points near the triple vertex are dropped on one
+    meet only (352000000002028, 352000000000597, shrunk). The same `==`
+    sits in `twin_of`, `twin::shared`, `crossing::is_line`, `sharing` and
+    `crowded_off_the_meet`, which #706's steps brought. It is not only the
+    lift's: the shrunk case of 352000000000597 fails on `main`, and holds
+    there once `grazed_near` takes a cylinder within 1e-9 of its own for
+    its own — on #754.
+  - The boolean misses a triple point: the meet of the shaft and the
+    third wall crosses the pair's crossing line near z = −1.98 with no
+    vertex, its twin near +1.98 found (352000000002028, drawn) — on
+    #756.
+  - Arcs with ends are not twinned, `twin::shared` asking for
+    `edge.ends == None` (352000000015688, 353000000001157, 353000000003828).
+  - Twinning whole loops loses the third wall's grid angles, and its ring
+    cannot be opened (`outline/cylinder.rs::round_laid`, `Opened::at`
+    gives none) (352000000005239, 353000000017608, 354000000011802,
+    354000000013157).
+  - A cell with corners on both walls is cut apart by the two faces away
+    from any crossing line (353000000001482).
+
+  The two cases pinned of this shape, 224442167740434 and 318277455101196,
+  hold only because both arcs happen to land on the same points.
+- **A cone, a box or a slot as third leaf.** A wall runs through a box's
+  face square to both axes where the other ends on it — `through_a_cap`'s
+  shape without its slant (353000000004416, 354000000000433); two rims a
+  hair apart on a cap sampled on different vertex rays, by the
+  `Kind::Vertex` rule of `leaning.rs` (354000000004224); a cone's face
+  bounded by meets with both walls, not twinned since cones are skipped,
+  #720 (352000000004499, 354000000010764); a small square bore's two loops
+  twinned wrong in the third wall's chart (352000000003530); a box's face
+  tangent to both walls along their common ruling (352000000001463); the
+  boolean declining `Tie` on a box cut after the pair (354000000011715,
+  shrunk; drawn, the body declines it `Undrawn`) — on #756.
+- **Pairs a hair from coincident.** The boolean declines `Unverified`, by
+  `assembly.rs::verified`, on pairs nearly on each other (352000000015043,
+  353000000011653, 354000000005984, 354000000012842, 354000000017912). With
+  a third wall crossing, faces of the pair are left uncut: built on the
+  exact kernel, open there or declined `Undrawn` through the body
+  (352000000009612, 352000000010441, 352000000012683, 352000000014009,
+  352000000005489, 354000000007504; beside a cone 352000000002266,
+  353000000005193, 353000000005461, 353000000008193, 353000000014733,
+  354000000002444, 354000000006300) — on #756. Every one of those
+  thirteen shrank to a case `main` fails, most to two walls exactly
+  parallel a hair apart.

@@ -7,7 +7,9 @@
 //! of either cylinder take, so that it stands on the same rays as a wall a
 //! hair inside its own, whose chords would otherwise stand shallower than
 //! its own between two of its points. Then, between two of those, wherever
-//! the chord would stand further from the curve than the tolerance.
+//! the chord would stand further from the curve than the tolerance. A line
+//! two walls sharing their rays cross along is sampled at its ends alone
+//! (`crossing.rs`).
 //!
 //! An elliptic wall (#571) is divided as a circle of its major half-axis,
 //! as its rims are, its grid an eccentric angle's; it takes the angles its
@@ -30,6 +32,8 @@ use crate::brep::curve::{Meet, Wall};
 use crate::brep::surface::Cone;
 use crate::brep::tessellation::contact::{self, Contact, Zones};
 use crate::brep::topology::{Body, Edge, SurfaceId};
+
+mod twin;
 
 /// Why a parameter is a sample, the stronger reason first: of two places
 /// closer than the kernel's tolerance, the one kept is the stronger. Either
@@ -150,10 +154,34 @@ pub(super) fn of_edge(
     body: &Body,
     edge: &Edge,
     meet: &Meet,
-    (walls, zones, contacts): (&[contact::Wall], &Zones, &BTreeMap<SurfaceId, Contact>),
+    around: Around,
     grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
 ) -> Vec<DVec3> {
+    let points = alone(body, edge, meet, around, grids, tolerance);
+    twin::shared(body, edge, meet, around, grids, tolerance, points)
+}
+
+/// The walls of the body, the pairs of them face to face, and what each
+/// takes besides its grid.
+type Around<'a> = (
+    &'a [contact::Wall],
+    &'a Zones<'a>,
+    &'a BTreeMap<SurfaceId, Contact>,
+);
+
+/// [`of_edge`], the edge sampled on its own.
+fn alone(
+    body: &Body,
+    edge: &Edge,
+    meet: &Meet,
+    (walls, zones, contacts): Around,
+    grids: &BTreeMap<SurfaceId, Grid>,
+    tolerance: f64,
+) -> Vec<DVec3> {
+    if super::crossing::is_line(meet, edge, zones) {
+        return Vec::new();
+    }
     let eps = body.scale().eps();
     let own = [meet.first, meet.second];
     let grid = |cone: &Cone| {
@@ -199,15 +227,19 @@ pub(super) fn of_edge(
     );
     let clear = |point: DVec3| {
         !grazed(point, eps * contact::APART)
-            && own.iter().zip(&planes).all(|(wall, planes)| match wall {
-                Wall::Cylinder(cylinder) => {
-                    !zones.crowded(cylinder, point)
-                        && !planes.iter().any(|plane| {
-                            on_a_plane(plane, cylinder.origin, cylinder.axis, point, eps)
-                        })
-                }
-                Wall::Elliptic(_) | Wall::Cone(_) => true,
-            })
+            && own
+                .iter()
+                .zip(&planes)
+                .zip(own.iter().rev())
+                .all(|((wall, planes), partner)| match wall {
+                    Wall::Cylinder(cylinder) => {
+                        !zones.crowded_off_the_meet(cylinder, partner, point)
+                            && !planes.iter().any(|plane| {
+                                on_a_plane(plane, cylinder.origin, cylinder.axis, point, eps)
+                            })
+                    }
+                    Wall::Elliptic(_) | Wall::Cone(_) => true,
+                })
     };
     on_meet_by(
         meet,

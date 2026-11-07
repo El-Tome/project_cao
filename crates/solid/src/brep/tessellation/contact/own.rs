@@ -146,7 +146,7 @@ pub(super) fn through_vertices(
 }
 
 /// The way from a cylinder's axis to `point`, square to the axis.
-fn flat_from(cylinder: &Cylinder, point: DVec3) -> DVec3 {
+pub(super) fn flat_from(cylinder: &Cylinder, point: DVec3) -> DVec3 {
     let from = point - cylinder.origin;
     from - cylinder.axis * cylinder.axis.dot(from)
 }

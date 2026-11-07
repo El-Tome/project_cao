@@ -47,7 +47,8 @@
 //!   the same at 3e-5° still built,
 //!   `the_same_shafts_crossing_at_3e_5_degrees_are_built_and_keep_every_rule`;
 //!   two walls in the band closer than a chord's sag of their grids are
-//!   declined, until #706 lays them on one shared order —
+//!   declined; #706 lays them on one shared order in the tessellation, and
+//!   building them waits on lifting the decline —
 //!   `two_posts_of_one_radius_crossing_nearly_coaxially_at_1e_3_degrees_are_declined_as_unsupported`,
 //!   `seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_declined_as_unsupported`,
 //!   `seed_224442167740434_two_posts_of_radius_22_5_crossing_at_1e_4_degrees_are_declined_as_unsupported`,

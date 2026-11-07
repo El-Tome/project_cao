@@ -68,6 +68,7 @@ impl Body {
                 surface: *self.surface(self.face(id).surface),
             });
         }
+        folds::cut_alike(&mut drawn, self, &samples, self.scale().eps(), tolerance);
         folds::unfolded(&mut drawn, &samples, self.scale().eps(), tolerance);
         let mut oriented = Vec::new();
         for Drawn {

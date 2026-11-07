@@ -31,6 +31,7 @@
 //! ([`super::skins`]).
 
 mod flip;
+mod lines;
 mod through;
 
 use std::cmp::Ordering;
@@ -43,6 +44,7 @@ use super::sampling::Samples;
 use crate::brep::surface::Surface;
 use crate::brep::topology::FaceId;
 use crate::orientation::{beside, turn};
+pub(super) use lines::cut_alike;
 use through::through;
 
 /// A face cut into triangles in its surface's parameters, each corner a point
@@ -77,19 +79,7 @@ const ROUNDINGS: f64 = 1e3;
 /// standing within `tolerance` of its face's surface, or no further than the
 /// one it replaces, can.
 pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64, tolerance: f64) {
-    let mut folds = Folds {
-        drawn,
-        samples,
-        eps,
-        tolerance,
-        edges: BTreeMap::new(),
-        around: BTreeMap::new(),
-    };
-    for face in 0..folds.drawn.len() {
-        for triangle in 0..folds.drawn[face].triangles.len() {
-            folds.index((face, triangle), true);
-        }
-    }
+    let mut folds = Folds::of(drawn, samples, eps, tolerance);
     for face in 0..folds.drawn.len() {
         for triangle in 0..folds.drawn[face].triangles.len() {
             let Some(other) = folds.folded((face, triangle)) else {
@@ -113,7 +103,24 @@ struct Folds<'a> {
     around: BTreeMap<usize, Vec<At>>,
 }
 
-impl Folds<'_> {
+impl<'a> Folds<'a> {
+    fn of(drawn: &'a mut [Drawn], samples: &'a Samples, eps: f64, tolerance: f64) -> Folds<'a> {
+        let mut folds = Folds {
+            drawn,
+            samples,
+            eps,
+            tolerance,
+            edges: BTreeMap::new(),
+            around: BTreeMap::new(),
+        };
+        for face in 0..folds.drawn.len() {
+            for triangle in 0..folds.drawn[face].triangles.len() {
+                folds.index((face, triangle), true);
+            }
+        }
+        folds
+    }
+
     /// The samples at the corners of a triangle, None when two are one: such
     /// a triangle is not drawn.
     fn corners(&self, (face, triangle): At) -> Option<[usize; 3]> {

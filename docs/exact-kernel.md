@@ -346,7 +346,7 @@ Left, in the order #497 set:
   "Two walls at any angle"): two walls nearly parallel, a cone whose
   rulings run along the other wall's axis, a hole in the flank of a
   pointed cone (#711), and a cone and a wall closer than a chord's sag
-  without meeting (#706). A plane crossing a cylinder or a cone at a slant
+  without meeting (#720). A plane crossing a cylinder or a cone at a slant
   is done (#552), the elliptic cylinder against planes and walls parallel
   or square to it (#571), and two cylinders, elliptic walls or cones at any
   angle (#577);
@@ -2110,8 +2110,15 @@ wrong answer:
   coarser than that, a part under a hundred units exported coarse, or a
   part a later step makes wider, samples coarser, and a pair built just
   outside the sag checked may still cross there. It is a stopgap, moved
-  by any change to `LEAST` or `MOST` in `divisions`, until #706 lays such
-  pairs on one shared order and removes it.
+  by any change to `LEAST` or `MOST` in `divisions`. Should it be lifted
+  for two cylinders, the tessellation lays them on one shared order
+  (#706): each wall's heights read along its own axis, their rays shared,
+  the line they cross along sampled at its ends with nothing in the wedge
+  beside it, the faces either side cut alike, and a third wall meeting
+  both on the same rays (`tessellation/contact/leaning.rs`,
+  `sampling/crossing.rs`, `sampling/wedge.rs`, `folds/lines.rs`,
+  `sampling/meet/twin.rs`). A cone or an elliptic wall is not laid so yet
+  (#720).
 
 ### A cone against another wall
 

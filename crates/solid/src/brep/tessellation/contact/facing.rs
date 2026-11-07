@@ -15,28 +15,37 @@ use glam::{DVec2, DVec3};
 
 use super::gap::Gap;
 use super::{APART, Wall, bears, wall_of};
-use crate::brep::curve::Curve;
+use crate::brep::curve::{Curve, Wall as Round};
 use crate::brep::domain::Location;
+use crate::brep::relation::within_two_sags;
 use crate::brep::scale::Scale;
-use crate::brep::surface::Cylinder;
+use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, FaceId, SurfaceId};
 
-/// Two parallel walls, and once asked, their faces and the heights they are
-/// compared at: one between every two heights where a circle or a vertex of
-/// either stands, so that each is a height where no face of either begins or
-/// ends.
+/// Two walls parallel or leaning a hair off it, the axis each reads its
+/// heights along — its own, or for two parallel walls the first's — and
+/// once asked, their faces and the heights they are compared at: one
+/// between every two heights where a circle or a vertex of either stands,
+/// so that each is a height where no face of either begins or ends.
 pub(in crate::brep::tessellation) struct Facing<'a> {
     body: &'a Body,
     walls: [Wall; 2],
+    axes: [DVec3; 2],
     gap: Gap,
     known: OnceCell<Known>,
 }
 
 impl<'a> Facing<'a> {
     pub(super) fn of(body: &'a Body, one: &Wall, other: &Wall) -> Facing<'a> {
+        let axes = if one.1.axis.cross(other.1.axis).length() <= Scale::RELATIVE {
+            [one.1.axis; 2]
+        } else {
+            [one.1.axis, other.1.axis]
+        };
         Facing {
             body,
             walls: [*one, *other],
+            axes,
             gap: Gap::of(&one.1, &other.1, body.scale().eps()),
             known: OnceCell::new(),
         }
@@ -53,18 +62,41 @@ impl<'a> Facing<'a> {
         self.gap
     }
 
+    /// The two walls, in the order the pair was taken.
+    pub(super) fn walls(&self) -> [Wall; 2] {
+        self.walls
+    }
+
+    /// How near and how far the two axes stand from each other between the
+    /// lowest and the highest a circle or a vertex of either stands at.
+    pub(super) fn apart(&self) -> [f64; 2] {
+        let [(_, one), (_, other)] = self.walls;
+        let levels = &self.known().levels[0];
+        let (Some(low), Some(high)) = (levels.first(), levels.last()) else {
+            return [0.0; 2];
+        };
+        let flat = |vector: DVec3| vector - other.axis * other.axis.dot(vector);
+        let (rate, at) = (flat(one.axis), flat(one.origin - other.origin));
+        let between = |height: f64| (at + rate * height).length();
+        let nearest = if rate.length_squared() > 0.0 {
+            (-at.dot(rate) / rate.length_squared()).clamp(*low, *high)
+        } else {
+            *low
+        };
+        [between(nearest), between(*low).max(between(*high))]
+    }
+
     fn known(&self) -> &Known {
         self.known.get_or_init(|| {
             let body = self.body;
             let eps = body.scale().eps();
-            let axis = self.walls[0].1.axis;
             let walls = self.walls;
             let faces = walls.map(|(id, _)| {
                 body.face_ids()
                     .filter(|face| body.face(*face).surface == id)
                     .collect()
             });
-            let arcs = walls.map(|(own, _)| {
+            let circles = walls.map(|(own, _)| {
                 body.edge_ids()
                     .filter_map(|id| {
                         let edge = body.edge(id);
@@ -77,22 +109,35 @@ impl<'a> Facing<'a> {
                                     Some(_) => (edge.from.min(edge.to), edge.from.max(edge.to)),
                                     None => (0.0, TAU),
                                 };
-                                Some([circle.center.dot(axis), from, to])
+                                Some((circle.center, from, to))
                             }
                             _ => None,
                         }
                     })
                     .collect::<Vec<_>>()
             });
-            let circles = arcs.iter().flatten().map(|[level, _, _]| *level);
-            let vertices = body
+            let arcs = [0, 1].map(|side| {
+                circles[side]
+                    .iter()
+                    .map(|(center, from, to)| [center.dot(self.axes[side]), *from, *to])
+                    .collect()
+            });
+            let vertices: Vec<DVec3> = body
                 .vertex_ids()
                 .map(|id| body.vertex(id))
                 .filter(|vertex| walls.iter().any(|wall| bears(body, vertex, wall)))
-                .map(|vertex| vertex.point.dot(axis));
-            let mut levels: Vec<f64> = circles.chain(vertices).collect();
-            levels.sort_by(f64::total_cmp);
-            levels.dedup_by(|higher, lower| *higher - *lower <= eps);
+                .map(|vertex| vertex.point)
+                .collect();
+            let levels = self.axes.map(|axis| {
+                let centers = circles.iter().flatten().map(|(center, _, _)| *center);
+                let mut levels: Vec<f64> = centers
+                    .chain(vertices.iter().copied())
+                    .map(|point| point.dot(axis))
+                    .collect();
+                levels.sort_by(f64::total_cmp);
+                levels.dedup_by(|higher, lower| *higher - *lower <= eps);
+                levels
+            });
             Known {
                 faces,
                 levels,
@@ -101,10 +146,22 @@ impl<'a> Facing<'a> {
         })
     }
 
+    /// `height`, read along the axis of the wall `from`, read along that of
+    /// `to`: through the axis of `from`, where its circles are centred.
+    fn height(&self, from: usize, to: usize, height: f64) -> f64 {
+        if self.axes[from] == self.axes[to] {
+            return height;
+        }
+        (self.walls[from].1.origin + self.axes[from] * height).dot(self.axes[to])
+    }
+
+    fn side(&self, wall: SurfaceId) -> usize {
+        usize::from(self.walls[0].0 != wall)
+    }
+
     /// The heights the circles of `wall` stand at, each a stretch of none.
     pub(super) fn rims(&self, wall: SurfaceId) -> Vec<[f64; 2]> {
-        let side = usize::from(self.walls[0].0 != wall);
-        self.known().arcs[side]
+        self.known().arcs[self.side(wall)]
             .iter()
             .map(|[level, _, _]| [*level, *level])
             .collect()
@@ -136,10 +193,18 @@ impl<'a> Facing<'a> {
     /// inside, though the walls stand at heights apart. Not for walls
     /// crossing or all but one: a union keeps both circles on its caps all
     /// round, and withholding their steps would lengthen the walls' chords.
+    ///
+    /// The heights are read along the first wall's axis.
     pub(super) fn over(&self, point: DVec3) -> Vec<[f64; 2]> {
+        self.over_along(0, point)
+    }
+
+    /// [`Facing::over`], the heights read along the axis of the wall `frame`.
+    fn over_along(&self, frame: usize, point: DVec3) -> Vec<[f64; 2]> {
         let known = self.known();
         let eps = self.body.scale().eps();
-        if known.levels.len() < 2 {
+        let levels = &known.levels[frame];
+        if levels.len() < 2 {
             return vec![[f64::NEG_INFINITY, f64::INFINITY]];
         }
         let angles = [0, 1].map(|side| self.walls[side].1.parameters(point).x);
@@ -148,10 +213,9 @@ impl<'a> Facing<'a> {
                 (height - level).abs() <= eps && from + (angles[side] - from).rem_euclid(TAU) <= *to
             })
         };
-        let mut over: Vec<[f64; 2]> = known
-            .levels
+        let mut over: Vec<[f64; 2]> = levels
             .windows(2)
-            .filter(|pair| self.both(point, (pair[0] + pair[1]) / 2.0))
+            .filter(|pair| self.both(frame, point, (pair[0] + pair[1]) / 2.0))
             .map(|pair| [pair[0], pair[1]])
             .collect();
         for side in [0, 1] {
@@ -161,6 +225,7 @@ impl<'a> Facing<'a> {
                         .iter()
                         .map(|[level, _, _]| *level)
                         .filter(|level| at_level(side, *level))
+                        .map(|level| self.height(side, frame, level))
                         .map(|level| [level, level]),
                 );
             }
@@ -189,12 +254,9 @@ impl<'a> Facing<'a> {
     /// a bore inside a boss it touches, a cylinder beside one it touches —
     /// or within what the rules tell apart, they would pass through it.
     pub(super) fn withheld(&self, wall: SurfaceId, point: DVec3) -> Vec<[f64; 2]> {
-        let over = self.over(point);
-        let [own, other] = if self.walls[0].0 == wall {
-            [self.walls[0].1, self.walls[1].1]
-        } else {
-            [self.walls[1].1, self.walls[0].1]
-        };
+        let side = self.side(wall);
+        let over = self.over_along(side, point);
+        let [own, other] = [self.walls[side].1, self.walls[1 - side].1];
         let from = point - other.origin;
         let out = (from - other.axis * other.axis.dot(from)).normalize_or_zero();
         let nearest = point - out * other.distance(point);
@@ -207,15 +269,17 @@ impl<'a> Facing<'a> {
     }
 
     /// Whether both walls hold a face at the angle of `point` and `height`,
-    /// which stands between two levels further apart than the kernel's
-    /// tolerance: a face ending at either level is told from one going on
-    /// past it to what the rules tell apart, not to that tolerance — a skirt
-    /// a hair high, below the floor of the other wall, faces nothing of it.
-    fn both(&self, point: DVec3, height: f64) -> bool {
+    /// read along the axis of the wall `frame`, which stands between two
+    /// levels further apart than the kernel's tolerance: a face ending at
+    /// either level is told from one going on past it to what the rules tell
+    /// apart, not to that tolerance — a skirt a hair high, below the floor of
+    /// the other wall, faces nothing of it.
+    fn both(&self, frame: usize, point: DVec3, height: f64) -> bool {
         let faces = &self.known().faces;
         let near = self.body.scale().eps() * APART / 2.0;
         let holds = |side: usize| {
             let angle = self.walls[side].1.parameters(point).x;
+            let height = self.height(frame, side, height);
             faces[side].iter().any(|face| {
                 !matches!(
                     self.body.locate(*face, DVec2::new(angle, height), near),
@@ -227,26 +291,47 @@ impl<'a> Facing<'a> {
     }
 }
 
-/// The faces of two walls, the levels between which they are compared, and
-/// the arcs of their circles: the height each stands at and the angles it
-/// spans.
+/// The faces of two walls, the levels between which they are compared, read
+/// along the axis of each, and the arcs of their circles: the height each
+/// stands at along its own wall's and the angles it spans.
 struct Known {
     faces: [Vec<FaceId>; 2],
-    levels: Vec<f64>,
+    levels: [Vec<f64>; 2],
     arcs: [Vec<[f64; 3]>; 2],
 }
 
-/// Every two parallel walls of a body, and where they face each other.
+/// Every two parallel walls of a body, and every two leaning a hair off it
+/// within two chords' sags of each other where either holds a face, and
+/// where they face each other.
 pub(in crate::brep::tessellation) struct Zones<'a> {
-    pairs: Vec<Facing<'a>>,
+    pub(super) pairs: Vec<Facing<'a>>,
 }
 
 impl<'a> Zones<'a> {
     pub(in crate::brep::tessellation) fn of(body: &'a Body, walls: &[Wall]) -> Zones<'a> {
+        let eps = body.scale().eps();
+        let boxes = |pair: [SurfaceId; 2]| {
+            let held: Vec<[DVec3; 2]> = body
+                .face_ids()
+                .filter(|face| pair.contains(&body.face(*face).surface))
+                .map(|face| body.boxed(face, eps))
+                .collect();
+            if held.is_empty() {
+                body.bounds()
+                    .map_or_else(Vec::new, |(low, high)| vec![[low, high]])
+            } else {
+                held
+            }
+        };
         let mut pairs = Vec::new();
         for (at, one) in walls.iter().enumerate() {
             for other in &walls[at + 1..] {
-                if one.1.axis.cross(other.1.axis).length() <= Scale::RELATIVE {
+                let leaning = || {
+                    let surfaces = [one, other].map(|(_, wall)| Surface::Cylinder(*wall));
+                    let within = boxes([one.0, other.0]);
+                    within_two_sags(&surfaces[0], &surfaces[1], &within, body.scale())
+                };
+                if one.1.axis.cross(other.1.axis).length() <= Scale::RELATIVE || leaning() {
                     pairs.push(Facing::of(body, one, other));
                 }
             }
@@ -254,7 +339,7 @@ impl<'a> Zones<'a> {
         Zones { pairs }
     }
 
-    /// Where two parallel walls, by id, face each other.
+    /// Where two walls, parallel or leaning a hair off it, face each other.
     pub(super) fn between(&self, one: SurfaceId, other: SurfaceId) -> Option<&Facing<'a>> {
         self.pairs.iter().find(|facing| {
             let [first, second] = facing.walls.map(|(id, _)| id);
@@ -262,11 +347,24 @@ impl<'a> Zones<'a> {
         })
     }
 
-    /// Whether `point`, on `cylinder`, stands within the room of a parallel
-    /// wall that faces that one there: a sample there would be as good as on
-    /// the other wall.
+    /// Whether `point`, on `cylinder`, stands within the room of a wall,
+    /// parallel or leaning a hair off it, that faces it there: a sample there
+    /// would be as good as on the other wall.
     pub(in crate::brep::tessellation) fn crowded(&self, cylinder: &Cylinder, point: DVec3) -> bool {
-        self.crowding(*cylinder, point).next().is_some()
+        self.crowding(*cylinder, point, |_| true)
+    }
+
+    /// The same for a place of the curve `cylinder` meets `partner` along:
+    /// the two stand on each other there, and do not crowd it.
+    pub(in crate::brep::tessellation) fn crowded_off_the_meet(
+        &self,
+        cylinder: &Cylinder,
+        partner: &Round,
+        point: DVec3,
+    ) -> bool {
+        self.crowding(*cylinder, point, |facing| {
+            Round::Cylinder(facing.gap.other(cylinder)) != *partner
+        })
     }
 
     /// The same for a sample of a conic, but for one on the other wall
@@ -279,19 +377,23 @@ impl<'a> Zones<'a> {
         cylinder: &Cylinder,
         point: DVec3,
     ) -> bool {
-        self.crowding(*cylinder, point).any(|facing| {
+        self.crowding(*cylinder, point, |facing| {
             facing.gap.touch()
                 || facing.gap.other(cylinder).distance(point).abs() > facing.body.scale().eps()
         })
     }
 
-    fn crowding(&self, cylinder: Cylinder, point: DVec3) -> impl Iterator<Item = &Facing<'a>> {
-        self.pairs.iter().filter(move |facing| {
+    /// Whether a pair of `cylinder` that `counts` crowds `point`, `at` read last, as it costs most.
+    fn crowding(&self, cylinder: Cylinder, point: DVec3, counts: impl Fn(&Facing) -> bool) -> bool {
+        self.pairs.iter().any(|facing| {
             let [one, other] = facing.walls;
-            if one.1 != cylinder && other.1 != cylinder {
-                return false;
-            }
-            facing.crowds(&cylinder, point) && facing.at(point)
+            (one.1 == cylinder || other.1 == cylinder)
+                && counts(facing)
+                && facing.crowds(&cylinder, point)
+                && facing.at(point)
         })
     }
 }
+
+#[cfg(test)]
+mod tests;

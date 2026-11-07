@@ -45,12 +45,14 @@ mod chords;
 mod circle;
 mod cone;
 mod conic;
+mod crossing;
 mod elliptic;
 mod ends;
 mod meet;
 mod planes;
 mod round;
 mod touches;
+mod wedge;
 
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
@@ -126,6 +128,7 @@ pub(super) struct Samples {
     edges: Vec<Vec<usize>>,
     vertices: usize,
     grids: BTreeMap<SurfaceId, Grid>,
+    pub(in crate::brep::tessellation) lines: Vec<EdgeId>,
 }
 
 impl Samples {
@@ -162,6 +165,7 @@ impl Samples {
             edges: Vec::new(),
             vertices: body.vertex_ids().count(),
             grids: BTreeMap::new(),
+            lines: crossing::lines(body, zones),
         };
         let eps = body.scale().eps();
         let alone = BTreeMap::new();
@@ -294,6 +298,9 @@ impl Samples {
                 samples.edges[id.0 as usize].splice(1..1, on);
             }
         }
+        let lines = std::mem::take(&mut samples.lines);
+        wedge::cleared(body, &mut samples, &lines, eps);
+        samples.lines = lines;
         samples
     }
 

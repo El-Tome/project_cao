@@ -39,15 +39,32 @@
 //! in `CAO_TRIAGE_SEEDS`, with `CAO_TRIAGE_KERNEL=application` for the
 //! campaign through the application's body.
 //!
-//! #706 tried to build two cylinders nearly parallel and closer than a
-//! chord's sag, and was set aside: beside the leaning line they cross along,
-//! each wall cuts the cell into triangles of its own. Where it failed, the
-//! two faces lie on each other over an area wider than the margin the rules
-//! excuse as rounding (`soundness/crossing.rs`); where it held, the overlap
-//! only happened to stay thinner. What it reached is kept under `#[ignore]`,
-//! to be built uncrossed once the two walls share one order there; the
-//! cases it would still have declined run, and hold the decline `main`
-//! gives (`docs/exact-kernel-failures.md`, #706).
+//! Two cylinders nearly parallel and closer than a chord's sag stay
+//! declined (#706). The first four steps of #706 lay two such walls on one
+//! shared order in the tessellation, held beside the code they change from
+//! `crates/solid/src/brep/tessellation/contact/facing/tests.rs`, each with
+//! every campaign identical to `main` seed by seed. Building them — lifting
+//! the decline — is set aside: against `main`, the campaigns found bodies
+//! `main` declines built wrong, a third wall crossing the close stretch
+//! among them. The cases it would build are kept under `#[ignore]`, to run
+//! once it lands; the cases the decline answers run, and hold it
+//! (`docs/exact-kernel-failures.md`).
+//!
+//! Part of #706; both criteria of its Done when wait on the lift.
+//! - the B reds of #577 (the nearly coaxial posts at 1e-3°, seeds
+//!   224442167739556 and 224442167740434) are built, uncrossed and noted
+//!   unstable, not declined — waits on the lift: the cases are
+//!   `two_posts_of_one_radius_crossing_nearly_coaxially_at_1e_3_degrees_are_built_uncrossed_and_noted_unstable`
+//!   and
+//!   `seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable`,
+//!   ignored; 224442167740434, which the owner wants built too, is held
+//!   declined meanwhile by
+//!   `seed_224442167740434_two_posts_of_radius_22_5_crossing_at_1e_4_degrees_are_declined_as_unsupported`
+//! - the walls-at-any-angle draw keeps its rate or improves, with no
+//!   regression against `main` — waits on the lift; no test: a campaign
+//!   fails on any finding, so the rate is measured by hand, the campaigns
+//!   above run on `main` and on the branch over the same seeds and compared
+//!   seed by seed, and the comparison is reported on the issue
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -903,6 +920,45 @@ fn the_same_bore_refilled_by_a_bar_ending_flush_on_both_faces_is_built_uncrossed
     built_uncrossed_and_noted_unstable(&block_bored_and_refilled(-1.0, 10.0), 1e-2);
 }
 
+#[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
+fn two_walls_closer_than_a_sag_are_drawn_uncrossed_and_closed_three_and_ten_times_coarser_than_the_campaigns()
+ {
+    for case in [
+        nearly_coaxial(1e-4),
+        posts_crossing_at(1e-3),
+        posts_crossing_at(1e-4),
+        posts_from(Outline::circle([-1.0, 1.0], 4.0), Step::add, 1e-3),
+        Case::new(
+            Leaf::prism(Plane::xy(-15.0), Outline::circle([-5.0, 0.0], 15.0), 20.0),
+            vec![Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-4.998832302166697, 0.0, -72.43055956539959],
+                    [0.0, -0.001, 0.0],
+                ),
+                Outline::circle([0.0, 0.0], 15.0),
+                134.0,
+            ))],
+        ),
+    ] {
+        let body = built(&case);
+        for share in [3e-3, 1e-2] {
+            let tolerance = share * body.scale().reach();
+            let triangles = body.triangles(tolerance);
+            assert_eq!(
+                cao_solid::soundness::uncrossed(&triangles),
+                Ok(()),
+                "drawn within {tolerance}\n{case}"
+            );
+            assert_eq!(
+                cao_solid::soundness::closed(&triangles),
+                Ok(()),
+                "drawn within {tolerance}\n{case}"
+            );
+        }
+    }
+}
+
 /// An elliptic shaft of half-axes 10 and 9.995 bored round by 9.99 leaning
 /// 1e-4°: their walls never meet, within a chord's sag of each other all
 /// round, and #706's attempt kept the decline for an elliptic wall.
@@ -1099,6 +1155,54 @@ fn seed_86751972229989_two_posts_of_one_radius_crossing_at_45_degrees_keep_every
             41.06659275674582,
         ))],
     ));
+}
+
+fn a_shaft_with_a_post_a_thousandth_of_a_degree_off_touching_it_inside(cut: Option<Step>) -> Case {
+    Case::new(
+        Leaf::prism(Plane::yz(-5.0), Outline::circle([0.0, 7.5], 15.0), 23.0),
+        cut.into_iter()
+            .chain([Step::add(Leaf::prism(
+                Plane::tilted(
+                    [
+                        -62.899457621699895,
+                        0.0011872328530238138,
+                        7.4999999999999964,
+                    ],
+                    [90.0, 89.999, 0.0],
+                ),
+                Outline::circle([-0.0, -7.4999899999999995], 7.5),
+                136.0,
+            ))])
+            .collect(),
+    )
+}
+
+/// A shaft of radius 15 about X joined to a post of half its radius leaning
+/// 0.001° off it, touching it inside along its top: held on `main`, left
+/// open beside the line they touch along by #706's second step (seed
+/// 352000000014902, shrunk).
+#[test]
+fn seed_352000000014902_a_post_touching_a_shaft_inside_a_thousandth_of_a_degree_off_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_with_a_post_a_thousandth_of_a_degree_off_touching_it_inside(None),
+    );
+}
+
+/// The same, a slot cut through the shaft first: answered on `main`,
+/// refused through the application's body by #706's second step.
+#[test]
+fn seed_352000000014902_the_same_post_beside_a_slot_keeps_every_rule_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(
+        &a_shaft_with_a_post_a_thousandth_of_a_degree_off_touching_it_inside(Some(Step::cut(
+            Leaf::prism(
+                Plane::xy(-51.0),
+                Outline::rectangle([-5.0, 2.0], [5.0, 17.0]),
+                136.0,
+            ),
+        ))),
+    );
 }
 
 /// An elliptic shaft cut by a bore at a skew angle and joined to a post at

@@ -1004,3 +1004,66 @@ fn a_circle_within_the_tolerance_of_two_walls_belongs_to_the_nearer() {
         }
     }
 }
+
+#[test]
+fn a_meet_turning_back_past_the_angle_of_its_end_keeps_a_sample_on_that_ray_where_it_passes_it_again()
+ {
+    let (centre, radius) = (8.0, 5.0);
+    let mut build = fixtures::Build::new();
+    let stock = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
+    let bore = build.cylinder(DVec3::Z * centre, DVec3::Y, radius);
+    let meet = *build
+        .meeting(stock, bore, fixtures::STOCK_RADIUS)
+        .components
+        .iter()
+        .find(|meet| meet.point(0.0).y > 0.0)
+        .expect("a window on the side Y points to");
+    let period = meet.period().expect("a window closes on itself");
+    let on_top = |side: f64| {
+        let x = side * (radius * radius - (fixtures::HEIGHT - centre).powi(2)).sqrt();
+        let y = (fixtures::STOCK_RADIUS.powi(2) - x * x).sqrt();
+        meet.parameter(DVec3::new(x, y, fixtures::HEIGHT))
+    };
+    let lowest = meet.parameter(DVec3::new(0.0, fixtures::STOCK_RADIUS, centre - radius));
+    let [one, other] = [-1.0, 1.0].map(on_top);
+    let (from, to) = if (lowest - one).rem_euclid(period) < (other - one).rem_euclid(period) {
+        (one, one + (other - one).rem_euclid(period))
+    } else {
+        (other, other + (one - other).rem_euclid(period))
+    };
+    let ends = [from, to].map(|t| build.vertex(meet.point(t)));
+    let edge = build.meet_edge(meet, Some(ends), from, to);
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    let on_first = meet.first
+        == Wall::Cylinder(match body.surface(stock) {
+            Surface::Cylinder(cylinder) => *cylinder,
+            _ => panic!("the stock is a cylinder"),
+        });
+
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        for end in [from, to] {
+            let point = meet.point(end);
+            let angle = point.y.atan2(point.x);
+            let mirrors: Vec<DVec3> = meet
+                .at_angle(on_first, angle)
+                .into_iter()
+                .flat_map(|t| [t, t + period, t - period])
+                .filter(|t| from + 1e-6 < *t && *t < to - 1e-6)
+                .map(|t| meet.point(t))
+                .collect();
+            assert!(
+                !mirrors.is_empty(),
+                "the window passes {angle} again inside the edge"
+            );
+            for mirror in mirrors {
+                assert!(
+                    sampled(&samples, edge, mirror),
+                    "the window passes the ray through its end at {} again at {mirror}, \
+                     unsampled within {tolerance}",
+                    point,
+                );
+            }
+        }
+    }
+}

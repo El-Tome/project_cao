@@ -43,7 +43,7 @@ fn halve(
 
 /// Whether the chord of a stretch stands within `tolerance` of the curve,
 /// measured on the curve itself at places spread along the stretch.
-fn straight(point: &dyn Fn(f64) -> DVec3, from: f64, to: f64, tolerance: f64) -> bool {
+pub(super) fn straight(point: &dyn Fn(f64) -> DVec3, from: f64, to: f64, tolerance: f64) -> bool {
     let (start, end) = (point(from), point(to));
     (1..PROBES).all(|part| {
         let at = from + (to - from) * part as f64 / PROBES as f64;

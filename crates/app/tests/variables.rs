@@ -356,7 +356,7 @@ fn a_name_typed_in_the_panel_while_a_line_is_half_drawn_goes_into_the_field() {
     driver::start_a_sketch(&mut app);
     driver::start_a_line(&mut app);
     driver::click_the_button(&mut app, "Variables");
-    app.hover_at(egui::pos2(10.0, 790.0));
+    app.hover_at(egui::pos2(10.0, driver::SCREEN.y - 10.0));
     app.run();
 
     driver::type_into(&mut app, "nom", "h");

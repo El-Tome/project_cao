@@ -24,10 +24,12 @@
 //! - a test that clicks only to get somewhere reaches that state by a named
 //!   control instead, or sets the state up directly, and no longer clicks a
 //!   coordinate — no test: it is the conversion of those tests and of
-//!   `driver::start_a_sketch`, kept so by the rule of `screen_points.rs`. No
-//!   named control opens a sketch on a plane of the origin, so
-//!   `driver::start_a_sketch` clicks a world point of the plane where the view
-//!   shows it, the gesture the third test above holds
+//!   `driver::start_a_sketch`, read off the diff, and only part of it was
+//!   built. None of them writes a coordinate of the screen any more; where no
+//!   named control reaches the state, they still click, at a point of the
+//!   drawing where the view shows it — the paragraph below names each. No rule
+//!   holds this: `screen_points.rs` sees a point written in numbers, not a
+//!   click made only to get somewhere
 //! - `FromTheCentre` and `on_canvas` go, replaced by the projection — no test:
 //!   once they are deleted from the driver, a use left behind does not compile
 //! - a driver test that writes a screen point with two numeric literals fails,
@@ -53,10 +55,22 @@
 //!   a camera and a rectangle the frame already kept, and the suite's time is
 //!   compared by hand on either side of the conversion
 //!
-//! The issue asked for the conversion of the tests that click to get
-//! somewhere to go through a named control. Opening a sketch on a plane of the
-//! origin has none, which is why the bullet above says how
-//! `driver::start_a_sketch` gets there instead.
+//! What was built, against the issue's words: no coordinate of the screen, and
+//! a projected point of the drawing instead, wherever a test clicks only to get
+//! somewhere and no named control does that one thing. The ribbon has no
+//! button for any of these, and the extrusion panel only counts the areas
+//! chosen. A sketch opened on a plane of the origin — `driver::start_a_sketch`,
+//! held by the third test above, and `section_view.rs` beside a raised block. A
+//! sketch started on a section's cut — `a_sketch_on_the_cut` in
+//! `keeping_a_section.rs` and in `tilting_a_section.rs`, and the test of
+//! `keeping_a_section.rs` that reads the section's name above the view. A face
+//! chosen for the section to cut along — the face-lost test of
+//! `keeping_a_section.rs`. The area an extrusion raises —
+//! `driver::INSIDE_THE_RECTANGLE`, `ON_THE_BLOCK` in the two section files, and
+//! the block of `drawing.rs`. And every shape drawn only to have something to
+//! act on — a segment, a rectangle, a dimension placed for its field, through
+//! `driver::draw_a_segment`, `driver::ON_THE_SEGMENT` and the like: drawing has
+//! no named control either.
 
 mod driver;
 

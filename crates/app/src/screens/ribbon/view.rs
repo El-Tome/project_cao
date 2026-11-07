@@ -6,10 +6,10 @@ use crate::screens::extrusion::ExtrusionState;
 use crate::screens::extrusion_row::extrusion_row;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::chamfer_to_swap;
-use crate::ui::tool_button::tool_button;
+use crate::ui::tool_button::{icon_button, tool_button};
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
-use super::state::{Context, Ribbon, active, enabled, label, short_label};
+use super::state::{Context, Ribbon, active, enabled, icon, label};
 
 /// What the bar needs to know about the part being drawn.
 ///
@@ -279,17 +279,20 @@ fn lay_out(
 
 fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut Vec<Command>) {
     let name = label(command, state);
-    let label = if state.settings.toolbar.show_labels {
-        match state.settings.shortcuts.chord_for(command) {
-            Some(chord) => format!("{name} ({})", shortcuts::chord(state.lang, chord)),
-            None => name,
-        }
-    } else {
-        short_label(command, state)
+    let called = match state.settings.shortcuts.chord_for(command) {
+        Some(chord) => format!("{name} ({})", shortcuts::chord(state.lang, chord)),
+        None => name.clone(),
     };
+    let hint = wording::hint(state.lang, command);
+    let pressable = enabled(command, state);
+    let on = active(command, state);
+    let worn = icon(command, state);
 
-    let response = tool_button(ui, enabled(command, state), active(command, state), label)
-        .on_hover_text(wording::hint(state.lang, command));
+    let response = if state.settings.toolbar.show_labels {
+        tool_button(ui, pressable, on, worn, called).on_hover_text(hint)
+    } else {
+        icon_button(ui, pressable, on, worn, &name).on_hover_text(format!("{called}\n{hint}"))
+    };
     if response.clicked() {
         asked.push(command);
     }

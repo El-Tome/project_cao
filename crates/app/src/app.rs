@@ -36,7 +36,7 @@ impl CaoApp {
         locations: Option<Locations>,
         opening: Option<PathBuf>,
     ) -> Self {
-        crate::ui::theme::install(&cc.egui_ctx);
+        crate::ui::install(&cc.egui_ctx);
         if let Some(render_state) = &cc.wgpu_render_state {
             let renderer = SceneRenderer::new(
                 &render_state.device,

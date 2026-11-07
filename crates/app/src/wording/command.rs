@@ -162,8 +162,6 @@ pub fn hint(lang: &Catalogue, command: Command) -> String {
 }
 
 /// The picture the redesign drew for the command, worn wherever its name is.
-// No button draws an icon yet: #725 wires them, and `expect` then asks for this to go.
-#[cfg_attr(not(test), expect(dead_code))]
 pub fn icon(command: Command) -> Icon {
     match command {
         Command::NewSketch => icon::NEW_SKETCH,

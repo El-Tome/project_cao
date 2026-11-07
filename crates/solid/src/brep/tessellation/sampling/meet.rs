@@ -28,7 +28,7 @@ use super::elliptic::{on_the_wall, reached_by_planes};
 use super::ends::grazed;
 use super::{divisions, on_a_plane, taken, touching_planes};
 use crate::brep::Scale;
-use crate::brep::curve::{Meet, Wall};
+use crate::brep::curve::{Curve, Meet, Wall};
 use crate::brep::surface::Cone;
 use crate::brep::tessellation::contact::{self, Contact, Zones};
 use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId};
@@ -182,6 +182,34 @@ pub(super) fn of_edge(
 ) -> Vec<DVec3> {
     let points = alone(body, edge, meet, around, grids, tolerance);
     twin::shared(body, edge, meet, around, grids, tolerance, points)
+}
+
+/// Samples again, on the rays `around` gives, every edge of `meets` along a
+/// curve a cone meets another wall along. The rounds that sample the curves
+/// on the rays their samples give stop at two, since each round hands on
+/// rays the next takes; a cone takes none, so such a curve hands its wall
+/// only rays through its own samples, which that wall took already, and is
+/// sampled last on the wall's rays as the wall's circles are. A face of the
+/// wall it bounds is then cut in strips on the rays the wall's curve with a
+/// third wall took last, not fanned across them into that third wall where
+/// it touches the first at a point from inside (354000000005870).
+pub(super) fn on_last_rays(
+    body: &Body,
+    around: Around,
+    grids: &BTreeMap<SurfaceId, Grid>,
+    tolerance: f64,
+    mut meets: Vec<Vec<DVec3>>,
+) -> Vec<Vec<DVec3>> {
+    for id in body.edge_ids() {
+        if let Curve::Meet(meet) = body.curve(body.edge(id).curve)
+            && [meet.first, meet.second]
+                .iter()
+                .any(|wall| matches!(wall, Wall::Cone(_)))
+        {
+            meets[id.0 as usize] = of_edge(body, id, meet, around, grids, tolerance);
+        }
+    }
+    meets
 }
 
 /// The walls of the body, the pairs of them face to face, and what each

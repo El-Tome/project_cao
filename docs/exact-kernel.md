@@ -2182,7 +2182,13 @@ section all along.
 On the cone's side the tessellation follows. A curve on a cone is sampled
 at the cone's own grid, read for the widest the curve reaches, with the
 angles of the cone's vertices as rays, so that the face's edges stand on
-the same rulings. A cone face away from its apex is cut in columns between
+the same rulings. It is sampled once more on its other wall's rays after
+the last round of the curves that wall meets other walls along, as the
+wall's circles are: those rounds stop at two, each handing on rays the
+next takes, but a cone takes none, and the curve ends the chain. Sampled
+a round behind, it left a shaft's face fanned from one of its samples
+across the rays a bore touching the shaft inside at a point had handed
+on, through the bore (354000000005870). A cone face away from its apex is cut in columns between
 the rulings of its grid (`tessellation/outline/columns.rs`): a sample on a
 ruling is laid on it to the bit, each interval of a ruling is decided in
 or out of the face by the winding of its outline, and each column is

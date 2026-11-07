@@ -84,7 +84,7 @@
 //!   seed 352000000007085 is answered by #759 —
 //!   `seed_352000000007085_a_tube_slotted_along_its_bore_banded_and_posted_is_drawn_uncrossed`,
 //!   `seed_352000000007085_the_same_tube_is_drawn_uncrossed_through_the_application_s_body`;
-//!   seed 354000000005870 is carried by #761, its test ignored until then:
+//!   seed 354000000005870 is answered by #761 —
 //!   `seed_354000000005870_a_shaft_bored_at_80_degrees_then_by_a_cone_leaning_24_degrees_is_drawn_uncrossed`
 //!
 //! The second criterion, that one rule tells a wall from its snapped copy,
@@ -108,6 +108,17 @@
 //!   then:
 //!   `seed_353000000013767_a_shaft_bored_three_times_one_bore_grazing_is_drawn_uncrossed`,
 //!   `seed_353000000013767_the_same_bores_are_drawn_uncrossed_through_the_application_s_body`
+//!
+//! Closes #761.
+//! - `seed_354000000005870_a_shaft_bored_at_80_degrees_then_by_a_cone_leaning_24_degrees_is_drawn_uncrossed`
+//!   in `crates/solid/tests/random_walls_at_any_angle.rs` loses its
+//!   `#[ignore]` and passes — here
+//! - No draw regresses against `main`, seed by seed, on the three sets #754
+//!   was measured on (seeds 352000000000000, 353000000000000,
+//!   354000000000000, both kernels) — no test: a campaign fails on any
+//!   finding, so the walls campaigns above are run by hand on `main` and on
+//!   the branch over those seeds and compared seed by seed, reported on the
+//!   pull request
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -1349,7 +1360,6 @@ fn seed_352000000002028_a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_d
 /// leaning 24°: held on `main`, drawn crossed on the exact kernel once a
 /// wall's snapped copy is told for its own (seed 354000000005870).
 #[test]
-#[ignore = "#761: the shaft's fan crosses the bore touching it inside at a point"]
 fn seed_354000000005870_a_shaft_bored_at_80_degrees_then_by_a_cone_leaning_24_degrees_is_drawn_uncrossed()
  {
     random_solids::holds_exactly(&Case::new(

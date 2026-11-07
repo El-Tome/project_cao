@@ -3,6 +3,7 @@ use crate::screens::extrusion::{ExtrusionState, Shape};
 use crate::screens::sketch::{
     ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode, SketchEditor, Tool,
 };
+use crate::ui::icon::Icon;
 use crate::wording::{command as wording, matter};
 use cao_part::PartDocument;
 use cao_prefs::{Command, Settings};
@@ -147,14 +148,12 @@ pub(super) fn label(command: Command, state: &Context<'_>) -> String {
     }
 }
 
-/// What the button reads with labels off: two letters, which for the matter in
-/// front of the sketch have to tell its three states apart.
-pub(super) fn short_label(command: Command, state: &Context<'_>) -> String {
+/// What the command's button wears: its icon, or the state it is in for the
+/// one button whose face says that.
+pub(super) fn icon(command: Command, state: &Context<'_>) -> Icon {
     match command {
-        Command::NextMatterInFront => {
-            matter::in_front_short(state.lang, state.editor.matter_in_front)
-        }
-        _ => label(command, state).chars().take(2).collect(),
+        Command::NextMatterInFront => matter::in_front_icon(state.editor.matter_in_front),
+        _ => wording::icon(command),
     }
 }
 

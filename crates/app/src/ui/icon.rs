@@ -9,8 +9,30 @@ pub struct Icon {
     svg: &'static [u8],
 }
 
-// No button draws an icon yet: #725 wires them, and `expect` then asks for this to go.
+/// The sizes `docs/redesign/icons.md` draws an icon at.
+// Only the ribbon draws an icon yet: the panel toggles and the menus of #725
+// take the two others, and `expect` then asks for this to go.
 #[cfg_attr(not(test), expect(dead_code))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum IconSize {
+    /// A large ribbon button.
+    Large,
+    /// A small button, or a line of the tree.
+    Small,
+    /// A row of a menu or a list.
+    Row,
+}
+
+impl IconSize {
+    pub fn points(self) -> f32 {
+        match self {
+            Self::Large => 22.0,
+            Self::Small => 15.0,
+            Self::Row => 14.0,
+        }
+    }
+}
+
 impl Icon {
     pub fn id(&self) -> &str {
         self.id
@@ -18,6 +40,29 @@ impl Icon {
 
     pub fn svg(&self) -> &[u8] {
         self.svg
+    }
+
+    /// The icon at `size`, rasterised from its SVG at as many pixels as it
+    /// covers on the screen.
+    pub fn image(self, size: IconSize) -> egui::Image<'static> {
+        egui::Image::new(self.uri()).fit_to_exact_size(egui::Vec2::splat(size.points()))
+    }
+
+    fn uri(self) -> String {
+        format!("bytes://icon/{}.svg", self.id())
+    }
+}
+
+/// Teaches `ctx` to draw every icon.
+///
+/// Each is handed over drawn in white rather than in `currentColor`, which the
+/// rasteriser paints black: a widget's tint multiplies the picture, and only
+/// white comes out in the colour of its text.
+pub fn install(ctx: &egui::Context) {
+    egui_extras::install_image_loaders(ctx);
+    for icon in ALL {
+        let white = String::from_utf8_lossy(icon.svg()).replace("currentColor", "white");
+        ctx.include_bytes(icon.uri(), white.into_bytes());
     }
 }
 
@@ -29,6 +74,8 @@ macro_rules! embedded {
                 svg: include_bytes!(concat!("../../../../docs/redesign/icons/", $id, ".svg")),
             };
         )+
+
+        const ALL: &[Icon] = &[$($name),+];
     };
 }
 
@@ -75,6 +122,8 @@ embedded! {
     LINE = "line";
     LINE_SYMMETRIC = "line-symmetric";
     MATTER_IN_FRONT_HIDDEN = "matter-in-front-hidden";
+    MATTER_IN_FRONT_OPAQUE = "matter-in-front-opaque";
+    MATTER_IN_FRONT_SEE_THROUGH = "matter-in-front-see-through";
     MEASURE = "measure";
     MIDPOINT = "midpoint";
     MIRROR = "mirror";
@@ -99,3 +148,6 @@ embedded! {
     TRIM = "trim";
     UNDO = "undo";
 }
+
+#[cfg(test)]
+mod tests;

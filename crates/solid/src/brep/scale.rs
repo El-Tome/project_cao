@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 /// How far a body reaches from the origin, never less than one, and the
 /// distance under which two places are one.
 ///
-/// A billionth of the reach: ten times the harness's `NEAR`, so what the kernel
+/// A billionth of the reach: ten times `crossing::NEAR`, so what the kernel
 /// keeps apart the rules see apart, and a thousand times below the tolerance
 /// of a line of measure, so a merge never shows as matter gained or lost. The
 /// result of an operation carries the larger reach of its operands, so a

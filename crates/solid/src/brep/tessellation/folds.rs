@@ -165,11 +165,11 @@ impl<'a> Folds<'a> {
     /// on the same three samples, which [`super::skins`] leaves out with it.
     fn crossing(&self, at: At) -> Option<At> {
         let corners = self.corners(at)?;
-        let reach = |corners: [usize; 3]| {
+        let boxed = |corners: [usize; 3]| {
             let [a, b, c] = corners.map(|id| self.samples.point(id));
             (a.min(b).min(c) - self.eps, a.max(b).max(c) + self.eps)
         };
-        let (low, high) = reach(corners);
+        let (low, high) = boxed(corners);
         self.drawn.iter().enumerate().find_map(|(face, drawn)| {
             if face == at.0 {
                 return None;
@@ -178,7 +178,7 @@ impl<'a> Folds<'a> {
                 .map(|triangle| (face, triangle))
                 .find(|other| {
                     self.corners(*other).is_some_and(|theirs| {
-                        let (from, to) = reach(theirs);
+                        let (from, to) = boxed(theirs);
                         low.cmple(to).all()
                             && from.cmple(high).all()
                             && !theirs.iter().all(|id| corners.contains(id))

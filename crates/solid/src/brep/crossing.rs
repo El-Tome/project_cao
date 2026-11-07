@@ -1,19 +1,20 @@
 //! Whether two triangles pass through each other or lie on each other: the one
-//! definition the tessellation's folds draw by and the harness's rules read.
+//! definition the tessellation's folds draw by, and the rules' check that no
+//! face of a solid crosses another weighs every two faces with.
 
 use glam::DVec3;
 
 type Triangle = [DVec3; 3];
 
 /// Two points closer than this share a place, as a fraction of how far the
-/// solid reaches.
+/// solid reaches: the room two triangles meet within rather than cross.
 ///
 /// Relative rather than absolute for the reason `boolean.rs` gives: the noise
 /// of a coordinate grows with its size. A ten-billionth is a million times the
 /// noise a cut leaves on a corner written twice, and ten times finer than the
-/// billionth the kernel written here judges two faces one plane by — so a
-/// crack that tolerance leaves is seen, rather than welded shut by the rules
-/// looking for it. Two faces closer than this cannot be told from one face
+/// billionth [`super::scale::Scale::eps`] judges two faces one plane by — so a
+/// crack that tolerance leaves is seen, rather than welded shut by the
+/// definition looking for it. Two faces closer than this cannot be told from one face
 /// laid twice, which is why the cases drawn never ask for a gap that fine.
 pub const NEAR: f64 = 1e-10;
 
@@ -37,9 +38,20 @@ pub(crate) fn crossing(one: &Facet, other: &Facet, room: f64) -> bool {
         return false;
     }
     let (over_one, over_other) = (one.heights(other), other.heights(one));
-    if clear(over_one, room) || clear(over_other, room) {
-        return false;
-    }
+    !clear(over_one, room)
+        && !clear(over_other, room)
+        && measured(one, other, over_one, over_other, room)
+}
+
+/// [`crossing`] for two faces neither a sliver nor clear of the other, each's
+/// corners already measured above the other's plane.
+pub(crate) fn measured(
+    one: &Facet,
+    other: &Facet,
+    over_one: [f64; 3],
+    over_other: [f64; 3],
+    room: f64,
+) -> bool {
     meets(one, other, over_one, over_other, room) || meets(other, one, over_other, over_one, room)
 }
 

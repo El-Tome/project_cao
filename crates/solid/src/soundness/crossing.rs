@@ -3,7 +3,7 @@
 use glam::DVec3;
 
 use super::{Flaw, NEAR, Triangle, reach};
-use crate::brep::crossing::{Facet, clear, cross, crossing, resting, sides, sliver};
+use crate::brep::crossing::{Facet, clear, cross, measured, resting, sides, sliver};
 
 mod pairs;
 
@@ -64,7 +64,7 @@ impl Found {
         if clear(over_one, room) || clear(over_other, room) {
             return;
         }
-        if crossing(&one.facet, &other.facet, room) {
+        if measured(&one.facet, &other.facet, over_one, over_other, room) {
             self.crossings.push((one.index, other.index));
         }
         self.lean(one, other, over_one, room);

@@ -12,8 +12,7 @@
 //! walls nearly parallel past what decision 11 lays: within the kernel's
 //! tolerance of each other along a stretch rather than at points, as
 //! `relation/nearly_parallel.rs` measures it, leaning a sliver and meeting
-//! at all, or, an elliptic wall among them, closer than a chord's sag
-//! (`Case::asks_of_walls_along_a_stretch`).
+//! at all, or closer than a chord's sag (`Case::asks_of_walls_along_a_stretch`).
 //! A cone against a cylinder, an elliptic wall or a cone of another axis
 //! asks nothing either since #577, but where the kernel still declines it:
 //! within a hair of coaxial, an elliptic wall about its axis, a ruling along
@@ -1412,11 +1411,9 @@ impl Case {
     /// axes crossing or touching as the second's axis drifts across the line
     /// of touch (`relation/perpendicular.rs`); leaning by a sine under
     /// `SLIVER`, wherever they meet, touching or crossing. Read in the box the
-    /// two leaves share, where the kernel reads the faces' own; or, one of
-    /// them elliptic, closer to one another than a chord's sag of either's
-    /// grid over two steps of it, where their triangles would cross
-    /// (`closer_than_a_sag`). Two round walls that close are built since #706
-    /// lays them on one shared order.
+    /// two leaves share, where the kernel reads the faces' own; or closer to
+    /// one another than a chord's sag of either's grid over two steps of it,
+    /// where their triangles would cross (`closer_than_a_sag`).
     pub fn asks_of_walls_along_a_stretch(&self) -> bool {
         let walled = Walled::of(self);
         let leaves: Vec<(&Leaf, Spanned)> = self
@@ -1456,20 +1453,15 @@ impl Case {
                                 return false;
                             }
                             let leaning = Leaning::of(first, second, shared_low, shared_high);
-                            let [one, other] = [first.exact(), second.exact()];
-                            let elliptic = [one, other]
-                                .iter()
-                                .any(|wall| matches!(wall, Exact::Oval(_)));
                             leaning.stretch(eps) >= STRETCH * reach
                                 || (sine < SLIVER && leaning.meet(eps))
-                                || elliptic
-                                    && closer_than_a_sag(
-                                        &one,
-                                        &other,
-                                        shared_low,
-                                        shared_high,
-                                        reach,
-                                    )
+                                || closer_than_a_sag(
+                                    &first.exact(),
+                                    &second.exact(),
+                                    shared_low,
+                                    shared_high,
+                                    reach,
+                                )
                         })
                     })
                 })

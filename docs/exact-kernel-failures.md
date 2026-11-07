@@ -3567,10 +3567,12 @@ What is left, by family:
 
 ### #706: two cylinders closer than a sag, an attempt set aside
 
-Two cylinders closer than a sag are now built: #706's five steps lay the
-two walls on one shared order (`docs/exact-kernel.md`, "Two walls at any
-angle"), and `closer_than_a_sag` declines only a cone or an elliptic wall
-(#720). What follows is the attempt that came before them.
+`closer_than_a_sag` still declines every pair. Since #706's first four
+steps the tessellation lays two such cylinders on one shared order
+(`docs/exact-kernel.md`, "Two walls at any angle"), should the decline be
+lifted for them; the fifth, the lift itself, was set aside, the campaigns
+finding wrong bodies where `main` declined (`wip/706-lift-attempt`, local).
+What follows is the attempt that came before them.
 
 #706 tried to build the pairs lane 2 declines closer than a chord's sag
 when both walls are cylinders, and was not merged: `main` keeps the

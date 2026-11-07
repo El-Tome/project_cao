@@ -65,19 +65,20 @@ pub enum Declined {
     /// within the tolerance of a plane or a cylinder of its axis all across
     /// the box, or a parallel wall within decision 8's hair of it all round;
     /// two walls nearly parallel, past decision 11, that meet at a sliver of
-    /// a lean, stand within the tolerance of each other along a stretch, or,
-    /// one of them a cone or an elliptic wall, closer than a chord's sag
-    /// (#577, #720) — two cylinders that close are built (#706); or a cone
-    /// against a wall off its axis whose ruling runs along that wall's axis,
-    /// a hair off coaxial, with an apex on the other wall, with a hole in the
-    /// flank of a face holding its apex (#711), or closer than a chord's sag
-    /// without meeting (#720). A plane meets a cylinder, a cone or an elliptic wall at any
-    /// other angle along a conic, a parallel round or elliptic wall meets an
-    /// elliptic one along rulings, and any other round, elliptic or conical
-    /// wall along the curve the two meet along, which are built (#552,
-    /// #571, #577). Or a chamfer (#696) or a fillet (#697) on an edge that is
-    /// not straight between two flat faces meeting outwards, that runs on
-    /// tangentially into the next edge of a face, or whose cut, carried along
+    /// a lean, stand within the tolerance of each other along a stretch, or
+    /// closer than a chord's sag (#577) — two cylinders that close the
+    /// tessellation lays on one shared order, should that be lifted (#706);
+    /// or a cone against a wall off its axis whose ruling runs along that
+    /// wall's axis, a hair off coaxial, with an apex on the other wall, with
+    /// a hole in the flank of a face holding its apex (#711), or closer than
+    /// a chord's sag without meeting (#720). A plane meets a cylinder, a cone
+    /// or an elliptic wall at any other angle along a conic, a parallel round
+    /// or elliptic wall meets an elliptic one along rulings, and any other
+    /// round, elliptic or conical wall along the curve the two meet along,
+    /// which are built (#552, #571, #577). Or a chamfer (#696) or a fillet
+    /// (#697) on an edge that is not straight between two flat faces meeting
+    /// outwards, that runs on tangentially into the next edge of a face, or
+    /// whose cut, carried along
     /// the edge's line, would take matter beyond the edge.
     Unsupported,
     /// Two curves touch more closely than their curvatures can order.

@@ -39,43 +39,32 @@
 //! in `CAO_TRIAGE_SEEDS`, with `CAO_TRIAGE_KERNEL=application` for the
 //! campaign through the application's body.
 //!
-//! Two cylinders nearly parallel and closer than a chord's sag are built
-//! since #706 laid them on one shared order: each wall takes the other's
-//! rays, turned from one axis onto the other, both faces are cut alike
-//! beside the line they cross along, and a third wall meets both on the
-//! same rays. An elliptic wall or a cone that close is still declined
-//! (#720). The first four of #706's five steps are held beside the code
-//! they change, from
-//! `crates/solid/src/brep/tessellation/contact/facing/tests.rs`; the fifth,
-//! which lifts the decline, here.
+//! Two cylinders nearly parallel and closer than a chord's sag stay
+//! declined (#706). The first four steps of #706 lay two such walls on one
+//! shared order in the tessellation, held beside the code they change from
+//! `crates/solid/src/brep/tessellation/contact/facing/tests.rs`, each with
+//! every campaign identical to `main` seed by seed. Building them — lifting
+//! the decline — is set aside: against `main`, the campaigns found bodies
+//! `main` declines built wrong, a third wall crossing the close stretch
+//! among them. The cases it would build are kept under `#[ignore]`, to run
+//! once it lands; the cases the decline answers run, and hold it
+//! (`docs/exact-kernel-failures.md`).
 //!
-//! Closes #706.
+//! Part of #706; both criteria of its Done when wait on the lift.
 //! - the B reds of #577 (the nearly coaxial posts at 1e-3°, seeds
 //!   224442167739556 and 224442167740434) are built, uncrossed and noted
-//!   unstable, not declined —
-//!   `two_posts_of_one_radius_crossing_nearly_coaxially_at_1e_3_degrees_are_built_uncrossed_and_noted_unstable`,
-//!   `seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable`;
-//!   224442167740434, bored at 30° besides, built too by the owner's
-//!   decision —
-//!   `seed_224442167740434_two_posts_of_radius_22_5_bored_at_30_degrees_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable`
+//!   unstable, not declined — waits on the lift: the cases are
+//!   `two_posts_of_one_radius_crossing_nearly_coaxially_at_1e_3_degrees_are_built_uncrossed_and_noted_unstable`
+//!   and
+//!   `seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable`,
+//!   ignored; 224442167740434, which the owner wants built too, is held
+//!   declined meanwhile by
+//!   `seed_224442167740434_two_posts_of_radius_22_5_crossing_at_1e_4_degrees_are_declined_as_unsupported`
 //! - the walls-at-any-angle draw keeps its rate or improves, with no
-//!   regression against `main` — no test: a campaign fails on any finding,
-//!   so the rate is measured by hand, the campaigns above run on `main` and
-//!   on the branch over the same seeds and compared seed by seed, and the
-//!   comparison is reported on the issue
-//! - the fifth step lifts `closer_than_a_sag` for two cylinders: the cases
-//!   it declined are built, uncrossed and noted unstable, a third wall or a
-//!   cap among them —
-//!   `the_same_shafts_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable`,
-//!   `the_same_posts_crossing_at_3e_4_or_1e_4_degrees_are_built_uncrossed_and_noted_unstable`,
-//!   `seed_331906274213776_a_shaft_cut_by_a_bore_of_its_radius_at_0_01_degrees_is_built_uncrossed_and_noted_unstable`,
-//!   `seed_318277455101196_two_shafts_of_one_radius_at_1e_4_degrees_bored_at_30_degrees_are_built_and_keep_every_rule`,
-//!   `seed_318277455100734_two_shafts_of_one_radius_at_0_05_degrees_beside_a_cut_at_45_degrees_are_built_uncrossed_and_noted_unstable`,
-//!   `seed_318277455103234_a_bore_of_radius_0_5_at_0_01_degrees_refilled_by_a_bar_running_through_the_block_is_built_uncrossed_and_noted_unstable`;
-//!   drawn coarser than the campaigns, they stay uncrossed —
-//!   `two_walls_closer_than_a_sag_are_drawn_uncrossed_and_closed_three_and_ten_times_coarser_than_the_campaigns`;
-//!   an elliptic wall that close stays declined —
-//!   `an_elliptic_shaft_bored_round_closer_than_a_sag_at_1e_4_degrees_is_declined_as_unsupported`
+//!   regression against `main` — waits on the lift; no test: a campaign
+//!   fails on any finding, so the rate is measured by hand, the campaigns
+//!   above run on `main` and on the branch over the same seeds and compared
+//!   seed by seed, and the comparison is reported on the issue
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -430,58 +419,16 @@ fn built_uncrossed_and_noted_unstable(case: &Case, degrees: f64) {
 }
 
 #[test]
-fn two_walls_closer_than_a_sag_are_drawn_uncrossed_and_closed_three_and_ten_times_coarser_than_the_campaigns()
- {
-    for case in [
-        nearly_coaxial(1e-4),
-        posts_crossing_at(1e-3),
-        posts_crossing_at(1e-4),
-        posts_from(Outline::circle([-1.0, 1.0], 4.0), Step::add, 1e-3),
-        Case::new(
-            Leaf::prism(Plane::xy(-15.0), Outline::circle([-5.0, 0.0], 15.0), 20.0),
-            vec![Step::cut(Leaf::prism(
-                Plane::tilted(
-                    [-4.998832302166697, 0.0, -72.43055956539959],
-                    [0.0, -0.001, 0.0],
-                ),
-                Outline::circle([0.0, 0.0], 15.0),
-                134.0,
-            ))],
-        ),
-    ] {
-        let body = built(&case);
-        for share in [3e-3, 1e-2] {
-            let tolerance = share * body.scale().reach();
-            let triangles = body.triangles(tolerance);
-            assert_eq!(
-                cao_solid::soundness::uncrossed(&triangles),
-                Ok(()),
-                "drawn within {tolerance}\n{case}"
-            );
-            assert_eq!(
-                cao_solid::soundness::closed(&triangles),
-                Ok(()),
-                "drawn within {tolerance}\n{case}"
-            );
-        }
-    }
-}
-
-/// The same, the lean at an earlier step than the last, which notes nothing
-/// of it.
-fn built_on_both_kernels_keeping_every_rule(case: &Case) {
-    answered(case, &Exact).unwrap_or_else(|declined| panic!("{declined:?}\n{case}"));
-    random_solids::holds_exactly(case);
-    answered(case, &Application).unwrap_or_else(|declined| {
-        panic!("declined through the application: {declined:?}\n{case}")
-    });
-    random_solids::holds_through_the_application(case);
-}
-
-#[test]
 fn two_shafts_of_one_radius_crossing_nearly_coaxially_at_1e_5_degrees_are_declined_as_unsupported()
 {
     declined_along_a_stretch(&nearly_coaxial(1e-5));
+}
+
+/// At 1e-4° the same shafts stand closer than a chord's sag of their grids
+/// over two steps: declined too, by the second decision of lane 2's rounds.
+#[test]
+fn the_same_shafts_crossing_at_1e_4_degrees_are_declined_closer_than_a_sag() {
+    declined_along_a_stretch(&nearly_coaxial(1e-4));
 }
 
 /// An elliptic shaft along X and a round bar of radius 2 leaning 1e-5° off
@@ -548,37 +495,61 @@ fn posts_from(outline: Outline, step: fn(Leaf) -> Step, degrees: f64) -> Case {
     )
 }
 
+#[test]
+fn two_posts_of_one_radius_crossing_nearly_coaxially_at_1e_3_degrees_are_declined_as_unsupported() {
+    declined_along_a_stretch(&posts_crossing_at(1e-3));
+}
+
+/// Two shafts of radius 150 whose axes cross leaning 1e-4°, closer than a
+/// chord's sag along a stretch: built with crossed triangles on the walls
+/// draw's seed 224442167739556, shrunk.
+#[test]
+fn seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_declined_as_unsupported()
+ {
+    declined_along_a_stretch(&Case::new(
+        Leaf::prism(
+            Plane::xz(-60.0),
+            Outline::circle([0.0, 30.0], 150.0),
+            -300.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted(
+                [0.0, 753.7553595345719, 29.99877894105255],
+                [89.9999, 0.0, 0.0],
+            ),
+            Outline::circle([-0.0, -0.0], 150.0),
+            1399.0,
+        ))],
+    ));
+}
+
 /// A post of radius 22.5 bored at 30°, then cut by another of its radius
 /// whose axis crosses its own leaning 1e-4°: built with crossed triangles on
-/// the walls draw's seed 224442167740434, shrunk, then declined until #706
-/// laid the pair on one shared order and met the bore with both alike.
+/// the walls draw's seed 224442167740434, shrunk.
 #[test]
-fn seed_224442167740434_two_posts_of_radius_22_5_bored_at_30_degrees_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable()
+fn seed_224442167740434_two_posts_of_radius_22_5_crossing_at_1e_4_degrees_are_declined_as_unsupported()
  {
-    built_uncrossed_and_noted_unstable(
-        &Case::new(
-            Leaf::prism(Plane::xy(-15.0), Outline::circle([-5.0, 5.0], 22.5), 40.0),
-            vec![
-                Step::cut(Leaf::prism(
-                    Plane::tilted(
-                        [-5.0, -46.33324094593226, -83.91178143552975],
-                        [-30.0, 0.0, 0.0],
-                    ),
-                    Outline::circle([-0.0, -0.0], 10.0),
-                    205.0,
-                )),
-                Step::cut(Leaf::prism(
-                    Plane::tilted(
-                        [-4.999820813185955, 5.0, -97.66648189170816],
-                        [0.0, -0.0001, 0.0],
-                    ),
-                    Outline::circle([0.0, 0.0], 22.5),
-                    205.0,
-                )),
-            ],
-        ),
-        1e-4,
-    );
+    declined_along_a_stretch(&Case::new(
+        Leaf::prism(Plane::xy(-15.0), Outline::circle([-5.0, 5.0], 22.5), 40.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-5.0, -46.33324094593226, -83.91178143552975],
+                    [-30.0, 0.0, 0.0],
+                ),
+                Outline::circle([-0.0, -0.0], 10.0),
+                205.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-4.999820813185955, 5.0, -97.66648189170816],
+                    [0.0, -0.0001, 0.0],
+                ),
+                Outline::circle([0.0, 0.0], 22.5),
+                205.0,
+            )),
+        ],
+    ));
 }
 
 /// A shaft of radius 4 turned about Y, cut by one of radius 6 turned about
@@ -723,6 +694,12 @@ fn seed_106731298824406_a_bore_at_75_degrees_through_a_pocket_s_wall_keeps_every
     random_solids::holds_exactly(&case);
 }
 
+#[test]
+fn the_same_posts_crossing_at_3e_4_or_1e_4_degrees_are_declined_closer_than_a_sag() {
+    declined_along_a_stretch(&posts_crossing_at(3e-4));
+    declined_along_a_stretch(&posts_crossing_at(1e-4));
+}
+
 /// The shaft of `nearly_coaxial`, cut by a bore of `radius` drawn with
 /// `shaft` as its outline's first half-axis, its axis shifted `off` along X
 /// and leaning `degrees` about it.
@@ -769,27 +746,30 @@ fn block_bored_and_refilled(from: f64, length: f64) -> Case {
 /// At 1e-4° the shafts of `nearly_coaxial` stand closer than a chord's sag
 /// of their grids over two steps.
 #[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
 fn the_same_shafts_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable() {
     built_uncrossed_and_noted_unstable(&nearly_coaxial(1e-4), 1e-4);
 }
 
 #[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
 fn the_same_posts_crossing_at_3e_4_or_1e_4_degrees_are_built_uncrossed_and_noted_unstable() {
     built_uncrossed_and_noted_unstable(&posts_crossing_at(3e-4), 3e-4);
     built_uncrossed_and_noted_unstable(&posts_crossing_at(1e-4), 1e-4);
 }
 
 #[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
 fn two_posts_of_one_radius_crossing_nearly_coaxially_at_1e_3_degrees_are_built_uncrossed_and_noted_unstable()
  {
     built_uncrossed_and_noted_unstable(&posts_crossing_at(1e-3), 1e-3);
 }
 
-/// Two shafts of radius 150 whose axes cross leaning 1e-4°, closer than a
-/// chord's sag along a stretch: built with crossed triangles on the walls
-/// draw's seed 224442167739556, shrunk, then declined until #706 laid them on
-/// one shared order.
+/// The shafts of
+/// `seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_declined_as_unsupported`,
+/// built.
 #[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
 fn seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_built_uncrossed_and_noted_unstable()
  {
     built_uncrossed_and_noted_unstable(
@@ -817,6 +797,7 @@ fn seed_224442167739556_two_shafts_of_radius_150_crossing_at_1e_4_degrees_are_bu
 /// application's body by #706's attempt, on the walls draw's seed
 /// 318277455102885, shrunk.
 #[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
 fn seed_318277455102885_a_shaft_cut_by_a_bore_of_its_radius_at_0_001_degrees_is_built_uncrossed_and_noted_unstable()
  {
     built_uncrossed_and_noted_unstable(
@@ -840,6 +821,7 @@ fn seed_318277455102885_a_shaft_cut_by_a_bore_of_its_radius_at_0_001_degrees_is_
 /// triangles on both kernels by #706's attempt, on the walls draw's seed
 /// 331906274213776, shrunk.
 #[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
 fn seed_331906274213776_a_shaft_cut_by_a_bore_of_its_radius_at_0_01_degrees_is_built_uncrossed_and_noted_unstable()
  {
     built_uncrossed_and_noted_unstable(
@@ -863,6 +845,7 @@ fn seed_331906274213776_a_shaft_cut_by_a_bore_of_its_radius_at_0_01_degrees_is_b
 /// triangles through the application's body by #706's attempt, on the walls
 /// draw's seed 331906274218763, shrunk.
 #[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
 fn seed_331906274218763_a_shaft_cut_by_a_bore_of_its_radius_at_1e_4_degrees_is_built_uncrossed_and_noted_unstable()
  {
     built_uncrossed_and_noted_unstable(
@@ -882,6 +865,7 @@ fn seed_331906274218763_a_shaft_cut_by_a_bore_of_its_radius_at_1e_4_degrees_is_b
 }
 
 #[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
 fn a_bore_a_hundredth_inside_a_shaft_s_wall_leaning_1e_4_degrees_never_meeting_it_is_built_uncrossed_and_noted_unstable()
  {
     built_uncrossed_and_noted_unstable(
@@ -894,6 +878,7 @@ fn a_bore_a_hundredth_inside_a_shaft_s_wall_leaning_1e_4_degrees_never_meeting_i
 /// its axis: their walls cross along two lines sixty degrees either side of
 /// the shift, within a chord's sag of each other all round.
 #[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
 fn a_narrower_bore_off_the_axis_crossing_a_shaft_s_wall_at_1e_4_degrees_is_built_uncrossed_and_noted_unstable()
  {
     built_uncrossed_and_noted_unstable(
@@ -905,6 +890,7 @@ fn a_narrower_bore_off_the_axis_crossing_a_shaft_s_wall_at_1e_4_degrees_is_built
 /// A tube of radius 4 bored 2, cut by a post of its outer radius leaning
 /// 1e-3°: the tube's own bore is no third wall meeting the pair.
 #[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
 fn a_tube_cut_by_a_post_of_its_outer_radius_at_1e_3_degrees_is_built_uncrossed_and_noted_unstable()
 {
     built_uncrossed_and_noted_unstable(
@@ -916,6 +902,7 @@ fn a_tube_cut_by_a_post_of_its_outer_radius_at_1e_3_degrees_is_built_uncrossed_a
 /// The posts at 1e-3°, the second added rather than cut, running past the
 /// first's caps: those caps are the pair's own, no third leaf's.
 #[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
 fn a_post_added_to_one_of_its_radius_at_1e_3_degrees_past_its_caps_is_built_uncrossed_and_noted_unstable()
  {
     built_uncrossed_and_noted_unstable(
@@ -927,9 +914,49 @@ fn a_post_added_to_one_of_its_radius_at_1e_3_degrees_past_its_caps_is_built_uncr
 /// The same block and bore, the bar ending flush on both of the block's
 /// faces: both walls end on each face, and nothing passes through it.
 #[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
 fn the_same_bore_refilled_by_a_bar_ending_flush_on_both_faces_is_built_uncrossed_and_noted_unstable()
  {
     built_uncrossed_and_noted_unstable(&block_bored_and_refilled(-1.0, 10.0), 1e-2);
+}
+
+#[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
+fn two_walls_closer_than_a_sag_are_drawn_uncrossed_and_closed_three_and_ten_times_coarser_than_the_campaigns()
+ {
+    for case in [
+        nearly_coaxial(1e-4),
+        posts_crossing_at(1e-3),
+        posts_crossing_at(1e-4),
+        posts_from(Outline::circle([-1.0, 1.0], 4.0), Step::add, 1e-3),
+        Case::new(
+            Leaf::prism(Plane::xy(-15.0), Outline::circle([-5.0, 0.0], 15.0), 20.0),
+            vec![Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-4.998832302166697, 0.0, -72.43055956539959],
+                    [0.0, -0.001, 0.0],
+                ),
+                Outline::circle([0.0, 0.0], 15.0),
+                134.0,
+            ))],
+        ),
+    ] {
+        let body = built(&case);
+        for share in [3e-3, 1e-2] {
+            let tolerance = share * body.scale().reach();
+            let triangles = body.triangles(tolerance);
+            assert_eq!(
+                cao_solid::soundness::uncrossed(&triangles),
+                Ok(()),
+                "drawn within {tolerance}\n{case}"
+            );
+            assert_eq!(
+                cao_solid::soundness::closed(&triangles),
+                Ok(()),
+                "drawn within {tolerance}\n{case}"
+            );
+        }
+    }
 }
 
 /// An elliptic shaft of half-axes 10 and 9.995 bored round by 9.99 leaning
@@ -948,12 +975,11 @@ fn an_elliptic_shaft_bored_round_closer_than_a_sag_at_1e_4_degrees_is_declined_a
 /// A shaft of radius 60 cut by another of its radius leaning 1e-4°, then
 /// bored at 30° by one of radius 45 whose wall meets both where they stand
 /// closer than a chord's sag: drawn with crossed triangles by #706's attempt
-/// on the walls draw's seed 318277455101196, shrunk, which then declined it
-/// until the two walls passed each other their own rays as one.
+/// on the walls draw's seed 318277455101196, shrunk, which then declined it.
 #[test]
-fn seed_318277455101196_two_shafts_of_one_radius_at_1e_4_degrees_bored_at_30_degrees_are_built_and_keep_every_rule()
+fn seed_318277455101196_two_shafts_of_one_radius_at_1e_4_degrees_bored_at_30_degrees_are_declined_as_unsupported()
  {
-    built_on_both_kernels_keeping_every_rule(&Case::new(
+    declined_along_a_stretch_on_both_kernels(&Case::new(
         Leaf::prism(
             Plane::xz(-30.0),
             Outline::circle([-60.0, 30.0], 60.0),
@@ -978,38 +1004,35 @@ fn seed_318277455101196_two_shafts_of_one_radius_at_1e_4_degrees_bored_at_30_deg
 /// of its radius leaning 0.05° off it, whose wall the first cut meets where
 /// the two stand closer than a chord's sag: drawn with crossed triangles by
 /// #706's attempt on the walls draw's seed 318277455100734, shrunk, which
-/// then declined it until the cut met both walls on the same rays.
+/// then declined it.
 #[test]
-fn seed_318277455100734_two_shafts_of_one_radius_at_0_05_degrees_beside_a_cut_at_45_degrees_are_built_uncrossed_and_noted_unstable()
+fn seed_318277455100734_two_shafts_of_one_radius_at_0_05_degrees_beside_a_cut_at_45_degrees_are_declined_as_unsupported()
  {
-    built_uncrossed_and_noted_unstable(
-        &Case::new(
-            Leaf::prism(
-                Plane::xz(-10.0),
-                Outline::circle([10.0, -10.0], 25.0),
-                -25.0,
-            ),
-            vec![
-                Step::cut(Leaf::prism(
-                    Plane::tilted(
-                        [84.10773177279917, 76.88443447046465, -10.000000000000016],
-                        [90.0, -44.89323424388429, 0.0],
-                    ),
-                    Outline::circle([0.0, 0.0], 25.0),
-                    210.0,
-                )),
-                Step::cut(Leaf::prism(
-                    Plane::tilted(
-                        [10.09162977409969, 112.16576409920087, -10.000000000000023],
-                        [90.0, -0.05, 0.0],
-                    ),
-                    Outline::circle([-0.0, -0.0], 25.0),
-                    210.0,
-                )),
-            ],
+    declined_along_a_stretch_on_both_kernels(&Case::new(
+        Leaf::prism(
+            Plane::xz(-10.0),
+            Outline::circle([10.0, -10.0], 25.0),
+            -25.0,
         ),
-        0.05,
-    );
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [84.10773177279917, 76.88443447046465, -10.000000000000016],
+                    [90.0, -44.89323424388429, 0.0],
+                ),
+                Outline::circle([0.0, 0.0], 25.0),
+                210.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [10.09162977409969, 112.16576409920087, -10.000000000000023],
+                    [90.0, -0.05, 0.0],
+                ),
+                Outline::circle([-0.0, -0.0], 25.0),
+                210.0,
+            )),
+        ],
+    ));
 }
 
 /// A block bored by a pin of radius 0.5 leaning 0.01°, the bore then filled
@@ -1017,11 +1040,11 @@ fn seed_318277455100734_two_shafts_of_one_radius_at_0_05_degrees_beside_a_cut_at
 /// its faces: one wall passes through a face where the other ends on it.
 /// Drawn with crossed triangles on that face through the application's body
 /// by #706's attempt on the walls draw's seed 318277455103234, shrunk, which
-/// then declined it until the two walls were laid on one shared order.
+/// then declined it.
 #[test]
-fn seed_318277455103234_a_bore_of_radius_0_5_at_0_01_degrees_refilled_by_a_bar_running_through_the_block_is_built_uncrossed_and_noted_unstable()
+fn seed_318277455103234_a_bore_of_radius_0_5_at_0_01_degrees_refilled_by_a_bar_running_through_the_block_is_declined_as_unsupported()
  {
-    built_uncrossed_and_noted_unstable(&block_bored_and_refilled(23.0, 39.0), 1e-2);
+    declined_along_a_stretch_on_both_kernels(&block_bored_and_refilled(23.0, 39.0));
 }
 
 /// A turned part about Z leaning 1e-5°, the hole of its section turning a

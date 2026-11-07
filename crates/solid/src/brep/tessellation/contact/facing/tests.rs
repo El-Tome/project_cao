@@ -1,10 +1,12 @@
 //! Two walls leaning a hair off parallel, face to face, on one set of rays,
 //! cut alike beside the line they cross along and met alike by a third wall:
-//! the first four steps of the shared order #706 laid them on. The fifth,
-//! which builds them, is held with the issue's Done when in
-//! `crates/solid/tests/random_walls_at_any_angle.rs`.
+//! the first four steps of the shared order #706 lays them on. The fifth,
+//! which would build them by lifting the decline, is set aside; the cases
+//! it would build wait under `#[ignore]` in
+//! `crates/solid/tests/random_walls_at_any_angle.rs`, with the issue's Done
+//! when.
 //!
-//! Closes #706.
+//! Part of #706.
 //! - face to face: `Facing` and `Zones` take band pairs of cylinders within
 //!   two sags —
 //!   `two_walls_leaning_a_hair_off_parallel_are_told_crowded_only_where_they_stand_within_their_room`

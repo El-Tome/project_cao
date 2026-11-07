@@ -85,8 +85,8 @@ pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64, toleran
             let Some(other) = folds.folded((face, triangle)) else {
                 continue;
             };
-            if folds.unfold((face, triangle), DEPTH).is_none() && folds.folded(other).is_some() {
-                folds.unfold(other, DEPTH);
+            if folds.unfold((face, triangle), Some(other), DEPTH).is_none() {
+                folds.unfold(other, Some((face, triangle)), DEPTH);
             }
         }
     }
@@ -209,6 +209,12 @@ impl<'a> Folds<'a> {
     /// same three samples is not one: the two are a skin of no thickness,
     /// left out together ([`super::skins`]).
     fn lying(&self, at: At) -> Option<At> {
+        self.lying_on(at, true)
+    }
+
+    /// [`Folds::lying`], one lying on the triangle at `at` taken only when
+    /// `mutual`.
+    fn lying_on(&self, at: At, mutual: bool) -> Option<At> {
         let corners = self.corners(at)?;
         (0..3).find_map(|side| {
             let (one, other) = (corners[side], corners[(side + 1) % 3]);
@@ -218,10 +224,24 @@ impl<'a> Folds<'a> {
                     && self.corners(*beside).is_some_and(|under| {
                         !under.iter().all(|id| corners.contains(id))
                             && (self.lies_on(corners, under, edge)
-                                || self.lies_on(under, corners, edge))
+                                || mutual && self.lies_on(under, corners, edge))
                     })
             })
         })
+    }
+
+    /// Whether the triangles at `one` and `other` lie on each other, measured
+    /// from either, across an edge they share.
+    fn on_each_other(&self, one: At, other: At) -> bool {
+        let (Some(mine), Some(theirs)) = (self.corners(one), self.corners(other)) else {
+            return false;
+        };
+        let shared: Vec<usize> = mine.into_iter().filter(|id| theirs.contains(id)).collect();
+        let &[a, b] = shared.as_slice() else {
+            return false;
+        };
+        let edge = [a.min(b), a.max(b)];
+        self.lies_on(mine, theirs, edge) || self.lies_on(theirs, mine, edge)
     }
 
     /// Whether triangle `one` lies on `other` across the edge both have: its

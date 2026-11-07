@@ -12,11 +12,9 @@ type Undo = Vec<(At, At, [[usize; 3]; 2])>;
 impl Folds<'_> {
     /// Cuts the triangle at `at` the other way, with one of the triangles of
     /// its face across an inner side, so that none of the triangles it makes
-    /// lies on another face or passes through one, nor on `against`, the
-    /// triangle it was found folded with, from either. One that does is cut
-    /// the other way in turn, `depth` times over. The flips made, to undo
-    /// them.
-    pub(super) fn unfold(&mut self, at: At, against: Option<At>, depth: usize) -> Option<Undo> {
+    /// lies on another face or passes through one. One that does is cut the
+    /// other way in turn, `depth` times over. The flips made, to undo them.
+    pub(super) fn unfold(&mut self, at: At, depth: usize) -> Option<Undo> {
         for side in self.inner_sides(at) {
             let Some(partner) = self.beyond(at, side) else {
                 continue;
@@ -40,7 +38,7 @@ impl Folds<'_> {
                 let now = self.beyond(at, side);
                 if let Some(was) = now.and_then(|now| self.flip(at, now).map(|was| (now, was))) {
                     undo.push((at, was.0, was.1));
-                    if let Some(more) = self.settled(&undo, against, depth) {
+                    if let Some(more) = self.settled(&undo, depth) {
                         undo.extend(more);
                         return Some(undo);
                     }
@@ -53,24 +51,15 @@ impl Folds<'_> {
 
     /// Whether the triangles the flips of `undo` made lie on or pass through
     /// no triangle of another face, once those they do are cut the other way
-    /// within `depth`: the flips that took, if any were needed. `against`,
-    /// the fold the flips are for, must come undone measured from either
-    /// triangle (352000000007085); any other is counted as a triangle made
-    /// lying on it, not as one lying on a triangle made: a needle a hair
-    /// high off the face's edge stands within the kernel's tolerance of a
-    /// wide triangle made beside it without the two crossing
-    /// (353000000013767).
-    fn settled(&mut self, undo: &Undo, against: Option<At>, depth: usize) -> Option<Undo> {
+    /// within `depth`: the flips that took, if any were needed.
+    fn settled(&mut self, undo: &Undo, depth: usize) -> Option<Undo> {
         let made: Vec<At> = undo
             .iter()
             .flat_map(|(one, other, _)| [*one, *other])
             .collect();
         let blocking = |folds: &Self| -> Vec<At> {
             made.iter()
-                .flat_map(|each| {
-                    let held = against.filter(|other| folds.on_each_other(*each, *other));
-                    [folds.lying_on(*each, false), folds.crossing(*each), held]
-                })
+                .flat_map(|each| [folds.lying(*each), folds.crossing(*each)])
                 .flatten()
                 .collect()
         };
@@ -82,7 +71,7 @@ impl Folds<'_> {
             return None;
         }
         for blocker in blockers {
-            let Some(more) = self.unfold(blocker, None, depth - 1) else {
+            let Some(more) = self.unfold(blocker, depth - 1) else {
                 continue;
             };
             if blocking(self).is_empty() {

@@ -24,6 +24,17 @@
 //!   `selecting_everything.rs`, …) and the shortcut tests of `cao_prefs` hold
 //!   them already, and stay green on this branch
 //!
+//! Decided on the way, for the last three criteria. A panel toggle wears its
+//! icon at 15 points, the small button's size, to the left of its name, as
+//! `docs/redesign/components.md` C5 draws all five: the ⚙ becomes the fifth,
+//! the `preferences` icon beside « Préférences », which is then its accessible
+//! name rather than the glyph. A menu entry wears its icon at 14 points, a
+//! row's size, to the left of its name; the menu's own button (« Cercles »…)
+//! wears none yet, since a group is not a command and #731 makes it a split
+//! button whose icon is its tool's. The eye of a sketch is `eye` while the
+//! sketch is shown and `eye-off` while it is not, and is called, for whoever
+//! cannot see it, what a click on it does: the sentence its tooltip says.
+//!
 //! An icon is read off the frame's shapes: the textured rectangle `egui::Image`
 //! paints, named by the file it was drawn from, which is the name its texture
 //! is loaded under — `bytes://icon/new-sketch.svg`.
@@ -56,7 +67,7 @@ fn with_names_off_a_button_is_its_icon_alone_and_its_name_comes_on_hover() {
     let mut app = driver::open_with(test, driver::SCREEN, names_off());
     driver::create_a_part(&mut app, "Platine");
 
-    let button = button_wearing(&app, "new-sketch");
+    let button = button_wearing(&app, "new-sketch").rect;
     let painted = painted_within(&app, button);
     assert!(
         painted.texts.is_empty(),
@@ -96,6 +107,105 @@ fn with_names_off_a_button_is_still_found_and_pressed_by_its_name() {
         app.get_by_label("Ligne").accesskit_node().toggled(),
         Some(Toggled::True),
         "with names off, the button named « Ligne » was pressed and the line is not the tool in hand",
+    );
+}
+
+#[test]
+fn a_panel_toggle_shows_its_icon_beside_its_name() {
+    let mut app = driver::open("a_panel_toggle_shows_its_icon_beside_its_name");
+    driver::create_a_part(&mut app, "Platine");
+
+    for (name, id) in [
+        ("Fichiers", "files"),
+        ("Pièce", "part"),
+        ("Historique", "history"),
+        ("Variables", "variables"),
+        ("Préférences", "preferences"),
+    ] {
+        let painted = painted_within(&app, the_button_named(&app, name));
+        let icon = painted.icon(id);
+        assert_beside(icon, painted.text_holding(name), name);
+        assert_drawn_at(icon, SMALL, name);
+    }
+}
+
+#[test]
+fn a_menu_entry_shows_its_icon_beside_its_name() {
+    let mut app = driver::open("a_menu_entry_shows_its_icon_beside_its_name");
+    driver::create_a_part(&mut app, "Platine");
+    driver::start_a_sketch(&mut app);
+    driver::click(&mut app, "Cercles");
+
+    let name = "Centre et diamètre";
+    let painted = painted_within(&app, the_button_named(&app, name));
+    let icon = painted.icon("circle-centre");
+    assert_beside(icon, painted.text_holding(name), name);
+    assert_drawn_at(icon, ROW, name);
+}
+
+#[test]
+fn a_sketch_s_eye_is_drawn_open_while_shown_and_shut_while_hidden() {
+    let mut app = driver::open("a_sketch_s_eye_is_drawn_open_or_shut");
+    driver::create_a_part(&mut app, "Platine");
+    driver::start_a_sketch(&mut app);
+    driver::draw_a_segment(&mut app);
+    driver::click(&mut app, "Terminer");
+
+    for (worn, called, then) in [
+        ("eye", "Ne plus afficher l'esquisse", "eye-off"),
+        ("eye-off", "Afficher l'esquisse", "eye"),
+    ] {
+        let eye = button_wearing(&app, worn);
+        assert!(
+            painted_within(&app, eye.rect).texts.is_empty(),
+            "the eye wearing `{worn}` still writes {:?}",
+            painted_within(&app, eye.rect).texts,
+        );
+        assert_eq!(
+            eye.label.as_deref(),
+            Some(called),
+            "the eye wearing `{worn}` is not called what a click on it does",
+        );
+
+        driver::click_exactly(&mut app, called);
+        button_wearing(&app, then);
+    }
+}
+
+/// The sizes `docs/redesign/icons.md` draws an icon at, in points: a small
+/// button's, and a row's.
+const SMALL: f32 = 15.0;
+const ROW: f32 = 14.0;
+
+/// How far an icon's side may be from its size, in points.
+const SIZED_WITHIN: f32 = 0.01;
+
+/// The button of that name, for a word a label of the screen carries too.
+fn the_button_named(app: &driver::App, name: &str) -> egui::Rect {
+    app.query_all_by_label(name)
+        .find(|node| node.accesskit_node().role() == Role::Button)
+        .map(|node| node.rect())
+        .unwrap_or_else(|| {
+            panic!(
+                "no button is named « {name} »; the screen names {:?}",
+                driver::on_screen(app)
+            )
+        })
+}
+
+fn assert_beside(icon: egui::Rect, name: egui::Rect, called: &str) {
+    assert!(
+        icon.right() <= name.left() && name.y_range().contains(icon.center().y),
+        "« {called} » wears its icon at {icon:?} and its name at {name:?}: the icon is \
+         not to the left of the name",
+    );
+}
+
+fn assert_drawn_at(icon: egui::Rect, side: f32, called: &str) {
+    assert!(
+        (icon.width() - side).abs() < SIZED_WITHIN && (icon.height() - side).abs() < SIZED_WITHIN,
+        "« {called} » wears an icon of {:?} points, where the redesign draws it at {side}",
+        icon.size(),
     );
 }
 
@@ -175,12 +285,21 @@ fn icon_id(loaded_as: &str) -> String {
     file.strip_suffix(".svg").unwrap_or(file).to_owned()
 }
 
-/// The button an icon is painted in, found by the icon rather than by a name.
-fn button_wearing(app: &driver::App, id: &str) -> egui::Rect {
+/// A button found by the icon it wears rather than by a name: where it is,
+/// and what it is called for whoever cannot see it.
+struct Wearing {
+    rect: egui::Rect,
+    label: Option<String>,
+}
+
+fn button_wearing(app: &driver::App, id: &str) -> Wearing {
     let icon = painted_within(app, app.ctx.content_rect()).icon(id);
     app.get_all_by_role(Role::Button)
-        .map(|node| node.rect())
-        .filter(|button| button.expand(1.0).contains_rect(icon))
-        .min_by(|one, other| one.area().total_cmp(&other.area()))
+        .map(|node| Wearing {
+            rect: node.rect(),
+            label: node.accesskit_node().label(),
+        })
+        .filter(|button| button.rect.expand(1.0).contains_rect(icon))
+        .min_by(|one, other| one.rect.area().total_cmp(&other.rect.area()))
         .unwrap_or_else(|| panic!("the `{id}` icon is painted in no button"))
 }

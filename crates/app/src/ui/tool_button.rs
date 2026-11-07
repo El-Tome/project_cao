@@ -56,6 +56,15 @@ pub fn icon_button(ui: &mut Ui, enabled: bool, on: bool, icon: Icon, name: &str)
     )
 }
 
+/// The same button as an entry of a menu: a row, its icon beside its name.
+pub fn menu_entry(ui: &mut Ui, enabled: bool, on: bool, icon: Icon, label: String) -> Response {
+    ui.add_enabled(
+        enabled,
+        Button::selectable(on, (icon.image(IconSize::Row), label))
+            .image_tint_follows_text_color(true),
+    )
+}
+
 /// The colour `egui::Button` writes its text in, in the state it is in.
 fn ink(ui: &Ui, response: &Response, on: bool) -> Color32 {
     let mut classes = Classes::default();

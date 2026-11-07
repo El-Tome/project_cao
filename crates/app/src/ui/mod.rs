@@ -3,6 +3,7 @@ pub mod eye;
 pub mod floating_panel;
 pub mod formula_field;
 pub mod icon;
+pub mod panel_toggle;
 pub mod question;
 pub mod slider;
 pub mod text_edit;

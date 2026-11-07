@@ -20,7 +20,7 @@ use std::f64::consts::TAU;
 
 use std::collections::BTreeMap;
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use super::chords::halved;
 use super::cone::{Grid, Spun};
@@ -56,7 +56,10 @@ enum Reason {
 /// into `steps` steps a turn — a cone's its own grid's, which the faces on
 /// it are laid out by. `rays` are the angles the sections of its first wall
 /// and of its second take besides their grid; a place on the grid or on a
-/// ray is kept only where `clear` says so.
+/// ray is kept only where `clear` says so. An edge whose places all stand
+/// within the kernel's tolerance of the chord between its ends — a meet run
+/// along a line two walls touch along — is a line to the kernel, sampled at
+/// its ends alone as a line is (354000000008476).
 fn on_meet_by(
     meet: &Meet,
     edge: &Edge,
@@ -120,6 +123,17 @@ fn on_meet_by(
                 }
             }
             _ => kept.push((t, reason, point)),
+        }
+    }
+    if !whole && kept.len() > 2 {
+        let (first, last) = (kept[0].2, kept[kept.len() - 1].2);
+        let way = (last - first).normalize_or_zero();
+        let straight = kept.iter().all(|(_, _, point)| {
+            let from = *point - first;
+            (from - way * way.dot(from)).length() <= eps
+        });
+        if straight {
+            kept = vec![kept[0], kept[kept.len() - 1]];
         }
     }
     if kept.len() < 2 {
@@ -198,7 +212,7 @@ fn alone(
         ),
         _ => divisions(size(&wall, meet), tolerance),
     });
-    let rays = [0, 1].map(|rank| match carried[rank] {
+    let mut rays = [0, 1].map(|rank| match carried[rank] {
         Wall::Cylinder(cylinder) => taken(&own[rank], &cylinder, walls, contacts),
         Wall::Elliptic(oval) => {
             let steps = divisions(oval.major, tolerance);
@@ -215,6 +229,9 @@ fn alone(
         }
         Wall::Cone(cone) => grid(&cone).map_or_else(Vec::new, |grid| grid.vertex_angles().to_vec()),
     });
+    for (rays, wall) in rays.iter_mut().zip(&carried) {
+        rays.retain(|angle| !on_an_end(body, edge, wall, *angle, eps));
+    }
     let planes = carried.map(|wall| match wall {
         Wall::Cylinder(cylinder) => {
             touching_planes(body, cylinder.origin, cylinder.axis, cylinder.radius)
@@ -252,6 +269,30 @@ fn alone(
         steps,
         &clear,
     )
+}
+
+/// Whether the ray at `angle` round `wall` stands within `eps` of the ray
+/// through an end of `edge`, on the wall: the two are one ray to the wall's
+/// own sections, and the end already stands on it (354000000005870).
+fn on_an_end(body: &Body, edge: &Edge, wall: &Wall, angle: f64, eps: f64) -> bool {
+    edge.ends.into_iter().flatten().any(|end| {
+        let end = body.vertex(end).point;
+        let [at, there] = match wall {
+            Wall::Cylinder(cylinder) => {
+                let own = cylinder.parameters(end);
+                [
+                    cylinder.point(DVec2::new(angle, own.y)),
+                    cylinder.point(own),
+                ]
+            }
+            Wall::Elliptic(oval) => {
+                let own = oval.parameters(end);
+                [oval.point(DVec2::new(angle, own.y)), oval.point(own)]
+            }
+            Wall::Cone(_) => return false,
+        };
+        at.distance(there) <= eps
+    })
 }
 
 /// What a wall is divided as: a cylinder its radius, an elliptic wall the

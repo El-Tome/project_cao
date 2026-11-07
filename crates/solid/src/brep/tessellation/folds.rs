@@ -17,9 +17,9 @@
 //! corner of four, by the exact signs the sweep decides with and by more than
 //! the rounding the parameters were read with, so the cut stays a cut of the
 //! region in space as in parameters, and only where neither triangle it makes
-//! lies on another face or passes through one — a chord of a round a hair off
-//! a vertex of the face beside it sinks under it by a fraction of the
-//! tolerance; nor where its middle stands further from a round surface than
+//! lies on, or is lain on by, another face, or passes through one — a chord
+//! of a round a hair off a vertex of the face beside it sinks under it by a
+//! fraction of the tolerance; nor where its middle stands further from a round surface than
 //! the tolerance and than the old diagonal's middle — across two steps of
 //! the grid, a chord sags four times as far as across one (86751972229989),
 //! but beside a line two walls touch along, where folds arise, a cell wider
@@ -176,10 +176,10 @@ impl<'a> Folds<'a> {
         })
     }
 
-    /// A triangle of another face the triangle at `at` lies on, or passes
-    /// through beside a corner the two share: where a face turns into the
-    /// matter at a corner — a post's wall where a hole cut into it leaves
-    /// its ceiling — a chord of the wall cut across the corner, true to the
+    /// A triangle of another face the triangle at `at` lies on, or is lain on
+    /// by, or passes through beside a corner the two share: where a face
+    /// turns into the matter at a corner — a post's wall where a hole cut
+    /// into it leaves its ceiling — a chord of the wall cut across the corner, true to the
     /// region in the wall's parameters, sags through the face beyond it
     /// (5550629622).
     fn folded(&self, at: At) -> Option<At> {

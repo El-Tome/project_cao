@@ -184,27 +184,40 @@ pub(super) fn of_edge(
     twin::shared(body, edge, meet, around, grids, tolerance, points)
 }
 
-/// Samples again, on the rays `around` gives, every edge of `meets` along a
-/// curve a cone meets another wall along. The rounds that sample the curves
-/// on the rays their samples give stop at two, since each round hands on
-/// rays the next takes; a cone takes none, so such a curve hands its wall
-/// only rays through its own samples, which that wall took already, and is
-/// sampled last on the wall's rays as the wall's circles are. A face of the
-/// wall it bounds is then cut in strips on the rays the wall's curve with a
-/// third wall took last, not fanned across them into that third wall where
-/// it touches the first at a point from inside (354000000005870).
+/// `meets`, each edge along a curve a cone meets another wall along sampled
+/// again on the rays `around` gives, where that wall also meets a wall that
+/// is no cone. The rounds that sample the curves on the rays their samples
+/// give stop at two, each handing on rays the next takes, and such a curve
+/// lags the last: the wall's face it bounds is fanned across the rays the
+/// wall's curve with the other wall took last, through that wall where it
+/// touches the first at a point from inside (354000000005870). A cone takes
+/// no ray, so the walls take the rays through the new samples in one more
+/// pass and the chain stops. Not where the wall meets cones alone: there no
+/// ray is missing, and each new sample is one more fan across a column of
+/// the cone (352000000005298).
 pub(super) fn on_last_rays(
     body: &Body,
     around: Around,
     grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
-    mut meets: Vec<Vec<DVec3>>,
+    meets: &[Vec<DVec3>],
 ) -> Vec<Vec<DVec3>> {
+    let held = |id: EdgeId| match body.curve(body.edge(id).curve) {
+        Curve::Meet(meet) => Some(contact::held(body, id, meet)),
+        Curve::Line(_) | Curve::Circle(_) | Curve::Conic(_) => None,
+    };
+    let cone = |wall: &Wall| matches!(wall, Wall::Cone(_));
+    let chained: Vec<Wall> = body
+        .edge_ids()
+        .filter_map(held)
+        .filter(|walls| !walls.iter().any(cone))
+        .flatten()
+        .collect();
+    let mut meets = meets.to_vec();
     for id in body.edge_ids() {
-        if let Curve::Meet(meet) = body.curve(body.edge(id).curve)
-            && [meet.first, meet.second]
-                .iter()
-                .any(|wall| matches!(wall, Wall::Cone(_)))
+        if let (Curve::Meet(meet), Some(walls)) = (body.curve(body.edge(id).curve), held(id))
+            && walls.iter().any(cone)
+            && walls.iter().any(|wall| chained.contains(wall))
         {
             meets[id.0 as usize] = of_edge(body, id, meet, around, grids, tolerance);
         }

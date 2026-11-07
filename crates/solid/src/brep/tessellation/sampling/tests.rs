@@ -9,6 +9,7 @@ use crate::brep::curve::{Curve, Meet, Wall};
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, EdgeId};
 
+mod cone_meets;
 mod conic;
 
 const CLOSE: f64 = 1e-12;

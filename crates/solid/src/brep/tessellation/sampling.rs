@@ -51,6 +51,7 @@ mod ends;
 mod meet;
 mod planes;
 mod round;
+mod rounds;
 mod touches;
 mod wedge;
 
@@ -168,40 +169,11 @@ impl Samples {
             lines: crossing::lines(body, zones),
         };
         let eps = body.scale().eps();
-        let alone = BTreeMap::new();
         let abreast = Abreast::of(body, tolerance);
         let axes = Axes::of(body, grids, walls, tolerance);
-        let given = abreast.joined(axes.given());
-        let mut meets = on_meets(body, walls, zones, &alone, grids, tolerance);
-        let mut contacts =
-            contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
-        let meeting = body
-            .edge_ids()
-            .any(|id| matches!(body.curve(body.edge(id).curve), Curve::Meet(_)));
-        if meeting {
-            meets = on_meets(body, walls, zones, &contacts, grids, tolerance);
-            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
-        }
-        let mut axes = axes.gathered(&contacts);
-        let gathered = abreast.joined(axes.given());
-        if gathered != given {
-            contacts = contact::contacts(body, walls, zones, &meets, beneath, &gathered, tolerance);
-            axes = axes.gathered(&contacts);
-        }
-        let along = conic::rays_along(body, walls, zones, grids, &contacts, tolerance);
-        if !along.is_empty() {
-            let mut given = abreast.joined(axes.given());
-            for (wall, rays) in along {
-                given.entry(wall).or_default().extend(rays);
-            }
-            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
-            if meeting {
-                meets = on_meets(body, walls, zones, &contacts, grids, tolerance);
-                contacts =
-                    contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
-            }
-        }
-        meets = meet::on_last_rays(body, (walls, zones, &contacts), grids, tolerance, meets);
+        let around = (grids, &abreast, axes);
+        let (meets, mut contacts, axes) =
+            rounds::sampled(body, (walls, zones), around, beneath, tolerance);
         abreast.withhold(&mut contacts);
         let vertices = samples.points.clone();
         let alone = Contact::default();

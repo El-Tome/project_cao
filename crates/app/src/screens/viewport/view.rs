@@ -36,7 +36,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     }
 
     let cube_rect = cube_rect(rect, &state.config);
-    state.aspect = rect.width() / rect.height();
+    state.canvas = Some(rect);
 
     advance_transition(ui, state);
     handle_escape(ui, sketch);

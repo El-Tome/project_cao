@@ -21,7 +21,14 @@ serde_json.workspace = true
 trash.workspace = true
 wgpu.workspace = true
 
+[features]
+# Where the view shows a point of the drawing, for the driver tests that click
+# it there. The application never asks.
+test-support = []
+
+# The crate itself, with that switched on, for its integration tests.
 [dev-dependencies]
+cao_app = { path = ".", features = ["test-support"] }
 cao_part = { path = "../part", features = ["test-support"] }
 cao_prefs = { path = "../prefs", features = ["test-support"] }
 egui_kittest.workspace = true

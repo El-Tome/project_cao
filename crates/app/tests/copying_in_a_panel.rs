@@ -26,28 +26,22 @@ mod driver;
 
 use cao_prefs::{Locations, Profiles};
 use egui_kittest::kittest::{NodeT, Queryable};
+use glam::DVec2;
 
-/// Wide enough for the ribbon's patterns to be on screen. The canvas is as
-/// much wider, so what is drawn on it moves right by half of that.
-const WIDE: (f32, f32) = (1920.0, 800.0);
+/// Wide enough for the ribbon's patterns to be on screen.
+const WIDE: egui::Vec2 = egui::vec2(1920.0, 800.0);
 
-fn right((x, y): (f32, f32)) -> (f32, f32) {
-    (x + 320.0, y)
-}
-
-const ON_THE_TRAIT: (f32, f32) = (850.0, 510.0);
-const ON_EMPTY_SPACE: (f32, f32) = (1100.0, 300.0);
+/// Well clear of the trait, high and to its right: a point of the sketch where
+/// nothing is drawn.
+const ON_EMPTY_SPACE: DVec2 = DVec2::new(176.27, 112.83);
 
 /// A part with one trait drawn on its sketch, the sketch still open.
 fn a_trait_drawn(test: &str, settings: cao_prefs::Settings) -> driver::App {
     let mut app = driver::open_with(test, WIDE, settings);
     driver::create_a_part(&mut app, "Platine");
     driver::click(&mut app, "Nouvelle esquisse");
-    driver::click_on_canvas(&mut app, driver::ON_ONE_OF_THE_BASE_PLANES);
-    driver::click(&mut app, "Ligne (L)");
-    driver::click_at(&mut app, right(driver::A_POINT_ABOVE_THE_ORIGIN));
-    driver::click_at(&mut app, right(driver::A_POINT_BELOW_AND_RIGHT));
-    driver::press(&mut app, egui::Key::Escape);
+    driver::click_at_world_point(&mut app, driver::ON_THE_YZ_PLANE);
+    driver::draw_a_segment(&mut app);
     app
 }
 
@@ -64,9 +58,9 @@ fn title_of_the_panel(app: &driver::App, tool: &str) -> egui::Rect {
 fn enter_with_the_panel_open_does_not_close_the_sketch() {
     let mut app = a_trait_drawn("enter_with_the_panel_open", cao_prefs::Settings::default());
     driver::click(&mut app, "Réseau circulaire");
-    driver::click_at(&mut app, right(ON_THE_TRAIT));
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     driver::press(&mut app, egui::Key::Enter);
-    driver::click_at(&mut app, right(ON_EMPTY_SPACE));
+    driver::click_at_sketch_point(&mut app, ON_EMPTY_SPACE);
 
     for pressed in 1..=6 {
         driver::press(&mut app, egui::Key::Enter);
@@ -85,7 +79,7 @@ fn escape_hands_what_the_panel_held_to_the_selection_tool() {
         cao_prefs::Settings::default(),
     );
     driver::click(&mut app, "Symétrie");
-    driver::click_at(&mut app, right(ON_THE_TRAIT));
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     assert!(
         driver::shows(&app, "Valider"),
         "the panel is open from the moment the tool is taken: {:?}",
@@ -143,25 +137,25 @@ fn a_broken_value_refuses_validate_and_nothing_else() {
         cao_prefs::Settings::default(),
     );
     driver::click(&mut app, "Réseau circulaire");
-    driver::click_at(&mut app, right(ON_THE_TRAIT));
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     driver::press(&mut app, egui::Key::Enter);
     driver::type_over(&mut app, "90", "1+");
 
     driver::click(&mut app, "Centre :");
-    driver::click_at(&mut app, right(driver::A_POINT_ABOVE_THE_ORIGIN));
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
     assert!(
         driver::shows(&app, "Centre : choisi"),
         "a click in the target slot still stores the centre: {:?}",
         driver::on_screen(&app)
     );
     driver::click(&mut app, "Éléments :");
-    driver::click_at(&mut app, right(ON_THE_TRAIT));
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     assert!(
         driver::shows(&app, "Éléments : 0"),
         "a click in Elements still takes the trait back out: {:?}",
         driver::on_screen(&app)
     );
-    driver::click_at(&mut app, right(ON_THE_TRAIT));
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
 
     driver::click(&mut app, "Valider");
 
@@ -185,7 +179,7 @@ fn a_trait_clicked_into_the_panel_is_counted_with_its_two_ends() {
     );
     driver::click(&mut app, "Symétrie");
 
-    driver::click_at(&mut app, right(ON_THE_TRAIT));
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
 
     assert!(
         driver::shows(&app, "Éléments : 3"),
@@ -201,7 +195,7 @@ fn a_letter_typed_in_a_field_of_the_panel_takes_no_tool() {
         cao_prefs::Settings::default(),
     );
     driver::click(&mut app, "Réseau circulaire");
-    driver::click_at(&mut app, right(ON_THE_TRAIT));
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     driver::press(&mut app, egui::Key::Enter);
     app.get_all_by_role(egui::accesskit::Role::TextInput)
         .find(|node| node.accesskit_node().value().as_deref() == Some("90"))
@@ -364,12 +358,12 @@ fn a_panel_let_go_with_nowhere_to_keep_settings_says_nothing() {
     )
     .expect("the part is written");
     let mut app: driver::App = egui_kittest::Harness::builder()
-        .with_size(egui::vec2(WIDE.0, WIDE.1))
+        .with_size(WIDE)
         .with_max_steps(16)
         .build_eframe(move |cc| cao_app::app::CaoApp::new(cc, None, Some(part)));
     app.run();
     driver::click(&mut app, "Nouvelle esquisse");
-    driver::click_on_canvas(&mut app, driver::ON_ONE_OF_THE_BASE_PLANES);
+    driver::click_at_world_point(&mut app, driver::ON_THE_YZ_PLANE);
 
     drag_the_mirror_s_panel(&mut app);
 

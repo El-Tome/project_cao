@@ -42,6 +42,17 @@ pub(crate) fn to_screen(
     ))
 }
 
+#[cfg(feature = "test-support")]
+impl ViewportState {
+    /// Where a world point lands on screen in the last frame drawn: nothing
+    /// before the first frame, or for a point behind the camera.
+    pub fn where_it_shows(&self, point: DVec3) -> Option<egui::Pos2> {
+        let canvas = self.canvas?;
+        let view_projection = self.camera.view_projection(canvas.aspect_ratio());
+        to_screen(point, view_projection, canvas)
+    }
+}
+
 /// The cube's labels are drawn by egui rather than the GPU: text needs a font
 /// atlas, and egui already has one. Sizing them to the face they sit on,
 /// rather than to the cube, is [`super::cube_labels`]'s job.

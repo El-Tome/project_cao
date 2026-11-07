@@ -62,23 +62,25 @@ use cao_part::history::StepKind;
 use cao_part::{Operation, PartDocument};
 use cao_sketch::WorkPlane;
 use egui_kittest::kittest::{NodeT, Queryable};
+use glam::{DVec2, DVec3};
+
+/// Inside the rectangle the block is raised off, a point of its sketch: where
+/// the extrusion is told which region to raise.
+const ON_THE_BLOCK: DVec2 = DVec2::new(57.5, -4.05);
 
 /// Where the block's face stands in front of the eye, and so where a section
-/// across it shows its cut: given from the centre of the drawing area, as
-/// `driver::on_canvas` reads it.
-const ON_THE_BLOCK: driver::FromTheCentre = driver::FromTheCentre(-28.55, 16.0);
+/// across it shows its cut: the point of the cut through the middle of the
+/// block, 5 mm into its 10, that the clicks first written for it aimed at.
+const ON_THE_CUT: DVec3 = DVec3::new(5.0, 46.2, -2.47);
 
-/// The same, lower: halfway down the half of the block the section opened
-/// through its middle leaves standing, well clear of the line it cuts along.
-const ON_THE_BLOCK_UNDER_THE_CUT: driver::FromTheCentre = driver::FromTheCentre(-27.6, 60.0);
+/// The block's front face, lower: halfway down the half of the block the
+/// section opened through its middle leaves standing, well clear of the line it
+/// cuts along.
+const ON_THE_BLOCK_UNDER_THE_CUT: DVec3 = DVec3::new(10.0, 41.51, -19.82);
 
-/// The corners of the rectangle the block is raised off, given from the centre
-/// of the drawing area: the clicks aimed at the block land on it only if the
-/// block was drawn in the same terms.
-const THE_BLOCK_S_CORNERS: [driver::FromTheCentre; 2] = [
-    driver::FromTheCentre(-178.55, -94.0),
-    driver::FromTheCentre(121.45, 126.0),
-];
+/// The corners of the rectangle the block is raised off, points of its sketch:
+/// the first is pulled onto the plane's axis.
+const THE_BLOCK_S_CORNERS: [DVec2; 2] = [DVec2::new(-8.82, 44.59), DVec2::new(123.83, -52.69)];
 
 /// A block raised off a rectangle drawn on a plane of the origin, its sketch
 /// then finished.
@@ -87,12 +89,12 @@ fn a_block(test: &str) -> driver::App {
     driver::create_a_part(&mut app, "Bloc");
     driver::start_a_sketch(&mut app);
     driver::click(&mut app, "Rectangle (R)");
-    driver::click_on_canvas(&mut app, THE_BLOCK_S_CORNERS[0]);
-    driver::click_on_canvas(&mut app, THE_BLOCK_S_CORNERS[1]);
+    driver::click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[0]);
+    driver::click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[1]);
     driver::click_exactly(&mut app, "Extrusion");
     driver::click_exactly(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");
-    driver::click_on_canvas(&mut app, ON_THE_BLOCK);
+    driver::click_at_sketch_point(&mut app, ON_THE_BLOCK);
     driver::click(&mut app, "Appliquer");
     driver::press(&mut app, egui::Key::Escape);
     click_in_the_ribbon(&mut app, "Terminer");
@@ -238,7 +240,7 @@ fn switch_on(app: &mut driver::App, name: &str) {
 /// across it shows one, and finishes it.
 fn a_sketch_on_the_cut(app: &mut driver::App) {
     click_in_the_ribbon(app, "Nouvelle esquisse");
-    driver::click_on_canvas(app, ON_THE_BLOCK);
+    driver::click_at_world_point(app, ON_THE_CUT);
     assert!(
         driver::is_enabled(app, "Terminer"),
         "the click on the cut started no sketch, showing {:?}",
@@ -646,13 +648,13 @@ fn a_section_whose_face_is_gone_reads_face_lost_in_the_tree() {
     let mut app = a_block("keeping_a_section_face_lost");
     click_in_the_ribbon(&mut app, "Vue en coupe");
     driver::click(&mut app, "Face cliquée");
-    driver::click_on_canvas(&mut app, ON_THE_BLOCK_UNDER_THE_CUT);
+    driver::click_at_world_point(&mut app, ON_THE_BLOCK_UNDER_THE_CUT);
     driver::click_the_button(&mut app, "Enregistrer la coupe");
     close_the_panel(&mut app);
     double_click(&mut app, "Esquisse 1");
     driver::click(&mut app, "Sélection (S)");
     driver::press_with_command(&mut app, egui::Key::A);
-    let away_from_the_drawing = driver::on_canvas(&app, driver::FromTheCentre(321.45, 156.0));
+    let away_from_the_drawing = driver::sketch_point_on_screen(&app, DVec2::new(173.9, -56.77));
     app.hover_at(away_from_the_drawing);
     app.run();
     driver::press(&mut app, egui::Key::Delete);
@@ -717,7 +719,7 @@ fn a_sketch_on_a_section_names_the_section_above_the_view() {
     switch_on(&mut app, "Coupe 1");
 
     click_in_the_ribbon(&mut app, "Nouvelle esquisse");
-    driver::click_on_canvas(&mut app, ON_THE_BLOCK);
+    driver::click_at_world_point(&mut app, ON_THE_CUT);
     let header = the_header(&app);
 
     assert!(

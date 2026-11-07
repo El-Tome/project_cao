@@ -61,9 +61,9 @@ pub struct ViewportState {
     pub(super) drag: Option<Drag>,
     /// Where the copy tools' panel was last let go, as the settings hold it.
     pub copy_panel_at: Option<[f32; 2]>,
-    /// Width over height of the canvas, remembered so that framing asked for
-    /// from a toolbar button uses the viewport's shape, not the button's.
-    pub(super) aspect: f32,
+    /// The canvas as the last frame drew it, remembered so that framing asked
+    /// for from a toolbar button uses the viewport's shape, not the button's.
+    pub(super) canvas: Option<egui::Rect>,
     pub(super) sections: Sections,
     /// The section view, while it is on.
     pub(super) section: Option<Section>,
@@ -95,7 +95,7 @@ impl Default for ViewportState {
             hovered_zone: None,
             drag: None,
             copy_panel_at: None,
-            aspect: 1.0,
+            canvas: None,
             sections: Sections::default(),
             section: None,
             kept_sections: KeptSections::default(),
@@ -182,8 +182,13 @@ impl ViewportState {
         let (yaw, pitch) = view_angles_towards(plane.normal().as_vec3());
         self.transition = Some(ViewTransition::to_angles(&self.camera, yaw, pitch));
         self.camera
-            .focus_on(center.as_vec3(), radius as f32, self.aspect);
+            .focus_on(center.as_vec3(), radius as f32, self.aspect());
         self.mode = ViewMode::Plane(plane);
+    }
+
+    /// Width over height of the canvas, square until a frame has drawn it.
+    fn aspect(&self) -> f32 {
+        self.canvas.map_or(1.0, |canvas| canvas.aspect_ratio())
     }
 
     /// Turns to an oblique view and frames the whole part, which is how a freshly extruded volume
@@ -197,7 +202,7 @@ impl ViewportState {
         );
         self.transition = Some(ViewTransition::to_zone(&self.camera, corner));
         self.camera
-            .focus_on(center.as_vec3(), radius as f32, self.aspect);
+            .focus_on(center.as_vec3(), radius as f32, self.aspect());
         self.mode = ViewMode::Free;
     }
 

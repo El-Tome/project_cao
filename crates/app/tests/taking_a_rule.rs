@@ -38,8 +38,8 @@ fn a_rectangle(test: &str) -> driver::App {
     driver::create_a_part(&mut app, "Équerre");
     driver::start_a_sketch(&mut app);
     driver::click(&mut app, "Rectangle (R)");
-    driver::click_at(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
-    driver::click_at(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
     driver::click(&mut app, "Sélection (S)");
     app.run();
     assert!(
@@ -91,7 +91,7 @@ fn a_click_on_a_mark_takes_its_rule_and_delete_erases_it() {
     let mut app = a_rectangle("a_click_on_a_mark_takes_its_rule");
     let at = first_mark(&app);
 
-    driver::click_at(&mut app, (at.x, at.y));
+    driver::click_at(&mut app, at);
     let history = delete_and_read_the_history(&mut app);
 
     assert!(
@@ -110,7 +110,7 @@ fn a_command_click_on_a_second_mark_adds_its_rule() {
         driver::right_angle_marks(&app)[1].1,
     );
 
-    driver::click_at(&mut app, (first.x, first.y));
+    driver::click_at(&mut app, first);
     driver::click_with(&mut app, second, egui::Modifiers::COMMAND);
     let history = delete_and_read_the_history(&mut app);
 
@@ -141,10 +141,14 @@ fn a_press_on_a_mark_pulls_a_box_rather_than_the_side_under_it() {
 #[test]
 fn a_click_on_a_side_away_from_its_marks_still_takes_the_side() {
     let mut app = a_rectangle("a_click_on_a_side_away_from_its_marks");
-    let (left, top) = driver::A_POINT_ABOVE_THE_ORIGIN;
-    let (_, bottom) = driver::A_POINT_BELOW_AND_RIGHT;
+    let (top_left, bottom_right) = (
+        driver::A_POINT_ABOVE_THE_ORIGIN,
+        driver::A_POINT_BELOW_AND_RIGHT,
+    );
+    let down_the_left_side =
+        glam::DVec2::new(top_left.x, top_left.y + (bottom_right.y - top_left.y) * 0.3);
 
-    driver::click_at(&mut app, (left, top + (bottom - top) * 0.3));
+    driver::click_at_sketch_point(&mut app, down_the_left_side);
     let history = delete_and_read_the_history(&mut app);
 
     assert!(

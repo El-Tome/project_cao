@@ -175,8 +175,8 @@ fn a_click_on_a_name_in_a_dimensions_field_puts_it_in() {
     driver::start_a_sketch(&mut app);
     driver::draw_a_segment(&mut app);
     driver::click(&mut app, "Cote");
-    driver::click_at(&mut app, (850.0, 510.0));
-    driver::click_at(&mut app, (900.0, 440.0));
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
+    driver::click_at_sketch_point(&mut app, driver::WHERE_ITS_DIMENSION_GOES);
     let measured = driver::fields(&app)
         .pop()
         .expect("the dimension's field, holding what the trait measures");
@@ -196,12 +196,12 @@ fn the_start_of_a_name_in_the_extrusion_row_is_completed_too() {
     let mut app = a_part_with_three_variables("the_extrusion_row_is_completed");
     driver::start_a_sketch(&mut app);
     driver::click(&mut app, "Rectangle (R)");
-    driver::click_at(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
-    driver::click_at(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
     driver::click_exactly(&mut app, "Extrusion");
     driver::click_exactly(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");
-    driver::click_at(&mut app, (850.0, 510.0));
+    driver::click_at_sketch_point(&mut app, driver::INSIDE_THE_RECTANGLE);
     driver::type_over(&mut app, "10", "he");
 
     driver::press(&mut app, egui::Key::Enter);

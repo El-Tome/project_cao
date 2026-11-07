@@ -77,8 +77,10 @@ const ON_THE_YZ_PLANE: DVec3 = DVec3::new(0.0, 40.0, 30.0);
 
 /// The two ends a line is aimed at, in the coordinates of the sketch on YZ:
 /// away from the origin and from the plane's axes, which pull a point laid
-/// near them, so that what is laid is the point under the hand.
-const THE_TWO_ENDS: [DVec2; 2] = [DVec2::new(22.7, 51.3), DVec2::new(63.9, 18.6)];
+/// near them, so that what is laid is the point under the hand. Their pull is
+/// counted in pixels, so the margin is kept wide enough for a canvas a good
+/// deal shorter than today's.
+const THE_TWO_ENDS: [DVec2; 2] = [DVec2::new(41.3, 63.7), DVec2::new(77.9, 36.4)];
 
 /// How far an end laid may stand from the point aimed at, in millimetres:
 /// about a tenth of a pixel at the framing a fresh sketch opens on, so that a
@@ -125,7 +127,10 @@ fn a_line_clicked_at_two_points_of_the_sketch_runs_between_those_points() {
 
 #[test]
 fn the_same_two_clicks_land_on_the_same_points_whatever_the_size_of_the_window() {
-    let windows = [("taller", (960.0, 1200.0)), ("wider", (1920.0, 800.0))];
+    let windows = [
+        ("taller", egui::vec2(960.0, 1200.0)),
+        ("wider", egui::vec2(1920.0, 800.0)),
+    ];
     for (shape, size) in windows {
         let test = format!("clicking_the_drawing_on_a_{shape}_window");
         let mut app = a_sketch_on_yz(&test, size);
@@ -154,7 +159,7 @@ fn the_same_two_clicks_land_on_the_same_points_whatever_the_size_of_the_window()
 /// A new part open on a sketch of the plane YZ, on a window of this size,
 /// with the grid's pull switched off: what a click lays is then the point
 /// under the hand, not the nearest node of the grid.
-fn a_sketch_on_yz(test: &str, size: (f32, f32)) -> driver::App {
+fn a_sketch_on_yz(test: &str, size: egui::Vec2) -> driver::App {
     let mut settings = cao_prefs::Settings::default();
     settings.viewport.grid_snap = false;
     let mut app = driver::open_with(test, size, settings);

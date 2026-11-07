@@ -17,6 +17,7 @@
 mod driver;
 
 use egui::epaint::Shape;
+use glam::DVec2;
 
 /// Every four-sided shape filled and outlined on the last frame, by its
 /// bounds on screen: the box is one of them, and only while it is pulled.
@@ -74,7 +75,8 @@ fn the_box_drawn_on_the_canvas_starts_and_ends_under_the_hand() {
     driver::start_a_sketch(&mut app);
     driver::click(&mut app, "Sélection (S)");
     app.run();
-    let (pressed, held) = (egui::pos2(760.0, 330.0), egui::pos2(980.0, 610.0));
+    let pressed = driver::sketch_point_on_screen(&app, DVec2::new(2.21, 126.22));
+    let held = driver::sketch_point_on_screen(&app, DVec2::new(123.21, -27.78));
     let before = boxes(&app);
 
     pull_without_letting_go(&mut app, pressed, held);

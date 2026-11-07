@@ -156,8 +156,8 @@ fn a_dimension_just_placed(test: &str) -> (driver::App, String) {
     driver::start_a_sketch(&mut app);
     driver::draw_a_segment(&mut app);
     driver::click(&mut app, "Cote");
-    driver::click_at(&mut app, (850.0, 510.0));
-    driver::click_at(&mut app, (900.0, 440.0));
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
+    driver::click_at_sketch_point(&mut app, driver::WHERE_ITS_DIMENSION_GOES);
     let open = driver::fields(&app);
     assert_eq!(
         open.len(),
@@ -205,12 +205,12 @@ fn a_plate_raised_by_a_formula(test: &str) -> driver::App {
     driver::click_the_button(&mut app, "Variables");
     driver::start_a_sketch(&mut app);
     driver::click(&mut app, "Rectangle (R)");
-    driver::click_at(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
-    driver::click_at(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
     driver::click_exactly(&mut app, "Extrusion");
     driver::click_exactly(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");
-    driver::click_at(&mut app, (850.0, 510.0));
+    driver::click_at_sketch_point(&mut app, driver::INSIDE_THE_RECTANGLE);
 
     driver::type_over(&mut app, "10", "=width/10");
     driver::click(&mut app, "Appliquer");
@@ -311,19 +311,13 @@ fn a_variable_nothing_uses_is_retired_from_its_panel() {
 
 #[test]
 fn a_pattern_shows_its_values_while_the_centre_is_awaited() {
-    // Wide enough for the ribbon's patterns to be on screen. The canvas is as
-    // much wider, so what is drawn on it moves right by half of that.
-    let mut app = driver::open_on("a_pattern_shows_its_values", (1920.0, 800.0));
-    let right = |(x, y): (f32, f32)| (x + 320.0, y);
+    // Wide enough for the ribbon's patterns to be on screen.
+    let mut app = driver::open_on("a_pattern_shows_its_values", egui::vec2(1920.0, 800.0));
     driver::create_a_part(&mut app, "Platine");
-    driver::click(&mut app, "Nouvelle esquisse");
-    driver::click_on_canvas(&mut app, driver::ON_ONE_OF_THE_BASE_PLANES);
-    driver::click(&mut app, "Ligne (L)");
-    driver::click_at(&mut app, right(driver::A_POINT_ABOVE_THE_ORIGIN));
-    driver::click_at(&mut app, right(driver::A_POINT_BELOW_AND_RIGHT));
-    driver::press(&mut app, egui::Key::Escape);
+    driver::start_a_sketch(&mut app);
+    driver::draw_a_segment(&mut app);
     driver::click(&mut app, "Réseau circulaire");
-    driver::click_at(&mut app, right((850.0, 510.0)));
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
 
     driver::press(&mut app, egui::Key::Enter);
 

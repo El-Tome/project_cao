@@ -14,14 +14,19 @@
 
 mod driver;
 
-/// Where the rectangle's top side is drawn on screen: between the two corners
-/// the tool is clicked at, at the height of the first.
-const ON_THE_TOP_SIDE: (f32, f32) = (850.0, 400.0);
+use glam::DVec2;
+
+/// A point of the rectangle's top side, between the two corners the tool is
+/// clicked at, at the height of the first.
+const ON_THE_TOP_SIDE: DVec2 = DVec2::new(0.04, 87.72);
+
+/// Below the rectangle, where nothing is drawn, from one point to the other.
+const ACROSS_EMPTY_SPACE: [DVec2; 2] = [DVec2::new(20.0, -70.0), DVec2::new(75.0, -105.0)];
 
 fn a_rectangle(app: &mut driver::App) {
     driver::click(app, "Rectangle (R)");
-    driver::click_at(app, driver::A_POINT_ABOVE_THE_ORIGIN);
-    driver::click_at(app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::click_at_sketch_point(app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    driver::click_at_sketch_point(app, driver::A_POINT_BELOW_AND_RIGHT);
     driver::press(app, egui::Key::Escape);
     driver::click(app, "Sélection (S)");
 }
@@ -47,11 +52,8 @@ fn a_side_pressed_and_pulled_moves_it_in_one_step() {
     driver::open_the_history(&mut app);
     let before = steps(&app).len();
 
-    driver::drag_and_drop(
-        &mut app,
-        egui::pos2(ON_THE_TOP_SIDE.0, ON_THE_TOP_SIDE.1),
-        egui::pos2(ON_THE_TOP_SIDE.0 + 4.0, ON_THE_TOP_SIDE.1 - 60.0),
-    );
+    let on_the_side = driver::sketch_point_on_screen(&app, ON_THE_TOP_SIDE);
+    driver::drag_and_drop(&mut app, on_the_side, on_the_side + egui::vec2(4.0, -60.0));
 
     let steps = steps(&app);
     assert_eq!(
@@ -75,7 +77,7 @@ fn a_pan_started_on_a_side_moves_nothing() {
     a_rectangle(&mut app);
     driver::open_the_history(&mut app);
     let before = steps(&app);
-    let on_the_side = egui::pos2(ON_THE_TOP_SIDE.0, ON_THE_TOP_SIDE.1);
+    let on_the_side = driver::sketch_point_on_screen(&app, ON_THE_TOP_SIDE);
 
     app.hover_at(on_the_side);
     app.run();
@@ -105,10 +107,11 @@ fn a_circle_pulled_out_is_still_drawn_to_its_new_size() {
     driver::create_a_part(&mut app, "Rondelle");
     driver::start_a_sketch(&mut app);
     driver::open_the_history(&mut app);
-    let (centre, through) = (egui::pos2(850.0, 500.0), egui::pos2(950.0, 500.0));
+    let centre = driver::sketch_point_on_screen(&app, DVec2::new(0.04, 32.72));
+    let through = driver::sketch_point_on_screen(&app, DVec2::new(55.04, 32.72));
     driver::click_exactly(&mut app, "Cercle (C)");
-    driver::click_at(&mut app, (centre.x, centre.y));
-    driver::click_at(&mut app, (through.x, through.y));
+    driver::click_at(&mut app, centre);
+    driver::click_at(&mut app, through);
     driver::press(&mut app, egui::Key::Escape);
     driver::click(&mut app, "Sélection (S)");
     let before = steps(&app).len();
@@ -139,7 +142,8 @@ fn a_drag_from_empty_space_moves_nothing() {
     driver::open_the_history(&mut app);
     let before = steps(&app);
 
-    driver::drag_and_drop(&mut app, egui::pos2(420.0, 250.0), egui::pos2(520.0, 320.0));
+    let [from, to] = ACROSS_EMPTY_SPACE.map(|point| driver::sketch_point_on_screen(&app, point));
+    driver::drag_and_drop(&mut app, from, to);
 
     assert_eq!(steps(&app), before, "a box selects, and writes no step");
 }

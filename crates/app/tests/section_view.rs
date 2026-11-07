@@ -15,6 +15,11 @@
 mod driver;
 
 use egui_kittest::kittest::{NodeT, Queryable};
+use glam::DVec3;
+
+/// On the plane YZ, clear of the block the view stands beside once it is
+/// raised: where the click first written to start a sketch there landed.
+const ON_THE_YZ_PLANE_BESIDE_THE_BLOCK: DVec3 = DVec3::new(0.0, -60.95, 49.18);
 
 /// A block raised off a rectangle drawn on a plane of the origin, its sketch
 /// then finished.
@@ -23,12 +28,12 @@ fn a_block(test: &str) -> driver::App {
     driver::create_a_part(&mut app, "Bloc");
     driver::start_a_sketch(&mut app);
     driver::click(&mut app, "Rectangle (R)");
-    driver::click_at(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
-    driver::click_at(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
     driver::click_exactly(&mut app, "Extrusion");
     driver::click_exactly(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");
-    driver::click_at(&mut app, (850.0, 510.0));
+    driver::click_at_sketch_point(&mut app, driver::INSIDE_THE_RECTANGLE);
     driver::click(&mut app, "Appliquer");
     driver::press(&mut app, egui::Key::Escape);
     click_in_the_ribbon(&mut app, "Terminer");
@@ -121,7 +126,7 @@ fn starting_a_sketch_turns_the_section_view_off() {
     );
 
     click_in_the_ribbon(&mut app, "Nouvelle esquisse");
-    driver::click_on_canvas(&mut app, driver::ON_ONE_OF_THE_BASE_PLANES);
+    driver::click_at_world_point(&mut app, ON_THE_YZ_PLANE_BESIDE_THE_BLOCK);
 
     assert!(
         driver::shows(&app, "Terminer"),

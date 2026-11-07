@@ -15,28 +15,33 @@ use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable, by};
 use glam::{DVec2, DVec3};
 
-pub const SCREEN: (f32, f32) = (1280.0, 800.0);
+/// The window most tests open on. A size, not a point: `egui` hands a window
+/// its size as a vector.
+pub const SCREEN: egui::Vec2 = egui::vec2(1280.0, 800.0);
 
-/// A point of the drawing area given from its centre, right and down, in
-/// pixels of a canvas as tall as the one the points are written for — not a
-/// point of the screen. A type of its own, so that handing one to a gesture
-/// that takes a point of the screen does not compile.
-#[derive(Clone, Copy, Debug)]
-pub struct FromTheCentre(pub f32, pub f32);
+/// On the plane YZ, as a new part shows the three base planes: where the
+/// tests opened their sketch before they named it, so that the view a sketch
+/// opens on frames the same patch of plane.
+pub const ON_THE_YZ_PLANE: DVec3 = DVec3::new(0.0, 70.11, 3.02);
 
-/// On the YZ plane, as a new part shows the three base planes.
-pub const ON_ONE_OF_THE_BASE_PLANES: FromTheCentre = FromTheCentre(-197.3, 59.5);
+/// Two points of the sketch on YZ, nodes of the grid that pulls them: where
+/// the two clicks the tests were first written with laid the ends of a line.
+pub const A_POINT_ABOVE_THE_ORIGIN: DVec2 = DVec2::new(-25.0, 87.5);
+pub const A_POINT_BELOW_AND_RIGHT: DVec2 = DVec2::new(137.5, -37.5);
 
-/// The height of the drawing area the points given from its centre are written
-/// for: the canvas a sketch showed on a 1280×800 screen before #724 dressed the
-/// chrome, which is where most of them were first read off a rendered frame.
-const CANVAS_HEIGHT_THE_POINTS_ARE_WRITTEN_FOR: f32 = 612.0;
+/// Where the cursor is left once a line is begun, further along: the node of
+/// the grid the pixel it was first written as was pulled onto.
+pub const A_POINT_FURTHER_ALONG: DVec2 = DVec2::new(75.0, 37.5);
 
-/// Inside the drawing area, which starts to the right of the file list and the
-/// panel beside it. Read off a rendered frame of that same screen size, so they
-/// move with the chrome around the canvas, as the plane above no longer does.
-pub const A_POINT_ABOVE_THE_ORIGIN: (f32, f32) = (700.0, 400.0);
-pub const A_POINT_BELOW_AND_RIGHT: (f32, f32) = (1000.0, 620.0);
+/// On the segment `draw_a_segment` lays, a few millimetres off its line,
+/// within reach of a click that takes it; and where a dimension taken from it
+/// is left, above and to the right.
+pub const ON_THE_SEGMENT: DVec2 = DVec2::new(59.89, 27.22);
+pub const WHERE_ITS_DIMENSION_GOES: DVec2 = DVec2::new(87.39, 65.72);
+
+/// Inside the rectangle drawn from one of the two points above to the other:
+/// where the area an extrusion raises is clicked.
+pub const INSIDE_THE_RECTANGLE: DVec2 = DVec2::new(62.61, -15.15);
 
 pub type App = Harness<'static, CaoApp>;
 
@@ -46,13 +51,13 @@ pub fn open(test: &str) -> App {
 
 /// The same on a screen of another size — wide enough, say, for the whole
 /// ribbon of the sketch to fit, patterns included.
-pub fn open_on(test: &str, size: (f32, f32)) -> App {
+pub fn open_on(test: &str, size: egui::Vec2) -> App {
     open_with(test, size, cao_prefs::Settings::default())
 }
 
 /// The same, with these settings already saved, as a user who had set them
 /// before would open it.
-pub fn open_with(test: &str, (width, height): (f32, f32), settings: cao_prefs::Settings) -> App {
+pub fn open_with(test: &str, size: egui::Vec2, settings: cao_prefs::Settings) -> App {
     let root = std::env::temp_dir().join("cao-driver").join(test);
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("documents")).expect("a place to keep the parts");
@@ -64,7 +69,7 @@ pub fn open_with(test: &str, (width, height): (f32, f32), settings: cao_prefs::S
         .expect("the settings are written where the app reads them");
 
     let mut app = Harness::builder()
-        .with_size(egui::vec2(width, height))
+        .with_size(size)
         // What a refusal names blinks for three seconds, asking for frame
         // after frame all along; kittest's four steps of a quarter second
         // would take that for a screen that never settles.
@@ -142,29 +147,6 @@ pub fn canvas(app: &App) -> egui::Rect {
     .expect("no drawing area on screen: no part is open")
 }
 
-/// Where a point given from the centre of the drawing area stands on screen
-/// now. The view is centred on the canvas and its field of view is vertical,
-/// so scaled by the canvas's height the point stays on the same spot of the
-/// scene, however much room the chrome around it takes. A point that lands
-/// outside the canvas would be a click on the chrome, so it is refused here,
-/// in the spirit of `within_reach`.
-pub fn on_canvas(app: &App, FromTheCentre(right, down): FromTheCentre) -> egui::Pos2 {
-    let canvas = canvas(app);
-    let scale = canvas.height() / CANVAS_HEIGHT_THE_POINTS_ARE_WRITTEN_FOR;
-    let at = canvas.center() + egui::vec2(right, down) * scale;
-    assert!(
-        canvas.contains(at),
-        "({right}, {down}) from the centre of the drawing area lands at {at:?}, \
-         outside the canvas {canvas:?}, where a click reaches the chrome instead",
-    );
-    at
-}
-
-pub fn click_on_canvas(app: &mut App, from_its_centre: FromTheCentre) {
-    let at = on_canvas(app, from_its_centre);
-    click_at(app, (at.x, at.y));
-}
-
 /// Where a point of the world stands on screen, as the last frame drew it:
 /// through the application's own camera and canvas, so that it follows the
 /// view wherever the chrome around it puts it. A reach in pixels is added to
@@ -196,12 +178,19 @@ pub fn sketch_point_on_screen(app: &App, point: DVec2) -> egui::Pos2 {
 
 pub fn click_at_world_point(app: &mut App, point: DVec3) {
     let at = world_point_on_screen(app, point);
-    click_at(app, (at.x, at.y));
+    click_at(app, at);
 }
 
 pub fn click_at_sketch_point(app: &mut App, point: DVec2) {
     let at = sketch_point_on_screen(app, point);
-    click_at(app, (at.x, at.y));
+    click_at(app, at);
+}
+
+/// The pointer left over a point of the sketch, as a hand resting there.
+pub fn hover_at_sketch_point(app: &mut App, point: DVec2) {
+    let at = sketch_point_on_screen(app, point);
+    app.hover_at(at);
+    app.run();
 }
 
 /// A point of the drawing the view puts outside the canvas would be a click
@@ -216,8 +205,11 @@ fn inside_the_canvas(app: &App, at: egui::Pos2, what: &str) -> egui::Pos2 {
     at
 }
 
-pub fn click_at(app: &mut App, (x, y): (f32, f32)) {
-    let pos = egui::pos2(x, y);
+/// A click at a place of the screen. A test names a point of the drawing
+/// instead, through `click_at_sketch_point` or `click_at_world_point`, or a
+/// place it read off the frame: `screen_points.rs` refuses one written in
+/// numbers.
+pub fn click_at(app: &mut App, pos: egui::Pos2) {
     app.hover_at(pos);
     app.run();
     for pressed in [true, false] {
@@ -271,13 +263,13 @@ pub fn create_a_part(app: &mut App, named: &str) {
 
 pub fn start_a_sketch(app: &mut App) {
     click(app, "Nouvelle esquisse");
-    click_on_canvas(app, ON_ONE_OF_THE_BASE_PLANES);
+    click_at_world_point(app, ON_THE_YZ_PLANE);
 }
 
 pub fn draw_a_segment(app: &mut App) {
     click(app, "Ligne (L)");
-    click_at(app, A_POINT_ABOVE_THE_ORIGIN);
-    click_at(app, A_POINT_BELOW_AND_RIGHT);
+    click_at_sketch_point(app, A_POINT_ABOVE_THE_ORIGIN);
+    click_at_sketch_point(app, A_POINT_BELOW_AND_RIGHT);
     press(app, egui::Key::Escape);
 }
 
@@ -290,13 +282,13 @@ pub fn open_the_history(app: &mut App) {
 }
 
 /// The ellipse tool, its centre and the end of its first axis clicked, the
-/// cursor then left where the second axis would reach.
+/// cursor then left where the second axis would reach: on the origin, which
+/// pulls the point the cursor was first written as.
 pub fn start_an_ellipse(app: &mut App) {
     click_exactly(app, "Ellipse");
-    click_at(app, A_POINT_ABOVE_THE_ORIGIN);
-    click_at(app, A_POINT_BELOW_AND_RIGHT);
-    app.hover_at(egui::pos2(760.0, 560.0));
-    app.run();
+    click_at_sketch_point(app, A_POINT_ABOVE_THE_ORIGIN);
+    click_at_sketch_point(app, A_POINT_BELOW_AND_RIGHT);
+    hover_at_sketch_point(app, DVec2::ZERO);
 }
 
 pub fn fields_at_the_cursor(app: &App) -> usize {
@@ -346,9 +338,8 @@ pub fn key(app: &mut App, key: egui::Key, text: &str) {
 /// Starts a line with one click, the cursor then left further along.
 pub fn start_a_line(app: &mut App) {
     click(app, "Ligne (L)");
-    click_at(app, A_POINT_ABOVE_THE_ORIGIN);
-    app.hover_at(egui::pos2(900.0, 500.0));
-    app.run();
+    click_at_sketch_point(app, A_POINT_ABOVE_THE_ORIGIN);
+    hover_at_sketch_point(app, A_POINT_FURTHER_ALONG);
     app.run();
 }
 

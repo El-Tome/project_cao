@@ -13,6 +13,7 @@ use cao_prefs::Locations;
 use egui::accesskit::Action;
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable, by};
+use glam::{DVec2, DVec3};
 
 pub const SCREEN: (f32, f32) = (1280.0, 800.0);
 
@@ -162,6 +163,57 @@ pub fn on_canvas(app: &App, FromTheCentre(right, down): FromTheCentre) -> egui::
 pub fn click_on_canvas(app: &mut App, from_its_centre: FromTheCentre) {
     let at = on_canvas(app, from_its_centre);
     click_at(app, (at.x, at.y));
+}
+
+/// Where a point of the world stands on screen, as the last frame drew it:
+/// through the application's own camera and canvas, so that it follows the
+/// view wherever the chrome around it puts it. A reach in pixels is added to
+/// what this returns, on screen, after the projection.
+pub fn world_point_on_screen(app: &App, point: DVec3) -> egui::Pos2 {
+    let at = app.state().where_the_view_shows(point).unwrap_or_else(|| {
+        panic!(
+            "the view shows no {point:?} of the world: no part is drawn yet, \
+             or the point stands behind the eye"
+        )
+    });
+    inside_the_canvas(app, at, &format!("{point:?} of the world"))
+}
+
+/// The same for a point of the plane of the sketch being drawn, given in that
+/// sketch's own coordinates.
+pub fn sketch_point_on_screen(app: &App, point: DVec2) -> egui::Pos2 {
+    let at = app
+        .state()
+        .where_the_view_shows_the_sketch_point(point)
+        .unwrap_or_else(|| {
+            panic!(
+                "the view shows no {point:?} of a sketch: no sketch is open, \
+                 or the point stands behind the eye"
+            )
+        });
+    inside_the_canvas(app, at, &format!("{point:?} of the sketch"))
+}
+
+pub fn click_at_world_point(app: &mut App, point: DVec3) {
+    let at = world_point_on_screen(app, point);
+    click_at(app, (at.x, at.y));
+}
+
+pub fn click_at_sketch_point(app: &mut App, point: DVec2) {
+    let at = sketch_point_on_screen(app, point);
+    click_at(app, (at.x, at.y));
+}
+
+/// A point of the drawing the view puts outside the canvas would be a click
+/// on the chrome, so it is refused here, in the spirit of `within_reach`.
+fn inside_the_canvas(app: &App, at: egui::Pos2, what: &str) -> egui::Pos2 {
+    let canvas = canvas(app);
+    assert!(
+        canvas.contains(at),
+        "{what} lands at {at:?}, outside the canvas {canvas:?}, where a click \
+         reaches the chrome instead",
+    );
+    at
 }
 
 pub fn click_at(app: &mut App, (x, y): (f32, f32)) {

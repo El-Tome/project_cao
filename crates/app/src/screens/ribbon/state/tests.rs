@@ -13,6 +13,12 @@
 //!   apart — `with_labels_off_the_three_states_still_read_apart`,
 //!   `with_labels_off_every_other_button_keeps_its_two_letters`
 //!
+//! Closes #725.
+//! - every `Command` has an icon, looked up by command — and the matter in
+//!   front, drawn three times in the redesign, wears the icon of the state it
+//!   is in, as its name already says it —
+//!   `the_matter_in_front_button_wears_the_icon_of_the_state_it_is_in`
+//!
 //! Closes #580.
 //! - the three levels are offered while the part holds matter and not before
 //!   — `the_three_stl_levels_are_offered_only_while_the_part_holds_matter`

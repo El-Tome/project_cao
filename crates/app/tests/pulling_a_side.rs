@@ -103,7 +103,7 @@ fn a_pan_started_on_a_side_moves_nothing() {
 fn a_circle_pulled_out_is_still_drawn_to_its_new_size() {
     let mut settings = cao_prefs::Settings::default();
     settings.viewport.grid_snap = false;
-    let mut app = driver::open_with("a_circle_pulled_out", driver::SCREEN, settings);
+    let mut app = driver::open_held_with("a_circle_pulled_out", settings);
     driver::create_a_part(&mut app, "Rondelle");
     driver::start_a_sketch(&mut app);
     driver::open_the_history(&mut app);

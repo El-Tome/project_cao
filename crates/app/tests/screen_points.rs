@@ -65,6 +65,12 @@ const WINDOW_POSITIONS: &[WindowPosition] = &[
               wide, the case the offsets of #724 could not follow: nothing is aimed \
               from it",
     },
+    WindowPosition {
+        file: "crates/app/tests/holding_the_canvas.rs",
+        written: "driver::canvas(&app)",
+        why: "the canvas read only for its height, to check the driver holds it at \
+              the height its fixtures were tuned on: nothing is aimed from it",
+    },
 ];
 
 struct WindowPosition {

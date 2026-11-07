@@ -66,7 +66,7 @@ fn the_reset_puts_every_viewport_colour_back_the_sketch_background_included() {
     settings.theme.axis_x = Rgba::opaque(0.20, 0.20, 0.20);
     settings.theme.grid_minor = Rgba::opaque(0.40, 0.40, 0.40);
     settings.theme.solid = Rgba::opaque(0.60, 0.60, 0.60);
-    let mut app = driver::open_with(test, driver::SCREEN, settings);
+    let mut app = driver::open_held_with(test, settings);
     the_appearance_page(&mut app);
 
     press(&mut app, "↺ Couleurs par défaut", 0);
@@ -82,7 +82,7 @@ fn the_reset_puts_every_viewport_colour_back_the_sketch_background_included() {
 /// laid out below the bottom of the screen, where no click reaches it.
 fn the_appearance_page(app: &mut driver::App) {
     driver::create_a_part(app, "Teintes");
-    driver::click_exactly(app, "⚙");
+    driver::click_exactly(app, "Préférences");
     driver::click(app, "Apparence");
 }
 

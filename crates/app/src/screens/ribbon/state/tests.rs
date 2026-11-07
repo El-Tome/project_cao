@@ -6,12 +6,18 @@
 //!   « Recadrer » that is disabled outside a sketch rather than hidden, as
 //!   « Recadrer » is —
 //!   `the_matter_in_front_button_is_offered_only_while_a_sketch_is_open`
-//! - its icon shows the current one — the ribbon draws labels, not icons, so it
-//!   is the label that names the state —
-//!   `the_matter_in_front_button_names_the_state_it_is_in` — and the two-letter
-//!   face it falls back to with labels off, which must still tell the three
-//!   apart — `with_labels_off_the_three_states_still_read_apart`,
-//!   `with_labels_off_every_other_button_keeps_its_two_letters`
+//! - its icon shows the current one — its name says the state,
+//!   `the_matter_in_front_button_names_the_state_it_is_in`, and so does its
+//!   icon, all it shows with labels off, which must still tell the three apart
+//!   — `the_matter_in_front_button_wears_the_icon_of_the_state_it_is_in`
+//!
+//! Closes #725.
+//! - every `Command` has an icon, looked up by command — and the matter in
+//!   front, drawn three times in the redesign, wears the icon of the state it
+//!   is in, as its name already says it —
+//!   `the_matter_in_front_button_wears_the_icon_of_the_state_it_is_in`; every
+//!   other button the one its command is looked up to —
+//!   `every_other_button_wears_the_icon_of_its_command`
 //!
 //! Closes #580.
 //! - the three levels are offered while the part holds matter and not before
@@ -181,7 +187,7 @@ fn the_matter_in_front_button_names_the_state_it_is_in() {
     );
 }
 
-fn faces_of_the_three_states(face: fn(Command, &Context<'_>) -> String) -> Vec<String> {
+fn faces_of_the_three_states<Face>(face: fn(Command, &Context<'_>) -> Face) -> Vec<Face> {
     let part = a_part();
     let extrusion = ExtrusionState::default();
     let mut settings = Settings::default();
@@ -206,20 +212,26 @@ fn faces_of_the_three_states(face: fn(Command, &Context<'_>) -> String) -> Vec<S
 }
 
 #[test]
-fn with_labels_off_the_three_states_still_read_apart() {
-    let faces = faces_of_the_three_states(short_label);
+fn the_matter_in_front_button_wears_the_icon_of_the_state_it_is_in() {
+    let worn = faces_of_the_three_states(|command, state| icon(command, state).id().to_owned());
 
-    assert!(
-        faces[0] != faces[1] && faces[1] != faces[2] && faces[0] != faces[2],
-        "with labels off, two of the three states wear the same face: {faces:?}",
+    assert_eq!(
+        worn,
+        [
+            "matter-in-front-hidden",
+            "matter-in-front-see-through",
+            "matter-in-front-opaque",
+        ],
+        "hidden, see-through then opaque, the button does not wear the icon of the state it is in",
     );
 }
 
 #[test]
-fn with_labels_off_every_other_button_keeps_its_two_letters() {
+fn every_other_button_wears_the_icon_of_its_command() {
     let part = a_part();
     let extrusion = ExtrusionState::default();
-    let settings = Settings::default();
+    let mut settings = Settings::default();
+    settings.toolbar.show_labels = false;
     let lang = Catalogue::french();
     let editor = drawing_on_a_sketch();
     let state = Context {
@@ -235,11 +247,10 @@ fn with_labels_off_every_other_button_keeps_its_two_letters() {
         .into_iter()
         .filter(|command| *command != Command::NextMatterInFront)
     {
-        let two_letters: String = label(command, &state).chars().take(2).collect();
         assert_eq!(
-            short_label(command, &state),
-            two_letters,
-            "{command:?} changed face with labels off",
+            icon(command, &state),
+            super::super::icons::of(command),
+            "{command:?} wears another icon on its button than the one it is looked up to",
         );
     }
 }

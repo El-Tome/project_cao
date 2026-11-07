@@ -6,10 +6,13 @@ use crate::screens::extrusion::ExtrusionState;
 use crate::screens::extrusion_row::extrusion_row;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::chamfer_to_swap;
-use crate::ui::tool_button::tool_button;
+use crate::ui::icon;
+use crate::ui::panel_toggle::{panel_button, panel_toggle};
+use crate::ui::tool_button::{icon_button, menu_entry, tool_button};
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
-use super::state::{Context, Ribbon, active, enabled, label, short_label};
+use super::icons;
+use super::state::{Context, Ribbon, active, enabled, icon, label};
 
 /// What the bar needs to know about the part being drawn.
 ///
@@ -22,6 +25,25 @@ pub struct Drawn<'a> {
     pub extrusion: &'a mut ExtrusionState,
     /// Whether the files panel is showing, so its toggle can report it.
     pub explorer_open: bool,
+}
+
+impl Drawn<'_> {
+    /// What a button needs to be drawn in the right state, out of the part.
+    fn context<'a>(
+        &'a self,
+        settings: &'a Settings,
+        lang: &'a Catalogue,
+        section_on: bool,
+    ) -> Context<'a> {
+        Context {
+            settings,
+            document: self.document,
+            editor: self.editor,
+            extrusion: self.extrusion,
+            lang,
+            section_on,
+        }
+    }
 }
 
 /// How wide a toolbar starts when it is down one side.
@@ -109,14 +131,7 @@ impl Ribbon {
         self.header(ui, layout, &mut asked, vertical, drawn.explorer_open, lang);
         ui.separator();
 
-        let state = Context {
-            settings,
-            document: drawn.document,
-            editor: drawn.editor,
-            extrusion: drawn.extrusion,
-            lang,
-            section_on: self.section_on,
-        };
+        let state = drawn.context(settings, lang, self.section_on);
 
         // The open tab, then whatever sits at the top level outside any group. A
         // button's own label must never wrap: a row that no longer fits the widest
@@ -146,7 +161,8 @@ impl Ribbon {
         });
 
         extrusion_row(ui, drawn.document, drawn.extrusion, &mut asked, lang);
-        chamfer_row(ui, drawn.document, drawn.editor, &mut asked, lang);
+        let state = drawn.context(settings, lang, self.section_on);
+        chamfer_row(ui, &state, &mut asked);
         asked
     }
 
@@ -164,13 +180,18 @@ impl Ribbon {
         // rather than holds: what it is shown is handed back as a command.
         let files = |ui: &mut egui::Ui, asked: &mut Vec<Command>| {
             let mut shown = explorer_open;
-            if ui
-                .toggle_value(&mut shown, lang.t("ribbon.files"))
-                .changed()
-            {
+            let worn = icons::of(Command::ToggleExplorer);
+            if panel_toggle(ui, &mut shown, worn, lang.t("ribbon.files")).changed() {
                 asked.push(Command::ToggleExplorer);
             }
         };
+        let preferences = |ui: &mut egui::Ui, asked: &mut Vec<Command>| {
+            let worn = icons::of(Command::OpenSettings);
+            if panel_button(ui, false, worn, lang.t("ribbon.settings")).clicked() {
+                asked.push(Command::OpenSettings);
+            }
+        };
+        let history = icons::of(Command::ToggleHistory);
 
         let mut row = |ui: &mut egui::Ui| {
             if layout.show_logo {
@@ -194,16 +215,17 @@ impl Ribbon {
             ui.vertical(|ui| row(ui));
             ui.horizontal_wrapped(|ui| {
                 files(ui, asked);
-                ui.toggle_value(&mut self.part_tree_open, lang.t("ribbon.part_tree"));
-                ui.toggle_value(&mut self.history_open, lang.t("ribbon.history"));
-                ui.toggle_value(&mut self.variables_open, lang.t("ribbon.variables"));
-                if ui
-                    .button("⚙")
-                    .on_hover_text(lang.t("ribbon.settings"))
-                    .clicked()
-                {
-                    asked.push(Command::OpenSettings);
-                }
+                let part = lang.t("ribbon.part_tree");
+                panel_toggle(ui, &mut self.part_tree_open, icon::PART, part);
+                panel_toggle(
+                    ui,
+                    &mut self.history_open,
+                    history,
+                    lang.t("ribbon.history"),
+                );
+                let variables = lang.t("ribbon.variables");
+                panel_toggle(ui, &mut self.variables_open, icon::VARIABLES, variables);
+                preferences(ui, asked);
             });
             return;
         }
@@ -211,21 +233,26 @@ impl Ribbon {
         ui.horizontal(|ui| {
             row(ui);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui
-                    .button("⚙")
-                    .on_hover_text(lang.t("ribbon.settings"))
-                    .clicked()
-                {
-                    asked.push(Command::OpenSettings);
-                }
-                ui.toggle_value(&mut self.variables_open, lang.t("ribbon.variables"));
-                ui.toggle_value(&mut self.history_open, lang.t("ribbon.history"));
-                ui.toggle_value(&mut self.part_tree_open, lang.t("ribbon.part_tree"));
+                preferences(ui, asked);
+                let variables = lang.t("ribbon.variables");
+                panel_toggle(ui, &mut self.variables_open, icon::VARIABLES, variables);
+                panel_toggle(
+                    ui,
+                    &mut self.history_open,
+                    history,
+                    lang.t("ribbon.history"),
+                );
+                let part = lang.t("ribbon.part_tree");
+                panel_toggle(ui, &mut self.part_tree_open, icon::PART, part);
                 files(ui, asked);
             });
         });
     }
 }
+
+/// The deepest level whose groups are spread out on the bar: a group below it
+/// is a menu, and the commands it holds are its entries.
+const SPREAD_OUT: usize = 1;
 
 /// Draws a run of entries, at the depth they sit in the tree.
 ///
@@ -244,11 +271,13 @@ fn lay_out(
     let run = |ui: &mut egui::Ui| {
         for item in items {
             match item {
-                Item::Command(command) => button(ui, *command, state, asked),
+                Item::Command(command) => {
+                    button(ui, *command, state, asked, depth > SPREAD_OUT + 1);
+                }
                 Item::Separator => {
                     ui.separator();
                 }
-                Item::Group { name, items } if depth <= 1 => {
+                Item::Group { name, items } if depth <= SPREAD_OUT => {
                     ui.group(|ui| {
                         let inner = |ui: &mut egui::Ui| {
                             ui.weak(group(state.lang, name));
@@ -277,19 +306,30 @@ fn lay_out(
     }
 }
 
-fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut Vec<Command>) {
+fn button(
+    ui: &mut egui::Ui,
+    command: Command,
+    state: &Context<'_>,
+    asked: &mut Vec<Command>,
+    in_a_menu: bool,
+) {
     let name = label(command, state);
-    let label = if state.settings.toolbar.show_labels {
-        match state.settings.shortcuts.chord_for(command) {
-            Some(chord) => format!("{name} ({})", shortcuts::chord(state.lang, chord)),
-            None => name,
-        }
-    } else {
-        short_label(command, state)
+    let called = match state.settings.shortcuts.chord_for(command) {
+        Some(chord) => format!("{name} ({})", shortcuts::chord(state.lang, chord)),
+        None => name.clone(),
     };
+    let hint = wording::hint(state.lang, command);
+    let pressable = enabled(command, state);
+    let on = active(command, state);
+    let worn = icon(command, state);
 
-    let response = tool_button(ui, enabled(command, state), active(command, state), label)
-        .on_hover_text(wording::hint(state.lang, command));
+    let response = if in_a_menu {
+        menu_entry(ui, pressable, on, worn, called).on_hover_text(hint)
+    } else if state.settings.toolbar.show_labels {
+        tool_button(ui, pressable, on, worn, called).on_hover_text(hint)
+    } else {
+        icon_button(ui, pressable, on, worn, &name).on_hover_text(format!("{called}\n{hint}"))
+    };
     if response.clicked() {
         asked.push(command);
     }
@@ -300,24 +340,9 @@ mod tests;
 
 /// What a chamfer held offers besides its values, while one is held: its two
 /// sides swapped. Here until a panel of the feature's own takes it.
-fn chamfer_row(
-    ui: &mut egui::Ui,
-    document: &PartDocument,
-    editor: &SketchEditor,
-    asked: &mut Vec<Command>,
-    lang: &Catalogue,
-) {
-    if chamfer_to_swap(document, editor).is_none() {
+fn chamfer_row(ui: &mut egui::Ui, state: &Context<'_>, asked: &mut Vec<Command>) {
+    if chamfer_to_swap(state.document, state.editor).is_none() {
         return;
     }
-    ui.horizontal_wrapped(|ui| {
-        let swap = Command::SwapChamferSides;
-        if ui
-            .button(wording::label(lang, swap))
-            .on_hover_text(wording::hint(lang, swap))
-            .clicked()
-        {
-            asked.push(swap);
-        }
-    });
+    ui.horizontal_wrapped(|ui| button(ui, Command::SwapChamferSides, state, asked, false));
 }

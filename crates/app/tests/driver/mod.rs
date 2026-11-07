@@ -45,19 +45,121 @@ pub const INSIDE_THE_RECTANGLE: DVec2 = DVec2::new(62.61, -15.15);
 
 pub type App = Harness<'static, CaoApp>;
 
-pub fn open(test: &str) -> App {
-    open_on(test, SCREEN)
+/// How high the drawing area was when the fixtures above were tuned, in
+/// points: on `SCREEN`, before #725 put icons in the ribbon. A part's, and a
+/// sketch's, whose ribbon held a row more.
+///
+/// A reach of the drawing is counted in pixels and the view frames by height,
+/// so the canvas's height is the drawing's scale: when the chrome grows, a
+/// fixture a few pixels from what it takes takes something else. The driver
+/// holds the canvas rather than the window, and the chrome can change without
+/// a fixture moving.
+pub const CANVAS_HEIGHT_OF_A_PART: f32 = 522.0;
+pub const CANVAS_HEIGHT_OF_A_SKETCH: f32 = 492.0;
+
+/// How far the canvas may sit from the height it is held at, in points.
+const HELD_WITHIN: f32 = 0.5;
+
+/// How many times the window is resized before the canvas is taken never to
+/// settle. One does while the chrome keeps its height as the window grows; a
+/// toolbar that wrapped by height would take more.
+const RESIZES_TO_SETTLE: usize = 4;
+
+/// What marks an application whose canvas the driver holds. Kept in the
+/// application's own `egui` memory, under an id of the driver's: the harness
+/// has nowhere else to carry it.
+#[derive(Clone, Copy)]
+struct HeldCanvas;
+
+fn held_canvas() -> egui::Id {
+    egui::Id::new("the driver holds the canvas")
 }
 
-/// The same on a screen of another size — wide enough, say, for the whole
-/// ribbon of the sketch to fit, patterns included.
-pub fn open_on(test: &str, size: egui::Vec2) -> App {
-    open_with(test, size, cao_prefs::Settings::default())
+fn holds_the_canvas(app: &App) -> bool {
+    app.ctx
+        .data(|data| data.get_temp::<HeldCanvas>(held_canvas()).is_some())
+}
+
+/// Whether the view draws a part: off the part screen, the largest node that
+/// takes a click and carries no name is some other surface than the canvas.
+fn a_part_is_drawn(app: &App) -> bool {
+    app.state().where_the_view_shows(DVec3::ZERO).is_some()
+}
+
+/// The height the canvas is held at in the mode the application is in.
+fn held_height(app: &App) -> f32 {
+    let drawing_a_sketch = app
+        .state()
+        .where_the_view_shows_the_sketch_point(DVec2::ZERO)
+        .is_some();
+    if drawing_a_sketch {
+        CANVAS_HEIGHT_OF_A_SKETCH
+    } else {
+        CANVAS_HEIGHT_OF_A_PART
+    }
+}
+
+/// Makes the window taller or shorter until the canvas is as high as the
+/// fixtures were tuned at. Only for an application opened by `open` or
+/// `open_held_with`: one opened on a window it named keeps it, since the
+/// window is then what it is testing. Every gesture of this module ends here; a test calls it
+/// only after frames it ran itself, and `inside_the_canvas` says so if it
+/// forgot.
+pub fn hold_the_canvas(app: &mut App) {
+    if !holds_the_canvas(app) {
+        return;
+    }
+    for _ in 0..RESIZES_TO_SETTLE {
+        let Some(canvas) = drawing_area(app).filter(|_| a_part_is_drawn(app)) else {
+            return;
+        };
+        let short_by = held_height(app) - canvas.height();
+        if short_by.abs() <= HELD_WITHIN {
+            return;
+        }
+        let window = app.ctx.content_rect().size();
+        app.set_size(window + egui::vec2(0.0, short_by));
+        app.run();
+    }
+    panic!(
+        "the canvas never settled {} points high: it is {:?} after the window was resized \
+         {RESIZES_TO_SETTLE} times, to {:?}",
+        held_height(app),
+        drawing_area(app),
+        app.ctx.content_rect(),
+    );
+}
+
+/// The application on the default window, its drawing held at the scale the
+/// fixtures were tuned at: see `hold_the_canvas`.
+pub fn open(test: &str) -> App {
+    open_held_with(test, cao_prefs::Settings::default())
 }
 
 /// The same, with these settings already saved, as a user who had set them
 /// before would open it.
+pub fn open_held_with(test: &str, settings: cao_prefs::Settings) -> App {
+    let mut app = opened(test, SCREEN, settings);
+    app.ctx
+        .data_mut(|data| data.insert_temp(held_canvas(), HeldCanvas));
+    hold_the_canvas(&mut app);
+    app
+}
+
+/// The application on a window of this size, left as it is whatever the
+/// chrome takes, `SCREEN` included: a test that names its window is testing
+/// it — wide enough, say, for the whole ribbon of the sketch to fit, patterns
+/// included.
+pub fn open_on(test: &str, size: egui::Vec2) -> App {
+    open_with(test, size, cao_prefs::Settings::default())
+}
+
+/// The same, with these settings already saved.
 pub fn open_with(test: &str, size: egui::Vec2, settings: cao_prefs::Settings) -> App {
+    opened(test, size, settings)
+}
+
+fn opened(test: &str, size: egui::Vec2, settings: cao_prefs::Settings) -> App {
     let root = std::env::temp_dir().join("cao-driver").join(test);
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("documents")).expect("a place to keep the parts");
@@ -108,6 +210,7 @@ pub fn click(app: &mut App, label: &str) {
     within_reach(label, node.rect().center(), app.ctx.content_rect());
     node.click();
     app.run();
+    hold_the_canvas(app);
 }
 
 /// The one widget whose label is exactly this — for a tool whose name is the
@@ -117,6 +220,7 @@ pub fn click_exactly(app: &mut App, label: &str) {
     within_reach(label, node.rect().center(), app.ctx.content_rect());
     node.click();
     app.run();
+    hold_the_canvas(app);
 }
 
 /// A widget laid out past the edge of the screen is still in the accessibility
@@ -137,6 +241,10 @@ fn within_reach(label: &str, centre: egui::Pos2, screen: egui::Rect) {
 /// backdrop takes a click and carries no name too, but it covers the whole
 /// screen, which the canvas, with the chrome around it, never does.
 pub fn canvas(app: &App) -> egui::Rect {
+    drawing_area(app).expect("no drawing area on screen: no part is open")
+}
+
+fn drawing_area(app: &App) -> Option<egui::Rect> {
     let screen = app.ctx.content_rect();
     app.query_all(
         by().predicate(|node| node.data().supports_action(Action::Click) && node.label().is_none()),
@@ -144,7 +252,6 @@ pub fn canvas(app: &App) -> egui::Rect {
     .map(|node| node.rect())
     .filter(|rect| !rect.contains_rect(screen))
     .max_by(|one, other| one.area().total_cmp(&other.area()))
-    .expect("no drawing area on screen: no part is open")
 }
 
 /// Where a point of the world stands on screen, as the last frame drew it:
@@ -177,17 +284,20 @@ pub fn sketch_point_on_screen(app: &App, point: DVec2) -> egui::Pos2 {
 }
 
 pub fn click_at_world_point(app: &mut App, point: DVec3) {
+    hold_the_canvas(app);
     let at = world_point_on_screen(app, point);
     click_at(app, at);
 }
 
 pub fn click_at_sketch_point(app: &mut App, point: DVec2) {
+    hold_the_canvas(app);
     let at = sketch_point_on_screen(app, point);
     click_at(app, at);
 }
 
 /// The pointer left over a point of the sketch, as a hand resting there.
 pub fn hover_at_sketch_point(app: &mut App, point: DVec2) {
+    hold_the_canvas(app);
     let at = sketch_point_on_screen(app, point);
     app.hover_at(at);
     app.run();
@@ -197,6 +307,14 @@ pub fn hover_at_sketch_point(app: &mut App, point: DVec2) {
 /// on the chrome, so it is refused here, in the spirit of `within_reach`.
 fn inside_the_canvas(app: &App, at: egui::Pos2, what: &str) -> egui::Pos2 {
     let canvas = canvas(app);
+    assert!(
+        !holds_the_canvas(app) || (canvas.height() - held_height(app)).abs() <= HELD_WITHIN,
+        "{what} is read off a canvas {} points high, where the driver holds it at {}: \
+         frames run outside the driver's gestures changed the chrome, and a fixture \
+         read now is read at another scale. Call `driver::hold_the_canvas` first.",
+        canvas.height(),
+        held_height(app),
+    );
     assert!(
         canvas.contains(at),
         "{what} lands at {at:?}, outside the canvas {canvas:?}, where a click \
@@ -221,6 +339,7 @@ pub fn click_at(app: &mut App, pos: egui::Pos2) {
         });
         app.run();
     }
+    hold_the_canvas(app);
 }
 
 pub fn type_into_the_only_field(app: &mut App, text: &str) {
@@ -228,11 +347,13 @@ pub fn type_into_the_only_field(app: &mut App, text: &str) {
     app.run();
     app.event(egui::Event::Text(text.to_owned()));
     app.run();
+    hold_the_canvas(app);
 }
 
 pub fn press(app: &mut App, key: egui::Key) {
     app.key_press(key);
     app.run();
+    hold_the_canvas(app);
 }
 
 pub fn on_screen(app: &App) -> Vec<String> {
@@ -306,6 +427,7 @@ pub fn click_the_button(app: &mut App, label: &str) {
     within_reach(label, node.rect().center(), app.ctx.content_rect());
     node.click();
     app.run();
+    hold_the_canvas(app);
 }
 
 /// Types into the field waiting for this, the way a click then the keyboard
@@ -318,6 +440,7 @@ pub fn type_into(app: &mut App, waiting_for: &str, text: &str) {
     app.run();
     app.event(egui::Event::Text(text.to_owned()));
     app.run();
+    hold_the_canvas(app);
 }
 
 /// What every field on screen holds, in the order they are drawn.
@@ -333,6 +456,7 @@ pub fn key(app: &mut App, key: egui::Key, text: &str) {
     app.event(egui::Event::Text(text.to_owned()));
     app.run();
     app.run();
+    hold_the_canvas(app);
 }
 
 /// Starts a line with one click, the cursor then left further along.
@@ -360,6 +484,7 @@ pub fn type_over(app: &mut App, holding: &str, text: &str) {
     });
     app.event(egui::Event::Text(text.to_owned()));
     app.run();
+    hold_the_canvas(app);
 }
 
 /// A key pressed with the command key held, the way a shortcut is.
@@ -377,6 +502,7 @@ pub fn press_with(app: &mut App, modifiers: egui::Modifiers, key: egui::Key) {
     });
     app.run();
     app.run();
+    hold_the_canvas(app);
 }
 
 /// Whether a line of text on screen says this — a message, a heading — which
@@ -406,6 +532,7 @@ pub fn drag_and_drop(app: &mut App, from: egui::Pos2, to: egui::Pos2) {
         modifiers: egui::Modifiers::NONE,
     });
     app.run();
+    hold_the_canvas(app);
 }
 
 /// What every field on screen shows while nothing is typed in it — the
@@ -461,6 +588,7 @@ pub fn click_with(app: &mut App, at: egui::Pos2, modifiers: egui::Modifiers) {
     }
     app.event(egui::Event::ModifiersChanged(egui::Modifiers::NONE));
     app.run();
+    hold_the_canvas(app);
 }
 
 /// The field a label names: the one it is attached to, or else the first drawn
@@ -516,4 +644,5 @@ pub fn type_beside(app: &mut App, label: &str, text: &str) {
     });
     app.event(egui::Event::Text(text.to_owned()));
     app.run();
+    hold_the_canvas(app);
 }

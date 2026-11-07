@@ -351,7 +351,7 @@ impl<'a> Zones<'a> {
     /// parallel or leaning a hair off it, that faces it there: a sample there
     /// would be as good as on the other wall.
     pub(in crate::brep::tessellation) fn crowded(&self, cylinder: &Cylinder, point: DVec3) -> bool {
-        self.crowding(*cylinder, point).next().is_some()
+        self.crowding(*cylinder, point, |_| true)
     }
 
     /// The same for a place of the curve `cylinder` meets `partner` along:
@@ -362,8 +362,9 @@ impl<'a> Zones<'a> {
         partner: &Round,
         point: DVec3,
     ) -> bool {
-        self.crowding(*cylinder, point)
-            .any(|facing| Round::Cylinder(facing.gap.other(cylinder)) != *partner)
+        self.crowding(*cylinder, point, |facing| {
+            Round::Cylinder(facing.gap.other(cylinder)) != *partner
+        })
     }
 
     /// The same for a sample of a conic, but for one on the other wall
@@ -376,19 +377,20 @@ impl<'a> Zones<'a> {
         cylinder: &Cylinder,
         point: DVec3,
     ) -> bool {
-        self.crowding(*cylinder, point).any(|facing| {
+        self.crowding(*cylinder, point, |facing| {
             facing.gap.touch()
                 || facing.gap.other(cylinder).distance(point).abs() > facing.body.scale().eps()
         })
     }
 
-    fn crowding(&self, cylinder: Cylinder, point: DVec3) -> impl Iterator<Item = &Facing<'a>> {
-        self.pairs.iter().filter(move |facing| {
+    /// Whether a pair of `cylinder` that `counts` crowds `point`, `at` read last, as it costs most.
+    fn crowding(&self, cylinder: Cylinder, point: DVec3, counts: impl Fn(&Facing) -> bool) -> bool {
+        self.pairs.iter().any(|facing| {
             let [one, other] = facing.walls;
-            if one.1 != cylinder && other.1 != cylinder {
-                return false;
-            }
-            facing.crowds(&cylinder, point) && facing.at(point)
+            (one.1 == cylinder || other.1 == cylinder)
+                && counts(facing)
+                && facing.crowds(&cylinder, point)
+                && facing.at(point)
         })
     }
 }

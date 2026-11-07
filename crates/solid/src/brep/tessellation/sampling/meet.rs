@@ -189,7 +189,7 @@ fn alone(
     let grid = |cone: &Cone| {
         grids
             .values()
-            .find(|grid| matches!(grid.spun, Spun::Cone(own) if own == *cone))
+            .find(|grid| matches!(grid.spun, Spun::Cone(spun) if spun == *cone))
     };
     let steps = carried.map(|wall| match wall {
         Wall::Cone(cone) => grid(&cone).map_or_else(

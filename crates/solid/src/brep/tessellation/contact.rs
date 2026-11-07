@@ -186,9 +186,18 @@ pub(in crate::brep::tessellation) fn held(body: &Body, edge: EdgeId, meet: &Meet
             .position(|id| *body.surface(*id) == wall.surface())
     });
     let other = |at: usize, wall: Round| {
-        Round::of(body.surface(faced[1 - at]))
+        let Some(held) = Round::of(body.surface(faced[1 - at]))
             .filter(|held| discriminant(held) == discriminant(&wall))
-            .unwrap_or(wall)
+        else {
+            return wall;
+        };
+        let along = body.edge(edge);
+        debug_assert!(
+            [along.from, along.to]
+                .iter()
+                .all(|t| held.surface().distance(meet.point(*t)).abs() <= body.scale().eps())
+        );
+        held
     };
     match (exact, faced.len()) {
         ([Some(at), None], 2) => [carried[0], other(at, carried[1])],

@@ -18,7 +18,11 @@
 //!   `a_wall_of_the_pair_carried_a_few_ulps_off_at_its_meet_with_a_third_still_meets_it_on_the_pair_s_rays`;
 //!   `Zones::sharing`, no test of its own: it compares no wall, and hands
 //!   the pair's walls as the body holds them to `is_line` and `shared`,
-//!   whose tests hold what it hands
+//!   whose tests hold what it hands; and where the fix reaches beyond the
+//!   five, the rays a meet gives the wall it holds by
+//!   `the_rings_of_a_wall_its_meets_carry_a_few_ulps_off_are_still_sampled_through_every_sample_of_the_curve`,
+//!   and the rays a meet takes from that wall's circles by
+//!   `a_meet_carrying_a_wall_a_few_ulps_off_still_takes_the_rays_that_wall_s_circles_take`
 //!
 //! The issue's first and third criteria are at the head of
 //! `crates/solid/tests/random_walls_at_any_angle.rs`.
@@ -305,5 +309,105 @@ fn a_wall_of_the_pair_carried_a_few_ulps_off_at_its_meet_with_a_third_still_meet
             _ => meet,
         },
         "the second wall a few ulps off at its meet with the third",
+    );
+}
+
+/// The stock bored across along X twice, by radius 2 above its middle and
+/// 1.5 below it, each bore a whole window either side: the windows of either
+/// stand round the stock's axis where those of the other do.
+fn stock_bored_across_twice() -> Body {
+    let mut build = fixtures::Build::new();
+    let use_of = |edge, forward| Coedge { edge, forward };
+    let stock = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
+    let mut windows = Vec::new();
+    for (height, radius) in [(7.0, 2.0), (3.0, 1.5)] {
+        let bore = build.cylinder(DVec3::Z * height, DVec3::X, radius);
+        let meeting = build.meeting(stock, bore, fixtures::STOCK_RADIUS);
+        let [near, far] = [0, 1].map(|component| {
+            let meet = meeting.components[component];
+            let period = meet.period().expect("a window closes on itself");
+            build.meet_edge(meet, None, 0.0, period)
+        });
+        build.face(
+            bore,
+            true,
+            vec![vec![use_of(near, false)], vec![use_of(far, true)]],
+        );
+        windows.extend([vec![use_of(near, true)], vec![use_of(far, false)]]);
+    }
+    let rings = [0.0, fixtures::HEIGHT].map(|height| build.circle(stock, height, None));
+    let mut loops = vec![vec![use_of(rings[0], true)], vec![use_of(rings[1], false)]];
+    loops.extend(windows);
+    build.face(stock, false, loops);
+    let (top, top_flipped) = build.plane(DVec3::Z * fixtures::HEIGHT, DVec3::Z);
+    build.face(top, top_flipped, vec![vec![use_of(rings[1], true)]]);
+    let (bottom, bottom_flipped) = build.plane(DVec3::ZERO, DVec3::NEG_Z);
+    build.face(bottom, bottom_flipped, vec![vec![use_of(rings[0], false)]]);
+    build.finish(fixtures::STOCK_RADIUS)
+}
+
+/// `body` and the same body whose meets carry its stock a few ulps off.
+fn with_the_stock_a_few_ulps_off(body: Body) -> [Body; 2] {
+    let meets: Vec<EdgeId> = body
+        .edge_ids()
+        .filter(|edge| matches!(body.curve(body.edge(*edge).curve), Curve::Meet(_)))
+        .collect();
+    let Some(Round::Cylinder(stock)) = Round::of(body.surface(SurfaceId(0))) else {
+        panic!("the stock is the body's first surface");
+    };
+    let moved = carrying(
+        &body,
+        &meets,
+        Round::Cylinder(stock),
+        Round::Cylinder(a_few_ulps_off(stock)),
+    );
+    [body, moved]
+}
+
+/// Whether every edge of `body` along a curve `chosen` picks is sampled at
+/// the same places in `moved`, within each tolerance.
+fn sampled_alike(bodies: &[Body; 2], chosen: fn(&Curve) -> bool, what: &str) {
+    let [body, moved] = bodies;
+    let edges: Vec<EdgeId> = body
+        .edge_ids()
+        .filter(|edge| chosen(body.curve(body.edge(*edge).curve)))
+        .collect();
+    assert!(!edges.is_empty(), "the body has {what}");
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let (wanted, got) = (Samples::of(body, tolerance), Samples::of(moved, tolerance));
+        for edge in &edges {
+            let (wanted, got) = (points(&wanted, *edge), points(&got, *edge));
+            assert!(wanted.len() > 2, "{what} are sampled round");
+            assert!(
+                got.len() == wanted.len()
+                    && got
+                        .iter()
+                        .zip(&wanted)
+                        .all(|(got, wanted)| got.distance(*wanted) < 1e-9),
+                "{edge:?}, of {what}, is sampled at {} places with the stock a few ulps off in \
+                 the meets, {} with the stock as the body holds it, within {tolerance}",
+                got.len(),
+                wanted.len(),
+            );
+        }
+    }
+}
+
+#[test]
+fn the_rings_of_a_wall_its_meets_carry_a_few_ulps_off_are_still_sampled_through_every_sample_of_the_curve()
+ {
+    sampled_alike(
+        &with_the_stock_a_few_ulps_off(across::stock_bored_across(3.0, DVec3::X)),
+        |curve| matches!(curve, Curve::Circle(_)),
+        "the stock's rings",
+    );
+}
+
+#[test]
+fn a_meet_carrying_a_wall_a_few_ulps_off_still_takes_the_rays_that_wall_s_circles_take() {
+    sampled_alike(
+        &with_the_stock_a_few_ulps_off(stock_bored_across_twice()),
+        |curve| matches!(curve, Curve::Meet(_)),
+        "the windows",
     );
 }

@@ -45,7 +45,7 @@ fn a_grid_that_pulls_nothing() -> cao_prefs::Settings {
 }
 
 fn a_sketch_in_the_selection_tool(test: &str, draw: impl FnOnce(&mut driver::App)) -> driver::App {
-    let mut app = driver::open_with(test, driver::SCREEN, a_grid_that_pulls_nothing());
+    let mut app = driver::open_held_with(test, a_grid_that_pulls_nothing());
     driver::create_a_part(&mut app, "Visée");
     driver::start_a_sketch(&mut app);
     draw(&mut app);

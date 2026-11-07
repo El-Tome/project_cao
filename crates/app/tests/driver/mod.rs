@@ -100,9 +100,9 @@ fn held_height(app: &App) -> f32 {
 }
 
 /// Makes the window taller or shorter until the canvas is as high as the
-/// fixtures were tuned at. Only for an application opened on `SCREEN`: one
-/// opened on a window of its own choosing keeps it, since the window is then
-/// what it is testing. Every gesture of this module ends here; a test calls it
+/// fixtures were tuned at. Only for an application opened by `open` or
+/// `open_held_with`: one opened on a window it named keeps it, since the
+/// window is then what it is testing. Every gesture of this module ends here; a test calls it
 /// only after frames it ran itself, and `inside_the_canvas` says so if it
 /// forgot.
 pub fn hold_the_canvas(app: &mut App) {
@@ -130,19 +130,36 @@ pub fn hold_the_canvas(app: &mut App) {
     );
 }
 
+/// The application on the default window, its drawing held at the scale the
+/// fixtures were tuned at: see `hold_the_canvas`.
 pub fn open(test: &str) -> App {
-    open_on(test, SCREEN)
-}
-
-/// The same on a screen of another size — wide enough, say, for the whole
-/// ribbon of the sketch to fit, patterns included.
-pub fn open_on(test: &str, size: egui::Vec2) -> App {
-    open_with(test, size, cao_prefs::Settings::default())
+    open_held_with(test, cao_prefs::Settings::default())
 }
 
 /// The same, with these settings already saved, as a user who had set them
 /// before would open it.
+pub fn open_held_with(test: &str, settings: cao_prefs::Settings) -> App {
+    let mut app = opened(test, SCREEN, settings);
+    app.ctx
+        .data_mut(|data| data.insert_temp(held_canvas(), HeldCanvas));
+    hold_the_canvas(&mut app);
+    app
+}
+
+/// The application on a window of this size, left as it is whatever the
+/// chrome takes, `SCREEN` included: a test that names its window is testing
+/// it — wide enough, say, for the whole ribbon of the sketch to fit, patterns
+/// included.
+pub fn open_on(test: &str, size: egui::Vec2) -> App {
+    open_with(test, size, cao_prefs::Settings::default())
+}
+
+/// The same, with these settings already saved.
 pub fn open_with(test: &str, size: egui::Vec2, settings: cao_prefs::Settings) -> App {
+    opened(test, size, settings)
+}
+
+fn opened(test: &str, size: egui::Vec2, settings: cao_prefs::Settings) -> App {
     let root = std::env::temp_dir().join("cao-driver").join(test);
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("documents")).expect("a place to keep the parts");
@@ -166,12 +183,7 @@ pub fn open_with(test: &str, size: egui::Vec2, settings: cao_prefs::Settings) ->
             );
             CaoApp::new(cc, Some(at), None)
         });
-    if size == SCREEN {
-        app.ctx
-            .data_mut(|data| data.insert_temp(held_canvas(), HeldCanvas));
-    }
     app.run();
-    hold_the_canvas(&mut app);
     app
 }
 

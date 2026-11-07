@@ -5,7 +5,13 @@
 //!   icon, an active tool turns it amber —
 //!   `at_rest_a_tool_button_s_icon_wears_the_colour_of_its_name`,
 //!   `a_greyed_out_tool_button_greys_its_icon_as_it_greys_its_name`,
-//!   `the_tool_in_hand_turns_its_icon_amber_with_its_name`
+//!   `the_tool_in_hand_turns_its_icon_amber_with_its_name`; with names off,
+//!   the icon alone wears what its name would have been written in —
+//!   `with_names_off_an_icon_at_rest_wears_the_colour_its_name_would_be_written_in`,
+//!   `with_names_off_a_greyed_out_button_greys_its_icon_as_it_would_its_name`,
+//!   `with_names_off_the_tool_in_hand_turns_its_icon_amber`; and in a menu —
+//!   `a_greyed_out_menu_entry_greys_its_icon_as_it_greys_its_name`,
+//!   `the_menu_entry_in_hand_turns_its_icon_amber_with_its_name`
 //!
 //! The colour an icon shows is the picture it is painted from times the tint
 //! it is painted with, which is how the GPU will draw it. Both are read: a
@@ -30,7 +36,7 @@ const SAME_COLOUR: u8 = 2;
 fn at_rest_a_tool_button_s_icon_wears_the_colour_of_its_name() {
     let worn = worn(icon::LINE, true, false);
 
-    assert_alike(worn.icon, worn.name, "at rest");
+    assert_alike(worn.icon, worn.name(), "at rest");
 }
 
 #[test]
@@ -38,7 +44,7 @@ fn a_greyed_out_tool_button_greys_its_icon_as_it_greys_its_name() {
     let at_rest = worn(icon::LINE, true, false);
     let greyed = worn(icon::LINE, false, false);
 
-    assert_alike(greyed.icon, greyed.name, "greyed out");
+    assert_alike(greyed.icon, greyed.name(), "greyed out");
     assert!(
         !alike(greyed.icon, at_rest.icon),
         "a greyed-out button's icon shows {:?}, as it does at rest: nothing says it cannot \
@@ -51,7 +57,7 @@ fn a_greyed_out_tool_button_greys_its_icon_as_it_greys_its_name() {
 fn the_tool_in_hand_turns_its_icon_amber_with_its_name() {
     let in_hand = worn(icon::LINE, true, true);
 
-    assert_alike(in_hand.icon, in_hand.name, "in hand");
+    assert_alike(in_hand.icon, in_hand.name(), "in hand");
     assert_alike(
         in_hand.icon,
         ACCENT_AMBER,
@@ -59,14 +65,109 @@ fn the_tool_in_hand_turns_its_icon_amber_with_its_name() {
     );
 }
 
-/// The colours a tool button shows in one frame: what a pixel its icon fully
-/// covers shows, and what its name's glyphs are painted in.
+#[test]
+fn with_names_off_an_icon_at_rest_wears_the_colour_its_name_would_be_written_in() {
+    let alone = worn_alone(true, false);
+
+    assert_alike(
+        alone.icon,
+        worn(icon::LINE, true, false).name(),
+        "alone, at rest",
+    );
+}
+
+#[test]
+fn with_names_off_a_greyed_out_button_greys_its_icon_as_it_would_its_name() {
+    let at_rest = worn_alone(true, false);
+    let greyed = worn_alone(false, false);
+
+    assert_alike(
+        greyed.icon,
+        worn(icon::LINE, false, false).name(),
+        "alone, greyed out",
+    );
+    assert!(
+        !alike(greyed.icon, at_rest.icon),
+        "a greyed-out icon alone shows {:?}, as it does at rest: nothing says it cannot \
+         be pressed",
+        greyed.icon,
+    );
+}
+
+#[test]
+fn with_names_off_the_tool_in_hand_turns_its_icon_amber() {
+    let in_hand = worn_alone(true, true);
+
+    assert_alike(
+        in_hand.icon,
+        worn(icon::LINE, true, true).name(),
+        "alone, in hand",
+    );
+    assert_alike(
+        in_hand.icon,
+        ACCENT_AMBER,
+        "alone, in hand, against the theme's amber",
+    );
+}
+
+#[test]
+fn a_greyed_out_menu_entry_greys_its_icon_as_it_greys_its_name() {
+    let at_rest = worn_in_a_menu(true, false);
+    let greyed = worn_in_a_menu(false, false);
+
+    assert_alike(greyed.icon, greyed.name(), "a menu entry greyed out");
+    assert!(
+        !alike(greyed.icon, at_rest.icon),
+        "a greyed-out menu entry's icon shows {:?}, as it does at rest",
+        greyed.icon,
+    );
+}
+
+/// Greying out only fades, so a tint fixed at the colour of rest would fade
+/// with the name and pass for it: the entry in hand is where it shows.
+#[test]
+fn the_menu_entry_in_hand_turns_its_icon_amber_with_its_name() {
+    let in_hand = worn_in_a_menu(true, true);
+
+    assert_alike(in_hand.icon, in_hand.name(), "a menu entry in hand");
+    assert_alike(
+        in_hand.icon,
+        ACCENT_AMBER,
+        "a menu entry in hand, against the theme's amber",
+    );
+}
+
+/// The colours a button shows in one frame: what a pixel its icon fully
+/// covers shows, and what its name's glyphs are painted in, if it writes one.
 struct Worn {
     icon: egui::Color32,
-    name: egui::Color32,
+    name: Option<egui::Color32>,
+}
+
+impl Worn {
+    fn name(&self) -> egui::Color32 {
+        self.name.expect("the button wrote no name")
+    }
 }
 
 fn worn(icon: Icon, enabled: bool, on: bool) -> Worn {
+    worn_by(|ui| tool_button(ui, enabled, on, icon, "Line".to_owned()))
+}
+
+fn worn_alone(enabled: bool, on: bool) -> Worn {
+    let alone = worn_by(|ui| icon_button(ui, enabled, on, icon::LINE, "Line"));
+    assert!(
+        alone.name.is_none(),
+        "with names off, the button still writes its name",
+    );
+    alone
+}
+
+fn worn_in_a_menu(enabled: bool, on: bool) -> Worn {
+    worn_by(|ui| menu_entry(ui, enabled, on, icon::LINE, "Line".to_owned()))
+}
+
+fn worn_by(mut draw: impl FnMut(&mut egui::Ui) -> egui::Response) -> Worn {
     let ctx = egui::Context::default();
     crate::ui::theme::install(&ctx);
     icon::install(&ctx);
@@ -80,7 +181,7 @@ fn worn(icon: Icon, enabled: bool, on: bool) -> Worn {
     };
     let mut button = egui::Rect::NOTHING;
     let mut output = ctx.run_ui(input, |ui| {
-        button = tool_button(ui, enabled, on, icon, "Line".to_owned()).rect;
+        button = draw(ui).rect;
     });
     let mut pictures = std::mem::take(&mut output.textures_delta.set);
     output.textures_delta.clear();
@@ -111,15 +212,12 @@ fn worn(icon: Icon, enabled: bool, on: bool) -> Worn {
         })
         .expect("the button painted a picture the frame never handed over");
 
-    let name = shapes
-        .iter()
-        .find_map(|shape| match shape {
-            egui::Shape::Text(text) if within.contains_rect(shape.visual_bounding_rect()) => {
-                Some(written_in(text))
-            }
-            _ => None,
-        })
-        .unwrap_or_else(|| panic!("the button wrote no name inside {button:?}"));
+    let name = shapes.iter().find_map(|shape| match shape {
+        egui::Shape::Text(text) if within.contains_rect(shape.visual_bounding_rect()) => {
+            Some(written_in(text))
+        }
+        _ => None,
+    });
 
     Worn {
         icon: seen_through(drawn_in(&picture), drawn.fill),

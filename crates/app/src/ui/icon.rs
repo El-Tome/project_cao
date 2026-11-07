@@ -1,11 +1,11 @@
 //! The redesign's icons, embedded at build time from `docs/redesign/icons/`,
 //! where they are drawn: the files there are the only copy.
 
-/// One of the redesign's icons: the stem of the file it is drawn in, and that
-/// file's SVG.
+/// One of the redesign's icons: what it is loaded under, named after the file
+/// it is drawn in, and that file's SVG.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Icon {
-    id: &'static str,
+    uri: &'static str,
     svg: &'static [u8],
 }
 
@@ -31,8 +31,12 @@ impl IconSize {
 }
 
 impl Icon {
+    /// The stem of the file it is drawn in, which only the tests name.
+    #[cfg(test)]
     pub fn id(&self) -> &str {
-        self.id
+        self.uri
+            .trim_start_matches("bytes://icon/")
+            .trim_end_matches(".svg")
     }
 
     pub fn svg(&self) -> &[u8] {
@@ -42,11 +46,7 @@ impl Icon {
     /// The icon at `size`, rasterised from its SVG at as many pixels as it
     /// covers on the screen.
     pub fn image(self, size: IconSize) -> egui::Image<'static> {
-        egui::Image::new(self.uri()).fit_to_exact_size(egui::Vec2::splat(size.points()))
-    }
-
-    fn uri(self) -> String {
-        format!("bytes://icon/{}.svg", self.id())
+        egui::Image::new(self.uri).fit_to_exact_size(egui::Vec2::splat(size.points()))
     }
 }
 
@@ -59,7 +59,7 @@ pub fn install(ctx: &egui::Context) {
     egui_extras::install_image_loaders(ctx);
     for icon in ALL {
         let white = String::from_utf8_lossy(icon.svg()).replace("currentColor", "white");
-        ctx.include_bytes(icon.uri(), white.into_bytes());
+        ctx.include_bytes(icon.uri, white.into_bytes());
     }
 }
 
@@ -67,7 +67,7 @@ macro_rules! embedded {
     ($($name:ident = $id:literal;)+) => {
         $(
             pub const $name: Icon = Icon {
-                id: $id,
+                uri: concat!("bytes://icon/", $id, ".svg"),
                 svg: include_bytes!(concat!("../../../../docs/redesign/icons/", $id, ".svg")),
             };
         )+

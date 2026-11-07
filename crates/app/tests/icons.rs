@@ -64,7 +64,7 @@ fn a_ribbon_button_shows_its_icon_above_its_name() {
 #[test]
 fn with_names_off_a_button_is_its_icon_alone_and_its_name_comes_on_hover() {
     let test = "with_names_off_a_button_is_its_icon_alone";
-    let mut app = driver::open_with(test, driver::SCREEN, names_off());
+    let mut app = driver::open_held_with(test, names_off());
     driver::create_a_part(&mut app, "Platine");
 
     let button = button_wearing(&app, "new-sketch").rect;
@@ -97,7 +97,7 @@ fn with_names_off_a_button_is_its_icon_alone_and_its_name_comes_on_hover() {
 #[test]
 fn with_names_off_a_button_is_still_found_and_pressed_by_its_name() {
     let test = "with_names_off_a_button_is_still_found";
-    let mut app = driver::open_with(test, driver::SCREEN, names_off());
+    let mut app = driver::open_held_with(test, names_off());
     driver::create_a_part(&mut app, "Platine");
 
     driver::start_a_sketch(&mut app);

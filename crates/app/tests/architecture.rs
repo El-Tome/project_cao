@@ -823,7 +823,38 @@ fn a_word_the_user_reads_is_said_without_drawing_it() {
                 !line.contains("screens"),
                 "{path} imports a screen: {line}. The arrow runs the other way.",
             );
+            assert!(
+                !reaches_the_primitives(line),
+                "{path} reaches for the interface's primitives: {line}. Wording hands \
+                 back what is said; a picture is drawn, and is chosen where it is drawn — \
+                 the ribbon's icons are looked up in screens/ribbon/icons.rs.",
+            );
         }
+    }
+}
+
+#[test]
+fn reaching_for_the_primitives_is_told_from_naming_them() {
+    for reaching in [
+        "use crate::ui::icon::{self, Icon};",
+        "use crate::{lang::Catalogue, ui::icon};",
+        "use super::super::ui::theme;",
+    ] {
+        assert!(
+            reaches_the_primitives(reaching),
+            "{reaching} reaches the primitives and the rule let it through",
+        );
+    }
+    for naming in [
+        "use crate::wording::dimension;",
+        "use crate::lang::Catalogue;",
+        "use cao_prefs::{Command, CommandFamily};",
+        "use crate::layout::build_ui;",
+    ] {
+        assert!(
+            !reaches_the_primitives(naming),
+            "{naming} reaches none of them and the rule took it for one",
+        );
     }
 }
 
@@ -1337,6 +1368,13 @@ fn code_of(line: &str) -> String {
         }
     }
     code
+}
+
+/// Whether an import names the `ui` module of the shell, alone, in a longer
+/// path, or inside a group.
+fn reaches_the_primitives(line: &str) -> bool {
+    line.split(|character: char| !(character.is_alphanumeric() || character == '_'))
+        .any(|segment| segment == "ui")
 }
 
 fn imports(source: &str) -> Vec<&str> {

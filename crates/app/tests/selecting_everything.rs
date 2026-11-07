@@ -62,7 +62,7 @@ fn a_grid_that_pulls_nothing() -> cao_prefs::Settings {
 }
 
 fn a_sketch(test: &str) -> driver::App {
-    let mut app = driver::open_with(test, driver::SCREEN, a_grid_that_pulls_nothing());
+    let mut app = driver::open_held_with(test, a_grid_that_pulls_nothing());
     driver::create_a_part(&mut app, "Tout");
     driver::start_a_sketch(&mut app);
     app

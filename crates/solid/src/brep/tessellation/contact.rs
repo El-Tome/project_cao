@@ -36,14 +36,15 @@ mod point;
 mod together;
 
 use std::collections::BTreeMap;
+use std::mem::discriminant;
 
 use glam::DVec3;
 
 use super::sampling::touching_planes;
-use crate::brep::curve::{Circle, Curve};
+use crate::brep::curve::{Circle, Curve, Meet, Wall as Round};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, EllipticCylinder, Surface};
-use crate::brep::topology::{Body, SurfaceId, Vertex};
+use crate::brep::topology::{Body, EdgeId, SurfaceId, Vertex};
 pub(super) use facing::Zones;
 pub(super) use gap::Gap;
 use own::{Through, along_meets, ovals, through_vertices};
@@ -164,6 +165,45 @@ pub(super) fn wall_of<'a>(circle: &Circle, walls: &'a [Wall], eps: f64) -> Optio
         .iter()
         .filter(|(_, wall)| lies_on(circle, wall, eps))
         .min_by(|(_, one), (_, other)| off(circle, one).total_cmp(&off(circle, other)))
+}
+
+/// The two walls of the meet along `edge`, first then second, as the body
+/// holds them, told by the faces the edge bounds rather than by value: where
+/// `Meeting::of` snapped one onto a touch, the meet carries a copy a few ulps
+/// off the body's own (#754). Where the faces cannot tell, as it carries them.
+pub(in crate::brep::tessellation) fn held(body: &Body, edge: EdgeId, meet: &Meet) -> [Round; 2] {
+    let mut faced: Vec<SurfaceId> = body
+        .uses(edge)
+        .into_iter()
+        .map(|(face, _)| body.face(face).surface)
+        .collect();
+    faced.sort_unstable();
+    faced.dedup();
+    let carried = [meet.first, meet.second];
+    let exact = carried.map(|wall| {
+        faced
+            .iter()
+            .position(|id| *body.surface(*id) == wall.surface())
+    });
+    let other = |at: usize, wall: Round| {
+        let Some(held) = Round::of(body.surface(faced[1 - at]))
+            .filter(|held| discriminant(held) == discriminant(&wall))
+        else {
+            return wall;
+        };
+        let along = body.edge(edge);
+        debug_assert!(
+            [along.from, along.to]
+                .iter()
+                .all(|t| held.surface().distance(meet.point(*t)).abs() <= body.scale().eps())
+        );
+        held
+    };
+    match (exact, faced.len()) {
+        ([Some(at), None], 2) => [carried[0], other(at, carried[1])],
+        ([None, Some(at)], 2) => [other(at, carried[0]), carried[1]],
+        _ => carried,
+    }
 }
 
 /// Whether a vertex lies on a wall: as decided, on a surface of the body; by

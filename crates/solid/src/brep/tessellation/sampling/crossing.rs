@@ -13,7 +13,7 @@
 use std::f64::consts::{PI, TAU};
 
 use crate::brep::curve::{Curve, Meet, Wall};
-use crate::brep::tessellation::contact::Zones;
+use crate::brep::tessellation::contact::{self, Zones};
 use crate::brep::topology::{Body, Edge, EdgeId};
 
 /// The edges of `body` that are such lines.
@@ -21,17 +21,21 @@ pub(super) fn lines(body: &Body, zones: &Zones) -> Vec<EdgeId> {
     body.edge_ids()
         .filter(|id| {
             let edge = body.edge(*id);
-            matches!(body.curve(edge.curve), Curve::Meet(meet) if is_line(meet, edge, zones))
+            matches!(
+                body.curve(edge.curve),
+                Curve::Meet(meet) if is_line(meet, contact::held(body, *id, meet), edge, zones)
+            )
         })
         .collect()
 }
 
-/// Whether `edge` along `meet` is such a line: two cylinders that share
-/// their rays meet along it, between two ends, and on neither wall does
-/// its angle turn back or run round further than the pair's drift.
-pub(super) fn is_line(meet: &Meet, edge: &Edge, zones: &Zones) -> bool {
-    let (Wall::Cylinder(first), Wall::Cylinder(second), Some(_), Some(period)) =
-        (meet.first, meet.second, edge.ends, meet.period())
+/// Whether `edge` along `meet`, its walls `held` as the body holds them, is
+/// such a line: two cylinders that share their rays meet along it, between
+/// two ends, and on neither wall does its angle turn back or run round
+/// further than the pair's drift.
+pub(super) fn is_line(meet: &Meet, held: [Wall; 2], edge: &Edge, zones: &Zones) -> bool {
+    let ([Wall::Cylinder(first), Wall::Cylinder(second)], Some(_), Some(period)) =
+        (held, edge.ends, meet.period())
     else {
         return false;
     };

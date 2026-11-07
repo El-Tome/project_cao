@@ -18,7 +18,7 @@ use std::f64::consts::PI;
 
 use glam::DVec3;
 
-use super::super::contact::{Wall, lies_on};
+use super::super::contact::{self, Wall, lies_on};
 use super::{Samples, divisions};
 use crate::brep::conic::Round;
 use crate::brep::curve::{self, Curve, Line};
@@ -72,8 +72,7 @@ pub(super) fn walls(
                     circle.axis.cross(cylinder.axis).length() > Scale::RELATIVE
                 }
                 Curve::Meet(meet) => {
-                    let own = curve::Wall::Cylinder(*cylinder);
-                    meet.first != own && meet.second != own
+                    !contact::held(body, edge, meet).contains(&curve::Wall::Cylinder(*cylinder))
                 }
                 Curve::Conic(conic) => conic.round != Round::Cylinder(*cylinder),
                 Curve::Line(_) => false,

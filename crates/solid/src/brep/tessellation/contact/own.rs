@@ -53,30 +53,22 @@ pub(super) fn along_meets(
             .flatten()
             .map(|end| body.vertex(end).point);
         let through: Vec<DVec3> = meets[id.0 as usize].iter().copied().chain(ends).collect();
-        for wall in [meet.first, meet.second] {
-            let cylinder = match wall {
-                curve::Wall::Cylinder(cylinder) => cylinder,
+        for (wall, held) in [meet.first, meet.second]
+            .into_iter()
+            .zip(super::held(body, id, meet))
+        {
+            let rays: Vec<DVec3> = match wall {
+                curve::Wall::Cylinder(cylinder) => through
+                    .iter()
+                    .map(|point| flat_from(&cylinder, *point).normalize())
+                    .collect(),
                 curve::Wall::Elliptic(oval) => {
-                    let rays = through.iter().map(|point| *point - oval.origin);
-                    for surface in (0..body.surfaces.len() as u32).map(SurfaceId) {
-                        if *body.surface(surface) == Surface::Elliptic(oval) {
-                            own.entry(surface).or_default().extend(rays.clone());
-                        }
-                    }
-                    continue;
+                    through.iter().map(|point| *point - oval.origin).collect()
                 }
                 curve::Wall::Cone(_) => continue,
             };
-            let flat = |point: DVec3| {
-                let from = point - cylinder.origin;
-                from - cylinder.axis * cylinder.axis.dot(from)
-            };
-            let rays: Vec<DVec3> = through
-                .iter()
-                .map(|point| flat(*point).normalize())
-                .collect();
             for surface in (0..body.surfaces.len() as u32).map(SurfaceId) {
-                if *body.surface(surface) == Surface::Cylinder(cylinder) {
+                if *body.surface(surface) == held.surface() {
                     own.entry(surface).or_default().extend(rays.iter().copied());
                 }
             }

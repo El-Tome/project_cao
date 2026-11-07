@@ -65,6 +65,31 @@
 //!   fails on any finding, so the rate is measured by hand, the campaigns
 //!   above run on `main` and on the branch over the same seeds and compared
 //!   seed by seed, and the comparison is reported on the issue
+//!
+//! Closes #754.
+//! - The case 352000000000597 above is pinned and holds on both kernels —
+//!   `seed_352000000000597_a_shaft_bored_by_its_radius_two_thousandths_off_its_axis_then_twice_more_keeps_every_rule`,
+//!   `seed_352000000000597_the_same_bores_keep_every_rule_through_the_application_s_body`;
+//!   the case 352000000002028 holds with the decline lifted — waits on
+//!   #706's lift:
+//!   `seed_352000000002028_a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees_is_built_uncrossed_and_noted_unstable`,
+//!   ignored, the case held declined meanwhile by
+//!   `seed_352000000002028_a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees_is_declined_as_unsupported`
+//! - No draw regresses against `main`, seed by seed — the walls campaigns
+//!   above, on both kernels, run on `main` and on the branch over the same
+//!   seeds and compared seed by seed, reported on the pull request; the
+//!   draws they found held on `main` and crossed on the branch are pinned:
+//!   `seed_354000000008476_an_elliptic_shaft_bored_round_along_its_wall_a_thousandth_of_a_degree_off_is_drawn_uncrossed`,
+//!   `seed_354000000008476_the_same_bore_is_drawn_uncrossed_through_the_application_s_body`;
+//!   seeds 354000000005870 and 352000000007085 are carried by #759, their
+//!   tests ignored until then:
+//!   `seed_354000000005870_a_shaft_bored_at_80_degrees_then_by_a_cone_leaning_24_degrees_is_drawn_uncrossed`,
+//!   `seed_352000000007085_a_tube_slotted_along_its_bore_banded_and_posted_is_drawn_uncrossed`,
+//!   `seed_352000000007085_the_same_tube_is_drawn_uncrossed_through_the_application_s_body`
+//!
+//! The second criterion, that one rule tells a wall from its snapped copy,
+//! is held beside the tessellation, in
+//! `crates/solid/src/brep/tessellation/contact/facing/tests/snapped_copies.rs`.
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -1203,6 +1228,224 @@ fn seed_352000000014902_the_same_post_beside_a_slot_keeps_every_rule_through_the
             ),
         ))),
     );
+}
+
+/// A shaft of radius 2.5 about Y bored by one of its radius two thousandths
+/// off its axis, then across along Z, then by one of its radius at ten
+/// degrees: on `main`, the third bore, snapped a few ulps onto its touch at
+/// one meet, was taken for a surface the meet grazes at the vertex, and the
+/// mesh opened on the exact kernel and crossed through the application's
+/// body (seed 352000000000597, shrunk on #706's lift).
+fn a_shaft_bored_by_its_radius_two_thousandths_off_its_axis_then_twice_more() -> Case {
+    Case::new(
+        Leaf::prism(Plane::xz(-0.5), Outline::circle([0.0, 1.0], 2.5), -6.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [
+                        -0.002174372436540451,
+                        14.708236243834666,
+                        0.9999999999999983,
+                    ],
+                    [90.0, 0.0, 0.0],
+                ),
+                Outline::circle([0.0, 0.0], 2.5),
+                25.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-8.0),
+                Outline::circle([1.0, 0.0], 1.5),
+                25.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([0.0, 16.0, -1.0], [79.89117639215662, 0.0, 0.0]),
+                Outline::circle([0.0, 0.0], 2.5),
+                25.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_352000000000597_a_shaft_bored_by_its_radius_two_thousandths_off_its_axis_then_twice_more_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_bored_by_its_radius_two_thousandths_off_its_axis_then_twice_more(),
+    );
+}
+
+#[test]
+fn seed_352000000000597_the_same_bores_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &a_shaft_bored_by_its_radius_two_thousandths_off_its_axis_then_twice_more(),
+    );
+}
+
+/// A shaft of radius 4 about Z bored at 15° by one of radius 2, then by one
+/// of its own radius leaning 1e-4° off it: the skew family #706's lift
+/// reaches, built open on the lift where a third wall's snapped copy was
+/// taken for another surface (seed 352000000002028, shrunk on the lift).
+fn a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees() -> Case {
+    Case::new(
+        Leaf::prism(Plane::xy(-3.0), Outline::circle([-1.5, 0.0], 4.0), 6.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-1.5, 4.608596227122955, -17.199515271193107],
+                    [15.0, 0.0, 0.0],
+                ),
+                Outline::circle([-2.0, -0.0], 2.0),
+                36.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-1.5, -3.107776633144674e-5, -19.273794477160152],
+                    [-0.0001, 0.0, 0.0],
+                ),
+                Outline::circle([-0.0, -0.0], 4.0),
+                36.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_352000000002028_a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees_is_declined_as_unsupported()
+ {
+    declined_along_a_stretch_on_both_kernels(
+        &a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees(),
+    );
+}
+
+#[test]
+#[ignore = "#706: built uncrossed only once the two walls share one order beside the crossing line"]
+fn seed_352000000002028_a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees_is_built_uncrossed_and_noted_unstable()
+ {
+    built_uncrossed_and_noted_unstable(
+        &a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_degrees(),
+        1e-4,
+    );
+}
+
+/// A shaft of radius 20 bored by one of radius 7.5 at 80°, then by a cone
+/// leaning 24°: held on `main`, drawn crossed on the exact kernel once a
+/// wall's snapped copy is told for its own (seed 354000000005870).
+#[test]
+#[ignore = "#759: four meets ending at the node where the bore touches the shaft inside cross beside it"]
+fn seed_354000000005870_a_shaft_bored_at_80_degrees_then_by_a_cone_leaning_24_degrees_is_drawn_uncrossed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(-5.0), Outline::circle([10.0, 0.0], 20.0), -42.5),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [10.0, 110.5501270299569, -16.627656679617015],
+                    [80.0, 0.0, 0.0],
+                ),
+                Outline::circle([12.499999999999998, 0.0], 7.5),
+                191.50971698084905,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(-1.0000000000000001e-7),
+                Axis::first(11.797713146914639).leaning(24.0),
+                Section::bands(-84.80849570536405, &[[191.50971698084905, 0.0, 5.0]])
+                    .sloping_to(&[[0.0, 2.5]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// An elliptic shaft of half-axes 90 and 75 bored by a round bore of radius
+/// 75 a thousandth of a degree off parallel, touching its wall along a line:
+/// held on `main`, drawn crossed once a wall's snapped copy is told for its
+/// own (seed 354000000008476, shrunk).
+fn an_elliptic_shaft_bored_round_along_its_wall_a_thousandth_of_a_degree_off() -> Case {
+    Case::new(
+        Leaf::prism(
+            Plane::yz(-120.0),
+            Outline::ellipse([-60.0, 0.0], [90.0, 0.0], 75.0),
+            135.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted(
+                [
+                    322.91634560261997,
+                    -59.99344774870274,
+                    -2.0840884704471192e-14,
+                ],
+                [90.0, -89.999, 0.0],
+            ),
+            Outline::circle([-0.0, -0.0], 75.0),
+            751.0,
+        ))],
+    )
+}
+
+#[test]
+fn seed_354000000008476_an_elliptic_shaft_bored_round_along_its_wall_a_thousandth_of_a_degree_off_is_drawn_uncrossed()
+ {
+    random_solids::holds_exactly(
+        &an_elliptic_shaft_bored_round_along_its_wall_a_thousandth_of_a_degree_off(),
+    );
+}
+
+#[test]
+fn seed_354000000008476_the_same_bore_is_drawn_uncrossed_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &an_elliptic_shaft_bored_round_along_its_wall_a_thousandth_of_a_degree_off(),
+    );
+}
+
+/// A tube of radii 20 and 10 cut by an elliptic slot whose half-axis of 10
+/// touches the tube's bore along a line, then by a turned band, then joined
+/// to a post of radius 10 leaning about 38° off the tube's axis: held on
+/// `main`, drawn crossed once a wall's snapped copy is told for its own
+/// (seed 352000000007085).
+fn a_tube_slotted_along_its_bore_banded_and_posted() -> Case {
+    Case::new(
+        Leaf::prism(
+            Plane::xz(-15.0),
+            Outline::ring([0.0, 0.0], 20.0, 10.0),
+            -42.5,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [0.0, -89.50485849042452, -3.342475995830307e-8],
+                    [-89.99999998, 0.0, 0.0],
+                ),
+                Outline::ellipse([-1e-5, -0.0], [0.0, 5.0], 10.0),
+                191.50971698084905,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(1e-5),
+                Axis::first(21.040500500744173).leaning(1e-7),
+                Section::bands(-95.75485849042452, &[[191.50971698084905, 0.0, 2.5]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::tilted(
+                    [0.0, -68.71791358247505, -59.57184618267071],
+                    [-51.528248972576364, 0.0, 0.0],
+                ),
+                Outline::circle([5.0000000000000004e-8, 0.0], 10.0),
+                191.50971698084905,
+            )),
+        ],
+    )
+}
+
+#[test]
+#[ignore = "#759: a corner a millionth of a radian wide is cut crossed by the face's sweep"]
+fn seed_352000000007085_a_tube_slotted_along_its_bore_banded_and_posted_is_drawn_uncrossed() {
+    random_solids::holds_exactly(&a_tube_slotted_along_its_bore_banded_and_posted());
+}
+
+#[test]
+#[ignore = "#759: a corner a millionth of a radian wide is cut crossed by the face's sweep"]
+fn seed_352000000007085_the_same_tube_is_drawn_uncrossed_through_the_application_s_body() {
+    random_solids::holds_through_the_application(&a_tube_slotted_along_its_bore_banded_and_posted());
 }
 
 /// An elliptic shaft cut by a bore at a skew angle and joined to a post at

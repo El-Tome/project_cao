@@ -3721,9 +3721,10 @@ band, whatever its shrunk case became.
     meet only (352000000002028, 352000000000597, shrunk). The same `==`
     sits in `twin_of`, `twin::shared`, `crossing::is_line`, `sharing` and
     `crowded_off_the_meet`, which #706's steps brought. It is not only the
-    lift's: the shrunk case of 352000000000597 fails on `main`, and holds
-    there once `grazed_near` takes a cylinder within 1e-9 of its own for
-    its own — on #754.
+    lift's: the shrunk case of 352000000000597 failed on `main`. #754
+    fixed it: every one of those sites, `grazed_near` among them, now
+    reads a meet's walls through `contact::held`, which tells a wall by
+    the faces its edge bounds rather than by value.
   - The boolean misses a triple point: the meet of the shaft and the
     third wall crosses the pair's crossing line near z = −1.98 with no
     vertex, its twin near +1.98 found (352000000002028, drawn) — on

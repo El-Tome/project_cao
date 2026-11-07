@@ -11,6 +11,7 @@ use crate::ui::panel_toggle::{panel_button, panel_toggle};
 use crate::ui::tool_button::{icon_button, menu_entry, tool_button};
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
+use super::icons;
 use super::state::{Context, Ribbon, active, enabled, icon, label};
 
 /// What the bar needs to know about the part being drawn.
@@ -179,18 +180,18 @@ impl Ribbon {
         // rather than holds: what it is shown is handed back as a command.
         let files = |ui: &mut egui::Ui, asked: &mut Vec<Command>| {
             let mut shown = explorer_open;
-            let worn = wording::icon(Command::ToggleExplorer);
+            let worn = icons::of(Command::ToggleExplorer);
             if panel_toggle(ui, &mut shown, worn, lang.t("ribbon.files")).changed() {
                 asked.push(Command::ToggleExplorer);
             }
         };
         let preferences = |ui: &mut egui::Ui, asked: &mut Vec<Command>| {
-            let worn = wording::icon(Command::OpenSettings);
+            let worn = icons::of(Command::OpenSettings);
             if panel_button(ui, false, worn, lang.t("ribbon.settings")).clicked() {
                 asked.push(Command::OpenSettings);
             }
         };
-        let history = wording::icon(Command::ToggleHistory);
+        let history = icons::of(Command::ToggleHistory);
 
         let mut row = |ui: &mut egui::Ui| {
             if layout.show_logo {

@@ -9,6 +9,8 @@ use cao_part::PartDocument;
 use cao_prefs::{Command, Settings};
 use cao_sketch::Rule;
 
+use super::icons;
+
 /// The toolbar, drawn from the arrangement the user has set.
 ///
 /// Nothing about which buttons exist or where they sit is decided here: the
@@ -152,8 +154,8 @@ pub(super) fn label(command: Command, state: &Context<'_>) -> String {
 /// one button whose face says that.
 pub(super) fn icon(command: Command, state: &Context<'_>) -> Icon {
     match command {
-        Command::NextMatterInFront => matter::in_front_icon(state.editor.matter_in_front),
-        _ => wording::icon(command),
+        Command::NextMatterInFront => icons::matter_in_front(state.editor.matter_in_front),
+        _ => icons::of(command),
     }
 }
 

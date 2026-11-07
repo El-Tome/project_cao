@@ -38,7 +38,7 @@ An arrow to the left is forbidden. `cao_sketch` will never know `cao_part`,
 | `cao_render` | `wgpu`, `glam`, `bytemuck` | any interface framework |
 | `cao_part` | `cao_sketch`, `cao_solid`, `glam`, `zip`, `serde`, `serde_json`, `chrono`, `uuid`, `thiserror` | **any UI crate**, `wgpu` |
 | `cao_prefs` | `serde`, `serde_json`, `chrono`, `thiserror` | **any UI crate**, `wgpu`, the geometry |
-| `cao_app` | everything above, `egui`, `eframe`, `egui-wgpu`, `wgpu`, `glam`, `chrono`, `directories`, `rfd` | — |
+| `cao_app` | everything above, `egui`, `eframe`, `egui-wgpu`, `egui_extras`, `wgpu`, `glam`, `chrono`, `directories`, `rfd` | — |
 
 `cao_app` is the only crate that names `directories`, since #44: the shell asks
 the platform once, at startup, and hands the answer down as a `Locations`.

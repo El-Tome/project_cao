@@ -66,9 +66,8 @@ fn a_grid_that_pulls_from_everywhere() -> cao_prefs::Settings {
 
 #[test]
 fn the_box_drawn_on_the_canvas_starts_and_ends_under_the_hand() {
-    let mut app = driver::open_with(
+    let mut app = driver::open_held_with(
         "the_box_drawn_on_the_canvas_starts_and_ends_under_the_hand",
-        driver::SCREEN,
         a_grid_that_pulls_from_everywhere(),
     );
     driver::create_a_part(&mut app, "Cadre");

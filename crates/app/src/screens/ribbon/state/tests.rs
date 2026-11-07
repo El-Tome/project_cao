@@ -6,15 +6,10 @@
 //!   « Recadrer » that is disabled outside a sketch rather than hidden, as
 //!   « Recadrer » is —
 //!   `the_matter_in_front_button_is_offered_only_while_a_sketch_is_open`
-//! - its icon shows the current one — the ribbon drew labels, not icons, so it
-//!   is the label that names the state —
-//!   `the_matter_in_front_button_names_the_state_it_is_in` — and since #725
-//!   its icon as well, the one face left with labels off, which must still
-//!   tell the three apart —
-//!   `the_matter_in_front_button_wears_the_icon_of_the_state_it_is_in`. The
-//!   two letters it fell back to before went with #725, and the test that
-//!   every other button kept its own became that every other button wears its
-//!   command's icon — `every_other_button_wears_the_icon_of_its_command`
+//! - its icon shows the current one — its name says the state,
+//!   `the_matter_in_front_button_names_the_state_it_is_in`, and so does its
+//!   icon, all it shows with labels off, which must still tell the three apart
+//!   — `the_matter_in_front_button_wears_the_icon_of_the_state_it_is_in`
 //!
 //! Closes #725.
 //! - every `Command` has an icon, looked up by command — and the matter in
@@ -254,7 +249,7 @@ fn every_other_button_wears_the_icon_of_its_command() {
     {
         assert_eq!(
             icon(command, &state),
-            wording::icon(command),
+            super::super::icons::of(command),
             "{command:?} wears another icon on its button than the one it is looked up to",
         );
     }

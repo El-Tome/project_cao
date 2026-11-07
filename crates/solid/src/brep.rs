@@ -78,8 +78,8 @@ pub enum Declined {
     /// which are built (#552, #571, #577). Or a chamfer (#696) or a fillet
     /// (#697) on an edge that is not straight between two flat faces meeting
     /// outwards, that runs on tangentially into the next edge of a face, or
-    /// whose cut, carried along
-    /// the edge's line, would take matter beyond the edge.
+    /// whose cut, carried along the edge's line, would take matter beyond the
+    /// edge.
     Unsupported,
     /// Two curves touch more closely than their curvatures can order.
     Tie,

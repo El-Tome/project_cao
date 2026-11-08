@@ -22,6 +22,8 @@ mod printing;
 mod rounds;
 mod scope;
 mod sections;
+#[cfg(feature = "campaigns")]
+pub mod settling;
 mod slices;
 mod smaller;
 

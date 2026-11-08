@@ -48,14 +48,15 @@ mod conic;
 mod crossing;
 mod elliptic;
 mod ends;
+#[cfg(feature = "campaigns")]
+pub(super) mod further;
 mod meet;
 mod planes;
 mod round;
 mod touches;
 mod wedge;
 
-use std::collections::BTreeMap;
-use std::f64::consts::PI;
+use std::{collections::BTreeMap, f64::consts::PI};
 
 use glam::DVec3;
 

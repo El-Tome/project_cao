@@ -1923,6 +1923,7 @@ mod campaign {
         Answering, BOWED, DECLINED, GRAZING, HELD, THIN, TIPS, UNSTABLE, campaign_over,
         shrunk_one_by_one, tally_conics,
     };
+    use random_solids::settling;
 
     use super::*;
 
@@ -1937,22 +1938,28 @@ mod campaign {
     }
 
     fn exactly(case: &Case) -> Result<(), Flaw> {
-        tallied(random_solids::held_to_arithmetic(case, &Exact)?);
-        tally_conics(case);
-        Ok(())
+        settling::measured(case, "exact", || {
+            tallied(random_solids::held_to_arithmetic(case, &Exact)?);
+            tally_conics(case);
+            Ok(())
+        })
     }
 
     fn through_the_application(case: &Case) -> Result<(), Flaw> {
-        tallied(random_solids::held_to_arithmetic(case, &Application)?);
-        tally_conics(case);
-        Ok(())
+        settling::measured(case, "body", || {
+            tallied(random_solids::held_to_arithmetic(case, &Application)?);
+            tally_conics(case);
+            Ok(())
+        })
     }
 
     /// The case a seed stands for, with the seed written where a campaign
     /// that ends the program still leaves it to be read.
     fn drawn(seed: u64) -> Case {
         eprint!("\rseed {seed} ");
-        Case::drawn_walls_at_any_angle(seed)
+        let case = Case::drawn_walls_at_any_angle(seed);
+        settling::drawn(seed, &case);
+        case
     }
 
     #[test]

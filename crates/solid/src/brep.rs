@@ -22,6 +22,8 @@ mod ray;
 mod relation;
 mod scale;
 mod selection;
+#[cfg(feature = "campaigns")]
+pub mod settling;
 mod surface;
 mod tessellation;
 mod topology;

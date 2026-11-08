@@ -49,6 +49,8 @@ impl Body {
     /// other.
     pub fn triangles_by_face(&self, tolerance: f64) -> Cut {
         let mut samples = Samples::of(self, tolerance);
+        #[cfg(feature = "campaigns")]
+        sampling::further::measured(self, tolerance, &samples);
         let capped = samples.capped(self, tolerance);
         let mut drawn = Vec::new();
         let mut uncut = Vec::new();

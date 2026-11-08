@@ -194,11 +194,30 @@ pub(crate) type Pair = (usize, usize);
 /// A face by its index among the triangles.
 type Indexed<'a> = (usize, &'a Facet);
 
+/// Whether the first of `triangles` and another pass through each other along
+/// a line of edges, as [`Lines::passed`] reads them all, weighing only the few
+/// a line through it can gather: those an edge of the first holds along it,
+/// those holding the first along an edge of theirs, and those such an edge
+/// holds — every stretch, round and face the line lies inside that the first
+/// is read with. Their order is kept, and with it every tie a round breaks.
+pub(crate) fn passes_along(triangles: &[Triangle], room: f64) -> bool {
+    let facets: Vec<Facet> = triangles.iter().map(Facet::of).collect();
+    let holds = |by: usize, on: usize| holds(&facets[by], &facets[on], room);
+    let holding: Vec<usize> = (1..triangles.len()).filter(|by| holds(*by, 0)).collect();
+    let kept: Vec<Triangle> = (0..triangles.len())
+        .filter(|at| {
+            *at == 0 || holds(0, *at) || holding.iter().any(|by| by == at || holds(*by, *at))
+        })
+        .map(|at| triangles[at])
+        .collect();
+    let pairs = passed(&kept, room);
+    pairs.into_iter().any(|(one, other)| one == 0 || other == 0)
+}
+
 /// The faces of `triangles` the surface passes through itself between along a
-/// line of edges, every two weighed: for the few triangles around one, where
-/// the rules' check weighs only faces near each other, by the same
-/// [`Lines`].
-pub(crate) fn passed(triangles: &[Triangle], room: f64) -> Vec<Pair> {
+/// line of edges, every two weighed by the same [`Lines`] the rules' check
+/// weighs faces near each other with.
+fn passed(triangles: &[Triangle], room: f64) -> Vec<Pair> {
     let facets: Vec<Facet> = triangles.iter().map(Facet::of).collect();
     let kept: Vec<usize> = (0..triangles.len())
         .filter(|at| !sliver(&triangles[*at], room))
@@ -216,6 +235,39 @@ pub(crate) fn passed(triangles: &[Triangle], room: f64) -> Vec<Pair> {
     lines.passed(triangles, room)
 }
 
+/// Whether an edge of `by` could note `on` along it, whatever else holds:
+/// an edge of `on` running along it, or the edge resting inside `on`.
+fn holds(by: &Facet, on: &Facet, room: f64) -> bool {
+    runs(by, on, room).next().is_some() || leaning(on, by, on.heights(by), room).is_some()
+}
+
+/// Each edge of `this` an edge of `that` runs along, that one, and the
+/// stretch of the first they share.
+fn runs(this: &Facet, that: &Facet, room: f64) -> impl Iterator<Item = (usize, usize, [f64; 2])> {
+    let [this, that] = [this.corners, that.corners];
+    (0..9).filter_map(move |pair| {
+        let (mine, theirs) = (pair / 3, pair % 3);
+        let edge = [this[mine], this[(mine + 1) % 3]];
+        let span = stretch(edge, [that[theirs], that[(theirs + 1) % 3]], room)?;
+        Some((mine, theirs, span))
+    })
+}
+
+/// The edge of `by`, its corners `heights` above `on`, that rests on `on`
+/// inside it while its third corner stands to one side, and the stretch of it
+/// inside.
+fn leaning(on: &Facet, by: &Facet, heights: [f64; 3], room: f64) -> Option<(usize, [f64; 2])> {
+    let rests = |at: usize| heights[at].abs() <= room;
+    let at = (0..3).find(|at| rests(*at) && rests((at + 1) % 3))?;
+    let [above, below] = sides(heights, room);
+    if above == below {
+        return None;
+    }
+    let edge = [by.corners[at], by.corners[(at + 1) % 3]];
+    let span = stretch(edge, on.inside(edge, room)?, room)?;
+    Some((at, span))
+}
+
 /// Faces lying along another's edge, gathered two faces at a time and read a
 /// line at a time by [`Self::passed`].
 #[derive(Default)]
@@ -225,42 +277,25 @@ impl Lines {
     /// Notes what two faces neither clear of the other show of a line, each's
     /// corners `over` the other's plane.
     pub(crate) fn weigh(&mut self, one: Indexed, other: Indexed, over: [[f64; 3]; 2], room: f64) {
-        self.lean(one, other, over[0], room);
-        self.lean(other, one, over[1], room);
+        for (on, by, heights) in [(one, other, over[0]), (other, one, over[1])] {
+            if let Some((at, span)) = leaning(on.1, by.1, heights, room) {
+                self.note(3 * by.0 + at, on.0, span, None);
+            }
+        }
         if resting(over[0], room) > 1 && resting(over[1], room) > 1 {
             self.share_edges(one, other, room);
-        }
-    }
-
-    /// Notes the stretch of an edge of `by`, its corners `heights` above `on`,
-    /// that rests on `on` inside it while its third corner stands to one side.
-    fn lean(&mut self, on: Indexed, by: Indexed, heights: [f64; 3], room: f64) {
-        let rests = |at: usize| heights[at].abs() <= room;
-        let Some(at) = (0..3).find(|at| rests(*at) && rests((at + 1) % 3)) else {
-            return;
-        };
-        let [above, below] = sides(heights, room);
-        if above == below {
-            return;
-        }
-        let edge = [by.1.corners[at], by.1.corners[(at + 1) % 3]];
-        let inside = on.1.inside(edge, room);
-        if let Some(span) = inside.and_then(|along| stretch(edge, along, room)) {
-            self.note(3 * by.0 + at, on.0, span, None);
         }
     }
 
     /// Notes each stretch of edge the two faces run along together.
     pub(crate) fn share_edges(&mut self, one: Indexed, other: Indexed, room: f64) {
         for ((index, this), (face, that)) in [(one, other), (other, one)] {
-            for (mine, theirs) in (0..9).map(|pair| (pair / 3, pair % 3)) {
+            for (mine, theirs, span) in runs(this, that, room) {
                 let edge = [this.corners[mine], this.corners[(mine + 1) % 3]];
                 let [from, to] = [that.corners[theirs], that.corners[(theirs + 1) % 3]];
-                if let Some(span) = stretch(edge, [from, to], room) {
-                    let wing = that.corners[(theirs + 2) % 3];
-                    let ahead = (edge[1] - edge[0]).dot(to - from) > 0.0;
-                    self.note(3 * index + mine, face, span, Some((wing, ahead)));
-                }
+                let wing = that.corners[(theirs + 2) % 3];
+                let ahead = (edge[1] - edge[0]).dot(to - from) > 0.0;
+                self.note(3 * index + mine, face, span, Some((wing, ahead)));
             }
         }
     }

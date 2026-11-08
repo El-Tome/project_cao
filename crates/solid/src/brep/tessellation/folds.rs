@@ -40,7 +40,7 @@ use glam::{DVec2, DVec3};
 
 use super::outline::Outline;
 use super::sampling::Samples;
-use crate::brep::crossing::{Facet, NEAR, crossing, passed, reach};
+use crate::brep::crossing::{Facet, NEAR, crossing, passes_along, reach};
 use crate::brep::surface::Surface;
 use crate::brep::topology::FaceId;
 use crate::orientation::{beside, turn};
@@ -221,10 +221,15 @@ impl<'a> Folds<'a> {
                 .filter(|(other, _)| *other != at)
                 .map(|(_, theirs)| theirs),
         );
-        let skin = |corners: [usize; 3]| {
-            let twin = |theirs: &[usize; 3]| theirs.iter().all(|id| corners.contains(id));
-            near.iter().filter(|theirs| twin(theirs)).count() > 1
+        let samples = |mut corners: [usize; 3]| {
+            corners.sort_unstable();
+            corners
         };
+        let mut laid = BTreeMap::new();
+        for each in &near {
+            *laid.entry(samples(*each)).or_insert(0) += 1;
+        }
+        let skin = |corners: [usize; 3]| laid[&samples(corners)] > 1;
         if skin(corners) {
             return false;
         }
@@ -233,9 +238,7 @@ impl<'a> Folds<'a> {
             .filter(|theirs| !skin(**theirs))
             .map(|theirs| theirs.map(|id| self.samples.point(id)))
             .collect();
-        passed(&triangles, self.room)
-            .into_iter()
-            .any(|(one, other)| one == 0 || other == 0)
+        passes_along(&triangles, self.room)
     }
 
     /// The triangles, with their samples, whose box meets that of the triangle

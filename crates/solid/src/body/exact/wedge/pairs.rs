@@ -1,6 +1,7 @@
-//! A face two edges of one step share (#698): the bound it sets on the one
-//! value, so that the set-backs the two make on it do not cross, and the
-//! pairs whose set-backs meet across it, which one prism takes off as one.
+//! Two edges of one step facing each other across a face they share
+//! (#698): the bound they set on the one value, so that their set-backs do
+//! not cross on it, and the pairs whose set-backs meet across it, which one
+//! prism takes off as one.
 
 use std::collections::BTreeSet;
 
@@ -11,37 +12,36 @@ use crate::body::exact::Exact;
 use crate::brep::{Declined, EdgeName, FaceId, Scale};
 
 /// What raises the one prism two edges whose set-backs meet are taken off
-/// with, the earlier edge's wedge first: as [`Wedge::rounded_with`] raises it.
+/// with, the earlier edge's wedge first, at the value whose set-backs meet
+/// across the face they share: as [`Wedge::rounded_with`] raises it.
 pub(in crate::body::exact) type Together =
-    fn(&Wedge, &Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>;
+    fn(&Wedge, &Wedge, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>;
 
 /// Two edges of a step by their ranks in its list, the earlier first.
 pub(super) type Pair = (usize, usize);
 
-/// Each two edges that face each other across a face they share, the
-/// earlier first, and the distance across it from one to the other. Two
-/// that do not face each other across it bound nothing past each one's own
-/// reach. Declined `Unsupported` where two edges share a face and are not
-/// parallel within [`TANGENT`], whose set-backs this does not measure.
-pub(super) fn facing(wedges: &[Wedge]) -> Result<Vec<(usize, usize, f64)>, Declined> {
+/// Each two edges parallel within [`TANGENT`] that face each other across a
+/// face they share, the earlier first, and the distance across it from one
+/// to the other. Two that do not face each other across it, or are not
+/// parallel, bound nothing here past each one's own reach: they are laid in
+/// turn, and the laying declines them where their set-backs meet.
+pub(super) fn facing(wedges: &[Wedge]) -> Vec<(usize, usize, f64)> {
     let sides = |wedge: &Wedge| wedge.faces.into_iter().zip(wedge.into);
     let mut facing = Vec::new();
     for (rank, one) in wedges.iter().enumerate() {
         for (later, other) in wedges.iter().enumerate().skip(rank + 1) {
             for (face, into) in sides(one) {
                 for (_, towards) in sides(other).filter(|&(theirs, _)| theirs == face) {
-                    if one.along.cross(other.along).length() > TANGENT {
-                        return Err(Declined::Unsupported);
-                    }
+                    let parallel = one.along.cross(other.along).length() <= TANGENT;
                     let across = into.dot(other.point - one.point);
-                    if across > 0.0 && into.dot(towards) < 0.0 {
+                    if parallel && across > 0.0 && into.dot(towards) < 0.0 {
                         facing.push((rank, later, across));
                     }
                 }
             }
         }
     }
-    Ok(facing)
+    facing
 }
 
 /// The most value at which no two set-backs cross on a face two of the
@@ -93,23 +93,22 @@ pub(super) fn meeting(
 impl Exact {
     /// The body with the edges `earlier` and `later` find, whose set-backs
     /// meet across the face they share, cut off as one by the prism
-    /// `together` raises over both for `taken` — or filled in as one, where
-    /// their faces meet inwards, as [`Exact::filled`] fills: its first two walls, the
-    /// later edge's then the earlier's, laid as one face where they lie on
-    /// one surface, answering to the number where the steps' numbers ended
-    /// — the later edge's — and to `number`, the earlier's. Declined as
-    /// [`Exact::cut_off`] says.
+    /// `together` raises over both at the value they meet at — or filled in
+    /// as one, where their faces meet inwards, as [`Exact::filled`] fills:
+    /// its first two walls, the later edge's then the earlier's, laid as one
+    /// face where they lie on one surface, answering to the number where the
+    /// steps' numbers ended — the later edge's — and to `number`, the
+    /// earlier's. Declined as [`Exact::cut_off`] says.
     pub(super) fn laid_together(
         &self,
         [earlier, later]: [&EdgeName; 2],
         number: u32,
-        taken: f64,
         together: Together,
     ) -> Result<Exact, Declined> {
         let (first_edge, first) = self.wedge(earlier)?;
         let (second_edge, second) = self.wedge(later)?;
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
-        let prism = together(&first, &second, taken, self.brep.scale(), bounds)?;
+        let prism = together(&first, &second, self.brep.scale(), bounds)?;
         let (outline, frame, travel) = &prism;
         let raised = Exact::raised(outline, &[], *frame, *travel)?;
         let tool = Exact {

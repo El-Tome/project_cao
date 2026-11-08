@@ -36,7 +36,11 @@
 //!   `a_fillet_on_a_tread_s_nose_and_foot_asked_more_than_half_its_depth_takes_half_a_round_and_a_hollow_meeting_in_an_s`;
 //!   the chamfer, whose two flats would lie in one plane, one slope, is
 //!   declined `Unsupported` until #791 builds it —
-//!   `a_chamfer_on_a_tread_s_nose_and_foot_asked_half_its_depth_or_more_is_declined_as_unsupported`
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_asked_half_its_depth_or_more_is_declined_as_unsupported`;
+//!   and two rounds that share no face but would meet on the wall one of
+//!   them ends on are laid where they do not meet and declined
+//!   `Unsupported` where they would, until #792 reduces the value for them —
+//!   `a_fillet_on_two_edges_whose_rounds_would_meet_on_the_wall_one_ends_on_is_laid_short_of_it_and_declined_past_it`
 //! - On a block 10 wide, rounding the two edges on either side of that face,
 //!   asked more than 5, takes 5, where either alone would take more: the face
 //!   is gone, and the two rounds, of one axis and one radius, are one
@@ -58,7 +62,13 @@
 //!   `Unsupported` — rounds that close on themselves are out of the issue's
 //!   scope, built by #790 — where less than half lays all four —
 //!   `a_fillet_on_the_four_long_edges_of_a_square_bar_asked_more_than_half_its_side_is_declined_as_unsupported`,
-//!   `a_fillet_and_a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_less_than_half_its_side_lay_each_at_the_value_asked`
+//!   `a_fillet_and_a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_less_than_half_its_side_lay_each_at_the_value_asked`;
+//!   the chamfer there takes half its side, its four flats meeting in four
+//!   ridges, a diamond —
+//!   `a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_half_its_side_or_more_takes_half_a_diamond`;
+//!   and asked a hair under 5, where the strip left between the two rounds is
+//!   shorter than the kernel keeps, the fillet still lays one full round —
+//!   `a_fillet_on_the_two_edges_either_side_of_a_face_10_wide_asked_a_hair_under_5_lays_one_full_round`
 //! - In a slot 10 wide, filleting the two edges of its floor, asked more than
 //!   5, takes 5: the floor is gone, and the two fills, of one axis and one
 //!   radius, are one hollow half-cylinder — a round-bottomed slot — answering
@@ -86,7 +96,14 @@
 //!   none, they meet where four faces or more do, and each alone is declined
 //!   there already — on a block with another standing on its top, over its
 //!   corner, both edges at the corner where they cross — so no list reaches
-//!   past the step of one edge to that case
+//!   past the step of one edge to that case. Beyond the issue's wording: a
+//!   list of no edge is declined `Unsupported` —
+//!   `a_fillet_and_a_chamfer_on_a_list_of_no_edge_are_declined_as_unsupported`;
+//!   and two edges that share a face but no vertex and are not parallel are
+//!   laid, each as alone, where their set-backs do not meet, and declined
+//!   `Unsupported` where they would, until #792 reduces the value for them —
+//!   `a_fillet_and_a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_lay_each_as_alone_where_they_do_not_meet`,
+//!   `a_fillet_and_a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_are_declined_as_unsupported_where_they_would_meet`
 //! - An edge of the list its name no longer finds declines the whole step
 //!   with that edge's reason (`Lost`), as for one edge —
 //!   `a_fillet_and_a_chamfer_on_a_list_holding_an_edge_its_name_no_longer_finds_are_declined_with_that_edge_s_reason`.
@@ -96,11 +113,14 @@
 //!   their names —
 //!   `a_fillet_and_a_chamfer_on_several_edges_take_the_edges_their_names_find_again_after_a_change_of_size`
 //! - A list of one edge gives the body and the value the single-edge fillet
-//!   and chamfer give —
-//!   `a_fillet_and_a_chamfer_on_a_list_of_one_edge_give_the_body_and_the_value_the_step_of_that_edge_gives`;
-//!   their tests pass unchanged: `a_fillet_rounds_one_straight_edge.rs`,
+//!   and chamfer give; their tests pass unchanged — held by those three
+//!   files, left as they were: `a_fillet_rounds_one_straight_edge.rs`,
 //!   `a_chamfer_cuts_one_straight_edge.rs` and
-//!   `a_chamfer_and_a_fillet_fill_a_concave_edge.rs`, left as they were
+//!   `a_chamfer_and_a_fillet_fill_a_concave_edge.rs`. The step of one edge
+//!   is now the step on a list of one, so they run through the list. What
+//!   stands here cannot fail while that is so: it guards the day the two
+//!   come apart —
+//!   `a_fillet_and_a_chamfer_on_a_list_of_one_edge_give_the_body_and_the_value_the_step_of_that_edge_gives`
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -489,15 +509,21 @@ impl Round {
     /// Whether a point lies on the round: on its cylinder, between its two
     /// ends, and between its two sides.
     fn holds(&self, point: DVec3) -> bool {
+        self.holds_within(point, PLACE)
+    }
+
+    /// Whether a point lies on the round, as [`Round::holds`] says, to
+    /// `within` rather than to [`PLACE`].
+    fn holds_within(&self, point: DVec3, within: f64) -> bool {
         let off = point - self.start;
         let along = off.dot(self.along);
         let across = off - self.along * along;
         let [first, second] = self.facing;
         let least = self.radius * first.dot(second);
-        (across.length() - self.radius).abs() < PLACE
-            && (-PLACE..=self.length + PLACE).contains(&along)
-            && across.dot(first) >= least - PLACE
-            && across.dot(second) >= least - PLACE
+        (across.length() - self.radius).abs() < within
+            && (-within..=self.length + within).contains(&along)
+            && across.dot(first) >= least - within
+            && across.dot(second) >= least - within
     }
 
     /// The two points where the round's sides meet a wall square to it,
@@ -525,11 +551,17 @@ fn is_the_round(body: &Body, face: usize, round: &Round, what: &str) {
 /// triangles on one of them, and every ray aimed square at the axis from
 /// outside, over each, meeting the face first.
 fn is_made_of(body: &Body, face: usize, parts: &[&Round], what: &str) {
+    is_made_of_within(body, face, parts, PLACE, what);
+}
+
+/// Holds what [`is_made_of`] holds, every corner and every normal to
+/// `within` rather than to [`PLACE`].
+fn is_made_of_within(body: &Body, face: usize, parts: &[&Round], within: f64, what: &str) {
     let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
     assert!(!corners.is_empty(), "{what}: the round is drawn");
     for corner in corners {
         assert!(
-            parts.iter().any(|round| round.holds(corner)),
+            parts.iter().any(|round| round.holds_within(corner, within)),
             "{what}: the round is drawn through {corner}, off the cylinder of {} about the line \
              from {} along {}",
             parts[0].radius,
@@ -551,7 +583,7 @@ fn is_made_of(body: &Body, face: usize, parts: &[&Round], what: &str) {
                     hit.face
                 );
                 assert!(
-                    hit.normal.distance(facing) < PLACE,
+                    hit.normal.distance(facing) < within.max(PLACE),
                     "{what}: where a ray from {from} meets it, the round faces {}, not {facing}, \
                      away from its axis",
                     hit.normal
@@ -3053,5 +3085,398 @@ fn a_chamfer_on_the_two_floor_edges_of_a_slot_that_widens_past_the_end_of_one_ta
         let promised =
             LENGTH * SLOTTED_BREADTH * HEIGHT - widening + half * half / 2.0 * (LENGTH + WIDENS_AT);
         sound_drawn_within(body, promised, EXACT * promised, &what);
+    }
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_a_list_of_no_edge_are_declined_as_unsupported() {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+
+    let filleted = block.fillet_edges(&[], 3.0).err();
+    let chamfered = block.chamfer_edges(&[], 3.0).err();
+
+    assert_eq!(filleted, Some(Declined::Unsupported), "the fillet");
+    assert_eq!(chamfered, Some(Declined::Unsupported), "the chamfer");
+}
+
+/// The side of the hexagonal prism, and its height.
+const HEXAGON_SIDE: f64 = 10.0;
+const HEXAGON_HEIGHT: f64 = 5.0;
+
+/// The numbers the hexagonal prism's top and two of its walls answer to: its
+/// front two, along the bottom of the hexagon, and four, two walls round,
+/// which meets it at 120 degrees across the top. The wall between them,
+/// three, is where both their rounds run on past their ends.
+const HEXAGON_FRONT: usize = 2;
+const HEXAGON_ACROSS: usize = 4;
+
+/// A regular hexagon of side [`HEXAGON_SIDE`] about the origin, its front the
+/// side along the bottom, raised [`HEXAGON_HEIGHT`]: its walls numbered from
+/// the front round, two to seven.
+fn hexagonal_prism() -> Body {
+    let half = HEXAGON_SIDE / 2.0 * 3.0f64.sqrt();
+    let side = HEXAGON_SIDE;
+    raised_with(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::new(-side / 2.0, -half),
+            DVec2::new(side / 2.0, -half),
+            DVec2::new(side, 0.0),
+            DVec2::new(side / 2.0, half),
+            DVec2::new(-side / 2.0, half),
+            DVec2::new(-side, 0.0),
+        ]),
+        HEXAGON_HEIGHT,
+    )
+}
+
+/// The round a fillet of `radius` lays on the hexagon's top front edge,
+/// running on past both its ends to the walls beside it, turned about the
+/// vertical by `turn`: a third of a turn gives the round on wall four's top
+/// edge.
+fn hexagon_round(radius: f64, turn: f64) -> Round {
+    let half = HEXAGON_SIDE / 2.0 * 3.0f64.sqrt();
+    let past = HEXAGON_SIDE / 2.0 + radius / 3.0f64.sqrt();
+    let turned = |way: DVec3| {
+        DVec3::new(
+            way.x * turn.cos() - way.y * turn.sin(),
+            way.x * turn.sin() + way.y * turn.cos(),
+            way.z,
+        )
+    };
+    Round {
+        start: turned(DVec3::new(-past, radius - half, HEXAGON_HEIGHT - radius)),
+        along: turned(DVec3::X),
+        length: 2.0 * past,
+        radius,
+        facing: [DVec3::Z, turned(-DVec3::Y)],
+    }
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_lay_each_as_alone_where_they_do_not_meet()
+ {
+    let value = 2.0;
+    let prism = hexagonal_prism();
+    let names = [
+        edge_between(&prism, TOP, HEXAGON_FRONT),
+        edge_between(&prism, TOP, HEXAGON_ACROSS),
+    ];
+    let laid = [prism.faces_end(), prism.faces_end() + 1];
+    let rounds = [0.0, 2.0 * PI / 3.0].map(|turn| hexagon_round(value, turn));
+    let alone = "one top edge alone";
+    let filleted_alone: Vec<Body> = names
+        .iter()
+        .zip(&rounds)
+        .map(|(name, round)| {
+            let single = prism.fillet(name, value).expect("each edge's fillet alone");
+            is_the_round(
+                &single.body,
+                made_one(&prism, &single.body, alone),
+                round,
+                &format!("{alone}: the round its fillet lays, running on past both its ends"),
+            );
+            single.body
+        })
+        .collect();
+    let chamfered_alone: Vec<Body> = names
+        .iter()
+        .map(|name| {
+            prism
+                .chamfer(name, value)
+                .expect("each edge's chamfer alone")
+                .body
+        })
+        .collect();
+
+    let filleted = prism
+        .fillet_edges(&names, value)
+        .unwrap_or_else(|declined| panic!("the fillet: declined, {declined:?}"));
+    let chamfered = prism
+        .chamfer_edges(&names, value)
+        .unwrap_or_else(|declined| panic!("the chamfer: declined, {declined:?}"));
+
+    let what = format!(
+        "the fillet on the hexagon's top front edge and the top edge two walls round, asked \
+         {value}"
+    );
+    taken_as_asked(filleted.asked, filleted.taken, value, &what);
+    for (round, number) in rounds.iter().zip(laid) {
+        is_the_round(
+            &filleted.body,
+            number,
+            round,
+            &format!("{what}: face {number}, the round its edge alone lays, with the other laid"),
+        );
+    }
+    takes_what_each_alone_takes(&prism, &filleted.body, &filleted_alone, &what);
+    let area: f64 = rounds.iter().map(Round::area).sum();
+    sound_drawn_within(
+        &filleted.body,
+        filleted.body.volume(),
+        DRAWN * reach_of(&prism) * area,
+        &what,
+    );
+
+    let what = format!(
+        "the chamfer on the hexagon's top front edge and the top edge two walls round, asked \
+         {value}"
+    );
+    taken_as_asked(chamfered.asked, chamfered.taken, value, &what);
+    for (single, number) in chamfered_alone.iter().zip(laid) {
+        let flat = single
+            .plane_of(made_one(&prism, single, alone))
+            .expect("a chamfer is flat");
+        face_facing(
+            &chamfered.body,
+            &[number],
+            flat.normal,
+            &format!("{what}: face {number}, facing as its edge's flat alone"),
+        );
+        corners_are(
+            &chamfered.body,
+            number,
+            &flat.corners,
+            &format!("{what}: face {number}, the corners of its edge's flat alone"),
+        );
+    }
+    takes_what_each_alone_takes(&prism, &chamfered.body, &chamfered_alone, &what);
+    let promised = chamfered.body.volume();
+    sound_drawn_within(&chamfered.body, promised, EXACT * promised, &what);
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_are_declined_as_unsupported_where_they_would_meet()
+ {
+    let value = 4.9;
+    let prism = hexagonal_prism();
+    let names = [
+        edge_between(&prism, TOP, HEXAGON_FRONT),
+        edge_between(&prism, TOP, HEXAGON_ACROSS),
+    ];
+    for name in &names {
+        let alone = prism.fillet(name, value).expect("each edge alone");
+        taken_as_asked(
+            alone.asked,
+            alone.taken,
+            value,
+            "one top edge's fillet alone",
+        );
+    }
+
+    let filleted = prism.fillet_edges(&names, value).err();
+    let chamfered = prism.chamfer_edges(&names, value).err();
+
+    let why = "each set back by more than half the wall between them, where both run on past \
+               their ends, the two would cross on it";
+    assert_eq!(filleted, Some(Declined::Unsupported), "the fillet: {why}");
+    assert_eq!(chamfered, Some(Declined::Unsupported), "the chamfer: {why}");
+}
+
+#[test]
+fn a_fillet_on_two_edges_whose_rounds_would_meet_on_the_wall_one_ends_on_is_laid_short_of_it_and_declined_past_it()
+ {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let names = [
+        edge_between(&block, TOP, FRONT),
+        edge_between(&block, RIGHT, BACK),
+    ];
+    let (short, past) = (3.0, MORE_THAN_HALF);
+
+    let filleted = block
+        .fillet_edges(&names, short)
+        .unwrap_or_else(|declined| panic!("asked {short}: declined, {declined:?}"));
+
+    let what =
+        format!("the fillet on the top's front edge and the right wall's back edge, asked {short}");
+    taken_as_asked(filleted.asked, filleted.taken, short, &what);
+    let body = &filleted.body;
+    let [top_front, ..] = long_edges();
+    let along_the_top = top_front.round(short);
+    let upright = Round {
+        start: DVec3::new(LENGTH - short, BREADTH - short, 0.0),
+        along: DVec3::Z,
+        length: HEIGHT,
+        radius: short,
+        facing: [DVec3::X, DVec3::Y],
+    };
+    let laid = block.faces_end();
+    is_the_round(
+        body,
+        laid,
+        &along_the_top,
+        &format!("{what}: face {laid}, the top's front edge rounded off"),
+    );
+    is_the_round(
+        body,
+        laid + 1,
+        &upright,
+        &format!(
+            "{what}: face {}, the right wall's back edge rounded off",
+            laid + 1
+        ),
+    );
+    let quarter = short * short * (1.0 - PI / 4.0);
+    sound_drawn_within(
+        body,
+        LENGTH * BREADTH * HEIGHT - quarter * (LENGTH + HEIGHT),
+        DRAWN * reach_of(&block) * (along_the_top.area() + upright.area()),
+        &what,
+    );
+    for name in &names {
+        let alone = block.fillet(name, past).expect("each edge alone");
+        taken_as_asked(alone.asked, alone.taken, past, "one edge's fillet alone");
+    }
+
+    let declined = block.fillet_edges(&names, past).err();
+
+    assert_eq!(
+        declined,
+        Some(Declined::Unsupported),
+        "asked {past}: the top's front round, at its end on the right wall, and the right wall's \
+         back round, set back along it, would cross on that wall and on the top, which #792 \
+         reduces the value for"
+    );
+}
+
+#[test]
+fn a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_half_its_side_or_more_takes_half_a_diamond()
+ {
+    let bar = block([LENGTH, BAR, BAR]);
+    let edges = long_edges_of(BAR, BAR);
+    let names: Vec<EdgeName> = edges.iter().map(|edge| edge.name(&bar)).collect();
+    let half = BAR / 2.0;
+    let laid: Vec<usize> = (bar.faces_end()..bar.faces_end() + edges.len()).collect();
+
+    for asked in [half, MORE_THAN_HALF] {
+        let chamfered = bar
+            .chamfer_edges(&names, asked)
+            .unwrap_or_else(|declined| panic!("asked {asked}: declined, {declined:?}"));
+
+        let what =
+            format!("the chamfer on the four long edges of a bar {BAR} square, asked {asked}");
+        reduced(chamfered.asked, chamfered.taken, [asked, half], &what);
+        let body = &chamfered.body;
+        let mut ends_and_laid: BTreeSet<usize> = [RIGHT, LEFT].into();
+        ends_and_laid.extend(laid.iter().copied());
+        assert_eq!(
+            numbers(body),
+            ends_and_laid,
+            "{what}: the four long faces gone, the bar's two ends and the four flats left"
+        );
+        for (edge, &number) in edges.iter().zip(&laid) {
+            let (corners, facing) = edge.flat(half);
+            let which = format!(
+                "{what}: face {number}, the flat between faces {:?}",
+                edge.faces
+            );
+            face_facing(body, &[number], facing, &which);
+            corners_are(body, number, &corners, &which);
+        }
+        let [top_front, floor_back, top_back, floor_front] = [laid[0], laid[1], laid[2], laid[3]];
+        for (one, other, where_) in [
+            (top_front, top_back, "where the top was"),
+            (top_front, floor_front, "where the front was"),
+            (floor_back, top_back, "where the back was"),
+            (floor_back, floor_front, "where the floor was"),
+        ] {
+            assert_eq!(
+                body.edge_names()
+                    .iter()
+                    .filter(|name| lies_between(name, one, other))
+                    .count(),
+                1,
+                "{what}: faces {one} and {other} meet along one ridge, {where_}"
+            );
+        }
+        for (wall, x) in [(LEFT, 0.0), (RIGHT, LENGTH)] {
+            corners_are(
+                body,
+                wall,
+                &[
+                    DVec3::new(x, half, BAR),
+                    DVec3::new(x, BAR, half),
+                    DVec3::new(x, half, 0.0),
+                    DVec3::new(x, 0.0, half),
+                ],
+                &format!("{what}: the end at x = {x}, a diamond"),
+            );
+        }
+        let promised = LENGTH * BAR * BAR / 2.0;
+        sound_drawn_within(body, promised, EXACT * promised, &what);
+    }
+}
+
+/// How short a strip left between two set-backs on a face may be and still
+/// read as none to the kernel, on the block [`LENGTH`] long: four of its
+/// hairs of twenty tolerances each, a tolerance a billionth of the reach.
+const MEETING_HAIR: f64 = 4.0 * 20.0 * 1e-9 * LENGTH;
+
+#[test]
+fn a_fillet_on_the_two_edges_either_side_of_a_face_10_wide_asked_a_hair_under_5_lays_one_full_round()
+ {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let [top_front, _, top_back, _] = long_edges();
+    let names = [top_front.name(&block), top_back.name(&block)];
+    let half = BREADTH / 2.0;
+    let laid = [block.faces_end(), block.faces_end() + 1];
+
+    for under in [1e-7, 1e-9] {
+        let asked = half - under;
+        assert!(
+            BREADTH - 2.0 * asked < MEETING_HAIR,
+            "asked {asked}: the strip the two rounds leave, {}, is shorter than the kernel keeps",
+            BREADTH - 2.0 * asked
+        );
+
+        let filleted = block
+            .fillet_edges(&names, asked)
+            .unwrap_or_else(|declined| panic!("asked {asked}: declined, {declined:?}"));
+
+        let what = format!("the fillet on both edges of a top {BREADTH} wide, asked {asked}");
+        assert!(
+            (filleted.asked - asked).abs() < PLACE
+                && (filleted.taken - asked).abs() <= MEETING_HAIR,
+            "{what}: asked {} and took {}, where {asked} is a hair from what both give",
+            filleted.asked,
+            filleted.taken
+        );
+        let body = &filleted.body;
+        assert!(!body.has_face(TOP), "{what}: the top is gone");
+        one_curved_face_answers_to(body, &laid, &what);
+        let halves = [[-DVec3::Y, DVec3::Z], [DVec3::Z, DVec3::Y]].map(|facing| Round {
+            start: DVec3::new(0.0, half, HEIGHT - half),
+            along: DVec3::X,
+            length: LENGTH,
+            radius: half,
+            facing,
+        });
+        is_made_of_within(
+            body,
+            laid[0],
+            &[&halves[0], &halves[1]],
+            MEETING_HAIR,
+            &format!("{what}: the full round, within a hair of the half-cylinder of {half}"),
+        );
+        assert_eq!(
+            sides_met_by(body, &laid),
+            sides(&[FRONT, RIGHT, BACK, LEFT]),
+            "{what}: the full round meets the front and the back along its sides, and the right \
+             and the left walls at its ends, by one edge each"
+        );
+        assert!(
+            body.is_exact(),
+            "{what}: the exact kernel computed the body"
+        );
+        let triangles = body.triangles();
+        assert_eq!(closed(&triangles), Ok(()), "{what}");
+        assert_eq!(uncrossed(&triangles), Ok(()), "{what}");
+        let promised =
+            LENGTH * BREADTH * HEIGHT - LENGTH * (BREADTH * half - PI * half * half / 2.0);
+        assert!(
+            (body.volume() - promised).abs() <= LENGTH * BREADTH * MEETING_HAIR,
+            "{what}: the body holds {}, within a hair of the {promised} a full round leaves",
+            body.volume()
+        );
     }
 }

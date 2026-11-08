@@ -12,10 +12,13 @@ use crate::brep::{Declined, Scale};
 use crate::profile::{Contour, Run};
 
 impl Wedge {
-    /// The prism the edge and a `later` one, whose set-backs for `radius`
-    /// meet across the face they share, are rounded off with as one: raised
-    /// along the edge over a section square to it whose first two runs are
-    /// the round about the centre both rounds share, from where it touches
+    /// The prism the edge and a `later` one, facing each other across the
+    /// face they share, are rounded off with as one, by the round tangent to
+    /// that face and to the other face of each: its radius the one whose
+    /// set-backs meet across the face, so that the round has one centre by
+    /// construction, however near the value taken stood to it. Raised along
+    /// the edge over a section square to it whose first two runs are the
+    /// round about that centre, from where it touches
     /// the later edge's other face to where it touches the shared face, then
     /// on to where it touches this edge's other face; then square off that
     /// face to the margin outside it, or inside the matter for a fill, round
@@ -25,7 +28,6 @@ impl Wedge {
     pub(in crate::body::exact) fn rounded_with(
         &self,
         later: &Wedge,
-        radius: f64,
         scale: Scale,
         bounds: (DVec3, DVec3),
     ) -> Result<Prism, Declined> {
@@ -36,6 +38,8 @@ impl Wedge {
         let (Some(own), Some(theirs)) = (shared(self), shared(later)) else {
             return Err(Declined::Unsupported);
         };
+        let across = self.into[own].dot(later.point - self.point);
+        let radius = across / (self.half_tangent().recip() + later.half_tangent().recip());
         let margin = [self, later]
             .map(|wedge| {
                 let (across, facing) = wedge.square();

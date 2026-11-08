@@ -13,30 +13,34 @@ use crate::brep::{Declined, EdgeName, Scale, Surface};
 
 impl Exact {
     /// The body with the edge each name finds rounded off by a cylinder of
-    /// `radius`, or of the largest radius every edge gives with the others
-    /// laid, tangent to its two faces — filled in by it where they meet inwards
-    /// — and the one radius taken: each face stops where a round takes over,
-    /// set back by the radius over the tangent of half the angle its two faces
-    /// meet at, and two set-backs on a face two edges share stop short of
-    /// crossing. Where they meet, the face is gone and the two rounds, about
-    /// one axis, are one full round — a round bottom where the faces meet
-    /// inwards — as [`Wedge::rounded_with`] lays it. The rounds are numbered,
-    /// in the order the names come, where the steps' numbers ended; a full
-    /// round answers to both its edges' numbers. Declined `Distance`: a radius
-    /// that is no length, one whose round would stand off the faces it replaces
-    /// by less than the kernel can set a cut back by — a larger radius stands
-    /// further off, and on an edge bent nearly flat is what rounds it — and a
-    /// round the kernel read onto those faces even so, or did not lay as one
-    /// face. `Lost`: an edge its name no longer finds. `Unsupported`: an edge
-    /// that is not straight between two flat faces, one running on tangentially
-    /// into the next edge of a face, two names finding one edge, two edges
-    /// sharing a face that are not parallel, an edge whose set-backs meet those
-    /// of two others, and a cut that left anything but its round — a face of
-    /// the prism, the round in two pieces or with a corner on neither of the
-    /// edge's faces, a face the body held, but the edge's two, taken away whole
-    /// — as where a round leaving the edge's end outwards bulges past the
-    /// edge's face, and the prism's wall square to that face cuts the bulge
-    /// off.
+    /// `radius` tangent to its two faces — filled in by it where they meet
+    /// inwards — or of the largest radius every edge gives: alone, and on a
+    /// face two of them share, parallel and facing each other across it, with
+    /// the other laid. Each face stops where a round takes over, set back by
+    /// the radius over the tangent of half the angle its two faces meet at, and
+    /// two set-backs on such a face stop short of crossing. Where they meet,
+    /// the face is gone and the two rounds, about one axis, are one full round
+    /// — a round bottom where the faces meet inwards — as
+    /// [`Wedge::rounded_with`] lays it, at the radius they meet at. Rounds that
+    /// would meet anywhere else are not measured, and declined where they meet
+    /// until #792. The rounds are numbered, in the order the names come, where
+    /// the steps' numbers ended; a full round answers to both its edges'
+    /// numbers. Declined `Distance`: a radius that is no length, one whose
+    /// round would stand off the faces it replaces by less than the kernel can
+    /// set a cut back by — a larger radius stands further off, and on an edge
+    /// bent nearly flat is what rounds it — and a round the kernel read onto
+    /// those faces even so, or did not lay as one face. `Lost`: an edge its
+    /// name no longer finds. `Unsupported`: a list of no edge, an edge that is
+    /// not straight between two flat faces, one running on tangentially into
+    /// the next edge of a face, two edges sharing a vertex or one edge named
+    /// twice, an edge whose set-backs meet those of two others — rounds closing
+    /// on themselves, #790 — and a cut that left anything but its round — a
+    /// face of the prism, the round in two pieces or with a corner on neither
+    /// of the edge's faces, a face the body held, but the edge's two, taken
+    /// away whole — as where a round leaving the edge's end outwards bulges
+    /// past the edge's face, and the prism's wall square to that face cuts the
+    /// bulge off, or two rounds meet where the radius was not measured for
+    /// them.
     pub fn filleted(&self, names: &[EdgeName], radius: f64) -> Result<(Exact, f64), Declined> {
         let (cut, taken, pairs) = self.cut_off(
             names,

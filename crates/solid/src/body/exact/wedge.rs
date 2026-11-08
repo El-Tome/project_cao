@@ -5,8 +5,8 @@
 //! check that it left the one face the step names.
 
 mod fill;
+mod pairs;
 mod section;
-mod shared;
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -18,8 +18,8 @@ use crate::body::caught::caught;
 use crate::brep::{self, Coedge, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Scale, Surface};
 use crate::profile::{Contour, Frame};
 
+pub(super) use pairs::Together;
 pub(super) use section::Side;
-pub(super) use shared::Together;
 
 /// A straight edge between two flat faces: a point of it, the way it runs,
 /// its two faces, for each the way it faces and the way into it, square to
@@ -46,23 +46,27 @@ impl Exact {
     /// The body with the edge each name finds cut off, or filled in where its
     /// faces meet inwards, by the prism `tool` raises over its wedge for the
     /// one value taken, in the order the names come; that value: `asked`, or
-    /// the most every edge gives with the others laid — what `most` says each
-    /// edge's two faces give, and on a face two edges share, what keeps the
-    /// set-backs they make on it from crossing, by the set-back of a value of
-    /// one `set_back` says, each read on the body as given; and the pairs
-    /// whose set-backs meet there, the earlier first, each taken off as one
-    /// by the prism `together` raises, the face they shared gone — where
-    /// `together` is none, each edge is laid alone. The wall an edge's prism
-    /// lays is numbered where the steps' numbers ended, plus the edge's rank
-    /// in the list; a pair is laid at its later edge's turn, so that every
-    /// number laid before stands below those a prism lays, as
-    /// [`Exact::cut_along`] reads them. A value shorter than the kernel can
-    /// set a cut back from an edge is declined first; an edge its name no
-    /// longer finds `Lost`; an edge that is not a wedge, two names finding
-    /// one edge, two edges sharing a face that are not parallel, an edge
-    /// meeting two others, and a cut or a fill that left something else than
-    /// its one face, as [`Exact::cut_along`] reads it, are declined
-    /// `Unsupported`; a prism the tool cannot raise, as the tool says.
+    /// the most every edge gives — what `most` says each edge's two faces give
+    /// alone, and, for two parallel edges facing each other across a face they
+    /// share, what keeps the set-backs they make on it from crossing, by the
+    /// set-back of a value of one `set_back` says — each read on the body as
+    /// given. Rounds or flats that would meet anywhere else, across a face two
+    /// edges share that are not parallel or on a face one of them ends on, are
+    /// not measured: the laying declines them where they meet, until #792.
+    /// Where `together` is some, the pairs whose set-backs meet across their
+    /// face, the earlier first, are each taken off as one by the prism it
+    /// raises, the face they shared gone; where it is none, each edge is laid
+    /// alone. The wall an edge's prism lays is numbered where the steps'
+    /// numbers ended, plus the edge's rank in the list; a pair is laid at its
+    /// later edge's turn, so that every number laid before stands below those a
+    /// prism lays, as [`Exact::cut_along`] reads them. A value shorter than the
+    /// kernel can set a cut back from an edge is declined first; a list of no
+    /// edge `Unsupported`; an edge its name no longer finds `Lost`; an edge
+    /// that is not a wedge, two edges sharing a vertex — one edge two names
+    /// find among them —, where `together` is some an edge meeting two others,
+    /// and a cut or a fill that left something else than its one face, as
+    /// [`Exact::cut_along`] reads it, are declined `Unsupported`; a prism the
+    /// tool cannot raise, as the tool says.
     pub(super) fn cut_off(
         &self,
         names: &[EdgeName],
@@ -71,28 +75,35 @@ impl Exact {
         set_back: impl Fn(&Wedge) -> f64,
         tool: impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
         together: Option<Together>,
-    ) -> Result<(Exact, f64, Vec<shared::Pair>), Declined> {
+    ) -> Result<(Exact, f64, Vec<pairs::Pair>), Declined> {
         let scale = self.brep.scale();
         if too_short(asked, scale) {
             return Err(Declined::Distance);
+        }
+        if names.is_empty() {
+            return Err(Declined::Unsupported);
         }
         caught(|| {
             let found = names
                 .iter()
                 .map(|name| self.wedge(name))
                 .collect::<Result<Vec<(EdgeId, Wedge)>, Declined>>()?;
-            let edges: BTreeSet<EdgeId> = found.iter().map(|&(edge, _)| edge).collect();
-            if edges.len() < found.len() {
+            let mut corners = BTreeSet::new();
+            let apart = found.iter().all(|&(edge, _)| {
+                let ends = self.brep.edge(edge).ends;
+                ends.is_some_and(|ends| ends.into_iter().all(|end| corners.insert(end)))
+            });
+            if !apart {
                 return Err(Declined::Unsupported);
             }
             let wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();
-            let facing = shared::facing(&wedges)?;
+            let facing = pairs::facing(&wedges);
             let alone = wedges
                 .iter()
                 .fold(asked, |taken, wedge| taken.min(most(wedge)));
-            let taken = alone.min(shared::bound(&wedges, &facing, &set_back));
+            let taken = alone.min(pairs::bound(&wedges, &facing, &set_back));
             let pairs = match together {
-                Some(_) => shared::meeting(&wedges, &facing, taken, &set_back, scale)?,
+                Some(_) => pairs::meeting(&wedges, &facing, taken, &set_back, scale)?,
                 None => Vec::new(),
             };
             let start = self.next;
@@ -107,7 +118,6 @@ impl Exact {
                     (Some(&(earlier, _)), Some(together)) => cut.laid_together(
                         [&names[earlier], name],
                         start + earlier as u32,
-                        taken,
                         together,
                     )?,
                     _ => cut.laid(name, taken, &tool)?,

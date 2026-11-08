@@ -28,10 +28,12 @@ impl Body {
     }
 
     /// The edge each name finds cut off, or filled in, as [`Body::chamfer`]
-    /// cuts it, at `distance` or at the one largest distance every edge gives
-    /// with the others laid: each flat face numbered on its own, in the order
-    /// the names come, from where the steps' numbers ended. The first edge
-    /// declined declines the step.
+    /// cuts it, at `distance` or at the one largest distance every edge gives:
+    /// alone, and on a face two of them share, parallel and facing each other
+    /// across it, with the other laid. Each flat face is numbered on its own,
+    /// in the order the names come, from where the steps' numbers ended. Flats
+    /// that would meet anywhere else are declined `Unsupported`, until #792
+    /// measures them. The first edge declined declines the step.
     pub fn chamfer_edges(&self, edges: &[EdgeName], distance: f64) -> Result<Chamfered, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

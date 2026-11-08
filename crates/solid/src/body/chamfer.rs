@@ -1,12 +1,15 @@
 //! A chamfer (#696): one straight edge of a body cut off by a flat face, set
 //! back by a distance along each of the edge's two faces — or filled in by
-//! one, where they meet inwards (#778).
+//! one, where they meet inwards (#778) — or several edges in one step, at one
+//! distance (#698).
+
+use std::slice;
 
 use super::{Body, Matter};
 use crate::brep::{Declined, EdgeName, Lost};
 
 /// The body a chamfer left, the distance it was asked, and the distance the
-/// edge's two faces gave it.
+/// edges' faces gave it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Chamfered {
     pub body: Body,
@@ -21,10 +24,21 @@ impl Body {
     /// is numbered where the steps' numbers ended. Flats name no edge: every
     /// name is gone, as [`Body::lost`] says.
     pub fn chamfer(&self, edge: &EdgeName, distance: f64) -> Result<Chamfered, Declined> {
+        self.chamfer_edges(slice::from_ref(edge), distance)
+    }
+
+    /// The edge each name finds cut off, or filled in, as [`Body::chamfer`]
+    /// cuts it, at `distance` or at the one largest distance every edge gives:
+    /// alone, and on a face two of them share, parallel and facing each other
+    /// across it, with the other laid. Each flat face is numbered on its own,
+    /// in the order the names come, from where the steps' numbers ended. Flats
+    /// that would meet anywhere else are declined `Unsupported`, until #792
+    /// measures them. The first edge declined declines the step.
+    pub fn chamfer_edges(&self, edges: &[EdgeName], distance: f64) -> Result<Chamfered, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));
         };
-        let (exact, taken) = exact.chamfered(edge, distance)?;
+        let (exact, taken) = exact.chamfered(edges, distance)?;
         Ok(Chamfered {
             body: Body::of_exact(exact),
             asked: distance,

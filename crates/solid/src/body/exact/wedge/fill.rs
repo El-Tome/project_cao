@@ -19,44 +19,61 @@ use crate::profile::{Contour, Frame};
 const CLEAR: f64 = 0.125;
 
 impl Exact {
-    /// The body with the corner along `edge` filled in by `tool`, the prism
-    /// raised from `prism` — its first wall numbered nought and counted as
-    /// raised, so that the boxes its ends are trimmed by number their faces
-    /// past its own: each end of it trimmed flush by the plane of the face
-    /// the edge ends on there, and joined to the body, every face of the
-    /// prism that merged into one of the body's answering to the body's
-    /// numbers alone, so that the face it merged into stays the face it was:
-    /// its ends, merged into the faces at the edge's ends, and a wall of it
-    /// lying flush on a face of the body, as the wall squared off a face
-    /// taken whole lies on the face beyond. A face of the prism standing
-    /// alone keeps its number, past the steps' count, and that alone is what
-    /// [`Exact::cut_along`] finds stray. Where the face at an end
-    /// meets one of the edge's two along a line running on past the edge's
-    /// end — the plate's top round a rib ending short of its edge — the two
-    /// edges either side of that corner are made one, since the fill covered
-    /// what of the edge's faces reached it. Declined `Unsupported`: an
-    /// end where no face but the edge's two meets it, or several do, or one
-    /// that is not flat, or faces back along the edge, or leans so far that
-    /// its plane passes the prism's own ends.
+    /// The body with the corner along each of `edges` filled in by `tool`,
+    /// the prism raised from `prism` — its first walls, one for each edge,
+    /// numbered from nought and counted as raised, so that the boxes its
+    /// ends are trimmed by number their faces past its own: each end of it
+    /// trimmed flush by the plane of the face the first edge ends on there,
+    /// and joined to the body, every face of the prism that merged into one
+    /// of the body's answering to the body's numbers alone, so that the face
+    /// it merged into stays the face it was: its ends, merged into the faces
+    /// at the edges' ends, and a wall of it lying flush on a face of the
+    /// body, as the wall squared off a face taken whole lies on the face
+    /// beyond. A face of the prism standing alone keeps its number, past the
+    /// steps' count, and that alone is what [`Exact::cut_along`] finds
+    /// stray. Where the face at an end meets one of an edge's two along a
+    /// line running on past the edge's end — the plate's top round a rib
+    /// ending short of its edge — the two edges either side of that corner
+    /// are made one, since the fill covered what of the edge's faces reached
+    /// it. Declined `Unsupported`: an end where no face but the edge's two
+    /// meets it, or several do, or one that is not flat, or faces back along
+    /// the edge, or leans so far that its plane passes the prism's own ends,
+    /// and another edge that does not end on the faces the first ends on.
     pub(super) fn filled(
         &self,
-        edge: EdgeId,
-        wedge: &Wedge,
+        edges: &[(EdgeId, &Wedge)],
         prism: &Prism,
         tool: Exact,
     ) -> Result<Exact, Declined> {
+        let &[(edge, wedge), ..] = edges else {
+            return Err(Declined::Unsupported);
+        };
         let ends = self.brep.edge(edge).ends.ok_or(Declined::Unsupported)?;
         let mut trimmed = tool;
+        let mut end_faces = Vec::new();
         for (end, past) in ends.into_iter().zip([-wedge.along, wedge.along]) {
-            let (plane, outward) =
+            let (face, plane, outward) =
                 end_plane(&self.brep, end, wedge.faces).ok_or(Declined::Unsupported)?;
             if outward.dot(past) <= 0.0 {
                 return Err(Declined::Unsupported);
             }
             trimmed = trimmed.cut_by(&beyond(prism, &plane, outward)?)?;
+            end_faces.push(face);
         }
-        let corners = ends.map(|end| self.brep.vertex(end).point);
-        self.filled_by(&Exact { next: 1, ..trimmed }, &corners)
+        let mut corners = Vec::new();
+        for &(edge, wedge) in edges {
+            let ends = self.brep.edge(edge).ends.ok_or(Declined::Unsupported)?;
+            for end in ends {
+                let (face, ..) =
+                    end_plane(&self.brep, end, wedge.faces).ok_or(Declined::Unsupported)?;
+                if !end_faces.contains(&face) {
+                    return Err(Declined::Unsupported);
+                }
+                corners.push(self.brep.vertex(end).point);
+            }
+        }
+        let next = edges.len() as u32;
+        self.filled_by(&Exact { next, ..trimmed }, &corners)
     }
 
     /// The body joined with the prism `tool` fills a corner with, every face
@@ -98,10 +115,14 @@ impl Exact {
     }
 }
 
-/// The plane of the one face, but the edge's two, at a corner of the body,
-/// and the way it faces out of the matter; none where no other face or
-/// several meet there, or that face is not flat.
-fn end_plane(body: &brep::Body, corner: VertexId, faces: [FaceId; 2]) -> Option<(Plane, DVec3)> {
+/// The one face, but the edge's two, at a corner of the body, its plane, and
+/// the way it faces out of the matter; none where no other face or several
+/// meet there, or that face is not flat.
+fn end_plane(
+    body: &brep::Body,
+    corner: VertexId,
+    faces: [FaceId; 2],
+) -> Option<(FaceId, Plane, DVec3)> {
     let mut met = body.face_ids().filter(|face| {
         !faces.contains(face)
             && body.face(*face).loops.iter().flatten().any(|coedge| {
@@ -109,10 +130,10 @@ fn end_plane(body: &brep::Body, corner: VertexId, faces: [FaceId; 2]) -> Option<
                 ends.is_some_and(|ends| ends.contains(&corner))
             })
     });
-    let (Some(face), None) = (met.next(), met.next()) else {
+    let (Some(id), None) = (met.next(), met.next()) else {
         return None;
     };
-    let face = body.face(face);
+    let face = body.face(id);
     let Surface::Plane(plane) = *body.surface(face.surface) else {
         return None;
     };
@@ -121,7 +142,7 @@ fn end_plane(body: &brep::Body, corner: VertexId, faces: [FaceId; 2]) -> Option<
     } else {
         plane.normal
     };
-    Some((plane, outward))
+    Some((id, plane, outward))
 }
 
 /// The box standing on `plane` that holds what of the prism stands past it,

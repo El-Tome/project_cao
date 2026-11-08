@@ -3,6 +3,8 @@
 //! body — or, where the faces meet inwards, joined to it, filling the corner
 //! with a hollow round. Its wall on the round is the one face the step names.
 
+mod full_round;
+
 use glam::DVec3;
 
 use super::Exact;
@@ -10,31 +12,55 @@ use super::wedge::{Prism, Wedge, too_short};
 use crate::brep::{Declined, EdgeName, Scale, Surface};
 
 impl Exact {
-    /// The body with the edge a name finds rounded off by a cylinder of
-    /// `radius`, or of the largest radius the edge's two faces give, tangent to
-    /// both — filled in by it where they meet inwards — and the radius taken:
-    /// each face stops where the round takes over, set back by the radius over
-    /// the tangent of half the angle they meet at. The round is numbered where
-    /// the steps' numbers ended. Declined `Distance`: a radius that is no
-    /// length, one whose round would stand off the faces it replaces by less
-    /// than the kernel can set a cut back by — a larger radius stands further
-    /// off, and on an edge bent nearly flat is what rounds it — and a round the
-    /// kernel read onto those faces even so. `Lost`: an edge its name no longer
-    /// finds. `Unsupported`: an edge that is not straight between two flat
-    /// faces, one running on tangentially into the next edge of a face, and a
-    /// cut that left anything but its round — a face of the prism, the round in
-    /// two pieces or with a corner on neither of the edge's faces, a face the
-    /// body held, but the edge's two, taken away whole — as where a round
-    /// leaving the edge's end outwards bulges past the edge's face, and the
-    /// prism's wall square to that face cuts the bulge off.
-    pub fn filleted(&self, name: &EdgeName, radius: f64) -> Result<(Exact, f64), Declined> {
-        let (cut, taken) = self.cut_off(
-            name,
+    /// The body with the edge each name finds rounded off by a cylinder of
+    /// `radius` tangent to its two faces — filled in by it where they meet
+    /// inwards — or of the largest radius every edge gives: alone, and on a
+    /// face two of them share, parallel and facing each other across it, with
+    /// the other laid. Each face stops where a round takes over, set back by
+    /// the radius over the tangent of half the angle its two faces meet at, and
+    /// two set-backs on such a face stop short of crossing. Where they meet,
+    /// the face is gone and the two rounds, about one axis, are one full round
+    /// — a round bottom where the faces meet inwards — as
+    /// [`Wedge::rounded_with`] lays it, at the radius they meet at. Rounds that
+    /// would meet anywhere else are not measured, and declined where they meet
+    /// until #792. The rounds are numbered, in the order the names come, where
+    /// the steps' numbers ended; a full round answers to both its edges'
+    /// numbers. Declined `Distance`: a radius that is no length, one whose
+    /// round would stand off the faces it replaces by less than the kernel can
+    /// set a cut back by — a larger radius stands further off, and on an edge
+    /// bent nearly flat is what rounds it — and a round the kernel read onto
+    /// those faces even so, or did not lay as one face. `Lost`: an edge its
+    /// name no longer finds. `Unsupported`: a list of no edge, an edge that is
+    /// not straight between two flat faces, one running on tangentially into
+    /// the next edge of a face, two edges sharing a vertex or one edge named
+    /// twice, an edge whose set-backs meet those of two others — rounds closing
+    /// on themselves, #790 — and a cut that left anything but its round — a
+    /// face of the prism, the round in two pieces or with a corner on neither
+    /// of the edge's faces, a face the body held, but the edge's two, taken
+    /// away whole — as where a round leaving the edge's end outwards bulges
+    /// past the edge's face, and the prism's wall square to that face cuts the
+    /// bulge off, or two rounds meet where the radius was not measured for
+    /// them.
+    pub fn filleted(&self, names: &[EdgeName], radius: f64) -> Result<(Exact, f64), Declined> {
+        let (cut, taken, pairs) = self.cut_off(
+            names,
             radius,
             |wedge| wedge.reach * wedge.half_tangent(),
+            |wedge| wedge.half_tangent().recip(),
             Wedge::rounded,
+            Some(Wedge::rounded_with),
         )?;
-        if cut.rounded_alone(name, self.next) {
+        let made = |rank: usize| self.next + rank as u32;
+        let alone = names.iter().enumerate().all(|(rank, name)| {
+            let pair = pairs
+                .iter()
+                .find(|&&(earlier, later)| rank == earlier || rank == later);
+            match pair {
+                Some(&(earlier, later)) => cut.rounded_as(name, &[made(earlier), made(later)]),
+                None => cut.rounded_alone(name, made(rank)),
+            }
+        });
+        if alone {
             Ok((cut, taken))
         } else {
             Err(Declined::Distance)
@@ -47,13 +73,21 @@ impl Exact {
     /// faces it replaces fails it, as one standing nearer them than the
     /// floor [`Wedge::rounded`] declines would.
     fn rounded_alone(&self, name: &EdgeName, made: u32) -> bool {
-        let mut faces = self.named(made as usize).peekable();
+        self.rounded_as(name, &[made])
+    }
+
+    /// Whether the round stands as a face of its own answering to `numbers`,
+    /// as [`Exact::rounded_alone`] reads it of one: some face answers to the
+    /// first, each that does answers to them all and nothing else, and lies
+    /// on no plane, and the edge a name found is gone.
+    fn rounded_as(&self, name: &EdgeName, numbers: &[u32]) -> bool {
+        let mut faces = self.named(numbers[0] as usize).peekable();
         let curved = |face| {
             let face = self.brep.face(face);
             !matches!(self.brep.surface(face.surface), Surface::Plane(_))
         };
         faces.peek().is_some()
-            && faces.all(|face| self.brep.numbers(face) == [made] && curved(face))
+            && faces.all(|face| self.brep.numbers(face) == numbers && curved(face))
             && self.lost(name).is_some()
     }
 }

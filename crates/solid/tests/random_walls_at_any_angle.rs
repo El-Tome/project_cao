@@ -132,6 +132,15 @@
 //!   are pinned, shrunk, and pass:
 //!   `seed_354000000005119_a_cone_bored_at_89_99_degrees_by_a_hole_of_radius_2_577_is_drawn_uncrossed`,
 //!   `seed_353000000010626_an_elliptic_shaft_bored_along_its_wall_a_hair_inside_then_across_at_75_degrees_is_drawn_uncrossed_through_the_application_s_body`
+//!
+//! Closes #761.
+//! - `seed_354000000005870_a_shaft_bored_at_80_degrees_then_by_a_cone_leaning_24_degrees_is_drawn_uncrossed`
+//!   loses its `#[ignore]` and passes — it passes since #766's fold rule
+//!   (#762, a fold flip refused only when it leaves no fewer crossings, by
+//!   the predicate the soundness check reads), no production change here
+//! - No draw regresses against `main`, seed by seed, on the three sets #754
+//!   was measured on — no test: nothing outside this test changes, so every
+//!   draw is `main`'s and no campaign is needed
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -1373,7 +1382,6 @@ fn seed_352000000002028_a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_d
 /// leaning 24°: held on `main`, drawn crossed on the exact kernel once a
 /// wall's snapped copy is told for its own (seed 354000000005870).
 #[test]
-#[ignore = "#761: the shaft's fan crosses the bore touching it inside at a point"]
 fn seed_354000000005870_a_shaft_bored_at_80_degrees_then_by_a_cone_leaning_24_degrees_is_drawn_uncrossed()
  {
     random_solids::holds_exactly(&Case::new(

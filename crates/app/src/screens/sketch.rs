@@ -3,6 +3,7 @@ use glam::DVec2;
 
 mod copy_panel;
 mod live_input;
+mod matter_in_front;
 mod typed_dimension;
 
 pub use cao_sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode};
@@ -369,10 +370,6 @@ impl SketchEditor {
 
     pub fn close(&mut self) {
         *self = Self::default();
-    }
-
-    pub fn next_matter_in_front(&mut self) {
-        self.matter_in_front = self.matter_in_front.next();
     }
 
     pub fn select(&mut self, target: Option<DimensionTarget>, measured: Option<f64>) {

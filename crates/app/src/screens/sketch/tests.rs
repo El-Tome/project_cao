@@ -17,9 +17,17 @@
 //!   first test above
 //! - a measure is not a step of the history — no test: nothing here writes to
 //!   a document; it is asserted in `viewport/input/reading/tests.rs`
+//!
+//! Closes #728 — the whole transcription is in `crates/app/tests/view_bar.rs`;
+//! this is the bullet the editor answers.
+//! - picking « cachée », « transparente » or « opaque » sets the open sketch's
+//!   matter in front to it directly, from whichever state it was in, rather
+//!   than stepping to the next —
+//!   `picking_a_state_of_the_matter_in_front_sets_the_open_sketch_to_it_whatever_it_was`
 
 use super::*;
 
+use cao_render::MatterInFront;
 use cao_sketch::{DimensionPicks, DimensionTarget, Measured, PointId};
 
 fn measuring() -> SketchEditor {
@@ -104,5 +112,29 @@ fn only_the_tool_that_takes_the_whole_thing_lights_the_whole_of_it() {
             !tool.lights_the_whole_of_it(),
             "{tool:?} takes a stretch, and lighting the whole promises otherwise",
         );
+    }
+}
+
+#[test]
+fn picking_a_state_of_the_matter_in_front_sets_the_open_sketch_to_it_whatever_it_was() {
+    let the_three = [
+        MatterInFront::Hidden,
+        MatterInFront::SeeThrough,
+        MatterInFront::Opaque,
+    ];
+
+    for was in the_three {
+        for picked in the_three {
+            let mut editor = SketchEditor::default();
+            editor.begin_editing(0, WorkPlane::XY);
+            editor.matter_in_front = was;
+
+            editor.set_matter_in_front(picked);
+
+            assert_eq!(
+                editor.matter_in_front, picked,
+                "the sketch's matter in front was {was:?}, {picked:?} was picked",
+            );
+        }
     }
 }

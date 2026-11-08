@@ -53,9 +53,9 @@
 //! this is the bullet a command answers. What « Recadrer » does to the camera
 //! is held in `crates/app/src/screens/viewport/state/tests.rs`, the one module
 //! that sees it.
-//! - picking « cachée », « transparente » or « opaque » sets the open sketch's
-//!   matter in front to that state directly, whatever state it was in —
-//!   `picking_a_state_of_the_matter_in_front_sets_the_open_sketch_to_it_whatever_it_was`
+//! - the ribbon's own « Matière devant » stays and keeps cycling —
+//!   `the_matter_in_front_button_moves_the_open_sketch_to_the_next_state`,
+//!   written for #319 and left as it is
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::Command;

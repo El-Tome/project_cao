@@ -11,3 +11,13 @@ pub fn in_front(lang: &Catalogue, state: MatterInFront) -> String {
         MatterInFront::Opaque => "command.label.matter_in_front.opaque",
     })
 }
+
+/// A state on its own, as the menu of the three and the rows of the section
+/// view's panel name it: « cachée ».
+pub fn state(lang: &Catalogue, state: MatterInFront) -> String {
+    lang.t(match state {
+        MatterInFront::Hidden => "section.hidden",
+        MatterInFront::SeeThrough => "section.see_through",
+        MatterInFront::Opaque => "section.opaque",
+    })
+}

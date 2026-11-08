@@ -32,13 +32,22 @@
 //! - in a sketch, the bar's « Matière devant » offers « cachée »,
 //!   « transparente » and « opaque », and picking one sets the open sketch's
 //!   matter in front to it directly rather than cycling —
-//!   `choosing_see_through_in_the_bar_s_menu_makes_the_matter_in_front_see_through`;
-//!   from whichever state it was in, in `crates/app/src/commands/tests.rs` by
+//!   `choosing_see_through_in_the_bar_s_menu_makes_the_matter_in_front_see_through`,
+//!   not yet written: it waits for the bar to be drawn. The three offered in
+//!   order, in `crates/app/src/screens/view_bar/state/tests.rs` by
+//!   `the_matter_in_front_menu_offers_hidden_see_through_and_opaque_in_that_order`;
+//!   the state picked set from whichever one it was, in
+//!   `crates/app/src/screens/sketch/tests.rs` by
 //!   `picking_a_state_of_the_matter_in_front_sets_the_open_sketch_to_it_whatever_it_was`
 //! - the bar's label reads « Matière devant : cachée ▾ » after the current
-//!   state — `the_bar_s_matter_in_front_reads_the_state_the_sketch_is_in`
+//!   state — `the_bar_s_matter_in_front_reads_the_state_the_sketch_is_in`, not
+//!   yet written, for the ▾ and the window; the label and the state marked
+//!   among the three, in `crates/app/src/screens/view_bar/state/tests.rs` by
+//!   `the_matter_in_front_menu_reads_and_marks_the_state_the_open_sketch_is_in`
 //! - outside a sketch the bar's « Matière devant » is greyed, as the ribbon's
-//!   is today — `outside_a_sketch_the_bar_s_matter_in_front_is_greyed`
+//!   is today — `outside_a_sketch_the_bar_s_matter_in_front_is_greyed`, not yet
+//!   written; the rule, in `crates/app/src/screens/view_bar/state/tests.rs` by
+//!   `outside_a_sketch_the_matter_in_front_menu_is_greyed`
 //! - the ribbon's own « Matière devant » stays and keeps cycling — no test: in
 //!   this file; held in `crates/app/src/commands/tests.rs` by
 //!   `the_matter_in_front_button_moves_the_open_sketch_to_the_next_state`,

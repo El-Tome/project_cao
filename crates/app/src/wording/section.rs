@@ -13,11 +13,7 @@ pub enum Side {
 
 /// A side's row: which side, and how its matter is drawn.
 pub fn side(lang: &Catalogue, side: Side, state: MatterInFront) -> String {
-    let state = lang.t(match state {
-        MatterInFront::Hidden => "section.hidden",
-        MatterInFront::SeeThrough => "section.see_through",
-        MatterInFront::Opaque => "section.opaque",
-    });
+    let state = super::matter::state(lang, state);
     let key = match side {
         Side::Behind => "section.behind",
         Side::InFront => "section.in_front",

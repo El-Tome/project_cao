@@ -12,6 +12,7 @@ pub mod sketch_pill;
 pub mod start_menu;
 pub mod title_bar;
 pub mod variables;
+pub mod view_bar;
 pub mod viewport;
 
 use std::path::PathBuf;

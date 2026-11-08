@@ -11,7 +11,8 @@
 //! two walls sharing their rays cross along is sampled at its ends alone
 //! (`crossing.rs`). A curve grazing a third cylinder takes a point besides
 //! wherever it crosses an angle that cylinder's own samples stand at, once
-//! the rays are settled (`third.rs`).
+//! the rays are settled, and hands its own cylinders a ray through each
+//! (`third.rs`).
 //!
 //! An elliptic wall (#571) is divided as a circle of its major half-axis,
 //! as its rims are, its grid an eccentric angle's; it takes the angles its
@@ -218,13 +219,7 @@ fn alone(
             .values()
             .find(|grid| matches!(grid.spun, Spun::Cone(spun) if spun == *cone))
     };
-    let steps = carried.map(|wall| match wall {
-        Wall::Cone(cone) => grid(&cone).map_or_else(
-            || divisions(size(&wall, meet), tolerance),
-            |grid| grid.steps,
-        ),
-        _ => divisions(size(&wall, meet), tolerance),
-    });
+    let steps = steps_of(meet, grids, tolerance);
     let rays = [0, 1].map(|rank| match carried[rank] {
         Wall::Cylinder(cylinder) => taken(&own[rank], &cylinder, walls, contacts),
         Wall::Elliptic(oval) => {
@@ -242,6 +237,47 @@ fn alone(
         }
         Wall::Cone(cone) => grid(&cone).map_or_else(Vec::new, |grid| grid.vertex_angles().to_vec()),
     });
+    let clear = clearing(body, id, meet, zones, steps);
+    on_meet_by(
+        meet,
+        edge,
+        tolerance,
+        eps,
+        [&rays[0], &rays[1]],
+        steps,
+        &clear,
+    )
+}
+
+/// How many steps a turn each wall of `meet` is cut into: a cone's its own
+/// grid's, which the faces on it are laid out by.
+fn steps_of(meet: &Meet, grids: &BTreeMap<SurfaceId, Grid>, tolerance: f64) -> [usize; 2] {
+    [meet.first, meet.second].map(|wall| match wall {
+        Wall::Cone(cone) => grids
+            .values()
+            .find(|grid| matches!(grid.spun, Spun::Cone(spun) if spun == cone))
+            .map_or_else(
+                || divisions(size(&wall, meet), tolerance),
+                |grid| grid.steps,
+            ),
+        _ => divisions(size(&wall, meet), tolerance),
+    })
+}
+
+/// Whether a place of the edge `id` along `meet` may be a sample beside its
+/// ends and its turns: not where it grazes a surface an end lies on, nor
+/// where either wall all but lies on a wall facing it, nor on a plane
+/// touching either off the line they touch along.
+fn clearing<'a>(
+    body: &'a Body,
+    id: EdgeId,
+    meet: &Meet,
+    zones: &'a Zones,
+    steps: [usize; 2],
+) -> impl Fn(DVec3) -> bool + 'a {
+    let (edge, eps) = (body.edge(id), body.scale().eps());
+    let own = contact::held(body, id, meet);
+    let carried = [meet.first, meet.second];
     let planes = carried.map(|wall| match wall {
         Wall::Cylinder(cylinder) => {
             touching_planes(body, cylinder.origin, cylinder.axis, cylinder.radius)
@@ -254,7 +290,7 @@ fn alone(
         &own,
         [0, 1].map(|rank| (size(&carried[rank], meet), steps[rank])),
     );
-    let clear = |point: DVec3| {
+    move |point: DVec3| {
         !grazed(point, eps * contact::APART)
             && own
                 .iter()
@@ -269,16 +305,7 @@ fn alone(
                     }
                     Wall::Elliptic(_) | Wall::Cone(_) => true,
                 })
-    };
-    on_meet_by(
-        meet,
-        edge,
-        tolerance,
-        eps,
-        [&rays[0], &rays[1]],
-        steps,
-        &clear,
-    )
+    }
 }
 
 /// Whether the ray at `angle` round `wall` stands within `eps` of the ray
@@ -326,7 +353,7 @@ fn grazing_ends<'a>(
     edge: &'a Edge,
     walls: &[Wall; 2],
     grids: [(f64, usize); 2],
-) -> impl Fn(DVec3, f64) -> bool + 'a {
+) -> impl Fn(DVec3, f64) -> bool + use<'a> {
     let step = walls
         .iter()
         .zip(grids)

@@ -14,12 +14,16 @@
 //! Read once every wall's rays are settled, and added to the meet's own
 //! samples, which are kept as they were: sampled again against rays its
 //! walls took since, they would no longer be the places the faces beside
-//! were laid out by (352000000002012). Nor handed back as rays: the bore
-//! would take one through such a place, the post a sample there through
-//! the curve the two meet along, and the meet another ray of the post. So
-//! the meet's own cylinder takes no ray through them, as it does through
-//! its other samples (`contact/own.rs`). Only a cylinder is read as the
-//! third wall, not a cone nor an elliptic wall.
+//! were laid out by (352000000002012). The meet's own cylinders take a
+//! ray through each, as through its other samples (`contact/own.rs`), so
+//! that their circles stand on it too: a point off their rays, beside a rim
+//! a hair from the meet, fans a triangle of that wall across a whole step
+//! of its grid, and the triangle folds (354000000005557). The rays go no
+//! further: no meet is sampled again on them, else the bore would take one
+//! through such a place, the post a sample there through the curve the two
+//! meet along, and the meet another ray of the post. Only a cylinder is
+//! read as the third wall, not a cone nor an elliptic wall, and only a
+//! cylinder the meet lies on takes the rays.
 //! Not beside an end where the wall bounds a face, which the meet leaves
 //! from a corner of them both rather than grazes, nor on a wall parallel
 //! to one of the meet's own, which shares its rays in contact, or sharing
@@ -31,11 +35,13 @@ use std::collections::BTreeMap;
 
 use glam::DVec3;
 
+use super::super::cone::Grid;
+use super::super::crossing::is_line;
 use super::super::{divisions, taken};
-use super::{Around, turned};
+use super::{Around, clearing, steps_of, turned};
 use crate::brep::Scale;
 use crate::brep::curve::{Curve, Meet, Wall};
-use crate::brep::tessellation::contact::{self, Contact};
+use crate::brep::tessellation::contact::{self, Contact, Zones};
 use crate::brep::topology::{Body, EdgeId, SurfaceId, VertexId};
 
 /// How many equal stretches the meet's span is read in for the angle round
@@ -48,26 +54,53 @@ const HALVINGS: u32 = 60;
 
 /// The points of every edge, `meets` as last sampled, with a point besides
 /// wherever one grazes a wall it does not lie on and crosses an angle round
-/// that wall the samples `meets` put on it stand at. The edge's own samples
+/// that wall the samples `meets` put on it stand at; a place is kept where
+/// the edge's own samples would be, by [`clearing`]. The edge's own samples
 /// are kept as they were: sampled again, against rays its walls took since,
 /// they would no longer be the places the faces beside were laid out by.
+/// Each cylinder the edge lies on takes in `contacts` the ray through every
+/// point added, as it does through the edge's other samples.
 pub(in super::super) fn settled(
     body: &Body,
-    around: Around,
+    (walls, zones): (&[contact::Wall], &Zones),
+    contacts: &mut BTreeMap<SurfaceId, Contact>,
+    grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
     meets: Vec<Vec<DVec3>>,
 ) -> Vec<Vec<DVec3>> {
-    let seen = seen(body, around.0, around.2, &meets, tolerance);
+    let around = (walls, zones, &*contacts);
+    let seen = seen(body, walls, contacts, &meets, tolerance);
     let mut settled = meets;
+    let mut rays: Vec<(SurfaceId, DVec3)> = Vec::new();
     for id in body.edge_ids() {
         let Curve::Meet(meet) = body.curve(body.edge(id).curve) else {
             continue;
         };
-        let places = places(body, (id, meet), around, &seen, tolerance);
-        if !places.is_empty() {
-            let points = &settled[id.0 as usize];
-            settled[id.0 as usize] = spliced(body, (id, meet), points, &places);
+        let own = contact::held(body, id, meet);
+        if is_line(meet, own, body.edge(id), zones) {
+            continue;
         }
+        let clear = clearing(body, id, meet, zones, steps_of(meet, grids, tolerance));
+        let mut places = places(body, (id, meet), around, &seen, tolerance);
+        places.retain(|t| clear(meet.point(*t)));
+        if places.is_empty() {
+            continue;
+        }
+        for (surface, cylinder) in walls {
+            if own.contains(&Wall::Cylinder(*cylinder)) {
+                rays.extend(places.iter().map(|t| {
+                    (
+                        *surface,
+                        cylinder.radial(cylinder.parameters(meet.point(*t)).x),
+                    )
+                }));
+            }
+        }
+        let points = &settled[id.0 as usize];
+        settled[id.0 as usize] = spliced(body, (id, meet), points, &places);
+    }
+    for (surface, ray) in rays {
+        contacts.entry(surface).or_default().rays.push(ray);
     }
     settled
 }

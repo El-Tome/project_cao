@@ -2192,10 +2192,12 @@ cylinder has a face, it takes a point wherever it crosses an angle round
 the cylinder the cylinder's own samples stand at, and the two keep their
 order between the same rays (`sampling/meet/third.rs`). The points are
 added once every wall's rays are settled, the curve's own samples kept
-as they were, and handed to no wall: the curve's own cylinder takes no
-ray through them, as it does through its other samples
-(`contact/own.rs`). Only a cylinder is read as the third wall, not a
-cone nor an elliptic wall; a curve on a wall sharing its rays leaning a
+as they were (352000000002012), each point kept only where one of them
+could stand. The cylinders the curve lies on take a ray through each, as
+through its other samples (`contact/own.rs`), so that their circles stand
+on it too (354000000005557); no curve is sampled again on those rays,
+which would have the rays of the three walls chase each other. Only a
+cylinder is read as the third wall, not a cone nor an elliptic wall; a curve on a wall sharing its rays leaning a
 hair off parallel (`twin.rs`), or a third wall parallel to one of its
 own, takes none.
 

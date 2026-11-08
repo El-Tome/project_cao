@@ -576,6 +576,7 @@ dependencies = [
  "serde_json",
  "trash",
  "wgpu",
+ "winit",
 ]
 
 [[package]]

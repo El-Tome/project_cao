@@ -17,7 +17,7 @@ The ⚙ button of the toolbar, or `Cmd/Ctrl + ,`. Six sections:
 | **Profils** | Switch, duplicate, delete, import, export, reset everything |
 | **Viewport** | Orientation cube, grid and magnets, ruler, camera bounds |
 | **Navigation** | Mouse habits, sensitivities, trackpad gestures |
-| **Apparence** | The two backgrounds, and every colour and width |
+| **Apparence** | The two backgrounds, every colour and width, and whether the window reopens at its last size |
 | **Raccourcis** | The key of each command |
 | **Barre d'outils** | The place, the logo, and the arrangement of the buttons |
 
@@ -62,6 +62,21 @@ sides.
 It is all written to `settings.json`, in the configuration folder of the OS. An
 unreadable file does not stop the application from starting: it goes back to
 the default values, failing which the user would have no way in to repair it.
+
+Beside it, in the same folder, `recents.json` holds the parts lately opened and
+`window.json` the place the window was closed at: its corner, its size, and
+whether it was maximised. Maximised, the corner and size are the ones to go
+back to once restored — the last the window held for a second, as a rect held
+less than that before a maximise is taken for a frame of the zoom's animation.
+`window.json` is written on close, apart from the profiles, so closing a window
+never writes `settings.json` back over a change made in another one; with two
+windows open, the last one closed is the place remembered. Missing or
+unreadable, it means nothing remembered, and the window opens maximised; one
+that cannot be written on close is lost, and the application closes all the
+same. The setting "Rouvrir à la dernière taille", in **Apparence** and on by
+default, is read at launch: off, the window opens maximised whatever was
+remembered. Where the system does not say where a window stands, as on
+Wayland, nothing is remembered and the window always opens maximised.
 
 ## Appearance
 

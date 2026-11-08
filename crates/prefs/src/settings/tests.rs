@@ -6,6 +6,13 @@
 //!   `the_copy_panel_s_place_survives_being_written_and_read_back`
 //! - a settings file written before the panel existed still loads, with no
 //!   place for it yet — `a_settings_file_written_before_the_panel_still_loads`
+//!
+//! Closes #780.
+//! - A setting « Rouvrir à la dernière taille », on by default; off, the
+//!   application opens maximised whatever was remembered — on by default here,
+//!   for a new profile and for one written before the setting existed,
+//!   `reopening_at_the_last_size_is_on_by_default`; what off does is held in
+//!   `window_place/tests.rs`, the box in `crates/app/tests/reopening_the_window.rs`
 
 use std::path::PathBuf;
 
@@ -100,4 +107,31 @@ fn a_settings_file_written_before_the_panel_still_loads() {
 
     assert_eq!(read.settings.copy_panel_at, None);
     assert_eq!(read.settings.language, "fr");
+}
+
+#[test]
+fn reopening_at_the_last_size_is_on_by_default() {
+    let files = InMemoryFiles::default();
+    let path = PathBuf::from(format!("/shared/before-the-window.{PROFILE_EXTENSION}"));
+    files
+        .write(
+            &path,
+            format!(
+                r#"{{"version":{SETTINGS_VERSION},"name":"Before","settings":{{"language":"fr"}}}}"#
+            )
+            .as_bytes(),
+        )
+        .expect("writes");
+
+    assert!(
+        Settings::default().reopen_at_last_size,
+        "a new profile reopens the window where it was closed",
+    );
+    assert!(
+        Profile::import(&files, &path)
+            .expect("reads")
+            .settings
+            .reopen_at_last_size,
+        "a profile written before the setting existed reopens the window where it was closed",
+    );
 }

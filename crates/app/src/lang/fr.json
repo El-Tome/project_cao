@@ -629,6 +629,8 @@
   "settings.appearance.extrusion_add": "Ajout de matière",
   "settings.appearance.extrusion_cut": "Enlèvement",
   "settings.appearance.reset": "↺ Couleurs par défaut",
+  "settings.appearance.window": "Fenêtre",
+  "settings.appearance.reopen_at_last_size": "Rouvrir à la dernière taille",
 
   "settings.profiles.intro": "Chaque profil est un jeu de réglages complet. Ce qui est modifié ailleurs va dans le profil actif.",
   "settings.profiles.name_hint": "nom du profil",

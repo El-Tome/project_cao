@@ -131,7 +131,16 @@ pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalog
         *theme = Theme::default();
     }
 
-    before != profiles.active().theme
+    ui.add_space(10.0);
+    ui.heading(lang.t("settings.appearance.window"));
+    let reopening_toggled = ui
+        .checkbox(
+            &mut profiles.active_mut().reopen_at_last_size,
+            lang.t("settings.appearance.reopen_at_last_size"),
+        )
+        .changed();
+
+    reopening_toggled || before != profiles.active().theme
 }
 
 /// The background editor: the kind of gradient, then its stops.

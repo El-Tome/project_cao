@@ -58,6 +58,12 @@ impl Remembered {
         self.recents.entries()
     }
 
+    /// Where what is remembered is kept, or nothing when the platform offers
+    /// nowhere.
+    pub fn locations(&self) -> Option<&Locations> {
+        self.at.as_ref()
+    }
+
     /// Where new parts land, or nothing when the platform offers nowhere.
     pub fn projects_dir(&self) -> Option<PathBuf> {
         self.at.as_ref().map(cao_prefs::default_projects_dir)

@@ -35,6 +35,9 @@ pub struct Settings {
     /// Where the panel of the copy tools was last let go, top-left in screen
     /// points: one place shared by every tool that opens it.
     pub copy_panel_at: Option<[f32; 2]>,
+    /// Whether the window opens where it was last closed, rather than
+    /// maximised. Read at launch only: changing it leaves the open window be.
+    pub reopen_at_last_size: bool,
 }
 
 impl Default for Settings {
@@ -47,6 +50,7 @@ impl Default for Settings {
             toolbar: ToolbarLayout::default(),
             language: DEFAULT_LANGUAGE.to_string(),
             copy_panel_at: None,
+            reopen_at_last_size: true,
         }
     }
 }

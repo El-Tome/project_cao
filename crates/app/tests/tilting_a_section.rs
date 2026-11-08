@@ -9,45 +9,7 @@ mod driver;
 use cao_part::PartDocument;
 use cao_sketch::WorkPlane;
 use egui_kittest::kittest::{NodeT, Queryable};
-use glam::{DVec2, DVec3};
-
-/// Inside the rectangle the block is raised off, a point of its sketch: where
-/// the extrusion is told which region to raise.
-const ON_THE_BLOCK: DVec2 = DVec2::new(57.5, -4.05);
-
-/// Where the block's face stands in front of the eye, and so where a section
-/// across it shows its cut: a point of the cut through the middle of the
-/// block, on the line of sight the clicks first written for it took.
-const ON_THE_CUT: DVec3 = DVec3::new(5.0, 46.2, -2.47);
-
-/// The corners of the rectangle the block is raised off, points of its sketch:
-/// the first is pulled onto the plane's axis.
-const THE_BLOCK_S_CORNERS: [DVec2; 2] = [DVec2::new(-8.82, 44.59), DVec2::new(123.83, -52.69)];
-
-/// A block raised off a rectangle drawn on a plane of the origin, its sketch
-/// then finished.
-fn a_block(test: &str) -> driver::App {
-    let mut app = driver::open(test);
-    driver::create_a_part(&mut app, "Bloc");
-    driver::start_a_sketch(&mut app);
-    driver::click(&mut app, "Rectangle (R)");
-    driver::click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[0]);
-    driver::click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[1]);
-    driver::click_exactly(&mut app, "Extrusion");
-    driver::click_exactly(&mut app, "1");
-    driver::click(&mut app, "Ajout de matière");
-    driver::click_at_sketch_point(&mut app, ON_THE_BLOCK);
-    driver::click(&mut app, "Appliquer");
-    driver::press(&mut app, egui::Key::Escape);
-    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
-    driver::click_the_button(&mut app, "Esquisse");
-    assert!(
-        !driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
-        "the sketch the block was raised from is still being edited, showing {:?}",
-        driver::on_screen(&app),
-    );
-    app
-}
+use glam::DVec3;
 
 /// The ribbon's button that reads this, whichever tab it sits under.
 fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
@@ -127,7 +89,7 @@ fn double_click(app: &mut driver::App, label: &str) {
 /// across it shows one, and finishes it.
 fn a_sketch_on_the_cut(app: &mut driver::App) {
     click_in_the_ribbon(app, "Nouvelle esquisse");
-    driver::click_at_world_point(app, ON_THE_CUT);
+    driver::click_at_world_point(app, driver::ON_THE_CUT);
     assert!(
         driver::is_enabled(app, driver::FINISH_IN_THE_RIBBON),
         "the click on the tilted cut started no sketch, showing {:?}",
@@ -196,7 +158,7 @@ fn lies_on_yz_turned_ten_degrees_through(plane: WorkPlane, middle: DVec3) -> Res
 #[test]
 fn a_sketch_started_on_a_tilted_cut_lands_on_the_tilted_plane() {
     let test = "tilting_a_section_sketch_on_the_cut";
-    let mut app = a_block(test);
+    let mut app = driver::a_block(test);
     click_in_the_ribbon(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
     driver::type_beside(&mut app, "Inclinaison 1", "10");
@@ -213,7 +175,7 @@ fn a_sketch_started_on_a_tilted_cut_lands_on_the_tilted_plane() {
 #[test]
 fn a_sketch_on_a_kept_tilted_section_lands_on_the_tilted_plane() {
     let test = "tilting_a_section_sketch_on_a_kept_one";
-    let mut app = a_block(test);
+    let mut app = driver::a_block(test);
     click_in_the_ribbon(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
     driver::type_beside(&mut app, "Inclinaison 1", "10");
@@ -243,7 +205,7 @@ fn the_number_beside(app: &driver::App, label: &str) -> f64 {
 
 #[test]
 fn a_tilted_section_comes_back_with_its_two_angles_from_the_caopart_and_from_the_tree() {
-    let mut app = a_block("tilting_a_section_kept_tilted");
+    let mut app = driver::a_block("tilting_a_section_kept_tilted");
     click_in_the_ribbon(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
     driver::type_beside(&mut app, "Inclinaison 1", "30");

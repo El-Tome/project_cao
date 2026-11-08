@@ -5,8 +5,6 @@ use egui::{
     WidgetText, pos2, vec2,
 };
 
-use crate::ui::primary_button;
-
 use crate::ui::theme::tokens::{
     ACCENT_AMBER, BACKGROUND_FLOATING, BACKGROUND_HOVER, BORDER_CONTROL, BORDER_GROUP,
     RADIUS_BUTTON, RADIUS_PILL, SPACING_L, SPACING_M, SPACING_S, SPACING_XXL, STATE_ERROR,
@@ -42,10 +40,15 @@ pub fn pill(ui: &mut Ui, text: &str) -> Response {
 /// below the view's, holding a row laid left to right. It sits on a layer of
 /// its own, above the view: what lies under it is neither hovered nor clicked,
 /// save by a drag already under way, which carries on over it.
+///
+/// The row is laid `row_height` tall from the start, the height of the
+/// tallest thing it holds: a row that only grows once that thing is laid
+/// leaves what came before it centred on the shorter band it was laid in.
 pub fn floating_pill<R>(
     ctx: &Context,
     id: Id,
     view: Rect,
+    row_height: f32,
     contents: impl FnOnce(&mut Ui) -> R,
 ) -> R {
     let size_before = AreaState::load(ctx, id).and_then(|state| state.size);
@@ -68,10 +71,7 @@ pub fn floating_pill<R>(
                 .show(ui, |ui| {
                     ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
                     ui.spacing_mut().item_spacing.x = SPACING_XXL;
-                    // Laid as tall as its button from the start: a row grown
-                    // by the button once the texts are laid leaves them
-                    // centred on the shorter band they were laid in.
-                    let row = vec2(ui.available_width(), primary_button::HEIGHT);
+                    let row = vec2(ui.available_width(), row_height);
                     ui.allocate_ui_with_layout(row, Layout::left_to_right(Align::Center), contents)
                         .inner
                 })

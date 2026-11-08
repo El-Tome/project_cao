@@ -183,6 +183,106 @@ impl Ell {
     }
 }
 
+/// The outline of a plate 50 long on the X axis, reaching back to Y = 12 at
+/// its left and to Y = 4 at its right, and nowhere less than 4 deep: between
+/// the two a riser leaning back 3 across for every 4 up, and in the high part
+/// a V notch 8 wide at its mouth whose point stands 4 behind the front. The
+/// step meets the riser at an obtuse concave corner and the notch's two walls
+/// meet at an acute one: the cosines of the angles the air between them
+/// makes are −0.6 and 0.6, their sines both 0.8, and the tangents of their
+/// halves 2 and 1/2 — a round set back by its radius is off by half at the
+/// one and by double at the other. Raised, its walls are numbered from the
+/// front round: the front two, the right end three, the step four, the riser
+/// five, the back of the high part six, the notch's right wall seven and its
+/// left wall eight, the back left of the notch nine and the left ten.
+const NOTCHED_STEP: [DVec2; 9] = [
+    DVec2::new(0.0, 0.0),
+    DVec2::new(50.0, 0.0),
+    DVec2::new(50.0, 4.0),
+    DVec2::new(38.0, 4.0),
+    DVec2::new(32.0, 12.0),
+    DVec2::new(24.0, 12.0),
+    DVec2::new(20.0, 4.0),
+    DVec2::new(16.0, 12.0),
+    DVec2::new(0.0, 12.0),
+];
+
+/// The area [`NOTCHED_STEP`] encloses: 50 by 12, less the 120 the riser and
+/// the step leave above the step, and the 32 of the notch.
+const NOTCHED_STEP_AREA: f64 = 448.0;
+
+/// The numbers the step, the riser and the notch's walls of the
+/// [`NOTCHED_STEP`] plate answer to.
+const STEP: usize = 4;
+const RISER: usize = 5;
+const NOTCH_RIGHT: usize = 7;
+const NOTCH_LEFT: usize = 8;
+
+/// The [`NOTCHED_STEP`] outline raised from the ground by `height`.
+fn notched_step(height: f64) -> Body {
+    raised_on(ground(), Contour::straight(NOTCHED_STEP.to_vec()), height)
+}
+
+/// A concave upright edge of the [`NOTCHED_STEP`] plate: the point of the
+/// outline it stands on, its two walls, the one before that point and the one
+/// after, and the way each wall faces, in the ground's plane.
+struct Inner {
+    what: &'static str,
+    at: usize,
+    walls: [usize; 2],
+    outward: [DVec2; 2],
+}
+
+const INNER_EDGES: [Inner; 2] = [
+    Inner {
+        what: "the obtuse inner edge between the step and the riser",
+        at: 3,
+        walls: [STEP, RISER],
+        outward: [DVec2::new(0.0, 1.0), DVec2::new(4.0, 3.0)],
+    },
+    Inner {
+        what: "the acute inner edge at the point of the notch",
+        at: 6,
+        walls: [NOTCH_RIGHT, NOTCH_LEFT],
+        outward: [DVec2::new(-2.0, 1.0), DVec2::new(2.0, 1.0)],
+    },
+];
+
+impl Inner {
+    fn corner(&self) -> DVec2 {
+        NOTCHED_STEP[self.at]
+    }
+
+    /// The far end of each wall from the corner.
+    fn far(&self) -> [DVec2; 2] {
+        [NOTCHED_STEP[self.at - 1], NOTCHED_STEP[self.at + 1]]
+    }
+
+    /// The way along each wall from the corner.
+    fn ways(&self) -> [DVec2; 2] {
+        self.far().map(|far| (far - self.corner()).normalize())
+    }
+
+    /// The angle between the two walls, through the air.
+    fn angle(&self) -> f64 {
+        let [first, second] = self.ways();
+        first.dot(second).acos()
+    }
+
+    /// The two points `set_back` from the corner along each wall.
+    fn set_back(&self, set_back: f64) -> [DVec2; 2] {
+        self.ways().map(|way| self.corner() + way * set_back)
+    }
+
+    /// The outline with the corner given up for the two points `set_back`
+    /// from it along each wall.
+    fn outline_filled(&self, set_back: f64) -> Vec<DVec2> {
+        let mut outline = NOTCHED_STEP.to_vec();
+        outline.splice(self.at..=self.at, self.set_back(set_back));
+        outline
+    }
+}
+
 /// The name of the one edge between the faces numbered `first` and `second`,
 /// as the body hands it to whoever points at that edge.
 fn edge_between(body: &Body, first: usize, second: usize) -> EdgeName {
@@ -422,17 +522,17 @@ impl Hollow {
     }
 
     /// Whether a point lies on the round: on its cylinder, between its two
-    /// ends, and between its two sides.
+    /// ends, and between its two sides — no further round from the way it
+    /// faces halfway than either side is.
     fn holds(&self, point: DVec3) -> bool {
         let off = point - self.start;
         let along = off.dot(self.along);
         let toward_the_axis = self.along * along - off;
-        let [first, second] = self.facing;
-        let least = self.radius * first.dot(second);
+        let halfway = self.facing_at(0.5);
+        let least = self.radius * self.facing[0].dot(halfway);
         (toward_the_axis.length() - self.radius).abs() < PLACE
             && (-PLACE..=self.length + PLACE).contains(&along)
-            && toward_the_axis.dot(first) >= least - PLACE
-            && toward_the_axis.dot(second) >= least - PLACE
+            && toward_the_axis.dot(halfway) >= least - PLACE
     }
 
     /// The round's area, its turn times its radius times its length.
@@ -443,8 +543,9 @@ impl Hollow {
 }
 
 /// Holds that the face numbered `face` is the hollow round expected: every
-/// corner of its triangles on it, and every ray aimed from the air beyond its
-/// axis back across it meeting it first, where it faces back along the ray.
+/// corner of its triangles on it, and every ray aimed from its axis, in the
+/// air the round leaves, out to it meeting it first, where it faces back
+/// along the ray.
 fn is_the_hollow(body: &Body, face: usize, hollow: &Hollow, what: &str) {
     let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
     assert!(!corners.is_empty(), "{what}: the round is drawn");
@@ -461,13 +562,13 @@ fn is_the_hollow(body: &Body, face: usize, hollow: &Hollow, what: &str) {
     for along in [0.11, 0.47, 0.83] {
         for share in [0.1, 0.3, 0.5, 0.7, 0.9] {
             let facing = hollow.facing_at(share);
-            let from = hollow.axis_at(along) + facing * 10.0;
-            let hit = body.ray_hit(from, -facing).unwrap_or_else(|| {
-                panic!("{what}: a ray from {from} across the axis meets nothing")
-            });
+            let from = hollow.axis_at(along);
+            let hit = body
+                .ray_hit(from, -facing)
+                .unwrap_or_else(|| panic!("{what}: a ray from {from} on the axis meets nothing"));
             assert_eq!(
                 hit.face, face,
-                "{what}: a ray from {from} across the axis meets face {} before the round",
+                "{what}: a ray from {from} on the axis meets face {} before the round",
                 hit.face
             );
             assert!(
@@ -651,4 +752,149 @@ fn a_fillet_on_the_inner_corner_of_an_l_fills_it_with_one_round_of_the_radius_ta
         "the arm's back and the stem's right side no longer meet: the round stands between them",
     );
     within_the_box_of(&ell, body, what);
+}
+
+#[test]
+fn a_chamfer_on_a_concave_edge_whose_faces_meet_at_a_slant_is_set_back_by_the_distance_along_each_face()
+ {
+    let (height, distance) = (10.0, 3.0);
+
+    for inner in INNER_EDGES {
+        let what = inner.what;
+        let part = notched_step(height);
+        let edge = edge_between(&part, inner.walls[0], inner.walls[1]);
+
+        let chamfered = part
+            .chamfer(&edge, distance)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_whole(chamfered.asked, chamfered.taken, distance, what);
+        let body = &chamfered.body;
+        let filled_in = distance * distance * inner.angle().sin() / 2.0 * height;
+        sound(body, NOTCHED_STEP_AREA * height + filled_in, what);
+        let chamfer = one_flat_face_more(&part, body, what);
+        let [first, second] = inner.outward.map(DVec2::normalize);
+        faces_toward(
+            body,
+            chamfer,
+            (first + second).extend(0.0),
+            &format!("{what}: the chamfer, halfway between its walls, out of the matter"),
+        );
+        let set_back = inner.set_back(distance);
+        corners_are(
+            body,
+            chamfer,
+            &set_back.map(|at| upright(at, height)).concat(),
+            &format!("{what}: the chamfer, set back by the distance along each wall"),
+        );
+        for ((wall, near), far) in inner.walls.into_iter().zip(set_back).zip(inner.far()) {
+            corners_are(
+                body,
+                wall,
+                &[upright(near, height), upright(far, height)].concat(),
+                &format!("{what}: what is left of wall {wall}"),
+            );
+        }
+        let filled = inner.outline_filled(distance);
+        for (cap, at, whose) in [(FLOOR, 0.0, "the floor"), (TOP, height, "the top")] {
+            corners_are(
+                body,
+                cap,
+                &lifted_to(&filled, at),
+                &format!("{what}: {whose}, holding the chamfer's end flush, the corner gone"),
+            );
+        }
+        assert_eq!(
+            sides_met(body, chamfer),
+            [FLOOR, TOP, inner.walls[0], inner.walls[1]].map(|side| vec![side as u32]),
+            "{what}: the chamfer meets its two walls along its sides, and the floor and the top \
+             at its ends, by one edge each"
+        );
+        no_longer_meet(
+            body,
+            inner.walls[0],
+            inner.walls[1],
+            &format!("{what}: the two walls no longer meet, the chamfer stands between them"),
+        );
+        within_the_box_of(&part, body, what);
+    }
+}
+
+#[test]
+fn a_fillet_on_a_concave_edge_whose_faces_meet_at_a_slant_is_set_back_by_the_radius_over_the_tangent_of_half_the_angle()
+ {
+    let (height, radius) = (10.0, 3.0);
+
+    for inner in INNER_EDGES {
+        let what = inner.what;
+        let part = notched_step(height);
+        let edge = edge_between(&part, inner.walls[0], inner.walls[1]);
+
+        let filleted = part
+            .fillet(&edge, radius)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_whole(filleted.asked, filleted.taken, radius, what);
+        let body = &filleted.body;
+        let (angle, [first_way, second_way]) = (inner.angle(), inner.ways());
+        let set_back = radius / (angle / 2.0).tan();
+        let axis =
+            inner.corner() + (first_way + second_way).normalize() * radius / (angle / 2.0).sin();
+        let hollow = Hollow {
+            start: axis.extend(0.0),
+            along: DVec3::Z,
+            length: height,
+            radius,
+            facing: inner.outward.map(|way| way.normalize().extend(0.0)),
+        };
+        let filled_in = (radius * set_back - radius * radius * (PI - angle) / 2.0) * height;
+        sound_drawn_within(
+            body,
+            NOTCHED_STEP_AREA * height + filled_in,
+            drawn_within(&part, hollow.area()),
+            what,
+        );
+        let fillet = one_round_more(&part, body, what);
+        is_the_hollow(
+            body,
+            fillet,
+            &hollow,
+            &format!("{what}: the round, its axis the radius out from each wall"),
+        );
+        let stops = inner.set_back(set_back);
+        for ((wall, near), far) in inner.walls.into_iter().zip(stops).zip(inner.far()) {
+            corners_are(
+                body,
+                wall,
+                &[upright(near, height), upright(far, height)].concat(),
+                &format!(
+                    "{what}: what is left of wall {wall}, set back by the radius over the tangent \
+                     of half the angle, {set_back}"
+                ),
+            );
+        }
+        let filled = inner.outline_filled(set_back);
+        for (cap, at, whose) in [(FLOOR, 0.0, "the floor"), (TOP, height, "the top")] {
+            corners_are_or_on(
+                body,
+                cap,
+                &lifted_to(&filled, at),
+                |corner| hollow.holds(corner),
+                &format!("{what}: {whose}, holding the round's end flush, the corner gone"),
+            );
+        }
+        assert_eq!(
+            sides_met(body, fillet),
+            [FLOOR, TOP, inner.walls[0], inner.walls[1]].map(|side| vec![side as u32]),
+            "{what}: the round meets its two walls along its sides, and the floor and the top at \
+             its ends, by one edge each"
+        );
+        no_longer_meet(
+            body,
+            inner.walls[0],
+            inner.walls[1],
+            &format!("{what}: the two walls no longer meet, the round stands between them"),
+        );
+        within_the_box_of(&part, body, what);
+    }
 }

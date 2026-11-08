@@ -197,7 +197,7 @@ It can:
   of #683, Tom, 2026-11-05). Declined, never cut wrong: an edge its name no
   longer finds is `Declined::Lost`, gone or split, as `Body::lost` says,
   and on flats every name is gone. `Declined::Unsupported` is an edge that
-  is not straight between two flat faces, a concave one, one running on
+  is not straight between two flat faces, one running on
   tangentially into the next edge of either face's loop — a tangent chain,
   such as a rounded rectangle's straight side, read within a sine of a
   millionth, well above what a solved sketch leaves between a round and
@@ -280,10 +280,8 @@ It can:
   turning in from its end at a few degrees, trimmed by the round's wall. Two
   edges a join bridged into one are rounded whole. Declined, as the chamfer
   is, `Lost` for an edge its name no longer finds and `Unsupported` for one
-  that is no wedge or a cut that left anything but its round — a concave
-  edge among them, the inner corner of an L, since rounding it fills matter
-  in rather than cutting it away, a different step left to an issue of its
-  own (Tom, 2026-11-06). One end the chamfer takes and the fillet does not:
+  that is no wedge or a cut that left anything but its round; a concave
+  edge is filled in, below. One end the chamfer takes and the fillet does not:
   a round leaving the edge's end outwards bulges past the edge's face beyond
   the end corner. The chamfer's face runs on over that bulge while the
   prism's side reaches it; the matter the bulge holds above the round's side
@@ -301,6 +299,29 @@ It can:
   the floor off the faces, which the kernel builds soundly on a bent front
   and the floor declines; and the knife edges the chamfer is tested on,
   which the fillet has no test for.
+- **fill a concave straight edge** (#778, the join in
+  `body/exact/wedge/fill.rs`): on an edge whose two flat faces meet
+  inwards — the inner corner of an L — the chamfer and the fillet fill the
+  corner in rather than cut it off, one mechanism for both (Tom,
+  2026-11-08). The `Wedge` reads such an edge as it reads the others and
+  notes that its faces meet inwards: the way into either face runs to the
+  side the other one faces. The values are the convex steps': the
+  chamfer's distance along each face, the fillet's set-back
+  `r / tan(α/2)`, `α` now the angle between the faces outside the matter.
+  The prism is the cut's turned inside out: its sides stand the margin off
+  the two faces into the matter rather than out of it, and close where they
+  meet there, so that the matter covers every wall of it but the face the
+  step lays; it is raised from the edge's one end to the other rather than
+  over the body's box, its ends on the planes square to the edge there, and
+  joined to the body. Those ends merge into the faces at the edge's ends,
+  which a join would leave answering to the numbers of both operands: each
+  face the prism merged into answers to the body's numbers alone, so a cap
+  stays the one face it was, its number with it. The check is the cut's:
+  one new face, in one piece, its corners on the edge's two faces, nothing
+  else of the prism left, and no face of the body gone but those two. An
+  end on a wall that is no plane square to the edge leaves a piece of the
+  prism's end on its own, and is declined `Unsupported`: trimming the fill
+  by an oblique wall is still to come.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face

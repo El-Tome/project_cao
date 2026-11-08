@@ -55,8 +55,9 @@
 //! - On two blocks joined so that two edges become one, a fillet on that edge
 //!   rounds it whole (as #696) —
 //!   `a_fillet_on_the_edge_a_join_bridged_from_two_rounds_it_whole`
-//! - A concave edge is declined `Unsupported` —
-//!   `a_fillet_on_the_inner_corner_of_an_l_where_its_faces_meet_inwards_is_declined_as_unsupported`
+//! - A concave edge is declined `Unsupported` — no test: #778 fills a concave
+//!   edge in since, and `a_chamfer_and_a_fillet_fill_a_concave_edge.rs` holds
+//!   what the inner corner of an L comes to now
 //! - The face numbers of every existing part are unchanged; the cylinder takes
 //!   the number after the steps' last one —
 //!   `a_fillet_leaves_every_other_face_of_the_block_answering_to_the_number_it_had_and_numbers_its_round_after_the_steps_last`;
@@ -1291,9 +1292,8 @@ const ELL_RESIZED: Ell = Ell {
     height: 12.0,
 };
 
-/// The numbers an L's arm's back, its stem's right side, its stem's back and
-/// its left answer to.
-const ARM_BACK: usize = 4;
+/// The numbers an L's stem's right side, its stem's back and its left answer
+/// to.
 const STEM_RIGHT: usize = 5;
 const STEM_BACK: usize = 6;
 const ELL_LEFT: usize = 7;
@@ -1556,16 +1556,6 @@ fn a_fillet_on_the_edge_a_join_bridged_from_two_rounds_it_whole() {
             );
         }
     }
-}
-
-#[test]
-fn a_fillet_on_the_inner_corner_of_an_l_where_its_faces_meet_inwards_is_declined_as_unsupported() {
-    let ell = ELL.on(ground());
-    let inner = edge_between(&ell, ARM_BACK, STEM_RIGHT);
-
-    let declined = ell.fillet(&inner, 1.0).err();
-
-    assert_eq!(declined, Some(Declined::Unsupported));
 }
 
 #[test]

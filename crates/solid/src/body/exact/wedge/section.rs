@@ -1,8 +1,9 @@
-//! The section square to an edge a cut is raised over: how far it stands
-//! outside the part, which is no more than about the value taken or the
-//! margin where that is larger — a result carries the larger reach of its
-//! operands, and every later step decides and draws at it — the top it is
-//! capped with, and the frame it is drawn in, carried along the edge.
+//! The section square to an edge a cut or a fill is raised over: how far it
+//! stands off the edge's faces, out of the part for a cut and into it for a
+//! fill, which is no more than about the value taken or the margin where
+//! that is larger — a result carries the larger reach of its operands, and
+//! every later step decides and draws at it — what closes it, and the frame
+//! it is drawn in, carried along the edge.
 
 use glam::{DVec2, DVec3};
 
@@ -43,7 +44,7 @@ impl Side {
         DVec2::new((self.offset - self.b * h) / self.a, h)
     }
 
-    fn meeting(self, other: Side) -> DVec2 {
+    pub fn meeting(self, other: Side) -> DVec2 {
         let det = self.a * other.b - other.a * self.b;
         DVec2::new(
             (self.offset * other.b - other.offset * self.b) / det,
@@ -77,26 +78,62 @@ impl Wedge {
         scale: Scale,
     ) -> f64 {
         let first = self.outward[0];
-        let slant = (first.dot(across) / first.dot(facing)).min(1.0);
+        let slant = (first.dot(across) / first.dot(facing)).abs().min(1.0);
         let least = SECTION * (Scale::RELATIVE / slant).sqrt() * scale.reach();
         (distance * MARGIN).max(least)
     }
 
+    /// Which way the prism's sides stand off the edge's faces, along the
+    /// ways they face: out of the matter for a cut, which then meets none of
+    /// them but along the face it lays, and into it for a fill, which the
+    /// matter then covers but for that face and its ends.
+    pub(in crate::body::exact) fn off(&self) -> f64 {
+        if self.inwards { -1.0 } else { 1.0 }
+    }
+
+    /// What closes a section from the first face's side round to the
+    /// second's: the top [`Side::top`] caps a cut with, or, for a fill, the
+    /// corner where the two sides meet inside the matter.
+    pub(in crate::body::exact) fn closed(
+        &self,
+        first: Side,
+        second: Side,
+        margin: f64,
+    ) -> Vec<DVec2> {
+        if self.inwards {
+            vec![first.meeting(second)]
+        } else {
+            Side::top(first, second, margin)
+        }
+    }
+
     /// The frame a section square to the edge is drawn in, `across` its
     /// first axis, and the travel that raises it along the edge's line over
-    /// the body's box and `margin` past either end.
+    /// the body's box and `margin` past either end — or, for a fill, from
+    /// the edge's start to its end, so that its ends lie on the planes there
+    /// and the fill adds no matter past them.
     pub(in crate::body::exact) fn raised_along(
         &self,
         across: DVec3,
         margin: f64,
         (low, high): (DVec3, DVec3),
     ) -> (Frame, DVec3) {
+        let v = self.along.cross(across);
+        if self.inwards {
+            let [start, end] = self.ends;
+            let frame = Frame {
+                origin: start,
+                u: across,
+                v,
+            };
+            return (frame, end - start);
+        }
         let middle = self.along.dot((low + high) / 2.0 - self.point);
         let half = self.along.abs().dot((high - low) / 2.0) + margin;
         let frame = Frame {
             origin: self.point + self.along * (middle - half),
             u: across,
-            v: self.along.cross(across),
+            v,
         };
         (frame, self.along * 2.0 * half)
     }

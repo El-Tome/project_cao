@@ -1,5 +1,6 @@
 //! A fillet (#697): one straight edge of a body rounded off by a cylinder of
-//! a radius tangent to the edge's two faces.
+//! a radius tangent to the edge's two faces — or filled in by one, where they
+//! meet inwards (#778).
 
 use super::{Body, Matter};
 use crate::brep::{Declined, EdgeName, Lost};
@@ -15,9 +16,10 @@ pub struct Filleted {
 
 impl Body {
     /// The edge a name finds rounded off by a cylinder of `radius` tangent to
-    /// its two faces, or of the largest radius they give. The round it lays
-    /// is numbered where the steps' numbers ended. Flats name no edge: every
-    /// name is gone, as [`Body::lost`] says.
+    /// its two faces, or of the largest radius they give — filled in by it
+    /// where they meet inwards. The round it lays is numbered where the steps'
+    /// numbers ended. Flats name no edge: every name is gone, as [`Body::lost`]
+    /// says.
     pub fn fillet(&self, edge: &EdgeName, radius: f64) -> Result<Filleted, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

@@ -1,8 +1,10 @@
 //! What a chamfer (#696) and a fillet (#697) share: the straight edge between
-//! two flat faces meeting outwards they take off, read off the body with how
-//! far each face runs from it, the cut of a prism raised along it, and the
-//! check that the cut left the one face the step names.
+//! two flat faces they take off where the faces meet outwards and fill in
+//! where they meet inwards (#778), read off the body with how far each face
+//! runs from it, the cut or the join of a prism raised along it, and the
+//! check that it left the one face the step names.
 
+mod fill;
 mod section;
 
 use std::collections::BTreeSet;
@@ -17,33 +19,38 @@ use crate::profile::{Contour, Frame};
 
 pub(super) use section::Side;
 
-/// A straight edge between two flat faces meeting outwards: a point of it,
-/// the way it runs, its two faces, for each the way it faces and the way
-/// into it, square to the edge, and how far the nearer face runs that way
-/// from the edge — the most a chamfer can set back.
+/// A straight edge between two flat faces: a point of it, the way it runs,
+/// where it starts and where it ends, its two faces, for each the way it
+/// faces and the way into it, square to the edge, how far the nearer face
+/// runs that way from the edge — the most a chamfer can set back — and
+/// whether the faces meet inwards, the way into either running the way the
+/// other faces: a corner to fill in rather than cut off.
 pub(super) struct Wedge {
     pub point: DVec3,
     pub along: DVec3,
+    pub ends: [DVec3; 2],
     pub faces: [FaceId; 2],
     pub outward: [DVec3; 2],
     pub into: [DVec3; 2],
     pub reach: f64,
+    pub inwards: bool,
 }
 
-/// What a step raises to cut an edge off: the section, square to the edge,
-/// whose first run lays the face the step names, the frame it stands in, and
-/// the travel along the edge.
+/// What a step raises to cut an edge off or fill it in: the section, square
+/// to the edge, whose first run lays the face the step names, the frame it
+/// stands in, and the travel along the edge.
 pub(super) type Prism = (Contour, Frame, DVec3);
 
 impl Exact {
-    /// The body with the edge a name finds cut off by the prism `tool` raises
-    /// over its wedge for the value taken, and that value: `asked`, or the
-    /// most `most` says the edge's two faces give. The wall of the prism's
-    /// first run is numbered where the steps' numbers ended. A value shorter
-    /// than the kernel can set a cut back from an edge is declined first; an
-    /// edge that is not a wedge, and a cut that left something else than its
-    /// one face, as [`Exact::cut_along`] reads it, are declined
-    /// `Unsupported`; a prism the tool cannot raise, as the tool says.
+    /// The body with the edge a name finds cut off, or filled in where its
+    /// faces meet inwards, by the prism `tool` raises over its wedge for the
+    /// value taken, and that value: `asked`, or the most `most` says the
+    /// edge's two faces give. The wall of the prism's first run is numbered
+    /// where the steps' numbers ended. A value shorter than the kernel can
+    /// set a cut back from an edge is declined first; an edge that is not a
+    /// wedge, and a cut or a fill that left something else than its one
+    /// face, as [`Exact::cut_along`] reads it, are declined `Unsupported`; a
+    /// prism the tool cannot raise, as the tool says.
     pub(super) fn cut_off(
         &self,
         name: &EdgeName,
@@ -73,7 +80,11 @@ impl Exact {
                 next: 1,
                 ..raised
             };
-            let cut = self.cut_by(&tool)?;
+            let cut = if wedge.inwards {
+                self.filled_by(&tool)?
+            } else {
+                self.cut_by(&tool)?
+            };
             if cut.cut_along(&wedge, self) {
                 Ok((cut, taken))
             } else {
@@ -85,7 +96,8 @@ impl Exact {
     /// Whether the prism left its face alone on the body, numbered where the
     /// steps' numbers of `before` ended, in one piece, every corner of it on
     /// one of the edge's two faces — where the faces met at the edge's ends
-    /// trim it — and every face `before` held but those two still there.
+    /// trim it — and every face `before` held but those two still there: no
+    /// face, nor piece of a face, of the prism but that one.
     fn cut_along(&self, wedge: &Wedge, before: &Exact) -> bool {
         let made = before.next;
         let eps = self.brep.scale().eps();
@@ -95,7 +107,10 @@ impl Exact {
             .face_ids()
             .flat_map(|face| numbers(&self.brep, face))
             .any(|number| number > made && number < PIECES);
-        let parted = self.roots.values().any(|&replaced| replaced == made);
+        let parted = self
+            .roots
+            .values()
+            .any(|replaced| (made..PIECES).contains(replaced));
         let on_a_side = self
             .named(made as usize)
             .flat_map(|face| self.brep.face(face).loops.iter().flatten())
@@ -148,7 +163,8 @@ impl Wedge {
         else {
             return Err(Declined::Unsupported);
         };
-        if into_first.dot(second) >= 0.0
+        let towards = into_first.dot(second);
+        if towards == 0.0
             || [one, other]
                 .into_iter()
                 .any(|face| runs_on(body, face, edge, along))
@@ -164,10 +180,12 @@ impl Wedge {
         Ok(Wedge {
             point: line.origin,
             along,
+            ends: [stretch.from, stretch.to].map(|at| line.point(at)),
             faces: [one, other],
             outward: [first, second],
             into: [into_first, into_second],
             reach: first_reach.min(second_reach),
+            inwards: towards > 0.0,
         })
     }
 }

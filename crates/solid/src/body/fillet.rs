@@ -1,12 +1,14 @@
 //! A fillet (#697): one straight edge of a body rounded off by a cylinder of
 //! a radius tangent to the edge's two faces — or filled in by one, where they
-//! meet inwards (#778).
+//! meet inwards (#778) — or several edges in one step, at one radius (#698).
 
-use super::{Body, Matter};
+use std::slice;
+
+use super::{Body, Exact, Matter};
 use crate::brep::{Declined, EdgeName, Lost};
 
 /// The body a fillet left, the radius it was asked, and the radius the
-/// edge's two faces gave it.
+/// edges' faces gave it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Filleted {
     pub body: Body,
@@ -21,10 +23,18 @@ impl Body {
     /// numbers ended. Flats name no edge: every name is gone, as [`Body::lost`]
     /// says.
     pub fn fillet(&self, edge: &EdgeName, radius: f64) -> Result<Filleted, Declined> {
+        self.fillet_edges(slice::from_ref(edge), radius)
+    }
+
+    /// The edge each name finds rounded off as [`Body::fillet`] rounds it, at
+    /// `radius`, in the order the names come: each round numbered on its own,
+    /// in that order, from where the steps' numbers ended. The first edge
+    /// declined declines the step.
+    pub fn fillet_edges(&self, edges: &[EdgeName], radius: f64) -> Result<Filleted, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));
         };
-        let (exact, taken) = exact.filleted(edge, radius)?;
+        let (exact, taken) = exact.cut_off_each(edges, radius, Exact::filleted)?;
         Ok(Filleted {
             body: Body::of_exact(exact),
             asked: radius,

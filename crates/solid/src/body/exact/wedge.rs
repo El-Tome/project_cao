@@ -92,6 +92,25 @@ impl Exact {
         })
     }
 
+    /// The body with the edge each name finds cut off or filled in by `step`
+    /// at `asked`, one after the other in the order the names come, each
+    /// face laid numbered where the steps' numbers ended after the one
+    /// before, and the least value a step took. The first edge `step`
+    /// declines declines the whole.
+    pub fn cut_off_each(
+        &self,
+        names: &[EdgeName],
+        asked: f64,
+        step: impl Fn(&Exact, &EdgeName, f64) -> Result<(Exact, f64), Declined>,
+    ) -> Result<(Exact, f64), Declined> {
+        names
+            .iter()
+            .try_fold((self.clone(), asked), |(body, taken), name| {
+                let (laid, each) = step(&body, name, asked)?;
+                Ok((laid, taken.min(each)))
+            })
+    }
+
     /// Whether the prism left its face alone on the body, numbered where the
     /// steps' numbers of `before` ended, in one piece, every corner of it on
     /// one of the edge's two faces — where the faces met at the edge's ends

@@ -29,7 +29,14 @@
 //!   a value that fits is taken as asked — the two tests of the first
 //!   criterion, which ask a value every edge gives and hold that it is the one
 //!   taken, and
-//!   `a_fillet_and_a_chamfer_on_the_two_edges_either_side_of_a_face_take_a_value_that_fits_as_asked`
+//!   `a_fillet_and_a_chamfer_on_the_two_edges_either_side_of_a_face_take_a_value_that_fits_as_asked`;
+//!   and, beyond the issue's wording, an outward edge and an inward one
+//!   facing each other across a tread they share: the fillet takes half its
+//!   depth, a round and a hollow of two axes meeting tangentially in an S —
+//!   `a_fillet_on_a_tread_s_nose_and_foot_asked_more_than_half_its_depth_takes_half_a_round_and_a_hollow_meeting_in_an_s`;
+//!   the chamfer, whose two flats would lie in one plane, one slope, is
+//!   declined `Unsupported` until #791 builds it —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_asked_half_its_depth_or_more_is_declined_as_unsupported`
 //! - On a block 10 wide, rounding the two edges on either side of that face,
 //!   asked more than 5, takes 5, where either alone would take more: the face
 //!   is gone, and the two rounds, of one axis and one radius, are one
@@ -58,7 +65,14 @@
 //!   to both edges' numbers. The body passes the soundness checks. A chamfer
 //!   takes 5 too, and its two flats meet in a valley —
 //!   `a_fillet_on_the_two_floor_edges_of_a_slot_10_wide_asked_5_or_more_takes_5_in_one_round_bottom`,
-//!   `a_chamfer_on_the_two_floor_edges_of_a_slot_10_wide_asked_more_than_5_takes_5_its_flats_meeting_in_a_valley`
+//!   `a_chamfer_on_the_two_floor_edges_of_a_slot_10_wide_asked_more_than_5_takes_5_its_flats_meeting_in_a_valley`;
+//!   beyond the issue's wording, a slot that widens two thirds of the way
+//!   along, its two floor edges ending on different faces, declines the
+//!   fillet `Unsupported` where their set-backs would meet —
+//!   `a_fillet_on_the_two_floor_edges_of_a_slot_that_widens_past_the_end_of_one_is_declined_as_unsupported`;
+//!   the chamfer there takes 5, its flats meeting in a valley along the
+//!   narrow part and the floor left beyond the widening —
+//!   `a_chamfer_on_the_two_floor_edges_of_a_slot_that_widens_past_the_end_of_one_takes_5_a_valley_along_its_narrow_part`
 //! - A list mixing an edge whose faces meet outwards and one whose faces meet
 //!   inwards cuts the first off and fills the second in, at one value —
 //!   `a_fillet_and_a_chamfer_on_an_outward_edge_and_an_inward_one_cut_the_first_off_and_fill_the_second_in_at_one_value`,
@@ -2648,5 +2662,396 @@ fn a_fillet_and_a_chamfer_on_a_list_of_one_edge_give_the_body_and_the_value_the_
             part.chamfer(edge, value),
             "the chamfer on {what}, asked {value}"
         );
+    }
+}
+
+/// How deep the stair's tread is, from its nose to its foot, and how high
+/// it stands.
+const TREAD: f64 = 10.0;
+const TREAD_HEIGHT: f64 = 10.0;
+
+/// The numbers the stair's riser, its tread and the tread's nose answer to:
+/// the riser is the taller block's front, two; the tread and the nose are the
+/// lower block's top and front, seven and eight, past the taller block's six.
+/// Their floors, their rights and their lefts merge; the lower block's back,
+/// against the riser, is gone.
+const RISER: usize = FRONT;
+const TREAD_TOP: usize = TOP + 6;
+const NOSE: usize = FRONT + 6;
+const STAIR_RIGHT: [u32; 2] = [RIGHT as u32, RIGHT as u32 + 6];
+const STAIR_LEFT: [u32; 2] = [LEFT as u32, LEFT as u32 + 6];
+
+/// One step of a stair: a block [`LENGTH`] long from y = 10 to 20 and
+/// [`HEIGHT`] high, and in front of it a block from y = 0 to 10, as long and
+/// [`TREAD_HEIGHT`] high, joined to it. The lower block's top is the tread,
+/// [`TREAD`] deep: its nose meets outwards, along the front, and its foot
+/// meets inwards, against the riser. The two face each other across it.
+fn stair() -> Body {
+    let taller = joined_to(
+        &Body::default(),
+        [DVec2::new(0.0, TREAD), DVec2::new(LENGTH, 2.0 * TREAD)],
+        HEIGHT,
+    );
+    joined_to(
+        &taller,
+        [DVec2::ZERO, DVec2::new(LENGTH, TREAD)],
+        TREAD_HEIGHT,
+    )
+}
+
+/// The sides a face is expected to meet, given as the numbers each answers
+/// to, in the order [`sides_met`] lists them.
+fn sides_by(faces: &[Vec<u32>]) -> Vec<Vec<u32>> {
+    let mut sorted = faces.to_vec();
+    sorted.sort();
+    sorted
+}
+
+#[test]
+fn a_fillet_on_a_tread_s_nose_and_foot_asked_more_than_half_its_depth_takes_half_a_round_and_a_hollow_meeting_in_an_s()
+ {
+    let stair = stair();
+    let names = [
+        edge_between(&stair, TREAD_TOP, NOSE),
+        edge_between(&stair, RISER, TREAD_TOP),
+    ];
+    let half = TREAD / 2.0;
+    let laid = [stair.faces_end(), stair.faces_end() + 1];
+
+    for (asked, taken) in [(4.9, 4.9), (MORE_THAN_HALF, half)] {
+        let filleted = stair
+            .fillet_edges(&names, asked)
+            .unwrap_or_else(|declined| panic!("asked {asked}: declined, {declined:?}"));
+
+        let what = format!("the fillet on the tread's nose and foot, asked {asked}");
+        reduced(filleted.asked, filleted.taken, [asked, taken], &what);
+        let body = &filleted.body;
+        let round = LongEdge {
+            faces: [TREAD_TOP, NOSE],
+            start: DVec3::new(0.0, 0.0, TREAD_HEIGHT),
+            facing: [DVec3::Z, -DVec3::Y],
+        }
+        .round(taken);
+        let hollow = Hollow {
+            start: DVec3::new(0.0, TREAD - taken, TREAD_HEIGHT + taken),
+            along: DVec3::X,
+            length: LENGTH,
+            radius: taken,
+            facing: [-DVec3::Y, DVec3::Z],
+        };
+        is_the_round(
+            body,
+            laid[0],
+            &round,
+            &format!("{what}: face {}, the nose rounded off at {taken}", laid[0]),
+        );
+        is_the_hollow(
+            body,
+            laid[1],
+            &hollow,
+            &format!("{what}: face {}, the foot filled in at {taken}", laid[1]),
+        );
+        let ends = [STAIR_RIGHT.to_vec(), STAIR_LEFT.to_vec()];
+        if taken < half {
+            corners_are(
+                body,
+                TREAD_TOP,
+                &strip(
+                    DVec3::new(0.0, taken, TREAD_HEIGHT),
+                    DVec3::new(0.0, TREAD - taken, TREAD_HEIGHT),
+                ),
+                &format!("{what}: what is left of the tread, a strip between the two"),
+            );
+            assert!(
+                body.edge_names()
+                    .iter()
+                    .all(|name| !lies_between(name, laid[0], laid[1])),
+                "{what}: the round and the hollow do not meet, the tread between them"
+            );
+        } else {
+            assert!(!body.has_face(TREAD_TOP), "{what}: the tread is gone");
+            edge_between(body, laid[0], laid[1]);
+            assert_eq!(
+                sides_met(body, laid[0]),
+                sides_by(&[&ends[..], &[vec![NOSE as u32], vec![laid[1] as u32]]].concat()),
+                "{what}: the round meets the nose's front, the hollow along one edge where the \
+                 two are tangent, and the stair's two ends, by one edge each"
+            );
+            assert_eq!(
+                sides_met(body, laid[1]),
+                sides_by(&[&ends[..], &[vec![RISER as u32], vec![laid[0] as u32]]].concat()),
+                "{what}: the hollow meets the riser, the round along one edge where the two are \
+                 tangent, and the stair's two ends, by one edge each"
+            );
+        }
+        corners_are(
+            body,
+            NOSE,
+            &strip(DVec3::ZERO, DVec3::new(0.0, 0.0, TREAD_HEIGHT - taken)),
+            &format!("{what}: what is left of the nose's front, under the round"),
+        );
+        corners_are(
+            body,
+            RISER,
+            &strip(
+                DVec3::new(0.0, TREAD, TREAD_HEIGHT + taken),
+                DVec3::new(0.0, TREAD, HEIGHT),
+            ),
+            &format!("{what}: what is left of the riser, above the hollow"),
+        );
+        sound_drawn_within(
+            body,
+            LENGTH * TREAD * (HEIGHT + TREAD_HEIGHT),
+            DRAWN * reach_of(&stair) * (round.area() + hollow.area()),
+            &format!("{what}: as much matter as the nose gives up, the foot takes in"),
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_on_a_tread_s_nose_and_foot_asked_half_its_depth_or_more_is_declined_as_unsupported() {
+    let stair = stair();
+    let names = [
+        edge_between(&stair, TREAD_TOP, NOSE),
+        edge_between(&stair, RISER, TREAD_TOP),
+    ];
+
+    for asked in [TREAD / 2.0, MORE_THAN_HALF] {
+        let declined = stair.chamfer_edges(&names, asked).err();
+
+        assert_eq!(
+            declined,
+            Some(Declined::Unsupported),
+            "asked {asked}: the nose's flat and the foot's would lie in one plane, one slope \
+             from the nose's front to the riser, which #791 builds"
+        );
+    }
+}
+
+/// The numbers the cut that makes the widening slot gives the faces of its
+/// floor's far edge: its far wall where the slot is 10 wide, twelve, and the
+/// step where it widens, eleven.
+const NARROW_FAR_WALL: usize = 12;
+const WIDENING_STEP: usize = 11;
+
+/// Where along the block the widening slot widens, and where its far wall
+/// stands beyond.
+const WIDENS_AT: f64 = 20.0;
+const WIDENED_WALL: f64 = 25.0;
+
+/// The slotted block's slot, 10 wide from the left wall to x = 20 and 15
+/// wide from there to the right wall, cut by one outline: its near wall, at
+/// y = 10, runs the block's whole length, and its floor's near edge ends on
+/// the block's left wall and its right; its far wall, at y = 20, stops at the
+/// step where the slot widens, and its floor's far edge ends on the left wall
+/// and on that step.
+fn widening_slot() -> Body {
+    let solid = block([LENGTH, SLOTTED_BREADTH, HEIGHT]);
+    let [near, far] = SLOT_WALLS;
+    let tool = solid
+        .tool_raised(
+            &profile(Contour::straight(vec![
+                DVec2::new(-1.0, near),
+                DVec2::new(LENGTH + 1.0, near),
+                DVec2::new(LENGTH + 1.0, WIDENED_WALL),
+                DVec2::new(WIDENS_AT, WIDENED_WALL),
+                DVec2::new(WIDENS_AT, far),
+                DVec2::new(-1.0, far),
+            ])),
+            Frame {
+                origin: DVec3::Z * SLOT_FLOOR_HEIGHT,
+                ..ground()
+            },
+            DVec3::Z * HEIGHT,
+        )
+        .expect("the tool raises");
+    solid.difference(&tool).expect("the slot is cut")
+}
+
+#[test]
+fn a_fillet_on_the_two_floor_edges_of_a_slot_that_widens_past_the_end_of_one_is_declined_as_unsupported()
+ {
+    let slot = widening_slot();
+    let names = [
+        edge_between(&slot, SLOT_FLOOR, SLOT_NEAR_WALL),
+        edge_between(&slot, SLOT_FLOOR, NARROW_FAR_WALL),
+    ];
+    let far_ends = &names[1].ends;
+    assert!(
+        far_ends
+            .iter()
+            .any(|end| end.contains(&vec![WIDENING_STEP as u32])),
+        "the far floor edge ends on the step where the slot widens: {far_ends:?}"
+    );
+    let half = (SLOT_WALLS[1] - SLOT_WALLS[0]) / 2.0;
+
+    for asked in [half, MORE_THAN_HALF] {
+        for name in &names {
+            let alone = slot
+                .fillet(name, asked)
+                .unwrap_or_else(|declined| panic!("one edge alone, asked {asked}: {declined:?}"));
+            taken_as_asked(alone.asked, alone.taken, asked, "one floor edge alone");
+        }
+
+        let declined = slot.fillet_edges(&names, asked).err();
+
+        assert_eq!(
+            declined,
+            Some(Declined::Unsupported),
+            "asked {asked}: the two fills' set-backs would meet across the floor, but the edges \
+             end on different faces, and no one hollow runs from end to end"
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_on_the_two_floor_edges_of_a_slot_that_widens_past_the_end_of_one_takes_5_a_valley_along_its_narrow_part()
+ {
+    let slot = widening_slot();
+    let names = [
+        edge_between(&slot, SLOT_FLOOR, SLOT_NEAR_WALL),
+        edge_between(&slot, SLOT_FLOOR, NARROW_FAR_WALL),
+    ];
+    let [near, far] = SLOT_WALLS;
+    let half = (far - near) / 2.0;
+    let (middle, up) = (near + half, SLOT_FLOOR_HEIGHT + half);
+    let laid = [slot.faces_end(), slot.faces_end() + 1];
+    let at = |x: f64, y: f64, z: f64| DVec3::new(x, y, z);
+
+    for asked in [half, MORE_THAN_HALF] {
+        let chamfered = slot
+            .chamfer_edges(&names, asked)
+            .unwrap_or_else(|declined| panic!("asked {asked}: declined, {declined:?}"));
+
+        let what = format!("the chamfer on both floor edges of the widening slot, asked {asked}");
+        reduced(chamfered.asked, chamfered.taken, [asked, half], &what);
+        let body = &chamfered.body;
+        let mut kept_and_laid = numbers(&slot);
+        kept_and_laid.extend(laid);
+        assert_eq!(
+            numbers(body),
+            kept_and_laid,
+            "{what}: every face of the slotted block, and a flat for each edge"
+        );
+        let floor = SLOT_FLOOR_HEIGHT;
+        for (number, facing, corners, which) in [
+            (
+                laid[0],
+                DVec3::new(0.0, 1.0, 1.0),
+                vec![
+                    at(0.0, near, up),
+                    at(LENGTH, near, up),
+                    at(LENGTH, middle, floor),
+                    at(WIDENS_AT, middle, floor),
+                    at(0.0, middle, floor),
+                ],
+                "the near flat, the block's whole length, down to the valley and then to the \
+                 floor beyond the widening",
+            ),
+            (
+                laid[1],
+                DVec3::new(0.0, -1.0, 1.0),
+                vec![
+                    at(0.0, far, up),
+                    at(WIDENS_AT, far, up),
+                    at(WIDENS_AT, middle, floor),
+                    at(0.0, middle, floor),
+                ],
+                "the far flat, from the left wall to the step where the slot widens",
+            ),
+        ] {
+            let which = format!("{what}: face {number}, {which}");
+            face_facing(body, &[number], facing.normalize(), &which);
+            corners_are(body, number, &corners, &which);
+        }
+        edge_between(body, laid[0], laid[1]);
+        assert_eq!(
+            sides_met(body, laid[0]),
+            sides(&[RIGHT, LEFT, SLOT_FLOOR, SLOT_NEAR_WALL, laid[1]]),
+            "{what}: the near flat meets its wall, the block's two walls, the far flat along the \
+             valley and the floor beyond, by one edge each"
+        );
+        assert_eq!(
+            sides_met(body, laid[1]),
+            sides(&[LEFT, WIDENING_STEP, NARROW_FAR_WALL, laid[0]]),
+            "{what}: the far flat meets its wall, the left wall, the step at its end and the near \
+             flat along the valley, by one edge each"
+        );
+        corners_are(
+            body,
+            SLOT_FLOOR,
+            &[
+                at(WIDENS_AT, middle, floor),
+                at(LENGTH, middle, floor),
+                at(LENGTH, WIDENED_WALL, floor),
+                at(WIDENS_AT, WIDENED_WALL, floor),
+            ],
+            &format!("{what}: what is left of the floor, beyond the widening"),
+        );
+        corners_are(
+            body,
+            WIDENING_STEP,
+            &[
+                at(WIDENS_AT, middle, floor),
+                at(WIDENS_AT, WIDENED_WALL, floor),
+                at(WIDENS_AT, WIDENED_WALL, HEIGHT),
+                at(WIDENS_AT, far, HEIGHT),
+                at(WIDENS_AT, far, up),
+            ],
+            &format!("{what}: the step, holding the far flat's end flush"),
+        );
+        let [near_wall, _] = slot_walls_from(half);
+        for (wall, corners, which) in [
+            (
+                SLOT_NEAR_WALL,
+                near_wall.to_vec(),
+                "the near wall, the block's whole length",
+            ),
+            (
+                NARROW_FAR_WALL,
+                vec![
+                    at(0.0, far, up),
+                    at(WIDENS_AT, far, up),
+                    at(WIDENS_AT, far, HEIGHT),
+                    at(0.0, far, HEIGHT),
+                ],
+                "the far wall, up to the widening",
+            ),
+        ] {
+            corners_are(
+                body,
+                wall,
+                &corners,
+                &format!("{what}: what is left of {which}, above its flat"),
+            );
+        }
+        for (wall, x, beyond) in [(LEFT, 0.0, far), (RIGHT, LENGTH, WIDENED_WALL)] {
+            let mut corners = vec![
+                at(x, 0.0, 0.0),
+                at(x, SLOTTED_BREADTH, 0.0),
+                at(x, SLOTTED_BREADTH, HEIGHT),
+                at(x, beyond, HEIGHT),
+                at(x, near, up),
+                at(x, middle, floor),
+                at(x, near, HEIGHT),
+                at(x, 0.0, HEIGHT),
+            ];
+            corners.push(if x == 0.0 {
+                at(x, far, up)
+            } else {
+                at(x, WIDENED_WALL, floor)
+            });
+            corners_are(
+                body,
+                wall,
+                &corners,
+                &format!("{what}: the wall at x = {x}, the slot's section on it"),
+            );
+        }
+        let widening = (HEIGHT - SLOT_FLOOR_HEIGHT)
+            * (WIDENS_AT * (far - near) + (LENGTH - WIDENS_AT) * (WIDENED_WALL - near));
+        let promised =
+            LENGTH * SLOTTED_BREADTH * HEIGHT - widening + half * half / 2.0 * (LENGTH + WIDENS_AT);
+        sound_drawn_within(body, promised, EXACT * promised, &what);
     }
 }

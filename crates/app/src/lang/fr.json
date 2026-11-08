@@ -750,6 +750,11 @@
   "sketch_pill.free_many": "{count} libertés restantes",
   "sketch_pill.settled": "entièrement réglée",
 
+  "view_bar.on_the_plane": "X {x} Y {y} {unit}",
+  "view_bar.on_the_part": "X {x} Y {y} Z {z} {unit}",
+  "view_bar.nothing_pointed": "—",
+  "view_bar.decimal_separator": ",",
+
   "extrusion.pick_a_sketch": "Extruder l'esquisse :",
   "extrusion.height": "Hauteur :",
   "extrusion.depth": "Profondeur :",

@@ -54,23 +54,41 @@
 //!   left as it is
 //! - in a sketch the coordinates read « X 12,50 Y -3,00 mm », the point in the
 //!   sketch plane's own frame, and follow the mouse —
-//!   `in_a_sketch_the_bar_s_x_and_y_follow_the_mouse`; that it is the point a
-//!   click would place while the tool in hand aims, else the raw point on the
-//!   plane, in the presenter's tests, under
-//!   `crates/app/src/screens/view_bar/`, once it exists
+//!   `in_a_sketch_the_bar_s_x_and_y_follow_the_mouse`, not yet written: it
+//!   waits for the bar to be drawn, and with it the snapped point, a line tool
+//!   near the origin reading « X 0,00 Y 0,00 mm », which only the input code on
+//!   the no-net list decides; the text, in
+//!   `crates/app/src/screens/view_bar/state/tests.rs` by
+//!   `on_a_sketch_s_plane_the_coordinates_read_x_and_y_to_two_decimals_after_a_comma`,
+//!   and the point a click would place, else the raw point the tool leaves, by
+//!   `in_a_sketch_the_coordinates_are_where_a_click_would_place_the_point`
 //! - in the free view they read « X … Y … Z … mm », the world coordinates of
-//!   the first point of the drawn body the cursor's ray meets —
-//!   `hovering_the_block_in_the_free_view_reads_its_x_y_and_z`; nothing when
-//!   the body is hidden, in the presenter's tests
+//!   the first point of the drawn body the cursor's ray meets, nothing when the
+//!   body is hidden — `hovering_the_block_in_the_free_view_reads_its_x_y_and_z`,
+//!   not yet written; the text and the choice of the part's point outside a
+//!   sketch, in `crates/app/src/screens/view_bar/state/tests.rs` by
+//!   `on_the_part_the_coordinates_read_x_y_and_z` and
+//!   `outside_a_sketch_the_coordinates_are_the_point_of_the_part_under_the_cursor`;
+//!   the point met, the hidden body and the section's cut, in
+//!   `crates/app/src/screens/viewport/state/tests.rs` by
+//!   `the_point_of_the_part_under_a_ray_is_the_first_the_ray_meets`,
+//!   `a_hidden_body_has_no_point_under_a_ray` and
+//!   `with_the_section_view_on_the_point_under_a_ray_is_on_the_cut`
 //! - « — » over nothing, and when the cursor is not over the view —
-//!   `off_the_part_and_off_the_view_the_coordinates_read_a_dash`
+//!   `off_the_part_and_off_the_view_the_coordinates_read_a_dash`, not yet
+//!   written; the dash and the cursor off the view, in
+//!   `crates/app/src/screens/view_bar/state/tests.rs` by
+//!   `over_nothing_the_coordinates_read_a_dash` and
+//!   `in_a_sketch_with_the_cursor_off_the_view_the_coordinates_point_at_nothing`
 //! - two decimals, a comma for the decimal separator, the view's length unit
 //!   after them, converted as the scale bar converts, and never « -0,00 » — no
-//!   test: in this file; held in the presenter's tests, under
-//!   `crates/app/src/screens/view_bar/`, once it exists
+//!   test: in this file; held in
+//!   `crates/app/src/screens/view_bar/state/tests.rs` by
+//!   `a_coordinate_a_hair_below_zero_reads_zero_with_no_sign` and
+//!   `the_coordinates_are_said_in_the_view_s_unit_at_the_part_s_scale`
 //! - the coordinates are written in the monospace family, JetBrains Mono — no
-//!   test: in this file, whose tree carries no font; held beside the drawing of
-//!   the bar, under `crates/app/src/screens/view_bar/`, once it exists
+//!   test: a font is chosen where the bar is drawn, and neither the presenter
+//!   nor the tree the driver reads carries one; it is seen in the app
 //! - the bar stands at the bottom right of the view and holds, in order,
 //!   « Recadrer » with its key F, « Vue en coupe », « Matière devant : … ▾ », a
 //!   separator, the coordinates —

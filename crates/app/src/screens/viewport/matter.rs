@@ -1,12 +1,12 @@
 //! How much of the part a frame draws while a sketch is open or a section is
-//! on.
+//! on, and where a ray meets what it draws.
 
 use std::borrow::Cow;
 use std::cell::RefCell;
 
 use cao_render::MatterInFront;
 use cao_sketch::WorkPlane;
-use cao_solid::Body;
+use cao_solid::{Body, FaceHit};
 use glam::{DVec3, Vec3};
 
 use super::section::Section;
@@ -57,6 +57,40 @@ pub(crate) fn shown<'a>(state: &ViewportState, editor: &SketchEditor, body: &'a 
         _ => state
             .sections
             .drawn(editor, state.mode, body, state.camera.eye()),
+    }
+}
+
+/// The piece of what is drawn, opaque or see-through, the ray meets first,
+/// and where. Nothing of an invisible body is met.
+pub(super) fn drawn_under<'a>(
+    state: &ViewportState,
+    drawn: &'a Drawn<'_>,
+    origin: DVec3,
+    direction: DVec3,
+) -> Option<(&'a Body, FaceHit)> {
+    if state.body_mode() == MatterInFront::Hidden {
+        return None;
+    }
+    std::iter::once(&*drawn.opaque)
+        .chain(drawn.see_through.as_ref())
+        .filter_map(|piece| Some((piece, piece.ray_hit(origin, direction)?)))
+        .min_by(|(_, a), (_, b)| a.distance.total_cmp(&b.distance))
+}
+
+impl ViewportState {
+    /// Where a ray first meets the part as a frame draws it.
+    // Only its tests call it until the view bar reads it.
+    #[cfg_attr(not(test), expect(dead_code))]
+    pub(crate) fn point_of_the_part_under(
+        &self,
+        editor: &SketchEditor,
+        body: &Body,
+        origin: DVec3,
+        direction: DVec3,
+    ) -> Option<DVec3> {
+        let drawn = shown(self, editor, body);
+        let (_, hit) = drawn_under(self, &drawn, origin, direction)?;
+        Some(origin + direction * hit.distance)
     }
 }
 

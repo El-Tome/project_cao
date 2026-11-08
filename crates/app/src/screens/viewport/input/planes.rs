@@ -6,14 +6,14 @@ use cao_part::history::{FaceAnchor, Operation};
 use cao_render::MatterInFront;
 use cao_render::camera::view_angles_towards;
 use cao_sketch::WorkPlane;
-use cao_solid::{Body, FaceHit};
+use cao_solid::Body;
 use glam::{DVec2, DVec3};
 
 use crate::screens::SketchContext;
 use crate::screens::sketch::PlaneChoice;
 
 use super::{PICK_PIXELS, ViewScale, ViewportState, plane_half_size, to_ndc};
-use crate::screens::viewport::matter::{Drawn, shown};
+use crate::screens::viewport::matter::{drawn_under, shown};
 use crate::screens::viewport::navigation::drag_asked;
 use crate::screens::viewport::{DEFAULT_SKETCH_RADIUS, section::Section};
 
@@ -231,23 +231,6 @@ fn what_is_drawn_offers(
             ))
         }
     }
-}
-
-/// The piece of what is drawn, opaque or see-through, the ray meets first,
-/// and where. Nothing of an invisible body is met.
-fn drawn_under<'a>(
-    state: &ViewportState,
-    drawn: &'a Drawn<'_>,
-    origin: DVec3,
-    direction: DVec3,
-) -> Option<(&'a Body, FaceHit)> {
-    if state.body_mode() == MatterInFront::Hidden {
-        return None;
-    }
-    std::iter::once(&*drawn.opaque)
-        .chain(drawn.see_through.as_ref())
-        .filter_map(|piece| Some((piece, piece.ray_hit(origin, direction)?)))
-        .min_by(|(_, a), (_, b)| a.distance.total_cmp(&b.distance))
 }
 
 /// The part's own face a face of `drawn` stands for, or `None` for one the

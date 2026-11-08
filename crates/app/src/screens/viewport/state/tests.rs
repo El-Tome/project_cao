@@ -46,9 +46,19 @@
 //!   that corner and is lifted above the view bar —
 //!   `a_scale_bar_set_to_the_bottom_right_stands_above_the_view_bar`,
 //!   `an_orientation_cube_set_to_the_bottom_right_stands_above_the_view_bar`
+//! - in the free view the coordinates are those of the first point of the
+//!   drawn body the cursor's ray meets — the nearer of the faces it crosses —
+//!   `the_point_of_the_part_under_a_ray_is_the_first_the_ray_meets`; nothing
+//!   when it meets none — `a_ray_that_meets_nothing_of_the_part_points_at_nothing`;
+//!   the body as it is drawn, cut where the section view cuts it —
+//!   `with_the_section_view_on_the_point_under_a_ray_is_on_the_cut`
+//! - nothing when the body is hidden, as nothing of it is met when a plane is
+//!   chosen (`input/planes.rs` `drawn_under`) —
+//!   `a_hidden_body_has_no_point_under_a_ray`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::Command;
+use cao_render::MatterInFront;
 use chrono::Utc;
 use glam::{DVec2, Vec3};
 
@@ -392,5 +402,131 @@ fn reframing_in_a_sketch_faces_its_plane_and_frames_its_drawing_rather_than_the_
     assert!(
         covered >= FILLS_THE_CANVAS,
         "in a sketch, its drawing covers {covered} of the canvas once reframed",
+    );
+}
+
+/// A block 10 by 20 raised 4 from XY, its corner on the origin.
+fn a_block_on_the_origin() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    assert!(!document.body().is_empty(), "the block is raised");
+    document
+}
+
+/// Straight down onto the middle of the block's top, from well above it.
+const FROM_ABOVE: (DVec3, DVec3) = (DVec3::new(5.0, 10.0, 100.0), DVec3::NEG_Z);
+
+/// Straight up onto the middle of its bottom, from well below.
+const FROM_BELOW: (DVec3, DVec3) = (DVec3::new(5.0, 10.0, -100.0), DVec3::Z);
+
+/// How far from where it should be a point met on the block may stand: the
+/// block's faces are flat and lie on round values.
+const ON_THE_FACE: f64 = 1e-9;
+
+fn under(
+    state: &ViewportState,
+    document: &PartDocument,
+    (origin, direction): (DVec3, DVec3),
+) -> Option<DVec3> {
+    state.point_of_the_part_under(&SketchEditor::default(), document.body(), origin, direction)
+}
+
+fn assert_met_at(met: Option<DVec3>, expected: DVec3, what: &str) {
+    let Some(met) = met else {
+        panic!("{what}: the ray meets nothing of the block");
+    };
+    assert!(
+        (met - expected).length() < ON_THE_FACE,
+        "{what}: the ray meets the block at {met:?}, where it first meets it at {expected:?}",
+    );
+}
+
+#[test]
+fn the_point_of_the_part_under_a_ray_is_the_first_the_ray_meets() {
+    let document = a_block_on_the_origin();
+    let state = ViewportState::default();
+
+    assert_met_at(
+        under(&state, &document, FROM_ABOVE),
+        DVec3::new(5.0, 10.0, 4.0),
+        "from above, the top before the bottom",
+    );
+    assert_met_at(
+        under(&state, &document, FROM_BELOW),
+        DVec3::new(5.0, 10.0, 0.0),
+        "from below, the bottom before the top",
+    );
+}
+
+#[test]
+fn a_ray_that_meets_nothing_of_the_part_points_at_nothing() {
+    let document = a_block_on_the_origin();
+    let state = ViewportState::default();
+    let beside_the_block = (DVec3::new(50.0, 50.0, 100.0), DVec3::NEG_Z);
+
+    assert_eq!(under(&state, &document, beside_the_block), None);
+    assert_eq!(
+        under(&state, &PartDocument::new("part", Utc::now()), FROM_ABOVE),
+        None,
+        "a part with no volume has a point under the ray",
+    );
+}
+
+#[test]
+fn a_hidden_body_has_no_point_under_a_ray() {
+    let document = a_block_on_the_origin();
+    let mut state = ViewportState::default();
+    assert_eq!(
+        state.body_mode(),
+        MatterInFront::Opaque,
+        "the body opens opaque"
+    );
+    assert!(
+        under(&state, &document, FROM_ABOVE).is_some(),
+        "an opaque body is met"
+    );
+
+    state.next_body_mode();
+    assert_eq!(state.body_mode(), MatterInFront::SeeThrough);
+    assert!(
+        under(&state, &document, FROM_ABOVE).is_some(),
+        "a see-through body is drawn, and is met as a plane is chosen on it",
+    );
+
+    state.next_body_mode();
+    assert_eq!(state.body_mode(), MatterInFront::Hidden);
+    assert_eq!(
+        under(&state, &document, FROM_ABOVE),
+        None,
+        "the body is hidden, and the ray still meets it",
+    );
+}
+
+#[test]
+fn with_the_section_view_on_the_point_under_a_ray_is_on_the_cut() {
+    let document = a_block_on_the_origin();
+    let mut state = ViewportState::default();
+
+    state.toggle_section(document.body());
+
+    assert_met_at(
+        under(&state, &document, FROM_ABOVE),
+        DVec3::new(5.0, 10.0, 2.0),
+        "with the section through the middle of the block, its upper half hidden",
     );
 }

@@ -31,9 +31,10 @@ use glam::DVec2;
 /// Wide enough for the ribbon's patterns to be on screen.
 const WIDE: egui::Vec2 = egui::vec2(1920.0, 800.0);
 
-/// Well clear of the trait, high and to its right: a point of the sketch where
-/// nothing is drawn.
-const ON_EMPTY_SPACE: DVec2 = DVec2::new(176.27, 112.83);
+/// Well clear of the trait, to its right: a point of the sketch where nothing
+/// is drawn. Where it was first written, brought down by twice 22.11 mm, out
+/// of the band the pill a sketch shows at the top of the view covers (#727).
+const ON_EMPTY_SPACE: DVec2 = DVec2::new(176.27, 68.61);
 
 /// A part with one trait drawn on its sketch, the sketch still open.
 fn a_trait_drawn(test: &str, settings: cao_prefs::Settings) -> driver::App {

@@ -77,6 +77,9 @@ pub struct Sketch {
     /// same print and the target it was asked for.
     #[serde(skip)]
     redundant: RefCell<Option<(u64, DimensionTarget, bool)>>,
+    /// The last count of the drawing's degrees of freedom, against the same print.
+    #[serde(skip)]
+    freedom: RefCell<Option<(u64, crate::settled::Freedom)>>,
 }
 
 mod dimensions;
@@ -114,6 +117,7 @@ impl Sketch {
             held: settling::Held::default(),
             settled: RefCell::default(),
             redundant: RefCell::default(),
+            freedom: RefCell::default(),
         }
     }
 

@@ -33,7 +33,31 @@ impl Sketch {
     ///
     /// Points out of play are taken out of the count outright, since neither of
     /// their coordinates can move.
+    ///
+    /// Read once per state of the drawing, as [`Self::settled_points`] is: the
+    /// sketch's pill asks for it on every frame.
     pub fn freedom(&self, millimeters_per_unit: f64) -> Freedom {
+        let drawing = self.print_of_what_is_read(millimeters_per_unit);
+        if let Some(freedom) = self.freedom_read_from(drawing) {
+            return freedom;
+        }
+
+        let freedom = self.count_freedom(millimeters_per_unit);
+        self.remember_freedom(drawing, freedom);
+        freedom
+    }
+
+    /// Whether a point was ever laid besides the origin the sketch is born
+    /// with. Before that, the solver's nought says nothing about the drawing.
+    pub fn holds_a_drawing(&self) -> bool {
+        self.points().len() > 1
+    }
+
+    pub fn is_fully_constrained(&self, millimeters_per_unit: f64) -> bool {
+        self.holds_a_drawing() && self.freedom(millimeters_per_unit).fully_constrained()
+    }
+
+    fn count_freedom(&self, millimeters_per_unit: f64) -> Freedom {
         // Two coordinates per point, plus one size per circle. A **Fixe** is
         // not out of play: it holds a point while the drawing settles but
         // anchors it to nothing, and a figure it alone holds could be anywhere.
@@ -46,10 +70,6 @@ impl Sketch {
         Freedom {
             degrees_of_freedom: unknowns - held,
         }
-    }
-
-    pub fn is_fully_constrained(&self, millimeters_per_unit: f64) -> bool {
-        self.points().len() > 1 && self.freedom(millimeters_per_unit).fully_constrained()
     }
 
     /// Which points can no longer move at all.

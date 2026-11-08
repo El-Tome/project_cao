@@ -64,6 +64,11 @@ fn a_grid_that_pulls_from_everywhere() -> cao_prefs::Settings {
     settings
 }
 
+/// Where the box is pressed, a point of the sketch: where the press was first
+/// written, brought down by twice 22.11 mm, out of the band the pill a sketch
+/// shows at the top of the view covers (#727).
+const WHERE_THE_BOX_STARTS: DVec2 = DVec2::new(2.21, 82.0);
+
 #[test]
 fn the_box_drawn_on_the_canvas_starts_and_ends_under_the_hand() {
     let mut app = driver::open_held_with(
@@ -74,7 +79,7 @@ fn the_box_drawn_on_the_canvas_starts_and_ends_under_the_hand() {
     driver::start_a_sketch(&mut app);
     driver::click(&mut app, "Sélection (S)");
     app.run();
-    let pressed = driver::sketch_point_on_screen(&app, DVec2::new(2.21, 126.22));
+    let pressed = driver::sketch_point_on_screen(&app, WHERE_THE_BOX_STARTS);
     let held = driver::sketch_point_on_screen(&app, DVec2::new(123.21, -27.78));
     let before = boxes(&app);
 

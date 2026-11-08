@@ -70,13 +70,38 @@
 //! stood, and the step that opened the sketch still names that section: the
 //! sketch reopened then reads its plane's name, as decided on the way, and
 //! not the name of a section the tree no longer shows.
+//!
+//! The count is held against the solver rather than against a number written
+//! here: the pill is read while the sketch is open, then the part is put away
+//! and `Sketch::freedom` asked of the sketch it saved, at the part's scale.
+//! Each test first checks that the solver still puts its drawing in the case
+//! it is about — two or more, one, none — and a rectangle is among them
+//! because the solver leaves it fewer degrees than its points and rules
+//! counted one by one would. The count stands between the plane and
+//! « Terminer ↵ », read word for word, so that « 1 liberté restante » is not
+//! found inside « 1 liberté restantes ». The green of « entièrement réglée »
+//! is `state.success_text`, read off the design file; the token that holds it
+//! is `STATE_SUCCESS_TEXT`, which `theme.rs` holds to the same value.
 
 mod driver;
 
+use std::fs;
+use std::path::Path;
+
 use cao_app::theme::tokens;
+use cao_part::PartDocument;
 use egui::accesskit::Role;
 use egui_kittest::kittest::{NodeT, Queryable};
 use glam::{DVec2, DVec3};
+
+/// The far corner of a rectangle drawn from the origin on the plane YZ, a node
+/// of the grid; a point of its top side and of its right side, the middle of
+/// each, and where a dimension of each is left, clear of the rest.
+const ITS_FAR_CORNER: DVec2 = DVec2::new(137.5, 37.5);
+const ON_ITS_TOP_SIDE: DVec2 = DVec2::new(68.75, 37.5);
+const ABOVE_ITS_TOP_SIDE: DVec2 = DVec2::new(68.75, 60.0);
+const ON_ITS_RIGHT_SIDE: DVec2 = DVec2::new(137.5, 18.75);
+const RIGHT_OF_ITS_RIGHT_SIDE: DVec2 = DVec2::new(160.0, 18.75);
 
 /// A point of the plane XY a new part's eye reaches before the other two
 /// planes: where `clicking_the_drawing.rs` opens its sketch on XY.
@@ -354,6 +379,144 @@ fn a_sketch_whose_section_is_no_longer_kept_reads_its_plane_s_name() {
     );
 }
 
+#[test]
+fn from_two_degrees_of_freedom_left_the_pill_counts_them_in_the_plural() {
+    let mut wrong = Vec::new();
+    let drawings: [(&str, &str, Drawing); 2] = [
+        (
+            "from_two_degrees_of_freedom_a_free_rectangle",
+            "a rectangle drawn away from the origin",
+            a_free_rectangle,
+        ),
+        (
+            "from_two_degrees_of_freedom_a_rectangle_on_the_origin",
+            "a rectangle with a corner on the origin",
+            a_rectangle_on_the_origin,
+        ),
+    ];
+    for (test, drawing, draw) in drawings {
+        let mut app = a_part(test);
+        driver::start_a_sketch(&mut app);
+        draw(&mut app);
+        assert_a_sketch_is_open(&app, drawing);
+        let read = what_the_pill_reads(&app);
+
+        let left = the_solver_s_count(&mut app, test);
+        assert!(
+            left >= 2,
+            "the solver leaves {drawing} {left} degrees of freedom, not two or more: the \
+             drawing no longer holds the case",
+        );
+        let wanted = format!("{left} libertés restantes");
+        if !reads_in_order(&read, &["Esquisse 1 · Plan YZ", &wanted, "Terminer ↵"]) {
+            wrong.push(format!(
+                "{drawing}, which the solver leaves {left} degrees of freedom: wanted \
+                 « Esquisse 1 · Plan YZ », « {wanted} », « Terminer ↵ », the pill reads \
+                 « {read} »"
+            ));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the pill does not count the solver's degrees of freedom in the plural:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn one_degree_of_freedom_left_reads_in_the_singular() {
+    let test = "one_degree_of_freedom_left_reads_in_the_singular";
+    let mut app = a_part(test);
+    driver::start_a_sketch(&mut app);
+    a_rectangle_on_the_origin(&mut app);
+    a_dimension(&mut app, ON_ITS_TOP_SIDE, ABOVE_ITS_TOP_SIDE);
+    assert_a_sketch_is_open(&app, "the dimension of the rectangle's width");
+    let read = what_the_pill_reads(&app);
+
+    let left = the_solver_s_count(&mut app, test);
+    assert_eq!(
+        left, 1,
+        "the solver leaves the rectangle on the origin, its width dimensioned, {left} \
+         degrees of freedom, not one: the drawing no longer holds the case",
+    );
+
+    assert!(
+        reads_in_order(
+            &read,
+            &["Esquisse 1 · Plan YZ", "1 liberté restante", "Terminer ↵"]
+        ),
+        "one degree of freedom left: wanted « Esquisse 1 · Plan YZ », « 1 liberté \
+         restante », « Terminer ↵ », the pill reads « {read} »",
+    );
+}
+
+#[test]
+fn a_sketch_with_no_freedom_left_reads_fully_set_in_the_success_colour() {
+    let test = "a_sketch_with_no_freedom_left_reads_fully_set";
+    let mut app = a_part(test);
+    driver::start_a_sketch(&mut app);
+    a_rectangle_on_the_origin(&mut app);
+    a_dimension(&mut app, ON_ITS_TOP_SIDE, ABOVE_ITS_TOP_SIDE);
+    a_dimension(&mut app, ON_ITS_RIGHT_SIDE, RIGHT_OF_ITS_RIGHT_SIDE);
+    assert_a_sketch_is_open(&app, "the dimension of the rectangle's height");
+    let read = what_the_pill_reads(&app);
+    let painted_in = colours_painted_for(&app, "entièrement réglée");
+
+    let left = the_solver_s_count(&mut app, test);
+    assert_eq!(
+        left, 0,
+        "the solver leaves the rectangle on the origin, its width and its height \
+         dimensioned, {left} degrees of freedom, not none: the drawing no longer holds \
+         the case",
+    );
+
+    let mut wrong = Vec::new();
+    if !reads_in_order(
+        &read,
+        &["Esquisse 1 · Plan YZ", "entièrement réglée", "Terminer ↵"],
+    ) || read.contains("libert")
+    {
+        wrong.push(format!(
+            "wanted « Esquisse 1 · Plan YZ », « entièrement réglée », « Terminer ↵ », and \
+             no count, the pill reads « {read} »"
+        ));
+    }
+    let success = the_design_s_success_text();
+    if painted_in.is_empty() || painted_in.iter().any(|colour| *colour != success) {
+        wrong.push(format!(
+            "« entièrement réglée » is painted in {painted_in:?}, not in \
+             `state.success_text`, {success:?}"
+        ));
+    }
+    assert!(
+        wrong.is_empty(),
+        "a sketch the solver leaves no freedom does not say so in green:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn a_sketch_with_nothing_drawn_yet_shows_no_count() {
+    let test = "a_sketch_with_nothing_drawn_yet_shows_no_count";
+    let mut app = a_part(test);
+    driver::start_a_sketch(&mut app);
+    let read = what_the_pill_reads(&app);
+
+    let left = the_solver_s_count(&mut app, test);
+    assert_eq!(
+        left, 0,
+        "the solver leaves an empty sketch {left} degrees of freedom: the case the \
+         decision answers, an empty sketch counted as fully set, is gone",
+    );
+
+    assert!(
+        reads_in_order(&read, &["Esquisse 1 · Plan YZ Terminer ↵"]),
+        "a sketch with nothing drawn shows no count, neither a number nor « entièrement \
+         réglée », between its plane and « Terminer ↵ »: the pill reads « {read} »",
+    );
+}
+
 fn a_part(test: &str) -> driver::App {
     let mut app = driver::open(test);
     driver::create_a_part(&mut app, "Platine");
@@ -368,6 +531,126 @@ fn open_a_sketch_on_xy(app: &mut driver::App) {
         "the click on XY opened no sketch, showing {:?}",
         driver::on_screen(app),
     );
+}
+
+/// What draws something in the sketch open.
+type Drawing = fn(&mut driver::App);
+
+/// A rectangle from one node of the grid to another, away from the origin and
+/// from the plane's axes.
+fn a_free_rectangle(app: &mut driver::App) {
+    driver::click(app, "Rectangle (R)");
+    driver::click_at_sketch_point(app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    driver::click_at_sketch_point(app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::press(app, egui::Key::Escape);
+}
+
+/// A rectangle whose first corner is pulled onto the origin, which holds it
+/// there.
+fn a_rectangle_on_the_origin(app: &mut driver::App) {
+    driver::click(app, "Rectangle (R)");
+    driver::click_at_sketch_point(app, DVec2::ZERO);
+    driver::click_at_sketch_point(app, ITS_FAR_CORNER);
+    driver::press(app, egui::Key::Escape);
+}
+
+/// A dimension taken off the trait at `on`, left at `left_at`, the length it
+/// reads kept.
+fn a_dimension(app: &mut driver::App, on: DVec2, left_at: DVec2) {
+    driver::click(app, "Cote");
+    driver::click_at_sketch_point(app, on);
+    driver::click_at_sketch_point(app, left_at);
+    driver::press(app, egui::Key::Enter);
+    driver::press(app, egui::Key::Escape);
+}
+
+/// How many degrees of freedom the solver leaves the part's first sketch,
+/// `Sketch::freedom` at the part's scale, read off the part as the application
+/// puts it away. The application is left on the home screen.
+fn the_solver_s_count(app: &mut driver::App, test: &str) -> usize {
+    driver::click(app, "Accueil");
+    let path = std::env::temp_dir()
+        .join("cao-driver")
+        .join(test)
+        .join("documents")
+        .join("CAO")
+        .join("Platine.caopart");
+    let part = PartDocument::load(&cao_app::adapters::files::DiskFiles, &path)
+        .unwrap_or_else(|err| panic!("the part at {path:?} does not open: {err:?}"));
+    let sketch = part.sketches().first().expect("the sketch drawn");
+    sketch.freedom(part.scale()).degrees_of_freedom
+}
+
+/// Whether `read` holds each of `pieces`, word for word, in that order: a
+/// number is not found inside a larger one, nor a word inside a longer one.
+fn reads_in_order(read: &str, pieces: &[&str]) -> bool {
+    let words: Vec<&str> = read.split_whitespace().collect();
+    let mut from = 0;
+    pieces.iter().all(|piece| {
+        let wanted: Vec<&str> = piece.split_whitespace().collect();
+        if wanted.len() > words.len() {
+            return false;
+        }
+        match (from..=words.len() - wanted.len())
+            .find(|at| words[*at..*at + wanted.len()] == wanted[..])
+        {
+            Some(at) => {
+                from = at + wanted.len();
+                true
+            }
+            None => false,
+        }
+    })
+}
+
+/// The colours every text painted on the last frame that holds `text` is
+/// written in, section by section.
+fn colours_painted_for(app: &driver::App, text: &str) -> Vec<egui::Color32> {
+    let mut found = Vec::new();
+    let mut pending: Vec<&egui::Shape> = app
+        .output()
+        .shapes
+        .iter()
+        .map(|clipped| &clipped.shape)
+        .collect();
+    while let Some(shape) = pending.pop() {
+        match shape {
+            egui::Shape::Vec(group) => pending.extend(group),
+            egui::Shape::Text(painted) if painted.galley.text().contains(text) => {
+                for section in &painted.galley.job.sections {
+                    found.push(match painted.override_text_color {
+                        Some(colour) => colour,
+                        None if section.format.color == egui::Color32::PLACEHOLDER => {
+                            painted.fallback_color
+                        }
+                        None => section.format.color,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+    found
+}
+
+/// What the design file gives text that says all is well: `state.success_text`
+/// of `docs/redesign/tokens.json`. Read there rather than through the token it
+/// becomes, which `theme.rs` holds to the same value.
+fn the_design_s_success_text() -> egui::Color32 {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/redesign/tokens.json");
+    let source = fs::read_to_string(&path).unwrap_or_else(|_| panic!("{path:?} is readable"));
+    let design: serde_json::Value =
+        serde_json::from_str(&source).unwrap_or_else(|_| panic!("{path:?} is JSON"));
+    let written = design["color"]["state"]["success_text"]
+        .as_str()
+        .unwrap_or_else(|| panic!("{path:?} gives no color.state.success_text"));
+    let channel = |at: usize| {
+        written
+            .get(1 + at..3 + at)
+            .and_then(|hex| u8::from_str_radix(hex, 16).ok())
+            .unwrap_or_else(|| panic!("color.state.success_text is {written}, not #RRGGBB"))
+    };
+    egui::Color32::from_rgb(channel(0), channel(2), channel(4))
 }
 
 fn assert_a_sketch_is_open(app: &driver::App, after: &str) {

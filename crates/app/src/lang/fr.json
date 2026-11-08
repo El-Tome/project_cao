@@ -745,6 +745,9 @@
   "sketch.no_dimension_here": "Cote impossible ici",
 
   "sketch_pill.finish": "Terminer ↵",
+  "sketch_pill.free_one": "{count} liberté restante",
+  "sketch_pill.free_many": "{count} libertés restantes",
+  "sketch_pill.settled": "entièrement réglée",
 
   "extrusion.pick_a_sketch": "Extruder l'esquisse :",
   "extrusion.height": "Hauteur :",

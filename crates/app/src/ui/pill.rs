@@ -38,7 +38,8 @@ pub fn pill(ui: &mut Ui, text: &str) -> Response {
 
 /// A pill standing over a view, its middle on the view's and its top a little
 /// below the view's, holding a row laid left to right. It sits on a layer of
-/// its own, above the view: what lies under it is neither hovered nor clicked.
+/// its own, above the view: what lies under it is neither hovered nor clicked,
+/// save by a drag already under way, which carries on over it.
 pub fn floating_pill<R>(
     ctx: &Context,
     id: Id,
@@ -48,6 +49,7 @@ pub fn floating_pill<R>(
     let size_before = AreaState::load(ctx, id).and_then(|state| state.size);
     let shown = Area::new(id)
         .order(Order::Middle)
+        .interactable(ctx.dragged_id().is_none())
         .pivot(Align2::CENTER_TOP)
         .fixed_pos(pos2(view.center().x, view.top() + SPACING_XXL))
         .constrain_to(view)
@@ -88,6 +90,11 @@ pub fn name_and_detail(ui: &mut Ui, name: &str, detail: &str) -> Response {
         TextFormat::simple(font, TEXT_BUTTON),
     );
     ui.label(job)
+}
+
+/// A short note beside what a pill names, smaller, in the ink it is handed.
+pub fn note(ui: &mut Ui, text: &str, ink: Color32) -> Response {
+    ui.label(RichText::new(text).size(TYPOGRAPHY_SIZES_DETAIL).color(ink))
 }
 
 /// What a message is said as, which colours its dot, its patch and its text.

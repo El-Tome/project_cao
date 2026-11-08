@@ -6,12 +6,50 @@ use crate::screens::sketch::SketchEditor;
 use crate::wording::{plane, view};
 
 /// What the pill reads while a sketch is open: the sketch's name, where it is
-/// drawn, and its button.
+/// drawn, what the solver leaves it to set, and its button.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SketchPill {
     pub name: String,
     pub plane: String,
+    pub left: Left,
+    /// How `left` reads: nothing while nothing is drawn.
+    pub left_read: Option<String>,
     pub finish: String,
+}
+
+/// What the solver leaves the sketch to set.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Left {
+    /// Nothing laid but the origin: the solver's nought would announce an
+    /// empty sketch as set.
+    NothingDrawn,
+    /// Degrees of freedom still to set, one or more.
+    Free(usize),
+    /// None left.
+    Settled,
+}
+
+impl Left {
+    /// The solver's count, `Sketch::freedom`, at the part's scale.
+    pub fn of(sketch: &Sketch, millimeters_per_unit: f64) -> Self {
+        if !sketch.holds_a_drawing() {
+            return Self::NothingDrawn;
+        }
+        match sketch.freedom(millimeters_per_unit).degrees_of_freedom {
+            0 => Self::Settled,
+            free => Self::Free(free),
+        }
+    }
+
+    fn read(self, lang: &Catalogue) -> Option<String> {
+        let count = |key: &str, free: usize| lang.t_with(key, &[("count", &free.to_string())]);
+        match self {
+            Self::NothingDrawn => None,
+            Self::Free(1) => Some(count("sketch_pill.free_one", 1)),
+            Self::Free(free) => Some(count("sketch_pill.free_many", free)),
+            Self::Settled => Some(lang.t("sketch_pill.settled")),
+        }
+    }
 }
 
 impl SketchPill {
@@ -21,9 +59,12 @@ impl SketchPill {
         let index = editor.active_sketch()?;
         let sketch = document.sketches().get(index)?;
         let rank = (index + 1).to_string();
+        let left = Left::of(sketch, document.scale());
         Some(Self {
             name: lang.t_with("part_tree.sketch", &[("rank", &rank)]),
             plane: laid_on(document, index, sketch, lang),
+            left,
+            left_read: left.read(lang),
             finish: lang.t("sketch_pill.finish"),
         })
     }

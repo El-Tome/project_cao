@@ -337,6 +337,30 @@ fn a_face_standing_above_and_one_hanging_below_along_different_stretches_are_unc
     assert_eq!(uncrossed(&[flat(), standing, hanging]), Ok(()));
 }
 
+#[test]
+fn a_face_passing_through_another_along_a_short_edge_tilted_within_the_room_of_a_longer_one_crosses_it_whichever_comes_first()
+ {
+    let flat = [DVec3::ZERO, at(12.0, 0.0, 0.0), at(0.0, 12.0, 0.0)];
+    let lean = 0.8 * NEAR * reach(&[flat]);
+    let rising = [at(2.0, 3.0, 0.0), at(8.0, 3.0, 0.0), at(5.0, 6.0, 4.0)];
+    let sinking = [
+        at(5.0, 3.0 + lean, 0.0),
+        at(4.0, 3.0, 0.0),
+        at(4.5, 1.0, -4.0),
+    ];
+    assert!(
+        matches!(
+            uncrossed(&[flat, rising, sinking]),
+            Err(Flaw::Crossing { .. })
+        ),
+        "the sinking face passes through the flat one where the rising one ends on it"
+    );
+    assert!(matches!(
+        uncrossed(&[flat, sinking, rising]),
+        Err(Flaw::Crossing { .. })
+    ));
+}
+
 /// A strip of floor facing up, from `x = from` to `x = to`.
 fn floor(from: f64, to: f64) -> Vec<Triangle> {
     fan(&[

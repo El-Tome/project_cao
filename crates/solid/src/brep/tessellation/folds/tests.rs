@@ -353,6 +353,33 @@ fn laid(faces: &[ByHand], reach: f64) -> (Vec<Drawn>, Samples, f64, f64) {
     (drawn, samples, eps, tolerance)
 }
 
+#[test]
+fn a_triangle_threaded_through_a_triangle_of_another_face_is_found_crossing_it_from_each() {
+    let flat = [at(0.0, 0.0, 0.0), at(12.0, 0.0, 0.0), at(0.0, 12.0, 0.0)];
+    let standing = [at(3.0, 3.0, -6.0), at(3.0, 3.0, 6.0), at(-6.0, 3.0, 0.0)];
+    let faces: [ByHand; 2] = [(&flat, &[flat]), (&standing, &[standing])];
+    let (mut drawn, samples, eps, tolerance) = laid(&faces, 12.0);
+    let folds = Folds::of(&mut drawn, &samples, eps, tolerance);
+    assert_eq!(folds.crossing((0, 0)), Some((1, 0)));
+    assert_eq!(folds.crossing((1, 0)), Some((0, 0)));
+}
+
+#[test]
+fn a_pass_over_a_triangle_lying_on_one_of_another_face_meets_the_fold_from_each_and_takes_no_flip()
+{
+    let [a, b] = [at(0.0, 0.0, 0.0), at(12.0, 0.0, 0.0)];
+    let hair = [a, b, at(6.0, 3e-5, 2e-9)];
+    let wide = [a, b, at(6.0, 12.0, 0.0)];
+    let faces: [ByHand; 2] = [(&hair, &[hair]), (&wide, &[wide])];
+    let (mut drawn, samples, eps, tolerance) = laid(&faces, 12.0);
+    let mut folds = Folds::of(&mut drawn, &samples, eps, tolerance);
+    assert_eq!(
+        folds.pass(),
+        (2, false),
+        "each triangle is a face of its own, with no diagonal to turn",
+    );
+}
+
 /// The triangles of faces laid by hand the folds do not see passing through
 /// another face along a line, where the rules see the faces pass through each
 /// other and no two triangles cross or lie on each other.

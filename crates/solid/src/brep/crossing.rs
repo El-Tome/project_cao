@@ -193,3 +193,6 @@ impl Facet {
         doubled_area.abs() > room * outline
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -310,6 +310,20 @@ fn a_surface_passing_through_a_face_along_edges_of_its_own_crosses_it() {
 }
 
 #[test]
+fn a_surface_passing_through_a_face_along_edges_of_its_own_crosses_it_however_its_faces_are_numbered()
+ {
+    let far = flat().map(|corner| corner + at(100.0, 0.0, 0.0));
+    let [rising, sinking] = folded_on_flat(false).map(|[a, b, c]| [c, a, b]);
+    assert_eq!(
+        uncrossed(&[flat(), far, rising, sinking]),
+        Err(Flaw::Crossing {
+            first: Box::new(flat()),
+            second: Box::new(rising)
+        })
+    );
+}
+
+#[test]
 fn a_ridge_resting_on_a_face_is_uncrossed() {
     let [one, other] = folded_on_flat(true);
     assert_eq!(uncrossed(&[flat(), one, other]), Ok(()));

@@ -62,6 +62,16 @@
 //!   round and this file now speaks for, and the filled bodies the last two now
 //!   hold to their listing besides the cut ones
 //!
+//! What must not break holds too: a join merges its edges as it did before
+//! the fill's corners came into it, so an existing part's edges, and their
+//! names, stay where they were —
+//! `two_blocks_joined_at_two_heights_keep_their_floor_s_front_and_back_edges_in_two_as_the_join_always_has`
+//! — and a fill leaves them so wherever it does not reach —
+//! `a_chamfer_and_a_fillet_at_the_step_between_two_blocks_leave_their_floor_s_edges_as_the_join_did`.
+//! They sit beside the fill rather than with the joins because the rule they
+//! guard was opened for the fill alone, and whoever opens it further reads
+//! them here; and they ask nothing but the names a part's user sees.
+//!
 //! What the issue asks besides its Done when is held here too. An edge a join
 //! bridged from two is filled whole, as #696 and #697 cut it —
 //! `a_chamfer_and_a_fillet_on_the_concave_edge_a_join_bridged_from_two_fill_it_whole`.
@@ -3213,4 +3223,126 @@ fn a_chamfer_and_a_fillet_of_1_at_the_foot_of_a_rib_fill_it_as_one_of_3_does() {
         |corner| hollow.holds(corner),
         what,
     );
+}
+
+/// A block 10 by 10 and 10 high, and beside it a block 10 by 10 and 5 high
+/// joined as a part's next step is, from x = 10 to 20: their floors merge,
+/// numbered nought and six, their fronts two and eight, their backs four and
+/// ten. The taller one's right side, three, stands on above the lower one's
+/// top, seven, from 5 up. Its plane runs through the corners where the lower
+/// one's front and back meet the floor, at x = 10, and the join keeps both as
+/// vertices: the floor meets the front, and the back, along two edges each.
+fn stepped_blocks() -> Body {
+    let taller = raised_on(
+        ground(),
+        Contour::rectangle(DVec2::ZERO, DVec2::new(10.0, 10.0)),
+        10.0,
+    );
+    let lower = Contour::rectangle(DVec2::new(10.0, 0.0), DVec2::new(20.0, 10.0));
+    joined_to(&taller, lower, 5.0)
+}
+
+/// The numbers the [`stepped_blocks`]' merged floor, fronts and backs answer
+/// to, and the taller one's right side and the lower one's top, which meet
+/// inwards at the step.
+const STEPPED_FLOOR: [u32; 2] = [0, 6];
+const STEPPED_FRONT: [u32; 2] = [2, 8];
+const STEPPED_BACK: [u32; 2] = [4, 10];
+const TALLER_RIGHT: usize = 3;
+const LOWER_TOP: usize = 7;
+
+/// The names the edges between the [`stepped_blocks`]' floor and their
+/// fronts, and their backs, answer to as the join leaves them: two edges
+/// each, alike in what they recorded but for the end each keeps — at the
+/// taller block's left, five, or the lower one's right, nine.
+fn the_floor_s_edges_as_joined() -> Vec<EdgeName> {
+    let floor = STEPPED_FLOOR.to_vec();
+    let name = |side: [u32; 2], ends: [Vec<Vec<u32>>; 2]| EdgeName {
+        between: [floor.clone(), side.to_vec()],
+        ends,
+        among: 2,
+        rank: 0,
+        of: 1,
+    };
+    vec![
+        name(STEPPED_FRONT, [vec![], vec![vec![5]]]),
+        name(STEPPED_FRONT, [vec![vec![9]], vec![]]),
+        name(STEPPED_BACK, [vec![], vec![vec![9]]]),
+        name(STEPPED_BACK, [vec![vec![5]], vec![]]),
+    ]
+}
+
+/// Holds that the body's floor meets its fronts and backs along the edges
+/// the join left, by the names they had, and keeps its corners where the
+/// lower block's front and back meet it.
+fn the_floor_s_edges_kept(body: &Body, what: &str) {
+    let floor = STEPPED_FLOOR.to_vec();
+    let names: Vec<EdgeName> = body
+        .edge_names()
+        .into_iter()
+        .filter(|name| {
+            name.between[0] == floor
+                && [STEPPED_FRONT.to_vec(), STEPPED_BACK.to_vec()].contains(&name.between[1])
+        })
+        .collect();
+    assert_eq!(
+        names,
+        the_floor_s_edges_as_joined(),
+        "{what}: the floor meets the front and the back along two edges each, either side of \
+         where the lower block meets the taller one, by the names the join gave them"
+    );
+    let corners = body
+        .plane_of(STEPPED_FLOOR[0] as usize)
+        .expect("the floor is flat")
+        .corners;
+    for kept in [DVec3::new(10.0, 0.0, 0.0), DVec3::new(10.0, 10.0, 0.0)] {
+        assert!(
+            corners.iter().any(|corner| corner.distance(kept) < PLACE),
+            "{what}: the floor keeps its corner at {kept}, under the taller block's right side"
+        );
+    }
+}
+
+#[test]
+fn two_blocks_joined_at_two_heights_keep_their_floor_s_front_and_back_edges_in_two_as_the_join_always_has()
+ {
+    let stepped = stepped_blocks();
+
+    the_floor_s_edges_kept(&stepped, "two blocks of 10 and 5 joined side by side");
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_the_step_between_two_blocks_leave_their_floor_s_edges_as_the_join_did()
+{
+    let value = 3.0;
+    let part = stepped_blocks();
+    let step = edge_between(&part, TALLER_RIGHT, LOWER_TOP);
+    let volume = 10.0 * 10.0 * 10.0 + 10.0 * 10.0 * 5.0;
+
+    let chamfered = part
+        .chamfer(&step, value)
+        .unwrap_or_else(|declined| panic!("the chamfer at the step: declined, {declined:?}"));
+
+    let what = "the chamfer at the step between the two blocks";
+    taken_whole(chamfered.asked, chamfered.taken, value, what);
+    let body = &chamfered.body;
+    sound(body, volume + value * value / 2.0 * 10.0, what);
+    one_flat_face_more(&part, body, what);
+    the_floor_s_edges_kept(body, what);
+
+    let filleted = part
+        .fillet(&step, value)
+        .unwrap_or_else(|declined| panic!("the fillet at the step: declined, {declined:?}"));
+
+    let what = "the fillet at the step between the two blocks";
+    taken_whole(filleted.asked, filleted.taken, value, what);
+    let body = &filleted.body;
+    sound_drawn_within(
+        body,
+        volume + value * value * (1.0 - PI / 4.0) * 10.0,
+        drawn_within(&part, PI / 2.0 * value * 10.0),
+        what,
+    );
+    one_round_more(&part, body, what);
+    the_floor_s_edges_kept(body, what);
 }

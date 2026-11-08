@@ -258,7 +258,8 @@ impl CaoApp {
             copy_panel_let_go_at = shown.copy_panel_let_go_at;
         });
 
-        let finished = screens::sketch_pill::SketchPill::of(doc, editor, lang)
+        let finish_on = settings.shortcuts.chord_for(Command::FinishSketch);
+        let finished = screens::sketch_pill::SketchPill::of(doc, editor, finish_on, lang)
             .is_some_and(|pill| screens::sketch_pill::show(ui.ctx(), view.response.rect, &pill));
         if finished {
             let mut worked_on = screens::SketchContext {

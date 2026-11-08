@@ -4,7 +4,7 @@ use crate::ui::theme::tokens::{ACCENT_AMBER, RADIUS_PILL, TEXT_ON_ACCENT};
 
 /// How tall the button stands, in points: `docs/redesign/source/part.html`,
 /// which the tokens do not carry.
-const HEIGHT: f32 = 28.0;
+pub const HEIGHT: f32 = 28.0;
 
 /// The one action a place leads to, in amber with round ends, the key that
 /// does it recalled in its label (`docs/redesign/components.md` C15). Its fill

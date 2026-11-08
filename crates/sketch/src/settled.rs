@@ -47,10 +47,11 @@ impl Sketch {
         freedom
     }
 
-    /// Whether a point was ever laid besides the origin the sketch is born
-    /// with. Before that, the solver's nought says nothing about the drawing.
+    /// Whether a point besides the origin the sketch is born with is still
+    /// drawn, erased ones left out. Without one, the solver's nought says
+    /// nothing about the drawing.
     pub fn holds_a_drawing(&self) -> bool {
-        self.points().len() > 1
+        self.drawn_points().next().is_some()
     }
 
     pub fn is_fully_constrained(&self, millimeters_per_unit: f64) -> bool {

@@ -46,16 +46,10 @@ fn a_block(test: &str) -> driver::App {
     app
 }
 
-fn a_button_reads(app: &driver::App, label: &str) -> bool {
-    app.query_all_by_role(egui::accesskit::Role::Button)
-        .filter_map(|node| node.accesskit_node().label())
-        .any(|read| read.starts_with(label))
-}
-
 /// The ribbon's button that reads this, whichever tab it sits under.
 fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
     for tab in ["Esquisse", "Extrusion", "Export"] {
-        if a_button_reads(app, label) {
+        if driver::a_button_reads(app, label) {
             break;
         }
         driver::click_the_button(app, tab);
@@ -78,7 +72,7 @@ fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
 }
 
 fn the_panel_is_open(app: &driver::App) -> bool {
-    a_button_reads(app, "Inverser")
+    driver::a_button_reads(app, "Inverser")
 }
 
 #[test]

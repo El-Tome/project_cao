@@ -49,16 +49,10 @@ fn a_block(test: &str) -> driver::App {
     app
 }
 
-fn a_button_reads(app: &driver::App, label: &str) -> bool {
-    app.query_all_by_role(egui::accesskit::Role::Button)
-        .filter_map(|node| node.accesskit_node().label())
-        .any(|read| read.starts_with(label))
-}
-
 /// The ribbon's button that reads this, whichever tab it sits under.
 fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
     for tab in ["Esquisse", "Extrusion", "Export"] {
-        if a_button_reads(app, label) {
+        if driver::a_button_reads(app, label) {
             break;
         }
         driver::click_the_button(app, tab);
@@ -81,7 +75,7 @@ fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
 }
 
 fn the_panel_is_open(app: &driver::App) -> bool {
-    a_button_reads(app, "Inverser")
+    driver::a_button_reads(app, "Inverser")
 }
 
 fn close_the_panel(app: &mut driver::App) {
@@ -90,15 +84,9 @@ fn close_the_panel(app: &mut driver::App) {
     }
 }
 
-/// The button of the tree that reads exactly this.
-fn the_row<'a>(app: &'a driver::App, name: &str) -> Option<egui_kittest::Node<'a>> {
-    app.query_all_by_role(egui::accesskit::Role::Button)
-        .find(|node| node.accesskit_node().label().as_deref() == Some(name))
-}
-
 /// Switches a kept section on from its row in the tree, unless it is on.
 fn switch_on(app: &mut driver::App, name: &str) {
-    let row = the_row(app, name).unwrap_or_else(|| {
+    let row = driver::the_row(app, name).unwrap_or_else(|| {
         panic!(
             "the tree holds no « {name} », showing {:?}",
             driver::on_screen(app)
@@ -114,7 +102,7 @@ fn switch_on(app: &mut driver::App, name: &str) {
 /// double-click: each frame of the harness otherwise moves the clock a quarter
 /// of a second, past what a double-click allows.
 fn double_click(app: &mut driver::App, label: &str) {
-    let at = the_row(app, label)
+    let at = driver::the_row(app, label)
         .unwrap_or_else(|| panic!("no button reads « {label} »"))
         .rect()
         .center();

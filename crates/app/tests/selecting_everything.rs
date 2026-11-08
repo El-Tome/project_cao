@@ -77,18 +77,6 @@ fn select_all(app: &mut driver::App) {
     driver::press_with_command(app, egui::Key::A);
 }
 
-/// The numbered steps of the history, in order.
-fn steps(app: &driver::App) -> Vec<String> {
-    driver::on_screen(app)
-        .into_iter()
-        .filter(|label| {
-            label
-                .split_once(". ")
-                .is_some_and(|(rank, _)| rank.parse::<usize>().is_ok())
-        })
-        .collect()
-}
-
 /// Delete pressed, then the step it wrote read in detail, which for an
 /// erasure counts the traits, the dimensions and the rules taken away apart.
 fn what_delete_takes(app: &mut driver::App) -> String {
@@ -100,7 +88,7 @@ fn what_delete_takes(app: &mut driver::App) -> String {
 /// when the hand rests on it.
 fn the_last_step_in_detail(app: &mut driver::App) -> String {
     driver::open_the_history(app);
-    let last = steps(app)
+    let last = driver::steps(app)
         .last()
         .cloned()
         .expect("the sketch's own step at least");
@@ -131,7 +119,7 @@ fn delete_over_the_drawing(app: &mut driver::App) {
 fn steps_after_delete(app: &mut driver::App) -> Vec<String> {
     delete_over_the_drawing(app);
     driver::open_the_history(app);
-    steps(app)
+    driver::steps(app)
 }
 
 fn erased(traits: usize) -> String {
@@ -321,11 +309,11 @@ fn outside_a_sketch_command_a_changes_nothing() {
     driver::draw_a_segment(&mut app);
     driver::click(&mut app, driver::FINISH_IN_THE_RIBBON);
     driver::open_the_history(&mut app);
-    let (steps_before, said_before) = (steps(&app), driver::said(&app));
+    let (steps_before, said_before) = (driver::steps(&app), driver::said(&app));
 
     select_all(&mut app);
 
-    assert_eq!(steps(&app), steps_before);
+    assert_eq!(driver::steps(&app), steps_before);
     assert_eq!(driver::said(&app), said_before);
 }
 
@@ -460,10 +448,10 @@ fn a_rebound_select_all_takes_everything_from_its_new_key() {
     driver::open_the_history(&mut app);
 
     assert_eq!(
-        steps(&app).last().map(String::as_str),
+        driver::steps(&app).last().map(String::as_str),
         Some("3. 3 éléments supprimés"),
         "Q took the line's two ends and the line: {:?}",
-        steps(&app),
+        driver::steps(&app),
     );
 }
 

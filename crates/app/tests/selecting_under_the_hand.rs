@@ -59,7 +59,7 @@ fn a_sketch_in_the_selection_tool(test: &str, draw: impl FnOnce(&mut driver::App
 /// at.
 fn steps_at_the_end(app: &mut driver::App) -> Vec<String> {
     driver::open_the_history(app);
-    steps(app)
+    driver::steps(app)
 }
 
 /// Corners of the sketch: the top side runs high above the origin, away from
@@ -91,18 +91,6 @@ fn past_the_line_s_end(app: &driver::App, pixels: f32) -> egui::Pos2 {
     let start = driver::sketch_point_on_screen(app, LINE_START);
     let end = driver::sketch_point_on_screen(app, LINE_END);
     end + (end - start).normalized() * pixels
-}
-
-/// The numbered steps of the history, in order.
-fn steps(app: &driver::App) -> Vec<String> {
-    driver::on_screen(app)
-        .into_iter()
-        .filter(|label| {
-            label
-                .split_once(". ")
-                .is_some_and(|(rank, _)| rank.parse::<usize>().is_ok())
-        })
-        .collect()
 }
 
 /// Every four-sided shape filled and outlined on the last frame, by its

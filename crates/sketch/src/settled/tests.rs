@@ -85,22 +85,22 @@ fn a_length_away_from_the_origin_leaves_its_end_free() {
     assert!(!sketch.settled_points(1.0)[end.0]);
 }
 
-/// The origin a sketch is born with is no drawing: before anything is laid,
-/// the solver's nought says nothing. Once a point is laid there is one, and
-/// erasing it does not take the sketch back to its birth.
 #[test]
-fn a_sketch_holds_a_drawing_from_its_first_point_on_even_once_that_point_is_erased() {
+fn a_sketch_holds_a_drawing_only_while_a_point_besides_the_origin_is_left() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let born = sketch.holds_a_drawing();
-    let point = sketch.add_point(DVec2::new(20.0, 10.0));
+    let first = sketch.add_point(DVec2::new(20.0, 10.0));
     let laid = sketch.holds_a_drawing();
-    sketch.erase(Element::Point(point));
-    let erased = sketch.holds_a_drawing();
+    let second = sketch.add_point(DVec2::new(40.0, 10.0));
+    sketch.erase(Element::Point(first));
+    let one_erased = sketch.holds_a_drawing();
+    sketch.erase(Element::Point(second));
+    let all_erased = sketch.holds_a_drawing();
 
     assert_eq!(
-        (born, laid, erased),
-        (false, true, true),
-        "(as born, once a point is laid, once it is erased)",
+        (born, laid, one_erased, all_erased),
+        (false, true, true, false),
+        "(as born, once a point is laid, once one of two is erased, once both are)",
     );
 }
 

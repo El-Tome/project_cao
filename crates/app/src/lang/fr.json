@@ -744,7 +744,8 @@
   "sketch.scale_set": "Échelle définie : 1 unité = {mm} mm",
   "sketch.no_dimension_here": "Cote impossible ici",
 
-  "sketch_pill.finish": "Terminer ↵",
+  "sketch_pill.finish": "{name} ↵",
+  "sketch_pill.finish_on": "{name} {keys}",
   "sketch_pill.free_one": "{count} liberté restante",
   "sketch_pill.free_many": "{count} libertés restantes",
   "sketch_pill.settled": "entièrement réglée",

@@ -107,12 +107,6 @@ fn a_block(test: &str) -> driver::App {
     app
 }
 
-fn a_button_reads(app: &driver::App, label: &str) -> bool {
-    app.query_all_by_role(egui::accesskit::Role::Button)
-        .filter_map(|node| node.accesskit_node().label())
-        .any(|read| read.starts_with(label))
-}
-
 fn the_button_reading(app: &driver::App, label: &str) -> String {
     app.query_all_by_role(egui::accesskit::Role::Button)
         .filter_map(|node| node.accesskit_node().label())
@@ -123,7 +117,7 @@ fn the_button_reading(app: &driver::App, label: &str) -> String {
 /// The ribbon's button that reads this, whichever tab it sits under.
 fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
     for tab in ["Esquisse", "Extrusion", "Export"] {
-        if a_button_reads(app, label) {
+        if driver::a_button_reads(app, label) {
             break;
         }
         driver::click_the_button(app, tab);
@@ -146,7 +140,7 @@ fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
 }
 
 fn the_panel_is_open(app: &driver::App) -> bool {
-    a_button_reads(app, "Inverser")
+    driver::a_button_reads(app, "Inverser")
 }
 
 fn close_the_panel(app: &mut driver::App) {
@@ -159,7 +153,7 @@ fn close_the_panel(app: &mut driver::App) {
 /// double-click: each frame of the harness otherwise moves the clock a quarter
 /// of a second, past what a double-click allows.
 fn double_click(app: &mut driver::App, label: &str) {
-    let at = the_row(app, label)
+    let at = driver::the_row(app, label)
         .unwrap_or_else(|| panic!("no button reads « {label} »"))
         .rect()
         .center();
@@ -181,7 +175,7 @@ fn double_click(app: &mut driver::App, label: &str) {
 }
 
 fn right_click(app: &mut driver::App, label: &str) {
-    let at = the_row(app, label)
+    let at = driver::the_row(app, label)
         .unwrap_or_else(|| panic!("no button reads « {label} »"))
         .rect()
         .center();
@@ -207,30 +201,21 @@ fn save_a_section(app: &mut driver::App, plane: &str) {
     close_the_panel(app);
 }
 
-/// The button of the tree, or of a panel, that reads exactly this — never a
-/// text of the title bar, which may carry the same words.
-fn the_row<'a>(app: &'a driver::App, name: &str) -> Option<egui_kittest::Node<'a>> {
-    app.query_all_by_role(egui::accesskit::Role::Button)
-        .find(|node| node.accesskit_node().label().as_deref() == Some(name))
-}
-
-fn in_the_tree(app: &driver::App, name: &str) -> bool {
-    the_row(app, name).is_some()
-}
-
 fn is_active(app: &driver::App, name: &str) -> bool {
     assert!(
-        in_the_tree(app, name),
+        driver::in_the_tree(app, name),
         "the tree holds no « {name} », showing {:?}",
         driver::on_screen(app),
     );
-    the_row(app, name)
+    driver::the_row(app, name)
         .is_some_and(|row| row.accesskit_node().toggled() == Some(egui::accesskit::Toggled::True))
 }
 
 fn switch_on(app: &mut driver::App, name: &str) {
     if !is_active(app, name) {
-        the_row(app, name).expect("the row is in the tree").click();
+        driver::the_row(app, name)
+            .expect("the row is in the tree")
+            .click();
         app.run();
     }
 }
@@ -285,7 +270,7 @@ fn the_section_tool_closed_without_saving_leaves_nothing_behind_and_a_sketch_on_
     click_in_the_ribbon(&mut app, "Vue en coupe");
     close_the_panel(&mut app);
 
-    let tree_holds_a_section = in_the_tree(&app, "Coupe 1");
+    let tree_holds_a_section = driver::in_the_tree(&app, "Coupe 1");
     let part = the_part_file(&mut app, test);
 
     assert!(
@@ -339,7 +324,7 @@ fn a_saved_section_reopened_from_the_tree_comes_back_on_its_plane_its_offset_and
     close_the_panel(&mut app);
 
     assert!(
-        in_the_tree(&app, "Coupe 1"),
+        driver::in_the_tree(&app, "Coupe 1"),
         "« Enregistrer la coupe » left no « Coupe 1 » in the tree, showing {:?}",
         driver::on_screen(&app),
     );
@@ -402,7 +387,7 @@ fn a_part_reopened_keeps_its_sections_and_opens_with_none_active() {
     reopen_the_part(&mut app);
 
     assert!(
-        in_the_tree(&app, "Coupe 1") && in_the_tree(&app, "Coupe 2"),
+        driver::in_the_tree(&app, "Coupe 1") && driver::in_the_tree(&app, "Coupe 2"),
         "the part came back without its sections, showing {:?}",
         driver::on_screen(&app),
     );
@@ -457,7 +442,7 @@ fn deleting_a_section_a_sketch_stands_on_asks_first() {
     switch_on(&mut app, "Coupe 1");
     a_sketch_on_the_cut(&mut app);
     assert!(
-        !a_button_reads(&app, "Supprimer"),
+        !driver::a_button_reads(&app, "Supprimer"),
         "the file list is on the part screen, and its « Supprimer » would be clicked instead",
     );
     let asks = |app: &driver::App| app.query_all_by_label("Annuler").next().is_some();
@@ -465,15 +450,15 @@ fn deleting_a_section_a_sketch_stands_on_asks_first() {
     right_click(&mut app, "Coupe 2");
     driver::click_the_button(&mut app, "Supprimer");
     let free_one_asked = asks(&app);
-    let free_one_gone = !in_the_tree(&app, "Coupe 2");
+    let free_one_gone = !driver::in_the_tree(&app, "Coupe 2");
     right_click(&mut app, "Coupe 1");
     driver::click_the_button(&mut app, "Supprimer");
     let held_one_asked = asks(&app);
-    let held_one_kept_while_asking = in_the_tree(&app, "Coupe 1");
+    let held_one_kept_while_asking = driver::in_the_tree(&app, "Coupe 1");
     if held_one_asked {
         driver::click_exactly(&mut app, "Annuler");
     }
-    let held_one_kept_on_cancel = in_the_tree(&app, "Coupe 1");
+    let held_one_kept_on_cancel = driver::in_the_tree(&app, "Coupe 1");
 
     assert!(
         free_one_gone && !free_one_asked,
@@ -495,16 +480,16 @@ fn deleting_a_section_a_sketch_stands_on_asks_first() {
 fn undo_takes_back_a_section_saved_from_its_panel() {
     let mut app = a_block("keeping_a_section_undo");
     save_a_section(&mut app, "Plan YZ");
-    let saved = in_the_tree(&app, "Coupe 1");
+    let saved = driver::in_the_tree(&app, "Coupe 1");
 
     driver::press_with_command(&mut app, egui::Key::Z);
-    let undone = !in_the_tree(&app, "Coupe 1");
+    let undone = !driver::in_the_tree(&app, "Coupe 1");
     driver::press_with(
         &mut app,
         egui::Modifiers::COMMAND | egui::Modifiers::SHIFT,
         egui::Key::Z,
     );
-    let redone = in_the_tree(&app, "Coupe 1");
+    let redone = driver::in_the_tree(&app, "Coupe 1");
 
     assert!(
         saved,
@@ -635,7 +620,7 @@ fn the_history_still_reads_its_last_row_as_current_once_a_section_is_saved_and_c
         "with a section saved last, no row of the history reads as current: {rows:?}",
     );
     assert!(
-        in_the_tree(&app, "Coupe 1"),
+        driver::in_the_tree(&app, "Coupe 1"),
         "clicking the last row of the history took « Coupe 1 » away",
     );
 }

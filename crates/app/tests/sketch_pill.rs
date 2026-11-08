@@ -13,6 +13,16 @@
 //!   `a_sketch_laid_on_a_kept_section_reads_that_section_s_name`, whose sketch
 //!   is the part's second, and the count between the two by the tests of the
 //!   third bullet
+//! - found trying the branch: the pill's texts stand on the middle line of its
+//!   button, the design drawing them all on one line —
+//!   `the_pill_s_texts_stand_on_the_middle_line_of_its_button`
+//! - decided in review: the button names the keys that finish the sketch, as
+//!   the ribbon does — « Terminer ↵ » while that is Enter alone, which the
+//!   first test holds; « Terminer » and the chord as the ribbon writes it
+//!   while it is any other —
+//!   `the_pill_s_button_names_the_keys_that_finish_the_sketch_once_rebound`;
+//!   « Terminer » alone while nothing does —
+//!   `the_pill_s_button_names_no_key_once_finishing_is_unbound`
 //! - the plane reads as the breadcrumb does: a sketch on an origin plane reads
 //!   « Plan XY », and the other origin planes as `wording/plane.rs` `label`
 //!   words them — `a_sketch_on_each_origin_plane_reads_that_plane_s_name`; one
@@ -33,6 +43,12 @@
 //!   — `a_sketch_with_no_freedom_left_reads_fully_set_in_the_success_colour`;
 //!   and, decided on the way, a sketch with no point drawn yet shows no count
 //!   at all — `a_sketch_with_nothing_drawn_yet_shows_no_count`
+//! - found trying the branch: a sketch whose drawing was all erased shows no
+//!   count either, something drawn being a point besides the origin still
+//!   there rather than one ever laid —
+//!   `a_sketch_whose_drawing_is_all_erased_shows_no_count`, and the rule
+//!   itself in `crates/sketch/src/settled/tests.rs` by
+//!   `a_sketch_holds_a_drawing_only_while_a_point_besides_the_origin_is_left`
 //! - the pill is gone outside a sketch: before one is opened, and once it is
 //!   finished — `the_pill_is_gone_before_a_sketch_is_opened_and_once_it_is_finished`
 //!
@@ -105,7 +121,8 @@ use std::fs;
 use std::path::Path;
 
 use cao_app::theme::tokens;
-use cao_part::PartDocument;
+use cao_prefs::command::Command;
+use cao_prefs::shortcuts::{Chord, Key};
 use egui::accesskit::Role;
 use egui_kittest::kittest::{NodeT, Queryable};
 use glam::{DVec2, DVec3};
@@ -131,15 +148,6 @@ const ON_EACH_BASE_PLANE: [(DVec3, &str); 3] = [
     (ON_THE_XY_PLANE, "Plan XY"),
     (DVec3::new(-40.0, 0.0, 30.0), "Plan XZ"),
 ];
-
-/// The corners of the rectangle the block is raised off, and a point inside
-/// it, points of its sketch on YZ: those `keeping_a_section.rs` tuned.
-const THE_BLOCK_S_CORNERS: [DVec2; 2] = [DVec2::new(-8.82, 44.59), DVec2::new(123.83, -52.69)];
-const ON_THE_BLOCK: DVec2 = DVec2::new(57.5, -4.05);
-
-/// Where a section of the block along YZ, through its middle, 5 mm into its
-/// 10, shows its cut: a plane off the origin.
-const ON_THE_CUT: DVec3 = DVec3::new(5.0, 46.2, -2.47);
 
 /// On the block's front face, 10 mm off the plane its rectangle was drawn on,
 /// low on it: where `keeping_a_section.rs` clicks the face a section is laid
@@ -329,8 +337,8 @@ fn a_sketch_on_each_origin_plane_reads_that_plane_s_name() {
 
 #[test]
 fn a_sketch_off_the_origin_reads_as_a_face_of_the_part() {
-    let mut app = a_block("a_sketch_off_the_origin_reads_as_a_face");
-    click_in_the_ribbon(&mut app, "Nouvelle esquisse");
+    let mut app = driver::a_block("a_sketch_off_the_origin_reads_as_a_face");
+    driver::click_in_the_ribbon(&mut app, "Nouvelle esquisse");
     driver::click_at_world_point(&mut app, ON_THE_BLOCK_S_FRONT_FACE);
     assert_a_sketch_is_open(&app, "the click on the block's front face");
 
@@ -345,18 +353,18 @@ fn a_sketch_off_the_origin_reads_as_a_face_of_the_part() {
 
 #[test]
 fn a_sketch_laid_on_a_kept_section_reads_that_section_s_name() {
-    let mut app = a_block("a_sketch_laid_on_a_kept_section_reads_its_name");
+    let mut app = driver::a_block("a_sketch_laid_on_a_kept_section_reads_its_name");
     save_a_section(&mut app, "Plan XZ");
     save_a_section(&mut app, "Plan YZ");
     delete_from_the_tree(&mut app, "Coupe 1");
     assert!(
-        !in_the_tree(&app, "Coupe 1") && in_the_tree(&app, "Coupe 2"),
+        !driver::in_the_tree(&app, "Coupe 1") && driver::in_the_tree(&app, "Coupe 2"),
         "the first section was not deleted alone, the tree showing {:?}",
         driver::on_screen(&app),
     );
     switch_on(&mut app, "Coupe 2");
-    click_in_the_ribbon(&mut app, "Nouvelle esquisse");
-    driver::click_at_world_point(&mut app, ON_THE_CUT);
+    driver::click_in_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::click_at_world_point(&mut app, driver::ON_THE_CUT);
     assert_a_sketch_is_open(&app, "the click on the cut of « Coupe 2 »");
 
     let read = what_the_pill_reads(&app);
@@ -370,20 +378,20 @@ fn a_sketch_laid_on_a_kept_section_reads_that_section_s_name() {
 
 #[test]
 fn a_sketch_whose_section_is_no_longer_kept_reads_its_plane_s_name() {
-    let mut app = a_block("a_sketch_whose_section_is_no_longer_kept");
+    let mut app = driver::a_block("a_sketch_whose_section_is_no_longer_kept");
     save_a_section(&mut app, "Plan YZ");
     switch_on(&mut app, "Coupe 1");
-    click_in_the_ribbon(&mut app, "Nouvelle esquisse");
-    driver::click_at_world_point(&mut app, ON_THE_CUT);
+    driver::click_in_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::click_at_world_point(&mut app, driver::ON_THE_CUT);
     assert_a_sketch_is_open(&app, "the click on the cut of « Coupe 1 »");
-    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
+    driver::click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
     delete_from_the_tree(&mut app, "Coupe 1");
     assert!(
-        !in_the_tree(&app, "Coupe 1"),
+        !driver::in_the_tree(&app, "Coupe 1"),
         "the section the sketch stands on was not deleted, the tree showing {:?}",
         driver::on_screen(&app),
     );
-    double_click(&mut app, "Esquisse 2");
+    driver::double_click(&mut app, "Esquisse 2");
     assert_a_sketch_is_open(&app, "a double-click on « Esquisse 2 »");
 
     let read = what_the_pill_reads(&app);
@@ -588,8 +596,8 @@ fn a_click_on_the_pill_s_finish_button_places_no_point_with_the_line_tool_in_han
         "the pill's « Terminer ↵ », the line tool in hand, did not finish the sketch",
     );
     driver::open_the_history(&mut app);
-    let steps = steps(&app);
-    let saved = the_part_put_away(&mut app, test);
+    let steps = driver::steps(&app);
+    let saved = driver::the_part_put_away(&mut app, test, "Platine");
     let sketch = saved.sketches().first().expect("the sketch drawn");
     assert!(
         steps == ["1. Esquisse — Plan YZ"] && !sketch.holds_a_drawing(),
@@ -610,7 +618,7 @@ fn a_drag_begun_in_the_view_carries_on_over_the_pill_and_lands_where_it_is_let_g
     driver::draw_a_segment(&mut app);
     driver::click(&mut app, "Sélection (S)");
     driver::open_the_history(&mut app);
-    let before = steps(&app);
+    let before = driver::steps(&app);
     let finish = the_pill_s_finish(&app).expect("the pill, the sketch being open");
     let on_the_count = the_pill_s_row(&app, finish)
         .into_iter()
@@ -626,13 +634,13 @@ fn a_drag_begun_in_the_view_carries_on_over_the_pill_and_lands_where_it_is_let_g
 
     driver::drag_and_drop(&mut app, pressed, on_the_count);
 
-    let after = steps(&app);
+    let after = driver::steps(&app);
     let origin = driver::sketch_point_on_screen(&app, DVec2::ZERO);
     let per_millimetre = (
         driver::sketch_point_on_screen(&app, DVec2::X) - origin,
         driver::sketch_point_on_screen(&app, DVec2::Y) - origin,
     );
-    let saved = the_part_put_away(&mut app, test);
+    let saved = driver::the_part_put_away(&mut app, test, "Platine");
     let sketch = saved.sketches().first().expect("the sketch drawn");
     let landed = sketch
         .points()
@@ -658,6 +666,129 @@ fn a_drag_begun_in_the_view_carries_on_over_the_pill_and_lands_where_it_is_let_g
     );
 }
 
+#[test]
+fn a_sketch_whose_drawing_is_all_erased_shows_no_count() {
+    let mut app = a_part("a_sketch_whose_drawing_is_all_erased_shows_no_count");
+    driver::start_a_sketch(&mut app);
+    driver::draw_a_segment(&mut app);
+    driver::click(&mut app, "Sélection (S)");
+    driver::press_with_command(&mut app, egui::Key::A);
+    let away_from_the_drawing = driver::sketch_point_on_screen(&app, AWAY_FROM_THE_SEGMENT);
+    app.hover_at(away_from_the_drawing);
+    app.run();
+    driver::press(&mut app, egui::Key::Delete);
+    let read = what_the_pill_reads(&app);
+
+    driver::open_the_history(&mut app);
+    let steps = driver::steps(&app);
+    assert!(
+        steps
+            .last()
+            .is_some_and(|last| last.ends_with("éléments supprimés")),
+        "Cmd+A then Delete did not erase the segment and its ends: {steps:?}",
+    );
+    assert!(
+        reads_in_order(&read, &["Esquisse 1 · Plan YZ Terminer ↵"]),
+        "a sketch whose drawing was all erased shows no count, neither a number nor \
+         « entièrement réglée », between its plane and « Terminer ↵ »: the pill reads \
+         « {read} »",
+    );
+}
+
+#[test]
+fn the_pill_s_texts_stand_on_the_middle_line_of_its_button() {
+    let mut app = a_part("the_pill_s_texts_stand_on_the_middle_line_of_its_button");
+    driver::start_a_sketch(&mut app);
+    driver::draw_a_segment(&mut app);
+    let finish = the_pill_s_finish(&app).expect("the pill, the sketch being open");
+    let row = the_pill_s_row(&app, finish);
+    assert!(
+        row.iter().any(|(_, said)| said.contains("Esquisse 1"))
+            && row.iter().any(|(_, said)| said.contains("libert")),
+        "the sketch's name and its count do not both stand on the row of « Terminer ↵ » \
+         at {finish:?}: {row:?}",
+    );
+
+    let off: Vec<String> = row
+        .iter()
+        .filter(|(at, _)| (at.center().y - finish.center().y).abs() > ON_ONE_LINE_WITHIN)
+        .map(|(at, said)| {
+            format!(
+                "« {said} » has its middle at {}, {} points off",
+                at.center().y,
+                at.center().y - finish.center().y,
+            )
+        })
+        .collect();
+    assert!(
+        off.is_empty(),
+        "the pill's texts do not stand on the middle line of « Terminer ↵ », at {}:\n  {}",
+        finish.center().y,
+        off.join("\n  "),
+    );
+}
+
+#[test]
+fn the_pill_s_button_names_the_keys_that_finish_the_sketch_once_rebound() {
+    let mut wrong = Vec::new();
+    for (index, chord) in [Chord::new(Key::Enter).cmd(), Chord::new(Key::F9)]
+        .into_iter()
+        .enumerate()
+    {
+        let mut settings = cao_prefs::Settings::default();
+        settings.shortcuts.bind(Command::FinishSketch, chord);
+        let mut app =
+            driver::open_held_with(&format!("the_pill_s_button_once_rebound_{index}"), settings);
+        driver::create_a_part(&mut app, "Platine");
+        driver::start_a_sketch(&mut app);
+
+        let (in_the_ribbon, in_the_view) = the_finish_buttons(&app);
+        let written = in_the_ribbon
+            .as_deref()
+            .and_then(|read| read.strip_prefix("Terminer ("))
+            .and_then(|rest| rest.strip_suffix(')'))
+            .unwrap_or_else(|| {
+                panic!(
+                    "finishing bound to {chord:?}, the ribbon's button reads {in_the_ribbon:?}, \
+                     not « Terminer » and the chord between brackets"
+                )
+            });
+        let wanted = format!("Terminer {written}");
+        if in_the_view.as_deref() != Some(wanted.as_str()) {
+            wrong.push(format!(
+                "finishing bound to {chord:?}: wanted « {wanted} », the pill's button reads \
+                 {in_the_view:?}"
+            ));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the pill's button does not name the keys that finish the sketch:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn the_pill_s_button_names_no_key_once_finishing_is_unbound() {
+    let mut app = a_part("the_pill_s_button_names_no_key_once_finishing_is_unbound");
+    driver::start_a_sketch(&mut app);
+    unbind_in_the_preferences(&mut app, "Terminer");
+
+    let (in_the_ribbon, in_the_view) = the_finish_buttons(&app);
+    assert_eq!(
+        in_the_ribbon.as_deref(),
+        Some("Terminer"),
+        "« Retirer » on the row of « Terminer » in the preferences left the ribbon's \
+         button naming a key",
+    );
+    assert_eq!(
+        in_the_view.as_deref(),
+        Some("Terminer"),
+        "finishing bound to nothing, the pill's button names a key that does not finish",
+    );
+}
+
 fn a_part(test: &str) -> driver::App {
     let mut app = driver::open(test);
     driver::create_a_part(&mut app, "Platine");
@@ -673,6 +804,15 @@ fn open_a_sketch_on_xy(app: &mut driver::App) {
         driver::on_screen(app),
     );
 }
+
+/// How far the middle of a text of the pill may stand from its button's, in
+/// points: on one line, as the design draws them.
+const ON_ONE_LINE_WITHIN: f32 = 1.0;
+
+/// A point of the sketch on YZ that `driver::draw_a_segment` leaves empty,
+/// below and right of the segment: where the pointer rests for Delete, which
+/// is read only over the drawing.
+const AWAY_FROM_THE_SEGMENT: DVec2 = DVec2::new(212.26, -65.95);
 
 /// What a hand does to the sketch open: draws in it, or finishes it.
 type Gesture = fn(&mut driver::App);
@@ -708,25 +848,11 @@ fn a_dimension(app: &mut driver::App, on: DVec2, left_at: DVec2) {
     driver::press(app, egui::Key::Escape);
 }
 
-/// The part as the application puts it away, read back from its file. The
-/// application is left on the home screen.
-fn the_part_put_away(app: &mut driver::App, test: &str) -> PartDocument {
-    driver::click(app, "Accueil");
-    let path = std::env::temp_dir()
-        .join("cao-driver")
-        .join(test)
-        .join("documents")
-        .join("CAO")
-        .join("Platine.caopart");
-    PartDocument::load(&cao_app::adapters::files::DiskFiles, &path)
-        .unwrap_or_else(|err| panic!("the part at {path:?} does not open: {err:?}"))
-}
-
 /// How many degrees of freedom the solver leaves the part's first sketch,
 /// `Sketch::freedom` at the part's scale, read off the part as the application
 /// puts it away. The application is left on the home screen.
 fn the_solver_s_count(app: &mut driver::App, test: &str) -> usize {
-    let part = the_part_put_away(app, test);
+    let part = driver::the_part_put_away(app, test, "Platine");
     let sketch = part.sketches().first().expect("the sketch drawn");
     sketch.freedom(part.scale()).degrees_of_freedom
 }
@@ -820,18 +946,6 @@ fn finish_with_the_pill(app: &mut driver::App) {
     driver::click_at(app, finish.center());
 }
 
-/// The numbered steps of the history, in order.
-fn steps(app: &driver::App) -> Vec<String> {
-    driver::on_screen(app)
-        .into_iter()
-        .filter(|label| {
-            label
-                .split_once(". ")
-                .is_some_and(|(rank, _)| rank.parse::<usize>().is_ok())
-        })
-        .collect()
-}
-
 /// Whether `read` holds each of `pieces`, word for word, in that order: a
 /// number is not found inside a larger one, nor a word inside a longer one.
 fn reads_in_order(read: &str, pieces: &[&str]) -> bool {
@@ -912,37 +1026,13 @@ fn assert_a_sketch_is_open(app: &driver::App, after: &str) {
     );
 }
 
-/// A block raised 10 mm off a rectangle drawn on the plane YZ, its sketch then
-/// finished: what `keeping_a_section.rs` keeps its sections across.
-fn a_block(test: &str) -> driver::App {
-    let mut app = a_part(test);
-    driver::start_a_sketch(&mut app);
-    driver::click(&mut app, "Rectangle (R)");
-    driver::click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[0]);
-    driver::click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[1]);
-    driver::click_exactly(&mut app, "Extrusion");
-    driver::click_exactly(&mut app, "1");
-    driver::click(&mut app, "Ajout de matière");
-    driver::click_at_sketch_point(&mut app, ON_THE_BLOCK);
-    driver::click(&mut app, "Appliquer");
-    driver::press(&mut app, egui::Key::Escape);
-    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
-    driver::click_the_button(&mut app, "Esquisse");
-    assert!(
-        !driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
-        "the sketch the block was raised from is still being edited, showing {:?}",
-        driver::on_screen(&app),
-    );
-    app
-}
-
 /// Opens the section tool, lays it along that plane, keeps it with
 /// « Enregistrer la coupe » and closes the tool.
 fn save_a_section(app: &mut driver::App, plane: &str) {
-    click_in_the_ribbon(app, "Vue en coupe");
+    driver::click_in_the_ribbon(app, "Vue en coupe");
     driver::click(app, plane);
     driver::click_the_button(app, "Enregistrer la coupe");
-    if a_button_reads(app, "Inverser") {
+    if driver::a_button_reads(app, "Inverser") {
         driver::click_the_button(app, "Fermer");
     }
 }
@@ -951,58 +1041,15 @@ fn save_a_section(app: &mut driver::App, plane: &str) {
 /// « Supprimer » too when the application asks first, as it does for a section
 /// a sketch stands on.
 fn delete_from_the_tree(app: &mut driver::App, section: &str) {
-    right_click(app, section);
+    driver::right_click(app, section);
     driver::click_the_button(app, "Supprimer");
     if app.query_all_by_label("Annuler").next().is_some() {
         driver::click_the_button(app, "Supprimer");
     }
 }
 
-fn a_button_reads(app: &driver::App, label: &str) -> bool {
-    app.query_all_by_role(Role::Button)
-        .filter_map(|node| node.accesskit_node().label())
-        .any(|read| read.starts_with(label))
-}
-
-/// The ribbon's button that reads this, whichever tab it sits under.
-fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
-    for tab in ["Esquisse", "Extrusion", "Export"] {
-        if a_button_reads(app, label) {
-            break;
-        }
-        driver::click_the_button(app, tab);
-    }
-    let node = app
-        .query_all_by_role(Role::Button)
-        .find(|node| {
-            node.accesskit_node()
-                .label()
-                .is_some_and(|read| read.starts_with(label))
-        })
-        .unwrap_or_else(|| {
-            panic!(
-                "no tab of the ribbon offers « {label} », showing {:?}",
-                driver::on_screen(app)
-            )
-        });
-    node.click();
-    app.run();
-    driver::hold_the_canvas(app);
-}
-
-/// The button of the tree, or of a panel, that reads exactly this — never a
-/// text of the title bar or of the pill, which may carry the same words.
-fn the_row<'a>(app: &'a driver::App, name: &str) -> Option<egui_kittest::Node<'a>> {
-    app.query_all_by_role(Role::Button)
-        .find(|node| node.accesskit_node().label().as_deref() == Some(name))
-}
-
-fn in_the_tree(app: &driver::App, name: &str) -> bool {
-    the_row(app, name).is_some()
-}
-
 fn switch_on(app: &mut driver::App, name: &str) {
-    let row = the_row(app, name).unwrap_or_else(|| {
+    let row = driver::the_row(app, name).unwrap_or_else(|| {
         panic!(
             "the tree holds no « {name} », showing {:?}",
             driver::on_screen(app)
@@ -1015,48 +1062,62 @@ fn switch_on(app: &mut driver::App, name: &str) {
     }
 }
 
-/// Two presses and releases close enough in time for egui to read one
-/// double-click: each frame of the harness otherwise moves the clock a quarter
-/// of a second, past what a double-click allows.
-fn double_click(app: &mut driver::App, label: &str) {
-    let at = the_row(app, label)
-        .unwrap_or_else(|| panic!("no button reads « {label} »"))
-        .rect()
-        .center();
-    app.hover_at(at);
+/// « Retirer » clicked on the row of that command in Préférences › Raccourcis,
+/// then the window closed. A profile saved with a command bound to nothing is
+/// handed its default chord again as it is read back, so the binding is taken
+/// away where the user takes it away.
+fn unbind_in_the_preferences(app: &mut driver::App, command: &str) {
+    driver::press_with_command(app, egui::Key::Comma);
+    driver::click_exactly(app, "Raccourcis");
+    let its_name = |node: &egui_kittest::kittest::AccessKitNode<'_>| {
+        !matches!(node.role(), Role::Button | Role::TextRun)
+            && (node.label().as_deref() == Some(command)
+                || node.value().as_deref() == Some(command))
+    };
+    app.query_all_by(its_name)
+        .next()
+        .unwrap_or_else(|| {
+            panic!(
+                "the shortcuts list no « {command} »: {:?}",
+                driver::on_screen(app)
+            )
+        })
+        .scroll_to_me();
     app.run();
-    let start = app.ctx.input(|input| input.time);
-    for (rank, pressed) in [true, false, true, false].into_iter().enumerate() {
-        app.input_mut().time = Some(start + 0.02 * (rank as f64 + 1.0));
-        app.event(egui::Event::PointerButton {
-            pos: at,
-            button: egui::PointerButton::Primary,
-            pressed,
-            modifiers: egui::Modifiers::NONE,
-        });
-        app.step();
-    }
-    app.input_mut().time = None;
+    let row = app
+        .query_all_by(its_name)
+        .next()
+        .expect("the row just scrolled to")
+        .rect();
+    app.query_all_by_role(Role::Button)
+        .filter(|node| node.accesskit_node().label().as_deref() == Some("Retirer"))
+        .find(|node| node.rect().y_range().contains(row.center().y))
+        .unwrap_or_else(|| panic!("no « Retirer » stands on the row of « {command} » at {row:?}"))
+        .click_accesskit();
     app.run();
-    driver::hold_the_canvas(app);
+    driver::click_exactly(app, "Close window");
 }
 
-fn right_click(app: &mut driver::App, label: &str) {
-    let at = the_row(app, label)
-        .unwrap_or_else(|| panic!("no button reads « {label} »"))
-        .rect()
-        .center();
-    app.hover_at(at);
-    app.run();
-    for pressed in [true, false] {
-        app.event(egui::Event::PointerButton {
-            pos: at,
-            button: egui::PointerButton::Secondary,
-            pressed,
-            modifiers: egui::Modifiers::NONE,
-        });
-        app.run();
+/// The names of the two buttons that finish the sketch, the ribbon's and the
+/// pill's, told apart by where they stand: the pill's inside the view.
+fn the_finish_buttons(app: &driver::App) -> (Option<String>, Option<String>) {
+    let view = driver::canvas(app);
+    let (mut in_the_ribbon, mut in_the_view) = (None, None);
+    for node in app.query_all_by_role(Role::Button) {
+        let Some(read) = node
+            .accesskit_node()
+            .label()
+            .filter(|read| read.starts_with("Terminer"))
+        else {
+            continue;
+        };
+        if view.contains_rect(node.rect()) {
+            in_the_view = Some(read);
+        } else {
+            in_the_ribbon = Some(read);
+        }
     }
+    (in_the_ribbon, in_the_view)
 }
 
 /// The pill's own « Terminer ↵ », wherever it stands: a button named for

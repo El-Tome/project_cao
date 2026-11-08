@@ -1,9 +1,11 @@
 use egui::text::{LayoutJob, TextFormat};
 use egui::{
-    Align2, Area, AreaState, Color32, Context, FontId, Frame, Id, Label, Margin, Order, Rect,
-    Response, RichText, Sense, Stroke, StrokeKind, TextStyle, TextWrapMode, Ui, WidgetText, pos2,
-    vec2,
+    Align, Align2, Area, AreaState, Color32, Context, FontId, Frame, Id, Label, Layout, Margin,
+    Order, Rect, Response, RichText, Sense, Stroke, StrokeKind, TextStyle, TextWrapMode, Ui,
+    WidgetText, pos2, vec2,
 };
+
+use crate::ui::primary_button;
 
 use crate::ui::theme::tokens::{
     ACCENT_AMBER, BACKGROUND_FLOATING, BACKGROUND_HOVER, BORDER_CONTROL, BORDER_GROUP,
@@ -66,7 +68,12 @@ pub fn floating_pill<R>(
                 .show(ui, |ui| {
                     ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
                     ui.spacing_mut().item_spacing.x = SPACING_XXL;
-                    ui.horizontal(contents).inner
+                    // Laid as tall as its button from the start: a row grown
+                    // by the button once the texts are laid leaves them
+                    // centred on the shorter band they were laid in.
+                    let row = vec2(ui.available_width(), primary_button::HEIGHT);
+                    ui.allocate_ui_with_layout(row, Layout::left_to_right(Align::Center), contents)
+                        .inner
                 })
                 .inner
         });

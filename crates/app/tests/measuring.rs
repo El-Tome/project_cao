@@ -56,14 +56,14 @@ fn the_measure_button_is_on_the_toolbar_and_lights_up_when_taken() {
 #[test]
 fn measuring_a_trait_leaves_the_history_with_nothing_but_the_trait() {
     let mut app = a_part_with_a_trait("measuring_writes_nothing");
-    let before = steps(&app);
+    let before = driver::steps(&app);
 
     driver::click(&mut app, "Mesurer");
     driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
     driver::click_at_sketch_point(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
 
     assert_eq!(
-        steps(&app),
+        driver::steps(&app),
         before,
         "a measure is a way of looking: the history says exactly what it said \
          before, showing {:?}",
@@ -75,18 +75,6 @@ fn measuring_a_trait_leaves_the_history_with_nothing_but_the_trait() {
         "the sketch and the trait are the two steps a measure had better not \
          join, and this says so out loud rather than comparing two empties",
     );
-}
-
-/// The numbered steps of the history, as the panel lists them.
-fn steps(app: &driver::App) -> Vec<String> {
-    driver::on_screen(app)
-        .into_iter()
-        .filter(|label| {
-            label
-                .split_once(". ")
-                .is_some_and(|(rank, _)| rank.parse::<usize>().is_ok())
-        })
-        .collect()
 }
 
 #[test]

@@ -1,9 +1,10 @@
 use cao_part::PartDocument;
+use cao_prefs::{Chord, Command, Key};
 use cao_sketch::Sketch;
 
 use crate::lang::Catalogue;
 use crate::screens::sketch::SketchEditor;
-use crate::wording::{plane, view};
+use crate::wording::{command, plane, shortcuts, view};
 
 /// What the pill reads while a sketch is open: the sketch's name, where it is
 /// drawn, what the solver leaves it to set, and its button.
@@ -54,8 +55,14 @@ impl Left {
 
 impl SketchPill {
     /// Nothing outside a sketch. The sketch is ranked by its place among the
-    /// part's drawings, from one, as the Part tree names it.
-    pub fn of(document: &PartDocument, editor: &SketchEditor, lang: &Catalogue) -> Option<Self> {
+    /// part's drawings, from one, as the Part tree names it; `finish_on` is
+    /// what the settings bind finishing it to.
+    pub fn of(
+        document: &PartDocument,
+        editor: &SketchEditor,
+        finish_on: Option<Chord>,
+        lang: &Catalogue,
+    ) -> Option<Self> {
         let index = editor.active_sketch()?;
         let sketch = document.sketches().get(index)?;
         let rank = (index + 1).to_string();
@@ -65,8 +72,24 @@ impl SketchPill {
             plane: laid_on(document, index, sketch, lang),
             left,
             left_read: left.read(lang),
-            finish: lang.t("sketch_pill.finish"),
+            finish: finish(finish_on, lang),
         })
+    }
+}
+
+/// The button's name, and the key that finishes too: a glyph for Enter alone,
+/// the chord as the ribbon writes it for any other, nothing when none does.
+fn finish(on: Option<Chord>, lang: &Catalogue) -> String {
+    let name = command::label(lang, Command::FinishSketch);
+    match on {
+        Some(chord) if chord == Chord::new(Key::Enter) => {
+            lang.t_with("sketch_pill.finish", &[("name", &name)])
+        }
+        Some(chord) => lang.t_with(
+            "sketch_pill.finish_on",
+            &[("name", &name), ("keys", &shortcuts::chord(lang, chord))],
+        ),
+        None => name,
     }
 }
 

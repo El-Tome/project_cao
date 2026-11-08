@@ -11,8 +11,6 @@ impl SketchEditor {
         self.matter_in_front = self.matter_in_front.next();
     }
 
-    // Only its tests call it until the view bar's menu is drawn.
-    #[cfg_attr(not(test), expect(dead_code))]
     pub fn set_matter_in_front(&mut self, state: MatterInFront) {
         self.matter_in_front = state;
     }

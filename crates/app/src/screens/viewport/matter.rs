@@ -10,7 +10,7 @@ use cao_solid::{Body, FaceHit};
 use glam::{DVec3, Vec3};
 
 use super::section::Section;
-use super::{ViewMode, ViewportState};
+use super::{ViewMode, ViewportState, to_ndc};
 use crate::screens::sketch::SketchEditor;
 
 /// The matter a frame draws: opaque, the whole body, a side of a cut or
@@ -79,8 +79,6 @@ pub(super) fn drawn_under<'a>(
 
 impl ViewportState {
     /// Where a ray first meets the part as a frame draws it.
-    // Only its tests call it until the view bar reads it.
-    #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) fn point_of_the_part_under(
         &self,
         editor: &SketchEditor,
@@ -91,6 +89,18 @@ impl ViewportState {
         let drawn = shown(self, editor, body);
         let (_, hit) = drawn_under(self, &drawn, origin, direction)?;
         Some(origin + direction * hit.distance)
+    }
+
+    /// The same under a place of `canvas`, along the ray from the eye.
+    pub(super) fn point_of_the_part_at(
+        &self,
+        editor: &SketchEditor,
+        body: &Body,
+        at: egui::Pos2,
+        canvas: egui::Rect,
+    ) -> Option<DVec3> {
+        let (origin, direction) = self.camera.ray(to_ndc(at, canvas), canvas.aspect_ratio());
+        self.point_of_the_part_under(editor, body, origin.as_dvec3(), direction.as_dvec3())
     }
 }
 

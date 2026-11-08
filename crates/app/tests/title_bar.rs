@@ -345,7 +345,7 @@ fn the_view_pill_follows_the_sketch_the_section_view_and_the_kept_section() {
     raise_a_block_and_finish_the_sketch(&mut app);
     seen.push(("the sketch finished", "Vue 3D libre", the_title_bar(&app)));
 
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_ribbon(&mut app, "Vue en coupe");
     seen.push(("the section view on", "Vue en coupe", the_title_bar(&app)));
 
     driver::click(&mut app, "Plan YZ");
@@ -359,7 +359,7 @@ fn the_view_pill_follows_the_sketch_the_section_view_and_the_kept_section() {
     );
     seen.push(("the section kept and shown", "Coupe 1", the_title_bar(&app)));
 
-    click_in_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::click_in_the_ribbon(&mut app, "Nouvelle esquisse");
     driver::click_at_world_point(&mut app, ON_THE_CUT);
     seen.push((
         "a second sketch open on the cut",
@@ -905,7 +905,7 @@ fn raise_a_block_and_finish_the_sketch(app: &mut driver::App) {
     driver::click_at_sketch_point(app, ON_THE_BLOCK);
     driver::click(app, "Appliquer");
     driver::press(app, egui::Key::Escape);
-    click_in_the_ribbon(app, driver::FINISH_IN_THE_RIBBON);
+    driver::click_in_the_ribbon(app, driver::FINISH_IN_THE_RIBBON);
     driver::click_the_button(app, "Esquisse");
     assert!(
         !driver::is_enabled(app, driver::FINISH_IN_THE_RIBBON),
@@ -919,39 +919,6 @@ fn the_tree_shows_on(app: &driver::App, row: &str) -> bool {
     app.query_all_by_role(Role::Button)
         .find(|node| node.accesskit_node().label().as_deref() == Some(row))
         .is_some_and(|node| node.accesskit_node().toggled() == Some(egui::accesskit::Toggled::True))
-}
-
-/// The ribbon's button that reads this, whichever tab it sits under.
-fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
-    let offered = |app: &driver::App| {
-        app.query_all_by_role(Role::Button).any(|node| {
-            node.accesskit_node()
-                .label()
-                .is_some_and(|read| read.starts_with(label))
-        })
-    };
-    for tab in ["Esquisse", "Extrusion", "Export"] {
-        if offered(app) {
-            break;
-        }
-        driver::click_the_button(app, tab);
-    }
-    let node = app
-        .query_all_by_role(Role::Button)
-        .find(|node| {
-            node.accesskit_node()
-                .label()
-                .is_some_and(|read| read.starts_with(label))
-        })
-        .unwrap_or_else(|| {
-            panic!(
-                "no tab of the ribbon offers « {label} », showing {:?}",
-                driver::on_screen(app)
-            )
-        });
-    node.click();
-    app.run();
-    driver::hold_the_canvas(app);
 }
 
 /// Every rectangle the last frame painted with something to see — a fill or

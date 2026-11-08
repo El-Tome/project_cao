@@ -1,4 +1,14 @@
 //! What render · camera.rs is held to.
+//!
+//! Closes #728 — the whole transcription is in `crates/app/tests/view_bar.rs`;
+//! this is what the coordinates under the cursor found of the camera.
+//! - found on the branch: the ray under the cursor passes through the point
+//!   drawn at that pixel, to a small fraction of a pixel, near or far and from
+//!   any side — the ray unprojected through the inverse of the projection, its
+//!   far plane a million times beyond its near one, passed a tenth of a pixel
+//!   off in `f32`, and the coordinates read under the cursor were out in their
+//!   second decimal —
+//!   `the_ray_through_the_pixel_a_point_is_drawn_at_passes_through_that_point`
 
 use super::*;
 
@@ -182,4 +192,65 @@ fn zooming_out_reaches_far_beyond_a_part() {
         "stuck at {} units",
         camera.distance()
     );
+}
+
+/// How high the view is taken to be, in pixels, to measure a ray's error in
+/// pixels rather than in the world's units.
+const PIXELS_HIGH: f32 = 1000.0;
+
+/// How far from the point drawn at a pixel the ray through that pixel may
+/// pass, in pixels: the ray read through the inverse of the projection passed
+/// from one to twelve hundredths of a pixel off, and the ray laid along the
+/// camera's axes a few ten-thousandths.
+const RAY_WITHIN_PIXELS: f32 = 2e-3;
+
+/// A camera aimed at `target` from `distance` away, turned to these angles.
+fn a_camera(target: Vec3, distance: f32, yaw: f32, pitch: f32) -> OrbitCamera {
+    let mut camera = OrbitCamera::default();
+    camera.set_target(target);
+    camera.set_view_angles(yaw, pitch);
+    camera.zoom_by_factor(camera.distance() / distance);
+    camera
+}
+
+#[test]
+fn the_ray_through_the_pixel_a_point_is_drawn_at_passes_through_that_point() {
+    let half_view = (45f32.to_radians() * 0.5).tan();
+    for (target, distance, (yaw, pitch), aspect) in [
+        (Vec3::ZERO, 250.0, (-PI * 0.7, 0.5), 1.6),
+        (Vec3::new(500.0, 800.0, 100.0), 1500.0, (0.3, -0.5), 2.45),
+        (Vec3::new(5.0, 10.0, 2.0), 30.0, (1.0, 0.2), 1.0),
+        (Vec3::new(5.0, 57.5, -4.0), 260.0, (PI / 4.0, 0.6155), 2.45),
+        (Vec3::ZERO, 1e5, (0.0, FRAC_PI_2), 1.6),
+    ] {
+        let camera = a_camera(target, distance, yaw, pitch);
+        let view_projection = camera.view_projection(aspect);
+        let reach = camera.distance() * half_view;
+
+        for (across, up, deeper) in [
+            (0.0, 0.0, 0.0),
+            (0.6, 0.3, 0.0),
+            (-0.7, -0.4, 0.2),
+            (0.3, -0.8, -0.3),
+            (0.9, 0.9, 0.5),
+        ] {
+            let point = target
+                + camera.right() * (across * reach * aspect)
+                + camera.up() * (up * reach)
+                + camera.forward() * (deeper * camera.distance());
+            let clip = view_projection * point.extend(1.0);
+            let drawn_at = Vec2::new(clip.x, clip.y) / clip.w;
+
+            let (origin, direction) = camera.ray(drawn_at, aspect);
+
+            let depth = (point - camera.eye()).dot(camera.forward());
+            let pixel = 2.0 * depth * half_view / PIXELS_HIGH;
+            let off = (point - origin).cross(direction).length() / pixel;
+            assert!(
+                off < RAY_WITHIN_PIXELS,
+                "seen from {distance} away, the ray through the pixel {point:?} is drawn at \
+                 passes {off} pixels from it",
+            );
+        }
+    }
 }

@@ -88,7 +88,8 @@ const WINDOW_POSITIONS: &[WindowPosition] = &[
         file: "crates/app/tests/view_bar.rs",
         written: "driver::canvas(app)",
         why: "the view read only to check that what « Recadrer » frames stands inside \
-              it, fills it and sits in its middle: nothing is aimed from it",
+              it, fills it and sits in its middle, and that the view bar stands \
+              against its bottom-right corner: nothing is aimed from it",
     },
 ];
 

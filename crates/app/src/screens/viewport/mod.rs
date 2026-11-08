@@ -23,7 +23,7 @@ mod view;
 
 pub use state::DEFAULT_SKETCH_RADIUS;
 pub use state::{ViewMode, ViewportState};
-pub use view::show;
+pub use view::{Shown, show};
 
 pub(crate) use state::{
     HOLD_PIXELS, PICK_PIXELS, ViewScale, corner_origin, plane_half_size, to_ndc,

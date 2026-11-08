@@ -32,41 +32,42 @@
 //! - in a sketch, the bar's « Matière devant » offers « cachée »,
 //!   « transparente » and « opaque », and picking one sets the open sketch's
 //!   matter in front to it directly rather than cycling —
-//!   `choosing_see_through_in_the_bar_s_menu_makes_the_matter_in_front_see_through`,
-//!   not yet written: it waits for the bar to be drawn. The three offered in
-//!   order, in `crates/app/src/screens/view_bar/state/tests.rs` by
+//!   `choosing_see_through_in_the_bar_s_menu_makes_the_matter_in_front_see_through`;
+//!   the three offered in order, in
+//!   `crates/app/src/screens/view_bar/state/tests.rs` by
 //!   `the_matter_in_front_menu_offers_hidden_see_through_and_opaque_in_that_order`;
 //!   the state picked set from whichever one it was, in
 //!   `crates/app/src/screens/sketch/tests.rs` by
 //!   `picking_a_state_of_the_matter_in_front_sets_the_open_sketch_to_it_whatever_it_was`
 //! - the bar's label reads « Matière devant : cachée ▾ » after the current
-//!   state — `the_bar_s_matter_in_front_reads_the_state_the_sketch_is_in`, not
-//!   yet written, for the ▾ and the window; the label and the state marked
-//!   among the three, in `crates/app/src/screens/view_bar/state/tests.rs` by
-//!   `the_matter_in_front_menu_reads_and_marks_the_state_the_open_sketch_is_in`
+//!   state — `the_bar_s_matter_in_front_reads_the_state_the_sketch_is_in`; the
+//!   label and the state marked among the three, in
+//!   `crates/app/src/screens/view_bar/state/tests.rs` by
+//!   `the_matter_in_front_menu_reads_and_marks_the_state_the_open_sketch_is_in`.
+//!   The ▾ is read only if it is written in the button's name: drawn as an
+//!   icon, it is seen in the app
 //! - outside a sketch the bar's « Matière devant » is greyed, as the ribbon's
-//!   is today — `outside_a_sketch_the_bar_s_matter_in_front_is_greyed`, not yet
-//!   written; the rule, in `crates/app/src/screens/view_bar/state/tests.rs` by
+//!   is today — `outside_a_sketch_the_bar_s_matter_in_front_is_greyed`; the
+//!   rule, in `crates/app/src/screens/view_bar/state/tests.rs` by
 //!   `outside_a_sketch_the_matter_in_front_menu_is_greyed`
 //! - the ribbon's own « Matière devant » stays and keeps cycling — no test: in
 //!   this file; held in `crates/app/src/commands/tests.rs` by
 //!   `the_matter_in_front_button_moves_the_open_sketch_to_the_next_state`,
 //!   left as it is
 //! - in a sketch the coordinates read « X 12,50 Y -3,00 mm », the point in the
-//!   sketch plane's own frame, and follow the mouse —
-//!   `in_a_sketch_the_bar_s_x_and_y_follow_the_mouse`, not yet written: it
-//!   waits for the bar to be drawn, and with it the snapped point, a line tool
-//!   near the origin reading « X 0,00 Y 0,00 mm », which only the input code on
-//!   the no-net list decides; the text, in
+//!   sketch plane's own frame, and follow the mouse: the point a click would
+//!   place, pulled onto the origin by a line tool aiming near it, else the raw
+//!   point the selection tool points at —
+//!   `in_a_sketch_the_bar_s_x_and_y_follow_the_mouse`; the text, in
 //!   `crates/app/src/screens/view_bar/state/tests.rs` by
 //!   `on_a_sketch_s_plane_the_coordinates_read_x_and_y_to_two_decimals_after_a_comma`,
-//!   and the point a click would place, else the raw point the tool leaves, by
+//!   and which point is read, by
 //!   `in_a_sketch_the_coordinates_are_where_a_click_would_place_the_point`
 //! - in the free view they read « X … Y … Z … mm », the world coordinates of
 //!   the first point of the drawn body the cursor's ray meets, nothing when the
-//!   body is hidden — `hovering_the_block_in_the_free_view_reads_its_x_y_and_z`,
-//!   not yet written; the text and the choice of the part's point outside a
-//!   sketch, in `crates/app/src/screens/view_bar/state/tests.rs` by
+//!   body is hidden — `hovering_the_block_in_the_free_view_reads_its_x_y_and_z`;
+//!   the text and the choice of the part's point outside a sketch, in
+//!   `crates/app/src/screens/view_bar/state/tests.rs` by
 //!   `on_the_part_the_coordinates_read_x_y_and_z` and
 //!   `outside_a_sketch_the_coordinates_are_the_point_of_the_part_under_the_cursor`;
 //!   the point met, the hidden body and the section's cut, in
@@ -75,9 +76,9 @@
 //!   `a_hidden_body_has_no_point_under_a_ray` and
 //!   `with_the_section_view_on_the_point_under_a_ray_is_on_the_cut`
 //! - « — » over nothing, and when the cursor is not over the view —
-//!   `off_the_part_and_off_the_view_the_coordinates_read_a_dash`, not yet
-//!   written; the dash and the cursor off the view, in
-//!   `crates/app/src/screens/view_bar/state/tests.rs` by
+//!   `off_the_part_and_off_the_view_the_coordinates_read_a_dash`, and in a
+//!   sketch by `in_a_sketch_the_bar_s_x_and_y_follow_the_mouse`; in the
+//!   presenter, in `crates/app/src/screens/view_bar/state/tests.rs` by
 //!   `over_nothing_the_coordinates_read_a_dash` and
 //!   `in_a_sketch_with_the_cursor_off_the_view_the_coordinates_point_at_nothing`
 //! - two decimals, a comma for the decimal separator, the view's length unit
@@ -89,26 +90,41 @@
 //! - the coordinates are written in the monospace family, JetBrains Mono — no
 //!   test: a font is chosen where the bar is drawn, and neither the presenter
 //!   nor the tree the driver reads carries one; it is seen in the app
-//! - the bar stands at the bottom right of the view and holds, in order,
-//!   « Recadrer » with its key F, « Vue en coupe », « Matière devant : … ▾ », a
-//!   separator, the coordinates —
-//!   `the_bar_stands_at_the_bottom_right_of_the_view_in_the_design_s_order`
-//! - on the floating background, `BACKGROUND_FLOATING` — no test: in this file,
-//!   whose tree carries no colour; held beside the drawing of the bar, under
-//!   `crates/app/src/screens/view_bar/`, once it exists
-//! - each button follows its command's rule: « Vue en coupe » greyed in a
-//!   sketch and with no volume —
-//!   `the_bar_s_section_view_is_greyed_in_a_sketch_and_with_no_volume`; shown
-//!   pressed while a section is on —
+//! - the bar stands at the bottom right of the view, inside it, and holds, in
+//!   order, « Recadrer » with its key F, « Vue en coupe », « Matière devant : …
+//!   ▾ », a separator, the coordinates —
+//!   `the_bar_stands_at_the_bottom_right_of_the_view_in_the_design_s_order`;
+//!   the separator is a line the tree does not carry, and is seen in the app
+//! - on the floating background, `BACKGROUND_FLOATING` — no test: a colour of
+//!   the frame, which neither the presenter nor the tree the driver reads
+//!   carries; it is seen in the app
+//! - « Recadrer » in the bar does what F does —
+//!   `the_bar_s_reframe_frames_the_whole_block_as_f_does`
+//! - each button follows its command's rule: « Recadrer » offered with a
+//!   volume and without, « Vue en coupe » greyed in a sketch and with no
+//!   volume — `the_bar_s_section_view_is_greyed_in_a_sketch_and_with_no_volume`;
+//!   shown pressed while a section is on —
 //!   `the_bar_s_section_view_shows_pressed_while_the_section_is_on`
 //! - the section view panel opens and closes from the bar as it did from the
 //!   ribbon —
 //!   `the_bar_s_section_view_opens_and_closes_the_section_panel_as_the_ribbon_s_does`
+//! - found on the branch: the bar does not jitter as the mouse moves — its
+//!   buttons keep their place, within a point, whatever length the reading
+//!   takes, from « — » to a full one and back, in a sketch —
+//!   `in_a_sketch_the_bar_s_buttons_keep_their_place_whatever_the_coordinates_read`
+//!   — and in the free view —
+//!   `in_the_free_view_the_bar_s_buttons_keep_their_place_whatever_the_coordinates_read`
+//! - found on the branch: the readings missed their second decimal by a hair,
+//!   the ray under the cursor passing a tenth of a pixel off the point drawn
+//!   there — no test: in this file; held in
+//!   `crates/render/src/camera/tests.rs` by
+//!   `the_ray_through_the_pixel_a_point_is_drawn_at_passes_through_that_point`
 //! - the bar's buttons are found as the bar's, and the ribbon's « Recadrer »,
 //!   « Vue en coupe » and « Matière devant », which stay, are still found as the
-//!   ribbon's — `the_bar_s_buttons_are_told_apart_from_the_ribbon_s`; and the
-//!   driver tests already aimed at the ribbon's, `section_view.rs` and
-//!   `keeping_a_section.rs`, keep passing
+//!   ribbon's — `the_bar_s_buttons_are_told_apart_from_the_ribbon_s`; the
+//!   driver tells them apart by where they stand, the bar's inside the view
+//!   and the ribbon's outside it (`driver::the_bar_s`, `driver::the_ribbon_s`),
+//!   and the tests aimed at the ribbon's go through the latter
 //! - the scale bar keeps its corner and its settings: at its default corner,
 //!   bottom left, it does not move — no test: in this file; held in
 //!   `crates/app/src/screens/viewport/state/tests.rs` by
@@ -129,6 +145,7 @@
 
 mod driver;
 
+use egui_kittest::kittest::{NodeT, Queryable};
 use glam::{DVec2, DVec3};
 
 /// How much of the view a framed part covers at the least, across or up.
@@ -314,4 +331,454 @@ fn f_in_a_sketch_still_frames_its_drawing() {
          view's height from the middle of the view",
         reframed.off_the_middle,
     );
+}
+
+/// How far, in points, the bar's texts may stand from the view's right edge
+/// and from its bottom: the bar's margin and its padding, with room to spare.
+const AGAINST_THE_CORNER: f32 = 48.0;
+
+/// A hair off the origin of a sketch, within reach of the pull a drawing tool
+/// feels from the point there.
+const NEAR_THE_ORIGIN: DVec2 = DVec2::new(1.2, -0.8);
+
+/// On the face of the block `driver::a_block` turns towards the eye, the
+/// one 10 mm out along X, in its middle.
+const ON_THE_BLOCK_S_FACE: DVec3 = DVec3::new(10.0, 57.5, -4.05);
+
+/// Beyond the block's upper corner and above it, where the ray from the eye
+/// passes over the block and meets nothing of it.
+const BESIDE_THE_BLOCK: DVec3 = DVec3::new(5.0, 140.0, 60.0);
+
+/// A part named « Platine », a sketch opened on its plane YZ.
+fn a_sketch_open(test: &str) -> driver::App {
+    let mut app = driver::open(test);
+    driver::create_a_part(&mut app, "Platine");
+    driver::start_a_sketch(&mut app);
+    app
+}
+
+fn the_bar_reads(app: &driver::App) -> Vec<String> {
+    driver::the_view_bar(app)
+        .into_iter()
+        .map(|(text, _)| text)
+        .collect()
+}
+
+/// Whether every one of these words is read, each after the one before it.
+fn in_this_order(read: &str, words: &[&str]) -> bool {
+    let mut from = 0;
+    for word in words {
+        match read[from..].find(word) {
+            Some(at) => from += at + word.len(),
+            None => return false,
+        }
+    }
+    true
+}
+
+/// How far the bar's texts stand from the view's right edge and from its
+/// bottom.
+fn gaps_to_the_view_s_corner(app: &driver::App) -> (f32, f32) {
+    let view = driver::canvas(app);
+    let held = driver::the_view_bar(app)
+        .into_iter()
+        .fold(egui::Rect::NOTHING, |held, (_, rect)| held.union(rect));
+    (view.max.x - held.max.x, view.max.y - held.max.y)
+}
+
+fn greyed(node: &egui_kittest::Node<'_>) -> bool {
+    node.accesskit_node().is_disabled()
+}
+
+fn pressed(node: &egui_kittest::Node<'_>) -> bool {
+    node.accesskit_node().toggled() == Some(egui::accesskit::Toggled::True)
+}
+
+fn the_section_panel_is_open(app: &driver::App) -> bool {
+    driver::a_button_reads(app, "Inverser")
+}
+
+fn the_bar_s_matter_in_front(app: &driver::App) -> String {
+    driver::the_bar_s(app, "Matière devant")
+        .accesskit_node()
+        .label()
+        .unwrap_or_default()
+}
+
+fn hover_over_the_world(app: &mut driver::App, point: DVec3) {
+    let at = driver::world_point_on_screen(app, point);
+    app.hover_at(at);
+    app.run();
+}
+
+/// The pointer left over the ribbon, off the view.
+fn hover_off_the_view(app: &mut driver::App) {
+    let off_the_view = driver::the_ribbon_s(app, "Nouvelle esquisse")
+        .expect("the ribbon offers « Nouvelle esquisse »")
+        .rect()
+        .center();
+    app.hover_at(off_the_view);
+    app.run();
+}
+
+#[test]
+fn the_bar_stands_at_the_bottom_right_of_the_view_in_the_design_s_order() {
+    let app = a_sketch_open("the_bar_stands_at_the_bottom_right_of_the_view");
+
+    let read = the_bar_reads(&app);
+    assert!(
+        in_this_order(
+            &read.join(" | "),
+            &["Recadrer", "F", "Vue en coupe", "Matière devant : cachée"],
+        ),
+        "the bar reads {read:?}, not « Recadrer » with its key F, « Vue en coupe » and \
+         « Matière devant : cachée », in that order",
+    );
+    let last = read.last().cloned().unwrap_or_default();
+    assert!(
+        last.starts_with("X ") && last.ends_with(" mm"),
+        "the bar ends on {last:?}, not on the coordinates of the cursor left in the sketch",
+    );
+    let (right, below) = gaps_to_the_view_s_corner(&app);
+    assert!(
+        right <= AGAINST_THE_CORNER && below <= AGAINST_THE_CORNER,
+        "the bar stands {right} points from the view's right edge and {below} from its \
+         bottom, not against its bottom-right corner",
+    );
+}
+
+#[test]
+fn the_bar_s_reframe_frames_the_whole_block_as_f_does() {
+    let mut app = driver::a_block("the_bar_s_reframe_frames_the_whole_block");
+    let over_the_block = of_the_world(&app, the_block_s_middle());
+    step_back(&mut app, over_the_block);
+    let stepped_back = how_the_view_frames_the_block(&app);
+    assert!(
+        stepped_back.covers < A_SPECK,
+        "the wheel was meant to leave the block a speck, and it covers {} of the view",
+        stepped_back.covers,
+    );
+
+    driver::click_in_the_bar(&mut app, "Recadrer");
+
+    let reframed = how_the_view_frames_the_block(&app);
+    assert!(
+        reframed.covers >= FILLS_THE_VIEW,
+        "« Recadrer » clicked in the bar leaves the block covering {} of the view",
+        reframed.covers,
+    );
+    assert!(
+        reframed.off_the_middle <= OFF_THE_MIDDLE,
+        "once « Recadrer » is clicked in the bar, the block's middle stands {} of the \
+         view's height from the middle of the view",
+        reframed.off_the_middle,
+    );
+}
+
+#[test]
+fn the_bar_s_section_view_is_greyed_in_a_sketch_and_with_no_volume() {
+    let mut app = driver::open("the_bar_s_section_view_is_greyed_with_no_volume");
+    driver::create_a_part(&mut app, "Platine");
+    assert!(
+        greyed(&driver::the_bar_s(&app, "Vue en coupe")),
+        "the bar offers « Vue en coupe » on a part with no volume",
+    );
+    assert!(
+        !greyed(&driver::the_bar_s(&app, "Recadrer")),
+        "the bar greys « Recadrer » on a part with no volume",
+    );
+
+    let mut app = driver::a_block("the_bar_s_section_view_is_greyed_in_a_sketch");
+    assert!(
+        !greyed(&driver::the_bar_s(&app, "Vue en coupe")),
+        "the bar greys « Vue en coupe » on a part that holds a volume",
+    );
+    driver::start_a_sketch(&mut app);
+    assert!(
+        driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        "no sketch was opened on the block, showing {:?}",
+        driver::on_screen(&app),
+    );
+    assert!(
+        greyed(&driver::the_bar_s(&app, "Vue en coupe")),
+        "the bar offers « Vue en coupe » while a sketch is edited",
+    );
+    assert!(
+        !greyed(&driver::the_bar_s(&app, "Recadrer")),
+        "the bar greys « Recadrer » while a sketch is edited",
+    );
+}
+
+#[test]
+fn the_bar_s_section_view_shows_pressed_while_the_section_is_on() {
+    let mut app = driver::a_block("the_bar_s_section_view_shows_pressed");
+    assert!(
+        !pressed(&driver::the_bar_s(&app, "Vue en coupe")),
+        "the bar's « Vue en coupe » shows pressed before any section is on",
+    );
+
+    driver::click_in_the_ribbon(&mut app, "Vue en coupe");
+    assert!(
+        pressed(&driver::the_bar_s(&app, "Vue en coupe")),
+        "the section is on, and the bar's « Vue en coupe » does not show pressed",
+    );
+
+    driver::click_in_the_ribbon(&mut app, "Vue en coupe");
+    assert!(
+        !pressed(&driver::the_bar_s(&app, "Vue en coupe")),
+        "the section is off, and the bar's « Vue en coupe » still shows pressed",
+    );
+}
+
+#[test]
+fn the_bar_s_section_view_opens_and_closes_the_section_panel_as_the_ribbon_s_does() {
+    let mut app = driver::a_block("the_bar_s_section_view_opens_and_closes_the_panel");
+    assert!(!the_section_panel_is_open(&app), "a panel is open already");
+
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
+    assert!(
+        the_section_panel_is_open(&app),
+        "« Vue en coupe » in the bar opens no panel, showing {:?}",
+        driver::on_screen(&app),
+    );
+    assert!(
+        driver::the_ribbon_s(&app, "Vue en coupe").is_some_and(|node| pressed(&node)),
+        "the bar turned the section on, and the ribbon's « Vue en coupe » does not show it",
+    );
+
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
+    assert!(
+        !the_section_panel_is_open(&app),
+        "« Vue en coupe » clicked again in the bar leaves its panel open",
+    );
+
+    driver::click_in_the_ribbon(&mut app, "Vue en coupe");
+    assert!(
+        the_section_panel_is_open(&app),
+        "the ribbon's « Vue en coupe » opens no panel any more",
+    );
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
+    assert!(
+        !the_section_panel_is_open(&app),
+        "the bar's « Vue en coupe » leaves open the panel the ribbon's opened",
+    );
+}
+
+#[test]
+fn the_bar_s_buttons_are_told_apart_from_the_ribbon_s() {
+    let mut app = a_sketch_open("the_bar_s_buttons_are_told_apart_from_the_ribbon_s");
+
+    for label in ["Recadrer", "Vue en coupe", "Matière devant"] {
+        driver::bring_into_the_ribbon(&mut app, label);
+        let ribbon = driver::the_ribbon_s(&app, label)
+            .unwrap_or_else(|| panic!("the ribbon no longer offers its own « {label} »"))
+            .rect();
+        let bar = driver::the_bar_s(&app, label).rect();
+        assert_ne!(
+            ribbon, bar,
+            "the ribbon's « {label} » and the bar's are found as one button",
+        );
+    }
+}
+
+#[test]
+fn choosing_see_through_in_the_bar_s_menu_makes_the_matter_in_front_see_through() {
+    let mut app = a_sketch_open("choosing_see_through_in_the_bar_s_menu");
+
+    driver::click_in_the_bar(&mut app, "Matière devant");
+    let offered: Vec<&str> = ["cachée", "transparente", "opaque"]
+        .into_iter()
+        .filter(|choice| app.query_all_by_label(choice).next().is_some())
+        .collect();
+    assert_eq!(
+        offered,
+        ["cachée", "transparente", "opaque"],
+        "the bar's « Matière devant » opens no menu of the three, showing {:?}",
+        driver::on_screen(&app),
+    );
+    driver::click_exactly(&mut app, "transparente");
+
+    let reads = the_bar_s_matter_in_front(&app);
+    assert!(
+        reads.starts_with("Matière devant : transparente"),
+        "« transparente » was picked, and the bar reads {reads:?}",
+    );
+    assert!(
+        driver::the_ribbon_s(&app, "Matière devant : transparente").is_some(),
+        "the bar reads « transparente », and the ribbon's button, which reads the \
+         sketch's own state, does not: {:?}",
+        driver::on_screen(&app),
+    );
+}
+
+#[test]
+fn the_bar_s_matter_in_front_reads_the_state_the_sketch_is_in() {
+    let mut app = a_sketch_open("the_bar_s_matter_in_front_reads_the_state");
+    let opened = the_bar_s_matter_in_front(&app);
+    assert!(
+        opened.starts_with("Matière devant : cachée"),
+        "a sketch just opened hides the matter in front of it, and the bar reads {opened:?}",
+    );
+
+    driver::click_in_the_ribbon(&mut app, "Matière devant");
+    driver::click_in_the_ribbon(&mut app, "Matière devant");
+
+    let reads = the_bar_s_matter_in_front(&app);
+    assert!(
+        reads.starts_with("Matière devant : opaque"),
+        "the ribbon's button took the sketch on to « opaque », and the bar reads {reads:?}",
+    );
+}
+
+#[test]
+fn outside_a_sketch_the_bar_s_matter_in_front_is_greyed() {
+    let mut app = driver::open("outside_a_sketch_the_bar_s_matter_in_front_is_greyed");
+    driver::create_a_part(&mut app, "Platine");
+    assert!(
+        greyed(&driver::the_bar_s(&app, "Matière devant")),
+        "the bar offers « Matière devant » before a sketch is opened",
+    );
+
+    driver::start_a_sketch(&mut app);
+    assert!(
+        !greyed(&driver::the_bar_s(&app, "Matière devant")),
+        "the bar greys « Matière devant » while a sketch is open",
+    );
+
+    driver::click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
+    assert!(
+        greyed(&driver::the_bar_s(&app, "Matière devant")),
+        "the bar offers « Matière devant » once the sketch is finished",
+    );
+}
+
+#[test]
+fn in_a_sketch_the_bar_s_x_and_y_follow_the_mouse() {
+    let mut app = a_sketch_open("in_a_sketch_the_bar_s_x_and_y_follow_the_mouse");
+    driver::click(&mut app, "Ligne (L)");
+
+    driver::hover_at_sketch_point(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+    assert_eq!(
+        driver::the_bar_s_coordinates(&app),
+        "X 137,50 Y -37,50 mm",
+        "the line tool over a node of the grid",
+    );
+
+    driver::hover_at_sketch_point(&mut app, NEAR_THE_ORIGIN);
+    assert_eq!(
+        driver::the_bar_s_coordinates(&app),
+        "X 0,00 Y 0,00 mm",
+        "the line tool near the origin aims at it, and the bar reads where the cursor is",
+    );
+
+    driver::click(&mut app, "Sélection (S)");
+    driver::hover_at_sketch_point(&mut app, NEAR_THE_ORIGIN);
+    assert_eq!(
+        driver::the_bar_s_coordinates(&app),
+        "X 1,20 Y -0,80 mm",
+        "the selection tool only points, and the bar reads a place it was not pulled to",
+    );
+
+    hover_off_the_view(&mut app);
+    assert_eq!(
+        driver::the_bar_s_coordinates(&app),
+        "—",
+        "the pointer left the view, and the bar still reads a place in the sketch",
+    );
+}
+
+#[test]
+fn hovering_the_block_in_the_free_view_reads_its_x_y_and_z() {
+    let mut app = driver::a_block("hovering_the_block_in_the_free_view_reads_its_x_y_and_z");
+
+    hover_over_the_world(&mut app, ON_THE_BLOCK_S_FACE);
+
+    assert_eq!(
+        driver::the_bar_s_coordinates(&app),
+        "X 10,00 Y 57,50 Z -4,05 mm"
+    );
+}
+
+#[test]
+fn off_the_part_and_off_the_view_the_coordinates_read_a_dash() {
+    let mut app = driver::a_block("off_the_part_and_off_the_view_the_coordinates_read_a_dash");
+
+    hover_over_the_world(&mut app, BESIDE_THE_BLOCK);
+    assert_eq!(
+        driver::the_bar_s_coordinates(&app),
+        "—",
+        "the pointer stands beside the block",
+    );
+
+    hover_over_the_world(&mut app, ON_THE_BLOCK_S_FACE);
+    let on_the_block = driver::the_bar_s_coordinates(&app);
+    assert!(
+        on_the_block.starts_with("X "),
+        "over the block, the bar reads {on_the_block:?}",
+    );
+
+    hover_off_the_view(&mut app);
+    assert_eq!(
+        driver::the_bar_s_coordinates(&app),
+        "—",
+        "the pointer left the view, and the bar still reads the block",
+    );
+}
+
+/// How far, in points, a button of the bar may stray while the reading beside
+/// it changes length.
+const KEEPS_ITS_PLACE: f32 = 1.0;
+
+/// Where the bar's three buttons stand.
+fn the_bar_s_buttons(app: &driver::App) -> [egui::Rect; 3] {
+    ["Recadrer", "Vue en coupe", "Matière devant"].map(|label| driver::the_bar_s(app, label).rect())
+}
+
+/// Checks the bar's buttons stand where they stood while the coordinates read
+/// what they read now.
+fn assert_in_their_place(app: &driver::App, stood: [egui::Rect; 3]) {
+    let reading = driver::the_bar_s_coordinates(app);
+    for (now, then) in the_bar_s_buttons(app).into_iter().zip(stood) {
+        assert!(
+            (now.min - then.min).length() <= KEEPS_ITS_PLACE,
+            "with the coordinates reading {reading:?}, a button of the bar moved from \
+             {then:?} to {now:?}",
+        );
+    }
+}
+
+#[test]
+fn in_a_sketch_the_bar_s_buttons_keep_their_place_whatever_the_coordinates_read() {
+    let mut app = a_sketch_open("in_a_sketch_the_bar_s_buttons_keep_their_place");
+    hover_off_the_view(&mut app);
+    assert_eq!(driver::the_bar_s_coordinates(&app), "—");
+    let stood = the_bar_s_buttons(&app);
+
+    driver::hover_at_sketch_point(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+    assert_eq!(driver::the_bar_s_coordinates(&app), "X 137,50 Y -37,50 mm");
+    assert_in_their_place(&app, stood);
+
+    driver::hover_at_sketch_point(&mut app, NEAR_THE_ORIGIN);
+    assert_in_their_place(&app, stood);
+
+    hover_off_the_view(&mut app);
+    assert_in_their_place(&app, stood);
+}
+
+#[test]
+fn in_the_free_view_the_bar_s_buttons_keep_their_place_whatever_the_coordinates_read() {
+    let mut app = driver::a_block("in_the_free_view_the_bar_s_buttons_keep_their_place");
+    hover_off_the_view(&mut app);
+    assert_eq!(driver::the_bar_s_coordinates(&app), "—");
+    let stood = the_bar_s_buttons(&app);
+
+    hover_over_the_world(&mut app, ON_THE_BLOCK_S_FACE);
+    assert_eq!(
+        driver::the_bar_s_coordinates(&app),
+        "X 10,00 Y 57,50 Z -4,05 mm"
+    );
+    assert_in_their_place(&app, stood);
+
+    hover_over_the_world(&mut app, BESIDE_THE_BLOCK);
+    assert_in_their_place(&app, stood);
 }

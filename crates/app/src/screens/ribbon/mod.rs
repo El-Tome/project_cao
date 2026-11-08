@@ -1,4 +1,4 @@
-mod icons;
+pub(crate) mod icons;
 mod state;
 mod view;
 

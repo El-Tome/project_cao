@@ -1,15 +1,112 @@
 use cao_prefs::config::LengthUnit;
+use cao_prefs::{Command, Shortcuts};
 use cao_render::MatterInFront;
 use glam::{DVec2, DVec3};
 
 use crate::lang::Catalogue;
+use crate::screens::SketchContext;
+use crate::screens::ribbon::is_enabled;
 use crate::screens::sketch::SketchEditor;
-use crate::wording::matter;
+use crate::screens::viewport::{Shown, ViewportState};
+use crate::wording::{command as wording, matter, shortcuts};
+
+/// What the bar shows, left to right: « Recadrer », « Vue en coupe », the
+/// menu of the matter in front, and the cursor's coordinates.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ViewBar {
+    pub reframe: Offered,
+    pub section_view: Offered,
+    pub matter_in_front: MatterInFrontMenu,
+    pub coordinates: String,
+    /// The longest the coordinates read here, which the bar keeps room for.
+    pub widest_coordinates: String,
+}
+
+/// A command the bar offers as the ribbon offers it: its name, the key bound
+/// to it, its help, whether it can be pressed, and — for one that switches
+/// something — whether that is on.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Offered {
+    pub command: Command,
+    pub name: String,
+    pub key: Option<String>,
+    pub hint: String,
+    pub enabled: bool,
+    pub on: Option<bool>,
+}
+
+impl ViewBar {
+    /// The coordinates are said in the unit the scale bar shows its step in,
+    /// so that the two agree.
+    pub fn of(
+        part: &SketchContext<'_>,
+        viewport: &ViewportState,
+        shown: &Shown,
+        bound: &Shortcuts,
+    ) -> Self {
+        let (document, editor, lang) = (&*part.document, &*part.editor, part.lang);
+        let offered = |command, on| Offered {
+            command,
+            name: wording::label(lang, command),
+            key: bound
+                .chord_for(command)
+                .map(|chord| shortcuts::chord(lang, chord)),
+            hint: wording::hint(lang, command),
+            enabled: is_enabled(command, document, editor, part.extrusion),
+            on,
+        };
+        let unit = shown.unit.unwrap_or(LengthUnit::Millimeter);
+        let pointed = Pointed::of(editor, shown.on_the_part);
+        Self {
+            reframe: offered(Command::Reframe, None),
+            section_view: offered(Command::SectionView, Some(viewport.section().is_some())),
+            matter_in_front: MatterInFrontMenu::of(editor, lang),
+            coordinates: coordinates(pointed, unit, document.scale(), lang),
+            widest_coordinates: widest_coordinates(editor.active_sketch().is_some(), unit, lang),
+        }
+    }
+}
+
+/// What the coordinates read with a sign and four figures before the comma on
+/// every axis: room enough for the bar's buttons to stay put as the mouse
+/// moves, in a sketch or in the free view.
+fn widest_coordinates(in_a_sketch: bool, unit: LengthUnit, lang: &Catalogue) -> String {
+    let widest = -9999.99 * unit.millimeters();
+    let pointed = if in_a_sketch {
+        Pointed::OnThePlane(DVec2::splat(widest))
+    } else {
+        Pointed::OnThePart(DVec3::splat(widest))
+    };
+    coordinates(pointed, unit, 1.0, lang)
+}
+
+/// What was picked on the bar.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Picked {
+    Command(Command),
+    MatterInFront(MatterInFront),
+}
+
+impl Picked {
+    /// Sets the matter in front picked in the menu on the open sketch, and
+    /// hands back a command, to be run as the ribbon's are.
+    pub fn carried_out(self, editor: &mut SketchEditor) -> Option<Command> {
+        match self {
+            Self::Command(command) => Some(command),
+            Self::MatterInFront(state) => {
+                editor.set_matter_in_front(state);
+                None
+            }
+        }
+    }
+}
 
 /// The bar's « Matière devant »: what it reads, whether it opens, and the
 /// three states it offers in its menu.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MatterInFrontMenu {
+    /// The state the open sketch is in.
+    pub state: MatterInFront,
     pub label: String,
     pub enabled: bool,
     pub choices: Vec<MatterInFrontChoice>,
@@ -41,6 +138,7 @@ impl MatterInFrontMenu {
         })
         .collect();
         Self {
+            state: now,
             label: matter::in_front(lang, now),
             enabled: editor.active_sketch().is_some(),
             choices,

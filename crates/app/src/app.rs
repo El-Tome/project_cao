@@ -245,7 +245,6 @@ impl CaoApp {
         let beside = crate::panels::Beside { ribbon, variables };
         changed |= crate::panels::beside_the_part(ui, doc, editor, viewport, beside, lang);
 
-        let mut copy_panel_let_go_at = None;
         let view = egui::CentralPanel::no_frame().show(ui, |ui| {
             let mut context = screens::SketchContext {
                 document: doc,
@@ -253,22 +252,27 @@ impl CaoApp {
                 extrusion,
                 lang,
             };
-            let shown = screens::viewport::show(ui, viewport, &mut context);
-            changed |= shown.changed;
-            copy_panel_let_go_at = shown.copy_panel_let_go_at;
+            screens::viewport::show(ui, viewport, &mut context)
         });
+        changed |= view.inner.changed;
+        let copy_panel_let_go_at = view.inner.copy_panel_let_go_at;
 
         let finish_on = settings.shortcuts.chord_for(Command::FinishSketch);
         let finished = screens::sketch_pill::SketchPill::of(doc, editor, finish_on, lang)
             .is_some_and(|pill| screens::sketch_pill::show(ui.ctx(), view.response.rect, &pill));
-        if finished {
-            let mut worked_on = screens::SketchContext {
-                document: doc,
-                editor,
-                extrusion,
-                lang,
-            };
-            changed |= commands::run(Command::FinishSketch, &mut worked_on, ribbon, viewport);
+        let mut worked_on = screens::SketchContext {
+            document: doc,
+            editor,
+            extrusion,
+            lang,
+        };
+        let bar =
+            screens::view_bar::ViewBar::of(&worked_on, viewport, &view.inner, &settings.shortcuts);
+        let from_the_bar = screens::view_bar::show(ui.ctx(), view.response.rect, &bar)
+            .and_then(|picked| picked.carried_out(worked_on.editor));
+        let over_the_view = finished.then_some(Command::FinishSketch).or(from_the_bar);
+        if let Some(command) = over_the_view {
+            changed |= commands::run(command, &mut worked_on, ribbon, viewport);
         }
 
         if changed {
@@ -287,7 +291,7 @@ impl CaoApp {
             self.error.take(),
             at_start.as_deref(),
             &mut editor.message,
-            commanded || finished || back_to_menu,
+            commanded || over_the_view.is_some() || back_to_menu,
         );
         if settled != *covering {
             ui.ctx().request_repaint();

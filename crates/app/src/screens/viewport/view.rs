@@ -3,7 +3,9 @@
 //!
 //! What it decides lives in [`super::state`].
 
+use cao_prefs::config::LengthUnit;
 use cao_render::SceneFrame;
+use glam::DVec3;
 
 use crate::screens::SketchContext;
 use crate::screens::sketch::Tool;
@@ -26,6 +28,10 @@ pub struct Shown {
     pub changed: bool,
     /// Where the copy tools' panel was let go this frame, to be kept.
     pub copy_panel_let_go_at: Option<[f32; 2]>,
+    /// The point of the part under the pointer, while no sketch is open.
+    pub on_the_part: Option<DVec3>,
+    /// The unit the scale bar says its step in, once the canvas is laid.
+    pub unit: Option<LengthUnit>,
 }
 
 pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchContext<'_>) -> Shown {
@@ -128,9 +134,16 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
     }
+    let pointer = response
+        .hover_pos()
+        .filter(|_| sketch.editor.active_sketch().is_none());
     Shown {
         changed: changed | paint_dimension_field(ui, state, rect, sketch),
         copy_panel_let_go_at,
+        on_the_part: pointer.and_then(|at| {
+            state.point_of_the_part_at(sketch.editor, sketch.document.body(), at, rect)
+        }),
+        unit: Some(state.config.unit.unit_for(scale.step_millimeters)),
     }
 }
 

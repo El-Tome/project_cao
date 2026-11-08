@@ -88,10 +88,8 @@ fn ruled(cone: &Wall, other: &Wall) -> Option<Rc<Ruled>> {
             .iter()
             .position(|(one, two, _)| one == cone && two == other)
         {
-            let found = read.remove(rank);
-            let ruled = found.2.clone();
-            read.insert(0, found);
-            return ruled;
+            read[..=rank].rotate_right(1);
+            return read[0].2.clone();
         }
         let ruled = Ruled::of(own, other).map(Rc::new);
         read.truncate(KEPT - 1);
@@ -352,6 +350,29 @@ impl Meet {
             bounds = [bounds[0].min(world), bounds[1].max(world)];
         }
         bounds
+    }
+
+    /// The parameters from `from` to `to` where a coordinate turns: between
+    /// two of `count` even steps where its speed changes sign, by bisection.
+    pub(in crate::brep) fn turning(&self, from: f64, to: f64, count: usize) -> Vec<f64> {
+        let step = (to - from) / count as f64;
+        let speeds: Vec<(f64, DVec3)> = (0..=count)
+            .map(|index| from + step * index as f64)
+            .map(|t| (t, self.derivative(t)))
+            .collect();
+        let mut found = Vec::new();
+        for axis in 0..3 {
+            for pair in speeds.windows(2) {
+                let [(low, below), (high, above)] = [pair[0], pair[1]];
+                let still = below[axis].abs().max(above[axis].abs())
+                    <= Scale::RELATIVE * below.length().max(above.length());
+                if below[axis] * above[axis] < 0.0 && !still {
+                    let speed = |t: f64| self.derivative(t)[axis];
+                    found.push(ruled::halved(speed, low.min(high), low.max(high)));
+                }
+            }
+        }
+        found
     }
 }
 

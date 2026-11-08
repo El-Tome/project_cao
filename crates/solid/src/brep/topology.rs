@@ -286,11 +286,13 @@ impl Body {
                     .flat_map(|axis| conic.turning(axis, edge.from, edge.to))
                     .map(|t| conic.point(t)),
             ),
-            Curve::Meet(_) => {
+            Curve::Meet(meet) => {
                 const SAMPLES: usize = 64;
                 let step = (edge.to - edge.from) / SAMPLES as f64;
                 found
                     .extend((1..SAMPLES).map(|index| curve.point(edge.from + step * index as f64)));
+                let turning = meet.turning(edge.from, edge.to, SAMPLES);
+                found.extend(turning.into_iter().map(|t| meet.point(t)));
             }
         }
         found

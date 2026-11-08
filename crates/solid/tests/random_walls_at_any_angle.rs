@@ -157,6 +157,24 @@
 //!   as drawn, its shrunk form crossing on #762's merge too,
 //!   `seed_352000000017007_a_shaft_bored_at_30_degrees_by_its_radius_then_posted_a_thousandth_of_a_degree_off_square_is_drawn_uncrossed_through_the_application_s_body`,
 //!   `seed_352000000017007_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body`
+//!
+//! Closes #775.
+//! - An edge along a `Meet` curve whose largest x lies between two samples
+//!   gives that largest x, to rounding — no test: in this file; it is held
+//!   beside `extremes`, in `crates/solid/src/brep/topology/tests/meet.rs`, by
+//!   `an_edge_along_a_meet_curve_gives_its_largest_x_where_it_falls_between_two_samples`
+//! - The three cases above hold on both kernels and are pinned —
+//!   `seed_353000000011653_a_shaft_bored_at_75_degrees_then_by_a_square_a_hair_inside_its_wall_keeps_every_rule`,
+//!   `seed_353000000011653_the_same_bores_keep_every_rule_through_the_application_s_body`,
+//!   `seed_354000000006300_a_shaft_cut_by_a_cone_then_joined_to_a_square_a_hair_inside_its_wall_keeps_every_rule`,
+//!   `seed_354000000006300_the_same_shaft_and_square_keep_every_rule_through_the_application_s_body`,
+//!   `seed_354000000017912_a_shaft_bored_at_45_degrees_then_by_a_square_a_hair_from_its_wall_keeps_every_rule`,
+//!   `seed_354000000017912_the_same_bores_keep_every_rule_through_the_application_s_body`
+//! - No draw regresses against `main`, seed by seed, on the three sets, both
+//!   kernels — no test: a campaign fails on any finding, so the walls
+//!   campaigns above are run on `main` and on the branch over sets
+//!   352000000000000, 353000000000000 and 354000000000000 and compared seed
+//!   by seed, the counts on the pull request
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -1654,6 +1672,120 @@ fn seed_352000000017007_a_shaft_bored_at_30_degrees_by_its_radius_then_posted_a_
 fn seed_352000000017007_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body()
 {
     walls_seed_through_the_application(352000000017007);
+}
+
+/// A shaft of radius 2.5 about X bored by a hole of radius 3 at 75°, then
+/// along its axis by a square of half-side 2.49999998, its sides a hair
+/// inside the shaft's wall: a face went missing where a face along a meet
+/// curve was boxed short of the wall (seed 353000000011653, shrunk; #775).
+fn a_shaft_bored_at_75_degrees_then_by_a_square_a_hair_inside_its_wall() -> Case {
+    Case::new(
+        Leaf::prism(Plane::yz(-4.0), Outline::circle([2.0, -2.0], 2.5), 6.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([12.0, 6.0, -2.0], [0.0, -75.0, 0.0]),
+                Outline::circle([-0.0, -0.0], 3.0),
+                26.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([12.0, 2.0, -2.0], [0.0, -90.0, 0.0]),
+                Outline::rectangle([-2.49999998, -2.49999998], [2.49999998, 2.49999998]),
+                26.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_353000000011653_a_shaft_bored_at_75_degrees_then_by_a_square_a_hair_inside_its_wall_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_bored_at_75_degrees_then_by_a_square_a_hair_inside_its_wall(),
+    );
+}
+
+#[test]
+fn seed_353000000011653_the_same_bores_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &a_shaft_bored_at_75_degrees_then_by_a_square_a_hair_inside_its_wall(),
+    );
+}
+
+/// A shaft of radius 4 about Z cut across by a cone turned about X, then
+/// joined along its axis to a square of half-side 3.99999994, its sides a
+/// hair inside the shaft's wall: a face went missing where a face along a
+/// meet curve was boxed short of the wall (seed 354000000006300, shrunk;
+/// #775).
+fn a_shaft_cut_by_a_cone_then_joined_to_a_square_a_hair_inside_its_wall() -> Case {
+    Case::new(
+        Leaf::prism(Plane::xy(-3.0), Outline::circle([-2.0, 1.0], 4.0), 9.0),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(1.0),
+                Axis::first(0.0),
+                Section::bands(-21.0, &[[39.0, 0.0, 0.0]]).sloping_to(&[[0.0, 3.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::tilted([-2.0, 1.0, -16.0], [0.0, 0.0, 0.0]),
+                Outline::rectangle([-3.99999994, -3.9999998199999998], [3.99999994, 4.00000006]),
+                39.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_354000000006300_a_shaft_cut_by_a_cone_then_joined_to_a_square_a_hair_inside_its_wall_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_cut_by_a_cone_then_joined_to_a_square_a_hair_inside_its_wall(),
+    );
+}
+
+#[test]
+fn seed_354000000006300_the_same_shaft_and_square_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &a_shaft_cut_by_a_cone_then_joined_to_a_square_a_hair_inside_its_wall(),
+    );
+}
+
+/// A shaft of radius 4.5 about Z bored by a hole of radius 5 at 45°, then
+/// along its axis by a square whose sides stand a hair from its wall: the
+/// bore's face was boxed to x = 4.49966 where it reaches 4.5, beside a side
+/// standing at x = 4.49999994, and went missing (seed 354000000017912,
+/// shrunk; #775).
+fn a_shaft_bored_at_45_degrees_then_by_a_square_a_hair_from_its_wall() -> Case {
+    Case::new(
+        Leaf::prism(Plane::xy(-4.0), Outline::circle([0.0, -2.0], 4.5), 9.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([0.0, 16.0, -14.0], [45.0, 0.0, 0.0]),
+                Outline::circle([-0.0, -0.0], 5.0),
+                42.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-22.0),
+                Outline::rectangle([-4.50000006, -4.5], [4.49999994, 4.5]),
+                42.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_354000000017912_a_shaft_bored_at_45_degrees_then_by_a_square_a_hair_from_its_wall_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_bored_at_45_degrees_then_by_a_square_a_hair_from_its_wall(),
+    );
+}
+
+#[test]
+fn seed_354000000017912_the_same_bores_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &a_shaft_bored_at_45_degrees_then_by_a_square_a_hair_from_its_wall(),
+    );
 }
 
 /// An elliptic shaft cut by a bore at a skew angle and joined to a post at

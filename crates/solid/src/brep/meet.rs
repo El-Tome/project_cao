@@ -88,10 +88,8 @@ fn ruled(cone: &Wall, other: &Wall) -> Option<Rc<Ruled>> {
             .iter()
             .position(|(one, two, _)| one == cone && two == other)
         {
-            let found = read.remove(rank);
-            let ruled = found.2.clone();
-            read.insert(0, found);
-            return ruled;
+            read[..=rank].rotate_right(1);
+            return read[0].2.clone();
         }
         let ruled = Ruled::of(own, other).map(Rc::new);
         read.truncate(KEPT - 1);
@@ -366,26 +364,15 @@ impl Meet {
         for axis in 0..3 {
             for pair in speeds.windows(2) {
                 let [(low, below), (high, above)] = [pair[0], pair[1]];
-                if below[axis] * above[axis] < 0.0 {
-                    found.push(self.root(axis, low, high, below[axis] < 0.0));
+                let still = below[axis].abs().max(above[axis].abs())
+                    <= Scale::RELATIVE * below.length().max(above.length());
+                if below[axis] * above[axis] < 0.0 && !still {
+                    let speed = |t: f64| self.derivative(t)[axis];
+                    found.push(ruled::halved(speed, low.min(high), low.max(high)));
                 }
             }
         }
         found
-    }
-
-    fn root(&self, axis: usize, mut low: f64, mut high: f64, falling: bool) -> f64 {
-        loop {
-            let middle = 0.5 * (low + high);
-            if middle == low || middle == high {
-                return middle;
-            }
-            if (self.derivative(middle)[axis] < 0.0) == falling {
-                low = middle;
-            } else {
-                high = middle;
-            }
-        }
     }
 }
 

@@ -25,10 +25,13 @@
 //!   screen — `a_place_on_a_screen_since_unplugged_opens_maximised_on_the_main_screen`,
 //!   against `a_place_on_the_second_screen_reopens_there_while_it_is_plugged_in`
 //!
-//! Positions and sizes are in physical pixels, as the system reports them: the
-//! place is the window's outer top-left corner and its inner size. The default
-//! size is 1280 × 800 points, times the main screen's scale. The main screen is
-//! the first one reported, and a place fits a screen when its centre lies on it.
+//! Positions and sizes are in desktop units, the ones the system lays its
+//! screens out in — points on macOS, pixels elsewhere: the place is the
+//! window's outer top-left corner and its inner size. The default size is
+//! 1280 × 800 points, times the main screen's scale, which is how many desktop
+//! units a point takes there: 1 on macOS, 2 on a Windows screen at 200 %. The
+//! main screen is the first one reported, and a place fits a screen when its
+//! centre lies on it.
 //! With no screen reported at all, nothing is decided against the screens —
 //! `no_screen_reported_at_all_still_gives_a_place_to_open_at`.
 //!

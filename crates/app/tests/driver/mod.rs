@@ -8,6 +8,8 @@
 // the repository.
 #![allow(dead_code)]
 
+use std::path::PathBuf;
+
 use cao_app::app::CaoApp;
 use cao_prefs::Locations;
 use egui::accesskit::Action;
@@ -159,7 +161,37 @@ pub fn open_with(test: &str, size: egui::Vec2, settings: cao_prefs::Settings) ->
     opened(test, size, settings)
 }
 
+/// The application on a window of this size, a place of the window already
+/// remembered where the application reads it, as a user who had closed it
+/// there would open it. The place is written compact and followed by blank
+/// lines, as the application never lays it out, so that one written back over
+/// it shows even when it holds the same values.
+pub fn open_on_remembering(test: &str, size: egui::Vec2, place: cao_prefs::WindowPlace) -> App {
+    let at = laid_out(test, cao_prefs::Settings::default());
+    let mut seeded = serde_json::to_vec(&place).expect("a window place is plain values");
+    seeded.extend_from_slice(b"\n\n");
+    std::fs::write(window_place_file(test), seeded).expect("the window's place is written");
+    assert_eq!(
+        cao_prefs::WindowPlace::load(&cao_app::adapters::files::DiskFiles, &at),
+        Some(place),
+        "the place laid down for the test is one the application would read back",
+    );
+    launched(at, size)
+}
+
+/// Where the application opened for `test` keeps the window's place.
+pub fn window_place_file(test: &str) -> PathBuf {
+    locations_of(test).config.join("window.json")
+}
+
 fn opened(test: &str, size: egui::Vec2, settings: cao_prefs::Settings) -> App {
+    let at = laid_out(test, settings);
+    launched(at, size)
+}
+
+/// A fresh place for `test` to keep what it writes, these settings already
+/// saved in it.
+fn laid_out(test: &str, settings: cao_prefs::Settings) -> Locations {
     let root = std::env::temp_dir().join("cao-driver").join(test);
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("documents")).expect("a place to keep the parts");
@@ -169,7 +201,10 @@ fn opened(test: &str, size: egui::Vec2, settings: cao_prefs::Settings) -> App {
     profiles
         .save(&cao_app::adapters::files::DiskFiles, &at)
         .expect("the settings are written where the app reads them");
+    at
+}
 
+fn launched(at: Locations, size: egui::Vec2) -> App {
     let mut app = Harness::builder()
         .with_size(size)
         // What a refusal names blinks for three seconds, asking for frame

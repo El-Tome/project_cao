@@ -108,3 +108,30 @@ fn a_settings_file_written_before_the_panel_still_loads() {
     assert_eq!(read.settings.copy_panel_at, None);
     assert_eq!(read.settings.language, "fr");
 }
+
+#[test]
+fn reopening_at_the_last_size_is_on_by_default() {
+    let files = InMemoryFiles::default();
+    let path = PathBuf::from(format!("/shared/before-the-window.{PROFILE_EXTENSION}"));
+    files
+        .write(
+            &path,
+            format!(
+                r#"{{"version":{SETTINGS_VERSION},"name":"Before","settings":{{"language":"fr"}}}}"#
+            )
+            .as_bytes(),
+        )
+        .expect("writes");
+
+    assert!(
+        Settings::default().reopen_at_last_size,
+        "a new profile reopens the window where it was closed",
+    );
+    assert!(
+        Profile::import(&files, &path)
+            .expect("reads")
+            .settings
+            .reopen_at_last_size,
+        "a profile written before the setting existed reopens the window where it was closed",
+    );
+}

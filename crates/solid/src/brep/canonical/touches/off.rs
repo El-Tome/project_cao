@@ -12,14 +12,16 @@ use crate::brep::relation::{Relation, abreast, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder, Sphere, Surface, Torus};
 
-/// How far two surfaces decided to touch stand from touching exactly, or a
-/// wall decided to stand about a cone's axis from standing on it; none where
-/// their pair is neither. A cone touches nothing along a line, and holds a
-/// wall about its axis only where faces of the two `meet` within the box
-/// round the circle they cross along: a section's pointed cone, crossing
-/// its widest step below the section, holds nothing (5365100952). A sphere
-/// or a torus holds a wall or a cone about its axis the same way, where
-/// faces of the two meet within the box round one of their rims (#576).
+/// How far two surfaces decided to touch stand from touching exactly — two
+/// cylinders `moved` would move onto a touch among them, though as they
+/// stand they cross at no node — or a wall decided to stand about a cone's
+/// axis from standing on it; none where their pair is neither. A cone
+/// touches nothing along a line, and holds a wall about its axis only where
+/// faces of the two `meet` within the box round the circle they cross
+/// along: a section's pointed cone, crossing its widest step below the
+/// section, holds nothing (5365100952). A sphere or a torus holds a wall or
+/// a cone about its axis the same way, where faces of the two meet within
+/// the box round one of their rims (#576).
 pub(super) fn off(
     one: &Surface,
     other: &Surface,
@@ -98,6 +100,24 @@ pub(super) fn off(
             (from - *axis * axis.dot(from)).length()
         });
     }
+    let near = || match (one, other) {
+        (Surface::Cylinder(first), Surface::Cylinder(second)) => {
+            moved(&Wall::Cylinder(*first), &Wall::Cylinder(*second), scale).is_some()
+        }
+        _ => false,
+    };
+    let gap = || {
+        let (one, other) = (Wall::of(one)?, Wall::of(other)?);
+        Some(
+            moved(&one, &other, scale).map_or(0.0, |(rank, to)| match ([one, other][rank], to) {
+                (Wall::Cylinder(from), Wall::Cylinder(to)) => {
+                    from.origin.distance(to.origin) + (from.radius - to.radius).abs()
+                }
+                (Wall::Elliptic(from), Wall::Elliptic(to)) => from.gap(&to),
+                _ => f64::INFINITY,
+            }),
+        )
+    };
     match relation(one, other, scale) {
         Relation::Tangent(_) | Relation::Parallel(_) if abreast(one, other) => {
             off_the_touches(one, other, scale)
@@ -128,18 +148,8 @@ pub(super) fn off(
                 Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_),
             ) => None,
         },
-        Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => {
-            let (one, other) = (Wall::of(one)?, Wall::of(other)?);
-            Some(moved(&one, &other, scale).map_or(0.0, |(rank, to)| {
-                match ([one, other][rank], to) {
-                    (Wall::Cylinder(from), Wall::Cylinder(to)) => {
-                        from.origin.distance(to.origin) + (from.radius - to.radius).abs()
-                    }
-                    (Wall::Elliptic(from), Wall::Elliptic(to)) => from.gap(&to),
-                    _ => f64::INFINITY,
-                }
-            }))
-        }
+        Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => gap(),
+        Relation::Meet(_) if near() => gap(),
         Relation::Apart
         | Relation::Same { .. }
         | Relation::Line(_)

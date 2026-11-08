@@ -1,5 +1,7 @@
 //! Two cylinders: parallel ones cross along lines or touch along one, and at
-//! any other angle they meet along the curve of `meet.rs`.
+//! any other angle they meet along the curve of `meet.rs`, built on the
+//! walls as they stand unless `Meeting::of` reads them apart or touching at
+//! a point.
 
 use super::{Relation, parallel, sorted};
 use crate::brep::curve::{Line, Wall};
@@ -14,7 +16,16 @@ pub(super) fn cylinders(one: &Cylinder, other: &Cylinder, scale: Scale) -> Relat
             _ => side_by_side(one, other, scale),
         };
     }
-    let meeting = Meeting::of(&Wall::Cylinder(*one), &Wall::Cylinder(*other), scale);
+    let (first, second) = (Wall::Cylinder(*one), Wall::Cylinder(*other));
+    let snapped = Meeting::of(&first, &second, scale);
+    let meeting = if matches!(
+        snapped.configuration,
+        Configuration::Apart | Configuration::Contact
+    ) {
+        snapped
+    } else {
+        Meeting::as_they_stand(&first, &second)
+    };
     if meeting.configuration == Configuration::Apart {
         Relation::Apart
     } else {

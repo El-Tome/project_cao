@@ -1,6 +1,8 @@
 //! What a move leaves where it was: whether two planes still cross along
 //! the line they crossed along, and how far the place of a touch moves.
 
+use crate::brep::curve::Wall;
+use crate::brep::meet::Meeting;
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
@@ -27,7 +29,8 @@ pub(super) fn crossed_elsewhere(
 
 /// How far the place two surfaces touch at moves when the first is put
 /// for `before`: the line they touch along, or the points two
-/// perpendicular cylinders touch at.
+/// perpendicular cylinders touch at, read on the touch `Meeting::of`
+/// decides rather than on the walls as they stand.
 pub(super) fn moved_along(before: &Surface, after: &Surface, other: &Surface, scale: Scale) -> f64 {
     let places = |surface: &Surface| match relation(surface, other, scale) {
         Relation::Tangent(line) => vec![line.origin],
@@ -36,6 +39,16 @@ pub(super) fn moved_along(before: &Surface, after: &Surface, other: &Surface, sc
             .filter(|ruled| ruled.touching)
             .map(|ruled| ruled.line.origin)
             .collect(),
+        Relation::Meet(_)
+            if let (Surface::Cylinder(one), Surface::Cylinder(other)) = (surface, other) =>
+        {
+            Relation::Meet(Meeting::of(
+                &Wall::Cylinder(*one),
+                &Wall::Cylinder(*other),
+                scale,
+            ))
+            .points()
+        }
         found => found.points(),
     };
     let (from, to) = (places(before), places(after));

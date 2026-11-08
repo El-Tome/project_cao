@@ -359,3 +359,4 @@ mod lattice;
 mod round;
 mod sliced;
 mod square;
+mod three_walls;

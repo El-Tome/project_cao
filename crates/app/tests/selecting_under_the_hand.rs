@@ -34,6 +34,7 @@
 mod driver;
 
 use egui::epaint::Shape;
+use glam::DVec2;
 
 /// The magnets at their defaults, the grid's aside: a point clicked down then
 /// lands exactly under the hand, so the distances below are the ones on screen.
@@ -61,35 +62,32 @@ fn steps_at_the_end(app: &mut driver::App) -> Vec<String> {
     steps(app)
 }
 
-/// Corners at (-28.55, -244) and (221.45, -144) from the centre of the
-/// drawing area, as `driver::on_canvas` reads them: the top side runs 244
-/// above the centre, away from the plane's axes and from anything else drawn.
+/// Corners of the sketch, where the clicks the tests were first written with
+/// landed: the top side runs high above the origin, away from the plane's axes
+/// and from anything else drawn.
 fn a_rectangle(app: &mut driver::App) {
     driver::click(app, "Rectangle (R)");
-    driver::click_on_canvas(app, TOP_LEFT_CORNER);
-    driver::click_on_canvas(app, driver::FromTheCentre(221.45, -144.0));
+    driver::click_at_sketch_point(app, TOP_LEFT_CORNER);
+    driver::click_at_sketch_point(app, DVec2::new(168.04, 66.69));
 }
 
-const TOP_LEFT_CORNER: driver::FromTheCentre = driver::FromTheCentre(-28.55, -244.0);
+const TOP_LEFT_CORNER: DVec2 = DVec2::new(57.5, 110.91);
 
-const LINE_START: (f32, f32) = driver::A_POINT_ABOVE_THE_ORIGIN;
-const LINE_END: (f32, f32) = driver::A_POINT_BELOW_AND_RIGHT;
+const LINE_START: DVec2 = driver::A_POINT_ABOVE_THE_ORIGIN;
+const LINE_END: DVec2 = driver::A_POINT_BELOW_AND_RIGHT;
 
 fn a_line(app: &mut driver::App) {
     driver::click(app, "Ligne (L)");
-    driver::click_at(app, LINE_START);
-    driver::click_at(app, LINE_END);
+    driver::click_at_sketch_point(app, LINE_START);
+    driver::click_at_sketch_point(app, LINE_END);
 }
 
 /// Out past the line's end, along it, this far on screen: nearer the end than
 /// anything else of the drawing, and nearest the line at its end too.
-fn past_the_line_s_end(pixels: f32) -> (f32, f32) {
-    let (start, end) = (
-        egui::pos2(LINE_START.0, LINE_START.1),
-        egui::pos2(LINE_END.0, LINE_END.1),
-    );
-    let at = end + (end - start).normalized() * pixels;
-    (at.x, at.y)
+fn past_the_line_s_end(app: &driver::App, pixels: f32) -> egui::Pos2 {
+    let start = driver::sketch_point_on_screen(app, LINE_START);
+    let end = driver::sketch_point_on_screen(app, LINE_END);
+    end + (end - start).normalized() * pixels
 }
 
 /// The numbered steps of the history, in order.
@@ -132,12 +130,10 @@ fn a_press_22_px_from_a_side_pulls_a_box_and_moves_no_side() {
     let mut app =
         a_sketch_in_the_selection_tool("a_press_22_px_from_a_side_pulls_a_box", a_rectangle);
     let boxes_before = boxes(&app);
-    let on_the_top_side = driver::on_canvas(
-        &app,
-        driver::FromTheCentre(TOP_LEFT_CORNER.0 + 70.0, TOP_LEFT_CORNER.1),
-    );
+    let on_the_top_side =
+        driver::sketch_point_on_screen(&app, DVec2::new(88.46, TOP_LEFT_CORNER.y));
     let pressed = on_the_top_side - egui::vec2(0.0, 22.0);
-    let held = driver::on_canvas(&app, driver::FromTheCentre(111.45, -194.0));
+    let held = driver::sketch_point_on_screen(&app, DVec2::new(119.41, 88.8));
 
     app.hover_at(pressed);
     app.run();
@@ -179,7 +175,8 @@ fn a_press_22_px_from_a_side_pulls_a_box_and_moves_no_side() {
 fn a_click_22_px_from_a_point_takes_nothing() {
     let mut app = a_sketch_in_the_selection_tool("a_click_22_px_from_a_point", a_line);
 
-    driver::click_at(&mut app, past_the_line_s_end(22.0));
+    let past = past_the_line_s_end(&app, 22.0);
+    driver::click_at(&mut app, past);
     driver::press(&mut app, egui::Key::Delete);
 
     let after = steps_at_the_end(&mut app);
@@ -194,7 +191,8 @@ fn a_click_22_px_from_a_point_takes_nothing() {
 fn a_click_10_px_from_a_point_takes_it() {
     let mut app = a_sketch_in_the_selection_tool("a_click_10_px_from_a_point", a_line);
 
-    driver::click_at(&mut app, past_the_line_s_end(10.0));
+    let past = past_the_line_s_end(&app, 10.0);
+    driver::click_at(&mut app, past);
     driver::press(&mut app, egui::Key::Delete);
 
     let after = steps_at_the_end(&mut app);

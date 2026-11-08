@@ -107,8 +107,8 @@ fn a_click_inside_a_name_puts_the_cursor_at_one_of_its_edges() {
     driver::start_a_sketch(&mut app);
     driver::draw_a_segment(&mut app);
     driver::click(&mut app, "Cote");
-    driver::click_at(&mut app, (850.0, 510.0));
-    driver::click_at(&mut app, (900.0, 440.0));
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
+    driver::click_at_sketch_point(&mut app, driver::WHERE_ITS_DIMENSION_GOES);
     let measured = driver::fields(&app)
         .pop()
         .expect("the dimension's field, holding what the trait measures");
@@ -119,7 +119,7 @@ fn a_click_inside_a_name_puts_the_cursor_at_one_of_its_edges() {
         .expect("the dimension's field, holding width")
         .rect();
 
-    driver::click_at(&mut app, (field.left() + 18.0, field.center().y));
+    driver::click_at(&mut app, egui::pos2(field.left() + 18.0, field.center().y));
     app.event(egui::Event::Text("X".to_string()));
     app.run();
 

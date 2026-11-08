@@ -24,7 +24,7 @@ fn toolbar_on(edge: Edge) -> Settings {
     settings
 }
 
-fn opened(test: &str, edge: Edge, size: (f32, f32)) -> driver::App {
+fn opened(test: &str, edge: Edge, size: egui::Vec2) -> driver::App {
     let mut app = driver::open_with(test, size, toolbar_on(edge));
     driver::create_a_part(&mut app, "Platine");
     for tool in ["Congé", "Chanfrein", "Mesurer (M)"] {
@@ -37,14 +37,14 @@ fn opened(test: &str, edge: Edge, size: (f32, f32)) -> driver::App {
     app
 }
 
-fn is_outside(node: &egui_kittest::Node<'_>, (width, height): (f32, f32)) -> bool {
+fn is_outside(node: &egui_kittest::Node<'_>, size: egui::Vec2) -> bool {
     node.accesskit_node()
         .bounding_box()
-        .is_some_and(|rect| rect.x1 > f64::from(width) + 0.5 || rect.y1 > f64::from(height) + 0.5)
+        .is_some_and(|rect| rect.x1 > f64::from(size.x) + 0.5 || rect.y1 > f64::from(size.y) + 0.5)
 }
 
 /// What lies, even in part, outside the window.
-fn off_screen(app: &driver::App, size: (f32, f32)) -> Vec<String> {
+fn off_screen(app: &driver::App, size: egui::Vec2) -> Vec<String> {
     app.get_all_by(|_| true)
         .filter(|node| is_outside(node, size))
         .filter_map(|node| node.accesskit_node().label())
@@ -53,7 +53,11 @@ fn off_screen(app: &driver::App, size: (f32, f32)) -> Vec<String> {
 
 #[test]
 fn every_tool_of_the_toolbar_along_the_top_is_inside_the_window() {
-    for size in [(1280.0, 800.0), (1024.0, 768.0), (1512.0, 900.0)] {
+    for size in [
+        egui::vec2(1280.0, 800.0),
+        egui::vec2(1024.0, 768.0),
+        egui::vec2(1512.0, 900.0),
+    ] {
         let app = opened("every_tool_along_the_top", Edge::Top, size);
         let outside = off_screen(&app, size);
         assert!(outside.is_empty(), "at {size:?}, off screen: {outside:?}");
@@ -63,13 +67,13 @@ fn every_tool_of_the_toolbar_along_the_top_is_inside_the_window() {
 #[test]
 fn every_tool_of_the_toolbar_down_a_side_can_be_scrolled_into_the_window() {
     for (edge, size) in [
-        (Edge::Left, (1280.0, 800.0)),
-        (Edge::Left, (1280.0, 600.0)),
-        (Edge::Right, (1280.0, 600.0)),
+        (Edge::Left, egui::vec2(1280.0, 800.0)),
+        (Edge::Left, egui::vec2(1280.0, 600.0)),
+        (Edge::Right, egui::vec2(1280.0, 600.0)),
     ] {
         let mut app = opened("every_tool_down_a_side", edge, size);
         let below = off_screen(&app, size);
-        if size.1 < 700.0 {
+        if size.y < 700.0 {
             assert!(
                 !below.is_empty(),
                 "{edge:?} at {size:?} is short enough that the column runs past the bottom"

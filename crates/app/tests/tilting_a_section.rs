@@ -9,20 +9,20 @@ mod driver;
 use cao_part::PartDocument;
 use cao_sketch::WorkPlane;
 use egui_kittest::kittest::{NodeT, Queryable};
-use glam::DVec3;
+use glam::{DVec2, DVec3};
+
+/// Inside the rectangle the block is raised off, a point of its sketch: where
+/// the extrusion is told which region to raise.
+const ON_THE_BLOCK: DVec2 = DVec2::new(57.5, -4.05);
 
 /// Where the block's face stands in front of the eye, and so where a section
-/// across it shows its cut: given from the centre of the drawing area, as
-/// `driver::on_canvas` reads it.
-const ON_THE_BLOCK: driver::FromTheCentre = driver::FromTheCentre(-28.55, 16.0);
+/// across it shows its cut: a point of the cut through the middle of the
+/// block, on the line of sight the clicks first written for it took.
+const ON_THE_CUT: DVec3 = DVec3::new(5.0, 46.2, -2.47);
 
-/// The corners of the rectangle the block is raised off, given from the centre
-/// of the drawing area: the clicks aimed at the block land on it only if the
-/// block was drawn in the same terms.
-const THE_BLOCK_S_CORNERS: [driver::FromTheCentre; 2] = [
-    driver::FromTheCentre(-178.55, -94.0),
-    driver::FromTheCentre(121.45, 126.0),
-];
+/// The corners of the rectangle the block is raised off, points of its sketch:
+/// the first is pulled onto the plane's axis.
+const THE_BLOCK_S_CORNERS: [DVec2; 2] = [DVec2::new(-8.82, 44.59), DVec2::new(123.83, -52.69)];
 
 /// A block raised off a rectangle drawn on a plane of the origin, its sketch
 /// then finished.
@@ -31,12 +31,12 @@ fn a_block(test: &str) -> driver::App {
     driver::create_a_part(&mut app, "Bloc");
     driver::start_a_sketch(&mut app);
     driver::click(&mut app, "Rectangle (R)");
-    driver::click_on_canvas(&mut app, THE_BLOCK_S_CORNERS[0]);
-    driver::click_on_canvas(&mut app, THE_BLOCK_S_CORNERS[1]);
+    driver::click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[0]);
+    driver::click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[1]);
     driver::click_exactly(&mut app, "Extrusion");
     driver::click_exactly(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");
-    driver::click_on_canvas(&mut app, ON_THE_BLOCK);
+    driver::click_at_sketch_point(&mut app, ON_THE_BLOCK);
     driver::click(&mut app, "Appliquer");
     driver::press(&mut app, egui::Key::Escape);
     click_in_the_ribbon(&mut app, "Terminer");
@@ -139,7 +139,7 @@ fn double_click(app: &mut driver::App, label: &str) {
 /// across it shows one, and finishes it.
 fn a_sketch_on_the_cut(app: &mut driver::App) {
     click_in_the_ribbon(app, "Nouvelle esquisse");
-    driver::click_on_canvas(app, ON_THE_BLOCK);
+    driver::click_at_world_point(app, ON_THE_CUT);
     assert!(
         driver::is_enabled(app, "Terminer"),
         "the click on the tilted cut started no sketch, showing {:?}",

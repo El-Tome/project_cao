@@ -20,6 +20,11 @@
 mod driver;
 
 use egui_kittest::kittest::{NodeT, Queryable};
+use glam::DVec2;
+
+/// A point of the sketch where nothing is drawn and no field stands: below the
+/// trait, under the middle of the view.
+const ANYWHERE_ELSE: DVec2 = DVec2::new(70.0, -40.0);
 
 /// A part holding `width` at 120 and `wall` at 5, a trait in a sketch, and
 /// a dimension of it just placed with its tool, its field open on what the
@@ -37,8 +42,8 @@ fn a_dimension_open_beside_the_variables(test: &str) -> (driver::App, String) {
     driver::start_a_sketch(&mut app);
     driver::draw_a_segment(&mut app);
     driver::click(&mut app, "Cote");
-    driver::click_at(&mut app, (850.0, 510.0));
-    driver::click_at(&mut app, (900.0, 440.0));
+    driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
+    driver::click_at_sketch_point(&mut app, driver::WHERE_ITS_DIMENSION_GOES);
     let measured = driver::fields(&app)
         .pop()
         .expect("the dimension's field, holding what the trait measures");
@@ -133,8 +138,9 @@ fn what_is_typed_after_the_drop_goes_on_from_the_name() {
 fn a_variable_dropped_anywhere_else_changes_nothing() {
     let (mut app, measured) = a_dimension_open_beside_the_variables("dropped_anywhere_else");
     let (grip, field) = (the_grip_of_width(&app), the_field_holding(&app, &measured));
+    let anywhere_else = driver::sketch_point_on_screen(&app, ANYWHERE_ELSE);
 
-    driver::drag_and_drop(&mut app, grip, egui::pos2(1100.0, 300.0));
+    driver::drag_and_drop(&mut app, grip, anywhere_else);
 
     assert_eq!(
         held_at(&app, field),

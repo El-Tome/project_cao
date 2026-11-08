@@ -2599,7 +2599,10 @@ application has not reached them since #632, and #579 removes them.
 - **The side of an edge in space**, a triangle lying on another across their
   edge (`folds.rs`, `lies_on`): exact, through `beside`, since #585. Two
   triangles passing through each other (`folds/through.rs`) are read past a
-  share of the tolerance, `clear`: tolerance.
+  share of the tolerance, `clear`: tolerance. Two faces passing through each
+  other along a line (`folds/along.rs`), which only a clear cut is held to
+  (#765), are read past the room the rules meet within, `NEAR` of the
+  reach: tolerance.
 - **The laid profile of a turn** (`turning/straight/contacts.rs`): a run
   coming straight back along the one before, two slants on one line, a run
   across a slant. Exact, through `turn`, since #585: the profile was already

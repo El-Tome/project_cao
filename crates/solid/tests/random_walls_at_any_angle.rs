@@ -151,7 +151,12 @@
 //!   both kernels — no test: a campaign fails on any finding, so the walls
 //!   campaigns above are run on #762's merge and on the branch over sets
 //!   352000000000000, 353000000000000 and 354000000000000 and compared seed
-//!   by seed, the counts on the pull request
+//!   by seed, the counts on the pull request; the draws found held on
+//!   #762's merge and crossed on the branch, pinned:
+//!   `seed_352000000014330_an_elliptic_shaft_bored_at_24_degrees_a_hair_wider_than_it_then_across_and_posted_is_drawn_uncrossed_through_the_application_s_body`
+//!   as drawn, its shrunk form crossing on #762's merge too,
+//!   `seed_352000000017007_a_shaft_bored_at_30_degrees_by_its_radius_then_posted_a_thousandth_of_a_degree_off_square_is_drawn_uncrossed_through_the_application_s_body`,
+//!   `seed_352000000017007_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body`
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -1602,6 +1607,53 @@ fn seed_353000000010626_an_elliptic_shaft_bored_along_its_wall_a_hair_inside_the
 fn seed_353000000010626_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body()
 {
     walls_seed_through_the_application(353000000010626);
+}
+
+/// An elliptic shaft of half-axes 25 and 20 bored at 24° by a hole a
+/// hundredth wider than its minor half-axis, then across by a hole of radius
+/// 7.5 and posted by a pin of that radius: held on #762's merge, drawn
+/// crossed through the application's body on #765's branch (seed
+/// 352000000014330, as drawn; its shrunk form crosses on #762's merge too).
+#[test]
+fn seed_352000000014330_an_elliptic_shaft_bored_at_24_degrees_a_hair_wider_than_it_then_across_and_posted_is_drawn_uncrossed_through_the_application_s_body()
+ {
+    walls_seed_through_the_application(352000000014330);
+}
+
+/// A shaft of radius 5 bored at 30° by a hole of its radius less a
+/// ten-millionth, then posted by a pin of radius 5 a thousandth of a degree
+/// off square: held on #762's merge, drawn crossed through the application's
+/// body on #765's branch (seed 352000000017007, shrunk).
+#[test]
+fn seed_352000000017007_a_shaft_bored_at_30_degrees_by_its_radius_then_posted_a_thousandth_of_a_degree_off_square_is_drawn_uncrossed_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(-4.0), Outline::circle([1.0, -1.0], 5.0), 9.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [1.0, -12.381527307120104, -19.21338356366461],
+                    [-30.0, 0.0, 0.0],
+                ),
+                Outline::circle([-0.0, -0.0], 4.9999999),
+                46.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::tilted(
+                    [1.0, -23.7630546107732, 0.4996027097491902],
+                    [-89.999, 0.0, 0.0],
+                ),
+                Outline::circle([6e-8, 0.0], 5.0),
+                46.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_352000000017007_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body()
+{
+    walls_seed_through_the_application(352000000017007);
 }
 
 /// An elliptic shaft cut by a bore at a skew angle and joined to a post at

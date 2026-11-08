@@ -71,6 +71,19 @@ const WINDOW_POSITIONS: &[WindowPosition] = &[
         why: "the canvas read only for its height, to check the driver holds it at \
               the height its fixtures were tuned on: nothing is aimed from it",
     },
+    WindowPosition {
+        file: "crates/app/tests/sketch_pill.rs",
+        written: "driver::canvas(&app)",
+        why: "the view read only to check that the sketch's pill stands at its top \
+              centre, where the redesign puts it: nothing is aimed from it",
+    },
+    WindowPosition {
+        file: "crates/app/tests/sketch_pill.rs",
+        written: "driver::canvas(app)",
+        why: "the view read only to tell the sketch's pill, which stands inside it, \
+              from the breadcrumb above it, which reads the same sketch's name: \
+              nothing is aimed from it",
+    },
 ];
 
 struct WindowPosition {

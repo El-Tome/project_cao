@@ -246,7 +246,7 @@ impl CaoApp {
         changed |= crate::panels::beside_the_part(ui, doc, editor, viewport, beside, lang);
 
         let mut copy_panel_let_go_at = None;
-        egui::CentralPanel::no_frame().show(ui, |ui| {
+        let view = egui::CentralPanel::no_frame().show(ui, |ui| {
             let mut context = screens::SketchContext {
                 document: doc,
                 editor,
@@ -257,6 +257,19 @@ impl CaoApp {
             changed |= shown.changed;
             copy_panel_let_go_at = shown.copy_panel_let_go_at;
         });
+
+        let finish_on = settings.shortcuts.chord_for(Command::FinishSketch);
+        let finished = screens::sketch_pill::SketchPill::of(doc, editor, finish_on, lang)
+            .is_some_and(|pill| screens::sketch_pill::show(ui.ctx(), view.response.rect, &pill));
+        if finished {
+            let mut worked_on = screens::SketchContext {
+                document: doc,
+                editor,
+                extrusion,
+                lang,
+            };
+            changed |= commands::run(Command::FinishSketch, &mut worked_on, ribbon, viewport);
+        }
 
         if changed {
             autosave.touched();
@@ -274,7 +287,7 @@ impl CaoApp {
             self.error.take(),
             at_start.as_deref(),
             &mut editor.message,
-            commanded || back_to_menu,
+            commanded || finished || back_to_menu,
         );
         if settled != *covering {
             ui.ctx().request_repaint();

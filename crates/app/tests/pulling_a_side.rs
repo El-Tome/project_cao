@@ -31,18 +31,6 @@ fn a_rectangle(app: &mut driver::App) {
     driver::click(app, "Sélection (S)");
 }
 
-/// The numbered steps of the history, in order.
-fn steps(app: &driver::App) -> Vec<String> {
-    driver::on_screen(app)
-        .into_iter()
-        .filter(|label| {
-            label
-                .split_once(". ")
-                .is_some_and(|(rank, _)| rank.parse::<usize>().is_ok())
-        })
-        .collect()
-}
-
 #[test]
 fn a_side_pressed_and_pulled_moves_it_in_one_step() {
     let mut app = driver::open("a_side_pressed_and_pulled");
@@ -50,12 +38,12 @@ fn a_side_pressed_and_pulled_moves_it_in_one_step() {
     driver::start_a_sketch(&mut app);
     a_rectangle(&mut app);
     driver::open_the_history(&mut app);
-    let before = steps(&app).len();
+    let before = driver::steps(&app).len();
 
     let on_the_side = driver::sketch_point_on_screen(&app, ON_THE_TOP_SIDE);
     driver::drag_and_drop(&mut app, on_the_side, on_the_side + egui::vec2(4.0, -60.0));
 
-    let steps = steps(&app);
+    let steps = driver::steps(&app);
     assert_eq!(
         steps.len(),
         before + 1,
@@ -76,7 +64,7 @@ fn a_pan_started_on_a_side_moves_nothing() {
     driver::start_a_sketch(&mut app);
     a_rectangle(&mut app);
     driver::open_the_history(&mut app);
-    let before = steps(&app);
+    let before = driver::steps(&app);
     let on_the_side = driver::sketch_point_on_screen(&app, ON_THE_TOP_SIDE);
 
     app.hover_at(on_the_side);
@@ -96,7 +84,11 @@ fn a_pan_started_on_a_side_moves_nothing() {
     app.event(button(false, on_the_side + egui::vec2(0.0, -60.0)));
     app.run();
 
-    assert_eq!(steps(&app), before, "moving the view writes no step");
+    assert_eq!(
+        driver::steps(&app),
+        before,
+        "moving the view writes no step"
+    );
 }
 
 #[test]
@@ -114,12 +106,12 @@ fn a_circle_pulled_out_is_still_drawn_to_its_new_size() {
     driver::click_at(&mut app, through);
     driver::press(&mut app, egui::Key::Escape);
     driver::click(&mut app, "Sélection (S)");
-    let before = steps(&app).len();
+    let before = driver::steps(&app).len();
 
     let on_the_rim = centre + egui::vec2(1.0, 1.0).normalized() * centre.distance(through);
     driver::drag_and_drop(&mut app, on_the_rim, on_the_rim + egui::vec2(0.0, -40.0));
 
-    let steps = steps(&app);
+    let steps = driver::steps(&app);
     assert_eq!(
         steps.len(),
         before + 1,
@@ -140,10 +132,14 @@ fn a_drag_from_empty_space_moves_nothing() {
     driver::start_a_sketch(&mut app);
     a_rectangle(&mut app);
     driver::open_the_history(&mut app);
-    let before = steps(&app);
+    let before = driver::steps(&app);
 
     let [from, to] = ACROSS_EMPTY_SPACE.map(|point| driver::sketch_point_on_screen(&app, point));
     driver::drag_and_drop(&mut app, from, to);
 
-    assert_eq!(steps(&app), before, "a box selects, and writes no step");
+    assert_eq!(
+        driver::steps(&app),
+        before,
+        "a box selects, and writes no step"
+    );
 }

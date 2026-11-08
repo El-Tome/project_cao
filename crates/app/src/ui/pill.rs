@@ -1,12 +1,15 @@
+use egui::text::{LayoutJob, TextFormat};
 use egui::{
-    Align2, Color32, Frame, Label, Margin, Rect, Response, RichText, Sense, Stroke, StrokeKind,
-    TextStyle, TextWrapMode, Ui, WidgetText, pos2, vec2,
+    Align, Align2, Area, AreaState, Color32, Context, FontId, Frame, Id, Label, Layout, Margin,
+    Order, Rect, Response, RichText, Sense, Stroke, StrokeKind, TextStyle, TextWrapMode, Ui,
+    WidgetText, pos2, vec2,
 };
 
 use crate::ui::theme::tokens::{
-    ACCENT_AMBER, BACKGROUND_FLOATING, BACKGROUND_HOVER, BORDER_GROUP, RADIUS_BUTTON, RADIUS_PILL,
-    SPACING_L, SPACING_S, SPACING_XXL, STATE_ERROR, STATE_ERROR_BACKGROUND, STATE_ERROR_TEXT,
-    TEXT_BUTTON, TYPOGRAPHY_SIZES_BUTTON, TYPOGRAPHY_SIZES_DETAIL,
+    ACCENT_AMBER, BACKGROUND_FLOATING, BACKGROUND_HOVER, BORDER_CONTROL, BORDER_GROUP,
+    RADIUS_BUTTON, RADIUS_PILL, SPACING_L, SPACING_M, SPACING_S, SPACING_XXL, STATE_ERROR,
+    STATE_ERROR_BACKGROUND, STATE_ERROR_TEXT, TEXT_BUTTON, TEXT_TITLE, TYPOGRAPHY_SIZES_BUTTON,
+    TYPOGRAPHY_SIZES_DETAIL,
 };
 
 /// How tall a message stands, its dot how wide, and how far the dot stands
@@ -31,6 +34,74 @@ pub fn pill(ui: &mut Ui, text: &str) -> Response {
             )
         })
         .inner
+}
+
+/// A pill standing over a view, its middle on the view's and its top a little
+/// below the view's, holding a row laid left to right. It sits on a layer of
+/// its own, above the view: what lies under it is neither hovered nor clicked,
+/// save by a drag already under way, which carries on over it.
+///
+/// The row is laid `row_height` tall from the start, the height of the
+/// tallest thing it holds: a row that only grows once that thing is laid
+/// leaves what came before it centred on the shorter band it was laid in.
+pub fn floating_pill<R>(
+    ctx: &Context,
+    id: Id,
+    view: Rect,
+    row_height: f32,
+    contents: impl FnOnce(&mut Ui) -> R,
+) -> R {
+    let size_before = AreaState::load(ctx, id).and_then(|state| state.size);
+    let shown = Area::new(id)
+        .order(Order::Middle)
+        .interactable(ctx.dragged_id().is_none())
+        .pivot(Align2::CENTER_TOP)
+        .fixed_pos(pos2(view.center().x, view.top() + SPACING_XXL))
+        .constrain_to(view)
+        .show(ctx, |ui| {
+            Frame::popup(ui.style())
+                .stroke(Stroke::new(1.0, BORDER_CONTROL))
+                .corner_radius(RADIUS_PILL)
+                .inner_margin(Margin {
+                    left: SPACING_XXL as i8,
+                    right: SPACING_M as i8,
+                    top: SPACING_S as i8,
+                    bottom: SPACING_S as i8,
+                })
+                .show(ui, |ui| {
+                    ui.style_mut().wrap_mode = Some(TextWrapMode::Extend);
+                    ui.spacing_mut().item_spacing.x = SPACING_XXL;
+                    let row = vec2(ui.available_width(), row_height);
+                    ui.allocate_ui_with_layout(row, Layout::left_to_right(Align::Center), contents)
+                        .inner
+                })
+                .inner
+        });
+    // The pill is placed by the size it had the frame before: one that grew or
+    // shrank stands off the middle until the next frame lays it again.
+    if size_before != Some(shown.response.rect.size()) {
+        ctx.request_repaint();
+    }
+    shown.inner
+}
+
+/// A name in the strongest ink, then what it stands on after a middle dot, as
+/// a single text.
+pub fn name_and_detail(ui: &mut Ui, name: &str, detail: &str) -> Response {
+    let font = FontId::proportional(TYPOGRAPHY_SIZES_BUTTON);
+    let mut job = LayoutJob::default();
+    job.append(name, 0.0, TextFormat::simple(font.clone(), TEXT_TITLE));
+    job.append(
+        &format!(" · {detail}"),
+        0.0,
+        TextFormat::simple(font, TEXT_BUTTON),
+    );
+    ui.label(job)
+}
+
+/// A short note beside what a pill names, smaller, in the ink it is handed.
+pub fn note(ui: &mut Ui, text: &str, ink: Color32) -> Response {
+    ui.label(RichText::new(text).size(TYPOGRAPHY_SIZES_DETAIL).color(ink))
 }
 
 /// What a message is said as, which colours its dot, its patch and its text.

@@ -85,6 +85,25 @@ fn a_length_away_from_the_origin_leaves_its_end_free() {
     assert!(!sketch.settled_points(1.0)[end.0]);
 }
 
+#[test]
+fn a_sketch_holds_a_drawing_only_while_a_point_besides_the_origin_is_left() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let born = sketch.holds_a_drawing();
+    let first = sketch.add_point(DVec2::new(20.0, 10.0));
+    let laid = sketch.holds_a_drawing();
+    let second = sketch.add_point(DVec2::new(40.0, 10.0));
+    sketch.erase(Element::Point(first));
+    let one_erased = sketch.holds_a_drawing();
+    sketch.erase(Element::Point(second));
+    let all_erased = sketch.holds_a_drawing();
+
+    assert_eq!(
+        (born, laid, one_erased, all_erased),
+        (false, true, true, false),
+        "(as born, once a point is laid, once one of two is erased, once both are)",
+    );
+}
+
 /// Random enough to reach the edits a scripted drawing never makes, and
 /// repeatable so a failure can be looked at again.
 struct Rng(u64);
@@ -111,12 +130,18 @@ fn live_segment(sketch: &Sketch, rng: &mut Rng) -> Option<SegmentId> {
 /// Hung off the origin and heavily measured, because a drawing that holds
 /// nothing has the same verdict whatever is done to it, and would let this
 /// test pass while reading nothing at all.
+///
+/// The count of degrees of freedom is remembered against the same print, and
+/// held here the same way: after every edit, what `freedom` answers against a
+/// count made afresh. The count runs from none to a few dozen in every seed,
+/// so one remembered past the edit that changed it is caught.
 #[test]
 fn a_drawing_edited_every_way_never_answers_from_a_reading_it_has_outlived() {
     for seed in 1..12u64 {
         let mut rng = Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15).max(1));
         let mut sketch = Sketch::new(WorkPlane::XY);
         let mut verdicts: Vec<Vec<bool>> = Vec::new();
+        let mut counts: Vec<usize> = Vec::new();
 
         for step in 0..90 {
             match rng.range(9) {
@@ -243,6 +268,14 @@ fn a_drawing_edited_every_way_never_answers_from_a_reading_it_has_outlived() {
                 "seed {seed}, edit {step}: the verdict came from a drawing that no longer is",
             );
             verdicts.push(remembered);
+
+            let counted = sketch.freedom(1.0);
+            assert_eq!(
+                counted,
+                sketch.count_freedom(1.0),
+                "seed {seed}, edit {step}: the count came from a drawing that no longer is",
+            );
+            counts.push(counted.degrees_of_freedom);
         }
 
         assert!(
@@ -254,6 +287,10 @@ fn a_drawing_edited_every_way_never_answers_from_a_reading_it_has_outlived() {
         assert!(
             verdicts.windows(2).any(|pair| pair[0] != pair[1]),
             "seed {seed} gave one verdict throughout, so no edit was ever seen",
+        );
+        assert!(
+            counts.windows(2).any(|pair| pair[0] != pair[1]),
+            "seed {seed} counted the same freedom throughout, so no edit was ever counted",
         );
     }
 }

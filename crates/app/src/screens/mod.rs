@@ -8,6 +8,7 @@ pub mod part_tree;
 pub mod ribbon;
 pub mod settings;
 pub mod sketch;
+pub mod sketch_pill;
 pub mod start_menu;
 pub mod title_bar;
 pub mod variables;

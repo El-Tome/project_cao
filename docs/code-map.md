@@ -127,7 +127,7 @@ in one of the two domains, never there.
 | One equation of the system, linearised around the drawing's current shape | `sketch/src/equation.rs` | `Equation` |
 | The blocks that keep their shape while the rest of the drawing settles | `sketch/src/rigid.rs` | `Block`, `rigidify`, `ownership` |
 | What a set of equations holds, and what it leaves free | `sketch/src/independence.rs` | `rank`, `null_space`, `is_dependent` |
-| How much of a drawing is already decided | `sketch/src/settled.rs` | `Freedom`, `freedom`, `is_fully_constrained`, `settled_points` |
+| How much of a drawing is already decided, each answer read once per state of the drawing | `sketch/src/settled.rs`, `sketch/src/sketch/settled_cache.rs` | `Freedom`, `freedom`, `holds_a_drawing`, `is_fully_constrained`, `settled_points`; `print_of_what_is_read` |
 | A circle, an arc or an ellipse drawn to another size about its centre | `sketch/src/resizing.rs` | `Curved`, `Sketch::curve_at`, `reach_through`, `resize`, `resize_in_place`, `resize_circle`, `resize_arc`, `resize_ellipse` |
 | The five circle constructions, and the ways of drawing one | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three`, `CircleMode` |
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection`, `kind`, `near_side` |
@@ -432,6 +432,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Settings screen | `app/src/screens/settings/` | `show(...)`, one file per section |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
 | Title bar of the part screen: « Accueil » with its icon, the part's name, its path on hover, and where the view stands in a pill — the sketch open, the section view, the kept section shown, the plane, or the free view — then the message, in the middle of the window, or an error in its place until the next message or command | `app/src/screens/title_bar/`, `app/src/screens/mod.rs`, `app/src/wording/view.rs` | `state.rs` `TitleBar::of`, `Said`, `Covering`, `settle`, `view.rs` `show`; `OpenPart::covering`; `Standing`, `standing_on` |
+| The pill over the view while a sketch is open: its name, the kept section it was laid on or else its plane, the degrees of freedom the solver leaves it, and « Terminer ↵ », which finishes it as the ribbon does | `app/src/screens/sketch_pill/`, `app/src/wording/view.rs`, `app/src/ui/pill.rs`, `app/src/ui/primary_button.rs`, `app/src/app.rs` | `SketchPill::of`, `Left`, `show`; `kept_section`; `floating_pill`, `name_and_detail`, `note`; `primary_button`; `show_part` |
 | What a key actually says, in French and in any language dropped in | `app/src/lang/` | `Catalogue::french`, `load`, `t`, `t_with`, `t_moment`, `fr.json` |
 | What a command, its help and its family are called | `app/src/wording/command.rs` | `label`, `hint`, `family_heading` |
 | What a history step and its unfolded line say | `app/src/wording/history/` | `label` in `mod.rs`, `detail` in `detail.rs` |

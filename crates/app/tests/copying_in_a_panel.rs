@@ -31,9 +31,10 @@ use glam::DVec2;
 /// Wide enough for the ribbon's patterns to be on screen.
 const WIDE: egui::Vec2 = egui::vec2(1920.0, 800.0);
 
-/// Well clear of the trait, high and to its right: a point of the sketch where
-/// nothing is drawn.
-const ON_EMPTY_SPACE: DVec2 = DVec2::new(176.27, 112.83);
+/// Well clear of the trait, to its right: a point of the sketch where nothing
+/// is drawn. Where it was first written, brought down by twice 22.11 mm, out
+/// of the band the pill a sketch shows at the top of the view covers (#727).
+const ON_EMPTY_SPACE: DVec2 = DVec2::new(176.27, 68.61);
 
 /// A part with one trait drawn on its sketch, the sketch still open.
 fn a_trait_drawn(test: &str, settings: cao_prefs::Settings) -> driver::App {
@@ -66,7 +67,7 @@ fn enter_with_the_panel_open_does_not_close_the_sketch() {
         driver::press(&mut app, egui::Key::Enter);
 
         assert!(
-            driver::shows(&app, "Terminer"),
+            driver::shows(&app, driver::FINISH_IN_THE_RIBBON),
             "Entrée number {pressed} moved through the panel, and the sketch is still open"
         );
     }
@@ -97,7 +98,10 @@ fn escape_hands_what_the_panel_held_to_the_selection_tool() {
         driver::is_on(&app, "Sélection (S)"),
         "the Selection tool is in hand"
     );
-    assert!(driver::shows(&app, "Terminer"), "the sketch stays open");
+    assert!(
+        driver::shows(&app, driver::FINISH_IN_THE_RIBBON),
+        "the sketch stays open"
+    );
     driver::click(&mut app, "Symétrie");
     assert!(
         driver::shows(&app, "Éléments : 1"),
@@ -315,7 +319,7 @@ fn finishing_the_sketch_keeps_the_place_the_panel_was_left_at() {
         "the place is written down when the panel is let go"
     );
 
-    driver::click(&mut app, "Terminer");
+    driver::click(&mut app, driver::FINISH_IN_THE_RIBBON);
 
     assert_eq!(saved_place(test), left_at);
 }

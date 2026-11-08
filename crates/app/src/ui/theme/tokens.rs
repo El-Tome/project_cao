@@ -36,6 +36,7 @@ pub const STATE_ERROR_TEXT: Color32 = Color32::from_rgb(0xF5, 0xA9, 0x9F);
 /// `rgba(240,138,126,0.15)`: 0.15 of 255 is 38.
 pub const STATE_ERROR_BACKGROUND: Color32 =
     Color32::from_rgba_unmultiplied_const(240, 138, 126, 38);
+pub const STATE_SUCCESS_TEXT: Color32 = Color32::from_rgb(0x8F, 0xE3, 0xBC);
 
 pub const RADIUS_BUTTON: u8 = 5;
 pub const RADIUS_CONTROL: u8 = 6;

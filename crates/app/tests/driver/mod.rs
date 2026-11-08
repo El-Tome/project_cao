@@ -45,6 +45,12 @@ pub const WHERE_ITS_DIMENSION_GOES: DVec2 = DVec2::new(87.39, 65.72);
 /// where the area an extrusion raises is clicked.
 pub const INSIDE_THE_RECTANGLE: DVec2 = DVec2::new(62.61, -15.15);
 
+/// The ribbon's « Terminer », by the whole name the ribbon gives it, its
+/// shortcut included: the pill a sketch shows over the view carries a
+/// « Terminer ↵ » of its own (#727), and a gesture aimed at « Terminer » alone
+/// would find both.
+pub const FINISH_IN_THE_RIBBON: &str = "Terminer (Entrée)";
+
 pub type App = Harness<'static, CaoApp>;
 
 /// How high the drawing area was when the fixtures above were tuned, in
@@ -686,4 +692,155 @@ pub fn type_beside(app: &mut App, label: &str, text: &str) {
     app.event(egui::Event::Text(text.to_owned()));
     app.run();
     hold_the_canvas(app);
+}
+
+/// Whether a button on screen has a name starting with this.
+pub fn a_button_reads(app: &App, label: &str) -> bool {
+    app.query_all_by_role(egui::accesskit::Role::Button)
+        .filter_map(|node| node.accesskit_node().label())
+        .any(|read| read.starts_with(label))
+}
+
+/// The ribbon's button whose name starts with this, whichever tab it sits
+/// under: the tabs are tried in turn until one offers it.
+pub fn click_in_the_ribbon(app: &mut App, label: &str) {
+    for tab in ["Esquisse", "Extrusion", "Export"] {
+        if a_button_reads(app, label) {
+            break;
+        }
+        click_the_button(app, tab);
+    }
+    let node = app
+        .query_all_by_role(egui::accesskit::Role::Button)
+        .find(|node| {
+            node.accesskit_node()
+                .label()
+                .is_some_and(|read| read.starts_with(label))
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "no tab of the ribbon offers « {label} », showing {:?}",
+                on_screen(app)
+            )
+        });
+    node.click();
+    app.run();
+    hold_the_canvas(app);
+}
+
+/// The button of the tree, or of a panel, that reads exactly this — never a
+/// text of the title bar or of the pill, which may carry the same words.
+pub fn the_row<'a>(app: &'a App, name: &str) -> Option<egui_kittest::Node<'a>> {
+    app.query_all_by_role(egui::accesskit::Role::Button)
+        .find(|node| node.accesskit_node().label().as_deref() == Some(name))
+}
+
+pub fn in_the_tree(app: &App, name: &str) -> bool {
+    the_row(app, name).is_some()
+}
+
+/// Two presses and releases close enough in time for egui to read one
+/// double-click: each frame of the harness otherwise moves the clock a quarter
+/// of a second, past what a double-click allows.
+pub fn double_click(app: &mut App, label: &str) {
+    let at = the_row(app, label)
+        .unwrap_or_else(|| panic!("no button reads « {label} »"))
+        .rect()
+        .center();
+    app.hover_at(at);
+    app.run();
+    let start = app.ctx.input(|input| input.time);
+    for (rank, pressed) in [true, false, true, false].into_iter().enumerate() {
+        app.input_mut().time = Some(start + 0.02 * (rank as f64 + 1.0));
+        app.event(egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        });
+        app.step();
+    }
+    app.input_mut().time = None;
+    app.run();
+    hold_the_canvas(app);
+}
+
+pub fn right_click(app: &mut App, label: &str) {
+    let at = the_row(app, label)
+        .unwrap_or_else(|| panic!("no button reads « {label} »"))
+        .rect()
+        .center();
+    app.hover_at(at);
+    app.run();
+    for pressed in [true, false] {
+        app.event(egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Secondary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        });
+        app.run();
+    }
+    hold_the_canvas(app);
+}
+
+/// The numbered steps of the history, in order.
+pub fn steps(app: &App) -> Vec<String> {
+    on_screen(app)
+        .into_iter()
+        .filter(|label| {
+            label
+                .split_once(". ")
+                .is_some_and(|(rank, _)| rank.parse::<usize>().is_ok())
+        })
+        .collect()
+}
+
+/// Where the application opened for `test` keeps the part of that name: the
+/// folder it makes new parts in, `cao_prefs::locations::default_projects_dir`.
+pub fn the_part_s_file(test: &str, named: &str) -> PathBuf {
+    cao_prefs::locations::default_projects_dir(&locations_of(test)).join(format!("{named}.caopart"))
+}
+
+/// The part of that name as the application puts it away, read back from its
+/// file. The application is left on the home screen.
+pub fn the_part_put_away(app: &mut App, test: &str, named: &str) -> cao_part::PartDocument {
+    click(app, "Accueil");
+    let path = the_part_s_file(test, named);
+    cao_part::PartDocument::load(&cao_app::adapters::files::DiskFiles, &path)
+        .unwrap_or_else(|err| panic!("the part at {path:?} does not open: {err:?}"))
+}
+
+/// The corners of the rectangle `a_block` raises, and a point inside it,
+/// points of its sketch on YZ: those `keeping_a_section.rs` tuned.
+pub const THE_BLOCK_S_CORNERS: [DVec2; 2] = [DVec2::new(-8.82, 44.59), DVec2::new(123.83, -52.69)];
+pub const ON_THE_BLOCK: DVec2 = DVec2::new(57.5, -4.05);
+
+/// Where a section of the block along YZ, through its middle, 5 mm into its
+/// 10, shows its cut: a plane off the origin.
+pub const ON_THE_CUT: DVec3 = DVec3::new(5.0, 46.2, -2.47);
+
+/// A part named « Bloc », a block raised 10 mm off a rectangle drawn on the
+/// plane YZ, its sketch then finished.
+pub fn a_block(test: &str) -> App {
+    let mut app = open(test);
+    create_a_part(&mut app, "Bloc");
+    start_a_sketch(&mut app);
+    click(&mut app, "Rectangle (R)");
+    click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[0]);
+    click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[1]);
+    click_exactly(&mut app, "Extrusion");
+    click_exactly(&mut app, "1");
+    click(&mut app, "Ajout de matière");
+    click_at_sketch_point(&mut app, ON_THE_BLOCK);
+    click(&mut app, "Appliquer");
+    press(&mut app, egui::Key::Escape);
+    click_in_the_ribbon(&mut app, FINISH_IN_THE_RIBBON);
+    click_the_button(&mut app, "Esquisse");
+    assert!(
+        !is_enabled(&app, FINISH_IN_THE_RIBBON),
+        "the sketch the block was raised from is still being edited, showing {:?}",
+        on_screen(&app),
+    );
+    app
 }

@@ -32,12 +32,17 @@ pub fn standing_on(lang: &Catalogue, standing: Standing) -> String {
         Standing {
             kept_section_rank: Some(rank),
             ..
-        } => numbered("part_tree.section", rank),
+        } => kept_section(lang, rank),
         Standing {
             plane: Some(plane), ..
         } => plane::label(lang, plane.kind()),
         Standing { plane: None, .. } => lang.t("app.free_view"),
     }
+}
+
+/// A kept section by its rank from one, as the Part tree names it.
+pub fn kept_section(lang: &Catalogue, rank: usize) -> String {
+    lang.t_with("part_tree.section", &[("rank", &rank.to_string())])
 }
 
 #[cfg(test)]

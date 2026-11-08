@@ -400,7 +400,10 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | The tree's rows clicked: in the open sketch they select, as a click on the canvas does; in another they light an element or an area on the canvas; the eye of a sketch and the « Corps » rubric stepping the body's mode; a kept section switched on by a click, reopened by a double-click, deleted from its menu after a question when a drawing stands on it | `app/src/screens/part_tree/state/clicks.rs`, `app/src/screens/part_tree/view.rs`, `app/src/panels.rs` | `TreeAction`, `clicked`, `clickable`, `marked`, `take`, `section_delete_confirm` |
 | Canvas: which sketches are drawn — one an extrusion or a revolution was made from only with its eye lit, the eyes kept by the number of the operation that created their sketch and put back to their defaults by a compaction — the row lit from the tree, and the body's mode, opaque, see-through or invisible | `app/src/screens/viewport/visibility.rs`, `app/src/commands.rs` | `eye_lit`, `toggle_eye`, `light`, `body_mode`, `next_body_mode`, `sketches_seen`; `compact_history` |
 | Canvas: the part's matter in a frame, drawn as the body's mode says over what the sketch's cut or the section leaves | `app/src/screens/viewport/render/body.rs` | `push_matter` |
-| The eye beside a row, lit or faded | `app/src/ui/eye.rs` | `eye` |
+| The eye beside a row: the `eye` icon while what the row names is shown, `eye-off` while it is not, called what a click on it does | `app/src/ui/eye.rs` | `eye` |
+| The redesign's icons, embedded from `docs/redesign/icons/`, handed to egui drawn in white so that a widget's tint gives their colour, and drawn at the three sizes the redesign uses | `app/src/ui/icon.rs` | `Icon`, `IconSize`, `install`, `Icon::image` |
+| A button of the ribbon: its icon above its name, its icon alone with names off, or a row of a menu, the icon in the colour of the name | `app/src/ui/tool_button.rs` | `tool_button`, `icon_button`, `menu_entry` |
+| A toggle of the ribbon's header: its icon beside its name, pressed while its panel shows; « Préférences » wears the same face | `app/src/ui/panel_toggle.rs` | `panel_toggle`, `panel_button` |
 | The chrome's theme: dark whatever the system says, its `Visuals` and `Style`, the two typefaces | `app/src/ui/theme.rs` | `install`, `font_definitions` |
 | The redesign's tokens the chrome wears, each named after its path in `docs/redesign/tokens.json` | `app/src/ui/theme/tokens.rs` | `BACKGROUND_PANEL`, `TEXT_PRIMARY`, `ACCENT_AMBER_TEXT`, … |
 | What the tree says by a case: its eye's hover, the « Corps » rubric with the body's mode | `app/src/wording/part_tree.rs` | `eye`, `body` |
@@ -419,6 +422,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | What a part's picture is made of | `app/src/picture/scene.rs` | `of` |
 | Taking that picture | `app/src/picture/mod.rs` | `Painter::take`, `SIDE` |
 | Toolbar | `app/src/screens/ribbon/` | `view.rs` draws, `state.rs` says what a command is in, `Drawn` is what it is told about the part |
+| The icon each button of the toolbar wears: the one a command is looked up to, and for the matter in front of the sketch the one of the state it is in | `app/src/screens/ribbon/icons.rs`, `app/src/screens/ribbon/state.rs` | `of`, `matter_in_front`; `icon` |
 | Settings screen | `app/src/screens/settings/` | `show(...)`, one file per section |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
 | What a key actually says, in French and in any language dropped in | `app/src/lang/` | `Catalogue::french`, `load`, `t`, `t_with`, `t_moment`, `fr.json` |

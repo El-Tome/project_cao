@@ -351,13 +351,13 @@ fn a_face_passing_through_another_along_a_short_edge_tilted_within_the_room_of_a
     assert!(
         matches!(
             uncrossed(&[flat, rising, sinking]),
-            Err(Flaw::Crossing { .. })
+            Err(Flaw::Crossing { first, .. }) if *first == flat
         ),
         "the sinking face passes through the flat one where the rising one ends on it"
     );
     assert!(matches!(
         uncrossed(&[flat, sinking, rising]),
-        Err(Flaw::Crossing { .. })
+        Err(Flaw::Crossing { first, .. }) if *first == flat
     ));
 }
 

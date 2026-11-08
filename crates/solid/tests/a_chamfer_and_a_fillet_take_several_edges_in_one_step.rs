@@ -97,16 +97,19 @@
 //!   `a_fillet_and_a_chamfer_on_an_outward_edge_and_an_inward_one_cut_the_first_off_and_fill_the_second_in_at_one_value`,
 //!   at a value both fit, and at one each kind limits for the other
 //! - Two edges of the list that share a vertex decline the step
-//!   `Unsupported`, and nothing of it is laid —
-//!   `a_fillet_and_a_chamfer_on_two_edges_sharing_a_vertex_are_declined_as_unsupported`;
-//!   nothing laid is what a declined step is: the step hands back its reason
-//!   and no body, and the part it was given is left as it was. Two edges
-//!   sharing a vertex share a face wherever three faces meet there; sharing
-//!   none, they meet where four faces or more do, and each alone is declined
-//!   there already — on a block with another standing on its top, over its
-//!   corner, both edges at the corner where they cross — so no list reaches
-//!   past the step of one edge to that case. Beyond the issue's wording: a
-//!   list of no edge is declined `Unsupported` —
+//!   `Unsupported`, and nothing of it is laid — no test: #699 took this
+//!   back. Where the vertex is a convex corner the two now meet in a mitre,
+//!   and where an edge of the corner meets inwards they are still declined,
+//!   both held in `a_chamfer_and_a_fillet_blend_the_corner_their_edges_meet_at.rs`;
+//!   the test that stood here, on the block's top front right corner, went
+//!   with the decline. Nothing laid is what a declined step is: the step
+//!   hands back its reason and no body, and the part it was given is left as
+//!   it was. Two edges sharing a vertex share a face wherever three faces
+//!   meet there; sharing none, they meet where four faces or more do, and
+//!   each alone is declined there already — on a block with another standing
+//!   on its top, over its corner, both edges at the corner where they cross —
+//!   so no list reaches past the step of one edge to that case.
+//! - Beyond the issue's wording: a list of no edge is declined `Unsupported` —
 //!   `a_fillet_and_a_chamfer_on_a_list_of_no_edge_are_declined_as_unsupported`;
 //!   and two edges that share a face but no vertex and are not parallel are
 //!   laid, each as alone, where their set-backs do not meet — well short of
@@ -2476,39 +2479,6 @@ fn block_at(origin: DVec3, [length, breadth, height]: [f64; 3]) -> Body {
         )
         .expect("the tool raises");
     part.union(&tool).expect("the part is built")
-}
-
-#[test]
-fn a_fillet_and_a_chamfer_on_two_edges_sharing_a_vertex_are_declined_as_unsupported() {
-    let block = block([LENGTH, BREADTH, HEIGHT]);
-    let top_front = edge_between(&block, TOP, FRONT);
-
-    for (what, other) in [
-        (
-            "the top's front edge and its right edge, meeting at the top's front right corner",
-            edge_between(&block, TOP, RIGHT),
-        ),
-        (
-            "the top's front edge and the front's right edge, meeting at the same corner",
-            edge_between(&block, FRONT, RIGHT),
-        ),
-    ] {
-        let names = [top_front.clone(), other];
-
-        let filleted = block.fillet_edges(&names, 3.0).err();
-        let chamfered = block.chamfer_edges(&names, 3.0).err();
-
-        assert_eq!(
-            filleted,
-            Some(Declined::Unsupported),
-            "the fillet on {what}"
-        );
-        assert_eq!(
-            chamfered,
-            Some(Declined::Unsupported),
-            "the chamfer on {what}"
-        );
-    }
 }
 
 #[test]

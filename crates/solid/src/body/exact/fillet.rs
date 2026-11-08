@@ -32,15 +32,17 @@ impl Exact {
     /// those faces even so, or did not lay as one face. `Lost`: an edge its
     /// name no longer finds. `Unsupported`: a list of no edge, an edge that is
     /// not straight between two flat faces, one running on tangentially into
-    /// the next edge of a face, two edges sharing a vertex or one edge named
-    /// twice, an edge whose set-backs meet those of two others — rounds closing
-    /// on themselves, #790 — and a cut that left anything but its round — a
-    /// face of the prism, the round in two pieces or with a corner on neither
-    /// of the edge's faces, a face the body held, but the edge's two, taken
-    /// away whole — as where a round leaving the edge's end outwards bulges
-    /// past the edge's face, and the prism's wall square to that face cuts the
-    /// bulge off, or two rounds meet where the radius was not measured for
-    /// them.
+    /// the next edge of a face, one edge named twice, two edges meeting at a
+    /// corner where an edge meets inwards, and two meeting at a convex corner,
+    /// where the round laid first, carried past the corner, runs on
+    /// tangentially from the end of the other, an edge whose set-backs meet
+    /// those of two others — rounds closing on themselves, #790 — and a cut
+    /// that left anything but its round — a face of the prism, the round in
+    /// two pieces or with a corner on neither of the edge's faces, a face the
+    /// body held, but the edge's two, taken away whole — as where a round
+    /// leaving the edge's end outwards bulges past the edge's face, and the
+    /// prism's wall square to that face cuts the bulge off, or two rounds meet
+    /// where the radius was not measured for them.
     pub fn filleted(&self, names: &[EdgeName], radius: f64) -> Result<(Exact, f64), Declined> {
         let (cut, taken, pairs) = self.cut_off(
             names,

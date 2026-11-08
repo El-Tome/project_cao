@@ -4,6 +4,7 @@
 //! runs from it, the cut or the join of a prism raised along it, and the
 //! check that it left the one face the step names.
 
+mod corners;
 mod fill;
 mod pairs;
 mod section;
@@ -56,17 +57,21 @@ impl Exact {
     /// Where `together` is some, the pairs whose set-backs meet across their
     /// face, the earlier first, are each taken off as one by the prism it
     /// raises, the face they shared gone; where it is none, each edge is laid
-    /// alone. The wall an edge's prism lays is numbered where the steps'
-    /// numbers ended, plus the edge's rank in the list; a pair is laid at its
-    /// later edge's turn, so that every number laid before stands below those a
+    /// alone. Two edges meeting at a convex corner are laid in turn as any two
+    /// are, each prism carried past the corner along its edge's line, so that
+    /// the later trims the earlier's face there: two flats meet in a mitre.
+    /// The wall an edge's prism lays is numbered where the steps' numbers
+    /// ended, plus the edge's rank in the list; a pair is laid at its later
+    /// edge's turn, so that every number laid before stands below those a
     /// prism lays, as [`Exact::cut_along`] reads them. A value shorter than the
     /// kernel can set a cut back from an edge is declined first; a list of no
     /// edge `Unsupported`; an edge its name no longer finds `Lost`; an edge
-    /// that is not a wedge, two edges sharing a vertex — one edge two names
-    /// find among them —, where `together` is some an edge meeting two others,
-    /// and a cut or a fill that left something else than its one face, as
-    /// [`Exact::cut_along`] reads it, are declined `Unsupported`; a prism the
-    /// tool cannot raise, as the tool says.
+    /// that is not a wedge, one edge two names find, two edges meeting at a
+    /// corner that is not convex — an edge ending there that is no wedge, or
+    /// whose faces meet inwards —, where `together` is some an edge meeting
+    /// two others, and a cut or a fill that left something else than its one
+    /// face, as [`Exact::cut_along`] reads it, are declined `Unsupported`; a
+    /// prism the tool cannot raise, as the tool says.
     pub(super) fn cut_off(
         &self,
         names: &[EdgeName],
@@ -88,12 +93,9 @@ impl Exact {
                 .iter()
                 .map(|name| self.wedge(name))
                 .collect::<Result<Vec<(EdgeId, Wedge)>, Declined>>()?;
-            let mut corners = BTreeSet::new();
-            let apart = found.iter().all(|&(edge, _)| {
-                let ends = self.brep.edge(edge).ends;
-                ends.is_some_and(|ends| ends.into_iter().all(|end| corners.insert(end)))
-            });
-            if !apart {
+            let edges: Vec<EdgeId> = found.iter().map(|&(edge, _)| edge).collect();
+            let once = edges.iter().collect::<BTreeSet<_>>().len() == edges.len();
+            if !once || !corners::convex(&self.brep, &edges) {
                 return Err(Declined::Unsupported);
             }
             let wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();

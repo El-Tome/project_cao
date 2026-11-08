@@ -17,11 +17,10 @@
 //! by about as far as the two walls stand apart there.
 
 use std::collections::BTreeMap;
-use std::f64::consts::{PI, TAU};
 
 use glam::{DQuat, DVec3};
 
-use super::{Around, alone};
+use super::{Around, alone, turned};
 use crate::brep::curve::{Curve, Meet, Wall};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
@@ -62,7 +61,7 @@ pub(super) fn shared(
         else {
             continue;
         };
-        let theirs = alone(body, twin_edge, &twin, around, grids, tolerance, &[]);
+        let theirs = alone(body, twin_edge, &twin, around, grids, tolerance);
         if theirs.is_empty() {
             continue;
         }
@@ -149,7 +148,6 @@ impl Reading {
     /// wall's loop's kept; within the span both loops reach, a `hair` inside
     /// where either turns back.
     fn common(&self, loops: [(usize, Along, &Vec<DVec3>); 2], apart: f64, hair: f64) -> Vec<f64> {
-        let round = |angle: f64| (angle + PI).rem_euclid(TAU) - PI;
         let mut ordered = loops;
         ordered.sort_by_key(|(side, _, _)| *side);
         let base = ordered
@@ -159,7 +157,7 @@ impl Reading {
         let read = |(side, _, points): &(usize, Along, &Vec<DVec3>)| -> Vec<f64> {
             points
                 .iter()
-                .map(|point| round(self.read(*side, *point) - base))
+                .map(|point| turned(self.read(*side, *point) - base))
                 .collect()
         };
         let mut found: Vec<(usize, f64)> = Vec::new();
@@ -188,7 +186,7 @@ impl Reading {
         each.sort_by_key(|(side, _)| *side);
         let mut kept: Vec<f64> = Vec::new();
         for (_, angle) in found.into_iter().chain(each) {
-            if kept.iter().all(|other| round(angle - other).abs() > apart) {
+            if kept.iter().all(|other| turned(angle - other).abs() > apart) {
                 kept.push(angle);
             }
         }

@@ -2180,6 +2180,25 @@ wrong answer:
   `sampling/meet/twin.rs`). A cone or an elliptic wall is not laid so yet
   (#720).
 
+A curve grazing a third wall is drawn, not declined (#786). A post whose
+wall passes where a cone and a bore meet, without meeting there, stands
+outside the curve they meet along by the square of the distance from
+that place, and the curve's chords sag towards the bore's axis by the
+square too: no sampling of the curve alone keeps them outside the post's
+triangles.
+Where a curve two walls meet along passes within the tolerance of a
+third cylinder it does not lie on, away from a corner where that
+cylinder has a face, it takes a point wherever it crosses an angle round
+the cylinder the cylinder's own samples stand at, and the two keep their
+order between the same rays (`sampling/meet/third.rs`). The points are
+added once every wall's rays are settled, the curve's own samples kept
+as they were, and handed to no wall: the curve's own cylinder takes no
+ray through them, as it does through its other samples
+(`contact/own.rs`). Only a cylinder is read as the third wall, not a
+cone nor an elliptic wall; a curve on a wall sharing its rays leaning a
+hair off parallel (`twin.rs`), or a third wall parallel to one of its
+own, takes none.
+
 ### A cone against another wall
 
 A cone meets a cylinder, an elliptic wall or a cone of another axis along

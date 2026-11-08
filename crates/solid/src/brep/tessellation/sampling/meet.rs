@@ -9,14 +9,16 @@
 //! its own between two of its points. Then, between two of those, wherever
 //! the chord would stand further from the curve than the tolerance. A line
 //! two walls sharing their rays cross along is sampled at its ends alone
-//! (`crossing.rs`).
+//! (`crossing.rs`). A curve grazing a third cylinder takes a point besides
+//! wherever it crosses an angle that cylinder's own samples stand at, once
+//! the rays are settled (`third.rs`).
 //!
 //! An elliptic wall (#571) is divided as a circle of its major half-axis,
 //! as its rims are, its grid an eccentric angle's; it takes the angles its
 //! rims take besides their grid (`elliptic.rs`) where a cylinder takes its
 //! rays.
 
-use std::f64::consts::TAU;
+use std::f64::consts::{PI, TAU};
 
 use std::collections::BTreeMap;
 
@@ -65,16 +67,14 @@ enum Reason {
 /// An edge standing within the kernel's tolerance of the chord between its
 /// ends — a meet run along a line two walls touch along — is a line to the
 /// kernel, sampled at its ends alone as a line is (354000000008476).
-/// `third` are places it takes besides, where it grazes a wall it does not
-/// lie on (`third.rs`).
-fn sampled(
+fn on_meet_by(
     meet: &Meet,
     edge: &Edge,
     tolerance: f64,
     eps: f64,
-    (rays, steps): ([&[f64]; 2], [usize; 2]),
+    rays: [&[f64]; 2],
+    steps: [usize; 2],
     clear: &dyn Fn(DVec3) -> bool,
-    third: &[f64],
 ) -> Vec<DVec3> {
     let Some(period) = meet.period() else {
         return Vec::new();
@@ -91,7 +91,6 @@ fn sampled(
         (first..=last).map(move |turn| t + period * turn as f64)
     };
     let mut marks = vec![(low, Reason::End), (high, Reason::End)];
-    marks.extend(third.iter().map(|t| (*t, Reason::Ray)));
     for ((on_first, taken), steps) in [true, false].into_iter().zip(rays).zip(steps) {
         let turns = meet.turns(on_first);
         let grid = (0..steps)
@@ -172,7 +171,7 @@ fn sampled(
     points
 }
 
-/// The points of an edge along a meet between its ends, as [`sampled`]
+/// The points of an edge along a meet between its ends, as [`on_meet_by`]
 /// places them: on a cylinder of the body, on the rays its circles take in
 /// `contacts`, and none where it all but lies on a wall facing it, nor on a
 /// plane touching it but off the line they touch along, as a circle takes
@@ -186,7 +185,7 @@ pub(super) fn of_edge(
     grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
 ) -> Vec<DVec3> {
-    let points = alone(body, edge, meet, around, grids, tolerance, &[]);
+    let points = alone(body, edge, meet, around, grids, tolerance);
     twin::shared(body, edge, meet, around, grids, tolerance, points)
 }
 
@@ -206,7 +205,6 @@ fn alone(
     (walls, zones, contacts): Around,
     grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
-    third: &[f64],
 ) -> Vec<DVec3> {
     let edge = body.edge(id);
     let own = contact::held(body, id, meet);
@@ -272,14 +270,14 @@ fn alone(
                     Wall::Elliptic(_) | Wall::Cone(_) => true,
                 })
     };
-    sampled(
+    on_meet_by(
         meet,
         edge,
         tolerance,
         eps,
-        ([&rays[0], &rays[1]], steps),
+        [&rays[0], &rays[1]],
+        steps,
         &clear,
-        third,
     )
 }
 
@@ -344,18 +342,9 @@ fn grazing_ends<'a>(
     grazed(body, edge, &walls.map(|wall| wall.surface()), step)
 }
 
-/// [`sampled`], with no third wall.
-#[cfg(test)]
-fn on_meet_by(
-    meet: &Meet,
-    edge: &Edge,
-    tolerance: f64,
-    eps: f64,
-    rays: [&[f64]; 2],
-    steps: [usize; 2],
-    clear: &dyn Fn(DVec3) -> bool,
-) -> Vec<DVec3> {
-    sampled(meet, edge, tolerance, eps, (rays, steps), clear, &[])
+/// An angle brought within half a turn of nought.
+fn turned(angle: f64) -> f64 {
+    (angle + PI).rem_euclid(TAU) - PI
 }
 
 /// [`on_meet_by`], each wall's grid cut for its own size.

@@ -11,23 +11,28 @@
 //! at, the meet stands on the rays the wall's triangles are cut between,
 //! and the two keep their order between them, as two walls in contact do.
 //!
-//! Read once every wall's rays are settled, and not handed back: the bore
-//! would take a ray through such a place, the post a sample there through
-//! the curve the two meet along, and the meet another ray of the post.
+//! Read once every wall's rays are settled, and added to the meet's own
+//! samples, which are kept as they were: sampled again against rays its
+//! walls took since, they would no longer be the places the faces beside
+//! were laid out by (352000000002012). Nor handed back as rays: the bore
+//! would take one through such a place, the post a sample there through
+//! the curve the two meet along, and the meet another ray of the post. So
+//! the meet's own cylinder takes no ray through them, as it does through
+//! its other samples (`contact/own.rs`). Only a cylinder is read as the
+//! third wall, not a cone nor an elliptic wall.
 //! Not beside an end where the wall bounds a face, which the meet leaves
 //! from a corner of them both rather than grazes, nor on a wall parallel
 //! to one of the meet's own, which shares its rays in contact, or sharing
 //! them leaning a hair off parallel, which [`super::twin`] reads.
 
-use std::f64::consts::{PI, TAU};
+use std::f64::consts::TAU;
 
 use std::collections::BTreeMap;
 
 use glam::DVec3;
 
-use super::super::cone::Grid;
 use super::super::{divisions, taken};
-use super::{Around, alone, twin};
+use super::{Around, turned};
 use crate::brep::Scale;
 use crate::brep::curve::{Curve, Meet, Wall};
 use crate::brep::tessellation::contact::{self, Contact};
@@ -41,13 +46,14 @@ const STRETCHES: usize = 256;
 /// this, the parameter's rounding.
 const HALVINGS: u32 = 60;
 
-/// The points of every edge, `meets` as last sampled, each sampled once
-/// more where it grazes a wall it does not lie on, at the angles round that
-/// wall of the samples `meets` put on it; as they were elsewhere.
+/// The points of every edge, `meets` as last sampled, with a point besides
+/// wherever one grazes a wall it does not lie on and crosses an angle round
+/// that wall the samples `meets` put on it stand at. The edge's own samples
+/// are kept as they were: sampled again, against rays its walls took since,
+/// they would no longer be the places the faces beside were laid out by.
 pub(in super::super) fn settled(
     body: &Body,
     around: Around,
-    grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
     meets: Vec<Vec<DVec3>>,
 ) -> Vec<Vec<DVec3>> {
@@ -59,11 +65,49 @@ pub(in super::super) fn settled(
         };
         let places = places(body, (id, meet), around, &seen, tolerance);
         if !places.is_empty() {
-            let points = alone(body, id, meet, around, grids, tolerance, &places);
-            settled[id.0 as usize] = twin::shared(body, id, meet, around, grids, tolerance, points);
+            let points = &settled[id.0 as usize];
+            settled[id.0 as usize] = spliced(body, (id, meet), points, &places);
         }
     }
     settled
+}
+
+/// `points`, the samples of the edge `id` between its ends in the way it
+/// runs, and a point at each of `places` standing further than the
+/// kernel's tolerance from all of them, and further than a hair from either
+/// end, put in its order along the meet.
+fn spliced(
+    body: &Body,
+    (id, meet): (EdgeId, &Meet),
+    points: &[DVec3],
+    places: &[f64],
+) -> Vec<DVec3> {
+    let (edge, eps) = (body.edge(id), body.scale().eps());
+    let Some(period) = meet.period() else {
+        return points.to_vec();
+    };
+    let low = edge.from.min(edge.to);
+    let along = |t: f64| low + (t - low).rem_euclid(period);
+    let ends = [edge.from, edge.to].map(|t| meet.point(t));
+    let mut marked: Vec<(f64, DVec3)> = points
+        .iter()
+        .map(|point| (along(meet.parameter(*point)), *point))
+        .collect();
+    for t in places {
+        let point = meet.point(*t);
+        let apart = marked.iter().all(|(_, other)| other.distance(point) > eps)
+            && ends
+                .iter()
+                .all(|end| end.distance(point) > eps * Scale::HAIR);
+        if apart {
+            marked.push((along(*t), point));
+        }
+    }
+    marked.sort_by(|one, other| one.0.total_cmp(&other.0));
+    if edge.to < edge.from {
+        marked.reverse();
+    }
+    marked.into_iter().map(|(_, point)| point).collect()
 }
 
 /// For each wall of the body, the angles round it its triangles are cut
@@ -134,6 +178,12 @@ fn places(
         Some(_) => (edge.from.min(edge.to), edge.from.max(edge.to)),
     };
     let own = contact::held(body, id, meet);
+    if zones
+        .sharing()
+        .any(|(pair, _)| pair.iter().any(|wall| own.contains(&Wall::Cylinder(*wall))))
+    {
+        return Vec::new();
+    }
     let ends = match edge.ends {
         Some([first, last]) if edge.from <= edge.to => {
             [cornered(body, first), cornered(body, last)]
@@ -148,13 +198,10 @@ fn places(
         let parallel = own.iter().any(|one| {
             matches!(one, Wall::Cylinder(one) if one.axis.cross(cylinder.axis).length() <= Scale::RELATIVE)
         });
-        let twinned = zones.sharing().any(|(pair, _)| {
-            pair.contains(cylinder) && pair.iter().any(|one| own.contains(&Wall::Cylinder(*one)))
-        });
         let Some(rays) = seen.get(wall) else {
             continue;
         };
-        if own.contains(&held) || parallel || twinned {
+        if own.contains(&held) || parallel {
             continue;
         }
         let near = |t: f64| cylinder.distance(meet.point(t)).abs() <= tolerance;
@@ -219,9 +266,4 @@ fn cornered(body: &Body, vertex: VertexId) -> Vec<SurfaceId> {
     surfaces.sort_unstable();
     surfaces.dedup();
     surfaces
-}
-
-/// An angle brought within half a turn of nought.
-fn turned(angle: f64) -> f64 {
-    (angle + PI).rem_euclid(TAU) - PI
 }

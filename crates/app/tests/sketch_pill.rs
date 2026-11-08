@@ -45,12 +45,19 @@
 //! - a click on the pill's button does not reach the drawing beneath it: with
 //!   the Line tool in hand, clicking « Terminer ↵ » places no point —
 //!   `a_click_on_the_pill_s_finish_button_places_no_point_with_the_line_tool_in_hand`
+//! - decided on the way: a drag begun in the view carries on over the pill: a
+//!   point pressed in the drawing, dragged into the pill's frame and let go
+//!   there lands where it was let go, in one step —
+//!   `a_drag_begun_in_the_view_carries_on_over_the_pill_and_lands_where_it_is_let_go`
 //!
 //! Two things were decided on the way, before this file was written. A sketch
 //! laid on a section the part no longer keeps names its plane rather than a
 //! section that is not there. And a sketch with nothing drawn shows no count:
 //! the solver says 0 there, and an empty sketch announced as fully set, in
-//! green, would mislead. Removing « Terminer » from the default ribbon is left
+//! green, would mislead. A third came while the count was laid in: the pill
+//! stands over the top of the view, and a pull of the drawing let go on it lost
+//! its gesture, so the pill takes no pointer while something is being dragged.
+//! Removing « Terminer » from the default ribbon is left
 //! to the issue of the default ribbon; until then the ribbon's button is aimed
 //! at by its whole name, `driver::FINISH_IN_THE_RIBBON`.
 //!
@@ -82,6 +89,15 @@
 //! found inside « 1 liberté restantes ». The green of « entièrement réglée »
 //! is `state.success_text`, read off the design file; the token that holds it
 //! is `STATE_SUCCESS_TEXT`, which `theme.rs` holds to the same value.
+//!
+//! Finishing as the ribbon does is read off what the screen is left showing:
+//! every button by its name, whether it can be pressed and whether it is on,
+//! and every field — which holds the ribbon turned to its Extrusion tab and
+//! whatever the extrusion offered shows — besides the sketch closed and the
+//! pill gone. The pill's button is clicked by a pointer at its middle, as a
+//! hand would, so that the drawing beneath would hear the click if the pill let
+//! it through. A line begun and a click just below the pill lays a trait, the
+//! leak the line test watches the history and the saved sketch for.
 
 mod driver;
 
@@ -382,7 +398,7 @@ fn a_sketch_whose_section_is_no_longer_kept_reads_its_plane_s_name() {
 #[test]
 fn from_two_degrees_of_freedom_left_the_pill_counts_them_in_the_plural() {
     let mut wrong = Vec::new();
-    let drawings: [(&str, &str, Drawing); 2] = [
+    let drawings: [(&str, &str, Gesture); 2] = [
         (
             "from_two_degrees_of_freedom_a_free_rectangle",
             "a rectangle drawn away from the origin",
@@ -517,6 +533,131 @@ fn a_sketch_with_nothing_drawn_yet_shows_no_count() {
     );
 }
 
+#[test]
+fn the_pill_s_finish_button_finishes_the_sketch_as_the_ribbon_s_does() {
+    let by_the_ribbon = finished_by(
+        "finished_by_the_ribbon_s_button_beside_the_pill_s",
+        finish_with_the_ribbon,
+    );
+    let by_the_pill = finished_by("finished_by_the_pill_s_button", finish_with_the_pill);
+
+    assert_eq!(
+        what_a_finish_left_wrong(&by_the_pill),
+        Vec::<String>::new(),
+        "the pill's « Terminer ↵ » did not finish the sketch",
+    );
+    assert_eq!(
+        by_the_pill, by_the_ribbon,
+        "the pill's « Terminer ↵ » left the screen otherwise than the ribbon's « Terminer »",
+    );
+}
+
+#[test]
+fn enter_and_the_ribbon_s_finish_button_still_finish_the_sketch() {
+    let by_the_ribbon = finished_by("finished_by_the_ribbon_s_button", finish_with_the_ribbon);
+    let by_enter = finished_by("finished_by_enter", finish_with_enter);
+
+    assert_eq!(
+        (
+            what_a_finish_left_wrong(&by_the_ribbon),
+            what_a_finish_left_wrong(&by_enter)
+        ),
+        (Vec::new(), Vec::new()),
+        "(the ribbon's « Terminer », ↵) did not finish the sketch",
+    );
+    assert_eq!(
+        by_enter, by_the_ribbon,
+        "↵ left the screen otherwise than the ribbon's « Terminer »",
+    );
+}
+
+#[test]
+fn a_click_on_the_pill_s_finish_button_places_no_point_with_the_line_tool_in_hand() {
+    let test = "a_click_on_the_pill_s_finish_button_places_no_point";
+    let mut app = a_part(test);
+    driver::start_a_sketch(&mut app);
+    driver::click(&mut app, "Ligne (L)");
+    driver::click_at_sketch_point(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
+
+    finish_with_the_pill(&mut app);
+
+    let left = end_state(&app);
+    assert_eq!(
+        what_a_finish_left_wrong(&left),
+        Vec::<String>::new(),
+        "the pill's « Terminer ↵ », the line tool in hand, did not finish the sketch",
+    );
+    driver::open_the_history(&mut app);
+    let steps = steps(&app);
+    let saved = the_part_put_away(&mut app, test);
+    let sketch = saved.sketches().first().expect("the sketch drawn");
+    assert!(
+        steps == ["1. Esquisse — Plan YZ"] && !sketch.holds_a_drawing(),
+        "the click on « Terminer ↵ » reached the drawing beneath it: the history reads \
+         {steps:?}, and the sketch saved holds the points {:?}",
+        sketch.points(),
+    );
+}
+
+#[test]
+fn a_drag_begun_in_the_view_carries_on_over_the_pill_and_lands_where_it_is_let_go() {
+    let mut settings = cao_prefs::Settings::default();
+    settings.viewport.grid_snap = false;
+    let test = "a_drag_begun_in_the_view_carries_on_over_the_pill";
+    let mut app = driver::open_held_with(test, settings);
+    driver::create_a_part(&mut app, "Platine");
+    driver::start_a_sketch(&mut app);
+    driver::draw_a_segment(&mut app);
+    driver::click(&mut app, "Sélection (S)");
+    driver::open_the_history(&mut app);
+    let before = steps(&app);
+    let finish = the_pill_s_finish(&app).expect("the pill, the sketch being open");
+    let on_the_count = the_pill_s_row(&app, finish)
+        .into_iter()
+        .find(|(_, said)| said.contains("libert"))
+        .map(|(at, _)| at.center())
+        .unwrap_or_else(|| {
+            panic!(
+                "the pill counts nothing to drop on: « {} »",
+                what_the_pill_reads(&app)
+            )
+        });
+    let pressed = driver::sketch_point_on_screen(&app, driver::A_POINT_ABOVE_THE_ORIGIN);
+
+    driver::drag_and_drop(&mut app, pressed, on_the_count);
+
+    let after = steps(&app);
+    let origin = driver::sketch_point_on_screen(&app, DVec2::ZERO);
+    let per_millimetre = (
+        driver::sketch_point_on_screen(&app, DVec2::X) - origin,
+        driver::sketch_point_on_screen(&app, DVec2::Y) - origin,
+    );
+    let saved = the_part_put_away(&mut app, test);
+    let sketch = saved.sketches().first().expect("the sketch drawn");
+    let landed = sketch
+        .points()
+        .iter()
+        .map(|point| origin + per_millimetre.0 * point.x as f32 + per_millimetre.1 * point.y as f32)
+        .min_by(|one, other| {
+            one.distance(on_the_count)
+                .total_cmp(&other.distance(on_the_count))
+        })
+        .expect("the segment's ends");
+
+    assert!(
+        after.len() == before.len() + 1
+            && after
+                .last()
+                .is_some_and(|last| last.ends_with("Déplacement")),
+        "the drag let go on the pill was not one step of its own: {before:?} became {after:?}",
+    );
+    assert!(
+        landed.distance(on_the_count) < LET_GO_WITHIN,
+        "the point dragged from {pressed:?} and let go on the pill at {on_the_count:?} \
+         landed at {landed:?}",
+    );
+}
+
 fn a_part(test: &str) -> driver::App {
     let mut app = driver::open(test);
     driver::create_a_part(&mut app, "Platine");
@@ -533,8 +674,11 @@ fn open_a_sketch_on_xy(app: &mut driver::App) {
     );
 }
 
-/// What draws something in the sketch open.
-type Drawing = fn(&mut driver::App);
+/// What a hand does to the sketch open: draws in it, or finishes it.
+type Gesture = fn(&mut driver::App);
+
+/// How far from where it was let go a point dragged may land, in points.
+const LET_GO_WITHIN: f32 = 1.0;
 
 /// A rectangle from one node of the grid to another, away from the origin and
 /// from the plane's axes.
@@ -564,10 +708,9 @@ fn a_dimension(app: &mut driver::App, on: DVec2, left_at: DVec2) {
     driver::press(app, egui::Key::Escape);
 }
 
-/// How many degrees of freedom the solver leaves the part's first sketch,
-/// `Sketch::freedom` at the part's scale, read off the part as the application
-/// puts it away. The application is left on the home screen.
-fn the_solver_s_count(app: &mut driver::App, test: &str) -> usize {
+/// The part as the application puts it away, read back from its file. The
+/// application is left on the home screen.
+fn the_part_put_away(app: &mut driver::App, test: &str) -> PartDocument {
     driver::click(app, "Accueil");
     let path = std::env::temp_dir()
         .join("cao-driver")
@@ -575,10 +718,118 @@ fn the_solver_s_count(app: &mut driver::App, test: &str) -> usize {
         .join("documents")
         .join("CAO")
         .join("Platine.caopart");
-    let part = PartDocument::load(&cao_app::adapters::files::DiskFiles, &path)
-        .unwrap_or_else(|err| panic!("the part at {path:?} does not open: {err:?}"));
+    PartDocument::load(&cao_app::adapters::files::DiskFiles, &path)
+        .unwrap_or_else(|err| panic!("the part at {path:?} does not open: {err:?}"))
+}
+
+/// How many degrees of freedom the solver leaves the part's first sketch,
+/// `Sketch::freedom` at the part's scale, read off the part as the application
+/// puts it away. The application is left on the home screen.
+fn the_solver_s_count(app: &mut driver::App, test: &str) -> usize {
+    let part = the_part_put_away(app, test);
     let sketch = part.sketches().first().expect("the sketch drawn");
     sketch.freedom(part.scale()).degrees_of_freedom
+}
+
+/// What the screen is left showing once a sketch is finished: whether a
+/// sketch is still drawn, what of the pill is left, every button by its name,
+/// whether it can be pressed and whether it is on, and every field.
+#[derive(Debug, PartialEq)]
+struct EndState {
+    sketch_open: bool,
+    pill: Vec<String>,
+    buttons: Vec<(String, bool, Option<egui::accesskit::Toggled>)>,
+    fields: Vec<String>,
+}
+
+fn end_state(app: &driver::App) -> EndState {
+    let mut buttons: Vec<(String, bool, Option<egui::accesskit::Toggled>)> = app
+        .query_all_by_role(Role::Button)
+        .map(|node| {
+            let read = node.accesskit_node();
+            (
+                read.label().unwrap_or_default(),
+                !read.is_disabled(),
+                read.toggled(),
+            )
+        })
+        .collect();
+    buttons.sort_by(|one, other| one.0.cmp(&other.0));
+    EndState {
+        sketch_open: app
+            .state()
+            .where_the_view_shows_the_sketch_point(DVec2::ZERO)
+            .is_some(),
+        pill: what_the_pill_shows(app),
+        buttons,
+        fields: driver::fields(app),
+    }
+}
+
+/// What keeps a screen from being one a finished sketch leaves: the sketch
+/// closed, the pill gone, the sketch kept in the tree, and the ribbon turned to
+/// its Extrusion tab, where `Command::FinishSketch` offers to raise it.
+fn what_a_finish_left_wrong(left: &EndState) -> Vec<String> {
+    let mut wrong = Vec::new();
+    if left.sketch_open {
+        wrong.push("the sketch is still open".to_owned());
+    }
+    if !left.pill.is_empty() {
+        wrong.push(format!("the pill still shows {:?}", left.pill));
+    }
+    let a_button =
+        |reading: &dyn Fn(&str) -> bool| left.buttons.iter().any(|(read, ..)| reading(read));
+    if !a_button(&|read| read == "Esquisse 1") {
+        wrong.push("the tree keeps no « Esquisse 1 »".to_owned());
+    }
+    if !a_button(&|read| read.starts_with("Ajout de matière")) {
+        wrong.push(format!(
+            "the ribbon is not turned to its Extrusion tab: {:?}",
+            left.buttons
+        ));
+    }
+    wrong
+}
+
+/// A sketch with a trait drawn in it, finished that way.
+fn finished_by(test: &str, finish: Gesture) -> EndState {
+    let mut app = a_part(test);
+    driver::start_a_sketch(&mut app);
+    driver::draw_a_segment(&mut app);
+    finish(&mut app);
+    end_state(&app)
+}
+
+fn finish_with_the_ribbon(app: &mut driver::App) {
+    driver::click(app, driver::FINISH_IN_THE_RIBBON);
+}
+
+fn finish_with_enter(app: &mut driver::App) {
+    driver::press(app, egui::Key::Enter);
+}
+
+/// A pointer's click at the middle of the pill's « Terminer ↵ », as a hand
+/// would give it.
+fn finish_with_the_pill(app: &mut driver::App) {
+    let finish = the_pill_s_finish(app).unwrap_or_else(|| {
+        panic!(
+            "no « Terminer ↵ » on screen to click: {:?}",
+            driver::on_screen(app)
+        )
+    });
+    driver::click_at(app, finish.center());
+}
+
+/// The numbered steps of the history, in order.
+fn steps(app: &driver::App) -> Vec<String> {
+    driver::on_screen(app)
+        .into_iter()
+        .filter(|label| {
+            label
+                .split_once(". ")
+                .is_some_and(|(rank, _)| rank.parse::<usize>().is_ok())
+        })
+        .collect()
 }
 
 /// Whether `read` holds each of `pieces`, word for word, in that order: a

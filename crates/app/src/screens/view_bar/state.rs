@@ -81,21 +81,6 @@ fn widest_coordinates(in_a_sketch: bool, unit: LengthUnit, lang: &Catalogue) -> 
     coordinates(pointed, unit, 1.0, lang)
 }
 
-/// What the user asks for: a command, or a state of the matter in front
-/// picked from the bar's menu, which no `Command` names and which is run as
-/// one all the same.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Asked {
-    Command(Command),
-    MatterInFront(MatterInFront),
-}
-
-impl From<Command> for Asked {
-    fn from(command: Command) -> Self {
-        Self::Command(command)
-    }
-}
-
 /// The bar's « Matière devant »: what it reads, whether it opens, and the
 /// three states it offers in its menu.
 #[derive(Clone, Debug, PartialEq, Eq)]

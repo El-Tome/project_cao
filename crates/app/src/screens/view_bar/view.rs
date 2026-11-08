@@ -3,7 +3,8 @@
 use crate::screens::ribbon::icons;
 use crate::ui::floating_bar::{bar_button, bar_menu, bar_reading, bar_separator, floating_bar};
 
-use super::state::{Asked, Offered, ViewBar};
+use super::state::{Offered, ViewBar};
+use crate::commands::Asked;
 
 /// Draws the bar against the bottom right corner of `view`, and says what was
 /// picked on it.

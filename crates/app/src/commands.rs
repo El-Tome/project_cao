@@ -7,15 +7,16 @@ use crate::screens::SketchContext;
 use crate::screens::extrusion::apply_extrusion;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
-use crate::screens::view_bar::Asked;
 use crate::screens::viewport::{
     ViewportState, corner_picks_with, swap_held_chamfer, switch_held_cuts, take_everything,
     take_up_the_copy,
 };
 use crate::{screens, wording};
 
-/// Carries out one command, wherever it came from — the view bar's pick of a
-/// state of the matter in front, which no `Command` names, included.
+mod asked;
+pub(crate) use asked::Asked;
+
+/// Carries out one command, wherever it came from.
 ///
 /// A button and a shortcut both end up here: two paths would drift apart, and
 /// a shortcut that does almost what its button does is worse than none.

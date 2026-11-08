@@ -116,10 +116,11 @@ tools in a row:
 - after a separator, **the cursor's coordinates**, in the monospace face. In a
   sketch, « X … Y … » on the sketch's plane, in its own frame, where a click
   would place the point; in the free view, « X … Y … Z … » of the point of the
-  part under the cursor, as drawn — the section's cut and a hidden body
-  included; « — » over nothing, or off the view. Two decimals after a comma, in
-  the unit the scale bar shows, so the two always agree. The bar keeps room for
-  a long reading, so its buttons stay put as the mouse moves.
+  part under the cursor, as drawn, on the section's cut while a section is
+  shown; « — » over nothing, off the view, or while the body is hidden. Two
+  decimals after a comma, in the unit the scale bar shows, so the two always
+  agree. The bar keeps room for a long reading, so its buttons stay put as the
+  mouse moves.
 
 What is picked on the bar is a command like any other: it clears the message in
 the title bar, and an error gives way to it. « Recadrer », « Vue en coupe » and

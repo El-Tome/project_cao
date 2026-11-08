@@ -5,5 +5,5 @@
 mod state;
 mod view;
 
-pub use state::{Asked, ViewBar};
+pub use state::ViewBar;
 pub use view::show;

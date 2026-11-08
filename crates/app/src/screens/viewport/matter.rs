@@ -79,7 +79,8 @@ pub(super) fn drawn_under<'a>(
 
 /// What a frame draws of the part, nothing while the body is hidden: worked
 /// out once a frame and handed both to the painting and to the point under the
-/// pointer, since cutting the halves of a section again would cost a boolean.
+/// pointer, since a second call would compare the whole body with the one the
+/// section's halves were cut from, and copy those halves again.
 pub(crate) fn seen<'a>(
     state: &ViewportState,
     editor: &SketchEditor,

@@ -14,7 +14,7 @@ See also: [sketch](sketch.md) · [history](history.md)
 ├──────────┬───────────────────────────────────┤
 │ History  │                                   │
 │  Sketch  │              viewport             │
-│   1. Line│      ┌Recadrer Coupe Matière │ X Y┐│  view bar
+│   1. Line│     ┌Recadrer Coupe Matière │ X Y┐│  view bar
 └──────────┴───────────────────────────────────┘
 ```
 

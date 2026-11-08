@@ -170,7 +170,7 @@ impl Body {
         let (mut body, faces) = faces::laid(&placed, &read, straight.runs, eps)?;
         body.scale = Scale::of(body.reach());
         body.arrivals = vec![body.scale; body.surfaces.len()];
-        let mut body = tidied(body, faces)?;
+        let mut body = tidied(body, faces, &[])?;
         body.scale = body.scale.joined(Scale::of(body.reach()));
         body.arrivals = vec![body.scale; body.surfaces.len()];
         Ok(body)

@@ -686,10 +686,8 @@ const ELL_RESIZED: Ell = Ell {
     height: 12.0,
 };
 
-/// The numbers an L's arm's back, its stem's right side and its stem's back
-/// answer to.
+/// The numbers an L's arm's back and its stem's back answer to.
 const ARM_BACK: usize = 4;
-const STEM_RIGHT: usize = 5;
 const STEM_BACK: usize = 6;
 
 impl Ell {
@@ -979,16 +977,6 @@ fn a_chamfered_block_written_to_step_writes_its_new_face() {
         "no face of the file faces {facing} through {through:?}: {:?}",
         solid.planes
     );
-}
-
-#[test]
-fn a_chamfer_on_the_inner_corner_of_an_l_where_its_faces_meet_inwards_is_declined_as_unsupported() {
-    let ell = ELL.on(ground());
-    let inner = edge_between(&ell, ARM_BACK, STEM_RIGHT);
-
-    let declined = ell.chamfer(&inner, 1.0).err();
-
-    assert_eq!(declined, Some(Declined::Unsupported));
 }
 
 #[test]

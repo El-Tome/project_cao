@@ -62,7 +62,7 @@ pub(super) fn shared(
         else {
             continue;
         };
-        let theirs = alone(body, twin_edge, &twin, around, grids, tolerance);
+        let theirs = alone(body, twin_edge, &twin, around, grids, tolerance, &[]);
         if theirs.is_empty() {
             continue;
         }

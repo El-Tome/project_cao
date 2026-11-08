@@ -217,6 +217,19 @@
 //!   campaigns above are run on `main` and on the branch over sets
 //!   352000000000000, 353000000000000 and 354000000000000 and compared seed
 //!   by seed, the counts on the pull request
+//!
+//! Closes #786.
+//! - The shrunk case (seed 353000000000880) and its 1e-4-inside variant are
+//!   pinned and hold on both kernels —
+//!   `seed_353000000000880_a_cone_bored_then_posted_against_the_bore_where_its_wall_passes_keeps_every_rule`,
+//!   `seed_353000000000880_the_same_cone_bore_and_post_keep_every_rule_through_the_application_s_body`,
+//!   `a_cone_bored_then_posted_1e_4_inside_the_bore_where_its_wall_passes_keeps_every_rule`,
+//!   `the_same_cone_with_the_post_1e_4_inside_the_bore_keeps_every_rule_through_the_application_s_body`
+//! - No draw regresses against `main`, seed by seed, on the three sets, both
+//!   kernels — no test: a campaign fails on any finding, so the walls
+//!   campaigns above are run on `main` and on the branch over sets
+//!   352000000000000, 353000000000000 and 354000000000000 and compared seed
+//!   by seed, the counts on the pull request
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -2119,6 +2132,71 @@ fn seed_354000000007504_a_shaft_and_a_bore_of_its_radius_a_tenth_apart_bored_aga
 fn seed_354000000007504_the_same_bores_keep_every_rule_through_the_application_s_body() {
     random_solids::holds_through_the_application(
         &a_shaft_and_a_bore_of_its_radius_a_tenth_apart_bored_again_at_75_degrees(),
+    );
+}
+
+/// A cone about x = 2 bored by a hole of radius 2.5 at 47.4°, then joined
+/// to a post of radius 1.5 at 31° whose wall touches the bore's from inside
+/// where the cone's wall passes: a triple point (seed 353000000000880,
+/// shrunk; #786). The post's centre is `-1.0` where the two walls touch
+/// exactly.
+fn a_cone_bored_at_47_degrees_then_posted_at_31_degrees_against_the_bore(post_centre: f64) -> Case {
+    Case::new(
+        Leaf::turned(
+            Plane::xz(0.0),
+            Axis::second(2.0),
+            Section::bands(-1.0, &[[8.5, 0.0, 3.5]]).sloping_to(&[[0.0, 1.5]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [2.0, -12.180447424633714, -7.951456110284646],
+                    [-47.39755190015385, 0.0, 0.0],
+                ),
+                Outline::circle([-0.0, -0.0], 2.5),
+                33.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::tilted(
+                    [2.0, -8.522844063778471, -10.93439450661942],
+                    [-31.0, 0.0, 0.0],
+                ),
+                Outline::circle([post_centre, -0.0], 1.5),
+                33.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_353000000000880_a_cone_bored_then_posted_against_the_bore_where_its_wall_passes_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_cone_bored_at_47_degrees_then_posted_at_31_degrees_against_the_bore(-0.9999999899999998),
+    );
+}
+
+#[test]
+fn seed_353000000000880_the_same_cone_bore_and_post_keep_every_rule_through_the_application_s_body()
+{
+    random_solids::holds_through_the_application(
+        &a_cone_bored_at_47_degrees_then_posted_at_31_degrees_against_the_bore(-0.9999999899999998),
+    );
+}
+
+#[test]
+fn a_cone_bored_then_posted_1e_4_inside_the_bore_where_its_wall_passes_keeps_every_rule() {
+    random_solids::holds_exactly(
+        &a_cone_bored_at_47_degrees_then_posted_at_31_degrees_against_the_bore(-0.9999),
+    );
+}
+
+#[test]
+fn the_same_cone_with_the_post_1e_4_inside_the_bore_keeps_every_rule_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(
+        &a_cone_bored_at_47_degrees_then_posted_at_31_degrees_against_the_bore(-0.9999),
     );
 }
 

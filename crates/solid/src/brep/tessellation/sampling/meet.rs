@@ -33,7 +33,10 @@ use crate::brep::surface::Cone;
 use crate::brep::tessellation::contact::{self, Contact, Zones};
 use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId};
 
+mod third;
 mod twin;
+
+pub(super) use third::settled;
 
 /// Why a parameter is a sample, the stronger reason first: of two places
 /// closer than the kernel's tolerance, the one kept is the stronger. Either
@@ -62,14 +65,16 @@ enum Reason {
 /// An edge standing within the kernel's tolerance of the chord between its
 /// ends — a meet run along a line two walls touch along — is a line to the
 /// kernel, sampled at its ends alone as a line is (354000000008476).
-fn on_meet_by(
+/// `third` are places it takes besides, where it grazes a wall it does not
+/// lie on (`third.rs`).
+fn sampled(
     meet: &Meet,
     edge: &Edge,
     tolerance: f64,
     eps: f64,
-    rays: [&[f64]; 2],
-    steps: [usize; 2],
+    (rays, steps): ([&[f64]; 2], [usize; 2]),
     clear: &dyn Fn(DVec3) -> bool,
+    third: &[f64],
 ) -> Vec<DVec3> {
     let Some(period) = meet.period() else {
         return Vec::new();
@@ -86,6 +91,7 @@ fn on_meet_by(
         (first..=last).map(move |turn| t + period * turn as f64)
     };
     let mut marks = vec![(low, Reason::End), (high, Reason::End)];
+    marks.extend(third.iter().map(|t| (*t, Reason::Ray)));
     for ((on_first, taken), steps) in [true, false].into_iter().zip(rays).zip(steps) {
         let turns = meet.turns(on_first);
         let grid = (0..steps)
@@ -166,7 +172,7 @@ fn on_meet_by(
     points
 }
 
-/// The points of an edge along a meet between its ends, as [`on_meet_by`]
+/// The points of an edge along a meet between its ends, as [`sampled`]
 /// places them: on a cylinder of the body, on the rays its circles take in
 /// `contacts`, and none where it all but lies on a wall facing it, nor on a
 /// plane touching it but off the line they touch along, as a circle takes
@@ -180,7 +186,7 @@ pub(super) fn of_edge(
     grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
 ) -> Vec<DVec3> {
-    let points = alone(body, edge, meet, around, grids, tolerance);
+    let points = alone(body, edge, meet, around, grids, tolerance, &[]);
     twin::shared(body, edge, meet, around, grids, tolerance, points)
 }
 
@@ -200,6 +206,7 @@ fn alone(
     (walls, zones, contacts): Around,
     grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
+    third: &[f64],
 ) -> Vec<DVec3> {
     let edge = body.edge(id);
     let own = contact::held(body, id, meet);
@@ -265,14 +272,14 @@ fn alone(
                     Wall::Elliptic(_) | Wall::Cone(_) => true,
                 })
     };
-    on_meet_by(
+    sampled(
         meet,
         edge,
         tolerance,
         eps,
-        [&rays[0], &rays[1]],
-        steps,
+        ([&rays[0], &rays[1]], steps),
         &clear,
+        third,
     )
 }
 
@@ -335,6 +342,20 @@ fn grazing_ends<'a>(
         })
         .fold(f64::INFINITY, f64::min);
     grazed(body, edge, &walls.map(|wall| wall.surface()), step)
+}
+
+/// [`sampled`], with no third wall.
+#[cfg(test)]
+fn on_meet_by(
+    meet: &Meet,
+    edge: &Edge,
+    tolerance: f64,
+    eps: f64,
+    rays: [&[f64]; 2],
+    steps: [usize; 2],
+    clear: &dyn Fn(DVec3) -> bool,
+) -> Vec<DVec3> {
+    sampled(meet, edge, tolerance, eps, (rays, steps), clear, &[])
 }
 
 /// [`on_meet_by`], each wall's grid cut for its own size.

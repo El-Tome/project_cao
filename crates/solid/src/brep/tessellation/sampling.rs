@@ -201,6 +201,7 @@ impl Samples {
                     contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
             }
         }
+        let meets = meet::settled(body, (walls, zones, &contacts), grids, tolerance, meets);
         abreast.withhold(&mut contacts);
         let vertices = samples.points.clone();
         let alone = Contact::default();

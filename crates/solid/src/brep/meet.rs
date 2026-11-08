@@ -353,6 +353,40 @@ impl Meet {
         }
         bounds
     }
+
+    /// The parameters from `from` to `to` where a coordinate turns: between
+    /// two of `count` even steps where its speed changes sign, by bisection.
+    pub(in crate::brep) fn turning(&self, from: f64, to: f64, count: usize) -> Vec<f64> {
+        let step = (to - from) / count as f64;
+        let speeds: Vec<(f64, DVec3)> = (0..=count)
+            .map(|index| from + step * index as f64)
+            .map(|t| (t, self.derivative(t)))
+            .collect();
+        let mut found = Vec::new();
+        for axis in 0..3 {
+            for pair in speeds.windows(2) {
+                let [(low, below), (high, above)] = [pair[0], pair[1]];
+                if below[axis] * above[axis] < 0.0 {
+                    found.push(self.root(axis, low, high, below[axis] < 0.0));
+                }
+            }
+        }
+        found
+    }
+
+    fn root(&self, axis: usize, mut low: f64, mut high: f64, falling: bool) -> f64 {
+        loop {
+            let middle = 0.5 * (low + high);
+            if middle == low || middle == high {
+                return middle;
+            }
+            if (self.derivative(middle)[axis] < 0.0) == falling {
+                low = middle;
+            } else {
+                high = middle;
+            }
+        }
+    }
 }
 
 /// Whether the stretch from `from` to `to` holds an angle a whole number of

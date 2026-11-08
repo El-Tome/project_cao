@@ -42,9 +42,19 @@
 //!   are not square to the face and meet it at two angles, the edges still
 //!   parallel: their set-backs sum to its width, and the two axes are one —
 //!   `a_fillet_on_the_two_top_edges_of_a_prism_whose_sides_slant_takes_the_radius_whose_set_backs_meet_in_one_full_round`
+//!   — also beyond its wording: a meeting pair named apart in the list still
+//!   lays one full round, answering to the first's number and the third's,
+//!   the edge named between them numbered between —
+//!   `a_fillet_on_a_meeting_pair_named_apart_in_the_list_lays_one_full_round_answering_to_both_their_numbers_the_edge_between_numbered_between`;
+//!   and an edge whose set-backs would meet two others', the four long edges
+//!   of a square bar asked more than half its side, declines the fillet
+//!   `Unsupported`, where less than half lays all four —
+//!   `a_fillet_on_the_four_long_edges_of_a_square_bar_asked_more_than_half_its_side_is_declined_as_unsupported`,
+//!   `a_fillet_and_a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_less_than_half_its_side_lay_each_at_the_value_asked`
 //! - A list mixing an edge whose faces meet outwards and one whose faces meet
 //!   inwards cuts the first off and fills the second in, at one value —
-//!   `a_fillet_and_a_chamfer_on_an_outward_edge_and_an_inward_one_cut_the_first_off_and_fill_the_second_in_at_one_value`
+//!   `a_fillet_and_a_chamfer_on_an_outward_edge_and_an_inward_one_cut_the_first_off_and_fill_the_second_in_at_one_value`,
+//!   at a value both fit, and at one each kind limits for the other
 //! - Two edges of the list that share a vertex decline the step
 //!   `Unsupported`, and nothing of it is laid —
 //!   `a_fillet_and_a_chamfer_on_two_edges_sharing_a_vertex_are_declined_as_unsupported`;
@@ -133,12 +143,16 @@ fn block([length, breadth, height]: [f64; 3]) -> Body {
 /// block's faces numbered past the part's, its floor first, then its top,
 /// then its sides from the front round to the left.
 fn joined_to(part: &Body, [from, to]: [DVec2; 2], height: f64) -> Body {
+    raised_with(part, Contour::rectangle(from, to), height)
+}
+
+/// The part with an outline drawn on the ground raised `height` and joined
+/// to it as `cao_part` joins a step: its floor numbered first, past the
+/// part's numbers, then its top, then its walls, one for each run of the
+/// outline.
+fn raised_with(part: &Body, outline: Contour, height: f64) -> Body {
     let tool = part
-        .tool_raised(
-            &profile(Contour::rectangle(from, to)),
-            ground(),
-            DVec3::Z * height,
-        )
+        .tool_raised(&profile(outline), ground(), DVec3::Z * height)
         .expect("the tool raises");
     part.union(&tool).expect("the join is built")
 }
@@ -345,20 +359,26 @@ struct LongEdge {
 /// block's own: the top's front, the floor's back, the top's back and the
 /// floor's front. No two share a vertex.
 fn long_edges() -> [LongEdge; 4] {
+    long_edges_of(BREADTH, HEIGHT)
+}
+
+/// The four long edges of a block [`LENGTH`] long, `breadth` across and
+/// `height` high, in the order of [`long_edges`].
+fn long_edges_of(breadth: f64, height: f64) -> [LongEdge; 4] {
     [
         LongEdge {
             faces: [TOP, FRONT],
-            start: DVec3::new(0.0, 0.0, HEIGHT),
+            start: DVec3::new(0.0, 0.0, height),
             facing: [DVec3::Z, -DVec3::Y],
         },
         LongEdge {
             faces: [FLOOR, BACK],
-            start: DVec3::new(0.0, BREADTH, 0.0),
+            start: DVec3::new(0.0, breadth, 0.0),
             facing: [-DVec3::Z, DVec3::Y],
         },
         LongEdge {
             faces: [TOP, BACK],
-            start: DVec3::new(0.0, BREADTH, HEIGHT),
+            start: DVec3::new(0.0, breadth, height),
             facing: [DVec3::Z, DVec3::Y],
         },
         LongEdge {
@@ -1547,5 +1567,472 @@ fn a_fillet_on_the_two_top_edges_of_a_prism_whose_sides_slant_takes_the_radius_w
         (section - taken) * LENGTH,
         DRAWN * reach_of(&prism) * turn * radius * LENGTH,
         &what,
+    );
+}
+
+/// The outline of an L: an arm 30 long and 6 deep along the front, and at its
+/// left end a stem 12 wide reaching back to 14. Raised by [`ELL_HEIGHT`], its
+/// walls are numbered from the front round: the front two, the arm's right
+/// end three, the arm's back four, the stem's right side five, the stem's
+/// back six and the left seven. The arm's back and the stem's right side meet
+/// inwards at [`INNER_CORNER`], and a fill set back along both can take no
+/// more than the stem's right side, [`STEM_RIGHT_LENGTH`] long.
+const ELL_OUTLINE: [DVec2; 6] = [
+    DVec2::new(0.0, 0.0),
+    DVec2::new(30.0, 0.0),
+    DVec2::new(30.0, 6.0),
+    DVec2::new(12.0, 6.0),
+    DVec2::new(12.0, 14.0),
+    DVec2::new(0.0, 14.0),
+];
+const ELL_HEIGHT: f64 = 10.0;
+const ARM_BACK: usize = 4;
+const STEM_RIGHT: usize = 5;
+const INNER_CORNER: DVec2 = DVec2::new(12.0, 6.0);
+const STEM_RIGHT_LENGTH: f64 = 8.0;
+const ELL_VOLUME: f64 = (30.0 * 6.0 + 12.0 * 8.0) * ELL_HEIGHT;
+
+/// The numbers the block beside the L answers to for its top and its front,
+/// past the L's eight.
+const BESIDE_TOP: usize = TOP + 8;
+const BESIDE_FRONT: usize = FRONT + 8;
+
+/// The L, and beside it, off the line of every edge it has, a block
+/// [`LENGTH`] long, `breadth` across from 40 along Y, and [`HEIGHT`] high,
+/// whose top front edge meets outwards.
+fn ell_and_block(breadth: f64) -> Body {
+    let ell = raised_with(
+        &Body::default(),
+        Contour::straight(ELL_OUTLINE.to_vec()),
+        ELL_HEIGHT,
+    );
+    joined_to(
+        &ell,
+        [DVec2::new(0.0, 40.0), DVec2::new(LENGTH, 40.0 + breadth)],
+        HEIGHT,
+    )
+}
+
+/// The block's top front edge, beside the L.
+fn beside_top_front() -> LongEdge {
+    LongEdge {
+        faces: [BESIDE_TOP, BESIDE_FRONT],
+        start: DVec3::new(0.0, 40.0, HEIGHT),
+        facing: [DVec3::Z, -DVec3::Y],
+    }
+}
+
+/// The round a fillet lays in a concave corner: a cylinder of `radius` about
+/// the line from `start` along `along` for `length`, that line standing in
+/// the air the two faces leave between them. The round turns from facing the
+/// way the edge's first face does to facing the way its second does, and
+/// everywhere faces its axis, a radius away against the way it faces.
+struct Hollow {
+    start: DVec3,
+    along: DVec3,
+    length: f64,
+    radius: f64,
+    facing: [DVec3; 2],
+}
+
+impl Hollow {
+    /// The round of `radius` in the L's inner corner, the radius out from
+    /// the arm's back and from the stem's right side, from the floor to the
+    /// top.
+    fn in_the_ell(radius: f64) -> Hollow {
+        Hollow {
+            start: (INNER_CORNER + DVec2::splat(radius)).extend(0.0),
+            along: DVec3::Z,
+            length: ELL_HEIGHT,
+            radius,
+            facing: [DVec3::Y, DVec3::X],
+        }
+    }
+
+    /// The point of the axis `share` of the way along it.
+    fn axis_at(&self, share: f64) -> DVec3 {
+        self.start + self.along * self.length * share
+    }
+
+    /// The way the round faces `share` of the way round it, from its first
+    /// face's way to its second's.
+    fn facing_at(&self, share: f64) -> DVec3 {
+        let [first, second] = self.facing;
+        let turn = first.dot(second).acos() * share;
+        let across = (second - first * first.dot(second)).normalize();
+        first * turn.cos() + across * turn.sin()
+    }
+
+    /// Whether a point lies on the round: on its cylinder, between its two
+    /// ends, and between its two sides — no further round from the way it
+    /// faces halfway than either side is.
+    fn holds(&self, point: DVec3) -> bool {
+        let off = point - self.start;
+        let along = off.dot(self.along);
+        let toward_the_axis = self.along * along - off;
+        let halfway = self.facing_at(0.5);
+        let least = self.radius * self.facing[0].dot(halfway);
+        (toward_the_axis.length() - self.radius).abs() < PLACE
+            && (-PLACE..=self.length + PLACE).contains(&along)
+            && toward_the_axis.dot(halfway) >= least - PLACE
+    }
+
+    /// The round's area, its turn times its radius times its length.
+    fn area(&self) -> f64 {
+        let [first, second] = self.facing;
+        first.dot(second).acos() * self.radius * self.length
+    }
+}
+
+/// Holds that the face numbered `face` is the hollow round expected: every
+/// corner of its triangles on it, and every ray aimed from its axis, in the
+/// air the round leaves, out to it meeting it first, where it faces back
+/// along the ray.
+fn is_the_hollow(body: &Body, face: usize, hollow: &Hollow, what: &str) {
+    let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
+    assert!(!corners.is_empty(), "{what}: the round is drawn");
+    for corner in corners {
+        assert!(
+            hollow.holds(corner),
+            "{what}: the round is drawn through {corner}, off the cylinder of {} about the line \
+             from {} along {}",
+            hollow.radius,
+            hollow.start,
+            hollow.along
+        );
+    }
+    for along in [0.11, 0.47, 0.83] {
+        for share in [0.1, 0.3, 0.5, 0.7, 0.9] {
+            let facing = hollow.facing_at(share);
+            let from = hollow.axis_at(along);
+            let hit = body
+                .ray_hit(from, -facing)
+                .unwrap_or_else(|| panic!("{what}: a ray from {from} on the axis meets nothing"));
+            assert_eq!(
+                hit.face, face,
+                "{what}: a ray from {from} on the axis meets face {} before the round",
+                hit.face
+            );
+            assert!(
+                hit.normal.distance(facing) < PLACE,
+                "{what}: where a ray from {from} meets it, the round faces {}, not {facing}, \
+                 back toward its axis",
+                hit.normal
+            );
+        }
+    }
+}
+
+/// The lists mixing the block's outward edge and the L's inward one, each
+/// with what it shows, how wide the block is, the value asked, what the
+/// outward edge and the inward one each take alone, and the one value every
+/// edge of the list gives.
+fn mixed_lists() -> [(&'static str, f64, f64, [f64; 2], f64); 3] {
+    [
+        ("at a value both fit", BREADTH, 3.0, [3.0, 3.0], 3.0),
+        (
+            "the outward edge limiting the inward one, the block's top 5 wide taken whole",
+            5.0,
+            7.0,
+            [5.0, 7.0],
+            5.0,
+        ),
+        (
+            "the inward edge limiting the outward one, the stem's right side taken whole",
+            BREADTH,
+            9.0,
+            [9.0, STEM_RIGHT_LENGTH],
+            STEM_RIGHT_LENGTH,
+        ),
+    ]
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_an_outward_edge_and_an_inward_one_cut_the_first_off_and_fill_the_second_in_at_one_value()
+ {
+    for (case, breadth, asked, each_alone, taken) in mixed_lists() {
+        let part = ell_and_block(breadth);
+        let outward = beside_top_front();
+        let names = [
+            outward.name(&part),
+            edge_between(&part, ARM_BACK, STEM_RIGHT),
+        ];
+        let laid = [part.faces_end(), part.faces_end() + 1];
+        let block_volume = LENGTH * breadth * HEIGHT;
+
+        let filleted = part
+            .fillet_edges(&names, asked)
+            .unwrap_or_else(|declined| panic!("the fillet {case}: declined, {declined:?}"));
+        let chamfered = part
+            .chamfer_edges(&names, asked)
+            .unwrap_or_else(|declined| panic!("the chamfer {case}: declined, {declined:?}"));
+
+        let what = format!("the fillet {case}, asked {asked}");
+        let alone: Vec<f64> = names
+            .iter()
+            .map(|name| part.fillet(name, asked).expect("each edge alone").taken)
+            .collect();
+        assert!(
+            alone
+                .iter()
+                .zip(each_alone)
+                .all(|(took, expected)| (took - expected).abs() < PLACE),
+            "{what}: the outward edge and the inward one alone take {alone:?}, where they give \
+             {each_alone:?}"
+        );
+        reduced(filleted.asked, filleted.taken, [asked, taken], &what);
+        let body = &filleted.body;
+        let round = outward.round(taken);
+        let hollow = Hollow::in_the_ell(taken);
+        is_the_round(
+            body,
+            laid[0],
+            &round,
+            &format!("{what}: the block's top front edge rounded off at {taken}"),
+        );
+        is_the_hollow(
+            body,
+            laid[1],
+            &hollow,
+            &format!("{what}: the L's inner corner filled in at {taken}"),
+        );
+        let quarter = taken * taken * (1.0 - PI / 4.0);
+        sound_drawn_within(
+            body,
+            ELL_VOLUME + block_volume - quarter * LENGTH + quarter * ELL_HEIGHT,
+            DRAWN * reach_of(&part) * (round.area() + hollow.area()),
+            &what,
+        );
+
+        let what = format!("the chamfer {case}, asked {asked}");
+        let alone: Vec<f64> = names
+            .iter()
+            .map(|name| part.chamfer(name, asked).expect("each edge alone").taken)
+            .collect();
+        assert!(
+            alone
+                .iter()
+                .zip(each_alone)
+                .all(|(took, expected)| (took - expected).abs() < PLACE),
+            "{what}: the outward edge and the inward one alone take {alone:?}, where they give \
+             {each_alone:?}"
+        );
+        reduced(chamfered.asked, chamfered.taken, [asked, taken], &what);
+        let body = &chamfered.body;
+        let (cut, facing) = outward.flat(taken);
+        let which = format!("{what}: the block's top front edge cut off at {taken}");
+        face_facing(body, &[laid[0]], facing, &which);
+        corners_are(body, laid[0], &cut, &which);
+        let on_arm_back = INNER_CORNER + DVec2::X * taken;
+        let on_stem_right = INNER_CORNER + DVec2::Y * taken;
+        let filled = [on_arm_back, on_stem_right]
+            .map(|at| [at.extend(0.0), at.extend(ELL_HEIGHT)])
+            .concat();
+        let which = format!("{what}: the L's inner corner filled in at {taken}");
+        face_facing(
+            body,
+            &[laid[1]],
+            DVec3::new(1.0, 1.0, 0.0).normalize(),
+            &which,
+        );
+        corners_are(body, laid[1], &filled, &which);
+        let triangle = taken * taken / 2.0;
+        let promised = ELL_VOLUME + block_volume - triangle * LENGTH + triangle * ELL_HEIGHT;
+        sound_drawn_within(body, promised, EXACT * promised, &what);
+    }
+}
+
+#[test]
+fn a_fillet_on_a_meeting_pair_named_apart_in_the_list_lays_one_full_round_answering_to_both_their_numbers_the_edge_between_numbered_between()
+ {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let [top_front, floor_back, top_back, _] = long_edges();
+    let names = [
+        top_front.name(&block),
+        floor_back.name(&block),
+        top_back.name(&block),
+    ];
+    let half = BREADTH / 2.0;
+
+    let filleted = block
+        .fillet_edges(&names, MORE_THAN_HALF)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = format!(
+        "the fillet on the top's front edge, the floor's back edge and the top's back edge, asked \
+         {MORE_THAN_HALF}"
+    );
+    reduced(
+        filleted.asked,
+        filleted.taken,
+        [MORE_THAN_HALF, half],
+        &what,
+    );
+    let body = &filleted.body;
+    let end = block.faces_end();
+    let (pair, between) = ([end, end + 2], end + 1);
+    let mut kept_and_laid = numbers(&block);
+    kept_and_laid.remove(&TOP);
+    kept_and_laid.extend(end..end + 3);
+    assert_eq!(
+        numbers(body),
+        kept_and_laid,
+        "{what}: every face of the block but its top, the full round answering to {pair:?} and \
+         the floor's back round to {between}"
+    );
+    assert_eq!(
+        body.faces_end(),
+        end + 3,
+        "{what}: the next step numbers its faces past the three the edges were given"
+    );
+    one_curved_face_answers_to(body, &pair, &what);
+    let axis = DVec3::new(0.0, half, HEIGHT - half);
+    let halves = [[-DVec3::Y, DVec3::Z], [DVec3::Z, DVec3::Y]].map(|facing| Round {
+        start: axis,
+        along: DVec3::X,
+        length: LENGTH,
+        radius: half,
+        facing,
+    });
+    is_made_of(
+        body,
+        pair[0],
+        &[&halves[0], &halves[1]],
+        &format!("{what}: the full round over where the top was"),
+    );
+    let floor_round = floor_back.round(half);
+    assert!(
+        !body.is_flat(between) && body.plane_of(between).is_none(),
+        "{what}: face {between} is curved"
+    );
+    is_the_round(
+        body,
+        between,
+        &floor_round,
+        &format!("{what}: face {between}, the floor's back edge rounded off at {half}"),
+    );
+    assert_eq!(
+        sides_met_by(body, &pair),
+        sides(&[FRONT, RIGHT, BACK, LEFT]),
+        "{what}: the full round meets the front, the back and the two walls, by one edge each"
+    );
+    assert_eq!(
+        sides_met(body, between),
+        sides(&[FLOOR, RIGHT, BACK, LEFT]),
+        "{what}: the floor's back round meets the floor, the back and the two walls, by one edge \
+         each"
+    );
+    corners_are(
+        body,
+        BACK,
+        &strip(
+            DVec3::new(0.0, BREADTH, half),
+            DVec3::new(0.0, BREADTH, HEIGHT - half),
+        ),
+        &format!("{what}: what is left of the back, between its two rounds"),
+    );
+    sound_drawn_within(
+        body,
+        LENGTH * BREADTH * HEIGHT
+            - LENGTH * (BREADTH * half - PI * half * half / 2.0)
+            - LENGTH * half * half * (1.0 - PI / 4.0),
+        DRAWN * reach_of(&block) * (PI * half * LENGTH + floor_round.area()),
+        &what,
+    );
+}
+
+/// The side of the square bar: its four long edges' set-backs meet across
+/// every long face at half of it.
+const BAR: f64 = 10.0;
+
+#[test]
+fn a_fillet_on_the_four_long_edges_of_a_square_bar_asked_more_than_half_its_side_is_declined_as_unsupported()
+ {
+    let bar = block([LENGTH, BAR, BAR]);
+    let names: Vec<EdgeName> = long_edges_of(BAR, BAR)
+        .iter()
+        .map(|edge| edge.name(&bar))
+        .collect();
+
+    let declined = bar.fillet_edges(&names, MORE_THAN_HALF).err();
+
+    assert_eq!(
+        declined,
+        Some(Declined::Unsupported),
+        "every edge's set-backs would meet two others', across the face on either side of it"
+    );
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_less_than_half_its_side_lay_each_at_the_value_asked()
+ {
+    let value = 4.0;
+    let bar = block([LENGTH, BAR, BAR]);
+    let edges = long_edges_of(BAR, BAR);
+    let names: Vec<EdgeName> = edges.iter().map(|edge| edge.name(&bar)).collect();
+    let laid = bar.faces_end()..bar.faces_end() + edges.len();
+
+    let filleted = bar
+        .fillet_edges(&names, value)
+        .unwrap_or_else(|declined| panic!("the fillet: declined, {declined:?}"));
+    let chamfered = bar
+        .chamfer_edges(&names, value)
+        .unwrap_or_else(|declined| panic!("the chamfer: declined, {declined:?}"));
+
+    let what = format!("the fillet on the four long edges of a bar {BAR} square, asked {value}");
+    taken_as_asked(filleted.asked, filleted.taken, value, &what);
+    let body = &filleted.body;
+    let mut area = 0.0;
+    for (edge, number) in edges.iter().zip(laid.clone()) {
+        let round = edge.round(value);
+        is_the_round(
+            body,
+            number,
+            &round,
+            &format!(
+                "{what}: face {number}, the round between faces {:?}",
+                edge.faces
+            ),
+        );
+        area += round.area();
+    }
+    sound_drawn_within(
+        body,
+        LENGTH * BAR * BAR - 4.0 * LENGTH * value * value * (1.0 - PI / 4.0),
+        DRAWN * reach_of(&bar) * area,
+        &what,
+    );
+    corners_are(
+        body,
+        TOP,
+        &strip(
+            DVec3::new(0.0, value, BAR),
+            DVec3::new(0.0, BAR - value, BAR),
+        ),
+        &format!("{what}: what is left of the top, a strip between two rounds"),
+    );
+
+    let what = format!("the chamfer on the four long edges of a bar {BAR} square, asked {value}");
+    taken_as_asked(chamfered.asked, chamfered.taken, value, &what);
+    let body = &chamfered.body;
+    for (edge, number) in edges.iter().zip(laid) {
+        let (corners, facing) = edge.flat(value);
+        let which = format!(
+            "{what}: face {number}, the flat between faces {:?}",
+            edge.faces
+        );
+        face_facing(body, &[number], facing, &which);
+        corners_are(body, number, &corners, &which);
+    }
+    let promised = LENGTH * BAR * BAR - 4.0 * LENGTH * value * value / 2.0;
+    sound_drawn_within(body, promised, EXACT * promised, &what);
+    corners_are(
+        body,
+        TOP,
+        &strip(
+            DVec3::new(0.0, value, BAR),
+            DVec3::new(0.0, BAR - value, BAR),
+        ),
+        &format!("{what}: what is left of the top, a strip between two flats"),
     );
 }

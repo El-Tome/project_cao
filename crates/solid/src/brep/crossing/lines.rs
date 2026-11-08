@@ -3,7 +3,7 @@
 
 use glam::DVec3;
 
-use super::{Facet, Triangle, clear, cross, resting, sides, sliver};
+use super::{Facet, Triangle, clear, cross, sides, sliver};
 
 /// Two faces, by their index among the triangles.
 pub(crate) type Pair = (usize, usize);
@@ -99,9 +99,7 @@ impl Lines {
                 self.note(3 * by.0 + at, on.0, span, None);
             }
         }
-        if resting(over[0], room) > 1 && resting(over[1], room) > 1 {
-            self.share_edges(one, other, room);
-        }
+        self.share_edges(one, other, room);
     }
 
     /// Notes each stretch of edge the two faces run along together.

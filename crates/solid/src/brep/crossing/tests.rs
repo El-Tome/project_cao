@@ -49,6 +49,21 @@
 //!   are a real miss, not equivalent, and a test pinning them would assert it
 //! - no production line changes — no test: read off `git diff --stat`, where
 //!   `brep/crossing.rs` gains only the `#[cfg(test)]` declaring this file
+//!
+//! Closes #772.
+//! - a face passing through another along a short edge tilted within the room
+//!   of a longer one is refused by `uncrossed`, in both orders, and found by
+//!   `passes_along` from the tilted face —
+//!   `a_face_passing_through_another_along_a_short_edge_tilted_within_the_room_of_a_longer_one_crosses_it_whichever_comes_first`
+//!   in `soundness/crossing/tests.rs`,
+//!   `a_face_passing_through_another_along_its_short_edge_tilted_within_the_room_of_a_longer_one_is_found_from_it`
+//! - `Lines::weigh` notes shared stretches with no condition on resting
+//!   corners — no test: a shape, not a verdict; the two tests above fail while
+//!   the condition stands, and the mutation run reported on the pull request
+//!   shows its `&&` and `>` mutants gone with it
+//! - no draw regresses against `main`, seed by seed, on sets 352000000000000,
+//!   353000000000000 and 354000000000000, both kernels — no test: a campaign
+//!   run, compared seed by seed and reported on the pull request
 
 use super::*;
 
@@ -127,6 +142,21 @@ fn a_segment_running_right_across_a_face_keeps_the_chord_more_than_the_room_insi
             ends[1]
         );
     }
+}
+
+#[test]
+fn a_face_passing_through_another_along_its_short_edge_tilted_within_the_room_of_a_longer_one_is_found_from_it()
+ {
+    let flat = [DVec3::ZERO, at(12.0, 0.0, 0.0), at(0.0, 12.0, 0.0)];
+    let room = NEAR * reach(&[flat]);
+    let lean = 0.8 * room;
+    let rising = [at(2.0, 3.0, 0.0), at(8.0, 3.0, 0.0), at(5.0, 6.0, 4.0)];
+    let sinking = [
+        at(5.0, 3.0 + lean, 0.0),
+        at(4.0, 3.0, 0.0),
+        at(4.5, 1.0, -4.0),
+    ];
+    assert!(passes_along(&[sinking, flat, rising], room));
 }
 
 #[test]

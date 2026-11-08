@@ -6,7 +6,7 @@ See also: [sketch](sketch.md) · [history](history.md)
 
 ```
 ┌──────────────────────────────────────────────┐
-│ ⌂ Accueil / part name / (view)  message…     │  title bar
+│ ⌂ Accueil / part / (view)  (• message…)      │  title bar
 ├──────────────────────────────────────────────┤
 │ CAO Esquisse Extrusion Export  Pièce Var. ┊ ⚙│  logo, tabs, then the panels
 │ ─────────────────────────────────────────────│
@@ -22,7 +22,10 @@ The title bar reads as a breadcrumb: « Accueil », which goes back to the home
 screen, then the part's name, its file on hover, then where the view stands, in
 a pill — the sketch open (« Esquisse 2 »), else the section view, else the
 kept section shown (« Coupe 1 »), else the plane the view is turned to, else
-« Vue 3D libre ».
+« Vue 3D libre ». In the middle of the window, whatever the breadcrumb's
+length, the message answering the last gesture — a hint, a refusal, a
+confirmation — stands in a pill of its own behind an amber dot, and gives way
+to the next.
 
 The « CAO » logo heads the tab row on a fresh install; the toolbar section of
 the preferences switches it off. Right of the tabs stand the toggles of the

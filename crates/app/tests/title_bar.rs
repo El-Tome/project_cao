@@ -85,7 +85,9 @@
 //! text whose middle stands within the height of one widget known to be on it,
 //! left to right, a text once rather than once more for the run of glyphs
 //! `egui` lays under it. A separator carries no name, and is read off the frame's
-//! shapes instead.
+//! shapes instead, as are a pill — a filled or outlined rectangle around the
+//! text it carries, its corners rounded, and the message's rounded into round
+//! ends — and the message's dot, a filled circle in `accent.amber`.
 
 mod driver;
 
@@ -255,8 +257,10 @@ fn the_view_stands_in_a_pill_at_the_end_of_the_breadcrumb() {
 
     let view = the_topmost_reading(&app, "Vue 3D libre");
     let name = the_topmost_reading(&app, "Platine");
-    let pills: Vec<egui::Rect> = rounded_backgrounds_painted(&app)
+    let pills: Vec<egui::Rect> = backgrounds_painted(&app)
         .into_iter()
+        .filter(|(_, least_radius)| *least_radius > 0.0)
+        .map(|(pill, _)| pill)
         .filter(|pill| pill.expand(HUGGED_WITHIN).contains_rect(view) && !pill.intersects(name))
         .collect();
 
@@ -352,6 +356,74 @@ fn the_view_pill_follows_the_sketch_the_section_view_and_the_kept_section() {
     );
 }
 
+#[test]
+fn a_tool_s_hint_shows_centred_in_the_title_bar_in_a_pill_with_an_amber_dot() {
+    let mut app = a_part("a_tool_s_hint_shows_centred_in_the_title_bar");
+    driver::start_a_sketch(&mut app);
+    driver::click_exactly(&mut app, "Arc");
+
+    let mut wrong = Vec::new();
+    if !driver::says(&app, THE_ARC_S_HINT) {
+        wrong.push(format!(
+            "`driver::says` no longer finds the hint, and every test reading a message \
+             with it goes blind; the screen says {:?}",
+            driver::said(&app),
+        ));
+    }
+    let hint = the_topmost_reading(&app, THE_ARC_S_HINT);
+    let bar = the_topmost_reading(&app, "Accueil");
+    if !bar.y_range().contains(hint.center().y) {
+        wrong.push(format!(
+            "the hint at {hint:?} is not on the title bar's row, « Accueil » at {bar:?}"
+        ));
+    }
+    let view = the_topmost_reading(&app, "Esquisse 1");
+    let pill = backgrounds_painted(&app)
+        .into_iter()
+        .filter(|(around, least_radius)| {
+            *least_radius >= around.height() / 2.0 - ROUND_WITHIN
+                && around.expand(HUGGED_WITHIN).contains_rect(hint)
+                && !around.intersects(view)
+        })
+        .map(|(around, _)| around)
+        .min_by(|one, other| one.area().total_cmp(&other.area()));
+    if pill.is_none() {
+        wrong.push(format!(
+            "nothing with round ends is painted around the hint at {hint:?} alone, the \
+             view's « Esquisse 1 » at {view:?} left outside it"
+        ));
+    }
+    let message = pill.unwrap_or(hint);
+    let middle = app.ctx.content_rect().center().x;
+    if (message.center().x - middle).abs() > CENTRED_WITHIN {
+        wrong.push(format!(
+            "the message stands at {message:?}, its middle at {} where the window's is at \
+             {middle}",
+            message.center().x,
+        ));
+    }
+    let amber = cao_app::theme::tokens::ACCENT_AMBER;
+    let dots = dots_painted(&app, amber);
+    let beside_the_hint = dots.iter().any(|(at, wide)| {
+        (wide - DOT).abs() < SIZED_WITHIN
+            && message.contains(*at)
+            && at.x < hint.left()
+            && hint.y_range().contains(at.y)
+    });
+    if !beside_the_hint {
+        wrong.push(format!(
+            "no amber dot {DOT} points wide stands in the message before the hint at \
+             {hint:?}; amber dots painted: {dots:?}"
+        ));
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the tool's hint is not shown as the redesign draws it:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
 /// How wide a separator may be painted, in points: a line, or a rectangle
 /// standing in for one.
 const THIN: f32 = 2.0;
@@ -365,6 +437,24 @@ fn a_part(test: &str) -> driver::App {
 /// How far a pill may sit inside the text it carries, in points: the rect the
 /// tree gives a label and the frame painted around it are rounded apart.
 const HUGGED_WITHIN: f32 = 0.5;
+
+/// The tool's hint the message pill is read with: the arc's, which the tool
+/// says the moment it is taken.
+const THE_ARC_S_HINT: &str = "Cliquez le centre, puis le départ de la courbe, puis son arrivée";
+
+/// How wide the message's dot is drawn, in points: `docs/redesign/part-screen.md`
+/// P1.
+const DOT: f32 = 7.0;
+
+/// How far a size may be from the one drawn, in points.
+const SIZED_WITHIN: f32 = 0.01;
+
+/// How far a pill's middle may stand from the window's, in points.
+const CENTRED_WITHIN: f32 = 1.0;
+
+/// How far a corner may fall short of half the side it rounds and still read as
+/// a round end, in points: a radius is held in whole points.
+const ROUND_WITHIN: f32 = 0.5;
 
 /// The corners of the rectangle the block is raised off, points of its sketch
 /// on the plane YZ, and a point inside it: those `keeping_a_section.rs` tuned.
@@ -440,9 +530,9 @@ fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
     driver::hold_the_canvas(app);
 }
 
-/// Every rectangle the last frame painted with rounded corners and something
-/// to see — a fill or an outline.
-fn rounded_backgrounds_painted(app: &driver::App) -> Vec<egui::Rect> {
+/// Every rectangle the last frame painted with something to see — a fill or
+/// an outline — and the least of its four corner radii.
+fn backgrounds_painted(app: &driver::App) -> Vec<(egui::Rect, f32)> {
     let mut found = Vec::new();
     let mut pending: Vec<&egui::Shape> = app
         .output()
@@ -453,15 +543,43 @@ fn rounded_backgrounds_painted(app: &driver::App) -> Vec<egui::Rect> {
     while let Some(shape) = pending.pop() {
         match shape {
             egui::Shape::Vec(group) => pending.extend(group),
-            egui::Shape::Rect(rect) => {
+            egui::Shape::Rect(rect) if rect.fill.a() > 0 || rect.stroke.width > 0.0 => {
                 let corners = rect.corner_radius;
-                let rounded = [corners.nw, corners.ne, corners.sw, corners.se]
+                let least = [corners.nw, corners.ne, corners.sw, corners.se]
                     .into_iter()
-                    .all(|radius| radius > 0);
-                let seen = rect.fill.a() > 0 || rect.stroke.width > 0.0;
-                if rounded && seen {
-                    found.push(rect.rect);
-                }
+                    .min()
+                    .unwrap_or_default();
+                found.push((rect.rect, f32::from(least)));
+            }
+            _ => {}
+        }
+    }
+    found
+}
+
+/// Every dot the last frame painted in this colour: where its middle stands,
+/// and how wide it is. A filled circle, or a square rounded into one.
+fn dots_painted(app: &driver::App, colour: egui::Color32) -> Vec<(egui::Pos2, f32)> {
+    let mut found = Vec::new();
+    let mut pending: Vec<&egui::Shape> = app
+        .output()
+        .shapes
+        .iter()
+        .map(|clipped| &clipped.shape)
+        .collect();
+    while let Some(shape) = pending.pop() {
+        match shape {
+            egui::Shape::Vec(group) => pending.extend(group),
+            egui::Shape::Circle(circle) if circle.fill == colour => {
+                found.push((circle.center, 2.0 * circle.radius));
+            }
+            egui::Shape::Rect(rect)
+                if rect.fill == colour
+                    && (rect.rect.width() - rect.rect.height()).abs() < SIZED_WITHIN
+                    && f32::from(rect.corner_radius.nw)
+                        >= rect.rect.width() / 2.0 - ROUND_WITHIN =>
+            {
+                found.push((rect.rect.center(), rect.rect.width()));
             }
             _ => {}
         }

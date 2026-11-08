@@ -359,6 +359,12 @@ fn every_token_the_chrome_holds_is_the_design_file_s() {
             tokens::STATE_ERROR_TEXT,
             "state.error_text",
         ),
+        ("STATE_ERROR", tokens::STATE_ERROR, "state.error"),
+        (
+            "STATE_ERROR_BACKGROUND",
+            tokens::STATE_ERROR_BACKGROUND,
+            "state.error_background",
+        ),
     ];
     let numbers = [
         (
@@ -367,9 +373,16 @@ fn every_token_the_chrome_holds_is_the_design_file_s() {
             "radius.control",
         ),
         ("RADIUS_CARD", f32::from(tokens::RADIUS_CARD), "radius.card"),
+        (
+            "RADIUS_BUTTON",
+            f32::from(tokens::RADIUS_BUTTON),
+            "radius.button",
+        ),
+        ("RADIUS_PILL", f32::from(tokens::RADIUS_PILL), "radius.pill"),
         ("SPACING_S", tokens::SPACING_S, "spacing.s"),
         ("SPACING_M", tokens::SPACING_M, "spacing.m"),
         ("SPACING_L", tokens::SPACING_L, "spacing.l"),
+        ("SPACING_XXL", tokens::SPACING_XXL, "spacing.xxl"),
         (
             "TYPOGRAPHY_SIZES_SECTION_TITLE",
             tokens::TYPOGRAPHY_SIZES_SECTION_TITLE,
@@ -410,9 +423,9 @@ fn every_token_the_chrome_holds_is_the_design_file_s() {
     wrong.extend(
         numbers
             .iter()
-            .filter(|(_, held, path)| (held - design.number(path)).abs() >= TOLERANCE)
+            .filter(|(_, held, path)| (held - design.held_as(path)).abs() >= TOLERANCE)
             .map(|(name, held, path)| {
-                format!("{name} is {held}, {path} is {}", design.number(path))
+                format!("{name} is {held}, {path} is {}", design.held_as(path))
             }),
     );
     let checked: BTreeSet<&str> = colours
@@ -581,6 +594,18 @@ impl Tokens {
         self.at(path)
             .as_f64()
             .unwrap_or_else(|| panic!("{path} in {TOKENS} is not a number")) as f32
+    }
+
+    /// A number as `egui` can hold it. A corner's radius is a `u8` there, so
+    /// `radius.pill`, written 999 to mean as round as the side allows, is held
+    /// as `u8::MAX`: `egui` rounds no corner past half its side either way.
+    fn held_as(&self, path: &str) -> f32 {
+        let written = self.number(path);
+        if path.starts_with("radius.") {
+            written.min(f32::from(u8::MAX))
+        } else {
+            written
+        }
     }
 
     fn radius(&self, name: &str) -> u8 {

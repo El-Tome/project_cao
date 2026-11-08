@@ -409,7 +409,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | The redesign's icons, embedded from `docs/redesign/icons/`, handed to egui drawn in white so that a widget's tint gives their colour, and drawn at the three sizes the redesign uses | `app/src/ui/icon.rs` | `Icon`, `IconSize`, `install`, `Icon::image` |
 | A button of the ribbon: its icon above its name, its icon alone with names off, or a row of a menu, the icon in the colour of the name | `app/src/ui/tool_button.rs` | `tool_button`, `icon_button`, `menu_entry` |
 | A toggle of the ribbon's header: its icon beside its name, pressed while its panel shows; « Préférences » wears the same face | `app/src/ui/panel_toggle.rs` | `panel_toggle`, `panel_button` |
-| A short run of text on a rounded patch of its own, as the view stands at the end of the title bar | `app/src/ui/pill.rs` | `pill` |
+| A short run of text on a rounded patch of its own, as the view stands at the end of the title bar; the message on a patch with round ends and a dot before it, centred where it is told and never over what the row holds, coloured by its tone | `app/src/ui/pill.rs` | `pill`, `message_pill`, `Tone` |
 | The text logo at the head of the tab row, amber with its letters spaced out, shown on a fresh install and switched off in the preferences | `app/src/ui/logo.rs`, `prefs/src/toolbar/standard.rs` | `logo`; `show_logo` |
 | The chrome's theme: dark whatever the system says, its `Visuals` and `Style`, the two typefaces | `app/src/ui/theme.rs` | `install`, `font_definitions` |
 | The redesign's tokens the chrome wears, each named after its path in `docs/redesign/tokens.json` | `app/src/ui/theme/tokens.rs` | `BACKGROUND_PANEL`, `TEXT_PRIMARY`, `ACCENT_AMBER_TEXT`, … |
@@ -431,7 +431,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | The icon each button of the toolbar wears: the one a command is looked up to, and for the matter in front of the sketch the one of the state it is in | `app/src/screens/ribbon/icons.rs`, `app/src/screens/ribbon/state.rs` | `of`, `matter_in_front`; `icon` |
 | Settings screen | `app/src/screens/settings/` | `show(...)`, one file per section |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
-| Title bar of the part screen: « Accueil » with its icon, the part's name, its path on hover, and where the view stands in a pill — the sketch open, the section view, the kept section shown, the plane, or the free view | `app/src/screens/title_bar/`, `app/src/wording/view.rs` | `state.rs` `TitleBar::of`, `view.rs` `show`; `Standing`, `standing_on` |
+| Title bar of the part screen: « Accueil » with its icon, the part's name, its path on hover, and where the view stands in a pill — the sketch open, the section view, the kept section shown, the plane, or the free view — then the message, in the middle of the window | `app/src/screens/title_bar/`, `app/src/wording/view.rs` | `state.rs` `TitleBar::of`, `view.rs` `show`; `Standing`, `standing_on` |
 | What a key actually says, in French and in any language dropped in | `app/src/lang/` | `Catalogue::french`, `load`, `t`, `t_with`, `t_moment`, `fr.json` |
 | What a command, its help and its family are called | `app/src/wording/command.rs` | `label`, `hint`, `family_heading` |
 | What a history step and its unfolded line say | `app/src/wording/history/` | `label` in `mod.rs`, `detail` in `detail.rs` |

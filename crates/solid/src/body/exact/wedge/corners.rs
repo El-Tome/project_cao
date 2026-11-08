@@ -43,10 +43,9 @@ pub(super) fn trimmed(
     rank: usize,
     made: u32,
 ) {
-    let ends = |edge: EdgeId| body.edge(edge).ends.into_iter().flatten();
     let laid = names[rank].between.clone();
     for later in rank + 1..names.len() {
-        if !ends(edges[later]).any(|end| ends(edges[rank]).any(|other| other == end)) {
+        if !meet(body, [edges[rank], edges[later]]) {
             continue;
         }
         let name = &mut names[later];
@@ -63,4 +62,10 @@ pub(super) fn trimmed(
             }
         }
     }
+}
+
+/// Whether two edges share a corner.
+pub(super) fn meet(body: &brep::Body, [one, other]: [EdgeId; 2]) -> bool {
+    let ends = |edge: EdgeId| body.edge(edge).ends.into_iter().flatten();
+    ends(one).any(|end| ends(other).any(|theirs| theirs == end))
 }

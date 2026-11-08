@@ -17,7 +17,9 @@ use glam::DVec3;
 
 use super::{Exact, PIECES, root};
 use crate::body::caught::caught;
-use crate::brep::{self, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Scale, Surface};
+use crate::brep::{
+    self, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Scale, Surface, VertexId,
+};
 use crate::profile::{Contour, Frame};
 
 pub(super) use pairs::Together;
@@ -126,7 +128,13 @@ impl Exact {
                         together,
                     )?,
                     _ => {
-                        let laid = cut.laid(&sought[rank], taken, &tool)?;
+                        let mitred: Vec<u32> = (0..rank)
+                            .filter(|&earlier| {
+                                corners::meet(&self.brep, [edges[earlier], edges[rank]])
+                            })
+                            .map(|earlier| start + earlier as u32)
+                            .collect();
+                        let laid = cut.laid(&sought[rank], taken, &tool, &mitred)?;
                         corners::trimmed(
                             &self.brep,
                             &edges,
@@ -163,12 +171,14 @@ impl Exact {
     /// where the steps' numbers ended, declined as [`Exact::cut_off`] says.
     /// The wedge is read again on the body the edges before it were laid on,
     /// as [`Wedge::read`] reads it: whether the edge is on a tangent chain was
-    /// read on the body as given.
+    /// read on the body as given. `mitred` numbers the faces laid before it at
+    /// a corner it shares, which its own face meets in a mitre.
     fn laid(
         &self,
         name: &EdgeName,
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
+        mitred: &[u32],
     ) -> Result<Exact, Declined> {
         let (edge, wedge) = self.wedge(name, Wedge::read)?;
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
@@ -188,7 +198,7 @@ impl Exact {
         } else {
             self.cut_by(&Exact { next: 1, ..tool })?
         };
-        if cut.cut_along(&[&wedge], self, 1) {
+        if cut.cut_along(&[&wedge], self, 1, mitred) {
             Ok(cut)
         } else {
             Err(Declined::Unsupported)
@@ -198,10 +208,12 @@ impl Exact {
     /// Whether the prism left its face alone on the body, numbered where the
     /// steps' numbers of `before` ended and answering to the `laid` numbers
     /// from there, in one piece, every corner of it on one of the edges' faces
-    /// — where the faces met at the edges' ends trim it — and every face
-    /// `before` held but the edges' still there: no face, nor piece of a
-    /// face, of the prism but that one.
-    fn cut_along(&self, wedges: &[&Wedge], before: &Exact, laid: u32) -> bool {
+    /// — where the faces met at the edges' ends trim it — or a corner of a
+    /// face numbered in `mitred`, where a mitre with it ends — at a corner
+    /// that is not square, on a face of the other edge, short of the third —
+    /// and every face `before` held but the edges' still there: no face, nor
+    /// piece of a face, of the prism but that one.
+    fn cut_along(&self, wedges: &[&Wedge], before: &Exact, laid: u32, mitred: &[u32]) -> bool {
         let made = before.next;
         let eps = self.brep.scale().eps();
         let numbers = |body: &brep::Body, face: FaceId| body.numbers(face).to_vec();
@@ -214,17 +226,21 @@ impl Exact {
             .roots
             .values()
             .any(|replaced| (made..PIECES).contains(replaced));
-        let on_a_side = self
-            .named(made as usize)
-            .flat_map(|face| self.brep.face(face).loops.iter().flatten())
-            .flat_map(|coedge| self.brep.edge(coedge.edge).ends.into_iter().flatten())
-            .all(|corner| {
-                let point = self.brep.vertex(corner).point;
-                wedges.iter().any(|wedge| {
+        let corners = |number: u32| {
+            self.named(number as usize)
+                .flat_map(|face| self.brep.face(face).loops.iter().flatten())
+                .flat_map(|coedge| self.brep.edge(coedge.edge).ends.into_iter().flatten())
+        };
+        let mitres: BTreeSet<VertexId> =
+            mitred.iter().flat_map(|&number| corners(number)).collect();
+        let on_a_side = corners(made).all(|corner| {
+            let point = self.brep.vertex(corner).point;
+            mitres.contains(&corner)
+                || wedges.iter().any(|wedge| {
                     let at = point - wedge.point;
                     wedge.outward.iter().any(|side| side.dot(at).abs() <= eps)
                 })
-            });
+        });
         let consumable: BTreeSet<u32> = wedges
             .iter()
             .flat_map(|wedge| wedge.faces)

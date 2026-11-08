@@ -112,13 +112,45 @@
 //! `V − d²(2L + 2B)/2 + 4d³/3`, and the filleted one
 //! `V − r²(1 − π/4)(2L + 2B) + 4r³(5/3 − π/2)`, `L` and `B` its length and
 //! breadth: 5676 for the chamfer at 3 on the block 30 by 10 by 20, and
-//! 5855.84 for the fillet at 3. The corners that are not square are measured
-//! where their tests stand.
+//! 5855.84 for the fillet at 3.
+//!
+//! The corner that is not square is the end of a prism 30 long whose section
+//! is 16 wide at its bottom, 10 at its top and 10 high, its right side
+//! slanting in: the end, the top and that side meet at (30, 12, 10). The
+//! top's edge on the end, A, and the upright where the side meets the end, C,
+//! are square; the top's edge on the side, B, meets at the side's slant, an
+//! angle θ with `cos θ = −4/√116`; write `k = sin θ = 10/√116`. Measured
+//! from the corner, `x′` in from the end, `w` down from the top and `u` in
+//! from the side along Y, the side is `u = 0` and stands `ku` away. Alone, a
+//! flat at `d` takes: on A, which runs across the end between two sides that
+//! lean out as they go down, a length `10 + 0.6w` at a depth `w`,
+//! `5d² + 0.1d³`; on B the triangle `u/d + w/(kd) < 1` along its 30,
+//! `15kd²`; on C the square cut `d²/2` along its `10/k`, `5d²/k`. Two flats
+//! overlap where both cut: A and B by `kd³(1/2 − k/6)`, `x′ < d − w` and
+//! `u < d − w/k` at a depth `w`; B and C by the same; A and C by `d³/(3k)`,
+//! `w < d − x′` and `u < (d − x′)/k` at `x′`. A round at `r` alone takes, on
+//! A, `10r²(1 − π/4) + 0.6r³(5/6 − π/4)`; on B, `30r²(cot(θ/2) − (π − θ)/2)`;
+//! on C, `(10/k)r²(1 − π/4)`; rounds on A and C overlap by
+//! `r³(5/3 − π/2)/k`, the square corner's integral stretched by `1/k` across
+//! the slant. At 2, the prism of 3900 keeps 3826.06 with flats on A and B,
+//! 3860.53 on A and C, 3825.32 on B and C, and 3882.77 with rounds on A and
+//! C. Where a round on B meets one on A or C, the overlap is an integral of
+//! two arcs at that angle with no short closed form: there the volume
+//! promised is the prism's with the two cuts' prisms, each raised whole along
+//! its edge's line, taken away by the booleans — the fixture the test also
+//! holds every face of the step against.
+//!
+//! At a corner that is not square, the line where the two cuts meet need not
+//! run down to the third edge: it can leave by the face the third edge shares
+//! with one of the cut ones, and run on along that face. The third edge ends
+//! where the cut set back farthest along it crosses it, that cut's set-back
+//! over the sine of the angle its edge makes with the third; at a square
+//! corner both come to one value.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
 
-use cao_solid::profile::{Contour, Frame, Profile};
+use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
 use cao_solid::{Body, Declined, EdgeName, Loop};
 use glam::{DVec2, DVec3};
@@ -1321,6 +1353,437 @@ fn a_chamfer_and_a_fillet_on_the_four_top_edges_of_a_block_mitre_its_four_corner
                 &round.part(value, round.length - value),
                 &format!("{which}, between its mitres"),
             );
+        }
+    }
+}
+
+/// The section of a prism lying along X, drawn on the plane of Y and Z: its
+/// bottom 16 wide, its top 10 wide, from 2 to 12 at a height of 10, and its
+/// two sides slanting in. Raised along X for [`LENGTH`], its numbers are its
+/// start at x = 0 nought, its end one, then its bottom two, its right side
+/// three, its top four and its left side five. A prism of a convex section,
+/// every edge of it meets outwards.
+const SLANTED: [DVec2; 4] = [
+    DVec2::new(0.0, 0.0),
+    DVec2::new(16.0, 0.0),
+    DVec2::new(12.0, 10.0),
+    DVec2::new(2.0, 10.0),
+];
+const SLANTED_END: usize = 1;
+const SLANTED_RIGHT: usize = 3;
+const SLANTED_TOP: usize = 4;
+
+/// The slanted prism's matter: its section's area along its length.
+const SLANTED_VOLUME: f64 = (16.0 + 10.0) / 2.0 * 10.0 * LENGTH;
+
+/// The corner where the slanted prism's end, its top and its right side meet.
+const SLANTED_CORNER: DVec3 = DVec3::new(LENGTH, 12.0, 10.0);
+
+/// The [`SLANTED`] section raised along X for [`LENGTH`].
+fn slanted_prism() -> Body {
+    let part = Body::default();
+    let tool = part
+        .tool_raised(
+            &profile(Contour::straight(SLANTED.to_vec())),
+            Frame {
+                origin: DVec3::ZERO,
+                u: DVec3::Y,
+                v: DVec3::Z,
+            },
+            DVec3::X * LENGTH,
+        )
+        .expect("the tool raises");
+    part.union(&tool).expect("the part is built")
+}
+
+/// The way the slanted prism's right side faces.
+fn side_facing() -> DVec3 {
+    DVec3::new(0.0, 10.0, 4.0).normalize()
+}
+
+/// The way the slanted prism's right side runs down from its top.
+fn side_down() -> DVec3 {
+    DVec3::new(0.0, 4.0, -10.0).normalize()
+}
+
+/// What a step lays on an edge: a flat or a round.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Cut {
+    Flat,
+    Round,
+}
+
+/// An edge at [`SLANTED_CORNER`]: the two faces it lies between, the way it
+/// runs from the corner, for each face the way into it from the edge, square
+/// to the edge, and the way it faces, and how far before and past the corner
+/// a prism raised along it must reach to take all a cut of it takes.
+struct SlantedEdge {
+    called: &'static str,
+    faces: [usize; 2],
+    along: DVec3,
+    into: [DVec3; 2],
+    outward: [DVec3; 2],
+    reach: [f64; 2],
+}
+
+/// The three edges at [`SLANTED_CORNER`]: the top's edge on the end, square,
+/// the top's edge on the right side, at the side's slant, and the slanted
+/// upright where the side meets the end, square.
+fn slanted_corner_edges() -> [SlantedEdge; 3] {
+    [
+        SlantedEdge {
+            called: "the top's edge on the end",
+            faces: [SLANTED_TOP, SLANTED_END],
+            along: -DVec3::Y,
+            into: [-DVec3::X, -DVec3::Z],
+            outward: [DVec3::Z, DVec3::X],
+            reach: [-8.0, 18.0],
+        },
+        SlantedEdge {
+            called: "the top's edge on the right side",
+            faces: [SLANTED_TOP, SLANTED_RIGHT],
+            along: -DVec3::X,
+            into: [-DVec3::Y, side_down()],
+            outward: [DVec3::Z, side_facing()],
+            reach: [-2.0, LENGTH + 2.0],
+        },
+        SlantedEdge {
+            called: "the slanted upright where the side meets the end",
+            faces: [SLANTED_END, SLANTED_RIGHT],
+            along: side_down(),
+            into: [-side_facing(), -DVec3::X],
+            outward: [DVec3::X, side_facing()],
+            reach: [-3.0, 116f64.sqrt() + 3.0],
+        },
+    ]
+}
+
+impl SlantedEdge {
+    /// The edge's name on the part.
+    fn name(&self, part: &Body) -> EdgeName {
+        let [first, second] = self.faces;
+        edge_between(part, first, second)
+    }
+
+    /// The angle its two faces meet at, inside the matter.
+    fn angle(&self) -> f64 {
+        let [first, second] = self.into;
+        first.dot(second).acos()
+    }
+
+    /// How far a cut of `value` sets back from the edge along each of its
+    /// faces: a flat by the value, a round where it is tangent to the face.
+    fn set_back(&self, cut: Cut, value: f64) -> f64 {
+        match cut {
+            Cut::Flat => value,
+            Cut::Round => value / (self.angle() / 2.0).tan(),
+        }
+    }
+
+    /// The round a fillet of `radius` lays on the edge, whole: its axis on the
+    /// line halfway between the two faces, the radius from each, as far as
+    /// the edge's prism reaches.
+    fn round(&self, radius: f64) -> Round {
+        let [first, second] = self.into;
+        let halfway = (first + second).normalize();
+        let [before, past] = self.reach;
+        Round {
+            start: SLANTED_CORNER
+                + halfway * radius / (self.angle() / 2.0).sin()
+                + self.along * before,
+            along: self.along,
+            length: past - before,
+            radius,
+            facing: self.outward,
+        }
+    }
+
+    /// The prism a cut of `value` on this edge alone takes away, raised along
+    /// the edge's whole line and past its faces: cut from the part, it takes
+    /// what the arithmetic says the cut takes.
+    fn tool(&self, part: &Body, cut: Cut, value: f64) -> Body {
+        let u = self.into[0];
+        let v = self.along.cross(u);
+        let flat = |point: DVec3| DVec2::new(point.dot(u), point.dot(v));
+        let [mut into_first, mut into_second] = self.into.map(flat);
+        let [mut out_first, mut out_second] = self.outward.map(flat);
+        if into_first.perp_dot(into_second) > 0.0 {
+            std::mem::swap(&mut into_first, &mut into_second);
+            std::mem::swap(&mut out_first, &mut out_second);
+        }
+        let halfway = (into_first + into_second).normalize();
+        let far = 2.0 * value + 2.0;
+        let set_back = self.set_back(cut, value);
+        let [on_first, on_second] = [into_first * set_back, into_second * set_back];
+        let corners = vec![
+            on_first,
+            on_first + out_first * far,
+            -halfway * far,
+            on_second + out_second * far,
+            on_second,
+        ];
+        let mut runs = vec![Run::Straight; corners.len()];
+        if cut == Cut::Round {
+            runs[4] = Run::Round {
+                center: halfway * value / (self.angle() / 2.0).sin(),
+                turn: -(PI - self.angle()),
+            };
+        }
+        let [before, past] = self.reach;
+        part.tool_raised(
+            &profile(Contour { corners, runs }),
+            Frame {
+                origin: SLANTED_CORNER + self.along * before,
+                u,
+                v,
+            },
+            self.along * (past - before),
+        )
+        .expect("the tool raises")
+    }
+}
+
+/// The sine of the angle the slanted prism's top meets its right side at.
+fn slant() -> f64 {
+    10.0 / 116f64.sqrt()
+}
+
+/// What the slanted prism keeps once two edges at [`SLANTED_CORNER`] are cut
+/// at `value` and mitred, where the module's documentation derives it by
+/// hand: every pair of flats, and the pair of rounds on the two square edges.
+/// None for the two pairs of rounds taking the top's edge on the side.
+fn slanted_mitre(cut: Cut, [first, second]: [usize; 2], value: f64) -> Option<f64> {
+    let k = slant();
+    let flat_alone = [
+        5.0 * value * value + 0.1 * value.powi(3),
+        15.0 * k * value * value,
+        5.0 * value * value / k,
+    ];
+    let round_alone = [
+        10.0 * value * value * (1.0 - PI / 4.0) + 0.6 * value.powi(3) * (5.0 / 6.0 - PI / 4.0),
+        0.0,
+        10.0 / k * value * value * (1.0 - PI / 4.0),
+    ];
+    let pair = (first.min(second), first.max(second));
+    match (cut, pair) {
+        (Cut::Flat, (0, 2)) => Some(value.powi(3) / (3.0 * k)),
+        (Cut::Flat, _) => Some(k * value.powi(3) * (0.5 - k / 6.0)),
+        (Cut::Round, (0, 2)) => Some(value.powi(3) * (5.0 / 3.0 - PI / 2.0) / k),
+        (Cut::Round, _) => None,
+    }
+    .map(|overlap| {
+        let alone = match cut {
+            Cut::Flat => flat_alone,
+            Cut::Round => round_alone,
+        };
+        SLANTED_VOLUME - alone[first] - alone[second] + overlap
+    })
+}
+
+/// The sides each face of a body meets, as [`sides_met`] lists them, every
+/// number taken through `renumbered` first.
+fn sides_renumbered(
+    body: &Body,
+    face: usize,
+    renumbered: impl Fn(usize) -> usize,
+) -> Vec<Vec<u32>> {
+    let mut met: Vec<Vec<u32>> = sides_met(body, face)
+        .into_iter()
+        .map(|side| {
+            side.into_iter()
+                .map(|number| renumbered(number as usize) as u32)
+                .collect()
+        })
+        .collect();
+    met.sort();
+    met
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_two_of_the_three_edges_of_a_corner_that_is_not_square_mitre_them_the_third_left_sharp()
+ {
+    let value = 2.0;
+    let prism = slanted_prism();
+    let edges = slanted_corner_edges();
+    let steps_end = prism.faces_end();
+    let mut cases = Vec::new();
+    for order in TWO_OF_THREE {
+        for cut in [Cut::Flat, Cut::Round] {
+            cases.push((order, cut));
+        }
+    }
+
+    let laid: Vec<_> = cases
+        .iter()
+        .map(|&([first, second, _], cut)| {
+            let names = [edges[first].name(&prism), edges[second].name(&prism)];
+            match cut {
+                Cut::Flat => prism
+                    .chamfer_edges(&names, value)
+                    .map(|chamfered| (chamfered.body, chamfered.asked, chamfered.taken)),
+                Cut::Round => prism
+                    .fillet_edges(&names, value)
+                    .map(|filleted| (filleted.body, filleted.asked, filleted.taken)),
+            }
+        })
+        .collect();
+
+    let declined: Vec<String> = cases
+        .iter()
+        .zip(&laid)
+        .filter_map(|(&([first, second, _], cut), laid)| {
+            laid.as_ref().err().map(|declined| {
+                format!(
+                    "{cut:?} on {} then {}: {declined:?}",
+                    edges[first].called, edges[second].called
+                )
+            })
+        })
+        .collect();
+    assert!(
+        declined.is_empty(),
+        "every pair of a convex corner's edges is mitred, the corner square or not; declined:\n{}",
+        declined.join("\n")
+    );
+    for ((order, cut), laid) in cases.into_iter().zip(laid) {
+        let [first, second, third] = order;
+        let what = format!(
+            "the {} on {} then {}, {} left",
+            match cut {
+                Cut::Flat => "chamfer",
+                Cut::Round => "fillet",
+            },
+            edges[first].called,
+            edges[second].called,
+            edges[third].called
+        );
+        let (body, asked, taken) = laid.expect("declines are held above");
+        taken_as_asked(asked, taken, value, &what);
+        let fixture = prism
+            .difference(&edges[first].tool(&prism, cut, value))
+            .and_then(|cut_once| cut_once.difference(&edges[second].tool(&prism, cut, value)))
+            .expect("the two prisms cut the fixture");
+        let promised = slanted_mitre(cut, [first, second], value).unwrap_or(fixture.volume());
+        let drawn = match cut {
+            Cut::Flat => EXACT * promised,
+            Cut::Round => {
+                let area: f64 = [first, second]
+                    .iter()
+                    .map(|&edge| edges[edge].round(value).area())
+                    .sum();
+                DRAWN * reach_of(&prism) * area
+            }
+        };
+        sound_drawn_within(&body, promised, drawn, &what);
+        let laid_faces = [steps_end, steps_end + 1];
+        assert_eq!(
+            faces_made(&prism, &body),
+            laid_faces.to_vec(),
+            "{what}: one face for each edge, numbered in the order the step names them, and no \
+             face laid at the corner: {:?}",
+            numbers(&body)
+        );
+        assert!(
+            numbers(&prism).is_subset(&numbers(&body)),
+            "{what}: a face of the prism went: {:?}",
+            numbers(&body)
+        );
+        for face in 0..steps_end {
+            let plane = body
+                .plane_of(face)
+                .unwrap_or_else(|| panic!("{what}: face {face} of the prism is still flat"));
+            assert!(
+                plane
+                    .corners
+                    .iter()
+                    .all(|corner| corner.distance(SLANTED_CORNER) > PLACE),
+                "{what}: face {face} still has a corner at the old vertex {SLANTED_CORNER}"
+            );
+        }
+        let third_edge = &edges[third];
+        let short = [first, second]
+            .iter()
+            .map(|&edge| {
+                edges[edge].set_back(cut, value)
+                    / edges[edge].along.cross(third_edge.along).length()
+            })
+            .fold(0.0, f64::max);
+        let end = SLANTED_CORNER + third_edge.along * short;
+        let [one, other] = third_edge.faces;
+        assert_eq!(
+            edges_between(&body, one, other).len(),
+            1,
+            "{what}: {} is still one sharp edge",
+            third_edge.called
+        );
+        for face in third_edge.faces {
+            let plane = body
+                .plane_of(face)
+                .unwrap_or_else(|| panic!("{what}: face {face} is still flat"));
+            assert!(
+                plane
+                    .corners
+                    .iter()
+                    .any(|corner| corner.distance(end) < PLACE),
+                "{what}: {} ends at {end}, {short} from the corner, where the cut set back \
+                 farthest along it crosses it — no corner of face {face} there, among {:?}",
+                third_edge.called,
+                plane.corners
+            );
+        }
+        for (face, &edge) in laid_faces.iter().zip(&[first, second]) {
+            let which = format!("{what}: the face laid on {}", edges[edge].called);
+            match cut {
+                Cut::Flat => {
+                    let [one, other] = edges[edge].outward;
+                    faces_toward(&body, *face, (one + other).normalize(), &which);
+                }
+                Cut::Round => {
+                    assert!(
+                        !body.is_flat(*face) && body.plane_of(*face).is_none(),
+                        "{which} is curved, and offers no plane to draw on"
+                    );
+                    let round = edges[edge].round(value);
+                    let corners: Vec<DVec3> = body.triangles_of(*face).flatten().collect();
+                    assert!(!corners.is_empty(), "{which} is drawn");
+                    for point in corners {
+                        assert!(
+                            round.holds(point),
+                            "{which} is drawn through {point}, off its cylinder of {value} about \
+                             the line from {} along {}",
+                            round.start,
+                            round.along
+                        );
+                    }
+                }
+            }
+        }
+        let made_by_fixture = faces_made(&prism, &fixture);
+        let to_fixture = |number: usize| match laid_faces.iter().position(|&face| face == number) {
+            Some(rank) => made_by_fixture[rank],
+            None => number,
+        };
+        for face in numbers(&body) {
+            assert_eq!(
+                sides_renumbered(&body, face, to_fixture),
+                sides_met(&fixture, to_fixture(face)),
+                "{what}: face {face} meets the faces it meets on the prism with the two cuts' \
+                 prisms taken away, whole"
+            );
+            if body.plane_of(face).is_some() {
+                let expected = fixture
+                    .plane_of(to_fixture(face))
+                    .expect("the fixture's face is flat too");
+                corners_are(
+                    &body,
+                    face,
+                    &expected.corners,
+                    &format!(
+                        "{what}: face {face}, as on the prism with the two cuts' prisms taken \
+                         away"
+                    ),
+                );
+            }
         }
     }
 }

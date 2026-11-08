@@ -126,7 +126,7 @@ impl Exact {
         } else {
             self.cut_by(&Exact { next: 2, ..tool })?
         };
-        if !cut.cut_along(&[&first, &second], self, 2) {
+        if !cut.cut_along(&[&first, &second], self, 2, &[]) {
             return Err(Declined::Unsupported);
         }
         let Exact {

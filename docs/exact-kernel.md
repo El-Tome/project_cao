@@ -310,27 +310,35 @@ It can:
   outside the matter. The prism is the cut's turned inside out: its sides
   stand the margin off the two faces into the matter rather than out of it,
   and close where they meet there, so that the matter covers every wall of it
-  but the face the step lays. It is raised over the body's box as the cut's
-  is, then trimmed flush at each of the edge's ends by the plane of the one
-  face, besides the edge's two, that meets the edge there, square to it or
-  leaning: a box standing on that plane over what of the prism stands past it,
-  an eighth of the section's reach clear of it, is cut from the prism, so the
-  fill ends on the plane wherever it crosses it — on an L cut down to a
-  leaning top, higher on one wall than on the other. The trimmed prism is
-  joined to the body. Its ends merge into the faces at the edge's ends, which
-  a join would leave answering to the numbers of both operands: each face the
-  prism merged into answers to the body's numbers alone, so a cap stays the
-  one face it was, its number with it. Where a rib ends short of its plate,
-  the plate's top meets the rib's end along one edge again across the fill's
-  foot: the edge's two end corners are handed back to the boolean's step 8 as
-  cleared, and the edges either side of each are joined. The check is the
-  cut's: one new face, in one piece, its corners on the edge's two faces,
-  nothing else of the prism left, and no face of the body gone but those two.
-  Declined `Unsupported`: an end where no face but the edge's two meets the
-  edge, or several do; one that is not flat — a round end, which the convex
-  steps take, is not filled yet; one facing back along the edge; and one
-  leaning so far that its plane misses the prism's long edges between the
-  prism's two ends.
+  but the face the step lays. The chamfer's section for a fill is the fillet's
+  with a straight first run (`Wedge::squared_off`): from set-back to set-back,
+  then square off each face into the matter, so that nothing of it runs on
+  along a face past a set-back. The cut's section carries the chamfer's run
+  past the set-backs to the faces pushed out; pushed into the matter, that run
+  came out past a face whose far end stood within the margin of the set-back —
+  a chamfer of 7.5 on a wall 8 wide — and the step was declined. A value the
+  faces cannot give is reduced to the nearer face's reach, as for a cut, and
+  that face is taken whole, the new face meeting the face beyond it. The prism
+  is raised over the body's box as the cut's is, then trimmed flush at each of
+  the edge's ends by the plane of the one face, besides the edge's two, that
+  meets the edge there, square to it or leaning: a box standing on that plane
+  over what of the prism stands past it, an eighth of the section's reach
+  clear of it, is cut from the prism, so the fill ends on the plane wherever
+  it crosses it — on an L cut down to a leaning top, higher on one wall than
+  on the other. The trimmed prism is joined to the body. Its ends merge into
+  the faces at the edge's ends, which a join would leave answering to the
+  numbers of both operands: each face the prism merged into answers to the
+  body's numbers alone, so a cap stays the one face it was, its number with
+  it. Where a rib ends short of its plate, the plate's top meets the rib's end
+  along one edge again across the fill's foot: the edge's two end corners are
+  handed back to the boolean's step 8 as cleared, and the edges either side of
+  each are joined. The check is the cut's: one new face, in one piece, its
+  corners on the edge's two faces, nothing else of the prism left, and no face
+  of the body gone but those two. Declined `Unsupported`: an end where no face
+  but the edge's two meets the edge, or several do; one that is not flat — a
+  round end, which the convex steps take, is not filled yet; one facing back
+  along the edge; and one leaning so far that its plane misses the prism's
+  long edges between the prism's two ends.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face

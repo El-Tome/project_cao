@@ -3,12 +3,11 @@
 //! body — or, where the faces meet inwards, joined to it, filling the corner
 //! with a hollow round. Its wall on the round is the one face the step names.
 
-use glam::{DVec2, DVec3};
+use glam::DVec3;
 
 use super::Exact;
-use super::wedge::{Prism, Side, Wedge, too_short};
+use super::wedge::{Prism, Wedge, too_short};
 use crate::brep::{Declined, EdgeName, Scale, Surface};
-use crate::profile::{Contour, Run};
 
 impl Exact {
     /// The body with the edge a name finds rounded off by a cylinder of
@@ -86,16 +85,14 @@ impl Wedge {
         cosine * cosine / (1.0 + sine)
     }
 
-    /// The prism, raised along the edge: in a section square to it, the round
-    /// from where it touches the second face to where it touches the first, its
-    /// first run, then square off the first face to a margin outside it —
-    /// inside the matter, for a fill — along that margin to what
-    /// [`Wedge::closed`] closes it with, and back along the second face's
-    /// margin and square to the round. Raised as [`Wedge::raised_along`] raises
-    /// it. Declined `Distance` where the round would stand off the two faces by
-    /// less than the kernel can set a cut back by: within that, the kernel
-    /// reads it onto them. How far it stands grows with the radius, and an edge
-    /// bent nearly flat needs a large one to stand clear.
+    /// The prism, raised along the edge over the section
+    /// [`Wedge::squared_off`] draws, its first run the round from where it
+    /// touches the second face to where it touches the first, about a centre
+    /// a radius off the first face. Declined `Distance` where the round would
+    /// stand off the two faces by less than the kernel can set a cut back by:
+    /// within that, the kernel reads it onto them. How far it stands grows
+    /// with the radius, and an edge bent nearly flat needs a large one to
+    /// stand clear.
     fn rounded(
         &self,
         radius: f64,
@@ -105,35 +102,9 @@ impl Wedge {
         if too_short(radius * self.standing(), scale) {
             return Err(Declined::Distance);
         }
-        let [first, second] = self.outward;
-        let facing = (first + second).normalize();
-        let across = (self.into[0] - self.into[1]).normalize();
         let set_back = radius / self.half_tangent();
-        let margin = self.margin(across, facing, set_back, scale);
-        let off = self.off();
-        let side = |normal: DVec3| Side {
-            a: normal.dot(across),
-            b: normal.dot(facing),
-            offset: margin * off,
-        };
-        let top = self.closed(side(first), side(second), margin);
-        let [on_first, on_second] = self.into.map(|into| into * set_back);
-        let centre = on_first - first * radius * off;
-        let (frame, travel) = self.raised_along(across, margin, bounds);
-        let flat = |at: DVec3| DVec2::new(at.dot(frame.u), at.dot(frame.v));
-        let (from, to, about) = (flat(on_second), flat(on_first), flat(centre));
-        let (start, end) = (from - about, to - about);
-        let turn = start.perp_dot(end).atan2(start.dot(end));
-        let lifted = |at: DVec2| flat(across * at.x + facing * at.y);
-        let mut corners = vec![from, to, flat(on_first + first * margin * off)];
-        corners.extend(top.into_iter().map(lifted));
-        corners.push(flat(on_second + second * margin * off));
-        let mut runs = vec![Run::Straight; corners.len()];
-        runs[0] = Run::Round {
-            center: about,
-            turn,
-        };
-        Ok((Contour { corners, runs }, frame, travel))
+        let centre = self.into[0] * set_back - self.outward[0] * radius * self.off();
+        Ok(self.squared_off(set_back, Some(centre), scale, bounds))
     }
 }
 

@@ -29,7 +29,9 @@
 //!   largest that fits, and the step reports the value asked and the value
 //!   taken —
 //!   `a_chamfer_on_a_concave_edge_asked_more_than_a_face_can_give_takes_the_whole_face_and_reports_both_values`,
-//!   `a_fillet_on_a_concave_edge_asked_more_than_a_face_can_give_takes_the_radius_whose_set_back_is_the_whole_face_and_reports_both_radii`
+//!   `a_fillet_on_a_concave_edge_asked_more_than_a_face_can_give_takes_the_radius_whose_set_back_is_the_whole_face_and_reports_both_radii`;
+//!   and a value that fits is not reduced, however near a face's whole width —
+//!   `a_chamfer_on_a_concave_edge_just_short_of_a_face_s_whole_width_is_laid_as_asked`
 //! - After a change of size, a move or a turn upstream, the step fills the
 //!   same edge, found by its name —
 //!   `a_chamfer_and_a_fillet_fill_the_concave_edge_their_name_finds_again_after_a_change_of_size_a_move_and_a_turn`
@@ -377,6 +379,110 @@ fn ribbed_plate() -> Body {
 /// rib's 4 × 17 × 10.
 const RIBBED_VOLUME: f64 = 4800.0 + 680.0;
 
+/// The numbers the L's stem's back and the [`NOTCHED_STEP`] plate's back of
+/// its high part answer to: the walls past the stem's right side and past the
+/// riser.
+const STEM_BACK: usize = 6;
+const HIGH_BACK: usize = 6;
+
+/// A concave upright edge asked more than its faces give: the outline its
+/// part was raised from by `height`, and the matter that part holds; the
+/// point of the outline the edge stands on; its two walls, the one before
+/// that point and the one after, which is the shorter and is taken whole; the
+/// way each faces; and the face beyond the one taken whole, the wall after
+/// it, and the way that one faces.
+struct Overreach {
+    what: &'static str,
+    outline: Vec<DVec2>,
+    height: f64,
+    volume: f64,
+    at: usize,
+    walls: [usize; 2],
+    outward: [DVec2; 2],
+    beyond: usize,
+    beyond_facing: DVec2,
+}
+
+/// The L's inner corner, whose stem's right side reaches 8 and arm's back 18,
+/// and the plate's obtuse inner edge, whose riser reaches 10 and step 12: a
+/// chamfer takes 8 and 10 there, and a fillet the radius whose set-back
+/// r / tan(α / 2) is that whole width, 8 at the L's square corner and 20 at
+/// the plate's, where tan(α / 2) is 2.
+fn overreaching() -> [Overreach; 2] {
+    [
+        Overreach {
+            what: "the inner corner of the L, its stem's right side 8 wide, its arm's back 18",
+            outline: ELL.outline(),
+            height: ELL.height,
+            volume: ELL.volume(),
+            at: 3,
+            walls: [ARM_BACK, STEM_RIGHT],
+            outward: [DVec2::Y, DVec2::X],
+            beyond: STEM_BACK,
+            beyond_facing: DVec2::Y,
+        },
+        Overreach {
+            what: "the obtuse inner edge of the notched plate, its riser 10 wide, its step 12",
+            outline: NOTCHED_STEP.to_vec(),
+            height: 10.0,
+            volume: NOTCHED_STEP_AREA * 10.0,
+            at: 3,
+            walls: [STEP, RISER],
+            outward: [DVec2::Y, DVec2::new(4.0, 3.0)],
+            beyond: HIGH_BACK,
+            beyond_facing: DVec2::Y,
+        },
+    ]
+}
+
+impl Overreach {
+    fn part(&self) -> Body {
+        raised_on(
+            ground(),
+            Contour::straight(self.outline.clone()),
+            self.height,
+        )
+    }
+
+    fn corner(&self) -> DVec2 {
+        self.outline[self.at]
+    }
+
+    /// The far end of each wall from the corner.
+    fn far(&self) -> [DVec2; 2] {
+        [self.outline[self.at - 1], self.outline[self.at + 1]]
+    }
+
+    /// The way along each wall from the corner.
+    fn ways(&self) -> [DVec2; 2] {
+        self.far().map(|far| (far - self.corner()).normalize())
+    }
+
+    /// The angle between the two walls, through the air.
+    fn angle(&self) -> f64 {
+        let [first, second] = self.ways();
+        first.dot(second).acos()
+    }
+
+    /// The second wall's whole width: the most a set-back can be.
+    fn reach(&self) -> f64 {
+        self.corner().distance(self.far()[1])
+    }
+
+    /// Where a set-back of the second wall's whole width stops on the first.
+    fn stop(&self) -> DVec2 {
+        self.corner() + self.ways()[0] * self.reach()
+    }
+
+    /// The outline with the corner given up for that stop: the second wall's
+    /// far end stays, where the fill meets the face beyond.
+    fn outline_filled(&self) -> Vec<DVec2> {
+        let mut outline = self.outline.clone();
+        outline[self.at] = self.stop();
+        outline
+    }
+}
+
 /// The name of the one edge between the faces numbered `first` and `second`,
 /// as the body hands it to whoever points at that edge.
 fn edge_between(body: &Body, first: usize, second: usize) -> EdgeName {
@@ -566,6 +672,62 @@ fn one_flat_face_more(part: &Body, body: &Body, what: &str) -> usize {
 /// Holds what [`one_face_more`] holds, the face made curved.
 fn one_round_more(part: &Body, body: &Body, what: &str) -> usize {
     let made = one_face_more(part, body, what);
+    assert!(
+        !body.is_flat(made) && body.plane_of(made).is_none(),
+        "{what}: the face the fillet lays is curved, and offers no plane to draw on"
+    );
+    made
+}
+
+/// Holds that a step reports the value it was asked, `asked`, and the smaller
+/// one the edge's two faces gave it, `taken`.
+fn reduced(asked: f64, taken: f64, [was_asked, gave]: [f64; 2], what: &str) {
+    assert!(
+        (asked - was_asked).abs() < PLACE,
+        "{what}: reports {asked} asked, where {was_asked} was"
+    );
+    assert!(
+        (taken - gave).abs() < PLACE,
+        "{what}: took {taken}, where the faces give {gave}"
+    );
+}
+
+/// Holds that a step took the face numbered `consumed` away whole, left every
+/// other face of the part it was given, and made one face more; and gives
+/// back the number that face answers to.
+fn one_face_for_another(part: &Body, body: &Body, consumed: usize, what: &str) -> usize {
+    let (mut kept, after) = (numbers(part), numbers(body));
+    assert!(
+        !after.contains(&consumed),
+        "{what}: face {consumed} still answers: {after:?}"
+    );
+    kept.remove(&consumed);
+    assert!(
+        kept.is_subset(&after),
+        "{what}: a face other than {consumed} went: {after:?}"
+    );
+    let made: Vec<usize> = after.difference(&kept).copied().collect();
+    assert_eq!(
+        made.len(),
+        1,
+        "{what}: one face for face {consumed}: {after:?}"
+    );
+    made[0]
+}
+
+/// Holds what [`one_face_for_another`] holds, the face made flat.
+fn one_flat_face_for_another(part: &Body, body: &Body, consumed: usize, what: &str) -> usize {
+    let made = one_face_for_another(part, body, consumed, what);
+    assert!(
+        body.is_flat(made),
+        "{what}: the face the chamfer lays is flat"
+    );
+    made
+}
+
+/// Holds what [`one_face_for_another`] holds, the face made curved.
+fn one_round_for_another(part: &Body, body: &Body, consumed: usize, what: &str) -> usize {
+    let made = one_face_for_another(part, body, consumed, what);
     assert!(
         !body.is_flat(made) && body.plane_of(made).is_none(),
         "{what}: the face the fillet lays is curved, and offers no plane to draw on"
@@ -1340,4 +1502,210 @@ fn a_chamfer_and_a_fillet_at_the_foot_of_a_rib_ending_short_of_its_plate_s_edge_
         |corner| hollow.holds(corner),
         what,
     );
+}
+
+/// Holds what a fill that took an [`Overreach`]'s second wall whole leaves of
+/// the faces round it: the first wall cut short where the fill stops; the
+/// face beyond whole, the fill meeting it where the second wall did; the
+/// floor and the top one face each, their outlines taking the fill's section
+/// in where the corner was — its corners on the fill, `on_the_fill` says,
+/// besides; the fill meeting the first wall, the face beyond and the two ends
+/// and nothing else; and nothing standing past the face beyond, into the air
+/// past the wall taken whole.
+fn filled_to_the_face_beyond(
+    part: &Body,
+    body: &Body,
+    edge: &Overreach,
+    made: usize,
+    on_the_fill: impl Fn(DVec3) -> bool,
+    what: &str,
+) {
+    let height = edge.height;
+    corners_are(
+        body,
+        edge.walls[0],
+        &[upright(edge.stop(), height), upright(edge.far()[0], height)].concat(),
+        &format!("{what}: what is left of the first wall, set back by the second's whole width"),
+    );
+    let beyond = [edge.outline[edge.at + 1], edge.outline[edge.at + 2]];
+    corners_are(
+        body,
+        edge.beyond,
+        &beyond.map(|at| upright(at, height)).concat(),
+        &format!("{what}: the face beyond the wall taken whole, whole"),
+    );
+    let filled = edge.outline_filled();
+    for (cap, at, whose) in [(FLOOR, 0.0, "the floor"), (TOP, height, "the top")] {
+        corners_are_or_on(
+            body,
+            cap,
+            &lifted_to(&filled, at),
+            &on_the_fill,
+            &format!("{what}: {whose}, holding the fill's end flush, the corner gone"),
+        );
+    }
+    let mut sides = [FLOOR, TOP, edge.walls[0], edge.beyond].map(|side| vec![side as u32]);
+    sides.sort();
+    assert_eq!(
+        sides_met(body, made),
+        sides,
+        "{what}: the fill meets the first wall and the face beyond along its sides, and the floor \
+         and the top at its ends, by one edge each"
+    );
+    let facing = edge.beyond_facing.extend(0.0);
+    nothing_stands_past(
+        body,
+        facing,
+        facing.dot(beyond[0].extend(0.0)),
+        &format!("{what}: nothing past the face beyond, where the wall taken whole ended"),
+    );
+    within_the_box_of(part, body, what);
+}
+
+#[test]
+fn a_chamfer_on_a_concave_edge_asked_more_than_a_face_can_give_takes_the_whole_face_and_reports_both_values()
+ {
+    let asked = 50.0;
+
+    for edge in overreaching() {
+        let (what, gives) = (edge.what, edge.reach());
+        let part = edge.part();
+        let name = edge_between(&part, edge.walls[0], edge.walls[1]);
+
+        let chamfered = part
+            .chamfer(&name, asked)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        reduced(chamfered.asked, chamfered.taken, [asked, gives], what);
+        let body = &chamfered.body;
+        let filled_in = gives * gives * edge.angle().sin() / 2.0 * edge.height;
+        sound(body, edge.volume + filled_in, what);
+        let chamfer = one_flat_face_for_another(&part, body, edge.walls[1], what);
+        let [first, second] = edge.outward.map(DVec2::normalize);
+        faces_toward(
+            body,
+            chamfer,
+            (first + second).extend(0.0),
+            &format!("{what}: the chamfer, halfway between its walls"),
+        );
+        corners_are(
+            body,
+            chamfer,
+            &[
+                upright(edge.stop(), edge.height),
+                upright(edge.far()[1], edge.height),
+            ]
+            .concat(),
+            &format!("{what}: the chamfer, from the first wall to where the second ended"),
+        );
+        filled_to_the_face_beyond(&part, body, &edge, chamfer, |_| false, what);
+    }
+}
+
+#[test]
+fn a_fillet_on_a_concave_edge_asked_more_than_a_face_can_give_takes_the_radius_whose_set_back_is_the_whole_face_and_reports_both_radii()
+ {
+    let asked = 50.0;
+
+    for edge in overreaching() {
+        let what = edge.what;
+        let part = edge.part();
+        let name = edge_between(&part, edge.walls[0], edge.walls[1]);
+
+        let filleted = part
+            .fillet(&name, asked)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        let half = edge.angle() / 2.0;
+        let gives = edge.reach() * half.tan();
+        reduced(filleted.asked, filleted.taken, [asked, gives], what);
+        let body = &filleted.body;
+        let [first_way, second_way] = edge.ways();
+        let axis = edge.corner() + (first_way + second_way).normalize() * gives / half.sin();
+        let hollow = Hollow {
+            start: axis.extend(0.0),
+            along: DVec3::Z,
+            length: edge.height,
+            radius: gives,
+            facing: edge.outward.map(|way| way.normalize().extend(0.0)),
+        };
+        let section = gives * edge.reach() - gives * gives * (PI - edge.angle()) / 2.0;
+        sound_drawn_within(
+            body,
+            edge.volume + section * edge.height,
+            drawn_within(&part, hollow.area()),
+            what,
+        );
+        let fillet = one_round_for_another(&part, body, edge.walls[1], what);
+        is_the_hollow(
+            body,
+            fillet,
+            &hollow,
+            &format!("{what}: the round of {gives}, tangent to the first wall and the second"),
+        );
+        filled_to_the_face_beyond(
+            &part,
+            body,
+            &edge,
+            fillet,
+            |corner| hollow.holds(corner),
+            what,
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_on_a_concave_edge_just_short_of_a_face_s_whole_width_is_laid_as_asked() {
+    for edge in overreaching() {
+        let (part, height) = (edge.part(), edge.height);
+        let distance = edge.reach() - 0.5;
+        let what = &format!("{distance} asked on {}", edge.what);
+        let name = edge_between(&part, edge.walls[0], edge.walls[1]);
+
+        let chamfered = part
+            .chamfer(&name, distance)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_whole(chamfered.asked, chamfered.taken, distance, what);
+        let body = &chamfered.body;
+        let filled_in = distance * distance * edge.angle().sin() / 2.0 * height;
+        sound(body, edge.volume + filled_in, what);
+        let chamfer = one_flat_face_more(&part, body, what);
+        let stops = edge.ways().map(|way| edge.corner() + way * distance);
+        corners_are(
+            body,
+            chamfer,
+            &stops.map(|at| upright(at, height)).concat(),
+            &format!("{what}: the chamfer, set back by the distance along each wall"),
+        );
+        for ((wall, stop), far) in edge.walls.into_iter().zip(stops).zip(edge.far()) {
+            corners_are(
+                body,
+                wall,
+                &[upright(stop, height), upright(far, height)].concat(),
+                &format!("{what}: what is left of wall {wall}, cut short and still there"),
+            );
+        }
+        let beyond = [edge.outline[edge.at + 1], edge.outline[edge.at + 2]];
+        corners_are(
+            body,
+            edge.beyond,
+            &beyond.map(|at| upright(at, height)).concat(),
+            &format!("{what}: the face beyond the second wall, whole"),
+        );
+        assert_eq!(
+            sides_met(body, chamfer),
+            [FLOOR, TOP, edge.walls[0], edge.walls[1]].map(|side| vec![side as u32]),
+            "{what}: the chamfer meets its two walls along its sides, and the floor and the top at \
+             its ends, by one edge each"
+        );
+        let facing = edge.beyond_facing.extend(0.0);
+        nothing_stands_past(
+            body,
+            facing,
+            facing.dot(beyond[0].extend(0.0)),
+            &format!("{what}: nothing past the face beyond the second wall"),
+        );
+        within_the_box_of(&part, body, what);
+    }
 }

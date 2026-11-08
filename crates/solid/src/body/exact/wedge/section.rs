@@ -7,9 +7,9 @@
 
 use glam::{DVec2, DVec3};
 
-use super::Wedge;
+use super::{Prism, Wedge};
 use crate::brep::Scale;
-use crate::profile::Frame;
+use crate::profile::{Contour, Frame, Run};
 
 /// How far the prism stands off the edge's two faces, past the edge and
 /// past the body's box along it, as a share of the distance it is set back:
@@ -105,6 +105,53 @@ impl Wedge {
         } else {
             Side::top(first, second, margin)
         }
+    }
+
+    /// The prism raised along the edge over a section square to it that
+    /// stops at the set-backs: its first run from the second face's set-back
+    /// to the first's — round about `centre` where there is one, straight
+    /// where there is none — then square off the first face to the margin
+    /// outside it, or inside the matter for a fill, along that margin to what
+    /// [`Wedge::closed`] closes it with, and back along the second face's
+    /// margin and square to the start. Nothing of it runs on along a face
+    /// past a set-back, so a set-back at a face's far end leaves nothing
+    /// standing past that face. Raised as [`Wedge::raised_along`] raises it.
+    pub(in crate::body::exact) fn squared_off(
+        &self,
+        set_back: f64,
+        centre: Option<DVec3>,
+        scale: Scale,
+        bounds: (DVec3, DVec3),
+    ) -> Prism {
+        let [first, second] = self.outward;
+        let facing = (first + second).normalize();
+        let across = (self.into[0] - self.into[1]).normalize();
+        let margin = self.margin(across, facing, set_back, scale);
+        let off = self.off();
+        let side = |normal: DVec3| Side {
+            a: normal.dot(across),
+            b: normal.dot(facing),
+            offset: margin * off,
+        };
+        let top = self.closed(side(first), side(second), margin);
+        let [on_first, on_second] = self.into.map(|into| into * set_back);
+        let (frame, travel) = self.raised_along(across, margin, bounds);
+        let flat = |at: DVec3| DVec2::new(at.dot(frame.u), at.dot(frame.v));
+        let (from, to) = (flat(on_second), flat(on_first));
+        let lifted = |at: DVec2| flat(across * at.x + facing * at.y);
+        let mut corners = vec![from, to, flat(on_first + first * margin * off)];
+        corners.extend(top.into_iter().map(lifted));
+        corners.push(flat(on_second + second * margin * off));
+        let mut runs = vec![Run::Straight; corners.len()];
+        if let Some(centre) = centre {
+            let about = flat(centre);
+            let (start, end) = (from - about, to - about);
+            runs[0] = Run::Round {
+                center: about,
+                turn: start.perp_dot(end).atan2(start.dot(end)),
+            };
+        }
+        (Contour { corners, runs }, frame, travel)
     }
 
     /// The frame a section square to the edge is drawn in, `across` its

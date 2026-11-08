@@ -58,11 +58,11 @@ impl Exact {
     /// number laid before stands below those a prism lays, as
     /// [`Exact::cut_along`] reads them. A value shorter than the kernel can
     /// set a cut back from an edge is declined first; an edge its name no
-    /// longer finds `Lost`; an edge that is not a wedge, two edges sharing a
-    /// face that are not parallel, an edge meeting two others, and a cut or
-    /// a fill that left something else than its one face, as
-    /// [`Exact::cut_along`] reads it, are declined `Unsupported`; a prism the
-    /// tool cannot raise, as the tool says.
+    /// longer finds `Lost`; an edge that is not a wedge, two names finding
+    /// one edge, two edges sharing a face that are not parallel, an edge
+    /// meeting two others, and a cut or a fill that left something else than
+    /// its one face, as [`Exact::cut_along`] reads it, are declined
+    /// `Unsupported`; a prism the tool cannot raise, as the tool says.
     pub(super) fn cut_off(
         &self,
         names: &[EdgeName],
@@ -77,10 +77,15 @@ impl Exact {
             return Err(Declined::Distance);
         }
         caught(|| {
-            let wedges = names
+            let found = names
                 .iter()
-                .map(|name| Ok(self.wedge(name)?.1))
-                .collect::<Result<Vec<Wedge>, Declined>>()?;
+                .map(|name| self.wedge(name))
+                .collect::<Result<Vec<(EdgeId, Wedge)>, Declined>>()?;
+            let edges: BTreeSet<EdgeId> = found.iter().map(|&(edge, _)| edge).collect();
+            if edges.len() < found.len() {
+                return Err(Declined::Unsupported);
+            }
+            let wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();
             let facing = shared::facing(&wedges)?;
             let alone = wedges
                 .iter()

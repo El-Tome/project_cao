@@ -67,7 +67,12 @@
 //!   `Unsupported`, and nothing of it is laid —
 //!   `a_fillet_and_a_chamfer_on_two_edges_sharing_a_vertex_are_declined_as_unsupported`;
 //!   nothing laid is what a declined step is: the step hands back its reason
-//!   and no body, and the part it was given is left as it was
+//!   and no body, and the part it was given is left as it was. Two edges
+//!   sharing a vertex share a face wherever three faces meet there; sharing
+//!   none, they meet where four faces or more do, and each alone is declined
+//!   there already — on a block with another standing on its top, over its
+//!   corner, both edges at the corner where they cross — so no list reaches
+//!   past the step of one edge to that case
 //! - An edge of the list its name no longer finds declines the whole step
 //!   with that edge's reason (`Lost`), as for one edge —
 //!   `a_fillet_and_a_chamfer_on_a_list_holding_an_edge_its_name_no_longer_finds_are_declined_with_that_edge_s_reason`.
@@ -88,7 +93,7 @@ use std::f64::consts::PI;
 
 use cao_solid::profile::{Contour, Frame, Profile};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, Declined, EdgeName, Loop};
+use cao_solid::{Body, Declined, EdgeName, Loop, Lost};
 use glam::{DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it, on a plane
@@ -402,6 +407,14 @@ impl LongEdge {
     fn name(&self, part: &Body) -> EdgeName {
         let [first, second] = self.faces;
         edge_between(part, first, second)
+    }
+
+    /// The same edge on the block moved, whole, by `by`.
+    fn moved(&self, by: DVec3) -> LongEdge {
+        LongEdge {
+            start: self.start + by,
+            ..self.clone()
+        }
     }
 
     /// The round a fillet of `radius` lays on the edge: its axis the radius in
@@ -2336,4 +2349,304 @@ fn a_chamfer_on_the_two_floor_edges_of_a_slot_10_wide_asked_more_than_5_takes_5_
     }
     let promised = SLOTTED_VOLUME + LENGTH * (far - near) * half / 2.0;
     sound_drawn_within(body, promised, EXACT * promised, &what);
+}
+
+/// The part with a block standing on the ground between the corners `from`
+/// and `to`, raised from `from_height` by `height`, cut from it as `cao_part`
+/// cuts a step: the tool's faces numbered past the part's.
+fn cut_from(part: &Body, [from, to]: [DVec2; 2], from_height: f64, height: f64) -> Body {
+    let tool = part
+        .tool_raised(
+            &profile(Contour::rectangle(from, to)),
+            Frame {
+                origin: DVec3::Z * from_height,
+                ..ground()
+            },
+            DVec3::Z * height,
+        )
+        .expect("the tool raises");
+    part.difference(&tool).expect("the cut is built")
+}
+
+/// A block of a length, a breadth and a height whose corner stands at
+/// `origin`, numbered as [`block`] numbers it.
+fn block_at(origin: DVec3, [length, breadth, height]: [f64; 3]) -> Body {
+    let part = Body::default();
+    let tool = part
+        .tool_raised(
+            &profile(Contour::rectangle(DVec2::ZERO, DVec2::new(length, breadth))),
+            Frame { origin, ..ground() },
+            DVec3::Z * height,
+        )
+        .expect("the tool raises");
+    part.union(&tool).expect("the part is built")
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_two_edges_sharing_a_vertex_are_declined_as_unsupported() {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let top_front = edge_between(&block, TOP, FRONT);
+
+    for (what, other) in [
+        (
+            "the top's front edge and its right edge, meeting at the top's front right corner",
+            edge_between(&block, TOP, RIGHT),
+        ),
+        (
+            "the top's front edge and the front's right edge, meeting at the same corner",
+            edge_between(&block, FRONT, RIGHT),
+        ),
+    ] {
+        let names = [top_front.clone(), other];
+
+        let filleted = block.fillet_edges(&names, 3.0).err();
+        let chamfered = block.chamfer_edges(&names, 3.0).err();
+
+        assert_eq!(
+            filleted,
+            Some(Declined::Unsupported),
+            "the fillet on {what}"
+        );
+        assert_eq!(
+            chamfered,
+            Some(Declined::Unsupported),
+            "the chamfer on {what}"
+        );
+    }
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_a_list_holding_an_edge_its_name_no_longer_finds_are_declined_with_that_edge_s_reason()
+ {
+    let drawn = block([LENGTH, BREADTH, BREADTH]);
+    let floor_back = edge_between(&drawn, FLOOR, BACK);
+    let top_front = edge_between(&drawn, TOP, FRONT);
+    let rabbeted = cut_from(
+        &drawn,
+        [DVec2::new(-1.0, -1.0), DVec2::new(LENGTH + 1.0, 2.0)],
+        8.0,
+        3.0,
+    );
+    let notched = cut_from(
+        &drawn,
+        [DVec2::new(10.0, -1.0), DVec2::new(20.0, 3.0)],
+        7.0,
+        4.0,
+    );
+
+    for (what, part, lost) in [
+        (
+            "a rabbet all along the top's front edge",
+            rabbeted,
+            Lost::Gone,
+        ),
+        (
+            "a notch a third of the way along the top's front edge",
+            notched,
+            Lost::Split { now: 2 },
+        ),
+    ] {
+        assert_eq!(part.lost(&top_front), Some(lost), "{what}");
+        assert_eq!(
+            part.lost(&floor_back),
+            None,
+            "{what}: the floor's back edge is still found"
+        );
+        let names = [floor_back.clone(), top_front.clone()];
+
+        let filleted = part.fillet_edges(&names, 1.0).err();
+        let chamfered = part.chamfer_edges(&names, 1.0).err();
+
+        assert_eq!(
+            filleted,
+            Some(Declined::Lost(lost)),
+            "the fillet after {what}"
+        );
+        assert_eq!(
+            chamfered,
+            Some(Declined::Lost(lost)),
+            "the chamfer after {what}"
+        );
+    }
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_two_names_finding_the_same_edge_are_declined_as_unsupported() {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let top_front = edge_between(&block, TOP, FRONT);
+    let half = LENGTH / 2.0;
+    let second_from = |from: f64| {
+        joined_to(
+            &joined_to(
+                &Body::default(),
+                [DVec2::ZERO, DVec2::new(half, BREADTH)],
+                BREADTH,
+            ),
+            [DVec2::new(from, 0.0), DVec2::new(from + half, BREADTH)],
+            BREADTH,
+        )
+    };
+    let apart = second_from(half + 5.0);
+    let bridged = [
+        edge_between(&apart, TOP, FRONT),
+        edge_between(&apart, TOP + 6, FRONT + 6),
+    ];
+    let abutting = second_from(half);
+    for name in &bridged {
+        assert_eq!(
+            abutting.lost(name),
+            None,
+            "the names of both blocks' top front edges find the edge the join bridged"
+        );
+    }
+
+    for (what, part, names) in [
+        (
+            "the top's front edge named twice",
+            &block,
+            [top_front.clone(), top_front.clone()],
+        ),
+        (
+            "both blocks' top front edges, which a join bridged into one",
+            &abutting,
+            bridged.clone(),
+        ),
+    ] {
+        let filleted = part.fillet_edges(&names, 2.0).err();
+        let chamfered = part.chamfer_edges(&names, 2.0).err();
+
+        assert_eq!(
+            filleted,
+            Some(Declined::Unsupported),
+            "the fillet on {what}"
+        );
+        assert_eq!(
+            chamfered,
+            Some(Declined::Unsupported),
+            "the chamfer on {what}"
+        );
+    }
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_several_edges_take_the_edges_their_names_find_again_after_a_change_of_size()
+ {
+    let value = 3.0;
+    let drawn = block([LENGTH, BREADTH, HEIGHT]);
+    let names: Vec<EdgeName> = long_edges().iter().map(|edge| edge.name(&drawn)).collect();
+    let (breadth, height) = (14.0, 26.0);
+
+    for (what, origin, [breadth, height]) in [
+        ("as drawn", DVec3::ZERO, [BREADTH, HEIGHT]),
+        ("resized", DVec3::ZERO, [breadth, height]),
+        (
+            "resized and moved",
+            DVec3::new(100.0, -40.0, 7.0),
+            [breadth, height],
+        ),
+    ] {
+        let part = block_at(origin, [LENGTH, breadth, height]);
+        let edges = long_edges_of(breadth, height).map(|edge| edge.moved(origin));
+        let laid = part.faces_end()..part.faces_end() + edges.len();
+
+        let filleted = part
+            .fillet_edges(&names, value)
+            .unwrap_or_else(|declined| panic!("the fillet {what}: declined, {declined:?}"));
+        let chamfered = part
+            .chamfer_edges(&names, value)
+            .unwrap_or_else(|declined| panic!("the chamfer {what}: declined, {declined:?}"));
+
+        let fillet = format!("the fillet {what}");
+        taken_as_asked(filleted.asked, filleted.taken, value, &fillet);
+        let mut area = 0.0;
+        for (edge, number) in edges.iter().zip(laid.clone()) {
+            let round = edge.round(value);
+            is_the_round(
+                &filleted.body,
+                number,
+                &round,
+                &format!(
+                    "{fillet}: face {number}, the round between faces {:?}",
+                    edge.faces
+                ),
+            );
+            area += round.area();
+        }
+        sound_drawn_within(
+            &filleted.body,
+            LENGTH * breadth * height - 4.0 * LENGTH * value * value * (1.0 - PI / 4.0),
+            DRAWN * reach_of(&part) * area,
+            &fillet,
+        );
+
+        let chamfer = format!("the chamfer {what}");
+        taken_as_asked(chamfered.asked, chamfered.taken, value, &chamfer);
+        for (edge, number) in edges.iter().zip(laid) {
+            let (corners, facing) = edge.flat(value);
+            let which = format!(
+                "{chamfer}: face {number}, the flat between faces {:?}",
+                edge.faces
+            );
+            face_facing(&chamfered.body, &[number], facing, &which);
+            corners_are(&chamfered.body, number, &corners, &which);
+        }
+        let promised = LENGTH * breadth * height - 4.0 * LENGTH * value * value / 2.0;
+        sound_drawn_within(&chamfered.body, promised, EXACT * promised, &chamfer);
+    }
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_a_list_of_one_edge_give_the_body_and_the_value_the_step_of_that_edge_gives()
+ {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let ell = raised_with(
+        &Body::default(),
+        Contour::straight(ELL_OUTLINE.to_vec()),
+        ELL_HEIGHT,
+    );
+    let rabbeted = cut_from(
+        &block,
+        [DVec2::new(-1.0, -1.0), DVec2::new(LENGTH + 1.0, 2.0)],
+        HEIGHT - 2.0,
+        3.0,
+    );
+    let top_front = edge_between(&block, TOP, FRONT);
+    let inner = edge_between(&ell, ARM_BACK, STEM_RIGHT);
+
+    for (what, part, edge, value) in [
+        (
+            "the block's top front edge, a value it fits",
+            &block,
+            &top_front,
+            3.0,
+        ),
+        (
+            "the block's top front edge, reduced",
+            &block,
+            &top_front,
+            50.0,
+        ),
+        ("the L's inner corner, a value it fits", &ell, &inner, 3.0),
+        ("the L's inner corner, reduced", &ell, &inner, 50.0),
+        (
+            "the block's top front edge, gone under a rabbet",
+            &rabbeted,
+            &top_front,
+            1.0,
+        ),
+        ("a value that is no length", &block, &top_front, -1.0),
+    ] {
+        let list = [edge.clone()];
+
+        assert_eq!(
+            part.fillet_edges(&list, value),
+            part.fillet(edge, value),
+            "the fillet on {what}, asked {value}"
+        );
+        assert_eq!(
+            part.chamfer_edges(&list, value),
+            part.chamfer(edge, value),
+            "the chamfer on {what}, asked {value}"
+        );
+    }
 }

@@ -197,9 +197,12 @@ impl OrbitCamera {
     /// Near/far planes track the orbit distance so precision stays usable
     /// whether we are millimetres or kilometres away from the part.
     pub fn projection(&self, aspect: f32) -> Mat4 {
-        let near = (self.distance * 0.001).max(1e-4);
         let far = self.distance * 1000.0;
-        directx::perspective(self.fov_y, aspect.max(1e-4), near, far)
+        directx::perspective(self.fov_y, aspect.max(1e-4), self.near(), far)
+    }
+
+    fn near(&self) -> f32 {
+        (self.distance * 0.001).max(1e-4)
     }
 
     pub fn view_projection(&self, aspect: f32) -> Mat4 {
@@ -263,17 +266,19 @@ impl OrbitCamera {
     }
 
     /// The world-space ray under a point of the viewport, given in normalized
-    /// device coordinates (-1..1, y up). Used to pick what the cursor is over.
+    /// device coordinates (-1..1, y up), starting on the near plane. Used to
+    /// pick what the cursor is over.
     pub fn ray(&self, ndc: Vec2, aspect: f32) -> (Vec3, Vec3) {
-        let inverse = self.view_projection(aspect).inverse();
-        let unproject = |depth: f32| {
-            let point = inverse * glam::Vec4::new(ndc.x, ndc.y, depth, 1.0);
-            point.truncate() / point.w
-        };
-        // wgpu clip space puts the near plane at depth 0 and the far plane at 1.
-        let near = unproject(0.0);
-        let far = unproject(1.0);
-        (near, (far - near).normalize_or(self.forward()))
+        // Laid along the camera's own axes rather than by inverting the
+        // projection: with the far plane a million times further than the near
+        // one, the inverse in f32 left the ray a tenth of a pixel off.
+        let half_height = (self.fov_y * 0.5).tan();
+        let direction = (self.forward()
+            + self.right() * (ndc.x * half_height * aspect.max(1e-4))
+            + self.up() * (ndc.y * half_height))
+            .normalize_or(self.forward());
+        let origin = self.eye() + direction * (self.near() / direction.dot(self.forward()));
+        (origin, direction)
     }
 
     pub fn set_view_angles(&mut self, yaw: f32, pitch: f32) {

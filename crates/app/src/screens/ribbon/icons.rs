@@ -1,4 +1,5 @@
-//! The icon a button of the ribbon wears, looked up by what it does.
+//! The icon a command's button wears, in the ribbon or on the view bar, looked
+//! up by what it does.
 
 use cao_prefs::Command;
 use cao_render::MatterInFront;
@@ -6,11 +7,11 @@ use cao_render::MatterInFront;
 use crate::ui::icon::{self, Icon};
 
 /// The picture the redesign drew for the command, worn wherever its button is.
-pub(super) fn of(command: Command) -> Icon {
+pub(crate) fn of(command: Command) -> Icon {
     match command {
         Command::NewSketch => icon::NEW_SKETCH,
         Command::FinishSketch => icon::FINISH,
-        Command::RecenterOnSketch => icon::REFRAME,
+        Command::Reframe => icon::REFRAME,
         Command::NextMatterInFront => icon::MATTER_IN_FRONT_HIDDEN,
         Command::SectionView => icon::SECTION_VIEW,
         Command::Undo => icon::UNDO,
@@ -77,7 +78,7 @@ pub(super) fn of(command: Command) -> Icon {
 
 /// What the button stepping the matter in front of the sketch wears: the one
 /// of its three icons the redesign gives the state it is in.
-pub(super) fn matter_in_front(state: MatterInFront) -> Icon {
+pub(crate) fn matter_in_front(state: MatterInFront) -> Icon {
     match state {
         MatterInFront::Hidden => icon::MATTER_IN_FRONT_HIDDEN,
         MatterInFront::SeeThrough => icon::MATTER_IN_FRONT_SEE_THROUGH,

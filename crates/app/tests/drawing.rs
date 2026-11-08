@@ -257,7 +257,7 @@ fn a_sketch_reopened_under_its_own_block(test: &str) -> driver::App {
 fn reopened_after(clicks: usize, test: &str) -> driver::App {
     let mut app = a_sketch_reopened_under_its_own_block(test);
     for _ in 0..clicks {
-        driver::click(&mut app, "Matière devant");
+        driver::click_in_the_ribbon(&mut app, "Matière devant");
     }
     app
 }

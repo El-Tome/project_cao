@@ -14,7 +14,6 @@
 
 mod driver;
 
-use egui_kittest::kittest::{NodeT, Queryable};
 use glam::DVec3;
 
 /// On the plane YZ, clear of the block the view stands beside once it is
@@ -48,25 +47,13 @@ fn a_block(test: &str) -> driver::App {
 
 /// The ribbon's button that reads this, whichever tab it sits under.
 fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
-    for tab in ["Esquisse", "Extrusion", "Export"] {
-        if driver::a_button_reads(app, label) {
-            break;
-        }
-        driver::click_the_button(app, tab);
-    }
-    let node = app
-        .query_all_by_role(egui::accesskit::Role::Button)
-        .find(|node| {
-            node.accesskit_node()
-                .label()
-                .is_some_and(|read| read.starts_with(label))
-        })
-        .unwrap_or_else(|| {
-            panic!(
-                "no tab of the ribbon offers « {label} », showing {:?}",
-                driver::on_screen(app)
-            )
-        });
+    driver::bring_into_the_ribbon(app, label);
+    let node = driver::the_ribbon_s(app, label).unwrap_or_else(|| {
+        panic!(
+            "no tab of the ribbon offers « {label} », showing {:?}",
+            driver::on_screen(app)
+        )
+    });
     node.click();
     app.run();
 }

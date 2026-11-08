@@ -704,28 +704,103 @@ pub fn a_button_reads(app: &App, label: &str) -> bool {
 /// The ribbon's button whose name starts with this, whichever tab it sits
 /// under: the tabs are tried in turn until one offers it.
 pub fn click_in_the_ribbon(app: &mut App, label: &str) {
+    bring_into_the_ribbon(app, label);
+    let node = the_ribbon_s(app, label).unwrap_or_else(|| {
+        panic!(
+            "no tab of the ribbon offers « {label} », showing {:?}",
+            on_screen(app)
+        )
+    });
+    node.click();
+    app.run();
+    hold_the_canvas(app);
+}
+
+/// Opens the tab of the ribbon that offers a button whose name starts with
+/// this, trying them in turn.
+pub fn bring_into_the_ribbon(app: &mut App, label: &str) {
     for tab in ["Esquisse", "Extrusion", "Export"] {
-        if a_button_reads(app, label) {
+        if the_ribbon_s(app, label).is_some() {
             break;
         }
         click_the_button(app, tab);
     }
-    let node = app
-        .query_all_by_role(egui::accesskit::Role::Button)
+}
+
+/// The ribbon's button whose name starts with this, in the tab shown — never
+/// the view bar's: the bar of #728 carries « Recadrer », « Vue en coupe » and
+/// « Matière devant » too, and it stands inside the view, where no button of
+/// the ribbon does.
+pub fn the_ribbon_s<'a>(app: &'a App, label: &str) -> Option<egui_kittest::Node<'a>> {
+    let view = drawing_area(app);
+    app.query_all_by_role(egui::accesskit::Role::Button)
         .find(|node| {
             node.accesskit_node()
                 .label()
                 .is_some_and(|read| read.starts_with(label))
+                && !view.is_some_and(|view| view.contains_rect(node.rect()))
+        })
+}
+
+/// The view bar's button whose name starts with this: the one standing inside
+/// the view, where the ribbon's never does.
+pub fn the_bar_s<'a>(app: &'a App, label: &str) -> egui_kittest::Node<'a> {
+    let view = canvas(app);
+    app.query_all_by_role(egui::accesskit::Role::Button)
+        .find(|node| {
+            node.accesskit_node()
+                .label()
+                .is_some_and(|read| read.starts_with(label))
+                && view.contains_rect(node.rect())
         })
         .unwrap_or_else(|| {
             panic!(
-                "no tab of the ribbon offers « {label} », showing {:?}",
+                "no button inside the view reads « {label} »: the view bar is not drawn, \
+                 showing {:?}",
                 on_screen(app)
             )
-        });
+        })
+}
+
+pub fn click_in_the_bar(app: &mut App, label: &str) {
+    let node = the_bar_s(app, label);
+    within_reach(label, node.rect().center(), app.ctx.content_rect());
     node.click();
     app.run();
     hold_the_canvas(app);
+}
+
+/// What the view bar holds, left to right, and where: the name of each button
+/// and the text of each label inside the view on the row of its « Recadrer ».
+/// A container `egui` lays out has no bounds to read, and the run of glyphs
+/// under a text would read it twice.
+pub fn the_view_bar(app: &App) -> Vec<(String, egui::Rect)> {
+    let view = canvas(app);
+    let row = the_bar_s(app, "Recadrer").rect();
+    let mut held: Vec<(String, egui::Rect)> = app
+        .get_all_by(|_| true)
+        .filter(|node| {
+            let read = node.accesskit_node();
+            read.bounding_box().is_some() && read.role() != egui::accesskit::Role::TextRun
+        })
+        .filter(|node| view.contains_rect(node.rect()))
+        .filter(|node| (row.min.y..=row.max.y).contains(&node.rect().center().y))
+        .filter_map(|node| {
+            let read = node.accesskit_node();
+            let text = read.label().or_else(|| read.value())?;
+            (!text.is_empty()).then(|| (text.to_string(), node.rect()))
+        })
+        .collect();
+    held.sort_by(|one, other| one.1.min.x.total_cmp(&other.1.min.x));
+    held
+}
+
+/// What the coordinates at the right end of the view bar read.
+pub fn the_bar_s_coordinates(app: &App) -> String {
+    the_view_bar(app)
+        .pop()
+        .map(|(text, _)| text)
+        .unwrap_or_else(|| panic!("the view bar reads nothing"))
 }
 
 /// The button of the tree, or of a panel, that reads exactly this — never a

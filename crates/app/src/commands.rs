@@ -13,13 +13,16 @@ use crate::screens::viewport::{
 };
 use crate::{screens, wording};
 
+mod asked;
+pub(crate) use asked::Asked;
+
 /// Carries out one command, wherever it came from.
 ///
 /// A button and a shortcut both end up here: two paths would drift apart, and
 /// a shortcut that does almost what its button does is worse than none.
 /// Returns true when the part changed and needs saving.
 pub(crate) fn run(
-    command: Command,
+    asked: impl Into<Asked>,
     part: &mut SketchContext<'_>,
     ribbon: &mut Ribbon,
     viewport: &mut ViewportState,
@@ -42,6 +45,13 @@ pub(crate) fn run(
     } = part;
     editor.message = None;
 
+    let command = match asked.into() {
+        Asked::Command(command) => command,
+        Asked::MatterInFront(state) => {
+            editor.set_matter_in_front(state);
+            return false;
+        }
+    };
     match command {
         // The shell keeps these: they reach the window or the disk, which
         // the part's state has no business holding.
@@ -66,10 +76,13 @@ pub(crate) fn run(
             editor.close();
             false
         }
-        Command::RecenterOnSketch => {
-            if let Some(plane) = editor.plane {
-                let (center, radius) = sketch_framing(doc, editor.active_sketch(), plane);
-                viewport.look_at_plane(plane, center, radius);
+        Command::Reframe => {
+            match editor.active_sketch().and(editor.plane) {
+                Some(plane) => {
+                    let (center, radius) = sketch_framing(doc, editor.active_sketch(), plane);
+                    viewport.look_at_plane(plane, center, radius);
+                }
+                None => viewport.frame_the_part(doc.body()),
             }
             false
         }

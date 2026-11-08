@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 pub enum Command {
     NewSketch,
     FinishSketch,
-    RecenterOnSketch,
+    Reframe,
     NextMatterInFront,
     SectionView,
     Undo,
@@ -115,7 +115,7 @@ impl Command {
     pub const ALL: [Self; 66] = [
         Self::NewSketch,
         Self::FinishSketch,
-        Self::RecenterOnSketch,
+        Self::Reframe,
         Self::NextMatterInFront,
         Self::SectionView,
         Self::Undo,
@@ -187,7 +187,7 @@ impl Command {
         match self {
             Self::NewSketch
             | Self::FinishSketch
-            | Self::RecenterOnSketch
+            | Self::Reframe
             | Self::NextMatterInFront
             | Self::SectionView => CommandFamily::Sketch,
             Self::Undo | Self::Redo | Self::CompactHistory | Self::SelectAll => {

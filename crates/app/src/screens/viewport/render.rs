@@ -47,6 +47,7 @@ pub(crate) use reading::{Measuring, paint_measure, what_is_measured};
 pub(crate) use section_panel::{paint_section_handle, paint_section_panel};
 pub(crate) use trim::what_would_go;
 
+use super::matter::Drawn;
 use super::{ViewMode, ViewScale, ViewportState};
 use crate::screens::SketchContext;
 
@@ -69,6 +70,9 @@ fn axis_style(theme: &Theme) -> AxisStyle {
     }
 }
 
+/// The frame, the matter it draws worked out here as the frame loop works it
+/// out for itself.
+#[cfg(test)]
 pub(crate) fn build_frame(
     state: &ViewportState,
     rect: egui::Rect,
@@ -77,6 +81,20 @@ pub(crate) fn build_frame(
     context: &SketchContext<'_>,
     going: Option<&Going>,
     measuring: Option<&Measuring>,
+) -> SceneFrame {
+    let drawn = super::matter::seen(state, context.editor, context.document.body());
+    let shown = (going, measuring, drawn.as_ref());
+    frame_of(state, (rect, cube_rect), scale, context, shown)
+}
+
+/// The scene the GPU draws, with what the tool in hand would remove, what is
+/// measured and the matter drawn, each worked out once a frame by the caller.
+pub(crate) fn frame_of(
+    state: &ViewportState,
+    (rect, cube_rect): (egui::Rect, egui::Rect),
+    scale: ViewScale,
+    context: &SketchContext<'_>,
+    (going, measuring, drawn): (Option<&Going>, Option<&Measuring>, Option<&Drawn<'_>>),
 ) -> SceneFrame {
     let camera = &state.camera;
     let pixels_per_point = scale.height_px / rect.height();
@@ -162,7 +180,7 @@ pub(crate) fn build_frame(
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
 
     let mut solids = Vec::new();
-    body::push_matter(&mut solids, &mut surfaces, state, context);
+    body::push_matter(&mut solids, &mut surfaces, state, drawn);
     section_panel::push_section_plane(&mut surfaces, &mut lines, state, scale, context);
 
     let mut cube_triangles = Vec::new();

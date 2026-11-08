@@ -110,6 +110,16 @@
 //! shapes instead, as are a pill — a filled or outlined rectangle around the
 //! text it carries, its corners rounded, and the message's rounded into round
 //! ends — and the message's dot, a filled circle in `accent.amber`.
+//!
+//! Closes #728 — the whole transcription is in `crates/app/tests/view_bar.rs`;
+//! these bullets are the ones the message in the pill answers.
+//! - found in review: a pick from the view bar's « Matière devant » menu is a
+//!   command like any other, and clears the message standing in the pill as
+//!   the ribbon's « Matière devant » does —
+//!   `a_pick_from_the_view_bar_s_matter_in_front_clears_the_message_as_a_command_does`;
+//!   an error gives way to it as to the next command —
+//!   `an_error_gives_way_to_a_pick_from_the_view_bar_s_matter_in_front`. Opening
+//!   the menu is no command, and leaves both standing
 
 mod driver;
 
@@ -345,7 +355,7 @@ fn the_view_pill_follows_the_sketch_the_section_view_and_the_kept_section() {
     raise_a_block_and_finish_the_sketch(&mut app);
     seen.push(("the sketch finished", "Vue 3D libre", the_title_bar(&app)));
 
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_ribbon(&mut app, "Vue en coupe");
     seen.push(("the section view on", "Vue en coupe", the_title_bar(&app)));
 
     driver::click(&mut app, "Plan YZ");
@@ -359,7 +369,7 @@ fn the_view_pill_follows_the_sketch_the_section_view_and_the_kept_section() {
     );
     seen.push(("the section kept and shown", "Coupe 1", the_title_bar(&app)));
 
-    click_in_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::click_in_the_ribbon(&mut app, "Nouvelle esquisse");
     driver::click_at_world_point(&mut app, ON_THE_CUT);
     seen.push((
         "a second sketch open on the cut",
@@ -560,6 +570,59 @@ fn an_error_gives_way_to_the_next_message() {
         wrong.is_empty(),
         "once the arc tool is taken after a failed save:\n  {}\nThe screen says {:?}",
         wrong.join("\n  "),
+        driver::said(&app),
+    );
+}
+
+/// Picks « transparente » from the view bar's « Matière devant » menu, once
+/// the menu is open and before anything is picked in it, checking `standing`
+/// still holds then: opening a menu is no command.
+fn pick_see_through_from_the_view_bar(
+    app: &mut driver::App,
+    standing: impl Fn(&driver::App) -> bool,
+) {
+    driver::click_in_the_bar(app, "Matière devant");
+    assert!(
+        standing(app),
+        "what stood in the pill went as the bar's menu opened, before anything was picked: \
+         {:?}",
+        driver::said(app),
+    );
+    driver::click_exactly(app, "transparente");
+}
+
+#[test]
+fn a_pick_from_the_view_bar_s_matter_in_front_clears_the_message_as_a_command_does() {
+    let mut app = a_part("a_pick_from_the_view_bar_s_matter_in_front_clears_the_message");
+    driver::start_a_sketch(&mut app);
+    driver::click_exactly(&mut app, "Arc");
+    assert!(
+        driver::says(&app, THE_ARC_S_HINT),
+        "the arc's hint is not said once the tool is taken: {:?}",
+        driver::said(&app),
+    );
+
+    pick_see_through_from_the_view_bar(&mut app, |app| driver::says(app, THE_ARC_S_HINT));
+
+    assert!(
+        !driver::says(&app, THE_ARC_S_HINT),
+        "« transparente » was picked from the bar, and the arc's hint still stands, where \
+         the ribbon's « Matière devant » takes it away: {:?}",
+        driver::said(&app),
+    );
+}
+
+#[test]
+fn an_error_gives_way_to_a_pick_from_the_view_bar_s_matter_in_front() {
+    let test = "an_error_gives_way_to_a_pick_from_the_view_bar_s_matter_in_front";
+    let mut app = a_part_whose_save_failed(test);
+
+    pick_see_through_from_the_view_bar(&mut app, |app| !errors_said(app, test).is_empty());
+
+    assert!(
+        errors_said(&app, test).is_empty(),
+        "« transparente » was picked from the bar, and the error still stands, where it \
+         gives way to the next command: {:?}",
         driver::said(&app),
     );
 }
@@ -905,7 +968,7 @@ fn raise_a_block_and_finish_the_sketch(app: &mut driver::App) {
     driver::click_at_sketch_point(app, ON_THE_BLOCK);
     driver::click(app, "Appliquer");
     driver::press(app, egui::Key::Escape);
-    click_in_the_ribbon(app, driver::FINISH_IN_THE_RIBBON);
+    driver::click_in_the_ribbon(app, driver::FINISH_IN_THE_RIBBON);
     driver::click_the_button(app, "Esquisse");
     assert!(
         !driver::is_enabled(app, driver::FINISH_IN_THE_RIBBON),
@@ -919,39 +982,6 @@ fn the_tree_shows_on(app: &driver::App, row: &str) -> bool {
     app.query_all_by_role(Role::Button)
         .find(|node| node.accesskit_node().label().as_deref() == Some(row))
         .is_some_and(|node| node.accesskit_node().toggled() == Some(egui::accesskit::Toggled::True))
-}
-
-/// The ribbon's button that reads this, whichever tab it sits under.
-fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
-    let offered = |app: &driver::App| {
-        app.query_all_by_role(Role::Button).any(|node| {
-            node.accesskit_node()
-                .label()
-                .is_some_and(|read| read.starts_with(label))
-        })
-    };
-    for tab in ["Esquisse", "Extrusion", "Export"] {
-        if offered(app) {
-            break;
-        }
-        driver::click_the_button(app, tab);
-    }
-    let node = app
-        .query_all_by_role(Role::Button)
-        .find(|node| {
-            node.accesskit_node()
-                .label()
-                .is_some_and(|read| read.starts_with(label))
-        })
-        .unwrap_or_else(|| {
-            panic!(
-                "no tab of the ribbon offers « {label} », showing {:?}",
-                driver::on_screen(app)
-            )
-        });
-    node.click();
-    app.run();
-    driver::hold_the_canvas(app);
 }
 
 /// Every rectangle the last frame painted with something to see — a fill or

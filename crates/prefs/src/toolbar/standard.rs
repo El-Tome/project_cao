@@ -93,7 +93,7 @@ impl Default for ToolbarLayout {
                                 ),
                             ],
                         ),
-                        Item::Command(C::RecenterOnSketch),
+                        Item::Command(C::Reframe),
                         Item::Command(C::NextMatterInFront),
                         Item::Command(C::FinishSketch),
                         Item::Separator,

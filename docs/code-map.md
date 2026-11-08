@@ -328,7 +328,7 @@ What they do: [`history.md`](history.md),
 | What one is after | File | Way in |
 | --- | --- | --- |
 | wgpu pipelines, render pass | `render/src/renderer.rs` | `SceneRenderer::prepare`, `paint` |
-| Orbit camera, transitions | `render/src/camera.rs` | `OrbitCamera`, `ViewTransition` |
+| Orbit camera, transitions, the ray under a pixel laid along the camera's own axes | `render/src/camera.rs` | `OrbitCamera`, `ViewTransition`, `OrbitCamera::ray` |
 | Orientation cube | `render/src/cube.rs` | `push_faces`, `zone_at`, `is_visible` |
 | Axes, grid, background, solids | `render/src/geometry.rs` | `push_axes`, `push_grid`, `push_background`, `push_solid` |
 | Drawing into an image, with no window | `render/src/offscreen.rs` | `draw`, `Size` |
@@ -344,9 +344,12 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | The preferences, in a window over whatever is open | `app/src/app/settings_window.rs` | `CaoApp::show_settings` |
 | Routing between modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
 | Canvas: what it knows between frames, and who a gesture is for | `app/src/screens/viewport/state.rs` | `ViewportState`, `ViewMode`, `ViewScale`, `gesture_goes_to` |
+| « Recadrer » (F): in a sketch, square onto its plane around its drawing; anywhere else, the whole part framed from the angle it is seen at, or the view a new part opens with when there is no volume | `app/src/commands.rs`, `app/src/screens/viewport/state.rs` | `Command::Reframe`, `sketch_framing`; `look_at_plane`, `ViewportState::frame_the_part` |
+| Canvas: where the scale bar and the cube stand in their corners, one set to the bottom right lifted above the view bar | `app/src/screens/viewport/state.rs`, `app/src/ui/floating_bar.rs` | `corner_origin`, `cube_rect`; `TOP_ABOVE_THE_EDGE` |
 | Canvas: the frame loop and the entry point | `app/src/screens/viewport/view.rs` | `show(...)` |
 | Canvas: gestures turned into calls on `cao_sketch` | `app/src/screens/viewport/input/mod.rs` | `pick`, `drag_point`, `constrain`, `aim`, `measure` |
-| Canvas: gathering one frame of everything drawn | `app/src/screens/viewport/render.rs` | `build_frame` |
+| Canvas: gathering one frame of everything drawn | `app/src/screens/viewport/render.rs` | `frame_of` |
+| Canvas: the matter a frame draws, worked out once a frame for the painting and for the point of the part under the pointer, which the view bar reads | `app/src/screens/viewport/matter.rs`, `app/src/screens/viewport/view.rs` | `shown`, `seen`, `drawn_under`, `ViewportState::point_of_the_part_at`; `Shown::on_the_part`, `Shown::unit` |
 | Canvas: the grid and the drawing's axes, on the plane a sketch is open on | `app/src/screens/viewport/render/grid.rs` | `push` |
 | Canvas: the drawing itself — contour, areas, points — whole, or only what the tree lit when its eye is out | `app/src/screens/viewport/render/drawing.rs` | `Seen::draw`, `what_would_be_laid` |
 | Canvas: the fillets and chamfers of the drawing — what is left of each side, the stretch hidden up to the sharp corner, the curve of every cut and its value | `app/src/screens/viewport/render/cuts.rs` | `CutCanvas`, `CutCanvas::push_side`, `CutCanvas::push_cuts`, `lit_corners`, `paint_cut_labels`, `cut_label_under` |
@@ -429,8 +432,11 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Exporting the part to STL: the gap each level asks for, the level suggested when one is refused, the file written where the save dialog says (#580) | `app/src/export.rs`, `app/src/adapters/save_dialog.rs`, `app/src/wording/export.rs` | `gap`, `export_request`, `stl`; `stl_destination`, `with_stl_extension`; `uncovered`, `written` |
 | What a part's picture is made of | `app/src/picture/scene.rs` | `of` |
 | Taking that picture | `app/src/picture/mod.rs` | `Painter::take`, `SIDE` |
-| Toolbar | `app/src/screens/ribbon/` | `view.rs` draws, `state.rs` says what a command is in, `Drawn` is what it is told about the part |
-| The icon each button of the toolbar wears: the one a command is looked up to, and for the matter in front of the sketch the one of the state it is in | `app/src/screens/ribbon/icons.rs`, `app/src/screens/ribbon/state.rs` | `of`, `matter_in_front`; `icon` |
+| Toolbar — « Recadrer », « Vue en coupe » and « Matière devant » sit in the view bar as well | `app/src/screens/ribbon/` | `view.rs` draws, `state.rs` says what a command is in, `Drawn` is what it is told about the part |
+| The icon each button of the toolbar wears: the one a command is looked up to, and for the matter in front of the sketch the one of the state it is in — the view bar's buttons wear the same | `app/src/screens/ribbon/icons.rs`, `app/src/screens/ribbon/state.rs` | `of`, `matter_in_front`; `icon` |
+| The view bar, at the bottom right of the view: « Recadrer » with its key, « Vue en coupe » pressed while a section is on, « Matière devant : … » opening a menu of its three states, then the cursor's coordinates; what is picked on it is run as a command | `app/src/screens/view_bar/`, `app/src/app.rs`, `app/src/commands.rs` | `state.rs` `ViewBar::of`, `Offered`, `MatterInFrontMenu`, `Asked`, `view.rs` `show`; `show_part`; `run` |
+| The cursor's coordinates on the bar: on the sketch's plane while one is open, the point of the part under the cursor in the free view, « — » over nothing, in the scale bar's unit, two decimals after a comma, the bar keeping room for the longest | `app/src/screens/view_bar/state.rs`, `app/src/screens/viewport/matter.rs` | `Pointed::of`, `coordinates`, `widest_coordinates`; `ViewportState::point_of_the_part_at` |
+| A bar of tools over a view, against its bottom right corner: its buttons, a menu button, a separator and a reading in figures kept in a room of its own | `app/src/ui/floating_bar.rs` | `floating_bar`, `bar_button`, `bar_menu`, `bar_separator`, `bar_reading`, `TOP_ABOVE_THE_EDGE` |
 | Settings screen | `app/src/screens/settings/` | `show(...)`, one file per section |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
 | Title bar of the part screen: « Accueil » with its icon, the part's name, its path on hover, and where the view stands in a pill — the sketch open, the section view, the kept section shown, the plane, or the free view — then the message, in the middle of the window, or an error in its place until the next message or command | `app/src/screens/title_bar/`, `app/src/screens/mod.rs`, `app/src/wording/view.rs` | `state.rs` `TitleBar::of`, `Said`, `Covering`, `settle`, `view.rs` `show`; `OpenPart::covering`; `Standing`, `standing_on` |

@@ -4,7 +4,7 @@
 //! - the three-state button is shown only while a sketch is open, next to the
 //!   re-align button — read, with the user, as a ribbon button beside
 //!   « Recadrer » that is disabled outside a sketch rather than hidden, as
-//!   « Recadrer » is —
+//!   « Recadrer » was until #728 had it frame the whole part outside a sketch —
 //!   `the_matter_in_front_button_is_offered_only_while_a_sketch_is_open`
 //! - its icon shows the current one — its name says the state,
 //!   `the_matter_in_front_button_names_the_state_it_is_in`, and so does its
@@ -44,6 +44,12 @@
 //! - found in review: the button shows pressed while the section is on, the
 //!   ribbon learning it from its context —
 //!   `the_section_view_button_shows_pressed_while_the_section_is_on`
+//!
+//! Closes #728 — the whole transcription is in `crates/app/tests/view_bar.rs`;
+//! this is the bullet the rule of what is offered answers, which a shortcut is
+//! filtered through as well as a button.
+//! - « Recadrer » is offered in and out of a sketch —
+//!   `reframe_is_offered_in_and_out_of_a_sketch`
 
 use super::*;
 use cao_sketch::WorkPlane;
@@ -149,6 +155,25 @@ fn the_matter_in_front_button_is_offered_only_while_a_sketch_is_open() {
         !is_enabled(Command::NextMatterInFront, &part, &closed, &extrusion),
         "a closed sketch has no matter in front of it to show",
     );
+}
+
+#[test]
+fn reframe_is_offered_in_and_out_of_a_sketch() {
+    let part = a_part();
+    let extrusion = ExtrusionState::default();
+    let mut finished = drawing_on_a_sketch();
+    finished.close();
+
+    for (editor, when) in [
+        (SketchEditor::default(), "before a sketch is opened"),
+        (drawing_on_a_sketch(), "while a sketch is open"),
+        (finished, "once the sketch is finished"),
+    ] {
+        assert!(
+            is_enabled(Command::Reframe, &part, &editor, &extrusion),
+            "« Recadrer » is greyed {when}",
+        );
+    }
 }
 
 #[test]

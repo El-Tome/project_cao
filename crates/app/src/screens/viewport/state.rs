@@ -11,6 +11,7 @@ use cao_sketch::{DimensionTarget, SnapSettings, WorkPlane};
 use glam::DVec3;
 
 use crate::screens::SketchContext;
+use crate::ui::floating_bar::TOP_ABOVE_THE_EDGE as BAR_TOP;
 
 use super::kept_sections::KeptSections;
 use super::navigation::Drag;
@@ -206,6 +207,27 @@ impl ViewportState {
         self.mode = ViewMode::Free;
     }
 
+    /// Frames the whole part from the direction it is seen from; with no
+    /// volume to frame, turns back to the view a new part opens with.
+    pub(crate) fn frame_the_part(&mut self, body: &cao_solid::Body) {
+        let Some((min, max)) = body.bounds() else {
+            let opening = Self::default().camera;
+            let (yaw, pitch) = (self.camera.yaw(), self.camera.pitch());
+            self.camera = opening;
+            self.camera.set_view_angles(yaw, pitch);
+            self.transition = Some(ViewTransition::to_angles(
+                &self.camera,
+                opening.yaw(),
+                opening.pitch(),
+            ));
+            self.mode = ViewMode::Free;
+            return;
+        };
+        let radius = (max - min).length() * 0.5;
+        self.camera
+            .focus_on(((min + max) * 0.5).as_vec3(), radius as f32, self.aspect());
+    }
+
     /// A face lands on its work plane and shows the grid; an edge or a corner
     /// is an oblique view, which stays in wireframe mode.
     pub(super) fn snap_to_zone(&mut self, zone: CubeZone) {
@@ -332,6 +354,8 @@ impl ViewScale {
     }
 }
 
+/// Where a thing of `size` stands in `corner`, `margin` in from the view's
+/// edges — above the view bar in the bottom right, where the bar stands.
 pub(crate) fn corner_origin(
     viewport: egui::Rect,
     corner: ViewportCorner,
@@ -343,7 +367,7 @@ pub(crate) fn corner_origin(
         ViewportCorner::TopRight => viewport.right_top() + egui::vec2(-margin - size.x, margin),
         ViewportCorner::BottomLeft => viewport.left_bottom() + egui::vec2(margin, -margin - size.y),
         ViewportCorner::BottomRight => {
-            viewport.right_bottom() + egui::vec2(-margin - size.x, -margin - size.y)
+            viewport.right_bottom() + egui::vec2(-margin - size.x, -margin - size.y - BAR_TOP)
         }
     }
 }

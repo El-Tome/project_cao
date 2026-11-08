@@ -70,7 +70,9 @@ by the GPU: showing text would want a font atlas on the rendering side, where
 egui already has one.
 
 Its position is configurable (`cube_corner`, top-right corner by default), as
-are its size and its margin. Hovering highlights the zone aimed at.
+are its size and its margin. Set to the bottom right, it stands above the view
+bar rather than under it, and a click on it follows it there. Hovering
+highlights the zone aimed at.
 
 Detecting the hovered zone is a ray cast on the CPU (`cube::pick_zone`), not a
 GPU pixel read: the cube is axis-aligned in orthographic projection, so the
@@ -95,7 +97,34 @@ the step in units put the ruler out by exactly that factor — the constant,
 proportional error one used to see.
 
 Its corner is configurable (`ruler_corner`), and it can be hidden
-(`ruler_visible`).
+(`ruler_visible`). Set to the bottom right, it stands above the view bar; the
+other three corners are as they always were.
+
+## The view bar
+
+At the bottom right of the view, on the floating background, the view's own
+tools in a row:
+
+- **« Recadrer »**, with its key, `F`. In a sketch it turns square onto the
+  sketch's plane and frames its drawing. Anywhere else — the free view, a plane
+  being chosen — it frames the whole part, keeping the angle it is seen from;
+  with no volume yet, it puts back the view a new part opens with.
+- **« Vue en coupe »**, the section view, shown pressed while it is on, greyed
+  in a sketch and while there is no volume.
+- **« Matière devant : … »**, greyed outside a sketch, a menu of the three ways
+  the matter in front of the sketch's plane shows — see [sketch.md](sketch.md).
+- after a separator, **the cursor's coordinates**, in the monospace face. In a
+  sketch, « X … Y … » on the sketch's plane, in its own frame, where a click
+  would place the point; in the free view, « X … Y … Z … » of the point of the
+  part under the cursor, as drawn, on the section's cut while a section is
+  shown; « — » over nothing, off the view, or while the body is hidden. Two
+  decimals after a comma, in the unit the scale bar shows, so the two always
+  agree. The bar keeps room for a long reading, so its buttons stay put as the
+  mouse moves.
+
+What is picked on the bar is a command like any other: it clears the message in
+the title bar, and an error gives way to it. « Recadrer », « Vue en coupe » and
+« Matière devant » stay in the ribbon too.
 
 ## The axis pointing at us
 

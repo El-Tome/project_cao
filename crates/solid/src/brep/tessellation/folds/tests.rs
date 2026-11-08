@@ -380,6 +380,72 @@ fn a_pass_over_a_triangle_lying_on_one_of_another_face_meets_the_fold_from_each_
     );
 }
 
+#[test]
+fn a_triangle_threaded_through_a_triangle_of_another_face_counts_one_crossing() {
+    let flat = [at(0.0, 0.0, 0.0), at(12.0, 0.0, 0.0), at(0.0, 12.0, 0.0)];
+    let standing = [at(3.0, 3.0, -6.0), at(3.0, 3.0, 6.0), at(-6.0, 3.0, 0.0)];
+    let faces: [ByHand; 2] = [(&flat, &[flat]), (&standing, &[standing])];
+    let (mut drawn, samples, eps, tolerance) = laid(&faces, 12.0);
+    let folds = Folds::of(&mut drawn, &samples, eps, tolerance);
+    assert_eq!(
+        folds.crossings(0, folds.drawn[0].triangles[0], usize::MAX),
+        1
+    );
+}
+
+#[test]
+fn a_pass_over_a_thin_triangle_lying_on_a_quad_turns_the_quad_s_diagonal() {
+    let reach = 12.0;
+    let [v, c, u, d] = [
+        at(0.0, 0.0, 0.0),
+        at(reach, 0.0, 0.0),
+        at(reach, 8.0, 0.0),
+        at(0.0, 8.0, 0.0),
+    ];
+    let hair = at(reach / 2.0, 3e-5, 0.64e-9 * reach);
+    let thin = [v, c, hair];
+    let faces: [ByHand; 2] = [(&[v, c, u, d], &[[u, v, c], [u, d, v]]), (&thin, &[thin])];
+    let (mut drawn, samples, eps, tolerance) = laid(&faces, reach);
+    let mut folds = Folds::of(&mut drawn, &samples, eps, tolerance);
+    let (_, taken) = folds.pass();
+    assert!(
+        taken,
+        "the thin triangle lies on one the quad's other diagonal does not make"
+    );
+}
+
+#[test]
+fn two_faces_meeting_along_an_edge_pass_through_nothing_along_it() {
+    let [p, q] = [at(0.0, 0.0, 0.0), at(12.0, 0.0, 0.0)];
+    let flat = [p, q, at(6.0, 6.0, 0.0)];
+    let wall = [q, p, at(6.0, 0.0, -6.0)];
+    let faces: [ByHand; 2] = [(&flat, &[flat]), (&wall, &[wall])];
+    let (mut drawn, samples, eps, tolerance) = laid(&faces, 12.0);
+    let folds = Folds::of(&mut drawn, &samples, eps, tolerance);
+    assert!(!folds.crossed_along((0, 0)));
+    assert!(!folds.crossed_along((1, 0)));
+}
+
+#[test]
+fn two_faces_laid_back_to_back_are_a_skin_no_line_is_read_through() {
+    let [p, q, r, s] = [
+        at(0.0, 0.0, 0.0),
+        at(12.0, 0.0, 0.0),
+        at(6.0, 6.0, 0.0),
+        at(6.0, -6.0, 0.0),
+    ];
+    let faces: [ByHand; 2] = [
+        (&[p, s, q, r], &[[p, q, r], [q, p, s]]),
+        (&[p, r, q, s], &[[q, p, r], [p, q, s]]),
+    ];
+    let (mut drawn, samples, eps, tolerance) = laid(&faces, 12.0);
+    let folds = Folds::of(&mut drawn, &samples, eps, tolerance);
+    assert!(
+        !folds.crossed_along((0, 0)),
+        "its twin on the same three samples makes it a skin of no thickness, left out with it",
+    );
+}
+
 /// The triangles of faces laid by hand the folds do not see passing through
 /// another face along a line, where the rules see the faces pass through each
 /// other and no two triangles cross or lie on each other.

@@ -25,6 +25,16 @@
 //!   edge, and every face the line
 //!   lies inside there is one that edge rests inside — each held by a face
 //!   the filter keeps for it. The faces' order is kept, and with it every tie.
+//! - `>` into `>=` on `ahead` in `Lines::share_edges`: two edges running
+//!   along each other point the same way or the other, never square to each
+//!   other, so their product is never zero.
+//! - `%` into `+` on the anchor's edge in `Lines::passed`: that edge is read
+//!   only through `(edge + step) % 3`, and three more leaves the same
+//!   remainder.
+//! - `<` into `<=` on either end in `Lines::passed`'s `covers`: a stretch's
+//!   middle lies strictly between two cuts more than the room apart, every
+//!   end of a span along the edge is a cut, and an end beyond the edge lies
+//!   beyond every middle, so no end is ever a middle.
 //! - `||` into `&&` in `Folds::crossings`, either one: a triangle with two
 //!   corners on one sample has no area, and `crossing` refuses it as a sliver.
 //!
@@ -203,4 +213,136 @@ fn a_face_sinking_from_a_line_inside_a_floor_passes_through_it_though_its_own_ed
         passes_along(&[sinking, floor, rising], room),
         "the rising edge lies more than the room inside the floor, and the sinking one within the room of it, which is never more than the room inside the floor along more than the room",
     );
+}
+
+#[test]
+fn two_skins_crossing_along_the_stretch_their_edges_share_either_side_of_the_origin_pass_through_each_other()
+ {
+    let room = 1e-9;
+    let [low, high] = [at(0.0, -10.0, 0.0), at(0.0, 2.0, 0.0)];
+    let [top, bottom] = [at(0.0, 10.0, 0.0), at(0.0, -2.0, 0.0)];
+    let left = [low, high, at(-6.0, -4.0, 0.0)];
+    let up = [low, high, at(0.0, -4.0, 6.0)];
+    let right = [top, bottom, at(6.0, 4.0, 0.0)];
+    let down = [top, bottom, at(0.0, 4.0, -6.0)];
+    assert!(
+        passes_along(&[left, up, right, down], room),
+        "from y = -2 to 2 the floor's halves and the wall's run the same way as their neighbours going round",
+    );
+}
+
+#[test]
+fn two_skins_crossing_with_one_face_standing_exactly_the_room_off_the_line_pass_through_each_other()
+{
+    let room = 0.25;
+    let [start, end] = [DVec3::ZERO, at(0.0, 12.0, 0.0)];
+    let left = [start, end, at(-6.0, 6.0, 0.0)];
+    let right = [end, start, at(6.0, 6.0, 0.0)];
+    let lifted = [at(0.0, 0.0, room), at(0.0, 12.0, room), at(0.0, 6.0, 6.0)];
+    let down = [end, start, at(0.0, 6.0, -6.0)];
+    assert!(passes_along(&[lifted, left, right, down], room));
+}
+
+#[test]
+fn three_faces_ending_on_one_line_leave_the_skin_open_and_pass_through_nothing_along_it() {
+    let room = 1e-9;
+    let [start, end] = [DVec3::ZERO, at(12.0, 0.0, 0.0)];
+    let across = 3f64.sqrt() * 3.0;
+    let one = [start, end, at(6.0, 6.0, 0.0)];
+    let two = [end, start, at(6.0, -3.0, across)];
+    let three = [end, start, at(6.0, -3.0, -across)];
+    assert!(!passes_along(&[two, one, three], room));
+}
+
+#[test]
+fn a_floor_off_the_origin_is_passed_through_by_faces_rising_and_sinking_from_a_line_inside_it_toward_one_side()
+ {
+    let room = 1e-9;
+    let lift = at(0.0, 0.0, 10.0);
+    let floor = floor().map(|corner| corner + lift);
+    let [start, end] = [at(2.0, 3.0, 10.0), at(6.0, 3.0, 10.0)];
+    let rising = [start, end, at(4.0, 6.0, 14.0)];
+    let sinking = [end, start, at(4.0, 6.0, 6.0)];
+    assert!(passes_along(&[floor, rising, sinking], room));
+}
+
+#[test]
+fn a_face_rising_from_a_line_inside_a_floor_by_exactly_the_room_rests_on_it_beside_one_sinking() {
+    let room = 0.25;
+    let [start, end] = [at(2.0, 3.0, 0.0), at(6.0, 3.0, 0.0)];
+    let sinking = [end, start, at(4.0, 1.0, -2.0)];
+    let rising_by = |height: f64| [start, end, at(4.0, 6.0, height)];
+    assert!(!passes_along(&[floor(), sinking, rising_by(room)], room));
+    assert!(passes_along(
+        &[floor(), sinking, rising_by(2.0 * room)],
+        room
+    ));
+}
+
+/// A face rising from the line from the origin to x = 8.
+fn rising_along_x() -> Triangle {
+    [DVec3::ZERO, at(8.0, 0.0, 0.0), at(4.0, 3.0, 4.0)]
+}
+
+/// A face sinking from the line from x = `from` to x = 8.
+fn sinking_along_x(from: f64) -> Triangle {
+    [
+        at(8.0, 0.0, 0.0),
+        at(from, 0.0, 0.0),
+        at((from + 8.0) / 2.0, -3.0, -4.0),
+    ]
+}
+
+/// A floor in z = 0 reaching no further along x than `border`.
+fn floor_short_of(border: f64) -> Triangle {
+    [
+        at(border, -10.0, 0.0),
+        at(border, 10.0, 0.0),
+        at(-20.0, 0.0, 0.0),
+    ]
+}
+
+#[test]
+fn faces_rising_and_sinking_from_a_line_together_inside_a_floor_along_only_the_room_pass_through_nothing()
+ {
+    let room = 0.25;
+    let floor = floor_short_of(4.0 + room);
+    let rising = rising_along_x();
+    assert!(!passes_along(
+        &[floor, rising, sinking_along_x(4.0 - room)],
+        room
+    ));
+    assert!(passes_along(
+        &[floor, rising, sinking_along_x(4.0 - 2.0 * room)],
+        room
+    ));
+}
+
+#[test]
+fn a_face_sinking_from_a_line_past_the_floor_a_face_rises_from_inside_it_passes_through_nothing() {
+    let room = 0.25;
+    let floor = floor_short_of(4.0 + room);
+    assert!(!passes_along(
+        &[floor, rising_along_x(), sinking_along_x(6.0)],
+        room
+    ));
+}
+
+#[test]
+fn faces_rising_and_sinking_from_a_line_ending_twice_the_room_inside_a_floor_pass_through_it_beside_one_sharing_only_the_room_of_it()
+ {
+    let room = 0.25;
+    let floor = [
+        at(7.25, -10.0, 0.0),
+        at(30.0, 0.0, 0.0),
+        at(7.25, 10.0, 0.0),
+    ];
+    let rising = rising_along_x();
+    let sinking = [DVec3::ZERO, at(8.0, 0.0, 0.0), at(4.0, -3.0, -4.0)];
+    let beyond = [
+        at(8.0 - room, 0.0, 0.0),
+        at(10.0, 0.0, 0.0),
+        at(9.0, 3.0, 3.0),
+    ];
+    assert!(passes_along(&[floor, rising, sinking, beyond], room));
 }

@@ -24,7 +24,14 @@
 //! - The same holds where the edge ends on an oblique wall, and where a rib
 //!   ends short of its plate's edge (the fill trimmed flush by the rib's end) —
 //!   `a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_an_oblique_wall_are_trimmed_flush_by_it`,
-//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_ending_short_of_its_plate_s_edge_are_trimmed_flush_by_the_rib_s_end`
+//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_ending_short_of_its_plate_s_edge_are_trimmed_flush_by_the_rib_s_end`;
+//!   a rib whose two ends both slant across its foot, the fill trimmed by
+//!   each — `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_whose_ends_both_slant_are_trimmed_flush_by_each`;
+//!   the edges round the rib's ends made one again however the rib stands, a
+//!   hole bored through it above the fill —
+//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_bored_through_above_them_join_the_edges_round_its_ends_however_it_stands`;
+//!   and a fill of 1 there as one of 3 —
+//!   `a_chamfer_and_a_fillet_of_1_at_the_foot_of_a_rib_fill_it_as_one_of_3_does`
 //! - A value larger than the neighbouring faces can give is reduced to the
 //!   largest that fits, and the step reports the value asked and the value
 //!   taken —
@@ -52,14 +59,37 @@
 //!   `a_fillet_rounds_one_straight_edge.rs`, `src/body/tests/chamfer.rs` and
 //!   `src/body/tests/fillet.rs`, are the answer, left as they were but for the
 //!   two tests that declined the inner corner of an L, which this issue turns
-//!   round and this file now speaks for
+//!   round and this file now speaks for, and the filled bodies the last two now
+//!   hold to their listing besides the cut ones
+//!
+//! What the issue asks besides its Done when is held here too. An edge a join
+//! bridged from two is filled whole, as #696 and #697 cut it —
+//! `a_chamfer_and_a_fillet_on_the_concave_edge_a_join_bridged_from_two_fill_it_whole`.
+//! An end the kernel cannot build is declined with its reason, `Unsupported`,
+//! by both steps: an end on a round,
+//! `a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_a_round_are_declined_as_unsupported`;
+//! an end on a face turned back along the edge, the foot of an L standing on a
+//! plate, where three concave edges meet — #698 and #699's corner —
+//! `a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_a_face_turned_back_along_it_are_declined_as_unsupported`;
+//! an end where two faces meet,
+//! `a_chamfer_and_a_fillet_on_a_concave_edge_ending_where_two_faces_meet_are_declined_as_unsupported`;
+//! and an end whose plane would carry the fill out past the part,
+//! `a_chamfer_and_a_fillet_whose_fill_a_rib_s_slanted_end_would_carry_past_the_plate_s_front_are_declined_as_unsupported`.
+//! A fill whose prism, sunk into the matter by its margin to join it, would
+//! come out through a wall thinner than that margin is a limit of the way the
+//! fill is joined rather than of the geometry: it is laid and sound, or
+//! declined `Unsupported`, and never a wrong body —
+//! `a_chamfer_and_a_fillet_at_a_wall_thinner_than_their_margin_are_laid_soundly_or_declined_never_a_wrong_body`.
+//! An edge nearly flat is filled with the
+//! matter arithmetic says, as the convex side's bent fronts are cut —
+//! `a_chamfer_and_a_fillet_on_a_concave_edge_nearly_flat_fill_it_with_the_matter_arithmetic_says`.
 
 mod step_reader;
 
 use std::collections::BTreeSet;
-use std::f64::consts::PI;
+use std::f64::consts::{PI, TAU};
 
-use cao_solid::profile::{Contour, Frame, Profile};
+use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
 use cao_solid::{Body, Declined, EdgeName, Loop, Lost, step};
 use glam::{DQuat, DVec2, DVec3};
@@ -392,19 +422,26 @@ const LEANING: usize = 8;
 /// the leaning face caps it instead, at 6.2 over the inner corner — square
 /// to nothing, the inner edge least of all.
 fn leaning_l() -> Body {
-    let ell = ELL.on(ground());
-    let u = DVec3::new(1.0, 0.0, -0.2).normalize();
-    let facing = LEANING_FACING.normalize();
+    cut_down_to(&ELL.on(ground()), LEANING_FACING, 8.0)
+}
+
+/// The part with what stands in front of the plane of the points p where
+/// `facing` · p = `offset` cut away, as a part's next step cuts it: a box
+/// drawn on a sketch lying on the plane, wider than an L, raised up off it
+/// along `facing`, which leans up, and taken away.
+fn cut_down_to(part: &Body, facing: DVec3, offset: f64) -> Body {
+    let u = DVec3::new(1.0, 0.0, -facing.x / facing.z).normalize();
+    let up = facing.normalize();
     let frame = Frame {
-        origin: DVec3::new(0.0, 0.0, 8.0),
+        origin: DVec3::Z * offset / facing.z,
         u,
-        v: facing.cross(u),
+        v: up.cross(u),
     };
     let wider = Contour::rectangle(DVec2::new(-4.0, -4.0), DVec2::new(36.0, 20.0));
-    let tool = ell
-        .tool_raised(&profile(wider), frame, facing * 10.0)
+    let tool = part
+        .tool_raised(&profile(wider), frame, up * 10.0)
         .expect("the tool raises");
-    ell.difference(&tool).expect("the cut is built")
+    part.difference(&tool).expect("the cut is built")
 }
 
 /// The matter the [`leaning_l`] holds: under a plane, an area holds itself
@@ -436,23 +473,36 @@ const PLATE: f64 = 4.0;
 /// front and 8 before its back, so the plate's top runs on round it, and
 /// meets it inwards along all four of its sides.
 fn ribbed_plate() -> Body {
-    let plate = raised_on(
-        ground(),
-        Contour::rectangle(DVec2::ZERO, DVec2::new(40.0, 30.0)),
-        PLATE,
-    );
-    let on_the_plate = Frame {
-        origin: DVec3::Z * PLATE,
-        ..ground()
-    };
+    let plate = plate(PLATE);
     let rib = Contour::rectangle(
         DVec2::new(18.0, RIB_ENDS[0]),
         DVec2::new(RIB_SIDE, RIB_ENDS[1]),
     );
-    let tool = plate
-        .tool_raised(&profile(rib), on_the_plate, DVec3::Z * 10.0)
+    on_the_plate(&plate, PLATE, rib)
+}
+
+/// A plate 40 long and 30 deep, `thickness` thick, raised from the ground
+/// and numbered as [`raised_on`] numbers it.
+fn plate(thickness: f64) -> Body {
+    raised_on(
+        ground(),
+        Contour::rectangle(DVec2::ZERO, DVec2::new(40.0, 30.0)),
+        thickness,
+    )
+}
+
+/// The part with an outline sketched on the plate's top, `thickness` up,
+/// raised 10 and joined as a part's next step is: its floor, which the join
+/// takes in, and its top numbered past the part's faces, then its walls.
+fn on_the_plate(part: &Body, thickness: f64, outline: Contour) -> Body {
+    let frame = Frame {
+        origin: DVec3::Z * thickness,
+        ..ground()
+    };
+    let tool = part
+        .tool_raised(&profile(outline), frame, DVec3::Z * 10.0)
         .expect("the tool raises");
-    plate.union(&tool).expect("the rib is joined")
+    part.union(&tool).expect("the join is built")
 }
 
 /// The matter the [`ribbed_plate`] holds: the plate's 40 × 30 × 4 and the
@@ -896,6 +946,13 @@ impl Hollow {
 /// air the round leaves, out to it meeting it first, where it faces back
 /// along the ray.
 fn is_the_hollow(body: &Body, face: usize, hollow: &Hollow, what: &str) {
+    drawn_on_the_hollow(body, face, hollow, what);
+    met_from_its_axis(body, face, hollow, what);
+}
+
+/// Holds that every corner of the triangles of the face numbered `face` lies
+/// on the hollow round.
+fn drawn_on_the_hollow(body: &Body, face: usize, hollow: &Hollow, what: &str) {
     let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
     assert!(!corners.is_empty(), "{what}: the round is drawn");
     for corner in corners {
@@ -908,6 +965,12 @@ fn is_the_hollow(body: &Body, face: usize, hollow: &Hollow, what: &str) {
             hollow.along
         );
     }
+}
+
+/// Holds that every ray aimed from the hollow round's axis, a tenth to nine
+/// tenths of the way along it, out to it meets the face numbered `face`
+/// first, where it faces back along the ray.
+fn met_from_its_axis(body: &Body, face: usize, hollow: &Hollow, what: &str) {
     for along in [0.11, 0.47, 0.83] {
         for share in [0.1, 0.3, 0.5, 0.7, 0.9] {
             let facing = hollow.facing_at(share);
@@ -1422,40 +1485,59 @@ fn a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_an_oblique_wall_are_trimme
     );
 }
 
+/// The faces of a rib standing on the plate — its front, its right side, its
+/// back and its left side — each as the numbers it answers to: one, or two
+/// where a join merged two ribs' faces into one.
+type RibFaces = [&'static [u32]; 4];
+
+/// The faces of the [`ribbed_plate`]'s rib.
+const RIB: RibFaces = [
+    &[RIB_FRONT as u32],
+    &[RIB_RIGHT as u32],
+    &[RIB_BACK as u32],
+    &[RIB_LEFT as u32],
+];
+
 /// Holds what a fill set back by `set_back` along the plate's top and the
-/// rib's right side of the [`ribbed_plate`] leaves of the faces round it: the
-/// plate's top meeting the rib's front, back and left side along one edge
-/// each still, the fill turning round no end of the rib and leaving each of
-/// those edges whole, for a name to find; the rib's right side cut short;
-/// the plate's top one face round the rib and the fill's footprint; the
-/// rib's front and back one face each, grown by the fill's section, flush —
-/// its corners on the fill, `on_the_fill` says, besides; and the fill
-/// meeting those four faces and nothing else.
+/// right side of a rib standing from y = 5 to 22, its faces `rib`, leaves of
+/// the faces round it: the plate's top meeting the rib's front, back and left
+/// side along one edge each still, the fill turning round no end of the rib
+/// and leaving each of those edges whole, for a name to find; the rib's right
+/// side cut short; the plate's top one face round the rib and the fill's
+/// footprint; the rib's front and back one face each, grown by the fill's
+/// section, flush — its corners on the fill, `on_the_fill` says, besides; and
+/// the fill meeting those four faces and nothing else.
 fn filled_along_the_foot_of_the_rib(
     part: &Body,
     body: &Body,
-    made: usize,
+    (made, rib): (usize, RibFaces),
     set_back: f64,
     on_the_fill: impl Fn(DVec3) -> bool,
     what: &str,
 ) {
     let (out, up, top) = (RIB_SIDE + set_back, PLATE + set_back, PLATE + 10.0);
-    for wall in [RIB_FRONT, RIB_BACK, RIB_LEFT] {
-        let sides = [vec![TOP as u32], vec![wall as u32]];
-        let meeting: Vec<EdgeName> = body
-            .edge_names()
+    let [front_faces, right_faces, back_faces, left_faces] = rib;
+    let plate_top = vec![TOP as u32];
+    let meeting = |faces: &[u32]| -> Vec<EdgeName> {
+        body.edge_names()
             .into_iter()
-            .filter(|name| name.between == sides)
-            .collect();
+            .filter(|name| {
+                name.between.contains(&plate_top) && name.between.contains(&faces.to_vec())
+            })
+            .collect()
+    };
+    for faces in [front_faces, back_faces, left_faces] {
+        let meeting = meeting(faces);
         assert_eq!(
             meeting.len(),
             1,
-            "{what}: the plate's top meets face {wall} along one edge still, unfilled: {meeting:?}"
+            "{what}: the plate's top meets face {faces:?} along one edge still, unfilled: \
+             {meeting:?}"
         );
     }
     corners_are(
         body,
-        RIB_RIGHT,
+        right_faces[0] as usize,
         &RIB_ENDS
             .iter()
             .flat_map(|&y| [DVec3::new(RIB_SIDE, y, up), DVec3::new(RIB_SIDE, y, top)])
@@ -1478,10 +1560,10 @@ fn filled_along_the_foot_of_the_rib(
         ],
         &format!("{what}: the plate's top, one face round the rib and the fill's footprint"),
     );
-    for (wall, y, whose) in [(RIB_FRONT, front, "front"), (RIB_BACK, back, "back")] {
+    for (faces, y, whose) in [(front_faces, front, "front"), (back_faces, back, "back")] {
         corners_are_or_on(
             body,
-            wall,
+            faces[0] as usize,
             &[
                 DVec3::new(18.0, y, PLATE),
                 DVec3::new(out, y, PLATE),
@@ -1493,17 +1575,18 @@ fn filled_along_the_foot_of_the_rib(
             &format!("{what}: the rib's {whose}, grown by the fill's section, flush"),
         );
     }
+    let mut sides = [&plate_top[..], front_faces, right_faces, back_faces].map(<[u32]>::to_vec);
+    sides.sort();
     assert_eq!(
         sides_met(body, made),
-        [TOP, RIB_FRONT, RIB_RIGHT, RIB_BACK].map(|side| vec![side as u32]),
+        sides,
         "{what}: the fill meets the plate's top and the rib's right side along its sides, and \
          the rib's front and back at its ends, by one edge each"
     );
-    no_longer_meet(
-        body,
-        TOP,
-        RIB_RIGHT,
-        &format!("{what}: the plate's top and the rib's right side no longer meet"),
+    let still = meeting(right_faces);
+    assert!(
+        still.is_empty(),
+        "{what}: the plate's top and the rib's right side no longer meet: {still:?}"
     );
     within_the_box_of(part, body, what);
 }
@@ -1545,7 +1628,7 @@ fn a_chamfer_and_a_fillet_at_the_foot_of_a_rib_ending_short_of_its_plate_s_edge_
             .collect::<Vec<_>>(),
         &format!("{what}: the chamfer, from the rib's front to its back"),
     );
-    filled_along_the_foot_of_the_rib(&part, body, chamfer, value, |_| false, what);
+    filled_along_the_foot_of_the_rib(&part, body, (chamfer, RIB), value, |_| false, what);
 
     let filleted = part
         .fillet(&foot, value)
@@ -1577,7 +1660,7 @@ fn a_chamfer_and_a_fillet_at_the_foot_of_a_rib_ending_short_of_its_plate_s_edge_
     filled_along_the_foot_of_the_rib(
         &part,
         body,
-        fillet,
+        (fillet, RIB),
         value,
         |corner| hollow.holds(corner),
         what,
@@ -2241,5 +2324,893 @@ fn an_l_filled_at_its_inner_corner_written_to_step_writes_its_new_face_on_its_tr
         (off - DVec3::Z * off.z).length() <= solid.uncertainty,
         "{what}: the round's cylinder stands about the line through {origin}, where its axis is \
          the radius out from the arm's back and from the stem's right side"
+    );
+}
+
+/// The faces of two ribs joined end to end on the plate, from y = 5 to 13
+/// and from 13 to 22, as [`two_ribs`] numbers them once they abut: the
+/// first's front, the right sides merged, the second's back, the left sides
+/// merged.
+const BRIDGED: RibFaces = [&[8], &[9, 15], &[16], &[11, 17]];
+
+/// A plate 4 thick and on it two ribs joined one after the other, as two
+/// steps would: from y = 5 to 13, then from `from` 9 long, both from x = 18
+/// to 22 and 10 high. At 13 they abut and the join merges their tops and
+/// their sides; apart, each rib's faces answer to its own numbers, the
+/// first's from 6 and the second's from 12.
+fn two_ribs(from: f64) -> Body {
+    let first = on_the_plate(
+        &plate(PLATE),
+        PLATE,
+        Contour::rectangle(DVec2::new(18.0, 5.0), DVec2::new(RIB_SIDE, 13.0)),
+    );
+    on_the_plate(
+        &first,
+        PLATE,
+        Contour::rectangle(DVec2::new(18.0, from), DVec2::new(RIB_SIDE, from + 9.0)),
+    )
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_the_concave_edge_a_join_bridged_from_two_fill_it_whole() {
+    let value = 3.0;
+    let apart = two_ribs(15.0);
+    let names = [
+        ("the first rib's foot", edge_between(&apart, TOP, RIB_RIGHT)),
+        (
+            "the second rib's foot",
+            edge_between(&apart, TOP, RIB_RIGHT + 6),
+        ),
+    ];
+    let abutting = two_ribs(13.0);
+    let merged = [vec![TOP as u32], BRIDGED[1].to_vec()];
+    let bridged: Vec<EdgeName> = abutting
+        .edge_names()
+        .into_iter()
+        .filter(|name| name.between == merged)
+        .collect();
+    assert_eq!(
+        bridged.len(),
+        1,
+        "the two ribs' right sides merge, and meet the plate's top along one edge: {bridged:?}"
+    );
+    let long = RIB_ENDS[1] - RIB_ENDS[0];
+
+    for (whose, name) in names {
+        assert_eq!(
+            abutting.lost(&name),
+            None,
+            "by {whose}: the name finds the edge the join bridged"
+        );
+
+        let chamfered = abutting
+            .chamfer(&name, value)
+            .unwrap_or_else(|declined| panic!("the chamfer by {whose}: declined, {declined:?}"));
+
+        let what = &format!("the chamfer by {whose}");
+        taken_whole(chamfered.asked, chamfered.taken, value, what);
+        let body = &chamfered.body;
+        sound(body, RIBBED_VOLUME + value * value / 2.0 * long, what);
+        let chamfer = one_flat_face_more(&abutting, body, what);
+        faces_toward(
+            body,
+            chamfer,
+            DVec3::new(1.0, 0.0, 1.0),
+            &format!("{what}: halfway between the plate's top and the ribs' right sides"),
+        );
+        corners_are(
+            body,
+            chamfer,
+            &RIB_ENDS
+                .iter()
+                .flat_map(|&y| {
+                    [
+                        DVec3::new(RIB_SIDE + value, y, PLATE),
+                        DVec3::new(RIB_SIDE, y, PLATE + value),
+                    ]
+                })
+                .collect::<Vec<_>>(),
+            &format!("{what}: the chamfer, from the first rib's front to the second's back"),
+        );
+        filled_along_the_foot_of_the_rib(
+            &abutting,
+            body,
+            (chamfer, BRIDGED),
+            value,
+            |_| false,
+            what,
+        );
+
+        let filleted = abutting
+            .fillet(&name, value)
+            .unwrap_or_else(|declined| panic!("the fillet by {whose}: declined, {declined:?}"));
+
+        let what = &format!("the fillet by {whose}");
+        taken_whole(filleted.asked, filleted.taken, value, what);
+        let body = &filleted.body;
+        let hollow = Hollow {
+            start: DVec3::new(RIB_SIDE + value, RIB_ENDS[0], PLATE + value),
+            along: DVec3::Y,
+            length: long,
+            radius: value,
+            facing: [DVec3::Z, DVec3::X],
+        };
+        sound_drawn_within(
+            body,
+            RIBBED_VOLUME + value * value * (1.0 - PI / 4.0) * long,
+            drawn_within(&abutting, hollow.area()),
+            what,
+        );
+        let fillet = one_round_more(&abutting, body, what);
+        is_the_hollow(
+            body,
+            fillet,
+            &hollow,
+            &format!("{what}: the round, from the first rib's front to the second's back"),
+        );
+        filled_along_the_foot_of_the_rib(
+            &abutting,
+            body,
+            (fillet, BRIDGED),
+            value,
+            |corner| hollow.holds(corner),
+            what,
+        );
+    }
+}
+
+/// Holds that a chamfer and a fillet of `value` on the edge between the
+/// faces numbered `first` and `second` are both declined as a fill the
+/// kernel cannot build.
+fn both_declined(part: &Body, [first, second]: [usize; 2], value: f64, what: &str) {
+    let name = edge_between(part, first, second);
+
+    let declined = [
+        ("the chamfer", part.chamfer(&name, value).err()),
+        ("the fillet", part.fillet(&name, value).err()),
+    ];
+
+    for (step, declined) in declined {
+        assert_eq!(
+            declined,
+            Some(Declined::Unsupported),
+            "{step} of {value} {what}"
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_a_round_are_declined_as_unsupported() {
+    let rounded_in_front = Contour {
+        corners: vec![
+            DVec2::new(18.0, RIB_ENDS[0]),
+            DVec2::new(RIB_SIDE, RIB_ENDS[0]),
+            DVec2::new(RIB_SIDE, RIB_ENDS[1]),
+            DVec2::new(18.0, RIB_ENDS[1]),
+        ],
+        runs: vec![
+            Run::Round {
+                center: DVec2::new(20.0, 6.0),
+                turn: 2.0 * 2f64.atan(),
+            },
+            Run::Straight,
+            Run::Straight,
+            Run::Straight,
+        ],
+    };
+    let part = on_the_plate(&plate(PLATE), PLATE, rounded_in_front);
+    assert!(
+        part.has_face(RIB_FRONT) && !part.is_flat(RIB_FRONT),
+        "the rib's front is a round, bulging forward from its right side at 27 degrees"
+    );
+
+    both_declined(
+        &part,
+        [TOP, RIB_RIGHT],
+        3.0,
+        "at the foot of a rib whose front, where the foot ends, is a round",
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_a_face_turned_back_along_it_are_declined_as_unsupported()
+ {
+    let ell = Contour::straight(vec![
+        DVec2::new(5.0, 5.0),
+        DVec2::new(30.0, 5.0),
+        DVec2::new(30.0, 11.0),
+        DVec2::new(17.0, 11.0),
+        DVec2::new(17.0, 19.0),
+        DVec2::new(5.0, 19.0),
+    ]);
+    let part = on_the_plate(&plate(PLATE), PLATE, ell);
+    let (arm_back, stem_right) = (10, 11);
+
+    both_declined(
+        &part,
+        [arm_back, stem_right],
+        3.0,
+        "on the inner corner of an L standing on a plate: its foot ends on the plate's top, \
+         which faces up along it, where the L's arm and stem meet the plate inwards too",
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_concave_edge_ending_where_two_faces_meet_are_declined_as_unsupported()
+ {
+    let creased = cut_down_to(&ELL.on(ground()), DVec3::new(0.25, 0.25, 1.0), 14.5);
+    let top_end = DVec3::new(ELL.stem, ELL.depth, ELL.height);
+    for (face, whose) in [(TOP, "the top"), (LEANING, "the leaning face")] {
+        let corners = creased
+            .plane_of(face)
+            .unwrap_or_else(|| panic!("{whose} is flat"))
+            .corners;
+        assert!(
+            corners
+                .iter()
+                .any(|corner| corner.distance(top_end) < PLACE),
+            "{whose} reaches the inner edge's top end, where the crease between the two runs \
+             through it: {corners:?}"
+        );
+    }
+
+    both_declined(
+        &creased,
+        [ARM_BACK, STEM_RIGHT],
+        3.0,
+        "on the inner corner of an L whose top is creased right through the corner's top end",
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_whose_fill_a_rib_s_slanted_end_would_carry_past_the_plate_s_front_are_declined_as_unsupported()
+ {
+    let slanted_in_front = Contour::straight(vec![
+        DVec2::new(18.0, 5.0),
+        DVec2::new(RIB_SIDE, 1.0),
+        DVec2::new(RIB_SIDE, RIB_ENDS[1]),
+        DVec2::new(18.0, RIB_ENDS[1]),
+    ]);
+    let part = on_the_plate(&plate(PLATE), PLATE, slanted_in_front);
+
+    both_declined(
+        &part,
+        [TOP, RIB_RIGHT],
+        3.0,
+        "at the foot of a rib whose front slants back at 45 degrees from 1 behind the plate's \
+         front: carried 3 out along the plate, its plane passes the plate's front 2 before it",
+    );
+}
+
+/// A part with a wall 0.3 thin beside a concave edge, the two faces of that
+/// edge, the matter the part holds, and how long the edge runs.
+struct Thin {
+    what: &'static str,
+    part: Body,
+    walls: [usize; 2],
+    volume: f64,
+    long: f64,
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_a_wall_thinner_than_their_margin_are_laid_soundly_or_declined_never_a_wrong_body()
+ {
+    let (thin, value) = (0.3, 3.0);
+    let rib = |left: f64| {
+        Contour::rectangle(
+            DVec2::new(left, RIB_ENDS[0]),
+            DVec2::new(RIB_SIDE, RIB_ENDS[1]),
+        )
+    };
+    let long = RIB_ENDS[1] - RIB_ENDS[0];
+    let thin_arm = Ell { depth: thin, ..ELL };
+    let parts = [
+        Thin {
+            what: "at the inner corner of an L whose arm is 0.3 deep",
+            part: thin_arm.on(ground()),
+            walls: [ARM_BACK, STEM_RIGHT],
+            volume: thin_arm.volume(),
+            long: ELL.height,
+        },
+        Thin {
+            what: "at the foot of a rib on a plate 0.3 thick",
+            part: on_the_plate(&plate(thin), thin, rib(18.0)),
+            walls: [TOP, RIB_RIGHT],
+            volume: 40.0 * 30.0 * thin + 4.0 * long * 10.0,
+            long,
+        },
+        Thin {
+            what: "at the foot of a rib 0.3 wide",
+            part: on_the_plate(&plate(PLATE), PLATE, rib(RIB_SIDE - thin)),
+            walls: [TOP, RIB_RIGHT],
+            volume: 40.0 * 30.0 * PLATE + thin * long * 10.0,
+            long,
+        },
+    ];
+    let mut faults = Vec::new();
+
+    for Thin {
+        what,
+        part,
+        walls,
+        volume,
+        long,
+    } in parts
+    {
+        let name = edge_between(&part, walls[0], walls[1]);
+        let filled = [
+            (
+                "the chamfer",
+                part.chamfer(&name, value)
+                    .map(|chamfered| (chamfered.body, chamfered.taken)),
+                value * value / 2.0,
+                true,
+            ),
+            (
+                "the fillet",
+                part.fillet(&name, value)
+                    .map(|filleted| (filleted.body, filleted.taken)),
+                value * value * (1.0 - PI / 4.0),
+                false,
+            ),
+        ];
+        for (step, filled, section, flat) in filled {
+            if let Some(fault) =
+                laid_soundly_or_declined(&part, filled, volume + section * long, flat)
+            {
+                faults.push(format!("{step} of {value} {what}: {fault}"));
+            }
+        }
+    }
+
+    assert!(
+        faults.is_empty(),
+        "a fill beside a wall thinner than its margin that is neither declined Unsupported nor \
+         laid soundly:\n{}",
+        faults.join("\n")
+    );
+}
+
+/// What is wrong with what a fill of 3 on `part` gave back, if anything: a
+/// decline other than `Unsupported`, or a body that is not exact, closed and
+/// uncrossed, holding the matter `promised` with one face more, `flat` or
+/// curved, numbered where the part's steps ended — nothing, where it is
+/// declined `Unsupported` or laid so.
+fn laid_soundly_or_declined(
+    part: &Body,
+    filled: Result<(Body, f64), Declined>,
+    promised: f64,
+    flat: bool,
+) -> Option<String> {
+    let (body, taken) = match filled {
+        Err(Declined::Unsupported) => return None,
+        Err(other) => return Some(format!("declined {other:?}")),
+        Ok(laid) => laid,
+    };
+    if (taken - 3.0).abs() > PLACE {
+        return Some(format!("took {taken}, where 3 fits"));
+    }
+    if !body.is_exact() {
+        return Some("left a body the exact kernel did not compute".to_string());
+    }
+    let triangles = body.triangles();
+    if let Err(fault) = closed(&triangles) {
+        return Some(format!("left a body that is not closed: {fault:?}"));
+    }
+    if let Err(fault) = uncrossed(&triangles) {
+        return Some(format!(
+            "left a body with a face through another: {fault:?}"
+        ));
+    }
+    if (body.volume() - promised).abs() > EXACT * promised {
+        return Some(format!(
+            "left {} of matter, where arithmetic promised {promised}",
+            body.volume()
+        ));
+    }
+    let made = part.faces_end();
+    let mut kept_and_made = numbers(part);
+    kept_and_made.insert(made);
+    if numbers(&body) != kept_and_made || body.is_flat(made) != flat {
+        return Some(format!(
+            "left the faces {:?}, where the part's and one more, {made}, {}, were promised",
+            numbers(&body),
+            if flat { "flat" } else { "curved" }
+        ));
+    }
+    None
+}
+
+/// The outline of a block 30 by 10 whose front bends forward, out of the
+/// matter, by `turn` halfway along: its first half from the origin to
+/// (15, 0), its second half 15 long and `turn` under the X axis, a right
+/// wall up to (30, 10), the back and the left. The two halves meet inwards,
+/// the air between them 180 degrees less `turn`.
+fn bent_in(turn: f64) -> Vec<DVec2> {
+    vec![
+        DVec2::ZERO,
+        DVec2::new(15.0, 0.0),
+        DVec2::new(15.0, 0.0) + DVec2::new(turn.cos(), -turn.sin()) * 15.0,
+        DVec2::new(30.0, 10.0),
+        DVec2::new(0.0, 10.0),
+    ]
+}
+
+/// Holds what [`sound`] holds of a body but for the matter its triangles
+/// enclose: on a round this shallow and this wide the kernel draws coarser
+/// than its tolerance, whatever made it, as the convex side's bent fronts
+/// found.
+fn sound_but_for_its_drawing(body: &Body, promised: f64, what: &str) {
+    assert!(
+        body.is_exact(),
+        "{what}: the exact kernel computed the body"
+    );
+    let triangles = body.triangles();
+    assert_eq!(closed(&triangles), Ok(()), "{what}");
+    assert_eq!(uncrossed(&triangles), Ok(()), "{what}");
+    assert!(
+        (body.volume() - promised).abs() <= EXACT * promised,
+        "{what}: the body holds {}, where arithmetic promised {promised}",
+        body.volume()
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_concave_edge_nearly_flat_fill_it_with_the_matter_arithmetic_says() {
+    let (height, set_back) = (5.0, 3.0);
+    let (front, second_half) = (2, 3);
+
+    for degrees in [10.0, 1.0] {
+        let turn = f64::to_radians(degrees);
+        let outline = bent_in(turn);
+        let part = raised_on(ground(), Contour::straight(outline.clone()), height);
+        let name = edge_between(&part, front, second_half);
+        let corner = outline[1];
+        let far = [outline[0], outline[2]];
+        let stops = far.map(|far| corner + (far - corner).normalize() * set_back);
+        let outward = [DVec2::new(0.0, -1.0), DVec2::new(-turn.sin(), -turn.cos())];
+        let mut filled = outline.clone();
+        filled.splice(1..2, stops);
+        let walls_and_caps = |body: &Body,
+                              made: usize,
+                              on_the_fill: &dyn Fn(DVec3) -> bool,
+                              what: &str| {
+            for (wall, stop, end) in [(front, stops[0], far[0]), (second_half, stops[1], far[1])] {
+                corners_are(
+                    body,
+                    wall,
+                    &[upright(stop, height), upright(end, height)].concat(),
+                    &format!("{what}: what is left of wall {wall}, set back by {set_back}"),
+                );
+            }
+            for (cap, at) in [(FLOOR, 0.0), (TOP, height)] {
+                corners_are_or_on(
+                    body,
+                    cap,
+                    &lifted_to(&filled, at),
+                    on_the_fill,
+                    &format!("{what}: face {cap}, the fill's end flush on it"),
+                );
+            }
+            assert_eq!(
+                sides_met(body, made),
+                [FLOOR, TOP, front, second_half].map(|side| vec![side as u32]),
+                "{what}: the fill meets the two halves and the floor and the top, by one edge each"
+            );
+        };
+
+        let chamfered = part
+            .chamfer(&name, set_back)
+            .unwrap_or_else(|declined| panic!("the chamfer, {degrees}°: declined, {declined:?}"));
+
+        let what = &format!("the chamfer on a front bent in by {degrees}°");
+        taken_whole(chamfered.asked, chamfered.taken, set_back, what);
+        let body = &chamfered.body;
+        let section = set_back * set_back * turn.sin() / 2.0;
+        sound(body, part.volume() + section * height, what);
+        let chamfer = one_flat_face_more(&part, body, what);
+        faces_toward(
+            body,
+            chamfer,
+            (outward[0] + outward[1].normalize()).extend(0.0),
+            &format!("{what}: halfway between the two halves"),
+        );
+        corners_are(
+            body,
+            chamfer,
+            &stops.map(|at| upright(at, height)).concat(),
+            &format!("{what}: the chamfer, set back by {set_back} along each half"),
+        );
+        walls_and_caps(body, chamfer, &|_| false, what);
+
+        let radius = set_back / (turn / 2.0).tan();
+        let filleted = part
+            .fillet(&name, radius)
+            .unwrap_or_else(|declined| panic!("the fillet, {degrees}°: declined, {declined:?}"));
+
+        let what = &format!("the fillet of {radius} on a front bent in by {degrees}°");
+        taken_whole(filleted.asked, filleted.taken, radius, what);
+        let body = &filleted.body;
+        let bisector = (far[0] - corner).normalize() + (far[1] - corner).normalize();
+        let axis = corner + bisector.normalize() * radius / (turn / 2.0).cos();
+        let hollow = Hollow {
+            start: axis.extend(0.0),
+            along: DVec3::Z,
+            length: height,
+            radius,
+            facing: outward.map(|way| way.extend(0.0)),
+        };
+        let section = radius * set_back - radius * radius * turn / 2.0;
+        sound_but_for_its_drawing(body, part.volume() + section * height, what);
+        let fillet = one_round_more(&part, body, what);
+        is_the_hollow(
+            body,
+            fillet,
+            &hollow,
+            &format!("{what}: the round, its axis the radius out from both halves"),
+        );
+        walls_and_caps(body, fillet, &|corner| hollow.holds(corner), what);
+    }
+}
+
+/// Holds that no corner of the triangles of the face numbered `face` stands
+/// in front of the plane of the points p where `facing` · p = `offset`.
+fn drawn_behind(body: &Body, face: usize, facing: DVec3, offset: f64, what: &str) {
+    let (facing, offset) = (facing.normalize(), offset / facing.length());
+    for corner in body.triangles_of(face).flatten() {
+        let past = corner.dot(facing) - offset;
+        assert!(
+            past <= PLACE,
+            "{what}: the fill is drawn through {corner}, {past} past the plane"
+        );
+    }
+}
+
+/// The faces' planes at the two ends of the rib of
+/// [`rib_slanting_at_both_ends`]: its front, x + 2y = 32, and its back,
+/// x + y = 42, each as the way it faces and its offset that way.
+const SLANTED_ENDS: [(DVec3, f64); 2] = [
+    (DVec3::new(-1.0, -2.0, 0.0), -32.0),
+    (DVec3::new(1.0, 1.0, 0.0), 42.0),
+];
+
+/// The plate of [`ribbed_plate`] and on it a rib 4 wide whose two ends slant
+/// across its foot: its front from (18, 7) to (22, 5), its right side from
+/// there back to (22, 20), its back from there to (18, 24). A fill of 3
+/// along its right foot is trimmed by the front 1.5 short of the foot's end
+/// where it meets the plate, 3.5 behind the plate's front, and by the back 3
+/// short — both planes leaning across the edge, neither square to it.
+fn rib_slanting_at_both_ends() -> Body {
+    on_the_plate(
+        &plate(PLATE),
+        PLATE,
+        Contour::straight(vec![
+            DVec2::new(18.0, 7.0),
+            DVec2::new(RIB_SIDE, 5.0),
+            DVec2::new(RIB_SIDE, 20.0),
+            DVec2::new(18.0, 24.0),
+        ]),
+    )
+}
+
+/// How long a fill at the foot of the [`rib_slanting_at_both_ends`] runs, a
+/// way `x` out from the rib: from its front's plane to its back's.
+fn between_the_slants(x: f64) -> f64 {
+    (42.0 - x) - (32.0 - x) / 2.0
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_rib_whose_ends_both_slant_are_trimmed_flush_by_each() {
+    let value = 3.0;
+    let part = rib_slanting_at_both_ends();
+    let foot = edge_between(&part, TOP, RIB_RIGHT);
+    let volume = 40.0 * 30.0 * PLATE + (17.0 + 15.0) / 2.0 * 4.0 * 10.0;
+    let (out, up, top) = (RIB_SIDE + value, PLATE + value, PLATE + 10.0);
+    let on_the_plate_at = |x: f64| [(32.0 - x) / 2.0, 42.0 - x];
+    let [front_out, back_out] = on_the_plate_at(out);
+    let [front_in, back_in] = on_the_plate_at(RIB_SIDE);
+    let ends = |body: &Body, made: usize, on_the_fill: &dyn Fn(DVec3) -> bool, what: &str| {
+        for ((wall, y_in, y_out, far), (facing, offset)) in [
+            (RIB_FRONT, front_in, front_out, 7.0),
+            (RIB_BACK, back_in, back_out, 24.0),
+        ]
+        .into_iter()
+        .zip(SLANTED_ENDS)
+        {
+            corners_are_or_on(
+                body,
+                wall,
+                &[
+                    DVec3::new(18.0, far, PLATE),
+                    DVec3::new(out, y_out, PLATE),
+                    DVec3::new(RIB_SIDE, y_in, up),
+                    DVec3::new(RIB_SIDE, y_in, top),
+                    DVec3::new(18.0, far, top),
+                ],
+                on_the_fill,
+                &format!("{what}: face {wall}, grown by the fill's section in its own plane"),
+            );
+            drawn_behind(
+                body,
+                made,
+                facing,
+                offset,
+                &format!("{what}: trimmed flush by face {wall}"),
+            );
+        }
+        corners_are(
+            body,
+            TOP,
+            &[
+                DVec3::new(0.0, 0.0, PLATE),
+                DVec3::new(40.0, 0.0, PLATE),
+                DVec3::new(40.0, 30.0, PLATE),
+                DVec3::new(0.0, 30.0, PLATE),
+                DVec3::new(18.0, 7.0, PLATE),
+                DVec3::new(out, front_out, PLATE),
+                DVec3::new(out, back_out, PLATE),
+                DVec3::new(18.0, 24.0, PLATE),
+            ],
+            &format!("{what}: the plate's top, one face round the rib and the fill's footprint"),
+        );
+        assert_eq!(
+            sides_met(body, made),
+            [TOP, RIB_FRONT, RIB_RIGHT, RIB_BACK].map(|side| vec![side as u32]),
+            "{what}: the fill meets the plate's top and the rib's right side along its sides, and \
+             the rib's slanted front and back at its ends, by one edge each"
+        );
+        for wall in [RIB_FRONT, RIB_BACK, RIB_LEFT] {
+            let sides = [vec![TOP as u32], vec![wall as u32]];
+            let meeting = body
+                .edge_names()
+                .into_iter()
+                .filter(|name| name.between == sides)
+                .count();
+            assert_eq!(
+                meeting, 1,
+                "{what}: the plate's top meets face {wall} along one edge still"
+            );
+        }
+    };
+
+    let chamfered = part
+        .chamfer(&foot, value)
+        .unwrap_or_else(|declined| panic!("the chamfer: declined, {declined:?}"));
+
+    let what = "the chamfer at the foot of a rib slanting at both ends";
+    taken_whole(chamfered.asked, chamfered.taken, value, what);
+    let body = &chamfered.body;
+    let section = value * value / 2.0;
+    let centre = RIB_SIDE + value / 3.0;
+    sound(body, volume + section * between_the_slants(centre), what);
+    let chamfer = one_flat_face_more(&part, body, what);
+    corners_are(
+        body,
+        chamfer,
+        &[
+            DVec3::new(out, front_out, PLATE),
+            DVec3::new(RIB_SIDE, front_in, up),
+            DVec3::new(out, back_out, PLATE),
+            DVec3::new(RIB_SIDE, back_in, up),
+        ],
+        &format!("{what}: the chamfer, its ends in the planes of the rib's front and back"),
+    );
+    ends(body, chamfer, &|_| false, what);
+
+    let filleted = part
+        .fillet(&foot, value)
+        .unwrap_or_else(|declined| panic!("the fillet: declined, {declined:?}"));
+
+    let what = "the fillet at the foot of a rib slanting at both ends";
+    taken_whole(filleted.asked, filleted.taken, value, what);
+    let body = &filleted.body;
+    let around = |from: f64, to: f64| Hollow {
+        start: DVec3::new(out, from, up),
+        along: DVec3::Y,
+        length: to - from,
+        radius: value,
+        facing: [DVec3::Z, DVec3::X],
+    };
+    let (whole, clear_of_the_ends) = (around(front_out, back_in), around(front_in, back_out));
+    let square = value * value * between_the_slants(RIB_SIDE + value / 2.0);
+    let quarter_disc =
+        PI * value * value / 4.0 * between_the_slants(RIB_SIDE + value - 4.0 * value / (3.0 * PI));
+    sound_drawn_within(
+        body,
+        volume + square - quarter_disc,
+        drawn_within(&part, whole.area()),
+        what,
+    );
+    let fillet = one_round_more(&part, body, what);
+    drawn_on_the_hollow(body, fillet, &whole, what);
+    met_from_its_axis(body, fillet, &clear_of_the_ends, what);
+    ends(body, fillet, &|corner| whole.holds(corner), what);
+}
+
+/// The [`ribbed_plate`] drawn on `frame` — its plate 4 thick, its rib from
+/// (18, 5) to (22, 22) and 10 high — and a hole of radius 3 bored through
+/// the rib square to its sides, about the line 13 along it and 10.5 over
+/// the plate's floor: the rib's right side holds the hole's rim, from 7.5 to
+/// 13.5 up, all of it above where a fill of 3 at the rib's foot reaches.
+/// The hole's wall answers to fourteen.
+fn bored_rib(frame: Frame) -> Body {
+    let plate = raised_on(
+        frame,
+        Contour::rectangle(DVec2::ZERO, DVec2::new(40.0, 30.0)),
+        PLATE,
+    );
+    let on_the_plate = Frame {
+        origin: placed(frame, [0.0, 0.0, PLATE]),
+        ..frame
+    };
+    let rib = Contour::rectangle(
+        DVec2::new(18.0, RIB_ENDS[0]),
+        DVec2::new(RIB_SIDE, RIB_ENDS[1]),
+    );
+    let tool = plate
+        .tool_raised(&profile(rib), on_the_plate, frame.normal() * 10.0)
+        .expect("the tool raises");
+    let ribbed = plate.union(&tool).expect("the rib is joined");
+    let across = Frame {
+        origin: placed(frame, [17.0, 0.0, 0.0]),
+        u: frame.v,
+        v: frame.normal(),
+    };
+    let hole = Contour {
+        corners: vec![DVec2::new(16.0, 10.5)],
+        runs: vec![Run::Round {
+            center: DVec2::new(13.0, 10.5),
+            turn: TAU,
+        }],
+    };
+    let tool = ribbed
+        .tool_raised(&profile(hole), across, across.normal() * 6.0)
+        .expect("the tool raises");
+    ribbed.difference(&tool).expect("the hole is bored")
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_rib_bored_through_above_them_join_the_edges_round_its_ends_however_it_stands()
+ {
+    let value = 3.0;
+    let long = RIB_ENDS[1] - RIB_ENDS[0];
+    let hole_wall = TAU * 3.0 * 4.0;
+    let volume = 40.0 * 30.0 * PLATE + 4.0 * long * 10.0 - PI * 9.0 * 4.0;
+    let stands = [
+        ("standing on the ground", ground()),
+        (
+            "hanging under its plate, above the ground",
+            Frame {
+                origin: DVec3::new(40.0, 0.0, 18.0),
+                u: -DVec3::X,
+                v: DVec3::Y,
+            },
+        ),
+        (
+            "standing far below the origin",
+            Frame {
+                origin: DVec3::splat(-100.0),
+                ..ground()
+            },
+        ),
+        (
+            "hanging under its plate, far below the origin",
+            Frame {
+                origin: DVec3::new(-60.0, -100.0, -82.0),
+                u: -DVec3::X,
+                v: DVec3::Y,
+            },
+        ),
+    ];
+
+    for (stands, frame) in stands {
+        let part = bored_rib(frame);
+        let foot = edge_between(&part, TOP, RIB_RIGHT);
+        let ends_of_the_foot = RIB_ENDS.map(|y| placed(frame, [RIB_SIDE, y, PLATE]));
+        let filled = [
+            (
+                "the chamfer",
+                part.chamfer(&foot, value)
+                    .map(|chamfered| (chamfered.body, chamfered.taken)),
+                value * value / 2.0,
+                0.0,
+            ),
+            (
+                "the fillet",
+                part.fillet(&foot, value)
+                    .map(|filleted| (filleted.body, filleted.taken)),
+                value * value * (1.0 - PI / 4.0),
+                PI / 2.0 * value * long,
+            ),
+        ];
+
+        for (step, filled, section, round) in filled {
+            let what = &format!("{step} at the foot of the bored rib, {stands}");
+            let (body, taken) =
+                filled.unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+            assert!(
+                (taken - value).abs() < PLACE,
+                "{what}: took {taken}, where {value} fits"
+            );
+            sound_drawn_within(
+                &body,
+                volume + section * long,
+                drawn_within(&part, hole_wall + round),
+                what,
+            );
+            one_face_more(&part, &body, what);
+            for wall in [RIB_FRONT, RIB_BACK] {
+                let sides = [vec![TOP as u32], vec![wall as u32]];
+                let meeting: Vec<EdgeName> = body
+                    .edge_names()
+                    .into_iter()
+                    .filter(|name| name.between == sides)
+                    .collect();
+                assert_eq!(
+                    meeting.len(),
+                    1,
+                    "{what}: the plate's top meets face {wall} along one edge again, the two \
+                     either side of where the foot ended made one, though the rib's side holds \
+                     the hole's rim: {meeting:?}"
+                );
+            }
+            let corners = body.plane_of(TOP).expect("the plate's top is flat").corners;
+            for end in ends_of_the_foot {
+                assert!(
+                    corners.iter().all(|corner| corner.distance(end) > PLACE),
+                    "{what}: the plate's top keeps a corner where the foot ended, at {end}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_of_1_at_the_foot_of_a_rib_fill_it_as_one_of_3_does() {
+    let value = 1.0;
+    let part = ribbed_plate();
+    let foot = edge_between(&part, TOP, RIB_RIGHT);
+    let long = RIB_ENDS[1] - RIB_ENDS[0];
+
+    let chamfered = part
+        .chamfer(&foot, value)
+        .unwrap_or_else(|declined| panic!("the chamfer of 1: declined, {declined:?}"));
+
+    let what = "the chamfer of 1 at the rib's foot";
+    taken_whole(chamfered.asked, chamfered.taken, value, what);
+    let body = &chamfered.body;
+    sound(body, RIBBED_VOLUME + value * value / 2.0 * long, what);
+    let chamfer = one_flat_face_more(&part, body, what);
+    filled_along_the_foot_of_the_rib(&part, body, (chamfer, RIB), value, |_| false, what);
+
+    let filleted = part
+        .fillet(&foot, value)
+        .unwrap_or_else(|declined| panic!("the fillet of 1: declined, {declined:?}"));
+
+    let what = "the fillet of 1 at the rib's foot";
+    taken_whole(filleted.asked, filleted.taken, value, what);
+    let body = &filleted.body;
+    let hollow = Hollow {
+        start: DVec3::new(RIB_SIDE + value, RIB_ENDS[0], PLATE + value),
+        along: DVec3::Y,
+        length: long,
+        radius: value,
+        facing: [DVec3::Z, DVec3::X],
+    };
+    sound_drawn_within(
+        body,
+        RIBBED_VOLUME + value * value * (1.0 - PI / 4.0) * long,
+        drawn_within(&part, hollow.area()),
+        what,
+    );
+    let fillet = one_round_more(&part, body, what);
+    is_the_hollow(body, fillet, &hollow, what);
+    filled_along_the_foot_of_the_rib(
+        &part,
+        body,
+        (fillet, RIB),
+        value,
+        |corner| hollow.holds(corner),
+        what,
     );
 }

@@ -1,9 +1,10 @@
-//! The bodies a fillet leaves (#697), held to the one rule of `soundness`
-//! the public body cannot be asked about, since it needs the exact body
-//! itself: what it lists itself as made of stands on its geometry; and the
-//! floor its radius is held to, which is read at the part's own tolerance.
-//! The rest of the fillet's tests are
-//! `tests/a_fillet_rounds_one_straight_edge.rs`.
+//! The bodies a fillet leaves (#697), and those it leaves filling a concave
+//! edge in (#778), held to the one rule of `soundness` the public body cannot
+//! be asked about, since it needs the exact body itself: what it lists itself
+//! as made of stands on its geometry; and the floor its radius is held to,
+//! which is read at the part's own tolerance. The rest of the fillet's tests
+//! are `tests/a_fillet_rounds_one_straight_edge.rs` and
+//! `tests/a_chamfer_and_a_fillet_fill_a_concave_edge.rs`.
 
 use std::collections::BTreeSet;
 
@@ -159,6 +160,43 @@ fn bent_front(turn: f64) -> Body {
     )
 }
 
+/// The [`ell`] with its top cut away down to the plane z = 8 − x / 5 + y / 10
+/// by a box raised off a sketch lying on it, as a part's next step cuts it:
+/// the leaning face eight, the inner corner's top end on it.
+fn leaning_ell() -> Body {
+    let ell = ell();
+    let facing = DVec3::new(0.2, -0.1, 1.0).normalize();
+    let u = DVec3::new(1.0, 0.0, -0.2).normalize();
+    let on_the_lean = Frame {
+        origin: DVec3::Z * 8.0,
+        u,
+        v: facing.cross(u),
+    };
+    let wider = Contour::rectangle(DVec2::new(-4.0, -4.0), DVec2::new(36.0, 20.0));
+    let tool = ell
+        .tool_raised(&exact(wider, vec![]), on_the_lean, facing * 10.0)
+        .expect("the kernel raises it");
+    ell.difference(&tool).expect("the kernel cuts it")
+}
+
+/// A plate 40 by 30 and 4 thick and a rib joined on its top as a part's next
+/// step is, from (18, 5) to (22, 22) and 10 high: the plate's top one, the
+/// rib's right side nine, its front eight and its back ten. Its foot ends
+/// short of the plate's edges, where filling it rejoins the edges either side
+/// of each end.
+fn ribbed() -> Body {
+    let plate = block([40.0, 30.0, 4.0]);
+    let on_the_plate = Frame {
+        origin: DVec3::Z * 4.0,
+        ..FLAT
+    };
+    let rib = Contour::rectangle(DVec2::new(18.0, 5.0), DVec2::new(22.0, 22.0));
+    let tool = plate
+        .tool_raised(&exact(rib, vec![]), on_the_plate, DVec3::Z * 10.0)
+        .expect("the kernel raises it");
+    plate.union(&tool).expect("the kernel joins it")
+}
+
 #[test]
 fn every_body_a_fillet_leaves_lists_what_it_is_made_of_as_its_geometry_stands() {
     let block = block([30.0, 10.0, 20.0]);
@@ -170,7 +208,33 @@ fn every_body_a_fillet_leaves_lists_what_it_is_made_of_as_its_geometry_stands() 
     let ell = ell();
     let bent_by_30 = bent_front(30f64.to_radians());
     let bent_by_a_tenth = bent_front(0.1f64.to_radians());
+    let ribbed = ribbed();
+    let leaning_ell = leaning_ell();
     let cases = [
+        (
+            "the L's inner corner filled by 3",
+            &ell,
+            between(&ell, &[4], &[5]),
+            3.0,
+        ),
+        (
+            "the L's inner corner filled by 50, the stem's right side taken whole",
+            &ell,
+            between(&ell, &[4], &[5]),
+            50.0,
+        ),
+        (
+            "the rib's foot filled by 3, the edges round its ends rejoined",
+            &ribbed,
+            between(&ribbed, &[1], &[9]),
+            3.0,
+        ),
+        (
+            "the leaning L's inner corner filled by 3, trimmed by its leaning top",
+            &leaning_ell,
+            between(&leaning_ell, &[4], &[5]),
+            3.0,
+        ),
         (
             "a front bent to 150 degrees, by 5",
             &bent_by_30,

@@ -6,6 +6,13 @@
 //!   `the_copy_panel_s_place_survives_being_written_and_read_back`
 //! - a settings file written before the panel existed still loads, with no
 //!   place for it yet — `a_settings_file_written_before_the_panel_still_loads`
+//!
+//! Closes #780.
+//! - A setting « Rouvrir à la dernière taille », on by default; off, the
+//!   application opens maximised whatever was remembered — on by default here,
+//!   for a new profile and for one written before the setting existed,
+//!   `reopening_at_the_last_size_is_on_by_default`; what off does is held in
+//!   `window_place/tests.rs`, the box in `crates/app/tests/reopening_the_window.rs`
 
 use std::path::PathBuf;
 

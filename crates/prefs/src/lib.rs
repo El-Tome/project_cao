@@ -18,6 +18,7 @@ pub mod sketching;
 mod storage;
 pub mod theme;
 pub mod toolbar;
+mod window_place;
 
 #[cfg(any(test, feature = "test-support"))]
 pub use adapters::InMemoryFiles;
@@ -33,3 +34,4 @@ pub use sketching::SketchingConfig;
 pub use storage::StorageError;
 pub use theme::{Background, Rgba, Stop, Theme};
 pub use toolbar::{Edge, Item, Path, ToolbarLayout};
+pub use window_place::{Monitor, WindowPlace, where_the_window_opens};

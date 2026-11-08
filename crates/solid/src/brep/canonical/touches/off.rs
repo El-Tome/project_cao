@@ -8,7 +8,7 @@ use super::walls::off_the_touches;
 use crate::brep::curve::Circle;
 use crate::brep::curve::Wall;
 use crate::brep::meet::moved;
-use crate::brep::relation::{Relation, abreast, relation};
+use crate::brep::relation::{Relation, abreast, parallel, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder, Sphere, Surface, Torus};
 
@@ -98,6 +98,22 @@ pub(super) fn off(
             (from - *axis * axis.dot(from)).length()
         });
     }
+    let near = || {
+        at_an_angle(one, other, scale)
+            .is_some_and(|(first, second)| moved(&first, &second, scale).is_some())
+    };
+    let gap = || {
+        let (one, other) = (Wall::of(one)?, Wall::of(other)?);
+        Some(
+            moved(&one, &other, scale).map_or(0.0, |(rank, to)| match ([one, other][rank], to) {
+                (Wall::Cylinder(from), Wall::Cylinder(to)) => {
+                    from.origin.distance(to.origin) + (from.radius - to.radius).abs()
+                }
+                (Wall::Elliptic(from), Wall::Elliptic(to)) => from.gap(&to),
+                _ => f64::INFINITY,
+            }),
+        )
+    };
     match relation(one, other, scale) {
         Relation::Tangent(_) | Relation::Parallel(_) if abreast(one, other) => {
             off_the_touches(one, other, scale)
@@ -128,18 +144,8 @@ pub(super) fn off(
                 Surface::Cone(_) | Surface::Elliptic(_) | Surface::Sphere(_) | Surface::Torus(_),
             ) => None,
         },
-        Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => {
-            let (one, other) = (Wall::of(one)?, Wall::of(other)?);
-            Some(moved(&one, &other, scale).map_or(0.0, |(rank, to)| {
-                match ([one, other][rank], to) {
-                    (Wall::Cylinder(from), Wall::Cylinder(to)) => {
-                        from.origin.distance(to.origin) + (from.radius - to.radius).abs()
-                    }
-                    (Wall::Elliptic(from), Wall::Elliptic(to)) => from.gap(&to),
-                    _ => f64::INFINITY,
-                }
-            }))
-        }
+        Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => gap(),
+        Relation::Meet(_) | Relation::Apart if near() => gap(),
         Relation::Apart
         | Relation::Same { .. }
         | Relation::Line(_)
@@ -155,6 +161,15 @@ pub(super) fn off(
         | Relation::Ruling { .. }
         | Relation::Unsupported => None,
     }
+}
+
+/// Two walls at an angle, no cone among them: a near-touch of theirs is read
+/// from the walls by `moved`, where `relation`, taking them as they stand,
+/// may read them apart.
+fn at_an_angle(one: &Surface, other: &Surface, scale: Scale) -> Option<(Wall, Wall)> {
+    let (first, second) = (Wall::of(one)?, Wall::of(other)?);
+    let coned = matches!(first, Wall::Cone(_)) || matches!(second, Wall::Cone(_));
+    (!coned && !parallel(first.axis(), second.axis(), scale)).then_some((first, second))
 }
 
 /// The box round a circle.

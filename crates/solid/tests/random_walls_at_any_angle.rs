@@ -175,6 +175,48 @@
 //!   campaigns above are run on `main` and on the branch over sets
 //!   352000000000000, 353000000000000 and 354000000000000 and compared seed
 //!   by seed, the counts on the pull request
+//!
+//! Two cylinders exactly parallel, a hair to a few tenths apart, and a third
+//! touching one exactly and the other only within the tolerance where the
+//! crescent's tip line crosses it: decision 2 cannot make the second touch
+//! exact without breaking the first, and the curve built on a copy of the
+//! third wall moved onto it missed the corners found on the walls as they
+//! stand. Seeds 352000000012683, 352000000009612, 352000000014009,
+//! 352000000005489, 352000000010441 and 354000000007504, shrunk, are that
+//! family (#755).
+//!
+//! Closes #776.
+//! - A corner exact on the shaft, the bore and the third wall, where the
+//!   crescent's tip line crosses it, lies within the tolerance of the bore ×
+//!   third curve `relation` gives — no test: in this file; held beside
+//!   `relation`, in `crates/solid/src/brep/relation/tests/three_walls.rs`, by
+//!   `a_corner_where_the_crescent_s_tip_line_crosses_a_third_wall_lies_on_the_curve_the_bore_meets_it_along`
+//! - Two perpendicular cylinders half the tolerance apart outside are still
+//!   moved onto their contact by decision 2 — no test: in this file; held
+//!   beside decision 2, in `crates/solid/src/brep/canonical/tests/touches.rs`,
+//!   by
+//!   `two_perpendicular_cylinders_half_the_tolerance_apart_outside_are_moved_onto_their_contact`
+//! - The minimal case and the six cases above hold on both kernels and are
+//!   pinned —
+//!   `a_shaft_bored_a_unit_off_its_axis_then_cut_by_a_wall_touching_it_where_the_crescent_ends_keeps_every_rule`,
+//!   `the_same_shaft_bored_and_cut_where_the_crescent_ends_keeps_every_rule_through_the_application_s_body`,
+//!   `seed_352000000012683_a_shaft_and_a_bore_of_its_radius_4e_3_apart_joined_to_a_post_of_its_radius_square_to_both_keeps_every_rule`,
+//!   `seed_352000000012683_the_same_bore_and_post_keep_every_rule_through_the_application_s_body`,
+//!   `seed_352000000009612_a_shaft_and_a_bore_of_its_radius_two_hundredths_apart_joined_to_a_post_at_60_degrees_keeps_every_rule`,
+//!   `seed_352000000009612_the_same_bore_and_post_keep_every_rule_through_the_application_s_body`,
+//!   `seed_352000000014009_a_shaft_and_a_bore_of_its_radius_0_35_apart_bored_square_by_a_quarter_of_its_radius_keeps_every_rule`,
+//!   `seed_352000000014009_the_same_bores_keep_every_rule_through_the_application_s_body`,
+//!   `seed_352000000005489_a_shaft_and_a_bore_of_its_radius_two_hundredths_apart_bored_again_at_51_degrees_keeps_every_rule`,
+//!   `seed_352000000005489_the_same_bores_keep_every_rule_through_the_application_s_body`,
+//!   `seed_352000000010441_a_shaft_and_a_bore_of_its_radius_8e_4_apart_bored_again_at_45_degrees_keeps_every_rule`,
+//!   `seed_352000000010441_the_same_bores_keep_every_rule_through_the_application_s_body`,
+//!   `seed_354000000007504_a_shaft_and_a_bore_of_its_radius_a_tenth_apart_bored_again_at_75_degrees_keeps_every_rule`,
+//!   `seed_354000000007504_the_same_bores_keep_every_rule_through_the_application_s_body`
+//! - No draw regresses against `main`, seed by seed, on the three sets, both
+//!   kernels — no test: a campaign fails on any finding, so the walls
+//!   campaigns above are run on `main` and on the branch over sets
+//!   352000000000000, 353000000000000 and 354000000000000 and compared seed
+//!   by seed, the counts on the pull request
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -1785,6 +1827,298 @@ fn seed_354000000017912_a_shaft_bored_at_45_degrees_then_by_a_square_a_hair_from
 fn seed_354000000017912_the_same_bores_keep_every_rule_through_the_application_s_body() {
     random_solids::holds_through_the_application(
         &a_shaft_bored_at_45_degrees_then_by_a_square_a_hair_from_its_wall(),
+    );
+}
+
+/// A shaft of radius 10 about Z bored by a hole of its radius a unit off its
+/// axis and a hundredth of a micron aside, then cut by a cylinder of radius
+/// 5 along Y touching the shaft exactly at a node, and the bore within the
+/// tolerance, where the crescent's tip line crosses it (#776).
+fn a_shaft_bored_a_unit_off_its_axis_then_cut_by_a_wall_touching_it_where_the_crescent_ends() -> Case
+{
+    Case::new(
+        Leaf::prism(Plane::xy(0.0), Outline::circle([0.0, 0.0], 10.0), 20.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-10.0),
+                Outline::circle([1e-8, 1.0], 10.0),
+                40.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([5.0, 30.0, 10.0], [90.0, 0.0, 0.0]),
+                Outline::circle([0.0, 0.0], 5.0),
+                60.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn a_shaft_bored_a_unit_off_its_axis_then_cut_by_a_wall_touching_it_where_the_crescent_ends_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_bored_a_unit_off_its_axis_then_cut_by_a_wall_touching_it_where_the_crescent_ends(),
+    );
+}
+
+#[test]
+fn the_same_shaft_bored_and_cut_where_the_crescent_ends_keeps_every_rule_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(
+        &a_shaft_bored_a_unit_off_its_axis_then_cut_by_a_wall_touching_it_where_the_crescent_ends(),
+    );
+}
+
+/// A shaft of radius 5 about X bored by a hole of radius 5.00000002 along
+/// it, 4e-3 off its axis, then joined to a post of radius 5 square to both:
+/// refused as `Unverified` on both kernels (seed 352000000012683, shrunk;
+/// #755, #776).
+fn a_shaft_and_a_bore_of_its_radius_4e_3_apart_joined_to_a_post_of_its_radius_square_to_both()
+-> Case {
+    Case::new(
+        Leaf::prism(Plane::yz(-2.0), Outline::circle([2.0, 2.0], 5.0), 7.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-20.232004258890136, 2.0, 1.9961987193624795],
+                    [0.0, 90.0, 0.0],
+                ),
+                Outline::circle([-0.0, -0.0], 5.00000002),
+                44.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::tilted([-0.0, 2.0, -20.0], [0.0, 0.0, 0.0]),
+                Outline::circle([0.0, 0.0], 5.0),
+                44.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_352000000012683_a_shaft_and_a_bore_of_its_radius_4e_3_apart_joined_to_a_post_of_its_radius_square_to_both_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_and_a_bore_of_its_radius_4e_3_apart_joined_to_a_post_of_its_radius_square_to_both(
+        ),
+    );
+}
+
+#[test]
+fn seed_352000000012683_the_same_bore_and_post_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &a_shaft_and_a_bore_of_its_radius_4e_3_apart_joined_to_a_post_of_its_radius_square_to_both(
+        ),
+    );
+}
+
+/// A shaft of radius 4 about X bored by a hole of its radius along it, two
+/// hundredths off its axis, then joined to a post of radius 1 at 60°:
+/// refused as `Unverified` on both kernels (seed 352000000009612, shrunk;
+/// #755, #776).
+fn a_shaft_and_a_bore_of_its_radius_two_hundredths_apart_joined_to_a_post_at_60_degrees() -> Case {
+    Case::new(
+        Leaf::prism(Plane::yz(-4.0), Outline::circle([2.0, 2.0], 4.0), 6.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-18.829738931538614, 2.0, 1.984658779805846],
+                    [0.0, 90.0, 0.0],
+                ),
+                Outline::circle([0.0, 1.0000000000000002e-8], 4.0),
+                35.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::tilted([-17.0, 2.0, -7.0], [0.0, 60.0, 0.0]),
+                Outline::circle([-0.0, -3.0], 1.0),
+                35.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_352000000009612_a_shaft_and_a_bore_of_its_radius_two_hundredths_apart_joined_to_a_post_at_60_degrees_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_and_a_bore_of_its_radius_two_hundredths_apart_joined_to_a_post_at_60_degrees(),
+    );
+}
+
+#[test]
+fn seed_352000000009612_the_same_bore_and_post_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &a_shaft_and_a_bore_of_its_radius_two_hundredths_apart_joined_to_a_post_at_60_degrees(),
+    );
+}
+
+/// A shaft of radius 60 about Z bored by a hole of its radius along it, 0.35
+/// off its axis, then by a hole of radius 15 square to both: refused as
+/// `Unverified` on both kernels (seed 352000000014009, shrunk; #755, #776).
+fn a_shaft_and_a_bore_of_its_radius_0_35_apart_bored_square_by_a_quarter_of_its_radius() -> Case {
+    Case::new(
+        Leaf::prism(
+            Plane::xy(-60.0),
+            Outline::circle([-30.0, 45.0], 60.0),
+            255.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-30.0, 45.34584451151275, -328.8085169467869],
+                    [0.0, 0.0, 0.0],
+                ),
+                Outline::circle([3.0000000000000004e-7, 0.0], 60.0),
+                793.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([-30.0, 441.0, 53.0], [90.0, 0.0, 0.0]),
+                Outline::circle([45.0, 0.0], 15.0),
+                793.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_352000000014009_a_shaft_and_a_bore_of_its_radius_0_35_apart_bored_square_by_a_quarter_of_its_radius_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_and_a_bore_of_its_radius_0_35_apart_bored_square_by_a_quarter_of_its_radius(),
+    );
+}
+
+#[test]
+fn seed_352000000014009_the_same_bores_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &a_shaft_and_a_bore_of_its_radius_0_35_apart_bored_square_by_a_quarter_of_its_radius(),
+    );
+}
+
+/// A shaft of radius 4.5 about Y bored by a hole of radius 4.50000001 along
+/// it, two hundredths off its axis, then by a hole of radius 4.5 at 51°:
+/// refused as `Unverified` on both kernels (seed 352000000005489, shrunk;
+/// #755, #776).
+fn a_shaft_and_a_bore_of_its_radius_two_hundredths_apart_bored_again_at_51_degrees() -> Case {
+    Case::new(
+        Leaf::prism(Plane::xz(-3.0), Outline::circle([1.0, 2.0], 4.5), -4.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [1.0, 18.190425199614666, 1.9835575483632566],
+                    [90.0, 0.0, 0.0],
+                ),
+                Outline::circle([-2.0000000000000004e-8, -0.0], 4.50000001),
+                38.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([1.0, 14.0, -10.0], [51.0, 0.0, 0.0]),
+                Outline::circle([0.0, 0.0], 4.5),
+                38.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_352000000005489_a_shaft_and_a_bore_of_its_radius_two_hundredths_apart_bored_again_at_51_degrees_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_and_a_bore_of_its_radius_two_hundredths_apart_bored_again_at_51_degrees(),
+    );
+}
+
+#[test]
+fn seed_352000000005489_the_same_bores_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &a_shaft_and_a_bore_of_its_radius_two_hundredths_apart_bored_again_at_51_degrees(),
+    );
+}
+
+/// A shaft of radius 105 about Y bored by a hole of radius 104.9999997
+/// along it, 8e-4 off its axis, then by a hole of radius 105 at 45°:
+/// refused as `Unverified` on both kernels (seed 352000000010441, shrunk;
+/// #755, #776).
+fn a_shaft_and_a_bore_of_its_radius_8e_4_apart_bored_again_at_45_degrees() -> Case {
+    Case::new(
+        Leaf::prism(
+            Plane::xz(-90.0),
+            Outline::circle([60.0, -30.0], 105.0),
+            -135.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [59.99919500449862, 477.80032043920227, -30.00000000000007],
+                    [90.0, 0.0, 0.0],
+                ),
+                Outline::circle([0.0, 0.0], 104.99999970000002),
+                922.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([-283.0, 286.0, -30.0], [90.0, 45.0, 0.0]),
+                Outline::circle([0.0, 0.0], 105.0),
+                922.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_352000000010441_a_shaft_and_a_bore_of_its_radius_8e_4_apart_bored_again_at_45_degrees_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_and_a_bore_of_its_radius_8e_4_apart_bored_again_at_45_degrees(),
+    );
+}
+
+#[test]
+fn seed_352000000010441_the_same_bores_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &a_shaft_and_a_bore_of_its_radius_8e_4_apart_bored_again_at_45_degrees(),
+    );
+}
+
+/// A shaft of radius 135 about Z bored by a hole of its radius along it, a
+/// tenth off its axis, then by a hole of radius 135 at 75°: refused as
+/// `Unverified` on both kernels (seed 354000000007504, shrunk; #755, #776).
+fn a_shaft_and_a_bore_of_its_radius_a_tenth_apart_bored_again_at_75_degrees() -> Case {
+    Case::new(
+        Leaf::prism(
+            Plane::xy(-105.0),
+            Outline::circle([30.0, 45.0], 135.0),
+            135.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [29.9005162331414, 45.0, -669.9025005773849],
+                    [0.0, 0.0, 0.0],
+                ),
+                Outline::circle([-0.0, -6.000000000000001e-7], 135.0),
+                1140.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([-521.0, 45.0, -185.0], [0.0, 75.0, 0.0]),
+                Outline::circle([0.0, 0.0], 135.0),
+                1140.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_354000000007504_a_shaft_and_a_bore_of_its_radius_a_tenth_apart_bored_again_at_75_degrees_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_and_a_bore_of_its_radius_a_tenth_apart_bored_again_at_75_degrees(),
+    );
+}
+
+#[test]
+fn seed_354000000007504_the_same_bores_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &a_shaft_and_a_bore_of_its_radius_a_tenth_apart_bored_again_at_75_degrees(),
     );
 }
 

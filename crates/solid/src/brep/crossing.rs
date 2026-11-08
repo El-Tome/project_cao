@@ -7,7 +7,9 @@ use glam::DVec3;
 
 mod lines;
 
-pub(crate) use lines::{Lines, Pair, passes_along};
+pub(crate) use lines::passes_along;
+#[cfg(any(test, feature = "test-support"))]
+pub(crate) use lines::{Lines, Pair};
 
 type Triangle = [DVec3; 3];
 

@@ -1,8 +1,13 @@
-//! Whether two triangles pass through each other or lie on each other: the one
-//! definition the tessellation's folds draw by, and the rules' check that no
-//! face of a solid crosses another weighs every two faces with.
+//! Whether triangles pass through each other or lie on each other, two at a
+//! time or around a line of edges: the one definition the tessellation's folds
+//! draw by, and the rules' check that no face of a solid crosses another
+//! weighs its faces with.
 
 use glam::DVec3;
+
+mod lines;
+
+pub(crate) use lines::{Lines, Pair, passes_along};
 
 type Triangle = [DVec3; 3];
 

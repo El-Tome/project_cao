@@ -132,6 +132,31 @@
 //!   are pinned, shrunk, and pass:
 //!   `seed_354000000005119_a_cone_bored_at_89_99_degrees_by_a_hole_of_radius_2_577_is_drawn_uncrossed`,
 //!   `seed_353000000010626_an_elliptic_shaft_bored_along_its_wall_a_hair_inside_then_across_at_75_degrees_is_drawn_uncrossed_through_the_application_s_body`
+//!
+//! Closes #761.
+//! - `seed_354000000005870_a_shaft_bored_at_80_degrees_then_by_a_cone_leaning_24_degrees_is_drawn_uncrossed`
+//!   loses its `#[ignore]` and passes — it passes since #766's fold rule
+//!   (#762, a fold flip refused only when it leaves no fewer crossings, by
+//!   the predicate the soundness check reads), no production change here
+//! - No draw regresses against `main`, seed by seed, on the three sets #754
+//!   was measured on — no test: nothing outside this test changes, so every
+//!   draw is `main`'s and no campaign is needed
+//!
+//! Closes #765.
+//! - The drawn case of 353000000010626, pinned in
+//!   `crates/solid/tests/random_walls_at_any_angle.rs`, loses its `#[ignore]`
+//!   and passes —
+//!   `seed_353000000010626_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body`
+//! - No draw regresses against #762's merge, seed by seed, on the three sets,
+//!   both kernels — no test: a campaign fails on any finding, so the walls
+//!   campaigns above are run on #762's merge and on the branch over sets
+//!   352000000000000, 353000000000000 and 354000000000000 and compared seed
+//!   by seed, the counts on the pull request; the draws found held on
+//!   #762's merge and crossed on the branch, pinned:
+//!   `seed_352000000014330_an_elliptic_shaft_bored_at_24_degrees_a_hair_wider_than_it_then_across_and_posted_is_drawn_uncrossed_through_the_application_s_body`
+//!   as drawn, its shrunk form crossing on #762's merge too,
+//!   `seed_352000000017007_a_shaft_bored_at_30_degrees_by_its_radius_then_posted_a_thousandth_of_a_degree_off_square_is_drawn_uncrossed_through_the_application_s_body`,
+//!   `seed_352000000017007_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body`
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -1373,7 +1398,6 @@ fn seed_352000000002028_a_shaft_bored_at_15_degrees_then_by_its_radius_at_1e_4_d
 /// leaning 24°: held on `main`, drawn crossed on the exact kernel once a
 /// wall's snapped copy is told for its own (seed 354000000005870).
 #[test]
-#[ignore = "#761: the shaft's fan crosses the bore touching it inside at a point"]
 fn seed_354000000005870_a_shaft_bored_at_80_degrees_then_by_a_cone_leaning_24_degrees_is_drawn_uncrossed()
  {
     random_solids::holds_exactly(&Case::new(
@@ -1580,10 +1604,56 @@ fn seed_353000000010626_an_elliptic_shaft_bored_along_its_wall_a_hair_inside_the
 }
 
 #[test]
-#[ignore = "#765: the drawn shaft still crosses where the bore lies a hair inside its wall"]
 fn seed_353000000010626_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body()
 {
     walls_seed_through_the_application(353000000010626);
+}
+
+/// An elliptic shaft of half-axes 25 and 20 bored at 24° by a hole a
+/// hundredth wider than its minor half-axis, then across by a hole of radius
+/// 7.5 and posted by a pin of that radius: held through the application's
+/// body on #762's merge (seed 352000000014330, as drawn; its shrunk form
+/// crosses there too).
+#[test]
+fn seed_352000000014330_an_elliptic_shaft_bored_at_24_degrees_a_hair_wider_than_it_then_across_and_posted_is_drawn_uncrossed_through_the_application_s_body()
+ {
+    walls_seed_through_the_application(352000000014330);
+}
+
+/// A shaft of radius 5 bored at 30° by a hole of its radius less a
+/// ten-millionth, then posted by a pin of radius 5 a thousandth of a degree
+/// off square: held through the application's body on #762's merge (seed
+/// 352000000017007, shrunk).
+#[test]
+fn seed_352000000017007_a_shaft_bored_at_30_degrees_by_its_radius_then_posted_a_thousandth_of_a_degree_off_square_is_drawn_uncrossed_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(-4.0), Outline::circle([1.0, -1.0], 5.0), 9.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [1.0, -12.381527307120104, -19.21338356366461],
+                    [-30.0, 0.0, 0.0],
+                ),
+                Outline::circle([-0.0, -0.0], 4.9999999),
+                46.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::tilted(
+                    [1.0, -23.7630546107732, 0.4996027097491902],
+                    [-89.999, 0.0, 0.0],
+                ),
+                Outline::circle([6e-8, 0.0], 5.0),
+                46.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_352000000017007_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body()
+{
+    walls_seed_through_the_application(352000000017007);
 }
 
 /// An elliptic shaft cut by a bore at a skew angle and joined to a post at

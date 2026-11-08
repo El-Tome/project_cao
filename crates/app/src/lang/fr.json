@@ -238,7 +238,7 @@
 
   "command.label.new_sketch": "Nouvelle esquisse",
   "command.label.finish_sketch": "Terminer",
-  "command.label.recenter_on_sketch": "Recadrer",
+  "command.label.reframe": "Recadrer",
   "command.label.next_matter_in_front": "Matière devant",
   "command.label.matter_in_front.hidden": "Matière devant : cachée",
   "command.label.matter_in_front.see_through": "Matière devant : transparente",
@@ -306,7 +306,7 @@
 
   "command.hint.new_sketch": "Choisir un plan pour commencer un dessin",
   "command.hint.finish_sketch": "Terminer l'esquisse et proposer de l'extruder",
-  "command.hint.recenter_on_sketch": "Se replacer face au plan de l'esquisse",
+  "command.hint.reframe": "Cadrer toute la pièce, ou se replacer face au plan dans une esquisse",
   "command.hint.next_matter_in_front": "Montrer la matière devant le plan de l'esquisse cachée, transparente ou opaque",
   "command.hint.section_view": "Couper la pièce par un plan pour voir à l'intérieur, sans la modifier",
   "command.hint.undo": "Reculer d'une étape dans l'historique",

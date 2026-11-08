@@ -206,6 +206,27 @@ impl ViewportState {
         self.mode = ViewMode::Free;
     }
 
+    /// Frames the whole part from the direction it is seen from; with no
+    /// volume to frame, turns back to the view a new part opens with.
+    pub(crate) fn frame_the_part(&mut self, body: &cao_solid::Body) {
+        let Some((min, max)) = body.bounds() else {
+            let opening = Self::default().camera;
+            let (yaw, pitch) = (self.camera.yaw(), self.camera.pitch());
+            self.camera = opening;
+            self.camera.set_view_angles(yaw, pitch);
+            self.transition = Some(ViewTransition::to_angles(
+                &self.camera,
+                opening.yaw(),
+                opening.pitch(),
+            ));
+            self.mode = ViewMode::Free;
+            return;
+        };
+        let radius = (max - min).length() * 0.5;
+        self.camera
+            .focus_on(((min + max) * 0.5).as_vec3(), radius as f32, self.aspect());
+    }
+
     /// A face lands on its work plane and shows the grid; an edge or a corner
     /// is an oblique view, which stays in wireframe mode.
     pub(super) fn snap_to_zone(&mut self, zone: CubeZone) {

@@ -288,7 +288,7 @@ impl Default for Shortcuts {
                 (C::SelectAll, Chord::new(Key::A).cmd()),
                 (C::NewSketch, Chord::new(Key::N).cmd()),
                 (C::FinishSketch, Chord::new(Key::Enter)),
-                (C::RecenterOnSketch, Chord::new(Key::F)),
+                (C::Reframe, Chord::new(Key::F)),
                 (C::ToolSelect, Chord::new(Key::S)),
                 (C::ToolLine, Chord::new(Key::L)),
                 (C::ToolRectangle, Chord::new(Key::R)),

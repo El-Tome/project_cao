@@ -48,6 +48,14 @@
 //!   `compacting_the_history_puts_the_light_out`; decided in review: compaction
 //!   puts every eye back to its default —
 //!   `compacting_the_history_puts_every_eye_back_to_its_default`
+//!
+//! Closes #728 — the whole transcription is in `crates/app/tests/view_bar.rs`;
+//! this is the bullet a command answers. What « Recadrer » does to the camera
+//! is held in `crates/app/src/screens/viewport/state/tests.rs`, the one module
+//! that sees it.
+//! - picking « cachée », « transparente » or « opaque » sets the open sketch's
+//!   matter in front to that state directly, whatever state it was in —
+//!   `picking_a_state_of_the_matter_in_front_sets_the_open_sketch_to_it_whatever_it_was`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::Command;

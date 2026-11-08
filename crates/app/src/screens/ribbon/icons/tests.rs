@@ -68,7 +68,7 @@ macro_rules! icons_drawn {
 icons_drawn! {
     NewSketch => "new-sketch",
     FinishSketch => "finish",
-    RecenterOnSketch => "reframe",
+    Reframe => "reframe",
     NextMatterInFront => "matter-in-front-hidden",
     SectionView => "section-view",
     Undo => "undo",

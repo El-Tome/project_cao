@@ -66,10 +66,13 @@ pub(crate) fn run(
             editor.close();
             false
         }
-        Command::RecenterOnSketch => {
-            if let Some(plane) = editor.plane {
-                let (center, radius) = sketch_framing(doc, editor.active_sketch(), plane);
-                viewport.look_at_plane(plane, center, radius);
+        Command::Reframe => {
+            match editor.plane {
+                Some(plane) => {
+                    let (center, radius) = sketch_framing(doc, editor.active_sketch(), plane);
+                    viewport.look_at_plane(plane, center, radius);
+                }
+                None => viewport.frame_the_part(doc.body()),
             }
             false
         }

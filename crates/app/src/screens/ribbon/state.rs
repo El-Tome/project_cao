@@ -180,7 +180,7 @@ pub fn is_enabled(
         Command::Redo => document.history.can_redo(),
         Command::CompactHistory => !document.history.is_empty(),
         Command::SelectAll => drawing && editor.tool == Tool::Select,
-        Command::FinishSketch | Command::RecenterOnSketch | Command::NextMatterInFront => drawing,
+        Command::FinishSketch | Command::NextMatterInFront => drawing,
         Command::ToolSelect
         | Command::ToolLine
         | Command::ToolLineSymmetric

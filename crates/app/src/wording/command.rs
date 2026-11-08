@@ -11,7 +11,7 @@ pub fn label(lang: &Catalogue, command: Command) -> String {
     lang.t(match command {
         Command::NewSketch => "command.label.new_sketch",
         Command::FinishSketch => "command.label.finish_sketch",
-        Command::RecenterOnSketch => "command.label.recenter_on_sketch",
+        Command::Reframe => "command.label.reframe",
         Command::NextMatterInFront => "command.label.next_matter_in_front",
         Command::SectionView => "command.label.section_view",
         Command::Undo => "command.label.undo",
@@ -85,7 +85,7 @@ pub fn hint(lang: &Catalogue, command: Command) -> String {
     let key = match command {
         Command::NewSketch => "command.hint.new_sketch",
         Command::FinishSketch => "command.hint.finish_sketch",
-        Command::RecenterOnSketch => "command.hint.recenter_on_sketch",
+        Command::Reframe => "command.hint.reframe",
         Command::NextMatterInFront => "command.hint.next_matter_in_front",
         Command::SectionView => "command.hint.section_view",
         Command::Undo => "command.hint.undo",

@@ -84,6 +84,12 @@ const WINDOW_POSITIONS: &[WindowPosition] = &[
               from the breadcrumb above it, which reads the same sketch's name: \
               nothing is aimed from it",
     },
+    WindowPosition {
+        file: "crates/app/tests/view_bar.rs",
+        written: "driver::canvas(app)",
+        why: "the view read only to check that what « Recadrer » frames stands inside \
+              it, fills it and sits in its middle: nothing is aimed from it",
+    },
 ];
 
 struct WindowPosition {

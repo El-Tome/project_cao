@@ -10,7 +10,7 @@ pub(super) fn of(command: Command) -> Icon {
     match command {
         Command::NewSketch => icon::NEW_SKETCH,
         Command::FinishSketch => icon::FINISH,
-        Command::RecenterOnSketch => icon::REFRAME,
+        Command::Reframe => icon::REFRAME,
         Command::NextMatterInFront => icon::MATTER_IN_FRONT_HIDDEN,
         Command::SectionView => icon::SECTION_VIEW,
         Command::Undo => icon::UNDO,

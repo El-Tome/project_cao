@@ -54,13 +54,15 @@
 //!   two tests that declined the inner corner of an L, which this issue turns
 //!   round and this file now speaks for
 
+mod step_reader;
+
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
 
 use cao_solid::profile::{Contour, Frame, Profile};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, EdgeName, Loop};
-use glam::{DVec2, DVec3};
+use cao_solid::{Body, Declined, EdgeName, Loop, Lost, step};
+use glam::{DQuat, DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it, on a plane
 /// or on the round: each is placed exactly, so what is left is rounding.
@@ -82,6 +84,12 @@ const TOP: usize = 1;
 const ARM_BACK: usize = 4;
 const STEM_RIGHT: usize = 5;
 
+/// The numbers the L's front, its arm's right end and its left answer to:
+/// walls no fill of its inner corner reaches.
+const ELL_FRONT: usize = 2;
+const ARM_END: usize = 3;
+const ELL_LEFT: usize = 7;
+
 /// The ground's plane, which a part is drawn on.
 fn ground() -> Frame {
     Frame {
@@ -99,6 +107,70 @@ fn profile(outline: Contour) -> Profile<'static> {
         sampled_holes: Vec::new(),
         triangles: &[],
     }
+}
+
+/// Where a part is moved to, whole.
+const ELSEWHERE: [f64; 3] = [100.0, -40.0, 7.0];
+
+/// The ground's plane with its origin moved to `to`.
+fn moved(to: [f64; 3]) -> Frame {
+    Frame {
+        origin: DVec3::from(to),
+        ..ground()
+    }
+}
+
+/// The ground's plane turned about the vertical by `degrees`: a part drawn
+/// on it stands upright, its walls square to no axis.
+fn turned_about_the_vertical(degrees: f64) -> Frame {
+    let turn = DQuat::from_rotation_z(degrees.to_radians());
+    Frame {
+        origin: DVec3::ZERO,
+        u: turn * DVec3::X,
+        v: turn * DVec3::Y,
+    }
+}
+
+/// The ground's plane tipped by 40 degrees about an axis leaning off all
+/// three, its origin moved to `to`: a part drawn on it has no face and no
+/// edge square to an axis or along one.
+fn tipped(to: [f64; 3]) -> Frame {
+    let turn = DQuat::from_axis_angle(DVec3::new(1.0, 2.0, 2.0).normalize(), 40f64.to_radians());
+    Frame {
+        origin: DVec3::from(to),
+        u: turn * DVec3::X,
+        v: turn * DVec3::Y,
+    }
+}
+
+/// A point given in the part's own axes, along, across and up, where the
+/// frame puts it.
+fn placed(frame: Frame, [along, across, up]: [f64; 3]) -> DVec3 {
+    frame.at(DVec2::new(along, across)) + frame.normal() * up
+}
+
+/// The part with an outline drawn on the ground, raised from `from` up by
+/// `height`, cut from it as `cao_part` cuts a step: the tool's faces numbered
+/// past the part's.
+fn cut_from(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    let frame = Frame {
+        origin: DVec3::Z * from,
+        ..ground()
+    };
+    let tool = part
+        .tool_raised(&profile(outline), frame, DVec3::Z * height)
+        .expect("the tool raises");
+    part.difference(&tool).expect("the cut is built")
+}
+
+/// The part with an outline drawn on the ground raised up by `height`,
+/// joined to it as `cao_part` joins a step: the tool's faces numbered past
+/// the part's.
+fn joined_to(part: &Body, outline: Contour, height: f64) -> Body {
+    let tool = part
+        .tool_raised(&profile(outline), ground(), DVec3::Z * height)
+        .expect("the tool raises");
+    part.union(&tool).expect("the join is built")
 }
 
 /// An outline drawn on a frame raised along its normal by `height`, and
@@ -145,6 +217,14 @@ const ELL: Ell = Ell {
     stem: 12.0,
     back: 14.0,
     height: 10.0,
+};
+
+const ELL_RESIZED: Ell = Ell {
+    length: 40.0,
+    depth: 8.0,
+    stem: 16.0,
+    back: 20.0,
+    height: 12.0,
 };
 
 impl Ell {
@@ -1708,4 +1788,458 @@ fn a_chamfer_on_a_concave_edge_just_short_of_a_face_s_whole_width_is_laid_as_ask
         );
         within_the_box_of(&part, body, what);
     }
+}
+
+/// Holds what a fill set back by `set_back` at the inner corner of `ell`,
+/// drawn on `frame`, leaves of the faces round it, as criterion 1 holds it
+/// of the L drawn on the ground: the arm's back and the stem's right side
+/// cut short; the floor and the top one face each, their outlines taking the
+/// fill's section in where the inner corner was — its corners on the fill,
+/// `on_the_fill` says, besides; the fill meeting those four faces and nothing
+/// else; and nothing standing past the part's box.
+fn filled_where_the_frame_puts_it(
+    part: &Body,
+    body: &Body,
+    made: usize,
+    (ell, frame, set_back): (Ell, Frame, f64),
+    on_the_fill: impl Fn(DVec3) -> bool,
+    what: &str,
+) {
+    let Ell {
+        length,
+        depth,
+        stem,
+        back,
+        height,
+    } = ell;
+    let upright_at = |at: DVec2| [0.0, height].map(|up| placed(frame, [at.x, at.y, up]));
+    let on_arm_back = DVec2::new(stem + set_back, depth);
+    let on_stem_right = DVec2::new(stem, depth + set_back);
+    for (wall, near, far, whose) in [
+        (
+            ARM_BACK,
+            on_arm_back,
+            DVec2::new(length, depth),
+            "the arm's back",
+        ),
+        (
+            STEM_RIGHT,
+            on_stem_right,
+            DVec2::new(stem, back),
+            "the stem's right side",
+        ),
+    ] {
+        corners_are(
+            body,
+            wall,
+            &[upright_at(near), upright_at(far)].concat(),
+            &format!("{what}: what is left of {whose}"),
+        );
+    }
+    let filled = ell.outline_filled([on_arm_back, on_stem_right]);
+    for (cap, up, whose) in [(FLOOR, 0.0, "the floor"), (TOP, height, "the top")] {
+        let corners: Vec<DVec3> = filled
+            .iter()
+            .map(|at| placed(frame, [at.x, at.y, up]))
+            .collect();
+        corners_are_or_on(
+            body,
+            cap,
+            &corners,
+            &on_the_fill,
+            &format!("{what}: {whose}, holding the fill's end flush, the inner corner gone"),
+        );
+    }
+    assert_eq!(
+        sides_met(body, made),
+        [FLOOR, TOP, ARM_BACK, STEM_RIGHT].map(|side| vec![side as u32]),
+        "{what}: the fill meets the arm's back and the stem's right side along its sides, and the \
+         floor and the top at its ends, by one edge each"
+    );
+    no_longer_meet(
+        body,
+        ARM_BACK,
+        STEM_RIGHT,
+        &format!("{what}: the arm's back and the stem's right side no longer meet"),
+    );
+    within_the_box_of(part, body, what);
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_fill_the_concave_edge_their_name_finds_again_after_a_change_of_size_a_move_and_a_turn()
+ {
+    let value = 2.0;
+    let name = edge_between(&ELL.on(ground()), ARM_BACK, STEM_RIGHT);
+
+    for (drawn, ell, frame) in [
+        ("as drawn", ELL, ground()),
+        ("resized", ELL_RESIZED, ground()),
+        ("moved", ELL, moved(ELSEWHERE)),
+        (
+            "turned 30 degrees about the vertical",
+            ELL,
+            turned_about_the_vertical(30.0),
+        ),
+        ("tipped off every axis", ELL, tipped([0.0; 3])),
+        ("resized, moved and tipped", ELL_RESIZED, tipped(ELSEWHERE)),
+    ] {
+        let part = ell.on(frame);
+        let at = |point: [f64; 3]| placed(frame, point);
+        let Ell {
+            depth,
+            stem,
+            height,
+            ..
+        } = ell;
+
+        let chamfered = part
+            .chamfer(&name, value)
+            .unwrap_or_else(|declined| panic!("the chamfer, {drawn}: declined, {declined:?}"));
+
+        let what = &format!("the chamfer, {drawn}");
+        taken_whole(chamfered.asked, chamfered.taken, value, what);
+        let body = &chamfered.body;
+        sound(body, ell.volume() + value * value / 2.0 * height, what);
+        let chamfer = one_flat_face_more(&part, body, what);
+        faces_toward(
+            body,
+            chamfer,
+            at([1.0, 1.0, 0.0]) - at([0.0; 3]),
+            &format!("{what}: halfway between the arm's back and the stem's right side"),
+        );
+        let ends = [[stem + value, depth], [stem, depth + value]];
+        corners_are(
+            body,
+            chamfer,
+            &ends
+                .iter()
+                .flat_map(|&[along, across]| [0.0, height].map(|up| at([along, across, up])))
+                .collect::<Vec<_>>(),
+            &format!("{what}: the chamfer, set back by the distance along each face"),
+        );
+        filled_where_the_frame_puts_it(&part, body, chamfer, (ell, frame, value), |_| false, what);
+
+        let filleted = part
+            .fillet(&name, value)
+            .unwrap_or_else(|declined| panic!("the fillet, {drawn}: declined, {declined:?}"));
+
+        let what = &format!("the fillet, {drawn}");
+        taken_whole(filleted.asked, filleted.taken, value, what);
+        let body = &filleted.body;
+        let hollow = Hollow {
+            start: at([stem + value, depth + value, 0.0]),
+            along: frame.normal(),
+            length: height,
+            radius: value,
+            facing: [
+                at([0.0, 1.0, 0.0]) - at([0.0; 3]),
+                at([1.0, 0.0, 0.0]) - at([0.0; 3]),
+            ],
+        };
+        sound_drawn_within(
+            body,
+            ell.volume() + value * value * (1.0 - PI / 4.0) * height,
+            drawn_within(&part, hollow.area()),
+            what,
+        );
+        let fillet = one_round_more(&part, body, what);
+        is_the_hollow(
+            body,
+            fillet,
+            &hollow,
+            &format!("{what}: the round, its axis the radius out from both faces"),
+        );
+        filled_where_the_frame_puts_it(
+            &part,
+            body,
+            fillet,
+            (ell, frame, value),
+            |corner| hollow.holds(corner),
+            what,
+        );
+    }
+}
+
+/// The two cuts round the L's inner corner: a square 3 across, from
+/// (11, 5) to (14, 8), taking the corner's arm and stem both a little.
+fn round_the_inner_corner() -> Contour {
+    Contour::rectangle(DVec2::new(11.0, 5.0), DVec2::new(14.0, 8.0))
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_concave_edge_a_cut_took_away_are_declined_saying_it_is_gone() {
+    let drawn = ELL.on(ground());
+    let name = edge_between(&drawn, ARM_BACK, STEM_RIGHT);
+    let notched = cut_from(&drawn, round_the_inner_corner(), -1.0, ELL.height + 2.0);
+    assert_eq!(
+        notched.lost(&name),
+        Some(Lost::Gone),
+        "a square cut down through the inner corner leaves the arm's back and the stem's right \
+         side meeting nowhere"
+    );
+
+    let declined = [
+        ("the chamfer", notched.chamfer(&name, 1.0).err()),
+        ("the fillet", notched.fillet(&name, 1.0).err()),
+    ];
+
+    for (step, declined) in declined {
+        assert_eq!(declined, Some(Declined::Lost(Lost::Gone)), "{step}");
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_concave_edge_a_cut_parted_in_two_are_declined_saying_it_is_split() {
+    let drawn = ELL.on(ground());
+    let name = edge_between(&drawn, ARM_BACK, STEM_RIGHT);
+    let grooved = cut_from(&drawn, round_the_inner_corner(), 4.0, 2.0);
+    assert_eq!(
+        grooved.lost(&name),
+        Some(Lost::Split { now: 2 }),
+        "a groove round the inner corner halfway up leaves the edge in two, under it and over it"
+    );
+
+    let declined = [
+        ("the chamfer", grooved.chamfer(&name, 1.0).err()),
+        ("the fillet", grooved.fillet(&name, 1.0).err()),
+    ];
+
+    for (step, declined) in declined {
+        assert_eq!(
+            declined,
+            Some(Declined::Lost(Lost::Split { now: 2 })),
+            "{step}"
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_concave_edge_leave_every_face_of_the_l_its_number_and_number_theirs_after_the_steps_last()
+ {
+    for (whose, part, steps_end) in [
+        ("the L", ELL.on(ground()), 8),
+        ("the L cut down to a lean", leaning_l(), 14),
+    ] {
+        assert_eq!(
+            part.faces_end(),
+            steps_end,
+            "{whose}: its steps numbered their faces up to {steps_end}"
+        );
+        let inner = edge_between(&part, ARM_BACK, STEM_RIGHT);
+        let filled = [
+            (
+                "chamfer",
+                part.chamfer(&inner, 3.0).map(|chamfered| chamfered.body),
+                true,
+            ),
+            (
+                "fillet",
+                part.fillet(&inner, 3.0).map(|filleted| filleted.body),
+                false,
+            ),
+        ];
+
+        for (step, body, flat) in filled {
+            let what = &format!("the {step} on {whose}");
+            let body = body.unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+            let before = numbers(&part);
+            let mut kept_and_made = before.clone();
+            kept_and_made.insert(steps_end);
+            assert_eq!(
+                numbers(&body),
+                kept_and_made,
+                "{what}: every number its faces answered to, and the fill's, {steps_end}, where \
+                 the steps' numbers ended"
+            );
+            assert!(
+                body.has_face(steps_end) && body.is_flat(steps_end) == flat,
+                "{what}: face {steps_end} is the {step}'s"
+            );
+            assert_eq!(
+                body.faces_end(),
+                steps_end + 1,
+                "{what}: the fill names one face, and the next step numbers its own past it"
+            );
+            assert_eq!(
+                body.pieces(),
+                part.pieces(),
+                "{what}: nothing of the fill's making is numbered as a piece"
+            );
+            for number in before {
+                let was = part.plane_of(number).expect("the L's faces are flat");
+                let is = body
+                    .plane_of(number)
+                    .unwrap_or_else(|| panic!("{what}: face {number} offers no plane"));
+                assert!(
+                    is.normal.distance(was.normal) < PLACE,
+                    "{what}: face {number} faces {}, where it faced {}",
+                    is.normal,
+                    was.normal
+                );
+                for corner in &is.corners {
+                    let off = (*corner - was.corners[0]).dot(was.normal);
+                    assert!(
+                        off.abs() < PLACE,
+                        "{what}: face {number} has a corner at {corner}, {off} off the plane it \
+                         lay on"
+                    );
+                }
+            }
+            for untouched in [ELL_FRONT, ARM_END, STEM_BACK, ELL_LEFT] {
+                let was = part.plane_of(untouched).expect("the L's faces are flat");
+                corners_are(
+                    &body,
+                    untouched,
+                    &was.corners,
+                    &format!("{what}: face {untouched}, which the fill does not reach"),
+                );
+            }
+
+            let then = joined_to(
+                &body,
+                Contour::rectangle(DVec2::new(40.0, 0.0), DVec2::new(50.0, 10.0)),
+                5.0,
+            );
+
+            let mut after_the_next_step = kept_and_made.clone();
+            after_the_next_step.extend(steps_end + 1..steps_end + 7);
+            assert_eq!(
+                numbers(&then),
+                after_the_next_step,
+                "{what}: a block joined after it numbers its six faces past the fill's"
+            );
+            assert!(
+                then.has_face(steps_end) && then.is_flat(steps_end) == flat,
+                "{what}: the fill still answers to {steps_end} after the next step"
+            );
+        }
+    }
+}
+
+/// Holds that a STEP file read back is one exact solid of the body's faces,
+/// all its loops on their surfaces, enclosing the matter arithmetic promised
+/// and the body holds, and covering the area arithmetic promised, within the
+/// file's tolerance over the part's edges, `edges` long in all.
+fn written_whole(
+    solid: &step_reader::Solid,
+    body: &Body,
+    [volume, area, edges]: [f64; 3],
+    what: &str,
+) {
+    assert_eq!(
+        solid.faces,
+        numbers(body).len(),
+        "{what}: the file holds the faces the body does"
+    );
+    assert!(
+        solid.worst <= solid.uncertainty,
+        "{what}: a loop stands {} off its face or its edge, the file's tolerance is {}",
+        solid.worst,
+        solid.uncertainty
+    );
+    for (whose, volume) in [
+        ("arithmetic promised", volume),
+        ("the body holds", body.volume()),
+    ] {
+        assert!(
+            (solid.volume - volume).abs() <= solid.uncertainty * solid.area,
+            "{what}: the file encloses {}, where {whose} {volume}",
+            solid.volume
+        );
+    }
+    assert!(
+        (solid.area - area).abs() <= solid.uncertainty * edges,
+        "{what}: the file's faces cover {}, where arithmetic promised {area}",
+        solid.area
+    );
+}
+
+#[test]
+fn an_l_filled_at_its_inner_corner_written_to_step_writes_its_new_face_on_its_true_surface() {
+    let value = 3.0;
+    let ell = ELL.on(ground());
+    let inner = edge_between(&ell, ARM_BACK, STEM_RIGHT);
+    let Ell {
+        length,
+        depth,
+        stem,
+        back,
+        height,
+    } = ELL;
+    let perimeter = 2.0 * (length + back);
+    let footprint = ELL.volume() / height;
+    let walls_short = 2.0 * value * height;
+    let edges = 2.0 * (2.0 * perimeter + 6.0 * height);
+
+    let chamfered = ell.chamfer(&inner, value).expect("the chamfer is laid");
+    let text = step::of(&chamfered.body, 1.0).expect("an exact body is written");
+
+    let what = "the chamfered L";
+    let solid = step_reader::read(&text)
+        .unwrap_or_else(|fault| panic!("{what}: the file does not read back: {fault}"));
+    assert_eq!(
+        solid.faces, 9,
+        "{what}: the L's eight faces and the chamfer"
+    );
+    let section = value * value / 2.0;
+    let area = 2.0 * (footprint + section) + perimeter * height - walls_short
+        + value * 2f64.sqrt() * height;
+    written_whole(
+        &solid,
+        &chamfered.body,
+        [ELL.volume() + section * height, area, edges],
+        what,
+    );
+    let facing = DVec3::new(1.0, 1.0, 0.0).normalize();
+    let through = [
+        DVec3::new(stem + value, depth, 0.0),
+        DVec3::new(stem, depth + value, height),
+    ];
+    assert!(
+        solid.planes.iter().any(|&(origin, normal)| {
+            normal.distance(facing) < PLACE
+                && through
+                    .iter()
+                    .all(|point| (*point - origin).dot(normal).abs() <= solid.uncertainty)
+        }),
+        "{what}: no face of the file faces {facing} through {through:?}: {:?}",
+        solid.planes
+    );
+
+    let filleted = ell.fillet(&inner, value).expect("the fillet is laid");
+    let text = step::of(&filleted.body, 1.0).expect("an exact body is written");
+
+    let what = "the filleted L";
+    let solid = step_reader::read(&text)
+        .unwrap_or_else(|fault| panic!("{what}: the file does not read back: {fault}"));
+    assert_eq!(solid.faces, 9, "{what}: the L's eight faces and the round");
+    let section = value * value * (1.0 - PI / 4.0);
+    let area =
+        2.0 * (footprint + section) + perimeter * height - walls_short + PI / 2.0 * value * height;
+    written_whole(
+        &solid,
+        &filleted.body,
+        [ELL.volume() + section * height, area, edges],
+        what,
+    );
+    let [(origin, axis, written)] = solid.cylinders[..] else {
+        panic!(
+            "{what}: one cylinder, under the round: {:?}",
+            solid.cylinders
+        );
+    };
+    assert!(
+        (written - value).abs() <= solid.uncertainty,
+        "{what}: the round is written on a cylinder of radius {written}, where it is {value}"
+    );
+    assert!(
+        axis.cross(DVec3::Z).length() < PLACE,
+        "{what}: the round's cylinder runs along {axis}, where the inner edge stood upright"
+    );
+    let off = origin - DVec3::new(stem + value, depth + value, 0.0);
+    assert!(
+        (off - DVec3::Z * off.z).length() <= solid.uncertainty,
+        "{what}: the round's cylinder stands about the line through {origin}, where its axis is \
+         the radius out from the arm's back and from the stem's right side"
+    );
 }

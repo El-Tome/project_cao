@@ -5,6 +5,7 @@ pub mod formula_field;
 pub mod icon;
 pub mod logo;
 pub mod panel_toggle;
+pub mod pill;
 pub mod question;
 pub mod slider;
 pub mod text_edit;

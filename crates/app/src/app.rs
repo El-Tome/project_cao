@@ -184,31 +184,10 @@ impl CaoApp {
         editor.sketching = settings.sketching;
         viewport.copy_panel_at = settings.copy_panel_at;
 
-        let mut back_to_menu = false;
+        let bar = screens::title_bar::TitleBar::of(doc, path, editor, viewport, lang);
+        let mut back_to_menu = screens::title_bar::show(ui, &bar, lang);
         let mut changed = false;
         let mut asked: Vec<Command> = Vec::new();
-
-        egui::Panel::top("part_title_bar").show(ui, |ui| {
-            ui.horizontal(|ui| {
-                back_to_menu = ui.button(lang.t("app.home")).clicked();
-                ui.separator();
-                ui.strong(doc.name())
-                    .on_hover_text(path.display().to_string());
-                ui.separator();
-                let section = editor
-                    .active_sketch()
-                    .and_then(|open| doc.section_under(open));
-                ui.weak(wording::view::standing_on(
-                    lang,
-                    viewport.mode().plane(),
-                    section,
-                ));
-                if let Some(message) = &editor.message {
-                    ui.separator();
-                    ui.colored_label(crate::ui::theme::tokens::ACCENT_AMBER_TEXT, message);
-                }
-            });
-        });
 
         let mut drawn = screens::ribbon::Drawn {
             document: doc,

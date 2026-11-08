@@ -207,9 +207,8 @@ fn save_a_section(app: &mut driver::App, plane: &str) {
     close_the_panel(app);
 }
 
-/// The button of the tree, or of a panel, that reads exactly this — never the
-/// header above the view, which names the same section while a sketch on it is
-/// open.
+/// The button of the tree, or of a panel, that reads exactly this — never a
+/// text of the title bar, which may carry the same words.
 fn the_row<'a>(app: &'a driver::App, name: &str) -> Option<egui_kittest::Node<'a>> {
     app.query_all_by_role(egui::accesskit::Role::Button)
         .find(|node| node.accesskit_node().label().as_deref() == Some(name))
@@ -688,46 +687,5 @@ fn the_history_numbers_its_rows_one_after_another_around_the_hidden_section_step
     assert_eq!(
         numbers, one_after_another,
         "the history skips numbers where the section steps are hidden",
-    );
-}
-
-/// What the bar above the view says, beside the part's name: the plane the
-/// view is on. The bar is the screen's first row, so its labels are the ones
-/// standing level with the highest label of all.
-fn the_header(app: &driver::App) -> Vec<String> {
-    let labels: Vec<_> = app
-        .query_all_by_role(egui::accesskit::Role::Label)
-        .map(|node| (node.rect(), node.accesskit_node().value()))
-        .collect();
-    let first_row = labels
-        .iter()
-        .map(|(rect, _)| rect.min.y)
-        .fold(f32::INFINITY, f32::min);
-    labels
-        .into_iter()
-        .filter(|(rect, _)| rect.min.y < first_row + 1.0)
-        .filter_map(|(_, said)| said)
-        .collect()
-}
-
-#[test]
-fn a_sketch_on_a_section_names_the_section_above_the_view() {
-    let mut app = a_block("keeping_a_section_header");
-    save_a_section(&mut app, "Plan YZ");
-    switch_on(&mut app, "Coupe 1");
-
-    click_in_the_ribbon(&mut app, "Nouvelle esquisse");
-    driver::click_at_world_point(&mut app, ON_THE_CUT);
-    let header = the_header(&app);
-
-    assert!(
-        driver::is_enabled(&app, "Terminer"),
-        "the click on the cut started no sketch, showing {:?}",
-        driver::on_screen(&app),
-    );
-    assert!(
-        header.iter().any(|said| said.contains("Coupe 1"))
-            && !header.iter().any(|said| said.contains("Face de la pièce")),
-        "a sketch on « Coupe 1 » is announced above the view as {header:?}",
     );
 }

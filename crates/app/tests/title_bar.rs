@@ -25,22 +25,20 @@
 //! - the title bar, first row of the part screen, reads « Accueil » with the
 //!   home icon, « / », the part's name, « / », and the view in a pill —
 //!   `the_title_bar_reads_home_the_part_s_name_and_the_view_between_slashes`,
-//!   and the pill by `the_view_stands_in_a_pill_at_the_end_of_the_breadcrumb`
+//!   the icon by `the_way_home_wears_the_home_icon`, and the pill by
+//!   `the_view_stands_in_a_pill_at_the_end_of_the_breadcrumb`
 //! - clicking « Accueil » goes home as today —
 //!   `home_in_the_title_bar_goes_back_to_the_home_screen`
 //! - the part's name shows its file path on hover —
 //!   `the_part_s_name_shows_its_file_path_on_hover`
-//! - the view pill reads « Esquisse N » when a sketch is open, N its rank as
-//!   the Part tree words it — `an_open_sketch_names_the_view_by_its_rank`, and
-//!   ahead of the kept section the sketch stands on by
-//!   `a_sketch_open_on_a_kept_section_names_the_view_by_the_sketch`
-//! - else « Vue en coupe » while the section view is on —
-//!   `with_the_section_view_on_the_pill_names_the_section_view`
-//! - else « Coupe N » while a kept section is shown —
-//!   `a_kept_section_shown_names_the_view_by_its_rank`
-//! - else the plane's label while the view stands on a plane with no sketch
-//!   open, as today — `a_view_landed_on_a_plane_names_the_plane`
-//! - else « Vue 3D libre » — `the_free_view_is_named_the_free_3d_view`
+//! - the view pill reads, in this order: « Esquisse N » when a sketch is open,
+//!   N its rank as the Part tree words it; else « Vue en coupe » while the
+//!   section view is on; else « Coupe N » while a kept section is shown; else
+//!   the plane's label while the view stands on a plane with no sketch open;
+//!   else « Vue 3D libre ». The order is held case by case beside the wording,
+//!   in `crates/app/src/wording/view/tests.rs`, under its own `Closes #726`;
+//!   that the screen hands it what it shows, by
+//!   `the_view_pill_follows_the_sketch_the_section_view_and_the_kept_section`
 //! - the message shows centred in the title bar, in a pill with an amber dot —
 //!   `a_tool_s_hint_shows_centred_in_the_title_bar_in_a_pill_with_an_amber_dot`
 //! - every hint, refusal and confirmation that shows today still shows, there —
@@ -76,7 +74,9 @@
 //! The issue left four things open, decided before this file was written. The
 //! view pill reads, in this order: the sketch open, the section view on, a kept
 //! section shown, the plane the view stands on, the free view — where the bar
-//! used to read the section's name for a sketch laid on one. The Files command
+//! used to read the section's name for a sketch laid on one, which
+//! `keeping_a_section.rs` held until this issue deleted that test. Which plane
+//! or section an open sketch stands on goes to the sketch's own pill, #727. The Files command
 //! goes altogether, since the part screen was the only place it acted. An error
 //! takes the pill and gives way like a message. The home screen has no pill and
 //! keeps the red bar.
@@ -91,6 +91,7 @@ mod driver;
 
 use egui::accesskit::Role;
 use egui_kittest::kittest::{NodeT, Queryable};
+use glam::{DVec2, DVec3};
 
 #[test]
 fn a_fresh_install_reads_the_logo_the_three_tabs_then_part_variables_and_preferences() {
@@ -224,6 +225,133 @@ fn the_preferences_list_no_files_command_and_nothing_on_b() {
     );
 }
 
+#[test]
+fn the_title_bar_reads_home_the_part_s_name_and_the_view_between_slashes() {
+    let app = a_part("the_title_bar_reads_home_the_part_s_name");
+
+    assert_eq!(
+        the_title_bar(&app),
+        ["Accueil", "/", "Platine", "/", "Vue 3D libre"],
+        "the title bar of a part just made, in the free view, with nothing to say yet",
+    );
+}
+
+#[test]
+fn the_way_home_wears_the_home_icon() {
+    let app = a_part("the_way_home_wears_the_home_icon");
+
+    let home = the_button_named(&app, "Accueil");
+    let worn = icons_painted_within(&app, home);
+
+    assert!(
+        worn.iter().any(|icon| icon == "home"),
+        "« Accueil » at {home:?} wears {worn:?}, not the `home` icon",
+    );
+}
+
+#[test]
+fn the_view_stands_in_a_pill_at_the_end_of_the_breadcrumb() {
+    let app = a_part("the_view_stands_in_a_pill");
+
+    let view = the_topmost_reading(&app, "Vue 3D libre");
+    let name = the_topmost_reading(&app, "Platine");
+    let pills: Vec<egui::Rect> = rounded_backgrounds_painted(&app)
+        .into_iter()
+        .filter(|pill| pill.expand(HUGGED_WITHIN).contains_rect(view) && !pill.intersects(name))
+        .collect();
+
+    assert!(
+        !pills.is_empty(),
+        "nothing rounded and filled is painted around « Vue 3D libre » at {view:?} \
+         alone, the part's name at {name:?} left outside it",
+    );
+}
+
+#[test]
+fn home_in_the_title_bar_goes_back_to_the_home_screen() {
+    let mut app = a_part("home_in_the_title_bar_goes_back_to_the_home_screen");
+    driver::start_a_sketch(&mut app);
+    driver::draw_a_segment(&mut app);
+
+    driver::click(&mut app, "Accueil");
+
+    assert!(
+        driver::shows(&app, "Créer") && !driver::shows(&app, "Nouvelle esquisse"),
+        "one click on « Accueil » with a line just drawn did not land on the home \
+         screen, showing {:?}",
+        driver::on_screen(&app),
+    );
+}
+
+#[test]
+fn the_part_s_name_shows_its_file_path_on_hover() {
+    let test = "the_part_s_name_shows_its_file_path_on_hover";
+    let mut app = a_part(test);
+    let path = std::env::temp_dir()
+        .join("cao-driver")
+        .join(test)
+        .join("documents")
+        .join("CAO")
+        .join("Platine.caopart")
+        .display()
+        .to_string();
+
+    let name = the_topmost_reading(&app, "Platine");
+    app.hover_at(name.center());
+    app.run_steps(4);
+
+    assert!(
+        driver::said(&app).iter().any(|line| line.contains(&path)),
+        "hovering the part's name at {name:?} does not say {path}; the screen says {:?}",
+        driver::said(&app),
+    );
+}
+
+#[test]
+fn the_view_pill_follows_the_sketch_the_section_view_and_the_kept_section() {
+    let mut app = a_part("the_view_pill_follows_the_sketch_and_the_sections");
+    let mut seen = vec![("a part just made", "Vue 3D libre", the_title_bar(&app))];
+
+    driver::start_a_sketch(&mut app);
+    seen.push(("its first sketch open", "Esquisse 1", the_title_bar(&app)));
+
+    raise_a_block_and_finish_the_sketch(&mut app);
+    seen.push(("the sketch finished", "Vue 3D libre", the_title_bar(&app)));
+
+    click_in_the_ribbon(&mut app, "Vue en coupe");
+    seen.push(("the section view on", "Vue en coupe", the_title_bar(&app)));
+
+    driver::click(&mut app, "Plan YZ");
+    driver::click_the_button(&mut app, "Enregistrer la coupe");
+    driver::click_the_button(&mut app, "Fermer");
+    driver::click_the_button(&mut app, "Coupe 1");
+    assert!(
+        the_tree_shows_on(&app, "Coupe 1"),
+        "a click on its row in the tree did not switch the section kept on, showing {:?}",
+        driver::on_screen(&app),
+    );
+    seen.push(("the section kept and shown", "Coupe 1", the_title_bar(&app)));
+
+    click_in_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::click_at_world_point(&mut app, ON_THE_CUT);
+    seen.push((
+        "a second sketch open on the cut",
+        "Esquisse 2",
+        the_title_bar(&app),
+    ));
+
+    let wrong: Vec<String> = seen
+        .iter()
+        .filter(|(_, view, bar)| !bar.iter().any(|read| read == view))
+        .map(|(when, view, bar)| format!("{when}: wanted « {view} », the bar reads {bar:?}"))
+        .collect();
+    assert!(
+        wrong.is_empty(),
+        "the title bar does not name the view the screen shows:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
 /// How wide a separator may be painted, in points: a line, or a rectangle
 /// standing in for one.
 const THIN: f32 = 2.0;
@@ -232,6 +360,147 @@ fn a_part(test: &str) -> driver::App {
     let mut app = driver::open(test);
     driver::create_a_part(&mut app, "Platine");
     app
+}
+
+/// How far a pill may sit inside the text it carries, in points: the rect the
+/// tree gives a label and the frame painted around it are rounded apart.
+const HUGGED_WITHIN: f32 = 0.5;
+
+/// The corners of the rectangle the block is raised off, points of its sketch
+/// on the plane YZ, and a point inside it: those `keeping_a_section.rs` tuned.
+const THE_BLOCK_S_CORNERS: [DVec2; 2] = [DVec2::new(-8.82, 44.59), DVec2::new(123.83, -52.69)];
+const ON_THE_BLOCK: DVec2 = DVec2::new(57.5, -4.05);
+
+/// Where a section of the block along YZ, through its middle, shows its cut.
+const ON_THE_CUT: DVec3 = DVec3::new(5.0, 46.2, -2.47);
+
+/// What the title bar reads, left to right: the row of « Accueil ».
+fn the_title_bar(app: &driver::App) -> Vec<String> {
+    the_row_of(app, the_topmost_reading(app, "Accueil"))
+}
+
+/// In the sketch just opened, a rectangle raised into a block by 1 mm, and the
+/// sketch finished.
+fn raise_a_block_and_finish_the_sketch(app: &mut driver::App) {
+    driver::click(app, "Rectangle (R)");
+    driver::click_at_sketch_point(app, THE_BLOCK_S_CORNERS[0]);
+    driver::click_at_sketch_point(app, THE_BLOCK_S_CORNERS[1]);
+    driver::click_exactly(app, "Extrusion");
+    driver::click_exactly(app, "1");
+    driver::click(app, "Ajout de matière");
+    driver::click_at_sketch_point(app, ON_THE_BLOCK);
+    driver::click(app, "Appliquer");
+    driver::press(app, egui::Key::Escape);
+    click_in_the_ribbon(app, "Terminer");
+    driver::click_the_button(app, "Esquisse");
+    assert!(
+        !driver::is_enabled(app, "Terminer"),
+        "the sketch the block was raised from is still being edited, showing {:?}",
+        driver::on_screen(app),
+    );
+}
+
+/// Whether the row of the Part tree that reads exactly this is switched on.
+fn the_tree_shows_on(app: &driver::App, row: &str) -> bool {
+    app.query_all_by_role(Role::Button)
+        .find(|node| node.accesskit_node().label().as_deref() == Some(row))
+        .is_some_and(|node| node.accesskit_node().toggled() == Some(egui::accesskit::Toggled::True))
+}
+
+/// The ribbon's button that reads this, whichever tab it sits under.
+fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
+    let offered = |app: &driver::App| {
+        app.query_all_by_role(Role::Button).any(|node| {
+            node.accesskit_node()
+                .label()
+                .is_some_and(|read| read.starts_with(label))
+        })
+    };
+    for tab in ["Esquisse", "Extrusion", "Export"] {
+        if offered(app) {
+            break;
+        }
+        driver::click_the_button(app, tab);
+    }
+    let node = app
+        .query_all_by_role(Role::Button)
+        .find(|node| {
+            node.accesskit_node()
+                .label()
+                .is_some_and(|read| read.starts_with(label))
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "no tab of the ribbon offers « {label} », showing {:?}",
+                driver::on_screen(app)
+            )
+        });
+    node.click();
+    app.run();
+    driver::hold_the_canvas(app);
+}
+
+/// Every rectangle the last frame painted with rounded corners and something
+/// to see — a fill or an outline.
+fn rounded_backgrounds_painted(app: &driver::App) -> Vec<egui::Rect> {
+    let mut found = Vec::new();
+    let mut pending: Vec<&egui::Shape> = app
+        .output()
+        .shapes
+        .iter()
+        .map(|clipped| &clipped.shape)
+        .collect();
+    while let Some(shape) = pending.pop() {
+        match shape {
+            egui::Shape::Vec(group) => pending.extend(group),
+            egui::Shape::Rect(rect) => {
+                let corners = rect.corner_radius;
+                let rounded = [corners.nw, corners.ne, corners.sw, corners.se]
+                    .into_iter()
+                    .all(|radius| radius > 0);
+                let seen = rect.fill.a() > 0 || rect.stroke.width > 0.0;
+                if rounded && seen {
+                    found.push(rect.rect);
+                }
+            }
+            _ => {}
+        }
+    }
+    found
+}
+
+/// The ids of the icons the last frame painted inside a rectangle of the
+/// screen, by the file each was loaded from — `bytes://icon/home.svg` is
+/// `home`.
+fn icons_painted_within(app: &driver::App, within: egui::Rect) -> Vec<String> {
+    let within = within.expand(1.0);
+    let textures = app.ctx.tex_manager();
+    let textures = textures.read();
+    let mut found = Vec::new();
+    let mut pending: Vec<&egui::Shape> = app
+        .output()
+        .shapes
+        .iter()
+        .map(|clipped| &clipped.shape)
+        .collect();
+    while let Some(shape) = pending.pop() {
+        match shape {
+            egui::Shape::Vec(group) => pending.extend(group),
+            egui::Shape::Rect(rect)
+                if rect.fill_texture_id() != egui::TextureId::default()
+                    && within.contains_rect(rect.rect) =>
+            {
+                let loaded_as = textures
+                    .meta(rect.fill_texture_id())
+                    .map(|meta| meta.name.clone())
+                    .unwrap_or_default();
+                let file = loaded_as.rsplit('/').next().unwrap_or(&loaded_as);
+                found.push(file.strip_suffix(".svg").unwrap_or(file).to_owned());
+            }
+            _ => {}
+        }
+    }
+    found
 }
 
 /// Whether the files panel is drawn: its « Nouveau dossier » is its own.

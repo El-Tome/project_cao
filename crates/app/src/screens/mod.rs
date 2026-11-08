@@ -9,6 +9,7 @@ pub mod ribbon;
 pub mod settings;
 pub mod sketch;
 pub mod start_menu;
+pub mod title_bar;
 pub mod variables;
 pub mod viewport;
 

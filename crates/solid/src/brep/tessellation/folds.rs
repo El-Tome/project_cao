@@ -16,18 +16,18 @@
 //! A diagonal is taken only where the two triangles beside it make a convex
 //! corner of four, by the exact signs the sweep decides with and by more than
 //! the rounding the parameters were read with, so the cut stays a cut of the
-//! region in space as in parameters, and only where neither triangle it makes
-//! crosses a triangle of another face as [`crate::brep::crossing`] judges
-//! two, the rules' own definition; nor where its middle stands further from a
-//! round surface than the tolerance and than the old diagonal's middle —
-//! across two steps of the grid, a chord sags four times as far as across one
-//! (86751972229989), but beside a line two walls touch along, where folds
-//! arise, a cell wider than a step sags as far either way. Where the diagonal runs into a point
-//! of the boundary, the triangle beyond is cut the other way first; where a
-//! triangle it makes is held by one of another face, that one is cut the
-//! other way too, and the two flips stand or fall together. Two faces whose
-//! triangles end up on the same three samples are a skin of no thickness
-//! ([`super::skins`]).
+//! region in space as in parameters; not where the triangles it makes still
+//! cross triangles of other faces, as [`crate::brep::crossing`] judges two —
+//! the rules' own definition — and no fewer than those it replaces did; nor
+//! where its middle stands further from a round surface than the tolerance
+//! and than the old diagonal's middle — across two steps of the grid, a chord
+//! sags four times as far as across one (86751972229989), but beside a line
+//! two walls touch along, where folds arise, a cell wider than a step sags as
+//! far either way. Where the diagonal runs into a point of the boundary, the
+//! triangle beyond is cut the other way first; where a triangle it makes is
+//! held by one of another face, that one is cut the other way too, and the
+//! two flips stand or fall together. Two faces whose triangles end up on the
+//! same three samples are a skin of no thickness ([`super::skins`]).
 
 mod flip;
 mod lines;
@@ -78,8 +78,9 @@ const ROUNDINGS: f64 = 1e3;
 /// Undoes every fold between the faces of `drawn`, as far as a diagonal
 /// standing within `tolerance` of its face's surface, or no further than the
 /// one it replaces, can. A flip cures a fold behind the one being undone as
-/// often as ahead of it, so the faces are passed over again while a pass takes
-/// a flip and finds fewer folds than the one before: a count that only falls.
+/// often as ahead of it, so the faces are passed over again, but only while a
+/// pass takes a flip and meets fewer folds than the one before met: that
+/// number cannot fall for ever, and the passes end.
 pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64, tolerance: f64) {
     let mut folds = Folds::of(drawn, samples, eps, tolerance);
     let mut fewest = usize::MAX;
@@ -131,8 +132,8 @@ impl<'a> Folds<'a> {
         folds
     }
 
-    /// Undoes each fold, face by face: how many it found, and whether a flip
-    /// was taken.
+    /// Undoes each fold, face by face: how many it met, counted as it goes
+    /// and changes them, and whether a flip was taken.
     fn pass(&mut self) -> (usize, bool) {
         let (mut found, mut taken) = (0, false);
         for face in 0..self.drawn.len() {
@@ -183,14 +184,15 @@ impl<'a> Folds<'a> {
         self.crossed(at.0, self.corners(at)?).next()
     }
 
-    /// How many triangles of other faces a triangle of `face`, by its corners
-    /// in the outline, crosses.
-    fn crossings(&self, face: usize, triangle: [usize; 3]) -> usize {
+    /// How many triangles of other faces, counted no further than `most`, a
+    /// triangle of `face` crosses, by its corners in the outline: a triangle
+    /// a flip replaced as well as one it made.
+    fn crossings(&self, face: usize, triangle: [usize; 3], most: usize) -> usize {
         let [a, b, c] = triangle.map(|corner| self.drawn[face].outline.samples[corner]);
         if a == b || b == c || c == a {
             return 0;
         }
-        self.crossed(face, [a, b, c]).count()
+        self.crossed(face, [a, b, c]).take(most).count()
     }
 
     /// The triangles of faces other than `face` the triangle on the samples

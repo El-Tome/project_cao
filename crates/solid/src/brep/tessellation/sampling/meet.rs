@@ -7,7 +7,9 @@
 //! of either cylinder take, so that it stands on the same rays as a wall a
 //! hair inside its own, whose chords would otherwise stand shallower than
 //! its own between two of its points. Then, between two of those, wherever
-//! the chord would stand further from the curve than the tolerance.
+//! the chord would stand further from the curve than the tolerance. A line
+//! two walls sharing their rays cross along is sampled at its ends alone
+//! (`crossing.rs`).
 //!
 //! An elliptic wall (#571) is divided as a circle of its major half-axis,
 //! as its rims are, its grid an eccentric angle's; it takes the angles its
@@ -18,9 +20,9 @@ use std::f64::consts::TAU;
 
 use std::collections::BTreeMap;
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
-use super::chords::halved;
+use super::chords::{halved, straight};
 use super::cone::{Grid, Spun};
 use super::elliptic::{on_the_wall, reached_by_planes};
 use super::ends::grazed;
@@ -29,7 +31,9 @@ use crate::brep::Scale;
 use crate::brep::curve::{Meet, Wall};
 use crate::brep::surface::Cone;
 use crate::brep::tessellation::contact::{self, Contact, Zones};
-use crate::brep::topology::{Body, Edge, SurfaceId};
+use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId};
+
+mod twin;
 
 /// Why a parameter is a sample, the stronger reason first: of two places
 /// closer than the kernel's tolerance, the one kept is the stronger. Either
@@ -52,7 +56,12 @@ enum Reason {
 /// into `steps` steps a turn — a cone's its own grid's, which the faces on
 /// it are laid out by. `rays` are the angles the sections of its first wall
 /// and of its second take besides their grid; a place on the grid or on a
-/// ray is kept only where `clear` says so.
+/// ray is kept only where `clear` says so — and not on the ray through an
+/// end where the angle runs one way from that end, which crosses it at the
+/// end alone: such a place is the end read with rounding (354000000005870).
+/// An edge standing within the kernel's tolerance of the chord between its
+/// ends — a meet run along a line two walls touch along — is a line to the
+/// kernel, sampled at its ends alone as a line is (354000000008476).
 fn on_meet_by(
     meet: &Meet,
     edge: &Edge,
@@ -71,20 +80,34 @@ fn on_meet_by(
     } else {
         (edge.from.min(edge.to), edge.from.max(edge.to))
     };
+    let within = |t: f64, low: f64, high: f64| {
+        let first = ((low - t) / period).ceil() as i64;
+        let last = ((high - t) / period).floor() as i64;
+        (first..=last).map(move |turn| t + period * turn as f64)
+    };
     let mut marks = vec![(low, Reason::End), (high, Reason::End)];
     for ((on_first, taken), steps) in [true, false].into_iter().zip(rays).zip(steps) {
-        let turns = meet.turns(on_first).into_iter().map(|t| (t, Reason::Turn));
+        let turns = meet.turns(on_first);
         let grid = (0..steps)
             .flat_map(|step| meet.at_angle(on_first, TAU * step as f64 / steps as f64))
             .map(|t| (t, Reason::Grid));
-        let through = taken
-            .iter()
-            .flat_map(|angle| meet.at_angle(on_first, *angle))
-            .map(|t| (t, Reason::Ray));
-        for (t, reason) in turns.chain(grid).chain(through) {
-            let first = ((low - t) / period).ceil() as i64;
-            let last = ((high - t) / period).floor() as i64;
-            marks.extend((first..=last).map(|turn| (t + period * turn as f64, reason)));
+        let marked = turns.iter().map(|t| (*t, Reason::Turn)).chain(grid);
+        marks.extend(marked.flat_map(|(t, reason)| within(t, low, high).map(move |t| (t, reason))));
+        let wall = if on_first { meet.first } else { meet.second };
+        for angle in taken {
+            let ended =
+                [low, high].map(|end| !whole && on_ray(&wall, *angle, meet.point(end), eps));
+            let by_an_end = |t: f64| {
+                [low, high].into_iter().zip(ended).any(|(end, on)| {
+                    let (from, to) = (t.min(end), t.max(end));
+                    on && turns
+                        .iter()
+                        .all(|turn| within(*turn, from, to).all(|t| t <= from || t >= to))
+                })
+            };
+            let places = meet.at_angle(on_first, *angle).into_iter();
+            let places = places.flat_map(|t| within(t, low, high));
+            marks.extend(places.filter(|t| !by_an_end(*t)).map(|t| (t, Reason::Ray)));
         }
     }
     marks.sort_by(|one, other| one.0.total_cmp(&other.0).then(one.1.cmp(&other.1)));
@@ -118,11 +141,14 @@ fn on_meet_by(
             _ => kept.push((t, reason, point)),
         }
     }
+    let point = |t: f64| meet.point(t);
+    if !whole && kept.len() > 2 && straight(&point, low, high, eps) {
+        kept = vec![kept[0], kept[kept.len() - 1]];
+    }
     if kept.len() < 2 {
         return Vec::new();
     }
 
-    let point = |t: f64| meet.point(t);
     let mut places = vec![kept[0].0];
     for pair in kept.windows(2) {
         halved(&point, pair[0].0, pair[1].0, tolerance, &mut places);
@@ -148,28 +174,54 @@ fn on_meet_by(
 /// their grid.
 pub(super) fn of_edge(
     body: &Body,
-    edge: &Edge,
+    edge: EdgeId,
     meet: &Meet,
-    (walls, zones, contacts): (&[contact::Wall], &Zones, &BTreeMap<SurfaceId, Contact>),
+    around: Around,
     grids: &BTreeMap<SurfaceId, Grid>,
     tolerance: f64,
 ) -> Vec<DVec3> {
+    let points = alone(body, edge, meet, around, grids, tolerance);
+    twin::shared(body, edge, meet, around, grids, tolerance, points)
+}
+
+/// The walls of the body, the pairs of them face to face, and what each
+/// takes besides its grid.
+type Around<'a> = (
+    &'a [contact::Wall],
+    &'a Zones<'a>,
+    &'a BTreeMap<SurfaceId, Contact>,
+);
+
+/// [`of_edge`], the edge sampled on its own.
+fn alone(
+    body: &Body,
+    id: EdgeId,
+    meet: &Meet,
+    (walls, zones, contacts): Around,
+    grids: &BTreeMap<SurfaceId, Grid>,
+    tolerance: f64,
+) -> Vec<DVec3> {
+    let edge = body.edge(id);
+    let own = contact::held(body, id, meet);
+    if super::crossing::is_line(meet, own, edge, zones) {
+        return Vec::new();
+    }
     let eps = body.scale().eps();
-    let own = [meet.first, meet.second];
+    let carried = [meet.first, meet.second];
     let grid = |cone: &Cone| {
         grids
             .values()
-            .find(|grid| matches!(grid.spun, Spun::Cone(own) if own == *cone))
+            .find(|grid| matches!(grid.spun, Spun::Cone(spun) if spun == *cone))
     };
-    let steps = own.map(|wall| match wall {
+    let steps = carried.map(|wall| match wall {
         Wall::Cone(cone) => grid(&cone).map_or_else(
             || divisions(size(&wall, meet), tolerance),
             |grid| grid.steps,
         ),
         _ => divisions(size(&wall, meet), tolerance),
     });
-    let rays = own.map(|wall| match wall {
-        Wall::Cylinder(cylinder) => taken(&cylinder, walls, contacts),
+    let rays = [0, 1].map(|rank| match carried[rank] {
+        Wall::Cylinder(cylinder) => taken(&own[rank], &cylinder, walls, contacts),
         Wall::Elliptic(oval) => {
             let steps = divisions(oval.major, tolerance);
             let beneath = contacts
@@ -185,7 +237,7 @@ pub(super) fn of_edge(
         }
         Wall::Cone(cone) => grid(&cone).map_or_else(Vec::new, |grid| grid.vertex_angles().to_vec()),
     });
-    let planes = own.map(|wall| match wall {
+    let planes = carried.map(|wall| match wall {
         Wall::Cylinder(cylinder) => {
             touching_planes(body, cylinder.origin, cylinder.axis, cylinder.radius)
         }
@@ -195,19 +247,23 @@ pub(super) fn of_edge(
         body,
         edge,
         &own,
-        [0, 1].map(|rank| (size(&own[rank], meet), steps[rank])),
+        [0, 1].map(|rank| (size(&carried[rank], meet), steps[rank])),
     );
     let clear = |point: DVec3| {
         !grazed(point, eps * contact::APART)
-            && own.iter().zip(&planes).all(|(wall, planes)| match wall {
-                Wall::Cylinder(cylinder) => {
-                    !zones.crowded(cylinder, point)
-                        && !planes.iter().any(|plane| {
-                            on_a_plane(plane, cylinder.origin, cylinder.axis, point, eps)
-                        })
-                }
-                Wall::Elliptic(_) | Wall::Cone(_) => true,
-            })
+            && own
+                .iter()
+                .zip(&planes)
+                .zip(own.iter().rev())
+                .all(|((wall, planes), partner)| match wall {
+                    Wall::Cylinder(cylinder) => {
+                        !zones.crowded_off_the_meet(cylinder, partner, point)
+                            && !planes.iter().any(|plane| {
+                                on_a_plane(plane, cylinder.origin, cylinder.axis, point, eps)
+                            })
+                    }
+                    Wall::Elliptic(_) | Wall::Cone(_) => true,
+                })
     };
     on_meet_by(
         meet,
@@ -218,6 +274,27 @@ pub(super) fn of_edge(
         steps,
         &clear,
     )
+}
+
+/// Whether the ray at `angle` round `wall` stands within `eps` of the ray
+/// through `end`, on the wall: the two are one ray to the wall's own
+/// sections.
+fn on_ray(wall: &Wall, angle: f64, end: DVec3, eps: f64) -> bool {
+    let [at, there] = match wall {
+        Wall::Cylinder(cylinder) => {
+            let own = cylinder.parameters(end);
+            [
+                cylinder.point(DVec2::new(angle, own.y)),
+                cylinder.point(own),
+            ]
+        }
+        Wall::Elliptic(oval) => {
+            let own = oval.parameters(end);
+            [oval.point(DVec2::new(angle, own.y)), oval.point(own)]
+        }
+        Wall::Cone(_) => return false,
+    };
+    at.distance(there) <= eps
 }
 
 /// What a wall is divided as: a cylinder its radius, an elliptic wall the

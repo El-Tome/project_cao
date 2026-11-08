@@ -16,6 +16,7 @@ use crate::brep::conic::Round;
 use crate::brep::curve::{Curve, Wall};
 use crate::brep::domain::Location;
 use crate::brep::surface::Surface;
+use crate::brep::tessellation::contact;
 use crate::brep::topology::{Body, SurfaceId};
 
 /// For each elliptic wall of the body, the samples of the curves about
@@ -46,8 +47,7 @@ pub(in crate::brep::tessellation::sampling) fn walls(
             let across = match body.curve(body.edge(edge).curve) {
                 Curve::Circle(_) => true,
                 Curve::Meet(meet) => {
-                    let own = Wall::Elliptic(*oval);
-                    meet.first != own && meet.second != own
+                    !contact::held(body, edge, meet).contains(&Wall::Elliptic(*oval))
                 }
                 Curve::Conic(conic) => conic.round != Round::Elliptic(*oval),
                 Curve::Line(_) => false,

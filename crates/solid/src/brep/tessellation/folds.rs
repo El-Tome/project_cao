@@ -16,33 +16,35 @@
 //! A diagonal is taken only where the two triangles beside it make a convex
 //! corner of four, by the exact signs the sweep decides with and by more than
 //! the rounding the parameters were read with, so the cut stays a cut of the
-//! region in space as in parameters, and only where neither triangle it makes
-//! lies on another face or passes through one — a chord of a round a hair off
-//! a vertex of the face beside it sinks under it by a fraction of the
-//! tolerance; nor where its middle stands further from a round surface than
-//! the tolerance and than the old diagonal's middle — across two steps of
-//! the grid, a chord sags four times as far as across one (86751972229989),
-//! but beside a line two walls touch along, where folds arise, a cell wider
-//! than a step sags as far either way. Where the diagonal runs into a point
-//! of the boundary, the triangle beyond is cut the other way first; where a
-//! triangle it makes is held by one of another face, that one is cut the
-//! other way too, and the two flips stand or fall together. Two faces whose
-//! triangles end up on the same three samples are a skin of no thickness
-//! ([`super::skins`]).
+//! region in space as in parameters; not where the triangles it makes still
+//! cross triangles of other faces, as [`crate::brep::crossing`] judges two —
+//! the rules' own definition — and no fewer than those it replaces did; nor
+//! where its middle stands further from a round surface than the tolerance
+//! and than the old diagonal's middle — across two steps of the grid, a chord
+//! sags four times as far as across one (86751972229989), but beside a line
+//! two walls touch along, where folds arise, a cell wider than a step sags as
+//! far either way. Where the diagonal runs into a point of the boundary, the
+//! triangle beyond is cut the other way first; where a triangle it makes is
+//! held by one of another face, that one is cut the other way too, and the
+//! two flips stand or fall together. Two faces whose triangles end up on the
+//! same three samples are a skin of no thickness ([`super::skins`]).
 
 mod flip;
+mod lines;
 mod through;
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
-use glam::DVec2;
+use glam::{DVec2, DVec3};
 
 use super::outline::Outline;
 use super::sampling::Samples;
+use crate::brep::crossing::{Facet, NEAR, crossing, reach};
 use crate::brep::surface::Surface;
 use crate::brep::topology::FaceId;
 use crate::orientation::{beside, turn};
+pub(super) use lines::cut_alike;
 use through::through;
 
 /// A face cut into triangles in its surface's parameters, each corner a point
@@ -57,10 +59,10 @@ pub(super) struct Drawn {
 /// A triangle, by its drawing and its place there.
 type At = (usize, usize);
 
-/// How many times over a triangle a flip makes lie on or pass through
-/// another is itself cut the other way: once, two folds that hold each other
-/// — a needle lying on one face beside a triangle of a third passing through
-/// the first — come undone together.
+/// How many times over a triangle a flip makes crossing another is itself
+/// cut the other way: once, two folds that hold each other — a needle lying
+/// on one face beside a triangle of a third passing through the first — come
+/// undone together.
 const DEPTH: usize = 1;
 
 /// How far off a triangle's plane, as a share of the tolerance, a corner of
@@ -75,30 +77,19 @@ const ROUNDINGS: f64 = 1e3;
 
 /// Undoes every fold between the faces of `drawn`, as far as a diagonal
 /// standing within `tolerance` of its face's surface, or no further than the
-/// one it replaces, can.
+/// one it replaces, can. A flip cures a fold behind the one being undone as
+/// often as ahead of it, so the faces are passed over again, but only while a
+/// pass takes a flip and meets fewer folds than the one before met: that
+/// number cannot fall for ever, and the passes end.
 pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64, tolerance: f64) {
-    let mut folds = Folds {
-        drawn,
-        samples,
-        eps,
-        tolerance,
-        edges: BTreeMap::new(),
-        around: BTreeMap::new(),
-    };
-    for face in 0..folds.drawn.len() {
-        for triangle in 0..folds.drawn[face].triangles.len() {
-            folds.index((face, triangle), true);
+    let mut folds = Folds::of(drawn, samples, eps, tolerance);
+    let mut fewest = usize::MAX;
+    loop {
+        let (found, taken) = folds.pass();
+        if !taken || found >= fewest {
+            return;
         }
-    }
-    for face in 0..folds.drawn.len() {
-        for triangle in 0..folds.drawn[face].triangles.len() {
-            let Some(other) = folds.folded((face, triangle)) else {
-                continue;
-            };
-            if folds.unfold((face, triangle), DEPTH).is_none() && folds.folded(other).is_some() {
-                folds.unfold(other, DEPTH);
-            }
-        }
+        fewest = found;
     }
 }
 
@@ -107,13 +98,57 @@ struct Folds<'a> {
     samples: &'a Samples,
     eps: f64,
     tolerance: f64,
+    /// Within this of each other, two triangles meet rather than cross.
+    room: f64,
     /// Each edge between two samples, and the triangles along it.
     edges: BTreeMap<[usize; 2], Vec<At>>,
     /// Each sample, and the triangles with a corner there.
     around: BTreeMap<usize, Vec<At>>,
 }
 
-impl Folds<'_> {
+impl<'a> Folds<'a> {
+    fn of(drawn: &'a mut [Drawn], samples: &'a Samples, eps: f64, tolerance: f64) -> Folds<'a> {
+        let triangles: Vec<[DVec3; 3]> = drawn
+            .iter()
+            .flat_map(|each| {
+                let point = |corner: usize| samples.point(each.outline.samples[corner]);
+                each.triangles.iter().map(move |corners| corners.map(point))
+            })
+            .collect();
+        let mut folds = Folds {
+            drawn,
+            samples,
+            eps,
+            tolerance,
+            room: NEAR * reach(&triangles),
+            edges: BTreeMap::new(),
+            around: BTreeMap::new(),
+        };
+        for face in 0..folds.drawn.len() {
+            for triangle in 0..folds.drawn[face].triangles.len() {
+                folds.index((face, triangle), true);
+            }
+        }
+        folds
+    }
+
+    /// Undoes each fold, face by face: how many it met, counted as it goes
+    /// and changes them, and whether a flip was taken.
+    fn pass(&mut self) -> (usize, bool) {
+        let (mut found, mut taken) = (0, false);
+        for face in 0..self.drawn.len() {
+            for triangle in 0..self.drawn[face].triangles.len() {
+                let Some(other) = self.folded((face, triangle)) else {
+                    continue;
+                };
+                found += 1;
+                taken |= self.unfold((face, triangle), DEPTH).is_some()
+                    || (self.folded(other).is_some() && self.unfold(other, DEPTH).is_some());
+            }
+        }
+        (found, taken)
+    }
+
     /// The samples at the corners of a triangle, None when two are one: such
     /// a triangle is not drawn.
     fn corners(&self, (face, triangle): At) -> Option<[usize; 3]> {
@@ -144,35 +179,51 @@ impl Folds<'_> {
         }
     }
 
-    /// A triangle of another face the triangle at `at` passes through.
+    /// A triangle of another face the triangle at `at` crosses.
     fn crossing(&self, at: At) -> Option<At> {
-        let corners = self.corners(at)?;
-        let reach = |corners: [usize; 3]| {
+        self.crossed(at.0, self.corners(at)?).next()
+    }
+
+    /// How many triangles of other faces, counted no further than `most`, a
+    /// triangle of `face` crosses, by its corners in the outline: a triangle
+    /// a flip replaced as well as one it made.
+    fn crossings(&self, face: usize, triangle: [usize; 3], most: usize) -> usize {
+        let [a, b, c] = triangle.map(|corner| self.drawn[face].outline.samples[corner]);
+        if a == b || b == c || c == a {
+            return 0;
+        }
+        self.crossed(face, [a, b, c]).take(most).count()
+    }
+
+    /// The triangles of faces other than `face` the triangle on the samples
+    /// `corners` crosses; not its twin on the same three samples, which
+    /// [`super::skins`] leaves out with it.
+    fn crossed(&self, face: usize, corners: [usize; 3]) -> impl Iterator<Item = At> + '_ {
+        let boxed = |corners: [usize; 3]| {
             let [a, b, c] = corners.map(|id| self.samples.point(id));
             (a.min(b).min(c) - self.eps, a.max(b).max(c) + self.eps)
         };
-        let (low, high) = reach(corners);
-        self.drawn.iter().enumerate().find_map(|(face, drawn)| {
-            if face == at.0 {
-                return None;
-            }
-            (0..drawn.triangles.len())
-                .map(|triangle| (face, triangle))
-                .find(|other| {
-                    self.corners(*other).is_some_and(|theirs| {
-                        let (from, to) = reach(theirs);
-                        low.cmple(to).all()
-                            && from.cmple(high).all()
-                            && self.pass_through(corners, theirs)
-                    })
+        let (low, high) = boxed(corners);
+        (0..self.drawn.len())
+            .filter(move |other| *other != face)
+            .flat_map(move |other| {
+                (0..self.drawn[other].triangles.len()).map(move |each| (other, each))
+            })
+            .filter(move |other| {
+                self.corners(*other).is_some_and(|theirs| {
+                    let (from, to) = boxed(theirs);
+                    low.cmple(to).all()
+                        && from.cmple(high).all()
+                        && !theirs.iter().all(|id| corners.contains(id))
+                        && self.crosses(corners, theirs)
                 })
-        })
+            })
     }
 
-    /// A triangle of another face the triangle at `at` lies on, or passes
-    /// through beside a corner the two share: where a face turns into the
-    /// matter at a corner — a post's wall where a hole cut into it leaves
-    /// its ceiling — a chord of the wall cut across the corner, true to the
+    /// A triangle of another face the triangle at `at` lies on, or is lain on
+    /// by, or passes through beside a corner the two share: where a face
+    /// turns into the matter at a corner — a post's wall where a hole cut
+    /// into it leaves its ceiling — a chord of the wall cut across the corner, true to the
     /// region in the wall's parameters, sags through the face beyond it
     /// (5550629622).
     fn folded(&self, at: At) -> Option<At> {
@@ -189,15 +240,23 @@ impl Folds<'_> {
         })
     }
 
+    fn crosses(&self, one: [usize; 3], other: [usize; 3]) -> bool {
+        let facet = |corners: [usize; 3]| Facet::of(&corners.map(|id| self.samples.point(id)));
+        crossing(&facet(one), &facet(other), self.room)
+    }
+
     /// Whether the triangles on two sets of samples pass through each other.
     fn pass_through(&self, one: [usize; 3], other: [usize; 3]) -> bool {
         let points = |corners: [usize; 3]| corners.map(|id| self.samples.point(id));
         through(points(one), points(other), self.eps * CLEAR)
     }
 
-    /// A triangle of another face the triangle at `at` lies on, if any. Its
-    /// twin on the same three samples is not one: the two are a skin of no
-    /// thickness, left out together ([`super::skins`]).
+    /// A triangle of another face the triangle at `at` lies on, or that lies
+    /// on it, if any: the plane of a triangle a hair wide tilts with the
+    /// rounding of its corners, and a far corner of the other stands off it
+    /// though the two lie on each other (352000000007085). Its twin on the
+    /// same three samples is not one: the two are a skin of no thickness,
+    /// left out together ([`super::skins`]).
     fn lying(&self, at: At) -> Option<At> {
         let corners = self.corners(at)?;
         (0..3).find_map(|side| {
@@ -207,7 +266,8 @@ impl Folds<'_> {
                 beside.0 != at.0
                     && self.corners(*beside).is_some_and(|under| {
                         !under.iter().all(|id| corners.contains(id))
-                            && self.lies_on(corners, under, edge)
+                            && (self.lies_on(corners, under, edge)
+                                || self.lies_on(under, corners, edge))
                     })
             })
         })

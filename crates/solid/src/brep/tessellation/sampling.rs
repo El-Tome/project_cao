@@ -45,12 +45,14 @@ mod chords;
 mod circle;
 mod cone;
 mod conic;
+mod crossing;
 mod elliptic;
 mod ends;
 mod meet;
 mod planes;
 mod round;
 mod touches;
+mod wedge;
 
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
@@ -58,7 +60,7 @@ use std::f64::consts::PI;
 use glam::DVec3;
 
 use super::contact::{self, Contact, Zones};
-use crate::brep::curve::{Circle, Curve};
+use crate::brep::curve::{Circle, Curve, Wall};
 use crate::brep::surface::Cylinder;
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
 use abreast::Abreast;
@@ -126,6 +128,7 @@ pub(super) struct Samples {
     edges: Vec<Vec<usize>>,
     vertices: usize,
     grids: BTreeMap<SurfaceId, Grid>,
+    pub(in crate::brep::tessellation) lines: Vec<EdgeId>,
 }
 
 impl Samples {
@@ -162,6 +165,7 @@ impl Samples {
             edges: Vec::new(),
             vertices: body.vertex_ids().count(),
             grids: BTreeMap::new(),
+            lines: crossing::lines(body, zones),
         };
         let eps = body.scale().eps();
         let alone = BTreeMap::new();
@@ -294,6 +298,9 @@ impl Samples {
                 samples.edges[id.0 as usize].splice(1..1, on);
             }
         }
+        let lines = std::mem::take(&mut samples.lines);
+        wedge::cleared(body, &mut samples, &lines, eps);
+        samples.lines = lines;
         samples
     }
 
@@ -359,7 +366,7 @@ fn on_meets(
             let edge = body.edge(id);
             match body.curve(edge.curve) {
                 Curve::Meet(meet) => {
-                    meet::of_edge(body, edge, meet, (walls, zones, contacts), grids, tolerance)
+                    meet::of_edge(body, id, meet, (walls, zones, contacts), grids, tolerance)
                 }
                 Curve::Line(_) | Curve::Circle(_) | Curve::Conic(_) => Vec::new(),
             }
@@ -367,16 +374,17 @@ fn on_meets(
         .collect()
 }
 
-/// The angles from its `u` of the rays the circles of `cylinder` take in
-/// `contacts`, if it is one of the walls.
+/// The angles from the `u` of `cylinder` of the rays the circles of the wall
+/// it is `held` as take in `contacts`, if that is one of the walls.
 fn taken(
+    held: &Wall,
     cylinder: &Cylinder,
     walls: &[contact::Wall],
     contacts: &BTreeMap<SurfaceId, Contact>,
 ) -> Vec<f64> {
     walls
         .iter()
-        .find(|(_, wall)| wall == cylinder)
+        .find(|(_, wall)| Wall::Cylinder(*wall) == *held)
         .and_then(|(id, _)| contacts.get(id))
         .map_or_else(Vec::new, |contact| {
             contact

@@ -5,8 +5,8 @@ use cao_render::MatterInFront;
 use glam::{DVec3, Vec3};
 
 use super::{tint, tint_at};
-use crate::screens::SketchContext;
 use crate::screens::viewport::ViewportState;
+use crate::screens::viewport::matter::Drawn;
 
 const SEE_THROUGH_OPACITY: f32 = 0.25;
 
@@ -14,13 +14,12 @@ pub(super) fn push_matter(
     solids: &mut Vec<cao_render::Vertex>,
     surfaces: &mut Vec<cao_render::Vertex>,
     state: &ViewportState,
-    context: &SketchContext<'_>,
+    drawn: Option<&Drawn<'_>>,
 ) {
     let (theme, camera) = (&state.theme, &state.camera);
-    if state.body_mode() == MatterInFront::Hidden {
+    let Some(drawn) = drawn else {
         return;
-    }
-    let drawn = super::super::matter::shown(state, context.editor, context.document.body());
+    };
     let opaque_veiled = match state.body_mode() {
         MatterInFront::SeeThrough => Some(&*drawn.opaque),
         _ => {

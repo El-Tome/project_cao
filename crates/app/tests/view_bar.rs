@@ -26,6 +26,11 @@
 //!   sketch framed rather than the part, in
 //!   `crates/app/src/screens/viewport/state/tests.rs` by
 //!   `reframing_in_a_sketch_faces_its_plane_and_frames_its_drawing_rather_than_the_part`
+//! - found in review: while a plane is being chosen for a new sketch, no
+//!   sketch is open, and « Recadrer » frames the whole part as in the free
+//!   view — no test: in this file, since the driver reads no camera; held in
+//!   `crates/app/src/screens/viewport/state/tests.rs` by
+//!   `reframing_while_a_plane_is_being_chosen_frames_the_whole_part`
 //! - `Command::RecenterOnSketch` becomes `Command::Reframe`, its label key and
 //!   its hint following — no test: the compiler holds the name, and a profile
 //!   saved under the old one is not migrated, as decided for the whole redesign
@@ -50,6 +55,16 @@
 //!   is today — `outside_a_sketch_the_bar_s_matter_in_front_is_greyed`; the
 //!   rule, in `crates/app/src/screens/view_bar/state/tests.rs` by
 //!   `outside_a_sketch_the_matter_in_front_menu_is_greyed`
+//! - found in review: a pick from the bar's « Matière devant » menu is a
+//!   command like any other, clearing the message in the pill and giving an
+//!   error its way out, as the ribbon's does — no test: in this file; held in
+//!   `crates/app/tests/title_bar.rs` by
+//!   `a_pick_from_the_view_bar_s_matter_in_front_clears_the_message_as_a_command_does`
+//!   and `an_error_gives_way_to_a_pick_from_the_view_bar_s_matter_in_front`
+//! - found in review: the bar's « Matière devant » wears the icon of the state
+//!   the sketch is in, as the ribbon's does — no test: in this file, whose tree
+//!   carries no icon; held in `crates/app/src/screens/view_bar/state/tests.rs`
+//!   by `the_matter_in_front_menu_wears_the_icon_of_the_state_the_sketch_is_in`
 //! - the ribbon's own « Matière devant » stays and keeps cycling — no test: in
 //!   this file; held in `crates/app/src/commands/tests.rs` by
 //!   `the_matter_in_front_button_moves_the_open_sketch_to_the_next_state`,

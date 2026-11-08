@@ -37,6 +37,12 @@ gesture without the modifier: it is no longer a "turbo" shortcut.
 The trackpad gestures are configurable (`TrackpadConfig`): each of the two
 scrolls can be `Pan`, `Orbit`, `Zoom` or `Ignore`.
 
+## Framing
+
+`F`, or « Recadrer » in the view bar, frames what one is working on: the
+drawing, squarely, while a sketch is open; otherwise the whole part, from the
+angle it is seen at. See [viewport](viewport.md).
+
 ## Other habits
 
 `NavigationPreset` also offers `SolidWorks` (middle click = orbit, Ctrl +

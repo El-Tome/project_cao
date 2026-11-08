@@ -28,8 +28,11 @@
 //!   `the_matter_a_refusal_names_blinks_the_same_way`
 //!
 //! Closes #728 — the whole transcription is in `crates/app/tests/view_bar.rs`;
-//! these bullets are the ones the camera answers, which no driver reads. « Recadrer » is run here as its button and F run it,
-//! through `commands::run`: this is the one module that sees the camera.
+//! these bullets are the ones the camera answers, which no driver reads.
+//! « Recadrer » is run here as its button and F run it, through
+//! `commands::run`, from a module of the viewport: `camera` is `pub(super)`,
+//! seen by every module under `viewport` and by none outside it, so
+//! `commands/tests.rs` could not read where it was left.
 //! - « Recadrer » outside a sketch keeps the direction the part is seen from,
 //!   aims at the middle of the body's bounds and stands back until they fit
 //!   and fill the view —
@@ -39,6 +42,10 @@
 //! - in a sketch, as before, it faces the plane and frames the sketch, not the
 //!   part —
 //!   `reframing_in_a_sketch_faces_its_plane_and_frames_its_drawing_rather_than_the_part`
+//! - found in review: while a plane is being chosen for a new sketch, no sketch
+//!   is open, and « Recadrer » frames the whole part as in the free view,
+//!   rather than turning square onto the plane of the sketch left —
+//!   `reframing_while_a_plane_is_being_chosen_frames_the_whole_part`
 //! - in the free view the coordinates are those of the first point of the
 //!   drawn body the cursor's ray meets — the nearer of the faces it crosses —
 //!   `the_point_of_the_part_under_a_ray_is_the_first_the_ray_meets`; nothing
@@ -46,7 +53,7 @@
 //!   the body as it is drawn, cut where the section view cuts it —
 //!   `with_the_section_view_on_the_point_under_a_ray_is_on_the_cut`
 //! - nothing when the body is hidden, as nothing of it is met when a plane is
-//!   chosen (`input/planes.rs` `drawn_under`) —
+//!   chosen (`viewport/matter.rs` `drawn_under`) —
 //!   `a_hidden_body_has_no_point_under_a_ray`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
@@ -521,5 +528,61 @@ fn with_the_section_view_on_the_point_under_a_ray_is_on_the_cut() {
         under(&state, &document, FROM_ABOVE),
         DVec3::new(5.0, 10.0, 2.0),
         "with the section through the middle of the block, its upper half hidden",
+    );
+}
+
+#[test]
+fn reframing_while_a_plane_is_being_chosen_frames_the_whole_part() {
+    let mut document = a_block_far_from_the_origin();
+    let bounds = document.body().bounds().expect("the block has bounds");
+    let middle = ((bounds.0 + bounds.1) * 0.5).as_vec3();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XZ,
+        on: None,
+    });
+    let mut editor = SketchEditor::default();
+    editor.begin_editing(1, WorkPlane::XZ);
+    let mut state = a_view_turned_away(1e5);
+    let lang = Catalogue::french();
+    crate::commands::run(
+        Command::NewSketch,
+        &mut SketchContext {
+            document: &mut document,
+            editor: &mut editor,
+            extrusion: &mut ExtrusionState::default(),
+            lang: &lang,
+        },
+        &mut Ribbon::default(),
+        &mut state,
+    );
+    assert!(
+        editor.is_choosing_plane() && editor.plane == Some(WorkPlane::XZ),
+        "the fixture has a plane being chosen, the plane of the sketch left still held",
+    );
+    let seen_along = state.camera.forward();
+
+    reframed(&mut document, &mut editor, &mut state);
+
+    assert!(
+        state.camera.forward().dot(seen_along) >= 1.0 - SAME_DIRECTION,
+        "while a plane is being chosen, « Recadrer » turned the part: it is seen along \
+         {:?}, it was seen along {seen_along:?}",
+        state.camera.forward(),
+    );
+    assert_eq!(
+        state.mode,
+        ViewMode::Free,
+        "while a plane is being chosen, « Recadrer » laid the view on a plane",
+    );
+    assert!(
+        (state.camera.target() - middle).length() < 1e-2,
+        "while a plane is being chosen, « Recadrer » aims at {:?}, and the middle of the \
+         part is {middle:?}",
+        state.camera.target(),
+    );
+    let covered = covered_by(&state, &corners_of(bounds));
+    assert!(
+        covered >= FILLS_THE_CANVAS,
+        "while a plane is being chosen, the part covers {covered} of the canvas once reframed",
     );
 }

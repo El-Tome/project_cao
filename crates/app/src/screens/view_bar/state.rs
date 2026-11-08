@@ -5,9 +5,10 @@ use glam::{DVec2, DVec3};
 
 use crate::lang::Catalogue;
 use crate::screens::SketchContext;
-use crate::screens::ribbon::is_enabled;
+use crate::screens::ribbon::{icons, is_enabled};
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::{Shown, ViewportState};
+use crate::ui::icon::Icon;
 use crate::wording::{command as wording, matter, shortcuts};
 
 /// What the bar shows, left to right: « Recadrer », « Vue en coupe », the
@@ -80,24 +81,18 @@ fn widest_coordinates(in_a_sketch: bool, unit: LengthUnit, lang: &Catalogue) -> 
     coordinates(pointed, unit, 1.0, lang)
 }
 
-/// What was picked on the bar.
+/// What the user asks for: a command, or a state of the matter in front
+/// picked from the bar's menu, which no `Command` names and which is run as
+/// one all the same.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Picked {
+pub enum Asked {
     Command(Command),
     MatterInFront(MatterInFront),
 }
 
-impl Picked {
-    /// Sets the matter in front picked in the menu on the open sketch, and
-    /// hands back a command, to be run as the ribbon's are.
-    pub fn carried_out(self, editor: &mut SketchEditor) -> Option<Command> {
-        match self {
-            Self::Command(command) => Some(command),
-            Self::MatterInFront(state) => {
-                editor.set_matter_in_front(state);
-                None
-            }
-        }
+impl From<Command> for Asked {
+    fn from(command: Command) -> Self {
+        Self::Command(command)
     }
 }
 
@@ -105,8 +100,8 @@ impl Picked {
 /// three states it offers in its menu.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MatterInFrontMenu {
-    /// The state the open sketch is in.
-    pub state: MatterInFront,
+    /// The icon of the state the open sketch is in, as the ribbon's wears it.
+    pub icon: Icon,
     pub label: String,
     pub enabled: bool,
     pub choices: Vec<MatterInFrontChoice>,
@@ -138,7 +133,7 @@ impl MatterInFrontMenu {
         })
         .collect();
         Self {
-            state: now,
+            icon: icons::matter_in_front(now),
             label: matter::in_front(lang, now),
             enabled: editor.active_sketch().is_some(),
             choices,

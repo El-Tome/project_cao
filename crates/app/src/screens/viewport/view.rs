@@ -12,9 +12,10 @@ use crate::screens::sketch::Tool;
 
 use super::finish::advance_on_enter;
 use super::input::{handle_sketch_input, pick_areas, point_the_section};
+use super::matter::seen;
 use super::navigation::{advance_transition, handle_navigation};
 use super::render::{
-    build_frame, paint_band, paint_copy_panel, paint_dimension_field, paint_dimension_labels,
+    frame_of, paint_band, paint_copy_panel, paint_dimension_field, paint_dimension_labels,
     paint_face_labels, paint_measure, paint_rule_marks, paint_ruler, paint_section_handle,
     paint_section_panel, push_blinking_matter, what_is_measured, what_would_go,
 };
@@ -106,15 +107,14 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     // price.
     let measuring = what_is_measured(sketch);
 
-    let mut frame = build_frame(
-        state,
-        rect,
-        cube_rect,
-        scale,
-        sketch,
-        going.as_ref(),
-        measuring.as_ref(),
-    );
+    let drawn = seen(state, sketch.editor, sketch.document.body());
+    let shown = (going.as_ref(), measuring.as_ref(), drawn.as_ref());
+    let mut frame = frame_of(state, (rect, cube_rect), scale, sketch, shown);
+    let on_the_part = response
+        .hover_pos()
+        .filter(|_| sketch.editor.active_sketch().is_none())
+        .zip(drawn)
+        .and_then(|(at, drawn)| state.point_of_the_part_at(&drawn, at, rect));
     let now = ui.input(|input| input.time);
     push_blinking_matter(&mut frame.scene_surfaces, state, sketch, now);
     if state.faces_blinking(now).is_some() {
@@ -134,15 +134,10 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
     }
-    let pointer = response
-        .hover_pos()
-        .filter(|_| sketch.editor.active_sketch().is_none());
     Shown {
         changed: changed | paint_dimension_field(ui, state, rect, sketch),
         copy_panel_let_go_at,
-        on_the_part: pointer.and_then(|at| {
-            state.point_of_the_part_at(sketch.editor, sketch.document.body(), at, rect)
-        }),
+        on_the_part,
         unit: Some(state.config.unit.unit_for(scale.step_millimeters)),
     }
 }

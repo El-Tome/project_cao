@@ -16,8 +16,11 @@ See also: [viewport](viewport.md) · [architecture](ARCHITECTURE.md)
    the cursor and follows the snapping, so where it will land is visible before
    the click.
 4. **Dimension.** Click what is to be measured, then type the value.
-5. **Recadrer** puts the view exactly back facing the plane and frames the
-   drawing. That is the button to use after orbiting to look behind.
+5. **Recadrer** (`F`), first in the view bar at the bottom right of the view,
+   puts the view exactly back facing the plane and frames the drawing. That is
+   the button to use after orbiting to look behind. Outside a sketch it frames
+   the whole part instead, keeping the angle it is seen from — see
+   [viewport.md](viewport.md).
 
 ### What one draws on
 
@@ -1702,6 +1705,12 @@ The plane is the sketch's, never the camera's, so it holds in an oblique view
 too. Which of its two halves counts as *in front* is the one question the camera
 answers: the same matter is in the way from one side and out of the way from the
 other. The face a sketch was started **on** lies in the plane itself, and stays.
+
+How the matter in front shows is chosen with « Matière devant » in the view
+bar, a menu of its three states: « cachée », the cut above, the state a sketch
+opens in; « transparente », the half in front drawn see-through; « opaque », the
+body drawn whole. The ribbon's own « Matière devant » stays, and steps round the
+same three.
 
 The cut is a way of looking. No operation enters the history, the `.caopart` is
 unchanged, and closing the sketch puts the whole body back. Nothing is put back

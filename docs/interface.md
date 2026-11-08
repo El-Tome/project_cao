@@ -14,7 +14,7 @@ See also: [sketch](sketch.md) · [history](history.md)
 ├──────────┬───────────────────────────────────┤
 │ History  │                                   │
 │  Sketch  │              viewport             │
-│   1. Line│                                   │
+│   1. Line│      ┌Recadrer Coupe Matière │ X Y┐│  view bar
 └──────────┴───────────────────────────────────┘
 ```
 
@@ -31,6 +31,10 @@ turn to the next message or the next command; a write that succeeds meanwhile
 takes nothing back. A message too long for the room left is cut short, the
 whole of it on hover. The home screen has no pill: its errors stand in a red
 bar along the bottom.
+
+At the bottom right of the view, the view bar carries « Recadrer », « Vue en
+coupe », « Matière devant » and the cursor's coordinates; see
+[viewport.md](viewport.md).
 
 The « CAO » logo heads the tab row on a fresh install; the toolbar section of
 the preferences switches it off. Right of the tabs stand the toggles of the

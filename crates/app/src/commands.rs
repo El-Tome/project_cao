@@ -7,19 +7,21 @@ use crate::screens::SketchContext;
 use crate::screens::extrusion::apply_extrusion;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
+use crate::screens::view_bar::Asked;
 use crate::screens::viewport::{
     ViewportState, corner_picks_with, swap_held_chamfer, switch_held_cuts, take_everything,
     take_up_the_copy,
 };
 use crate::{screens, wording};
 
-/// Carries out one command, wherever it came from.
+/// Carries out one command, wherever it came from — the view bar's pick of a
+/// state of the matter in front, which no `Command` names, included.
 ///
 /// A button and a shortcut both end up here: two paths would drift apart, and
 /// a shortcut that does almost what its button does is worse than none.
 /// Returns true when the part changed and needs saving.
 pub(crate) fn run(
-    command: Command,
+    asked: impl Into<Asked>,
     part: &mut SketchContext<'_>,
     ribbon: &mut Ribbon,
     viewport: &mut ViewportState,
@@ -42,6 +44,13 @@ pub(crate) fn run(
     } = part;
     editor.message = None;
 
+    let command = match asked.into() {
+        Asked::Command(command) => command,
+        Asked::MatterInFront(state) => {
+            editor.set_matter_in_front(state);
+            return false;
+        }
+    };
     match command {
         // The shell keeps these: they reach the window or the disk, which
         // the part's state has no business holding.
@@ -67,7 +76,7 @@ pub(crate) fn run(
             false
         }
         Command::Reframe => {
-            match editor.plane {
+            match editor.active_sketch().and(editor.plane) {
                 Some(plane) => {
                     let (center, radius) = sketch_framing(doc, editor.active_sketch(), plane);
                     viewport.look_at_plane(plane, center, radius);

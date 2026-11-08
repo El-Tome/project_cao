@@ -268,11 +268,12 @@ impl CaoApp {
         };
         let bar =
             screens::view_bar::ViewBar::of(&worked_on, viewport, &view.inner, &settings.shortcuts);
-        let from_the_bar = screens::view_bar::show(ui.ctx(), view.response.rect, &bar)
-            .and_then(|picked| picked.carried_out(worked_on.editor));
-        let over_the_view = finished.then_some(Command::FinishSketch).or(from_the_bar);
-        if let Some(command) = over_the_view {
-            changed |= commands::run(command, &mut worked_on, ribbon, viewport);
+        let from_the_bar = screens::view_bar::show(ui.ctx(), view.response.rect, &bar);
+        let over_the_view = finished
+            .then_some(Command::FinishSketch.into())
+            .or(from_the_bar);
+        if let Some(asked) = over_the_view {
+            changed |= commands::run(asked, &mut worked_on, ribbon, viewport);
         }
 
         if changed {

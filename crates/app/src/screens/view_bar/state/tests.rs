@@ -12,6 +12,10 @@
 //!   the bar is drawn
 //! - outside a sketch it is greyed —
 //!   `outside_a_sketch_the_matter_in_front_menu_is_greyed`
+//! - found in review: it wears the icon of the state the open sketch is in,
+//!   the one the ribbon's « Matière devant » wears in that state, chosen here
+//!   rather than where the bar is drawn, which no test reaches —
+//!   `the_matter_in_front_menu_wears_the_icon_of_the_state_the_sketch_is_in`
 //! - in a sketch the coordinates read « X 12,50 Y -3,00 mm », the point in the
 //!   sketch plane's own frame —
 //!   `on_a_sketch_s_plane_the_coordinates_read_x_and_y_to_two_decimals_after_a_comma`
@@ -232,5 +236,35 @@ fn outside_a_sketch_the_coordinates_are_the_point_of_the_part_under_the_cursor()
         Pointed::of(&finished, None),
         Pointed::Nothing,
         "outside a sketch, off the part, the bar reads a point all the same",
+    );
+}
+
+#[test]
+fn the_matter_in_front_menu_wears_the_icon_of_the_state_the_sketch_is_in() {
+    let lang = Catalogue::french();
+
+    let worn: Vec<String> = [
+        MatterInFront::Hidden,
+        MatterInFront::SeeThrough,
+        MatterInFront::Opaque,
+    ]
+    .into_iter()
+    .map(|state| {
+        MatterInFrontMenu::of(&drawing_on_a_sketch(state), &lang)
+            .icon
+            .id()
+            .to_owned()
+    })
+    .collect();
+
+    assert_eq!(
+        worn,
+        [
+            "matter-in-front-hidden",
+            "matter-in-front-see-through",
+            "matter-in-front-opaque",
+        ],
+        "hidden, see-through then opaque, the bar's « Matière devant » does not wear the \
+         icon the ribbon's wears in that state",
     );
 }

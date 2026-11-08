@@ -77,8 +77,20 @@ pub(super) fn drawn_under<'a>(
         .min_by(|(_, a), (_, b)| a.distance.total_cmp(&b.distance))
 }
 
+/// What a frame draws of the part, nothing while the body is hidden: worked
+/// out once a frame and handed both to the painting and to the point under the
+/// pointer, since cutting the halves of a section again would cost a boolean.
+pub(crate) fn seen<'a>(
+    state: &ViewportState,
+    editor: &SketchEditor,
+    body: &'a Body,
+) -> Option<Drawn<'a>> {
+    (state.body_mode() != MatterInFront::Hidden).then(|| shown(state, editor, body))
+}
+
 impl ViewportState {
     /// Where a ray first meets the part as a frame draws it.
+    #[cfg(test)]
     pub(crate) fn point_of_the_part_under(
         &self,
         editor: &SketchEditor,
@@ -86,21 +98,23 @@ impl ViewportState {
         origin: DVec3,
         direction: DVec3,
     ) -> Option<DVec3> {
-        let drawn = shown(self, editor, body);
-        let (_, hit) = drawn_under(self, &drawn, origin, direction)?;
-        Some(origin + direction * hit.distance)
+        self.point_met(&shown(self, editor, body), origin, direction)
     }
 
-    /// The same under a place of `canvas`, along the ray from the eye.
+    /// Where the ray through a place of `canvas` first meets what is drawn.
     pub(super) fn point_of_the_part_at(
         &self,
-        editor: &SketchEditor,
-        body: &Body,
+        drawn: &Drawn<'_>,
         at: egui::Pos2,
         canvas: egui::Rect,
     ) -> Option<DVec3> {
         let (origin, direction) = self.camera.ray(to_ndc(at, canvas), canvas.aspect_ratio());
-        self.point_of_the_part_under(editor, body, origin.as_dvec3(), direction.as_dvec3())
+        self.point_met(drawn, origin.as_dvec3(), direction.as_dvec3())
+    }
+
+    fn point_met(&self, drawn: &Drawn<'_>, origin: DVec3, direction: DVec3) -> Option<DVec3> {
+        let (_, hit) = drawn_under(self, drawn, origin, direction)?;
+        Some(origin + direction * hit.distance)
     }
 }
 

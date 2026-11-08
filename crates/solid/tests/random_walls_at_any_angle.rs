@@ -218,16 +218,19 @@
 //!   352000000000000, 353000000000000 and 354000000000000 and compared seed
 //!   by seed, the counts on the pull request
 //!
-//! An elliptic wall at an angle to another, a hair from touching it from
-//! outside, is read as it stands (`relation/at_any_angle.rs`): apart a hair
-//! short of the touch, a loop a hair past it, where two round walls are
-//! moved onto their contact (#795). The cases below stand ±1e-8 from the
-//! touch, against a tolerance of 3e-8.
+//! An elliptic wall at an angle to another, a hair from touching it, is
+//! read as it stands (`relation/at_any_angle.rs`). At the outer touch it
+//! reads apart a hair short of it and one loop a hair past it, where two
+//! round walls are moved onto their contact; at the inner touch, the node
+//! the two loops they cross along meet at, it reads two loops a hair short
+//! of it and one loop a hair past it, as two round walls do (#795). The
+//! cases below stand ±1e-8 from the touch, against a tolerance of 3e-8.
 //!
 //! Closes #795.
 //! - The four shrunk cases (elliptic × round and elliptic × elliptic, each a
 //!   hair outside and a hair inside a touch) are pinned and hold on both
-//!   kernels —
+//!   kernels — "a hair inside" is taken both ways the touch can be. A hair
+//!   short of and a hair past the outer touch:
 //!   `a_block_bored_round_then_by_an_elliptic_hole_at_60_degrees_a_hair_short_of_the_bore_keeps_every_rule`,
 //!   `the_same_elliptic_hole_a_hair_short_of_the_round_bore_keeps_every_rule_through_the_application_s_body`,
 //!   `a_block_bored_round_then_by_an_elliptic_hole_at_60_degrees_breaking_into_the_bore_by_a_hair_keeps_every_rule`,
@@ -235,15 +238,23 @@
 //!   `a_block_bored_elliptic_then_by_an_elliptic_hole_at_60_degrees_a_hair_short_of_the_bore_keeps_every_rule`,
 //!   `the_same_elliptic_hole_a_hair_short_of_the_elliptic_bore_keeps_every_rule_through_the_application_s_body`,
 //!   `a_block_bored_elliptic_then_by_an_elliptic_hole_at_60_degrees_breaking_into_the_bore_by_a_hair_keeps_every_rule`,
-//!   `the_same_elliptic_hole_breaking_into_the_elliptic_bore_by_a_hair_keeps_every_rule_through_the_application_s_body`
+//!   `the_same_elliptic_hole_breaking_into_the_elliptic_bore_by_a_hair_keeps_every_rule_through_the_application_s_body`;
+//!   and a hair short of and a hair past the inner touch, two loops and one:
+//!   `a_block_bored_round_then_across_by_an_elliptic_hole_at_60_degrees_a_hair_short_of_touching_the_bore_inside_keeps_every_rule`,
+//!   `the_same_elliptic_hole_a_hair_short_of_touching_the_round_bore_inside_keeps_every_rule_through_the_application_s_body`,
+//!   `a_block_bored_round_then_across_by_an_elliptic_hole_at_60_degrees_a_hair_past_touching_the_bore_inside_keeps_every_rule`,
+//!   `the_same_elliptic_hole_a_hair_past_touching_the_round_bore_inside_keeps_every_rule_through_the_application_s_body`,
+//!   `a_block_bored_elliptic_then_across_by_an_elliptic_hole_at_60_degrees_a_hair_short_of_touching_the_bore_inside_keeps_every_rule`,
+//!   `the_same_elliptic_hole_a_hair_short_of_touching_the_elliptic_bore_inside_keeps_every_rule_through_the_application_s_body`,
+//!   `a_block_bored_elliptic_then_across_by_an_elliptic_hole_at_60_degrees_a_hair_past_touching_the_bore_inside_keeps_every_rule`,
+//!   `the_same_elliptic_hole_a_hair_past_touching_the_elliptic_bore_inside_keeps_every_rule_through_the_application_s_body`
 //! - `at_any_angle.rs`'s module doc says what the code does — no test: a
 //!   module doc is read, not run; checked in review against the code beside
 //!   it
 //! - No draw regresses against `main`, seed by seed, on the three sets, both
-//!   kernels — no test: a campaign fails on any finding, so the walls
-//!   campaigns above are run on `main` and on the branch over sets
-//!   352000000000000, 353000000000000 and 354000000000000 and compared seed
-//!   by seed, the counts on the pull request
+//!   kernels — no test: the production diff changes no executable code (doc
+//!   comments only), so every draw is identical by construction; no campaign
+//!   was run
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -2149,15 +2160,10 @@ fn seed_354000000007504_the_same_bores_keep_every_rule_through_the_application_s
     );
 }
 
-/// A block bored along Z by `bore`, its wall reaching `reach` along X from
-/// the axis, then by an elliptic hole of half-axes 3 along X and 2, leaning
-/// 60° off the bore's axis, its wall `gap` short of the bore's where the two
-/// face each other along X: past it outside, into it inside (#795).
-fn a_block_bored_then_by_an_elliptic_hole_at_60_degrees(
-    bore: Outline,
-    reach: f64,
-    gap: f64,
-) -> Case {
+/// A block bored along Z by `bore`, then by an elliptic hole of half-axes 3
+/// along X and 2, leaning 60° off the bore's axis, its axis `across` the
+/// bore's along X, where the two walls face each other (#795).
+fn a_block_bored_then_by_an_elliptic_hole_at_60_degrees(bore: Outline, across: f64) -> Case {
     Case::new(
         Leaf::prism(
             Plane::xy(0.0),
@@ -2167,10 +2173,7 @@ fn a_block_bored_then_by_an_elliptic_hole_at_60_degrees(
         vec![
             Step::cut(Leaf::prism(Plane::xy(-10.0), bore, 40.0)),
             Step::cut(Leaf::prism(
-                Plane::tilted(
-                    [reach + 3.0 + gap, 25.980762113533157, -5.0],
-                    [60.0, 0.0, 0.0],
-                ),
+                Plane::tilted([across, 25.980762113533157, -5.0], [60.0, 0.0, 0.0]),
                 Outline::ellipse([0.0, 0.0], [3.0, 0.0], 2.0),
                 60.0,
             )),
@@ -2178,16 +2181,33 @@ fn a_block_bored_then_by_an_elliptic_hole_at_60_degrees(
     )
 }
 
+fn round_bore() -> (Outline, f64) {
+    (Outline::circle([0.0, 0.0], 5.0), 5.0)
+}
+
+fn elliptic_bore() -> (Outline, f64) {
+    (Outline::ellipse([0.0, 0.0], [4.0, 0.0], 2.5), 4.0)
+}
+
+/// The hole beside the bore, its wall `gap` short of touching the bore's
+/// from outside: past the touch when `gap` is negative.
+fn beside((bore, reach): (Outline, f64), gap: f64) -> Case {
+    a_block_bored_then_by_an_elliptic_hole_at_60_degrees(bore, reach + 3.0 + gap)
+}
+
+/// The hole across the bore, its wall `gap` short of touching the bore's
+/// from inside, at the node where the two loops they cross along would
+/// meet: past the node when `gap` is negative.
+fn within((bore, reach): (Outline, f64), gap: f64) -> Case {
+    a_block_bored_then_by_an_elliptic_hole_at_60_degrees(bore, reach - 3.0 - gap)
+}
+
 fn round_bore_and_elliptic_hole(gap: f64) -> Case {
-    a_block_bored_then_by_an_elliptic_hole_at_60_degrees(Outline::circle([0.0, 0.0], 5.0), 5.0, gap)
+    beside(round_bore(), gap)
 }
 
 fn elliptic_bore_and_elliptic_hole(gap: f64) -> Case {
-    a_block_bored_then_by_an_elliptic_hole_at_60_degrees(
-        Outline::ellipse([0.0, 0.0], [4.0, 0.0], 2.5),
-        4.0,
-        gap,
-    )
+    beside(elliptic_bore(), gap)
 }
 
 #[test]
@@ -2236,6 +2256,54 @@ fn a_block_bored_elliptic_then_by_an_elliptic_hole_at_60_degrees_breaking_into_t
 fn the_same_elliptic_hole_breaking_into_the_elliptic_bore_by_a_hair_keeps_every_rule_through_the_application_s_body()
  {
     random_solids::holds_through_the_application(&elliptic_bore_and_elliptic_hole(-1e-8));
+}
+
+#[test]
+fn a_block_bored_round_then_across_by_an_elliptic_hole_at_60_degrees_a_hair_short_of_touching_the_bore_inside_keeps_every_rule()
+ {
+    random_solids::holds_exactly(&within(round_bore(), 1e-8));
+}
+
+#[test]
+fn the_same_elliptic_hole_a_hair_short_of_touching_the_round_bore_inside_keeps_every_rule_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(&within(round_bore(), 1e-8));
+}
+
+#[test]
+fn a_block_bored_round_then_across_by_an_elliptic_hole_at_60_degrees_a_hair_past_touching_the_bore_inside_keeps_every_rule()
+ {
+    random_solids::holds_exactly(&within(round_bore(), -1e-8));
+}
+
+#[test]
+fn the_same_elliptic_hole_a_hair_past_touching_the_round_bore_inside_keeps_every_rule_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(&within(round_bore(), -1e-8));
+}
+
+#[test]
+fn a_block_bored_elliptic_then_across_by_an_elliptic_hole_at_60_degrees_a_hair_short_of_touching_the_bore_inside_keeps_every_rule()
+ {
+    random_solids::holds_exactly(&within(elliptic_bore(), 1e-8));
+}
+
+#[test]
+fn the_same_elliptic_hole_a_hair_short_of_touching_the_elliptic_bore_inside_keeps_every_rule_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(&within(elliptic_bore(), 1e-8));
+}
+
+#[test]
+fn a_block_bored_elliptic_then_across_by_an_elliptic_hole_at_60_degrees_a_hair_past_touching_the_bore_inside_keeps_every_rule()
+ {
+    random_solids::holds_exactly(&within(elliptic_bore(), -1e-8));
+}
+
+#[test]
+fn the_same_elliptic_hole_a_hair_past_touching_the_elliptic_bore_inside_keeps_every_rule_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(&within(elliptic_bore(), -1e-8));
 }
 
 /// An elliptic shaft cut by a bore at a skew angle and joined to a post at

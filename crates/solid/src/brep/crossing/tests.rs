@@ -5,11 +5,14 @@
 //! - `>` into `>=` on either height in `meets`' sign test: both corners stand
 //!   further than the room from the plane there, so neither height is zero.
 //! - `clear` into `false`: a face clear of the other's plane meets none of
-//!   it, so `measured` finds nothing, and no corner of it rests on that plane,
-//!   so `Lines::weigh` notes nothing; the test only spares the work.
+//!   it, so `measured` finds nothing; no corner of it rests on that plane, so
+//!   `Lines::weigh` notes no edge of it, and no edge of the other can rest
+//!   inside it, every point of it standing more than the room off the other's
+//!   plane, so none of the other's either; the test only spares the work.
 //! - `+=` into `-=` on the area in `Facet::overlaps`: it negates the sum,
 //!   rounding included, and only its size is read.
-//! - `||` into `&&` in `Found::weigh`: the same filter as `clear` above.
+//! - `||` into `&&` in `Found::weigh`, and `&&` into `||` in `passed`'s
+//!   `!clear(..) && !clear(..)`: the same filter as `clear` above.
 //! - `Face::span` into a constant: every pair then comes into the sweep, and
 //!   one whose spans along a direction lie further apart than the room shares
 //!   no point to cross or lie along; which is weighed first changes no entry
@@ -21,8 +24,11 @@
 //! - a cargo-mutants run on `brep/crossing.rs`, `brep/crossing/lines.rs`,
 //!   `soundness/crossing.rs` and the crossing part of
 //!   `brep/tessellation/folds.rs` reports no missed mutant, other than those
-//!   named as equivalent above — no test: the run itself, reported on the pull
-//!   request
+//!   named as equivalent with a reason in the test file's module doc, and the
+//!   three on the gate of `Lines::weigh` (`lines.rs`,
+//!   `resting(over[0], room) > 1 && resting(over[1], room) > 1`), which #772
+//!   removes — no test: the run itself, reported on the pull request; the three
+//!   are a real miss, not equivalent, and a test pinning them would assert it
 //! - no production line changes — no test: read off `git diff --stat`, where
 //!   `brep/crossing.rs` gains only the `#[cfg(test)]` declaring this file
 

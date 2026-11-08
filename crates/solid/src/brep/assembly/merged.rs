@@ -16,6 +16,8 @@
 
 use std::collections::BTreeMap;
 
+use glam::DVec3;
+
 use crate::brep::curve::Curve;
 use crate::brep::domain::floor;
 use crate::brep::surface::Surface;
@@ -25,7 +27,8 @@ use crate::brep::topology::{Coedge, Edge, EdgeId, Face, SurfaceId, Vertex, Verte
 type Use = (usize, usize, usize);
 
 /// The faces with every seam taken out, and the edges each pair meeting at a
-/// vertex nothing else uses is joined into, appended to `edges`.
+/// vertex nothing else uses is joined into, appended to `edges`; at the
+/// corners `cleared` names, as [`joint`] reads them.
 pub(super) fn merged(
     edges: &mut Vec<Edge>,
     curves: &[Curve],
@@ -33,9 +36,12 @@ pub(super) fn merged(
     surfaces: &[Surface],
     eps: f64,
     faces: Vec<Face>,
+    cleared: &[DVec3],
 ) -> Vec<Face> {
     let mut faces = unseamed(faces);
-    while let Some((at, [one, other])) = joint(edges, curves, vertices, surfaces, eps, &faces) {
+    while let Some((at, [one, other])) =
+        joint(edges, curves, vertices, surfaces, eps, &faces, cleared)
+    {
         let joined = joined(edges, curves, at, one, other);
         let rank = EdgeId(edges.len() as u32);
         edges.push(joined);
@@ -177,7 +183,12 @@ fn traced(faces: &[Face], members: &[usize], twin: &BTreeMap<Use, Use>) -> Optio
 /// use of the other — or one edge of a closed curve at both its ends — and
 /// lying on no surface but those of the faces beside them: a corner where
 /// the curve touches another wall is where that wall's triangles take a
-/// sample, a pocket's rim touching a lying wall at one place.
+/// sample, a pocket's rim touching a lying wall at one place. At a corner
+/// standing within `eps` of one of `cleared`, a flat face counts only where
+/// it may reach the corner, as [`reaches`] reads it: a step that covered the
+/// faces round a corner — a fill at the foot of a rib, over the rib's side
+/// up to some way above the rib's end corner — knows what is left of them
+/// stands clear of it.
 fn joint(
     edges: &[Edge],
     curves: &[Curve],
@@ -185,6 +196,7 @@ fn joint(
     surfaces: &[Surface],
     eps: f64,
     faces: &[Face],
+    cleared: &[DVec3],
 ) -> Option<(VertexId, [EdgeId; 2])> {
     let used = uses(faces);
     let mut ends: BTreeMap<VertexId, Vec<(EdgeId, usize)>> = BTreeMap::new();
@@ -204,14 +216,20 @@ fn joint(
             .iter()
             .flat_map(|edge| used[edge].iter().map(|&(face, ..)| faces[face].surface))
             .collect();
+        let point = vertices[vertex.0 as usize].point;
+        let clear = cleared.iter().any(|corner| corner.distance(point) <= eps);
+        let reaching =
+            |face: &Face| !clear || reaches(face, point, edges, curves, vertices, surfaces, eps);
         if first.curve != second.curve
             || vertices[vertex.0 as usize].on.iter().any(|surface| {
-                !beside.contains(surface) && faces.iter().any(|face| face.surface == *surface)
+                !beside.contains(surface)
+                    && faces
+                        .iter()
+                        .any(|face| face.surface == *surface && reaching(face))
             })
         {
             return None;
         }
-        let point = vertices[vertex.0 as usize].point;
         let at_a_pole = beside.iter().any(|surface| {
             floor::poles_of(&surfaces[surface.0 as usize], eps)
                 .iter()
@@ -238,6 +256,48 @@ fn joint(
             && follow(faces, &used, ending, starting))
         .then_some((vertex, [ending, starting]))
     })
+}
+
+/// Whether a face may reach a point of its surface: on a plane, where the
+/// point stands within `eps` of the box its boundary spans — a flat face
+/// holds nothing outside it — each arc of it taken at its whole circle's
+/// reach; on any other surface, or bounded by another curve, always, since
+/// such a face may bulge past its boundary.
+fn reaches(
+    face: &Face,
+    point: DVec3,
+    edges: &[Edge],
+    curves: &[Curve],
+    vertices: &[Vertex],
+    surfaces: &[Surface],
+    eps: f64,
+) -> bool {
+    if !matches!(surfaces[face.surface.0 as usize], Surface::Plane(_)) {
+        return true;
+    }
+    let mut spanned = Vec::new();
+    for coedge in face.loops.iter().flatten() {
+        let edge = &edges[coedge.edge.0 as usize];
+        match (&curves[edge.curve.0 as usize], edge.ends) {
+            (Curve::Line(_), Some(ends)) => {
+                spanned.extend(ends.map(|end| vertices[end.0 as usize].point));
+            }
+            (Curve::Circle(circle), _) => {
+                let reach = DVec3::splat(circle.radius);
+                spanned.extend([circle.center - reach, circle.center + reach]);
+            }
+            _ => return true,
+        }
+    }
+    if spanned.is_empty() {
+        return true;
+    }
+    let low = spanned.iter().copied().fold(DVec3::INFINITY, DVec3::min);
+    let high = spanned
+        .iter()
+        .copied()
+        .fold(DVec3::NEG_INFINITY, DVec3::max);
+    point.cmpge(low - eps).all() && point.cmple(high + eps).all()
 }
 
 /// Whether two parameters are one, but for rounding at the scale of `span`.

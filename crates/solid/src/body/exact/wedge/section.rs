@@ -109,31 +109,20 @@ impl Wedge {
 
     /// The frame a section square to the edge is drawn in, `across` its
     /// first axis, and the travel that raises it along the edge's line over
-    /// the body's box and `margin` past either end — or, for a fill, from
-    /// the edge's start to its end, so that its ends lie on the planes there
-    /// and the fill adds no matter past them.
+    /// the body's box and `margin` past either end — a fill's, before the
+    /// faces at the edge's ends trim it.
     pub(in crate::body::exact) fn raised_along(
         &self,
         across: DVec3,
         margin: f64,
         (low, high): (DVec3, DVec3),
     ) -> (Frame, DVec3) {
-        let v = self.along.cross(across);
-        if self.inwards {
-            let [start, end] = self.ends;
-            let frame = Frame {
-                origin: start,
-                u: across,
-                v,
-            };
-            return (frame, end - start);
-        }
         let middle = self.along.dot((low + high) / 2.0 - self.point);
         let half = self.along.abs().dot((high - low) / 2.0) + margin;
         let frame = Frame {
             origin: self.point + self.along * (middle - half),
             u: across,
-            v,
+            v: self.along.cross(across),
         };
         (frame, self.along * 2.0 * half)
     }

@@ -283,6 +283,100 @@ impl Inner {
     }
 }
 
+/// The height over a point of the ground of the leaning plane
+/// z = 8 − x / 5 + y / 10, which the [`leaning_l`] is cut down to: lower
+/// toward the arm's right end and higher toward the stem's back, under the
+/// L's top and over its floor everywhere above it.
+fn leaning_height(at: DVec2) -> f64 {
+    8.0 - at.x / 5.0 + at.y / 10.0
+}
+
+/// A point of the ground lifted onto the leaning plane.
+fn on_the_lean(at: DVec2) -> DVec3 {
+    at.extend(leaning_height(at))
+}
+
+/// The way the leaning plane faces, up and out of the matter: it holds the
+/// points p where `LEANING_FACING` · p = 8.
+const LEANING_FACING: DVec3 = DVec3::new(0.2, -0.1, 1.0);
+
+/// The number the leaning top of the [`leaning_l`] answers to: the floor of
+/// the box that cut it, numbered past the L's faces.
+const LEANING: usize = 8;
+
+/// The L of [`ELL`] with its top cut away down to the leaning plane, as a
+/// part's next step cuts it: a box drawn on a sketch lying on the plane,
+/// wider than the L, raised up off it and taken away. Its top is gone whole;
+/// the leaning face caps it instead, at 6.2 over the inner corner — square
+/// to nothing, the inner edge least of all.
+fn leaning_l() -> Body {
+    let ell = ELL.on(ground());
+    let u = DVec3::new(1.0, 0.0, -0.2).normalize();
+    let facing = LEANING_FACING.normalize();
+    let frame = Frame {
+        origin: DVec3::new(0.0, 0.0, 8.0),
+        u,
+        v: facing.cross(u),
+    };
+    let wider = Contour::rectangle(DVec2::new(-4.0, -4.0), DVec2::new(36.0, 20.0));
+    let tool = ell
+        .tool_raised(&profile(wider), frame, facing * 10.0)
+        .expect("the tool raises");
+    ell.difference(&tool).expect("the cut is built")
+}
+
+/// The matter the [`leaning_l`] holds: under a plane, an area holds itself
+/// times the plane's height over its centre, the arm's 180 at (15, 3) and the
+/// stem's 96 at (6, 10).
+fn leaning_l_volume() -> f64 {
+    180.0 * leaning_height(DVec2::new(15.0, 3.0)) + 96.0 * leaning_height(DVec2::new(6.0, 10.0))
+}
+
+/// The numbers the faces of the [`ribbed_plate`]'s rib answer to: its front,
+/// its right side, its back and its left side. Its floor, six, sits on the
+/// plate's top and the join takes it in; its top is seven.
+const RIB_FRONT: usize = 8;
+const RIB_RIGHT: usize = 9;
+const RIB_BACK: usize = 10;
+const RIB_LEFT: usize = 11;
+
+/// Where the [`ribbed_plate`]'s rib stands: from x = 18 to its right side at
+/// 22, from its front at y = 5 to its back at 22, from the plate's top at
+/// z = 4 to 14.
+const RIB_SIDE: f64 = 22.0;
+const RIB_ENDS: [f64; 2] = [5.0, 22.0];
+const PLATE: f64 = 4.0;
+
+/// A plate 40 long, 30 deep and 4 thick, raised from the ground and numbered
+/// as [`raised_on`] numbers it, and a rib 4 wide and 10 high joined on its
+/// top as a part's next step is: a rectangle sketched on the plate's top and
+/// raised. The rib ends short of the plate's edges at both ends, 5 behind its
+/// front and 8 before its back, so the plate's top runs on round it, and
+/// meets it inwards along all four of its sides.
+fn ribbed_plate() -> Body {
+    let plate = raised_on(
+        ground(),
+        Contour::rectangle(DVec2::ZERO, DVec2::new(40.0, 30.0)),
+        PLATE,
+    );
+    let on_the_plate = Frame {
+        origin: DVec3::Z * PLATE,
+        ..ground()
+    };
+    let rib = Contour::rectangle(
+        DVec2::new(18.0, RIB_ENDS[0]),
+        DVec2::new(RIB_SIDE, RIB_ENDS[1]),
+    );
+    let tool = plate
+        .tool_raised(&profile(rib), on_the_plate, DVec3::Z * 10.0)
+        .expect("the tool raises");
+    plate.union(&tool).expect("the rib is joined")
+}
+
+/// The matter the [`ribbed_plate`] holds: the plate's 40 × 30 × 4 and the
+/// rib's 4 × 17 × 10.
+const RIBBED_VOLUME: f64 = 4800.0 + 680.0;
+
 /// The name of the one edge between the faces numbered `first` and `second`,
 /// as the body hands it to whoever points at that edge.
 fn edge_between(body: &Body, first: usize, second: usize) -> EdgeName {
@@ -421,6 +515,19 @@ fn within_the_box_of(part: &Body, body: &Body, what: &str) {
     );
 }
 
+/// Holds that no corner of the body's triangles stands in front of the plane
+/// of the points p where `facing` · p = `offset`.
+fn nothing_stands_past(body: &Body, facing: DVec3, offset: f64, what: &str) {
+    let (facing, offset) = (facing.normalize(), offset / facing.length());
+    for corner in body.triangles().into_iter().flatten() {
+        let past = corner.dot(facing) - offset;
+        assert!(
+            past <= PLACE,
+            "{what}: a corner at {corner} stands {past} past the plane"
+        );
+    }
+}
+
 /// Holds that a step was given the value it was asked.
 fn taken_whole(asked: f64, taken: f64, value: f64, what: &str) {
     assert!(
@@ -474,7 +581,7 @@ fn faces_toward(body: &Body, face: usize, toward: DVec3, what: &str) {
         .normal;
     assert!(
         facing.distance(toward.normalize()) < PLACE,
-        "{what}: the chamfer faces {facing}, where it faces {}",
+        "{what}: the face faces {facing}, where it faces {}",
         toward.normalize()
     );
 }
@@ -897,4 +1004,340 @@ fn a_fillet_on_a_concave_edge_whose_faces_meet_at_a_slant_is_set_back_by_the_rad
         );
         within_the_box_of(&part, body, what);
     }
+}
+
+/// Holds what a fill set back by `set_back` along the [`leaning_l`]'s arm's
+/// back and stem's right side leaves of the faces round it: the two walls cut
+/// short, the floor and the leaning top one face each, their outlines taking
+/// the fill's section in where the inner corner was — its corners on the
+/// fill, `on_the_fill` says, besides — the fill meeting the two walls and the
+/// two ends and nothing else, and nothing standing past the leaning top.
+fn filled_up_to_the_lean(
+    part: &Body,
+    body: &Body,
+    made: usize,
+    set_back: f64,
+    on_the_fill: impl Fn(DVec3) -> bool,
+    what: &str,
+) {
+    let Ell {
+        length,
+        depth,
+        stem,
+        back,
+        ..
+    } = ELL;
+    let on_arm_back = DVec2::new(stem + set_back, depth);
+    let on_stem_right = DVec2::new(stem, depth + set_back);
+    let walls = [
+        (
+            ARM_BACK,
+            on_arm_back,
+            DVec2::new(length, depth),
+            "the arm's back",
+        ),
+        (
+            STEM_RIGHT,
+            on_stem_right,
+            DVec2::new(stem, back),
+            "the stem's right side",
+        ),
+    ];
+    for (wall, near, far, whose) in walls {
+        corners_are(
+            body,
+            wall,
+            &[
+                near.extend(0.0),
+                on_the_lean(near),
+                far.extend(0.0),
+                on_the_lean(far),
+            ],
+            &format!("{what}: what is left of {whose}, under the leaning top"),
+        );
+    }
+    let filled = ELL.outline_filled([on_arm_back, on_stem_right]);
+    corners_are_or_on(
+        body,
+        FLOOR,
+        &lifted_to(&filled, 0.0),
+        &on_the_fill,
+        &format!("{what}: the floor, holding the fill's lower end flush, the inner corner gone"),
+    );
+    let on_the_leaning_top: Vec<DVec3> = filled.iter().map(|&at| on_the_lean(at)).collect();
+    corners_are_or_on(
+        body,
+        LEANING,
+        &on_the_leaning_top,
+        &on_the_fill,
+        &format!(
+            "{what}: the leaning top, holding the fill's upper end flush, the inner corner gone"
+        ),
+    );
+    faces_toward(
+        body,
+        LEANING,
+        LEANING_FACING,
+        &format!("{what}: the leaning top, one plane still"),
+    );
+    assert_eq!(
+        sides_met(body, made),
+        [FLOOR, ARM_BACK, STEM_RIGHT, LEANING].map(|side| vec![side as u32]),
+        "{what}: the fill meets the arm's back and the stem's right side along its sides, and the \
+         floor and the leaning top at its ends, by one edge each"
+    );
+    no_longer_meet(
+        body,
+        ARM_BACK,
+        STEM_RIGHT,
+        &format!("{what}: the arm's back and the stem's right side no longer meet"),
+    );
+    nothing_stands_past(
+        body,
+        LEANING_FACING,
+        8.0,
+        &format!("{what}: trimmed flush by the leaning top"),
+    );
+    within_the_box_of(part, body, what);
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_an_oblique_wall_are_trimmed_flush_by_it() {
+    let value = 3.0;
+    let part = leaning_l();
+    let inner = edge_between(&part, ARM_BACK, STEM_RIGHT);
+    let corner = DVec2::new(ELL.stem, ELL.depth);
+
+    let chamfered = part.chamfer(&inner, value).unwrap_or_else(|declined| {
+        panic!("the chamfer up to the leaning top: declined, {declined:?}")
+    });
+
+    let what = "the chamfer up to the leaning top";
+    taken_whole(chamfered.asked, chamfered.taken, value, what);
+    let body = &chamfered.body;
+    let section = value * value / 2.0;
+    let filled_in = section * leaning_height(corner + DVec2::splat(value / 3.0));
+    sound(body, leaning_l_volume() + filled_in, what);
+    let chamfer = one_flat_face_more(&part, body, what);
+    faces_toward(
+        body,
+        chamfer,
+        DVec3::new(1.0, 1.0, 0.0),
+        &format!("{what}: halfway between the arm's back and the stem's right side"),
+    );
+    let ends = [
+        corner + DVec2::new(value, 0.0),
+        corner + DVec2::new(0.0, value),
+    ];
+    corners_are(
+        body,
+        chamfer,
+        &ends
+            .iter()
+            .flat_map(|&at| [at.extend(0.0), on_the_lean(at)])
+            .collect::<Vec<_>>(),
+        &format!("{what}: the chamfer, its upper end on the leaning top"),
+    );
+    filled_up_to_the_lean(&part, body, chamfer, value, |_| false, what);
+
+    let filleted = part.fillet(&inner, value).unwrap_or_else(|declined| {
+        panic!("the fillet up to the leaning top: declined, {declined:?}")
+    });
+
+    let what = "the fillet up to the leaning top";
+    taken_whole(filleted.asked, filleted.taken, value, what);
+    let body = &filleted.body;
+    let hollow = Hollow {
+        start: (corner + DVec2::splat(value)).extend(0.0),
+        along: DVec3::Z,
+        length: leaning_height(ends[1]),
+        radius: value,
+        facing: [DVec3::Y, DVec3::X],
+    };
+    let square = value * value * leaning_height(corner + DVec2::splat(value / 2.0));
+    let quarter_disc_centre = corner + DVec2::splat(value - 4.0 * value / (3.0 * PI));
+    let quarter_disc = PI * value * value / 4.0 * leaning_height(quarter_disc_centre);
+    sound_drawn_within(
+        body,
+        leaning_l_volume() + square - quarter_disc,
+        drawn_within(&part, hollow.area()),
+        what,
+    );
+    let fillet = one_round_more(&part, body, what);
+    is_the_hollow(
+        body,
+        fillet,
+        &hollow,
+        &format!("{what}: the round, its axis the radius out from both walls"),
+    );
+    filled_up_to_the_lean(
+        &part,
+        body,
+        fillet,
+        value,
+        |corner| hollow.holds(corner),
+        what,
+    );
+}
+
+/// Holds what a fill set back by `set_back` along the plate's top and the
+/// rib's right side of the [`ribbed_plate`] leaves of the faces round it: the
+/// plate's top meeting the rib's front, back and left side along one edge
+/// each still, the fill turning round no end of the rib and leaving each of
+/// those edges whole, for a name to find; the rib's right side cut short;
+/// the plate's top one face round the rib and the fill's footprint; the
+/// rib's front and back one face each, grown by the fill's section, flush —
+/// its corners on the fill, `on_the_fill` says, besides; and the fill
+/// meeting those four faces and nothing else.
+fn filled_along_the_foot_of_the_rib(
+    part: &Body,
+    body: &Body,
+    made: usize,
+    set_back: f64,
+    on_the_fill: impl Fn(DVec3) -> bool,
+    what: &str,
+) {
+    let (out, up, top) = (RIB_SIDE + set_back, PLATE + set_back, PLATE + 10.0);
+    for wall in [RIB_FRONT, RIB_BACK, RIB_LEFT] {
+        let sides = [vec![TOP as u32], vec![wall as u32]];
+        let meeting: Vec<EdgeName> = body
+            .edge_names()
+            .into_iter()
+            .filter(|name| name.between == sides)
+            .collect();
+        assert_eq!(
+            meeting.len(),
+            1,
+            "{what}: the plate's top meets face {wall} along one edge still, unfilled: {meeting:?}"
+        );
+    }
+    corners_are(
+        body,
+        RIB_RIGHT,
+        &RIB_ENDS
+            .iter()
+            .flat_map(|&y| [DVec3::new(RIB_SIDE, y, up), DVec3::new(RIB_SIDE, y, top)])
+            .collect::<Vec<_>>(),
+        &format!("{what}: what is left of the rib's right side"),
+    );
+    let [front, back] = RIB_ENDS;
+    corners_are(
+        body,
+        TOP,
+        &[
+            DVec3::new(0.0, 0.0, PLATE),
+            DVec3::new(40.0, 0.0, PLATE),
+            DVec3::new(40.0, 30.0, PLATE),
+            DVec3::new(0.0, 30.0, PLATE),
+            DVec3::new(18.0, front, PLATE),
+            DVec3::new(out, front, PLATE),
+            DVec3::new(out, back, PLATE),
+            DVec3::new(18.0, back, PLATE),
+        ],
+        &format!("{what}: the plate's top, one face round the rib and the fill's footprint"),
+    );
+    for (wall, y, whose) in [(RIB_FRONT, front, "front"), (RIB_BACK, back, "back")] {
+        corners_are_or_on(
+            body,
+            wall,
+            &[
+                DVec3::new(18.0, y, PLATE),
+                DVec3::new(out, y, PLATE),
+                DVec3::new(RIB_SIDE, y, up),
+                DVec3::new(RIB_SIDE, y, top),
+                DVec3::new(18.0, y, top),
+            ],
+            &on_the_fill,
+            &format!("{what}: the rib's {whose}, grown by the fill's section, flush"),
+        );
+    }
+    assert_eq!(
+        sides_met(body, made),
+        [TOP, RIB_FRONT, RIB_RIGHT, RIB_BACK].map(|side| vec![side as u32]),
+        "{what}: the fill meets the plate's top and the rib's right side along its sides, and \
+         the rib's front and back at its ends, by one edge each"
+    );
+    no_longer_meet(
+        body,
+        TOP,
+        RIB_RIGHT,
+        &format!("{what}: the plate's top and the rib's right side no longer meet"),
+    );
+    within_the_box_of(part, body, what);
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_rib_ending_short_of_its_plate_s_edge_are_trimmed_flush_by_the_rib_s_end()
+ {
+    let value = 3.0;
+    let part = ribbed_plate();
+    let foot = edge_between(&part, TOP, RIB_RIGHT);
+    let long = RIB_ENDS[1] - RIB_ENDS[0];
+
+    let chamfered = part
+        .chamfer(&foot, value)
+        .unwrap_or_else(|declined| panic!("the chamfer at the rib's foot: declined, {declined:?}"));
+
+    let what = "the chamfer at the rib's foot";
+    taken_whole(chamfered.asked, chamfered.taken, value, what);
+    let body = &chamfered.body;
+    sound(body, RIBBED_VOLUME + value * value / 2.0 * long, what);
+    let chamfer = one_flat_face_more(&part, body, what);
+    faces_toward(
+        body,
+        chamfer,
+        DVec3::new(1.0, 0.0, 1.0),
+        &format!("{what}: halfway between the plate's top and the rib's right side"),
+    );
+    corners_are(
+        body,
+        chamfer,
+        &RIB_ENDS
+            .iter()
+            .flat_map(|&y| {
+                [
+                    DVec3::new(RIB_SIDE + value, y, PLATE),
+                    DVec3::new(RIB_SIDE, y, PLATE + value),
+                ]
+            })
+            .collect::<Vec<_>>(),
+        &format!("{what}: the chamfer, from the rib's front to its back"),
+    );
+    filled_along_the_foot_of_the_rib(&part, body, chamfer, value, |_| false, what);
+
+    let filleted = part
+        .fillet(&foot, value)
+        .unwrap_or_else(|declined| panic!("the fillet at the rib's foot: declined, {declined:?}"));
+
+    let what = "the fillet at the rib's foot";
+    taken_whole(filleted.asked, filleted.taken, value, what);
+    let body = &filleted.body;
+    let hollow = Hollow {
+        start: DVec3::new(RIB_SIDE + value, RIB_ENDS[0], PLATE + value),
+        along: DVec3::Y,
+        length: long,
+        radius: value,
+        facing: [DVec3::Z, DVec3::X],
+    };
+    sound_drawn_within(
+        body,
+        RIBBED_VOLUME + value * value * (1.0 - PI / 4.0) * long,
+        drawn_within(&part, hollow.area()),
+        what,
+    );
+    let fillet = one_round_more(&part, body, what);
+    is_the_hollow(
+        body,
+        fillet,
+        &hollow,
+        &format!("{what}: the round, its axis the radius out from the plate's top and the rib"),
+    );
+    filled_along_the_foot_of_the_rib(
+        &part,
+        body,
+        fillet,
+        value,
+        |corner| hollow.holds(corner),
+        what,
+    );
 }

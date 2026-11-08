@@ -20,15 +20,14 @@ use crate::profile::{Contour, Frame};
 pub(super) use section::Side;
 
 /// A straight edge between two flat faces: a point of it, the way it runs,
-/// where it starts and where it ends, its two faces, for each the way it
-/// faces and the way into it, square to the edge, how far the nearer face
-/// runs that way from the edge — the most a chamfer can set back — and
-/// whether the faces meet inwards, the way into either running the way the
-/// other faces: a corner to fill in rather than cut off.
+/// its two faces, for each the way it faces and the way into it, square to
+/// the edge, how far the nearer face runs that way from the edge — the most
+/// a chamfer can set back — and whether the faces meet inwards, the way into
+/// either running the way the other faces: a corner to fill in rather than
+/// cut off.
 pub(super) struct Wedge {
     pub point: DVec3,
     pub along: DVec3,
-    pub ends: [DVec3; 2],
     pub faces: [FaceId; 2],
     pub outward: [DVec3; 2],
     pub into: [DVec3; 2],
@@ -69,21 +68,21 @@ impl Exact {
             let wedge = Wedge::of(&self.brep, edge)?;
             let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
             let taken = asked.min(most(&wedge));
-            let (outline, frame, travel) = tool(&wedge, taken, self.brep.scale(), bounds)?;
-            let raised = Exact::raised(&outline, &[], frame, travel)?;
+            let prism = tool(&wedge, taken, self.brep.scale(), bounds)?;
+            let (outline, frame, travel) = &prism;
+            let raised = Exact::raised(outline, &[], *frame, *travel)?;
             let tool = Exact {
                 brep: raised.brep.renumbered_by(|number| match number {
                     0 => MADE,
                     MADE => 0,
                     other => other,
                 }),
-                next: 1,
                 ..raised
             };
             let cut = if wedge.inwards {
-                self.filled_by(&tool)?
+                self.filled(edge, &wedge, &prism, tool)?
             } else {
-                self.cut_by(&tool)?
+                self.cut_by(&Exact { next: 1, ..tool })?
             };
             if cut.cut_along(&wedge, self) {
                 Ok((cut, taken))
@@ -180,7 +179,6 @@ impl Wedge {
         Ok(Wedge {
             point: line.origin,
             along,
-            ends: [stretch.from, stretch.to].map(|at| line.point(at)),
             faces: [one, other],
             outward: [first, second],
             into: [into_first, into_second],

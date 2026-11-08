@@ -7,6 +7,8 @@
 
 mod merged;
 
+use glam::DVec3;
+
 use super::Declined;
 use super::combine::Arena;
 use super::domain::floor;
@@ -14,13 +16,31 @@ use super::surface::Surface;
 use super::topology::{Body, Coedge, CurveId, Edge, EdgeId, Face, SurfaceId, Vertex, VertexId};
 
 pub(super) fn assembled(arena: Arena, faces: Vec<Face>) -> Result<Body, Declined> {
-    tidied(arena.body, faces)
+    tidied(arena.body, faces, &[])
+}
+
+impl Body {
+    /// The body with the two edges on one curve meeting at each corner
+    /// standing at one of `cleared`, and nothing else meeting there, joined
+    /// into one, as an operation joins them — a flat face counted as
+    /// reaching such a corner only where it may, as `merged.rs` reads it:
+    /// what a step hands back that covered the faces round a corner, and left
+    /// the edges on either side of it in one line.
+    pub fn rejoined_at(&self, cleared: &[DVec3]) -> Result<Body, Declined> {
+        tidied(self.clone(), self.faces.clone(), cleared).map(|body| body.noted(self.unstable))
+    }
 }
 
 /// The body `faces` make of what `body` holds: faces on one surface with one
 /// side merged, each given the poles it holds within it, what no face uses
-/// left out, the rest renumbered, and the whole verified.
-pub(super) fn tidied(mut body: Body, faces: Vec<Face>) -> Result<Body, Declined> {
+/// left out, the rest renumbered, and the whole verified. At the corners
+/// `cleared` names, the edges either side are joined as `merged.rs` reads
+/// them.
+pub(super) fn tidied(
+    mut body: Body,
+    faces: Vec<Face>,
+    cleared: &[DVec3],
+) -> Result<Body, Declined> {
     let mut faces = merged::merged(
         &mut body.edges,
         &body.curves,
@@ -28,6 +48,7 @@ pub(super) fn tidied(mut body: Body, faces: Vec<Face>) -> Result<Body, Declined>
         &body.surfaces,
         body.scale.eps(),
         faces,
+        cleared,
     );
     body.hold_poles(&mut faces);
     let mut edges = Renumbering::of(body.edges.len());

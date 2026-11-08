@@ -300,28 +300,37 @@ It can:
   and the floor declines; and the knife edges the chamfer is tested on,
   which the fillet has no test for.
 - **fill a concave straight edge** (#778, the join in
-  `body/exact/wedge/fill.rs`): on an edge whose two flat faces meet
-  inwards — the inner corner of an L — the chamfer and the fillet fill the
-  corner in rather than cut it off, one mechanism for both (Tom,
-  2026-11-08). The `Wedge` reads such an edge as it reads the others and
-  notes that its faces meet inwards: the way into either face runs to the
-  side the other one faces. The values are the convex steps': the
-  chamfer's distance along each face, the fillet's set-back
-  `r / tan(α/2)`, `α` now the angle between the faces outside the matter.
-  The prism is the cut's turned inside out: its sides stand the margin off
-  the two faces into the matter rather than out of it, and close where they
-  meet there, so that the matter covers every wall of it but the face the
-  step lays; it is raised from the edge's one end to the other rather than
-  over the body's box, its ends on the planes square to the edge there, and
-  joined to the body. Those ends merge into the faces at the edge's ends,
-  which a join would leave answering to the numbers of both operands: each
-  face the prism merged into answers to the body's numbers alone, so a cap
-  stays the one face it was, its number with it. The check is the cut's:
-  one new face, in one piece, its corners on the edge's two faces, nothing
-  else of the prism left, and no face of the body gone but those two. An
-  end on a wall that is no plane square to the edge leaves a piece of the
-  prism's end on its own, and is declined `Unsupported`: trimming the fill
-  by an oblique wall is still to come.
+  `body/exact/wedge/fill.rs`): on an edge whose two flat faces meet inwards —
+  the inner corner of an L — the chamfer and the fillet fill the corner in
+  rather than cut it off, one mechanism for both (Tom, 2026-11-08). The
+  `Wedge` reads such an edge as it reads the others and notes that its faces
+  meet inwards: the way into either face runs to the side the other one faces.
+  The values are the convex steps': the chamfer's distance along each face,
+  the fillet's set-back `r / tan(α/2)`, `α` now the angle between the faces
+  outside the matter. The prism is the cut's turned inside out: its sides
+  stand the margin off the two faces into the matter rather than out of it,
+  and close where they meet there, so that the matter covers every wall of it
+  but the face the step lays. It is raised over the body's box as the cut's
+  is, then trimmed flush at each of the edge's ends by the plane of the one
+  face, besides the edge's two, that meets the edge there, square to it or
+  leaning: a box standing on that plane over what of the prism stands past it,
+  an eighth of the section's reach clear of it, is cut from the prism, so the
+  fill ends on the plane wherever it crosses it — on an L cut down to a
+  leaning top, higher on one wall than on the other. The trimmed prism is
+  joined to the body. Its ends merge into the faces at the edge's ends, which
+  a join would leave answering to the numbers of both operands: each face the
+  prism merged into answers to the body's numbers alone, so a cap stays the
+  one face it was, its number with it. Where a rib ends short of its plate,
+  the plate's top meets the rib's end along one edge again across the fill's
+  foot: the edge's two end corners are handed back to the boolean's step 8 as
+  cleared, and the edges either side of each are joined. The check is the
+  cut's: one new face, in one piece, its corners on the edge's two faces,
+  nothing else of the prism left, and no face of the body gone but those two.
+  Declined `Unsupported`: an end where no face but the edge's two meets the
+  edge, or several do; one that is not flat — a round end, which the convex
+  steps take, is not filled yet; one facing back along the edge; and one
+  leaning so far that its plane misses the prism's long edges between the
+  prism's two ends.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face
@@ -1883,13 +1892,18 @@ covered once from each side.
    stands outside the post's chords along its inner equator.
 8. **Assembly.** Kept regions become faces and their arcs edges. Faces on one
    surface with one side are merged across an arc nothing else uses; two edges
-   on one curve meeting at a vertex nothing else uses become one; a circle that
-   loses its last vertex becomes a ring. A vertex lying on the surface of
+   on one curve meeting at a vertex nothing else uses become one; a circle
+   that loses its last vertex becomes a ring. A vertex lying on the surface of
    another face is used by it: there the curve touches that face's wall, a
-   pocket's rim a lying wall it reaches at one point, and the wall's
-   triangles take a sample. No seam is left for a later operation to read
-   again: an operand's edge inside a face of the other, a hair off whatever
-   a later, larger tolerance takes the face's surface for.
+   pocket's rim a lying wall it reaches at one point, and the wall's triangles
+   take a sample. A step that covered the faces round a corner may name it
+   cleared (`Body::rejoined_at`): there a flat face counts only where the box
+   its boundary spans holds the corner, so a rib's side that a fill at its
+   foot covers up to above the rib's end corner (#778) no longer keeps the
+   plate's top meeting the rib's end along two edges. A boolean names no
+   corner cleared, and joins as it did. No seam is left for a later operation
+   to read again: an operand's edge inside a face of the other, a hair off
+   whatever a later, larger tolerance takes the face's surface for.
 9. **Verification.** The listing is checked before the body is handed back.
    What the kernel cannot verify it does not answer.
 10. **A lean read unstably** (#552, `combine/unstable.rs`). Once decision 11

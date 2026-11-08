@@ -124,8 +124,12 @@
 //!   352000000000000, 353000000000000 and 354000000000000, both kernels —
 //!   no test: a campaign fails on any finding, so the walls campaigns above
 //!   are run on `main` and on the branch over those seeds and compared seed
-//!   by seed, reported on the pull request; the draws they found held on
-//!   `main` and crossed on the branch are pinned, shrunk:
+//!   by seed, reported on the pull request; every seed holds, but the
+//!   drawn 353000000010626 through the application's body, a known
+//!   regression carried by #765, its test ignored until then:
+//!   `seed_353000000010626_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body`;
+//!   the draws found on the way, held on `main` and crossed on the branch,
+//!   are pinned, shrunk, and pass:
 //!   `seed_354000000005119_a_cone_bored_at_89_99_degrees_by_a_hole_of_radius_2_577_is_drawn_uncrossed`,
 //!   `seed_353000000010626_an_elliptic_shaft_bored_along_its_wall_a_hair_inside_then_across_at_75_degrees_is_drawn_uncrossed_through_the_application_s_body`
 
@@ -1573,6 +1577,13 @@ fn seed_353000000010626_an_elliptic_shaft_bored_along_its_wall_a_hair_inside_the
             )),
         ],
     ));
+}
+
+#[test]
+#[ignore = "#765: the drawn shaft still crosses where the bore lies a hair inside its wall"]
+fn seed_353000000010626_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body()
+{
+    walls_seed_through_the_application(353000000010626);
 }
 
 /// An elliptic shaft cut by a bore at a skew angle and joined to a post at

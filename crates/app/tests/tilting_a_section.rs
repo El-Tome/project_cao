@@ -39,10 +39,10 @@ fn a_block(test: &str) -> driver::App {
     driver::click_at_sketch_point(&mut app, ON_THE_BLOCK);
     driver::click(&mut app, "Appliquer");
     driver::press(&mut app, egui::Key::Escape);
-    click_in_the_ribbon(&mut app, "Terminer");
+    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
     driver::click_the_button(&mut app, "Esquisse");
     assert!(
-        !driver::is_enabled(&app, "Terminer"),
+        !driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
         "the sketch the block was raised from is still being edited, showing {:?}",
         driver::on_screen(&app),
     );
@@ -141,11 +141,11 @@ fn a_sketch_on_the_cut(app: &mut driver::App) {
     click_in_the_ribbon(app, "Nouvelle esquisse");
     driver::click_at_world_point(app, ON_THE_CUT);
     assert!(
-        driver::is_enabled(app, "Terminer"),
+        driver::is_enabled(app, driver::FINISH_IN_THE_RIBBON),
         "the click on the tilted cut started no sketch, showing {:?}",
         driver::on_screen(app),
     );
-    click_in_the_ribbon(app, "Terminer");
+    click_in_the_ribbon(app, driver::FINISH_IN_THE_RIBBON);
 }
 
 /// The part as the application left it on disk, once it was put away.

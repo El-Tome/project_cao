@@ -36,10 +36,10 @@ fn a_block(test: &str) -> driver::App {
     driver::click_at_sketch_point(&mut app, driver::INSIDE_THE_RECTANGLE);
     driver::click(&mut app, "Appliquer");
     driver::press(&mut app, egui::Key::Escape);
-    click_in_the_ribbon(&mut app, "Terminer");
+    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
     driver::click_the_button(&mut app, "Esquisse");
     assert!(
-        !driver::is_enabled(&app, "Terminer"),
+        !driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
         "the sketch the block was raised from is still being edited, showing {:?}",
         driver::on_screen(&app),
     );
@@ -129,7 +129,7 @@ fn starting_a_sketch_turns_the_section_view_off() {
     driver::click_at_world_point(&mut app, ON_THE_YZ_PLANE_BESIDE_THE_BLOCK);
 
     assert!(
-        driver::shows(&app, "Terminer"),
+        driver::shows(&app, driver::FINISH_IN_THE_RIBBON),
         "the click started no sketch, showing {:?}",
         driver::on_screen(&app),
     );

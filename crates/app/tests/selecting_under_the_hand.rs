@@ -62,16 +62,19 @@ fn steps_at_the_end(app: &mut driver::App) -> Vec<String> {
     steps(app)
 }
 
-/// Corners of the sketch, where the clicks the tests were first written with
-/// landed: the top side runs high above the origin, away from the plane's axes
-/// and from anything else drawn.
+/// Corners of the sketch: the top side runs high above the origin, away from
+/// the plane's axes and from anything else drawn. Where the clicks the tests
+/// were first written with landed, brought down whole by twice 22.11 mm, so
+/// that a press 22 px above the top side stays clear of the pill a sketch
+/// shows at the top of the view (#727); the bottom side stays out of reach of
+/// the axis's magnet.
 fn a_rectangle(app: &mut driver::App) {
     driver::click(app, "Rectangle (R)");
     driver::click_at_sketch_point(app, TOP_LEFT_CORNER);
-    driver::click_at_sketch_point(app, DVec2::new(168.04, 66.69));
+    driver::click_at_sketch_point(app, DVec2::new(168.04, 22.47));
 }
 
-const TOP_LEFT_CORNER: DVec2 = DVec2::new(57.5, 110.91);
+const TOP_LEFT_CORNER: DVec2 = DVec2::new(57.5, 66.69);
 
 const LINE_START: DVec2 = driver::A_POINT_ABOVE_THE_ORIGIN;
 const LINE_END: DVec2 = driver::A_POINT_BELOW_AND_RIGHT;
@@ -133,7 +136,7 @@ fn a_press_22_px_from_a_side_pulls_a_box_and_moves_no_side() {
     let on_the_top_side =
         driver::sketch_point_on_screen(&app, DVec2::new(88.46, TOP_LEFT_CORNER.y));
     let pressed = on_the_top_side - egui::vec2(0.0, 22.0);
-    let held = driver::sketch_point_on_screen(&app, DVec2::new(119.41, 88.8));
+    let held = driver::sketch_point_on_screen(&app, DVec2::new(119.41, 44.58));
 
     app.hover_at(pressed);
     app.run();

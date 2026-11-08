@@ -45,6 +45,12 @@ pub const WHERE_ITS_DIMENSION_GOES: DVec2 = DVec2::new(87.39, 65.72);
 /// where the area an extrusion raises is clicked.
 pub const INSIDE_THE_RECTANGLE: DVec2 = DVec2::new(62.61, -15.15);
 
+/// The ribbon's « Terminer », by the whole name the ribbon gives it, its
+/// shortcut included: the pill a sketch shows over the view carries a
+/// « Terminer ↵ » of its own (#727), and a gesture aimed at « Terminer » alone
+/// would find both.
+pub const FINISH_IN_THE_RIBBON: &str = "Terminer (Entrée)";
+
 pub type App = Harness<'static, CaoApp>;
 
 /// How high the drawing area was when the fixtures above were tuned, in

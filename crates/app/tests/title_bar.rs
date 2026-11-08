@@ -905,10 +905,10 @@ fn raise_a_block_and_finish_the_sketch(app: &mut driver::App) {
     driver::click_at_sketch_point(app, ON_THE_BLOCK);
     driver::click(app, "Appliquer");
     driver::press(app, egui::Key::Escape);
-    click_in_the_ribbon(app, "Terminer");
+    click_in_the_ribbon(app, driver::FINISH_IN_THE_RIBBON);
     driver::click_the_button(app, "Esquisse");
     assert!(
-        !driver::is_enabled(app, "Terminer"),
+        !driver::is_enabled(app, driver::FINISH_IN_THE_RIBBON),
         "the sketch the block was raised from is still being edited, showing {:?}",
         driver::on_screen(app),
     );

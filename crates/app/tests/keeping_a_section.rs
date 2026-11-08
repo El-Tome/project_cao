@@ -97,10 +97,10 @@ fn a_block(test: &str) -> driver::App {
     driver::click_at_sketch_point(&mut app, ON_THE_BLOCK);
     driver::click(&mut app, "Appliquer");
     driver::press(&mut app, egui::Key::Escape);
-    click_in_the_ribbon(&mut app, "Terminer");
+    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
     driver::click_the_button(&mut app, "Esquisse");
     assert!(
-        !driver::is_enabled(&app, "Terminer"),
+        !driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
         "the sketch the block was raised from is still being edited, showing {:?}",
         driver::on_screen(&app),
     );
@@ -241,11 +241,11 @@ fn a_sketch_on_the_cut(app: &mut driver::App) {
     click_in_the_ribbon(app, "Nouvelle esquisse");
     driver::click_at_world_point(app, ON_THE_CUT);
     assert!(
-        driver::is_enabled(app, "Terminer"),
+        driver::is_enabled(app, driver::FINISH_IN_THE_RIBBON),
         "the click on the cut started no sketch, showing {:?}",
         driver::on_screen(app),
     );
-    click_in_the_ribbon(app, "Terminer");
+    click_in_the_ribbon(app, driver::FINISH_IN_THE_RIBBON);
 }
 
 /// The part as the application left it on disk, once it was put away.
@@ -427,9 +427,9 @@ fn opening_a_sketch_made_on_a_section_switches_it_on_and_leaving_puts_the_sectio
     let before = (is_active(&app, "Coupe 1"), is_active(&app, "Coupe 2"));
 
     double_click(&mut app, "Esquisse 2");
-    let opened = driver::is_enabled(&app, "Terminer");
+    let opened = driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON);
     let while_open = (is_active(&app, "Coupe 1"), is_active(&app, "Coupe 2"));
-    click_in_the_ribbon(&mut app, "Terminer");
+    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
     let after = (is_active(&app, "Coupe 1"), is_active(&app, "Coupe 2"));
 
     assert_eq!(
@@ -655,7 +655,7 @@ fn a_section_whose_face_is_gone_reads_face_lost_in_the_tree() {
     app.hover_at(away_from_the_drawing);
     app.run();
     driver::press(&mut app, egui::Key::Delete);
-    click_in_the_ribbon(&mut app, "Terminer");
+    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
 
     assert_eq!(
         sections_in_the_tree(&app),

@@ -744,6 +744,8 @@
   "sketch.scale_set": "Échelle définie : 1 unité = {mm} mm",
   "sketch.no_dimension_here": "Cote impossible ici",
 
+  "sketch_pill.finish": "Terminer ↵",
+
   "extrusion.pick_a_sketch": "Extruder l'esquisse :",
   "extrusion.height": "Hauteur :",
   "extrusion.depth": "Profondeur :",

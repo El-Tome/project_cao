@@ -75,7 +75,10 @@ fn the_panel_is_there_inside_a_sketch_too() {
     let mut app = driver::open("the_panel_is_there_inside_a_sketch");
     driver::create_a_part(&mut app, "Platine");
     driver::start_a_sketch(&mut app);
-    assert!(driver::is_enabled(&app, "Terminer"), "a sketch is open");
+    assert!(
+        driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        "a sketch is open"
+    );
 
     add_a_width(&mut app);
 

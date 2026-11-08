@@ -139,7 +139,11 @@ fn erased(traits: usize) -> String {
 }
 
 /// Every point of this file is a point of the sketch: where the clicks the
-/// tests were first written with landed.
+/// tests were first written with landed, or, for a drawing that stood at the
+/// top of the view, that drawing brought down whole by a step or two of 22.11
+/// mm, below the pill a sketch shows there (#727). Only those: brought down,
+/// a drawing low on the plane would come within reach of its axis, whose
+/// magnet pulls 28 pixels, some 15 mm, and lay its points otherwise.
 fn a_line(app: &mut driver::App, from: DVec2, to: DVec2) {
     driver::click(app, "Ligne (L)");
     driver::click_at_sketch_point(app, from);
@@ -153,14 +157,14 @@ fn a_line(app: &mut driver::App, from: DVec2, to: DVec2) {
 /// all of it takes those 22 and 2 rules besides.
 fn one_of_every_kind(app: &mut driver::App) {
     driver::click(app, "Point (P)");
-    driver::click_at_sketch_point(app, DVec2::new(190.15, 110.91));
+    driver::click_at_sketch_point(app, DVec2::new(190.15, 88.8));
     driver::press(app, egui::Key::Escape);
 
-    a_line(app, DVec2::new(17.71, 110.91), DVec2::new(61.93, 97.64));
+    a_line(app, DVec2::new(17.71, 88.8), DVec2::new(61.93, 75.53));
 
     driver::click_exactly(app, "Cercle (C)");
-    driver::click_at_sketch_point(app, DVec2::new(101.72, 106.49));
-    driver::click_at_sketch_point(app, DVec2::new(119.41, 106.49));
+    driver::click_at_sketch_point(app, DVec2::new(101.72, 84.38));
+    driver::click_at_sketch_point(app, DVec2::new(119.41, 84.38));
     driver::press(app, egui::Key::Escape);
 
     driver::click_exactly(app, "Arc");
@@ -185,12 +189,13 @@ fn one_of_every_kind(app: &mut driver::App) {
 
 const EVERY_ELEMENT_OF_ONE_OF_EVERY_KIND: usize = 22;
 
-/// Corners at (57.5, 110.91) and (168.04, 66.69) of the sketch, its right
-/// angles held by rules: four points and four sides.
+/// Corners at (57.5, 66.69) and (168.04, 22.47) of the sketch, its right
+/// angles held by rules: four points and four sides. Low enough that what the
+/// tests aim above its top side stays clear of the sketch's pill too.
 fn a_rectangle(app: &mut driver::App) {
     driver::click(app, "Rectangle (R)");
-    driver::click_at_sketch_point(app, DVec2::new(57.5, 110.91));
-    driver::click_at_sketch_point(app, DVec2::new(168.04, 66.69));
+    driver::click_at_sketch_point(app, DVec2::new(57.5, 66.69));
+    driver::click_at_sketch_point(app, DVec2::new(168.04, 22.47));
     driver::press(app, egui::Key::Escape);
 }
 
@@ -221,7 +226,7 @@ fn command_a_leaves_the_dimensions_and_the_rules_out() {
     );
     driver::click(&mut app, "Cote");
     driver::click_at_sketch_point(&mut app, DVec2::new(57.5, -4.05));
-    driver::click_at_sketch_point(&mut app, DVec2::new(79.61, 26.9));
+    driver::click_at_sketch_point(&mut app, DVec2::new(35.39, -35.0));
     driver::press(&mut app, egui::Key::Enter);
     in_the_selection_tool(&mut app);
 
@@ -240,7 +245,7 @@ fn command_a_leaves_a_fillet_s_cut_out() {
     let mut app = a_sketch("command_a_leaves_a_fillet_s_cut_out");
     a_rectangle(&mut app);
     driver::click(&mut app, "Congé");
-    driver::click_at_sketch_point(&mut app, DVec2::new(168.04, 110.91));
+    driver::click_at_sketch_point(&mut app, DVec2::new(168.04, 66.69));
     driver::key(&mut app, egui::Key::Num5, "5");
     driver::press(&mut app, egui::Key::Enter);
     in_the_selection_tool(&mut app);
@@ -296,10 +301,10 @@ fn in_an_empty_sketch_command_a_takes_nothing_and_says_nothing() {
 fn with_another_tool_in_hand_command_a_leaves_the_tool_at_its_work() {
     let mut app = a_sketch("with_another_tool_command_a_leaves_the_tool");
     driver::click(&mut app, "Ligne (L)");
-    driver::click_at_sketch_point(&mut app, DVec2::new(17.71, 110.91));
+    driver::click_at_sketch_point(&mut app, DVec2::new(17.71, 88.8));
 
     select_all(&mut app);
-    driver::click_at_sketch_point(&mut app, DVec2::new(61.93, 97.64));
+    driver::click_at_sketch_point(&mut app, DVec2::new(61.93, 75.53));
     driver::press(&mut app, egui::Key::Escape);
 
     assert_eq!(
@@ -314,7 +319,7 @@ fn with_another_tool_in_hand_command_a_leaves_the_tool_at_its_work() {
 fn outside_a_sketch_command_a_changes_nothing() {
     let mut app = a_sketch("outside_a_sketch_command_a_changes_nothing");
     driver::draw_a_segment(&mut app);
-    driver::click(&mut app, "Terminer");
+    driver::click(&mut app, driver::FINISH_IN_THE_RIBBON);
     driver::open_the_history(&mut app);
     let (steps_before, said_before) = (steps(&app), driver::said(&app));
 
@@ -327,11 +332,7 @@ fn outside_a_sketch_command_a_changes_nothing() {
 #[test]
 fn a_field_being_edited_keeps_command_a_for_its_own_text() {
     let mut app = a_sketch("a_field_being_edited_keeps_command_a");
-    a_line(
-        &mut app,
-        DVec2::new(17.71, 110.91),
-        DVec2::new(61.93, 97.64),
-    );
+    a_line(&mut app, DVec2::new(17.71, 88.8), DVec2::new(61.93, 75.53));
     in_the_selection_tool(&mut app);
     driver::click_the_button(&mut app, "Variables");
     driver::type_into(&mut app, "nom", "width");
@@ -352,11 +353,7 @@ fn a_field_being_edited_keeps_command_a_for_its_own_text() {
 #[test]
 fn command_shift_a_takes_nothing() {
     let mut app = a_sketch("command_shift_a_takes_nothing");
-    a_line(
-        &mut app,
-        DVec2::new(17.71, 110.91),
-        DVec2::new(61.93, 97.64),
-    );
+    a_line(&mut app, DVec2::new(17.71, 88.8), DVec2::new(61.93, 75.53));
     in_the_selection_tool(&mut app);
 
     driver::press_with(
@@ -378,8 +375,8 @@ fn a_shift_click_still_adds_to_what_a_click_took() {
     a_rectangle(&mut app);
     in_the_selection_tool(&mut app);
 
-    driver::click_at_sketch_point(&mut app, DVec2::new(112.77, 110.91));
-    let on_the_bottom_side = driver::sketch_point_on_screen(&app, DVec2::new(112.77, 66.69));
+    driver::click_at_sketch_point(&mut app, DVec2::new(112.77, 66.69));
+    let on_the_bottom_side = driver::sketch_point_on_screen(&app, DVec2::new(112.77, 22.47));
     driver::click_with(&mut app, on_the_bottom_side, egui::Modifiers::SHIFT);
 
     assert_eq!(
@@ -398,8 +395,8 @@ fn a_drag_on_a_trait_carries_everything_command_a_took() {
 
     select_all(&mut app);
     let (on_the_top_side, above_it) = (
-        driver::sketch_point_on_screen(&app, DVec2::new(112.77, 110.91)),
-        driver::sketch_point_on_screen(&app, DVec2::new(112.77, 133.02)),
+        driver::sketch_point_on_screen(&app, DVec2::new(112.77, 66.69)),
+        driver::sketch_point_on_screen(&app, DVec2::new(112.77, 88.8)),
     );
     driver::drag_and_drop(&mut app, on_the_top_side, above_it);
 
@@ -441,11 +438,7 @@ fn select_all_is_offered_in_the_toolbar_palette() {
 #[test]
 fn a_rebound_select_all_takes_everything_from_its_new_key() {
     let mut app = a_sketch("a_rebound_select_all_takes_everything");
-    a_line(
-        &mut app,
-        DVec2::new(17.71, 110.91),
-        DVec2::new(61.93, 97.64),
-    );
+    a_line(&mut app, DVec2::new(17.71, 88.8), DVec2::new(61.93, 75.53));
     in_the_selection_tool(&mut app);
     the_shortcuts_in_the_preferences(&mut app);
     let chord = app

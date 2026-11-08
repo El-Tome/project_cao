@@ -25,8 +25,8 @@ pub struct CaoApp {
     settings_editor: crate::screens::settings::SettingsEditor,
     new_part_name: String,
     error: Option<String>,
-    /// The library panel, held by the shell rather than by a screen: the same
-    /// browsing serves the start menu and the part being drawn.
+    /// The library panel, held by the shell rather than by the start menu:
+    /// what it read and folded is still there on the way back from a part.
     explorer: Explorer,
     /// What takes a part's picture. Nothing when the platform gave no GPU.
     painter: Option<crate::picture::Painter>,
@@ -126,19 +126,18 @@ impl CaoApp {
             extrusion: ExtrusionState::default(),
             ribbon: Ribbon::new(),
             variables: screens::variables::VariablesPanel::default(),
+            covering: None,
         }));
     }
 
     fn show_start_menu(&mut self, ui: &mut egui::Ui) {
-        // Always here, whatever the panel is doing beside a drawing: choosing
-        // a part is the whole of what this screen is for.
+        // Always here: choosing a part is the whole of what this screen is for.
         if let Some(part) = screens::explorer::run(
             &mut self.explorer,
             ui,
             self.remembered.lang(),
             &DiskFiles,
             &DiskFiles,
-            None,
         ) {
             self.open_part(part);
             return;
@@ -176,6 +175,7 @@ impl CaoApp {
             extrusion,
             ribbon,
             variables,
+            covering,
         } = part.as_mut();
 
         // The viewport reads its own copy: it is handed to the renderer every
@@ -186,37 +186,19 @@ impl CaoApp {
         editor.sketching = settings.sketching;
         viewport.copy_panel_at = settings.copy_panel_at;
 
-        let mut back_to_menu = false;
+        // An error raised on this screen goes to the title bar's pill, which
+        // the frame's end settles; until then the shell holds it.
+        let at_start = editor.message.clone();
+        let error = covering.as_ref().map(|lying| lying.error.as_str());
+        let bar = screens::title_bar::TitleBar::of(doc, path, editor, viewport, error, lang);
+        let mut back_to_menu = screens::title_bar::show(ui, &bar, lang);
         let mut changed = false;
         let mut asked: Vec<Command> = Vec::new();
-
-        egui::Panel::top("part_title_bar").show(ui, |ui| {
-            ui.horizontal(|ui| {
-                back_to_menu = ui.button(lang.t("app.home")).clicked();
-                ui.separator();
-                ui.strong(doc.name())
-                    .on_hover_text(path.display().to_string());
-                ui.separator();
-                let section = editor
-                    .active_sketch()
-                    .and_then(|open| doc.section_under(open));
-                ui.weak(wording::view::standing_on(
-                    lang,
-                    viewport.mode().plane(),
-                    section,
-                ));
-                if let Some(message) = &editor.message {
-                    ui.separator();
-                    ui.colored_label(crate::ui::theme::tokens::ACCENT_AMBER_TEXT, message);
-                }
-            });
-        });
 
         let mut drawn = screens::ribbon::Drawn {
             document: doc,
             editor,
             extrusion,
-            explorer_open: self.explorer.is_open(),
         };
         ribbon.section_on = viewport.section().is_some();
         asked.extend(ribbon.show(ui, &settings, &mut drawn, lang));
@@ -235,11 +217,11 @@ impl CaoApp {
             extrusion,
             lang,
         };
+        let commanded = !asked.is_empty();
         for command in asked {
             match command {
                 Command::OpenSettings => self.settings_open = true,
                 Command::BackToMenu => back_to_menu = true,
-                Command::ToggleExplorer => self.explorer.toggle(),
                 Command::ExportStep => export::step(
                     &mut worked_on,
                     &DiskFiles,
@@ -258,18 +240,6 @@ impl CaoApp {
                     None => changed |= commands::run(command, &mut worked_on, ribbon, viewport),
                 },
             }
-        }
-
-        let mut open_elsewhere = None;
-        if self.explorer.is_open() {
-            open_elsewhere = screens::explorer::run(
-                &mut self.explorer,
-                ui,
-                lang,
-                &DiskFiles,
-                &DiskFiles,
-                Some(path),
-            );
         }
 
         let beside = crate::panels::Beside { ribbon, variables };
@@ -299,6 +269,17 @@ impl CaoApp {
         {
             self.error = Some(message);
         }
+        let settled = screens::title_bar::settle(
+            covering.clone(),
+            self.error.take(),
+            at_start.as_deref(),
+            &mut editor.message,
+            commanded || back_to_menu,
+        );
+        if settled != *covering {
+            ui.ctx().request_repaint();
+        }
+        *covering = settled;
         if let Some(at) = copy_panel_let_go_at {
             self.remembered.profiles.active_mut().copy_panel_at = Some(at);
             // With nowhere to keep it, the place holds for the session alone.
@@ -309,11 +290,6 @@ impl CaoApp {
         if back_to_menu {
             self.put_the_part_away();
             self.screen = Screen::StartMenu;
-        }
-        if let Some(part) = open_elsewhere
-            && !crate::adapters::window::open_another(&part)
-        {
-            self.error = Some(self.remembered.lang().t("app.no_second_window"));
         }
     }
 
@@ -358,7 +334,11 @@ impl CaoApp {
 impl eframe::App for CaoApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.window.follow();
-        if let Some(error) = &self.error {
+        let error_before = self.error.clone();
+        // The part screen says its errors in its title bar's pill.
+        if matches!(self.screen, Screen::StartMenu)
+            && let Some(error) = &self.error
+        {
             let message = error.clone();
             egui::Panel::bottom("error_bar").show(ui, |ui| {
                 ui.colored_label(crate::ui::theme::tokens::STATE_ERROR_TEXT, message);
@@ -377,6 +357,11 @@ impl eframe::App for CaoApp {
             self.show_part(ui);
         }
         self.show_settings(ui);
+        // An error found at the end of a frame is drawn by the next one, which
+        // nothing else may be about to ask for.
+        if self.error != error_before {
+            ui.ctx().request_repaint();
+        }
     }
 
     fn on_exit(&mut self) {

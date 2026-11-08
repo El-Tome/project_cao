@@ -142,7 +142,7 @@ fn a_line_clicked_at_two_points_of_the_sketch_runs_between_those_points() {
 #[test]
 fn the_same_two_clicks_land_on_the_same_points_whatever_the_size_of_the_window() {
     let windows = [
-        ("taller", egui::vec2(960.0, 1200.0)),
+        ("taller", egui::vec2(960.0, 1500.0)),
         ("wider", egui::vec2(1920.0, 800.0)),
     ];
     for (shape, size) in windows {

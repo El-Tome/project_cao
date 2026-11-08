@@ -430,11 +430,17 @@ pub fn draw_a_segment(app: &mut App) {
 }
 
 /// The panel is a toggle and the part decides which one opens with it, so a
-/// test that clicks blindly closes the panel it wanted half the time.
+/// test that presses blindly closes the panel it wanted half the time. H is
+/// the way to it since #726 took the « Historique » toggle off the tab row.
 pub fn open_the_history(app: &mut App) {
     if !shows(app, "Pièce vide") {
-        click(app, "Historique");
+        press(app, egui::Key::H);
     }
+    assert!(
+        shows(app, "Pièce vide"),
+        "H did not open the history, the keyboard held by a field perhaps: {:?}",
+        on_screen(app),
+    );
 }
 
 /// The ellipse tool, its centre and the end of its first axis clicked, the

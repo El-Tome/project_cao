@@ -69,7 +69,6 @@ pub(super) fn of(command: Command) -> Icon {
         Command::ExportStlFine => icon::STL_FINE,
         Command::ExportStep => icon::EXPORT_STEP,
         Command::ToggleHistory => icon::HISTORY,
-        Command::ToggleExplorer => icon::FILES,
         Command::ToggleToolbarDocked => icon::DOCK_TOOLBAR,
         Command::OpenSettings => icon::PREFERENCES,
         Command::BackToMenu => icon::HOME,

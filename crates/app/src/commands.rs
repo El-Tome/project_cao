@@ -47,7 +47,6 @@ pub(crate) fn run(
         // the part's state has no business holding.
         Command::OpenSettings
         | Command::BackToMenu
-        | Command::ToggleExplorer
         | Command::ExportStlCoarse
         | Command::ExportStlNormal
         | Command::ExportStlFine

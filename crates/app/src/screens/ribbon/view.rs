@@ -7,7 +7,9 @@ use crate::screens::extrusion_row::extrusion_row;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::chamfer_to_swap;
 use crate::ui::icon;
+use crate::ui::logo::logo;
 use crate::ui::panel_toggle::{panel_button, panel_toggle};
+use crate::ui::theme::tokens::SPACING_L;
 use crate::ui::tool_button::{icon_button, menu_entry, tool_button};
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
@@ -23,8 +25,6 @@ pub struct Drawn<'a> {
     pub document: &'a PartDocument,
     pub editor: &'a SketchEditor,
     pub extrusion: &'a mut ExtrusionState,
-    /// Whether the files panel is showing, so its toggle can report it.
-    pub explorer_open: bool,
 }
 
 impl Drawn<'_> {
@@ -128,7 +128,7 @@ impl Ribbon {
         let mut asked = Vec::new();
         let vertical = layout.edge.is_vertical() || layout.edge == Edge::Floating;
 
-        self.header(ui, layout, &mut asked, vertical, drawn.explorer_open, lang);
+        self.header(ui, layout, &mut asked, vertical, lang);
         ui.separator();
 
         let state = drawn.context(settings, lang, self.section_on);
@@ -173,30 +173,25 @@ impl Ribbon {
         layout: &ToolbarLayout,
         asked: &mut Vec<Command>,
         vertical: bool,
-        explorer_open: bool,
         lang: &Catalogue,
     ) {
-        // The panel's own state lives in the panel, so the toggle reports
-        // rather than holds: what it is shown is handed back as a command.
-        let files = |ui: &mut egui::Ui, asked: &mut Vec<Command>| {
-            let mut shown = explorer_open;
-            let worn = icons::of(Command::ToggleExplorer);
-            if panel_toggle(ui, &mut shown, worn, lang.t("ribbon.files")).changed() {
-                asked.push(Command::ToggleExplorer);
-            }
-        };
         let preferences = |ui: &mut egui::Ui, asked: &mut Vec<Command>| {
             let worn = icons::of(Command::OpenSettings);
             if panel_button(ui, false, worn, lang.t("ribbon.settings")).clicked() {
                 asked.push(Command::OpenSettings);
             }
         };
-        let history = icons::of(Command::ToggleHistory);
 
         let mut row = |ui: &mut egui::Ui| {
             if layout.show_logo {
-                ui.strong(&layout.logo_text);
-                ui.separator();
+                logo(ui, &layout.logo_text);
+                // Along the top the logo is set apart from the tabs by room
+                // alone, as the redesign draws it; down a side, by a rule.
+                if vertical {
+                    ui.separator();
+                } else {
+                    ui.add_space(SPACING_L);
+                }
             }
             for (rank, item) in layout.items.iter().enumerate() {
                 let Item::Group { name, .. } = item else {
@@ -214,17 +209,11 @@ impl Ribbon {
         if vertical {
             ui.vertical(|ui| row(ui));
             ui.horizontal_wrapped(|ui| {
-                files(ui, asked);
                 let part = lang.t("ribbon.part_tree");
                 panel_toggle(ui, &mut self.part_tree_open, icon::PART, part);
-                panel_toggle(
-                    ui,
-                    &mut self.history_open,
-                    history,
-                    lang.t("ribbon.history"),
-                );
                 let variables = lang.t("ribbon.variables");
                 panel_toggle(ui, &mut self.variables_open, icon::VARIABLES, variables);
+                ui.separator();
                 preferences(ui, asked);
             });
             return;
@@ -234,17 +223,11 @@ impl Ribbon {
             row(ui);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 preferences(ui, asked);
+                ui.separator();
                 let variables = lang.t("ribbon.variables");
                 panel_toggle(ui, &mut self.variables_open, icon::VARIABLES, variables);
-                panel_toggle(
-                    ui,
-                    &mut self.history_open,
-                    history,
-                    lang.t("ribbon.history"),
-                );
                 let part = lang.t("ribbon.part_tree");
                 panel_toggle(ui, &mut self.part_tree_open, icon::PART, part);
-                files(ui, asked);
             });
         });
     }

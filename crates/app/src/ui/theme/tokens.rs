@@ -31,14 +31,23 @@ pub const ACCENT_AMBER_BACKGROUND: Color32 =
     Color32::from_rgba_unmultiplied_const(242, 165, 65, 33);
 
 pub const STATE_WARNING_TEXT: Color32 = Color32::from_rgb(0xF0, 0xD6, 0x6E);
+pub const STATE_ERROR: Color32 = Color32::from_rgb(0xF0, 0x8A, 0x7E);
 pub const STATE_ERROR_TEXT: Color32 = Color32::from_rgb(0xF5, 0xA9, 0x9F);
+/// `rgba(240,138,126,0.15)`: 0.15 of 255 is 38.
+pub const STATE_ERROR_BACKGROUND: Color32 =
+    Color32::from_rgba_unmultiplied_const(240, 138, 126, 38);
 
+pub const RADIUS_BUTTON: u8 = 5;
 pub const RADIUS_CONTROL: u8 = 6;
 pub const RADIUS_CARD: u8 = 10;
+/// `999` there, as round as the side allows: a corner is a `u8` in `egui`,
+/// which rounds none past half its side either way.
+pub const RADIUS_PILL: u8 = u8::MAX;
 
 pub const SPACING_S: f32 = 4.0;
 pub const SPACING_M: f32 = 6.0;
 pub const SPACING_L: f32 = 8.0;
+pub const SPACING_XXL: f32 = 14.0;
 
 pub const TYPOGRAPHY_SIZES_SECTION_TITLE: f32 = 16.0;
 pub const TYPOGRAPHY_SIZES_BODY: f32 = 13.0;

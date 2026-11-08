@@ -29,6 +29,7 @@
 //! two flips stand or fall together. Two faces whose triangles end up on the
 //! same three samples are a skin of no thickness ([`super::skins`]).
 
+mod along;
 mod flip;
 mod lines;
 mod through;
@@ -199,6 +200,20 @@ impl<'a> Folds<'a> {
     /// `corners` crosses; not its twin on the same three samples, which
     /// [`super::skins`] leaves out with it.
     fn crossed(&self, face: usize, corners: [usize; 3]) -> impl Iterator<Item = At> + '_ {
+        self.near(face, corners)
+            .filter(move |(_, theirs)| {
+                !theirs.iter().all(|id| corners.contains(id)) && self.crosses(corners, *theirs)
+            })
+            .map(|(other, _)| other)
+    }
+
+    /// The triangles of faces other than `face`, with their samples, whose
+    /// box meets that of the triangle on the samples `corners`.
+    fn near(
+        &self,
+        face: usize,
+        corners: [usize; 3],
+    ) -> impl Iterator<Item = (At, [usize; 3])> + '_ {
         let boxed = |corners: [usize; 3]| {
             let [a, b, c] = corners.map(|id| self.samples.point(id));
             (a.min(b).min(c) - self.eps, a.max(b).max(c) + self.eps)
@@ -209,14 +224,10 @@ impl<'a> Folds<'a> {
             .flat_map(move |other| {
                 (0..self.drawn[other].triangles.len()).map(move |each| (other, each))
             })
-            .filter(move |other| {
-                self.corners(*other).is_some_and(|theirs| {
-                    let (from, to) = boxed(theirs);
-                    low.cmple(to).all()
-                        && from.cmple(high).all()
-                        && !theirs.iter().all(|id| corners.contains(id))
-                        && self.crosses(corners, theirs)
-                })
+            .filter_map(move |other| {
+                let theirs = self.corners(other)?;
+                let (from, to) = boxed(theirs);
+                (low.cmple(to).all() && from.cmple(high).all()).then_some((other, theirs))
             })
     }
 

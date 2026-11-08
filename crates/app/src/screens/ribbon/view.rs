@@ -9,6 +9,7 @@ use crate::screens::viewport::chamfer_to_swap;
 use crate::ui::icon;
 use crate::ui::logo::logo;
 use crate::ui::panel_toggle::{panel_button, panel_toggle};
+use crate::ui::theme::tokens::SPACING_L;
 use crate::ui::tool_button::{icon_button, menu_entry, tool_button};
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
@@ -184,7 +185,13 @@ impl Ribbon {
         let mut row = |ui: &mut egui::Ui| {
             if layout.show_logo {
                 logo(ui, &layout.logo_text);
-                ui.separator();
+                // Along the top the logo is set apart from the tabs by room
+                // alone, as the redesign draws it; down a side, by a rule.
+                if vertical {
+                    ui.separator();
+                } else {
+                    ui.add_space(SPACING_L);
+                }
             }
             for (rank, item) in layout.items.iter().enumerate() {
                 let Item::Group { name, .. } = item else {

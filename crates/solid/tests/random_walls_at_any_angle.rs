@@ -124,9 +124,9 @@
 //!   352000000000000, 353000000000000 and 354000000000000, both kernels —
 //!   no test: a campaign fails on any finding, so the walls campaigns above
 //!   are run on `main` and on the branch over those seeds and compared seed
-//!   by seed, reported on the pull request; every seed holds, but the
-//!   drawn 353000000010626 through the application's body, a known
-//!   regression carried by #765, its test ignored until then:
+//!   by seed, the counts on the pull request. Not met strictly: every seed
+//!   holds except the drawn 353000000010626 through the application's body,
+//!   a regression the human accepted, carried by #765 and pinned ignored:
 //!   `seed_353000000010626_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body`;
 //!   the draws found on the way, held on `main` and crossed on the branch,
 //!   are pinned, shrunk, and pass:

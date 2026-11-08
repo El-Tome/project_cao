@@ -1,7 +1,8 @@
 //! Two walls not parallel, an elliptic one among them (#571, #577): they
-//! meet along the curve `meet.rs` builds, decided once by `Meeting::of` —
-//! moved onto a touch or a node within the tolerance — or stand apart. Two
-//! cylinders are `cylinders.rs`'s; parallel walls are not read here.
+//! meet along the curve `meet.rs` builds, read as they stand by
+//! `Meeting::as_they_stand`, never moved onto a touch, or stand apart. Two
+//! cylinders are `cylinders.rs`'s, which keeps the snapped meeting when it
+//! reads `Apart` or `Contact`; parallel walls are not read here.
 
 use super::{Relation, parallel};
 use crate::brep::curve::Wall;

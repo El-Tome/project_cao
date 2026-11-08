@@ -1,8 +1,8 @@
-//! Two triangles of a face sharing a side cut the other way, so that none
-//! of the triangles made lies on another face or passes through one; and
-//! put back where that fails.
+//! Two triangles of a face sharing a side cut the other way, and put back
+//! when the triangles made still cross triangles of other faces, and no fewer
+//! than those they replaced did.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::{At, Folds, opens};
 
@@ -11,9 +11,10 @@ type Undo = Vec<(At, At, [[usize; 3]; 2])>;
 
 impl Folds<'_> {
     /// Cuts the triangle at `at` the other way, with one of the triangles of
-    /// its face across an inner side, so that none of the triangles it makes
-    /// lies on another face or passes through one. One that does is cut the
-    /// other way in turn, `depth` times over. The flips made, to undo them.
+    /// its face across an inner side, unless the triangles it makes still
+    /// cross triangles of other faces, and no fewer than those they replace
+    /// did: a triangle they cross is then cut the other way in turn, `depth`
+    /// times over. The flips made, to undo them.
     pub(super) fn unfold(&mut self, at: At, depth: usize) -> Option<Undo> {
         for side in self.inner_sides(at) {
             let Some(partner) = self.beyond(at, side) else {
@@ -49,32 +50,40 @@ impl Folds<'_> {
         None
     }
 
-    /// Whether the triangles the flips of `undo` made lie on or pass through
-    /// no triangle of another face, once those they do are cut the other way
-    /// within `depth`: the flips that took, if any were needed.
+    /// Whether the triangles the flips of `undo` made cross no triangle of
+    /// another face, or fewer than those they replaced did, once those they
+    /// cross are cut the other way within `depth`: the flips that took, if
+    /// any were needed. Fewer, never as many: a flip that only trades one
+    /// crossing for another would be taken back by the next.
     fn settled(&mut self, undo: &Undo, depth: usize) -> Option<Undo> {
-        let made: Vec<At> = undo
+        let mut was = BTreeMap::new();
+        for (one, other, [mine, theirs]) in undo {
+            was.entry(*one).or_insert(*mine);
+            was.entry(*other).or_insert(*theirs);
+        }
+        let before: usize = was
             .iter()
-            .flat_map(|(one, other, _)| [*one, *other])
-            .collect();
-        let blocking = |folds: &Self| -> Vec<At> {
-            made.iter()
-                .flat_map(|each| [folds.lying(*each), folds.crossing(*each)])
-                .flatten()
-                .collect()
+            .map(|(at, corners)| self.crossings(at.0, *corners, usize::MAX))
+            .sum();
+        let bound = before.max(1);
+        let worse = |folds: &Self| {
+            let after = was.keys().fold(0, |after, &(face, each)| {
+                after + folds.crossings(face, folds.drawn[face].triangles[each], bound - after)
+            });
+            after >= bound
         };
-        let blockers = blocking(self);
-        if blockers.is_empty() {
+        if !worse(self) {
             return Some(Undo::new());
         }
         if depth == 0 {
             return None;
         }
+        let blockers: Vec<At> = was.keys().filter_map(|each| self.crossing(*each)).collect();
         for blocker in blockers {
             let Some(more) = self.unfold(blocker, depth - 1) else {
                 continue;
             };
-            if blocking(self).is_empty() {
+            if !worse(self) {
                 return Some(more);
             }
             self.undo(more);

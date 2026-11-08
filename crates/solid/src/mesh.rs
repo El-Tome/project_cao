@@ -2,8 +2,8 @@ use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
 /// How thin, against the largest coordinate it stands at, a face the drawing
-/// gave can be before its corners are taken for a line: the rules' own
-/// `soundness::NEAR`, within which they weld two corners into one, so that
+/// gave can be before its corners are taken for a line: `brep::crossing::NEAR`,
+/// within which the rules weld two corners into one, so that
 /// leaving out a face thinner than it opens nothing they can see, and a
 /// face thicker is kept. Six orders above what rounding leaves of a line.
 const IN_A_LINE: f64 = 1e-10;

@@ -74,9 +74,9 @@ const SCANNED: usize = 64;
 pub(super) fn fans(faces: &mut [Face], room: f64) -> Vec<Pair> {
     let mut corners = Vec::with_capacity(3 * faces.len());
     for (at, face) in faces.iter().enumerate() {
-        let facing = (face.normal * 1e3).round().as_i64vec3().to_array();
+        let facing = (face.facet.normal * 1e3).round().as_i64vec3().to_array();
         for corner in 0..3 {
-            let bits = face.corners[corner].to_array().map(f64::to_bits);
+            let bits = face.facet.corners[corner].to_array().map(f64::to_bits);
             corners.push((bits, facing, at, corner));
         }
     }
@@ -85,14 +85,14 @@ pub(super) fn fans(faces: &mut [Face], room: f64) -> Vec<Pair> {
     let one_fan = |one: &(_, _, _, _), other: &(_, _, _, _)| (one.0, one.1) == (other.0, other.1);
     for (fan, around) in corners.chunk_by(one_fan).enumerate() {
         let first = &faces[around[0].2];
-        let (centre, normal) = (first.corners[around[0].3], first.normal);
+        let (centre, normal) = (first.facet.corners[around[0].3], first.facet.normal);
         let across = normal.any_orthonormal_vector();
         let up = normal.cross(across);
         let angle = |point: DVec3| up.dot(point - centre).atan2(across.dot(point - centre));
         let flat = |point: DVec3| normal.dot(point - centre).abs() <= room;
         let mut wedges = Vec::new();
         for &(_, _, at, corner) in around {
-            let [next, previous] = [1, 2].map(|step| faces[at].corners[(corner + step) % 3]);
+            let [next, previous] = [1, 2].map(|step| faces[at].facet.corners[(corner + step) % 3]);
             let (start, end) = (angle(next), angle(previous));
             if flat(next) && flat(previous) {
                 wedges.push((start, end + if end < start { TAU } else { 0.0 }, at, corner));

@@ -474,7 +474,7 @@ symbol that every later step reads instead of measuring again.
 
 There is one tolerance, `EPS = 1e-9 · reach`, `reach` being the largest
 coordinate a body or its operands have reached, never less than one. It is ten
-times the harness's `NEAR`, so what the kernel keeps apart the rules see apart,
+times `NEAR` of `brep/crossing.rs`, which the rules read too, so what the kernel keeps apart the rules see apart,
 and a thousand times below `ALONG_A_LINE`, so a merge never shows as a volume.
 Six configurations alone are read wider, at twenty times it, each as ill
 conditioned as the others: two parallel walls of one radius (decision 8), a

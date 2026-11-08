@@ -8,6 +8,7 @@ mod assembly;
 mod canonical;
 mod combine;
 mod conic;
+pub(crate) mod crossing;
 mod curve;
 mod domain;
 mod laying;

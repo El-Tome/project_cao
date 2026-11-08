@@ -50,7 +50,13 @@
 //!   corner of an L-shaped block and the bottom of a pocket are declined —
 //!   `a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported`;
 //!   the reason is `Unsupported`, the kernel's word for a shape it does not
-//!   build, until the follow-up issue the decision promises builds it
+//!   build, until the follow-up issue the decision promises builds it. At the
+//!   L's inner corner and at a pocket's, each edge but the L's upright one is
+//!   declined alone already, its cut carried along its line taking matter
+//!   beyond it: those lists hold what the user sees, and not why. What holds
+//!   the corner's own decline is a block standing on another, whose four feet
+//!   are filled in each alone, and two of which meet at each of its corners,
+//!   the third edge there its upright, meeting outwards
 //! - Any other corner the kernel cannot blend — no test: a corner of more
 //!   than three edges, of values that differ, or of a curved edge is out of
 //!   the issue's scope, and no list of edges of a block, an L or a pocket
@@ -105,10 +111,11 @@
 //! stand.
 
 use std::collections::BTreeSet;
+use std::f64::consts::PI;
 
 use cao_solid::profile::{Contour, Frame, Profile};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, EdgeName, Loop};
+use cao_solid::{Body, Declined, EdgeName, Loop};
 use glam::{DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it, on a plane:
@@ -117,6 +124,10 @@ const PLACE: f64 = 1e-9;
 
 /// How near the arithmetic an exact volume comes, as a fraction of it.
 const EXACT: f64 = 1e-9;
+
+/// How far the triangles may stand from a round, as a share of the reach the
+/// body carries: the drawing's tolerance.
+const DRAWN: f64 = 2e-4;
 
 /// The numbers a raised block's faces answer to: its floor nought, its top
 /// one, and its sides from the front round to the left, two to five.
@@ -227,6 +238,26 @@ impl Corner {
             .fold(self.at, |point, (edge, length)| {
                 point + self.along[edge] * length
             })
+    }
+
+    /// How far a point stands from the corner along the edge `edge`.
+    fn along_edge(&self, point: DVec3, edge: usize) -> f64 {
+        (point - self.at).dot(self.along[edge])
+    }
+
+    /// The round a fillet of `radius` lays on the edge `edge`, whole: its axis
+    /// the radius in from the edge's two faces — the one it shares with the
+    /// edge `beside` and the one across from `beside` — and running from the
+    /// corner's plane to the edge's far end, turning from facing the way the
+    /// shared face does to facing the way the other does.
+    fn round(&self, edge: usize, [beside, shared]: [usize; 2], radius: f64) -> Round {
+        Round {
+            start: self.at + (self.along[beside] + self.along[shared]) * radius,
+            along: self.along[edge],
+            length: self.length[edge],
+            radius,
+            facing: [-self.along[shared], -self.along[beside]],
+        }
     }
 
     /// The name of the corner's edge `edge` on the body: the edge between the
@@ -546,6 +577,466 @@ fn a_chamfer_on_two_of_a_corner_s_three_edges_mitres_their_flats_and_leaves_the_
             edges_between(body, across_first, across_second).len(),
             1,
             "{what}: {} is still one sharp edge, from where it ends one distance short of the \
+             corner to its far end",
+            corner.called[third]
+        );
+    }
+}
+
+/// What a block keeps once two of a square corner's edges, `lengths` long,
+/// are rounded at `radius` and mitred: each round's strip taken whole, and the
+/// overlap where both take given back once, as the module's documentation
+/// derives it.
+fn mitred_by_rounds(lengths: [f64; 2], radius: f64) -> f64 {
+    let [first, second] = lengths;
+    BLOCK_VOLUME - radius * radius * (1.0 - PI / 4.0) * (first + second)
+        + radius.powi(3) * (5.0 / 3.0 - PI / 2.0)
+}
+
+/// The largest coordinate a body reaches, on either side of the origin.
+fn reach_of(body: &Body) -> f64 {
+    let (low, high) = body.bounds().expect("a part has a box");
+    low.abs().max(high.abs()).max_element()
+}
+
+/// The round a fillet is expected to lay: a cylinder of `radius` about the
+/// line from `start` along `along` for `length`, turning about it from facing
+/// the way the edge's first face does to facing the way its second does.
+/// Facing each face's way where it meets it is what tangent to both comes to.
+struct Round {
+    start: DVec3,
+    along: DVec3,
+    length: f64,
+    radius: f64,
+    facing: [DVec3; 2],
+}
+
+impl Round {
+    /// The point of the axis `share` of the way along it.
+    fn axis_at(&self, share: f64) -> DVec3 {
+        self.start + self.along * self.length * share
+    }
+
+    /// The way the round faces `share` of the way round it, from its first
+    /// face's way to its second's.
+    fn facing_at(&self, share: f64) -> DVec3 {
+        let [first, second] = self.facing;
+        let turn = first.dot(second).acos() * share;
+        let across = (second - first * first.dot(second)).normalize();
+        first * turn.cos() + across * turn.sin()
+    }
+
+    /// Whether a point lies on the round: on its cylinder, between its two
+    /// ends, and between its two sides.
+    fn holds(&self, point: DVec3) -> bool {
+        let off = point - self.start;
+        let along = off.dot(self.along);
+        let across = off - self.along * along;
+        let [first, second] = self.facing;
+        let least = self.radius * first.dot(second);
+        (across.length() - self.radius).abs() < PLACE
+            && (-PLACE..=self.length + PLACE).contains(&along)
+            && across.dot(first) >= least - PLACE
+            && across.dot(second) >= least - PLACE
+    }
+
+    /// The part of the round from `from` along its axis to its far end.
+    fn from(&self, from: f64) -> Round {
+        Round {
+            start: self.start + self.along * from,
+            length: self.length - from,
+            ..*self
+        }
+    }
+
+    /// The round's area, its turn times its radius times its length.
+    fn area(&self) -> f64 {
+        let [first, second] = self.facing;
+        first.dot(second).acos() * self.radius * self.length
+    }
+}
+
+/// Holds that every ray aimed square at the round's axis from outside, a
+/// tenth to nine tenths of the way along it, meets the face numbered `face`
+/// first, where it faces away from the axis along the ray.
+fn met_from_outside(body: &Body, face: usize, round: &Round, what: &str) {
+    for along in [0.11, 0.47, 0.83] {
+        for share in [0.1, 0.3, 0.5, 0.7, 0.9] {
+            let facing = round.facing_at(share);
+            let from = round.axis_at(along) + facing * (round.radius + 10.0);
+            let hit = body.ray_hit(from, -facing).unwrap_or_else(|| {
+                panic!("{what}: a ray from {from} toward the axis meets nothing")
+            });
+            assert_eq!(
+                hit.face, face,
+                "{what}: a ray from {from} toward the axis meets face {} before the round",
+                hit.face
+            );
+            assert!(
+                hit.normal.distance(facing) < PLACE,
+                "{what}: where a ray from {from} meets it, the round faces {}, not {facing}, \
+                 away from its axis",
+                hit.normal
+            );
+        }
+    }
+}
+
+/// The part with a block standing on the ground between the corners `from`
+/// and `to`, raised from `from_height` by `height`, cut from it as `cao_part`
+/// cuts a step: the tool's faces numbered past the part's, its floor first,
+/// then its top, then its sides from the front round to the left.
+fn cut_from(part: &Body, [from, to]: [DVec2; 2], from_height: f64, height: f64) -> Body {
+    part.difference(&tool_between(part, [from, to], from_height, height))
+        .expect("the cut is built")
+}
+
+/// The part with a block between the corners `from` and `to`, raised from
+/// `from_height` by `height`, joined to it as `cao_part` joins a step,
+/// numbered as [`cut_from`] numbers it.
+fn joined_to(part: &Body, [from, to]: [DVec2; 2], from_height: f64, height: f64) -> Body {
+    part.union(&tool_between(part, [from, to], from_height, height))
+        .expect("the join is built")
+}
+
+/// The block a step raises between the corners `from` and `to`, from
+/// `from_height` by `height`.
+fn tool_between(part: &Body, [from, to]: [DVec2; 2], from_height: f64, height: f64) -> Body {
+    part.tool_raised(
+        &profile(Contour::rectangle(from, to)),
+        Frame {
+            origin: DVec3::Z * from_height,
+            ..ground()
+        },
+        DVec3::Z * height,
+    )
+    .expect("the tool raises")
+}
+
+/// A block 30 by 20 by 10 with another, 10 by 10 by 10, standing on the
+/// middle of its top: the upper block's walls, front, right, back and left,
+/// numbered eight to eleven, its top seven, its floor gone into the lower
+/// block's top. Its four feet, where its walls meet that top, meet inwards;
+/// two meet at each of its four corners, where its upright edge meets
+/// outwards.
+fn stacked() -> Body {
+    joined_to(
+        &block([30.0, 20.0, 10.0]),
+        [DVec2::new(10.0, 5.0), DVec2::new(20.0, 15.0)],
+        10.0,
+        10.0,
+    )
+}
+
+/// The numbers of the walls of the block standing on the other, from the
+/// front round to the left.
+const STANDING: [usize; 4] = [8, 9, 10, 11];
+
+/// The outline of an L: an arm 30 long and 6 deep along the front, and at its
+/// left end a stem 12 wide reaching back to 14. Raised 10, its walls are
+/// numbered from the front round: the front two, the arm's right end three,
+/// the arm's back four, the stem's right side five, the stem's back six and
+/// the left seven. The arm's back and the stem's right side meet inwards, in
+/// the L's inner corner.
+fn ell() -> Body {
+    raised(
+        Contour::straight(vec![
+            DVec2::new(0.0, 0.0),
+            DVec2::new(30.0, 0.0),
+            DVec2::new(30.0, 6.0),
+            DVec2::new(12.0, 6.0),
+            DVec2::new(12.0, 14.0),
+            DVec2::new(0.0, 14.0),
+        ]),
+        10.0,
+    )
+}
+const ARM_BACK: usize = 4;
+const STEM_RIGHT: usize = 5;
+
+/// A block 30 by 20 by 10 with a pocket 10 by 10 sunk 5 into the middle of
+/// its top: the pocket's floor numbered six, its walls, front, right, back
+/// and left, eight to eleven. Its floor's edges and its uprights meet
+/// inwards, its rim outwards.
+fn pocketed() -> Body {
+    cut_from(
+        &block([30.0, 20.0, 10.0]),
+        [DVec2::new(10.0, 5.0), DVec2::new(20.0, 15.0)],
+        5.0,
+        6.0,
+    )
+}
+const POCKET_FLOOR: usize = 6;
+const POCKET_FRONT: usize = 8;
+const POCKET_RIGHT: usize = 9;
+
+#[test]
+fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported()
+ {
+    let value = 1.0;
+    let stacked = stacked();
+    let feet: Vec<EdgeName> = STANDING
+        .iter()
+        .map(|&wall| edge_between(&stacked, TOP, wall))
+        .collect();
+    for (foot, name) in STANDING.iter().zip(&feet) {
+        let which = format!("the foot of the standing block's wall {foot}, alone");
+        stacked
+            .fillet(name, value)
+            .unwrap_or_else(|declined| panic!("{which}: the fillet declined, {declined:?}"));
+        stacked
+            .chamfer(name, value)
+            .unwrap_or_else(|declined| panic!("{which}: the chamfer declined, {declined:?}"));
+    }
+    let ell = ell();
+    let pocketed = pocketed();
+    let names = |body: &Body, pairs: &[[usize; 2]]| -> Vec<EdgeName> {
+        pairs
+            .iter()
+            .map(|&[first, second]| edge_between(body, first, second))
+            .collect()
+    };
+
+    for (what, body, list) in [
+        (
+            "the front and right feet of the standing block, meeting at its front right corner",
+            &stacked,
+            vec![feet[0].clone(), feet[1].clone()],
+        ),
+        (
+            "the right and back feet of the standing block, meeting at its back right corner",
+            &stacked,
+            vec![feet[1].clone(), feet[2].clone()],
+        ),
+        (
+            "the four feet of the standing block, two meeting at each of its corners",
+            &stacked,
+            feet.clone(),
+        ),
+        (
+            "the two top edges at the L's inner corner",
+            &ell,
+            names(&ell, &[[TOP, ARM_BACK], [TOP, STEM_RIGHT]]),
+        ),
+        (
+            "a top edge at the L's inner corner and the L's inner upright",
+            &ell,
+            names(&ell, &[[TOP, ARM_BACK], [ARM_BACK, STEM_RIGHT]]),
+        ),
+        (
+            "the three edges at the top of the L's inner corner",
+            &ell,
+            names(
+                &ell,
+                &[[TOP, ARM_BACK], [TOP, STEM_RIGHT], [ARM_BACK, STEM_RIGHT]],
+            ),
+        ),
+        (
+            "two edges of the pocket's floor, meeting at its front right corner",
+            &pocketed,
+            names(
+                &pocketed,
+                &[[POCKET_FLOOR, POCKET_FRONT], [POCKET_FLOOR, POCKET_RIGHT]],
+            ),
+        ),
+        (
+            "an edge of the pocket's floor and the upright it meets",
+            &pocketed,
+            names(
+                &pocketed,
+                &[[POCKET_FLOOR, POCKET_FRONT], [POCKET_FRONT, POCKET_RIGHT]],
+            ),
+        ),
+        (
+            "two edges of the pocket's rim, meeting above its front right upright",
+            &pocketed,
+            names(&pocketed, &[[TOP, POCKET_FRONT], [TOP, POCKET_RIGHT]]),
+        ),
+    ] {
+        let filleted = body.fillet_edges(&list, value).err();
+        let chamfered = body.chamfer_edges(&list, value).err();
+
+        assert_eq!(
+            filleted,
+            Some(Declined::Unsupported),
+            "the fillet on {what}: a broken step and its reason, and no body"
+        );
+        assert_eq!(
+            chamfered,
+            Some(Declined::Unsupported),
+            "the chamfer on {what}: a broken step and its reason, and no body"
+        );
+    }
+}
+
+#[test]
+fn a_fillet_on_two_of_a_corner_s_three_edges_mitres_their_rounds_on_an_ellipse_and_leaves_the_third_edge_sharp_one_radius_short()
+ {
+    let radius = 3.0;
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let corner = top_front_right();
+    let steps_end = block.faces_end();
+
+    for [first, second, third] in TWO_OF_THREE {
+        let what = format!(
+            "the fillet on {} then {}, {} left",
+            corner.called[first], corner.called[second], corner.called[third]
+        );
+        let names = [corner.name(&block, first), corner.name(&block, second)];
+
+        let filleted = block
+            .fillet_edges(&names, radius)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_as_asked(filleted.asked, filleted.taken, radius, &what);
+        let body = &filleted.body;
+        let [long_first, long_second, long_third] =
+            [first, second, third].map(|edge| corner.length[edge]);
+        let rounds = [
+            corner.round(first, [second, third], radius),
+            corner.round(second, [first, third], radius),
+        ];
+        let area: f64 = rounds.iter().map(Round::area).sum();
+        sound_drawn_within(
+            body,
+            mitred_by_rounds([long_first, long_second], radius),
+            DRAWN * reach_of(&block) * area,
+            &what,
+        );
+        let [round_first, round_second] = [steps_end, steps_end + 1];
+        assert_eq!(
+            faces_made(&block, body),
+            vec![round_first, round_second],
+            "{what}: one round for each edge, numbered in the order the step names them, and no \
+             face laid at the corner: {:?}",
+            numbers(body)
+        );
+        assert!(
+            numbers(&block).is_subset(&numbers(body)),
+            "{what}: a face of the block went: {:?}",
+            numbers(body)
+        );
+        let at = |by: [f64; 3]| corner.point([first, second, third], by);
+        let r = radius;
+        let [across_first, across_second, shared] =
+            [first, second, third].map(|edge| corner.across[edge]);
+        let [far_first, far_second, far_third] =
+            [first, second, third].map(|edge| corner.far[edge]);
+
+        for (face, round, own, other, sides_expected, which) in [
+            (
+                round_first,
+                &rounds[0],
+                first,
+                second,
+                sides(&[shared, across_second, far_first, round_second]),
+                "the round of the first edge",
+            ),
+            (
+                round_second,
+                &rounds[1],
+                second,
+                first,
+                sides(&[shared, across_first, far_second, round_first]),
+                "the round of the second edge",
+            ),
+        ] {
+            assert!(
+                !body.is_flat(face) && body.plane_of(face).is_none(),
+                "{what}: {which} is curved, and offers no plane to draw on"
+            );
+            let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
+            assert!(!corners.is_empty(), "{what}: {which} is drawn");
+            for point in corners {
+                assert!(
+                    round.holds(point),
+                    "{what}: {which} is drawn through {point}, off its cylinder of {r} about the \
+                     line from {} along {}",
+                    round.start,
+                    round.along
+                );
+                assert!(
+                    corner.along_edge(point, own) >= corner.along_edge(point, other) - PLACE,
+                    "{what}: {which} is drawn through {point}, past the plane halfway between the \
+                     two edges, where the other round meets it in the mitre"
+                );
+            }
+            met_from_outside(
+                body,
+                face,
+                &round.from(r),
+                &format!("{what}: {which}, past the mitre"),
+            );
+            assert_eq!(
+                sides_met(body, face),
+                sides_expected,
+                "{what}: {which} meets its edge's two faces along its sides, the face its edge \
+                 ends on, and the other round along the mitre, by one edge each"
+            );
+        }
+        let short_of_the_corner = at([0.0, 0.0, r]);
+        corners_are(
+            body,
+            shared,
+            &[
+                at([r, r, 0.0]),
+                at([long_first, r, 0.0]),
+                at([long_first, long_second, 0.0]),
+                at([r, long_second, 0.0]),
+            ],
+            &format!(
+                "{what}: the face the two edges share, set back by the radius from each, its \
+                 corner where the two rounds' sides cross"
+            ),
+        );
+        assert_eq!(
+            sides_met(body, shared),
+            sides(&[round_first, round_second, far_first, far_second]),
+            "{what}: the face the two edges share meets the two rounds, and no longer the third \
+             edge's faces"
+        );
+        let third_s_far_end = at([0.0, 0.0, long_third]);
+        for (face, other, [beside, beyond], far, round, which) in [
+            (
+                across_second,
+                across_first,
+                [at([long_first, 0.0, r]), at([long_first, 0.0, long_third])],
+                far_first,
+                round_first,
+                "the face the first edge and the third share",
+            ),
+            (
+                across_first,
+                across_second,
+                [
+                    at([0.0, long_second, r]),
+                    at([0.0, long_second, long_third]),
+                ],
+                far_second,
+                round_second,
+                "the face the second edge and the third share",
+            ),
+        ] {
+            corners_are(
+                body,
+                face,
+                &[short_of_the_corner, beside, beyond, third_s_far_end],
+                &format!(
+                    "{what}: {which}, set back by the radius from the round, the third edge \
+                     along it ending one radius short of the corner"
+                ),
+            );
+            assert_eq!(
+                sides_met(body, face),
+                sides(&[round, far, far_third, other]),
+                "{what}: {which} meets its round, the faces the edges end on, and the third \
+                 edge's other face, sharp"
+            );
+        }
+        assert_eq!(
+            edges_between(body, across_first, across_second).len(),
+            1,
+            "{what}: {} is still one sharp edge, from where it ends one radius short of the \
              corner to its far end",
             corner.called[third]
         );

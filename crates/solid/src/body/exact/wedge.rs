@@ -4,6 +4,7 @@
 //! runs from it, the cut or the join of a prism raised along it, and the
 //! check that it left the one face the step names.
 
+mod chain;
 mod corners;
 mod fill;
 mod pairs;
@@ -16,7 +17,7 @@ use glam::DVec3;
 
 use super::{Exact, PIECES, root};
 use crate::body::caught::caught;
-use crate::brep::{self, Coedge, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Scale, Surface};
+use crate::brep::{self, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Scale, Surface};
 use crate::profile::{Contour, Frame};
 
 pub(super) use pairs::Together;
@@ -59,7 +60,8 @@ impl Exact {
     /// raises, the face they shared gone; where it is none, each edge is laid
     /// alone. Two edges meeting at a convex corner are laid in turn as any two
     /// are, each prism carried past the corner along its edge's line, so that
-    /// the later trims the earlier's face there: two flats meet in a mitre.
+    /// the later trims the earlier's face there: two flats or two rounds meet
+    /// in a mitre.
     /// The wall an edge's prism lays is numbered where the steps' numbers
     /// ended, plus the edge's rank in the list; a pair is laid at its later
     /// edge's turn, so that every number laid before stands below those a
@@ -91,7 +93,7 @@ impl Exact {
         caught(|| {
             let found = names
                 .iter()
-                .map(|name| self.wedge(name))
+                .map(|name| self.wedge(name, Wedge::of))
                 .collect::<Result<Vec<(EdgeId, Wedge)>, Declined>>()?;
             let edges: Vec<EdgeId> = found.iter().map(|&(edge, _)| edge).collect();
             let once = edges.iter().collect::<BTreeSet<_>>().len() == edges.len();
@@ -130,26 +132,34 @@ impl Exact {
         })
     }
 
-    /// The edge a name finds, and its wedge. Declined `Lost` where the name
-    /// no longer finds it, `Unsupported` where it is not a wedge.
-    fn wedge(&self, name: &EdgeName) -> Result<(EdgeId, Wedge), Declined> {
+    /// The edge a name finds, and its wedge as `read` reads it. Declined
+    /// `Lost` where the name no longer finds it, `Unsupported` where it is not
+    /// a wedge.
+    fn wedge(
+        &self,
+        name: &EdgeName,
+        read: fn(&brep::Body, EdgeId) -> Result<Wedge, Declined>,
+    ) -> Result<(EdgeId, Wedge), Declined> {
         let edge = self
             .brep
             .find_rooted(name, |number| root(&self.roots, number))
             .map_err(Declined::Lost)?;
-        Ok((edge, Wedge::of(&self.brep, edge)?))
+        Ok((edge, read(&self.brep, edge)?))
     }
 
     /// The body with the edge a name finds cut off, or filled in, by the
     /// prism `tool` raises over its wedge for `taken`, its wall numbered
     /// where the steps' numbers ended, declined as [`Exact::cut_off`] says.
+    /// The wedge is read again on the body the edges before it were laid on,
+    /// as [`Wedge::read`] reads it: whether the edge is on a tangent chain was
+    /// read on the body as given.
     fn laid(
         &self,
         name: &EdgeName,
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
     ) -> Result<Exact, Declined> {
-        let (edge, wedge) = self.wedge(name)?;
+        let (edge, wedge) = self.wedge(name, Wedge::read)?;
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
         let prism = tool(&wedge, taken, self.brep.scale(), bounds)?;
         let (outline, frame, travel) = &prism;
@@ -220,7 +230,10 @@ impl Exact {
 }
 
 impl Wedge {
-    fn of(body: &brep::Body, edge: EdgeId) -> Result<Wedge, Declined> {
+    /// The wedge of an edge straight between two flat faces, whether or not
+    /// it runs on tangentially into the next edge: a round laid before it at a
+    /// corner they share does.
+    fn read(body: &brep::Body, edge: EdgeId) -> Result<Wedge, Declined> {
         let stretch = body.edge(edge);
         let Curve::Line(line) = body.curve(stretch.curve) else {
             return Err(Declined::Unsupported);
@@ -249,11 +262,7 @@ impl Wedge {
             return Err(Declined::Unsupported);
         };
         let towards = into_first.dot(second);
-        if towards == 0.0
-            || [one, other]
-                .into_iter()
-                .any(|face| runs_on(body, face, edge, along))
-        {
+        if towards == 0.0 {
             return Err(Declined::Unsupported);
         }
         let reach_of = |face: FaceId, into: DVec3| reach(body, face, into, line.origin);
@@ -340,43 +349,4 @@ fn turning_back(body: &brep::Body, edge: &Edge, into: DVec3) -> Option<Vec<DVec3
         Curve::Meet(_) => return None,
     };
     Some(turns.into_iter().map(|at| curve.point(at)).collect())
-}
-
-/// The sine of the angle under which an edge running on into the next one
-/// is a tangent chain. Well above what a sketch solved within a billionth of
-/// its size leaves between a round and the run it was drawn tangent to —
-/// some 1.5e-8 for a round of 2 in a drawing of 30, ten times that for a
-/// round of 0.2 — and well below any corner a hand draws: a thousandth of
-/// a degree is some 1.7e-5. That noise is a billionth of the drawing's size
-/// over the round's radius, so this holds it up to a drawing a thousand
-/// times the radius; past that, a round a hair off tangent reads as a
-/// corner and is cut, soundly.
-const TANGENT: f64 = 1e-6;
-
-/// Whether, along a loop of `face`, the edge runs on into the edge after it,
-/// or the edge before it runs on into it, along the edge's own way within
-/// [`TANGENT`]: a tangent chain.
-fn runs_on(body: &brep::Body, face: FaceId, edge: EdgeId, along: DVec3) -> bool {
-    body.face(face).loops.iter().any(|lap| {
-        let Some(at) = lap.iter().position(|coedge| coedge.edge == edge) else {
-            return false;
-        };
-        let running = if lap[at].forward { along } else { -along };
-        let [next, before] = [at + 1, at + lap.len() - 1].map(|rank| lap[rank % lap.len()]);
-        let on = |way: DVec3| way.dot(running) > 0.0 && way.cross(running).length() <= TANGENT;
-        on(ways(body, next)[0]) || on(ways(body, before)[1])
-    })
-}
-
-/// The way a loop runs along a coedge where it starts and where it ends.
-fn ways(body: &brep::Body, coedge: Coedge) -> [DVec3; 2] {
-    let edge = body.edge(coedge.edge);
-    let curve = body.curve(edge.curve);
-    let sign = (edge.to - edge.from).signum();
-    let [start, end] = [edge.from, edge.to].map(|at| curve.derivative(at).normalize() * sign);
-    if coedge.forward {
-        [start, end]
-    } else {
-        [-end, -start]
-    }
 }

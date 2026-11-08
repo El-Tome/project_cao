@@ -7,7 +7,8 @@ use std::collections::BTreeSet;
 
 use glam::DVec3;
 
-use super::{MADE, Prism, TANGENT, Wedge, too_short};
+use super::chain::TANGENT;
+use super::{MADE, Prism, Wedge, too_short};
 use crate::body::exact::Exact;
 use crate::brep::{Declined, EdgeName, FaceId, Scale};
 
@@ -105,8 +106,8 @@ impl Exact {
         number: u32,
         together: Together,
     ) -> Result<Exact, Declined> {
-        let (first_edge, first) = self.wedge(earlier)?;
-        let (second_edge, second) = self.wedge(later)?;
+        let (first_edge, first) = self.wedge(earlier, Wedge::read)?;
+        let (second_edge, second) = self.wedge(later, Wedge::read)?;
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
         let prism = together(&first, &second, self.brep.scale(), bounds)?;
         let (outline, frame, travel) = &prism;

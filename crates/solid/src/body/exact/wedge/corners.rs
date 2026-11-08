@@ -1,6 +1,7 @@
 //! Edges of one step that meet at a corner (#699): laid in turn, each cut
-//! carried past the corner along its edge's line, two flats trim each other
-//! in a mitre there. A corner is taken only where it is convex.
+//! carried past the corner along its edge's line, two flats or two rounds
+//! trim each other in a mitre there. A corner is taken only where it is
+//! convex.
 
 use std::collections::BTreeSet;
 

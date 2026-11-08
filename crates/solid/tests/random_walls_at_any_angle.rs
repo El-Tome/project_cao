@@ -1611,9 +1611,9 @@ fn seed_353000000010626_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_a
 
 /// An elliptic shaft of half-axes 25 and 20 bored at 24° by a hole a
 /// hundredth wider than its minor half-axis, then across by a hole of radius
-/// 7.5 and posted by a pin of that radius: held on #762's merge, drawn
-/// crossed through the application's body on #765's branch (seed
-/// 352000000014330, as drawn; its shrunk form crosses on #762's merge too).
+/// 7.5 and posted by a pin of that radius: held through the application's
+/// body on #762's merge (seed 352000000014330, as drawn; its shrunk form
+/// crosses there too).
 #[test]
 fn seed_352000000014330_an_elliptic_shaft_bored_at_24_degrees_a_hair_wider_than_it_then_across_and_posted_is_drawn_uncrossed_through_the_application_s_body()
  {
@@ -1622,8 +1622,8 @@ fn seed_352000000014330_an_elliptic_shaft_bored_at_24_degrees_a_hair_wider_than_
 
 /// A shaft of radius 5 bored at 30° by a hole of its radius less a
 /// ten-millionth, then posted by a pin of radius 5 a thousandth of a degree
-/// off square: held on #762's merge, drawn crossed through the application's
-/// body on #765's branch (seed 352000000017007, shrunk).
+/// off square: held through the application's body on #762's merge (seed
+/// 352000000017007, shrunk).
 #[test]
 fn seed_352000000017007_a_shaft_bored_at_30_degrees_by_its_radius_then_posted_a_thousandth_of_a_degree_off_square_is_drawn_uncrossed_through_the_application_s_body()
  {

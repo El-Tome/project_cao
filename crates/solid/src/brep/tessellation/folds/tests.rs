@@ -117,6 +117,73 @@ fn a_triangle_a_hair_high_and_a_wide_one_lying_on_it_across_their_edge_are_folde
     }
 }
 
+fn two_faces_bent_round_one_edge_seen_from(wing: usize) -> bool {
+    let reach = 12.0;
+    let half = reach / 2.0;
+    let around = |degrees: f64| {
+        let (sin, cos) = degrees.to_radians().sin_cos();
+        at(half * cos, half * sin, half)
+    };
+    let mut build = fixtures::Build::new();
+    let [bottom, top] = [at(0.0, 0.0, 0.0), at(0.0, 0.0, reach)];
+    let ends = [bottom, top].map(|point| build.vertex(point));
+    let faces = [0.0, 5.0].map(|degrees| {
+        let wing = around(degrees);
+        let corner = build.vertex(wing);
+        build.polygon(&[ends[0], ends[1], corner], top.cross(wing).normalize())
+    });
+    let body = build.finish(reach);
+    let eps = body.scale().eps();
+    let tolerance = 1e-3 * reach;
+    let mut samples = Samples::of(&body, tolerance);
+    let outlines = faces.map(|face| {
+        Outline::of(&body, &mut samples, face, tolerance).expect("a flat face is laid out")
+    });
+    let mut drawn: Vec<Drawn> = faces
+        .into_iter()
+        .zip(outlines)
+        .zip([170.0, 175.0])
+        .map(|((face, mut outline), degrees)| {
+            let index_of = |outline: &Outline, point: DVec3| {
+                (0..outline.samples.len())
+                    .find(|corner| samples.point(outline.samples[*corner]) == point)
+                    .expect("a corner of the triangle is in its outline")
+            };
+            assert_eq!(outline.samples.len(), 3, "a triangle's outline");
+            let [low, high] = [bottom, top].map(|point| index_of(&outline, point));
+            let near = 3 - low - high;
+            outline.samples.push(samples.added(around(degrees)));
+            outline.points.push(DVec2::ZERO);
+            Drawn {
+                face,
+                outline,
+                triangles: vec![[low, high, near], [high, low, 3]],
+                surface: *body.surface(body.face(face).surface),
+            }
+        })
+        .collect();
+    let folds = Folds::of(&mut drawn, &samples, eps, tolerance);
+    folds.crossed_along((0, wing))
+}
+
+#[test]
+fn a_face_bent_from_0_to_170_degrees_round_an_edge_and_one_bent_from_5_to_175_pass_through_each_other_seen_from_the_wing_at_0()
+ {
+    assert!(
+        two_faces_bent_round_one_edge_seen_from(0),
+        "the other face's wings, at 5 and 175 degrees, lie on one side of this wing's plane, yet on either side of the wing at 170",
+    );
+}
+
+#[test]
+fn a_face_bent_from_0_to_170_degrees_round_an_edge_and_one_bent_from_5_to_175_pass_through_each_other_seen_from_the_wing_at_170()
+ {
+    assert!(
+        two_faces_bent_round_one_edge_seen_from(1),
+        "the other face's wings, at 5 and 175 degrees, lie either side of this wing's plane",
+    );
+}
+
 #[test]
 fn a_diagonal_is_turned_though_a_thin_triangle_of_another_face_stands_two_thirds_of_a_tolerance_above_what_it_makes()
  {

@@ -10,20 +10,29 @@ use crate::brep::crossing::Facet;
 
 impl Folds<'_> {
     /// Whether the triangle at `at` and another face pass through each other
-    /// along a line: a side of it both faces go on across, or a side of
-    /// either lying inside a triangle of the other, its face going on to both
-    /// sides of that triangle's plane there.
+    /// along a line: a side of it both faces go on across, each to both sides
+    /// of the plane of one of the other's triangles along it — either: two
+    /// faces crossing at less than they bend there straddle one plane only —
+    /// or a side of either lying inside a triangle of the other, its face
+    /// going on to both sides of that triangle's plane there.
     pub(super) fn crossed_along(&self, at: At) -> bool {
         let Some(corners) = self.corners(at) else {
             return false;
         };
         let mine = self.facet(corners);
         let shared = sides(corners).into_iter().any(|edge| {
+            let ours: Vec<Facet> = self
+                .along(edge)
+                .iter()
+                .filter(|each| each.0 == at.0)
+                .filter_map(|each| self.corners(*each))
+                .map(|each| self.facet(each))
+                .collect();
             self.along(edge).iter().any(|beside| {
                 beside.0 != at.0
                     && self.corners(*beside).is_some_and(|theirs| {
                         self.severs(at.0, edge, &self.facet(theirs))
-                            && self.severs(beside.0, edge, &mine)
+                            && ours.iter().any(|plane| self.severs(beside.0, edge, plane))
                     })
             })
         });

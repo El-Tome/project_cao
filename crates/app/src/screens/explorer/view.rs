@@ -14,7 +14,7 @@ use super::state::{Explorer, Naming};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExplorerAction {
     None,
-    /// Open this part, in this window or another.
+    /// Open this part.
     Open(PathBuf),
     /// Ask for the name of a folder that does not exist yet.
     NewFolder,
@@ -70,7 +70,7 @@ fn show(ui: &mut egui::Ui, explorer: &mut Explorer, lang: &Catalogue) -> Explore
         if ui.small_button(lang.t("explorer.new_folder")).clicked() {
             action = ExplorerAction::NewFolder;
         }
-        ui.add_enabled_ui(explorer.may_tidy(), |ui| {
+        ui.add_enabled_ui(explorer.selected().is_some(), |ui| {
             if ui.small_button(lang.t("explorer.rename")).clicked() {
                 action = ExplorerAction::Rename;
             }
@@ -184,7 +184,7 @@ fn contents(
             touched.select = Some(part.path.clone());
         }
         if response.double_clicked() {
-            touched.open = explorer.asked_to_open(&part.path);
+            touched.open = Some(part.path.clone());
         }
     }
 

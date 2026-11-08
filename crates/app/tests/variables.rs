@@ -335,7 +335,7 @@ fn escape_in_a_row_drops_what_was_typed_and_records_nothing() {
 
     driver::type_over(&mut app, "120", "200");
     driver::press(&mut app, egui::Key::Escape);
-    driver::click_the_button(&mut app, "Historique");
+    driver::open_the_history(&mut app);
 
     assert!(
         driver::fields(&app).contains(&"120".to_string()),
@@ -360,10 +360,10 @@ fn a_name_typed_in_the_panel_while_a_line_is_half_drawn_goes_into_the_field() {
     app.run();
 
     driver::type_into(&mut app, "nom", "h");
-    driver::key(&mut app, egui::Key::B, "b");
+    driver::key(&mut app, egui::Key::L, "l");
 
     assert!(
-        driver::fields(&app).contains(&"hb".to_string()),
+        driver::fields(&app).contains(&"hl".to_string()),
         "letters typed in a field are the field's, not shortcuts: {:?}",
         driver::fields(&app),
     );

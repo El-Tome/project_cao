@@ -84,7 +84,6 @@ pub enum Command {
     ExportStep,
 
     ToggleHistory,
-    ToggleExplorer,
     ToggleToolbarDocked,
     OpenSettings,
     BackToMenu,
@@ -113,7 +112,7 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 67] = [
+    pub const ALL: [Self; 66] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -179,7 +178,6 @@ impl Command {
         Self::ExportStlFine,
         Self::ExportStep,
         Self::ToggleHistory,
-        Self::ToggleExplorer,
         Self::ToggleToolbarDocked,
     ];
 
@@ -249,7 +247,6 @@ impl Command {
             | Self::ExportStlFine
             | Self::ExportStep => CommandFamily::Export,
             Self::ToggleHistory
-            | Self::ToggleExplorer
             | Self::ToggleToolbarDocked
             | Self::OpenSettings
             | Self::BackToMenu => CommandFamily::Window,

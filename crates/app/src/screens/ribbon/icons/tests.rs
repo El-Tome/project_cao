@@ -131,7 +131,6 @@ icons_drawn! {
     ExportStlFine => "stl-fine",
     ExportStep => "export-step",
     ToggleHistory => "history",
-    ToggleExplorer => "files",
     ToggleToolbarDocked => "dock-toolbar",
     OpenSettings => "preferences",
     BackToMenu => "home",

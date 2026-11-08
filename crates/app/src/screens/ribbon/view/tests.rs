@@ -42,7 +42,6 @@ fn a_frame_with(
             document: &document,
             editor: &editor,
             extrusion: &mut extrusion,
-            explorer_open: false,
         };
         ribbon.show(ui, &settings, &mut drawn, &lang);
         let before = ui.available_rect_before_wrap().width();
@@ -163,7 +162,6 @@ fn ribbon_texts(ctx: &egui::Context, ribbon: &mut Ribbon, width: f32) -> Vec<(St
                 document: &document,
                 editor: &editor,
                 extrusion: &mut extrusion,
-                explorer_open: false,
             };
             ribbon.show(ui, &settings, &mut drawn, &lang);
         });

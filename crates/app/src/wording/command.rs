@@ -74,7 +74,6 @@ pub fn label(lang: &Catalogue, command: Command) -> String {
         Command::ExportStlFine => "command.label.export_stl_fine",
         Command::ExportStep => "command.label.export_step",
         Command::ToggleHistory => "command.label.toggle_history",
-        Command::ToggleExplorer => "command.label.toggle_explorer",
         Command::ToggleToolbarDocked => "command.label.toggle_toolbar_docked",
         Command::OpenSettings => "command.label.open_settings",
         Command::BackToMenu => "command.label.back_to_menu",
@@ -149,7 +148,6 @@ pub fn hint(lang: &Catalogue, command: Command) -> String {
         }
         Command::ExportStep => "command.hint.export_step",
         Command::ToggleHistory => "command.hint.toggle_history",
-        Command::ToggleExplorer => "command.hint.toggle_explorer",
         Command::ToggleToolbarDocked => "command.hint.toggle_toolbar_docked",
         Command::OpenSettings => "command.hint.open_settings",
         Command::BackToMenu => "command.hint.back_to_menu",

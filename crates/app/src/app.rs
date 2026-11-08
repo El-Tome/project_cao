@@ -25,8 +25,8 @@ pub struct CaoApp {
     settings_editor: crate::screens::settings::SettingsEditor,
     new_part_name: String,
     error: Option<String>,
-    /// The library panel, held by the shell rather than by a screen: the same
-    /// browsing serves the start menu and the part being drawn.
+    /// The library panel, held by the shell rather than by the start menu:
+    /// what it read and folded is still there on the way back from a part.
     explorer: Explorer,
     /// What takes a part's picture. Nothing when the platform gave no GPU.
     painter: Option<crate::picture::Painter>,
@@ -130,15 +130,13 @@ impl CaoApp {
     }
 
     fn show_start_menu(&mut self, ui: &mut egui::Ui) {
-        // Always here, whatever the panel is doing beside a drawing: choosing
-        // a part is the whole of what this screen is for.
+        // Always here: choosing a part is the whole of what this screen is for.
         if let Some(part) = screens::explorer::run(
             &mut self.explorer,
             ui,
             self.remembered.lang(),
             &DiskFiles,
             &DiskFiles,
-            None,
         ) {
             self.open_part(part);
             return;
@@ -216,7 +214,6 @@ impl CaoApp {
             document: doc,
             editor,
             extrusion,
-            explorer_open: self.explorer.is_open(),
         };
         ribbon.section_on = viewport.section().is_some();
         asked.extend(ribbon.show(ui, &settings, &mut drawn, lang));
@@ -239,7 +236,6 @@ impl CaoApp {
             match command {
                 Command::OpenSettings => self.settings_open = true,
                 Command::BackToMenu => back_to_menu = true,
-                Command::ToggleExplorer => self.explorer.toggle(),
                 Command::ExportStep => export::step(
                     &mut worked_on,
                     &DiskFiles,
@@ -258,18 +254,6 @@ impl CaoApp {
                     None => changed |= commands::run(command, &mut worked_on, ribbon, viewport),
                 },
             }
-        }
-
-        let mut open_elsewhere = None;
-        if self.explorer.is_open() {
-            open_elsewhere = screens::explorer::run(
-                &mut self.explorer,
-                ui,
-                lang,
-                &DiskFiles,
-                &DiskFiles,
-                Some(path),
-            );
         }
 
         let beside = crate::panels::Beside { ribbon, variables };
@@ -309,11 +293,6 @@ impl CaoApp {
         if back_to_menu {
             self.put_the_part_away();
             self.screen = Screen::StartMenu;
-        }
-        if let Some(part) = open_elsewhere
-            && !crate::adapters::window::open_another(&part)
-        {
-            self.error = Some(self.remembered.lang().t("app.no_second_window"));
         }
     }
 

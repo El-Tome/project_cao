@@ -22,9 +22,7 @@ pub fn run(
     lang: &Catalogue,
     files: &impl Files,
     folders: &impl Folders,
-    drawing: Option<&Path>,
 ) -> Option<PathBuf> {
-    explorer.drawing(drawing);
     explorer.refresh_if_stale(folders);
 
     let mut opening = None;

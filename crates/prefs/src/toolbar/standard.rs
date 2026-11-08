@@ -11,7 +11,7 @@ impl Default for ToolbarLayout {
         use Command as C;
         Self {
             edge: Edge::Top,
-            show_logo: false,
+            show_logo: true,
             logo_text: "CAO".to_string(),
             show_labels: true,
             items: vec![

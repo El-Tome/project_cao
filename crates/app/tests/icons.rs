@@ -116,9 +116,7 @@ fn a_panel_toggle_shows_its_icon_beside_its_name() {
     driver::create_a_part(&mut app, "Platine");
 
     for (name, id) in [
-        ("Fichiers", "files"),
         ("Pièce", "part"),
-        ("Historique", "history"),
         ("Variables", "variables"),
         ("Préférences", "preferences"),
     ] {

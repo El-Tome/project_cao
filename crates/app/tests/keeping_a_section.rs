@@ -457,10 +457,9 @@ fn deleting_a_section_a_sketch_stands_on_asks_first() {
     save_a_section(&mut app, "Plan XZ");
     switch_on(&mut app, "Coupe 1");
     a_sketch_on_the_cut(&mut app);
-    driver::click_the_button(&mut app, "Fichiers");
     assert!(
         !a_button_reads(&app, "Supprimer"),
-        "the file list is still open, and its « Supprimer » would be clicked instead",
+        "the file list is on the part screen, and its « Supprimer » would be clicked instead",
     );
     let asks = |app: &driver::App| app.query_all_by_label("Annuler").next().is_some();
 
@@ -553,7 +552,6 @@ fn saving_again_after_the_save_was_undone_keeps_a_section_again() {
 #[test]
 fn saving_after_the_section_was_deleted_from_the_tree_makes_a_new_one() {
     let mut app = a_block("keeping_a_section_saved_deleted_saved");
-    driver::click_the_button(&mut app, "Fichiers");
     click_in_the_ribbon(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
     driver::click_the_button(&mut app, "Enregistrer la coupe");

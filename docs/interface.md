@@ -6,17 +6,21 @@ See also: [sketch](sketch.md) · [history](history.md)
 
 ```
 ┌──────────────────────────────────────────────┐
-│ ⌂ Accueil │ part name │ view │ message…       │  title bar
+│ ⌂ Accueil │ part name │ view │ message…      │  title bar
 ├──────────────────────────────────────────────┤
-│ Esquisse │ Extrusion │ Fichiers │ Historique │ ⚙│  tabs, then the panels
+│ CAO Esquisse Extrusion Export  Pièce Var. ┊ ⚙│  logo, tabs, then the panels
 │ ─────────────────────────────────────────────│
-│ Nouvelle esquisse │ Dessin… │ Édition…        │  entries of the open tab
-├──────────┬──────────┬────────────────────────┤
-│ Fichiers │ History  │                        │
-│ ▫ Brides │  Sketch  │        viewport        │
-│ ▣ support│   1. Line│                        │
-└──────────┴──────────┴────────────────────────┘
+│ Nouvelle esquisse │ Dessin… │ Édition…       │  entries of the open tab
+├──────────┬───────────────────────────────────┤
+│ History  │                                   │
+│  Sketch  │              viewport             │
+│   1. Line│                                   │
+└──────────┴───────────────────────────────────┘
 ```
+
+The « CAO » logo heads the tab row on a fresh install; the toolbar section of
+the preferences switches it off. Right of the tabs stand the toggles of the
+« Pièce » and « Variables » panels, a separator, and « Préférences ».
 
 ## The toolbar goes where the user wants it
 
@@ -35,8 +39,8 @@ command makes no sense where one is.
 
 ## The History panel
 
-On the left, resizable, hidden by the "Historique" button of the toolbar. Its
-contents are described in [history.md](history.md).
+On the left, resizable, shown and hidden by `H`: it has no toggle on the tab
+row. Its contents are described in [history.md](history.md).
 
 ## The Variables panel
 
@@ -48,18 +52,14 @@ lists the variables too, read only.
 
 ## The Files panel
 
-On the left too, resizable, and showing before anybody asks for it. Its toggle
-sits beside the History one, at the far end of the tab row, which is where a
-panel is reached from — never from the tree of the toolbar, which is for
-tools. `B` does the same. It lists the folders and the parts of the parts folder — the one
+On the home screen only, on the left, resizable, and always there: choosing a
+part is what that screen is for. The part screen has no Files panel and no
+command for one. It lists the folders and the parts of the parts folder — the one
 new parts land in — and nothing else: a file that is not a `.caopart` is left
 out, and so is a symbolic link, which is what keeps a folder pointing at one of
 its own parents from being walked for ever.
 
-Double-clicking a part opens it: in place when the start menu is showing, in a
-**second window** when a part is already open. Tabs are what that is to become;
-until the shell can hold more than one part at a time, the second window is a
-second process, and what the two share is what the installation remembers.
+Double-clicking a part opens it in place of the home screen.
 
 Each part shows a small picture of itself, as the 3D view frames it — taken
 when the part was last put away and kept in its file, never drawn while the
@@ -70,8 +70,6 @@ screen are read and turned into textures.
 The panel also makes a folder, renames a part or a folder, and sends one to the
 system bin after a question. Renaming a part writes the new name inside the
 archive as well as on the disk, so the panel and the title bar never disagree.
-The part the window is drawing is left alone: it is being written to behind the
-panel's back.
 
 The library is walked when the panel opens and when something is known to have
 changed — never every frame. The ↺ button reads it again.

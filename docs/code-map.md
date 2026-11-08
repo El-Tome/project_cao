@@ -409,6 +409,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | The redesign's icons, embedded from `docs/redesign/icons/`, handed to egui drawn in white so that a widget's tint gives their colour, and drawn at the three sizes the redesign uses | `app/src/ui/icon.rs` | `Icon`, `IconSize`, `install`, `Icon::image` |
 | A button of the ribbon: its icon above its name, its icon alone with names off, or a row of a menu, the icon in the colour of the name | `app/src/ui/tool_button.rs` | `tool_button`, `icon_button`, `menu_entry` |
 | A toggle of the ribbon's header: its icon beside its name, pressed while its panel shows; « Préférences » wears the same face | `app/src/ui/panel_toggle.rs` | `panel_toggle`, `panel_button` |
+| The text logo at the head of the tab row, amber with its letters spaced out, shown on a fresh install and switched off in the preferences | `app/src/ui/logo.rs`, `prefs/src/toolbar/standard.rs` | `logo`; `show_logo` |
 | The chrome's theme: dark whatever the system says, its `Visuals` and `Style`, the two typefaces | `app/src/ui/theme.rs` | `install`, `font_definitions` |
 | The redesign's tokens the chrome wears, each named after its path in `docs/redesign/tokens.json` | `app/src/ui/theme/tokens.rs` | `BACKGROUND_PANEL`, `TEXT_PRIMARY`, `ACCENT_AMBER_TEXT`, … |
 | What the tree says by a case: its eye's hover, the « Corps » rubric with the body's mode | `app/src/wording/part_tree.rs` | `eye`, `body` |
@@ -420,9 +421,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | A variable dragged from the panel into a dimension's field | `app/src/ui/dropping.rs`, `app/src/screens/variables/view.rs`, `app/src/screens/viewport/render/dimensions.rs` | `grip`, `take_a_dropped_name`, `DraggedName` |
 | Canvas: the values a shape earns, laid as typed; a click refused for a field that does not read; the scale the shape in hand reads what is typed with | `app/src/screens/viewport/values.rs` | `lay_values`, `as_typed`, `refused_for_what_is_typed`, `shape_scale` |
 | History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
-| Files panel: what it holds and what is half-done to it | `app/src/screens/explorer/state.rs` | `Explorer` |
+| Files panel, on the home screen only: what it holds and what is half-done to it | `app/src/screens/explorer/state.rs` | `Explorer` |
 | Files panel: the drawing of it | `app/src/screens/explorer/view.rs` | `panel(...)` → `ExplorerAction` |
-| Starting a second window on another part | `app/src/adapters/window.rs` | `open_another` |
 | Exporting the part to STL: the gap each level asks for, the level suggested when one is refused, the file written where the save dialog says (#580) | `app/src/export.rs`, `app/src/adapters/save_dialog.rs`, `app/src/wording/export.rs` | `gap`, `export_request`, `stl`; `stl_destination`, `with_stl_extension`; `uncovered`, `written` |
 | What a part's picture is made of | `app/src/picture/scene.rs` | `of` |
 | Taking that picture | `app/src/picture/mod.rs` | `Painter::take`, `SIDE` |

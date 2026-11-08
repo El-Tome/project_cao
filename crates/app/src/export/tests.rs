@@ -16,7 +16,9 @@
 //!   a dialog closed writes nothing —
 //!   `a_step_save_dialog_closed_writes_nothing_and_leaves_no_message`; a file
 //!   the system refuses fills the error bar —
-//!   `a_step_file_the_system_refuses_fills_the_error_bar`
+//!   `a_step_file_the_system_refuses_is_handed_back_as_an_error`, the bar
+//!   having become the title bar's pill in #726, where it is said is held in
+//!   `crates/app/tests/title_bar.rs`
 //! - a drawing in units other than millimetres is written in millimetres: the
 //!   part's own millimetres per unit is the one handed to the writer —
 //!   `a_step_export_of_a_part_drawn_at_a_scale_is_written_at_its_millimetres_per_unit`
@@ -82,8 +84,8 @@ fn raised(mut document: PartDocument, inside: DVec2) -> PartDocument {
     document
 }
 
-/// What the status line and the error bar say once the part is exported, an
-/// older message standing on the status line before.
+/// The message and the error the export hands back, an older message standing
+/// before it.
 struct Said {
     message: Option<String>,
     error: Option<String>,
@@ -253,7 +255,7 @@ fn a_save_dialog_closed_writes_nothing_and_leaves_no_message() {
 }
 
 #[test]
-fn a_file_the_system_refuses_fills_the_error_bar() {
+fn a_file_the_system_refuses_is_handed_back_as_an_error() {
     let path = PathBuf::from("/locked/plaque.stl");
 
     let said = exported(
@@ -263,10 +265,12 @@ fn a_file_the_system_refuses_fills_the_error_bar() {
         |_| Some(path.clone()),
     );
 
-    let error = said.error.expect("the error bar says the write failed");
+    let error = said
+        .error
+        .expect("the export hands back that the write failed");
     assert!(
         error.contains(&path.display().to_string()),
-        "the error bar names the file refused: {error}"
+        "the error names the file refused: {error}"
     );
 }
 
@@ -389,14 +393,16 @@ fn a_step_save_dialog_closed_writes_nothing_and_leaves_no_message() {
 }
 
 #[test]
-fn a_step_file_the_system_refuses_fills_the_error_bar() {
+fn a_step_file_the_system_refuses_is_handed_back_as_an_error() {
     let path = PathBuf::from("/locked/plaque.step");
 
     let said = exported_to_step(&mut a_block(), &RefusingFiles, |_| Some(path.clone()));
 
-    let error = said.error.expect("the error bar says the write failed");
+    let error = said
+        .error
+        .expect("the export hands back that the write failed");
     assert!(
         error.contains(&path.display().to_string()),
-        "the error bar names the file refused: {error}"
+        "the error names the file refused: {error}"
     );
 }

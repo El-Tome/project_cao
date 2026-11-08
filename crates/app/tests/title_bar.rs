@@ -50,13 +50,17 @@
 //!   screen, and the red bar at the bottom is no longer drawn there —
 //!   `a_save_that_fails_shows_its_error_in_red_in_the_pill_and_not_at_the_bottom`
 //! - an export error in particular — no test: an export asks the system's save
-//!   dialog where to write, which a headless driver cannot answer; it writes
-//!   its error where the save does, `CaoApp.error`, and the bullet above holds
-//!   the road from there to the pill
+//!   dialog where to write, which a headless driver cannot answer. That it
+//!   hands back its error is held in `crates/app/src/export/tests.rs`, by
+//!   `a_file_the_system_refuses_is_handed_back_as_an_error` and its STEP twin;
+//!   the screen takes it as it takes a save's, and the bullet above holds the
+//!   road from there to the pill
 //! - an error takes the pill, and the message it replaces is gone —
 //!   `an_error_takes_the_pill_from_the_message_before_it`
 //! - an error gives way to the next message or the next command, like every
-//!   message today — `an_error_gives_way_to_the_next_command`
+//!   message today — `an_error_gives_way_to_the_next_command`, which says
+//!   nothing in its turn, and `an_error_gives_way_to_the_next_message`, the
+//!   pill back in the tone of what is said
 //! - the home screen has no pill, so the red bar stays there: an open or create
 //!   failure is seen on the home screen —
 //!   `a_part_that_cannot_be_created_says_so_on_the_home_screen`, and a failed
@@ -81,6 +85,13 @@
 //! takes the pill and gives way like a message. The home screen has no pill and
 //! keeps the red bar.
 //!
+//! A save is made to fail with no window by putting a file where the folder of
+//! the parts was, the folder set aside; bringing it back lets the next write
+//! succeed, so that what is left of an error is only what the screen kept.
+//! An error is a text naming the part's file inside a sentence — every file
+//! error says the path — and its tone is read off the frame: the fill of the
+//! pill around it, the colour of its dot, the colour its text is painted in.
+//!
 //! A row of the screen is read off the accessibility tree: every name and every
 //! text whose middle stands within the height of one widget known to be on it,
 //! left to right, a text once rather than once more for the run of glyphs
@@ -91,6 +102,7 @@
 
 mod driver;
 
+use cao_app::theme::tokens;
 use egui::accesskit::Role;
 use egui_kittest::kittest::{NodeT, Queryable};
 use glam::{DVec2, DVec3};
@@ -259,8 +271,8 @@ fn the_view_stands_in_a_pill_at_the_end_of_the_breadcrumb() {
     let name = the_topmost_reading(&app, "Platine");
     let pills: Vec<egui::Rect> = backgrounds_painted(&app)
         .into_iter()
-        .filter(|(_, least_radius)| *least_radius > 0.0)
-        .map(|(pill, _)| pill)
+        .filter(|(_, least_radius, _)| *least_radius > 0.0)
+        .map(|(pill, ..)| pill)
         .filter(|pill| pill.expand(HUGGED_WITHIN).contains_rect(view) && !pill.intersects(name))
         .collect();
 
@@ -380,12 +392,12 @@ fn a_tool_s_hint_shows_centred_in_the_title_bar_in_a_pill_with_an_amber_dot() {
     let view = the_topmost_reading(&app, "Esquisse 1");
     let pill = backgrounds_painted(&app)
         .into_iter()
-        .filter(|(around, least_radius)| {
+        .filter(|(around, least_radius, _)| {
             *least_radius >= around.height() / 2.0 - ROUND_WITHIN
                 && around.expand(HUGGED_WITHIN).contains_rect(hint)
                 && !around.intersects(view)
         })
-        .map(|(around, _)| around)
+        .map(|(around, ..)| around)
         .min_by(|one, other| one.area().total_cmp(&other.area()));
     if pill.is_none() {
         wrong.push(format!(
@@ -402,7 +414,7 @@ fn a_tool_s_hint_shows_centred_in_the_title_bar_in_a_pill_with_an_amber_dot() {
             message.center().x,
         ));
     }
-    let amber = cao_app::theme::tokens::ACCENT_AMBER;
+    let amber = tokens::ACCENT_AMBER;
     let dots = dots_painted(&app, amber);
     let beside_the_hint = dots.iter().any(|(at, wide)| {
         (wide - DOT).abs() < SIZED_WITHIN
@@ -421,6 +433,190 @@ fn a_tool_s_hint_shows_centred_in_the_title_bar_in_a_pill_with_an_amber_dot() {
         wrong.is_empty(),
         "the tool's hint is not shown as the redesign draws it:\n  {}",
         wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn a_save_that_fails_shows_its_error_in_red_in_the_pill_and_not_at_the_bottom() {
+    let test = "a_save_that_fails_shows_its_error_in_red_in_the_pill";
+    let mut app = a_part(test);
+    driver::start_a_sketch(&mut app);
+
+    take_the_folder_away(test);
+    driver::draw_a_segment(&mut app);
+
+    let mut wrong = Vec::new();
+    let errors = errors_said(&app, test);
+    let bar = the_topmost_reading(&app, "Accueil");
+    let off_the_bar: Vec<&egui::Rect> = errors
+        .iter()
+        .filter(|at| !bar.y_range().contains(at.center().y))
+        .collect();
+    if !off_the_bar.is_empty() {
+        wrong.push(format!(
+            "the error is said at {off_the_bar:?}, off the title bar's row at {bar:?}, in a \
+             window {:?}",
+            app.ctx.content_rect(),
+        ));
+    }
+    match errors
+        .iter()
+        .find(|at| bar.y_range().contains(at.center().y))
+    {
+        None => wrong.push(format!(
+            "no error naming the part's file is said on the title bar; the screen says {:?}",
+            driver::said(&app),
+        )),
+        Some(error) => wrong.extend(not_in_the_error_tone(&app, *error)),
+    }
+    let ink = colours_the_error_is_written_in(&app, test);
+    if ink.iter().any(|colour| *colour != tokens::STATE_ERROR_TEXT) || ink.is_empty() {
+        wrong.push(format!(
+            "the error is written in {ink:?}, where `state.error_text` is {:?}",
+            tokens::STATE_ERROR_TEXT,
+        ));
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "a save that failed is not said in the title bar's pill, in red:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn an_error_takes_the_pill_from_the_message_before_it() {
+    let test = "an_error_takes_the_pill_from_the_message_before_it";
+    let mut app = a_part(test);
+    driver::start_a_sketch(&mut app);
+    driver::click_exactly(&mut app, "Arc");
+    assert!(
+        driver::says(&app, THE_ARC_S_HINT),
+        "the arc's hint is not said once the tool is taken, which leaves nothing for \
+         the error to take the place of: {:?}",
+        driver::said(&app),
+    );
+
+    take_the_folder_away(test);
+    lay_an_arc(&mut app);
+
+    let bar = the_topmost_reading(&app, "Accueil");
+    let errors = errors_said(&app, test);
+    assert!(
+        errors
+            .iter()
+            .any(|at| bar.y_range().contains(at.center().y))
+            && !driver::says(&app, THE_ARC_S_HINT),
+        "an arc laid while the part could not be written: the error is said at {errors:?} \
+         (the title bar's row is at {bar:?}), and the screen says {:?}",
+        driver::said(&app),
+    );
+}
+
+#[test]
+fn an_error_gives_way_to_the_next_command() {
+    let test = "an_error_gives_way_to_the_next_command";
+    let mut app = a_part_whose_save_failed(test);
+
+    driver::click(&mut app, "Ligne (L)");
+
+    assert!(
+        errors_said(&app, test).is_empty(),
+        "the error is still said once the line tool is taken: {:?}",
+        driver::said(&app),
+    );
+}
+
+#[test]
+fn an_error_gives_way_to_the_next_message() {
+    let test = "an_error_gives_way_to_the_next_message";
+    let mut app = a_part_whose_save_failed(test);
+
+    driver::click_exactly(&mut app, "Arc");
+
+    let mut wrong = Vec::new();
+    if !errors_said(&app, test).is_empty() {
+        wrong.push("the error is still said".to_owned());
+    }
+    if !driver::says(&app, THE_ARC_S_HINT) {
+        wrong.push("the arc's hint is not said".to_owned());
+    }
+    let red_dots = dots_painted(&app, tokens::STATE_ERROR);
+    if !red_dots.is_empty() {
+        wrong.push(format!("an error's dot is still painted, at {red_dots:?}"));
+    }
+    assert!(
+        wrong.is_empty(),
+        "once the arc tool is taken after a failed save:\n  {}\nThe screen says {:?}",
+        wrong.join("\n  "),
+        driver::said(&app),
+    );
+}
+
+#[test]
+fn a_save_error_stays_in_the_pill_until_the_next_gesture() {
+    let test = "a_save_error_stays_in_the_pill_until_the_next_gesture";
+    let mut app = a_part_whose_save_failed(test);
+
+    app.run_steps(8);
+    driver::hold_the_canvas(&mut app);
+
+    assert!(
+        !errors_said(&app, test).is_empty(),
+        "two seconds with no gesture, the part written again behind it, and the error \
+         is no longer said: {:?}",
+        driver::said(&app),
+    );
+}
+
+#[test]
+fn a_part_that_cannot_be_created_says_so_on_the_home_screen() {
+    let test = "a_part_that_cannot_be_created_says_so_on_the_home_screen";
+    let mut app = driver::open(test);
+    std::fs::write(the_folder(test), b"in the way").expect("a file where the folder goes");
+
+    driver::create_a_part(&mut app, "Platine");
+
+    let window = app.ctx.content_rect();
+    let at_the_bottom: Vec<egui::Rect> = app
+        .query_all_by_role(Role::Label)
+        .filter(|node| {
+            node.accesskit_node()
+                .value()
+                .is_some_and(|said| said.contains(&the_folder(test).display().to_string()))
+        })
+        .map(|node| node.rect())
+        .filter(|at| at.bottom() >= window.bottom() - AT_THE_BOTTOM)
+        .collect();
+    assert!(
+        driver::shows(&app, "Créer") && !at_the_bottom.is_empty(),
+        "a part that could not be made is not said at the bottom of the home screen, \
+         in a window {window:?}; the screen says {:?}",
+        driver::said(&app),
+    );
+}
+
+#[test]
+fn a_save_that_fails_on_leaving_the_part_is_seen_on_the_home_screen() {
+    let test = "a_save_that_fails_on_leaving_the_part_is_seen_on_the_home_screen";
+    let mut app = a_part(test);
+    driver::start_a_sketch(&mut app);
+    driver::draw_a_segment(&mut app);
+
+    take_the_folder_away(test);
+    driver::click(&mut app, "Accueil");
+
+    let window = app.ctx.content_rect();
+    let errors = errors_said(&app, test);
+    assert!(
+        driver::shows(&app, "Créer")
+            && errors
+                .iter()
+                .any(|at| at.bottom() >= window.bottom() - AT_THE_BOTTOM),
+        "the part could not be put away, and the home screen does not say so at its \
+         bottom: the error is said at {errors:?} in a window {window:?}; the screen \
+         says {:?}",
+        driver::said(&app),
     );
 }
 
@@ -455,6 +651,152 @@ const CENTRED_WITHIN: f32 = 1.0;
 /// How far a corner may fall short of half the side it rounds and still read as
 /// a round end, in points: a radius is held in whole points.
 const ROUND_WITHIN: f32 = 0.5;
+
+/// How far from the bottom of the window the red bar's text may stand, in
+/// points: a row of text and the bar's margin.
+const AT_THE_BOTTOM: f32 = 40.0;
+
+/// The folder the driver's application keeps its parts in.
+fn the_folder(test: &str) -> std::path::PathBuf {
+    std::env::temp_dir()
+        .join("cao-driver")
+        .join(test)
+        .join("documents")
+        .join("CAO")
+}
+
+/// Where the part `a_part` makes is written.
+fn the_part_s_file(test: &str) -> String {
+    the_folder(test)
+        .join("Platine.caopart")
+        .display()
+        .to_string()
+}
+
+/// Puts a file where the folder of the parts was, so that writing the part
+/// fails; the folder itself is set aside, and `bring_the_folder_back` undoes
+/// both.
+fn take_the_folder_away(test: &str) {
+    let folder = the_folder(test);
+    std::fs::rename(&folder, folder.with_extension("away")).expect("the folder is set aside");
+    std::fs::write(&folder, b"in the way").expect("a file where the folder was");
+}
+
+fn bring_the_folder_back(test: &str) {
+    let folder = the_folder(test);
+    std::fs::remove_file(&folder).expect("the file in the way is taken out");
+    std::fs::rename(folder.with_extension("away"), &folder).expect("the folder comes back");
+}
+
+/// A part whose save failed when a line was drawn, the error said, the folder
+/// then brought back so that the next write succeeds: what is left of the
+/// error is then only what the screen kept of it.
+fn a_part_whose_save_failed(test: &str) -> driver::App {
+    let mut app = a_part(test);
+    driver::start_a_sketch(&mut app);
+    take_the_folder_away(test);
+    driver::draw_a_segment(&mut app);
+    assert!(
+        !errors_said(&app, test).is_empty(),
+        "a line drawn while the part could not be written said no error: {:?}",
+        driver::said(&app),
+    );
+    bring_the_folder_back(test);
+    app.run();
+    driver::hold_the_canvas(&mut app);
+    app
+}
+
+/// Where each text that says the part's file went wrong stands: a sentence
+/// around its path, never the bare path the part's name shows on hover.
+fn errors_said(app: &driver::App, test: &str) -> Vec<egui::Rect> {
+    let file = the_part_s_file(test);
+    app.query_all_by_role(Role::Label)
+        .filter(|node| {
+            node.accesskit_node()
+                .value()
+                .is_some_and(|said| said.contains(&file) && said != file)
+        })
+        .map(|node| node.rect())
+        .collect()
+}
+
+/// Every colour the text naming the part's file is painted in.
+fn colours_the_error_is_written_in(app: &driver::App, test: &str) -> Vec<egui::Color32> {
+    let file = the_part_s_file(test);
+    let mut found = Vec::new();
+    let mut pending: Vec<&egui::Shape> = app
+        .output()
+        .shapes
+        .iter()
+        .map(|clipped| &clipped.shape)
+        .collect();
+    while let Some(shape) = pending.pop() {
+        match shape {
+            egui::Shape::Vec(group) => pending.extend(group),
+            egui::Shape::Text(text) if text.galley.text().contains(&file) => {
+                for section in &text.galley.job.sections {
+                    found.push(match text.override_text_color {
+                        Some(colour) => colour,
+                        None if section.format.color == egui::Color32::PLACEHOLDER => {
+                            text.fallback_color
+                        }
+                        None => section.format.color,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+    found
+}
+
+/// What keeps the error at `error` from standing in a pill in the error's
+/// tone: round ends filled with `state.error_background`, and a dot of
+/// `state.error` before the text.
+fn not_in_the_error_tone(app: &driver::App, error: egui::Rect) -> Vec<String> {
+    let mut wrong = Vec::new();
+    let pill = backgrounds_painted(app)
+        .into_iter()
+        .filter(|(around, least_radius, _)| {
+            *least_radius >= around.height() / 2.0 - ROUND_WITHIN
+                && around.expand(HUGGED_WITHIN).contains_rect(error)
+        })
+        .min_by(|one, other| one.0.area().total_cmp(&other.0.area()));
+    let Some((pill, _, fill)) = pill else {
+        return vec![format!(
+            "nothing with round ends is painted around the error at {error:?}"
+        )];
+    };
+    if fill != tokens::STATE_ERROR_BACKGROUND {
+        wrong.push(format!(
+            "the error's pill is filled with {fill:?}, where `state.error_background` is {:?}",
+            tokens::STATE_ERROR_BACKGROUND,
+        ));
+    }
+    let dots = dots_painted(app, tokens::STATE_ERROR);
+    let before_the_error = dots.iter().any(|(at, wide)| {
+        (wide - DOT).abs() < SIZED_WITHIN
+            && pill.contains(*at)
+            && at.x < error.left()
+            && error.y_range().contains(at.y)
+    });
+    if !before_the_error {
+        wrong.push(format!(
+            "no dot of `state.error`, {DOT} points wide, stands in the pill before the \
+             error at {error:?}; such dots painted: {dots:?}"
+        ));
+    }
+    wrong
+}
+
+/// An arc laid with the tool in hand: its centre, where it starts, where it
+/// ends.
+fn lay_an_arc(app: &mut driver::App) {
+    driver::click_at_sketch_point(app, driver::A_POINT_ABOVE_THE_ORIGIN);
+    driver::click_at_sketch_point(app, driver::A_POINT_BELOW_AND_RIGHT);
+    driver::click_at_sketch_point(app, driver::A_POINT_FURTHER_ALONG);
+}
 
 /// The corners of the rectangle the block is raised off, points of its sketch
 /// on the plane YZ, and a point inside it: those `keeping_a_section.rs` tuned.
@@ -531,8 +873,8 @@ fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
 }
 
 /// Every rectangle the last frame painted with something to see — a fill or
-/// an outline — and the least of its four corner radii.
-fn backgrounds_painted(app: &driver::App) -> Vec<(egui::Rect, f32)> {
+/// an outline — with the least of its four corner radii and its fill.
+fn backgrounds_painted(app: &driver::App) -> Vec<(egui::Rect, f32, egui::Color32)> {
     let mut found = Vec::new();
     let mut pending: Vec<&egui::Shape> = app
         .output()
@@ -549,7 +891,7 @@ fn backgrounds_painted(app: &driver::App) -> Vec<(egui::Rect, f32)> {
                     .into_iter()
                     .min()
                     .unwrap_or_default();
-                found.push((rect.rect, f32::from(least)));
+                found.push((rect.rect, f32::from(least), rect.fill));
             }
             _ => {}
         }

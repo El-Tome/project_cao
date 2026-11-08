@@ -184,7 +184,12 @@ impl CaoApp {
         editor.sketching = settings.sketching;
         viewport.copy_panel_at = settings.copy_panel_at;
 
-        let bar = screens::title_bar::TitleBar::of(doc, path, editor, viewport, lang);
+        // The error stands in the title bar's pill on this screen, until the
+        // frame's end says whether it keeps it.
+        let standing = self.error.take();
+        screens::title_bar::takes_the_pill(standing.as_deref(), &mut editor.message);
+        let error = standing.as_deref();
+        let bar = screens::title_bar::TitleBar::of(doc, path, editor, viewport, error, lang);
         let mut back_to_menu = screens::title_bar::show(ui, &bar, lang);
         let mut changed = false;
         let mut asked: Vec<Command> = Vec::new();
@@ -211,6 +216,7 @@ impl CaoApp {
             extrusion,
             lang,
         };
+        let commanded = !asked.is_empty();
         for command in asked {
             match command {
                 Command::OpenSettings => self.settings_open = true,
@@ -262,6 +268,12 @@ impl CaoApp {
         {
             self.error = Some(message);
         }
+        self.error = screens::title_bar::settle(
+            standing.as_deref(),
+            self.error.take(),
+            &mut editor.message,
+            commanded || back_to_menu,
+        );
         if let Some(at) = copy_panel_let_go_at {
             self.remembered.profiles.active_mut().copy_panel_at = Some(at);
             // With nowhere to keep it, the place holds for the session alone.
@@ -316,7 +328,11 @@ impl CaoApp {
 impl eframe::App for CaoApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.window.follow();
-        if let Some(error) = &self.error {
+        let error_before = self.error.clone();
+        // The part screen says its errors in its title bar's pill.
+        if matches!(self.screen, Screen::StartMenu)
+            && let Some(error) = &self.error
+        {
             let message = error.clone();
             egui::Panel::bottom("error_bar").show(ui, |ui| {
                 ui.colored_label(crate::ui::theme::tokens::STATE_ERROR_TEXT, message);
@@ -335,6 +351,11 @@ impl eframe::App for CaoApp {
             self.show_part(ui);
         }
         self.show_settings(ui);
+        // An error found at the end of a frame is drawn by the next one, which
+        // nothing else may be about to ask for.
+        if self.error != error_before {
+            ui.ctx().request_repaint();
+        }
     }
 
     fn on_exit(&mut self) {

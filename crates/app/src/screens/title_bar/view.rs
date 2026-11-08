@@ -3,7 +3,7 @@ use crate::ui::icon;
 use crate::ui::panel_toggle::panel_button;
 use crate::ui::pill::{MESSAGE_HEIGHT, Tone, message_pill, pill};
 
-use super::state::TitleBar;
+use super::state::{Said, TitleBar};
 
 /// Draws the title bar along the top of the screen, and says whether the way
 /// home was clicked. The message stands in the middle of the window rather
@@ -22,8 +22,12 @@ pub fn show(ui: &mut egui::Ui, bar: &TitleBar<'_>, lang: &Catalogue) -> bool {
                     .on_hover_text(bar.path.display().to_string());
                 ui.weak("/");
                 pill(ui, &bar.view);
-                if let Some(message) = bar.message {
-                    message_pill(ui, middle, message, Tone::Said);
+                if let Some(said) = bar.said {
+                    let (text, tone) = match said {
+                        Said::Message(message) => (message, Tone::Said),
+                        Said::Error(error) => (error, Tone::Failed),
+                    };
+                    message_pill(ui, middle, text, tone);
                 }
                 home
             })

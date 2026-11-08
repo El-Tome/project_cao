@@ -25,7 +25,12 @@ kept section shown (« Coupe 1 »), else the plane the view is turned to, else
 « Vue 3D libre ». In the middle of the window, whatever the breadcrumb's
 length, the message answering the last gesture — a hint, a refusal, a
 confirmation — stands in a pill of its own behind an amber dot, and gives way
-to the next.
+to the next. A write that fails — saving the part, an export, the settings —
+takes the pill in red, the message before it gone, and gives way in
+turn to the next message or the next command; a write that succeeds meanwhile
+takes nothing back. A message too long for the room left is cut short, the
+whole of it on hover. The home screen has no pill: its errors stand in a red
+bar along the bottom.
 
 The « CAO » logo heads the tab row on a fresh install; the toolbar section of
 the preferences switches it off. Right of the tabs stand the toggles of the

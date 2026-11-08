@@ -53,30 +53,43 @@ impl<'a> TitleBar<'a> {
     }
 }
 
-/// An error standing as a frame begins has taken the pill: the message before
-/// it is gone, so that any message found at the end of the frame was said in it.
-pub fn takes_the_pill(error: Option<&str>, message: &mut Option<String>) {
-    if error.is_some() {
-        *message = None;
-    }
+/// An error on the pill, and the message it was laid over.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Covering {
+    pub error: String,
+    pub covers: Option<String>,
 }
 
-/// The error the pill holds once a frame is over. One that went wrong in it
-/// wins over a message said in it, and clears that message; one standing from
-/// before gives way to a message said or a command asked in the frame, and to
-/// nothing else — a write that succeeds since takes nothing back.
+/// What the pill holds once a frame is over. An error raised since the last
+/// frame was settled takes it, over whatever message stands, a message said in
+/// the same frame included. One standing from before gives way to a command,
+/// or to a message other than the one the frame began with — a sentence said
+/// again unchanged at every frame is not a new one — and takes the message it
+/// covered with it, so that one never comes back. Nothing else moves it: a
+/// write that succeeds since takes nothing back.
 pub fn settle(
-    standing: Option<&str>,
+    standing: Option<Covering>,
     fresh: Option<String>,
+    at_start: Option<&str>,
     message: &mut Option<String>,
     commanded: bool,
-) -> Option<String> {
-    if fresh.is_some() {
-        *message = None;
-        return fresh;
+) -> Option<Covering> {
+    if let Some(error) = fresh {
+        return Some(Covering {
+            error,
+            covers: message.clone(),
+        });
     }
-    if commanded || message.is_some() {
+    let standing = standing?;
+    let said_since = message.is_some() && message.as_deref() != at_start;
+    if commanded || said_since {
+        if *message == standing.covers {
+            *message = None;
+        }
         return None;
     }
-    standing.map(str::to_owned)
+    Some(standing)
 }
+
+#[cfg(test)]
+mod tests;

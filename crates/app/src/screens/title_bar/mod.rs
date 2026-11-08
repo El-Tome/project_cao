@@ -4,5 +4,5 @@
 mod state;
 mod view;
 
-pub use state::{TitleBar, settle, takes_the_pill};
+pub use state::{Covering, TitleBar, settle};
 pub use view::show;

@@ -3,7 +3,9 @@
 //!
 //! Closes #726.
 //! - the view pill reads « Esquisse N » when a sketch is open, N its rank as
-//!   the Part tree words it — `an_open_sketch_names_the_view_by_its_rank`
+//!   the Part tree words it — `an_open_sketch_names_the_view_by_its_rank`, and
+//!   ahead of the section view, so that the two cannot trade places unseen —
+//!   `a_sketch_open_with_the_section_view_on_names_the_view_by_the_sketch`
 //! - and so ahead of the kept section the sketch stands on, which the bar read
 //!   before — `a_sketch_open_on_a_kept_section_names_the_view_by_the_sketch`
 //! - else « Vue en coupe » while the section view is on, a kept section shown
@@ -51,6 +53,21 @@ fn a_sketch_open_on_a_kept_section_names_the_view_by_the_sketch() {
     assert_eq!(
         view, "Esquisse 2",
         "a sketch open on a kept section is named after the section rather than itself",
+    );
+}
+
+#[test]
+fn a_sketch_open_with_the_section_view_on_names_the_view_by_the_sketch() {
+    let view = named(Standing {
+        open_sketch_rank: Some(2),
+        section_view_on: true,
+        kept_section_rank: None,
+        plane: Some(WorkPlane::YZ),
+    });
+
+    assert_eq!(
+        view, "Esquisse 2",
+        "a sketch open with the section view on is named after the section view",
     );
 }
 

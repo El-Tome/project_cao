@@ -126,6 +126,7 @@ impl CaoApp {
             extrusion: ExtrusionState::default(),
             ribbon: Ribbon::new(),
             variables: screens::variables::VariablesPanel::default(),
+            covering: None,
         }));
     }
 
@@ -174,6 +175,7 @@ impl CaoApp {
             extrusion,
             ribbon,
             variables,
+            covering,
         } = part.as_mut();
 
         // The viewport reads its own copy: it is handed to the renderer every
@@ -184,11 +186,10 @@ impl CaoApp {
         editor.sketching = settings.sketching;
         viewport.copy_panel_at = settings.copy_panel_at;
 
-        // The error stands in the title bar's pill on this screen, until the
-        // frame's end says whether it keeps it.
-        let standing = self.error.take();
-        screens::title_bar::takes_the_pill(standing.as_deref(), &mut editor.message);
-        let error = standing.as_deref();
+        // An error raised on this screen goes to the title bar's pill, which
+        // the frame's end settles; until then the shell holds it.
+        let at_start = editor.message.clone();
+        let error = covering.as_ref().map(|lying| lying.error.as_str());
         let bar = screens::title_bar::TitleBar::of(doc, path, editor, viewport, error, lang);
         let mut back_to_menu = screens::title_bar::show(ui, &bar, lang);
         let mut changed = false;
@@ -268,12 +269,17 @@ impl CaoApp {
         {
             self.error = Some(message);
         }
-        self.error = screens::title_bar::settle(
-            standing.as_deref(),
+        let settled = screens::title_bar::settle(
+            covering.clone(),
             self.error.take(),
+            at_start.as_deref(),
             &mut editor.message,
             commanded || back_to_menu,
         );
+        if settled != *covering {
+            ui.ctx().request_repaint();
+        }
+        *covering = settled;
         if let Some(at) = copy_panel_let_go_at {
             self.remembered.profiles.active_mut().copy_panel_at = Some(at);
             // With nowhere to keep it, the place holds for the session alone.

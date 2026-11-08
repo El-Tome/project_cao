@@ -34,6 +34,8 @@ pub struct OpenPart {
     pub extrusion: ExtrusionState,
     pub ribbon: Ribbon,
     pub variables: variables::VariablesPanel,
+    /// The error the title bar's pill holds over the message, if one does.
+    pub covering: Option<title_bar::Covering>,
 }
 
 /// The part being worked on, borrowed for one gesture or one command: what the

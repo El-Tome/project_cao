@@ -13,6 +13,11 @@
 //! - the existing Preferences switch for the logo stays —
 //!   `with_the_logo_switched_off_the_tab_row_opens_on_the_tabs`
 //! - H still toggles the history panel — `h_still_opens_and_closes_the_history`
+//! - hiding « Pièce » hides the history and the reader with it (T8, in the
+//!   issue's "Decided on the way") — no test: out of scope here. In this issue
+//!   the history is still a panel of its own, toggled by H, and there is no
+//!   reader yet; the history folds into the Part panel, and T8 with it, in the
+//!   Part panel lot, #735
 //! - the Files panel is no longer shown on the part screen —
 //!   `the_part_screen_shows_no_files_panel_and_b_does_not_bring_it_back`
 //! - it stays on the home screen, always shown there as today —
@@ -60,7 +65,13 @@
 //! - an error gives way to the next message or the next command, like every
 //!   message today — `an_error_gives_way_to_the_next_command`, which says
 //!   nothing in its turn, and `an_error_gives_way_to_the_next_message`, the
-//!   pill back in the tone of what is said
+//!   pill back in the tone of what is said. A message said again unchanged at
+//!   every frame is not a next message: choosing a plane says its sentence
+//!   with every move of the mouse, and an error from the Preferences stays
+//!   through it — `a_preferences_error_stays_while_a_plane_is_being_chosen`.
+//!   The rule, case by case, is held beside the title bar's presenter, in
+//!   `crates/app/src/screens/title_bar/state/tests.rs`, under its own
+//!   `Closes #726`
 //! - the home screen has no pill, so the red bar stays there: an open or create
 //!   failure is seen on the home screen —
 //!   `a_part_that_cannot_be_created_says_so_on_the_home_screen`, and a failed
@@ -554,6 +565,45 @@ fn an_error_gives_way_to_the_next_message() {
 }
 
 #[test]
+fn a_preferences_error_stays_while_a_plane_is_being_chosen() {
+    let test = "a_preferences_error_stays_while_a_plane_is_being_chosen";
+    let mut app = a_part(test);
+    driver::click(&mut app, "Nouvelle esquisse");
+    hover_at_world_point(&mut app, DVec3::ZERO);
+    assert!(
+        driver::says(&app, CHOOSING_A_PLANE),
+        "« Nouvelle esquisse » does not ask for a plane: {:?}",
+        driver::said(&app),
+    );
+
+    let settings = the_settings_folder(test);
+    std::fs::rename(&settings, settings.with_extension("away")).expect("the folder is set aside");
+    std::fs::write(&settings, b"in the way").expect("a file where the folder was");
+    driver::press_with_command(&mut app, egui::Key::Comma);
+    driver::click_exactly(&mut app, "Raccourcis");
+    let unbind = app
+        .query_all_by_label("Retirer")
+        .next()
+        .expect("a shortcut to take away");
+    unbind.scroll_to_me();
+    unbind.click_accesskit();
+    app.run();
+    driver::click_exactly(&mut app, "Close window");
+    let raised = settings_errors_said(&app, test);
+    for point in [driver::ON_THE_YZ_PLANE, driver::ON_THE_YZ_PLANE / 2.0] {
+        hover_at_world_point(&mut app, point);
+    }
+
+    assert!(
+        !raised.is_empty() && !settings_errors_said(&app, test).is_empty(),
+        "the preferences could not be written: said {raised:?} once their window was \
+         closed, then the mouse moved over the view while a plane is chosen, and the \
+         screen says {:?}",
+        driver::said(&app),
+    );
+}
+
+#[test]
 fn a_save_error_stays_in_the_pill_until_the_next_gesture() {
     let test = "a_save_error_stays_in_the_pill_until_the_next_gesture";
     let mut app = a_part_whose_save_failed(test);
@@ -663,6 +713,38 @@ fn the_folder(test: &str) -> std::path::PathBuf {
         .join(test)
         .join("documents")
         .join("CAO")
+}
+
+/// The pointer left over a point of the world, as a hand resting there.
+fn hover_at_world_point(app: &mut driver::App, point: DVec3) {
+    let at = driver::world_point_on_screen(app, point);
+    app.hover_at(at);
+    app.run();
+}
+
+/// What the view says while a plane to draw on is being chosen.
+const CHOOSING_A_PLANE: &str = "Choisissez un plan d'esquisse";
+
+/// The folder the driver's application keeps its settings in.
+fn the_settings_folder(test: &str) -> std::path::PathBuf {
+    std::env::temp_dir()
+        .join("cao-driver")
+        .join(test)
+        .join("config")
+}
+
+/// Where each text that says the settings could not be written stands: a
+/// sentence around the path of their folder.
+fn settings_errors_said(app: &driver::App, test: &str) -> Vec<egui::Rect> {
+    let folder = the_settings_folder(test).display().to_string();
+    app.query_all_by_role(Role::Label)
+        .filter(|node| {
+            node.accesskit_node()
+                .value()
+                .is_some_and(|said| said.contains(&folder))
+        })
+        .map(|node| node.rect())
+        .collect()
 }
 
 /// Where the part `a_part` makes is written.

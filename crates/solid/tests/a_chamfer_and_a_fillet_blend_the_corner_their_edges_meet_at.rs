@@ -36,7 +36,11 @@
 //!   `a_fillet_on_two_of_a_corner_s_three_edges_mitres_their_rounds_on_an_ellipse_and_leaves_the_third_edge_sharp_one_radius_short`;
 //!   and on the case the issue opens on, the four top edges of a block, a
 //!   mitre at each of its four corners —
-//!   `a_chamfer_and_a_fillet_on_the_four_top_edges_of_a_block_mitre_its_four_corners`
+//!   `a_chamfer_and_a_fillet_on_the_four_top_edges_of_a_block_mitre_its_four_corners`;
+//!   and on a convex corner that is not square, the end of a prism whose
+//!   sides slant, every pair of its three edges — the slanted upright among
+//!   them — mitred whatever the angles —
+//!   `a_chamfer_and_a_fillet_on_two_of_the_three_edges_of_a_corner_that_is_not_square_mitre_them_the_third_left_sharp`
 //! - Decision: two of three is a mitre. The two cuts trim each other: a
 //!   straight mitre line for chamfers, a planar ellipse arc for fillets,
 //!   running from where the two cuts' edges cross on their shared face down to
@@ -107,8 +111,9 @@
 //! each pair overlaps once, so the chamfered body keeps
 //! `V − d²(2L + 2B)/2 + 4d³/3`, and the filleted one
 //! `V − r²(1 − π/4)(2L + 2B) + 4r³(5/3 − π/2)`, `L` and `B` its length and
-//! breadth. The corners that are not square are measured where their tests
-//! stand.
+//! breadth: 5676 for the chamfer at 3 on the block 30 by 10 by 20, and
+//! 5855.84 for the fillet at 3. The corners that are not square are measured
+//! where their tests stand.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -593,6 +598,125 @@ fn mitred_by_rounds(lengths: [f64; 2], radius: f64) -> f64 {
         + radius.powi(3) * (5.0 / 3.0 - PI / 2.0)
 }
 
+/// What the block keeps once its four top edges are chamfered at `distance`,
+/// mitred at its four top corners: each flat's prism taken whole, and at each
+/// corner the pyramid where two cut given back once, as the module's
+/// documentation derives it.
+fn ringed_by_flats(distance: f64) -> f64 {
+    BLOCK_VOLUME - distance * distance * (2.0 * LENGTH + 2.0 * BREADTH) / 2.0
+        + 4.0 * distance.powi(3) / 3.0
+}
+
+/// What the block keeps once its four top edges are rounded at `radius`,
+/// mitred at its four top corners, as [`ringed_by_flats`] counts it.
+fn ringed_by_rounds(radius: f64) -> f64 {
+    BLOCK_VOLUME - radius * radius * (1.0 - PI / 4.0) * (2.0 * LENGTH + 2.0 * BREADTH)
+        + 4.0 * radius.powi(3) * (5.0 / 3.0 - PI / 2.0)
+}
+
+/// An edge of the block's top: the wall it runs along and the way that wall
+/// faces, the corner it starts at, the way it runs from it — round the top
+/// anticlockwise, seen from above — and how long it is.
+struct TopEdge {
+    wall: usize,
+    facing: DVec3,
+    start: DVec3,
+    along: DVec3,
+    length: f64,
+}
+
+/// The block's four top edges, round the top from the front: the front, the
+/// right, the back and the left.
+fn top_edges() -> [TopEdge; 4] {
+    [
+        TopEdge {
+            wall: FRONT,
+            facing: -DVec3::Y,
+            start: DVec3::new(0.0, 0.0, HEIGHT),
+            along: DVec3::X,
+            length: LENGTH,
+        },
+        TopEdge {
+            wall: RIGHT,
+            facing: DVec3::X,
+            start: DVec3::new(LENGTH, 0.0, HEIGHT),
+            along: DVec3::Y,
+            length: BREADTH,
+        },
+        TopEdge {
+            wall: BACK,
+            facing: DVec3::Y,
+            start: DVec3::new(LENGTH, BREADTH, HEIGHT),
+            along: -DVec3::X,
+            length: LENGTH,
+        },
+        TopEdge {
+            wall: LEFT,
+            facing: -DVec3::X,
+            start: DVec3::new(0.0, BREADTH, HEIGHT),
+            along: -DVec3::Y,
+            length: BREADTH,
+        },
+    ]
+}
+
+impl TopEdge {
+    /// The corner it ends at.
+    fn end(&self) -> DVec3 {
+        self.start + self.along * self.length
+    }
+
+    /// The edge's name on the part.
+    fn name(&self, part: &Body) -> EdgeName {
+        edge_between(part, TOP, self.wall)
+    }
+
+    /// Where a cut set back by `value` on the top from this edge crosses the
+    /// cut of the edge before it, at its start, and of the edge after it, at
+    /// its end.
+    fn crossings(&self, value: f64) -> [DVec3; 2] {
+        let into = -self.facing * value;
+        [
+            self.start + self.along * value + into,
+            self.end() - self.along * value + into,
+        ]
+    }
+
+    /// The flat a chamfer of `distance` lays on the edge, mitred at both its
+    /// ends: from the two crossings on the top down to the two uprights, one
+    /// distance below the top, and the way it faces.
+    fn flat(&self, distance: f64) -> ([DVec3; 4], DVec3) {
+        let [at_start, at_end] = self.crossings(distance);
+        let down = DVec3::Z * distance;
+        (
+            [at_start, at_end, self.end() - down, self.start - down],
+            (self.facing + DVec3::Z).normalize(),
+        )
+    }
+
+    /// The round a fillet of `radius` lays on the edge, whole: its axis the
+    /// radius in from the top and from the wall, along the whole edge.
+    fn round(&self, radius: f64) -> Round {
+        Round {
+            start: self.start - (self.facing + DVec3::Z) * radius,
+            along: self.along,
+            length: self.length,
+            radius,
+            facing: [DVec3::Z, self.facing],
+        }
+    }
+
+    /// Whether a point stands on this edge's side of the plane halfway between
+    /// it and the edge before it, at its start, and of the plane halfway
+    /// between it and the edge after it, at its end: no nearer either corner
+    /// along this edge than in from this edge's wall.
+    fn between_its_mitres(&self, point: DVec3) -> bool {
+        let inwards = |corner: DVec3| (point - corner).dot(-self.facing);
+        (point - self.start).dot(self.along) >= inwards(self.start) - PLACE
+            && (self.end() - point).dot(self.along) >= inwards(self.end()) - PLACE
+    }
+}
+
 /// The largest coordinate a body reaches, on either side of the origin.
 fn reach_of(body: &Body) -> f64 {
     let (low, high) = body.bounds().expect("a part has a box");
@@ -640,11 +764,11 @@ impl Round {
             && across.dot(second) >= least - PLACE
     }
 
-    /// The part of the round from `from` along its axis to its far end.
-    fn from(&self, from: f64) -> Round {
+    /// The part of the round from `from` along its axis to `to`.
+    fn part(&self, from: f64, to: f64) -> Round {
         Round {
             start: self.start + self.along * from,
-            length: self.length - from,
+            length: to - from,
             ..*self
         }
     }
@@ -964,7 +1088,7 @@ fn a_fillet_on_two_of_a_corner_s_three_edges_mitres_their_rounds_on_an_ellipse_a
             met_from_outside(
                 body,
                 face,
-                &round.from(r),
+                &round.part(r, round.length),
                 &format!("{what}: {which}, past the mitre"),
             );
             assert_eq!(
@@ -1040,5 +1164,163 @@ fn a_fillet_on_two_of_a_corner_s_three_edges_mitres_their_rounds_on_an_ellipse_a
              corner to its far end",
             corner.called[third]
         );
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_the_four_top_edges_of_a_block_mitre_its_four_corners() {
+    let value = 3.0;
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let edges = top_edges();
+    let steps_end = block.faces_end();
+
+    for (order, called) in [
+        ([0, 1, 2, 3], "named round the top"),
+        ([0, 2, 1, 3], "named the front and the back first"),
+    ] {
+        let names: Vec<EdgeName> = order.iter().map(|&edge| edges[edge].name(&block)).collect();
+
+        let chamfered = block
+            .chamfer_edges(&names, value)
+            .unwrap_or_else(|declined| panic!("the chamfer, {called}: declined, {declined:?}"));
+        let filleted = block
+            .fillet_edges(&names, value)
+            .unwrap_or_else(|declined| panic!("the fillet, {called}: declined, {declined:?}"));
+
+        let laid_for = |edge: usize| {
+            steps_end
+                + order
+                    .iter()
+                    .position(|&named| named == edge)
+                    .expect("every top edge is named")
+        };
+        let laid: Vec<usize> = (0..4).map(laid_for).collect();
+        let rounds: Vec<Round> = edges.iter().map(|edge| edge.round(value)).collect();
+        let area: f64 = rounds.iter().map(Round::area).sum();
+        for (what, asked, taken, body, promised, drawn) in [
+            (
+                format!("the chamfer on the four top edges, {called}"),
+                chamfered.asked,
+                chamfered.taken,
+                &chamfered.body,
+                ringed_by_flats(value),
+                EXACT * ringed_by_flats(value),
+            ),
+            (
+                format!("the fillet on the four top edges, {called}"),
+                filleted.asked,
+                filleted.taken,
+                &filleted.body,
+                ringed_by_rounds(value),
+                DRAWN * reach_of(&block) * area,
+            ),
+        ] {
+            taken_as_asked(asked, taken, value, &what);
+            sound_drawn_within(body, promised, drawn, &what);
+            let mut made = laid.clone();
+            made.sort();
+            assert_eq!(
+                faces_made(&block, body),
+                made,
+                "{what}: one face for each edge, numbered in the order the step names them, and \
+                 no face laid at a corner: {:?}",
+                numbers(body)
+            );
+            assert!(
+                numbers(&block).is_subset(&numbers(body)),
+                "{what}: a face of the block went: {:?}",
+                numbers(body)
+            );
+            let top: Vec<DVec3> = edges.iter().map(|edge| edge.crossings(value)[0]).collect();
+            corners_are(
+                body,
+                TOP,
+                &top,
+                &format!("{what}: the top, set back by the value from its four edges"),
+            );
+            assert_eq!(
+                sides_met(body, TOP),
+                sides(&laid),
+                "{what}: the top meets the four faces laid, and no wall"
+            );
+            for (index, edge) in edges.iter().enumerate() {
+                let [before, after] = [(index + 3) % 4, (index + 1) % 4];
+                let down = DVec3::Z * value;
+                let floor = DVec3::Z * HEIGHT;
+                corners_are(
+                    body,
+                    edge.wall,
+                    &[
+                        edge.start - down,
+                        edge.end() - down,
+                        edge.end() - floor,
+                        edge.start - floor,
+                    ],
+                    &format!(
+                        "{what}: wall {}, set back by the value from the top, its uprights \
+                         ending one value below it",
+                        edge.wall
+                    ),
+                );
+                assert_eq!(
+                    sides_met(body, edge.wall),
+                    sides(&[FLOOR, laid[index], edges[before].wall, edges[after].wall]),
+                    "{what}: wall {} meets the floor, the face laid on its top edge, and the \
+                     two walls beside it along their uprights, sharp",
+                    edge.wall
+                );
+                assert_eq!(
+                    sides_met(body, laid[index]),
+                    sides(&[TOP, edge.wall, laid[before], laid[after]]),
+                    "{what}: the face laid on wall {}'s top edge meets the top and the wall \
+                     along its sides, and the faces laid beside it along the mitres at its two \
+                     ends",
+                    edge.wall
+                );
+            }
+        }
+        for (index, edge) in edges.iter().enumerate() {
+            let which = format!(
+                "the chamfer on the four top edges, {called}: the flat on wall {}'s top edge",
+                edge.wall
+            );
+            let (corners, facing) = edge.flat(value);
+            corners_are(&chamfered.body, laid[index], &corners, &which);
+            faces_toward(&chamfered.body, laid[index], facing, &which);
+        }
+        for (index, (edge, round)) in edges.iter().zip(&rounds).enumerate() {
+            let which = format!(
+                "the fillet on the four top edges, {called}: the round on wall {}'s top edge",
+                edge.wall
+            );
+            let body = &filleted.body;
+            let face = laid[index];
+            assert!(
+                !body.is_flat(face) && body.plane_of(face).is_none(),
+                "{which} is curved, and offers no plane to draw on"
+            );
+            let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
+            assert!(!corners.is_empty(), "{which} is drawn");
+            for point in corners {
+                assert!(
+                    round.holds(point),
+                    "{which} is drawn through {point}, off its cylinder of {value} about the \
+                     line from {} along {}",
+                    round.start,
+                    round.along
+                );
+                assert!(
+                    edge.between_its_mitres(point),
+                    "{which} is drawn through {point}, past a plane halfway between its edge and \
+                     the one beside it, where the round beside it meets it in a mitre"
+                );
+            }
+            met_from_outside(
+                body,
+                face,
+                &round.part(value, round.length - value),
+                &format!("{which}, between its mitres"),
+            );
+        }
     }
 }

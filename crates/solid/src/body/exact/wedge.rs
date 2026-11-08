@@ -61,13 +61,13 @@ impl Exact {
     /// alone. Two edges meeting at a convex corner are laid in turn as any two
     /// are, each prism carried past the corner along its edge's line, so that
     /// the later trims the earlier's face there: two flats or two rounds meet
-    /// in a mitre.
-    /// The wall an edge's prism lays is numbered where the steps' numbers
-    /// ended, plus the edge's rank in the list; a pair is laid at its later
-    /// edge's turn, so that every number laid before stands below those a
-    /// prism lays, as [`Exact::cut_along`] reads them. A value shorter than the
-    /// kernel can set a cut back from an edge is declined first; a list of no
-    /// edge `Unsupported`; an edge its name no longer finds `Lost`; an edge
+    /// in a mitre, and the later edge is sought with the end the earlier cut
+    /// moved, as [`corners::trimmed`] names it. The wall an edge's prism lays
+    /// is numbered where the steps' numbers ended, plus the edge's rank in the
+    /// list; a pair is laid at its later edge's turn, so that every number
+    /// laid before stands below those a prism lays, as [`Exact::cut_along`]
+    /// reads them. A value shorter than the kernel can set a cut back from an
+    /// edge is declined first; a list of no edge `Unsupported`; an edge its name no longer finds `Lost`; an edge
     /// that is not a wedge, one edge two names find, two edges meeting at a
     /// corner that is not convex — an edge ending there that is no wedge, or
     /// whose faces meet inwards —, where `together` is some an edge meeting
@@ -112,7 +112,8 @@ impl Exact {
             };
             let start = self.next;
             let mut cut = self.clone();
-            for (rank, name) in names.iter().enumerate() {
+            let mut sought = names.to_vec();
+            for rank in 0..names.len() {
                 if pairs.iter().any(|&(earlier, _)| earlier == rank) {
                     continue;
                 }
@@ -120,11 +121,21 @@ impl Exact {
                 let partner = pairs.iter().find(|&&(_, later)| later == rank);
                 cut = match (partner, together) {
                     (Some(&(earlier, _)), Some(together)) => cut.laid_together(
-                        [&names[earlier], name],
+                        [&sought[earlier], &sought[rank]],
                         start + earlier as u32,
                         together,
                     )?,
-                    _ => cut.laid(name, taken, &tool)?,
+                    _ => {
+                        let laid = cut.laid(&sought[rank], taken, &tool)?;
+                        corners::trimmed(
+                            &self.brep,
+                            &edges,
+                            &mut sought,
+                            rank,
+                            start + rank as u32,
+                        );
+                        laid
+                    }
                 };
             }
             cut.next = start + names.len() as u32;

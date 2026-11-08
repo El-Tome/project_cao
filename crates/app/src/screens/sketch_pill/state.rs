@@ -3,10 +3,10 @@ use cao_sketch::Sketch;
 
 use crate::lang::Catalogue;
 use crate::screens::sketch::SketchEditor;
-use crate::wording::plane;
+use crate::wording::{plane, view};
 
-/// What the pill reads while a sketch is open: the sketch's name, the plane it
-/// is drawn on, and its button.
+/// What the pill reads while a sketch is open: the sketch's name, where it is
+/// drawn, and its button.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SketchPill {
     pub name: String,
@@ -23,13 +23,29 @@ impl SketchPill {
         let rank = (index + 1).to_string();
         Some(Self {
             name: lang.t_with("part_tree.sketch", &[("rank", &rank)]),
-            plane: plane_of(sketch, lang),
+            plane: laid_on(document, index, sketch, lang),
             finish: lang.t("sketch_pill.finish"),
         })
     }
 }
 
-/// How the plane the sketch is drawn on reads.
-fn plane_of(sketch: &Sketch, lang: &Catalogue) -> String {
-    plane::label(lang, sketch.plane.kind())
+/// Where the sketch is drawn: the section it was laid on while the part still
+/// keeps it, else its plane.
+fn laid_on(document: &PartDocument, index: usize, sketch: &Sketch, lang: &Catalogue) -> String {
+    match kept_section_under(document, index) {
+        Some(id) => view::kept_section(lang, id + 1),
+        None => plane::label(lang, sketch.plane.kind()),
+    }
+}
+
+/// A deleted section is only marked so, and the drawing laid on it still names
+/// its id: the part's sections are asked whether it stands, and only for a
+/// drawing laid on one.
+fn kept_section_under(document: &PartDocument, index: usize) -> Option<usize> {
+    let under = document.section_under(index)?;
+    document
+        .sections()
+        .iter()
+        .any(|kept| kept.id == under)
+        .then_some(under)
 }

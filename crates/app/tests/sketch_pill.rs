@@ -61,17 +61,49 @@
 //! itself is the rounded patch the frame paints around that button and the
 //! sketch's name, and the button is primary when an amber patch is painted
 //! under it.
+//!
+//! A section is named by its id, which deleting another leaves alone, and not
+//! by its place among the sections still kept. The sketch read on a kept
+//! section is laid on the second one kept, once the first is deleted: a pill
+//! counting the sections left would read « Coupe 1 » where the tree reads
+//! « Coupe 2 ». A section deleted under a sketch leaves the sketch where it
+//! stood, and the step that opened the sketch still names that section: the
+//! sketch reopened then reads its plane's name, as decided on the way, and
+//! not the name of a section the tree no longer shows.
 
 mod driver;
 
 use cao_app::theme::tokens;
 use egui::accesskit::Role;
 use egui_kittest::kittest::{NodeT, Queryable};
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 /// A point of the plane XY a new part's eye reaches before the other two
 /// planes: where `clicking_the_drawing.rs` opens its sketch on XY.
 const ON_THE_XY_PLANE: DVec3 = DVec3::new(-40.0, 40.0, 0.0);
+
+/// A point of each plane of the origin a new part's eye reaches before the
+/// other two, with the name `wording/plane.rs` gives that plane: those of
+/// `clicking_the_drawing.rs`.
+const ON_EACH_BASE_PLANE: [(DVec3, &str); 3] = [
+    (DVec3::new(0.0, 40.0, 30.0), "Plan YZ"),
+    (ON_THE_XY_PLANE, "Plan XY"),
+    (DVec3::new(-40.0, 0.0, 30.0), "Plan XZ"),
+];
+
+/// The corners of the rectangle the block is raised off, and a point inside
+/// it, points of its sketch on YZ: those `keeping_a_section.rs` tuned.
+const THE_BLOCK_S_CORNERS: [DVec2; 2] = [DVec2::new(-8.82, 44.59), DVec2::new(123.83, -52.69)];
+const ON_THE_BLOCK: DVec2 = DVec2::new(57.5, -4.05);
+
+/// Where a section of the block along YZ, through its middle, 5 mm into its
+/// 10, shows its cut: a plane off the origin.
+const ON_THE_CUT: DVec3 = DVec3::new(5.0, 46.2, -2.47);
+
+/// On the block's front face, 10 mm off the plane its rectangle was drawn on,
+/// low on it: where `keeping_a_section.rs` clicks the face a section is laid
+/// on.
+const ON_THE_BLOCK_S_FRONT_FACE: DVec3 = DVec3::new(10.0, 41.51, -19.82);
 
 /// How far below the top edge of the view the pill may start, in points. The
 /// design leaves about sixteen; the rest is room for a margin chosen otherwise.
@@ -104,10 +136,7 @@ fn a_sketch_on_xy_shows_its_name_its_plane_and_a_finish_button_in_a_pill_at_the_
             driver::on_screen(&app),
         )
     });
-    let row: Vec<(egui::Rect, String)> = readings_in_the_view(&app)
-        .into_iter()
-        .filter(|(at, _)| finish.y_range().contains(at.center().y))
-        .collect();
+    let row = the_pill_s_row(&app, finish);
     let read = one_line(&row);
 
     let mut wrong = Vec::new();
@@ -232,6 +261,99 @@ fn the_pill_is_gone_before_a_sketch_is_opened_and_once_it_is_finished() {
     );
 }
 
+#[test]
+fn a_sketch_on_each_origin_plane_reads_that_plane_s_name() {
+    let mut wrong = Vec::new();
+    for (index, (point, plane)) in ON_EACH_BASE_PLANE.into_iter().enumerate() {
+        let mut app = a_part(&format!("a_sketch_on_each_origin_plane_{index}"));
+        driver::click(&mut app, "Nouvelle esquisse");
+        driver::click_at_world_point(&mut app, point);
+        assert_a_sketch_is_open(&app, &format!("the click at {point:?}"));
+
+        let wanted = format!("Esquisse 1 · {plane}");
+        let read = what_the_pill_reads(&app);
+        if !read.contains(&wanted) {
+            wrong.push(format!(
+                "a sketch opened at {point:?}: wanted « {wanted} », the pill reads « {read} »"
+            ));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "a sketch on a plane of the origin does not read that plane's name:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+#[test]
+fn a_sketch_off_the_origin_reads_as_a_face_of_the_part() {
+    let mut app = a_block("a_sketch_off_the_origin_reads_as_a_face");
+    click_in_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::click_at_world_point(&mut app, ON_THE_BLOCK_S_FRONT_FACE);
+    assert_a_sketch_is_open(&app, "the click on the block's front face");
+
+    let read = what_the_pill_reads(&app);
+
+    assert!(
+        read.contains("Esquisse 2 · Face de la pièce"),
+        "a second sketch laid on the block's face reads « {read} », not « Esquisse 2 · \
+         Face de la pièce »",
+    );
+}
+
+#[test]
+fn a_sketch_laid_on_a_kept_section_reads_that_section_s_name() {
+    let mut app = a_block("a_sketch_laid_on_a_kept_section_reads_its_name");
+    save_a_section(&mut app, "Plan XZ");
+    save_a_section(&mut app, "Plan YZ");
+    delete_from_the_tree(&mut app, "Coupe 1");
+    assert!(
+        !in_the_tree(&app, "Coupe 1") && in_the_tree(&app, "Coupe 2"),
+        "the first section was not deleted alone, the tree showing {:?}",
+        driver::on_screen(&app),
+    );
+    switch_on(&mut app, "Coupe 2");
+    click_in_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::click_at_world_point(&mut app, ON_THE_CUT);
+    assert_a_sketch_is_open(&app, "the click on the cut of « Coupe 2 »");
+
+    let read = what_the_pill_reads(&app);
+
+    assert!(
+        read.contains("Esquisse 2 · Coupe 2"),
+        "a second sketch laid on the section the tree names « Coupe 2 » reads « {read} », \
+         not « Esquisse 2 · Coupe 2 »",
+    );
+}
+
+#[test]
+fn a_sketch_whose_section_is_no_longer_kept_reads_its_plane_s_name() {
+    let mut app = a_block("a_sketch_whose_section_is_no_longer_kept");
+    save_a_section(&mut app, "Plan YZ");
+    switch_on(&mut app, "Coupe 1");
+    click_in_the_ribbon(&mut app, "Nouvelle esquisse");
+    driver::click_at_world_point(&mut app, ON_THE_CUT);
+    assert_a_sketch_is_open(&app, "the click on the cut of « Coupe 1 »");
+    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
+    delete_from_the_tree(&mut app, "Coupe 1");
+    assert!(
+        !in_the_tree(&app, "Coupe 1"),
+        "the section the sketch stands on was not deleted, the tree showing {:?}",
+        driver::on_screen(&app),
+    );
+    double_click(&mut app, "Esquisse 2");
+    assert_a_sketch_is_open(&app, "a double-click on « Esquisse 2 »");
+
+    let read = what_the_pill_reads(&app);
+
+    assert!(
+        read.contains("Esquisse 2 · Face de la pièce"),
+        "the sketch laid on « Coupe 1 », reopened once that section was deleted, reads \
+         « {read} », not « Esquisse 2 · Face de la pièce », its plane's name",
+    );
+}
+
 fn a_part(test: &str) -> driver::App {
     let mut app = driver::open(test);
     driver::create_a_part(&mut app, "Platine");
@@ -246,6 +368,161 @@ fn open_a_sketch_on_xy(app: &mut driver::App) {
         "the click on XY opened no sketch, showing {:?}",
         driver::on_screen(app),
     );
+}
+
+fn assert_a_sketch_is_open(app: &driver::App, after: &str) {
+    assert!(
+        driver::is_enabled(app, driver::FINISH_IN_THE_RIBBON),
+        "{after} opened no sketch, showing {:?}",
+        driver::on_screen(app),
+    );
+}
+
+/// A block raised 10 mm off a rectangle drawn on the plane YZ, its sketch then
+/// finished: what `keeping_a_section.rs` keeps its sections across.
+fn a_block(test: &str) -> driver::App {
+    let mut app = a_part(test);
+    driver::start_a_sketch(&mut app);
+    driver::click(&mut app, "Rectangle (R)");
+    driver::click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[0]);
+    driver::click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[1]);
+    driver::click_exactly(&mut app, "Extrusion");
+    driver::click_exactly(&mut app, "1");
+    driver::click(&mut app, "Ajout de matière");
+    driver::click_at_sketch_point(&mut app, ON_THE_BLOCK);
+    driver::click(&mut app, "Appliquer");
+    driver::press(&mut app, egui::Key::Escape);
+    click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
+    driver::click_the_button(&mut app, "Esquisse");
+    assert!(
+        !driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        "the sketch the block was raised from is still being edited, showing {:?}",
+        driver::on_screen(&app),
+    );
+    app
+}
+
+/// Opens the section tool, lays it along that plane, keeps it with
+/// « Enregistrer la coupe » and closes the tool.
+fn save_a_section(app: &mut driver::App, plane: &str) {
+    click_in_the_ribbon(app, "Vue en coupe");
+    driver::click(app, plane);
+    driver::click_the_button(app, "Enregistrer la coupe");
+    if a_button_reads(app, "Inverser") {
+        driver::click_the_button(app, "Fermer");
+    }
+}
+
+/// Deletes a section through the menu of its row in the tree, answering
+/// « Supprimer » too when the application asks first, as it does for a section
+/// a sketch stands on.
+fn delete_from_the_tree(app: &mut driver::App, section: &str) {
+    right_click(app, section);
+    driver::click_the_button(app, "Supprimer");
+    if app.query_all_by_label("Annuler").next().is_some() {
+        driver::click_the_button(app, "Supprimer");
+    }
+}
+
+fn a_button_reads(app: &driver::App, label: &str) -> bool {
+    app.query_all_by_role(Role::Button)
+        .filter_map(|node| node.accesskit_node().label())
+        .any(|read| read.starts_with(label))
+}
+
+/// The ribbon's button that reads this, whichever tab it sits under.
+fn click_in_the_ribbon(app: &mut driver::App, label: &str) {
+    for tab in ["Esquisse", "Extrusion", "Export"] {
+        if a_button_reads(app, label) {
+            break;
+        }
+        driver::click_the_button(app, tab);
+    }
+    let node = app
+        .query_all_by_role(Role::Button)
+        .find(|node| {
+            node.accesskit_node()
+                .label()
+                .is_some_and(|read| read.starts_with(label))
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "no tab of the ribbon offers « {label} », showing {:?}",
+                driver::on_screen(app)
+            )
+        });
+    node.click();
+    app.run();
+    driver::hold_the_canvas(app);
+}
+
+/// The button of the tree, or of a panel, that reads exactly this — never a
+/// text of the title bar or of the pill, which may carry the same words.
+fn the_row<'a>(app: &'a driver::App, name: &str) -> Option<egui_kittest::Node<'a>> {
+    app.query_all_by_role(Role::Button)
+        .find(|node| node.accesskit_node().label().as_deref() == Some(name))
+}
+
+fn in_the_tree(app: &driver::App, name: &str) -> bool {
+    the_row(app, name).is_some()
+}
+
+fn switch_on(app: &mut driver::App, name: &str) {
+    let row = the_row(app, name).unwrap_or_else(|| {
+        panic!(
+            "the tree holds no « {name} », showing {:?}",
+            driver::on_screen(app)
+        )
+    });
+    if row.accesskit_node().toggled() != Some(egui::accesskit::Toggled::True) {
+        row.click();
+        app.run();
+        driver::hold_the_canvas(app);
+    }
+}
+
+/// Two presses and releases close enough in time for egui to read one
+/// double-click: each frame of the harness otherwise moves the clock a quarter
+/// of a second, past what a double-click allows.
+fn double_click(app: &mut driver::App, label: &str) {
+    let at = the_row(app, label)
+        .unwrap_or_else(|| panic!("no button reads « {label} »"))
+        .rect()
+        .center();
+    app.hover_at(at);
+    app.run();
+    let start = app.ctx.input(|input| input.time);
+    for (rank, pressed) in [true, false, true, false].into_iter().enumerate() {
+        app.input_mut().time = Some(start + 0.02 * (rank as f64 + 1.0));
+        app.event(egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        });
+        app.step();
+    }
+    app.input_mut().time = None;
+    app.run();
+    driver::hold_the_canvas(app);
+}
+
+fn right_click(app: &mut driver::App, label: &str) {
+    let at = the_row(app, label)
+        .unwrap_or_else(|| panic!("no button reads « {label} »"))
+        .rect()
+        .center();
+    app.hover_at(at);
+    app.run();
+    for pressed in [true, false] {
+        app.event(egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Secondary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        });
+        app.run();
+    }
 }
 
 /// The pill's own « Terminer ↵ », wherever it stands: a button named for
@@ -299,6 +576,21 @@ fn what_the_pill_shows(app: &driver::App) -> Vec<String> {
         shown.push("Terminer ↵".to_owned());
     }
     shown
+}
+
+/// What the view holds on the row of the pill's « Terminer ↵ », left to right.
+fn the_pill_s_row(app: &driver::App, finish: egui::Rect) -> Vec<(egui::Rect, String)> {
+    readings_in_the_view(app)
+        .into_iter()
+        .filter(|(at, _)| finish.y_range().contains(at.center().y))
+        .collect()
+}
+
+/// What the pill reads, as one line; nothing when no pill is on screen.
+fn what_the_pill_reads(app: &driver::App) -> String {
+    the_pill_s_finish(app)
+        .map(|finish| one_line(&the_pill_s_row(app, finish)))
+        .unwrap_or_default()
 }
 
 /// A row's texts as one line, left to right, every run of blanks one space.

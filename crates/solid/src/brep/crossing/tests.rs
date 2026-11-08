@@ -17,6 +17,14 @@
 //!   one whose spans along a direction lie further apart than the room shares
 //!   no point to cross or lie along; which is weighed first changes no entry
 //!   `Lines::passed` keeps, each being of one pair only.
+//! - `holds` into `true`, and `==` into `!=` in `by == at` in
+//!   `passes_along`'s filter: both keep more faces, and the filter already
+//!   keeps every face a pair with the first can come from. A round the first
+//!   is in, or whose line lies inside the first, runs along an edge of the
+//!   first or of a face whose edge holds it; every face in it runs along that
+//!   edge, and every face the line
+//!   lies inside there is one that edge rests inside — each held by a face
+//!   the filter keeps for it. The faces' order is kept, and with it every tie.
 //! - `||` into `&&` in `Folds::crossings`, either one: a triangle with two
 //!   corners on one sample has no area, and `crossing` refuses it as a sliver.
 //!
@@ -117,4 +125,82 @@ fn a_piece_of_segment_inside_a_face_counts_only_when_longer_than_the_room() {
     let start = at(1.0, 1.0, 0.0);
     assert_eq!(flat().inside([start, at(1.25, 1.0, 0.0)], room), None);
     assert!(flat().inside([start, at(1.5, 1.0, 0.0)], room).is_some());
+}
+
+/// A face in z = 0 wide enough for a line of edges to lie well inside it.
+fn floor() -> Triangle {
+    [DVec3::ZERO, at(12.0, 0.0, 0.0), at(0.0, 12.0, 0.0)]
+}
+
+/// Two faces sharing an edge inside `floor`, one rising from it and one
+/// sinking below it.
+fn through_floor() -> [Triangle; 2] {
+    let (start, end) = (at(2.0, 3.0, 0.0), at(6.0, 3.0, 0.0));
+    [
+        [start, end, at(4.0, 6.0, 4.0)],
+        [end, start, at(4.0, 1.0, -4.0)],
+    ]
+}
+
+#[test]
+fn a_face_beside_one_passing_through_another_along_a_line_does_not_pass_through_it_itself() {
+    let room = 1e-9;
+    let [rising, sinking] = through_floor();
+    let [_, end, top] = rising;
+    let beside = [top, end, at(8.0, 5.0, 2.0)];
+    assert!(passes_along(&[rising, floor(), sinking], room));
+    assert!(
+        !passes_along(&[beside, floor(), rising, sinking], room),
+        "it shares only an edge with the rising face, and only a corner with the floor",
+    );
+}
+
+#[test]
+fn a_triangle_smaller_than_the_room_passes_through_nothing_along_a_line_beside_faces_that_do() {
+    let room = 0.01;
+    let speck = [
+        at(100.0, 0.0, 0.0),
+        at(100.004, 0.0, 0.0),
+        at(100.0, 0.004, 0.0),
+    ];
+    let [rising, sinking] = through_floor();
+    assert!(!passes_along(&[speck, floor(), rising, sinking], room));
+}
+
+#[test]
+fn a_face_sinking_from_a_stretch_of_a_line_a_face_rises_from_passes_through_the_floor_though_its_edge_turns_off_the_line_within_the_room()
+ {
+    let room = 0.01;
+    let rising = [at(2.0, 3.0, 0.0), at(8.0, 3.0, 0.0), at(5.0, 6.0, 4.0)];
+    let sinking = [
+        at(5.0, 3.0 + 0.75 * room, 0.0),
+        at(4.0, 3.0 - 0.75 * room, 0.0),
+        at(4.5, -17.0, -2.0),
+    ];
+    assert!(
+        passes_along(&[rising, floor(), sinking], room),
+        "the sinking edge stays within the room of the rising one along it, and leans off its line by more than the room at the rising edge's ends",
+    );
+}
+
+#[test]
+fn a_face_sinking_from_a_line_inside_a_floor_passes_through_it_though_its_own_edge_leans_out_to_the_floor_s_border()
+ {
+    let room = 0.01;
+    let border = 3.0 + 1.05 * room;
+    let floor = [
+        at(0.0, border, 0.0),
+        at(12.0, border, 0.0),
+        at(6.0, -9.0, 0.0),
+    ];
+    let rising = [at(2.0, 3.0, 0.0), at(8.0, 3.0, 0.0), at(5.0, 6.0, 4.0)];
+    let sinking = [
+        at(5.0, 3.0 + 0.05 * room - 1e-5, 0.0),
+        at(4.0, 3.0 + 0.95 * room, 0.0),
+        at(4.5, -17.0, -2.0),
+    ];
+    assert!(
+        passes_along(&[sinking, floor, rising], room),
+        "the rising edge lies more than the room inside the floor, and the sinking one within the room of it, which is never more than the room inside the floor along more than the room",
+    );
 }

@@ -2130,8 +2130,10 @@ by a fused multiply-add (`meet/pair.rs`). Soundness reads an elliptic
 pair by its own formula at any angle, with its own compensated product.
 
 The relation reads two cylinders, or a cylinder and an elliptic wall, or
-two elliptic walls, at any angle but parallel this way; decision 2 snaps
-the pair onto a touch or a node within the tolerance as it does square.
+two elliptic walls, at any angle but parallel this way. A pair with an
+elliptic wall is read as it stands, never moved onto a touch or a node:
+only two cylinders keep the snapped meeting of decision 2, and only when
+it reads `Apart` or `Contact` (`relation/cylinders.rs`).
 A circle against a wall at a skew angle to its own cylinder crosses it
 where the curve its own cylinder meets that wall along crosses its own
 plane: the triple read from its most degenerate pair, as the curve

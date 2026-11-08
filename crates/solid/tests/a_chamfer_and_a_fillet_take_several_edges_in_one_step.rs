@@ -48,9 +48,17 @@
 //!   `a_fillet_on_a_meeting_pair_named_apart_in_the_list_lays_one_full_round_answering_to_both_their_numbers_the_edge_between_numbered_between`;
 //!   and an edge whose set-backs would meet two others', the four long edges
 //!   of a square bar asked more than half its side, declines the fillet
-//!   `Unsupported`, where less than half lays all four —
+//!   `Unsupported` — rounds that close on themselves are out of the issue's
+//!   scope, built by #790 — where less than half lays all four —
 //!   `a_fillet_on_the_four_long_edges_of_a_square_bar_asked_more_than_half_its_side_is_declined_as_unsupported`,
 //!   `a_fillet_and_a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_less_than_half_its_side_lay_each_at_the_value_asked`
+//! - In a slot 10 wide, filleting the two edges of its floor, asked more than
+//!   5, takes 5: the floor is gone, and the two fills, of one axis and one
+//!   radius, are one hollow half-cylinder — a round-bottomed slot — answering
+//!   to both edges' numbers. The body passes the soundness checks. A chamfer
+//!   takes 5 too, and its two flats meet in a valley —
+//!   `a_fillet_on_the_two_floor_edges_of_a_slot_10_wide_asked_5_or_more_takes_5_in_one_round_bottom`,
+//!   `a_chamfer_on_the_two_floor_edges_of_a_slot_10_wide_asked_more_than_5_takes_5_its_flats_meeting_in_a_valley`
 //! - A list mixing an edge whose faces meet outwards and one whose faces meet
 //!   inwards cuts the first off and fills the second in, at one value —
 //!   `a_fillet_and_a_chamfer_on_an_outward_edge_and_an_inward_one_cut_the_first_off_and_fill_the_second_in_at_one_value`,
@@ -1689,36 +1697,46 @@ impl Hollow {
 /// air the round leaves, out to it meeting it first, where it faces back
 /// along the ray.
 fn is_the_hollow(body: &Body, face: usize, hollow: &Hollow, what: &str) {
+    is_hollow_made_of(body, face, &[hollow], what);
+}
+
+/// Holds that the face numbered `face` is the hollow rounds `parts` laid end
+/// to end about one axis, as [`is_the_hollow`] holds it of one: every corner
+/// of its triangles on one of them, and every ray aimed from the axis out to
+/// each meeting the face first.
+fn is_hollow_made_of(body: &Body, face: usize, parts: &[&Hollow], what: &str) {
     let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
     assert!(!corners.is_empty(), "{what}: the round is drawn");
     for corner in corners {
         assert!(
-            hollow.holds(corner),
+            parts.iter().any(|hollow| hollow.holds(corner)),
             "{what}: the round is drawn through {corner}, off the cylinder of {} about the line \
              from {} along {}",
-            hollow.radius,
-            hollow.start,
-            hollow.along
+            parts[0].radius,
+            parts[0].start,
+            parts[0].along
         );
     }
-    for along in [0.11, 0.47, 0.83] {
-        for share in [0.1, 0.3, 0.5, 0.7, 0.9] {
-            let facing = hollow.facing_at(share);
-            let from = hollow.axis_at(along);
-            let hit = body
-                .ray_hit(from, -facing)
-                .unwrap_or_else(|| panic!("{what}: a ray from {from} on the axis meets nothing"));
-            assert_eq!(
-                hit.face, face,
-                "{what}: a ray from {from} on the axis meets face {} before the round",
-                hit.face
-            );
-            assert!(
-                hit.normal.distance(facing) < PLACE,
-                "{what}: where a ray from {from} meets it, the round faces {}, not {facing}, \
-                 back toward its axis",
-                hit.normal
-            );
+    for hollow in parts {
+        for along in [0.11, 0.47, 0.83] {
+            for share in [0.1, 0.3, 0.5, 0.7, 0.9] {
+                let facing = hollow.facing_at(share);
+                let from = hollow.axis_at(along);
+                let hit = body.ray_hit(from, -facing).unwrap_or_else(|| {
+                    panic!("{what}: a ray from {from} on the axis meets nothing")
+                });
+                assert_eq!(
+                    hit.face, face,
+                    "{what}: a ray from {from} on the axis meets face {} before the round",
+                    hit.face
+                );
+                assert!(
+                    hit.normal.distance(facing) < PLACE,
+                    "{what}: where a ray from {from} meets it, the round faces {}, not {facing}, \
+                     back toward its axis",
+                    hit.normal
+                );
+            }
         }
     }
 }
@@ -2035,4 +2053,287 @@ fn a_fillet_and_a_chamfer_on_the_four_long_edges_of_a_square_bar_asked_less_than
         ),
         &format!("{what}: what is left of the top, a strip between two flats"),
     );
+}
+
+/// How far across the slotted block reaches, and where the slot's two walls
+/// stand across it, 10 apart, and how high its floor is.
+const SLOTTED_BREADTH: f64 = 30.0;
+const SLOT_WALLS: [f64; 2] = [10.0, 20.0];
+const SLOT_FLOOR_HEIGHT: f64 = 10.0;
+
+/// The numbers the cut that makes the slot gives its floor and its two walls,
+/// past the block's six: its floor six, the wall at y = 10 eight and the
+/// wall at y = 20 ten. Its top, its right and its left stand outside the
+/// block and are gone.
+const SLOT_FLOOR: usize = 6;
+const SLOT_NEAR_WALL: usize = 8;
+const SLOT_FAR_WALL: usize = 10;
+
+/// A block [`LENGTH`] long, [`SLOTTED_BREADTH`] across and [`HEIGHT`] high,
+/// with a slot cut along its whole length between [`SLOT_WALLS`], from its top
+/// down to [`SLOT_FLOOR_HEIGHT`]. The slot's two floor edges meet inwards,
+/// facing each other across its floor 10 wide, and run from the block's left
+/// wall to its right, where the slot opens.
+fn slotted() -> Body {
+    let solid = block([LENGTH, SLOTTED_BREADTH, HEIGHT]);
+    let [near, far] = SLOT_WALLS;
+    let tool = solid
+        .tool_raised(
+            &profile(Contour::rectangle(
+                DVec2::new(-1.0, near),
+                DVec2::new(LENGTH + 1.0, far),
+            )),
+            Frame {
+                origin: DVec3::Z * SLOT_FLOOR_HEIGHT,
+                ..ground()
+            },
+            DVec3::Z * HEIGHT,
+        )
+        .expect("the tool raises");
+    solid.difference(&tool).expect("the slot is cut")
+}
+
+/// The matter the slotted block holds.
+const SLOTTED_VOLUME: f64 = LENGTH
+    * (SLOTTED_BREADTH * HEIGHT - (SLOT_WALLS[1] - SLOT_WALLS[0]) * (HEIGHT - SLOT_FLOOR_HEIGHT));
+
+/// The names of the slot's two floor edges, the near wall's first.
+fn slot_floor_edges(slotted: &Body) -> [EdgeName; 2] {
+    [
+        edge_between(slotted, SLOT_FLOOR, SLOT_NEAR_WALL),
+        edge_between(slotted, SLOT_FLOOR, SLOT_FAR_WALL),
+    ]
+}
+
+/// The corners, on the left wall, of what is left of each of the slot's walls
+/// once its floor is filled in to `up` above it.
+fn slot_walls_from(up: f64) -> [[DVec3; 4]; 2] {
+    SLOT_WALLS.map(|across| {
+        strip(
+            DVec3::new(0.0, across, SLOT_FLOOR_HEIGHT + up),
+            DVec3::new(0.0, across, HEIGHT),
+        )
+    })
+}
+
+#[test]
+fn a_fillet_on_the_two_floor_edges_of_a_slot_10_wide_asked_5_or_more_takes_5_in_one_round_bottom() {
+    let slotted = slotted();
+    let names = slot_floor_edges(&slotted);
+    let half = (SLOT_WALLS[1] - SLOT_WALLS[0]) / 2.0;
+    alone_each_takes_more(
+        |name| {
+            slotted
+                .fillet(name, MORE_THAN_HALF)
+                .map(|single| single.taken)
+        },
+        &names,
+        half,
+        "the fillet on one floor edge of the slot",
+    );
+
+    for asked in [MORE_THAN_HALF, half] {
+        let filleted = slotted
+            .fillet_edges(&names, asked)
+            .unwrap_or_else(|declined| panic!("asked {asked}: declined, {declined:?}"));
+
+        let what = format!("the fillet on both floor edges of a slot 10 wide, asked {asked}");
+        reduced(filleted.asked, filleted.taken, [asked, half], &what);
+        let body = &filleted.body;
+        let laid = [slotted.faces_end(), slotted.faces_end() + 1];
+        assert!(
+            !body.has_face(SLOT_FLOOR),
+            "{what}: the slot's floor is gone"
+        );
+        let mut kept_and_laid = numbers(&slotted);
+        kept_and_laid.remove(&SLOT_FLOOR);
+        kept_and_laid.extend(laid);
+        assert_eq!(
+            numbers(body),
+            kept_and_laid,
+            "{what}: every face of the slotted block but the slot's floor, and the round bottom \
+             answering to {laid:?}"
+        );
+        assert_eq!(
+            body.faces_end(),
+            laid[1] + 1,
+            "{what}: the next step numbers its faces past both the round bottom answers to"
+        );
+        one_curved_face_answers_to(body, &laid, &what);
+        let axis = DVec3::new(
+            0.0,
+            (SLOT_WALLS[0] + SLOT_WALLS[1]) / 2.0,
+            SLOT_FLOOR_HEIGHT + half,
+        );
+        let halves = [[DVec3::Y, DVec3::Z], [DVec3::Z, -DVec3::Y]].map(|facing| Hollow {
+            start: axis,
+            along: DVec3::X,
+            length: LENGTH,
+            radius: half,
+            facing,
+        });
+        is_hollow_made_of(
+            body,
+            laid[0],
+            &[&halves[0], &halves[1]],
+            &format!(
+                "{what}: the round bottom, a hollow half-cylinder of {half} about the line {half} \
+                 above the middle of the floor, tangent to both walls"
+            ),
+        );
+        assert!(
+            body.edge_names()
+                .iter()
+                .all(|name| !lies_between(name, laid[0], laid[1])),
+            "{what}: no edge stands between {} and {}: they are one face",
+            laid[0],
+            laid[1]
+        );
+        assert_eq!(
+            sides_met_by(body, &laid),
+            sides(&[RIGHT, LEFT, SLOT_NEAR_WALL, SLOT_FAR_WALL]),
+            "{what}: the round bottom meets the slot's two walls along its sides, and the block's \
+             right and left walls at its ends, where the slot opens, by one edge each"
+        );
+        for (wall, corners) in [SLOT_NEAR_WALL, SLOT_FAR_WALL]
+            .into_iter()
+            .zip(slot_walls_from(half))
+        {
+            corners_are(
+                body,
+                wall,
+                &corners,
+                &format!("{what}: what is left of the slot's wall {wall}, above the round bottom"),
+            );
+        }
+        let [near, far] = SLOT_WALLS;
+        for (wall, x) in [(LEFT, 0.0), (RIGHT, LENGTH)] {
+            corners_are_or_on(
+                body,
+                wall,
+                &[
+                    DVec3::new(x, 0.0, 0.0),
+                    DVec3::new(x, SLOTTED_BREADTH, 0.0),
+                    DVec3::new(x, SLOTTED_BREADTH, HEIGHT),
+                    DVec3::new(x, far, HEIGHT),
+                    DVec3::new(x, far, SLOT_FLOOR_HEIGHT + half),
+                    DVec3::new(x, near, SLOT_FLOOR_HEIGHT + half),
+                    DVec3::new(x, near, HEIGHT),
+                    DVec3::new(x, 0.0, HEIGHT),
+                ],
+                |corner| halves.iter().any(|hollow| hollow.holds(corner)),
+                &format!("{what}: the wall at x = {x}, the slot's bottom a half-circle on it"),
+            );
+        }
+        sound_drawn_within(
+            body,
+            SLOTTED_VOLUME + LENGTH * ((far - near) * half - PI * half * half / 2.0),
+            DRAWN * reach_of(&slotted) * PI * half * LENGTH,
+            &what,
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_on_the_two_floor_edges_of_a_slot_10_wide_asked_more_than_5_takes_5_its_flats_meeting_in_a_valley()
+ {
+    let slotted = slotted();
+    let names = slot_floor_edges(&slotted);
+    let half = (SLOT_WALLS[1] - SLOT_WALLS[0]) / 2.0;
+    alone_each_takes_more(
+        |name| {
+            slotted
+                .chamfer(name, MORE_THAN_HALF)
+                .map(|single| single.taken)
+        },
+        &names,
+        half,
+        "the chamfer on one floor edge of the slot",
+    );
+
+    let chamfered = slotted
+        .chamfer_edges(&names, MORE_THAN_HALF)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = format!("the chamfer on both floor edges of a slot 10 wide, asked {MORE_THAN_HALF}");
+    reduced(
+        chamfered.asked,
+        chamfered.taken,
+        [MORE_THAN_HALF, half],
+        &what,
+    );
+    let body = &chamfered.body;
+    let laid = [slotted.faces_end(), slotted.faces_end() + 1];
+    assert!(
+        !body.has_face(SLOT_FLOOR),
+        "{what}: the slot's floor is gone"
+    );
+    let mut kept_and_laid = numbers(&slotted);
+    kept_and_laid.remove(&SLOT_FLOOR);
+    kept_and_laid.extend(laid);
+    assert_eq!(
+        numbers(body),
+        kept_and_laid,
+        "{what}: every face of the slotted block but the slot's floor, and a flat for each edge"
+    );
+    let [near, far] = SLOT_WALLS;
+    let middle = (near + far) / 2.0;
+    let valley = DVec3::new(0.0, middle, SLOT_FLOOR_HEIGHT);
+    for (number, across, facing) in [
+        (laid[0], near, DVec3::new(0.0, 1.0, 1.0)),
+        (laid[1], far, DVec3::new(0.0, -1.0, 1.0)),
+    ] {
+        let which = format!("{what}: face {number}, the flat from the wall at y = {across}");
+        face_facing(body, &[number], facing.normalize(), &which);
+        corners_are(
+            body,
+            number,
+            &strip(valley, DVec3::new(0.0, across, SLOT_FLOOR_HEIGHT + half)),
+            &format!("{which}, down to the valley at the middle of the floor"),
+        );
+    }
+    edge_between(body, laid[0], laid[1]);
+    assert_eq!(
+        sides_met(body, laid[0]),
+        sides(&[RIGHT, LEFT, SLOT_NEAR_WALL, laid[1]]),
+        "{what}: the near flat meets its wall, the block's two walls, and the far flat along the \
+         valley, by one edge each"
+    );
+    assert_eq!(
+        sides_met(body, laid[1]),
+        sides(&[RIGHT, SLOT_FAR_WALL, LEFT, laid[0]]),
+        "{what}: the far flat meets its wall, the block's two walls, and the near flat along the \
+         valley, by one edge each"
+    );
+    for (wall, corners) in [SLOT_NEAR_WALL, SLOT_FAR_WALL]
+        .into_iter()
+        .zip(slot_walls_from(half))
+    {
+        corners_are(
+            body,
+            wall,
+            &corners,
+            &format!("{what}: what is left of the slot's wall {wall}, above its flat"),
+        );
+    }
+    for (wall, x) in [(LEFT, 0.0), (RIGHT, LENGTH)] {
+        corners_are(
+            body,
+            wall,
+            &[
+                DVec3::new(x, 0.0, 0.0),
+                DVec3::new(x, SLOTTED_BREADTH, 0.0),
+                DVec3::new(x, SLOTTED_BREADTH, HEIGHT),
+                DVec3::new(x, far, HEIGHT),
+                DVec3::new(x, far, SLOT_FLOOR_HEIGHT + half),
+                DVec3::new(x, middle, SLOT_FLOOR_HEIGHT),
+                DVec3::new(x, near, SLOT_FLOOR_HEIGHT + half),
+                DVec3::new(x, near, HEIGHT),
+                DVec3::new(x, 0.0, HEIGHT),
+            ],
+            &format!("{what}: the wall at x = {x}, the slot a V on it"),
+        );
+    }
+    let promised = SLOTTED_VOLUME + LENGTH * (far - near) * half / 2.0;
+    sound_drawn_within(body, promised, EXACT * promised, &what);
 }

@@ -60,10 +60,10 @@ pub(super) fn bound(
 
 /// The two edges facing each other, the earlier first, whose set-backs at
 /// `taken` meet across the face they share, leaving none of it the kernel
-/// could keep: the face goes, and one prism takes both edges off. Only edges
-/// whose faces meet outwards; a fill is laid edge by edge. Declined
-/// `Unsupported` where an edge would meet two others, every face round it
-/// gone.
+/// could keep: the face goes, and one prism cuts both edges off, or fills
+/// both in. Only two edges whose faces meet the same way: a cut beside a
+/// fill is laid edge by edge. Declined `Unsupported` where an edge would
+/// meet two others, every face round it gone.
 pub(super) fn meeting(
     wedges: &[Wedge],
     facing: &[(usize, usize, f64)],
@@ -76,7 +76,7 @@ pub(super) fn meeting(
         .filter(|&&(one, other, across)| {
             let [one, other] = [&wedges[one], &wedges[other]];
             let left = across - taken * (set_back(one) + set_back(other));
-            !one.inwards && !other.inwards && too_short(left, scale)
+            one.inwards == other.inwards && too_short(left, scale)
         })
         .map(|&(one, other, _)| (one, other))
         .collect();
@@ -92,8 +92,9 @@ pub(super) fn meeting(
 
 impl Exact {
     /// The body with the edges `earlier` and `later` find, whose set-backs
-    /// meet across the face they share, taken off as one by the prism
-    /// `together` raises over both for `taken`: its first two walls, the
+    /// meet across the face they share, cut off as one by the prism
+    /// `together` raises over both for `taken` — or filled in as one, where
+    /// their faces meet inwards, as [`Exact::filled`] fills: its first two walls, the
     /// later edge's then the earlier's, laid as one face where they lie on
     /// one surface, answering to the number where the steps' numbers ended
     /// — the later edge's — and to `number`, the earlier's. Declined as
@@ -105,21 +106,26 @@ impl Exact {
         taken: f64,
         together: Together,
     ) -> Result<Exact, Declined> {
-        let (_, first) = self.wedge(earlier)?;
-        let (_, second) = self.wedge(later)?;
+        let (first_edge, first) = self.wedge(earlier)?;
+        let (second_edge, second) = self.wedge(later)?;
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
-        let (outline, frame, travel) = together(&first, &second, taken, self.brep.scale(), bounds)?;
-        let raised = Exact::raised(&outline, &[], frame, travel)?;
+        let prism = together(&first, &second, taken, self.brep.scale(), bounds)?;
+        let (outline, frame, travel) = &prism;
+        let raised = Exact::raised(outline, &[], *frame, *travel)?;
         let tool = Exact {
             brep: raised.brep.renumbered_by(|wall| match wall {
                 0 | 1 => wall + MADE,
                 2 | 3 => wall - MADE,
                 other => other,
             }),
-            next: 2,
             ..raised
         };
-        let cut = self.cut_by(&tool)?;
+        let cut = if first.inwards {
+            let edges = [(first_edge, &first), (second_edge, &second)];
+            self.filled(&edges, &prism, tool)?
+        } else {
+            self.cut_by(&Exact { next: 2, ..tool })?
+        };
         if !cut.cut_along(&[&first, &second], self, 2) {
             return Err(Declined::Unsupported);
         }

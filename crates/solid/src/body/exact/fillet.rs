@@ -19,8 +19,8 @@ impl Exact {
     /// takes over, set back by the radius over the tangent of half the angle
     /// its two faces meet at, and two set-backs on a face two edges share
     /// stop short of crossing. Where they meet, the face is gone and the two
-    /// rounds, about one axis, are one full round, as [`Wedge::rounded_with`]
-    /// lays it. The rounds are numbered, in the order the names come, where
+    /// rounds, about one axis, are one full round — a round bottom where the
+    /// faces meet inwards — as [`Wedge::rounded_with`] lays it. The rounds are numbered, in the order the names come, where
     /// the steps' numbers ended; a full round answers to both its edges'
     /// numbers. Declined `Distance`: a radius that is no length, one whose
     /// round would stand off the faces it replaces by less than the kernel

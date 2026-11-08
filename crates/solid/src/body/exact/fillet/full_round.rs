@@ -1,8 +1,9 @@
 //! The full round (#698): two edges either side of a face rounded at the
-//! radius whose set-backs meet across it. The two rounds touch the face
-//! along one line from the same side, so their centres are one point of
-//! every section: one round about one axis, from one edge's other face over
-//! to the other's, where the face was.
+//! radius whose set-backs meet across it — or, where their faces meet
+//! inwards, filled in, a round bottom. The two rounds touch the face along
+//! one line from the same side, so their centres are one point of every
+//! section: one round about one axis, from one edge's other face over to the
+//! other's, where the face was.
 
 use glam::{DVec2, DVec3};
 
@@ -17,9 +18,10 @@ impl Wedge {
     /// the round about the centre both rounds share, from where it touches
     /// the later edge's other face to where it touches the shared face, then
     /// on to where it touches this edge's other face; then square off that
-    /// face to the margin outside it, round both edges that margin off the
-    /// three faces, as [`Wedge::rim`] closes each, and square back to the
-    /// start. Declined `Unsupported` where the two edges share no face.
+    /// face to the margin outside it, or inside the matter for a fill, round
+    /// both edges that margin off the three faces, as [`Wedge::rim`] closes
+    /// each, and square back to the start. Declined `Unsupported` where the
+    /// two edges share no face.
     pub(in crate::body::exact) fn rounded_with(
         &self,
         later: &Wedge,
@@ -42,8 +44,9 @@ impl Wedge {
             .into_iter()
             .fold(0.0, f64::max);
         let [other, beyond] = [self.outward[1 - own], later.outward[1 - theirs]];
-        let centre = self.into[1 - own] * radius / self.half_tangent() - other * radius;
-        let touching = |outward: DVec3| centre + outward * radius;
+        let off = self.off();
+        let centre = self.into[1 - own] * radius / self.half_tangent() - other * radius * off;
+        let touching = |outward: DVec3| centre + outward * radius * off;
         let mut own_rim = self.rim(margin);
         if own == 0 {
             own_rim.reverse();
@@ -59,11 +62,11 @@ impl Wedge {
             start,
             touching(self.outward[own]),
             end,
-            end + other * margin,
+            end + other * margin * off,
         ];
         corners.extend(own_rim);
         corners.extend(later_rim.into_iter().map(|at| at + offset));
-        corners.push(start + beyond * margin);
+        corners.push(start + beyond * margin * off);
         let (across, _) = self.square();
         let (frame, travel) = self.raised_along(across, margin, bounds);
         let flat = |at: DVec3| DVec2::new(at.dot(frame.u), at.dot(frame.v));

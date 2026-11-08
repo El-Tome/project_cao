@@ -146,7 +146,7 @@ impl Exact {
             ..raised
         };
         let cut = if wedge.inwards {
-            self.filled(edge, &wedge, &prism, tool)?
+            self.filled(&[(edge, &wedge)], &prism, tool)?
         } else {
             self.cut_by(&Exact { next: 1, ..tool })?
         };

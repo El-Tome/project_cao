@@ -28,8 +28,7 @@
 //!   `the_matter_a_refusal_names_blinks_the_same_way`
 //!
 //! Closes #728 — the whole transcription is in `crates/app/tests/view_bar.rs`;
-//! these bullets are the ones the camera and the corners of the view answer,
-//! which no driver reads. « Recadrer » is run here as its button and F run it,
+//! these bullets are the ones the camera answers, which no driver reads. « Recadrer » is run here as its button and F run it,
 //! through `commands::run`: this is the one module that sees the camera.
 //! - « Recadrer » outside a sketch keeps the direction the part is seen from,
 //!   aims at the middle of the body's bounds and stands back until they fit
@@ -40,12 +39,6 @@
 //! - in a sketch, as before, it faces the plane and frames the sketch, not the
 //!   part —
 //!   `reframing_in_a_sketch_faces_its_plane_and_frames_its_drawing_rather_than_the_part`
-//! - the scale bar at its default corner, bottom left, does not move —
-//!   `the_scale_bar_at_its_default_corner_stands_where_it_stood`
-//! - set to the bottom right, the scale bar, or the orientation cube, stays in
-//!   that corner and is lifted above the view bar —
-//!   `a_scale_bar_set_to_the_bottom_right_stands_above_the_view_bar`,
-//!   `an_orientation_cube_set_to_the_bottom_right_stands_above_the_view_bar`
 //! - in the free view the coordinates are those of the first point of the
 //!   drawn body the cursor's ray meets — the nearer of the faces it crosses —
 //!   `the_point_of_the_part_under_a_ray_is_the_first_the_ray_meets`; nothing

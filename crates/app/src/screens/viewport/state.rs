@@ -11,6 +11,7 @@ use cao_sketch::{DimensionTarget, SnapSettings, WorkPlane};
 use glam::DVec3;
 
 use crate::screens::SketchContext;
+use crate::ui::floating_bar::TOP_ABOVE_THE_EDGE as BAR_TOP;
 
 use super::kept_sections::KeptSections;
 use super::navigation::Drag;
@@ -353,6 +354,8 @@ impl ViewScale {
     }
 }
 
+/// Where a thing of `size` stands in `corner`, `margin` in from the view's
+/// edges — above the view bar in the bottom right, where the bar stands.
 pub(crate) fn corner_origin(
     viewport: egui::Rect,
     corner: ViewportCorner,
@@ -364,7 +367,7 @@ pub(crate) fn corner_origin(
         ViewportCorner::TopRight => viewport.right_top() + egui::vec2(-margin - size.x, margin),
         ViewportCorner::BottomLeft => viewport.left_bottom() + egui::vec2(margin, -margin - size.y),
         ViewportCorner::BottomRight => {
-            viewport.right_bottom() + egui::vec2(-margin - size.x, -margin - size.y)
+            viewport.right_bottom() + egui::vec2(-margin - size.x, -margin - size.y - BAR_TOP)
         }
     }
 }

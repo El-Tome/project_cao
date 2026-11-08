@@ -126,15 +126,22 @@
 //!   and the ribbon's outside it (`driver::the_bar_s`, `driver::the_ribbon_s`),
 //!   and the tests aimed at the ribbon's go through the latter
 //! - the scale bar keeps its corner and its settings: at its default corner,
-//!   bottom left, it does not move — no test: in this file; held in
-//!   `crates/app/src/screens/viewport/state/tests.rs` by
-//!   `the_scale_bar_at_its_default_corner_stands_where_it_stood`
+//!   bottom left, it does not move; nor does the orientation cube at its
+//!   default corner, top right, nor either of them at a top corner or at the
+//!   bottom left — `the_scale_bar_at_its_default_corner_stands_where_it_stood`
 //! - set to the bottom right, the scale bar, or the orientation cube, stays in
-//!   that corner and is lifted above the bar, so that the two do not overlap —
-//!   no test: in this file; held in
-//!   `crates/app/src/screens/viewport/state/tests.rs` by
-//!   `a_scale_bar_set_to_the_bottom_right_stands_above_the_view_bar` and
+//!   that corner, against the right edge as before, and is lifted above the
+//!   bar, so that the two do not overlap —
+//!   `a_scale_bar_set_to_the_bottom_right_stands_above_the_view_bar`,
 //!   `an_orientation_cube_set_to_the_bottom_right_stands_above_the_view_bar`
+//!
+//! The scale bar and the cube are painted, not laid out as widgets, so the
+//! tree carries neither: they are read off what the last frame painted. The
+//! scale bar is its three strokes, the baseline and its two ticks, in the
+//! secondary ink; the cube is the rectangle its face labels are clipped to,
+//! which is the cube's own; the bar is the filled frame around what it holds.
+//! The redesign of the cube (P11) may paint it otherwise, and `the_cube` will
+//! have to follow.
 //!
 //! What « fills the view » is held to: every corner of what is framed stands
 //! inside the view, and it covers at least a third of the view across or up,
@@ -145,6 +152,8 @@
 
 mod driver;
 
+use cao_app::theme::tokens;
+use cao_prefs::config::ViewportCorner;
 use egui_kittest::kittest::{NodeT, Queryable};
 use glam::{DVec2, DVec3};
 
@@ -781,4 +790,212 @@ fn in_the_free_view_the_bar_s_buttons_keep_their_place_whatever_the_coordinates_
 
     hover_over_the_world(&mut app, BESIDE_THE_BLOCK);
     assert_in_their_place(&app, stood);
+}
+
+/// How far within a point the scale bar and the cube stand from where they
+/// are meant to: the corners are laid by the same arithmetic the frame paints
+/// with.
+const IN_ITS_CORNER: f32 = 1.0;
+
+/// How high the scale bar stands, in points, from its baseline to the top of
+/// its label: a 5-point tick under a 16-point line of text.
+const SCALE_BAR_HEIGHT: f32 = 21.0;
+
+/// The names the cube's faces carry, one of which at least is painted on it.
+const FACE_NAMES: [&str; 6] = ["FACE", "ARRIÈRE", "DROITE", "GAUCHE", "DESSUS", "DESSOUS"];
+
+/// Every shape the last frame painted, groups opened, with the rectangle it
+/// was clipped to.
+fn painted(app: &driver::App) -> Vec<(egui::Shape, egui::Rect)> {
+    let mut found = Vec::new();
+    for clipped in &app.output().shapes {
+        let mut pending = vec![clipped.shape.clone()];
+        while let Some(shape) = pending.pop() {
+            match shape {
+                egui::Shape::Vec(group) => pending.extend(group),
+                shape => found.push((shape, clipped.clip_rect)),
+            }
+        }
+    }
+    found
+}
+
+/// The scale bar's strokes, its baseline and its two ticks: the bottom of what
+/// it returns is the baseline.
+fn the_scale_bar(app: &driver::App) -> egui::Rect {
+    let stroke = egui::Stroke::new(1.5, tokens::TEXT_SECONDARY);
+    painted(app)
+        .into_iter()
+        .filter_map(|(shape, _)| match shape {
+            egui::Shape::LineSegment {
+                points,
+                stroke: drawn,
+            } if drawn == stroke => Some(egui::Rect::from_two_pos(points[0], points[1])),
+            _ => None,
+        })
+        .reduce(|one, other| one.union(other))
+        .unwrap_or_else(|| panic!("no scale bar is painted"))
+}
+
+/// The orientation cube: the rectangle its face labels are clipped to.
+fn the_cube(app: &driver::App) -> egui::Rect {
+    painted(app)
+        .into_iter()
+        .find_map(|(shape, clip)| match shape {
+            egui::Shape::Text(text) if FACE_NAMES.contains(&text.galley.text()) => Some(clip),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("no face of the cube is named on screen"))
+}
+
+/// The view bar's frame: the smallest filled rectangle painted around all it
+/// holds, its shadow left aside.
+fn the_bar_s_frame(app: &driver::App) -> egui::Rect {
+    let holds = driver::the_view_bar(app)
+        .into_iter()
+        .fold(egui::Rect::NOTHING, |held, (_, rect)| held.union(rect));
+    painted(app)
+        .into_iter()
+        .filter_map(|(shape, _)| match shape {
+            egui::Shape::Rect(rect)
+                if rect.blur_width == 0.0
+                    && rect.fill != egui::Color32::TRANSPARENT
+                    && rect.rect.contains_rect(holds) =>
+            {
+                Some(rect.rect)
+            }
+            _ => None,
+        })
+        .min_by(|one, other| one.area().total_cmp(&other.area()))
+        .unwrap_or_else(|| panic!("no frame is painted around the view bar"))
+}
+
+/// A part just made, the scale bar and the cube set to these corners.
+fn a_part_with(test: &str, scale_bar: ViewportCorner, cube: ViewportCorner) -> driver::App {
+    let mut settings = cao_prefs::Settings::default();
+    settings.viewport.ruler_corner = scale_bar;
+    settings.viewport.cube_corner = cube;
+    let mut app = driver::open_held_with(test, settings);
+    driver::create_a_part(&mut app, "Platine");
+    app
+}
+
+/// How far the scale bar and the cube stand off the view's edges, as the
+/// settings have it.
+fn margin() -> f32 {
+    cao_prefs::ViewportConfig::default().cube_margin
+}
+
+/// Where a thing set to a right-hand corner ends, as it always has: the
+/// margin in from the view's right edge.
+fn against_the_right_edge(app: &driver::App) -> f32 {
+    driver::canvas(app).max.x - margin()
+}
+
+/// How far the edges of `rect` that face `corner` stand from where that corner
+/// lays a thing `margin` in from the view's edges, one gap across, one up.
+fn off_its_corner(app: &driver::App, rect: egui::Rect, corner: ViewportCorner) -> egui::Vec2 {
+    let view = driver::canvas(app);
+    let inset = view.shrink(margin());
+    match corner {
+        ViewportCorner::TopLeft => rect.left_top() - inset.left_top(),
+        ViewportCorner::TopRight => rect.right_top() - inset.right_top(),
+        ViewportCorner::BottomLeft => rect.left_bottom() - inset.left_bottom(),
+        ViewportCorner::BottomRight => rect.right_bottom() - inset.right_bottom(),
+    }
+}
+
+#[test]
+fn the_scale_bar_at_its_default_corner_stands_where_it_stood() {
+    use ViewportCorner::{BottomLeft, TopLeft, TopRight};
+
+    for (scale_bar, cube) in [
+        (BottomLeft, TopRight),
+        (TopLeft, BottomLeft),
+        (TopRight, TopLeft),
+    ] {
+        let app = a_part_with(
+            &format!("the_scale_bar_stands_where_it_stood_{scale_bar:?}"),
+            scale_bar,
+            cube,
+        );
+
+        let mut strokes = the_scale_bar(&app);
+        if matches!(scale_bar, TopLeft | TopRight) {
+            strokes.min.y = strokes.max.y - SCALE_BAR_HEIGHT;
+        }
+        let off = off_its_corner(&app, strokes, scale_bar);
+        assert!(
+            off.length() <= IN_ITS_CORNER,
+            "the scale bar set to {scale_bar:?} stands {off:?} off that corner, at {strokes:?}",
+        );
+        let at = the_cube(&app);
+        let off = off_its_corner(&app, at, cube);
+        assert!(
+            off.length() <= IN_ITS_CORNER,
+            "the cube set to {cube:?} stands {off:?} off that corner, at {at:?}",
+        );
+    }
+}
+
+#[test]
+fn a_scale_bar_set_to_the_bottom_right_stands_above_the_view_bar() {
+    let app = a_part_with(
+        "a_scale_bar_set_to_the_bottom_right_stands_above_the_view_bar",
+        ViewportCorner::BottomRight,
+        ViewportCorner::TopRight,
+    );
+
+    let strokes = the_scale_bar(&app);
+    let bar = the_bar_s_frame(&app);
+    assert!(
+        (against_the_right_edge(&app) - strokes.max.x).abs() <= IN_ITS_CORNER,
+        "the scale bar set to the bottom right ends at {}, not against the right edge \
+         of the view as before, at {}",
+        strokes.max.x,
+        against_the_right_edge(&app),
+    );
+    assert!(
+        strokes.max.y <= bar.min.y,
+        "the scale bar's baseline at {} stands below the top of the view bar at {}: \
+         the two overlap",
+        strokes.max.y,
+        bar.min.y,
+    );
+    assert!(
+        bar.min.y - strokes.max.y <= AGAINST_THE_CORNER,
+        "the scale bar stands {} points above the view bar, out of its corner",
+        bar.min.y - strokes.max.y,
+    );
+}
+
+#[test]
+fn an_orientation_cube_set_to_the_bottom_right_stands_above_the_view_bar() {
+    let app = a_part_with(
+        "an_orientation_cube_set_to_the_bottom_right_stands_above_the_view_bar",
+        ViewportCorner::BottomLeft,
+        ViewportCorner::BottomRight,
+    );
+
+    let cube = the_cube(&app);
+    let bar = the_bar_s_frame(&app);
+    assert!(
+        (against_the_right_edge(&app) - cube.max.x).abs() <= IN_ITS_CORNER,
+        "the cube set to the bottom right ends at {}, not against the right edge of \
+         the view as before, at {}",
+        cube.max.x,
+        against_the_right_edge(&app),
+    );
+    assert!(
+        cube.max.y <= bar.min.y,
+        "the cube's foot at {} stands below the top of the view bar at {}: the two \
+         overlap",
+        cube.max.y,
+        bar.min.y,
+    );
+    assert!(
+        bar.min.y - cube.max.y <= AGAINST_THE_CORNER,
+        "the cube stands {} points above the view bar, out of its corner",
+        bar.min.y - cube.max.y,
+    );
 }

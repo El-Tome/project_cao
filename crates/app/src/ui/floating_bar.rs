@@ -14,10 +14,11 @@ use crate::ui::theme::tokens::{
 };
 
 /// The bar's measures in points, as `docs/redesign/source/part.html` draws
-/// them and the tokens do not carry: its corners, its padding and the gap
-/// between what it holds; a button's height, its padding across and the gap
+/// them and the tokens do not carry: its corners, its border, its padding and
+/// the gap between what it holds; a button's height, its padding across and the gap
 /// between its icon and its name; the size of a key; a separator's height.
 const RADIUS: u8 = 8;
+const STROKE: f32 = 1.0;
 const PADDING: i8 = 3;
 const GAP: f32 = 2.0;
 const BUTTON_HEIGHT: f32 = 30.0;
@@ -25,6 +26,10 @@ const BUTTON_PADDING: f32 = 10.0;
 const BUTTON_GAP: f32 = 7.0;
 const KEY_SIZE: f32 = 10.0;
 const SEPARATOR_HEIGHT: f32 = 18.0;
+
+/// How far above a view's bottom edge the top of the bar stands: its margin,
+/// its frame and its row. What is set in that corner stands above it.
+pub const TOP_ABOVE_THE_EDGE: f32 = SPACING_XXL + 2.0 * (STROKE + PADDING as f32) + BUTTON_HEIGHT;
 
 /// What a menu button wears after its name to say that it opens.
 const OPENS: &str = "⌄";
@@ -48,7 +53,7 @@ pub fn floating_bar<R>(
         .constrain_to(view)
         .show(ctx, |ui| {
             Frame::popup(ui.style())
-                .stroke(Stroke::new(1.0, BORDER_CONTROL))
+                .stroke(Stroke::new(STROKE, BORDER_CONTROL))
                 .corner_radius(RADIUS)
                 .inner_margin(Margin::same(PADDING))
                 .show(ui, |ui| {

@@ -34,4 +34,4 @@ pub use sketching::SketchingConfig;
 pub use storage::StorageError;
 pub use theme::{Background, Rgba, Stop, Theme};
 pub use toolbar::{Edge, Item, Path, ToolbarLayout};
-pub use window_place::{Monitor, WindowPlace, WindowSeen, place_to_hold, where_the_window_opens};
+pub use window_place::{FollowedWindow, Monitor, WindowPlace, WindowSeen, where_the_window_opens};

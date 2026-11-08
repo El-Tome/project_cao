@@ -65,7 +65,9 @@ the default values, failing which the user would have no way in to repair it.
 
 Beside it, in the same folder, `recents.json` holds the parts lately opened and
 `window.json` the place the window was closed at: its corner, its size, and
-whether it was maximised — the size being the one to go back to once restored.
+whether it was maximised. Maximised, the corner and size are the ones to go
+back to once restored — the last the window held for a second, as a rect held
+less than that before a maximise is taken for a frame of the zoom's animation.
 `window.json` is written on close, apart from the profiles, so closing a window
 never writes `settings.json` back over a change made in another one; with two
 windows open, the last one closed is the place remembered. Missing or
@@ -73,7 +75,8 @@ unreadable, it means nothing remembered, and the window opens maximised; one
 that cannot be written on close is lost, and the application closes all the
 same. The setting "Rouvrir à la dernière taille", in **Apparence** and on by
 default, is read at launch: off, the window opens maximised whatever was
-remembered.
+remembered. Where the system does not say where a window stands, as on
+Wayland, nothing is remembered and the window always opens maximised.
 
 ## Appearance
 

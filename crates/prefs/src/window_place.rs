@@ -5,6 +5,7 @@
 //! what the windowing library reports onto them.
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
@@ -99,26 +100,84 @@ pub struct WindowSeen {
     pub fullscreen: bool,
 }
 
-/// The place to hold after the window was `seen`, from the one `held` so far.
-/// Minimised or full screen, the window shows no place to reopen at, and the
-/// held one stands. Maximised, it keeps the rect it goes back to once
-/// restored, and with nothing held yet the rect it shows is the best there is.
-pub fn place_to_hold(held: Option<WindowPlace>, seen: WindowSeen) -> Option<WindowPlace> {
-    if seen.minimised || seen.fullscreen {
-        return held;
+/// How long a rect stands unchanged before it is the one to go back to. macOS
+/// animates a zoom through rects it does not call maximised, a frame apart:
+/// none of them stands this long.
+pub const SETTLE: Duration = Duration::from_secs(1);
+
+/// The window followed frame by frame, for the place to write on close.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FollowedWindow {
+    /// The last rect that settled; its `maximised` is never read.
+    to_go_back_to: WindowPlace,
+    standing: Standing,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Standing {
+    Maximised,
+    Restored { rect: WindowPlace, since: Duration },
+}
+
+impl FollowedWindow {
+    /// From the place the window opened at, which is the rect it goes back to.
+    pub fn opened_at(place: WindowPlace) -> Self {
+        let rect = WindowPlace {
+            maximised: false,
+            ..place
+        };
+        let standing = if place.maximised {
+            Standing::Maximised
+        } else {
+            Standing::Restored {
+                rect,
+                since: Duration::ZERO,
+            }
+        };
+        Self {
+            to_go_back_to: rect,
+            standing,
+        }
     }
-    match held {
-        Some(held) if seen.maximised => Some(WindowPlace {
-            maximised: true,
-            ..held
-        }),
-        _ => Some(WindowPlace {
+
+    /// The window `seen` `at` a time counted from the origin `opened_at`
+    /// stands for. Minimised or full screen, it shows no place and changes
+    /// nothing.
+    pub fn saw(&mut self, seen: WindowSeen, at: Duration) {
+        if seen.minimised || seen.fullscreen {
+            return;
+        }
+        if let Standing::Restored { rect, since } = self.standing
+            && at.saturating_sub(since) >= SETTLE
+        {
+            self.to_go_back_to = rect;
+        }
+        let rect = WindowPlace {
             x: seen.x,
             y: seen.y,
             width: seen.width,
             height: seen.height,
-            maximised: seen.maximised,
-        }),
+            maximised: false,
+        };
+        self.standing = match self.standing {
+            _ if seen.maximised => Standing::Maximised,
+            Standing::Restored { rect: last, since } if last == rect => {
+                Standing::Restored { rect, since }
+            }
+            _ => Standing::Restored { rect, since: at },
+        };
+    }
+
+    /// Maximised, the rect to go back to; otherwise the window as it stands,
+    /// settled or not.
+    pub fn place_to_write(&self) -> WindowPlace {
+        match self.standing {
+            Standing::Maximised => WindowPlace {
+                maximised: true,
+                ..self.to_go_back_to
+            },
+            Standing::Restored { rect, .. } => rect,
+        }
     }
 }
 

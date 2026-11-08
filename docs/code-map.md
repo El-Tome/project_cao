@@ -297,8 +297,8 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | What one is after | File | Way in |
 | --- | --- | --- |
 | The ten recent parts | `prefs/src/recents.rs` | `RecentList` |
-| Where the window opens, and which place it holds while it runs: the remembered one, or maximised over the default size on the main screen, in the desktop's units, written to `window.json` | `prefs/src/window_place.rs` | `WindowPlace`, `Monitor`, `where_the_window_opens`, `WindowSeen`, `place_to_hold` |
-| The real window put where it opens, followed each frame and written down on close; what winit reports turned into the desktop's units | `app/src/adapters/window_place.rs` | `WindowKeeper`, `Desktop` |
+| Where the window opens — the remembered place, or maximised over the default size on the main screen — and the place written to `window.json` on close, the rect to go back to being the last one that stood for a second, in the desktop's units | `prefs/src/window_place.rs` | `WindowPlace`, `Monitor`, `where_the_window_opens`, `FollowedWindow`, `WindowSeen`, `SETTLE` |
+| The real window put where it opens, followed each frame and written down on close, what winit reports turned into the desktop's units on the way | `app/src/adapters/window_place.rs` | `WindowKeeper` |
 | Where the platform keeps things | `prefs/src/locations.rs` | `Locations`, `default_projects_dir` |
 | Asking the platform where that is | `app/src/adapters/locations.rs` | `discover` |
 | Which clock a moment is read on | `app/src/adapters/clock.rs` | `reader_zone` |

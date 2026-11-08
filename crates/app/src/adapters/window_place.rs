@@ -8,9 +8,10 @@
 //! back in those units on the way out.
 
 use std::sync::Arc;
+use std::time::Instant;
 
 use cao_prefs::{
-    Locations, Monitor, WindowPlace, WindowSeen, place_to_hold, where_the_window_opens,
+    FollowedWindow, Locations, Monitor, WindowPlace, WindowSeen, where_the_window_opens,
 };
 use winit::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
 use winit::window::Window;
@@ -19,7 +20,7 @@ use crate::adapters::files::DiskFiles;
 
 /// The units a desktop lays its screens out in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Desktop {
+pub(crate) enum Desktop {
     /// macOS: one space in points, whatever the scale of each screen.
     Points,
     /// Windows and X11: one space in pixels, as reported.
@@ -35,26 +36,26 @@ const DESKTOP: Desktop = if cfg!(target_os = "macos") {
 /// A rect as winit reports it, with the scale of the screen or the window it
 /// was read from.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct PhysicalRect {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
-    pub scale_factor: f64,
+pub(crate) struct PhysicalRect {
+    pub(crate) x: i32,
+    pub(crate) y: i32,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) scale_factor: f64,
 }
 
 /// A rect in the desktop's own units.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct DesktopRect {
-    pub x: i32,
-    pub y: i32,
-    pub width: u32,
-    pub height: u32,
+pub(crate) struct DesktopRect {
+    pub(crate) x: i32,
+    pub(crate) y: i32,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
 }
 
 impl Desktop {
     /// A screen in the desktop's units, with how many of them a point takes.
-    pub fn monitor(self, screen: PhysicalRect) -> Monitor {
+    pub(crate) fn monitor(self, screen: PhysicalRect) -> Monitor {
         let DesktopRect {
             x,
             y,
@@ -75,7 +76,7 @@ impl Desktop {
     }
 
     /// The window's outer corner and inner size in the desktop's units.
-    pub fn window(self, window: PhysicalRect) -> DesktopRect {
+    pub(crate) fn window(self, window: PhysicalRect) -> DesktopRect {
         self.in_units(window)
     }
 
@@ -96,17 +97,18 @@ impl Desktop {
 }
 
 /// The window followed from the place it opened at to the one it closes at.
-/// Holds nothing under the test harness, which has no window, nor where the
-/// system does not say where a window stands: nothing is then set, read or
-/// written.
+/// Holds nothing under the test harness, which has no window. Where the system
+/// does not say where a window stands, or offers nowhere to keep its place,
+/// the window opens maximised and nothing is followed or written.
 pub struct WindowKeeper {
     followed: Option<Followed>,
 }
 
 struct Followed {
     window: Arc<Window>,
-    at: Option<Locations>,
-    held: Option<WindowPlace>,
+    at: Locations,
+    seen: FollowedWindow,
+    started: Instant,
 }
 
 impl WindowKeeper {
@@ -118,19 +120,19 @@ impl WindowKeeper {
         at: Option<&Locations>,
         reopen_at_last_size: bool,
     ) -> Self {
-        let followed = window
-            .filter(|window| window.outer_position().is_ok())
-            .map(|window| {
-                let remembered = at.and_then(|at| WindowPlace::load(&DiskFiles, at));
-                let place =
-                    where_the_window_opens(remembered, reopen_at_last_size, &monitors(window));
-                put(window, place);
-                Followed {
-                    window: Arc::clone(window),
-                    at: at.cloned(),
-                    held: Some(place),
-                }
-            });
+        let Some(window) = window else {
+            return Self { followed: None };
+        };
+        let kept_at = at.filter(|_| window.outer_position().is_ok());
+        let remembered = kept_at.and_then(|at| WindowPlace::load(&DiskFiles, at));
+        let place = where_the_window_opens(remembered, reopen_at_last_size, &monitors(window));
+        put(window, place);
+        let followed = kept_at.map(|at| Followed {
+            window: Arc::clone(window),
+            at: at.clone(),
+            seen: FollowedWindow::opened_at(place),
+            started: Instant::now(),
+        });
         Self { followed }
     }
 
@@ -139,7 +141,7 @@ impl WindowKeeper {
         if let Some(followed) = &mut self.followed
             && let Some(seen) = seen(&followed.window)
         {
-            followed.held = place_to_hold(followed.held, seen);
+            followed.seen.saw(seen, followed.started.elapsed());
         }
     }
 
@@ -148,13 +150,11 @@ impl WindowKeeper {
     /// lost rather than an error: the application closes all the same.
     pub fn put_down(&mut self) {
         self.follow();
-        if let Some(Followed {
-            at: Some(at),
-            held: Some(place),
-            ..
-        }) = &self.followed
-        {
-            let _ = place.save(&DiskFiles, at);
+        if let Some(followed) = &self.followed {
+            let _ = followed
+                .seen
+                .place_to_write()
+                .save(&DiskFiles, &followed.at);
         }
     }
 }

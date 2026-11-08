@@ -2,9 +2,11 @@
 //! step, at one value: each edge of the list cut off, or filled in where its
 //! faces meet inwards, as the step of that one edge would (#696, #697, #778),
 //! and the value reduced once for the whole step, to the largest at which
-//! every round or flat fits with the others laid. An operation of the kernel
-//! on [`Body`]; the step of the history that calls it comes with the
-//! application, in #701.
+//! every round or flat fits with the others laid. Two rounds whose set-backs
+//! meet across the face they share are one face, a full round: their edges
+//! are parallel, so the two share one axis — edges that are not parallel are
+//! out of this issue's reach. An operation of the kernel on [`Body`]; the
+//! step of the history that calls it comes with the application, in #701.
 //!
 //! Closes #698.
 //! - A fillet step given the names of several straight edges of a block that
@@ -18,15 +20,21 @@
 //!   its edge, from where the steps' numbers ended —
 //!   `each_round_and_each_flat_of_a_step_on_several_edges_is_numbered_in_the_order_the_step_names_its_edge_from_where_the_steps_numbers_ended`
 //! - The value is reduced once for the whole step, to the largest at which
-//!   every round fits with the others laid: on a block 10 wide, rounding the
-//!   two edges on either side of that face takes at most 5, where either alone
-//!   would take more. The step reports the value asked and the one value
-//!   taken —
-//!   `a_fillet_and_a_chamfer_on_the_two_edges_either_side_of_a_face_10_wide_take_at_most_5_where_either_alone_takes_more`;
+//!   every round fits with the others laid. The step reports the value asked
+//!   and the one value taken —
+//!   `a_fillet_and_a_chamfer_on_several_edges_asked_more_than_one_of_them_gives_take_the_one_value_every_edge_fits_and_report_both`;
 //!   a value that fits is taken as asked — the two tests of the first
 //!   criterion, which ask a value every edge gives and hold that it is the one
 //!   taken, and
 //!   `a_fillet_and_a_chamfer_on_the_two_edges_either_side_of_a_face_take_a_value_that_fits_as_asked`
+//! - On a block 10 wide, rounding the two edges on either side of that face,
+//!   asked more than 5, takes 5, where either alone would take more: the face
+//!   is gone, and the two rounds, of one axis and one radius, are one
+//!   half-cylinder tangent to both sides — a **full round** — answering to
+//!   both edges' numbers. The body passes the soundness checks. A chamfer
+//!   takes 5 too, and its two flats meet in a ridge —
+//!   `a_fillet_on_the_two_edges_either_side_of_a_face_10_wide_asked_more_than_5_takes_5_in_one_full_round`,
+//!   `a_chamfer_on_the_two_edges_either_side_of_a_face_10_wide_asked_more_than_5_takes_5_its_flats_meeting_in_a_ridge`
 //! - A list mixing an edge whose faces meet outwards and one whose faces meet
 //!   inwards cuts the first off and fills the second in, at one value —
 //!   `a_fillet_and_a_chamfer_on_an_outward_edge_and_an_inward_one_cut_the_first_off_and_fill_the_second_in_at_one_value`
@@ -106,15 +114,26 @@ fn profile(outline: Contour) -> Profile<'static> {
 /// origin, joined as `cao_part` builds a step: its floor numbered nought, its
 /// top one, and its sides two to five from the front round to the left.
 fn block([length, breadth, height]: [f64; 3]) -> Body {
-    let part = Body::default();
+    joined_to(
+        &Body::default(),
+        [DVec2::ZERO, DVec2::new(length, breadth)],
+        height,
+    )
+}
+
+/// The part with a block standing on the ground between the corners `from`
+/// and `to`, `height` high, joined to it as `cao_part` joins a step: the
+/// block's faces numbered past the part's, its floor first, then its top,
+/// then its sides from the front round to the left.
+fn joined_to(part: &Body, [from, to]: [DVec2; 2], height: f64) -> Body {
     let tool = part
         .tool_raised(
-            &profile(Contour::rectangle(DVec2::ZERO, DVec2::new(length, breadth))),
+            &profile(Contour::rectangle(from, to)),
             ground(),
             DVec3::Z * height,
         )
         .expect("the tool raises");
-    part.union(&tool).expect("the part is built")
+    part.union(&tool).expect("the join is built")
 }
 
 /// The name of the one edge between the faces numbered `first` and `second`,
@@ -726,6 +745,86 @@ fn a_chamfer_on_the_four_long_edges_of_a_block_cuts_each_as_its_own_chamfer_alon
             wall,
             &octagon,
             &format!("the wall at x = {x}, its four corners cut"),
+        );
+    }
+}
+
+#[test]
+fn each_round_and_each_flat_of_a_step_on_several_edges_is_numbered_in_the_order_the_step_names_its_edge_from_where_the_steps_numbers_ended()
+ {
+    let value = 3.0;
+    let part = joined_to(
+        &block([LENGTH, BREADTH, HEIGHT]),
+        [DVec2::new(0.0, 40.0), DVec2::new(LENGTH, 40.0 + BREADTH)],
+        HEIGHT,
+    );
+    let steps_end = 12;
+    assert_eq!(
+        part.faces_end(),
+        steps_end,
+        "the two blocks' steps numbered their twelve faces nought to eleven"
+    );
+    let edges = long_edges();
+    let names: Vec<EdgeName> = edges.iter().map(|edge| edge.name(&part)).collect();
+
+    let filleted = part
+        .fillet_edges(&names, value)
+        .unwrap_or_else(|declined| panic!("the fillet: declined, {declined:?}"));
+    let chamfered = part
+        .chamfer_edges(&names, value)
+        .unwrap_or_else(|declined| panic!("the chamfer: declined, {declined:?}"));
+
+    let laid = steps_end..steps_end + edges.len();
+    for (what, body) in [
+        ("the fillet", &filleted.body),
+        ("the chamfer", &chamfered.body),
+    ] {
+        let mut kept_and_laid = numbers(&part);
+        kept_and_laid.extend(laid.clone());
+        assert_eq!(
+            numbers(body),
+            kept_and_laid,
+            "{what}: every number the two blocks' faces answered to, and one for each edge from \
+             {steps_end}, where the steps' numbers ended"
+        );
+        assert_eq!(
+            body.faces_end(),
+            laid.end,
+            "{what}: the step names one face for each edge, and the next step numbers its own past \
+             them"
+        );
+        let then = joined_to(body, [DVec2::new(0.0, -40.0), DVec2::new(10.0, -30.0)], 5.0);
+        let mut after_the_next_step = kept_and_laid.clone();
+        after_the_next_step.extend(laid.end..laid.end + 6);
+        assert_eq!(
+            numbers(&then),
+            after_the_next_step,
+            "{what}: a block joined after the step numbers its six faces past the last it laid"
+        );
+    }
+    for (edge, number) in edges.iter().zip(laid) {
+        let which = format!(
+            "face {number}, laid for the edge between faces {:?}",
+            edge.faces
+        );
+        is_the_round(
+            &filleted.body,
+            number,
+            &edge.round(value),
+            &format!("{which}, the fillet's round"),
+        );
+        let (corners, facing) = edge.flat(value);
+        face_facing(
+            &chamfered.body,
+            &[number],
+            facing,
+            &format!("{which}, the chamfer's flat"),
+        );
+        corners_are(
+            &chamfered.body,
+            number,
+            &corners,
+            &format!("{which}, the chamfer's flat"),
         );
     }
 }

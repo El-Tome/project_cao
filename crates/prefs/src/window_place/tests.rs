@@ -5,11 +5,16 @@
 //!   at that size and that position —
 //!   `a_window_closed_where_it_stood_reopens_there_at_that_size`, the place
 //!   kept from one launch to the next by
-//!   `a_place_written_on_close_reads_back_as_it_was`
+//!   `a_place_written_on_close_reads_back_as_it_was`, and the one held while
+//!   the application runs by `a_window_moved_and_resized_is_held_where_it_now_stands`
+//!   and `a_minimised_or_full_screen_window_leaves_the_held_place_as_it_was`
 //! - Closed maximised, it reopens maximised; un-maximised then, it returns to
 //!   the size and position it had before being maximised —
 //!   `a_window_closed_maximised_reopens_maximised_over_the_rect_it_had_before`,
-//!   the flag kept by `a_place_written_on_close_reads_back_as_it_was`
+//!   the flag kept by `a_place_written_on_close_reads_back_as_it_was`; while
+//!   the application runs, `a_maximised_window_holds_the_rect_it_had_before_to_go_back_to`,
+//!   `maximised_again_after_a_drag_the_window_holds_the_dragged_rect_to_go_back_to`
+//!   and `a_window_seen_maximised_before_anything_was_held_holds_the_rect_it_shows`
 //! - At the first launch, with nothing remembered, it opens maximised;
 //!   un-maximised then, it takes a default size, centred —
 //!   `nothing_remembered_opens_maximised_over_the_default_size_centred_on_the_main_screen`,
@@ -35,12 +40,16 @@
 //! With no screen reported at all, nothing is decided against the screens —
 //! `no_screen_reported_at_all_still_gives_a_place_to_open_at`.
 //!
-//! What these cannot reach is the window itself. Un-maximising is the
-//! system's: macOS gives a window back the frame it had when it was maximised,
-//! so the shell sets the rect first and maximises after; and while the window
-//! is maximised, the rect held for the next launch is still the one from
-//! before. Both happen on the real window, which no test of this workspace
-//! has, and are tried in the app.
+//! While the application runs, the place held is what gets written on close:
+//! the rect last seen while the window was neither maximised, minimised nor
+//! full screen, and whether it was maximised. A window opened maximised holds
+//! the rect it opened over, so that it has one to go back to.
+//!
+//! What these cannot reach is the window itself. Reading it each frame is the
+//! shell's, and un-maximising is the system's: macOS gives a window back the
+//! frame it had when it was maximised, so the shell sets the rect first and
+//! maximises after. Both happen on the real window, which no test of this
+//! workspace has, and are tried in the app.
 
 use std::path::Path;
 
@@ -305,5 +314,153 @@ fn a_place_that_cannot_be_read_back_reads_as_nothing_remembered() {
         None,
         "a damaged place costs one launch at the default size, which is less than \
          refusing to open over it",
+    );
+}
+
+const MAXIMISED_ON_FULL_HD: WindowSeen = WindowSeen {
+    x: 0,
+    y: 25,
+    width: 1920,
+    height: 1055,
+    maximised: true,
+    minimised: false,
+    fullscreen: false,
+};
+
+fn seen_at(x: i32, y: i32, width: u32, height: u32) -> WindowSeen {
+    WindowSeen {
+        x,
+        y,
+        width,
+        height,
+        maximised: false,
+        minimised: false,
+        fullscreen: false,
+    }
+}
+
+#[test]
+fn a_window_moved_and_resized_is_held_where_it_now_stands() {
+    let held = WindowPlace {
+        x: 200,
+        y: 120,
+        width: 1000,
+        height: 700,
+        maximised: false,
+    };
+
+    let now = place_to_hold(Some(held), seen_at(500, 260, 1100, 640));
+
+    assert_eq!(
+        now,
+        Some(WindowPlace {
+            x: 500,
+            y: 260,
+            width: 1100,
+            height: 640,
+            maximised: false,
+        }),
+    );
+}
+
+#[test]
+fn a_maximised_window_holds_the_rect_it_had_before_to_go_back_to() {
+    let held = WindowPlace {
+        x: 200,
+        y: 120,
+        width: 1000,
+        height: 700,
+        maximised: false,
+    };
+
+    let now = place_to_hold(Some(held), MAXIMISED_ON_FULL_HD);
+
+    assert_eq!(
+        now,
+        Some(WindowPlace {
+            maximised: true,
+            ..held
+        }),
+        "maximised, the window holds the rect it goes back to once restored, not the \
+         screen's",
+    );
+}
+
+#[test]
+fn a_window_seen_maximised_before_anything_was_held_holds_the_rect_it_shows() {
+    assert_eq!(
+        place_to_hold(None, MAXIMISED_ON_FULL_HD),
+        Some(WindowPlace {
+            x: 0,
+            y: 25,
+            width: 1920,
+            height: 1055,
+            maximised: true,
+        }),
+        "with no rect from before, the one shown is the best there is",
+    );
+}
+
+#[test]
+fn a_minimised_or_full_screen_window_leaves_the_held_place_as_it_was() {
+    let held = WindowPlace {
+        x: 200,
+        y: 120,
+        width: 1000,
+        height: 700,
+        maximised: false,
+    };
+    let minimised_from_maximised = WindowSeen {
+        maximised: true,
+        minimised: true,
+        ..seen_at(-32000, -32000, 160, 28)
+    };
+    let full_screen = WindowSeen {
+        fullscreen: true,
+        ..seen_at(0, 0, 1920, 1080)
+    };
+
+    assert_eq!(
+        place_to_hold(Some(held), minimised_from_maximised),
+        Some(held),
+        "a minimised window shows a rect nobody would reopen at",
+    );
+    assert_eq!(
+        place_to_hold(Some(held), full_screen),
+        Some(held),
+        "full screen is not a place to reopen at, and not a maximised window",
+    );
+    assert_eq!(
+        place_to_hold(None, minimised_from_maximised),
+        None,
+        "nothing held, a minimised window gives nothing to hold",
+    );
+}
+
+#[test]
+fn maximised_again_after_a_drag_the_window_holds_the_dragged_rect_to_go_back_to() {
+    let opened = where_the_window_opens(None, REOPENING_AT_THE_LAST_SIZE, &[FULL_HD_AT_SCALE_ONE]);
+
+    let mut held = place_to_hold(Some(opened), MAXIMISED_ON_FULL_HD);
+    assert_eq!(
+        held,
+        Some(THE_DEFAULT_CENTRED_ON_FULL_HD_AND_MAXIMISED),
+        "opened maximised, the window holds the default rect to go back to",
+    );
+    held = place_to_hold(held, seen_at(320, 140, 1280, 800));
+    held = place_to_hold(held, seen_at(500, 260, 1100, 640));
+    held = place_to_hold(held, MAXIMISED_ON_FULL_HD);
+
+    assert_eq!(
+        held,
+        Some(WindowPlace {
+            x: 500,
+            y: 260,
+            width: 1100,
+            height: 640,
+            maximised: true,
+        }),
+        "restored, dragged, then maximised again: closed now, the window reopens \
+         maximised and goes back to where it was dragged",
     );
 }

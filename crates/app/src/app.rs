@@ -4,6 +4,7 @@ use cao_part::PartDocument;
 use cao_prefs::{Command, Locations};
 use cao_render::SceneRenderer;
 
+use crate::adapters::window_place::WindowKeeper;
 use crate::remembered::Remembered;
 use crate::screens::explorer::Explorer;
 use crate::screens::viewport::ViewportState;
@@ -15,6 +16,7 @@ use crate::shortcuts::shortcuts_pressed;
 use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave, wording};
 use crate::{commands, export};
 mod on_screen;
+mod settings_window;
 
 pub struct CaoApp {
     screen: Screen,
@@ -28,6 +30,7 @@ pub struct CaoApp {
     explorer: Explorer,
     /// What takes a part's picture. Nothing when the platform gave no GPU.
     painter: Option<crate::picture::Painter>,
+    window: WindowKeeper,
 }
 
 impl CaoApp {
@@ -53,6 +56,11 @@ impl CaoApp {
         let painter = crate::picture::Painter::new(cc.wgpu_render_state.as_ref());
         let remembered = Remembered::read(locations);
         let explorer = Explorer::at(remembered.projects_dir().unwrap_or_default());
+        let window = WindowKeeper::open(
+            cc.winit_window(),
+            remembered.locations(),
+            remembered.profiles.active().reopen_at_last_size,
+        );
         let mut app = Self {
             screen: Screen::StartMenu,
             remembered,
@@ -62,6 +70,7 @@ impl CaoApp {
             error: None,
             explorer,
             painter,
+            window,
         };
         if let Some(part) = opening {
             app.open_part(part);
@@ -344,35 +353,11 @@ impl CaoApp {
             self.error = Some(message);
         }
     }
-
-    /// The preferences, in a window over whatever is open. Kept out of the
-    /// screen routing on purpose: settings apply to the whole application, and
-    /// closing them must not close the part being drawn.
-    fn show_settings(&mut self, ui: &mut egui::Ui) {
-        if !self.settings_open {
-            return;
-        }
-        let mut open = true;
-        let mut touched = false;
-
-        egui::Window::new(self.remembered.lang().t("app.settings_window"))
-            .open(&mut open)
-            .default_size([720.0, 560.0])
-            .vscroll(true)
-            .show(ui.ctx(), |ui| {
-                let (profiles, lang) = self.remembered.profiles_and_lang();
-                touched = screens::settings::show(ui, profiles, &mut self.settings_editor, lang);
-            });
-
-        self.settings_open = open;
-        if touched {
-            self.save_settings();
-        }
-    }
 }
 
 impl eframe::App for CaoApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        self.window.follow();
         if let Some(error) = &self.error {
             let message = error.clone();
             egui::Panel::bottom("error_bar").show(ui, |ui| {
@@ -396,5 +381,6 @@ impl eframe::App for CaoApp {
 
     fn on_exit(&mut self) {
         self.put_the_part_away();
+        self.window.put_down();
     }
 }

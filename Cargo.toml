@@ -20,6 +20,9 @@ egui = "0.36"
 egui-wgpu = "0.36"
 egui_extras = { version = "0.36", default-features = false, features = ["svg"] }
 egui_kittest = { version = "0.36.2", features = ["eframe"] }
+# The window's place on the desktop, which eframe does not follow once it is
+# open. The version eframe builds on, its features unified with eframe's.
+winit = { version = "0.30", default-features = false }
 wgpu = "30"
 glam = { version = "0.33", features = ["bytemuck", "serde"] }
 bytemuck = { version = "1", features = ["derive"] }

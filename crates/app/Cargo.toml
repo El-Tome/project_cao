@@ -21,6 +21,7 @@ rfd.workspace = true
 serde_json.workspace = true
 trash.workspace = true
 wgpu.workspace = true
+winit.workspace = true
 
 [features]
 # Where the view shows a point of the drawing, for the driver tests that click

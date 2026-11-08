@@ -297,6 +297,8 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | What one is after | File | Way in |
 | --- | --- | --- |
 | The ten recent parts | `prefs/src/recents.rs` | `RecentList` |
+| Where the window opens, and which place it holds while it runs: the remembered one, or maximised over the default size on the main screen, in the desktop's units, written to `window.json` | `prefs/src/window_place.rs` | `WindowPlace`, `Monitor`, `where_the_window_opens`, `WindowSeen`, `place_to_hold` |
+| The real window put where it opens, followed each frame and written down on close; what winit reports turned into the desktop's units | `app/src/adapters/window_place.rs` | `WindowKeeper`, `Desktop` |
 | Where the platform keeps things | `prefs/src/locations.rs` | `Locations`, `default_projects_dir` |
 | Asking the platform where that is | `app/src/adapters/locations.rs` | `discover` |
 | Which clock a moment is read on | `app/src/adapters/clock.rs` | `reader_zone` |
@@ -335,6 +337,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | What one is after | File | Way in |
 | --- | --- | --- |
 | Application state, frame loop | `app/src/app.rs` | `CaoApp`, `impl eframe::App` |
+| The preferences, in a window over whatever is open | `app/src/app/settings_window.rs` | `CaoApp::show_settings` |
 | Routing between modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
 | Canvas: what it knows between frames, and who a gesture is for | `app/src/screens/viewport/state.rs` | `ViewportState`, `ViewMode`, `ViewScale`, `gesture_goes_to` |
 | Canvas: the frame loop and the entry point | `app/src/screens/viewport/view.rs` | `show(...)` |

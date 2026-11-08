@@ -86,6 +86,42 @@ fn centred(start: i32, span: u32, length: u32) -> i32 {
     (i64::from(start) + (i64::from(span) - i64::from(length)) / 2) as i32
 }
 
+/// What the window shows of itself on a frame: its outer top-left corner, its
+/// inner size, and what state the system has it in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WindowSeen {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub maximised: bool,
+    pub minimised: bool,
+    pub fullscreen: bool,
+}
+
+/// The place to hold after the window was `seen`, from the one `held` so far.
+/// Minimised or full screen, the window shows no place to reopen at, and the
+/// held one stands. Maximised, it keeps the rect it goes back to once
+/// restored, and with nothing held yet the rect it shows is the best there is.
+pub fn place_to_hold(held: Option<WindowPlace>, seen: WindowSeen) -> Option<WindowPlace> {
+    if seen.minimised || seen.fullscreen {
+        return held;
+    }
+    match held {
+        Some(held) if seen.maximised => Some(WindowPlace {
+            maximised: true,
+            ..held
+        }),
+        _ => Some(WindowPlace {
+            x: seen.x,
+            y: seen.y,
+            width: seen.width,
+            height: seen.height,
+            maximised: seen.maximised,
+        }),
+    }
+}
+
 impl Monitor {
     fn holds_the_centre_of(&self, place: WindowPlace) -> bool {
         let within = |start: i32, span: u32, corner: i32, length: u32| {

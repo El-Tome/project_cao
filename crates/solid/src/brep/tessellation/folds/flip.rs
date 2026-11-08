@@ -15,7 +15,19 @@ impl Folds<'_> {
     /// cross triangles of other faces, and no fewer than those they replace
     /// did: a triangle they cross is then cut the other way in turn, `depth`
     /// times over. The flips made, to undo them.
+    ///
+    /// A cut that leaves no crossing and no fold is looked for first, every
+    /// way round, and only then one that leaves fewer crossings: the first
+    /// that leaves fewer can leave a fold on the face beyond, which is then
+    /// never cut the other way with it, and a strip two walls lie on each
+    /// other along is left half swept (353000000010626).
     pub(super) fn unfold(&mut self, at: At, depth: usize) -> Option<Undo> {
+        self.cut_other_way(at, depth, true)
+            .or_else(|| self.cut_other_way(at, depth, false))
+    }
+
+    /// [`Self::unfold`], held to leaving no crossing and no fold when `clean`.
+    fn cut_other_way(&mut self, at: At, depth: usize, clean: bool) -> Option<Undo> {
         for side in self.inner_sides(at) {
             let Some(partner) = self.beyond(at, side) else {
                 continue;
@@ -39,7 +51,7 @@ impl Folds<'_> {
                 let now = self.beyond(at, side);
                 if let Some(was) = now.and_then(|now| self.flip(at, now).map(|was| (now, was))) {
                     undo.push((at, was.0, was.1));
-                    if let Some(more) = self.settled(&undo, depth) {
+                    if let Some(more) = self.settled(&undo, depth, clean) {
                         undo.extend(more);
                         return Some(undo);
                     }
@@ -54,23 +66,27 @@ impl Folds<'_> {
     /// another face, or fewer than those they replaced did, once those they
     /// cross are cut the other way within `depth`: the flips that took, if
     /// any were needed. Fewer, never as many: a flip that only trades one
-    /// crossing for another would be taken back by the next.
-    fn settled(&mut self, undo: &Undo, depth: usize) -> Option<Undo> {
+    /// crossing for another would be taken back by the next. When `clean`,
+    /// none, and lying on none: a triangle one lies on is cut the other way too.
+    fn settled(&mut self, undo: &Undo, depth: usize, clean: bool) -> Option<Undo> {
         let mut was = BTreeMap::new();
         for (one, other, [mine, theirs]) in undo {
             was.entry(*one).or_insert(*mine);
             was.entry(*other).or_insert(*theirs);
         }
-        let before: usize = was
-            .iter()
-            .map(|(at, corners)| self.crossings(at.0, *corners, usize::MAX))
-            .sum();
+        let before: usize = if clean {
+            0
+        } else {
+            was.iter()
+                .map(|(at, corners)| self.crossings(at.0, *corners, usize::MAX))
+                .sum()
+        };
         let bound = before.max(1);
         let worse = |folds: &Self| {
             let after = was.keys().fold(0, |after, &(face, each)| {
                 after + folds.crossings(face, folds.drawn[face].triangles[each], bound - after)
             });
-            after >= bound
+            after >= bound || clean && was.keys().any(|each| folds.lying(*each).is_some())
         };
         if !worse(self) {
             return Some(Undo::new());
@@ -78,9 +94,18 @@ impl Folds<'_> {
         if depth == 0 {
             return None;
         }
-        let blockers: Vec<At> = was.keys().filter_map(|each| self.crossing(*each)).collect();
+        let blockers: Vec<At> = was
+            .keys()
+            .flat_map(|each| {
+                [
+                    clean.then(|| self.lying(*each)).flatten(),
+                    self.crossing(*each),
+                ]
+            })
+            .flatten()
+            .collect();
         for blocker in blockers {
-            let Some(more) = self.unfold(blocker, depth - 1) else {
+            let Some(more) = self.cut_other_way(blocker, depth - 1, clean) else {
                 continue;
             };
             if !worse(self) {

@@ -141,6 +141,17 @@
 //! - No draw regresses against `main`, seed by seed, on the three sets #754
 //!   was measured on — no test: nothing outside this test changes, so every
 //!   draw is `main`'s and no campaign is needed
+//!
+//! Closes #765.
+//! - The drawn case of 353000000010626, pinned in
+//!   `crates/solid/tests/random_walls_at_any_angle.rs`, loses its `#[ignore]`
+//!   and passes —
+//!   `seed_353000000010626_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body`
+//! - No draw regresses against #762's merge, seed by seed, on the three sets,
+//!   both kernels — no test: a campaign fails on any finding, so the walls
+//!   campaigns above are run on #762's merge and on the branch over sets
+//!   352000000000000, 353000000000000 and 354000000000000 and compared seed
+//!   by seed, the counts on the pull request
 
 #[allow(dead_code, unused_imports)]
 mod random_solids;
@@ -1588,7 +1599,6 @@ fn seed_353000000010626_an_elliptic_shaft_bored_along_its_wall_a_hair_inside_the
 }
 
 #[test]
-#[ignore = "#765: the drawn shaft still crosses where the bore lies a hair inside its wall"]
 fn seed_353000000010626_the_same_shaft_as_drawn_is_drawn_uncrossed_through_the_application_s_body()
 {
     walls_seed_through_the_application(353000000010626);

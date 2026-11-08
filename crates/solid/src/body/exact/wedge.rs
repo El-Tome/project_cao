@@ -6,6 +6,7 @@
 
 mod fill;
 mod section;
+mod shared;
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -18,6 +19,7 @@ use crate::brep::{self, Coedge, Curve, Declined, Edge, EdgeId, EdgeName, FaceId,
 use crate::profile::{Contour, Frame};
 
 pub(super) use section::Side;
+pub(super) use shared::Together;
 
 /// A straight edge between two flat faces: a point of it, the way it runs,
 /// its two faces, for each the way it faces and the way into it, square to
@@ -43,19 +45,24 @@ pub(super) type Prism = (Contour, Frame, DVec3);
 impl Exact {
     /// The body with the edge each name finds cut off, or filled in where its
     /// faces meet inwards, by the prism `tool` raises over its wedge for the
-    /// one value taken, one after the other in the order the names come, and
-    /// that value: `asked`, or the most every edge gives with the others laid
-    /// — what `most` says each edge's two faces give, and on a face two edges
-    /// share, what keeps the set-backs they make on it from crossing, as
-    /// [`shared`] reads them by the set-back of a value of one `set_back`
-    /// says. Each read on the body as given, before any is laid. The wall of
-    /// each prism's first run is numbered where the steps' numbers ended
-    /// after the edge before. A value shorter than the kernel can set a cut
-    /// back from an edge is declined first; an edge its name no longer finds
-    /// `Lost`; an edge that is not a wedge, two edges sharing a face that are
-    /// not parallel, and a cut or a fill that left something else than its
-    /// one face, as [`Exact::cut_along`] reads it, are declined
-    /// `Unsupported`; a prism the tool cannot raise, as the tool says.
+    /// one value taken, in the order the names come; that value: `asked`, or
+    /// the most every edge gives with the others laid — what `most` says each
+    /// edge's two faces give, and on a face two edges share, what keeps the
+    /// set-backs they make on it from crossing, by the set-back of a value of
+    /// one `set_back` says, each read on the body as given; and the pairs
+    /// whose set-backs meet there, the earlier first, each taken off as one
+    /// by the prism `together` raises, the face they shared gone — where
+    /// `together` is none, each edge is laid alone. The wall an edge's prism
+    /// lays is numbered where the steps' numbers ended, plus the edge's rank
+    /// in the list; a pair is laid at its later edge's turn, so that every
+    /// number laid before stands below those a prism lays, as
+    /// [`Exact::cut_along`] reads them. A value shorter than the kernel can
+    /// set a cut back from an edge is declined first; an edge its name no
+    /// longer finds `Lost`; an edge that is not a wedge, two edges sharing a
+    /// face that are not parallel, an edge meeting two others, and a cut or
+    /// a fill that left something else than its one face, as
+    /// [`Exact::cut_along`] reads it, are declined `Unsupported`; a prism the
+    /// tool cannot raise, as the tool says.
     pub(super) fn cut_off(
         &self,
         names: &[EdgeName],
@@ -63,8 +70,10 @@ impl Exact {
         most: impl Fn(&Wedge) -> f64,
         set_back: impl Fn(&Wedge) -> f64,
         tool: impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
-    ) -> Result<(Exact, f64), Declined> {
-        if too_short(asked, self.brep.scale()) {
+        together: Option<Together>,
+    ) -> Result<(Exact, f64, Vec<shared::Pair>), Declined> {
+        let scale = self.brep.scale();
+        if too_short(asked, scale) {
             return Err(Declined::Distance);
         }
         caught(|| {
@@ -72,14 +81,35 @@ impl Exact {
                 .iter()
                 .map(|name| Ok(self.wedge(name)?.1))
                 .collect::<Result<Vec<Wedge>, Declined>>()?;
+            let facing = shared::facing(&wedges)?;
             let alone = wedges
                 .iter()
                 .fold(asked, |taken, wedge| taken.min(most(wedge)));
-            let taken = alone.min(shared(&wedges, set_back)?);
-            let cut = names
-                .iter()
-                .try_fold(self.clone(), |body, name| body.laid(name, taken, &tool))?;
-            Ok((cut, taken))
+            let taken = alone.min(shared::bound(&wedges, &facing, &set_back));
+            let pairs = match together {
+                Some(_) => shared::meeting(&wedges, &facing, taken, &set_back, scale)?,
+                None => Vec::new(),
+            };
+            let start = self.next;
+            let mut cut = self.clone();
+            for (rank, name) in names.iter().enumerate() {
+                if pairs.iter().any(|&(earlier, _)| earlier == rank) {
+                    continue;
+                }
+                cut.next = start + rank as u32;
+                let partner = pairs.iter().find(|&&(_, later)| later == rank);
+                cut = match (partner, together) {
+                    (Some(&(earlier, _)), Some(together)) => cut.laid_together(
+                        [&names[earlier], name],
+                        start + earlier as u32,
+                        taken,
+                        together,
+                    )?,
+                    _ => cut.laid(name, taken, &tool)?,
+                };
+            }
+            cut.next = start + names.len() as u32;
+            Ok((cut, taken, pairs))
         })
     }
 
@@ -120,7 +150,7 @@ impl Exact {
         } else {
             self.cut_by(&Exact { next: 1, ..tool })?
         };
-        if cut.cut_along(&wedge, self) {
+        if cut.cut_along(&[&wedge], self, 1) {
             Ok(cut)
         } else {
             Err(Declined::Unsupported)
@@ -128,11 +158,12 @@ impl Exact {
     }
 
     /// Whether the prism left its face alone on the body, numbered where the
-    /// steps' numbers of `before` ended, in one piece, every corner of it on
-    /// one of the edge's two faces — where the faces met at the edge's ends
-    /// trim it — and every face `before` held but those two still there: no
-    /// face, nor piece of a face, of the prism but that one.
-    fn cut_along(&self, wedge: &Wedge, before: &Exact) -> bool {
+    /// steps' numbers of `before` ended and answering to the `laid` numbers
+    /// from there, in one piece, every corner of it on one of the edges' faces
+    /// — where the faces met at the edges' ends trim it — and every face
+    /// `before` held but the edges' still there: no face, nor piece of a
+    /// face, of the prism but that one.
+    fn cut_along(&self, wedges: &[&Wedge], before: &Exact, laid: u32) -> bool {
         let made = before.next;
         let eps = self.brep.scale().eps();
         let numbers = |body: &brep::Body, face: FaceId| body.numbers(face).to_vec();
@@ -140,7 +171,7 @@ impl Exact {
             .brep
             .face_ids()
             .flat_map(|face| numbers(&self.brep, face))
-            .any(|number| number > made && number < PIECES);
+            .any(|number| number >= made + laid && number < PIECES);
         let parted = self
             .roots
             .values()
@@ -150,13 +181,16 @@ impl Exact {
             .flat_map(|face| self.brep.face(face).loops.iter().flatten())
             .flat_map(|coedge| self.brep.edge(coedge.edge).ends.into_iter().flatten())
             .all(|corner| {
-                let at = self.brep.vertex(corner).point - wedge.point;
-                wedge.outward.iter().any(|side| side.dot(at).abs() <= eps)
+                let point = self.brep.vertex(corner).point;
+                wedges.iter().any(|wedge| {
+                    let at = point - wedge.point;
+                    wedge.outward.iter().any(|side| side.dot(at).abs() <= eps)
+                })
             });
-        let consumable: BTreeSet<u32> = wedge
-            .faces
+        let consumable: BTreeSet<u32> = wedges
             .iter()
-            .flat_map(|&face| numbers(&before.brep, face))
+            .flat_map(|wedge| wedge.faces)
+            .flat_map(|face| numbers(&before.brep, face))
             .collect();
         let kept = before
             .brep
@@ -237,33 +271,6 @@ const SHORTEST: f64 = 4.0;
 /// tolerances.
 pub(super) fn too_short(length: f64, scale: Scale) -> bool {
     length.is_nan() || length < SHORTEST * Scale::HAIR * scale.eps()
-}
-
-/// The most value at which, on every face two of the wedges share, the
-/// set-backs the two make on it do not cross: their distance across it over
-/// the set-backs a value of one makes from either. Two edges that do not
-/// face each other across it give no bound past each one's own reach.
-/// Declined `Unsupported` where two edges share a face and are not parallel
-/// within [`TANGENT`], whose set-backs this does not measure.
-fn shared(wedges: &[Wedge], set_back: impl Fn(&Wedge) -> f64) -> Result<f64, Declined> {
-    let sides = |wedge: &Wedge| wedge.faces.into_iter().zip(wedge.into);
-    let mut most = f64::INFINITY;
-    for (rank, one) in wedges.iter().enumerate() {
-        for other in &wedges[rank + 1..] {
-            for (face, into) in sides(one) {
-                for (_, towards) in sides(other).filter(|&(theirs, _)| theirs == face) {
-                    if one.along.cross(other.along).length() > TANGENT {
-                        return Err(Declined::Unsupported);
-                    }
-                    let across = into.dot(other.point - one.point);
-                    if across > 0.0 && into.dot(towards) < 0.0 {
-                        most = most.min(across / (set_back(one) + set_back(other)));
-                    }
-                }
-            }
-        }
-    }
-    Ok(most)
 }
 
 /// The number a raise gives the wall of its profile's first run.

@@ -18,7 +18,8 @@ impl Exact {
     /// tool trims it, by the faces it meets at the edge's ends — past the end
     /// corner where one of them leaves the edge at an obtuse angle, or a
     /// round leaves it at a few degrees either way. Two set-backs on a face
-    /// two edges share stop short of crossing. A distance shorter than the
+    /// two edges share stop short of crossing; where they meet, the two
+    /// flats meet in a ridge. A distance shorter than the
     /// kernel can set a cut back from an edge is declined first; `Lost`, an
     /// edge its name no longer finds. Unsupported: an edge that is not
     /// straight between two flat faces, one running on tangentially into the
@@ -31,7 +32,7 @@ impl Exact {
     /// pieces or with a corner on neither of the edge's faces, or a face the
     /// body held, but the edge's two, taken away whole.
     pub fn chamfered(&self, names: &[EdgeName], distance: f64) -> Result<(Exact, f64), Declined> {
-        self.cut_off(
+        let (cut, taken, _) = self.cut_off(
             names,
             distance,
             |wedge| wedge.reach,
@@ -41,6 +42,8 @@ impl Exact {
                     .prism(taken, scale, bounds)
                     .ok_or(Declined::Unsupported)
             },
-        )
+            None,
+        )?;
+        Ok((cut, taken))
     }
 }

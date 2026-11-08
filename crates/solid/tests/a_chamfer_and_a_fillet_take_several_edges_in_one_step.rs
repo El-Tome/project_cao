@@ -38,6 +38,10 @@
 //!   takes 5 too, and its two flats meet in a ridge —
 //!   `a_fillet_on_the_two_edges_either_side_of_a_face_10_wide_asked_more_than_5_takes_5_in_one_full_round`,
 //!   `a_chamfer_on_the_two_edges_either_side_of_a_face_10_wide_asked_more_than_5_takes_5_its_flats_meeting_in_a_ridge`
+//!   — and, beyond the issue's block, the same full round where the two sides
+//!   are not square to the face and meet it at two angles, the edges still
+//!   parallel: their set-backs sum to its width, and the two axes are one —
+//!   `a_fillet_on_the_two_top_edges_of_a_prism_whose_sides_slant_takes_the_radius_whose_set_backs_meet_in_one_full_round`
 //! - A list mixing an edge whose faces meet outwards and one whose faces meet
 //!   inwards cuts the first off and fills the second in, at one value —
 //!   `a_fillet_and_a_chamfer_on_an_outward_edge_and_an_inward_one_cut_the_first_off_and_fill_the_second_in_at_one_value`
@@ -66,7 +70,7 @@ use std::f64::consts::PI;
 
 use cao_solid::profile::{Contour, Frame, Profile};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, EdgeName, Loop};
+use cao_solid::{Body, Declined, EdgeName, Loop};
 use glam::{DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it, on a plane
@@ -289,7 +293,13 @@ fn takes_what_each_alone_takes(part: &Body, body: &Body, alone: &[Body], what: &
 /// The sides of the faces the face numbered `face` meets, one for each edge
 /// it has, in order.
 fn sides_met(body: &Body, face: usize) -> Vec<Vec<u32>> {
-    let own = vec![face as u32];
+    sides_met_by(body, &[face])
+}
+
+/// The sides of the faces the face answering to all of `numbers`, and to
+/// nothing else, meets, one for each edge it has, in order.
+fn sides_met_by(body: &Body, numbers: &[usize]) -> Vec<Vec<u32>> {
+    let own: Vec<u32> = numbers.iter().map(|&number| number as u32).collect();
     let mut met: Vec<Vec<u32>> = body
         .edge_names()
         .into_iter()
@@ -452,36 +462,46 @@ impl Round {
 /// of its triangles on it, and every ray aimed square at its axis from
 /// outside meeting it first, where it faces away from the axis along the ray.
 fn is_the_round(body: &Body, face: usize, round: &Round, what: &str) {
+    is_made_of(body, face, &[round], what);
+}
+
+/// Holds that the face numbered `face` is the rounds `parts` laid end to end
+/// about one axis, as [`is_the_round`] holds it of one: every corner of its
+/// triangles on one of them, and every ray aimed square at the axis from
+/// outside, over each, meeting the face first.
+fn is_made_of(body: &Body, face: usize, parts: &[&Round], what: &str) {
     let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
     assert!(!corners.is_empty(), "{what}: the round is drawn");
     for corner in corners {
         assert!(
-            round.holds(corner),
+            parts.iter().any(|round| round.holds(corner)),
             "{what}: the round is drawn through {corner}, off the cylinder of {} about the line \
              from {} along {}",
-            round.radius,
-            round.start,
-            round.along
+            parts[0].radius,
+            parts[0].start,
+            parts[0].along
         );
     }
-    for along in [0.11, 0.47, 0.83] {
-        for share in [0.1, 0.3, 0.5, 0.7, 0.9] {
-            let facing = round.facing_at(share);
-            let from = round.axis_at(along) + facing * (round.radius + 10.0);
-            let hit = body.ray_hit(from, -facing).unwrap_or_else(|| {
-                panic!("{what}: a ray from {from} toward the axis meets nothing")
-            });
-            assert_eq!(
-                hit.face, face,
-                "{what}: a ray from {from} toward the axis meets face {} before the round",
-                hit.face
-            );
-            assert!(
-                hit.normal.distance(facing) < PLACE,
-                "{what}: where a ray from {from} meets it, the round faces {}, not {facing}, \
-                 away from its axis",
-                hit.normal
-            );
+    for round in parts {
+        for along in [0.11, 0.47, 0.83] {
+            for share in [0.1, 0.3, 0.5, 0.7, 0.9] {
+                let facing = round.facing_at(share);
+                let from = round.axis_at(along) + facing * (round.radius + 10.0);
+                let hit = body.ray_hit(from, -facing).unwrap_or_else(|| {
+                    panic!("{what}: a ray from {from} toward the axis meets nothing")
+                });
+                assert_eq!(
+                    hit.face, face,
+                    "{what}: a ray from {from} toward the axis meets face {} before the round",
+                    hit.face
+                );
+                assert!(
+                    hit.normal.distance(facing) < PLACE,
+                    "{what}: where a ray from {from} meets it, the round faces {}, not {facing}, \
+                     away from its axis",
+                    hit.normal
+                );
+            }
         }
     }
 }
@@ -1095,5 +1115,437 @@ fn a_fillet_and_a_chamfer_on_the_two_edges_either_side_of_a_face_take_a_value_th
         TOP,
         &top_left,
         &format!("{what}: what is left of the top, a strip between the two flats"),
+    );
+}
+
+/// What is asked of both edges of the top of the block 10 wide: more than
+/// half its width, which either edge alone gives.
+const MORE_THAN_HALF: f64 = 8.0;
+
+/// Holds that each of the edges `names` alone takes more than `most`, asked
+/// `asked`, which is what makes the limit the two edges' together.
+fn alone_each_takes_more(
+    step: impl Fn(&EdgeName) -> Result<f64, Declined>,
+    names: &[EdgeName],
+    most: f64,
+    what: &str,
+) {
+    for name in names {
+        let taken = step(name)
+            .unwrap_or_else(|declined| panic!("{what}, one edge alone: declined, {declined:?}"));
+        assert!(
+            taken > most + PLACE,
+            "{what}: one edge alone takes {taken}, more than {most}"
+        );
+    }
+}
+
+/// Holds that the numbers `laid` answer to one and the same face, which is
+/// curved: drawn with the same triangles whichever is asked.
+fn one_curved_face_answers_to(body: &Body, laid: &[usize], what: &str) {
+    let drawn: Vec<Vec<[DVec3; 3]>> = laid
+        .iter()
+        .map(|&number| body.triangles_of(number).collect())
+        .collect();
+    assert!(
+        !drawn[0].is_empty() && drawn.iter().all(|each| *each == drawn[0]),
+        "{what}: faces {laid:?} are one face, drawn with the same triangles"
+    );
+    for &number in laid {
+        assert!(
+            !body.is_flat(number) && body.plane_of(number).is_none(),
+            "{what}: face {number} is curved, and offers no plane to draw on"
+        );
+    }
+}
+
+#[test]
+fn a_fillet_on_the_two_edges_either_side_of_a_face_10_wide_asked_more_than_5_takes_5_in_one_full_round()
+ {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let [top_front, _, top_back, _] = long_edges();
+    let names = [top_front.name(&block), top_back.name(&block)];
+    let half = BREADTH / 2.0;
+    alone_each_takes_more(
+        |name| {
+            block
+                .fillet(name, MORE_THAN_HALF)
+                .map(|single| single.taken)
+        },
+        &names,
+        half,
+        "the fillet on the top's front or back edge",
+    );
+
+    let filleted = block
+        .fillet_edges(&names, MORE_THAN_HALF)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = format!("the fillet on both edges of a top {BREADTH} wide, asked {MORE_THAN_HALF}");
+    reduced(
+        filleted.asked,
+        filleted.taken,
+        [MORE_THAN_HALF, half],
+        &what,
+    );
+    let body = &filleted.body;
+    let laid = [block.faces_end(), block.faces_end() + 1];
+    assert!(!body.has_face(TOP), "{what}: the top is gone");
+    let mut kept_and_laid = numbers(&block);
+    kept_and_laid.remove(&TOP);
+    kept_and_laid.extend(laid);
+    assert_eq!(
+        numbers(body),
+        kept_and_laid,
+        "{what}: every face of the block but its top, and the round answering to {laid:?}"
+    );
+    assert_eq!(
+        body.faces_end(),
+        laid[1] + 1,
+        "{what}: the next step numbers its faces past both the round answers to"
+    );
+    one_curved_face_answers_to(body, &laid, &what);
+    let axis = DVec3::new(0.0, half, HEIGHT - half);
+    let halves = [[-DVec3::Y, DVec3::Z], [DVec3::Z, DVec3::Y]].map(|facing| Round {
+        start: axis,
+        along: DVec3::X,
+        length: LENGTH,
+        radius: half,
+        facing,
+    });
+    is_made_of(
+        body,
+        laid[0],
+        &[&halves[0], &halves[1]],
+        &format!(
+            "{what}: the full round, a half-cylinder of {half} about the line {half} under the \
+             middle of the top, tangent to the front and the back"
+        ),
+    );
+    assert_eq!(
+        sides_met_by(body, &laid),
+        sides(&[FRONT, RIGHT, BACK, LEFT]),
+        "{what}: the full round meets the front and the back along its sides, and the right and \
+         the left walls at its ends, by one edge each"
+    );
+    corners_are(
+        body,
+        FRONT,
+        &strip(DVec3::ZERO, DVec3::new(0.0, 0.0, HEIGHT - half)),
+        &format!("{what}: what is left of the front, up to where the round takes over"),
+    );
+    corners_are(
+        body,
+        BACK,
+        &strip(
+            DVec3::new(0.0, BREADTH, 0.0),
+            DVec3::new(0.0, BREADTH, HEIGHT - half),
+        ),
+        &format!("{what}: what is left of the back, up to where the round takes over"),
+    );
+    for (wall, x) in [(LEFT, 0.0), (RIGHT, LENGTH)] {
+        corners_are_or_on(
+            body,
+            wall,
+            &[
+                DVec3::new(x, 0.0, 0.0),
+                DVec3::new(x, BREADTH, 0.0),
+                DVec3::new(x, 0.0, HEIGHT - half),
+                DVec3::new(x, BREADTH, HEIGHT - half),
+            ],
+            |corner| halves.iter().any(|round| round.holds(corner)),
+            &format!("{what}: the wall at x = {x}, its top a half-circle"),
+        );
+    }
+    sound_drawn_within(
+        body,
+        LENGTH * BREADTH * HEIGHT - LENGTH * (BREADTH * half - PI * half * half / 2.0),
+        DRAWN * reach_of(&block) * PI * half * LENGTH,
+        &what,
+    );
+}
+
+#[test]
+fn a_chamfer_on_the_two_edges_either_side_of_a_face_10_wide_asked_more_than_5_takes_5_its_flats_meeting_in_a_ridge()
+ {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let [top_front, _, top_back, _] = long_edges();
+    let names = [top_front.name(&block), top_back.name(&block)];
+    let half = BREADTH / 2.0;
+    alone_each_takes_more(
+        |name| {
+            block
+                .chamfer(name, MORE_THAN_HALF)
+                .map(|single| single.taken)
+        },
+        &names,
+        half,
+        "the chamfer on the top's front or back edge",
+    );
+
+    let chamfered = block
+        .chamfer_edges(&names, MORE_THAN_HALF)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = format!("the chamfer on both edges of a top {BREADTH} wide, asked {MORE_THAN_HALF}");
+    reduced(
+        chamfered.asked,
+        chamfered.taken,
+        [MORE_THAN_HALF, half],
+        &what,
+    );
+    let body = &chamfered.body;
+    let laid = [block.faces_end(), block.faces_end() + 1];
+    assert!(!body.has_face(TOP), "{what}: the top is gone");
+    let mut kept_and_laid = numbers(&block);
+    kept_and_laid.remove(&TOP);
+    kept_and_laid.extend(laid);
+    assert_eq!(
+        numbers(body),
+        kept_and_laid,
+        "{what}: every face of the block but its top, and a flat for each edge"
+    );
+    for (edge, number) in [&top_front, &top_back].into_iter().zip(laid) {
+        let (corners, facing) = edge.flat(half);
+        let which = format!(
+            "{what}: face {number}, the flat between faces {:?}",
+            edge.faces
+        );
+        face_facing(body, &[number], facing, &which);
+        corners_are(body, number, &corners, &which);
+    }
+    edge_between(body, laid[0], laid[1]);
+    assert_eq!(
+        sides_met(body, laid[0]),
+        sides(&[FRONT, RIGHT, LEFT, laid[1]]),
+        "{what}: the front flat meets the front, the two walls, and the back flat along the \
+         ridge, by one edge each"
+    );
+    assert_eq!(
+        sides_met(body, laid[1]),
+        sides(&[RIGHT, BACK, LEFT, laid[0]]),
+        "{what}: the back flat meets the back, the two walls, and the front flat along the \
+         ridge, by one edge each"
+    );
+    corners_are(
+        body,
+        FRONT,
+        &strip(DVec3::ZERO, DVec3::new(0.0, 0.0, HEIGHT - half)),
+        &format!("{what}: what is left of the front"),
+    );
+    corners_are(
+        body,
+        BACK,
+        &strip(
+            DVec3::new(0.0, BREADTH, 0.0),
+            DVec3::new(0.0, BREADTH, HEIGHT - half),
+        ),
+        &format!("{what}: what is left of the back"),
+    );
+    for (wall, x) in [(LEFT, 0.0), (RIGHT, LENGTH)] {
+        corners_are(
+            body,
+            wall,
+            &[
+                DVec3::new(x, 0.0, 0.0),
+                DVec3::new(x, BREADTH, 0.0),
+                DVec3::new(x, BREADTH, HEIGHT - half),
+                DVec3::new(x, half, HEIGHT),
+                DVec3::new(x, 0.0, HEIGHT - half),
+            ],
+            &format!("{what}: the wall at x = {x}, a pentagon with the ridge at its peak"),
+        );
+    }
+    let promised = LENGTH * BREADTH * HEIGHT - 2.0 * LENGTH * half * half / 2.0;
+    sound_drawn_within(body, promised, EXACT * promised, &what);
+}
+
+/// The section of a prism lying along X, drawn on the plane of Y and Z: its
+/// bottom 16 wide, its top 10 wide, from 2 to 12 at a height of 10, and its
+/// two sides slanting in at two angles, so that a round asks a different
+/// set-back along the top at either end. Raised along X, its numbers are its
+/// start at x = 0 nought, its end one, then its bottom two, its right side
+/// three, its top four and its left side five.
+const SLANTED: [DVec2; 4] = [
+    DVec2::new(0.0, 0.0),
+    DVec2::new(16.0, 0.0),
+    DVec2::new(12.0, 10.0),
+    DVec2::new(2.0, 10.0),
+];
+const SLANTED_START: usize = 0;
+const SLANTED_END: usize = 1;
+const SLANTED_RIGHT: usize = 3;
+const SLANTED_TOP: usize = 4;
+const SLANTED_LEFT: usize = 5;
+
+/// A point of the [`SLANTED`] section's plane, across and up, `x` along the
+/// prism.
+fn on_section(at: DVec2, x: f64) -> DVec3 {
+    DVec3::new(x, at.x, at.y)
+}
+
+/// The [`SLANTED`] section raised along X for [`LENGTH`].
+fn slanted_prism() -> Body {
+    let section = Frame {
+        origin: DVec3::ZERO,
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let part = Body::default();
+    let tool = part
+        .tool_raised(
+            &profile(Contour::straight(SLANTED.to_vec())),
+            section,
+            DVec3::X * LENGTH,
+        )
+        .expect("the tool raises");
+    part.union(&tool).expect("the part is built")
+}
+
+/// One end of the slanted prism's top: the corner of the section it stands
+/// on, the far end of its side, and the way that side faces.
+struct SlantedEnd {
+    corner: DVec2,
+    foot: DVec2,
+    outward: DVec2,
+}
+
+impl SlantedEnd {
+    /// The tangent of half the angle the top and the side meet at, inside
+    /// the matter: what a round's radius is divided by to give its set-back
+    /// along either.
+    fn half_tangent(&self, along_top: DVec2) -> f64 {
+        let down = (self.foot - self.corner).normalize();
+        let cosine = down.dot(along_top);
+        (1.0 - cosine * cosine).sqrt() / (1.0 + cosine)
+    }
+
+    /// The angle the top and the side meet at, inside the matter.
+    fn angle(&self, along_top: DVec2) -> f64 {
+        (self.foot - self.corner).normalize().dot(along_top).acos()
+    }
+}
+
+#[test]
+fn a_fillet_on_the_two_top_edges_of_a_prism_whose_sides_slant_takes_the_radius_whose_set_backs_meet_in_one_full_round()
+ {
+    let asked = 20.0;
+    let prism = slanted_prism();
+    let names = [
+        edge_between(&prism, SLANTED_TOP, SLANTED_LEFT),
+        edge_between(&prism, SLANTED_RIGHT, SLANTED_TOP),
+    ];
+    let left = SlantedEnd {
+        corner: SLANTED[3],
+        foot: SLANTED[0],
+        outward: DVec2::new(-10.0, 2.0).normalize(),
+    };
+    let right = SlantedEnd {
+        corner: SLANTED[2],
+        foot: SLANTED[1],
+        outward: DVec2::new(10.0, 4.0).normalize(),
+    };
+    let width = SLANTED[2].x - SLANTED[3].x;
+    let (left_tangent, right_tangent) =
+        (left.half_tangent(DVec2::X), right.half_tangent(-DVec2::X));
+    let radius = width / (1.0 / left_tangent + 1.0 / right_tangent);
+    alone_each_takes_more(
+        |name| prism.fillet(name, asked).map(|single| single.taken),
+        &names,
+        radius,
+        "the fillet on one top edge of the slanted prism",
+    );
+
+    let filleted = prism
+        .fillet_edges(&names, asked)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = format!(
+        "the fillet on both top edges of the slanted prism, asked {asked}, its top {width} wide"
+    );
+    reduced(filleted.asked, filleted.taken, [asked, radius], &what);
+    let body = &filleted.body;
+    let laid = [prism.faces_end(), prism.faces_end() + 1];
+    assert!(!body.has_face(SLANTED_TOP), "{what}: the top is gone");
+    one_curved_face_answers_to(body, &laid, &what);
+    let left_set_back = radius / left_tangent;
+    let right_set_back = radius / right_tangent;
+    let axis = SLANTED[3] + DVec2::new(left_set_back, -radius);
+    assert!(
+        axis.distance(SLANTED[2] + DVec2::new(-right_set_back, -radius)) < PLACE,
+        "the two rounds' axes, {radius} under the top where each set-back ends, are one"
+    );
+    let facing = |way: DVec2| DVec3::new(0.0, way.x, way.y);
+    let parts = [
+        [facing(left.outward), DVec3::Z],
+        [DVec3::Z, facing(right.outward)],
+    ]
+    .map(|facing| Round {
+        start: on_section(axis, 0.0),
+        along: DVec3::X,
+        length: LENGTH,
+        radius,
+        facing,
+    });
+    is_made_of(
+        body,
+        laid[0],
+        &[&parts[0], &parts[1]],
+        &format!(
+            "{what}: the full round, of {radius} about one axis, tangent to both sides and \
+             turning from one to the other over where the top was"
+        ),
+    );
+    assert_eq!(
+        sides_met_by(body, &laid),
+        sides(&[SLANTED_START, SLANTED_END, SLANTED_RIGHT, SLANTED_LEFT]),
+        "{what}: the full round meets the two sides along its own, and the start and the end at \
+         its ends, by one edge each"
+    );
+    let left_tangent_point = left.corner + (left.foot - left.corner).normalize() * left_set_back;
+    let right_tangent_point =
+        right.corner + (right.foot - right.corner).normalize() * right_set_back;
+    for (side, foot, tangent_point) in [
+        (SLANTED_LEFT, left.foot, left_tangent_point),
+        (SLANTED_RIGHT, right.foot, right_tangent_point),
+    ] {
+        corners_are(
+            body,
+            side,
+            &strip(on_section(foot, 0.0), on_section(tangent_point, 0.0)),
+            &format!("{what}: what is left of side {side}, up to where the round takes over"),
+        );
+    }
+    for (cap, x) in [(SLANTED_START, 0.0), (SLANTED_END, LENGTH)] {
+        corners_are_or_on(
+            body,
+            cap,
+            &[
+                left.foot,
+                right.foot,
+                left_tangent_point,
+                right_tangent_point,
+            ]
+            .map(|at| on_section(at, x)),
+            |corner| parts.iter().any(|round| round.holds(corner)),
+            &format!("{what}: the end at x = {x}, its top an arc"),
+        );
+    }
+    let section = (16.0 + width) / 2.0 * 10.0;
+    let taken: f64 = [
+        (&left, DVec2::X, left_tangent),
+        (&right, -DVec2::X, right_tangent),
+    ]
+    .into_iter()
+    .map(|(end, along_top, tangent)| {
+        radius * radius * (1.0 / tangent - (PI - end.angle(along_top)) / 2.0)
+    })
+    .sum();
+    let turn = (PI - left.angle(DVec2::X)) + (PI - right.angle(-DVec2::X));
+    sound_drawn_within(
+        body,
+        (section - taken) * LENGTH,
+        DRAWN * reach_of(&prism) * turn * radius * LENGTH,
+        &what,
     );
 }

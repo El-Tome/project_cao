@@ -102,6 +102,35 @@ impl Wedge {
         }
     }
 
+    /// The two ways of a section square to the edge: across it, from the
+    /// second face's side to the first's, and up from it, between the ways
+    /// its two faces face.
+    pub(in crate::body::exact) fn square(&self) -> (DVec3, DVec3) {
+        let [first, second] = self.outward;
+        (
+            (self.into[0] - self.into[1]).normalize(),
+            (first + second).normalize(),
+        )
+    }
+
+    /// What closes a section round the edge `margin` off its two faces, off
+    /// the edge's point: from the first face's side round to the second's,
+    /// as [`Wedge::closed`] closes it.
+    pub(in crate::body::exact) fn rim(&self, margin: f64) -> Vec<DVec3> {
+        let [first, second] = self.outward;
+        let (across, facing) = self.square();
+        let off = self.off();
+        let side = |normal: DVec3| Side {
+            a: normal.dot(across),
+            b: normal.dot(facing),
+            offset: margin * off,
+        };
+        self.closed(side(first), side(second), margin)
+            .into_iter()
+            .map(|at| across * at.x + facing * at.y)
+            .collect()
+    }
+
     /// The prism raised along the edge over a section square to it that
     /// stops at the set-backs: its first run from the second face's set-back
     /// to the first's — round about `centre` where there is one, straight
@@ -119,23 +148,15 @@ impl Wedge {
         bounds: (DVec3, DVec3),
     ) -> Prism {
         let [first, second] = self.outward;
-        let facing = (first + second).normalize();
-        let across = (self.into[0] - self.into[1]).normalize();
+        let (across, facing) = self.square();
         let margin = self.margin(across, facing, set_back, scale);
         let off = self.off();
-        let side = |normal: DVec3| Side {
-            a: normal.dot(across),
-            b: normal.dot(facing),
-            offset: margin * off,
-        };
-        let top = self.closed(side(first), side(second), margin);
         let [on_first, on_second] = self.into.map(|into| into * set_back);
         let (frame, travel) = self.raised_along(across, margin, bounds);
         let flat = |at: DVec3| DVec2::new(at.dot(frame.u), at.dot(frame.v));
         let (from, to) = (flat(on_second), flat(on_first));
-        let lifted = |at: DVec2| flat(across * at.x + facing * at.y);
         let mut corners = vec![from, to, flat(on_first + first * margin * off)];
-        corners.extend(top.into_iter().map(lifted));
+        corners.extend(self.rim(margin).into_iter().map(flat));
         corners.push(flat(on_second + second * margin * off));
         let mut runs = vec![Run::Straight; corners.len()];
         if let Some(centre) = centre {

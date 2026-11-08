@@ -44,7 +44,7 @@ impl Side {
         DVec2::new((self.offset - self.b * h) / self.a, h)
     }
 
-    pub fn meeting(self, other: Side) -> DVec2 {
+    fn meeting(self, other: Side) -> DVec2 {
         let det = self.a * other.b - other.a * self.b;
         DVec2::new(
             (self.offset * other.b - other.offset * self.b) / det,
@@ -94,12 +94,7 @@ impl Wedge {
     /// What closes a section from the first face's side round to the
     /// second's: the top [`Side::top`] caps a cut with, or, for a fill, the
     /// corner where the two sides meet inside the matter.
-    pub(in crate::body::exact) fn closed(
-        &self,
-        first: Side,
-        second: Side,
-        margin: f64,
-    ) -> Vec<DVec2> {
+    fn closed(&self, first: Side, second: Side, margin: f64) -> Vec<DVec2> {
         if self.inwards {
             vec![first.meeting(second)]
         } else {

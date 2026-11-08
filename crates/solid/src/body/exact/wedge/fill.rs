@@ -24,10 +24,13 @@ impl Exact {
     /// raised, so that the boxes its ends are trimmed by number their faces
     /// past its own: each end of it trimmed flush by the plane of the face
     /// the edge ends on there, and joined to the body, every face of the
-    /// prism that merged into one of the body's — those ends — answering to
-    /// the body's numbers alone, so that the face at an end stays the face it
-    /// was. The prism's other faces keep their numbers, past the steps'
-    /// count, for [`Exact::cut_along`] to find. Where the face at an end
+    /// prism that merged into one of the body's answering to the body's
+    /// numbers alone, so that the face it merged into stays the face it was:
+    /// its ends, merged into the faces at the edge's ends, and a wall of it
+    /// lying flush on a face of the body, as the wall squared off a face
+    /// taken whole lies on the face beyond. A face of the prism standing
+    /// alone keeps its number, past the steps' count, and that alone is what
+    /// [`Exact::cut_along`] finds stray. Where the face at an end
     /// meets one of the edge's two along a line running on past the edge's
     /// end — the plate's top round a rib ending short of its edge — the two
     /// edges either side of that corner are made one, since the fill covered
@@ -57,9 +60,10 @@ impl Exact {
     }
 
     /// The body joined with the prism `tool` fills a corner with, every face
-    /// of the prism that merged into one of the body's answering to the
-    /// body's numbers alone, and the edges either side of each of `corners`
-    /// made one where they run on in line, drawn again then.
+    /// of the prism that merged into one of the body's — whatever face of the
+    /// prism it is — answering to the body's numbers alone, a face of the
+    /// prism standing alone keeping its own, and the edges either side of
+    /// each of `corners` made one where they run on in line, drawn again then.
     fn filled_by(&self, tool: &Exact, corners: &[DVec3]) -> Result<Exact, Declined> {
         let Exact {
             mut brep,

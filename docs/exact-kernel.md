@@ -338,7 +338,16 @@ It can:
   but the edge's two meets the edge, or several do; one that is not flat — a
   round end, which the convex steps take, is not filled yet; one facing back
   along the edge; and one leaning so far that its plane misses the prism's
-  long edges between the prism's two ends.
+  long edges between the prism's two ends. Facing back along the edge is what
+  the vertical inner corner of a pocket, or of a boss standing on a plate,
+  meets at its foot: the pocket's floor or the plate's top faces up the edge,
+  where three edges meet at one corner, which the chains and the corners
+  (#698, #699) are to take. And a wall too thin for the prism: its sides sink
+  the margin into the matter — an eighth of the set-back, or the least margin
+  where that is larger, and further in where a sharp corner's sunk sides meet
+  — so behind a wall thinner than that the prism comes out the other side, a
+  face of it is left standing alone, and the check finds it stray: a bracket a
+  millimetre thick, rounded on its inner corner by more than 8.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face

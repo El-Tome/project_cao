@@ -614,6 +614,13 @@ The decisions, in the order taken, once per operation:
    second operand is moved by the slide as decision 8 moves it, its
    corners, its curves and the surfaces they stand on along, before
    decision 1 reads it. Where that move is not made, the wall is not slid.
+   Where no move makes a touch of two perpendicular cylinders exact, they
+   meet along a curve built on the walls as they stand, through the corners
+   found on them, and only a contact is still laid on the touch decided: a
+   wall touching a shaft exactly, held there, crossed a bore beside it at a
+   slant, and a curve built on a copy of the bore moved onto that touch
+   stood further than the tolerance from the corners the three walls share
+   (#776).
    A cylinder
    touching two parallel planes on opposite sides is moved midway between
    them, its radius half their gap, and touches both exactly. So is one
@@ -2073,8 +2080,9 @@ further than the tolerance where it ends, and the rims its operand drew on
 it are laid on the grown wall from as far as its half-axes changed: left on
 the wall as it was, an ellipse turned 45° reaching a bar's sides at its
 axis had rims the grown wall saw as no curve it carries (5585800487). The
-curve is then built on the two walls as decision 2 left them, not on a
-copy of one moved onto the touch as two cylinders' is: where no move could
+curve is then built on the two walls as decision 2 left them, as two
+cylinders' is but for a contact, not on a copy of one moved onto the
+touch: where no move could
 be made — an elliptic bar a hair from a node with both walls of a ring,
 held at one by the other — the copy stood a hair off the wall the
 corners around the curve are found on, and a rim crossing the bar at a

@@ -241,7 +241,7 @@ impl Relation {
 
 /// Two directions are parallel when they part by less than the tolerance
 /// across the whole box.
-pub(in crate::brep) fn parallel(one: DVec3, other: DVec3, scale: Scale) -> bool {
+fn parallel(one: DVec3, other: DVec3, scale: Scale) -> bool {
     one.cross(other).length() * 2.0 * scale.reach() <= scale.eps()
 }
 

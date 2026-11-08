@@ -63,8 +63,11 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// or another cone off its axis along the curve read along its rulings,
 /// where the kernel declined it (#577). 22: a face of a wall wider than a
 /// turn and a meet with two samples beside its end are cut into triangles,
-/// where the step was declined as undrawn (#707).
-const REBUILT_BY: u32 = 22;
+/// where the step was declined as undrawn (#707). 23: a face along a meet
+/// curve is boxed by the curve's true extremes, and a wall touching a shaft
+/// exactly and a bore beside it only within the tolerance is cut where the
+/// three meet, where the step was refused as unverified (#775, #776).
+const REBUILT_BY: u32 = 23;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

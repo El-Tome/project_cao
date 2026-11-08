@@ -8,18 +8,20 @@ use super::walls::off_the_touches;
 use crate::brep::curve::Circle;
 use crate::brep::curve::Wall;
 use crate::brep::meet::moved;
-use crate::brep::relation::{Relation, abreast, parallel, relation};
+use crate::brep::relation::{Relation, abreast, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder, Sphere, Surface, Torus};
 
-/// How far two surfaces decided to touch stand from touching exactly, or a
-/// wall decided to stand about a cone's axis from standing on it; none where
-/// their pair is neither. A cone touches nothing along a line, and holds a
-/// wall about its axis only where faces of the two `meet` within the box
-/// round the circle they cross along: a section's pointed cone, crossing
-/// its widest step below the section, holds nothing (5365100952). A sphere
-/// or a torus holds a wall or a cone about its axis the same way, where
-/// faces of the two meet within the box round one of their rims (#576).
+/// How far two surfaces decided to touch stand from touching exactly — two
+/// cylinders `moved` would move onto a touch among them, though as they
+/// stand they cross at no node — or a wall decided to stand about a cone's
+/// axis from standing on it; none where their pair is neither. A cone
+/// touches nothing along a line, and holds a wall about its axis only where
+/// faces of the two `meet` within the box round the circle they cross
+/// along: a section's pointed cone, crossing its widest step below the
+/// section, holds nothing (5365100952). A sphere or a torus holds a wall or
+/// a cone about its axis the same way, where faces of the two meet within
+/// the box round one of their rims (#576).
 pub(super) fn off(
     one: &Surface,
     other: &Surface,
@@ -98,9 +100,11 @@ pub(super) fn off(
             (from - *axis * axis.dot(from)).length()
         });
     }
-    let near = || {
-        at_an_angle(one, other, scale)
-            .is_some_and(|(first, second)| moved(&first, &second, scale).is_some())
+    let near = || match (one, other) {
+        (Surface::Cylinder(first), Surface::Cylinder(second)) => {
+            moved(&Wall::Cylinder(*first), &Wall::Cylinder(*second), scale).is_some()
+        }
+        _ => false,
     };
     let gap = || {
         let (one, other) = (Wall::of(one)?, Wall::of(other)?);
@@ -145,7 +149,7 @@ pub(super) fn off(
             ) => None,
         },
         Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => gap(),
-        Relation::Meet(_) | Relation::Apart if near() => gap(),
+        Relation::Meet(_) if near() => gap(),
         Relation::Apart
         | Relation::Same { .. }
         | Relation::Line(_)
@@ -161,15 +165,6 @@ pub(super) fn off(
         | Relation::Ruling { .. }
         | Relation::Unsupported => None,
     }
-}
-
-/// Two walls at an angle, no cone among them: a near-touch of theirs is read
-/// from the walls by `moved`, where `relation`, taking them as they stand,
-/// may read them apart.
-fn at_an_angle(one: &Surface, other: &Surface, scale: Scale) -> Option<(Wall, Wall)> {
-    let (first, second) = (Wall::of(one)?, Wall::of(other)?);
-    let coned = matches!(first, Wall::Cone(_)) || matches!(second, Wall::Cone(_));
-    (!coned && !parallel(first.axis(), second.axis(), scale)).then_some((first, second))
 }
 
 /// The box round a circle.

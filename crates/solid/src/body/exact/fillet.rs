@@ -10,31 +10,40 @@ use super::wedge::{Prism, Wedge, too_short};
 use crate::brep::{Declined, EdgeName, Scale, Surface};
 
 impl Exact {
-    /// The body with the edge a name finds rounded off by a cylinder of
-    /// `radius`, or of the largest radius the edge's two faces give, tangent to
-    /// both — filled in by it where they meet inwards — and the radius taken:
-    /// each face stops where the round takes over, set back by the radius over
-    /// the tangent of half the angle they meet at. The round is numbered where
-    /// the steps' numbers ended. Declined `Distance`: a radius that is no
-    /// length, one whose round would stand off the faces it replaces by less
-    /// than the kernel can set a cut back by — a larger radius stands further
-    /// off, and on an edge bent nearly flat is what rounds it — and a round the
-    /// kernel read onto those faces even so. `Lost`: an edge its name no longer
-    /// finds. `Unsupported`: an edge that is not straight between two flat
-    /// faces, one running on tangentially into the next edge of a face, and a
-    /// cut that left anything but its round — a face of the prism, the round in
-    /// two pieces or with a corner on neither of the edge's faces, a face the
-    /// body held, but the edge's two, taken away whole — as where a round
-    /// leaving the edge's end outwards bulges past the edge's face, and the
-    /// prism's wall square to that face cuts the bulge off.
-    pub fn filleted(&self, name: &EdgeName, radius: f64) -> Result<(Exact, f64), Declined> {
+    /// The body with the edge each name finds rounded off by a cylinder of
+    /// `radius`, or of the largest radius every edge gives with the others
+    /// laid, tangent to its two faces — filled in by it where they meet
+    /// inwards — and the one radius taken: each face stops where a round
+    /// takes over, set back by the radius over the tangent of half the angle
+    /// its two faces meet at, and two set-backs on a face two edges share
+    /// stop short of crossing. The rounds are numbered, in the order the
+    /// names come, where the steps' numbers ended. Declined `Distance`: a
+    /// radius that is no length, one whose round would stand off the faces
+    /// it replaces by less than the kernel can set a cut back by — a larger
+    /// radius stands further off, and on an edge bent nearly flat is what
+    /// rounds it — and a round the kernel read onto those faces even so.
+    /// `Lost`: an edge its name no longer finds. `Unsupported`: an edge that
+    /// is not straight between two flat faces, one running on tangentially
+    /// into the next edge of a face, two edges sharing a face that are not
+    /// parallel, and a cut that left anything but its round — a face of the
+    /// prism, the round in two pieces or with a corner on neither of the
+    /// edge's faces, a face the body held, but the edge's two, taken away
+    /// whole — as where a round leaving the edge's end outwards bulges past
+    /// the edge's face, and the prism's wall square to that face cuts the
+    /// bulge off.
+    pub fn filleted(&self, names: &[EdgeName], radius: f64) -> Result<(Exact, f64), Declined> {
         let (cut, taken) = self.cut_off(
-            name,
+            names,
             radius,
             |wedge| wedge.reach * wedge.half_tangent(),
+            |wedge| wedge.half_tangent().recip(),
             Wedge::rounded,
         )?;
-        if cut.rounded_alone(name, self.next) {
+        let alone = names
+            .iter()
+            .zip(self.next..)
+            .all(|(name, made)| cut.rounded_alone(name, made));
+        if alone {
             Ok((cut, taken))
         } else {
             Err(Declined::Distance)

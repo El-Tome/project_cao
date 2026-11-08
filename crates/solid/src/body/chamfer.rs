@@ -5,7 +5,7 @@
 
 use std::slice;
 
-use super::{Body, Exact, Matter};
+use super::{Body, Matter};
 use crate::brep::{Declined, EdgeName, Lost};
 
 /// The body a chamfer left, the distance it was asked, and the distance the
@@ -28,14 +28,15 @@ impl Body {
     }
 
     /// The edge each name finds cut off, or filled in, as [`Body::chamfer`]
-    /// cuts it, at `distance`, in the order the names come: each flat face
-    /// numbered on its own, in that order, from where the steps' numbers
-    /// ended. The first edge declined declines the step.
+    /// cuts it, at `distance` or at the one largest distance every edge gives
+    /// with the others laid: each flat face numbered on its own, in the order
+    /// the names come, from where the steps' numbers ended. The first edge
+    /// declined declines the step.
     pub fn chamfer_edges(&self, edges: &[EdgeName], distance: f64) -> Result<Chamfered, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));
         };
-        let (exact, taken) = exact.cut_off_each(edges, distance, Exact::chamfered)?;
+        let (exact, taken) = exact.chamfered(edges, distance)?;
         Ok(Chamfered {
             body: Body::of_exact(exact),
             asked: distance,

@@ -22,7 +22,10 @@
 //! - The value is reduced once for the whole step, to the largest at which
 //!   every round fits with the others laid. The step reports the value asked
 //!   and the one value taken —
-//!   `a_fillet_and_a_chamfer_on_several_edges_asked_more_than_one_of_them_gives_take_the_one_value_every_edge_fits_and_report_both`;
+//!   `a_fillet_on_several_edges_asked_more_than_one_of_them_gives_lays_every_round_at_the_one_radius_they_all_fit_and_reports_both`,
+//!   `a_chamfer_on_several_edges_asked_more_than_one_of_them_gives_cuts_every_flat_at_the_one_distance_they_all_fit_and_reports_both`,
+//!   each on a list whose limit is one edge's own faces, and on a list where
+//!   that edge limits two set-backs on a shared face before they meet;
 //!   a value that fits is taken as asked — the two tests of the first
 //!   criterion, which ask a value every edge gives and hold that it is the one
 //!   taken, and
@@ -256,6 +259,19 @@ fn taken_as_asked(asked: f64, taken: f64, value: f64, what: &str) {
     );
 }
 
+/// Holds that a step reports the value it was asked, and the one smaller
+/// value every edge of its list gives.
+fn reduced(asked: f64, taken: f64, [expected_asked, expected_taken]: [f64; 2], what: &str) {
+    assert!(
+        (asked - expected_asked).abs() < PLACE,
+        "{what}: reports {asked} asked, where {expected_asked} was"
+    );
+    assert!(
+        (taken - expected_taken).abs() < PLACE,
+        "{what}: took {taken}, where every edge gives {expected_taken}"
+    );
+}
+
 /// Holds that a body took away from the part it was given what each of the
 /// steps of one edge `alone` takes away from it, all of it and no more.
 fn takes_what_each_alone_takes(part: &Body, body: &Body, alone: &[Body], what: &str) {
@@ -305,9 +321,10 @@ fn reach_of(body: &Body) -> f64 {
     low.abs().max(high.abs()).max_element()
 }
 
-/// One of the four edges of the block that run along its length, from its
+/// An edge of a block [`LENGTH`] long that runs along its length, from its
 /// left wall to its right: the two faces it lies between, the corner of the
 /// left wall it starts at, and the ways the two faces face.
+#[derive(Clone)]
 struct LongEdge {
     faces: [usize; 2],
     start: DVec3,
@@ -827,4 +844,256 @@ fn each_round_and_each_flat_of_a_step_on_several_edges_is_numbered_in_the_order_
             &format!("{which}, the chamfer's flat"),
         );
     }
+}
+
+/// The one flat face among `made` whose corners are the points expected.
+fn flat_at(body: &Body, made: &[usize], corners: &[DVec3], what: &str) -> usize {
+    let at: Vec<usize> = made
+        .iter()
+        .copied()
+        .filter(|&face| {
+            body.plane_of(face).is_some_and(|plane| {
+                let near = |point: &DVec3, among: &[DVec3]| {
+                    among.iter().any(|other| other.distance(*point) < PLACE)
+                };
+                plane.corners.iter().all(|corner| near(corner, corners))
+                    && corners.iter().all(|point| near(point, &plane.corners))
+            })
+        })
+        .collect();
+    assert_eq!(
+        at.len(),
+        1,
+        "{what}: one face of {made:?} is flat with its corners at {corners:?}"
+    );
+    at[0]
+}
+
+/// How wide the narrow block's top is: the most its top front edge gives.
+const NARROW: f64 = 4.0;
+
+/// The numbers the narrow block's top and front answer to, past the wide
+/// block's six.
+const NARROW_TOP: usize = TOP + 6;
+const NARROW_FRONT: usize = FRONT + 6;
+
+/// The part the one value is held on: the block of the first criterion, 10
+/// across, and beside it, off the line of its edges, a block as long and as
+/// high but [`NARROW`] across, from 40 to 44 along Y.
+fn wide_and_narrow() -> Body {
+    joined_to(
+        &block([LENGTH, BREADTH, HEIGHT]),
+        [DVec2::new(0.0, 40.0), DVec2::new(LENGTH, 40.0 + NARROW)],
+        HEIGHT,
+    )
+}
+
+/// The matter the two blocks of [`wide_and_narrow`] hold.
+const WIDE_AND_NARROW: f64 = LENGTH * (BREADTH + NARROW) * HEIGHT;
+
+/// The lists the one value is held on, each with what it is and the two
+/// corners, on the left wall, of what is left of the wide block's top once
+/// every edge of the list is set back by [`NARROW`]. The narrow block's top
+/// front edge gives no more than that, its top taken whole; the wide block's
+/// edges give more. With the wide block's top front edge, its top is left 6
+/// wide; with both edges of its top, 2 wide, the two set-backs stopped short
+/// of meeting by the narrow edge.
+fn narrow_lists() -> [(&'static str, Vec<LongEdge>, [DVec3; 2]); 2] {
+    let [top_front, _, top_back, _] = long_edges();
+    let narrow = LongEdge {
+        faces: [NARROW_TOP, NARROW_FRONT],
+        start: DVec3::new(0.0, 40.0, HEIGHT),
+        facing: [DVec3::Z, -DVec3::Y],
+    };
+    [
+        (
+            "the wide block's top front edge and the narrow block's",
+            vec![top_front.clone(), narrow.clone()],
+            [
+                DVec3::new(0.0, NARROW, HEIGHT),
+                DVec3::new(0.0, BREADTH, HEIGHT),
+            ],
+        ),
+        (
+            "both edges of the wide block's top and the narrow block's top front edge",
+            vec![top_front, top_back, narrow],
+            [
+                DVec3::new(0.0, NARROW, HEIGHT),
+                DVec3::new(0.0, BREADTH - NARROW, HEIGHT),
+            ],
+        ),
+    ]
+}
+
+#[test]
+fn a_fillet_on_several_edges_asked_more_than_one_of_them_gives_lays_every_round_at_the_one_radius_they_all_fit_and_reports_both()
+ {
+    let asked = 6.0;
+    let part = wide_and_narrow();
+    for (list, edges, [first, second]) in narrow_lists() {
+        let names: Vec<EdgeName> = edges.iter().map(|edge| edge.name(&part)).collect();
+
+        let filleted = part
+            .fillet_edges(&names, asked)
+            .unwrap_or_else(|declined| panic!("{list}: declined, {declined:?}"));
+
+        let what = format!("the fillet on {list}, asked {asked}");
+        let body = &filleted.body;
+        let made = faces_made(&part, body);
+        let rounds: Vec<Round> = edges.iter().map(|edge| edge.round(NARROW)).collect();
+        for (edge, round) in edges.iter().zip(&rounds) {
+            let which = format!(
+                "{what}: the round between faces {:?}, of the one radius {NARROW}",
+                edge.faces
+            );
+            let laid = face_on(body, &made, round, &which);
+            is_the_round(body, laid, round, &which);
+        }
+        assert_eq!(
+            made.len(),
+            edges.len(),
+            "{what}: one round for each edge: {made:?}"
+        );
+        reduced(filleted.asked, filleted.taken, [asked, NARROW], &what);
+        let area: f64 = rounds.iter().map(Round::area).sum();
+        sound_drawn_within(
+            body,
+            WIDE_AND_NARROW - edges.len() as f64 * LENGTH * NARROW * NARROW * (1.0 - PI / 4.0),
+            DRAWN * reach_of(&part) * area,
+            &what,
+        );
+        corners_are(
+            body,
+            TOP,
+            &strip(first, second),
+            &format!("{what}: what is left of the wide block's top, set back by {NARROW}"),
+        );
+        corners_are(
+            body,
+            FRONT,
+            &strip(DVec3::ZERO, DVec3::new(0.0, 0.0, HEIGHT - NARROW)),
+            &format!("{what}: what is left of the wide block's front, set back by {NARROW}"),
+        );
+        assert!(
+            !body.has_face(NARROW_TOP),
+            "{what}: the narrow block's top, {NARROW} wide, is taken whole"
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_on_several_edges_asked_more_than_one_of_them_gives_cuts_every_flat_at_the_one_distance_they_all_fit_and_reports_both()
+ {
+    let asked = 6.0;
+    let part = wide_and_narrow();
+    for (list, edges, [first, second]) in narrow_lists() {
+        let names: Vec<EdgeName> = edges.iter().map(|edge| edge.name(&part)).collect();
+
+        let chamfered = part
+            .chamfer_edges(&names, asked)
+            .unwrap_or_else(|declined| panic!("{list}: declined, {declined:?}"));
+
+        let what = format!("the chamfer on {list}, asked {asked}");
+        let body = &chamfered.body;
+        let made = faces_made(&part, body);
+        for edge in &edges {
+            let (corners, facing) = edge.flat(NARROW);
+            let which = format!(
+                "{what}: the flat between faces {:?}, set back by the one distance {NARROW}",
+                edge.faces
+            );
+            let cut = flat_at(body, &made, &corners, &which);
+            face_facing(body, &[cut], facing, &which);
+        }
+        assert_eq!(
+            made.len(),
+            edges.len(),
+            "{what}: one flat for each edge: {made:?}"
+        );
+        reduced(chamfered.asked, chamfered.taken, [asked, NARROW], &what);
+        let promised = WIDE_AND_NARROW - edges.len() as f64 * LENGTH * NARROW * NARROW / 2.0;
+        sound_drawn_within(body, promised, EXACT * promised, &what);
+        corners_are(
+            body,
+            TOP,
+            &strip(first, second),
+            &format!("{what}: what is left of the wide block's top, set back by {NARROW}"),
+        );
+        corners_are(
+            body,
+            FRONT,
+            &strip(DVec3::ZERO, DVec3::new(0.0, 0.0, HEIGHT - NARROW)),
+            &format!("{what}: what is left of the wide block's front, set back by {NARROW}"),
+        );
+        assert!(
+            !body.has_face(NARROW_TOP),
+            "{what}: the narrow block's top, {NARROW} wide, is taken whole"
+        );
+    }
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_the_two_edges_either_side_of_a_face_take_a_value_that_fits_as_asked() {
+    let value = 4.9;
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let [top_front, _, top_back, _] = long_edges();
+    let edges = [top_front, top_back];
+    let names: Vec<EdgeName> = edges.iter().map(|edge| edge.name(&block)).collect();
+
+    let filleted = block
+        .fillet_edges(&names, value)
+        .unwrap_or_else(|declined| panic!("the fillet: declined, {declined:?}"));
+    let chamfered = block
+        .chamfer_edges(&names, value)
+        .unwrap_or_else(|declined| panic!("the chamfer: declined, {declined:?}"));
+
+    let top_left = strip(
+        DVec3::new(0.0, value, HEIGHT),
+        DVec3::new(0.0, BREADTH - value, HEIGHT),
+    );
+    let what = format!("the fillet on both edges of a top {BREADTH} wide, asked {value}");
+    taken_as_asked(filleted.asked, filleted.taken, value, &what);
+    let body = &filleted.body;
+    let made = faces_made(&block, body);
+    let rounds: Vec<Round> = edges.iter().map(|edge| edge.round(value)).collect();
+    for (edge, round) in edges.iter().zip(&rounds) {
+        let which = format!("{what}: the round between faces {:?}", edge.faces);
+        let laid = face_on(body, &made, round, &which);
+        is_the_round(body, laid, round, &which);
+    }
+    let area: f64 = rounds.iter().map(Round::area).sum();
+    sound_drawn_within(
+        body,
+        LENGTH * BREADTH * HEIGHT - 2.0 * LENGTH * value * value * (1.0 - PI / 4.0),
+        DRAWN * reach_of(&block) * area,
+        &what,
+    );
+    corners_are(
+        body,
+        TOP,
+        &top_left,
+        &format!("{what}: what is left of the top, a strip between the two rounds"),
+    );
+
+    let what = format!("the chamfer on both edges of a top {BREADTH} wide, asked {value}");
+    taken_as_asked(chamfered.asked, chamfered.taken, value, &what);
+    let body = &chamfered.body;
+    let made = faces_made(&block, body);
+    for edge in &edges {
+        let (corners, _) = edge.flat(value);
+        flat_at(
+            body,
+            &made,
+            &corners,
+            &format!("{what}: the flat between faces {:?}", edge.faces),
+        );
+    }
+    let promised = LENGTH * BREADTH * HEIGHT - 2.0 * LENGTH * value * value / 2.0;
+    sound_drawn_within(body, promised, EXACT * promised, &what);
+    corners_are(
+        body,
+        TOP,
+        &top_left,
+        &format!("{what}: what is left of the top, a strip between the two flats"),
+    );
 }

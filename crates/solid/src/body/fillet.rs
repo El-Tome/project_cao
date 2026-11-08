@@ -4,7 +4,7 @@
 
 use std::slice;
 
-use super::{Body, Exact, Matter};
+use super::{Body, Matter};
 use crate::brep::{Declined, EdgeName, Lost};
 
 /// The body a fillet left, the radius it was asked, and the radius the
@@ -27,14 +27,15 @@ impl Body {
     }
 
     /// The edge each name finds rounded off as [`Body::fillet`] rounds it, at
-    /// `radius`, in the order the names come: each round numbered on its own,
-    /// in that order, from where the steps' numbers ended. The first edge
-    /// declined declines the step.
+    /// `radius` or at the one largest radius every edge gives with the others
+    /// laid: each round numbered on its own, in the order the names come,
+    /// from where the steps' numbers ended. The first edge declined declines
+    /// the step.
     pub fn fillet_edges(&self, edges: &[EdgeName], radius: f64) -> Result<Filleted, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));
         };
-        let (exact, taken) = exact.cut_off_each(edges, radius, Exact::filleted)?;
+        let (exact, taken) = exact.filleted(edges, radius)?;
         Ok(Filleted {
             body: Body::of_exact(exact),
             asked: radius,

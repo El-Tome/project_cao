@@ -41,74 +41,90 @@ pub(super) struct Wedge {
 pub(super) type Prism = (Contour, Frame, DVec3);
 
 impl Exact {
-    /// The body with the edge a name finds cut off, or filled in where its
+    /// The body with the edge each name finds cut off, or filled in where its
     /// faces meet inwards, by the prism `tool` raises over its wedge for the
-    /// value taken, and that value: `asked`, or the most `most` says the
-    /// edge's two faces give. The wall of the prism's first run is numbered
-    /// where the steps' numbers ended. A value shorter than the kernel can
-    /// set a cut back from an edge is declined first; an edge that is not a
-    /// wedge, and a cut or a fill that left something else than its one
-    /// face, as [`Exact::cut_along`] reads it, are declined `Unsupported`; a
-    /// prism the tool cannot raise, as the tool says.
+    /// one value taken, one after the other in the order the names come, and
+    /// that value: `asked`, or the most every edge gives with the others laid
+    /// — what `most` says each edge's two faces give, and on a face two edges
+    /// share, what keeps the set-backs they make on it from crossing, as
+    /// [`shared`] reads them by the set-back of a value of one `set_back`
+    /// says. Each read on the body as given, before any is laid. The wall of
+    /// each prism's first run is numbered where the steps' numbers ended
+    /// after the edge before. A value shorter than the kernel can set a cut
+    /// back from an edge is declined first; an edge its name no longer finds
+    /// `Lost`; an edge that is not a wedge, two edges sharing a face that are
+    /// not parallel, and a cut or a fill that left something else than its
+    /// one face, as [`Exact::cut_along`] reads it, are declined
+    /// `Unsupported`; a prism the tool cannot raise, as the tool says.
     pub(super) fn cut_off(
         &self,
-        name: &EdgeName,
+        names: &[EdgeName],
         asked: f64,
-        most: impl FnOnce(&Wedge) -> f64,
-        tool: impl FnOnce(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
+        most: impl Fn(&Wedge) -> f64,
+        set_back: impl Fn(&Wedge) -> f64,
+        tool: impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
     ) -> Result<(Exact, f64), Declined> {
         if too_short(asked, self.brep.scale()) {
             return Err(Declined::Distance);
         }
         caught(|| {
-            let edge = self
-                .brep
-                .find_rooted(name, |number| root(&self.roots, number))
-                .map_err(Declined::Lost)?;
-            let wedge = Wedge::of(&self.brep, edge)?;
-            let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
-            let taken = asked.min(most(&wedge));
-            let prism = tool(&wedge, taken, self.brep.scale(), bounds)?;
-            let (outline, frame, travel) = &prism;
-            let raised = Exact::raised(outline, &[], *frame, *travel)?;
-            let tool = Exact {
-                brep: raised.brep.renumbered_by(|number| match number {
-                    0 => MADE,
-                    MADE => 0,
-                    other => other,
-                }),
-                ..raised
-            };
-            let cut = if wedge.inwards {
-                self.filled(edge, &wedge, &prism, tool)?
-            } else {
-                self.cut_by(&Exact { next: 1, ..tool })?
-            };
-            if cut.cut_along(&wedge, self) {
-                Ok((cut, taken))
-            } else {
-                Err(Declined::Unsupported)
-            }
+            let wedges = names
+                .iter()
+                .map(|name| Ok(self.wedge(name)?.1))
+                .collect::<Result<Vec<Wedge>, Declined>>()?;
+            let alone = wedges
+                .iter()
+                .fold(asked, |taken, wedge| taken.min(most(wedge)));
+            let taken = alone.min(shared(&wedges, set_back)?);
+            let cut = names
+                .iter()
+                .try_fold(self.clone(), |body, name| body.laid(name, taken, &tool))?;
+            Ok((cut, taken))
         })
     }
 
-    /// The body with the edge each name finds cut off or filled in by `step`
-    /// at `asked`, one after the other in the order the names come, each
-    /// face laid numbered where the steps' numbers ended after the one
-    /// before, and the least value a step took. The first edge `step`
-    /// declines declines the whole.
-    pub fn cut_off_each(
+    /// The edge a name finds, and its wedge. Declined `Lost` where the name
+    /// no longer finds it, `Unsupported` where it is not a wedge.
+    fn wedge(&self, name: &EdgeName) -> Result<(EdgeId, Wedge), Declined> {
+        let edge = self
+            .brep
+            .find_rooted(name, |number| root(&self.roots, number))
+            .map_err(Declined::Lost)?;
+        Ok((edge, Wedge::of(&self.brep, edge)?))
+    }
+
+    /// The body with the edge a name finds cut off, or filled in, by the
+    /// prism `tool` raises over its wedge for `taken`, its wall numbered
+    /// where the steps' numbers ended, declined as [`Exact::cut_off`] says.
+    fn laid(
         &self,
-        names: &[EdgeName],
-        asked: f64,
-        step: impl Fn(&Exact, &EdgeName, f64) -> Result<(Exact, f64), Declined>,
-    ) -> Result<(Exact, f64), Declined> {
-        names
-            .iter()
-            .try_fold((self.clone(), asked), |(body, taken), name| {
-                let (laid, each) = step(&body, name, asked)?;
-                Ok((laid, taken.min(each)))
-            })
+        name: &EdgeName,
+        taken: f64,
+        tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
+    ) -> Result<Exact, Declined> {
+        let (edge, wedge) = self.wedge(name)?;
+        let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
+        let prism = tool(&wedge, taken, self.brep.scale(), bounds)?;
+        let (outline, frame, travel) = &prism;
+        let raised = Exact::raised(outline, &[], *frame, *travel)?;
+        let tool = Exact {
+            brep: raised.brep.renumbered_by(|number| match number {
+                0 => MADE,
+                MADE => 0,
+                other => other,
+            }),
+            ..raised
+        };
+        let cut = if wedge.inwards {
+            self.filled(edge, &wedge, &prism, tool)?
+        } else {
+            self.cut_by(&Exact { next: 1, ..tool })?
+        };
+        if cut.cut_along(&wedge, self) {
+            Ok(cut)
+        } else {
+            Err(Declined::Unsupported)
+        }
     }
 
     /// Whether the prism left its face alone on the body, numbered where the
@@ -221,6 +237,33 @@ const SHORTEST: f64 = 4.0;
 /// tolerances.
 pub(super) fn too_short(length: f64, scale: Scale) -> bool {
     length.is_nan() || length < SHORTEST * Scale::HAIR * scale.eps()
+}
+
+/// The most value at which, on every face two of the wedges share, the
+/// set-backs the two make on it do not cross: their distance across it over
+/// the set-backs a value of one makes from either. Two edges that do not
+/// face each other across it give no bound past each one's own reach.
+/// Declined `Unsupported` where two edges share a face and are not parallel
+/// within [`TANGENT`], whose set-backs this does not measure.
+fn shared(wedges: &[Wedge], set_back: impl Fn(&Wedge) -> f64) -> Result<f64, Declined> {
+    let sides = |wedge: &Wedge| wedge.faces.into_iter().zip(wedge.into);
+    let mut most = f64::INFINITY;
+    for (rank, one) in wedges.iter().enumerate() {
+        for other in &wedges[rank + 1..] {
+            for (face, into) in sides(one) {
+                for (_, towards) in sides(other).filter(|&(theirs, _)| theirs == face) {
+                    if one.along.cross(other.along).length() > TANGENT {
+                        return Err(Declined::Unsupported);
+                    }
+                    let across = into.dot(other.point - one.point);
+                    if across > 0.0 && into.dot(towards) < 0.0 {
+                        most = most.min(across / (set_back(one) + set_back(other)));
+                    }
+                }
+            }
+        }
+    }
+    Ok(most)
 }
 
 /// The number a raise gives the wall of its profile's first run.

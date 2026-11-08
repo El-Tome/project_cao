@@ -29,7 +29,6 @@
 //! two flips stand or fall together. Two faces whose triangles end up on the
 //! same three samples are a skin of no thickness ([`super::skins`]).
 
-mod along;
 mod flip;
 mod lines;
 mod through;
@@ -41,7 +40,7 @@ use glam::{DVec2, DVec3};
 
 use super::outline::Outline;
 use super::sampling::Samples;
-use crate::brep::crossing::{Facet, NEAR, crossing, reach};
+use crate::brep::crossing::{Facet, NEAR, crossing, passed, reach};
 use crate::brep::surface::Surface;
 use crate::brep::topology::FaceId;
 use crate::orientation::{beside, turn};
@@ -200,27 +199,54 @@ impl<'a> Folds<'a> {
     /// `corners` crosses; not its twin on the same three samples, which
     /// [`super::skins`] leaves out with it.
     fn crossed(&self, face: usize, corners: [usize; 3]) -> impl Iterator<Item = At> + '_ {
-        self.near(face, corners)
-            .filter(move |(_, theirs)| {
-                !theirs.iter().all(|id| corners.contains(id)) && self.crosses(corners, *theirs)
+        self.near(corners)
+            .filter(move |(other, theirs)| {
+                other.0 != face
+                    && !theirs.iter().all(|id| corners.contains(id))
+                    && self.crosses(corners, *theirs)
             })
             .map(|(other, _)| other)
     }
 
-    /// The triangles of faces other than `face`, with their samples, whose
-    /// box meets that of the triangle on the samples `corners`.
-    fn near(
-        &self,
-        face: usize,
-        corners: [usize; 3],
-    ) -> impl Iterator<Item = (At, [usize; 3])> + '_ {
+    /// Whether the triangle at `at` and another pass through each other along
+    /// a line of edges, as the rules read it, among the triangles near it:
+    /// none of a skin of no thickness, which [`super::skins`] leaves out.
+    pub(super) fn crossed_along(&self, at: At) -> bool {
+        let Some(corners) = self.corners(at) else {
+            return false;
+        };
+        let mut near = vec![corners];
+        near.extend(
+            self.near(corners)
+                .filter(|(other, _)| *other != at)
+                .map(|(_, theirs)| theirs),
+        );
+        let skin = |corners: [usize; 3]| {
+            let twin = |theirs: &[usize; 3]| theirs.iter().all(|id| corners.contains(id));
+            near.iter().filter(|theirs| twin(theirs)).count() > 1
+        };
+        if skin(corners) {
+            return false;
+        }
+        let triangles: Vec<[DVec3; 3]> = near
+            .iter()
+            .filter(|theirs| !skin(**theirs))
+            .map(|theirs| theirs.map(|id| self.samples.point(id)))
+            .collect();
+        passed(&triangles, self.room)
+            .into_iter()
+            .any(|(one, other)| one == 0 || other == 0)
+    }
+
+    /// The triangles, with their samples, whose box meets that of the triangle
+    /// on the samples `corners`.
+    fn near(&self, corners: [usize; 3]) -> impl Iterator<Item = (At, [usize; 3])> + '_ {
         let boxed = |corners: [usize; 3]| {
             let [a, b, c] = corners.map(|id| self.samples.point(id));
             (a.min(b).min(c) - self.eps, a.max(b).max(c) + self.eps)
         };
         let (low, high) = boxed(corners);
         (0..self.drawn.len())
-            .filter(move |other| *other != face)
             .flat_map(move |other| {
                 (0..self.drawn[other].triangles.len()).map(move |each| (other, each))
             })

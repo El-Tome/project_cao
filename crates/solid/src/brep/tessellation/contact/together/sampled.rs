@@ -8,7 +8,7 @@ use glam::DVec3;
 use crate::brep::surface::{Cylinder, Plane};
 use crate::brep::tessellation::contact::facing::Facing;
 use crate::brep::tessellation::contact::{Contact, Wall};
-use crate::brep::tessellation::sampling::{divisions, on_a_plane};
+use crate::brep::tessellation::sampling::{divisions_in, on_a_plane};
 
 /// What the outer wall's circles and the inner one's take and leave out, and
 /// which of the rays each took on its own the two leave out.
@@ -65,7 +65,7 @@ pub(in crate::brep::tessellation::contact) fn sampled(
     facing: &Facing,
     hub: Option<DVec3>,
     planes: [&[Plane]; 2],
-    tolerance: f64,
+    (tolerance, reach): (f64, f64),
     eps: f64,
 ) -> Option<Together> {
     let (outer, inner) = (outer_wall.1, inner_wall.1);
@@ -79,14 +79,15 @@ pub(in crate::brep::tessellation::contact) fn sampled(
     if outside >= 0.0 {
         return None;
     }
-    let sag = |radius: f64| radius * (1.0 - (PI / divisions(radius, tolerance) as f64).cos());
+    let sag =
+        |radius: f64| radius * (1.0 - (PI / divisions_in(radius, tolerance, reach) as f64).cos());
     let gap = outer.radius - inner.radius - offset.length();
     if gap.abs() > 2.0 * sag(outer.radius).max(sag(inner.radius)) {
         return None;
     }
 
-    let outer_steps = divisions(outer.radius, tolerance);
-    let inner_steps = divisions(inner.radius, tolerance);
+    let outer_steps = divisions_in(outer.radius, tolerance, reach);
+    let inner_steps = divisions_in(inner.radius, tolerance, reach);
     let through_outer = (0..outer_steps)
         .map(|step| {
             let angle = TAU * step as f64 / outer_steps as f64;

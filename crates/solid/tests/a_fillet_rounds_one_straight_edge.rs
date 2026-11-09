@@ -69,6 +69,13 @@
 //! - The chamfer's tests still pass — no test: the chamfer's own suite,
 //!   `a_chamfer_cuts_one_straight_edge.rs` and `src/body/tests/chamfer.rs`,
 //!   left as it was, is the answer
+//!
+//! Closes #777.
+//! - #697's near-flat sweep (`a_fillet_on_an_edge_nearly_flat_or_not_…`)
+//!   checks what its triangles enclose, at every radius, including the
+//!   largest —
+//!   `a_fillet_on_an_edge_nearly_flat_or_not_is_declined_as_too_short_or_lays_a_round_of_its_own_at_every_radius`;
+//!   the issue's other criteria are held in `an_arc_far_wider_than_the_part.rs`
 
 mod step_reader;
 

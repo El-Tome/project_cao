@@ -59,7 +59,7 @@ use glam::DVec3;
 
 use super::super::contact::{self, Contact, Wall};
 use super::cone::{Grid, Spun};
-use super::divisions;
+use super::divisions_in;
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::topology::{Body, SurfaceId};
 use joined::{Joined, along, beside};
@@ -108,6 +108,7 @@ impl Axes {
         tolerance: f64,
     ) -> Axes {
         let eps = body.scale().eps();
+        let fineness = (tolerance, body.scale().reach());
         let circles: Vec<&Circle> = body
             .edge_ids()
             .filter_map(|id| match body.curve(body.edge(id).curve) {
@@ -141,7 +142,7 @@ impl Axes {
                 low + eps < height(circle)
                     && height(circle) < high - eps
                     && !grid.spun.holds(circle, eps)
-                    && beside(circle, grid, tolerance)
+                    && beside(circle, grid, fineness)
             });
             if !held.is_empty() {
                 rims.push((held, near, grid));
@@ -154,7 +155,7 @@ impl Axes {
                     .any(|(_, _, grid)| along(grid.spun.origin(), grid.spun.axis(), wall, eps))
             })
             .collect();
-        let (mut joined, close) = Joined::close(&about, walls, eps, tolerance);
+        let (mut joined, close) = Joined::close(&about, walls, eps, fineness);
         rims.retain(|(held, near, _)| !near.is_empty() || held.iter().any(|id| close.contains(id)));
         for (held, near, _) in &rims {
             for id in held.iter().chain(near) {
@@ -175,7 +176,7 @@ impl Axes {
                 continue;
             };
             axes.of_wall.insert(*id, group);
-            let steps = divisions(wall.radius, tolerance);
+            let steps = divisions_in(wall.radius, tolerance, fineness.1);
             axes.groups[group]
                 .rays
                 .extend((0..steps).map(|step| wall.radial(TAU * step as f64 / steps as f64)));
@@ -236,7 +237,7 @@ impl Axes {
         &self,
         contact: &Contact,
         (circle, wall): (&Circle, SurfaceId),
-        tolerance: f64,
+        (tolerance, reach): (f64, f64),
         eps: f64,
         kept: impl Fn(DVec3) -> bool,
     ) -> Option<Contact> {
@@ -246,7 +247,7 @@ impl Axes {
             .filter(|(spun, _)| spun.holds(circle, eps))
             .flat_map(|(_, rays)| rays.iter().copied());
         let group = self.of_wall.get(&wall).map(|group| &self.groups[*group]);
-        let steps = divisions(circle.radius, tolerance);
+        let steps = divisions_in(circle.radius, tolerance, reach);
         let step = TAU / steps as f64;
         let level = circle.center.dot(circle.axis);
         let withheld = |way: &DVec3| {

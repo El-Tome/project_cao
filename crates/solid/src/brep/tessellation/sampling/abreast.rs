@@ -35,7 +35,7 @@ mod groups;
 mod rays;
 
 use super::super::contact::{self, Contact};
-use super::divisions;
+use super::divisions_in;
 use crate::brep::relation::{Relation, closest, relation};
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, SurfaceId};
@@ -164,13 +164,18 @@ impl Abreast {
     /// other's chord (campaign seed 5585713456).
     fn crowded(&mut self, pair: [SurfaceId; 2], body: &Body, tolerance: f64) {
         let room = body.scale().eps() * contact::APART;
+        let reach = body.scale().reach();
         for (wall, other) in [(pair[0], pair[1]), (pair[1], pair[0])] {
             let surface = body.surface(wall);
             let (steps, withheld) = match surface {
-                Surface::Cylinder(round) => {
-                    (divisions(round.radius, tolerance), &mut self.withheld)
-                }
-                Surface::Elliptic(oval) => (divisions(oval.major, tolerance), &mut self.left_out),
+                Surface::Cylinder(round) => (
+                    divisions_in(round.radius, tolerance, reach),
+                    &mut self.withheld,
+                ),
+                Surface::Elliptic(oval) => (
+                    divisions_in(oval.major, tolerance, reach),
+                    &mut self.left_out,
+                ),
                 Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => {
                     continue;
                 }
@@ -207,10 +212,11 @@ impl Abreast {
     /// inner rim's (campaign seed 5571457963).
     fn shared(&mut self, group: &[SurfaceId], hub: DVec3, body: &Body, tolerance: f64) {
         let (_, axis) = axis_of(body.surface(group[0]));
+        let reach = body.scale().reach();
         let flat = |way: DVec3| way - axis * axis.dot(way);
         let mut places: Vec<DVec3> = group
             .iter()
-            .flat_map(|wall| grid(body.surface(*wall), tolerance))
+            .flat_map(|wall| grid(body.surface(*wall), (tolerance, reach)))
             .chain(group.iter().flat_map(|wall| alone(body, *wall, tolerance)))
             .collect();
         places.extend(

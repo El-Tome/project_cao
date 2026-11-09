@@ -5,19 +5,19 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use super::super::contact::{self, Contact, Gap};
+use super::TOLD;
 use super::ends::Ends;
 use super::planes::on_a_plane;
-use super::{TOLD, divisions};
 use crate::brep::curve::Circle;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::topology::Edge;
 
 /// The points of a circle's edge between its ends, in the way the edge runs:
-/// on the grid but for the steps its contact withholds, and along the rays it
-/// adds. A place closer than `eps` to a grid angle is that angle, and to an
-/// end that end — or, at an end a plane touches the wall at, a place so near
-/// it that the circle there stands within a fifth of `eps` of the plane: the
-/// sample would lie on the plane's edge. Nor is a ray taken, on any circle of
+/// on the grid of `steps` a turn but for the steps its contact withholds, and
+/// along the rays it adds. A place closer than `eps` to a grid angle is that
+/// angle, and to an end that end — or, at an end a plane touches the wall
+/// at, a place so near it that the circle there stands within a fifth of
+/// `eps` of the plane: the sample would lie on the plane's edge. Nor is a ray taken, on any circle of
 /// the wall, where the circle stands so near such a plane but not on the
 /// line it touches along: a ray a partner passed on, through its own grid,
 /// would lay a strip of the wall on the plane's face. So too beside a line
@@ -41,16 +41,15 @@ use crate::brep::topology::Edge;
 /// (5550133356). Not of every plane: a circle a hair off a plane all along
 /// lost a grid angle by each end, and the drawing lost matter
 /// (5561366633).
-pub(super) fn on_circle(
+pub(super) fn on_circle_by(
     circle: &Circle,
     edge: &Edge,
-    tolerance: f64,
+    steps: usize,
     eps: f64,
     contact: &Contact,
     ends_of: &Ends,
     planes: &[Plane],
 ) -> Vec<DVec3> {
-    let steps = divisions(circle.radius, tolerance);
     let step = TAU / steps as f64;
     let gap = eps / circle.radius;
     let level = circle.center.dot(circle.axis);
@@ -204,4 +203,19 @@ pub(super) fn on_circle(
         points.pop();
     }
     points
+}
+
+/// [`on_circle_by`] on the grid of a circle no wider than its part.
+#[cfg(test)]
+pub(super) fn on_circle(
+    circle: &Circle,
+    edge: &Edge,
+    tolerance: f64,
+    eps: f64,
+    contact: &Contact,
+    ends_of: &Ends,
+    planes: &[Plane],
+) -> Vec<DVec3> {
+    let steps = super::divisions(circle.radius, tolerance);
+    on_circle_by(circle, edge, steps, eps, contact, ends_of, planes)
 }

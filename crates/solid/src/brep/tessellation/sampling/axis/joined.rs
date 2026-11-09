@@ -12,7 +12,7 @@ use crate::brep::curve::Circle;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
 use crate::brep::tessellation::contact::Wall;
-use crate::brep::tessellation::sampling::divisions;
+use crate::brep::tessellation::sampling::divisions_in;
 use crate::brep::topology::SurfaceId;
 
 /// Whether a wall stands about the line through `origin` along `axis`.
@@ -27,7 +27,7 @@ pub(super) fn along(origin: DVec3, axis: DVec3, (_, wall): &Wall, eps: f64) -> b
 /// close.
 ///
 /// [`contact`]: crate::brep::tessellation::contact
-fn together(one: &Cylinder, other: &Cylinder, tolerance: f64) -> bool {
+fn together(one: &Cylinder, other: &Cylinder, (tolerance, reach): (f64, f64)) -> bool {
     let (outer, inner) = if one.radius >= other.radius {
         (one, other)
     } else {
@@ -35,7 +35,8 @@ fn together(one: &Cylinder, other: &Cylinder, tolerance: f64) -> bool {
     };
     let between = inner.origin - outer.origin;
     let offset = (between - outer.axis * outer.axis.dot(between)).length();
-    let sag = |radius: f64| radius * (1.0 - (PI / divisions(radius, tolerance) as f64).cos());
+    let sag =
+        |radius: f64| radius * (1.0 - (PI / divisions_in(radius, tolerance, reach) as f64).cos());
     offset < outer.radius
         && (outer.radius - inner.radius - offset).abs()
             <= 2.0 * sag(outer.radius).max(sag(inner.radius))
@@ -48,12 +49,12 @@ fn together(one: &Cylinder, other: &Cylinder, tolerance: f64) -> bool {
 /// but lying on it only along the axis, and is left as it was. A sphere or a
 /// torus stands close to no circle this way yet (#576): a coaxial wall a
 /// hair inside a ball is a family the campaign measures.
-pub(super) fn beside(circle: &Circle, grid: &Grid, tolerance: f64) -> bool {
+pub(super) fn beside(circle: &Circle, grid: &Grid, (tolerance, reach): (f64, f64)) -> bool {
     let Spun::Cone(cone) = &grid.spun else {
         return false;
     };
     let sag = |steps: usize| circle.radius * (1.0 - (PI / steps as f64).cos());
-    let room = 2.0 * sag(divisions(circle.radius, tolerance)).max(sag(grid.steps));
+    let room = 2.0 * sag(divisions_in(circle.radius, tolerance, reach)).max(sag(grid.steps));
     let height = (circle.center - cone.origin).dot(cone.axis);
     cone.holds(circle, room) && (cone.section(height) - circle.radius).abs() <= room
 }
@@ -71,14 +72,14 @@ impl Joined {
         about: &[&Wall],
         walls: &[Wall],
         eps: f64,
-        tolerance: f64,
+        fineness: (f64, f64),
     ) -> (Joined, BTreeSet<SurfaceId>) {
         let mut joined = Joined::default();
         let mut close = BTreeSet::new();
         for (at, one) in about.iter().enumerate() {
             for other in &about[at + 1..] {
                 if along(one.1.origin, one.1.axis, other, eps)
-                    && together(&one.1, &other.1, tolerance)
+                    && together(&one.1, &other.1, fineness)
                 {
                     joined.join(one.0, other.0);
                 }
@@ -89,7 +90,7 @@ impl Joined {
             if walls
                 .iter()
                 .filter(parallel)
-                .any(|other| together(&one.1, &other.1, tolerance))
+                .any(|other| together(&one.1, &other.1, fineness))
             {
                 close.insert(one.0);
             }

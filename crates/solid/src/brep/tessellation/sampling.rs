@@ -51,11 +51,11 @@ mod ends;
 mod meet;
 mod planes;
 mod round;
+mod steps;
 mod touches;
 mod wedge;
 
 use std::collections::BTreeMap;
-use std::f64::consts::PI;
 
 use glam::DVec3;
 
@@ -65,11 +65,12 @@ use crate::brep::surface::Cylinder;
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
 use abreast::Abreast;
 use axis::Axes;
-use circle::on_circle;
+use circle::on_circle_by;
 use cone::{Grid, Spun};
 use ends::Ends;
 pub(super) use planes::{on_a_plane, touching_planes};
 pub(super) use round::{ON_A_ROW, Rounded, levels, midway, rows};
+pub(in crate::brep) use steps::divisions_in;
 use touches::{Places, on_the_line};
 
 /// How far from another surface, as a share of the kernel's tolerance, a
@@ -83,33 +84,6 @@ use touches::{Places, on_the_line};
 /// round from the vertex they cross at, and a place there on each, not on a
 /// ray the two share, has the arcs cross back and forth between them.
 const TOLD: f64 = 1e-3;
-
-const LEAST: usize = 16;
-const MOST: usize = 1024;
-
-/// How many equal steps a whole turn of a circle of `radius` is cut into, so
-/// that no chord of one step stands further than `tolerance` from its arc.
-///
-/// A multiple of four, so that the quarters from `u` are samples: where the
-/// planes of the origin touch a cylinder standing square to one of them. At
-/// least sixteen, so that a coarse tolerance still draws a round; at most a
-/// thousand and twenty-four, so that a fine one does not draw a million
-/// triangles.
-pub(in crate::brep) fn divisions(radius: f64, tolerance: f64) -> usize {
-    match needed(radius, tolerance) {
-        Some(needed) => ((needed / 4.0).ceil() * 4.0).clamp(LEAST as f64, MOST as f64) as usize,
-        None => MOST,
-    }
-}
-
-fn needed(radius: f64, tolerance: f64) -> Option<f64> {
-    let ratio = tolerance / radius;
-    if ratio.is_nan() || ratio <= 0.0 {
-        return None;
-    }
-    let half_step = (1.0 - ratio.min(2.0)).acos();
-    Some((PI / half_step).ceil())
-}
 
 /// Every edge's points, in the way the edge runs: its first vertex, the points
 /// between, its last vertex. A ring's points go round from its start and do
@@ -168,6 +142,7 @@ impl Samples {
             lines: crossing::lines(body, zones),
         };
         let eps = body.scale().eps();
+        let fineness = (tolerance, body.scale().reach());
         let alone = BTreeMap::new();
         let abreast = Abreast::of(body, tolerance);
         let axes = Axes::of(body, grids, walls, tolerance);
@@ -232,13 +207,14 @@ impl Samples {
                             .unwrap_or(&alone);
                         let on_axis = wall.and_then(|(surface, own)| {
                             let clear = |point| !zones.crowded(own, point);
-                            axes.widened(contact, (circle, *surface), tolerance, eps, clear)
+                            axes.widened(contact, (circle, *surface), fineness, eps, clear)
                         });
                         let contact = on_axis.as_ref().unwrap_or(contact);
                         let ends = Ends::of(body, circle, edge);
                         let planes =
                             touching_planes(body, circle.center, circle.axis, circle.radius);
-                        on_circle(circle, edge, tolerance, eps, contact, &ends, &planes)
+                        let steps = divisions_in(circle.radius, tolerance, fineness.1);
+                        on_circle_by(circle, edge, steps, eps, contact, &ends, &planes)
                     }
                 },
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
@@ -394,6 +370,11 @@ fn taken(
                 .collect()
         })
 }
+
+#[cfg(test)]
+use circle::on_circle;
+#[cfg(test)]
+pub(in crate::brep) use steps::divisions;
 
 #[cfg(test)]
 mod tests;

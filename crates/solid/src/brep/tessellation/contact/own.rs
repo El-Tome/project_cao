@@ -7,7 +7,7 @@ use std::f64::consts::PI;
 
 use glam::DVec3;
 
-use super::super::sampling::divisions;
+use super::super::sampling::divisions_in;
 use super::{Contact, Wall, bears};
 use crate::brep::curve::{self, Curve};
 use crate::brep::surface::{Cylinder, Surface};
@@ -98,8 +98,10 @@ pub(super) fn through_vertices(
     let mut through = Through::default();
     for wall in walls {
         let (id, cylinder) = wall;
-        let sag =
-            cylinder.radius * (1.0 - (PI / divisions(cylinder.radius, tolerance) as f64).cos());
+        let sag = cylinder.radius
+            * (1.0
+                - (PI / divisions_in(cylinder.radius, tolerance, body.scale().reach()) as f64)
+                    .cos());
         let vertices = body
             .vertex_ids()
             .map(|id| body.vertex(id))

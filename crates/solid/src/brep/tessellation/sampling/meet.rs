@@ -26,7 +26,7 @@ use super::chords::{halved, straight};
 use super::cone::{Grid, Spun};
 use super::elliptic::{on_the_wall, reached_by_planes};
 use super::ends::grazed;
-use super::{divisions, on_a_plane, taken, touching_planes};
+use super::{divisions_in, on_a_plane, taken, touching_planes};
 use crate::brep::Scale;
 use crate::brep::curve::{Meet, Wall};
 use crate::brep::surface::Cone;
@@ -207,6 +207,7 @@ fn alone(
         return Vec::new();
     }
     let eps = body.scale().eps();
+    let reach = body.scale().reach();
     let carried = [meet.first, meet.second];
     let grid = |cone: &Cone| {
         grids
@@ -215,15 +216,15 @@ fn alone(
     };
     let steps = carried.map(|wall| match wall {
         Wall::Cone(cone) => grid(&cone).map_or_else(
-            || divisions(size(&wall, meet), tolerance),
+            || divisions_in(size(&wall, meet), tolerance, reach),
             |grid| grid.steps,
         ),
-        _ => divisions(size(&wall, meet), tolerance),
+        _ => divisions_in(size(&wall, meet), tolerance, reach),
     });
     let rays = [0, 1].map(|rank| match carried[rank] {
         Wall::Cylinder(cylinder) => taken(&own[rank], &cylinder, walls, contacts),
         Wall::Elliptic(oval) => {
-            let steps = divisions(oval.major, tolerance);
+            let steps = divisions_in(oval.major, tolerance, reach);
             let beneath = contacts
                 .values()
                 .filter(|contact| contact.oval == Some(oval))
@@ -347,6 +348,7 @@ pub(super) fn on_meet(
     rays: [&[f64]; 2],
     clear: &dyn Fn(DVec3) -> bool,
 ) -> Vec<DVec3> {
-    let steps = [meet.first, meet.second].map(|wall| divisions(size(&wall, meet), tolerance));
+    let steps =
+        [meet.first, meet.second].map(|wall| super::divisions(size(&wall, meet), tolerance));
     on_meet_by(meet, edge, tolerance, eps, rays, steps, clear)
 }

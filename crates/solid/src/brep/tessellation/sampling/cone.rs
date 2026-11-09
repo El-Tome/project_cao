@@ -33,9 +33,10 @@ use std::f64::consts::TAU;
 use glam::DVec3;
 
 use super::capped::beyond_most;
+use super::divisions_in;
 use super::meet::size;
 use super::round::{Rounded, SHARE};
-use super::{MOST, divisions};
+use super::steps::MOST;
 use crate::brep::conic::{Conic, Round};
 use crate::brep::curve::{Circle, Curve, Meet, Wall};
 use crate::brep::surface::{Cone, Cylinder, Surface};
@@ -133,6 +134,7 @@ impl Grid {
 /// round across its crest reaches further than its rims.
 pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
     let eps = body.scale().eps();
+    let reach = body.scale().reach();
     let circles: Vec<&Circle> = body
         .edge_ids()
         .filter_map(|id| match body.curve(body.edge(id).curve) {
@@ -196,9 +198,9 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
             }
             let (steps, rows, capped) = match spun {
                 Spun::Cone(_) => (
-                    divisions(widest, tolerance),
+                    divisions_in(widest, tolerance, reach),
                     0,
-                    beyond_most(widest, tolerance),
+                    beyond_most(widest, tolerance, reach),
                 ),
                 Spun::Round(round) => {
                     let faces = body
@@ -211,12 +213,12 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
                     {
                         widest = widest.max(round.widest());
                     }
-                    let steps = divisions(widest, tolerance * SHARE);
+                    let steps = divisions_in(widest, tolerance * SHARE, reach);
                     (
                         kept_by_walls(body, &round, steps, tolerance, eps),
-                        divisions(round.radius(), tolerance * SHARE),
-                        beyond_most(widest, tolerance * SHARE)
-                            || beyond_most(round.radius(), tolerance * SHARE),
+                        divisions_in(round.radius(), tolerance * SHARE, reach),
+                        beyond_most(widest, tolerance * SHARE, reach)
+                            || beyond_most(round.radius(), tolerance * SHARE, reach),
                     )
                 }
             };
@@ -252,7 +254,7 @@ fn kept_by_walls(body: &Body, round: &Rounded, steps: usize, tolerance: f64, eps
         if !touching(round, wall, eps) {
             continue;
         }
-        let theirs = divisions(wall.radius, tolerance);
+        let theirs = divisions_in(wall.radius, tolerance, body.scale().reach());
         let turn = wall.u.dot(round.v()).atan2(wall.u.dot(round.u()));
         let ranks = turn / TAU * theirs as f64;
         if (ranks - ranks.round()).abs() <= ALIGNED {

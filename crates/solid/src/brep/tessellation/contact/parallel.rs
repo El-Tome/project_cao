@@ -10,7 +10,7 @@ use super::Wall;
 use super::facing::Facing;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
-use crate::brep::tessellation::sampling::divisions;
+use crate::brep::tessellation::sampling::divisions_in;
 use crate::brep::topology::SurfaceId;
 
 /// Gives each wall the rays every wall at one place with it took on its own.
@@ -91,7 +91,7 @@ pub(super) fn touching(
     (id, cylinder): &Wall,
     other: &Cylinder,
     facing: &Facing,
-    tolerance: f64,
+    (tolerance, reach): (f64, f64),
     eps: f64,
 ) -> Vec<(usize, [f64; 2])> {
     let between = cylinder.origin - other.origin;
@@ -103,7 +103,7 @@ pub(super) fn touching(
     if apart < low - eps || apart > high + eps {
         return Vec::new();
     }
-    let steps = divisions(cylinder.radius, tolerance);
+    let steps = divisions_in(cylinder.radius, tolerance, reach);
     (0..steps)
         .flat_map(|step| {
             let angle = TAU * step as f64 / steps as f64;

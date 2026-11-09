@@ -235,6 +235,7 @@ pub(super) fn contacts(
     tolerance: f64,
 ) -> BTreeMap<SurfaceId, Contact> {
     let eps = body.scale().eps();
+    let fineness = (tolerance, body.scale().reach());
     let mut own = given.clone();
     along_meets(body, meets, &mut own);
     let Through {
@@ -280,7 +281,7 @@ pub(super) fn contacts(
                 facing,
                 None,
                 alone,
-                tolerance,
+                fineness,
                 eps,
             );
             if sampled.is_some() {
@@ -288,7 +289,7 @@ pub(super) fn contacts(
                 continue;
             }
             for (near, far) in [(one, other), (other, one)] {
-                let withheld = touching(near, &far.1, facing, tolerance, eps);
+                let withheld = touching(near, &far.1, facing, fineness, eps);
                 if !withheld.is_empty() {
                     contacts
                         .entry(near.0)
@@ -299,7 +300,7 @@ pub(super) fn contacts(
             }
         }
     }
-    for (wall, steps) in leaning::shared(&leaning, &mut own, (&beneath, &anchors), tolerance) {
+    for (wall, steps) in leaning::shared(&leaning, &mut own, (&beneath, &anchors), fineness) {
         let every = [f64::NEG_INFINITY, f64::INFINITY];
         let withheld = steps.into_iter().map(|step| (step, every));
         contacts.entry(wall).or_default().withheld.extend(withheld);
@@ -314,7 +315,7 @@ pub(super) fn contacts(
             )
         })
         .collect();
-    for (wall, contact) in together::shared(&close, own, &pinned, &planes, tolerance, eps) {
+    for (wall, contact) in together::shared(&close, own, &pinned, &planes, fineness, eps) {
         contacts.entry(wall).or_default().join(contact);
     }
     for (wall, points) in anchors {

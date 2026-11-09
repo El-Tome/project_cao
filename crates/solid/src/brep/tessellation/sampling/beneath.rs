@@ -19,7 +19,7 @@ use std::f64::consts::PI;
 use glam::DVec3;
 
 use super::super::contact::{self, Wall, lies_on};
-use super::{Samples, divisions};
+use super::{Samples, divisions_in};
 use crate::brep::conic::Round;
 use crate::brep::curve::{self, Curve, Line};
 use crate::brep::domain::Location;
@@ -42,8 +42,10 @@ pub(super) fn walls(
         if id.0 as usize >= body.surfaces.len() {
             continue;
         }
-        let sag =
-            cylinder.radius * (1.0 - (PI / divisions(cylinder.radius, tolerance) as f64).cos());
+        let sag = cylinder.radius
+            * (1.0
+                - (PI / divisions_in(cylinder.radius, tolerance, body.scale().reach()) as f64)
+                    .cos());
         let holds = |point: DVec3| {
             let at = cylinder.parameters(point);
             body.face_ids().any(|face| {

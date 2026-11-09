@@ -19,7 +19,7 @@ use crate::brep::curve::Wall;
 use crate::brep::meet::nearest_approaches;
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Surface};
-use crate::brep::tessellation::divisions;
+use crate::brep::tessellation::divisions_in;
 
 /// The share of the reach along which two walls standing within the
 /// tolerance of each other are declined.
@@ -161,8 +161,8 @@ pub(in crate::brep) fn within_two_sags(
 /// a place where their faces may meet: at a nearest approach of one cone's
 /// rulings to the other wall (`meet::nearest_approaches`), the gap to the
 /// wall the point does not lie on is over `eps` and under the larger of the
-/// two walls' sags there, each cut into `divisions(size, COARSEST_DRAWN ·
-/// reach)` steps. Their triangles would
+/// two walls' sags there, each cut into `divisions_in(size,
+/// COARSEST_DRAWN · reach, reach)` steps. Their triangles would
 /// have to be sampled in common there, as `tessellation/contact` does for
 /// two cylinders and not yet for a cone (#706).
 pub(in crate::brep) fn grazing(
@@ -179,7 +179,8 @@ pub(in crate::brep) fn grazing(
         _ => return false,
     };
     let tolerance = COARSEST_DRAWN * scale.reach();
-    let sag = |size: f64| size * (1.0 - (PI / divisions(size, tolerance) as f64).cos());
+    let sag =
+        |size: f64| size * (1.0 - (PI / divisions_in(size, tolerance, scale.reach()) as f64).cos());
     let size = |wall: &Wall, point: DVec3| match wall {
         Wall::Cylinder(cylinder) => cylinder.radius,
         Wall::Elliptic(oval) => oval.major,
@@ -202,7 +203,7 @@ pub(in crate::brep) fn grazing(
 
 /// Whether two walls in the band stand closer to each other than `sags`
 /// chords' sags over a step of a grid, where their faces may meet (#577):
-/// each wall cut into `divisions(size, COARSEST_DRAWN · reach)` steps, as its
+/// each wall cut into `divisions_in(size, COARSEST_DRAWN · reach, reach)` steps, as its
 /// triangles would be at that tolerance, its sag
 /// `size · (1 − cos(π / steps))`; at `HEIGHTS` heights evenly across each
 /// box `within`, along its axis, two consecutive steps of its grid both
@@ -228,7 +229,7 @@ fn closer_than_a_sag(
                     Wall::Elliptic(oval) => oval.major,
                     Wall::Cone(cone) => cone.radius_at(along_the_ruling(cone, height)).max(0.0),
                 };
-                let steps = divisions(size(from).max(size(to)), tolerance);
+                let steps = divisions_in(size(from).max(size(to)), tolerance, scale.reach());
                 (0..HEIGHTS).any(|rank| {
                     let height = from + (to - from) * rank as f64 / (HEIGHTS - 1) as f64;
                     let sag = sags * size(height) * (1.0 - (PI / steps as f64).cos());

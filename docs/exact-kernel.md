@@ -2164,7 +2164,7 @@ wrong answer:
   hair turned from the other's; the sweep orders the near-duplicate
   samples of the two faces differently, and their triangles cross. Built
   by luck at some leans and not at others, they are declined. The grid
-  checked is the one `tessellation::divisions` gives at a thousandth of
+  checked is the one `tessellation::divisions_in` gives at a thousandth of
   the reach the boolean reads (`COARSEST_DRAWN`), the coarsest a consumer
   is expected to draw at: the tests' campaigns draw there, the view five
   times finer of the body's own reach. No density makes it exact — a
@@ -2172,7 +2172,7 @@ wrong answer:
   coarser than that, a part under a hundred units exported coarse, or a
   part a later step makes wider, samples coarser, and a pair built just
   outside the sag checked may still cross there. It is a stopgap, moved
-  by any change to `LEAST` or `MOST` in `divisions`. Should it be lifted
+  by any change to `LEAST` or `MOST` in `sampling/steps.rs`. Should it be lifted
   for two cylinders, the tessellation lays them on one shared order
   (#706): each wall's heights read along its own axis, their rays shared,
   the line they cross along sampled at its ends with nothing in the wedge
@@ -2233,7 +2233,7 @@ Declined as unsupported, where the faces may meet and do not stand clear:
   the coarsest drawn chord's sag without meeting within the tolerance, at
   a nearest approach of the cone's rulings in a box where their faces may
   meet — the gap over `EPS`, under the larger of the two walls' sags there,
-  each cut by `divisions` at `COARSEST_DRAWN`. Their triangles would have to
+  each cut by `divisions_in` at `COARSEST_DRAWN`. Their triangles would have to
   be sampled in common, as `tessellation/contact` does for two cylinders.
 
 The nearly-parallel declines above reach a cone only by the sag: a cone

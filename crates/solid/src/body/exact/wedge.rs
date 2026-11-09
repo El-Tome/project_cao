@@ -12,6 +12,7 @@ mod pairs;
 mod reach;
 mod reading;
 mod section;
+mod slope;
 mod sphere;
 mod triangle;
 
@@ -53,10 +54,10 @@ pub(super) struct Wedge {
 pub(super) type Prism = (Contour, Frame, DVec3);
 
 /// What a kind lays where the edges of one step meet: two whose set-backs
-/// meet across the face they share, as one — where it is none, each edge is
-/// laid alone — and a corner three meet at, closed.
+/// meet across the face they share, as one, where `together` lays them so —
+/// any other two each laid alone — and a corner three meet at, closed.
 pub(super) struct Meeting {
-    pub together: Option<Together>,
+    pub together: Together,
     pub closing: Closing,
 }
 
@@ -71,10 +72,12 @@ impl Exact {
     /// given. Rounds or flats that would meet anywhere else, across a face two
     /// edges share that are not parallel or on a face one of them ends on, are
     /// not measured: the laying declines them where they meet, until #792.
-    /// Where `meeting` lays two together, the pairs whose set-backs meet across
-    /// their face, the earlier first, are each taken off as one by the prism it
-    /// raises, the face they shared gone; where it is none, each edge is laid
-    /// alone. Two edges meeting at a convex corner are laid in turn as any two
+    /// The pairs whose set-backs meet across their face that `meeting` lays
+    /// together, the earlier first, are each laid as one, the face they
+    /// shared gone — by the prism it raises, or as one slope at the value
+    /// their set-backs meet at, as [`Exact::sloped`] lays it; every other
+    /// edge is laid alone.
+    /// Two edges meeting at a convex corner are laid in turn as any two
     /// are, each prism carried past the corner along its edge's line, so that
     /// the later trims the earlier's face there: two flats or two rounds meet
     /// in a mitre, and the later edge is laid from its wedge on the body as
@@ -131,10 +134,8 @@ impl Exact {
                 .iter()
                 .fold(asked, |taken, wedge| taken.min(most(wedge)));
             let taken = alone.min(pairs::bound(&wedges, &facing, &set_back));
-            let pairs = match meeting.together {
-                Some(_) => pairs::meeting(&wedges, &facing, taken, &set_back, scale)?,
-                None => Vec::new(),
-            };
+            let pairs =
+                pairs::meeting(&wedges, &facing, taken, &set_back, meeting.together, scale)?;
             let cornered = pairs
                 .iter()
                 .flat_map(|&(one, other)| [one, other])
@@ -162,12 +163,18 @@ impl Exact {
                 cut.next = start + rank as u32;
                 let partner = pairs.iter().find(|&&(_, later)| later == rank);
                 cut = match (partner, meeting.together) {
-                    (Some(&(earlier, _)), Some(together)) => cut.laid_together(
+                    (Some(&(earlier, _)), Together::Raised(raise)) => cut.laid_together(
                         [&names[earlier], &names[rank]],
                         start + earlier as u32,
-                        together,
+                        raise,
                     )?,
-                    _ => {
+                    (Some(&(earlier, _)), Together::Sloped) => cut.sloped(
+                        [&names[earlier], &names[rank]],
+                        start + earlier as u32,
+                        pairs::met(&wedges, &facing, (earlier, rank), &set_back),
+                        &tool,
+                    )?,
+                    (None, _) => {
                         let mitred: Vec<u32> = (0..rank)
                             .filter(|&earlier| {
                                 corners::meet(&self.brep, [edges[earlier], edges[rank]])
@@ -235,6 +242,24 @@ impl Exact {
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
         mitred: &[u32],
     ) -> Result<Exact, Declined> {
+        let cut = self.cut_or_filled(edge, wedge, taken, tool)?;
+        if cut.cut_along(&[wedge], self, 1, mitred) {
+            Ok(cut)
+        } else {
+            Err(Declined::Unsupported)
+        }
+    }
+
+    /// The body with the edge of `wedge` cut off, or filled in, by the prism
+    /// `tool` raises over it for `taken`, its wall numbered where the steps'
+    /// numbers ended, as [`Exact::laid_as`] lays it but for the check.
+    fn cut_or_filled(
+        &self,
+        edge: Option<EdgeId>,
+        wedge: &Wedge,
+        taken: f64,
+        tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
+    ) -> Result<Exact, Declined> {
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
         let prism = tool(wedge, taken, self.brep.scale(), bounds)?;
         let (outline, frame, travel) = &prism;
@@ -247,16 +272,11 @@ impl Exact {
             }),
             ..raised
         };
-        let cut = if wedge.inwards {
+        if wedge.inwards {
             let edge = edge.ok_or(Declined::Unsupported)?;
-            self.filled(&[(edge, wedge)], &prism, tool)?
+            self.filled(&[(edge, wedge)], &prism, tool)
         } else {
-            self.cut_by(&Exact { next: 1, ..tool })?
-        };
-        if cut.cut_along(&[wedge], self, 1, mitred) {
-            Ok(cut)
-        } else {
-            Err(Declined::Unsupported)
+            self.cut_by(&Exact { next: 1, ..tool })
         }
     }
 

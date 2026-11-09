@@ -29,24 +29,23 @@ pub(in crate::body::exact) struct Corner {
 
 /// Each corner three edges meet at, read as a [`Corner`] for the value
 /// `taken`, each edge set back `set_back` along its faces, with the ranks of
-/// its edges and what closes it. Declined `Unsupported` where a corner is to
-/// be closed and `closing` is none, or where two of its edges share no face,
-/// their set-backs never cross, or cross level with the corner along one.
+/// its edges and what closes it. Declined `Unsupported` where two of a
+/// corner's edges share no face, their set-backs never cross, or cross level
+/// with the corner along one.
 pub(super) fn closings(
     corners: Vec<(DVec3, [usize; 3])>,
     wedges: &[Wedge],
     set_back: impl Fn(&Wedge) -> f64,
     taken: f64,
-    closing: Option<Closing>,
+    closing: Closing,
 ) -> Result<Vec<(Corner, [usize; 3], Closing)>, Declined> {
     corners
         .into_iter()
         .map(|(at, ranks)| {
-            let close = closing.ok_or(Declined::Unsupported)?;
             let three = ranks.map(|rank| &wedges[rank]);
             let corner =
                 read(at, three, three.map(&set_back), taken).ok_or(Declined::Unsupported)?;
-            Ok((corner, ranks, close))
+            Ok((corner, ranks, closing))
         })
         .collect()
 }

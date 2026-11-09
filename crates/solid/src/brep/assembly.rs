@@ -35,15 +35,29 @@ impl Body {
 
 impl Body {
     /// The body with the faces `gone` replaced by `face`, laid on `surface`,
-    /// which every corner of its loops is taken to lie on: what a step hands
-    /// back that lays a face of its own where others stood, bounded by edges
-    /// the body holds already.
+    /// which every corner of its loops then lies on: what a step hands back
+    /// that lays a face of its own where others stood, bounded by edges the
+    /// body holds already. Declined `Unverified` where a corner of its loops,
+    /// or a point a quarter, half or three quarters along one of its edges,
+    /// stands further from the surface than the body's tolerance.
     pub(crate) fn replaced(
         &self,
         gone: &[FaceId],
         surface: Surface,
         mut face: Face,
     ) -> Result<Body, Declined> {
+        let eps = self.scale.eps();
+        let off = face.loops.iter().flatten().any(|coedge| {
+            let edge = self.edge(coedge.edge);
+            let corners = edge.ends.into_iter().flatten();
+            let along = [0.25, 0.5, 0.75].map(|share| edge.from + (edge.to - edge.from) * share);
+            (corners.map(|end| self.vertex(end).point))
+                .chain(along.map(|at| self.point_on(coedge.edge, at)))
+                .any(|point| surface.distance(point).abs() > eps)
+        });
+        if off {
+            return Err(Declined::Unverified);
+        }
         let mut body = self.clone();
         face.surface = SurfaceId(body.surfaces.len() as u32);
         body.surfaces.push(surface);

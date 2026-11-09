@@ -42,13 +42,14 @@ impl Exact {
     /// one running on tangentially into the next edge of a face on the body as
     /// given, one edge named twice, two edges meeting at a corner where an edge
     /// meets inwards, an edge whose set-backs meet those of two others — rounds
-    /// closing on themselves, #790 — and a cut that left anything but its round
-    /// — a face of the prism, the round in two pieces or with a corner on
-    /// neither of the edge's faces, a face the body held, but the edge's two,
-    /// taken away whole — as where a round leaving the edge's end outwards
-    /// bulges past the edge's face, and the prism's wall square to that face
-    /// cuts the bulge off, or two rounds meet where the radius was not measured
-    /// for them.
+    /// closing on themselves, #790 — an edge of a full round or a round bottom
+    /// meeting another edge of the list at a corner, and a cut that left
+    /// anything but its round — a face of the prism, the round in two pieces or
+    /// with a corner on neither of the edge's faces, a face the body held, but
+    /// the edge's two, taken away whole — as where a round leaving the edge's
+    /// end outwards bulges past the edge's face, and the prism's wall square to
+    /// that face cuts the bulge off, or two rounds meet where the radius was
+    /// not measured for them.
     pub fn filleted(&self, names: &[EdgeName], radius: f64) -> Result<(Exact, f64), Declined> {
         let (cut, taken, pairs) = self.cut_off(
             names,
@@ -58,7 +59,7 @@ impl Exact {
             Wedge::rounded,
             Meeting {
                 together: Some(Wedge::rounded_with),
-                closing: Some(rounded_across),
+                closing: rounded_across,
             },
         )?;
         let made = |rank: usize| self.next + rank as u32;

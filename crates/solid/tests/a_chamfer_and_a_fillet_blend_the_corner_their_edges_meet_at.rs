@@ -25,7 +25,13 @@
 //!   `a_chamfer_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_closes_it_with_a_triangle_where_the_flats_edges_cross`
 //!   — and its rounds a broken step with its reason, `Undrawn`, until #800
 //!   draws their sphere —
-//!   `a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_is_a_broken_step_until_its_sphere_can_be_drawn`
+//!   `a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_is_a_broken_step_until_its_sphere_can_be_drawn`;
+//!   and several corners closed in one step, the body the same whatever the
+//!   order the list names their edges: an upright of the block and the four
+//!   edges at its two ends, two corners, and the twelve edges of the block,
+//!   eight —
+//!   `a_chamfer_and_a_fillet_on_an_upright_and_the_four_edges_at_its_two_ends_close_both_corners_whatever_the_order`,
+//!   `a_chamfer_and_a_fillet_on_the_twelve_edges_of_a_block_close_its_eight_corners_into_one_body_whatever_the_order`
 //! - The triangle answers to the number after its edges' flats: on a list of
 //!   `n` edges from where the steps' numbers ended at `start`, the flats are
 //!   `start` to `start + n − 1` in the order the list names their edges, as
@@ -37,8 +43,15 @@
 //!   Beyond the issue's wording, a choice of this branch —
 //!   `a_chamfer_on_the_three_edges_of_a_corner_closes_it_with_a_triangle_where_the_flats_edges_cross`,
 //!   `a_fillet_on_the_three_edges_of_a_corner_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`.
-//!   Several corners closed in one step, whose patches would need an order
-//!   among themselves, are not reached by this file
+//!   Several corners closed in one step number their patches after every
+//!   edge's face, one each, in the order of the lowest rank the list gives
+//!   one of a corner's three edges, and of the next where two corners share
+//!   that edge: the order the user named them in, never the kernel's own
+//!   order of its vertices. Two corners share at most one edge, so the order
+//!   is whole —
+//!   `a_chamfer_and_a_fillet_on_an_upright_and_the_four_edges_at_its_two_ends_close_both_corners_whatever_the_order`,
+//!   `a_chamfer_and_a_fillet_on_the_twelve_edges_of_a_block_close_its_eight_corners_into_one_body_whatever_the_order`,
+//!   each on lists naming the same edges in different orders
 //! - Decision: the triangle of three chamfers has its corners where the
 //!   chamfer edges cross on each of the three faces; the sphere piece of three
 //!   fillets is centred at the point one value from all three faces, and
@@ -69,7 +82,11 @@
 //!   and on a convex corner that is not square, the end of a prism whose
 //!   sides slant, every pair of its three edges — the slanted upright among
 //!   them — mitred whatever the angles —
-//!   `a_chamfer_and_a_fillet_on_two_of_the_three_edges_of_a_corner_that_is_not_square_mitre_them_the_third_left_sharp`
+//!   `a_chamfer_and_a_fillet_on_two_of_the_three_edges_of_a_corner_that_is_not_square_mitre_them_the_third_left_sharp`;
+//!   and where the corner's uncut edge runs at its far end into a round an
+//!   earlier step laid, which does not make that edge any less sharp at the
+//!   corner —
+//!   `a_chamfer_and_a_fillet_mitre_two_edges_whose_corner_s_uncut_edge_runs_into_an_earlier_round_at_its_far_end`
 //! - Decision: two of three is a mitre. The two cuts trim each other: a
 //!   straight mitre line for chamfers, a planar ellipse arc for fillets,
 //!   running from where the two cuts' edges cross on their shared face down to
@@ -90,7 +107,22 @@
 //!   beyond it: those lists hold what the user sees, and not why. What holds
 //!   the corner's own decline is a block standing on another, whose four feet
 //!   are filled in each alone, and two of which meet at each of its corners,
-//!   the third edge there its upright, meeting outwards
+//!   the third edge there its upright, meeting outwards. Lists taking that
+//!   upright, with a foot or with both, are declined too, but the upright is
+//!   declined alone already, its cut carried down past the foot taking matter
+//!   of the block below: those lists hold what the user sees as well, and
+//!   only the feet hold the corner's own decline
+//! - A full round, two parallel edges whose rounds meet across the face they
+//!   share, meeting a third edge of the list at a corner, is not built here:
+//!   the fillet is declined `Unsupported` whichever edge the list names
+//!   first, where the pair alone is laid —
+//!   `a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_is_declined_as_unsupported_in_either_order`
+//! - A face laid in place of others through `replaced`, as the piece of
+//!   sphere is, is verified against the surface it is laid on, so that a
+//!   wrong one is a broken step and never a body read as wrong geometry — no
+//!   test: held beside the code, in `crates/solid/src/brep/assembly/tests.rs`,
+//!   by `a_face_laid_on_a_surface_its_loop_does_not_lie_on_is_unverified` and
+//!   `a_face_laid_again_on_its_own_plane_is_taken`
 //! - Any other corner the kernel cannot blend — no test: a corner of more
 //!   than three edges, of values that differ, or of a curved edge is out of
 //!   the issue's scope, and no list of edges of a block, an L or a pocket
@@ -212,6 +244,26 @@
 //! square, the block's top cut by the plane rising 0.1 along X and 0.2 along
 //! Y from 12, is measured that way only: 4245.76 with the flats at 2, 4311.33
 //! with the rounds.
+//!
+//! Several corners closed in one step on the block 30 by 10 by 20, each at
+//! least the value twice from any other, are each the corner above: every
+//! edge's prism along its whole length, and at each corner closed the cube of
+//! side the value given back as the corner alone gives it, `2d³/3` among
+//! flats and `r³(2 − 7π/12)` among rounds. With `L` the lengths of the edges
+//! named summed and `n` the corners closed, the block keeps
+//! `V − d²L/2 + 2nd³/3` and `V − r²(1 − π/4)L + nr³(2 − 7π/12)`, where every
+//! other end of an edge named meets no other edge named. For an upright and
+//! the four edges at its two ends, `L` is 100 and `n` 2: 5586 at 3 with
+//! flats, 5815.90 with rounds. For the twelve edges, `L` is 240 and `n` 8:
+//! 5064 and 5572.62, the second the box with every edge and corner rounded,
+//! `(a − 2r)(b − 2r)(c − 2r)` and its six slabs, twelve quarter-cylinders and
+//! eight eighths of a ball, to the last digit.
+//!
+//! The block whose floor's front edge was rounded at 3 by an earlier step,
+//! its top's front and right edges then mitred at 3, keeps the block less that
+//! round's `9(1 − π/4)·30` and less the mitre's own loss, the two far apart:
+//! 5771.06 with flats, 5867.39 with rounds, which the booleans give to the
+//! last digit.
 //!
 //! The rounds there are a broken step for now, and their test holds the
 //! decline. What #800 is to lay, and to hold that test to once it turns it
@@ -1081,6 +1133,23 @@ fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_d
             "the four feet of the standing block, two meeting at each of its corners",
             &stacked,
             feet.clone(),
+        ),
+        (
+            "a foot of the standing block and the upright above it",
+            &stacked,
+            vec![
+                feet[0].clone(),
+                edge_between(&stacked, STANDING[0], STANDING[1]),
+            ],
+        ),
+        (
+            "the three edges at the standing block's front right foot",
+            &stacked,
+            vec![
+                feet[0].clone(),
+                feet[1].clone(),
+                edge_between(&stacked, STANDING[0], STANDING[1]),
+            ],
         ),
         (
             "the two top edges at the L's inner corner",
@@ -2914,6 +2983,409 @@ fn a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_is_a_br
             corner.called[order[0]],
             corner.called[order[1]],
             corner.called[order[2]]
+        );
+    }
+}
+
+/// A corner of the block 30 by 10 by 20: where it stands, and its three
+/// faces — the one square to X, the one square to Y and the one square to Z —
+/// with the ways they face.
+struct BlockCorner {
+    at: DVec3,
+    faces: [usize; 3],
+    outward: [DVec3; 3],
+}
+
+/// The block's eight corners.
+fn block_corners() -> Vec<BlockCorner> {
+    let mut corners = Vec::new();
+    for (x, x_face, x_way) in [(0.0, LEFT, -DVec3::X), (LENGTH, RIGHT, DVec3::X)] {
+        for (y, y_face, y_way) in [(0.0, FRONT, -DVec3::Y), (BREADTH, BACK, DVec3::Y)] {
+            for (z, z_face, z_way) in [(0.0, FLOOR, -DVec3::Z), (HEIGHT, TOP, DVec3::Z)] {
+                corners.push(BlockCorner {
+                    at: DVec3::new(x, y, z),
+                    faces: [x_face, y_face, z_face],
+                    outward: [x_way, y_way, z_way],
+                });
+            }
+        }
+    }
+    corners
+}
+
+/// The two faces an edge lies between, the smaller first.
+fn sorted([one, other]: [usize; 2]) -> [usize; 2] {
+    [one.min(other), one.max(other)]
+}
+
+impl BlockCorner {
+    /// The corner's three edges, each as the two faces it lies between: along
+    /// X, along Y, along Z.
+    fn edges(&self) -> [[usize; 2]; 3] {
+        let [x, y, z] = self.faces;
+        [sorted([y, z]), sorted([x, z]), sorted([x, y])]
+    }
+}
+
+/// The corners three edges of `list` meet at, each with the ranks of its
+/// three edges in the list, from the lowest: in the order a step numbers the
+/// patches closing them, by the lowest rank, then the next.
+fn closed_corners(list: &[[usize; 2]]) -> Vec<(BlockCorner, [usize; 3])> {
+    let rank = |edge: [usize; 2]| list.iter().position(|&named| sorted(named) == edge);
+    let mut closed: Vec<(BlockCorner, [usize; 3])> = block_corners()
+        .into_iter()
+        .filter_map(|corner| {
+            let [Some(one), Some(two), Some(three)] = corner.edges().map(rank) else {
+                return None;
+            };
+            let mut ranks = [one, two, three];
+            ranks.sort();
+            Some((corner, ranks))
+        })
+        .collect();
+    closed.sort_by_key(|(_, ranks)| *ranks);
+    closed
+}
+
+/// What the block keeps once the edges of a list, `along` long summed, are
+/// cut at `value` and `closed` corners closed, every other end of them meeting
+/// no other edge of the list, as the module's documentation derives it.
+fn rounded_box(cut: Cut, along: f64, closed: f64, value: f64) -> f64 {
+    match cut {
+        Cut::Flat => {
+            BLOCK_VOLUME - value * value * along / 2.0 + closed * 2.0 * value.powi(3) / 3.0
+        }
+        Cut::Round => {
+            BLOCK_VOLUME - value * value * (1.0 - PI / 4.0) * along
+                + closed * value.powi(3) * (2.0 - 7.0 * PI / 12.0)
+        }
+    }
+}
+
+/// Holds that a chamfer at `value`, and a fillet, on the edges each of
+/// `lists` names on the block 30 by 10 by 20 — the same edges, `along` long
+/// summed, in different orders — close every corner three of them meet at,
+/// leave the body arithmetic promises, number each corner's patch after the
+/// edges' faces by the lowest ranks of its edges in the list, and leave the
+/// same body whatever the order, face for face.
+fn closes_its_corners_whatever_the_order(
+    lists: &[Vec<[usize; 2]>],
+    along: f64,
+    value: f64,
+    called: &str,
+) {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let start = block.faces_end();
+    for cut in [Cut::Flat, Cut::Round] {
+        let kind = match cut {
+            Cut::Flat => "chamfer",
+            Cut::Round => "fillet",
+        };
+        let laid: Vec<Result<Body, Declined>> = lists
+            .iter()
+            .map(|list| {
+                let names: Vec<EdgeName> = list
+                    .iter()
+                    .map(|&[one, other]| edge_between(&block, one, other))
+                    .collect();
+                match cut {
+                    Cut::Flat => block
+                        .chamfer_edges(&names, value)
+                        .map(|chamfered| chamfered.body),
+                    Cut::Round => block
+                        .fillet_edges(&names, value)
+                        .map(|filleted| filleted.body),
+                }
+            })
+            .collect();
+        let declined: Vec<String> = lists
+            .iter()
+            .zip(&laid)
+            .filter_map(|(list, laid)| {
+                laid.as_ref()
+                    .err()
+                    .map(|declined| format!("named {list:?}: {declined:?}"))
+            })
+            .collect();
+        assert!(
+            declined.is_empty(),
+            "the {kind} on {called} closes every corner whatever the order; declined:\n{}",
+            declined.join("\n")
+        );
+        let bodies: Vec<Body> = laid.into_iter().flatten().collect();
+        for (list, body) in lists.iter().zip(&bodies) {
+            let what = format!("the {kind} on {called}, named {list:?}");
+            let closed = closed_corners(list);
+            let promised = rounded_box(cut, along, closed.len() as f64, value);
+            let drawn = match cut {
+                Cut::Flat => EXACT * promised,
+                Cut::Round => {
+                    DRAWN
+                        * reach_of(&block)
+                        * (PI / 2.0 * value * (along + value * closed.len() as f64))
+                }
+            };
+            sound_drawn_within(body, promised, drawn, &what);
+            let laid_end = start + list.len() + closed.len();
+            assert_eq!(
+                faces_made(&block, body),
+                (start..laid_end).collect::<Vec<_>>(),
+                "{what}: one face for each edge, by its rank in the list, then one patch for \
+                 each corner closed"
+            );
+            assert_eq!(
+                body.faces_end(),
+                laid_end,
+                "{what}: the next step numbers its own faces past the last patch"
+            );
+            for (index, (corner, ranks)) in closed.iter().enumerate() {
+                let patch = start + list.len() + index;
+                let which = format!(
+                    "{what}: patch {patch}, closing the corner at {}, its edges ranked {ranks:?} \
+                     — the {}th corner by the lowest ranks of its edges",
+                    corner.at,
+                    index + 1
+                );
+                let [x, y, z] = corner.outward.map(|way| -way * value);
+                match cut {
+                    Cut::Flat => corners_are(
+                        body,
+                        patch,
+                        &[corner.at + x + y, corner.at + y + z, corner.at + x + z],
+                        &format!("{which}, a triangle where the flats' edges cross"),
+                    ),
+                    Cut::Round => {
+                        let centre = corner.at + x + y + z;
+                        let drawn: Vec<DVec3> = body.triangles_of(patch).flatten().collect();
+                        assert!(!drawn.is_empty(), "{which} is drawn");
+                        for point in drawn {
+                            assert!(
+                                (point.distance(centre) - value).abs() < PLACE,
+                                "{which}: drawn through {point}, off the sphere of {value} about \
+                                 {centre}"
+                            );
+                        }
+                    }
+                }
+                assert_eq!(
+                    sides_met(body, patch),
+                    sides(&ranks.map(|rank| start + rank)),
+                    "{which} meets the three faces laid on its edges, and nothing else"
+                );
+            }
+        }
+        let (first_list, first) = (&lists[0], &bodies[0]);
+        let first_closed = closed_corners(first_list);
+        for (list, body) in lists.iter().zip(&bodies).skip(1) {
+            let what = format!(
+                "the {kind} on {called}, named {list:?}, against the same named {first_list:?}"
+            );
+            let closed = closed_corners(list);
+            let to_this = |number: usize| -> usize {
+                if number < start {
+                    return number;
+                }
+                let rank = number - start;
+                if rank < first_list.len() {
+                    let edge = sorted(first_list[rank]);
+                    return start
+                        + list
+                            .iter()
+                            .position(|&named| sorted(named) == edge)
+                            .expect("the lists name the same edges");
+                }
+                let at = first_closed[rank - first_list.len()].0.at;
+                start
+                    + list.len()
+                    + closed
+                        .iter()
+                        .position(|(corner, _)| corner.at == at)
+                        .expect("the lists close the same corners")
+            };
+            for face in numbers(first) {
+                assert_eq!(
+                    sides_renumbered(first, face, to_this),
+                    sides_met(body, to_this(face)),
+                    "{what}: face {face} meets what it meets in the first order"
+                );
+                if let Some(plane) = first.plane_of(face) {
+                    corners_are(
+                        body,
+                        to_this(face),
+                        &plane.corners,
+                        &format!("{what}: face {face}, as in the first order"),
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// An edge of the block as the two faces it lies between.
+const TOP_FRONT: [usize; 2] = [TOP, FRONT];
+const TOP_RIGHT: [usize; 2] = [TOP, RIGHT];
+const TOP_BACK: [usize; 2] = [TOP, BACK];
+const TOP_LEFT: [usize; 2] = [TOP, LEFT];
+const FLOOR_FRONT: [usize; 2] = [FLOOR, FRONT];
+const FLOOR_RIGHT: [usize; 2] = [FLOOR, RIGHT];
+const FLOOR_BACK: [usize; 2] = [FLOOR, BACK];
+const FLOOR_LEFT: [usize; 2] = [FLOOR, LEFT];
+const FRONT_LEFT: [usize; 2] = [FRONT, LEFT];
+const FRONT_RIGHT: [usize; 2] = [FRONT, RIGHT];
+const BACK_RIGHT: [usize; 2] = [BACK, RIGHT];
+const BACK_LEFT: [usize; 2] = [BACK, LEFT];
+
+#[test]
+fn a_chamfer_and_a_fillet_on_an_upright_and_the_four_edges_at_its_two_ends_close_both_corners_whatever_the_order()
+ {
+    closes_its_corners_whatever_the_order(
+        &[
+            vec![TOP_FRONT, TOP_RIGHT, FLOOR_FRONT, FLOOR_RIGHT, FRONT_RIGHT],
+            vec![TOP_FRONT, FRONT_RIGHT, TOP_RIGHT, FLOOR_FRONT, FLOOR_RIGHT],
+            vec![FLOOR_FRONT, FRONT_RIGHT, TOP_FRONT, FLOOR_RIGHT, TOP_RIGHT],
+        ],
+        2.0 * LENGTH + 2.0 * BREADTH + HEIGHT,
+        3.0,
+        "the front right upright and the four edges at its two ends",
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_the_twelve_edges_of_a_block_close_its_eight_corners_into_one_body_whatever_the_order()
+ {
+    closes_its_corners_whatever_the_order(
+        &[
+            vec![
+                TOP_FRONT,
+                TOP_RIGHT,
+                TOP_BACK,
+                TOP_LEFT,
+                FLOOR_FRONT,
+                FLOOR_RIGHT,
+                FLOOR_BACK,
+                FLOOR_LEFT,
+                FRONT_LEFT,
+                FRONT_RIGHT,
+                BACK_RIGHT,
+                BACK_LEFT,
+            ],
+            vec![
+                FRONT_RIGHT,
+                FLOOR_BACK,
+                TOP_LEFT,
+                TOP_FRONT,
+                BACK_LEFT,
+                FLOOR_FRONT,
+                TOP_RIGHT,
+                FLOOR_LEFT,
+                BACK_RIGHT,
+                TOP_BACK,
+                FRONT_LEFT,
+                FLOOR_RIGHT,
+            ],
+        ],
+        4.0 * (LENGTH + BREADTH + HEIGHT),
+        3.0,
+        "the twelve edges of the block",
+    );
+}
+
+#[test]
+fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_is_declined_as_unsupported_in_either_order()
+ {
+    let narrow = block([LENGTH, 6.0, HEIGHT]);
+    let name = |[one, other]: [usize; 2]| edge_between(&narrow, one, other);
+    let pair = [TOP_FRONT, TOP_BACK].map(name);
+    narrow.fillet_edges(&pair, 3.0).unwrap_or_else(|declined| {
+        panic!("the top's front and back edges alone, 6 apart, make a full round: declined, {declined:?}")
+    });
+
+    for list in [
+        [TOP_FRONT, TOP_BACK, TOP_RIGHT],
+        [TOP_RIGHT, TOP_FRONT, TOP_BACK],
+    ] {
+        let names = list.map(name);
+
+        let filleted = narrow.fillet_edges(&names, 3.0).err();
+
+        assert_eq!(
+            filleted,
+            Some(Declined::Unsupported),
+            "the fillet on {list:?}, the full round of the top's front and back edges meeting \
+             its right edge at two corners: a broken step and its reason, and no body"
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_mitre_two_edges_whose_corner_s_uncut_edge_runs_into_an_earlier_round_at_its_far_end()
+ {
+    let value = 3.0;
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let rounded = block
+        .fillet(&edge_between(&block, FLOOR, FRONT), value)
+        .unwrap_or_else(|declined| panic!("the floor's front edge alone: declined, {declined:?}"))
+        .body;
+    let earlier = value * value * (1.0 - PI / 4.0) * LENGTH;
+    let start = rounded.faces_end();
+    let names = [TOP_FRONT, TOP_RIGHT].map(|[one, other]| edge_between(&rounded, one, other));
+
+    for (cut, promised) in [
+        (
+            Cut::Flat,
+            mitred_by_flats([LENGTH, BREADTH], value) - earlier,
+        ),
+        (
+            Cut::Round,
+            mitred_by_rounds([LENGTH, BREADTH], value) - earlier,
+        ),
+    ] {
+        let what = format!(
+            "the {} on the top's front and right edges, the floor's front edge rounded before",
+            match cut {
+                Cut::Flat => "chamfer",
+                Cut::Round => "fillet",
+            }
+        );
+
+        let laid = match cut {
+            Cut::Flat => rounded
+                .chamfer_edges(&names, value)
+                .map(|chamfered| chamfered.body),
+            Cut::Round => rounded
+                .fillet_edges(&names, value)
+                .map(|filleted| filleted.body),
+        }
+        .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        let drawn = match cut {
+            Cut::Flat => DRAWN * reach_of(&block) * PI / 2.0 * value * LENGTH,
+            Cut::Round => DRAWN * reach_of(&block) * PI / 2.0 * value * (2.0 * LENGTH + BREADTH),
+        };
+        sound_drawn_within(&laid, promised, drawn, &what);
+        assert_eq!(
+            faces_made(&rounded, &laid),
+            vec![start, start + 1],
+            "{what}: one face for each edge, and none at the corner"
+        );
+        assert_eq!(
+            edges_between(&laid, FRONT, RIGHT).len(),
+            1,
+            "{what}: the front's right edge is still one sharp edge"
+        );
+        corners_are(
+            &laid,
+            FRONT,
+            &[
+                DVec3::new(0.0, 0.0, value),
+                DVec3::new(LENGTH, 0.0, value),
+                DVec3::new(LENGTH, 0.0, HEIGHT - value),
+                DVec3::new(0.0, 0.0, HEIGHT - value),
+            ],
+            &format!(
+                "{what}: the front, from the earlier round up to the cut, its right edge ending \
+                 one value short of the corner"
+            ),
         );
     }
 }

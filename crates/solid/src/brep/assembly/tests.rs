@@ -3,7 +3,7 @@ use glam::{DVec2, DVec3};
 use super::*;
 use crate::brep::curve::{Curve, Line};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Sphere, Torus};
+use crate::brep::surface::{Cylinder, Plane, Sphere, Torus};
 use crate::profile::{Contour, Frame, Run};
 use crate::soundness::listed;
 
@@ -216,4 +216,63 @@ fn a_ring_torus_is_verified_as_one_face_with_no_loop_and_no_vertex() {
         2.0,
     ))];
     assert_eq!(verified(&wall), Err(Declined::Unverified));
+}
+
+/// The top of [`block`]: the face whose corners stand at its height.
+fn top_of(body: &Body) -> FaceId {
+    body.face_ids()
+        .find(|&id| {
+            body.corners_of(id)
+                .iter()
+                .all(|corner| (corner.z - 10.0).abs() < 1e-9)
+        })
+        .expect("the block has a top")
+}
+
+#[test]
+fn a_face_laid_again_on_its_own_plane_is_taken() {
+    let body = block();
+    let top = top_of(&body);
+    let face = body.face(top).clone();
+    let plane = *body.surface(face.surface);
+
+    let replaced = body
+        .replaced(&[top], plane, face)
+        .expect("the top laid again on its own plane is taken");
+
+    assert!(
+        (replaced.volume() - body.volume()).abs() < 1e-9,
+        "the block holds {} where it held {}",
+        replaced.volume(),
+        body.volume()
+    );
+}
+
+#[test]
+fn a_face_laid_on_a_surface_its_loop_does_not_lie_on_is_unverified() {
+    let body = block();
+    let top = top_of(&body);
+    let face = body.face(top).clone();
+    let (lifted, _) = Plane::through(DVec3::new(0.0, 0.0, 11.0), DVec3::Z);
+    let off = Sphere::through(DVec3::new(0.0, 0.0, 10.0), DVec3::Z, 0.0, 5.0);
+
+    let taken: Vec<&str> = [
+        ("a plane 1 above the top", Surface::Plane(lifted)),
+        (
+            "a sphere of radius 5 about the top's middle, its corners 28 away",
+            Surface::Sphere(off),
+        ),
+    ]
+    .into_iter()
+    .filter(|(_, surface)| {
+        body.replaced(&[top], *surface, face.clone()).err() != Some(Declined::Unverified)
+    })
+    .map(|(what, _)| what)
+    .collect();
+
+    assert!(
+        taken.is_empty(),
+        "the top's loop, laid where it does not lie, is a body the check of its listing \
+         declines, unverified; taken on: {taken:?}"
+    );
 }

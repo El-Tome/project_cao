@@ -38,10 +38,12 @@ impl Body {
     /// above the radius taken: its own radius is read off its face, never from
     /// [`Filleted::taken`]. Two edges meeting at a convex corner are mitred
     /// there, the corner's third edge left sharp, and three are closed there by
-    /// a piece of sphere, numbered after every round; at a corner where an edge
-    /// meets inwards they are declined `Unsupported`. Rounds that would meet
-    /// anywhere else are declined `Unsupported`, until #792 measures them. The
-    /// first edge declined declines the step.
+    /// a piece of sphere, numbered after every round, by the lowest ranks of
+    /// their edges in the list, then the next; at a corner where an edge meets
+    /// inwards they are declined `Unsupported`, as is an edge of a full round
+    /// or a round bottom meeting another edge of the list at a corner. Rounds
+    /// that would meet anywhere else are declined `Unsupported`, until #792
+    /// measures them. The first edge declined declines the step.
     pub fn fillet_edges(&self, edges: &[EdgeName], radius: f64) -> Result<Filleted, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

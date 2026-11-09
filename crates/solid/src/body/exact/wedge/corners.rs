@@ -8,11 +8,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use glam::DVec3;
 
 use super::Wedge;
+use crate::body::exact::Exact;
 use crate::brep::{self, Declined, EdgeId, EdgeName, VertexId};
 
 /// Whether every corner two of `edges` meet at is convex: each edge ending
-/// there straight between two flat faces that meet outwards. The inner
-/// corner of an L and the corners of a pocket are not.
+/// there straight between two flat faces that meet outwards, whatever those
+/// faces hold past the corner. The inner corner of an L and the corners of a
+/// pocket are not.
 pub(super) fn convex(body: &brep::Body, edges: &[EdgeId]) -> bool {
     let mut ends = BTreeSet::new();
     let shared: Vec<VertexId> = edges
@@ -21,13 +23,16 @@ pub(super) fn convex(body: &brep::Body, edges: &[EdgeId]) -> bool {
         .filter(|&end| !ends.insert(end))
         .collect();
     shared.into_iter().all(|corner| {
-        ending(body, corner).all(|edge| Wedge::of(body, edge).is_ok_and(|wedge| !wedge.inwards))
+        let outwards = |edge| Wedge::faced(body, edge).is_ok_and(|wedge| !wedge.inwards);
+        ending(body, corner).all(outwards)
     })
 }
 
 /// The corners three of `edges` meet at, each where it stands and with the
-/// three edges' ranks in the list. Declined `Unsupported` where more than
-/// three of them meet at one, or three meet where another edge ends too.
+/// three edges' ranks in the list, from the lowest, in the order of those
+/// ranks: by the lowest, then the next. Declined `Unsupported` where more
+/// than three of them meet at one, or three meet where another edge ends
+/// too.
 pub(super) fn of_three(
     body: &brep::Body,
     edges: &[EdgeId],
@@ -38,7 +43,8 @@ pub(super) fn of_three(
             at.entry(end).or_default().push(rank);
         }
     }
-    at.into_iter()
+    let mut corners = at
+        .into_iter()
         .filter(|(_, ranks)| ranks.len() > 2)
         .map(|(corner, ranks)| match ranks[..] {
             [one, two, three] if ending(body, corner).count() == 3 => {
@@ -46,7 +52,9 @@ pub(super) fn of_three(
             }
             _ => Err(Declined::Unsupported),
         })
-        .collect()
+        .collect::<Result<Vec<_>, Declined>>()?;
+    corners.sort_by_key(|&(_, ranks)| ranks);
+    Ok(corners)
 }
 
 /// The edges that end at a corner.
@@ -59,36 +67,45 @@ fn ending(body: &brep::Body, corner: VertexId) -> impl Iterator<Item = EdgeId> +
 }
 
 /// The names the edges after `rank` are sought by once the edge at `rank` is
-/// laid, its face numbered `made`, as a mitre leaves them: at a corner a later
-/// edge shares with it, the face the laid edge ran along that the later one
-/// does not, cut back from that corner, is met there by the face laid
-/// instead. An end is rewritten only where that face meets one end of the
-/// later edge, so a name still finds an edge only where its ends answer as
-/// the step's own cuts left them, and is lost or split as any other.
+/// laid, its face numbered `made`, as a mitre leaves them. At a corner a
+/// later edge shares with it on `body`, the body as given, the end of the
+/// later edge's name standing there — the one whose sides, as `names` gave
+/// them, are those of the faces at that corner but the edge's own two — is
+/// met by the face laid: in place of the face the laid edge ran along that
+/// the later one does not, cut back from that corner, or beside the faces
+/// laid there before. An end is rewritten only where `names`, read on the
+/// body as given, tell which it is, so a name still finds an edge only where
+/// its ends answer as the step's own cuts left them, and is lost or split as
+/// any other.
 pub(super) fn trimmed(
-    body: &brep::Body,
+    body: &Exact,
     edges: &[EdgeId],
-    names: &mut [EdgeName],
+    names: &[EdgeName],
+    sought: &mut [EdgeName],
     rank: usize,
     made: u32,
 ) {
-    let laid = names[rank].between.clone();
+    let ends = |edge: EdgeId| body.brep.edge(edge).ends.into_iter().flatten();
+    let laid = &names[rank].between;
     for later in rank + 1..names.len() {
-        if !meet(body, [edges[rank], edges[later]]) {
+        let name = &names[later];
+        let shared = ends(edges[later]).find(|&end| ends(edges[rank]).any(|other| other == end));
+        let Some(corner) = shared else {
             continue;
-        }
-        let name = &mut names[later];
-        let away: Vec<&Vec<u32>> = laid
-            .iter()
+        };
+        let mut there = body.vertices[corner.0 as usize].faces.clone();
+        there.retain(|side| !name.between.contains(side));
+        let at: Vec<usize> = (0..2).filter(|&end| name.ends[end] == there).collect();
+        let away: Vec<&Vec<u32>> = (laid.iter())
             .filter(|side| !name.between.contains(side))
             .collect();
-        let at: Vec<usize> = (0..2)
-            .filter(|&end| away.iter().any(|side| name.ends[end].contains(side)))
-            .collect();
-        if let (&[away], &[end]) = (&away[..], &at[..]) {
-            for side in name.ends[end].iter_mut().filter(|side| *side == away) {
-                *side = vec![made];
-            }
+        let (&[end], &[away]) = (&at[..], &away[..]) else {
+            continue;
+        };
+        let sides = &mut sought[later].ends[end];
+        match sides.iter().position(|side| side == away) {
+            Some(place) => sides[place] = vec![made],
+            None => sides.push(vec![made]),
         }
     }
 }

@@ -55,7 +55,7 @@ impl Exact {
             },
             Meeting {
                 together: None,
-                closing: Some(cut_across),
+                closing: cut_across,
             },
         )?;
         Ok((cut, taken))

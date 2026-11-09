@@ -154,6 +154,12 @@
 //!   other, the far edge's flat to its own number alone, and the next step
 //!   numbers its faces past all three —
 //!   `a_chamfer_on_a_tread_s_nose_and_foot_and_an_edge_far_from_both_numbers_the_slope_by_their_ranks_and_the_far_flat_by_its_own_wherever_the_far_edge_is_named`;
+//!   where the riser is turned by a hair about the upright, the foot
+//!   parallel to the nose only as the kernel reads it, the two flats lie in
+//!   one plane where it reads them and part along the tread, a sliver of it
+//!   left between them, and the step is declined `Unsupported` rather than
+//!   laid so, until #812 —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_by_a_hair_is_declined_as_unsupported_where_its_flats_would_part_along_the_tread`;
 //!   and, beyond the issue's wording, three cases left as they were, each
 //!   pinned until the issue that builds it: on a stair whose front leans,
 //!   where the two flats meet at an angle, the nose named first lays two
@@ -3333,6 +3339,69 @@ fn a_chamfer_on_a_tread_s_nose_and_foot_and_an_edge_far_from_both_numbers_the_sl
                  far edge gives up taken off"
             ),
         );
+    }
+}
+
+/// How far the turned stair's riser is turned about the upright, in
+/// radians: within what the kernel reads as parallel to the nose, a
+/// millionth, yet parting the nose's flat and the foot's by some hundred of
+/// its tolerances from one end of the stair to the other.
+const RISER_TURN: f64 = 1e-7;
+
+/// The [`stair`] with its riser turned by `turn` about the upright through
+/// its middle, so that the foot is parallel to the nose only within the
+/// kernel's reading: the taller block's front runs from a hair in front of
+/// y = 10 at the left end to a hair behind it at the right, and the lower
+/// block reaches in under the taller one, so that no face of either lies a
+/// hair from another's. Its faces answer to the numbers [`stair`]'s do.
+fn stair_with_its_riser_turned_by(turn: f64) -> Body {
+    let shift = LENGTH / 2.0 * turn;
+    let taller = raised_with(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::new(0.0, TREAD - shift),
+            DVec2::new(LENGTH, TREAD + shift),
+            DVec2::new(LENGTH, 2.0 * TREAD),
+            DVec2::new(0.0, 2.0 * TREAD),
+        ]),
+        HEIGHT,
+    );
+    joined_to(
+        &taller,
+        [DVec2::ZERO, DVec2::new(LENGTH, 1.5 * TREAD)],
+        TREAD_HEIGHT,
+    )
+}
+
+#[test]
+fn a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_by_a_hair_is_declined_as_unsupported_where_its_flats_would_part_along_the_tread()
+ {
+    let stair = stair_with_its_riser_turned_by(RISER_TURN);
+    let nose = edge_between(&stair, TREAD_TOP, NOSE);
+    let foot = edge_between(&stair, RISER, TREAD_TOP);
+    let half = TREAD / 2.0;
+    for (edge, which) in [(&nose, "the nose"), (&foot, "the foot")] {
+        assert!(
+            stair.chamfer(edge, half).is_ok(),
+            "{which} of the stair whose riser is turned by {RISER_TURN}, alone, asked {half}: laid"
+        );
+    }
+
+    for (order, names) in [
+        ("the nose named first", [nose.clone(), foot.clone()]),
+        ("the foot named first", [foot.clone(), nose.clone()]),
+    ] {
+        for asked in [half, MORE_THAN_HALF] {
+            let declined = stair.chamfer_edges(&names, asked).err();
+
+            assert_eq!(
+                declined,
+                Some(Declined::Unsupported),
+                "{order}, asked {asked}: the two flats lie in one plane where the kernel reads \
+                 them, and part along the tread, the riser turned by {RISER_TURN}: laid, they \
+                 would be two faces with a sliver of the tread left between them, until #812"
+            );
+        }
     }
 }
 

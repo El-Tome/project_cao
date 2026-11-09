@@ -51,6 +51,7 @@ mod ends;
 mod meet;
 mod planes;
 mod round;
+mod rulings;
 mod steps;
 mod touches;
 mod wedge;
@@ -124,6 +125,7 @@ impl Samples {
         } else {
             Samples::through(body, &walls, &zones, &grids, &beneath, fineness)
         };
+        samples.on_common_rulings(body, tolerance);
         samples.grids = grids;
         samples
     }
@@ -180,7 +182,6 @@ impl Samples {
             }
         }
         abreast.withhold(&mut contacts);
-        let vertices = samples.points.clone();
         let alone = Contact::default();
         let mut places = Places::new(eps * TOLD);
         for id in body.edge_ids() {
@@ -226,10 +227,7 @@ impl Samples {
                 if ends.iter().any(|end| (point - *end).length() <= eps) {
                     continue;
                 }
-                match vertices
-                    .iter()
-                    .position(|vertex| (point - *vertex).length() <= eps * TOLD)
-                {
+                match samples.vertex_at(point, eps * TOLD) {
                     Some(vertex) => {
                         if inner.last() != Some(&vertex) {
                             inner.push(vertex);
@@ -307,6 +305,14 @@ impl Samples {
     /// Whether a sample is a vertex's own point.
     pub(super) fn is_vertex(&self, id: usize) -> bool {
         id < self.vertices
+    }
+
+    /// The vertex standing within `near` of `point`, a corner the kernel
+    /// left on a curve: that place is the vertex's own point.
+    fn vertex_at(&self, point: DVec3, near: f64) -> Option<usize> {
+        self.points[..self.vertices]
+            .iter()
+            .position(|vertex| (point - *vertex).length() <= near)
     }
 }
 

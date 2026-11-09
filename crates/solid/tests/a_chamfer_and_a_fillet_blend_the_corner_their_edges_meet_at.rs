@@ -15,9 +15,17 @@
 //!   on the block's square corner,
 //!   `a_chamfer_on_the_three_edges_of_a_corner_closes_it_with_a_triangle_where_the_flats_edges_cross`,
 //!   `a_fillet_on_the_three_edges_of_a_corner_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`;
-//!   and on a convex corner that is not square, as the third decision asks —
+//!   and on a convex corner that is not square, as the third decision asks,
+//!   the slanted prism's end, two of its edges square to the third —
 //!   `a_chamfer_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_triangle_where_the_flats_edges_cross`,
-//!   `a_fillet_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`
+//!   `a_fillet_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`;
+//!   and on one where no two of the three edges are square, a block whose
+//!   top is cut by a plane tilted two ways, its flats closed by their
+//!   triangle —
+//!   `a_chamfer_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_closes_it_with_a_triangle_where_the_flats_edges_cross`
+//!   — and its rounds a broken step with its reason, `Undrawn`, until #800
+//!   draws their sphere —
+//!   `a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_is_a_broken_step_until_its_sphere_can_be_drawn`
 //! - The triangle answers to the number after its edges' flats: on a list of
 //!   `n` edges from where the steps' numbers ended at `start`, the flats are
 //!   `start` to `start + n − 1` in the order the list names their edges, as
@@ -35,13 +43,21 @@
 //!   chamfer edges cross on each of the three faces; the sphere piece of three
 //!   fillets is centred at the point one value from all three faces, and
 //!   meets each fillet along that fillet's end section. Both hold for any
-//!   convex trihedral corner, not only a square one — the four tests of the
-//!   criterion above, which hold the triangle's three corners and the
-//!   sphere's centre, radius and the arcs it shares with the rounds:
+//!   convex trihedral corner, not only a square one. This branch holds the
+//!   triangle at any convex corner, and the sphere where one edge is square
+//!   to the other two, as at the block's corner and the slanted prism's;
+//!   where no two edges are square, the sphere's third arc is a great circle
+//!   that is neither a meridian nor the equator of its axis, which the
+//!   drawing cannot follow yet, and the step is a broken step with its
+//!   reason, `Undrawn`, until #800 draws it. The tests of the criterion
+//!   above, which hold the triangle's three corners and the sphere's centre,
+//!   radius and the arcs it shares with the rounds, and the broken step:
 //!   `a_chamfer_on_the_three_edges_of_a_corner_closes_it_with_a_triangle_where_the_flats_edges_cross`,
 //!   `a_fillet_on_the_three_edges_of_a_corner_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`,
 //!   `a_chamfer_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_triangle_where_the_flats_edges_cross`,
-//!   `a_fillet_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`
+//!   `a_fillet_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`,
+//!   `a_chamfer_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_closes_it_with_a_triangle_where_the_flats_edges_cross`,
+//!   `a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_is_a_broken_step_until_its_sphere_can_be_drawn`
 //! - Two of a convex corner's three edges chamfered or rounded leave a closed
 //!   body mitred at that corner, the third edge sharp. Volume exact, soundness
 //!   checks pass — on each of the corner's three pairs, named in either order,
@@ -67,7 +83,8 @@
 //!   corner of an L-shaped block and the bottom of a pocket are declined —
 //!   `a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported`;
 //!   the reason is `Unsupported`, the kernel's word for a shape it does not
-//!   build, until the follow-up issue the decision promises builds it. At the
+//!   build, until #801, the follow-up issue the decision promised, builds
+//!   those corners. At the
 //!   L's inner corner and at a pocket's, each edge but the L's upright one is
 //!   declined alone already, its cut carried along its line taking matter
 //!   beyond it: those lists hold what the user sees, and not why. What holds
@@ -160,6 +177,52 @@
 //! its edge's line, taken away by the booleans — the fixture the test also
 //! holds every face of the step against.
 //!
+//! All three edges of the slanted corner cut, in the same coordinates, the
+//! flats are `x′ + w < d`, `x′ + s < d` and `w + s < kd`, and they cross on
+//! the three faces at `(d, 0, kd)`, `(0, d, d)` and `(d, kd, 0)`: the
+//! triangle's plane is `(1 − k/2)x′ + (w + s)/2 = d`. A volume in these
+//! coordinates is `k` times the volume it stands for. The three flats overlap
+//! in `kd³/2 − k²d³/4` — at `x′`, a square of side `d − x′` cut by
+//! `w + s < kd` — and the triangle takes besides the tetrahedron between it
+//! and the point the three flats meet at, `(d(1 − k/2), kd/2, kd/2)`, of
+//! `kd³(1 − k/2)/6`; at `k = 1` the two are the square corner's `d³/4` and
+//! `d³/12`. With the overlaps of pairs above, the prism keeps
+//! `V − 5d² − 0.1d³ − 15kd² − 5d²/k + (k + 1/k)d³/3`: 3807.30 at 2.
+//!
+//! Its three rounds meet the sphere of radius `r` centred `(r, r, r)` in
+//! these coordinates, at `(28, 12 − r·cot(θ/2), 8)` for `r = 2`; each ends
+//! on the plane through that centre square to its edge, and the three planes
+//! bound at the corner a cell whose edges run from the centre the three ways
+//! the faces face. Each round alone, less its part on the corner's side of
+//! its end section, is laid; the cell is taken away and the ball's sector in
+//! it given back. On A's side of its section the round runs on to the side,
+//! leaning out: `r·cot(θ/2)·S + 0.4r³(5/6 − π/4)`, with `S = r²(1 − π/4)`,
+//! the first moment of the round's section about the top adding the lean; on
+//! C's the same, measured from the top to the section along the slant; on
+//! B's, `r` along its section `r²(cot(θ/2) − (π − θ)/2)`. The cell is a prism
+//! along X, `r` long, whose section holds `r²(1 − 0.6k + 0.232k³)/k`; the
+//! three ways the faces face span a solid angle of `π − θ`, and the sector
+//! holds a third of `r³` times that. The prism keeps 3873.16 at 2.
+//!
+//! Both are held a second way, by the booleans, and agree to the last digits:
+//! the flats' three prisms and the slab beyond the triangle's plane cut away;
+//! the rounds' three prisms cut away, then what is left inside the cell, and
+//! the sector added back. On the square corner the same computation gives the
+//! formulas' 5748 and 5888.63 exactly. The corner where no two edges are
+//! square, the block's top cut by the plane rising 0.1 along X and 0.2 along
+//! Y from 12, is measured that way only: 4245.76 with the flats at 2, 4311.33
+//! with the rounds.
+//!
+//! The rounds there are a broken step for now, and their test holds the
+//! decline. What #800 is to lay, and to hold that test to once it turns it
+//! back into a body test through `closes_with_a_sphere`: a body of 4311.33
+//! at 2, the sphere centred at (28, 2, 13.15), 2 in from the right wall, the
+//! front and the tilted top, touching each at the foot of the centre on it;
+//! each round ending on the plane through that centre square to its edge,
+//! along an arc between two of those feet; the three ways the faces face
+//! spanning 1.4536 of solid angle for the piece of sphere, whose sector the
+//! volume gives back.
+//!
 //! At a corner that is not square, the line where the two cuts meet need not
 //! run down to the third edge: it can leave by the face the third edge shares
 //! with one of the cut ones, and run on along that face. The third edge ends
@@ -173,7 +236,7 @@ use std::f64::consts::PI;
 use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
 use cao_solid::{Body, Declined, EdgeName, Loop};
-use glam::{DVec2, DVec3};
+use glam::{DMat3, DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it, on a plane:
 /// each is placed exactly, so what is left is rounding.
@@ -1463,12 +1526,14 @@ enum Cut {
     Round,
 }
 
-/// An edge at [`SLANTED_CORNER`]: the two faces it lies between, the way it
-/// runs from the corner, for each face the way into it from the edge, square
-/// to the edge, and the way it faces, and how far before and past the corner
-/// a prism raised along it must reach to take all a cut of it takes.
-struct SlantedEdge {
+/// An edge at a corner: the corner it runs from, the two faces it lies
+/// between, the way it runs from the corner, for each face the way into it
+/// from the edge, square to the edge, and the way it faces, and how far before
+/// and past the corner a prism raised along it must reach to take all a cut of
+/// it takes.
+struct EdgeAt {
     called: &'static str,
+    at: DVec3,
     faces: [usize; 2],
     along: DVec3,
     into: [DVec3; 2],
@@ -1479,26 +1544,29 @@ struct SlantedEdge {
 /// The three edges at [`SLANTED_CORNER`]: the top's edge on the end, square,
 /// the top's edge on the right side, at the side's slant, and the slanted
 /// upright where the side meets the end, square.
-fn slanted_corner_edges() -> [SlantedEdge; 3] {
+fn slanted_corner_edges() -> [EdgeAt; 3] {
     [
-        SlantedEdge {
+        EdgeAt {
             called: "the top's edge on the end",
+            at: SLANTED_CORNER,
             faces: [SLANTED_TOP, SLANTED_END],
             along: -DVec3::Y,
             into: [-DVec3::X, -DVec3::Z],
             outward: [DVec3::Z, DVec3::X],
             reach: [-8.0, 18.0],
         },
-        SlantedEdge {
+        EdgeAt {
             called: "the top's edge on the right side",
+            at: SLANTED_CORNER,
             faces: [SLANTED_TOP, SLANTED_RIGHT],
             along: -DVec3::X,
             into: [-DVec3::Y, side_down()],
             outward: [DVec3::Z, side_facing()],
             reach: [-2.0, LENGTH + 2.0],
         },
-        SlantedEdge {
+        EdgeAt {
             called: "the slanted upright where the side meets the end",
+            at: SLANTED_CORNER,
             faces: [SLANTED_END, SLANTED_RIGHT],
             along: side_down(),
             into: [-side_facing(), -DVec3::X],
@@ -1508,7 +1576,7 @@ fn slanted_corner_edges() -> [SlantedEdge; 3] {
     ]
 }
 
-impl SlantedEdge {
+impl EdgeAt {
     /// The edge's name on the part.
     fn name(&self, part: &Body) -> EdgeName {
         let [first, second] = self.faces;
@@ -1538,9 +1606,7 @@ impl SlantedEdge {
         let halfway = (first + second).normalize();
         let [before, past] = self.reach;
         Round {
-            start: SLANTED_CORNER
-                + halfway * radius / (self.angle() / 2.0).sin()
-                + self.along * before,
+            start: self.at + halfway * radius / (self.angle() / 2.0).sin() + self.along * before,
             along: self.along,
             length: past - before,
             radius,
@@ -1583,7 +1649,7 @@ impl SlantedEdge {
         part.tool_raised(
             &profile(Contour { corners, runs }),
             Frame {
-                origin: SLANTED_CORNER + self.along * before,
+                origin: self.at + self.along * before,
                 u,
                 v,
             },
@@ -2221,5 +2287,633 @@ fn a_fillet_on_the_three_edges_of_a_corner_closes_it_with_a_piece_of_sphere_one_
                 );
             }
         }
+    }
+}
+
+/// A convex corner where three flat faces meet: where it stands, each face's
+/// number and the way it faces, and for the edge across from each face — the
+/// one the two others meet along — what it is called, how long it is and the
+/// face it ends on.
+struct Trihedral {
+    at: DVec3,
+    faces: [usize; 3],
+    outward: [DVec3; 3],
+    called: [&'static str; 3],
+    length: [f64; 3],
+    far: [usize; 3],
+}
+
+impl Trihedral {
+    /// The edge across from face `n`, running from the corner along the two
+    /// other faces, into the matter.
+    fn edge(&self, n: usize) -> EdgeAt {
+        let [one, other] = [(n + 1) % 3, (n + 2) % 3];
+        let mut along = self.outward[one].cross(self.outward[other]).normalize();
+        if along.dot(self.outward[n]) > 0.0 {
+            along = -along;
+        }
+        let into = |face: usize, beside: usize| {
+            let way = self.outward[face].cross(along).normalize();
+            if way.dot(self.outward[beside]) > 0.0 {
+                -way
+            } else {
+                way
+            }
+        };
+        EdgeAt {
+            called: self.called[n],
+            at: self.at,
+            faces: [self.faces[one], self.faces[other]],
+            along,
+            into: [into(one, other), into(other, one)],
+            outward: [self.outward[one], self.outward[other]],
+            reach: [-3.0, self.length[n] + 3.0],
+        }
+    }
+
+    /// Where the flats a chamfer of `distance` lays on the two edges of face
+    /// `n` cross on it: the distance from each edge, square to it in the face,
+    /// so the distance over the sine of the angle the two edges meet at along
+    /// each of them.
+    fn crossing(&self, n: usize, distance: f64) -> DVec3 {
+        let [one, other] = [(n + 1) % 3, (n + 2) % 3].map(|edge| self.edge(edge).along);
+        self.at + (one + other) * distance / one.cross(other).length()
+    }
+
+    /// The point `radius` in from each of the three faces.
+    fn centre(&self, radius: f64) -> DVec3 {
+        let [first, second, third] = self.outward;
+        let facing = DMat3::from_cols(first, second, third).transpose();
+        self.at + facing.inverse() * DVec3::splat(-radius)
+    }
+
+    /// The solid angle between the three ways the faces face: what a piece
+    /// of sphere tangent to the three, seen from its centre, covers.
+    fn spread(&self) -> f64 {
+        let [a, b, c] = self.outward;
+        2.0 * a
+            .dot(b.cross(c))
+            .abs()
+            .atan2(1.0 + a.dot(b) + b.dot(c) + c.dot(a))
+    }
+}
+
+/// The slanted prism's corner at [`SLANTED_CORNER`], its faces the right side,
+/// the end and the top: across from them the top's edge on the end, ending on
+/// the left side, the top's edge on the side, ending on the start, and the
+/// slanted upright, ending on the bottom.
+fn slanted_trihedral() -> Trihedral {
+    Trihedral {
+        at: SLANTED_CORNER,
+        faces: [SLANTED_RIGHT, SLANTED_END, SLANTED_TOP],
+        outward: [side_facing(), DVec3::X, DVec3::Z],
+        called: [
+            "the top's edge on the end",
+            "the top's edge on the right side",
+            "the slanted upright where the side meets the end",
+        ],
+        length: [10.0, LENGTH, 116f64.sqrt()],
+        far: [5, 0, 2],
+    }
+}
+
+/// The slab beyond the plane through `through` square to `away`, on the side
+/// `away` points to: `size` each way across it, and `size` deep.
+fn beyond(part: &Body, through: DVec3, away: DVec3, size: f64) -> Body {
+    let away = away.normalize();
+    let u = away.any_orthonormal_vector();
+    part.tool_raised(
+        &profile(Contour::rectangle(DVec2::splat(-size), DVec2::splat(size))),
+        Frame {
+            origin: through,
+            u,
+            v: away.cross(u),
+        },
+        away * size,
+    )
+    .expect("the slab raises")
+}
+
+/// The way the block's top is tilted, in two directions at once: rising 0.1
+/// along X and 0.2 along Y.
+fn tilted_up() -> DVec3 {
+    DVec3::new(-0.1, -0.2, 1.0).normalize()
+}
+
+/// The block 30 by 10 by 20 with its top cut off by the plane rising from 12
+/// at its origin, 0.1 along X and 0.2 along Y: its walls and floor numbered as
+/// the block's, the tilted top six. A convex solid, every edge of it meets
+/// outwards.
+fn tilted_block() -> Body {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    block
+        .difference(&beyond(
+            &block,
+            DVec3::new(15.0, 5.0, 14.5),
+            tilted_up(),
+            60.0,
+        ))
+        .expect("the tilted top is cut")
+}
+
+/// The tilted block's corner at (30, 0, 15), where no two of the three edges
+/// are square: its faces the right wall, the front and the tilted top; across
+/// from them the tilted top's edge on the front, ending on the left wall, its
+/// edge on the right, ending on the back, and the upright, ending on the
+/// floor.
+fn tilted_trihedral() -> Trihedral {
+    Trihedral {
+        at: DVec3::new(LENGTH, 0.0, 15.0),
+        faces: [RIGHT, FRONT, 6],
+        outward: [DVec3::X, -DVec3::Y, tilted_up()],
+        called: [
+            "the tilted top's edge on the front",
+            "the tilted top's edge on the right",
+            "the upright where the front meets the right",
+        ],
+        length: [909f64.sqrt(), 104f64.sqrt(), 15.0],
+        far: [LEFT, BACK, FLOOR],
+    }
+}
+
+/// What a body keeps once the three edges at a convex corner are chamfered
+/// at `distance` and the corner closed by the triangle through the crossings,
+/// computed apart from the step: the three flats' prisms, raised whole along
+/// each edge's line, and the slab beyond the triangle's plane on the corner's
+/// side, cut away by the booleans. The body being convex, nothing of it but
+/// the corner stands on that side.
+fn triangle_by_booleans(body: &Body, corner: &Trihedral, distance: f64) -> f64 {
+    let cut = (0..3).fold(body.clone(), |part, edge| {
+        part.difference(&corner.edge(edge).tool(&part, Cut::Flat, distance))
+            .expect("a flat's prism cuts the body")
+    });
+    let crossings = [0, 1, 2].map(|face| corner.crossing(face, distance));
+    let mut toward = (crossings[1] - crossings[0])
+        .cross(crossings[2] - crossings[0])
+        .normalize();
+    if toward.dot(corner.at - crossings[0]) < 0.0 {
+        toward = -toward;
+    }
+    cut.difference(&beyond(&cut, crossings[0], toward, 100.0))
+        .expect("the triangle's slab cuts the corner")
+        .volume()
+}
+
+/// What a body keeps once the three edges at a convex corner are rounded at
+/// `radius` and the corner closed by a piece of sphere, computed apart from
+/// the step: the three rounds' prisms, raised whole, cut away by the
+/// booleans; then, of what is left, the part on the corner's side of the
+/// three planes through the centre square to the edges — the cell the piece
+/// of sphere fills — taken away, and the ball's sector over that cell, a
+/// third of the radius cubed times the solid angle the three faces' ways
+/// span, given back.
+fn sphere_by_booleans(body: &Body, corner: &Trihedral, radius: f64) -> f64 {
+    let rounded = (0..3).fold(body.clone(), |part, edge| {
+        part.difference(&corner.edge(edge).tool(&part, Cut::Round, radius))
+            .expect("a round's prism cuts the body")
+    });
+    let centre = corner.centre(radius);
+    let cell = (0..3).fold(rounded.clone(), |part, edge| {
+        part.difference(&beyond(&part, centre, corner.edge(edge).along, 100.0))
+            .expect("a plane through the centre cuts the body")
+    });
+    rounded.volume() - cell.volume() + radius.powi(3) * corner.spread() / 3.0
+}
+
+/// What the slanted prism keeps once the three edges at [`SLANTED_CORNER`]
+/// are chamfered at `distance` and the corner closed by a triangle, as the
+/// module's documentation derives it by hand.
+fn slanted_triangle(distance: f64) -> f64 {
+    let k = slant();
+    let d = distance;
+    SLANTED_VOLUME - 5.0 * d * d - 0.1 * d.powi(3) - 15.0 * k * d * d - 5.0 * d * d / k
+        + (k + 1.0 / k) * d.powi(3) / 3.0
+}
+
+/// What the slanted prism keeps once the three edges at [`SLANTED_CORNER`]
+/// are rounded at `radius` and the corner closed by a piece of sphere, as the
+/// module's documentation derives it by hand: each round whole, less its part
+/// on the corner's side of its end section, and the cell those sections bound
+/// at the corner, less the ball's sector in it.
+fn slanted_sphere(radius: f64) -> f64 {
+    let k = slant();
+    let r = radius;
+    let set_back = 1.0 / k - 0.4;
+    let square = r * r * (1.0 - PI / 4.0);
+    let slanted = r * r * (set_back - 2.5f64.atan() / 2.0);
+    let moment = r.powi(3) * (5.0 / 6.0 - PI / 4.0);
+    let whole = (10.0 * square + 0.6 * moment) + LENGTH * slanted + 10.0 / k * square;
+    let short_of_the_corner = 2.0 * (r * set_back * square + 0.4 * moment) + r * slanted;
+    let cell = r.powi(3) * (1.0 - 0.6 * k + 0.232 * k.powi(3)) / k;
+    let sector = r.powi(3) * 2.5f64.atan() / 3.0;
+    SLANTED_VOLUME - whole + short_of_the_corner - cell + sector
+}
+
+/// Holds that the chamfer on the three edges at `corner`, named in `order`,
+/// at `distance`, closes the corner with a triangle where the flats' edges
+/// cross, and leaves `promised`.
+fn closes_with_a_triangle(
+    part: &Body,
+    corner: &Trihedral,
+    order: [usize; 3],
+    distance: f64,
+    promised: f64,
+) {
+    let what = format!(
+        "the chamfer on {}, {} and {}",
+        corner.called[order[0]], corner.called[order[1]], corner.called[order[2]]
+    );
+    let names = order.map(|edge| corner.edge(edge).name(part));
+
+    let chamfered = part
+        .chamfer_edges(&names, distance)
+        .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+    taken_as_asked(chamfered.asked, chamfered.taken, distance, &what);
+    let body = &chamfered.body;
+    sound_drawn_within(body, promised, EXACT * promised, &what);
+    let steps_end = part.faces_end();
+    let triangle = steps_end + 3;
+    let flat_of = |edge: usize| {
+        steps_end
+            + order
+                .iter()
+                .position(|&named| named == edge)
+                .expect("every edge of the corner is named")
+    };
+    assert_eq!(
+        faces_made(part, body),
+        vec![steps_end, steps_end + 1, steps_end + 2, triangle],
+        "{what}: one flat for each edge, numbered in the order the step names them, and the \
+         triangle after them: {:?}",
+        numbers(body)
+    );
+    assert_eq!(
+        body.faces_end(),
+        triangle + 1,
+        "{what}: the next step numbers its own faces past the triangle"
+    );
+    assert!(
+        numbers(part).is_subset(&numbers(body)),
+        "{what}: a face of the part went: {:?}",
+        numbers(body)
+    );
+    let crossings = [0, 1, 2].map(|face| corner.crossing(face, distance));
+    corners_are(
+        body,
+        triangle,
+        &crossings,
+        &format!(
+            "{what}: the triangle, its corners where the flats' edges cross on the three faces"
+        ),
+    );
+    let mut away = (crossings[1] - crossings[0])
+        .cross(crossings[2] - crossings[0])
+        .normalize();
+    if away.dot(corner.at - crossings[0]) < 0.0 {
+        away = -away;
+    }
+    faces_toward(
+        body,
+        triangle,
+        away,
+        &format!("{what}: the triangle, facing the old corner"),
+    );
+    assert_eq!(
+        sides_met(body, triangle),
+        sides(&[flat_of(0), flat_of(1), flat_of(2)]),
+        "{what}: the triangle meets the three flats, one side each, and nothing else"
+    );
+    for edge in 0..3 {
+        let [one, other] = [(edge + 1) % 3, (edge + 2) % 3];
+        let at = corner.edge(edge);
+        let flat = flat_of(edge);
+        let which = format!("{what}: the flat of {}", at.called);
+        let [first, second] = at.outward;
+        faces_toward(body, flat, (first + second).normalize(), &which);
+        let plane = body
+            .plane_of(flat)
+            .unwrap_or_else(|| panic!("{which} offers no plane"));
+        for crossing in [crossings[one], crossings[other]] {
+            assert!(
+                plane
+                    .corners
+                    .iter()
+                    .any(|point| point.distance(crossing) < PLACE),
+                "{which} ends on the triangle along a straight side between the crossings on its \
+                 two faces: no corner at {crossing}, among {:?}",
+                plane.corners
+            );
+        }
+        let [face_one, face_other] = at.faces;
+        assert_eq!(
+            sides_met(body, flat),
+            sides(&[face_one, face_other, corner.far[edge], triangle]),
+            "{which} meets its edge's two faces along its sides, the face its edge ends on, and \
+             the triangle, by one edge each, and no other flat"
+        );
+        let face = corner.faces[edge];
+        let plane = body
+            .plane_of(face)
+            .unwrap_or_else(|| panic!("{what}: face {face} is still flat"));
+        assert!(
+            plane
+                .corners
+                .iter()
+                .any(|point| point.distance(crossings[edge]) < PLACE),
+            "{what}: face {face} has a corner where the two flats on it cross, {}",
+            crossings[edge]
+        );
+        let met = sides_met(body, face);
+        for laid in [flat_of(one), flat_of(other)] {
+            assert!(
+                met.contains(&vec![laid as u32]),
+                "{what}: face {face} meets the flat {laid} of one of its edges at the corner: \
+                 {met:?}"
+            );
+        }
+        assert!(
+            !met.contains(&vec![triangle as u32]),
+            "{what}: face {face} touches the triangle at a corner only: {met:?}"
+        );
+    }
+    for face in numbers(body) {
+        if let Some(plane) = body.plane_of(face) {
+            assert!(
+                plane
+                    .corners
+                    .iter()
+                    .all(|point| point.distance(corner.at) > PLACE),
+                "{what}: face {face} still has a corner at the old vertex {}",
+                corner.at
+            );
+        }
+    }
+}
+
+/// Holds that the fillet on the three edges at `corner`, named in `order`, at
+/// `radius`, closes the corner with a piece of sphere one radius from its
+/// three faces, each round ending on the plane through the sphere's centre
+/// square to its edge, and leaves `promised`.
+fn closes_with_a_sphere(
+    part: &Body,
+    corner: &Trihedral,
+    order: [usize; 3],
+    radius: f64,
+    promised: f64,
+) {
+    let what = format!(
+        "the fillet on {}, {} and {}",
+        corner.called[order[0]], corner.called[order[1]], corner.called[order[2]]
+    );
+    let names = order.map(|edge| corner.edge(edge).name(part));
+
+    let filleted = part
+        .fillet_edges(&names, radius)
+        .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+    taken_as_asked(filleted.asked, filleted.taken, radius, &what);
+    let body = &filleted.body;
+    let r = radius;
+    let centre = corner.centre(r);
+    let edges = [0, 1, 2].map(|edge| corner.edge(edge));
+    let rounds = [0, 1, 2].map(|edge| Round {
+        start: centre,
+        along: edges[edge].along,
+        length: corner.length[edge] + 2.0 * r,
+        radius: r,
+        facing: edges[edge].outward,
+    });
+    let area: f64 = [0, 1, 2]
+        .iter()
+        .map(|&edge| edges[edge].round(r).area())
+        .sum::<f64>()
+        + corner.spread() * r * r;
+    sound_drawn_within(body, promised, DRAWN * reach_of(part) * area, &what);
+    let steps_end = part.faces_end();
+    let piece = steps_end + 3;
+    let round_of = |edge: usize| {
+        steps_end
+            + order
+                .iter()
+                .position(|&named| named == edge)
+                .expect("every edge of the corner is named")
+    };
+    assert_eq!(
+        faces_made(part, body),
+        vec![steps_end, steps_end + 1, steps_end + 2, piece],
+        "{what}: one round for each edge, numbered in the order the step names them, and the \
+         piece of sphere after them: {:?}",
+        numbers(body)
+    );
+    assert_eq!(
+        body.faces_end(),
+        piece + 1,
+        "{what}: the next step numbers its own faces past the piece of sphere"
+    );
+    assert!(
+        numbers(part).is_subset(&numbers(body)),
+        "{what}: a face of the part went: {:?}",
+        numbers(body)
+    );
+
+    let which = format!("{what}: the piece of sphere");
+    assert!(
+        !body.is_flat(piece) && body.plane_of(piece).is_none(),
+        "{which} is curved, and offers no plane to draw on"
+    );
+    let drawn: Vec<DVec3> = body.triangles_of(piece).flatten().collect();
+    assert!(!drawn.is_empty(), "{which} is drawn");
+    for point in &drawn {
+        assert!(
+            (point.distance(centre) - r).abs() < PLACE,
+            "{which} is drawn through {point}, off the sphere of {r} about {centre}, one radius \
+             from each of the corner's three faces"
+        );
+        for edge in &edges {
+            assert!(
+                (*point - centre).dot(edge.along) <= PLACE,
+                "{which} is drawn through {point}, past the end section of the round on {}",
+                edge.called
+            );
+        }
+    }
+    for (face, way) in corner.faces.iter().zip(corner.outward) {
+        let foot = centre + way * r;
+        assert!(
+            drawn.iter().any(|point| point.distance(foot) < PLACE),
+            "{which}: a corner at {foot}, where it touches face {face}"
+        );
+    }
+    for weights in [
+        [1.0, 1.0, 1.0],
+        [2.0, 1.0, 1.0],
+        [1.0, 2.0, 1.0],
+        [1.0, 1.0, 2.0],
+    ] {
+        let facing = (0..3)
+            .map(|face| corner.outward[face] * weights[face])
+            .sum::<DVec3>()
+            .normalize();
+        let from = centre + facing * (r + 10.0);
+        let hit = body.ray_hit(from, -facing).unwrap_or_else(|| {
+            panic!("{which}: a ray from {from} toward its centre meets nothing")
+        });
+        assert_eq!(
+            hit.face, piece,
+            "{which}: a ray from {from} toward its centre meets face {} before it",
+            hit.face
+        );
+        assert!(
+            hit.normal.distance(facing) < PLACE,
+            "{which}: where a ray from {from} meets it, it faces {}, not {facing}, away from its \
+             centre",
+            hit.normal
+        );
+    }
+    assert_eq!(
+        sides_met(body, piece),
+        sides(&[round_of(0), round_of(1), round_of(2)]),
+        "{which} meets the three rounds, one side each, and nothing else"
+    );
+
+    for (edge, round) in rounds.iter().enumerate() {
+        let [one, other] = [(edge + 1) % 3, (edge + 2) % 3];
+        let at = &edges[edge];
+        let face = round_of(edge);
+        let which = format!("{what}: the round of {}", at.called);
+        assert!(
+            !body.is_flat(face) && body.plane_of(face).is_none(),
+            "{which} is curved, and offers no plane to draw on"
+        );
+        let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
+        assert!(!corners.is_empty(), "{which} is drawn");
+        for point in &corners {
+            assert!(
+                round.holds(*point),
+                "{which} is drawn through {point}, off its cylinder of {r} about the line from \
+                 {centre} along {}",
+                at.along
+            );
+        }
+        let section: Vec<&DVec3> = corners
+            .iter()
+            .filter(|point| ((**point - centre).dot(at.along)).abs() < PLACE)
+            .collect();
+        for way in at.outward {
+            let foot = centre + way * r;
+            assert!(
+                section.iter().any(|point| point.distance(foot) < PLACE),
+                "{which}: its end section, an arc in the plane through the sphere's centre square \
+                 to its edge, ends at {foot}, among {section:?}"
+            );
+        }
+        assert!(
+            section.len() > 2,
+            "{which}: its end section is drawn along the arc between its two ends: {section:?}"
+        );
+        met_from_outside(
+            body,
+            face,
+            &round.part(r, 0.6 * corner.length[edge]),
+            &format!("{which}, past its end section"),
+        );
+        let [face_one, face_other] = at.faces;
+        assert_eq!(
+            sides_met(body, face),
+            sides(&[face_one, face_other, corner.far[edge], piece]),
+            "{which} meets its edge's two faces along its sides, the face its edge ends on, and \
+             the piece of sphere along its end section, by one edge each, and no other round"
+        );
+        let own = corner.faces[edge];
+        let foot = centre + corner.outward[edge] * r;
+        let plane = body
+            .plane_of(own)
+            .unwrap_or_else(|| panic!("{what}: face {own} is still flat"));
+        assert!(
+            plane
+                .corners
+                .iter()
+                .any(|point| point.distance(foot) < PLACE),
+            "{what}: face {own} has a corner where the piece of sphere touches it, {foot}"
+        );
+        let met = sides_met(body, own);
+        for laid in [round_of(one), round_of(other)] {
+            assert!(
+                met.contains(&vec![laid as u32]),
+                "{what}: face {own} meets the round {laid} of one of its edges at the corner: \
+                 {met:?}"
+            );
+        }
+        assert!(
+            !met.contains(&vec![piece as u32]),
+            "{what}: face {own} touches the piece of sphere at a corner only: {met:?}"
+        );
+    }
+    for face in numbers(body) {
+        if let Some(plane) = body.plane_of(face) {
+            assert!(
+                plane
+                    .corners
+                    .iter()
+                    .all(|point| point.distance(corner.at) > PLACE),
+                "{what}: face {face} still has a corner at the old vertex {}",
+                corner.at
+            );
+        }
+    }
+}
+
+#[test]
+fn a_chamfer_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_triangle_where_the_flats_edges_cross()
+ {
+    let prism = slanted_prism();
+    let corner = slanted_trihedral();
+    for order in ORDERS_OF_THREE {
+        closes_with_a_triangle(&prism, &corner, order, 2.0, slanted_triangle(2.0));
+    }
+}
+
+#[test]
+fn a_fillet_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces()
+ {
+    let prism = slanted_prism();
+    let corner = slanted_trihedral();
+    for order in ORDERS_OF_THREE {
+        closes_with_a_sphere(&prism, &corner, order, 2.0, slanted_sphere(2.0));
+    }
+}
+
+#[test]
+fn a_chamfer_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_closes_it_with_a_triangle_where_the_flats_edges_cross()
+ {
+    let block = tilted_block();
+    let corner = tilted_trihedral();
+    let promised = triangle_by_booleans(&block, &corner, 2.0);
+    for order in ORDERS_OF_THREE {
+        closes_with_a_triangle(&block, &corner, order, 2.0, promised);
+    }
+}
+
+#[test]
+fn a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_is_a_broken_step_until_its_sphere_can_be_drawn()
+ {
+    let block = tilted_block();
+    let corner = tilted_trihedral();
+    let promised = sphere_by_booleans(&block, &corner, 2.0);
+    for order in ORDERS_OF_THREE {
+        let names = order.map(|edge| corner.edge(edge).name(&block));
+
+        let filleted = block.fillet_edges(&names, 2.0).err();
+
+        assert_eq!(
+            filleted,
+            Some(Declined::Undrawn),
+            "the fillet on {}, {} and {}: a broken step and its reason, and no body, until #800 \
+             draws the sphere of the body that would hold {promised}",
+            corner.called[order[0]],
+            corner.called[order[1]],
+            corner.called[order[2]]
+        );
     }
 }

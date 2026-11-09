@@ -1275,6 +1275,10 @@ fn the_origin_view_button_shows_the_right_the_front_and_the_top() {
     let mut app = driver::a_block("the_origin_view_button_shows_the_right_the_front_and_the_top");
     let cube_face = in_the_cube(the_cube(&app), A_FACE_OFF_THE_MIDDLE);
     driver::click_at(&mut app, cube_face);
+    assert!(
+        !stands_as_it_opens(&app),
+        "the click on the cube was meant to leave the view turned off the opening one",
+    );
 
     let the_button = the_origin_view(&app).unwrap_or_else(|| {
         panic!(
@@ -1421,6 +1425,8 @@ fn the_origin_view_button_goes_above_a_cube_in_a_bottom_corner() {
 
 /// Where in the cube's square, from -1 to 1 with y up, the opening view shows
 /// a zone of this kind, well inside it: the points around it aim at it too.
+/// Never the zone the opening view already looks straight at, which a click
+/// would leave the view on.
 fn a_point_aiming_at(
     kind: fn(&cao_render::CubeZone) -> bool,
 ) -> (glam::Vec2, cao_render::CubeZone) {
@@ -1440,7 +1446,11 @@ fn a_point_aiming_at(
             ]
             .into_iter()
             .all(|side| aimed_at(at + side * step) == Some(zone));
-            (kind(&zone) && all_around).then_some((at, zone))
+            let looked_at_already = zone
+                .direction()
+                .dot(-cao_render::OrbitCamera::default().forward())
+                > 1.0 - 1e-3;
+            (kind(&zone) && all_around && !looked_at_already).then_some((at, zone))
         })
         .expect("the opening view shows a zone of every kind")
 }
@@ -1480,9 +1490,17 @@ fn clicking_a_face_an_edge_or_a_corner_of_the_cube_still_turns_the_camera() {
         let mut turn = cao_render::ViewTransition::to_zone(&turned, zone);
         while turn.advance(&mut turned, 0.1) {}
 
+        let before = the_axes_through(&app, DVec3::ZERO);
         let aim = in_the_cube(the_cube(&app), at);
         driver::click_at(&mut app, aim);
 
+        assert!(
+            the_axes_through(&app, DVec3::ZERO)
+                .into_iter()
+                .zip(before)
+                .any(|((_, after), (_, was))| (after - was).length() > ALONG_THE_OPENING_AXIS),
+            "a click on the {name} {zone:?} left the view where it was",
+        );
         for ((axis, drawn), (_, wanted)) in the_axes_through(&app, DVec3::ZERO)
             .into_iter()
             .zip(the_axes_of(&turned))

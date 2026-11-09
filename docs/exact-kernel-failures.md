@@ -3754,11 +3754,70 @@ band, whatever its shrunk case became.
 - **Pairs a hair from coincident.** The boolean declines `Unverified`, by
   `assembly.rs::verified`, on pairs nearly on each other (352000000015043,
   353000000011653, 354000000005984, 354000000012842, 354000000017912). With
-  a third wall crossing, faces of the pair are left uncut: built on the
-  exact kernel, open there or declined `Undrawn` through the body
-  (352000000009612, 352000000010441, 352000000012683, 352000000014009,
-  352000000005489, 354000000007504; beside a cone 352000000002266,
-  353000000005193, 353000000005461, 353000000008193, 353000000014733,
-  354000000002444, 354000000006300) — on #756. Every one of those
-  thirteen shrank to a case `main` fails, most to two walls exactly
-  parallel a hair apart.
+  a third wall crossing, faces are left uncut: built on the exact kernel,
+  open there or declined `Undrawn` through the body (352000000009612,
+  352000000010441, 352000000012683, 352000000014009, 352000000005489,
+  354000000007504; beside a cone 352000000002266, 353000000005193,
+  353000000005461, 353000000008193, 353000000014733, 354000000002444,
+  354000000006300) — on #756. Every one of those thirteen shrank to a case
+  `main` fails, most to two walls exactly parallel a hair apart. For
+  353000000005193, 353000000005461, 353000000008193, 353000000014733 and
+  354000000002444, and for 354000000012842 shrunk, the face left uncut is
+  not the pair's but the third leaf's cone: #810 answers 353000000008193
+  and 354000000012842, and cuts the cone face of the four others, whose
+  pair's two walls still cross — on #811.
+
+## #810: a cone face between two edges a hair apart
+
+Part of #755. Where a cone cuts two walls a hair apart — a shaft and a bore
+exactly parallel, or a block's face and a bore tangent to it — its face is
+bounded by two edges a hair apart, each sampled on its own angles: the
+cone's grid, and the grid, rays and chord splits of the wall on its other
+side. A place one has and the other lacks stood beyond the other's chord,
+the two chords crossed in the cone's `(θ, l)`, and the face was left uncut.
+`sampling/rulings.rs` now gives an edge a place on the ruling through a
+place of the other edge that stands beyond its chord, within twice the
+tolerance of it, so that the two keep their order on every ruling either
+ends on.
+
+**How it was measured.** The walls draws on `main` (64942750) and on #810's
+tip (e8849249) on exactly the same cases: three sets of seeds, from
+352000000000000, 353000000000000 and 354000000000000, each of 5 887 cases
+on the exact kernel and 18 015 through the body at the default patience;
+and the turned set from 533300000, 20 000 cases on the exact kernel and
+40 000 through the body at a patience of 300. Compared seed by seed.
+
+| Set | Exact, `main` | Exact, #810 | Body, `main` | Body, #810 |
+| --- | --- | --- | --- | --- |
+| walls 352… | 52 (8.8 ‰) | 49 (8.3 ‰) | 101 (5.6 ‰) | 96 (5.3 ‰) |
+| walls 353… | 31 (5.3 ‰) | 29 (4.9 ‰) | 98 (5.4 ‰) | 90 (5.0 ‰) |
+| walls 354… | 41 (7.0 ‰) | 40 (6.8 ‰) | 96 (5.3 ‰) | 93 (5.2 ‰) |
+| turned 533300000… | 22 (1.1 ‰) | 22 (1.1 ‰) | 42 (1.05 ‰) | 42 (1.05 ‰) |
+
+The walls draws go from 419 failures to 397: 22 gains, no regression. The
+turned set fails on the same seeds by the same rules. The pass as first
+committed (c2115bb3), before the review added the snap onto a vertex and
+the boxes, gave the same seeds and the same rules exactly.
+
+**Gains.** On the exact kernel, `Closed` on `main`: 352000000002328,
+352000000004524, 352000000005123, 353000000001868, 353000000004860,
+354000000001835. Through the body, `Answers` on `main`: 352000000002328,
+352000000005123, 352000000007126, 352000000010883, 352000000013384,
+353000000004860, 353000000005953, 353000000008511, 353000000009403,
+353000000010221, 353000000012300, 353000000014950, 353000000017959,
+354000000001835, 354000000013220, 354000000014170. Every shrunk case
+holds a cone but 353000000009403's.
+
+**Four rule shifts, on #811.** 352000000000867 on the exact kernel and
+352000000001195 on the exact kernel go from `Closed` to `Uncrossed`;
+352000000001195 and 353000000016959 through the body go from `Answers` to
+`Uncrossed`. The two exact ones already cross on `main`, where `Closed` is
+read first. Through the body `main` declines them; #810 draws the body,
+and the two walls a hair apart cross — the flaw #811 carries, the pair's
+two meets with the cone sampled at angles a hair apart.
+
+Of the six seeds #810 was opened on, 353000000008193 and 354000000012842
+hold. 353000000005193, 353000000005461, 353000000014733 and
+354000000002444 have their cone face cut, and fail on the pair's walls
+crossing, on the exact kernel, and 353000000014733 through the body too:
+their pins wait on #811.

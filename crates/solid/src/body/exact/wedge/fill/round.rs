@@ -40,17 +40,20 @@ fn long_edges((outline, frame, travel): &Prism, past: DVec3) -> (Vec<[DVec3; 2]>
 /// its long edges, running on `past`, leave it, raised along the axis over a
 /// section square to it: the rectangle round the long edges, from a line
 /// across them where every one that meets the cylinder stands inside it —
-/// clear short of where the first leaves it, or halfway across where they
-/// all stand inside it over less than that — to clear past their ends, less
-/// the cylinder's disc. An edge that misses the cylinder is cut where the
-/// rectangle starts: inside the matter where it lies outside the round, as
-/// the margin sunk into a slot's wall does, and otherwise leaving a face of
-/// the fill standing past the round, which the fill's own check finds
-/// stray. Declined `Unsupported` where no edge meets the cylinder, where no
-/// line across stands inside it on every one that does, where one leaves it
-/// past the prism's end, where that line misses an edge between the prism's
-/// ends, and where the disc does not cross the rectangle's rim twice; a
-/// solid the kernel cannot raise, as the raise says.
+/// clear short of where the first leaves it, or the plane through the axis
+/// where that is nearer: each edge runs along `past` at one distance aside
+/// from the axis, so it crosses the disc evenly about that plane — to clear
+/// past their ends, less the cylinder's disc. An edge that misses the
+/// cylinder is cut where the rectangle starts: inside the matter where it
+/// lies outside the round, as the margin sunk into a slot's wall does, and
+/// otherwise leaving a face of the fill standing past the round, which the
+/// fill's own check finds stray. Declined `Unsupported` where no edge meets
+/// the cylinder, where one leaves it past the prism's end, where the line
+/// the rectangle starts on misses an edge between the prism's ends — the
+/// prism's own back standing past it, behind a rib shorter than its round
+/// end bows back across the fill — and where the disc does not cross the
+/// rectangle's rim twice; a solid the kernel cannot raise, as the raise
+/// says.
 pub(super) fn outside_cylinder(
     prism: &Prism,
     cylinder: &Cylinder,
@@ -65,21 +68,20 @@ pub(super) fn outside_cylinder(
     };
     let (edges, clear) = long_edges(prism, past);
     let lines: Vec<[DVec3; 2]> = edges.iter().map(|edge| edge.map(read)).collect();
-    let (mut entering, mut leaving) = (f64::NEG_INFINITY, f64::INFINITY);
+    let mut leaving = f64::INFINITY;
     for [_, far] in &lines {
         let half = (radius * radius - far.y * far.y).sqrt();
         if half > 0.0 {
             if half >= far.x {
                 return Err(Declined::Unsupported);
             }
-            entering = entering.max(-half);
             leaving = leaving.min(half);
         }
     }
-    if !(leaving.is_finite() && entering < leaving) {
+    if !leaving.is_finite() {
         return Err(Declined::Unsupported);
     }
-    let start = (leaving - clear).max((entering + leaving) / 2.0);
+    let start = (leaving - clear).max(0.0);
     let (mut low, mut high) = (f64::INFINITY, f64::NEG_INFINITY);
     let (mut side, mut end) = ([f64::INFINITY, f64::NEG_INFINITY], f64::NEG_INFINITY);
     for [near, far] in &lines {

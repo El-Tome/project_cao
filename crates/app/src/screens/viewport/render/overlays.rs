@@ -90,6 +90,7 @@ pub(crate) fn paint_face_labels(
             painter.add(name);
         }
     }
+    super::triad::paint(&painter, state, cube_rect, preferred);
 }
 
 /// The marks of the rules, written beside what they hold.

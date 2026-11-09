@@ -747,3 +747,53 @@ fn the_origin_view_of_a_part_with_no_volume_is_the_camera_a_new_part_opens_with(
         );
     }
 }
+
+#[test]
+fn the_cube_keeps_its_corner_size_and_margin_settings() {
+    let view = egui::Rect::from_min_size(egui::pos2(200.0, 100.0), egui::vec2(1000.0, 600.0));
+
+    for (size, margin) in [(96.0, 12.0), (160.0, 30.0), (80.0, 4.0)] {
+        for (cube_corner, wanted) in [
+            (
+                ViewportCorner::TopLeft,
+                egui::pos2(view.min.x + margin, view.min.y + margin),
+            ),
+            (
+                ViewportCorner::TopRight,
+                egui::pos2(view.max.x - margin - size, view.min.y + margin),
+            ),
+            (
+                ViewportCorner::BottomLeft,
+                egui::pos2(view.min.x + margin, view.max.y - margin - size),
+            ),
+            (
+                ViewportCorner::BottomRight,
+                egui::pos2(
+                    view.max.x - margin - size,
+                    view.max.y - margin - size - BAR_TOP,
+                ),
+            ),
+        ] {
+            let config = ViewportConfig {
+                cube_corner,
+                cube_size: size,
+                cube_margin: margin,
+                ..ViewportConfig::default()
+            };
+
+            let cube = cube_rect(view, &config);
+
+            assert!(
+                (cube.min - wanted).length() < 1e-3,
+                "a cube {size} wide set {margin} in at {cube_corner:?} stands at {:?}, not \
+                 {wanted:?}",
+                cube.min,
+            );
+            assert!(
+                (cube.size() - egui::Vec2::splat(size)).length() < 1e-3,
+                "a cube set {size} wide at {cube_corner:?} is {:?}",
+                cube.size(),
+            );
+        }
+    }
+}

@@ -116,30 +116,11 @@ fn fitting_font_size(
 /// Room left between the fitted text and the face's own edge.
 const FIT_MARGIN: f32 = 0.85;
 
-/// The largest `t` for which a rectangle of half-extents `t * corner`,
-/// centred where `a` and `b` meet, stays inside the parallelogram spanned by
-/// `a` and `b` around that same centre.
-///
-/// The parallelogram is `{s*a + t*b : |s| <= 1, |t| <= 1}`, a convex set
-/// centred on the origin, so it holds the rectangle's four corners — the two
-/// points passed in and their negations — exactly when it holds those two:
-/// the rest follow by symmetry and convexity.
+/// The largest `t` for which a rectangle of half-extents `t * corner` stays
+/// inside the axis-aligned square of half-sides `a` and `b`, around the same
+/// centre: a name is sized in its face's own square.
 fn inscribed_scale(a: egui::Vec2, b: egui::Vec2, corner: egui::Vec2) -> f32 {
-    let determinant = a.x * b.y - a.y * b.x;
-    if determinant.abs() < 1e-6 {
-        return 0.0;
-    }
-    let scale_to_edge = |point: egui::Vec2| -> f32 {
-        let s = (point.x * b.y - point.y * b.x) / determinant;
-        let t = (a.x * point.y - a.y * point.x) / determinant;
-        let reach = s.abs().max(t.abs());
-        if reach < 1e-6 {
-            f32::INFINITY
-        } else {
-            1.0 / reach
-        }
-    };
-    scale_to_edge(corner).min(scale_to_edge(egui::vec2(corner.x, -corner.y)))
+    (a.x / corner.x).min(b.y / corner.y)
 }
 
 #[cfg(test)]

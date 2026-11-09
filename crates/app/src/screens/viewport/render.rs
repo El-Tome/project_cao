@@ -31,6 +31,7 @@ mod preview;
 mod reading;
 mod section_panel;
 mod symmetric_line;
+mod triad;
 mod trim;
 
 pub(crate) use copy_panel::paint_copy_panel;

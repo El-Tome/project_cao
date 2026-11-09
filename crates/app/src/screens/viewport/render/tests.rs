@@ -2755,3 +2755,43 @@ fn a_hovered_zone_keeps_its_hover_colour_on_the_lit_face() {
         }
     }
 }
+
+#[test]
+fn hovering_a_zone_of_the_cube_still_lights_it() {
+    let plain = a_frame(|_| {});
+    let untouched = the_cube_by_place(&plain);
+
+    for (zone, its_faces) in [
+        (CubeZone::Face(CubeFace::PlusZ), vec![CubeFace::PlusZ]),
+        (
+            CubeZone::edge(CubeFace::PlusZ, CubeFace::PlusX),
+            vec![CubeFace::PlusZ, CubeFace::PlusX],
+        ),
+        (
+            CubeZone::corner(CubeFace::PlusX, CubeFace::MinusY, CubeFace::PlusZ),
+            vec![CubeFace::PlusX, CubeFace::MinusY, CubeFace::PlusZ],
+        ),
+    ] {
+        let hovered = a_frame(|state| state.hovered_zone = Some(zone));
+
+        for face in CubeFace::ALL {
+            let changes = colours_on(&hovered, face) != colours_on(&plain, face);
+            assert_eq!(
+                changes,
+                its_faces.contains(&face),
+                "with {zone:?} under the cursor, {face:?} changes colour: {changes}",
+            );
+        }
+        let drawn = the_cube_by_place(&hovered);
+        let hover_colours: Vec<[f32; 4]> = drawn
+            .iter()
+            .filter(|(place, colour)| untouched[*place] != **colour)
+            .map(|(_, colour)| *colour)
+            .collect();
+        assert!(
+            !hover_colours.is_empty() && hover_colours.windows(2).all(|two| two[0] == two[1]),
+            "with {zone:?} under the cursor, the tiles it lights are drawn in {hover_colours:?}, \
+             not in one hover colour",
+        );
+    }
+}

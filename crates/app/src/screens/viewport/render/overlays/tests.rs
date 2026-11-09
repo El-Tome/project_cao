@@ -64,6 +64,7 @@ use std::sync::Arc;
 use super::*;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{SketchEditor, SketchPhase, Tool};
+use crate::screens::viewport::ViewMode;
 
 const SCREEN: egui::Rect = egui::Rect {
     min: egui::Pos2::ZERO,
@@ -1052,4 +1053,181 @@ fn a_name_lying_on_its_face_never_leaves_it() {
             }
         }
     }
+}
+
+const THE_AXIS_X: Rgba = Rgba::opaque(0.90, 0.10, 0.20);
+const THE_AXIS_Y: Rgba = Rgba::opaque(0.10, 0.80, 0.30);
+const THE_AXIS_Z: Rgba = Rgba::opaque(0.15, 0.25, 0.95);
+
+/// How far a letter's middle may stand from the end of its line.
+const AT_THE_TIP: f32 = 16.0;
+
+/// The views the triad is read from, one of them square down the Z axis.
+const TRIAD_VIEWS: [(f32, f32); 4] = [
+    (OPENING_YAW, OPENING_PITCH),
+    (0.6, 0.9),
+    (-2.0, -0.8),
+    (0.3, 1.5),
+];
+
+struct AxisDrawn {
+    from: egui::Pos2,
+    to: egui::Pos2,
+    letter: egui::Rect,
+}
+
+fn a_cube_with_its_axes_painted_apart(
+    yaw: f32,
+    pitch: f32,
+    size: f32,
+    at: egui::Pos2,
+) -> (ViewportState, egui::Rect) {
+    let (mut state, _) = a_cube_seen_from(yaw, pitch, size);
+    state.theme.axis_x = THE_AXIS_X;
+    state.theme.axis_y = THE_AXIS_Y;
+    state.theme.axis_z = THE_AXIS_Z;
+    (
+        state,
+        egui::Rect::from_min_size(at, egui::Vec2::splat(size)),
+    )
+}
+
+/// The triad as painted: for each axis, the line drawn in its colour and the
+/// letter written in that same colour.
+fn the_triad(state: &ViewportState, rect: egui::Rect) -> [AxisDrawn; 3] {
+    let lang = Catalogue::french();
+    let painted = shapes(|ui| paint_face_labels(ui, state, rect, &lang));
+
+    [("X", THE_AXIS_X), ("Y", THE_AXIS_Y), ("Z", THE_AXIS_Z)].map(|(name, colour)| {
+        let colour = tint_to_color(colour);
+        let [from, to] = painted
+            .iter()
+            .find_map(|shape| match shape {
+                egui::Shape::LineSegment { points, stroke } if stroke.color == colour => {
+                    Some(*points)
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| {
+                panic!("no line of the triad is drawn in the colour of axis {name}")
+            });
+        let text = painted
+            .iter()
+            .find_map(|shape| match shape {
+                egui::Shape::Text(text) if text.galley.text() == name => Some(text),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("the line of axis {name} ends on no letter {name}"));
+        assert_eq!(
+            ink(text),
+            colour,
+            "the letter {name} is not written in the colour of its axis",
+        );
+        AxisDrawn {
+            from,
+            to,
+            letter: egui::Shape::Text(text.clone()).visual_bounding_rect(),
+        }
+    })
+}
+
+#[test]
+fn a_triad_stands_in_the_cube_s_corner_in_the_axis_colours() {
+    for size in [80.0, 96.0, 160.0] {
+        for at in [egui::pos2(40.0, 40.0), egui::pos2(900.0, 500.0)] {
+            for (yaw, pitch) in TRIAD_VIEWS {
+                for mode in [ViewMode::Free, ViewMode::Plane(WorkPlane::XY)] {
+                    let (mut state, rect) =
+                        a_cube_with_its_axes_painted_apart(yaw, pitch, size, at);
+                    state.mode = mode;
+                    let seen =
+                        format!("a cube {size} wide at {at:?}, yaw {yaw}, pitch {pitch}, {mode:?}");
+
+                    let triad = the_triad(&state, rect);
+
+                    let origin = triad[0].from;
+                    let off_a_corner = [
+                        rect.left_top(),
+                        rect.right_top(),
+                        rect.left_bottom(),
+                        rect.right_bottom(),
+                    ]
+                    .into_iter()
+                    .map(|corner| (corner - origin).length())
+                    .fold(f32::INFINITY, f32::min);
+                    assert!(
+                        off_a_corner <= 0.4 * size,
+                        "{seen}: the triad stands at {origin:?}, {off_a_corner} from the nearest \
+                         corner of the cube's square {rect:?}",
+                    );
+                    for axis in &triad {
+                        assert!(
+                            (axis.from - origin).length() <= 0.5,
+                            "{seen}: the triad's lines do not start from one point",
+                        );
+                        assert!(
+                            (axis.to - axis.from).length() <= 0.35 * size,
+                            "{seen}: a line of the triad is {} long, not a short line on a cube \
+                             {size} wide",
+                            (axis.to - axis.from).length(),
+                        );
+                        assert!(
+                            rect.contains(axis.from) && rect.contains(axis.to),
+                            "{seen}: a line of the triad leaves the cube's square {rect:?}",
+                        );
+                        assert!(
+                            (axis.letter.center() - axis.to).length() <= AT_THE_TIP,
+                            "{seen}: a letter stands {} from the end of its line",
+                            (axis.letter.center() - axis.to).length(),
+                        );
+                        assert!(
+                            rect.contains_rect(axis.letter),
+                            "{seen}: the letter at {:?} leaves the cube's square {rect:?}",
+                            axis.letter,
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn the_triad_turns_with_the_camera() {
+    for (yaw, pitch) in TRIAD_VIEWS {
+        let (state, rect) =
+            a_cube_with_its_axes_painted_apart(yaw, pitch, ROOMY_CUBE, egui::pos2(40.0, 40.0));
+        let camera = &state.camera;
+
+        let triad = the_triad(&state, rect);
+
+        let projected = [Vec3::X, Vec3::Y, Vec3::Z]
+            .map(|axis| egui::vec2(camera.right().dot(axis), -camera.up().dot(axis)));
+        let drawn = [0, 1, 2].map(|index| triad[index].to - triad[index].from);
+        let scale = drawn.iter().map(|line| line.length()).fold(0.0, f32::max)
+            / projected
+                .iter()
+                .map(|line| line.length())
+                .fold(0.0, f32::max);
+        for ((line, wanted), name) in drawn.into_iter().zip(projected).zip(["X", "Y", "Z"]) {
+            assert!(
+                (line - wanted * scale).length() <= 1.0,
+                "from yaw {yaw}, pitch {pitch}, the line of axis {name} runs {line:?}, and \
+                 its world axis projects to {:?} at the triad's scale",
+                wanted * scale,
+            );
+        }
+    }
+
+    let (state, rect) =
+        a_cube_with_its_axes_painted_apart(0.3, 1.5, ROOMY_CUBE, egui::pos2(40.0, 40.0));
+    let triad = the_triad(&state, rect);
+    let length = |axis: &AxisDrawn| (axis.to - axis.from).length();
+    let longest = triad.iter().map(length).fold(0.0, f32::max);
+    assert!(
+        longest > 0.0 && length(&triad[2]) < longest * 0.25,
+        "looking down the Z axis, its line is {} long and the longest {longest}: an axis seen \
+         end-on is short",
+        length(&triad[2]),
+    );
 }

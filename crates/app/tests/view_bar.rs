@@ -188,8 +188,10 @@
 //! - Clicking a face, an edge or a corner turns the camera as today; hovering
 //!   lights it: the clicking half —
 //!   `clicking_a_face_an_edge_or_a_corner_of_the_cube_still_turns_the_camera`;
-//!   the hovering half in `crates/app/src/screens/viewport/render/tests.rs`,
-//!   under its own block
+//!   hovering a face, as far as a driver can see it, writes that face's name in
+//!   its title colour — `hovering_a_face_of_the_cube_still_lights_its_name`;
+//!   the tiles the hover lights in
+//!   `crates/app/src/screens/viewport/render/tests.rs`, under its own block
 
 mod driver;
 
@@ -1131,7 +1133,10 @@ fn a_part_with_the_cube(test: &str, corner: ViewportCorner, size: f32, margin: f
 /// Which way each axis of the world runs across the screen through the middle
 /// of the block, as a unit direction.
 fn the_axes_on_screen(app: &driver::App) -> [(DVec3, egui::Vec2); 3] {
-    let middle = the_block_s_middle();
+    the_axes_through(app, the_block_s_middle())
+}
+
+fn the_axes_through(app: &driver::App, middle: DVec3) -> [(DVec3, egui::Vec2); 3] {
     [DVec3::X, DVec3::Y, DVec3::Z].map(|axis| {
         let along = of_the_world(app, middle + axis) - of_the_world(app, middle);
         (axis, along.normalized())
@@ -1335,4 +1340,131 @@ fn the_origin_view_button_goes_above_a_cube_in_a_bottom_corner() {
             "{seen}: the button at {button:?} lies across the view bar at {bar:?}",
         );
     }
+}
+
+/// Where in the cube's square, from -1 to 1 with y up, the opening view shows
+/// a zone of this kind, well inside it: the points around it aim at it too.
+fn a_point_aiming_at(
+    kind: fn(&cao_render::CubeZone) -> bool,
+) -> (glam::Vec2, cao_render::CubeZone) {
+    let aimed_at = |at: glam::Vec2| {
+        cao_render::cube::pick_zone(cao_render::OrbitCamera::default().rotation(), at)
+    };
+    let step = 0.04;
+    (-20..=20)
+        .flat_map(|x| (-20..=20).map(move |y| glam::Vec2::new(x as f32, y as f32) * step))
+        .find_map(|at| {
+            let zone = aimed_at(at)?;
+            let all_around = [
+                glam::Vec2::X,
+                glam::Vec2::NEG_X,
+                glam::Vec2::Y,
+                glam::Vec2::NEG_Y,
+            ]
+            .into_iter()
+            .all(|side| aimed_at(at + side * step) == Some(zone));
+            (kind(&zone) && all_around).then_some((at, zone))
+        })
+        .expect("the opening view shows a zone of every kind")
+}
+
+fn in_the_cube(cube: egui::Rect, at: glam::Vec2) -> egui::Pos2 {
+    cube.center() + egui::vec2(at.x * cube.width() * 0.5, -at.y * cube.height() * 0.5)
+}
+
+/// Which way each axis of the world runs across the screen for this camera.
+fn the_axes_of(camera: &cao_render::OrbitCamera) -> [(DVec3, egui::Vec2); 3] {
+    [DVec3::X, DVec3::Y, DVec3::Z].map(|axis| {
+        let on = axis.as_vec3();
+        let along = egui::vec2(camera.right().dot(on), -camera.up().dot(on));
+        (axis, along)
+    })
+}
+
+#[test]
+fn clicking_a_face_an_edge_or_a_corner_of_the_cube_still_turns_the_camera() {
+    use cao_render::CubeZone;
+
+    for (name, kind) in [
+        (
+            "face",
+            (|zone| matches!(zone, CubeZone::Face(_))) as fn(&CubeZone) -> bool,
+        ),
+        ("edge", |zone| matches!(zone, CubeZone::Edge(_))),
+        ("corner", |zone| matches!(zone, CubeZone::Corner(_))),
+    ] {
+        let mut app = a_part_with(
+            &format!("clicking_a_{name}_of_the_cube_still_turns_the_camera"),
+            ViewportCorner::BottomLeft,
+            ViewportCorner::TopRight,
+        );
+        let (at, zone) = a_point_aiming_at(kind);
+        let mut turned = cao_render::OrbitCamera::default();
+        let mut turn = cao_render::ViewTransition::to_zone(&turned, zone);
+        while turn.advance(&mut turned, 0.1) {}
+
+        let aim = in_the_cube(the_cube(&app), at);
+        driver::click_at(&mut app, aim);
+
+        for ((axis, drawn), (_, wanted)) in the_axes_through(&app, DVec3::ZERO)
+            .into_iter()
+            .zip(the_axes_of(&turned))
+        {
+            if wanted.length() < 0.25 {
+                continue;
+            }
+            assert!(
+                (drawn - wanted.normalized()).length() <= ALONG_THE_OPENING_AXIS,
+                "after a click on the {name} {zone:?}, the axis {axis:?} runs {drawn:?} across \
+                 the screen, and that zone's view runs it {:?}",
+                wanted.normalized(),
+            );
+        }
+    }
+}
+
+/// How many names of the cube the last frame painted in this ink.
+fn names_inked(app: &driver::App, wanted: egui::Color32) -> usize {
+    painted(app)
+        .into_iter()
+        .filter(|(shape, clip)| match shape {
+            egui::Shape::Mesh(mesh) => {
+                mesh.texture_id == egui::TextureId::default()
+                    && (clip.width() - clip.height()).abs() < 0.5
+                    && mesh
+                        .vertices
+                        .first()
+                        .is_some_and(|vertex| vertex.color == wanted)
+            }
+            _ => false,
+        })
+        .count()
+}
+
+#[test]
+fn hovering_a_face_of_the_cube_still_lights_its_name() {
+    use cao_render::CubeZone;
+
+    let mut app = a_part_with(
+        "hovering_a_face_of_the_cube_still_lights_its_name",
+        ViewportCorner::BottomLeft,
+        ViewportCorner::TopRight,
+    );
+    assert_eq!(
+        names_inked(&app, tokens::TEXT_TITLE),
+        0,
+        "with nothing under the cursor, a name of the cube is already lit",
+    );
+    let (at, _) = a_point_aiming_at(|zone| matches!(zone, CubeZone::Face(_)));
+
+    let aim = in_the_cube(the_cube(&app), at);
+    app.hover_at(aim);
+    app.run();
+
+    assert_eq!(
+        names_inked(&app, tokens::TEXT_TITLE),
+        1,
+        "with one face of the cube under the cursor, one name should be written in its \
+         title colour",
+    );
 }

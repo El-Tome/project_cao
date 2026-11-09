@@ -325,7 +325,24 @@ It can:
   over what of the prism stands past it, an eighth of the section's reach
   clear of it, is cut from the prism, so the fill ends on the plane wherever
   it crosses it — on an L cut down to a leaning top, higher on one wall than
-  on the other. The trimmed prism is joined to the body. Its ends merge into
+  on the other. Where that face is a cylinder or a cone (#788), the solid cut
+  from the prism is bounded by the round itself and starts where the prism's
+  long edges leave it, so the fill ends on the round. A result carries the
+  larger reach of its operands, and a solid standing out of the part's box
+  would draw every later step coarser. A cylinder's is raised along its
+  axis, the rectangle round the long edges less the cylinder's disc, from a
+  line across them where every one that meets the round stands inside it,
+  and stands no further out than the prism. A cone, which no raise bounds,
+  has a piece turned about its axis from its meridian line out, between
+  planes through the axis turned clear of where the long edges leave it:
+  that piece sweeps the radius of the prism's far end sideways, and may still
+  stand out of the part where the rib stands near its side (#807). The ends
+  so trimmed: a rib's round end bulging out of the matter, or
+  drawn in by draft, and a slot's round end that turns in toward the slot off
+  its wall at a few degrees, which the fill runs on into. The round stays one
+  face and takes in the fill's section. A sphere or a torus end is still
+  declined: the kernel does not meet either with a plane at a slant or a wall
+  of another axis (#805). The trimmed prism is joined to the body. Its ends merge into
   the faces at the edge's ends, which a join would leave answering to the
   numbers of both operands: each face the prism merged into answers to the
   body's numbers alone, so a cap stays the one face it was, its number with
@@ -335,9 +352,11 @@ It can:
   each are joined. The check is the cut's: one new face, in one piece, its
   corners on the edge's two faces, nothing else of the prism left, and no face
   of the body gone but those two. Declined `Unsupported`: an end where no face
-  but the edge's two meets the edge, or several do; one that is not flat — a
-  round end, which the convex steps take, is not filled yet; one facing back
-  along the edge; and one leaning so far that its plane misses the prism's
+  but the edge's two meets the edge, or several do; a flat one facing back
+  along the edge; a round the edge runs into at its end rather than out of,
+  or one that turns away short of the fill's reach, or a cone a long edge of
+  the prism misses — a drafted slot's round end, the margin sunk into its
+  wall passing outside the cone (#807); and one leaning so far that its plane misses the prism's
   long edges between the prism's two ends. Facing back along the edge is what
   the vertical inner corner of a pocket, or of a boss standing on a plate,
   meets at its foot: the pocket's floor or the plate's top faces up the edge,

@@ -76,10 +76,11 @@
 //! bridged from two is filled whole, as #696 and #697 cut it —
 //! `a_chamfer_and_a_fillet_on_the_concave_edge_a_join_bridged_from_two_fill_it_whole`.
 //! An end the kernel cannot build is declined with its reason, `Unsupported`,
-//! by both steps: an end on a round,
-//! `a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_a_round_are_declined_as_unsupported`;
-//! an end on a face turned back along the edge, the foot of an L standing on a
-//! plate, where three concave edges meet — #698 and #699's corner —
+//! by both steps — an end on a curved face is #788's, and
+//! `a_chamfer_and_a_fillet_fill_a_concave_edge_up_to_a_curved_end.rs` speaks
+//! for it: an end on a face turned back along the edge, the foot of an L
+//! standing on a plate, where three concave edges meet — #698 and #699's
+//! corner —
 //! `a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_a_face_turned_back_along_it_are_declined_as_unsupported`;
 //! an end where two faces meet,
 //! `a_chamfer_and_a_fillet_on_a_concave_edge_ending_where_two_faces_meet_are_declined_as_unsupported`;
@@ -2487,39 +2488,6 @@ fn both_declined(part: &Body, [first, second]: [usize; 2], value: f64, what: &st
             "{step} of {value} {what}"
         );
     }
-}
-
-#[test]
-fn a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_a_round_are_declined_as_unsupported() {
-    let rounded_in_front = Contour {
-        corners: vec![
-            DVec2::new(18.0, RIB_ENDS[0]),
-            DVec2::new(RIB_SIDE, RIB_ENDS[0]),
-            DVec2::new(RIB_SIDE, RIB_ENDS[1]),
-            DVec2::new(18.0, RIB_ENDS[1]),
-        ],
-        runs: vec![
-            Run::Round {
-                center: DVec2::new(20.0, 6.0),
-                turn: 2.0 * 2f64.atan(),
-            },
-            Run::Straight,
-            Run::Straight,
-            Run::Straight,
-        ],
-    };
-    let part = on_the_plate(&plate(PLATE), PLATE, rounded_in_front);
-    assert!(
-        part.has_face(RIB_FRONT) && !part.is_flat(RIB_FRONT),
-        "the rib's front is a round, bulging forward from its right side at 27 degrees"
-    );
-
-    both_declined(
-        &part,
-        [TOP, RIB_RIGHT],
-        3.0,
-        "at the foot of a rib whose front, where the foot ends, is a round",
-    );
 }
 
 #[test]

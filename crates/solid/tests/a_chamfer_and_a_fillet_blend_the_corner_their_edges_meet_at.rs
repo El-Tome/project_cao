@@ -31,7 +31,15 @@
 //!   edges at its two ends, two corners, and the twelve edges of the block,
 //!   eight —
 //!   `a_chamfer_and_a_fillet_on_an_upright_and_the_four_edges_at_its_two_ends_close_both_corners_whatever_the_order`,
-//!   `a_chamfer_and_a_fillet_on_the_twelve_edges_of_a_block_close_its_eight_corners_into_one_body_whatever_the_order`
+//!   `a_chamfer_and_a_fillet_on_the_twelve_edges_of_a_block_close_its_eight_corners_into_one_body_whatever_the_order`;
+//!   and two corners that are not square, at both ends of the slanted
+//!   prism's top edge on its end, where the two cuts on either side cross
+//!   that edge apart, not at one point —
+//!   `a_chamfer_and_a_fillet_on_the_edges_at_both_ends_of_an_edge_whose_corners_are_not_square_close_both_whatever_the_order`;
+//!   and edges named before a later join merged the faces at their corner
+//!   with a neighbour's, the names still finding them, mitred or closed in
+//!   any order —
+//!   `a_chamfer_and_a_fillet_on_edges_named_before_a_join_merged_the_faces_at_their_corner_mitre_or_close_it_whatever_the_order`
 //! - The triangle answers to the number after its edges' flats: on a list of
 //!   `n` edges from where the steps' numbers ended at `start`, the flats are
 //!   `start` to `start + n − 1` in the order the list names their edges, as
@@ -51,6 +59,7 @@
 //!   is whole —
 //!   `a_chamfer_and_a_fillet_on_an_upright_and_the_four_edges_at_its_two_ends_close_both_corners_whatever_the_order`,
 //!   `a_chamfer_and_a_fillet_on_the_twelve_edges_of_a_block_close_its_eight_corners_into_one_body_whatever_the_order`,
+//!   `a_chamfer_and_a_fillet_on_the_edges_at_both_ends_of_an_edge_whose_corners_are_not_square_close_both_whatever_the_order`,
 //!   each on lists naming the same edges in different orders
 //! - Decision: the triangle of three chamfers has its corners where the
 //!   chamfer edges cross on each of the three faces; the sphere piece of three
@@ -121,8 +130,13 @@
 //!   sphere is, is verified against the surface it is laid on, so that a
 //!   wrong one is a broken step and never a body read as wrong geometry — no
 //!   test: held beside the code, in `crates/solid/src/brep/assembly/tests.rs`,
-//!   by `a_face_laid_on_a_surface_its_loop_does_not_lie_on_is_unverified` and
-//!   `a_face_laid_again_on_its_own_plane_is_taken`
+//!   by `a_face_laid_on_a_surface_its_loop_does_not_lie_on_is_unverified`,
+//!   `a_face_whose_corners_lie_on_its_surface_but_whose_edges_bow_away_from_it_is_unverified`
+//!   and `a_face_laid_again_on_its_own_plane_is_taken`. The check samples each
+//!   edge a quarter, half and three quarters along; sampled anywhere else on
+//!   the same line or circle it decides the same, three points of either on a
+//!   plane, a sphere, a cylinder or a cone putting the whole of it there, so
+//!   no fixture on those tells where along the edge the samples stand
 //! - Any other corner the kernel cannot blend — no test: a corner of more
 //!   than three edges, of values that differ, or of a curved edge is out of
 //!   the issue's scope, and no list of edges of a block, an L or a pocket
@@ -258,6 +272,25 @@
 //! 5064 and 5572.62, the second the box with every edge and corner rounded,
 //! `(a − 2r)(b − 2r)(c − 2r)` and its six slabs, twelve quarter-cylinders and
 //! eight eighths of a ball, to the last digit.
+//!
+//! The slanted prism's top edge on its end ends at two corners that are not
+//! square: the right side's, `k = 10/√116`, and the left side's, leaning in 1
+//! in 5, `k′ = 10/√104`. Its edges on both, chamfered at `d`, close both
+//! corners each as above, far enough apart not to meet: the end's top edge
+//! alone takes `5d² + 0.1d³`, its two ends leaning out 0.4 and 0.2 a unit of
+//! depth; the two top edges on the sides `15kd²` and `15k′d²`; the two
+//! slanted uprights `5d²/k` and `5d²/k′`; and each corner gives back
+//! `(k + 1/k)d³/3` and `(k′ + 1/k′)d³/3`. The prism keeps 3733.40 at 2, which
+//! the booleans give too; the rounds, by the booleans corner by corner,
+//! 3849.57.
+//!
+//! The block whose top's front and right edges and front's right edge are
+//! named, then joined to a block 10 by 10 by 20 on its left, flush with its
+//! front, top, floor and back, is a block 40 long holding 8000: the top's
+//! front edge 40 long, the corner's other two as they were. Mitred, two
+//! edges keep 8000 less the mitre's loss on their lengths, 7784 and 7906.02
+//! for the top's two edges, 7739 and 7886.70 for the top's front edge and the
+//! front's right edge; closed, the three keep 7703 and 7869.32.
 //!
 //! The block whose floor's front edge was rounded at 3 by an earlier step,
 //! its top's front and right edges then mitred at 3, keeps the block less that
@@ -1551,9 +1584,12 @@ const SLANTED: [DVec2; 4] = [
     DVec2::new(12.0, 10.0),
     DVec2::new(2.0, 10.0),
 ];
+const SLANTED_START: usize = 0;
 const SLANTED_END: usize = 1;
+const SLANTED_BOTTOM: usize = 2;
 const SLANTED_RIGHT: usize = 3;
 const SLANTED_TOP: usize = 4;
+const SLANTED_LEFT: usize = 5;
 
 /// The slanted prism's matter: its section's area along its length.
 const SLANTED_VOLUME: f64 = (16.0 + 10.0) / 2.0 * 10.0 * LENGTH;
@@ -2442,7 +2478,7 @@ fn slanted_trihedral() -> Trihedral {
             "the slanted upright where the side meets the end",
         ],
         length: [10.0, LENGTH, 116f64.sqrt()],
-        far: [5, 0, 2],
+        far: [SLANTED_LEFT, SLANTED_START, SLANTED_BOTTOM],
     }
 }
 
@@ -2537,16 +2573,31 @@ fn triangle_by_booleans(body: &Body, corner: &Trihedral, distance: f64) -> f64 {
 /// third of the radius cubed times the solid angle the three faces' ways
 /// span, given back.
 fn sphere_by_booleans(body: &Body, corner: &Trihedral, radius: f64) -> f64 {
-    let rounded = (0..3).fold(body.clone(), |part, edge| {
-        part.difference(&corner.edge(edge).tool(&part, Cut::Round, radius))
+    spheres_by_booleans(
+        body,
+        &[corner],
+        &[0, 1, 2].map(|edge| corner.edge(edge)),
+        radius,
+    )
+}
+
+/// What a body keeps once `edges` are rounded at `radius` and each of
+/// `corners`, three of them meeting there, closed by a piece of sphere,
+/// computed as [`sphere_by_booleans`] computes one, each corner's cell taken
+/// apart from the others'.
+fn spheres_by_booleans(body: &Body, corners: &[&Trihedral], edges: &[EdgeAt], radius: f64) -> f64 {
+    let rounded = edges.iter().fold(body.clone(), |part, edge| {
+        part.difference(&edge.tool(&part, Cut::Round, radius))
             .expect("a round's prism cuts the body")
     });
-    let centre = corner.centre(radius);
-    let cell = (0..3).fold(rounded.clone(), |part, edge| {
-        part.difference(&beyond(&part, centre, corner.edge(edge).along, 100.0))
-            .expect("a plane through the centre cuts the body")
-    });
-    rounded.volume() - cell.volume() + radius.powi(3) * corner.spread() / 3.0
+    corners.iter().fold(rounded.volume(), |kept, corner| {
+        let centre = corner.centre(radius);
+        let cell = (0..3).fold(rounded.clone(), |part, edge| {
+            part.difference(&beyond(&part, centre, corner.edge(edge).along, 100.0))
+                .expect("a plane through the centre cuts the body")
+        });
+        kept - cell.volume() + radius.powi(3) * corner.spread() / 3.0
+    })
 }
 
 /// What the slanted prism keeps once the three edges at [`SLANTED_CORNER`]
@@ -2987,25 +3038,28 @@ fn a_fillet_on_the_three_edges_of_a_corner_where_no_two_edges_are_square_is_a_br
     }
 }
 
-/// A corner of the block 30 by 10 by 20: where it stands, and its three
-/// faces — the one square to X, the one square to Y and the one square to Z —
-/// with the ways they face.
-struct BlockCorner {
-    at: DVec3,
-    faces: [usize; 3],
-    outward: [DVec3; 3],
-}
-
-/// The block's eight corners.
-fn block_corners() -> Vec<BlockCorner> {
+/// The block's eight corners, each with its faces square to X, to Y and to
+/// Z: across from them its edges along X, along Y and along Z.
+fn block_corners() -> Vec<Trihedral> {
     let mut corners = Vec::new();
-    for (x, x_face, x_way) in [(0.0, LEFT, -DVec3::X), (LENGTH, RIGHT, DVec3::X)] {
-        for (y, y_face, y_way) in [(0.0, FRONT, -DVec3::Y), (BREADTH, BACK, DVec3::Y)] {
-            for (z, z_face, z_way) in [(0.0, FLOOR, -DVec3::Z), (HEIGHT, TOP, DVec3::Z)] {
-                corners.push(BlockCorner {
+    for (x, x_face, x_far, x_way) in [
+        (0.0, LEFT, RIGHT, -DVec3::X),
+        (LENGTH, RIGHT, LEFT, DVec3::X),
+    ] {
+        for (y, y_face, y_far, y_way) in [
+            (0.0, FRONT, BACK, -DVec3::Y),
+            (BREADTH, BACK, FRONT, DVec3::Y),
+        ] {
+            for (z, z_face, z_far, z_way) in
+                [(0.0, FLOOR, TOP, -DVec3::Z), (HEIGHT, TOP, FLOOR, DVec3::Z)]
+            {
+                corners.push(Trihedral {
                     at: DVec3::new(x, y, z),
                     faces: [x_face, y_face, z_face],
                     outward: [x_way, y_way, z_way],
+                    called: ["its edge along X", "its edge along Y", "its edge along Z"],
+                    length: [LENGTH, BREADTH, HEIGHT],
+                    far: [x_far, y_far, z_far],
                 });
             }
         }
@@ -3018,24 +3072,20 @@ fn sorted([one, other]: [usize; 2]) -> [usize; 2] {
     [one.min(other), one.max(other)]
 }
 
-impl BlockCorner {
-    /// The corner's three edges, each as the two faces it lies between: along
-    /// X, along Y, along Z.
-    fn edges(&self) -> [[usize; 2]; 3] {
-        let [x, y, z] = self.faces;
-        [sorted([y, z]), sorted([x, z]), sorted([x, y])]
-    }
-}
-
-/// The corners three edges of `list` meet at, each with the ranks of its
-/// three edges in the list, from the lowest: in the order a step numbers the
-/// patches closing them, by the lowest rank, then the next.
-fn closed_corners(list: &[[usize; 2]]) -> Vec<(BlockCorner, [usize; 3])> {
+/// The corners among `corners` three edges of `list` meet at, each with the
+/// ranks of its three edges in the list, from the lowest: in the order a step
+/// numbers the patches closing them, by the lowest rank, then the next.
+fn closed_corners<'a>(
+    list: &[[usize; 2]],
+    corners: &'a [Trihedral],
+) -> Vec<(&'a Trihedral, [usize; 3])> {
     let rank = |edge: [usize; 2]| list.iter().position(|&named| sorted(named) == edge);
-    let mut closed: Vec<(BlockCorner, [usize; 3])> = block_corners()
-        .into_iter()
+    let mut closed: Vec<(&Trihedral, [usize; 3])> = corners
+        .iter()
         .filter_map(|corner| {
-            let [Some(one), Some(two), Some(three)] = corner.edges().map(rank) else {
+            let [Some(one), Some(two), Some(three)] =
+                [0, 1, 2].map(|edge| rank(sorted(corner.edge(edge).faces)))
+            else {
                 return None;
             };
             let mut ranks = [one, two, three];
@@ -3063,18 +3113,21 @@ fn rounded_box(cut: Cut, along: f64, closed: f64, value: f64) -> f64 {
 }
 
 /// Holds that a chamfer at `value`, and a fillet, on the edges each of
-/// `lists` names on the block 30 by 10 by 20 — the same edges, `along` long
-/// summed, in different orders — close every corner three of them meet at,
-/// leave the body arithmetic promises, number each corner's patch after the
-/// edges' faces by the lowest ranks of its edges in the list, and leave the
-/// same body whatever the order, face for face.
+/// `lists` names on `part` — the same edges, `along` long summed, in
+/// different orders — close every one of `corners` three of them meet at,
+/// leave what `kept` promises for the cut and the corners closed, number each
+/// corner's patch after the edges' faces by the lowest ranks of its edges in
+/// the list, and leave the same body whatever the order, face for face.
 fn closes_its_corners_whatever_the_order(
+    part: &Body,
+    corners: &[Trihedral],
     lists: &[Vec<[usize; 2]>],
     along: f64,
     value: f64,
+    kept: impl Fn(Cut, usize) -> f64,
     called: &str,
 ) {
-    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let block = part;
     let start = block.faces_end();
     for cut in [Cut::Flat, Cut::Round] {
         let kind = match cut {
@@ -3086,7 +3139,7 @@ fn closes_its_corners_whatever_the_order(
             .map(|list| {
                 let names: Vec<EdgeName> = list
                     .iter()
-                    .map(|&[one, other]| edge_between(&block, one, other))
+                    .map(|&[one, other]| edge_between(block, one, other))
                     .collect();
                 match cut {
                     Cut::Flat => block
@@ -3115,20 +3168,20 @@ fn closes_its_corners_whatever_the_order(
         let bodies: Vec<Body> = laid.into_iter().flatten().collect();
         for (list, body) in lists.iter().zip(&bodies) {
             let what = format!("the {kind} on {called}, named {list:?}");
-            let closed = closed_corners(list);
-            let promised = rounded_box(cut, along, closed.len() as f64, value);
+            let closed = closed_corners(list, corners);
+            let promised = kept(cut, closed.len());
             let drawn = match cut {
                 Cut::Flat => EXACT * promised,
                 Cut::Round => {
                     DRAWN
-                        * reach_of(&block)
+                        * reach_of(block)
                         * (PI / 2.0 * value * (along + value * closed.len() as f64))
                 }
             };
             sound_drawn_within(body, promised, drawn, &what);
             let laid_end = start + list.len() + closed.len();
             assert_eq!(
-                faces_made(&block, body),
+                faces_made(block, body),
                 (start..laid_end).collect::<Vec<_>>(),
                 "{what}: one face for each edge, by its rank in the list, then one patch for \
                  each corner closed"
@@ -3146,16 +3199,15 @@ fn closes_its_corners_whatever_the_order(
                     corner.at,
                     index + 1
                 );
-                let [x, y, z] = corner.outward.map(|way| -way * value);
                 match cut {
                     Cut::Flat => corners_are(
                         body,
                         patch,
-                        &[corner.at + x + y, corner.at + y + z, corner.at + x + z],
+                        &[0, 1, 2].map(|face| corner.crossing(face, value)),
                         &format!("{which}, a triangle where the flats' edges cross"),
                     ),
                     Cut::Round => {
-                        let centre = corner.at + x + y + z;
+                        let centre = corner.centre(value);
                         let drawn: Vec<DVec3> = body.triangles_of(patch).flatten().collect();
                         assert!(!drawn.is_empty(), "{which} is drawn");
                         for point in drawn {
@@ -3175,12 +3227,12 @@ fn closes_its_corners_whatever_the_order(
             }
         }
         let (first_list, first) = (&lists[0], &bodies[0]);
-        let first_closed = closed_corners(first_list);
+        let first_closed = closed_corners(first_list, corners);
         for (list, body) in lists.iter().zip(&bodies).skip(1) {
             let what = format!(
                 "the {kind} on {called}, named {list:?}, against the same named {first_list:?}"
             );
-            let closed = closed_corners(list);
+            let closed = closed_corners(list, corners);
             let to_this = |number: usize| -> usize {
                 if number < start {
                     return number;
@@ -3239,6 +3291,8 @@ const BACK_LEFT: [usize; 2] = [BACK, LEFT];
 fn a_chamfer_and_a_fillet_on_an_upright_and_the_four_edges_at_its_two_ends_close_both_corners_whatever_the_order()
  {
     closes_its_corners_whatever_the_order(
+        &block([LENGTH, BREADTH, HEIGHT]),
+        &block_corners(),
         &[
             vec![TOP_FRONT, TOP_RIGHT, FLOOR_FRONT, FLOOR_RIGHT, FRONT_RIGHT],
             vec![TOP_FRONT, FRONT_RIGHT, TOP_RIGHT, FLOOR_FRONT, FLOOR_RIGHT],
@@ -3246,6 +3300,14 @@ fn a_chamfer_and_a_fillet_on_an_upright_and_the_four_edges_at_its_two_ends_close
         ],
         2.0 * LENGTH + 2.0 * BREADTH + HEIGHT,
         3.0,
+        |cut, closed| {
+            rounded_box(
+                cut,
+                2.0 * LENGTH + 2.0 * BREADTH + HEIGHT,
+                closed as f64,
+                3.0,
+            )
+        },
         "the front right upright and the four edges at its two ends",
     );
 }
@@ -3254,6 +3316,8 @@ fn a_chamfer_and_a_fillet_on_an_upright_and_the_four_edges_at_its_two_ends_close
 fn a_chamfer_and_a_fillet_on_the_twelve_edges_of_a_block_close_its_eight_corners_into_one_body_whatever_the_order()
  {
     closes_its_corners_whatever_the_order(
+        &block([LENGTH, BREADTH, HEIGHT]),
+        &block_corners(),
         &[
             vec![
                 TOP_FRONT,
@@ -3286,6 +3350,7 @@ fn a_chamfer_and_a_fillet_on_the_twelve_edges_of_a_block_close_its_eight_corners
         ],
         4.0 * (LENGTH + BREADTH + HEIGHT),
         3.0,
+        |cut, closed| rounded_box(cut, 4.0 * (LENGTH + BREADTH + HEIGHT), closed as f64, 3.0),
         "the twelve edges of the block",
     );
 }
@@ -3386,6 +3451,190 @@ fn a_chamfer_and_a_fillet_mitre_two_edges_whose_corner_s_uncut_edge_runs_into_an
                 "{what}: the front, from the earlier round up to the cut, its right edge ending \
                  one value short of the corner"
             ),
+        );
+    }
+}
+
+/// The slanted prism's corner where its end, its top and its left side
+/// meet, at (30, 2, 10): across from those faces the top's edge on the end,
+/// running to the right side, the top's edge on the left side, and the
+/// slanted upright where the left side meets the end.
+fn left_slanted_trihedral() -> Trihedral {
+    Trihedral {
+        at: DVec3::new(LENGTH, 2.0, 10.0),
+        faces: [SLANTED_LEFT, SLANTED_END, SLANTED_TOP],
+        outward: [DVec3::new(0.0, -10.0, 2.0).normalize(), DVec3::X, DVec3::Z],
+        called: [
+            "the top's edge on the end",
+            "the top's edge on the left side",
+            "the slanted upright where the left side meets the end",
+        ],
+        length: [10.0, LENGTH, 104f64.sqrt()],
+        far: [SLANTED_RIGHT, SLANTED_START, SLANTED_BOTTOM],
+    }
+}
+
+/// What the slanted prism keeps once its end's top edge and the two edges at
+/// each of its ends are chamfered at `distance`, both corners closed by a
+/// triangle, as the module's documentation derives it.
+fn slanted_two_triangles(distance: f64) -> f64 {
+    let d = distance;
+    let [right, left] = [slant(), 10.0 / 104f64.sqrt()];
+    SLANTED_VOLUME
+        - (5.0 * d * d
+            + 0.1 * d.powi(3)
+            + 15.0 * (right + left) * d * d
+            + 5.0 * d * d * (1.0 / right + 1.0 / left)
+            - ((right + 1.0 / right) + (left + 1.0 / left)) * d.powi(3) / 3.0)
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_the_edges_at_both_ends_of_an_edge_whose_corners_are_not_square_close_both_whatever_the_order()
+ {
+    let value = 2.0;
+    let prism = slanted_prism();
+    let right = slanted_trihedral();
+    let left = left_slanted_trihedral();
+    let edges = [
+        right.edge(0),
+        right.edge(1),
+        right.edge(2),
+        left.edge(1),
+        left.edge(2),
+    ];
+    let rounds = spheres_by_booleans(&prism, &[&right, &left], &edges, value);
+    let [top_right, end_right, top_left, end_left, top_end] = [
+        [SLANTED_TOP, SLANTED_RIGHT],
+        [SLANTED_END, SLANTED_RIGHT],
+        [SLANTED_TOP, SLANTED_LEFT],
+        [SLANTED_END, SLANTED_LEFT],
+        [SLANTED_TOP, SLANTED_END],
+    ];
+
+    closes_its_corners_whatever_the_order(
+        &prism,
+        &[right, left],
+        &[
+            vec![top_right, end_right, top_left, end_left, top_end],
+            vec![top_end, top_right, end_right, top_left, end_left],
+            vec![top_left, top_end, top_right, end_left, end_right],
+        ],
+        10.0 + 2.0 * LENGTH + 116f64.sqrt() + 104f64.sqrt(),
+        value,
+        |cut, _| match cut {
+            Cut::Flat => slanted_two_triangles(value),
+            Cut::Round => rounds,
+        },
+        "the slanted prism's end's top edge and the two edges at each of its ends",
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_edges_named_before_a_join_merged_the_faces_at_their_corner_mitre_or_close_it_whatever_the_order()
+ {
+    let value = 3.0;
+    let drawn_block = block([LENGTH, BREADTH, HEIGHT]);
+    let [top_front, top_right, upright] = [TOP_FRONT, TOP_RIGHT, FRONT_RIGHT]
+        .map(|[one, other]| edge_between(&drawn_block, one, other));
+    let joined = joined_to(
+        &drawn_block,
+        [DVec2::new(-10.0, 0.0), DVec2::new(0.0, BREADTH)],
+        0.0,
+        HEIGHT,
+    );
+    let added = 10.0 * BREADTH * HEIGHT;
+    let long = LENGTH + 10.0;
+    let start = joined.faces_end();
+    let mut cases = Vec::new();
+    for cut in [Cut::Flat, Cut::Round] {
+        let mitre = |lengths: [f64; 2]| match cut {
+            Cut::Flat => mitred_by_flats(lengths, value) + added,
+            Cut::Round => mitred_by_rounds(lengths, value) + added,
+        };
+        let closed = rounded_box(cut, long + BREADTH + HEIGHT, 1.0, value) + added;
+        for (what, names, promised, patches) in [
+            (
+                "the top's front and right edges",
+                vec![top_front.clone(), top_right.clone()],
+                mitre([long, BREADTH]),
+                0,
+            ),
+            (
+                "the top's right and front edges",
+                vec![top_right.clone(), top_front.clone()],
+                mitre([long, BREADTH]),
+                0,
+            ),
+            (
+                "the top's front edge and the front's right edge",
+                vec![top_front.clone(), upright.clone()],
+                mitre([long, HEIGHT]),
+                0,
+            ),
+            (
+                "the front's right edge and the top's front edge",
+                vec![upright.clone(), top_front.clone()],
+                mitre([long, HEIGHT]),
+                0,
+            ),
+            (
+                "the three edges at the corner",
+                vec![top_front.clone(), top_right.clone(), upright.clone()],
+                closed,
+                1,
+            ),
+            (
+                "the three edges at the corner, the front's right edge first",
+                vec![upright.clone(), top_front.clone(), top_right.clone()],
+                closed,
+                1,
+            ),
+        ] {
+            cases.push((cut, what, names, promised, patches));
+        }
+    }
+
+    let laid: Vec<Result<Body, Declined>> = cases
+        .iter()
+        .map(|(cut, _, names, _, _)| match cut {
+            Cut::Flat => joined
+                .chamfer_edges(names, value)
+                .map(|chamfered| chamfered.body),
+            Cut::Round => joined
+                .fillet_edges(names, value)
+                .map(|filleted| filleted.body),
+        })
+        .collect();
+
+    let declined: Vec<String> = cases
+        .iter()
+        .zip(&laid)
+        .filter_map(|((cut, what, ..), laid)| {
+            laid.as_ref()
+                .err()
+                .map(|declined| format!("{cut:?} on {what}: {declined:?}"))
+        })
+        .collect();
+    assert!(
+        declined.is_empty(),
+        "names taken before the join still find the corner's edges, whatever the order; \
+         declined:\n{}",
+        declined.join("\n")
+    );
+    for ((cut, what, names, promised, patches), laid) in cases.into_iter().zip(laid) {
+        let what = format!("{cut:?} on {what}, named before the join");
+        let body = laid.expect("declines are held above");
+        let drawn = match cut {
+            Cut::Flat => EXACT * promised,
+            Cut::Round => {
+                DRAWN * reach_of(&joined) * PI / 2.0 * value * (long + BREADTH + HEIGHT + value)
+            }
+        };
+        sound_drawn_within(&body, promised, drawn, &what);
+        assert_eq!(
+            faces_made(&joined, &body),
+            (start..start + names.len() + patches).collect::<Vec<_>>(),
+            "{what}: one face for each edge, and a patch where the three are closed"
         );
     }
 }

@@ -70,6 +70,17 @@ impl Body {
     }
 }
 
+impl EdgeName {
+    /// Whether the edge `now` names lies between faces answering to this
+    /// name's two sides, either way round, as the finder reads them.
+    pub(crate) fn lies_as(&self, now: &EdgeName) -> bool {
+        let [first, second] = &self.between;
+        let [one, other] = &now.between;
+        (answers(first, one) && answers(second, other))
+            || (answers(first, other) && answers(second, one))
+    }
+}
+
 /// The edge read from the side the name was read from, when its two sides
 /// answer to the name's: its ends swapped when they answer the other way
 /// round, which reads it along its other face's loop.

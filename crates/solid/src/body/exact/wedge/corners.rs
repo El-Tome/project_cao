@@ -8,8 +8,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use glam::DVec3;
 
 use super::Wedge;
-use crate::body::exact::Exact;
-use crate::brep::{self, Declined, EdgeId, EdgeName, VertexId};
+use crate::body::exact::{Exact, root};
+use crate::brep::{self, Declined, EdgeId, EdgeName, Scale, VertexId};
 
 /// Whether every corner two of `edges` meet at is convex: each edge ending
 /// there straight between two flat faces that meet outwards, whatever those
@@ -67,47 +67,65 @@ fn ending(body: &brep::Body, corner: VertexId) -> impl Iterator<Item = EdgeId> +
 }
 
 /// The names the edges after `rank` are sought by once the edge at `rank` is
-/// laid, its face numbered `made`, as a mitre leaves them. At a corner a
-/// later edge shares with it on `body`, the body as given, the end of the
-/// later edge's name standing there — the one whose sides, as `names` gave
-/// them, are those of the faces at that corner but the edge's own two — is
-/// met by the face laid: in place of the face the laid edge ran along that
-/// the later one does not, cut back from that corner, or beside the faces
-/// laid there before. An end is rewritten only where `names`, read on the
-/// body as given, tell which it is, so a name still finds an edge only where
-/// its ends answer as the step's own cuts left them, and is lost or split as
-/// any other.
-pub(super) fn trimmed(
-    body: &Exact,
-    edges: &[EdgeId],
-    names: &[EdgeName],
+/// laid on `laid`: each later edge that meets it at a corner of `given`, the
+/// body as given, found again on `laid` — the one edge there whose two ends
+/// lie on its line, read off its wedge, whose middle stands within its old
+/// stretch, and whose faces answer to the two sides `names` gave it, as the
+/// finder reads them — and named as `laid` names that edge. A later edge no
+/// edge of `laid` answers for is left to the finder to lose. Declined
+/// `Unsupported` where several edges of `laid` answer for one, or the name
+/// `laid` gives the one does not find it.
+pub(super) fn tracked(
+    given: &Exact,
+    laid: &Exact,
+    (edges, wedges, names): (&[EdgeId], &[Wedge], &[EdgeName]),
     sought: &mut [EdgeName],
     rank: usize,
-    made: u32,
-) {
-    let ends = |edge: EdgeId| body.brep.edge(edge).ends.into_iter().flatten();
-    let laid = &names[rank].between;
-    for later in rank + 1..names.len() {
-        let name = &names[later];
-        let shared = ends(edges[later]).find(|&end| ends(edges[rank]).any(|other| other == end));
-        let Some(corner) = shared else {
+) -> Result<(), Declined> {
+    let near = Scale::HAIR * laid.brep.scale().eps();
+    for later in rank + 1..edges.len() {
+        if !meet(&given.brep, [edges[rank], edges[later]]) {
             continue;
-        };
-        let mut there = body.vertices[corner.0 as usize].faces.clone();
-        there.retain(|side| !name.between.contains(side));
-        let at: Vec<usize> = (0..2).filter(|&end| name.ends[end] == there).collect();
-        let away: Vec<&Vec<u32>> = (laid.iter())
-            .filter(|side| !name.between.contains(side))
+        }
+        let wedge = &wedges[later];
+        let at = |point: DVec3| wedge.along.dot(point - wedge.point);
+        let on_line = |point: DVec3| (point - wedge.point).cross(wedge.along).length() <= near;
+        let ends = given
+            .brep
+            .edge(edges[later])
+            .ends
+            .ok_or(Declined::Unsupported)?;
+        let [from, to] = ends.map(|end| at(given.brep.vertex(end).point));
+        let answering: Vec<EdgeId> = (laid.brep.edge_ids())
+            .filter(|&edge| {
+                let Some(ends) = laid.brep.edge(edge).ends else {
+                    return false;
+                };
+                let [one, other] = ends.map(|end| laid.brep.vertex(end).point);
+                let middle = at((one + other) / 2.0);
+                on_line(one)
+                    && on_line(other)
+                    && from.min(to) <= middle
+                    && middle <= from.max(to)
+                    && names[later].lies_as(&laid.edges[edge.0 as usize])
+            })
             .collect();
-        let (&[end], &[away]) = (&at[..], &away[..]) else {
-            continue;
-        };
-        let sides = &mut sought[later].ends[end];
-        match sides.iter().position(|side| side == away) {
-            Some(place) => sides[place] = vec![made],
-            None => sides.push(vec![made]),
+        match answering[..] {
+            [] => {}
+            [edge] => {
+                let name = &laid.edges[edge.0 as usize];
+                let found = laid
+                    .brep
+                    .find_rooted(name, |number| root(&laid.roots, number));
+                if found != Ok(edge) {
+                    return Err(Declined::Unsupported);
+                }
+                sought[later] = name.clone();
+            }
+            _ => return Err(Declined::Unsupported),
         }
     }
+    Ok(())
 }
 
 /// Whether two edges share a corner.

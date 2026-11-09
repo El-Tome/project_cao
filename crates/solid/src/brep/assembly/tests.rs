@@ -276,3 +276,29 @@ fn a_face_laid_on_a_surface_its_loop_does_not_lie_on_is_unverified() {
          declines, unverified; taken on: {taken:?}"
     );
 }
+
+#[test]
+fn a_face_whose_corners_lie_on_its_surface_but_whose_edges_bow_away_from_it_is_unverified() {
+    let body = block();
+    let top = top_of(&body);
+    let face = body.face(top).clone();
+    let centre = DVec3::new(0.0, 0.0, 10.0);
+    let radius = 800f64.sqrt();
+    for corner in body.corners_of(top) {
+        assert!(
+            (corner.distance(centre) - radius).abs() < 1e-9,
+            "the top's corner {corner} lies on the sphere of radius {radius} about {centre}"
+        );
+    }
+    let through_the_corners = Sphere::through(centre, DVec3::Z, 0.0, radius);
+
+    let replaced = body
+        .replaced(&[top], Surface::Sphere(through_the_corners), face)
+        .err();
+
+    assert_eq!(
+        replaced,
+        Some(Declined::Unverified),
+        "the top laid on the sphere through its four corners, its edges' middles 8.3 inside it"
+    );
+}

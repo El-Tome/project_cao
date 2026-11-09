@@ -75,25 +75,26 @@ impl Exact {
     /// alone. Two edges meeting at a convex corner are laid in turn as any two
     /// are, each prism carried past the corner along its edge's line, so that
     /// the later trims the earlier's face there: two flats or two rounds meet
-    /// in a mitre, and the later edge is sought with the ends the earlier cuts
-    /// moved, as [`corners::trimmed`] names it. A corner three of the edges
-    /// meet at is closed once all are laid, as `meeting` closes it, read where
-    /// each two's set-backs cross on the face they share, as [`Exact::closed`]
-    /// closes it, its face numbered past the edges'. The wall an edge's prism
-    /// lays is numbered where the steps' numbers ended, plus the edge's rank in
-    /// the list; a pair is laid at its later edge's turn, so that every number
-    /// laid before stands below those a prism lays, as [`Exact::cut_along`]
-    /// reads them. A value shorter than the kernel can set a cut back from an
-    /// edge is declined first; a list of no edge `Unsupported`; an edge its
-    /// name no longer finds `Lost`; an edge that is not a wedge, one edge two
-    /// names find, two edges meeting at a corner that is not convex — an edge
-    /// ending there that is no wedge, or whose faces meet inwards —, more than
-    /// three edges meeting at a corner, or three where another edge ends too,
-    /// where `meeting` lays two together an edge meeting two others, or one of
-    /// two laid together that meets another edge of the list at a corner, and a
-    /// cut or a fill that left something else than its one face, as
-    /// [`Exact::cut_along`] reads it, are declined `Unsupported`; a prism the
-    /// tool cannot raise, as the tool says.
+    /// in a mitre, and the later edge is found again on the body laid so far
+    /// and sought by the name that body gives it, as [`corners::tracked`] finds
+    /// it. A corner three of the edges meet at is closed once all are laid, as
+    /// `meeting` closes it, read where each two's set-backs cross on the face
+    /// they share, as [`Exact::closed`] closes it, its face numbered past the
+    /// edges'. The wall an edge's prism lays is numbered where the steps'
+    /// numbers ended, plus the edge's rank in the list; a pair is laid at its
+    /// later edge's turn, so that every number laid before stands below those a
+    /// prism lays, as [`Exact::cut_along`] reads them. A value shorter than the
+    /// kernel can set a cut back from an edge is declined first; a list of no
+    /// edge `Unsupported`; an edge its name no longer finds `Lost`; an edge
+    /// that is not a wedge, one edge two names find, two edges meeting at a
+    /// corner that is not convex — an edge ending there that is no wedge, or
+    /// whose faces meet inwards —, more than three edges meeting at a corner,
+    /// or three where another edge ends too, where `meeting` lays two together
+    /// an edge meeting two others, or one of two laid together that meets
+    /// another edge of the list at a corner, several edges of the body laid so
+    /// far answering for one edge still to lay, and a cut or a fill that left
+    /// something else than its one face, as [`Exact::cut_along`] reads it, are
+    /// declined `Unsupported`; a prism the tool cannot raise, as the tool says.
     pub(super) fn cut_off(
         &self,
         names: &[EdgeName],
@@ -172,14 +173,8 @@ impl Exact {
                             .map(|earlier| start + earlier as u32)
                             .collect();
                         let laid = cut.laid(&sought[rank], taken, &tool, &mitred)?;
-                        corners::trimmed(
-                            self,
-                            &edges,
-                            names,
-                            &mut sought,
-                            rank,
-                            start + rank as u32,
-                        );
+                        let read = (&edges[..], &wedges[..], names);
+                        corners::tracked(self, &laid, read, &mut sought, rank)?;
                         laid
                     }
                 };

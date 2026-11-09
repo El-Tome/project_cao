@@ -251,16 +251,20 @@ fn a_sketch_reopened_under_its_own_block(test: &str) -> driver::App {
     app
 }
 
-/// The same block and sketch, after `clicks` on the button that says how the
-/// matter in front of the sketch is drawn — one name per state, as the button
-/// reads them.
-fn reopened_after(clicks: usize, test: &str) -> driver::App {
+/// The same block and sketch, the matter in front of the sketch set with the
+/// view bar's menu to the state of that rank — none asked for the first, which
+/// a sketch opens on.
+fn reopened_after(rank: usize, test: &str) -> driver::App {
     let mut app = a_sketch_reopened_under_its_own_block(test);
-    for _ in 0..clicks {
-        driver::click_in_the_ribbon(&mut app, "Matière devant");
+    if rank > 0 {
+        driver::click_in_the_bar(&mut app, "Matière devant");
+        driver::click_exactly(&mut app, MATTER_IN_FRONT_IN_THE_MENU[rank]);
     }
     app
 }
+
+/// The three states as the view bar's menu reads them, in the same order.
+const MATTER_IN_FRONT_IN_THE_MENU: [&str; 3] = ["cachée", "transparente", "opaque"];
 
 const HIDDEN_SEE_THROUGH_OPAQUE: [&str; 3] = ["hidden", "see_through", "opaque"];
 

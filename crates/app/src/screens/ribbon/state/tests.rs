@@ -513,10 +513,6 @@ fn the_section_view_is_offered_while_the_part_holds_matter() {
         wording::label(&Catalogue::french(), Command::SectionView),
         "Vue en coupe",
     );
-    assert!(
-        reached(&Settings::default().toolbar.items).contains(&Command::SectionView),
-        "the ribbon offers no « Vue en coupe » button",
-    );
 }
 
 #[test]

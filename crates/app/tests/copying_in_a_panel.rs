@@ -67,7 +67,7 @@ fn enter_with_the_panel_open_does_not_close_the_sketch() {
         driver::press(&mut app, egui::Key::Enter);
 
         assert!(
-            driver::shows(&app, driver::FINISH_IN_THE_RIBBON),
+            driver::a_sketch_is_open(&app),
             "Entrée number {pressed} moved through the panel, and the sketch is still open"
         );
     }
@@ -98,10 +98,7 @@ fn escape_hands_what_the_panel_held_to_the_selection_tool() {
         driver::is_on(&app, "Sélection (S)"),
         "the Selection tool is in hand"
     );
-    assert!(
-        driver::shows(&app, driver::FINISH_IN_THE_RIBBON),
-        "the sketch stays open"
-    );
+    assert!(driver::a_sketch_is_open(&app), "the sketch stays open");
     driver::click(&mut app, "Symétrie");
     assert!(
         driver::shows(&app, "Éléments : 1"),
@@ -319,7 +316,7 @@ fn finishing_the_sketch_keeps_the_place_the_panel_was_left_at() {
         "the place is written down when the panel is let go"
     );
 
-    driver::click(&mut app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(&mut app);
 
     assert_eq!(saved_place(test), left_at);
 }

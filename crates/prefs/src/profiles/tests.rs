@@ -252,15 +252,33 @@ fn a_shortcut_the_user_unbound_stays_unbound_across_a_save_and_a_load() {
     assert_eq!(read.active().shortcuts, saved);
 }
 
+/// Where a command stands in a toolbar tree, as the ranks of the groups to walk
+/// through and its own.
+fn path_of(items: &[Item], wanted: Command) -> Option<Vec<usize>> {
+    items
+        .iter()
+        .enumerate()
+        .find_map(|(rank, item)| match item {
+            Item::Command(command) if *command == wanted => Some(vec![rank]),
+            Item::Group { items, .. } => path_of(items, wanted).map(|mut below| {
+                below.insert(0, rank);
+                below
+            }),
+            _ => None,
+        })
+}
+
 #[test]
 fn a_button_the_user_removed_stays_removed_across_a_save_and_a_load() {
     let at = at();
     let files = InMemoryFiles::default();
     let mut profiles = Profiles::default();
+    let new_sketch = path_of(&profiles.active().toolbar.items, Command::NewSketch)
+        .expect("the standard toolbar holds the new-sketch command");
     let removed = profiles
         .active_mut()
         .toolbar
-        .remove(&[0, 0])
+        .remove(&new_sketch)
         .expect("a button of the standard toolbar");
     assert_eq!(removed, Item::Command(Command::NewSketch));
     let saved = profiles.active().toolbar.clone();

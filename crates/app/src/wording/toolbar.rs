@@ -22,8 +22,10 @@ pub fn edge(lang: &Catalogue, edge: Edge) -> String {
 /// user made or renamed carries their own words and is handed back untouched.
 pub fn group(lang: &Catalogue, name: &str) -> String {
     match name {
-        "sketch" => lang.t("toolbar.group.sketch"),
+        "sketch" | "new_sketch" => lang.t("toolbar.group.sketch"),
         "drawing" => lang.t("toolbar.group.drawing"),
+        "dimensions" => lang.t("toolbar.group.dimensions"),
+        "modify" => lang.t("toolbar.group.modify"),
         "circles" => lang.t("toolbar.group.circles"),
         "arcs" => lang.t("toolbar.group.arcs"),
         "ellipses" => lang.t("toolbar.group.ellipses"),

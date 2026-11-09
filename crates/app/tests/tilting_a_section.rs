@@ -79,11 +79,11 @@ fn a_sketch_on_the_cut(app: &mut driver::App) {
     click_in_the_ribbon(app, "Nouvelle esquisse");
     driver::click_at_world_point(app, driver::ON_THE_CUT);
     assert!(
-        driver::is_enabled(app, driver::FINISH_IN_THE_RIBBON),
+        driver::a_sketch_is_open(app),
         "the click on the tilted cut started no sketch, showing {:?}",
         driver::on_screen(app),
     );
-    click_in_the_ribbon(app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(app);
 }
 
 /// The part as the application left it on disk, once it was put away.
@@ -147,7 +147,7 @@ fn lies_on_yz_turned_ten_degrees_through(plane: WorkPlane, middle: DVec3) -> Res
 fn a_sketch_started_on_a_tilted_cut_lands_on_the_tilted_plane() {
     let test = "tilting_a_section_sketch_on_the_cut";
     let mut app = driver::a_block(test);
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
     driver::type_beside(&mut app, "Inclinaison 1", "10");
 
@@ -164,7 +164,7 @@ fn a_sketch_started_on_a_tilted_cut_lands_on_the_tilted_plane() {
 fn a_sketch_on_a_kept_tilted_section_lands_on_the_tilted_plane() {
     let test = "tilting_a_section_sketch_on_a_kept_one";
     let mut app = driver::a_block(test);
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
     driver::type_beside(&mut app, "Inclinaison 1", "10");
     driver::click_the_button(&mut app, "Enregistrer la coupe");
@@ -194,7 +194,7 @@ fn the_number_beside(app: &driver::App, label: &str) -> f64 {
 #[test]
 fn a_tilted_section_comes_back_with_its_two_angles_from_the_caopart_and_from_the_tree() {
     let mut app = driver::a_block("tilting_a_section_kept_tilted");
-    click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     driver::click(&mut app, "Plan YZ");
     driver::type_beside(&mut app, "Inclinaison 1", "30");
     driver::type_beside(&mut app, "Inclinaison 2", "-15");

@@ -147,7 +147,7 @@ fn a_sketch_s_eye_is_drawn_open_while_shown_and_shut_while_hidden() {
     driver::create_a_part(&mut app, "Platine");
     driver::start_a_sketch(&mut app);
     driver::draw_a_segment(&mut app);
-    driver::click(&mut app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(&mut app);
 
     for (worn, called, then) in [
         ("eye", "Ne plus afficher l'esquisse", "eye-off"),

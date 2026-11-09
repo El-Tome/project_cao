@@ -135,7 +135,8 @@
 //!   `crates/render/src/camera/tests.rs` by
 //!   `the_ray_through_the_pixel_a_point_is_drawn_at_passes_through_that_point`
 //! - the bar's buttons are found as the bar's, and the ribbon's « Recadrer »,
-//!   « Vue en coupe » and « Matière devant », which stay, are still found as the
+//!   « Vue en coupe » and « Matière devant », which a user can still put back on
+//!   the ribbon since #732 took them off the default one, are still found as the
 //!   ribbon's — `the_bar_s_buttons_are_told_apart_from_the_ribbon_s`; the
 //!   driver tells them apart by where they stand, the bar's inside the view
 //!   and the ribbon's outside it (`driver::the_bar_s`, `driver::the_ribbon_s`),
@@ -412,6 +413,16 @@ fn a_sketch_open(test: &str) -> driver::App {
     app
 }
 
+/// A sketch open under a ribbon that holds its own « Recadrer », « Vue en
+/// coupe » and « Matière devant » again, as a user can have it since #732 took
+/// them off the default one.
+fn a_sketch_open_with_the_ribbon_s_own(test: &str) -> driver::App {
+    let mut app = driver::open_held_with(test, driver::the_moved_commands_put_back());
+    driver::create_a_part(&mut app, "Platine");
+    driver::start_a_sketch(&mut app);
+    app
+}
+
 fn the_bar_reads(app: &driver::App) -> Vec<String> {
     driver::the_view_bar(app)
         .into_iter()
@@ -550,7 +561,7 @@ fn the_bar_s_section_view_is_greyed_in_a_sketch_and_with_no_volume() {
     );
     driver::start_a_sketch(&mut app);
     assert!(
-        driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        driver::a_sketch_is_open(&app),
         "no sketch was opened on the block, showing {:?}",
         driver::on_screen(&app),
     );
@@ -572,13 +583,13 @@ fn the_bar_s_section_view_shows_pressed_while_the_section_is_on() {
         "the bar's « Vue en coupe » shows pressed before any section is on",
     );
 
-    driver::click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     assert!(
         pressed(&driver::the_bar_s(&app, "Vue en coupe")),
         "the section is on, and the bar's « Vue en coupe » does not show pressed",
     );
 
-    driver::click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     assert!(
         !pressed(&driver::the_bar_s(&app, "Vue en coupe")),
         "the section is off, and the bar's « Vue en coupe » still shows pressed",
@@ -587,7 +598,10 @@ fn the_bar_s_section_view_shows_pressed_while_the_section_is_on() {
 
 #[test]
 fn the_bar_s_section_view_opens_and_closes_the_section_panel_as_the_ribbon_s_does() {
-    let mut app = driver::a_block("the_bar_s_section_view_opens_and_closes_the_panel");
+    let mut app = driver::a_block_with(
+        "the_bar_s_section_view_opens_and_closes_the_panel",
+        driver::the_moved_commands_put_back(),
+    );
     assert!(!the_section_panel_is_open(&app), "a panel is open already");
 
     driver::click_in_the_bar(&mut app, "Vue en coupe");
@@ -621,7 +635,8 @@ fn the_bar_s_section_view_opens_and_closes_the_section_panel_as_the_ribbon_s_doe
 
 #[test]
 fn the_bar_s_buttons_are_told_apart_from_the_ribbon_s() {
-    let mut app = a_sketch_open("the_bar_s_buttons_are_told_apart_from_the_ribbon_s");
+    let mut app =
+        a_sketch_open_with_the_ribbon_s_own("the_bar_s_buttons_are_told_apart_from_the_ribbon_s");
 
     for label in ["Recadrer", "Vue en coupe", "Matière devant"] {
         driver::bring_into_the_ribbon(&mut app, label);
@@ -638,7 +653,7 @@ fn the_bar_s_buttons_are_told_apart_from_the_ribbon_s() {
 
 #[test]
 fn choosing_see_through_in_the_bar_s_menu_makes_the_matter_in_front_see_through() {
-    let mut app = a_sketch_open("choosing_see_through_in_the_bar_s_menu");
+    let mut app = a_sketch_open_with_the_ribbon_s_own("choosing_see_through_in_the_bar_s_menu");
 
     driver::click_in_the_bar(&mut app, "Matière devant");
     let offered: Vec<&str> = ["cachée", "transparente", "opaque"]
@@ -668,7 +683,7 @@ fn choosing_see_through_in_the_bar_s_menu_makes_the_matter_in_front_see_through(
 
 #[test]
 fn the_bar_s_matter_in_front_reads_the_state_the_sketch_is_in() {
-    let mut app = a_sketch_open("the_bar_s_matter_in_front_reads_the_state");
+    let mut app = a_sketch_open_with_the_ribbon_s_own("the_bar_s_matter_in_front_reads_the_state");
     let opened = the_bar_s_matter_in_front(&app);
     assert!(
         opened.starts_with("Matière devant : cachée"),
@@ -700,7 +715,7 @@ fn outside_a_sketch_the_bar_s_matter_in_front_is_greyed() {
         "the bar greys « Matière devant » while a sketch is open",
     );
 
-    driver::click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(&mut app);
     assert!(
         greyed(&driver::the_bar_s(&app, "Matière devant")),
         "the bar offers « Matière devant » once the sketch is finished",
@@ -1310,7 +1325,7 @@ fn the_origin_view_button_is_hidden_while_a_sketch_is_open() {
 
     driver::start_a_sketch(&mut app);
     assert!(
-        driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        driver::a_sketch_is_open(&app),
         "no sketch was opened on the block, showing {:?}",
         driver::on_screen(&app),
     );
@@ -1319,7 +1334,7 @@ fn the_origin_view_button_is_hidden_while_a_sketch_is_open() {
         "with a sketch open, « Vue d'origine » should be gone from the view, not greyed",
     );
 
-    driver::click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(&mut app);
     assert_offered(&app, "the sketch finished");
 }
 
@@ -1330,7 +1345,7 @@ fn the_origin_view_button_stays_while_a_plane_is_being_chosen() {
     driver::click(&mut app, "Nouvelle esquisse");
 
     assert!(
-        !driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        !driver::a_sketch_is_open(&app),
         "a sketch was opened where only a plane was meant to be chosen, showing {:?}",
         driver::on_screen(&app),
     );

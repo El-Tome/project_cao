@@ -7,14 +7,17 @@
 //! - stored with the toolbar layout —
 //!   `a_group_s_size_is_stored_with_the_toolbar_layout`
 //! - the default layout sets it: `edit` small on 2 rows, `drawing`, `extrusion`,
-//!   `export` and `sketch` large — `the_default_layout_sets_the_size_of_each_group`
+//!   `export` and `sketch` large — `the_default_layout_sets_the_size_of_each_group`,
+//!   which now holds the groups of #732 too
 //! - decided: a group can ask to be one split button whatever its depth, with
 //!   a fourth size `Menu`, which `stl` carries —
 //!   `the_stl_group_asks_to_be_one_split_button`
 //! - editing it in the preferences — no test: out of scope, the issue of the
 //!   toolbar editor; until then the default layout sets it
 //! - every command of today's ribbon is still there, at the same place in the
-//!   tree — `the_default_layout_holds_today_s_commands_at_today_s_places`
+//!   tree — no test: #732 regroups the default tree, and what it holds is held
+//!   by `the_default_sketch_tab_holds_its_five_groups_and_their_commands_in_order`
+//!   and `the_default_extrusion_and_export_tabs_hold_their_commands_at_today_s_places`
 //! - old settings are ignored — no test: no migration is written, and the
 //!   tests that old settings open on defaults, in `profiles/tests.rs`, stand
 
@@ -146,8 +149,11 @@ fn a_group_s_size_is_stored_with_the_toolbar_layout() {
 fn the_default_layout_sets_the_size_of_each_group() {
     let layout = ToolbarLayout::default();
     for (group, expected) in [
-        ("edit", GroupSize::SmallTwoRows),
+        ("new_sketch", GroupSize::Large),
         ("drawing", GroupSize::Large),
+        ("dimensions", GroupSize::SmallThreeRows),
+        ("modify", GroupSize::SmallThreeRows),
+        ("edit", GroupSize::SmallTwoRows),
         ("extrusion", GroupSize::Large),
         ("export", GroupSize::Large),
         ("sketch", GroupSize::Large),
@@ -177,68 +183,151 @@ fn places(items: &[Item], within: &str) -> Vec<String> {
         .collect()
 }
 
+fn tab<'a>(layout: &'a ToolbarLayout, name: &str) -> &'a [Item] {
+    layout
+        .items
+        .iter()
+        .find_map(|item| match item {
+            Item::Group {
+                name: named, items, ..
+            } if named == name => Some(items.as_slice()),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("the default layout has no tab {name:?}"))
+}
+
+fn groups_of(items: &[Item]) -> Vec<(&str, GroupSize)> {
+    items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Group { name, size, .. } => Some((name.as_str(), *size)),
+            _ => None,
+        })
+        .collect()
+}
+
 #[test]
-fn the_default_layout_holds_today_s_commands_at_today_s_places() {
+fn the_default_sketch_tab_holds_its_five_groups_and_their_commands_in_order() {
+    let layout = ToolbarLayout::default();
+    let sketch = tab(&layout, "sketch");
+
     assert_eq!(
-        places(&ToolbarLayout::default().items, ""),
+        groups_of(sketch),
         [
-            "/sketch/NewSketch",
-            "/sketch/SectionView",
-            "/sketch/|",
-            "/sketch/drawing/ToolSelect",
-            "/sketch/drawing/ToolLine",
-            "/sketch/drawing/ToolLineSymmetric",
-            "/sketch/drawing/ToolRectangle",
-            "/sketch/drawing/ToolCircle",
-            "/sketch/drawing/circles/CircleCenter",
-            "/sketch/drawing/circles/CircleTwoPoints",
-            "/sketch/drawing/circles/CircleThreePoints",
-            "/sketch/drawing/circles/CircleTwoTangents",
-            "/sketch/drawing/circles/CircleThreeTangents",
-            "/sketch/drawing/ToolArc",
-            "/sketch/drawing/arcs/ArcByCenter",
-            "/sketch/drawing/arcs/ArcByEnds",
-            "/sketch/drawing/ToolEllipse",
-            "/sketch/drawing/ellipses/EllipseByCentre",
-            "/sketch/drawing/ellipses/EllipseByEnds",
-            "/sketch/drawing/ToolPoint",
-            "/sketch/drawing/ToolDimension",
-            "/sketch/drawing/ToolMeasure",
-            "/sketch/drawing/ToolTrim",
-            "/sketch/drawing/ToolSplit",
-            "/sketch/drawing/ToolMirror",
-            "/sketch/drawing/ToolCircularPattern",
-            "/sketch/drawing/ToolRectangularPattern",
-            "/sketch/drawing/ToolFillet",
-            "/sketch/drawing/ToolChamfer",
-            "/sketch/drawing/chamfers/ChamferEqual",
-            "/sketch/drawing/chamfers/ChamferAngled",
-            "/sketch/drawing/chamfers/ChamferSided",
-            "/sketch/drawing/ToggleConstruction",
-            "/sketch/drawing/constraints/RulePerpendicular",
-            "/sketch/drawing/constraints/RuleParallel",
-            "/sketch/drawing/constraints/RuleEqual",
-            "/sketch/drawing/constraints/RuleCoincident",
-            "/sketch/drawing/constraints/RuleCollinear",
-            "/sketch/drawing/constraints/RuleTangent",
-            "/sketch/drawing/constraints/RuleMidpoint",
-            "/sketch/drawing/constraints/RuleFixed",
-            "/sketch/drawing/constraints/RuleConcentric",
-            "/sketch/Reframe",
-            "/sketch/NextMatterInFront",
-            "/sketch/FinishSketch",
-            "/sketch/|",
-            "/sketch/edit/Undo",
-            "/sketch/edit/Redo",
-            "/extrusion/ExtrusionAdd",
-            "/extrusion/ExtrusionCut",
-            "/extrusion/|",
-            "/extrusion/ExtrusionStraight",
-            "/extrusion/ExtrusionRevolution",
-            "/export/stl/ExportStlCoarse",
-            "/export/stl/ExportStlNormal",
-            "/export/stl/ExportStlFine",
-            "/export/ExportStep",
-        ]
+            ("new_sketch", GroupSize::Large),
+            ("drawing", GroupSize::Large),
+            ("dimensions", GroupSize::SmallThreeRows),
+            ("modify", GroupSize::SmallThreeRows),
+            ("edit", GroupSize::SmallTwoRows),
+        ],
+    );
+    assert_eq!(
+        places(sketch, ""),
+        [
+            "/new_sketch/NewSketch",
+            "/drawing/ToolSelect",
+            "/drawing/ToolLine",
+            "/drawing/ToolLineSymmetric",
+            "/drawing/ToolRectangle",
+            "/drawing/ToolCircle",
+            "/drawing/circles/CircleCenter",
+            "/drawing/circles/CircleTwoPoints",
+            "/drawing/circles/CircleThreePoints",
+            "/drawing/circles/CircleTwoTangents",
+            "/drawing/circles/CircleThreeTangents",
+            "/drawing/ToolArc",
+            "/drawing/arcs/ArcByCenter",
+            "/drawing/arcs/ArcByEnds",
+            "/drawing/ToolEllipse",
+            "/drawing/ellipses/EllipseByCentre",
+            "/drawing/ellipses/EllipseByEnds",
+            "/drawing/ToolPoint",
+            "/dimensions/ToolDimension",
+            "/dimensions/ToolMeasure",
+            "/dimensions/constraints/RulePerpendicular",
+            "/dimensions/constraints/RuleParallel",
+            "/dimensions/constraints/RuleEqual",
+            "/dimensions/constraints/RuleCoincident",
+            "/dimensions/constraints/RuleCollinear",
+            "/dimensions/constraints/RuleTangent",
+            "/dimensions/constraints/RuleMidpoint",
+            "/dimensions/constraints/RuleFixed",
+            "/dimensions/constraints/RuleConcentric",
+            "/modify/ToolTrim",
+            "/modify/ToolSplit",
+            "/modify/ToolMirror",
+            "/modify/ToolFillet",
+            "/modify/ToolChamfer",
+            "/modify/chamfers/ChamferEqual",
+            "/modify/chamfers/ChamferAngled",
+            "/modify/chamfers/ChamferSided",
+            "/modify/ToggleConstruction",
+            "/modify/ToolCircularPattern",
+            "/modify/ToolRectangularPattern",
+            "/edit/Undo",
+            "/edit/Redo",
+        ],
+    );
+}
+
+#[test]
+fn the_default_extrusion_and_export_tabs_hold_their_commands_at_today_s_places() {
+    let layout = ToolbarLayout::default();
+
+    assert_eq!(
+        places(tab(&layout, "extrusion"), ""),
+        [
+            "/ExtrusionAdd",
+            "/ExtrusionCut",
+            "/|",
+            "/ExtrusionStraight",
+            "/ExtrusionRevolution",
+        ],
+    );
+    assert_eq!(
+        places(tab(&layout, "export"), ""),
+        [
+            "/stl/ExportStlCoarse",
+            "/stl/ExportStlNormal",
+            "/stl/ExportStlFine",
+            "/ExportStep",
+        ],
+    );
+}
+
+#[test]
+fn the_four_moved_commands_are_nowhere_in_the_default_tree_and_keep_their_keys() {
+    const MOVED: [Command; 4] = [
+        Command::Reframe,
+        Command::SectionView,
+        Command::NextMatterInFront,
+        Command::FinishSketch,
+    ];
+
+    let held = places(&ToolbarLayout::default().items, "");
+    let found: Vec<&String> = held
+        .iter()
+        .filter(|place| {
+            MOVED
+                .iter()
+                .any(|command| place.ends_with(&format!("/{command:?}")))
+        })
+        .collect();
+    assert!(found.is_empty(), "the default tree still holds {found:?}");
+
+    for command in MOVED {
+        assert!(
+            Command::ALL.contains(&command),
+            "{command:?} stopped being a command",
+        );
+    }
+    let keys = crate::Shortcuts::default();
+    assert_eq!(
+        keys.chord_for(Command::Reframe),
+        Some(crate::Chord::new(crate::Key::F)),
+    );
+    assert_eq!(
+        keys.chord_for(Command::FinishSketch),
+        Some(crate::Chord::new(crate::Key::Enter)),
     );
 }

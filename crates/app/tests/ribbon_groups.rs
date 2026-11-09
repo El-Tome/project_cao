@@ -137,6 +137,56 @@
 //! - the dock / undock command — no test: `Command::ToggleToolbarDocked` stays
 //!   what it is today, a no-op in `commands.rs`, and nothing here changes it
 //!
+//! Closes #732. The bullets keep the issue's wording, its French names between
+//! guillemets; what the prefs and the wording hold is named as held there.
+//! - Esquisse tab holds, in this order: « Esquisse » (« Nouvelle esquisse »,
+//!   large) · « Dessin », large: « Sélection », « Ligne », « Ligne sym. »,
+//!   « Rectangle », « Cercle ▾ » (5), « Arc ▾ » (2), « Ellipse ▾ » (2),
+//!   « Point » · « Cotes et contraintes », small on 3 rows: « Cote »,
+//!   « Mesurer », « Contraintes ▾ » (9) · « Modifier », small on 3 rows:
+//!   « Ajuster », « Diviser », « Symétrie », « Congé », « Chanfrein ▾ » (3),
+//!   « Construction », « Réseau circulaire », « Réseau rectangulaire » ·
+//!   « Édition », small on 2 rows: « Annuler », « Rétablir » (greyed when there
+//!   is nothing to redo) —
+//!   `the_sketch_tab_writes_its_five_groups_in_order_each_under_its_buttons`,
+//!   `each_group_of_the_sketch_tab_draws_its_buttons_at_its_size` and, for
+//!   « Contraintes ▾ » standing apart from « Mesurer »,
+//!   `mesurer_stays_a_plain_button_and_the_constraints_split_stands_alone`; the
+//!   tree and its sizes in `crates/prefs/src/toolbar/tests.rs` by
+//!   `the_default_sketch_tab_holds_its_five_groups_and_their_commands_in_order`,
+//!   the group names in `crates/app/src/wording/toolbar/tests.rs` by
+//!   `the_five_groups_of_the_sketch_tab_read_as_the_design_names_them`, and
+//!   « Rétablir » greyed by `the_chevron_stays_clickable_while_its_primary_is_greyed_out`
+//!   here and `a_fresh_part_has_nothing_to_undo_and_nothing_to_redo` in
+//!   `crates/app/src/screens/ribbon/state/tests.rs`
+//! - Extrusion tab holds « Matière » (« Ajout de matière », « Enlèvement de
+//!   matière ») · « Forme » (« Extrusion droite », « Révolution ») · « Édition »
+//!   — no test: in this file; held in `crates/prefs/src/toolbar/tests.rs` by
+//!   `the_default_extrusion_tab_holds_its_three_groups_and_their_commands_in_order`
+//! - Export tab holds « Exporter en STL… ▾ » (« Grossière » « rapide »,
+//!   « Normale » « par défaut », « Fine » « lourd ») and « Exporter en STEP… » —
+//!   no test: in this file; held in `crates/prefs/src/toolbar/tests.rs` by
+//!   `the_default_export_tab_holds_one_stl_split_and_the_step_export`, the
+//!   drawn menu here by `each_stl_level_writes_its_hint_on_its_line`
+//! - Moved out: « Recadrer », « Vue en coupe », « Matière devant » and
+//!   « Terminer » are no longer in the default ribbon. They stay commands, with
+//!   their keys, and can be put back from the preferences —
+//!   `the_four_moved_commands_stand_in_no_tab_of_the_default_ribbon` and
+//!   `the_four_moved_commands_can_be_put_back_from_the_preferences`; the tree
+//!   and the keys in `crates/prefs/src/toolbar/tests.rs` by
+//!   `the_four_moved_commands_are_nowhere_in_the_default_tree_and_keep_their_keys`
+//! - The « Par défaut » profile takes this ribbon; a profile Tom created keeps
+//!   its own until « Réinitialiser la barre d'outils » — no test: in this
+//!   file; held in `crates/prefs/src/profiles/tests.rs`
+//! - At 1440 px the sketch tab fits on one line —
+//!   `the_sketch_tab_fits_on_one_line_at_1440`
+//! - Every command stays reachable (G2): what leaves the ribbon has its place in
+//!   the view bar or the sketch pill —
+//!   `what_left_the_ribbon_has_its_place_in_the_view_bar_or_the_sketch_pill`,
+//!   and what stays by `every_command_of_the_default_tree_can_be_reached`
+//! - F and ↵ still reframe and finish —
+//!   `f_still_reframes_and_enter_still_finishes_the_sketch`
+//!
 //! Decided on the way. The tree does not change: « Cercle » and the group
 //! `circles` stay two siblings, and a split button is a rule of the drawing —
 //! a command immediately followed by a menu-depth group is one button, the
@@ -355,7 +405,8 @@ fn a_large_group_draws_large_buttons() {
 
 #[test]
 fn a_command_sitting_directly_in_a_tab_is_large() {
-    let app = opened("a_command_sitting_directly", WIDE, Settings::default());
+    let settings = bar_of(vec![Item::Command(Command::NewSketch)]);
+    let app = opened("a_command_sitting_directly", WIDE, settings);
 
     let new_sketch = the_ribbon_button(&app, "Nouvelle esquisse");
     assert!(
@@ -385,13 +436,12 @@ fn below_1440_the_ribbon_wraps_group_by_group_rather_than_button_by_button() {
 
 #[test]
 fn an_entry_of_a_tab_never_stands_above_the_one_before_it_in_the_tree() {
-    const IN_TREE_ORDER: [&str; 7] = [
+    const IN_TREE_ORDER: [&str; 6] = [
         "Nouvelle esquisse",
         "Sélection",
-        "Contraintes",
-        "Recadrer",
-        "Matière devant",
-        "Terminer",
+        "Point",
+        "Cote",
+        "Ajuster",
         "Annuler",
     ];
     let mut wrong = Vec::new();
@@ -440,8 +490,32 @@ fn a_bar_wide_enough_lays_all_its_groups_on_one_line() {
 
 #[test]
 fn a_group_wider_than_the_whole_bar_wraps_inside_itself_as_a_last_resort() {
+    use Command as C;
     let size = egui::vec2(1024.0, 768.0);
-    let app = opened("a_group_wider_than_the_bar", size, Settings::default());
+    let settings = bar_of(vec![Item::group(
+        "drawing",
+        commands(&[
+            C::ToolSelect,
+            C::ToolLine,
+            C::ToolLineSymmetric,
+            C::ToolRectangle,
+            C::ToolCircle,
+            C::ToolArc,
+            C::ToolEllipse,
+            C::ToolPoint,
+            C::ToolDimension,
+            C::ToolMeasure,
+            C::ToolTrim,
+            C::ToolSplit,
+            C::ToolMirror,
+            C::ToolCircularPattern,
+            C::ToolRectangularPattern,
+            C::ToolFillet,
+            C::ToolChamfer,
+            C::ToggleConstruction,
+        ]),
+    )]);
+    let app = opened("a_group_wider_than_the_bar", size, settings);
 
     let buttons = [
         "Sélection",
@@ -1047,7 +1121,7 @@ fn down_a_side_with_names_off_a_group_writes_its_whole_name() {
 
 #[test]
 fn down_a_side_a_command_sitting_directly_in_a_tab_is_small() {
-    let mut settings = Settings::default();
+    let mut settings = bar_of(vec![Item::Command(Command::NewSketch)]);
     settings.toolbar.edge = Edge::Left;
     let app = opened("down_a_side_a_command_directly_in_a_tab", WIDE, settings);
 
@@ -1177,6 +1251,208 @@ fn a_chevron_reaches_the_commands_of_its_sub_groups() {
     driver::click_exactly(&mut app, "Arcs");
 
     the_button(&app, "Centre, départ et arrivée");
+}
+
+/// The five groups of the default sketch tab, as written under their buttons,
+/// and the buttons each one holds on the bar.
+const THE_FIVE_GROUPS: [(&str, &[&str]); 5] = [
+    ("ESQUISSE", &["Nouvelle esquisse"]),
+    (
+        "DESSIN",
+        &[
+            "Sélection",
+            "Ligne",
+            "Ligne symétrique",
+            "Rectangle",
+            "Cercle",
+            "Arc",
+            "Ellipse",
+            "Point",
+        ],
+    ),
+    ("COTES ET CONTRAINTES", &["Cote", "Mesurer", "Contraintes"]),
+    (
+        "MODIFIER",
+        &[
+            "Ajuster",
+            "Diviser",
+            "Symétrie",
+            "Congé",
+            "Chanfrein",
+            "Construction",
+            "Réseau circulaire",
+            "Réseau rectangulaire",
+        ],
+    ),
+    ("ÉDITION", &["Annuler", "Rétablir"]),
+];
+
+#[test]
+fn the_sketch_tab_writes_its_five_groups_in_order_each_under_its_buttons() {
+    let app = opened(
+        "the_sketch_tab_writes_its_five_groups",
+        WIDE,
+        Settings::default(),
+    );
+
+    let mut lefts = Vec::new();
+    for (name, buttons) in THE_FIVE_GROUPS {
+        let written_name = written(&app, name);
+        let lowest = buttons
+            .iter()
+            .map(|button| the_ribbon_button(&app, button).bottom())
+            .fold(f32::NEG_INFINITY, f32::max);
+        assert!(
+            written_name.rect.top() >= lowest,
+            "« {name} » is written at {:?}, above the bottom of its buttons at {lowest}",
+            written_name.rect,
+        );
+        lefts.push(written_name.rect.left());
+    }
+
+    assert!(
+        lefts.is_sorted(),
+        "the five groups of the sketch tab do not read left to right in order: {lefts:?}",
+    );
+}
+
+#[test]
+fn each_group_of_the_sketch_tab_draws_its_buttons_at_its_size() {
+    let app = opened(
+        "each_group_of_the_sketch_tab_at_its_size",
+        WIDE,
+        Settings::default(),
+    );
+
+    for name in ["Nouvelle esquisse", "Ligne", "Point"] {
+        let height = the_ribbon_button(&app, name).height();
+        assert!(
+            height >= 64.0,
+            "« {name} », in a large group, is {height} high",
+        );
+    }
+    for name in ["Cote", "Mesurer", "Ajuster", "Diviser", "Réseau circulaire"] {
+        assert_tall(
+            the_ribbon_button(&app, name),
+            20.0,
+            &format!("« {name} », in a group small on 3 rows,"),
+        );
+    }
+    for name in ["Annuler", "Rétablir"] {
+        assert_tall(
+            the_ribbon_button(&app, name),
+            26.0,
+            &format!("« {name} », in a group small on 2 rows,"),
+        );
+    }
+}
+
+const THE_NINE_RULES: [&str; 9] = [
+    "Perpendiculaire",
+    "Parallèle",
+    "Égalité",
+    "Coïncidence",
+    "Colinéaire",
+    "Tangence",
+    "Milieu",
+    "Fixe",
+    "Concentrique",
+];
+
+#[test]
+fn mesurer_stays_a_plain_button_and_the_constraints_split_stands_alone() {
+    let mut app = sketching("mesurer_stays_plain_constraints_stand_alone");
+
+    let (dimension, measure, constraints) = (
+        row_starting(&app, "Cote").rect(),
+        row_starting(&app, "Mesurer").rect(),
+        the_button(&app, "Contraintes").rect(),
+    );
+    assert!(
+        (dimension.left() - measure.left()).abs() <= ALIGNED_WITHIN
+            && (measure.left() - constraints.left()).abs() <= ALIGNED_WITHIN
+            && measure.top() >= dimension.bottom()
+            && constraints.top() >= measure.bottom(),
+        "« Cote » at {dimension:?}, « Mesurer » at {measure:?} and « Contraintes » at \
+         {constraints:?} do not stand one above the other, in that order",
+    );
+
+    assert_one_split_button(&app, "Contraintes", "Contraintes ⌄");
+    let beside_measure: Vec<String> = app
+        .query_all_by_role(Role::Button)
+        .filter(|node| {
+            let at = node.rect();
+            at != measure
+                && (at.center().y - measure.center().y).abs() <= ALIGNED_WITHIN
+                && at.expand(2.0).intersects(measure)
+        })
+        .filter_map(|node| node.accesskit_node().label())
+        .collect();
+    assert!(
+        beside_measure.is_empty(),
+        "« Mesurer » at {measure:?} is a split button, with beside it {beside_measure:?}",
+    );
+
+    driver::click_exactly(&mut app, "Contraintes ⌄");
+    for rule in THE_NINE_RULES {
+        the_button(&app, rule);
+    }
+}
+
+#[test]
+fn the_four_moved_commands_stand_in_no_tab_of_the_default_ribbon() {
+    let mut app = sketching("the_four_moved_commands_stand_in_no_tab");
+
+    let mut still_there = Vec::new();
+    for tab in ["Esquisse", "Extrusion", "Export"] {
+        driver::click_the_button(&mut app, tab);
+        for name in ["Recadrer", "Vue en coupe", "Matière devant", "Terminer"] {
+            if driver::the_ribbon_s(&app, name).is_some() {
+                still_there.push(format!("« {name} » under the tab « {tab} »"));
+            }
+        }
+    }
+
+    assert!(
+        still_there.is_empty(),
+        "the default ribbon still offers {still_there:?}",
+    );
+}
+
+#[test]
+fn the_four_moved_commands_can_be_put_back_from_the_preferences() {
+    let mut app = sketching("the_four_moved_commands_in_the_palette");
+    driver::press_with_command(&mut app, egui::Key::Comma);
+    driver::click_exactly(&mut app, "Barre d'outils");
+    for name in ["Recadrer", "Vue en coupe", "Matière devant", "Terminer"] {
+        let offered = app
+            .query_all_by_label(name)
+            .any(|node| node.accesskit_node().role() == Role::Button);
+        assert!(
+            offered,
+            "the palette does not offer « {name} » to put on the toolbar: {:?}",
+            driver::on_screen(&app),
+        );
+    }
+
+    let mut app = opened(
+        "the_four_moved_commands_put_back_are_drawn",
+        WIDE,
+        driver::the_moved_commands_put_back(),
+    );
+    driver::start_a_sketch(&mut app);
+    for name in [
+        "Recadrer",
+        "Vue en coupe",
+        "Matière devant",
+        "Terminer (Entrée)",
+    ] {
+        assert!(
+            driver::the_ribbon_s(&app, name).is_some(),
+            "« {name} », put back on the toolbar, is not drawn in the ribbon: {:?}",
+            driver::on_screen(&app),
+        );
+    }
 }
 
 #[test]

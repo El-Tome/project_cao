@@ -355,7 +355,7 @@ fn the_view_pill_follows_the_sketch_the_section_view_and_the_kept_section() {
     raise_a_block_and_finish_the_sketch(&mut app);
     seen.push(("the sketch finished", "Vue 3D libre", the_title_bar(&app)));
 
-    driver::click_in_the_ribbon(&mut app, "Vue en coupe");
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
     seen.push(("the section view on", "Vue en coupe", the_title_bar(&app)));
 
     driver::click(&mut app, "Plan YZ");
@@ -968,10 +968,10 @@ fn raise_a_block_and_finish_the_sketch(app: &mut driver::App) {
     driver::click_at_sketch_point(app, ON_THE_BLOCK);
     driver::click(app, "Appliquer");
     driver::press(app, egui::Key::Escape);
-    driver::click_in_the_ribbon(app, driver::FINISH_IN_THE_RIBBON);
+    driver::finish_the_sketch(app);
     driver::click_the_button(app, "Esquisse");
     assert!(
-        !driver::is_enabled(app, driver::FINISH_IN_THE_RIBBON),
+        !driver::a_sketch_is_open(app),
         "the sketch the block was raised from is still being edited, showing {:?}",
         driver::on_screen(app),
     );

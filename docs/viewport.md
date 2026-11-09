@@ -75,8 +75,9 @@ square, and each corner of each glyph goes through that map. A name is never
 mirrored seen from outside, a side face reads upright with +Z up, and a face
 seen too edge-on to read is left bare.
 
-In a corner of the cube's square, a small X/Y/Z triad in the axis colours shows
-the world's axes as the camera sees them: an axis seen end-on is a short line.
+In the top left corner of the cube's square, a small X/Y/Z triad in the axis
+colours shows the world's axes as the camera sees them: an axis seen end-on is a
+short line.
 
 While a sketch is open, the face it looks at is lit amber (DESSUS for the XY
 plane), wherever the view is turned. A sketch on a part's face lights the cube

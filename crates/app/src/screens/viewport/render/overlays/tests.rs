@@ -46,7 +46,10 @@
 //!   `a_hovered_face_s_name_keeps_the_title_colour`
 //! - An X/Y/Z triad in the cube's corner, in the axis colours —
 //!   `a_triad_stands_in_the_cube_s_corner_in_the_axis_colours`, turning with
-//!   the camera — `the_triad_turns_with_the_camera`
+//!   the camera — `the_triad_turns_with_the_camera`; found by launching the
+//!   app: at the opening view and square onto a sketch, the views the triad is
+//!   read in, it stays off the cube's drawing —
+//!   `the_triad_stays_off_the_cube_at_the_opening_view_and_square_onto_a_sketch`
 //! - A name stays inside its face (#225) —
 //!   `a_name_lying_on_its_face_never_leaves_it`
 
@@ -1230,4 +1233,125 @@ fn the_triad_turns_with_the_camera() {
          end-on is short",
         length(&triad[2]),
     );
+}
+
+/// How far the triad keeps from the cube's outline, in points: about the
+/// width of the outline itself.
+const CLEAR_OF_THE_CUBE: f32 = 1.0;
+
+/// The convex outline of the cube on screen: every corner of every face, the
+/// ones inside the outline dropped.
+fn silhouette(state: &ViewportState, rect: egui::Rect) -> Vec<egui::Pos2> {
+    let mut corners: Vec<egui::Pos2> = CubeFace::ALL
+        .into_iter()
+        .flat_map(cube::corners)
+        .map(|corner| on_the_cube_s_screen(state, rect, corner))
+        .collect();
+    corners.sort_by(|one, other| one.x.total_cmp(&other.x).then(one.y.total_cmp(&other.y)));
+    let turn =
+        |o: egui::Pos2, a: egui::Pos2, b: egui::Pos2| (a - o).x * (b - o).y - (a - o).y * (b - o).x;
+    let half = |points: &mut dyn Iterator<Item = egui::Pos2>| {
+        let mut kept: Vec<egui::Pos2> = Vec::new();
+        for point in points {
+            while kept.len() >= 2 && turn(kept[kept.len() - 2], kept[kept.len() - 1], point) <= 1e-3
+            {
+                kept.pop();
+            }
+            kept.push(point);
+        }
+        kept.pop();
+        kept
+    };
+    let mut outline = half(&mut corners.iter().copied());
+    outline.extend(half(&mut corners.iter().rev().copied()));
+    outline
+}
+
+/// How far `point` stands outside the outline; negative when it is inside.
+fn off_the_outline(point: egui::Pos2, outline: &[egui::Pos2]) -> f32 {
+    let edges = || outline.iter().zip(outline.iter().cycle().skip(1));
+    let inside =
+        edges().all(|(a, b)| (*b - *a).x * (point - *a).y - (*b - *a).y * (point - *a).x >= 0.0);
+    if inside {
+        return -1.0;
+    }
+    edges()
+        .map(|(a, b)| {
+            let along = *b - *a;
+            let reach = ((point - *a).dot(along) / along.length_sq()).clamp(0.0, 1.0);
+            (point - (*a + along * reach)).length()
+        })
+        .fold(f32::INFINITY, f32::min)
+}
+
+fn along_a_line(from: egui::Pos2, to: egui::Pos2) -> Vec<egui::Pos2> {
+    (0..=24)
+        .map(|step| from + (to - from) * (step as f32 / 24.0))
+        .collect()
+}
+
+fn around_a_box(area: egui::Rect) -> Vec<egui::Pos2> {
+    let corners = [
+        area.left_top(),
+        area.right_top(),
+        area.right_bottom(),
+        area.left_bottom(),
+    ];
+    corners
+        .iter()
+        .zip(corners.iter().cycle().skip(1))
+        .flat_map(|(from, to)| along_a_line(*from, *to))
+        .collect()
+}
+
+/// A square onto each of the three planes of the origin, as opening a sketch
+/// on it lands, and the opening view.
+fn the_views_the_triad_is_read_in(size: f32) -> Vec<(String, ViewportState, egui::Rect)> {
+    let at = egui::pos2(40.0, 40.0);
+    let (opening, rect) = a_cube_with_its_axes_painted_apart(OPENING_YAW, OPENING_PITCH, size, at);
+    let mut views = vec![("the opening view".to_string(), opening, rect)];
+    for (name, plane) in [
+        ("a sketch on XY", WorkPlane::XY),
+        ("a sketch on XZ", WorkPlane::XZ),
+        ("a sketch on YZ", WorkPlane::YZ),
+    ] {
+        let (mut state, rect) =
+            a_cube_with_its_axes_painted_apart(OPENING_YAW, OPENING_PITCH, size, at);
+        state.look_at_plane(plane, DVec3::ZERO, 50.0);
+        if let Some(mut turn) = state.transition.take() {
+            while turn.advance(&mut state.camera, 1.0) {}
+        }
+        views.push((name.to_string(), state, rect));
+    }
+    views
+}
+
+#[test]
+fn the_triad_stays_off_the_cube_at_the_opening_view_and_square_onto_a_sketch() {
+    for size in [80.0, 96.0, 160.0] {
+        for (view, state, rect) in the_views_the_triad_is_read_in(size) {
+            let outline = silhouette(&state, rect);
+
+            let triad = the_triad(&state, rect);
+
+            for (axis, name) in triad.iter().zip(["X", "Y", "Z"]) {
+                let parts = [
+                    ("line", along_a_line(axis.from, axis.to)),
+                    ("letter", around_a_box(axis.letter)),
+                ];
+                for (part, points) in parts {
+                    let nearest = points
+                        .iter()
+                        .map(|point| off_the_outline(*point, &outline))
+                        .fold(f32::INFINITY, f32::min);
+                    assert!(
+                        nearest >= CLEAR_OF_THE_CUBE,
+                        "on a cube {size} wide at {view}, the {part} of axis {name} comes within \
+                         {nearest} points of the cube's outline (negative: over it), where \
+                         {CLEAR_OF_THE_CUBE} is the least it may keep",
+                    );
+                }
+            }
+        }
+    }
 }

@@ -1104,6 +1104,27 @@ fn assert_in_line_with(cube: egui::Rect, button: egui::Rect, seen: &str) {
     );
 }
 
+/// Flush with the cube on the side of the view's edge, so that it keeps the
+/// margin the cube keeps.
+fn assert_flush_with_the_cube(
+    corner: ViewportCorner,
+    cube: egui::Rect,
+    button: egui::Rect,
+    seen: &str,
+) {
+    let (side, off) = match corner {
+        ViewportCorner::TopLeft | ViewportCorner::BottomLeft => ("left", button.min.x - cube.min.x),
+        ViewportCorner::TopRight | ViewportCorner::BottomRight => {
+            ("right", button.max.x - cube.max.x)
+        }
+    };
+    assert!(
+        off.abs() <= IN_ITS_CORNER,
+        "{seen}: the button at {button:?} ends {off} points off the {side} edge of the cube at \
+         {cube:?}, where it should keep the cube's margin from the view",
+    );
+}
+
 fn assert_directly_under(cube: egui::Rect, button: egui::Rect, seen: &str) {
     let gap = button.min.y - cube.max.y;
     assert!(
@@ -1169,7 +1190,9 @@ fn the_origin_view_button_stands_directly_under_the_cube() {
 
     assert_offered(&app, "on a part just made, the cube at its default corner");
     let button = the_origin_view_s_place(&app);
-    assert_directly_under(the_cube(&app), button, "the cube at its default corner");
+    let seen = "the cube at its default corner";
+    assert_directly_under(the_cube(&app), button, seen);
+    assert_flush_with_the_cube(ViewportCorner::TopRight, the_cube(&app), button, seen);
     assert_clear_of_the_view_s_edges(&app, button, "the cube at its default corner");
 }
 
@@ -1302,6 +1325,7 @@ fn the_origin_view_button_follows_the_cube_s_corner_size_and_margin() {
 
         let cube = where_a_top_corner_sets_the_cube(&app, corner, size, margin);
         assert_directly_under(cube, button, &seen);
+        assert_flush_with_the_cube(corner, cube, button, &seen);
         assert_clear_of_the_view_s_edges(&app, button, &seen);
     }
 }
@@ -1334,6 +1358,7 @@ fn the_origin_view_button_goes_above_a_cube_in_a_bottom_corner() {
              at {cube:?}, where 0 to {BESIDE_THE_CUBE} is directly above it",
         );
         assert_in_line_with(cube, button, &seen);
+        assert_flush_with_the_cube(corner, cube, button, &seen);
         assert_clear_of_the_view_s_edges(&app, button, &seen);
         assert!(
             !button.intersects(bar),

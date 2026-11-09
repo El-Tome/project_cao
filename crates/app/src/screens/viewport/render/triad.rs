@@ -6,11 +6,12 @@ use glam::Vec3;
 use super::overlays::tint_to_color;
 use crate::screens::viewport::ViewportState;
 
-/// How far in from the square's bottom left corner the triad's origin stands,
-/// on both sides, and how long an axis square to the view is drawn, each as a
-/// share of the square's side. The first exceeds the second so that a line
-/// stays inside the square whichever way it points.
-const INSET: f32 = 0.22;
+/// How far in from the square's top left corner the triad's origin stands, on
+/// both sides, and how long an axis square to the view is drawn, each as a
+/// share of the square's side. The corner is the one with the most room beside
+/// the cube, and the first is no less than the second so that a line stays
+/// inside the square whichever way it points.
+const INSET: f32 = 0.16;
 const LENGTH: f32 = 0.15;
 
 const LINE_WIDTH: f32 = 1.5;
@@ -28,7 +29,7 @@ pub(super) fn paint(
 ) {
     let (camera, theme) = (&state.camera, &state.theme);
     let side = cube_rect.width();
-    let origin = cube_rect.left_bottom() + egui::vec2(INSET, -INSET) * side;
+    let origin = cube_rect.left_top() + egui::Vec2::splat(INSET * side);
 
     for (axis, name, colour) in [
         (Vec3::X, "X", theme.axis_x),

@@ -29,7 +29,10 @@ const SEPARATOR_HEIGHT: f32 = 18.0;
 
 /// How far above a view's bottom edge the top of the bar stands: its margin,
 /// its frame and its row. What is set in that corner stands above it.
-pub const TOP_ABOVE_THE_EDGE: f32 = SPACING_XXL + 2.0 * (STROKE + PADDING as f32) + BUTTON_HEIGHT;
+pub const TOP_ABOVE_THE_EDGE: f32 = SPACING_XXL + 2.0 * FRAME_INSET + BUTTON_HEIGHT;
+
+/// How far inside a row's frame what it holds starts: its border and padding.
+pub const FRAME_INSET: f32 = STROKE + PADDING as f32;
 
 /// What a menu button wears after its name to say that it opens.
 const OPENS: &str = "⌄";

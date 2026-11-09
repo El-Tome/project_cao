@@ -12,6 +12,7 @@ pub(crate) fn of(command: Command) -> Icon {
         Command::NewSketch => icon::NEW_SKETCH,
         Command::FinishSketch => icon::FINISH,
         Command::Reframe => icon::REFRAME,
+        Command::OriginView => icon::HOME_VIEW,
         Command::NextMatterInFront => icon::MATTER_IN_FRONT_HIDDEN,
         Command::SectionView => icon::SECTION_VIEW,
         Command::Undo => icon::UNDO,

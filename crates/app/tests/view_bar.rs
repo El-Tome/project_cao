@@ -169,12 +169,22 @@
 //! `crates/app/src/screens/viewport/render/tests.rs`, `render/overlays/tests.rs`
 //! and `state/tests.rs`, each under its own block.
 //! - « Vue d'origine » under the cube: the isometric view the part opens with,
-//!   framed on the part — the button under the cube, following its settings —
-//!   `the_origin_view_button_stands_under_the_cube_and_frames_the_part`; decided
-//!   on the branch: above the cube when it sits in a bottom corner —
-//!   `the_origin_view_button_goes_above_a_cube_in_a_bottom_corner`; decided by
-//!   the human: hidden while a sketch is open —
-//!   `the_origin_view_button_is_hidden_while_a_sketch_is_open`
+//!   framed on the part — the button directly under the cube —
+//!   `the_origin_view_button_stands_directly_under_the_cube`; clicked, it
+//!   brings the part back —
+//!   `the_origin_view_button_brings_back_the_opening_view_framed_on_the_part`;
+//!   decided by the human: hidden while a sketch is open, not greyed, and back
+//!   when it ends — `the_origin_view_button_is_hidden_while_a_sketch_is_open`;
+//!   read from the code: a plane being chosen is no sketch open, as « Recadrer »
+//!   and the cube's amber have it —
+//!   `the_origin_view_button_stays_while_a_plane_is_being_chosen`
+//! - The cube's corner, size and margin settings: the button follows them —
+//!   `the_origin_view_button_follows_the_cube_s_corner_size_and_margin`;
+//!   decided on the branch: in a bottom corner it sits directly above the cube,
+//!   on screen and clear of the view bar —
+//!   `the_origin_view_button_goes_above_a_cube_in_a_bottom_corner`; the cube's
+//!   own place in `crates/app/src/screens/viewport/state/tests.rs`, under its
+//!   own block
 //! - Clicking a face, an edge or a corner turns the camera as today; hovering
 //!   lights it: the clicking half —
 //!   `clicking_a_face_an_edge_or_a_corner_of_the_cube_still_turns_the_camera`;
@@ -1029,4 +1039,296 @@ fn an_orientation_cube_set_to_the_bottom_right_stands_above_the_view_bar() {
         "the cube stands {} points above the view bar, out of its corner",
         bar.min.y - cube.max.y,
     );
+}
+
+/// How far from the cube the button may stand and still be read as belonging
+/// to it: less than its own height.
+const BESIDE_THE_CUBE: f32 = 16.0;
+
+/// How far an axis of the view may lean, as the distance between two unit
+/// directions on screen, from where the opening view lays it: a few degrees,
+/// the perspective of a millimetre beside the middle of the view included.
+const ALONG_THE_OPENING_AXIS: f32 = 0.05;
+
+/// The button of the cube, if the view shows one. Asked of the whole view,
+/// and greyed or not: hidden means no such button at all.
+fn the_origin_view<'a>(app: &'a driver::App) -> Option<egui_kittest::Node<'a>> {
+    let view = driver::canvas(app);
+    app.query_all_by_role(egui::accesskit::Role::Button)
+        .find(|node| {
+            node.accesskit_node()
+                .label()
+                .is_some_and(|read| read.starts_with("Vue d'origine"))
+                && view.contains_rect(node.rect())
+        })
+}
+
+fn the_origin_view_s_place(app: &driver::App) -> egui::Rect {
+    the_origin_view(app)
+        .unwrap_or_else(|| {
+            panic!(
+                "no button of the view reads « Vue d'origine », showing {:?}",
+                driver::on_screen(app)
+            )
+        })
+        .rect()
+}
+
+fn assert_offered(app: &driver::App, when: &str) {
+    let the_button = the_origin_view(app);
+    assert!(
+        the_button.as_ref().is_some_and(|node| !greyed(node)),
+        "{when}, « Vue d'origine » should be offered, and the view shows {:?}",
+        driver::on_screen(app),
+    );
+}
+
+fn assert_clear_of_the_view_s_edges(app: &driver::App, button: egui::Rect, seen: &str) {
+    let view = driver::canvas(app);
+    assert!(
+        view.contains_rect(button),
+        "{seen}: the button at {button:?} leaves the view {view:?}",
+    );
+}
+
+fn assert_in_line_with(cube: egui::Rect, button: egui::Rect, seen: &str) {
+    assert!(
+        cube.x_range().contains(button.center().x),
+        "{seen}: the button at {button:?} does not stand in line with the cube at {cube:?}",
+    );
+}
+
+fn assert_directly_under(cube: egui::Rect, button: egui::Rect, seen: &str) {
+    let gap = button.min.y - cube.max.y;
+    assert!(
+        (0.0..=BESIDE_THE_CUBE).contains(&gap),
+        "{seen}: the button at {button:?} stands {gap} points under the foot of the cube \
+         at {cube:?}, where 0 to {BESIDE_THE_CUBE} is directly under it",
+    );
+    assert_in_line_with(cube, button, seen);
+}
+
+/// A part just made, the cube set to this corner, size and margin, and the
+/// scale bar kept out of its corner.
+fn a_part_with_the_cube(test: &str, corner: ViewportCorner, size: f32, margin: f32) -> driver::App {
+    let mut settings = cao_prefs::Settings::default();
+    settings.viewport.cube_corner = corner;
+    settings.viewport.cube_size = size;
+    settings.viewport.cube_margin = margin;
+    settings.viewport.ruler_corner = match corner {
+        ViewportCorner::BottomLeft => ViewportCorner::TopLeft,
+        _ => ViewportCorner::BottomLeft,
+    };
+    let mut app = driver::open_held_with(test, settings);
+    driver::create_a_part(&mut app, "Platine");
+    app
+}
+
+/// Which way each axis of the world runs across the screen through the middle
+/// of the block, as a unit direction.
+fn the_axes_on_screen(app: &driver::App) -> [(DVec3, egui::Vec2); 3] {
+    let middle = the_block_s_middle();
+    [DVec3::X, DVec3::Y, DVec3::Z].map(|axis| {
+        let along = of_the_world(app, middle + axis) - of_the_world(app, middle);
+        (axis, along.normalized())
+    })
+}
+
+fn the_axes_a_new_part_opens_with() -> [(DVec3, egui::Vec2); 3] {
+    let opening = cao_render::OrbitCamera::default();
+    [DVec3::X, DVec3::Y, DVec3::Z].map(|axis| {
+        let on = axis.as_vec3();
+        let along = egui::vec2(opening.right().dot(on), -opening.up().dot(on));
+        (axis, along.normalized())
+    })
+}
+
+fn stands_as_it_opens(app: &driver::App) -> bool {
+    the_axes_on_screen(app)
+        .into_iter()
+        .zip(the_axes_a_new_part_opens_with())
+        .all(|((_, drawn), (_, wanted))| (drawn - wanted).length() <= ALONG_THE_OPENING_AXIS)
+}
+
+#[test]
+fn the_origin_view_button_stands_directly_under_the_cube() {
+    let app = a_part_with(
+        "the_origin_view_button_stands_directly_under_the_cube",
+        ViewportCorner::BottomLeft,
+        ViewportCorner::TopRight,
+    );
+
+    assert_offered(&app, "on a part just made, the cube at its default corner");
+    let button = the_origin_view_s_place(&app);
+    assert_directly_under(the_cube(&app), button, "the cube at its default corner");
+    assert_clear_of_the_view_s_edges(&app, button, "the cube at its default corner");
+}
+
+#[test]
+fn the_origin_view_button_brings_back_the_opening_view_framed_on_the_part() {
+    let mut app =
+        driver::a_block("the_origin_view_button_brings_back_the_opening_view_framed_on_the_part");
+    let over_the_block = of_the_world(&app, the_block_s_middle());
+    step_back(&mut app, over_the_block);
+    let cube_face = the_cube(&app).center();
+    driver::click_at(&mut app, cube_face);
+    assert!(
+        !stands_as_it_opens(&app),
+        "the click on the cube was meant to leave the view turned off the opening one",
+    );
+    assert!(
+        how_the_view_frames_the_block(&app).covers < A_SPECK,
+        "the wheel was meant to leave the block a speck",
+    );
+
+    let the_button = the_origin_view(&app).unwrap_or_else(|| {
+        panic!(
+            "no button of the view reads « Vue d'origine », showing {:?}",
+            driver::on_screen(&app)
+        )
+    });
+    the_button.click();
+    app.run();
+    driver::hold_the_canvas(&mut app);
+
+    for ((axis, drawn), (_, wanted)) in the_axes_on_screen(&app)
+        .into_iter()
+        .zip(the_axes_a_new_part_opens_with())
+    {
+        assert!(
+            (drawn - wanted).length() <= ALONG_THE_OPENING_AXIS,
+            "once « Vue d'origine » is clicked, the axis {axis:?} runs {drawn:?} across the \
+             screen, and a new part opens with it running {wanted:?}",
+        );
+    }
+    let framed = how_the_view_frames_the_block(&app);
+    assert!(
+        framed.covers >= FILLS_THE_VIEW,
+        "« Vue d'origine » leaves the block covering {} of the view",
+        framed.covers,
+    );
+    assert!(
+        framed.off_the_middle <= OFF_THE_MIDDLE,
+        "once « Vue d'origine » is clicked, the block's middle stands {} of the view's \
+         height from the middle of the view",
+        framed.off_the_middle,
+    );
+}
+
+#[test]
+fn the_origin_view_button_is_hidden_while_a_sketch_is_open() {
+    let mut app = driver::a_block("the_origin_view_button_is_hidden_while_a_sketch_is_open");
+    assert_offered(&app, "on a block, no sketch open");
+
+    driver::start_a_sketch(&mut app);
+    assert!(
+        driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        "no sketch was opened on the block, showing {:?}",
+        driver::on_screen(&app),
+    );
+    assert!(
+        the_origin_view(&app).is_none(),
+        "with a sketch open, « Vue d'origine » should be gone from the view, not greyed",
+    );
+
+    driver::click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
+    assert_offered(&app, "the sketch finished");
+}
+
+#[test]
+fn the_origin_view_button_stays_while_a_plane_is_being_chosen() {
+    let mut app = driver::a_block("the_origin_view_button_stays_while_a_plane_is_being_chosen");
+
+    driver::click(&mut app, "Nouvelle esquisse");
+
+    assert!(
+        !driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        "a sketch was opened where only a plane was meant to be chosen, showing {:?}",
+        driver::on_screen(&app),
+    );
+    assert_offered(
+        &app,
+        "while a plane is being chosen, no sketch being open yet",
+    );
+}
+
+/// Where the settings stand a cube set to a top corner, read from them: a cube
+/// too small for its names to be legible paints no text to be found by.
+fn where_a_top_corner_sets_the_cube(
+    app: &driver::App,
+    corner: ViewportCorner,
+    size: f32,
+    margin: f32,
+) -> egui::Rect {
+    let view = driver::canvas(app);
+    let left = match corner {
+        ViewportCorner::TopLeft => view.min.x + margin,
+        _ => view.max.x - margin - size,
+    };
+    egui::Rect::from_min_size(
+        egui::pos2(left, view.min.y + margin),
+        egui::Vec2::splat(size),
+    )
+}
+
+#[test]
+fn the_origin_view_button_follows_the_cube_s_corner_size_and_margin() {
+    use ViewportCorner::{TopLeft, TopRight};
+
+    for (corner, size, margin) in [
+        (TopLeft, 96.0, 12.0),
+        (TopRight, 160.0, 30.0),
+        (TopLeft, 80.0, 4.0),
+        (TopRight, 96.0, 40.0),
+    ] {
+        let seen = format!("the cube at {corner:?}, {size} wide, {margin} in");
+        let app = a_part_with_the_cube(
+            &format!("the_origin_view_button_follows_the_cube_{corner:?}_{size}_{margin}"),
+            corner,
+            size,
+            margin,
+        );
+
+        let button = the_origin_view_s_place(&app);
+
+        let cube = where_a_top_corner_sets_the_cube(&app, corner, size, margin);
+        assert_directly_under(cube, button, &seen);
+        assert_clear_of_the_view_s_edges(&app, button, &seen);
+    }
+}
+
+#[test]
+fn the_origin_view_button_goes_above_a_cube_in_a_bottom_corner() {
+    use ViewportCorner::{BottomLeft, BottomRight};
+
+    for (corner, size, margin) in [
+        (BottomLeft, 96.0, 12.0),
+        (BottomRight, 96.0, 12.0),
+        (BottomRight, 160.0, 30.0),
+    ] {
+        let seen = format!("the cube at {corner:?}, {size} wide, {margin} in");
+        let app = a_part_with_the_cube(
+            &format!("the_origin_view_button_goes_above_a_cube_{corner:?}_{size}_{margin}"),
+            corner,
+            size,
+            margin,
+        );
+
+        let button = the_origin_view_s_place(&app);
+        let cube = the_cube(&app);
+        let bar = the_bar_s_frame(&app);
+
+        let gap = cube.min.y - button.max.y;
+        assert!(
+            (0.0..=BESIDE_THE_CUBE).contains(&gap),
+            "{seen}: the button at {button:?} stands {gap} points above the top of the cube \
+             at {cube:?}, where 0 to {BESIDE_THE_CUBE} is directly above it",
+        );
+        assert_in_line_with(cube, button, &seen);
+        assert_clear_of_the_view_s_edges(&app, button, &seen);
+        assert!(
+            !button.intersects(bar),
+            "{seen}: the button at {button:?} lies across the view bar at {bar:?}",
+        );
+    }
 }

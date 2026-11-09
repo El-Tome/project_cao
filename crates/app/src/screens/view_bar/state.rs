@@ -36,6 +36,27 @@ pub struct Offered {
     pub on: Option<bool>,
 }
 
+impl Offered {
+    pub fn of(
+        command: Command,
+        on: Option<bool>,
+        part: &SketchContext<'_>,
+        bound: &Shortcuts,
+    ) -> Self {
+        let lang = part.lang;
+        Self {
+            command,
+            name: wording::label(lang, command),
+            key: bound
+                .chord_for(command)
+                .map(|chord| shortcuts::chord(lang, chord)),
+            hint: wording::hint(lang, command),
+            enabled: is_enabled(command, part.document, part.editor, part.extrusion),
+            on,
+        }
+    }
+}
+
 impl ViewBar {
     /// The coordinates are said in the unit the scale bar shows its step in,
     /// so that the two agree.
@@ -46,16 +67,7 @@ impl ViewBar {
         bound: &Shortcuts,
     ) -> Self {
         let (document, editor, lang) = (&*part.document, &*part.editor, part.lang);
-        let offered = |command, on| Offered {
-            command,
-            name: wording::label(lang, command),
-            key: bound
-                .chord_for(command)
-                .map(|chord| shortcuts::chord(lang, chord)),
-            hint: wording::hint(lang, command),
-            enabled: is_enabled(command, document, editor, part.extrusion),
-            on,
-        };
+        let offered = |command, on| Offered::of(command, on, part, bound);
         let unit = shown.unit.unwrap_or(LengthUnit::Millimeter);
         let pointed = Pointed::of(editor, shown.on_the_part);
         Self {

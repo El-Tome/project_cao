@@ -3,8 +3,8 @@
 
 use egui::{
     Align, Align2, Area, AreaState, Button, Context, FontId, Frame, Id, IntoAtoms, Label, Layout,
-    Margin, Order, Popup, Rect, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode, Ui,
-    WidgetText, vec2,
+    Margin, Order, Popup, Pos2, Rect, Response, RichText, Sense, Stroke, TextStyle, TextWrapMode,
+    Ui, WidgetText, vec2,
 };
 
 use crate::ui::icon::{Icon, IconSize};
@@ -35,21 +35,34 @@ pub const TOP_ABOVE_THE_EDGE: f32 = SPACING_XXL + 2.0 * (STROKE + PADDING as f32
 const OPENS: &str = "⌄";
 
 /// A bar standing over a view, against its bottom right corner, holding a row
-/// laid left to right. It sits on a layer of its own, above the view: what
-/// lies under it is neither hovered nor clicked, save by a drag already under
-/// way, which carries on over it.
+/// laid left to right.
 pub fn floating_bar<R>(
     ctx: &Context,
     id: Id,
     view: Rect,
     contents: impl FnOnce(&mut Ui) -> R,
 ) -> R {
+    let corner = view.right_bottom() - vec2(SPACING_XXL, SPACING_XXL);
+    floating_row(ctx, id, view, (Align2::RIGHT_BOTTOM, corner), contents)
+}
+
+/// A framed row standing over a view, the point `pivot` names set at `at` and
+/// the whole kept inside the view. It sits on a layer of its own, above the
+/// view: what lies under it is neither hovered nor clicked, save by a drag
+/// already under way, which carries on over it.
+pub fn floating_row<R>(
+    ctx: &Context,
+    id: Id,
+    view: Rect,
+    (pivot, at): (Align2, Pos2),
+    contents: impl FnOnce(&mut Ui) -> R,
+) -> R {
     let size_before = AreaState::load(ctx, id).and_then(|state| state.size);
     let shown = Area::new(id)
         .order(Order::Middle)
         .interactable(ctx.dragged_id().is_none())
-        .pivot(Align2::RIGHT_BOTTOM)
-        .fixed_pos(view.right_bottom() - vec2(SPACING_XXL, SPACING_XXL))
+        .pivot(pivot)
+        .fixed_pos(at)
         .constrain_to(view)
         .show(ctx, |ui| {
             Frame::popup(ui.style())

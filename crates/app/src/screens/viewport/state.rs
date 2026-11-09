@@ -188,7 +188,7 @@ impl ViewportState {
     }
 
     /// Width over height of the canvas, square until a frame has drawn it.
-    fn aspect(&self) -> f32 {
+    pub(super) fn aspect(&self) -> f32 {
         self.canvas.map_or(1.0, |canvas| canvas.aspect_ratio())
     }
 
@@ -210,19 +210,15 @@ impl ViewportState {
     /// Frames the whole part from the direction it is seen from; with no
     /// volume to frame, turns back to the view a new part opens with.
     pub(crate) fn frame_the_part(&mut self, body: &cao_solid::Body) {
-        let Some((min, max)) = body.bounds() else {
-            let opening = Self::default().camera;
-            let (yaw, pitch) = (self.camera.yaw(), self.camera.pitch());
-            self.camera = opening;
-            self.camera.set_view_angles(yaw, pitch);
-            self.transition = Some(ViewTransition::to_angles(
-                &self.camera,
-                opening.yaw(),
-                opening.pitch(),
-            ));
-            self.mode = ViewMode::Free;
-            return;
-        };
+        match body.bounds() {
+            Some(bounds) => self.fit(bounds),
+            None => self.turn_to_the_opening_view(body),
+        }
+    }
+
+    /// Stands the camera so that these bounds fill the view, from wherever it
+    /// is looking.
+    pub(super) fn fit(&mut self, (min, max): (DVec3, DVec3)) {
         let radius = (max - min).length() * 0.5;
         self.camera
             .focus_on(((min + max) * 0.5).as_vec3(), radius as f32, self.aspect());

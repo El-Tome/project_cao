@@ -15,6 +15,7 @@ pub(crate) use input::{chamfer_to_swap, corner_picks_with, swap_held_chamfer, sw
 pub(crate) use input::{take as take_a_selection, take_everything};
 mod matter;
 mod navigation;
+mod opening_view;
 mod render;
 mod section;
 mod state;
@@ -26,5 +27,5 @@ pub use state::{ViewMode, ViewportState};
 pub use view::{Shown, show};
 
 pub(crate) use state::{
-    HOLD_PIXELS, PICK_PIXELS, ViewScale, corner_origin, plane_half_size, to_ndc,
+    HOLD_PIXELS, PICK_PIXELS, ViewScale, corner_origin, cube_rect, plane_half_size, to_ndc,
 };

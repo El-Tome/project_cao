@@ -1,5 +1,5 @@
 use cao_part::PartDocument;
-use cao_render::{CubeFace, CubeZone, OrbitCamera, SceneFrame, Vertex, ViewportRect};
+use cao_render::{OrbitCamera, SceneFrame, Vertex, ViewportRect};
 use cao_sketch::{CutCurve, Sketch, Stretches, sweep_of};
 use glam::{DVec2, Vec3};
 
@@ -66,9 +66,6 @@ const STEPS_OF_A_TURN: usize = 48;
 /// opens on.
 fn looking_at((centre, radius): (Vec3, f32)) -> OrbitCamera {
     let mut camera = OrbitCamera::default();
-    let corner = CubeZone::corner(CubeFace::PlusX, CubeFace::MinusY, CubeFace::PlusZ);
-    let (yaw, pitch) = cao_render::camera::view_angles_towards(corner.direction());
-    camera.set_view_angles(yaw, pitch);
     camera.focus_on(centre, radius, 1.0);
     camera
 }

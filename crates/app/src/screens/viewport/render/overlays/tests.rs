@@ -43,13 +43,18 @@
 //!   drawn are those of the faces that can be seen —
 //!   `the_labels_of_the_orientation_cube_name_the_faces_that_can_be_seen`, and a
 //!   hovered face's name keeps the colour it had —
-//!   `a_hovered_face_s_name_keeps_the_title_colour`
+//!   `a_hovered_face_s_name_keeps_the_title_colour`; found on screen: « DESSUS »
+//!   stood upside down at the view a part opens with —
+//!   `every_name_reads_upright_at_the_opening_view`
 //! - An X/Y/Z triad in the cube's corner, in the axis colours —
 //!   `a_triad_stands_in_the_cube_s_corner_in_the_axis_colours`, turning with
-//!   the camera — `the_triad_turns_with_the_camera`; found by launching the
-//!   app: at the opening view and square onto a sketch, the views the triad is
-//!   read in, it stays off the cube's drawing —
-//!   `the_triad_stays_off_the_cube_at_the_opening_view_and_square_onto_a_sketch`;
+//!   the camera — `the_triad_turns_with_the_camera`; decided by the human, on
+//!   screen, in place of keeping it clear of the cube: it sits at the bottom
+//!   left of the square, the point its lines start from outside the cube's
+//!   drawing and the rest allowed a little over it, and it touches no face name
+//!   — `the_triad_sticks_out_of_the_cube_at_the_bottom_left_and_keeps_off_the_names`;
+//!   found on screen: it was too small to read —
+//!   `the_triad_is_drawn_large_enough_to_read_on_a_cube_of_the_default_size`;
 //!   found in review: a cube too small to hold a letter still paints —
 //!   `a_cube_too_small_to_hold_a_letter_paints_without_a_panic`
 //! - A name stays inside its face (#225) —
@@ -270,7 +275,7 @@ fn the_scale_bar_is_exactly_one_grid_step_long() {
 
 #[test]
 fn the_labels_of_the_orientation_cube_name_the_faces_that_can_be_seen() {
-    for (yaw, pitch) in [(OPENING_YAW, OPENING_PITCH), (0.7, -0.6), (2.4, 0.8)] {
+    for (yaw, pitch) in [(opening_yaw(), opening_pitch()), (0.7, -0.6), (2.4, 0.8)] {
         let (state, rect) = a_cube_seen_from(yaw, pitch, ROOMY_CUBE);
         let can_be_seen: Vec<CubeFace> = CubeFace::ALL
             .into_iter()
@@ -591,8 +596,13 @@ fn holds_a_figure(text: &str) -> bool {
 }
 
 /// The angles a new part opens with.
-const OPENING_YAW: f32 = -std::f32::consts::PI * 0.7;
-const OPENING_PITCH: f32 = 0.5;
+fn opening_yaw() -> f32 {
+    OrbitCamera::default().yaw()
+}
+
+fn opening_pitch() -> f32 {
+    OrbitCamera::default().pitch()
+}
 
 /// A cube large enough for every name to fit at the angles these tests use.
 const ROOMY_CUBE: f32 = 160.0;
@@ -805,7 +815,7 @@ fn a_face_s_name_is_painted_lying_on_its_face_and_turns_with_the_cube() {
     let lang = Catalogue::french();
     let mut top_edges = Vec::new();
 
-    for (yaw, pitch) in [(OPENING_YAW, OPENING_PITCH), (-1.9, 0.5), (0.6, 0.9)] {
+    for (yaw, pitch) in [(opening_yaw(), opening_pitch()), (-1.9, 0.5), (0.6, 0.9)] {
         let (state, rect) = a_cube_seen_from(yaw, pitch, ROOMY_CUBE);
 
         let names = names_painted(&state, rect);
@@ -971,7 +981,7 @@ fn a_face_seen_too_edge_on_to_read_draws_no_name() {
 
 #[test]
 fn the_name_on_a_lit_face_stays_readable_against_the_amber() {
-    let (state, rect) = a_cube_seen_from(OPENING_YAW, OPENING_PITCH, ROOMY_CUBE);
+    let (state, rect) = a_cube_seen_from(opening_yaw(), opening_pitch(), ROOMY_CUBE);
     let amber = srgb_luminance(tokens::ACCENT_AMBER);
 
     let names = names_painted(&state, rect);
@@ -1008,7 +1018,7 @@ fn srgb_luminance(colour: egui::Color32) -> f32 {
 
 #[test]
 fn a_hovered_face_s_name_keeps_the_title_colour() {
-    let (mut state, rect) = a_cube_seen_from(OPENING_YAW, OPENING_PITCH, ROOMY_CUBE);
+    let (mut state, rect) = a_cube_seen_from(opening_yaw(), opening_pitch(), ROOMY_CUBE);
     let hovered = CubeFace::PlusZ;
     state.hovered_zone = Some(CubeZone::Face(hovered));
 
@@ -1035,7 +1045,7 @@ fn a_hovered_face_s_name_keeps_the_title_colour() {
 #[test]
 fn a_name_lying_on_its_face_never_leaves_it() {
     for size in [96.0, 128.0, 200.0] {
-        let (state, rect) = a_cube_seen_from(OPENING_YAW, OPENING_PITCH, size);
+        let (state, rect) = a_cube_seen_from(opening_yaw(), opening_pitch(), size);
         assert!(
             !names_painted(&state, rect).is_empty(),
             "a cube {size} wide at the opening view paints no name as a mesh on any face",
@@ -1066,17 +1076,21 @@ const THE_AXIS_Z: Rgba = Rgba::opaque(0.15, 0.25, 0.95);
 const AT_THE_TIP: f32 = 16.0;
 
 /// The views the triad is read from, one of them square down the Z axis.
-const TRIAD_VIEWS: [(f32, f32); 4] = [
-    (OPENING_YAW, OPENING_PITCH),
-    (0.6, 0.9),
-    (-2.0, -0.8),
-    (0.3, 1.5),
-];
+fn triad_views() -> [(f32, f32); 4] {
+    [
+        (opening_yaw(), opening_pitch()),
+        (0.6, 0.9),
+        (-2.0, -0.8),
+        (0.3, 1.5),
+    ]
+}
 
 struct AxisDrawn {
     from: egui::Pos2,
     to: egui::Pos2,
+    width: f32,
     letter: egui::Rect,
+    letter_size: f32,
 }
 
 fn a_cube_with_its_axes_painted_apart(
@@ -1103,11 +1117,11 @@ fn the_triad(state: &ViewportState, rect: egui::Rect) -> [AxisDrawn; 3] {
 
     [("X", THE_AXIS_X), ("Y", THE_AXIS_Y), ("Z", THE_AXIS_Z)].map(|(name, colour)| {
         let colour = tint_to_color(colour);
-        let [from, to] = painted
+        let ([from, to], width) = painted
             .iter()
             .find_map(|shape| match shape {
                 egui::Shape::LineSegment { points, stroke } if stroke.color == colour => {
-                    Some(*points)
+                    Some((*points, stroke.width))
                 }
                 _ => None,
             })
@@ -1129,7 +1143,9 @@ fn the_triad(state: &ViewportState, rect: egui::Rect) -> [AxisDrawn; 3] {
         AxisDrawn {
             from,
             to,
+            width,
             letter: egui::Shape::Text(text.clone()).visual_bounding_rect(),
+            letter_size: text.galley.job.sections[0].format.font_id.size,
         }
     })
 }
@@ -1138,7 +1154,7 @@ fn the_triad(state: &ViewportState, rect: egui::Rect) -> [AxisDrawn; 3] {
 fn a_triad_stands_in_the_cube_s_corner_in_the_axis_colours() {
     for size in [80.0, 96.0, 160.0] {
         for at in [egui::pos2(40.0, 40.0), egui::pos2(900.0, 500.0)] {
-            for (yaw, pitch) in TRIAD_VIEWS {
+            for (yaw, pitch) in triad_views() {
                 for mode in [ViewMode::Free, ViewMode::Plane(WorkPlane::XY)] {
                     let (mut state, rect) =
                         a_cube_with_its_axes_painted_apart(yaw, pitch, size, at);
@@ -1149,18 +1165,10 @@ fn a_triad_stands_in_the_cube_s_corner_in_the_axis_colours() {
                     let triad = the_triad(&state, rect);
 
                     let origin = triad[0].from;
-                    let off_a_corner = [
-                        rect.left_top(),
-                        rect.right_top(),
-                        rect.left_bottom(),
-                        rect.right_bottom(),
-                    ]
-                    .into_iter()
-                    .map(|corner| (corner - origin).length())
-                    .fold(f32::INFINITY, f32::min);
+                    let drawn = all_the_triad_covers(&triad);
                     assert!(
-                        off_a_corner <= 0.4 * size,
-                        "{seen}: the triad stands at {origin:?}, {off_a_corner} from the nearest \
+                        drawn.center().x <= rect.center().x && drawn.center().y >= rect.center().y,
+                        "{seen}: the triad covers {drawn:?}, which is not in the bottom left \
                          corner of the cube's square {rect:?}",
                     );
                     for axis in &triad {
@@ -1197,7 +1205,7 @@ fn a_triad_stands_in_the_cube_s_corner_in_the_axis_colours() {
 
 #[test]
 fn the_triad_turns_with_the_camera() {
-    for (yaw, pitch) in TRIAD_VIEWS {
+    for (yaw, pitch) in triad_views() {
         let (state, rect) =
             a_cube_with_its_axes_painted_apart(yaw, pitch, ROOMY_CUBE, egui::pos2(40.0, 40.0));
         let camera = &state.camera;
@@ -1234,10 +1242,6 @@ fn the_triad_turns_with_the_camera() {
         length(&triad[2]),
     );
 }
-
-/// How far the triad keeps from the cube's outline, in points: about the
-/// width of the outline itself.
-const CLEAR_OF_THE_CUBE: f32 = 1.0;
 
 /// The convex outline of the cube on screen: every corner of every face, the
 /// ones inside the outline dropped.
@@ -1290,25 +1294,21 @@ fn along_a_line(from: egui::Pos2, to: egui::Pos2) -> Vec<egui::Pos2> {
         .collect()
 }
 
-fn around_a_box(area: egui::Rect) -> Vec<egui::Pos2> {
-    let corners = [
-        area.left_top(),
-        area.right_top(),
-        area.right_bottom(),
-        area.left_bottom(),
-    ];
-    corners
-        .iter()
-        .zip(corners.iter().cycle().skip(1))
-        .flat_map(|(from, to)| along_a_line(*from, *to))
-        .collect()
+/// The smallest rectangle holding every line and every letter of the triad.
+fn all_the_triad_covers(triad: &[AxisDrawn; 3]) -> egui::Rect {
+    triad.iter().fold(egui::Rect::NOTHING, |covered, axis| {
+        covered
+            .union(egui::Rect::from_two_pos(axis.from, axis.to))
+            .union(axis.letter)
+    })
 }
 
 /// A square onto each of the three planes of the origin, as opening a sketch
 /// on it lands, and the opening view.
 fn the_views_the_triad_is_read_in(size: f32) -> Vec<(String, ViewportState, egui::Rect)> {
     let at = egui::pos2(40.0, 40.0);
-    let (opening, rect) = a_cube_with_its_axes_painted_apart(OPENING_YAW, OPENING_PITCH, size, at);
+    let (opening, rect) =
+        a_cube_with_its_axes_painted_apart(opening_yaw(), opening_pitch(), size, at);
     let mut views = vec![("the opening view".to_string(), opening, rect)];
     for (name, plane) in [
         ("a sketch on XY", WorkPlane::XY),
@@ -1316,7 +1316,7 @@ fn the_views_the_triad_is_read_in(size: f32) -> Vec<(String, ViewportState, egui
         ("a sketch on YZ", WorkPlane::YZ),
     ] {
         let (mut state, rect) =
-            a_cube_with_its_axes_painted_apart(OPENING_YAW, OPENING_PITCH, size, at);
+            a_cube_with_its_axes_painted_apart(opening_yaw(), opening_pitch(), size, at);
         state.look_at_plane(plane, DVec3::ZERO, 50.0);
         if let Some(mut turn) = state.transition.take() {
             while turn.advance(&mut state.camera, 1.0) {}
@@ -1327,28 +1327,48 @@ fn the_views_the_triad_is_read_in(size: f32) -> Vec<(String, ViewportState, egui
 }
 
 #[test]
-fn the_triad_stays_off_the_cube_at_the_opening_view_and_square_onto_a_sketch() {
+fn the_triad_sticks_out_of_the_cube_at_the_bottom_left_and_keeps_off_the_names() {
     for size in [80.0, 96.0, 160.0] {
         for (view, state, rect) in the_views_the_triad_is_read_in(size) {
             let outline = silhouette(&state, rect);
+            let names: Vec<egui::Rect> = names_painted(&state, rect)
+                .iter()
+                .map(|(_, mesh)| mesh.calc_bounds())
+                .collect();
+            let seen = format!("on a cube {size} wide at {view}");
 
             let triad = the_triad(&state, rect);
 
+            let covered = all_the_triad_covers(&triad);
+            assert!(
+                rect.contains_rect(covered),
+                "{seen}: the triad covers {covered:?}, and leaves the cube's square {rect:?}",
+            );
+            assert!(
+                covered.max.x <= rect.center().x && covered.min.y >= rect.center().y,
+                "{seen}: the triad covers {covered:?}, and the bottom left of the cube's square \
+                 {rect:?} ends at x {} and starts at y {}",
+                rect.center().x,
+                rect.center().y,
+            );
+            let origin = triad[0].from;
+            assert!(
+                off_the_outline(origin, &outline) > 0.0,
+                "{seen}: the point the triad's lines start from, {origin:?}, lies on the cube's \
+                 drawing, and the triad should stick out of it",
+            );
             for (axis, name) in triad.iter().zip(["X", "Y", "Z"]) {
-                let parts = [
-                    ("line", along_a_line(axis.from, axis.to)),
-                    ("letter", around_a_box(axis.letter)),
-                ];
-                for (part, points) in parts {
-                    let nearest = points
-                        .iter()
-                        .map(|point| off_the_outline(*point, &outline))
-                        .fold(f32::INFINITY, f32::min);
+                for word in &names {
                     assert!(
-                        nearest >= CLEAR_OF_THE_CUBE,
-                        "on a cube {size} wide at {view}, the {part} of axis {name} comes within \
-                         {nearest} points of the cube's outline (negative: over it), where \
-                         {CLEAR_OF_THE_CUBE} is the least it may keep",
+                        !along_a_line(axis.from, axis.to)
+                            .into_iter()
+                            .any(|point| word.contains(point)),
+                        "{seen}: the line of axis {name} crosses the face name at {word:?}",
+                    );
+                    assert!(
+                        !axis.letter.intersects(*word),
+                        "{seen}: the letter {name} at {:?} touches the face name at {word:?}",
+                        axis.letter,
                     );
                 }
             }
@@ -1357,11 +1377,90 @@ fn the_triad_stays_off_the_cube_at_the_opening_view_and_square_onto_a_sketch() {
 }
 
 #[test]
+fn the_triad_is_drawn_large_enough_to_read_on_a_cube_of_the_default_size() {
+    let size = ViewportConfig::default().cube_size;
+    let (state, rect) = a_cube_with_its_axes_painted_apart(
+        opening_yaw(),
+        opening_pitch(),
+        size,
+        egui::pos2(40.0, 40.0),
+    );
+    let camera = &state.camera;
+    let projected = [Vec3::X, Vec3::Y, Vec3::Z]
+        .map(|axis| egui::vec2(camera.right().dot(axis), -camera.up().dot(axis)).length());
+    let names_size = (size * 0.11).max(cube_labels::MINIMUM_READABLE_FONT);
+
+    let triad = the_triad(&state, rect);
+
+    let square_to_the_view = triad
+        .iter()
+        .zip(projected)
+        .map(|(axis, seen)| (axis.to - axis.from).length() / seen)
+        .fold(0.0, f32::max);
+    assert!(
+        square_to_the_view >= MOST_OF_THE_SIDE * size,
+        "on a cube {size} wide, an axis square to the view would be drawn {square_to_the_view} \
+         long, where {} is the least that reads",
+        MOST_OF_THE_SIDE * size,
+    );
+    for (axis, name) in triad.iter().zip(["X", "Y", "Z"]) {
+        assert!(
+            axis.width >= THICK_ENOUGH,
+            "the line of axis {name} is {} wide, where {THICK_ENOUGH} is the least that reads",
+            axis.width,
+        );
+        assert!(
+            axis.letter_size >= LETTER_OVER_NAME * names_size,
+            "the letter {name} is written at {}, where the face names are at {names_size} and \
+             it should stand at least {LETTER_OVER_NAME} times that",
+            axis.letter_size,
+        );
+    }
+}
+
+/// How large the opening view leaves the triad: an axis square to the view, as
+/// a share of the side; a line; a letter against a face name.
+const MOST_OF_THE_SIDE: f32 = 0.2;
+const THICK_ENOUGH: f32 = 2.0;
+const LETTER_OVER_NAME: f32 = 1.2;
+
+#[test]
+fn every_name_reads_upright_at_the_opening_view() {
+    let (state, rect) = a_cube_seen_from(opening_yaw(), opening_pitch(), ROOMY_CUBE);
+
+    let names = names_painted(&state, rect);
+
+    assert!(!names.is_empty(), "no name is painted at the opening view");
+    for (face, mesh) in &names {
+        let glyphs = quads(mesh);
+        let (first, last) = (glyphs[0], glyphs[glyphs.len() - 1]);
+        let along = last[0].pos - first[0].pos;
+        assert!(
+            along.x > 0.0,
+            "at the opening view, the name on {face:?} runs right to left across the screen",
+        );
+        let top = glyphs[0]
+            .iter()
+            .min_by(|a, b| a.uv.y.total_cmp(&b.uv.y))
+            .expect("a glyph has corners");
+        let foot = glyphs[0]
+            .iter()
+            .max_by(|a, b| a.uv.y.total_cmp(&b.uv.y))
+            .expect("a glyph has corners");
+        assert!(
+            top.pos.y < foot.pos.y,
+            "at the opening view, the name on {face:?} stands upside down: the top of a glyph \
+             is below its foot on screen",
+        );
+    }
+}
+
+#[test]
 fn a_cube_too_small_to_hold_a_letter_paints_without_a_panic() {
     let lang = Catalogue::french();
 
     for size in [5.0, 1.0] {
-        for (yaw, pitch) in TRIAD_VIEWS {
+        for (yaw, pitch) in triad_views() {
             let (state, rect) = a_cube_seen_from(yaw, pitch, size);
 
             shapes(|ui| paint_face_labels(ui, &state, rect, &lang));

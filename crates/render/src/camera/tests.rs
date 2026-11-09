@@ -9,6 +9,13 @@
 //!   off in `f32`, and the coordinates read under the cursor were out in their
 //!   second decimal —
 //!   `the_ray_through_the_pixel_a_point_is_drawn_at_passes_through_that_point`
+//!
+//! Closes #729 — the whole transcription is in the tests of `cao_app`; this is
+//! what the human found on screen of the view a part opens with.
+//! - found on screen: a part opened from the back left, with « DESSUS » upside
+//!   down and « ARRIÈRE » and « GAUCHE » in front; it opens on the corner of
+//!   « DROITE », « FACE » and « DESSUS », the view `look_at_part` already took —
+//!   `a_new_camera_opens_on_the_corner_of_the_right_the_front_and_the_top`
 
 use super::*;
 
@@ -254,3 +261,24 @@ fn the_ray_through_the_pixel_a_point_is_drawn_at_passes_through_that_point() {
         }
     }
 }
+
+#[test]
+fn a_new_camera_opens_on_the_corner_of_the_right_the_front_and_the_top() {
+    let corner = CubeZone::corner(CubeFace::PlusX, CubeFace::MinusY, CubeFace::PlusZ);
+    let (yaw, pitch) = view_angles_towards(corner.direction());
+    let camera = OrbitCamera::default();
+
+    assert!(
+        shortest_angle_delta(camera.yaw(), yaw).abs() < SAME_ANGLE,
+        "a new camera opens at yaw {}, and the corner of the right, the front and the top is \
+         at yaw {yaw}",
+        camera.yaw(),
+    );
+    assert!(
+        (camera.pitch() - pitch).abs() < SAME_ANGLE,
+        "a new camera opens at pitch {}, and that corner is at pitch {pitch}",
+        camera.pitch(),
+    );
+}
+
+const SAME_ANGLE: f32 = 1e-5;

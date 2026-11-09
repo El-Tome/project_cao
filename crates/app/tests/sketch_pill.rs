@@ -138,15 +138,15 @@ const RIGHT_OF_ITS_RIGHT_SIDE: DVec2 = DVec2::new(160.0, 18.75);
 
 /// A point of the plane XY a new part's eye reaches before the other two
 /// planes: where `clicking_the_drawing.rs` opens its sketch on XY.
-const ON_THE_XY_PLANE: DVec3 = DVec3::new(-40.0, 40.0, 0.0);
+const ON_THE_XY_PLANE: DVec3 = DVec3::new(40.0, -40.0, 0.0);
 
 /// A point of each plane of the origin a new part's eye reaches before the
 /// other two, with the name `wording/plane.rs` gives that plane: those of
 /// `clicking_the_drawing.rs`.
 const ON_EACH_BASE_PLANE: [(DVec3, &str); 3] = [
-    (DVec3::new(0.0, 40.0, 30.0), "Plan YZ"),
+    (DVec3::new(0.0, -40.0, 30.0), "Plan YZ"),
     (ON_THE_XY_PLANE, "Plan XY"),
-    (DVec3::new(-40.0, 0.0, 30.0), "Plan XZ"),
+    (DVec3::new(40.0, 0.0, 30.0), "Plan XZ"),
 ];
 
 /// On the block's front face, 10 mm off the plane its rectangle was drawn on,

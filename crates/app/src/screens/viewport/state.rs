@@ -196,12 +196,10 @@ impl ViewportState {
     /// is actually seen: straight down on its own sketch plane, a prism is indistinguishable from
     /// the drawing it came from.
     pub fn look_at_part(&mut self, center: DVec3, radius: f64) {
-        let corner = CubeZone::corner(
-            cao_render::CubeFace::PlusX,
-            cao_render::CubeFace::MinusY,
-            cao_render::CubeFace::PlusZ,
-        );
-        self.transition = Some(ViewTransition::to_zone(&self.camera, corner));
+        self.transition = Some(ViewTransition::to_zone(
+            &self.camera,
+            CubeZone::opening_corner(),
+        ));
         self.camera
             .focus_on(center.as_vec3(), radius as f32, self.aspect());
         self.mode = ViewMode::Free;

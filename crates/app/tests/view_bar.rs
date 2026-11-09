@@ -175,6 +175,9 @@
 //!   `the_origin_view_button_brings_back_the_opening_view_framed_on_the_part`;
 //!   decided by the human: hidden while a sketch is open, not greyed, and back
 //!   when it ends — `the_origin_view_button_is_hidden_while_a_sketch_is_open`;
+//!   found on screen: it showed the part from the back left, and it shows
+//!   « DROITE », « FACE » and « DESSUS » —
+//!   `the_origin_view_button_shows_the_right_the_front_and_the_top`;
 //!   read from the code: a plane being chosen is no sketch open, as « Recadrer »
 //!   and the cube's amber have it —
 //!   `the_origin_view_button_stays_while_a_plane_is_being_chosen`
@@ -1202,7 +1205,7 @@ fn the_origin_view_button_brings_back_the_opening_view_framed_on_the_part() {
         driver::a_block("the_origin_view_button_brings_back_the_opening_view_framed_on_the_part");
     let over_the_block = of_the_world(&app, the_block_s_middle());
     step_back(&mut app, over_the_block);
-    let cube_face = the_cube(&app).center();
+    let cube_face = in_the_cube(the_cube(&app), A_FACE_OFF_THE_MIDDLE);
     driver::click_at(&mut app, cube_face);
     assert!(
         !stands_as_it_opens(&app),
@@ -1244,6 +1247,55 @@ fn the_origin_view_button_brings_back_the_opening_view_framed_on_the_part() {
         "once « Vue d'origine » is clicked, the block's middle stands {} of the view's \
          height from the middle of the view",
         framed.off_the_middle,
+    );
+}
+
+/// Where in the cube's square a click leaves the corner view a part opens
+/// with, the middle of the square being that corner itself.
+const A_FACE_OFF_THE_MIDDLE: glam::Vec2 = glam::Vec2::new(-0.35, -0.2);
+
+/// Which way the view looks, read off where the world's axes land around the
+/// middle of the block.
+fn looking_along(app: &driver::App) -> glam::Vec3 {
+    let axes = the_axes_through_unscaled(app, the_block_s_middle());
+    let right = glam::Vec3::new(axes[0].x, axes[1].x, axes[2].x);
+    let up = glam::Vec3::new(-axes[0].y, -axes[1].y, -axes[2].y);
+    up.cross(right).normalize()
+}
+
+fn the_axes_through_unscaled(app: &driver::App, middle: DVec3) -> [egui::Vec2; 3] {
+    [DVec3::X, DVec3::Y, DVec3::Z]
+        .map(|axis| of_the_world(app, middle + axis) - of_the_world(app, middle))
+}
+
+#[test]
+fn the_origin_view_button_shows_the_right_the_front_and_the_top() {
+    use cao_render::CubeFace;
+
+    let mut app = driver::a_block("the_origin_view_button_shows_the_right_the_front_and_the_top");
+    let cube_face = in_the_cube(the_cube(&app), A_FACE_OFF_THE_MIDDLE);
+    driver::click_at(&mut app, cube_face);
+
+    let the_button = the_origin_view(&app).unwrap_or_else(|| {
+        panic!(
+            "no button of the view reads « Vue d'origine », showing {:?}",
+            driver::on_screen(&app)
+        )
+    });
+    the_button.click();
+    app.run();
+    driver::hold_the_canvas(&mut app);
+
+    let forward = looking_along(&app);
+    let seen: Vec<CubeFace> = CubeFace::ALL
+        .into_iter()
+        .filter(|face| cao_render::cube::is_visible(*face, forward))
+        .collect();
+    assert_eq!(
+        seen,
+        vec![CubeFace::PlusX, CubeFace::MinusY, CubeFace::PlusZ],
+        "once « Vue d'origine » is clicked, the faces seen should be « DROITE », « FACE » and \
+         « DESSUS »",
     );
 }
 

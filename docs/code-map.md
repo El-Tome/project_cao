@@ -349,7 +349,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | « Vue d'origine »: the angles a part opens with, the whole part framed, the view left on no plane; with no volume, the camera a new part opens with | `app/src/commands.rs`, `app/src/screens/viewport/opening_view.rs` | `Command::OriginView`; `ViewportState::turn_to_the_opening_view` |
 | The cube's face a sketch looks at, lit amber while it is open | `app/src/screens/viewport/render.rs`, `render/src/cube.rs` | `lit_cube_face`; `push_faces` |
 | The names on the cube's faces, lying on them and turning with them, a face too edge-on left bare | `app/src/screens/viewport/cube_labels.rs`, `app/src/screens/viewport/render/overlays.rs` | `face_label`, `reading_axes`, `fitting_font_size`; `paint_face_labels` |
-| The X/Y/Z triad in the top left corner of the cube's square | `app/src/screens/viewport/render/triad.rs` | `paint` |
+| The X/Y/Z triad at the bottom left of the cube's square | `app/src/screens/viewport/render/triad.rs` | `paint` |
 | Canvas: where the scale bar and the cube stand in their corners, one set to the bottom right lifted above the view bar | `app/src/screens/viewport/state.rs`, `app/src/ui/floating_bar.rs` | `corner_origin`, `cube_rect`; `TOP_ABOVE_THE_EDGE` |
 | Canvas: the frame loop and the entry point | `app/src/screens/viewport/view.rs` | `show(...)` |
 | Canvas: gestures turned into calls on `cao_sketch` | `app/src/screens/viewport/input/mod.rs` | `pick`, `drag_point`, `constrain`, `aim`, `measure` |

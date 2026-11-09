@@ -75,15 +75,19 @@ square, and each corner of each glyph goes through that map. A name is never
 mirrored seen from outside, a side face reads upright with +Z up, and a face
 seen too edge-on to read is left bare.
 
-In the top left corner of the cube's square, a small X/Y/Z triad in the axis
-colours shows the world's axes as the camera sees them: an axis seen end-on is a
-short line.
+At the bottom left of the cube's square, an X/Y/Z triad in the axis colours
+shows the world's axes as the camera sees them: an axis seen end-on is a short
+line. It sits against that corner by what it covers at the current view, the
+point its lines start from outside the cube's drawing, and touches no name.
 
 While a sketch is open, the face it looks at is lit amber (DESSUS for the XY
 plane), wherever the view is turned. A sketch on a part's face lights the cube
 face closest to its normal, the first of a fixed order on an exact tie, so that
 the answer never flickers. A hovered zone keeps its hover colour on top of the
 amber.
+
+A part opens on the corner of the right, the front and the top, so that the
+names DROITE, FACE and DESSUS are the three seen, all upright.
 
 Under the cube, « Vue d'origine » brings back the view a part opens with, framed
 on the whole part as « Recadrer » frames it, turning rather than jumping, and

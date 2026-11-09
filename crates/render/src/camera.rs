@@ -83,6 +83,11 @@ pub enum CubeZone {
 }
 
 impl CubeZone {
+    /// The corner of the right, the front and the top, which a part opens on.
+    pub fn opening_corner() -> Self {
+        Self::corner(CubeFace::PlusX, CubeFace::MinusY, CubeFace::PlusZ)
+    }
+
     pub fn edge(a: CubeFace, b: CubeFace) -> Self {
         let mut faces = [a, b];
         faces.sort_by_key(|face| face.index());
@@ -151,11 +156,12 @@ pub struct OrbitCamera {
 
 impl Default for OrbitCamera {
     fn default() -> Self {
+        let (yaw, pitch) = view_angles_towards(CubeZone::opening_corner().direction());
         Self {
             target: Vec3::ZERO,
             distance: 250.0,
-            yaw: -PI * 0.7,
-            pitch: 0.5,
+            yaw,
+            pitch,
             fov_y: 45f32.to_radians(),
             min_distance: 1e-3,
             max_distance: 1e9,

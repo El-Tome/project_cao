@@ -51,6 +51,7 @@ mod ends;
 mod meet;
 mod planes;
 mod round;
+mod rulings;
 mod steps;
 mod touches;
 mod wedge;
@@ -124,6 +125,7 @@ impl Samples {
         } else {
             Samples::through(body, &walls, &zones, &grids, &beneath, fineness)
         };
+        samples.on_common_rulings(body, tolerance);
         samples.grids = grids;
         samples
     }

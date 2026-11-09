@@ -10,11 +10,17 @@ use crate::ui::icon;
 use crate::ui::logo::logo;
 use crate::ui::panel_toggle::{panel_button, panel_toggle};
 use crate::ui::theme::tokens::SPACING_L;
-use crate::ui::tool_button::{icon_button, menu_entry, tool_button};
+use crate::ui::tool_button::{
+    Rows, icon_button, menu_entry, name_and_key, small_button, small_icon_button, sub_menu,
+    tool_button, tooltip,
+};
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
 use super::icons;
 use super::state::{Context, Ribbon, active, enabled, icon, label};
+
+mod groups;
+mod split;
 
 /// What the bar needs to know about the part being drawn.
 ///
@@ -49,6 +55,9 @@ impl Drawn<'_> {
 /// How wide a toolbar starts when it is down one side.
 const SIDE_WIDTH: f32 = 210.0;
 
+/// How far a floating toolbar opens from the left of the window.
+const FLOATING_MARGIN: f32 = 24.0;
+
 impl Ribbon {
     /// Draws the bar and returns every command the user asked for this frame.
     pub fn show(
@@ -63,23 +72,36 @@ impl Ribbon {
 
         match layout.edge {
             Edge::Floating => {
+                // Auto-sized, a window measures a wrapped row against its own
+                // narrow width: it gets what it held last frame, at most the
+                // width of the bar along the top.
+                let bar_width = ui.max_rect().width() - 2.0 * FLOATING_MARGIN;
+                let width = if self.floating_width > 0.0 {
+                    self.floating_width.min(bar_width)
+                } else {
+                    bar_width
+                };
                 egui::Window::new(lang.t("ribbon.tools"))
-                    .default_pos(ui.max_rect().left_top() + egui::vec2(24.0, 80.0))
+                    .default_pos(ui.max_rect().left_top() + egui::vec2(FLOATING_MARGIN, 80.0))
+                    .min_width(width)
+                    .max_width(width)
                     .resizable(false)
                     .show(ui.ctx(), |ui| {
-                        asked = self.contents(ui, settings, drawn, lang);
+                        asked = self.contents(ui, settings, drawn, lang, bar_width);
                     });
             }
             // egui remembers a panel's size under its id, and a bar along the top remembers a
             // height where one down a side reads a width: a placement each, or they share one.
             Edge::Top => {
                 egui::Panel::top("ribbon_top").show(ui, |ui| {
-                    asked = self.contents(ui, settings, drawn, lang);
+                    let bar_width = ui.max_rect().width();
+                    asked = self.contents(ui, settings, drawn, lang, bar_width);
                 });
             }
             Edge::Bottom => {
                 egui::Panel::bottom("ribbon_bottom").show(ui, |ui| {
-                    asked = self.contents(ui, settings, drawn, lang);
+                    let bar_width = ui.max_rect().width();
+                    asked = self.contents(ui, settings, drawn, lang, bar_width);
                 });
             }
             Edge::Left => {
@@ -113,7 +135,10 @@ impl Ribbon {
         lang: &Catalogue,
     ) -> Vec<Command> {
         egui::ScrollArea::vertical()
-            .show(ui, |ui| self.contents(ui, settings, drawn, lang))
+            .show(ui, |ui| {
+                let bar_width = ui.max_rect().width();
+                self.contents(ui, settings, drawn, lang, bar_width)
+            })
             .inner
     }
 
@@ -123,46 +148,50 @@ impl Ribbon {
         settings: &Settings,
         drawn: &mut Drawn<'_>,
         lang: &Catalogue,
+        bar_width: f32,
     ) -> Vec<Command> {
         let layout = &settings.toolbar;
         let mut asked = Vec::new();
-        let vertical = layout.edge.is_vertical() || layout.edge == Edge::Floating;
+        let side = layout.edge.is_vertical();
+        let shown = if side {
+            Shown::Small(Rows::Three)
+        } else {
+            Shown::Large
+        };
 
-        self.header(ui, layout, &mut asked, vertical, lang);
+        let header_width = self.header(ui, layout, &mut asked, side, lang);
         ui.separator();
 
         let state = drawn.context(settings, lang, self.section_on);
 
         // The open tab, then whatever sits at the top level outside any group. A
         // button's own label must never wrap: a row that no longer fits the widest
-        // one is what pushes it to the next row (see `lay_out`); a label left free
+        // one is what pushes it to the next row; a label left free
         // to shrink to fit the leftover space instead reports itself as always
         // fitting, and egui's own fallback for text with nowhere to go is to break
         // it one letter per line.
         ui.scope(|ui| {
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 
-            let open = layout.items.get(self.tab);
-            if let Some(Item::Group { items, .. }) = open {
-                lay_out(ui, items, 1, &state, &mut asked, vertical);
+            let mut held = 0.0;
+            if let Some(Item::Group { items, .. }) = layout.items.get(self.tab) {
+                held = groups::open_tab(ui, items, &state, &mut asked, self, side, bar_width);
             }
+            self.floating_width = held.max(header_width);
             for item in &layout.items {
-                if !matches!(item, Item::Group { .. }) {
-                    lay_out(
-                        ui,
-                        std::slice::from_ref(item),
-                        1,
-                        &state,
-                        &mut asked,
-                        vertical,
-                    );
+                match item {
+                    Item::Command(command) => button(ui, *command, &state, &mut asked, shown),
+                    Item::Separator => {
+                        ui.separator();
+                    }
+                    Item::Group { .. } => {}
                 }
             }
         });
 
         extrusion_row(ui, drawn.document, drawn.extrusion, &mut asked, lang);
         let state = drawn.context(settings, lang, self.section_on);
-        chamfer_row(ui, &state, &mut asked);
+        chamfer_row(ui, &state, &mut asked, shown);
         asked
     }
 
@@ -174,7 +203,7 @@ impl Ribbon {
         asked: &mut Vec<Command>,
         vertical: bool,
         lang: &Catalogue,
-    ) {
+    ) -> f32 {
         let preferences = |ui: &mut egui::Ui, asked: &mut Vec<Command>| {
             let worn = icons::of(Command::OpenSettings);
             if panel_button(ui, false, worn, lang.t("ribbon.settings")).clicked() {
@@ -216,12 +245,13 @@ impl Ribbon {
                 ui.separator();
                 preferences(ui, asked);
             });
-            return;
+            return 0.0;
         }
 
         ui.horizontal(|ui| {
             row(ui);
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            let tabs = ui.min_rect().width() + ui.spacing().item_spacing.x;
+            let toggles = ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 preferences(ui, asked);
                 ui.separator();
                 let variables = lang.t("ribbon.variables");
@@ -229,64 +259,39 @@ impl Ribbon {
                 let part = lang.t("ribbon.part_tree");
                 panel_toggle(ui, &mut self.part_tree_open, icon::PART, part);
             });
-        });
+            tabs + toggles.response.rect.width()
+        })
+        .inner
     }
 }
 
-/// The deepest level whose groups are spread out on the bar: a group below it
-/// is a menu, and the commands it holds are its entries.
-const SPREAD_OUT: usize = 1;
-
-/// Draws a run of entries, at the depth they sit in the tree.
-///
-/// A group one level in is spread out where it is, with its name beside it; any
-/// deeper and it becomes a menu that opens on click. Laying a third level out
-/// in place would push everything else off the bar, and there is no bottom to
-/// how deep the user may go.
-fn lay_out(
+/// A group at menu depth: its commands open on click, a level further down.
+fn menu(
     ui: &mut egui::Ui,
+    name: &str,
     items: &[Item],
-    depth: usize,
     state: &Context<'_>,
     asked: &mut Vec<Command>,
-    vertical: bool,
 ) {
-    let run = |ui: &mut egui::Ui| {
+    sub_menu(ui, &group(state.lang, name), |ui| {
         for item in items {
             match item {
-                Item::Command(command) => {
-                    button(ui, *command, state, asked, depth > SPREAD_OUT + 1);
-                }
+                Item::Command(command) => button(ui, *command, state, asked, Shown::MenuEntry),
                 Item::Separator => {
                     ui.separator();
                 }
-                Item::Group { name, items } if depth <= SPREAD_OUT => {
-                    ui.group(|ui| {
-                        let inner = |ui: &mut egui::Ui| {
-                            ui.weak(group(state.lang, name));
-                            lay_out(ui, items, depth + 1, state, asked, vertical);
-                        };
-                        if vertical {
-                            ui.vertical(inner);
-                        } else {
-                            ui.horizontal_wrapped(inner);
-                        }
-                    });
-                }
-                Item::Group { name, items } => {
-                    ui.menu_button(group(state.lang, name), |ui| {
-                        lay_out(ui, items, depth + 1, state, asked, true);
-                    });
-                }
+                Item::Group { name, items, .. } => menu(ui, name, items, state, asked),
             }
         }
-    };
+    });
+}
 
-    if vertical {
-        ui.vertical(run);
-    } else {
-        ui.horizontal_wrapped(run);
-    }
+/// How a command is drawn, from where it stands in the tree.
+#[derive(Clone, Copy)]
+enum Shown {
+    Large,
+    Small(Rows),
+    MenuEntry,
 }
 
 fn button(
@@ -294,28 +299,59 @@ fn button(
     command: Command,
     state: &Context<'_>,
     asked: &mut Vec<Command>,
-    in_a_menu: bool,
+    shown: Shown,
 ) {
     let name = label(command, state);
-    let called = match state.settings.shortcuts.chord_for(command) {
-        Some(chord) => format!("{name} ({})", shortcuts::chord(state.lang, chord)),
-        None => name.clone(),
-    };
+    let key = key_of(command, state);
+    named_button(ui, command, &name, key.as_deref(), state, asked, shown);
+}
+
+fn key_of(command: Command, state: &Context<'_>) -> Option<String> {
+    state
+        .settings
+        .shortcuts
+        .chord_for(command)
+        .map(|chord| shortcuts::chord(state.lang, chord))
+}
+
+/// A button that runs `command` under a name that need not be the command's.
+fn named_button(
+    ui: &mut egui::Ui,
+    command: Command,
+    name: &str,
+    key: Option<&str>,
+    state: &Context<'_>,
+    asked: &mut Vec<Command>,
+    shown: Shown,
+) -> egui::Response {
     let hint = wording::hint(state.lang, command);
     let pressable = enabled(command, state);
     let on = active(command, state);
     let worn = icon(command, state);
 
-    let response = if in_a_menu {
-        menu_entry(ui, pressable, on, worn, called).on_hover_text(hint)
-    } else if state.settings.toolbar.show_labels {
-        tool_button(ui, pressable, on, worn, called).on_hover_text(hint)
-    } else {
-        icon_button(ui, pressable, on, worn, &name).on_hover_text(format!("{called}\n{hint}"))
+    let response = match (shown, state.settings.toolbar.show_labels) {
+        (Shown::MenuEntry, _) => {
+            let called = name_and_key(name, key);
+            menu_entry(ui, pressable, on, worn, called).on_hover_text(hint)
+        }
+        (shown, labels) => {
+            let drawn = match (shown, labels) {
+                (Shown::Small(rows), true) => {
+                    small_button(ui, pressable, on, worn, name, key, rows)
+                }
+                (Shown::Small(rows), false) => {
+                    small_icon_button(ui, pressable, on, worn, name, rows)
+                }
+                (_, true) => tool_button(ui, pressable, on, worn, name, key),
+                (_, false) => icon_button(ui, pressable, on, worn, name),
+            };
+            tooltip(drawn, name, key, Some(&hint))
+        }
     };
     if response.clicked() {
         asked.push(command);
     }
+    response
 }
 
 #[cfg(test)]
@@ -323,9 +359,9 @@ mod tests;
 
 /// What a chamfer held offers besides its values, while one is held: its two
 /// sides swapped. Here until a panel of the feature's own takes it.
-fn chamfer_row(ui: &mut egui::Ui, state: &Context<'_>, asked: &mut Vec<Command>) {
+fn chamfer_row(ui: &mut egui::Ui, state: &Context<'_>, asked: &mut Vec<Command>, shown: Shown) {
     if chamfer_to_swap(state.document, state.editor).is_none() {
         return;
     }
-    ui.horizontal_wrapped(|ui| button(ui, Command::SwapChamferSides, state, asked, false));
+    ui.horizontal_wrapped(|ui| button(ui, Command::SwapChamferSides, state, asked, shown));
 }

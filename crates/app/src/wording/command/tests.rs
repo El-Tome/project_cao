@@ -8,6 +8,10 @@
 //! Closes #581.
 //! - to try it: each part opens in FreeCAD — the command that writes it reads
 //!   « Exporter en STEP… » — `the_step_export_reads_exporter_en_step`
+//!
+//! Closes #731. The whole transcription is in `crates/app/tests/ribbon_groups.rs`.
+//! - missing sentences are written in this issue: every command has one, its
+//!   hint — `resting_on_a_command_says_more_than_its_button_already_shows`
 
 use std::collections::BTreeMap;
 

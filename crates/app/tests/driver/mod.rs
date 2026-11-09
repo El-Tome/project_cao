@@ -285,6 +285,14 @@ pub fn canvas(app: &App) -> egui::Rect {
     drawing_area(app).expect("no drawing area on screen: no part is open")
 }
 
+/// Whether something of the chrome stands wholly to one side of the view,
+/// whatever its height: what a panel down a side owes the drawing. Nothing is
+/// aimed with it, so a test may ask this where it may not read the canvas.
+pub fn stands_beside_the_view(app: &App, rect: egui::Rect) -> bool {
+    let view = canvas(app);
+    rect.right() <= view.left() || rect.left() >= view.right()
+}
+
 fn drawing_area(app: &App) -> Option<egui::Rect> {
     let screen = app.ctx.content_rect();
     app.query_all(

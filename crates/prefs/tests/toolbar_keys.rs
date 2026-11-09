@@ -9,7 +9,7 @@ use cao_prefs::{Item, ToolbarLayout};
 
 fn keys_of(items: &[Item], out: &mut Vec<String>) {
     for item in items {
-        if let Item::Group { name, items } = item {
+        if let Item::Group { name, items, .. } = item {
             out.push(name.clone());
             keys_of(items, out);
         }

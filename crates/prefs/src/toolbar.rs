@@ -30,6 +30,16 @@ impl Edge {
     }
 }
 
+/// How the buttons of a group are drawn on the ribbon.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GroupSize {
+    Large,
+    SmallTwoRows,
+    SmallThreeRows,
+    /// One split button, whatever its depth.
+    Menu,
+}
+
 /// One entry of the toolbar.
 ///
 /// A group holds other entries, groups included, as deep as the user cares to
@@ -38,7 +48,11 @@ impl Edge {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Item {
     Command(Command),
-    Group { name: String, items: Vec<Item> },
+    Group {
+        name: String,
+        size: GroupSize,
+        items: Vec<Item>,
+    },
     Separator,
 }
 
@@ -46,6 +60,7 @@ impl Item {
     pub fn group(name: &str, items: Vec<Item>) -> Self {
         Self::Group {
             name: name.to_string(),
+            size: GroupSize::Large,
             items,
         }
     }

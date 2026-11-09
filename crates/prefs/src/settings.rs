@@ -17,7 +17,10 @@ use crate::toolbar::ToolbarLayout;
 /// recognises, so it is not read at all: settings go back to the defaults
 /// rather than opening half understood, with a protected profile the code
 /// would let the user delete.
-pub const SETTINGS_VERSION: u32 = 2;
+///
+/// 3 gave every group of the toolbar a size, which a file written by 2 does
+/// not have.
+pub const SETTINGS_VERSION: u32 = 3;
 
 /// Everything the user can set. One value, so a profile is one thing to save,
 /// to reset, and to hand to somebody else.

@@ -81,9 +81,42 @@ const RIB_RIGHT: usize = 9;
 const RIB_BACK: usize = 10;
 const RIB_LEFT: usize = 11;
 
-/// Where the steps that built the [`rib_rounded_in_front`] stopped numbering
-/// faces: the plate's six, and the rib's floor, top and four walls.
+/// Where the steps that built the [`rib_rounded_in_front`] and the
+/// [`slot_in_the_plate`] stopped numbering faces: the plate's six, and the
+/// floor, the top and the four walls of the rib joined on it or of the slot
+/// cut from it.
 const STEPS_END: usize = 12;
+
+/// The numbers the faces of the [`slot_in_the_plate`] answer to: the plate's
+/// left side, which the slot runs out through; and the cut's floor, which is
+/// the slot's, its front wall, its round end and its back wall. The cut's top,
+/// seven, and its left end, eleven, stand past the plate and leave nothing.
+const PLATE_LEFT: usize = 5;
+const SLOT_FLOOR: usize = 6;
+const SLOT_FRONT: usize = 8;
+const SLOT_END: usize = 9;
+const SLOT_BACK: usize = 10;
+
+/// Where the [`slot_in_the_plate`] stands: its front wall at y = 10, 4 in
+/// front of its back, ending 28 along; its floor at z = 4, in a plate 10
+/// thick.
+const SLOT_FRONT_Y: f64 = 10.0;
+const SLOT_FRONT_END: f64 = 28.0;
+const SLOT_FLOOR_Z: f64 = 4.0;
+const SLOT_PLATE: f64 = 10.0;
+
+/// How far the [`slot_in_the_plate`]'s round end stands off tangent to its
+/// front: its axis a tenth back along the front from where a tangent round's
+/// would stand, so that the round leaves the front's end turning in toward
+/// the slot by some 2.9 degrees.
+const SLOT_OFF: f64 = -0.1;
+
+/// How far short of the slot's round end, along the slot, a ray is aimed
+/// down onto a fill there: the round meets that line slantwise, so a tenth
+/// along it stands four to six hundredths off the round, clear of the sag
+/// of the round's triangles toward the slot, and past where the front ends
+/// at either place a ray is aimed.
+const SHORT_OF_THE_END: f64 = 0.1;
 
 /// Where a rib on the plate stands: from x = 18 to its right side at 22, its
 /// front corners at y = 5 and its back at 22, from the plate's top at z = 4
@@ -217,31 +250,38 @@ fn off_the_axis(point: DVec3) -> f64 {
     point.truncate().distance(AXIS)
 }
 
-/// The height a chamfer of `value` at the foot of the rib's right side stands
-/// over the plate's top, `out` from that side.
+/// How long a fill at the foot of the rib's right side runs, `out` from that
+/// side: from the round to the rib's back.
+fn along_the_rib(out: f64) -> f64 {
+    RIB_ENDS[1] - on_the_round(RIB_SIDE + out)
+}
+
+/// The height a chamfer of `value` in a corner stands over the face it lies
+/// on, `out` from the wall it stands against: the rib's right side over the
+/// plate's top, the slot's front over its floor.
 fn chamfer_height(value: f64, out: f64) -> f64 {
     value - out
 }
 
-/// The height a fillet of `value` at the foot of the rib's right side stands
-/// over the plate's top, `out` from that side: under its round, whose axis
-/// stands `value` out from the side and `value` over the plate.
+/// The height a fillet of `value` in a corner stands over the face it lies
+/// on, `out` from the wall it stands against: under its round, whose axis
+/// stands `value` out from the wall and `value` over the face.
 fn fillet_height(value: f64, out: f64) -> f64 {
     value - (value * value - (value - out).powi(2)).max(0.0).sqrt()
 }
 
-/// The matter a fill of `value` at the foot of the rib's right side holds,
-/// from the rib's back to the round: over every place of its section, `out`
-/// from the side and under `height(out)`, the length from the round to the
-/// back, which the round, upright, makes a matter of `out` alone. Read with
-/// `out = value (1 − cos φ)`, under which a fillet's height, `value (1 −
-/// sin φ)`, is as smooth as a chamfer's, `value cos φ`; the product has no
-/// closed form for the fillet, so it is summed by Simpson's rule.
-fn fill_matter(value: f64, height: impl Fn(f64) -> f64) -> f64 {
+/// The matter a fill of `value` holds: over every place of its section,
+/// `out` from the wall it stands against and under `height(out)`, the length
+/// it runs from one end to the other, `long(out)` — a matter of `out` alone,
+/// since the round it ends on is upright and its other end flat and square
+/// to the edge. Read with `out = value (1 − cos φ)`, under which a fillet's
+/// height, `value (1 − sin φ)`, is as smooth as a chamfer's, `value cos φ`;
+/// the product has no closed form for the fillet, so it is summed by
+/// Simpson's rule.
+fn fill_matter(value: f64, height: impl Fn(f64) -> f64, long: impl Fn(f64) -> f64) -> f64 {
     let at = |phi: f64| {
         let out = value * (1.0 - f64::cos(phi));
-        let long = RIB_ENDS[1] - on_the_round(RIB_SIDE + out);
-        height(out) * long * value * phi.sin()
+        height(out) * long(out) * value * phi.sin()
     };
     let step = PI / 2.0 / STEPS as f64;
     let inner: f64 = (1..STEPS)
@@ -522,9 +562,10 @@ fn furthest_along_x(body: &Body, face: usize) -> f64 {
         .fold(f64::NEG_INFINITY, f64::max)
 }
 
-/// Holds that the face numbered `face` is the rib's round: curved, and every
-/// corner of its triangles on the round's cylinder.
-fn drawn_on_the_round(body: &Body, face: usize, what: &str) {
+/// Holds that the face numbered `face` is a round: curved, and every corner
+/// of its triangles on the upright cylinder about `axis`, read in plan, of
+/// `radius`.
+fn drawn_on_the_cylinder(body: &Body, face: usize, (axis, radius): (DVec2, f64), what: &str) {
     assert!(
         body.has_face(face) && !body.is_flat(face),
         "{what}: face {face} is a round"
@@ -532,11 +573,11 @@ fn drawn_on_the_round(body: &Body, face: usize, what: &str) {
     let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
     assert!(!corners.is_empty(), "{what}: the round is drawn");
     for corner in corners {
+        let off = corner.truncate().distance(axis);
         assert!(
-            (off_the_axis(corner) - RADIUS).abs() < PLACE,
-            "{what}: the round is drawn through {corner}, {} from its axis through {AXIS}, \
-             where its radius is {RADIUS}",
-            off_the_axis(corner)
+            (off - radius).abs() < PLACE,
+            "{what}: the round is drawn through {corner}, {off} from its axis through {axis}, \
+             where its radius is {radius}"
         );
     }
 }
@@ -553,7 +594,7 @@ fn the_rib_is_rounded_in_front(part: &Body) {
         STEPS_END,
         "{what}: its steps numbered their faces up to {STEPS_END}"
     );
-    drawn_on_the_round(part, RIB_FRONT, what);
+    drawn_on_the_cylinder(part, RIB_FRONT, (AXIS, RADIUS), what);
     let furthest = furthest_along_x(part, RIB_FRONT);
     assert!(
         (furthest - RIB_SIDE).abs() < PLACE,
@@ -672,7 +713,7 @@ fn flush_on_the_round(
              with the round on the round's foot circle"
         ),
     );
-    drawn_on_the_round(body, RIB_FRONT, what);
+    drawn_on_the_cylinder(body, RIB_FRONT, (AXIS, RADIUS), what);
     let furthest = furthest_along_x(body, RIB_FRONT);
     assert!(
         (furthest - far).abs() < PLACE,
@@ -730,7 +771,7 @@ fn a_chamfer_at_the_foot_of_a_rib_whose_end_is_a_round_bulging_out_is_trimmed_fl
     let height = |out: f64| chamfer_height(value, out);
     sound_drawn_within(
         body,
-        rounded_rib_volume() + fill_matter(value, height),
+        rounded_rib_volume() + fill_matter(value, height, along_the_rib),
         drawn_within(&part, round_area() + value * value),
         what,
     );
@@ -757,7 +798,7 @@ fn a_fillet_at_the_foot_of_a_rib_whose_end_is_a_round_bulging_out_is_trimmed_flu
     let long = RIB_ENDS[1] - RIB_ENDS[0];
     sound_drawn_within(
         body,
-        rounded_rib_volume() + fill_matter(value, height),
+        rounded_rib_volume() + fill_matter(value, height, along_the_rib),
         drawn_within(
             &part,
             round_area() + value * value + PI / 2.0 * value * long,
@@ -767,4 +808,391 @@ fn a_fillet_at_the_foot_of_a_rib_whose_end_is_a_round_bulging_out_is_trimmed_flu
     let fillet = one_round_more(&part, body, what);
     numbered_after_the_steps_last(&part, body, fillet, what);
     flush_on_the_round(body, fillet, value, height, what);
+}
+
+/// The part with an outline drawn on the ground, raised from `from` up by
+/// `height`, cut from it as `cao_part` cuts a step: the tool's faces numbered
+/// past the part's.
+fn cut_from(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    let frame = Frame {
+        origin: DVec3::Z * from,
+        ..ground()
+    };
+    let tool = part
+        .tool_raised(&profile(outline), frame, DVec3::Z * height)
+        .expect("the tool raises");
+    part.difference(&tool).expect("the cut is built")
+}
+
+/// The upright line the [`slot_in_the_plate`]'s round end turns about, read
+/// in plan, and the round's radius, from that line to the front's end.
+fn slot_axis() -> DVec2 {
+    DVec2::new(SLOT_FRONT_END + SLOT_OFF, SLOT_FRONT_Y + 2.0)
+}
+
+fn slot_radius() -> f64 {
+    (4.0 + SLOT_OFF * SLOT_OFF).sqrt()
+}
+
+/// A plate 40 long, 30 deep and 10 thick with a slot cut into its top as a
+/// part's next step cuts it: 4 wide, its floor 6 under the plate's top, it
+/// runs out through the plate's left side and ends, 28 along its front, in a
+/// round end of half a turn about [`slot_axis`] — the convex fillet's slot
+/// off tangent by −0.1, cut as a pocket. The round leaves the front's end at
+/// a corner of some 2.9 degrees, not tangentially, which would be #698's
+/// chain, and turning in toward the slot, so that it runs on across the foot
+/// of the front, where a fill there stands. The matter lies outside its
+/// cylinder.
+fn slot_in_the_plate() -> Body {
+    let (end, centre) = (DVec2::new(SLOT_FRONT_END, SLOT_FRONT_Y), slot_axis());
+    let slot = Contour {
+        corners: vec![
+            DVec2::new(-5.0, SLOT_FRONT_Y),
+            end,
+            2.0 * centre - end,
+            DVec2::new(-5.0, SLOT_FRONT_Y + 4.0),
+        ],
+        runs: vec![
+            Run::Straight,
+            Run::Round {
+                center: centre,
+                turn: PI,
+            },
+            Run::Straight,
+            Run::Straight,
+        ],
+    };
+    cut_from(&plate(SLOT_PLATE), slot, SLOT_FLOOR_Z, SLOT_PLATE)
+}
+
+/// The matter the [`slot_in_the_plate`] holds: the plate's 40 × 30 × 10, less
+/// the slot's, 6 deep — the quadrilateral from the plate's left side to the
+/// round's chord, and the half disc beyond the chord.
+fn slot_part_volume() -> f64 {
+    let back_end = SLOT_FRONT_END + 2.0 * SLOT_OFF;
+    let plan = (SLOT_FRONT_END + back_end) / 2.0 * 4.0 + PI * slot_radius().powi(2) / 2.0;
+    40.0 * 30.0 * SLOT_PLATE - plan * (SLOT_PLATE - SLOT_FLOOR_Z)
+}
+
+/// The area of the [`slot_in_the_plate`]'s round end: half a turn of it, 6
+/// high.
+fn slot_end_area() -> f64 {
+    PI * slot_radius() * (SLOT_PLATE - SLOT_FLOOR_Z)
+}
+
+/// Where the slot's round end stands at `y`, read in plan: the x of its point
+/// there past its axis.
+fn on_the_slot_s_end(y: f64) -> f64 {
+    slot_axis().x + (slot_radius().powi(2) - (y - slot_axis().y).powi(2)).sqrt()
+}
+
+/// How long a fill at the foot of the slot's front runs, `out` from it: from
+/// the plate's left side to the slot's round end.
+fn along_the_slot(out: f64) -> f64 {
+    on_the_slot_s_end(SLOT_FRONT_Y + out)
+}
+
+/// Holds that the [`slot_in_the_plate`] is what the steps are given: its
+/// faces numbered up to [`STEPS_END`]; its round end on the cylinder about
+/// [`slot_axis`]; the foot of its front one edge, from the plate's left side
+/// to the round; the round's foot one edge, from the front to the back, and
+/// its edge with the front one, from the floor to the plate's top; the
+/// plate's left side notched by the slot; and its matter the plate's less the
+/// slot's.
+fn the_slot_is_cut_in_the_plate(part: &Body) {
+    let what = "the slot cut in the plate, before any step";
+    assert_eq!(
+        part.faces_end(),
+        STEPS_END,
+        "{what}: its steps numbered their faces up to {STEPS_END}"
+    );
+    for flat in [PLATE_LEFT, SLOT_FLOOR, SLOT_FRONT, SLOT_BACK] {
+        assert!(
+            part.has_face(flat) && part.is_flat(flat),
+            "{what}: face {flat} is flat"
+        );
+    }
+    drawn_on_the_cylinder(part, SLOT_END, (slot_axis(), slot_radius()), what);
+    one_edge_between(
+        part,
+        [SLOT_FLOOR, SLOT_FRONT],
+        [
+            &[SLOT_FLOOR, SLOT_FRONT, PLATE_LEFT],
+            &[SLOT_FLOOR, SLOT_FRONT, SLOT_END],
+        ],
+        &format!("{what}: the foot of the slot's front"),
+    );
+    one_edge_between(
+        part,
+        [SLOT_FLOOR, SLOT_END],
+        [
+            &[SLOT_FLOOR, SLOT_END, SLOT_FRONT],
+            &[SLOT_FLOOR, SLOT_END, SLOT_BACK],
+        ],
+        &format!("{what}: the round's foot"),
+    );
+    one_edge_between(
+        part,
+        [SLOT_FRONT, SLOT_END],
+        [
+            &[SLOT_FRONT, SLOT_END, SLOT_FLOOR],
+            &[SLOT_FRONT, SLOT_END, TOP],
+        ],
+        &format!("{what}: the round's edge with the front"),
+    );
+    let (front, back, floor) = (SLOT_FRONT_Y, SLOT_FRONT_Y + 4.0, SLOT_FLOOR_Z);
+    corners_are(
+        part,
+        PLATE_LEFT,
+        &[
+            DVec3::new(0.0, 0.0, 0.0),
+            DVec3::new(0.0, 30.0, 0.0),
+            DVec3::new(0.0, 30.0, SLOT_PLATE),
+            DVec3::new(0.0, back, SLOT_PLATE),
+            DVec3::new(0.0, back, floor),
+            DVec3::new(0.0, front, floor),
+            DVec3::new(0.0, front, SLOT_PLATE),
+            DVec3::new(0.0, 0.0, SLOT_PLATE),
+        ],
+        &format!("{what}: the plate's left side, notched by the slot"),
+    );
+    sound_drawn_within(
+        part,
+        slot_part_volume(),
+        drawn_within(part, slot_end_area()),
+        what,
+    );
+}
+
+/// Holds what a fill of `value` at the foot of the slot's front, its section
+/// `height(out)` high `out` from the front, leaves: the fill, the face
+/// numbered `made`, meeting the floor and the front along its sides, and the
+/// plate's left side and the slot's round end at its ends, by one edge each;
+/// the left side flush on the fill's end, as #778 trims it, its notch taking
+/// in the fill's section — its corners on the fill, `on_the_fill` says,
+/// besides; the front cut short over the fill; the round end, one face still,
+/// drawn on its cylinder alone, no corner of it under the fill's surface and
+/// its corners where the fill's sides reach it; the fill running on to the
+/// round end, every ray down onto it a little short of the round meeting it, and
+/// nothing of it standing past the round, beyond its cylinder. And where the
+/// foot of the front ended, at the round, nothing left: the fill covers that
+/// corner, so the round's foot and its edge with the front, run short to the
+/// fill, are one edge each, and no corner stands there.
+fn flush_on_the_slot_s_end(
+    body: &Body,
+    made: usize,
+    value: f64,
+    height: impl Fn(f64) -> f64,
+    on_the_fill: impl Fn(DVec3) -> bool,
+    what: &str,
+) {
+    let mut sides = [PLATE_LEFT, SLOT_FLOOR, SLOT_FRONT, SLOT_END].map(|side| vec![side as u32]);
+    sides.sort();
+    assert_eq!(
+        sides_met(body, made),
+        sides,
+        "{what}: the fill meets the floor and the front along its sides, and the plate's left \
+         side and the round end at its ends, by one edge each"
+    );
+    let (front, back, floor) = (SLOT_FRONT_Y, SLOT_FRONT_Y + 4.0, SLOT_FLOOR_Z);
+    let (out, up) = (front + value, floor + value);
+    let far = on_the_slot_s_end(out);
+    one_edge_between(
+        body,
+        [SLOT_FLOOR, SLOT_END],
+        [
+            &[SLOT_FLOOR, SLOT_END, made],
+            &[SLOT_FLOOR, SLOT_END, SLOT_BACK],
+        ],
+        &format!("{what}: the round's foot, run short to the fill"),
+    );
+    one_edge_between(
+        body,
+        [SLOT_FRONT, SLOT_END],
+        [&[SLOT_FRONT, SLOT_END, made], &[SLOT_FRONT, SLOT_END, TOP]],
+        &format!("{what}: the round's edge with the front, run short to the fill"),
+    );
+    for faces in [
+        &[SLOT_FLOOR, SLOT_FRONT, SLOT_END][..],
+        &[SLOT_FLOOR, SLOT_END],
+        &[SLOT_FRONT, SLOT_END],
+    ] {
+        no_corner_where_only(
+            body,
+            faces,
+            &format!("{what}: the corner the foot of the front ended at"),
+        );
+    }
+    corners_are_or_on(
+        body,
+        PLATE_LEFT,
+        &[
+            DVec3::new(0.0, 0.0, 0.0),
+            DVec3::new(0.0, 30.0, 0.0),
+            DVec3::new(0.0, 30.0, SLOT_PLATE),
+            DVec3::new(0.0, back, SLOT_PLATE),
+            DVec3::new(0.0, back, floor),
+            DVec3::new(0.0, out, floor),
+            DVec3::new(0.0, front, up),
+            DVec3::new(0.0, front, SLOT_PLATE),
+            DVec3::new(0.0, 0.0, SLOT_PLATE),
+        ],
+        &on_the_fill,
+        &format!("{what}: the plate's left side, its notch taking in the fill's section, flush"),
+    );
+    corners_are(
+        body,
+        SLOT_FRONT,
+        &[
+            DVec3::new(0.0, front, up),
+            DVec3::new(SLOT_FRONT_END, front, up),
+            DVec3::new(SLOT_FRONT_END, front, SLOT_PLATE),
+            DVec3::new(0.0, front, SLOT_PLATE),
+        ],
+        &format!("{what}: what is left of the slot's front"),
+    );
+    corners_are_or_on(
+        body,
+        SLOT_FLOOR,
+        &[
+            DVec3::new(0.0, out, floor),
+            DVec3::new(far, out, floor),
+            DVec3::new(SLOT_FRONT_END + 2.0 * SLOT_OFF, back, floor),
+            DVec3::new(0.0, back, floor),
+        ],
+        |corner| {
+            (corner.truncate().distance(slot_axis()) - slot_radius()).abs() < PLACE
+                && (corner.z - floor).abs() < PLACE
+                && corner.y >= out - PLACE
+        },
+        &format!(
+            "{what}: the slot's floor, one face beside the fill's footprint, its edge with the \
+             round on the round's foot circle"
+        ),
+    );
+    let axis_and_radius = (slot_axis(), slot_radius());
+    drawn_on_the_cylinder(body, SLOT_END, axis_and_radius, what);
+    let round: Vec<DVec3> = body.triangles_of(SLOT_END).flatten().collect();
+    for corner in &round {
+        let off_the_front = corner.y - front;
+        let under = if off_the_front < value {
+            floor + height(off_the_front.max(0.0))
+        } else {
+            floor
+        };
+        assert!(
+            corner.z >= under - PLACE,
+            "{what}: the round end is drawn through {corner}, under the fill's surface at {under}: \
+             it still stands where the fill covers it"
+        );
+    }
+    for corner in [
+        DVec3::new(SLOT_FRONT_END, front, up),
+        DVec3::new(far, out, floor),
+    ] {
+        assert!(
+            round.iter().any(|drawn| drawn.distance(corner) < PLACE),
+            "{what}: the round end has no corner at {corner}, where a side of the fill reaches it"
+        );
+    }
+    let furthest = furthest_along_x(body, made);
+    assert!(
+        (furthest - far).abs() < PLACE,
+        "{what}: the fill runs on to {furthest}, where its side on the floor meets the round end \
+         at {far}"
+    );
+    for share_out in [0.2, 0.5] {
+        let off_the_front = value * share_out;
+        let y = front + off_the_front;
+        let from = DVec3::new(on_the_slot_s_end(y) - SHORT_OF_THE_END, y, SLOT_PLATE - 0.5);
+        let hit = body.ray_hit(from, -DVec3::Z).unwrap_or_else(|| {
+            panic!("{what}: a ray down from {from}, short of the round end, meets nothing")
+        });
+        let at = from - DVec3::Z * hit.distance;
+        let surface = floor + height(off_the_front);
+        assert!(
+            hit.face == made && (at.z - surface).abs() <= MET,
+            "{what}: a ray down from {from}, short of the round end, meets face {} at {at}, \
+             where the fill's surface stands at {surface}",
+            hit.face
+        );
+    }
+    for corner in body.triangles_of(made).flatten() {
+        let off = corner.truncate().distance(slot_axis());
+        assert!(
+            corner.x <= slot_axis().x || off <= slot_radius() + PLACE,
+            "{what}: the fill is drawn through {corner}, {off} from the round's axis: past the \
+             round end, whose radius is {}",
+            slot_radius()
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_at_the_foot_of_a_slot_s_wall_is_trimmed_flush_on_the_round_end_it_meets_at_a_few_degrees()
+ {
+    let value = 1.0;
+    let part = slot_in_the_plate();
+    the_slot_is_cut_in_the_plate(&part);
+    let foot = edge_between(&part, SLOT_FLOOR, SLOT_FRONT);
+
+    let chamfered = part.chamfer(&foot, value).unwrap_or_else(|declined| {
+        panic!("the chamfer at the foot of the slot's front: declined, {declined:?}")
+    });
+
+    let what = "the chamfer at the foot of the slot's front";
+    taken_whole(chamfered.asked, chamfered.taken, value, what);
+    let body = &chamfered.body;
+    let height = |out: f64| chamfer_height(value, out);
+    sound_drawn_within(
+        body,
+        slot_part_volume() + fill_matter(value, height, along_the_slot),
+        drawn_within(&part, slot_end_area() + value * value),
+        what,
+    );
+    let chamfer = one_flat_face_more(&part, body, what);
+    numbered_after_the_steps_last(&part, body, chamfer, what);
+    flush_on_the_slot_s_end(body, chamfer, value, height, |_| false, what);
+}
+
+#[test]
+fn a_fillet_at_the_foot_of_a_slot_s_wall_is_trimmed_flush_on_the_round_end_it_meets_at_a_few_degrees()
+ {
+    let value = 1.0;
+    let part = slot_in_the_plate();
+    the_slot_is_cut_in_the_plate(&part);
+    let foot = edge_between(&part, SLOT_FLOOR, SLOT_FRONT);
+
+    let filleted = part.fillet(&foot, value).unwrap_or_else(|declined| {
+        panic!("the fillet at the foot of the slot's front: declined, {declined:?}")
+    });
+
+    let what = "the fillet at the foot of the slot's front";
+    taken_whole(filleted.asked, filleted.taken, value, what);
+    let body = &filleted.body;
+    let height = |out: f64| fillet_height(value, out);
+    let long = along_the_slot(value);
+    sound_drawn_within(
+        body,
+        slot_part_volume() + fill_matter(value, height, along_the_slot),
+        drawn_within(
+            &part,
+            slot_end_area() + value * value + PI / 2.0 * value * long,
+        ),
+        what,
+    );
+    let fillet = one_round_more(&part, body, what);
+    numbered_after_the_steps_last(&part, body, fillet, what);
+    let axis = DVec2::new(SLOT_FRONT_Y + value, SLOT_FLOOR_Z + value);
+    flush_on_the_slot_s_end(
+        body,
+        fillet,
+        value,
+        height,
+        |corner| {
+            corner.x.abs() < PLACE
+                && (DVec2::new(corner.y, corner.z).distance(axis) - value).abs() < PLACE
+        },
+        what,
+    );
 }

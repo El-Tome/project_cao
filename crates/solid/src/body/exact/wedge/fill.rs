@@ -132,13 +132,14 @@ fn end_face(body: &brep::Body, corner: VertexId, faces: [FaceId; 2]) -> Option<F
 }
 
 /// The solid to cut from the prism so that it ends flush on the surface of
-/// the face `id` its edge ends on at `point`, running on `past` there, on
-/// the side of it the matter lies: on a plane, the box [`beyond`] raises; on
-/// a cylinder the matter lies inside, the piece of a ring [`outside_round`]
-/// raises. Declined `Unsupported` where the face does not face out of the
-/// matter along `past` at `point` — it turns back along the edge — or is
-/// another surface, or a cylinder the matter lies outside; otherwise as the
-/// solid's own raise declines.
+/// the face `id` its edge ends on at `point`, running on `past` there: on a
+/// plane facing out of the matter along `past`, the box [`beyond`] raises;
+/// on a cylinder the edge runs out of at `point`, the piece of a ring
+/// [`outside_round`] raises, whichever side of it the matter lies — a rib's
+/// round end bulging out, or a slot's round end turning in toward the slot
+/// off its wall, which the fill then runs on into. Declined `Unsupported` on
+/// a plane turned back along the edge, a cylinder the edge runs into, or
+/// another surface; otherwise as the solid's own raise declines.
 fn past_the_end(
     body: &brep::Body,
     id: FaceId,
@@ -150,12 +151,11 @@ fn past_the_end(
     let surface = body.surface(face.surface);
     let normal = surface.normal(surface.parameters(point));
     let outward = if face.flipped { -normal } else { normal };
-    if outward.dot(past) <= 0.0 {
-        return Err(Declined::Unsupported);
-    }
     match surface {
-        Surface::Plane(plane) => beyond(prism, plane, outward),
-        Surface::Cylinder(cylinder) if !face.flipped => outside_round(prism, cylinder, past),
+        Surface::Plane(plane) if outward.dot(past) > 0.0 => beyond(prism, plane, outward),
+        Surface::Cylinder(cylinder) if normal.dot(past) > 0.0 => {
+            outside_round(prism, cylinder, past)
+        }
         _ => Err(Declined::Unsupported),
     }
 }

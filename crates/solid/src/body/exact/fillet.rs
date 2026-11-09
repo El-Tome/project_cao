@@ -14,9 +14,10 @@ use crate::brep::{Declined, EdgeName, Scale, Surface};
 impl Exact {
     /// The body with the edge each name finds rounded off by a cylinder of
     /// `radius` tangent to its two faces — filled in by it where they meet
-    /// inwards — or of the largest radius every edge gives: alone, and on a
-    /// face two of them share, parallel and facing each other across it, with
-    /// the other laid. Each face stops where a round takes over, set back by
+    /// inwards — or of the largest radius every edge gives: alone, on a face
+    /// two of them share, parallel and facing each other across it, with the
+    /// other laid, and on a face one of them ends on, its round there short of
+    /// the other's set-back on it. Each face stops where a round takes over, set back by
     /// the radius over the tangent of half the angle its two faces meet at, and
     /// two set-backs on such a face stop short of crossing. Where they meet,
     /// the face is gone and the two rounds, about one axis, are one full round
@@ -29,8 +30,9 @@ impl Exact {
     /// from the corner's three faces, meeting each round along the round's end
     /// section, square to its edge through the centre, and numbered after the
     /// rounds, as [`rounded_across`] lays it; declined `Undrawn` where the
-    /// kernel cannot draw it. Rounds that would meet anywhere else are not
-    /// measured, and declined where they meet until #792. The rounds are
+    /// kernel cannot draw it. Rounds that would meet anywhere else, across a
+    /// face two edges share that are not parallel, are not measured, and
+    /// declined where they meet until #792. The rounds are
     /// numbered, in the order the names come, where the steps' numbers ended; a
     /// full round answers to both its edges' numbers. Declined `Distance`: a
     /// radius that is no length, one whose round would stand off the faces it

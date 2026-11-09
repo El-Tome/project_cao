@@ -37,9 +37,11 @@
 //!   the chamfer, whose two flats lie in one plane there, was declined
 //!   `Unsupported` here, and is one slope since #791, below;
 //!   and two rounds that share no face but would meet on the wall one of
-//!   them ends on are laid where they do not meet and declined
-//!   `Unsupported` where they would, until #792 reduces the value for them —
-//!   `a_fillet_on_two_edges_whose_rounds_would_meet_on_the_wall_one_ends_on_is_laid_short_of_it_and_declined_past_it`
+//!   them ends on are laid as asked where they do not meet —
+//!   `a_fillet_on_two_edges_whose_rounds_would_meet_on_the_wall_one_ends_on_is_laid_as_asked_short_of_it`;
+//!   where they would, the step was declined `Unsupported` here, and is
+//!   reduced since #792, in
+//!   `rounds_meeting_through_an_end_face_or_along_a_slant_reduce_the_value.rs`
 //! - On a block 10 wide, rounding the two edges on either side of that face,
 //!   asked more than 5, takes 5, where either alone would take more: the face
 //!   is gone, and the two rounds, of one axis and one radius, are one
@@ -4112,14 +4114,14 @@ fn a_fillet_and_a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_are_de
 }
 
 #[test]
-fn a_fillet_on_two_edges_whose_rounds_would_meet_on_the_wall_one_ends_on_is_laid_short_of_it_and_declined_past_it()
+fn a_fillet_on_two_edges_whose_rounds_would_meet_on_the_wall_one_ends_on_is_laid_as_asked_short_of_it()
  {
     let block = block([LENGTH, BREADTH, HEIGHT]);
     let names = [
         edge_between(&block, TOP, FRONT),
         edge_between(&block, RIGHT, BACK),
     ];
-    let (short, past) = (3.0, MORE_THAN_HALF);
+    let short = 3.0;
 
     let filleted = block
         .fillet_edges(&names, short)
@@ -4160,20 +4162,6 @@ fn a_fillet_on_two_edges_whose_rounds_would_meet_on_the_wall_one_ends_on_is_laid
         LENGTH * BREADTH * HEIGHT - quarter * (LENGTH + HEIGHT),
         DRAWN * reach_of(&block) * (along_the_top.area() + upright.area()),
         &what,
-    );
-    for name in &names {
-        let alone = block.fillet(name, past).expect("each edge alone");
-        taken_as_asked(alone.asked, alone.taken, past, "one edge's fillet alone");
-    }
-
-    let declined = block.fillet_edges(&names, past).err();
-
-    assert_eq!(
-        declined,
-        Some(Declined::Unsupported),
-        "asked {past}: the top's front round, at its end on the right wall, and the right wall's \
-         back round, set back along it, would cross on that wall and on the top, which #792 \
-         reduces the value for"
     );
 }
 

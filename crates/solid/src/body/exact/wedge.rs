@@ -7,6 +7,7 @@
 mod chain;
 mod closing;
 mod corners;
+mod end_faces;
 mod fill;
 mod pairs;
 mod reach;
@@ -68,10 +69,12 @@ impl Exact {
     /// the most every edge gives — what `most` says each edge's two faces give
     /// alone, and, for two parallel edges facing each other across a face they
     /// share, what keeps the set-backs they make on it from crossing, by the
-    /// set-back of a value of one `set_back` says — each read on the body as
-    /// given. Rounds or flats that would meet anywhere else, across a face two
-    /// edges share that are not parallel or on a face one of them ends on, are
-    /// not measured: the laying declines them where they meet, until #792.
+    /// set-back of a value of one `set_back` says, and, for an edge ending on
+    /// a face of another, what keeps its round there short of the other's
+    /// set-back on it — each read on the body as given. Rounds or flats that
+    /// would meet anywhere else, across a face two edges share that are not
+    /// parallel, are not measured: the laying declines them where they meet,
+    /// until #792.
     /// The pairs whose set-backs meet across their face that `meeting` lays
     /// together, the earlier first, are each laid as one, the face they
     /// shared gone — by the prism it raises, or as one slope at the value
@@ -133,7 +136,9 @@ impl Exact {
             let alone = wedges
                 .iter()
                 .fold(asked, |taken, wedge| taken.min(most(wedge)));
-            let taken = alone.min(pairs::bound(&wedges, &facing, &set_back));
+            let taken = alone
+                .min(pairs::bound(&wedges, &facing, &set_back))
+                .min(end_faces::bound(&self.brep, &edges, &wedges, &set_back));
             let pairs =
                 pairs::meeting(&wedges, &facing, taken, &set_back, meeting.together, scale)?;
             let cornered = pairs

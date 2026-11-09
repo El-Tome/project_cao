@@ -579,7 +579,7 @@ away from the drawing and count the same when it comes to knowing what is still
 free — they are kept apart only because one carries a value the user types and
 the other does not.
 
-The **Contraintes** menu, in the Dessin row, offers nine:
+The **Contraintes** menu, in the « Cotes et contraintes » group, offers nine:
 
 | Rule | What is clicked | What it holds |
 | --- | --- | --- |
@@ -1709,8 +1709,8 @@ other. The face a sketch was started **on** lies in the plane itself, and stays.
 How the matter in front shows is chosen with « Matière devant » in the view
 bar, a menu of its three states: « cachée », the cut above, the state a sketch
 opens in; « transparente », the half in front drawn see-through; « opaque », the
-body drawn whole. The ribbon's own « Matière devant » stays, and steps round the
-same three.
+body drawn whole. Put back on the ribbon from the preferences,
+« Matière devant » steps round the same three.
 
 The cut is a way of looking. No operation enters the history, the `.caopart` is
 unchanged, and closing the sketch puts the whole body back. Nothing is put back

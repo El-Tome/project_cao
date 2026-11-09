@@ -65,9 +65,6 @@ fn no_group_of_the_standard_toolbar_is_left_reading_as_its_key() {
     }
 }
 
-/// The five groups the default sketch tab holds, read as `crates/app/tests/ribbon_groups.rs`
-/// writes them under the bar. The first is a group of the same name as the tab
-/// it sits in, the tab keeping its own key.
 #[test]
 fn the_five_groups_of_the_sketch_tab_read_as_the_design_names_them() {
     let lang = Catalogue::french();

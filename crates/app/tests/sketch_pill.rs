@@ -165,11 +165,11 @@ const CENTRED_WITHIN: f32 = 1.0;
 /// tree gives a widget and the one painted around it are rounded apart.
 const HUGGED_WITHIN: f32 = 0.5;
 
-/// What betrays a piece of the pill among what the view holds: the sketch's
-/// name, a plane, a section, a face, the count, the finish.
 /// The ribbon's « Terminer », which the pill's « Terminer ↵ » is compared to.
 const FINISH_IN_THE_RIBBON: &str = "Terminer (Entrée)";
 
+/// What betrays a piece of the pill among what the view holds: the sketch's
+/// name, a plane, a section, a face, the count, the finish.
 const WORDS_OF_THE_PILL: [&str; 8] = [
     "Esquisse", "Plan", "Coupe", "Face", "libert", "réglée", "Terminer", "↵",
 ];

@@ -155,7 +155,8 @@ tools in a row:
 
 What is picked on the bar is a command like any other: it clears the message in
 the title bar, and an error gives way to it. « Recadrer », « Vue en coupe » and
-« Matière devant » stay in the ribbon too.
+« Matière devant » are not on the default ribbon; the preferences can put them
+back on it.
 
 ## The axis pointing at us
 

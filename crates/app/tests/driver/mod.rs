@@ -778,9 +778,12 @@ pub fn the_pill_s_finish<'a>(app: &'a App) -> Option<egui_kittest::Node<'a>> {
         })
 }
 
-/// Whether a sketch is open: its pill is on screen with its button.
+/// Whether a sketch is open, read from the editor rather than the pill, so
+/// that a test of the pill has a witness that is not the pill.
 pub fn a_sketch_is_open(app: &App) -> bool {
-    the_pill_s_finish(app).is_some()
+    app.state()
+        .where_the_view_shows_the_sketch_point(DVec2::ZERO)
+        .is_some()
 }
 
 /// Finishes the open sketch with the pill's button, the way a hand does now

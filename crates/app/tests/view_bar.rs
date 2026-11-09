@@ -562,19 +562,22 @@ fn the_bar_s_section_view_is_greyed_in_a_sketch_and_with_no_volume() {
 
 #[test]
 fn the_bar_s_section_view_shows_pressed_while_the_section_is_on() {
-    let mut app = driver::a_block("the_bar_s_section_view_shows_pressed");
+    let mut app = driver::a_block_with(
+        "the_bar_s_section_view_shows_pressed",
+        driver::the_moved_commands_put_back(),
+    );
     assert!(
         !pressed(&driver::the_bar_s(&app, "Vue en coupe")),
         "the bar's « Vue en coupe » shows pressed before any section is on",
     );
 
-    driver::click_in_the_bar(&mut app, "Vue en coupe");
+    driver::click_in_the_ribbon(&mut app, "Vue en coupe");
     assert!(
         pressed(&driver::the_bar_s(&app, "Vue en coupe")),
         "the section is on, and the bar's « Vue en coupe » does not show pressed",
     );
 
-    driver::click_in_the_bar(&mut app, "Vue en coupe");
+    driver::click_in_the_ribbon(&mut app, "Vue en coupe");
     assert!(
         !pressed(&driver::the_bar_s(&app, "Vue en coupe")),
         "the section is off, and the bar's « Vue en coupe » still shows pressed",

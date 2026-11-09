@@ -49,14 +49,21 @@
 //! - An X/Y/Z triad in the cube's corner, in the axis colours —
 //!   `a_triad_stands_in_the_cube_s_corner_in_the_axis_colours`, turning with
 //!   the camera — `the_triad_turns_with_the_camera`; decided by the human, on
-//!   screen, in place of keeping it clear of the cube: it sits at the bottom
-//!   left of the square, the point its lines start from outside the cube's
-//!   drawing and the rest allowed a little over it, and it touches no face name
-//!   — `the_triad_sticks_out_of_the_cube_at_the_bottom_left_and_keeps_off_the_names`;
+//!   screen, from another CAD program, in place of a triad set beside the cube:
+//!   it is built into the cube, its three axes starting from the corner
+//!   (-½, -½, -½) and running along the cube's edges past the far corner —
+//!   `the_triad_runs_along_the_cube_s_edges_past_their_far_corners`; an axis
+//!   behind the cube is not drawn: one is shown exactly when a face its edge
+//!   bounds is seen, a face edge-on counting as seen and an axis end-on drawing
+//!   nothing — `an_axis_is_drawn_exactly_when_a_face_its_edge_bounds_is_seen`,
+//!   `from_the_back_corner_no_axis_is_drawn`,
+//!   `square_onto_a_sketch_two_axes_show_along_the_outline_and_the_third_not`;
+//!   its letter stands beyond its tip, and nothing of it touches a face name at
+//!   the opening view or square onto a sketch —
+//!   `a_letter_stands_beyond_its_tip_inside_the_square_and_off_the_names`;
 //!   found on screen: it was too small to read —
 //!   `the_triad_is_drawn_large_enough_to_read_on_a_cube_of_the_default_size`;
-//!   found in review: the triad does not jump as the camera turns, a letter
-//!   changing side moved all three lines at once —
+//!   found in review: the triad does not jump as the camera turns —
 //!   `the_triad_does_not_jump_as_the_camera_turns`;
 //!   found in review: a cube too small to hold a letter still paints —
 //!   `a_cube_too_small_to_hold_a_letter_paints_without_a_panic`
@@ -1112,46 +1119,117 @@ fn a_cube_with_its_axes_painted_apart(
     )
 }
 
+/// The world axis of each line of the triad, and the two faces of the cube its
+/// edge separates.
+const THE_AXES: [(Vec3, &str, [CubeFace; 2]); 3] = [
+    (Vec3::X, "X", [CubeFace::MinusY, CubeFace::MinusZ]),
+    (Vec3::Y, "Y", [CubeFace::MinusX, CubeFace::MinusZ]),
+    (Vec3::Z, "Z", [CubeFace::MinusX, CubeFace::MinusY]),
+];
+
+/// The corner of the cube the three axes start from.
+const THE_AXES_CORNER: Vec3 = Vec3::splat(-0.5);
+
+/// A face this close to edge-on counts as seen, and an axis this close to the
+/// line of sight as end-on: the views these tests read are exactly so, or
+/// degrees away from it.
+const EDGE_ON: f32 = 1e-3;
+
 /// The triad as painted: for each axis, the line drawn in its colour and the
-/// letter written in that same colour.
-fn the_triad(state: &ViewportState, rect: egui::Rect) -> [AxisDrawn; 3] {
+/// letter written in that same colour, or nothing when neither is drawn.
+fn the_triad(state: &ViewportState, rect: egui::Rect) -> [Option<AxisDrawn>; 3] {
     let lang = Catalogue::french();
     let painted = shapes(|ui| paint_face_labels(ui, state, rect, &lang));
 
     [("X", THE_AXIS_X), ("Y", THE_AXIS_Y), ("Z", THE_AXIS_Z)].map(|(name, colour)| {
         let colour = tint_to_color(colour);
-        let ([from, to], width) = painted
-            .iter()
-            .find_map(|shape| match shape {
-                egui::Shape::LineSegment { points, stroke } if stroke.color == colour => {
-                    Some((*points, stroke.width))
-                }
-                _ => None,
-            })
-            .unwrap_or_else(|| {
-                panic!("no line of the triad is drawn in the colour of axis {name}")
-            });
-        let text = painted
-            .iter()
-            .find_map(|shape| match shape {
-                egui::Shape::Text(text) if text.galley.text() == name => Some(text),
-                _ => None,
-            })
-            .unwrap_or_else(|| panic!("the line of axis {name} ends on no letter {name}"));
-        assert_eq!(
-            ink(text),
-            colour,
-            "the letter {name} is not written in the colour of its axis",
-        );
-        AxisDrawn {
-            from,
-            to,
-            width,
-            letter: egui::Shape::Text(text.clone()).visual_bounding_rect(),
-            letter_size: text.galley.job.sections[0].format.font_id.size,
+        let line = painted.iter().find_map(|shape| match shape {
+            egui::Shape::LineSegment { points, stroke } if stroke.color == colour => {
+                Some((*points, stroke.width))
+            }
+            _ => None,
+        });
+        let text = painted.iter().find_map(|shape| match shape {
+            egui::Shape::Text(text) if text.galley.text() == name => Some(text),
+            _ => None,
+        });
+        match (line, text) {
+            (None, None) => None,
+            (Some(_), None) => panic!("the line of axis {name} ends on no letter {name}"),
+            (None, Some(_)) => panic!("the letter {name} is written with no line to end"),
+            (Some(([from, to], width)), Some(text)) => {
+                assert_eq!(
+                    ink(text),
+                    colour,
+                    "the letter {name} is not written in the colour of its axis",
+                );
+                Some(AxisDrawn {
+                    from,
+                    to,
+                    width,
+                    letter: egui::Shape::Text(text.clone()).visual_bounding_rect(),
+                    letter_size: text.galley.job.sections[0].format.font_id.size,
+                })
+            }
         }
     })
 }
+
+/// Whether the axis at `index` is meant to be drawn from a view looking along
+/// `forward`: one of the two faces its edge separates is seen or edge-on, and
+/// it does not point straight at the eye.
+fn is_shown(index: usize, forward: Vec3) -> bool {
+    let (axis, _, faces) = THE_AXES[index];
+    let end_on = axis.dot(forward).abs() >= 1.0 - EDGE_ON;
+    !end_on
+        && faces
+            .iter()
+            .any(|face| face.normal().dot(forward) <= EDGE_ON)
+}
+
+/// That the line of the axis at `index` starts at the cube's corner, passes
+/// through the far end of its edge and goes on past it by a little.
+fn assert_runs_along_its_edge(
+    state: &ViewportState,
+    rect: egui::Rect,
+    index: usize,
+    drawn: &AxisDrawn,
+    seen: &str,
+) {
+    let (axis, name, _) = THE_AXES[index];
+    let start = on_the_cube_s_screen(state, rect, THE_AXES_CORNER);
+    let far = on_the_cube_s_screen(state, rect, THE_AXES_CORNER + axis);
+    assert!(
+        (drawn.from - start).length() <= ON_THE_POINT,
+        "{seen}: the line of axis {name} starts at {:?}, and the cube's corner is at {start:?}",
+        drawn.from,
+    );
+    let along = (drawn.to - drawn.from).normalized();
+    let off_the_line = (far - drawn.from) - along * (far - drawn.from).dot(along);
+    assert!(
+        off_the_line.length() <= ON_THE_POINT,
+        "{seen}: the line of axis {name}, from {:?} to {:?}, misses the far end of its edge \
+         at {far:?} by {} points",
+        drawn.from,
+        drawn.to,
+        off_the_line.length(),
+    );
+    let overshoot = (drawn.to - far).dot(along);
+    let edge = (far - start).length();
+    assert!(
+        overshoot > 0.0 && overshoot <= PAST_THE_FAR_CORNER * edge,
+        "{seen}: the line of axis {name} goes {overshoot} points past the far end of its \
+         edge, {edge} long, where more than none and at most {} is asked",
+        PAST_THE_FAR_CORNER * edge,
+    );
+}
+
+/// How far a line may stand from a point it is meant to reach, in points.
+const ON_THE_POINT: f32 = 0.5;
+
+/// How far past the far corner of its edge a line may go, as a share of the
+/// edge.
+const PAST_THE_FAR_CORNER: f32 = 0.35;
 
 #[test]
 fn a_triad_stands_in_the_cube_s_corner_in_the_axis_colours() {
@@ -1164,26 +1242,20 @@ fn a_triad_stands_in_the_cube_s_corner_in_the_axis_colours() {
                     state.mode = mode;
                     let seen =
                         format!("a cube {size} wide at {at:?}, yaw {yaw}, pitch {pitch}, {mode:?}");
+                    let corner = on_the_cube_s_screen(&state, rect, THE_AXES_CORNER);
 
                     let triad = the_triad(&state, rect);
 
-                    let origin = triad[0].from;
-                    let drawn = all_the_triad_covers(&triad);
                     assert!(
-                        drawn.center().x <= rect.center().x && drawn.center().y >= rect.center().y,
-                        "{seen}: the triad covers {drawn:?}, which is not in the bottom left \
-                         corner of the cube's square {rect:?}",
+                        triad.iter().any(Option::is_some),
+                        "{seen}: not one axis of the triad is drawn",
                     );
-                    for axis in &triad {
+                    for axis in triad.iter().flatten() {
                         assert!(
-                            (axis.from - origin).length() <= 0.5,
-                            "{seen}: the triad's lines do not start from one point",
-                        );
-                        assert!(
-                            (axis.to - axis.from).length() <= 0.35 * size,
-                            "{seen}: a line of the triad is {} long, not a short line on a cube \
-                             {size} wide",
-                            (axis.to - axis.from).length(),
+                            (axis.from - corner).length() <= ON_THE_POINT,
+                            "{seen}: a line of the triad starts at {:?}, and the cube's corner \
+                             it should start from is at {corner:?}",
+                            axis.from,
                         );
                         assert!(
                             rect.contains(axis.from) && rect.contains(axis.to),
@@ -1215,15 +1287,32 @@ fn the_triad_turns_with_the_camera() {
 
         let triad = the_triad(&state, rect);
 
-        let projected = [Vec3::X, Vec3::Y, Vec3::Z]
-            .map(|axis| egui::vec2(camera.right().dot(axis), -camera.up().dot(axis)));
-        let drawn = [0, 1, 2].map(|index| triad[index].to - triad[index].from);
-        let scale = drawn.iter().map(|line| line.length()).fold(0.0, f32::max)
-            / projected
+        let lines: Vec<(egui::Vec2, egui::Vec2, &str)> = triad
+            .iter()
+            .zip(THE_AXES)
+            .filter_map(|(axis, (world, name, _))| {
+                axis.as_ref().map(|axis| {
+                    (
+                        axis.to - axis.from,
+                        egui::vec2(camera.right().dot(world), -camera.up().dot(world)),
+                        name,
+                    )
+                })
+            })
+            .collect();
+        assert!(
+            !lines.is_empty(),
+            "from yaw {yaw}, pitch {pitch}, no axis is drawn"
+        );
+        let scale = lines
+            .iter()
+            .map(|(line, _, _)| line.length())
+            .fold(0.0, f32::max)
+            / lines
                 .iter()
-                .map(|line| line.length())
+                .map(|(_, wanted, _)| wanted.length())
                 .fold(0.0, f32::max);
-        for ((line, wanted), name) in drawn.into_iter().zip(projected).zip(["X", "Y", "Z"]) {
+        for (line, wanted, name) in lines {
             assert!(
                 (line - wanted * scale).length() <= 1.0,
                 "from yaw {yaw}, pitch {pitch}, the line of axis {name} runs {line:?}, and \
@@ -1237,73 +1326,22 @@ fn the_triad_turns_with_the_camera() {
         a_cube_with_its_axes_painted_apart(0.3, 1.5, ROOMY_CUBE, egui::pos2(40.0, 40.0));
     let triad = the_triad(&state, rect);
     let length = |axis: &AxisDrawn| (axis.to - axis.from).length();
-    let longest = triad.iter().map(length).fold(0.0, f32::max);
+    let longest = triad.iter().flatten().map(length).fold(0.0, f32::max);
+    let z = triad[2]
+        .as_ref()
+        .expect("looking nearly down Z, « FACE » is seen, so its edge is drawn");
     assert!(
-        longest > 0.0 && length(&triad[2]) < longest * 0.25,
-        "looking down the Z axis, its line is {} long and the longest {longest}: an axis seen \
-         end-on is short",
-        length(&triad[2]),
+        longest > 0.0 && length(z) < longest * 0.25,
+        "looking nearly down the Z axis, its line is {} long and the longest {longest}: an axis \
+         seen nearly end-on is short",
+        length(z),
     );
-}
-
-/// The convex outline of the cube on screen: every corner of every face, the
-/// ones inside the outline dropped.
-fn silhouette(state: &ViewportState, rect: egui::Rect) -> Vec<egui::Pos2> {
-    let mut corners: Vec<egui::Pos2> = CubeFace::ALL
-        .into_iter()
-        .flat_map(cube::corners)
-        .map(|corner| on_the_cube_s_screen(state, rect, corner))
-        .collect();
-    corners.sort_by(|one, other| one.x.total_cmp(&other.x).then(one.y.total_cmp(&other.y)));
-    let turn =
-        |o: egui::Pos2, a: egui::Pos2, b: egui::Pos2| (a - o).x * (b - o).y - (a - o).y * (b - o).x;
-    let half = |points: &mut dyn Iterator<Item = egui::Pos2>| {
-        let mut kept: Vec<egui::Pos2> = Vec::new();
-        for point in points {
-            while kept.len() >= 2 && turn(kept[kept.len() - 2], kept[kept.len() - 1], point) <= 1e-3
-            {
-                kept.pop();
-            }
-            kept.push(point);
-        }
-        kept.pop();
-        kept
-    };
-    let mut outline = half(&mut corners.iter().copied());
-    outline.extend(half(&mut corners.iter().rev().copied()));
-    outline
-}
-
-/// How far `point` stands outside the outline; negative when it is inside.
-fn off_the_outline(point: egui::Pos2, outline: &[egui::Pos2]) -> f32 {
-    let edges = || outline.iter().zip(outline.iter().cycle().skip(1));
-    let inside =
-        edges().all(|(a, b)| (*b - *a).x * (point - *a).y - (*b - *a).y * (point - *a).x >= 0.0);
-    if inside {
-        return -1.0;
-    }
-    edges()
-        .map(|(a, b)| {
-            let along = *b - *a;
-            let reach = ((point - *a).dot(along) / along.length_sq()).clamp(0.0, 1.0);
-            (point - (*a + along * reach)).length()
-        })
-        .fold(f32::INFINITY, f32::min)
 }
 
 fn along_a_line(from: egui::Pos2, to: egui::Pos2) -> Vec<egui::Pos2> {
     (0..=24)
         .map(|step| from + (to - from) * (step as f32 / 24.0))
         .collect()
-}
-
-/// The smallest rectangle holding every line and every letter of the triad.
-fn all_the_triad_covers(triad: &[AxisDrawn; 3]) -> egui::Rect {
-    triad.iter().fold(egui::Rect::NOTHING, |covered, axis| {
-        covered
-            .union(egui::Rect::from_two_pos(axis.from, axis.to))
-            .union(axis.letter)
-    })
 }
 
 /// A square onto each of the three planes of the origin, as opening a sketch
@@ -1330,10 +1368,105 @@ fn the_views_the_triad_is_read_in(size: f32) -> Vec<(String, ViewportState, egui
 }
 
 #[test]
-fn the_triad_sticks_out_of_the_cube_at_the_bottom_left_and_keeps_off_the_names() {
+fn the_triad_runs_along_the_cube_s_edges_past_their_far_corners() {
+    for size in [80.0, 96.0, 160.0] {
+        let (state, rect) = a_cube_with_its_axes_painted_apart(
+            opening_yaw(),
+            opening_pitch(),
+            size,
+            egui::pos2(40.0, 40.0),
+        );
+        let seen = format!("on a cube {size} wide at the opening view");
+
+        let triad = the_triad(&state, rect);
+
+        for (index, name) in [(0, "X"), (2, "Z")] {
+            let drawn = triad[index]
+                .as_ref()
+                .unwrap_or_else(|| panic!("{seen}: the axis {name} is not drawn"));
+            assert_runs_along_its_edge(&state, rect, index, drawn, &seen);
+        }
+        assert!(
+            triad[1].is_none(),
+            "{seen}: the axis Y runs behind the cube and is drawn",
+        );
+    }
+}
+
+#[test]
+fn an_axis_is_drawn_exactly_when_a_face_its_edge_bounds_is_seen() {
+    for yaw in (0..360).step_by(15) {
+        for pitch in (-75..=75).step_by(15) {
+            let (state, rect) = a_cube_with_its_axes_painted_apart(
+                (yaw as f32).to_radians(),
+                (pitch as f32).to_radians(),
+                96.0,
+                egui::pos2(40.0, 40.0),
+            );
+            let forward = state.camera.forward();
+
+            let triad = the_triad(&state, rect);
+
+            for (index, (_, name, faces)) in THE_AXES.into_iter().enumerate() {
+                assert_eq!(
+                    triad[index].is_some(),
+                    is_shown(index, forward),
+                    "from yaw {yaw}°, pitch {pitch}°, looking along {forward:?}, the axis {name} \
+                     separates {faces:?}",
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn from_the_back_corner_no_axis_is_drawn() {
+    let (yaw, pitch) = cao_render::camera::view_angles_towards(Vec3::ONE);
+    let (state, rect) =
+        a_cube_with_its_axes_painted_apart(yaw, pitch, 96.0, egui::pos2(40.0, 40.0));
+
+    let triad = the_triad(&state, rect);
+
+    assert!(
+        triad.iter().all(Option::is_none),
+        "seen from the corner (+X, +Y, +Z), every edge of the triad is behind the cube, and \
+         the axes drawn are {:?}",
+        triad.iter().map(Option::is_some).collect::<Vec<_>>(),
+    );
+}
+
+#[test]
+fn square_onto_a_sketch_two_axes_show_along_the_outline_and_the_third_not() {
+    for (name, wanted) in [
+        ("a sketch on XY", [true, true, false]),
+        ("a sketch on XZ", [true, false, true]),
+        ("a sketch on YZ", [false, true, true]),
+    ] {
+        let (_, state, rect) = the_views_the_triad_is_read_in(96.0)
+            .into_iter()
+            .find(|(view, _, _)| view == name)
+            .expect("the views the triad is read in hold the three sketches");
+
+        let triad = the_triad(&state, rect);
+
+        for (index, (_, axis, _)) in THE_AXES.into_iter().enumerate() {
+            assert_eq!(
+                triad[index].is_some(),
+                wanted[index],
+                "at {name}, the axis {axis} should be drawn: {}",
+                wanted[index],
+            );
+            if let Some(drawn) = &triad[index] {
+                assert_runs_along_its_edge(&state, rect, index, drawn, name);
+            }
+        }
+    }
+}
+
+#[test]
+fn a_letter_stands_beyond_its_tip_inside_the_square_and_off_the_names() {
     for size in [80.0, 96.0, 160.0] {
         for (view, state, rect) in the_views_the_triad_is_read_in(size) {
-            let outline = silhouette(&state, rect);
             let names: Vec<egui::Rect> = names_painted(&state, rect)
                 .iter()
                 .map(|(_, mesh)| mesh.calc_bounds())
@@ -1342,25 +1475,21 @@ fn the_triad_sticks_out_of_the_cube_at_the_bottom_left_and_keeps_off_the_names()
 
             let triad = the_triad(&state, rect);
 
-            let covered = all_the_triad_covers(&triad);
-            assert!(
-                rect.contains_rect(covered),
-                "{seen}: the triad covers {covered:?}, and leaves the cube's square {rect:?}",
-            );
-            assert!(
-                covered.max.x <= rect.center().x && covered.min.y >= rect.center().y,
-                "{seen}: the triad covers {covered:?}, and the bottom left of the cube's square \
-                 {rect:?} ends at x {} and starts at y {}",
-                rect.center().x,
-                rect.center().y,
-            );
-            let origin = triad[0].from;
-            assert!(
-                off_the_outline(origin, &outline) > 0.0,
-                "{seen}: the point the triad's lines start from, {origin:?}, lies on the cube's \
-                 drawing, and the triad should stick out of it",
-            );
-            for (axis, name) in triad.iter().zip(["X", "Y", "Z"]) {
+            for (axis, (_, name, _)) in triad.iter().zip(THE_AXES) {
+                let Some(axis) = axis else { continue };
+                let along = (axis.to - axis.from).normalized();
+                assert!(
+                    (axis.letter.center() - axis.to).dot(along) > 0.0,
+                    "{seen}: the letter {name} at {:?} stands before the tip of its line at \
+                     {:?}",
+                    axis.letter,
+                    axis.to,
+                );
+                assert!(
+                    rect.contains_rect(axis.letter),
+                    "{seen}: the letter {name} at {:?} leaves the cube's square {rect:?}",
+                    axis.letter,
+                );
                 for word in &names {
                     assert!(
                         !along_a_line(axis.from, axis.to)
@@ -1388,25 +1517,16 @@ fn the_triad_is_drawn_large_enough_to_read_on_a_cube_of_the_default_size() {
         size,
         egui::pos2(40.0, 40.0),
     );
-    let camera = &state.camera;
-    let projected = [Vec3::X, Vec3::Y, Vec3::Z]
-        .map(|axis| egui::vec2(camera.right().dot(axis), -camera.up().dot(axis)).length());
     let names_size = (size * 0.11).max(cube_labels::MINIMUM_READABLE_FONT);
 
     let triad = the_triad(&state, rect);
 
-    let square_to_the_view = triad
-        .iter()
-        .zip(projected)
-        .map(|(axis, seen)| (axis.to - axis.from).length() / seen)
-        .fold(0.0, f32::max);
     assert!(
-        square_to_the_view >= MOST_OF_THE_SIDE * size,
-        "on a cube {size} wide, an axis square to the view would be drawn {square_to_the_view} \
-         long, where {} is the least that reads",
-        MOST_OF_THE_SIDE * size,
+        triad.iter().any(Option::is_some),
+        "at the opening view no axis is drawn",
     );
-    for (axis, name) in triad.iter().zip(["X", "Y", "Z"]) {
+    for (axis, (_, name, _)) in triad.iter().zip(THE_AXES) {
+        let Some(axis) = axis else { continue };
         assert!(
             axis.width >= THICK_ENOUGH,
             "the line of axis {name} is {} wide, where {THICK_ENOUGH} is the least that reads",
@@ -1421,9 +1541,7 @@ fn the_triad_is_drawn_large_enough_to_read_on_a_cube_of_the_default_size() {
     }
 }
 
-/// How large the opening view leaves the triad: an axis square to the view, as
-/// a share of the side; a line; a letter against a face name.
-const MOST_OF_THE_SIDE: f32 = 0.2;
+/// How large the triad is drawn: a line, and a letter against a face name.
 const THICK_ENOUGH: f32 = 2.0;
 const LETTER_OVER_NAME: f32 = 1.2;
 
@@ -1471,39 +1589,22 @@ fn a_cube_too_small_to_hold_a_letter_paints_without_a_panic() {
     }
 }
 
-/// How far the point the triad's lines start from may move between two views
-/// a degree apart, in points: about what a line 20 points long sweeps in a
-/// degree, with margin.
+/// How far the ends of a line may move between two views a degree apart, in
+/// points, and how far a letter may: about what a point of the cube's corner
+/// sweeps in a degree on the larger cube, with margin.
 const A_DEGREE_S_SWEEP: f32 = 1.5;
+const A_LETTER_S_SWEEP: f32 = 2.5;
 
-/// The largest move of the triad's origin along these views, each in degrees
-/// and each beside the next, with the two views it happened between, and how
-/// many neighbours moved further than a degree's sweep.
-fn largest_jump(size: f32, views: &[(f32, f32)]) -> (f32, (f32, f32), (f32, f32), usize) {
-    let origins: Vec<egui::Pos2> = views
-        .iter()
-        .map(|(yaw, pitch)| {
-            let (state, rect) = a_cube_with_its_axes_painted_apart(
-                yaw.to_radians(),
-                pitch.to_radians(),
-                size,
-                egui::pos2(40.0, 40.0),
-            );
-            the_triad(&state, rect)[0].from
-        })
-        .collect();
-    let moves: Vec<f32> = origins
-        .windows(2)
-        .map(|two| (two[1] - two[0]).length())
-        .collect();
-    let at = (0..moves.len())
-        .max_by(|one, other| moves[*one].total_cmp(&moves[*other]))
-        .expect("at least two views");
-    let beyond = moves
-        .iter()
-        .filter(|moved| **moved > A_DEGREE_S_SWEEP)
-        .count();
-    (moves[at], views[at], views[at + 1], beyond)
+/// What is read of each axis at a view: the two ends of its line and the
+/// middle of its letter, or nothing when the axis is not shown.
+fn the_axes_at(size: f32, (yaw, pitch): (f32, f32)) -> [Option<[egui::Pos2; 3]>; 3] {
+    let (state, rect) = a_cube_with_its_axes_painted_apart(
+        yaw.to_radians(),
+        pitch.to_radians(),
+        size,
+        egui::pos2(40.0, 40.0),
+    );
+    the_triad(&state, rect).map(|axis| axis.map(|axis| [axis.from, axis.to, axis.letter.center()]))
 }
 
 #[test]
@@ -1516,24 +1617,47 @@ fn the_triad_does_not_jump_as_the_camera_turns() {
         sweeps.push((-90..=90).map(|pitch| (yaw, pitch as f32)).collect());
     }
 
-    let mut findings = Vec::new();
+    let mut worst = (0.0_f32, String::new());
+    let mut jumps = 0;
     for size in [96.0, 160.0] {
         for views in &sweeps {
-            let (moved, from, to, beyond) = largest_jump(size, views);
-            findings.push((moved, size, from, to, beyond));
+            let read: Vec<_> = views.iter().map(|view| the_axes_at(size, *view)).collect();
+            for (at, two) in read.windows(2).enumerate() {
+                for (index, (_, name, _)) in THE_AXES.into_iter().enumerate() {
+                    let (Some(one), Some(other)) = (&two[0][index], &two[1][index]) else {
+                        continue;
+                    };
+                    let parts = [
+                        ("its start", one[0], other[0], A_DEGREE_S_SWEEP),
+                        ("its tip", one[1], other[1], A_DEGREE_S_SWEEP),
+                        ("its letter's middle", one[2], other[2], A_LETTER_S_SWEEP),
+                    ];
+                    for (part, there, here, limit) in parts {
+                        let moved = (here - there).length();
+                        if moved > limit {
+                            jumps += 1;
+                        }
+                        if moved / limit > worst.0 {
+                            worst = (
+                                moved / limit,
+                                format!(
+                                    "on a cube {size} wide, {part} of axis {name} moves {moved} \
+                                     points between {:?} and {:?} (yaw, pitch in degrees), where \
+                                     {limit} is the most",
+                                    views[at],
+                                    views[at + 1],
+                                ),
+                            );
+                        }
+                    }
+                }
+            }
         }
     }
 
-    let (moved, size, from, to, _) = findings
-        .iter()
-        .copied()
-        .max_by(|one, other| one.0.total_cmp(&other.0))
-        .expect("the sweeps hold views");
-    let jumps: usize = findings.iter().map(|finding| finding.4).sum();
     assert!(
-        moved <= A_DEGREE_S_SWEEP,
-        "on a cube {size} wide the triad's origin moves {moved} points between yaw, pitch \
-         {from:?} and {to:?} in degrees, where a degree's turn sweeps at most \
-         {A_DEGREE_S_SWEEP}; {jumps} neighbouring views move further than that",
+        worst.0 <= 1.0,
+        "{}; {jumps} moves are too large over the sweeps",
+        worst.1,
     );
 }

@@ -32,6 +32,25 @@ fn reading_axes(face: CubeFace) -> (Vec3, Vec3) {
     }
 }
 
+/// Where a point of cube space lands on the cube's square.
+pub(super) fn on_the_square(
+    view_projection: glam::Mat4,
+    cube_rect: egui::Rect,
+    point: Vec3,
+) -> egui::Pos2 {
+    let clip = view_projection * point.extend(1.0);
+    egui::pos2(
+        cube_rect.center().x + clip.x / clip.w * cube_rect.width() * 0.5,
+        cube_rect.center().y - clip.y / clip.w * cube_rect.height() * 0.5,
+    )
+}
+
+/// How many points of the square a unit of cube space covers, square to the
+/// view.
+pub(super) fn points_per_unit(cube_rect: egui::Rect) -> f32 {
+    cube_rect.width() * 0.5 / cube::ORTHO_HALF_SIZE
+}
+
 /// `text` as a shape lying on `face`, in `ink` — `None` when the face is seen
 /// too edge-on to read or nothing readable fits, in which case it is better
 /// left bare.
@@ -44,14 +63,8 @@ pub(super) fn face_label(
     preferred: f32,
     ink: egui::Color32,
 ) -> Option<egui::Shape> {
-    let project = |point: Vec3| {
-        let clip = view_projection * point.extend(1.0);
-        egui::pos2(
-            cube_rect.center().x + clip.x / clip.w * cube_rect.width() * 0.5,
-            cube_rect.center().y - clip.y / clip.w * cube_rect.height() * 0.5,
-        )
-    };
-    let points_per_unit = cube_rect.width() * 0.5 / cube::ORTHO_HALF_SIZE;
+    let project = |point: Vec3| on_the_square(view_projection, cube_rect, point);
+    let points_per_unit = points_per_unit(cube_rect);
     let middle = cube::face_center(face);
     let (along, up) = reading_axes(face);
     let centre = project(middle);

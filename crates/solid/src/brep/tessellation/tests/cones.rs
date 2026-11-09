@@ -2,7 +2,7 @@ use std::f64::consts::TAU;
 
 use glam::{DVec2, DVec3};
 
-use super::super::sampling::{Samples, divisions};
+use super::super::sampling::{Samples, divisions_in};
 use crate::brep::curve::Curve;
 use crate::brep::surface::Surface;
 use crate::brep::tessellation::Cut;
@@ -121,7 +121,7 @@ fn a_shaft_with_no_cone_draws_as_on_main() {
                 let Curve::Circle(circle) = body.curve(body.edge(edge).curve) else {
                     continue;
                 };
-                let steps = divisions(circle.radius, tolerance) as f64;
+                let steps = divisions_in(circle.radius, tolerance, body.scale().reach()) as f64;
                 for &id in samples.edge(edge) {
                     if samples.is_vertex(id) {
                         continue;
@@ -322,11 +322,11 @@ fn a_countersink_s_narrow_rim_shares_its_bore_s_samples() {
                 .map(|&id| samples.point(id))
                 .collect();
             assert!(
-                every_angle(&points, divisions(2.0, tolerance)),
+                every_angle(&points, divisions_in(2.0, tolerance, body.scale().reach())),
                 "the bore's grid"
             );
             assert!(
-                every_angle(&points, divisions(7.0, tolerance)),
+                every_angle(&points, divisions_in(7.0, tolerance, body.scale().reach())),
                 "the cone's grid"
             );
         }

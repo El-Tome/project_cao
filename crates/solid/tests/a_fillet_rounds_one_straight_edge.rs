@@ -1841,12 +1841,9 @@ fn most_on_the_bend(turn: f64) -> f64 {
 /// holding its round as a face of its own — one number, curved, on the
 /// cylinder of the radius taken, standing between the two halves rather than
 /// lying in them, the edge gone, and the matter it takes what arithmetic
-/// says. What it did instead otherwise. What its triangles enclose is not
-/// asked: the kernel draws an arc this shallow and this wide coarser than its
-/// tolerance, whatever made it — a wall raised on the arc of radius 3437
-/// about (0, 3437), from the origin over half a degree, is cut once, 21 along
-/// its 30, and drawn 1.6e-2 off it, where 30 of reach allows 6e-3 — and the
-/// rounds of the other tests hold the drawing.
+/// says, and its triangles enclosing that matter within the drawing's
+/// tolerance over the round, however wide its circle. What it did instead
+/// otherwise.
 fn rounded_on_the_bend(
     part: &Body,
     name: &EdgeName,
@@ -1914,6 +1911,14 @@ fn rounded_on_the_bend(
         return Err(format!(
             "left {} of matter, where arithmetic promised {promised}",
             body.volume()
+        ));
+    }
+    let enclosed = enclosed(&triangles);
+    let allowed = drawn_within(part, round.area());
+    if (enclosed - promised).abs() > allowed {
+        return Err(format!(
+            "drew triangles enclosing {enclosed}, where arithmetic promised {promised}, within \
+             {allowed:e}"
         ));
     }
     Ok(true)

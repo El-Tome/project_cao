@@ -204,18 +204,3 @@ pub(super) fn on_circle_by(
     }
     points
 }
-
-/// [`on_circle_by`] on the grid of a circle no wider than its part.
-#[cfg(test)]
-pub(super) fn on_circle(
-    circle: &Circle,
-    edge: &Edge,
-    tolerance: f64,
-    eps: f64,
-    contact: &Contact,
-    ends_of: &Ends,
-    planes: &[Plane],
-) -> Vec<DVec3> {
-    let steps = super::divisions(circle.radius, tolerance);
-    on_circle_by(circle, edge, steps, eps, contact, ends_of, planes)
-}

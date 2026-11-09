@@ -185,7 +185,7 @@ fn the_loop_two_walls_leaning_a_hair_off_parallel_cross_along_is_not_crowded_whe
             let samples = Samples::of(&body, tolerance);
             let points = points(&samples, loop_edge);
             for wall in walls {
-                let steps = divisions(wall.radius, tolerance);
+                let steps = divisions_in(wall.radius, tolerance, body.scale().reach());
                 let missed = (0..steps)
                     .filter(|step| {
                         let angle = TAU * *step as f64 / steps as f64;

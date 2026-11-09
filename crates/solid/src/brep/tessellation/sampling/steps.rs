@@ -45,9 +45,3 @@ pub(super) fn needed(radius: f64, tolerance: f64) -> Option<f64> {
     let half_step = (1.0 - ratio.min(2.0)).acos();
     Some((PI / half_step).ceil())
 }
-
-/// [`divisions_in`] for a circle no wider than its part.
-#[cfg(test)]
-pub(in crate::brep) fn divisions(radius: f64, tolerance: f64) -> usize {
-    divisions_in(radius, tolerance, radius)
-}

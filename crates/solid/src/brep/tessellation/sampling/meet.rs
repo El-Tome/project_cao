@@ -338,17 +338,18 @@ fn grazing_ends<'a>(
     grazed(body, edge, &walls.map(|wall| wall.surface()), step)
 }
 
-/// [`on_meet_by`], each wall's grid cut for its own size.
+/// [`on_meet_by`], each wall's grid cut for its own size on a part reaching
+/// `reach`.
 #[cfg(test)]
 pub(super) fn on_meet(
     meet: &Meet,
     edge: &Edge,
-    tolerance: f64,
+    (tolerance, reach): (f64, f64),
     eps: f64,
     rays: [&[f64]; 2],
     clear: &dyn Fn(DVec3) -> bool,
 ) -> Vec<DVec3> {
     let steps =
-        [meet.first, meet.second].map(|wall| super::divisions(size(&wall, meet), tolerance));
+        [meet.first, meet.second].map(|wall| divisions_in(size(&wall, meet), tolerance, reach));
     on_meet_by(meet, edge, tolerance, eps, rays, steps, clear)
 }

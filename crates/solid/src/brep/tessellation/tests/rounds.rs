@@ -6,7 +6,7 @@ use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 use glam::DVec3;
 
-use super::super::sampling::{Samples, divisions};
+use super::super::sampling::{Samples, divisions_in};
 use crate::brep::Declined;
 use crate::brep::curve::Curve;
 use crate::brep::surface::Surface;
@@ -185,11 +185,11 @@ fn a_rounded_shaft_end_shares_its_shaft_s_circle_and_is_drawn_watertight() {
         .map(|&id| samples.point(id))
         .collect();
     assert!(
-        every_angle(&points, divisions(4.0, tolerance)),
+        every_angle(&points, divisions_in(4.0, tolerance, body.scale().reach())),
         "the shaft's grid"
     );
     assert!(
-        points.len() > divisions(4.0, tolerance),
+        points.len() > divisions_in(4.0, tolerance, body.scale().reach()),
         "the sphere's grid as well: {} samples",
         points.len()
     );
@@ -298,7 +298,7 @@ fn both_meridians_of_a_partial_turn_are_sampled_on_the_same_rows_of_the_sphere()
     for (one, other) in opening.iter().zip(closing) {
         assert!((one - other).abs() < 1e-9, "{one} against {other}");
     }
-    let rows = divisions(5.0, tolerance * 0.45) as f64;
+    let rows = divisions_in(5.0, tolerance * 0.45, body.scale().reach()) as f64;
     for latitude in opening {
         let rank = latitude * rows / TAU;
         assert!(

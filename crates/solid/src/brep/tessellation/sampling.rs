@@ -372,9 +372,4 @@ fn taken(
 }
 
 #[cfg(test)]
-use circle::on_circle;
-#[cfg(test)]
-pub(in crate::brep) use steps::divisions;
-
-#[cfg(test)]
 mod tests;

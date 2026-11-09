@@ -620,7 +620,9 @@ fn widest_in_steps(body: &Body, triangles: &[[DVec3; 3]], tolerance: f64) -> f64
         let span = (0..3)
             .map(|at| apart(angles[at], angles[(at + 1) % 3]).abs())
             .fold(0.0, f64::max);
-        let step = TAU / super::sampling::divisions(cylinder.radius, tolerance) as f64;
+        let step = TAU
+            / super::sampling::divisions_in(cylinder.radius, tolerance, body.scale().reach())
+                as f64;
         widest = widest.max(span / step);
     }
     widest

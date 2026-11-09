@@ -135,6 +135,22 @@ impl OnAnArc {
     fn off_the_arc(&self, point: DVec3) -> f64 {
         (point.truncate().distance(self.center()) - self.radius).abs()
     }
+
+    /// How far a point stands from the nearest of the part's surfaces: its
+    /// floor, its top, its arc and its three flat walls.
+    fn off_every_surface(&self, point: DVec3) -> f64 {
+        let end = self.end();
+        [
+            point.z,
+            point.z - HEIGHT,
+            point.x - end.x,
+            point.y - DEPTH,
+            point.x,
+        ]
+        .map(f64::abs)
+        .into_iter()
+        .fold(self.off_the_arc(point), f64::min)
+    }
 }
 
 /// An outline drawn on `frame` and raised along its normal by `height`, as
@@ -193,6 +209,18 @@ const BEFORE: [[usize; 2]; 4] = [[960, 192], [960, 864], [636, 1260], [636, 3980
 /// How many triangles a binary STL holds, read from its count.
 fn written(bytes: &[u8]) -> usize {
     u32::from_le_bytes(bytes[80..84].try_into().expect("a count after the header")) as usize
+}
+
+/// The corners of every triangle of a binary STL, as a slicer reads them.
+fn read(bytes: &[u8]) -> Vec<[DVec3; 3]> {
+    let number = |at: usize| f64::from(f32::from_le_bytes(bytes[at..at + 4].try_into().unwrap()));
+    let corner = |at: usize| DVec3::new(number(at), number(at + 4), number(at + 8));
+    (0..written(bytes))
+        .map(|index| {
+            let at = 84 + 50 * index + 12;
+            [corner(at), corner(at + 12), corner(at + 24)]
+        })
+        .collect()
 }
 
 /// The largest coordinate a body reaches, on either side of the origin.
@@ -307,4 +335,47 @@ fn a_circle_no_wider_than_the_part_asked_finer_than_a_thousand_and_twenty_four_s
         Some(Uncovered),
         "the disc 4 m across, as wide as the part, asked within 0.005 mm"
     );
+}
+
+#[test]
+fn a_wall_on_an_arc_far_wider_than_the_part_written_to_stl_holds_a_fineness_past_a_thousand_and_twenty_four_steps_a_turn()
+ {
+    let gap = 0.005;
+    for wall in [
+        OnAnArc {
+            radius: 3437.0,
+            degrees: 0.5,
+        },
+        OnAnArc {
+            radius: 1719.0,
+            degrees: 1.0,
+        },
+    ] {
+        let what = format!(
+            "the wall on the arc of {} over {}°, at {gap} mm",
+            wall.radius, wall.degrees
+        );
+        let body = wall.raised();
+        let rounding = 4.0 * f64::from(f32::EPSILON) * reach_of(&body);
+
+        let bytes = stl::of(&body, gap, 1.0)
+            .unwrap_or_else(|declined| panic!("{what}: {declined:?}, where it is written"));
+
+        let triangles = read(&bytes);
+        assert!(!triangles.is_empty(), "{what}: nothing was written");
+        let mut furthest = 0.0f64;
+        for corners in &triangles {
+            for one in 0..=8 {
+                for other in 0..=8 - one {
+                    let (a, b) = (one as f64 / 8.0, other as f64 / 8.0);
+                    let point = corners[0] * (1.0 - a - b) + corners[1] * a + corners[2] * b;
+                    furthest = furthest.max(wall.off_every_surface(point));
+                }
+            }
+        }
+        assert!(
+            furthest <= gap + rounding,
+            "{what}: a triangle stands {furthest:e} off every surface"
+        );
+    }
 }

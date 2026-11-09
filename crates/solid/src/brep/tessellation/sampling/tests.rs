@@ -4,7 +4,7 @@ use glam::DVec3;
 
 use super::super::contact::APART;
 use super::super::tests::fixtures;
-use super::{Samples, divisions};
+use super::{Samples, divisions_in};
 use crate::brep::curve::{Curve, Meet, Wall};
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, EdgeId};
@@ -17,7 +17,7 @@ const CLOSE: f64 = 1e-12;
 fn a_turn_is_cut_into_a_multiple_of_four_steps_between_sixteen_and_a_thousand_and_twenty_four() {
     for radius in [0.1, 1.0, 5.0, 20.0, 1e4] {
         for tolerance in [1e-9, 1e-6, 1e-3, 0.02, 1.0, 100.0, 0.0, -1.0, f64::NAN] {
-            let steps = divisions(radius, tolerance);
+            let steps = divisions_in(radius, tolerance, radius);
             assert!(
                 steps.is_multiple_of(4),
                 "{steps} for {radius} within {tolerance}"
@@ -32,7 +32,7 @@ fn a_chord_of_one_step_stands_within_the_tolerance_with_no_step_to_spare() {
     let sag = |radius: f64, steps: usize| radius * (1.0 - (PI / steps as f64).cos());
     for radius in [0.5, 5.0, 20.0, 300.0] {
         for tolerance in [1e-4, 1e-3, 0.02, 0.3] {
-            let steps = divisions(radius, tolerance);
+            let steps = divisions_in(radius, tolerance, radius);
             if steps < 1024 {
                 assert!(sag(radius, steps) <= tolerance * (1.0 + CLOSE));
             }
@@ -70,7 +70,7 @@ fn a_circle_through_a_vertex_is_sampled_on_the_grid_from_the_vertex_round_to_it(
             continue;
         };
         seen += 1;
-        let steps = divisions(circle.radius, tolerance);
+        let steps = divisions_in(circle.radius, tolerance, body.scale().reach());
         let ids = samples.edge(edge);
         let vertex = body.edge(edge).ends.expect("through a vertex")[0].0 as usize;
         assert_eq!((ids[0], ids[ids.len() - 1]), (vertex, vertex));
@@ -97,7 +97,7 @@ fn a_ring_is_sampled_at_every_angle_of_the_grid_from_its_start() {
         let Curve::Circle(circle) = *body.curve(body.edge(edge).curve) else {
             panic!("the stock's edges are its two rings");
         };
-        let steps = divisions(circle.radius, tolerance);
+        let steps = divisions_in(circle.radius, tolerance, body.scale().reach());
         let ids = samples.edge(edge);
         assert_eq!(ids.len(), steps);
         for (step, id) in ids.iter().enumerate() {
@@ -235,7 +235,7 @@ fn a_meet_is_sampled_at_every_grid_angle_of_either_cylinder_and_wherever_it_turn
                     let Wall::Cylinder(cylinder) = wall else {
                         unreachable!("the stock and the bore are round")
                     };
-                    let steps = divisions(cylinder.radius, tolerance);
+                    let steps = divisions_in(cylinder.radius, tolerance, body.scale().reach());
                     let mut places = meet.turns(on_first);
                     for step in 0..steps {
                         places.extend(meet.at_angle(on_first, TAU * step as f64 / steps as f64));
@@ -266,8 +266,9 @@ fn a_meet_is_sampled_at_the_angle_of_every_ray_the_circles_of_either_cylinder_ta
                 } else {
                     [&[], &off_the_grid]
                 };
+                let fineness = (tolerance, body.scale().reach());
                 let points =
-                    super::meet::on_meet(meet, body.edge(edge), tolerance, eps, rays, &|_| true);
+                    super::meet::on_meet(meet, body.edge(edge), fineness, eps, rays, &|_| true);
                 for angle in off_the_grid {
                     for t in meet.at_angle(on_first, angle) {
                         let place = meet.point(t);
@@ -415,7 +416,7 @@ fn the_rings_of_the_stock_a_bore_crosses_are_sampled_through_every_sample_of_the
                 }
             }
             assert_eq!(rings.len(), 2);
-            let steps = divisions(fixtures::STOCK_RADIUS, tolerance);
+            let steps = divisions_in(fixtures::STOCK_RADIUS, tolerance, body.scale().reach());
             for ring in &rings {
                 assert!(ring.len() > steps);
                 for angle in &curve {
@@ -836,7 +837,7 @@ fn two_walls_a_hair_across_each_other_at_heights_apart_keep_every_step_of_their_
     let (body, rings) = bands_a_hair_apart_one_above_the_other(1.5 * 2e-8);
     for tolerance in [1e-3, 0.02] {
         let samples = Samples::of(&body, tolerance);
-        let steps = divisions(fixtures::HOLE_RADIUS, tolerance);
+        let steps = divisions_in(fixtures::HOLE_RADIUS, tolerance, body.scale().reach());
         for ring in rings {
             let Curve::Circle(circle) = *body.curve(body.edge(ring).curve) else {
                 panic!("a band is bounded by rings");
@@ -888,7 +889,7 @@ fn a_ring_starting_on_a_step_of_its_grid_or_a_rounding_beside_it_keeps_every_ste
     let Curve::Circle(circle) = *body.curve(body.edge(edge).curve) else {
         panic!("the stock's edges are its two rings");
     };
-    let steps = divisions(circle.radius, tolerance);
+    let steps = divisions_in(circle.radius, tolerance, body.scale().reach());
     for rank in 0..steps {
         let on = TAU * rank as f64 / steps as f64;
         for from in [on.next_down(), on, on.next_up()] {
@@ -923,7 +924,7 @@ fn a_ring_starting_on_a_ray_or_a_rounding_beside_it_keeps_that_ray_on_either_hal
         panic!("the stock's edges are its two rings");
     };
     let eps = body.scale().eps();
-    let steps = divisions(circle.radius, tolerance);
+    let steps = divisions_in(circle.radius, tolerance, body.scale().reach());
     for rank in 0..steps {
         let on = TAU * (rank as f64 + 0.5) / steps as f64;
         let way = circle.u * on.cos() + circle.v * on.sin();
@@ -935,10 +936,10 @@ fn a_ring_starting_on_a_ray_or_a_rounding_beside_it_keeps_that_ray_on_either_hal
         for from in [on.next_down(), on, on.next_up()] {
             body.edges[edge.0 as usize].from = from;
             body.edges[edge.0 as usize].to = from + TAU;
-            let points = super::on_circle(
+            let points = super::on_circle_by(
                 &circle,
                 body.edge(edge),
-                tolerance,
+                steps,
                 eps,
                 &contact,
                 &super::Ends::of(&body, &circle, body.edge(edge)),
@@ -968,10 +969,11 @@ fn a_ring_takes_a_ray_a_rounding_short_of_the_angle_it_starts_at() {
         oval: None,
     };
     let eps = body.scale().eps();
-    let points = super::on_circle(
+    let steps = divisions_in(circle.radius, 0.02, body.scale().reach());
+    let points = super::on_circle_by(
         &circle,
         body.edge(edge),
-        0.02,
+        steps,
         eps,
         &contact,
         &super::Ends::of(&body, &circle, body.edge(edge)),

@@ -21,22 +21,6 @@ fn a_box_wider_than_the_face_is_shrunk_to_fit_exactly() {
 }
 
 #[test]
-fn a_face_seen_nearly_edge_on_shrinks_the_box_towards_nothing() {
-    let a = egui::vec2(50.0, 0.0);
-    let b = egui::vec2(0.0, 1.0);
-    let scale = inscribed_scale(a, b, egui::vec2(40.0, 10.0));
-    assert!(scale < 0.2);
-}
-
-#[test]
-fn a_face_turned_to_a_diamond_still_holds_an_axis_aligned_box() {
-    let a = egui::vec2(50.0, 50.0);
-    let b = egui::vec2(50.0, -50.0);
-    let scale = inscribed_scale(a, b, egui::vec2(20.0, 20.0));
-    assert!((scale - 2.5).abs() < 1e-4);
-}
-
-#[test]
 fn fitting_font_size_drops_the_label_when_nothing_readable_fits() {
     let result = fitting_font_size(
         egui::vec2(2.0, 0.0),

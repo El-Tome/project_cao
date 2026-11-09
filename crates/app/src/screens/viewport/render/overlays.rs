@@ -54,8 +54,8 @@ impl ViewportState {
 }
 
 /// The cube's labels are drawn by egui rather than the GPU: text needs a font
-/// atlas, and egui already has one. Sizing them to the face they sit on,
-/// rather than to the cube, is [`super::cube_labels`]'s job.
+/// atlas, and egui already has one. Laying each on the face it names is
+/// [`super::cube_labels`]'s job.
 pub(crate) fn paint_face_labels(
     ui: &egui::Ui,
     state: &ViewportState,
@@ -72,23 +72,23 @@ pub(crate) fn paint_face_labels(
             continue;
         }
         let text = crate::wording::cube::face(lang, face);
-        let label =
-            cube_labels::face_label(&painter, view_projection, cube_rect, face, &text, preferred);
-        let Some((position, font_size)) = label else {
-            continue;
-        };
-        let color = if state.hovered_zone == Some(CubeZone::Face(face)) {
+        let ink = if state.hovered_zone == Some(CubeZone::Face(face)) {
             tokens::TEXT_TITLE
         } else {
             tokens::TEXT_ON_ACCENT
         };
-        painter.text(
-            position,
-            egui::Align2::CENTER_CENTER,
-            text,
-            egui::FontId::proportional(font_size),
-            color,
+        let name = cube_labels::face_label(
+            &painter,
+            view_projection,
+            cube_rect,
+            face,
+            &text,
+            preferred,
+            ink,
         );
+        if let Some(name) = name {
+            painter.add(name);
+        }
     }
 }
 

@@ -1,23 +1,40 @@
-//! Sizing for the orientation cube's face labels.
+//! The names on the orientation cube's faces: the word laid out flat, then
+//! carried onto its face.
 //!
-//! A face's on-screen shape is a parallelogram — the affine image of a
-//! square — so it stays a face-sized target for the label no matter how the
-//! camera is turned, and no matter how long the word for that face is in the
-//! language showing.
+//! The cube is orthographic, so a face projects by an affine map: the corners
+//! of each glyph go through it and the result is still that glyph, turned and
+//! foreshortened as the face is. The word is sized in the face's own square,
+//! which is how the view stays out of it.
 
 use cao_render::CubeFace;
 use cao_render::cube;
-
-use crate::ui::theme::tokens;
+use glam::Vec3;
 
 /// The smallest a label is still drawn at; below this it is dropped instead.
 pub(super) const MINIMUM_READABLE_FONT: f32 = 8.0;
 
 const REFERENCE_FONT_SIZE: f32 = 64.0;
 
-/// Where a face's label goes, and how large it can be without spilling past
-/// that face — `None` when nothing readable fits, in which case the face is
-/// better left bare than drawn over its neighbour.
+/// The share of its area a face has to show for a name on it to be read.
+const LEAST_SHARE_SEEN: f32 = 0.25;
+
+/// Which way a name on `face` reads and which way is up on it, in cube space.
+/// The first crossed with the second gives the face's outward normal, so that
+/// no name is ever mirrored from outside; a side face reads with +Z up.
+fn reading_axes(face: CubeFace) -> (Vec3, Vec3) {
+    match face {
+        CubeFace::PlusX => (Vec3::Y, Vec3::Z),
+        CubeFace::MinusX => (Vec3::NEG_Y, Vec3::Z),
+        CubeFace::PlusY => (Vec3::NEG_X, Vec3::Z),
+        CubeFace::MinusY => (Vec3::X, Vec3::Z),
+        CubeFace::PlusZ => (Vec3::X, Vec3::Y),
+        CubeFace::MinusZ => (Vec3::X, Vec3::NEG_Y),
+    }
+}
+
+/// `text` as a shape lying on `face`, in `ink` — `None` when the face is seen
+/// too edge-on to read or nothing readable fits, in which case it is better
+/// left bare.
 pub(super) fn face_label(
     painter: &egui::Painter,
     view_projection: glam::Mat4,
@@ -25,32 +42,57 @@ pub(super) fn face_label(
     face: CubeFace,
     text: &str,
     preferred: f32,
-) -> Option<(egui::Pos2, f32)> {
-    let project = |point: glam::Vec3| {
+    ink: egui::Color32,
+) -> Option<egui::Shape> {
+    let project = |point: Vec3| {
         let clip = view_projection * point.extend(1.0);
         egui::pos2(
             cube_rect.center().x + clip.x / clip.w * cube_rect.width() * 0.5,
             cube_rect.center().y - clip.y / clip.w * cube_rect.height() * 0.5,
         )
     };
-    let corners = cube::corners(face).map(project);
+    let points_per_unit = cube_rect.width() * 0.5 / cube::ORTHO_HALF_SIZE;
+    let middle = cube::face_center(face);
+    let (along, up) = reading_axes(face);
+    let centre = project(middle);
+    let along = (project(middle + along) - centre) / points_per_unit;
+    let up = (project(middle + up) - centre) / points_per_unit;
+    if (along.x * up.y - along.y * up.x).abs() < LEAST_SHARE_SEEN {
+        return None;
+    }
+
+    let half_side = middle.length() * points_per_unit;
     let half_extent = painter
         .layout_no_wrap(
             text.to_string(),
             egui::FontId::proportional(REFERENCE_FONT_SIZE),
-            tokens::TEXT_TITLE,
+            ink,
         )
         .size()
         * 0.5;
     let font_size = fitting_font_size(
-        (corners[1] - corners[0]) * 0.5,
-        (corners[3] - corners[0]) * 0.5,
+        egui::vec2(half_side, 0.0),
+        egui::vec2(0.0, half_side),
         half_extent,
         REFERENCE_FONT_SIZE,
         preferred,
         MINIMUM_READABLE_FONT,
     )?;
-    Some((project(cube::face_center(face)), font_size))
+
+    let galley =
+        painter.layout_no_wrap(text.to_string(), egui::FontId::proportional(font_size), ink);
+    let word_middle = galley.mesh_bounds.center();
+    let [width, height] = painter.fonts(|fonts| fonts.font_image_size());
+    let texels = egui::vec2(width as f32, height as f32);
+
+    let placed = galley.rows.first()?;
+    let mut laid = placed.row.visuals.mesh.clone();
+    for vertex in &mut laid.vertices {
+        let from_middle = vertex.pos + placed.pos.to_vec2() - word_middle;
+        vertex.pos = centre + along * from_middle.x - up * from_middle.y;
+        vertex.uv = (vertex.uv.to_vec2() / texels).to_pos2();
+    }
+    Some(egui::Shape::mesh(laid))
 }
 
 /// The largest font size, at or below `preferred`, whose text — measured at

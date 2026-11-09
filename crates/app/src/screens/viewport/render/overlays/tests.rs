@@ -32,11 +32,18 @@
 //!   « DROITE »…), turning with the cube —
 //!   `a_face_s_name_is_painted_lying_on_its_face_and_turns_with_the_cube`;
 //!   decided on the branch: never mirrored from outside, a side face reads
-//!   upright with +Z up — `a_side_face_s_name_reads_upright_and_none_is_mirrored`;
+//!   upright with +Z up, the top reads along +X with +Y up and the bottom along
+//!   +X with -Y up — `a_side_face_s_name_reads_upright_and_none_is_mirrored`;
 //!   a face seen too edge-on to read draws no name —
 //!   `a_face_seen_too_edge_on_to_read_draws_no_name`; the name on a lit face
 //!   stays readable against the amber —
-//!   `the_name_on_a_lit_face_stays_readable_against_the_amber`
+//!   `the_name_on_a_lit_face_stays_readable_against_the_amber`; the words and
+//!   their family carry over —
+//!   `the_names_of_the_cube_s_faces_stay_in_the_proportional_family`, the names
+//!   drawn are those of the faces that can be seen —
+//!   `the_labels_of_the_orientation_cube_name_the_faces_that_can_be_seen`, and a
+//!   hovered face's name keeps the colour it had —
+//!   `a_hovered_face_s_name_keeps_the_title_colour`
 //! - An X/Y/Z triad in the cube's corner, in the axis colours —
 //!   `a_triad_stands_in_the_cube_s_corner_in_the_axis_colours`, turning with
 //!   the camera — `the_triad_turns_with_the_camera`
@@ -46,9 +53,13 @@
 use cao_part::history::PointRef;
 use cao_part::{Operation, PartDocument};
 use cao_prefs::config::ViewportConfig;
+use cao_render::CubeFace;
 use cao_render::camera::OrbitCamera;
 use cao_sketch::{SegmentId, SelectState, Stretch, ToolState, WorkPlane};
-use glam::DVec2;
+use glam::{DVec2, Vec3};
+use std::cell::RefCell;
+use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use super::*;
 use crate::screens::extrusion::ExtrusionState;
@@ -179,19 +190,57 @@ fn the_scale_bar_s_figure_is_written_in_the_monospace_family() {
     );
 }
 
+/// Read all around the cube, since a monospaced « GAUCHE » spaces its letters
+/// nearly as the proportional one does, and « DROITE » and « ARRIÈRE » do not.
 #[test]
 fn the_names_of_the_cube_s_faces_stay_in_the_proportional_family() {
-    let (state, _) = a_view();
     let lang = Catalogue::french();
+    let mut wanted_for: BTreeMap<String, Vec<f32>> = BTreeMap::new();
+    let mut read = Vec::new();
 
-    let written = families(&shapes(|ui| paint_face_labels(ui, &state, SCREEN, &lang)));
-
-    assert!(
-        !written.is_empty()
-            && written
+    for (yaw, pitch) in views_all_around() {
+        let (state, rect) = a_cube_seen_from(yaw, pitch, ROOMY_CUBE);
+        for (face, mesh) in names_painted(&state, rect) {
+            let word = crate::wording::cube::face(&lang, face);
+            let map = FaceMap::of(&state, rect, face);
+            let glyphs = quads(&mesh);
+            assert_eq!(
+                glyphs.len(),
+                word.chars().count(),
+                "the name on {face:?} holds {} glyphs, and its word {word:?} holds {}",
+                glyphs.len(),
+                word.chars().count(),
+            );
+            let wanted = wanted_for
+                .entry(word.clone())
+                .or_insert_with(|| rhythm_of(&laid_out(&word, egui::FontFamily::Proportional)));
+            let along: Vec<Vec<f32>> = glyphs
                 .iter()
-                .all(|(_, family)| *family == egui::FontFamily::Proportional),
-        "the cube's face names are written {written:?}",
+                .map(|glyph| {
+                    glyph
+                        .iter()
+                        .map(|vertex| map.on_face(vertex.pos).0)
+                        .collect()
+                })
+                .collect();
+            let drawn = rhythm_of(&along);
+            let gap = largest_gap(&drawn, wanted);
+            assert!(
+                gap <= SAME_RHYTHM,
+                "the name on {face:?} does not read as {word:?} in the proportional family: \
+                 its letters start at {drawn:?} of its length, and they start at {wanted:?} \
+                 when that word is laid out in it",
+            );
+            if !read.contains(&face) {
+                read.push(face);
+            }
+        }
+    }
+
+    assert_eq!(
+        read.len(),
+        6,
+        "only the names of {read:?} were painted as meshes all around the cube",
     );
 }
 
@@ -217,20 +266,25 @@ fn the_scale_bar_is_exactly_one_grid_step_long() {
 
 #[test]
 fn the_labels_of_the_orientation_cube_name_the_faces_that_can_be_seen() {
-    let (state, _) = a_view();
-    let lang = Catalogue::french();
+    for (yaw, pitch) in [(OPENING_YAW, OPENING_PITCH), (0.7, -0.6), (2.4, 0.8)] {
+        let (state, rect) = a_cube_seen_from(yaw, pitch, ROOMY_CUBE);
+        let can_be_seen: Vec<CubeFace> = CubeFace::ALL
+            .into_iter()
+            .filter(|face| cube::is_visible(*face, state.camera.forward()))
+            .collect();
 
-    let painted = shapes(|ui| paint_face_labels(ui, &state, SCREEN, &lang));
-    let said = words(&painted);
+        let mut named: Vec<CubeFace> = names_painted(&state, rect)
+            .into_iter()
+            .map(|(face, _)| face)
+            .collect();
+        named.sort_by_key(|face| CubeFace::ALL.iter().position(|other| other == face));
 
-    assert!(
-        !said.is_empty(),
-        "the cube is drawn with no label on any of its faces",
-    );
-    assert!(
-        said.len() < 6,
-        "every face of the cube is labelled at once, back ones included: {said:?}",
-    );
+        assert_eq!(
+            named, can_be_seen,
+            "seen from yaw {yaw}, pitch {pitch}, the names painted are not the faces \
+             that can be seen",
+        );
+    }
 }
 
 #[test]
@@ -530,4 +584,472 @@ fn a_mark_set_aside_by_another_is_taken_where_it_was_set() {
 /// « Distance » or « R », and the word may stay in the proportional family.
 fn holds_a_figure(text: &str) -> bool {
     text.chars().any(|character| character.is_ascii_digit())
+}
+
+/// The angles a new part opens with.
+const OPENING_YAW: f32 = -std::f32::consts::PI * 0.7;
+const OPENING_PITCH: f32 = 0.5;
+
+/// A cube large enough for every name to fit at the angles these tests use.
+const ROOMY_CUBE: f32 = 160.0;
+
+/// How far a letter's start may stand from where the word laid out in its
+/// family puts it, as a share of the word's length.
+const SAME_RHYTHM: f32 = 0.05;
+
+/// Past a face's edge by this much of its half-side is past its edge: the
+/// vertices are computed, and the face's outline is drawn thicker than this.
+const INSIDE_ITS_FACE: f32 = 1e-3;
+
+/// Within a glyph, how far two corners that share a texture row or column may
+/// stand apart across it, as a share of a face's half-side.
+const SQUARE_ON_THE_FACE: f32 = 1e-2;
+
+/// How far a name's width over its height may stand from the word's own.
+const SAME_PROPORTIONS: f32 = 0.2;
+
+/// WCAG's level AA for text.
+const READABLE_CONTRAST: f32 = 4.5;
+
+/// The state of a cube of side `size`, seen from these angles, and the square
+/// it stands in.
+fn a_cube_seen_from(yaw: f32, pitch: f32, size: f32) -> (ViewportState, egui::Rect) {
+    let mut state = ViewportState::default();
+    state.config.cube_size = size;
+    state.camera.set_view_angles(yaw, pitch);
+    let rect = egui::Rect::from_min_size(egui::pos2(40.0, 40.0), egui::Vec2::splat(size));
+    (state, rect)
+}
+
+/// Which way a name on `face` reads, and which way is up on it, in the cube's
+/// space. Reading direction crossed with up gives the face's outward normal,
+/// which is what never mirrored from outside means.
+fn reading_axes(face: CubeFace) -> (Vec3, Vec3) {
+    match face {
+        CubeFace::PlusX => (Vec3::Y, Vec3::Z),
+        CubeFace::MinusX => (Vec3::NEG_Y, Vec3::Z),
+        CubeFace::PlusY => (Vec3::NEG_X, Vec3::Z),
+        CubeFace::MinusY => (Vec3::X, Vec3::Z),
+        CubeFace::PlusZ => (Vec3::X, Vec3::Y),
+        CubeFace::MinusZ => (Vec3::X, Vec3::NEG_Y),
+    }
+}
+
+/// A face's projected parallelogram: its centre, and where half a side along
+/// the reading direction and up from there land, on screen.
+struct FaceMap {
+    centre: egui::Pos2,
+    along: egui::Vec2,
+    up: egui::Vec2,
+}
+
+impl FaceMap {
+    fn of(state: &ViewportState, rect: egui::Rect, face: CubeFace) -> Self {
+        let project = |point: Vec3| on_the_cube_s_screen(state, rect, point);
+        let centre = cube::face_center(face);
+        let (along, up) = reading_axes(face);
+        let on_screen = project(centre);
+        Self {
+            centre: on_screen,
+            along: project(centre + along * 0.5) - on_screen,
+            up: project(centre + up * 0.5) - on_screen,
+        }
+    }
+
+    /// Where a point of the screen stands on the face: `(along, up)`, each
+    /// from -1 to 1 inside it.
+    fn on_face(&self, point: egui::Pos2) -> (f32, f32) {
+        let from_centre = point - self.centre;
+        let determinant = self.along.x * self.up.y - self.along.y * self.up.x;
+        (
+            (from_centre.x * self.up.y - from_centre.y * self.up.x) / determinant,
+            (self.along.x * from_centre.y - self.along.y * from_centre.x) / determinant,
+        )
+    }
+}
+
+fn on_the_cube_s_screen(state: &ViewportState, rect: egui::Rect, point: Vec3) -> egui::Pos2 {
+    to_screen(
+        point.as_dvec3(),
+        cube::view_projection(state.camera.rotation()),
+        rect,
+    )
+    .expect("the cube's camera is orthographic, and nothing stands behind it")
+}
+
+/// The face a mesh is painted on: the one whose centre, among all six, stands
+/// nearest the middle of the mesh. A name painted on a hidden face would find
+/// that hidden face here, so it is caught rather than given to its neighbour.
+fn face_under(state: &ViewportState, rect: egui::Rect, mesh: &egui::Mesh) -> CubeFace {
+    let middle = mesh
+        .vertices
+        .iter()
+        .fold(egui::Vec2::ZERO, |sum, vertex| sum + vertex.pos.to_vec2())
+        / mesh.vertices.len() as f32;
+    CubeFace::ALL
+        .into_iter()
+        .min_by(|one, other| {
+            let distance = |face: CubeFace| {
+                (on_the_cube_s_screen(state, rect, cube::face_center(face)).to_vec2() - middle)
+                    .length()
+            };
+            distance(*one).total_cmp(&distance(*other))
+        })
+        .expect("a cube has faces")
+}
+
+/// Every name the cube carries in this view, with the face it lies on: each is
+/// one `Shape::Mesh` on the font texture, which is what tells it apart from
+/// anything else the painter may lay.
+fn names_painted(state: &ViewportState, rect: egui::Rect) -> Vec<(CubeFace, Arc<egui::Mesh>)> {
+    let lang = Catalogue::french();
+    shapes(|ui| paint_face_labels(ui, state, rect, &lang))
+        .into_iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Mesh(mesh) if mesh.texture_id == egui::TextureId::default() => {
+                Some((face_under(state, rect, &mesh), mesh))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// A name's glyphs, in reading order, as the four corners egui lays for each.
+fn quads(mesh: &egui::Mesh) -> Vec<&[egui::epaint::Vertex]> {
+    mesh.vertices
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(<[egui::epaint::Vertex; 4]>::as_slice)
+        .collect()
+}
+
+/// A word laid out flat in `family`, large enough for its proportions to be
+/// the font's own rather than a pixel grid's.
+fn flat(word: &str, family: egui::FontFamily) -> Arc<egui::Galley> {
+    let galley = RefCell::new(None);
+    shapes(|ui| {
+        *galley.borrow_mut() = Some(ui.painter().layout_no_wrap(
+            word.to_string(),
+            egui::FontId::new(64.0, family.clone()),
+            egui::Color32::WHITE,
+        ));
+    });
+    galley.into_inner().expect("the pass laid the word out")
+}
+
+/// A word laid out flat, as the horizontal position of each corner of each
+/// glyph.
+fn laid_out(word: &str, family: egui::FontFamily) -> Vec<Vec<f32>> {
+    flat(word, family).rows[0]
+        .row
+        .visuals
+        .mesh
+        .vertices
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|glyph| glyph.iter().map(|vertex| vertex.pos.x).collect())
+        .collect()
+}
+
+/// Where each glyph starts, as a share of the whole word from its first
+/// glyph's start to its last glyph's end: the same for a word however large it
+/// is drawn, and different for another word or another family.
+fn rhythm_of(glyphs: &[Vec<f32>]) -> Vec<f32> {
+    let low = |glyph: &Vec<f32>| glyph.iter().copied().fold(f32::INFINITY, f32::min);
+    let high = |glyph: &Vec<f32>| glyph.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+    let start = glyphs.first().map_or(0.0, low);
+    let end = glyphs.last().map_or(1.0, high);
+    glyphs
+        .iter()
+        .map(|glyph| (low(glyph) - start) / (end - start))
+        .collect()
+}
+
+fn largest_gap(one: &[f32], other: &[f32]) -> f32 {
+    one.iter()
+        .zip(other)
+        .map(|(a, b)| (a - b).abs())
+        .fold(0.0, f32::max)
+}
+
+fn extent(values: impl Iterator<Item = f32> + Clone) -> f32 {
+    values.clone().fold(f32::NEG_INFINITY, f32::max) - values.fold(f32::INFINITY, f32::min)
+}
+
+fn word_proportions(word: &str) -> f32 {
+    let galley = flat(word, egui::FontFamily::Proportional);
+    let vertices = &galley.rows[0].row.visuals.mesh.vertices;
+    extent(vertices.iter().map(|vertex| vertex.pos.x))
+        / extent(vertices.iter().map(|vertex| vertex.pos.y))
+}
+
+/// Views from every side of the cube, from above and from under it.
+fn views_all_around() -> Vec<(f32, f32)> {
+    let mut views = Vec::new();
+    for yaw in [-2.8, -2.2, -1.2, -0.4, 0.5, 1.3, 2.1, 3.0] {
+        for pitch in [-1.3, -0.7, -0.2, 0.3, 0.8, 1.3] {
+            views.push((yaw, pitch));
+        }
+    }
+    views
+}
+
+#[test]
+fn a_face_s_name_is_painted_lying_on_its_face_and_turns_with_the_cube() {
+    let lang = Catalogue::french();
+    let mut top_edges = Vec::new();
+
+    for (yaw, pitch) in [(OPENING_YAW, OPENING_PITCH), (-1.9, 0.5), (0.6, 0.9)] {
+        let (state, rect) = a_cube_seen_from(yaw, pitch, ROOMY_CUBE);
+
+        let names = names_painted(&state, rect);
+
+        assert!(
+            !names.is_empty(),
+            "seen from yaw {yaw}, pitch {pitch}, no name of the cube is painted as a mesh \
+             lying on its face",
+        );
+        for (face, mesh) in &names {
+            let map = FaceMap::of(&state, rect, *face);
+            let seen = format!("the name on {face:?}, from yaw {yaw}, pitch {pitch}");
+            assert!(
+                mesh.vertices
+                    .iter()
+                    .all(|vertex| (0.0..=1.0).contains(&vertex.uv.x)
+                        && (0.0..=1.0).contains(&vertex.uv.y)),
+                "{seen} keeps a galley's coordinates in texels: a `Shape::Mesh` samples the \
+                 font texture from 0 to 1",
+            );
+            for glyph in quads(mesh) {
+                for one in glyph {
+                    for other in glyph {
+                        let (one_along, one_up) = map.on_face(one.pos);
+                        let (other_along, other_up) = map.on_face(other.pos);
+                        if one.uv.y == other.uv.y {
+                            assert!(
+                                (one_up - other_up).abs() < SQUARE_ON_THE_FACE,
+                                "{seen} is not laid along the face: two corners of a glyph \
+                                 on one line of its texture stand {one_up} and {other_up} up it",
+                            );
+                        }
+                        if one.uv.x == other.uv.x {
+                            assert!(
+                                (one_along - other_along).abs() < SQUARE_ON_THE_FACE,
+                                "{seen} is not laid along the face: two corners of a glyph \
+                                 on one column of its texture stand {one_along} and \
+                                 {other_along} along it",
+                            );
+                        }
+                    }
+                }
+            }
+            let word = crate::wording::cube::face(&lang, *face);
+            let spots: Vec<(f32, f32)> = mesh
+                .vertices
+                .iter()
+                .map(|vertex| map.on_face(vertex.pos))
+                .collect();
+            let proportions =
+                extent(spots.iter().map(|spot| spot.0)) / extent(spots.iter().map(|spot| spot.1));
+            let wanted = word_proportions(&word);
+            assert!(
+                (proportions / wanted - 1.0).abs() <= SAME_PROPORTIONS,
+                "{seen} is {proportions} times as wide as high on the face, and {word:?} is \
+                 {wanted} times as wide as high: the map squeezes the text",
+            );
+        }
+        if let Some((_, mesh)) = names.iter().find(|(face, _)| *face == CubeFace::PlusZ) {
+            let glyph = quads(mesh)[0];
+            let left = glyph.iter().min_by(|a, b| a.uv.x.total_cmp(&b.uv.x));
+            let right = glyph.iter().max_by(|a, b| a.uv.x.total_cmp(&b.uv.x));
+            if let (Some(left), Some(right)) = (left, right) {
+                top_edges.push((right.pos - left.pos).angle());
+            }
+        }
+    }
+
+    assert!(
+        top_edges.len() >= 2 && (top_edges[0] - top_edges[1]).abs() > 0.1,
+        "orbiting the view leaves the name on the top face at the same angle on screen, \
+         {top_edges:?}: it does not turn with the cube",
+    );
+}
+
+#[test]
+fn a_side_face_s_name_reads_upright_and_none_is_mirrored() {
+    let mut named = Vec::new();
+
+    for (yaw, pitch) in views_all_around() {
+        let (state, rect) = a_cube_seen_from(yaw, pitch, ROOMY_CUBE);
+        for (face, mesh) in names_painted(&state, rect) {
+            let map = FaceMap::of(&state, rect, face);
+            let seen = format!("the name on {face:?}, from yaw {yaw}, pitch {pitch}");
+            let glyphs = quads(&mesh);
+            let (first, last) = (glyphs[0], glyphs[glyphs.len() - 1]);
+            assert!(
+                map.on_face(first[0].pos).0 < map.on_face(last[0].pos).0,
+                "{seen} runs backwards: its first letter stands after its last along the \
+                 reading direction {:?}",
+                reading_axes(face).0,
+            );
+            for glyph in glyphs {
+                let by = |key: fn(&egui::epaint::Vertex) -> f32| {
+                    let low = glyph
+                        .iter()
+                        .min_by(|a, b| key(a).total_cmp(&key(b)))
+                        .expect("a glyph has corners");
+                    let high = glyph
+                        .iter()
+                        .max_by(|a, b| key(a).total_cmp(&key(b)))
+                        .expect("a glyph has corners");
+                    (map.on_face(low.pos), map.on_face(high.pos))
+                };
+                let (left, right) = by(|vertex| vertex.uv.x);
+                assert!(
+                    left.0 < right.0,
+                    "{seen} is mirrored: the right of a glyph stands to the left of its \
+                     left along the reading direction",
+                );
+                let (top, bottom) = by(|vertex| vertex.uv.y);
+                assert!(
+                    top.1 > bottom.1,
+                    "{seen} is upside down: the top of a glyph stands below its foot",
+                );
+            }
+            if !named.contains(&face) {
+                named.push(face);
+            }
+        }
+    }
+
+    assert_eq!(
+        named.len(),
+        6,
+        "across every side of the cube, only {named:?} ever carried a name painted on it",
+    );
+}
+
+#[test]
+fn a_face_seen_too_edge_on_to_read_draws_no_name() {
+    for (yaw, pitch) in [(-2.2, 0.015), (0.015, 0.5)] {
+        let (state, rect) = a_cube_seen_from(yaw, pitch, ROOMY_CUBE);
+        let forward = state.camera.forward();
+        let edge_on: Vec<CubeFace> = CubeFace::ALL
+            .into_iter()
+            .filter(|face| {
+                cube::is_visible(*face, forward) && face.normal().dot(forward).abs() < 0.03
+            })
+            .collect();
+        assert!(
+            !edge_on.is_empty(),
+            "the fixture, from yaw {yaw}, pitch {pitch}, was meant to leave a face all but \
+             edge-on",
+        );
+
+        let names = names_painted(&state, rect);
+
+        assert!(
+            !names.is_empty(),
+            "seen from yaw {yaw}, pitch {pitch}, the faces square to the view carry no name \
+             painted on them",
+        );
+        for (face, _) in &names {
+            assert!(
+                !edge_on.contains(face),
+                "from yaw {yaw}, pitch {pitch}, {face:?} is seen edge-on and still carries \
+                 a name nobody can read",
+            );
+        }
+    }
+}
+
+#[test]
+fn the_name_on_a_lit_face_stays_readable_against_the_amber() {
+    let (state, rect) = a_cube_seen_from(OPENING_YAW, OPENING_PITCH, ROOMY_CUBE);
+    let amber = srgb_luminance(tokens::ACCENT_AMBER);
+
+    let names = names_painted(&state, rect);
+
+    assert!(
+        !names.is_empty(),
+        "no name of the cube is painted as a mesh on its face",
+    );
+    for (face, mesh) in &names {
+        let ink = mesh.vertices[0].color;
+        let ink_luminance = srgb_luminance(ink);
+        let contrast = contrast(amber.max(ink_luminance), amber.min(ink_luminance));
+        assert!(
+            contrast >= READABLE_CONTRAST,
+            "the name on {face:?} is inked {ink:?}, a contrast of {contrast:.2}:1 on the \
+             amber of a lit face, short of {READABLE_CONTRAST}:1",
+        );
+    }
+}
+
+/// The relative luminance of an opaque colour, as WCAG defines it.
+fn srgb_luminance(colour: egui::Color32) -> f32 {
+    let [r, g, b, _] = colour.to_srgba_unmultiplied();
+    let linear = |channel: u8| {
+        let channel = f32::from(channel) / 255.0;
+        if channel <= 0.04045 {
+            channel / 12.92
+        } else {
+            ((channel + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+}
+
+#[test]
+fn a_hovered_face_s_name_keeps_the_title_colour() {
+    let (mut state, rect) = a_cube_seen_from(OPENING_YAW, OPENING_PITCH, ROOMY_CUBE);
+    let hovered = CubeFace::PlusZ;
+    state.hovered_zone = Some(CubeZone::Face(hovered));
+
+    let names = names_painted(&state, rect);
+
+    assert!(
+        names.iter().any(|(face, _)| *face == hovered),
+        "no name is painted on {hovered:?}, the face under the cursor",
+    );
+    for (face, mesh) in &names {
+        let wanted = if *face == hovered {
+            tokens::TEXT_TITLE
+        } else {
+            tokens::TEXT_ON_ACCENT
+        };
+        assert!(
+            mesh.vertices.iter().all(|vertex| vertex.color == wanted),
+            "the name on {face:?}, {hovered:?} under the cursor, is inked {:?}, not {wanted:?}",
+            mesh.vertices[0].color,
+        );
+    }
+}
+
+#[test]
+fn a_name_lying_on_its_face_never_leaves_it() {
+    for size in [96.0, 128.0, 200.0] {
+        let (state, rect) = a_cube_seen_from(OPENING_YAW, OPENING_PITCH, size);
+        assert!(
+            !names_painted(&state, rect).is_empty(),
+            "a cube {size} wide at the opening view paints no name as a mesh on any face",
+        );
+
+        for (yaw, pitch) in views_all_around() {
+            let (state, rect) = a_cube_seen_from(yaw, pitch, size);
+            for (face, mesh) in names_painted(&state, rect) {
+                let map = FaceMap::of(&state, rect, face);
+                for vertex in &mesh.vertices {
+                    let (along, up) = map.on_face(vertex.pos);
+                    assert!(
+                        along.abs() <= 1.0 + INSIDE_ITS_FACE && up.abs() <= 1.0 + INSIDE_ITS_FACE,
+                        "on a cube {size} wide seen from yaw {yaw}, pitch {pitch}, the name on \
+                         {face:?} reaches ({along}, {up}) of its face, where -1 to 1 is inside",
+                    );
+                }
+            }
+        }
+    }
 }

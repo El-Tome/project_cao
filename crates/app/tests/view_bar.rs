@@ -842,9 +842,6 @@ const IN_ITS_CORNER: f32 = 1.0;
 /// its label: a 5-point tick under a 16-point line of text.
 const SCALE_BAR_HEIGHT: f32 = 21.0;
 
-/// The names the cube's faces carry, one of which at least is painted on it.
-const FACE_NAMES: [&str; 6] = ["FACE", "ARRIÈRE", "DROITE", "GAUCHE", "DESSUS", "DESSOUS"];
-
 /// Every shape the last frame painted, groups opened, with the rectangle it
 /// was clipped to.
 fn painted(app: &driver::App) -> Vec<(egui::Shape, egui::Rect)> {
@@ -878,12 +875,19 @@ fn the_scale_bar(app: &driver::App) -> egui::Rect {
         .unwrap_or_else(|| panic!("no scale bar is painted"))
 }
 
-/// The orientation cube: the rectangle its face labels are clipped to.
+/// The orientation cube: the square a name painted on one of its faces is
+/// clipped to. A name is a mesh on the font texture, and no other mesh of the
+/// view is clipped to a square.
 fn the_cube(app: &driver::App) -> egui::Rect {
     painted(app)
         .into_iter()
         .find_map(|(shape, clip)| match shape {
-            egui::Shape::Text(text) if FACE_NAMES.contains(&text.galley.text()) => Some(clip),
+            egui::Shape::Mesh(mesh)
+                if mesh.texture_id == egui::TextureId::default()
+                    && (clip.width() - clip.height()).abs() < 0.5 =>
+            {
+                Some(clip)
+            }
             _ => None,
         })
         .unwrap_or_else(|| panic!("no face of the cube is named on screen"))

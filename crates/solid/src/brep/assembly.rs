@@ -13,7 +13,9 @@ use super::Declined;
 use super::combine::Arena;
 use super::domain::floor;
 use super::surface::Surface;
-use super::topology::{Body, Coedge, CurveId, Edge, EdgeId, Face, SurfaceId, Vertex, VertexId};
+use super::topology::{
+    Body, Coedge, CurveId, Edge, EdgeId, Face, FaceId, SurfaceId, Vertex, VertexId,
+};
 
 pub(super) fn assembled(arena: Arena, faces: Vec<Face>) -> Result<Body, Declined> {
     tidied(arena.body, faces, &[])
@@ -28,6 +30,56 @@ impl Body {
     /// the edges on either side of it in one line.
     pub fn rejoined_at(&self, cleared: &[DVec3]) -> Result<Body, Declined> {
         tidied(self.clone(), self.faces.clone(), cleared).map(|body| body.noted(self.unstable))
+    }
+}
+
+impl Body {
+    /// The body with the faces `gone` replaced by `face`, laid on `surface`,
+    /// which every corner of its loops then lies on: what a step hands back
+    /// that lays a face of its own where others stood, bounded by edges the
+    /// body holds already. Declined `Unverified` where a corner of its loops,
+    /// or a point a quarter, half or three quarters along one of its edges,
+    /// stands further from the surface than the body's tolerance.
+    pub(crate) fn replaced(
+        &self,
+        gone: &[FaceId],
+        surface: Surface,
+        mut face: Face,
+    ) -> Result<Body, Declined> {
+        let eps = self.scale.eps();
+        let off = face.loops.iter().flatten().any(|coedge| {
+            let edge = self.edge(coedge.edge);
+            let corners = edge.ends.into_iter().flatten();
+            let along = [0.25, 0.5, 0.75].map(|share| edge.from + (edge.to - edge.from) * share);
+            (corners.map(|end| self.vertex(end).point))
+                .chain(along.map(|at| self.point_on(coedge.edge, at)))
+                .any(|point| surface.distance(point).abs() > eps)
+        });
+        if off {
+            return Err(Declined::Unverified);
+        }
+        let mut body = self.clone();
+        face.surface = SurfaceId(body.surfaces.len() as u32);
+        body.surfaces.push(surface);
+        body.arrivals.push(body.scale);
+        for coedge in face.loops.iter().flatten() {
+            for end in body.edges[coedge.edge.0 as usize]
+                .ends
+                .into_iter()
+                .flatten()
+            {
+                let on = &mut body.vertices[end.0 as usize].on;
+                if let Err(at) = on.binary_search(&face.surface) {
+                    on.insert(at, face.surface);
+                }
+            }
+        }
+        let mut faces: Vec<Face> = (body.face_ids())
+            .filter(|id| !gone.contains(id))
+            .map(|id| body.face(id).clone())
+            .collect();
+        faces.push(face);
+        tidied(body, faces, &[]).map(|replaced| replaced.noted(self.unstable))
     }
 }
 

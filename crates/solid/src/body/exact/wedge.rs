@@ -4,33 +4,43 @@
 //! runs from it, the cut or the join of a prism raised along it, and the
 //! check that it left the one face the step names.
 
+mod chain;
+mod closing;
+mod corners;
 mod fill;
 mod pairs;
+mod reach;
+mod reading;
 mod section;
+mod sphere;
+mod triangle;
 
 use std::collections::BTreeSet;
-use std::f64::consts::PI;
 
 use glam::DVec3;
 
 use super::{Exact, PIECES, root};
 use crate::body::caught::caught;
-use crate::brep::{self, Coedge, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Scale, Surface};
+use crate::brep::{self, Declined, EdgeId, EdgeName, FaceId, Scale, VertexId};
 use crate::profile::{Contour, Frame};
 
+pub(super) use closing::Closing;
 pub(super) use pairs::Together;
 pub(super) use section::Side;
+pub(super) use sphere::rounded_across;
+pub(super) use triangle::cut_across;
 
-/// A straight edge between two flat faces: a point of it, the way it runs,
-/// its two faces, for each the way it faces and the way into it, square to
-/// the edge, how far the nearer face runs that way from the edge — the most
-/// a chamfer can set back — and whether the faces meet inwards, the way into
-/// either running the way the other faces: a corner to fill in rather than
-/// cut off.
+/// A straight edge between two flat faces: a point of it, the way it runs, its
+/// two faces and the numbers they answer to on the body it was read on, for
+/// each the way it faces and the way into it, square to the edge, how far the
+/// nearer face runs that way from the edge — the most a chamfer can set back —
+/// and whether the faces meet inwards, the way into either running the way the
+/// other faces: a corner to fill in rather than cut off.
 pub(super) struct Wedge {
     pub point: DVec3,
     pub along: DVec3,
     pub faces: [FaceId; 2],
+    pub numbers: [Vec<u32>; 2],
     pub outward: [DVec3; 2],
     pub into: [DVec3; 2],
     pub reach: f64,
@@ -41,6 +51,14 @@ pub(super) struct Wedge {
 /// to the edge, whose first run lays the face the step names, the frame it
 /// stands in, and the travel along the edge.
 pub(super) type Prism = (Contour, Frame, DVec3);
+
+/// What a kind lays where the edges of one step meet: two whose set-backs
+/// meet across the face they share, as one — where it is none, each edge is
+/// laid alone — and a corner three meet at, closed.
+pub(super) struct Meeting {
+    pub together: Option<Together>,
+    pub closing: Closing,
+}
 
 impl Exact {
     /// The body with the edge each name finds cut off, or filled in where its
@@ -53,18 +71,31 @@ impl Exact {
     /// given. Rounds or flats that would meet anywhere else, across a face two
     /// edges share that are not parallel or on a face one of them ends on, are
     /// not measured: the laying declines them where they meet, until #792.
-    /// Where `together` is some, the pairs whose set-backs meet across their
-    /// face, the earlier first, are each taken off as one by the prism it
+    /// Where `meeting` lays two together, the pairs whose set-backs meet across
+    /// their face, the earlier first, are each taken off as one by the prism it
     /// raises, the face they shared gone; where it is none, each edge is laid
-    /// alone. The wall an edge's prism lays is numbered where the steps'
-    /// numbers ended, plus the edge's rank in the list; a pair is laid at its
-    /// later edge's turn, so that every number laid before stands below those a
-    /// prism lays, as [`Exact::cut_along`] reads them. A value shorter than the
-    /// kernel can set a cut back from an edge is declined first; a list of no
-    /// edge `Unsupported`; an edge its name no longer finds `Lost`; an edge
-    /// that is not a wedge, two edges sharing a vertex — one edge two names
-    /// find among them —, where `together` is some an edge meeting two others,
-    /// and a cut or a fill that left something else than its one face, as
+    /// alone. Two edges meeting at a convex corner are laid in turn as any two
+    /// are, each prism carried past the corner along its edge's line, so that
+    /// the later trims the earlier's face there: two flats or two rounds meet
+    /// in a mitre, and the later edge is laid from its wedge on the body as
+    /// given, its prism cut from what the earlier cuts left, as
+    /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
+    /// goes whatever the order. A corner three of the edges meet at is closed
+    /// once all are laid, as `meeting` closes it, read where each two's
+    /// set-backs cross on the face they share, as [`Exact::closed`] closes it,
+    /// its face numbered past the edges'. The wall an edge's prism lays is
+    /// numbered where the steps' numbers ended, plus the edge's rank in the
+    /// list; a pair is laid at its later edge's turn, so that every number laid
+    /// before stands below those a prism lays, as [`Exact::cut_along`] reads
+    /// them. A value shorter than the kernel can set a cut back from an edge is
+    /// declined first; a list of no edge `Unsupported`; an edge its name no
+    /// longer finds `Lost`; an edge that is not a wedge, one edge two names
+    /// find, two edges meeting at a corner that is not convex — an edge ending
+    /// there that is no wedge, or whose faces meet inwards —, more than three
+    /// edges meeting at a corner, or three where another edge ends too, where
+    /// `meeting` lays two together an edge meeting two others, or one of two
+    /// laid together that meets another edge of the list at a corner, and a cut
+    /// or a fill that left something else than its one face, as
     /// [`Exact::cut_along`] reads it, are declined `Unsupported`; a prism the
     /// tool cannot raise, as the tool says.
     pub(super) fn cut_off(
@@ -74,7 +105,7 @@ impl Exact {
         most: impl Fn(&Wedge) -> f64,
         set_back: impl Fn(&Wedge) -> f64,
         tool: impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
-        together: Option<Together>,
+        meeting: Meeting,
     ) -> Result<(Exact, f64, Vec<pairs::Pair>), Declined> {
         let scale = self.brep.scale();
         if too_short(asked, scale) {
@@ -86,70 +117,126 @@ impl Exact {
         caught(|| {
             let found = names
                 .iter()
-                .map(|name| self.wedge(name))
+                .map(|name| self.wedge(name, Wedge::of))
                 .collect::<Result<Vec<(EdgeId, Wedge)>, Declined>>()?;
-            let mut corners = BTreeSet::new();
-            let apart = found.iter().all(|&(edge, _)| {
-                let ends = self.brep.edge(edge).ends;
-                ends.is_some_and(|ends| ends.into_iter().all(|end| corners.insert(end)))
-            });
-            if !apart {
+            let edges: Vec<EdgeId> = found.iter().map(|&(edge, _)| edge).collect();
+            let once = edges.iter().collect::<BTreeSet<_>>().len() == edges.len();
+            if !once || !corners::convex(&self.brep, &edges) {
                 return Err(Declined::Unsupported);
             }
+            let three = corners::of_three(&self.brep, &edges)?;
             let wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();
             let facing = pairs::facing(&wedges);
             let alone = wedges
                 .iter()
                 .fold(asked, |taken, wedge| taken.min(most(wedge)));
             let taken = alone.min(pairs::bound(&wedges, &facing, &set_back));
-            let pairs = match together {
+            let pairs = match meeting.together {
                 Some(_) => pairs::meeting(&wedges, &facing, taken, &set_back, scale)?,
                 None => Vec::new(),
             };
+            let cornered = pairs
+                .iter()
+                .flat_map(|&(one, other)| [one, other])
+                .any(|member| {
+                    (0..edges.len()).any(|rank| {
+                        rank != member && corners::meet(&self.brep, [edges[member], edges[rank]])
+                    })
+                });
+            if cornered {
+                return Err(Declined::Unsupported);
+            }
+            let closes = closing::closings(
+                three,
+                &wedges,
+                |w| taken * set_back(w),
+                taken,
+                meeting.closing,
+            )?;
             let start = self.next;
             let mut cut = self.clone();
-            for (rank, name) in names.iter().enumerate() {
+            for rank in 0..names.len() {
                 if pairs.iter().any(|&(earlier, _)| earlier == rank) {
                     continue;
                 }
                 cut.next = start + rank as u32;
                 let partner = pairs.iter().find(|&&(_, later)| later == rank);
-                cut = match (partner, together) {
+                cut = match (partner, meeting.together) {
                     (Some(&(earlier, _)), Some(together)) => cut.laid_together(
-                        [&names[earlier], name],
+                        [&names[earlier], &names[rank]],
                         start + earlier as u32,
                         together,
                     )?,
-                    _ => cut.laid(name, taken, &tool)?,
+                    _ => {
+                        let mitred: Vec<u32> = (0..rank)
+                            .filter(|&earlier| {
+                                corners::meet(&self.brep, [edges[earlier], edges[rank]])
+                            })
+                            .map(|earlier| start + earlier as u32)
+                            .collect();
+                        if mitred.is_empty() {
+                            cut.laid(&names[rank], taken, &tool, &mitred)?
+                        } else {
+                            cut.laid_as(None, &wedges[rank], taken, &tool, &mitred)?
+                        }
+                    }
                 };
             }
             cut.next = start + names.len() as u32;
-            Ok((cut, taken, pairs))
+            Ok((cut.closed(&closes, start)?, taken, pairs))
         })
     }
 
-    /// The edge a name finds, and its wedge. Declined `Lost` where the name
-    /// no longer finds it, `Unsupported` where it is not a wedge.
-    fn wedge(&self, name: &EdgeName) -> Result<(EdgeId, Wedge), Declined> {
+    /// The edge a name finds, and its wedge as `read` reads it. Declined
+    /// `Lost` where the name no longer finds it, `Unsupported` where it is not
+    /// a wedge.
+    fn wedge(
+        &self,
+        name: &EdgeName,
+        read: fn(&brep::Body, EdgeId) -> Result<Wedge, Declined>,
+    ) -> Result<(EdgeId, Wedge), Declined> {
         let edge = self
             .brep
             .find_rooted(name, |number| root(&self.roots, number))
             .map_err(Declined::Lost)?;
-        Ok((edge, Wedge::of(&self.brep, edge)?))
+        Ok((edge, read(&self.brep, edge)?))
     }
 
     /// The body with the edge a name finds cut off, or filled in, by the
     /// prism `tool` raises over its wedge for `taken`, its wall numbered
     /// where the steps' numbers ended, declined as [`Exact::cut_off`] says.
+    /// The wedge is read again on the body the edges before it were laid on,
+    /// as [`Wedge::read`] reads it: whether the edge is on a tangent chain was
+    /// read on the body as given. `mitred` numbers the faces laid before it at
+    /// a corner it shares, which its own face meets in a mitre.
     fn laid(
         &self,
         name: &EdgeName,
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
+        mitred: &[u32],
     ) -> Result<Exact, Declined> {
-        let (edge, wedge) = self.wedge(name)?;
+        let (edge, wedge) = self.wedge(name, Wedge::read)?;
+        self.laid_as(Some(edge), &wedge, taken, tool, mitred)
+    }
+
+    /// The body with the edge of `wedge` cut off, or filled in, as
+    /// [`Exact::laid`] lays it: `edge` that edge on this body, or none where
+    /// an earlier edge of the step was laid at a corner it shares and `wedge`
+    /// was read on the body as given, its prism then cut from what the earlier
+    /// cuts left of it, even nothing — the matter of every edge's prism goes
+    /// whatever the order. Declined `Unsupported` where such an edge is to be
+    /// filled in, which a convex corner never asks.
+    fn laid_as(
+        &self,
+        edge: Option<EdgeId>,
+        wedge: &Wedge,
+        taken: f64,
+        tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
+        mitred: &[u32],
+    ) -> Result<Exact, Declined> {
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
-        let prism = tool(&wedge, taken, self.brep.scale(), bounds)?;
+        let prism = tool(wedge, taken, self.brep.scale(), bounds)?;
         let (outline, frame, travel) = &prism;
         let raised = Exact::raised(outline, &[], *frame, *travel)?;
         let tool = Exact {
@@ -161,11 +248,12 @@ impl Exact {
             ..raised
         };
         let cut = if wedge.inwards {
-            self.filled(&[(edge, &wedge)], &prism, tool)?
+            let edge = edge.ok_or(Declined::Unsupported)?;
+            self.filled(&[(edge, wedge)], &prism, tool)?
         } else {
             self.cut_by(&Exact { next: 1, ..tool })?
         };
-        if cut.cut_along(&[&wedge], self, 1) {
+        if cut.cut_along(&[wedge], self, 1, mitred) {
             Ok(cut)
         } else {
             Err(Declined::Unsupported)
@@ -175,10 +263,12 @@ impl Exact {
     /// Whether the prism left its face alone on the body, numbered where the
     /// steps' numbers of `before` ended and answering to the `laid` numbers
     /// from there, in one piece, every corner of it on one of the edges' faces
-    /// — where the faces met at the edges' ends trim it — and every face
-    /// `before` held but the edges' still there: no face, nor piece of a
-    /// face, of the prism but that one.
-    fn cut_along(&self, wedges: &[&Wedge], before: &Exact, laid: u32) -> bool {
+    /// — where the faces met at the edges' ends trim it — or a corner of a
+    /// face numbered in `mitred`, where a mitre with it ends — at a corner
+    /// that is not square, on a face of the other edge, short of the third —
+    /// and every face `before` held but the edges' still there: no face, nor
+    /// piece of a face, of the prism but that one.
+    fn cut_along(&self, wedges: &[&Wedge], before: &Exact, laid: u32, mitred: &[u32]) -> bool {
         let made = before.next;
         let eps = self.brep.scale().eps();
         let numbers = |body: &brep::Body, face: FaceId| body.numbers(face).to_vec();
@@ -191,21 +281,23 @@ impl Exact {
             .roots
             .values()
             .any(|replaced| (made..PIECES).contains(replaced));
-        let on_a_side = self
-            .named(made as usize)
-            .flat_map(|face| self.brep.face(face).loops.iter().flatten())
-            .flat_map(|coedge| self.brep.edge(coedge.edge).ends.into_iter().flatten())
-            .all(|corner| {
-                let point = self.brep.vertex(corner).point;
-                wedges.iter().any(|wedge| {
+        let corners = |number: u32| {
+            self.named(number as usize)
+                .flat_map(|face| self.brep.face(face).loops.iter().flatten())
+                .flat_map(|coedge| self.brep.edge(coedge.edge).ends.into_iter().flatten())
+        };
+        let mitres: BTreeSet<VertexId> =
+            mitred.iter().flat_map(|&number| corners(number)).collect();
+        let on_a_side = corners(made).all(|corner| {
+            let point = self.brep.vertex(corner).point;
+            mitres.contains(&corner)
+                || wedges.iter().any(|wedge| {
                     let at = point - wedge.point;
                     wedge.outward.iter().any(|side| side.dot(at).abs() <= eps)
                 })
-            });
-        let consumable: BTreeSet<u32> = wedges
-            .iter()
-            .flat_map(|wedge| wedge.faces)
-            .flat_map(|face| numbers(&before.brep, face))
+        });
+        let consumable: BTreeSet<u32> = (wedges.iter())
+            .flat_map(|wedge| wedge.numbers.iter().flatten().copied())
             .collect();
         let kept = before
             .brep
@@ -214,61 +306,6 @@ impl Exact {
             .filter(|number| !consumable.contains(number))
             .all(|number| self.has_face(number as usize));
         !stray && !parted && self.has_face(made as usize) && on_a_side && kept
-    }
-}
-
-impl Wedge {
-    fn of(body: &brep::Body, edge: EdgeId) -> Result<Wedge, Declined> {
-        let stretch = body.edge(edge);
-        let Curve::Line(line) = body.curve(stretch.curve) else {
-            return Err(Declined::Unsupported);
-        };
-        let along = line.direction * (stretch.to - stretch.from).signum();
-        let side = |face: FaceId, forward: bool| {
-            let face = body.face(face);
-            let Surface::Plane(plane) = body.surface(face.surface) else {
-                return None;
-            };
-            let outward = if face.flipped {
-                -plane.normal
-            } else {
-                plane.normal
-            };
-            let running = if forward { along } else { -along };
-            Some((outward, outward.cross(running)))
-        };
-        let uses = body.uses(edge);
-        let [(one, one_way), (other, other_way)] = uses[..] else {
-            return Err(Declined::Unsupported);
-        };
-        let (Some((first, into_first)), Some((second, into_second))) =
-            (side(one, one_way), side(other, other_way))
-        else {
-            return Err(Declined::Unsupported);
-        };
-        let towards = into_first.dot(second);
-        if towards == 0.0
-            || [one, other]
-                .into_iter()
-                .any(|face| runs_on(body, face, edge, along))
-        {
-            return Err(Declined::Unsupported);
-        }
-        let reach_of = |face: FaceId, into: DVec3| reach(body, face, into, line.origin);
-        let (Some(first_reach), Some(second_reach)) =
-            (reach_of(one, into_first), reach_of(other, into_second))
-        else {
-            return Err(Declined::Unsupported);
-        };
-        Ok(Wedge {
-            point: line.origin,
-            along,
-            faces: [one, other],
-            outward: [first, second],
-            into: [into_first, into_second],
-            reach: first_reach.min(second_reach),
-            inwards: towards > 0.0,
-        })
     }
 }
 
@@ -290,91 +327,3 @@ pub(super) fn too_short(length: f64, scale: Scale) -> bool {
 
 /// The number a raise gives the wall of its profile's first run.
 const MADE: u32 = 2;
-
-/// How far a face runs along `into` from the edge's line through `point`:
-/// to the nearest corner of its boundary off that line, or to the nearest
-/// point where a round or a conic of its boundary turns back along `into`.
-/// A whole closed edge counts where its turn starts as a corner, so that a
-/// turning point standing there is not lost between the two ends of the
-/// turn. None where its boundary holds a curve two walls meet along, which
-/// turns back where no closed form says.
-fn reach(body: &brep::Body, face: FaceId, into: DVec3, point: DVec3) -> Option<f64> {
-    let mut far = Vec::new();
-    for coedge in body.face(face).loops.iter().flatten() {
-        let edge = body.edge(coedge.edge);
-        match edge.ends {
-            Some(ends) => far.extend(ends.map(|end| body.vertex(end).point)),
-            None => far.push(body.point_on(coedge.edge, edge.from)),
-        }
-        far.extend(turning_back(body, edge, into)?);
-    }
-    let eps = body.scale().eps();
-    Some(
-        far.into_iter()
-            .map(|at| into.dot(at - point))
-            .filter(|&off| off > eps)
-            .fold(f64::INFINITY, f64::min),
-    )
-}
-
-/// The points strictly inside an edge where its curve turns back along
-/// `into`: none on a line, every half turn from the phase of `into` on a
-/// circle, the conic's own turning points.
-fn turning_back(body: &brep::Body, edge: &Edge, into: DVec3) -> Option<Vec<DVec3>> {
-    let curve = body.curve(edge.curve);
-    let (low, high) = (edge.from.min(edge.to), edge.from.max(edge.to));
-    let turns = match curve {
-        Curve::Line(_) => Vec::new(),
-        Curve::Circle(circle) => {
-            let phase = into.dot(circle.v).atan2(into.dot(circle.u));
-            let first = ((low - phase) / PI).ceil() as i64;
-            let last = ((high - phase) / PI).floor() as i64;
-            (first..=last)
-                .map(|turn| phase + PI * turn as f64)
-                .filter(|&at| at > low && at < high)
-                .collect()
-        }
-        Curve::Conic(conic) => conic.turning(into, low, high),
-        Curve::Meet(_) => return None,
-    };
-    Some(turns.into_iter().map(|at| curve.point(at)).collect())
-}
-
-/// The sine of the angle under which an edge running on into the next one
-/// is a tangent chain. Well above what a sketch solved within a billionth of
-/// its size leaves between a round and the run it was drawn tangent to —
-/// some 1.5e-8 for a round of 2 in a drawing of 30, ten times that for a
-/// round of 0.2 — and well below any corner a hand draws: a thousandth of
-/// a degree is some 1.7e-5. That noise is a billionth of the drawing's size
-/// over the round's radius, so this holds it up to a drawing a thousand
-/// times the radius; past that, a round a hair off tangent reads as a
-/// corner and is cut, soundly.
-const TANGENT: f64 = 1e-6;
-
-/// Whether, along a loop of `face`, the edge runs on into the edge after it,
-/// or the edge before it runs on into it, along the edge's own way within
-/// [`TANGENT`]: a tangent chain.
-fn runs_on(body: &brep::Body, face: FaceId, edge: EdgeId, along: DVec3) -> bool {
-    body.face(face).loops.iter().any(|lap| {
-        let Some(at) = lap.iter().position(|coedge| coedge.edge == edge) else {
-            return false;
-        };
-        let running = if lap[at].forward { along } else { -along };
-        let [next, before] = [at + 1, at + lap.len() - 1].map(|rank| lap[rank % lap.len()]);
-        let on = |way: DVec3| way.dot(running) > 0.0 && way.cross(running).length() <= TANGENT;
-        on(ways(body, next)[0]) || on(ways(body, before)[1])
-    })
-}
-
-/// The way a loop runs along a coedge where it starts and where it ends.
-fn ways(body: &brep::Body, coedge: Coedge) -> [DVec3; 2] {
-    let edge = body.edge(coedge.edge);
-    let curve = body.curve(edge.curve);
-    let sign = (edge.to - edge.from).signum();
-    let [start, end] = [edge.from, edge.to].map(|at| curve.derivative(at).normalize() * sign);
-    if coedge.forward {
-        [start, end]
-    } else {
-        [-end, -start]
-    }
-}

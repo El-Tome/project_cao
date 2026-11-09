@@ -18,9 +18,8 @@ pub fn edge(lang: &Catalogue, edge: Edge) -> String {
 
 /// The only place a group of the standard toolbar is turned into a name.
 ///
-/// The standard groups are keyed, because a new command finds its place by
-/// matching the key. A group the user made or renamed carries their own words
-/// and is handed back untouched.
+/// A standard group is stored under a key and translated here; a group the
+/// user made or renamed carries their own words and is handed back untouched.
 pub fn group(lang: &Catalogue, name: &str) -> String {
     match name {
         "sketch" => lang.t("toolbar.group.sketch"),

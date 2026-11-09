@@ -18,6 +18,8 @@
 //!   part's back —
 //!   `a_chamfer_at_the_foot_of_a_rib_whose_end_bulges_gently_in_a_round_of_large_radius_is_trimmed_flush_on_the_round`,
 //!   `a_fillet_at_the_foot_of_a_rib_whose_end_bulges_gently_in_a_round_of_large_radius_is_trimmed_flush_on_the_round`;
+//!   up a ramp, the foot rising along the round's axis as it runs —
+//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_up_a_ramp_are_trimmed_flush_on_its_upright_round_end`;
 //!   on a rib rounded at both ends, each trimmed flush —
 //!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_rounded_at_both_ends_are_trimmed_flush_on_each_round`;
 //!   with #778's rule carried over, a value larger than the plate's top gives
@@ -43,7 +45,9 @@
 //!   answered for the cylinder above and for the cone, a rib whose round end
 //!   has draft:
 //!   `a_chamfer_at_the_foot_of_a_rib_whose_round_end_has_draft_is_trimmed_flush_on_its_cone`,
-//!   `a_fillet_at_the_foot_of_a_rib_whose_round_end_has_draft_is_trimmed_flush_on_its_cone`.
+//!   `a_fillet_at_the_foot_of_a_rib_whose_round_end_has_draft_is_trimmed_flush_on_its_cone`,
+//!   and up a ramp —
+//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_up_a_ramp_are_trimmed_flush_on_its_drafted_round_end`.
 //!   The sphere and the torus left this issue for #805 (the human's decision):
 //!   the kernel meets neither with a slanted plane or a cylinder off its axis,
 //!   so a fill ending on one stays declined here, as the next criterion pins
@@ -57,7 +61,11 @@
 //!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_whose_end_is_a_sphere_are_declined_as_unsupported`;
 //!   two edges filled in one step, the second of which runs into the round —
 //!   `a_chamfer_and_a_fillet_on_both_floor_edges_of_a_slot_whose_back_wall_runs_into_its_round_end_are_declined_as_unsupported`;
-//!   and a round the edge runs on into tangentially, #698's chain —
+//!   a drafted round end the edge runs into —
+//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_slot_s_wall_running_into_its_drafted_round_end_are_declined_as_unsupported`
+//!   (a drafted end it runs out of, #807's, cannot be cut with the slot's
+//!   walls upright: its fixture says why); and a round the edge runs on into
+//!   tangentially, #698's chain —
 //!   `a_chamfer_and_a_fillet_at_the_foot_of_a_slot_s_wall_running_on_tangentially_into_its_round_end_are_declined_as_unsupported`
 //! - After a change of size, a move or a turn upstream, the step fills the
 //!   same edge, found by its name, flush on the same curved end face —
@@ -1322,6 +1330,13 @@ fn off_the_cone(point: DVec3) -> f64 {
 /// line, as `cao_part` turns a step: its faces, one for each run, numbered
 /// past `part`'s when the boolean that takes it numbers them.
 fn turned_about_the_round_s_axis(part: &Body, contour: Contour) -> Body {
+    turned_about_the_round_s_axis_from(part, contour, 0.0)
+}
+
+/// What [`turned_about_the_round_s_axis`] turns, the plane it is drawn on
+/// having its origin `height` up the axis: the surfaces it lays then reckon
+/// heights from there.
+fn turned_about_the_round_s_axis_from(part: &Body, contour: Contour, height: f64) -> Body {
     let sampled: &'static [DVec2] = Box::leak(contour.corners.clone().into_boxed_slice());
     let outline = Profile {
         exact: Some((contour, Vec::new())),
@@ -1330,7 +1345,7 @@ fn turned_about_the_round_s_axis(part: &Body, contour: Contour) -> Body {
         triangles: &[],
     };
     let frame = Frame {
-        origin: AXIS.extend(0.0),
+        origin: AXIS.extend(height),
         u: DVec3::X,
         v: DVec3::Z,
     };
@@ -2936,6 +2951,10 @@ fn a_chamfer_and_a_fillet_up_to_a_round_end_leave_the_part_drawn_as_finely_as_it
             moved_toward_the_plate_s_side(),
             "moved toward the plate's side",
         ),
+        (
+            near_the_plate_s_side(),
+            "beside the plate's side, the fill taking the top's whole width there",
+        ),
     ] {
         let part = rib.on();
         let what = format!("the rib {where_it_stands}");
@@ -2957,9 +2976,10 @@ fn a_chamfer_and_a_fillet_up_to_a_round_end_leave_the_part_drawn_as_finely_as_it
             .fillet(&foot, value)
             .unwrap_or_else(|declined| panic!("{what}: the fillet declined, {declined:?}"));
 
+        let radius = filleted.taken;
         let hollow = |point: DVec3| {
-            DVec2::new(point.x, point.z).distance(DVec2::new(rib.right() + value, PLATE + value))
-                - value
+            DVec2::new(point.x, point.z).distance(DVec2::new(rib.right() + radius, PLATE + radius))
+                - radius
         };
         let made = part.faces_end();
         for (step, body, laid) in [
@@ -3411,4 +3431,526 @@ fn a_chamfer_and_a_fillet_at_the_foot_of_a_slot_s_wall_running_on_tangentially_i
         1.0,
         "at the foot of a slot's front that runs on tangentially into its round end, #698's chain",
     );
+}
+
+/// The number the [`on_the_ramp`] plate's sloping top answers to: its fourth
+/// wall, raised from the third run of its section.
+const RAMP: usize = 4;
+
+/// How the [`on_the_ramp`] plate's top rises along Y, for every unit along:
+/// some 11.3 degrees.
+const RISE: f64 = 0.2;
+
+/// Where a rib on the [`on_the_ramp`] plate stands: its back upright at
+/// y = 19 and its top level at z = 15.
+const RAMP_RIB_BACK: f64 = 19.0;
+const RAMP_RIB_TOP: f64 = 15.0;
+
+/// The height of the [`on_the_ramp`] plate's top over the ground at `y`.
+fn ramp_at(y: f64) -> f64 {
+    2.0 + RISE * y
+}
+
+/// The way along the foot of the rib's right side, up the ramp, and the way
+/// square to the ramp, out of it.
+fn up_the_ramp() -> DVec3 {
+    DVec3::new(0.0, 1.0, RISE).normalize()
+}
+
+fn off_the_ramp() -> DVec3 {
+    DVec3::new(0.0, -RISE, 1.0).normalize()
+}
+
+/// The radius of the round end of the rib on the ramp with `draft` at height
+/// `z`: criterion 1's round where the ramp meets it at the rib's front
+/// corners, at y = 5, drawn in by `draft` for every unit up — none for an
+/// upright cylinder.
+fn ramp_round_radius(draft: f64, z: f64) -> f64 {
+    RADIUS - draft * (z - ramp_at(RIB_ENDS[0]))
+}
+
+/// How far a point stands off the round end of the rib on the ramp with
+/// `draft`, out from its axis across its height.
+fn off_the_ramp_round(draft: f64, point: DVec3) -> f64 {
+    off_the_axis(point) - ramp_round_radius(draft, point.z)
+}
+
+/// A plate 40 long whose top rises along Y as a ramp, from 2 over the ground
+/// at its front to 8 at its back, 30 behind — raised along X from its
+/// section, so that its faces number: the section at x = 0 nought, at
+/// x = 40 one, then its floor two, its back three, the ramp four and its
+/// front five — and on it a rib standing upright: 4 wide from x = 18 to 22,
+/// from below the ramp up to z = 15, its back upright at y = 19, its front
+/// cut by a ring turned whole about the upright line through [`AXIS`], whose
+/// inner wall meets the ramp at the rib's front corners where criterion 1's
+/// round meets the plate, and draws in by `draft` for every unit up: an
+/// upright cylinder at no draft, a cone otherwise. The foot of the rib's
+/// right side runs up the ramp, oblique to the round's axis, and runs out of
+/// the round at its front end, where the matter lies inside it. The ring is
+/// drawn on a plane whose origin stands where the ramp meets the axis's line
+/// at the height of the rib's front corners, not on the ground, so that
+/// nothing reckoned from the round's origin up its axis comes out at nought.
+fn on_the_ramp(draft: f64) -> Body {
+    let section = Frame {
+        origin: DVec3::ZERO,
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let plate = raised_on(
+        section,
+        Contour::straight(vec![
+            DVec2::new(0.0, 0.0),
+            DVec2::new(30.0, 0.0),
+            DVec2::new(30.0, ramp_at(30.0)),
+            DVec2::new(0.0, ramp_at(0.0)),
+        ]),
+        40.0,
+    );
+    let below_the_ramp = Frame {
+        origin: DVec3::Z,
+        ..ground()
+    };
+    let rib = plate
+        .tool_raised(
+            &profile(Contour::rectangle(
+                DVec2::new(18.0, 4.0),
+                DVec2::new(RIB_SIDE, RAMP_RIB_BACK),
+            )),
+            below_the_ramp,
+            DVec3::Z * (RAMP_RIB_TOP - 1.0),
+        )
+        .expect("the rib raises");
+    let (low, high, from) = (0.0, RAMP_RIB_TOP + 1.0, ramp_at(RIB_ENDS[0]));
+    let ring = turned_about_the_round_s_axis_from(
+        &rib,
+        Contour::straight(vec![
+            DVec2::new(ramp_round_radius(draft, high), high - from),
+            DVec2::new(ramp_round_radius(draft, low), low - from),
+            DVec2::new(12.0, low - from),
+            DVec2::new(12.0, high - from),
+        ]),
+        from,
+    );
+    let rounded = rib.difference(&ring).expect("the round end is cut");
+    plate.union(&rounded).expect("the rib is joined")
+}
+
+/// Where the line through `from` running up the ramp, along
+/// [`up_the_ramp`], meets the round end of the rib on the ramp with `draft`
+/// at its front: how far along that line, from `from`. The nearer root of
+/// the quadratic the line's distance from the axis squared less the round's
+/// radius squared makes along it.
+fn into_the_ramp_round(draft: f64, from: DVec3) -> f64 {
+    let way = up_the_ramp();
+    let off = (from - AXIS.extend(0.0)).truncate();
+    let across = way.truncate();
+    let (radius, shrink) = (ramp_round_radius(draft, from.z), draft * way.z);
+    let square = across.length_squared() - shrink * shrink;
+    let half = off.dot(across) + radius * shrink;
+    let rest = off.length_squared() - radius * radius;
+    (-half - (half * half - square * rest).sqrt()) / square
+}
+
+/// The point of the fill's section `out` along the ramp from the rib's right
+/// side and `up` off the ramp, on the line through the foot's point at
+/// y = 0.
+fn on_the_ramp_section(out: f64, up: f64) -> DVec3 {
+    DVec3::new(RIB_SIDE + out, 0.0, ramp_at(0.0)) + off_the_ramp() * up
+}
+
+/// How long a fill at the foot of the right side of the rib on the ramp with
+/// `draft` runs, `out` from that side and `up` off the ramp, measured up
+/// the ramp: from where that line meets the round to where it meets the
+/// rib's upright back.
+fn along_the_ramp_rib(draft: f64, out: f64, up: f64) -> f64 {
+    let from = on_the_ramp_section(out, up);
+    let to_the_back = (RAMP_RIB_BACK - from.y) / up_the_ramp().y;
+    to_the_back - into_the_ramp_round(draft, from)
+}
+
+/// Where the round end of the rib on the ramp with `draft` stands at `x` and
+/// height `z`, read in plan: the y of its point there in front of its axis.
+fn on_the_ramp_round(draft: f64, x: f64, z: f64) -> f64 {
+    AXIS.y - (ramp_round_radius(draft, z).powi(2) - (x - AXIS.x).powi(2)).sqrt()
+}
+
+/// The matter the [`on_the_ramp`] part with `draft` holds: the plate's, 40
+/// times its section; and the rib's above the ramp, column by column across
+/// its plan — from the ramp up to the rib's top behind where the round stands
+/// at that top, and up to the round in front of it, down to where the round
+/// meets the ramp — summed by Simpson's rule.
+fn on_the_ramp_volume(draft: f64) -> f64 {
+    let plate = 40.0 * (ramp_at(0.0) + ramp_at(30.0)) / 2.0 * 30.0;
+    let column = |x: f64| {
+        let behind = on_the_ramp_round(draft, x, RAMP_RIB_TOP);
+        let to_the_top = (RAMP_RIB_TOP - 2.0) * (RAMP_RIB_BACK - behind)
+            - RISE * (RAMP_RIB_BACK.powi(2) - behind.powi(2)) / 2.0;
+        if draft == 0.0 {
+            return to_the_top;
+        }
+        let under = |y: f64| {
+            let off = DVec2::new(x, y).distance(AXIS);
+            ramp_at(RIB_ENDS[0]) + (RADIUS - off) / draft
+        };
+        let (mut front, mut back) = (AXIS.y - RADIUS - 2.0, behind);
+        for _ in 0..200 {
+            let middle = (front + back) / 2.0;
+            if under(middle) > ramp_at(middle) {
+                back = middle;
+            } else {
+                front = middle;
+            }
+        }
+        to_the_top + simpson(|y| under(y) - ramp_at(y), [back, behind], STEPS)
+    };
+    plate + simpson(column, [18.0, RIB_SIDE], STEPS)
+}
+
+/// The area of the [`on_the_ramp`] rib's round end, rounded up: an arc no
+/// longer than 4.2 between the rib's sides, up a slant no taller than 13 and
+/// a hair.
+fn ramp_round_area(draft: f64) -> f64 {
+    4.2 * 13.0 * (1.0 + draft * draft).sqrt()
+}
+
+/// Holds that the [`on_the_ramp`] part with `draft` is what the steps are
+/// given: its faces numbered up to [`CONE_STEPS_END`], the round end its
+/// ring's inner wall, drawn on itself and stopping at the rib's right side;
+/// the foot of the right side one edge, between the round and the rib's
+/// back, rising along the ramp; and its matter the plate's and the rib's.
+fn the_rib_stands_on_the_ramp(part: &Body, draft: f64, what: &str) {
+    assert_eq!(
+        part.faces_end(),
+        CONE_STEPS_END,
+        "{what}: its steps numbered their faces up to {CONE_STEPS_END}"
+    );
+    assert!(
+        part.has_face(CONE_FRONT) && !part.is_flat(CONE_FRONT) && part.is_flat(RAMP),
+        "{what}: the round end, face {CONE_FRONT}, is curved, and the ramp, face {RAMP}, flat"
+    );
+    for corner in part.triangles_of(CONE_FRONT).flatten() {
+        assert!(
+            off_the_ramp_round(draft, corner).abs() < PLACE,
+            "{what}: the round end is drawn through {corner}, {} off it",
+            off_the_ramp_round(draft, corner)
+        );
+    }
+    let furthest = furthest_along_x(part, CONE_FRONT);
+    assert!(
+        (furthest - RIB_SIDE).abs() < PLACE,
+        "{what}: the round end reaches {furthest} along X, where the rib's right side stands at \
+         {RIB_SIDE}"
+    );
+    one_edge_between(
+        part,
+        [RAMP, RIB_RIGHT],
+        [&[RAMP, RIB_RIGHT, CONE_FRONT], &[RAMP, RIB_RIGHT, RIB_BACK]],
+        &format!("{what}: the foot of the rib's right side"),
+    );
+    let ends = [
+        DVec3::new(RIB_SIDE, RIB_ENDS[0], ramp_at(RIB_ENDS[0])),
+        DVec3::new(RIB_SIDE, RAMP_RIB_BACK, ramp_at(RAMP_RIB_BACK)),
+    ];
+    let side = part
+        .plane_of(RIB_RIGHT)
+        .expect("the rib's right side is flat");
+    for end in ends {
+        assert!(
+            side.corners
+                .iter()
+                .any(|corner| corner.distance(end) < PLACE),
+            "{what}: the foot of the rib's right side ends at {end}, up the ramp: {:?}",
+            side.corners
+        );
+    }
+    sound_drawn_within(
+        part,
+        on_the_ramp_volume(draft),
+        drawn_within(part, ramp_round_area(draft)),
+        what,
+    );
+}
+
+/// Holds that `fill` of 3 at the foot of the right side of the rib on the
+/// ramp with `draft` builds and is trimmed flush on the round end, as
+/// criterion 1 holds it: the value taken whole; a closed, sound body of the
+/// part's matter and the fill's; one face more, numbered after the steps'
+/// last; the fill meeting the ramp and the rib's right side along its sides,
+/// and the round and the rib's back at its ends, by one edge each; the ramp
+/// meeting the round along one edge, from the rib's left side to the fill,
+/// no corner left where the two alone meet; the right side meeting the round
+/// along one edge from the fill's top up; the round one face still, drawn on
+/// itself alone and reaching out to the fill's far side; every ray aimed
+/// along Y from in front of the rib through a place of the fill's section,
+/// where that place's line up the ramp meets the round, meeting the round
+/// first and on it; and no corner of the fill in front of the round's axis
+/// standing outside it.
+fn filled_up_the_ramp(draft: f64, fill: Fill, what: &str) {
+    let value = 3.0;
+    let part = on_the_ramp(draft);
+    the_rib_stands_on_the_ramp(&part, draft, &format!("{what}, before the step"));
+    let foot = edge_between(&part, RAMP, RIB_RIGHT);
+
+    let laid = match fill {
+        Fill::Chamfer => part
+            .chamfer(&foot, value)
+            .map(|chamfered| (chamfered.body, chamfered.asked, chamfered.taken)),
+        Fill::Fillet => part
+            .fillet(&foot, value)
+            .map(|filleted| (filleted.body, filleted.asked, filleted.taken)),
+    };
+    let (body, asked, taken) =
+        laid.unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+    taken_whole(asked, taken, value, what);
+    let height = |out: f64| match fill {
+        Fill::Chamfer => chamfer_height(value, out),
+        Fill::Fillet => fillet_height(value, out),
+    };
+    let laid_area = match fill {
+        Fill::Chamfer => 0.0,
+        Fill::Fillet => PI / 2.0 * value * along_the_ramp_rib(draft, 0.0, value),
+    };
+    sound_drawn_within(
+        &body,
+        on_the_ramp_volume(draft)
+            + fill_matter(value, height, |out, up| along_the_ramp_rib(draft, out, up)),
+        drawn_within(&part, ramp_round_area(draft) + value * value + laid_area),
+        what,
+    );
+    let made = match fill {
+        Fill::Chamfer => one_flat_face_more(&part, &body, what),
+        Fill::Fillet => one_round_more(&part, &body, what),
+    };
+    numbered_after_the_steps_last(&part, &body, made, what);
+    let mut sides = [RAMP, RIB_RIGHT, RIB_BACK, CONE_FRONT].map(|side| vec![side as u32]);
+    sides.sort();
+    assert_eq!(
+        sides_met(&body, made),
+        sides,
+        "{what}: the fill meets the ramp and the rib's right side along its sides, and the round \
+         and the rib's back at its ends, by one edge each"
+    );
+    one_edge_between(
+        &body,
+        [RAMP, CONE_FRONT],
+        [&[RAMP, CONE_FRONT, RIB_LEFT], &[RAMP, CONE_FRONT, made]],
+        &format!("{what}: the round's foot on the ramp, run on along the fill's footprint"),
+    );
+    no_corner_where_only(
+        &body,
+        &[RAMP, CONE_FRONT],
+        &format!("{what}: the corner the foot of the rib's right side ended at"),
+    );
+    one_edge_between(
+        &body,
+        [CONE_FRONT, RIB_RIGHT],
+        [
+            &[CONE_FRONT, RIB_RIGHT, made],
+            &[RIB_TOP, CONE_FRONT, RIB_RIGHT],
+        ],
+        &format!("{what}: the round's edge with the rib's right side, above the fill"),
+    );
+    for corner in body.triangles_of(CONE_FRONT).flatten() {
+        assert!(
+            off_the_ramp_round(draft, corner).abs() < PLACE,
+            "{what}: the round end is drawn through {corner}, {} off it",
+            off_the_ramp_round(draft, corner)
+        );
+    }
+    let far = RIB_SIDE + value;
+    let furthest = furthest_along_x(&body, CONE_FRONT);
+    assert!(
+        (furthest - far).abs() < PLACE,
+        "{what}: the round reaches {furthest} along X, where it takes in the fill's section out \
+         to {far}"
+    );
+    for share_out in [0.2, 0.5] {
+        let out = value * share_out;
+        for share_up in [0.25, 0.5, 0.75] {
+            let place = on_the_ramp_section(out, height(out) * share_up);
+            let on_the_round = place + up_the_ramp() * into_the_ramp_round(draft, place);
+            let from = DVec3::new(on_the_round.x, -1.0, on_the_round.z);
+            let hit = body.ray_hit(from, DVec3::Y).unwrap_or_else(|| {
+                panic!("{what}: a ray from {from} through the fill's section meets nothing")
+            });
+            let at = from + DVec3::Y * hit.distance;
+            assert!(
+                hit.face == CONE_FRONT
+                    && off_the_ramp_round(draft, at).abs() <= MET
+                    && at.distance(on_the_round) <= MET / up_the_ramp().y,
+                "{what}: a ray from {from} through the fill's section meets face {} at {at}, \
+                 where the fill ends on the round at {on_the_round}",
+                hit.face
+            );
+        }
+    }
+    for corner in body.triangles_of(made).flatten() {
+        assert!(
+            corner.y >= AXIS.y || off_the_ramp_round(draft, corner) <= PLACE,
+            "{what}: the fill is drawn through {corner}, {} outside the round: past it",
+            off_the_ramp_round(draft, corner)
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_rib_up_a_ramp_are_trimmed_flush_on_its_upright_round_end()
+ {
+    for (fill, what) in [
+        (
+            Fill::Chamfer,
+            "the chamfer at the foot of a rib up a ramp, its end an upright round",
+        ),
+        (
+            Fill::Fillet,
+            "the fillet at the foot of a rib up a ramp, its end an upright round",
+        ),
+    ] {
+        filled_up_the_ramp(0.0, fill, what);
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_rib_up_a_ramp_are_trimmed_flush_on_its_drafted_round_end()
+ {
+    for (fill, what) in [
+        (
+            Fill::Chamfer,
+            "the chamfer at the foot of a rib up a ramp, its end a drafted round",
+        ),
+        (
+            Fill::Fillet,
+            "the fillet at the foot of a rib up a ramp, its end a drafted round",
+        ),
+    ] {
+        filled_up_the_ramp(DRAFT, fill, what);
+    }
+}
+
+/// How far the round end of the [`slot_drafted_at_its_end`] widens for every
+/// unit up, a pocket's draft of some 5.7 degrees.
+const SLOT_DRAFT: f64 = 0.1;
+
+/// The radius of the [`slot_drafted_at_its_end`]'s round end at height `z`:
+/// criterion 2's at the slot's floor, widening by [`SLOT_DRAFT`] above it.
+fn slot_drafted_radius(z: f64) -> f64 {
+    slot_radius() + SLOT_DRAFT * (z - SLOT_FLOOR_Z)
+}
+
+/// Criterion 2's slot with its round end drafted, as a pocket's is: the slot
+/// cut straight up to its round's axis, and its end cut by a cone turned
+/// whole about the upright line through [`slot_axis`], criterion 2's round
+/// at the floor and widening by [`SLOT_DRAFT`] above it. Turned whole, the
+/// cone's circle dips below the front's line at the floor between its two
+/// crossings of it, at x = 27.8 and 28: the foot of the slot's front ends at
+/// the first, and runs on past it into the cone, where the slot's air lies.
+/// The matter lies outside the cone. The second cut's floor lies on the
+/// first's, and the slot's floor answers to both their numbers.
+///
+/// A drafted end the foot runs out of, as #807 is to fill, cannot be cut so
+/// with the slot's walls upright: turned part way round from the front's
+/// end, the cone leaves a sliver of a flat face standing on that end at the
+/// floor, and the foot ends where four faces meet. It wants the slot's walls
+/// drafted with the round, which a raise square to its sketch cannot lay.
+fn slot_drafted_at_its_end() -> Body {
+    let straight = Contour::rectangle(
+        DVec2::new(-5.0, SLOT_FRONT_Y),
+        DVec2::new(slot_axis().x, SLOT_FRONT_Y + 4.0),
+    );
+    let slot = cut_from(&plate(SLOT_PLATE), straight, SLOT_FLOOR_Z, SLOT_PLATE);
+    let corners = vec![
+        DVec2::new(0.0, SLOT_PLATE + 1.0),
+        DVec2::new(0.0, SLOT_FLOOR_Z),
+        DVec2::new(slot_drafted_radius(SLOT_FLOOR_Z), SLOT_FLOOR_Z),
+        DVec2::new(slot_drafted_radius(SLOT_PLATE + 1.0), SLOT_PLATE + 1.0),
+    ];
+    let sampled: &'static [DVec2] = Box::leak(corners.clone().into_boxed_slice());
+    let outline = Profile {
+        exact: Some((Contour::straight(corners), Vec::new())),
+        sampled: Loop::straight(sampled),
+        sampled_holes: Vec::new(),
+        triangles: &[],
+    };
+    let frame = Frame {
+        origin: slot_axis().extend(0.0),
+        u: DVec3::X,
+        v: DVec3::Z,
+    };
+    let upright = Axis {
+        origin: DVec2::ZERO,
+        direction: DVec2::Y,
+    };
+    let end = slot
+        .tool_turned(&outline, frame, &Turn::of(upright, TAU, 1e-4, &outline))
+        .expect("the drafted end turns");
+    slot.difference(&end).expect("the drafted end is cut")
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_slot_s_wall_running_into_its_drafted_round_end_are_declined_as_unsupported()
+ {
+    let part = slot_drafted_at_its_end();
+    let what = "the slot drafted at its round end, before any step";
+    let drafted: Vec<usize> = numbers(&part)
+        .into_iter()
+        .filter(|&face| {
+            !part.is_flat(face)
+                && part.triangles_of(face).flatten().all(|corner| {
+                    (corner.truncate().distance(slot_axis()) - slot_drafted_radius(corner.z)).abs()
+                        < PLACE
+                })
+        })
+        .collect();
+    assert_eq!(
+        drafted.len(),
+        1,
+        "{what}: one face lies on the drafted cone, widening up from criterion 2's round"
+    );
+    let end = DVec3::new(SLOT_FRONT_END + 2.0 * SLOT_OFF, SLOT_FRONT_Y, SLOT_FLOOR_Z);
+    assert!(
+        part.triangles_of(drafted[0])
+            .flatten()
+            .any(|corner| corner.distance(end) < PLACE),
+        "{what}: the cone meets the foot of the slot's front at {end}, where its circle first \
+         crosses the front's line"
+    );
+    let past = end.truncate() + DVec2::X * 0.01;
+    assert!(
+        past.distance(slot_axis()) < slot_drafted_radius(SLOT_FLOOR_Z),
+        "{what}: just past the foot's end, at {past}, the front's line is inside the cone"
+    );
+    let cone = vec![drafted[0] as u32];
+    let feet: Vec<EdgeName> = part
+        .edge_names()
+        .into_iter()
+        .filter(|name| {
+            name.between.contains(&vec![SLOT_FRONT as u32])
+                && name
+                    .between
+                    .iter()
+                    .any(|side| side.contains(&(SLOT_FLOOR as u32)))
+        })
+        .collect();
+    let [name] = &feet[..] else {
+        panic!("{what}: one edge at the foot of the slot's front: {feet:?}");
+    };
+    assert!(
+        name.ends.iter().any(|end| end.contains(&cone)),
+        "{what}: the foot of the slot's front ends on the cone, face {}: {name:?}",
+        drafted[0]
+    );
+
+    let declined = [
+        ("the chamfer", part.chamfer(name, 1.0).err()),
+        ("the fillet", part.fillet(name, 1.0).err()),
+    ];
+
+    for (step, declined) in declined {
+        assert_eq!(
+            declined,
+            Some(Declined::Unsupported),
+            "{step} of 1 at the foot of a slot's front running into its drafted round end"
+        );
+    }
 }

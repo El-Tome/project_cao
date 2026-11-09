@@ -57,6 +57,26 @@
 //!   shortcut or a ribbon button goes no further than the button does — it is
 //!   greyed exactly while a sketch is open —
 //!   `the_origin_view_is_offered_outside_a_sketch_and_while_a_plane_is_chosen`
+//!
+//! Closes #731. The drawing of a split button is held in
+//! `crates/app/tests/ribbon_groups.rs`; what it runs, here.
+//! - a command immediately followed by a menu runs that command —
+//!   `a_split_with_a_command_before_it_runs_that_command`
+//! - accepted: a toggle never pairs with the menu after it, so « Contraintes »
+//!   stands alone though it follows « Construction » —
+//!   `a_toggle_never_pairs_with_the_menu_after_it`
+//! - and choosing a variant from its menu does not change what its icon runs —
+//!   `a_variant_chosen_from_a_menu_leaves_a_split_with_a_command_of_its_own_alone`
+//! - decided: the icon of « Exporter en STL… » runs the normal level, whichever
+//!   was last chosen —
+//!   `the_stl_split_runs_the_normal_level_whichever_level_was_last_chosen`
+//! - decided: the icon of « Contraintes » runs the first rule until one was
+//!   used from that menu —
+//!   `until_a_rule_was_used_the_constraints_split_runs_the_first`
+//! - and then the last one used, for the session —
+//!   `the_constraints_split_runs_the_last_rule_used_from_its_menu`
+//! - the chevron is pressable while any entry is —
+//!   `a_chevron_is_offered_while_any_entry_can_be_carried_out`
 
 use super::*;
 use cao_sketch::WorkPlane;
@@ -560,5 +580,121 @@ fn select_all_is_offered_only_in_a_sketch_with_the_selection_tool() {
             &extrusion
         ),
         "with no sketch open",
+    );
+}
+
+const THE_RULES: [Command; 3] = [
+    Command::RulePerpendicular,
+    Command::RuleParallel,
+    Command::RuleEqual,
+];
+
+#[test]
+fn a_split_with_a_command_before_it_runs_that_command() {
+    let ribbon = Ribbon::new();
+
+    assert_eq!(
+        ribbon.primary_of(
+            "circles",
+            Some(Command::ToolCircle),
+            &[Command::CircleCenter, Command::CircleTwoPoints],
+        ),
+        Some(Command::ToolCircle),
+    );
+}
+
+#[test]
+fn a_variant_chosen_from_a_menu_leaves_a_split_with_a_command_of_its_own_alone() {
+    let mut ribbon = Ribbon::new();
+    ribbon.used_from_menu("circles", Command::CircleTwoPoints);
+
+    assert_eq!(
+        ribbon.primary_of(
+            "circles",
+            Some(Command::ToolCircle),
+            &[Command::CircleCenter, Command::CircleTwoPoints],
+        ),
+        Some(Command::ToolCircle),
+    );
+}
+
+#[test]
+fn the_stl_split_runs_the_normal_level_whichever_level_was_last_chosen() {
+    let mut ribbon = Ribbon::new();
+    assert_eq!(
+        ribbon.primary_of("stl", None, &STL_LEVELS),
+        Some(Command::ExportStlNormal),
+    );
+
+    ribbon.used_from_menu("stl", Command::ExportStlFine);
+
+    assert_eq!(
+        ribbon.primary_of("stl", None, &STL_LEVELS),
+        Some(Command::ExportStlNormal),
+    );
+}
+
+#[test]
+fn until_a_rule_was_used_the_constraints_split_runs_the_first() {
+    assert_eq!(
+        Ribbon::new().primary_of("constraints", None, &THE_RULES),
+        Some(Command::RulePerpendicular),
+    );
+}
+
+#[test]
+fn the_constraints_split_runs_the_last_rule_used_from_its_menu() {
+    let mut ribbon = Ribbon::new();
+
+    ribbon.used_from_menu("constraints", Command::RuleParallel);
+    assert_eq!(
+        ribbon.primary_of("constraints", None, &THE_RULES),
+        Some(Command::RuleParallel),
+    );
+
+    ribbon.used_from_menu("constraints", Command::RuleEqual);
+    assert_eq!(
+        ribbon.primary_of("constraints", None, &THE_RULES),
+        Some(Command::RuleEqual),
+    );
+}
+
+#[test]
+fn a_chevron_is_offered_while_any_entry_can_be_carried_out() {
+    let (settings, part, drawing, extrusion, lang) = (
+        Settings::default(),
+        a_part(),
+        drawing_on_a_sketch(),
+        ExtrusionState::default(),
+        Catalogue::french(),
+    );
+    let state = Context {
+        settings: &settings,
+        document: &part,
+        editor: &drawing,
+        extrusion: &extrusion,
+        lang: &lang,
+        section_on: false,
+    };
+
+    assert!(
+        any_entry_enabled(&[Command::Undo, Command::CircleCenter], &state),
+        "« Annuler » is greyed out but a circle can be drawn, so the menu opens",
+    );
+    assert!(
+        !any_entry_enabled(&[Command::Undo, Command::Redo], &state),
+        "a fresh part can neither undo nor redo, so nothing in that menu can be run",
+    );
+}
+
+#[test]
+fn a_toggle_never_pairs_with_the_menu_after_it() {
+    assert!(
+        !takes_a_menu(Command::ToggleConstruction),
+        "« Construction » stands before « Contraintes » without being one of its rules",
+    );
+    assert!(
+        takes_a_menu(Command::ToolCircle),
+        "« Cercle » is a tool with variants, and pairs with its menu",
     );
 }

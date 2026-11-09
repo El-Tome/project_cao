@@ -533,6 +533,9 @@
   "toolbar.group.extrusion": "Extrusion",
   "toolbar.group.export": "Export",
   "toolbar.group.stl": "Exporter en STL…",
+  "toolbar.stl_level.coarse": "rapide",
+  "toolbar.stl_level.normal": "par défaut",
+  "toolbar.stl_level.fine": "lourd",
   "toolbar.separator": "— séparateur —",
 
   "settings.profile.default": "Par défaut",

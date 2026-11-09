@@ -36,6 +36,8 @@ pub enum GroupSize {
     Large,
     SmallTwoRows,
     SmallThreeRows,
+    /// One split button, whatever its depth.
+    Menu,
 }
 
 /// One entry of the toolbar.

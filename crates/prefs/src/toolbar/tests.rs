@@ -8,6 +8,9 @@
 //!   `a_group_s_size_is_stored_with_the_toolbar_layout`
 //! - the default layout sets it: `edit` small on 2 rows, `drawing`, `extrusion`,
 //!   `export` and `sketch` large — `the_default_layout_sets_the_size_of_each_group`
+//! - decided: a group can ask to be one split button whatever its depth, with
+//!   a fourth size `Menu`, which `stl` carries —
+//!   `the_stl_group_asks_to_be_one_split_button`
 //! - editing it in the preferences — no test: out of scope, the issue of the
 //!   toolbar editor; until then the default layout sets it
 //! - every command of today's ribbon is still there, at the same place in the
@@ -116,6 +119,7 @@ fn a_group_s_size_is_stored_with_the_toolbar_layout() {
         GroupSize::Large,
         GroupSize::SmallTwoRows,
         GroupSize::SmallThreeRows,
+        GroupSize::Menu,
     ] {
         let saved = ToolbarLayout {
             items: vec![Item::Group {
@@ -154,6 +158,12 @@ fn the_default_layout_sets_the_size_of_each_group() {
             "the group {group:?}"
         );
     }
+}
+
+#[test]
+fn the_stl_group_asks_to_be_one_split_button() {
+    let layout = ToolbarLayout::default();
+    assert_eq!(size_of(&layout.items, "stl"), Some(GroupSize::Menu));
 }
 
 fn places(items: &[Item], within: &str) -> Vec<String> {

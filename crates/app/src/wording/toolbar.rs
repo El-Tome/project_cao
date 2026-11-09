@@ -1,4 +1,4 @@
-use cao_prefs::{Edge, Item};
+use cao_prefs::{Command, Edge, Item};
 
 use crate::lang::Catalogue;
 use crate::wording::command;
@@ -35,6 +35,17 @@ pub fn group(lang: &Catalogue, name: &str) -> String {
         "stl" => lang.t("toolbar.group.stl"),
         theirs => theirs.to_string(),
     }
+}
+
+/// What a line of the STL menu says about its level, on the line's right.
+pub fn stl_level_hint(lang: &Catalogue, level: Command) -> Option<String> {
+    let key = match level {
+        Command::ExportStlCoarse => "toolbar.stl_level.coarse",
+        Command::ExportStlNormal => "toolbar.stl_level.normal",
+        Command::ExportStlFine => "toolbar.stl_level.fine",
+        _ => return None,
+    };
+    Some(lang.t(key))
 }
 
 /// One entry of the toolbar tree, as the settings screen lists it.

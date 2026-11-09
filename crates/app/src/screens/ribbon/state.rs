@@ -8,6 +8,7 @@ use crate::wording::{command as wording, matter};
 use cao_part::PartDocument;
 use cao_prefs::{Command, Settings};
 use cao_sketch::Rule;
+use std::collections::HashMap;
 
 use super::icons;
 
@@ -37,6 +38,8 @@ pub struct Ribbon {
     pub section_delete_confirm: Option<usize>,
     /// Whether the viewport's section view is on, so its button shows pressed.
     pub section_on: bool,
+    /// The command last picked from each menu, by group, for the session.
+    last_used: HashMap<String, Command>,
 }
 
 impl Ribbon {
@@ -49,8 +52,45 @@ impl Ribbon {
             history_compact_confirm: false,
             section_delete_confirm: None,
             section_on: false,
+            last_used: HashMap::new(),
         }
     }
+
+    /// The command a split button runs: the one before its menu, else what
+    /// its menu last ran, else its first entry.
+    pub(super) fn primary_of(
+        &self,
+        group: &str,
+        before: Option<Command>,
+        entries: &[Command],
+    ) -> Option<Command> {
+        if before.is_some() {
+            return before;
+        }
+        if group == "stl" {
+            return Some(Command::ExportStlNormal);
+        }
+        self.last_used
+            .get(group)
+            .copied()
+            .filter(|used| entries.contains(used))
+            .or_else(|| entries.first().copied())
+    }
+
+    pub(super) fn used_from_menu(&mut self, group: &str, command: Command) {
+        self.last_used.insert(group.to_owned(), command);
+    }
+}
+
+/// Whether a menu right after this command is its variants. A toggle's state
+/// is no tool a menu could offer variants of: « Construction » precedes
+/// « Contraintes » without being one of them.
+pub(super) fn takes_a_menu(command: Command) -> bool {
+    command != Command::ToggleConstruction
+}
+
+pub(super) fn any_entry_enabled(entries: &[Command], state: &Context<'_>) -> bool {
+    entries.iter().any(|entry| enabled(*entry, state))
 }
 
 /// What the toolbar needs to know to draw a button in the right state.

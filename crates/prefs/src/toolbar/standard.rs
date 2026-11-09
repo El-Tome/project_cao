@@ -117,14 +117,15 @@ impl Default for ToolbarLayout {
                 Item::group(
                     "export",
                     vec![
-                        Item::group(
-                            "stl",
-                            vec![
+                        Item::Group {
+                            name: "stl".to_string(),
+                            size: GroupSize::Menu,
+                            items: vec![
                                 Item::Command(C::ExportStlCoarse),
                                 Item::Command(C::ExportStlNormal),
                                 Item::Command(C::ExportStlFine),
                             ],
-                        ),
+                        },
                         Item::Command(C::ExportStep),
                     ],
                 ),

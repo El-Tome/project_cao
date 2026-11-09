@@ -63,8 +63,8 @@ use std::path::{Path, PathBuf};
 
 use egui::epaint::{Fonts, TextOptions};
 use egui::{
-    Color32, Context, CornerRadius, FontDefinitions, FontFamily, FontId, RawInput, TextStyle,
-    Theme, Vec2, vec2,
+    Color32, Context, CornerRadius, FontDefinitions, FontFamily, FontId, RawInput, Shadow,
+    TextStyle, Theme, Vec2, vec2,
 };
 use egui_kittest::kittest::Queryable;
 
@@ -330,6 +330,7 @@ fn every_token_the_chrome_holds_is_the_design_file_s() {
         ),
         ("BORDER_GROUP", tokens::BORDER_GROUP, "border.group"),
         ("BORDER_CONTROL", tokens::BORDER_CONTROL, "border.control"),
+        ("BORDER_FIELD", tokens::BORDER_FIELD, "border.field"),
         ("BORDER_STRONG", tokens::BORDER_STRONG, "border.strong"),
         ("TEXT_TITLE", tokens::TEXT_TITLE, "text.title"),
         ("TEXT_PRIMARY", tokens::TEXT_PRIMARY, "text.primary"),
@@ -437,6 +438,7 @@ fn every_token_the_chrome_holds_is_the_design_file_s() {
         ),
     ];
 
+    let menu = design.shadow("menu");
     let mut wrong: Vec<String> = colours
         .iter()
         .filter(|(_, held, path)| *held != design.colour(path))
@@ -455,10 +457,17 @@ fn every_token_the_chrome_holds_is_the_design_file_s() {
                 format!("{name} is {held}, {path} is {}", design.held_as(path))
             }),
     );
+    if tokens::SHADOW_MENU != menu {
+        wrong.push(format!(
+            "SHADOW_MENU is {:?}, shadow.menu is {menu:?}",
+            tokens::SHADOW_MENU,
+        ));
+    }
     let checked: BTreeSet<&str> = colours
         .iter()
         .map(|(name, ..)| *name)
         .chain(numbers.iter().map(|(name, ..)| *name))
+        .chain(["SHADOW_MENU"])
         .collect();
     wrong.extend(
         tokens_declared()
@@ -638,6 +647,31 @@ impl Tokens {
     fn radius(&self, name: &str) -> u8 {
         let radius = self.number(&format!("radius.{name}"));
         u8::try_from(radius as u32).unwrap_or_else(|_| panic!("radius.{name} is {radius}"))
+    }
+
+    /// A shadow of `shadow.`, written `0 10px 28px rgba(0,0,0,0.50)`: its two
+    /// offsets, its blur and its colour.
+    fn shadow(&self, name: &str) -> Shadow {
+        let path = format!("shadow.{name}");
+        let written = self
+            .at(&path)
+            .as_str()
+            .unwrap_or_else(|| panic!("{path} in {TOKENS} is not a string"));
+        let mut parts = written.splitn(4, ' ');
+        let mut length = || {
+            let part = parts.next().unwrap_or_default();
+            part.trim_end_matches("px")
+                .parse::<i8>()
+                .unwrap_or_else(|_| panic!("{path} is {written}, whose length {part} is no number"))
+        };
+        let (x, y, blur) = (length(), length(), length());
+        let colour = parts.next().and_then(colour_written);
+        Shadow {
+            offset: [x, y],
+            blur: u8::try_from(blur).unwrap_or_else(|_| panic!("{path} is {written}")),
+            spread: 0,
+            color: colour.unwrap_or_else(|| panic!("{path} is {written}, with no colour")),
+        }
     }
 
     /// A colour of `color.`, written `#RRGGBB`, `rgb(r,g,b)` or `rgba(r,g,b,a)`

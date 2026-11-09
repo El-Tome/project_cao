@@ -19,6 +19,7 @@ use super::icons;
 use super::state::{Context, Ribbon, active, enabled, icon, label};
 
 mod groups;
+mod split;
 
 /// What the bar needs to know about the part being drawn.
 ///
@@ -151,7 +152,7 @@ impl Ribbon {
                 if vertical {
                     lay_out(ui, items, 1, &state, &mut asked, vertical);
                 } else {
-                    groups::open_tab(ui, items, &state, &mut asked);
+                    groups::open_tab(ui, items, &state, &mut asked, self);
                 }
             }
             for item in &layout.items {
@@ -328,33 +329,48 @@ fn button(
     shown: Shown,
 ) {
     let name = label(command, state);
-    let key = state
+    let key = key_of(command, state);
+    named_button(ui, command, &name, key.as_deref(), state, asked, shown);
+}
+
+fn key_of(command: Command, state: &Context<'_>) -> Option<String> {
+    state
         .settings
         .shortcuts
         .chord_for(command)
-        .map(|chord| shortcuts::chord(state.lang, chord));
-    let called = name_and_key(&name, key.as_deref());
+        .map(|chord| shortcuts::chord(state.lang, chord))
+}
+
+/// A button that runs `command` under a name that need not be the command's.
+fn named_button(
+    ui: &mut egui::Ui,
+    command: Command,
+    name: &str,
+    key: Option<&str>,
+    state: &Context<'_>,
+    asked: &mut Vec<Command>,
+    shown: Shown,
+) -> egui::Response {
+    let called = name_and_key(name, key);
     let hint = wording::hint(state.lang, command);
     let pressable = enabled(command, state);
     let on = active(command, state);
     let worn = icon(command, state);
 
-    let key = key.as_deref();
     let response = match (shown, state.settings.toolbar.show_labels) {
         (Shown::MenuEntry, _) => menu_entry(ui, pressable, on, worn, called).on_hover_text(hint),
-        (Shown::Large, true) => {
-            tool_button(ui, pressable, on, worn, &name, key).on_hover_text(hint)
-        }
+        (Shown::Large, true) => tool_button(ui, pressable, on, worn, name, key).on_hover_text(hint),
         (Shown::Small(rows), true) => {
-            small_button(ui, pressable, on, worn, &name, key, rows).on_hover_text(hint)
+            small_button(ui, pressable, on, worn, name, key, rows).on_hover_text(hint)
         }
         (_, false) => {
-            icon_button(ui, pressable, on, worn, &name).on_hover_text(format!("{called}\n{hint}"))
+            icon_button(ui, pressable, on, worn, name).on_hover_text(format!("{called}\n{hint}"))
         }
     };
     if response.clicked() {
         asked.push(command);
     }
+    response
 }
 
 #[cfg(test)]

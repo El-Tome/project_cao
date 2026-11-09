@@ -31,26 +31,34 @@
 //! - Split button for a group of variants (« Cercle », « Arc », « Ellipse »,
 //!   « Chanfrein », « Contraintes », « Exporter en STL ») —
 //!   `every_group_of_variants_is_drawn_as_one_split_button`
+//! - the name, key and icon are the command's —
+//!   `a_split_button_keeps_the_name_the_key_and_the_icon_of_its_command`
 //! - a click on the icon runs the tool as today's « Cercle » does —
 //!   `a_click_on_the_icon_of_a_split_button_runs_its_tool`
-//! - a click on the chevron opens the menu (C8) —
+//! - the circle mode left alone —
+//!   `a_click_on_the_icon_leaves_the_circle_mode_alone`
+//! - a click on the chevron opens the menu (C8), running nothing —
 //!   `a_click_on_the_chevron_opens_the_menu_of_the_variants`
+//! - a click on an entry runs it and closes the menu —
+//!   `a_click_on_an_entry_runs_it_and_closes_the_menu`
 //! - 230 px wide — `the_menu_of_a_split_button_is_230_wide`
+//! - rows of 30 — `each_row_of_a_split_button_s_menu_is_30_tall`
 //! - each line with a monospace hint on the right —
 //!   `each_line_of_a_split_button_s_menu_writes_a_monospace_hint_on_its_right`
-//! - decided: the chevron's accessible label is the group's name, « Cercles » —
+//! - decided: the chevron's accessible label is the group's name, « Cercles »,
+//!   or the group's name followed by a chevron when that name is the button's —
 //!   `the_chevron_of_a_split_button_answers_to_the_name_of_its_group`
 //! - decided: a menu-depth group with no command before it is split too, with
 //!   a primary command of its own —
 //!   `a_menu_with_no_command_before_it_is_split_around_a_primary_command_of_its_own`
-//! - decided: the icon of « Exporter en STL… » runs the normal level —
-//!   `a_click_on_the_icon_of_the_stl_export_runs_the_normal_level`
 //! - decided: its menu writes « Grossière » « rapide », « Normale »
 //!   « par défaut », « Fine » « lourd » —
 //!   `each_stl_level_writes_its_hint_on_its_line`
 //! - decided: the other variant menus' hint column shows the entry's key if it
 //!   has one, else nothing —
 //!   `the_hint_of_a_variant_is_its_key_if_it_has_one_and_nothing_otherwise`
+//! - a split button in a small group is small, its key on the column's right —
+//!   `a_split_button_in_a_small_group_is_small_and_keeps_its_key_on_the_column_s_right`
 //! - decided: the icon of « Contraintes » re-applies the last rule used from
 //!   that menu — `a_click_on_the_constraints_icon_reapplies_the_last_rule_used`
 //! - decided: until one was used, the first —
@@ -60,6 +68,13 @@
 //!   `the_constraints_button_keeps_its_name_and_wears_the_icon_of_the_rule_it_would_run`
 //! - decided: that rule is remembered for the session, not in the settings
 //!   file — `the_rule_the_constraints_icon_remembers_is_not_written_to_the_settings`
+//! - the icon part is greyed out while its command cannot be run —
+//!   `the_icon_part_of_a_split_button_follows_its_command`
+//! - the chevron stays clickable when any entry is enabled, even if the
+//!   primary is greyed out —
+//!   `the_chevron_stays_clickable_while_its_primary_is_greyed_out`
+//! - amber when the command it runs is the active one —
+//!   `a_split_button_is_on_while_the_command_it_runs_is_in_hand`
 //! - Tooltip (C9): the name, the key in a frame (C14), one sentence of help —
 //!   `hovering_a_button_shows_its_name_its_key_in_a_frame_and_a_sentence_of_help`
 //! - missing sentences are written in this issue — no test: every command
@@ -88,8 +103,10 @@
 mod driver;
 
 use cao_app::theme::tokens::{BORDER_GROUP, TEXT_QUIET};
-use cao_prefs::{Command, GroupSize, Item, Settings};
+use cao_prefs::{Chord, Command, GroupSize, Item, Key, Settings};
+use egui::accesskit::{Role, Toggled};
 use egui::epaint::TextShape;
+use egui_kittest::kittest::{NodeT, Queryable};
 
 /// How far two things laid out by egui may be apart and still be aligned:
 /// frames and galleys are placed on rounded points.
@@ -365,6 +382,379 @@ fn a_group_wider_than_the_whole_bar_wraps_inside_itself_as_a_last_resort() {
     );
 }
 
+const CIRCLE_ROWS: [&str; 5] = [
+    "Centre et diamètre",
+    "Deux points du bord",
+    "Deux points puis le centre",
+    "Tangent à deux droites",
+    "Tangent à trois droites",
+];
+
+#[test]
+fn every_group_of_variants_is_drawn_as_one_split_button() {
+    let mut app = sketching("every_group_of_variants_is_one_split");
+
+    for (primary, chevron) in [
+        ("Cercle (C)", "Cercles"),
+        ("Arc", "Arcs"),
+        ("Ellipse", "Ellipses"),
+        ("Chanfrein", "Chanfreins"),
+        ("Contraintes", "Contraintes ⌄"),
+    ] {
+        assert_one_split_button(&app, primary, chevron);
+    }
+
+    driver::click_the_button(&mut app, "Export");
+    assert_one_split_button(&app, "Exporter en STL…", "Exporter en STL… ⌄");
+}
+
+#[test]
+fn a_split_button_keeps_the_name_the_key_and_the_icon_of_its_command() {
+    let app = sketching("a_split_keeps_the_command_s_face");
+
+    assert_eq!(
+        app.query_all_by_label("Cercle (C)").count(),
+        1,
+        "one button is named « Cercle (C) »",
+    );
+    assert_eq!(
+        icons_within(&app, the_button(&app, "Cercle (C)").rect()),
+        ["circle-centre"],
+    );
+}
+
+#[test]
+fn a_click_on_the_icon_of_a_split_button_runs_its_tool() {
+    let mut app = sketching("a_click_on_the_icon_runs_its_tool");
+
+    driver::click_exactly(&mut app, "Cercle (C)");
+
+    assert!(is_down(&app, "Cercle (C)"), "« Cercle » is not in hand");
+}
+
+#[test]
+fn a_click_on_the_icon_leaves_the_circle_mode_alone() {
+    let mut app = sketching("a_click_on_the_icon_leaves_the_mode");
+    driver::click_exactly(&mut app, "Cercles");
+    driver::click_exactly(&mut app, "Deux points du bord");
+    driver::click_exactly(&mut app, "Sélection (S)");
+
+    driver::click_exactly(&mut app, "Cercle (C)");
+    driver::click_exactly(&mut app, "Cercles");
+
+    assert!(
+        is_down(&app, "Deux points du bord"),
+        "a click on the icon of « Cercle » changed the circle's mode",
+    );
+}
+
+#[test]
+fn a_click_on_the_chevron_opens_the_menu_of_the_variants() {
+    let mut app = sketching("a_click_on_the_chevron_opens");
+
+    driver::click_exactly(&mut app, "Cercles");
+
+    assert!(
+        !is_down(&app, "Cercle (C)"),
+        "a click on the chevron ran the tool",
+    );
+    let rows = CIRCLE_ROWS.map(|row| the_button(&app, row).rect().top());
+    assert!(
+        rows.is_sorted(),
+        "the entries are not in the group's order: {rows:?}",
+    );
+}
+
+#[test]
+fn a_click_on_an_entry_runs_it_and_closes_the_menu() {
+    let mut app = sketching("a_click_on_an_entry_closes");
+    driver::click_exactly(&mut app, "Cercles");
+
+    driver::click_exactly(&mut app, "Deux points du bord");
+
+    assert!(is_down(&app, "Cercle (C)"), "the entry did not run");
+    assert_eq!(
+        app.query_all_by_label("Deux points du bord").count(),
+        0,
+        "the menu did not close",
+    );
+}
+
+#[test]
+fn the_menu_of_a_split_button_is_230_wide() {
+    let mut app = sketching("the_menu_is_230_wide");
+    driver::click_exactly(&mut app, "Cercles");
+
+    let rows = CIRCLE_ROWS.iter().fold(egui::Rect::NOTHING, |all, row| {
+        all.union(the_button(&app, row).rect())
+    });
+    let frame = shapes(&app)
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect) if rect.fill.a() > 0 && rect.rect.contains_rect(rows) => {
+                Some(rect.rect)
+            }
+            _ => None,
+        })
+        .min_by(|one, other| one.area().total_cmp(&other.area()))
+        .expect("a menu frame painted around its rows");
+
+    assert!(
+        (frame.width() - 230.0).abs() <= 1.0,
+        "the menu is {} wide, where C8 asks for 230",
+        frame.width(),
+    );
+}
+
+#[test]
+fn each_row_of_a_split_button_s_menu_is_30_tall() {
+    let mut app = sketching("each_row_is_30_tall");
+    driver::click_exactly(&mut app, "Cercles");
+
+    for row in CIRCLE_ROWS {
+        assert_tall(the_button(&app, row).rect(), 30.0, "a row of the menu");
+    }
+}
+
+#[test]
+fn each_line_of_a_split_button_s_menu_writes_a_monospace_hint_on_its_right() {
+    let app = the_stl_menu_open("each_line_writes_a_hint");
+
+    let row = the_button(&app, "Grossière").rect();
+    let name = written_where(&app, "Grossière", |read| read.starts_with("Grossière"));
+    let hint = written(&app, "rapide");
+
+    assert_eq!(
+        hint.text.galley.job.sections[0].format.font_id.family,
+        egui::FontFamily::Monospace,
+        "the font of the hint",
+    );
+    assert!(
+        hint.rect.left() > name.rect.right() && row.right() - hint.rect.right() <= 16.0,
+        "the hint at {:?} is not on the right of the row at {row:?}, after its name at {:?}",
+        hint.rect,
+        name.rect,
+    );
+}
+
+#[test]
+fn each_stl_level_writes_its_hint_on_its_line() {
+    let app = the_stl_menu_open("each_stl_level_writes_its_hint");
+
+    for (level, hint) in [
+        ("Grossière", "rapide"),
+        ("Normale", "par défaut"),
+        ("Fine", "lourd"),
+    ] {
+        let row = the_button(&app, level).rect();
+        assert!(
+            row.expand(1.0).contains_rect(written(&app, hint).rect),
+            "« {hint} » is not on the line of « {level} » at {row:?}",
+        );
+    }
+}
+
+#[test]
+fn the_hint_of_a_variant_is_its_key_if_it_has_one_and_nothing_otherwise() {
+    let mut settings = bar_of(vec![Item::group(
+        "drawing",
+        vec![
+            Item::Command(Command::NewSketch),
+            Item::Command(Command::ToolCircle),
+            Item::group(
+                "circles",
+                commands(&[Command::CircleCenter, Command::CircleTwoPoints]),
+            ),
+        ],
+    )]);
+    settings
+        .shortcuts
+        .bind(Command::CircleCenter, Chord::new(Key::K));
+    let mut app = opened("the_hint_of_a_variant", WIDE, settings);
+    driver::start_a_sketch(&mut app);
+    driver::click_exactly(&mut app, "Cercles");
+
+    let keyed = row_starting(&app, "Centre et diamètre").rect();
+    let plain = row_starting(&app, "Deux points du bord").rect();
+
+    assert_eq!(
+        texts_within(&app, keyed),
+        ["Centre et diamètre".to_owned(), "K".to_owned()],
+    );
+    assert_eq!(
+        texts_within(&app, plain),
+        ["Deux points du bord".to_owned()],
+    );
+}
+
+#[test]
+fn a_split_button_in_a_small_group_is_small_and_keeps_its_key_on_the_column_s_right() {
+    let settings = bar_of(vec![Item::Group {
+        name: "edit".to_string(),
+        size: GroupSize::SmallThreeRows,
+        items: vec![
+            Item::Command(Command::ToolLine),
+            Item::Command(Command::ToolCircle),
+            Item::group(
+                "circles",
+                commands(&[Command::CircleCenter, Command::CircleTwoPoints]),
+            ),
+        ],
+    }]);
+    let app = opened("a_split_in_a_small_group", WIDE, settings);
+
+    let primary = the_button(&app, "Cercle (C)").rect();
+    let line_key = written(&app, "L").rect;
+    let circle_key = written(&app, "C").rect;
+
+    assert_tall(primary, 20.0, "a small split button");
+    assert!(
+        (line_key.right() - circle_key.right()).abs() <= ALIGNED_WITHIN,
+        "the keys of the column end at {} and {}",
+        line_key.right(),
+        circle_key.right(),
+    );
+}
+
+#[test]
+fn the_chevron_of_a_split_button_answers_to_the_name_of_its_group() {
+    let mut app = sketching("the_chevron_answers_to_its_name");
+
+    the_button(&app, "Cercles");
+    the_button(&app, "Contraintes ⌄");
+
+    driver::click_the_button(&mut app, "Export");
+    the_button(&app, "Exporter en STL… ⌄");
+}
+
+#[test]
+fn a_menu_with_no_command_before_it_is_split_around_a_primary_command_of_its_own() {
+    let mut app = sketching("a_menu_with_no_command_before");
+
+    driver::click_exactly(&mut app, "Contraintes");
+
+    assert_eq!(
+        app.query_all_by_label("Perpendiculaire").count(),
+        0,
+        "the click on the icon of « Contraintes » opened its menu",
+    );
+    assert!(
+        is_down(&app, "Contraintes"),
+        "the click on the icon of « Contraintes » ran nothing",
+    );
+}
+
+#[test]
+fn a_click_on_the_constraints_icon_reapplies_the_last_rule_used() {
+    let mut app = sketching("a_click_reapplies_the_last_rule");
+    driver::click_exactly(&mut app, "Contraintes ⌄");
+    driver::click_exactly(&mut app, "Parallèle");
+    driver::click_exactly(&mut app, "Sélection (S)");
+
+    driver::click_exactly(&mut app, "Contraintes");
+    driver::click_exactly(&mut app, "Contraintes ⌄");
+
+    assert!(is_down(&app, "Parallèle"), "« Parallèle » is not in hand");
+}
+
+#[test]
+fn until_a_rule_was_used_the_constraints_icon_runs_the_first() {
+    let mut app = sketching("until_a_rule_was_used");
+
+    driver::click_exactly(&mut app, "Contraintes");
+    driver::click_exactly(&mut app, "Contraintes ⌄");
+
+    assert!(
+        is_down(&app, "Perpendiculaire"),
+        "« Perpendiculaire » is not in hand",
+    );
+}
+
+#[test]
+fn the_constraints_button_keeps_its_name_and_wears_the_icon_of_the_rule_it_would_run() {
+    let mut app = sketching("the_constraints_button_wears");
+    assert_eq!(
+        icons_within(&app, the_button(&app, "Contraintes").rect()),
+        ["perpendicular"],
+    );
+
+    driver::click_exactly(&mut app, "Contraintes ⌄");
+    driver::click_exactly(&mut app, "Parallèle");
+
+    assert_eq!(
+        icons_within(&app, the_button(&app, "Contraintes").rect()),
+        ["parallel"],
+    );
+}
+
+#[test]
+fn the_rule_the_constraints_icon_remembers_is_not_written_to_the_settings() {
+    let test = "the_rule_is_not_written_to_the_settings";
+    let mut app = sketching(test);
+
+    driver::click_exactly(&mut app, "Contraintes ⌄");
+    driver::click_exactly(&mut app, "Parallèle");
+
+    assert_eq!(driver::saved_settings(test), Settings::default());
+}
+
+#[test]
+fn the_icon_part_of_a_split_button_follows_its_command() {
+    let app = opened("the_icon_part_follows", WIDE, Settings::default());
+
+    for primary in ["Cercle (C)", "Contraintes"] {
+        assert!(
+            the_button(&app, primary).accesskit_node().is_disabled(),
+            "« {primary} » can be pressed with no sketch open",
+        );
+    }
+}
+
+#[test]
+fn the_chevron_stays_clickable_while_its_primary_is_greyed_out() {
+    let settings = bar_of(vec![Item::group(
+        "drawing",
+        vec![
+            Item::Command(Command::NewSketch),
+            Item::Command(Command::Redo),
+            Item::group(
+                "circles",
+                commands(&[Command::CircleCenter, Command::CircleTwoPoints]),
+            ),
+        ],
+    )]);
+    let mut app = opened("the_chevron_stays_clickable", WIDE, settings);
+    driver::start_a_sketch(&mut app);
+    assert!(
+        the_button(&app, "Rétablir (Cmd+Maj+Z)")
+            .accesskit_node()
+            .is_disabled(),
+        "there is something to redo: the premise of this test",
+    );
+
+    driver::click_exactly(&mut app, "Cercles");
+
+    the_button(&app, "Centre et diamètre");
+}
+
+#[test]
+fn a_split_button_is_on_while_the_command_it_runs_is_in_hand() {
+    let mut app = sketching("a_split_is_on_while_in_hand");
+
+    driver::click_exactly(&mut app, "Cercle (C)");
+    assert!(is_down(&app, "Cercle (C)"), "« Cercle » does not show on");
+
+    driver::click_exactly(&mut app, "Contraintes");
+    assert!(
+        is_down(&app, "Contraintes"),
+        "« Contraintes » does not show on"
+    );
+    assert!(
+        !is_down(&app, "Cercle (C)"),
+        "« Cercle » still shows on with a rule in hand",
+    );
+}
+
 fn opened(test: &str, size: egui::Vec2, settings: Settings) -> driver::App {
     let mut app = driver::open_with(test, size, settings);
     driver::create_a_part(&mut app, "Platine");
@@ -593,5 +983,115 @@ fn rules_between(app: &driver::App, left: egui::Rect, right: egui::Rect) -> Vec<
     vertical_rules(app)
         .into_iter()
         .filter(|rule| rule.at > left.right() && rule.at < right.left() && rule.runs_beside(left))
+        .collect()
+}
+
+fn sketching(test: &str) -> driver::App {
+    let mut app = opened(test, WIDE, Settings::default());
+    driver::start_a_sketch(&mut app);
+    app
+}
+
+fn the_stl_menu_open(test: &str) -> driver::App {
+    let mut app = driver::a_block(test);
+    driver::click_the_button(&mut app, "Export");
+    driver::click_exactly(&mut app, "Exporter en STL… ⌄");
+    app
+}
+
+fn the_button<'a>(app: &'a driver::App, name: &'a str) -> egui_kittest::Node<'a> {
+    app.query_all_by_label(name)
+        .find(|node| node.accesskit_node().role() == Role::Button)
+        .unwrap_or_else(|| {
+            panic!(
+                "no button is named « {name} »; the screen names {:?}",
+                driver::on_screen(app)
+            )
+        })
+}
+
+/// The row of a menu, for an entry whose name carries a key after it.
+fn row_starting<'a>(app: &'a driver::App, start: &str) -> egui_kittest::Node<'a> {
+    app.query_all_by_role(Role::Button)
+        .find(|node| {
+            node.accesskit_node()
+                .label()
+                .is_some_and(|label| label.starts_with(start))
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "no row starts « {start} »; the screen names {:?}",
+                driver::on_screen(app)
+            )
+        })
+}
+
+fn is_down(app: &driver::App, name: &str) -> bool {
+    the_button(app, name).accesskit_node().toggled() == Some(Toggled::True)
+}
+
+fn assert_one_split_button(app: &driver::App, primary: &str, chevron: &str) {
+    let (body, arrow) = (
+        the_button(app, primary).rect(),
+        the_button(app, chevron).rect(),
+    );
+
+    assert!(
+        body.expand(2.0).intersects(arrow),
+        "« {primary} » at {body:?} and « {chevron} » at {arrow:?} are two buttons apart",
+    );
+    assert!(
+        !read_on_screen(app).iter().any(|text| text == chevron),
+        "« {chevron} » is written on the button, as a menu of its own",
+    );
+}
+
+fn read_on_screen(app: &driver::App) -> Vec<String> {
+    shapes(app)
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Text(text) => Some(text.galley.text().to_owned()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// What is written within a rectangle, from left to right.
+fn texts_within(app: &driver::App, within: egui::Rect) -> Vec<String> {
+    let within = within.expand(1.0);
+    let mut texts: Vec<(f32, String)> = shapes(app)
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Text(text) if within.contains_rect(shape.visual_bounding_rect()) => {
+                Some((
+                    shape.visual_bounding_rect().left(),
+                    text.galley.text().to_owned(),
+                ))
+            }
+            _ => None,
+        })
+        .collect();
+    texts.sort_by(|one, other| one.0.total_cmp(&other.0));
+    texts.into_iter().map(|(_, text)| text).collect()
+}
+
+fn icons_within(app: &driver::App, within: egui::Rect) -> Vec<String> {
+    let within = within.expand(1.0);
+    let textures = app.ctx.tex_manager();
+    let textures = textures.read();
+    shapes(app)
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect)
+                if rect.fill_texture_id() != egui::TextureId::default()
+                    && within.contains_rect(rect.rect) =>
+            {
+                textures.meta(rect.fill_texture_id()).map(|meta| {
+                    let file = meta.name.rsplit('/').next().unwrap_or(&meta.name);
+                    file.strip_suffix(".svg").unwrap_or(file).to_owned()
+                })
+            }
+            _ => None,
+        })
         .collect()
 }

@@ -1,7 +1,7 @@
 //! The values of `docs/redesign/tokens.json` the chrome wears, each named
 //! after its path there, `color.` left out.
 
-use egui::Color32;
+use egui::{Color32, Shadow};
 
 pub const BACKGROUND_PANEL: Color32 = Color32::from_rgb(0x16, 0x18, 0x1D);
 pub const BACKGROUND_CARD: Color32 = Color32::from_rgb(0x18, 0x1B, 0x21);
@@ -14,6 +14,7 @@ pub const BACKGROUND_FIELD: Color32 = Color32::from_rgb(0x12, 0x14, 0x19);
 pub const BORDER_SEPARATOR: Color32 = Color32::from_rgb(0x22, 0x26, 0x2E);
 pub const BORDER_GROUP: Color32 = Color32::from_rgb(0x26, 0x2A, 0x33);
 pub const BORDER_CONTROL: Color32 = Color32::from_rgb(0x2E, 0x33, 0x3D);
+pub const BORDER_FIELD: Color32 = Color32::from_rgb(0x35, 0x3A, 0x45);
 pub const BORDER_STRONG: Color32 = Color32::from_rgb(0x3A, 0x40, 0x4C);
 
 pub const TEXT_TITLE: Color32 = Color32::from_rgb(0xF4, 0xF5, 0xF7);
@@ -42,6 +43,14 @@ pub const STATE_ERROR_TEXT: Color32 = Color32::from_rgb(0xF5, 0xA9, 0x9F);
 pub const STATE_ERROR_BACKGROUND: Color32 =
     Color32::from_rgba_unmultiplied_const(240, 138, 126, 38);
 pub const STATE_SUCCESS_TEXT: Color32 = Color32::from_rgb(0x8F, 0xE3, 0xBC);
+
+/// `0 10px 28px rgba(0,0,0,0.50)`: 0.50 of 255 is 128.
+pub const SHADOW_MENU: Shadow = Shadow {
+    offset: [0, 10],
+    blur: 28,
+    spread: 0,
+    color: Color32::from_rgba_unmultiplied_const(0, 0, 0, 128),
+};
 
 pub const RADIUS_BUTTON: u8 = 5;
 pub const RADIUS_CONTROL: u8 = 6;

@@ -13,8 +13,12 @@ use crate::ui::theme::tokens::{
     TYPOGRAPHY_SIZES_SHORTCUT,
 };
 
+mod chevron;
+mod menu;
 mod small;
 
+pub use chevron::{CHEVRON_WIDTH, chevron_button};
+pub use menu::{menu_row, ribbon_menu};
 pub use small::{Rows, small_button, small_grid};
 
 const LARGE_BUTTON_AT_LEAST: Vec2 = vec2(50.0, 64.0);

@@ -5,6 +5,7 @@
 use glam::DVec3;
 
 use super::Wedge;
+use super::corners::Three;
 use crate::body::exact::Exact;
 use crate::brep::Declined;
 
@@ -30,10 +31,9 @@ pub(in crate::body::exact) struct Corner {
 /// Each corner three edges meet at, read as a [`Corner`] for the value
 /// `taken`, each edge set back `set_back` along its faces, with the ranks of
 /// its edges and what closes it. Declined `Unsupported` where two of a
-/// corner's edges share no face, their set-backs never cross, or cross level
-/// with the corner along one.
+/// corner's edges share no face, or their set-backs never cross.
 pub(super) fn closings(
-    corners: Vec<(DVec3, [usize; 3])>,
+    corners: Vec<Three>,
     wedges: &[Wedge],
     set_back: impl Fn(&Wedge) -> f64,
     taken: f64,
@@ -41,18 +41,23 @@ pub(super) fn closings(
 ) -> Result<Vec<(Corner, [usize; 3], Closing)>, Declined> {
     corners
         .into_iter()
-        .map(|(at, ranks)| {
+        .map(|(at, ranks, along)| {
             let three = ranks.map(|rank| &wedges[rank]);
-            let corner =
-                read(at, three, three.map(&set_back), taken).ok_or(Declined::Unsupported)?;
+            let corner = read((at, along), three, three.map(&set_back), taken)
+                .ok_or(Declined::Unsupported)?;
             Ok((corner, ranks, closing))
         })
         .collect()
 }
 
-/// The corner at `at` of three edges, each set back `set_back` along its
-/// faces, as [`closings`] reads it.
-fn read(at: DVec3, wedges: [&Wedge; 3], set_back: [f64; 3], value: f64) -> Option<Corner> {
+/// The corner at `at` of three edges running from it `along`, each set back
+/// `set_back` along its faces, as [`closings`] reads it.
+fn read(
+    (at, along): (DVec3, [DVec3; 3]),
+    wedges: [&Wedge; 3],
+    set_back: [f64; 3],
+    value: f64,
+) -> Option<Corner> {
     let crossing = |one: usize, other: usize| {
         let [first, second] = [wedges[one], wedges[other]];
         let (on_first, on_second) = (0..2)
@@ -68,18 +73,9 @@ fn read(at: DVec3, wedges: [&Wedge; 3], set_back: [f64; 3], value: f64) -> Optio
     };
     let [(first, one), (second, two), (third, three)] =
         [crossing(0, 1)?, crossing(1, 2)?, crossing(2, 0)?];
-    let crossings = [first, second, third];
-    let mut along = [0, 1, 2].map(|edge| wedges[edge].along);
-    for (way, crossing) in along.iter_mut().zip(crossings) {
-        let off = way.dot(crossing - at);
-        if off == 0.0 {
-            return None;
-        }
-        *way *= off.signum();
-    }
     Some(Corner {
         at,
-        crossings,
+        crossings: [first, second, third],
         facing: [one, two, three],
         along,
         value,

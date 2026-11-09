@@ -18,10 +18,12 @@ use crate::brep::{self, Coedge, Curve, Declined, Face, FaceId, Sphere, Surface, 
 use crate::profile::{Contour, Frame};
 
 /// The body with the corner closed by a piece of sphere of the value's
-/// radius, numbered where the steps' numbers end. Declined `Unsupported`
-/// where the rounds' axes do not cross at one point, a plane through it
-/// square to an edge does not stand between the corner and the edge, the
-/// corner cut back leaves anything but three faces meeting at the centre,
+/// radius, numbered where the steps' numbers end, its centre where the
+/// rounds' axes cross, one radius in from the first crossing's face.
+/// Declined `Unsupported` where the plane through the centre square to an
+/// edge does not stand between the corner and the edge's other end — the
+/// sphere would stand at or behind the corner along it —, the corner cut
+/// back leaves anything but three faces meeting at the centre,
 /// bounded towards the rounds by three arcs about it, or the piece of
 /// sphere left anything but its face, its every corner a corner of one of
 /// the three `rounds`, as [`Exact::cut_along`] reads it; `Undrawn` where the
@@ -33,14 +35,8 @@ pub(in crate::body::exact) fn rounded_across(
 ) -> Result<Exact, Declined> {
     let radius = corner.value;
     let eps = body.brep.scale().eps();
-    let centres = [0, 1, 2].map(|face| corner.crossings[face] - corner.facing[face] * radius);
-    let centre = centres[0];
-    if centres.iter().any(|other| other.distance(centre) > eps)
-        || corner
-            .along
-            .iter()
-            .any(|way| way.dot(centre - corner.at) <= eps)
-    {
+    let centre = corner.crossings[0] - corner.facing[0] * radius;
+    if (corner.along.iter()).any(|way| way.dot(centre - corner.at) <= eps) {
         return Err(Declined::Unsupported);
     }
     let cut = body.cut_by(&Exact {

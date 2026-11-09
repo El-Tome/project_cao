@@ -77,29 +77,27 @@ impl Exact {
     /// alone. Two edges meeting at a convex corner are laid in turn as any two
     /// are, each prism carried past the corner along its edge's line, so that
     /// the later trims the earlier's face there: two flats or two rounds meet
-    /// in a mitre, and the later edge is found again on the body laid so far
-    /// and sought by the name that body gives it, as [`corners::tracked`] finds
-    /// it; one whose whole the earlier cuts took is laid from its wedge on the
-    /// body as given, so that the matter of every edge's prism goes whatever
-    /// the order. A corner three of the edges meet at is closed once all are
-    /// laid, as `meeting` closes it, read where each two's set-backs cross on
-    /// the face they share, as [`Exact::closed`] closes it, its face numbered
-    /// past the edges'. The wall an edge's prism lays is numbered where the
-    /// steps' numbers ended, plus the edge's rank in the list; a pair is laid
-    /// at its later edge's turn, so that every number laid before stands below
-    /// those a prism lays, as [`Exact::cut_along`] reads them. A value shorter
-    /// than the kernel can set a cut back from an edge is declined first; a
-    /// list of no edge `Unsupported`; an edge its name no longer finds `Lost`;
-    /// an edge that is not a wedge, one edge two names find, two edges meeting
-    /// at a corner that is not convex — an edge ending there that is no wedge,
-    /// or whose faces meet inwards —, more than three edges meeting at a
-    /// corner, or three where another edge ends too, where `meeting` lays two
-    /// together an edge meeting two others, or one of two laid together that
-    /// meets another edge of the list at a corner, several edges of the body
-    /// laid so far answering for one edge still to lay, and a cut or a fill
-    /// that left something else than its one face, as [`Exact::cut_along`]
-    /// reads it, are declined `Unsupported`; a prism the tool cannot raise, as
-    /// the tool says.
+    /// in a mitre, and the later edge is laid from its wedge on the body as
+    /// given, its prism cut from what the earlier cuts left, as
+    /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
+    /// goes whatever the order. A corner three of the edges meet at is closed
+    /// once all are laid, as `meeting` closes it, read where each two's
+    /// set-backs cross on the face they share, as [`Exact::closed`] closes it,
+    /// its face numbered past the edges'. The wall an edge's prism lays is
+    /// numbered where the steps' numbers ended, plus the edge's rank in the
+    /// list; a pair is laid at its later edge's turn, so that every number laid
+    /// before stands below those a prism lays, as [`Exact::cut_along`] reads
+    /// them. A value shorter than the kernel can set a cut back from an edge is
+    /// declined first; a list of no edge `Unsupported`; an edge its name no
+    /// longer finds `Lost`; an edge that is not a wedge, one edge two names
+    /// find, two edges meeting at a corner that is not convex — an edge ending
+    /// there that is no wedge, or whose faces meet inwards —, more than three
+    /// edges meeting at a corner, or three where another edge ends too, where
+    /// `meeting` lays two together an edge meeting two others, or one of two
+    /// laid together that meets another edge of the list at a corner, and a cut
+    /// or a fill that left something else than its one face, as
+    /// [`Exact::cut_along`] reads it, are declined `Unsupported`; a prism the
+    /// tool cannot raise, as the tool says.
     pub(super) fn cut_off(
         &self,
         names: &[EdgeName],
@@ -157,8 +155,6 @@ impl Exact {
             )?;
             let start = self.next;
             let mut cut = self.clone();
-            let mut sought = names.to_vec();
-            let mut gone = BTreeSet::new();
             for rank in 0..names.len() {
                 if pairs.iter().any(|&(earlier, _)| earlier == rank) {
                     continue;
@@ -167,7 +163,7 @@ impl Exact {
                 let partner = pairs.iter().find(|&&(_, later)| later == rank);
                 cut = match (partner, meeting.together) {
                     (Some(&(earlier, _)), Some(together)) => cut.laid_together(
-                        [&sought[earlier], &sought[rank]],
+                        [&names[earlier], &names[rank]],
                         start + earlier as u32,
                         together,
                     )?,
@@ -178,14 +174,11 @@ impl Exact {
                             })
                             .map(|earlier| start + earlier as u32)
                             .collect();
-                        let laid = if gone.contains(&rank) {
-                            cut.laid_as(None, &wedges[rank], taken, &tool, &mitred)?
+                        if mitred.is_empty() {
+                            cut.laid(&names[rank], taken, &tool, &mitred)?
                         } else {
-                            cut.laid(&sought[rank], taken, &tool, &mitred)?
-                        };
-                        let read = (&edges[..], &wedges[..]);
-                        corners::tracked(self, &laid, read, (&mut sought, &mut gone), rank)?;
-                        laid
+                            cut.laid_as(None, &wedges[rank], taken, &tool, &mitred)?
+                        }
                     }
                 };
             }
@@ -229,10 +222,11 @@ impl Exact {
 
     /// The body with the edge of `wedge` cut off, or filled in, as
     /// [`Exact::laid`] lays it: `edge` that edge on this body, or none where
-    /// the step's earlier cuts took the whole of it and `wedge` was read on
-    /// the body as given, its prism then cut from what they left — the
-    /// matter of every edge's prism goes whatever the order. Declined
-    /// `Unsupported` where such an edge is to be filled in.
+    /// an earlier edge of the step was laid at a corner it shares and `wedge`
+    /// was read on the body as given, its prism then cut from what the earlier
+    /// cuts left of it, even nothing — the matter of every edge's prism goes
+    /// whatever the order. Declined `Unsupported` where such an edge is to be
+    /// filled in, which a convex corner never asks.
     fn laid_as(
         &self,
         edge: Option<EdgeId>,

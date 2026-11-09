@@ -9,8 +9,8 @@ use crate::brep::{self, Curve, Declined, EdgeId, FaceId, Surface};
 
 impl Wedge {
     /// The wedge of an edge straight between two flat faces, whether or not
-    /// it runs on tangentially into the next edge: a round laid before it at a
-    /// corner they share does.
+    /// it runs on tangentially into the next edge: a step reads that on the
+    /// body as given, before it lays anything.
     pub(super) fn read(body: &brep::Body, edge: EdgeId) -> Result<Wedge, Declined> {
         let wedge = Wedge::faced(body, edge)?;
         let reach_of = |face: FaceId, into: DVec3| reach::reach(body, face, into, wedge.point);

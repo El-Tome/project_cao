@@ -1,34 +1,5 @@
 //! What prefs · toolbar.rs is held to.
 
-#[test]
-fn a_toolbar_arranged_before_a_tool_existed_still_gets_it() {
-    // A layout as it might have been saved: the standard one, with the
-    // constraints group not yet invented and a button moved by hand.
-    let mut saved = ToolbarLayout {
-        items: vec![Item::group(
-            "sketch",
-            vec![Item::group(
-                "drawing",
-                vec![Item::Command(Command::ToolLine)],
-            )],
-        )],
-        ..ToolbarLayout::default()
-    };
-    saved.adopt_new_commands(&ToolbarLayout::default());
-
-    let mut held = Vec::new();
-    collect(&saved.items, &mut held);
-    assert!(held.contains(&Command::RulePerpendicular));
-    assert!(held.contains(&Command::ToolLine), "the existing is intact");
-
-    // And running it twice does not pile up copies.
-    let before = held.len();
-    saved.adopt_new_commands(&ToolbarLayout::default());
-    let mut again = Vec::new();
-    collect(&saved.items, &mut again);
-    assert_eq!(again.len(), before);
-}
-
 use super::*;
 
 fn layout() -> ToolbarLayout {

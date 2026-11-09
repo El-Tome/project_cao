@@ -256,22 +256,6 @@ impl Shortcuts {
         self.bindings.push((command, chord));
     }
 
-    /// Binds what `reference` offers and this does not hold yet.
-    ///
-    /// A profile saved before a command existed would never hear of it, the
-    /// way a toolbar would not. What the user set stays put, and a chord they
-    /// have already given to something else is left alone: taking it back
-    /// would break a shortcut they use for one they never asked for.
-    pub fn adopt_new_bindings(&mut self, reference: &Self) {
-        for (command, chord) in &reference.bindings {
-            let known = self.bindings.iter().any(|(bound, _)| bound == command);
-            let taken = self.bindings.iter().any(|(_, held)| held == chord);
-            if !known && !taken {
-                self.bindings.push((*command, *chord));
-            }
-        }
-    }
-
     pub fn unbind(&mut self, command: Command) {
         self.bindings.retain(|(bound, _)| *bound != command);
     }

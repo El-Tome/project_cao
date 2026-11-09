@@ -145,13 +145,12 @@ The groups of the standard bar are stored under keys too — `sketch`,
 says how each one reads. A group the user made or renamed carries their own
 words, and the interface hands them back untouched.
 
-A bar arranged by hand **receives the tools added later**, each in the group
-where the standard bar puts it. That is what makes the keys matter: a new
-command finds its place by matching the group's name, so a translated name
-would quietly have built a second group beside the first. Without any of it, a
-bar reorganised once would never hear of a new tool again: the new buttons
-would exist for a new profile and for nobody else. What the user arranged is
-not touched; only what is missing is added.
+A saved bar is **taken as it is**, and so are saved shortcuts: a button the
+user removed stays removed, a key they unbound stays free. A command added to
+the software later reaches a saved profile only when the user asks for it —
+from the palette with « Ajouter une commande dans la sélection (ou à la racine) »,
+by giving it a key under « Préférences » › « Raccourcis », or by starting over
+from « ↺ Barre par défaut » or « ↺ Raccourcis par défaut ».
 
 A place for the **logo** already exists, with its text, until there is a
 picture to put there.

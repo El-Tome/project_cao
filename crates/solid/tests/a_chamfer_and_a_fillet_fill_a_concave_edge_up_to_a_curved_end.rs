@@ -18,16 +18,22 @@
 //!   degrees, such as a slot's round end —
 //!   `a_chamfer_at_the_foot_of_a_slot_s_wall_is_trimmed_flush_on_the_round_end_it_meets_at_a_few_degrees`,
 //!   `a_fillet_at_the_foot_of_a_slot_s_wall_is_trimmed_flush_on_the_round_end_it_meets_at_a_few_degrees`
-//! - The same holds where the end face is a cone, a sphere and a torus — the
-//!   cone, a rib whose round end has draft:
+//! - The same holds where the end face is a cone, a sphere and a torus —
+//!   answered for the cylinder above and for the cone, a rib whose round end
+//!   has draft:
 //!   `a_chamfer_at_the_foot_of_a_rib_whose_round_end_has_draft_is_trimmed_flush_on_its_cone`,
-//!   `a_fillet_at_the_foot_of_a_rib_whose_round_end_has_draft_is_trimmed_flush_on_its_cone`;
-//!   the sphere and the torus are not written yet: the kernel meets neither
-//!   with a slanted plane or a cylinder off its axis, and how far this issue
-//!   goes there is a decision put to the human
+//!   `a_fillet_at_the_foot_of_a_rib_whose_round_end_has_draft_is_trimmed_flush_on_its_cone`.
+//!   The sphere and the torus left this issue for #805 (the human's decision):
+//!   the kernel meets neither with a slanted plane or a cylinder off its axis,
+//!   so a fill ending on one stays declined here, as the next criterion pins
 //! - An end face the fill cannot be trimmed flush by is declined
-//!   `Unsupported` with that reason, and no wrong body is built —
-//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_whose_round_end_turns_away_short_of_the_fill_s_reach_are_declined_as_unsupported`
+//!   `Unsupported` with that reason, and no wrong body is built — a round the
+//!   edge runs out of that turns away short of the fill's reach,
+//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_whose_round_end_turns_away_short_of_the_fill_s_reach_are_declined_as_unsupported`;
+//!   a round the edge runs into,
+//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_slot_s_wall_running_into_its_round_end_are_declined_as_unsupported`;
+//!   and a sphere, #805's, here a rib cut from a ball —
+//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_whose_end_is_a_sphere_are_declined_as_unsupported`
 //! - After a change of size, a move or a turn upstream, the step fills the
 //!   same edge, found by its name, flush on the same curved end face —
 //!   `a_chamfer_and_a_fillet_fill_the_concave_edge_their_name_finds_again_flush_on_the_same_round_after_a_change_of_size_a_move_and_a_turn`
@@ -44,14 +50,17 @@
 //!   away from the rib's side short of the fill's reach, and is the fourth
 //!   criterion's
 
+mod step_reader;
+
 use std::collections::BTreeSet;
 use std::f64::consts::{PI, TAU};
 
+use cao_solid::brep::Scale;
 use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
 use cao_solid::turning::{Axis, Turn};
-use cao_solid::{Body, EdgeName, Loop};
-use glam::{DVec2, DVec3};
+use cao_solid::{Body, Declined, EdgeName, Loop, step};
+use glam::{DQuat, DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it, on a plane
 /// or on a round: each is placed exactly, so what is left is rounding.
@@ -841,11 +850,22 @@ fn cut_from(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
 /// The upright line the [`slot_in_the_plate`]'s round end turns about, read
 /// in plan, and the round's radius, from that line to the front's end.
 fn slot_axis() -> DVec2 {
-    DVec2::new(SLOT_FRONT_END + SLOT_OFF, SLOT_FRONT_Y + 2.0)
+    slot_axis_off_by(SLOT_OFF)
 }
 
 fn slot_radius() -> f64 {
-    (4.0 + SLOT_OFF * SLOT_OFF).sqrt()
+    slot_radius_off_by(SLOT_OFF)
+}
+
+/// The upright line the round end of a slot off tangent by `off` turns
+/// about, and its radius: the axis `off` along the front from where a
+/// tangent round's would stand.
+fn slot_axis_off_by(off: f64) -> DVec2 {
+    DVec2::new(SLOT_FRONT_END + off, SLOT_FRONT_Y + 2.0)
+}
+
+fn slot_radius_off_by(off: f64) -> f64 {
+    (4.0 + off * off).sqrt()
 }
 
 /// A plate 40 long, 30 deep and 10 thick with a slot cut into its top as a
@@ -858,7 +878,16 @@ fn slot_radius() -> f64 {
 /// of the front, where a fill there stands. The matter lies outside its
 /// cylinder.
 fn slot_in_the_plate() -> Body {
-    let (end, centre) = (DVec2::new(SLOT_FRONT_END, SLOT_FRONT_Y), slot_axis());
+    slot_off_tangent_by(SLOT_OFF)
+}
+
+/// The [`slot_in_the_plate`] with its round end's axis moved `off` along the
+/// front from where a tangent round's would stand.
+fn slot_off_tangent_by(off: f64) -> Body {
+    let (end, centre) = (
+        DVec2::new(SLOT_FRONT_END, SLOT_FRONT_Y),
+        slot_axis_off_by(off),
+    );
     let slot = Contour {
         corners: vec![
             DVec2::new(-5.0, SLOT_FRONT_Y),
@@ -883,8 +912,14 @@ fn slot_in_the_plate() -> Body {
 /// the slot's, 6 deep — the quadrilateral from the plate's left side to the
 /// round's chord, and the half disc beyond the chord.
 fn slot_part_volume() -> f64 {
-    let back_end = SLOT_FRONT_END + 2.0 * SLOT_OFF;
-    let plan = (SLOT_FRONT_END + back_end) / 2.0 * 4.0 + PI * slot_radius().powi(2) / 2.0;
+    slot_volume_off_by(SLOT_OFF)
+}
+
+/// The matter a slot off tangent by `off` leaves the plate, as
+/// [`slot_part_volume`] reckons it.
+fn slot_volume_off_by(off: f64) -> f64 {
+    let back_end = SLOT_FRONT_END + 2.0 * off;
+    let plan = (SLOT_FRONT_END + back_end) / 2.0 * 4.0 + PI * slot_radius_off_by(off).powi(2) / 2.0;
     40.0 * 30.0 * SLOT_PLATE - plan * (SLOT_PLATE - SLOT_FLOOR_Z)
 }
 
@@ -1250,10 +1285,10 @@ fn off_the_cone(point: DVec3) -> f64 {
 /// that runs along X, out along X and up along Z, turned whole about that
 /// line, as `cao_part` turns a step: its faces, one for each run, numbered
 /// past `part`'s when the boolean that takes it numbers them.
-fn turned_about_the_round_s_axis(part: &Body, corners: Vec<DVec2>) -> Body {
-    let sampled: &'static [DVec2] = Box::leak(corners.clone().into_boxed_slice());
+fn turned_about_the_round_s_axis(part: &Body, contour: Contour) -> Body {
+    let sampled: &'static [DVec2] = Box::leak(contour.corners.clone().into_boxed_slice());
     let outline = Profile {
-        exact: Some((Contour::straight(corners), Vec::new())),
+        exact: Some((contour, Vec::new())),
         sampled: Loop::straight(sampled),
         sampled_holes: Vec::new(),
         triangles: &[],
@@ -1300,12 +1335,12 @@ fn rib_drafted_in_front() -> Body {
         .expect("the rib raises");
     let ring = turned_about_the_round_s_axis(
         &rib,
-        vec![
+        Contour::straight(vec![
             DVec2::new(cone_radius(15.0), 15.0),
             DVec2::new(cone_radius(3.0), 3.0),
             DVec2::new(12.0, 3.0),
             DVec2::new(12.0, 15.0),
-        ],
+        ]),
     );
     let drafted = rib.difference(&ring).expect("the draft is cut");
     plate.union(&drafted).expect("the rib is joined")
@@ -1601,4 +1636,703 @@ fn a_fillet_at_the_foot_of_a_rib_whose_round_end_has_draft_is_trimmed_flush_on_i
     let fillet = one_round_more(&part, body, what);
     numbered_after_the_steps_last(&part, body, fillet, what);
     flush_on_the_cone(body, fillet, value, height, what);
+}
+
+/// Holds that a chamfer and a fillet of `value` on the edge between the
+/// faces numbered `first` and `second` are both declined as a fill the
+/// kernel cannot build, and so build no body.
+fn both_declined(part: &Body, [first, second]: [usize; 2], value: f64, what: &str) {
+    let name = edge_between(part, first, second);
+
+    let declined = [
+        ("the chamfer", part.chamfer(&name, value).err()),
+        ("the fillet", part.fillet(&name, value).err()),
+    ];
+
+    for (step, declined) in declined {
+        assert_eq!(
+            declined,
+            Some(Declined::Unsupported),
+            "{step} of {value} {what}"
+        );
+    }
+}
+
+/// The round of #778's decline: about (20, 6), through the rib's front
+/// corners, its radius √5.
+const TURNING_AWAY: (DVec2, f64) = (DVec2::new(20.0, 6.0), 2.236_067_977_499_79);
+
+/// The plate with the rib of #778's round decline on its top: the rib of
+/// [`rib_rounded_in_front`], its front a round about [`TURNING_AWAY`]'s axis
+/// through its front corners, bulging forward and leaving its right side
+/// some 27 degrees off the side's line. Its cylinder reaches only √5 − 2,
+/// some 0.236, past the side's plane, where a fill of 3 reaches 3: nothing of
+/// it stands ahead of the fill's far side to trim the fill by.
+fn rib_whose_round_turns_away() -> Body {
+    let rib = Contour {
+        corners: vec![
+            DVec2::new(18.0, RIB_ENDS[0]),
+            DVec2::new(RIB_SIDE, RIB_ENDS[0]),
+            DVec2::new(RIB_SIDE, RIB_ENDS[1]),
+            DVec2::new(18.0, RIB_ENDS[1]),
+        ],
+        runs: vec![
+            Run::Round {
+                center: TURNING_AWAY.0,
+                turn: 2.0 * 2f64.atan(),
+            },
+            Run::Straight,
+            Run::Straight,
+            Run::Straight,
+        ],
+    };
+    on_the_plate(&plate(PLATE), PLATE, rib)
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_rib_whose_round_end_turns_away_short_of_the_fill_s_reach_are_declined_as_unsupported()
+ {
+    let part = rib_whose_round_turns_away();
+    let what = "the rib whose round turns away, before any step";
+    drawn_on_the_cylinder(&part, RIB_FRONT, TURNING_AWAY, what);
+    let (axis, radius) = TURNING_AWAY;
+    let reach = axis.x + radius;
+    assert!(
+        reach - RIB_SIDE < 0.25,
+        "{what}: the round's cylinder reaches {reach}, a fifth past the rib's right side"
+    );
+    one_edge_between(
+        &part,
+        [TOP, RIB_RIGHT],
+        [&[TOP, RIB_RIGHT, RIB_FRONT], &[TOP, RIB_RIGHT, RIB_BACK]],
+        &format!("{what}: the foot of the rib's right side"),
+    );
+    let turn = 2.0 * 2f64.atan();
+    let segment = radius * radius * (turn - turn.sin()) / 2.0;
+    sound_drawn_within(
+        &part,
+        4800.0 + (4.0 * 17.0 + segment) * 10.0,
+        drawn_within(&part, radius * turn * 10.0),
+        what,
+    );
+
+    both_declined(
+        &part,
+        [TOP, RIB_RIGHT],
+        3.0,
+        "at the foot of a rib whose round end turns away from its side within the fill's reach",
+    );
+}
+
+/// How far the slot whose foot runs into its round end has that round off
+/// tangent: its axis a tenth on along the front, so that the round leaves
+/// the front's end turning out, dipping a fortieth of a hundredth below the
+/// front's line before it comes back — the convex fillet's declined slot,
+/// cut as a pocket. Past its end the foot of the front runs into the round's
+/// cylinder, where the slot's air lies.
+const RUNNING_INTO: f64 = 0.1;
+
+#[test]
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_slot_s_wall_running_into_its_round_end_are_declined_as_unsupported()
+ {
+    let part = slot_off_tangent_by(RUNNING_INTO);
+    let what = "the slot whose round end dips below its front, before any step";
+    let (axis, radius) = (
+        slot_axis_off_by(RUNNING_INTO),
+        slot_radius_off_by(RUNNING_INTO),
+    );
+    drawn_on_the_cylinder(&part, SLOT_END, (axis, radius), what);
+    let past = DVec2::new(SLOT_FRONT_END + 0.01, SLOT_FRONT_Y);
+    assert!(
+        past.distance(axis) < radius,
+        "{what}: just past the foot's end, at {past}, the line of the front is inside the round"
+    );
+    one_edge_between(
+        &part,
+        [SLOT_FLOOR, SLOT_FRONT],
+        [
+            &[SLOT_FLOOR, SLOT_FRONT, PLATE_LEFT],
+            &[SLOT_FLOOR, SLOT_FRONT, SLOT_END],
+        ],
+        &format!("{what}: the foot of the slot's front"),
+    );
+    sound_drawn_within(
+        &part,
+        slot_volume_off_by(RUNNING_INTO),
+        drawn_within(&part, PI * radius * (SLOT_PLATE - SLOT_FLOOR_Z)),
+        what,
+    );
+
+    both_declined(
+        &part,
+        [SLOT_FLOOR, SLOT_FRONT],
+        1.0,
+        "at the foot of a slot's front that runs into its round end",
+    );
+}
+
+/// The numbers the faces of the [`rib_cut_from_a_ball`] answer to: its right
+/// side, its sphere and its left side, numbered after the run along the axis
+/// it was turned about, which makes no face. Its two ends, lying on the
+/// plate's top, are taken in by the join.
+const BALL_RIGHT: usize = 7;
+const BALL: usize = 8;
+
+/// Where the [`rib_cut_from_a_ball`]'s sphere has its centre, on the plate's
+/// top, and its radius.
+const BALL_CENTRE: DVec3 = DVec3::new(20.0, 15.0, PLATE);
+const BALL_RADIUS: f64 = 8.0;
+
+/// The plate with a rib on its top cut from a ball: the slice of the ball of
+/// [`BALL_RADIUS`] about [`BALL_CENTRE`] between x = 18 and its right side at
+/// 22, above the plate, turned half a turn about the line along X through the
+/// centre as a part's next step turns. Its sides are square to that line and
+/// its floor holds it, the only planes the kernel meets a sphere with; a rib
+/// with flat sides parallel to a sphere's axis and off it cannot be built.
+/// The edge at the foot of its right side runs out of the sphere at both
+/// ends, where the matter lies inside it — the case #805 is to fill, and
+/// whose fill's chamfer, slanted to that line, the kernel cannot meet the
+/// sphere with today.
+fn rib_cut_from_a_ball() -> Body {
+    let plate = plate(PLATE);
+    let reach = (BALL_RADIUS * BALL_RADIUS - 4.0).sqrt();
+    let slice = Contour {
+        corners: vec![
+            DVec2::new(18.0, 0.0),
+            DVec2::new(RIB_SIDE, 0.0),
+            DVec2::new(RIB_SIDE, reach),
+            DVec2::new(18.0, reach),
+        ],
+        runs: vec![
+            Run::Straight,
+            Run::Straight,
+            Run::Round {
+                center: DVec2::new(BALL_CENTRE.x, 0.0),
+                turn: PI - 2.0 * reach.atan2(RIB_SIDE - BALL_CENTRE.x),
+            },
+            Run::Straight,
+        ],
+    };
+    let sampled: &'static [DVec2] = Box::leak(slice.corners.clone().into_boxed_slice());
+    let outline = Profile {
+        exact: Some((slice, Vec::new())),
+        sampled: Loop::straight(sampled),
+        sampled_holes: Vec::new(),
+        triangles: &[],
+    };
+    let on_the_top = Frame {
+        origin: DVec3::new(0.0, BALL_CENTRE.y, PLATE),
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    let along_x = Axis {
+        origin: DVec2::ZERO,
+        direction: DVec2::X,
+    };
+    let rib = plate
+        .tool_turned(&outline, on_the_top, &Turn::of(along_x, PI, 1e-4, &outline))
+        .expect("the slice turns");
+    plate.union(&rib).expect("the rib is joined")
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_the_foot_of_a_rib_whose_end_is_a_sphere_are_declined_as_unsupported() {
+    let part = rib_cut_from_a_ball();
+    let what = "the rib cut from a ball, before any step";
+    assert!(
+        part.has_face(BALL) && !part.is_flat(BALL) && part.is_flat(BALL_RIGHT),
+        "{what}: face {BALL} is a round and face {BALL_RIGHT} flat"
+    );
+    for corner in part.triangles_of(BALL).flatten() {
+        let off = corner.distance(BALL_CENTRE) - BALL_RADIUS;
+        assert!(
+            off.abs() < PLACE,
+            "{what}: the rib's sphere is drawn through {corner}, {off} off it"
+        );
+    }
+    one_edge_between(
+        &part,
+        [TOP, BALL_RIGHT],
+        [&[TOP, BALL_RIGHT, BALL], &[TOP, BALL_RIGHT, BALL]],
+        &format!("{what}: the foot of the rib's right side, the sphere at both its ends"),
+    );
+    let half_turned = PI / 2.0 * (4.0 * BALL_RADIUS * BALL_RADIUS - 16.0 / 3.0);
+    sound_drawn_within(
+        &part,
+        4800.0 + half_turned,
+        drawn_within(&part, 2.0 * PI * BALL_RADIUS * 4.0),
+        what,
+    );
+
+    both_declined(
+        &part,
+        [TOP, BALL_RIGHT],
+        2.0,
+        "at the foot of a rib whose ends are a sphere, which #805 is to fill",
+    );
+}
+
+/// The ground's plane with its origin moved to `to`.
+fn moved(to: [f64; 3]) -> Frame {
+    Frame {
+        origin: DVec3::from(to),
+        ..ground()
+    }
+}
+
+/// Where a part is moved to, whole.
+const ELSEWHERE: [f64; 3] = [100.0, -40.0, 7.0];
+
+/// The ground's plane turned about the vertical by `degrees`.
+fn turned_about_the_vertical(degrees: f64) -> Frame {
+    let turn = DQuat::from_rotation_z(degrees.to_radians());
+    Frame {
+        origin: DVec3::ZERO,
+        u: turn * DVec3::X,
+        v: turn * DVec3::Y,
+    }
+}
+
+/// The ground's plane tipped by 40 degrees about an axis leaning off all
+/// three, its origin moved to `to`: a part drawn on it has no face and no
+/// edge square to an axis or along one.
+fn tipped(to: [f64; 3]) -> Frame {
+    let turn = DQuat::from_axis_angle(DVec3::new(1.0, 2.0, 2.0).normalize(), 40f64.to_radians());
+    Frame {
+        origin: DVec3::from(to),
+        u: turn * DVec3::X,
+        v: turn * DVec3::Y,
+    }
+}
+
+/// A point of the world read in the axes of a part drawn on `frame`: along,
+/// across and up.
+fn in_the_part_s_axes(frame: Frame, point: DVec3) -> DVec3 {
+    let off = point - frame.origin;
+    DVec3::new(off.dot(frame.u), off.dot(frame.v), off.dot(frame.normal()))
+}
+
+/// The size of a part like the [`rib_rounded_in_front`]: how thick its plate
+/// is, where its rib's back stands and how high the rib is raised. Its round
+/// is drawn where it was.
+#[derive(Clone, Copy)]
+struct RibSize {
+    plate: f64,
+    back: f64,
+    height: f64,
+}
+
+const AS_DRAWN: RibSize = RibSize {
+    plate: PLATE,
+    back: 22.0,
+    height: 10.0,
+};
+
+const RESIZED: RibSize = RibSize {
+    plate: 6.0,
+    back: 25.0,
+    height: 12.0,
+};
+
+impl RibSize {
+    /// The part, its plate and its rib drawn on `frame`, numbered as
+    /// [`rib_rounded_in_front`] numbers them: on the ground, as drawn, it is
+    /// that part.
+    fn on(self, frame: Frame) -> Body {
+        let plate = raised_on(
+            frame,
+            Contour::rectangle(DVec2::ZERO, DVec2::new(40.0, 30.0)),
+            self.plate,
+        );
+        let on_the_top = Frame {
+            origin: frame.origin + frame.normal() * self.plate,
+            ..frame
+        };
+        let rib = Contour {
+            corners: vec![
+                DVec2::new(18.0, RIB_ENDS[0]),
+                DVec2::new(RIB_SIDE, RIB_ENDS[0]),
+                DVec2::new(RIB_SIDE, self.back),
+                DVec2::new(18.0, self.back),
+            ],
+            runs: vec![
+                Run::Round {
+                    center: AXIS,
+                    turn: round_turn(),
+                },
+                Run::Straight,
+                Run::Straight,
+                Run::Straight,
+            ],
+        };
+        let tool = plate
+            .tool_raised(&profile(rib), on_the_top, frame.normal() * self.height)
+            .expect("the rib raises");
+        plate.union(&tool).expect("the rib is joined")
+    }
+
+    /// The matter the part holds, as [`rounded_rib_volume`] reckons it.
+    fn volume(self) -> f64 {
+        let turn = round_turn();
+        let segment = RADIUS * RADIUS * (turn - turn.sin()) / 2.0;
+        1200.0 * self.plate + (4.0 * (self.back - RIB_ENDS[0]) + segment) * self.height
+    }
+
+    /// How long a fill at the foot of the rib's right side runs, `out` from
+    /// it: from the round to the back.
+    fn along(self, out: f64) -> f64 {
+        self.back - on_the_round(RIB_SIDE + out)
+    }
+}
+
+/// Holds what a fill of `value` at the foot of the rib's right side of a
+/// part drawn on `frame` leaves of the round, read in the part's own axes:
+/// the fill, the face numbered `made`, meeting the plate's top, the rib's
+/// right side, the round and the rib's back by one edge each; the plate's
+/// top meeting the round along one edge from the rib's left side to the
+/// fill, no corner left where the two alone meet; the round drawn on its
+/// cylinder and reaching out to the fill's far side; and no corner of the
+/// fill in front of the round's axis outside the round.
+fn flush_on_the_same_round(body: &Body, frame: Frame, made: usize, value: f64, what: &str) {
+    let mut sides = [TOP, RIB_FRONT, RIB_RIGHT, RIB_BACK].map(|side| vec![side as u32]);
+    sides.sort();
+    assert_eq!(
+        sides_met(body, made),
+        sides,
+        "{what}: the fill meets the plate's top, the rib's right side, the round and the rib's \
+         back, by one edge each"
+    );
+    one_edge_between(
+        body,
+        [TOP, RIB_FRONT],
+        [&[TOP, RIB_FRONT, RIB_LEFT], &[TOP, RIB_FRONT, made]],
+        &format!("{what}: the round's foot, run on along the fill's footprint"),
+    );
+    no_corner_where_only(
+        body,
+        &[TOP, RIB_FRONT],
+        &format!("{what}: the corner the foot of the rib's right side ended at"),
+    );
+    assert!(
+        body.has_face(RIB_FRONT) && !body.is_flat(RIB_FRONT),
+        "{what}: face {RIB_FRONT} is the round still"
+    );
+    let round: Vec<DVec3> = body
+        .triangles_of(RIB_FRONT)
+        .flatten()
+        .map(|corner| in_the_part_s_axes(frame, corner))
+        .collect();
+    for corner in &round {
+        assert!(
+            (off_the_axis(*corner) - RADIUS).abs() < PLACE,
+            "{what}: the round is drawn through {corner}, in the part's axes, off its cylinder"
+        );
+    }
+    let furthest = round
+        .iter()
+        .map(|corner| corner.x)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let far = RIB_SIDE + value;
+    assert!(
+        (furthest - far).abs() < PLACE,
+        "{what}: the round reaches {furthest} along the part, where it takes in the fill's \
+         section out to {far}"
+    );
+    for corner in body.triangles_of(made).flatten() {
+        let corner = in_the_part_s_axes(frame, corner);
+        assert!(
+            corner.y >= AXIS.y || off_the_axis(corner) <= RADIUS + PLACE,
+            "{what}: the fill is drawn through {corner}, in the part's axes, past the round"
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_fill_the_concave_edge_their_name_finds_again_flush_on_the_same_round_after_a_change_of_size_a_move_and_a_turn()
+ {
+    let value = 3.0;
+    let name = edge_between(&AS_DRAWN.on(ground()), TOP, RIB_RIGHT);
+
+    for (drawn, size, frame) in [
+        ("as drawn", AS_DRAWN, ground()),
+        ("resized", RESIZED, ground()),
+        ("moved", AS_DRAWN, moved(ELSEWHERE)),
+        (
+            "turned 30 degrees about the vertical",
+            AS_DRAWN,
+            turned_about_the_vertical(30.0),
+        ),
+        ("tipped off every axis", AS_DRAWN, tipped([0.0; 3])),
+        ("resized, moved and tipped", RESIZED, tipped(ELSEWHERE)),
+    ] {
+        let part = size.on(frame);
+        let round = RADIUS * round_turn() * size.height;
+        let long = size.along(0.0);
+
+        let chamfered = part
+            .chamfer(&name, value)
+            .unwrap_or_else(|declined| panic!("the chamfer, {drawn}: declined, {declined:?}"));
+
+        let what = &format!("the chamfer, {drawn}");
+        taken_whole(chamfered.asked, chamfered.taken, value, what);
+        let body = &chamfered.body;
+        let height = |out: f64| chamfer_height(value, out);
+        sound_drawn_within(
+            body,
+            size.volume() + fill_matter(value, height, |out, _| size.along(out)),
+            drawn_within(&part, round + value * value),
+            what,
+        );
+        let chamfer = one_flat_face_more(&part, body, what);
+        numbered_after_the_steps_last(&part, body, chamfer, what);
+        flush_on_the_same_round(body, frame, chamfer, value, what);
+
+        let filleted = part
+            .fillet(&name, value)
+            .unwrap_or_else(|declined| panic!("the fillet, {drawn}: declined, {declined:?}"));
+
+        let what = &format!("the fillet, {drawn}");
+        taken_whole(filleted.asked, filleted.taken, value, what);
+        let body = &filleted.body;
+        let height = |out: f64| fillet_height(value, out);
+        sound_drawn_within(
+            body,
+            size.volume() + fill_matter(value, height, |out, _| size.along(out)),
+            drawn_within(&part, round + value * value + PI / 2.0 * value * long),
+            what,
+        );
+        let fillet = one_round_more(&part, body, what);
+        numbered_after_the_steps_last(&part, body, fillet, what);
+        flush_on_the_same_round(body, frame, fillet, value, what);
+    }
+}
+
+/// How long the edges of the [`rib_rounded_in_front`] filled at its foot are
+/// in all, rounded up: the plate's twelve, near 300; the rib's top and foot
+/// outlines, some 42 each, and its four uprights; the fill's sides and ends.
+/// The file's tolerance over a strip that long is what its area may be off
+/// by.
+const FILLED_RIB_EDGES: f64 = 520.0;
+
+/// The area of the [`rib_rounded_in_front`] filled at the foot of its right
+/// side by `value`, its section `height(out)` high, holding `section` and
+/// laying a face of `laid`: the plate's floor and walls; its top less the
+/// rib's plan and the fill's footprint, which runs from the round to the
+/// back; the rib's top, its left side, its right side above the fill, and
+/// its back with the fill's section; and the round, grown by the fill's
+/// section laid on its cylinder, which stretches each step out from the
+/// rib's side by r over √(r² − x²), x that step's reach from the axis.
+fn filled_rib_area(value: f64, height: impl Fn(f64) -> f64, section: f64, laid: f64) -> f64 {
+    let turn = round_turn();
+    let plan = 4.0 * 17.0 + RADIUS * RADIUS * (turn - turn.sin()) / 2.0;
+    let footprint = simpson(along_the_rib, [0.0, value], STEPS);
+    let plate = 1200.0 + 2.0 * (40.0 + 30.0) * PLATE + 1200.0 - plan - footprint;
+    let rib = plan + 17.0 * 10.0 + 17.0 * (10.0 - value) + 4.0 * 10.0 + section;
+    let stretched = fill_matter(value, height, |out, _| {
+        RADIUS / (RADIUS * RADIUS - (RIB_SIDE + out - AXIS.x).powi(2)).sqrt()
+    });
+    plate + rib + round_area() + stretched + laid
+}
+
+/// Holds that a STEP file read back is one exact solid of the body's faces,
+/// all its loops on their surfaces — every edge's curve on the surfaces of
+/// both faces it bounds — within the file's tolerance, no wider than the
+/// kernel's; enclosing the matter arithmetic promised and the body holds, and
+/// covering the area arithmetic promised, within the file's tolerance over
+/// the part's edges, `edges` long in all.
+fn written_whole(
+    solid: &step_reader::Solid,
+    body: &Body,
+    [volume, area, edges]: [f64; 3],
+    what: &str,
+) {
+    assert_eq!(
+        solid.faces,
+        numbers(body).len(),
+        "{what}: the file holds the faces the body does"
+    );
+    assert!(
+        solid.uncertainty <= kernel_tolerance(body) * (1.0 + 1e-12),
+        "{what}: the file declares points one under {}, the kernel only under {}",
+        solid.uncertainty,
+        kernel_tolerance(body)
+    );
+    assert!(
+        solid.worst <= solid.uncertainty,
+        "{what}: a loop stands {} off its face or its edge, the file's tolerance is {}",
+        solid.worst,
+        solid.uncertainty
+    );
+    for (whose, volume) in [
+        ("arithmetic promised", volume),
+        ("the body holds", body.volume()),
+    ] {
+        assert!(
+            (solid.volume - volume).abs() <= solid.uncertainty * solid.area,
+            "{what}: the file encloses {}, where {whose} {volume}",
+            solid.volume
+        );
+    }
+    assert!(
+        (solid.area - area).abs() <= solid.uncertainty * edges,
+        "{what}: the file's faces cover {}, where arithmetic promised {area}",
+        solid.area
+    );
+}
+
+/// The kernel's tolerance for a body, in the file's millimetres at one to
+/// the unit: the hair it takes two surfaces one within, at the body's reach.
+fn kernel_tolerance(body: &Body) -> f64 {
+    Scale::HAIR * Scale::of(reach_of(body)).eps()
+}
+
+/// Holds that the file writes the rib's round on its cylinder, about the
+/// upright line through [`AXIS`] and of [`RADIUS`].
+fn round_written_on_its_cylinder(solid: &step_reader::Solid, what: &str) -> usize {
+    let found = solid.cylinders.iter().position(|&(origin, axis, radius)| {
+        axis.cross(DVec3::Z).length() < PLACE
+            && (origin.truncate().distance(AXIS)) <= solid.uncertainty
+            && (radius - RADIUS).abs() <= solid.uncertainty
+    });
+    found.unwrap_or_else(|| {
+        panic!(
+            "{what}: no cylinder of radius {RADIUS} about the upright line through {AXIS} under \
+             the round: {:?}",
+            solid.cylinders
+        )
+    })
+}
+
+#[test]
+fn a_rib_filled_up_to_its_round_end_written_to_step_writes_every_face_on_its_true_surface() {
+    let value = 3.0;
+    let part = rib_rounded_in_front();
+    let foot = edge_between(&part, TOP, RIB_RIGHT);
+
+    let chamfered = part.chamfer(&foot, value).expect("the chamfer is laid");
+    let text = step::of(&chamfered.body, 1.0).expect("an exact body is written");
+
+    let what = "the rib chamfered up to its round";
+    let solid = step_reader::read(&text)
+        .unwrap_or_else(|fault| panic!("{what}: the file does not read back: {fault}"));
+    assert_eq!(
+        solid.faces, 12,
+        "{what}: the plate's six faces, the rib's top, its round, right side, back and left \
+         side, and the chamfer"
+    );
+    let height = |out: f64| chamfer_height(value, out);
+    let footprint = simpson(along_the_rib, [0.0, value], STEPS);
+    written_whole(
+        &solid,
+        &chamfered.body,
+        [
+            rounded_rib_volume() + fill_matter(value, height, |out, _| along_the_rib(out)),
+            filled_rib_area(value, height, value * value / 2.0, 2f64.sqrt() * footprint),
+            FILLED_RIB_EDGES,
+        ],
+        what,
+    );
+    round_written_on_its_cylinder(&solid, what);
+    assert_eq!(
+        solid.cylinders.len(),
+        1,
+        "{what}: the round alone is written on a cylinder: {:?}",
+        solid.cylinders
+    );
+    let facing = DVec3::new(1.0, 0.0, 1.0).normalize();
+    let through = [
+        DVec3::new(RIB_SIDE + value, RIB_ENDS[1], PLATE),
+        DVec3::new(RIB_SIDE, RIB_ENDS[1], PLATE + value),
+    ];
+    assert!(
+        solid.planes.iter().any(|&(origin, normal)| {
+            normal.distance(facing) < PLACE
+                && through
+                    .iter()
+                    .all(|point| (*point - origin).dot(normal).abs() <= solid.uncertainty)
+        }),
+        "{what}: no face of the file faces {facing} through {through:?}: {:?}",
+        solid.planes
+    );
+    assert!(
+        text.contains("ELLIPSE("),
+        "{what}: the chamfer's edge on the round, where a slanted plane meets an upright \
+         cylinder, is written as its ellipse"
+    );
+
+    let filleted = part.fillet(&foot, value).expect("the fillet is laid");
+    let text = step::of(&filleted.body, 1.0).expect("an exact body is written");
+
+    let what = "the rib filleted up to its round";
+    let solid = step_reader::read(&text)
+        .unwrap_or_else(|fault| panic!("{what}: the file does not read back: {fault}"));
+    assert_eq!(
+        solid.faces, 12,
+        "{what}: the plate's six faces, the rib's top, its round, right side, back and left \
+         side, and the fillet"
+    );
+    let height = |out: f64| fillet_height(value, out);
+    let laid = simpson(
+        |turn| along_the_rib(value * (1.0 - turn.sin())) * value,
+        [0.0, PI / 2.0],
+        STEPS,
+    );
+    written_whole(
+        &solid,
+        &filleted.body,
+        [
+            rounded_rib_volume() + fill_matter(value, height, |out, _| along_the_rib(out)),
+            filled_rib_area(value, height, value * value * (1.0 - PI / 4.0), laid),
+            FILLED_RIB_EDGES,
+        ],
+        what,
+    );
+    let round = round_written_on_its_cylinder(&solid, what);
+    let fillet: Vec<_> = solid
+        .cylinders
+        .iter()
+        .enumerate()
+        .filter(|&(index, _)| index != round)
+        .map(|(_, cylinder)| *cylinder)
+        .collect();
+    let [(origin, axis, written)] = fillet[..] else {
+        panic!(
+            "{what}: one cylinder besides the round's, under the fillet: {:?}",
+            solid.cylinders
+        );
+    };
+    assert!(
+        (written - value).abs() <= solid.uncertainty,
+        "{what}: the fillet is written on a cylinder of radius {written}, where it is {value}"
+    );
+    assert!(
+        axis.cross(DVec3::Y).length() < PLACE,
+        "{what}: the fillet's cylinder runs along {axis}, where the foot ran along Y"
+    );
+    let off = origin - DVec3::new(RIB_SIDE + value, 0.0, PLATE + value);
+    assert!(
+        (off - DVec3::Y * off.y).length() <= solid.uncertainty,
+        "{what}: the fillet's cylinder stands about the line through {origin}, where its axis \
+         is the radius out from the plate's top and from the rib's right side"
+    );
+    let [meeting] = &solid.along_splines[..] else {
+        panic!(
+            "{what}: one curve written as a B-spline, where the fillet meets the round: {}",
+            solid.along_splines.len()
+        );
+    };
+    let tolerance = kernel_tolerance(&filleted.body);
+    for point in meeting {
+        let off_the_round = (off_the_axis(*point) - RADIUS).abs();
+        let off_the_fillet = (DVec2::new(point.x, point.z)
+            .distance(DVec2::new(RIB_SIDE + value, PLATE + value))
+            - value)
+            .abs();
+        assert!(
+            off_the_round <= tolerance && off_the_fillet <= tolerance,
+            "{what}: the fillet's edge on the round is written through {point}, {off_the_round} \
+             off the round and {off_the_fillet} off the fillet, the kernel's tolerance is \
+             {tolerance}"
+        );
+    }
 }

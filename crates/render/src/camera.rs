@@ -36,6 +36,18 @@ impl CubeFace {
         }
     }
 
+    /// The face whose outward normal lies closest to `direction`. On an exact
+    /// tie the first in [`Self::ALL`] wins, so that the answer never flickers.
+    pub fn closest_to(direction: Vec3) -> Self {
+        Self::ALL.into_iter().fold(Self::PlusX, |closest, face| {
+            if face.normal().dot(direction) > closest.normal().dot(direction) {
+                face
+            } else {
+                closest
+            }
+        })
+    }
+
     /// The two world axes spanning the plane this face looks at: the basis of
     /// the work plane a sketch would sit on.
     pub fn plane_basis(self) -> (Vec3, Vec3) {

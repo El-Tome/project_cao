@@ -164,6 +164,22 @@
 //! sketch has always been framed, leaves a long flat drawing at about that;
 //! a view that did not move after the wheel stepped back leaves the part a
 //! speck.
+//!
+//! Closes #729. The rest of the issue is in
+//! `crates/app/src/screens/viewport/render/tests.rs`, `render/overlays/tests.rs`
+//! and `state/tests.rs`, each under its own block.
+//! - « Vue d'origine » under the cube: the isometric view the part opens with,
+//!   framed on the part — the button under the cube, following its settings —
+//!   `the_origin_view_button_stands_under_the_cube_and_frames_the_part`; decided
+//!   on the branch: above the cube when it sits in a bottom corner —
+//!   `the_origin_view_button_goes_above_a_cube_in_a_bottom_corner`; decided by
+//!   the human: hidden while a sketch is open —
+//!   `the_origin_view_button_is_hidden_while_a_sketch_is_open`
+//! - Clicking a face, an edge or a corner turns the camera as today; hovering
+//!   lights it: the clicking half —
+//!   `clicking_a_face_an_edge_or_a_corner_of_the_cube_still_turns_the_camera`;
+//!   the hovering half in `crates/app/src/screens/viewport/render/tests.rs`,
+//!   under its own block
 
 mod driver;
 

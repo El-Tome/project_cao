@@ -24,6 +24,24 @@
 //!   `the_scale_bar_s_figure_is_written_in_the_monospace_family`; the words
 //!   stay in Inter, the cube's face names among them —
 //!   `the_names_of_the_cube_s_faces_stay_in_the_proportional_family`
+//!
+//! Closes #729. The rest of the issue is in `render/tests.rs`,
+//! `state/tests.rs` and `crates/app/tests/view_bar.rs`, each under its own
+//! block.
+//! - The names lie in perspective on their faces (« DESSUS », « FACE »,
+//!   « DROITE »…), turning with the cube —
+//!   `a_face_s_name_is_painted_lying_on_its_face_and_turns_with_the_cube`;
+//!   decided on the branch: never mirrored from outside, a side face reads
+//!   upright with +Z up — `a_side_face_s_name_reads_upright_and_none_is_mirrored`;
+//!   a face seen too edge-on to read draws no name —
+//!   `a_face_seen_too_edge_on_to_read_draws_no_name`; the name on a lit face
+//!   stays readable against the amber —
+//!   `the_name_on_a_lit_face_stays_readable_against_the_amber`
+//! - An X/Y/Z triad in the cube's corner, in the axis colours —
+//!   `a_triad_stands_in_the_cube_s_corner_in_the_axis_colours`, turning with
+//!   the camera — `the_triad_turns_with_the_camera`
+//! - A name stays inside its face (#225) —
+//!   `a_name_lying_on_its_face_never_leaves_it`
 
 use cao_part::history::PointRef;
 use cao_part::{Operation, PartDocument};

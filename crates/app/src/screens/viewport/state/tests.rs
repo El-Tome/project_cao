@@ -55,6 +55,18 @@
 //! - nothing when the body is hidden, as nothing of it is met when a plane is
 //!   chosen (`viewport/matter.rs` `drawn_under`) —
 //!   `a_hidden_body_has_no_point_under_a_ray`
+//!
+//! Closes #729. The rest of the issue is in `render/tests.rs`,
+//! `render/overlays/tests.rs` and `crates/app/tests/view_bar.rs`, each under
+//! its own block.
+//! - « Vue d'origine » under the cube: the isometric view the part opens with,
+//!   framed on the part — read as: the angles of `OrbitCamera::default`, the
+//!   body's bounds fitted as « Recadrer » fits them —
+//!   `the_origin_view_takes_the_opening_angles_framed_on_the_part`; with no
+//!   volume, the camera a new part opens with —
+//!   `the_origin_view_of_a_part_with_no_volume_is_the_camera_a_new_part_opens_with`
+//! - The cube's corner, size and margin settings —
+//!   `the_cube_keeps_its_corner_size_and_margin_settings`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::Command;

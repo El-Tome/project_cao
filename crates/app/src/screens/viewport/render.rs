@@ -5,7 +5,9 @@
 //! What a click decides lives in [`super::input`].
 
 use cao_prefs::theme::{Background, Theme};
-use cao_render::{AxisStyle, BackgroundShape, SceneFrame, ViewportRect, cube, push_axes, srgb};
+use cao_render::{
+    AxisStyle, BackgroundShape, CubeFace, SceneFrame, ViewportRect, cube, push_axes, srgb,
+};
 use cao_sketch::{DimensionTarget, Going, WorkPlane};
 use glam::DVec2;
 
@@ -50,6 +52,7 @@ pub(crate) use trim::what_would_go;
 use super::matter::Drawn;
 use super::{ViewMode, ViewScale, ViewportState};
 use crate::screens::SketchContext;
+use crate::ui::theme::tokens;
 
 /// A colour from the theme, turned into the space the shader blends in.
 fn tint(color: cao_prefs::theme::Rgba) -> [f32; 4] {
@@ -185,7 +188,11 @@ pub(crate) fn frame_of(
 
     let mut cube_triangles = Vec::new();
     let mut cube_edges = Vec::new();
-    cube::push_faces(&mut cube_triangles, state.hovered_zone);
+    cube::push_faces(
+        &mut cube_triangles,
+        state.hovered_zone,
+        lit_cube_face(context),
+    );
     cube::push_edges(&mut cube_edges, camera.forward(), 1.5);
 
     SceneFrame {
@@ -201,6 +208,17 @@ pub(crate) fn frame_of(
         cube_edges,
         cube_viewport: to_physical(cube_rect, pixels_per_point),
     }
+}
+
+/// The face of the orientation cube the open sketch looks at, and its colour.
+fn lit_cube_face(context: &SketchContext<'_>) -> Option<(CubeFace, [f32; 4])> {
+    context.editor.active_sketch()?;
+    let plane = context.editor.plane?;
+    let [r, g, b, a] = tokens::ACCENT_AMBER.to_normalized_gamma_f32();
+    Some((
+        CubeFace::closest_to(plane.normal().as_vec3()),
+        srgb(r, g, b, a),
+    ))
 }
 
 /// Lights the faces of the part a refusal named, while they are lit, so that

@@ -131,6 +131,7 @@ fn main() {
             CubeFace::MinusY,
             CubeFace::PlusX,
         )),
+        None,
     );
     render(
         &device,
@@ -184,7 +185,7 @@ fn build_frame(camera: &OrbitCamera, plane: Option<(glam::Vec3, glam::Vec3)>) ->
 
     let mut cube_triangles = Vec::new();
     let mut cube_edges = Vec::new();
-    cube::push_faces(&mut cube_triangles, None);
+    cube::push_faces(&mut cube_triangles, None, None);
     cube::push_edges(&mut cube_edges, camera.forward(), 1.5);
 
     let cube_size = 288.0;

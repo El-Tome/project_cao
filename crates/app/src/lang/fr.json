@@ -533,6 +533,8 @@
   "toolbar.group.constraints": "Contraintes",
   "toolbar.group.edit": "Édition",
   "toolbar.group.extrusion": "Extrusion",
+  "toolbar.group.matter": "Matière",
+  "toolbar.group.shape": "Forme",
   "toolbar.group.export": "Export",
   "toolbar.group.stl": "Exporter en STL…",
   "toolbar.stl_level.coarse": "rapide",

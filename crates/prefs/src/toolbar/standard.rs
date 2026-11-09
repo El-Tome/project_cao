@@ -113,11 +113,25 @@ impl Default for ToolbarLayout {
                 Item::group(
                     "extrusion",
                     vec![
-                        Item::Command(C::ExtrusionAdd),
-                        Item::Command(C::ExtrusionCut),
-                        Item::Separator,
-                        Item::Command(C::ExtrusionStraight),
-                        Item::Command(C::ExtrusionRevolution),
+                        Item::group(
+                            "matter",
+                            vec![
+                                Item::Command(C::ExtrusionAdd),
+                                Item::Command(C::ExtrusionCut),
+                            ],
+                        ),
+                        Item::group(
+                            "shape",
+                            vec![
+                                Item::Command(C::ExtrusionStraight),
+                                Item::Command(C::ExtrusionRevolution),
+                            ],
+                        ),
+                        Item::Group {
+                            name: "edit".to_string(),
+                            size: GroupSize::SmallTwoRows,
+                            items: vec![Item::Command(C::Undo), Item::Command(C::Redo)],
+                        },
                     ],
                 ),
                 Item::group(

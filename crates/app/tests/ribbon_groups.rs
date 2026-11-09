@@ -161,13 +161,16 @@
 //!   `crates/app/src/screens/ribbon/state/tests.rs`
 //! - Extrusion tab holds « Matière » (« Ajout de matière », « Enlèvement de
 //!   matière ») · « Forme » (« Extrusion droite », « Révolution ») · « Édition »
-//!   — no test: in this file; held in `crates/prefs/src/toolbar/tests.rs` by
-//!   `the_default_extrusion_tab_holds_its_three_groups_and_their_commands_in_order`
+//!   — `the_extrusion_tab_writes_its_three_groups_in_order_each_under_its_buttons`;
+//!   the tree and its sizes in `crates/prefs/src/toolbar/tests.rs` by
+//!   `the_default_extrusion_tab_holds_its_three_groups_and_their_commands_in_order`,
+//!   the group names in `crates/app/src/wording/toolbar/tests.rs` by
+//!   `the_three_groups_of_the_extrusion_tab_read_as_the_design_names_them`
 //! - Export tab holds « Exporter en STL… ▾ » (« Grossière » « rapide »,
 //!   « Normale » « par défaut », « Fine » « lourd ») and « Exporter en STEP… » —
-//!   no test: in this file; held in `crates/prefs/src/toolbar/tests.rs` by
-//!   `the_default_export_tab_holds_one_stl_split_and_the_step_export`, the
-//!   drawn menu here by `each_stl_level_writes_its_hint_on_its_line`
+//!   `the_export_tab_draws_one_stl_split_with_its_three_levels_and_the_step_export`;
+//!   the tree in `crates/prefs/src/toolbar/tests.rs` by
+//!   `the_default_export_tab_holds_one_stl_split_and_the_step_export`
 //! - Moved out: « Recadrer », « Vue en coupe », « Matière devant » and
 //!   « Terminer » are no longer in the default ribbon. They stay commands, with
 //!   their keys, and can be put back from the preferences —
@@ -1295,12 +1298,21 @@ fn the_sketch_tab_writes_its_five_groups_in_order_each_under_its_buttons() {
         Settings::default(),
     );
 
+    assert_groups_read_in_order_each_under_its_buttons(&app, &THE_FIVE_GROUPS);
+}
+
+/// Each group's name, as written, stands under its buttons, and the names read
+/// left to right in the order given.
+fn assert_groups_read_in_order_each_under_its_buttons(
+    app: &driver::App,
+    groups: &[(&str, &[&str])],
+) {
     let mut lefts = Vec::new();
-    for (name, buttons) in THE_FIVE_GROUPS {
-        let written_name = written(&app, name);
+    for (name, buttons) in groups {
+        let written_name = written(app, name);
         let lowest = buttons
             .iter()
-            .map(|button| the_ribbon_button(&app, button).bottom())
+            .map(|button| the_ribbon_button(app, button).bottom())
             .fold(f32::NEG_INFINITY, f32::max);
         assert!(
             written_name.rect.top() >= lowest,
@@ -1312,8 +1324,74 @@ fn the_sketch_tab_writes_its_five_groups_in_order_each_under_its_buttons() {
 
     assert!(
         lefts.is_sorted(),
-        "the five groups of the sketch tab do not read left to right in order: {lefts:?}",
+        "the groups {groups:?} do not read left to right in order: {lefts:?}",
     );
+}
+
+#[test]
+fn the_extrusion_tab_writes_its_three_groups_in_order_each_under_its_buttons() {
+    let mut app = opened(
+        "the_extrusion_tab_writes_its_three_groups",
+        WIDE,
+        Settings::default(),
+    );
+    driver::click_the_button(&mut app, "Extrusion");
+
+    assert_groups_read_in_order_each_under_its_buttons(
+        &app,
+        &[
+            ("MATIÈRE", &["Ajout de matière", "Enlèvement de matière"]),
+            ("FORME", &["Extrusion droite", "Révolution"]),
+            ("ÉDITION", &["Annuler", "Rétablir"]),
+        ],
+    );
+    for name in ["Ajout de matière", "Extrusion droite"] {
+        let height = the_ribbon_button(&app, name).height();
+        assert!(
+            height >= 64.0,
+            "« {name} », in a large group, is {height} high",
+        );
+    }
+    for name in ["Annuler", "Rétablir"] {
+        assert_tall(
+            the_ribbon_button(&app, name),
+            26.0,
+            &format!("« {name} », in a group small on 2 rows,"),
+        );
+    }
+}
+
+#[test]
+fn the_export_tab_draws_one_stl_split_with_its_three_levels_and_the_step_export() {
+    let app = the_stl_menu_open("the_export_tab_draws_one_stl_split");
+
+    assert_one_split_button(&app, "Exporter en STL…", "Exporter en STL… ⌄");
+    let (stl, step) = (
+        the_button(&app, "Exporter en STL…").rect(),
+        the_ribbon_button(&app, "Exporter en STEP…"),
+    );
+    assert!(
+        step.left() >= stl.right(),
+        "« Exporter en STEP… » at {step:?} does not stand after « Exporter en STL… » at {stl:?}",
+    );
+
+    let levels = [
+        ("Grossière", "rapide"),
+        ("Normale", "par défaut"),
+        ("Fine", "lourd"),
+    ];
+    let tops = levels.map(|(level, _)| the_button(&app, level).rect().top());
+    assert!(
+        tops.is_sorted(),
+        "the three levels do not read in order, their rows at {tops:?}",
+    );
+    for (level, hint) in levels {
+        let row = the_button(&app, level).rect();
+        assert!(
+            row.expand(1.0).contains_rect(written(&app, hint).rect),
+            "« {hint} » is not on the line of « {level} » at {row:?}",
+        );
+    }
 }
 
 #[test]

@@ -17,7 +17,8 @@
 //! - every command of today's ribbon is still there, at the same place in the
 //!   tree — no test: #732 regroups the default tree, and what it holds is held
 //!   by `the_default_sketch_tab_holds_its_five_groups_and_their_commands_in_order`
-//!   and `the_default_extrusion_and_export_tabs_hold_their_commands_at_today_s_places`
+//!   `the_default_extrusion_tab_holds_its_three_groups_and_their_commands_in_order`
+//!   and `the_default_export_tab_holds_one_stl_split_and_the_step_export`
 //! - old settings are ignored — no test: no migration is written, and the
 //!   tests that old settings open on defaults, in `profiles/tests.rs`, stand
 
@@ -271,21 +272,39 @@ fn the_default_sketch_tab_holds_its_five_groups_and_their_commands_in_order() {
 }
 
 #[test]
-fn the_default_extrusion_and_export_tabs_hold_their_commands_at_today_s_places() {
+fn the_default_extrusion_tab_holds_its_three_groups_and_their_commands_in_order() {
     let layout = ToolbarLayout::default();
+    let extrusion = tab(&layout, "extrusion");
 
     assert_eq!(
-        places(tab(&layout, "extrusion"), ""),
+        groups_of(extrusion),
         [
-            "/ExtrusionAdd",
-            "/ExtrusionCut",
-            "/|",
-            "/ExtrusionStraight",
-            "/ExtrusionRevolution",
+            ("matter", GroupSize::Large),
+            ("shape", GroupSize::Large),
+            ("edit", GroupSize::SmallTwoRows),
         ],
     );
     assert_eq!(
-        places(tab(&layout, "export"), ""),
+        places(extrusion, ""),
+        [
+            "/matter/ExtrusionAdd",
+            "/matter/ExtrusionCut",
+            "/shape/ExtrusionStraight",
+            "/shape/ExtrusionRevolution",
+            "/edit/Undo",
+            "/edit/Redo",
+        ],
+    );
+}
+
+#[test]
+fn the_default_export_tab_holds_one_stl_split_and_the_step_export() {
+    let layout = ToolbarLayout::default();
+    let export = tab(&layout, "export");
+
+    assert_eq!(groups_of(export), [("stl", GroupSize::Menu)]);
+    assert_eq!(
+        places(export, ""),
         [
             "/stl/ExportStlCoarse",
             "/stl/ExportStlNormal",

@@ -18,6 +18,16 @@
 //!   and on a convex corner that is not square, as the third decision asks —
 //!   `a_chamfer_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_triangle_where_the_flats_edges_cross`,
 //!   `a_fillet_on_the_three_edges_of_a_corner_that_is_not_square_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`
+//! - The triangle answers to the number after its edges' flats: on a list of
+//!   `n` edges from where the steps' numbers ended at `start`, the flats are
+//!   `start` to `start + n − 1` in the order the list names their edges, as
+//!   #698 numbers them, and the triangle `start + n`, the step ending past it
+//!   so that the next step numbers its own faces after the triangle. The
+//!   triangle belongs to no one edge, so no edge's rank can name it; placed
+//!   after them all, it moves no flat's number, whichever edge the list names
+//!   first. Beyond the issue's wording, a choice of this branch — `a_chamfer_on_the_three_edges_of_a_corner_closes_it_with_a_triangle_where_the_flats_edges_cross`.
+//!   Several corners closed in one step, whose patches would need an order
+//!   among themselves, are not reached by this file
 //! - Decision: the triangle of three chamfers has its corners where the
 //!   chamfer edges cross on each of the three faces; the sphere piece of three
 //!   fillets is centred at the point one value from all three faces, and
@@ -629,6 +639,25 @@ fn mitred_by_rounds(lengths: [f64; 2], radius: f64) -> f64 {
     BLOCK_VOLUME - radius * radius * (1.0 - PI / 4.0) * (first + second)
         + radius.powi(3) * (5.0 / 3.0 - PI / 2.0)
 }
+
+/// What a block keeps once the three edges of a square corner, `lengths`
+/// long, are chamfered at `distance` and closed by a triangle: each flat's
+/// prism taken whole, less what they share inside the cube of side
+/// `distance` at the corner, as the module's documentation derives it.
+fn closed_by_a_triangle(lengths: [f64; 3], distance: f64) -> f64 {
+    let along: f64 = lengths.iter().sum();
+    BLOCK_VOLUME - distance * distance * along / 2.0 + 2.0 * distance.powi(3) / 3.0
+}
+
+/// Every order three things can be named in.
+const ORDERS_OF_THREE: [[usize; 3]; 6] = [
+    [0, 1, 2],
+    [0, 2, 1],
+    [1, 0, 2],
+    [1, 2, 0],
+    [2, 0, 1],
+    [2, 1, 0],
+];
 
 /// What the block keeps once its four top edges are chamfered at `distance`,
 /// mitred at its four top corners: each flat's prism taken whole, and at each
@@ -1782,6 +1811,166 @@ fn a_chamfer_and_a_fillet_on_two_of_the_three_edges_of_a_corner_that_is_not_squa
                         "{what}: face {face}, as on the prism with the two cuts' prisms taken \
                          away"
                     ),
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_chamfer_on_the_three_edges_of_a_corner_closes_it_with_a_triangle_where_the_flats_edges_cross()
+{
+    let distance = 3.0;
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let corner = top_front_right();
+    let steps_end = block.faces_end();
+    let triangle = steps_end + 3;
+
+    for order in ORDERS_OF_THREE {
+        let what = format!(
+            "the chamfer on {}, {} and {}",
+            corner.called[order[0]], corner.called[order[1]], corner.called[order[2]]
+        );
+        let names = order.map(|edge| corner.name(&block, edge));
+
+        let chamfered = block
+            .chamfer_edges(&names, distance)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_as_asked(chamfered.asked, chamfered.taken, distance, &what);
+        let body = &chamfered.body;
+        sound_drawn_within(
+            body,
+            closed_by_a_triangle(corner.length, distance),
+            EXACT * closed_by_a_triangle(corner.length, distance),
+            &what,
+        );
+        let flat_of = |edge: usize| {
+            steps_end
+                + order
+                    .iter()
+                    .position(|&named| named == edge)
+                    .expect("every edge of the corner is named")
+        };
+        assert_eq!(
+            faces_made(&block, body),
+            vec![steps_end, steps_end + 1, steps_end + 2, triangle],
+            "{what}: one flat for each edge, numbered in the order the step names them, and the \
+             triangle after them: {:?}",
+            numbers(body)
+        );
+        assert_eq!(
+            body.faces_end(),
+            triangle + 1,
+            "{what}: the next step numbers its own faces past the triangle"
+        );
+        assert!(
+            numbers(&block).is_subset(&numbers(body)),
+            "{what}: a face of the block went: {:?}",
+            numbers(body)
+        );
+        let d = distance;
+        let in_order = [0, 1, 2];
+        let at = |by: [f64; 3]| corner.point(in_order, by);
+        let crossings = [at([d, d, 0.0]), at([d, 0.0, d]), at([0.0, d, d])];
+
+        corners_are(
+            body,
+            triangle,
+            &crossings,
+            &format!(
+                "{what}: the triangle, its corners where the flats' edges cross on the three faces"
+            ),
+        );
+        faces_toward(
+            body,
+            triangle,
+            -(corner.along[0] + corner.along[1] + corner.along[2]).normalize(),
+            &format!(
+                "{what}: the triangle, facing away from the corner, square to none of its faces"
+            ),
+        );
+        assert_eq!(
+            sides_met(body, triangle),
+            sides(&[flat_of(0), flat_of(1), flat_of(2)]),
+            "{what}: the triangle meets the three flats, one side each, and nothing else"
+        );
+        for edge in 0..3 {
+            let [one, other] = [(edge + 1) % 3, (edge + 2) % 3];
+            let frame = [edge, one, other];
+            let at = |by: [f64; 3]| corner.point(frame, by);
+            let long = corner.length[edge];
+            let flat = flat_of(edge);
+            let which = format!("{what}: the flat of {}", corner.called[edge]);
+            corners_are(
+                body,
+                flat,
+                &[
+                    at([long, d, 0.0]),
+                    at([long, 0.0, d]),
+                    at([d, 0.0, d]),
+                    at([d, d, 0.0]),
+                ],
+                &format!(
+                    "{which}, from its far end to the straight side it shares with the triangle, \
+                     one distance from the corner"
+                ),
+            );
+            faces_toward(
+                body,
+                flat,
+                -(corner.along[one] + corner.along[other]).normalize(),
+                &which,
+            );
+            assert_eq!(
+                sides_met(body, flat),
+                sides(&[
+                    corner.across[one],
+                    corner.across[other],
+                    corner.far[edge],
+                    triangle
+                ]),
+                "{which} meets its edge's two faces along its sides, the face its edge ends on, \
+                 and the triangle, by one edge each, and no other flat"
+            );
+            let face = corner.across[edge];
+            let at = |by: [f64; 3]| corner.point([one, other, edge], by);
+            let [long_one, long_other] = [corner.length[one], corner.length[other]];
+            corners_are(
+                body,
+                face,
+                &[
+                    at([d, d, 0.0]),
+                    at([long_one, d, 0.0]),
+                    at([long_one, long_other, 0.0]),
+                    at([d, long_other, 0.0]),
+                ],
+                &format!(
+                    "{what}: face {face}, set back by the distance from both its edges at the \
+                     corner, touching the triangle at one of its corners"
+                ),
+            );
+            assert_eq!(
+                sides_met(body, face),
+                sides(&[
+                    flat_of(one),
+                    flat_of(other),
+                    corner.far[one],
+                    corner.far[other]
+                ]),
+                "{what}: face {face} meets the flats of its two edges at the corner and the faces \
+                 they end on, and not the triangle along a side"
+            );
+        }
+        for face in numbers(body) {
+            if let Some(plane) = body.plane_of(face) {
+                assert!(
+                    plane
+                        .corners
+                        .iter()
+                        .all(|point| point.distance(corner.at) > PLACE),
+                    "{what}: face {face} still has a corner at the old vertex {}",
+                    corner.at
                 );
             }
         }

@@ -33,10 +33,11 @@ impl Body {
     /// across it, with the other laid. Each flat face is numbered on its own,
     /// in the order the names come, from where the steps' numbers ended. Two
     /// edges meeting at a convex corner are mitred there, the corner's third
-    /// edge left sharp; at a corner where an edge meets inwards they are
-    /// declined `Unsupported`. Flats that would meet anywhere else are
-    /// declined `Unsupported`, until #792 measures them. The first edge
-    /// declined declines the step.
+    /// edge left sharp, and three are closed there by a triangle, numbered
+    /// after every flat; at a corner where an edge meets inwards they are
+    /// declined `Unsupported`. Flats that would meet anywhere else are declined
+    /// `Unsupported`, until #792 measures them. The first edge declined
+    /// declines the step.
     pub fn chamfer_edges(&self, edges: &[EdgeName], distance: f64) -> Result<Chamfered, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

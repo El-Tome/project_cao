@@ -3,10 +3,12 @@
 //! trim each other in a mitre there. A corner is taken only where it is
 //! convex.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+
+use glam::DVec3;
 
 use super::Wedge;
-use crate::brep::{self, EdgeId, EdgeName, VertexId};
+use crate::brep::{self, Declined, EdgeId, EdgeName, VertexId};
 
 /// Whether every corner two of `edges` meet at is convex: each edge ending
 /// there straight between two flat faces that meet outwards. The inner
@@ -19,13 +21,40 @@ pub(super) fn convex(body: &brep::Body, edges: &[EdgeId]) -> bool {
         .filter(|&end| !ends.insert(end))
         .collect();
     shared.into_iter().all(|corner| {
-        body.edge_ids()
-            .filter(|&edge| {
-                body.edge(edge)
-                    .ends
-                    .is_some_and(|ends| ends.contains(&corner))
-            })
-            .all(|edge| Wedge::of(body, edge).is_ok_and(|wedge| !wedge.inwards))
+        ending(body, corner).all(|edge| Wedge::of(body, edge).is_ok_and(|wedge| !wedge.inwards))
+    })
+}
+
+/// The corners three of `edges` meet at, each where it stands and with the
+/// three edges' ranks in the list. Declined `Unsupported` where more than
+/// three of them meet at one, or three meet where another edge ends too.
+pub(super) fn of_three(
+    body: &brep::Body,
+    edges: &[EdgeId],
+) -> Result<Vec<(DVec3, [usize; 3])>, Declined> {
+    let mut at: BTreeMap<VertexId, Vec<usize>> = BTreeMap::new();
+    for (rank, &edge) in edges.iter().enumerate() {
+        for end in body.edge(edge).ends.into_iter().flatten() {
+            at.entry(end).or_default().push(rank);
+        }
+    }
+    at.into_iter()
+        .filter(|(_, ranks)| ranks.len() > 2)
+        .map(|(corner, ranks)| match ranks[..] {
+            [one, two, three] if ending(body, corner).count() == 3 => {
+                Ok((body.vertex(corner).point, [one, two, three]))
+            }
+            _ => Err(Declined::Unsupported),
+        })
+        .collect()
+}
+
+/// The edges that end at a corner.
+fn ending(body: &brep::Body, corner: VertexId) -> impl Iterator<Item = EdgeId> + '_ {
+    body.edge_ids().filter(move |&edge| {
+        body.edge(edge)
+            .ends
+            .is_some_and(|ends| ends.contains(&corner))
     })
 }
 

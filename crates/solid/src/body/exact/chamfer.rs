@@ -7,6 +7,7 @@
 mod prism;
 
 use super::Exact;
+use super::wedge::{Meeting, cut_across};
 use crate::brep::{Declined, EdgeName};
 
 impl Exact {
@@ -22,22 +23,25 @@ impl Exact {
     /// face stop short of crossing; where they meet, the two flats meet in a
     /// ridge on a top, in a valley in a slot. Two edges meeting at a convex
     /// corner are mitred there, from where their flats cross on the face they
-    /// share down to the corner's third edge, left sharp. Flats that would
-    /// meet anywhere else are not measured, and declined where they meet until
-    /// #792. A distance shorter than the kernel can set a cut back from an
-    /// edge is declined first; `Lost`, an edge its name no longer finds.
-    /// Unsupported: a list of no edge, an edge that is not straight between
-    /// two flat faces, one running on tangentially into the next edge of a
-    /// face, one edge named twice, two edges meeting at a corner where an edge
-    /// meets inwards — the inner corner of an L, a pocket's —, two flats that
+    /// share down to the corner's third edge, left sharp. Three edges meeting
+    /// at a convex corner are closed there by a triangle, its corners where
+    /// each two flats' edges cross on the face they share, numbered after the
+    /// flats. Flats that would meet anywhere else are not measured, and
+    /// declined where they meet until #792. A distance shorter than the kernel
+    /// can set a cut back from an edge is declined first; `Lost`, an edge its
+    /// name no longer finds. Unsupported: a list of no edge, an edge that is
+    /// not straight between two flat faces, one running on tangentially into
+    /// the next edge of a face, one edge named twice, two edges meeting at a
+    /// corner where an edge meets inwards — the inner corner of an L, a
+    /// pocket's —, more than three edges meeting at a corner, two flats that
     /// would lie in one plane — a tread's nose and foot set back by half its
-    /// depth — until #791, a face so nearly flush with the chamfer's plane
-    /// that the prism cannot stand off it, and a cut that, carried along the
-    /// edge's line, takes matter beyond the faces it meets there — a flat wall
-    /// leaving the edge at a concave corner, which the cut would run on along
-    /// — seen as a face of the prism but its chamfer left on the body, the
-    /// chamfer in two pieces or with a corner on neither of the edge's faces,
-    /// or a face the body held, but the edge's two, taken away whole.
+    /// depth — until #791, a face so nearly flush with the chamfer's plane that
+    /// the prism cannot stand off it, and a cut that, carried along the edge's
+    /// line, takes matter beyond the faces it meets there — a flat wall leaving
+    /// the edge at a concave corner, which the cut would run on along — seen as
+    /// a face of the prism but its chamfer left on the body, the chamfer in two
+    /// pieces or with a corner on neither of the edge's faces, or a face the
+    /// body held, but the edge's two, taken away whole.
     pub fn chamfered(&self, names: &[EdgeName], distance: f64) -> Result<(Exact, f64), Declined> {
         let (cut, taken, _) = self.cut_off(
             names,
@@ -49,7 +53,10 @@ impl Exact {
                     .prism(taken, scale, bounds)
                     .ok_or(Declined::Unsupported)
             },
-            None,
+            Meeting {
+                together: None,
+                closing: Some(cut_across),
+            },
         )?;
         Ok((cut, taken))
     }

@@ -8,22 +8,22 @@ mod chain;
 mod corners;
 mod fill;
 mod pairs;
+mod reach;
 mod section;
+mod triangle;
 
 use std::collections::BTreeSet;
-use std::f64::consts::PI;
 
 use glam::DVec3;
 
 use super::{Exact, PIECES, root};
 use crate::body::caught::caught;
-use crate::brep::{
-    self, Curve, Declined, Edge, EdgeId, EdgeName, FaceId, Scale, Surface, VertexId,
-};
+use crate::brep::{self, Curve, Declined, EdgeId, EdgeName, FaceId, Scale, Surface, VertexId};
 use crate::profile::{Contour, Frame};
 
 pub(super) use pairs::Together;
 pub(super) use section::Side;
+pub(super) use triangle::{Closing, cut_across};
 
 /// A straight edge between two flat faces: a point of it, the way it runs,
 /// its two faces, for each the way it faces and the way into it, square to
@@ -46,6 +46,14 @@ pub(super) struct Wedge {
 /// stands in, and the travel along the edge.
 pub(super) type Prism = (Contour, Frame, DVec3);
 
+/// What a kind lays where the edges of one step meet: two whose set-backs
+/// meet across the face they share, as one, and a corner three meet at,
+/// closed. Where it is none, the step lays each edge alone, or declines.
+pub(super) struct Meeting {
+    pub together: Option<Together>,
+    pub closing: Option<Closing>,
+}
+
 impl Exact {
     /// The body with the edge each name finds cut off, or filled in where its
     /// faces meet inwards, by the prism `tool` raises over its wedge for the
@@ -57,25 +65,30 @@ impl Exact {
     /// given. Rounds or flats that would meet anywhere else, across a face two
     /// edges share that are not parallel or on a face one of them ends on, are
     /// not measured: the laying declines them where they meet, until #792.
-    /// Where `together` is some, the pairs whose set-backs meet across their
-    /// face, the earlier first, are each taken off as one by the prism it
+    /// Where `meeting` lays two together, the pairs whose set-backs meet across
+    /// their face, the earlier first, are each taken off as one by the prism it
     /// raises, the face they shared gone; where it is none, each edge is laid
     /// alone. Two edges meeting at a convex corner are laid in turn as any two
     /// are, each prism carried past the corner along its edge's line, so that
     /// the later trims the earlier's face there: two flats or two rounds meet
     /// in a mitre, and the later edge is sought with the end the earlier cut
-    /// moved, as [`corners::trimmed`] names it. The wall an edge's prism lays
-    /// is numbered where the steps' numbers ended, plus the edge's rank in the
-    /// list; a pair is laid at its later edge's turn, so that every number
-    /// laid before stands below those a prism lays, as [`Exact::cut_along`]
-    /// reads them. A value shorter than the kernel can set a cut back from an
-    /// edge is declined first; a list of no edge `Unsupported`; an edge its name no longer finds `Lost`; an edge
-    /// that is not a wedge, one edge two names find, two edges meeting at a
-    /// corner that is not convex — an edge ending there that is no wedge, or
-    /// whose faces meet inwards —, where `together` is some an edge meeting
-    /// two others, and a cut or a fill that left something else than its one
-    /// face, as [`Exact::cut_along`] reads it, are declined `Unsupported`; a
-    /// prism the tool cannot raise, as the tool says.
+    /// moved, as [`corners::trimmed`] names it. A corner three of the edges
+    /// meet at is closed once all are laid, by the prism `meeting` raises over
+    /// where each two's set-backs cross on the face they share, as
+    /// [`Exact::closed`] cuts it, its face numbered past the edges'. The wall
+    /// an edge's prism lays is numbered where the steps' numbers ended, plus
+    /// the edge's rank in the list; a pair is laid at its later edge's turn, so
+    /// that every number laid before stands below those a prism lays, as
+    /// [`Exact::cut_along`] reads them. A value shorter than the kernel can set
+    /// a cut back from an edge is declined first; a list of no edge
+    /// `Unsupported`; an edge its name no longer finds `Lost`; an edge that is
+    /// not a wedge, one edge two names find, two edges meeting at a corner that
+    /// is not convex — an edge ending there that is no wedge, or whose faces
+    /// meet inwards —, more than three edges meeting at a corner, or three
+    /// where `meeting` closes none or another edge ends, where `meeting` lays
+    /// two together an edge meeting two others, and a cut or a fill that left
+    /// something else than its one face, as [`Exact::cut_along`] reads it, are
+    /// declined `Unsupported`; a prism the tool cannot raise, as the tool says.
     pub(super) fn cut_off(
         &self,
         names: &[EdgeName],
@@ -83,7 +96,7 @@ impl Exact {
         most: impl Fn(&Wedge) -> f64,
         set_back: impl Fn(&Wedge) -> f64,
         tool: impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
-        together: Option<Together>,
+        meeting: Meeting,
     ) -> Result<(Exact, f64, Vec<pairs::Pair>), Declined> {
         let scale = self.brep.scale();
         if too_short(asked, scale) {
@@ -102,16 +115,19 @@ impl Exact {
             if !once || !corners::convex(&self.brep, &edges) {
                 return Err(Declined::Unsupported);
             }
+            let three = corners::of_three(&self.brep, &edges)?;
             let wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();
             let facing = pairs::facing(&wedges);
             let alone = wedges
                 .iter()
                 .fold(asked, |taken, wedge| taken.min(most(wedge)));
             let taken = alone.min(pairs::bound(&wedges, &facing, &set_back));
-            let pairs = match together {
+            let pairs = match meeting.together {
                 Some(_) => pairs::meeting(&wedges, &facing, taken, &set_back, scale)?,
                 None => Vec::new(),
             };
+            let closes =
+                triangle::closings(three, &wedges, |w| taken * set_back(w), meeting.closing)?;
             let start = self.next;
             let mut cut = self.clone();
             let mut sought = names.to_vec();
@@ -121,7 +137,7 @@ impl Exact {
                 }
                 cut.next = start + rank as u32;
                 let partner = pairs.iter().find(|&&(_, later)| later == rank);
-                cut = match (partner, together) {
+                cut = match (partner, meeting.together) {
                     (Some(&(earlier, _)), Some(together)) => cut.laid_together(
                         [&sought[earlier], &sought[rank]],
                         start + earlier as u32,
@@ -147,7 +163,7 @@ impl Exact {
                 };
             }
             cut.next = start + names.len() as u32;
-            Ok((cut, taken, pairs))
+            Ok((cut.closed(&closes, start)?, taken, pairs))
         })
     }
 
@@ -292,7 +308,7 @@ impl Wedge {
         if towards == 0.0 {
             return Err(Declined::Unsupported);
         }
-        let reach_of = |face: FaceId, into: DVec3| reach(body, face, into, line.origin);
+        let reach_of = |face: FaceId, into: DVec3| reach::reach(body, face, into, line.origin);
         let (Some(first_reach), Some(second_reach)) =
             (reach_of(one, into_first), reach_of(other, into_second))
         else {
@@ -328,52 +344,3 @@ pub(super) fn too_short(length: f64, scale: Scale) -> bool {
 
 /// The number a raise gives the wall of its profile's first run.
 const MADE: u32 = 2;
-
-/// How far a face runs along `into` from the edge's line through `point`:
-/// to the nearest corner of its boundary off that line, or to the nearest
-/// point where a round or a conic of its boundary turns back along `into`.
-/// A whole closed edge counts where its turn starts as a corner, so that a
-/// turning point standing there is not lost between the two ends of the
-/// turn. None where its boundary holds a curve two walls meet along, which
-/// turns back where no closed form says.
-fn reach(body: &brep::Body, face: FaceId, into: DVec3, point: DVec3) -> Option<f64> {
-    let mut far = Vec::new();
-    for coedge in body.face(face).loops.iter().flatten() {
-        let edge = body.edge(coedge.edge);
-        match edge.ends {
-            Some(ends) => far.extend(ends.map(|end| body.vertex(end).point)),
-            None => far.push(body.point_on(coedge.edge, edge.from)),
-        }
-        far.extend(turning_back(body, edge, into)?);
-    }
-    let eps = body.scale().eps();
-    Some(
-        far.into_iter()
-            .map(|at| into.dot(at - point))
-            .filter(|&off| off > eps)
-            .fold(f64::INFINITY, f64::min),
-    )
-}
-
-/// The points strictly inside an edge where its curve turns back along
-/// `into`: none on a line, every half turn from the phase of `into` on a
-/// circle, the conic's own turning points.
-fn turning_back(body: &brep::Body, edge: &Edge, into: DVec3) -> Option<Vec<DVec3>> {
-    let curve = body.curve(edge.curve);
-    let (low, high) = (edge.from.min(edge.to), edge.from.max(edge.to));
-    let turns = match curve {
-        Curve::Line(_) => Vec::new(),
-        Curve::Circle(circle) => {
-            let phase = into.dot(circle.v).atan2(into.dot(circle.u));
-            let first = ((low - phase) / PI).ceil() as i64;
-            let last = ((high - phase) / PI).floor() as i64;
-            (first..=last)
-                .map(|turn| phase + PI * turn as f64)
-                .filter(|&at| at > low && at < high)
-                .collect()
-        }
-        Curve::Conic(conic) => conic.turning(into, low, high),
-        Curve::Meet(_) => return None,
-    };
-    Some(turns.into_iter().map(|at| curve.point(at)).collect())
-}

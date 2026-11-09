@@ -35,12 +35,13 @@ impl Body {
     /// off or, where their faces meet inwards, one round bottom fills in, the
     /// face gone, answering to both their numbers. Such a round is laid at the
     /// radius whose set-backs meet across that face, which may stand a hair
-    /// above the radius taken: its own radius is read off its face, never
-    /// from [`Filleted::taken`]. Two edges meeting at a convex corner are
-    /// mitred there, the corner's third edge left sharp; at a corner where an
-    /// edge meets inwards they are declined `Unsupported`. Rounds that would
-    /// meet anywhere else are declined `Unsupported`, until #792 measures
-    /// them. The first edge declined declines the step.
+    /// above the radius taken: its own radius is read off its face, never from
+    /// [`Filleted::taken`]. Two edges meeting at a convex corner are mitred
+    /// there, the corner's third edge left sharp, and three are declined
+    /// `Unsupported`; at a corner where an edge meets inwards they are declined
+    /// `Unsupported`. Rounds that would meet anywhere else are declined
+    /// `Unsupported`, until #792 measures them. The first edge declined
+    /// declines the step.
     pub fn fillet_edges(&self, edges: &[EdgeName], radius: f64) -> Result<Filleted, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

@@ -5,11 +5,13 @@
 //! check that it left the one face the step names.
 
 mod chain;
+mod closing;
 mod corners;
 mod fill;
 mod pairs;
 mod reach;
 mod section;
+mod sphere;
 mod triangle;
 
 use std::collections::BTreeSet;
@@ -21,9 +23,11 @@ use crate::body::caught::caught;
 use crate::brep::{self, Curve, Declined, EdgeId, EdgeName, FaceId, Scale, Surface, VertexId};
 use crate::profile::{Contour, Frame};
 
+pub(super) use closing::Closing;
 pub(super) use pairs::Together;
 pub(super) use section::Side;
-pub(super) use triangle::{Closing, cut_across};
+pub(super) use sphere::rounded_across;
+pub(super) use triangle::cut_across;
 
 /// A straight edge between two flat faces: a point of it, the way it runs,
 /// its two faces, for each the way it faces and the way into it, square to
@@ -73,22 +77,22 @@ impl Exact {
     /// the later trims the earlier's face there: two flats or two rounds meet
     /// in a mitre, and the later edge is sought with the end the earlier cut
     /// moved, as [`corners::trimmed`] names it. A corner three of the edges
-    /// meet at is closed once all are laid, by the prism `meeting` raises over
-    /// where each two's set-backs cross on the face they share, as
-    /// [`Exact::closed`] cuts it, its face numbered past the edges'. The wall
-    /// an edge's prism lays is numbered where the steps' numbers ended, plus
-    /// the edge's rank in the list; a pair is laid at its later edge's turn, so
-    /// that every number laid before stands below those a prism lays, as
-    /// [`Exact::cut_along`] reads them. A value shorter than the kernel can set
-    /// a cut back from an edge is declined first; a list of no edge
-    /// `Unsupported`; an edge its name no longer finds `Lost`; an edge that is
-    /// not a wedge, one edge two names find, two edges meeting at a corner that
-    /// is not convex — an edge ending there that is no wedge, or whose faces
-    /// meet inwards —, more than three edges meeting at a corner, or three
-    /// where `meeting` closes none or another edge ends, where `meeting` lays
-    /// two together an edge meeting two others, and a cut or a fill that left
-    /// something else than its one face, as [`Exact::cut_along`] reads it, are
-    /// declined `Unsupported`; a prism the tool cannot raise, as the tool says.
+    /// meet at is closed once all are laid, as `meeting` closes it, read where
+    /// each two's set-backs cross on the face they share, as [`Exact::closed`]
+    /// closes it, its face numbered past the edges'. The wall an edge's prism
+    /// lays is numbered where the steps' numbers ended, plus the edge's rank in
+    /// the list; a pair is laid at its later edge's turn, so that every number
+    /// laid before stands below those a prism lays, as [`Exact::cut_along`]
+    /// reads them. A value shorter than the kernel can set a cut back from an
+    /// edge is declined first; a list of no edge `Unsupported`; an edge its
+    /// name no longer finds `Lost`; an edge that is not a wedge, one edge two
+    /// names find, two edges meeting at a corner that is not convex — an edge
+    /// ending there that is no wedge, or whose faces meet inwards —, more than
+    /// three edges meeting at a corner, or three where `meeting` closes none or
+    /// another edge ends, where `meeting` lays two together an edge meeting two
+    /// others, and a cut or a fill that left something else than its one face,
+    /// as [`Exact::cut_along`] reads it, are declined `Unsupported`; a prism
+    /// the tool cannot raise, as the tool says.
     pub(super) fn cut_off(
         &self,
         names: &[EdgeName],
@@ -126,8 +130,13 @@ impl Exact {
                 Some(_) => pairs::meeting(&wedges, &facing, taken, &set_back, scale)?,
                 None => Vec::new(),
             };
-            let closes =
-                triangle::closings(three, &wedges, |w| taken * set_back(w), meeting.closing)?;
+            let closes = closing::closings(
+                three,
+                &wedges,
+                |w| taken * set_back(w),
+                taken,
+                meeting.closing,
+            )?;
             let start = self.next;
             let mut cut = self.clone();
             let mut sought = names.to_vec();

@@ -25,7 +25,10 @@
 //!   so that the next step numbers its own faces after the triangle. The
 //!   triangle belongs to no one edge, so no edge's rank can name it; placed
 //!   after them all, it moves no flat's number, whichever edge the list names
-//!   first. Beyond the issue's wording, a choice of this branch — `a_chamfer_on_the_three_edges_of_a_corner_closes_it_with_a_triangle_where_the_flats_edges_cross`.
+//!   first. The piece of sphere of three rounds is numbered the same way.
+//!   Beyond the issue's wording, a choice of this branch —
+//!   `a_chamfer_on_the_three_edges_of_a_corner_closes_it_with_a_triangle_where_the_flats_edges_cross`,
+//!   `a_fillet_on_the_three_edges_of_a_corner_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces`.
 //!   Several corners closed in one step, whose patches would need an order
 //!   among themselves, are not reached by this file
 //! - Decision: the triangle of three chamfers has its corners where the
@@ -115,7 +118,14 @@
 //! the eighth of the ball of radius `r` about the cube's far corner, `πr³/6`,
 //! which lies inside all three rounds. The body keeps
 //! `V − r²(1 − π/4)(l1 + l2 + l3) + 3r³(1 − π/4) − r³(1 − π/6)`, that is
-//! `V − r²(1 − π/4)(l1 + l2 + l3) + r³(2 − 7π/12)`.
+//! `V − r²(1 − π/4)(l1 + l2 + l3) + r³(2 − 7π/12)`: 5888.63 at 3 on the block
+//! 30 by 10 by 20. Held another way: the three rounds' prisms alone, cut from
+//! the block by the booleans, leave in that cube what lies inside all three
+//! cylinders, the eighth of a Steinmetz tricylinder, `(2 − √2)r³`; the sphere
+//! leaves of it the eighth of the ball, `πr³/6`, and the two counts agree to
+//! the last digit with that body less `(2 − √2 − π/6)r³`. The booleans
+//! decline the piece itself, cut as a box less a ball, its sphere tangent to
+//! the rounds along their ends: no body of theirs holds every face of it.
 //!
 //! The four top edges of a block, two of three at each of its four corners:
 //! each pair overlaps once, so the chamfered body keeps
@@ -647,6 +657,17 @@ fn mitred_by_rounds(lengths: [f64; 2], radius: f64) -> f64 {
 fn closed_by_a_triangle(lengths: [f64; 3], distance: f64) -> f64 {
     let along: f64 = lengths.iter().sum();
     BLOCK_VOLUME - distance * distance * along / 2.0 + 2.0 * distance.powi(3) / 3.0
+}
+
+/// What a block keeps once the three edges of a square corner, `lengths`
+/// long, are rounded at `radius` and closed by a piece of sphere: each
+/// round's strip taken whole, less what they share inside the cube of side
+/// `radius` at the corner but the eighth of the ball, as the module's
+/// documentation derives it.
+fn closed_by_a_sphere(lengths: [f64; 3], radius: f64) -> f64 {
+    let along: f64 = lengths.iter().sum();
+    BLOCK_VOLUME - radius * radius * (1.0 - PI / 4.0) * along
+        + radius.powi(3) * (2.0 - 7.0 * PI / 12.0)
 }
 
 /// Every order three things can be named in.
@@ -1960,6 +1981,232 @@ fn a_chamfer_on_the_three_edges_of_a_corner_closes_it_with_a_triangle_where_the_
                 ]),
                 "{what}: face {face} meets the flats of its two edges at the corner and the faces \
                  they end on, and not the triangle along a side"
+            );
+        }
+        for face in numbers(body) {
+            if let Some(plane) = body.plane_of(face) {
+                assert!(
+                    plane
+                        .corners
+                        .iter()
+                        .all(|point| point.distance(corner.at) > PLACE),
+                    "{what}: face {face} still has a corner at the old vertex {}",
+                    corner.at
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_fillet_on_the_three_edges_of_a_corner_closes_it_with_a_piece_of_sphere_one_radius_from_its_three_faces()
+ {
+    let radius = 3.0;
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    let corner = top_front_right();
+    let steps_end = block.faces_end();
+    let piece = steps_end + 3;
+    let r = radius;
+    let in_order = [0, 1, 2];
+    let centre = corner.point(in_order, [r, r, r]);
+    let rounds = [0, 1, 2].map(|edge| corner.round(edge, [(edge + 1) % 3, (edge + 2) % 3], r));
+    let area: f64 = rounds.iter().map(Round::area).sum::<f64>() + PI * r * r / 2.0;
+
+    for order in ORDERS_OF_THREE {
+        let what = format!(
+            "the fillet on {}, {} and {}",
+            corner.called[order[0]], corner.called[order[1]], corner.called[order[2]]
+        );
+        let names = order.map(|edge| corner.name(&block, edge));
+
+        let filleted = block
+            .fillet_edges(&names, radius)
+            .unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"));
+
+        taken_as_asked(filleted.asked, filleted.taken, radius, &what);
+        let body = &filleted.body;
+        sound_drawn_within(
+            body,
+            closed_by_a_sphere(corner.length, r),
+            DRAWN * reach_of(&block) * area,
+            &what,
+        );
+        let round_of = |edge: usize| {
+            steps_end
+                + order
+                    .iter()
+                    .position(|&named| named == edge)
+                    .expect("every edge of the corner is named")
+        };
+        assert_eq!(
+            faces_made(&block, body),
+            vec![steps_end, steps_end + 1, steps_end + 2, piece],
+            "{what}: one round for each edge, numbered in the order the step names them, and the \
+             piece of sphere after them: {:?}",
+            numbers(body)
+        );
+        assert_eq!(
+            body.faces_end(),
+            piece + 1,
+            "{what}: the next step numbers its own faces past the piece of sphere"
+        );
+        assert!(
+            numbers(&block).is_subset(&numbers(body)),
+            "{what}: a face of the block went: {:?}",
+            numbers(body)
+        );
+
+        let which = format!("{what}: the piece of sphere");
+        assert!(
+            !body.is_flat(piece) && body.plane_of(piece).is_none(),
+            "{which} is curved, and offers no plane to draw on"
+        );
+        let drawn: Vec<DVec3> = body.triangles_of(piece).flatten().collect();
+        assert!(!drawn.is_empty(), "{which} is drawn");
+        for point in &drawn {
+            assert!(
+                (point.distance(centre) - r).abs() < PLACE,
+                "{which} is drawn through {point}, off the sphere of {r} about {centre}, one \
+                 radius from each of the corner's three faces"
+            );
+            for edge in 0..3 {
+                assert!(
+                    corner.along_edge(*point, edge) <= r + PLACE,
+                    "{which} is drawn through {point}, past the end section of the round on {}, \
+                     one radius from the corner along it",
+                    corner.called[edge]
+                );
+            }
+        }
+        for (face, point) in [
+            (corner.across[0], corner.point(in_order, [0.0, r, r])),
+            (corner.across[1], corner.point(in_order, [r, 0.0, r])),
+            (corner.across[2], corner.point(in_order, [r, r, 0.0])),
+        ] {
+            assert!(
+                drawn.iter().any(|corner| corner.distance(point) < PLACE),
+                "{which}: a corner at {point}, where it touches face {face}"
+            );
+        }
+        for weights in [
+            [1.0, 1.0, 1.0],
+            [2.0, 1.0, 1.0],
+            [1.0, 2.0, 1.0],
+            [1.0, 1.0, 2.0],
+        ] {
+            let facing = -(0..3)
+                .map(|edge| corner.along[edge] * weights[edge])
+                .sum::<DVec3>()
+                .normalize();
+            let from = centre + facing * (r + 10.0);
+            let hit = body.ray_hit(from, -facing).unwrap_or_else(|| {
+                panic!("{which}: a ray from {from} toward its centre meets nothing")
+            });
+            assert_eq!(
+                hit.face, piece,
+                "{which}: a ray from {from} toward its centre meets face {} before it",
+                hit.face
+            );
+            assert!(
+                hit.normal.distance(facing) < PLACE,
+                "{which}: where a ray from {from} meets it, it faces {}, not {facing}, away from \
+                 its centre",
+                hit.normal
+            );
+        }
+        assert_eq!(
+            sides_met(body, piece),
+            sides(&[round_of(0), round_of(1), round_of(2)]),
+            "{which} meets the three rounds, one side each, and nothing else"
+        );
+
+        for (edge, round) in rounds.iter().enumerate() {
+            let [one, other] = [(edge + 1) % 3, (edge + 2) % 3];
+            let face = round_of(edge);
+            let which = format!("{what}: the round of {}", corner.called[edge]);
+            assert!(
+                !body.is_flat(face) && body.plane_of(face).is_none(),
+                "{which} is curved, and offers no plane to draw on"
+            );
+            let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
+            assert!(!corners.is_empty(), "{which} is drawn");
+            for point in &corners {
+                assert!(
+                    round.holds(*point),
+                    "{which} is drawn through {point}, off its cylinder of {r} about the line \
+                     from {} along {}",
+                    round.start,
+                    round.along
+                );
+                assert!(
+                    corner.along_edge(*point, edge) >= r - PLACE,
+                    "{which} is drawn through {point}, short of its end section, one radius from \
+                     the corner along its edge"
+                );
+            }
+            let section: Vec<&DVec3> = corners
+                .iter()
+                .filter(|point| (corner.along_edge(**point, edge) - r).abs() < PLACE)
+                .collect();
+            let at = |by: [f64; 3]| corner.point([edge, one, other], by);
+            for end in [at([r, 0.0, r]), at([r, r, 0.0])] {
+                assert!(
+                    section.iter().any(|point| point.distance(end) < PLACE),
+                    "{which}: its end section, an arc in the plane through the sphere's centre \
+                     square to its edge, ends at {end}, among {section:?}"
+                );
+            }
+            assert!(
+                section.len() > 2,
+                "{which}: its end section is drawn along the arc between its two ends: \
+                 {section:?}"
+            );
+            met_from_outside(
+                body,
+                face,
+                &round.part(r, round.length),
+                &format!("{which}, past its end section"),
+            );
+            assert_eq!(
+                sides_met(body, face),
+                sides(&[
+                    corner.across[one],
+                    corner.across[other],
+                    corner.far[edge],
+                    piece
+                ]),
+                "{which} meets its edge's two faces along its sides, the face its edge ends on, \
+                 and the piece of sphere along its end section, by one edge each, and no other \
+                 round"
+            );
+
+            let across = corner.across[edge];
+            let at = |by: [f64; 3]| corner.point([one, other, edge], by);
+            let [long_one, long_other] = [corner.length[one], corner.length[other]];
+            corners_are(
+                body,
+                across,
+                &[
+                    at([r, r, 0.0]),
+                    at([long_one, r, 0.0]),
+                    at([long_one, long_other, 0.0]),
+                    at([r, long_other, 0.0]),
+                ],
+                &format!(
+                    "{what}: face {across}, set back by the radius from both its edges at the \
+                     corner, touching the piece of sphere at one of its corners"
+                ),
+            );
+            assert_eq!(
+                sides_met(body, across),
+                sides(&[
+                    round_of(one),
+                    round_of(other),
+                    corner.far[one],
+                    corner.far[other]
+                ]),
+                "{what}: face {across} meets the rounds of its two edges at the corner and the \
+                 faces they end on, and not the piece of sphere along a side"
             );
         }
         for face in numbers(body) {

@@ -316,7 +316,7 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | The set of profiles, read and written | `prefs/src/profiles.rs` | `Profiles` |
 | Viewport and navigation settings | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
 | Colours and gradients of the viewport | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` — the chrome's own colours are `app/src/ui/theme.rs` |
-| Keyboard shortcuts | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key`, `Modifier`, `adopt_new_bindings` |
+| Keyboard shortcuts | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key`, `Modifier` |
 | Toolbar | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge`, `adopt_new_commands` |
 | Which buttons a fresh installation shows | `prefs/src/toolbar/standard.rs` | `impl Default for ToolbarLayout` |
 

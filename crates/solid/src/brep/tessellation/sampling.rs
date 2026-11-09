@@ -103,6 +103,9 @@ pub(super) struct Samples {
     vertices: usize,
     grids: BTreeMap<SurfaceId, Grid>,
     pub(in crate::brep::tessellation) lines: Vec<EdgeId>,
+    /// Half the diagonal of the box the body fits in, which bounds the most
+    /// steps a turn is cut into.
+    pub(in crate::brep::tessellation) span: f64,
 }
 
 impl Samples {
@@ -111,14 +114,15 @@ impl Samples {
     pub(super) fn of(body: &Body, tolerance: f64) -> Samples {
         let walls = contact::walls(body);
         let zones = Zones::of(body, &walls);
-        let grids = cone::grids(body, tolerance);
-        let first = Samples::through(body, &walls, &zones, &grids, &BTreeMap::new(), tolerance);
+        let fineness = (tolerance, steps::span(body));
+        let grids = cone::grids(body, fineness);
+        let first = Samples::through(body, &walls, &zones, &grids, &BTreeMap::new(), fineness);
         let mut beneath = beneath::walls(body, &walls, &first, tolerance);
         beneath.extend(beneath::oval::walls(body, &first, tolerance));
         let mut samples = if beneath.is_empty() {
             first
         } else {
-            Samples::through(body, &walls, &zones, &grids, &beneath, tolerance)
+            Samples::through(body, &walls, &zones, &grids, &beneath, fineness)
         };
         samples.grids = grids;
         samples
@@ -132,48 +136,47 @@ impl Samples {
         zones: &Zones,
         grids: &BTreeMap<SurfaceId, Grid>,
         beneath: &BTreeMap<SurfaceId, Vec<DVec3>>,
-        tolerance: f64,
+        fineness: (f64, f64),
     ) -> Samples {
+        let (tolerance, span) = fineness;
         let mut samples = Samples {
             points: body.vertex_ids().map(|id| body.vertex(id).point).collect(),
             edges: Vec::new(),
             vertices: body.vertex_ids().count(),
             grids: BTreeMap::new(),
             lines: crossing::lines(body, zones),
+            span,
         };
         let eps = body.scale().eps();
-        let fineness = (tolerance, body.scale().reach());
         let alone = BTreeMap::new();
-        let abreast = Abreast::of(body, tolerance);
-        let axes = Axes::of(body, grids, walls, tolerance);
+        let abreast = Abreast::of(body, fineness);
+        let axes = Axes::of(body, grids, walls, fineness);
         let given = abreast.joined(axes.given());
-        let mut meets = on_meets(body, walls, zones, &alone, grids, tolerance);
-        let mut contacts =
-            contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
+        let mut meets = on_meets(body, walls, zones, &alone, grids, fineness);
+        let mut contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, fineness);
         let meeting = body
             .edge_ids()
             .any(|id| matches!(body.curve(body.edge(id).curve), Curve::Meet(_)));
         if meeting {
-            meets = on_meets(body, walls, zones, &contacts, grids, tolerance);
-            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
+            meets = on_meets(body, walls, zones, &contacts, grids, fineness);
+            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, fineness);
         }
         let mut axes = axes.gathered(&contacts);
         let gathered = abreast.joined(axes.given());
         if gathered != given {
-            contacts = contact::contacts(body, walls, zones, &meets, beneath, &gathered, tolerance);
+            contacts = contact::contacts(body, walls, zones, &meets, beneath, &gathered, fineness);
             axes = axes.gathered(&contacts);
         }
-        let along = conic::rays_along(body, walls, zones, grids, &contacts, tolerance);
+        let along = conic::rays_along(body, walls, zones, grids, &contacts, fineness);
         if !along.is_empty() {
             let mut given = abreast.joined(axes.given());
             for (wall, rays) in along {
                 given.entry(wall).or_default().extend(rays);
             }
-            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
+            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, fineness);
             if meeting {
-                meets = on_meets(body, walls, zones, &contacts, grids, tolerance);
-                contacts =
-                    contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
+                meets = on_meets(body, walls, zones, &contacts, grids, fineness);
+                contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, fineness);
             }
         }
         abreast.withhold(&mut contacts);
@@ -186,14 +189,7 @@ impl Samples {
                 Curve::Line(_) => Vec::new(),
                 Curve::Conic(conic) => {
                     let rays = conic::rays_about(conic, walls, &contacts, eps);
-                    conic::of_edge(
-                        body,
-                        edge,
-                        conic,
-                        (zones, grids, &abreast),
-                        &rays,
-                        tolerance,
-                    )
+                    conic::of_edge(body, edge, conic, (zones, grids, &abreast), &rays, fineness)
                 }
                 Curve::Circle(circle) => match meridian_of(circle, grids, eps) {
                     Some((surface, round, rows)) => {
@@ -213,7 +209,7 @@ impl Samples {
                         let ends = Ends::of(body, circle, edge);
                         let planes =
                             touching_planes(body, circle.center, circle.axis, circle.radius);
-                        let steps = divisions_in(circle.radius, tolerance, fineness.1);
+                        let steps = divisions_in(circle.radius, tolerance, span);
                         on_circle_by(circle, edge, steps, eps, contact, &ends, &planes)
                     }
                 },
@@ -335,14 +331,14 @@ fn on_meets(
     zones: &Zones,
     contacts: &BTreeMap<SurfaceId, Contact>,
     grids: &BTreeMap<SurfaceId, Grid>,
-    tolerance: f64,
+    fineness: (f64, f64),
 ) -> Vec<Vec<DVec3>> {
     body.edge_ids()
         .map(|id| {
             let edge = body.edge(id);
             match body.curve(edge.curve) {
                 Curve::Meet(meet) => {
-                    meet::of_edge(body, id, meet, (walls, zones, contacts), grids, tolerance)
+                    meet::of_edge(body, id, meet, (walls, zones, contacts), grids, fineness)
                 }
                 Curve::Line(_) | Curve::Circle(_) | Curve::Conic(_) => Vec::new(),
             }

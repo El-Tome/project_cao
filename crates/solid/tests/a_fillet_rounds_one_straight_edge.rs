@@ -73,7 +73,8 @@
 //! Closes #777.
 //! - #697's near-flat sweep (`a_fillet_on_an_edge_nearly_flat_or_not_…`)
 //!   checks what its triangles enclose, at every radius, including the
-//!   largest —
+//!   largest, which it holds rounded at every angle, 3437 at 179.5° among
+//!   them —
 //!   `a_fillet_on_an_edge_nearly_flat_or_not_is_declined_as_too_short_or_lays_a_round_of_its_own_at_every_radius`;
 //!   the issue's other criteria are held in `an_arc_far_wider_than_the_part.rs`
 
@@ -1938,6 +1939,10 @@ fn a_fillet_on_an_edge_nearly_flat_or_not_is_declined_as_too_short_or_lays_a_rou
             match rounded_on_the_bend(&part, &name, turn, asked) {
                 Err(fault) => faults.push(format!("{degrees}°, {asked:e} asked: {fault}")),
                 Ok(true) => rounded += 1,
+                Ok(false) if step == 0 => faults.push(format!(
+                    "{degrees}°: the largest radius the halves give, {asked:e}, is declined as \
+                     too short, so what its triangles enclose goes unchecked"
+                )),
                 Ok(false) => {}
             }
         }

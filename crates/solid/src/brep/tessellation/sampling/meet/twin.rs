@@ -38,7 +38,7 @@ pub(super) fn shared(
     meet: &Meet,
     around: Around,
     grids: &BTreeMap<SurfaceId, Grid>,
-    tolerance: f64,
+    fineness: (f64, f64),
     points: Vec<DVec3>,
 ) -> Vec<DVec3> {
     let edge = body.edge(id);
@@ -47,6 +47,7 @@ pub(super) fn shared(
     };
     let held = contact::held(body, id, meet);
     let eps = body.scale().eps();
+    let tolerance = fineness.0;
     for (pair, drift) in around.1.sharing() {
         let radius = pair[0].radius.min(pair[1].radius);
         let apart = drift.min(tolerance / radius);
@@ -62,7 +63,7 @@ pub(super) fn shared(
         else {
             continue;
         };
-        let theirs = alone(body, twin_edge, &twin, around, grids, tolerance);
+        let theirs = alone(body, twin_edge, &twin, around, grids, fineness);
         if theirs.is_empty() {
             continue;
         }

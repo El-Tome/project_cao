@@ -232,17 +232,16 @@ pub(super) fn contacts(
     meets: &[Vec<DVec3>],
     inside: &BTreeMap<SurfaceId, Vec<DVec3>>,
     given: &BTreeMap<SurfaceId, Vec<DVec3>>,
-    tolerance: f64,
+    fineness: (f64, f64),
 ) -> BTreeMap<SurfaceId, Contact> {
     let eps = body.scale().eps();
-    let fineness = (tolerance, body.scale().reach());
     let mut own = given.clone();
     along_meets(body, meets, &mut own);
     let Through {
         anchors,
         mut pinned,
         beneath,
-    } = through_vertices(body, walls, inside, tolerance, &mut own);
+    } = through_vertices(body, walls, inside, fineness, &mut own);
     one_place(walls, eps, &mut own);
     let mut close = Vec::new();
     let mut leaning = Vec::new();

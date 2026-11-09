@@ -65,7 +65,7 @@ pub(in crate::brep::tessellation::contact) fn sampled(
     facing: &Facing,
     hub: Option<DVec3>,
     planes: [&[Plane]; 2],
-    (tolerance, reach): (f64, f64),
+    (tolerance, span): (f64, f64),
     eps: f64,
 ) -> Option<Together> {
     let (outer, inner) = (outer_wall.1, inner_wall.1);
@@ -80,14 +80,14 @@ pub(in crate::brep::tessellation::contact) fn sampled(
         return None;
     }
     let sag =
-        |radius: f64| radius * (1.0 - (PI / divisions_in(radius, tolerance, reach) as f64).cos());
+        |radius: f64| radius * (1.0 - (PI / divisions_in(radius, tolerance, span) as f64).cos());
     let gap = outer.radius - inner.radius - offset.length();
     if gap.abs() > 2.0 * sag(outer.radius).max(sag(inner.radius)) {
         return None;
     }
 
-    let outer_steps = divisions_in(outer.radius, tolerance, reach);
-    let inner_steps = divisions_in(inner.radius, tolerance, reach);
+    let outer_steps = divisions_in(outer.radius, tolerance, span);
+    let inner_steps = divisions_in(inner.radius, tolerance, span);
     let through_outer = (0..outer_steps)
         .map(|step| {
             let angle = TAU * step as f64 / outer_steps as f64;

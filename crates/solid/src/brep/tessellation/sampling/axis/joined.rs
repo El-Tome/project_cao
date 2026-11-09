@@ -27,7 +27,7 @@ pub(super) fn along(origin: DVec3, axis: DVec3, (_, wall): &Wall, eps: f64) -> b
 /// close.
 ///
 /// [`contact`]: crate::brep::tessellation::contact
-fn together(one: &Cylinder, other: &Cylinder, (tolerance, reach): (f64, f64)) -> bool {
+fn together(one: &Cylinder, other: &Cylinder, (tolerance, span): (f64, f64)) -> bool {
     let (outer, inner) = if one.radius >= other.radius {
         (one, other)
     } else {
@@ -36,7 +36,7 @@ fn together(one: &Cylinder, other: &Cylinder, (tolerance, reach): (f64, f64)) ->
     let between = inner.origin - outer.origin;
     let offset = (between - outer.axis * outer.axis.dot(between)).length();
     let sag =
-        |radius: f64| radius * (1.0 - (PI / divisions_in(radius, tolerance, reach) as f64).cos());
+        |radius: f64| radius * (1.0 - (PI / divisions_in(radius, tolerance, span) as f64).cos());
     offset < outer.radius
         && (outer.radius - inner.radius - offset).abs()
             <= 2.0 * sag(outer.radius).max(sag(inner.radius))
@@ -49,12 +49,12 @@ fn together(one: &Cylinder, other: &Cylinder, (tolerance, reach): (f64, f64)) ->
 /// but lying on it only along the axis, and is left as it was. A sphere or a
 /// torus stands close to no circle this way yet (#576): a coaxial wall a
 /// hair inside a ball is a family the campaign measures.
-pub(super) fn beside(circle: &Circle, grid: &Grid, (tolerance, reach): (f64, f64)) -> bool {
+pub(super) fn beside(circle: &Circle, grid: &Grid, (tolerance, span): (f64, f64)) -> bool {
     let Spun::Cone(cone) = &grid.spun else {
         return false;
     };
     let sag = |steps: usize| circle.radius * (1.0 - (PI / steps as f64).cos());
-    let room = 2.0 * sag(divisions_in(circle.radius, tolerance, reach)).max(sag(grid.steps));
+    let room = 2.0 * sag(divisions_in(circle.radius, tolerance, span)).max(sag(grid.steps));
     let height = (circle.center - cone.origin).dot(cone.axis);
     cone.holds(circle, room) && (cone.section(height) - circle.radius).abs() <= room
 }

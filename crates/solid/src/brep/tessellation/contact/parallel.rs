@@ -91,7 +91,7 @@ pub(super) fn touching(
     (id, cylinder): &Wall,
     other: &Cylinder,
     facing: &Facing,
-    (tolerance, reach): (f64, f64),
+    (tolerance, span): (f64, f64),
     eps: f64,
 ) -> Vec<(usize, [f64; 2])> {
     let between = cylinder.origin - other.origin;
@@ -103,7 +103,7 @@ pub(super) fn touching(
     if apart < low - eps || apart > high + eps {
         return Vec::new();
     }
-    let steps = divisions_in(cylinder.radius, tolerance, reach);
+    let steps = divisions_in(cylinder.radius, tolerance, span);
     (0..steps)
         .flat_map(|step| {
             let angle = TAU * step as f64 / steps as f64;

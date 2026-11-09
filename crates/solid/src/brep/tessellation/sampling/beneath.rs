@@ -43,9 +43,7 @@ pub(super) fn walls(
             continue;
         }
         let sag = cylinder.radius
-            * (1.0
-                - (PI / divisions_in(cylinder.radius, tolerance, body.scale().reach()) as f64)
-                    .cos());
+            * (1.0 - (PI / divisions_in(cylinder.radius, tolerance, samples.span) as f64).cos());
         let holds = |point: DVec3| {
             let at = cylinder.parameters(point);
             body.face_ids().any(|face| {

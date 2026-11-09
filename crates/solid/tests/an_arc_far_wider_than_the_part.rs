@@ -20,7 +20,12 @@
 //!   the part), a fineness past the cap is declined as today (`Uncovered`),
 //!   never written off the tolerance —
 //!   `a_wall_on_an_arc_far_wider_than_the_part_written_to_stl_holds_a_fineness_past_a_thousand_and_twenty_four_steps_a_turn`,
-//!   `a_circle_no_wider_than_the_part_asked_finer_than_a_thousand_and_twenty_four_steps_a_turn_is_declined_as_uncovered`
+//!   the same wall drawn far from the origin by
+//!   `a_wall_on_an_arc_far_wider_than_the_part_drawn_far_from_the_origin_written_to_stl_holds_the_same_fineness`;
+//!   `a_circle_no_wider_than_the_part_asked_finer_than_a_thousand_and_twenty_four_steps_a_turn_is_declined_as_uncovered`,
+//!   and the same on a plane tilted so that no coordinate reaches the
+//!   circle's radius by
+//!   `a_disc_no_wider_than_its_part_on_a_tilted_plane_asked_finer_than_a_thousand_and_twenty_four_steps_a_turn_is_declined_as_uncovered`
 //!
 //! The fifth criterion is read as the comment of 2026-11-09 on the issue
 //! decided it with the human: the issue's own wording asked an ordinary circle
@@ -105,7 +110,13 @@ impl OnAnArc {
     /// The outline raised by [`HEIGHT`], joined to an empty part as
     /// `cao_part` builds a step.
     fn raised(&self) -> Body {
-        on_a_part(raised(self.outline(), GROUND, HEIGHT))
+        self.raised_at(DVec3::ZERO)
+    }
+
+    /// [`Self::raised`], drawn on the ground moved to `origin`.
+    fn raised_at(&self, origin: DVec3) -> Body {
+        let frame = Frame { origin, ..GROUND };
+        on_a_part(raised(self.outline(), frame, HEIGHT))
     }
 
     /// The quadrilateral of the outline's corners, and the segment between
@@ -221,6 +232,60 @@ fn read(bytes: &[u8]) -> Vec<[DVec3; 3]> {
             [corner(at), corner(at + 12), corner(at + 24)]
         })
         .collect()
+}
+
+/// The ground tilted square to (1, 1, 1), through the origin.
+const TILTED: Frame = Frame {
+    origin: DVec3::ZERO,
+    u: DVec3::new(
+        std::f64::consts::FRAC_1_SQRT_2,
+        -std::f64::consts::FRAC_1_SQRT_2,
+        0.0,
+    ),
+    v: DVec3::new(
+        0.408_248_290_463_863,
+        0.408_248_290_463_863,
+        -0.816_496_580_927_726,
+    ),
+};
+
+/// How far rounding every number of a binary STL to an `f32` may move a
+/// point of its triangles, on a part reaching `reach` from the origin: half
+/// an ulp on each coordinate, √3 of it across three.
+fn written_rounding(reach: f64) -> f64 {
+    f64::from(f32::EPSILON) * reach
+}
+
+/// Holds that the wall, drawn on the ground moved to `origin`, is written at
+/// `gap` and every point of every triangle read back stands within `gap` of
+/// one of its surfaces.
+fn written_within(wall: &OnAnArc, origin: DVec3, gap: f64) {
+    let what = format!(
+        "the wall on the arc of {} over {}° drawn at {origin}, at {gap} mm",
+        wall.radius, wall.degrees
+    );
+    let body = wall.raised_at(origin);
+    let rounding = written_rounding(reach_of(&body));
+
+    let bytes = stl::of(&body, gap, 1.0)
+        .unwrap_or_else(|declined| panic!("{what}: {declined:?}, where it is written"));
+
+    let triangles = read(&bytes);
+    assert!(!triangles.is_empty(), "{what}: nothing was written");
+    let mut furthest = 0.0f64;
+    for corners in &triangles {
+        for one in 0..=8 {
+            for other in 0..=8 - one {
+                let (a, b) = (one as f64 / 8.0, other as f64 / 8.0);
+                let point = corners[0] * (1.0 - a - b) + corners[1] * a + corners[2] * b;
+                furthest = furthest.max(wall.off_every_surface(point - origin));
+            }
+        }
+    }
+    assert!(
+        furthest <= gap + rounding,
+        "{what}: a triangle stands {furthest:e} off every surface"
+    );
 }
 
 /// The largest coordinate a body reaches, on either side of the origin.
@@ -340,7 +405,6 @@ fn a_circle_no_wider_than_the_part_asked_finer_than_a_thousand_and_twenty_four_s
 #[test]
 fn a_wall_on_an_arc_far_wider_than_the_part_written_to_stl_holds_a_fineness_past_a_thousand_and_twenty_four_steps_a_turn()
  {
-    let gap = 0.005;
     for wall in [
         OnAnArc {
             radius: 3437.0,
@@ -351,31 +415,44 @@ fn a_wall_on_an_arc_far_wider_than_the_part_written_to_stl_holds_a_fineness_past
             degrees: 1.0,
         },
     ] {
-        let what = format!(
-            "the wall on the arc of {} over {}°, at {gap} mm",
-            wall.radius, wall.degrees
-        );
-        let body = wall.raised();
-        let rounding = 4.0 * f64::from(f32::EPSILON) * reach_of(&body);
-
-        let bytes = stl::of(&body, gap, 1.0)
-            .unwrap_or_else(|declined| panic!("{what}: {declined:?}, where it is written"));
-
-        let triangles = read(&bytes);
-        assert!(!triangles.is_empty(), "{what}: nothing was written");
-        let mut furthest = 0.0f64;
-        for corners in &triangles {
-            for one in 0..=8 {
-                for other in 0..=8 - one {
-                    let (a, b) = (one as f64 / 8.0, other as f64 / 8.0);
-                    let point = corners[0] * (1.0 - a - b) + corners[1] * a + corners[2] * b;
-                    furthest = furthest.max(wall.off_every_surface(point));
-                }
-            }
-        }
-        assert!(
-            furthest <= gap + rounding,
-            "{what}: a triangle stands {furthest:e} off every surface"
-        );
+        written_within(&wall, DVec3::ZERO, 0.005);
     }
+}
+
+#[test]
+fn a_wall_on_an_arc_far_wider_than_the_part_drawn_far_from_the_origin_written_to_stl_holds_the_same_fineness()
+ {
+    let wall = OnAnArc {
+        radius: 3437.0,
+        degrees: 0.5,
+    };
+
+    written_within(&wall, DVec3::new(5000.0, 0.0, 0.0), 0.005);
+}
+
+#[test]
+fn a_disc_no_wider_than_its_part_on_a_tilted_plane_asked_finer_than_a_thousand_and_twenty_four_steps_a_turn_is_declined_as_uncovered()
+ {
+    let radius = 2000.0;
+    let disc = on_a_part(raised(disc(DVec2::ZERO, radius), TILTED, 10.0));
+    let finest_under_the_cap = 0.01;
+    let past_the_cap = 0.0075;
+    let needed = |gap: f64| std::f64::consts::PI / (1.0 - gap / radius).acos();
+    assert!(needed(finest_under_the_cap) < 1024.0 && needed(past_the_cap) > 1024.0);
+
+    let written = stl::of(&disc, finest_under_the_cap, 1.0).map(|bytes| written(&bytes));
+    let declined = stl::of(&disc, past_the_cap, 1.0).err();
+
+    assert!(
+        written.is_ok(),
+        "the disc 4 m across on a tilted plane is written within {finest_under_the_cap} mm"
+    );
+    assert_eq!(
+        declined,
+        Some(Uncovered),
+        "the disc 4 m across on a tilted plane, reaching {:.0} from the origin, asked within \
+         {past_the_cap} mm: {:.0} steps a turn",
+        reach_of(&disc),
+        needed(past_the_cap)
+    );
 }

@@ -70,14 +70,13 @@ pub(super) fn of_edge(
     conic: &Conic,
     (zones, grids, abreast): (&Zones, &BTreeMap<SurfaceId, Grid>, &Abreast),
     rays: &[f64],
-    tolerance: f64,
+    (tolerance, span): (f64, f64),
 ) -> Vec<DVec3> {
     let eps = body.scale().eps();
-    let reach = body.scale().reach();
     let plane = Surface::Plane(conic.plane);
     match conic.round {
         Round::Cylinder(cylinder) => {
-            let steps = divisions_in(cylinder.radius, tolerance, reach);
+            let steps = divisions_in(cylinder.radius, tolerance, span);
             let grid = turn(steps);
             let planes = touching_planes(body, cylinder.origin, cylinder.axis, cylinder.radius);
             let step = TAU * cylinder.radius / steps as f64;
@@ -97,7 +96,7 @@ pub(super) fn of_edge(
                 Some(grid) => (turn(grid.steps), grid.vertex_angles().to_vec()),
                 None => {
                     let widest = conic.widest(edge.from, edge.to);
-                    (turn(divisions_in(widest, tolerance, reach)), Vec::new())
+                    (turn(divisions_in(widest, tolerance, span)), Vec::new())
                 }
             };
             let step = TAU * conic.widest(edge.from, edge.to) / grid.len() as f64;
@@ -108,7 +107,7 @@ pub(super) fn of_edge(
             on_conic(conic, edge, tolerance, eps, [&grid, &rays], &clear)
         }
         Round::Elliptic(wall) => {
-            let steps = divisions_in(wall.major, tolerance, reach);
+            let steps = divisions_in(wall.major, tolerance, span);
             let id = body
                 .surfaces
                 .iter()

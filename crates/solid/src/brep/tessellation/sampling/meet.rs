@@ -178,10 +178,10 @@ pub(super) fn of_edge(
     meet: &Meet,
     around: Around,
     grids: &BTreeMap<SurfaceId, Grid>,
-    tolerance: f64,
+    fineness: (f64, f64),
 ) -> Vec<DVec3> {
-    let points = alone(body, edge, meet, around, grids, tolerance);
-    twin::shared(body, edge, meet, around, grids, tolerance, points)
+    let points = alone(body, edge, meet, around, grids, fineness);
+    twin::shared(body, edge, meet, around, grids, fineness, points)
 }
 
 /// The walls of the body, the pairs of them face to face, and what each
@@ -199,7 +199,7 @@ fn alone(
     meet: &Meet,
     (walls, zones, contacts): Around,
     grids: &BTreeMap<SurfaceId, Grid>,
-    tolerance: f64,
+    (tolerance, span): (f64, f64),
 ) -> Vec<DVec3> {
     let edge = body.edge(id);
     let own = contact::held(body, id, meet);
@@ -207,7 +207,6 @@ fn alone(
         return Vec::new();
     }
     let eps = body.scale().eps();
-    let reach = body.scale().reach();
     let carried = [meet.first, meet.second];
     let grid = |cone: &Cone| {
         grids
@@ -216,15 +215,15 @@ fn alone(
     };
     let steps = carried.map(|wall| match wall {
         Wall::Cone(cone) => grid(&cone).map_or_else(
-            || divisions_in(size(&wall, meet), tolerance, reach),
+            || divisions_in(size(&wall, meet), tolerance, span),
             |grid| grid.steps,
         ),
-        _ => divisions_in(size(&wall, meet), tolerance, reach),
+        _ => divisions_in(size(&wall, meet), tolerance, span),
     });
     let rays = [0, 1].map(|rank| match carried[rank] {
         Wall::Cylinder(cylinder) => taken(&own[rank], &cylinder, walls, contacts),
         Wall::Elliptic(oval) => {
-            let steps = divisions_in(oval.major, tolerance, reach);
+            let steps = divisions_in(oval.major, tolerance, span);
             let beneath = contacts
                 .values()
                 .filter(|contact| contact.oval == Some(oval))

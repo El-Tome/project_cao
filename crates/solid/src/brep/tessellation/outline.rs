@@ -88,7 +88,7 @@ impl Outline {
                 }
             }
             Surface::Cylinder(cylinder) => {
-                let steps = divisions_in(cylinder.radius, tolerance, body.scale().reach());
+                let steps = divisions_in(cylinder.radius, tolerance, samples.span);
                 outline.round(cylinder, samples, &laps, steps)?;
             }
             Surface::Cone(cone) => {
@@ -104,7 +104,7 @@ impl Outline {
                 outline.rounded(body, samples, face, &round, &laps, (steps, rows))?;
             }
             Surface::Elliptic(wall) => {
-                let steps = divisions_in(wall.major, tolerance, body.scale().reach());
+                let steps = divisions_in(wall.major, tolerance, samples.span);
                 let raws: Vec<Vec<DVec2>> = laps
                     .iter()
                     .map(|ids| {

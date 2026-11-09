@@ -30,7 +30,7 @@ pub(in crate::brep::tessellation::sampling) fn rays_along(
     zones: &Zones,
     grids: &BTreeMap<SurfaceId, Grid>,
     contacts: &BTreeMap<SurfaceId, Contact>,
-    tolerance: f64,
+    fineness: (f64, f64),
 ) -> BTreeMap<SurfaceId, Vec<DVec3>> {
     let eps = body.scale().eps();
     let alone = Abreast::default();
@@ -47,7 +47,7 @@ pub(in crate::brep::tessellation::sampling) fn rays_along(
                 .into_iter()
                 .flatten()
                 .map(|end| body.vertex(end).point);
-            let points = of_edge(body, edge, conic, (zones, grids, &alone), &rays, tolerance)
+            let points = of_edge(body, edge, conic, (zones, grids, &alone), &rays, fineness)
                 .into_iter()
                 .chain(ends)
                 .collect();

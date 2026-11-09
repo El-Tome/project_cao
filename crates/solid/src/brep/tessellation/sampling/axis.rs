@@ -105,10 +105,10 @@ impl Axes {
         body: &Body,
         grids: &BTreeMap<SurfaceId, Grid>,
         walls: &[Wall],
-        tolerance: f64,
+        fineness: (f64, f64),
     ) -> Axes {
         let eps = body.scale().eps();
-        let fineness = (tolerance, body.scale().reach());
+        let (tolerance, span) = fineness;
         let circles: Vec<&Circle> = body
             .edge_ids()
             .filter_map(|id| match body.curve(body.edge(id).curve) {
@@ -176,7 +176,7 @@ impl Axes {
                 continue;
             };
             axes.of_wall.insert(*id, group);
-            let steps = divisions_in(wall.radius, tolerance, fineness.1);
+            let steps = divisions_in(wall.radius, tolerance, span);
             axes.groups[group]
                 .rays
                 .extend((0..steps).map(|step| wall.radial(TAU * step as f64 / steps as f64)));
@@ -237,7 +237,7 @@ impl Axes {
         &self,
         contact: &Contact,
         (circle, wall): (&Circle, SurfaceId),
-        (tolerance, reach): (f64, f64),
+        (tolerance, span): (f64, f64),
         eps: f64,
         kept: impl Fn(DVec3) -> bool,
     ) -> Option<Contact> {
@@ -247,7 +247,7 @@ impl Axes {
             .filter(|(spun, _)| spun.holds(circle, eps))
             .flat_map(|(_, rays)| rays.iter().copied());
         let group = self.of_wall.get(&wall).map(|group| &self.groups[*group]);
-        let steps = divisions_in(circle.radius, tolerance, reach);
+        let steps = divisions_in(circle.radius, tolerance, span);
         let step = TAU / steps as f64;
         let level = circle.center.dot(circle.axis);
         let withheld = |way: &DVec3| {

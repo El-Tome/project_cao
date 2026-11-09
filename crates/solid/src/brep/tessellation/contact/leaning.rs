@@ -79,7 +79,7 @@ pub(super) fn shared(
     leaning: &[&Facing],
     own: &mut BTreeMap<SurfaceId, Vec<DVec3>>,
     (beneath, anchors): (&Points, &Points),
-    (tolerance, reach): (f64, f64),
+    (tolerance, span): (f64, f64),
 ) -> BTreeMap<SurfaceId, Vec<usize>> {
     let mut withheld: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
     for (walls, drift) in groups(leaning) {
@@ -100,7 +100,7 @@ pub(super) fn shared(
         let held = |id: SurfaceId| anchors.get(&id).map_or(&[][..], Vec::as_slice);
         let mut rays = Vec::new();
         for (side, (id, wall)) in walls.iter().copied().enumerate() {
-            let steps = divisions_in(wall.radius, tolerance, reach);
+            let steps = divisions_in(wall.radius, tolerance, span);
             rays.extend((0..steps).map(|step| Ray {
                 side,
                 kind: Kind::Step(step),

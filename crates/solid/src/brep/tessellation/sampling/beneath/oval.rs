@@ -36,7 +36,7 @@ pub(in crate::brep::tessellation::sampling) fn walls(
         };
         let id = SurfaceId(rank as u32);
         let sag = oval.major
-            * (1.0 - (PI / divisions_in(oval.major, tolerance, body.scale().reach()) as f64).cos());
+            * (1.0 - (PI / divisions_in(oval.major, tolerance, samples.span) as f64).cos());
         let holds = |point: DVec3| {
             let at = oval.parameters(point);
             body.face_ids().any(|face| {

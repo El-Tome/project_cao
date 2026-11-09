@@ -92,16 +92,14 @@ pub(super) fn through_vertices(
     body: &Body,
     walls: &[Wall],
     inside: &BTreeMap<SurfaceId, Vec<DVec3>>,
-    tolerance: f64,
+    (tolerance, span): (f64, f64),
     own: &mut BTreeMap<SurfaceId, Vec<DVec3>>,
 ) -> Through {
     let mut through = Through::default();
     for wall in walls {
         let (id, cylinder) = wall;
         let sag = cylinder.radius
-            * (1.0
-                - (PI / divisions_in(cylinder.radius, tolerance, body.scale().reach()) as f64)
-                    .cos());
+            * (1.0 - (PI / divisions_in(cylinder.radius, tolerance, span) as f64).cos());
         let vertices = body
             .vertex_ids()
             .map(|id| body.vertex(id))

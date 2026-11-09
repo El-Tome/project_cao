@@ -22,9 +22,14 @@ const CORNER: Vec3 = Vec3::splat(-0.5);
 /// more would leave the square at some views.
 const PAST_THE_FAR_CORNER: f32 = 0.2;
 
-/// A face this close to edge-on counts as seen, and an axis this close to the
-/// line of sight as end-on.
-const EDGE_ON: f32 = 1e-3;
+/// How far past edge-on a face has to turn to be seen, as the dot of its normal
+/// with the view: a face exactly edge-on is not, or two axes would be drawn on
+/// one line at the views along an edge of the cube.
+const FACE_SEEN_PAST: f32 = 1e-3;
+
+/// How close to 1 the dot of an axis with the view has to come for the axis to
+/// be end-on.
+const AXIS_END_ON_WITHIN: f32 = 1e-3;
 
 const LINE_WIDTH: f32 = 2.0;
 
@@ -36,15 +41,24 @@ const LETTER_OVER_NAME: f32 = 1.2;
 /// end-on, and the letter would spin with it.
 const LETTER_GAP: f32 = 0.7;
 
-fn is_shown(axis: Vec3, faces: [CubeFace; 2], forward: Vec3) -> bool {
-    axis.dot(forward).abs() < 1.0 - EDGE_ON
-        && faces
-            .iter()
-            .any(|face| face.normal().dot(forward) <= EDGE_ON)
+fn is_end_on(axis: Vec3, forward: Vec3) -> bool {
+    axis.dot(forward).abs() >= 1.0 - AXIS_END_ON_WITHIN
 }
 
-/// Paints the triad with `painter`, each line and its letter or neither, the
-/// letter held inside the square. A letter larger than the square is dropped.
+/// Never end-on; otherwise when a face its edge bounds is strictly seen, or
+/// when another axis is end-on, the view then being square onto a plane this
+/// axis lies in.
+fn is_shown(axis: Vec3, faces: [CubeFace; 2], forward: Vec3) -> bool {
+    !is_end_on(axis, forward)
+        && (EDGES.iter().any(|(other, _, _)| is_end_on(*other, forward))
+            || faces
+                .iter()
+                .any(|face| face.normal().dot(forward) < -FACE_SEEN_PAST))
+}
+
+/// Paints the triad with `painter`: the line of each axis shown, and its letter
+/// held inside the square. A letter larger than the square is dropped and its
+/// line stays.
 pub(super) fn paint(
     painter: &egui::Painter,
     state: &ViewportState,

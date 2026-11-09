@@ -54,10 +54,15 @@
 //!   (-½, -½, -½) and running along the cube's edges past the far corner —
 //!   `the_triad_runs_along_the_cube_s_edges_past_their_far_corners`; an axis
 //!   behind the cube is not drawn: one is shown exactly when a face its edge
-//!   bounds is seen, a face edge-on counting as seen and an axis end-on drawing
-//!   nothing — `an_axis_is_drawn_exactly_when_a_face_its_edge_bounds_is_seen`,
+//!   bounds is strictly seen, or when it lies in the plane the view is square
+//!   onto, and an axis end-on draws nothing —
+//!   `an_axis_is_drawn_exactly_when_a_face_its_edge_bounds_is_seen`,
 //!   `from_the_back_corner_no_axis_is_drawn`,
 //!   `square_onto_a_sketch_two_axes_show_along_the_outline_and_the_third_not`;
+//!   found in review: at a view the cube snaps to, two axes on one line wrote
+//!   their letters over each other —
+//!   `at_every_view_the_cube_snaps_to_no_two_axes_overprint`,
+//!   `the_top_front_edge_view_shows_x_and_z_and_not_y`;
 //!   its letter stands beyond its tip, and nothing of it touches a face name at
 //!   the opening view or square onto a sketch —
 //!   `a_letter_stands_beyond_its_tip_inside_the_square_and_off_the_names`;
@@ -1130,9 +1135,9 @@ const THE_AXES: [(Vec3, &str, [CubeFace; 2]); 3] = [
 /// The corner of the cube the three axes start from.
 const THE_AXES_CORNER: Vec3 = Vec3::splat(-0.5);
 
-/// A face this close to edge-on counts as seen, and an axis this close to the
-/// line of sight as end-on: the views these tests read are exactly so, or
-/// degrees away from it.
+/// How far a face has to turn past edge-on to be seen, and how close to the
+/// line of sight an axis is end-on: the views these tests read are exactly
+/// so, or degrees away from it.
 const EDGE_ON: f32 = 1e-3;
 
 /// The triad as painted: for each axis, the line drawn in its colour and the
@@ -1176,15 +1181,22 @@ fn the_triad(state: &ViewportState, rect: egui::Rect) -> [Option<AxisDrawn>; 3] 
 }
 
 /// Whether the axis at `index` is meant to be drawn from a view looking along
-/// `forward`: one of the two faces its edge separates is seen or edge-on, and
-/// it does not point straight at the eye.
+/// `forward`. Never end-on; otherwise when one of the two faces its edge
+/// separates is strictly seen, or when another axis is end-on, the view then
+/// being square onto a plane this axis lies in.
 fn is_shown(index: usize, forward: Vec3) -> bool {
+    let end_on = |axis: Vec3| axis.dot(forward).abs() >= 1.0 - EDGE_ON;
     let (axis, _, faces) = THE_AXES[index];
-    let end_on = axis.dot(forward).abs() >= 1.0 - EDGE_ON;
-    !end_on
-        && faces
+    if end_on(axis) {
+        return false;
+    }
+    let square_onto_its_plane = THE_AXES
+        .iter()
+        .any(|(other, _, _)| *other != axis && end_on(*other));
+    square_onto_its_plane
+        || faces
             .iter()
-            .any(|face| face.normal().dot(forward) <= EDGE_ON)
+            .any(|face| face.normal().dot(forward) < -EDGE_ON)
 }
 
 /// That the line of the axis at `index` starts at the cube's corner, passes
@@ -1417,6 +1429,109 @@ fn an_axis_is_drawn_exactly_when_a_face_its_edge_bounds_is_seen() {
             }
         }
     }
+}
+
+/// Every zone of the cube a click snaps the view to: its faces, its edges and
+/// its corners.
+fn every_zone_of_the_cube() -> Vec<CubeZone> {
+    let square = |one: CubeFace, other: CubeFace| one.normal().dot(other.normal()).abs() < 0.5;
+    let mut zones: Vec<CubeZone> = CubeFace::ALL.map(CubeZone::Face).to_vec();
+    for one in CubeFace::ALL {
+        for other in CubeFace::ALL
+            .into_iter()
+            .filter(|other| square(one, *other))
+        {
+            let edge = CubeZone::edge(one, other);
+            if !zones.contains(&edge) {
+                zones.push(edge);
+            }
+            for third in CubeFace::ALL
+                .into_iter()
+                .filter(|third| square(one, *third) && square(other, *third))
+            {
+                let corner = CubeZone::corner(one, other, third);
+                if !zones.contains(&corner) {
+                    zones.push(corner);
+                }
+            }
+        }
+    }
+    zones
+}
+
+/// Whether two lines lie on one line and share a stretch of it.
+fn run_along_each_other(one: &AxisDrawn, other: &AxisDrawn) -> bool {
+    let along = (one.to - one.from).normalized();
+    let across =
+        |point: egui::Pos2| ((point - one.from) - along * (point - one.from).dot(along)).length();
+    let reach = |point: egui::Pos2| (point - one.from).dot(along);
+    let (low, high) = (
+        reach(other.from).min(reach(other.to)),
+        reach(other.from).max(reach(other.to)),
+    );
+    across(other.from) <= ON_THE_POINT
+        && across(other.to) <= ON_THE_POINT
+        && high.min((one.to - one.from).length()) > low.max(0.0)
+}
+
+#[test]
+fn at_every_view_the_cube_snaps_to_no_two_axes_overprint() {
+    let zones = every_zone_of_the_cube();
+    assert_eq!(
+        zones.len(),
+        26,
+        "a cube has 6 faces, 12 edges and 8 corners"
+    );
+
+    let mut overprinted = Vec::new();
+    for size in [96.0, 160.0] {
+        for zone in &zones {
+            let (yaw, pitch) = cao_render::camera::view_angles_towards(zone.direction());
+            let (state, rect) =
+                a_cube_with_its_axes_painted_apart(yaw, pitch, size, egui::pos2(40.0, 40.0));
+
+            let triad = the_triad(&state, rect);
+
+            for first in 0..3 {
+                for second in first + 1..3 {
+                    let (Some(one), Some(other)) = (&triad[first], &triad[second]) else {
+                        continue;
+                    };
+                    let names = (THE_AXES[first].1, THE_AXES[second].1);
+                    if one.letter.intersects(other.letter) {
+                        overprinted.push(format!("{size} {zone:?}: letters {names:?}"));
+                    }
+                    if run_along_each_other(one, other) {
+                        overprinted.push(format!("{size} {zone:?}: lines {names:?}"));
+                    }
+                }
+            }
+        }
+    }
+
+    assert!(
+        overprinted.is_empty(),
+        "two axes of the triad are drawn over each other at {} views the cube snaps to: \
+         {overprinted:?}",
+        overprinted.len(),
+    );
+}
+
+#[test]
+fn the_top_front_edge_view_shows_x_and_z_and_not_y() {
+    let edge = CubeZone::edge(CubeFace::PlusZ, CubeFace::MinusY);
+    let (yaw, pitch) = cao_render::camera::view_angles_towards(edge.direction());
+    let (state, rect) =
+        a_cube_with_its_axes_painted_apart(yaw, pitch, 96.0, egui::pos2(40.0, 40.0));
+
+    let triad = the_triad(&state, rect);
+
+    assert_eq!(
+        triad.iter().map(Option::is_some).collect::<Vec<_>>(),
+        vec![true, false, true],
+        "the view clicked on the edge between « DESSUS » and « FACE » should draw X and Z, \
+         and not Y, which would lie on Z",
+    );
 }
 
 #[test]

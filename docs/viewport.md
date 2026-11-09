@@ -78,9 +78,11 @@ seen too edge-on to read is left bare.
 An X/Y/Z triad in the axis colours is built into the cube: its three axes start
 from one corner of the cube and run along its edges, a little past their far
 corners, each ended by its letter. An axis behind the cube is not drawn: one
-shows when a face its edge bounds is seen, and an axis end-on shows nothing, so
-that none is drawn from the opposite corner. At the opening view and square onto
-a sketch, the triad stays off the names.
+shows when a face its edge bounds is strictly seen, or when it lies in the plane
+the view is square onto. An axis end-on draws nothing, so that the one pointing
+at the eye is not a dot with a letter. From the opposite corner the face rule
+hides all three. At the opening view and square onto a sketch, the triad stays
+off the names.
 
 While a sketch is open, the face it looks at is lit amber (DESSUS for the XY
 plane), wherever the view is turned. A sketch on a part's face lights the cube

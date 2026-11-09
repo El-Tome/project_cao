@@ -81,13 +81,13 @@ use glam::{DVec2, DVec3};
 /// sketch laid on it. Each is a point a new part's eye reaches before it
 /// reaches the other two planes, so that a click there can only mean that one.
 const ON_EACH_BASE_PLANE: [(DVec3, &str); 3] = [
-    (DVec3::new(0.0, 40.0, 30.0), "Plan YZ"),
-    (DVec3::new(-40.0, 40.0, 0.0), "Plan XY"),
-    (DVec3::new(-40.0, 0.0, 30.0), "Plan XZ"),
+    (DVec3::new(0.0, -40.0, 30.0), "Plan YZ"),
+    (DVec3::new(40.0, -40.0, 0.0), "Plan XY"),
+    (DVec3::new(40.0, 0.0, 30.0), "Plan XZ"),
 ];
 
 /// Where the sketch the line is drawn in is opened, on YZ.
-const ON_THE_YZ_PLANE: DVec3 = DVec3::new(0.0, 40.0, 30.0);
+const ON_THE_YZ_PLANE: DVec3 = DVec3::new(0.0, -40.0, 30.0);
 
 /// The two ends a line is aimed at, in the coordinates of the sketch on YZ:
 /// away from the origin and from the plane's axes, which pull a point laid

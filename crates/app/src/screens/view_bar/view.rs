@@ -12,7 +12,7 @@ pub fn show(ctx: &egui::Context, view: egui::Rect, bar: &ViewBar) -> Option<Aske
     floating_bar(ctx, egui::Id::new("view_bar"), view, |ui| {
         let mut picked = None;
         for offered in [&bar.reframe, &bar.section_view] {
-            if button(ui, offered).clicked() {
+            if offered_button(ui, offered).clicked() {
                 picked = Some(Asked::Command(offered.command));
             }
         }
@@ -31,7 +31,8 @@ pub fn show(ctx: &egui::Context, view: egui::Rect, bar: &ViewBar) -> Option<Aske
     })
 }
 
-fn button(ui: &mut egui::Ui, offered: &Offered) -> egui::Response {
+/// A command offered on a floating row, worn as the ribbon wears it.
+pub(crate) fn offered_button(ui: &mut egui::Ui, offered: &Offered) -> egui::Response {
     let worn = icons::of(offered.command);
     let key = offered.key.as_deref();
     bar_button(ui, offered.enabled, offered.on, worn, &offered.name, key)

@@ -215,13 +215,35 @@
 //!   `a_plane_view_with_no_sketch_open_is_drawn_on_the_sketch_background`,
 //!   and the free view with a sketch open in
 //!   `the_free_view_is_drawn_on_the_view_background`
+//!
+//! Closes #729. The issue carries no "Done when": what follows is its "What it
+//! does" and its "What must not break", word for word, each criterion in the
+//! file that holds it, with what was decided where the issue left a choice.
+//! - In a sketch, the face it looks at is lit amber (« DESSUS » for the XY
+//!   plane) — `a_sketch_lights_amber_the_face_of_the_cube_it_looks_at`; the
+//!   sketch's own plane says which, wherever the view is turned —
+//!   `a_sketch_keeps_its_face_lit_with_the_view_turned_away_from_it`; and
+//!   nothing is lit but in a sketch —
+//!   `the_cube_is_lit_amber_only_while_a_sketch_is_open`
+//! - A sketch on a part's face lights the cube face closest to its normal —
+//!   `a_sketch_on_a_part_s_face_lights_the_cube_face_closest_to_its_normal`;
+//!   decided on the branch: on an exact tie the first in the order of
+//!   `CubeFace::ALL` wins, so that the result never flickers —
+//!   `a_normal_exactly_between_two_faces_lights_the_first_in_their_fixed_order`;
+//!   a hovered zone keeps its hover colour on top of the lit face —
+//!   `a_hovered_zone_keeps_its_hover_colour_on_the_lit_face`
+//! - Clicking a face, an edge or a corner turns the camera as today; hovering
+//!   lights it: the hovering half — `hovering_a_zone_of_the_cube_still_lights_it`;
+//!   the clicking half in `crates/app/tests/view_bar.rs`, under its own block
+
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
-use cao_render::MatterInFront;
 use cao_render::camera::{OrbitCamera, ViewTransition};
+use cao_render::{CubeFace, CubeZone, MatterInFront};
 use cao_sketch::{Element, WorkPlane};
 use chrono::Utc;
 use glam::{DVec2, DVec3, Vec3};
+use std::collections::BTreeMap;
 
 use super::*;
 use crate::lang::Catalogue;
@@ -2460,4 +2482,314 @@ fn pressing_on_the_arrow_s_tip_changes_neither_the_distance_nor_the_direction() 
         "pressed on the arrow's tip, the section turned to face {:?}",
         section.facing(),
     );
+}
+
+/// One frame of a part holding a single sketch on `plane`, that sketch open and
+/// the view on it, then left as `prepare` says.
+fn a_frame_sketching_on(plane: WorkPlane, prepare: impl FnOnce(&mut ViewportState)) -> SceneFrame {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch { plane, on: None });
+    let mut editor = SketchEditor::default();
+    editor.begin_editing(0, plane);
+    let mut state = ViewportState::default();
+    state.mode = ViewMode::Plane(plane);
+    prepare(&mut state);
+
+    a_frame_of(&state, &mut document, &mut editor)
+}
+
+/// Wide enough for any honest way of turning the token into the shader's
+/// space, and far narrower than the step between two colours of the cube.
+const CUBE_COLOUR_TOLERANCE: f32 = 1e-3;
+
+fn amber() -> [f32; 4] {
+    let token = crate::ui::theme::tokens::ACCENT_AMBER;
+    let channel = |value: u8| f32::from(value) / 255.0;
+    srgb(
+        channel(token.r()),
+        channel(token.g()),
+        channel(token.b()),
+        1.0,
+    )
+}
+
+fn is_amber(colour: &[f32; 4]) -> bool {
+    colour
+        .iter()
+        .zip(amber())
+        .all(|(channel, wanted)| (channel - wanted).abs() < CUBE_COLOUR_TOLERANCE)
+}
+
+/// The colours `face` is drawn in. A triangle of the face lies wholly on its
+/// plane, where one of a neighbouring face touches it along an edge at most.
+fn colours_on(frame: &SceneFrame, face: CubeFace) -> Vec<[f32; 4]> {
+    let on_the_face = |vertex: &&cao_render::Vertex| {
+        (Vec3::from(vertex.position) - cube::face_center(face))
+            .dot(face.normal())
+            .abs()
+            < 1e-4
+    };
+    triangles(&frame.cube_triangles)
+        .into_iter()
+        .filter(|triangle| triangle.iter().all(&on_the_face))
+        .flat_map(|triangle| triangle.map(|vertex| vertex.color))
+        .collect()
+}
+
+fn faces_with_amber(frame: &SceneFrame) -> Vec<CubeFace> {
+    CubeFace::ALL
+        .into_iter()
+        .filter(|face| colours_on(frame, *face).iter().any(is_amber))
+        .collect()
+}
+
+fn assert_only_lit(frame: &SceneFrame, face: CubeFace, seen: &str) {
+    let colours = colours_on(frame, face);
+    assert!(
+        !colours.is_empty() && colours.iter().all(is_amber),
+        "{seen}: the cube's face {face:?} is drawn in {:?}, it should be amber all over, {:?}",
+        colours.first(),
+        amber(),
+    );
+    assert_eq!(
+        faces_with_amber(frame),
+        vec![face],
+        "{seen}: amber belongs to the one face the sketch looks at",
+    );
+}
+
+#[test]
+fn a_sketch_lights_amber_the_face_of_the_cube_it_looks_at() {
+    for (plane, face) in [
+        (WorkPlane::XY, CubeFace::PlusZ),
+        (WorkPlane::XZ, CubeFace::MinusY),
+        (WorkPlane::YZ, CubeFace::PlusX),
+    ] {
+        let frame = a_frame_sketching_on(plane, |_| {});
+
+        assert_only_lit(&frame, face, &format!("a sketch on {plane:?}"));
+    }
+}
+
+#[test]
+fn a_sketch_keeps_its_face_lit_with_the_view_turned_away_from_it() {
+    let frame = a_frame_sketching_on(WorkPlane::XY, |state| state.mode = ViewMode::Free);
+
+    assert_only_lit(
+        &frame,
+        CubeFace::PlusZ,
+        "a sketch on XY, the view orbited off it",
+    );
+}
+
+#[test]
+fn a_sketch_on_a_part_s_face_lights_the_cube_face_closest_to_its_normal() {
+    let away_from_the_world_origin = DVec3::new(30.0, -12.0, 7.0);
+
+    for (normal, face) in [
+        (DVec3::new(0.9, 0.3, 0.1), CubeFace::PlusX),
+        (DVec3::new(-0.7, 0.6, 0.3), CubeFace::MinusX),
+        (DVec3::new(0.2, 0.8, -0.5), CubeFace::PlusY),
+        (DVec3::new(-0.2, -0.9, 0.1), CubeFace::MinusY),
+        (DVec3::new(0.3, -0.4, 0.8), CubeFace::PlusZ),
+        (DVec3::new(0.1, 0.2, -0.95), CubeFace::MinusZ),
+    ] {
+        let plane = WorkPlane::from_normal(away_from_the_world_origin, normal);
+
+        let frame = a_frame_sketching_on(plane, |_| {});
+
+        assert_only_lit(
+            &frame,
+            face,
+            &format!("a sketch on a face turned to {normal:?}"),
+        );
+    }
+}
+
+#[test]
+fn a_normal_exactly_between_two_faces_lights_the_first_in_their_fixed_order() {
+    let k = std::f64::consts::FRAC_1_SQRT_2;
+
+    for (u, v, first, second) in [
+        (
+            DVec3::Z,
+            DVec3::new(k, -k, 0.0),
+            CubeFace::PlusX,
+            CubeFace::PlusY,
+        ),
+        (
+            DVec3::Z,
+            DVec3::new(-k, k, 0.0),
+            CubeFace::MinusX,
+            CubeFace::MinusY,
+        ),
+        (
+            DVec3::X,
+            DVec3::new(0.0, k, -k),
+            CubeFace::PlusY,
+            CubeFace::PlusZ,
+        ),
+        (
+            DVec3::X,
+            DVec3::new(0.0, k, k),
+            CubeFace::MinusY,
+            CubeFace::PlusZ,
+        ),
+    ] {
+        let plane = WorkPlane {
+            origin: DVec3::ZERO,
+            u,
+            v,
+        };
+        let towards = |face: CubeFace| plane.normal().dot(face.normal().as_dvec3()).to_bits();
+        assert_eq!(
+            towards(first),
+            towards(second),
+            "the fixture wants a normal exactly between {first:?} and {second:?}, got {:?}",
+            plane.normal(),
+        );
+
+        let frame = a_frame_sketching_on(plane, |_| {});
+
+        assert_only_lit(
+            &frame,
+            first,
+            &format!("a sketch exactly between {first:?} and {second:?}"),
+        );
+    }
+}
+
+#[test]
+fn the_cube_is_lit_amber_only_while_a_sketch_is_open() {
+    let mut document = a_block();
+    let mut state = ViewportState::default();
+    state.mode = ViewMode::Plane(WorkPlane::XY);
+    let mut editor = SketchEditor::default();
+    let lang = Catalogue::french();
+
+    editor.begin_editing(0, WorkPlane::XY);
+    let open = a_frame_of(&state, &mut document, &mut editor);
+    editor.start_choosing_plane(&lang);
+    let choosing_the_next = a_frame_of(&state, &mut document, &mut editor);
+    editor.close();
+    let closed = a_frame_of(&state, &mut document, &mut editor);
+    let free = a_frame(|state| state.mode = ViewMode::Free);
+    let on_a_plane_with_no_sketch = a_frame(|state| state.mode = ViewMode::Plane(WorkPlane::XY));
+
+    assert_only_lit(&open, CubeFace::PlusZ, "the sketch open");
+    for (seen, frame) in [
+        ("choosing the plane of the next sketch", &choosing_the_next),
+        ("the sketch closed", &closed),
+        ("the free view of a part", &free),
+        (
+            "a view on a plane with no sketch open",
+            &on_a_plane_with_no_sketch,
+        ),
+    ] {
+        assert_eq!(
+            faces_with_amber(frame),
+            Vec::<CubeFace>::new(),
+            "{seen}: no sketch is open, and the cube says one looks at a face",
+        );
+    }
+}
+
+/// Each triangle of the cube by where it stands, so that two frames of the same
+/// cube can be read tile against tile.
+fn the_cube_by_place(frame: &SceneFrame) -> BTreeMap<[i32; 3], [f32; 4]> {
+    triangles(&frame.cube_triangles)
+        .into_iter()
+        .map(|triangle| {
+            let middle = triangle
+                .iter()
+                .map(|vertex| Vec3::from(vertex.position))
+                .sum::<Vec3>()
+                / 3.0;
+            let place = (middle * 10_000.0).round().as_ivec3().to_array();
+            (place, triangle[0].color)
+        })
+        .collect()
+}
+
+#[test]
+fn a_hovered_zone_keeps_its_hover_colour_on_the_lit_face() {
+    let plain = the_cube_by_place(&a_frame(|_| {}));
+
+    for zone in [
+        CubeZone::Face(CubeFace::PlusZ),
+        CubeZone::edge(CubeFace::PlusZ, CubeFace::PlusX),
+        CubeZone::corner(CubeFace::PlusX, CubeFace::MinusY, CubeFace::PlusZ),
+    ] {
+        let hovered_alone = the_cube_by_place(&a_frame(|state| state.hovered_zone = Some(zone)));
+        let lit = a_frame_sketching_on(WorkPlane::XY, |_| {});
+        let lit_and_hovered = a_frame_sketching_on(WorkPlane::XY, |state| {
+            state.hovered_zone = Some(zone);
+        });
+
+        assert!(
+            colours_on(&lit_and_hovered, CubeFace::PlusZ)
+                .iter()
+                .any(is_amber),
+            "with {zone:?} hovered, none of the face the sketch looks at is amber",
+        );
+
+        let lit = the_cube_by_place(&lit);
+        let drawn = the_cube_by_place(&lit_and_hovered);
+        let hovered = |place: &[i32; 3]| hovered_alone[place] != plain[place];
+        assert!(
+            drawn.keys().any(hovered),
+            "the fixture hovers {zone:?} and no tile of the cube changes for it",
+        );
+        for (place, colour) in &drawn {
+            let wanted = if hovered(place) {
+                hovered_alone[place]
+            } else {
+                lit[place]
+            };
+            assert_eq!(
+                *colour, wanted,
+                "with {zone:?} hovered on a lit cube, the tile at {place:?} is drawn wrong",
+            );
+        }
+    }
+}
+
+#[test]
+fn hovering_a_zone_of_the_cube_still_lights_it() {
+    let plain = a_frame(|_| {});
+    let untouched = the_cube_by_place(&plain);
+
+    for (zone, its_faces) in [
+        (CubeZone::Face(CubeFace::PlusZ), vec![CubeFace::PlusZ]),
+        (
+            CubeZone::edge(CubeFace::PlusZ, CubeFace::PlusX),
+            vec![CubeFace::PlusZ, CubeFace::PlusX],
+        ),
+        (
+            CubeZone::corner(CubeFace::PlusX, CubeFace::MinusY, CubeFace::PlusZ),
+            vec![CubeFace::PlusX, CubeFace::MinusY, CubeFace::PlusZ],
+        ),
+    ] {
+        let hovered = a_frame(|state| state.hovered_zone = Some(zone));
+
+        for face in CubeFace::ALL {
+            let changes = colours_on(&hovered, face) != colours_on(&plain, face);
+            assert_eq!(
+                changes,
+                its_faces.contains(&face),
+                "with {zone:?} under the cursor, {face:?} changes colour: {changes}",
+            );
+        }
+        let drawn = the_cube_by_place(&hovered);
+        let hover_colours: Vec<[f32; 4]> = drawn
+            .iter()
+            .filter(|(place, colour)| untouched[*place] != **colour)
+            .map(|(_, colour)| *colour)
+            .collect();
+        assert!(
+            !hover_colours.is_empty() && hover_colours.windows(2).all(|two| two[0] == two[1]),
+            "with {zone:?} under the cursor, the tiles it lights are drawn in {hover_colours:?}, \
+             not in one hover colour",
+        );
+    }
 }

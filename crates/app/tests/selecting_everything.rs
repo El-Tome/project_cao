@@ -145,7 +145,7 @@ fn a_line(app: &mut driver::App, from: DVec2, to: DVec2) {
 /// all of it takes those 22 and 2 rules besides.
 fn one_of_every_kind(app: &mut driver::App) {
     driver::click(app, "Point (P)");
-    driver::click_at_sketch_point(app, DVec2::new(190.15, 88.8));
+    driver::click_at_sketch_point(app, DVec2::new(190.15, 66.69));
     driver::press(app, egui::Key::Escape);
 
     a_line(app, DVec2::new(17.71, 88.8), DVec2::new(61.93, 75.53));

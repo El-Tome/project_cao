@@ -21,10 +21,10 @@ use glam::{DVec2, DVec3};
 /// its size as a vector.
 pub const SCREEN: egui::Vec2 = egui::vec2(1280.0, 800.0);
 
-/// On the plane YZ, as a new part shows the three base planes: where the
-/// tests opened their sketch before they named it, so that the view a sketch
-/// opens on frames the same patch of plane.
-pub const ON_THE_YZ_PLANE: DVec3 = DVec3::new(0.0, 70.11, 3.02);
+/// On the plane YZ, as a new part shows the three base planes, on the side of
+/// XZ the camera stands: where the tests open their sketch, the view a sketch
+/// opens on being centred on this click.
+pub const ON_THE_YZ_PLANE: DVec3 = DVec3::new(0.0, -70.11, 3.02);
 
 /// Two points of the sketch on YZ, nodes of the grid that pulls them: where
 /// the two clicks the tests were first written with laid the ends of a line.

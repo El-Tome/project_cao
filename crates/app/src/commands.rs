@@ -14,7 +14,9 @@ use crate::screens::viewport::{
 use crate::{screens, wording};
 
 mod asked;
+mod compaction;
 pub(crate) use asked::Asked;
+pub(crate) use compaction::compact_history;
 
 /// Carries out one command, wherever it came from.
 ///
@@ -84,6 +86,10 @@ pub(crate) fn run(
                 }
                 None => viewport.frame_the_part(doc.body()),
             }
+            false
+        }
+        Command::OriginView => {
+            viewport.turn_to_the_opening_view(doc.body());
             false
         }
         Command::NextMatterInFront => {
@@ -361,19 +367,6 @@ pub(crate) fn clamp_editor_to_document(editor: &mut SketchEditor, doc: &PartDocu
         Some(sketch) => editor.plane = Some(sketch.plane),
         None => editor.close(),
     }
-}
-
-/// Compacts the history once its warning is confirmed. Every operation is
-/// numbered anew, so no eye switched by hand and no light still names its
-/// sketch: they go back to their defaults.
-pub(crate) fn compact_history(
-    doc: &mut PartDocument,
-    editor: &mut SketchEditor,
-    viewport: &mut ViewportState,
-) {
-    doc.compact_history();
-    clamp_editor_to_document(editor, doc);
-    viewport.forget_the_sketches();
 }
 
 /// Centre and radius to frame: the sketch if it has anything in it, otherwise a

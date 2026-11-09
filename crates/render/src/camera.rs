@@ -36,6 +36,18 @@ impl CubeFace {
         }
     }
 
+    /// The face whose outward normal lies closest to `direction`. On an exact
+    /// tie the first in [`Self::ALL`] wins, so that the answer never flickers.
+    pub fn closest_to(direction: Vec3) -> Self {
+        Self::ALL.into_iter().fold(Self::PlusX, |closest, face| {
+            if face.normal().dot(direction) > closest.normal().dot(direction) {
+                face
+            } else {
+                closest
+            }
+        })
+    }
+
     /// The two world axes spanning the plane this face looks at: the basis of
     /// the work plane a sketch would sit on.
     pub fn plane_basis(self) -> (Vec3, Vec3) {
@@ -71,6 +83,11 @@ pub enum CubeZone {
 }
 
 impl CubeZone {
+    /// The corner of the right, the front and the top, which a part opens on.
+    pub fn opening_corner() -> Self {
+        Self::corner(CubeFace::PlusX, CubeFace::MinusY, CubeFace::PlusZ)
+    }
+
     pub fn edge(a: CubeFace, b: CubeFace) -> Self {
         let mut faces = [a, b];
         faces.sort_by_key(|face| face.index());
@@ -139,11 +156,12 @@ pub struct OrbitCamera {
 
 impl Default for OrbitCamera {
     fn default() -> Self {
+        let (yaw, pitch) = view_angles_towards(CubeZone::opening_corner().direction());
         Self {
             target: Vec3::ZERO,
             distance: 250.0,
-            yaw: -PI * 0.7,
-            pitch: 0.5,
+            yaw,
+            pitch,
             fov_y: 45f32.to_radians(),
             min_distance: 1e-3,
             max_distance: 1e9,

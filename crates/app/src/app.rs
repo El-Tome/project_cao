@@ -269,9 +269,17 @@ impl CaoApp {
         let bar =
             screens::view_bar::ViewBar::of(&worked_on, viewport, &view.inner, &settings.shortcuts);
         let from_the_bar = screens::view_bar::show(ui.ctx(), view.response.rect, &bar);
+        let from_the_cube = screens::origin_view::OriginViewButton::of(
+            &worked_on,
+            viewport,
+            view.response.rect,
+            &settings.shortcuts,
+        )
+        .and_then(|button| screens::origin_view::show(ui.ctx(), view.response.rect, &button));
         let over_the_view = finished
             .then_some(Command::FinishSketch.into())
-            .or(from_the_bar);
+            .or(from_the_bar)
+            .or(from_the_cube);
         if let Some(asked) = over_the_view {
             changed |= commands::run(asked, &mut worked_on, ribbon, viewport);
         }
@@ -375,6 +383,7 @@ impl eframe::App for CaoApp {
             self.show_part(ui);
         }
         self.show_settings(ui);
+        screens::viewport::repaint_if_the_atlas_grew(ui.ctx());
         // An error found at the end of a frame is drawn by the next one, which
         // nothing else may be about to ask for.
         if self.error != error_before {

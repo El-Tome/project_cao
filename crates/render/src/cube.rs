@@ -116,8 +116,13 @@ fn zone_spans() -> [(f32, f32); 3] {
 /// Triangles for the whole cube. Each face is cut into a 3×3 grid so that a
 /// hovered edge or corner can be highlighted on every face it touches, the way
 /// a CAD navigation cube does. Winding is counter-clockwise seen from outside,
-/// so back-face culling hides the far side.
-pub fn push_faces(out: &mut Vec<Vertex>, hovered: Option<CubeZone>) {
+/// so back-face culling hides the far side. `lit` paints one face all over in
+/// the colour given with it, under whatever is hovered.
+pub fn push_faces(
+    out: &mut Vec<Vertex>,
+    hovered: Option<CubeZone>,
+    lit: Option<(CubeFace, [f32; 4])>,
+) {
     for face in CubeFace::ALL {
         let (u_axis, v_axis) = tangents(face);
         let center = face_center(face);
@@ -125,7 +130,10 @@ pub fn push_faces(out: &mut Vec<Vertex>, hovered: Option<CubeZone>) {
         for (u_start, u_end) in zone_spans() {
             for (v_start, v_end) in zone_spans() {
                 let zone = zone_at(face, midpoint(u_start, u_end), midpoint(v_start, v_end));
-                let color = face_color(face, hovered == Some(zone));
+                let color = match lit {
+                    Some((lit_face, color)) if lit_face == face && hovered != Some(zone) => color,
+                    _ => face_color(face, hovered == Some(zone)),
+                };
                 let tile = [
                     center + u_axis * u_start + v_axis * v_start,
                     center + u_axis * u_end + v_axis * v_start,

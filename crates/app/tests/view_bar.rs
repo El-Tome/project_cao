@@ -164,6 +164,37 @@
 //! sketch has always been framed, leaves a long flat drawing at about that;
 //! a view that did not move after the wheel stepped back leaves the part a
 //! speck.
+//!
+//! Closes #729. The rest of the issue is in
+//! `crates/app/src/screens/viewport/render/tests.rs`, `render/overlays/tests.rs`
+//! and `state/tests.rs`, each under its own block.
+//! - « Vue d'origine » under the cube: the isometric view the part opens with,
+//!   framed on the part — the button directly under the cube —
+//!   `the_origin_view_button_stands_directly_under_the_cube`; clicked, it
+//!   brings the part back —
+//!   `the_origin_view_button_brings_back_the_opening_view_framed_on_the_part`;
+//!   decided by the human: hidden while a sketch is open, not greyed, and back
+//!   when it ends — `the_origin_view_button_is_hidden_while_a_sketch_is_open`;
+//!   found on screen: it showed the part from the back left, and it shows
+//!   « DROITE », « FACE » and « DESSUS » —
+//!   `the_origin_view_button_shows_the_right_the_front_and_the_top`;
+//!   read from the code: a plane being chosen is no sketch open, as « Recadrer »
+//!   and the cube's amber have it —
+//!   `the_origin_view_button_stays_while_a_plane_is_being_chosen`
+//! - The cube's corner, size and margin settings: the button follows them —
+//!   `the_origin_view_button_follows_the_cube_s_corner_size_and_margin`;
+//!   decided on the branch: in a bottom corner it sits directly above the cube,
+//!   on screen and clear of the view bar —
+//!   `the_origin_view_button_goes_above_a_cube_in_a_bottom_corner`; the cube's
+//!   own place in `crates/app/src/screens/viewport/state/tests.rs`, under its
+//!   own block
+//! - Clicking a face, an edge or a corner turns the camera as today; hovering
+//!   lights it: the clicking half —
+//!   `clicking_a_face_an_edge_or_a_corner_of_the_cube_still_turns_the_camera`;
+//!   hovering a face, as far as a driver can see it, writes that face's name in
+//!   its title colour — `hovering_a_face_of_the_cube_still_lights_its_name`;
+//!   the tiles the hover lights in
+//!   `crates/app/src/screens/viewport/render/tests.rs`, under its own block
 
 mod driver;
 
@@ -816,9 +847,6 @@ const IN_ITS_CORNER: f32 = 1.0;
 /// its label: a 5-point tick under a 16-point line of text.
 const SCALE_BAR_HEIGHT: f32 = 21.0;
 
-/// The names the cube's faces carry, one of which at least is painted on it.
-const FACE_NAMES: [&str; 6] = ["FACE", "ARRIÈRE", "DROITE", "GAUCHE", "DESSUS", "DESSOUS"];
-
 /// Every shape the last frame painted, groups opened, with the rectangle it
 /// was clipped to.
 fn painted(app: &driver::App) -> Vec<(egui::Shape, egui::Rect)> {
@@ -852,12 +880,19 @@ fn the_scale_bar(app: &driver::App) -> egui::Rect {
         .unwrap_or_else(|| panic!("no scale bar is painted"))
 }
 
-/// The orientation cube: the rectangle its face labels are clipped to.
+/// The orientation cube: the square a name painted on one of its faces is
+/// clipped to. A name is a mesh on the font texture, and no other mesh of the
+/// view is clipped to a square.
 fn the_cube(app: &driver::App) -> egui::Rect {
     painted(app)
         .into_iter()
         .find_map(|(shape, clip)| match shape {
-            egui::Shape::Text(text) if FACE_NAMES.contains(&text.galley.text()) => Some(clip),
+            egui::Shape::Mesh(mesh)
+                if mesh.texture_id == egui::TextureId::default()
+                    && (clip.width() - clip.height()).abs() < 0.5 =>
+            {
+                Some(clip)
+            }
             _ => None,
         })
         .unwrap_or_else(|| panic!("no face of the cube is named on screen"))
@@ -1012,5 +1047,519 @@ fn an_orientation_cube_set_to_the_bottom_right_stands_above_the_view_bar() {
         bar.min.y - cube.max.y <= AGAINST_THE_CORNER,
         "the cube stands {} points above the view bar, out of its corner",
         bar.min.y - cube.max.y,
+    );
+}
+
+/// How far from the cube the button may stand and still be read as belonging
+/// to it: less than its own height.
+const BESIDE_THE_CUBE: f32 = 16.0;
+
+/// How far an axis of the view may lean, as the distance between two unit
+/// directions on screen, from where the opening view lays it: a few degrees,
+/// the perspective of a millimetre beside the middle of the view included.
+const ALONG_THE_OPENING_AXIS: f32 = 0.05;
+
+/// The button of the cube, if the view shows one. Asked of the whole view,
+/// and greyed or not: hidden means no such button at all.
+fn the_origin_view<'a>(app: &'a driver::App) -> Option<egui_kittest::Node<'a>> {
+    let view = driver::canvas(app);
+    app.query_all_by_role(egui::accesskit::Role::Button)
+        .find(|node| {
+            node.accesskit_node()
+                .label()
+                .is_some_and(|read| read.starts_with("Vue d'origine"))
+                && view.contains_rect(node.rect())
+        })
+}
+
+fn the_origin_view_s_place(app: &driver::App) -> egui::Rect {
+    the_origin_view(app)
+        .unwrap_or_else(|| {
+            panic!(
+                "no button of the view reads « Vue d'origine », showing {:?}",
+                driver::on_screen(app)
+            )
+        })
+        .rect()
+}
+
+fn assert_offered(app: &driver::App, when: &str) {
+    let the_button = the_origin_view(app);
+    assert!(
+        the_button.as_ref().is_some_and(|node| !greyed(node)),
+        "{when}, « Vue d'origine » should be offered, and the view shows {:?}",
+        driver::on_screen(app),
+    );
+}
+
+fn assert_clear_of_the_view_s_edges(app: &driver::App, button: egui::Rect, seen: &str) {
+    let view = driver::canvas(app);
+    assert!(
+        view.contains_rect(button),
+        "{seen}: the button at {button:?} leaves the view {view:?}",
+    );
+}
+
+fn assert_in_line_with(cube: egui::Rect, button: egui::Rect, seen: &str) {
+    assert!(
+        cube.x_range().contains(button.center().x),
+        "{seen}: the button at {button:?} does not stand in line with the cube at {cube:?}",
+    );
+}
+
+/// Flush with the cube on the side of the view's edge, so that it keeps the
+/// margin the cube keeps.
+fn assert_flush_with_the_cube(
+    corner: ViewportCorner,
+    cube: egui::Rect,
+    button: egui::Rect,
+    seen: &str,
+) {
+    let (side, off) = match corner {
+        ViewportCorner::TopLeft | ViewportCorner::BottomLeft => ("left", button.min.x - cube.min.x),
+        ViewportCorner::TopRight | ViewportCorner::BottomRight => {
+            ("right", button.max.x - cube.max.x)
+        }
+    };
+    assert!(
+        off.abs() <= IN_ITS_CORNER,
+        "{seen}: the button at {button:?} ends {off} points off the {side} edge of the cube at \
+         {cube:?}, where it should keep the cube's margin from the view",
+    );
+}
+
+fn assert_directly_under(cube: egui::Rect, button: egui::Rect, seen: &str) {
+    let gap = button.min.y - cube.max.y;
+    assert!(
+        (0.0..=BESIDE_THE_CUBE).contains(&gap),
+        "{seen}: the button at {button:?} stands {gap} points under the foot of the cube \
+         at {cube:?}, where 0 to {BESIDE_THE_CUBE} is directly under it",
+    );
+    assert_in_line_with(cube, button, seen);
+}
+
+/// A part just made, the cube set to this corner, size and margin, and the
+/// scale bar kept out of its corner.
+fn a_part_with_the_cube(test: &str, corner: ViewportCorner, size: f32, margin: f32) -> driver::App {
+    let mut settings = cao_prefs::Settings::default();
+    settings.viewport.cube_corner = corner;
+    settings.viewport.cube_size = size;
+    settings.viewport.cube_margin = margin;
+    settings.viewport.ruler_corner = match corner {
+        ViewportCorner::BottomLeft => ViewportCorner::TopLeft,
+        _ => ViewportCorner::BottomLeft,
+    };
+    let mut app = driver::open_held_with(test, settings);
+    driver::create_a_part(&mut app, "Platine");
+    app
+}
+
+/// Which way each axis of the world runs across the screen through the middle
+/// of the block, as a unit direction.
+fn the_axes_on_screen(app: &driver::App) -> [(DVec3, egui::Vec2); 3] {
+    the_axes_through(app, the_block_s_middle())
+}
+
+fn the_axes_through(app: &driver::App, middle: DVec3) -> [(DVec3, egui::Vec2); 3] {
+    [DVec3::X, DVec3::Y, DVec3::Z].map(|axis| {
+        let along = of_the_world(app, middle + axis) - of_the_world(app, middle);
+        (axis, along.normalized())
+    })
+}
+
+fn the_axes_a_new_part_opens_with() -> [(DVec3, egui::Vec2); 3] {
+    let opening = cao_render::OrbitCamera::default();
+    [DVec3::X, DVec3::Y, DVec3::Z].map(|axis| {
+        let on = axis.as_vec3();
+        let along = egui::vec2(opening.right().dot(on), -opening.up().dot(on));
+        (axis, along.normalized())
+    })
+}
+
+fn stands_as_it_opens(app: &driver::App) -> bool {
+    the_axes_on_screen(app)
+        .into_iter()
+        .zip(the_axes_a_new_part_opens_with())
+        .all(|((_, drawn), (_, wanted))| (drawn - wanted).length() <= ALONG_THE_OPENING_AXIS)
+}
+
+#[test]
+fn the_origin_view_button_stands_directly_under_the_cube() {
+    let app = a_part_with(
+        "the_origin_view_button_stands_directly_under_the_cube",
+        ViewportCorner::BottomLeft,
+        ViewportCorner::TopRight,
+    );
+
+    assert_offered(&app, "on a part just made, the cube at its default corner");
+    let button = the_origin_view_s_place(&app);
+    let seen = "the cube at its default corner";
+    assert_directly_under(the_cube(&app), button, seen);
+    assert_flush_with_the_cube(ViewportCorner::TopRight, the_cube(&app), button, seen);
+    assert_clear_of_the_view_s_edges(&app, button, "the cube at its default corner");
+}
+
+#[test]
+fn the_origin_view_button_brings_back_the_opening_view_framed_on_the_part() {
+    let mut app =
+        driver::a_block("the_origin_view_button_brings_back_the_opening_view_framed_on_the_part");
+    let over_the_block = of_the_world(&app, the_block_s_middle());
+    step_back(&mut app, over_the_block);
+    let cube_face = in_the_cube(the_cube(&app), A_FACE_OFF_THE_MIDDLE);
+    driver::click_at(&mut app, cube_face);
+    assert!(
+        !stands_as_it_opens(&app),
+        "the click on the cube was meant to leave the view turned off the opening one",
+    );
+    assert!(
+        how_the_view_frames_the_block(&app).covers < A_SPECK,
+        "the wheel was meant to leave the block a speck",
+    );
+
+    let the_button = the_origin_view(&app).unwrap_or_else(|| {
+        panic!(
+            "no button of the view reads « Vue d'origine », showing {:?}",
+            driver::on_screen(&app)
+        )
+    });
+    the_button.click();
+    app.run();
+    driver::hold_the_canvas(&mut app);
+
+    for ((axis, drawn), (_, wanted)) in the_axes_on_screen(&app)
+        .into_iter()
+        .zip(the_axes_a_new_part_opens_with())
+    {
+        assert!(
+            (drawn - wanted).length() <= ALONG_THE_OPENING_AXIS,
+            "once « Vue d'origine » is clicked, the axis {axis:?} runs {drawn:?} across the \
+             screen, and a new part opens with it running {wanted:?}",
+        );
+    }
+    let framed = how_the_view_frames_the_block(&app);
+    assert!(
+        framed.covers >= FILLS_THE_VIEW,
+        "« Vue d'origine » leaves the block covering {} of the view",
+        framed.covers,
+    );
+    assert!(
+        framed.off_the_middle <= OFF_THE_MIDDLE,
+        "once « Vue d'origine » is clicked, the block's middle stands {} of the view's \
+         height from the middle of the view",
+        framed.off_the_middle,
+    );
+}
+
+/// Where in the cube's square a click leaves the corner view a part opens
+/// with, the middle of the square being that corner itself.
+const A_FACE_OFF_THE_MIDDLE: glam::Vec2 = glam::Vec2::new(-0.35, -0.2);
+
+/// Which way the view looks, read off where the world's axes land around the
+/// middle of the block.
+fn looking_along(app: &driver::App) -> glam::Vec3 {
+    let axes = the_axes_through_unscaled(app, the_block_s_middle());
+    let right = glam::Vec3::new(axes[0].x, axes[1].x, axes[2].x);
+    let up = glam::Vec3::new(-axes[0].y, -axes[1].y, -axes[2].y);
+    up.cross(right).normalize()
+}
+
+fn the_axes_through_unscaled(app: &driver::App, middle: DVec3) -> [egui::Vec2; 3] {
+    [DVec3::X, DVec3::Y, DVec3::Z]
+        .map(|axis| of_the_world(app, middle + axis) - of_the_world(app, middle))
+}
+
+#[test]
+fn the_origin_view_button_shows_the_right_the_front_and_the_top() {
+    use cao_render::CubeFace;
+
+    let mut app = driver::a_block("the_origin_view_button_shows_the_right_the_front_and_the_top");
+    let cube_face = in_the_cube(the_cube(&app), A_FACE_OFF_THE_MIDDLE);
+    driver::click_at(&mut app, cube_face);
+    assert!(
+        !stands_as_it_opens(&app),
+        "the click on the cube was meant to leave the view turned off the opening one",
+    );
+
+    let the_button = the_origin_view(&app).unwrap_or_else(|| {
+        panic!(
+            "no button of the view reads « Vue d'origine », showing {:?}",
+            driver::on_screen(&app)
+        )
+    });
+    the_button.click();
+    app.run();
+    driver::hold_the_canvas(&mut app);
+
+    let forward = looking_along(&app);
+    let seen: Vec<CubeFace> = CubeFace::ALL
+        .into_iter()
+        .filter(|face| cao_render::cube::is_visible(*face, forward))
+        .collect();
+    assert_eq!(
+        seen,
+        vec![CubeFace::PlusX, CubeFace::MinusY, CubeFace::PlusZ],
+        "once « Vue d'origine » is clicked, the faces seen should be « DROITE », « FACE » and \
+         « DESSUS »",
+    );
+}
+
+#[test]
+fn the_origin_view_button_is_hidden_while_a_sketch_is_open() {
+    let mut app = driver::a_block("the_origin_view_button_is_hidden_while_a_sketch_is_open");
+    assert_offered(&app, "on a block, no sketch open");
+
+    driver::start_a_sketch(&mut app);
+    assert!(
+        driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        "no sketch was opened on the block, showing {:?}",
+        driver::on_screen(&app),
+    );
+    assert!(
+        the_origin_view(&app).is_none(),
+        "with a sketch open, « Vue d'origine » should be gone from the view, not greyed",
+    );
+
+    driver::click_in_the_ribbon(&mut app, driver::FINISH_IN_THE_RIBBON);
+    assert_offered(&app, "the sketch finished");
+}
+
+#[test]
+fn the_origin_view_button_stays_while_a_plane_is_being_chosen() {
+    let mut app = driver::a_block("the_origin_view_button_stays_while_a_plane_is_being_chosen");
+
+    driver::click(&mut app, "Nouvelle esquisse");
+
+    assert!(
+        !driver::is_enabled(&app, driver::FINISH_IN_THE_RIBBON),
+        "a sketch was opened where only a plane was meant to be chosen, showing {:?}",
+        driver::on_screen(&app),
+    );
+    assert_offered(
+        &app,
+        "while a plane is being chosen, no sketch being open yet",
+    );
+}
+
+/// Where the settings stand a cube set to a top corner, read from them: a cube
+/// too small for its names to be legible paints no text to be found by.
+fn where_a_top_corner_sets_the_cube(
+    app: &driver::App,
+    corner: ViewportCorner,
+    size: f32,
+    margin: f32,
+) -> egui::Rect {
+    let view = driver::canvas(app);
+    let left = match corner {
+        ViewportCorner::TopLeft => view.min.x + margin,
+        _ => view.max.x - margin - size,
+    };
+    egui::Rect::from_min_size(
+        egui::pos2(left, view.min.y + margin),
+        egui::Vec2::splat(size),
+    )
+}
+
+#[test]
+fn the_origin_view_button_follows_the_cube_s_corner_size_and_margin() {
+    use ViewportCorner::{TopLeft, TopRight};
+
+    for (corner, size, margin) in [
+        (TopLeft, 96.0, 12.0),
+        (TopRight, 160.0, 30.0),
+        (TopLeft, 80.0, 4.0),
+        (TopRight, 96.0, 40.0),
+    ] {
+        let seen = format!("the cube at {corner:?}, {size} wide, {margin} in");
+        let app = a_part_with_the_cube(
+            &format!("the_origin_view_button_follows_the_cube_{corner:?}_{size}_{margin}"),
+            corner,
+            size,
+            margin,
+        );
+
+        let button = the_origin_view_s_place(&app);
+
+        let cube = where_a_top_corner_sets_the_cube(&app, corner, size, margin);
+        assert_directly_under(cube, button, &seen);
+        assert_flush_with_the_cube(corner, cube, button, &seen);
+        assert_clear_of_the_view_s_edges(&app, button, &seen);
+    }
+}
+
+#[test]
+fn the_origin_view_button_goes_above_a_cube_in_a_bottom_corner() {
+    use ViewportCorner::{BottomLeft, BottomRight};
+
+    for (corner, size, margin) in [
+        (BottomLeft, 96.0, 12.0),
+        (BottomRight, 96.0, 12.0),
+        (BottomRight, 160.0, 30.0),
+    ] {
+        let seen = format!("the cube at {corner:?}, {size} wide, {margin} in");
+        let app = a_part_with_the_cube(
+            &format!("the_origin_view_button_goes_above_a_cube_{corner:?}_{size}_{margin}"),
+            corner,
+            size,
+            margin,
+        );
+
+        let button = the_origin_view_s_place(&app);
+        let cube = the_cube(&app);
+        let bar = the_bar_s_frame(&app);
+
+        let gap = cube.min.y - button.max.y;
+        assert!(
+            (0.0..=BESIDE_THE_CUBE).contains(&gap),
+            "{seen}: the button at {button:?} stands {gap} points above the top of the cube \
+             at {cube:?}, where 0 to {BESIDE_THE_CUBE} is directly above it",
+        );
+        assert_in_line_with(cube, button, &seen);
+        assert_flush_with_the_cube(corner, cube, button, &seen);
+        assert_clear_of_the_view_s_edges(&app, button, &seen);
+        assert!(
+            !button.intersects(bar),
+            "{seen}: the button at {button:?} lies across the view bar at {bar:?}",
+        );
+    }
+}
+
+/// Where in the cube's square, from -1 to 1 with y up, the opening view shows
+/// a zone of this kind, well inside it: the points around it aim at it too.
+/// Never the zone the opening view already looks straight at, which a click
+/// would leave the view on.
+fn a_point_aiming_at(
+    kind: fn(&cao_render::CubeZone) -> bool,
+) -> (glam::Vec2, cao_render::CubeZone) {
+    let aimed_at = |at: glam::Vec2| {
+        cao_render::cube::pick_zone(cao_render::OrbitCamera::default().rotation(), at)
+    };
+    let step = 0.04;
+    (-20..=20)
+        .flat_map(|x| (-20..=20).map(move |y| glam::Vec2::new(x as f32, y as f32) * step))
+        .find_map(|at| {
+            let zone = aimed_at(at)?;
+            let all_around = [
+                glam::Vec2::X,
+                glam::Vec2::NEG_X,
+                glam::Vec2::Y,
+                glam::Vec2::NEG_Y,
+            ]
+            .into_iter()
+            .all(|side| aimed_at(at + side * step) == Some(zone));
+            let looked_at_already = zone
+                .direction()
+                .dot(-cao_render::OrbitCamera::default().forward())
+                > 1.0 - 1e-3;
+            (kind(&zone) && all_around && !looked_at_already).then_some((at, zone))
+        })
+        .expect("the opening view shows a zone of every kind")
+}
+
+fn in_the_cube(cube: egui::Rect, at: glam::Vec2) -> egui::Pos2 {
+    cube.center() + egui::vec2(at.x * cube.width() * 0.5, -at.y * cube.height() * 0.5)
+}
+
+/// Which way each axis of the world runs across the screen for this camera.
+fn the_axes_of(camera: &cao_render::OrbitCamera) -> [(DVec3, egui::Vec2); 3] {
+    [DVec3::X, DVec3::Y, DVec3::Z].map(|axis| {
+        let on = axis.as_vec3();
+        let along = egui::vec2(camera.right().dot(on), -camera.up().dot(on));
+        (axis, along)
+    })
+}
+
+#[test]
+fn clicking_a_face_an_edge_or_a_corner_of_the_cube_still_turns_the_camera() {
+    use cao_render::CubeZone;
+
+    for (name, kind) in [
+        (
+            "face",
+            (|zone| matches!(zone, CubeZone::Face(_))) as fn(&CubeZone) -> bool,
+        ),
+        ("edge", |zone| matches!(zone, CubeZone::Edge(_))),
+        ("corner", |zone| matches!(zone, CubeZone::Corner(_))),
+    ] {
+        let mut app = a_part_with(
+            &format!("clicking_a_{name}_of_the_cube_still_turns_the_camera"),
+            ViewportCorner::BottomLeft,
+            ViewportCorner::TopRight,
+        );
+        let (at, zone) = a_point_aiming_at(kind);
+        let mut turned = cao_render::OrbitCamera::default();
+        let mut turn = cao_render::ViewTransition::to_zone(&turned, zone);
+        while turn.advance(&mut turned, 0.1) {}
+
+        let before = the_axes_through(&app, DVec3::ZERO);
+        let aim = in_the_cube(the_cube(&app), at);
+        driver::click_at(&mut app, aim);
+
+        assert!(
+            the_axes_through(&app, DVec3::ZERO)
+                .into_iter()
+                .zip(before)
+                .any(|((_, after), (_, was))| (after - was).length() > ALONG_THE_OPENING_AXIS),
+            "a click on the {name} {zone:?} left the view where it was",
+        );
+        for ((axis, drawn), (_, wanted)) in the_axes_through(&app, DVec3::ZERO)
+            .into_iter()
+            .zip(the_axes_of(&turned))
+        {
+            if wanted.length() < 0.25 {
+                continue;
+            }
+            assert!(
+                (drawn - wanted.normalized()).length() <= ALONG_THE_OPENING_AXIS,
+                "after a click on the {name} {zone:?}, the axis {axis:?} runs {drawn:?} across \
+                 the screen, and that zone's view runs it {:?}",
+                wanted.normalized(),
+            );
+        }
+    }
+}
+
+/// How many names of the cube the last frame painted in this ink.
+fn names_inked(app: &driver::App, wanted: egui::Color32) -> usize {
+    painted(app)
+        .into_iter()
+        .filter(|(shape, clip)| match shape {
+            egui::Shape::Mesh(mesh) => {
+                mesh.texture_id == egui::TextureId::default()
+                    && (clip.width() - clip.height()).abs() < 0.5
+                    && mesh
+                        .vertices
+                        .first()
+                        .is_some_and(|vertex| vertex.color == wanted)
+            }
+            _ => false,
+        })
+        .count()
+}
+
+#[test]
+fn hovering_a_face_of_the_cube_still_lights_its_name() {
+    use cao_render::CubeZone;
+
+    let mut app = a_part_with(
+        "hovering_a_face_of_the_cube_still_lights_its_name",
+        ViewportCorner::BottomLeft,
+        ViewportCorner::TopRight,
+    );
+    assert_eq!(
+        names_inked(&app, tokens::TEXT_TITLE),
+        0,
+        "with nothing under the cursor, a name of the cube is already lit",
+    );
+    let (at, _) = a_point_aiming_at(|zone| matches!(zone, CubeZone::Face(_)));
+
+    let aim = in_the_cube(the_cube(&app), at);
+    app.hover_at(aim);
+    app.run();
+
+    assert_eq!(
+        names_inked(&app, tokens::TEXT_TITLE),
+        1,
+        "with one face of the cube under the cursor, one name should be written in its \
+         title colour",
     );
 }

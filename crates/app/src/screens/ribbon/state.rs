@@ -228,6 +228,7 @@ pub fn is_enabled(
         | Command::ExportStlFine
         | Command::ExportStep => !document.body().is_empty(),
         Command::SectionView => !drawing && !document.body().is_empty(),
+        Command::OriginView => !drawing,
         _ => true,
     }
 }

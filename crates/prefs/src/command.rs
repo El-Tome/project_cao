@@ -10,6 +10,7 @@ pub enum Command {
     NewSketch,
     FinishSketch,
     Reframe,
+    OriginView,
     NextMatterInFront,
     SectionView,
     Undo,
@@ -112,10 +113,11 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 66] = [
+    pub const ALL: [Self; 67] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::Reframe,
+        Self::OriginView,
         Self::NextMatterInFront,
         Self::SectionView,
         Self::Undo,
@@ -188,6 +190,7 @@ impl Command {
             Self::NewSketch
             | Self::FinishSketch
             | Self::Reframe
+            | Self::OriginView
             | Self::NextMatterInFront
             | Self::SectionView => CommandFamily::Sketch,
             Self::Undo | Self::Redo | Self::CompactHistory | Self::SelectAll => {

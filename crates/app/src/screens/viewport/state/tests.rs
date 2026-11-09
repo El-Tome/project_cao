@@ -55,6 +55,21 @@
 //! - nothing when the body is hidden, as nothing of it is met when a plane is
 //!   chosen (`viewport/matter.rs` `drawn_under`) —
 //!   `a_hidden_body_has_no_point_under_a_ray`
+//!
+//! Closes #729. The rest of the issue is in `render/tests.rs`,
+//! `render/overlays/tests.rs` and `crates/app/tests/view_bar.rs`, each under
+//! its own block.
+//! - « Vue d'origine » under the cube: the isometric view the part opens with,
+//!   framed on the part — read as: the angles of `OrbitCamera::default`, the
+//!   body's bounds fitted as « Recadrer » fits them, and a command as
+//!   « Recadrer » is one —
+//!   `the_origin_view_takes_the_opening_angles_framed_on_the_part`; it turns
+//!   the camera there rather than jumping, as « Recadrer » does —
+//!   `the_origin_view_turns_the_camera_there_rather_than_jumping`; with no
+//!   volume, the camera a new part opens with —
+//!   `the_origin_view_of_a_part_with_no_volume_is_the_camera_a_new_part_opens_with`
+//! - The cube's corner, size and margin settings —
+//!   `the_cube_keeps_its_corner_size_and_margin_settings`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::Command;
@@ -585,4 +600,200 @@ fn reframing_while_a_plane_is_being_chosen_frames_the_whole_part() {
         covered >= FILLS_THE_CANVAS,
         "while a plane is being chosen, the part covers {covered} of the canvas once reframed",
     );
+}
+
+/// The one command the user reads as « Vue d'origine », found by that name so
+/// that this file says what is asked rather than how it is spelled in the code.
+fn the_origin_view() -> Command {
+    let lang = Catalogue::french();
+    Command::ALL
+        .into_iter()
+        .find(|command| crate::wording::command::label(&lang, *command) == "Vue d'origine")
+        .expect("no command reads « Vue d'origine »: the opening view can be asked for by nobody")
+}
+
+fn ask_for_the_origin_view(document: &mut PartDocument, state: &mut ViewportState) {
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut part = SketchContext {
+        document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    crate::commands::run(the_origin_view(), &mut part, &mut Ribbon::default(), state);
+}
+
+fn land(state: &mut ViewportState) {
+    if let Some(mut turn) = state.transition.take() {
+        while turn.advance(&mut state.camera, 1.0) {}
+    }
+}
+
+#[test]
+fn the_origin_view_takes_the_opening_angles_framed_on_the_part() {
+    let opens_with = ViewportState::default().camera;
+    let mut document = a_block_far_from_the_origin();
+
+    for (radius, (yaw, pitch), mode) in [
+        (1.0, (0.3, -0.5), ViewMode::Free),
+        (1e5, (3.0, 1.2), ViewMode::Free),
+        (40.0, (-2.0, -1.4), ViewMode::Plane(WorkPlane::XZ)),
+    ] {
+        let turned_away = || {
+            let mut state = a_view_turned_away(radius);
+            state.camera.set_view_angles(yaw, pitch);
+            state.mode = mode;
+            state
+        };
+        let seen = format!("from {radius} away at yaw {yaw}, pitch {pitch}, in {mode:?}");
+        let mut framed_by_reframe = turned_away();
+        reframed(
+            &mut document,
+            &mut SketchEditor::default(),
+            &mut framed_by_reframe,
+        );
+        let mut state = turned_away();
+
+        ask_for_the_origin_view(&mut document, &mut state);
+        land(&mut state);
+
+        assert!(
+            state.camera.forward().dot(opens_with.forward()) >= 1.0 - SAME_DIRECTION,
+            "{seen}, « Vue d'origine » leaves the part seen along {:?}, and a new part \
+             opens seen along {:?}",
+            state.camera.forward(),
+            opens_with.forward(),
+        );
+        assert!(
+            (state.camera.target() - framed_by_reframe.camera.target()).length() < 1e-4,
+            "{seen}, « Vue d'origine » aims at {:?}, and « Recadrer » aims at {:?}",
+            state.camera.target(),
+            framed_by_reframe.camera.target(),
+        );
+        assert!(
+            (state.camera.distance() - framed_by_reframe.camera.distance()).abs() < 1e-3,
+            "{seen}, « Vue d'origine » stands {} away, and « Recadrer » stands {} away",
+            state.camera.distance(),
+            framed_by_reframe.camera.distance(),
+        );
+        assert_eq!(
+            state.mode,
+            ViewMode::Free,
+            "{seen}, the view ends oblique and still counts as lying on a plane, grid and all",
+        );
+    }
+}
+
+#[test]
+fn the_origin_view_turns_the_camera_there_rather_than_jumping() {
+    let mut document = a_block_far_from_the_origin();
+    let mut state = a_view_turned_away(40.0);
+    let seen_along = state.camera.forward();
+
+    ask_for_the_origin_view(&mut document, &mut state);
+
+    assert!(
+        state.camera.forward().dot(seen_along) >= 1.0 - SAME_DIRECTION,
+        "the frame « Vue d'origine » is asked on, the part is already seen along {:?}, \
+         where it was seen along {seen_along:?}: the view jumped",
+        state.camera.forward(),
+    );
+    assert!(
+        state.transition.is_some(),
+        "« Vue d'origine » asks for no turn: the camera is never going to move",
+    );
+}
+
+#[test]
+fn the_origin_view_of_a_part_with_no_volume_is_the_camera_a_new_part_opens_with() {
+    let opens_with = ViewportState::default().camera;
+
+    for (mut document, what) in [
+        (PartDocument::new("part", Utc::now()), "an empty part"),
+        (a_drawing_never_raised(), "a part drawn and never raised"),
+    ] {
+        let mut state = a_view_turned_away(1e5);
+        state.camera.set_target(Vec3::new(50.0, -20.0, 80.0));
+        state.mode = ViewMode::Plane(WorkPlane::XY);
+
+        ask_for_the_origin_view(&mut document, &mut state);
+        land(&mut state);
+
+        assert!(
+            state.camera.forward().dot(opens_with.forward()) >= 1.0 - SAME_DIRECTION,
+            "on {what}, « Vue d'origine » leaves the part seen along {:?}, and a new part \
+             opens seen along {:?}",
+            state.camera.forward(),
+            opens_with.forward(),
+        );
+        assert!(
+            (state.camera.target() - opens_with.target()).length() < 1e-4,
+            "on {what}, « Vue d'origine » aims at {:?}, and a new part opens aimed at {:?}",
+            state.camera.target(),
+            opens_with.target(),
+        );
+        assert!(
+            (state.camera.distance() - opens_with.distance()).abs() < 1e-3,
+            "on {what}, « Vue d'origine » stands {} away, and a new part opens {} away",
+            state.camera.distance(),
+            opens_with.distance(),
+        );
+        assert_eq!(
+            state.mode,
+            ViewMode::Free,
+            "on {what}, the view ends oblique and still counts as lying on a plane",
+        );
+    }
+}
+
+#[test]
+fn the_cube_keeps_its_corner_size_and_margin_settings() {
+    let view = egui::Rect::from_min_size(egui::pos2(200.0, 100.0), egui::vec2(1000.0, 600.0));
+
+    for (size, margin) in [(96.0, 12.0), (160.0, 30.0), (80.0, 4.0)] {
+        for (cube_corner, wanted) in [
+            (
+                ViewportCorner::TopLeft,
+                egui::pos2(view.min.x + margin, view.min.y + margin),
+            ),
+            (
+                ViewportCorner::TopRight,
+                egui::pos2(view.max.x - margin - size, view.min.y + margin),
+            ),
+            (
+                ViewportCorner::BottomLeft,
+                egui::pos2(view.min.x + margin, view.max.y - margin - size),
+            ),
+            (
+                ViewportCorner::BottomRight,
+                egui::pos2(
+                    view.max.x - margin - size,
+                    view.max.y - margin - size - BAR_TOP,
+                ),
+            ),
+        ] {
+            let config = ViewportConfig {
+                cube_corner,
+                cube_size: size,
+                cube_margin: margin,
+                ..ViewportConfig::default()
+            };
+
+            let cube = cube_rect(view, &config);
+
+            assert!(
+                (cube.min - wanted).length() < 1e-3,
+                "a cube {size} wide set {margin} in at {cube_corner:?} stands at {:?}, not \
+                 {wanted:?}",
+                cube.min,
+            );
+            assert!(
+                (cube.size() - egui::Vec2::splat(size)).length() < 1e-3,
+                "a cube set {size} wide at {cube_corner:?} is {:?}",
+                cube.size(),
+            );
+        }
+    }
 }

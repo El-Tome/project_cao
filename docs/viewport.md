@@ -65,9 +65,40 @@ line of the axis.
 ## The orientation cube
 
 The cube turns with the camera and therefore shows how one is looking at the
-part. Its 6 faces carry a label (DESSUS, FACE, DROITE…) drawn by egui and not
-by the GPU: showing text would want a font atlas on the rendering side, where
-egui already has one.
+part. Its 6 faces carry a name (DESSUS, FACE, DROITE…) drawn by egui and not by
+the GPU: showing text would want a font atlas on the rendering side, where egui
+already has one.
+
+A name lies on its face and turns with it. The cube is orthographic, so a face
+projects by an affine map: the word is laid out flat, sized in the face's own
+square, and each corner of each glyph goes through that map. A name is never
+mirrored seen from outside, a side face reads upright with +Z up, and a face
+seen too edge-on to read is left bare.
+
+An X/Y/Z triad in the axis colours is built into the cube: its three axes start
+from one corner of the cube and run along its edges, a little past their far
+corners, each ended by its letter. An axis behind the cube is not drawn: one
+shows when a face its edge bounds is strictly seen, or when it lies in the plane
+the view is square onto. An axis end-on draws nothing, so that the one pointing
+at the eye is not a dot with a letter. From the opposite corner the face rule
+hides all three. At the opening view and square onto a sketch, the triad stays
+off the names.
+
+While a sketch is open, the face it looks at is lit amber (DESSUS for the XY
+plane), wherever the view is turned. A sketch on a part's face lights the cube
+face closest to its normal, the first of a fixed order on an exact tie, so that
+the answer never flickers. A hovered zone keeps its hover colour on top of the
+amber.
+
+A part opens on the corner of the right, the front and the top, so that the
+names DROITE, FACE and DESSUS are the three seen, all upright.
+
+Under the cube, « Vue d'origine » brings back the view a part opens with, framed
+on the whole part as « Recadrer » frames it, turning rather than jumping, and
+leaves the view on no plane. With no volume to frame, it is the camera a new
+part opens with. In a bottom corner, where there is no room under the cube, the
+button stands above it. It is gone, not greyed, while a sketch is open; choosing
+the plane of the next one is not a sketch open yet, so it stays.
 
 Its position is configurable (`cube_corner`, top-right corner by default), as
 are its size and its margin. Set to the bottom right, it stands above the view

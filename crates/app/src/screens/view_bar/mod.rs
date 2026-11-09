@@ -5,5 +5,6 @@
 mod state;
 mod view;
 
-pub use state::ViewBar;
+pub use state::{Offered, ViewBar};
+pub(crate) use view::offered_button;
 pub use view::show;

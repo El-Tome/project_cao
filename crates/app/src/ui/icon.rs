@@ -118,6 +118,7 @@ embedded! {
     FIXED = "fixed";
     HISTORY = "history";
     HOME = "home";
+    HOME_VIEW = "home-view";
     LINE = "line";
     LINE_SYMMETRIC = "line-symmetric";
     MATTER_IN_FRONT_HIDDEN = "matter-in-front-hidden";

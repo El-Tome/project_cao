@@ -69,6 +69,7 @@ icons_drawn! {
     NewSketch => "new-sketch",
     FinishSketch => "finish",
     Reframe => "reframe",
+    OriginView => "home-view",
     NextMatterInFront => "matter-in-front-hidden",
     SectionView => "section-view",
     Undo => "undo",

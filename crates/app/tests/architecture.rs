@@ -482,6 +482,8 @@ fn naming_the_insides_of_the_matter_is_told_from_mentioning_them() {
         "let solid: Option<Mesh> = None;",
         "use cao_solid::brep::{Body, Listing};",
         "let raised = brep::Body::raised(&outline, &[], frame, travel);",
+        "fn volume(mesh: &Mesh) -> f64 {",
+        "let painted_and_matter: (egui::Mesh, Mesh) = both();",
     ] {
         assert!(
             INSIDES_OF_THE_MATTER
@@ -499,6 +501,9 @@ fn naming_the_insides_of_the_matter_is_told_from_mentioning_them() {
         "fn polygonal(sides: usize) -> SubPolygon {",
         "/// What `brep` hands back, once a Body holds it.",
         "let breps = bodies.len();",
+        "fn quads(mesh: &egui::Mesh) -> Vec<Vertex> {",
+        "egui::Shape::Mesh(mesh) if mesh.vertices.len() > 3 => {",
+        "Shape::Mesh(mesh) => painted.push(mesh),",
     ] {
         assert!(
             !INSIDES_OF_THE_MATTER
@@ -1288,7 +1293,9 @@ fn everything_written_in(directory: &str) -> Vec<(String, String)> {
 
 /// Whether the code of a source names a type: the name as a word of its own,
 /// not a piece of a longer one, and neither in a comment nor in a string, which
-/// mention it without reaching for it.
+/// mention it without reaching for it. `egui` has a `Mesh` of its own, painted
+/// glyphs and nothing of the matter: reached through `egui::` or `Shape::`, the
+/// word is that one.
 fn names_in_code(source: &str, name: &str) -> bool {
     let is_identifier = |character: char| character.is_alphanumeric() || character == '_';
     source.lines().any(|line| {
@@ -1296,7 +1303,8 @@ fn names_in_code(source: &str, name: &str) -> bool {
         code.match_indices(name).any(|(at, _)| {
             let before = code[..at].chars().next_back();
             let after = code[at + name.len()..].chars().next();
-            !before.is_some_and(is_identifier) && !after.is_some_and(is_identifier)
+            let egui_s_own = code[..at].ends_with("egui::") || code[..at].ends_with("Shape::");
+            !before.is_some_and(is_identifier) && !after.is_some_and(is_identifier) && !egui_s_own
         })
     })
 }

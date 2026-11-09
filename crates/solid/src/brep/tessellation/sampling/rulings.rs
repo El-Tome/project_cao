@@ -12,14 +12,16 @@
 //! two chords that keep their order on every ruling either ends on keep it
 //! between. An edge keeps every place it had, so the face on its other side
 //! loses none; a place within the kernel's tolerance of one it has, or
-//! within a hair of one of its ends, is that one.
+//! within a hair of one of its ends, is that one, and a place within
+//! rounding of a vertex, or of the place it was taken from, is that sample,
+//! as `Samples::through` has it.
 
 use std::collections::BTreeMap;
 use std::f64::consts::{PI, TAU};
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
-use super::Samples;
+use super::{Samples, TOLD};
 use crate::brep::Scale;
 use crate::brep::curve::Curve;
 use crate::brep::surface::{Cone, Surface};
@@ -30,15 +32,24 @@ use crate::brep::topology::{Body, EdgeId};
 const ROUNDS: usize = 8;
 
 /// A place an edge takes: the rank of the chord it falls on, how far along
-/// it, and the point.
-type Place = (usize, f64, DVec3);
+/// it, the point, and the sample of the other edge it was taken from.
+type Place = (usize, f64, DVec3, usize);
+
+/// An edge of a cone's face: its samples in the cone's `(θ, l)`, and the
+/// box they stand in.
+struct Charted {
+    edge: EdgeId,
+    chart: Vec<DVec2>,
+    low: DVec3,
+    high: DVec3,
+}
 
 impl Samples {
     /// Every two edges of a cone's face given a place on each ruling through
     /// a place of the other that stands beyond its chord, within twice
     /// `tolerance` of it.
     pub(super) fn on_common_rulings(&mut self, body: &Body, tolerance: f64) {
-        let mut pairs: Vec<(Cone, EdgeId, EdgeId)> = Vec::new();
+        let mut faces: Vec<(Cone, Vec<EdgeId>)> = Vec::new();
         for face in body.face_ids() {
             let face = body.face(face);
             let Surface::Cone(cone) = body.surface(face.surface) else {
@@ -53,27 +64,55 @@ impl Samples {
                 .collect();
             edges.sort();
             edges.dedup();
-            for &to in &edges {
-                for &from in edges.iter().filter(|from| **from != to) {
-                    pairs.push((*cone, from, to));
-                }
+            if edges.len() > 1 {
+                faces.push((*cone, edges));
             }
         }
+        let reach = 2.0 * tolerance;
         for _ in 0..ROUNDS {
             let mut taken: BTreeMap<EdgeId, Vec<Place>> = BTreeMap::new();
-            for (cone, from, to) in &pairs {
-                for &sample in self.edge(*from) {
-                    let at = self.points[sample];
-                    let near = self
-                        .beyond(body, *to, cone, at)
-                        .into_iter()
-                        .filter(|(_, _, point)| point.distance(at) <= 2.0 * tolerance);
-                    taken.entry(*to).or_default().extend(near);
+            for (cone, edges) in &faces {
+                let charted: Vec<Charted> =
+                    edges.iter().map(|edge| self.charted(*edge, cone)).collect();
+                for to in &charted {
+                    let (low, high) = (to.low - reach - tolerance, to.high + reach + tolerance);
+                    for from in charted.iter().filter(|from| from.edge != to.edge) {
+                        if from.low.cmpgt(high).any() || from.high.cmplt(low).any() {
+                            continue;
+                        }
+                        for (&sample, &read) in self.edge(from.edge).iter().zip(&from.chart) {
+                            let at = self.points[sample];
+                            if at.cmplt(low).any() || at.cmpgt(high).any() {
+                                continue;
+                            }
+                            let near = self
+                                .beyond(body, to, cone, read)
+                                .into_iter()
+                                .filter(|(_, _, point)| point.distance(at) <= reach)
+                                .map(|(rank, along, point)| (rank, along, point, sample));
+                            taken.entry(to.edge).or_default().extend(near);
+                        }
+                    }
                 }
             }
             if !self.took(taken, body.scale().eps()) {
                 break;
             }
+        }
+    }
+
+    /// The samples of `edge` read on `cone`, and their box.
+    fn charted(&self, edge: EdgeId, cone: &Cone) -> Charted {
+        let points = self.edge(edge).iter().map(|id| self.points[*id]);
+        let (low, high) = points.clone().fold(
+            (DVec3::INFINITY, DVec3::NEG_INFINITY),
+            |(low, high), point| (low.min(point), high.max(point)),
+        );
+        Charted {
+            edge,
+            chart: points.map(|point| cone.parameters(point)).collect(),
+            low,
+            high,
         }
     }
 
@@ -86,7 +125,7 @@ impl Samples {
             let run = self.edges[edge.0 as usize].clone();
             let mut kept: Vec<Vec<usize>> = vec![Vec::new(); run.len()];
             let mut last: Option<DVec3> = None;
-            for (rank, _, point) in places {
+            for (rank, _, point, source) in places {
                 let held = run.iter().any(|&sample| {
                     let room = if self.is_vertex(sample) {
                         eps * Scale::HAIR
@@ -99,8 +138,18 @@ impl Samples {
                     continue;
                 }
                 last = Some(point);
-                kept[rank].push(self.points.len());
-                self.points.push(point);
+                let id = self
+                    .vertex_at(point, eps * TOLD)
+                    .or_else(|| {
+                        (self.points[source].distance(point) <= eps * TOLD).then_some(source)
+                    })
+                    .unwrap_or_else(|| {
+                        self.points.push(point);
+                        self.points.len() - 1
+                    });
+                if kept[rank].last() != Some(&id) {
+                    kept[rank].push(id);
+                }
                 any = true;
             }
             self.edges[edge.0 as usize] = run
@@ -112,29 +161,35 @@ impl Samples {
         any
     }
 
-    /// Where the ruling of `cone` through `at` crosses the edge `edge`
-    /// between two of its places whose chord stands on the other side of
-    /// `at` from the curve, or through it: the rank of the chord, how far
-    /// along it, and the point.
-    fn beyond(&self, body: &Body, edge: EdgeId, cone: &Cone, at: DVec3) -> Vec<Place> {
-        let curve = body.curve(body.edge(edge).curve);
-        let [theta, height] = cone.parameters(at).to_array();
-        let off = |point: DVec3| (cone.parameters(point).x - theta + PI).rem_euclid(TAU) - PI;
-        let run = self.edge(edge);
-        let ring = body.edge(edge).ends.is_none();
+    /// Where the ruling of `cone` at `read` crosses the edge `to` between
+    /// two of its places whose chord stands on the other side of `read`
+    /// from the curve, or through it: the rank of the chord, how far along
+    /// it, and the point.
+    fn beyond(
+        &self,
+        body: &Body,
+        to: &Charted,
+        cone: &Cone,
+        read: DVec2,
+    ) -> Vec<(usize, f64, DVec3)> {
+        let curve = body.curve(body.edge(to.edge).curve);
+        let off = |theta: f64| (theta - read.x + PI).rem_euclid(TAU) - PI;
+        let run = self.edge(to.edge);
+        let ring = body.edge(to.edge).ends.is_none();
         let chords = if ring { run.len() } else { run.len() - 1 };
         let mut places = Vec::new();
         for rank in 0..chords {
-            let [from, to] = [run[rank], run[(rank + 1) % run.len()]].map(|id| self.points[id]);
-            let [before, after] = [off(from), off(to)];
+            let next = (rank + 1) % run.len();
+            let [before, after] = [to.chart[rank].x, to.chart[next].x].map(off);
             if before == 0.0 || after == 0.0 || before.signum() == after.signum() {
                 continue;
             }
             if (before - after).abs() >= PI {
                 continue;
             }
+            let [from, end] = [run[rank], run[next]].map(|id| self.points[id]);
             let low = curve.parameter(from);
-            let mut high = curve.parameter(to);
+            let mut high = curve.parameter(end);
             if let Some(period) = curve.period() {
                 high = low + (high - low + period / 2.0).rem_euclid(period) - period / 2.0;
             }
@@ -144,7 +199,7 @@ impl Samples {
                 if middle == inside || middle == outside {
                     break;
                 }
-                if off(curve.point(middle)).signum() == before.signum() {
+                if off(cone.parameters(curve.point(middle)).x).signum() == before.signum() {
                     inside = middle;
                 } else {
                     outside = middle;
@@ -152,10 +207,10 @@ impl Samples {
             }
             let t = (inside + outside) / 2.0;
             let point = curve.point(t);
-            let [chord_from, chord_to] = [from, to].map(|end| cone.parameters(end).y);
+            let [chord_from, chord_to] = [to.chart[rank].y, to.chart[next].y];
             let chord = chord_from + (chord_to - chord_from) * before / (before - after);
-            let curve_side = height - cone.parameters(point).y;
-            if curve_side == 0.0 || (height - chord) * curve_side > 0.0 {
+            let curve_side = read.y - cone.parameters(point).y;
+            if curve_side == 0.0 || (read.y - chord) * curve_side > 0.0 {
                 continue;
             }
             let along = if high == low {

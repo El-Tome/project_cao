@@ -14,7 +14,6 @@ mod ui;
 mod wording;
 
 pub use ui::theme;
-pub use ui::tool_button::{Rows, small_button, small_grid};
 
 /// Multisampling for the whole surface: the viewport is drawn with thin lines,
 /// which alias badly without it. The renderer's pipelines must be built with

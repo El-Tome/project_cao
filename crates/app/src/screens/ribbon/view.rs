@@ -10,11 +10,15 @@ use crate::ui::icon;
 use crate::ui::logo::logo;
 use crate::ui::panel_toggle::{panel_button, panel_toggle};
 use crate::ui::theme::tokens::SPACING_L;
-use crate::ui::tool_button::{icon_button, menu_entry, name_and_key, tool_button};
+use crate::ui::tool_button::{
+    Rows, icon_button, menu_entry, name_and_key, small_button, tool_button,
+};
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
 use super::icons;
 use super::state::{Context, Ribbon, active, enabled, icon, label};
+
+mod groups;
 
 /// What the bar needs to know about the part being drawn.
 ///
@@ -144,7 +148,11 @@ impl Ribbon {
 
             let open = layout.items.get(self.tab);
             if let Some(Item::Group { items, .. }) = open {
-                lay_out(ui, items, 1, &state, &mut asked, vertical);
+                if vertical {
+                    lay_out(ui, items, 1, &state, &mut asked, vertical);
+                } else {
+                    groups::open_tab(ui, items, &state, &mut asked);
+                }
             }
             for item in &layout.items {
                 if !matches!(item, Item::Group { .. }) {
@@ -255,7 +263,12 @@ fn lay_out(
         for item in items {
             match item {
                 Item::Command(command) => {
-                    button(ui, *command, state, asked, depth > SPREAD_OUT + 1);
+                    let shown = if depth > SPREAD_OUT + 1 {
+                        Shown::MenuEntry
+                    } else {
+                        Shown::Large
+                    };
+                    button(ui, *command, state, asked, shown);
                 }
                 Item::Separator => {
                     ui.separator();
@@ -273,11 +286,7 @@ fn lay_out(
                         }
                     });
                 }
-                Item::Group { name, items, .. } => {
-                    ui.menu_button(group(state.lang, name), |ui| {
-                        lay_out(ui, items, depth + 1, state, asked, true);
-                    });
-                }
+                Item::Group { name, items, .. } => menu(ui, name, items, depth, state, asked),
             }
         }
     };
@@ -289,12 +298,34 @@ fn lay_out(
     }
 }
 
+/// A group at menu depth: its commands open on click, a level further down.
+fn menu(
+    ui: &mut egui::Ui,
+    name: &str,
+    items: &[Item],
+    depth: usize,
+    state: &Context<'_>,
+    asked: &mut Vec<Command>,
+) {
+    ui.menu_button(group(state.lang, name), |ui| {
+        lay_out(ui, items, depth + 1, state, asked, true);
+    });
+}
+
+/// How a command is drawn, from where it stands in the tree.
+#[derive(Clone, Copy)]
+enum Shown {
+    Large,
+    Small(Rows),
+    MenuEntry,
+}
+
 fn button(
     ui: &mut egui::Ui,
     command: Command,
     state: &Context<'_>,
     asked: &mut Vec<Command>,
-    in_a_menu: bool,
+    shown: Shown,
 ) {
     let name = label(command, state);
     let key = state
@@ -308,12 +339,18 @@ fn button(
     let on = active(command, state);
     let worn = icon(command, state);
 
-    let response = if in_a_menu {
-        menu_entry(ui, pressable, on, worn, called).on_hover_text(hint)
-    } else if state.settings.toolbar.show_labels {
-        tool_button(ui, pressable, on, worn, &name, key.as_deref()).on_hover_text(hint)
-    } else {
-        icon_button(ui, pressable, on, worn, &name).on_hover_text(format!("{called}\n{hint}"))
+    let key = key.as_deref();
+    let response = match (shown, state.settings.toolbar.show_labels) {
+        (Shown::MenuEntry, _) => menu_entry(ui, pressable, on, worn, called).on_hover_text(hint),
+        (Shown::Large, true) => {
+            tool_button(ui, pressable, on, worn, &name, key).on_hover_text(hint)
+        }
+        (Shown::Small(rows), true) => {
+            small_button(ui, pressable, on, worn, &name, key, rows).on_hover_text(hint)
+        }
+        (_, false) => {
+            icon_button(ui, pressable, on, worn, &name).on_hover_text(format!("{called}\n{hint}"))
+        }
     };
     if response.clicked() {
         asked.push(command);
@@ -329,5 +366,5 @@ fn chamfer_row(ui: &mut egui::Ui, state: &Context<'_>, asked: &mut Vec<Command>)
     if chamfer_to_swap(state.document, state.editor).is_none() {
         return;
     }
-    ui.horizontal_wrapped(|ui| button(ui, Command::SwapChamferSides, state, asked, false));
+    ui.horizontal_wrapped(|ui| button(ui, Command::SwapChamferSides, state, asked, Shown::Large));
 }

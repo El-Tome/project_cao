@@ -49,10 +49,7 @@ fn across(crossings: [DVec3; 3], corner: DVec3) -> Prism {
     let [first, second, third] = crossings;
     let middle = (first + second + third) / 3.0;
     let u = (second - first).normalize();
-    let mut normal = u.cross(third - first).normalize();
-    if normal.dot(corner - middle) < 0.0 {
-        normal = -normal;
-    }
+    let normal = u.cross(third - first).normalize();
     let v = normal.cross(u);
     let outline = crossings.map(|at| {
         let off = (at - middle) * SPREAD;

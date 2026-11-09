@@ -69,49 +69,44 @@ fn ending(body: &brep::Body, corner: VertexId) -> impl Iterator<Item = EdgeId> +
 /// The names the edges after `rank` are sought by once the edge at `rank` is
 /// laid on `laid`: each later edge that meets it at a corner of `given`, the
 /// body as given, found again on `laid` — the one edge there whose two ends
-/// lie on its line, read off its wedge, whose middle stands within its old
-/// stretch, and whose faces answer to the two sides `names` gave it, as the
-/// finder reads them — and named as `laid` names that edge. A later edge no
-/// edge of `laid` answers for is left to the finder to lose. Declined
-/// `Unsupported` where several edges of `laid` answer for one, or the name
-/// `laid` gives the one does not find it.
+/// lie on its line, read off its wedge, and whose middle stands within its
+/// old stretch: what the cuts left of it, between its own two faces, since
+/// no other face holds that line — and named as `laid` names that edge. A
+/// later edge no edge of `laid` stands for, the cuts having taken the whole
+/// of it, joins `gone`, to be laid from its wedge on the body as given.
+/// Declined `Unsupported` where several edges of `laid` stand for one, or
+/// the name `laid` gives the one does not find it.
 pub(super) fn tracked(
     given: &Exact,
     laid: &Exact,
-    (edges, wedges, names): (&[EdgeId], &[Wedge], &[EdgeName]),
-    sought: &mut [EdgeName],
+    (edges, wedges): (&[EdgeId], &[Wedge]),
+    (sought, gone): (&mut [EdgeName], &mut BTreeSet<usize>),
     rank: usize,
 ) -> Result<(), Declined> {
     let near = Scale::HAIR * laid.brep.scale().eps();
     for later in rank + 1..edges.len() {
-        if !meet(&given.brep, [edges[rank], edges[later]]) {
+        if gone.contains(&later) || !meet(&given.brep, [edges[rank], edges[later]]) {
             continue;
         }
         let wedge = &wedges[later];
         let at = |point: DVec3| wedge.along.dot(point - wedge.point);
         let on_line = |point: DVec3| (point - wedge.point).cross(wedge.along).length() <= near;
-        let ends = given
-            .brep
-            .edge(edges[later])
-            .ends
-            .ok_or(Declined::Unsupported)?;
+        let ends = (given.brep.edge(edges[later]).ends).ok_or(Declined::Unsupported)?;
         let [from, to] = ends.map(|end| at(given.brep.vertex(end).point));
-        let answering: Vec<EdgeId> = (laid.brep.edge_ids())
+        let standing: Vec<EdgeId> = (laid.brep.edge_ids())
             .filter(|&edge| {
                 let Some(ends) = laid.brep.edge(edge).ends else {
                     return false;
                 };
                 let [one, other] = ends.map(|end| laid.brep.vertex(end).point);
                 let middle = at((one + other) / 2.0);
-                on_line(one)
-                    && on_line(other)
-                    && from.min(to) <= middle
-                    && middle <= from.max(to)
-                    && names[later].lies_as(&laid.edges[edge.0 as usize])
+                on_line(one) && on_line(other) && from.min(to) <= middle && middle <= from.max(to)
             })
             .collect();
-        match answering[..] {
-            [] => {}
+        match standing[..] {
+            [] => {
+                gone.insert(later);
+            }
             [edge] => {
                 let name = &laid.edges[edge.0 as usize];
                 let found = laid

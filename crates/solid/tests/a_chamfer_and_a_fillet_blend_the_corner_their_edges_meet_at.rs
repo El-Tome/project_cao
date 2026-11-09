@@ -148,15 +148,18 @@
 //!   edges hold two that share no face, and the corner's closing, reading
 //!   where each two of them cross on the face they share, declines it too
 //! - A later edge the step's own earlier cut takes whole at their corner is
-//!   left to the finder, which no longer finds it: the step hands back that
-//!   edge's reason, `Lost(Gone)`, and no body — never a body with a cut
-//!   missing — `a_fillet_whose_first_round_takes_the_whole_of_the_next_edge_at_their_corner_is_declined_as_that_edge_lost`.
-//!   On the block whose corner a facet of 0.5 cuts off, the top's front
+//!   laid even so, as the body given reads it, so that the step lays both
+//!   cuts whole whichever edge the list names first, as every mitre here
+//!   does: on the block whose corner a facet of 0.5 cuts off, the top's front
 //!   edge's round is capped at 0.5 by the facet's corner on the front, and
-//!   there takes the whole of the facet's edge on the front. Named the other
-//!   way round, the facet's edge first, the step lays both, 5998.38: the two
-//!   orders do not agree at that cap, which this file holds the first of and
-//!   leaves to be decided
+//!   there takes the whole of the facet's edge on the front; the fillet on
+//!   the two, at the cap or asked more, is the same body in either order,
+//!   the two rounds' prisms cut whole, 5998.38 by the booleans. The chamfer
+//!   on them is declined `Unsupported` in either order, as the top's front
+//!   edge is alone at that cap, its flat passing through the facet's far
+//!   edge and taking the facet whole: a list lays no edge its own step
+//!   declines —
+//!   `a_fillet_where_one_round_takes_the_next_edge_whole_lays_both_rounds_in_either_order_and_a_chamfer_declines_in_both`
 //! - A corner whose piece of sphere would stand behind it along one of its
 //!   edges, the centre one radius from the three faces lying past the corner
 //!   on that edge's line, is declined `Unsupported` among rounds: the round
@@ -354,7 +357,7 @@ use std::f64::consts::PI;
 
 use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, Declined, EdgeName, Loop, Lost};
+use cao_solid::{Body, Declined, EdgeName, Loop};
 use glam::{DMat3, DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it, on a plane:
@@ -3751,25 +3754,114 @@ fn small_facet() -> Body {
         .expect("the facet is cut")
 }
 
+/// The small facet's corner on the top's front edge, at (29.5, 0, 20): its
+/// faces the facet, the front and the top; across from them the top's front
+/// edge, running to the left wall, the facet's edge on the top and its edge
+/// on the front, both running to the right wall.
+fn small_facet_trihedral() -> Trihedral {
+    Trihedral {
+        at: DVec3::new(LENGTH - 0.5, 0.0, HEIGHT),
+        faces: [6, FRONT, TOP],
+        outward: [DVec3::new(1.0, -1.0, 1.0).normalize(), -DVec3::Y, DVec3::Z],
+        called: [
+            "the top's front edge",
+            "the facet's edge on the top",
+            "the facet's edge on the front",
+        ],
+        length: [LENGTH - 0.5, 0.5f64.sqrt(), 0.5f64.sqrt()],
+        far: [LEFT, RIGHT, RIGHT],
+    }
+}
+
 #[test]
-fn a_fillet_whose_first_round_takes_the_whole_of_the_next_edge_at_their_corner_is_declined_as_that_edge_lost()
+fn a_fillet_where_one_round_takes_the_next_edge_whole_lays_both_rounds_in_either_order_and_a_chamfer_declines_in_both()
  {
+    let cap = 0.5;
     let part = small_facet();
-    let top_front = edge_between(&part, TOP, FRONT);
-    let facet_front = edge_between(&part, FRONT, 6);
+    let corner = small_facet_trihedral();
+    let [top_front, facet_front] = [corner.edge(0), corner.edge(2)];
+    let promised = [&top_front, &facet_front]
+        .iter()
+        .fold(part.clone(), |cut, edge| {
+            cut.difference(&edge.tool(&cut, Cut::Round, cap))
+                .expect("a round's prism cuts the part")
+        })
+        .volume();
+    let names = [top_front.name(&part), facet_front.name(&part)];
+    let start = part.faces_end();
 
-    for asked in [0.5, 2.0] {
-        let filleted = part
-            .fillet_edges(&[top_front.clone(), facet_front.clone()], asked)
-            .err();
+    for asked in [cap, 2.0] {
+        let orders = [
+            ("the top's front edge first", [0, 1]),
+            ("the facet's edge first", [1, 0]),
+        ];
+        let laid: Vec<Body> = orders
+            .iter()
+            .map(|(what, order)| {
+                let list = order.map(|edge| names[edge].clone());
+                let filleted = part.fillet_edges(&list, asked).unwrap_or_else(|declined| {
+                    panic!("the fillet asked {asked}, {what}: declined, {declined:?}")
+                });
+                assert!(
+                    (filleted.taken - cap).abs() < PLACE,
+                    "the fillet asked {asked}, {what}: took {}, where the facet's corner allows \
+                     {cap}",
+                    filleted.taken
+                );
+                filleted.body
+            })
+            .collect();
+        for ((what, order), body) in orders.iter().zip(&laid) {
+            let what = format!("the fillet asked {asked}, {what}");
+            let area = PI / 2.0 * cap * (LENGTH + 1.0);
+            sound_drawn_within(body, promised, DRAWN * reach_of(&part) * area, &what);
+            assert_eq!(
+                faces_made(&part, body),
+                vec![start, start + 1],
+                "{what}: one round for each edge, by its rank in the list"
+            );
+            for (rank, &edge) in order.iter().enumerate() {
+                assert!(
+                    !body.is_flat(start + rank) && body.plane_of(start + rank).is_none(),
+                    "{what}: face {} is the round of {}, curved",
+                    start + rank,
+                    corner.called[[0, 2][edge]]
+                );
+            }
+        }
+        let swapped = |number: usize| match number {
+            number if number == start => start + 1,
+            number if number == start + 1 => start,
+            number => number,
+        };
+        let [first, second] = [&laid[0], &laid[1]];
+        for face in numbers(first) {
+            let what = format!(
+                "the fillet asked {asked}: face {face} named the top's front edge first, against \
+                 the facet's edge first"
+            );
+            assert_eq!(
+                sides_renumbered(first, face, swapped),
+                sides_met(second, swapped(face)),
+                "{what}: it meets the same faces"
+            );
+            if let Some(plane) = first.plane_of(face) {
+                corners_are(second, swapped(face), &plane.corners, &what);
+            }
+        }
 
-        assert_eq!(
-            filleted,
-            Some(Declined::Lost(Lost::Gone)),
-            "the fillet asked {asked} on the top's front edge, then the facet's edge on the \
-             front: the first round, taken at the 0.5 the facet's corner allows it, takes the \
-             whole of the second edge, whose name then finds nothing"
-        );
+        for (what, order) in orders {
+            let list = order.map(|edge| names[edge].clone());
+
+            let chamfered = part.chamfer_edges(&list, asked).err();
+
+            assert_eq!(
+                chamfered,
+                Some(Declined::Unsupported),
+                "the chamfer asked {asked}, {what}: the top's front edge's flat at the cap takes \
+                 the facet whole, as it does alone"
+            );
+        }
     }
 }
 

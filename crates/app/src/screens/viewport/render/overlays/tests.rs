@@ -55,6 +55,9 @@
 //!   — `the_triad_sticks_out_of_the_cube_at_the_bottom_left_and_keeps_off_the_names`;
 //!   found on screen: it was too small to read —
 //!   `the_triad_is_drawn_large_enough_to_read_on_a_cube_of_the_default_size`;
+//!   found in review: the triad does not jump as the camera turns, a letter
+//!   changing side moved all three lines at once —
+//!   `the_triad_does_not_jump_as_the_camera_turns`;
 //!   found in review: a cube too small to hold a letter still paints —
 //!   `a_cube_too_small_to_hold_a_letter_paints_without_a_panic`
 //! - A name stays inside its face (#225) —
@@ -1466,4 +1469,71 @@ fn a_cube_too_small_to_hold_a_letter_paints_without_a_panic() {
             shapes(|ui| paint_face_labels(ui, &state, rect, &lang));
         }
     }
+}
+
+/// How far the point the triad's lines start from may move between two views
+/// a degree apart, in points: about what a line 20 points long sweeps in a
+/// degree, with margin.
+const A_DEGREE_S_SWEEP: f32 = 1.5;
+
+/// The largest move of the triad's origin along these views, each in degrees
+/// and each beside the next, with the two views it happened between, and how
+/// many neighbours moved further than a degree's sweep.
+fn largest_jump(size: f32, views: &[(f32, f32)]) -> (f32, (f32, f32), (f32, f32), usize) {
+    let origins: Vec<egui::Pos2> = views
+        .iter()
+        .map(|(yaw, pitch)| {
+            let (state, rect) = a_cube_with_its_axes_painted_apart(
+                yaw.to_radians(),
+                pitch.to_radians(),
+                size,
+                egui::pos2(40.0, 40.0),
+            );
+            the_triad(&state, rect)[0].from
+        })
+        .collect();
+    let moves: Vec<f32> = origins
+        .windows(2)
+        .map(|two| (two[1] - two[0]).length())
+        .collect();
+    let at = (0..moves.len())
+        .max_by(|one, other| moves[*one].total_cmp(&moves[*other]))
+        .expect("at least two views");
+    let beyond = moves
+        .iter()
+        .filter(|moved| **moved > A_DEGREE_S_SWEEP)
+        .count();
+    (moves[at], views[at], views[at + 1], beyond)
+}
+
+#[test]
+fn the_triad_does_not_jump_as_the_camera_turns() {
+    let mut sweeps: Vec<Vec<(f32, f32)>> = Vec::new();
+    for pitch in [20.0, 35.0, 60.0, 89.0] {
+        sweeps.push((0..=360).map(|yaw| (yaw as f32, pitch)).collect());
+    }
+    for yaw in [0.0, 45.0, 100.0, 215.0] {
+        sweeps.push((-90..=90).map(|pitch| (yaw, pitch as f32)).collect());
+    }
+
+    let mut findings = Vec::new();
+    for size in [96.0, 160.0] {
+        for views in &sweeps {
+            let (moved, from, to, beyond) = largest_jump(size, views);
+            findings.push((moved, size, from, to, beyond));
+        }
+    }
+
+    let (moved, size, from, to, _) = findings
+        .iter()
+        .copied()
+        .max_by(|one, other| one.0.total_cmp(&other.0))
+        .expect("the sweeps hold views");
+    let jumps: usize = findings.iter().map(|finding| finding.4).sum();
+    assert!(
+        moved <= A_DEGREE_S_SWEEP,
+        "on a cube {size} wide the triad's origin moves {moved} points between yaw, pitch \
+         {from:?} and {to:?} in degrees, where a degree's turn sweeps at most \
+         {A_DEGREE_S_SWEEP}; {jumps} neighbouring views move further than that",
+    );
 }

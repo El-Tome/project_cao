@@ -20,25 +20,38 @@ const LETTER_OVER_NAME: f32 = 1.2;
 /// How far past the tip of its line a letter's middle stands, in font sizes.
 const LETTER_GAP: f32 = 0.6;
 
-/// Which way from the tip of a line its letter goes: straight along the
-/// direction the line mostly runs, which keeps the letter of a slanting axis
-/// off the name it points at, and away from the two other lines for an axis
-/// seen end-on, whose own line is too short to say.
+/// Which way from the tip of a line its letter goes, and how far as a share of
+/// the gap: nearly straight along the direction the line mostly runs, which
+/// keeps a slanting axis's letter off the names at the opening view, and for an
+/// axis seen end-on, whose own line is too short to say, down and to the left,
+/// off the two other lines. It turns smoothly from one to the other: the
+/// letter's place feeds what the triad covers, which places all three lines, so
+/// a letter changing sides at once would make them jump.
 fn beyond(tip: egui::Vec2, letter_size: f32) -> egui::Vec2 {
-    if tip.length() < letter_size {
-        egui::vec2(-1.0, 1.0).normalized()
-    } else if tip.x.abs() >= tip.y.abs() {
-        egui::vec2(tip.x.signum(), 0.0)
-    } else {
-        egui::vec2(0.0, tip.y.signum())
-    }
+    let line = tip.normalized();
+    let leaned = |share: f32| share * share.abs().powi(LEANING);
+    let runs = egui::vec2(leaned(line.x), leaned(line.y)).normalized();
+    let seen = (tip.length() / (letter_size * LONG_ENOUGH)).min(1.0);
+    egui::vec2(-1.0, 1.0).normalized() * (1.0 - seen) + runs * seen
 }
+
+/// How long a line has to be, in font sizes, to say alone where its letter
+/// goes. A shorter one spins faster as the view turns, and shares the say with
+/// the place of an axis seen end-on.
+const LONG_ENOUGH: f32 = 1.5;
+
+/// How strongly a letter leans towards the direction its line mostly runs: any
+/// more and it swings too fast as the line turns, any less and the letter of a
+/// slanting axis reaches a name at the opening view.
+const LEANING: i32 = 3;
 
 /// Paints the triad with `painter`, the lines drawn from one point.
 ///
 /// That point is worked out from what the triad covers at this camera, so that
 /// its drawing sits against the square's bottom left corner, sticking out of
-/// the cube, however the axes turn. A letter larger than the square is dropped.
+/// the cube, however the axes turn. The triad stays off the names at the
+/// opening view and square onto a sketch. A letter larger than the square is
+/// dropped.
 pub(super) fn paint(
     painter: &egui::Painter,
     state: &ViewportState,

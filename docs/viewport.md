@@ -77,8 +77,10 @@ seen too edge-on to read is left bare.
 
 At the bottom left of the cube's square, an X/Y/Z triad in the axis colours
 shows the world's axes as the camera sees them: an axis seen end-on is a short
-line. It sits against that corner by what it covers at the current view, the
-point its lines start from outside the cube's drawing, and touches no name.
+line. It sits against that corner by what it covers at the current view, and
+moves smoothly as the view turns. At the opening view and square onto a sketch,
+the point its lines start from is outside the cube's drawing and the triad
+stays off the names.
 
 While a sketch is open, the face it looks at is lit amber (DESSUS for the XY
 plane), wherever the view is turned. A sketch on a part's face lights the cube

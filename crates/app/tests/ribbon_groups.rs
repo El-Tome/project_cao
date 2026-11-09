@@ -3,15 +3,9 @@
 //! tree and from what the frame painted.
 //!
 //! Closes #731. What a group stores — its size, and the commands of the default
-//! layout — is held in `crates/prefs/src/toolbar/tests.rs`; the large button
-//! (C1), beside its primitive in `crates/app/src/ui/tool_button/tests.rs`.
-//! - Small button (C2): icon of 15 px left of the name —
-//!   `a_small_button_wears_an_icon_of_15_points_left_of_its_name`
-//! - key aligned right — `a_small_button_aligns_its_key_on_the_right`
-//! - laid in columns of 3 rows of 20 px —
-//!   `small_buttons_on_three_rows_are_20_tall_and_fill_columns_of_three`
-//! - or 2 rows of 26 px —
-//!   `small_buttons_on_two_rows_are_26_tall_and_fill_columns_of_two`
+//! layout — is held in `crates/prefs/src/toolbar/tests.rs`; the large and
+//! small buttons (C1, C2) and the grid of small ones, beside their primitives
+//! in `crates/app/src/ui/tool_button/tests.rs`.
 //! - Group (C3): its buttons, and its name under them —
 //!   `a_group_writes_its_name_under_its_buttons`
 //! - in small capitals — `a_group_writes_its_name_in_small_capitals`

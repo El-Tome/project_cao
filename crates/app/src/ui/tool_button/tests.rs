@@ -41,6 +41,37 @@
 //! - all its text, read so: the key of a disabled button is `text.disabled`
 //!   too, never brighter than its name —
 //!   `a_greyed_out_large_button_writes_its_key_in_the_disabled_colour`
+//! - Small button (C2): icon of 15 px left of the name —
+//!   `a_small_button_wears_an_icon_of_15_points_left_of_its_name`
+//! - key aligned right — `a_small_button_aligns_its_key_on_the_right`
+//! - and the keys of a column line up on its right, the only place the
+//!   alignment shows — `the_keys_of_a_small_column_line_up_on_its_right`
+//! - its key in the colour `text.shortcut`, read from C1 —
+//!   `a_small_button_writes_its_key_in_the_shortcut_colour`
+//! - its accessible label is `Name (key)`, as on the large one —
+//!   `a_small_button_is_called_by_its_name_and_its_key`
+//! - same states as C1, normal —
+//!   `a_small_button_at_rest_has_no_background_and_writes_in_the_button_colour`
+//! - hover — `a_hovered_small_button_wears_the_strong_hover_background`
+//! - active, its background, border and text —
+//!   `the_small_tool_in_hand_is_amber_in_its_background_its_border_and_its_text`
+//! - active, its icon — `the_small_tool_in_hand_turns_its_icon_amber_with_its_name`
+//! - disabled, no hover —
+//!   `a_greyed_out_small_button_writes_in_the_disabled_colour_and_does_not_answer_to_hover`
+//! - disabled, its key greyed too —
+//!   `a_greyed_out_small_button_writes_its_key_in_the_disabled_colour`
+//! - disabled, its icon —
+//!   `a_greyed_out_small_button_greys_its_icon_as_it_greys_its_name`
+//! - laid in columns of 3 rows of 20 px —
+//!   `small_buttons_on_three_rows_are_20_tall_and_fill_columns_of_three`
+//! - or 2 rows of 26 px —
+//!   `small_buttons_on_two_rows_are_26_tall_and_fill_columns_of_two`
+//! - two commands on 2 rows make one column —
+//!   `two_small_buttons_on_two_rows_make_one_column`
+//! - filled top to bottom, then the next column, which starts past the widest
+//!   button before it — `a_small_column_starts_past_the_widest_button_before_it`
+//! - the whole fits inside the 64 px of a large button —
+//!   `a_full_small_grid_fits_inside_the_64_points_of_a_large_button`
 //!
 //! The colour an icon shows is the picture it is painted from times the tint
 //! it is painted with, which is how the GPU will draw it. Both are read: a
@@ -349,6 +380,246 @@ fn a_greyed_out_large_button_writes_its_key_in_the_disabled_colour() {
     assert_alike(written_in(key), TEXT_DISABLED, "greyed out, its key");
 }
 
+#[test]
+fn a_small_button_wears_an_icon_of_15_points_left_of_its_name() {
+    let drawn = small("Ligne", None, true, false, false);
+    let icon = drawn.icon();
+    let (name, _) = drawn.written("Ligne");
+
+    assert!(
+        (icon.width() - 15.0).abs() < SIZED_WITHIN && (icon.height() - 15.0).abs() < SIZED_WITHIN,
+        "the icon is painted at {:?} points, where C2 draws it at 15",
+        icon.size(),
+    );
+    assert!(
+        icon.right() <= name.left() && name.y_range().contains(icon.center().y),
+        "the icon sits at {icon:?} and the name at {name:?}: the icon is not left of the name",
+    );
+}
+
+#[test]
+fn a_small_button_aligns_its_key_on_the_right() {
+    let drawn = small("Ligne", Some("L"), true, false, false);
+    let (name, _) = drawn.written("Ligne");
+    let (key, _) = drawn.written("L");
+
+    assert!(
+        drawn.button.right() - key.right() <= CORNER_REACH
+            && drawn.button.expand(1.0).contains_rect(key),
+        "the key sits at {key:?} in a button at {:?}: not on its right",
+        drawn.button,
+    );
+    assert!(
+        name.right() <= key.left(),
+        "the name at {name:?} runs into the key at {key:?}",
+    );
+}
+
+#[test]
+fn a_small_button_writes_its_key_in_the_shortcut_colour() {
+    let drawn = small("Ligne", Some("L"), true, false, false);
+    let (_, key) = drawn.written("L");
+
+    assert_alike(written_in(key), TEXT_SHORTCUT, "the key");
+}
+
+#[test]
+fn a_small_button_is_called_by_its_name_and_its_key() {
+    let called_with = |key: Option<&str>| {
+        called_by(|ui| small_button(ui, true, false, icon::LINE, "Ligne", key, Rows::Three))
+    };
+
+    assert_eq!(called_with(Some("L")), "Ligne (L)");
+    assert_eq!(called_with(None), "Ligne");
+}
+
+#[test]
+fn a_small_button_at_rest_has_no_background_and_writes_in_the_button_colour() {
+    let drawn = small("Ligne", None, true, false, false);
+    let (_, name) = drawn.written("Ligne");
+
+    assert_eq!(
+        drawn.backgrounds(),
+        [],
+        "the backgrounds of a button at rest"
+    );
+    assert_alike(written_in(name), TEXT_BUTTON, "at rest, its name");
+}
+
+#[test]
+fn a_hovered_small_button_wears_the_strong_hover_background() {
+    let backgrounds = small("Ligne", None, true, false, true).backgrounds();
+
+    assert!(
+        backgrounds
+            .iter()
+            .any(|fill| alike(*fill, BACKGROUND_HOVER_STRONG)),
+        "a hovered small button is filled with {backgrounds:?}, where C1 asks for \
+         {BACKGROUND_HOVER_STRONG:?}",
+    );
+}
+
+#[test]
+fn the_small_tool_in_hand_is_amber_in_its_background_its_border_and_its_text() {
+    let drawn = small("Ligne", None, true, true, false);
+    let (_, name) = drawn.written("Ligne");
+    let frames = drawn.frames();
+
+    assert!(
+        frames
+            .iter()
+            .any(|frame| alike(frame.fill, ACCENT_AMBER_BACKGROUND)),
+        "the small tool in hand is filled with {:?}, where C1 asks for \
+         {ACCENT_AMBER_BACKGROUND:?}",
+        drawn.backgrounds(),
+    );
+    assert!(
+        frames.iter().any(
+            |frame| frame.stroke.width > 0.0 && alike(frame.stroke.color, ACCENT_AMBER_BORDER)
+        ),
+        "the small tool in hand has the borders {:?}, where C1 asks for {ACCENT_AMBER_BORDER:?}",
+        frames.iter().map(|frame| frame.stroke).collect::<Vec<_>>(),
+    );
+    assert_alike(written_in(name), ACCENT_AMBER_LIGHT, "in hand, its name");
+}
+
+#[test]
+fn the_small_tool_in_hand_turns_its_icon_amber_with_its_name() {
+    let in_hand = worn_by(|ui| small_button(ui, true, true, icon::LINE, "Line", None, Rows::Three));
+
+    assert_alike(in_hand.icon, in_hand.name(), "small, in hand");
+    assert_alike(in_hand.icon, ACCENT_AMBER_LIGHT, "small, in hand");
+}
+
+#[test]
+fn a_greyed_out_small_button_writes_in_the_disabled_colour_and_does_not_answer_to_hover() {
+    let drawn = small("Ligne", None, false, false, true);
+    let (_, name) = drawn.written("Ligne");
+
+    assert_alike(written_in(name), TEXT_DISABLED, "greyed out, its name");
+    assert_eq!(
+        drawn.backgrounds(),
+        [],
+        "the backgrounds of a greyed-out small button under the pointer",
+    );
+}
+
+#[test]
+fn a_greyed_out_small_button_writes_its_key_in_the_disabled_colour() {
+    let drawn = small("Ligne", Some("L"), false, false, false);
+    let (_, key) = drawn.written("L");
+
+    assert_alike(written_in(key), TEXT_DISABLED, "greyed out, its key");
+}
+
+#[test]
+fn a_greyed_out_small_button_greys_its_icon_as_it_greys_its_name() {
+    let greyed =
+        worn_by(|ui| small_button(ui, false, false, icon::LINE, "Line", None, Rows::Three));
+
+    assert_alike(greyed.icon, greyed.name(), "small, greyed out");
+    assert_alike(greyed.icon, TEXT_DISABLED, "small, greyed out");
+}
+
+const UNNAMED: [(&str, Option<&str>); 9] = [
+    ("Un", None),
+    ("Deux", None),
+    ("Trois", None),
+    ("Quatre", None),
+    ("Cinq", None),
+    ("Six", None),
+    ("Sept", None),
+    ("Huit", None),
+    ("Neuf", None),
+];
+
+#[test]
+fn small_buttons_on_three_rows_are_20_tall_and_fill_columns_of_three() {
+    let grid = grid_of(Rows::Three, &UNNAMED[..7]);
+
+    grid.assert_all_tall(20.0);
+    assert_eq!(grid.columns(), [3, 3, 1], "seven commands on three rows");
+    grid.assert_filled_down_each_column();
+}
+
+#[test]
+fn small_buttons_on_two_rows_are_26_tall_and_fill_columns_of_two() {
+    let grid = grid_of(Rows::Two, &UNNAMED[..5]);
+
+    grid.assert_all_tall(26.0);
+    assert_eq!(grid.columns(), [2, 2, 1], "five commands on two rows");
+    grid.assert_filled_down_each_column();
+}
+
+#[test]
+fn two_small_buttons_on_two_rows_make_one_column() {
+    let grid = grid_of(Rows::Two, &UNNAMED[..2]);
+
+    assert_eq!(grid.columns(), [2], "two commands on two rows");
+}
+
+#[test]
+fn a_small_column_starts_past_the_widest_button_before_it() {
+    let grid = grid_of(
+        Rows::Three,
+        &[
+            ("Un", None),
+            ("Réseau rectangulaire", None),
+            ("Trois", None),
+            ("Quatre", None),
+        ],
+    );
+
+    let widest = grid.buttons[..3]
+        .iter()
+        .map(|button| button.right())
+        .fold(f32::NEG_INFINITY, f32::max);
+    assert!(
+        grid.buttons[3].left() >= widest,
+        "the next column starts at {}, inside a column reaching {widest}",
+        grid.buttons[3].left(),
+    );
+}
+
+#[test]
+fn the_keys_of_a_small_column_line_up_on_its_right() {
+    let grid = grid_of(
+        Rows::Three,
+        &[
+            ("Un", Some("U")),
+            ("Réseau rectangulaire", Some("R")),
+            ("Trois", Some("T")),
+        ],
+    );
+    let drawn = Drawn {
+        button: egui::Rect::NOTHING,
+        shapes: grid.shapes,
+    };
+    let rights: Vec<f32> = ["U", "R", "T"]
+        .iter()
+        .map(|key| drawn.written(key).0.right())
+        .collect();
+
+    assert!(
+        rights
+            .iter()
+            .all(|right| (right - rights[0]).abs() <= SIZED_WITHIN),
+        "the keys of one column end at {rights:?}: they do not line up on its right",
+    );
+}
+
+#[test]
+fn a_full_small_grid_fits_inside_the_64_points_of_a_large_button() {
+    for (rows, full) in [(Rows::Three, 9), (Rows::Two, 6)] {
+        let height = grid_of(rows, &UNNAMED[..full]).whole.height();
+
+        assert!(
+            height <= 64.0 + SIZED_WITHIN,
+            "a full grid is {height} high, where C2 fits it inside the 64 of a large button",
+        );
+    }
+}
+
 /// The colours a button shows in one frame: what a pixel its icon fully
 /// covers shows, and what its name's glyphs are painted in, if it writes one.
 struct Worn {
@@ -524,7 +795,7 @@ fn screen(events: Vec<egui::Event>) -> egui::RawInput {
     egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
             egui::Pos2::ZERO,
-            egui::vec2(400.0, 200.0),
+            egui::vec2(900.0, 300.0),
         )),
         events,
         ..Default::default()
@@ -533,7 +804,7 @@ fn screen(events: Vec<egui::Event>) -> egui::RawInput {
 
 /// The first frame finds where the button lands; the pointer comes onto it
 /// after that, the frame after which a widget learns it is hovered.
-fn drawn(name: &str, key: Option<&str>, enabled: bool, on: bool, hovered: bool) -> Drawn {
+fn drawn_by(hovered: bool, mut draw: impl FnMut(&mut egui::Ui) -> egui::Response) -> Drawn {
     let ctx = themed();
     let mut button = egui::Rect::NOTHING;
     let mut shapes = Vec::new();
@@ -545,7 +816,7 @@ fn drawn(name: &str, key: Option<&str>, enabled: bool, on: bool, hovered: bool) 
             Vec::new()
         };
         let mut output = ctx.run_ui(screen(events), |ui| {
-            button = tool_button(ui, enabled, on, icon::LINE, name, key).rect;
+            button = draw(ui).rect;
         });
         output.textures_delta.clear();
         shapes = every_shape(output.shapes);
@@ -554,12 +825,117 @@ fn drawn(name: &str, key: Option<&str>, enabled: bool, on: bool, hovered: bool) 
     Drawn { button, shapes }
 }
 
+fn drawn(name: &str, key: Option<&str>, enabled: bool, on: bool, hovered: bool) -> Drawn {
+    drawn_by(hovered, |ui| {
+        tool_button(ui, enabled, on, icon::LINE, name, key)
+    })
+}
+
+fn small(name: &str, key: Option<&str>, enabled: bool, on: bool, hovered: bool) -> Drawn {
+    drawn_by(hovered, |ui| {
+        small_button(ui, enabled, on, icon::LINE, name, key, Rows::Three)
+    })
+}
+
+/// A grid of small buttons as it settles, each cell's button in the order the
+/// cells were asked for.
+struct Grid {
+    buttons: Vec<egui::Rect>,
+    whole: egui::Rect,
+    shapes: Vec<egui::Shape>,
+}
+
+impl Grid {
+    fn assert_all_tall(&self, height: f32) {
+        for button in &self.buttons {
+            assert!(
+                (button.height() - height).abs() < SIZED_WITHIN,
+                "a small button is {} high, where C2 asks for {height}",
+                button.height(),
+            );
+        }
+    }
+
+    /// How many buttons stand in each column, read off their left edges: a
+    /// button starting where the previous one starts is in the same column.
+    fn columns(&self) -> Vec<usize> {
+        let mut columns = Vec::new();
+        let mut left = f32::NAN;
+        for button in &self.buttons {
+            if (button.left() - left).abs() <= SIZED_WITHIN {
+                *columns.last_mut().expect("a column to stand in") += 1;
+            } else {
+                columns.push(1);
+                left = button.left();
+            }
+        }
+        columns
+    }
+
+    fn assert_filled_down_each_column(&self) {
+        let mut next = 0;
+        for in_the_column in self.columns() {
+            let column = &self.buttons[next..next + in_the_column];
+            assert!(
+                (column[0].top() - self.buttons[0].top()).abs() <= SIZED_WITHIN,
+                "a column starts at {}, not at the top of the grid {}",
+                column[0].top(),
+                self.buttons[0].top(),
+            );
+            for pair in column.windows(2) {
+                assert!(
+                    pair[1].top() >= pair[0].bottom(),
+                    "a button at {:?} does not come after the one at {:?} in its column",
+                    pair[1],
+                    pair[0],
+                );
+            }
+            next += in_the_column;
+        }
+    }
+}
+
+fn grid_of(rows: Rows, names: &[(&str, Option<&str>)]) -> Grid {
+    let ctx = themed();
+    let mut buttons = Vec::new();
+    let mut whole = egui::Rect::NOTHING;
+    let mut shapes = Vec::new();
+
+    for _ in 0..4 {
+        buttons.clear();
+        let mut output = ctx.run_ui(screen(Vec::new()), |ui| {
+            whole = ui
+                .scope(|ui| {
+                    small_grid(ui, rows, names.len(), |ui, rank| {
+                        let (name, key) = names[rank];
+                        let button = small_button(ui, true, false, icon::LINE, name, key, rows);
+                        buttons.push(button.rect);
+                    });
+                })
+                .response
+                .rect;
+        });
+        output.textures_delta.clear();
+        shapes = every_shape(output.shapes);
+    }
+
+    Grid {
+        buttons,
+        whole,
+        shapes,
+    }
+}
+
 /// What a button is called for whoever cannot see it, and for the driver.
 fn called(name: &str, key: Option<&str>) -> String {
+    called_by(|ui| tool_button(ui, true, false, icon::LINE, name, key))
+}
+
+fn called_by(mut draw: impl FnMut(&mut egui::Ui) -> egui::Response) -> String {
     let ctx = themed();
     ctx.enable_accesskit();
     let mut output = ctx.run_ui(screen(Vec::new()), |ui| {
-        tool_button(ui, true, false, icon::LINE, name, key);
+        draw(ui);
     });
     output.textures_delta.clear();
 

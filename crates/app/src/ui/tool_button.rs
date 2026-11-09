@@ -13,6 +13,10 @@ use crate::ui::theme::tokens::{
     TYPOGRAPHY_SIZES_SHORTCUT,
 };
 
+mod small;
+
+pub use small::{Rows, small_button, small_grid};
+
 const LARGE_BUTTON_AT_LEAST: Vec2 = vec2(50.0, 64.0);
 const NAME_WRAPS_AT: f32 = 70.0;
 const NAME_WRAPS_AT_MOST_AT: f32 = 210.0;
@@ -46,15 +50,7 @@ pub fn tool_button(
         let ink = ink(ui.is_enabled(), on);
 
         let written_name = written_name(ui, name, ink);
-        let key_ink = if ui.is_enabled() {
-            TEXT_SHORTCUT
-        } else {
-            TEXT_DISABLED
-        };
-        let written_key = key.map(|key| {
-            let font = FontId::monospace(TYPOGRAPHY_SIZES_SHORTCUT);
-            ui.painter().layout_no_wrap(key.to_owned(), font, key_ink)
-        });
+        let written_key = written_key(ui, key);
 
         let side = IconSize::Large.points();
         let padding = ui.spacing().button_padding;
@@ -67,8 +63,7 @@ pub fn tool_button(
             2.0 * padding.y + side + gap + written_name.size().y,
         ));
 
-        let (rect, response) = ui.allocate_exact_size(size, Sense::click());
-        paint_the_state(ui, &response, rect, on);
+        let (rect, response) = pressable(ui, size, on, name, key);
 
         let icon_rect =
             Align2::CENTER_TOP.align_size_within_rect(Vec2::splat(side), rect.shrink2(padding));
@@ -82,12 +77,9 @@ pub fn tool_button(
         );
         if let Some(key) = written_key {
             let at = Align2::RIGHT_TOP.align_size_within_rect(key.size(), rect.shrink(KEY_INSET));
-            ui.painter().galley(at.min, key, key_ink);
+            ui.painter().galley(at.min, key, key_ink(ui.is_enabled()));
         }
 
-        let called = name_and_key(name, key);
-        response
-            .widget_info(|| WidgetInfo::selected(WidgetType::Button, ui.is_enabled(), on, &called));
         response
     })
 }
@@ -130,6 +122,24 @@ fn written_name(ui: &Ui, name: &str, ink: Color32) -> Arc<Galley> {
     written
 }
 
+fn written_key(ui: &Ui, key: Option<&str>) -> Option<Arc<Galley>> {
+    key.map(|key| {
+        let font = FontId::monospace(TYPOGRAPHY_SIZES_SHORTCUT);
+        ui.painter()
+            .layout_no_wrap(key.to_owned(), font, key_ink(ui.is_enabled()))
+    })
+}
+
+/// Takes a button's room, paints its state behind what it will hold, and says
+/// what it is called.
+fn pressable(ui: &mut Ui, size: Vec2, on: bool, name: &str, key: Option<&str>) -> (Rect, Response) {
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    paint_the_state(ui, &response, rect, on);
+    let called = name_and_key(name, key);
+    response.widget_info(|| WidgetInfo::selected(WidgetType::Button, ui.is_enabled(), on, &called));
+    (rect, response)
+}
+
 /// The redesign names the colour of a greyed-out button outright, so the
 /// opacity `add_enabled` lays over the whole widget would fade it a second time.
 fn undo_the_fade(ui: &mut Ui) {
@@ -143,6 +153,14 @@ fn ink(enabled: bool, on: bool) -> Color32 {
         (false, _) => TEXT_DISABLED,
         (true, true) => ACCENT_AMBER_LIGHT,
         (true, false) => TEXT_BUTTON,
+    }
+}
+
+fn key_ink(enabled: bool) -> Color32 {
+    if enabled {
+        TEXT_SHORTCUT
+    } else {
+        TEXT_DISABLED
     }
 }
 

@@ -114,10 +114,11 @@
 //!   `a_fillet_and_a_chamfer_on_a_list_of_no_edge_are_declined_as_unsupported`;
 //!   and two edges that share a face but no vertex and are not parallel are
 //!   laid, each as alone, where their set-backs do not meet — well short of
-//!   it and just short of it — and declined
-//!   `Unsupported` where they would, until #792 reduces the value for them —
-//!   `a_fillet_and_a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_lay_each_as_alone_where_they_do_not_meet`,
-//!   `a_fillet_and_a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_are_declined_as_unsupported_where_they_would_meet`
+//!   it and just short of it —
+//!   `a_fillet_and_a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_lay_each_as_alone_where_they_do_not_meet`;
+//!   where they would, the step was declined `Unsupported` here, and is
+//!   reduced since #792, in
+//!   `rounds_meeting_through_an_end_face_or_along_a_slant_reduce_the_value.rs`
 //! - An edge of the list its name no longer finds declines the whole step
 //!   with that edge's reason (`Lost`), as for one edge —
 //!   `a_fillet_and_a_chamfer_on_a_list_holding_an_edge_its_name_no_longer_finds_are_declined_with_that_edge_s_reason`.
@@ -4083,34 +4084,6 @@ fn a_fillet_and_a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_lay_ea
         let promised = chamfered.body.volume();
         sound_drawn_within(&chamfered.body, promised, EXACT * promised, &what);
     }
-}
-
-#[test]
-fn a_fillet_and_a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_are_declined_as_unsupported_where_they_would_meet()
- {
-    let value = 4.9;
-    let prism = hexagonal_prism();
-    let names = [
-        edge_between(&prism, TOP, HEXAGON_FRONT),
-        edge_between(&prism, TOP, HEXAGON_ACROSS),
-    ];
-    for name in &names {
-        let alone = prism.fillet(name, value).expect("each edge alone");
-        taken_as_asked(
-            alone.asked,
-            alone.taken,
-            value,
-            "one top edge's fillet alone",
-        );
-    }
-
-    let filleted = prism.fillet_edges(&names, value).err();
-    let chamfered = prism.chamfer_edges(&names, value).err();
-
-    let why = "each set back by more than half the wall between them, where both run on past \
-               their ends, the two would cross on it";
-    assert_eq!(filleted, Some(Declined::Unsupported), "the fillet: {why}");
-    assert_eq!(chamfered, Some(Declined::Unsupported), "the chamfer: {why}");
 }
 
 #[test]

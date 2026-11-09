@@ -27,10 +27,12 @@ impl Body {
     }
 
     /// The edge each name finds rounded off as [`Body::fillet`] rounds it, at
-    /// `radius` or at the one largest radius every edge gives: alone, on a
-    /// face two of them share, parallel and facing each other across it, with
-    /// the other laid, and on a face one of them ends on, its round there short
-    /// of the other's. Each round is numbered on its own, in the order the
+    /// `radius` or at the one largest radius every edge gives: alone, and for
+    /// any two not meeting at a corner, with their set-backs short of reaching
+    /// one point of a straight edge bounding a face of each — two parallel
+    /// edges facing each other across a face they share, an edge ending on a
+    /// face of another, two that are not parallel on a face they share. Each
+    /// round is numbered on its own, in the order the
     /// names come, from where the steps' numbers ended — but two edges whose
     /// set-backs meet across the face they share, which one full round takes
     /// off or, where their faces meet inwards, one round bottom fills in, the
@@ -43,8 +45,9 @@ impl Body {
     /// their edges in the list, then the next; at a corner where an edge meets
     /// inwards they are declined `Unsupported`, as is an edge of a full round
     /// or a round bottom meeting another edge of the list at a corner. Rounds
-    /// that would meet anywhere else, across a face two edges share that are
-    /// not parallel, are declined `Unsupported`, until #792 measures them. The first edge declined declines the step.
+    /// that would meet only on a curved edge are not measured, and declined
+    /// `Unsupported` where they meet. The first edge declined declines the
+    /// step.
     pub fn fillet_edges(&self, edges: &[EdgeName], radius: f64) -> Result<Filleted, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

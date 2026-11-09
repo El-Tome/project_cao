@@ -13,11 +13,11 @@ use crate::brep::{Declined, EdgeName};
 impl Exact {
     /// The body with the edge each name finds cut off, or filled in where its
     /// faces meet inwards, set back by `distance` along each of its two faces,
-    /// or by the most every edge gives: alone, on a face two of them share,
-    /// parallel and facing each other across it, with the other laid, and on
-    /// a face one of them ends on, its flat there short of the other's
-    /// set-back on it; and the one distance taken. The faces the cuts lay are numbered, in the order
-    /// the names come, where the steps' numbers ended, and each trimmed, as a
+    /// or by the most every edge gives: alone, and for any two not meeting at
+    /// a corner, with their set-backs short of reaching one point of a
+    /// straight edge bounding a face of each, as [`Exact::cut_off`] reads it;
+    /// and the one distance taken. The faces the cuts lay are numbered, in the
+    /// order the names come, where the steps' numbers ended, and each trimmed, as a
     /// CAD tool trims it, by the faces it meets at the edge's ends — past the
     /// end corner where one of them leaves the edge at an obtuse angle, or a
     /// round leaves it at a few degrees either way. Two set-backs on such a
@@ -30,10 +30,9 @@ impl Exact {
     /// share down to the corner's third edge, left sharp. Three edges meeting
     /// at a convex corner are closed there by a triangle, its corners where
     /// each two flats' edges cross on the face they share, numbered after the
-    /// flats. Flats that would meet anywhere else, across a face two edges
-    /// share that are not parallel, are not measured, and declined where they
-    /// meet until #792. A distance shorter than the kernel
-    /// can set a cut back from an edge is declined first; `Lost`, an edge its
+    /// flats. Flats that would meet only on a curved edge are not measured,
+    /// and declined where they meet. A distance shorter than the kernel can
+    /// set a cut back from an edge is declined first; `Lost`, an edge its
     /// name no longer finds. Unsupported: a list of no edge, an edge that is
     /// not straight between two flat faces, one running on tangentially into
     /// the next edge of a face, one edge named twice, two edges meeting at a

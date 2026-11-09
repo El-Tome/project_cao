@@ -42,8 +42,8 @@ pub(super) type Pair = (usize, usize, f64);
 /// Each two edges parallel within [`TANGENT`] that face each other across a
 /// face they share, the earlier first, and the distance across it from one
 /// to the other. Two that do not face each other across it, or are not
-/// parallel, bound nothing here past each one's own reach: they are laid in
-/// turn, and the laying declines them where their set-backs meet.
+/// parallel, bound nothing here: [`super::set_backs::bound`] reads where
+/// their set-backs would meet, and they are laid in turn.
 pub(super) fn facing(wedges: &[Wedge]) -> Vec<(usize, usize, f64)> {
     let sides = |wedge: &Wedge| wedge.faces.into_iter().zip(wedge.into);
     let mut facing = Vec::new();

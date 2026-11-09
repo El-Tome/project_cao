@@ -4,6 +4,7 @@ use glam::{DVec2, DVec3};
 
 use super::super::super::tests::{fixtures, slanted};
 use super::super::conic::on_conic;
+use super::super::steps::span as span_of;
 use super::super::{Samples, divisions_in};
 use crate::brep::conic::{Conic, On, Round};
 use crate::brep::curve::Curve;
@@ -49,7 +50,7 @@ fn an_ellipse_is_sampled_at_every_grid_angle_of_its_wall_and_its_plane_face_take
                 .iter()
                 .map(|id| samples.point(*id))
                 .collect();
-            let steps = divisions_in(cylinder.radius, tolerance, body.scale().reach());
+            let steps = divisions_in(cylinder.radius, tolerance, span_of(&body));
             for step in 0..steps {
                 let angle = TAU * step as f64 / steps as f64;
                 assert!(
@@ -216,11 +217,11 @@ fn a_conic_on_a_cone_widens_the_cone_s_grid() {
             let samples = Samples::of(&body, tolerance);
             assert_eq!(
                 samples.steps(SurfaceId(0)),
-                Some(divisions_in(widest, tolerance, body.scale().reach()))
+                Some(divisions_in(widest, tolerance, span_of(&body)))
             );
             assert!(
-                divisions_in(widest, tolerance, body.scale().reach())
-                    > divisions_in(rim, tolerance, body.scale().reach())
+                divisions_in(widest, tolerance, span_of(&body))
+                    > divisions_in(rim, tolerance, span_of(&body))
             );
         }
     }

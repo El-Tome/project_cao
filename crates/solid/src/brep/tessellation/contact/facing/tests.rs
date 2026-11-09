@@ -47,7 +47,7 @@ use super::*;
 use crate::brep::curve::{Meet, Wall as Round};
 use crate::brep::surface::Surface;
 use crate::brep::tessellation::contact::walls;
-use crate::brep::tessellation::sampling::{Samples, divisions};
+use crate::brep::tessellation::sampling::{Samples, divisions_in};
 use crate::brep::tessellation::tests::fixtures;
 use crate::brep::topology::{Coedge, EdgeId, VertexId};
 use crate::soundness::uncrossed;
@@ -221,7 +221,7 @@ fn the_loop_two_walls_leaning_a_hair_off_parallel_cross_along_is_sampled_at_ever
             .map(|id| samples.point(*id))
             .collect();
         for (_, wall) in walls {
-            let steps = divisions(wall.radius, tolerance);
+            let steps = divisions_in(wall.radius, tolerance, body.scale().reach());
             for step in 0..steps {
                 let angle = TAU * step as f64 / steps as f64;
                 assert!(
@@ -308,7 +308,10 @@ fn round_off(one: f64, other: f64) -> f64 {
 fn first_radius_whose_grid_grows(tolerance: f64, below: f64) -> Option<f64> {
     (0..250_000)
         .map(|step| RADIUS + step as f64 * 1e-4)
-        .find(|radius| divisions(*radius, tolerance) > divisions(radius - below, tolerance))
+        .find(|radius| {
+            divisions_in(*radius, tolerance, *radius)
+                > divisions_in(radius - below, tolerance, *radius)
+        })
 }
 
 #[test]

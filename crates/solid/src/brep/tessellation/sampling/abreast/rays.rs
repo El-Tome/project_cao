@@ -6,7 +6,7 @@ use std::f64::consts::TAU;
 
 use glam::{DVec2, DVec3};
 
-use super::super::divisions;
+use super::super::divisions_in;
 use super::super::elliptic::{on_the_wall, reached_by_planes};
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, SurfaceId};
@@ -50,10 +50,10 @@ pub(super) fn hit(wall: &Surface, hub: DVec3, way: DVec3) -> Option<(DVec3, Take
 /// The points of a wall's grid at the height of its origin: a circle's
 /// steps from its `u`, an ellipse's steps of eccentric angle from its major
 /// half-axis, divided as a circle of that half-axis is.
-pub(super) fn grid(wall: &Surface, tolerance: f64) -> Vec<DVec3> {
+pub(super) fn grid(wall: &Surface, (tolerance, span): (f64, f64)) -> Vec<DVec3> {
     let steps = match wall {
-        Surface::Cylinder(round) => divisions(round.radius, tolerance),
-        Surface::Elliptic(oval) => divisions(oval.major, tolerance),
+        Surface::Cylinder(round) => divisions_in(round.radius, tolerance, span),
+        Surface::Elliptic(oval) => divisions_in(oval.major, tolerance, span),
         Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => {
             return Vec::new();
         }
@@ -66,11 +66,11 @@ pub(super) fn grid(wall: &Surface, tolerance: f64) -> Vec<DVec3> {
 /// The places an elliptic wall's rims are sampled at besides its grid and
 /// the rays given them (`conic.rs`), at the height of its origin; none for
 /// another wall.
-pub(super) fn alone(body: &Body, wall: SurfaceId, tolerance: f64) -> Vec<DVec3> {
+pub(super) fn alone(body: &Body, wall: SurfaceId, (tolerance, span): (f64, f64)) -> Vec<DVec3> {
     let Surface::Elliptic(oval) = body.surface(wall) else {
         return Vec::new();
     };
-    let steps = divisions(oval.major, tolerance);
+    let steps = divisions_in(oval.major, tolerance, span);
     on_the_wall(body, oval, steps)
         .into_iter()
         .chain(reached_by_planes(body, oval))

@@ -4,7 +4,8 @@ use glam::{DVec2, DVec3};
 
 use super::super::super::tests::{fixtures, slanted};
 use super::super::conic::on_conic;
-use super::super::{Samples, divisions};
+use super::super::steps::span as span_of;
+use super::super::{Samples, divisions_in};
 use crate::brep::conic::{Conic, On, Round};
 use crate::brep::curve::Curve;
 use crate::brep::surface::{Cylinder, Surface};
@@ -49,7 +50,7 @@ fn an_ellipse_is_sampled_at_every_grid_angle_of_its_wall_and_its_plane_face_take
                 .iter()
                 .map(|id| samples.point(*id))
                 .collect();
-            let steps = divisions(cylinder.radius, tolerance);
+            let steps = divisions_in(cylinder.radius, tolerance, span_of(&body));
             for step in 0..steps {
                 let angle = TAU * step as f64 / steps as f64;
                 assert!(
@@ -216,9 +217,12 @@ fn a_conic_on_a_cone_widens_the_cone_s_grid() {
             let samples = Samples::of(&body, tolerance);
             assert_eq!(
                 samples.steps(SurfaceId(0)),
-                Some(divisions(widest, tolerance))
+                Some(divisions_in(widest, tolerance, span_of(&body)))
             );
-            assert!(divisions(widest, tolerance) > divisions(rim, tolerance));
+            assert!(
+                divisions_in(widest, tolerance, span_of(&body))
+                    > divisions_in(rim, tolerance, span_of(&body))
+            );
         }
     }
 }
@@ -281,7 +285,7 @@ fn rims_ending_at(body: &Body, vertex: VertexId) -> Option<(EdgeId, EdgeId, Cyli
 #[test]
 fn a_circle_and_a_conic_ending_together_on_one_wall_take_the_same_grid_angles_beside_their_end() {
     let tolerance = 0.15;
-    let step = TAU / divisions(SHAFT, tolerance) as f64;
+    let step = TAU / divisions_in(SHAFT, tolerance, SHAFT) as f64;
     let grid = (TAU / 3.0 / step).round() * step;
     let body = wedge_of_a_shaft(SHAFT * (grid - 0.2_f64.to_radians()).sin(), 1.6e-7);
     let samples = Samples::of(&body, tolerance);

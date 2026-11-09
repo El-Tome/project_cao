@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 
 use glam::DVec2;
 
-use super::sampling::{Rounded, Samples, divisions};
+use super::sampling::{Rounded, Samples, divisions_in};
 use super::sweep;
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, FaceId};
@@ -88,7 +88,7 @@ impl Outline {
                 }
             }
             Surface::Cylinder(cylinder) => {
-                let steps = divisions(cylinder.radius, tolerance);
+                let steps = divisions_in(cylinder.radius, tolerance, samples.span);
                 outline.round(cylinder, samples, &laps, steps)?;
             }
             Surface::Cone(cone) => {
@@ -104,7 +104,7 @@ impl Outline {
                 outline.rounded(body, samples, face, &round, &laps, (steps, rows))?;
             }
             Surface::Elliptic(wall) => {
-                let steps = divisions(wall.major, tolerance);
+                let steps = divisions_in(wall.major, tolerance, samples.span);
                 let raws: Vec<Vec<DVec2>> = laps
                     .iter()
                     .map(|ids| {

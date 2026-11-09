@@ -6,7 +6,7 @@ use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
 use glam::DVec3;
 
-use super::super::sampling::{Samples, divisions};
+use super::super::sampling::{Samples, divisions_in};
 use crate::brep::Declined;
 use crate::brep::curve::Curve;
 use crate::brep::surface::Surface;
@@ -106,6 +106,23 @@ fn a_ball_turned_whole_is_drawn_closed_from_its_poles_alone_and_encloses_its_vol
 }
 
 #[test]
+fn a_ball_turned_whole_with_no_edge_at_all_is_capped_once_its_grid_needs_more_than_the_most_steps()
+{
+    let body = turned(&ball(), 360.0);
+    assert_eq!(body.edge_ids().count(), 0, "a whole ball has no edge");
+    let capped = |tolerance: f64| Samples::of(&body, tolerance).capped(&body, tolerance);
+
+    assert!(
+        !capped(1e-3),
+        "a turn of 5 within 1e-3 takes 236 steps on the sphere"
+    );
+    assert!(
+        capped(2e-5),
+        "a turn of 5 within 2e-5 needs 1656 steps on the sphere"
+    );
+}
+
+#[test]
 fn a_lune_and_a_half_ball_are_drawn_closed_with_a_fan_at_each_pole() {
     let poles = [DVec3::new(0.0, -5.0, 0.0), DVec3::new(0.0, 5.0, 0.0)];
     for degrees in [90.0, 180.0, 270.0, -120.0, 45.0] {
@@ -185,11 +202,11 @@ fn a_rounded_shaft_end_shares_its_shaft_s_circle_and_is_drawn_watertight() {
         .map(|&id| samples.point(id))
         .collect();
     assert!(
-        every_angle(&points, divisions(4.0, tolerance)),
+        every_angle(&points, divisions_in(4.0, tolerance, body.scale().reach())),
         "the shaft's grid"
     );
     assert!(
-        points.len() > divisions(4.0, tolerance),
+        points.len() > divisions_in(4.0, tolerance, body.scale().reach()),
         "the sphere's grid as well: {} samples",
         points.len()
     );
@@ -298,7 +315,7 @@ fn both_meridians_of_a_partial_turn_are_sampled_on_the_same_rows_of_the_sphere()
     for (one, other) in opening.iter().zip(closing) {
         assert!((one - other).abs() < 1e-9, "{one} against {other}");
     }
-    let rows = divisions(5.0, tolerance * 0.45) as f64;
+    let rows = divisions_in(5.0, tolerance * 0.45, body.scale().reach()) as f64;
     for latitude in opening {
         let rank = latitude * rows / TAU;
         assert!(

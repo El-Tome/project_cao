@@ -33,9 +33,10 @@ use std::f64::consts::TAU;
 use glam::DVec3;
 
 use super::capped::beyond_most;
+use super::divisions_in;
 use super::meet::size;
 use super::round::{Rounded, SHARE};
-use super::{MOST, divisions};
+use super::steps::most;
 use crate::brep::conic::{Conic, Round};
 use crate::brep::curve::{Circle, Curve, Meet, Wall};
 use crate::brep::surface::{Cone, Cylinder, Surface};
@@ -131,7 +132,7 @@ impl Grid {
 /// on it stands from the axis: a ring a plane cuts at a slant has no vertex to
 /// read its width off, and may stand further out than every rim; a face of a
 /// round across its crest reaches further than its rims.
-pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
+pub(super) fn grids(body: &Body, (tolerance, span): (f64, f64)) -> BTreeMap<SurfaceId, Grid> {
     let eps = body.scale().eps();
     let circles: Vec<&Circle> = body
         .edge_ids()
@@ -196,9 +197,9 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
             }
             let (steps, rows, capped) = match spun {
                 Spun::Cone(_) => (
-                    divisions(widest, tolerance),
+                    divisions_in(widest, tolerance, span),
                     0,
-                    beyond_most(widest, tolerance),
+                    beyond_most(widest, tolerance, span),
                 ),
                 Spun::Round(round) => {
                     let faces = body
@@ -211,12 +212,18 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
                     {
                         widest = widest.max(round.widest());
                     }
-                    let steps = divisions(widest, tolerance * SHARE);
+                    let steps = divisions_in(widest, tolerance * SHARE, span);
                     (
-                        kept_by_walls(body, &round, steps, tolerance, eps),
-                        divisions(round.radius(), tolerance * SHARE),
-                        beyond_most(widest, tolerance * SHARE)
-                            || beyond_most(round.radius(), tolerance * SHARE),
+                        kept_by_walls(
+                            body,
+                            &round,
+                            (steps, most(widest, span)),
+                            (tolerance, span),
+                            eps,
+                        ),
+                        divisions_in(round.radius(), tolerance * SHARE, span),
+                        beyond_most(widest, tolerance * SHARE, span)
+                            || beyond_most(round.radius(), tolerance * SHARE, span),
                     )
                 }
             };
@@ -243,7 +250,13 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
 /// cut across the cylinder's between two of its steps: the two crossed
 /// beside the circle they share (5576855166, 5585606550). Left as they are
 /// where no such multiple stands under the most a turn is cut into.
-fn kept_by_walls(body: &Body, round: &Rounded, steps: usize, tolerance: f64, eps: f64) -> usize {
+fn kept_by_walls(
+    body: &Body,
+    round: &Rounded,
+    (steps, cap): (usize, usize),
+    (tolerance, span): (f64, f64),
+    eps: f64,
+) -> usize {
     let mut every = 1;
     for surface in &body.surfaces {
         let Surface::Cylinder(wall) = surface else {
@@ -252,7 +265,7 @@ fn kept_by_walls(body: &Body, round: &Rounded, steps: usize, tolerance: f64, eps
         if !touching(round, wall, eps) {
             continue;
         }
-        let theirs = divisions(wall.radius, tolerance);
+        let theirs = divisions_in(wall.radius, tolerance, span);
         let turn = wall.u.dot(round.v()).atan2(wall.u.dot(round.u()));
         let ranks = turn / TAU * theirs as f64;
         if (ranks - ranks.round()).abs() <= ALIGNED {
@@ -260,7 +273,7 @@ fn kept_by_walls(body: &Body, round: &Rounded, steps: usize, tolerance: f64, eps
         }
     }
     let kept = steps.div_ceil(every) * every;
-    if kept > MOST { steps } else { kept }
+    if kept > cap { steps } else { kept }
 }
 
 /// Under this share of a step, two grids start at one angle.

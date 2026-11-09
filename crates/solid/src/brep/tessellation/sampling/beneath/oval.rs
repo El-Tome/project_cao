@@ -11,7 +11,7 @@ use std::f64::consts::PI;
 
 use glam::DVec3;
 
-use super::super::{Samples, divisions};
+use super::super::{Samples, divisions_in};
 use crate::brep::conic::Round;
 use crate::brep::curve::{Curve, Wall};
 use crate::brep::domain::Location;
@@ -35,7 +35,8 @@ pub(in crate::brep::tessellation::sampling) fn walls(
             continue;
         };
         let id = SurfaceId(rank as u32);
-        let sag = oval.major * (1.0 - (PI / divisions(oval.major, tolerance) as f64).cos());
+        let sag = oval.major
+            * (1.0 - (PI / divisions_in(oval.major, tolerance, samples.span) as f64).cos());
         let holds = |point: DVec3| {
             let at = oval.parameters(point);
             body.face_ids().any(|face| {

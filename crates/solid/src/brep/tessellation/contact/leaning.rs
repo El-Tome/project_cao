@@ -28,7 +28,7 @@ use super::facing::{Facing, Zones};
 use super::own::flat_from;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
-use crate::brep::tessellation::sampling::divisions;
+use crate::brep::tessellation::sampling::divisions_in;
 use crate::brep::topology::SurfaceId;
 
 /// What a ray of a group stands for, in the order one gives way to another
@@ -79,7 +79,7 @@ pub(super) fn shared(
     leaning: &[&Facing],
     own: &mut BTreeMap<SurfaceId, Vec<DVec3>>,
     (beneath, anchors): (&Points, &Points),
-    tolerance: f64,
+    (tolerance, span): (f64, f64),
 ) -> BTreeMap<SurfaceId, Vec<usize>> {
     let mut withheld: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
     for (walls, drift) in groups(leaning) {
@@ -100,7 +100,7 @@ pub(super) fn shared(
         let held = |id: SurfaceId| anchors.get(&id).map_or(&[][..], Vec::as_slice);
         let mut rays = Vec::new();
         for (side, (id, wall)) in walls.iter().copied().enumerate() {
-            let steps = divisions(wall.radius, tolerance);
+            let steps = divisions_in(wall.radius, tolerance, span);
             rays.extend((0..steps).map(|step| Ray {
                 side,
                 kind: Kind::Step(step),

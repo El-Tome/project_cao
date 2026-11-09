@@ -69,6 +69,14 @@
 //! - The chamfer's tests still pass — no test: the chamfer's own suite,
 //!   `a_chamfer_cuts_one_straight_edge.rs` and `src/body/tests/chamfer.rs`,
 //!   left as it was, is the answer
+//!
+//! Closes #777.
+//! - #697's near-flat sweep (`a_fillet_on_an_edge_nearly_flat_or_not_…`)
+//!   checks what its triangles enclose, at every radius, including the
+//!   largest, which it holds rounded at every angle, 3437 at 179.5° among
+//!   them —
+//!   `a_fillet_on_an_edge_nearly_flat_or_not_is_declined_as_too_short_or_lays_a_round_of_its_own_at_every_radius`;
+//!   the issue's other criteria are held in `an_arc_far_wider_than_the_part.rs`
 
 mod step_reader;
 
@@ -1834,12 +1842,9 @@ fn most_on_the_bend(turn: f64) -> f64 {
 /// holding its round as a face of its own — one number, curved, on the
 /// cylinder of the radius taken, standing between the two halves rather than
 /// lying in them, the edge gone, and the matter it takes what arithmetic
-/// says. What it did instead otherwise. What its triangles enclose is not
-/// asked: the kernel draws an arc this shallow and this wide coarser than its
-/// tolerance, whatever made it — a wall raised on the arc of radius 3437
-/// about (0, 3437), from the origin over half a degree, is cut once, 21 along
-/// its 30, and drawn 1.6e-2 off it, where 30 of reach allows 6e-3 — and the
-/// rounds of the other tests hold the drawing.
+/// says, and its triangles enclosing that matter within the drawing's
+/// tolerance over the round, however wide its circle. What it did instead
+/// otherwise.
 fn rounded_on_the_bend(
     part: &Body,
     name: &EdgeName,
@@ -1909,6 +1914,14 @@ fn rounded_on_the_bend(
             body.volume()
         ));
     }
+    let enclosed = enclosed(&triangles);
+    let allowed = drawn_within(part, round.area());
+    if (enclosed - promised).abs() > allowed {
+        return Err(format!(
+            "drew triangles enclosing {enclosed}, where arithmetic promised {promised}, within \
+             {allowed:e}"
+        ));
+    }
     Ok(true)
 }
 
@@ -1926,6 +1939,10 @@ fn a_fillet_on_an_edge_nearly_flat_or_not_is_declined_as_too_short_or_lays_a_rou
             match rounded_on_the_bend(&part, &name, turn, asked) {
                 Err(fault) => faults.push(format!("{degrees}°, {asked:e} asked: {fault}")),
                 Ok(true) => rounded += 1,
+                Ok(false) if step == 0 => faults.push(format!(
+                    "{degrees}°: the largest radius the halves give, {asked:e}, is declined as \
+                     too short, so what its triangles enclose goes unchecked"
+                )),
                 Ok(false) => {}
             }
         }

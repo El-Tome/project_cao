@@ -33,7 +33,7 @@ use super::chords::halved;
 use super::cone::{Grid, Spun};
 use super::elliptic::{a_step_apart, between_steps, on_the_wall, reached_by_planes};
 use super::ends::{grazed, grazed_near};
-use super::{divisions, on_a_plane, touching_planes};
+use super::{divisions_in, on_a_plane, touching_planes};
 use crate::brep::conic::{Conic, On, Round};
 use crate::brep::surface::Surface;
 use crate::brep::tessellation::contact::{self, Zones};
@@ -70,13 +70,13 @@ pub(super) fn of_edge(
     conic: &Conic,
     (zones, grids, abreast): (&Zones, &BTreeMap<SurfaceId, Grid>, &Abreast),
     rays: &[f64],
-    tolerance: f64,
+    (tolerance, span): (f64, f64),
 ) -> Vec<DVec3> {
     let eps = body.scale().eps();
     let plane = Surface::Plane(conic.plane);
     match conic.round {
         Round::Cylinder(cylinder) => {
-            let steps = divisions(cylinder.radius, tolerance);
+            let steps = divisions_in(cylinder.radius, tolerance, span);
             let grid = turn(steps);
             let planes = touching_planes(body, cylinder.origin, cylinder.axis, cylinder.radius);
             let step = TAU * cylinder.radius / steps as f64;
@@ -96,7 +96,7 @@ pub(super) fn of_edge(
                 Some(grid) => (turn(grid.steps), grid.vertex_angles().to_vec()),
                 None => {
                     let widest = conic.widest(edge.from, edge.to);
-                    (turn(divisions(widest, tolerance)), Vec::new())
+                    (turn(divisions_in(widest, tolerance, span)), Vec::new())
                 }
             };
             let step = TAU * conic.widest(edge.from, edge.to) / grid.len() as f64;
@@ -107,7 +107,7 @@ pub(super) fn of_edge(
             on_conic(conic, edge, tolerance, eps, [&grid, &rays], &clear)
         }
         Round::Elliptic(wall) => {
-            let steps = divisions(wall.major, tolerance);
+            let steps = divisions_in(wall.major, tolerance, span);
             let id = body
                 .surfaces
                 .iter()

@@ -36,7 +36,7 @@ pub(super) fn shared(
     mut taken: BTreeMap<SurfaceId, Vec<DVec3>>,
     pinned: &BTreeMap<SurfaceId, Vec<DVec3>>,
     planes: &BTreeMap<SurfaceId, Vec<Plane>>,
-    tolerance: f64,
+    fineness: (f64, f64),
     eps: f64,
 ) -> BTreeMap<SurfaceId, Contact> {
     let pins = |wall: &Wall| pinned.get(&wall.0).map_or(&[][..], Vec::as_slice);
@@ -66,7 +66,7 @@ pub(super) fn shared(
                 facing,
                 *hub,
                 [touching(outer), touching(inner)],
-                tolerance,
+                fineness,
                 eps,
             ) else {
                 continue;

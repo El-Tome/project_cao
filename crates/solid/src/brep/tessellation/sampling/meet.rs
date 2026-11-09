@@ -26,7 +26,7 @@ use super::chords::{halved, straight};
 use super::cone::{Grid, Spun};
 use super::elliptic::{on_the_wall, reached_by_planes};
 use super::ends::grazed;
-use super::{divisions, on_a_plane, taken, touching_planes};
+use super::{divisions_in, on_a_plane, taken, touching_planes};
 use crate::brep::Scale;
 use crate::brep::curve::{Meet, Wall};
 use crate::brep::surface::Cone;
@@ -178,10 +178,10 @@ pub(super) fn of_edge(
     meet: &Meet,
     around: Around,
     grids: &BTreeMap<SurfaceId, Grid>,
-    tolerance: f64,
+    fineness: (f64, f64),
 ) -> Vec<DVec3> {
-    let points = alone(body, edge, meet, around, grids, tolerance);
-    twin::shared(body, edge, meet, around, grids, tolerance, points)
+    let points = alone(body, edge, meet, around, grids, fineness);
+    twin::shared(body, edge, meet, around, grids, fineness, points)
 }
 
 /// The walls of the body, the pairs of them face to face, and what each
@@ -199,7 +199,7 @@ fn alone(
     meet: &Meet,
     (walls, zones, contacts): Around,
     grids: &BTreeMap<SurfaceId, Grid>,
-    tolerance: f64,
+    (tolerance, span): (f64, f64),
 ) -> Vec<DVec3> {
     let edge = body.edge(id);
     let own = contact::held(body, id, meet);
@@ -215,15 +215,15 @@ fn alone(
     };
     let steps = carried.map(|wall| match wall {
         Wall::Cone(cone) => grid(&cone).map_or_else(
-            || divisions(size(&wall, meet), tolerance),
+            || divisions_in(size(&wall, meet), tolerance, span),
             |grid| grid.steps,
         ),
-        _ => divisions(size(&wall, meet), tolerance),
+        _ => divisions_in(size(&wall, meet), tolerance, span),
     });
     let rays = [0, 1].map(|rank| match carried[rank] {
         Wall::Cylinder(cylinder) => taken(&own[rank], &cylinder, walls, contacts),
         Wall::Elliptic(oval) => {
-            let steps = divisions(oval.major, tolerance);
+            let steps = divisions_in(oval.major, tolerance, span);
             let beneath = contacts
                 .values()
                 .filter(|contact| contact.oval == Some(oval))
@@ -337,16 +337,18 @@ fn grazing_ends<'a>(
     grazed(body, edge, &walls.map(|wall| wall.surface()), step)
 }
 
-/// [`on_meet_by`], each wall's grid cut for its own size.
+/// [`on_meet_by`], each wall's grid cut for its own size on a part spanning
+/// `span`.
 #[cfg(test)]
 pub(super) fn on_meet(
     meet: &Meet,
     edge: &Edge,
-    tolerance: f64,
+    (tolerance, span): (f64, f64),
     eps: f64,
     rays: [&[f64]; 2],
     clear: &dyn Fn(DVec3) -> bool,
 ) -> Vec<DVec3> {
-    let steps = [meet.first, meet.second].map(|wall| divisions(size(&wall, meet), tolerance));
+    let steps =
+        [meet.first, meet.second].map(|wall| divisions_in(size(&wall, meet), tolerance, span));
     on_meet_by(meet, edge, tolerance, eps, rays, steps, clear)
 }

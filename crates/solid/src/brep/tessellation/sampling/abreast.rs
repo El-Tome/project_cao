@@ -35,7 +35,7 @@ mod groups;
 mod rays;
 
 use super::super::contact::{self, Contact};
-use super::divisions;
+use super::divisions_in;
 use crate::brep::relation::{Relation, closest, relation};
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, SurfaceId};
@@ -61,7 +61,7 @@ impl Abreast {
     /// is sampled from its own, and a pair that only crosses is left to its
     /// grids: rays from two points on one wall leave samples the third
     /// never takes (campaign seed 5571469258).
-    pub(super) fn of(body: &Body, tolerance: f64) -> Abreast {
+    pub(super) fn of(body: &Body, fineness: (f64, f64)) -> Abreast {
         let mut found = Abreast::default();
         let mut pairs = Vec::new();
         let walls: Vec<SurfaceId> = (0..body.surfaces.len() as u32)
@@ -82,7 +82,7 @@ impl Abreast {
                 let Some(nearest) = closest(pair[0], pair[1], body.scale()) else {
                     continue;
                 };
-                let near = nearest <= 2.0 * tolerance;
+                let near = nearest <= 2.0 * fineness.0;
                 let meeting = !matches!(
                     relation(pair[0], pair[1], body.scale()),
                     Relation::Apart | Relation::Unsupported
@@ -98,19 +98,19 @@ impl Abreast {
         let joined: Vec<[SurfaceId; 2]> = pairs.iter().map(|(pair, _)| *pair).collect();
         for group in grouped(&joined) {
             if let Some(hub) = common_hub(&group, body) {
-                found.shared(&group, hub, body, tolerance);
+                found.shared(&group, hub, body, fineness);
                 continue;
             }
             for &([inner, outer], near) in &pairs {
                 if near && group.contains(&inner) {
                     let (hub, _) = axis_of(body.surface(inner));
-                    found.shared(&[inner, outer], hub, body, tolerance);
+                    found.shared(&[inner, outer], hub, body, fineness);
                 }
             }
         }
         for &(pair, near) in &pairs {
             if near {
-                found.crowded(pair, body, tolerance);
+                found.crowded(pair, body, fineness);
             }
         }
         found
@@ -162,15 +162,19 @@ impl Abreast {
     /// elliptic rim keeping its own there, beside the ruling the same
     /// ellipse turned a hair crosses itself along, left it outside the
     /// other's chord (campaign seed 5585713456).
-    fn crowded(&mut self, pair: [SurfaceId; 2], body: &Body, tolerance: f64) {
+    fn crowded(&mut self, pair: [SurfaceId; 2], body: &Body, (tolerance, span): (f64, f64)) {
         let room = body.scale().eps() * contact::APART;
         for (wall, other) in [(pair[0], pair[1]), (pair[1], pair[0])] {
             let surface = body.surface(wall);
             let (steps, withheld) = match surface {
-                Surface::Cylinder(round) => {
-                    (divisions(round.radius, tolerance), &mut self.withheld)
-                }
-                Surface::Elliptic(oval) => (divisions(oval.major, tolerance), &mut self.left_out),
+                Surface::Cylinder(round) => (
+                    divisions_in(round.radius, tolerance, span),
+                    &mut self.withheld,
+                ),
+                Surface::Elliptic(oval) => (
+                    divisions_in(oval.major, tolerance, span),
+                    &mut self.left_out,
+                ),
                 Surface::Plane(_) | Surface::Cone(_) | Surface::Sphere(_) | Surface::Torus(_) => {
                     continue;
                 }
@@ -205,13 +209,13 @@ impl Abreast {
     /// where a vertex stands just inside it. Taken by one rim alone, such a
     /// place of the outer wall beside a touch left a chord of it across the
     /// inner rim's (campaign seed 5571457963).
-    fn shared(&mut self, group: &[SurfaceId], hub: DVec3, body: &Body, tolerance: f64) {
+    fn shared(&mut self, group: &[SurfaceId], hub: DVec3, body: &Body, fineness: (f64, f64)) {
         let (_, axis) = axis_of(body.surface(group[0]));
         let flat = |way: DVec3| way - axis * axis.dot(way);
         let mut places: Vec<DVec3> = group
             .iter()
-            .flat_map(|wall| grid(body.surface(*wall), tolerance))
-            .chain(group.iter().flat_map(|wall| alone(body, *wall, tolerance)))
+            .flat_map(|wall| grid(body.surface(*wall), fineness))
+            .chain(group.iter().flat_map(|wall| alone(body, *wall, fineness)))
             .collect();
         places.extend(
             body.vertices

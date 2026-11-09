@@ -51,11 +51,11 @@ mod ends;
 mod meet;
 mod planes;
 mod round;
+mod steps;
 mod touches;
 mod wedge;
 
 use std::collections::BTreeMap;
-use std::f64::consts::PI;
 
 use glam::DVec3;
 
@@ -65,11 +65,12 @@ use crate::brep::surface::Cylinder;
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
 use abreast::Abreast;
 use axis::Axes;
-use circle::on_circle;
+use circle::on_circle_by;
 use cone::{Grid, Spun};
 use ends::Ends;
 pub(super) use planes::{on_a_plane, touching_planes};
 pub(super) use round::{ON_A_ROW, Rounded, levels, midway, rows};
+pub(in crate::brep) use steps::divisions_in;
 use touches::{Places, on_the_line};
 
 /// How far from another surface, as a share of the kernel's tolerance, a
@@ -83,33 +84,6 @@ use touches::{Places, on_the_line};
 /// round from the vertex they cross at, and a place there on each, not on a
 /// ray the two share, has the arcs cross back and forth between them.
 const TOLD: f64 = 1e-3;
-
-const LEAST: usize = 16;
-const MOST: usize = 1024;
-
-/// How many equal steps a whole turn of a circle of `radius` is cut into, so
-/// that no chord of one step stands further than `tolerance` from its arc.
-///
-/// A multiple of four, so that the quarters from `u` are samples: where the
-/// planes of the origin touch a cylinder standing square to one of them. At
-/// least sixteen, so that a coarse tolerance still draws a round; at most a
-/// thousand and twenty-four, so that a fine one does not draw a million
-/// triangles.
-pub(in crate::brep) fn divisions(radius: f64, tolerance: f64) -> usize {
-    match needed(radius, tolerance) {
-        Some(needed) => ((needed / 4.0).ceil() * 4.0).clamp(LEAST as f64, MOST as f64) as usize,
-        None => MOST,
-    }
-}
-
-fn needed(radius: f64, tolerance: f64) -> Option<f64> {
-    let ratio = tolerance / radius;
-    if ratio.is_nan() || ratio <= 0.0 {
-        return None;
-    }
-    let half_step = (1.0 - ratio.min(2.0)).acos();
-    Some((PI / half_step).ceil())
-}
 
 /// Every edge's points, in the way the edge runs: its first vertex, the points
 /// between, its last vertex. A ring's points go round from its start and do
@@ -129,6 +103,9 @@ pub(super) struct Samples {
     vertices: usize,
     grids: BTreeMap<SurfaceId, Grid>,
     pub(in crate::brep::tessellation) lines: Vec<EdgeId>,
+    /// Half the diagonal of the box the body fits in, which bounds the most
+    /// steps a turn is cut into.
+    pub(in crate::brep::tessellation) span: f64,
 }
 
 impl Samples {
@@ -137,14 +114,15 @@ impl Samples {
     pub(super) fn of(body: &Body, tolerance: f64) -> Samples {
         let walls = contact::walls(body);
         let zones = Zones::of(body, &walls);
-        let grids = cone::grids(body, tolerance);
-        let first = Samples::through(body, &walls, &zones, &grids, &BTreeMap::new(), tolerance);
+        let fineness = (tolerance, steps::span(body));
+        let grids = cone::grids(body, fineness);
+        let first = Samples::through(body, &walls, &zones, &grids, &BTreeMap::new(), fineness);
         let mut beneath = beneath::walls(body, &walls, &first, tolerance);
         beneath.extend(beneath::oval::walls(body, &first, tolerance));
         let mut samples = if beneath.is_empty() {
             first
         } else {
-            Samples::through(body, &walls, &zones, &grids, &beneath, tolerance)
+            Samples::through(body, &walls, &zones, &grids, &beneath, fineness)
         };
         samples.grids = grids;
         samples
@@ -158,47 +136,47 @@ impl Samples {
         zones: &Zones,
         grids: &BTreeMap<SurfaceId, Grid>,
         beneath: &BTreeMap<SurfaceId, Vec<DVec3>>,
-        tolerance: f64,
+        fineness: (f64, f64),
     ) -> Samples {
+        let (tolerance, span) = fineness;
         let mut samples = Samples {
             points: body.vertex_ids().map(|id| body.vertex(id).point).collect(),
             edges: Vec::new(),
             vertices: body.vertex_ids().count(),
             grids: BTreeMap::new(),
             lines: crossing::lines(body, zones),
+            span,
         };
         let eps = body.scale().eps();
         let alone = BTreeMap::new();
-        let abreast = Abreast::of(body, tolerance);
-        let axes = Axes::of(body, grids, walls, tolerance);
+        let abreast = Abreast::of(body, fineness);
+        let axes = Axes::of(body, grids, walls, fineness);
         let given = abreast.joined(axes.given());
-        let mut meets = on_meets(body, walls, zones, &alone, grids, tolerance);
-        let mut contacts =
-            contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
+        let mut meets = on_meets(body, walls, zones, &alone, grids, fineness);
+        let mut contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, fineness);
         let meeting = body
             .edge_ids()
             .any(|id| matches!(body.curve(body.edge(id).curve), Curve::Meet(_)));
         if meeting {
-            meets = on_meets(body, walls, zones, &contacts, grids, tolerance);
-            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
+            meets = on_meets(body, walls, zones, &contacts, grids, fineness);
+            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, fineness);
         }
         let mut axes = axes.gathered(&contacts);
         let gathered = abreast.joined(axes.given());
         if gathered != given {
-            contacts = contact::contacts(body, walls, zones, &meets, beneath, &gathered, tolerance);
+            contacts = contact::contacts(body, walls, zones, &meets, beneath, &gathered, fineness);
             axes = axes.gathered(&contacts);
         }
-        let along = conic::rays_along(body, walls, zones, grids, &contacts, tolerance);
+        let along = conic::rays_along(body, walls, zones, grids, &contacts, fineness);
         if !along.is_empty() {
             let mut given = abreast.joined(axes.given());
             for (wall, rays) in along {
                 given.entry(wall).or_default().extend(rays);
             }
-            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
+            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, fineness);
             if meeting {
-                meets = on_meets(body, walls, zones, &contacts, grids, tolerance);
-                contacts =
-                    contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
+                meets = on_meets(body, walls, zones, &contacts, grids, fineness);
+                contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, fineness);
             }
         }
         abreast.withhold(&mut contacts);
@@ -211,14 +189,7 @@ impl Samples {
                 Curve::Line(_) => Vec::new(),
                 Curve::Conic(conic) => {
                     let rays = conic::rays_about(conic, walls, &contacts, eps);
-                    conic::of_edge(
-                        body,
-                        edge,
-                        conic,
-                        (zones, grids, &abreast),
-                        &rays,
-                        tolerance,
-                    )
+                    conic::of_edge(body, edge, conic, (zones, grids, &abreast), &rays, fineness)
                 }
                 Curve::Circle(circle) => match meridian_of(circle, grids, eps) {
                     Some((surface, round, rows)) => {
@@ -232,13 +203,14 @@ impl Samples {
                             .unwrap_or(&alone);
                         let on_axis = wall.and_then(|(surface, own)| {
                             let clear = |point| !zones.crowded(own, point);
-                            axes.widened(contact, (circle, *surface), tolerance, eps, clear)
+                            axes.widened(contact, (circle, *surface), fineness, eps, clear)
                         });
                         let contact = on_axis.as_ref().unwrap_or(contact);
                         let ends = Ends::of(body, circle, edge);
                         let planes =
                             touching_planes(body, circle.center, circle.axis, circle.radius);
-                        on_circle(circle, edge, tolerance, eps, contact, &ends, &planes)
+                        let steps = divisions_in(circle.radius, tolerance, span);
+                        on_circle_by(circle, edge, steps, eps, contact, &ends, &planes)
                     }
                 },
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
@@ -359,14 +331,14 @@ fn on_meets(
     zones: &Zones,
     contacts: &BTreeMap<SurfaceId, Contact>,
     grids: &BTreeMap<SurfaceId, Grid>,
-    tolerance: f64,
+    fineness: (f64, f64),
 ) -> Vec<Vec<DVec3>> {
     body.edge_ids()
         .map(|id| {
             let edge = body.edge(id);
             match body.curve(edge.curve) {
                 Curve::Meet(meet) => {
-                    meet::of_edge(body, id, meet, (walls, zones, contacts), grids, tolerance)
+                    meet::of_edge(body, id, meet, (walls, zones, contacts), grids, fineness)
                 }
                 Curve::Line(_) | Curve::Circle(_) | Curve::Conic(_) => Vec::new(),
             }

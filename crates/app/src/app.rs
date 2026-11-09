@@ -383,6 +383,7 @@ impl eframe::App for CaoApp {
             self.show_part(ui);
         }
         self.show_settings(ui);
+        screens::viewport::repaint_if_the_atlas_grew(ui.ctx());
         // An error found at the end of a frame is drawn by the next one, which
         // nothing else may be about to ask for.
         if self.error != error_before {

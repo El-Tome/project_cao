@@ -71,8 +71,7 @@ pub(super) fn face_label(
         .size()
         * 0.5;
     let font_size = fitting_font_size(
-        egui::vec2(half_side, 0.0),
-        egui::vec2(0.0, half_side),
+        half_side,
         half_extent,
         REFERENCE_FONT_SIZE,
         preferred,
@@ -82,8 +81,11 @@ pub(super) fn face_label(
     let galley =
         painter.layout_no_wrap(text.to_string(), egui::FontId::proportional(font_size), ink);
     let word_middle = galley.mesh_bounds.center();
-    let [width, height] = painter.fonts(|fonts| fonts.font_image_size());
-    let texels = egui::vec2(width as f32, height as f32);
+    let atlas = painter.fonts(|fonts| fonts.font_image_size());
+    painter
+        .ctx()
+        .data_mut(|data| data.insert_temp(atlas_the_names_used(), atlas));
+    let texels = egui::vec2(atlas[0] as f32, atlas[1] as f32);
 
     let placed = galley.rows.first()?;
     let mut laid = placed.row.visuals.mesh.clone();
@@ -95,20 +97,34 @@ pub(super) fn face_label(
     Some(egui::Shape::mesh(laid))
 }
 
+fn atlas_the_names_used() -> egui::Id {
+    egui::Id::new("cube_labels_atlas")
+}
+
+/// A name's texture coordinates are divided by the font atlas's size as it is
+/// painted. A glyph first laid out later in the same frame can grow the atlas,
+/// which leaves the names sampling the wrong texels, and egui asks for no
+/// repaint on its own: called once everything is laid out, this asks for one.
+pub(crate) fn repaint_if_the_atlas_grew(ctx: &egui::Context) {
+    let used = ctx.data_mut(|data| data.remove_temp::<[usize; 2]>(atlas_the_names_used()));
+    if used.is_some_and(|used| used != ctx.fonts(|fonts| fonts.font_image_size())) {
+        ctx.request_repaint();
+    }
+}
+
 /// The largest font size, at or below `preferred`, whose text — measured at
-/// `reference_size` giving `half_extent_at_reference` — stays inside the
-/// face's projected shape. `None` when even `minimum_readable` would not fit,
-/// which is when the label is better dropped than left spilling onto a
-/// neighbouring face.
+/// `reference_size` giving `half_extent_at_reference` — stays inside a face's
+/// own square of half-side `half_side`. `None` when even `minimum_readable`
+/// would not fit, which is when the label is better dropped than left spilling
+/// onto a neighbouring face.
 fn fitting_font_size(
-    half_edge_a: egui::Vec2,
-    half_edge_b: egui::Vec2,
+    half_side: f32,
     half_extent_at_reference: egui::Vec2,
     reference_size: f32,
     preferred: f32,
     minimum_readable: f32,
 ) -> Option<f32> {
-    let scale = inscribed_scale(half_edge_a, half_edge_b, half_extent_at_reference);
+    let scale = inscribed_scale(half_side, half_extent_at_reference);
     let size = (reference_size * scale * FIT_MARGIN).min(preferred);
     (size >= minimum_readable).then_some(size)
 }
@@ -117,10 +133,9 @@ fn fitting_font_size(
 const FIT_MARGIN: f32 = 0.85;
 
 /// The largest `t` for which a rectangle of half-extents `t * corner` stays
-/// inside the axis-aligned square of half-sides `a` and `b`, around the same
-/// centre: a name is sized in its face's own square.
-fn inscribed_scale(a: egui::Vec2, b: egui::Vec2, corner: egui::Vec2) -> f32 {
-    (a.x / corner.x).min(b.y / corner.y)
+/// inside a square of half-side `half_side`, around the same centre.
+fn inscribed_scale(half_side: f32, corner: egui::Vec2) -> f32 {
+    half_side / corner.max_elem()
 }
 
 #[cfg(test)]

@@ -6,6 +6,7 @@
 //! is in [`view`].
 
 mod cube_labels;
+pub(crate) use cube_labels::repaint_if_the_atlas_grew;
 mod finish;
 mod input;
 mod kept_sections;

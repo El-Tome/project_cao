@@ -188,7 +188,7 @@ impl ViewportState {
     }
 
     /// Width over height of the canvas, square until a frame has drawn it.
-    pub(super) fn aspect(&self) -> f32 {
+    fn aspect(&self) -> f32 {
         self.canvas.map_or(1.0, |canvas| canvas.aspect_ratio())
     }
 

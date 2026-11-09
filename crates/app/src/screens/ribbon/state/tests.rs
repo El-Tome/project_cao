@@ -50,6 +50,13 @@
 //! filtered through as well as a button.
 //! - « Recadrer » is offered in and out of a sketch —
 //!   `reframe_is_offered_in_and_out_of_a_sketch`
+//!
+//! Closes #729. The rest of the issue is in the test files of the viewport,
+//! each under its own block.
+//! - found in review: « Vue d'origine » is hidden while a sketch is open, and a
+//!   shortcut or a ribbon button goes no further than the button does — it is
+//!   greyed exactly while a sketch is open —
+//!   `the_origin_view_is_offered_outside_a_sketch_and_while_a_plane_is_chosen`
 
 use super::*;
 use cao_sketch::WorkPlane;
@@ -172,6 +179,31 @@ fn reframe_is_offered_in_and_out_of_a_sketch() {
         assert!(
             is_enabled(Command::Reframe, &part, &editor, &extrusion),
             "« Recadrer » is greyed {when}",
+        );
+    }
+}
+
+#[test]
+fn the_origin_view_is_offered_outside_a_sketch_and_while_a_plane_is_chosen() {
+    let part = a_part();
+    let extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut finished = drawing_on_a_sketch();
+    finished.close();
+    let mut choosing_a_plane = drawing_on_a_sketch();
+    choosing_a_plane.start_choosing_plane(&lang);
+
+    for (editor, offered, when) in [
+        (SketchEditor::default(), true, "before a sketch is opened"),
+        (drawing_on_a_sketch(), false, "while a sketch is open"),
+        (choosing_a_plane, true, "while a plane is being chosen"),
+        (finished, true, "once the sketch is finished"),
+    ] {
+        assert_eq!(
+            is_enabled(Command::OriginView, &part, &editor, &extrusion),
+            offered,
+            "« Vue d'origine » {when}: a shortcut and a ribbon button go through this, and \
+             the button under the cube is shown exactly when it answers true",
         );
     }
 }

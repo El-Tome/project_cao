@@ -49,7 +49,9 @@
 //!   the camera — `the_triad_turns_with_the_camera`; found by launching the
 //!   app: at the opening view and square onto a sketch, the views the triad is
 //!   read in, it stays off the cube's drawing —
-//!   `the_triad_stays_off_the_cube_at_the_opening_view_and_square_onto_a_sketch`
+//!   `the_triad_stays_off_the_cube_at_the_opening_view_and_square_onto_a_sketch`;
+//!   found in review: a cube too small to hold a letter still paints —
+//!   `a_cube_too_small_to_hold_a_letter_paints_without_a_panic`
 //! - A name stays inside its face (#225) —
 //!   `a_name_lying_on_its_face_never_leaves_it`
 
@@ -194,8 +196,6 @@ fn the_scale_bar_s_figure_is_written_in_the_monospace_family() {
     );
 }
 
-/// Read all around the cube, since a monospaced « GAUCHE » spaces its letters
-/// nearly as the proportional one does, and « DROITE » and « ARRIÈRE » do not.
 #[test]
 fn the_names_of_the_cube_s_faces_stay_in_the_proportional_family() {
     let lang = Catalogue::french();
@@ -1352,6 +1352,19 @@ fn the_triad_stays_off_the_cube_at_the_opening_view_and_square_onto_a_sketch() {
                     );
                 }
             }
+        }
+    }
+}
+
+#[test]
+fn a_cube_too_small_to_hold_a_letter_paints_without_a_panic() {
+    let lang = Catalogue::french();
+
+    for size in [5.0, 1.0] {
+        for (yaw, pitch) in TRIAD_VIEWS {
+            let (state, rect) = a_cube_seen_from(yaw, pitch, size);
+
+            shapes(|ui| paint_face_labels(ui, &state, rect, &lang));
         }
     }
 }

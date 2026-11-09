@@ -2606,8 +2606,6 @@ fn a_sketch_on_a_part_s_face_lights_the_cube_face_closest_to_its_normal() {
     }
 }
 
-/// The tangents are chosen so that the two components of the normal come out
-/// of one same number: an exact tie, where a near one could go either way.
 #[test]
 fn a_normal_exactly_between_two_faces_lights_the_first_in_their_fixed_order() {
     let k = std::f64::consts::FRAC_1_SQRT_2;

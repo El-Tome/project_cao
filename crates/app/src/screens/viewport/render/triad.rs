@@ -20,7 +20,8 @@ const LINE_WIDTH: f32 = 1.5;
 const LETTER_GAP: f32 = 0.7;
 
 /// Paints the triad with `painter`. A letter that would leave the square is
-/// held inside it: the corner leaves little room at the smallest cube.
+/// held inside it, the corner leaving little room at the smallest cube, and
+/// dropped when it is larger than the square.
 pub(super) fn paint(
     painter: &egui::Painter,
     state: &ViewportState,
@@ -45,6 +46,9 @@ pub(super) fn paint(
             painter.layout_no_wrap(name.to_string(), egui::FontId::proportional(font_size), ink);
         let middle = tip + (tip - origin).normalized() * font_size * LETTER_GAP;
         let size = letter.size();
+        if size.max_elem() > side {
+            continue;
+        }
         let at = (middle - size * 0.5).clamp(cube_rect.min, cube_rect.max - size);
         painter.galley(at, letter, ink);
     }

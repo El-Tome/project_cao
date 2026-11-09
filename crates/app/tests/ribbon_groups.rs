@@ -24,6 +24,9 @@
 //!   `a_command_sitting_directly_in_a_tab_is_large`
 //! - below 1440 px the ribbon wraps group by group rather than button by button
 //!   (#650) — `below_1440_the_ribbon_wraps_group_by_group_rather_than_button_by_button`
+//! - found in the window at 1512 wide: an entry never stands above the one
+//!   before it in the tree, and a line reads in the tree's order —
+//!   `an_entry_of_a_tab_never_stands_above_the_one_before_it_in_the_tree`
 //! - a bar wide enough holds its groups on one line —
 //!   `a_bar_wide_enough_lays_all_its_groups_on_one_line`
 //! - decided: a group wider than the whole bar wraps inside itself as a last
@@ -377,6 +380,46 @@ fn below_1440_the_ribbon_wraps_group_by_group_rather_than_button_by_button() {
     assert!(
         lines.last().expect("three groups").1[0] > lines[0].1[0] + ALIGNED_WITHIN,
         "at 900 wide no group went to the next line: {lines:?}",
+    );
+}
+
+#[test]
+fn an_entry_of_a_tab_never_stands_above_the_one_before_it_in_the_tree() {
+    const IN_TREE_ORDER: [&str; 7] = [
+        "Nouvelle esquisse",
+        "Sélection",
+        "Contraintes",
+        "Recadrer",
+        "Matière devant",
+        "Terminer",
+        "Annuler",
+    ];
+    let mut wrong = Vec::new();
+
+    for width in [1400.0, 1440.0, 1512.0, 1600.0, 1728.0] {
+        let app = opened(
+            &format!("an_entry_never_stands_above_{width}"),
+            egui::vec2(width, 900.0),
+            Settings::default(),
+        );
+        let drawn = IN_TREE_ORDER.map(|name| (name, the_ribbon_button(&app, name)));
+
+        for pair in drawn.windows(2) {
+            let ((before, earlier), (after, later)) = (pair[0], pair[1]);
+            let above = later.top() < earlier.top() - ALIGNED_WITHIN;
+            let on_one_line = (later.top() - earlier.top()).abs() <= ALIGNED_WITHIN;
+            if above || (on_one_line && later.left() < earlier.left()) {
+                wrong.push(format!(
+                    "at {width}: « {after} » at {later:?} stands before « {before} » at {earlier:?}"
+                ));
+            }
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "entries of the tab are drawn out of the tree's order:\n  {}",
+        wrong.join("\n  "),
     );
 }
 

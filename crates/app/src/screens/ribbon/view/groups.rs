@@ -1,7 +1,7 @@
 use cao_prefs::{Command, GroupSize, Item};
 use egui::{
-    Align, FontSelection, Id, Label, Layout, RichText, Sense, Stroke, TextWrapMode, Ui, Vec2,
-    WidgetText, vec2,
+    Align, FontSelection, Id, InnerResponse, Label, Layout, RichText, Sense, Stroke, TextWrapMode,
+    Ui, Vec2, WidgetText, vec2,
 };
 
 use crate::ui::theme::tokens::{BORDER_GROUP, TEXT_QUIET};
@@ -57,13 +57,16 @@ pub(super) fn open_tab(
         });
         return 0.0;
     }
-    ui.with_layout(wrapped_row(), |ui| {
+    in_a_wrapped_row(ui, |ui| {
         let spacing = ui.spacing().item_spacing.x;
         let runs = runs(items, SPREAD_OUT);
         let mut held = 0.0;
+        let mut line_is_over = false;
         for (rank, run) in runs.iter().enumerate() {
-            let after_a_group =
-                rank > 0 && matches!(runs[rank - 1], Run::Plain(Item::Group { .. }));
+            let after_a_group = !line_is_over
+                && rank > 0
+                && matches!(runs[rank - 1], Run::Plain(Item::Group { .. }));
+            let mut wrapped_inside = false;
             let width = match run {
                 Run::Split(split) => one_block(ui, rank, bar_width, |ui| {
                     split_button(ui, split, Shown::Large, &mut bar);
@@ -71,14 +74,23 @@ pub(super) fn open_tab(
                 Run::Plain(Item::Command(command)) => one_block(ui, rank, bar_width, |ui| {
                     button(ui, *command, bar.state, bar.asked, Shown::Large);
                 }),
-                Run::Plain(Item::Separator) => rule_before(ui, rank + 1, rank + 1 < runs.len()),
+                Run::Plain(Item::Separator) => {
+                    rule_before(ui, rank + 1, !line_is_over && rank + 1 < runs.len())
+                }
                 Run::Plain(Item::Group { name, size, items }) => {
                     let rule = rule_before(ui, rank, after_a_group);
                     rule + one_block(ui, rank, bar_width, |ui| {
-                        named_group(ui, name, *size, items, false, &mut bar);
+                        wrapped_inside = named_group(ui, name, *size, items, false, &mut bar);
                     })
                 }
             };
+            // The row keeps its cursor at the top of the line a block began
+            // on, however tall: without this, what follows would stand in the
+            // room left beside the first of the block's own lines.
+            if wrapped_inside {
+                ui.end_row();
+            }
+            line_is_over = wrapped_inside;
             // The row stands each thing on rounded points, which the sum of
             // their widths does not: short of it, the last block would wrap.
             held += width.ceil() + spacing;
@@ -102,8 +114,16 @@ fn run_down_a_side(ui: &mut Ui, run: &Run<'_>, after_a_group: bool, bar: &mut Ba
     }
 }
 
-fn wrapped_row() -> Layout {
-    Layout::left_to_right(Align::TOP).with_main_wrap(true)
+/// A row that wraps, starting on one line as `horizontal_wrapped` does.
+/// `with_layout` would start it as tall as the room left, and whatever went to
+/// the next line would still count as standing on the first.
+fn in_a_wrapped_row<R>(ui: &mut Ui, add: impl FnOnce(&mut Ui) -> R) -> InnerResponse<R> {
+    let first_line = vec2(
+        ui.available_size_before_wrap().x,
+        ui.spacing().interact_size.y,
+    );
+    let layout = Layout::left_to_right(Align::TOP).with_main_wrap(true);
+    ui.allocate_ui_with_layout(first_line, layout, add)
 }
 
 /// Where the size a block came out at last frame is kept, by its rank, so that
@@ -154,28 +174,31 @@ fn named_group(
     items: &[Item],
     side: bool,
     bar: &mut Bar<'_>,
-) {
+) -> bool {
     let runs = runs(items, INSIDE_A_GROUP);
-    let buttons = ui
-        .with_layout(wrapped_row(), |ui| match (rows_of(size), side) {
-            (rows, true) => {
-                let shown = Shown::Small(rows.unwrap_or(SMALLEST));
-                small_column(ui, runs.len(), |ui, rank| {
-                    entry(ui, &runs[rank], shown, rank, 0.0, bar);
-                });
+    let laid = in_a_wrapped_row(ui, |ui| match (rows_of(size), side) {
+        (rows, true) => {
+            let shown = Shown::Small(rows.unwrap_or(SMALLEST));
+            small_column(ui, runs.len(), |ui, rank| {
+                entry(ui, &runs[rank], shown, rank, 0.0, bar);
+            });
+            false
+        }
+        (None, false) => {
+            let bar_width = ui.max_rect().width();
+            for (rank, run) in runs.iter().enumerate() {
+                entry(ui, run, Shown::Large, rank, bar_width, bar);
             }
-            (None, false) => {
-                let bar_width = ui.max_rect().width();
-                for (rank, run) in runs.iter().enumerate() {
-                    entry(ui, run, Shown::Large, rank, bar_width, bar);
-                }
-            }
-            (Some(rows), false) => small_grid(ui, rows, runs.len(), |ui, rank| {
+            ui.cursor().top() > ui.min_rect().top() + 1.0
+        }
+        (Some(rows), false) => {
+            small_grid(ui, rows, runs.len(), |ui, rank| {
                 entry(ui, &runs[rank], Shown::Small(rows), rank, 0.0, bar);
-            }),
-        })
-        .response
-        .rect;
+            });
+            false
+        }
+    });
+    let buttons = laid.response.rect;
 
     let written = RichText::new(group(bar.state.lang, name).to_uppercase())
         .size(NAME_SIZE)
@@ -192,6 +215,7 @@ fn named_group(
         Layout::top_down(Align::Center),
         |ui| ui.add(Label::new(galley)),
     );
+    laid.inner
 }
 
 fn rows_of(size: GroupSize) -> Option<Rows> {

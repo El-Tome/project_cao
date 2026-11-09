@@ -261,8 +261,8 @@ fn joint(
 /// Whether a face may reach a point of its surface: on a plane, where the
 /// point stands within `eps` of the box its boundary spans — a flat face
 /// holds nothing outside it — each arc of it taken at its whole circle's
-/// reach; on any other surface, or bounded by another curve, always, since
-/// such a face may bulge past its boundary.
+/// reach, each conic at its stretch's; on any other surface, or bounded by
+/// another curve, always, since such a face may bulge past its boundary.
 fn reaches(
     face: &Face,
     point: DVec3,
@@ -286,6 +286,7 @@ fn reaches(
                 let reach = DVec3::splat(circle.radius);
                 spanned.extend([circle.center - reach, circle.center + reach]);
             }
+            (Curve::Conic(conic), _) => spanned.extend(conic.bounds(edge.from, edge.to)),
             _ => return true,
         }
     }

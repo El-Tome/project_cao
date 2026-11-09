@@ -18,10 +18,13 @@
 //!   degrees, such as a slot's round end —
 //!   `a_chamfer_at_the_foot_of_a_slot_s_wall_is_trimmed_flush_on_the_round_end_it_meets_at_a_few_degrees`,
 //!   `a_fillet_at_the_foot_of_a_slot_s_wall_is_trimmed_flush_on_the_round_end_it_meets_at_a_few_degrees`
-//! - The same holds where the end face is a cone, a sphere and a torus —
-//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_running_into_a_cone_are_trimmed_flush_on_it`,
-//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_running_into_a_ball_are_trimmed_flush_on_its_sphere`,
-//!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_running_into_a_ring_are_trimmed_flush_on_its_torus`
+//! - The same holds where the end face is a cone, a sphere and a torus — the
+//!   cone, a rib whose round end has draft:
+//!   `a_chamfer_at_the_foot_of_a_rib_whose_round_end_has_draft_is_trimmed_flush_on_its_cone`,
+//!   `a_fillet_at_the_foot_of_a_rib_whose_round_end_has_draft_is_trimmed_flush_on_its_cone`;
+//!   the sphere and the torus are not written yet: the kernel meets neither
+//!   with a slanted plane or a cylinder off its axis, and how far this issue
+//!   goes there is a decision put to the human
 //! - An end face the fill cannot be trimmed flush by is declined
 //!   `Unsupported` with that reason, and no wrong body is built —
 //!   `a_chamfer_and_a_fillet_at_the_foot_of_a_rib_whose_round_end_turns_away_short_of_the_fill_s_reach_are_declined_as_unsupported`
@@ -42,10 +45,11 @@
 //!   criterion's
 
 use std::collections::BTreeSet;
-use std::f64::consts::PI;
+use std::f64::consts::{PI, TAU};
 
 use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
+use cao_solid::turning::{Axis, Turn};
 use cao_solid::{Body, EdgeName, Loop};
 use glam::{DVec2, DVec3};
 
@@ -131,10 +135,11 @@ const PLATE: f64 = 4.0;
 const AXIS: DVec2 = DVec2::new(20.0, 12.875);
 const RADIUS: f64 = 8.125;
 
-/// How many steps the matter of a fill is summed over by Simpson's rule: what
-/// it sums is smooth, and this many come within a hair of the body's
-/// tolerance.
+/// How many steps the matter of a fill is summed over by Simpson's rule, out
+/// from its wall and up its height: what it sums is smooth, and this many
+/// come within a hair of the body's tolerance.
 const STEPS: usize = 1 << 12;
+const UP_STEPS: usize = 1 << 8;
 
 /// The ground's plane, which a part is drawn on.
 fn ground() -> Frame {
@@ -270,24 +275,32 @@ fn fillet_height(value: f64, out: f64) -> f64 {
     value - (value * value - (value - out).powi(2)).max(0.0).sqrt()
 }
 
-/// The matter a fill of `value` holds: over every place of its section,
-/// `out` from the wall it stands against and under `height(out)`, the length
-/// it runs from one end to the other, `long(out)` — a matter of `out` alone,
-/// since the round it ends on is upright and its other end flat and square
-/// to the edge. Read with `out = value (1 − cos φ)`, under which a fillet's
-/// height, `value (1 − sin φ)`, is as smooth as a chamfer's, `value cos φ`;
-/// the product has no closed form for the fillet, so it is summed by
-/// Simpson's rule.
-fn fill_matter(value: f64, height: impl Fn(f64) -> f64, long: impl Fn(f64) -> f64) -> f64 {
-    let at = |phi: f64| {
-        let out = value * (1.0 - f64::cos(phi));
-        height(out) * long(out) * value * phi.sin()
-    };
-    let step = PI / 2.0 / STEPS as f64;
-    let inner: f64 = (1..STEPS)
-        .map(|index| at(step * index as f64) * if index % 2 == 1 { 4.0 } else { 2.0 })
+/// What `at` sums to from `from` to `to`, by Simpson's rule over `steps`
+/// steps.
+fn simpson(at: impl Fn(f64) -> f64, [from, to]: [f64; 2], steps: usize) -> f64 {
+    let step = (to - from) / steps as f64;
+    let inner: f64 = (1..steps)
+        .map(|index| at(from + step * index as f64) * if index % 2 == 1 { 4.0 } else { 2.0 })
         .sum();
-    (at(0.0) + inner + at(PI / 2.0)) * step / 3.0
+    (at(from) + inner + at(to)) * step / 3.0
+}
+
+/// The matter a fill of `value` holds: over every place of its section,
+/// `out` from the wall it stands against and `up` over the face it lies on,
+/// under `height(out)`, the length it runs from one end to the other,
+/// `long(out, up)` — a matter of `out` alone where the round it ends on is
+/// an upright cylinder, of both where it is a cone. Read with `out = value
+/// (1 − cos φ)`, under which a fillet's height, `value (1 − sin φ)`, is as
+/// smooth as a chamfer's, `value cos φ`; the product has no closed form for
+/// the fillet, so it is summed by Simpson's rule, up each height and then
+/// out across the section.
+fn fill_matter(value: f64, height: impl Fn(f64) -> f64, long: impl Fn(f64, f64) -> f64) -> f64 {
+    let across = |phi: f64| {
+        let out = value * (1.0 - f64::cos(phi));
+        let up = simpson(|up| long(out, up), [0.0, height(out)], UP_STEPS);
+        up * value * phi.sin()
+    };
+    simpson(across, [0.0, PI / 2.0], STEPS)
 }
 
 /// The name of the one edge between the faces numbered `first` and `second`,
@@ -449,20 +462,21 @@ fn corners_are(body: &Body, face: usize, expected: &[DVec3], what: &str) {
 /// the steps' last one, every face of the part keeping its own, and that the
 /// next step numbers its faces past it.
 fn numbered_after_the_steps_last(part: &Body, body: &Body, made: usize, what: &str) {
+    let steps_end = part.faces_end();
     assert_eq!(
-        made, STEPS_END,
-        "{what}: the fill's face answers to {STEPS_END}, where the steps' numbers ended"
+        made, steps_end,
+        "{what}: the fill's face answers to {steps_end}, where the steps' numbers ended"
     );
     let mut kept_and_made = numbers(part);
-    kept_and_made.insert(STEPS_END);
+    kept_and_made.insert(steps_end);
     assert_eq!(
         numbers(body),
         kept_and_made,
-        "{what}: every number the part's faces answered to, and the fill's, {STEPS_END}"
+        "{what}: every number the part's faces answered to, and the fill's, {steps_end}"
     );
     assert_eq!(
         body.faces_end(),
-        STEPS_END + 1,
+        steps_end + 1,
         "{what}: the fill names one face, and the next step numbers its own past it"
     );
     assert_eq!(
@@ -771,7 +785,7 @@ fn a_chamfer_at_the_foot_of_a_rib_whose_end_is_a_round_bulging_out_is_trimmed_fl
     let height = |out: f64| chamfer_height(value, out);
     sound_drawn_within(
         body,
-        rounded_rib_volume() + fill_matter(value, height, along_the_rib),
+        rounded_rib_volume() + fill_matter(value, height, |out, _| along_the_rib(out)),
         drawn_within(&part, round_area() + value * value),
         what,
     );
@@ -798,7 +812,7 @@ fn a_fillet_at_the_foot_of_a_rib_whose_end_is_a_round_bulging_out_is_trimmed_flu
     let long = RIB_ENDS[1] - RIB_ENDS[0];
     sound_drawn_within(
         body,
-        rounded_rib_volume() + fill_matter(value, height, along_the_rib),
+        rounded_rib_volume() + fill_matter(value, height, |out, _| along_the_rib(out)),
         drawn_within(
             &part,
             round_area() + value * value + PI / 2.0 * value * long,
@@ -1146,7 +1160,7 @@ fn a_chamfer_at_the_foot_of_a_slot_s_wall_is_trimmed_flush_on_the_round_end_it_m
     let height = |out: f64| chamfer_height(value, out);
     sound_drawn_within(
         body,
-        slot_part_volume() + fill_matter(value, height, along_the_slot),
+        slot_part_volume() + fill_matter(value, height, |out, _| along_the_slot(out)),
         drawn_within(&part, slot_end_area() + value * value),
         what,
     );
@@ -1174,7 +1188,7 @@ fn a_fillet_at_the_foot_of_a_slot_s_wall_is_trimmed_flush_on_the_round_end_it_me
     let long = along_the_slot(value);
     sound_drawn_within(
         body,
-        slot_part_volume() + fill_matter(value, height, along_the_slot),
+        slot_part_volume() + fill_matter(value, height, |out, _| along_the_slot(out)),
         drawn_within(
             &part,
             slot_end_area() + value * value + PI / 2.0 * value * long,
@@ -1195,4 +1209,396 @@ fn a_fillet_at_the_foot_of_a_slot_s_wall_is_trimmed_flush_on_the_round_end_it_me
         },
         what,
     );
+}
+
+/// The numbers the [`rib_drafted_in_front`]'s faces past the rib's walls
+/// answer to: its front, the cone the ring's inner wall leaves, numbered
+/// first of the ring's four; and where the steps that built it stopped
+/// numbering, past the ring's. The rib's own front, eight, is cut away whole,
+/// and the ring leaves nothing else.
+const CONE_FRONT: usize = 12;
+const CONE_STEPS_END: usize = 16;
+
+/// How far the [`rib_drafted_in_front`]'s round front draws in toward its
+/// axis for every unit up: a draft of some 5.7 degrees.
+const DRAFT: f64 = 0.1;
+
+/// Where the [`rib_drafted_in_front`]'s back stands: near enough its round's
+/// axis that a ring turned whole about it leaves the back's corners alone,
+/// some 0.7 inside the cone at the rib's top.
+const DRAFTED_BACK: f64 = 19.0;
+
+/// The radius of the [`rib_drafted_in_front`]'s cone at height `z`: the
+/// round of criterion 1 at the plate's top, drawn in by the draft above it.
+fn cone_radius(z: f64) -> f64 {
+    RADIUS - DRAFT * (z - PLATE)
+}
+
+/// Where the drafted rib's cone stands at `x` and height `z`: the y of its
+/// point there on the side of its axis the rib's front corners are.
+fn on_the_cone(x: f64, z: f64) -> f64 {
+    AXIS.y - (cone_radius(z).powi(2) - (x - AXIS.x).powi(2)).sqrt()
+}
+
+/// How far a point stands off the drafted rib's cone, out from its axis
+/// across its height.
+fn off_the_cone(point: DVec3) -> f64 {
+    off_the_axis(point) - cone_radius(point.z)
+}
+
+/// An outline drawn on the plane through the upright line through [`AXIS`]
+/// that runs along X, out along X and up along Z, turned whole about that
+/// line, as `cao_part` turns a step: its faces, one for each run, numbered
+/// past `part`'s when the boolean that takes it numbers them.
+fn turned_about_the_round_s_axis(part: &Body, corners: Vec<DVec2>) -> Body {
+    let sampled: &'static [DVec2] = Box::leak(corners.clone().into_boxed_slice());
+    let outline = Profile {
+        exact: Some((Contour::straight(corners), Vec::new())),
+        sampled: Loop::straight(sampled),
+        sampled_holes: Vec::new(),
+        triangles: &[],
+    };
+    let frame = Frame {
+        origin: AXIS.extend(0.0),
+        u: DVec3::X,
+        v: DVec3::Z,
+    };
+    let upright = Axis {
+        origin: DVec2::ZERO,
+        direction: DVec2::Y,
+    };
+    part.tool_turned(&outline, frame, &Turn::of(upright, TAU, 1e-4, &outline))
+        .expect("the ring turns")
+}
+
+/// The plate with a rib on its top whose round end has draft: a rib 4 wide
+/// from x = 18 to its right side at 22, from y = 4 to its back at 19, raised
+/// 10, its front then cut by a ring turned whole about the upright line
+/// through [`AXIS`], whose inner wall is a cone of [`cone_radius`] — the
+/// round of criterion 1 at the plate's top, drawing in by [`DRAFT`] above it
+/// — before the rib is joined to the plate. Its front is then that cone: it
+/// meets the plate's top along the foot circle of criterion 1, through the
+/// rib's front corners (18, 5) and (22, 5), bulges a quarter forward of them,
+/// and stands further back the higher it goes. The edge at the foot of the
+/// rib's right side runs out of the cone at its front end, where the matter
+/// lies inside it.
+fn rib_drafted_in_front() -> Body {
+    let plate = plate(PLATE);
+    let on_the_top = Frame {
+        origin: DVec3::Z * PLATE,
+        ..ground()
+    };
+    let rib = plate
+        .tool_raised(
+            &profile(Contour::rectangle(
+                DVec2::new(18.0, 4.0),
+                DVec2::new(RIB_SIDE, DRAFTED_BACK),
+            )),
+            on_the_top,
+            DVec3::Z * 10.0,
+        )
+        .expect("the rib raises");
+    let ring = turned_about_the_round_s_axis(
+        &rib,
+        vec![
+            DVec2::new(cone_radius(15.0), 15.0),
+            DVec2::new(cone_radius(3.0), 3.0),
+            DVec2::new(12.0, 3.0),
+            DVec2::new(12.0, 15.0),
+        ],
+    );
+    let drafted = rib.difference(&ring).expect("the draft is cut");
+    plate.union(&drafted).expect("the rib is joined")
+}
+
+/// The matter the [`rib_drafted_in_front`] holds: the plate's 40 × 30 × 4,
+/// and across the rib's 4 and up its 10, the length from its cone to its
+/// back, summed by Simpson's rule.
+fn drafted_rib_volume() -> f64 {
+    let across = |z: f64| {
+        simpson(
+            |x| DRAFTED_BACK - on_the_cone(x, z),
+            [18.0, RIB_SIDE],
+            STEPS,
+        )
+    };
+    4800.0 + simpson(across, [PLATE, PLATE + 10.0], STEPS)
+}
+
+/// The most the [`rib_drafted_in_front`]'s cone can hold: an arc no longer
+/// than 4.2 between the rib's sides at any height, along a slant of 10 and a
+/// hair more.
+fn cone_area() -> f64 {
+    4.2 * 10.0 * (1.0 + DRAFT * DRAFT).sqrt()
+}
+
+/// How long a fill at the foot of the drafted rib's right side runs, `out`
+/// from that side and `up` over the plate's top: from the cone to the back.
+fn along_the_drafted_rib(out: f64, up: f64) -> f64 {
+    DRAFTED_BACK - on_the_cone(RIB_SIDE + out, PLATE + up)
+}
+
+/// Holds that the face numbered `face` is the drafted rib's cone: curved,
+/// and every corner of its triangles on the cone.
+fn drawn_on_the_cone(body: &Body, face: usize, what: &str) {
+    assert!(
+        body.has_face(face) && !body.is_flat(face),
+        "{what}: face {face} is a round"
+    );
+    let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
+    assert!(!corners.is_empty(), "{what}: the cone is drawn");
+    for corner in corners {
+        assert!(
+            off_the_cone(corner).abs() < PLACE,
+            "{what}: the cone is drawn through {corner}, {} off it",
+            off_the_cone(corner)
+        );
+    }
+}
+
+/// Holds that the [`rib_drafted_in_front`] is what the steps are given: its
+/// faces numbered up to [`CONE_STEPS_END`], the plate's, the rib's top, right
+/// side, back and left side, and the cone; the cone curved, drawn on itself,
+/// stopping at the rib's right side and standing further back at the rib's
+/// top than at its foot; meeting the plate's top along one edge from the
+/// rib's left side to its right, and the right side along one from the
+/// plate's top to the rib's; and its matter the plate's and the rib's.
+fn the_rib_is_drafted_in_front(part: &Body) {
+    let what = "the rib drafted in front, before any step";
+    assert_eq!(
+        part.faces_end(),
+        CONE_STEPS_END,
+        "{what}: its steps numbered their faces up to {CONE_STEPS_END}"
+    );
+    let faces: BTreeSet<usize> = (0..6)
+        .chain([RIB_TOP, RIB_RIGHT, RIB_BACK, RIB_LEFT, CONE_FRONT])
+        .collect();
+    assert_eq!(numbers(part), faces, "{what}: the faces it has");
+    drawn_on_the_cone(part, CONE_FRONT, what);
+    let furthest = furthest_along_x(part, CONE_FRONT);
+    assert!(
+        (furthest - RIB_SIDE).abs() < PLACE,
+        "{what}: the cone reaches {furthest} along X, where the rib's right side stands at \
+         {RIB_SIDE}"
+    );
+    let drafted = DVec3::new(RIB_SIDE, on_the_cone(RIB_SIDE, PLATE + 10.0), PLATE + 10.0);
+    assert!(
+        body_corner_at(part, CONE_FRONT, drafted),
+        "{what}: the cone meets the rib's right side at its top at {drafted}, further back \
+         than at its foot"
+    );
+    one_edge_between(
+        part,
+        [TOP, CONE_FRONT],
+        [&[TOP, CONE_FRONT, RIB_LEFT], &[TOP, CONE_FRONT, RIB_RIGHT]],
+        &format!("{what}: the cone's foot"),
+    );
+    one_edge_between(
+        part,
+        [CONE_FRONT, RIB_RIGHT],
+        [
+            &[TOP, CONE_FRONT, RIB_RIGHT],
+            &[RIB_TOP, CONE_FRONT, RIB_RIGHT],
+        ],
+        &format!("{what}: the cone's edge with the rib's right side"),
+    );
+    sound_drawn_within(
+        part,
+        drafted_rib_volume(),
+        drawn_within(part, cone_area()),
+        what,
+    );
+}
+
+/// Whether some corner of the triangles of the face numbered `face` stands
+/// at `point`.
+fn body_corner_at(body: &Body, face: usize, point: DVec3) -> bool {
+    body.triangles_of(face)
+        .flatten()
+        .any(|corner| corner.distance(point) < PLACE)
+}
+
+/// Holds what a fill of `value` at the foot of the drafted rib's right side,
+/// its section `height(out)` high `out` from that side, leaves where it meets
+/// the cone, as [`flush_on_the_round`] holds it of criterion 1's cylinder:
+/// the fill, the face numbered `made`, meeting the plate's top and the rib's
+/// right side along its sides, and the cone and the rib's back at its ends,
+/// by one edge each; the plate's top meeting the cone along one edge, on the
+/// foot circle from the rib's left side to the fill's far side, no corner
+/// left where the two alone meet; the right side meeting the cone along one
+/// edge, from the fill's top up to the rib's, and its corners there and at
+/// the back; the plate's top one face round the rib and the fill's
+/// footprint; the cone, one face still, drawn on itself alone and reaching
+/// out to the fill's far side; every ray aimed along the edge from in front
+/// of the rib, through a place of the fill's section, meeting the cone first
+/// and on it; and no corner of the fill in front of the cone's axis standing
+/// outside the cone.
+fn flush_on_the_cone(
+    body: &Body,
+    made: usize,
+    value: f64,
+    height: impl Fn(f64) -> f64,
+    what: &str,
+) {
+    let mut sides = [TOP, RIB_RIGHT, RIB_BACK, CONE_FRONT].map(|side| vec![side as u32]);
+    sides.sort();
+    assert_eq!(
+        sides_met(body, made),
+        sides,
+        "{what}: the fill meets the plate's top and the rib's right side along its sides, and \
+         the cone and the rib's back at its ends, by one edge each"
+    );
+    one_edge_between(
+        body,
+        [TOP, CONE_FRONT],
+        [&[TOP, CONE_FRONT, RIB_LEFT], &[TOP, CONE_FRONT, made]],
+        &format!("{what}: the cone's foot, run on along the fill's footprint"),
+    );
+    no_corner_where_only(
+        body,
+        &[TOP, CONE_FRONT],
+        &format!("{what}: the corner the foot of the rib's right side ended at"),
+    );
+    one_edge_between(
+        body,
+        [CONE_FRONT, RIB_RIGHT],
+        [
+            &[CONE_FRONT, RIB_RIGHT, made],
+            &[RIB_TOP, CONE_FRONT, RIB_RIGHT],
+        ],
+        &format!("{what}: the cone's edge with the rib's right side, above the fill"),
+    );
+    let (far, up, top) = (RIB_SIDE + value, PLATE + value, PLATE + 10.0);
+    corners_are_or_on(
+        body,
+        RIB_RIGHT,
+        &[
+            DVec3::new(RIB_SIDE, on_the_cone(RIB_SIDE, up), up),
+            DVec3::new(RIB_SIDE, on_the_cone(RIB_SIDE, top), top),
+            DVec3::new(RIB_SIDE, DRAFTED_BACK, up),
+            DVec3::new(RIB_SIDE, DRAFTED_BACK, top),
+        ],
+        |corner| {
+            (corner.x - RIB_SIDE).abs() < PLACE
+                && off_the_cone(corner).abs() < PLACE
+                && (up - PLACE..=top + PLACE).contains(&corner.z)
+        },
+        &format!("{what}: what is left of the rib's right side, its front on the cone"),
+    );
+    corners_are_or_on(
+        body,
+        TOP,
+        &[
+            DVec3::new(0.0, 0.0, PLATE),
+            DVec3::new(40.0, 0.0, PLATE),
+            DVec3::new(40.0, 30.0, PLATE),
+            DVec3::new(0.0, 30.0, PLATE),
+            DVec3::new(18.0, RIB_ENDS[0], PLATE),
+            DVec3::new(far, on_the_cone(far, PLATE), PLATE),
+            DVec3::new(far, DRAFTED_BACK, PLATE),
+            DVec3::new(18.0, DRAFTED_BACK, PLATE),
+        ],
+        |corner| {
+            off_the_cone(corner).abs() < PLACE
+                && (corner.z - PLATE).abs() < PLACE
+                && (18.0 - PLACE..=far + PLACE).contains(&corner.x)
+                && corner.y < AXIS.y
+        },
+        &format!(
+            "{what}: the plate's top, one face round the rib and the fill's footprint, its edge \
+             with the cone on the cone's foot circle"
+        ),
+    );
+    drawn_on_the_cone(body, CONE_FRONT, what);
+    let furthest = furthest_along_x(body, CONE_FRONT);
+    assert!(
+        (furthest - far).abs() < PLACE,
+        "{what}: the cone reaches {furthest} along X, where it takes in the fill's section out \
+         to {far}"
+    );
+    for share_out in [0.2, 0.5] {
+        let out = value * share_out;
+        for share_up in [0.25, 0.5, 0.75] {
+            let from = DVec3::new(RIB_SIDE + out, -1.0, PLATE + height(out) * share_up);
+            let hit = body.ray_hit(from, DVec3::Y).unwrap_or_else(|| {
+                panic!("{what}: a ray from {from} through the fill's section meets nothing")
+            });
+            let at = from + DVec3::Y * hit.distance;
+            assert_eq!(
+                hit.face,
+                CONE_FRONT,
+                "{what}: a ray from {from} through the fill's section meets face {} at {at}, \
+                 before the cone, which stands at y = {}",
+                hit.face,
+                on_the_cone(from.x, from.z)
+            );
+            assert!(
+                off_the_cone(at).abs() <= MET && at.y < AXIS.y,
+                "{what}: a ray from {from} meets the cone at {at}, {} off it, which stands at \
+                 y = {} there",
+                off_the_cone(at),
+                on_the_cone(from.x, from.z)
+            );
+        }
+    }
+    for corner in body.triangles_of(made).flatten() {
+        assert!(
+            corner.y >= AXIS.y || off_the_cone(corner) <= PLACE,
+            "{what}: the fill is drawn through {corner}, {} outside the cone: past it",
+            off_the_cone(corner)
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_at_the_foot_of_a_rib_whose_round_end_has_draft_is_trimmed_flush_on_its_cone() {
+    let value = 3.0;
+    let part = rib_drafted_in_front();
+    the_rib_is_drafted_in_front(&part);
+    let foot = edge_between(&part, TOP, RIB_RIGHT);
+
+    let chamfered = part.chamfer(&foot, value).unwrap_or_else(|declined| {
+        panic!("the chamfer at the foot of the rib drafted in front: declined, {declined:?}")
+    });
+
+    let what = "the chamfer at the foot of the rib drafted in front";
+    taken_whole(chamfered.asked, chamfered.taken, value, what);
+    let body = &chamfered.body;
+    let height = |out: f64| chamfer_height(value, out);
+    sound_drawn_within(
+        body,
+        drafted_rib_volume() + fill_matter(value, height, along_the_drafted_rib),
+        drawn_within(&part, cone_area() + value * value),
+        what,
+    );
+    let chamfer = one_flat_face_more(&part, body, what);
+    numbered_after_the_steps_last(&part, body, chamfer, what);
+    flush_on_the_cone(body, chamfer, value, height, what);
+}
+
+#[test]
+fn a_fillet_at_the_foot_of_a_rib_whose_round_end_has_draft_is_trimmed_flush_on_its_cone() {
+    let value = 3.0;
+    let part = rib_drafted_in_front();
+    the_rib_is_drafted_in_front(&part);
+    let foot = edge_between(&part, TOP, RIB_RIGHT);
+
+    let filleted = part.fillet(&foot, value).unwrap_or_else(|declined| {
+        panic!("the fillet at the foot of the rib drafted in front: declined, {declined:?}")
+    });
+
+    let what = "the fillet at the foot of the rib drafted in front";
+    taken_whole(filleted.asked, filleted.taken, value, what);
+    let body = &filleted.body;
+    let height = |out: f64| fillet_height(value, out);
+    let long = DRAFTED_BACK - RIB_ENDS[0];
+    sound_drawn_within(
+        body,
+        drafted_rib_volume() + fill_matter(value, height, along_the_drafted_rib),
+        drawn_within(&part, cone_area() + value * value + PI / 2.0 * value * long),
+        what,
+    );
+    let fillet = one_round_more(&part, body, what);
+    numbered_after_the_steps_last(&part, body, fillet, what);
+    flush_on_the_cone(body, fillet, value, height, what);
 }

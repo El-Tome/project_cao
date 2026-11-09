@@ -77,6 +77,22 @@
 //!   `a_split_button_is_on_while_the_command_it_runs_is_in_hand`
 //! - Tooltip (C9): the name, the key in a frame (C14), one sentence of help —
 //!   `hovering_a_button_shows_its_name_its_key_in_a_frame_and_a_sentence_of_help`
+//! - a command with no key shows no frame —
+//!   `a_command_with_no_key_shows_no_frame_in_its_tooltip`
+//! - a small button shows the same tooltip —
+//!   `a_small_button_shows_the_same_tooltip`
+//! - the body of a split button shows its command's —
+//!   `the_body_of_a_split_button_shows_the_tooltip_of_its_command`
+//! - « Contraintes » keeps its name, with the help of the rule it would run —
+//!   `the_tooltip_of_the_constraints_body_says_the_help_of_the_rule_it_would_run`
+//! - with names off, the tooltip still names the button and its key —
+//!   `with_names_off_the_tooltip_still_names_the_button_and_its_key`
+//! - a chevron shows the group's name and no help —
+//!   `hovering_a_chevron_shows_only_the_name_of_its_group`
+//! - menu rows keep showing the entry's help —
+//!   `hovering_a_menu_row_shows_its_help`
+//! - a greyed-out button keeps today's behaviour, read as it stands —
+//!   `a_greyed_out_button_shows_no_tooltip`
 //! - missing sentences are written in this issue — no test: every command
 //!   already has a hint in `crates/app/src/wording/command.rs`, so no sentence
 //!   is missing and none is written
@@ -102,7 +118,7 @@
 
 mod driver;
 
-use cao_app::theme::tokens::{BORDER_GROUP, TEXT_QUIET};
+use cao_app::theme::tokens::{BORDER_GROUP, BORDER_KEY, TEXT_QUIET};
 use cao_prefs::{Chord, Command, GroupSize, Item, Key, Settings};
 use egui::accesskit::{Role, Toggled};
 use egui::epaint::TextShape;
@@ -755,6 +771,140 @@ fn a_split_button_is_on_while_the_command_it_runs_is_in_hand() {
     );
 }
 
+const LINE_HELP: &str = "Clics successifs, Échap pour terminer la chaîne";
+
+#[test]
+fn hovering_a_button_shows_its_name_its_key_in_a_frame_and_a_sentence_of_help() {
+    let mut app = sketching("hovering_a_button_shows_its_tooltip");
+
+    let tip = hover_for_a_tooltip(&mut app, "Ligne (L)");
+
+    assert!(
+        (tip.frame.width() - 230.0).abs() <= 1.0,
+        "the tooltip is {} wide, where C9 asks for 230",
+        tip.frame.width(),
+    );
+    assert_eq!(tip.texts, ["Ligne", "L", LINE_HELP]);
+    assert_eq!(tip.key_frames.len(), 1, "the frames around the key");
+}
+
+#[test]
+fn a_command_with_no_key_shows_no_frame_in_its_tooltip() {
+    let mut app = sketching("a_command_with_no_key_shows_no_frame");
+
+    let tip = hover_for_a_tooltip(&mut app, "Ligne symétrique");
+
+    assert_eq!(
+        tip.texts,
+        [
+            "Ligne symétrique",
+            "Un centre, puis un bout : l'autre suit en miroir"
+        ],
+    );
+    assert_eq!(tip.key_frames.len(), 0, "the frames around a key with none");
+}
+
+#[test]
+fn a_small_button_shows_the_same_tooltip() {
+    let settings = bar_of(vec![Item::Group {
+        name: "edit".to_string(),
+        size: GroupSize::SmallThreeRows,
+        items: commands(&[Command::NewSketch, Command::ToolLine]),
+    }]);
+    let mut app = opened("a_small_button_shows_the_tooltip", WIDE, settings);
+    driver::start_a_sketch(&mut app);
+
+    let tip = hover_for_a_tooltip(&mut app, "Ligne (L)");
+
+    assert_eq!(tip.texts, ["Ligne", "L", LINE_HELP]);
+    assert_eq!(tip.key_frames.len(), 1, "the frames around the key");
+}
+
+#[test]
+fn the_body_of_a_split_button_shows_the_tooltip_of_its_command() {
+    let mut app = sketching("the_body_of_a_split_shows_its_command");
+
+    let tip = hover_for_a_tooltip(&mut app, "Cercle (C)");
+
+    assert_eq!(tip.texts, ["Cercle", "C", "Deux clics : centre puis rayon"]);
+    assert_eq!(tip.key_frames.len(), 1, "the frames around the key");
+}
+
+#[test]
+fn the_tooltip_of_the_constraints_body_says_the_help_of_the_rule_it_would_run() {
+    let mut app = sketching("the_tooltip_of_the_constraints_body");
+
+    let tip = hover_for_a_tooltip(&mut app, "Contraintes");
+    assert_eq!(tip.texts, ["Contraintes", "Deux traits, mis d'équerre"]);
+
+    driver::click_exactly(&mut app, "Contraintes ⌄");
+    driver::click_exactly(&mut app, "Parallèle");
+    let tip = hover_for_a_tooltip(&mut app, "Contraintes");
+
+    assert_eq!(
+        tip.texts,
+        ["Contraintes", "Deux traits, gardant la même direction"],
+    );
+}
+
+#[test]
+fn with_names_off_the_tooltip_still_names_the_button_and_its_key() {
+    let mut settings = Settings::default();
+    settings.toolbar.show_labels = false;
+    let mut app = opened("with_names_off_the_tooltip_names", WIDE, settings);
+    driver::start_a_sketch(&mut app);
+
+    let tip = hover_for_a_tooltip(&mut app, "Ligne");
+
+    assert_eq!(tip.texts, ["Ligne", "L", LINE_HELP]);
+    assert_eq!(tip.key_frames.len(), 1, "the frames around the key");
+}
+
+#[test]
+fn hovering_a_chevron_shows_only_the_name_of_its_group() {
+    let mut app = sketching("hovering_a_chevron_shows_only_its_name");
+
+    let tip = hover_for_a_tooltip(&mut app, "Cercles");
+
+    assert_eq!(tip.texts, ["Cercles"]);
+    assert_eq!(tip.key_frames.len(), 0, "the frames around a key with none");
+}
+
+#[test]
+fn hovering_a_menu_row_shows_its_help() {
+    let mut app = sketching("hovering_a_menu_row_shows_its_help");
+    driver::click_exactly(&mut app, "Cercles");
+
+    let row = the_button(&app, "Centre et diamètre").rect();
+    app.hover_at(row.center());
+    app.run_steps(4);
+
+    let help = "Le centre, puis un point du bord";
+    assert!(
+        read_on_screen(&app).iter().any(|text| text == help),
+        "hovering the row does not say « {help} », only {:?}",
+        read_on_screen(&app),
+    );
+}
+
+#[test]
+fn a_greyed_out_button_shows_no_tooltip() {
+    let mut app = opened(
+        "a_greyed_out_button_shows_no_tooltip",
+        WIDE,
+        Settings::default(),
+    );
+
+    let line = the_button(&app, "Ligne (L)").rect();
+    app.hover_at(line.center());
+    app.run_steps(4);
+
+    assert!(
+        !read_on_screen(&app).iter().any(|text| text == LINE_HELP),
+        "« Ligne », greyed out, says « {LINE_HELP} »",
+    );
+}
+
 fn opened(test: &str, size: egui::Vec2, settings: Settings) -> driver::App {
     let mut app = driver::open_with(test, size, settings);
     driver::create_a_part(&mut app, "Platine");
@@ -1094,4 +1244,75 @@ fn icons_within(app: &driver::App, within: egui::Rect) -> Vec<String> {
             _ => None,
         })
         .collect()
+}
+
+/// A tooltip as the last frame painted it: its frame, what is written in it
+/// from first to last, and the frames drawn around a key.
+#[derive(Debug)]
+struct Tip {
+    frame: egui::Rect,
+    texts: Vec<String>,
+    key_frames: Vec<egui::Rect>,
+}
+
+/// Hovers the button and reads what the tooltip painted: the shapes after the
+/// tooltip's frame, the tooltip standing above the ribbon it may overlap.
+fn hover_for_a_tooltip(app: &mut driver::App, button: &str) -> Tip {
+    let at = the_button(app, button).rect();
+    app.hover_at(at.center());
+    app.run_steps(4);
+
+    let painted = shapes_in_painted_order(app);
+    let frame_at = painted
+        .iter()
+        .rposition(|shape| matches!(shape, egui::Shape::Rect(rect) if is_a_tooltip_s_frame(rect)))
+        .unwrap_or_else(|| {
+            panic!(
+                "hovering « {button} » paints no tooltip on #262A33; the screen writes {:?}",
+                read_on_screen(app)
+            )
+        });
+    let egui::Shape::Rect(frame) = &painted[frame_at] else {
+        unreachable!("the position of a rectangle");
+    };
+
+    let inside = &painted[frame_at + 1..];
+    let texts = inside
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Text(text) => Some(text.galley.text().to_owned()),
+            _ => None,
+        })
+        .collect();
+    let key_frames = inside
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect) if rect.stroke.color == BORDER_KEY => Some(rect.rect),
+            _ => None,
+        })
+        .collect();
+    Tip {
+        frame: frame.rect,
+        texts,
+        key_frames,
+    }
+}
+
+fn is_a_tooltip_s_frame(rect: &egui::epaint::RectShape) -> bool {
+    rect.fill == BORDER_GROUP && rect.rect.width() > 100.0
+}
+
+/// The shapes of the frame, groups opened, in the order they were painted.
+fn shapes_in_painted_order(app: &driver::App) -> Vec<egui::Shape> {
+    fn walk(shape: &egui::Shape, out: &mut Vec<egui::Shape>) {
+        match shape {
+            egui::Shape::Vec(group) => group.iter().for_each(|shape| walk(shape, out)),
+            shape => out.push(shape.clone()),
+        }
+    }
+    let mut out = Vec::new();
+    for clipped in &app.output().shapes {
+        walk(&clipped.shape, &mut out);
+    }
+    out
 }

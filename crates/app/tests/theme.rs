@@ -331,6 +331,8 @@ fn every_token_the_chrome_holds_is_the_design_file_s() {
         ("BORDER_GROUP", tokens::BORDER_GROUP, "border.group"),
         ("BORDER_CONTROL", tokens::BORDER_CONTROL, "border.control"),
         ("BORDER_FIELD", tokens::BORDER_FIELD, "border.field"),
+        ("BORDER_TOOLTIP", tokens::BORDER_TOOLTIP, "border.tooltip"),
+        ("BORDER_KEY", tokens::BORDER_KEY, "border.key"),
         ("BORDER_STRONG", tokens::BORDER_STRONG, "border.strong"),
         ("TEXT_TITLE", tokens::TEXT_TITLE, "text.title"),
         ("TEXT_PRIMARY", tokens::TEXT_PRIMARY, "text.primary"),

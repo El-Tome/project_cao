@@ -1,7 +1,7 @@
 use cao_prefs::{Command, GroupSize, Item};
 use egui::{Rect, Response, Ui, UiBuilder, vec2};
 
-use crate::ui::tool_button::{CHEVRON_WIDTH, chevron_button, menu_row, ribbon_menu};
+use crate::ui::tool_button::{CHEVRON_WIDTH, chevron_button, menu_row, ribbon_menu, tooltip};
 use crate::wording::{command as wording, toolbar};
 
 use super::super::state::{active, any_entry_enabled, enabled, icon, label};
@@ -66,7 +66,7 @@ pub(super) fn split_button(ui: &mut Ui, split: &Split<'_>, shown: Shown, bar: &m
     let chevron_name = if group_name == name {
         format!("{group_name} ⌄")
     } else {
-        group_name
+        group_name.clone()
     };
     let openable = any_entry_enabled(&entries, bar.state);
 
@@ -103,6 +103,7 @@ pub(super) fn split_button(ui: &mut Ui, split: &Split<'_>, shown: Shown, bar: &m
         }
     };
 
+    let chevron = tooltip(chevron, &group_name, None, None);
     show_menu(&chevron, split, bar);
 }
 

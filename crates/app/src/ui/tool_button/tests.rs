@@ -72,6 +72,16 @@
 //!   button before it — `a_small_column_starts_past_the_widest_button_before_it`
 //! - the whole fits inside the 64 px of a large button —
 //!   `a_full_small_grid_fits_inside_the_64_points_of_a_large_button`
+//! - Tooltip (C9): 230 px wide, on `#262A33` —
+//!   `a_tooltip_is_230_wide_on_its_background_and_its_border`
+//! - the name, then the key in a frame, then the sentence of help —
+//!   `a_tooltip_lays_out_its_name_then_its_framed_key_then_its_help`
+//! - the key in a frame (C14): monospace 10.5, border `#454B57`, radius 3 —
+//!   `a_key_frame_writes_its_key_in_monospace_10_5_inside_its_border`
+//! - a tooltip with no key draws no frame —
+//!   `a_tooltip_without_a_key_draws_no_key_frame`
+//! - and with no help, its name alone —
+//!   `a_tooltip_without_help_writes_its_name_alone`
 //!
 //! The colour an icon shows is the picture it is painted from times the tint
 //! it is painted with, which is how the GPU will draw it. Both are read: a
@@ -88,7 +98,8 @@ use super::*;
 use crate::ui::icon::{self, Icon};
 use crate::ui::theme::tokens::{
     ACCENT_AMBER, ACCENT_AMBER_BACKGROUND, ACCENT_AMBER_BORDER, ACCENT_AMBER_LIGHT,
-    BACKGROUND_HOVER_STRONG, TEXT_BUTTON, TEXT_DISABLED, TEXT_SHORTCUT,
+    BACKGROUND_HOVER_STRONG, BORDER_GROUP, BORDER_KEY, BORDER_TOOLTIP, TEXT_BUTTON, TEXT_DISABLED,
+    TEXT_SHORTCUT,
 };
 
 /// How far two colours may drift per channel and still read as one: what
@@ -98,6 +109,10 @@ const SAME_COLOUR: u8 = 2;
 /// How far two sizes may differ and still be the one the redesign asks for:
 /// a texture and a galley are placed on rounded points.
 const SIZED_WITHIN: f32 = 0.5;
+
+/// C9 paints its background in the colour `border.group` already names.
+const TOOLTIP_BACKGROUND: egui::Color32 = BORDER_GROUP;
+const KEY_FRAME_BORDER: egui::Color32 = BORDER_KEY;
 
 /// How far from an edge of the button a thing still sits in that corner: the
 /// padding of a frame, and a little.
@@ -620,6 +635,96 @@ fn a_full_small_grid_fits_inside_the_64_points_of_a_large_button() {
     }
 }
 
+#[test]
+fn a_key_frame_writes_its_key_in_monospace_10_5_inside_its_border() {
+    let drawn = drawn_by(false, |ui| key_frame(ui, "L"));
+    let (at, key) = drawn.written("L");
+    let font = &key.galley.job.sections[0].format.font_id;
+    let frame = *drawn
+        .frames()
+        .iter()
+        .find(|frame| frame.stroke.color == KEY_FRAME_BORDER)
+        .unwrap_or_else(|| {
+            panic!(
+                "no frame is drawn in {KEY_FRAME_BORDER:?}, only {:?}",
+                drawn.frames(),
+            )
+        });
+
+    assert_eq!(font.family, egui::FontFamily::Monospace, "the key's font");
+    assert!(
+        (font.size - 10.5).abs() < SIZED_WITHIN,
+        "the key is written at {} points, where C14 writes it at 10.5",
+        font.size,
+    );
+    assert_eq!(
+        frame.corner_radius,
+        egui::CornerRadius::same(3),
+        "its radius"
+    );
+    assert!(
+        frame.rect.contains_rect(at),
+        "the key stands inside its frame"
+    );
+}
+
+#[test]
+fn a_tooltip_is_230_wide_on_its_background_and_its_border() {
+    let tip = tooltip_of("Ligne", Some("L"), Some("Clics successifs."));
+
+    assert!(
+        (tip.button.width() - 230.0).abs() <= 1.0,
+        "the tooltip is {} wide, where C9 asks for 230",
+        tip.button.width(),
+    );
+    assert_eq!(tip.frame().fill, TOOLTIP_BACKGROUND, "its background");
+    assert_eq!(tip.frame().stroke.color, BORDER_TOOLTIP, "its border");
+}
+
+#[test]
+fn a_tooltip_lays_out_its_name_then_its_framed_key_then_its_help() {
+    let tip = tooltip_of("Ligne", Some("L"), Some("Clics successifs."));
+    let (name, _) = tip.written("Ligne");
+    let (key, _) = tip.written("L");
+    let (help, _) = tip.written("Clics successifs.");
+
+    assert!(
+        tip.frames()
+            .iter()
+            .any(|frame| frame.stroke.color == KEY_FRAME_BORDER && frame.rect.contains_rect(key)),
+        "the key at {key:?} stands in no frame of its own: {:?}",
+        tip.frames(),
+    );
+    assert!(
+        key.left() >= name.right() || key.top() >= name.bottom(),
+        "the key at {key:?} does not come after the name at {name:?}",
+    );
+    assert!(
+        help.top() >= name.bottom() && help.top() >= key.bottom(),
+        "the help at {help:?} is not below the name at {name:?} and the key at {key:?}",
+    );
+}
+
+#[test]
+fn a_tooltip_without_a_key_draws_no_key_frame() {
+    let tip = tooltip_of("Ligne", None, Some("Clics successifs."));
+
+    assert!(
+        !tip.frames()
+            .iter()
+            .any(|frame| frame.stroke.color == KEY_FRAME_BORDER),
+        "a tooltip with no key draws a frame: {:?}",
+        tip.frames(),
+    );
+}
+
+#[test]
+fn a_tooltip_without_help_writes_its_name_alone() {
+    let tip = tooltip_of("Cercles", None, None);
+
+    assert_eq!(tip.written_texts(), ["Cercles"]);
+}
+
 /// The colours a button shows in one frame: what a pixel its icon fully
 /// covers shows, and what its name's glyphs are painted in, if it writes one.
 struct Worn {
@@ -744,6 +849,14 @@ impl Drawn {
             })
     }
 
+    /// The tooltip's own rectangle, for a `Drawn` whose button is that frame.
+    fn frame(&self) -> &egui::epaint::RectShape {
+        self.frames()
+            .into_iter()
+            .find(|frame| frame.rect == self.button)
+            .expect("the tooltip's frame")
+    }
+
     fn written_texts(&self) -> Vec<String> {
         self.shapes
             .iter()
@@ -823,6 +936,54 @@ fn drawn_by(hovered: bool, mut draw: impl FnMut(&mut egui::Ui) -> egui::Response
     }
 
     Drawn { button, shapes }
+}
+
+/// A button hovered long enough for its tooltip to open, read as a `Drawn`
+/// whose button is the tooltip's frame and whose shapes are those inside it.
+/// The pointer moves once: egui opens a tooltip only once it has come to rest.
+fn tooltip_of(name: &str, key: Option<&str>, help: Option<&str>) -> Drawn {
+    let ctx = themed();
+    let mut button = egui::Rect::NOTHING;
+    let mut shapes = Vec::new();
+
+    for frame in 0..8 {
+        let events = if frame == 1 {
+            vec![egui::Event::PointerMoved(button.center())]
+        } else {
+            Vec::new()
+        };
+        let input = egui::RawInput {
+            time: Some(f64::from(frame)),
+            ..screen(events)
+        };
+        let mut output = ctx.run_ui(input, |ui| {
+            let response = ui.button("X");
+            button = response.rect;
+            tooltip(response, name, key, help);
+        });
+        output.textures_delta.clear();
+        shapes = every_shape(output.shapes);
+    }
+
+    let frame = shapes
+        .iter()
+        .find_map(|shape| match shape {
+            egui::Shape::Rect(rect)
+                if rect.fill == TOOLTIP_BACKGROUND && rect.rect.width() > 100.0 =>
+            {
+                Some(rect.rect)
+            }
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("no tooltip is painted on {TOOLTIP_BACKGROUND:?}"));
+    let within = frame.expand(1.0);
+    Drawn {
+        button: frame,
+        shapes: shapes
+            .into_iter()
+            .filter(|shape| within.contains_rect(shape.visual_bounding_rect()))
+            .collect(),
+    }
 }
 
 fn drawn(name: &str, key: Option<&str>, enabled: bool, on: bool, hovered: bool) -> Drawn {

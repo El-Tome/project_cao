@@ -16,6 +16,8 @@ pub const BORDER_GROUP: Color32 = Color32::from_rgb(0x26, 0x2A, 0x33);
 pub const BORDER_CONTROL: Color32 = Color32::from_rgb(0x2E, 0x33, 0x3D);
 pub const BORDER_FIELD: Color32 = Color32::from_rgb(0x35, 0x3A, 0x45);
 pub const BORDER_STRONG: Color32 = Color32::from_rgb(0x3A, 0x40, 0x4C);
+pub const BORDER_TOOLTIP: Color32 = Color32::from_rgb(0x35, 0x3A, 0x45);
+pub const BORDER_KEY: Color32 = Color32::from_rgb(0x45, 0x4B, 0x57);
 
 pub const TEXT_TITLE: Color32 = Color32::from_rgb(0xF4, 0xF5, 0xF7);
 pub const TEXT_PRIMARY: Color32 = Color32::from_rgb(0xE6, 0xE8, 0xEC);

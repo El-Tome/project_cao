@@ -14,12 +14,16 @@ use crate::ui::theme::tokens::{
 };
 
 mod chevron;
+mod key_frame;
 mod menu;
 mod small;
+mod tooltip;
 
 pub use chevron::{CHEVRON_WIDTH, chevron_button};
+pub use key_frame::key_frame;
 pub use menu::{menu_row, ribbon_menu};
 pub use small::{Rows, small_button, small_grid};
+pub use tooltip::tooltip;
 
 const LARGE_BUTTON_AT_LEAST: Vec2 = vec2(50.0, 64.0);
 const NAME_WRAPS_AT: f32 = 70.0;

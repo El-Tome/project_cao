@@ -11,7 +11,7 @@ use crate::ui::logo::logo;
 use crate::ui::panel_toggle::{panel_button, panel_toggle};
 use crate::ui::theme::tokens::SPACING_L;
 use crate::ui::tool_button::{
-    Rows, icon_button, menu_entry, name_and_key, small_button, tool_button,
+    Rows, icon_button, menu_entry, name_and_key, small_button, tool_button, tooltip,
 };
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
@@ -351,20 +351,25 @@ fn named_button(
     asked: &mut Vec<Command>,
     shown: Shown,
 ) -> egui::Response {
-    let called = name_and_key(name, key);
     let hint = wording::hint(state.lang, command);
     let pressable = enabled(command, state);
     let on = active(command, state);
     let worn = icon(command, state);
 
     let response = match (shown, state.settings.toolbar.show_labels) {
-        (Shown::MenuEntry, _) => menu_entry(ui, pressable, on, worn, called).on_hover_text(hint),
-        (Shown::Large, true) => tool_button(ui, pressable, on, worn, name, key).on_hover_text(hint),
-        (Shown::Small(rows), true) => {
-            small_button(ui, pressable, on, worn, name, key, rows).on_hover_text(hint)
+        (Shown::MenuEntry, _) => {
+            let called = name_and_key(name, key);
+            menu_entry(ui, pressable, on, worn, called).on_hover_text(hint)
         }
-        (_, false) => {
-            icon_button(ui, pressable, on, worn, name).on_hover_text(format!("{called}\n{hint}"))
+        (shown, labels) => {
+            let drawn = match (shown, labels) {
+                (Shown::Small(rows), true) => {
+                    small_button(ui, pressable, on, worn, name, key, rows)
+                }
+                (_, true) => tool_button(ui, pressable, on, worn, name, key),
+                (_, false) => icon_button(ui, pressable, on, worn, name),
+            };
+            tooltip(drawn, name, key, Some(&hint))
         }
     };
     if response.clicked() {

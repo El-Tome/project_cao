@@ -390,7 +390,9 @@ fn the_three_stl_levels_are_offered_only_while_the_part_holds_matter() {
 
 fn tab<'a>(items: &'a [cao_prefs::Item], name: &str) -> Option<&'a [cao_prefs::Item]> {
     items.iter().find_map(|item| match item {
-        cao_prefs::Item::Group { name: named, items } if named == name => Some(items.as_slice()),
+        cao_prefs::Item::Group {
+            name: named, items, ..
+        } if named == name => Some(items.as_slice()),
         _ => None,
     })
 }

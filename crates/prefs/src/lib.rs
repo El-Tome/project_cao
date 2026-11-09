@@ -33,5 +33,5 @@ pub use shortcuts::{Chord, Key, Modifier, Shortcuts};
 pub use sketching::SketchingConfig;
 pub use storage::StorageError;
 pub use theme::{Background, Rgba, Stop, Theme};
-pub use toolbar::{Edge, Item, Path, ToolbarLayout};
+pub use toolbar::{Edge, GroupSize, Item, Path, ToolbarLayout};
 pub use window_place::{FollowedWindow, Monitor, WindowPlace, WindowSeen, where_the_window_opens};

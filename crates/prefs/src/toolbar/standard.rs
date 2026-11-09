@@ -3,7 +3,7 @@
 //! Data rather than behaviour, and the one place a new button has to be
 //! listed for it to appear on a fresh installation.
 
-use super::{Edge, Item, ToolbarLayout};
+use super::{Edge, GroupSize, Item, ToolbarLayout};
 use crate::command::Command;
 
 impl Default for ToolbarLayout {
@@ -97,7 +97,11 @@ impl Default for ToolbarLayout {
                         Item::Command(C::NextMatterInFront),
                         Item::Command(C::FinishSketch),
                         Item::Separator,
-                        Item::group("edit", vec![Item::Command(C::Undo), Item::Command(C::Redo)]),
+                        Item::Group {
+                            name: "edit".to_string(),
+                            size: GroupSize::SmallTwoRows,
+                            items: vec![Item::Command(C::Undo), Item::Command(C::Redo)],
+                        },
                     ],
                 ),
                 Item::group(

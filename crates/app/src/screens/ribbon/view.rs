@@ -260,7 +260,7 @@ fn lay_out(
                 Item::Separator => {
                     ui.separator();
                 }
-                Item::Group { name, items } if depth <= SPREAD_OUT => {
+                Item::Group { name, items, .. } if depth <= SPREAD_OUT => {
                     ui.group(|ui| {
                         let inner = |ui: &mut egui::Ui| {
                             ui.weak(group(state.lang, name));
@@ -273,7 +273,7 @@ fn lay_out(
                         }
                     });
                 }
-                Item::Group { name, items } => {
+                Item::Group { name, items, .. } => {
                     ui.menu_button(group(state.lang, name), |ui| {
                         lay_out(ui, items, depth + 1, state, asked, true);
                     });

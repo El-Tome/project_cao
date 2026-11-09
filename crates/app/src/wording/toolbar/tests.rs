@@ -43,7 +43,7 @@ fn an_entry_of_the_tree_reads_as_its_command_its_group_or_a_separator() {
 fn no_group_of_the_standard_toolbar_is_left_reading_as_its_key() {
     fn walk(items: &[Item], out: &mut Vec<String>) {
         for entry in items {
-            if let Item::Group { name, items } = entry {
+            if let Item::Group { name, items, .. } = entry {
                 out.push(name.clone());
                 walk(items, out);
             }

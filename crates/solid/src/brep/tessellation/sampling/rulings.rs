@@ -223,3 +223,6 @@ impl Samples {
         places
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -9,6 +9,26 @@
 //! mechanism: a shaft and a bore exactly parallel a hair apart, and a block
 //! face tangent to a bore.
 //!
+//! The pass is held beside its code, in
+//! `crates/solid/src/brep/tessellation/sampling/rulings/tests.rs`. The
+//! mutants of `rulings.rs` those tests leave alive are equivalent:
+//! - `67:28` `>` → `>=`: a cone face with one curved edge has no other edge
+//!   to read, and takes nothing either way.
+//! - `80:55` `||` → `&&`: an edge whose box lies wholly outside has every
+//!   sample outside, and the filter on each sample refuses them all.
+//! - `85:52` `||` → `&&`: a sample more than three tolerances past an edge's
+//!   box is more than twice the tolerance from its curve, which bulges past
+//!   its samples by no more than the tolerance; the reach refuses it.
+//! - `176:48` `+` → `-` and `194:42` `+` → `-`: the two sums differ by a turn
+//!   or a period, which `rem_euclid` takes off; an ulp of rounding moves a
+//!   sign only within rounding of a sample's own angle, where the place found
+//!   is that sample and is held.
+//! - `199:37` `||` → `&&`: once the bisection's two ends are neighbouring
+//!   doubles, its remaining rounds move the parameter by an ulp at most.
+//! - `213:54` `*` → `/`: `curve_side` is refused at zero first, so quotient
+//!   and product share their sign, and neither underflows at a chart's
+//!   scale.
+//!
 //! Closes #810, which delivers the cone pass alone — decided with the human,
 //! 2026-11-09, in a comment on #810; the criteria below read as it reworded
 //! them.

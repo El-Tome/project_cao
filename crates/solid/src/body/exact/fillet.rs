@@ -8,7 +8,7 @@ mod full_round;
 use glam::DVec3;
 
 use super::Exact;
-use super::wedge::{Meeting, Prism, Wedge, rounded_across, too_short};
+use super::wedge::{Meeting, Prism, Together, Wedge, rounded_across, too_short};
 use crate::brep::{Declined, EdgeName, Scale, Surface};
 
 impl Exact {
@@ -58,7 +58,7 @@ impl Exact {
             |wedge| wedge.half_tangent().recip(),
             Wedge::rounded,
             Meeting {
-                together: Some(Wedge::rounded_with),
+                together: Together::Raised(Wedge::rounded_with),
                 closing: rounded_across,
             },
         )?;
@@ -66,9 +66,9 @@ impl Exact {
         let alone = names.iter().enumerate().all(|(rank, name)| {
             let pair = pairs
                 .iter()
-                .find(|&&(earlier, later)| rank == earlier || rank == later);
+                .find(|&&(earlier, later, _)| rank == earlier || rank == later);
             match pair {
-                Some(&(earlier, later)) => cut.rounded_as(name, &[made(earlier), made(later)]),
+                Some(&(earlier, later, _)) => cut.rounded_as(name, &[made(earlier), made(later)]),
                 None => cut.rounded_alone(name, made(rank)),
             }
         });

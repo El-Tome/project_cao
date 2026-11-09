@@ -34,9 +34,8 @@
 //!   facing each other across a tread they share: the fillet takes half its
 //!   depth, a round and a hollow of two axes meeting tangentially in an S —
 //!   `a_fillet_on_a_tread_s_nose_and_foot_asked_more_than_half_its_depth_takes_half_a_round_and_a_hollow_meeting_in_an_s`;
-//!   the chamfer, whose two flats would lie in one plane, one slope, is
-//!   declined `Unsupported` until #791 builds it —
-//!   `a_chamfer_on_a_tread_s_nose_and_foot_asked_half_its_depth_or_more_is_declined_as_unsupported`;
+//!   the chamfer, whose two flats lie in one plane there, was declined
+//!   `Unsupported` here, and is one slope since #791, below;
 //!   and two rounds that share no face but would meet on the wall one of
 //!   them ends on are laid where they do not meet and declined
 //!   `Unsupported` where they would, until #792 reduces the value for them —
@@ -134,6 +133,61 @@
 //!   stands here cannot fail while that is so: it guards the day the two
 //!   come apart —
 //!   `a_fillet_and_a_chamfer_on_a_list_of_one_edge_give_the_body_and_the_value_the_step_of_that_edge_gives`
+//!
+//! Closes #791.
+//! - Where a chamfer on an outward edge and one on an inward edge facing it
+//!   across the face they share meet at the shared limit, the two flats are
+//!   one slope answering to both edges' numbers, the shared face gone — on a
+//!   stair's tread 10 deep, its nose and its foot asked half its depth and
+//!   asked more, which takes half: one flat face from the nose's front to
+//!   the riser, meeting those two and the stair's two ends by one edge each,
+//!   the matter the nose gives up what the foot takes in, whichever of the
+//!   two edges the step names first —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_asked_half_its_depth_or_more_takes_half_in_one_slope_answering_to_both_their_numbers`;
+//!   and asked a hair under half, where the strip of tread left between the
+//!   two flats is shorter than the kernel keeps, the same slope, never a
+//!   sliver of tread, as the full round lays one —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_asked_a_hair_under_half_its_depth_lays_one_slope`;
+//!   with an edge far from both on the same step, the top's back edge, named
+//!   before them, between them or after them, the slope answers to the
+//!   nose's and the foot's numbers by their ranks in the list and to no
+//!   other, the far edge's flat to its own number alone, and the next step
+//!   numbers its faces past all three —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_and_an_edge_far_from_both_numbers_the_slope_by_their_ranks_and_the_far_flat_by_its_own_wherever_the_far_edge_is_named`;
+//!   where the riser is turned by a hair about the upright, the foot
+//!   parallel to the nose only as the kernel reads it, the two flats lie in
+//!   one plane where it reads them and part along the tread, a sliver of it
+//!   left between them, and the step is declined `Unsupported` rather than
+//!   laid so, until #812 —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_by_a_hair_is_declined_as_unsupported_where_its_flats_would_part_along_the_tread`;
+//!   and, beyond the issue's wording, three cases left as they were, each
+//!   pinned until the issue that builds it: on a stair whose front leans,
+//!   where the two flats meet at an angle, the nose named first lays two
+//!   flats meeting in a crease, the tread gone, each answering to its own
+//!   number, and the foot named first is declined `Unsupported`, until #812 —
+//!   `a_chamfer_on_the_nose_and_foot_of_a_tread_whose_front_leans_lays_two_flats_meeting_in_a_crease_named_nose_first_and_is_declined_named_foot_first`;
+//!   on a flight whose treads are as deep as its risers are high, the first
+//!   nose, the foot between and the second nose, the foot meeting both, are
+//!   declined `Unsupported` until #813 —
+//!   `a_chamfer_on_a_flight_s_first_nose_the_foot_between_and_the_second_nose_where_its_treads_are_as_deep_as_its_risers_are_high_is_declined_as_unsupported`;
+//!   and the nose and the foot with the front's upright edge at one end of
+//!   the nose, which meets the slope at a corner, are declined `Unsupported`
+//!   until #814 —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_and_the_front_s_upright_edge_at_one_end_of_the_nose_asked_half_its_depth_or_more_is_declined_as_unsupported`
+//! - Every step #698 lays, the full round and the round-bottomed slot among
+//!   them — the tests of #698 above, left as they were: the full round and
+//!   the round bottom in either order and on every face they are laid on —
+//!   `a_fillet_lays_one_full_round_or_round_bottom_whichever_of_its_two_faces_each_edge_shares_and_in_either_order`,
+//!   `a_fillet_on_the_two_edges_either_side_of_a_face_10_wide_asked_more_than_5_takes_5_in_one_full_round`,
+//!   `a_fillet_on_the_two_floor_edges_of_a_slot_10_wide_asked_5_or_more_takes_5_in_one_round_bottom`;
+//!   the chamfers whose flats meet in a ridge and in a valley —
+//!   `a_chamfer_on_the_two_edges_either_side_of_a_face_10_wide_asked_more_than_5_takes_5_its_flats_meeting_in_a_ridge`,
+//!   `a_chamfer_on_the_two_floor_edges_of_a_slot_10_wide_asked_more_than_5_takes_5_its_flats_meeting_in_a_valley`;
+//!   the fillet on the same tread, an S —
+//!   `a_fillet_on_a_tread_s_nose_and_foot_asked_more_than_half_its_depth_takes_half_a_round_and_a_hollow_meeting_in_an_s`;
+//!   and the chamfer on it short of the limit, its two flats laid apart and
+//!   each answering to its own number, a strip of tread left between —
+//!   `a_chamfer_on_a_tread_s_nose_and_foot_asked_less_than_half_its_depth_lays_two_flats_apart_a_strip_of_tread_between`
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -2738,6 +2792,9 @@ const STAIR_LEFT: [u32; 2] = [LEFT as u32, LEFT as u32 + 6];
 /// [`TREAD_HEIGHT`] high, joined to it. The lower block's top is the tread,
 /// [`TREAD`] deep: its nose meets outwards, along the front, and its foot
 /// meets inwards, against the riser. The two face each other across it.
+/// The riser is as high as the tread is deep, and the taller block's top as
+/// deep again: a flight of two treads, the second's nose where the riser
+/// meets that top, facing the foot across the riser.
 fn stair() -> Body {
     let taller = joined_to(
         &Body::default(),
@@ -2860,22 +2917,771 @@ fn a_fillet_on_a_tread_s_nose_and_foot_asked_more_than_half_its_depth_takes_half
     }
 }
 
+/// Holds that the numbers `laid` answer to one and the same face, which is
+/// flat: on one plane with the same corners, and drawn with the same
+/// triangles, whichever is asked.
+fn one_flat_face_answers_to(body: &Body, laid: &[usize], what: &str) {
+    let plane = body.plane_of(laid[0]);
+    let drawn: Vec<[DVec3; 3]> = body.triangles_of(laid[0]).collect();
+    assert!(
+        plane.is_some() && !drawn.is_empty(),
+        "{what}: face {} is flat, and drawn",
+        laid[0]
+    );
+    for &number in laid {
+        assert!(
+            body.is_flat(number),
+            "{what}: face {number} lies on one plane and faces one way"
+        );
+        assert_eq!(
+            body.plane_of(number),
+            plane,
+            "{what}: faces {laid:?} are one face, on one plane with the same corners"
+        );
+        assert_eq!(
+            body.triangles_of(number).collect::<Vec<_>>(),
+            drawn,
+            "{what}: faces {laid:?} are one face, drawn with the same triangles"
+        );
+    }
+}
+
+/// The corners of the stair's wall at `x` once its nose is cut off and its
+/// foot filled in, each set back by `distance`: its floor, in two edges
+/// that part where the two blocks' floors met, its back, the top of the
+/// taller block, what is left of the riser, the foot's flat, the tread left
+/// between the two flats, the nose's flat, and what is left of the nose's
+/// front. Where the two flats meet, at half the tread's depth, the tread
+/// left is a single point, and the two flats one straight side.
+fn stair_wall_at(x: f64, distance: f64) -> Vec<DVec3> {
+    let mut corners = vec![
+        DVec3::new(x, 0.0, 0.0),
+        DVec3::new(x, TREAD, 0.0),
+        DVec3::new(x, 2.0 * TREAD, 0.0),
+        DVec3::new(x, 2.0 * TREAD, HEIGHT),
+        DVec3::new(x, TREAD, HEIGHT),
+        DVec3::new(x, TREAD, TREAD_HEIGHT + distance),
+    ];
+    if distance < TREAD / 2.0 {
+        corners.extend([
+            DVec3::new(x, TREAD - distance, TREAD_HEIGHT),
+            DVec3::new(x, distance, TREAD_HEIGHT),
+        ]);
+    }
+    corners.push(DVec3::new(x, 0.0, TREAD_HEIGHT - distance));
+    corners
+}
+
+/// Holds that what is left of the nose's front and of the riser, and the
+/// stair's two walls, are what a chamfer of `distance` on the tread's nose
+/// and foot leaves of them.
+fn stair_walls_are(body: &Body, distance: f64, what: &str) {
+    corners_are(
+        body,
+        NOSE,
+        &strip(DVec3::ZERO, DVec3::new(0.0, 0.0, TREAD_HEIGHT - distance)),
+        &format!("{what}: what is left of the nose's front, under its flat"),
+    );
+    corners_are(
+        body,
+        RISER,
+        &strip(
+            DVec3::new(0.0, TREAD, TREAD_HEIGHT + distance),
+            DVec3::new(0.0, TREAD, HEIGHT),
+        ),
+        &format!("{what}: what is left of the riser, above the foot's flat"),
+    );
+    for (wall, x) in [(LEFT, 0.0), (RIGHT, LENGTH)] {
+        corners_are(
+            body,
+            wall,
+            &stair_wall_at(x, distance),
+            &format!("{what}: the stair's wall at x = {x}"),
+        );
+    }
+}
+
+/// The stair's nose and foot, each list in the two orders a step may name
+/// them, with the order said.
+fn nose_and_foot_either_way(stair: &Body) -> [(&'static str, [EdgeName; 2]); 2] {
+    let [nose, foot] = [
+        edge_between(stair, TREAD_TOP, NOSE),
+        edge_between(stair, RISER, TREAD_TOP),
+    ];
+    [
+        ("the nose named first", [nose.clone(), foot.clone()]),
+        ("the foot named first", [foot, nose]),
+    ]
+}
+
+/// Holds that a chamfer on the stair's nose and foot laid one slope where
+/// the two flats meet, at half the tread's depth: the tread gone, one flat
+/// face answering to both edges' numbers, `laid`, from half down the nose's
+/// front to half up the riser, meeting those two and the stair's two ends by
+/// one edge each, and the matter the nose gives up what the foot takes in.
+fn is_one_slope(stair: &Body, body: &Body, laid: [usize; 2], what: &str) {
+    let half = TREAD / 2.0;
+    assert!(!body.has_face(TREAD_TOP), "{what}: the tread is gone");
+    let mut kept_and_laid = numbers(stair);
+    kept_and_laid.remove(&TREAD_TOP);
+    kept_and_laid.extend(laid);
+    assert_eq!(
+        numbers(body),
+        kept_and_laid,
+        "{what}: every face of the stair but its tread, and the slope answering to {laid:?}"
+    );
+    assert_eq!(
+        body.faces_end(),
+        laid[1] + 1,
+        "{what}: the next step numbers its faces past both the slope answers to"
+    );
+    one_flat_face_answers_to(body, &laid, what);
+    let which =
+        format!("{what}: the slope, from {half} down the nose's front to {half} up the riser");
+    face_facing(
+        body,
+        &[laid[0]],
+        DVec3::new(0.0, -1.0, 1.0).normalize(),
+        &which,
+    );
+    corners_are(
+        body,
+        laid[0],
+        &strip(
+            DVec3::new(0.0, 0.0, TREAD_HEIGHT - half),
+            DVec3::new(0.0, TREAD, TREAD_HEIGHT + half),
+        ),
+        &which,
+    );
+    assert!(
+        body.edge_names()
+            .iter()
+            .all(|name| !lies_between(name, laid[0], laid[1])),
+        "{what}: no edge stands between {} and {}: they are one face",
+        laid[0],
+        laid[1]
+    );
+    let ends = [STAIR_RIGHT.to_vec(), STAIR_LEFT.to_vec()];
+    assert_eq!(
+        sides_met_by(body, &laid),
+        sides_by(&[&ends[..], &[vec![NOSE as u32], vec![RISER as u32]]].concat()),
+        "{what}: the slope meets the nose's front, the riser, and the stair's two ends, by one \
+         edge each"
+    );
+    stair_walls_are(body, half, what);
+    let promised = LENGTH * TREAD * (HEIGHT + TREAD_HEIGHT);
+    sound_drawn_within(
+        body,
+        promised,
+        EXACT * promised,
+        &format!("{what}: as much matter as the nose gives up, the foot takes in"),
+    );
+}
+
 #[test]
-fn a_chamfer_on_a_tread_s_nose_and_foot_asked_half_its_depth_or_more_is_declined_as_unsupported() {
+fn a_chamfer_on_a_tread_s_nose_and_foot_asked_half_its_depth_or_more_takes_half_in_one_slope_answering_to_both_their_numbers()
+ {
+    let stair = stair();
+    let half = TREAD / 2.0;
+    let [(_, names), _] = nose_and_foot_either_way(&stair);
+    alone_each_takes_more(
+        |name| {
+            stair
+                .chamfer(name, MORE_THAN_HALF)
+                .map(|single| single.taken)
+        },
+        &names,
+        half,
+        "the chamfer on the tread's nose or its foot",
+    );
+    let laid = [stair.faces_end(), stair.faces_end() + 1];
+
+    for (order, names) in nose_and_foot_either_way(&stair) {
+        for asked in [half, MORE_THAN_HALF] {
+            let chamfered = stair
+                .chamfer_edges(&names, asked)
+                .unwrap_or_else(|declined| {
+                    panic!("{order}, asked {asked}: declined, {declined:?}")
+                });
+
+            let what = format!("the chamfer on the tread's nose and foot, {order}, asked {asked}");
+            reduced(chamfered.asked, chamfered.taken, [asked, half], &what);
+            is_one_slope(&stair, &chamfered.body, laid, &what);
+        }
+    }
+}
+
+#[test]
+fn a_chamfer_on_a_tread_s_nose_and_foot_asked_a_hair_under_half_its_depth_lays_one_slope() {
+    let stair = stair();
+    let half = TREAD / 2.0;
+    let laid = [stair.faces_end(), stair.faces_end() + 1];
+
+    for (order, names) in nose_and_foot_either_way(&stair) {
+        for (under, past_one_hair) in [(1e-6, true), (1e-7, false)] {
+            let asked = half - under;
+            let strip = TREAD - 2.0 * asked;
+            assert!(
+                strip < MEETING_HAIR && (strip > ONE_HAIR) == past_one_hair,
+                "asked {asked}: the strip of tread the two flats leave, {strip}, is shorter than \
+                 the kernel keeps, {MEETING_HAIR}, and longer than one of its hairs, \
+                 {ONE_HAIR}, or not, as {past_one_hair} says"
+            );
+
+            let chamfered = stair
+                .chamfer_edges(&names, asked)
+                .unwrap_or_else(|declined| {
+                    panic!("{order}, asked {asked}: declined, {declined:?}")
+                });
+
+            let what = format!("the chamfer on the tread's nose and foot, {order}, asked {asked}");
+            assert!(
+                (chamfered.asked - asked).abs() < PLACE
+                    && (chamfered.taken - asked).abs() <= MEETING_HAIR,
+                "{what}: asked {} and took {}, where {asked} is a hair from what both give",
+                chamfered.asked,
+                chamfered.taken
+            );
+            is_one_slope(&stair, &chamfered.body, laid, &what);
+        }
+    }
+}
+
+#[test]
+fn a_chamfer_on_a_tread_s_nose_and_foot_asked_less_than_half_its_depth_lays_two_flats_apart_a_strip_of_tread_between()
+ {
     let stair = stair();
     let names = [
         edge_between(&stair, TREAD_TOP, NOSE),
         edge_between(&stair, RISER, TREAD_TOP),
     ];
+    let asked = 4.9;
+    let laid = [stair.faces_end(), stair.faces_end() + 1];
 
-    for asked in [TREAD / 2.0, MORE_THAN_HALF] {
-        let declined = stair.chamfer_edges(&names, asked).err();
+    let chamfered = stair
+        .chamfer_edges(&names, asked)
+        .unwrap_or_else(|declined| panic!("declined, {declined:?}"));
+
+    let what = format!("the chamfer on the tread's nose and foot, asked {asked}");
+    taken_as_asked(chamfered.asked, chamfered.taken, asked, &what);
+    let body = &chamfered.body;
+    let mut kept_and_laid = numbers(&stair);
+    kept_and_laid.extend(laid);
+    assert_eq!(
+        numbers(body),
+        kept_and_laid,
+        "{what}: every face of the stair, its tread among them, and a flat for each edge"
+    );
+    let ends = [STAIR_RIGHT.to_vec(), STAIR_LEFT.to_vec()];
+    for (number, corners, met, which) in [
+        (
+            laid[0],
+            strip(
+                DVec3::new(0.0, 0.0, TREAD_HEIGHT - asked),
+                DVec3::new(0.0, asked, TREAD_HEIGHT),
+            ),
+            NOSE,
+            "the nose cut off",
+        ),
+        (
+            laid[1],
+            strip(
+                DVec3::new(0.0, TREAD - asked, TREAD_HEIGHT),
+                DVec3::new(0.0, TREAD, TREAD_HEIGHT + asked),
+            ),
+            RISER,
+            "the foot filled in",
+        ),
+    ] {
+        let which = format!("{what}: face {number}, {which} at {asked}");
+        face_facing(
+            body,
+            &[number],
+            DVec3::new(0.0, -1.0, 1.0).normalize(),
+            &which,
+        );
+        corners_are(body, number, &corners, &which);
+        assert_eq!(
+            sides_met(body, number),
+            sides_by(&[&ends[..], &[vec![met as u32], vec![TREAD_TOP as u32]]].concat()),
+            "{which}: a face answering to its own number alone, meeting face {met}, the strip \
+             of tread, and the stair's two ends, by one edge each"
+        );
+    }
+    assert!(
+        body.edge_names()
+            .iter()
+            .all(|name| !lies_between(name, laid[0], laid[1])),
+        "{what}: the two flats do not meet, the tread between them"
+    );
+    corners_are(
+        body,
+        TREAD_TOP,
+        &strip(
+            DVec3::new(0.0, asked, TREAD_HEIGHT),
+            DVec3::new(0.0, TREAD - asked, TREAD_HEIGHT),
+        ),
+        &format!("{what}: what is left of the tread, a strip between the two flats"),
+    );
+    stair_walls_are(body, asked, &what);
+    let promised = LENGTH * TREAD * (HEIGHT + TREAD_HEIGHT);
+    sound_drawn_within(
+        body,
+        promised,
+        EXACT * promised,
+        &format!("{what}: as much matter as the nose gives up, the foot takes in"),
+    );
+}
+
+#[test]
+fn a_chamfer_on_a_tread_s_nose_and_foot_and_an_edge_far_from_both_numbers_the_slope_by_their_ranks_and_the_far_flat_by_its_own_wherever_the_far_edge_is_named()
+ {
+    let stair = stair();
+    let nose = edge_between(&stair, TREAD_TOP, NOSE);
+    let foot = edge_between(&stair, RISER, TREAD_TOP);
+    let far = edge_between(&stair, TOP, BACK);
+    let half = TREAD / 2.0;
+    let start = stair.faces_end();
+    let ends = [STAIR_RIGHT.to_vec(), STAIR_LEFT.to_vec()];
+
+    for (order, names) in [
+        (
+            "the far edge named first",
+            [far.clone(), nose.clone(), foot.clone()],
+        ),
+        (
+            "the far edge named between",
+            [nose.clone(), far.clone(), foot.clone()],
+        ),
+        (
+            "the far edge named last",
+            [nose.clone(), foot.clone(), far.clone()],
+        ),
+    ] {
+        let number_of = |edge: &EdgeName| {
+            start
+                + names
+                    .iter()
+                    .position(|name| name == edge)
+                    .expect("each edge is named")
+        };
+        let slope = [number_of(&nose), number_of(&foot)];
+        let flat = number_of(&far);
+
+        let chamfered = stair
+            .chamfer_edges(&names, half)
+            .unwrap_or_else(|declined| panic!("{order}, asked {half}: declined, {declined:?}"));
+
+        let what = format!(
+            "the chamfer on the tread's nose and foot and the top's back edge, {order}, asked \
+             {half}"
+        );
+        taken_as_asked(chamfered.asked, chamfered.taken, half, &what);
+        let body = &chamfered.body;
+        assert!(!body.has_face(TREAD_TOP), "{what}: the tread is gone");
+        let mut kept_and_laid = numbers(&stair);
+        kept_and_laid.remove(&TREAD_TOP);
+        kept_and_laid.extend(start..start + 3);
+        assert_eq!(
+            numbers(body),
+            kept_and_laid,
+            "{what}: every face of the stair but its tread, the slope answering to {slope:?} and \
+             the far flat to {flat}"
+        );
+        assert_eq!(
+            body.faces_end(),
+            start + 3,
+            "{what}: the next step numbers its faces past the three the step laid"
+        );
+        one_flat_face_answers_to(body, &slope, &what);
+        corners_are(
+            body,
+            slope[0],
+            &strip(
+                DVec3::new(0.0, 0.0, TREAD_HEIGHT - half),
+                DVec3::new(0.0, TREAD, TREAD_HEIGHT + half),
+            ),
+            &format!(
+                "{what}: face {}, the slope from the nose's front to the riser",
+                slope[0]
+            ),
+        );
+        assert_eq!(
+            sides_met_by(body, &slope),
+            sides_by(&[&ends[..], &[vec![NOSE as u32], vec![RISER as u32]]].concat()),
+            "{what}: the slope answers to {slope:?} and to no other number, meeting the nose's \
+             front, the riser and the stair's two ends by one edge each"
+        );
+        let which = format!("{what}: face {flat}, the top's back edge cut off at {half}");
+        face_facing(body, &[flat], DVec3::new(0.0, 1.0, 1.0).normalize(), &which);
+        corners_are(
+            body,
+            flat,
+            &strip(
+                DVec3::new(0.0, 2.0 * TREAD, HEIGHT - half),
+                DVec3::new(0.0, 2.0 * TREAD - half, HEIGHT),
+            ),
+            &which,
+        );
+        assert_eq!(
+            sides_met(body, flat),
+            sides_by(&[&ends[..], &[vec![TOP as u32], vec![BACK as u32]]].concat()),
+            "{which}: a face answering to its own number alone, meeting the top, the back and \
+             the stair's two ends by one edge each"
+        );
+        let promised = LENGTH * (TREAD * (HEIGHT + TREAD_HEIGHT) - half * half / 2.0);
+        sound_drawn_within(
+            body,
+            promised,
+            EXACT * promised,
+            &format!(
+                "{what}: as much matter as the nose gives up, the foot takes in, and what the \
+                 far edge gives up taken off"
+            ),
+        );
+    }
+}
+
+/// How far the turned stair's riser is turned about the upright, in
+/// radians: within what the kernel reads as parallel to the nose, a
+/// millionth, yet parting the nose's flat and the foot's by some hundred of
+/// its tolerances from one end of the stair to the other.
+const RISER_TURN: f64 = 1e-7;
+
+/// The [`stair`] with its riser turned by `turn` about the upright through
+/// its middle, so that the foot is parallel to the nose only within the
+/// kernel's reading: the taller block's front runs from a hair in front of
+/// y = 10 at the left end to a hair behind it at the right, and the lower
+/// block reaches in under the taller one, so that no face of either lies a
+/// hair from another's. Its faces answer to the numbers [`stair`]'s do.
+fn stair_with_its_riser_turned_by(turn: f64) -> Body {
+    let shift = LENGTH / 2.0 * turn;
+    let taller = raised_with(
+        &Body::default(),
+        Contour::straight(vec![
+            DVec2::new(0.0, TREAD - shift),
+            DVec2::new(LENGTH, TREAD + shift),
+            DVec2::new(LENGTH, 2.0 * TREAD),
+            DVec2::new(0.0, 2.0 * TREAD),
+        ]),
+        HEIGHT,
+    );
+    joined_to(
+        &taller,
+        [DVec2::ZERO, DVec2::new(LENGTH, 1.5 * TREAD)],
+        TREAD_HEIGHT,
+    )
+}
+
+#[test]
+fn a_chamfer_on_a_tread_s_nose_and_foot_whose_riser_is_turned_by_a_hair_is_declined_as_unsupported_where_its_flats_would_part_along_the_tread()
+ {
+    let stair = stair_with_its_riser_turned_by(RISER_TURN);
+    let nose = edge_between(&stair, TREAD_TOP, NOSE);
+    let foot = edge_between(&stair, RISER, TREAD_TOP);
+    let half = TREAD / 2.0;
+    for (edge, which) in [(&nose, "the nose"), (&foot, "the foot")] {
+        assert!(
+            stair.chamfer(edge, half).is_ok(),
+            "{which} of the stair whose riser is turned by {RISER_TURN}, alone, asked {half}: laid"
+        );
+    }
+
+    for (order, names) in [
+        ("the nose named first", [nose.clone(), foot.clone()]),
+        ("the foot named first", [foot.clone(), nose.clone()]),
+    ] {
+        for asked in [half, MORE_THAN_HALF] {
+            let declined = stair.chamfer_edges(&names, asked).err();
+
+            assert_eq!(
+                declined,
+                Some(Declined::Unsupported),
+                "{order}, asked {asked}: the two flats lie in one plane where the kernel reads \
+                 them, and part along the tread, the riser turned by {RISER_TURN}: laid, they \
+                 would be two faces with a sliver of the tread left between them, until #812"
+            );
+        }
+    }
+}
+
+/// The section of a stair whose front leans back, drawn on the plane of Y
+/// and Z as [`on_section`] reads it, and raised along X for [`LENGTH`]: a
+/// floor 20 deep, a back and the riser [`HEIGHT`] and [`TREAD_HEIGHT`] up,
+/// the taller part's top 10 deep, and a tread [`LEANING_TREAD`] deep from
+/// the riser to its nose, whose front leans down from the nose to the floor's
+/// front. The face below the nose is not parallel to the riser, so a cut off
+/// the nose and a fill at the foot, set back by the same value, are flats at
+/// two angles. Raised along X, its numbers are its start at x = 0 nought, its
+/// end one, then its floor two, its back three, the top four, the riser five,
+/// the tread six and the leaning front seven.
+const LEANING_STAIR: [DVec2; 6] = [
+    DVec2::new(0.0, 0.0),
+    DVec2::new(2.0 * TREAD, 0.0),
+    DVec2::new(2.0 * TREAD, HEIGHT),
+    DVec2::new(TREAD, HEIGHT),
+    DVec2::new(TREAD, TREAD_HEIGHT),
+    DVec2::new(TREAD - LEANING_TREAD, TREAD_HEIGHT),
+];
+const LEANING_TREAD: f64 = 8.0;
+const LEANING_START: usize = 0;
+const LEANING_END: usize = 1;
+const LEANING_RISER: usize = 5;
+const LEANING_TREAD_TOP: usize = 6;
+const LEANING_FRONT: usize = 7;
+
+/// The [`LEANING_STAIR`] section raised along X for [`LENGTH`].
+fn leaning_stair() -> Body {
+    let section = Frame {
+        origin: DVec3::ZERO,
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let part = Body::default();
+    let tool = part
+        .tool_raised(
+            &profile(Contour::straight(LEANING_STAIR.to_vec())),
+            section,
+            DVec3::X * LENGTH,
+        )
+        .expect("the tool raises");
+    part.union(&tool).expect("the part is built")
+}
+
+/// The way a flat face of a part raised along X faces, where its section
+/// runs from `from` to `to` with the matter on its left.
+fn facing_out_of(from: DVec2, to: DVec2) -> DVec3 {
+    let along = (to - from).normalize();
+    DVec3::new(0.0, along.y, -along.x)
+}
+
+/// The edge between the face whose numbers are `first` and the one whose
+/// numbers are `second`, either of them a face a join merged, answering to
+/// the number of each block it came from.
+fn edge_on_sides(body: &Body, first: &[u32], second: &[u32]) -> EdgeName {
+    let named: Vec<EdgeName> = body
+        .edge_names()
+        .into_iter()
+        .filter(|name| {
+            let [one, other] = &name.between;
+            (one == first && other == second) || (one == second && other == first)
+        })
+        .collect();
+    assert_eq!(
+        named.len(),
+        1,
+        "one edge between {first:?} and {second:?}: {named:?}"
+    );
+    named[0].clone()
+}
+
+#[test]
+fn a_chamfer_on_the_nose_and_foot_of_a_tread_whose_front_leans_lays_two_flats_meeting_in_a_crease_named_nose_first_and_is_declined_named_foot_first()
+ {
+    let stair = leaning_stair();
+    let nose = edge_between(&stair, LEANING_TREAD_TOP, LEANING_FRONT);
+    let foot = edge_between(&stair, LEANING_RISER, LEANING_TREAD_TOP);
+    let limit = LEANING_TREAD / 2.0;
+    let past = 6.0;
+    alone_each_takes_more(
+        |name| stair.chamfer(name, past).map(|single| single.taken),
+        &[nose.clone(), foot.clone()],
+        limit,
+        "the chamfer on the leaning stair's nose or its foot",
+    );
+    let laid = [stair.faces_end(), stair.faces_end() + 1];
+    let nose_at = LEANING_STAIR[5];
+    let on_tread = nose_at + DVec2::X * limit;
+    let on_front = nose_at + (LEANING_STAIR[0] - nose_at).normalize() * limit;
+    let on_riser = LEANING_STAIR[4] + DVec2::Y * limit;
+
+    for asked in [limit, past] {
+        let declined = stair
+            .chamfer_edges(&[foot.clone(), nose.clone()], asked)
+            .err();
+        assert_eq!(
+            declined,
+            Some(Declined::Unsupported),
+            "the foot named first, asked {asked}: the two flats would meet in a crease where the \
+             tread was, which is laid whichever edge is named first until #812"
+        );
+
+        let chamfered = stair
+            .chamfer_edges(&[nose.clone(), foot.clone()], asked)
+            .unwrap_or_else(|declined| {
+                panic!("the nose named first, asked {asked}: declined, {declined:?}")
+            });
+
+        let what = format!(
+            "the chamfer on the leaning stair's nose and foot, the nose named first, asked {asked}"
+        );
+        reduced(chamfered.asked, chamfered.taken, [asked, limit], &what);
+        let body = &chamfered.body;
+        assert!(
+            !body.has_face(LEANING_TREAD_TOP),
+            "{what}: the tread is gone"
+        );
+        let mut kept_and_laid = numbers(&stair);
+        kept_and_laid.remove(&LEANING_TREAD_TOP);
+        kept_and_laid.extend(laid);
+        assert_eq!(
+            numbers(body),
+            kept_and_laid,
+            "{what}: every face of the stair but its tread, and a flat for each edge"
+        );
+        for (number, [from, to], met, which) in [
+            (
+                laid[0],
+                [on_tread, on_front],
+                LEANING_FRONT,
+                "the nose cut off",
+            ),
+            (
+                laid[1],
+                [on_riser, on_tread],
+                LEANING_RISER,
+                "the foot filled in",
+            ),
+        ] {
+            let which = format!("{what}: face {number}, {which} at {limit}");
+            face_facing(body, &[number], facing_out_of(from, to), &which);
+            corners_are(
+                body,
+                number,
+                &strip(on_section(from, 0.0), on_section(to, 0.0)),
+                &which,
+            );
+            let other = laid[0] + laid[1] - number;
+            assert_eq!(
+                sides_met(body, number),
+                sides(&[LEANING_START, LEANING_END, met, other]),
+                "{which}: a face answering to its own number alone, meeting face {met}, the \
+                 other flat along the crease where the tread was, and the stair's two ends, by \
+                 one edge each"
+            );
+        }
+        assert!(
+            sides_met_by(body, &laid).is_empty(),
+            "{what}: no face answers to both {laid:?}: the two flats are two faces, not one slope"
+        );
+        edge_between(body, laid[0], laid[1]);
+        corners_are(
+            body,
+            LEANING_FRONT,
+            &strip(on_section(LEANING_STAIR[0], 0.0), on_section(on_front, 0.0)),
+            &format!("{what}: what is left of the leaning front, under the nose's flat"),
+        );
+        corners_are(
+            body,
+            LEANING_RISER,
+            &strip(on_section(on_riser, 0.0), on_section(LEANING_STAIR[3], 0.0)),
+            &format!("{what}: what is left of the riser, above the foot's flat"),
+        );
+        let section = [
+            LEANING_STAIR[0],
+            LEANING_STAIR[1],
+            LEANING_STAIR[2],
+            LEANING_STAIR[3],
+            on_riser,
+            on_tread,
+            on_front,
+        ];
+        for (end, x) in [(LEANING_START, 0.0), (LEANING_END, LENGTH)] {
+            corners_are(
+                body,
+                end,
+                &section.map(|at| on_section(at, x)),
+                &format!("{what}: the stair's end at x = {x}, the crease a corner of it"),
+            );
+        }
+        let whole = 2.0 * TREAD * HEIGHT
+            - TREAD * (HEIGHT - TREAD_HEIGHT)
+            - (TREAD - LEANING_TREAD) * TREAD_HEIGHT / 2.0;
+        let cut = (on_tread - nose_at).perp_dot(on_front - nose_at).abs() / 2.0;
+        let filled = limit * limit / 2.0;
+        let promised = LENGTH * (whole - cut + filled);
+        sound_drawn_within(
+            body,
+            promised,
+            EXACT * promised,
+            &format!("{what}: what the nose gives up taken off, what the foot takes in added"),
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_on_a_flight_s_first_nose_the_foot_between_and_the_second_nose_where_its_treads_are_as_deep_as_its_risers_are_high_is_declined_as_unsupported()
+ {
+    let stair = stair();
+    let first_nose = edge_between(&stair, TREAD_TOP, NOSE);
+    let foot = edge_between(&stair, RISER, TREAD_TOP);
+    let second_nose = edge_between(&stair, TOP, RISER);
+    let half = TREAD / 2.0;
+    for (names, which) in [
+        (
+            [first_nose.clone(), foot.clone()],
+            "the first nose and the foot, across the tread",
+        ),
+        (
+            [foot.clone(), second_nose.clone()],
+            "the foot and the second nose, across the riser",
+        ),
+    ] {
+        assert!(
+            stair.chamfer_edges(&names, half).is_ok(),
+            "{which}, alone, asked {half}: laid as one slope, so that what declines the three \
+             is the foot meeting both"
+        );
+    }
+
+    for asked in [half, MORE_THAN_HALF] {
+        let declined = stair
+            .chamfer_edges(
+                &[first_nose.clone(), foot.clone(), second_nose.clone()],
+                asked,
+            )
+            .err();
 
         assert_eq!(
             declined,
             Some(Declined::Unsupported),
-            "asked {asked}: the nose's flat and the foot's would lie in one plane, one slope \
-             from the nose's front to the riser, which #791 builds"
+            "asked {asked}: the foot's flat would be one slope with the first nose's across the \
+             tread and with the second nose's across the riser, every flat in one plane, one \
+             slope across the flight, until #813"
+        );
+    }
+}
+
+#[test]
+fn a_chamfer_on_a_tread_s_nose_and_foot_and_the_front_s_upright_edge_at_one_end_of_the_nose_asked_half_its_depth_or_more_is_declined_as_unsupported()
+ {
+    let stair = stair();
+    let nose = edge_between(&stair, TREAD_TOP, NOSE);
+    let foot = edge_between(&stair, RISER, TREAD_TOP);
+    let upright = edge_on_sides(&stair, &STAIR_RIGHT, &[NOSE as u32]);
+    let half = TREAD / 2.0;
+    assert!(
+        stair.chamfer(&upright, half).is_ok(),
+        "the front's upright edge at the right end of the nose, alone, asked {half}: laid"
+    );
+    assert!(
+        stair
+            .chamfer_edges(&[nose.clone(), upright.clone()], half)
+            .is_ok(),
+        "the nose and the front's upright edge, asked {half}: laid, mitred at the corner they \
+         meet at, so that what declines the three is the slope meeting that corner"
+    );
+
+    for asked in [half, MORE_THAN_HALF] {
+        let declined = stair
+            .chamfer_edges(&[nose.clone(), foot.clone(), upright.clone()], asked)
+            .err();
+
+        assert_eq!(
+            declined,
+            Some(Declined::Unsupported),
+            "asked {asked}: the nose's and the foot's flats are one slope, and the front's \
+             upright edge meets it at the nose's right end, a corner the step blends until #814"
         );
     }
 }

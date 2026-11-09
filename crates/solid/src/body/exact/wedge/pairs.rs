@@ -1,13 +1,14 @@
 //! Two edges of one step facing each other across a face they share
 //! (#698): the bound they set on the one value, so that their set-backs do
-//! not cross on it, and the pairs whose set-backs meet across it, which one
-//! prism takes off as one.
+//! not cross on it, and the pairs whose set-backs meet across it, which are
+//! laid as one.
 
 use std::collections::BTreeSet;
 
 use glam::DVec3;
 
 use super::chain::TANGENT;
+use super::slope::one_plane;
 use super::{MADE, Prism, Wedge, too_short};
 use crate::body::exact::Exact;
 use crate::brep::{Declined, EdgeName, FaceId, Scale};
@@ -15,11 +16,28 @@ use crate::brep::{Declined, EdgeName, FaceId, Scale};
 /// What raises the one prism two edges whose set-backs meet are taken off
 /// with, the earlier edge's wedge first, at the value whose set-backs meet
 /// across the face they share: as [`Wedge::rounded_with`] raises it.
-pub(in crate::body::exact) type Together =
+pub(in crate::body::exact) type Raise =
     fn(&Wedge, &Wedge, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>;
 
-/// Two edges of a step by their ranks in its list, the earlier first.
-pub(super) type Pair = (usize, usize);
+/// Which two edges whose set-backs meet across the face they share a kind
+/// lays as one, and how.
+#[derive(Clone, Copy)]
+pub(in crate::body::exact) enum Together {
+    /// Two whose faces meet the same way, taken off or filled in as one by
+    /// the prism this raises — a full round, a round bottom. A cut beside a
+    /// fill is laid edge by edge.
+    Raised(Raise),
+    /// A cut beside a fill whose flats, at the value their set-backs meet
+    /// at, lie in one plane: one slope, as [`Exact::sloped`] lays it. Two
+    /// whose faces meet the same way, or a cut and a fill whose flats would
+    /// meet at an angle, are laid edge by edge.
+    Sloped,
+}
+
+/// Two edges of a step by their ranks in its list, the earlier first, and
+/// the value whose set-backs meet across the face they share, as [`bound`]
+/// reads it of them alone.
+pub(super) type Pair = (usize, usize, f64);
 
 /// Each two edges parallel within [`TANGENT`] that face each other across a
 /// face they share, the earlier first, and the distance across it from one
@@ -61,29 +79,36 @@ pub(super) fn bound(
 
 /// The two edges facing each other, the earlier first, whose set-backs at
 /// `taken` meet across the face they share, leaving none of it the kernel
-/// could keep: the face goes, and one prism cuts both edges off, or fills
-/// both in. Only two edges whose faces meet the same way: a cut beside a
-/// fill is laid edge by edge. Declined `Unsupported` where an edge would
-/// meet two others, every face round it gone.
+/// could keep, and which `together` lays as one, the face gone, each with
+/// the value it is laid at. Declined `Unsupported` where an edge would meet
+/// two others, every face round it gone.
 pub(super) fn meeting(
     wedges: &[Wedge],
     facing: &[(usize, usize, f64)],
     taken: f64,
     set_back: impl Fn(&Wedge) -> f64,
+    together: Together,
     scale: Scale,
 ) -> Result<Vec<Pair>, Declined> {
     let pairs: Vec<Pair> = facing
         .iter()
-        .filter(|&&(one, other, across)| {
-            let [one, other] = [&wedges[one], &wedges[other]];
-            let left = across - taken * (set_back(one) + set_back(other));
-            one.inwards == other.inwards && too_short(left, scale)
+        .filter_map(|&(one, other, across)| {
+            let [first, second] = [&wedges[one], &wedges[other]];
+            let left = across - taken * (set_back(first) + set_back(second));
+            let value = bound(wedges, &[(one, other, across)], &set_back);
+            let laid = match together {
+                Together::Raised(_) => first.inwards == second.inwards,
+                Together::Sloped => {
+                    let backs = [first, second].map(|wedge| value * set_back(wedge));
+                    first.inwards != second.inwards && one_plane(first, second, backs, scale.eps())
+                }
+            };
+            (laid && too_short(left, scale)).then_some((one, other, value))
         })
-        .map(|&(one, other, _)| (one, other))
         .collect();
     let ranks: BTreeSet<usize> = pairs
         .iter()
-        .flat_map(|&(one, other)| [one, other])
+        .flat_map(|&(one, other, _)| [one, other])
         .collect();
     if ranks.len() < 2 * pairs.len() {
         return Err(Declined::Unsupported);
@@ -93,23 +118,22 @@ pub(super) fn meeting(
 
 impl Exact {
     /// The body with the edges `earlier` and `later` find, whose set-backs
-    /// meet across the face they share, cut off as one by the prism
-    /// `together` raises over both at the value they meet at — or filled in
-    /// as one, where their faces meet inwards, as [`Exact::filled`] fills:
-    /// its first two walls, the later edge's then the earlier's, laid as one
-    /// face where they lie on one surface, answering to the number where the
-    /// steps' numbers ended — the later edge's — and to `number`, the
-    /// earlier's. Declined as [`Exact::cut_off`] says.
+    /// meet across the face they share, cut off as one by the prism `raise`
+    /// raises over both at the value they meet at — or filled in as one,
+    /// where their faces meet inwards, as [`Exact::filled`] fills: its first
+    /// two walls, the later edge's then the earlier's, laid as one face where
+    /// they lie on one surface, numbered as [`Exact::paired`] numbers it.
+    /// Declined as [`Exact::cut_off`] says.
     pub(super) fn laid_together(
         &self,
         [earlier, later]: [&EdgeName; 2],
         number: u32,
-        together: Together,
+        raise: Raise,
     ) -> Result<Exact, Declined> {
         let (first_edge, first) = self.wedge(earlier, Wedge::read)?;
         let (second_edge, second) = self.wedge(later, Wedge::read)?;
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
-        let prism = together(&first, &second, self.brep.scale(), bounds)?;
+        let prism = raise(&first, &second, self.brep.scale(), bounds)?;
         let (outline, frame, travel) = &prism;
         let raised = Exact::raised(outline, &[], *frame, *travel)?;
         let tool = Exact {
@@ -126,7 +150,21 @@ impl Exact {
         } else {
             self.cut_by(&Exact { next: 2, ..tool })?
         };
-        if !cut.cut_along(&[&first, &second], self, 2, &[]) {
+        cut.paired(self, [&first, &second], number)
+    }
+
+    /// The body two edges of `before` were laid on as one, its face left
+    /// alone as [`Exact::cut_along`] reads it of both their wedges, answering
+    /// to the number where the steps' numbers of `before` ended — the later
+    /// edge's — and to `number`, the earlier's, in place of the one past it.
+    /// Declined `Unsupported` where that reading fails.
+    pub(super) fn paired(
+        self,
+        before: &Exact,
+        wedges: [&Wedge; 2],
+        number: u32,
+    ) -> Result<Exact, Declined> {
+        if !self.cut_along(&wedges, before, 2, &[]) {
             return Err(Declined::Unsupported);
         }
         let Exact {
@@ -136,8 +174,8 @@ impl Exact {
             roots,
             drawn,
             ..
-        } = cut;
-        let lent = self.next + 1;
+        } = self;
+        let lent = before.next + 1;
         let faces: Vec<FaceId> = brep
             .face_ids()
             .filter(|&face| brep.numbers(face).contains(&lent))

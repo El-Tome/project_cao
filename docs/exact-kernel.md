@@ -326,9 +326,16 @@ It can:
   clear of it, is cut from the prism, so the fill ends on the plane wherever
   it crosses it — on an L cut down to a leaning top, higher on one wall than
   on the other. Where that face is a cylinder or a cone (#788), the solid cut
-  from the prism is turned about the face's axis instead, from its meridian
-  line out past the prism, over the half the edge runs towards, so the fill
-  ends on the round itself: a rib's round end bulging out of the matter, or
+  from the prism is bounded by the round itself and starts where the prism's
+  long edges leave it, so the fill ends on the round and the solid stands no
+  further out than the prism: a result carries the larger reach of its
+  operands, and a solid standing out of the part's box would draw every
+  later step coarser. A cylinder's is raised along its axis, the rectangle
+  round the long edges less the cylinder's disc, from a line across them
+  where every one that meets the round stands inside it; a cone, which no
+  raise bounds, has a piece turned about its axis from its meridian line
+  out, between planes through the axis turned clear of where the long edges
+  leave it. The ends so trimmed: a rib's round end bulging out of the matter, or
   drawn in by draft, and a slot's round end that turns in toward the slot off
   its wall at a few degrees, which the fill runs on into. The round stays one
   face and takes in the fill's section. A sphere or a torus end is still
@@ -345,7 +352,8 @@ It can:
   of the body gone but those two. Declined `Unsupported`: an end where no face
   but the edge's two meets the edge, or several do; a flat one facing back
   along the edge; a round the edge runs into at its end rather than out of,
-  or one that turns away short of the fill's reach; and one leaning so far that its plane misses the prism's
+  or one that turns away short of the fill's reach, or a cone a long edge of
+  the prism misses; and one leaning so far that its plane misses the prism's
   long edges between the prism's two ends. Facing back along the edge is what
   the vertical inner corner of a pocket, or of a boss standing on a plate,
   meets at its foot: the pocket's floor or the plate's top faces up the edge,

@@ -4,7 +4,7 @@
 //! to the body, its ends merged into those faces and the edges either side of
 //! the edge's ends made one where they run on along one curve.
 
-use std::f64::consts::PI;
+mod round;
 
 use glam::{DVec2, DVec3};
 
@@ -13,7 +13,6 @@ use crate::body::drawn::Drawn;
 use crate::body::exact::{Exact, PIECES};
 use crate::brep::{self, Declined, EdgeId, FaceId, Plane, Surface, VertexId};
 use crate::profile::{Contour, Frame};
-use crate::turning::{Axis, ON_THE_AXIS, Straight, Turn};
 
 /// How far the solid a prism's end is trimmed by stands clear of the prism,
 /// past it and round it, as a share of how far the prism's section reaches
@@ -135,12 +134,13 @@ fn end_face(body: &brep::Body, corner: VertexId, faces: [FaceId; 2]) -> Option<F
 /// The solid to cut from the prism so that it ends flush on the surface of
 /// the face `id` its edge ends on at `point`, running on `past` there: on a
 /// plane facing out of the matter along `past`, the box [`beyond`] raises;
-/// on a cylinder or a cone, its meridian line about its axis, the piece
-/// [`outside_round`] turns, whichever side of it the matter lies — a rib's
-/// round end bulging out or drawn in by draft, or a slot's round end turning
-/// in toward the slot off its wall, which the fill then runs on into.
-/// Declined `Unsupported` on a plane turned back along the edge, or another
-/// surface; otherwise as [`outside_round`] declines.
+/// on a cylinder or a cone the edge runs out of at `point`, whichever side
+/// of it the matter lies — a rib's round end bulging out or drawn in by
+/// draft, or a slot's round end turning in toward the slot off its wall,
+/// which the fill then runs on into — what [`round::outside_cylinder`]
+/// raises or [`round::outside_cone`] turns. Declined `Unsupported` on a
+/// plane turned back along the edge, a cylinder or a cone the edge runs
+/// into, or another surface; otherwise as those declines.
 fn past_the_end(
     body: &brep::Body,
     id: FaceId,
@@ -152,25 +152,12 @@ fn past_the_end(
     let surface = body.surface(face.surface);
     let normal = surface.normal(surface.parameters(point));
     let outward = if face.flipped { -normal } else { normal };
-    let reach = body.scale().reach();
     match surface {
         Surface::Plane(plane) if outward.dot(past) > 0.0 => beyond(prism, plane, outward),
-        Surface::Cylinder(cylinder) => {
-            let meridian = [DVec2::new(0.0, cylinder.radius), DVec2::X];
-            let about = (cylinder.origin, cylinder.axis);
-            outside_round(prism, about, meridian, point, past, reach)
+        Surface::Cylinder(cylinder) if normal.dot(past) > 0.0 => {
+            round::outside_cylinder(prism, cylinder, past)
         }
-        Surface::Cone(cone) => {
-            let meridian = [cone.foot, cone.ruling];
-            outside_round(
-                prism,
-                (cone.origin, cone.axis),
-                meridian,
-                point,
-                past,
-                reach,
-            )
-        }
+        Surface::Cone(cone) => round::outside_cone(prism, cone, point, past, body.scale().reach()),
         _ => Err(Declined::Unsupported),
     }
 }
@@ -222,86 +209,4 @@ fn beyond(prism: &Prism, plane: &Plane, outward: DVec3) -> Result<Exact, Decline
     };
     let rectangle = Contour::rectangle(low - DVec2::splat(clear), high + DVec2::splat(clear));
     Exact::raised(&rectangle, &[], on_the_plane, outward * (depth + clear))
-}
-
-/// The piece of a ring turned about the line through `origin` along `axis`
-/// that holds what of the prism stands outside the surface whose meridian
-/// line, in `(h, ρ)` along the axis from `origin` and away from it, runs
-/// through `foot` along `ruling` — the side of it away from the axis — past
-/// the plane through the axis square to the way `past` runs off it, and the
-/// clearance [`crossed`] gives round that. Bounded inside by that surface,
-/// outside by a cylinder round the points where the prism's long edges cross
-/// that plane and its end beyond, either side by a plane through the axis
-/// turned clear of them, or that plane itself, and along the axis by planes
-/// clear of them; what of the prism it leaves past the plane stands inside
-/// the surface. Declined `Unsupported` where the edge, running on `past` at
-/// `point`, runs into the surface rather than out of it, and where the
-/// meridian line stands on or across the axis at either end of the piece;
-/// as [`crossed`] declines; a piece the kernel cannot lay or turn, as the
-/// turn says.
-fn outside_round(
-    prism: &Prism,
-    (origin, axis): (DVec3, DVec3),
-    [foot, ruling]: [DVec2; 2],
-    point: DVec3,
-    past: DVec3,
-    reach: f64,
-) -> Result<Exact, Declined> {
-    let off_the_axis = |at: DVec3| {
-        let from = at - origin;
-        from - axis * from.dot(axis)
-    };
-    let out = ruling.perp() * ruling.x.signum();
-    if (off_the_axis(point).normalize() * out.y + axis * out.x).dot(past) <= 0.0 {
-        return Err(Declined::Unsupported);
-    }
-    let towards = (past - axis * axis.dot(past)).normalize();
-    let (held, clear) = crossed(prism, origin, towards)?;
-    let across = towards.cross(axis);
-    let (mut low, mut high, mut outer) = (f64::INFINITY, f64::NEG_INFINITY, 0.0_f64);
-    let (mut first, mut last) = (PI, 0.0_f64);
-    for at in held {
-        let (flat, h) = (off_the_axis(at), (at - origin).dot(axis));
-        let off = flat.length();
-        let turn = (flat.dot(across) / off).clamp(-1.0, 1.0).acos();
-        let spread = (clear / off).min(1.0).asin();
-        first = first.min(turn - spread);
-        last = last.max(turn + spread);
-        low = low.min(h);
-        high = high.max(h);
-        outer = outer.max(off);
-    }
-    let (first, last) = (first.max(0.0), last.min(PI));
-    let ends = [low - clear, high + clear];
-    let on_the_line = ends.map(|h| DVec2::new(h, foot.y + (h - foot.x) * ruling.y / ruling.x));
-    if on_the_line
-        .iter()
-        .any(|at| !(at.y.is_finite() && at.y > 0.0))
-    {
-        return Err(Declined::Unsupported);
-    }
-    let outer = on_the_line.iter().fold(outer, |far, at| far.max(at.y)) + clear;
-    let section = Contour::straight(vec![
-        on_the_line[0],
-        DVec2::new(ends[0], outer),
-        DVec2::new(ends[1], outer),
-        on_the_line[1],
-    ]);
-    let (sin, cos) = first.sin_cos();
-    let frame = Frame {
-        origin,
-        u: axis,
-        v: across * cos + towards * sin,
-    };
-    let turn = Turn {
-        axis: Axis {
-            origin: DVec2::ZERO,
-            direction: DVec2::X,
-        },
-        angle: last - first,
-        resolution: 0.0,
-        on_the_axis: ON_THE_AXIS * outer,
-    };
-    let straight = Straight::of(&section, &[], frame, &turn, reach).ok_or(Declined::Unsupported)?;
-    Exact::turned(&straight, frame, &turn, straight.numbers(false))
 }

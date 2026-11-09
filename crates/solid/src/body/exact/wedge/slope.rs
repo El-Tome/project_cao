@@ -11,8 +11,11 @@ use crate::brep::{Declined, EdgeName, Scale};
 
 /// Whether the flats of two edges, each on the plane through the lines it
 /// is set back to along its two faces — `own` from the one edge, `theirs`
-/// from the other — lie in one plane: the other's two lines within `eps` of
-/// the one's plane.
+/// from the other — lie in one plane: the other's two lines, where they
+/// pass the other edge's point, within `eps` of the one's plane. The two
+/// edges are parallel only as `facing` reads them, within `TANGENT`: flats
+/// parting further along are left apart by the kernel, and
+/// [`Exact::sloped`] declines them.
 pub(super) fn one_plane(one: &Wedge, other: &Wedge, [own, theirs]: [f64; 2], eps: f64) -> bool {
     let [near, far] = one.into.map(|into| one.point + into * own);
     let normal = (near - far).cross(one.along).normalize();

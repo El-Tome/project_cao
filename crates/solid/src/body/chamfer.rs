@@ -31,14 +31,22 @@ impl Body {
     /// cuts it, at `distance` or at the one largest distance every edge gives:
     /// alone, and on a face two of them share, parallel and facing each other
     /// across it, with the other laid. Each flat face is numbered on its own,
-    /// in the order the names come, from where the steps' numbers ended. Two
-    /// edges meeting at a convex corner are mitred there, the corner's third
-    /// edge left sharp, and three are closed there by a triangle, numbered
-    /// after every flat, by the lowest ranks of their edges in the list, then
-    /// the next; at a corner where an edge meets inwards they are declined
-    /// `Unsupported`. Flats that would meet anywhere else are declined
-    /// `Unsupported`, until #792 measures them. The first edge declined
-    /// declines the step.
+    /// in the order the names come, from where the steps' numbers ended — but
+    /// an edge cut off and one filled in whose set-backs meet across the face
+    /// they share, and whose flats lie in one plane there — a tread's nose and
+    /// foot at half its depth — which are one slope, the face gone, answering
+    /// to both their numbers. Such a slope is laid at the distance whose
+    /// set-backs meet across that face, which may stand a hair above the
+    /// distance taken: its own distance is read off its face, never from
+    /// [`Chamfered::taken`]. Two edges meeting at a convex corner are mitred
+    /// there, the corner's third edge left sharp, and three are closed there by
+    /// a triangle, numbered after every flat, by the lowest ranks of their
+    /// edges in the list, then the next; at a corner where an edge meets
+    /// inwards they are declined `Unsupported`, as is an edge of a slope
+    /// meeting another edge of the list at a corner, and an edge whose flat
+    /// would be one slope with two others'. Flats that would meet anywhere
+    /// else are declined `Unsupported`, until #792 measures them. The first
+    /// edge declined declines the step.
     pub fn chamfer_edges(&self, edges: &[EdgeName], distance: f64) -> Result<Chamfered, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

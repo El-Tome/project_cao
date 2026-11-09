@@ -138,7 +138,7 @@ impl Exact {
                 pairs::meeting(&wedges, &facing, taken, &set_back, meeting.together, scale)?;
             let cornered = pairs
                 .iter()
-                .flat_map(|&(one, other)| [one, other])
+                .flat_map(|&(one, other, _)| [one, other])
                 .any(|member| {
                     (0..edges.len()).any(|rank| {
                         rank != member && corners::meet(&self.brep, [edges[member], edges[rank]])
@@ -157,21 +157,21 @@ impl Exact {
             let start = self.next;
             let mut cut = self.clone();
             for rank in 0..names.len() {
-                if pairs.iter().any(|&(earlier, _)| earlier == rank) {
+                if pairs.iter().any(|&(earlier, _, _)| earlier == rank) {
                     continue;
                 }
                 cut.next = start + rank as u32;
-                let partner = pairs.iter().find(|&&(_, later)| later == rank);
+                let partner = pairs.iter().find(|&&(_, later, _)| later == rank);
                 cut = match (partner, meeting.together) {
-                    (Some(&(earlier, _)), Together::Raised(raise)) => cut.laid_together(
+                    (Some(&(earlier, _, _)), Together::Raised(raise)) => cut.laid_together(
                         [&names[earlier], &names[rank]],
                         start + earlier as u32,
                         raise,
                     )?,
-                    (Some(&(earlier, _)), Together::Sloped) => cut.sloped(
+                    (Some(&(earlier, _, value)), Together::Sloped) => cut.sloped(
                         [&names[earlier], &names[rank]],
                         start + earlier as u32,
-                        pairs::met(&wedges, &facing, (earlier, rank), &set_back),
+                        value,
                         &tool,
                     )?,
                     (None, _) => {

@@ -66,9 +66,9 @@ impl Exact {
         let alone = names.iter().enumerate().all(|(rank, name)| {
             let pair = pairs
                 .iter()
-                .find(|&&(earlier, later)| rank == earlier || rank == later);
+                .find(|&&(earlier, later, _)| rank == earlier || rank == later);
             match pair {
-                Some(&(earlier, later)) => cut.rounded_as(name, &[made(earlier), made(later)]),
+                Some(&(earlier, later, _)) => cut.rounded_as(name, &[made(earlier), made(later)]),
                 None => cut.rounded_alone(name, made(rank)),
             }
         });

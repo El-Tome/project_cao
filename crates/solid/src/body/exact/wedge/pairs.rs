@@ -34,8 +34,10 @@ pub(in crate::body::exact) enum Together {
     Sloped,
 }
 
-/// Two edges of a step by their ranks in its list, the earlier first.
-pub(super) type Pair = (usize, usize);
+/// Two edges of a step by their ranks in its list, the earlier first, and
+/// the value whose set-backs meet across the face they share, as [`bound`]
+/// reads it of them alone.
+pub(super) type Pair = (usize, usize, f64);
 
 /// Each two edges parallel within [`TANGENT`] that face each other across a
 /// face they share, the earlier first, and the distance across it from one
@@ -75,25 +77,11 @@ pub(super) fn bound(
         .fold(f64::INFINITY, f64::min)
 }
 
-/// The value whose set-backs meet across the face the two edges of `pair`
-/// share, as [`bound`] reads it of them alone.
-pub(super) fn met(
-    wedges: &[Wedge],
-    facing: &[(usize, usize, f64)],
-    pair: Pair,
-    set_back: impl Fn(&Wedge) -> f64,
-) -> f64 {
-    let theirs: Vec<(usize, usize, f64)> = (facing.iter().copied())
-        .filter(|&(one, other, _)| (one, other) == pair)
-        .collect();
-    bound(wedges, &theirs, set_back)
-}
-
 /// The two edges facing each other, the earlier first, whose set-backs at
 /// `taken` meet across the face they share, leaving none of it the kernel
-/// could keep, and which `together` lays as one, the face gone. Declined
-/// `Unsupported` where an edge would meet two others, every face round it
-/// gone.
+/// could keep, and which `together` lays as one, the face gone, each with
+/// the value it is laid at. Declined `Unsupported` where an edge would meet
+/// two others, every face round it gone.
 pub(super) fn meeting(
     wedges: &[Wedge],
     facing: &[(usize, usize, f64)],
@@ -104,24 +92,23 @@ pub(super) fn meeting(
 ) -> Result<Vec<Pair>, Declined> {
     let pairs: Vec<Pair> = facing
         .iter()
-        .filter(|&&(one, other, across)| {
+        .filter_map(|&(one, other, across)| {
             let [first, second] = [&wedges[one], &wedges[other]];
             let left = across - taken * (set_back(first) + set_back(second));
+            let value = bound(wedges, &[(one, other, across)], &set_back);
             let laid = match together {
                 Together::Raised(_) => first.inwards == second.inwards,
                 Together::Sloped => {
-                    let value = bound(wedges, &[(one, other, across)], &set_back);
                     let backs = [first, second].map(|wedge| value * set_back(wedge));
                     first.inwards != second.inwards && one_plane(first, second, backs, scale.eps())
                 }
             };
-            laid && too_short(left, scale)
+            (laid && too_short(left, scale)).then_some((one, other, value))
         })
-        .map(|&(one, other, _)| (one, other))
         .collect();
     let ranks: BTreeSet<usize> = pairs
         .iter()
-        .flat_map(|&(one, other)| [one, other])
+        .flat_map(|&(one, other, _)| [one, other])
         .collect();
     if ranks.len() < 2 * pairs.len() {
         return Err(Declined::Unsupported);

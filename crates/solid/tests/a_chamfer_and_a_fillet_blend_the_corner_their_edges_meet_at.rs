@@ -132,11 +132,45 @@
 //!   test: held beside the code, in `crates/solid/src/brep/assembly/tests.rs`,
 //!   by `a_face_laid_on_a_surface_its_loop_does_not_lie_on_is_unverified`,
 //!   `a_face_whose_corners_lie_on_its_surface_but_whose_edges_bow_away_from_it_is_unverified`
-//!   and `a_face_laid_again_on_its_own_plane_is_taken`. The check samples each
-//!   edge a quarter, half and three quarters along; sampled anywhere else on
-//!   the same line or circle it decides the same, three points of either on a
-//!   plane, a sphere, a cylinder or a cone putting the whole of it there, so
-//!   no fixture on those tells where along the edge the samples stand
+//!   and `a_face_laid_again_on_its_own_plane_is_taken`. The check reads each
+//!   edge at its two corners and a quarter, half and three quarters along. Two
+//!   corners and three samples settle a line or an arc on a plane, a sphere,
+//!   a cylinder or a cone, none of which a line or a circle crosses more than
+//!   four times without lying on it; a whole circle, which has no corners, is
+//!   settled by its three samples only on a plane or a sphere. Sampled
+//!   anywhere else along the same curve, the check decides the same there, so
+//!   no fixture on those surfaces tells where along the edge the samples stand
+//! - Three named edges at a vertex where four edges end are declined
+//!   `Unsupported`, for the fillet and the chamfer, whichever three, and the
+//!   four as well — `a_fillet_and_a_chamfer_on_three_of_the_four_edges_at_a_pyramid_s_apex_are_declined_as_unsupported`.
+//!   The guard that counts the edges ending there is not alone in holding
+//!   it: around such a vertex the faces run in a ring, so any three of its
+//!   edges hold two that share no face, and the corner's closing, reading
+//!   where each two of them cross on the face they share, declines it too
+//! - A later edge the step's own earlier cut takes whole at their corner is
+//!   left to the finder, which no longer finds it: the step hands back that
+//!   edge's reason, `Lost(Gone)`, and no body — never a body with a cut
+//!   missing — `a_fillet_whose_first_round_takes_the_whole_of_the_next_edge_at_their_corner_is_declined_as_that_edge_lost`.
+//!   On the block whose corner a facet of 0.5 cuts off, the top's front
+//!   edge's round is capped at 0.5 by the facet's corner on the front, and
+//!   there takes the whole of the facet's edge on the front. Named the other
+//!   way round, the facet's edge first, the step lays both, 5998.38: the two
+//!   orders do not agree at that cap, which this file holds the first of and
+//!   leaves to be decided
+//! - A corner whose piece of sphere would stand behind it along one of its
+//!   edges, the centre one radius from the three faces lying past the corner
+//!   on that edge's line, is declined `Unsupported` among rounds: the round
+//!   of that edge would end on a plane through the centre past the corner.
+//!   The same corner closes with its triangle among flats —
+//!   `a_fillet_on_the_three_edges_of_a_corner_whose_sphere_would_stand_behind_it_along_an_edge_is_declined_as_unsupported`
+//! - An edge of the body just cut on a later edge's line but outside its
+//!   stretch, which the step must not take for the later edge — no test: it
+//!   cannot be reached through the public API. Such an edge has matter right
+//!   beside the line, within the margin the later edge's own prism stands off
+//!   its faces, carried past the body's box along the line; the later edge
+//!   is declined alone, `Unsupported`, before any corner is read. A slot
+//!   across the block's top, parting its front edge in two, does so for each
+//!   piece
 //! - Any other corner the kernel cannot blend — no test: a corner of more
 //!   than three edges, of values that differ, or of a curved edge is out of
 //!   the issue's scope, and no list of edges of a block, an L or a pocket
@@ -320,7 +354,7 @@ use std::f64::consts::PI;
 
 use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, Declined, EdgeName, Loop};
+use cao_solid::{Body, Declined, EdgeName, Loop, Lost};
 use glam::{DMat3, DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it, on a plane:
@@ -3636,5 +3670,178 @@ fn a_chamfer_and_a_fillet_on_edges_named_before_a_join_merged_the_faces_at_their
             (start..start + names.len() + patches).collect::<Vec<_>>(),
             "{what}: one face for each edge, and a patch where the three are closed"
         );
+    }
+}
+
+/// The block 10 by 10 by 10 cut by four planes through the middle of its top,
+/// each leaning 45 degrees, down to its walls' halfway: a square pyramid 5
+/// high on a box 5 high, holding `500 + 500/3`. The four planes' faces are
+/// numbered six, twelve, eighteen and twenty-four, front, back, left and
+/// right; four edges end at the apex, one between each two faces beside each
+/// other.
+fn pyramid() -> Body {
+    let apex = DVec3::new(5.0, 5.0, 10.0);
+    [
+        DVec3::new(0.0, -1.0, 1.0),
+        DVec3::new(0.0, 1.0, 1.0),
+        DVec3::new(-1.0, 0.0, 1.0),
+        DVec3::new(1.0, 0.0, 1.0),
+    ]
+    .into_iter()
+    .fold(
+        raised(Contour::rectangle(DVec2::ZERO, DVec2::splat(10.0)), 10.0),
+        |part, away| {
+            part.difference(&beyond(&part, apex, away, 50.0))
+                .expect("a plane through the apex cuts the cube")
+        },
+    )
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_three_of_the_four_edges_at_a_pyramid_s_apex_are_declined_as_unsupported()
+ {
+    let pyramid = pyramid();
+    assert!(
+        (pyramid.volume() - (500.0 + 500.0 / 3.0)).abs() < EXACT * 1000.0,
+        "the pyramid on its box holds {}",
+        pyramid.volume()
+    );
+    let [front, back, left, right] = [6, 12, 18, 24];
+    let hips = [[front, left], [front, right], [back, right], [back, left]]
+        .map(|[one, other]| edge_between(&pyramid, one, other));
+
+    for (what, list) in [
+        ("three hips in turn round the apex", vec![0, 1, 2]),
+        ("three hips, the last first", vec![3, 0, 1]),
+        ("three hips round the other way", vec![2, 1, 3]),
+        ("the four hips", vec![0, 1, 2, 3]),
+    ] {
+        let names: Vec<EdgeName> = list.iter().map(|&hip| hips[hip].clone()).collect();
+
+        let filleted = pyramid.fillet_edges(&names, 1.0).err();
+        let chamfered = pyramid.chamfer_edges(&names, 1.0).err();
+
+        assert_eq!(
+            filleted,
+            Some(Declined::Unsupported),
+            "the fillet on {what}, at a vertex four edges end at: a broken step and its \
+             reason, and no body"
+        );
+        assert_eq!(
+            chamfered,
+            Some(Declined::Unsupported),
+            "the chamfer on {what}, at a vertex four edges end at: a broken step and its \
+             reason, and no body"
+        );
+    }
+}
+
+/// The block 30 by 10 by 20 with the corner at its top's front right cut off
+/// by the plane through the points 0.5 from it along its three edges: a facet,
+/// numbered six, an equilateral triangle of side √0.5.
+fn small_facet() -> Body {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    block
+        .difference(&beyond(
+            &block,
+            DVec3::new(LENGTH - 0.5, 0.0, HEIGHT),
+            DVec3::new(1.0, -1.0, 1.0),
+            50.0,
+        ))
+        .expect("the facet is cut")
+}
+
+#[test]
+fn a_fillet_whose_first_round_takes_the_whole_of_the_next_edge_at_their_corner_is_declined_as_that_edge_lost()
+ {
+    let part = small_facet();
+    let top_front = edge_between(&part, TOP, FRONT);
+    let facet_front = edge_between(&part, FRONT, 6);
+
+    for asked in [0.5, 2.0] {
+        let filleted = part
+            .fillet_edges(&[top_front.clone(), facet_front.clone()], asked)
+            .err();
+
+        assert_eq!(
+            filleted,
+            Some(Declined::Lost(Lost::Gone)),
+            "the fillet asked {asked} on the top's front edge, then the facet's edge on the \
+             front: the first round, taken at the 0.5 the facet's corner allows it, takes the \
+             whole of the second edge, whose name then finds nothing"
+        );
+    }
+}
+
+/// The block 30 by 10 by 20 with the corner at its top's front right cut off
+/// steeply: the facet, numbered six, through the points 2 along the top's two
+/// edges and 6 down the upright. At its corner on the upright, (30, 0, 14),
+/// the facet's two edges rise at wide angles to the upright, 161.6 degrees on
+/// the front and on the right.
+fn steep_facet() -> Body {
+    let block = block([LENGTH, BREADTH, HEIGHT]);
+    block
+        .difference(&beyond(
+            &block,
+            DVec3::new(LENGTH - 2.0, 0.0, HEIGHT),
+            DVec3::new(0.5, -0.5, 1.0 / 6.0),
+            50.0,
+        ))
+        .expect("the facet is cut")
+}
+
+/// The steep facet's corner on the upright: its faces the right wall, the
+/// front and the facet; across from them the facet's edge on the front, its
+/// edge on the right, both rising to the top, and the upright, running down
+/// to the floor.
+fn steep_trihedral() -> Trihedral {
+    Trihedral {
+        at: DVec3::new(LENGTH, 0.0, HEIGHT - 6.0),
+        faces: [RIGHT, FRONT, 6],
+        outward: [
+            DVec3::X,
+            -DVec3::Y,
+            DVec3::new(0.5, -0.5, 1.0 / 6.0).normalize(),
+        ],
+        called: [
+            "the facet's edge on the front",
+            "the facet's edge on the right",
+            "the upright",
+        ],
+        length: [40f64.sqrt(), 40f64.sqrt(), HEIGHT - 6.0],
+        far: [TOP, TOP, FLOOR],
+    }
+}
+
+#[test]
+fn a_fillet_on_the_three_edges_of_a_corner_whose_sphere_would_stand_behind_it_along_an_edge_is_declined_as_unsupported()
+ {
+    let value = 0.5;
+    let part = steep_facet();
+    let corner = steep_trihedral();
+    let behind = (corner.centre(value) - corner.at).dot(corner.edge(2).along);
+    let gradient = (0.25 + 0.25 + 1.0 / 36.0f64).sqrt();
+    assert!(
+        (behind - 6.0 * value * (gradient - 1.0)).abs() < PLACE && behind < 0.0,
+        "the sphere's centre, one radius in from the three faces, stands {behind} along the \
+         upright from the corner: behind it, where the arithmetic puts it"
+    );
+    let promised = triangle_by_booleans(&part, &corner, value);
+
+    for order in ORDERS_OF_THREE {
+        let names = order.map(|edge| corner.edge(edge).name(&part));
+
+        let filleted = part.fillet_edges(&names, value).err();
+
+        assert_eq!(
+            filleted,
+            Some(Declined::Unsupported),
+            "the fillet on {}, {} and {}, the piece of sphere standing behind the corner along \
+             the upright: a broken step and its reason, and no body",
+            corner.called[order[0]],
+            corner.called[order[1]],
+            corner.called[order[2]]
+        );
+        closes_with_a_triangle(&part, &corner, order, value, promised);
     }
 }

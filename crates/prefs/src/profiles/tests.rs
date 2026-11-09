@@ -232,7 +232,10 @@ fn a_shortcut_the_user_unbound_stays_unbound_across_a_save_and_a_load() {
     let at = at();
     let files = InMemoryFiles::default();
     let mut profiles = Profiles::default();
-    profiles.active_mut().shortcuts.unbind(Command::FinishSketch);
+    profiles
+        .active_mut()
+        .shortcuts
+        .unbind(Command::FinishSketch);
     let saved = profiles.active().shortcuts.clone();
     assert_ne!(saved, Shortcuts::default(), "a shortcut was unbound");
 

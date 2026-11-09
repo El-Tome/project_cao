@@ -1,48 +1,18 @@
-use cao_prefs::{Command, GroupSize, Item};
+use cao_prefs::{Command, Item};
 use egui::{Rect, Response, Ui, UiBuilder, vec2};
 
 use crate::ui::tool_button::{CHEVRON_WIDTH, chevron_button, menu_row, ribbon_menu, tooltip};
 use crate::wording::{command as wording, toolbar};
 
-use super::super::state::{active, any_entry_enabled, enabled, icon, label};
+use super::super::state::{Split, active, any_entry_enabled, enabled, icon, label};
 use super::groups::Bar;
-use super::{SPREAD_OUT, Shown, key_of, menu, named_button};
-
-/// One button out of a menu-depth group and the command before it, if any.
-pub(super) struct Split<'a> {
-    before: Option<Command>,
-    group: &'a str,
-    items: &'a [Item],
-}
-
-impl<'a> Split<'a> {
-    /// `item` as a split, when it is a group drawn as one at this depth.
-    pub(super) fn of(item: &'a Item, before: Option<Command>, depth: usize) -> Option<Self> {
-        match item {
-            Item::Group { name, size, items } if depth > SPREAD_OUT || *size == GroupSize::Menu => {
-                Some(Self {
-                    before,
-                    group: name,
-                    items,
-                })
-            }
-            _ => None,
-        }
-    }
-}
+use super::{Shown, key_of, menu, named_button};
 
 /// The body runs what the group's menu stands for; the chevron beside it opens
 /// that menu. In a small column the chevron stands past the body, which keeps
 /// the column's width for its key to end with the others.
 pub(super) fn split_button(ui: &mut Ui, split: &Split<'_>, shown: Shown, bar: &mut Bar<'_>) {
-    let entries: Vec<Command> = split
-        .items
-        .iter()
-        .filter_map(|item| match item {
-            Item::Command(command) => Some(*command),
-            _ => None,
-        })
-        .collect();
+    let entries = split.entries();
     let Some(primary) = bar.ribbon.primary_of(split.group, split.before, &entries) else {
         menu(ui, split.group, split.items, bar.state, bar.asked);
         return;

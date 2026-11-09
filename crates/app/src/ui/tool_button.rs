@@ -21,8 +21,8 @@ mod tooltip;
 
 pub use chevron::{CHEVRON_WIDTH, chevron_button};
 pub use key_frame::key_frame;
-pub use menu::{menu_row, ribbon_menu};
-pub use small::{Rows, small_button, small_column, small_grid, small_icon_button};
+pub use menu::{menu_row, ribbon_menu, sub_menu};
+pub use small::{Rows, small_button, small_column, small_grid, small_icon_button, small_separator};
 pub use tooltip::tooltip;
 
 const LARGE_BUTTON_AT_LEAST: Vec2 = vec2(50.0, 64.0);
@@ -31,6 +31,8 @@ const NAME_WRAPS_AT_MOST_AT: f32 = 210.0;
 const NAME_WIDENS_BY: f32 = 4.0;
 const NAME_ROWS: usize = 2;
 const KEY_INSET: f32 = 4.0;
+/// What a key keeps clear of the centred icon beside it.
+const KEY_CLEARS_ICON: f32 = 2.0;
 
 /// What a button is called for whoever cannot see it, and in its tooltip.
 pub fn name_and_key(name: &str, key: Option<&str>) -> String {
@@ -63,9 +65,9 @@ pub fn tool_button(
         let side = IconSize::Large.points();
         let padding = ui.spacing().button_padding;
         let gap = ui.spacing().icon_spacing;
-        let key_width = written_key
-            .as_ref()
-            .map_or(0.0, |key| key.size().x + 2.0 * KEY_INSET);
+        let key_width = written_key.as_ref().map_or(0.0, |key| {
+            side + 2.0 * (KEY_INSET + KEY_CLEARS_ICON + key.size().x)
+        });
         let size = LARGE_BUTTON_AT_LEAST.max(vec2(
             (written_name.size().x + 2.0 * padding.x).max(key_width),
             2.0 * padding.y + side + gap + written_name.size().y,
@@ -123,7 +125,8 @@ fn written_name(ui: &Ui, name: &str, ink: Color32) -> Arc<Galley> {
     };
     let mut width = NAME_WRAPS_AT;
     let mut written = wrapped_at(width);
-    while written.rows.len() > NAME_ROWS && width < NAME_WRAPS_AT_MOST_AT {
+    while (written.rows.len() > NAME_ROWS || cuts_a_word(&written)) && width < NAME_WRAPS_AT_MOST_AT
+    {
         width += NAME_WIDENS_BY;
         written = wrapped_at(width);
     }
@@ -146,6 +149,15 @@ fn pressable(ui: &mut Ui, size: Vec2, on: bool, name: &str, key: Option<&str>) -
     let called = name_and_key(name, key);
     response.widget_info(|| WidgetInfo::selected(WidgetType::Button, ui.is_enabled(), on, &called));
     (rect, response)
+}
+
+fn cuts_a_word(written: &Galley) -> bool {
+    written.rows.windows(2).any(|pair| {
+        let stops = pair[0].row.glyphs.last();
+        let goes_on = pair[1].row.glyphs.first();
+        stops.is_some_and(|glyph| !glyph.chr.is_whitespace())
+            && goes_on.is_some_and(|glyph| !glyph.chr.is_whitespace())
+    })
 }
 
 /// The redesign names the colour of a greyed-out button outright, so the

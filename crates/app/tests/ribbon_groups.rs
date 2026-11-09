@@ -73,6 +73,12 @@
 //! - the chevron stays clickable when any entry is enabled, even if the
 //!   primary is greyed out —
 //!   `the_chevron_stays_clickable_while_its_primary_is_greyed_out`
+//! - found in review: and reaches its nested commands when its group holds only
+//!   sub-groups — `a_chevron_reaches_the_commands_of_its_sub_groups`
+//! - found in review: a separator in a small group leaves its later columns on
+//!   the bar — `a_separator_in_a_small_group_keeps_its_later_columns_on_the_bar`
+//! - found in review: no rule dangles at the end of a wrapped line —
+//!   `no_separator_dangles_at_the_end_of_a_wrapped_line`
 //! - amber when the command it runs is the active one —
 //!   `a_split_button_is_on_while_the_command_it_runs_is_in_hand`
 //! - Tooltip (C9): the name, the key in a frame (C14), one sentence of help —
@@ -93,17 +99,16 @@
 //!   `hovering_a_menu_row_shows_its_help`
 //! - a greyed-out button keeps today's behaviour, read as it stands —
 //!   `a_greyed_out_button_shows_no_tooltip`
-//! - missing sentences are written in this issue — no test: every command
-//!   already has a hint in `crates/app/src/wording/command.rs`, so no sentence
-//!   is missing and none is written
 //! - with « Noms des boutons » off: icons only —
 //!   `with_names_off_every_ribbon_button_is_its_icon_alone`
 //! - and a small group's buttons stay at their row's height —
 //!   `with_names_off_a_small_group_is_icons_only_at_the_height_of_its_rows`
 //! - and a split button is its icon and its chevron —
 //!   `with_names_off_a_split_button_is_its_icon_and_its_chevron`
-//! - a group keeps its name, read as « Noms des boutons » speaking of buttons —
-//!   `with_names_off_a_group_keeps_its_name_under_its_buttons`
+//! - a group keeps its whole name, read as « Noms des boutons » speaking of
+//!   buttons — `with_names_off_a_group_keeps_its_name_under_its_buttons`
+//! - and down a side, not elided either —
+//!   `down_a_side_with_names_off_a_group_writes_its_whole_name`
 //! - down the left or right: groups stack — `down_a_side_the_groups_stack`
 //! - every button small — `down_a_side_every_button_is_small`
 //! - a group's name still sits under its buttons —
@@ -111,11 +116,17 @@
 //! - nothing runs off the panel —
 //!   `down_a_side_nothing_runs_off_the_panel`; reached by scroll when the
 //!   column is taller than the window, as `fitting_the_window.rs` holds
+//! - found in review: a command directly in a tab, down a side, is small —
+//!   `down_a_side_a_command_sitting_directly_in_a_tab_is_small`
 //! - floating: as at the top — `a_floating_ribbon_is_laid_out_as_along_the_top`
+//! - found in review: no wider than what it holds —
+//!   `a_floating_bar_is_no_wider_than_what_it_holds`
 //! - sizes as the setting says —
 //!   `a_floating_ribbon_draws_each_group_at_its_size`
 //! - and wrapped group by group in a narrow window —
 //!   `a_floating_ribbon_wraps_group_by_group_in_a_narrow_window`
+//! - every command of today's ribbon can be reached, as a button, a split body
+//!   or a menu entry — `every_command_of_the_default_tree_can_be_reached`
 //! - every button keeps its name as its accessible label —
 //!   `every_ribbon_button_keeps_its_name_as_its_accessible_label`
 //! - toolbar positions (top, bottom, left, right, floating) —
@@ -232,9 +243,11 @@ fn a_group_s_name_stays_an_accessible_name() {
 #[test]
 fn a_thin_separator_stands_between_two_groups() {
     let app = three_groups("a_thin_separator_stands", WIDE);
-    let drawing = extent(&app, &["Rectangle", "Mesurer"]);
-    let editing = extent(&app, &["Cote", "Chanfrein"]);
-    let export = extent(&app, &["Sélection", "Nouvelle esquisse"]);
+    let (drawing, editing, export) = (
+        whole_group(&app, 0),
+        whole_group(&app, 1),
+        whole_group(&app, 2),
+    );
 
     for (left, right) in [(drawing, editing), (editing, export)] {
         let between = rules_between(&app, left, right);
@@ -264,7 +277,7 @@ fn a_thin_separator_stands_between_two_groups() {
 #[test]
 fn no_separator_follows_the_last_group() {
     let app = three_groups("no_separator_follows_the_last", WIDE);
-    let export = extent(&app, &["Sélection", "Nouvelle esquisse"]);
+    let export = whole_group(&app, 2);
 
     let after: Vec<Rule> = vertical_rules(&app)
         .into_iter()
@@ -974,8 +987,169 @@ fn with_names_off_a_group_keeps_its_name_under_its_buttons() {
         "« ÉDITION » at {:?} is not under its buttons, which end at {lowest}",
         name.rect,
     );
+    assert_not_cut_short(&name, "ÉDITION");
 }
 
+#[test]
+fn down_a_side_with_names_off_a_group_writes_its_whole_name() {
+    let mut settings = Settings::default();
+    settings.toolbar.show_labels = false;
+    settings.toolbar.edge = Edge::Left;
+    let app = opened("down_a_side_with_names_off_whole_name", WIDE, settings);
+
+    let name = written(&app, "ÉDITION");
+
+    assert_not_cut_short(&name, "ÉDITION");
+}
+
+#[test]
+fn down_a_side_a_command_sitting_directly_in_a_tab_is_small() {
+    let mut settings = Settings::default();
+    settings.toolbar.edge = Edge::Left;
+    let app = opened("down_a_side_a_command_directly_in_a_tab", WIDE, settings);
+
+    let new_sketch = row_starting(&app, "Nouvelle esquisse").rect();
+
+    assert!(
+        new_sketch.height() <= 26.0 + ALIGNED_WITHIN,
+        "« Nouvelle esquisse », directly in its tab down a side, is {} high",
+        new_sketch.height(),
+    );
+}
+
+#[test]
+fn a_floating_bar_is_no_wider_than_what_it_holds() {
+    let mut settings = Settings::default();
+    settings.toolbar.edge = Edge::Floating;
+    let mut app = opened("a_floating_bar_is_no_wider", WIDE, settings);
+    driver::click_the_button(&mut app, "Extrusion");
+
+    let holds = row_starting(&app, "Ajout de matière")
+        .rect()
+        .union(row_starting(&app, "Révolution").rect());
+    let window = shapes(&app)
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect) if rect.fill.a() > 0 && rect.rect.contains_rect(holds) => {
+                Some(rect.rect)
+            }
+            _ => None,
+        })
+        .min_by(|one, other| one.area().total_cmp(&other.area()))
+        .expect("the floating window's frame around its tab");
+
+    assert!(
+        window.width() <= WIDE.x / 2.0,
+        "a floating bar holding the extrusion tab is {} wide on a window of {}",
+        window.width(),
+        WIDE.x,
+    );
+}
+
+#[test]
+fn a_separator_in_a_small_group_keeps_its_later_columns_on_the_bar() {
+    use Command as C;
+    let settings = bar_of(vec![Item::Group {
+        name: "edit".to_string(),
+        size: GroupSize::SmallThreeRows,
+        items: vec![
+            Item::Command(C::Undo),
+            Item::Separator,
+            Item::Command(C::Redo),
+            Item::Command(C::ToolLine),
+            Item::Command(C::ToolSelect),
+            Item::Command(C::ToolRectangle),
+            Item::Command(C::ToolPoint),
+            Item::Command(C::ToolMeasure),
+        ],
+    }]);
+    let app = opened("a_separator_in_a_small_group", WIDE, settings);
+
+    for button in [
+        "Annuler",
+        "Rétablir",
+        "Ligne",
+        "Sélection",
+        "Rectangle",
+        "Point",
+        "Mesurer",
+    ] {
+        let at = row_starting(&app, button).rect();
+        assert!(
+            at.right() <= WIDE.x,
+            "« {button} » at {at:?} is pushed off the bar by a separator before it",
+        );
+    }
+}
+
+#[test]
+fn no_separator_dangles_at_the_end_of_a_wrapped_line() {
+    let app = three_groups("no_separator_dangles", egui::vec2(900.0, 800.0));
+    let groups = [0, 1, 2].map(|rank| whole_group(&app, rank));
+
+    let rules: Vec<Rule> = vertical_rules(&app)
+        .into_iter()
+        .filter(|rule| groups.iter().any(|group| rule.runs_beside(*group)))
+        .collect();
+
+    for rule in &rules {
+        let before = groups
+            .iter()
+            .any(|group| group.right() <= rule.at && rule.runs_beside(*group));
+        let after = groups
+            .iter()
+            .any(|group| group.left() >= rule.at && rule.runs_beside(*group));
+        assert!(
+            before && after,
+            "the rule {rule:?} stands at the end of a wrapped line, beside the groups {groups:?}",
+        );
+    }
+}
+
+#[test]
+fn a_chevron_reaches_the_commands_of_its_sub_groups() {
+    use Command as C;
+    let settings = bar_of(vec![Item::group(
+        "drawing",
+        vec![
+            Item::Command(C::NewSketch),
+            Item::Command(C::ToolCircle),
+            Item::group(
+                "circles",
+                vec![Item::group(
+                    "arcs",
+                    commands(&[C::ArcByCenter, C::ArcByEnds]),
+                )],
+            ),
+        ],
+    )]);
+    let mut app = opened("a_chevron_reaches_its_sub_groups", WIDE, settings);
+    driver::start_a_sketch(&mut app);
+
+    assert!(
+        !the_button(&app, "Cercles").accesskit_node().is_disabled(),
+        "the chevron of a group holding only sub-groups is greyed out",
+    );
+    driver::click_exactly(&mut app, "Cercles");
+    driver::click_exactly(&mut app, "Arcs");
+
+    the_button(&app, "Centre, départ et arrivée");
+}
+
+#[test]
+fn every_command_of_the_default_tree_can_be_reached() {
+    let mut app = driver::a_block("every_command_can_be_reached");
+    driver::start_a_sketch(&mut app);
+    let tree = cao_prefs::ToolbarLayout::default();
+
+    for tab in &tree.items {
+        let Item::Group { name, items, .. } = tab else {
+            continue;
+        };
+        driver::click_the_button(&mut app, tab_named(name));
+        reach(&mut app, items, 1);
+    }
+}
 #[test]
 fn down_a_side_the_groups_stack() {
     for edge in [Edge::Left, Edge::Right] {
@@ -1067,6 +1241,8 @@ fn down_a_side_nothing_runs_off_the_panel() {
             "Point",
             "Annuler",
             "Ajuster",
+            "Cercle",
+            "Cercles",
         ] {
             let at = row_starting(&app, button).rect();
             assert!(
@@ -1253,7 +1429,16 @@ const THE_THREE_GROUPS: [(&str, &[&str]); 3] = [
             "Chanfrein",
         ],
     ),
-    ("EXPORT", &["Sélection", "Ligne", "Annuler", "Rétablir"]),
+    (
+        "EXPORT",
+        &[
+            "Sélection",
+            "Ligne",
+            "Annuler",
+            "Rétablir",
+            "Nouvelle esquisse",
+        ],
+    ),
 ];
 
 fn opened_with_names_off(test: &str) -> driver::App {
@@ -1303,13 +1488,6 @@ fn assert_tall(button: egui::Rect, height: f32, what: &str) {
         "{what} is {} high, where C2 asks for {height}",
         button.height(),
     );
-}
-
-/// Where a group stands: the width of the buttons named.
-fn extent(app: &driver::App, buttons: &[&str]) -> egui::Rect {
-    buttons.iter().fold(egui::Rect::NOTHING, |group, button| {
-        group.union(the_ribbon_button(app, button))
-    })
 }
 
 fn shapes(app: &driver::App) -> Vec<egui::Shape> {
@@ -1609,4 +1787,148 @@ fn shapes_in_painted_order(app: &driver::App) -> Vec<egui::Shape> {
         walk(&clipped.shape, &mut out);
     }
     out
+}
+
+fn assert_not_cut_short(name: &Written, whole: &str) {
+    assert!(
+        !name.text.galley.elided,
+        "« {whole} » is written cut short, at {:?}",
+        name.rect,
+    );
+}
+
+fn tab_named(name: &str) -> &'static str {
+    match name {
+        "sketch" => "Esquisse",
+        "extrusion" => "Extrusion",
+        "export" => "Export",
+        other => panic!("no tab of the default tree is called {other}"),
+    }
+}
+
+/// Finds every entry of a run of the tree in the drawn bar: a command as a
+/// button of the bar, a group below the first level, or asking for it, by
+/// opening its menu and finding each of its entries there.
+fn reach(app: &mut driver::App, items: &[Item], depth: usize) {
+    for item in items {
+        match item {
+            Item::Command(command) => {
+                let name = name_of(*command);
+                assert!(
+                    can_be_found(app, name),
+                    "« {name} » cannot be found; the screen names {:?}",
+                    driver::on_screen(app),
+                );
+            }
+            Item::Group { name, size, items } => {
+                if depth > 1 || *size == GroupSize::Menu {
+                    let chevron = chevron_of(name);
+                    driver::click_exactly(app, chevron);
+                    for entry in items {
+                        let Item::Command(command) = entry else {
+                            panic!("the menu {name} holds something else than commands");
+                        };
+                        let rows = name_of(*command);
+                        assert!(
+                            can_be_found(app, rows),
+                            "« {rows} » cannot be found in the open menu {name}; the screen names \
+                             {:?}",
+                            driver::on_screen(app),
+                        );
+                    }
+                    driver::click_exactly(app, chevron);
+                } else {
+                    reach(app, items, depth + 1);
+                }
+            }
+            Item::Separator => {}
+        }
+    }
+}
+
+fn chevron_of(group: &str) -> &'static str {
+    match group {
+        "circles" => "Cercles",
+        "arcs" => "Arcs",
+        "ellipses" => "Ellipses",
+        "chamfers" => "Chanfreins",
+        "constraints" => "Contraintes ⌄",
+        "stl" => "Exporter en STL… ⌄",
+        other => panic!("the group {other} has no chevron in the default tree"),
+    }
+}
+
+fn can_be_found(app: &driver::App, name: &str) -> bool {
+    app.query_all_by_role(Role::Button).any(|node| {
+        node.accesskit_node().label().is_some_and(|label| {
+            label == name
+                || label.starts_with(&format!("{name} ("))
+                || (name == "Matière devant" && label.starts_with(name))
+        })
+    })
+}
+
+/// What each command of the default tree reads on its button.
+fn name_of(command: Command) -> &'static str {
+    use Command as C;
+    [
+        (C::NewSketch, "Nouvelle esquisse"),
+        (C::SectionView, "Vue en coupe"),
+        (C::ToolSelect, "Sélection"),
+        (C::ToolLine, "Ligne"),
+        (C::ToolLineSymmetric, "Ligne symétrique"),
+        (C::ToolRectangle, "Rectangle"),
+        (C::ToolCircle, "Cercle"),
+        (C::CircleCenter, "Centre et diamètre"),
+        (C::CircleTwoPoints, "Deux points du bord"),
+        (C::CircleThreePoints, "Deux points puis le centre"),
+        (C::CircleTwoTangents, "Tangent à deux droites"),
+        (C::CircleThreeTangents, "Tangent à trois droites"),
+        (C::ToolArc, "Arc"),
+        (C::ArcByCenter, "Centre, départ et arrivée"),
+        (C::ArcByEnds, "Deux bouts et un point traversé"),
+        (C::ToolEllipse, "Ellipse"),
+        (C::EllipseByCentre, "Centre et deux axes"),
+        (C::EllipseByEnds, "Deux bouts et une flèche"),
+        (C::ToolPoint, "Point"),
+        (C::ToolDimension, "Cote"),
+        (C::ToolMeasure, "Mesurer"),
+        (C::ToolTrim, "Ajuster"),
+        (C::ToolSplit, "Diviser"),
+        (C::ToolMirror, "Symétrie"),
+        (C::ToolCircularPattern, "Réseau circulaire"),
+        (C::ToolRectangularPattern, "Réseau rectangulaire"),
+        (C::ToolFillet, "Congé"),
+        (C::ToolChamfer, "Chanfrein"),
+        (C::ChamferEqual, "Chanfrein à distance égale"),
+        (C::ChamferAngled, "Chanfrein distance et angle"),
+        (C::ChamferSided, "Chanfrein à deux distances"),
+        (C::ToggleConstruction, "Construction"),
+        (C::RulePerpendicular, "Perpendiculaire"),
+        (C::RuleParallel, "Parallèle"),
+        (C::RuleEqual, "Égalité"),
+        (C::RuleCoincident, "Coïncidence"),
+        (C::RuleCollinear, "Colinéaire"),
+        (C::RuleTangent, "Tangence"),
+        (C::RuleMidpoint, "Milieu"),
+        (C::RuleFixed, "Fixe"),
+        (C::RuleConcentric, "Concentrique"),
+        (C::Reframe, "Recadrer"),
+        (C::NextMatterInFront, "Matière devant"),
+        (C::FinishSketch, "Terminer"),
+        (C::Undo, "Annuler"),
+        (C::Redo, "Rétablir"),
+        (C::ExtrusionAdd, "Ajout de matière"),
+        (C::ExtrusionCut, "Enlèvement de matière"),
+        (C::ExtrusionStraight, "Extrusion droite"),
+        (C::ExtrusionRevolution, "Révolution"),
+        (C::ExportStlCoarse, "Grossière"),
+        (C::ExportStlNormal, "Normale"),
+        (C::ExportStlFine, "Fine"),
+        (C::ExportStep, "Exporter en STEP…"),
+    ]
+    .into_iter()
+    .find(|(named, _)| *named == command)
+    .map(|(_, name)| name)
+    .unwrap_or_else(|| panic!("{command:?} is not in the default tree's table"))
 }

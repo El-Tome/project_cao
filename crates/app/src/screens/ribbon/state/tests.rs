@@ -68,8 +68,18 @@
 //! - and choosing a variant from its menu does not change what its icon runs —
 //!   `a_variant_chosen_from_a_menu_leaves_a_split_with_a_command_of_its_own_alone`
 //! - decided: the icon of « Exporter en STL… » runs the normal level, whichever
-//!   was last chosen —
-//!   `the_stl_split_runs_the_normal_level_whichever_level_was_last_chosen`
+//!   was last chosen — decided by what the group holds, not by what it is
+//!   called — `the_stl_split_runs_the_normal_level_whichever_level_was_last_chosen`
+//! - found in review: a group holding no normal level, even named `stl`, never
+//!   runs what its menu does not hold —
+//!   `a_group_without_the_normal_level_never_runs_it_whatever_it_is_called`
+//! - the pairing of a command with the menu after it needs no window: a command
+//!   then a menu pair — `a_command_followed_by_a_menu_is_one_split`
+//! - a toggle does not — `a_toggle_followed_by_a_menu_is_not_one_split`
+//! - a group with no command before it stands alone —
+//!   `a_menu_with_no_command_before_it_stands_alone`
+//! - a command at the end stands alone —
+//!   `a_command_at_the_end_of_a_run_stands_alone`
 //! - decided: the icon of « Contraintes » runs the first rule until one was
 //!   used from that menu —
 //!   `until_a_rule_was_used_the_constraints_split_runs_the_first`
@@ -620,17 +630,92 @@ fn a_variant_chosen_from_a_menu_leaves_a_split_with_a_command_of_its_own_alone()
 
 #[test]
 fn the_stl_split_runs_the_normal_level_whichever_level_was_last_chosen() {
-    let mut ribbon = Ribbon::new();
+    for called in ["stl", "levels"] {
+        let mut ribbon = Ribbon::new();
+        assert_eq!(
+            ribbon.primary_of(called, None, &STL_LEVELS),
+            Some(Command::ExportStlNormal),
+        );
+
+        ribbon.used_from_menu(called, Command::ExportStlFine);
+
+        assert_eq!(
+            ribbon.primary_of(called, None, &STL_LEVELS),
+            Some(Command::ExportStlNormal),
+        );
+    }
+}
+
+#[test]
+fn a_group_without_the_normal_level_never_runs_it_whatever_it_is_called() {
+    let levels = [Command::ExportStlCoarse, Command::ExportStlFine];
+
+    for called in ["stl", "levels"] {
+        assert_eq!(
+            Ribbon::new().primary_of(called, None, &levels),
+            Some(Command::ExportStlCoarse),
+            "the group « {called} » runs what its menu holds, its first entry",
+        );
+    }
+}
+
+const WITHIN_A_GROUP: usize = 2;
+
+fn what_is_paired(items: &[cao_prefs::Item]) -> Vec<String> {
+    runs(items, WITHIN_A_GROUP)
+        .iter()
+        .map(|run| match run {
+            Run::Plain(_) => "plain".to_owned(),
+            Run::Split(split) => format!("split {} after {:?}", split.group, split.before),
+        })
+        .collect()
+}
+
+fn a_menu_of_circles() -> cao_prefs::Item {
+    cao_prefs::Item::group(
+        "circles",
+        vec![cao_prefs::Item::Command(Command::CircleCenter)],
+    )
+}
+
+#[test]
+fn a_command_followed_by_a_menu_is_one_split() {
     assert_eq!(
-        ribbon.primary_of("stl", None, &STL_LEVELS),
-        Some(Command::ExportStlNormal),
+        what_is_paired(&[
+            cao_prefs::Item::Command(Command::ToolCircle),
+            a_menu_of_circles()
+        ]),
+        ["split circles after Some(ToolCircle)"],
     );
+}
 
-    ribbon.used_from_menu("stl", Command::ExportStlFine);
-
+#[test]
+fn a_toggle_followed_by_a_menu_is_not_one_split() {
     assert_eq!(
-        ribbon.primary_of("stl", None, &STL_LEVELS),
-        Some(Command::ExportStlNormal),
+        what_is_paired(&[
+            cao_prefs::Item::Command(Command::ToggleConstruction),
+            a_menu_of_circles(),
+        ]),
+        ["plain", "split circles after None"],
+    );
+}
+
+#[test]
+fn a_menu_with_no_command_before_it_stands_alone() {
+    assert_eq!(
+        what_is_paired(&[a_menu_of_circles()]),
+        ["split circles after None"],
+    );
+}
+
+#[test]
+fn a_command_at_the_end_of_a_run_stands_alone() {
+    assert_eq!(
+        what_is_paired(&[
+            a_menu_of_circles(),
+            cao_prefs::Item::Command(Command::ToolCircle),
+        ]),
+        ["split circles after None", "plain"],
     );
 }
 

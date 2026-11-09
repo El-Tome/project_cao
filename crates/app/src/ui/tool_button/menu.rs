@@ -1,4 +1,8 @@
-use egui::{Align2, CornerRadius, FontId, Frame, Margin, Popup, Response, Stroke, Ui, Vec2, vec2};
+use egui::containers::menu::{SubMenuButton, is_in_menu};
+use egui::{
+    Align2, Button, CornerRadius, FontId, Frame, Margin, Popup, Response, Stroke, TextStyle, Ui,
+    Vec2, vec2,
+};
 
 use super::{ink, key_ink, pressable, undo_the_fade};
 use crate::ui::icon::{Icon, IconSize};
@@ -31,6 +35,24 @@ pub fn ribbon_menu(opened_by: &Response, rows: impl FnOnce(&mut Ui)) {
             ui.spacing_mut().item_spacing.y = 0.0;
             rows(ui);
         });
+}
+
+/// A group of commands that opens on click. Inside a menu it is a line of that
+/// menu with its arrow painted apart, or the arrow would be read as its name.
+pub fn sub_menu(ui: &mut Ui, name: &str, entries: impl FnOnce(&mut Ui)) {
+    if !is_in_menu(ui) {
+        ui.menu_button(name, entries);
+        return;
+    }
+    let (response, _) = SubMenuButton::from_button(Button::new(name)).ui(ui, entries);
+    let padding = ui.spacing().button_padding.x;
+    ui.painter().text(
+        response.rect.right_center() - vec2(padding, 0.0),
+        Align2::RIGHT_CENTER,
+        SubMenuButton::RIGHT_ARROW,
+        TextStyle::Button.resolve(ui.style()),
+        ui.style().interact(&response).text_color(),
+    );
 }
 
 /// A line of the menu: its icon and its name, and on its right what `hint`

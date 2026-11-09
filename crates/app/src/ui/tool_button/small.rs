@@ -1,8 +1,8 @@
-use egui::{Align2, FontId, Response, Ui, Vec2, vec2};
+use egui::{Align2, FontId, Response, Sense, Stroke, Ui, Vec2, vec2};
 
 use super::{ink, key_ink, pressable, undo_the_fade, written_key};
 use crate::ui::icon::{Icon, IconSize};
-use crate::ui::theme::tokens::TYPOGRAPHY_SIZES_RIBBON_BUTTON;
+use crate::ui::theme::tokens::{BORDER_GROUP, TYPOGRAPHY_SIZES_RIBBON_BUTTON};
 
 /// What three rows of 20 leave of the 64 a large button stands in.
 const ROW_GAP: f32 = 2.0;
@@ -100,6 +100,17 @@ pub fn small_icon_button(
             .paint_at(ui, icon_rect);
         response
     })
+}
+
+/// A rule across what its column already holds, which a plain separator would
+/// stretch to the width of the bar.
+pub fn small_separator(ui: &mut Ui) {
+    let (rect, _) = ui.allocate_exact_size(vec2(ui.min_rect().width(), 1.0), Sense::hover());
+    ui.painter().hline(
+        rect.x_range(),
+        rect.center().y,
+        Stroke::new(1.0, BORDER_GROUP),
+    );
 }
 
 /// Lays `count` cells in columns of `rows`, top to bottom then the next column.

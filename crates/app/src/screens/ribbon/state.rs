@@ -6,7 +6,7 @@ use crate::screens::sketch::{
 use crate::ui::icon::Icon;
 use crate::wording::{command as wording, matter};
 use cao_part::PartDocument;
-use cao_prefs::{Command, Settings};
+use cao_prefs::{Command, GroupSize, Item, Settings};
 use cao_sketch::Rule;
 use std::collections::HashMap;
 
@@ -40,6 +40,8 @@ pub struct Ribbon {
     pub section_on: bool,
     /// The command last picked from each menu, by group, for the session.
     last_used: HashMap<String, Command>,
+    /// How wide what a floating bar holds came out last frame.
+    pub(super) floating_width: f32,
 }
 
 impl Ribbon {
@@ -53,6 +55,7 @@ impl Ribbon {
             section_delete_confirm: None,
             section_on: false,
             last_used: HashMap::new(),
+            floating_width: 0.0,
         }
     }
 
@@ -67,7 +70,7 @@ impl Ribbon {
         if before.is_some() {
             return before;
         }
-        if group == "stl" {
+        if entries.contains(&Command::ExportStlNormal) {
             return Some(Command::ExportStlNormal);
         }
         self.last_used
@@ -85,8 +88,82 @@ impl Ribbon {
 /// Whether a menu right after this command is its variants. A toggle's state
 /// is no tool a menu could offer variants of: « Construction » precedes
 /// « Contraintes » without being one of them.
-pub(super) fn takes_a_menu(command: Command) -> bool {
+fn takes_a_menu(command: Command) -> bool {
     command != Command::ToggleConstruction
+}
+
+/// The deepest level whose groups are spread out on the bar: a group below it
+/// is a menu, and the commands it holds are its entries.
+pub(super) const SPREAD_OUT: usize = 1;
+
+/// One button out of a menu-depth group and the command before it, if any.
+pub(super) struct Split<'a> {
+    pub(super) before: Option<Command>,
+    pub(super) group: &'a str,
+    pub(super) items: &'a [Item],
+}
+
+impl<'a> Split<'a> {
+    /// `item` as a split, when it is a group drawn as one at this depth.
+    fn of(item: &'a Item, before: Option<Command>, depth: usize) -> Option<Self> {
+        match item {
+            Item::Group { name, size, items } if depth > SPREAD_OUT || *size == GroupSize::Menu => {
+                Some(Self {
+                    before,
+                    group: name,
+                    items,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    /// Every command its menu reaches, the ones in its sub-menus included.
+    pub(super) fn entries(&self) -> Vec<Command> {
+        commands_within(self.items)
+    }
+}
+
+fn commands_within(items: &[Item]) -> Vec<Command> {
+    items
+        .iter()
+        .flat_map(|item| match item {
+            Item::Command(command) => vec![*command],
+            Item::Group { items, .. } => commands_within(items),
+            Item::Separator => Vec::new(),
+        })
+        .collect()
+}
+
+/// An entry of the tree as the bar draws it: a command and the menu right
+/// after it are one split button.
+pub(super) enum Run<'a> {
+    Plain(&'a Item),
+    Split(Split<'a>),
+}
+
+pub(super) fn runs(items: &[Item], depth: usize) -> Vec<Run<'_>> {
+    let mut runs = Vec::new();
+    let mut rest = items.iter().peekable();
+    while let Some(item) = rest.next() {
+        if let Some(split) = Split::of(item, None, depth) {
+            runs.push(Run::Split(split));
+            continue;
+        }
+        let before = match item {
+            Item::Command(command) if takes_a_menu(*command) => Some(*command),
+            _ => None,
+        };
+        let paired = before.and_then(|_| Split::of(rest.peek()?, before, depth));
+        match paired {
+            Some(split) => {
+                rest.next();
+                runs.push(Run::Split(split));
+            }
+            None => runs.push(Run::Plain(item)),
+        }
+    }
+    runs
 }
 
 pub(super) fn any_entry_enabled(entries: &[Command], state: &Context<'_>) -> bool {

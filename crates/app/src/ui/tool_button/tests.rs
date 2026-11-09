@@ -41,6 +41,10 @@
 //! - all its text, read so: the key of a disabled button is `text.disabled`
 //!   too, never brighter than its name —
 //!   `a_greyed_out_large_button_writes_its_key_in_the_disabled_colour`
+//! - found in review: a long key never overlaps the icon —
+//!   `a_large_button_s_key_never_overlaps_its_icon`
+//! - found in review: a single word longer than 70 is not cut in two —
+//!   `a_word_longer_than_70_is_not_cut_in_two`
 //! - Small button (C2): icon of 15 px left of the name —
 //!   `a_small_button_wears_an_icon_of_15_points_left_of_its_name`
 //! - key aligned right — `a_small_button_aligns_its_key_on_the_right`
@@ -318,6 +322,30 @@ fn a_short_name_on_a_large_button_stays_on_one_line() {
     let (_, text) = drawn.written("Ligne");
 
     assert_eq!(text.galley.rows.len(), 1, "the lines of « Ligne »");
+}
+
+#[test]
+fn a_large_button_s_key_never_overlaps_its_icon() {
+    for (name, key) in [("Nouvelle esquisse", "Cmd+N"), ("Terminer", "Entrée")] {
+        let drawn = at_rest(name, Some(key));
+        let (written_key, _) = drawn.written(key);
+        let icon = drawn.icon();
+
+        assert!(
+            !written_key.intersects(icon),
+            "the key « {key} » of « {name} » at {written_key:?} overlaps the icon at {icon:?}",
+        );
+    }
+}
+
+#[test]
+fn a_word_longer_than_70_is_not_cut_in_two() {
+    for word in ["Perpendiculaire", "Concentrique", "Rectangulaire"] {
+        let drawn = at_rest(word, None);
+        let (_, text) = drawn.written(word);
+
+        assert_eq!(text.galley.rows.len(), 1, "the lines of « {word} »");
+    }
 }
 
 #[test]

@@ -106,6 +106,23 @@ fn a_ball_turned_whole_is_drawn_closed_from_its_poles_alone_and_encloses_its_vol
 }
 
 #[test]
+fn a_ball_turned_whole_with_no_edge_at_all_is_capped_once_its_grid_needs_more_than_the_most_steps()
+{
+    let body = turned(&ball(), 360.0);
+    assert_eq!(body.edge_ids().count(), 0, "a whole ball has no edge");
+    let capped = |tolerance: f64| Samples::of(&body, tolerance).capped(&body, tolerance);
+
+    assert!(
+        !capped(1e-3),
+        "a turn of 5 within 1e-3 takes 236 steps on the sphere"
+    );
+    assert!(
+        capped(2e-5),
+        "a turn of 5 within 2e-5 needs 1656 steps on the sphere"
+    );
+}
+
+#[test]
 fn a_lune_and_a_half_ball_are_drawn_closed_with_a_fan_at_each_pole() {
     let poles = [DVec3::new(0.0, -5.0, 0.0), DVec3::new(0.0, 5.0, 0.0)];
     for degrees in [90.0, 180.0, 270.0, -120.0, 45.0] {

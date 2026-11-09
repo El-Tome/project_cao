@@ -64,6 +64,78 @@ fn a_circle_no_wider_than_its_part_is_cut_into_a_thousand_and_twenty_four_steps_
 }
 
 #[test]
+fn a_part_spans_half_the_diagonal_of_the_box_it_fits_in() {
+    let diagonal = (40f64.powi(2) + 40f64.powi(2) + 10f64.powi(2)).sqrt();
+    for (what, body) in [
+        ("the block", fixtures::block()),
+        ("the stock", fixtures::stock()),
+    ] {
+        let spanned = span(&body);
+        assert!(
+            (spanned - diagonal / 2.0).abs() < CLOSE * diagonal,
+            "{what} spans {spanned}, half of {diagonal}"
+        );
+    }
+}
+
+#[test]
+fn a_turn_needing_the_most_steps_is_held_and_one_needing_a_step_more_is_not() {
+    let radius = 20.0;
+    let sag = |steps: f64| radius * (1.0 - (PI / steps).cos());
+
+    let held = super::capped::beyond_most(radius, sag(1023.5), radius);
+    let past = super::capped::beyond_most(radius, sag(1024.5), radius);
+
+    assert!(
+        !held,
+        "a turn needing 1024 steps, the most it is cut into, is held"
+    );
+    assert!(past, "a turn needing 1025 steps is past the most");
+}
+
+/// The stock cut at both ends by planes leaning along X by `lean`: a wall
+/// going all the way round between two ellipses, with no circle along it.
+fn stock_cut_at_a_slant_at_both_ends(lean: f64) -> Body {
+    use crate::brep::topology::Coedge;
+    let mut build = fixtures::Build::new();
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
+    let top_point = DVec3::new(0.0, 0.0, fixtures::HEIGHT);
+    let (top, top_flipped) = build.plane(top_point, DVec3::new(lean, 0.0, 1.0));
+    let (bottom, bottom_flipped) = build.plane(DVec3::ZERO, DVec3::new(lean, 0.0, -1.0));
+    let mut ring = |plane| {
+        let [ellipse] = build.conic(plane, wall, fixtures::STOCK_RADIUS)[..] else {
+            panic!("a plane at a slant cuts a shaft along one ellipse");
+        };
+        let period = ellipse.period().expect("an ellipse closes");
+        build.conic_edge(ellipse, None, 0.0, period)
+    };
+    let (low, high) = (ring(bottom), ring(top));
+    let use_of = |edge, forward| Coedge { edge, forward };
+    build.face(
+        wall,
+        false,
+        vec![vec![use_of(low, true)], vec![use_of(high, false)]],
+    );
+    build.face(top, top_flipped, vec![vec![use_of(high, true)]]);
+    build.face(bottom, bottom_flipped, vec![vec![use_of(low, false)]]);
+    build.finish(fixtures::STOCK_RADIUS)
+}
+
+#[test]
+fn a_wall_with_no_circle_along_it_is_capped_once_its_turn_needs_more_than_the_most_steps() {
+    let body = stock_cut_at_a_slant_at_both_ends(0.2);
+    assert!(
+        body.edge_ids()
+            .all(|edge| !matches!(body.curve(body.edge(edge).curve), Curve::Circle(_))),
+        "the wall runs between two ellipses"
+    );
+    let capped = |tolerance: f64| Samples::of(&body, tolerance).capped(&body, tolerance);
+
+    assert!(!capped(2e-4), "a turn of 20 within 2e-4 takes 704 steps");
+    assert!(capped(5e-5), "a turn of 20 within 5e-5 needs 1405 steps");
+}
+
+#[test]
 fn a_chord_of_one_step_stands_within_the_tolerance_with_no_step_to_spare() {
     let sag = |radius: f64, steps: usize| radius * (1.0 - (PI / steps as f64).cos());
     for radius in [0.5, 5.0, 20.0, 300.0] {

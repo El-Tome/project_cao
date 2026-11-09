@@ -1,6 +1,9 @@
 //! An arc of a circle far wider than the part, drawn and written within the
 //! tolerance asked rather than in the steps the cap cuts a whole turn into.
 //!
+//! cargo-mutants leaves one mutant of `steps::most` alive, `>` for `>=`
+//! against 1024: at 1024 both branches return 1024, so it is equivalent.
+//!
 //! Closes #777.
 //! - A wall raised on the arc of radius 3437 over half a degree, on a part 30
 //!   wide, is drawn within `DRAWN` × reach of its arc, closed and uncrossed,
@@ -25,7 +28,11 @@
 //!   `a_circle_no_wider_than_the_part_asked_finer_than_a_thousand_and_twenty_four_steps_a_turn_is_declined_as_uncovered`,
 //!   and the same on a plane tilted so that no coordinate reaches the
 //!   circle's radius by
-//!   `a_disc_no_wider_than_its_part_on_a_tilted_plane_asked_finer_than_a_thousand_and_twenty_four_steps_a_turn_is_declined_as_uncovered`
+//!   `a_disc_no_wider_than_its_part_on_a_tilted_plane_asked_finer_than_a_thousand_and_twenty_four_steps_a_turn_is_declined_as_uncovered`,
+//!   an elliptic wall by
+//!   `an_elliptic_post_no_wider_than_its_part_asked_finer_than_a_thousand_and_twenty_four_steps_a_turn_is_declined_as_uncovered`,
+//!   and a wide arc asked finer than even its raised cap holds by
+//!   `a_wall_on_an_arc_far_wider_than_the_part_asked_finer_than_even_its_raised_cap_is_declined_as_uncovered`
 //!
 //! The fifth criterion is read as the comment of 2026-11-09 on the issue
 //! decided it with the human: the issue's own wording asked an ordinary circle
@@ -454,5 +461,57 @@ fn a_disc_no_wider_than_its_part_on_a_tilted_plane_asked_finer_than_a_thousand_a
          {past_the_cap} mm: {:.0} steps a turn",
         reach_of(&disc),
         needed(past_the_cap)
+    );
+}
+
+#[test]
+fn a_wall_on_an_arc_far_wider_than_the_part_asked_finer_than_even_its_raised_cap_is_declined_as_uncovered()
+ {
+    let wall = OnAnArc {
+        radius: 3437.0,
+        degrees: 0.5,
+    };
+    let gap = 2e-7;
+    let needed = std::f64::consts::PI / (1.0 - gap / wall.radius).acos();
+
+    let declined = stl::of(&wall.raised(), gap, 1.0).err();
+
+    assert_eq!(
+        declined,
+        Some(Uncovered),
+        "the wall on the arc of 3437, its part some 16 across its half-diagonal, asked within \
+         {gap} mm: {needed:.0} steps a turn"
+    );
+}
+
+#[test]
+fn an_elliptic_post_no_wider_than_its_part_asked_finer_than_a_thousand_and_twenty_four_steps_a_turn_is_declined_as_uncovered()
+ {
+    let post = on_a_part(raised(
+        Contour {
+            corners: vec![DVec2::new(15.0, 0.0)],
+            runs: vec![Run::Oval {
+                center: DVec2::ZERO,
+                first: DVec2::new(15.0, 0.0),
+                second: 8.0,
+                turn: TAU,
+            }],
+        },
+        GROUND,
+        10.0,
+    ));
+    let (under_the_cap, past_the_cap) = (1e-3, 5e-5);
+
+    let written = stl::of(&post, under_the_cap, 1.0).is_ok();
+    let declined = stl::of(&post, past_the_cap, 1.0).err();
+
+    assert!(
+        written,
+        "the elliptic post is written within {under_the_cap} mm"
+    );
+    assert_eq!(
+        declined,
+        Some(Uncovered),
+        "the elliptic post of semi-axes 15 and 8 asked within {past_the_cap} mm"
     );
 }

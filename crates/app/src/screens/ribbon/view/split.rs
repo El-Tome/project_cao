@@ -8,9 +8,6 @@ use super::super::state::{active, any_entry_enabled, enabled, icon, label};
 use super::groups::Bar;
 use super::{SPREAD_OUT, Shown, key_of, menu, named_button};
 
-/// The depth a menu inside a menu is drawn from.
-const INSIDE_A_MENU: usize = SPREAD_OUT + 1;
-
 /// One button out of a menu-depth group and the command before it, if any.
 pub(super) struct Split<'a> {
     before: Option<Command>,
@@ -47,14 +44,7 @@ pub(super) fn split_button(ui: &mut Ui, split: &Split<'_>, shown: Shown, bar: &m
         })
         .collect();
     let Some(primary) = bar.ribbon.primary_of(split.group, split.before, &entries) else {
-        menu(
-            ui,
-            split.group,
-            split.items,
-            INSIDE_A_MENU,
-            bar.state,
-            bar.asked,
-        );
+        menu(ui, split.group, split.items, bar.state, bar.asked);
         return;
     };
 
@@ -116,7 +106,7 @@ fn show_menu(chevron: &Response, split: &Split<'_>, bar: &mut Bar<'_>) {
                     ui.separator();
                 }
                 Item::Group { name, items, .. } => {
-                    menu(ui, name, items, INSIDE_A_MENU, bar.state, bar.asked);
+                    menu(ui, name, items, bar.state, bar.asked);
                 }
             }
         }

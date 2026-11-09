@@ -11,7 +11,8 @@ use crate::ui::logo::logo;
 use crate::ui::panel_toggle::{panel_button, panel_toggle};
 use crate::ui::theme::tokens::SPACING_L;
 use crate::ui::tool_button::{
-    Rows, icon_button, menu_entry, name_and_key, small_button, tool_button, tooltip,
+    Rows, icon_button, menu_entry, name_and_key, small_button, small_icon_button, tool_button,
+    tooltip,
 };
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
@@ -54,6 +55,9 @@ impl Drawn<'_> {
 /// How wide a toolbar starts when it is down one side.
 const SIDE_WIDTH: f32 = 210.0;
 
+/// How far a floating toolbar opens from the left of the window.
+const FLOATING_MARGIN: f32 = 24.0;
+
 impl Ribbon {
     /// Draws the bar and returns every command the user asked for this frame.
     pub fn show(
@@ -68,8 +72,13 @@ impl Ribbon {
 
         match layout.edge {
             Edge::Floating => {
+                // Auto-sized, a window measures a wrapped row against its own
+                // narrow width: it gets the width of the bar along the top.
+                let width = ui.max_rect().width() - 2.0 * FLOATING_MARGIN;
                 egui::Window::new(lang.t("ribbon.tools"))
-                    .default_pos(ui.max_rect().left_top() + egui::vec2(24.0, 80.0))
+                    .default_pos(ui.max_rect().left_top() + egui::vec2(FLOATING_MARGIN, 80.0))
+                    .min_width(width)
+                    .max_width(width)
                     .resizable(false)
                     .show(ui.ctx(), |ui| {
                         asked = self.contents(ui, settings, drawn, lang);
@@ -131,40 +140,37 @@ impl Ribbon {
     ) -> Vec<Command> {
         let layout = &settings.toolbar;
         let mut asked = Vec::new();
-        let vertical = layout.edge.is_vertical() || layout.edge == Edge::Floating;
+        let side = layout.edge.is_vertical();
 
-        self.header(ui, layout, &mut asked, vertical, lang);
+        self.header(ui, layout, &mut asked, side, lang);
         ui.separator();
 
         let state = drawn.context(settings, lang, self.section_on);
 
         // The open tab, then whatever sits at the top level outside any group. A
         // button's own label must never wrap: a row that no longer fits the widest
-        // one is what pushes it to the next row (see `lay_out`); a label left free
+        // one is what pushes it to the next row; a label left free
         // to shrink to fit the leftover space instead reports itself as always
         // fitting, and egui's own fallback for text with nowhere to go is to break
         // it one letter per line.
         ui.scope(|ui| {
             ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Extend);
 
-            let open = layout.items.get(self.tab);
-            if let Some(Item::Group { items, .. }) = open {
-                if vertical {
-                    lay_out(ui, items, 1, &state, &mut asked, vertical);
-                } else {
-                    groups::open_tab(ui, items, &state, &mut asked, self);
-                }
+            if let Some(Item::Group { items, .. }) = layout.items.get(self.tab) {
+                groups::open_tab(ui, items, &state, &mut asked, self, side);
             }
+            let shown = if side {
+                Shown::Small(Rows::Three)
+            } else {
+                Shown::Large
+            };
             for item in &layout.items {
-                if !matches!(item, Item::Group { .. }) {
-                    lay_out(
-                        ui,
-                        std::slice::from_ref(item),
-                        1,
-                        &state,
-                        &mut asked,
-                        vertical,
-                    );
+                match item {
+                    Item::Command(command) => button(ui, *command, &state, &mut asked, shown),
+                    Item::Separator => {
+                        ui.separator();
+                    }
+                    Item::Group { .. } => {}
                 }
             }
         });
@@ -246,70 +252,24 @@ impl Ribbon {
 /// is a menu, and the commands it holds are its entries.
 const SPREAD_OUT: usize = 1;
 
-/// Draws a run of entries, at the depth they sit in the tree.
-///
-/// A group one level in is spread out where it is, with its name beside it; any
-/// deeper and it becomes a menu that opens on click. Laying a third level out
-/// in place would push everything else off the bar, and there is no bottom to
-/// how deep the user may go.
-fn lay_out(
-    ui: &mut egui::Ui,
-    items: &[Item],
-    depth: usize,
-    state: &Context<'_>,
-    asked: &mut Vec<Command>,
-    vertical: bool,
-) {
-    let run = |ui: &mut egui::Ui| {
-        for item in items {
-            match item {
-                Item::Command(command) => {
-                    let shown = if depth > SPREAD_OUT + 1 {
-                        Shown::MenuEntry
-                    } else {
-                        Shown::Large
-                    };
-                    button(ui, *command, state, asked, shown);
-                }
-                Item::Separator => {
-                    ui.separator();
-                }
-                Item::Group { name, items, .. } if depth <= SPREAD_OUT => {
-                    ui.group(|ui| {
-                        let inner = |ui: &mut egui::Ui| {
-                            ui.weak(group(state.lang, name));
-                            lay_out(ui, items, depth + 1, state, asked, vertical);
-                        };
-                        if vertical {
-                            ui.vertical(inner);
-                        } else {
-                            ui.horizontal_wrapped(inner);
-                        }
-                    });
-                }
-                Item::Group { name, items, .. } => menu(ui, name, items, depth, state, asked),
-            }
-        }
-    };
-
-    if vertical {
-        ui.vertical(run);
-    } else {
-        ui.horizontal_wrapped(run);
-    }
-}
-
 /// A group at menu depth: its commands open on click, a level further down.
 fn menu(
     ui: &mut egui::Ui,
     name: &str,
     items: &[Item],
-    depth: usize,
     state: &Context<'_>,
     asked: &mut Vec<Command>,
 ) {
     ui.menu_button(group(state.lang, name), |ui| {
-        lay_out(ui, items, depth + 1, state, asked, true);
+        for item in items {
+            match item {
+                Item::Command(command) => button(ui, *command, state, asked, Shown::MenuEntry),
+                Item::Separator => {
+                    ui.separator();
+                }
+                Item::Group { name, items, .. } => menu(ui, name, items, state, asked),
+            }
+        }
     });
 }
 
@@ -365,6 +325,9 @@ fn named_button(
             let drawn = match (shown, labels) {
                 (Shown::Small(rows), true) => {
                     small_button(ui, pressable, on, worn, name, key, rows)
+                }
+                (Shown::Small(rows), false) => {
+                    small_icon_button(ui, pressable, on, worn, name, rows)
                 }
                 (_, true) => tool_button(ui, pressable, on, worn, name, key),
                 (_, false) => icon_button(ui, pressable, on, worn, name),

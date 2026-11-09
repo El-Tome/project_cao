@@ -22,7 +22,7 @@ mod tooltip;
 pub use chevron::{CHEVRON_WIDTH, chevron_button};
 pub use key_frame::key_frame;
 pub use menu::{menu_row, ribbon_menu};
-pub use small::{Rows, small_button, small_grid};
+pub use small::{Rows, small_button, small_column, small_grid, small_icon_button};
 pub use tooltip::tooltip;
 
 const LARGE_BUTTON_AT_LEAST: Vec2 = vec2(50.0, 64.0);

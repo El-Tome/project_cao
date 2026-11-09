@@ -76,14 +76,49 @@ pub fn small_button(
     })
 }
 
+/// The same button with no name written: its icon alone, at its row's height.
+pub fn small_icon_button(
+    ui: &mut Ui,
+    enabled: bool,
+    on: bool,
+    icon: Icon,
+    name: &str,
+    rows: Rows,
+) -> Response {
+    ui.add_enabled(enabled, move |ui: &mut Ui| {
+        undo_the_fade(ui);
+        let ink = ink(ui.is_enabled(), on);
+        let side = IconSize::Small.points();
+        let wanted = 2.0 * ui.spacing().button_padding.x + side;
+
+        let size = vec2(width_in_its_column(ui, wanted), rows.button_height());
+        let (rect, response) = pressable(ui, size, on, name, None);
+
+        let icon_rect = Align2::CENTER_CENTER.align_size_within_rect(Vec2::splat(side), rect);
+        icon.image(IconSize::Small)
+            .tint(ink)
+            .paint_at(ui, icon_rect);
+        response
+    })
+}
+
 /// Lays `count` cells in columns of `rows`, top to bottom then the next column.
-pub fn small_grid(ui: &mut Ui, rows: Rows, count: usize, mut cell: impl FnMut(&mut Ui, usize)) {
+pub fn small_grid(ui: &mut Ui, rows: Rows, count: usize, cell: impl FnMut(&mut Ui, usize)) {
+    columns(ui, rows.count(), count, cell);
+}
+
+/// Lays `count` cells in a single column, whatever its length.
+pub fn small_column(ui: &mut Ui, count: usize, cell: impl FnMut(&mut Ui, usize)) {
+    columns(ui, count.max(1), count, cell);
+}
+
+fn columns(ui: &mut Ui, per_column: usize, count: usize, mut cell: impl FnMut(&mut Ui, usize)) {
     ui.horizontal_top(|ui| {
         ui.spacing_mut().item_spacing.y = ROW_GAP;
-        for first in (0..count).step_by(rows.count()) {
+        for first in (0..count).step_by(per_column) {
             ui.vertical(|ui| {
                 start_the_column(ui);
-                for rank in first..(first + rows.count()).min(count) {
+                for rank in first..(first + per_column).min(count) {
                     cell(ui, rank);
                 }
             });

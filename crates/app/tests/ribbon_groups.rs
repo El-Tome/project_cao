@@ -98,15 +98,30 @@
 //!   is missing and none is written
 //! - with « Noms des boutons » off: icons only —
 //!   `with_names_off_every_ribbon_button_is_its_icon_alone`
+//! - and a small group's buttons stay at their row's height —
+//!   `with_names_off_a_small_group_is_icons_only_at_the_height_of_its_rows`
+//! - and a split button is its icon and its chevron —
+//!   `with_names_off_a_split_button_is_its_icon_and_its_chevron`
+//! - a group keeps its name, read as « Noms des boutons » speaking of buttons —
+//!   `with_names_off_a_group_keeps_its_name_under_its_buttons`
 //! - down the left or right: groups stack — `down_a_side_the_groups_stack`
 //! - every button small — `down_a_side_every_button_is_small`
+//! - a group's name still sits under its buttons —
+//!   `down_a_side_a_group_writes_its_name_under_its_buttons`
+//! - nothing runs off the panel —
+//!   `down_a_side_nothing_runs_off_the_panel`; reached by scroll when the
+//!   column is taller than the window, as `fitting_the_window.rs` holds
 //! - floating: as at the top — `a_floating_ribbon_is_laid_out_as_along_the_top`
+//! - sizes as the setting says —
+//!   `a_floating_ribbon_draws_each_group_at_its_size`
+//! - and wrapped group by group in a narrow window —
+//!   `a_floating_ribbon_wraps_group_by_group_in_a_narrow_window`
 //! - every button keeps its name as its accessible label —
 //!   `every_ribbon_button_keeps_its_name_as_its_accessible_label`
 //! - toolbar positions (top, bottom, left, right, floating) —
 //!   `the_ribbon_is_drawn_at_each_of_the_five_toolbar_positions`
-//! - the dock / undock command —
-//!   `the_dock_command_takes_the_bar_off_its_edge_and_back`
+//! - the dock / undock command — no test: `Command::ToggleToolbarDocked` stays
+//!   what it is today, a no-op in `commands.rs`, and nothing here changes it
 //!
 //! Decided on the way. The tree does not change: « Cercle » and the group
 //! `circles` stay two siblings, and a split button is a rule of the drawing —
@@ -119,7 +134,7 @@
 mod driver;
 
 use cao_app::theme::tokens::{BORDER_GROUP, BORDER_KEY, TEXT_QUIET};
-use cao_prefs::{Chord, Command, GroupSize, Item, Key, Settings};
+use cao_prefs::{Chord, Command, Edge, GroupSize, Item, Key, Settings};
 use egui::accesskit::{Role, Toggled};
 use egui::epaint::TextShape;
 use egui_kittest::kittest::{NodeT, Queryable};
@@ -905,6 +920,266 @@ fn a_greyed_out_button_shows_no_tooltip() {
     );
 }
 
+#[test]
+fn with_names_off_every_ribbon_button_is_its_icon_alone() {
+    let app = opened_with_names_off("with_names_off_every_button_is_its_icon");
+
+    let line = the_button(&app, "Ligne").rect();
+
+    assert_eq!(texts_within(&app, line), Vec::<String>::new());
+    assert_eq!(icons_within(&app, line), ["line"]);
+}
+
+#[test]
+fn with_names_off_a_small_group_is_icons_only_at_the_height_of_its_rows() {
+    let mut settings = bar_of(vec![Item::Group {
+        name: "edit".to_string(),
+        size: GroupSize::SmallThreeRows,
+        items: commands(&[Command::Undo, Command::Redo, Command::ToolLine]),
+    }]);
+    settings.toolbar.show_labels = false;
+    let app = opened("with_names_off_a_small_group", WIDE, settings);
+
+    let undo = the_button(&app, "Annuler").rect();
+
+    assert_eq!(texts_within(&app, undo), Vec::<String>::new());
+    assert_eq!(icons_within(&app, undo).len(), 1, "the icon of « Annuler »");
+    assert_tall(undo, 20.0, "a small button with its name off");
+}
+
+#[test]
+fn with_names_off_a_split_button_is_its_icon_and_its_chevron() {
+    let app = opened_with_names_off("with_names_off_a_split_button");
+
+    let body = the_button(&app, "Cercle").rect();
+    let chevron = the_button(&app, "Cercles").rect();
+
+    assert_eq!(icons_within(&app, body), ["circle-centre"]);
+    assert_eq!(texts_within(&app, body), Vec::<String>::new());
+    assert_eq!(texts_within(&app, chevron), Vec::<String>::new());
+}
+
+#[test]
+fn with_names_off_a_group_keeps_its_name_under_its_buttons() {
+    let app = opened_with_names_off("with_names_off_a_group_keeps_its_name");
+
+    let lowest = the_button(&app, "Annuler")
+        .rect()
+        .union(the_button(&app, "Rétablir").rect())
+        .bottom();
+    let name = written(&app, "ÉDITION");
+
+    assert!(
+        name.rect.top() >= lowest,
+        "« ÉDITION » at {:?} is not under its buttons, which end at {lowest}",
+        name.rect,
+    );
+}
+
+#[test]
+fn down_a_side_the_groups_stack() {
+    for edge in [Edge::Left, Edge::Right] {
+        let test = format!("down_a_side_the_groups_stack_{edge:?}");
+        let app = three_groups_on(&test, WIDE, edge);
+
+        let (first, second, third) = (
+            whole_group(&app, 0),
+            whole_group(&app, 1),
+            whole_group(&app, 2),
+        );
+
+        assert!(
+            second.top() >= first.bottom() && third.top() >= second.bottom(),
+            "on {edge:?}, the groups at {first:?}, {second:?} and {third:?} do not stand \
+             one under the other",
+        );
+    }
+}
+
+#[test]
+fn down_a_side_every_button_is_small() {
+    for edge in [Edge::Left, Edge::Right] {
+        let mut settings = bar_of(vec![Item::group(
+            "drawing",
+            vec![
+                Item::Command(Command::ToolRectangle),
+                Item::Command(Command::ToolCircle),
+                Item::group(
+                    "circles",
+                    commands(&[Command::CircleCenter, Command::CircleTwoPoints]),
+                ),
+                Item::Command(Command::ToolLine),
+            ],
+        )]);
+        settings.toolbar.edge = edge;
+        let app = opened(
+            &format!("down_a_side_every_button_is_small_{edge:?}"),
+            WIDE,
+            settings,
+        );
+
+        for button in ["Rectangle (R)", "Cercle (C)", "Ligne (L)"] {
+            let height = the_button(&app, button).rect().height();
+            assert!(
+                height <= 26.0 + ALIGNED_WITHIN,
+                "on {edge:?}, « {button} » in a large group is {height} high, where a small \
+                 button is 20 or 26",
+            );
+        }
+    }
+}
+
+#[test]
+fn down_a_side_a_group_writes_its_name_under_its_buttons() {
+    for edge in [Edge::Left, Edge::Right] {
+        let test = format!("down_a_side_a_group_writes_its_name_{edge:?}");
+        let app = three_groups_on(&test, WIDE, edge);
+
+        for (rank, (name, buttons)) in THE_THREE_GROUPS.iter().enumerate() {
+            let lowest = buttons
+                .iter()
+                .map(|button| row_starting(&app, button).rect().bottom())
+                .fold(f32::NEG_INFINITY, f32::max);
+            let written_name = written_whatever_its_case(&app, name);
+            assert!(
+                written_name.rect.top() >= lowest,
+                "on {edge:?}, « {name} » (group {rank}) at {:?} is not under its buttons, \
+                 which end at {lowest}",
+                written_name.rect,
+            );
+        }
+    }
+}
+
+#[test]
+fn down_a_side_nothing_runs_off_the_panel() {
+    for edge in [Edge::Left, Edge::Right] {
+        let mut settings = Settings::default();
+        settings.toolbar.edge = edge;
+        let app = opened(
+            &format!("down_a_side_nothing_runs_off_{edge:?}"),
+            WIDE,
+            settings,
+        );
+        for button in [
+            "Nouvelle esquisse",
+            "Sélection",
+            "Point",
+            "Annuler",
+            "Ajuster",
+        ] {
+            let at = row_starting(&app, button).rect();
+            assert!(
+                driver::stands_beside_the_view(&app, at),
+                "on {edge:?}, « {button} » at {at:?} runs off the panel over the view",
+            );
+        }
+    }
+}
+
+#[test]
+fn a_floating_ribbon_is_laid_out_as_along_the_top() {
+    let app = three_groups_on("a_floating_ribbon_as_along_the_top", WIDE, Edge::Floating);
+    let lines = line_of_each_group(&app);
+
+    let first = lines[0].1[0];
+    assert!(
+        lines
+            .iter()
+            .flat_map(|(_, tops)| tops)
+            .all(|top| (top - first).abs() <= ALIGNED_WITHIN),
+        "a floating bar does not lay its groups side by side: {lines:?}",
+    );
+    let lefts: Vec<f32> = (0..3).map(|rank| whole_group(&app, rank).left()).collect();
+    assert!(
+        lefts.is_sorted(),
+        "the groups of a floating bar stand in another order: {lefts:?}",
+    );
+}
+
+#[test]
+fn a_floating_ribbon_draws_each_group_at_its_size() {
+    let mut settings = Settings::default();
+    settings.toolbar.edge = Edge::Floating;
+    let app = opened("a_floating_ribbon_draws_each_size", WIDE, settings);
+
+    assert_tall(
+        row_starting(&app, "Annuler").rect(),
+        26.0,
+        "« Annuler » in a floating bar",
+    );
+    let line = the_button(&app, "Ligne (L)").rect();
+    assert!(
+        line.height() >= 64.0,
+        "« Ligne » in a floating bar is {} high",
+        line.height(),
+    );
+}
+
+#[test]
+fn a_floating_ribbon_wraps_group_by_group_in_a_narrow_window() {
+    let app = three_groups_on(
+        "a_floating_ribbon_wraps_group_by_group",
+        egui::vec2(900.0, 800.0),
+        Edge::Floating,
+    );
+    let lines = line_of_each_group(&app);
+
+    for (name, tops) in &lines {
+        assert!(
+            tops.iter()
+                .all(|top| (top - tops[0]).abs() <= ALIGNED_WITHIN),
+            "the group {name} is cut in two in a floating bar, its buttons at {tops:?}",
+        );
+    }
+    assert!(
+        lines.last().expect("three groups").1[0] > lines[0].1[0] + ALIGNED_WITHIN,
+        "at 900 wide no group of a floating bar went to the next line: {lines:?}",
+    );
+}
+
+#[test]
+fn every_ribbon_button_keeps_its_name_as_its_accessible_label() {
+    let app = opened("every_button_keeps_its_name", WIDE, Settings::default());
+    for name in [
+        "Nouvelle esquisse (Cmd+N)",
+        "Ligne (L)",
+        "Cercle (C)",
+        "Annuler (Cmd+Z)",
+    ] {
+        the_button(&app, name);
+    }
+
+    let app = opened_with_names_off("every_button_keeps_its_name_without_names");
+    for name in ["Ligne", "Cercle", "Annuler"] {
+        the_button(&app, name);
+    }
+}
+
+#[test]
+fn the_ribbon_is_drawn_at_each_of_the_five_toolbar_positions() {
+    for edge in Edge::ALL {
+        let mut settings = Settings::default();
+        settings.toolbar.edge = edge;
+        let app = opened(&format!("the_ribbon_at_{edge:?}"), WIDE, settings);
+
+        let at = row_starting(&app, "Nouvelle esquisse").rect();
+        let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, WIDE);
+        let where_it_belongs = match edge {
+            Edge::Top => at.bottom() < WIDE.y / 2.0,
+            Edge::Bottom => at.top() > WIDE.y / 2.0,
+            Edge::Left => at.right() < WIDE.x / 2.0,
+            Edge::Right => at.left() > WIDE.x / 2.0,
+            Edge::Floating => true,
+        };
+
+        assert!(
+            screen.contains_rect(at) && where_it_belongs,
+            "on {edge:?}, « Nouvelle esquisse » is at {at:?}",
+        );
+    }
+}
+
 fn opened(test: &str, size: egui::Vec2, settings: Settings) -> driver::App {
     let mut app = driver::open_with(test, size, settings);
     driver::create_a_part(&mut app, "Platine");
@@ -924,8 +1199,12 @@ fn bar_of(groups: Vec<Item>) -> Settings {
 /// A bar holding three large groups, each too wide to sit beside the others on
 /// a window under 1440 and narrower than the whole bar.
 fn three_groups(test: &str, size: egui::Vec2) -> driver::App {
+    three_groups_on(test, size, Edge::Top)
+}
+
+fn three_groups_on(test: &str, size: egui::Vec2, edge: Edge) -> driver::App {
     use Command as C;
-    let settings = bar_of(vec![
+    let mut settings = bar_of(vec![
         Item::group(
             "drawing",
             commands(&[
@@ -953,43 +1232,58 @@ fn three_groups(test: &str, size: egui::Vec2) -> driver::App {
             commands(&[C::ToolSelect, C::ToolLine, C::Undo, C::Redo, C::NewSketch]),
         ),
     ]);
+    settings.toolbar.edge = edge;
     opened(test, size, settings)
 }
 
+/// A group's name as it is written, and the buttons that open each of them.
+const THE_THREE_GROUPS: [(&str, &[&str]); 3] = [
+    (
+        "DESSIN",
+        &["Rectangle", "Cercle", "Arc", "Ellipse", "Point", "Mesurer"],
+    ),
+    (
+        "ÉDITION",
+        &[
+            "Cote",
+            "Ajuster",
+            "Diviser",
+            "Symétrie",
+            "Congé",
+            "Chanfrein",
+        ],
+    ),
+    ("EXPORT", &["Sélection", "Ligne", "Annuler", "Rétablir"]),
+];
+
+fn opened_with_names_off(test: &str) -> driver::App {
+    let mut settings = Settings::default();
+    settings.toolbar.show_labels = false;
+    opened(test, WIDE, settings)
+}
+
+/// A group of the three, from its first button to its name under the last.
+fn whole_group(app: &driver::App, rank: usize) -> egui::Rect {
+    let (name, buttons) = THE_THREE_GROUPS[rank];
+    buttons.iter().fold(
+        written_whatever_its_case(app, name).rect,
+        |group, button| group.union(row_starting(app, button).rect()),
+    )
+}
+
 fn line_of_each_group(app: &driver::App) -> Vec<(&'static str, Vec<f32>)> {
-    [
-        (
-            "« Dessin »",
-            ["Rectangle", "Cercle", "Arc", "Ellipse", "Point", "Mesurer"].as_slice(),
-        ),
-        (
-            "« Édition »",
-            [
-                "Cote",
-                "Ajuster",
-                "Diviser",
-                "Symétrie",
-                "Congé",
-                "Chanfrein",
-            ]
-            .as_slice(),
-        ),
-        (
-            "« Export »",
-            ["Sélection", "Ligne", "Annuler", "Rétablir"].as_slice(),
-        ),
-    ]
-    .iter()
-    .map(|(name, buttons)| {
-        (
-            *name,
-            buttons
-                .iter()
-                .map(|button| the_ribbon_button(app, button).top())
-                .collect(),
-        )
-    })
-    .collect()
+    THE_THREE_GROUPS
+        .iter()
+        .map(|(name, buttons)| {
+            (
+                *name,
+                buttons
+                    .iter()
+                    .map(|button| row_starting(app, button).rect().top())
+                    .collect(),
+            )
+        })
+        .collect()
 }
 
 fn the_ribbon_button(app: &driver::App, name: &str) -> egui::Rect {

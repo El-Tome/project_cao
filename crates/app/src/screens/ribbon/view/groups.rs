@@ -2,7 +2,7 @@ use cao_prefs::{Command, GroupSize, Item};
 use egui::{Align, Label, Layout, RichText, Sense, Stroke, Ui, Vec2, vec2};
 
 use crate::ui::theme::tokens::{BORDER_GROUP, TEXT_QUIET};
-use crate::ui::tool_button::{Rows, small_grid};
+use crate::ui::tool_button::{Rows, small_column, small_grid};
 use crate::wording::toolbar::group;
 
 use super::super::state::{Ribbon, takes_a_menu};
@@ -14,6 +14,9 @@ const NAME_SIZE: f32 = 10.0;
 const NAME_LETTER_SPACING: f32 = 0.8;
 const SEPARATOR_MARGIN: f32 = 10.0;
 const SEPARATOR_HEIGHT: f32 = 64.0;
+
+/// What a large group reads as down a side, where every button is small.
+const SMALLEST: Rows = Rows::Three;
 
 /// The depth of a group's own entries: a group inside it is a menu.
 const INSIDE_A_GROUP: usize = SPREAD_OUT + 1;
@@ -56,20 +59,31 @@ fn runs(items: &[Item], depth: usize) -> Vec<Run<'_>> {
     runs
 }
 
-/// The entries of the open tab along the bar, each group one block that goes
-/// whole to the next line when it does not fit on this one.
+/// The entries of the open tab: stacked down a side, otherwise along the bar,
+/// each group one block that goes whole to the next line when it does not fit
+/// on this one.
 pub(super) fn open_tab(
     ui: &mut Ui,
     items: &[Item],
     state: &Context<'_>,
     asked: &mut Vec<Command>,
     ribbon: &mut Ribbon,
+    side: bool,
 ) {
     let mut bar = Bar {
         state,
         asked,
         ribbon,
     };
+    if side {
+        let runs = runs(items, SPREAD_OUT);
+        small_column(ui, runs.len(), |ui, rank| {
+            let after_a_group =
+                rank > 0 && matches!(runs[rank - 1], Run::Plain(Item::Group { .. }));
+            run_down_a_side(ui, &runs[rank], after_a_group, &mut bar);
+        });
+        return;
+    }
     ui.with_layout(wrapped_row(), |ui| {
         let bar_width = ui.max_rect().width();
         let mut after_a_group = false;
@@ -89,13 +103,27 @@ pub(super) fn open_tab(
                         separator(ui);
                     }
                     one_block(ui, bar_width, |ui| {
-                        named_group(ui, name, *size, items, &mut bar);
+                        named_group(ui, name, *size, items, false, &mut bar);
                     });
                 }
             }
             after_a_group = matches!(run, Run::Plain(Item::Group { .. }));
         }
     });
+}
+
+/// One entry of a tab down a side, where every button is small.
+fn run_down_a_side(ui: &mut Ui, run: &Run<'_>, after_a_group: bool, bar: &mut Bar<'_>) {
+    let shown = Shown::Small(SMALLEST);
+    match run {
+        Run::Plain(Item::Group { name, size, items }) => {
+            if after_a_group {
+                ui.separator();
+            }
+            named_group(ui, name, *size, items, true, bar);
+        }
+        run => entry(ui, run, shown, 0.0, bar),
+    }
 }
 
 fn wrapped_row() -> Layout {
@@ -117,17 +145,30 @@ fn one_block(ui: &mut Ui, bar_width: f32, add: impl FnOnce(&mut Ui)) {
     ui.data_mut(|data| data.insert_temp(id, size));
 }
 
-fn named_group(ui: &mut Ui, name: &str, size: GroupSize, items: &[Item], bar: &mut Bar<'_>) {
+fn named_group(
+    ui: &mut Ui,
+    name: &str,
+    size: GroupSize,
+    items: &[Item],
+    side: bool,
+    bar: &mut Bar<'_>,
+) {
     let runs = runs(items, INSIDE_A_GROUP);
     let buttons = ui
-        .with_layout(wrapped_row(), |ui| match rows_of(size) {
-            None => {
+        .with_layout(wrapped_row(), |ui| match (rows_of(size), side) {
+            (rows, true) => {
+                let shown = Shown::Small(rows.unwrap_or(SMALLEST));
+                small_column(ui, runs.len(), |ui, rank| {
+                    entry(ui, &runs[rank], shown, 0.0, bar);
+                });
+            }
+            (None, false) => {
                 let bar_width = ui.max_rect().width();
                 for run in &runs {
                     entry(ui, run, Shown::Large, bar_width, bar);
                 }
             }
-            Some(rows) => small_grid(ui, rows, runs.len(), |ui, rank| {
+            (Some(rows), false) => small_grid(ui, rows, runs.len(), |ui, rank| {
                 entry(ui, &runs[rank], Shown::Small(rows), 0.0, bar);
             }),
         })
@@ -168,7 +209,7 @@ fn entry(ui: &mut Ui, run: &Run<'_>, shown: Shown, bar_width: f32, bar: &mut Bar
             ui.separator();
         }
         Run::Plain(Item::Group { name, items, .. }) => {
-            menu(ui, name, items, INSIDE_A_GROUP, bar.state, bar.asked);
+            menu(ui, name, items, bar.state, bar.asked);
         }
     }
 }

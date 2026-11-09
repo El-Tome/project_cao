@@ -10,7 +10,7 @@ use crate::ui::icon;
 use crate::ui::logo::logo;
 use crate::ui::panel_toggle::{panel_button, panel_toggle};
 use crate::ui::theme::tokens::SPACING_L;
-use crate::ui::tool_button::{icon_button, menu_entry, tool_button};
+use crate::ui::tool_button::{icon_button, menu_entry, name_and_key, tool_button};
 use crate::wording::{command as wording, shortcuts, toolbar::group};
 
 use super::icons;
@@ -297,10 +297,12 @@ fn button(
     in_a_menu: bool,
 ) {
     let name = label(command, state);
-    let called = match state.settings.shortcuts.chord_for(command) {
-        Some(chord) => format!("{name} ({})", shortcuts::chord(state.lang, chord)),
-        None => name.clone(),
-    };
+    let key = state
+        .settings
+        .shortcuts
+        .chord_for(command)
+        .map(|chord| shortcuts::chord(state.lang, chord));
+    let called = name_and_key(&name, key.as_deref());
     let hint = wording::hint(state.lang, command);
     let pressable = enabled(command, state);
     let on = active(command, state);
@@ -309,7 +311,7 @@ fn button(
     let response = if in_a_menu {
         menu_entry(ui, pressable, on, worn, called).on_hover_text(hint)
     } else if state.settings.toolbar.show_labels {
-        tool_button(ui, pressable, on, worn, called).on_hover_text(hint)
+        tool_button(ui, pressable, on, worn, &name, key.as_deref()).on_hover_text(hint)
     } else {
         icon_button(ui, pressable, on, worn, &name).on_hover_text(format!("{called}\n{hint}"))
     };

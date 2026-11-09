@@ -337,12 +337,24 @@ fn every_token_the_chrome_holds_is_the_design_file_s() {
         ("TEXT_SECONDARY", tokens::TEXT_SECONDARY, "text.secondary"),
         ("TEXT_SUBDUED", tokens::TEXT_SUBDUED, "text.subdued"),
         ("TEXT_QUIET", tokens::TEXT_QUIET, "text.quiet"),
+        ("TEXT_SHORTCUT", tokens::TEXT_SHORTCUT, "text.shortcut"),
+        ("TEXT_DISABLED", tokens::TEXT_DISABLED, "text.disabled"),
         ("TEXT_ON_ACCENT", tokens::TEXT_ON_ACCENT, "text.on_accent"),
         ("ACCENT_AMBER", tokens::ACCENT_AMBER, "accent.amber"),
+        (
+            "ACCENT_AMBER_LIGHT",
+            tokens::ACCENT_AMBER_LIGHT,
+            "accent.amber_light",
+        ),
         (
             "ACCENT_AMBER_TEXT",
             tokens::ACCENT_AMBER_TEXT,
             "accent.amber_text",
+        ),
+        (
+            "ACCENT_AMBER_BORDER",
+            tokens::ACCENT_AMBER_BORDER,
+            "accent.amber_border",
         ),
         (
             "ACCENT_AMBER_BACKGROUND",
@@ -407,6 +419,16 @@ fn every_token_the_chrome_holds_is_the_design_file_s() {
             "TYPOGRAPHY_SIZES_DETAIL",
             tokens::TYPOGRAPHY_SIZES_DETAIL,
             "typography.sizes.detail",
+        ),
+        (
+            "TYPOGRAPHY_SIZES_RIBBON_BUTTON",
+            tokens::TYPOGRAPHY_SIZES_RIBBON_BUTTON,
+            "typography.sizes.ribbon_button",
+        ),
+        (
+            "TYPOGRAPHY_SIZES_SHORTCUT",
+            tokens::TYPOGRAPHY_SIZES_SHORTCUT,
+            "typography.sizes.shortcut",
         ),
         (
             "TYPOGRAPHY_SIZES_MONO_VALUE",

@@ -3,15 +3,8 @@
 //! tree and from what the frame painted.
 //!
 //! Closes #731. What a group stores — its size, and the commands of the default
-//! layout — is held in `crates/prefs/src/toolbar/tests.rs`.
-//! - Large button (C1): icon of 22 px above the name —
-//!   `a_large_button_wears_an_icon_of_22_points_above_its_name`
-//! - the key in the top right corner —
-//!   `a_large_button_writes_its_key_in_its_top_right_corner`
-//! - two lines for a long name — `a_long_name_on_a_large_button_takes_two_lines`
-//! - states normal, hover, active (amber), disabled —
-//!   `a_large_button_shows_normal_hover_active_and_disabled_apart`
-//! - at least 50x64 — `a_large_button_is_at_least_50_wide_and_64_tall`
+//! layout — is held in `crates/prefs/src/toolbar/tests.rs`; the large button
+//! (C1), beside its primitive in `crates/app/src/ui/tool_button/tests.rs`.
 //! - Small button (C2): icon of 15 px left of the name —
 //!   `a_small_button_wears_an_icon_of_15_points_left_of_its_name`
 //! - key aligned right — `a_small_button_aligns_its_key_on_the_right`

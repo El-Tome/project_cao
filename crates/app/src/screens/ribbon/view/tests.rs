@@ -193,7 +193,7 @@ fn a_group_too_narrow_for_its_widest_button_wraps_instead_of_breaking_its_letter
         texts.iter().any(|(text, _)| text.contains("Esquisse")),
         "the ribbon is drawn: {texts:?}"
     );
-    let broken: Vec<_> = texts.iter().filter(|(_, lines)| *lines > 1).collect();
+    let broken: Vec<_> = texts.iter().filter(|(_, lines)| *lines > 2).collect();
     assert!(
         broken.is_empty(),
         "a 350-wide window breaks these labels over several lines instead of wrapping their row: {broken:?}"

@@ -22,13 +22,18 @@ pub const TEXT_BUTTON: Color32 = Color32::from_rgb(0xD5, 0xD9, 0xE0);
 pub const TEXT_SECONDARY: Color32 = Color32::from_rgb(0xC9, 0xCF, 0xD8);
 pub const TEXT_SUBDUED: Color32 = Color32::from_rgb(0xA9, 0xB0, 0xBC);
 pub const TEXT_QUIET: Color32 = Color32::from_rgb(0x8A, 0x91, 0x9D);
+pub const TEXT_SHORTCUT: Color32 = Color32::from_rgb(0x80, 0x88, 0x9A);
+pub const TEXT_DISABLED: Color32 = Color32::from_rgb(0x5B, 0x62, 0x6E);
 pub const TEXT_ON_ACCENT: Color32 = Color32::from_rgb(0x1A, 0x12, 0x06);
 
 pub const ACCENT_AMBER: Color32 = Color32::from_rgb(0xF2, 0xA5, 0x41);
+pub const ACCENT_AMBER_LIGHT: Color32 = Color32::from_rgb(0xF7, 0xB9, 0x5E);
 pub const ACCENT_AMBER_TEXT: Color32 = Color32::from_rgb(0xF7, 0xC4, 0x7A);
 /// `rgba(242,165,65,0.13)`: 0.13 of 255 is 33.
 pub const ACCENT_AMBER_BACKGROUND: Color32 =
     Color32::from_rgba_unmultiplied_const(242, 165, 65, 33);
+/// `rgba(242,165,65,0.50)`: 0.50 of 255 is 128.
+pub const ACCENT_AMBER_BORDER: Color32 = Color32::from_rgba_unmultiplied_const(242, 165, 65, 128);
 
 pub const STATE_WARNING_TEXT: Color32 = Color32::from_rgb(0xF0, 0xD6, 0x6E);
 pub const STATE_ERROR: Color32 = Color32::from_rgb(0xF0, 0x8A, 0x7E);
@@ -53,5 +58,7 @@ pub const SPACING_XXL: f32 = 14.0;
 pub const TYPOGRAPHY_SIZES_SECTION_TITLE: f32 = 16.0;
 pub const TYPOGRAPHY_SIZES_BODY: f32 = 13.0;
 pub const TYPOGRAPHY_SIZES_BUTTON: f32 = 12.5;
+pub const TYPOGRAPHY_SIZES_RIBBON_BUTTON: f32 = 11.5;
 pub const TYPOGRAPHY_SIZES_DETAIL: f32 = 11.5;
+pub const TYPOGRAPHY_SIZES_SHORTCUT: f32 = 9.5;
 pub const TYPOGRAPHY_SIZES_MONO_VALUE: f32 = 11.0;

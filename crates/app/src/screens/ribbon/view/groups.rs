@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
 use cao_prefs::{Command, GroupSize, Item};
 use egui::{
-    Align, FontSelection, Id, InnerResponse, Label, Layout, RichText, Sense, Stroke, TextWrapMode,
-    Ui, Vec2, WidgetText, vec2,
+    Align, FontSelection, Galley, Id, InnerResponse, Label, Layout, Rect, RichText, Sense, Stroke,
+    TextWrapMode, Ui, UiBuilder, Vec2, WidgetText, vec2,
 };
 
 use crate::ui::theme::tokens::{BORDER_GROUP, TEXT_QUIET};
@@ -17,6 +19,8 @@ const NAME_SIZE: f32 = 10.0;
 const NAME_LETTER_SPACING: f32 = 0.8;
 const SEPARATOR_MARGIN: f32 = 10.0;
 const SEPARATOR_HEIGHT: f32 = 64.0;
+/// Blocks and galleys stand on rounded points, so two tops this close are one.
+const ONE_LINE_WITHIN: f32 = 1.0;
 
 /// What a large group reads as down a side, where every button is small.
 const SMALLEST: Rows = Rows::Three;
@@ -62,6 +66,7 @@ pub(super) fn open_tab(
         let runs = runs(items, SPREAD_OUT);
         let mut held = 0.0;
         let mut line_is_over = false;
+        let mut names = Vec::new();
         for (rank, run) in runs.iter().enumerate() {
             let after_a_group = !line_is_over
                 && rank > 0
@@ -80,7 +85,10 @@ pub(super) fn open_tab(
                 Run::Plain(Item::Group { name, size, items }) => {
                     let rule = rule_before(ui, rank, after_a_group);
                     rule + one_block(ui, rank, bar_width, |ui| {
-                        wrapped_inside = named_group(ui, name, *size, items, false, &mut bar);
+                        let group = group_buttons(ui, name, *size, items, false, &mut bar);
+                        wrapped_inside = group.wrapped_inside;
+                        let room = room_for_the_name(ui, &group);
+                        names.push((group, room));
                     })
                 }
             };
@@ -95,6 +103,7 @@ pub(super) fn open_tab(
             // their widths does not: short of it, the last block would wrap.
             held += width.ceil() + spacing;
         }
+        write_names_along_their_lines(ui, &names);
         held - spacing
     })
     .inner
@@ -108,7 +117,8 @@ fn run_down_a_side(ui: &mut Ui, run: &Run<'_>, after_a_group: bool, bar: &mut Ba
             if after_a_group {
                 ui.separator();
             }
-            named_group(ui, name, *size, items, true, bar);
+            let group = group_buttons(ui, name, *size, items, true, bar);
+            write_name_under(ui, &group);
         }
         run => entry(ui, run, shown, 0, 0.0, bar),
     }
@@ -167,14 +177,35 @@ fn rule_before(ui: &mut Ui, next: usize, wanted: bool) -> f32 {
     room + spacing
 }
 
-fn named_group(
+/// A group whose buttons are drawn and whose name is still to be written.
+struct LaidGroup {
+    buttons: Rect,
+    name: Arc<Galley>,
+    wrapped_inside: bool,
+}
+
+impl LaidGroup {
+    fn name_width(&self) -> f32 {
+        self.buttons.width().max(self.name.size().x)
+    }
+
+    /// A group wrapped inside itself ends lower than whatever stands beside
+    /// its first line, and would pull the names of that line down with it.
+    fn shares_a_line_with(&self, other: &Self) -> bool {
+        !self.wrapped_inside
+            && !other.wrapped_inside
+            && (self.buttons.top() - other.buttons.top()).abs() <= ONE_LINE_WITHIN
+    }
+}
+
+fn group_buttons(
     ui: &mut Ui,
     name: &str,
     size: GroupSize,
     items: &[Item],
     side: bool,
     bar: &mut Bar<'_>,
-) -> bool {
+) -> LaidGroup {
     let runs = runs(items, INSIDE_A_GROUP);
     let laid = in_a_wrapped_row(ui, |ui| match (rows_of(size), side) {
         (rows, true) => {
@@ -198,7 +229,6 @@ fn named_group(
             false
         }
     });
-    let buttons = laid.response.rect;
 
     let written = RichText::new(group(bar.state.lang, name).to_uppercase())
         .size(NAME_SIZE)
@@ -210,12 +240,44 @@ fn named_group(
         f32::INFINITY,
         FontSelection::Default,
     );
+    LaidGroup {
+        buttons: laid.response.rect,
+        name: galley,
+        wrapped_inside: laid.inner,
+    }
+}
+
+fn write_name_under(ui: &mut Ui, group: &LaidGroup) {
     ui.allocate_ui_with_layout(
-        vec2(buttons.width().max(galley.size().x), 0.0),
+        vec2(group.name_width(), 0.0),
         Layout::top_down(Align::Center),
-        |ui| ui.add(Label::new(galley)),
+        |ui| ui.add(Label::new(group.name.clone())),
     );
-    laid.inner
+}
+
+/// The place a group's name takes in its block, kept empty until the groups
+/// beside it are drawn.
+fn room_for_the_name(ui: &mut Ui, group: &LaidGroup) -> Rect {
+    let size = vec2(group.name_width(), group.name.size().y);
+    ui.allocate_exact_size(size, Sense::hover()).0
+}
+
+/// Writes each name at the height of the lowest of its line. Done once the
+/// whole row is drawn, rather than from what the row measured last frame, so
+/// that a tab just opened is right from its first frame; and a name only ever
+/// moves down into the room the tallest group of its line has already taken.
+fn write_names_along_their_lines(ui: &mut Ui, names: &[(LaidGroup, Rect)]) {
+    for (group, room) in names {
+        let lowest = names
+            .iter()
+            .filter(|(other, _)| group.shares_a_line_with(other))
+            .map(|(_, other)| other.top())
+            .fold(room.top(), f32::max);
+        let builder = UiBuilder::new()
+            .max_rect(room.translate(vec2(0.0, lowest - room.top())))
+            .layout(Layout::top_down(Align::Center));
+        ui.new_child(builder).add(Label::new(group.name.clone()));
+    }
 }
 
 fn rows_of(size: GroupSize) -> Option<Rows> {

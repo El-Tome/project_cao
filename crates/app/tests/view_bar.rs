@@ -287,26 +287,11 @@ fn how_the_view_frames_the_block(app: &driver::App) -> Framed {
     framed(app, &corners, of_the_world(app, the_block_s_middle()))
 }
 
-/// The mouse wheel turned towards the user over this place, thirty notches at
-/// once, as a hand stepping well back from the part does.
-fn step_back(app: &mut driver::App, over: egui::Pos2) {
-    app.hover_at(over);
-    app.run();
-    app.event(egui::Event::MouseWheel {
-        unit: egui::MouseWheelUnit::Line,
-        delta: egui::vec2(0.0, -30.0),
-        phase: egui::TouchPhase::Move,
-        modifiers: egui::Modifiers::NONE,
-    });
-    app.run();
-    driver::hold_the_canvas(app);
-}
-
 #[test]
 fn f_in_the_free_view_frames_the_whole_block() {
     let mut app = driver::a_block("f_in_the_free_view_frames_the_whole_block");
     let over_the_block = of_the_world(&app, the_block_s_middle());
-    step_back(&mut app, over_the_block);
+    driver::step_back(&mut app, over_the_block);
     let stepped_back = how_the_view_frames_the_block(&app);
     assert!(
         stepped_back.covers < A_SPECK,
@@ -365,7 +350,7 @@ fn f_in_a_sketch_still_frames_its_drawing() {
         framed(app, &corners, of_the_sketch(app, (low + high) * 0.5))
     };
     let over_the_segment = of_the_sketch(&app, driver::ON_THE_SEGMENT);
-    step_back(&mut app, over_the_segment);
+    driver::step_back(&mut app, over_the_segment);
     let stepped_back = how_the_view_frames_the_drawing(&app);
     assert!(
         stepped_back.covers < A_SPECK,
@@ -517,7 +502,7 @@ fn the_bar_stands_at_the_bottom_right_of_the_view_in_the_design_s_order() {
 fn the_bar_s_reframe_frames_the_whole_block_as_f_does() {
     let mut app = driver::a_block("the_bar_s_reframe_frames_the_whole_block");
     let over_the_block = of_the_world(&app, the_block_s_middle());
-    step_back(&mut app, over_the_block);
+    driver::step_back(&mut app, over_the_block);
     let stepped_back = how_the_view_frames_the_block(&app);
     assert!(
         stepped_back.covers < A_SPECK,
@@ -1219,7 +1204,7 @@ fn the_origin_view_button_brings_back_the_opening_view_framed_on_the_part() {
     let mut app =
         driver::a_block("the_origin_view_button_brings_back_the_opening_view_framed_on_the_part");
     let over_the_block = of_the_world(&app, the_block_s_middle());
-    step_back(&mut app, over_the_block);
+    driver::step_back(&mut app, over_the_block);
     let cube_face = in_the_cube(the_cube(&app), A_FACE_OFF_THE_MIDDLE);
     driver::click_at(&mut app, cube_face);
     assert!(

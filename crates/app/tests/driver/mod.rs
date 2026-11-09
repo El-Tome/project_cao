@@ -798,6 +798,21 @@ pub fn finish_the_sketch(app: &mut App) {
     hold_the_canvas(app);
 }
 
+/// The mouse wheel turned towards the user over this place, thirty notches at
+/// once, as a hand stepping well back from the part does.
+pub fn step_back(app: &mut App, over: egui::Pos2) {
+    app.hover_at(over);
+    app.run();
+    app.event(egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Line,
+        delta: egui::vec2(0.0, -30.0),
+        phase: egui::TouchPhase::Move,
+        modifiers: egui::Modifiers::NONE,
+    });
+    app.run();
+    hold_the_canvas(app);
+}
+
 /// The settings of someone who has put the four commands #732 took off the
 /// default ribbon back on it, at the end of its first tab.
 pub fn the_moved_commands_put_back() -> cao_prefs::Settings {

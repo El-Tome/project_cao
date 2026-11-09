@@ -179,10 +179,16 @@
 //!   and the keys in `crates/prefs/src/toolbar/tests.rs` by
 //!   `the_four_moved_commands_are_nowhere_in_the_default_tree_and_keep_their_keys`
 //! - The « Par défaut » profile takes this ribbon; a profile Tom created keeps
-//!   its own until « Réinitialiser la barre d'outils » — no test: in this
-//!   file; held in `crates/prefs/src/profiles/tests.rs`
+//!   its own until « Réinitialiser la barre d'outils » —
+//!   `resetting_the_toolbar_gives_the_profile_the_default_ribbon`, the button
+//!   still reading « ↺ Barre par défaut » until #747 renames it; the load in
+//!   `crates/prefs/src/profiles/tests.rs` by
+//!   `a_default_profile_saved_with_the_old_ribbon_takes_the_new_one_at_load` and
+//!   `a_profile_the_user_created_keeps_its_own_toolbar_across_a_save_and_a_load`
 //! - At 1440 px the sketch tab fits on one line —
-//!   `the_sketch_tab_fits_on_one_line_at_1440`
+//!   `the_sketch_tab_fits_on_one_line_at_1440`; and, as screens `01` and `03`
+//!   draw them, the names of a tab's groups stand at one height whatever the
+//!   size of each group — `the_group_names_of_a_tab_stand_on_one_line`
 //! - Every command stays reachable (G2): what leaves the ribbon has its place in
 //!   the view bar or the sketch pill —
 //!   `what_left_the_ribbon_has_its_place_in_the_view_bar_or_the_sketch_pill`,
@@ -205,6 +211,7 @@ use cao_prefs::{Chord, Command, Edge, GroupSize, Item, Key, Settings};
 use egui::accesskit::{Role, Toggled};
 use egui::epaint::TextShape;
 use egui_kittest::kittest::{NodeT, Queryable};
+use glam::DVec3;
 
 /// How far two things laid out by egui may be apart and still be aligned:
 /// frames and galleys are placed on rounded points.
@@ -1531,6 +1538,211 @@ fn the_four_moved_commands_can_be_put_back_from_the_preferences() {
             driver::on_screen(&app),
         );
     }
+}
+
+#[test]
+fn resetting_the_toolbar_gives_the_profile_the_default_ribbon() {
+    let test = "resetting_the_toolbar_gives_the_default_ribbon";
+    let own = bar_of(vec![Item::group("drawing", commands(&[Command::ToolLine]))]);
+    let mut app = opened(test, WIDE, own);
+    assert!(
+        driver::the_ribbon_s(&app, "Nouvelle esquisse").is_none(),
+        "this profile's own toolbar holds no « Nouvelle esquisse »: the premise of this test",
+    );
+
+    driver::press_with_command(&mut app, egui::Key::Comma);
+    driver::click_exactly(&mut app, "Barre d'outils");
+    driver::click_the_button(&mut app, "↺ Barre par défaut");
+
+    assert_eq!(
+        driver::saved_settings(test).toolbar,
+        cao_prefs::ToolbarLayout::default(),
+        "the toolbar was reset, and the next start would read another one",
+    );
+    assert!(
+        driver::the_ribbon_s(&app, "Nouvelle esquisse").is_some(),
+        "the toolbar was reset, and the ribbon does not show the default one: {:?}",
+        driver::on_screen(&app),
+    );
+}
+
+#[test]
+fn the_sketch_tab_fits_on_one_line_at_1440() {
+    let size = egui::vec2(1440.0, 900.0);
+    let mut app = opened("the_sketch_tab_fits_at_1440", size, Settings::default());
+    driver::start_a_sketch(&mut app);
+
+    let firsts = THE_FIVE_GROUPS.map(|(_, buttons)| the_ribbon_button(&app, buttons[0]));
+    assert!(
+        firsts
+            .iter()
+            .all(|first| (first.top() - firsts[0].top()).abs() <= ALIGNED_WITHIN),
+        "at 1440 wide the groups of the sketch tab start on several lines: {firsts:?}",
+    );
+
+    let line_ends_at = firsts
+        .iter()
+        .map(|first| first.bottom())
+        .fold(f32::NEG_INFINITY, f32::max);
+    for (_, buttons) in THE_FIVE_GROUPS {
+        for button in buttons {
+            let at = the_ribbon_button(&app, button);
+            assert!(
+                at.top() < line_ends_at,
+                "« {button} » at {at:?} went to a second line, the first ending at {line_ends_at}",
+            );
+            assert!(
+                at.right() <= size.x,
+                "« {button} » at {at:?} runs off a window 1440 wide",
+            );
+        }
+    }
+}
+
+#[test]
+fn the_group_names_of_a_tab_stand_on_one_line() {
+    let size = egui::vec2(1440.0, 900.0);
+    let mut app = opened(
+        "the_group_names_stand_on_one_line",
+        size,
+        Settings::default(),
+    );
+
+    let mut wrong = Vec::new();
+    for (tab, names) in [
+        (
+            "Esquisse",
+            [
+                "ESQUISSE",
+                "DESSIN",
+                "COTES ET CONTRAINTES",
+                "MODIFIER",
+                "ÉDITION",
+            ]
+            .as_slice(),
+        ),
+        ("Extrusion", ["MATIÈRE", "FORME", "ÉDITION"].as_slice()),
+    ] {
+        driver::click_the_button(&mut app, tab);
+        let tops: Vec<(&str, f32)> = names
+            .iter()
+            // The galley's origin, not the ink: an accented capital's ink starts higher.
+            .map(|name| (*name, written(&app, name).text.pos.y))
+            .collect();
+        if tops
+            .iter()
+            .any(|(_, top)| (top - tops[0].1).abs() > ALIGNED_WITHIN)
+        {
+            wrong.push(format!("under the tab « {tab} »: {tops:?}"));
+        }
+    }
+
+    assert!(
+        wrong.is_empty(),
+        "the names of the groups do not stand at one height:\n  {}",
+        wrong.join("\n  "),
+    );
+}
+
+/// How many points of the screen a length of the part spans: what stepping
+/// away from it shrinks and framing it brings back.
+fn points_across_the_part(app: &driver::App) -> f32 {
+    let at = |point: DVec3| {
+        app.state()
+            .where_the_view_shows(point)
+            .unwrap_or_else(|| panic!("{point:?} of the part stands behind the eye"))
+    };
+    (at(DVec3::new(0.0, 100.0, 0.0)) - at(DVec3::ZERO)).length()
+}
+
+/// Steps well back from the block, then says whether this gesture framed it
+/// again.
+fn assert_frames_the_block(
+    app: &mut driver::App,
+    what: &str,
+    gesture: impl FnOnce(&mut driver::App),
+) {
+    let the_block = DVec3::new(5.0, driver::ON_THE_BLOCK.x, driver::ON_THE_BLOCK.y);
+    let over_the_block = app
+        .state()
+        .where_the_view_shows(the_block)
+        .expect("the block stands before the eye");
+    driver::step_back(app, over_the_block);
+    let stepped_back = points_across_the_part(app);
+
+    gesture(app);
+
+    let framed = points_across_the_part(app);
+    assert!(
+        framed > 2.0 * stepped_back,
+        "{what} spans the part over {framed} points, where it was stepped back to {stepped_back}",
+    );
+}
+
+#[test]
+fn what_left_the_ribbon_has_its_place_in_the_view_bar_or_the_sketch_pill() {
+    let mut app = driver::a_block("what_left_the_ribbon_has_its_place");
+
+    driver::start_a_sketch(&mut app);
+    assert!(
+        driver::a_sketch_is_open(&app),
+        "no sketch was opened on the block, showing {:?}",
+        driver::on_screen(&app),
+    );
+    driver::click_in_the_bar(&mut app, "Matière devant");
+    driver::click_exactly(&mut app, "transparente");
+    let reads = driver::the_bar_s(&app, "Matière devant")
+        .accesskit_node()
+        .label()
+        .unwrap_or_default();
+    assert!(
+        reads.starts_with("Matière devant : transparente"),
+        "« transparente » was picked in the view bar, and it reads {reads:?}",
+    );
+    driver::finish_the_sketch(&mut app);
+    assert!(
+        !driver::a_sketch_is_open(&app),
+        "the pill's « Terminer » left the sketch open, showing {:?}",
+        driver::on_screen(&app),
+    );
+
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
+    assert!(
+        driver::a_button_reads(&app, "Inverser"),
+        "« Vue en coupe » in the view bar opens no panel, showing {:?}",
+        driver::on_screen(&app),
+    );
+    driver::click_in_the_bar(&mut app, "Vue en coupe");
+    assert!(
+        !driver::a_button_reads(&app, "Inverser"),
+        "« Vue en coupe » clicked again in the view bar leaves its panel open",
+    );
+
+    assert_frames_the_block(&mut app, "« Recadrer » in the view bar", |app| {
+        driver::click_in_the_bar(app, "Recadrer");
+    });
+}
+
+#[test]
+fn f_still_reframes_and_enter_still_finishes_the_sketch() {
+    let mut app = driver::a_block("f_still_reframes_and_enter_still_finishes");
+
+    driver::start_a_sketch(&mut app);
+    assert!(
+        driver::a_sketch_is_open(&app),
+        "no sketch was opened on the block, showing {:?}",
+        driver::on_screen(&app),
+    );
+    driver::press(&mut app, egui::Key::Enter);
+    assert!(
+        !driver::a_sketch_is_open(&app),
+        "↵ left the sketch open, showing {:?}",
+        driver::on_screen(&app),
+    );
+
+    assert_frames_the_block(&mut app, "F", |app| {
+        driver::press(app, egui::Key::F);
+    });
 }
 
 #[test]

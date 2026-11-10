@@ -28,6 +28,9 @@
 //!   application: the hand resting on a trait of a closed sketch lights it,
 //!   leaving puts it out, and a click's light stays as it was —
 //!   `a_hand_resting_on_a_trait_of_a_closed_sketch_lights_it_and_leaving_puts_it_out`
+//! - found when the branch was tried: a sketch's eye, shut or lit, the sketch
+//!   closed or open, never runs over its row —
+//!   `a_sketch_row_s_eye_never_overlaps_its_row`
 //!
 //! A row's left edge and height are read off the widget named as the row is:
 //! the one the hand clicks. The driver reads them in points, which is what
@@ -432,5 +435,56 @@ fn a_hand_resting_on_a_trait_of_a_closed_sketch_lights_it_and_leaving_puts_it_ou
         once_left,
         (None, Some(the_trait("Trait 2"))),
         "the hand gone from « Trait 1 » leaves it lit, or takes the click's light with it",
+    );
+}
+
+/// Where the eye of the only sketch stands, lit or shut.
+fn the_eye(app: &driver::App) -> egui::Rect {
+    app.query_all_by_role(Role::Button)
+        .find(|node| {
+            node.accesskit_node().label().is_some_and(|read| {
+                read == "Afficher l'esquisse" || read == "Ne plus afficher l'esquisse"
+            })
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "no sketch's eye on screen, showing {:?}",
+                driver::on_screen(app)
+            )
+        })
+        .rect()
+}
+
+#[test]
+fn a_sketch_row_s_eye_never_overlaps_its_row() {
+    let mut app = driver::a_block("a_sketch_row_s_eye_never_overlaps_its_row");
+    let mut seen = Vec::new();
+    seen.push((
+        "closed, its eye shut",
+        the_eye(&app),
+        row(&app, "Esquisse 1"),
+    ));
+    driver::click_the_button(&mut app, "Afficher l'esquisse");
+    seen.push((
+        "closed, its eye lit",
+        the_eye(&app),
+        row(&app, "Esquisse 1"),
+    ));
+    driver::double_click(&mut app, "Esquisse 1");
+    assert!(
+        driver::a_sketch_is_open(&app),
+        "a double-click on « Esquisse 1 » did not reopen it"
+    );
+    seen.push(("open, its eye lit", the_eye(&app), row(&app, "Esquisse 1")));
+
+    let overlapping: Vec<String> = seen
+        .into_iter()
+        .filter(|(_, eye, row)| eye.intersect(*row).is_positive())
+        .map(|(state, eye, row)| format!("{state}: eye at {eye:?}, row at {row:?}"))
+        .collect();
+    assert!(
+        overlapping.is_empty(),
+        "a sketch's eye runs over its row:\n  {}",
+        overlapping.join("\n  "),
     );
 }

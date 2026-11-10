@@ -1,17 +1,19 @@
 //! Two edges of one step facing each other across a face they share
 //! (#698): the bound they set on the one value, so that their set-backs do
-//! not cross on it, and the pairs whose set-backs meet across it, which are
-//! laid as one.
+//! not cross on it, the pairs whose set-backs meet across it, which are laid
+//! as one, and the edges of the list such a pair is mitred against at a
+//! corner (#803): each edge at its end, bounding the face that is gone.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use glam::DVec3;
 
 use super::chain::TANGENT;
+use super::corners;
 use super::slope::one_plane;
 use super::{MADE, Prism, Wedge, too_short};
 use crate::body::exact::Exact;
-use crate::brep::{Declined, EdgeName, FaceId, Scale};
+use crate::brep::{self, Declined, EdgeId, FaceId, Scale};
 
 /// What raises the one prism two edges whose set-backs meet are taken off
 /// with, the earlier edge's wedge first, at the value whose set-backs meet
@@ -116,24 +118,70 @@ pub(super) fn meeting(
     Ok(pairs)
 }
 
+/// Each edge of `edges` bounding the face a pair of `pairs` whose faces meet
+/// outwards meet across, of no pair itself, that meets both of the pair at a
+/// corner — the edge at their end, whose cut is laid in turn against the one
+/// prism they are taken off with — by its rank, with the pair's value, the
+/// radius that prism is raised at, so that its cut meets theirs where they
+/// meet across the face even where the value taken stands a hair short of
+/// it. Declined `Unsupported` where an edge of a pair meets another of
+/// `edges` at a corner any other way: a full round meeting an upright
+/// (#837), or one of its edges alone, a round bottom meeting any edge
+/// (#838), a slope meeting any.
+pub(super) fn at_their_ends(
+    body: &brep::Body,
+    edges: &[EdgeId],
+    wedges: &[Wedge],
+    pairs: &[Pair],
+) -> Result<BTreeMap<usize, f64>, Declined> {
+    let members: BTreeSet<usize> = pairs
+        .iter()
+        .flat_map(|&(one, other, _)| [one, other])
+        .collect();
+    let meets = |member: usize, rank: usize| {
+        rank != member && corners::meet(body, [edges[member], edges[rank]])
+    };
+    let mut ends = BTreeMap::new();
+    for &(one, other, value) in pairs {
+        let [first, second] = [&wedges[one], &wedges[other]];
+        let outwards = !first.inwards && !second.inwards;
+        let across = first.faces.iter().find(|face| second.faces.contains(face));
+        for rank in (0..edges.len()).filter(|&rank| meets(one, rank) || meets(other, rank)) {
+            let at_their_end = outwards
+                && meets(one, rank)
+                && meets(other, rank)
+                && !members.contains(&rank)
+                && across.is_some_and(|face| wedges[rank].faces.contains(face));
+            if !at_their_end {
+                return Err(Declined::Unsupported);
+            }
+            ends.insert(rank, value);
+        }
+    }
+    Ok(ends)
+}
+
 impl Exact {
-    /// The body with the edges `earlier` and `later` find, whose set-backs
-    /// meet across the face they share, cut off as one by the prism `raise`
-    /// raises over both at the value they meet at — or filled in as one,
-    /// where their faces meet inwards, as [`Exact::filled`] fills: its first
-    /// two walls, the later edge's then the earlier's, laid as one face where
-    /// they lie on one surface, numbered as [`Exact::paired`] numbers it.
-    /// Declined as [`Exact::cut_off`] says.
+    /// The body with the two edges of `pair`, each with its wedge as read on
+    /// `on`, the body as given, the earlier first, whose set-backs meet
+    /// across the face they share, cut off as one by the prism `raise` raises
+    /// over both at the value they meet at — or filled in as one, where their
+    /// faces meet inwards, as [`Exact::filled`] fills: its first two walls,
+    /// the later edge's then the earlier's, laid as one face where they lie on
+    /// one surface, numbered as [`Exact::paired`] numbers it. The edges laid
+    /// before move none of their planes, and the rounds at their ends may
+    /// have moved both ends of each, so that no name finds them. Declined as
+    /// [`Exact::cut_off`] says.
     pub(super) fn laid_together(
         &self,
-        [earlier, later]: [&EdgeName; 2],
+        on: &brep::Body,
+        pair: [(EdgeId, &Wedge); 2],
         number: u32,
         raise: Raise,
     ) -> Result<Exact, Declined> {
-        let (first_edge, first) = self.wedge(earlier, Wedge::read)?;
-        let (second_edge, second) = self.wedge(later, Wedge::read)?;
+        let [(_, first), (_, second)] = pair;
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
-        let prism = raise(&first, &second, self.brep.scale(), bounds)?;
+        let prism = raise(first, second, self.brep.scale(), bounds)?;
         let (outline, frame, travel) = &prism;
         let raised = Exact::raised(outline, &[], *frame, *travel)?;
         let tool = Exact {
@@ -145,12 +193,11 @@ impl Exact {
             ..raised
         };
         let cut = if first.inwards {
-            let edges = [(first_edge, &first), (second_edge, &second)];
-            self.filled(&self.brep, &edges, &[], &prism, tool)?
+            self.filled(on, &pair, &[], &prism, tool)?
         } else {
             self.cut_by(&Exact { next: 2, ..tool })?
         };
-        cut.paired(self, [&first, &second], number)
+        cut.paired(self, [first, second], number)
     }
 
     /// The body two edges of `before` were laid on as one, its face left

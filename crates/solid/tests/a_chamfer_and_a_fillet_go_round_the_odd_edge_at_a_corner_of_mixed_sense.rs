@@ -25,7 +25,16 @@
 //!   steps leave, the upright chamfered alone and then its three feet —
 //!   `a_chamfer_on_two_feet_of_a_standing_block_and_the_upright_above_them_fills_the_foot_of_the_upright_s_flat_and_mitres_the_three_fills_in_every_order`;
 //!   filleted —
-//!   `a_fillet_on_two_feet_of_a_standing_block_and_the_upright_above_them_joins_the_feet_s_rounds_through_a_piece_of_torus_in_every_order`
+//!   `a_fillet_on_two_feet_of_a_standing_block_and_the_upright_above_them_joins_the_feet_s_rounds_through_a_piece_of_torus_in_every_order`.
+//!   Filleted, "shaped as above" is read as what the body shows: each round
+//!   drawn on its cylinder only, the feet's from the walls at their far ends
+//!   to the planes through the upright round's axis square to their walls,
+//!   the upright's from the standing block's top down to the circle the value
+//!   above the lower block's top, where the piece takes over from a round run
+//!   down to that top; the piece drawn on its torus only, across the quarter
+//!   turn and from the lower block's top to the upright's round, met first by
+//!   every ray from its tube's centre circle; and each of the four faces
+//!   meeting the faces it is tangent to or ends on, one edge each
 //! - The same at a corner that is not square: the trapezoid standing block
 //!   #801 already uses, at its obtuse and at its acute corner. The arc the
 //!   upright's round leaves then spans 180° less the corner's angle; volumes
@@ -129,7 +138,7 @@ use std::f64::consts::PI;
 
 use cao_solid::profile::{Contour, Frame, Profile};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
-use cao_solid::{Body, Chamfered, EdgeName, Loop};
+use cao_solid::{Body, Chamfered, EdgeName, Filleted, Loop};
 use glam::{DVec2, DVec3};
 
 /// How far a corner may stand from where it is expected, on a plane: each is
@@ -138,6 +147,10 @@ const PLACE: f64 = 1e-9;
 
 /// How near the arithmetic an exact volume comes, as a fraction of it.
 const EXACT: f64 = 1e-9;
+
+/// How far the triangles may stand from a round, as a share of the reach the
+/// body carries: the drawing's tolerance.
+const DRAWN: f64 = 2e-4;
 
 /// The number a raised part's top answers to.
 const TOP: usize = 1;
@@ -210,8 +223,11 @@ fn stacked() -> Body {
     )
 }
 const STACKED_VOLUME: f64 = 30.0 * 20.0 * 10.0 + 10.0 * 10.0 * 10.0;
+const STANDING_TOP: usize = 7;
 const STANDING_FRONT: usize = 8;
 const STANDING_RIGHT: usize = 9;
+const STANDING_BACK: usize = 10;
+const STANDING_LEFT: usize = 11;
 
 /// The number the flat a chamfer lays on [`stacked`]'s front right upright
 /// alone answers to: where the part's numbers ended.
@@ -273,7 +289,12 @@ fn chamfered_in_two_steps(value: f64) -> Body {
     let upright = part
         .chamfer(&edge_between(&part, STANDING_FRONT, STANDING_RIGHT), value)
         .unwrap_or_else(|declined| panic!("the upright alone is chamfered: {declined:?}"));
-    taken_as_asked(&upright, value, "the upright chamfered alone");
+    taken_as_asked(
+        upright.asked,
+        upright.taken,
+        value,
+        "the upright chamfered alone",
+    );
     let chamfered = upright.body;
     let feet = [
         edge_between(&chamfered, TOP, STANDING_FRONT),
@@ -285,7 +306,12 @@ fn chamfered_in_two_steps(value: f64) -> Body {
         .unwrap_or_else(|declined| {
             panic!("the three feet round the chamfered upright are filled: {declined:?}")
         });
-    taken_as_asked(&filled, value, "the three feet round the chamfered upright");
+    taken_as_asked(
+        filled.asked,
+        filled.taken,
+        value,
+        "the three feet round the chamfered upright",
+    );
     filled.body
 }
 
@@ -337,13 +363,47 @@ fn faces_made(part: &Body, body: &Body) -> Vec<usize> {
     numbers(body).difference(&numbers(part)).copied().collect()
 }
 
+/// The sides of the faces the face numbered `face` meets, one for each edge
+/// it has, in order.
+fn sides_met(body: &Body, face: usize) -> Vec<Vec<u32>> {
+    let own = vec![face as u32];
+    let mut met: Vec<Vec<u32>> = body
+        .edge_names()
+        .into_iter()
+        .filter_map(|name| {
+            let [first, second] = name.between;
+            if first == own {
+                Some(second)
+            } else if second == own {
+                Some(first)
+            } else {
+                None
+            }
+        })
+        .collect();
+    met.sort();
+    met
+}
+
+/// The sides a face is expected to meet, one edge each, in the order
+/// [`sides_met`] lists them.
+fn sides(faces: &[usize]) -> Vec<Vec<u32>> {
+    let mut sorted: Vec<Vec<u32>> = faces.iter().map(|&face| vec![face as u32]).collect();
+    sorted.sort();
+    sorted
+}
+
+/// The largest coordinate a body reaches, on either side of the origin.
+fn reach_of(body: &Body) -> f64 {
+    let (low, high) = body.bounds().expect("a part has a box");
+    low.abs().max(high.abs()).max_element()
+}
+
 /// Holds that a step reports the value it was asked, and took it whole.
-fn taken_as_asked(step: &Chamfered, value: f64, what: &str) {
+fn taken_as_asked(asked: f64, taken: f64, value: f64, what: &str) {
     assert!(
-        (step.asked - value).abs() < PLACE && (step.taken - value).abs() < PLACE,
-        "{what}: asked {} and took {}, where {value} fits",
-        step.asked,
-        step.taken
+        (asked - value).abs() < PLACE && (taken - value).abs() < PLACE,
+        "{what}: asked {asked} and took {taken}, where {value} fits"
     );
 }
 
@@ -488,7 +548,7 @@ fn went_round_the_upright(part: &Body, case: &Case, two_steps: &Body) {
                 .position(|&named| named == edge)
                 .expect("every edge of the corner is named")
     };
-    taken_as_asked(step, *value, what);
+    taken_as_asked(step.asked, step.taken, *value, what);
     let body = &step.body;
     let promised = chamfered_round_the_upright(*value);
     sound_drawn_within(body, promised, EXACT * promised, what);
@@ -585,5 +645,394 @@ fn a_chamfer_on_two_feet_of_a_standing_block_and_the_upright_above_them_fills_th
     );
     for case in &laid {
         went_round_the_upright(&part, case, &in_two_steps[case.two_steps]);
+    }
+}
+
+/// The height of the lower block's top, which the standing block stands on.
+const LOWER_TOP: f64 = 10.0;
+
+/// A round's cylinder, as the body is to show it: its axis through `through`
+/// along `along`, its radius, the two ways from the axis to the lines where
+/// it touches the faces it is tangent to, the arc it keeps between them; how
+/// far along its axis from `through` it runs, from end to end; and the faces
+/// of the part it meets besides the piece of torus, one edge each.
+struct Cylinder {
+    called: &'static str,
+    through: DVec3,
+    along: DVec3,
+    radius: f64,
+    toward: [DVec3; 2],
+    span: [f64; 2],
+    meets: [usize; 3],
+}
+
+impl Cylinder {
+    /// Whether a point lies on the cylinder, on the arc between the two
+    /// lines where it touches its faces, within its span.
+    fn holds(&self, point: DVec3) -> bool {
+        let off = point - self.through;
+        let at = off.dot(self.along);
+        let across = off - self.along * at;
+        (across.length() - self.radius).abs() < PLACE
+            && self.toward.iter().all(|&way| across.dot(way) >= -PLACE)
+            && at >= self.span[0] - PLACE
+            && at <= self.span[1] + PLACE
+    }
+
+    /// The four corners of the round: at each end of its span, on each of
+    /// the two lines where it touches its faces.
+    fn corners(&self) -> Vec<DVec3> {
+        self.span
+            .iter()
+            .flat_map(|&at| {
+                self.toward
+                    .map(|way| self.through + self.along * at + way * self.radius)
+            })
+            .collect()
+    }
+}
+
+/// The rounds a fillet of `radius` on the three edges at [`stacked`]'s front
+/// right foot corner leaves, in the order [`foot_corner`] lists the edges:
+/// the front foot's, from the left wall to the plane through the upright
+/// round's axis square to the front wall; the right foot's, from the plane
+/// through that axis square to the right wall to the back wall; and the
+/// upright's, its axis `radius` in from both walls, from the circle where the
+/// piece of torus meets it, `radius` above the lower block's top, to the
+/// standing block's top.
+fn rounds_round_the_upright(radius: f64) -> [Cylinder; 3] {
+    let r = radius;
+    [
+        Cylinder {
+            called: "the front foot's round",
+            through: DVec3::new(0.0, 5.0 - r, LOWER_TOP + r),
+            along: DVec3::X,
+            radius: r,
+            toward: [-DVec3::Z, DVec3::Y],
+            span: [10.0, 20.0 - r],
+            meets: [TOP, STANDING_FRONT, STANDING_LEFT],
+        },
+        Cylinder {
+            called: "the right foot's round",
+            through: DVec3::new(20.0 + r, 0.0, LOWER_TOP + r),
+            along: DVec3::Y,
+            radius: r,
+            toward: [-DVec3::Z, -DVec3::X],
+            span: [5.0 + r, 15.0],
+            meets: [TOP, STANDING_RIGHT, STANDING_BACK],
+        },
+        Cylinder {
+            called: "the upright's round",
+            through: DVec3::new(20.0 - r, 5.0 + r, 0.0),
+            along: DVec3::Z,
+            radius: r,
+            toward: [DVec3::X, -DVec3::Y],
+            span: [LOWER_TOP + r, 20.0],
+            meets: [STANDING_TOP, STANDING_FRONT, STANDING_RIGHT],
+        },
+    ]
+}
+
+/// The piece of torus a fillet of `radius` joins the feet's rounds through:
+/// about the upright round's axis, standing at `axis` on the lower block's
+/// top, its tube of `radius`, its centre circle twice that from the axis and
+/// `radius` above the lower block's top, turning a quarter from the front
+/// wall's side of the axis to the right wall's.
+struct Torus {
+    axis: DVec3,
+    radius: f64,
+}
+
+impl Torus {
+    fn of(radius: f64) -> Torus {
+        Torus {
+            axis: DVec3::new(20.0 - radius, 5.0 + radius, LOWER_TOP),
+            radius,
+        }
+    }
+
+    /// The way out from the axis `share` of the quarter turn round it, from
+    /// the front wall's side to the right wall's.
+    fn out(share: f64) -> DVec3 {
+        let turn = share * PI / 2.0;
+        DVec3::new(turn.sin(), -turn.cos(), 0.0)
+    }
+
+    /// The centre of the tube's section the way `out` from the axis.
+    fn tube_centre(&self, out: DVec3) -> DVec3 {
+        self.axis + out * 2.0 * self.radius + DVec3::Z * self.radius
+    }
+
+    /// Whether a point lies on the torus, on the quarter of its tube that
+    /// faces the axis and the lower block's top — from `radius` out from the
+    /// axis at the tube centre's height to twice that on the lower block's
+    /// top — and within the quarter turn between the two planes through the
+    /// axis square to the front and the right walls, on the corner's side.
+    fn holds(&self, point: DVec3) -> bool {
+        let off = point - self.axis;
+        let out = DVec3::new(off.x, off.y, 0.0).length();
+        let up = off.z;
+        let r = self.radius;
+        ((out - 2.0 * r).hypot(up - r) - r).abs() < PLACE
+            && out <= 2.0 * r + PLACE
+            && up <= r + PLACE
+            && off.x >= -PLACE
+            && off.y <= PLACE
+    }
+
+    /// The four corners of the piece: where it touches the lower block's top
+    /// and where it touches the upright's round, on each of the two planes it
+    /// ends on.
+    fn corners(&self) -> Vec<DVec3> {
+        let r = self.radius;
+        [0.0, 1.0]
+            .into_iter()
+            .flat_map(|share| {
+                let out = Torus::out(share);
+                [
+                    self.axis + out * 2.0 * r,
+                    self.axis + out * r + DVec3::Z * r,
+                ]
+            })
+            .collect()
+    }
+}
+
+/// What [`stacked`] holds once the three edges at its front right foot
+/// corner are filleted at `radius`, as the module's documentation derives
+/// it: the upright's round taken, the feet's rounds added up to where it
+/// begins, and the piece of torus between them added by Pappus.
+fn filleted_round_the_upright(radius: f64) -> f64 {
+    let section = radius * radius * (1.0 - PI / 4.0);
+    STACKED_VOLUME - 10.0 * section
+        + 2.0 * (10.0 - radius) * section
+        + PI / 2.0 * radius.powi(3) * (11.0 / 6.0 - PI / 2.0)
+}
+
+/// What the triangles of a fillet of `radius` on the three edges at the foot
+/// corner may enclose apart from its matter: the drawing's tolerance at the
+/// part's own reach, over the curved faces — the upright's round along the
+/// standing block's 10, the feet's rounds along their `10 − r`, and the piece
+/// of torus, `(π/2)·r²(π − 1)`.
+fn drawn_round_the_upright(part: &Body, radius: f64) -> f64 {
+    let rounds = PI / 2.0 * radius * (10.0 + 2.0 * (10.0 - radius));
+    let piece = PI / 2.0 * radius * radius * (PI - 1.0);
+    DRAWN * reach_of(part) * (rounds + piece)
+}
+
+/// A fillet on the three edges at the foot corner: the order the list named
+/// them in, the value, what the step left, and what to call it.
+struct Rounded {
+    order: [usize; 3],
+    value: f64,
+    step: Filleted,
+    what: String,
+}
+
+impl Rounded {
+    /// The number the face laid on the edge `edge` of [`foot_corner`]
+    /// answers to: where the steps' numbers of `part` ended, plus the edge's
+    /// rank in the list.
+    fn laid_on(&self, part: &Body, edge: usize) -> usize {
+        part.faces_end()
+            + self
+                .order
+                .iter()
+                .position(|&named| named == edge)
+                .expect("every edge of the corner is named")
+    }
+}
+
+/// Holds that a face is curved and drawn, every corner of its triangles
+/// where `on` says it lies, and `corners` among them.
+fn curved_and_drawn_on(
+    body: &Body,
+    face: usize,
+    on: impl Fn(DVec3) -> bool,
+    corners: &[DVec3],
+    what: &str,
+) {
+    assert!(
+        !body.is_flat(face) && body.plane_of(face).is_none(),
+        "{what} is curved, and offers no plane to draw on"
+    );
+    let drawn: Vec<DVec3> = body.triangles_of(face).flatten().collect();
+    assert!(!drawn.is_empty(), "{what} is drawn");
+    for point in &drawn {
+        assert!(
+            on(*point),
+            "{what} is drawn through {point}, off where it lies"
+        );
+    }
+    for corner in corners {
+        assert!(
+            drawn.iter().any(|point| point.distance(*corner) < PLACE),
+            "{what}: no corner at {corner}"
+        );
+    }
+}
+
+/// Holds what a fillet of its value on the three edges at [`stacked`]'s front
+/// right foot corner, named in its order, leaves of the part:
+///
+/// - the value taken whole; a sound body holding what
+///   [`filleted_round_the_upright`] promises;
+/// - one round for each edge, answering to where the part's numbers ended
+///   plus the edge's rank in the list, then the piece of torus, and the next
+///   step's numbers past it; nothing else made, no face of the part gone;
+/// - each round on its cylinder and only there, the feet's running from the
+///   walls at their far ends to the planes through the upright round's axis
+///   square to their walls, where it leaves them, and the upright's from the
+///   standing block's top down to the circle `r` above the lower block's top,
+///   where the piece of torus takes over; each meeting the faces of the part
+///   it lies between, the one at its far end, and the piece;
+/// - the piece of torus on its torus and only there, from where it touches
+///   the lower block's top to where it touches the upright's round, across
+///   the quarter turn between the feet's rounds; met first, facing back, by
+///   every ray from its tube's centre circle out to it; meeting the lower
+///   block's top and the three rounds, one edge each.
+fn joined_through_a_piece_of_torus(part: &Body, case: &Rounded) {
+    let Rounded {
+        value, step, what, ..
+    } = case;
+    let r = *value;
+    taken_as_asked(step.asked, step.taken, r, what);
+    let body = &step.body;
+    let promised = filleted_round_the_upright(r);
+    sound_drawn_within(body, promised, drawn_round_the_upright(part, r), what);
+    let start = part.faces_end();
+    let piece = start + 3;
+    assert_eq!(
+        faces_made(part, body),
+        (start..=piece).collect::<Vec<_>>(),
+        "{what}: one round for each edge, numbered in the order the step names them, and the \
+         piece of torus after them: {:?}",
+        numbers(body)
+    );
+    assert_eq!(
+        body.faces_end(),
+        piece + 1,
+        "{what}: the next step numbers its own faces past the piece of torus"
+    );
+    assert!(
+        numbers(part).is_subset(&numbers(body)),
+        "{what}: a face of the part went: {:?}",
+        numbers(body)
+    );
+
+    let rounds = rounds_round_the_upright(r);
+    for (edge, round) in rounds.iter().enumerate() {
+        let face = case.laid_on(part, edge);
+        let which = format!("{what}: {}, face {face}", round.called);
+        curved_and_drawn_on(
+            body,
+            face,
+            |point| round.holds(point),
+            &round.corners(),
+            &which,
+        );
+        let [one, other, third] = round.meets;
+        assert_eq!(
+            sides_met(body, face),
+            sides(&[one, other, third, piece]),
+            "{which} meets the faces it lies between, the face at its far end and the piece of \
+             torus, one edge each"
+        );
+    }
+
+    let torus = Torus::of(r);
+    let which = format!("{what}: the piece of torus, face {piece}");
+    curved_and_drawn_on(
+        body,
+        piece,
+        |point| torus.holds(point),
+        &torus.corners(),
+        &which,
+    );
+    for around in [0.1, 0.3, 0.5, 0.7, 0.9] {
+        let out = Torus::out(around);
+        let from = torus.tube_centre(out);
+        for across in [0.1, 0.3, 0.5, 0.7, 0.9] {
+            let turn = across * PI / 2.0;
+            let toward = -(out * turn.cos() + DVec3::Z * turn.sin());
+            let hit = body.ray_hit(from, toward).unwrap_or_else(|| {
+                panic!("{which}: a ray from {from}, on its tube's centre circle, meets nothing")
+            });
+            assert_eq!(
+                hit.face, piece,
+                "{which}: a ray from {from}, on its tube's centre circle, meets face {} before it",
+                hit.face
+            );
+            assert!(
+                hit.normal.distance(-toward) < PLACE,
+                "{which}: where a ray from {from} meets it, it faces {}, not {}, back toward its \
+                 tube's centre circle",
+                hit.normal,
+                -toward
+            );
+        }
+    }
+    let laid: Vec<usize> = (0..3).map(|edge| case.laid_on(part, edge)).collect();
+    assert_eq!(
+        sides_met(body, piece),
+        sides(&[TOP, laid[0], laid[1], laid[2]]),
+        "{which} meets the lower block's top and the three rounds, one edge each"
+    );
+}
+
+#[test]
+fn a_fillet_on_two_feet_of_a_standing_block_and_the_upright_above_them_joins_the_feet_s_rounds_through_a_piece_of_torus_in_every_order()
+ {
+    let part = stacked();
+    let edges = foot_corner();
+    let names = edges
+        .each_ref()
+        .map(|edge| edge_between(&part, edge.between[0], edge.between[1]));
+    let mut laid = Vec::new();
+    let mut declined = Vec::new();
+    for value in VALUES {
+        for order in ORDERS_OF_THREE {
+            let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+            let what = format!(
+                "the fillet of {value} on {:?}",
+                order.map(|edge| edges[edge].called)
+            );
+            match part.fillet_edges(&list, value) {
+                Ok(step) => laid.push(Rounded {
+                    order,
+                    value,
+                    step,
+                    what,
+                }),
+                Err(reason) => declined.push(format!("{what}: {reason:?}")),
+            }
+        }
+    }
+    assert!(
+        declined.is_empty(),
+        "the three edges at the standing block's front right foot filleted in one step, the \
+         upright first and the feet's rounds joined round it; declined:\n{}",
+        declined.join("\n")
+    );
+    for case in &laid {
+        joined_through_a_piece_of_torus(&part, case);
+    }
+    for case in &laid {
+        let first = laid
+            .iter()
+            .find(|other| other.value == case.value)
+            .expect("the case itself is among them");
+        if std::ptr::eq(first, case) {
+            continue;
+        }
+        let to_first: Vec<(usize, usize)> = (0..3)
+            .map(|edge| (case.laid_on(&part, edge), first.laid_on(&part, edge)))
+            .collect();
+        the_same_bodies(
+            &first.step.body,
+            &case.step.body,
+            &to_first,
+            &format!("{} and {}", first.what, case.what),
+        );
     }
 }

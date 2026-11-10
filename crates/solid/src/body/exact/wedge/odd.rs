@@ -1,14 +1,16 @@
 //! A corner three edges of one step meet at, two of one sense and the odd one
 //! of the other (#829): the foot corner of a block standing on another, two
 //! concave feet and the convex upright above them. A cut and a fill laid in
-//! turn there meet in nothing, so the odd edge is laid first, as it is laid
-//! alone, stopping flush on the face the two others share; the two others
-//! then follow the outline it left, as they would in a later step, the edge
-//! where the odd edge's face meets that face laid with them — the foot of a
-//! chamfer's flat, filled among the feet and mitred with them, as #801 fills
-//! it. A fillet's round leaves a curved foot, which the feet run on into
-//! tangentially, and the step is declined there as any tangent chain is,
-//! until a piece of torus joins the feet's rounds round it.
+//! turn there meet in nothing, so the two others go round the outline the
+//! odd edge leaves, as the kind says. Among flats the odd edge is laid first,
+//! as it is laid alone, stopping flush on the face the two others share; the
+//! two others then follow the outline it left, as they would in a later
+//! step, the edge where the odd edge's face meets that face laid with them —
+//! the foot of a chamfer's flat, filled among the feet and mitred with them,
+//! as #801 fills it. Among rounds the corner is filled up to where the odd
+//! edge's round leaves the others, every edge is then laid against that as
+//! alone, and a piece of torus replaces what the filling left, as
+//! [`super::torus`] lays it.
 
 use glam::DVec3;
 
@@ -18,18 +20,40 @@ use super::{Meeting, Prism, Wedge};
 use crate::body::exact::Exact;
 use crate::brep::{Declined, EdgeName, Scale};
 
-/// A corner of mixed sense: the rank of its odd edge in the list, and the
-/// numbers of the face its two others share, which the odd edge stops flush
-/// on there.
-pub(super) type Odd = (usize, Vec<u32>);
+/// A corner of mixed sense: where it stands, its three edges' ranks in the
+/// list, from the lowest, the rank of its odd edge and the way that edge runs
+/// from it, and the numbers of the face its two others share, which the odd
+/// edge stops flush on there.
+pub(super) struct Odd {
+    pub at: DVec3,
+    pub ranks: [usize; 3],
+    pub lone: usize,
+    pub up: DVec3,
+    pub on: Vec<u32>,
+}
+
+/// What a kind lays round the odd edge of a corner of mixed sense.
+#[derive(Clone, Copy)]
+pub(in crate::body::exact) enum Around {
+    /// The odd edge laid first, alone, then the others with the foot of the
+    /// face it laid, an edge of their sense: a chamfer's flat, whose foot is
+    /// straight.
+    Foot,
+    /// The corner filled up to the planes through the odd edge's round's axis
+    /// square to the others, every edge then laid against it, and what the
+    /// filling left replaced by a piece of torus about that axis, as
+    /// [`Exact::through_a_torus`] lays it: a fillet's round, whose foot is
+    /// curved.
+    Torus,
+}
 
 /// The corners of mixed sense among those three of a step's edges meet at,
 /// in the order [`super::corners::of_three`] reads them. Declined
 /// `Unsupported` where the two others at such a corner share no face, or an
 /// edge is the odd one at one corner and one of the two others at another.
 pub(super) fn corners(step: &Step) -> Result<Vec<Odd>, Declined> {
-    let mut odd = Vec::new();
-    for &(_, ranks, _) in &step.three {
+    let mut odd: Vec<Odd> = Vec::new();
+    for &(at, ranks, along) in &step.three {
         let inwards = ranks.map(|rank| step.wedges[rank].inwards);
         let alike = |at: usize| inwards.iter().filter(|&&way| way == inwards[at]).count();
         let Some(lone) = (0..3).find(|&at| alike(at) == 1) else {
@@ -39,18 +63,48 @@ pub(super) fn corners(step: &Step) -> Result<Vec<Odd>, Declined> {
         let shared = (0..2)
             .find(|&side| other.faces.contains(&one.faces[side]))
             .ok_or(Declined::Unsupported)?;
-        odd.push((ranks[lone], ranks, one.numbers[shared].clone()));
+        odd.push(Odd {
+            at,
+            ranks,
+            lone: ranks[lone],
+            up: along[lone],
+            on: one.numbers[shared].clone(),
+        });
     }
-    let crossed = odd.iter().any(|&(lone, _, _)| {
-        (odd.iter()).any(|&(other, ranks, _)| other != lone && ranks.contains(&lone))
+    let crossed = odd.iter().any(|corner| {
+        (odd.iter()).any(|other| other.lone != corner.lone && other.ranks.contains(&corner.lone))
     });
     if crossed {
         return Err(Declined::Unsupported);
     }
-    Ok(odd.into_iter().map(|(lone, _, on)| (lone, on)).collect())
+    Ok(odd)
 }
 
 impl Exact {
+    /// The body with the edges `names` find laid at `taken`, each corner of
+    /// mixed sense `odd` holds gone round its odd edge as `meeting` says: by
+    /// its foot, as [`Exact::round_the_foot`] lays it, or through a piece of
+    /// torus, as [`Exact::through_a_torus`] lays it, each edge's wedge on this
+    /// body by its rank in `wedges`. Declined as those decline.
+    pub(super) fn round_the_odd(
+        &self,
+        names: &[EdgeName],
+        wedges: &[Wedge],
+        odd: &[Odd],
+        taken: f64,
+        kind: (
+            (&impl Fn(&Wedge) -> f64, &impl Fn(&Wedge) -> f64),
+            &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
+            Meeting,
+        ),
+    ) -> Result<(Exact, f64, Vec<Pair>), Declined> {
+        let (_, _, meeting) = kind;
+        match meeting.around {
+            Around::Foot => self.round_the_foot(names, odd, taken, kind),
+            Around::Torus => self.through_a_torus(names, wedges, odd, taken, kind),
+        }
+    }
+
     /// The body with the edges `names` find laid at `taken`, each corner of
     /// mixed sense `odd` holds gone round its odd edge: the odd edges first,
     /// alone, then the others with, for each such corner, the edge where the
@@ -65,7 +119,7 @@ impl Exact {
     /// meets the face its two others share along no edge or several, or one
     /// of two edges laid together is an edge no name finds; otherwise as
     /// [`Exact::cut_off`] declines either list.
-    pub(super) fn round_the_odd(
+    fn round_the_foot(
         &self,
         names: &[EdgeName],
         odd: &[Odd],
@@ -78,17 +132,17 @@ impl Exact {
     ) -> Result<(Exact, f64, Vec<Pair>), Declined> {
         let start = self.next;
         let (first, rest): (Vec<usize>, Vec<usize>) =
-            (0..names.len()).partition(|&rank| odd.iter().any(|&(lone, _)| lone == rank));
+            (0..names.len()).partition(|&rank| odd.iter().any(|corner| corner.lone == rank));
         let named = |ranks: &[usize]| -> Vec<EdgeName> {
             ranks.iter().map(|&rank| names[rank].clone()).collect()
         };
         let (laid, before) = self.laid_at(&named(&first), taken, kind)?;
         let feet = (odd.iter())
-            .map(|(lone, on)| {
+            .map(|corner| {
                 let at = first
-                    .binary_search(lone)
+                    .binary_search(&corner.lone)
                     .map_err(|_| Declined::Unsupported)?;
-                laid.foot(start + at as u32, on)
+                laid.foot(start + at as u32, &corner.on)
             })
             .collect::<Result<Vec<_>, Declined>>()?;
         let following: Vec<EdgeName> = named(&rest).into_iter().chain(feet).collect();
@@ -146,7 +200,7 @@ impl Exact {
     /// The body with each face answering to what `moved` makes of its
     /// numbers, in whatever order it leaves them, and each piece parted
     /// from what it makes of the number it was parted from.
-    fn renamed_by(self, moved: impl Fn(u32) -> u32) -> Exact {
+    pub(super) fn renamed_by(self, moved: impl Fn(u32) -> u32) -> Exact {
         let Exact {
             brep,
             next,

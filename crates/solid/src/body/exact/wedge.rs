@@ -20,6 +20,7 @@ mod set_backs;
 mod slope;
 mod sphere;
 mod step;
+mod torus;
 mod triangle;
 
 use std::collections::BTreeSet;
@@ -33,6 +34,7 @@ use crate::profile::{Contour, Frame};
 
 pub(super) use closing::Closing;
 use flush::{Flush, Stop};
+pub(super) use odd::Around;
 use overlap::OVERLAPS;
 pub(super) use pairs::Together;
 pub(super) use section::Side;
@@ -63,11 +65,13 @@ pub(super) type Prism = (Contour, Frame, DVec3);
 
 /// What a kind lays where the edges of one step meet: two whose set-backs
 /// meet across the face they share, as one, where `together` lays them so —
-/// any other two each laid alone — and a corner three meet at, closed.
+/// any other two each laid alone — a corner three meet at, closed, and one
+/// of mixed sense, gone round its odd edge as `around` says.
 #[derive(Clone, Copy)]
 pub(super) struct Meeting {
     pub together: Together,
     pub closing: Closing,
+    pub around: Around,
 }
 
 impl Exact {
@@ -111,9 +115,10 @@ impl Exact {
     /// where each two's set-backs cross on the face they share, as
     /// [`Exact::closed`] closes it, its face numbered past the edges'. A corner
     /// three of them meet at, two concave and the convex upright above them,
-    /// is gone round its odd edge, as [`Exact::round_the_odd`] lays it: that
-    /// edge first, alone, then the two others following the outline it left,
-    /// with the foot of its face, numbered past the edges'. The wall an edge's
+    /// is gone round its odd edge as `meeting` says, as
+    /// [`Exact::round_the_odd`] lays it — the two others following the outline
+    /// it leaves, with the foot of its face or through a piece of torus about
+    /// its round — what closes it numbered past the edges'. The wall an edge's
     /// prism lays is numbered where the steps' numbers ended, plus the edge's
     /// rank in the list; a pair is laid at its later edge's turn, so
     /// that every number laid before stands below those a prism lays, as
@@ -156,7 +161,7 @@ impl Exact {
                 self.in_turn(names, step, taken, &set_back, &tool, meeting)
             } else {
                 let kind = ((&most, &set_back), &tool, meeting);
-                self.round_the_odd(names, &odd, taken, kind)
+                self.round_the_odd(names, &step.wedges, &odd, taken, kind)
             }
         })
     }

@@ -7,7 +7,7 @@
 mod prism;
 
 use super::Exact;
-use super::wedge::{Closing, Meeting, Together, cut_across, joined_across};
+use super::wedge::{Around, Closing, Meeting, Together, cut_across, joined_across};
 use crate::brep::{Declined, EdgeName};
 
 impl Exact {
@@ -88,6 +88,7 @@ impl Exact {
                     outwards: cut_across,
                     inwards: joined_across,
                 },
+                around: Around::Foot,
             },
         )?;
         Ok((cut, taken))

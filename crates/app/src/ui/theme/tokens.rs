@@ -46,6 +46,8 @@ pub const STATE_ERROR_BACKGROUND: Color32 =
     Color32::from_rgba_unmultiplied_const(240, 138, 126, 38);
 pub const STATE_SUCCESS_TEXT: Color32 = Color32::from_rgb(0x8F, 0xE3, 0xBC);
 
+pub const VARIABLE_TEXT: Color32 = Color32::from_rgb(0x9F, 0xC6, 0xFF);
+
 /// `0 10px 28px rgba(0,0,0,0.50)`: 0.50 of 255 is 128.
 pub const SHADOW_MENU: Shadow = Shadow {
     offset: [0, 10],

@@ -41,8 +41,87 @@
 //!   `an_area_row_of_the_open_sketch_lights_the_area`; a dimension or a rule
 //!   row of a closed sketch is no click at all —
 //!   `a_dimension_or_a_rule_of_a_closed_sketch_is_no_click_at_all`
+//!
+//! Closes #733 — the issue has no Done when of its own; these are the points of
+//! its « What it does » and « What must not break », as read when the work
+//! opened. The bullets the headless driver holds are transcribed again, checked,
+//! in `crates/app/tests/the_part_panel.rs`.
+//! - Sections, top to bottom: « ESQUISSES », « VOLUMES », « COUPES », « TOUT LE
+//!   CORPS », « VARIABLES » —
+//!   `the_panel_reads_its_sketches_volumes_sections_whole_body_then_variables`
+//! - « TOUT LE CORPS » holds today's « Corps : {mode} » row, unchanged — no
+//!   test: the row's sentence is `wording::part_tree::body`, which this issue
+//!   leaves alone (#734 reworks it), and where it sits is held by the order
+//!   above
+//! - « VARIABLES », read only: the name apart from the value —
+//!   `a_variable_reads_its_name_apart_from_its_value`
+//! - the value on the right and the name in `variable.text` — no test: where a
+//!   label stands and the colour it is painted in are the view's, and the
+//!   driver reaches a variable only through its panel, a set-up the colour
+//!   alone does not repay
+//! - Tree rows (C10): 28 px high, indented 26 px — no test: held by
+//!   `a_tree_row_stands_28_points_high_and_its_children_26_points_in`, in
+//!   `crates/app/tests/the_part_panel.rs`
+//! - the thin vertical line, the chevron, the monospace value, the amber of a
+//!   selected row and the dimming of a hidden one — no test: painting the
+//!   presenter does not reach, and a painted-colour check would pin egui's
+//!   styling more than a decision
+//! - A sketch row carries its plane on the right, « XY », « face », « Coupe 1 »,
+//!   named as the sketch pill names it —
+//!   `a_sketch_names_the_plane_it_is_laid_on_as_the_pill_does`
+//! - The open sketch is selected and unfolded — no test: held by
+//!   `the_open_sketch_is_selected_and_unfolded_in_the_tree`, in
+//!   `crates/app/tests/the_part_panel.rs`
+//! - A sketch's children: each trait with its length (« 180 mm »), each circle
+//!   with its Ø, an arc or an ellipse with no value —
+//!   `a_trait_reads_its_length_a_circle_its_diameter_and_an_arc_nothing`
+//! - then « Aires », « Cotes », « Contraintes » with their count, the traits
+//!   straight under the sketch, with no « Traits » group — no test: held by
+//!   `an_unfolded_sketch_lists_its_traits_then_its_areas_dimensions_and_rules_counted`,
+//!   in `crates/app/tests/the_part_panel.rs`
+//! - Badges instead of suffixes, each with its level (A1 of #722): warning for
+//!   « instable » and « face perdue », error for « non construit » and « aire
+//!   perdue »; the name stays bare — `each_problem_is_a_badge_with_its_level`,
+//!   and what each badge reads by
+//!   `a_badge_reads_the_word_its_problem_is_known_by`
+//! - a badge painted in the warning or the error colour — no test: the view
+//!   picks the colour from the level the presenter hands it, which the bullet
+//!   above holds
+//! - Hovering a row lights its element in the view: in a closed sketch as its
+//!   click lights it — `hovering_a_row_of_a_closed_sketch_lights_it_as_its_click_does`;
+//!   in the open sketch as a hover there would, without selecting it —
+//!   `hovering_a_trait_of_the_open_sketch_lights_it_without_selecting_it`; and
+//!   only while the hand is on the row —
+//!   `a_row_lit_by_the_hand_goes_out_when_the_hand_leaves_it`
+//! - A click selects as today —
+//!   `a_click_on_a_trait_of_the_open_sketch_selects_it_alone`,
+//!   `a_click_on_a_dimension_or_a_rule_of_the_open_sketch_selects_it`
+//! - A double-click on a sketch reopens it — no test: held by
+//!   `opening_a_sketch_made_on_a_section_switches_it_on_and_leaving_puts_the_sections_back`,
+//!   in `crates/app/tests/keeping_a_section.rs`, and by
+//!   `a_sketch_whose_section_is_no_longer_kept_reads_its_plane_s_name`, in
+//!   `crates/app/tests/sketch_pill.rs`
+//! - Sections keep today's behaviour, one switched on at a time (#716) — no
+//!   test: held by `switching_the_second_section_on_switches_the_first_off`, in
+//!   `crates/app/tests/keeping_a_section.rs`
+//! - The panel scrolls when it is taller than the window — no test: the tree is
+//!   drawn inside an `egui::ScrollArea` today and the issue keeps it; a window
+//!   short enough to scroll and a row found past its bottom is the driver
+//!   asserting egui's own scrolling
+//! - Must not break, selecting from the tree inside the open sketch —
+//!   `a_click_with_the_modifier_adds_to_what_the_open_sketch_holds_and_takes_it_back`,
+//!   and the two click tests above
+//! - Must not break, lighting in another sketch —
+//!   `a_click_on_a_row_of_a_closed_sketch_lights_it_and_opens_nothing`
+//! - Must not break, the sketch eye — no test: held by
+//!   `the_eye_of_a_used_sketch_brings_its_traits_back_and_takes_them_away_again`,
+//!   in `crates/app/src/screens/viewport/render/tests.rs`
+//! - Must not break, the panel's presenter stays testable without a window —
+//!   no test: held by `a_presenter_never_takes_the_interface`, in
+//!   `crates/app/tests/architecture.rs`, and by this file building no window
 
-use cao_part::history::{FaceAnchor, PointRef, RevolutionAxis};
+use cao_part::VariableChange;
+use cao_part::history::{FaceAnchor, PointRef, RevolutionAxis, SectionAsked, SideDrawing};
 use cao_sketch::{
     Constraint, DimensionTarget, Element, PointId, Rule, RulePick, SegmentId, Selection,
     SketchAxis, ToolState, WorkPlane,
@@ -54,6 +133,7 @@ use super::*;
 use crate::screens::part_tree::TreeAction;
 use crate::screens::sketch::{SketchEditor, Tool};
 use crate::screens::viewport::ViewportState;
+use crate::wording::part_tree as said;
 
 fn at(text: &str) -> DateTime<Utc> {
     text.parse().expect("a date")
@@ -634,4 +714,71 @@ fn a_dimension_or_a_rule_of_a_closed_sketch_is_no_click_at_all() {
             "{row:?} of a closed sketch is no click, though a click lights it",
         );
     }
+}
+
+/// `a_part`, with two variables — `height` at 40, `double` written from it —
+/// and a section kept along YZ: every rubric of the panel has something in it.
+fn a_part_with_variables_and_a_section() -> PartDocument {
+    let mut document = a_part();
+    for (name, text) in [("height", "40"), ("double", "height * 2")] {
+        let formula = document.variables().read(text).expect("it reads");
+        document
+            .change_variable(VariableChange::Added {
+                name: name.to_string(),
+                formula,
+            })
+            .expect("nothing to refuse");
+    }
+    document.apply(Operation::SaveSection(SectionAsked {
+        plane: WorkPlane::YZ,
+        on: None,
+        offset: 5.0,
+        behind: SideDrawing::SeeThrough,
+        in_front: SideDrawing::Opaque,
+        tilt_about_u_degrees: 0.0,
+        tilt_about_v_degrees: 0.0,
+        pivot: DVec3::ZERO,
+    }));
+    document
+}
+
+#[test]
+fn the_panel_reads_its_sketches_volumes_sections_whole_body_then_variables() {
+    let lang = french();
+    let tree = PartTree::of(&a_part_with_variables_and_a_section(), &lang);
+
+    let headings: Vec<String> = tree
+        .rubrics()
+        .into_iter()
+        .map(|rubric| said::rubric(&lang, rubric))
+        .collect();
+
+    assert_eq!(
+        headings,
+        [
+            "ESQUISSES",
+            "VOLUMES",
+            "COUPES",
+            "TOUT LE CORPS",
+            "VARIABLES"
+        ],
+        "a part with sketches, a body, a section and variables lists them in another order",
+    );
+}
+
+#[test]
+fn a_variable_reads_its_name_apart_from_its_value() {
+    let tree = PartTree::of(&a_part_with_variables_and_a_section(), &french());
+
+    let read: Vec<(&str, &str)> = tree
+        .variables
+        .iter()
+        .map(|variable| (variable.name.as_str(), variable.value.as_str()))
+        .collect();
+
+    assert_eq!(
+        read,
+        [("height", "40"), ("double", "height * 2 = 80")],
+        "a variable's name and its value are not handed apart, or not as the panel read them",
+    );
 }

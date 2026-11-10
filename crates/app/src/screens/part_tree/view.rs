@@ -2,14 +2,15 @@ use cao_part::PartDocument;
 
 use crate::lang::Catalogue;
 use crate::screens::part_tree::state::{
-    Body, Drawn, Kept, PartTree, Row, TreeAction, clickable, clicked, marked,
+    Body, Drawn, Kept, PartTree, Row, TreeAction, Variable, clickable, clicked, marked,
 };
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
 use crate::ui::eye::eye;
 use crate::ui::floating_panel::panel_row;
 use crate::ui::question::{Question, ask};
-use crate::wording::part_tree as said;
+use crate::ui::theme::tokens;
+use crate::wording::part_tree::{self as said, Rubric};
 
 /// What the tree reads to mark its rows, and the one thing asked of it.
 struct Asked<'a> {
@@ -54,56 +55,70 @@ fn show(ui: &mut egui::Ui, asked: &mut Asked<'_>, lang: &Catalogue) {
     }
 
     egui::ScrollArea::vertical().show(ui, |ui| {
-        ui.label(lang.t("part_tree.variables"));
-        if tree.variables.is_empty() {
-            ui.horizontal(|ui| {
-                ui.add_space(18.0);
-                ui.weak(lang.t("part_tree.no_variables"));
-            });
-        }
-        for variable in &tree.variables {
-            ui.horizontal(|ui| {
-                ui.add_space(18.0);
-                ui.label(variable);
-            });
-        }
-        ui.add_space(8.0);
-
-        if !tree.bodies.is_empty() {
-            let mode = said::body(lang, asked.viewport.body_mode());
-            if panel_row(ui, mode, false, false).clicked() {
-                asked.action = TreeAction::NextBodyMode;
+        for (rank, rubric) in tree.rubrics().into_iter().enumerate() {
+            if rank > 0 {
+                ui.add_space(8.0);
             }
-            for body in &tree.bodies {
-                made_of_matter(ui, body, asked, lang);
+            ui.label(said::rubric(lang, rubric));
+            match rubric {
+                Rubric::Sketches => sketches(ui, &tree, asked, lang),
+                Rubric::Volumes => {
+                    for body in &tree.bodies {
+                        made_of_matter(ui, body, asked, lang);
+                    }
+                }
+                Rubric::Sections => {
+                    for kept in &tree.sections {
+                        section(ui, kept, asked, lang);
+                    }
+                }
+                Rubric::WholeBody => {
+                    let mode = said::body(lang, asked.viewport.body_mode());
+                    if panel_row(ui, mode, false, false).clicked() {
+                        asked.action = TreeAction::NextBodyMode;
+                    }
+                }
+                Rubric::Variables => variables(ui, &tree.variables, lang),
             }
-            ui.add_space(8.0);
-        }
-
-        ui.label(lang.t("part_tree.sketches"));
-        for drawing in &tree.sketches {
-            // A single click folds; only a double-click reopens the sketch, so
-            // that walking the tree cannot drop the user into drawing by
-            // accident.
-            let lit = asked.viewport.eye_lit(asked.document, drawing.sketch);
-            ui.horizontal_top(|ui| {
-                if eye(ui, lit, said::eye(lang, lit)) {
-                    asked.action = TreeAction::ToggleEye(drawing.sketch);
-                }
-                if ui.vertical(|ui| drawn(ui, drawing, asked, lang)).inner {
-                    asked.action = TreeAction::EditSketch(drawing.sketch);
-                }
-            });
-        }
-
-        if !tree.sections.is_empty() {
-            ui.add_space(8.0);
-            ui.label(lang.t("part_tree.sections"));
-        }
-        for kept in &tree.sections {
-            section(ui, kept, asked, lang);
         }
     });
+}
+
+fn sketches(ui: &mut egui::Ui, tree: &PartTree, asked: &mut Asked<'_>, lang: &Catalogue) {
+    for drawing in &tree.sketches {
+        // A single click folds; only a double-click reopens the sketch, so
+        // that walking the tree cannot drop the user into drawing by
+        // accident.
+        let lit = asked.viewport.eye_lit(asked.document, drawing.sketch);
+        ui.horizontal_top(|ui| {
+            if eye(ui, lit, said::eye(lang, lit)) {
+                asked.action = TreeAction::ToggleEye(drawing.sketch);
+            }
+            if ui.vertical(|ui| drawn(ui, drawing, asked, lang)).inner {
+                asked.action = TreeAction::EditSketch(drawing.sketch);
+            }
+        });
+    }
+}
+
+/// The variables, read only: the name in the variable colour, the value on
+/// the right.
+fn variables(ui: &mut egui::Ui, variables: &[Variable], lang: &Catalogue) {
+    if variables.is_empty() {
+        ui.horizontal(|ui| {
+            ui.add_space(18.0);
+            ui.weak(lang.t("part_tree.no_variables"));
+        });
+    }
+    for variable in variables {
+        ui.horizontal(|ui| {
+            ui.add_space(18.0);
+            ui.colored_label(tokens::VARIABLE_TEXT, &variable.name);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.monospace(&variable.value);
+            });
+        });
+    }
 }
 
 /// One kept section: a click switches it on or off, a double-click reopens it,

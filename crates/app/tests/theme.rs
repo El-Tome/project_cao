@@ -385,6 +385,7 @@ fn every_token_the_chrome_holds_is_the_design_file_s() {
             tokens::STATE_SUCCESS_TEXT,
             "state.success_text",
         ),
+        ("VARIABLE_TEXT", tokens::VARIABLE_TEXT, "variable.text"),
     ];
     let numbers = [
         (

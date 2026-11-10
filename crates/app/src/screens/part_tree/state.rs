@@ -16,6 +16,7 @@ use cao_part::history::{ExtrusionMode, Operation};
 use cao_sketch::{Area, Element, Sketch};
 
 use crate::lang::Catalogue;
+use crate::wording::part_tree::Rubric;
 use crate::wording::{self, formula};
 
 mod clicks;
@@ -84,12 +85,18 @@ pub struct Drawn {
     pub rules: Vec<Row>,
 }
 
+/// A variable, read only: they are edited in a panel of their own.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Variable {
+    pub name: String,
+    /// What it is written as and what it comes to.
+    pub value: String,
+}
+
 /// The part, as the tree shows it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PartTree {
-    /// Each variable, as its name and what it comes to, read only: they are
-    /// edited in a panel of their own.
-    pub variables: Vec<String>,
+    pub variables: Vec<Variable>,
     pub bodies: Vec<Body>,
     pub sketches: Vec<Drawn>,
     pub sections: Vec<Kept>,
@@ -108,19 +115,11 @@ impl PartTree {
         let mut tree = Self {
             variables: variables
                 .live()
-                .map(|(_, variable)| {
-                    lang.t_with(
-                        "part_tree.variable",
-                        &[
-                            ("name", variable.name()),
-                            (
-                                "value",
-                                &formula::sized(lang, variables, variable.formula(), |value| {
-                                    value.to_string()
-                                }),
-                            ),
-                        ],
-                    )
+                .map(|(_, variable)| Variable {
+                    name: variable.name().to_string(),
+                    value: formula::sized(lang, variables, variable.formula(), |value| {
+                        value.to_string()
+                    }),
                 })
                 .collect(),
             ..Self::default()
@@ -214,6 +213,21 @@ impl PartTree {
             })
             .collect();
         tree
+    }
+
+    /// The headings the panel shows, top to bottom.
+    pub fn rubrics(&self) -> Vec<Rubric> {
+        let made = !self.bodies.is_empty();
+        [
+            (Rubric::Sketches, true),
+            (Rubric::Volumes, made),
+            (Rubric::Sections, !self.sections.is_empty()),
+            (Rubric::WholeBody, made),
+            (Rubric::Variables, true),
+        ]
+        .into_iter()
+        .filter_map(|(rubric, shown)| shown.then_some(rubric))
+        .collect()
     }
 
     pub fn is_empty(&self) -> bool {

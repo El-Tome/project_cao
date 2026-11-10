@@ -5,6 +5,26 @@ use cao_render::MatterInFront;
 
 use crate::lang::Catalogue;
 
+/// One heading of the panel, each over its own kind of row.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Rubric {
+    Sketches,
+    Volumes,
+    Sections,
+    WholeBody,
+    Variables,
+}
+
+pub fn rubric(lang: &Catalogue, rubric: Rubric) -> String {
+    lang.t(match rubric {
+        Rubric::Sketches => "part_tree.rubric.sketches",
+        Rubric::Volumes => "part_tree.rubric.volumes",
+        Rubric::Sections => "part_tree.rubric.sections",
+        Rubric::WholeBody => "part_tree.rubric.whole_body",
+        Rubric::Variables => "part_tree.rubric.variables",
+    })
+}
+
 /// What a click on a sketch's eye would do, given whether it is lit.
 pub fn eye(lang: &Catalogue, lit: bool) -> String {
     lang.t(match lit {

@@ -188,6 +188,7 @@ fn with_the_logo_switched_off_the_tab_row_opens_on_the_tabs() {
 #[test]
 fn h_still_opens_and_closes_the_history() {
     let mut app = a_part("h_still_opens_and_closes_the_history");
+    driver::start_a_sketch(&mut app);
 
     let before = the_history_is_shown(&app);
     driver::press(&mut app, egui::Key::H);
@@ -1080,10 +1081,10 @@ fn the_files_are_shown(app: &driver::App) -> bool {
     driver::shows(app, "Nouveau dossier")
 }
 
-/// Whether the history panel is drawn: its heading, which the tree carries as
-/// a text where it carries the toggle of the same word as a name.
+/// Whether the history is unfolded at the bottom of the Part panel, where it
+/// folds since #735: whether a line of it is shown.
 fn the_history_is_shown(app: &driver::App) -> bool {
-    driver::says(app, "Historique")
+    !driver::steps(app).is_empty()
 }
 
 /// What the tab row reads, left to right: every name and every text standing

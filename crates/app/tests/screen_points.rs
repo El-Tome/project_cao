@@ -91,6 +91,13 @@ const WINDOW_POSITIONS: &[WindowPosition] = &[
               nothing is aimed from it",
     },
     WindowPosition {
+        file: "crates/app/tests/the_history.rs",
+        written: "driver::canvas(&app)",
+        why: "the view read only to check that unfolding the history leaves it where \
+              it stood, no panel of its own taking room beside it: nothing is aimed \
+              from it",
+    },
+    WindowPosition {
         file: "crates/app/tests/view_bar.rs",
         written: "driver::canvas(app)",
         why: "the view read only to check that what « Recadrer » frames stands inside \

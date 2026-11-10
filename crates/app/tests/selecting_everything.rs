@@ -85,23 +85,15 @@ fn what_delete_takes(app: &mut driver::App) -> String {
 }
 
 /// The last step of the history read in detail — the line the history shows
-/// when the hand rests on it.
+/// under its name — or its name when the detail is not about the sketch.
 fn the_last_step_in_detail(app: &mut driver::App) -> String {
     driver::open_the_history(app);
     let last = driver::steps(app)
         .last()
         .cloned()
         .expect("the sketch's own step at least");
-    let at = app.get_by_label(&last).rect().center();
-    app.hover_at(at);
-    for _ in 0..10 {
-        app.step();
-    }
-    app.run();
-    driver::on_screen(app)
-        .into_iter()
-        .chain(driver::said(app))
-        .find(|line| line.starts_with("Esquisse 0 ·"))
+    driver::detail_of(app, &last)
+        .filter(|detail| detail.starts_with("Esquisse 0 ·"))
         .unwrap_or(last)
 }
 
@@ -280,7 +272,7 @@ fn in_an_empty_sketch_command_a_takes_nothing_and_says_nothing() {
     assert_eq!(driver::said(&app), said_before, "Cmd+A says nothing");
     assert_eq!(
         steps_after_delete(&mut app),
-        ["1. Esquisse — Plan YZ"],
+        ["1. Esquisse 1"],
         "nothing was taken, so Delete erases nothing",
     );
 }
@@ -297,7 +289,7 @@ fn with_another_tool_in_hand_command_a_leaves_the_tool_at_its_work() {
 
     assert_eq!(
         steps_after_delete(&mut app),
-        ["1. Esquisse — Plan YZ", "2. Trait"],
+        ["1. Esquisse 1", "2. Trait"],
         "the line started before Cmd+A is finished by the next click, and nothing \
          is taken for Delete to erase",
     );
@@ -352,7 +344,7 @@ fn command_shift_a_takes_nothing() {
 
     assert_eq!(
         steps_after_delete(&mut app),
-        ["1. Esquisse — Plan YZ", "2. Trait"],
+        ["1. Esquisse 1", "2. Trait"],
         "Cmd+Shift+A is not Cmd+A, and takes nothing for Delete to erase",
     );
 }

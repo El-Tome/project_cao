@@ -1,7 +1,7 @@
 //! What the tree of a part holds, worked out from the part itself.
 //!
-//! The panel beside it, `history_tree`, lists what was *done*: one line per
-//! operation, newest last. This lists what the part **is** — its bodies and
+//! The history folded under it, `History`, lists what was *done*: one line
+//! per operation, newest last. This lists what the part **is** — its bodies and
 //! its sketches, and under each sketch what is drawn on it, by kind. A drag,
 //! a dimension moved, two corners joined leave no line here, because they
 //! leave no element behind.
@@ -23,13 +23,10 @@ use crate::wording::part_tree::{self as said, Problem, Rubric};
 use crate::wording::{self, formula, plane};
 
 mod clicks;
-// Not drawn yet: the Part panel reads it from the next slice of #735.
-#[cfg_attr(not(test), expect(dead_code))]
 mod history;
 mod seen;
 mod volumes;
 pub use clicks::*;
-#[cfg_attr(not(test), expect(unused_imports))]
 pub use history::History;
 pub use seen::Offered;
 use volumes::volume;

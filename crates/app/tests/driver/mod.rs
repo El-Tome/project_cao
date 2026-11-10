@@ -456,18 +456,70 @@ pub fn draw_a_segment(app: &mut App) {
     press(app, egui::Key::Escape);
 }
 
-/// The panel is a toggle and the part decides which one opens with it, so a
-/// test that presses blindly closes the panel it wanted half the time. H is
-/// the way to it since #726 took the « Historique » toggle off the tab row.
+/// Unfolds the history at the bottom of the Part panel, folded there by
+/// default since #735, when none of its lines is shown yet. H is the way to it,
+/// as it was to the panel it replaced.
 pub fn open_the_history(app: &mut App) {
-    if !shows(app, "Pièce vide") {
+    if steps(app).is_empty() {
         press(app, egui::Key::H);
     }
     assert!(
-        shows(app, "Pièce vide"),
-        "H did not open the history, the keyboard held by a field perhaps: {:?}",
+        !steps(app).is_empty(),
+        "H did not unfold the history, the keyboard held by a field perhaps: {:?}",
         on_screen(app),
     );
+}
+
+/// Whether anything on screen holds this text, as a name or as a label's
+/// value — a line of the history and the detail under it alike.
+pub fn shows_or_says(app: &App, text: &str) -> bool {
+    shows(app, text) || says(app, text)
+}
+
+/// Whether a text on screen reads exactly this, as a name or as a label's
+/// value — a count, a heading, a line's detail.
+pub fn reads(app: &App, text: &str) -> bool {
+    app.get_all_by(|_| true)
+        .any(|node| text_of(&node).as_deref() == Some(text))
+}
+
+/// Where a text reading exactly this stands, the first one found.
+pub fn where_it_reads(app: &App, text: &str) -> Option<egui::Rect> {
+    app.get_all_by(|_| true)
+        .find(|node| text_of(node).as_deref() == Some(text))
+        .map(|node| node.rect())
+}
+
+fn text_of(node: &egui_kittest::Node<'_>) -> Option<String> {
+    let read = node.accesskit_node();
+    read.label().or_else(|| read.value())
+}
+
+/// What a line of the history reads under its name: the text standing just
+/// below the top of the line, within its width, that is no other line.
+pub fn detail_of(app: &App, line: &str) -> Option<String> {
+    let at = app
+        .get_all_by(|_| true)
+        .find(|node| text_of(node).as_deref() == Some(line))
+        .unwrap_or_else(|| {
+            panic!(
+                "no line of the history reads « {line} »: {:?}",
+                on_screen(app)
+            )
+        })
+        .rect();
+    let lines = steps(app);
+    app.get_all_by(|_| true)
+        .filter_map(|node| text_of(&node).map(|text| (text, node.rect())))
+        .filter(|(text, _)| !lines.contains(text))
+        .filter(|(_, rect)| {
+            rect.top() >= at.top() + 4.0
+                && rect.top() <= at.top() + 40.0
+                && rect.left() < at.right()
+                && rect.right() > at.left()
+        })
+        .min_by(|(_, one), (_, other)| one.top().total_cmp(&other.top()))
+        .map(|(text, _)| text)
 }
 
 /// The ellipse tool, its centre and the end of its first axis clicked, the
@@ -951,7 +1003,8 @@ pub fn right_click(app: &mut App, label: &str) {
     hold_the_canvas(app);
 }
 
-/// The numbered steps of the history, in order.
+/// The lines of the history shown, in order, each its number and its name:
+/// « 2. Trait ». Its detail is a text of its own, under it — see `detail_of`.
 pub fn steps(app: &App) -> Vec<String> {
     on_screen(app)
         .into_iter()

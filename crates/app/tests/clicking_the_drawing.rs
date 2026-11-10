@@ -115,8 +115,9 @@ fn each_base_plane_clicked_where_the_view_shows_it_opens_a_sketch_on_that_plane(
         driver::click_at_world_point(&mut app, point);
         driver::open_the_history(&mut app);
 
-        assert!(
-            driver::shows(&app, &format!("Esquisse — {plane}")),
+        assert_eq!(
+            driver::detail_of(&app, "1. Esquisse 1").as_deref(),
+            Some(plane),
             "{point:?} clicked where the view shows it opened no sketch on « {plane} », \
              showing {:?}",
             driver::on_screen(&app),

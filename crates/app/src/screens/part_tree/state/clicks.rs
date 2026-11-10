@@ -35,6 +35,13 @@ pub enum TreeAction {
     EditSection(usize),
     /// Delete this kept section, asking first when a drawing stands on it.
     DeleteSection(usize),
+    /// Unfold the history, or fold it away.
+    ToggleHistory,
+    /// Put the part back to this many applied operations.
+    RewindTo(usize),
+    /// Ask whether to rewrite the history down to the steps that still
+    /// describe the part.
+    AskToCompact,
 }
 
 /// What a click on a row asks: in the open sketch, to select what it names,

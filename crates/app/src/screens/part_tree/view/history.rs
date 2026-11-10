@@ -1,0 +1,127 @@
+//! The history, folded at the bottom of the Part panel: its header counts the
+//! actions, and unfolded it lists them, one line each, newest last.
+
+use cao_part::PartDocument;
+
+use crate::lang::Catalogue;
+use crate::screens::part_tree::state::{History, TreeAction};
+use crate::ui::history_line::{HistoryLine, history_line};
+use crate::ui::question::{Question, ask};
+use crate::ui::quiet_link::quiet_link;
+use crate::ui::theme::tokens::SPACING_S;
+use crate::ui::tree_row::{TreeRow, tree_row};
+
+/// How tall the unfolded list grows before it scrolls.
+const TALLEST: f32 = 230.0;
+
+/// The history in a panel of its own along the bottom of the Part panel, as
+/// tall as what it holds.
+///
+/// A bottom panel is laid out at the height it had the frame before and only
+/// ever grows, so it is given the height its content took last time, and asks
+/// for one more frame whenever that changes.
+pub(super) fn at_the_bottom(
+    ui: &mut egui::Ui,
+    document: &PartDocument,
+    unfolded: bool,
+    lang: &Catalogue,
+) -> TreeAction {
+    let frame = egui::Frame::NONE.inner_margin(egui::Margin::symmetric(0, SPACING_S as i8));
+    let margins = frame.total_margin().sum().y;
+    let id = egui::Id::new("part_history_height");
+    let height = ui.data(|data| data.get_temp::<f32>(id)).unwrap_or(margins);
+    let shown = egui::Panel::bottom("part_history_panel")
+        .resizable(false)
+        .show_separator_line(false)
+        .frame(frame)
+        .exact_size(height)
+        .show(ui, |ui| {
+            ui.vertical(|ui| {
+                ui.separator();
+                history(ui, document, unfolded, lang)
+            })
+        });
+    let wanted = shown.inner.response.rect.height() + margins;
+    if (wanted - height).abs() > 0.5 {
+        ui.data_mut(|data| data.insert_temp(id, wanted));
+        ui.ctx().request_repaint();
+    }
+    shown.inner.inner
+}
+
+/// The header, and the lines under it while `unfolded`; what was asked of
+/// them. Nothing at all while nothing was done to the part.
+fn history(
+    ui: &mut egui::Ui,
+    document: &PartDocument,
+    unfolded: bool,
+    lang: &Catalogue,
+) -> TreeAction {
+    let history = History::of(document, lang);
+    if history.lines.is_empty() {
+        return TreeAction::None;
+    }
+    let mut action = TreeAction::None;
+    ui.spacing_mut().item_spacing.y = 0.0;
+    let title = lang.t("part_tree.history.title");
+    let header = TreeRow {
+        name: &title,
+        unfolded: Some(unfolded),
+        value: Some(&history.actions),
+        ..TreeRow::default()
+    };
+    if tree_row(ui, header).row.clicked() {
+        action = TreeAction::ToggleHistory;
+    }
+    if !unfolded {
+        return action;
+    }
+    egui::ScrollArea::vertical()
+        .id_salt("part_history")
+        .max_height(TALLEST)
+        .min_scrolled_height(TALLEST)
+        .show(ui, |ui| {
+            for line in &history.lines {
+                let shown = HistoryLine {
+                    number: line.number,
+                    name: &line.name,
+                    detail: &line.detail,
+                    current: line.current,
+                    undone: line.undone,
+                    warned: line.capped.is_some(),
+                };
+                let mut response = history_line(ui, shown);
+                if let Some(said) = &line.capped {
+                    response = response.on_hover_text(said);
+                }
+                if response.clicked() {
+                    action = TreeAction::RewindTo(line.back_to);
+                }
+                if let Some(sketch) = line.sketch.filter(|_| !line.undone) {
+                    response.context_menu(|ui| {
+                        if ui.button(lang.t("part_tree.history.edit_sketch")).clicked() {
+                            action = TreeAction::EditSketch(sketch);
+                            ui.close();
+                        }
+                    });
+                }
+            }
+        });
+    ui.add_space(SPACING_S);
+    if quiet_link(ui, &lang.t("part_tree.history.compact")).clicked() {
+        action = TreeAction::AskToCompact;
+    }
+    action
+}
+
+/// The question asked before compacting: `Some(true)` once confirmed,
+/// `Some(false)` once backed out of, `None` while it is still asked.
+pub fn compact_confirm(ui: &egui::Ui, lang: &Catalogue) -> Option<bool> {
+    let question = Question {
+        title: lang.t("part_tree.history.compact_confirm_title"),
+        body: lang.t("part_tree.history.compact_confirm_body"),
+        yes: lang.t("part_tree.history.compact_confirm_ok"),
+        no: lang.t("part_tree.history.compact_confirm_cancel"),
+    };
+    ask(ui, "history_compact_confirm", &question)
+}

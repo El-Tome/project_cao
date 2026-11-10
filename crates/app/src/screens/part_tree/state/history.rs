@@ -6,6 +6,7 @@
 //! over every step, undone ones included; any other action keeps the name the
 //! history has always given it.
 
+use cao_part::feature::Feature;
 use cao_part::history::{Operation, PointRef};
 use cao_part::{PartDocument, Variables};
 
@@ -22,6 +23,16 @@ pub struct HistoryLine {
     pub detail: String,
     /// Taken back by an undo or a rewind, and still there to be redone.
     pub undone: bool,
+    /// The part stands just after this action, the sections kept right after
+    /// it included.
+    pub current: bool,
+    /// How many operations stand applied once the part is put back to just
+    /// after this action, the sections kept right after it still in effect.
+    pub back_to: usize,
+    /// The sketch this action started, which a sketch's line offers to reopen.
+    pub sketch: Option<usize>,
+    /// What a pattern laying a full turn short of its count says of itself.
+    pub capped: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -41,6 +52,10 @@ impl History {
             if operation.is_about_a_section() {
                 continue;
             }
+            let started = matches!(
+                operation,
+                Operation::CreateSketch { .. } | Operation::CreateSketchOnSection { .. }
+            );
             let (name, detail) = match operation {
                 Operation::CreateSketch { plane, on } => {
                     sketches += 1;
@@ -59,11 +74,20 @@ impl History {
                 }
                 _ => drawn(lang, variables, operation),
             };
+            let ends = Feature::line_ends(&document.history, step);
             lines.push(HistoryLine {
                 number: lines.len() + 1,
                 name,
                 detail,
                 undone: step >= applied,
+                current: step < applied && applied <= ends,
+                back_to: applied.clamp(step + 1, ends),
+                sketch: started.then(|| sketches - 1),
+                capped: document
+                    .history
+                    .number_at(step)
+                    .and_then(|number| document.capped_at(number))
+                    .map(|capped| wording::pattern::step_capped(lang, capped)),
             });
         }
         let key = match lines.len() {

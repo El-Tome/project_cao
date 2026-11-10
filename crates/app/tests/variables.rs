@@ -223,7 +223,7 @@ fn an_extrusion_raised_by_a_formula_says_it_in_the_history() {
     let app = a_plate_raised_by_a_formula("an_extrusion_raised_by_a_formula");
 
     assert!(
-        driver::shows(&app, "width / 10 = 12"),
+        driver::shows_or_says(&app, "width / 10 = 12"),
         "the step says what it was raised by and what that comes to: {:?}",
         driver::on_screen(&app),
     );
@@ -238,7 +238,7 @@ fn changing_a_variable_in_its_panel_raises_the_plate_again() {
     driver::press(&mut app, egui::Key::Enter);
 
     assert!(
-        driver::shows(&app, "width / 10 = 20"),
+        driver::shows_or_says(&app, "width / 10 = 20"),
         "the extrusion follows width: {:?}",
         driver::on_screen(&app),
     );
@@ -259,7 +259,7 @@ fn undoing_a_change_to_a_variable_puts_the_plate_back() {
     driver::press_with_command(&mut app, egui::Key::Z);
 
     assert!(
-        driver::shows(&app, "width / 10 = 12"),
+        driver::shows_or_says(&app, "width / 10 = 12"),
         "{:?}",
         driver::on_screen(&app)
     );
@@ -343,7 +343,7 @@ fn escape_in_a_row_drops_what_was_typed_and_records_nothing() {
         driver::fields(&app),
     );
     assert!(
-        !driver::shows(&app, "width = 200"),
+        !driver::shows_or_says(&app, "width = 200"),
         "nothing went into the history: {:?}",
         driver::on_screen(&app),
     );

@@ -21,15 +21,14 @@ use super::icons;
 pub struct Ribbon {
     /// Which top-level group is open, by rank.
     pub tab: usize,
-    /// The tree of what the part is made of, open by default. The run of
-    /// operations that made it is the other panel, and it waits to be asked
-    /// for.
+    /// The tree of what the part is made of, open by default.
     pub part_tree_open: bool,
-    pub history_open: bool,
-    /// The panel the variables are edited in, beside the history, waiting to
-    /// be asked for like it.
+    /// Whether the run of operations that made the part stands unfolded at
+    /// the bottom of that tree. Folded until asked for.
+    pub history_unfolded: bool,
+    /// The panel the variables are edited in, waiting to be asked for.
     pub variables_open: bool,
-    /// Whether the history panel is asking to confirm a compaction. Held here
+    /// Whether the history is asking to confirm a compaction. Held here
     /// rather than only in the panel's own frame, so the warning survives to
     /// the next one instead of closing the moment the mouse moves.
     pub history_compact_confirm: bool,
@@ -49,7 +48,7 @@ impl Ribbon {
         Self {
             tab: 0,
             part_tree_open: true,
-            history_open: false,
+            history_unfolded: false,
             variables_open: false,
             history_compact_confirm: false,
             section_delete_confirm: None,

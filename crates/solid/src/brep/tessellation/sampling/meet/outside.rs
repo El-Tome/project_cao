@@ -54,22 +54,7 @@ pub(super) fn pierced(
     run.push(ends[1]);
     let deep = |(surface, wall): &&contact::Wall| {
         let steps = divisions_in(wall.radius, tolerance, span);
-        let mut angles: Vec<f64> = (0..steps)
-            .map(|step| TAU * step as f64 / steps as f64)
-            .chain(
-                taken(&Wall::Cylinder(*wall), wall, walls, contacts)
-                    .into_iter()
-                    .map(|angle| angle.rem_euclid(TAU)),
-            )
-            .collect();
-        angles.sort_by(f64::total_cmp);
-        let sag = |angle: f64| {
-            let next = angles.partition_point(|each| *each <= angle);
-            let low = angles[next.saturating_sub(1)];
-            let high = angles.get(next).copied().unwrap_or(angles[0] + TAU);
-            let half = (high - low) / 2.0;
-            wall.radius * (1.0 - half.cos() / (angle - (low + high) / 2.0).cos())
-        };
+        let angles = sampled_angles(steps, taken(&Wall::Cylinder(*wall), wall, walls, contacts));
         let faces: Vec<_> = body
             .face_ids()
             .filter(|face| body.face(*face).surface == *surface)
@@ -80,7 +65,7 @@ pub(super) fn pierced(
                 let at = wall.parameters(chord);
                 let depth = -wall.distance(chord);
                 depth > eps
-                    && depth > sag(at.x.rem_euclid(TAU))
+                    && depth > sag_at(&angles, wall.radius, at.x.rem_euclid(TAU))
                     && faces
                         .iter()
                         .any(|face| !matches!(body.locate(*face, at, eps), Ok(Location::Outside)))
@@ -96,6 +81,28 @@ pub(super) fn pierced(
         .filter(deep)
         .copied()
         .collect()
+}
+
+/// The angles a wall of a grid of `steps` is sampled at round its axis, and
+/// the `rays` it takes, all brought within a turn, in order.
+fn sampled_angles(steps: usize, rays: Vec<f64>) -> Vec<f64> {
+    let mut angles: Vec<f64> = (0..steps)
+        .map(|step| TAU * step as f64 / steps as f64)
+        .chain(rays.into_iter().map(|angle| angle.rem_euclid(TAU)))
+        .collect();
+    angles.sort_by(f64::total_cmp);
+    angles
+}
+
+/// How far inside a wall of `radius` sampled at the ordered `angles` its
+/// triangles stand at `angle`, within a turn: the sag of the chord between
+/// the two angles either side of it, the first a turn on past the last.
+fn sag_at(angles: &[f64], radius: f64, angle: f64) -> f64 {
+    let next = angles.partition_point(|each| *each <= angle);
+    let low = angles[next.saturating_sub(1)];
+    let high = angles.get(next).copied().unwrap_or(angles[0] + TAU);
+    let half = (high - low) / 2.0;
+    radius * (1.0 - half.cos() / (angle - (low + high) / 2.0).cos())
 }
 
 /// The points of the edge `id` along `meet` between its ends, `points` with

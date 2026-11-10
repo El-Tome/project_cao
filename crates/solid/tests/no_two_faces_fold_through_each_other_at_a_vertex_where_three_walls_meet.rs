@@ -14,6 +14,17 @@
 //! chord; read rightly (#811), the base cone's triangle on that chord crossed
 //! the bore's.
 //!
+//! The pass is held beside its code, in
+//! `crates/solid/src/brep/tessellation/sampling/meet/outside/tests.rs`. The
+//! mutants of `outside.rs` those tests leave alive are equivalent:
+//! - `67:23` and `68:30` `>` → `>=`, `151:51` `<` → `<=`, `152:74` `>` →
+//!   `>=`, `165:59` `>` → `>=`: each differs only where a depth or a distance
+//!   equals the kernel's tolerance, the sag or the tolerance asked to the
+//!   last bit, which no probe of a chord between rounded points lands on.
+//! - `103:62` `+` → `-`: the first angle a turn back rather than a turn on
+//!   moves the half step and the cell's middle by a whole turn each, which
+//!   neither cosine sees.
+//!
 //! Closes #821.
 //! - 354000000011719's shrunk case is pinned and holds through the body with
 //!   #811's guard applied —

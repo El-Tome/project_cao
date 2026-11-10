@@ -62,8 +62,11 @@
 //!   file; held by
 //!   `at_an_angle_between_the_two_ends_of_its_table_a_ruled_meet_is_found_at_its_seam`,
 //!   `at_an_angle_neither_end_step_of_its_table_holds_a_ruled_meet_is_found_at_its_seam`,
-//!   `a_ruled_meet_found_a_hair_before_the_end_of_its_lap_is_kept_at_its_seam`
-//!   and `a_ruled_meet_crossing_an_angle_at_its_seam_is_found_there_once`,
+//!   `a_ruled_meet_found_a_hair_before_the_end_of_its_lap_is_kept_at_its_seam`,
+//!   `a_ruled_meet_crossing_an_angle_at_its_seam_is_found_there_once`,
+//!   `on_a_lap_winding_round_the_other_wall_a_ruled_meet_is_found_only_where_it_stands_at_the_angle`
+//!   and
+//!   `on_a_lap_winding_round_the_other_wall_a_ruled_meet_crossing_an_angle_at_its_seam_is_found_there_once`,
 //!   in `crates/solid/src/brep/meet/tests/ruled.rs`
 //! - No draw regresses against `main`, seed by seed, in the walls sets 352,
 //!   353, 354 and the turned set; the measurement is recorded in

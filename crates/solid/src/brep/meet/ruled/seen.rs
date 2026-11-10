@@ -20,9 +20,11 @@ const DEEPEST: u32 = 40;
 const MOST: usize = 16 * AROUND;
 /// The step central differences are taken over, in the parameter.
 const STEP: f64 = 1e-5;
-/// How near its seam a root found along a lap is the one the seam holds:
-/// within an ulp of a turn, a parameter is told apart from its end no finer.
-const SEAM: f64 = TAU * f64::EPSILON;
+/// How near its seam a root found along a lap is the one the seam holds: the
+/// two ends of a winding lap's table disagree by a few ulps of its angle,
+/// carried into the parameter by its rate; two real roots that close to the
+/// seam are a tangency there.
+const SEAM: f64 = 1024.0 * TAU * f64::EPSILON;
 
 impl Ruled {
     pub fn point(&self, lap: &Lap, t: f64) -> DVec3 {

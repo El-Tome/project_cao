@@ -90,8 +90,11 @@ impl Exact {
     /// meet in a mitre, and the later edge is laid from its wedge on the body
     /// as given, its prism cut from what the earlier cuts left, as
     /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
-    /// goes whatever the order. Two edges of one sense meeting at a corner
-    /// beside an edge of the other sense left out of the list, as
+    /// goes whatever the order — and an edge bounding the face two cuts laid
+    /// together meet across, meeting both at a corner, meets their one prism
+    /// the same way, at their value, as [`pairs::at_their_ends`] reads it, the
+    /// two read on the body as given. Two edges of one sense meeting at a
+    /// corner beside an edge of the other sense left out of the list, as
     /// [`corners::admit`] admits it — two cuts beside a concave edge, two fills
     /// beside a convex one — each stop flush there, and the later takes with it
     /// what both prisms hold past both faces they stop on, as [`Flush::beside`]
@@ -116,8 +119,8 @@ impl Exact {
     /// the list, nor two concave beside a third concave, more than three edges
     /// meeting at a corner, or three where another edge ends too, where
     /// `meeting` lays two together an edge meeting two others, or one of two
-    /// laid together that meets another edge of the list at a corner, a cut or
-    /// a fill that left something else than its one face, as
+    /// laid together that meets another edge of the list at a corner any other
+    /// way, a cut or a fill that left something else than its one face, as
     /// [`Exact::cut_along`] reads it, and a face of an overlap no edge covered,
     /// are declined `Unsupported`; a prism the tool cannot raise, as the tool
     /// says.
@@ -159,17 +162,7 @@ impl Exact {
                 .min(set_backs::bound(&self.brep, &edges, &wedges, &set_back));
             let pairs =
                 pairs::meeting(&wedges, &facing, taken, &set_back, meeting.together, scale)?;
-            let cornered = pairs
-                .iter()
-                .flat_map(|&(one, other, _)| [one, other])
-                .any(|member| {
-                    (0..edges.len()).any(|rank| {
-                        rank != member && corners::meet(&self.brep, [edges[member], edges[rank]])
-                    })
-                });
-            if cornered {
-                return Err(Declined::Unsupported);
-            }
+            let ends = pairs::at_their_ends(&self.brep, &edges, &wedges, &pairs)?;
             let closes = closing::closings(
                 three,
                 &wedges,
@@ -187,11 +180,10 @@ impl Exact {
                 cut.next = start + rank as u32;
                 let partner = pairs.iter().find(|&&(_, later, _)| later == rank);
                 cut = match (partner, meeting.together) {
-                    (Some(&(earlier, _, _)), Together::Raised(raise)) => cut.laid_together(
-                        [&names[earlier], &names[rank]],
-                        start + earlier as u32,
-                        raise,
-                    )?,
+                    (Some(&(earlier, _, _)), Together::Raised(raise)) => {
+                        let pair = [given[earlier], given[rank]];
+                        cut.laid_together(&self.brep, pair, start + earlier as u32, raise)?
+                    }
                     (Some(&(earlier, _, value)), Together::Sloped) => cut.sloped(
                         [&names[earlier], &names[rank]],
                         start + earlier as u32,
@@ -206,13 +198,14 @@ impl Exact {
                             .map(|earlier| start + earlier as u32)
                             .collect();
                         let open = flush::open(&self.brep, rank, &given, &beside);
+                        let value = ends.get(&rank).copied().unwrap_or(taken);
                         if mitred.is_empty() {
-                            cut.laid(&names[rank], taken, &tool, &mitred, &open)?
+                            cut.laid(&names[rank], value, &tool, &mitred, &open)?
                         } else {
                             let flush = Flush::beside(
-                                &self.brep, rank, &given, &beside, taken, &set_back, &tool,
+                                &self.brep, rank, &given, &beside, value, &set_back, &tool,
                             )?;
-                            cut.laid_as(&flush, &wedges[rank], taken, &tool, &mitred, &open)?
+                            cut.laid_as(&flush, &wedges[rank], value, &tool, &mitred, &open)?
                         }
                     }
                 };

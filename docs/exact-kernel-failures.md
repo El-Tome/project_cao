@@ -3941,3 +3941,107 @@ on both. The turned set fails on the same seeds by the same rules.
 other failing the same: 354000000008162 through the body holds again, and
 352000000007640 through the body and 354000000002729 on the exact kernel,
 `Uncrossed` on `main` and on #820 alone, hold on the pair.
+
+## #811: a meet read along a cone's rulings finds the other wall where it stands
+
+Part of #755. Where a cone cuts two walls a hair apart, its meet with each
+wall is sampled at the cone's grid, and read back along a ray as an angle of
+the other wall by `Ruled::at_angle`. That took any window of the meet's table
+whose ends straddle the angle and halved it; where the angle fell exactly on
+a node of the table, the window held no change of sign and the halving ran to
+its far end, giving the next node as well. Each wall rounds about its own
+axis, each got its own spurious sample, and the two meets fell out of step
+and crossed. `meet/ruled/seen.rs` now finds only the parameters where the
+meet stands at the angle: a window whose end stands at it gives that end
+(at the table's last end, the seam, t = 0), one with a strict change of sign
+is halved, and one with neither gives nothing.
+
+**How it was measured.** The walls draws on `main` (b0884bfc, identical
+seed by seed to #832's pair) and on #811 (e81ec5f7, whose production code is
+the tip's; the rebase onto 74b13bbd brought only #825's fillets and chamfers,
+which these sets never build) on exactly the same cases as #810: three sets
+of seeds, from 352000000000000, 353000000000000 and 354000000000000, each of
+5 887 cases on the exact kernel and 18 015 through the body at the default
+patience; and the turned set from 533300000, 20 000 cases on the exact
+kernel and 40 000 through the body at a patience of 300. Compared seed by
+seed.
+
+| Set | Exact, `main` | Exact, #811 | Body, `main` | Body, #811 |
+| --- | --- | --- | --- | --- |
+| walls 352… | 43 (7.3 ‰) | 41 (7.0 ‰) | 86 (4.8 ‰) | 85 (4.7 ‰) |
+| walls 353… | 24 (4.1 ‰) | 24 (4.1 ‰) | 82 (4.6 ‰) | 79 (4.4 ‰) |
+| walls 354… | 38 (6.5 ‰) | 37 (6.3 ‰) | 86 (4.8 ‰) | 84 (4.7 ‰) |
+| turned 533300000… | 22 (1.1 ‰) | 22 (1.1 ‰) | 42 (1.05 ‰) | 42 (1.05 ‰) |
+
+The walls draws go from 359 failures to 350: 10 gains, one regression, no
+rule shift. The turned set fails on the same seeds by the same rules.
+
+**Gains.** On the exact kernel, `Uncrossed` on `main`: 352000000000867,
+352000000001195, 354000000005407. Through the body: 352000000001195,
+353000000016959, 353000000017657, 354000000005407 and 354000000007100,
+`Uncrossed` on `main`; 353000000013044 and 354000000010993, `Answers` on
+`main`. The four seeds #810 shifted to `Uncrossed` — 352000000000867 and
+352000000001195 on the exact kernel, 352000000001195 and 353000000016959
+through the body — are among them.
+
+**One regression, on #821.** 354000000011719 through the body goes from
+holding to `Uncrossed`. The spurious sample #811 removes happened to split a
+chord of the base cone ending on a vertex where three walls meet, and a
+triangle on that chord now crosses one of a hole's cylinder. It holds with
+#821, stacked on #811; the two merge together.
+
+Of the seven draws the guard regressed when first tried on #810's tip,
+352000000000562, 352000000005478, 352000000006255, 352000000007343,
+354000000010173 and 354000000013382 hold since #820, and hold on #811;
+354000000011719 is the regression above.
+
+## #821: no two faces fold through each other at a vertex where three walls meet
+
+Part of #755, and the regression #811 left on 354000000011719. Where a bore
+grazes two cones joined along a meet, the three walls meet at a vertex, and
+the meet leaves the bore's cylinder there and stays outside it; but a chord
+of the meet near the vertex can pass inside that wall, deeper than the
+wall's own triangles sag, and through them. The chord bounds the faces either
+side of it, so no cut of either undoes the fold. On `main` a spurious sample
+#811 removes happened to split that chord. `sampling/meet/outside.rs` now
+halves a chord of a meet ending on a vertex that stands on a third cylinder
+where it passes inside that wall deeper than the wall's own triangles sag,
+at a place one of its faces stands, while the curve stays outside.
+
+**How it was measured.** The walls draws on `main` (b0884bfc) and on the
+stack of #811 and #821 (53062e73, whose production code is the branch's as
+rebased) on exactly the same cases as #811: three sets of seeds, from
+352000000000000, 353000000000000 and 354000000000000, each of 5 887 cases on
+the exact kernel and 18 015 through the body at the default patience; and
+the turned set from 533300000, 20 000 cases on the exact kernel and 40 000
+through the body at a patience of 300. Compared seed by seed. Walls 352… and
+353… through the body were each run twice on the stack: the machine was
+loaded and the first runs stopped at 3 147 and 8 123 cases; the second ran
+them all.
+
+| Set | Exact, `main` | Exact, #811 + #821 | Body, `main` | Body, #811 + #821 |
+| --- | --- | --- | --- | --- |
+| walls 352… | 43 (7.3 ‰) | 41 (7.0 ‰) | 86 (4.8 ‰) | 85 (4.7 ‰) |
+| walls 353… | 24 (4.1 ‰) | 24 (4.1 ‰) | 82 (4.6 ‰) | 79 (4.4 ‰) |
+| walls 354… | 38 (6.5 ‰) | 37 (6.3 ‰) | 86 (4.8 ‰) | 83 (4.6 ‰) |
+| turned 533300000… | 22 (1.1 ‰) | 22 (1.1 ‰) | 42 (1.05 ‰) | 42 (1.05 ‰) |
+
+The walls draws go from 359 failures to 349: the ten gains of #811, no
+regression, no rule shift. 354000000011719 holds. The turned set fails on the
+same seeds by the same rules.
+
+**Gains.** On the exact kernel: 352000000000867, 352000000001195,
+354000000005407. Through the body: 352000000001195, 353000000013044,
+353000000016959, 353000000017657, 354000000005407, 354000000007100,
+354000000010993.
+
+**A first version, narrowed.** As first committed (4ae728c6), the pass halved
+every chord dipping deeper than eps into the third wall. It gained 14 and
+lost five: 352000000000339, 353000000000880 on the exact kernel,
+352000000016261, 354000000007974 and 354000000009148 through the body, now
+pinned as tests. The samples it crowded near the vertex cut the faces either
+side into slivers fanned from far corners, which crossed, where the wall was
+bored away or sagged more than the chord dipped. Keeping to a wall that holds a face there and
+sags less than the chord dips cured the five, and gave back four of its
+gains, all through the body: 352000000009898, 352000000012341,
+352000000014760 and 354000000009413.

@@ -23,9 +23,14 @@ use crate::wording::part_tree::{self as said, Problem, Rubric};
 use crate::wording::{self, formula, plane};
 
 mod clicks;
+// Not drawn yet: the Part panel reads it from the next slice of #735.
+#[cfg_attr(not(test), expect(dead_code))]
+mod history;
 mod seen;
 mod volumes;
 pub use clicks::*;
+#[cfg_attr(not(test), expect(unused_imports))]
+pub use history::History;
 pub use seen::Offered;
 use volumes::volume;
 

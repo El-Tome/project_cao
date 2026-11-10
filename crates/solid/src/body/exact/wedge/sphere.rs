@@ -7,15 +7,19 @@
 //! sphere's chart. The rounds are laid whole, the corner is cut back to the
 //! three planes through the centre square to the edges, which leaves each
 //! round ending on its arc and three quarter discs meeting at the centre, and
-//! those three are replaced by the piece of sphere their arcs bound.
+//! those three are replaced by the piece of sphere their arcs bound. At a
+//! concave corner, a pocket's bottom (#801), the mirror: the sphere centred
+//! one radius out from the three faces, the fills laid trimmed flush, the
+//! corner between them filled up to the three planes, and the three quarter
+//! discs that leaves, facing the centre, replaced by the piece of sphere
+//! facing it, the matter outside the ball.
 
-use glam::{DVec2, DVec3};
+use glam::DVec3;
 
-use super::closing::Corner;
+use super::closing::{Corner, slab};
 use crate::body::drawn::Drawn;
 use crate::body::exact::Exact;
 use crate::brep::{self, Coedge, Curve, Declined, Face, FaceId, Sphere, Surface, SurfaceId};
-use crate::profile::{Contour, Frame};
 
 /// The body with the corner closed by a piece of sphere of the value's
 /// radius, numbered where the steps' numbers end, its centre where the
@@ -33,37 +37,81 @@ pub(in crate::body::exact) fn rounded_across(
     corner: &Corner,
     rounds: [u32; 3],
 ) -> Result<Exact, Declined> {
-    let radius = corner.value;
-    let eps = body.brep.scale().eps();
-    let centre = corner.crossings[0] - corner.facing[0] * radius;
-    if (corner.along.iter()).any(|way| way.dot(centre - corner.at) <= eps) {
-        return Err(Declined::Unsupported);
-    }
+    let centre = corner.crossings[0] - corner.facing[0] * corner.value;
+    ahead(body, corner, centre)?;
     let cut = body.cut_by(&Exact {
         next: 1,
         ..short_of(corner, centre)?
     })?;
-    let walls = meeting_at(&cut.brep, centre, eps);
-    let lap = bounding(&cut.brep, &walls, centre, radius, eps).ok_or(Declined::Unsupported)?;
+    sphered(body, cut, corner, centre, rounds, false)
+}
+
+/// The body with a concave corner closed by a hollow piece of sphere of the
+/// value's radius, facing its centre, numbered where the steps' numbers end:
+/// its centre one radius out from the first crossing's face, where the fills'
+/// axes cross, and the corner between the three fills filled up to the three
+/// planes through the centre square to the edges, as [`filling`] holds it.
+/// Declined as [`rounded_across`] declines.
+pub(in crate::body::exact) fn hollowed_across(
+    body: &Exact,
+    corner: &Corner,
+    rounds: [u32; 3],
+) -> Result<Exact, Declined> {
+    let centre = corner.crossings[0] + corner.facing[0] * corner.value;
+    ahead(body, corner, centre)?;
+    let joined = body.joined(&Exact {
+        next: 1,
+        ..filling(corner, centre)?
+    })?;
+    sphered(body, joined, corner, centre, rounds, true)
+}
+
+/// `body` with the three faces `laid` left meeting at `centre` replaced by the
+/// piece of sphere about it their arcs bound, `flipped` to face its centre
+/// where the matter lies outside the ball, as [`rounded_across`] lays it.
+fn sphered(
+    body: &Exact,
+    laid: Exact,
+    corner: &Corner,
+    centre: DVec3,
+    rounds: [u32; 3],
+    flipped: bool,
+) -> Result<Exact, Declined> {
+    let radius = corner.value;
+    let eps = body.brep.scale().eps();
+    let walls = meeting_at(&laid.brep, centre, eps);
+    let lap = bounding(&laid.brep, &walls, centre, radius, eps).ok_or(Declined::Unsupported)?;
     let sphere = Sphere::through(centre, axis(corner.along), 0.0, radius);
     let face = Face {
         surface: SurfaceId(0),
-        flipped: false,
+        flipped,
         loops: vec![lap],
         numbers: vec![body.next],
         poles: Vec::new(),
     };
-    let brep = cut.brep.replaced(&walls, Surface::Sphere(sphere), face)?;
+    let brep = laid.brep.replaced(&walls, Surface::Sphere(sphere), face)?;
     let drawn = Drawn::of(&brep);
     if !drawn.is_whole() {
         return Err(Declined::Undrawn);
     }
-    let closed = Exact::of(brep, cut.next, cut.pieces, cut.roots);
+    let closed = Exact::of(brep, laid.next, laid.pieces, laid.roots);
     let _ = closed.drawn.set(drawn);
     if closed.cut_along(&[], body, 1, &rounds, &[]) {
         Ok(closed)
     } else {
         Err(Declined::Unsupported)
+    }
+}
+
+/// Declined `Unsupported` where the plane through `centre` square to an edge
+/// does not stand between the corner and the edge's other end: the sphere
+/// would stand at or behind the corner along it.
+fn ahead(body: &Exact, corner: &Corner, centre: DVec3) -> Result<(), Declined> {
+    let eps = body.brep.scale().eps();
+    if (corner.along.iter()).any(|way| way.dot(centre - corner.at) <= eps) {
+        Err(Declined::Unsupported)
+    } else {
+        Ok(())
     }
 }
 
@@ -90,22 +138,20 @@ fn axis(along: [DVec3; 3]) -> DVec3 {
 /// each plane.
 fn short_of(corner: &Corner, centre: DVec3) -> Result<Exact, Declined> {
     let half = 2.0 * centre.distance(corner.at);
-    let slab = |way: DVec3, from: DVec3, half: f64| {
-        let u = way.any_orthonormal_vector();
-        let frame = Frame {
-            origin: from,
-            u,
-            v: way.cross(u),
-        };
-        let square = Contour::rectangle(DVec2::splat(-half), DVec2::splat(half));
-        Exact::raised(&square, &[], frame, way * 2.0 * half)
-    };
     let [.., last] = corner.along;
     let mut kept = slab(last, centre - last * half, half)?;
     for way in corner.along {
         kept = kept.cut_by(&slab(way, centre, 2.0 * half)?)?;
     }
     Ok(kept)
+}
+
+/// What of a concave corner stands on its side of the three planes through
+/// `centre` square to its edges and no deeper into the matter than
+/// [`Corner::sunk`] keeps it: what [`short_of`] holds, less what of it stands
+/// deeper.
+fn filling(corner: &Corner, centre: DVec3) -> Result<Exact, Declined> {
+    corner.sunk(short_of(corner, centre)?, 4.0 * centre.distance(corner.at))
 }
 
 /// The faces with a corner at `centre`, within `eps`.

@@ -93,8 +93,12 @@ impl<'a> Flush<'a> {
     /// The edge of rank `rank` in `edges`, each edge of the step with its
     /// wedge on `given`, the body as given, its ends read there, taking with
     /// it the overlap at each of `corners` where it is the later of the two
-    /// edges, as [`overlap`] reads it for `taken`, set back `set_back` of it,
-    /// with the prisms `tool` raises. Declined as [`overlap`] declines.
+    /// edges and stops flush, as [`stops`] reads it — beside an edge of the
+    /// other sense — as [`overlap`] reads it for `taken`, set back `set_back`
+    /// of it, with the prisms `tool` raises. At a corner where it does not
+    /// stop, three concave edges at a pocket's bottom, the two fills, each
+    /// trimmed flush into the matter, meet in a valley and nothing lies past.
+    /// Declined as [`overlap`] declines.
     pub fn beside(
         given: &'a brep::Body,
         rank: usize,
@@ -104,9 +108,12 @@ impl<'a> Flush<'a> {
         set_back: &impl Fn(&Wedge) -> f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
     ) -> Result<Flush<'a>, Declined> {
-        let (edge, _) = edges[rank];
+        let (edge, wedge) = edges[rank];
+        let stopping: Vec<VertexId> = (stops(given, edge, wedge).iter())
+            .map(|stop| stop.end)
+            .collect();
         let overlaps = (corners.iter())
-            .filter(|&&(_, [_, later])| later == rank)
+            .filter(|&&(corner, [_, later])| later == rank && stopping.contains(&corner))
             .map(|&(corner, pair)| {
                 let pair = pair.map(|rank| edges[rank]);
                 overlap(given, corner, pair, taken, set_back, tool)

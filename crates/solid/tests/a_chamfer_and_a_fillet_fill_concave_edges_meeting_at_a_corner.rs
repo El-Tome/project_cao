@@ -1,7 +1,9 @@
 //! A chamfer and a fillet on concave straight edges of an exact body that
 //! meet at a corner: the feet of a block standing on another, where its walls
-//! meet the lower block's top. Each fill is laid as one fills alone (#778),
-//! trimmed flush at both ends on the planes of the faces its edge runs into.
+//! meet the lower block's top, and the floor edges and uprights of a pocket.
+//! Each fill is laid as one fills alone (#778), trimmed flush at both ends on
+//! the planes of the faces its edge runs into, whether air lies past an end
+//! or matter.
 //! Where two feet meet at a corner whose third edge, the standing block's
 //! upright, meets outwards, the two fill prisms carried past the corner hold
 //! matter in common beyond both walls, and that piece is joined too: the two
@@ -12,8 +14,7 @@
 //! Part of #801, its second slice: two concave edges with a convex one left
 //! sharp. Its first slice, two convex edges beside a concave one, is held in
 //! `a_chamfer_and_a_fillet_stop_and_mitre_beside_a_concave_edge.rs`; its
-//! third, the three concave edges of a pocket's bottom corner, comes on a
-//! branch of its own, and the issue stays open until it lands.
+//! third, the three concave edges of a pocket's bottom corner, below.
 //!
 //! - Two concave edges meeting at a corner whose third edge is convex and
 //!   left sharp leave a closed, sound body when chamfered or filleted at one
@@ -41,7 +42,13 @@
 //!   chamfered the standing block's upright, two corners of 135° beside the
 //!   chamfer's two edges, the three feet round it filled in one step and the
 //!   same body in every order the list names them —
-//!   `a_chamfer_and_a_fillet_on_two_feet_and_the_foot_of_the_chamfered_upright_between_them_fill_them_into_two_mitres_in_every_order`
+//!   `a_chamfer_and_a_fillet_on_two_feet_and_the_foot_of_the_chamfered_upright_between_them_fill_them_into_two_mitres_in_every_order`.
+//!   The same front foot and chamfer's foot without the right foot, at a
+//!   value past `√2/2`, are declined `Unsupported`, and so is the chamfer's
+//!   foot alone, as on `main` before this slice: trimmed flush on the walls at
+//!   its two ends it keeps no fill of its own, and mitred with the front foot
+//!   only its fill would stand past the right wall where no fill meets it —
+//!   `a_chamfer_and_a_fillet_on_a_foot_and_the_chamfered_upright_s_foot_without_the_foot_beyond_are_declined_as_unsupported`
 //! - What must not break: as slice 1 — #699's corner tests, the concave fill
 //!   of one edge (`a_chamfer_and_a_fillet_fill_a_concave_edge`) and slice 1's
 //!   own tests; and the decline test
@@ -49,6 +56,58 @@
 //!   loses the feet, which become the body tests above, and keeps the others
 //!   — no test: each is held by its own file, left as it was but for the
 //!   three lists of feet the decline test gives up
+//!
+//! Part of #801, its third slice: three concave edges, the bottom corner of a
+//! pocket. A fill whose edge ends where matter lies past it, the face there
+//! facing back along the edge, is trimmed flush on that face's plane too; two
+//! fills at a corner whose third edge meets inwards as well overlap there,
+//! and their join is the mitre; three are closed by a patch laid as a fill.
+//!
+//! - A concave straight edge whose corner's other two edges are concave too
+//!   leaves a closed, sound body when chamfered or filleted alone. Its fill
+//!   ends flush on the face it runs into. This holds on a pocket's floor
+//!   edges and uprights. The volume is exact —
+//!   `a_chamfer_and_a_fillet_on_a_pocket_s_floor_edge_alone_fill_it_flush_between_the_walls_at_its_ends`,
+//!   `a_chamfer_and_a_fillet_on_a_pocket_s_upright_alone_fill_it_flush_on_its_floor_and_up_to_its_rim`.
+//!   "Ends flush on the face it runs into" is held as what that face shows:
+//!   the fill's end section lies on it, inside it, and the matter behind
+//!   swallows it, so the face gives that section up — its outline the
+//!   part's with the corner the edge ended at given up for the two set-backs
+//!   — keeping its number, and meeting each of the edge's faces along one
+//!   edge still
+//! - Two of a concave corner's three edges, the third left sharp, meet in a
+//!   mitre, and the third edge ends one value short. This holds on two floor
+//!   edges of a pocket, and on a floor edge and the upright it meets. The
+//!   volume is exact, either order —
+//!   `a_chamfer_and_a_fillet_on_two_edges_of_a_pocket_s_floor_mitre_them_the_upright_above_left_sharp_one_value_short`,
+//!   `a_chamfer_and_a_fillet_on_a_pocket_s_floor_edge_and_the_upright_it_meets_mitre_them_the_floor_edge_beside_left_sharp_one_value_short`
+//! - Three concave edges at a corner, the bottom corner of a pocket, are
+//!   closed: chamfered, by a triangle where each two fills' set-backs cross
+//!   on the face they share; filleted, by a hollow piece of sphere centred
+//!   one radius from the three faces, meeting each fill along its end
+//!   section. Each is laid as a fill and numbered after the edges' faces, as
+//!   #699 numbers its patches. The volume is exact, every order —
+//!   `a_chamfer_on_the_three_edges_of_a_pocket_s_bottom_corner_closes_it_with_a_triangle_where_the_fills_set_backs_cross`,
+//!   `a_fillet_on_the_three_edges_of_a_pocket_s_bottom_corner_closes_it_with_a_hollow_piece_of_sphere_one_radius_from_its_three_faces`.
+//!   The four floor edges and four uprights of a pocket close its four
+//!   bottom corners in one step —
+//!   `a_chamfer_and_a_fillet_on_a_pocket_s_four_floor_edges_and_four_uprights_close_its_four_bottom_corners_in_one_step`.
+//!   The same holds where the walls and the floor round the corner are
+//!   thinner than the value, a tray's 1.5 closed at 2 and 2.5 —
+//!   `a_chamfer_and_a_fillet_on_the_three_edges_at_a_bottom_corner_of_a_pocket_with_thin_walls_close_it`;
+//!   and at a corner that is not square, a parallelogram pocket's acute and
+//!   obtuse bottom corners, the uprights there not square either, their
+//!   volumes held by the booleans —
+//!   `a_chamfer_and_a_fillet_on_the_three_edges_at_a_bottom_corner_of_a_pocket_that_is_not_square_close_it_in_every_order`
+//! - What must not break: as slice 1, and the decline test
+//!   `a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported`
+//!   loses the pocket's floor lists, which become the body tests above, and
+//!   keeps the lists of a cut and a fill meeting at a corner, for #829 — no
+//!   test: each is held by its own file, left as it was but for the two
+//!   pocket floor lists the decline test gives up, and, in
+//!   `a_chamfer_and_a_fillet_fill_a_concave_edge.rs`, the decline of an end on
+//!   a face turned back along the edge, which became the body test
+//!   `a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_a_face_turned_back_along_it_fill_it_flush_on_that_face`
 //!
 //! The volumes are arithmetic. The lower block is 30 by 20 by 10 and the
 //! block standing on it 10 by 10 by 10, 7000 together. Every foot lies
@@ -107,6 +166,52 @@
 //! both are held in the test, at ½, where the chamfer's foot keeps a fill of
 //! its own, and at 1, where it keeps none. Past 1 the booleans' clipped
 //! prisms would reach beyond the third wall, and are not held there.
+//!
+//! The pocket, 10 by 10 sunk 5 into the block 30 by 20 by 10, leaves 5500.
+//! Its floor edges and uprights each lie between two faces square to each
+//! other, and each ends on faces square to it, so a fill alone adds its
+//! section along its edge's length: `10d²/2` or `10r²(1 − π/4)` on a floor
+//! edge, between the two walls at its ends, and `5d²/2` or `5r²(1 − π/4)` on
+//! an upright, from the floor to the plane of the block's top. Where an end
+//! has matter past it, the fill's end section lies on the face there, inside
+//! it, and the join swallows it: the face gives up that section, its outline
+//! taking the two set-backs in place of the corner the edge ended at, just as
+//! a face with air past it, at an upright's rim, takes them by growing. Held
+//! another way, by the booleans, in the tests themselves.
+//!
+//! Two of a pocket's bottom corner's three edges, each fill trimmed flush,
+//! overlap at the corner, and the body takes their union. Measured from the
+//! corner `c` from the face the two share and `p` and `q` in from the two
+//! other faces, both hold what has `c < d − max(p, q)` among flats and
+//! `c < w(max(p, q))` among rounds, over the square of side the value:
+//! `d³/3` and `r³(5/3 − π/2)`, counted once. Their faces meet where `p = q`,
+//! the valley of the mitre, from where the two set-backs cross on the shared
+//! face to the third edge, which the two fills cover up to the value from
+//! that face. Two floor edges of 10 hold `5500 + 10d² − d³/3` and
+//! `5500 + 20r²(1 − π/4) − r³(5/3 − π/2)`; a floor edge and the upright it
+//! meets, 10 and 5, `5500 + 7.5d² − d³/3` and
+//! `5500 + 15r²(1 − π/4) − r³(5/3 − π/2)`.
+//!
+//! All three edges at a pocket's bottom corner, measured from it `a`, `b` and
+//! `c` out from the three faces: the three flats are `b + c < d`, `a + c < d`
+//! and `a + b < d`, each pair holding `d³/3` in common and all three `d³/4`,
+//! so their union is their sum less `d³ − d³/4`. The triangle through the
+//! crossings `(d, d, 0)`, `(d, 0, d)` and `(0, d, d)` lies on `a + b + c = 2d`
+//! and fills what the union leaves below it, the tetrahedron between it and
+//! `(d/2, d/2, d/2)`, `d³/12`: inside the cube of side `d` at the corner the
+//! closed body holds exactly `a + b + c ≤ 2d`, `5d³/6`, where the three fills
+//! alone would hold `3d³/2`. The three rounds and the hollow piece of sphere
+//! centred `(r, r, r)` hold in that cube all of it but the eighth of the ball,
+//! `r³(1 − π/6)`, where the three rounds alone would hold `3r³(1 − π/4)`; the
+//! ball lies outside every round's cylinder, so none of them reaches it. A
+//! corner closed keeps the three fills' sum less `2d³/3` or `r³(2 − 7π/12)`,
+//! #699's convex corner mirrored: `5500 + 12.5d² − 2d³/3` and
+//! `5500 + 25r²(1 − π/4) − r³(2 − 7π/12)` at one corner, and the four floor
+//! edges and four uprights, 60 long in all, `5500 + 30d² − 8d³/3` and
+//! `5500 + 60r²(1 − π/4) − 4r³(2 − 7π/12)`. Held another way, by the
+//! booleans, in the tests themselves: the part joined to each fill trimmed
+//! flush and to each corner's cube, cut among flats by the triangle's plane,
+//! and among rounds less the eighth of the ball, which no fill reaches.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -152,22 +257,33 @@ fn profile(outline: Contour) -> Profile<'static> {
     }
 }
 
-/// An outline drawn on the ground raised from `from` by `height` and joined
-/// to the part as `cao_part` builds a step: the outline's faces numbered past
-/// the part's, its floor first, then its top, then its walls, one for each
-/// run of the outline.
+/// The tool an outline drawn on the ground raises from `from` by `height`,
+/// as `cao_part` raises a step: its faces numbered past the part's, its floor
+/// first, then its top, then its walls, one for each run of the outline.
+fn tool_raised(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    part.tool_raised(
+        &profile(outline),
+        Frame {
+            origin: DVec3::Z * from,
+            ..ground()
+        },
+        DVec3::Z * height,
+    )
+    .expect("the tool raises")
+}
+
+/// The part joined to an outline raised from `from` by `height`, numbered as
+/// [`tool_raised`] numbers it.
 fn joined(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
-    let tool = part
-        .tool_raised(
-            &profile(outline),
-            Frame {
-                origin: DVec3::Z * from,
-                ..ground()
-            },
-            DVec3::Z * height,
-        )
-        .expect("the tool raises");
-    part.union(&tool).expect("the part is built")
+    part.union(&tool_raised(part, outline, from, height))
+        .expect("the part is built")
+}
+
+/// The part less an outline raised from `from` by `height`, numbered as
+/// [`tool_raised`] numbers it.
+fn cut_from(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    part.difference(&tool_raised(part, outline, from, height))
+        .expect("the cut is built")
 }
 
 /// A block 30 by 20 by 10 with another, 10 by 10 by 10, standing on the
@@ -233,13 +349,14 @@ impl Concave {
     }
 
     /// Where a fill of `value` crosses the face an end runs into: on the
-    /// edge's first face, the value out from its second, then on its second,
-    /// the value out from its first.
-    fn set_back(&self, end: &End, value: f64) -> [DVec3; 2] {
+    /// edge's first face, where the fill's set-back there runs, then on its
+    /// second; each set back from the other face as [`Cut::across`] says.
+    fn set_back(&self, end: &End, cut: Cut, value: f64) -> [DVec3; 2] {
         let [first, second] = self.facing;
+        let across = cut.across(value, first, second);
         [
-            standing(end.at, [second, end.facing, first], [value, 0.0, 0.0]),
-            standing(end.at, [first, end.facing, second], [value, 0.0, 0.0]),
+            standing(end.at, [second, end.facing, first], [across, 0.0, 0.0]),
+            standing(end.at, [first, end.facing, second], [across, 0.0, 0.0]),
         ]
     }
 
@@ -376,6 +493,17 @@ impl Cut {
                 asked: step.asked,
                 taken: step.taken,
             }),
+        }
+    }
+
+    /// How far from an edge's other face, facing `other`, a fill of `value`
+    /// sets back along its face facing `one`: a flat the value along the face,
+    /// a round where it touches it, the radius out from both faces — the value
+    /// itself where the two faces meet square.
+    fn across(self, value: f64, one: DVec3, other: DVec3) -> f64 {
+        match self {
+            Cut::Flat => value * one.cross(other).length(),
+            Cut::Round => value * (1.0 - one.dot(other)),
         }
     }
 
@@ -768,7 +896,7 @@ fn rounds_drawn_within(part: &Body, edges: &[Concave], radius: f64) -> f64 {
 /// face they share, and the second where they meet the third edge between
 /// the two other faces, the value from the face they share; elsewhere, where
 /// the fill crosses the face its edge runs into.
-fn fill_corners(edges: &[Concave], edge: usize, end: usize, value: f64) -> [DVec3; 2] {
+fn fill_corners(edges: &[Concave], edge: usize, end: usize, cut: Cut, value: f64) -> [DVec3; 2] {
     let concave = &edges[edge];
     let [shared, own] = concave.facing;
     match mitred_with(edges, edge, end) {
@@ -780,7 +908,7 @@ fn fill_corners(edges: &[Concave], edge: usize, end: usize, value: f64) -> [DVec
                 standing(at, facing, [0.0, 0.0, value]),
             ]
         }
-        None => concave.set_back(&concave.ends[end], value),
+        None => concave.set_back(&concave.ends[end], cut, value),
     }
 }
 
@@ -809,57 +937,63 @@ fn kept(volume: f64, edges: &[Concave], cut: Cut, value: f64) -> f64 {
     volume + alone + at_the_corners
 }
 
+/// The prism over a fill's section of `value` on `edge`, raised along the
+/// edge from well before its first end to well past its last, for `part` to
+/// number its faces after its own. The section is drawn from the ways along
+/// the edge's two faces, square or not: the flat's corners the value along
+/// each, the round's where it touches them, the radius from both.
+fn fill_prism(part: &Body, edge: &Concave, cut: Cut, value: f64) -> Body {
+    let along = edge.along();
+    let [u, into_second] = edge.into();
+    let v = (into_second - u * u.dot(into_second)).normalize();
+    let angle = u.dot(into_second).acos();
+    let set_back = match cut {
+        Cut::Flat => value,
+        Cut::Round => value / (angle / 2.0).tan(),
+    };
+    let corners = vec![
+        DVec2::ZERO,
+        DVec2::new(set_back, 0.0),
+        DVec2::new(angle.cos(), angle.sin()) * set_back,
+    ];
+    let outline = match cut {
+        Cut::Flat => Contour::straight(corners),
+        Cut::Round => Contour {
+            corners,
+            runs: vec![
+                Run::Straight,
+                Run::Round {
+                    center: DVec2::new(set_back, value),
+                    turn: angle - PI,
+                },
+                Run::Straight,
+            ],
+        },
+    };
+    let [start, stop] = [
+        edge.ends[0].at - along * 6.0 * value,
+        edge.ends[1].at + along * 6.0 * value,
+    ];
+    let (origin, travel) = if u.cross(v).dot(along) > 0.0 {
+        (start, stop - start)
+    } else {
+        (stop, start - stop)
+    };
+    part.tool_raised(&profile(outline), Frame { origin, u, v }, travel)
+        .expect("the prism raises")
+}
+
 /// What a part keeps once a fill of `value` on `edges` in one step is laid,
 /// held another way, by the booleans and nothing of the step: the part
 /// joined, for each edge, to the prism over the fill's section carried well
 /// past both its ends, clipped at a mitred end by the plane halfway between
 /// the two edges, on the other's side, and at another end by the plane of the
-/// face it runs into, on the far side from the edge. The section is drawn
-/// from the ways along the edge's two faces, square or not: the flat's
-/// corners the value along each, the round's where it touches them, the
-/// radius from both.
+/// face it runs into, on the far side from the edge, the section drawn as
+/// [`fill_prism`] draws it.
 fn by_booleans(part: &Body, edges: &[Concave], cut: Cut, value: f64) -> f64 {
     let mut body = part.clone();
     for (index, edge) in edges.iter().enumerate() {
-        let along = edge.along();
-        let [u, into_second] = edge.into();
-        let v = (into_second - u * u.dot(into_second)).normalize();
-        let angle = u.dot(into_second).acos();
-        let set_back = match cut {
-            Cut::Flat => value,
-            Cut::Round => value / (angle / 2.0).tan(),
-        };
-        let corners = vec![
-            DVec2::ZERO,
-            DVec2::new(set_back, 0.0),
-            DVec2::new(angle.cos(), angle.sin()) * set_back,
-        ];
-        let outline = match cut {
-            Cut::Flat => Contour::straight(corners),
-            Cut::Round => Contour {
-                corners,
-                runs: vec![
-                    Run::Straight,
-                    Run::Round {
-                        center: DVec2::new(set_back, value),
-                        turn: angle - PI,
-                    },
-                    Run::Straight,
-                ],
-            },
-        };
-        let [start, stop] = [
-            edge.ends[0].at - along * 6.0 * value,
-            edge.ends[1].at + along * 6.0 * value,
-        ];
-        let (origin, travel) = if u.cross(v).dot(along) > 0.0 {
-            (start, stop - start)
-        } else {
-            (stop, start - stop)
-        };
-        let mut prism = body
-            .tool_raised(&profile(outline), Frame { origin, u, v }, travel)
-            .expect("the prism raises");
+        let mut prism = fill_prism(&body, edge, cut, value);
         for end in 0..2 {
             let at = &edge.ends[end];
             let inward = from_end(edge, end);
@@ -1041,11 +1175,19 @@ fn mitre_in_every_order(
 /// alike and a flat one with the same corners; and the same edges between
 /// the same faces.
 fn the_same_body(part: &Body, edges: &[Concave], first: &Case, second: &Case) {
-    let what = format!("{} and {}", first.what, second.what);
-    let [one, other] = [&first.step.body, &second.step.body];
     let to_first: Vec<(usize, usize)> = (0..edges.len())
         .map(|edge| (second.laid_on(part, edge), first.laid_on(part, edge)))
         .collect();
+    the_same_bodies(first, second, &to_first);
+}
+
+/// Holds that the bodies two steps left are the same, each face of the second
+/// that `to_first` names answering in the first to the number it maps to:
+/// the same matter; the same faces, each flat or curved alike and a flat one
+/// with the same corners; and the same edges between the same faces.
+fn the_same_bodies(first: &Case, second: &Case, to_first: &[(usize, usize)]) {
+    let what = format!("{} and {}", first.what, second.what);
+    let [one, other] = [&first.step.body, &second.step.body];
     let as_first = |number: usize| {
         to_first
             .iter()
@@ -1128,9 +1270,10 @@ fn the_same_body(part: &Body, edges: &[Concave], first: &Case, second: &Case) {
 /// - each edge's other face filled up by the value along it, meeting the
 ///   face laid on it in place of the face they share, and the third edge at
 ///   each corner still one sharp edge, ending where the two fills meet it;
-/// - each face an edge runs into at an end not mitred grown by the fill's
-///   end section in place of the corner the edge ended at, and meeting both
-///   the edge's faces along one edge still, for a name to find.
+/// - each face an edge runs into at an end not mitred holding the fill's end
+///   section in place of the corner the edge ended at — grown by it where
+///   air lies past, giving it up where the matter behind swallows it — and
+///   meeting both the edge's faces along one edge still, for a name to find.
 fn mitred(part: &Body, edges: &[Concave], case: &Case, promised: f64) {
     let Case {
         cut,
@@ -1198,7 +1341,7 @@ fn mitred(part: &Body, edges: &[Concave], case: &Case, promised: f64) {
                 );
                 let corners: Vec<DVec3> = [0, 1]
                     .into_iter()
-                    .flat_map(|end| fill_corners(edges, index, end, value))
+                    .flat_map(|end| fill_corners(edges, index, end, cut, value))
                     .collect();
                 corners_are_or_on(
                     body,
@@ -1272,7 +1415,7 @@ fn mitred(part: &Body, edges: &[Concave], case: &Case, promised: f64) {
             .into_iter()
             .map(|corner| {
                 end_at(index, corner)
-                    .map_or(corner, |end| fill_corners(edges, index, end, value)[1])
+                    .map_or(corner, |end| fill_corners(edges, index, end, cut, value)[1])
             })
             .collect();
         corners_are_or_on(
@@ -1301,15 +1444,15 @@ fn mitred(part: &Body, edges: &[Concave], case: &Case, promised: f64) {
             let kept_corners = corners_of(ended_on)
                 .into_iter()
                 .filter(|corner| corner.distance(at.at) >= PLACE);
-            let expected: Vec<DVec3> = kept_corners.chain(edge.set_back(at, value)).collect();
+            let expected: Vec<DVec3> = kept_corners.chain(edge.set_back(at, cut, value)).collect();
             corners_are_or_on(
                 body,
                 ended_on,
                 &expected,
                 |corner| cut == Cut::Round && edge.on_the_round_s_end(at, value, corner),
                 &format!(
-                    "{what}: face {ended_on}, which {} runs into, grown by the fill's end \
-                     section in place of the corner the edge ended at",
+                    "{what}: face {ended_on}, which {} runs into, its outline taking the \
+                     fill's end section in place of the corner the edge ended at",
                     edge.called
                 ),
             );
@@ -1331,7 +1474,7 @@ fn mitred(part: &Body, edges: &[Concave], case: &Case, promised: f64) {
         .map(|corner| {
             (0..edges.len())
                 .find_map(|edge| {
-                    end_at(edge, corner).map(|end| fill_corners(edges, edge, end, value)[0])
+                    end_at(edge, corner).map(|end| fill_corners(edges, edge, end, cut, value)[0])
                 })
                 .unwrap_or(corner)
         })
@@ -1366,7 +1509,7 @@ fn mitred(part: &Body, edges: &[Concave], case: &Case, promised: f64) {
                     edges[edge].ends[end].at,
                     [from_end(&edges[edge], end), from_end(&edges[other], far)],
                 ),
-                fill_corners(edges, edge, end, value),
+                fill_corners(edges, edge, end, cut, value),
                 what,
             );
         }
@@ -1667,4 +1810,1250 @@ fn a_chamfer_and_a_fillet_on_two_feet_and_the_foot_of_the_chamfered_upright_betw
         &ROUND_A_SHORT_EDGE,
         called,
     );
+}
+
+/// A block 30 by 20 by 10 with a pocket 10 by 10 sunk 5 into the middle of
+/// its top, as `cao_part` cuts a step: the pocket's floor numbered six, its
+/// walls, front, right, back and left, eight to eleven, the tool's top,
+/// standing above the block, gone. Its floor's edges and its uprights all
+/// meet inwards; its rim outwards.
+fn pocketed() -> Body {
+    cut_from(
+        &joined(
+            &Body::default(),
+            Contour::rectangle(DVec2::ZERO, DVec2::new(30.0, 20.0)),
+            0.0,
+            10.0,
+        ),
+        Contour::rectangle(DVec2::new(10.0, 5.0), DVec2::new(20.0, 15.0)),
+        5.0,
+        6.0,
+    )
+}
+const POCKETED_VOLUME: f64 = 30.0 * 20.0 * 10.0 - 10.0 * 10.0 * 5.0;
+const POCKET_FLOOR: usize = 6;
+const POCKET_FRONT: usize = 8;
+const POCKET_RIGHT: usize = 9;
+const POCKET_BACK: usize = 10;
+const POCKET_LEFT: usize = 11;
+
+/// The pocket's four floor edges, each running between the two walls beside
+/// its own, with the block's matter past both: the floor first, the wall
+/// second.
+fn pocket_floor_edges() -> [Concave; 4] {
+    let [front_left, front_right, back_right, back_left] = [
+        DVec3::new(10.0, 5.0, 5.0),
+        DVec3::new(20.0, 5.0, 5.0),
+        DVec3::new(20.0, 15.0, 5.0),
+        DVec3::new(10.0, 15.0, 5.0),
+    ];
+    let walled = |at: DVec3, on: usize, facing: DVec3| End {
+        at,
+        on,
+        facing,
+        matter_past: true,
+    };
+    [
+        Concave {
+            called: "the pocket's floor edge on its front wall",
+            between: [POCKET_FLOOR, POCKET_FRONT],
+            facing: [DVec3::Z, DVec3::Y],
+            ends: [
+                walled(front_left, POCKET_LEFT, DVec3::X),
+                walled(front_right, POCKET_RIGHT, -DVec3::X),
+            ],
+        },
+        Concave {
+            called: "the pocket's floor edge on its right wall",
+            between: [POCKET_FLOOR, POCKET_RIGHT],
+            facing: [DVec3::Z, -DVec3::X],
+            ends: [
+                walled(front_right, POCKET_FRONT, DVec3::Y),
+                walled(back_right, POCKET_BACK, -DVec3::Y),
+            ],
+        },
+        Concave {
+            called: "the pocket's floor edge on its back wall",
+            between: [POCKET_FLOOR, POCKET_BACK],
+            facing: [DVec3::Z, -DVec3::Y],
+            ends: [
+                walled(back_right, POCKET_RIGHT, -DVec3::X),
+                walled(back_left, POCKET_LEFT, DVec3::X),
+            ],
+        },
+        Concave {
+            called: "the pocket's floor edge on its left wall",
+            between: [POCKET_FLOOR, POCKET_LEFT],
+            facing: [DVec3::Z, DVec3::X],
+            ends: [
+                walled(back_left, POCKET_BACK, -DVec3::Y),
+                walled(front_left, POCKET_FRONT, DVec3::Y),
+            ],
+        },
+    ]
+}
+
+/// The pocket's four uprights, each running from its floor, which the
+/// block's matter lies past, up to the block's top at the pocket's rim, which
+/// air lies past.
+fn pocket_uprights() -> [Concave; 4] {
+    let upright =
+        |called: &'static str, between: [usize; 2], facing: [DVec3; 2], [x, y]: [f64; 2]| Concave {
+            called,
+            between,
+            facing,
+            ends: [
+                End {
+                    at: DVec3::new(x, y, 5.0),
+                    on: POCKET_FLOOR,
+                    facing: DVec3::Z,
+                    matter_past: true,
+                },
+                End {
+                    at: DVec3::new(x, y, 10.0),
+                    on: TOP,
+                    facing: DVec3::Z,
+                    matter_past: false,
+                },
+            ],
+        };
+    [
+        upright(
+            "the pocket's front right upright",
+            [POCKET_FRONT, POCKET_RIGHT],
+            [DVec3::Y, -DVec3::X],
+            [20.0, 5.0],
+        ),
+        upright(
+            "the pocket's back right upright",
+            [POCKET_RIGHT, POCKET_BACK],
+            [-DVec3::X, -DVec3::Y],
+            [20.0, 15.0],
+        ),
+        upright(
+            "the pocket's back left upright",
+            [POCKET_BACK, POCKET_LEFT],
+            [-DVec3::Y, DVec3::X],
+            [10.0, 15.0],
+        ),
+        upright(
+            "the pocket's front left upright",
+            [POCKET_LEFT, POCKET_FRONT],
+            [DVec3::X, DVec3::Y],
+            [10.0, 5.0],
+        ),
+    ]
+}
+
+/// Holds that each of `edges`, filled alone by a chamfer and a fillet at
+/// every one of [`VALUES`], leaves what [`mitred`] holds of a list of that one
+/// edge, the part holding `volume` before the step and keeping what [`kept`]
+/// says after it, which the booleans give too, [`by_booleans`]. Every edge is
+/// laid before any body is read, so that a decline names every case that
+/// declines.
+fn each_filled_alone(part: &Body, volume: f64, edges: &[Concave], called: &str) {
+    assert!(
+        (part.volume() - volume).abs() <= EXACT * volume,
+        "{called}: the part holds {}, where arithmetic gives {volume}",
+        part.volume()
+    );
+    let mut laid = Vec::new();
+    let mut declined = Vec::new();
+    for (index, edge) in edges.iter().enumerate() {
+        let alone = std::slice::from_ref(edge);
+        let name = edge_between(part, edge.between[0], edge.between[1]);
+        for cut in [Cut::Flat, Cut::Round] {
+            for value in VALUES {
+                let what = format!("the {} of {value} on {}", cut.called(), edge.called);
+                let arithmetic = kept(volume, alone, cut, value);
+                let booleans = by_booleans(part, alone, cut, value);
+                assert!(
+                    (arithmetic - booleans).abs() <= EXACT * volume,
+                    "{what}: the arithmetic keeps {arithmetic}, the booleans {booleans}"
+                );
+                match cut.laid_on(part, std::slice::from_ref(&name), value) {
+                    Ok(step) => laid.push((
+                        index,
+                        Case {
+                            order: &[0],
+                            cut,
+                            value,
+                            step,
+                            what,
+                        },
+                    )),
+                    Err(reason) => declined.push(format!("{what}: {reason:?}")),
+                }
+            }
+        }
+    }
+    assert!(
+        declined.is_empty(),
+        "{called}: each edge filled alone, trimmed flush on the faces at its ends; declined:\n{}",
+        declined.join("\n")
+    );
+    for (index, case) in &laid {
+        let alone = std::slice::from_ref(&edges[*index]);
+        mitred(part, alone, case, kept(volume, alone, case.cut, case.value));
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_pocket_s_floor_edge_alone_fill_it_flush_between_the_walls_at_its_ends()
+ {
+    each_filled_alone(
+        &pocketed(),
+        POCKETED_VOLUME,
+        &pocket_floor_edges(),
+        "the pocket's floor edges",
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_pocket_s_upright_alone_fill_it_flush_on_its_floor_and_up_to_its_rim()
+{
+    each_filled_alone(
+        &pocketed(),
+        POCKETED_VOLUME,
+        &pocket_uprights(),
+        "the pocket's uprights",
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_two_edges_of_a_pocket_s_floor_mitre_them_the_upright_above_left_sharp_one_value_short()
+ {
+    let [front, right, ..] = pocket_floor_edges();
+    mitre_in_every_order(
+        &pocketed(),
+        POCKETED_VOLUME,
+        &[front, right],
+        &BOTH_ORDERS,
+        &[Cut::Flat, Cut::Round],
+        "the pocket's floor edges on its front and right walls, below its front right upright",
+    );
+}
+
+/// The pocket's floor edge on its front wall, read from the wall it shares
+/// with the front right upright: the wall first, the floor second.
+fn front_floor_edge_from_its_wall() -> Concave {
+    Concave {
+        called: "the pocket's floor edge on its front wall",
+        between: [POCKET_FRONT, POCKET_FLOOR],
+        facing: [DVec3::Y, DVec3::Z],
+        ends: [
+            End {
+                at: DVec3::new(10.0, 5.0, 5.0),
+                on: POCKET_LEFT,
+                facing: DVec3::X,
+                matter_past: true,
+            },
+            End {
+                at: DVec3::new(20.0, 5.0, 5.0),
+                on: POCKET_RIGHT,
+                facing: -DVec3::X,
+                matter_past: true,
+            },
+        ],
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_pocket_s_floor_edge_and_the_upright_it_meets_mitre_them_the_floor_edge_beside_left_sharp_one_value_short()
+ {
+    let [upright, ..] = pocket_uprights();
+    mitre_in_every_order(
+        &pocketed(),
+        POCKETED_VOLUME,
+        &[front_floor_edge_from_its_wall(), upright],
+        &BOTH_ORDERS,
+        &[Cut::Flat, Cut::Round],
+        "the pocket's floor edge on its front wall and its front right upright",
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_foot_and_the_chamfered_upright_s_foot_without_the_foot_beyond_are_declined_as_unsupported()
+ {
+    let part = stacked_with_its_upright_chamfered();
+    let [front, foot] = [
+        edge_between(&part, TOP, STANDING_FRONT),
+        edge_between(&part, TOP, CHAMFERED_UPRIGHT),
+    ];
+    for (list, which) in [
+        (
+            vec![front.clone(), foot.clone()],
+            "the front foot and the chamfer's foot",
+        ),
+        (
+            vec![foot.clone(), front.clone()],
+            "the chamfer's foot and the front foot",
+        ),
+        (vec![foot.clone()], "the chamfer's foot alone"),
+    ] {
+        for cut in [Cut::Flat, Cut::Round] {
+            assert_eq!(
+                cut.laid_on(&part, &list, 1.0).err(),
+                Some(Declined::Unsupported),
+                "the {} of 1 on {which}, the right foot left out: past √2/2 the chamfer's foot, \
+                 trimmed flush on the walls at its two ends, keeps no fill of its own, and is \
+                 declined alone as well as beside the front foot, its fill standing past the \
+                 right wall where nothing meets it",
+                cut.called()
+            );
+        }
+    }
+}
+
+/// A corner three edges of a list meet at, all three concave: where it
+/// stands, and for each of its three edges the edge's index in the list and
+/// which of its ends stands there.
+struct Closed {
+    at: DVec3,
+    edges: [usize; 3],
+    ends: [usize; 3],
+}
+
+impl Closed {
+    /// The ways the corner's three faces face, out of the matter, and their
+    /// numbers.
+    fn faces(&self, edges: &[Concave]) -> Vec<(usize, DVec3)> {
+        let mut faces: Vec<(usize, DVec3)> = Vec::new();
+        for &edge in &self.edges {
+            for (face, facing) in edges[edge].between.into_iter().zip(edges[edge].facing) {
+                if faces.iter().all(|&(known, _)| known != face) {
+                    faces.push((face, facing));
+                }
+            }
+        }
+        faces
+    }
+
+    /// Where the corner's face numbered `face` has its corner once a fill of
+    /// `value` closes it: on it, where the set-backs of the fills on its two
+    /// edges there cross, each as [`Cut::across`] sets it back from the face
+    /// across that edge.
+    fn on(&self, edges: &[Concave], face: usize, cut: Cut, value: f64) -> DVec3 {
+        let faces = self.faces(edges);
+        let own = faces
+            .iter()
+            .find(|&&(number, _)| number == face)
+            .expect("a face of the corner")
+            .1;
+        let others: Vec<DVec3> = faces
+            .iter()
+            .filter(|&&(number, _)| number != face)
+            .map(|&(_, facing)| facing)
+            .collect();
+        standing(
+            self.at,
+            [others[0], others[1], own],
+            [
+                cut.across(value, own, others[0]),
+                cut.across(value, own, others[1]),
+                0.0,
+            ],
+        )
+    }
+
+    /// The solid angle the three faces' ways span, which the piece of sphere
+    /// closing the corner covers seen from its centre.
+    fn spread(&self, edges: &[Concave]) -> f64 {
+        let facing: Vec<DVec3> = self
+            .faces(edges)
+            .into_iter()
+            .map(|(_, facing)| facing)
+            .collect();
+        let [one, two, three] = [facing[0], facing[1], facing[2]];
+        2.0 * one
+            .dot(two.cross(three))
+            .abs()
+            .atan2(1.0 + one.dot(two) + two.dot(three) + three.dot(one))
+    }
+
+    /// The centre of the piece of sphere of `radius` that closes the corner:
+    /// the radius out from its three faces.
+    fn centre(&self, edges: &[Concave], radius: f64) -> DVec3 {
+        let facing: Vec<DVec3> = self
+            .faces(edges)
+            .into_iter()
+            .map(|(_, facing)| facing)
+            .collect();
+        standing(self.at, [facing[0], facing[1], facing[2]], [radius; 3])
+    }
+
+    /// The ways the corner's three edges run from it.
+    fn ways(&self, edges: &[Concave]) -> [DVec3; 3] {
+        [0, 1, 2].map(|k| from_end(&edges[self.edges[k]], self.ends[k]))
+    }
+}
+
+/// The corners three of `edges` end at, in the order the list first reaches
+/// them.
+fn closed_corners(edges: &[Concave]) -> Vec<Closed> {
+    let mut corners: Vec<Closed> = Vec::new();
+    for edge in edges {
+        for end in &edge.ends {
+            if corners
+                .iter()
+                .any(|corner| corner.at.distance(end.at) < PLACE)
+            {
+                continue;
+            }
+            let meeting: Vec<(usize, usize)> = (0..edges.len())
+                .flat_map(|other| (0..2).map(move |far| (other, far)))
+                .filter(|&(other, far)| edges[other].ends[far].at.distance(end.at) < PLACE)
+                .collect();
+            if let [one, two, three] = meeting[..] {
+                corners.push(Closed {
+                    at: end.at,
+                    edges: [one.0, two.0, three.0],
+                    ends: [one.1, two.1, three.1],
+                });
+            }
+        }
+    }
+    corners
+}
+
+/// The closed corner among `corners` the end `end` of the edge `edge` stands
+/// at, if it stands at one.
+fn closing(corners: &[Closed], edge: usize, end: usize) -> Option<usize> {
+    corners.iter().position(|corner| {
+        corner
+            .edges
+            .iter()
+            .zip(corner.ends)
+            .any(|(&one, its)| one == edge && its == end)
+    })
+}
+
+impl Cut {
+    /// What the patch closing a square corner of three fills gives up of the
+    /// three fills' prisms there, as the module's documentation derives it.
+    fn closing(self, value: f64) -> f64 {
+        match self {
+            Cut::Flat => 2.0 * value.powi(3) / 3.0,
+            Cut::Round => value.powi(3) * (2.0 - 7.0 * PI / 12.0),
+        }
+    }
+}
+
+/// What a part holding `volume` keeps once a fill of `value` on `edges`, each
+/// ending flush at both ends, closes `corners`: its volume and what each fill
+/// adds alone, less at each corner what the patch leaves of the three fills'
+/// prisms there.
+fn kept_closed(volume: f64, edges: &[Concave], corners: &[Closed], cut: Cut, value: f64) -> f64 {
+    let alone: f64 = edges.iter().map(|edge| edge.added(cut, value)).sum();
+    volume + alone - corners.len() as f64 * cut.closing(value)
+}
+
+/// What a part keeps once a fill of `value` on `edges` closes `corners`,
+/// held another way, by the booleans: the part joined to each fill's prism,
+/// [`fill_prism`], trimmed flush on the planes of the faces at both its ends,
+/// and to a piece at each corner cut out of a box by slabs, on the air side of
+/// the corner's three faces. Among flats the piece stops at the plane through
+/// the three crossings, the triangle's; among rounds at the three planes
+/// through the sphere's centre square to the edges, the cell the piece of
+/// sphere fills, and the ball's sector over that cell, which no fill
+/// reaches, is taken off the matter after: a third of the radius cubed times
+/// the solid angle the three faces' ways span.
+fn closed_by_booleans(
+    part: &Body,
+    edges: &[Concave],
+    corners: &[Closed],
+    cut: Cut,
+    value: f64,
+) -> f64 {
+    let mut body = part.clone();
+    for edge in edges {
+        let mut prism = fill_prism(&body, edge, cut, value);
+        for (end, at) in edge.ends.iter().enumerate() {
+            let inward = from_end(edge, end);
+            let away = if inward.dot(at.facing) < 0.0 {
+                at.facing
+            } else {
+                -at.facing
+            };
+            prism = prism
+                .difference(&beyond(&prism, at.at, away, 12.0 * value))
+                .expect("the prism is trimmed flush");
+        }
+        body = body.union(&prism).expect("the trimmed prism joins");
+    }
+    let mut sectors = 0.0;
+    for corner in corners {
+        let reach = DVec3::splat(4.0 * value);
+        let [low, high] = [corner.at - reach, corner.at + reach];
+        let mut piece = body
+            .tool_raised(
+                &profile(Contour::rectangle(low.truncate(), high.truncate())),
+                Frame {
+                    origin: DVec3::Z * low.z,
+                    ..ground()
+                },
+                DVec3::Z * (high.z - low.z),
+            )
+            .expect("the corner's box raises");
+        let cut_off = |piece: &mut Body, through: DVec3, away: DVec3| {
+            *piece = piece
+                .difference(&beyond(piece, through, away, 8.0 * value))
+                .expect("the corner's box is cut");
+        };
+        for (_, facing) in corner.faces(edges) {
+            cut_off(&mut piece, corner.at, -facing);
+        }
+        match cut {
+            Cut::Flat => {
+                let crossings: Vec<DVec3> = corner
+                    .faces(edges)
+                    .iter()
+                    .map(|&(face, _)| corner.on(edges, face, cut, value))
+                    .collect();
+                let mut away = (crossings[1] - crossings[0]).cross(crossings[2] - crossings[0]);
+                if away.dot(crossings[0] - corner.at) < 0.0 {
+                    away = -away;
+                }
+                cut_off(&mut piece, crossings[0], away);
+            }
+            Cut::Round => {
+                let centre = corner.centre(edges, value);
+                for way in corner.ways(edges) {
+                    cut_off(&mut piece, centre, way);
+                }
+                sectors += value.powi(3) * corner.spread(edges) / 3.0;
+            }
+        }
+        body = body.union(&piece).expect("the corner's piece joins");
+    }
+    body.volume() - sectors
+}
+
+/// The numbers the patches closing `corners` answer to on a step naming the
+/// edges in `case`'s order: past every edge's face, one each, in the order of
+/// the lowest rank the list gives one of a corner's three edges, then the
+/// next.
+fn patches(part: &Body, edges: &[Concave], corners: &[Closed], case: &Case) -> Vec<usize> {
+    let rank = |edge: usize| case.laid_on(part, edge) - part.faces_end();
+    let mut by_rank: Vec<(usize, [usize; 3])> = corners
+        .iter()
+        .enumerate()
+        .map(|(index, corner)| {
+            let mut ranks = corner.edges.map(rank);
+            ranks.sort();
+            (index, ranks)
+        })
+        .collect();
+    by_rank.sort_by_key(|&(_, ranks)| ranks);
+    let mut numbers = vec![0; corners.len()];
+    for (place, (index, _)) in by_rank.into_iter().enumerate() {
+        numbers[index] = part.faces_end() + edges.len() + place;
+    }
+    numbers
+}
+
+/// Holds what [`closed_in_every_order_at`] holds at every one of [`VALUES`].
+fn closed_in_every_order(
+    part: &Body,
+    volume: f64,
+    edges: &[Concave],
+    orders: &[&[usize]],
+    cuts: &[Cut],
+    called: &str,
+) {
+    closed_in_every_order_at(part, volume, edges, orders, (cuts, &VALUES), called);
+}
+
+/// Holds that `edges`, all concave, every corner three of them meet at square,
+/// named in each of `orders` and filled by each of the cuts at every one of
+/// the values in one step, leave what [`closed_held_to`] holds, keeping what
+/// [`kept_closed`] says — which the booleans give too, [`closed_by_booleans`].
+fn closed_in_every_order_at(
+    part: &Body,
+    volume: f64,
+    edges: &[Concave],
+    orders: &[&[usize]],
+    (cuts, values): (&[Cut], &[f64]),
+    called: &str,
+) {
+    let corners = closed_corners(edges);
+    for &cut in cuts {
+        for &value in values {
+            let arithmetic = kept_closed(volume, edges, &corners, cut, value);
+            let booleans = closed_by_booleans(part, edges, &corners, cut, value);
+            assert!(
+                (arithmetic - booleans).abs() <= EXACT * volume,
+                "{called}, the {} of {value}: the arithmetic keeps {arithmetic}, the booleans \
+                 {booleans}",
+                cut.called()
+            );
+        }
+    }
+    closed_held_to(
+        part,
+        (volume, &|cut, value| {
+            kept_closed(volume, edges, &corners, cut, value)
+        }),
+        edges,
+        orders,
+        (cuts, values),
+        called,
+    );
+}
+
+/// Holds that `edges`, all concave, named in each of `orders` and filled by
+/// each of the cuts at every one of the values in one step, close each corner
+/// three of them meet at as [`corners_closed`] holds it, the part holding the
+/// volume given before the step and keeping what `promised` says of each cut
+/// and value after it, and the same body whatever the order. Every list is
+/// laid before any body is read, so that a decline names every case that
+/// declines.
+fn closed_held_to(
+    part: &Body,
+    (volume, promised): (f64, &dyn Fn(Cut, f64) -> f64),
+    edges: &[Concave],
+    orders: &[&[usize]],
+    (cuts, values): (&[Cut], &[f64]),
+    called: &str,
+) {
+    assert!(
+        (part.volume() - volume).abs() <= EXACT * volume,
+        "{called}: the part holds {}, where arithmetic gives {volume}",
+        part.volume()
+    );
+    let corners = closed_corners(edges);
+    assert!(
+        !corners.is_empty(),
+        "{called}: three of the edges meet at a corner"
+    );
+    let names: Vec<EdgeName> = edges
+        .iter()
+        .map(|edge| edge_between(part, edge.between[0], edge.between[1]))
+        .collect();
+    let mut laid = Vec::new();
+    let mut declined = Vec::new();
+    for &order in orders {
+        let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+        for &cut in cuts {
+            for &value in values {
+                let what = format!(
+                    "the {} of {value} on {called}, named {order:?}",
+                    cut.called()
+                );
+                match cut.laid_on(part, &list, value) {
+                    Ok(step) => laid.push(Case {
+                        order,
+                        cut,
+                        value,
+                        step,
+                        what,
+                    }),
+                    Err(reason) => declined.push(format!("{what}: {reason:?}")),
+                }
+            }
+        }
+    }
+    assert!(
+        declined.is_empty(),
+        "{called}: the edges filled in one step, each corner three of them meet at closed; \
+         declined:\n{}",
+        declined.join("\n")
+    );
+    for case in &laid {
+        let promised = promised(case.cut, case.value);
+        corners_closed(part, edges, &corners, case, promised);
+    }
+    for case in &laid {
+        let first = laid
+            .iter()
+            .find(|other| other.cut == case.cut && other.value == case.value)
+            .expect("the case itself is among them");
+        if !std::ptr::eq(first, case) {
+            let faces =
+                (0..edges.len()).map(|edge| (case.laid_on(part, edge), first.laid_on(part, edge)));
+            let patched = patches(part, edges, &corners, case)
+                .into_iter()
+                .zip(patches(part, edges, &corners, first));
+            let to_first: Vec<(usize, usize)> = faces.chain(patched).collect();
+            the_same_bodies(first, case, &to_first);
+        }
+    }
+}
+
+/// Holds what a step's fill of its value on `edges`, named in its order,
+/// leaves of a part, each of `corners` closed:
+///
+/// - the value taken whole; a sound body holding `promised`;
+/// - one face laid for each edge, numbered in the order the list names them,
+///   and one patch for each corner after them, as [`patches`] numbers them;
+/// - each face laid meeting its edge's two faces along its sides, and at each
+///   end the corner's patch, or the face its edge runs into, one edge each; a
+///   flat running from the set-backs at one end to those at the other, a
+///   closed corner's two crossings on its edge's faces; a round on its
+///   cylinder, facing its axis, nowhere past the face its edge runs into at
+///   an end, nor nearer a closed corner than the value;
+/// - each triangle through its corner's three crossings, facing away from it,
+///   meeting the three flats; each piece of sphere on the sphere of the
+///   value about its centre, the value from the corner's three faces, facing
+///   that centre, within the corner, met first from it, meeting the three
+///   rounds, each along the arc it shares with that round on the plane
+///   through the centre square to the round's edge;
+/// - every face the edges lie on or run into keeping its number, its
+///   outline the part's with each closed corner given up for where the
+///   value out from the other two faces crosses it, each other end of an edge
+///   on it given up for the fill's set-back there, and each end of an edge
+///   running into it for the two set-backs; meeting the faces laid in place
+///   of the faces it met across an edge of the list, no longer meeting
+///   those, and meeting the face laid on each edge that runs into it.
+fn corners_closed(part: &Body, edges: &[Concave], corners: &[Closed], case: &Case, promised: f64) {
+    let Case {
+        cut,
+        value,
+        step,
+        what,
+        ..
+    } = case;
+    let (cut, value) = (*cut, *value);
+    taken_as_asked(step.asked, step.taken, value, what);
+    let body = &step.body;
+    let laid: Vec<usize> = (0..edges.len())
+        .map(|edge| case.laid_on(part, edge))
+        .collect();
+    let patched = patches(part, edges, corners, case);
+    let drawn = match cut {
+        Cut::Flat => EXACT * promised,
+        Cut::Round => {
+            let rounds: f64 = edges
+                .iter()
+                .map(|edge| {
+                    let [first, second] = edge.facing;
+                    first.dot(second).acos() * value * edge.length()
+                })
+                .sum();
+            let spheres: f64 = corners
+                .iter()
+                .map(|corner| corner.spread(edges) * value * value)
+                .sum();
+            DRAWN * reach_of(part) * (rounds + spheres)
+        }
+    };
+    sound_drawn_within(body, promised, drawn, what);
+    let mut made: Vec<usize> = laid.iter().chain(&patched).copied().collect();
+    made.sort();
+    assert_eq!(
+        faces_made(part, body),
+        made,
+        "{what}: one face for each edge, numbered in the order the step names them, and one patch \
+         for each corner after them: {:?}",
+        numbers(body)
+    );
+    assert!(
+        numbers(part).is_subset(&numbers(body)),
+        "{what}: a face of the part went: {:?}",
+        numbers(body)
+    );
+    for (index, edge) in edges.iter().enumerate() {
+        let face = laid[index];
+        let [first, second] = edge.between;
+        let at_ends = [0, 1].map(|end| {
+            closing(corners, index, end).map_or(edge.ends[end].on, |corner| patched[corner])
+        });
+        assert_eq!(
+            sides_met(body, face),
+            sides(&[first, second, at_ends[0], at_ends[1]]),
+            "{what}: the face laid on {} meets its edge's two faces along its sides, and at each \
+             end the patch closing the corner there, or the face it runs into, by one edge each",
+            edge.called
+        );
+        match cut {
+            Cut::Flat => {
+                let corners_of_the_flat: Vec<DVec3> = [0, 1]
+                    .into_iter()
+                    .flat_map(|end| match closing(corners, index, end) {
+                        Some(corner) => [
+                            corners[corner].on(edges, first, cut, value),
+                            corners[corner].on(edges, second, cut, value),
+                        ],
+                        None => edge.set_back(&edge.ends[end], cut, value),
+                    })
+                    .collect();
+                corners_are_or_on(
+                    body,
+                    face,
+                    &corners_of_the_flat,
+                    |_| false,
+                    &format!(
+                        "{what}: the flat on {}, from the set-backs at one end to those at the \
+                         other, a closed corner's two crossings on its edge's faces",
+                        edge.called
+                    ),
+                );
+                faces_toward(
+                    body,
+                    face,
+                    edge.facing[0] + edge.facing[1],
+                    &format!("{what}: the flat on {}", edge.called),
+                );
+            }
+            Cut::Round => {
+                let hollow = Hollow::on(edge, value);
+                let which = format!("{what}: the round on {}", edge.called);
+                for point in body.triangles_of(face).flatten() {
+                    assert!(
+                        hollow.holds(point),
+                        "{which} is drawn through {point}, off its cylinder of {value}"
+                    );
+                    for (end, at) in edge.ends.iter().enumerate() {
+                        let inward = from_end(edge, end);
+                        match closing(corners, index, end) {
+                            Some(corner) => assert!(
+                                (point - corners[corner].centre(edges, value)).dot(inward)
+                                    >= -PLACE,
+                                "{which} is drawn through {point}, nearer the corner it closes \
+                                 than the plane through the sphere's centre square to its edge, \
+                                 where the piece of sphere takes over"
+                            ),
+                            None => assert!(
+                                (point - at.at).dot(at.facing) * inward.dot(at.facing).signum()
+                                    >= -PLACE,
+                                "{which} is drawn through {point}, past face {}, which its edge \
+                                 runs into there",
+                                at.on
+                            ),
+                        }
+                    }
+                }
+                let [before, after] = [0, 1].map(|end| {
+                    closing(corners, index, end).map_or(leaning_by(edge, end, value), |corner| {
+                        (corners[corner].centre(edges, value) - edge.ends[end].at)
+                            .dot(from_end(edge, end))
+                    })
+                });
+                if edge.length() - before - after > PLACE {
+                    met_from_its_axis(
+                        body,
+                        face,
+                        &hollow.part(before, edge.length() - after),
+                        &format!("{which}, between its edge's ends"),
+                    );
+                }
+            }
+        }
+    }
+    for (index, corner) in corners.iter().enumerate() {
+        let patch = patched[index];
+        let its_three: Vec<usize> = corner.edges.iter().map(|&edge| laid[edge]).collect();
+        assert_eq!(
+            sides_met(body, patch),
+            sides(&its_three),
+            "{what}: the patch closing the corner at {} meets the three faces laid there, by one \
+             edge each",
+            corner.at
+        );
+        let faces = corner.faces(edges);
+        match cut {
+            Cut::Flat => {
+                let crossings: Vec<DVec3> = faces
+                    .iter()
+                    .map(|&(face, _)| corner.on(edges, face, cut, value))
+                    .collect();
+                corners_are_or_on(
+                    body,
+                    patch,
+                    &crossings,
+                    |_| false,
+                    &format!(
+                        "{what}: the triangle closing the corner at {}, its corners where each two \
+                         fills' set-backs cross on the face they share",
+                        corner.at
+                    ),
+                );
+                let mut away = (crossings[1] - crossings[0]).cross(crossings[2] - crossings[0]);
+                if away.dot(crossings[0] - corner.at) < 0.0 {
+                    away = -away;
+                }
+                faces_toward(
+                    body,
+                    patch,
+                    away,
+                    &format!("{what}: the triangle at {}", corner.at),
+                );
+            }
+            Cut::Round => {
+                let centre = corner.centre(edges, value);
+                let which = format!(
+                    "{what}: the piece of sphere closing the corner at {}",
+                    corner.at
+                );
+                assert!(
+                    !body.is_flat(patch) && body.plane_of(patch).is_none(),
+                    "{which} is curved, and offers no plane to draw on"
+                );
+                let drawn: Vec<DVec3> = body.triangles_of(patch).flatten().collect();
+                assert!(!drawn.is_empty(), "{which} is drawn");
+                for point in &drawn {
+                    assert!(
+                        ((*point - centre).length() - value).abs() < PLACE
+                            && corner
+                                .ways(edges)
+                                .iter()
+                                .all(|&way| (*point - centre).dot(way) <= PLACE),
+                        "{which} is drawn through {point}, off the sphere of {value} about {centre} \
+                         or out of the corner"
+                    );
+                }
+                let facing: Vec<DVec3> = faces.iter().map(|&(_, facing)| facing).collect();
+                for weights in [
+                    [1.0, 1.0, 1.0],
+                    [3.0, 1.0, 1.0],
+                    [1.0, 3.0, 1.0],
+                    [1.0, 1.0, 3.0],
+                ] {
+                    let toward =
+                        -(facing[0] * weights[0] + facing[1] * weights[1] + facing[2] * weights[2])
+                            .normalize();
+                    let hit = body
+                        .ray_hit(centre, toward)
+                        .unwrap_or_else(|| panic!("{which}: a ray from its centre meets nothing"));
+                    assert!(
+                        hit.face == patch && hit.normal.distance(-toward) < PLACE,
+                        "{which}: a ray from its centre toward the corner meets face {} facing {} \
+                         first",
+                        hit.face,
+                        hit.normal
+                    );
+                }
+                for (k, &edge) in corner.edges.iter().enumerate() {
+                    let round: Vec<DVec3> = body.triangles_of(laid[edge]).flatten().collect();
+                    let shared: Vec<&DVec3> = drawn
+                        .iter()
+                        .filter(|point| round.iter().any(|theirs| theirs.distance(**point) < PLACE))
+                        .collect();
+                    let along = corner.ways(edges)[k];
+                    assert!(
+                        !shared.is_empty()
+                            && shared
+                                .iter()
+                                .all(|point| (**point - centre).dot(along).abs() < PLACE),
+                        "{which} meets the round on {} along an arc on the plane through its centre \
+                         square to that edge: {shared:?}",
+                        edges[edge].called
+                    );
+                }
+            }
+        }
+    }
+    let mut touched: Vec<usize> = Vec::new();
+    for edge in edges {
+        for face in edge
+            .between
+            .into_iter()
+            .chain(edge.ends.iter().map(|end| end.on))
+        {
+            if !touched.contains(&face) {
+                touched.push(face);
+            }
+        }
+    }
+    for face in touched {
+        let expected: Vec<DVec3> = part
+            .plane_of(face)
+            .unwrap_or_else(|| panic!("{what}: the part offers no plane on face {face}"))
+            .corners
+            .into_iter()
+            .flat_map(|corner| {
+                if let Some(closed) = corners.iter().find(|closed| {
+                    closed.at.distance(corner) < PLACE
+                        && closed.faces(edges).iter().any(|&(own, _)| own == face)
+                }) {
+                    return vec![closed.on(edges, face, cut, value)];
+                }
+                for edge in edges {
+                    for end in &edge.ends {
+                        if end.at.distance(corner) >= PLACE {
+                            continue;
+                        }
+                        if let Some(side) = edge.between.iter().position(|&own| own == face) {
+                            return vec![edge.set_back(end, cut, value)[side]];
+                        }
+                        if end.on == face {
+                            return edge.set_back(end, cut, value).to_vec();
+                        }
+                    }
+                }
+                vec![corner]
+            })
+            .collect();
+        let on_an_end = |point: DVec3| {
+            cut == Cut::Round
+                && edges.iter().any(|edge| {
+                    edge.ends
+                        .iter()
+                        .any(|end| end.on == face && edge.on_the_round_s_end(end, value, point))
+                })
+        };
+        corners_are_or_on(
+            body,
+            face,
+            &expected,
+            on_an_end,
+            &format!(
+                "{what}: face {face}, keeping its number, its outline giving up the fills' \
+                 footprints and the closed corners"
+            ),
+        );
+        let replaced: Vec<(usize, usize)> = edges
+            .iter()
+            .zip(&laid)
+            .filter_map(|(edge, &laid)| {
+                let [one, other] = edge.between;
+                (one == face)
+                    .then_some((other, laid))
+                    .or((other == face).then_some((one, laid)))
+            })
+            .collect();
+        let mut met = renamed(sides_met(part, face), &replaced);
+        for (index, edge) in edges.iter().enumerate() {
+            for (end, at) in edge.ends.iter().enumerate() {
+                if at.on == face && closing(corners, index, end).is_none() {
+                    met.push(vec![laid[index] as u32]);
+                }
+            }
+        }
+        met.sort();
+        assert_eq!(
+            sides_met(body, face),
+            met,
+            "{what}: face {face} meets the faces laid in place of the faces it met across an \
+             edge of the list, the face laid on each edge running into it, and every other face \
+             it met"
+        );
+    }
+}
+
+/// The three edges at the pocket's front right bottom corner: its floor edges
+/// on its front and right walls, and its front right upright.
+fn pocket_s_bottom_corner() -> [Concave; 3] {
+    let [front, right, ..] = pocket_floor_edges();
+    let [upright, ..] = pocket_uprights();
+    [front, right, upright]
+}
+
+#[test]
+fn a_chamfer_on_the_three_edges_of_a_pocket_s_bottom_corner_closes_it_with_a_triangle_where_the_fills_set_backs_cross()
+ {
+    closed_in_every_order(
+        &pocketed(),
+        POCKETED_VOLUME,
+        &pocket_s_bottom_corner(),
+        &ORDERS_OF_THREE,
+        &[Cut::Flat],
+        "the three edges at the pocket's front right bottom corner",
+    );
+}
+
+#[test]
+fn a_fillet_on_the_three_edges_of_a_pocket_s_bottom_corner_closes_it_with_a_hollow_piece_of_sphere_one_radius_from_its_three_faces()
+ {
+    closed_in_every_order(
+        &pocketed(),
+        POCKETED_VOLUME,
+        &pocket_s_bottom_corner(),
+        &ORDERS_OF_THREE,
+        &[Cut::Round],
+        "the three edges at the pocket's front right bottom corner",
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_pocket_s_four_floor_edges_and_four_uprights_close_its_four_bottom_corners_in_one_step()
+ {
+    let [front, right, back, left] = pocket_floor_edges();
+    let [front_right, back_right, back_left, front_left] = pocket_uprights();
+    closed_in_every_order(
+        &pocketed(),
+        POCKETED_VOLUME,
+        &[
+            front,
+            right,
+            back,
+            left,
+            front_right,
+            back_right,
+            back_left,
+            front_left,
+        ],
+        &[&[0, 1, 2, 3, 4, 5, 6, 7], &[4, 0, 5, 1, 6, 2, 7, 3]],
+        &[Cut::Flat, Cut::Round],
+        "the pocket's four floor edges and four uprights",
+    );
+}
+
+/// A tray: a block 21.5 by 16.5 by 6.5, from (0, 3.5, 3.5) to (21.5, 20, 10),
+/// with the pocket of [`pocketed`] sunk 5 into it, numbered as [`pocketed`]
+/// is — its front and right walls and its floor 1.5 thick round the pocket's
+/// front right bottom corner, thinner than the values its corner is closed
+/// at there. It holds 2305.875 less the pocket's 500.
+fn thin_walled_pocket() -> Body {
+    cut_from(
+        &joined(
+            &Body::default(),
+            Contour::rectangle(DVec2::new(0.0, 3.5), DVec2::new(21.5, 20.0)),
+            3.5,
+            6.5,
+        ),
+        Contour::rectangle(DVec2::new(10.0, 5.0), DVec2::new(20.0, 15.0)),
+        5.0,
+        6.0,
+    )
+}
+const THIN_WALLED_VOLUME: f64 = 21.5 * 16.5 * 6.5 - 10.0 * 10.0 * 5.0;
+
+#[test]
+fn a_chamfer_and_a_fillet_on_the_three_edges_at_a_bottom_corner_of_a_pocket_with_thin_walls_close_it()
+ {
+    closed_in_every_order_at(
+        &thin_walled_pocket(),
+        THIN_WALLED_VOLUME,
+        &pocket_s_bottom_corner(),
+        &ORDERS_OF_THREE,
+        (&[Cut::Flat, Cut::Round], &[2.0, 2.5]),
+        "the three edges at the front right bottom corner of a pocket whose walls and floor there \
+         are 1.5 thick",
+    );
+}
+
+/// A block 30 by 20 by 10 with a pocket sunk 5 into its top whose outline is
+/// a parallelogram, (10, 5), (20, 5), (24, 15) and (14, 15), its right and
+/// left walls leaning 4 in 10, numbered as [`pocketed`] is: its corner at
+/// the front right 111.8° wide, at the front left 68.2°. It holds 6000 less
+/// the pocket's 100 by 5.
+fn leaning_pocketed() -> Body {
+    cut_from(
+        &joined(
+            &Body::default(),
+            Contour::rectangle(DVec2::ZERO, DVec2::new(30.0, 20.0)),
+            0.0,
+            10.0,
+        ),
+        Contour::straight(vec![
+            DVec2::new(10.0, 5.0),
+            DVec2::new(20.0, 5.0),
+            DVec2::new(24.0, 15.0),
+            DVec2::new(14.0, 15.0),
+        ]),
+        5.0,
+        6.0,
+    )
+}
+
+/// The three edges at a bottom corner of [`leaning_pocketed`]: at its front
+/// right corner, 111.8° wide, its floor edges on its front and leaning right
+/// walls and the upright between them; at its front left corner, 68.2° wide,
+/// its floor edges on its front and leaning left walls and the upright
+/// between them. Every edge's far end runs into a wall with the block's
+/// matter past it, but the uprights', at the rim.
+fn leaning_pocket_s_bottom_corner(at_the_right: bool) -> [Concave; 3] {
+    let [right, left] = [
+        DVec3::new(-10.0, 4.0, 0.0).normalize(),
+        DVec3::new(10.0, -4.0, 0.0).normalize(),
+    ];
+    let walled = |at: DVec3, on: usize, facing: DVec3| End {
+        at,
+        on,
+        facing,
+        matter_past: true,
+    };
+    let front_floor = Concave {
+        called: "the leaning pocket's floor edge on its front wall",
+        between: [POCKET_FLOOR, POCKET_FRONT],
+        facing: [DVec3::Z, DVec3::Y],
+        ends: [
+            walled(DVec3::new(10.0, 5.0, 5.0), POCKET_LEFT, left),
+            walled(DVec3::new(20.0, 5.0, 5.0), POCKET_RIGHT, right),
+        ],
+    };
+    let upright =
+        |called: &'static str, between: [usize; 2], facing: [DVec3; 2], [x, y]: [f64; 2]| Concave {
+            called,
+            between,
+            facing,
+            ends: [
+                walled(DVec3::new(x, y, 5.0), POCKET_FLOOR, DVec3::Z),
+                End {
+                    at: DVec3::new(x, y, 10.0),
+                    on: TOP,
+                    facing: DVec3::Z,
+                    matter_past: false,
+                },
+            ],
+        };
+    if at_the_right {
+        [
+            front_floor,
+            Concave {
+                called: "the leaning pocket's floor edge on its right wall",
+                between: [POCKET_FLOOR, POCKET_RIGHT],
+                facing: [DVec3::Z, right],
+                ends: [
+                    walled(DVec3::new(20.0, 5.0, 5.0), POCKET_FRONT, DVec3::Y),
+                    walled(DVec3::new(24.0, 15.0, 5.0), POCKET_BACK, -DVec3::Y),
+                ],
+            },
+            upright(
+                "the leaning pocket's front right upright",
+                [POCKET_FRONT, POCKET_RIGHT],
+                [DVec3::Y, right],
+                [20.0, 5.0],
+            ),
+        ]
+    } else {
+        [
+            front_floor,
+            Concave {
+                called: "the leaning pocket's floor edge on its left wall",
+                between: [POCKET_FLOOR, POCKET_LEFT],
+                facing: [DVec3::Z, left],
+                ends: [
+                    walled(DVec3::new(14.0, 15.0, 5.0), POCKET_BACK, -DVec3::Y),
+                    walled(DVec3::new(10.0, 5.0, 5.0), POCKET_FRONT, DVec3::Y),
+                ],
+            },
+            upright(
+                "the leaning pocket's front left upright",
+                [POCKET_LEFT, POCKET_FRONT],
+                [left, DVec3::Y],
+                [10.0, 5.0],
+            ),
+        ]
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_the_three_edges_at_a_bottom_corner_of_a_pocket_that_is_not_square_close_it_in_every_order()
+ {
+    let part = leaning_pocketed();
+    for (at_the_right, called) in [
+        (
+            true,
+            "the three edges at the leaning pocket's front right bottom corner, 111.8° wide",
+        ),
+        (
+            false,
+            "the three edges at the leaning pocket's front left bottom corner, 68.2° wide",
+        ),
+    ] {
+        let edges = leaning_pocket_s_bottom_corner(at_the_right);
+        let corners = closed_corners(&edges);
+        closed_held_to(
+            &part,
+            (POCKETED_VOLUME, &|cut, value| {
+                closed_by_booleans(&part, &edges, &corners, cut, value)
+            }),
+            &edges,
+            &ORDERS_OF_THREE,
+            (&[Cut::Flat, Cut::Round], &VALUES),
+            called,
+        );
+    }
 }

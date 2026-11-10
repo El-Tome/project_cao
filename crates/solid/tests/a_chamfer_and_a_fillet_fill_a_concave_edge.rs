@@ -75,14 +75,16 @@
 //! What the issue asks besides its Done when is held here too. An edge a join
 //! bridged from two is filled whole, as #696 and #697 cut it —
 //! `a_chamfer_and_a_fillet_on_the_concave_edge_a_join_bridged_from_two_fill_it_whole`.
+//! An end on a face turned back along the edge, the foot of an L standing on
+//! a plate where three concave edges meet, the plate's matter past it, was
+//! declined here until #801's third slice, which fills it flush on that face:
+//! the plate's top keeps its number and gives up the fill's section, which
+//! the join swallows —
+//! `a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_a_face_turned_back_along_it_fill_it_flush_on_that_face`.
 //! An end the kernel cannot build is declined with its reason, `Unsupported`,
 //! by both steps — an end on a curved face is #788's, and
 //! `a_chamfer_and_a_fillet_fill_a_concave_edge_up_to_a_curved_end.rs` speaks
-//! for it: an end on a face turned back along the edge, the foot of an L
-//! standing on a plate, where three concave edges meet — #698 and #699's
-//! corner —
-//! `a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_a_face_turned_back_along_it_are_declined_as_unsupported`;
-//! an end where two faces meet,
+//! for it: an end where two faces meet,
 //! `a_chamfer_and_a_fillet_on_a_concave_edge_ending_where_two_faces_meet_are_declined_as_unsupported`;
 //! and an end whose plane would carry the fill out past the part,
 //! `a_chamfer_and_a_fillet_whose_fill_a_rib_s_slanted_end_would_carry_past_the_plate_s_front_are_declined_as_unsupported`.
@@ -2490,26 +2492,174 @@ fn both_declined(part: &Body, [first, second]: [usize; 2], value: f64, what: &st
     }
 }
 
-#[test]
-fn a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_a_face_turned_back_along_it_are_declined_as_unsupported()
- {
-    let ell = Contour::straight(vec![
-        DVec2::new(5.0, 5.0),
-        DVec2::new(30.0, 5.0),
-        DVec2::new(30.0, 11.0),
-        DVec2::new(17.0, 11.0),
-        DVec2::new(17.0, 19.0),
-        DVec2::new(5.0, 19.0),
-    ]);
-    let part = on_the_plate(&plate(PLATE), PLATE, ell);
-    let (arm_back, stem_right) = (10, 11);
+/// An L standing on a plate 4 thick, 40 by 30: its arm from (5, 5) to
+/// (30, 11), its stem from (5, 11) to (17, 19), raised 10 from the plate's
+/// top as a part's next step is, numbered past the plate's six faces — its
+/// top seven, its walls eight to thirteen from its front round, its arm's
+/// back ten and its stem's right side eleven meeting inwards at (17, 11). The
+/// inner upright there runs up from the plate's top, which faces back up
+/// along it with the plate's matter past its foot, to the L's top, with air
+/// past. It holds the plate's 4800 and the L's 246 by 10.
+fn ell_on_a_plate() -> Body {
+    on_the_plate(&plate(PLATE), PLATE, Contour::straight(PLATED_ELL.to_vec()))
+}
+const PLATED_ELL: [DVec2; 6] = [
+    DVec2::new(5.0, 5.0),
+    DVec2::new(30.0, 5.0),
+    DVec2::new(30.0, 11.0),
+    DVec2::new(17.0, 11.0),
+    DVec2::new(17.0, 19.0),
+    DVec2::new(5.0, 19.0),
+];
+const PLATED_ELL_VOLUME: f64 = 4800.0 + (25.0 * 6.0 + 12.0 * 8.0) * 10.0;
+const PLATED_ELL_TOP: usize = 7;
+const PLATED_ARM_BACK: usize = 10;
+const PLATED_STEM_RIGHT: usize = 11;
 
-    both_declined(
-        &part,
-        [arm_back, stem_right],
-        3.0,
-        "on the inner corner of an L standing on a plate: its foot ends on the plate's top, \
-         which faces up along it, where the L's arm and stem meet the plate inwards too",
+/// The L's outline on the plate with its inner corner given up for the two
+/// points a fill set back `set_back` along the arm's back and the stem's
+/// right side reaches.
+fn plated_ell_filled(set_back: f64) -> Vec<DVec2> {
+    PLATED_ELL
+        .iter()
+        .flat_map(|&corner| {
+            if corner == DVec2::new(17.0, 11.0) {
+                vec![
+                    DVec2::new(17.0 + set_back, 11.0),
+                    DVec2::new(17.0, 11.0 + set_back),
+                ]
+            } else {
+                vec![corner]
+            }
+        })
+        .collect()
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_concave_edge_ending_on_a_face_turned_back_along_it_fill_it_flush_on_that_face()
+ {
+    let value = 3.0;
+    let part = ell_on_a_plate();
+    assert!(
+        (part.volume() - PLATED_ELL_VOLUME).abs() <= EXACT * PLATED_ELL_VOLUME,
+        "the L on the plate holds {}, where arithmetic gives {PLATED_ELL_VOLUME}",
+        part.volume()
+    );
+    let inner = edge_between(&part, PLATED_ARM_BACK, PLATED_STEM_RIGHT);
+    let [foot, top] = [PLATE, PLATE + 10.0];
+    let at = |x: f64, y: f64, z: f64| DVec3::new(x, y, z);
+    let filled = plated_ell_filled(value);
+    let plate_s_top: Vec<DVec3> = [(0.0, 0.0), (40.0, 0.0), (40.0, 30.0), (0.0, 30.0)]
+        .into_iter()
+        .map(|(x, y)| at(x, y, foot))
+        .chain(lifted_to(&filled, foot))
+        .collect();
+    let arm_back = [
+        at(17.0 + value, 11.0, foot),
+        at(30.0, 11.0, foot),
+        at(30.0, 11.0, top),
+        at(17.0 + value, 11.0, top),
+    ];
+    let stem_right = [
+        at(17.0, 11.0 + value, foot),
+        at(17.0, 19.0, foot),
+        at(17.0, 19.0, top),
+        at(17.0, 11.0 + value, top),
+    ];
+
+    let chamfered = part
+        .chamfer(&inner, value)
+        .unwrap_or_else(|declined| panic!("the chamfer on the L's foot: declined, {declined:?}"));
+
+    let what = "the chamfer on the inner upright of an L standing on a plate";
+    taken_whole(chamfered.asked, chamfered.taken, value, what);
+    let body = &chamfered.body;
+    sound(body, PLATED_ELL_VOLUME + value * value / 2.0 * 10.0, what);
+    let chamfer = one_flat_face_more(&part, body, what);
+    faces_toward(body, chamfer, DVec3::new(1.0, 1.0, 0.0), what);
+    corners_are(
+        body,
+        chamfer,
+        &[arm_back[0], arm_back[3], stem_right[0], stem_right[3]],
+        &format!("{what}: the chamfer, from the plate's top to the L's"),
+    );
+    let checked = |body: &Body, on_the_fill: &dyn Fn(DVec3) -> bool, what: &str| {
+        corners_are(
+            body,
+            PLATED_ARM_BACK,
+            &arm_back,
+            &format!("{what}: the arm's back"),
+        );
+        corners_are(
+            body,
+            PLATED_STEM_RIGHT,
+            &stem_right,
+            &format!("{what}: the stem's right side"),
+        );
+        corners_are_or_on(
+            body,
+            TOP,
+            &plate_s_top,
+            on_the_fill,
+            &format!(
+                "{what}: the plate's top, answering to its number still, giving up the fill's \
+                 section where the fill stands flush on it"
+            ),
+        );
+        corners_are_or_on(
+            body,
+            PLATED_ELL_TOP,
+            &lifted_to(&filled, top),
+            on_the_fill,
+            &format!("{what}: the L's top, grown by the fill's section, flush"),
+        );
+        no_longer_meet(
+            body,
+            PLATED_ARM_BACK,
+            PLATED_STEM_RIGHT,
+            &format!("{what}: the arm's back and the stem's right side no longer meet"),
+        );
+        within_the_box_of(&part, body, what);
+    };
+    checked(body, &|_| false, what);
+    assert_eq!(
+        sides_met(body, chamfer),
+        [TOP, PLATED_ELL_TOP, PLATED_ARM_BACK, PLATED_STEM_RIGHT].map(|side| vec![side as u32]),
+        "{what}: the chamfer meets the arm's back and the stem's right side along its sides, and \
+         the plate's top and the L's at its ends, by one edge each"
+    );
+
+    let filleted = part
+        .fillet(&inner, value)
+        .unwrap_or_else(|declined| panic!("the fillet on the L's foot: declined, {declined:?}"));
+
+    let what = "the fillet on the inner upright of an L standing on a plate";
+    taken_whole(filleted.asked, filleted.taken, value, what);
+    let body = &filleted.body;
+    let hollow = Hollow {
+        start: at(17.0 + value, 11.0 + value, foot),
+        along: DVec3::Z,
+        length: top - foot,
+        radius: value,
+        facing: [DVec3::Y, DVec3::X],
+    };
+    sound_drawn_within(
+        body,
+        PLATED_ELL_VOLUME + value * value * (1.0 - PI / 4.0) * 10.0,
+        drawn_within(&part, hollow.area()),
+        what,
+    );
+    let fillet = one_round_more(&part, body, what);
+    is_the_hollow(body, fillet, &hollow, what);
+    checked(body, &|corner| hollow.holds(corner), what);
+    let mut met =
+        [TOP, PLATED_ELL_TOP, PLATED_ARM_BACK, PLATED_STEM_RIGHT].map(|side| vec![side as u32]);
+    met.sort();
+    assert_eq!(
+        sides_met(body, fillet),
+        met,
+        "{what}: the round meets the arm's back and the stem's right side along its sides, and \
+         the plate's top and the L's at its ends, by one edge each"
     );
 }
 

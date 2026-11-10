@@ -8,7 +8,9 @@ mod full_round;
 use glam::DVec3;
 
 use super::Exact;
-use super::wedge::{Meeting, Prism, Together, Wedge, rounded_across, too_short};
+use super::wedge::{
+    Closing, Meeting, Prism, Together, Wedge, hollowed_across, rounded_across, too_short,
+};
 use crate::brep::{Declined, EdgeName, Scale, Surface};
 
 impl Exact {
@@ -38,13 +40,19 @@ impl Exact {
     /// convex edge left sharp — two feet of a block standing on another — each
     /// stop flush there and run on past the corner into a mitre outside the
     /// convex edge, on the ellipse where their rounds cross, no face laid
-    /// there. Three edges meeting at a convex corner are closed there by a
-    /// piece of sphere of the radius, centred one radius from the corner's
-    /// three faces, meeting each round along the round's end section, square to
-    /// its edge through the centre, and numbered after the rounds, as
-    /// [`rounded_across`] lays it; declined `Undrawn` where the kernel cannot
-    /// draw it. Rounds that would meet anywhere else are not measured, and
-    /// declined where they meet until #792. The rounds are numbered, in the
+    /// there. Two filled in where they meet beside a concave edge left sharp —
+    /// two edges of a pocket's floor, or one and the upright it meets — each
+    /// stop flush there and meet in a valley on the ellipse where their rounds
+    /// cross, the third edge ending one radius short, no face laid there. Three
+    /// edges meeting at a convex corner are closed there by a piece of sphere
+    /// of the radius, centred one radius from the corner's three faces, meeting
+    /// each round along the round's end section, square to its edge through the
+    /// centre, and numbered after the rounds, as [`rounded_across`] lays it,
+    /// and three at a concave corner, a pocket's bottom, by a hollow piece of
+    /// sphere centred one radius out from its three faces, facing its centre,
+    /// as [`hollowed_across`] lays it; declined `Undrawn` where the kernel
+    /// cannot draw it. Rounds that would meet anywhere else are not measured,
+    /// and declined where they meet until #792. The rounds are numbered, in the
     /// order the names come, where the steps' numbers ended; a full round
     /// answers to both its edges' numbers. Declined `Distance`: a radius that
     /// is no length, one whose round would stand off the faces it replaces by
@@ -73,7 +81,10 @@ impl Exact {
             Wedge::rounded,
             Meeting {
                 together: Together::Raised(Wedge::rounded_with),
-                closing: rounded_across,
+                closing: Closing {
+                    outwards: rounded_across,
+                    inwards: hollowed_across,
+                },
             },
         )?;
         let made = |rank: usize| self.next + rank as u32;

@@ -84,14 +84,17 @@ impl Exact {
 
 /// The solid to cut from the prism so that it ends flush on the surface of
 /// the face `id` its edge ends on at `point`, running on `past` there: on a
-/// plane facing out of the matter along `past`, the box [`beyond`] raises;
-/// on a cylinder or a cone the edge runs out of at `point`, whichever side
-/// of it the matter lies — a rib's round end bulging out or drawn in by
-/// draft, or a slot's round end turning in toward the slot off its wall,
-/// which the fill then runs on into — what [`round::outside_cylinder`]
-/// raises or [`round::outside_cone`] turns. Declined `Unsupported` on a
-/// plane turned back along the edge, a cylinder or a cone the edge runs
-/// into, or another surface; otherwise as those declines.
+/// plane, the box [`beyond`] raises on the side `past` points to — out of
+/// the matter where the plane faces on along the edge, into it where it
+/// faces back, at a pocket's floor or the plate a block stands on (#801),
+/// the fill's end then lying on the face, which the join swallows; on a
+/// cylinder or a cone the edge runs out of at `point`, whichever side of it
+/// the matter lies — a rib's round end bulging out or drawn in by draft, or a
+/// slot's round end turning in toward the slot off its wall, which the fill
+/// then runs on into — what [`round::outside_cylinder`] raises or
+/// [`round::outside_cone`] turns. Declined `Unsupported` on a plane along the
+/// edge, a cylinder or a cone the edge runs into, or another surface;
+/// otherwise as those declines.
 fn past_the_end(
     body: &brep::Body,
     id: FaceId,
@@ -104,7 +107,9 @@ fn past_the_end(
     let normal = surface.normal(surface.parameters(point));
     let outward = if face.flipped { -normal } else { normal };
     match surface {
-        Surface::Plane(plane) if outward.dot(past) > 0.0 => beyond(prism, plane, outward),
+        Surface::Plane(plane) if outward.dot(past) != 0.0 => {
+            beyond(prism, plane, outward * outward.dot(past).signum())
+        }
         Surface::Cylinder(cylinder) if normal.dot(past) > 0.0 => {
             round::outside_cylinder(prism, cylinder, past)
         }

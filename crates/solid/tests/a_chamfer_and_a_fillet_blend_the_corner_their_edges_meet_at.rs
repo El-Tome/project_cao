@@ -128,13 +128,16 @@
 //!   mitred, the third left sharp: two feet of a block standing on another,
 //!   meeting where its upright meets outwards, and its four feet, which this
 //!   test declined before, held now in
-//!   `a_chamfer_and_a_fillet_fill_concave_edges_meeting_at_a_corner.rs`. The
-//!   lists left here are declined at the corner itself, each of their edges
-//!   laid alone — but a pocket's floor edges and uprights, declined alone as
-//!   well: two edges of a pocket's floor, or one and the upright it meets,
-//!   all three concave, until #801's third slice; and a cut meeting a fill at
-//!   a corner — a foot and the upright above it, the L's top edge and its
-//!   inner upright, the three edges at a corner of mixed sense — until #829
+//!   `a_chamfer_and_a_fillet_fill_concave_edges_meeting_at_a_corner.rs`. Its
+//!   third slice builds a pocket's floor edges and uprights alone, each fill
+//!   trimmed flush on the faces at its ends, and two of the three concave
+//!   edges at a pocket's bottom corner, mitred, the third left sharp: two
+//!   edges of its floor, or one and the upright it meets, which this test
+//!   declined before, held now in that same file. The lists left here are a
+//!   cut meeting a fill at a corner, declined at the corner itself, each of
+//!   their edges laid alone — a foot and the upright above it, the L's top
+//!   edge and its inner upright, the three edges at a corner of mixed sense —
+//!   until #829
 //! - A full round, two parallel edges whose rounds meet across the face they
 //!   share, meeting a third edge of the list at a corner, is not built here:
 //!   the fillet is declined `Unsupported` whichever edge the list names
@@ -1113,18 +1116,10 @@ fn met_from_outside(body: &Body, face: usize, round: &Round, what: &str) {
     }
 }
 
-/// The part with a block standing on the ground between the corners `from`
-/// and `to`, raised from `from_height` by `height`, cut from it as `cao_part`
-/// cuts a step: the tool's faces numbered past the part's, its floor first,
-/// then its top, then its sides from the front round to the left.
-fn cut_from(part: &Body, [from, to]: [DVec2; 2], from_height: f64, height: f64) -> Body {
-    part.difference(&tool_between(part, [from, to], from_height, height))
-        .expect("the cut is built")
-}
-
 /// The part with a block between the corners `from` and `to`, raised from
-/// `from_height` by `height`, joined to it as `cao_part` joins a step,
-/// numbered as [`cut_from`] numbers it.
+/// `from_height` by `height`, joined to it as `cao_part` joins a step: the
+/// tool's faces numbered past the part's, its floor first, then its top, then
+/// its sides from the front round to the left.
 fn joined_to(part: &Body, [from, to]: [DVec2; 2], from_height: f64, height: f64) -> Body {
     part.union(&tool_between(part, [from, to], from_height, height))
         .expect("the join is built")
@@ -1185,22 +1180,6 @@ fn ell() -> Body {
 const ARM_BACK: usize = 4;
 const STEM_RIGHT: usize = 5;
 
-/// A block 30 by 20 by 10 with a pocket 10 by 10 sunk 5 into the middle of
-/// its top: the pocket's floor numbered six, its walls, front, right, back
-/// and left, eight to eleven. Its floor's edges and its uprights meet
-/// inwards, its rim outwards.
-fn pocketed() -> Body {
-    cut_from(
-        &block([30.0, 20.0, 10.0]),
-        [DVec2::new(10.0, 5.0), DVec2::new(20.0, 15.0)],
-        5.0,
-        6.0,
-    )
-}
-const POCKET_FLOOR: usize = 6;
-const POCKET_FRONT: usize = 8;
-const POCKET_RIGHT: usize = 9;
-
 #[test]
 fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported()
  {
@@ -1220,7 +1199,6 @@ fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_d
             .unwrap_or_else(|declined| panic!("{which}: the chamfer declined, {declined:?}"));
     }
     let ell = ell();
-    let pocketed = pocketed();
     let names = |body: &Body, pairs: &[[usize; 2]]| -> Vec<EdgeName> {
         pairs
             .iter()
@@ -1257,22 +1235,6 @@ fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_d
             names(
                 &ell,
                 &[[TOP, ARM_BACK], [TOP, STEM_RIGHT], [ARM_BACK, STEM_RIGHT]],
-            ),
-        ),
-        (
-            "two edges of the pocket's floor, meeting at its front right corner",
-            &pocketed,
-            names(
-                &pocketed,
-                &[[POCKET_FLOOR, POCKET_FRONT], [POCKET_FLOOR, POCKET_RIGHT]],
-            ),
-        ),
-        (
-            "an edge of the pocket's floor and the upright it meets",
-            &pocketed,
-            names(
-                &pocketed,
-                &[[POCKET_FLOOR, POCKET_FRONT], [POCKET_FRONT, POCKET_RIGHT]],
             ),
         ),
     ] {

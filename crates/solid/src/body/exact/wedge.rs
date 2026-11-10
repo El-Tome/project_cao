@@ -90,8 +90,10 @@ impl Exact {
     /// meet in a mitre, and the later edge is laid from its wedge on the body
     /// as given, its prism cut from what the earlier cuts left, as
     /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
-    /// goes whatever the order. Two edges of one sense meeting at a corner
-    /// beside an edge of the other sense left out of the list, as
+    /// goes whatever the order — and an edge ending at convex corners on the
+    /// face two cuts laid together meet across meets their one prism the same
+    /// way, as [`pairs::cornered`] admits it. Two edges of one sense meeting
+    /// at a corner beside an edge of the other sense left out of the list, as
     /// [`corners::admit`] admits it — two cuts beside a concave edge, two fills
     /// beside a convex one — each stop flush there, and the later takes with it
     /// what both prisms hold past both faces they stop on, as [`Flush::beside`]
@@ -116,8 +118,8 @@ impl Exact {
     /// the list, nor two concave beside a third concave, more than three edges
     /// meeting at a corner, or three where another edge ends too, where
     /// `meeting` lays two together an edge meeting two others, or one of two
-    /// laid together that meets another edge of the list at a corner, a cut or
-    /// a fill that left something else than its one face, as
+    /// laid together that meets another edge of the list at a corner any other
+    /// way, a cut or a fill that left something else than its one face, as
     /// [`Exact::cut_along`] reads it, and a face of an overlap no edge covered,
     /// are declined `Unsupported`; a prism the tool cannot raise, as the tool
     /// says.
@@ -159,15 +161,7 @@ impl Exact {
                 .min(set_backs::bound(&self.brep, &edges, &wedges, &set_back));
             let pairs =
                 pairs::meeting(&wedges, &facing, taken, &set_back, meeting.together, scale)?;
-            let cornered = pairs
-                .iter()
-                .flat_map(|&(one, other, _)| [one, other])
-                .any(|member| {
-                    (0..edges.len()).any(|rank| {
-                        rank != member && corners::meet(&self.brep, [edges[member], edges[rank]])
-                    })
-                });
-            if cornered {
+            if pairs::cornered(&self.brep, &edges, &wedges, &pairs, &beside) {
                 return Err(Declined::Unsupported);
             }
             let closes = closing::closings(

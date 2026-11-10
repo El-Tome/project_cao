@@ -139,10 +139,13 @@
 //!   edge and its inner upright, the three edges at a corner of mixed sense —
 //!   until #829
 //! - A full round, two parallel edges whose rounds meet across the face they
-//!   share, meeting a third edge of the list at a corner, is not built here:
-//!   the fillet is declined `Unsupported` whichever edge the list names
-//!   first, where the pair alone is laid —
-//!   `a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_is_declined_as_unsupported_in_either_order`
+//!   share, meeting a third edge of the list at a corner, was not built here:
+//!   the fillet was declined `Unsupported` whichever edge the list names
+//!   first, where the pair alone is laid. Since #803 the third edge's round
+//!   is mitred against the full round, the body held below in place of the
+//!   decline —
+//!   `a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_mitres_that_edge_s_round_against_the_full_round_whatever_the_order`;
+//!   a full round meeting an upright at a corner is #837's
 //! - A face laid in place of others through `replaced`, as the piece of
 //!   sphere is, is verified against the surface it is laid on, so that a
 //!   wrong one is a broken step and never a body read as wrong geometry — no
@@ -224,6 +227,59 @@
 //!   #699." — no test: each is held by its own test, left as it was, but for
 //!   the tilted block's fillet in this file, the one test of #699 that #800
 //!   turns from a decline into a body
+//!
+//! Closes #803.
+//! - The fillet on `[top-front, top-back, top-right]` of a block 6 wide at
+//!   r = 3 leaves an exact, closed, uncrossed, drawn body of volume
+//!   `V − 2r²(1 − π/4)(L − r) − 2r³/3`, whichever edge the list names first.
+//!   The full round's face and the right edge's round meet along two
+//!   half-ellipses from the right face's top corners to the crown. The
+//!   uprights at the right end stay sharp, and no face is laid at the
+//!   corners.
+//!   `a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_is_declined_as_unsupported_in_either_order`
+//!   becomes this body test, in each of the six orders the list can name the
+//!   three edges in, the volume held by the booleans as well. Each arc is a
+//!   quarter of the ellipse its plane cuts from both cylinders, from the end
+//!   of its long axis on the right face to the end of its short one at the
+//!   crown: held as each round drawn on its own cylinder and on its own side
+//!   of the two planes, both drawn up to the right face's top corners and to
+//!   the crown, and met by two edges between them —
+//!   `a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_mitres_that_edge_s_round_against_the_full_round_whatever_the_order`
+//! - The four top edges of that block, filleted at 3: the full round mitred
+//!   at both ends, in any order the list names them —
+//!   `a_fillet_on_the_four_top_edges_of_a_block_6_wide_mitres_its_full_round_against_both_end_edges_whatever_the_order`
+//! - A value asked above what fits, 4 on the block 6 wide, is reduced to the
+//!   full round's radius, 3, and the end edge is laid at that same value; the
+//!   step reports both —
+//!   `a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_more_than_fits_lays_both_at_the_full_round_s_radius_and_reports_both`.
+//!   A value asked a hair under 3, within what the kernel takes for
+//!   set-backs that meet, lays the full round at its own radius and the end
+//!   edge at that same radius, so that the two meet at the crown with no
+//!   sliver between them —
+//!   `a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_a_hair_under_the_full_round_s_radius_lays_both_at_that_radius_meeting_at_the_crown`
+//! - An end that is not square to the pair: a plate whose end face is cut at
+//!   an angle, seen from above. The same mitre, exact, closed, uncrossed and
+//!   drawn, its volume held by arithmetic or by the booleans, in either
+//!   order —
+//!   `a_fillet_on_a_full_round_pair_and_an_end_edge_cut_at_an_angle_seen_from_above_mitres_the_end_edge_s_round_against_the_full_round_in_either_order`
+//! - The faces are numbered as #698 and #699 number them: the full round
+//!   answers to the earlier edge of the pair, the end edge to its own rank in
+//!   the list, and nothing is numbered at the corner. Read as #698 lays a
+//!   full round: one face answering to both its edges' numbers, a ray meeting
+//!   it naming the earlier, and the step ending past every edge's number —
+//!   held by the tests of the first two criteria, in every order they name
+//!   the edges in —
+//!   `a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_mitres_that_edge_s_round_against_the_full_round_whatever_the_order`,
+//!   `a_fillet_on_the_four_top_edges_of_a_block_6_wide_mitres_its_full_round_against_both_end_edges_whatever_the_order`
+//! - What must not break, in the issue's words: "#698's full round and round
+//!   bottom, and #699's corner tests, except the decline above, which becomes
+//!   a body test." — no test: each is held by its own test, left as it was,
+//!   but for the decline the first criterion turns into a body
+//! - And: "The chamfer on the same lists, which main already lays: its flats
+//!   meet in a ridge, mitred with the end edge's flat (3321 on the block 30 ×
+//!   6 × 20 at 3)." No test held it before this branch, which pins it, green
+//!   before the fillet is built —
+//!   `a_chamfer_on_a_full_round_pair_s_edges_and_an_edge_meeting_them_at_a_corner_mitres_their_ridge_against_that_edge_s_flat_whatever_the_order`
 //!
 //! The volumes are arithmetic, measured from the corner along its three
 //! edges: a point stands `(a, b, c)` from it, `a` along the edge whose length
@@ -394,6 +450,28 @@
 //! where the cut set back farthest along it crosses it, that cut's set-back
 //! over the sine of the angle its edge makes with the third; at a square
 //! corner both come to one value.
+//!
+//! A full round mitred against the edge at its end, on a block `2r` wide: the
+//! top's front and back edges rounded at `r` meet across the top in one
+//! half-cylinder, which takes `2r² − πr²/2`, that is `2r²(1 − π/4)`, of the
+//! section along the length. The end edge's round, raised from its wedge as
+//! the body given reads it, is a quarter-cylinder of `r` across the whole
+//! width, its axis crossing the full round's one radius in from the end and
+//! one radius under the top. Short of the box `r` long, `2r` wide and `r`
+//! deep at the end, the full round alone cuts; in that box, of `2r³`, the
+//! body keeps what lies inside both cylinders, a quarter of the Steinmetz
+//! bicylinder of radius `r`, `4r³/3`. The block keeps
+//! `V − 2r²(1 − π/4)(L − r) − 2r³/3`, and with the edge at each end so
+//! mitred `V − 2r²(1 − π/4)(L − 2r) − 4r³/3`: 3477.70 and 3471.29 on the
+//! block 30 by 6 by 20 at 3. The first is the limit at a width of `2r` of the
+//! two mitres a wider block keeps, `V − r²(1 − π/4)(2L + w) + 2r³(5/3 − π/2)`,
+//! 3483.68 at 6.01 wide. The booleans give it too, the full round's prism and
+//! the end edge's, each raised whole along its line, taken away from the
+//! block. Two cylinders of one radius whose axes cross meet along two
+//! ellipses, in the two planes through the line square to both axes that
+//! halve the angles between them; on the body each is a quarter, from a top
+//! corner of the end face, the end of its long axis, up to the crown, the end
+//! of its short one, where the two planes cross and the two cylinders touch.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -636,7 +714,13 @@ fn faces_toward(body: &Body, face: usize, facing: DVec3, what: &str) {
 /// The sides of the faces the face numbered `face` meets, one for each edge
 /// it has, in order.
 fn sides_met(body: &Body, face: usize) -> Vec<Vec<u32>> {
-    let own = vec![face as u32];
+    sides_met_by(body, &[face])
+}
+
+/// The sides of the faces the face answering to all of `numbers`, and to
+/// nothing else, meets, one for each edge it has, in order.
+fn sides_met_by(body: &Body, numbers: &[usize]) -> Vec<Vec<u32>> {
+    let own: Vec<u32> = numbers.iter().map(|&number| number as u32).collect();
     let mut met: Vec<Vec<u32>> = body
         .edge_names()
         .into_iter()
@@ -659,6 +743,18 @@ fn sides_met(body: &Body, face: usize) -> Vec<Vec<u32>> {
 /// [`sides_met`] lists them.
 fn sides(faces: &[usize]) -> Vec<Vec<u32>> {
     let mut sorted: Vec<Vec<u32>> = faces.iter().map(|&face| vec![face as u32]).collect();
+    sorted.sort();
+    sorted
+}
+
+/// The sides a face is expected to meet, one edge each, as [`sides`] lists
+/// them, each side every number the face across it answers to: a full round
+/// answers to both its edges'.
+fn sides_answering(faces: &[&[usize]]) -> Vec<Vec<u32>> {
+    let mut sorted: Vec<Vec<u32>> = faces
+        .iter()
+        .map(|numbers| numbers.iter().map(|&number| number as u32).collect())
+        .collect();
     sorted.sort();
     sorted
 }
@@ -3375,30 +3471,410 @@ fn a_chamfer_and_a_fillet_on_the_twelve_edges_of_a_block_close_its_eight_corners
     );
 }
 
-#[test]
-fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_is_declined_as_unsupported_in_either_order()
- {
-    let narrow = block([LENGTH, 6.0, HEIGHT]);
-    let name = |[one, other]: [usize; 2]| edge_between(&narrow, one, other);
-    let pair = [TOP_FRONT, TOP_BACK].map(name);
-    narrow.fillet_edges(&pair, 3.0).unwrap_or_else(|declined| {
-        panic!("the top's front and back edges alone, 6 apart, make a full round: declined, {declined:?}")
-    });
+/// The breadth of the block a full round is laid on, twice [`FULL_ROUND`]:
+/// the rounds of its top's front and back edges meet across the top.
+const NARROW: f64 = 6.0;
 
-    for list in [
-        [TOP_FRONT, TOP_BACK, TOP_RIGHT],
-        [TOP_RIGHT, TOP_FRONT, TOP_BACK],
-    ] {
-        let names = list.map(name);
+/// The radius the rounds of the top's front and back edges of the block
+/// [`NARROW`] wide meet across its top at: half its breadth.
+const FULL_ROUND: f64 = NARROW / 2.0;
 
-        let filleted = narrow.fillet_edges(&names, 3.0).err();
+/// The top's three edges a list names on the block [`NARROW`] wide, and what
+/// each is called: the full round's pair, the front and the back, then the
+/// edge meeting both at the right end.
+const PAIR_AND_END: [([usize; 2], &str); 3] = [
+    (TOP_FRONT, "the top's front edge"),
+    (TOP_BACK, "the top's back edge"),
+    (TOP_RIGHT, "the top's right edge"),
+];
 
-        assert_eq!(
-            filleted,
-            Some(Declined::Unsupported),
-            "the fillet on {list:?}, the full round of the top's front and back edges meeting \
-             its right edge at two corners: a broken step and its reason, and no body"
+/// How far from a mitre a ray aims, on either side of it, to meet the
+/// triangles of the round it aims at rather than the other's: well over the
+/// drawing's tolerance on the block [`NARROW`] wide, [`DRAWN`] times its
+/// reach.
+const CLEAR_OF_THE_MITRE: f64 = 0.1;
+
+/// What the block [`NARROW`] wide keeps once its top's front and back edges
+/// are rounded at [`FULL_ROUND`] into one full round, and the top's edge at
+/// `ends` of its two ends rounded at the same radius and mitred against it,
+/// as the module's documentation derives it.
+fn mitred_against_a_full_round(ends: u32) -> f64 {
+    let ends = f64::from(ends);
+    let r = FULL_ROUND;
+    LENGTH * NARROW * HEIGHT
+        - 2.0 * r * r * (1.0 - PI / 4.0) * (LENGTH - ends * r)
+        - ends * 2.0 * r.powi(3) / 3.0
+}
+
+/// The prism the full round on the top's front and back edges of the block
+/// [`NARROW`] wide takes away, raised whole along X past both its ends: all
+/// that stands over the top's two edges outside the half-cylinder about the
+/// line [`FULL_ROUND`] under the middle of the top.
+fn full_round_tool(part: &Body) -> Body {
+    let far = 2.0 * FULL_ROUND + 2.0;
+    let foot = HEIGHT - FULL_ROUND;
+    let corners = vec![
+        DVec2::new(-far, foot),
+        DVec2::new(0.0, foot),
+        DVec2::new(NARROW, foot),
+        DVec2::new(NARROW + far, foot),
+        DVec2::new(NARROW + far, HEIGHT + far),
+        DVec2::new(-far, HEIGHT + far),
+    ];
+    let mut runs = vec![Run::Straight; corners.len()];
+    runs[1] = Run::Round {
+        center: DVec2::new(FULL_ROUND, foot),
+        turn: -PI,
+    };
+    part.tool_raised(
+        &profile(Contour { corners, runs }),
+        Frame {
+            origin: DVec3::new(-2.0, 0.0, 0.0),
+            u: DVec3::Y,
+            v: DVec3::Z,
+        },
+        DVec3::X * (LENGTH + 4.0),
+    )
+    .expect("the tool raises")
+}
+
+/// The top's edge at the right end of the block [`NARROW`] wide, across its
+/// whole breadth, its prism reaching past the front and the back.
+fn right_end_edge() -> EdgeAt {
+    EdgeAt {
+        called: "the top's right edge",
+        at: DVec3::new(LENGTH, 0.0, HEIGHT),
+        faces: [TOP, RIGHT],
+        along: DVec3::Y,
+        into: [-DVec3::X, -DVec3::Z],
+        outward: [DVec3::Z, DVec3::X],
+        reach: [-2.0, NARROW + 2.0],
+    }
+}
+
+/// What the block [`NARROW`] wide keeps once the full round and the rounds of
+/// `ends` are laid at [`FULL_ROUND`], computed apart from the step: the full
+/// round's prism, then each end edge's, raised whole along its line, taken
+/// away by the booleans.
+fn mitred_against_a_full_round_by_booleans(part: &Body, ends: &[EdgeAt]) -> f64 {
+    let rounded = part
+        .difference(&full_round_tool(part))
+        .expect("the full round's prism cuts the block");
+    ends.iter()
+        .fold(rounded, |cut, end| {
+            cut.difference(&end.tool(&cut, Cut::Round, FULL_ROUND))
+                .expect("an end edge's round's prism cuts the body")
+        })
+        .volume()
+}
+
+/// The full round of the block [`NARROW`] wide, whole: two quarter rounds
+/// about the line [`FULL_ROUND`] under the middle of its top, from the front
+/// up to the top and from the top down to the back.
+fn full_round() -> [Round; 2] {
+    [[-DVec3::Y, DVec3::Z], [DVec3::Z, DVec3::Y]].map(|facing| Round {
+        start: DVec3::new(0.0, FULL_ROUND, HEIGHT - FULL_ROUND),
+        along: DVec3::X,
+        length: LENGTH,
+        radius: FULL_ROUND,
+        facing,
+    })
+}
+
+/// The round of the top's right edge of the block [`NARROW`] wide, whole: a
+/// quarter round across the whole breadth, about the line [`FULL_ROUND`] in
+/// from the right end and under the top, from the top's way to the right's.
+fn right_end_round() -> Round {
+    Round {
+        start: DVec3::new(LENGTH - FULL_ROUND, 0.0, HEIGHT - FULL_ROUND),
+        along: DVec3::Y,
+        length: NARROW,
+        radius: FULL_ROUND,
+        facing: [DVec3::Z, DVec3::X],
+    }
+}
+
+/// How far a point of the block [`NARROW`] wide stands past the mitre at its
+/// right end, on the side of the right edge's round: its distance past the
+/// line where the two axes cross, along X, less its distance from the middle
+/// of the top across it. Nought on the two planes the two rounds meet on,
+/// through the line square to both axes, halving the angles between them.
+fn past_the_right_mitre(point: DVec3) -> f64 {
+    (point.x - (LENGTH - FULL_ROUND)) - (point.y - FULL_ROUND).abs()
+}
+
+/// Holds that the numbers `laid` answer to one and the same face, which is
+/// curved: drawn with the same triangles whichever is asked.
+fn one_curved_face_answers_to(body: &Body, laid: &[usize], what: &str) {
+    let drawn: Vec<Vec<[DVec3; 3]>> = laid
+        .iter()
+        .map(|&number| body.triangles_of(number).collect())
+        .collect();
+    assert!(
+        !drawn[0].is_empty() && drawn.iter().all(|each| *each == drawn[0]),
+        "{what}: faces {laid:?} are one face, drawn with the same triangles"
+    );
+    for &number in laid {
+        assert!(
+            !body.is_flat(number) && body.plane_of(number).is_none(),
+            "{what}: face {number} is curved, and offers no plane to draw on"
         );
+    }
+}
+
+/// Holds that every ray aimed square at the round's axis from outside, over
+/// a grid along it and round it, meets the face numbered `face` first,
+/// facing away from the axis along the ray, wherever `shows` says the round
+/// shows at the point the ray aims at; and that some ray was aimed.
+fn met_from_outside_where(
+    body: &Body,
+    face: usize,
+    round: &Round,
+    shows: impl Fn(DVec3) -> bool,
+    what: &str,
+) {
+    let mut aimed = 0;
+    for tenth in 0..10 {
+        let along = (f64::from(tenth) + 0.5) / 10.0;
+        for share in [0.1, 0.3, 0.5, 0.7, 0.9] {
+            let facing = round.facing_at(share);
+            let aim = round.axis_at(along) + facing * round.radius;
+            if !shows(aim) {
+                continue;
+            }
+            aimed += 1;
+            let from = aim + facing * 10.0;
+            let hit = body.ray_hit(from, -facing).unwrap_or_else(|| {
+                panic!("{what}: a ray from {from} toward the axis meets nothing")
+            });
+            assert_eq!(
+                hit.face, face,
+                "{what}: a ray from {from} toward {aim} meets face {} before the round",
+                hit.face
+            );
+            assert!(
+                hit.normal.distance(facing) < PLACE,
+                "{what}: where a ray from {from} meets it, the round faces {}, not {facing}, \
+                 away from its axis",
+                hit.normal
+            );
+        }
+    }
+    assert!(aimed > 0, "{what}: some ray aims where the round shows");
+}
+
+#[test]
+fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_mitres_that_edge_s_round_against_the_full_round_whatever_the_order()
+ {
+    let r = FULL_ROUND;
+    let narrow = block([LENGTH, NARROW, HEIGHT]);
+    let start = narrow.faces_end();
+    let promised = mitred_against_a_full_round(1);
+    let by_booleans = mitred_against_a_full_round_by_booleans(&narrow, &[right_end_edge()]);
+    assert!(
+        (by_booleans - promised).abs() <= EXACT * promised,
+        "the full round's prism and the right edge's round's, cut from the block by the \
+         booleans, leave {by_booleans}, where arithmetic promises {promised}"
+    );
+    let called = |order: [usize; 3]| order.map(|edge| PAIR_AND_END[edge].1).join(", then ");
+
+    let laid: Vec<_> = ORDERS_OF_THREE
+        .into_iter()
+        .map(|order| {
+            let names = order.map(|edge| {
+                let [one, other] = PAIR_AND_END[edge].0;
+                edge_between(&narrow, one, other)
+            });
+            narrow.fillet_edges(&names, r)
+        })
+        .collect();
+
+    let declined: Vec<String> = ORDERS_OF_THREE
+        .into_iter()
+        .zip(&laid)
+        .filter_map(|(order, laid)| {
+            laid.as_ref()
+                .err()
+                .map(|declined| format!("{}: {declined:?}", called(order)))
+        })
+        .collect();
+    assert!(
+        declined.is_empty(),
+        "the fillet at {r} on the top's front and back edges of a block {NARROW} wide, a full \
+         round, and on its right edge mitres the right edge's round against the full round, \
+         whichever edge the list names first; declined:\n{}",
+        declined.join("\n")
+    );
+    let [front_half, back_half] = full_round();
+    let end_round = right_end_round();
+    let area = front_half.area() + back_half.area() + end_round.area();
+    let crown = DVec3::new(LENGTH - r, r, HEIGHT);
+    let right_s_top = [
+        DVec3::new(LENGTH, 0.0, HEIGHT - r),
+        DVec3::new(LENGTH, NARROW, HEIGHT - r),
+    ];
+    for (order, laid) in ORDERS_OF_THREE.into_iter().zip(laid) {
+        let what = format!("the fillet at {r} on {}", called(order));
+        let filleted = laid.expect("declines are held above");
+        taken_as_asked(filleted.asked, filleted.taken, r, &what);
+        let body = &filleted.body;
+        sound_drawn_within(body, promised, DRAWN * reach_of(&narrow) * area, &what);
+        let rank_of = |edge: usize| {
+            start
+                + order
+                    .iter()
+                    .position(|&named| named == edge)
+                    .expect("each of the three edges is named")
+        };
+        let mut pair = [rank_of(0), rank_of(1)];
+        pair.sort();
+        let end = rank_of(2);
+        assert!(
+            !body.has_face(TOP),
+            "{what}: the top is gone, the full round over it"
+        );
+        let mut kept_and_laid = numbers(&narrow);
+        kept_and_laid.remove(&TOP);
+        kept_and_laid.extend(start..start + 3);
+        assert_eq!(
+            numbers(body),
+            kept_and_laid,
+            "{what}: every face of the block but its top, the full round answering to {pair:?}, \
+             the right edge's round to {end}, and no face laid at the corners"
+        );
+        assert_eq!(
+            body.faces_end(),
+            start + 3,
+            "{what}: the next step numbers its faces past the three the list gave its edges"
+        );
+        one_curved_face_answers_to(body, &pair, &format!("{what}: the full round"));
+        assert!(
+            !body.is_flat(end) && body.plane_of(end).is_none(),
+            "{what}: the right edge's round, face {end}, is curved, and offers no plane to draw on"
+        );
+
+        let full_drawn: Vec<DVec3> = body.triangles_of(pair[0]).flatten().collect();
+        let end_drawn: Vec<DVec3> = body.triangles_of(end).flatten().collect();
+        assert!(
+            !end_drawn.is_empty(),
+            "{what}: the right edge's round is drawn"
+        );
+        for &point in &full_drawn {
+            assert!(
+                front_half.holds(point) || back_half.holds(point),
+                "{what}: the full round is drawn through {point}, off its half-cylinder of {r} \
+                 about the line {r} under the middle of the top"
+            );
+            assert!(
+                past_the_right_mitre(point) <= PLACE,
+                "{what}: the full round is drawn through {point}, past the mitre where the right \
+                 edge's round meets it"
+            );
+        }
+        for &point in &end_drawn {
+            assert!(
+                end_round.holds(point),
+                "{what}: the right edge's round is drawn through {point}, off its quarter-cylinder \
+                 of {r} about the line {r} in from the right end and under the top"
+            );
+            assert!(
+                past_the_right_mitre(point) >= -PLACE,
+                "{what}: the right edge's round is drawn through {point}, past the mitre where the \
+                 full round meets it"
+            );
+        }
+        for (point, which) in [
+            (right_s_top[0], "the right face's top front corner"),
+            (crown, "the crown"),
+            (right_s_top[1], "the right face's top back corner"),
+        ] {
+            for (drawn, round) in [
+                (&full_drawn, "the full round"),
+                (&end_drawn, "the right edge's round"),
+            ] {
+                assert!(
+                    drawn.iter().any(|corner| corner.distance(point) < PLACE),
+                    "{what}: {round} is drawn up to {which}, {point}, where an arc of the mitre \
+                     ends"
+                );
+            }
+        }
+        for half in [&front_half, &back_half] {
+            met_from_outside_where(
+                body,
+                pair[0],
+                half,
+                |aim| past_the_right_mitre(aim) < -CLEAR_OF_THE_MITRE,
+                &format!("{what}: the full round, short of the mitre"),
+            );
+        }
+        met_from_outside_where(
+            body,
+            end,
+            &end_round,
+            |aim| past_the_right_mitre(aim) > CLEAR_OF_THE_MITRE,
+            &format!("{what}: the right edge's round, past the mitre"),
+        );
+
+        let full: &[usize] = &pair;
+        assert_eq!(
+            sides_met_by(body, full),
+            sides_answering(&[&[FRONT], &[BACK], &[LEFT], &[end], &[end]]),
+            "{what}: the full round meets the front and the back along its sides, the left wall \
+             at its end, and the right edge's round along the two arcs of the mitre, by one edge \
+             each"
+        );
+        assert_eq!(
+            sides_met(body, end),
+            sides_answering(&[&[RIGHT], full, full]),
+            "{what}: the right edge's round meets the right wall along its foot and the full \
+             round along the two arcs of the mitre, and no other face"
+        );
+        corners_are(
+            body,
+            RIGHT,
+            &[
+                DVec3::new(LENGTH, 0.0, 0.0),
+                DVec3::new(LENGTH, NARROW, 0.0),
+                right_s_top[1],
+                right_s_top[0],
+            ],
+            &format!(
+                "{what}: the right wall, set back by the radius from the top, its two top \
+                 corners where the arcs of the mitre start"
+            ),
+        );
+        assert_eq!(
+            sides_met(body, RIGHT),
+            sides_answering(&[&[FLOOR], &[FRONT], &[BACK], &[end]]),
+            "{what}: the right wall meets the floor, the front and the back along its uprights, \
+             and the right edge's round"
+        );
+        for (wall, y, which) in [(FRONT, 0.0, "the front"), (BACK, NARROW, "the back")] {
+            corners_are(
+                body,
+                wall,
+                &[
+                    DVec3::new(0.0, y, 0.0),
+                    DVec3::new(LENGTH, y, 0.0),
+                    DVec3::new(LENGTH, y, HEIGHT - r),
+                    DVec3::new(0.0, y, HEIGHT - r),
+                ],
+                &format!("{what}: {which}, up to where the full round takes over"),
+            );
+            assert_eq!(
+                sides_met(body, wall),
+                sides_answering(&[&[FLOOR], &[LEFT], &[RIGHT], full]),
+                "{what}: {which} meets the floor, the two walls and the full round, by one edge \
+                 each, and not the right edge's round"
+            );
+            assert_eq!(
+                edges_between(body, wall, RIGHT).len(),
+                1,
+                "{what}: the upright where {which} meets the right wall is still one sharp edge, \
+                 from the floor up to the mitre"
+            );
+        }
     }
 }
 

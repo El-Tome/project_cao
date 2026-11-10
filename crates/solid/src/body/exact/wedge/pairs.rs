@@ -1,17 +1,19 @@
 //! Two edges of one step facing each other across a face they share
 //! (#698): the bound they set on the one value, so that their set-backs do
-//! not cross on it, and the pairs whose set-backs meet across it, which are
-//! laid as one.
+//! not cross on it, the pairs whose set-backs meet across it, which are laid
+//! as one, and the one edge of the list such a pair is mitred against at a
+//! corner (#803): the edge at its end, on the face that is gone.
 
 use std::collections::BTreeSet;
 
 use glam::DVec3;
 
 use super::chain::TANGENT;
+use super::corners::{self, Beside};
 use super::slope::one_plane;
 use super::{MADE, Prism, Wedge, too_short};
 use crate::body::exact::Exact;
-use crate::brep::{Declined, EdgeName, FaceId, Scale};
+use crate::brep::{self, Declined, EdgeId, EdgeName, FaceId, Scale};
 
 /// What raises the one prism two edges whose set-backs meet are taken off
 /// with, the earlier edge's wedge first, at the value whose set-backs meet
@@ -114,6 +116,44 @@ pub(super) fn meeting(
         return Err(Declined::Unsupported);
     }
     Ok(pairs)
+}
+
+/// Whether an edge of one of `pairs` meets another of `edges` at a corner
+/// where the step does not mitre the two: any but an edge of no pair ending
+/// on the face two edges whose faces meet outwards meet across, the edge at
+/// their end, at a convex corner — none of `beside` — whose cut is laid in
+/// turn against the one prism they are taken off with. A full round meeting
+/// an upright (#837), a round bottom meeting any edge (#838), and a slope
+/// meeting any, are not mitred.
+pub(super) fn cornered(
+    body: &brep::Body,
+    edges: &[EdgeId],
+    wedges: &[Wedge],
+    pairs: &[Pair],
+    beside: &[Beside],
+) -> bool {
+    let members: BTreeSet<usize> = pairs
+        .iter()
+        .flat_map(|&(one, other, _)| [one, other])
+        .collect();
+    pairs.iter().any(|&(one, other, _)| {
+        let [first, second] = [&wedges[one], &wedges[other]];
+        let outwards = !first.inwards && !second.inwards;
+        let across = first.faces.iter().find(|face| second.faces.contains(face));
+        let at_their_end = |member: usize, rank: usize| {
+            let convex =
+                !(beside.iter()).any(|(_, two)| two.contains(&member) && two.contains(&rank));
+            outwards
+                && convex
+                && !members.contains(&rank)
+                && across.is_some_and(|face| wedges[rank].faces.contains(face))
+        };
+        [one, other].into_iter().any(|member| {
+            (0..edges.len())
+                .filter(|&rank| rank != member && corners::meet(body, [edges[member], edges[rank]]))
+                .any(|rank| !at_their_end(member, rank))
+        })
+    })
 }
 
 impl Exact {

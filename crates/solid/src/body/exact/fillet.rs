@@ -24,7 +24,10 @@ impl Exact {
     /// two set-backs on such a face stop short of crossing. Where they meet,
     /// the face is gone and the two rounds, about one axis, are one full round
     /// — a round bottom where the faces meet inwards — as
-    /// [`Wedge::rounded_with`] lays it, at the radius they meet at. Where
+    /// [`Wedge::rounded_with`] lays it, at the radius they meet at; the edge
+    /// at its end, on the face that is gone, is rounded and mitred against it
+    /// as against any round meeting it at a convex corner, the two rounds
+    /// meeting on two ellipses up to the crown, where they touch. Where
     /// matter lies past an end of an edge rounded off, behind the one flat face
     /// it runs into there — the inner corner of an L, a pocket's rim, the foot
     /// of a block standing on another — its round stops flush on that face,
@@ -65,8 +68,9 @@ impl Exact {
     /// running on tangentially into the next edge of a face on the body as
     /// given, one edge named twice, two edges meeting at any other corner where
     /// an edge meets inwards, an edge whose set-backs meet those of two others
-    /// — rounds closing on themselves, #790 — an edge of a full round or a
-    /// round bottom meeting another edge of the list at a corner, and a cut
+    /// — rounds closing on themselves, #790 — an edge of a full round meeting
+    /// another edge of the list at a corner but the edge at its end, one of a
+    /// round bottom meeting any, and a cut
     /// that left anything but its round — a face of the prism, the round in two
     /// pieces or with a corner on neither of the edge's faces, a face the body
     /// held, but the edge's two, taken away whole — as where a round leaving

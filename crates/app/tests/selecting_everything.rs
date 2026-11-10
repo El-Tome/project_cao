@@ -212,7 +212,7 @@ fn command_a_leaves_the_dimensions_and_the_rules_out() {
         DVec2::new(-8.82, 44.59),
         DVec2::new(123.83, -52.69),
     );
-    driver::click(&mut app, "Cote");
+    driver::pick_the_dimension_tool(&mut app);
     driver::click_at_sketch_point(&mut app, DVec2::new(57.5, -4.05));
     driver::click_at_sketch_point(&mut app, DVec2::new(35.39, -35.0));
     driver::press(&mut app, egui::Key::Enter);

@@ -18,6 +18,15 @@ pub enum Level {
     Error,
 }
 
+/// How wide `badge` draws `said`, patch and all.
+pub fn badge_width(ui: &Ui, said: &str) -> f32 {
+    let font = egui::FontId::proportional(TEXT_SIZE);
+    let text = ui
+        .painter()
+        .layout_no_wrap(said.to_string(), font, STATE_WARNING_TEXT);
+    text.size().x + 2.0 * SPACING_M
+}
+
 pub fn badge(ui: &mut Ui, said: &str, level: Level) -> Response {
     let (fill, ink) = match level {
         Level::Warning => (STATE_WARNING_BACKGROUND, STATE_WARNING_TEXT),

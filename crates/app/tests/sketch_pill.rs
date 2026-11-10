@@ -847,7 +847,7 @@ fn a_rectangle_on_the_origin(app: &mut driver::App) {
 /// A dimension taken off the trait at `on`, left at `left_at`, the length it
 /// reads kept.
 fn a_dimension(app: &mut driver::App, on: DVec2, left_at: DVec2) {
-    driver::click(app, "Cote");
+    driver::pick_the_dimension_tool(app);
     driver::click_at_sketch_point(app, on);
     driver::click_at_sketch_point(app, left_at);
     driver::press(app, egui::Key::Enter);

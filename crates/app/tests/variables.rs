@@ -155,7 +155,7 @@ fn a_dimension_just_placed(test: &str) -> (driver::App, String) {
     driver::click_the_button(&mut app, "Variables");
     driver::start_a_sketch(&mut app);
     driver::draw_a_segment(&mut app);
-    driver::click(&mut app, "Cote");
+    driver::pick_the_dimension_tool(&mut app);
     driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     driver::click_at_sketch_point(&mut app, driver::WHERE_ITS_DIMENSION_GOES);
     let open = driver::fields(&app);
@@ -208,7 +208,7 @@ fn a_plate_raised_by_a_formula(test: &str) -> driver::App {
     driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
     driver::click_at_sketch_point(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
     driver::click_exactly(&mut app, "Extrusion");
-    driver::click_exactly(&mut app, "1");
+    driver::click_the_button(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");
     driver::click_at_sketch_point(&mut app, driver::INSIDE_THE_RECTANGLE);
 

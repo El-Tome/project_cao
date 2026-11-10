@@ -101,7 +101,6 @@
   "part_tree.rubric.variables": "VARIABLES",
   "part_tree.no_variables": "Aucune pour l'instant.",
   "part_tree.areas": "Aires",
-  "part_tree.strokes": "Traits",
   "part_tree.dimensions": "Cotes",
   "part_tree.rules": "Contraintes",
   "part_tree.extrusion": "Extrusion {rank}",

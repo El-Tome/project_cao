@@ -6,11 +6,9 @@ use crate::screens::part_tree::state::{
 };
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
-use crate::ui::badge::badge;
-use crate::ui::eye::eye;
-use crate::ui::floating_panel::panel_row;
 use crate::ui::question::{Question, ask};
 use crate::ui::theme::tokens;
+use crate::ui::tree_row::{TreeRow, folding_row, tree_note, tree_row};
 use crate::wording::part_tree::{self as said, Problem, Rubric};
 
 /// What the tree reads to mark its rows, and the one thing asked of it.
@@ -59,13 +57,18 @@ fn show(ui: &mut egui::Ui, asked: &mut Asked<'_>, lang: &Catalogue) {
     }
 
     egui::ScrollArea::vertical().show(ui, |ui| {
+        ui.spacing_mut().item_spacing.y = 0.0;
         for (rank, rubric) in tree.rubrics().into_iter().enumerate() {
             if rank > 0 {
                 ui.add_space(8.0);
             }
             ui.label(said::rubric(lang, rubric));
             match rubric {
-                Rubric::Sketches => sketches(ui, &tree, asked, lang),
+                Rubric::Sketches => {
+                    for drawing in &tree.sketches {
+                        drawn(ui, drawing, asked, lang);
+                    }
+                }
                 Rubric::Volumes => {
                     for body in &tree.bodies {
                         made_of_matter(ui, body, asked, lang);
@@ -78,7 +81,11 @@ fn show(ui: &mut egui::Ui, asked: &mut Asked<'_>, lang: &Catalogue) {
                 }
                 Rubric::WholeBody => {
                     let mode = said::body(lang, asked.viewport.body_mode());
-                    if panel_row(ui, mode, false, false).clicked() {
+                    let named = TreeRow {
+                        name: &mode,
+                        ..TreeRow::default()
+                    };
+                    if tree_row(ui, named).row.clicked() {
                         asked.action = TreeAction::NextBodyMode;
                     }
                 }
@@ -88,59 +95,36 @@ fn show(ui: &mut egui::Ui, asked: &mut Asked<'_>, lang: &Catalogue) {
     });
 }
 
-fn sketches(ui: &mut egui::Ui, tree: &PartTree, asked: &mut Asked<'_>, lang: &Catalogue) {
-    for drawing in &tree.sketches {
-        // A single click folds; only a double-click reopens the sketch, so
-        // that walking the tree cannot drop the user into drawing by
-        // accident.
-        let lit = asked.viewport.eye_lit(asked.document, drawing.sketch);
-        ui.horizontal_top(|ui| {
-            if eye(ui, lit, said::eye(lang, lit)) {
-                asked.action = TreeAction::ToggleEye(drawing.sketch);
-            }
-            let layout = egui::Layout::right_to_left(egui::Align::Min);
-            ui.with_layout(layout, |ui| {
-                ui.weak(&drawing.plane);
-                problem(ui, drawing.badge, lang);
-                if ui.vertical(|ui| drawn(ui, drawing, asked, lang)).inner {
-                    asked.action = TreeAction::EditSketch(drawing.sketch);
-                }
-            });
-        });
-    }
-}
-
 /// The variables, read only: the name in the variable colour, the value on
 /// the right.
 fn variables(ui: &mut egui::Ui, variables: &[Variable], lang: &Catalogue) {
     if variables.is_empty() {
-        ui.horizontal(|ui| {
-            ui.add_space(18.0);
-            ui.weak(lang.t("part_tree.no_variables"));
-        });
+        tree_note(ui, 0, &lang.t("part_tree.no_variables"));
     }
     for variable in variables {
-        ui.horizontal(|ui| {
-            ui.add_space(18.0);
-            ui.colored_label(tokens::VARIABLE_TEXT, &variable.name);
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.monospace(&variable.value);
-            });
-        });
+        tree_row(
+            ui,
+            TreeRow {
+                name: &variable.name,
+                ink: Some(tokens::VARIABLE_TEXT),
+                value: Some(&variable.value),
+                ..TreeRow::default()
+            },
+        );
     }
 }
 
 /// One kept section: a click switches it on or off, a double-click reopens it,
 /// and its menu deletes it.
 fn section(ui: &mut egui::Ui, kept: &Kept, asked: &mut Asked<'_>, lang: &Catalogue) {
-    let on = asked.viewport.kept_sections.is_on(kept.id);
-    let response = ui
-        .horizontal(|ui| {
-            let response = panel_row(ui, kept.name.clone(), on, false);
-            problem(ui, kept.badge, lang);
-            response
-        })
-        .inner;
+    let badge = kept.badge.map(|found| said::badge(lang, found));
+    let row = TreeRow {
+        name: &kept.name,
+        selected: asked.viewport.kept_sections.is_on(kept.id),
+        badge: badge.as_deref().zip(kept.badge.map(Problem::level)),
+        ..TreeRow::default()
+    };
+    let response = tree_row(ui, row).row;
     if response.double_clicked() {
         asked.action = TreeAction::EditSection(kept.id);
     } else if response.clicked() {
@@ -152,12 +136,6 @@ fn section(ui: &mut egui::Ui, kept: &Kept, asked: &mut Asked<'_>, lang: &Catalog
             ui.close();
         }
     });
-}
-
-fn problem(ui: &mut egui::Ui, found: Option<Problem>, lang: &Catalogue) {
-    if let Some(found) = found {
-        badge(ui, &said::badge(lang, found), found.level());
-    }
 }
 
 /// The question asked before deleting a section a drawing stands on.
@@ -172,114 +150,111 @@ pub fn section_delete_confirm(ui: &egui::Ui, lang: &Catalogue) -> Option<bool> {
 }
 
 fn made_of_matter(ui: &mut egui::Ui, body: &Body, asked: &mut Asked<'_>, lang: &Catalogue) {
-    let layout = egui::Layout::right_to_left(egui::Align::Min);
-    let header = ui
-        .with_layout(layout, |ui| {
-            problem(ui, body.badge, lang);
-            ui.vertical(|ui| {
-                egui::CollapsingHeader::new(&body.name)
-                    .id_salt(("body", body.step))
-                    .default_open(false)
-                    .show(ui, |ui| {
-                        ui.weak(&body.reads);
-                        for area in &body.areas {
-                            row(ui, area, asked);
-                        }
-                    })
-            })
-            .inner
-        })
-        .inner;
+    let badge = body.badge.map(|found| said::badge(lang, found));
+    let heading = TreeRow {
+        name: &body.name,
+        badge: badge.as_deref().zip(body.badge.map(Problem::level)),
+        ..TreeRow::default()
+    };
+    let id = egui::Id::new(("body", body.step));
+    let (touched, open) = folding_row(ui, id, false, heading);
     if let Some(said) = &body.unstable {
-        header.header_response.on_hover_text(said);
+        touched.row.on_hover_text(said);
+    }
+    if open {
+        tree_note(ui, 1, &body.reads);
+        for area in &body.areas {
+            row(ui, area, 1, false, asked);
+        }
     }
 }
 
-/// Draws one sketch, and says whether it was asked to be reopened.
-fn drawn(ui: &mut egui::Ui, drawing: &Drawn, asked: &mut Asked<'_>, lang: &Catalogue) -> bool {
-    let header = egui::CollapsingHeader::new(&drawing.name)
-        .id_salt(("sketch", drawing.step))
-        .default_open(false)
-        .show(ui, |ui| {
-            kind(
-                ui,
-                asked,
-                lang.t("part_tree.areas"),
-                &drawing.areas,
-                drawing.step,
-                0,
-            );
-            kind(
-                ui,
-                asked,
-                lang.t("part_tree.strokes"),
-                &drawing.strokes,
-                drawing.step,
-                1,
-            );
-            kind(
-                ui,
-                asked,
-                lang.t("part_tree.dimensions"),
-                &drawing.dimensions,
-                drawing.step,
-                2,
-            );
-            kind(
-                ui,
-                asked,
-                lang.t("part_tree.rules"),
-                &drawing.rules,
-                drawing.step,
-                3,
-            );
-        });
-    header.header_response.double_clicked()
+/// One sketch, its eye beside it, and what is drawn on it once unfolded: a
+/// single click folds; only a double-click reopens the sketch, so that walking
+/// the tree cannot drop the user into drawing by accident. The sketch being
+/// drawn on stands selected and open.
+fn drawn(ui: &mut egui::Ui, drawing: &Drawn, asked: &mut Asked<'_>, lang: &Catalogue) {
+    let lit = asked.viewport.eye_lit(asked.document, drawing.sketch);
+    let eye = said::eye(lang, lit);
+    let badge = drawing.badge.map(|found| said::badge(lang, found));
+    let open = asked.editor.active_sketch() == Some(drawing.sketch);
+    let heading = TreeRow {
+        name: &drawing.name,
+        selected: open,
+        dimmed: !lit,
+        value: Some(&drawing.plane),
+        badge: badge.as_deref().zip(drawing.badge.map(Problem::level)),
+        eye: Some((lit, &eye)),
+        ..TreeRow::default()
+    };
+    let id = egui::Id::new(("sketch", drawing.step));
+    let (touched, unfolded) = folding_row(ui, id, open, heading);
+    if touched.eye {
+        asked.action = TreeAction::ToggleEye(drawing.sketch);
+    }
+    if touched.row.double_clicked() {
+        asked.action = TreeAction::EditSketch(drawing.sketch);
+    }
+    if !unfolded {
+        return;
+    }
+    for stroke in &drawing.strokes {
+        row(ui, stroke, 1, !lit, asked);
+    }
+    for (rank, (key, rows)) in [
+        ("part_tree.areas", &drawing.areas),
+        ("part_tree.dimensions", &drawing.dimensions),
+        ("part_tree.rules", &drawing.rules),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        kind(ui, asked, &lang.t(key), rows, (drawing.step, rank), !lit);
+    }
 }
 
 fn kind(
     ui: &mut egui::Ui,
     asked: &mut Asked<'_>,
-    heading: String,
+    heading: &str,
     rows: &[Row],
-    step: usize,
-    rank: usize,
+    salt: (usize, usize),
+    dimmed: bool,
 ) {
     if rows.is_empty() {
         return;
     }
-    egui::CollapsingHeader::new(heading)
-        .id_salt(("kind", step, rank))
-        .default_open(false)
-        .show(ui, |ui| {
-            for one in rows {
-                row(ui, one, asked);
-            }
-        });
+    let count = rows.len().to_string();
+    let named = TreeRow {
+        name: heading,
+        depth: 1,
+        dimmed,
+        value: Some(&count),
+        ..TreeRow::default()
+    };
+    if folding_row(ui, egui::Id::new(("kind", salt)), false, named).1 {
+        for one in rows {
+            row(ui, one, 2, dimmed, asked);
+        }
+    }
 }
 
 /// One row: a click where it asks something, marked while the open sketch
-/// holds it or the canvas lights it; a plain line where it asks nothing.
-fn row(ui: &mut egui::Ui, row: &Row, asked: &mut Asked<'_>) {
-    let Some(value) = &row.value else {
-        return named(ui, row, asked);
-    };
-    ui.horizontal(|ui| {
-        named(ui, row, asked);
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.monospace(value);
-        });
-    });
-}
-
-fn named(ui: &mut egui::Ui, row: &Row, asked: &mut Asked<'_>) {
+/// holds it or the canvas lights it.
+fn row(ui: &mut egui::Ui, row: &Row, depth: usize, dimmed: bool, asked: &mut Asked<'_>) {
     let (document, editor) = (asked.document, asked.editor);
+    let named = TreeRow {
+        name: &row.name,
+        depth,
+        dimmed,
+        selected: marked(document, editor, asked.viewport, row.points),
+        value: row.value.as_deref(),
+        ..TreeRow::default()
+    };
+    let response = tree_row(ui, named).row;
     if !clickable(document, editor, row.points) {
-        ui.label(&row.name);
         return;
     }
-    let lit = marked(document, editor, asked.viewport, row.points);
-    let response = panel_row(ui, row.name.clone(), lit, false);
     if response.hovered() {
         asked.hovering = Some(row.points);
     }

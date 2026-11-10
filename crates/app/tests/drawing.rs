@@ -179,7 +179,7 @@ fn shift_e_takes_matter_away_where_e_adds_it() {
     driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
     driver::click_at_sketch_point(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
     driver::click_exactly(&mut app, "Extrusion");
-    driver::click_exactly(&mut app, "1");
+    driver::click_the_button(&mut app, "1");
 
     driver::press_with(&mut app, egui::Modifiers::SHIFT, egui::Key::E);
     assert!(
@@ -241,7 +241,7 @@ fn a_sketch_reopened_under_its_own_block(test: &str) -> driver::App {
     driver::click_at_sketch_point(&mut app, DVec2::new(-8.82, 44.59));
     driver::click_at_sketch_point(&mut app, DVec2::new(123.83, -52.69));
     driver::click_exactly(&mut app, "Extrusion");
-    driver::click_exactly(&mut app, "1");
+    driver::click_the_button(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");
     driver::click_at_sketch_point(&mut app, DVec2::new(59.12, -20.49));
     driver::click(&mut app, "Appliquer");

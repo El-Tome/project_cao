@@ -156,6 +156,22 @@ pub(super) fn cornered(
     })
 }
 
+/// Whether an edge of `edges` laid before the two of ranks `earlier` and
+/// `later`, laid together at the later's turn, meets either at a corner.
+pub(super) fn met_before(
+    body: &brep::Body,
+    edges: &[EdgeId],
+    [earlier, later]: [usize; 2],
+) -> bool {
+    (0..later)
+        .filter(|&before| before != earlier)
+        .any(|before| {
+            [earlier, later]
+                .into_iter()
+                .any(|member| corners::meet(body, [edges[before], edges[member]]))
+        })
+}
+
 impl Exact {
     /// The body with the edges `earlier` and `later` find, whose set-backs
     /// meet across the face they share, cut off as one by the prism `raise`
@@ -172,8 +188,25 @@ impl Exact {
     ) -> Result<Exact, Declined> {
         let (first_edge, first) = self.wedge(earlier, Wedge::read)?;
         let (second_edge, second) = self.wedge(later, Wedge::read)?;
+        let pair = [(first_edge, &first), (second_edge, &second)];
+        self.laid_together_as(&self.brep, pair, number, raise)
+    }
+
+    /// The body with the two edges of `pair`, each with its wedge as read on
+    /// `on`, laid as one, as [`Exact::laid_together`] lays them: `on` is this
+    /// body, or the body as given where an edge laid before meets either at a
+    /// corner, as [`met_before`] reads it — there an end round may have moved
+    /// both their ends, and their names find neither.
+    pub(super) fn laid_together_as(
+        &self,
+        on: &brep::Body,
+        pair: [(EdgeId, &Wedge); 2],
+        number: u32,
+        raise: Raise,
+    ) -> Result<Exact, Declined> {
+        let [(_, first), (_, second)] = pair;
         let bounds = self.brep.bounds().ok_or(Declined::Unsupported)?;
-        let prism = raise(&first, &second, self.brep.scale(), bounds)?;
+        let prism = raise(first, second, self.brep.scale(), bounds)?;
         let (outline, frame, travel) = &prism;
         let raised = Exact::raised(outline, &[], *frame, *travel)?;
         let tool = Exact {
@@ -185,12 +218,11 @@ impl Exact {
             ..raised
         };
         let cut = if first.inwards {
-            let edges = [(first_edge, &first), (second_edge, &second)];
-            self.filled(&self.brep, &edges, &[], &prism, tool)?
+            self.filled(on, &pair, &[], &prism, tool)?
         } else {
             self.cut_by(&Exact { next: 2, ..tool })?
         };
-        cut.paired(self, [&first, &second], number)
+        cut.paired(self, [first, second], number)
     }
 
     /// The body two edges of `before` were laid on as one, its face left

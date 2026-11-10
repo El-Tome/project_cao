@@ -92,7 +92,8 @@ impl Exact {
     /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
     /// goes whatever the order — and an edge ending at convex corners on the
     /// face two cuts laid together meet across meets their one prism the same
-    /// way, as [`pairs::cornered`] admits it. Two edges of one sense meeting
+    /// way, as [`pairs::cornered`] admits it, the two read on the body as given
+    /// where it was laid before them. Two edges of one sense meeting
     /// at a corner beside an edge of the other sense left out of the list, as
     /// [`corners::admit`] admits it — two cuts beside a concave edge, two fills
     /// beside a convex one — each stop flush there, and the later takes with it
@@ -181,11 +182,15 @@ impl Exact {
                 cut.next = start + rank as u32;
                 let partner = pairs.iter().find(|&&(_, later, _)| later == rank);
                 cut = match (partner, meeting.together) {
-                    (Some(&(earlier, _, _)), Together::Raised(raise)) => cut.laid_together(
-                        [&names[earlier], &names[rank]],
-                        start + earlier as u32,
-                        raise,
-                    )?,
+                    (Some(&(earlier, _, _)), Together::Raised(raise)) => {
+                        let number = start + earlier as u32;
+                        if pairs::met_before(&self.brep, &edges, [earlier, rank]) {
+                            let pair = [given[earlier], given[rank]];
+                            cut.laid_together_as(&self.brep, pair, number, raise)?
+                        } else {
+                            cut.laid_together([&names[earlier], &names[rank]], number, raise)?
+                        }
+                    }
                     (Some(&(earlier, _, value)), Together::Sloped) => cut.sloped(
                         [&names[earlier], &names[rank]],
                         start + earlier as u32,

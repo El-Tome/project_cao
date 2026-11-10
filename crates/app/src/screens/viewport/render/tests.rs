@@ -244,6 +244,9 @@
 //! - the hover light lasts only while the hand is on the row, and leaves a
 //!   click's light as it found it —
 //!   `a_row_lit_by_the_hand_goes_out_when_the_hand_leaves_it`
+//! - found in review: with the hand on another row of the same closed sketch,
+//!   the trait a click lit stays lit beside the one under the hand —
+//!   `a_trait_a_click_lit_stays_lit_while_the_hand_is_on_another_row_of_its_sketch`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
@@ -2887,4 +2890,59 @@ fn a_row_lit_by_the_hand_goes_out_when_the_hand_leaves_it() {
             "hovering {hovered:?} then leaving it changed what the click on {first:?} had lit",
         );
     }
+}
+
+#[test]
+fn a_trait_a_click_lit_stays_lit_while_the_hand_is_on_another_row_of_its_sketch() {
+    let mut document = a_block_and_a_sketch_never_used();
+    let plane = twenty_over_the_block();
+    let drawing = &document.sketches()[1];
+    let traits: Vec<(Points, Vec3, Vec3)> = drawing
+        .live_segments()
+        .take(2)
+        .map(|(id, segment)| {
+            let [from, to] = [segment.start, segment.end]
+                .map(|point| drawing.plane.to_world(drawing.point(point)).as_vec3());
+            (
+                Points::Element {
+                    sketch: 1,
+                    element: Element::Segment(id),
+                },
+                from,
+                to,
+            )
+        })
+        .collect();
+    let [
+        (clicked_row, clicked_from, clicked_to),
+        (hovered_row, hovered_from, hovered_to),
+    ] = traits[..]
+    else {
+        panic!("the rectangle has two traits");
+    };
+    let mut editor = SketchEditor::default();
+    let lit_alone = |row: Points, document: &mut PartDocument, editor: &mut SketchEditor| {
+        let mut state = ViewportState::default();
+        state.light(row);
+        a_frame_of(&state, document, editor)
+    };
+    let clicked_alone = lit_alone(clicked_row, &mut document, &mut editor);
+    let hovered_alone = lit_alone(hovered_row, &mut document, &mut editor);
+
+    let mut state = ViewportState::default();
+    state.light(clicked_row);
+    hover(&document, &mut editor, &mut state, Some(hovered_row));
+    let both = a_frame_of(&state, &mut document, &mut editor);
+
+    let on = |frame: &SceneFrame, from, to| line_colours(frame, plane, from, to).0;
+    assert_eq!(
+        on(&both, clicked_from, clicked_to),
+        on(&clicked_alone, clicked_from, clicked_to),
+        "the trait a click lit goes out while the hand is on another row of its sketch",
+    );
+    assert_eq!(
+        on(&both, hovered_from, hovered_to),
+        on(&hovered_alone, hovered_from, hovered_to),
+        "the trait under the hand is not lit while a click lit another of its sketch",
+    );
 }

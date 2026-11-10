@@ -46,7 +46,7 @@ pub fn panel(
 }
 
 fn show(ui: &mut egui::Ui, asked: &mut Asked<'_>, lang: &Catalogue) {
-    let tree = PartTree::of(asked.document, lang);
+    let tree = PartTree::seen(asked.document, asked.editor, asked.viewport, lang);
 
     ui.heading(lang.t("part_tree.title"));
     ui.add_space(4.0);
@@ -107,6 +107,7 @@ fn variables(ui: &mut egui::Ui, variables: &[Variable], lang: &Catalogue) {
             TreeRow {
                 name: &variable.name,
                 ink: Some(tokens::VARIABLE_TEXT),
+                inert: true,
                 value: Some(&variable.value),
                 ..TreeRow::default()
             },
@@ -177,18 +178,17 @@ fn drawn(ui: &mut egui::Ui, drawing: &Drawn, asked: &mut Asked<'_>, lang: &Catal
     let lit = asked.viewport.eye_lit(asked.document, drawing.sketch);
     let eye = said::eye(lang, lit);
     let badge = drawing.badge.map(|found| said::badge(lang, found));
-    let open = asked.editor.active_sketch() == Some(drawing.sketch);
     let heading = TreeRow {
         name: &drawing.name,
-        selected: open,
-        dimmed: !lit,
+        selected: drawing.open,
+        dimmed: drawing.dimmed,
         value: Some(&drawing.plane),
         badge: badge.as_deref().zip(drawing.badge.map(Problem::level)),
         eye: Some((lit, &eye)),
         ..TreeRow::default()
     };
     let id = egui::Id::new(("sketch", drawing.step));
-    let (touched, unfolded) = folding_row(ui, id, open, heading);
+    let (touched, unfolded) = folding_row(ui, id, drawing.open, heading);
     if touched.eye {
         asked.action = TreeAction::ToggleEye(drawing.sketch);
     }
@@ -199,7 +199,7 @@ fn drawn(ui: &mut egui::Ui, drawing: &Drawn, asked: &mut Asked<'_>, lang: &Catal
         return;
     }
     for stroke in &drawing.strokes {
-        row(ui, stroke, 1, !lit, asked);
+        row(ui, stroke, 1, drawing.dimmed, asked);
     }
     for (rank, (key, rows)) in [
         ("part_tree.areas", &drawing.areas),
@@ -209,7 +209,14 @@ fn drawn(ui: &mut egui::Ui, drawing: &Drawn, asked: &mut Asked<'_>, lang: &Catal
     .into_iter()
     .enumerate()
     {
-        kind(ui, asked, &lang.t(key), rows, (drawing.step, rank), !lit);
+        kind(
+            ui,
+            asked,
+            &lang.t(key),
+            rows,
+            (drawing.step, rank),
+            drawing.dimmed,
+        );
     }
 }
 
@@ -243,16 +250,18 @@ fn kind(
 /// holds it or the canvas lights it.
 fn row(ui: &mut egui::Ui, row: &Row, depth: usize, dimmed: bool, asked: &mut Asked<'_>) {
     let (document, editor) = (asked.document, asked.editor);
+    let asks = clickable(document, editor, row.points);
     let named = TreeRow {
         name: &row.name,
         depth,
         dimmed,
+        inert: !asks,
         selected: marked(document, editor, asked.viewport, row.points),
         value: row.value.as_deref(),
         ..TreeRow::default()
     };
     let response = tree_row(ui, named).row;
-    if !clickable(document, editor, row.points) {
+    if !asks {
         return;
     }
     if response.hovered() {

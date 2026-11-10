@@ -41,7 +41,14 @@ impl Default for Visibility {
 #[derive(Clone, Copy, Default)]
 pub(crate) struct Seen {
     pub(crate) hidden: bool,
-    pub(crate) lit: Option<Points>,
+    /// What a click lit, and what the hand is on.
+    pub(crate) lit: [Option<Points>; 2],
+}
+
+impl Seen {
+    pub(crate) fn lights(&self, row: impl Fn(Points) -> bool) -> bool {
+        self.lit.into_iter().flatten().any(row)
+    }
 }
 
 impl ViewportState {
@@ -124,8 +131,8 @@ impl ViewportState {
         let here = |row: &Points| {
             row.sketch() == sketch && (!active || matches!(row, Points::Area { .. }))
         };
-        let lit = (self.visibility.hovered.filter(here)).or_else(|| self.lit().filter(here));
-        (!hidden || lit.is_some()).then_some(Seen { hidden, lit })
+        let lit = [self.lit(), self.visibility.hovered].map(|row| row.filter(here));
+        (!hidden || lit.iter().any(Option::is_some)).then_some(Seen { hidden, lit })
     }
 }
 

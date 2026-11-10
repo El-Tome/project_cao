@@ -15,7 +15,7 @@ use crate::screens::{
 use crate::shortcuts::shortcuts_pressed;
 use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave, wording};
 use crate::{commands, export};
-mod on_screen;
+pub mod on_screen;
 mod settings_window;
 
 pub struct CaoApp {

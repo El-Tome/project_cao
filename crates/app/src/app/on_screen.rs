@@ -5,7 +5,16 @@
 use glam::{DVec2, DVec3};
 
 use super::CaoApp;
+use crate::screens::part_tree::state::{PartTree, Points};
 use crate::screens::{OpenPart, Screen};
+
+/// A row of the Part tree the view lights, named as the tree names it and the
+/// sketch it stands under.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LitRow {
+    pub sketch: String,
+    pub row: String,
+}
 
 impl CaoApp {
     /// Where a point of the world lands on screen: nothing while no part is
@@ -20,6 +29,37 @@ impl CaoApp {
         let part = self.part_opened()?;
         let sketch = part.doc.sketches().get(part.editor.active_sketch()?)?;
         part.viewport.where_it_shows(sketch.plane.to_world(point))
+    }
+
+    /// The row of the Part tree the hand is on, as the view lights it.
+    pub fn the_row_lit_by_the_hand(&self) -> Option<LitRow> {
+        let part = self.part_opened()?;
+        self.named(part, part.viewport.hovered_in_the_tree()?)
+    }
+
+    /// The row of the Part tree a click lit in the view.
+    pub fn the_row_lit_by_a_click(&self) -> Option<LitRow> {
+        let part = self.part_opened()?;
+        self.named(part, part.viewport.lit()?)
+    }
+
+    fn named(&self, part: &OpenPart, lit: Points) -> Option<LitRow> {
+        let tree = PartTree::of(&part.doc, self.remembered.lang());
+        let drawing = tree
+            .sketches
+            .iter()
+            .find(|drawing| drawing.sketch == lit.sketch())?;
+        let rows = [
+            &drawing.strokes,
+            &drawing.areas,
+            &drawing.dimensions,
+            &drawing.rules,
+        ];
+        let row = rows.into_iter().flatten().find(|row| row.points == lit)?;
+        Some(LitRow {
+            sketch: drawing.name.clone(),
+            row: row.name.clone(),
+        })
     }
 
     fn part_opened(&self) -> Option<&OpenPart> {

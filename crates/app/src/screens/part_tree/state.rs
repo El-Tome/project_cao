@@ -22,6 +22,7 @@ use crate::wording::part_tree::{self as said, Problem, Rubric};
 use crate::wording::{self, formula, plane};
 
 mod clicks;
+mod seen;
 pub use clicks::*;
 
 /// What a line of the tree points at, so that clicking it can find the thing
@@ -83,6 +84,9 @@ pub struct Drawn {
     pub name: String,
     /// What it is laid on, as the sketch pill names it, in short.
     pub plane: String,
+    /// Being drawn on; and hidden, which the one drawn on never is.
+    pub open: bool,
+    pub dimmed: bool,
     pub areas: Vec<Row>,
     pub strokes: Vec<Row>,
     pub dimensions: Vec<Row>,
@@ -347,6 +351,8 @@ fn drawn(
         step,
         name: numbered(lang, "part_tree.sketch", rank),
         plane: String::new(),
+        open: false,
+        dimmed: false,
         areas: (0..sketch.regions().len())
             .map(|rank| Row {
                 name: numbered(lang, "part_tree.area", rank + 1),

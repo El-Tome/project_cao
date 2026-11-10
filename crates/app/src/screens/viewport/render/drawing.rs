@@ -32,7 +32,7 @@ fn tint_regions(
     seen: Seen,
 ) {
     for (rank, region) in sketch.regions().into_iter().enumerate() {
-        let lit = matches!(seen.lit, Some(Points::Area { rank: lit, .. }) if lit == rank);
+        let lit = seen.lights(|row| matches!(row, Points::Area { rank: lit, .. } if lit == rank));
         if seen.hidden && !lit {
             continue;
         }
@@ -138,19 +138,15 @@ impl Seen {
         tint_regions(surfaces, sketch, theme, active, seen);
         // A trait lit from the tree is drawn in a colour of its own; in a sketch
         // whose eye is out, it is drawn alone.
-        let marked = |element: Element, color, width| match seen.lit {
-            Some(Points::Element { element: lit, .. }) if lit == element => {
-                Some((tint_at(theme.highlight, 1.0), width * LOUDER))
+        let lit = |element| {
+            seen.lights(|row| matches!(row, Points::Element { element: lit, .. } if lit == element))
+        };
+        let marked = |element: Element, color, width| {
+            if lit(element) {
+                return Some((tint_at(theme.highlight, 1.0), width * LOUDER));
             }
-            _ if seen.hidden => None,
-            _ => Some(emphasis::mark(
-                context,
-                theme,
-                Selection::Element(element),
-                laid,
-                color,
-                width,
-            )),
+            let what = Selection::Element(element);
+            (!seen.hidden).then(|| emphasis::mark(context, theme, what, laid, color, width))
         };
 
         // Per element, not one verdict for the whole drawing: a contour can be

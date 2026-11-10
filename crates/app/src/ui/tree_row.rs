@@ -2,6 +2,8 @@
 //! column of its own on the left, then the row itself indented by its depth —
 //! a chevron, its name — and on the right its badge and its value.
 
+use std::ops::RangeInclusive;
+
 use egui::{
     Align, Color32, FontId, Id, Label, Layout, Pos2, Rect, Response, RichText, Sense, Stroke, Ui,
     UiBuilder, WidgetInfo, WidgetType, pos2, vec2,
@@ -41,6 +43,8 @@ pub struct TreeRow<'a> {
     pub badge: Option<(&'a str, Level)>,
     /// Whether the eye is open, and what a click on it does.
     pub eye: Option<(bool, &'a str)>,
+    /// A click on it asks nothing: it reads as text, not as a button.
+    pub inert: bool,
 }
 
 /// The row as the hand found it, and whether its eye was clicked.
@@ -60,31 +64,42 @@ pub fn tree_row(ui: &mut Ui, row: TreeRow<'_>) -> Touched {
             .vline(x, line.y_range(), Stroke::new(1.0, BORDER_GROUP));
     }
 
+    let named = inside
+        .painter()
+        .layout_no_wrap(row.name.to_string(), name_font(), TEXT_PRIMARY)
+        .size()
+        .x;
+    let mut kept = start + CHEVRON_BOX + named + SPACING_M;
+    let badge_width = row
+        .badge
+        .map(|(said, _)| badge_width(&inside, said) + SPACING_M);
+    kept += badge_width.unwrap_or(0.0);
     let mut end = line.right() - SPACING_M;
     if let Some(value) = row.value {
-        let text = RichText::new(value)
-            .monospace()
-            .size(TYPOGRAPHY_SIZES_MONO_VALUE)
-            .color(TEXT_QUIET);
-        end = beside(&mut inside, line, end, text);
+        end = beside(&mut inside, line, kept..=end, value);
     }
     if let Some((said, level)) = row.badge {
-        let width = badge_width(&inside, said);
-        let room = Rect::from_x_y_ranges(end - width..=end, line.y_range());
+        let room = Rect::from_x_y_ranges(end - badge_width.unwrap_or(0.0)..=end, line.y_range());
         inside.scope_builder(
             UiBuilder::new()
                 .max_rect(room)
                 .layout(Layout::right_to_left(Align::Center)),
             |ui| badge(ui, said, level),
         );
-        end = room.left() - SPACING_M;
+        end = room.left();
     }
 
     let area = Rect::from_x_y_ranges(start..=end.max(start), line.y_range());
-    let response = ui.interact(area, spot.id.with("row"), Sense::click());
+    let sense = if row.inert {
+        Sense::hover()
+    } else {
+        Sense::click()
+    };
+    let response = ui.interact(area, spot.id.with("row"), sense);
     let name = row.name.to_string();
-    response.widget_info(|| {
-        WidgetInfo::selected(WidgetType::Button, ui.is_enabled(), row.selected, &name)
+    response.widget_info(|| match row.inert {
+        true => WidgetInfo::labeled(WidgetType::Label, ui.is_enabled(), &name),
+        false => WidgetInfo::selected(WidgetType::Button, ui.is_enabled(), row.selected, &name),
     });
     paint(&inside, &row, area, &response);
 
@@ -112,26 +127,36 @@ pub fn tree_note(ui: &mut Ui, depth: usize, said: &str) {
     });
 }
 
-/// Lays `text` against `end`, on the right of the line, and says where it
-/// starts.
-fn beside(ui: &mut Ui, line: Rect, end: f32, text: RichText) -> f32 {
+/// Lays a value against the right of `room`, cut short rather than past its
+/// left, and says where the room before it ends.
+fn beside(ui: &mut Ui, line: Rect, room: RangeInclusive<f32>, value: &str) -> f32 {
+    let text = RichText::new(value)
+        .monospace()
+        .size(TYPOGRAPHY_SIZES_MONO_VALUE)
+        .color(TEXT_QUIET);
     let width = ui
         .painter()
         .layout_no_wrap(
-            text.text().to_string(),
+            value.to_string(),
             FontId::monospace(TYPOGRAPHY_SIZES_MONO_VALUE),
             TEXT_QUIET,
         )
         .size()
         .x;
-    let room = Rect::from_x_y_ranges(end - width..=end, line.y_range());
-    ui.put(room, Label::new(text));
-    room.left() - SPACING_M
+    let left = (room.end() - width).max(*room.start()).min(*room.end());
+    let laid = Rect::from_x_y_ranges(left..=*room.end(), line.y_range());
+    ui.scope_builder(
+        UiBuilder::new()
+            .max_rect(laid)
+            .layout(Layout::right_to_left(Align::Center)),
+        |ui| ui.add(Label::new(text).truncate()),
+    );
+    left - SPACING_M
 }
 
 fn paint(ui: &Ui, row: &TreeRow<'_>, area: Rect, response: &Response) {
     let painter = ui.painter().with_clip_rect(area);
-    let fill = match (row.selected, response.hovered()) {
+    let fill = match (row.selected, response.hovered() && !row.inert) {
         (true, _) => Some(ACCENT_AMBER_BACKGROUND),
         (false, true) => Some(BACKGROUND_HOVER),
         (false, false) => None,
@@ -156,9 +181,13 @@ fn paint(ui: &Ui, row: &TreeRow<'_>, area: Rect, response: &Response) {
         pos2(area.left() + CHEVRON_BOX, middle),
         egui::Align2::LEFT_CENTER,
         row.name,
-        FontId::proportional(TYPOGRAPHY_SIZES_BUTTON),
+        name_font(),
         ink,
     );
+}
+
+fn name_font() -> FontId {
+    FontId::proportional(TYPOGRAPHY_SIZES_BUTTON)
 }
 
 fn chevron(painter: &egui::Painter, at: Pos2, open: bool) {

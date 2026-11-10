@@ -16,6 +16,18 @@
 //!   group, then « Aires », « Cotes », « Contraintes », each a row whose count
 //!   is its value, on the right of its line —
 //!   `an_unfolded_sketch_lists_its_traits_then_its_areas_dimensions_and_rules_counted`
+//! - found in review: a row a click asks nothing of — a dimension of a closed
+//!   sketch, a variable — is announced as no button and is not filled under
+//!   the hand — `a_row_that_asks_nothing_is_no_button_and_is_not_filled_under_the_hand`
+//! - found in review: a variable whose value is long keeps room for its name,
+//!   the value giving way before the panel's edge —
+//!   `a_variable_whose_value_is_long_keeps_its_name_and_the_value_gives_way`
+//! - found in review: a sketch's row reads its plane and its badge on its own
+//!   line — `a_sketch_row_shows_its_plane_and_its_badge_on_its_line`
+//! - Hovering a row lights its element in the view, through the whole
+//!   application: the hand resting on a trait of a closed sketch lights it,
+//!   leaving puts it out, and a click's light stays as it was —
+//!   `a_hand_resting_on_a_trait_of_a_closed_sketch_lights_it_and_leaving_puts_it_out`
 //!
 //! A row's left edge and height are read off the widget named as the row is:
 //! the one the hand clicks. The driver reads them in points, which is what
@@ -24,11 +36,16 @@
 
 mod driver;
 
+use cao_app::app::on_screen::LitRow;
 use egui::accesskit::{Role, Toggled};
 use egui_kittest::kittest::{NodeT, Queryable};
 use glam::DVec2;
 
 const TOLERANCE: f32 = 0.5;
+
+/// On the face of the block at x = 10, the one `keeping_a_section.rs` clicks
+/// to lay a section there.
+const ON_THE_BLOCK_S_FACE: glam::DVec3 = glam::DVec3::new(10.0, 41.51, -19.82);
 
 /// The rectangle of the row of the tree that reads exactly this.
 fn row(app: &driver::App, name: &str) -> egui::Rect {
@@ -200,5 +217,220 @@ fn an_unfolded_sketch_lists_its_traits_then_its_areas_dimensions_and_rules_count
             Some(drawing.constraints().len().to_string()),
         ],
         "« Aires », « Cotes », « Contraintes » do not read their count on the right",
+    );
+}
+
+/// Where a node of the panel reading exactly this stands, whatever it is
+/// announced as: a row that asks nothing may be a plain label.
+fn reading(app: &driver::App, text: &str) -> Option<egui::Rect> {
+    app.get_all_by(|_| true)
+        .filter(|node| node.accesskit_node().role() != Role::TextRun)
+        .filter(|node| node.accesskit_node().bounding_box().is_some())
+        .find(|node| {
+            let read = node.accesskit_node();
+            read.label().as_deref() == Some(text) || read.value().as_deref() == Some(text)
+        })
+        .map(|node| node.rect())
+}
+
+/// Every rectangle the last frame filled in this colour.
+fn filled_in(app: &driver::App, colour: egui::Color32) -> Vec<egui::Rect> {
+    let mut found = Vec::new();
+    let mut pending: Vec<&egui::Shape> = app
+        .output()
+        .shapes
+        .iter()
+        .map(|clipped| &clipped.shape)
+        .collect();
+    while let Some(shape) = pending.pop() {
+        match shape {
+            egui::Shape::Vec(group) => pending.extend(group),
+            egui::Shape::Rect(painted) if painted.fill == colour => found.push(painted.rect),
+            _ => {}
+        }
+    }
+    found
+}
+
+/// Makes a variable in its panel, as a hand types it there.
+fn add_a_variable(app: &mut driver::App, name: &str, formula: &str) {
+    driver::type_into(app, "nom", name);
+    driver::type_into(app, "formule", formula);
+    driver::click_exactly(app, "Ajouter");
+}
+
+/// `a_block_with_a_dimension`, holding `largeur` at 60, `marge` at 10 and
+/// `total` written « largeur * 2 + marge », made in their panel, then closed.
+fn a_block_with_variables(test: &str) -> driver::App {
+    let mut app = a_block_with_a_dimension(test);
+    driver::click_the_button(&mut app, "Variables");
+    add_a_variable(&mut app, "largeur", "60");
+    add_a_variable(&mut app, "marge", "10");
+    add_a_variable(&mut app, "total", "largeur * 2 + marge");
+    driver::click_the_button(&mut app, "Variables");
+    app
+}
+
+#[test]
+fn a_row_that_asks_nothing_is_no_button_and_is_not_filled_under_the_hand() {
+    let mut app = a_block_with_variables("a_row_that_asks_nothing");
+    driver::click(&mut app, "Esquisse 1");
+    driver::click_the_button(&mut app, "Cotes");
+
+    for name in ["Cote 1", "largeur"] {
+        let at = reading(&app, name).unwrap_or_else(|| {
+            panic!(
+                "« {name} » is not on screen, showing {:?}",
+                driver::on_screen(&app)
+            )
+        });
+        assert!(
+            driver::the_row(&app, name).is_none(),
+            "« {name} », a row a click asks nothing of, is announced as a button",
+        );
+        app.hover_at(at.center());
+        app.run();
+        let under_the_hand: Vec<egui::Rect> =
+            filled_in(&app, cao_app::theme::tokens::BACKGROUND_HOVER)
+                .into_iter()
+                .filter(|filled| filled.contains(at.center()))
+                .collect();
+        assert!(
+            under_the_hand.is_empty(),
+            "« {name} », a row a click asks nothing of, is filled under the hand: {under_the_hand:?}",
+        );
+    }
+}
+
+#[test]
+fn a_variable_whose_value_is_long_keeps_its_name_and_the_value_gives_way() {
+    let app = a_block_with_variables("a_variable_whose_value_is_long");
+    let name = reading(&app, "total").unwrap_or_else(|| {
+        panic!(
+            "the variable « total » is not on screen, showing {:?}",
+            driver::on_screen(&app)
+        )
+    });
+    let value = reading(&app, "largeur * 2 + marge = 130").unwrap_or_else(|| {
+        panic!(
+            "the value of « total » is not on screen, showing {:?}",
+            driver::on_screen(&app)
+        )
+    });
+    let written = app
+        .ctx
+        .debug_painter()
+        .layout_no_wrap(
+            "total".to_string(),
+            egui::FontId::proportional(cao_app::theme::tokens::TYPOGRAPHY_SIZES_BUTTON),
+            egui::Color32::WHITE,
+        )
+        .size()
+        .x;
+
+    assert!(
+        name.width() >= written,
+        "the name « total » is left {} points, where it needs {written}",
+        name.width(),
+    );
+    let short_value = reading(&app, "60").unwrap_or_else(|| {
+        panic!(
+            "the value of « largeur » is not on screen, showing {:?}",
+            driver::on_screen(&app)
+        )
+    });
+    assert!(
+        value.left() >= name.left() + written && value.right() <= short_value.right() + TOLERANCE,
+        "the long value does not give way between the name and the edge every value of \
+         the panel ends on, where « largeur »'s ends: name at {name:?}, value at {value:?}, \
+         « 60 » at {short_value:?}",
+    );
+}
+
+#[test]
+fn a_sketch_row_shows_its_plane_and_its_badge_on_its_line() {
+    let mut app = driver::a_block("a_sketch_row_shows_its_plane_and_its_badge");
+    driver::click(&mut app, "Nouvelle esquisse");
+    driver::click_at_world_point(&mut app, ON_THE_BLOCK_S_FACE);
+    driver::finish_the_sketch(&mut app);
+    driver::double_click(&mut app, "Esquisse 1");
+    driver::click(&mut app, "Sélection (S)");
+    driver::press_with_command(&mut app, egui::Key::A);
+    app.hover_at(driver::sketch_point_on_screen(
+        &app,
+        DVec2::new(173.9, -56.77),
+    ));
+    app.run();
+    driver::press(&mut app, egui::Key::Delete);
+    driver::finish_the_sketch(&mut app);
+
+    let on_its_line = |name: &str| -> Vec<String> {
+        let line = row(&app, name);
+        app.query_all_by_role(Role::Label)
+            .filter(|node| node.accesskit_node().bounding_box().is_some())
+            .filter(|node| {
+                let at = node.rect();
+                at.center().y > line.top() && at.center().y < line.bottom()
+            })
+            .filter_map(|node| node.accesskit_node().value().map(|said| said.to_string()))
+            .collect()
+    };
+    let first = on_its_line("Esquisse 1");
+    let second = on_its_line("Esquisse 2");
+
+    assert!(
+        first.contains(&"YZ".to_string()),
+        "« Esquisse 1 », laid on YZ, does not read it on its line: {first:?}",
+    );
+    assert!(
+        second.contains(&"face".to_string()) && second.contains(&"face perdue".to_string()),
+        "« Esquisse 2 », laid on a face the block lost, does not read « face » and \
+         « face perdue » on its line: {second:?}",
+    );
+}
+
+#[test]
+fn a_hand_resting_on_a_trait_of_a_closed_sketch_lights_it_and_leaving_puts_it_out() {
+    let mut app = driver::a_block("a_hand_resting_on_a_trait_lights_it");
+    driver::click(&mut app, "Esquisse 1");
+    driver::click_the_button(&mut app, "Trait 2");
+    let the_trait = |name: &str| LitRow {
+        sketch: "Esquisse 1".to_string(),
+        row: name.to_string(),
+    };
+    assert_eq!(
+        app.state().the_row_lit_by_a_click(),
+        Some(the_trait("Trait 2")),
+        "a click on « Trait 2 » of the closed sketch did not light it",
+    );
+
+    app.hover_at(row(&app, "Trait 1").center());
+    app.run();
+    let while_resting = (
+        app.state().the_row_lit_by_the_hand(),
+        app.state().the_row_lit_by_a_click(),
+    );
+    let away = reading(&app, "ESQUISSES").unwrap_or_else(|| {
+        panic!(
+            "no « ESQUISSES » heading on screen, showing {:?}",
+            driver::on_screen(&app)
+        )
+    });
+    app.hover_at(away.center());
+    app.run();
+    let once_left = (
+        app.state().the_row_lit_by_the_hand(),
+        app.state().the_row_lit_by_a_click(),
+    );
+
+    assert_eq!(
+        while_resting,
+        (Some(the_trait("Trait 1")), Some(the_trait("Trait 2"))),
+        "the hand resting on « Trait 1 » does not light it, or puts out what the click lit",
+    );
+    assert_eq!(
+        once_left,
+        (None, Some(the_trait("Trait 2"))),
+        "the hand gone from « Trait 1 » leaves it lit, or takes the click's light with it",
     );
 }

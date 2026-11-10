@@ -62,10 +62,24 @@
 //! - Tree rows (C10): 28 px high, indented 26 px — no test: held by
 //!   `a_tree_row_stands_28_points_high_and_its_children_26_points_in`, in
 //!   `crates/app/tests/the_part_panel.rs`
-//! - the thin vertical line, the chevron, the monospace value, the amber of a
-//!   selected row and the dimming of a hidden one — no test: painting the
-//!   presenter does not reach, and a painted-colour check would pin egui's
-//!   styling more than a decision
+//! - the thin vertical line, the chevron, the monospace value and the amber of
+//!   a selected row — no test: painting the presenter does not reach, and a
+//!   painted-colour check would pin egui's styling more than a decision
+//! - found in review: the open sketch reads open, and a sketch whose eye is
+//!   shut reads dimmed, in the presenter rather than worked out by the view —
+//!   `a_sketch_reads_open_while_drawn_on_and_dimmed_while_its_eye_is_shut`
+//! - found in review: a row that asks nothing — a dimension or a rule of a
+//!   closed sketch, a variable — is neither a button nor filled under the hand;
+//!   a variable whose value is long keeps its name, the value gives way; and a
+//!   sketch's row shows its plane and its badge on its line — no test: held by
+//!   `a_row_that_asks_nothing_is_no_button_and_is_not_filled_under_the_hand`,
+//!   `a_variable_whose_value_is_long_keeps_its_name_and_the_value_gives_way`
+//!   and `a_sketch_row_shows_its_plane_and_its_badge_on_its_line`, in
+//!   `crates/app/tests/the_part_panel.rs`
+//! - found in review: a slanted plane through the origin reads « incliné » on
+//!   a sketch's row — no test: held by
+//!   `a_plane_through_the_origin_square_to_no_axis_reads_slanted_in_short`, in
+//!   `crates/app/src/wording/plane/tests.rs`
 //! - A sketch row carries its plane on the right, « XY », « face », « Coupe 1 »,
 //!   named as the sketch pill names it —
 //!   `a_sketch_names_the_plane_it_is_laid_on_as_the_pill_does`
@@ -84,6 +98,10 @@
 //!   perdue »; the name stays bare — `each_problem_is_a_badge_with_its_level`,
 //!   and what each badge reads by
 //!   `a_badge_reads_the_word_its_problem_is_known_by`
+//! - found in review: a volume with several problems wears the gravest, not
+//!   built, then area lost, then unstable —
+//!   `a_volume_with_several_problems_wears_the_gravest_not_built_then_area_lost_then_unstable`;
+//!   held at the rule that picks, since no cheap part makes two of them meet
 //! - a badge painted in the warning or the error colour — no test: the view
 //!   picks the colour from the level the presenter hands it, which the bullet
 //!   above holds
@@ -95,7 +113,14 @@
 //!   `hovering_a_row_of_a_closed_sketch_lights_it_as_its_click_does` and
 //!   `a_row_lit_by_the_hand_goes_out_when_the_hand_leaves_it`, in
 //!   `crates/app/src/screens/viewport/render/tests.rs`, where the frame drawn
-//!   is what shows it
+//!   is what shows it; and a click's light stays while the hand is on another
+//!   row of its sketch, by
+//!   `a_trait_a_click_lit_stays_lit_while_the_hand_is_on_another_row_of_its_sketch`,
+//!   in the same file
+//! - the hover reaching the view through the panel, a hand resting on a row in
+//!   the whole application — no test: held by
+//!   `a_hand_resting_on_a_trait_of_a_closed_sketch_lights_it_and_leaving_puts_it_out`,
+//!   in `crates/app/tests/the_part_panel.rs`
 //! - A click selects as today —
 //!   `a_click_on_a_trait_of_the_open_sketch_selects_it_alone`,
 //!   `a_click_on_a_dimension_or_a_rule_of_the_open_sketch_selects_it`
@@ -1102,5 +1127,55 @@ fn hovering_a_trait_of_the_open_sketch_lights_it_without_selecting_it() {
     assert_eq!(
         editor.hovered, None,
         "the open sketch's element stays lit once the hand has left its row",
+    );
+}
+
+#[test]
+fn a_volume_with_several_problems_wears_the_gravest_not_built_then_area_lost_then_unstable() {
+    let worn = |declined, lost, unstable| gravest(declined, lost, unstable);
+
+    assert_eq!(worn(true, true, true), Some(Problem::NotBuilt));
+    assert_eq!(worn(true, true, false), Some(Problem::NotBuilt));
+    assert_eq!(worn(true, false, true), Some(Problem::NotBuilt));
+    assert_eq!(
+        worn(false, true, true),
+        Some(Problem::AreaLost),
+        "a step that lost an area and reads unstably wears the lesser badge",
+    );
+    assert_eq!(worn(false, false, true), Some(Problem::Unstable));
+    assert_eq!(worn(false, false, false), None);
+}
+
+#[test]
+fn a_sketch_reads_open_while_drawn_on_and_dimmed_while_its_eye_is_shut() {
+    let lang = french();
+    let (document, drawing_on_the_first) = the_first_sketch_open();
+    let nothing_open = SketchEditor::default();
+    let mut viewport = ViewportState::default();
+    let read = |editor: &SketchEditor, viewport: &ViewportState| -> Vec<(bool, bool)> {
+        PartTree::seen(&document, editor, viewport, &lang)
+            .sketches
+            .iter()
+            .map(|drawing| (drawing.open, drawing.dimmed))
+            .collect()
+    };
+
+    assert_eq!(
+        read(&nothing_open, &viewport),
+        [(false, true), (false, false)],
+        "with nothing open, the sketch the block was raised from has its eye shut and reads \
+         dimmed, the sketch never used reads plain, and neither reads open",
+    );
+    assert_eq!(
+        read(&drawing_on_the_first, &viewport),
+        [(true, false), (false, false)],
+        "the sketch being drawn on, which the view draws whole whatever its eye, does not \
+         read open and plain in the tree, or another reads open",
+    );
+    viewport.toggle_eye(&document, 0);
+    assert_eq!(
+        read(&nothing_open, &viewport),
+        [(false, false), (false, false)],
+        "a sketch whose eye was opened by hand still reads dimmed",
     );
 }

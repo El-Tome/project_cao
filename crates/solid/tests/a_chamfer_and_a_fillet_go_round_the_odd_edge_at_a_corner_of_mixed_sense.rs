@@ -52,8 +52,10 @@
 //!   body sound; each corner's patch on its own corner, a piece of torus on
 //!   its own torus about its own upright's axis, so that each of the four
 //!   ways round the vertical is reached; each flat with the corners the
-//!   octagon gives it, each round on its cylinder between the planes through
-//!   the two corners' upright axes; and the same body for the list as given
+//!   octagon gives it, and the chamfer the body two steps build, the four
+//!   uprights then the eight feet, as at one corner; each round on its
+//!   cylinder between the planes through the two corners' upright axes; and
+//!   the same body for the list as given
 //!   — the four feet, front, right, back and left, then the four uprights
 //!   from the front right round — reversed, and with each foot followed by
 //!   the upright at its end
@@ -164,7 +166,12 @@
 //! the offset outline turns, `d·tan(22.5°)` past the ends of the side it
 //! offsets, and two `d` up the face it fills against, at that face's ends;
 //! an upright's flat from `d` up to the standing block's top, between its
-//! two set-backs.
+//! two set-backs. Held another way in the test itself: the body two steps
+//! build, the four uprights chamfered, then the four feet and the four flats'
+//! feet filled, which takes the value whole since a set-back is read to reach
+//! only where its blend runs, as
+//! `rounds_meeting_through_an_end_face_or_along_a_slant_reduce_the_value.rs`
+//! holds it.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -1545,6 +1552,64 @@ fn filleted_all_round(radius: f64) -> f64 {
         + 4.0 * PI / 2.0 * r.powi(3) * (11.0 / 6.0 - PI / 2.0)
 }
 
+/// [`stacked`] chamfered at `value` in two steps, as #801 builds it: its four
+/// uprights first, each flat stopping flush on the lower block's top and
+/// numbered from [`UPRIGHT_FLAT`] in the order of [`FEET_AND_UPRIGHTS`]; then,
+/// in one step, its four feet and the feet of those four flats, numbered past
+/// them in that order, as [`in_two_steps_all_round`] says.
+fn chamfered_all_round_in_two_steps(value: f64) -> Body {
+    let part = stacked();
+    let uprights: Vec<EdgeName> = FEET_AND_UPRIGHTS[4..]
+        .iter()
+        .map(|&[first, second]| edge_between(&part, first, second))
+        .collect();
+    let upright = part
+        .chamfer_edges(&uprights, value)
+        .unwrap_or_else(|declined| panic!("the four uprights are chamfered: {declined:?}"));
+    taken_as_asked(
+        upright.asked,
+        upright.taken,
+        value,
+        "the four uprights chamfered",
+    );
+    let chamfered = upright.body;
+    let feet: Vec<EdgeName> = FEET_AND_UPRIGHTS[..4]
+        .iter()
+        .map(|&[first, second]| edge_between(&chamfered, first, second))
+        .chain((0..4).map(|flat| edge_between(&chamfered, TOP, UPRIGHT_FLAT + flat)))
+        .collect();
+    let filled = chamfered
+        .chamfer_edges(&feet, value)
+        .unwrap_or_else(|declined| {
+            panic!("the eight feet round the chamfered uprights are filled: {declined:?}")
+        });
+    taken_as_asked(
+        filled.asked,
+        filled.taken,
+        value,
+        "the eight feet round the chamfered uprights",
+    );
+    filled.body
+}
+
+/// The number the flat on the edge at `edge` in [`FEET_AND_UPRIGHTS`]
+/// answers to in the body [`chamfered_all_round_in_two_steps`] leaves: a
+/// foot's in the second step, an upright's in the first.
+fn in_two_steps_all_round(edge: usize) -> usize {
+    match edge {
+        foot @ 0..4 => UPRIGHT_FLAT + 4 + foot,
+        upright => UPRIGHT_FLAT + upright - 4,
+    }
+}
+
+/// The number the fill along the foot of the flat at the corner `corner` of
+/// [`stacked_s_foot_corners`] answers to in the body
+/// [`chamfered_all_round_in_two_steps`] leaves: the last four of its second
+/// step.
+fn flat_s_foot_in_two_steps_all_round(corner: usize) -> usize {
+    UPRIGHT_FLAT + 8 + corner
+}
+
 /// Holds that a flat face's corners are the points expected, each of them a
 /// corner, and no other.
 fn corners_are(body: &Body, face: usize, expected: &[DVec3], what: &str) {
@@ -1627,14 +1692,16 @@ fn flats_all_round(corners: &[FootCorner; 4], value: f64) -> ([Vec<DVec3>; 8], [
 ///   torus — numbered as [`Case::patches`] says; the next step's numbers past
 ///   them; nothing else made, no face of the part gone;
 /// - among flats, each flat facing the way it lies, its corners where
-///   [`flats_all_round`] puts them and nowhere else;
+///   [`flats_all_round`] puts them and nowhere else; and `two_steps`, the
+///   body the four uprights chamfered and then the eight feet leave, the same
+///   body, face for face;
 /// - among rounds, each upright's round on its cylinder as
 ///   [`FootCorner::rounds`] lays it out, meeting its corner's piece of torus;
 ///   each foot's round on its cylinder from the plane through one corner's
 ///   upright round's axis to the other's, meeting the pieces of torus at both
 ///   ends; and each corner's piece of torus on its own torus, as
 ///   [`piece_held`] holds it.
-fn closed_all_round(part: &Body, corners: &[FootCorner; 4], case: &Case) {
+fn closed_all_round(part: &Body, corners: &[FootCorner; 4], case: &Case, two_steps: &Body) {
     let Case {
         cut,
         value,
@@ -1712,6 +1779,22 @@ fn closed_all_round(part: &Body, corners: &[FootCorner; 4], case: &Case) {
                 faces_toward(body, patches[index], corner.flats_facing().1, &which);
                 corners_are(body, patches[index], &feet[index], &which);
             }
+            let to_two_steps: Vec<(usize, usize)> =
+                (0..8)
+                    .map(|edge| (laid(edge), in_two_steps_all_round(edge)))
+                    .chain((0..4).map(|corner| {
+                        (patches[corner], flat_s_foot_in_two_steps_all_round(corner))
+                    }))
+                    .collect();
+            the_same_bodies(
+                two_steps,
+                body,
+                &to_two_steps,
+                &format!(
+                    "{what}, and the body two steps leave, the four uprights chamfered then the \
+                     eight feet"
+                ),
+            );
         }
         Cut::Round => {
             for (index, corner) in corners.iter().enumerate() {
@@ -1766,6 +1849,17 @@ fn a_chamfer_and_a_fillet_on_the_four_feet_and_four_uprights_of_a_standing_block
     let part = stacked();
     let corners = stacked_s_foot_corners();
     let names = FEET_AND_UPRIGHTS.map(|[first, second]| edge_between(&part, first, second));
+    let in_two_steps = VALUES.map(|value| {
+        let promised = chamfered_all_round(value);
+        let two_steps = chamfered_all_round_in_two_steps(value);
+        assert!(
+            (two_steps.volume() - promised).abs() <= EXACT * promised,
+            "the chamfer of {value} in two steps, the four uprights then the eight feet: the body \
+             holds {}, where arithmetic promised {promised}",
+            two_steps.volume()
+        );
+        two_steps
+    });
     let mut laid = Vec::new();
     let mut declined = Vec::new();
     for cut in [Cut::Flat, Cut::Round] {
@@ -1797,7 +1891,11 @@ fn a_chamfer_and_a_fillet_on_the_four_feet_and_four_uprights_of_a_standing_block
         declined.join("\n")
     );
     for case in &laid {
-        closed_all_round(&part, &corners, case);
+        let at = VALUES
+            .iter()
+            .position(|&value| value == case.value)
+            .expect("every case is laid at one of the values");
+        closed_all_round(&part, &corners, case, &in_two_steps[at]);
     }
     for case in &laid {
         let first = laid

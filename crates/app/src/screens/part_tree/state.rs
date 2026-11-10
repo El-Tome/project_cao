@@ -13,11 +13,11 @@
 
 use cao_part::PartDocument;
 use cao_part::history::{ExtrusionMode, Operation};
-use cao_sketch::{Area, Element, Sketch};
+use cao_sketch::{Area, DimensionTarget, Element, Sketch};
 
 use crate::lang::Catalogue;
 use crate::screens::sketch_pill::laid_on;
-use crate::wording::part_tree::Rubric;
+use crate::wording::part_tree::{self as said, Rubric};
 use crate::wording::{self, formula, plane};
 
 mod clicks;
@@ -48,6 +48,8 @@ impl Points {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Row {
     pub name: String,
+    /// The size it is drawn at, for a trait or a circle.
+    pub value: Option<String>,
     pub points: Points,
 }
 
@@ -142,7 +144,8 @@ impl PartTree {
                     let Some(drawing) = document.sketches().get(sketch) else {
                         continue;
                     };
-                    let mut shown = drawn(lang, drawing, sketch, step, tree.sketches.len() + 1);
+                    let rank = tree.sketches.len() + 1;
+                    let mut shown = drawn(lang, document, drawing, sketch, step, rank);
                     shown.adrift = document.is_adrift(sketch);
                     shown.plane = laid_on(document, sketch, drawing, lang, plane::short);
                     tree.sketches.push(shown);
@@ -270,16 +273,26 @@ fn standing_on(
         .into_iter()
         .map(|rank| Row {
             name: numbered(lang, "part_tree.area", rank + 1),
+            value: None,
             points: Points::Area { sketch, rank },
         })
         .collect()
 }
 
-fn drawn(lang: &Catalogue, sketch: &Sketch, index: usize, step: usize, rank: usize) -> Drawn {
+fn drawn(
+    lang: &Catalogue,
+    document: &PartDocument,
+    sketch: &Sketch,
+    index: usize,
+    step: usize,
+    rank: usize,
+) -> Drawn {
+    let measured = |target| document.measured(index, target);
     let mut strokes: Vec<Row> = sketch
         .live_segments()
         .map(|(id, _)| Row {
             name: numbered(lang, "part_tree.segment", id.0 + 1),
+            value: measured(DimensionTarget::Length(id)).map(|length| said::length(lang, length)),
             points: Points::Element {
                 sketch: index,
                 element: Element::Segment(id),
@@ -288,6 +301,8 @@ fn drawn(lang: &Catalogue, sketch: &Sketch, index: usize, step: usize, rank: usi
         .collect();
     strokes.extend(sketch.live_circles().map(|(id, _)| Row {
         name: numbered(lang, "part_tree.circle", id.0 + 1),
+        value:
+            measured(DimensionTarget::Diameter(id)).map(|diameter| said::diameter(lang, diameter)),
         points: Points::Element {
             sketch: index,
             element: Element::Circle(id),
@@ -295,6 +310,7 @@ fn drawn(lang: &Catalogue, sketch: &Sketch, index: usize, step: usize, rank: usi
     }));
     strokes.extend(sketch.live_arcs().map(|(id, _)| Row {
         name: numbered(lang, "part_tree.arc", id.0 + 1),
+        value: None,
         points: Points::Element {
             sketch: index,
             element: Element::Arc(id),
@@ -302,6 +318,7 @@ fn drawn(lang: &Catalogue, sketch: &Sketch, index: usize, step: usize, rank: usi
     }));
     strokes.extend(sketch.live_ellipses().map(|(id, _)| Row {
         name: numbered(lang, "part_tree.ellipse", id.0 + 1),
+        value: None,
         points: Points::Element {
             sketch: index,
             element: Element::Ellipse(id),
@@ -317,6 +334,7 @@ fn drawn(lang: &Catalogue, sketch: &Sketch, index: usize, step: usize, rank: usi
         areas: (0..sketch.regions().len())
             .map(|rank| Row {
                 name: numbered(lang, "part_tree.area", rank + 1),
+                value: None,
                 points: Points::Area {
                     sketch: index,
                     rank,
@@ -327,6 +345,7 @@ fn drawn(lang: &Catalogue, sketch: &Sketch, index: usize, step: usize, rank: usi
         dimensions: (0..sketch.dimensions().len())
             .map(|rank| Row {
                 name: numbered(lang, "part_tree.dimension", rank + 1),
+                value: None,
                 points: Points::Dimension {
                     sketch: index,
                     rank,
@@ -336,6 +355,7 @@ fn drawn(lang: &Catalogue, sketch: &Sketch, index: usize, step: usize, rank: usi
         rules: (0..sketch.constraints().len())
             .map(|rank| Row {
                 name: numbered(lang, "part_tree.rule", rank + 1),
+                value: None,
                 points: Points::Rule {
                     sketch: index,
                     rank,

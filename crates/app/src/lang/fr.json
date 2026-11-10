@@ -118,6 +118,8 @@
   "part_tree.unstable": "{name} — cas instable",
   "part_tree.area": "Aire {rank}",
   "part_tree.segment": "Trait {rank}",
+  "part_tree.length": "{value} mm",
+  "part_tree.diameter": "Ø {value}",
   "part_tree.circle": "Cercle {rank}",
   "part_tree.ellipse": "Ellipse {rank}",
   "part_tree.arc": "Arc {rank}",

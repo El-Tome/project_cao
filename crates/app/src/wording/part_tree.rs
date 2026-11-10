@@ -4,6 +4,7 @@
 use cao_render::MatterInFront;
 
 use crate::lang::Catalogue;
+use crate::wording::dimension::short;
 
 /// One heading of the panel, each over its own kind of row.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -23,6 +24,16 @@ pub fn rubric(lang: &Catalogue, rubric: Rubric) -> String {
         Rubric::WholeBody => "part_tree.rubric.whole_body",
         Rubric::Variables => "part_tree.rubric.variables",
     })
+}
+
+/// A trait's length, in millimetres, beside its row.
+pub fn length(lang: &Catalogue, millimeters: f64) -> String {
+    lang.t_with("part_tree.length", &[("value", &short(millimeters))])
+}
+
+/// A circle's diameter, in millimetres, beside its row.
+pub fn diameter(lang: &Catalogue, millimeters: f64) -> String {
+    lang.t_with("part_tree.diameter", &[("value", &short(millimeters))])
 }
 
 /// What a click on a sketch's eye would do, given whether it is lit.

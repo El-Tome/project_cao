@@ -223,13 +223,12 @@ fn a_step_whose_areas_are_all_there_is_not_marked() {
 fn a_step_that_made_matter_names_the_areas_it_stands_on() {
     let tree = PartTree::of(&a_part(), &french());
 
-    assert_eq!(
-        tree.bodies[0].areas,
-        [Row {
-            name: "Aire 1".to_string(),
-            points: Points::Area { sketch: 0, rank: 0 },
-        }],
-    );
+    let named: Vec<(&str, Points)> = tree.bodies[0]
+        .areas
+        .iter()
+        .map(|row| (row.name.as_str(), row.points))
+        .collect();
+    assert_eq!(named, [("Aire 1", Points::Area { sketch: 0, rank: 0 })]);
 }
 
 #[test]
@@ -266,8 +265,16 @@ fn a_drag_leaves_no_line_of_its_own() {
     });
 
     let after = PartTree::of(&document, &french());
+    let lines = |tree: &PartTree| -> Vec<(String, Points)> {
+        tree.sketches[0]
+            .strokes
+            .iter()
+            .map(|row| (row.name.clone(), row.points))
+            .collect()
+    };
     assert_eq!(
-        after.sketches[0].strokes, before.sketches[0].strokes,
+        lines(&after),
+        lines(&before),
         "the tree shows what the part is made of, and a drag leaves no element \
          behind it",
     );
@@ -843,5 +850,81 @@ fn a_sketch_names_the_plane_it_is_laid_on_as_the_pill_does() {
             ("Esquisse 5", "Coupe 2"),
         ],
         "a sketch row does not carry the plane it is laid on, the section first, as the pill names it",
+    );
+}
+
+/// One sketch on XY holding a trait 180 long, one from the origin to (10, 10),
+/// a circle of radius 19, an arc and an ellipse 60 across and 40 high, whose
+/// two axes are traits of their own, each apart from the others.
+fn a_sketch_of_every_stroke() -> PartDocument {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for (start, end) in [
+        (DVec2::new(0.0, -50.0), DVec2::new(180.0, -50.0)),
+        (DVec2::ZERO, DVec2::new(10.0, 10.0)),
+    ] {
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(start),
+            end: PointRef::New(end),
+            construction: false,
+        });
+    }
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(100.0, 60.0)),
+        radius: 19.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(-60.0, 0.0)),
+        start: PointRef::New(DVec2::new(-50.0, 0.0)),
+        end: PointRef::New(DVec2::new(-60.0, 10.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddEllipse {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(250.0, 20.0)),
+        first: [
+            PointRef::New(DVec2::new(220.0, 20.0)),
+            PointRef::New(DVec2::new(280.0, 20.0)),
+        ],
+        second: [
+            PointRef::New(DVec2::new(250.0, 0.0)),
+            PointRef::New(DVec2::new(250.0, 40.0)),
+        ],
+        construction: false,
+        drawn: None,
+    });
+    document
+}
+
+#[test]
+fn a_trait_reads_its_length_a_circle_its_diameter_and_an_arc_nothing() {
+    let tree = PartTree::of(&a_sketch_of_every_stroke(), &french());
+
+    let read: Vec<(&str, Option<&str>)> = tree.sketches[0]
+        .strokes
+        .iter()
+        .map(|row| (row.name.as_str(), row.value.as_deref()))
+        .collect();
+
+    assert_eq!(
+        read,
+        [
+            ("Trait 1", Some("180 mm")),
+            ("Trait 2", Some("14.1421 mm")),
+            ("Trait 3", Some("60 mm")),
+            ("Trait 4", Some("40 mm")),
+            ("Cercle 1", Some("Ø 38")),
+            ("Arc 1", None),
+            ("Ellipse 1", None),
+        ],
+        "a stroke does not carry its size as a dimension would read it, or carries one it has not",
     );
 }

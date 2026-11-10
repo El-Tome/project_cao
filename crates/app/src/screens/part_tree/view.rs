@@ -250,6 +250,18 @@ fn kind(
 /// One row: a click where it asks something, marked while the open sketch
 /// holds it or the canvas lights it; a plain line where it asks nothing.
 fn row(ui: &mut egui::Ui, row: &Row, asked: &mut Asked<'_>) {
+    let Some(value) = &row.value else {
+        return named(ui, row, asked);
+    };
+    ui.horizontal(|ui| {
+        named(ui, row, asked);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.monospace(value);
+        });
+    });
+}
+
+fn named(ui: &mut egui::Ui, row: &Row, asked: &mut Asked<'_>) {
     let (document, editor) = (asked.document, asked.editor);
     if !clickable(document, editor, row.points) {
         ui.label(&row.name);

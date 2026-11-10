@@ -133,11 +133,15 @@
 //!   trimmed flush on the faces at its ends, and two of the three concave
 //!   edges at a pocket's bottom corner, mitred, the third left sharp: two
 //!   edges of its floor, or one and the upright it meets, which this test
-//!   declined before, held now in that same file. The lists left here are a
-//!   cut meeting a fill at a corner, declined at the corner itself, each of
-//!   their edges laid alone — a foot and the upright above it, the L's top
-//!   edge and its inner upright, the three edges at a corner of mixed sense —
-//!   until #829
+//!   declined before, held now in that same file. #829's first slice builds
+//!   the three edges at a standing block's foot corner, two feet and the
+//!   upright above them, which this test declined before, held now in
+//!   `a_chamfer_and_a_fillet_go_round_the_odd_edge_at_a_corner_of_mixed_sense.rs`.
+//!   The lists left here are a cut meeting a fill at a corner, declined at
+//!   the corner itself, each of their edges laid alone — a foot and the
+//!   upright above it, the L's top edge and its inner upright, until #846;
+//!   the three edges at the top of the L's inner corner, until #829's second
+//!   slice
 //! - A full round, two parallel edges whose rounds meet across the face they
 //!   share, meeting a third edge of the list at a corner, was not built here:
 //!   the fillet was declined `Unsupported` whichever edge the list names
@@ -1381,15 +1385,6 @@ fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_d
             &stacked,
             vec![
                 feet[0].clone(),
-                edge_between(&stacked, STANDING[0], STANDING[1]),
-            ],
-        ),
-        (
-            "the three edges at the standing block's front right foot",
-            &stacked,
-            vec![
-                feet[0].clone(),
-                feet[1].clone(),
                 edge_between(&stacked, STANDING[0], STANDING[1]),
             ],
         ),

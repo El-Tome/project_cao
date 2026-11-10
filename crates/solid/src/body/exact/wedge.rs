@@ -10,6 +10,7 @@ mod corners;
 mod end;
 mod fill;
 mod flush;
+mod odd;
 mod overlap;
 mod pairs;
 mod reach;
@@ -18,6 +19,7 @@ mod section;
 mod set_backs;
 mod slope;
 mod sphere;
+mod step;
 mod triangle;
 
 use std::collections::BTreeSet;
@@ -62,6 +64,7 @@ pub(super) type Prism = (Contour, Frame, DVec3);
 /// What a kind lays where the edges of one step meet: two whose set-backs
 /// meet across the face they share, as one, where `together` lays them so —
 /// any other two each laid alone — and a corner three meet at, closed.
+#[derive(Clone, Copy)]
 pub(super) struct Meeting {
     pub together: Together,
     pub closing: Closing,
@@ -106,9 +109,13 @@ impl Exact {
     /// corner three of the edges meet at, all convex or all concave, is closed
     /// once all are laid, as `meeting` closes it by the way they meet, read
     /// where each two's set-backs cross on the face they share, as
-    /// [`Exact::closed`] closes it, its face numbered past the edges'. The wall
-    /// an edge's prism lays is numbered where the steps' numbers ended, plus
-    /// the edge's rank in the list; a pair is laid at its later edge's turn, so
+    /// [`Exact::closed`] closes it, its face numbered past the edges'. A corner
+    /// three of them meet at, two concave and the convex upright above them,
+    /// is gone round its odd edge, as [`Exact::round_the_odd`] lays it: that
+    /// edge first, alone, then the two others following the outline it left,
+    /// with the foot of its face, numbered past the edges'. The wall an edge's
+    /// prism lays is numbered where the steps' numbers ended, plus the edge's
+    /// rank in the list; a pair is laid at its later edge's turn, so
     /// that every number laid before stands below those a prism lays, as
     /// [`Exact::cut_along`] reads them. A value shorter than the kernel can set
     /// a cut back from an edge is declined first; a list of no edge
@@ -116,14 +123,16 @@ impl Exact {
     /// not a wedge, one edge two names find, two edges meeting at a corner that
     /// is neither convex — every edge ending there a wedge whose faces meet
     /// outwards — nor two of one sense beside an edge of the other left out of
-    /// the list, nor two concave beside a third concave, more than three edges
-    /// meeting at a corner, or three where another edge ends too, where
-    /// `meeting` lays two together an edge meeting two others, or one of two
-    /// laid together that meets another edge of the list at a corner any other
-    /// way, a cut or a fill that left something else than its one face, as
-    /// [`Exact::cut_along`] reads it, and a face of an overlap no edge covered,
-    /// are declined `Unsupported`; a prism the tool cannot raise, as the tool
-    /// says.
+    /// the list, nor two concave beside a third concave or the convex upright
+    /// above them, more than three edges meeting at a corner, or three where
+    /// another edge ends too, where `meeting` lays two together an edge
+    /// meeting two others, or one of two laid together that meets another
+    /// edge of the list at a corner any other way, a cut or a fill that left
+    /// something else than its one face, as
+    /// [`Exact::cut_along`] reads it, a face of an overlap no edge covered, and
+    /// a corner gone round its odd edge as [`Exact::round_the_odd`] declines
+    /// it, are declined `Unsupported`; a prism the tool cannot raise, as the
+    /// tool says.
     pub(super) fn cut_off(
         &self,
         names: &[EdgeName],
@@ -133,86 +142,22 @@ impl Exact {
         tool: impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
         meeting: Meeting,
     ) -> Result<(Exact, f64, Vec<pairs::Pair>), Declined> {
-        let scale = self.brep.scale();
-        if too_short(asked, scale) {
+        if too_short(asked, self.brep.scale()) {
             return Err(Declined::Distance);
         }
         if names.is_empty() {
             return Err(Declined::Unsupported);
         }
         caught(|| {
-            let found = names
-                .iter()
-                .map(|name| self.wedge(name, Wedge::of))
-                .collect::<Result<Vec<(EdgeId, Wedge)>, Declined>>()?;
-            let edges: Vec<EdgeId> = found.iter().map(|&(edge, _)| edge).collect();
-            let once = edges.iter().collect::<BTreeSet<_>>().len() == edges.len();
-            if !once {
-                return Err(Declined::Unsupported);
+            let step = self.step(names)?;
+            let taken = step.bound(&self.brep, asked, &most, &set_back);
+            let odd = odd::corners(&step)?;
+            if odd.is_empty() {
+                self.in_turn(names, step, taken, &set_back, &tool, meeting)
+            } else {
+                let kind = ((&most, &set_back), &tool, meeting);
+                self.round_the_odd(names, &odd, taken, kind)
             }
-            let beside = corners::admit(&self.brep, &edges)?;
-            let three = corners::of_three(&self.brep, &edges)?;
-            let wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();
-            let facing = pairs::facing(&wedges);
-            let alone = wedges
-                .iter()
-                .fold(asked, |taken, wedge| taken.min(most(wedge)));
-            let taken = alone
-                .min(pairs::bound(&wedges, &facing, &set_back))
-                .min(set_backs::bound(&self.brep, &edges, &wedges, &set_back));
-            let pairs =
-                pairs::meeting(&wedges, &facing, taken, &set_back, meeting.together, scale)?;
-            let ends = pairs::at_their_ends(&self.brep, &edges, &wedges, &pairs)?;
-            let closes = closing::closings(
-                three,
-                &wedges,
-                |w| taken * set_back(w),
-                taken,
-                meeting.closing,
-            )?;
-            let given: Vec<(EdgeId, &Wedge)> = edges.iter().copied().zip(&wedges).collect();
-            let start = self.next;
-            let mut cut = self.clone();
-            for rank in 0..names.len() {
-                if pairs.iter().any(|&(earlier, _, _)| earlier == rank) {
-                    continue;
-                }
-                cut.next = start + rank as u32;
-                let partner = pairs.iter().find(|&&(_, later, _)| later == rank);
-                cut = match (partner, meeting.together) {
-                    (Some(&(earlier, _, _)), Together::Raised(raise)) => {
-                        let pair = [given[earlier], given[rank]];
-                        cut.laid_together(&self.brep, pair, start + earlier as u32, raise)?
-                    }
-                    (Some(&(earlier, _, value)), Together::Sloped) => cut.sloped(
-                        [&names[earlier], &names[rank]],
-                        start + earlier as u32,
-                        value,
-                        &tool,
-                    )?,
-                    (None, _) => {
-                        let mitred: Vec<u32> = (0..rank)
-                            .filter(|&earlier| {
-                                corners::meet(&self.brep, [edges[earlier], edges[rank]])
-                            })
-                            .map(|earlier| start + earlier as u32)
-                            .collect();
-                        let open = flush::open(&self.brep, rank, &given, &beside);
-                        let value = ends.get(&rank).copied().unwrap_or(taken);
-                        if mitred.is_empty() {
-                            cut.laid(&names[rank], value, &tool, &mitred, &open)?
-                        } else {
-                            let flush = Flush::beside(
-                                &self.brep, rank, &given, &beside, value, &set_back, &tool,
-                            )?;
-                            cut.laid_as(&flush, &wedges[rank], value, &tool, &mitred, &open)?
-                        }
-                    }
-                };
-            }
-            cut.overlaps_covered()?;
-            cut.next = start + names.len() as u32;
-            Ok((cut.closed(&closes, start)?, taken, pairs))
         })
     }
 

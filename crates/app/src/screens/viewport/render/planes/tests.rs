@@ -11,7 +11,11 @@
 //! - found in review: the face under the cursor is lit as it is drawn, every
 //!   triangle of the drawn face, whatever outline the part gives it — with a
 //!   cut invisible, the whole top it fills in —
-//!   `the_top_an_invisible_cut_fills_in_is_lit_whole_under_the_cursor`
+//!   `the_top_an_invisible_cut_fills_in_is_lit_whole_under_the_cursor`; a
+//!   curved one too: a see-through hole's ghost, pointed at above the block,
+//!   lights the ghost's wall, not the hole's wall in the part that carries
+//!   the same number —
+//!   `a_ghost_s_curved_wall_under_the_cursor_lights_itself_not_the_part_s_face_of_its_number`
 
 use cao_part::PartDocument;
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
@@ -297,12 +301,29 @@ fn on_the_screen(state: &ViewportState, at: Vec3) -> egui::Pos2 {
 /// above, the notch clicked `clicks` times round its states — and what was
 /// offered there.
 fn lit_with_the_pointer_over(at: Vec3, clicks: usize) -> (Vec<[Vec3; 3]>, Option<PlaneChoice>) {
-    let mut document = a_block_notched_deep_at_its_corner();
+    let document = a_block_notched_deep_at_its_corner();
     let mut state = ViewportState::default();
     for _ in 0..clicks {
         state.next_volume_mode(&document, THE_NOTCH);
     }
-    let (yaw, pitch) = cao_render::camera::view_angles_towards(Vec3::Z);
+    let (lit, offered) = lit_while_choosing_a_plane(document, state, Vec3::Z, at);
+    let on_the_top = lit
+        .into_iter()
+        .filter(|triangle| triangle.iter().all(|corner| (corner.z - 4.0).abs() < 1e-3))
+        .collect();
+    (on_the_top, offered)
+}
+
+/// Every triangle lit once the pointer has rested over `at` while a plane is
+/// being chosen for a new sketch on `document`, seen as `state` says from the
+/// side `from` points to — and what was offered there.
+fn lit_while_choosing_a_plane(
+    mut document: PartDocument,
+    mut state: ViewportState,
+    from: Vec3,
+    at: Vec3,
+) -> (Vec<[Vec3; 3]>, Option<PlaneChoice>) {
+    let (yaw, pitch) = cao_render::camera::view_angles_towards(from);
     state.camera.set_view_angles(yaw, pitch);
     let pointer = on_the_screen(&state, at);
     let mut editor = SketchEditor::default();
@@ -347,7 +368,6 @@ fn lit_with_the_pointer_over(at: Vec3, clicks: usize) -> (Vec<[Vec3; 3]>, Option
     let lit = surfaces
         .chunks(3)
         .map(|corners| std::array::from_fn(|rank| Vec3::from(corners[rank].position)))
-        .filter(|triangle: &[Vec3; 3]| triangle.iter().all(|corner| (corner.z - 4.0).abs() < 1e-3))
         .collect();
     (lit, context.editor.hovered_plane)
 }
@@ -384,17 +404,91 @@ fn the_top_an_invisible_cut_fills_in_is_lit_whole_under_the_cursor() {
     );
 
     let (over_nothing, offered) = lit_with_the_pointer_over(OVER_THE_NOTCH, 2);
-    assert!(
-        !matches!(
-            offered,
-            Some(PlaneChoice::Face { .. } | PlaneChoice::Curved(_))
-        ),
+    assert_eq!(
+        offered, None,
         "the cut invisible, the top it fills in over the notch, which the part has nothing of, \
-         is offered as {offered:?}",
+         offers something",
     );
     assert!(
         over_nothing.is_empty(),
         "the cut invisible, nothing offered over the notch, and {} triangles are lit on the top",
         over_nothing.len(),
+    );
+}
+
+/// A block 10 by 20 and 4 high at the origin, a hole of radius 2 at (5, 10)
+/// cut 10 up from XY: a cut far taller than the block, its ghost a cylinder
+/// standing 6 over the top. The hole's step.
+fn a_block_bored_far_past_its_top() -> (PartDocument, usize) {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(5.0, 10.0)),
+        radius: 2.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    for (inside, distance, mode) in [
+        (
+            vec![DVec2::new(1.0, 1.0), DVec2::new(5.0, 10.0)],
+            4.0,
+            ExtrusionMode::Add,
+        ),
+        (vec![DVec2::new(5.0, 10.0)], 10.0, ExtrusionMode::Cut),
+    ] {
+        document.apply(Operation::Extrude {
+            sketch: 0,
+            areas: document.areas_at(0, &inside),
+            distance: distance.into(),
+            mode,
+        });
+    }
+    (document, 4)
+}
+
+#[test]
+fn a_ghost_s_curved_wall_under_the_cursor_lights_itself_not_the_part_s_face_of_its_number() {
+    let (document, hole) = a_block_bored_far_past_its_top();
+    let mut state = ViewportState::default();
+    state.next_volume_mode(&document, hole);
+    assert_eq!(
+        state.volume_mode(&document, hole),
+        cao_part::VolumeState::SeeThrough
+    );
+
+    let (lit, offered) =
+        lit_while_choosing_a_plane(document, state, Vec3::X, Vec3::new(7.0, 10.0, 7.0));
+
+    assert!(
+        matches!(offered, Some(PlaneChoice::Curved(_))),
+        "the ghost's wall above the block is offered as {offered:?}, not refused as curved",
+    );
+    let on_the_circle: Vec<[Vec3; 3]> = lit
+        .into_iter()
+        .filter(|triangle| {
+            triangle
+                .iter()
+                .all(|corner| ((corner.x - 5.0).hypot(corner.y - 10.0) - 2.0).abs() < 1e-3)
+        })
+        .collect();
+    let highest = on_the_circle
+        .iter()
+        .flatten()
+        .map(|corner| corner.z)
+        .fold(f32::NEG_INFINITY, f32::max);
+    assert!(
+        highest > 9.999,
+        "pointed at the ghost's wall above the block, what is lit on the hole's circle reaches \
+         {highest} high, not the ghost's top at 10: something other than the ghost's wall is lit",
     );
 }

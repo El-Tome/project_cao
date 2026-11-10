@@ -2,9 +2,11 @@
 //! drawn may be the part shown with its volumes' states, cut by a section or
 //! a sketch, and the ghosts of the volumes shown see-through, and the numbers
 //! its faces carry are not relied on. A flat face — the same plane however it
-//! is cut into triangles — is found on the part by where the ray meets it, and
-//! one the part has nothing of lets the ray go on. A curved face stops the
-//! ray where it is met.
+//! is cut into triangles — is found on the part by where the ray meets it. A
+//! see-through face the part has nothing of — a ghost's, or what stands in
+//! front of a sketch or a section drawn see-through — lets the ray go on; an
+//! opaque one stops it on nothing. A curved face stops the ray where it is
+//! met.
 
 use cao_solid::{Body, FaceHit};
 use glam::DVec3;
@@ -16,7 +18,9 @@ const FACES_GONE_THROUGH: usize = 64;
 
 /// What the ray meets: the part's own face — met where a drawn flat face lies
 /// on it, its distance from the ray's origin — or a drawn flat face the part
-/// has nothing of, where the caller asked the ray to stop, or a curved face.
+/// has nothing of, where the caller asked the ray to stop, or a curved face,
+/// or an opaque face the part has nothing of, which hides what is behind it
+/// and offers nothing.
 pub(crate) enum Met<'a> {
     /// The part's own face, and the piece and face drawn on it.
     Part {
@@ -29,6 +33,7 @@ pub(crate) enum Met<'a> {
     /// its triangles stand wherever its piece's cutting put them, so where it
     /// is met says nothing of the part's own face.
     Curved(&'a Body, FaceHit),
+    Nothing,
 }
 
 /// How far apart two places may stand and still be one place on the part,
@@ -43,7 +48,8 @@ pub(crate) fn nearness(part: &Body) -> f64 {
 
 /// The first place along the ray where what is drawn lies on a face of the
 /// part, or where `stops`, told where and facing which way, says the ray
-/// stops on a drawn face the part has nothing of.
+/// stops on a drawn face the part has nothing of, or where an opaque face
+/// the part has nothing of hides the rest.
 pub(crate) fn met_on_the_part<'a>(
     drawn: &'a Drawn<'_>,
     part: &Body,
@@ -70,6 +76,9 @@ pub(crate) fn met_on_the_part<'a>(
         }
         if stops(at, hit.normal) {
             return Some(Met::Drawn(piece, hit));
+        }
+        if std::ptr::eq(piece, &*drawn.opaque) {
+            return Some(Met::Nothing);
         }
         travelled = hit.distance + 10.0 * near;
     }

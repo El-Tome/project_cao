@@ -24,13 +24,10 @@ pub(crate) fn push_choosable_planes(
 
     match context.editor.hovered_plane {
         Some(PlaneChoice::Face { .. }) => {
-            let fill = tint(theme.highlight);
-            for corner in context.editor.hovered_face_drawn.iter().flatten() {
-                surfaces.push(cao_render::Vertex::solid(corner.as_vec3(), fill));
-            }
+            push_under_the_cursor(surfaces, tint(theme.highlight), context);
         }
-        Some(PlaneChoice::Curved(face)) => {
-            push_hovered_face(surfaces, tint(theme.refused), context, face);
+        Some(PlaneChoice::Curved(_)) => {
+            push_under_the_cursor(surfaces, tint(theme.refused), context);
         }
         _ => {}
     }
@@ -64,6 +61,18 @@ pub(crate) fn push_choosable_planes(
             outline,
             if hovered { 2.5 } else { 1.5 },
         );
+    }
+}
+
+/// Lights the face drawn under the cursor as it is drawn, so it is clear what
+/// a click would sketch on, or that it would sketch on nothing.
+fn push_under_the_cursor(
+    surfaces: &mut Vec<cao_render::Vertex>,
+    fill: [f32; 4],
+    context: &SketchContext<'_>,
+) {
+    for corner in context.editor.hovered_face_drawn.iter().flatten() {
+        surfaces.push(cao_render::Vertex::solid(corner.as_vec3(), fill));
     }
 }
 

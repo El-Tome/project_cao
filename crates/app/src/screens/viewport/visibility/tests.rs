@@ -115,7 +115,7 @@ fn a_volume_s_visibility_cycles_opaque_see_through_invisible_and_round_again() {
     assert_eq!(
         state.volume_mode(&document, THE_BLOCK),
         VolumeState::Opaque,
-        "the cut made see-through takes the block with it",
+        "the cut made see-through, the block is no longer opaque",
     );
 }
 
@@ -155,7 +155,7 @@ fn making_everything_opaque_puts_every_volume_back_to_opaque() {
     let mut state = ViewportState::default();
     assert!(
         state.all_opaque(&document),
-        "a part opens with a volume that is not opaque"
+        "a part just opened, every volume opaque, does not read as all opaque"
     );
 
     state.next_volume_mode(&document, THE_BLOCK);

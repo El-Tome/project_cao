@@ -90,6 +90,16 @@
 //!   and the top an invisible cut fills in, where the part has no face,
 //!   offers nothing either —
 //!   `the_top_an_invisible_cut_fills_in_offers_nothing_where_the_part_has_none`
+//! - decided in review: only a see-through ghost lets the ray go on; an
+//!   opaque face drawn where the part has no face stops it and offers
+//!   nothing, rather than going on into the matter to the inside of a face
+//!   the user cannot see — the top an invisible cut fills in, above, and
+//!   where an invisible boss stood —
+//!   `where_an_invisible_boss_stood_the_top_offers_nothing_and_starts_no_sketch`;
+//!   over an invisible pocket —
+//!   `over_an_invisible_pocket_the_top_offers_nothing_and_starts_no_sketch`;
+//!   and, with a section waiting for a face, nothing is laid on the bottom —
+//!   `where_an_invisible_boss_stood_a_section_waiting_for_a_face_lays_nothing`
 //! - found in review: a curved face met stops the ray there and refuses, as a
 //!   curved wall always has, under a section and with a volume left out alike,
 //!   rather than letting it through to a flat face behind —
@@ -1558,11 +1568,13 @@ fn the_top_an_invisible_cut_fills_in_offers_nothing_where_the_part_has_none() {
 
     let started = a_sketch_started_seen(document, state, DVec3::new(7.0, 7.0, 50.0), DVec3::NEG_Z);
 
+    assert_eq!(
+        started.offered, None,
+        "the top filled in over the notch, which the part does not have there, offers something",
+    );
     assert!(
-        !offers_the_part(&started),
-        "the top filled in over the notch, which the part does not have there, is offered as \
-         {:?}",
-        started.offered,
+        !started.started,
+        "a click on the top filled in over the notch starts a sketch"
     );
 }
 
@@ -1719,5 +1731,137 @@ fn a_section_laid_on_the_cut_of_a_ghost_follows_no_face_of_the_part() {
         None,
         "a section laid on the cut of the ghost, which the part has nothing of, follows a face \
          of the part",
+    );
+}
+
+/// Where the boss of `a_boss_on_a_tall_block` is raised.
+const THE_BOSS: usize = 5;
+
+/// A block 10 by 10 by 10 at the origin, then a sketch laid on its top and a
+/// boss 4 by 4 from (3, 3) raised 5 from it.
+fn a_boss_on_a_tall_block() -> PartDocument {
+    use cao_part::history::FaceAnchor;
+
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    rectangles(&mut document, &[(DVec2::ZERO, DVec2::splat(10.0))]);
+    extruded(&mut document, &[DVec2::splat(5.0)], 10.0, false);
+    let top = document
+        .body()
+        .ray_hit(DVec3::new(5.0, 5.0, 50.0), DVec3::NEG_Z)
+        .expect("the block's top")
+        .face;
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::Z * 10.0,
+            ..WorkPlane::XY
+        },
+        on: Some(FaceAnchor {
+            face: top,
+            up: DVec3::Y,
+        }),
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: cao_part::PointRef::New(DVec2::splat(3.0)),
+        opposite: cao_part::PointRef::New(DVec2::splat(7.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        areas: document.areas_at(1, &[DVec2::splat(5.0)]),
+        distance: 5.0.into(),
+        mode: cao_part::ExtrusionMode::Add,
+    });
+    assert!(
+        matches!(
+            document.history.applied_operations().get(THE_BOSS),
+            Some(Operation::Extrude { .. })
+        ),
+        "the fixture wants the boss raised at step {THE_BOSS}",
+    );
+    let (_, high) = document.body().bounds().expect("the block and its boss");
+    assert!(
+        (high.z - 15.0).abs() < 1e-9,
+        "the boss stands to {}, not 15",
+        high.z
+    );
+    document
+}
+
+/// The view with the volume at `step` of `document` made invisible.
+fn with_invisible(document: &PartDocument, step: usize) -> ViewportState {
+    let mut state = ViewportState::default();
+    state.next_volume_mode(document, step);
+    state.next_volume_mode(document, step);
+    assert_eq!(state.volume_mode(document, step), VolumeState::Invisible);
+    state
+}
+
+fn assert_offers_nothing(started: &Started, what: &str) {
+    assert_eq!(
+        started.offered, None,
+        "{what}, where the part has no face, offers something",
+    );
+    assert!(
+        !started.started,
+        "{what}, where the part has no face, a click starts a sketch"
+    );
+}
+
+#[test]
+fn where_an_invisible_boss_stood_the_top_offers_nothing_and_starts_no_sketch() {
+    let document = a_boss_on_a_tall_block();
+    let state = with_invisible(&document, THE_BOSS);
+
+    let started = a_sketch_started_seen(document, state, DVec3::new(5.0, 5.0, 50.0), DVec3::NEG_Z);
+
+    assert_offers_nothing(&started, "the block's top where the invisible boss stood");
+}
+
+#[test]
+fn over_an_invisible_pocket_the_top_offers_nothing_and_starts_no_sketch() {
+    let document = a_block_pocketed_from_halfway_up();
+    let state = with_invisible(&document, THE_POCKET);
+
+    let started = a_sketch_started_seen(document, state, DVec3::new(7.0, 7.0, 50.0), DVec3::NEG_Z);
+
+    assert_offers_nothing(&started, "the block's top over the invisible pocket");
+}
+
+#[test]
+fn where_an_invisible_boss_stood_a_section_waiting_for_a_face_lays_nothing() {
+    let clicked_at = |at: DVec3| {
+        let document = a_boss_on_a_tall_block();
+        let mut state = with_invisible(&document, THE_BOSS);
+        let mut waiting = Section::new(WorkPlane::XY);
+        waiting.offset = 20.0;
+        waiting.wait_for_a_face();
+        state.section = Some(waiting);
+        a_click_from_above_while_the_section_waits(document, state, at)
+    };
+    let waiting = |state: &ViewportState| {
+        state
+            .section
+            .as_ref()
+            .expect("the section stays on")
+            .is_waiting_for_a_face()
+    };
+    assert!(
+        !waiting(&clicked_at(DVec3::new(1.0, 1.0, 10.0))),
+        "the fixture wants a click on the block's top beside the boss taken as the cutting face",
+    );
+
+    let after = clicked_at(DVec3::new(5.0, 5.0, 10.0));
+
+    let section = after.section.as_ref().expect("the section stays on");
+    assert!(
+        section.is_waiting_for_a_face(),
+        "a click where the invisible boss stood lays the section on {:?}, offset {}",
+        section.tilted(),
+        section.offset,
     );
 }

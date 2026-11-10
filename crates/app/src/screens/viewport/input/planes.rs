@@ -140,7 +140,7 @@ pub(crate) fn point_the_section(
         {
             Some(Met::Part { own, .. }) => (body, own, true),
             Some(Met::Drawn(piece, hit) | Met::Curved(piece, hit)) => (piece, hit, false),
-            None => return true,
+            Some(Met::Nothing) | None => return true,
         };
         // From a hair short of where the face was met, so that the ray meets
         // it first, whatever of the piece stands before it.
@@ -193,8 +193,8 @@ fn plane_under(
     origin: DVec3,
     direction: DVec3,
 ) -> (Option<PlaneChoice>, Vec<[DVec3; 3]>) {
-    if let Some((choice, drawn)) = what_is_drawn_offers(state, context, origin, direction) {
-        return (Some(choice), drawn);
+    if let Some(offered) = what_is_drawn_offers(state, context, origin, direction) {
+        return offered;
     }
 
     let half_size = plane_half_size(state);
@@ -210,37 +210,49 @@ fn plane_under(
     (origin_plane, Vec::new())
 }
 
-/// What the part as drawn offers under the ray: the part's own face where
-/// what is drawn lies on one, found by where the ray meets it; the cut of the
-/// section where the ray meets that, offered as its plane, turned the way the
-/// face met looks. A drawn face the part has nothing of — a ghost's, or the
-/// top an invisible cut fills in — lets the ray go on. A face of the part comes
-/// with the triangles of the face drawn on it, to light as it is drawn.
+/// What the part as drawn offers under the ray, with the triangles of the
+/// face drawn there, to light as it is drawn, or nothing when the ray meets
+/// nothing drawn. Where what is drawn lies on a face of the part, that face,
+/// found by where the ray meets it; where the ray meets the cut of the section,
+/// its plane, turned the way the face met looks; a curved face, refused. A
+/// see-through face the part has nothing of — a ghost's — lets the ray go on;
+/// an opaque one — the top an invisible cut fills in, where it stood — offers
+/// nothing and hides what is behind it.
 fn what_is_drawn_offers(
     state: &ViewportState,
     context: &SketchContext<'_>,
     origin: DVec3,
     direction: DVec3,
-) -> Option<(PlaneChoice, Vec<[DVec3; 3]>)> {
+) -> Option<(Option<PlaneChoice>, Vec<[DVec3; 3]>)> {
     let part = context.document.body();
     let drawn = seen(state, context.editor, context.document)?;
     let on_the_cut = |at, normal| lies_on_the_cut(state, at, normal);
     let up = |normal| once_facing(state, normal);
-    match met_on_the_part(&drawn, part, (origin, direction), on_the_cut)? {
-        Met::Part { own, piece, drawn } => {
-            let offered = offered_by(part, own.face, own.normal, up)?;
-            Some((offered, piece.triangles_of(drawn.face).collect()))
-        }
-        Met::Curved(_, hit) => Some((PlaneChoice::Curved(hit.face), Vec::new())),
-        Met::Drawn(_, hit) => {
-            let cut = state.section_shown()?.cutting_plane();
-            let facing = match hit.normal.dot(cut.normal()) > 0.0 {
-                true => cut,
-                false => WorkPlane::from_normal(cut.origin, -cut.normal()),
-            };
-            Some((PlaneChoice::Section(facing), Vec::new()))
-        }
-    }
+    Some(
+        match met_on_the_part(&drawn, part, (origin, direction), on_the_cut)? {
+            Met::Part { own, piece, drawn } => (
+                offered_by(part, own.face, own.normal, up),
+                piece.triangles_of(drawn.face).collect(),
+            ),
+            Met::Curved(piece, hit) => (
+                Some(PlaneChoice::Curved(hit.face)),
+                piece.triangles_of(hit.face).collect(),
+            ),
+            Met::Drawn(_, hit) => {
+                let section = state.section_shown().map(|section| {
+                    let cut = section.cutting_plane();
+                    match hit.normal.dot(cut.normal()) > 0.0 {
+                        true => PlaneChoice::Section(cut),
+                        false => {
+                            PlaneChoice::Section(WorkPlane::from_normal(cut.origin, -cut.normal()))
+                        }
+                    }
+                });
+                (section, Vec::new())
+            }
+            Met::Nothing => (None, Vec::new()),
+        },
+    )
 }
 
 /// Whether a drawn face met at `at`, facing `normal`, is the cut of the

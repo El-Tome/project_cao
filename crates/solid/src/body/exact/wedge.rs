@@ -7,6 +7,7 @@
 mod chain;
 mod closing;
 mod corners;
+mod end;
 mod fill;
 mod flush;
 mod overlap;
@@ -28,7 +29,7 @@ use crate::brep::{self, Declined, EdgeId, EdgeName, FaceId, Scale, VertexId};
 use crate::profile::{Contour, Frame};
 
 pub(super) use closing::Closing;
-use flush::Flush;
+use flush::{Flush, Read};
 pub(super) use pairs::Together;
 pub(super) use section::Side;
 pub(super) use sphere::rounded_across;
@@ -87,9 +88,9 @@ impl Exact {
     /// given, its prism cut from what the earlier cuts left, as
     /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
     /// goes whatever the order. Two cuts meeting at a corner beside a concave
-    /// edge left out of the list, as [`corners::beside_concave`] reads it,
-    /// each stop flush there, and the later takes with it what both prisms
-    /// hold past both faces they stop on, as [`overlap::overlap`] reads it:
+    /// edge left out of the list, as [`corners::admit`] admits it, each stop
+    /// flush there, and the later takes with it what both prisms hold past
+    /// both faces they stop on, as [`Flush::beside`] reads it:
     /// their flats or rounds run on into a mitre down to the concave edge,
     /// left sharp. A corner three of the edges meet at is closed once all are
     /// laid, as `meeting` closes it, read where each two's set-backs cross on
@@ -135,7 +136,7 @@ impl Exact {
             if !once {
                 return Err(Declined::Unsupported);
             }
-            let beside = corners::beside_concave(&self.brep, &edges)?;
+            let beside = corners::admit(&self.brep, &edges)?;
             let three = corners::of_three(&self.brep, &edges)?;
             let wedges: Vec<Wedge> = found.into_iter().map(|(_, wedge)| wedge).collect();
             let facing = pairs::facing(&wedges);
@@ -163,6 +164,7 @@ impl Exact {
                 taken,
                 meeting.closing,
             )?;
+            let given: Vec<(EdgeId, &Wedge)> = edges.iter().copied().zip(&wedges).collect();
             let start = self.next;
             let mut cut = self.clone();
             for rank in 0..names.len() {
@@ -193,14 +195,11 @@ impl Exact {
                         if mitred.is_empty() {
                             cut.laid(&names[rank], taken, &tool, &mitred)?
                         } else {
-                            let mut flush = Flush::at(&self.brep, edges[rank], &wedges[rank]);
-                            for &(corner, ranks) in beside.iter().filter(|(_, [_, r])| *r == rank) {
-                                let meeting = ranks.map(|rank| (edges[rank], &wedges[rank]));
-                                flush.overlaps.push(overlap::overlap(
-                                    &self.brep, corner, meeting, taken, &set_back, &tool,
-                                )?);
-                            }
-                            cut.laid_as(None, &wedges[rank], &flush, taken, &tool, &mitred)?
+                            let flush = Flush::beside(
+                                &self.brep, rank, &given, &beside, taken, &set_back, &tool,
+                            )?;
+                            let read = Read::AsGiven(&flush);
+                            cut.laid_as(read, &wedges[rank], taken, &tool, &mitred)?
                         }
                     }
                 };
@@ -240,28 +239,25 @@ impl Exact {
         mitred: &[u32],
     ) -> Result<Exact, Declined> {
         let (edge, wedge) = self.wedge(name, Wedge::read)?;
-        let flush = Flush::at(&self.brep, edge, &wedge);
-        self.laid_as(Some(edge), &wedge, &flush, taken, tool, mitred)
+        self.laid_as(Read::Here(edge), &wedge, taken, tool, mitred)
     }
 
     /// The body with the edge of `wedge` cut off, or filled in, as
-    /// [`Exact::laid`] lays it: `edge` that edge on this body, or none where
-    /// an earlier edge of the step was laid at a corner it shares and `wedge`
-    /// was read on the body as given, its prism then cut from what the earlier
-    /// cuts left of it, even nothing — the matter of every edge's prism goes
-    /// whatever the order. A cut stops flush as `flush` says, read on the body
-    /// `wedge` was read on. Declined `Unsupported` where such an edge is to be
-    /// filled in, which no corner the step lays asks.
+    /// [`Exact::laid`] lays it, `read` where `wedge` was read: on this body,
+    /// or on the body as given where an earlier edge of the step was laid at
+    /// a corner it shares, its prism then cut from what the earlier cuts left
+    /// of it, even nothing — the matter of every edge's prism goes whatever
+    /// the order. Declined `Unsupported` where such an edge is to be filled
+    /// in, which no corner the step lays asks.
     fn laid_as(
         &self,
-        edge: Option<EdgeId>,
+        read: Read,
         wedge: &Wedge,
-        flush: &Flush,
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
         mitred: &[u32],
     ) -> Result<Exact, Declined> {
-        let cut = self.cut_or_filled(edge, wedge, flush, taken, tool)?;
+        let cut = self.cut_or_filled(read, wedge, taken, tool)?;
         if cut.cut_along(&[wedge], self, 1, mitred) {
             Ok(cut)
         } else {
@@ -272,12 +268,11 @@ impl Exact {
     /// The body with the edge of `wedge` cut off, or filled in, by the prism
     /// `tool` raises over it for `taken`, its wall numbered where the steps'
     /// numbers ended, as [`Exact::laid_as`] lays it but for the check: a cut
-    /// stopped flush as `flush` says, as [`Exact::cut_flush`] stops it.
+    /// stopped flush as `read` says, as [`Exact::cut_flush`] stops it.
     fn cut_or_filled(
         &self,
-        edge: Option<EdgeId>,
+        read: Read,
         wedge: &Wedge,
-        flush: &Flush,
         taken: f64,
         tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
     ) -> Result<Exact, Declined> {
@@ -293,10 +288,13 @@ impl Exact {
             }),
             ..raised
         };
-        match (edge, wedge.inwards) {
-            (Some(edge), true) => self.filled(&[(edge, wedge)], &prism, tool),
-            (None, true) => Err(Declined::Unsupported),
-            (_, false) => self.cut_flush(flush, &prism, tool),
+        match (read, wedge.inwards) {
+            (Read::Here(edge), true) => self.filled(&[(edge, wedge)], &prism, tool),
+            (Read::AsGiven(_), true) => Err(Declined::Unsupported),
+            (Read::Here(edge), false) => {
+                self.cut_flush(&Flush::at(&self.brep, edge, wedge), &prism, tool)
+            }
+            (Read::AsGiven(flush), false) => self.cut_flush(flush, &prism, tool),
         }
     }
 

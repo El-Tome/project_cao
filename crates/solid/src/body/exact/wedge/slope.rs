@@ -5,7 +5,7 @@
 
 use glam::DVec3;
 
-use super::flush::Flush;
+use super::flush::Read;
 use super::{Prism, Wedge};
 use crate::body::exact::Exact;
 use crate::brep::{Declined, EdgeName, Scale};
@@ -48,10 +48,9 @@ impl Exact {
         } else {
             (first_edge, &first, later)
         };
-        let flush = Flush::at(&self.brep, edge, outward);
-        let cut = self.cut_or_filled(Some(edge), outward, &flush, value, tool)?;
+        let cut = self.cut_or_filled(Read::Here(edge), outward, value, tool)?;
         let (edge, wedge) = cut.wedge(inward, Wedge::read)?;
-        let filled = cut.cut_or_filled(Some(edge), &wedge, &Flush::default(), value, tool)?;
+        let filled = cut.cut_or_filled(Read::Here(edge), &wedge, value, tool)?;
         let [made, lent] = [self.next, self.next + 1].map(|number| number as usize);
         if !filled.named(made).eq(filled.named(lent)) {
             return Err(Declined::Unsupported);

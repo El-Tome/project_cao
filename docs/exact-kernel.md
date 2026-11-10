@@ -429,10 +429,9 @@ Left, in the order #497 set:
   or square to it (#571), and two cylinders, elliptic walls or cones at any
   angle (#577);
 - an exact STEP;
-- fillets on a straight edge, then on a circular one, then where fillets
-  meet at a corner; a chamfer on one straight edge is done (#696), stopping
-  at the wall of a concave corner too (#801), and a chamfer on several edges
-  at once or on a curved edge is still to come;
+- a chamfer and a fillet on a curved edge: on straight edges both are done
+  — one edge (#696, #697), several at once (#698), edges meeting at a convex
+  corner (#699), and stopping at the wall of a concave corner (#801);
 - draft, shell, loft.
 
 Known and still open:

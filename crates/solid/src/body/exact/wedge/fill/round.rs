@@ -11,8 +11,9 @@ use std::f64::consts::{PI, TAU};
 
 use glam::{DVec2, DVec3};
 
-use super::{CLEAR, Prism};
+use super::Prism;
 use crate::body::exact::Exact;
+use crate::body::exact::wedge::end::CLEAR;
 use crate::brep::{Cone, Cylinder, Declined};
 use crate::profile::{Contour, Frame, Run};
 use crate::turning::{Axis, ON_THE_AXIS, Straight, Turn};

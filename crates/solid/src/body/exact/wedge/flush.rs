@@ -8,19 +8,30 @@
 
 use glam::DVec3;
 
-use super::fill::{beyond, end_face};
-use super::overlap::Overlap;
+use super::corners::Beside;
+use super::end::{beyond, end_face};
+use super::overlap::{Overlap, overlap};
 use super::{Prism, Wedge};
 use crate::body::exact::Exact;
-use crate::brep::{self, Declined, EdgeId, FaceId, Plane, Surface};
+use crate::brep::{self, Declined, EdgeId, FaceId, Plane, Scale, Surface, VertexId};
+
+/// Where the edge a step lays was read: on the body it is laid on, by its
+/// edge there, a cut stopping where [`stops`] reads it there; or on the body
+/// as given, for an edge meeting one laid before it at a corner, a cut
+/// stopping as the [`Flush`] read there says.
+pub(super) enum Read<'a> {
+    Here(EdgeId),
+    AsGiven(&'a Flush),
+}
 
 /// An end of an edge where matter lies past it: the plane of the face the
-/// edge runs into there, the way that face faces out of the matter, and the
-/// corner the edge ends at.
+/// edge runs into there, the way that face faces out of the matter, the
+/// corner the edge ends at, and where it stands.
 pub(super) struct Stop {
-    pub plane: Plane,
-    pub outward: DVec3,
-    pub corner: DVec3,
+    plane: Plane,
+    outward: DVec3,
+    pub end: VertexId,
+    corner: DVec3,
 }
 
 impl Stop {
@@ -40,10 +51,9 @@ impl Stop {
 /// Where a cut stops flush: the ends of its edge it stops at, and what it
 /// takes past those it shares with an edge laid before it beside a concave
 /// edge.
-#[derive(Default)]
 pub(super) struct Flush {
-    pub stops: Vec<Stop>,
-    pub overlaps: Vec<Overlap>,
+    stops: Vec<Stop>,
+    overlaps: Vec<Overlap>,
 }
 
 impl Flush {
@@ -54,6 +64,35 @@ impl Flush {
             stops: stops(body, edge, wedge),
             overlaps: Vec::new(),
         }
+    }
+
+    /// The edge of rank `rank` in `edges`, each edge of the step with its
+    /// wedge on `given`, the body as given, stopping at each end [`stops`]
+    /// reads there, and taking with it the overlap at each of `corners` where
+    /// it is the later of the two edges, as [`overlap`] reads it for `taken`,
+    /// set back `set_back` of it, with the prisms `tool` raises. Declined as
+    /// [`overlap`] declines.
+    pub fn beside(
+        given: &brep::Body,
+        rank: usize,
+        edges: &[(EdgeId, &Wedge)],
+        corners: &[Beside],
+        taken: f64,
+        set_back: &impl Fn(&Wedge) -> f64,
+        tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
+    ) -> Result<Flush, Declined> {
+        let (edge, wedge) = edges[rank];
+        let overlaps = (corners.iter())
+            .filter(|&&(_, [_, later])| later == rank)
+            .map(|&(corner, pair)| {
+                let pair = pair.map(|rank| edges[rank]);
+                overlap(given, corner, pair, taken, set_back, tool)
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(Flush {
+            stops: stops(given, edge, wedge),
+            overlaps,
+        })
     }
 }
 
@@ -67,11 +106,11 @@ pub(super) fn stops(body: &brep::Body, edge: EdgeId, wedge: &Wedge) -> Vec<Stop>
         .filter_map(|(end, past)| {
             let face = end_face(body, end, wedge.faces)?;
             let (plane, outward) = facing_back(body, face, past)?;
-            let corner = body.vertex(end).point;
             Some(Stop {
                 plane: *plane,
                 outward,
-                corner,
+                end,
+                corner: body.vertex(end).point,
             })
         })
         .collect()
@@ -108,7 +147,7 @@ impl Exact {
                 flush
                     .overlaps
                     .iter()
-                    .flat_map(|overlap| overlap.cleared.clone()),
+                    .flat_map(|overlap| overlap.cleared.iter().copied()),
             )
             .collect();
         cut.merged_at(&corners)

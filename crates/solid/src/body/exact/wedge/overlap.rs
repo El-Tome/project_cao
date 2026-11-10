@@ -24,7 +24,7 @@ pub(super) struct Overlap {
     pub cleared: Vec<DVec3>,
 }
 
-/// The overlap the prisms `tool` raises over the two edges of `meeting` for
+/// The overlap the prisms `tool` raises over the two edges of `pair` for
 /// `taken` make past the faces they stop flush on at `corner`, each edge and
 /// its wedge read on `given`, the body as given, each set back `set_back` of
 /// the value. Declined `Unsupported` where either edge does not stop flush
@@ -32,7 +32,7 @@ pub(super) struct Overlap {
 pub(super) fn overlap(
     given: &brep::Body,
     corner: VertexId,
-    meeting: [(EdgeId, &Wedge); 2],
+    pair: [(EdgeId, &Wedge); 2],
     taken: f64,
     set_back: &impl Fn(&Wedge) -> f64,
     tool: &impl Fn(&Wedge, f64, Scale, (DVec3, DVec3)) -> Result<Prism, Declined>,
@@ -41,7 +41,7 @@ pub(super) fn overlap(
     let bounds = given.bounds().ok_or(Declined::Unsupported)?;
     let past = |(edge, wedge): (EdgeId, &Wedge)| {
         let stop = (stops(given, edge, wedge).into_iter())
-            .find(|stop| stop.corner == at)
+            .find(|stop| stop.end == corner)
             .ok_or(Declined::Unsupported)?;
         let prism = tool(wedge, taken, given.scale(), bounds)?;
         let (outline, frame, travel) = &prism;
@@ -50,7 +50,7 @@ pub(super) fn overlap(
         let crossings = (wedge.into).map(|into| stop.crossing(at + into * distance, wedge.along));
         Ok((common(&stop.beyond(&prism)?, &raised)?, crossings))
     };
-    let [(one, first), (other, second)] = [past(meeting[0])?, past(meeting[1])?];
+    let [(one, first), (other, second)] = [past(pair[0])?, past(pair[1])?];
     let both = common(&one, &other)?;
     Ok(Overlap {
         solid: Exact::of(both.brep.renumbered_by(|_| 0), 0, 0, BTreeMap::new()),

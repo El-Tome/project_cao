@@ -6,7 +6,7 @@ members = ["crates/*"]
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/chaumettetom/cao"
+repository = "https://github.com/helix-3d/project_cad"
 
 [workspace.dependencies]
 eframe = { version = "0.36", default-features = false, features = [

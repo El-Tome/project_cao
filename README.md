@@ -100,6 +100,12 @@ both local hooks call it before every push. The tests are left to the CI.
 crate graph, the folders, the budget of 400 lines per file — and
 `crates/app/tests/gate.rs` that the CI checks the same things it does.
 
+## Contributing
+
+Issue first, then a pull request: see [`CONTRIBUTING.md`](CONTRIBUTING.md). Be kind:
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). A security problem goes through
+[`SECURITY.md`](SECURITY.md), never a public issue.
+
 ## Licence
 
 Dual-licensed MIT / Apache-2.0, see [`LICENSE-MIT`](LICENSE-MIT) and

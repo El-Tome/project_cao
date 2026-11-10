@@ -1,0 +1,54 @@
+name: Bug report
+description: Something does not work, or the program loses or damages a drawing or a part.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time. Lost or damaged work comes first: if the
+        program lost a drawing or a part, say so at the top.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw. A screenshot or a short recording helps a lot.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      description: The gestures, one per line, starting from the start menu.
+      placeholder: |
+        1. New part, pick the XY plane
+        2. Draw a rectangle
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: system
+    attributes:
+      label: System
+      options:
+        - macOS
+        - Windows
+        - Linux
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The commit you built (`git rev-parse --short HEAD`), or where you got the program from.
+  - type: textarea
+    id: file
+    attributes:
+      label: A file that shows it
+      description: Drag a `.caopart` file here if the problem is in one. Zip it first, GitHub refuses the extension.

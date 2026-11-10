@@ -12,10 +12,10 @@
 //! alone, and a piece of torus replaces what the filling left, as
 //! [`super::torus`] lays it. Either way each named edge's face is numbered
 //! by its rank, and every patch — a fill no name finds, a piece of torus, a
-//! corner closed on the way — past them by its corner's ranks. An odd edge
-//! whose other end meets an edge of the list laid after it, the top corner
-//! of an upright named with its foot corner, is declined until slice 3 of
-//! #829 builds it.
+//! corner closed on the way — past them by its corner's ranks. A foot corner
+//! whose upright's other end meets an edge of the list laid after it is
+//! declined: slice 3 of #829 builds a standing block's top corner, #847 a
+//! post whose upright is odd at both ends.
 
 use std::collections::BTreeMap;
 
@@ -59,9 +59,10 @@ pub(in crate::body::exact) enum Around {
 /// `Unsupported` where the two others at such a corner share no face, an
 /// edge is the odd one at one corner and one of the two others at another,
 /// or an odd edge meets at its other end an edge of the list that is odd at
-/// no corner: the top corner of an upright named with its foot corner, which
-/// slice 3 of #829 builds. Odd edges meeting each other there, the slanted
-/// edges of a pyramid at its apex, are laid together first.
+/// no corner — a standing block's top corner, which slice 3 of #829 builds,
+/// or the far feet of a post odd at both ends, which #847 builds. Odd edges
+/// meeting each other there, the slanted edges of a pyramid at its apex, are
+/// laid together first.
 pub(super) fn corners(body: &brep::Body, step: &Step) -> Result<Vec<Odd>, Declined> {
     let mut odd: Vec<Odd> = Vec::new();
     for &(at, ranks, along) in &step.three {

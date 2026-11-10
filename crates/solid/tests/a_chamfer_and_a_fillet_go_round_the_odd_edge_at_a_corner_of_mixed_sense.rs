@@ -90,7 +90,9 @@
 //!   named with the top corner of its upright — both feet, the upright and
 //!   the standing block's two top edges at its top — is declined
 //!   `Unsupported`, chamfered or filleted, whatever the order, so that no
-//!   shape ships before a test holds it. Slice 3 turns it into a body test —
+//!   shape ships before a test holds it; the same guard declines a post
+//!   joining a floor plate and a ceiling plate, its upright the odd edge at
+//!   both its ends, which #847 builds. Slice 3 turns it into a body test —
 //!   `a_fillet_and_a_chamfer_on_a_foot_corner_and_the_top_corner_of_its_upright_are_declined_as_unsupported_until_slice_3_builds_them`
 //! - Not in the issue's wording: where the odd edges, laid first, close a
 //!   corner of their own, each face is still numbered as the fourth

@@ -47,7 +47,16 @@
 //!   boolean builds a piece of torus without the turn the kernel lays it with
 //! - The four feet and four uprights of a standing block in one step close
 //!   its four foot corners —
-//!   `a_chamfer_and_a_fillet_on_the_four_feet_and_four_uprights_of_a_standing_block_close_its_four_foot_corners_in_one_step`
+//!   `a_chamfer_and_a_fillet_on_the_four_feet_and_four_uprights_of_a_standing_block_close_its_four_foot_corners_in_one_step`.
+//!   Read as: chamfered and filleted at one value, the volume exact and the
+//!   body sound; each corner's patch on its own corner, a piece of torus on
+//!   its own torus about its own upright's axis, so that each of the four
+//!   ways round the vertical is reached; each flat with the corners the
+//!   octagon gives it, each round on its cylinder between the planes through
+//!   the two corners' upright axes; and the same body for the list as given
+//!   — the four feet, front, right, back and left, then the four uprights
+//!   from the front right round — reversed, and with each foot followed by
+//!   the upright at its end
 //! - The patch's faces are numbered as #699 numbers its patches, after the
 //!   edges' faces; the fill along the upright chamfer's foot, which no name
 //!   in the list finds, is numbered with the patches too — held in
@@ -147,7 +156,15 @@
 //! `7000 − 20d² + (40 − 8d + 4d√2)·d²/2 + 8·tan(22.5°)·d³/3`; and among
 //! rounds four rounds of the uprights, four feet `10 − 2r` long and four
 //! pieces of torus: `7000 − 40·r²(1 − π/4) + 4(10 − 2r)·r²(1 − π/4) +
-//! 2π·r³(11/6 − π/2)`.
+//! 2π·r³(11/6 − π/2)`. The octagon is convex, so the fills are the frustum
+//! between it and its offset `d` out, less the standing block: over a height
+//! `c` the offset `t = d − c` adds the perimeter times `t` and
+//! `t²·tan(22.5°)` at each corner, as at one corner. Each flat lies where
+//! that frustum puts it: a fill's two corners on the lower block's top where
+//! the offset outline turns, `d·tan(22.5°)` past the ends of the side it
+//! offsets, and two `d` up the face it fills against, at that face's ends;
+//! an upright's flat from `d` up to the standing block's top, between its
+//! two set-backs.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -804,11 +821,11 @@ impl Cut {
     }
 }
 
-/// A step on a corner's three edges: the order the list named them in, by
-/// their place in [`FootCorner::edges`], the blend, the value, what the step
-/// left, and what to call it.
+/// A step on a list of edges: the order the list named them in, by their
+/// place in [`FootCorner::edges`] or in [`FEET_AND_UPRIGHTS`], the blend, the
+/// value, what the step left, and what to call it.
 struct Case {
-    order: [usize; 3],
+    order: Vec<usize>,
     cut: Cut,
     value: f64,
     step: Laid,
@@ -824,7 +841,30 @@ impl Case {
                 .order
                 .iter()
                 .position(|&named| named == edge)
-                .expect("every edge of the corner is named")
+                .expect("every edge is named")
+    }
+
+    /// The numbers the patches at `corners` answer to, each corner given by
+    /// its three edges' places: past every edge's face, one each, in the order
+    /// of the lowest rank the list gives one of a corner's edges, then the
+    /// next, as #699 numbers its patches.
+    fn patches(&self, part: &Body, corners: &[[usize; 3]]) -> Vec<usize> {
+        let rank = |edge: usize| self.laid_on(part, edge) - part.faces_end();
+        let mut by_rank: Vec<(usize, [usize; 3])> = corners
+            .iter()
+            .enumerate()
+            .map(|(index, edges)| {
+                let mut ranks = edges.map(rank);
+                ranks.sort();
+                (index, ranks)
+            })
+            .collect();
+        by_rank.sort_by_key(|&(_, ranks)| ranks);
+        let mut numbers = vec![0; corners.len()];
+        for (place, (index, _)) in by_rank.into_iter().enumerate() {
+            numbers[index] = part.faces_end() + self.order.len() + place;
+        }
+        numbers
     }
 }
 
@@ -900,7 +940,7 @@ fn went_round_the_upright(corner: &FootCorner, part: &Body, case: &Case, two_ste
 /// along `along`, its radius, the two ways from the axis to the lines where
 /// it touches the faces it is tangent to, the arc it keeps between them; the
 /// planes it ends on, each a point of it and the way out of the round across
-/// it; and the faces of the part it meets besides the piece of torus, one
+/// it; and the faces of the part it meets besides the pieces of torus, one
 /// edge each.
 struct Cylinder {
     called: &'static str,
@@ -909,7 +949,7 @@ struct Cylinder {
     radius: f64,
     toward: [DVec3; 2],
     ends: [(DVec3, DVec3); 2],
-    meets: [usize; 3],
+    meets: Vec<usize>,
 }
 
 impl Cylinder {
@@ -1028,7 +1068,7 @@ impl FootCorner {
                 (self.at + foot.along * tangent, -foot.along),
                 (foot.far.at, foot.far.facing),
             ],
-            meets: [TOP, foot.wall, foot.far.on],
+            meets: vec![TOP, foot.wall, foot.far.on],
         };
         let axis = self.axis(r);
         [
@@ -1044,7 +1084,7 @@ impl FootCorner {
                     (axis + DVec3::Z * r, -DVec3::Z),
                     (axis + DVec3::Z * STANDING_HEIGHT, DVec3::Z),
                 ],
-                meets: [STANDING_TOP, one.wall, other.wall],
+                meets: vec![STANDING_TOP, one.wall, other.wall],
             },
         ]
     }
@@ -1105,6 +1145,73 @@ fn curved_and_drawn_on(
     }
 }
 
+/// Holds that the face numbered `face` is the round `round` names: drawn on
+/// its cylinder and only there, its four corners among its triangles', and
+/// meeting the faces of the part the round names and the pieces of torus
+/// `pieces`, one edge each.
+fn round_held(body: &Body, face: usize, round: &Cylinder, pieces: &[usize], what: &str) {
+    let which = format!("{what}: the round on {}, face {face}", round.called);
+    curved_and_drawn_on(
+        body,
+        face,
+        |point| round.holds(point),
+        &round.corners(),
+        &which,
+    );
+    let met: Vec<usize> = round.meets.iter().chain(pieces).copied().collect();
+    assert_eq!(
+        sides_met(body, face),
+        sides(&met),
+        "{which} meets the faces it lies between, the face at each end and the pieces of torus \
+         there, one edge each"
+    );
+}
+
+/// Holds that the face numbered `piece` is the piece of torus `torus` names:
+/// drawn on its torus and only there, its four corners among its triangles',
+/// met first, facing back, by every ray from its tube's centre circle out to
+/// it, and meeting the lower block's top and the rounds `rounds`, one edge
+/// each.
+fn piece_held(body: &Body, piece: usize, torus: &Torus, rounds: &[usize], what: &str) {
+    let which = format!("{what}: the piece of torus, face {piece}");
+    curved_and_drawn_on(
+        body,
+        piece,
+        |point| torus.holds(point),
+        &torus.corners(),
+        &which,
+    );
+    for around in [0.1, 0.3, 0.5, 0.7, 0.9] {
+        let out = torus.out(around);
+        let from = torus.tube_centre(out);
+        for across in [0.1, 0.3, 0.5, 0.7, 0.9] {
+            let turn = across * PI / 2.0;
+            let toward = -(out * turn.cos() + DVec3::Z * turn.sin());
+            let hit = body.ray_hit(from, toward).unwrap_or_else(|| {
+                panic!("{which}: a ray from {from}, on its tube's centre circle, meets nothing")
+            });
+            assert_eq!(
+                hit.face, piece,
+                "{which}: a ray from {from}, on its tube's centre circle, meets face {} before it",
+                hit.face
+            );
+            assert!(
+                hit.normal.distance(-toward) < PLACE,
+                "{which}: where a ray from {from} meets it, it faces {}, not {}, back toward its \
+                 tube's centre circle",
+                hit.normal,
+                -toward
+            );
+        }
+    }
+    let met: Vec<usize> = [TOP].iter().chain(rounds).copied().collect();
+    assert_eq!(
+        sides_met(body, piece),
+        sides(&met),
+        "{which} meets the lower block's top and the rounds round it, one edge each"
+    );
+}
+
 /// Holds what a fillet of its value on a corner's three edges, named in its
 /// order, leaves of the part:
 ///
@@ -1151,62 +1258,10 @@ fn joined_through_a_piece_of_torus(corner: &FootCorner, part: &Body, case: &Case
     );
 
     for (edge, round) in corner.rounds(r).iter().enumerate() {
-        let face = case.laid_on(part, edge);
-        let which = format!("{what}: the round on {}, face {face}", round.called);
-        curved_and_drawn_on(
-            body,
-            face,
-            |point| round.holds(point),
-            &round.corners(),
-            &which,
-        );
-        let [one, other, third] = round.meets;
-        assert_eq!(
-            sides_met(body, face),
-            sides(&[one, other, third, piece]),
-            "{which} meets the faces it lies between, the face at its far end and the piece of \
-             torus, one edge each"
-        );
-    }
-
-    let torus = corner.torus(r);
-    let which = format!("{what}: the piece of torus, face {piece}");
-    curved_and_drawn_on(
-        body,
-        piece,
-        |point| torus.holds(point),
-        &torus.corners(),
-        &which,
-    );
-    for around in [0.1, 0.3, 0.5, 0.7, 0.9] {
-        let out = torus.out(around);
-        let from = torus.tube_centre(out);
-        for across in [0.1, 0.3, 0.5, 0.7, 0.9] {
-            let turn = across * PI / 2.0;
-            let toward = -(out * turn.cos() + DVec3::Z * turn.sin());
-            let hit = body.ray_hit(from, toward).unwrap_or_else(|| {
-                panic!("{which}: a ray from {from}, on its tube's centre circle, meets nothing")
-            });
-            assert_eq!(
-                hit.face, piece,
-                "{which}: a ray from {from}, on its tube's centre circle, meets face {} before it",
-                hit.face
-            );
-            assert!(
-                hit.normal.distance(-toward) < PLACE,
-                "{which}: where a ray from {from} meets it, it faces {}, not {}, back toward its \
-                 tube's centre circle",
-                hit.normal,
-                -toward
-            );
-        }
+        round_held(body, case.laid_on(part, edge), round, &[piece], what);
     }
     let laid: Vec<usize> = (0..3).map(|edge| case.laid_on(part, edge)).collect();
-    assert_eq!(
-        sides_met(body, piece),
-        sides(&[TOP, laid[0], laid[1], laid[2]]),
-        "{which} meets the lower block's top and the three rounds, one edge each"
-    );
+    piece_held(body, piece, &corner.torus(r), &laid, what);
 }
 
 /// Holds that the three edges of each of `corners`, named in every one of
@@ -1251,6 +1306,7 @@ fn round_the_upright_in_every_order(corners: &[FootCorner], cuts: &[Cut], called
                         corner.called,
                         order.map(|edge| edges[edge].0)
                     );
+                    let order = order.to_vec();
                     match cut.laid_on(part, &list, value) {
                         Ok(step) => laid.push((
                             corner,
@@ -1337,4 +1393,430 @@ fn a_chamfer_and_a_fillet_on_the_three_edges_at_a_foot_corner_of_a_standing_bloc
         &[Cut::Flat, Cut::Round],
         "the leaning block's obtuse and acute foot corners chamfered and filleted",
     );
+}
+
+/// The eight edges at [`stacked`]'s standing block's feet, by the two faces
+/// each lies between, in the order the list as given names them: its four
+/// feet, front, right, back and left, then its four uprights, front right,
+/// back right, back left and front left.
+const FEET_AND_UPRIGHTS: [[usize; 2]; 8] = [
+    [TOP, STANDING_FRONT],
+    [TOP, STANDING_RIGHT],
+    [TOP, STANDING_BACK],
+    [TOP, STANDING_LEFT],
+    [STANDING_FRONT, STANDING_RIGHT],
+    [STANDING_RIGHT, STANDING_BACK],
+    [STANDING_BACK, STANDING_LEFT],
+    [STANDING_LEFT, STANDING_FRONT],
+];
+
+/// For each corner of [`stacked_s_foot_corners`], its three edges' places in
+/// [`FEET_AND_UPRIGHTS`], in the order of [`FootCorner::edges`]: its first
+/// foot, its second, its upright.
+const AT_THE_CORNERS: [[usize; 3]; 4] = [[0, 1, 4], [1, 2, 5], [2, 3, 6], [3, 0, 7]];
+
+/// For each foot of [`FEET_AND_UPRIGHTS`], the two corners of
+/// [`stacked_s_foot_corners`] it runs between, the one it runs from first.
+const FEET_BETWEEN: [[usize; 2]; 4] = [[3, 0], [0, 1], [1, 2], [2, 3]];
+
+/// The orders the eight edges are named in, by their places in
+/// [`FEET_AND_UPRIGHTS`]: as given, the four feet then the four uprights;
+/// reversed; and each foot followed by the upright at its end, the feet and
+/// uprights alternating.
+const ALL_ROUND_ORDERS: [[usize; 8]; 3] = [
+    [0, 1, 2, 3, 4, 5, 6, 7],
+    [7, 6, 5, 4, 3, 2, 1, 0],
+    [0, 4, 1, 5, 2, 6, 3, 7],
+];
+
+/// [`stacked`]'s four foot corners, in turn round its standing block from the
+/// front right, each with the foot before it in that turn first, as
+/// [`stacked_s_front_right`] has them, and each foot's far end at the next
+/// corner along it.
+fn stacked_s_foot_corners() -> [FootCorner; 4] {
+    let at = |x: f64, y: f64| DVec3::new(x, y, LOWER_TOP);
+    let foot = |called, wall, facing, along, far: (usize, DVec3, DVec3)| Foot {
+        called,
+        wall,
+        facing,
+        along,
+        far: FarEnd {
+            on: far.0,
+            at: far.1,
+            facing: far.2,
+        },
+    };
+    let corner = |called, at, feet, upright| FootCorner {
+        called,
+        part: stacked,
+        volume: STACKED_VOLUME,
+        at,
+        feet,
+        upright,
+    };
+    [
+        stacked_s_front_right(),
+        corner(
+            "the standing block's back right foot corner",
+            at(20.0, 15.0),
+            [
+                foot(
+                    "the standing block's right foot",
+                    STANDING_RIGHT,
+                    DVec3::X,
+                    -DVec3::Y,
+                    (STANDING_FRONT, at(20.0, 5.0), -DVec3::Y),
+                ),
+                foot(
+                    "the standing block's back foot",
+                    STANDING_BACK,
+                    DVec3::Y,
+                    -DVec3::X,
+                    (STANDING_LEFT, at(10.0, 15.0), -DVec3::X),
+                ),
+            ],
+            "the standing block's back right upright",
+        ),
+        corner(
+            "the standing block's back left foot corner",
+            at(10.0, 15.0),
+            [
+                foot(
+                    "the standing block's back foot",
+                    STANDING_BACK,
+                    DVec3::Y,
+                    DVec3::X,
+                    (STANDING_RIGHT, at(20.0, 15.0), DVec3::X),
+                ),
+                foot(
+                    "the standing block's left foot",
+                    STANDING_LEFT,
+                    -DVec3::X,
+                    -DVec3::Y,
+                    (STANDING_FRONT, at(10.0, 5.0), -DVec3::Y),
+                ),
+            ],
+            "the standing block's back left upright",
+        ),
+        corner(
+            "the standing block's front left foot corner",
+            at(10.0, 5.0),
+            [
+                foot(
+                    "the standing block's left foot",
+                    STANDING_LEFT,
+                    -DVec3::X,
+                    DVec3::Y,
+                    (STANDING_BACK, at(10.0, 15.0), DVec3::Y),
+                ),
+                foot(
+                    "the standing block's front foot",
+                    STANDING_FRONT,
+                    -DVec3::Y,
+                    DVec3::X,
+                    (STANDING_RIGHT, at(20.0, 5.0), DVec3::X),
+                ),
+            ],
+            "the standing block's front left upright",
+        ),
+    ]
+}
+
+/// What [`stacked`] holds once its four feet and four uprights are chamfered
+/// at `value` in one step, as the module's documentation derives it: the
+/// four uprights' flats taken, and at each height the octagon they leave
+/// offset out over the lower block's top, its eight corners of 135° mitred.
+fn chamfered_all_round(value: f64) -> f64 {
+    let d = value;
+    STACKED_VOLUME - 4.0 * STANDING_HEIGHT * d * d / 2.0
+        + (40.0 - 8.0 * d + 4.0 * 2f64.sqrt() * d) * d * d / 2.0
+        + 8.0 * (PI / 8.0).tan() * d.powi(3) / 3.0
+}
+
+/// What [`stacked`] holds once its four feet and four uprights are filleted
+/// at `radius` in one step, as the module's documentation derives it: the
+/// four uprights' rounds taken, the four feet's added between them, and the
+/// four pieces of torus, each a quarter turn.
+fn filleted_all_round(radius: f64) -> f64 {
+    let r = radius;
+    let section = r * r * (1.0 - PI / 4.0);
+    STACKED_VOLUME - 4.0 * STANDING_HEIGHT * section
+        + 4.0 * (10.0 - 2.0 * r) * section
+        + 4.0 * PI / 2.0 * r.powi(3) * (11.0 / 6.0 - PI / 2.0)
+}
+
+/// Holds that a flat face's corners are the points expected, each of them a
+/// corner, and no other.
+fn corners_are(body: &Body, face: usize, expected: &[DVec3], what: &str) {
+    let plane = body
+        .plane_of(face)
+        .unwrap_or_else(|| panic!("{what}: the body offers no plane on face {face}"));
+    for corner in &plane.corners {
+        assert!(
+            expected.iter().any(|point| point.distance(*corner) < PLACE),
+            "{what}: a corner at {corner}, where the corners are {expected:?}"
+        );
+    }
+    for point in expected {
+        assert!(
+            (plane.corners.iter()).any(|corner| corner.distance(*point) < PLACE),
+            "{what}: no corner at {point}, among {:?}",
+            plane.corners
+        );
+    }
+}
+
+/// The corners of the twelve flats a chamfer of `value` on [`stacked`]'s four
+/// feet and four uprights lays, as the module's documentation lays them out:
+/// for each edge of [`FEET_AND_UPRIGHTS`], then for the fill along the foot
+/// of the flat at each corner of `corners`. Each fill's corners are two on
+/// the lower block's top, where the outline the uprights' flats leave,
+/// offset the value out, turns, `value·tan(22.5°)` past its own ends; and two
+/// the value up the face it fills against, at that face's ends. Each
+/// upright's flat runs from the value up to the standing block's top,
+/// between the two set-backs on its walls.
+fn flats_all_round(corners: &[FootCorner; 4], value: f64) -> ([Vec<DVec3>; 8], [Vec<DVec3>; 4]) {
+    let d = value;
+    let past = d * (PI / 8.0).tan();
+    let up = DVec3::Z * d;
+    let fill = |from: DVec3, to: DVec3, out: DVec3| {
+        let along = (to - from).normalize();
+        vec![
+            from + out * d - along * past,
+            to + out * d + along * past,
+            from + up,
+            to + up,
+        ]
+    };
+    let set_backs = |corner: &FootCorner| {
+        corner
+            .feet
+            .each_ref()
+            .map(|foot| corner.at + foot.along * d)
+    };
+    let mut edges: [Vec<DVec3>; 8] = Default::default();
+    for (foot, [from, to]) in FEET_BETWEEN.into_iter().enumerate() {
+        let wall = FEET_AND_UPRIGHTS[foot][1];
+        let [start, end] = [from, to].map(|corner| corners[corner].at);
+        let along = (end - start).normalize();
+        let out = (corners[from].feet.iter())
+            .find(|at| at.wall == wall)
+            .expect("a foot runs from the corner it starts at")
+            .facing;
+        edges[foot] = fill(start + along * d, end - along * d, out);
+    }
+    let mut feet: [Vec<DVec3>; 4] = Default::default();
+    for (index, corner) in corners.iter().enumerate() {
+        let [one, other] = set_backs(corner);
+        let top = DVec3::Z * STANDING_HEIGHT;
+        edges[AT_THE_CORNERS[index][2]] = vec![one + up, other + up, one + top, other + top];
+        let (facing, _) = corner.flats_facing();
+        feet[index] = fill(one, other, facing[2]);
+    }
+    (edges, feet)
+}
+
+/// Holds what a step of its blend and value on [`stacked`]'s four feet and
+/// four uprights, named in its order, leaves of the part:
+///
+/// - the value taken whole; a sound body holding what
+///   [`chamfered_all_round`] or [`filleted_all_round`] promises;
+/// - one face for each edge, answering to where the part's numbers ended
+///   plus the edge's rank in the list, then one patch at each of the four
+///   corners — the fill along the foot of the upright's flat, or the piece of
+///   torus — numbered as [`Case::patches`] says; the next step's numbers past
+///   them; nothing else made, no face of the part gone;
+/// - among flats, each flat facing the way it lies, its corners where
+///   [`flats_all_round`] puts them and nowhere else;
+/// - among rounds, each upright's round on its cylinder as
+///   [`FootCorner::rounds`] lays it out, meeting its corner's piece of torus;
+///   each foot's round on its cylinder from the plane through one corner's
+///   upright round's axis to the other's, meeting the pieces of torus at both
+///   ends; and each corner's piece of torus on its own torus, as
+///   [`piece_held`] holds it.
+fn closed_all_round(part: &Body, corners: &[FootCorner; 4], case: &Case) {
+    let Case {
+        cut,
+        value,
+        step,
+        what,
+        ..
+    } = case;
+    let r = *value;
+    taken_as_asked(step.asked, step.taken, r, what);
+    let body = &step.body;
+    let start = part.faces_end();
+    let patches = case.patches(part, &AT_THE_CORNERS);
+    let laid = |edge: usize| case.laid_on(part, edge);
+    match cut {
+        Cut::Flat => {
+            let promised = chamfered_all_round(r);
+            sound_drawn_within(body, promised, EXACT * promised, what);
+        }
+        Cut::Round => {
+            let promised = filleted_all_round(r);
+            let curved = PI / 2.0 * r * (4.0 * 10.0 + 4.0 * STANDING_HEIGHT)
+                + 4.0 * PI / 2.0 * r * r * (PI - 1.0);
+            sound_drawn_within(body, promised, DRAWN * reach_of(part) * curved, what);
+        }
+    }
+    assert_eq!(
+        faces_made(part, body),
+        (start..start + 12).collect::<Vec<_>>(),
+        "{what}: one face for each edge, numbered in the order the step names them, and a patch \
+         at each of the four corners after them: {:?}",
+        numbers(body)
+    );
+    assert_eq!(
+        body.faces_end(),
+        start + 12,
+        "{what}: the next step numbers its own faces past the four patches"
+    );
+    assert!(
+        numbers(part).is_subset(&numbers(body)),
+        "{what}: a face of the part went: {:?}",
+        numbers(body)
+    );
+    let foot_wall = |foot: usize| {
+        let [corner, _] = FEET_BETWEEN[foot];
+        let wall = FEET_AND_UPRIGHTS[foot][1];
+        corners[corner]
+            .feet
+            .iter()
+            .find(|at| at.wall == wall)
+            .expect("a foot runs from the corner it starts at")
+            .facing
+    };
+    match cut {
+        Cut::Flat => {
+            let (edges, feet) = flats_all_round(corners, r);
+            for (edge, expected) in edges.iter().enumerate() {
+                let which = format!("{what}: the flat on {:?}", FEET_AND_UPRIGHTS[edge]);
+                let facing = match edge {
+                    foot @ 0..4 => (DVec3::Z + foot_wall(foot)).normalize(),
+                    upright => {
+                        let corner = (0..4)
+                            .find(|&corner| AT_THE_CORNERS[corner][2] == upright)
+                            .expect("each upright stands at a corner");
+                        corners[corner].flats_facing().0[2]
+                    }
+                };
+                faces_toward(body, laid(edge), facing, &which);
+                corners_are(body, laid(edge), expected, &which);
+            }
+            for (index, corner) in corners.iter().enumerate() {
+                let which = format!(
+                    "{what}: the fill along the foot of the flat on {}, face {}",
+                    corner.upright, patches[index]
+                );
+                faces_toward(body, patches[index], corner.flats_facing().1, &which);
+                corners_are(body, patches[index], &feet[index], &which);
+            }
+        }
+        Cut::Round => {
+            for (index, corner) in corners.iter().enumerate() {
+                let [one, other, upright] = AT_THE_CORNERS[index];
+                let [_, _, round] = corner.rounds(r);
+                round_held(body, laid(upright), &round, &[patches[index]], what);
+                piece_held(
+                    body,
+                    patches[index],
+                    &corner.torus(r),
+                    &[laid(one), laid(other), laid(upright)],
+                    &format!("{what}, at {}", corner.called),
+                );
+            }
+            for (foot, [from, to]) in FEET_BETWEEN.into_iter().enumerate() {
+                let facing = foot_wall(foot);
+                let [start_at, end_at] = [from, to].map(|corner| corners[corner].at);
+                let along = (end_at - start_at).normalize();
+                let [before, after] = [from, to].map(|corner| corners[corner].tangent(r));
+                let round = Cylinder {
+                    called: corners[from]
+                        .feet
+                        .iter()
+                        .find(|at| at.wall == FEET_AND_UPRIGHTS[foot][1])
+                        .expect("a foot runs from the corner it starts at")
+                        .called,
+                    through: start_at + facing * r + DVec3::Z * r,
+                    along,
+                    radius: r,
+                    toward: [-DVec3::Z, -facing],
+                    ends: [
+                        (start_at + along * before, -along),
+                        (end_at - along * after, along),
+                    ],
+                    meets: vec![TOP, FEET_AND_UPRIGHTS[foot][1]],
+                };
+                round_held(
+                    body,
+                    laid(foot),
+                    &round,
+                    &[patches[from], patches[to]],
+                    what,
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_the_four_feet_and_four_uprights_of_a_standing_block_close_its_four_foot_corners_in_one_step()
+ {
+    let part = stacked();
+    let corners = stacked_s_foot_corners();
+    let names = FEET_AND_UPRIGHTS.map(|[first, second]| edge_between(&part, first, second));
+    let mut laid = Vec::new();
+    let mut declined = Vec::new();
+    for cut in [Cut::Flat, Cut::Round] {
+        for value in VALUES {
+            for order in ALL_ROUND_ORDERS {
+                let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+                let what = format!(
+                    "the {} of {value} on the standing block's four feet and four uprights, \
+                     named {order:?}",
+                    cut.called()
+                );
+                match cut.laid_on(&part, &list, value) {
+                    Ok(step) => laid.push(Case {
+                        order: order.to_vec(),
+                        cut,
+                        value,
+                        step,
+                        what,
+                    }),
+                    Err(reason) => declined.push(format!("{what}: {reason:?}")),
+                }
+            }
+        }
+    }
+    assert!(
+        declined.is_empty(),
+        "the standing block's four feet and four uprights laid in one step, each upright first and \
+         the feet round it; declined:\n{}",
+        declined.join("\n")
+    );
+    for case in &laid {
+        closed_all_round(&part, &corners, case);
+    }
+    for case in &laid {
+        let first = laid
+            .iter()
+            .find(|other| other.cut == case.cut && other.value == case.value)
+            .expect("the case itself is among them");
+        if std::ptr::eq(first, case) {
+            continue;
+        }
+        let [mine, theirs] = [case, first].map(|one| one.patches(&part, &AT_THE_CORNERS));
+        let to_first: Vec<(usize, usize)> = (0..8)
+            .map(|edge| (case.laid_on(&part, edge), first.laid_on(&part, edge)))
+            .chain(mine.into_iter().zip(theirs))
+            .collect();
+        the_same_bodies(
+            &first.step.body,
+            &case.step.body,
+            &to_first,
+            &format!("{} and {}", first.what, case.what),
+        );
+    }
 }

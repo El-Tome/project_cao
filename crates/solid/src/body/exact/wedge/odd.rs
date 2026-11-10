@@ -18,7 +18,7 @@ use super::pairs::Pair;
 use super::step::Step;
 use super::{Meeting, Prism, Wedge};
 use crate::body::exact::Exact;
-use crate::brep::{Declined, EdgeName, Scale};
+use crate::brep::{Curve, Declined, EdgeName, Scale};
 
 /// A corner of mixed sense: where it stands, its three edges' ranks in the
 /// list, from the lowest, the rank of its odd edge and the way that edge runs
@@ -100,28 +100,31 @@ impl Exact {
     ) -> Result<(Exact, f64, Vec<Pair>), Declined> {
         let (_, _, meeting) = kind;
         match meeting.around {
-            Around::Foot => self.round_the_foot(names, odd, taken, kind),
+            Around::Foot => self.round_the_foot(names, wedges, odd, taken, kind),
             Around::Torus => self.through_a_torus(names, wedges, odd, taken, kind),
         }
     }
 
     /// The body with the edges `names` find laid at `taken`, each corner of
     /// mixed sense `odd` holds gone round its odd edge: the odd edges first,
-    /// alone, then the others with, for each such corner, the edge where the
-    /// face its odd edge laid meets the face the two others share, as
-    /// [`Exact::in_turn`] lays each of the two lists with what `kind` holds —
-    /// `most`, `set_back`, `tool` and `meeting` as [`Exact::cut_off`] takes
-    /// them; the face laid on each named edge numbered where the steps'
-    /// numbers ended plus its rank in the list, and those laid on the edges
-    /// no name finds past them, corner by corner. Declined
-    /// `Unsupported` where either list gives less than `taken`, as
-    /// [`Step::bound`] reads it on the body it is laid on, the odd edge's face
-    /// meets the face its two others share along no edge or several, or one
-    /// of two edges laid together is an edge no name finds; otherwise as
-    /// [`Exact::cut_off`] declines either list.
+    /// alone, then the others — each followed onto what the odd edges left,
+    /// as [`Exact::following`] finds it, its wedge on this body by its rank in
+    /// `wedges` — with, for each such corner, the edge where the face its odd
+    /// edge laid meets the face the two others share, as [`Exact::in_turn`]
+    /// lays each of the two lists with what `kind` holds — `most`,
+    /// `set_back`, `tool` and `meeting` as [`Exact::cut_off`] takes them; the
+    /// face laid on each named edge numbered where the steps' numbers ended
+    /// plus its rank in the list, and those laid on the edges no name finds
+    /// past them, corner by corner. Declined `Unsupported` where either list
+    /// gives less than `taken`, as [`Step::bound`] reads it on the body it is
+    /// laid on, an edge cannot be followed, the odd edge's face meets the face
+    /// its two others share along no edge or several, or one of two edges
+    /// laid together is an edge no name finds; otherwise as [`Exact::cut_off`]
+    /// declines either list.
     fn round_the_foot(
         &self,
         names: &[EdgeName],
+        wedges: &[Wedge],
         odd: &[Odd],
         taken: f64,
         kind: (
@@ -145,7 +148,10 @@ impl Exact {
                 laid.foot(start + at as u32, &corner.on)
             })
             .collect::<Result<Vec<_>, Declined>>()?;
-        let following: Vec<EdgeName> = named(&rest).into_iter().chain(feet).collect();
+        let followed = (rest.iter())
+            .map(|&rank| laid.following(&names[rank], &wedges[rank]))
+            .collect::<Result<Vec<_>, Declined>>()?;
+        let following: Vec<EdgeName> = followed.into_iter().chain(feet).collect();
         let (round, after) = laid.laid_at(&following, taken, kind)?;
         let order: Vec<u32> = (first.iter().chain(&rest))
             .map(|&rank| start + rank as u32)
@@ -179,6 +185,33 @@ impl Exact {
         }
         let (laid, _, pairs) = self.in_turn(names, step, taken, set_back, tool, meeting)?;
         Ok((laid, pairs))
+    }
+
+    /// The name on this body of the edge `name` found as `wedge` on a body
+    /// laid on since, which may have moved both its ends: the one straight
+    /// edge between the sides the name records, its every end on the line
+    /// `wedge` runs along. Declined `Unsupported` where no edge or several lie
+    /// there.
+    pub(super) fn following(&self, name: &EdgeName, wedge: &Wedge) -> Result<EdgeName, Declined> {
+        let eps = self.brep.scale().eps();
+        let [one, other] = &name.between;
+        let on_line = |at: DVec3| (at - wedge.point).cross(wedge.along).length() <= eps;
+        let mut found = self
+            .brep
+            .edge_ids()
+            .zip(&self.edges)
+            .filter(|&(edge, found)| {
+                let stretch = self.brep.edge(edge);
+                let ends = stretch.ends.into_iter().flatten();
+                (found.between == [one.clone(), other.clone()]
+                    || found.between == [other.clone(), one.clone()])
+                    && matches!(self.brep.curve(stretch.curve), Curve::Line(_))
+                    && ends.map(|end| self.brep.vertex(end).point).all(on_line)
+            });
+        match (found.next(), found.next()) {
+            (Some((_, found)), None) => Ok(found.clone()),
+            _ => Err(Declined::Unsupported),
+        }
     }
 
     /// The name of the one edge where the face laid answering to `laid`

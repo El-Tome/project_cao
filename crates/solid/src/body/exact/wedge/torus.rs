@@ -32,7 +32,8 @@ impl Exact {
     /// mixed sense `odd` holds gone round the round of its odd edge, its wedge
     /// on this body by its rank in `wedges`: each corner filled as
     /// [`filling`] fills it, the filling's faces numbered past the steps'
-    /// numbers; every edge then laid on what that leaves, as
+    /// numbers; every edge then followed onto what that leaves, as
+    /// [`Exact::following`] finds it, and laid there, as
     /// [`Exact::in_turn`] lays them with what `kind` holds, each face laid on
     /// an edge numbered where the steps' numbers ended plus its rank in the
     /// list; and each corner closed by its piece of torus, numbered past
@@ -60,8 +61,11 @@ impl Exact {
             filled = filled.joined(&filling(corner, &wedges[corner.lone], taken)?)?;
             fillings.push(from..filled.next);
         }
-        let step = filled.step(names)?;
-        let (laid, _, pairs) = filled.in_turn(names, step, taken, set_back, tool, meeting)?;
+        let followed = (names.iter().zip(wedges))
+            .map(|(name, wedge)| filled.following(name, wedge))
+            .collect::<Result<Vec<_>, Declined>>()?;
+        let step = filled.step(&followed)?;
+        let (laid, _, pairs) = filled.in_turn(&followed, step, taken, set_back, tool, meeting)?;
         let lent = filled.next - start;
         let laid_on = filled.next..laid.next;
         let set_aside = laid.renamed_by(|number| {

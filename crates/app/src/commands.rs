@@ -348,8 +348,8 @@ pub(crate) fn run(
             changed
         }
         Command::ToggleHistory => {
-            ribbon.history_unfolded = !ribbon.history_unfolded;
-            ribbon.part_tree_open |= ribbon.history_unfolded;
+            ribbon.history_unfolded = !ribbon.part_tree_open || !ribbon.history_unfolded;
+            ribbon.part_tree_open = true;
             false
         }
         Command::ToggleToolbarDocked => false,

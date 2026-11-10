@@ -29,6 +29,13 @@
 //! - `rewind_to`, undo, redo and compacting behave as before, reached from the
 //!   panel — `a_click_on_a_line_puts_the_part_back_to_that_action`,
 //!   `the_compact_link_at_the_bottom_asks_before_compacting`
+//! - found in review: folded again, the header goes back where it stood
+//!   folded, after a long history was compacted too —
+//!   `folding_the_history_again_puts_its_header_back_where_it_stood`,
+//!   `folding_a_long_history_after_compacting_it_puts_its_header_back`
+//! - found in review: H with the Part panel closed opens it on the history
+//!   unfolded, rather than folding a history nobody sees —
+//!   `h_with_the_part_panel_closed_opens_it_on_the_history_unfolded`
 
 mod driver;
 
@@ -279,4 +286,57 @@ fn a_right_click_on_a_sketch_s_line_offers_to_edit_it_and_reopens_it() {
         "« Modifier l'esquisse » left the sketch closed: {:?}",
         driver::on_screen(&app),
     );
+}
+
+#[test]
+fn folding_the_history_again_puts_its_header_back_where_it_stood() {
+    let mut app = a_part_with_a_segment("folding_again_puts_the_header_back");
+    let folded = the_header(&app);
+
+    click_the_header(&mut app);
+    click_the_header(&mut app);
+
+    assert_eq!(the_header(&app), folded, "unfolded then folded again");
+}
+
+#[test]
+fn folding_a_long_history_after_compacting_it_puts_its_header_back() {
+    let mut app = a_part_with_a_long_history("folding_after_compacting");
+    let folded = the_header(&app);
+    driver::open_the_history(&mut app);
+
+    driver::click_the_button(&mut app, "Compacter l'historique…");
+    driver::click_exactly(&mut app, "Compacter");
+    click_the_header(&mut app);
+
+    assert_eq!(the_header(&app), folded, "compacted, then folded again");
+}
+
+#[test]
+fn h_with_the_part_panel_closed_opens_it_on_the_history_unfolded() {
+    for unfolded_before in [false, true] {
+        let mut app = a_part_with_a_segment(&format!("h_opens_the_part_panel_{unfolded_before}"));
+        if unfolded_before {
+            driver::press(&mut app, egui::Key::H);
+        }
+        driver::click_the_button(&mut app, "Pièce");
+        assert!(
+            driver::the_row(&app, "Historique").is_none(),
+            "the Part panel is closed",
+        );
+
+        driver::press(&mut app, egui::Key::H);
+
+        assert_eq!(
+            driver::steps(&app),
+            THE_TWO_LINES,
+            "H with the Part panel closed and the history {} before: {:?}",
+            if unfolded_before {
+                "unfolded"
+            } else {
+                "folded"
+            },
+            driver::on_screen(&app),
+        );
+    }
 }

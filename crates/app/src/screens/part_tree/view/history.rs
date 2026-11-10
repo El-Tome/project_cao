@@ -50,24 +50,24 @@ pub(super) fn at_the_bottom(
 }
 
 /// The header, and the lines under it while `unfolded`; what was asked of
-/// them. Nothing at all while nothing was done to the part.
+/// them. Nothing at all while nothing was done to the part. Folded, the lines
+/// are not even worked out.
 fn history(
     ui: &mut egui::Ui,
     document: &PartDocument,
     unfolded: bool,
     lang: &Catalogue,
 ) -> TreeAction {
-    let history = History::of(document, lang);
-    if history.lines.is_empty() {
+    let Some(actions) = History::actions_of(document, lang) else {
         return TreeAction::None;
-    }
+    };
     let mut action = TreeAction::None;
     ui.spacing_mut().item_spacing.y = 0.0;
     let title = lang.t("part_tree.history.title");
     let header = TreeRow {
         name: &title,
         unfolded: Some(unfolded),
-        value: Some(&history.actions),
+        value: Some(&actions),
         ..TreeRow::default()
     };
     if tree_row(ui, header).row.clicked() {
@@ -76,6 +76,7 @@ fn history(
     if !unfolded {
         return action;
     }
+    let history = History::of(document, lang);
     egui::ScrollArea::vertical()
         .id_salt("part_history")
         .max_height(TALLEST)
@@ -97,7 +98,7 @@ fn history(
                 if response.clicked() {
                     action = TreeAction::RewindTo(line.back_to);
                 }
-                if let Some(sketch) = line.sketch.filter(|_| !line.undone) {
+                if let Some(sketch) = line.sketch {
                     response.context_menu(|ui| {
                         if ui.button(lang.t("part_tree.history.edit_sketch")).clicked() {
                             action = TreeAction::EditSketch(sketch);

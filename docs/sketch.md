@@ -890,8 +890,9 @@ That is also what makes a deletion replay and undo like any other step
 
 ## Reopening a sketch
 
-The History panel shows an ✏ **Modifier** button under each sketch. It reopens
-it to add traits, even after clicking "Terminer" or closing the part. The view
+A double-click on a sketch's row in the "Pièce" panel, or « Modifier
+l'esquisse » on the right click of its line in the history, reopens it to add
+traits, even after clicking "Terminer" or closing the part. The view
 puts itself back facing the plane and frames the existing drawing.
 
 The planes offered are the three origin planes (XY, XZ, YZ) **and every flat
@@ -2166,8 +2167,8 @@ it is rebuilt by replaying those operations.
 
 ## Undoing
 
-`Ctrl+Z` undoes, `Ctrl+Y` (or `Ctrl+Shift+Z`) redoes. The History panel also
-allows going straight back to any step. See [history.md](history.md).
+`Ctrl+Z` undoes, `Ctrl+Y` (or `Ctrl+Shift+Z`) redoes. A click on a line of the
+history also goes straight back to any step. See [history.md](history.md).
 
 ## What is still missing
 

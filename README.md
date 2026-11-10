@@ -19,7 +19,8 @@ in Rust, meant to be modular and cross-platform from the start.
   following ones deform the geometry. See [`docs/sketch.md`](docs/sketch.md).
 
 - **History**: every gesture is a recorded operation. Undo (`Ctrl+Z`), redo,
-  and a direct return to any step from the History panel. See
+  and a direct return to any step from the history, folded at the bottom of
+  the Part panel. See
   [`docs/history.md`](docs/history.md).
 
 - **Extrusion**: once a sketch is finished, choose one or several closed areas

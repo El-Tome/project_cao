@@ -113,7 +113,7 @@ fn value_on(
     )
 }
 
-/// A step of the history, by the place the history panel shows it at.
+/// A step of the history, by the place the history shows it at.
 fn step(lang: &Catalogue, document: &PartDocument, number: u32) -> String {
     let Some(position) = document.history.position_of(number) else {
         return String::new();

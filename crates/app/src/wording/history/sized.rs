@@ -20,7 +20,7 @@ pub(super) fn chamfer(
     lang.t_with(
         "history.detail.chamfer",
         &[
-            ("sketch", &sketch.to_string()),
+            ("sketch", &(sketch + 1).to_string()),
             ("corners", &corners.to_string()),
             ("mode", &chamfer_mode(lang, variables, mode)),
         ],
@@ -37,7 +37,7 @@ pub(super) fn fillet(
     lang.t_with(
         "history.detail.fillet",
         &[
-            ("sketch", &sketch.to_string()),
+            ("sketch", &(sketch + 1).to_string()),
             ("corners", &corners.to_string()),
             ("radius", &sized(lang, variables, radius, short)),
         ],
@@ -57,7 +57,7 @@ pub(super) fn circular_pattern(
     lang.t_with(
         "history.detail.circular_pattern",
         &[
-            ("sketch", &sketch.to_string()),
+            ("sketch", &(sketch + 1).to_string()),
             ("elements", &elements.to_string()),
             ("centre", &centre.0.to_string()),
             ("degrees", &sized(lang, variables, degrees, short)),
@@ -78,7 +78,7 @@ pub(super) fn rectangular_pattern(
     lang.t_with(
         "history.detail.rectangular_pattern",
         &[
-            ("sketch", &sketch.to_string()),
+            ("sketch", &(sketch + 1).to_string()),
             ("elements", &elements.to_string()),
             ("direction", &chosen_axis(lang, direction)),
             ("along", &sized(lang, variables, &along.count, whole)),

@@ -109,7 +109,7 @@ there. See the `architecture-rust` skill.
 | The sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput`, `CircleMode`, `Selection` |
 | The placing of dimensions on screen | `app/src/screens/annotations.rs` | `push(...)`, `Placement`, `Style` |
 | Extrusion and revolution, interface side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
-| The History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
+| The history, folded at the bottom of the Part panel | `app/src/screens/part_tree/state/history.rs`, `app/src/screens/part_tree/view/history.rs` | `History::of`, `history` → `TreeAction` |
 | The toolbar | `app/src/screens/ribbon/` | `view.rs` draws, `state.rs` says what a command is in |
 | The settings screen | `app/src/screens/settings/` | `show(ui, profiles, editor)`, one file per section |
 | The start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |

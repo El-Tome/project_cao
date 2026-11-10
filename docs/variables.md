@@ -97,7 +97,7 @@ fields were left out to keep it simple.
 ## Changing a variable
 
 Variables are made, edited and taken away in a **panel of their own**, beside
-the history panel, opened from the ribbon — in a sketch and outside one. One
+the Part panel, opened from the ribbon — in a sketch and outside one. One
 row each: the name, the formula, what it comes to. A row is asked of the part
 when the keyboard leaves it, or on `Entrée`; `Échap` drops what was typed into
 it. The row at the foot adds a variable.

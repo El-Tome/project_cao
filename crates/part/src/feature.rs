@@ -1,13 +1,15 @@
 use crate::history::{History, StepKind};
 
-/// One major step of the design, as the history panel needs it: where it
-/// begins and ends in the list of operations, and which sketch it opened.
+/// One major step of the design: where it begins and ends in the list of
+/// operations, and which sketch it opened.
 ///
 /// These are runs of the list as it was typed, not the steps the design is
-/// replayed by. The panel is the journal: it reads in the order things
-/// happened, and the positions it speaks are the ones "go back to this step"
-/// moves the cursor to. An edit to an earlier sketch belongs to that sketch's
-/// step and is replayed with it, and still shows here where it was typed.
+/// replayed by: they read in the order things happened, and the positions
+/// they speak are the ones "go back to this step" moves the cursor to. An
+/// edit to an earlier sketch belongs to that sketch's step and is replayed
+/// with it, and still shows here where it was typed. The history the user
+/// reads is a flat list and groups nothing by step; `line_ends` is what it
+/// takes from here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Feature {
     pub start: usize,

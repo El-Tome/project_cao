@@ -14,7 +14,7 @@ pub(super) fn between(lang: &Catalogue, sketch: usize, start: &PointRef, end: &P
     lang.t_with(
         "history.detail.between",
         &[
-            ("sketch", &sketch.to_string()),
+            ("sketch", &(sketch + 1).to_string()),
             ("start", &point_label(lang, start)),
             ("end", &point_label(lang, end)),
         ],

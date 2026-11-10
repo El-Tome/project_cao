@@ -358,7 +358,7 @@
   "sketch.pattern_needs_a_centre": "Ce clic ne désigne aucun point du dessin",
   "sketch.pattern_needs_its_values": "Tapez le pas en degrés et le nombre de copies",
   "sketch.pattern_count_capped": "{count} au plus : la {next}e retomberait sur l'original",
-  "history_tree.pattern_capped": "{laid} copies au plus à {degrees}° ; {asked} demandées",
+  "part_tree.history.pattern_capped": "{laid} copies au plus à {degrees}° ; {asked} demandées",
   "command.hint.tool_rectangular_pattern": "Prendre des éléments, cliquer la direction et taper les pas et les nombres dans le panneau, puis Valider",
   "sketch.pattern_click_the_direction": "Cliquez le trait ou l'axe le long duquel répéter",
   "sketch.pattern_needs_a_direction": "Ce clic ne désigne ni un trait ni un axe",

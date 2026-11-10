@@ -254,7 +254,7 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | The major steps a design is grouped into | `part/src/history/step.rs` | `Step`, `StepKind` |
 | Which sketch an operation edits, and so which step it is filed under | `part/src/history/edits.rs` | `Operation::edits` |
 | Which step an operation that opens none is filed under: the sketch it edits, or the section it changes | `part/src/history/step.rs` | `StepKind::owner`, `StepKind::opened_by` |
-| Where a step begins and ends in the list | `part/src/feature.rs` | `Feature::all` |
+| Where a step begins and ends in the list, which no screen reads since the history became a flat list | `part/src/feature.rs` | `Feature::all`, `Feature::line_ends` |
 | Replaying the history for the geometry | `part/src/replay.rs`, `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` → `Outcome` |
 | What a replay notes: what each operation laid, what was raised, which values left the drawing | `part/src/replay.rs` | `Replay`, `Laid`, `SetBy`, `next_value_set` |
 | The part shown with each volume's state: the history replayed apart, an invisible step left out, a see-through addition left out and a see-through cut applied, the raw tool of each see-through step kept as a ghost numbered as the part numbers it | `part/src/showing.rs` | `PartDocument::shown` → `Shown`, `Ghost`, `VolumeState`, `PartState::rebuild_showing` |

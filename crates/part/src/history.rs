@@ -127,7 +127,7 @@ impl History {
     }
 
     /// Where the operation of that number stands in the list, which is the
-    /// place the history panel shows it at.
+    /// place the history shows it at.
     pub fn position_of(&self, number: u32) -> Option<usize> {
         self.numbers.iter().position(|given| *given == number)
     }

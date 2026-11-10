@@ -55,6 +55,13 @@
 //!   and `compacting_a_gesture_keeps_everything_it_laid` in
 //!   `crates/part/tests/a_gesture_is_undone_whole.rs`, among others; reached
 //!   from the panel, in `crates/app/tests/the_history.rs`
+//! - found in review: a sketch named in a detail counts from one, as its
+//!   line and its row do —
+//!   `a_detail_names_its_sketch_counting_from_one_as_the_line_above_it_does`
+//! - found in review: an undone sketch's line offers no sketch to reopen —
+//!   `an_undone_sketch_s_line_offers_no_sketch_to_reopen`
+//! - found in review: a revolution reads « Révolution N » and its mode and
+//!   turn — `a_revolution_reads_its_rank_and_how_far_it_turned`
 
 use super::*;
 use crate::screens::part_tree::state::History;
@@ -270,4 +277,76 @@ fn a_single_action_is_counted_in_the_singular() {
     });
 
     assert_eq!(History::of(&document, &french()).actions, "1 action");
+}
+
+#[test]
+fn a_detail_names_its_sketch_counting_from_one_as_the_line_above_it_does() {
+    let mut document = the_part_of_screen_06();
+    document.apply(Operation::AddPoint {
+        sketch: 1,
+        position: DVec2::new(30.0, 20.0),
+        on: Vec::new(),
+    });
+    let mut one_sketch = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    one_sketch.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    one_sketch.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::ZERO),
+        end: PointRef::New(DVec2::new(40.0, 0.0)),
+        construction: false,
+    });
+
+    let segment = &History::of(&one_sketch, &french()).lines[1];
+    let point = History::of(&document, &french())
+        .lines
+        .last()
+        .cloned()
+        .expect("the point's line");
+
+    assert!(
+        segment.detail.starts_with("Esquisse 1 · "),
+        "a trait of « Esquisse 1 » reads {:?}",
+        segment.detail,
+    );
+    assert!(
+        point.detail.starts_with("Esquisse 2 · "),
+        "a point of « Esquisse 2 » reads {:?}",
+        point.detail,
+    );
+}
+
+#[test]
+fn an_undone_sketch_s_line_offers_no_sketch_to_reopen() {
+    let mut document = a_part();
+    document.undo();
+
+    let history = History::of(&document, &french());
+
+    let offered: Vec<(usize, Option<usize>)> = history
+        .lines
+        .iter()
+        .filter(|line| line.name.starts_with("Esquisse"))
+        .map(|line| (line.number, line.sketch))
+        .collect();
+    assert_eq!(
+        offered,
+        [(1, Some(0)), (5, None)],
+        "the second sketch, undone, has nothing left to reopen",
+    );
+}
+
+#[test]
+fn a_revolution_reads_its_rank_and_how_far_it_turned() {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    a_ball(&mut document, DVec3::ZERO, 4.0);
+
+    let history = History::of(&document, &french());
+
+    assert_eq!(
+        read(&history).last().copied(),
+        Some((4, "Révolution 1", "ajout de matière · 360°")),
+    );
 }

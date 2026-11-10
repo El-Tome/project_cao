@@ -29,7 +29,8 @@ pub struct HistoryLine {
     /// How many operations stand applied once the part is put back to just
     /// after this action, the sections kept right after it still in effect.
     pub back_to: usize,
-    /// The sketch this action started, which a sketch's line offers to reopen.
+    /// The sketch this action started, which a sketch's line offers to reopen;
+    /// none once undone, when there is no sketch left to reopen.
     pub sketch: Option<usize>,
     /// What a pattern laying a full turn short of its count says of itself.
     pub capped: Option<String>,
@@ -82,7 +83,7 @@ impl History {
                 undone: step >= applied,
                 current: step < applied && applied <= ends,
                 back_to: applied.clamp(step + 1, ends),
-                sketch: started.then(|| sketches - 1),
+                sketch: (started && step < applied).then(|| sketches - 1),
                 capped: document
                     .history
                     .number_at(step)
@@ -90,13 +91,29 @@ impl History {
                     .map(|capped| wording::pattern::step_capped(lang, capped)),
             });
         }
-        let key = match lines.len() {
-            1 => "part_tree.history.actions_one",
-            _ => "part_tree.history.actions_many",
-        };
-        let actions = lang.t_with(key, &[("count", &lines.len().to_string())]);
+        let actions = counted(lang, lines.len());
         Self { actions, lines }
     }
+
+    /// What the folded header reads, « N actions », worked out without
+    /// naming a single line; nothing while nothing was done to the part.
+    pub fn actions_of(document: &PartDocument, lang: &Catalogue) -> Option<String> {
+        let count = document
+            .history
+            .operations()
+            .iter()
+            .filter(|operation| !operation.is_about_a_section())
+            .count();
+        (count > 0).then(|| counted(lang, count))
+    }
+}
+
+fn counted(lang: &Catalogue, count: usize) -> String {
+    let key = match count {
+        1 => "part_tree.history.actions_one",
+        _ => "part_tree.history.actions_many",
+    };
+    lang.t_with(key, &[("count", &count.to_string())])
 }
 
 /// « ajout de matière · 10 mm »: what a step of matter does, then how far.

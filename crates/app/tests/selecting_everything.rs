@@ -93,7 +93,7 @@ fn the_last_step_in_detail(app: &mut driver::App) -> String {
         .cloned()
         .expect("the sketch's own step at least");
     driver::detail_of(app, &last)
-        .filter(|detail| detail.starts_with("Esquisse 0 ·"))
+        .filter(|detail| detail.starts_with("Esquisse 1 ·"))
         .unwrap_or(last)
 }
 
@@ -115,7 +115,7 @@ fn steps_after_delete(app: &mut driver::App) -> Vec<String> {
 }
 
 fn erased(traits: usize) -> String {
-    format!("Esquisse 0 · {traits} tracé(s), 0 cote(s), 0 contrainte(s)")
+    format!("Esquisse 1 · {traits} tracé(s), 0 cote(s), 0 contrainte(s)")
 }
 
 /// Every point of this file is a point of the sketch: where the clicks the
@@ -361,7 +361,7 @@ fn a_shift_click_still_adds_to_what_a_click_took() {
 
     assert_eq!(
         what_delete_takes(&mut app),
-        "Esquisse 0 · 2 tracé(s), 0 cote(s), 0 contrainte(s)",
+        "Esquisse 1 · 2 tracé(s), 0 cote(s), 0 contrainte(s)",
         "the top side clicked, then the bottom one Shift+clicked, are both held",
     );
 }
@@ -382,7 +382,7 @@ fn a_drag_on_a_trait_carries_everything_command_a_took() {
 
     let moved = the_last_step_in_detail(&mut app);
     assert!(
-        moved.starts_with("Esquisse 0 · 6 points de"),
+        moved.starts_with("Esquisse 1 · 6 points de"),
         "the rectangle's four corners and the line's two ends moved together, in \
          one step: {moved}",
     );

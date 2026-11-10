@@ -3,9 +3,11 @@
 //! meeting outwards — two of its edges cut trim each other in a mitre and
 //! leave the third sharp, and all three are closed by a patch of their own
 //! kind: a triangle among flats, a piece of sphere among rounds. A corner with
-//! an edge meeting inwards is declined. An operation of the kernel on
-//! [`Body`], as the step on several edges of #698 is; the step of the history
-//! that calls it comes with the application, in #701.
+//! an edge meeting inwards is declined here, but for those #801 builds, held
+//! in `a_chamfer_and_a_fillet_stop_and_mitre_beside_a_concave_edge.rs`. An
+//! operation of the kernel on [`Body`], as the step on several edges of #698
+//! is; the step of the history that calls it comes with the application, in
+//! #701.
 //!
 //! Closes #699.
 //! - Three edges of a convex corner chamfered at one value leave a closed
@@ -115,17 +117,21 @@
 //!   `a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported`;
 //!   the reason is `Unsupported`, the kernel's word for a shape it does not
 //!   build, until #801, the follow-up issue the decision promised, builds
-//!   those corners. At the
-//!   L's inner corner and at a pocket's, each edge but the L's upright one is
-//!   declined alone already, its cut carried along its line taking matter
-//!   beyond it: those lists hold what the user sees, and not why. What holds
-//!   the corner's own decline is a block standing on another, whose four feet
-//!   are filled in each alone, and two of which meet at each of its corners,
-//!   the third edge there its upright, meeting outwards. Lists taking that
-//!   upright, with a foot or with both, are declined too, but the upright is
-//!   declined alone already, its cut carried down past the foot taking matter
-//!   of the block below: those lists hold what the user sees as well, and
-//!   only the feet hold the corner's own decline
+//!   those corners. Its first slice builds every edge at such a corner alone
+//!   — the L's top and floor edges at its inner corner, a pocket's rim, a
+//!   standing block's uprights, each stopping flush on the face it runs into
+//!   — and two convex edges meeting where the third is concave, mitred, the
+//!   third left sharp: the L's two top edges at its inner corner and two edges
+//!   of a pocket's rim, which this test declined before, held now in
+//!   `a_chamfer_and_a_fillet_stop_and_mitre_beside_a_concave_edge.rs`. The
+//!   lists left here are declined at the corner itself, each of their edges
+//!   laid alone — but a pocket's floor edges and uprights, declined alone as
+//!   well: two feet of a block standing on another, meeting where its upright
+//!   meets outwards, until #801's second slice; two edges of a pocket's floor,
+//!   or one and the upright it meets, all three concave, until its third; and
+//!   a cut meeting a fill at a corner — a foot and the upright above it, the
+//!   L's top edge and its inner upright, the three edges at a corner of mixed
+//!   sense — until #829
 //! - A full round, two parallel edges whose rounds meet across the face they
 //!   share, meeting a third edge of the list at a corner, is not built here:
 //!   the fillet is declined `Unsupported` whichever edge the list names
@@ -1253,11 +1259,6 @@ fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_d
             ],
         ),
         (
-            "the two top edges at the L's inner corner",
-            &ell,
-            names(&ell, &[[TOP, ARM_BACK], [TOP, STEM_RIGHT]]),
-        ),
-        (
             "a top edge at the L's inner corner and the L's inner upright",
             &ell,
             names(&ell, &[[TOP, ARM_BACK], [ARM_BACK, STEM_RIGHT]]),
@@ -1285,11 +1286,6 @@ fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_d
                 &pocketed,
                 &[[POCKET_FLOOR, POCKET_FRONT], [POCKET_FRONT, POCKET_RIGHT]],
             ),
-        ),
-        (
-            "two edges of the pocket's rim, meeting above its front right upright",
-            &pocketed,
-            names(&pocketed, &[[TOP, POCKET_FRONT], [TOP, POCKET_RIGHT]]),
         ),
     ] {
         let filleted = body.fillet_edges(&list, value).err();

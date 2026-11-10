@@ -214,7 +214,14 @@ It can:
   on that face's plane as a fill's is, and that face grows by the cut's end
   section and keeps its number. Where the face it runs into is curved, or
   is not one face, the cut is carried along the line and the check
-  declines what it takes. A round leaving
+  declines what it takes. Two such edges of one step meeting at a corner
+  whose third edge is concave and left out of the list — the L's two top
+  edges at its inner corner, two edges of a pocket's rim — each stop flush
+  there, and the later takes with it what both prisms, carried past the
+  corner, hold beyond both faces they stop on (`wedge/overlap.rs`): the two
+  flats or rounds run on into a mitre, a line among flats and an ellipse
+  among rounds, down to the concave edge, left sharp and one value short of
+  the corner, and no face is laid there. A round leaving
   the edge's end at a few degrees inwards trims the chamfer like any other
   end face; one leaving it outwards dips outside the edge's face past the
   end corner, and is covered only while the prism's side, a margin out,
@@ -423,9 +430,9 @@ Left, in the order #497 set:
   angle (#577);
 - an exact STEP;
 - fillets on a straight edge, then on a circular one, then where fillets
-  meet at a corner; a chamfer on one straight edge is done (#696), and a
-  chamfer on several edges at once, on a curved edge, or stopping at the
-  wall of a concave corner is still to come;
+  meet at a corner; a chamfer on one straight edge is done (#696), stopping
+  at the wall of a concave corner too (#801), and a chamfer on several edges
+  at once or on a curved edge is still to come;
 - draft, shell, loft.
 
 Known and still open:

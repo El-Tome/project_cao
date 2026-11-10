@@ -210,7 +210,7 @@ It can:
   ending where matter lies past it, behind the one flat face it runs into
   there — an arm's edge running into the stem of an L, a pocket's rim, an
   upright of a block standing on another — stops flush instead (#801,
-  `Exact::cut_flush` in `body/exact/wedge/flush.rs`): the prism is trimmed
+  `Exact::laid_flush` in `body/exact/wedge/flush.rs`): the prism is trimmed
   on that face's plane as a fill's is, and that face grows by the cut's end
   section and keeps its number. Where the face it runs into is curved, or
   is not one face, the cut is carried along the line and the check
@@ -378,7 +378,16 @@ It can:
   where that is larger, and further in where a sharp corner's sunk sides meet
   — so behind a wall thinner than that the prism comes out the other side, a
   face of it is left standing alone, and the check finds it stray: a bracket a
-  millimetre thick, rounded on its inner corner by more than 8.
+  millimetre thick, rounded on its inner corner by more than 8. Two such edges
+  of one step meeting at a corner whose third edge is convex and left out of
+  the list — two feet of a block standing on another — mirror the two cuts
+  beside a concave edge (#801): each fill is trimmed flush there, the later
+  read on the body as given, since the earlier's end has grown the wall it
+  runs into, and the later takes with it what both prisms, carried past the
+  corner, hold beyond both faces they stop on (`wedge/overlap.rs`), joined
+  where the cuts' is cut. The two flats or rounds run on into a mitre outside
+  the convex edge, a line among flats and an ellipse among rounds, and no
+  face is laid there.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face

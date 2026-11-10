@@ -123,15 +123,18 @@
 //!   — and two convex edges meeting where the third is concave, mitred, the
 //!   third left sharp: the L's two top edges at its inner corner and two edges
 //!   of a pocket's rim, which this test declined before, held now in
-//!   `a_chamfer_and_a_fillet_stop_and_mitre_beside_a_concave_edge.rs`. The
+//!   `a_chamfer_and_a_fillet_stop_and_mitre_beside_a_concave_edge.rs`. Its
+//!   second slice builds two concave edges meeting where the third is convex,
+//!   mitred, the third left sharp: two feet of a block standing on another,
+//!   meeting where its upright meets outwards, and its four feet, which this
+//!   test declined before, held now in
+//!   `a_chamfer_and_a_fillet_fill_concave_edges_meeting_at_a_corner.rs`. The
 //!   lists left here are declined at the corner itself, each of their edges
 //!   laid alone — but a pocket's floor edges and uprights, declined alone as
-//!   well: two feet of a block standing on another, meeting where its upright
-//!   meets outwards, until #801's second slice; two edges of a pocket's floor,
-//!   or one and the upright it meets, all three concave, until its third; and
-//!   a cut meeting a fill at a corner — a foot and the upright above it, the
-//!   L's top edge and its inner upright, the three edges at a corner of mixed
-//!   sense — until #829
+//!   well: two edges of a pocket's floor, or one and the upright it meets,
+//!   all three concave, until #801's third slice; and a cut meeting a fill at
+//!   a corner — a foot and the upright above it, the L's top edge and its
+//!   inner upright, the three edges at a corner of mixed sense — until #829
 //! - A full round, two parallel edges whose rounds meet across the face they
 //!   share, meeting a third edge of the list at a corner, is not built here:
 //!   the fillet is declined `Unsupported` whichever edge the list names
@@ -1226,21 +1229,6 @@ fn a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_d
     };
 
     for (what, body, list) in [
-        (
-            "the front and right feet of the standing block, meeting at its front right corner",
-            &stacked,
-            vec![feet[0].clone(), feet[1].clone()],
-        ),
-        (
-            "the right and back feet of the standing block, meeting at its back right corner",
-            &stacked,
-            vec![feet[1].clone(), feet[2].clone()],
-        ),
-        (
-            "the four feet of the standing block, two meeting at each of its corners",
-            &stacked,
-            feet.clone(),
-        ),
         (
             "a foot of the standing block and the upright above it",
             &stacked,

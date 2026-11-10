@@ -146,7 +146,7 @@ impl Exact {
         };
         let cut = if first.inwards {
             let edges = [(first_edge, &first), (second_edge, &second)];
-            self.filled(&edges, &prism, tool)?
+            self.filled(&self.brep, &edges, &[], &prism, tool)?
         } else {
             self.cut_by(&Exact { next: 2, ..tool })?
         };

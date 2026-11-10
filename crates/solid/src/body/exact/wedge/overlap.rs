@@ -1,10 +1,11 @@
-//! What two cuts mitred beside a concave edge take past their corner (#801):
-//! each stops flush on the face it runs into there, the other edge's second
-//! face, and past both faces lies matter both prisms, carried past the
-//! corner, would take. The later edge's prism takes that overlap with it, its
-//! faces merged into the two flats or rounds, which then run past the corner
-//! into a mitre, the concave edge left sharp and ending one value short of
-//! the corner.
+//! What two edges of one sense mitred beside an edge of the other take past
+//! their corner (#801): each stops flush on the face it runs into there, the
+//! other edge's second face, and past both faces lies what both prisms,
+//! carried past the corner, would hold — matter two cuts beside a concave
+//! edge would take, air two fills beside a convex edge would fill. The later
+//! edge's prism takes that overlap with it, cut or joined with it, its faces
+//! merged into the two flats or rounds, which then run past the corner into a
+//! mitre, the third edge left sharp.
 
 use std::collections::BTreeMap;
 

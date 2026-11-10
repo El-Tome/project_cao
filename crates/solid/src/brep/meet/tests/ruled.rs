@@ -89,3 +89,39 @@ fn a_lap_turning_back_on_the_other_wall_at_its_seam_turns_there() {
         }
     }
 }
+
+#[test]
+fn at_the_exact_angle_of_a_node_of_its_table_a_ruled_meet_is_found_only_where_it_stands_there() {
+    let shapes = [touching_the_rod(), over_the_rod(0.0), over_the_rod(0.3)];
+    for (pin, rod) in shapes {
+        for component in 0..2 {
+            let meet = Meet {
+                first: pin,
+                second: rod,
+                component,
+            };
+            let read = meet
+                .ruled()
+                .expect("the pin's rulings are read against the rod");
+            let lap = meet.lap(&read).expect("each pair has two laps");
+            for &[node, angle] in &lap.around {
+                let found = meet.at_angle(false, angle);
+                for &t in &found {
+                    let seen = meet.seen_on(false, t)[0].x;
+                    assert!(
+                        super::around(seen - angle).abs() < 1e-9,
+                        "lap {component}, node at {node}: {t} stands at {seen}, not {angle}, in {found:?}"
+                    );
+                }
+                let own = node.rem_euclid(TAU);
+                assert!(
+                    found.iter().any(|&t| {
+                        let off = (t - own).rem_euclid(TAU);
+                        off.min(TAU - off) < 1e-9
+                    }),
+                    "lap {component}: the node at {node} stands at {angle}, found {found:?}"
+                );
+            }
+        }
+    }
+}

@@ -57,13 +57,38 @@
 //!
 //! Once the cone face is cut, the four parallel seeds meet a flaw it hid, on
 //! `main` too: the shaft's and the bore's walls cross each other where the
-//! cone meets them. That is #811, and these six wait on it, ignored:
-//! `a_cone_face_between_a_shaft_and_a_bore_of_its_radius_1e_5_apart_is_cut_closed_and_uncrossed`,
-//! `seed_353000000005193_a_shaft_and_a_bore_of_its_radius_3e_4_apart_joined_to_a_cone_across_them_keeps_every_rule`,
-//! `seed_353000000005461_a_shaft_cut_by_a_cone_across_then_bored_by_its_radius_6e_3_off_its_axis_keeps_every_rule`,
-//! `seed_353000000014733_a_shaft_and_a_bore_of_its_radius_9e_5_apart_cut_by_a_cone_leaning_30_degrees_keeps_every_rule`,
-//! `seed_353000000014733_the_same_bore_and_cone_keep_every_rule_through_the_application_s_body`,
-//! `seed_354000000002444_a_shaft_cut_by_a_cone_across_then_bored_a_hair_inside_its_wall_2e_7_off_its_axis_keeps_every_rule`.
+//! cone meets them. Their meets with the cone, read along its rulings, found
+//! the other wall's angle at the next node of their table as well as where
+//! it stands, and each wall at a different node.
+//!
+//! Closes #811.
+//! - A unit test: for every node of a ruled lap, `at_angle(false, θ)` at that
+//!   node's exact angle returns only parameters where the meet stands at θ —
+//!   no test: in this file; held by
+//!   `at_the_exact_angle_of_a_node_of_its_table_a_ruled_meet_is_found_only_where_it_stands_there`,
+//!   in `crates/solid/src/brep/meet/tests/ruled.rs`
+//! - The six tests #810 ignored hold, the ignore lifted, and the four seeds of
+//!   the comment are pinned and hold —
+//!   `a_cone_face_between_a_shaft_and_a_bore_of_its_radius_1e_5_apart_is_cut_closed_and_uncrossed`,
+//!   `seed_353000000005193_a_shaft_and_a_bore_of_its_radius_3e_4_apart_joined_to_a_cone_across_them_keeps_every_rule`,
+//!   `seed_353000000005461_a_shaft_cut_by_a_cone_across_then_bored_by_its_radius_6e_3_off_its_axis_keeps_every_rule`,
+//!   `seed_353000000014733_a_shaft_and_a_bore_of_its_radius_9e_5_apart_cut_by_a_cone_leaning_30_degrees_keeps_every_rule`,
+//!   `seed_353000000014733_the_same_bore_and_cone_keep_every_rule_through_the_application_s_body`,
+//!   `seed_354000000002444_a_shaft_cut_by_a_cone_across_then_bored_a_hair_inside_its_wall_2e_7_off_its_axis_keeps_every_rule`,
+//!   `seed_352000000000867_a_shaft_cut_across_by_a_cone_then_bored_a_hair_inside_its_wall_6e_8_off_its_axis_keeps_every_rule`,
+//!   `seed_352000000001195_a_shaft_cut_across_by_a_cone_then_bored_on_its_axis_2e_8_inside_its_wall_keeps_every_rule`,
+//!   `seed_352000000001195_the_same_cone_and_bore_keep_every_rule_through_the_application_s_body`,
+//!   `seed_353000000016959_a_shaft_bored_a_hair_inside_its_wall_and_joined_to_a_cone_keeps_every_rule_through_the_application_s_body`
+//! - No draw regresses against `main`, seed by seed — the seven above
+//!   included — no test: a campaign measurement; the walls sets
+//!   352000000000000, 353000000000000 and 354000000000000 on both kernels and
+//!   the turned set, run on `main` and on the branch and compared seed by seed
+//! - The measurement is recorded in `docs/exact-kernel-failures.md` — no test:
+//!   a document
+//!
+//! Seed 353000000016959 is pinned as drawn, not shrunk: once the meet finds
+//! the other wall where it stands the draw holds, and its shrunk case still
+//! crosses, elsewhere.
 
 // The drawing, the promise and the checks are the campaigns'; this file
 // only builds cases and holds them.
@@ -138,7 +163,6 @@ fn a_cone_face_between_a_shaft_and_a_bore_of_its_radius_1e_5_apart_is_cut_and_cl
 }
 
 #[test]
-#[ignore = "#811: the shaft's and the bore's walls, exactly parallel a hair apart, cross each other where the cone meets them"]
 fn a_cone_face_between_a_shaft_and_a_bore_of_its_radius_1e_5_apart_is_cut_closed_and_uncrossed() {
     every_cone_face_is_cut_closed_and_uncrossed(
         &a_shaft_and_a_bore_of_its_radius_1e_5_apart_joined_to_a_cone_across_them(),
@@ -197,7 +221,6 @@ fn a_shaft_and_a_bore_of_its_radius_3e_4_apart_joined_to_a_cone_across_them() ->
 }
 
 #[test]
-#[ignore = "#811: the shaft's and the bore's walls, exactly parallel a hair apart, cross each other where the cone meets them"]
 fn seed_353000000005193_a_shaft_and_a_bore_of_its_radius_3e_4_apart_joined_to_a_cone_across_them_keeps_every_rule()
  {
     random_solids::holds_exactly(
@@ -235,7 +258,6 @@ fn a_shaft_cut_by_a_cone_across_then_bored_by_its_radius_6e_3_off_its_axis() -> 
 }
 
 #[test]
-#[ignore = "#811: the shaft's and the bore's walls, exactly parallel a hair apart, cross each other where the cone meets them"]
 fn seed_353000000005461_a_shaft_cut_by_a_cone_across_then_bored_by_its_radius_6e_3_off_its_axis_keeps_every_rule()
  {
     random_solids::holds_exactly(
@@ -277,7 +299,6 @@ fn a_shaft_and_a_bore_of_its_radius_9e_5_apart_cut_by_a_cone_leaning_30_degrees(
 }
 
 #[test]
-#[ignore = "#811: the shaft's and the bore's walls, exactly parallel a hair apart, cross each other where the cone meets them"]
 fn seed_353000000014733_a_shaft_and_a_bore_of_its_radius_9e_5_apart_cut_by_a_cone_leaning_30_degrees_keeps_every_rule()
  {
     random_solids::holds_exactly(
@@ -286,7 +307,6 @@ fn seed_353000000014733_a_shaft_and_a_bore_of_its_radius_9e_5_apart_cut_by_a_con
 }
 
 #[test]
-#[ignore = "#811: the shaft's and the bore's walls, exactly parallel a hair apart, cross each other where the cone meets them"]
 fn seed_353000000014733_the_same_bore_and_cone_keep_every_rule_through_the_application_s_body() {
     random_solids::holds_through_the_application(
         &a_shaft_and_a_bore_of_its_radius_9e_5_apart_cut_by_a_cone_leaning_30_degrees(),
@@ -317,7 +337,6 @@ fn a_shaft_cut_by_a_cone_across_then_bored_a_hair_inside_its_wall_2e_7_off_its_a
 }
 
 #[test]
-#[ignore = "#811: the shaft's and the bore's walls, exactly parallel a hair apart, cross each other where the cone meets them"]
 fn seed_354000000002444_a_shaft_cut_by_a_cone_across_then_bored_a_hair_inside_its_wall_2e_7_off_its_axis_keeps_every_rule()
  {
     random_solids::holds_exactly(
@@ -420,4 +439,80 @@ fn seed_354000000012842_the_same_cone_and_bore_keep_every_rule_through_the_appli
         &a_block_cut_by_a_cone_leaning_45_degrees_then_bored_along_its_length_tangent_to_two_faces(
         ),
     );
+}
+
+/// A shaft of radius 5 along X cut across by a cone turned about Y, then
+/// bored along it by a hole of radius 4.99999994 6e-8 off its axis, a hair
+/// inside its wall (seed 352000000000867, shrunk; #811).
+fn a_shaft_cut_across_by_a_cone_then_bored_a_hair_inside_its_wall_6e_8_off_its_axis() -> Case {
+    Case::new(
+        Leaf::prism(Plane::yz(-1.0), Outline::circle([0.0, -1.0], 5.0), 5.0),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(-0.0),
+                Axis::second(0.0),
+                Section::bands(-22.0, &[[42.0, 0.0, 0.0]]).sloping_to(&[[0.0, 1.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-19.50000000000001, 0.0, -1.0000000366519146],
+                    [0.0, 90.0, 0.0],
+                ),
+                Outline::circle([-0.0, -5.999999963535175e-8], 4.99999994),
+                42.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_352000000000867_a_shaft_cut_across_by_a_cone_then_bored_a_hair_inside_its_wall_6e_8_off_its_axis_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_cut_across_by_a_cone_then_bored_a_hair_inside_its_wall_6e_8_off_its_axis(),
+    );
+}
+
+/// A shaft of radius 3 about Z cut across by a cone turned about X, then
+/// bored on its own axis by a hole of radius 2.99999998, a hair inside its
+/// wall (seed 352000000001195, shrunk; #811).
+fn a_shaft_cut_across_by_a_cone_then_bored_on_its_axis_2e_8_inside_its_wall() -> Case {
+    Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([-1.0, 1.0], 3.0), 6.0),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(1.0),
+                Axis::first(0.0),
+                Section::bands(-15.0, &[[28.0, 0.0, 1.0]]).sloping_to(&[[0.0, 2.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([-1.0, 1.0, -16.0], [0.0, 0.0, 0.0]),
+                Outline::circle([0.0, 0.0], 2.99999998),
+                28.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn seed_352000000001195_a_shaft_cut_across_by_a_cone_then_bored_on_its_axis_2e_8_inside_its_wall_keeps_every_rule()
+ {
+    random_solids::holds_exactly(
+        &a_shaft_cut_across_by_a_cone_then_bored_on_its_axis_2e_8_inside_its_wall(),
+    );
+}
+
+#[test]
+fn seed_352000000001195_the_same_cone_and_bore_keep_every_rule_through_the_application_s_body() {
+    random_solids::holds_through_the_application(
+        &a_shaft_cut_across_by_a_cone_then_bored_on_its_axis_2e_8_inside_its_wall(),
+    );
+}
+
+#[test]
+fn seed_353000000016959_a_shaft_bored_a_hair_inside_its_wall_and_joined_to_a_cone_keeps_every_rule_through_the_application_s_body()
+ {
+    random_solids::holds_through_the_application(&Case::drawn_walls_at_any_angle(353000000016959));
 }

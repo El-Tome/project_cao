@@ -235,6 +235,15 @@
 //! - Clicking a face, an edge or a corner turns the camera as today; hovering
 //!   lights it: the hovering half — `hovering_a_zone_of_the_cube_still_lights_it`;
 //!   the clicking half in `crates/app/tests/view_bar.rs`, under its own block
+//!
+//! Closes #733 — the whole transcription is in
+//! `crates/app/src/screens/part_tree/state/tests.rs`; these are the bullets of
+//! the hover that only a frame drawn shows.
+//! - Hovering a row of a closed sketch lights its element in the view as its
+//!   click does — `hovering_a_row_of_a_closed_sketch_lights_it_as_its_click_does`
+//! - the hover light lasts only while the hand is on the row, and leaves a
+//!   click's light as it found it —
+//!   `a_row_lit_by_the_hand_goes_out_when_the_hand_leaves_it`
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
@@ -248,7 +257,7 @@ use std::collections::BTreeMap;
 use super::*;
 use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
-use crate::screens::part_tree::state::Points;
+use crate::screens::part_tree::state::{Points, hover};
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::section::Section;
 
@@ -2790,6 +2799,92 @@ fn hovering_a_zone_of_the_cube_still_lights_it() {
             !hover_colours.is_empty() && hover_colours.windows(2).all(|two| two[0] == two[1]),
             "with {zone:?} under the cursor, the tiles it lights are drawn in {hover_colours:?}, \
              not in one hover colour",
+        );
+    }
+}
+
+#[test]
+fn hovering_a_row_of_a_closed_sketch_lights_it_as_its_click_does() {
+    for (mut document, sketch, plane) in [
+        (a_block(), 0, WorkPlane::XY),
+        (
+            a_block_and_a_sketch_never_used(),
+            1,
+            twenty_over_the_block(),
+        ),
+    ] {
+        let (element, from, to) = the_first_trait(&document, sketch);
+        let row = Points::Element { sketch, element };
+        let mut nothing_open = SketchEditor::default();
+        let mut clicked = ViewportState::default();
+        clicked.light(row);
+        let by_the_click = a_frame_of(&clicked, &mut document, &mut nothing_open);
+        let mut hovered = ViewportState::default();
+        hover(&document, &mut nothing_open, &mut hovered, Some(row));
+        let by_the_hand = a_frame_of(&hovered, &mut document, &mut nothing_open);
+
+        assert_eq!(
+            line_colours(&by_the_hand, plane, from, to),
+            line_colours(&by_the_click, plane, from, to),
+            "a trait of closed sketch {sketch} hovered in the tree is drawn otherwise \
+             than when its row is clicked",
+        );
+        assert!(
+            nothing_open.selection().is_empty(),
+            "hovering a row of a closed sketch selected something",
+        );
+    }
+}
+
+#[test]
+fn a_row_lit_by_the_hand_goes_out_when_the_hand_leaves_it() {
+    let mut document = a_block_and_a_sketch_never_used();
+    let plane = twenty_over_the_block();
+    let (first, from, to) = the_first_trait(&document, 1);
+    let first = Points::Element {
+        sketch: 1,
+        element: first,
+    };
+    let (second, _) = document.sketches()[1]
+        .live_segments()
+        .nth(1)
+        .expect("the rectangle has a second trait");
+    let second = Points::Element {
+        sketch: 1,
+        element: Element::Segment(second),
+    };
+    let mut editor = SketchEditor::default();
+    let plain = a_frame_of(&ViewportState::default(), &mut document, &mut editor);
+    let mut click_lit = ViewportState::default();
+    click_lit.light(first);
+    let lit_by_the_click = a_frame_of(&click_lit, &mut document, &mut editor);
+
+    let mut state = ViewportState::default();
+    hover(&document, &mut editor, &mut state, Some(first));
+    let while_hovered = a_frame_of(&state, &mut document, &mut editor);
+    hover(&document, &mut editor, &mut state, None);
+    let once_left = a_frame_of(&state, &mut document, &mut editor);
+    assert_ne!(
+        line_colours(&while_hovered, plane, from, to),
+        line_colours(&plain, plane, from, to),
+        "a trait hovered in the tree is not lit in the view while the hand is on its row",
+    );
+    assert_eq!(
+        line_colours(&once_left, plane, from, to),
+        line_colours(&plain, plane, from, to),
+        "a trait hovered in the tree stays lit once the hand has left its row",
+    );
+
+    for hovered in [second, first] {
+        let mut state = ViewportState::default();
+        state.light(first);
+        hover(&document, &mut editor, &mut state, Some(hovered));
+        hover(&document, &mut editor, &mut state, None);
+        let after = a_frame_of(&state, &mut document, &mut editor);
+        assert_eq!(
+            line_colours(&after, plane, from, to),
+            line_colours(&lit_by_the_click, plane, from, to),
+            "hovering {hovered:?} then leaving it changed what the click on {first:?} had lit",
         );
     }
 }

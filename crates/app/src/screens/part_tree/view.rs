@@ -2,7 +2,7 @@ use cao_part::PartDocument;
 
 use crate::lang::Catalogue;
 use crate::screens::part_tree::state::{
-    Body, Drawn, Kept, PartTree, Row, TreeAction, Variable, clickable, clicked, marked,
+    Body, Drawn, Kept, PartTree, Points, Row, TreeAction, Variable, clickable, clicked, marked,
 };
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
@@ -20,28 +20,31 @@ struct Asked<'a> {
     viewport: &'a ViewportState,
     adding: bool,
     action: TreeAction,
+    hovering: Option<Points>,
 }
 
-/// The panel the tree is shown in, chrome and all.
+/// The panel the tree is shown in, chrome and all: what was asked of it, and
+/// the row the hand is on.
 pub fn panel(
     ui: &mut egui::Ui,
     document: &PartDocument,
     editor: &SketchEditor,
     viewport: &ViewportState,
     lang: &Catalogue,
-) -> TreeAction {
+) -> (TreeAction, Option<Points>) {
     let mut asked = Asked {
         document,
         editor,
         viewport,
         adding: ui.input(|input| input.modifiers.command || input.modifiers.shift),
         action: TreeAction::None,
+        hovering: None,
     };
     egui::Panel::left("part_tree_panel")
         .resizable(true)
         .default_size(240.0)
         .show(ui, |ui| show(ui, &mut asked, lang));
-    asked.action
+    (asked.action, asked.hovering)
 }
 
 fn show(ui: &mut egui::Ui, asked: &mut Asked<'_>, lang: &Catalogue) {
@@ -276,7 +279,11 @@ fn named(ui: &mut egui::Ui, row: &Row, asked: &mut Asked<'_>) {
         return;
     }
     let lit = marked(document, editor, asked.viewport, row.points);
-    if panel_row(ui, row.name.clone(), lit, false).clicked() {
+    let response = panel_row(ui, row.name.clone(), lit, false);
+    if response.hovered() {
+        asked.hovering = Some(row.points);
+    }
+    if response.clicked() {
         asked.action = clicked(document, editor, row.points, asked.adding);
     }
 }

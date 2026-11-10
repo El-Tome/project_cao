@@ -20,6 +20,9 @@ pub(super) struct Visibility {
     /// taken this one away.
     eyes: BTreeMap<u32, bool>,
     lit: Option<Points>,
+    /// The row the hand is on in the tree, kept apart from `lit` so that
+    /// leaving it puts out no light a click left.
+    hovered: Option<Points>,
     body: MatterInFront,
 }
 
@@ -28,6 +31,7 @@ impl Default for Visibility {
         Self {
             eyes: BTreeMap::new(),
             lit: None,
+            hovered: None,
             body: MatterInFront::Opaque,
         }
     }
@@ -62,6 +66,16 @@ impl ViewportState {
 
     pub(crate) fn light_out(&mut self) {
         self.visibility.lit = None;
+        self.visibility.hovered = None;
+    }
+
+    pub(crate) fn hovered_in_the_tree(&self) -> Option<Points> {
+        self.visibility.hovered
+    }
+
+    /// Lights the row the hand is on in the tree, as a click on it would.
+    pub(crate) fn hover_in_the_tree(&mut self, row: Option<Points>) {
+        self.visibility.hovered = row;
     }
 
     /// Puts the light out and every eye back to its default, once the history
@@ -107,9 +121,10 @@ impl ViewportState {
         let active = context.editor.active_sketch() == Some(sketch);
         let picking = context.extrusion.is_active() && context.extrusion.sketch == Some(sketch);
         let hidden = !active && !picking && !self.eye_lit(context.document, sketch);
-        let lit = self.lit().filter(|row| {
+        let here = |row: &Points| {
             row.sketch() == sketch && (!active || matches!(row, Points::Area { .. }))
-        });
+        };
+        let lit = (self.visibility.hovered.filter(here)).or_else(|| self.lit().filter(here));
         (!hidden || lit.is_some()).then_some(Seen { hidden, lit })
     }
 }

@@ -55,6 +55,41 @@ pub fn clicked(
     }
 }
 
+/// Lights what the row under the hand names: in the open sketch as the hand
+/// over it on the canvas would, selecting nothing; in another as its click
+/// would, leaving the click's own light alone. Leaving a row puts out only
+/// what the tree lit, never a hover the canvas set since.
+pub fn hover(
+    document: &PartDocument,
+    editor: &mut SketchEditor,
+    viewport: &mut ViewportState,
+    row: Option<Points>,
+) {
+    let row = row.filter(|row| clickable(document, editor, *row));
+    let left = viewport
+        .hovered_in_the_tree()
+        .filter(|before| Some(*before) != row);
+    let lit_by_the_tree = left.and_then(|before| in_the_open_sketch(document, editor, before));
+    if lit_by_the_tree.is_some() && editor.hovered == lit_by_the_tree {
+        editor.hovered = None;
+    }
+    if let Some(what) = row.and_then(|row| in_the_open_sketch(document, editor, row)) {
+        editor.hovered = Some(what);
+    }
+    viewport.hover_in_the_tree(row);
+}
+
+/// What a row of the open sketch names, as the canvas lights it.
+fn in_the_open_sketch(
+    document: &PartDocument,
+    editor: &SketchEditor,
+    row: Points,
+) -> Option<Selection> {
+    is_open(editor, row)
+        .then(|| selection_of(document, row))
+        .flatten()
+}
+
 /// Whether a click on a row asks anything: every row of the open sketch, and
 /// the elements and areas of the others.
 pub fn clickable(document: &PartDocument, editor: &SketchEditor, row: Points) -> bool {

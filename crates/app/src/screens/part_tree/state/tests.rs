@@ -87,12 +87,15 @@
 //! - a badge painted in the warning or the error colour — no test: the view
 //!   picks the colour from the level the presenter hands it, which the bullet
 //!   above holds
-//! - Hovering a row lights its element in the view: in a closed sketch as its
-//!   click lights it — `hovering_a_row_of_a_closed_sketch_lights_it_as_its_click_does`;
-//!   in the open sketch as a hover there would, without selecting it —
-//!   `hovering_a_trait_of_the_open_sketch_lights_it_without_selecting_it`; and
-//!   only while the hand is on the row —
-//!   `a_row_lit_by_the_hand_goes_out_when_the_hand_leaves_it`
+//! - Hovering a row lights its element in the view, in the open sketch as a
+//!   hover there would, without selecting it and without changing the tool in
+//!   hand — `hovering_a_trait_of_the_open_sketch_lights_it_without_selecting_it`
+//! - in a closed sketch as its click lights it, and only while the hand is on
+//!   the row, a click's light left as it was — no test: held by
+//!   `hovering_a_row_of_a_closed_sketch_lights_it_as_its_click_does` and
+//!   `a_row_lit_by_the_hand_goes_out_when_the_hand_leaves_it`, in
+//!   `crates/app/src/screens/viewport/render/tests.rs`, where the frame drawn
+//!   is what shows it
 //! - A click selects as today —
 //!   `a_click_on_a_trait_of_the_open_sketch_selects_it_alone`,
 //!   `a_click_on_a_dimension_or_a_rule_of_the_open_sketch_selects_it`
@@ -1059,5 +1062,45 @@ fn a_badge_reads_the_word_its_problem_is_known_by() {
         read,
         ["instable", "face perdue", "non construit", "aire perdue"],
         "a badge does not read the word the issue gives its problem",
+    );
+}
+
+#[test]
+fn hovering_a_trait_of_the_open_sketch_lights_it_without_selecting_it() {
+    let (document, mut editor) = the_first_sketch_open();
+    let mut viewport = ViewportState::default();
+    let in_hand = editor.tool;
+    let dimension = Selection::Dimension(document.sketches()[0].dimensions()[0].target);
+
+    for (row, what) in [
+        (the_row_of(0, 0), a_trait(0)),
+        (Points::Dimension { sketch: 0, rank: 0 }, dimension),
+    ] {
+        hover(&document, &mut editor, &mut viewport, Some(row));
+
+        assert_eq!(
+            editor.hovered,
+            Some(what),
+            "{row:?} hovered in the tree is not lit as the hand over it in the view lights it",
+        );
+        assert!(
+            editor.selection().is_empty(),
+            "hovering {row:?} in the tree selected something",
+        );
+        assert_eq!(
+            editor.tool, in_hand,
+            "hovering {row:?} changed the tool in hand"
+        );
+        assert_eq!(
+            viewport.lit(),
+            None,
+            "hovering {row:?} of the open sketch lit it as a closed sketch's row",
+        );
+    }
+
+    hover(&document, &mut editor, &mut viewport, None);
+    assert_eq!(
+        editor.hovered, None,
+        "the open sketch's element stays lit once the hand has left its row",
     );
 }

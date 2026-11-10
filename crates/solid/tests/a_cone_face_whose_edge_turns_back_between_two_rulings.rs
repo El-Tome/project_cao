@@ -16,6 +16,20 @@
 //! own tolerance the faces of these cases hold every such pair within 59°;
 //! the fold stands at 180°.
 //!
+//! The cone rolled out is pinned beside its code, in
+//! `crates/solid/src/brep/tessellation/outline/columns/tests.rs`. Of the
+//! mutants of `columns.rs` the change brought, the whole suite leaves four
+//! alive, all at `140`, and they are equivalent:
+//! - `140:41` `+` → `-` and `*`, `140:48` `/` → `%` and `*`: each rolls a
+//!   column out about another ruling than its middle one. The cone rolled out
+//!   about one ruling is the cone rolled out about any other, turned about the
+//!   apex's image, and a turn keeps every triangle's orientation: `folded`
+//!   reads the same, and the sweep cuts the same polygon, turned, into
+//!   triangles as unfolded on the surface. The three moving it by a step or
+//!   two keep every angle rolled out tiny; `*` sets it near `0` instead, which
+//!   reaches the half-turn where `tan(angle / 2)` blows up only on a cone
+//!   within a column's width of flat, `w_ρ ≥ 1 / (1 + step / 2)`.
+//!
 //! Closes #820. #811's guard on `Ruled::at_angle` is not on this branch — it
 //! is set aside on `wip/811-guard-set-aside` until this lands — so what holds
 //! with it is measured with the guard applied, not asserted.

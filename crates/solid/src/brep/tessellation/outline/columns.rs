@@ -181,3 +181,6 @@ pub(super) fn winding(points: &[DVec2], segments: &[[usize; 2]], at: DVec2) -> i
         .map(|(a, b)| if b.y > a.y { 1 } else { -1 })
         .sum()
 }
+
+#[cfg(test)]
+mod tests;

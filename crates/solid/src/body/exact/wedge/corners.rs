@@ -114,3 +114,6 @@ pub(super) fn meet(body: &brep::Body, [one, other]: [EdgeId; 2]) -> bool {
     let ends = |edge: EdgeId| body.edge(edge).ends.into_iter().flatten();
     ends(one).any(|end| ends(other).any(|theirs| theirs == end))
 }
+
+#[cfg(test)]
+mod tests;

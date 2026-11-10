@@ -8,6 +8,7 @@ use egui::{
 };
 
 use crate::ui::icon::{Icon, IconSize};
+use crate::ui::theme::hovered_menu_rows_stand_out;
 use crate::ui::theme::tokens::{
     BORDER_CONTROL, SPACING_L, SPACING_M, SPACING_XXL, TEXT_QUIET, TEXT_SUBDUED,
     TYPOGRAPHY_SIZES_DETAIL,
@@ -129,6 +130,7 @@ pub fn bar_menu(
     let response = ui.add_enabled(enabled, dressed(button));
     let mut picked = None;
     Popup::menu(&response).show(|ui| {
+        hovered_menu_rows_stand_out(ui);
         for (rank, (entry, current)) in entries.iter().enumerate() {
             if ui.add(Button::selectable(*current, *entry)).clicked() {
                 picked = Some(rank);

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use egui::containers::menu::is_in_menu;
 use egui::text::LayoutJob;
 use egui::{
     Align, Align2, Button, Color32, FontId, Galley, Rect, Response, Sense, Stroke, StrokeKind, Ui,
@@ -7,6 +8,7 @@ use egui::{
 };
 
 use crate::ui::icon::{Icon, IconSize};
+use crate::ui::theme::MENU_ROW_HOVERED;
 use crate::ui::theme::tokens::{
     ACCENT_AMBER_BACKGROUND, ACCENT_AMBER_BORDER, ACCENT_AMBER_LIGHT, BACKGROUND_HOVER_STRONG,
     RADIUS_CONTROL, TEXT_BUTTON, TEXT_DISABLED, TEXT_SHORTCUT, TYPOGRAPHY_SIZES_RIBBON_BUTTON,
@@ -194,7 +196,12 @@ fn paint_the_state(ui: &Ui, response: &Response, rect: Rect, on: bool) {
             Stroke::new(1.0, ACCENT_AMBER_BORDER),
         )
     } else if response.hovered() || response.has_focus() {
-        (BACKGROUND_HOVER_STRONG, Stroke::NONE)
+        let fill = if is_in_menu(ui) {
+            MENU_ROW_HOVERED
+        } else {
+            BACKGROUND_HOVER_STRONG
+        };
+        (fill, Stroke::NONE)
     } else {
         return;
     };

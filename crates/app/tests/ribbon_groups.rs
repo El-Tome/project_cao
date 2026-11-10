@@ -207,6 +207,19 @@
 //!   and what stays by `every_command_of_the_default_tree_can_be_reached`
 //! - F and ↵ still reframe and finish —
 //!   `f_still_reframes_and_enter_still_finishes_the_sketch`
+//! - added on request on pull request #819: a hovered row of a chevron menu
+//!   can be seen, its fill standing clear of the menu's —
+//!   `a_hovered_row_of_a_chevron_menu_stands_out_from_the_menu`; the hover of a
+//!   button outside a menu does not change —
+//!   `hovering_a_ribbon_button_outside_a_menu_keeps_its_fill`; a row that is on
+//!   keeps its amber — `a_menu_row_that_is_on_keeps_its_amber`; a disabled row
+//!   paints nothing — `a_disabled_menu_row_paints_nothing_when_hovered`; the
+//!   same fill on the view bar's « Matière devant » menu —
+//!   `a_hovered_choice_of_the_view_bar_s_matter_menu_stands_out_from_the_menu`,
+//!   its current choice staying marked —
+//!   `the_current_choice_of_the_view_bar_s_matter_menu_stays_marked`, and on a
+//!   sub-group nested in a chevron menu —
+//!   `a_hovered_sub_group_of_a_chevron_menu_stands_out_from_the_menu`
 //!
 //! Decided on the way. The tree does not change: « Cercle » and the group
 //! `circles` stay two siblings, and a split button is a rule of the drawing —
@@ -218,7 +231,7 @@
 
 mod driver;
 
-use cao_app::theme::tokens::{BORDER_GROUP, BORDER_KEY, TEXT_QUIET};
+use cao_app::theme::tokens::{ACCENT_AMBER_BACKGROUND, BORDER_GROUP, BORDER_KEY, TEXT_QUIET};
 use cao_prefs::{Chord, Command, Edge, GroupSize, Item, Key, Settings};
 use egui::accesskit::{Role, Toggled};
 use egui::epaint::TextShape;
@@ -1378,6 +1391,234 @@ fn the_extrusion_tab_writes_its_three_groups_in_order_each_under_its_buttons() {
             &format!("« {name} », in a group small on 2 rows,"),
         );
     }
+}
+
+/// The fill the frame last painted exactly over this rectangle, if any.
+fn fill_painted_over(app: &driver::App, rect: egui::Rect) -> Option<egui::Color32> {
+    shapes(app).iter().find_map(|shape| match shape {
+        egui::Shape::Rect(painted)
+            if painted.fill.a() > 0
+                && painted.rect.expand(ALIGNED_WITHIN).contains_rect(rect)
+                && rect.expand(ALIGNED_WITHIN).contains_rect(painted.rect) =>
+        {
+            Some(painted.fill)
+        }
+        _ => None,
+    })
+}
+
+/// The fill of the rectangle holding these rows: the frame of their menu.
+fn fill_of_the_menu_around(app: &driver::App, rows: egui::Rect) -> egui::Color32 {
+    shapes(app)
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect) if rect.fill.a() > 0 && rect.rect.contains_rect(rows) => {
+                Some((rect.rect, rect.fill))
+            }
+            _ => None,
+        })
+        .min_by(|one, other| one.0.area().total_cmp(&other.0.area()))
+        .expect("a menu frame painted around its rows")
+        .1
+}
+
+/// Hovers a row and lets the frame settle, the way a hand resting on it would.
+fn hover_the_row(app: &mut driver::App, row: egui::Rect) {
+    app.hover_at(row.center());
+    app.run_steps(4);
+}
+
+/// The WCAG relative luminance of an opaque colour.
+fn luminance(colour: egui::Color32) -> f32 {
+    let linear = |channel: u8| {
+        let c = f32::from(channel) / 255.0;
+        if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * linear(colour.r()) + 0.7152 * linear(colour.g()) + 0.0722 * linear(colour.b())
+}
+
+fn contrast(one: egui::Color32, other: egui::Color32) -> f32 {
+    let (a, b) = (luminance(one), luminance(other));
+    (a.max(b) + 0.05) / (a.min(b) + 0.05)
+}
+
+#[test]
+fn a_hovered_row_of_a_chevron_menu_stands_out_from_the_menu() {
+    let mut app = the_stl_menu_open("a_hovered_row_stands_out");
+    let rows = ["Grossière", "Normale", "Fine"]
+        .iter()
+        .fold(egui::Rect::NOTHING, |all, row| {
+            all.union(the_button(&app, row).rect())
+        });
+    let row = the_button(&app, "Normale").rect();
+    let menu = fill_of_the_menu_around(&app, rows);
+
+    hover_the_row(&mut app, row);
+
+    assert_the_hovered_row_stands_out(&app, row, menu);
+}
+
+/// The hovered row wears the fill chosen on sight, and stands clear of the
+/// fill of the menu it sits in.
+fn assert_the_hovered_row_stands_out(app: &driver::App, row: egui::Rect, menu: egui::Color32) {
+    let fill = fill_painted_over(app, row).expect("the row hovered paints a fill");
+    assert_eq!(
+        fill,
+        egui::Color32::from_rgb(0x35, 0x3A, 0x45),
+        "the hovered row is filled {fill:?}, where #353A45 was chosen on sight",
+    );
+    let against_the_menu = contrast(fill, menu);
+    assert!(
+        against_the_menu >= 1.25,
+        "the hovered row's fill stands {against_the_menu}:1 from the menu's fill {menu:?}: \
+         it can barely be seen",
+    );
+}
+
+const THE_THREE_MATTER_CHOICES: [&str; 3] = ["cachée", "transparente", "opaque"];
+
+fn the_view_bar_s_matter_menu_open(test: &str) -> driver::App {
+    let mut app = sketching(test);
+    driver::click_in_the_bar(&mut app, "Matière devant");
+    app
+}
+
+#[test]
+fn a_hovered_choice_of_the_view_bar_s_matter_menu_stands_out_from_the_menu() {
+    let mut app = the_view_bar_s_matter_menu_open("a_hovered_matter_choice_stands_out");
+    let rows = THE_THREE_MATTER_CHOICES
+        .iter()
+        .fold(egui::Rect::NOTHING, |all, row| {
+            all.union(the_button(&app, row).rect())
+        });
+    let menu = fill_of_the_menu_around(&app, rows);
+    let row = the_button(&app, "opaque").rect();
+
+    hover_the_row(&mut app, row);
+
+    assert_the_hovered_row_stands_out(&app, row, menu);
+}
+
+#[test]
+fn the_current_choice_of_the_view_bar_s_matter_menu_stays_marked() {
+    let mut app = the_view_bar_s_matter_menu_open("the_current_matter_choice_stays_marked");
+    let (current, other) = (
+        the_button(&app, "cachée").rect(),
+        the_button(&app, "opaque").rect(),
+    );
+
+    assert_eq!(
+        fill_painted_over(&app, current),
+        Some(ACCENT_AMBER_BACKGROUND)
+    );
+    hover_the_row(&mut app, other);
+    assert_eq!(
+        fill_painted_over(&app, current),
+        Some(ACCENT_AMBER_BACKGROUND),
+        "the current choice lost its amber while another row is hovered",
+    );
+    hover_the_row(&mut app, current);
+    assert_eq!(
+        fill_painted_over(&app, current),
+        Some(ACCENT_AMBER_BACKGROUND),
+        "the current choice, hovered, lost its amber",
+    );
+}
+
+#[test]
+fn a_hovered_sub_group_of_a_chevron_menu_stands_out_from_the_menu() {
+    use Command as C;
+    let settings = bar_of(vec![Item::group(
+        "drawing",
+        vec![
+            Item::Command(C::NewSketch),
+            Item::Command(C::ToolCircle),
+            Item::group(
+                "circles",
+                vec![
+                    Item::group("arcs", commands(&[C::ArcByCenter, C::ArcByEnds])),
+                    Item::Command(C::CircleCenter),
+                ],
+            ),
+        ],
+    )]);
+    let mut app = opened("a_hovered_sub_group_stands_out", WIDE, settings);
+    driver::start_a_sketch(&mut app);
+    driver::click_exactly(&mut app, "Cercles");
+    let row = the_button(&app, "Arcs").rect();
+    let menu = fill_of_the_menu_around(
+        &app,
+        row.union(row_starting(&app, "Centre et diamètre").rect()),
+    );
+
+    hover_the_row(&mut app, row);
+
+    assert_the_hovered_row_stands_out(&app, row, menu);
+}
+
+#[test]
+fn hovering_a_ribbon_button_outside_a_menu_keeps_its_fill() {
+    let mut app = sketching("hovering_a_ribbon_button_keeps_its_fill");
+    let rectangle = the_button(&app, "Rectangle (R)").rect();
+
+    hover_the_row(&mut app, rectangle);
+
+    assert_eq!(
+        fill_painted_over(&app, rectangle),
+        Some(egui::Color32::from_rgb(0x23, 0x27, 0x31)),
+        "the hover of « Rectangle » on the ribbon changed",
+    );
+}
+
+#[test]
+fn a_menu_row_that_is_on_keeps_its_amber() {
+    let mut app = sketching("a_menu_row_that_is_on_keeps_its_amber");
+    driver::click_exactly(&mut app, "Cercles");
+    driver::click_exactly(&mut app, "Deux points du bord");
+    driver::click_exactly(&mut app, "Cercles");
+    let row = the_button(&app, "Deux points du bord").rect();
+
+    hover_the_row(&mut app, row);
+
+    assert_eq!(
+        fill_painted_over(&app, row),
+        Some(ACCENT_AMBER_BACKGROUND),
+        "the row in hand, hovered, lost its amber",
+    );
+}
+
+#[test]
+fn a_disabled_menu_row_paints_nothing_when_hovered() {
+    let settings = bar_of(vec![Item::group(
+        "drawing",
+        vec![
+            Item::Command(Command::NewSketch),
+            Item::Command(Command::ToolCircle),
+            Item::group("circles", commands(&[Command::Redo, Command::CircleCenter])),
+        ],
+    )]);
+    let mut app = opened("a_disabled_menu_row_paints_nothing", WIDE, settings);
+    driver::start_a_sketch(&mut app);
+    driver::click_exactly(&mut app, "Cercles");
+    let row = row_starting(&app, "Rétablir").rect();
+    assert!(
+        row_starting(&app, "Rétablir")
+            .accesskit_node()
+            .is_disabled(),
+        "there is something to redo: the premise of this test",
+    );
+
+    hover_the_row(&mut app, row);
+
+    assert_eq!(
+        fill_painted_over(&app, row),
+        None,
+        "« Rétablir », greyed out and hovered, paints a fill",
+    );
 }
 
 #[test]

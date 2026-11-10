@@ -258,6 +258,25 @@ pub fn click_exactly(app: &mut App, label: &str) {
     hold_the_canvas(app);
 }
 
+/// The ribbon's « Cote » tool, whatever key it is shown with — never the
+/// tree's « Cotes » row, which starts with the same word once the open sketch
+/// holds a dimension, and which a click by part of the name would take as
+/// readily.
+pub fn pick_the_dimension_tool(app: &mut App) {
+    let node = app
+        .query_all_by_role(egui::accesskit::Role::Button)
+        .find(|node| {
+            node.accesskit_node()
+                .label()
+                .is_some_and(|read| read == "Cote" || read.starts_with("Cote ("))
+        })
+        .unwrap_or_else(|| panic!("no « Cote » tool on screen, showing {:?}", on_screen(app)));
+    within_reach("Cote", node.rect().center(), app.ctx.content_rect());
+    node.click();
+    app.run();
+    hold_the_canvas(app);
+}
+
 /// A widget laid out past the edge of the screen is still in the accessibility
 /// tree, enabled and uniquely labelled, but the pointer events a click sends at
 /// its centre land on nothing — the gesture passes quietly and the tool never
@@ -983,7 +1002,7 @@ pub fn a_block_with(test: &str, settings: cao_prefs::Settings) -> App {
     click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[0]);
     click_at_sketch_point(&mut app, THE_BLOCK_S_CORNERS[1]);
     click_exactly(&mut app, "Extrusion");
-    click_exactly(&mut app, "1");
+    click_the_button(&mut app, "1");
     click(&mut app, "Ajout de matière");
     click_at_sketch_point(&mut app, ON_THE_BLOCK);
     click(&mut app, "Appliquer");

@@ -594,8 +594,13 @@ fn a_section_whose_face_is_gone_reads_face_lost_in_the_tree() {
 
     assert_eq!(
         sections_in_the_tree(&app),
-        ["Coupe 1 — face perdue"],
-        "the rectangle under the block erased, the section on its face is not marked",
+        ["Coupe 1"],
+        "the section's row reads more than its name: its problem goes in a badge beside it",
+    );
+    assert!(
+        driver::says(&app, "face perdue") || driver::shows(&app, "face perdue"),
+        "the rectangle under the block erased, the section on its face is not marked: {:?}",
+        driver::on_screen(&app),
     );
 }
 

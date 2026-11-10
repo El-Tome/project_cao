@@ -31,7 +31,9 @@ pub(crate) fn beside_the_part(
 ) -> bool {
     let mut changed = false;
     if ribbon.part_tree_open {
-        match screens::part_tree::panel(ui, doc, editor, viewport, lang) {
+        let (action, hovered) = screens::part_tree::panel(ui, doc, editor, viewport, lang);
+        screens::part_tree::state::hover(doc, editor, viewport, hovered);
+        match action {
             screens::part_tree::TreeAction::EditSketch(sketch) => {
                 if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
                     viewport.light_out();
@@ -64,6 +66,7 @@ pub(crate) fn beside_the_part(
             screens::part_tree::TreeAction::None => {}
         }
     } else {
+        screens::part_tree::state::hover(doc, editor, viewport, None);
         viewport.light_out();
     }
     if let Some(section) = ribbon.section_delete_confirm

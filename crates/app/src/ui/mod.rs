@@ -1,3 +1,4 @@
+pub mod badge;
 pub mod dropping;
 pub mod eye;
 pub mod floating_bar;
@@ -13,6 +14,7 @@ pub mod slider;
 pub mod text_edit;
 pub mod theme;
 pub mod tool_button;
+pub mod tree_row;
 
 /// What every primitive draws with: the theme, and the icons.
 pub fn install(ctx: &egui::Context) {

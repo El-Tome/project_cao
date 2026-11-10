@@ -66,7 +66,7 @@ fn a_value_typed_into_the_first_dimension_placed_is_worth_what_it_read() {
     driver::create_a_part(&mut app, "Platine");
     driver::start_a_sketch(&mut app);
     driver::draw_a_segment(&mut app);
-    driver::click(&mut app, "Cote");
+    driver::pick_the_dimension_tool(&mut app);
     driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     driver::click_at_sketch_point(&mut app, driver::WHERE_ITS_DIMENSION_GOES);
     let read = driver::fields(&app)

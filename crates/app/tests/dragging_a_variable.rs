@@ -41,7 +41,7 @@ fn a_dimension_open_beside_the_variables(test: &str) -> (driver::App, String) {
     driver::click_the_button(&mut app, "Variables");
     driver::start_a_sketch(&mut app);
     driver::draw_a_segment(&mut app);
-    driver::click(&mut app, "Cote");
+    driver::pick_the_dimension_tool(&mut app);
     driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     driver::click_at_sketch_point(&mut app, driver::WHERE_ITS_DIMENSION_GOES);
     let measured = driver::fields(&app)

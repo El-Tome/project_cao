@@ -41,8 +41,115 @@
 //!   `an_area_row_of_the_open_sketch_lights_the_area`; a dimension or a rule
 //!   row of a closed sketch is no click at all —
 //!   `a_dimension_or_a_rule_of_a_closed_sketch_is_no_click_at_all`
+//!
+//! Closes #733 — the issue has no Done when of its own; these are the points of
+//! its « What it does » and « What must not break », as read when the work
+//! opened. The bullets the headless driver holds are transcribed again, checked,
+//! in `crates/app/tests/the_part_panel.rs`.
+//! - Sections, top to bottom: « ESQUISSES », « VOLUMES », « COUPES », « TOUT LE
+//!   CORPS », « VARIABLES » —
+//!   `the_panel_reads_its_sketches_volumes_sections_whole_body_then_variables`
+//! - « TOUT LE CORPS » holds today's « Corps : {mode} » row, unchanged — no
+//!   test: the row's sentence is `wording::part_tree::body`, which this issue
+//!   leaves alone (#734 reworks it), and where it sits is held by the order
+//!   above
+//! - « VARIABLES », read only: the name apart from the value —
+//!   `a_variable_reads_its_name_apart_from_its_value`
+//! - the value on the right and the name in `variable.text` — no test: where a
+//!   label stands and the colour it is painted in are the view's, and the
+//!   driver reaches a variable only through its panel, a set-up the colour
+//!   alone does not repay
+//! - Tree rows (C10): 28 px high, indented 26 px — no test: held by
+//!   `a_tree_row_stands_28_points_high_and_its_children_26_points_in`, in
+//!   `crates/app/tests/the_part_panel.rs`
+//! - the thin vertical line, the chevron, the monospace value and the amber of
+//!   a selected row — no test: painting the presenter does not reach, and a
+//!   painted-colour check would pin egui's styling more than a decision
+//! - found in review: the open sketch reads open, and a sketch whose eye is
+//!   shut reads dimmed, in the presenter rather than worked out by the view —
+//!   `a_sketch_reads_open_while_drawn_on_and_dimmed_while_its_eye_is_shut`
+//! - found in review: a row that asks nothing — a dimension or a rule of a
+//!   closed sketch, a variable — is neither a button nor filled under the hand;
+//!   a variable whose value is long keeps its name, the value gives way; and a
+//!   sketch's row shows its plane and its badge on its line — no test: held by
+//!   `a_row_that_asks_nothing_is_no_button_and_is_not_filled_under_the_hand`,
+//!   `a_variable_whose_value_is_long_keeps_its_name_and_the_value_gives_way`
+//!   and `a_sketch_row_shows_its_plane_and_its_badge_on_its_line`, in
+//!   `crates/app/tests/the_part_panel.rs`
+//! - found in review: a slanted plane through the origin reads « incliné » on
+//!   a sketch's row — no test: held by
+//!   `a_plane_through_the_origin_square_to_no_axis_reads_slanted_in_short`, in
+//!   `crates/app/src/wording/plane/tests.rs`
+//! - A sketch row carries its plane on the right, « XY », « face », « Coupe 1 »,
+//!   named as the sketch pill names it —
+//!   `a_sketch_names_the_plane_it_is_laid_on_as_the_pill_does`
+//! - The open sketch is selected and unfolded — no test: held by
+//!   `the_open_sketch_is_selected_and_unfolded_in_the_tree`, in
+//!   `crates/app/tests/the_part_panel.rs`
+//! - A sketch's children: each trait with its length (« 180 mm »), each circle
+//!   with its Ø, an arc or an ellipse with no value —
+//!   `a_trait_reads_its_length_a_circle_its_diameter_and_an_arc_nothing`
+//! - then « Aires », « Cotes », « Contraintes » with their count, the traits
+//!   straight under the sketch, with no « Traits » group — no test: held by
+//!   `an_unfolded_sketch_lists_its_traits_then_its_areas_dimensions_and_rules_counted`,
+//!   in `crates/app/tests/the_part_panel.rs`
+//! - Badges instead of suffixes, each with its level (A1 of #722): warning for
+//!   « instable » and « face perdue », error for « non construit » and « aire
+//!   perdue »; the name stays bare — `each_problem_is_a_badge_with_its_level`,
+//!   and what each badge reads by
+//!   `a_badge_reads_the_word_its_problem_is_known_by`
+//! - found in review: a volume with several problems wears the gravest, not
+//!   built, then area lost, then unstable —
+//!   `a_volume_with_several_problems_wears_the_gravest_not_built_then_area_lost_then_unstable`;
+//!   held at the rule that picks, since no cheap part makes two of them meet
+//! - a badge painted in the warning or the error colour — no test: the view
+//!   picks the colour from the level the presenter hands it, which the bullet
+//!   above holds
+//! - Hovering a row lights its element in the view, in the open sketch as a
+//!   hover there would, without selecting it and without changing the tool in
+//!   hand — `hovering_a_trait_of_the_open_sketch_lights_it_without_selecting_it`
+//! - in a closed sketch as its click lights it, and only while the hand is on
+//!   the row, a click's light left as it was — no test: held by
+//!   `hovering_a_row_of_a_closed_sketch_lights_it_as_its_click_does` and
+//!   `a_row_lit_by_the_hand_goes_out_when_the_hand_leaves_it`, in
+//!   `crates/app/src/screens/viewport/render/tests.rs`, where the frame drawn
+//!   is what shows it; and a click's light stays while the hand is on another
+//!   row of its sketch, by
+//!   `a_trait_a_click_lit_stays_lit_while_the_hand_is_on_another_row_of_its_sketch`,
+//!   in the same file
+//! - the hover reaching the view through the panel, a hand resting on a row in
+//!   the whole application — no test: held by
+//!   `a_hand_resting_on_a_trait_of_a_closed_sketch_lights_it_and_leaving_puts_it_out`,
+//!   in `crates/app/tests/the_part_panel.rs`
+//! - A click selects as today —
+//!   `a_click_on_a_trait_of_the_open_sketch_selects_it_alone`,
+//!   `a_click_on_a_dimension_or_a_rule_of_the_open_sketch_selects_it`
+//! - A double-click on a sketch reopens it — no test: held by
+//!   `opening_a_sketch_made_on_a_section_switches_it_on_and_leaving_puts_the_sections_back`,
+//!   in `crates/app/tests/keeping_a_section.rs`, and by
+//!   `a_sketch_whose_section_is_no_longer_kept_reads_its_plane_s_name`, in
+//!   `crates/app/tests/sketch_pill.rs`
+//! - Sections keep today's behaviour, one switched on at a time (#716) — no
+//!   test: held by `switching_the_second_section_on_switches_the_first_off`, in
+//!   `crates/app/tests/keeping_a_section.rs`
+//! - The panel scrolls when it is taller than the window — no test: the tree is
+//!   drawn inside an `egui::ScrollArea` today and the issue keeps it; a window
+//!   short enough to scroll and a row found past its bottom is the driver
+//!   asserting egui's own scrolling
+//! - Must not break, selecting from the tree inside the open sketch —
+//!   `a_click_with_the_modifier_adds_to_what_the_open_sketch_holds_and_takes_it_back`,
+//!   and the two click tests above
+//! - Must not break, lighting in another sketch —
+//!   `a_click_on_a_row_of_a_closed_sketch_lights_it_and_opens_nothing`
+//! - Must not break, the sketch eye — no test: held by
+//!   `the_eye_of_a_used_sketch_brings_its_traits_back_and_takes_them_away_again`,
+//!   in `crates/app/src/screens/viewport/render/tests.rs`
+//! - Must not break, the panel's presenter stays testable without a window —
+//!   no test: held by `a_presenter_never_takes_the_interface`, in
+//!   `crates/app/tests/architecture.rs`, and by this file building no window
 
-use cao_part::history::{FaceAnchor, PointRef, RevolutionAxis};
+use cao_part::VariableChange;
+use cao_part::history::{FaceAnchor, PointRef, RevolutionAxis, SectionAsked, SideDrawing};
 use cao_sketch::{
     Constraint, DimensionTarget, Element, PointId, Rule, RulePick, SegmentId, Selection,
     SketchAxis, ToolState, WorkPlane,
@@ -54,6 +161,7 @@ use super::*;
 use crate::screens::part_tree::TreeAction;
 use crate::screens::sketch::{SketchEditor, Tool};
 use crate::screens::viewport::ViewportState;
+use crate::wording::part_tree as said;
 
 fn at(text: &str) -> DateTime<Utc> {
     text.parse().expect("a date")
@@ -125,7 +233,7 @@ fn a_step_whose_area_is_gone_says_so_rather_than_reading_as_one_raised_from_noth
 
     let tree = PartTree::of(&document, &french());
 
-    assert!(tree.bodies[0].lost);
+    assert_eq!(tree.bodies[0].badge, Some(Problem::AreaLost));
     assert!(
         tree.bodies[0].areas.is_empty(),
         "there is nothing left to point at",
@@ -136,20 +244,19 @@ fn a_step_whose_area_is_gone_says_so_rather_than_reading_as_one_raised_from_noth
 fn a_step_whose_areas_are_all_there_is_not_marked() {
     let tree = PartTree::of(&a_part(), &french());
 
-    assert!(!tree.bodies[0].lost);
+    assert_eq!(tree.bodies[0].badge, None);
 }
 
 #[test]
 fn a_step_that_made_matter_names_the_areas_it_stands_on() {
     let tree = PartTree::of(&a_part(), &french());
 
-    assert_eq!(
-        tree.bodies[0].areas,
-        [Row {
-            name: "Aire 1".to_string(),
-            points: Points::Area { sketch: 0, rank: 0 },
-        }],
-    );
+    let named: Vec<(&str, Points)> = tree.bodies[0]
+        .areas
+        .iter()
+        .map(|row| (row.name.as_str(), row.points))
+        .collect();
+    assert_eq!(named, [("Aire 1", Points::Area { sketch: 0, rank: 0 })]);
 }
 
 #[test]
@@ -186,8 +293,16 @@ fn a_drag_leaves_no_line_of_its_own() {
     });
 
     let after = PartTree::of(&document, &french());
+    let lines = |tree: &PartTree| -> Vec<(String, Points)> {
+        tree.sketches[0]
+            .strokes
+            .iter()
+            .map(|row| (row.name.clone(), row.points))
+            .collect()
+    };
     assert_eq!(
-        after.sketches[0].strokes, before.sketches[0].strokes,
+        lines(&after),
+        lines(&before),
         "the tree shows what the part is made of, and a drag leaves no element \
          behind it",
     );
@@ -213,8 +328,9 @@ fn a_sketch_that_lost_its_face_is_marked_in_the_tree() {
 
     let tree = PartTree::of(&document, &french());
 
-    assert!(
-        tree.sketches[0].adrift,
+    assert_eq!(
+        tree.sketches[0].badge,
+        Some(Problem::FaceLost),
         "a drawing whose face the part no longer has must say so",
     );
 }
@@ -288,12 +404,13 @@ fn a_ball_under_a_slanted_circle_raised() -> PartDocument {
 fn a_step_the_kernel_declines_is_marked_in_the_tree() {
     let tree = PartTree::of(&a_ball_under_a_slanted_circle_raised(), &french());
 
-    assert!(
-        tree.bodies[1].declined,
+    assert_eq!(
+        tree.bodies[1].badge,
+        Some(Problem::NotBuilt),
         "a circle raised across the ball's sphere off its centre meets it \
          where the exact kernel cannot follow, and declines",
     );
-    assert!(!tree.bodies[0].declined, "the ball itself was built");
+    assert_eq!(tree.bodies[0].badge, None, "the ball itself was built");
 }
 
 /// A shaft Ø20 raised 30 on XY, and a slice of it turned a hundredth of a
@@ -351,7 +468,11 @@ fn a_step_built_at_an_unstable_lean_is_marked_in_the_tree() {
         Some(lang.t_with("extrusion.unstable_along", &[("angle", "0.01")])),
         "the slice is built and said unstable",
     );
-    assert!(!tree.bodies[1].declined, "built, not declined");
+    assert_eq!(
+        tree.bodies[1].badge,
+        Some(Problem::Unstable),
+        "built, not declined"
+    );
     assert_eq!(tree.bodies[0].unstable, None, "the shaft stands square");
 }
 
@@ -634,4 +755,427 @@ fn a_dimension_or_a_rule_of_a_closed_sketch_is_no_click_at_all() {
             "{row:?} of a closed sketch is no click, though a click lights it",
         );
     }
+}
+
+/// `a_part`, with two variables — `height` at 40, `double` written from it —
+/// and a section kept along YZ: every rubric of the panel has something in it.
+fn a_part_with_variables_and_a_section() -> PartDocument {
+    let mut document = a_part();
+    for (name, text) in [("height", "40"), ("double", "height * 2")] {
+        let formula = document.variables().read(text).expect("it reads");
+        document
+            .change_variable(VariableChange::Added {
+                name: name.to_string(),
+                formula,
+            })
+            .expect("nothing to refuse");
+    }
+    document.apply(Operation::SaveSection(SectionAsked {
+        plane: WorkPlane::YZ,
+        on: None,
+        offset: 5.0,
+        behind: SideDrawing::SeeThrough,
+        in_front: SideDrawing::Opaque,
+        tilt_about_u_degrees: 0.0,
+        tilt_about_v_degrees: 0.0,
+        pivot: DVec3::ZERO,
+    }));
+    document
+}
+
+#[test]
+fn the_panel_reads_its_sketches_volumes_sections_whole_body_then_variables() {
+    let lang = french();
+    let tree = PartTree::of(&a_part_with_variables_and_a_section(), &lang);
+
+    let headings: Vec<String> = tree
+        .rubrics()
+        .into_iter()
+        .map(|rubric| said::rubric(&lang, rubric))
+        .collect();
+
+    assert_eq!(
+        headings,
+        [
+            "ESQUISSES",
+            "VOLUMES",
+            "COUPES",
+            "TOUT LE CORPS",
+            "VARIABLES"
+        ],
+        "a part with sketches, a body, a section and variables lists them in another order",
+    );
+}
+
+#[test]
+fn a_variable_reads_its_name_apart_from_its_value() {
+    let tree = PartTree::of(&a_part_with_variables_and_a_section(), &french());
+
+    let read: Vec<(&str, &str)> = tree
+        .variables
+        .iter()
+        .map(|variable| (variable.name.as_str(), variable.value.as_str()))
+        .collect();
+
+    assert_eq!(
+        read,
+        [("height", "40"), ("double", "height * 2 = 80")],
+        "a variable's name and its value are not handed apart, or not as the panel read them",
+    );
+}
+
+/// `a_part` — a sketch on XY raised into a block, a second on XZ — then a
+/// sketch on YZ, one on the block's top face, two sections kept, and a sketch
+/// laid on the second section's cut.
+fn a_sketch_on_every_kind_of_plane() -> PartDocument {
+    let mut document = a_part();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::YZ,
+        on: None,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(0.0, 0.0, 4.0),
+            u: DVec3::X,
+            v: DVec3::Y,
+        },
+        on: None,
+    });
+    for (plane, offset) in [(WorkPlane::XZ, 3.0), (WorkPlane::YZ, 5.0)] {
+        document.apply(Operation::SaveSection(SectionAsked {
+            plane,
+            on: None,
+            offset,
+            behind: SideDrawing::SeeThrough,
+            in_front: SideDrawing::Opaque,
+            tilt_about_u_degrees: 0.0,
+            tilt_about_v_degrees: 0.0,
+            pivot: DVec3::ZERO,
+        }));
+    }
+    document.apply(Operation::CreateSketchOnSection {
+        section: 1,
+        plane: WorkPlane {
+            origin: DVec3::new(5.0, 0.0, 0.0),
+            u: DVec3::Y,
+            v: DVec3::Z,
+        },
+    });
+    document
+}
+
+#[test]
+fn a_sketch_names_the_plane_it_is_laid_on_as_the_pill_does() {
+    let tree = PartTree::of(&a_sketch_on_every_kind_of_plane(), &french());
+
+    let planes: Vec<(&str, &str)> = tree
+        .sketches
+        .iter()
+        .map(|drawing| (drawing.name.as_str(), drawing.plane.as_str()))
+        .collect();
+
+    assert_eq!(
+        planes,
+        [
+            ("Esquisse 1", "XY"),
+            ("Esquisse 2", "XZ"),
+            ("Esquisse 3", "YZ"),
+            ("Esquisse 4", "face"),
+            ("Esquisse 5", "Coupe 2"),
+        ],
+        "a sketch row does not carry the plane it is laid on, the section first, as the pill names it",
+    );
+}
+
+/// One sketch on XY holding a trait 180 long, one from the origin to (10, 10),
+/// a circle of radius 19, an arc and an ellipse 60 across and 40 high, whose
+/// two axes are traits of their own, each apart from the others.
+fn a_sketch_of_every_stroke() -> PartDocument {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for (start, end) in [
+        (DVec2::new(0.0, -50.0), DVec2::new(180.0, -50.0)),
+        (DVec2::ZERO, DVec2::new(10.0, 10.0)),
+    ] {
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(start),
+            end: PointRef::New(end),
+            construction: false,
+        });
+    }
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(100.0, 60.0)),
+        radius: 19.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(-60.0, 0.0)),
+        start: PointRef::New(DVec2::new(-50.0, 0.0)),
+        end: PointRef::New(DVec2::new(-60.0, 10.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddEllipse {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(250.0, 20.0)),
+        first: [
+            PointRef::New(DVec2::new(220.0, 20.0)),
+            PointRef::New(DVec2::new(280.0, 20.0)),
+        ],
+        second: [
+            PointRef::New(DVec2::new(250.0, 0.0)),
+            PointRef::New(DVec2::new(250.0, 40.0)),
+        ],
+        construction: false,
+        drawn: None,
+    });
+    document
+}
+
+#[test]
+fn a_trait_reads_its_length_a_circle_its_diameter_and_an_arc_nothing() {
+    let tree = PartTree::of(&a_sketch_of_every_stroke(), &french());
+
+    let read: Vec<(&str, Option<&str>)> = tree.sketches[0]
+        .strokes
+        .iter()
+        .map(|row| (row.name.as_str(), row.value.as_deref()))
+        .collect();
+
+    assert_eq!(
+        read,
+        [
+            ("Trait 1", Some("180 mm")),
+            ("Trait 2", Some("14.1421 mm")),
+            ("Trait 3", Some("60 mm")),
+            ("Trait 4", Some("40 mm")),
+            ("Cercle 1", Some("Ø 38")),
+            ("Arc 1", None),
+            ("Ellipse 1", None),
+        ],
+        "a stroke does not carry its size as a dimension would read it, or carries one it has not",
+    );
+}
+
+/// `a_part`, with a section kept on its plane XZ and one laid on a face the
+/// part does not have.
+fn a_part_with_a_section_on_a_lost_face() -> PartDocument {
+    let mut document = a_part();
+    for on in [
+        None,
+        Some(FaceAnchor {
+            face: 404,
+            up: DVec3::Y,
+        }),
+    ] {
+        document.apply(Operation::SaveSection(SectionAsked {
+            plane: WorkPlane::XZ,
+            on,
+            offset: 3.0,
+            behind: SideDrawing::SeeThrough,
+            in_front: SideDrawing::Opaque,
+            tilt_about_u_degrees: 0.0,
+            tilt_about_v_degrees: 0.0,
+            pivot: DVec3::ZERO,
+        }));
+    }
+    document
+}
+
+#[test]
+fn each_problem_is_a_badge_with_its_level() {
+    let lang = french();
+    let area_lost = {
+        let mut document = a_part();
+        document.apply(Operation::EraseMany {
+            sketch: 0,
+            elements: vec![Element::Segment(SegmentId(0))],
+            dimensions: Vec::new(),
+            constraints: Vec::new(),
+        });
+        PartTree::of(&document, &lang)
+    };
+    let not_built = PartTree::of(&a_ball_under_a_slanted_circle_raised(), &lang);
+    let unstable = PartTree::of(
+        &a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin(),
+        &lang,
+    );
+    let face_lost = {
+        let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: Some(FaceAnchor {
+                face: 404,
+                up: DVec3::Y,
+            }),
+        });
+        PartTree::of(&document, &lang)
+    };
+    let sections = PartTree::of(&a_part_with_a_section_on_a_lost_face(), &lang);
+    let sound = PartTree::of(&a_part(), &lang);
+    let with_its_level = |badge: Option<Problem>| badge.map(|problem| (problem, problem.level()));
+
+    let read = [
+        ("an area gone", with_its_level(area_lost.bodies[0].badge)),
+        ("a step declined", with_its_level(not_built.bodies[1].badge)),
+        (
+            "a step built unstably",
+            with_its_level(unstable.bodies[1].badge),
+        ),
+        (
+            "a sketch off its face",
+            with_its_level(face_lost.sketches[0].badge),
+        ),
+        (
+            "a section off its face",
+            with_its_level(sections.sections[1].badge),
+        ),
+        (
+            "a section on a plane",
+            with_its_level(sections.sections[0].badge),
+        ),
+        ("a sound step", with_its_level(sound.bodies[0].badge)),
+        ("a sound sketch", with_its_level(sound.sketches[0].badge)),
+    ];
+
+    assert_eq!(
+        read,
+        [
+            ("an area gone", Some((Problem::AreaLost, Level::Error))),
+            ("a step declined", Some((Problem::NotBuilt, Level::Error))),
+            (
+                "a step built unstably",
+                Some((Problem::Unstable, Level::Warning))
+            ),
+            (
+                "a sketch off its face",
+                Some((Problem::FaceLost, Level::Warning))
+            ),
+            (
+                "a section off its face",
+                Some((Problem::FaceLost, Level::Warning))
+            ),
+            ("a section on a plane", None),
+            ("a sound step", None),
+            ("a sound sketch", None),
+        ],
+        "a row of the tree wears another badge, or another level, than its problem's",
+    );
+}
+
+#[test]
+fn a_badge_reads_the_word_its_problem_is_known_by() {
+    let lang = french();
+
+    let read: Vec<String> = [
+        Problem::Unstable,
+        Problem::FaceLost,
+        Problem::NotBuilt,
+        Problem::AreaLost,
+    ]
+    .into_iter()
+    .map(|problem| said::badge(&lang, problem))
+    .collect();
+
+    assert_eq!(
+        read,
+        ["instable", "face perdue", "non construit", "aire perdue"],
+        "a badge does not read the word the issue gives its problem",
+    );
+}
+
+#[test]
+fn hovering_a_trait_of_the_open_sketch_lights_it_without_selecting_it() {
+    let (document, mut editor) = the_first_sketch_open();
+    let mut viewport = ViewportState::default();
+    let in_hand = editor.tool;
+    let dimension = Selection::Dimension(document.sketches()[0].dimensions()[0].target);
+
+    for (row, what) in [
+        (the_row_of(0, 0), a_trait(0)),
+        (Points::Dimension { sketch: 0, rank: 0 }, dimension),
+    ] {
+        hover(&document, &mut editor, &mut viewport, Some(row));
+
+        assert_eq!(
+            editor.hovered,
+            Some(what),
+            "{row:?} hovered in the tree is not lit as the hand over it in the view lights it",
+        );
+        assert!(
+            editor.selection().is_empty(),
+            "hovering {row:?} in the tree selected something",
+        );
+        assert_eq!(
+            editor.tool, in_hand,
+            "hovering {row:?} changed the tool in hand"
+        );
+        assert_eq!(
+            viewport.lit(),
+            None,
+            "hovering {row:?} of the open sketch lit it as a closed sketch's row",
+        );
+    }
+
+    hover(&document, &mut editor, &mut viewport, None);
+    assert_eq!(
+        editor.hovered, None,
+        "the open sketch's element stays lit once the hand has left its row",
+    );
+}
+
+#[test]
+fn a_volume_with_several_problems_wears_the_gravest_not_built_then_area_lost_then_unstable() {
+    let worn = |declined, lost, unstable| gravest(declined, lost, unstable);
+
+    assert_eq!(worn(true, true, true), Some(Problem::NotBuilt));
+    assert_eq!(worn(true, true, false), Some(Problem::NotBuilt));
+    assert_eq!(worn(true, false, true), Some(Problem::NotBuilt));
+    assert_eq!(
+        worn(false, true, true),
+        Some(Problem::AreaLost),
+        "a step that lost an area and reads unstably wears the lesser badge",
+    );
+    assert_eq!(worn(false, false, true), Some(Problem::Unstable));
+    assert_eq!(worn(false, false, false), None);
+}
+
+#[test]
+fn a_sketch_reads_open_while_drawn_on_and_dimmed_while_its_eye_is_shut() {
+    let lang = french();
+    let (document, drawing_on_the_first) = the_first_sketch_open();
+    let nothing_open = SketchEditor::default();
+    let mut viewport = ViewportState::default();
+    let read = |editor: &SketchEditor, viewport: &ViewportState| -> Vec<(bool, bool)> {
+        PartTree::seen(&document, editor, viewport, &lang)
+            .sketches
+            .iter()
+            .map(|drawing| (drawing.open, drawing.dimmed))
+            .collect()
+    };
+
+    assert_eq!(
+        read(&nothing_open, &viewport),
+        [(false, true), (false, false)],
+        "with nothing open, the sketch the block was raised from has its eye shut and reads \
+         dimmed, the sketch never used reads plain, and neither reads open",
+    );
+    assert_eq!(
+        read(&drawing_on_the_first, &viewport),
+        [(true, false), (false, false)],
+        "the sketch being drawn on, which the view draws whole whatever its eye, does not \
+         read open and plain in the tree, or another reads open",
+    );
+    viewport.toggle_eye(&document, 0);
+    assert_eq!(
+        read(&nothing_open, &viewport),
+        [(false, false), (false, false)],
+        "a sketch whose eye was opened by hand still reads dimmed",
+    );
 }

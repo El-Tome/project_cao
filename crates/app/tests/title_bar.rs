@@ -963,7 +963,7 @@ fn raise_a_block_and_finish_the_sketch(app: &mut driver::App) {
     driver::click_at_sketch_point(app, THE_BLOCK_S_CORNERS[0]);
     driver::click_at_sketch_point(app, THE_BLOCK_S_CORNERS[1]);
     driver::click_exactly(app, "Extrusion");
-    driver::click_exactly(app, "1");
+    driver::click_the_button(app, "1");
     driver::click(app, "Ajout de matière");
     driver::click_at_sketch_point(app, ON_THE_BLOCK);
     driver::click(app, "Appliquer");

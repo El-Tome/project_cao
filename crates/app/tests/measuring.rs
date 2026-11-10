@@ -81,7 +81,7 @@ fn measuring_a_trait_leaves_the_history_with_nothing_but_the_trait() {
 fn the_dimension_tool_still_writes_where_the_measure_tool_does_not() {
     let mut app = a_part_with_a_trait("the_dimension_tool_still_writes");
 
-    driver::click(&mut app, "Cote");
+    driver::pick_the_dimension_tool(&mut app);
     driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
     driver::click_at_sketch_point(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
 

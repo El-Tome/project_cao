@@ -39,12 +39,17 @@ pub const ACCENT_AMBER_BACKGROUND: Color32 =
 pub const ACCENT_AMBER_BORDER: Color32 = Color32::from_rgba_unmultiplied_const(242, 165, 65, 128);
 
 pub const STATE_WARNING_TEXT: Color32 = Color32::from_rgb(0xF0, 0xD6, 0x6E);
+/// `rgba(232,197,71,0.16)`: 0.16 of 255 is 41.
+pub const STATE_WARNING_BACKGROUND: Color32 =
+    Color32::from_rgba_unmultiplied_const(232, 197, 71, 41);
 pub const STATE_ERROR: Color32 = Color32::from_rgb(0xF0, 0x8A, 0x7E);
 pub const STATE_ERROR_TEXT: Color32 = Color32::from_rgb(0xF5, 0xA9, 0x9F);
 /// `rgba(240,138,126,0.15)`: 0.15 of 255 is 38.
 pub const STATE_ERROR_BACKGROUND: Color32 =
     Color32::from_rgba_unmultiplied_const(240, 138, 126, 38);
 pub const STATE_SUCCESS_TEXT: Color32 = Color32::from_rgb(0x8F, 0xE3, 0xBC);
+
+pub const VARIABLE_TEXT: Color32 = Color32::from_rgb(0x9F, 0xC6, 0xFF);
 
 /// `0 10px 28px rgba(0,0,0,0.50)`: 0.50 of 255 is 128.
 pub const SHADOW_MENU: Shadow = Shadow {

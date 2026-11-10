@@ -106,7 +106,7 @@ fn a_click_inside_a_name_puts_the_cursor_at_one_of_its_edges() {
     let mut app = a_part_with_two_variables("a_click_inside_a_name");
     driver::start_a_sketch(&mut app);
     driver::draw_a_segment(&mut app);
-    driver::click(&mut app, "Cote");
+    driver::pick_the_dimension_tool(&mut app);
     driver::click_at_sketch_point(&mut app, driver::ON_THE_SEGMENT);
     driver::click_at_sketch_point(&mut app, driver::WHERE_ITS_DIMENSION_GOES);
     let measured = driver::fields(&app)

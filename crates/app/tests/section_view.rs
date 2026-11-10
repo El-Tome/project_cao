@@ -30,7 +30,7 @@ fn a_block(test: &str) -> driver::App {
     driver::click_at_sketch_point(&mut app, driver::A_POINT_ABOVE_THE_ORIGIN);
     driver::click_at_sketch_point(&mut app, driver::A_POINT_BELOW_AND_RIGHT);
     driver::click_exactly(&mut app, "Extrusion");
-    driver::click_exactly(&mut app, "1");
+    driver::click_the_button(&mut app, "1");
     driver::click(&mut app, "Ajout de matière");
     driver::click_at_sketch_point(&mut app, driver::INSIDE_THE_RECTANGLE);
     driver::click(&mut app, "Appliquer");

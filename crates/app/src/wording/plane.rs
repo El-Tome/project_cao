@@ -18,5 +18,16 @@ pub fn label(lang: &Catalogue, kind: PlaneKind) -> String {
     })
 }
 
+/// The same, in the few letters a row of the Part tree has room for.
+pub fn short(lang: &Catalogue, kind: PlaneKind) -> String {
+    lang.t(match kind {
+        PlaneKind::OffOrigin => "plane.short.off_origin",
+        PlaneKind::OriginXY => "plane.short.origin_xy",
+        PlaneKind::OriginXZ => "plane.short.origin_xz",
+        PlaneKind::OriginYZ => "plane.short.origin_yz",
+        PlaneKind::OriginSlanted => "plane.short.origin_slanted",
+    })
+}
+
 #[cfg(test)]
 mod tests;

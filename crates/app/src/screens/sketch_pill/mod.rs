@@ -5,5 +5,5 @@
 mod state;
 mod view;
 
-pub use state::SketchPill;
+pub use state::{SketchPill, laid_on};
 pub use view::show;

@@ -104,7 +104,9 @@
 //! edge — each fill trimmed flush on the walls at its ends, which past `√2/2`
 //! leaves the chamfer's foot no fill of its own, and each corner's `d³/3` or
 //! `r³(5/3 − π/2)` over `sin 45°` — comes to the same, and so do the booleans;
-//! both are held in the test, at 1.
+//! both are held in the test, at ½, where the chamfer's foot keeps a fill of
+//! its own, and at 1, where it keeps none. Past 1 the booleans' clipped
+//! prisms would reach beyond the third wall, and are not held there.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -1543,6 +1545,12 @@ fn a_chamfer_and_a_fillet_on_two_feet_at_a_corner_of_a_standing_block_that_is_no
     );
 }
 
+/// The values a list holding an edge `√2` long between two mitres is laid
+/// at: one under `√2/2`, where that edge's own fill keeps a face of its own,
+/// and one over, where the walls at its two ends leave it none and the two
+/// mitres meet across it.
+const ROUND_A_SHORT_EDGE: [f64; 2] = [0.5, 1.0];
+
 /// Every order three edges can be named in.
 const ORDERS_OF_THREE: [&[usize]; 6] = [
     &[0, 1, 2],
@@ -1639,14 +1647,16 @@ fn a_chamfer_and_a_fillet_on_two_feet_and_the_foot_of_the_chamfered_upright_betw
     let edges = feet_round_the_chamfered_upright();
     let called = "the standing block's three feet round its chamfered upright";
     for cut in [Cut::Flat, Cut::Round] {
-        let offset = round_the_chamfered_upright(cut, 1.0);
-        let arithmetic = kept(STACKED_CHAMFERED_VOLUME, &edges, cut, 1.0);
-        assert!(
-            (arithmetic - offset).abs() <= EXACT * offset,
-            "{called}, the {} of 1: the outline offset holds {offset}, the arithmetic edge by edge \
-             {arithmetic}",
-            cut.called()
-        );
+        for value in ROUND_A_SHORT_EDGE {
+            let offset = round_the_chamfered_upright(cut, value);
+            let arithmetic = kept(STACKED_CHAMFERED_VOLUME, &edges, cut, value);
+            assert!(
+                (arithmetic - offset).abs() <= EXACT * offset,
+                "{called}, the {} of {value}: the outline offset holds {offset}, the arithmetic \
+                 edge by edge {arithmetic}",
+                cut.called()
+            );
+        }
     }
     mitre_in_every_order_at(
         &part,
@@ -1654,7 +1664,7 @@ fn a_chamfer_and_a_fillet_on_two_feet_and_the_foot_of_the_chamfered_upright_betw
         &edges,
         &ORDERS_OF_THREE,
         &[Cut::Flat, Cut::Round],
-        &[1.0],
+        &ROUND_A_SHORT_EDGE,
         called,
     );
 }

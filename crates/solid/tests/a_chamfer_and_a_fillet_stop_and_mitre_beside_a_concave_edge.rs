@@ -161,7 +161,9 @@
 //! edge — each cut stopped flush on the face it runs into, which past `√2/2`
 //! leaves the fill's own cut nothing, and each corner's `d³/3` or
 //! `r³(5/3 − π/2)` over `sin 45°` — comes to the same, and so do the booleans,
-//! both held in the test at 1.
+//! both held in the test at ½, where the fill's top edge keeps a cut of its
+//! own, and at 1, where it keeps none. Past 1 the booleans' clipped prisms
+//! would reach beyond the third face, and are not held there.
 //!
 //! The L whose top is tilted, rising 0.1 along X and along Y, has no closed
 //! form at its corner: the edges' faces meet at 84.3°, the round's section
@@ -2231,6 +2233,12 @@ fn a_chamfer_and_a_fillet_on_the_two_top_edges_at_the_inner_corner_of_an_l_whose
     );
 }
 
+/// The values a list holding an edge `√2` long between two mitres is cut
+/// at: one under `√2/2`, where that edge's own cut keeps a face of its own,
+/// and one over, where the faces at its two ends leave it none and the two
+/// mitres meet across it.
+const ROUND_A_SHORT_EDGE: [f64; 2] = [0.5, 1.0];
+
 /// Every order three edges can be named in.
 const ORDERS_OF_THREE: [&[usize]; 6] = [
     &[0, 1, 2],
@@ -2350,16 +2358,18 @@ fn a_chamfer_and_a_fillet_on_the_l_s_two_top_edges_and_the_top_of_its_filled_inn
     let edges = top_edges_round_the_filled_upright();
     let called = "the L's three top edges round its filled inner upright";
     for cut in [Cut::Flat, Cut::Round] {
-        let offset = round_the_filled_upright(cut, 1.0);
-        let arithmetic = kept(ELL_FILLED_VOLUME, &edges, cut, 1.0);
-        let booleans = by_booleans(&part, &edges, cut, 1.0);
-        assert!(
-            (arithmetic - offset).abs() <= EXACT * offset
-                && (booleans - offset).abs() <= EXACT * offset,
-            "{called}, the {} of 1: the outline offset keeps {offset}, the arithmetic edge by edge \
-             {arithmetic}, the booleans {booleans}",
-            cut.called()
-        );
+        for value in ROUND_A_SHORT_EDGE {
+            let offset = round_the_filled_upright(cut, value);
+            let arithmetic = kept(ELL_FILLED_VOLUME, &edges, cut, value);
+            let booleans = by_booleans(&part, &edges, cut, value);
+            assert!(
+                (arithmetic - offset).abs() <= EXACT * offset
+                    && (booleans - offset).abs() <= EXACT * offset,
+                "{called}, the {} of {value}: the outline offset keeps {offset}, the arithmetic \
+                 edge by edge {arithmetic}, the booleans {booleans}",
+                cut.called()
+            );
+        }
     }
     mitre_in_every_order_at(
         &part,
@@ -2367,7 +2377,7 @@ fn a_chamfer_and_a_fillet_on_the_l_s_two_top_edges_and_the_top_of_its_filled_inn
         &edges,
         &ORDERS_OF_THREE,
         &[Cut::Flat, Cut::Round],
-        &[1.0],
+        &ROUND_A_SHORT_EDGE,
         called,
     );
 }

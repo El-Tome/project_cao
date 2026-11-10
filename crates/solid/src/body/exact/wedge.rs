@@ -355,7 +355,7 @@ impl Exact {
             .brep
             .face_ids()
             .flat_map(|face| numbers(&before.brep, face))
-            .filter(|number| !consumable.contains(number) && *number < OVERLAPS)
+            .filter(|number| !consumable.contains(number) && !(OVERLAPS..PIECES).contains(number))
             .all(|number| self.has_face(number as usize));
         !stray && !parted && self.has_face(made as usize) && on_a_side && kept
     }

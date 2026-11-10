@@ -230,7 +230,13 @@ It can:
   the other leaves a face standing on one end plane past the other until
   that one is laid: an overlap's faces are numbered apart, from `OVERLAPS`,
   so that the check of each edge passes over them, and the step is declined
-  should one still stand once every edge is laid. A round leaving
+  should one still stand once every edge is laid. A known limit: a hair past
+  the value at which the short edge's two trims meet — a fillet of 0.7072 on
+  the chamfered upright's three feet, or on the filled L's three top edges,
+  just past √2/2 — the rounds the step leaves fail the check that each
+  stands as a face of its own (`Exact::filleted`), and the step is declined
+  `Distance` in the two orders that name the short edge between the other
+  two; 0.70711 and 0.7075 are laid. A round leaving
   the edge's end at a few degrees inwards trims the chamfer like any other
   end face; one leaving it outwards dips outside the edge's face past the
   end corner, and is covered only while the prism's side, a margin out,

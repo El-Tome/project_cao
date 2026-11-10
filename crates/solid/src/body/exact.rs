@@ -30,7 +30,8 @@ pub(super) struct Exact {
     brep: brep::Body,
     /// The number the next face a step makes is given: every number a step
     /// named, kept or not, stands below it, so that no number is ever given
-    /// twice. Parting a face never moves it.
+    /// twice — but an overlap's, numbered from `OVERLAPS` in `wedge/overlap.rs`
+    /// within a step, which no step keeps. Parting a face never moves it.
     next: u32,
     /// How many pieces cuts have parted from faces: the next piece answers
     /// to [`PIECES`] past it.

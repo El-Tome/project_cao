@@ -1,6 +1,6 @@
 use cao_part::PartDocument;
 use cao_prefs::{Chord, Command, Key};
-use cao_sketch::Sketch;
+use cao_sketch::{PlaneKind, Sketch};
 
 use crate::lang::Catalogue;
 use crate::screens::sketch::SketchEditor;
@@ -69,7 +69,7 @@ impl SketchPill {
         let left = Left::of(sketch, document.scale());
         Some(Self {
             name: lang.t_with("part_tree.sketch", &[("rank", &rank)]),
-            plane: laid_on(document, index, sketch, lang),
+            plane: laid_on(document, index, sketch, lang, plane::label),
             left,
             left_read: left.read(lang),
             finish: finish(finish_on, lang),
@@ -94,11 +94,17 @@ fn finish(on: Option<Chord>, lang: &Catalogue) -> String {
 }
 
 /// Where the sketch is drawn: the section it was laid on while the part still
-/// keeps it, else its plane.
-fn laid_on(document: &PartDocument, index: usize, sketch: &Sketch, lang: &Catalogue) -> String {
+/// keeps it, else its plane, as `named` words it.
+pub fn laid_on(
+    document: &PartDocument,
+    index: usize,
+    sketch: &Sketch,
+    lang: &Catalogue,
+    named: fn(&Catalogue, PlaneKind) -> String,
+) -> String {
     match kept_section_under(document, index) {
         Some(id) => view::kept_section(lang, id + 1),
-        None => plane::label(lang, sketch.plane.kind()),
+        None => named(lang, sketch.plane.kind()),
     }
 }
 

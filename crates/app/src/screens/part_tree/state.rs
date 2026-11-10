@@ -16,8 +16,9 @@ use cao_part::history::{ExtrusionMode, Operation};
 use cao_sketch::{Area, Element, Sketch};
 
 use crate::lang::Catalogue;
+use crate::screens::sketch_pill::laid_on;
 use crate::wording::part_tree::Rubric;
-use crate::wording::{self, formula};
+use crate::wording::{self, formula, plane};
 
 mod clicks;
 pub use clicks::*;
@@ -79,6 +80,8 @@ pub struct Drawn {
     pub adrift: bool,
     pub step: usize,
     pub name: String,
+    /// What it is laid on, as the sketch pill names it, in short.
+    pub plane: String,
     pub areas: Vec<Row>,
     pub strokes: Vec<Row>,
     pub dimensions: Vec<Row>,
@@ -141,6 +144,7 @@ impl PartTree {
                     };
                     let mut shown = drawn(lang, drawing, sketch, step, tree.sketches.len() + 1);
                     shown.adrift = document.is_adrift(sketch);
+                    shown.plane = laid_on(document, sketch, drawing, lang, plane::short);
                     tree.sketches.push(shown);
                 }
                 Operation::Extrude {
@@ -309,6 +313,7 @@ fn drawn(lang: &Catalogue, sketch: &Sketch, index: usize, step: usize, rank: usi
         adrift: false,
         step,
         name: numbered(lang, "part_tree.sketch", rank),
+        plane: String::new(),
         areas: (0..sketch.regions().len())
             .map(|rank| Row {
                 name: numbered(lang, "part_tree.area", rank + 1),

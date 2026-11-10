@@ -94,9 +94,13 @@ fn sketches(ui: &mut egui::Ui, tree: &PartTree, asked: &mut Asked<'_>, lang: &Ca
             if eye(ui, lit, said::eye(lang, lit)) {
                 asked.action = TreeAction::ToggleEye(drawing.sketch);
             }
-            if ui.vertical(|ui| drawn(ui, drawing, asked, lang)).inner {
-                asked.action = TreeAction::EditSketch(drawing.sketch);
-            }
+            let layout = egui::Layout::right_to_left(egui::Align::Min);
+            ui.with_layout(layout, |ui| {
+                ui.weak(&drawing.plane);
+                if ui.vertical(|ui| drawn(ui, drawing, asked, lang)).inner {
+                    asked.action = TreeAction::EditSketch(drawing.sketch);
+                }
+            });
         });
     }
 }

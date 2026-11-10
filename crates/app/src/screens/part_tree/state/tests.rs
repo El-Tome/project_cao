@@ -782,3 +782,66 @@ fn a_variable_reads_its_name_apart_from_its_value() {
         "a variable's name and its value are not handed apart, or not as the panel read them",
     );
 }
+
+/// `a_part` — a sketch on XY raised into a block, a second on XZ — then a
+/// sketch on YZ, one on the block's top face, two sections kept, and a sketch
+/// laid on the second section's cut.
+fn a_sketch_on_every_kind_of_plane() -> PartDocument {
+    let mut document = a_part();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::YZ,
+        on: None,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(0.0, 0.0, 4.0),
+            u: DVec3::X,
+            v: DVec3::Y,
+        },
+        on: None,
+    });
+    for (plane, offset) in [(WorkPlane::XZ, 3.0), (WorkPlane::YZ, 5.0)] {
+        document.apply(Operation::SaveSection(SectionAsked {
+            plane,
+            on: None,
+            offset,
+            behind: SideDrawing::SeeThrough,
+            in_front: SideDrawing::Opaque,
+            tilt_about_u_degrees: 0.0,
+            tilt_about_v_degrees: 0.0,
+            pivot: DVec3::ZERO,
+        }));
+    }
+    document.apply(Operation::CreateSketchOnSection {
+        section: 1,
+        plane: WorkPlane {
+            origin: DVec3::new(5.0, 0.0, 0.0),
+            u: DVec3::Y,
+            v: DVec3::Z,
+        },
+    });
+    document
+}
+
+#[test]
+fn a_sketch_names_the_plane_it_is_laid_on_as_the_pill_does() {
+    let tree = PartTree::of(&a_sketch_on_every_kind_of_plane(), &french());
+
+    let planes: Vec<(&str, &str)> = tree
+        .sketches
+        .iter()
+        .map(|drawing| (drawing.name.as_str(), drawing.plane.as_str()))
+        .collect();
+
+    assert_eq!(
+        planes,
+        [
+            ("Esquisse 1", "XY"),
+            ("Esquisse 2", "XZ"),
+            ("Esquisse 3", "YZ"),
+            ("Esquisse 4", "face"),
+            ("Esquisse 5", "Coupe 2"),
+        ],
+        "a sketch row does not carry the plane it is laid on, the section first, as the pill names it",
+    );
+}

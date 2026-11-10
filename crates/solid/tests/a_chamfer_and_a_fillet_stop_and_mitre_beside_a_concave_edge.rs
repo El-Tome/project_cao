@@ -94,6 +94,34 @@
 //! at both values agrees to the last digit: the part less each edge's prism,
 //! carried past a mitred end by twice the value and clipped there by the
 //! plane halfway between the two edges, on its own side.
+//!
+//! The L whose inner corner is not square leans its stem's right side from
+//! (12, 6) to (18, 14), over its arm, or to (6, 14), away from it: the air
+//! between that side and the arm's back is `φ` wide, 53.13° or 126.87°,
+//! `sin φ = 0.8` either way, and the L holds 3000 or 2520. Its walls still
+//! stand square to its top, so each cut still takes its section square to
+//! its edge; what leans is the face each edge runs into. A line along the
+//! edge `a` through the section, standing `o` off it, runs from the plane of
+//! the face at one end to the plane at the other, `f₀` and `f₁` the ways
+//! they face: `L − o·(f₁/(a·f₁) − f₀/(a·f₀))` long. The cut takes the section
+//! times `L`, and its first moment about either of the edge's faces, `d³/6`
+//! for a flat and `r³(5/6 − π/4)` for a round, times `(n₁ + n₂)·(f₁/(a·f₁) −
+//! f₀/(a·f₀))`, `n₁` and `n₂` the ways the edge's faces face. On the arm's
+//! back, square to the arm's end and running into the leaning side, that is
+//! `cot φ`, ±0.75; on the leaning side, from the stem's back to the arm's
+//! back, two parallel faces, nothing. Mitred, the two cuts take besides the
+//! square corner's `d³/3` or `r³(5/3 − π/2)` stretched by `1/sin φ`: a unit of
+//! `p` past one face by a unit of `q` past the other covers `1/sin φ` of the
+//! top. The flats' planes and the rounds' cylinders still meet where
+//! `p = q`, on the plane halfway between the two edges, so the mitre still
+//! runs from where the two set-backs cross on the top, the value from both
+//! walls, down to the concave upright the value below the top, both walls
+//! standing square to it: the upright still ends one value short of the
+//! corner. Held another way, by the booleans, both L's at both values agree
+//! to the last digit, each edge alone and the two mitred: the part less each
+//! edge's prism, carried well past both ends and clipped there by the plane
+//! of the face it runs into, on the matter's side, or by the plane halfway
+//! between the two edges, on the other's.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -101,7 +129,7 @@ use std::f64::consts::PI;
 use cao_solid::profile::{Contour, Frame, Profile};
 use cao_solid::soundness::{closed, enclosed, uncrossed};
 use cao_solid::{Body, Declined, EdgeName, Loop};
-use glam::{DVec2, DVec3};
+use glam::{DMat3, DVec2, DVec3};
 
 /// How far a corner may stand from where the arithmetic puts it, on a plane:
 /// each is placed exactly, so what is left is rounding.
@@ -241,7 +269,8 @@ const STANDING_LEFT: usize = 11;
 
 /// A convex edge between two faces square to each other: the faces it lies
 /// between, the way each faces, out of the matter, and its two ends. Where
-/// two edges are mitred, the first face of each is the one they share.
+/// two edges are mitred, the first face of each is the one they share, and
+/// each runs into the other's second face.
 struct Convex {
     called: &'static str,
     between: [usize; 2],
@@ -250,12 +279,21 @@ struct Convex {
 }
 
 /// An end of an edge: where it is, the face the edge runs into there — the
-/// one face at that corner that is neither of the edge's two, square to it —
-/// and whether matter lies past that face along the edge's line, or air.
+/// one face at that corner that is neither of the edge's two, flat — the way
+/// that face faces, out of the matter, and whether matter lies past it along
+/// the edge's line, or air.
 struct End {
     at: DVec3,
     on: usize,
+    facing: DVec3,
     matter_past: bool,
+}
+
+/// The point that stands `offsets` from the planes through `through` that
+/// face the three ways `facing`, each offset signed the way its plane faces.
+fn standing(through: DVec3, facing: [DVec3; 3], offsets: [f64; 3]) -> DVec3 {
+    let [one, two, three] = facing;
+    through + DMat3::from_cols(one, two, three).transpose().inverse() * DVec3::from(offsets)
 }
 
 impl Convex {
@@ -267,24 +305,43 @@ impl Convex {
         (self.ends[1].at - self.ends[0].at).normalize()
     }
 
-    /// Where a cut of `value` crosses the face an end runs into: set back by
-    /// the value along the edge's first face, then along its second.
+    /// Where a cut of `value` crosses the face an end runs into: on the
+    /// edge's first face, set back by the value from its second, then on its
+    /// second, set back by the value from its first.
     fn set_back(&self, end: &End, value: f64) -> [DVec3; 2] {
         let [first, second] = self.facing;
-        [end.at - second * value, end.at - first * value]
+        [
+            standing(end.at, [second, end.facing, first], [-value, 0.0, 0.0]),
+            standing(end.at, [first, end.facing, second], [-value, 0.0, 0.0]),
+        ]
     }
 
-    /// Whether a point lies on the arc a round of `radius` ends in on the face
-    /// an end runs into: on that face's plane, a radius from the round's axis,
-    /// which stands the radius in from both faces, and on the edge's side of
-    /// the axis, between the two set-backs.
+    /// Whether a point lies on the curve a round of `radius` ends in on the
+    /// face an end runs into: on that face's plane, a radius from the round's
+    /// axis, which stands the radius in from both faces, and on the edge's
+    /// side of the axis, between the two set-backs.
     fn on_the_round_s_end(&self, end: &End, radius: f64, point: DVec3) -> bool {
         let [first, second] = self.facing;
         let off = point - (end.at - (first + second) * radius);
-        (point - end.at).dot(self.along()).abs() < PLACE
-            && (off.length() - radius).abs() < PLACE
-            && off.dot(first) >= -PLACE
-            && off.dot(second) >= -PLACE
+        let across = off - self.along() * off.dot(self.along());
+        (point - end.at).dot(end.facing).abs() < PLACE
+            && (across.length() - radius).abs() < PLACE
+            && across.dot(first) >= -PLACE
+            && across.dot(second) >= -PLACE
+    }
+
+    /// What a cut of `value` takes off the edge alone, each line along the
+    /// edge through its section running from the plane of the face at one end
+    /// to the plane of the face at the other: the section times the edge's
+    /// length, and, where a face at an end leans across the edge, the
+    /// section's first moment about the edge times how far the lines grow a
+    /// unit in from it, as the module's documentation derives it.
+    fn taken(&self, cut: Cut, value: f64) -> f64 {
+        let along = self.along();
+        let [start, end] = &self.ends;
+        let lean = end.facing / along.dot(end.facing) - start.facing / along.dot(start.facing);
+        let [first, second] = self.facing;
+        cut.section(value) * self.length() + cut.moment(value) * (first + second).dot(lean)
     }
 }
 
@@ -303,11 +360,13 @@ fn ell_edges() -> [Convex; 4] {
                 End {
                     at: DVec3::new(30.0, 6.0, 10.0),
                     on: ARM_END,
+                    facing: DVec3::X,
                     matter_past: false,
                 },
                 End {
                     at: DVec3::new(12.0, 6.0, 10.0),
                     on: STEM_RIGHT,
+                    facing: DVec3::X,
                     matter_past: true,
                 },
             ],
@@ -320,11 +379,13 @@ fn ell_edges() -> [Convex; 4] {
                 End {
                     at: DVec3::new(30.0, 6.0, 0.0),
                     on: ARM_END,
+                    facing: DVec3::X,
                     matter_past: false,
                 },
                 End {
                     at: DVec3::new(12.0, 6.0, 0.0),
                     on: STEM_RIGHT,
+                    facing: DVec3::X,
                     matter_past: true,
                 },
             ],
@@ -337,11 +398,13 @@ fn ell_edges() -> [Convex; 4] {
                 End {
                     at: DVec3::new(12.0, 14.0, 10.0),
                     on: STEM_BACK,
+                    facing: DVec3::Y,
                     matter_past: false,
                 },
                 End {
                     at: DVec3::new(12.0, 6.0, 10.0),
                     on: ARM_BACK,
+                    facing: DVec3::Y,
                     matter_past: true,
                 },
             ],
@@ -354,11 +417,13 @@ fn ell_edges() -> [Convex; 4] {
                 End {
                     at: DVec3::new(12.0, 14.0, 0.0),
                     on: STEM_BACK,
+                    facing: DVec3::Y,
                     matter_past: false,
                 },
                 End {
                     at: DVec3::new(12.0, 6.0, 0.0),
                     on: ARM_BACK,
+                    facing: DVec3::Y,
                     matter_past: true,
                 },
             ],
@@ -375,9 +440,10 @@ fn rim_edges() -> [Convex; 4] {
         DVec3::new(20.0, 15.0, 10.0),
         DVec3::new(10.0, 15.0, 10.0),
     ];
-    let flush = |at: DVec3, on: usize| End {
+    let flush = |at: DVec3, on: usize, facing: DVec3| End {
         at,
         on,
+        facing,
         matter_past: true,
     };
     [
@@ -386,8 +452,8 @@ fn rim_edges() -> [Convex; 4] {
             between: [TOP, POCKET_FRONT],
             facing: [DVec3::Z, DVec3::Y],
             ends: [
-                flush(front_left, POCKET_LEFT),
-                flush(front_right, POCKET_RIGHT),
+                flush(front_left, POCKET_LEFT, DVec3::X),
+                flush(front_right, POCKET_RIGHT, -DVec3::X),
             ],
         },
         Convex {
@@ -395,8 +461,8 @@ fn rim_edges() -> [Convex; 4] {
             between: [TOP, POCKET_RIGHT],
             facing: [DVec3::Z, -DVec3::X],
             ends: [
-                flush(front_right, POCKET_FRONT),
-                flush(back_right, POCKET_BACK),
+                flush(front_right, POCKET_FRONT, DVec3::Y),
+                flush(back_right, POCKET_BACK, -DVec3::Y),
             ],
         },
         Convex {
@@ -404,8 +470,8 @@ fn rim_edges() -> [Convex; 4] {
             between: [TOP, POCKET_BACK],
             facing: [DVec3::Z, -DVec3::Y],
             ends: [
-                flush(back_right, POCKET_RIGHT),
-                flush(back_left, POCKET_LEFT),
+                flush(back_right, POCKET_RIGHT, -DVec3::X),
+                flush(back_left, POCKET_LEFT, DVec3::X),
             ],
         },
         Convex {
@@ -413,8 +479,8 @@ fn rim_edges() -> [Convex; 4] {
             between: [TOP, POCKET_LEFT],
             facing: [DVec3::Z, DVec3::X],
             ends: [
-                flush(back_left, POCKET_BACK),
-                flush(front_left, POCKET_FRONT),
+                flush(back_left, POCKET_BACK, -DVec3::Y),
+                flush(front_left, POCKET_FRONT, DVec3::Y),
             ],
         },
     ]
@@ -432,11 +498,13 @@ fn uprights() -> [Convex; 4] {
                 End {
                     at: DVec3::new(x, y, 20.0),
                     on: STANDING_TOP,
+                    facing: DVec3::Z,
                     matter_past: false,
                 },
                 End {
                     at: DVec3::new(x, y, 10.0),
                     on: TOP,
+                    facing: DVec3::Z,
                     matter_past: true,
                 },
             ],
@@ -470,7 +538,7 @@ fn uprights() -> [Convex; 4] {
 }
 
 /// The two cuts a step lays on an edge.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 enum Cut {
     Flat,
     Round,
@@ -528,6 +596,15 @@ impl Cut {
         match self {
             Cut::Flat => value * value / 2.0,
             Cut::Round => value * value * (1.0 - PI / 4.0),
+        }
+    }
+
+    /// The first moment of the section the cut takes off an edge whose faces
+    /// meet square, about either of those faces.
+    fn moment(self, value: f64) -> f64 {
+        match self {
+            Cut::Flat => value.powi(3) / 6.0,
+            Cut::Round => value.powi(3) * (5.0 / 6.0 - PI / 4.0),
         }
     }
 
@@ -714,8 +791,8 @@ fn each_stops_flush(part: &Body, volume: f64, edges: &[Convex], called: &str) {
 
 /// Holds what a cut of `value` on a convex edge, alone, leaves of a part
 /// holding `volume`: the value taken whole; a sound body holding the part's
-/// volume less the cut's section along the edge's length, and so nothing past
-/// the faces the edge runs into taken; one face laid, numbered where the
+/// volume less what the cut takes between the faces at the edge's ends, and so
+/// nothing past the faces the edge runs into taken; one face laid, numbered where the
 /// steps' numbers ended, flat or curved as the cut is, a flat running from
 /// the face at one end of the edge to the face at the other, and either cut
 /// meeting the edge's two faces and the face at each of its ends by one edge
@@ -734,11 +811,10 @@ fn stopped_flush(
 ) {
     taken_as_asked(step.asked, step.taken, value, what);
     let body = &step.body;
-    let length = edge.length();
-    let promised = volume - cut.section(value) * length;
+    let promised = volume - edge.taken(cut, value);
     let drawn = match cut {
         Cut::Flat => EXACT * promised,
-        Cut::Round => DRAWN * reach_of(part) * PI / 2.0 * value * length,
+        Cut::Round => rounds_drawn_within(part, std::slice::from_ref(edge), value),
     };
     sound_drawn_within(body, promised, drawn, what);
     let made = part.faces_end();
@@ -896,26 +972,16 @@ struct Round {
 }
 
 impl Round {
-    /// The round of `radius` on the edge `edge` of `edges`: its axis the
-    /// radius in from the edge's two faces, running on past each end where
-    /// the edge is mitred as far as the mitre reaches, the radius.
-    fn on(edges: &[Convex], edge: usize, radius: f64) -> Round {
-        let convex = &edges[edge];
-        let along = convex.along();
-        let [before, after] = [0, 1].map(|end| {
-            if mitred_with(edges, edge, end).is_some() {
-                radius
-            } else {
-                0.0
-            }
-        });
-        let [first, second] = convex.facing;
+    /// The round of `radius` on `edge`: its axis the radius in from the
+    /// edge's two faces, from the edge's first end to its last.
+    fn on(edge: &Convex, radius: f64) -> Round {
+        let [first, second] = edge.facing;
         Round {
-            start: convex.ends[0].at - (first + second) * radius - along * before,
-            along,
-            length: convex.length() + before + after,
+            start: edge.ends[0].at - (first + second) * radius,
+            along: edge.along(),
+            length: edge.length(),
             radius,
-            facing: convex.facing,
+            facing: edge.facing,
         }
     }
 
@@ -933,16 +999,14 @@ impl Round {
         first * turn.cos() + across * turn.sin()
     }
 
-    /// Whether a point lies on the round: on its cylinder, between its two
-    /// ends, and between its two sides.
+    /// Whether a point lies on the round's cylinder, between its two sides;
+    /// how far along it the round runs is for the faces at its ends to say.
     fn holds(&self, point: DVec3) -> bool {
         let off = point - self.start;
-        let along = off.dot(self.along);
-        let across = off - self.along * along;
+        let across = off - self.along * off.dot(self.along);
         let [first, second] = self.facing;
         let least = self.radius * first.dot(second);
         (across.length() - self.radius).abs() < PLACE
-            && (-PLACE..=self.length + PLACE).contains(&along)
             && across.dot(first) >= least - PLACE
             && across.dot(second) >= least - PLACE
     }
@@ -955,11 +1019,65 @@ impl Round {
             ..*self
         }
     }
+}
 
-    /// The round's area, its turn times its radius times its length.
-    fn area(&self) -> f64 {
-        let [first, second] = self.facing;
-        first.dot(second).acos() * self.radius * self.length
+/// How far a round of `radius` on the edge `edge` of `edges` can stand past
+/// each end of the edge's own length, or short of it, along the edge: past
+/// a mitre, as far as the plane halfway between the two edges reaches across
+/// the round, the radius over the tangent of half their angle; where the face
+/// at an end leans across the edge, as far as that face's plane reaches
+/// across the radius; nothing where that face is square to the edge.
+fn overhang(edges: &[Convex], edge: usize, radius: f64) -> [f64; 2] {
+    let convex = &edges[edge];
+    [0, 1].map(|end| match mitred_with(edges, edge, end) {
+        Some((other, far)) => {
+            let cos = from_end(convex, end).dot(from_end(&edges[other], far));
+            radius * (1.0 + cos) / (1.0 - cos * cos).sqrt()
+        }
+        None => leaning_by(convex, end, radius),
+    })
+}
+
+/// How far along the edge the plane of the face at its end `end` stands off
+/// square across `radius` of it: nothing where that face is square to the
+/// edge.
+fn leaning_by(edge: &Convex, end: usize, radius: f64) -> f64 {
+    let cos = edge.along().dot(edge.ends[end].facing).abs();
+    radius * (1.0 - cos * cos).sqrt() / cos
+}
+
+/// What the triangles of a fillet on `edges` may enclose apart from its
+/// matter: the drawing's tolerance at the part's own reach, over the rounds,
+/// each counted along its edge and as far past its ends as it can stand.
+fn rounds_drawn_within(part: &Body, edges: &[Convex], radius: f64) -> f64 {
+    let area: f64 = (0..edges.len())
+        .map(|edge| {
+            let [before, after] = overhang(edges, edge, radius);
+            PI / 2.0 * radius * (edges[edge].length() + before + after)
+        })
+        .sum();
+    DRAWN * reach_of(part) * area
+}
+
+/// The two corners a cut of `value` on the edge `edge` of `edges` has at its
+/// end `end`, on the face the edges share and on the edge's other face. Where
+/// it is mitred, the first is where the two cuts' set-backs cross on the face
+/// they share, and the second where they meet the concave edge between the
+/// two other faces, the value below the face they share; elsewhere, where the
+/// cut crosses the face its edge runs into.
+fn cut_corners(edges: &[Convex], edge: usize, end: usize, value: f64) -> [DVec3; 2] {
+    let convex = &edges[edge];
+    let [shared, own] = convex.facing;
+    match mitred_with(edges, edge, end) {
+        Some((other, _)) => {
+            let facing = [own, edges[other].facing[1], shared];
+            let at = convex.ends[end].at;
+            [
+                standing(at, facing, [-value, -value, 0.0]),
+                standing(at, facing, [0.0, 0.0, -value]),
+            ]
+        }
+        None => convex.set_back(&convex.ends[end], value),
     }
 }
 
@@ -1021,8 +1139,9 @@ fn renamed(met: Vec<Vec<u32>>, renamed: &[(usize, usize)]) -> Vec<Vec<u32>> {
 
 /// Holds that `edges`, named in each of `orders` and cut by each of `cuts` at
 /// every one of [`VALUES`] in one step, leave what [`mitred`] holds, the part
-/// holding `volume` before the step. Every list is laid before any body is
-/// read, so that a decline names every case that declines.
+/// holding `volume` before the step, and the same body whatever the order,
+/// as [`the_same_body`] holds it. Every list is laid before any body is read,
+/// so that a decline names every case that declines.
 fn mitre_in_every_order(
     part: &Body,
     volume: f64,
@@ -1072,6 +1191,15 @@ fn mitre_in_every_order(
     for case in &laid {
         mitred(part, volume, edges, case);
     }
+    for case in &laid {
+        let first = laid
+            .iter()
+            .find(|other| other.cut == case.cut && other.value == case.value)
+            .expect("the case itself is among them");
+        if !std::ptr::eq(first, case) {
+            the_same_body(part, edges, first, case);
+        }
+    }
 }
 
 /// A step laid on a list of edges: the order the list names them in, the cut,
@@ -1084,50 +1212,128 @@ struct Case<'a> {
     what: String,
 }
 
+impl Case<'_> {
+    /// The number the face laid on the edge `edge` answers to: where the
+    /// steps' numbers of `part` ended, plus the edge's rank in the list.
+    fn laid_on(&self, part: &Body, edge: usize) -> usize {
+        part.faces_end()
+            + self
+                .order
+                .iter()
+                .position(|&named| named == edge)
+                .expect("every edge is named")
+    }
+}
+
+/// Holds that two steps naming the same edges in different orders left the
+/// same body, the face laid on each edge answering to the number its rank
+/// gives it in each: the same matter; the same faces, each flat or curved
+/// alike and a flat one with the same corners; and the same edges between
+/// the same faces.
+fn the_same_body(part: &Body, edges: &[Convex], first: &Case, second: &Case) {
+    let what = format!("{} and {}", first.what, second.what);
+    let [one, other] = [&first.step.body, &second.step.body];
+    let to_first: Vec<(usize, usize)> = (0..edges.len())
+        .map(|edge| (second.laid_on(part, edge), first.laid_on(part, edge)))
+        .collect();
+    let as_first = |number: usize| {
+        to_first
+            .iter()
+            .find(|(from, _)| *from == number)
+            .map_or(number, |&(_, to)| to)
+    };
+    assert!(
+        (one.volume() - other.volume()).abs() <= EXACT * one.volume(),
+        "{what}: the two hold {} and {}",
+        one.volume(),
+        other.volume()
+    );
+    let renumbered: BTreeSet<usize> = numbers(other).into_iter().map(as_first).collect();
+    assert_eq!(numbers(one), renumbered, "{what}: the same faces");
+    for number in numbers(other) {
+        let face = as_first(number);
+        assert_eq!(
+            one.is_flat(face),
+            other.is_flat(number),
+            "{what}: face {face} is flat in one and not in the other"
+        );
+        let (Some(mine), Some(theirs)) = (one.plane_of(face), other.plane_of(number)) else {
+            continue;
+        };
+        let within = |corners: &[DVec3], corner: &DVec3| {
+            corners.iter().any(|point| point.distance(*corner) < PLACE)
+        };
+        assert!(
+            mine.corners
+                .iter()
+                .all(|corner| within(&theirs.corners, corner))
+                && theirs
+                    .corners
+                    .iter()
+                    .all(|corner| within(&mine.corners, corner)),
+            "{what}: face {face} has the corners {:?} in one and {:?} in the other",
+            mine.corners,
+            theirs.corners
+        );
+    }
+    let between = |body: &Body, number: &dyn Fn(usize) -> usize| {
+        let mut sides: Vec<[usize; 2]> = body
+            .edge_names()
+            .into_iter()
+            .map(|name| {
+                let [first, second] = name.between.map(|side| number(side[0] as usize));
+                [first.min(second), first.max(second)]
+            })
+            .collect();
+        sides.sort();
+        sides
+    };
+    assert_eq!(
+        between(one, &|number| number),
+        between(other, &as_first),
+        "{what}: the same edges between the same faces"
+    );
+}
+
 /// Holds what a step's cut of its value on `edges`, named in its order,
 /// leaves of a part holding `volume`, the edges' first faces one face they
 /// share, and two of the edges meeting at a corner whose third edge is
 /// concave wherever two of them end at one point:
 ///
-/// - the value taken whole; a sound body holding the part's volume less each
-///   cut's section along its edge's length, and less, at each corner, what
-///   the two cuts take there past both faces they would each stop flush on;
+/// - the value taken whole; a sound body holding the part's volume less what
+///   each cut takes alone, stopped on the face its edge runs into, and less,
+///   at each corner, what the two cuts take there past both faces they would
+///   each stop on;
 /// - one face laid for each edge, numbered in the order the list names them,
 ///   and none at a corner;
 /// - each face laid meeting its edge's two faces along its sides, and at each
 ///   end the face laid on the edge it is mitred with there, or the face its
 ///   edge runs into, one edge each;
 /// - a flat running from end to end, its mitre from where the two flats cross
-///   on the face they share down to the concave edge, one value short of the
-///   corner; a round on its cylinder from end to end, past a mitred end as
-///   far as the plane halfway between the two edges and no farther, where
-///   the other round meets it along an ellipse;
+///   on the face they share down to the concave edge, the value below that
+///   face; a round on its cylinder from end to end, past a mitred end as far
+///   as the plane halfway between the two edges and no farther, where the
+///   other round meets it along an ellipse, and nowhere past the face its
+///   edge runs into at another end;
 /// - the face the edges share set back by the value from each, its corner at
 ///   each mitre where the two set-backs cross, and meeting the faces laid in
 ///   place of the edges' other faces;
 /// - each edge's other face cut down by the value along it, and the concave
-///   edge at each corner still one sharp edge, ending one value short of the
-///   corner.
+///   edge at each corner still one sharp edge, ending where the two cuts meet
+///   it.
 fn mitred(part: &Body, volume: f64, edges: &[Convex], case: &Case) {
     let Case {
-        order,
         cut,
         value,
         step,
         what,
+        ..
     } = case;
     let (cut, value) = (*cut, *value);
     taken_as_asked(step.asked, step.taken, value, what);
     let body = &step.body;
-    let start = part.faces_end();
     let laid: Vec<usize> = (0..edges.len())
-        .map(|edge| {
-            start
-                + order
-                    .iter()
-                    .position(|&named| named == edge)
-                    .expect("every edge is named")
-        })
+        .map(|edge| case.laid_on(part, edge))
         .collect();
     let mitres: Vec<(usize, usize, usize, usize)> = (0..edges.len())
         .flat_map(|edge| {
@@ -1137,15 +1343,18 @@ fn mitred(part: &Body, volume: f64, edges: &[Convex], case: &Case) {
         })
         .filter(|&(edge, _, other, _)| edge < other)
         .collect();
-    let along: f64 = edges.iter().map(Convex::length).sum();
-    let promised =
-        volume - cut.section(value) * along - cut.past_the_corner(value) * mitres.len() as f64;
-    let rounds: Vec<Round> = (0..edges.len())
-        .map(|edge| Round::on(edges, edge, value))
-        .collect();
+    let alone: f64 = edges.iter().map(|edge| edge.taken(cut, value)).sum();
+    let at_the_corners: f64 = mitres
+        .iter()
+        .map(|&(edge, _, other, _)| {
+            let sine = edges[edge].facing[1].cross(edges[other].facing[1]).length();
+            cut.past_the_corner(value) / sine
+        })
+        .sum();
+    let promised = volume - alone - at_the_corners;
     let drawn = match cut {
         Cut::Flat => EXACT * promised,
-        Cut::Round => DRAWN * reach_of(part) * rounds.iter().map(Round::area).sum::<f64>(),
+        Cut::Round => rounds_drawn_within(part, edges, value),
     };
     sound_drawn_within(body, promised, drawn, what);
     let mut made = laid.clone();
@@ -1164,12 +1373,13 @@ fn mitred(part: &Body, volume: f64, edges: &[Convex], case: &Case) {
     );
     let shared = edges[0].between[0];
     let shared_facing = edges[0].facing[0];
-    let on_the_shared_face =
-        |point: DVec3| (point - edges[0].ends[0].at).dot(shared_facing).abs() < PLACE;
     let corners_of = |face: usize| {
         part.plane_of(face)
             .unwrap_or_else(|| panic!("{what}: the part offers no plane on face {face}"))
             .corners
+    };
+    let end_at = |edge: usize, corner: DVec3| {
+        (0..2).find(|&end| edges[edge].ends[end].at.distance(corner) < PLACE)
     };
     for (index, edge) in edges.iter().enumerate() {
         let face = laid[index];
@@ -1190,15 +1400,7 @@ fn mitred(part: &Body, volume: f64, edges: &[Convex], case: &Case) {
             Cut::Flat => {
                 let corners: Vec<DVec3> = [0, 1]
                     .into_iter()
-                    .flat_map(|end| {
-                        let at = edge.ends[end].at;
-                        let across =
-                            partners[end].map_or(DVec3::ZERO, |(other, _)| edges[other].facing[1]);
-                        [
-                            at - (own_facing + across) * value,
-                            at - shared_facing * value,
-                        ]
-                    })
+                    .flat_map(|end| cut_corners(edges, index, end, value))
                     .collect();
                 corners_are_or_on(
                     body,
@@ -1208,7 +1410,7 @@ fn mitred(part: &Body, volume: f64, edges: &[Convex], case: &Case) {
                     &format!(
                         "{what}: the flat on {}, from end to end, its mitre at a corner running \
                          from where the two flats cross on the face they share down to the \
-                         concave edge, one value short of the corner",
+                         concave edge, the value below that face",
                         edge.called
                     ),
                 );
@@ -1220,7 +1422,7 @@ fn mitred(part: &Body, volume: f64, edges: &[Convex], case: &Case) {
                 );
             }
             Cut::Round => {
-                let round = &rounds[index];
+                let round = Round::on(edge, value);
                 let which = format!("{what}: the round on {}", edge.called);
                 assert!(
                     !body.is_flat(face) && body.plane_of(face).is_none(),
@@ -1237,25 +1439,31 @@ fn mitred(part: &Body, volume: f64, edges: &[Convex], case: &Case) {
                         round.along
                     );
                     for (end, partner) in partners.iter().enumerate() {
-                        let Some((other, far)) = *partner else {
-                            continue;
-                        };
-                        let corner = edge.ends[end].at;
-                        let own_way = (point - corner).dot(from_end(edge, end));
-                        let other_way = (point - corner).dot(from_end(&edges[other], far));
-                        assert!(
-                            own_way >= other_way - PLACE,
-                            "{which} is drawn through {point}, past the plane halfway between it \
-                             and {}, where the other round meets it in the mitre",
-                            edges[other].called
-                        );
+                        let at = &edge.ends[end];
+                        let inward = from_end(edge, end);
+                        match *partner {
+                            Some((other, far)) => assert!(
+                                (point - at.at).dot(inward)
+                                    >= (point - at.at).dot(from_end(&edges[other], far)) - PLACE,
+                                "{which} is drawn through {point}, past the plane halfway between \
+                                 it and {}, where the other round meets it in the mitre",
+                                edges[other].called
+                            ),
+                            None => assert!(
+                                (point - at.at).dot(at.facing) * inward.dot(at.facing).signum()
+                                    >= -PLACE,
+                                "{which} is drawn through {point}, past face {}, which its edge \
+                                 runs into there",
+                                at.on
+                            ),
+                        }
                     }
                 }
-                let before = if partners[0].is_some() { value } else { 0.0 };
+                let [before, after] = [0, 1].map(|end| leaning_by(edge, end, value));
                 met_from_outside(
                     body,
                     face,
-                    &round.part(before, before + edge.length()),
+                    &round.part(before, edge.length() - after),
                     &format!("{which}, between its edge's ends"),
                 );
             }
@@ -1263,11 +1471,7 @@ fn mitred(part: &Body, volume: f64, edges: &[Convex], case: &Case) {
         let cut_down: Vec<DVec3> = corners_of(own)
             .into_iter()
             .map(|corner| {
-                if on_the_shared_face(corner) {
-                    corner - shared_facing * value
-                } else {
-                    corner
-                }
+                end_at(index, corner).map_or(corner, |end| cut_corners(edges, index, end, value)[1])
             })
             .collect();
         corners_are_or_on(
@@ -1291,10 +1495,11 @@ fn mitred(part: &Body, volume: f64, edges: &[Convex], case: &Case) {
     let set_back: Vec<DVec3> = corners_of(shared)
         .into_iter()
         .map(|corner| {
-            edges
-                .iter()
-                .filter(|edge| edge.ends.iter().any(|end| end.at.distance(corner) < PLACE))
-                .fold(corner, |point, edge| point - edge.facing[1] * value)
+            (0..edges.len())
+                .find_map(|edge| {
+                    end_at(edge, corner).map(|end| cut_corners(edges, edge, end, value)[0])
+                })
+                .unwrap_or(corner)
         })
         .collect();
     corners_are_or_on(
@@ -1324,7 +1529,7 @@ fn mitred(part: &Body, volume: f64, edges: &[Convex], case: &Case) {
             edges_between(body, one, two).len(),
             1,
             "{what}: the concave edge between faces {one} and {two}, below the mitre at {}, is \
-             still one sharp edge, ending one value short of the corner",
+             still one sharp edge, ending where the two cuts meet it",
             edges[edge].ends[end].at
         );
     }
@@ -1379,4 +1584,112 @@ fn a_chamfer_and_a_fillet_on_the_four_rim_edges_of_a_pocket_mitre_its_four_corne
         &[Cut::Flat, Cut::Round],
         "the pocket's four rim edges",
     );
+}
+
+/// An L whose inner corner is not square: its arm [`ell`]'s, 30 long and 6
+/// deep along the front, and its stem's right side leaning from the inner
+/// corner at (12, 6) to (`top`, 14), the stem's back running from there to
+/// the left. Raised 10, its faces are numbered as [`ell`]'s.
+fn slanted_ell(top: f64) -> Body {
+    raised(
+        Contour::straight(vec![
+            DVec2::new(0.0, 0.0),
+            DVec2::new(30.0, 0.0),
+            DVec2::new(30.0, 6.0),
+            DVec2::new(12.0, 6.0),
+            DVec2::new(top, 14.0),
+            DVec2::new(0.0, 14.0),
+        ]),
+        10.0,
+    )
+}
+
+/// What the L of [`slanted_ell`] holds: its arm, and its stem a trapezoid 8
+/// deep, 12 wide at the arm and `top` at its back.
+fn slanted_ell_volume(top: f64) -> f64 {
+    (30.0 * 6.0 + 8.0 * (12.0 + top) / 2.0) * 10.0
+}
+
+/// The two top edges at the inner corner of the L of [`slanted_ell`]: the
+/// arm's back's, from the arm's right end to the stem's right side, which
+/// leans across it, and the stem's right side's, from the stem's back, which
+/// leans across it too, to the arm's back.
+fn slanted_ell_top_edges(top: f64) -> [Convex; 2] {
+    let side = DVec2::new(top - 12.0, 8.0);
+    let stem_right = DVec3::new(side.y, -side.x, 0.0).normalize();
+    let corner = DVec3::new(12.0, 6.0, 10.0);
+    [
+        Convex {
+            called: "the L's top edge on the arm's back",
+            between: [TOP, ARM_BACK],
+            facing: [DVec3::Z, DVec3::Y],
+            ends: [
+                End {
+                    at: DVec3::new(30.0, 6.0, 10.0),
+                    on: ARM_END,
+                    facing: DVec3::X,
+                    matter_past: false,
+                },
+                End {
+                    at: corner,
+                    on: STEM_RIGHT,
+                    facing: stem_right,
+                    matter_past: true,
+                },
+            ],
+        },
+        Convex {
+            called: "the L's top edge on the stem's leaning right side",
+            between: [TOP, STEM_RIGHT],
+            facing: [DVec3::Z, stem_right],
+            ends: [
+                End {
+                    at: DVec3::new(top, 14.0, 10.0),
+                    on: STEM_BACK,
+                    facing: DVec3::Y,
+                    matter_past: false,
+                },
+                End {
+                    at: corner,
+                    on: ARM_BACK,
+                    facing: DVec3::Y,
+                    matter_past: true,
+                },
+            ],
+        },
+    ]
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_at_an_l_s_inner_corner_that_is_not_square_stop_flush_alone_and_mitre_together()
+ {
+    for (top, called) in [
+        (
+            18.0,
+            "an L whose stem's right side leans over its arm, the air between them 53 degrees wide",
+        ),
+        (
+            6.0,
+            "an L whose stem's right side leans away from its arm, the air between them 127 \
+             degrees wide",
+        ),
+    ] {
+        let part = slanted_ell(top);
+        let volume = slanted_ell_volume(top);
+        let edges = slanted_ell_top_edges(top);
+        each_stops_flush(
+            &part,
+            volume,
+            &edges,
+            &format!("the top edges at the inner corner of {called}, each alone"),
+        );
+        mitre_in_every_order(
+            &part,
+            volume,
+            &edges,
+            &BOTH_ORDERS,
+            &[Cut::Flat, Cut::Round],
+            &format!("the two top edges at the inner corner of {called}"),
+        );
+    }
 }

@@ -29,6 +29,12 @@ impl Stop {
     pub fn beyond(&self, prism: &Prism) -> Result<Exact, Declined> {
         beyond(prism, &self.plane, -self.outward)
     }
+
+    /// Where the line through `from` along `along`, the edge's way, crosses
+    /// the stop's plane.
+    pub fn crossing(&self, from: DVec3, along: DVec3) -> DVec3 {
+        from + along * (self.outward.dot(self.corner - from) / self.outward.dot(along))
+    }
 }
 
 /// Where a cut stops flush: the ends of its edge it stops at, and what it

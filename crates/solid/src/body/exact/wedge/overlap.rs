@@ -16,9 +16,9 @@ use crate::body::exact::Exact;
 use crate::brep::{self, Declined, EdgeId, Scale, VertexId};
 
 /// What two prisms carried past a corner both hold past the faces their edges
-/// stop flush on there, every face of it numbered nought, and the points the
-/// two edges are set back to from the corner, where an edge it runs on along
-/// meets one laid before.
+/// stop flush on there, every face of it numbered nought, and the points
+/// where each edge's set-back lines cross the face it stops on, where an edge
+/// it runs on along meets one laid before.
 pub(super) struct Overlap {
     pub solid: Exact,
     pub cleared: Vec<DVec3>,
@@ -46,15 +46,15 @@ pub(super) fn overlap(
         let prism = tool(wedge, taken, given.scale(), bounds)?;
         let (outline, frame, travel) = &prism;
         let raised = Exact::raised(outline, &[], *frame, *travel)?;
-        common(&stop.beyond(&prism)?, &raised)
+        let distance = taken * set_back(wedge);
+        let crossings = (wedge.into).map(|into| stop.crossing(at + into * distance, wedge.along));
+        Ok((common(&stop.beyond(&prism)?, &raised)?, crossings))
     };
-    let both = common(&past(meeting[0])?, &past(meeting[1])?)?;
-    let cleared = (meeting.iter())
-        .flat_map(|&(_, wedge)| wedge.into.map(|into| at + into * taken * set_back(wedge)))
-        .collect();
+    let [(one, first), (other, second)] = [past(meeting[0])?, past(meeting[1])?];
+    let both = common(&one, &other)?;
     Ok(Overlap {
         solid: Exact::of(both.brep.renumbered_by(|_| 0), 0, 0, BTreeMap::new()),
-        cleared,
+        cleared: [first, second].concat(),
     })
 }
 

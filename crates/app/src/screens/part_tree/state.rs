@@ -17,7 +17,8 @@ use cao_sketch::{Area, DimensionTarget, Element, Sketch};
 
 use crate::lang::Catalogue;
 use crate::screens::sketch_pill::laid_on;
-use crate::wording::part_tree::{self as said, Rubric};
+use crate::ui::badge::Level;
+use crate::wording::part_tree::{self as said, Problem, Rubric};
 use crate::wording::{self, formula, plane};
 
 mod clicks;
@@ -62,13 +63,11 @@ pub struct Body {
     /// How far it went and which way, in one line, read only.
     pub reads: String,
     pub areas: Vec<Row>,
-    /// Whether one of the areas it was raised from is gone from the drawing.
-    /// It leaves no line under the step, so without this the step would look
-    /// as though it had been raised from fewer areas than it was.
-    pub lost: bool,
-    /// Whether the kernel declined to build it: the part stands as it did
-    /// before it.
-    pub declined: bool,
+    /// The gravest of what is wrong with it: declined by the kernel, then an
+    /// area it was raised from gone — which leaves no line under the step, so
+    /// without it the step would look raised from fewer areas than it was —
+    /// then built unstably.
+    pub badge: Option<Problem>,
     /// What the user is told of a step the kernel built though it reads it
     /// unstably (#552), when it did.
     pub unstable: Option<String>,
@@ -78,8 +77,8 @@ pub struct Body {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Drawn {
     pub sketch: usize,
-    /// Whether the face this was laid on is gone from the part.
-    pub adrift: bool,
+    /// The face it was laid on gone from the part, when it is.
+    pub badge: Option<Problem>,
     pub step: usize,
     pub name: String,
     /// What it is laid on, as the sketch pill names it, in short.
@@ -111,7 +110,26 @@ pub struct PartTree {
 pub struct Kept {
     pub id: usize,
     pub name: String,
-    pub broken: bool,
+    pub badge: Option<Problem>,
+}
+
+impl Problem {
+    pub fn level(self) -> Level {
+        match self {
+            Self::Unstable | Self::FaceLost => Level::Warning,
+            Self::NotBuilt | Self::AreaLost => Level::Error,
+        }
+    }
+}
+
+fn gravest(declined: bool, lost: bool, unstable: bool) -> Option<Problem> {
+    [
+        (declined, Problem::NotBuilt),
+        (lost, Problem::AreaLost),
+        (unstable, Problem::Unstable),
+    ]
+    .into_iter()
+    .find_map(|(found, problem)| found.then_some(problem))
 }
 
 impl PartTree {
@@ -146,7 +164,7 @@ impl PartTree {
                     };
                     let rank = tree.sketches.len() + 1;
                     let mut shown = drawn(lang, document, drawing, sketch, step, rank);
-                    shown.adrift = document.is_adrift(sketch);
+                    shown.badge = document.is_adrift(sketch).then_some(Problem::FaceLost);
                     shown.plane = laid_on(document, sketch, drawing, lang, plane::short);
                     tree.sketches.push(shown);
                 }
@@ -172,8 +190,7 @@ impl PartTree {
                                 ("mode", &lang.t(mode_key(*mode))),
                             ],
                         ),
-                        lost: standing.len() < areas.len(),
-                        declined,
+                        badge: gravest(declined, standing.len() < areas.len(), unstable.is_some()),
                         unstable,
                         areas: standing,
                     });
@@ -201,8 +218,7 @@ impl PartTree {
                                 ("mode", &lang.t(mode_key(*mode))),
                             ],
                         ),
-                        lost: standing.len() < areas.len(),
-                        declined,
+                        badge: gravest(declined, standing.len() < areas.len(), unstable.is_some()),
                         unstable,
                         areas: standing,
                     });
@@ -216,7 +232,7 @@ impl PartTree {
             .map(|kept| Kept {
                 id: kept.id,
                 name: numbered(lang, "part_tree.section", kept.id + 1),
-                broken: kept.broken,
+                badge: kept.broken.then_some(Problem::FaceLost),
             })
             .collect();
         tree
@@ -261,7 +277,7 @@ fn numbered(lang: &Catalogue, key: &str, rank: usize) -> String {
 /// Which area a name answers to is `cao_part`'s answer and not one worked out
 /// here: a panel that reasons about it for itself is a panel that reads
 /// "fine" while the step raises nothing. One the drawing no longer encloses
-/// leaves no line, and `lost` is what says so.
+/// leaves no line, and the step's badge is what says so.
 fn standing_on(
     lang: &Catalogue,
     document: &PartDocument,
@@ -327,7 +343,7 @@ fn drawn(
 
     Drawn {
         sketch: index,
-        adrift: false,
+        badge: None,
         step,
         name: numbered(lang, "part_tree.sketch", rank),
         plane: String::new(),

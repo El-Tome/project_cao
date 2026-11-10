@@ -6,11 +6,12 @@ use crate::screens::part_tree::state::{
 };
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
+use crate::ui::badge::badge;
 use crate::ui::eye::eye;
 use crate::ui::floating_panel::panel_row;
 use crate::ui::question::{Question, ask};
 use crate::ui::theme::tokens;
-use crate::wording::part_tree::{self as said, Rubric};
+use crate::wording::part_tree::{self as said, Problem, Rubric};
 
 /// What the tree reads to mark its rows, and the one thing asked of it.
 struct Asked<'a> {
@@ -97,6 +98,7 @@ fn sketches(ui: &mut egui::Ui, tree: &PartTree, asked: &mut Asked<'_>, lang: &Ca
             let layout = egui::Layout::right_to_left(egui::Align::Min);
             ui.with_layout(layout, |ui| {
                 ui.weak(&drawing.plane);
+                problem(ui, drawing.badge, lang);
                 if ui.vertical(|ui| drawn(ui, drawing, asked, lang)).inner {
                     asked.action = TreeAction::EditSketch(drawing.sketch);
                 }
@@ -128,12 +130,14 @@ fn variables(ui: &mut egui::Ui, variables: &[Variable], lang: &Catalogue) {
 /// One kept section: a click switches it on or off, a double-click reopens it,
 /// and its menu deletes it.
 fn section(ui: &mut egui::Ui, kept: &Kept, asked: &mut Asked<'_>, lang: &Catalogue) {
-    let name = match kept.broken {
-        true => lang.t_with("part_tree.adrift", &[("name", &kept.name)]),
-        false => kept.name.clone(),
-    };
     let on = asked.viewport.kept_sections.is_on(kept.id);
-    let response = panel_row(ui, name, on, kept.broken);
+    let response = ui
+        .horizontal(|ui| {
+            let response = panel_row(ui, kept.name.clone(), on, false);
+            problem(ui, kept.badge, lang);
+            response
+        })
+        .inner;
     if response.double_clicked() {
         asked.action = TreeAction::EditSection(kept.id);
     } else if response.clicked() {
@@ -145,6 +149,12 @@ fn section(ui: &mut egui::Ui, kept: &Kept, asked: &mut Asked<'_>, lang: &Catalog
             ui.close();
         }
     });
+}
+
+fn problem(ui: &mut egui::Ui, found: Option<Problem>, lang: &Catalogue) {
+    if let Some(found) = found {
+        badge(ui, &said::badge(lang, found), found.level());
+    }
 }
 
 /// The question asked before deleting a section a drawing stands on.
@@ -159,22 +169,24 @@ pub fn section_delete_confirm(ui: &egui::Ui, lang: &Catalogue) -> Option<bool> {
 }
 
 fn made_of_matter(ui: &mut egui::Ui, body: &Body, asked: &mut Asked<'_>, lang: &Catalogue) {
-    let name = &[("name", body.name.as_str())];
-    let heading = match (body.declined, body.lost, &body.unstable) {
-        (true, _, _) => lang.t_with("part_tree.declined", name),
-        (false, true, _) => lang.t_with("part_tree.lost", name),
-        (false, false, Some(_)) => lang.t_with("part_tree.unstable", name),
-        (false, false, None) => body.name.clone(),
-    };
-    let header = egui::CollapsingHeader::new(heading)
-        .id_salt(("body", body.step))
-        .default_open(false)
-        .show(ui, |ui| {
-            ui.weak(&body.reads);
-            for area in &body.areas {
-                row(ui, area, asked);
-            }
-        });
+    let layout = egui::Layout::right_to_left(egui::Align::Min);
+    let header = ui
+        .with_layout(layout, |ui| {
+            problem(ui, body.badge, lang);
+            ui.vertical(|ui| {
+                egui::CollapsingHeader::new(&body.name)
+                    .id_salt(("body", body.step))
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        ui.weak(&body.reads);
+                        for area in &body.areas {
+                            row(ui, area, asked);
+                        }
+                    })
+            })
+            .inner
+        })
+        .inner;
     if let Some(said) = &body.unstable {
         header.header_response.on_hover_text(said);
     }
@@ -182,11 +194,7 @@ fn made_of_matter(ui: &mut egui::Ui, body: &Body, asked: &mut Asked<'_>, lang: &
 
 /// Draws one sketch, and says whether it was asked to be reopened.
 fn drawn(ui: &mut egui::Ui, drawing: &Drawn, asked: &mut Asked<'_>, lang: &Catalogue) -> bool {
-    let heading = match drawing.adrift {
-        true => lang.t_with("part_tree.adrift", &[("name", &drawing.name)]),
-        false => drawing.name.clone(),
-    };
-    let header = egui::CollapsingHeader::new(heading)
+    let header = egui::CollapsingHeader::new(&drawing.name)
         .id_salt(("sketch", drawing.step))
         .default_open(false)
         .show(ui, |ui| {

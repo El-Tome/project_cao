@@ -26,6 +26,24 @@ pub fn rubric(lang: &Catalogue, rubric: Rubric) -> String {
     })
 }
 
+/// What is wrong with a row of the panel, said in a badge beside its name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Problem {
+    Unstable,
+    FaceLost,
+    NotBuilt,
+    AreaLost,
+}
+
+pub fn badge(lang: &Catalogue, problem: Problem) -> String {
+    lang.t(match problem {
+        Problem::Unstable => "part_tree.badge.unstable",
+        Problem::FaceLost => "part_tree.badge.face_lost",
+        Problem::NotBuilt => "part_tree.badge.not_built",
+        Problem::AreaLost => "part_tree.badge.area_lost",
+    })
+}
+
 /// A trait's length, in millimetres, beside its row.
 pub fn length(lang: &Catalogue, millimeters: f64) -> String {
     lang.t_with("part_tree.length", &[("value", &short(millimeters))])

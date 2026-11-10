@@ -1,3 +1,4 @@
+pub mod badge;
 pub mod dropping;
 pub mod eye;
 pub mod floating_bar;

@@ -205,7 +205,7 @@ fn a_step_whose_area_is_gone_says_so_rather_than_reading_as_one_raised_from_noth
 
     let tree = PartTree::of(&document, &french());
 
-    assert!(tree.bodies[0].lost);
+    assert_eq!(tree.bodies[0].badge, Some(Problem::AreaLost));
     assert!(
         tree.bodies[0].areas.is_empty(),
         "there is nothing left to point at",
@@ -216,7 +216,7 @@ fn a_step_whose_area_is_gone_says_so_rather_than_reading_as_one_raised_from_noth
 fn a_step_whose_areas_are_all_there_is_not_marked() {
     let tree = PartTree::of(&a_part(), &french());
 
-    assert!(!tree.bodies[0].lost);
+    assert_eq!(tree.bodies[0].badge, None);
 }
 
 #[test]
@@ -300,8 +300,9 @@ fn a_sketch_that_lost_its_face_is_marked_in_the_tree() {
 
     let tree = PartTree::of(&document, &french());
 
-    assert!(
-        tree.sketches[0].adrift,
+    assert_eq!(
+        tree.sketches[0].badge,
+        Some(Problem::FaceLost),
         "a drawing whose face the part no longer has must say so",
     );
 }
@@ -375,12 +376,13 @@ fn a_ball_under_a_slanted_circle_raised() -> PartDocument {
 fn a_step_the_kernel_declines_is_marked_in_the_tree() {
     let tree = PartTree::of(&a_ball_under_a_slanted_circle_raised(), &french());
 
-    assert!(
-        tree.bodies[1].declined,
+    assert_eq!(
+        tree.bodies[1].badge,
+        Some(Problem::NotBuilt),
         "a circle raised across the ball's sphere off its centre meets it \
          where the exact kernel cannot follow, and declines",
     );
-    assert!(!tree.bodies[0].declined, "the ball itself was built");
+    assert_eq!(tree.bodies[0].badge, None, "the ball itself was built");
 }
 
 /// A shaft Ø20 raised 30 on XY, and a slice of it turned a hundredth of a
@@ -438,7 +440,11 @@ fn a_step_built_at_an_unstable_lean_is_marked_in_the_tree() {
         Some(lang.t_with("extrusion.unstable_along", &[("angle", "0.01")])),
         "the slice is built and said unstable",
     );
-    assert!(!tree.bodies[1].declined, "built, not declined");
+    assert_eq!(
+        tree.bodies[1].badge,
+        Some(Problem::Unstable),
+        "built, not declined"
+    );
     assert_eq!(tree.bodies[0].unstable, None, "the shaft stands square");
 }
 
@@ -926,5 +932,132 @@ fn a_trait_reads_its_length_a_circle_its_diameter_and_an_arc_nothing() {
             ("Ellipse 1", None),
         ],
         "a stroke does not carry its size as a dimension would read it, or carries one it has not",
+    );
+}
+
+/// `a_part`, with a section kept on its plane XZ and one laid on a face the
+/// part does not have.
+fn a_part_with_a_section_on_a_lost_face() -> PartDocument {
+    let mut document = a_part();
+    for on in [
+        None,
+        Some(FaceAnchor {
+            face: 404,
+            up: DVec3::Y,
+        }),
+    ] {
+        document.apply(Operation::SaveSection(SectionAsked {
+            plane: WorkPlane::XZ,
+            on,
+            offset: 3.0,
+            behind: SideDrawing::SeeThrough,
+            in_front: SideDrawing::Opaque,
+            tilt_about_u_degrees: 0.0,
+            tilt_about_v_degrees: 0.0,
+            pivot: DVec3::ZERO,
+        }));
+    }
+    document
+}
+
+#[test]
+fn each_problem_is_a_badge_with_its_level() {
+    let lang = french();
+    let area_lost = {
+        let mut document = a_part();
+        document.apply(Operation::EraseMany {
+            sketch: 0,
+            elements: vec![Element::Segment(SegmentId(0))],
+            dimensions: Vec::new(),
+            constraints: Vec::new(),
+        });
+        PartTree::of(&document, &lang)
+    };
+    let not_built = PartTree::of(&a_ball_under_a_slanted_circle_raised(), &lang);
+    let unstable = PartTree::of(
+        &a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin(),
+        &lang,
+    );
+    let face_lost = {
+        let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: Some(FaceAnchor {
+                face: 404,
+                up: DVec3::Y,
+            }),
+        });
+        PartTree::of(&document, &lang)
+    };
+    let sections = PartTree::of(&a_part_with_a_section_on_a_lost_face(), &lang);
+    let sound = PartTree::of(&a_part(), &lang);
+    let with_its_level = |badge: Option<Problem>| badge.map(|problem| (problem, problem.level()));
+
+    let read = [
+        ("an area gone", with_its_level(area_lost.bodies[0].badge)),
+        ("a step declined", with_its_level(not_built.bodies[1].badge)),
+        (
+            "a step built unstably",
+            with_its_level(unstable.bodies[1].badge),
+        ),
+        (
+            "a sketch off its face",
+            with_its_level(face_lost.sketches[0].badge),
+        ),
+        (
+            "a section off its face",
+            with_its_level(sections.sections[1].badge),
+        ),
+        (
+            "a section on a plane",
+            with_its_level(sections.sections[0].badge),
+        ),
+        ("a sound step", with_its_level(sound.bodies[0].badge)),
+        ("a sound sketch", with_its_level(sound.sketches[0].badge)),
+    ];
+
+    assert_eq!(
+        read,
+        [
+            ("an area gone", Some((Problem::AreaLost, Level::Error))),
+            ("a step declined", Some((Problem::NotBuilt, Level::Error))),
+            (
+                "a step built unstably",
+                Some((Problem::Unstable, Level::Warning))
+            ),
+            (
+                "a sketch off its face",
+                Some((Problem::FaceLost, Level::Warning))
+            ),
+            (
+                "a section off its face",
+                Some((Problem::FaceLost, Level::Warning))
+            ),
+            ("a section on a plane", None),
+            ("a sound step", None),
+            ("a sound sketch", None),
+        ],
+        "a row of the tree wears another badge, or another level, than its problem's",
+    );
+}
+
+#[test]
+fn a_badge_reads_the_word_its_problem_is_known_by() {
+    let lang = french();
+
+    let read: Vec<String> = [
+        Problem::Unstable,
+        Problem::FaceLost,
+        Problem::NotBuilt,
+        Problem::AreaLost,
+    ]
+    .into_iter()
+    .map(|problem| said::badge(&lang, problem))
+    .collect();
+
+    assert_eq!(
+        read,
+        ["instable", "face perdue", "non construit", "aire perdue"],
+        "a badge does not read the word the issue gives its problem",
     );
 }

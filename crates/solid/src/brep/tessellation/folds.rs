@@ -76,9 +76,8 @@ const CLEAR: f64 = 1e-2;
 const ROUNDINGS: f64 = 1e3;
 
 /// How many passes in a row may meet as many folds, over the whole body, as
-/// the fewest met so far and still be followed by another: a fold walked along
-/// a fan one triangle a pass meets the same number twice before it comes
-/// undone (354000000008162).
+/// the fewest met so far and still be followed by another: one, the fewest a
+/// campaign found to cure 354000000008162, not a bound on how long a walk stalls.
 const STALLS: usize = 1;
 
 /// Undoes every fold between the faces of `drawn`, as far as a diagonal

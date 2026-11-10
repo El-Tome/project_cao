@@ -19,7 +19,9 @@
 //! the right way round in the chart and upside down in space (#820). A
 //! column one of whose triangles stands flat or the other way round on the
 //! cone rolled out is swept there instead, on copies of its points standing
-//! for the same samples; where it cannot be, it keeps the chart's cut.
+//! for the same samples; where it cannot be, it keeps the chart's cut. Every
+//! column rolled out was tried and set aside: it snips ears off a conic past
+//! the tolerance (`conics::a_point_cut_at_a_slant_below_a_narrow_rim_is_drawn_closed_and_uncrossed`).
 //!
 //! Where a segment does cross a ruling, or a column does not sweep, the face
 //! is left whole, as it was laid out. The apex of a face holding it is a

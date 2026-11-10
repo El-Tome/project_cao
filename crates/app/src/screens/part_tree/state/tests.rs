@@ -147,6 +147,65 @@
 //! - Must not break, the panel's presenter stays testable without a window —
 //!   no test: held by `a_presenter_never_takes_the_interface`, in
 //!   `crates/app/tests/architecture.rs`, and by this file building no window
+//!
+//! Closes #734 — the whole transcription is here; the bullets the canvas or
+//! the whole application answer point to where they are held, each file
+//! carrying its own block.
+//! - criterion 1, each volume row (extrusion, revolution) of the Part panel
+//!   has a visibility button that cycles opaque → « transparente » →
+//!   invisible, an add (green) or cut (red) icon, the name, its badge, and the state
+//!   written on the right (« opaque », « transparente », « invisible ») — the
+//!   row, `a_volume_row_reads_its_add_or_cut_icon_its_name_its_badge_and_its_state`;
+//!   the button cycling, through the presenter's click —
+//!   `a_click_on_a_volume_s_visibility_button_asks_for_its_next_state`; the
+//!   cycle itself, on the canvas's state, in
+//!   `crates/app/src/screens/viewport/visibility/tests.rs` by
+//!   `a_volume_s_visibility_cycles_opaque_see_through_invisible_and_round_again`;
+//!   clicked through the whole application, in
+//!   `crates/app/tests/the_part_panel.rs` by
+//!   `clicking_a_volume_s_visibility_button_writes_its_next_state_on_its_row`
+//! - criterion 2, an invisible volume's row is dimmed —
+//!   `an_invisible_volume_s_row_is_dimmed`
+//! - criterion 3, a volume's state applies to the faces of the part made by
+//!   that step (`faces_made_by`); for a cut, the walls it dug. On a block with
+//!   a hole cut through it, making the cut « transparente » makes the hole's
+//!   walls see-through and leaves the block opaque — no test: in this file,
+//!   the presenter draws no frame; held in
+//!   `crates/app/src/screens/viewport/render/tests.rs` by
+//!   `a_see_through_cut_draws_the_walls_of_its_hole_see_through_and_leaves_the_block_opaque`
+//! - criterion 4, « TOUT LE CORPS » is a segmented selector (C6) Invisible /
+//!   Transparent / Opaque that sets every volume at once; it is lit on the
+//!   state they all share, and on no segment when they differ —
+//!   `the_whole_body_selector_lights_the_state_every_volume_shares_and_none_when_they_differ`;
+//!   the setting and the reading, on the canvas's state, in
+//!   `crates/app/src/screens/viewport/visibility/tests.rs` by
+//!   `choosing_for_the_whole_body_sets_every_volume_at_once` and
+//!   `the_whole_body_reads_the_state_every_volume_shares_and_none_once_they_differ`;
+//!   a segment clicked through the whole application, in
+//!   `crates/app/tests/the_part_panel.rs` by
+//!   `clicking_opaque_in_the_whole_body_selector_makes_every_volume_opaque`
+//! - criterion 5, the « Corps » row is gone —
+//!   `the_part_panel_holds_no_body_row_any_more`
+//! - criterion 6, a face of the part made by no listed volume takes the last
+//!   state chosen in « TOUT LE CORPS » (opaque at first), even when no segment
+//!   is lit any more — no test: in this file, the presenter draws no face;
+//!   the choice kept, on the canvas's state, in
+//!   `crates/app/src/screens/viewport/visibility/tests.rs` by
+//!   `the_last_whole_body_choice_stays_for_the_faces_no_volume_made_once_the_volumes_differ`;
+//!   the face drawn so, in `crates/app/src/screens/viewport/render/tests.rs` by
+//!   `a_face_made_by_no_volume_is_drawn_as_the_last_whole_body_choice`
+//! - criterion 7, nothing breaks: « Matière devant » in a sketch keeps its
+//!   three modes, the section view is unchanged, and a face can still be
+//!   picked to start a sketch on a see-through or opaque volume — no test: in
+//!   this file; « Matière devant » held by
+//!   `the_matter_in_front_menu_offers_hidden_see_through_and_opaque_in_that_order`,
+//!   in `crates/app/src/screens/view_bar/state/tests.rs`, and by
+//!   `picking_a_state_of_the_matter_in_front_sets_the_open_sketch_to_it_whatever_it_was`,
+//!   in `crates/app/src/screens/sketch/tests.rs`; the section view by the
+//!   tests under #193 in `crates/app/src/screens/viewport/render/tests.rs`
+//!   and `crates/app/tests/section_view.rs`; the picking, in
+//!   `crates/app/src/screens/viewport/input/planes/tests.rs`, by
+//!   `a_face_of_a_see_through_volume_is_offered_to_draw_on_beside_an_opaque_one`
 
 use cao_part::VariableChange;
 use cao_part::history::{FaceAnchor, PointRef, RevolutionAxis, SectionAsked, SideDrawing};

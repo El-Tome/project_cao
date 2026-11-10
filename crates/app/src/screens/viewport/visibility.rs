@@ -24,6 +24,14 @@ pub(super) struct Visibility {
     /// leaving it puts out no light a click left.
     hovered: Option<Points>,
     body: MatterInFront,
+    /// The volumes set by hand, by the number of the operation that made
+    /// them, as the eyes are.
+    #[cfg_attr(not(test), expect(dead_code))]
+    volumes: BTreeMap<u32, MatterInFront>,
+    /// The last state chosen for the whole body: what a volume left alone
+    /// reads, and what the faces no volume made are drawn in.
+    #[cfg_attr(not(test), expect(dead_code))]
+    whole_body: MatterInFront,
 }
 
 impl Default for Visibility {
@@ -33,6 +41,8 @@ impl Default for Visibility {
             lit: None,
             hovered: None,
             body: MatterInFront::Opaque,
+            volumes: BTreeMap::new(),
+            whole_body: MatterInFront::Opaque,
         }
     }
 }
@@ -103,13 +113,56 @@ impl ViewportState {
     /// Opaque, see-through, invisible, and round again: the body fades out
     /// a step at a time.
     pub(crate) fn next_body_mode(&mut self) {
-        self.visibility.body = match self.visibility.body {
-            MatterInFront::Opaque => MatterInFront::SeeThrough,
-            MatterInFront::SeeThrough => MatterInFront::Hidden,
-            MatterInFront::Hidden => MatterInFront::Opaque,
-        };
+        self.visibility.body = faded(self.visibility.body);
+    }
+}
+
+#[cfg_attr(not(test), expect(dead_code))]
+impl ViewportState {
+    /// How the volume made at that step of the history is drawn.
+    pub(crate) fn volume_mode(&self, document: &PartDocument, step: usize) -> MatterInFront {
+        let chosen = document
+            .history
+            .number_at(step)
+            .and_then(|number| self.visibility.volumes.get(&number));
+        chosen.copied().unwrap_or(self.visibility.whole_body)
     }
 
+    /// Fades the volume made at that step of the history, as the body fades.
+    pub(crate) fn next_volume_mode(&mut self, document: &PartDocument, step: usize) {
+        let mode = faded(self.volume_mode(document, step));
+        if let Some(number) = document.history.number_at(step) {
+            self.visibility.volumes.insert(number, mode);
+        }
+    }
+
+    /// Draws every volume, and the faces none of them made, in that state.
+    pub(crate) fn set_whole_body(&mut self, mode: MatterInFront) {
+        self.visibility.volumes.clear();
+        self.visibility.whole_body = mode;
+    }
+
+    /// The state every volume of the history shares, if they share one.
+    pub(crate) fn shared_volume_mode(&self, document: &PartDocument) -> Option<MatterInFront> {
+        let operations = document.history.applied_operations().iter().enumerate();
+        let mut modes = operations
+            .filter(|(_, operation)| {
+                matches!(
+                    operation,
+                    Operation::Extrude { .. } | Operation::Revolve { .. }
+                )
+            })
+            .map(|(step, _)| self.volume_mode(document, step));
+        let first = modes.next().unwrap_or(self.visibility.whole_body);
+        modes.all(|mode| mode == first).then_some(first)
+    }
+
+    pub(crate) fn whole_body_choice(&self) -> MatterInFront {
+        self.visibility.whole_body
+    }
+}
+
+impl ViewportState {
     /// Each sketch a frame draws, and how.
     ///
     /// The sketch being drawn on, and the one areas are being picked on for a
@@ -136,6 +189,15 @@ impl ViewportState {
     }
 }
 
+/// Opaque, see-through, invisible, and round again.
+fn faded(mode: MatterInFront) -> MatterInFront {
+    match mode {
+        MatterInFront::Opaque => MatterInFront::SeeThrough,
+        MatterInFront::SeeThrough => MatterInFront::Hidden,
+        MatterInFront::Hidden => MatterInFront::Opaque,
+    }
+}
+
 fn used(document: &PartDocument, sketch: usize) -> bool {
     document
         .history
@@ -159,3 +221,6 @@ fn created_by(document: &PartDocument, sketch: usize) -> Option<u32> {
         .nth(sketch)?;
     history.number_at(step)
 }
+
+#[cfg(test)]
+mod tests;

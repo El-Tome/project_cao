@@ -13,11 +13,20 @@
 //! its left going up and the column on its right going down; a segment
 //! along a ruling closes the column its region lies in. No point is added.
 //!
+//! `(θ, l)` is not the cone rolled out flat: away from a ruling, a straight
+//! segment there is no straight line on the surface. A side running almost
+//! along a ruling, fanned from a corner far along it, is cut into a sliver
+//! the right way round in the chart and upside down in space (#820). A
+//! column one of whose triangles stands flat or the other way round on the
+//! cone rolled out is swept there instead, on copies of its points standing
+//! for the same samples; where it cannot be, it keeps the chart's cut.
+//!
 //! Where a segment does cross a ruling, or a column does not sweep, the face
 //! is left whole, as it was laid out. The apex of a face holding it is a
 //! line of the chart standing for one point, which these columns do not yet
 //! read.
 
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
 
@@ -26,22 +35,27 @@ use glam::DVec2;
 use super::super::sweep;
 use super::Outline;
 use super::cylinder::CLEAR;
+use crate::brep::surface::Cone;
+use crate::orientation::turn;
 
-/// The points, segments and strips of a face cut in columns.
-type Columns = (Vec<DVec2>, Vec<[usize; 2]>, Vec<Vec<usize>>);
+/// The points, the sample each stands for, the segments and the strips of
+/// a face cut in columns.
+type Columns = (Vec<DVec2>, Vec<usize>, Vec<[usize; 2]>, Vec<Vec<usize>>);
 
 impl Outline {
-    /// The face laid out so far cut in columns between the rulings of a grid
-    /// of `steps` angles a turn, where it can be; left whole otherwise.
-    pub(super) fn columned(&mut self, steps: usize) {
-        if let Some((points, segments, strips)) = self.columns(steps) {
+    /// The face laid out so far on `cone` cut in columns between the rulings
+    /// of a grid of `steps` angles a turn, where it can be; left whole
+    /// otherwise.
+    pub(super) fn columned(&mut self, steps: usize, cone: &Cone) {
+        if let Some((points, samples, segments, strips)) = self.columns(steps, cone) {
             self.points = points;
+            self.samples = samples;
             self.segments = segments;
             self.strips = strips;
         }
     }
 
-    fn columns(&self, steps: usize) -> Option<Columns> {
+    fn columns(&self, steps: usize, cone: &Cone) -> Option<Columns> {
         let step = TAU / steps as f64;
         let ruling = |rank: i64| TAU * rank as f64 / steps as f64;
         let mut points = self.points.clone();
@@ -108,8 +122,9 @@ impl Outline {
             }
         }
 
-        let strips: Vec<Vec<usize>> = columns.into_values().collect();
-        for strip in &strips {
+        let mut samples = self.samples.clone();
+        let mut strips = Vec::new();
+        for (column, strip) in columns {
             let local: Vec<[usize; 2]> = strip.iter().map(|&index| segments[index]).collect();
             let mut used: Vec<usize> = local.iter().flatten().copied().collect();
             used.sort_unstable();
@@ -119,10 +134,37 @@ impl Outline {
                 .iter()
                 .map(|pair| pair.map(|point| used.binary_search(&point).unwrap_or(0)))
                 .collect();
-            sweep::triangles(&placed, &renumbered)?;
+            let cut = sweep::triangles(&placed, &renumbered)?;
+            let middle = ruling(column) + step / 2.0;
+            let unrolled: Vec<DVec2> = placed
+                .iter()
+                .map(|at| unrolled(cone, *at, middle))
+                .collect();
+            let folded = cut
+                .iter()
+                .any(|&[a, b, c]| turn(unrolled[a], unrolled[b], unrolled[c]) != Ordering::Greater);
+            if folded && sweep::triangles(&unrolled, &renumbered).is_some() {
+                let first = points.len();
+                points.extend(unrolled);
+                samples.extend(used.iter().map(|&point| self.samples[point]));
+                for (&index, pair) in strip.iter().zip(&renumbered) {
+                    segments[index] = pair.map(|point| first + point);
+                }
+            }
+            strips.push(strip);
         }
-        Some((points, segments, strips))
+        Some((points, samples, segments, strips))
     }
+}
+
+/// `at`, of `(θ, l)`, on the cone rolled out flat, its ruling at `middle`
+/// along the second axis: there a segment is a straight line on the
+/// surface, which in `(θ, l)` it is only along a ruling.
+fn unrolled(cone: &Cone, at: DVec2, middle: f64) -> DVec2 {
+    let opening = cone.ruling.y;
+    let angle = opening * (at.x - middle);
+    let across = cone.radius_at(at.y) * angle.sin() / opening;
+    DVec2::new(across, at.y - across * (angle / 2.0).tan())
 }
 
 /// How many times the outline winds round `at`, counterclockwise counted

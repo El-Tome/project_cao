@@ -172,8 +172,8 @@ fn on_meet_by(
 /// `contacts`, and none where it all but lies on a wall facing it, nor on a
 /// plane touching it but off the line they touch along, as a circle takes
 /// no ray there; on an elliptic wall, at the angles its rims take besides
-/// their grid; and between two places whose chord passes inside a wall an
-/// end lies on ([`outside`]).
+/// their grid; and between two places whose chord passes through the
+/// triangles of a wall an end lies on ([`outside`]).
 pub(super) fn of_edge(
     body: &Body,
     edge: EdgeId,
@@ -183,7 +183,8 @@ pub(super) fn of_edge(
     fineness: (f64, f64),
 ) -> Vec<DVec3> {
     let points = alone(body, edge, meet, around, grids, fineness);
-    let points = outside::kept_outside(body, edge, meet, around.0, fineness.0, points);
+    let walls = outside::pierced(body, edge, meet, around, fineness, &points);
+    let points = outside::kept_outside(body, edge, meet, &walls, fineness.0, points);
     twin::shared(body, edge, meet, around, grids, fineness, points)
 }
 

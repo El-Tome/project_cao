@@ -193,9 +193,15 @@ impl Ruled {
                     } else if end == 0.0 {
                         found.push(to.rem_euclid(TAU));
                     } else if (start < 0.0) != (end < 0.0) {
-                        found.push(halved(off, from, to));
+                        found.push(halved(off, from, to).rem_euclid(TAU));
                     }
                 }
+            }
+            let [first, last] = [0.0, TAU].map(angle);
+            let back = last - TAU * ((last - first) / TAU).round();
+            let target = theta + TAU * ((first.min(back) - theta) / TAU).ceil();
+            if target <= first.max(back) {
+                found.push(0.0);
             }
             found
         };

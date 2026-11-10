@@ -145,3 +145,59 @@ fn at_the_angle_it_comes_back_to_at_its_seam_a_ruled_meet_is_found_at_its_seam()
         }
     }
 }
+
+/// Lap `component` of the pin over the rod turned `degrees`, held to cross
+/// `theta` at its seam: standing within rounding of it at both ends of its
+/// table, and either side of it a hair before and a hair after.
+fn crossing_at_its_seam(degrees: f64, component: u8, theta: f64) -> Meet {
+    let (pin, rod) = over_the_rod(degrees);
+    let meet = Meet {
+        first: pin,
+        second: rod,
+        component,
+    };
+    let off = |t: f64| super::around(meet.seen_on(false, t)[0].x - theta);
+    for (t, name) in [(0.0, "its start"), (TAU, "its end")] {
+        assert!(
+            off(t).abs() < 1e-15,
+            "lap {component} at {degrees}° is {} off {theta} at {name}",
+            off(t)
+        );
+    }
+    let hair = 1e-12;
+    let [before, after] = [off(TAU - hair), off(hair)];
+    assert!(
+        (before < 0.0) != (after < 0.0) && before.abs().max(after.abs()) < 1e-9,
+        "lap {component} at {degrees}° is {before} off {theta} a hair before its seam and {after} a hair after"
+    );
+    meet
+}
+
+fn found_at_its_seam(meet: &Meet, theta: f64) -> Vec<f64> {
+    let found = meet.at_angle(false, theta);
+    assert!(
+        found.iter().any(|&t| t.min(TAU - t) < 1e-9),
+        "the lap stands at {} at its start and {} at its end, and crosses {theta} there; found {found:?}",
+        meet.seen_on(false, 0.0)[0].x,
+        meet.seen_on(false, TAU)[0].x,
+    );
+    found
+}
+
+#[test]
+fn at_an_angle_between_the_two_ends_of_its_table_a_ruled_meet_is_found_at_its_seam() {
+    let theta = 6.221836942020814;
+    found_at_its_seam(&crossing_at_its_seam(256.5, 1, theta), theta);
+}
+
+#[test]
+fn at_an_angle_neither_end_step_of_its_table_holds_a_ruled_meet_is_found_at_its_seam() {
+    let theta = 0.24746744108332255;
+    found_at_its_seam(&crossing_at_its_seam(22.5, 1, theta), theta);
+}
+
+#[test]
+fn a_ruled_meet_found_a_hair_before_the_end_of_its_lap_is_kept_at_its_seam() {
+    let theta = 2.7058540406527594;
+    found_at_its_seam(&crossing_at_its_seam(10.5, 0, theta), theta);
+}

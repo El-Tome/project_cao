@@ -21,12 +21,13 @@
 use chrono::Utc;
 
 use super::*;
+use crate::screens::viewport::ViewportState;
 
 const WINDOW: egui::Vec2 = egui::vec2(1280.0, 800.0);
 
 /// One frame of the part screen, laid out the way `app.rs` lays it out: the
-/// toolbar, then the history panel, then whatever is left for the part.
-/// Answers how wide the history panel came out and how wide the part did.
+/// toolbar, then the Part panel, then whatever is left for the part. Answers
+/// how wide the Part panel came out and how wide the part did.
 fn a_frame(ctx: &egui::Context, ribbon: &mut Ribbon, edge: Edge) -> (f32, f32) {
     a_frame_with(ctx, ribbon, edge, Vec::new())
 }
@@ -42,8 +43,9 @@ fn a_frame_with(
     let document = PartDocument::new("part", Utc::now());
     let editor = SketchEditor::default();
     let mut extrusion = ExtrusionState::default();
+    let viewport = ViewportState::default();
     let lang = Catalogue::french();
-    let (mut history, mut part) = (0.0, 0.0);
+    let (mut beside, mut part) = (0.0, 0.0);
 
     let input = egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, WINDOW)),
@@ -58,18 +60,17 @@ fn a_frame_with(
         };
         ribbon.show(ui, &settings, &mut drawn, &lang);
         let before = ui.available_rect_before_wrap().width();
-        let mut confirming_compact = false;
-        let _ = crate::screens::history_tree::panel(ui, &document, &mut confirming_compact, &lang);
-        history = before - ui.available_rect_before_wrap().width();
+        let _ = crate::screens::part_tree::panel(ui, &document, &editor, &viewport, false, &lang);
+        beside = before - ui.available_rect_before_wrap().width();
         egui::CentralPanel::no_frame().show(ui, |ui| part = ui.max_rect().width());
     });
     output.textures_delta.clear();
 
-    (history, part)
+    (beside, part)
 }
 
-fn toolbar_width((history, part): (f32, f32)) -> f32 {
-    WINDOW.x - history - part
+fn toolbar_width((beside, part): (f32, f32)) -> f32 {
+    WINDOW.x - beside - part
 }
 
 fn press(at: egui::Pos2) -> egui::Event {
@@ -108,7 +109,7 @@ fn a_toolbar_moved_to_a_side_leaves_room_for_the_part() {
 }
 
 #[test]
-fn coming_back_from_a_side_leaves_the_history_panel_as_wide_as_it_was() {
+fn coming_back_from_a_side_leaves_the_part_panel_as_wide_as_it_was() {
     let ctx = egui::Context::default();
     let mut ribbon = Ribbon::new();
     a_frame(&ctx, &mut ribbon, Edge::Top);

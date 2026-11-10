@@ -602,7 +602,7 @@ fn a_click_on_the_pill_s_finish_button_places_no_point_with_the_line_tool_in_han
     let saved = driver::the_part_put_away(&mut app, test, "Platine");
     let sketch = saved.sketches().first().expect("the sketch drawn");
     assert!(
-        steps == ["1. Esquisse — Plan YZ"] && !sketch.holds_a_drawing(),
+        steps == ["1. Esquisse 1"] && !sketch.holds_a_drawing(),
         "the click on « Terminer ↵ » reached the drawing beneath it: the history reads \
          {steps:?}, and the sketch saved holds the points {:?}",
         sketch.points(),

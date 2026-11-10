@@ -115,10 +115,10 @@ pub(crate) fn run(
             }
             changed
         }
-        // Compaction itself waits for the warning in the history panel to be
-        // confirmed; this only opens it.
+        // Compaction itself waits for its warning to be confirmed; this only
+        // opens it.
         Command::CompactHistory => {
-            ribbon.history_open = true;
+            ribbon.history_unfolded = true;
             ribbon.history_compact_confirm = true;
             false
         }
@@ -348,7 +348,8 @@ pub(crate) fn run(
             changed
         }
         Command::ToggleHistory => {
-            ribbon.history_open = !ribbon.history_open;
+            ribbon.history_unfolded = !ribbon.part_tree_open || !ribbon.history_unfolded;
+            ribbon.part_tree_open = true;
             false
         }
         Command::ToggleToolbarDocked => false,

@@ -118,10 +118,9 @@ const NO_NET_HEADING: &str = "## What has no net";
 /// coverage report — it says a change here is caught by nothing local, which a
 /// test driving the whole application from outside does not make false.
 /// `docs/code-map.md` carries the argument beside the list.
-const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 12] = [
+const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 11] = [
     "crates/app/src/screens/annotations.rs",
     "crates/app/src/screens/extrusion_row.rs",
-    "crates/app/src/screens/history_tree.rs",
     "crates/app/src/screens/mod.rs",
     "crates/app/src/screens/settings/",
     "crates/app/src/screens/start_menu.rs",
@@ -280,8 +279,7 @@ const SENTENCES_STILL_WRITTEN_OUT: [(&str, usize); 0] = [];
 /// screen knows, a `view.rs` that draws it. The list may only shrink.
 const MODES_WITHOUT_A_PRESENTER: [&str; 2] = ["settings", "sketch"];
 
-const RAW_WIDGETS_LEFT_IN_THE_SCREENS: [(&str, usize); 3] = [
-    ("crates/app/src/screens/history_tree.rs", 1),
+const RAW_WIDGETS_LEFT_IN_THE_SCREENS: [(&str, usize); 2] = [
     ("crates/app/src/screens/settings/viewport.rs", 3),
     ("crates/app/src/screens/start_menu.rs", 1),
 ];

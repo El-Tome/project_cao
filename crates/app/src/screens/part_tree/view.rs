@@ -16,6 +16,9 @@ use crate::ui::theme::tokens;
 use crate::ui::tree_row::{Eye, TreeRow, folding_row, tree_note, tree_row};
 use crate::wording::part_tree::{self as said, Problem, Rubric};
 
+mod history;
+pub use history::compact_confirm;
+
 /// What the tree reads to mark its rows, and the one thing asked of it.
 struct Asked<'a> {
     document: &'a PartDocument,
@@ -26,13 +29,15 @@ struct Asked<'a> {
     hovering: Option<Points>,
 }
 
-/// The panel the tree is shown in, chrome and all: what was asked of it, and
-/// the row the hand is on.
+/// The panel the tree is shown in, chrome and all, with the history folded at
+/// its bottom unless `history_unfolded`: what was asked of it, and the row the
+/// hand is on.
 pub fn panel(
     ui: &mut egui::Ui,
     document: &PartDocument,
     editor: &SketchEditor,
     viewport: &ViewportState,
+    history_unfolded: bool,
     lang: &Catalogue,
 ) -> (TreeAction, Option<Points>) {
     let mut asked = Asked {
@@ -46,7 +51,10 @@ pub fn panel(
     egui::Panel::left("part_tree_panel")
         .resizable(true)
         .default_size(240.0)
-        .show(ui, |ui| show(ui, &mut asked, lang));
+        .show(ui, |ui| {
+            asked.action = history::at_the_bottom(ui, document, history_unfolded, lang);
+            show(ui, &mut asked, lang);
+        });
     (asked.action, asked.hovering)
 }
 

@@ -229,11 +229,11 @@ fn a_side_moved_and_a_shape_turned_say_so_and_unfold_into_what_they_did() {
     assert_eq!(said(&turned), "Forme tournée");
     assert_eq!(
         detail(&lang, &variables, &moved),
-        "Esquisse 0 · trait 2 de (0, 15)"
+        "Esquisse 1 · trait 2 de (0, 15)"
     );
     assert_eq!(
         detail(&lang, &variables, &turned),
-        "Esquisse 0 · 4 points tournés de 30° autour de (70, 52.5)"
+        "Esquisse 1 · 4 points tournés de 30° autour de (70, 52.5)"
     );
 }
 
@@ -270,7 +270,7 @@ fn the_history_says_a_radius_to_a_tenth_of_a_micron() {
             &cao_part::Variables::default(),
             &circle
         ),
-        "Esquisse 1 · rayon 37.4618",
+        "Esquisse 2 · rayon 37.4618",
     );
 }
 
@@ -288,7 +288,7 @@ fn the_history_says_a_place_to_a_tenth_of_a_micron() {
             &cao_part::Variables::default(),
             &point
         ),
-        "Esquisse 0 · (12.5, 37.4618)",
+        "Esquisse 1 · (12.5, 37.4618)",
     );
 }
 

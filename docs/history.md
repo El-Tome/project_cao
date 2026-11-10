@@ -72,10 +72,12 @@ drop lays its holds.
 
 ## The tree
 
-The left panel lists the operations, grouped under the one that opened the
-function under way — one line per sketch, unfoldable. Undone steps appear
-greyed out below the current position. Clicking a line puts the part back in
-the state it was in just after that step.
+The history folds at the bottom of the "Pièce" panel. Unfolded, it is one flat
+list, one numbered line per operation, its detail under its name; a sketch and
+a volume are named as their rows above name them. Undone steps stay listed,
+dimmed, and the current one stands lit. Clicking a line puts the part back in
+the state it was in just after that step; a sketch's line reopens it from its
+menu, and a link at the foot asks before compacting.
 
 ## Extrusion in the history
 
@@ -227,7 +229,7 @@ angles existed — in its folder or in the cache of the geometry — reads both 
 
 That makes a section a step like the others for undo, for the file and for the
 replay order, and it touches none of the matter: the body, its volume and its
-exports are what they are without it. The history panel leaves these
+exports are what they are without it. The history leaves these
 operations out — it lists what was done to the drawing or the matter.
 
 A section is named by its rank among the sections ever made, the way a sketch
@@ -252,8 +254,9 @@ did, and the sketch line of one written since says nothing new until it stands
 on a section.
 
 The grouping this describes is no longer worked out from the list of
-operations. The history records it, `Feature::all` turns it into the positions
-the panel speaks, and the panel shows exactly what it showed before.
+operations. The history records it, and `Feature::all` turns it into positions
+in the list. The history the user reads no longer groups by step: it is a flat
+list, one line per operation.
 
 ### The geometry is cached at the root, and the design stays the truth
 

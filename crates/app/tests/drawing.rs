@@ -92,8 +92,9 @@ fn a_sketch_started_on_a_plane_names_that_plane_in_the_history() {
     driver::start_a_sketch(&mut app);
     driver::open_the_history(&mut app);
 
-    assert!(
-        driver::shows(&app, "Esquisse — Plan"),
+    assert_eq!(
+        driver::detail_of(&app, "1. Esquisse 1").as_deref(),
+        Some("Plan YZ"),
         "the history names the sketch and the plane it sits on, showing {:?}",
         driver::on_screen(&app),
     );
@@ -229,7 +230,7 @@ fn an_ellipse_drawn_with_three_clicks_becomes_a_step_of_the_sketch() {
     );
 }
 
-/// A block raised off a sketch, and that sketch reopened from the history, so
+/// A block raised off a sketch, and that sketch reopened from the Part panel, so
 /// that the block stands between the eye and the plane being drawn on. Its
 /// points, and the ones drawn behind it, are points of the sketch, where the
 /// clicks the tests were first written with landed.
@@ -246,7 +247,7 @@ fn a_sketch_reopened_under_its_own_block(test: &str) -> driver::App {
     driver::click_at_sketch_point(&mut app, DVec2::new(59.12, -20.49));
     driver::click(&mut app, "Appliquer");
     driver::open_the_history(&mut app);
-    driver::click(&mut app, "Modifier");
+    driver::double_click(&mut app, "Esquisse 1");
     driver::click_exactly(&mut app, "Esquisse");
     app
 }

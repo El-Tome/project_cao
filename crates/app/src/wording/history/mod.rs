@@ -9,12 +9,21 @@ mod values;
 
 pub use detail::detail;
 
-use cao_part::history::{ExtrusionMode, Operation};
+use cao_part::history::{ExtrusionMode, FaceAnchor, Operation};
 use cao_part::{VariableChange, Variables};
-use cao_sketch::{Constraint, DimensionTarget, Element};
+use cao_sketch::{Constraint, DimensionTarget, Element, WorkPlane};
 
 use crate::lang::Catalogue;
 use crate::wording::{constraints, dimension, formula, plane};
+
+/// Where a sketch was laid: a plane of the origin, a face of the part, or a
+/// plane set off from the origin with no face under it.
+pub fn laid_on(lang: &Catalogue, laid: &WorkPlane, on: &Option<FaceAnchor>) -> String {
+    match (laid.kind(), on) {
+        (cao_sketch::PlaneKind::OffOrigin, None) => lang.t("plane.offset"),
+        (kind, _) => plane::label(lang, kind),
+    }
+}
 
 /// The only place a history step is turned into a name.
 ///
@@ -35,11 +44,7 @@ pub fn label(lang: &Catalogue, variables: &Variables, operation: &Operation) -> 
             .unwrap_or_default(),
         Operation::Variable(change) => variable(lang, variables, change),
         Operation::CreateSketch { plane, on } => {
-            let where_laid = match (plane.kind(), on) {
-                (cao_sketch::PlaneKind::OffOrigin, None) => lang.t("plane.offset"),
-                (kind, _) => plane::label(lang, kind),
-            };
-            lang.t_with("history.sketch", &[("plane", &where_laid)])
+            lang.t_with("history.sketch", &[("plane", &laid_on(lang, plane, on))])
         }
         Operation::CreateSketchOnSection { section, .. } => {
             let name = lang.t_with("part_tree.section", &[("rank", &(section + 1).to_string())]);

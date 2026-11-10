@@ -254,7 +254,7 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | The major steps a design is grouped into | `part/src/history/step.rs` | `Step`, `StepKind` |
 | Which sketch an operation edits, and so which step it is filed under | `part/src/history/edits.rs` | `Operation::edits` |
 | Which step an operation that opens none is filed under: the sketch it edits, or the section it changes | `part/src/history/step.rs` | `StepKind::owner`, `StepKind::opened_by` |
-| Where a step begins and ends in the list | `part/src/feature.rs` | `Feature::all` |
+| Where a step begins and ends in the list, which no screen reads since the history became a flat list | `part/src/feature.rs` | `Feature::all`, `Feature::line_ends` |
 | Replaying the history for the geometry | `part/src/replay.rs`, `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` → `Outcome` |
 | What a replay notes: what each operation laid, what was raised, which values left the drawing | `part/src/replay.rs` | `Replay`, `Laid`, `SetBy`, `next_value_set` |
 | The part shown with each volume's state: the history replayed apart, an invisible step left out, a see-through addition left out and a see-through cut applied, the raw tool of each see-through step kept as a ghost numbered as the part numbers it | `part/src/showing.rs` | `PartDocument::shown` → `Shown`, `Ghost`, `VolumeState`, `PartState::rebuild_showing` |
@@ -422,6 +422,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: the part's matter in a frame: what the sketch's cut or the section leaves of the part shown, drawn opaque, and of the ghosts of the volumes shown see-through, drawn see-through | `app/src/screens/viewport/render/body.rs` | `push_matter` |
 | The eye beside a row: the `eye` icon while what the row names is shown, `eye-off` while it is not, called what a click on it does; the same button wearing a volume's `body-opaque`, `body-see-through` or `body-hidden` | `app/src/ui/eye.rs` | `eye`, `visibility` |
 | A secondary button (C15): transparent within a border, greyed while it would do nothing | `app/src/ui/secondary_button.rs` | `secondary_button` |
+| A line of a history: its number in monospace, its name, and its detail beneath, quieter while undone | `app/src/ui/history_line.rs` | `history_line`, `HistoryLine` |
+| A quiet link at the foot of a list: unframed text in the quiet colour | `app/src/ui/quiet_link.rs` | `quiet_link` |
 | The redesign's icons, embedded from `docs/redesign/icons/`, handed to egui drawn in white so that a widget's tint gives their colour, and drawn at the three sizes the redesign uses | `app/src/ui/icon.rs` | `Icon`, `IconSize`, `install`, `Icon::image` |
 | A button of the ribbon: its icon above its name, its icon alone with names off, or a row of a menu, the icon in the colour of the name | `app/src/ui/tool_button.rs` | `tool_button`, `icon_button`, `menu_entry` |
 | A toggle of the ribbon's header: its icon beside its name, pressed while its panel shows; « Préférences » wears the same face | `app/src/ui/panel_toggle.rs` | `panel_toggle`, `panel_button` |
@@ -437,7 +439,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | A variable's name in a formula as a block: shown, stepped over, erased whole | `app/src/ui/formula_field/blocks.rs` | `found`, `stepped`, `erased`, `snapped`, `laid_out` |
 | A variable dragged from the panel into a dimension's field | `app/src/ui/dropping.rs`, `app/src/screens/variables/view.rs`, `app/src/screens/viewport/render/dimensions.rs` | `grip`, `take_a_dropped_name`, `DraggedName` |
 | Canvas: the values a shape earns, laid as typed; a click refused for a field that does not read; the scale the shape in hand reads what is typed with | `app/src/screens/viewport/values.rs` | `lay_values`, `as_typed`, `refused_for_what_is_typed`, `shape_scale` |
-| History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
+| The history folded at the bottom of the Part panel: one flat line per action, numbered with sections left out, a sketch and a volume named as their rows are, undone lines kept and dimmed; H or its header unfolds it, a click on a line rewinds to it, a sketch's line reopens it from its menu, and a quiet link asks before compacting | `app/src/screens/part_tree/state/history.rs`, `app/src/screens/part_tree/view/history.rs`, `app/src/panels.rs` | `History::of`, `HistoryLine`; `history`, `compact_confirm`; `TreeAction::ToggleHistory`, `RewindTo`, `AskToCompact` |
 | Files panel, on the home screen only: what it holds and what is half-done to it | `app/src/screens/explorer/state.rs` | `Explorer` |
 | Files panel: the drawing of it | `app/src/screens/explorer/view.rs` | `panel(...)` → `ExplorerAction` |
 | Exporting the part to STL: the gap each level asks for, the level suggested when one is refused, the file written where the save dialog says (#580) | `app/src/export.rs`, `app/src/adapters/save_dialog.rs`, `app/src/wording/export.rs` | `gap`, `export_request`, `stl`; `stl_destination`, `with_stl_extension`; `uncovered`, `written` |
@@ -593,7 +595,6 @@ lives.
   - `crates/app/src/screens/viewport/input/symmetric_line.rs`;
   - `crates/app/src/screens/settings/`;
   - `crates/app/src/screens/extrusion_row.rs`;
-  - `crates/app/src/screens/history_tree.rs`;
   - `crates/app/src/screens/annotations.rs`;
   - `crates/app/src/screens/start_menu.rs`;
   - `crates/app/src/screens/mod.rs`.

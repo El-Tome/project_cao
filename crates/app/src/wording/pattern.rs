@@ -19,7 +19,7 @@ pub fn count_brought_down(lang: &Catalogue, largest: usize) -> String {
 /// What a step laying a full turn short of its count says of itself.
 pub fn step_capped(lang: &Catalogue, capped: Capped) -> String {
     lang.t_with(
-        "history_tree.pattern_capped",
+        "part_tree.history.pattern_capped",
         &[
             ("laid", &capped.laid.to_string()),
             ("degrees", &capped.degrees.to_string()),

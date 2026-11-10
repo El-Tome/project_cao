@@ -55,14 +55,16 @@ click. The detail is in [configuration.md](configuration.md). Every button
 shows its shortcut in brackets when it has one, and is greyed out when the
 command makes no sense where one is.
 
-## The History panel
+## The history
 
-On the left, resizable, shown and hidden by `H`: it has no toggle on the tab
-row. Its contents are described in [history.md](history.md).
+At the bottom of the "Pièce" panel, folded under a header that counts the
+actions: a click on the header or `H` unfolds it, and `H` opens the "Pièce"
+panel on it when that panel is closed. Its contents are described in
+[history.md](history.md).
 
 ## The Variables panel
 
-On the left, beside the History panel, hidden by the "Variables" button at the
+On the left, beside the "Pièce" panel, hidden by the "Variables" button at the
 far end of the tab row, in a sketch and outside one. One row per variable of
 the part — its name, its formula, what it comes to — and a row at the foot that
 adds one. What it does is in [variables.md](variables.md). The "Pièce" panel

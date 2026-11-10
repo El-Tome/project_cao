@@ -1,4 +1,4 @@
-//! The panels beside a part: what it is made of, what was done to it, and
+//! The panels beside a part: what it is made of and what was done to it, and
 //! the variables its sizes are written from.
 
 use cao_part::PartDocument;
@@ -6,7 +6,6 @@ use cao_part::PartDocument;
 use crate::commands;
 use crate::lang::Catalogue;
 use crate::screens;
-use crate::screens::history_tree::HistoryAction;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::variables::VariablesPanel;
@@ -31,7 +30,9 @@ pub(crate) fn beside_the_part(
 ) -> bool {
     let mut changed = false;
     if ribbon.part_tree_open {
-        let (action, hovered) = screens::part_tree::panel(ui, doc, editor, viewport, lang);
+        let unfolded = ribbon.history_unfolded;
+        let (action, hovered) =
+            screens::part_tree::panel(ui, doc, editor, viewport, unfolded, lang);
         screens::part_tree::state::hover(doc, editor, viewport, hovered);
         match action {
             screens::part_tree::TreeAction::EditSketch(sketch) => {
@@ -66,6 +67,16 @@ pub(crate) fn beside_the_part(
                     false => changed |= delete_section(doc, section),
                 }
             }
+            screens::part_tree::TreeAction::ToggleHistory => {
+                ribbon.history_unfolded = !ribbon.history_unfolded;
+            }
+            screens::part_tree::TreeAction::RewindTo(step) => {
+                doc.rewind_to(step);
+                viewport.light_out();
+                commands::clamp_editor_to_document(editor, doc);
+                changed = true;
+            }
+            screens::part_tree::TreeAction::AskToCompact => ribbon.history_compact_confirm = true,
             screens::part_tree::TreeAction::None => {}
         }
     } else {
@@ -81,27 +92,13 @@ pub(crate) fn beside_the_part(
         }
     }
 
-    if ribbon.history_open {
-        match screens::history_tree::panel(ui, doc, &mut ribbon.history_compact_confirm, lang) {
-            HistoryAction::RewindTo(step) => {
-                doc.rewind_to(step);
-                viewport.light_out();
-                commands::clamp_editor_to_document(editor, doc);
-                changed = true;
-            }
-            HistoryAction::EditSketch(sketch) => {
-                if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
-                    viewport.light_out();
-                    editor.begin_editing(sketch, plane);
-                    let (center, radius) = commands::sketch_framing(doc, Some(sketch), plane);
-                    viewport.look_at_plane(plane, center, radius);
-                }
-            }
-            HistoryAction::CompactHistory => {
-                commands::compact_history(doc, editor, viewport);
-                changed = true;
-            }
-            HistoryAction::None => {}
+    if ribbon.history_compact_confirm
+        && let Some(confirmed) = screens::part_tree::view::compact_confirm(ui, lang)
+    {
+        ribbon.history_compact_confirm = false;
+        if confirmed {
+            commands::compact_history(doc, editor, viewport);
+            changed = true;
         }
     }
 

@@ -71,7 +71,7 @@ fn measuring_a_trait_leaves_the_history_with_nothing_but_the_trait() {
     );
     assert_eq!(
         before,
-        vec!["1. Esquisse — Plan YZ".to_string(), "2. Trait".to_string()],
+        vec!["1. Esquisse 1".to_string(), "2. Trait".to_string()],
         "the sketch and the trait are the two steps a measure had better not \
          join, and this says so out loud rather than comparing two empties",
     );

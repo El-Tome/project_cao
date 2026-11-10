@@ -30,7 +30,7 @@ pub(super) fn label(lang: &Catalogue, change: &CutChange) -> String {
 
 /// The line shown when the entry is unfolded.
 pub(super) fn detail(lang: &Catalogue, variables: &Variables, change: &CutChange) -> String {
-    let sketch = change.sketch().to_string();
+    let sketch = (change.sketch() + 1).to_string();
     match change {
         CutChange::Reshape {
             value: CutAsked::Fillet(radius),

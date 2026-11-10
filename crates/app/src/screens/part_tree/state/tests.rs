@@ -236,6 +236,8 @@ use crate::screens::sketch::{SketchEditor, Tool};
 use crate::screens::viewport::ViewportState;
 use crate::wording::part_tree as said;
 
+mod history;
+
 fn at(text: &str) -> DateTime<Utc> {
     text.parse().expect("a date")
 }

@@ -85,23 +85,15 @@ fn what_delete_takes(app: &mut driver::App) -> String {
 }
 
 /// The last step of the history read in detail — the line the history shows
-/// when the hand rests on it.
+/// under its name — or its name when the detail is not about the sketch.
 fn the_last_step_in_detail(app: &mut driver::App) -> String {
     driver::open_the_history(app);
     let last = driver::steps(app)
         .last()
         .cloned()
         .expect("the sketch's own step at least");
-    let at = app.get_by_label(&last).rect().center();
-    app.hover_at(at);
-    for _ in 0..10 {
-        app.step();
-    }
-    app.run();
-    driver::on_screen(app)
-        .into_iter()
-        .chain(driver::said(app))
-        .find(|line| line.starts_with("Esquisse 0 ·"))
+    driver::detail_of(app, &last)
+        .filter(|detail| detail.starts_with("Esquisse 1 ·"))
         .unwrap_or(last)
 }
 
@@ -123,7 +115,7 @@ fn steps_after_delete(app: &mut driver::App) -> Vec<String> {
 }
 
 fn erased(traits: usize) -> String {
-    format!("Esquisse 0 · {traits} tracé(s), 0 cote(s), 0 contrainte(s)")
+    format!("Esquisse 1 · {traits} tracé(s), 0 cote(s), 0 contrainte(s)")
 }
 
 /// Every point of this file is a point of the sketch: where the clicks the
@@ -280,7 +272,7 @@ fn in_an_empty_sketch_command_a_takes_nothing_and_says_nothing() {
     assert_eq!(driver::said(&app), said_before, "Cmd+A says nothing");
     assert_eq!(
         steps_after_delete(&mut app),
-        ["1. Esquisse — Plan YZ"],
+        ["1. Esquisse 1"],
         "nothing was taken, so Delete erases nothing",
     );
 }
@@ -297,7 +289,7 @@ fn with_another_tool_in_hand_command_a_leaves_the_tool_at_its_work() {
 
     assert_eq!(
         steps_after_delete(&mut app),
-        ["1. Esquisse — Plan YZ", "2. Trait"],
+        ["1. Esquisse 1", "2. Trait"],
         "the line started before Cmd+A is finished by the next click, and nothing \
          is taken for Delete to erase",
     );
@@ -352,7 +344,7 @@ fn command_shift_a_takes_nothing() {
 
     assert_eq!(
         steps_after_delete(&mut app),
-        ["1. Esquisse — Plan YZ", "2. Trait"],
+        ["1. Esquisse 1", "2. Trait"],
         "Cmd+Shift+A is not Cmd+A, and takes nothing for Delete to erase",
     );
 }
@@ -369,7 +361,7 @@ fn a_shift_click_still_adds_to_what_a_click_took() {
 
     assert_eq!(
         what_delete_takes(&mut app),
-        "Esquisse 0 · 2 tracé(s), 0 cote(s), 0 contrainte(s)",
+        "Esquisse 1 · 2 tracé(s), 0 cote(s), 0 contrainte(s)",
         "the top side clicked, then the bottom one Shift+clicked, are both held",
     );
 }
@@ -390,7 +382,7 @@ fn a_drag_on_a_trait_carries_everything_command_a_took() {
 
     let moved = the_last_step_in_detail(&mut app);
     assert!(
-        moved.starts_with("Esquisse 0 · 6 points de"),
+        moved.starts_with("Esquisse 1 · 6 points de"),
         "the rectangle's four corners and the line's two ends moved together, in \
          one step: {moved}",
     );

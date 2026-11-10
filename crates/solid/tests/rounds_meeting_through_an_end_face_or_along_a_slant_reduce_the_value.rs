@@ -21,7 +21,17 @@
 //!   angle: the step takes the value at which the round square to the top's
 //!   front edge, reaching further along the leaning wall than across it, and
 //!   the back upright's set-back fill the wall's length —
-//!   `a_fillet_and_a_chamfer_on_two_edges_whose_rounds_would_meet_on_a_leaning_wall_one_ends_on_take_the_largest_value_short_of_meeting`
+//!   `a_fillet_and_a_chamfer_on_two_edges_whose_rounds_would_meet_on_a_leaning_wall_one_ends_on_take_the_largest_value_short_of_meeting`;
+//!   and where one edge's faces meet inwards: the top edge of an L's arm
+//!   end, which ends on the arm's back, and the L's inner upright, of which
+//!   the arm's back is a side and which is filled in, take half the arm's
+//!   back, the round and the fill touching at its top —
+//!   `a_fillet_and_a_chamfer_on_the_top_edge_of_an_l_s_arm_end_and_its_inner_upright_asked_more_than_half_the_arm_s_back_take_the_largest_value_short_of_meeting`
+//!   — a closed pocket's floor edge and upright, where the two would meet the
+//!   same way, are declined each alone, at any value, and cannot hold it;
+//!   and on all these pairs the value is the same whichever edge the step
+//!   names first —
+//!   `a_fillet_and_a_chamfer_on_two_edges_whose_rounds_would_meet_take_the_same_value_whichever_edge_the_step_names_first`
 //! - The value is reduced to the largest at which those rounds do not meet
 //!   either — across a shared face, two edges that are not parallel:
 //!   alternate edges of a hexagonal prism's top, once their set-backs cross;
@@ -31,8 +41,14 @@
 //!   under, and lays both, each as alone at that value, neither meeting the
 //!   other —
 //!   `a_fillet_on_two_alternate_top_edges_of_a_hexagonal_prism_asked_past_where_their_set_backs_cross_takes_the_largest_radius_short_of_meeting`,
-//!   `a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_asked_past_where_their_set_backs_cross_takes_the_largest_distance_short_of_meeting`
-//! - Every step #698 lays — no test: held by the suite of #698 in
+//!   `a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_asked_past_where_their_set_backs_cross_takes_the_largest_distance_short_of_meeting`;
+//!   whichever of the two the step names first —
+//!   `a_fillet_and_a_chamfer_on_two_edges_whose_rounds_would_meet_take_the_same_value_whichever_edge_the_step_names_first`;
+//!   and where the edge they would cross on is in the list too, laid after
+//!   both, as the last criterion has it —
+//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_named_with_the_middle_one_last_asked_past_where_the_outer_two_would_cross_take_the_value_at_which_they_touch`,
+//!   `a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_order_asked_past_where_alternate_edges_would_cross_take_the_value_at_which_they_touch`
+//! - Every step #698 lays — held by the suite of #698 in
 //!   `a_chamfer_and_a_fillet_take_several_edges_in_one_step.rs`, left as it
 //!   was but for the two tests that held these meetings declined. The one on
 //!   the wall one edge ends on keeps the step it lays short of the meeting,
@@ -41,12 +57,31 @@
 //!   its decline past it now the reduction above; the one on the hexagonal
 //!   prism, where they would meet, goes, its check that each edge alone
 //!   takes the value asked carried into the second criterion's tests. Beyond
-//!   the issue's wording, one step #698 lays that no test of its suite
-//!   reaches and that a reduction through an end face could shrink: two
-//!   edges whose rounds both end on one wall, side by side across its width
-//!   but one at its top and the other at its floor, never meeting on it,
-//!   take the value asked —
-//!   `a_fillet_and_a_chamfer_on_two_edges_whose_rounds_end_on_one_wall_without_meeting_on_it_take_the_value_asked`
+//!   the issue's wording, two steps #698 lays, the second through #699's
+//!   mitres, that no test of its suite reaches and that the reduction could
+//!   shrink: two edges whose rounds both end on one wall, side by side across
+//!   its width but one at its top and the other at its floor, never meeting
+//!   on it, take the value asked —
+//!   `a_fillet_and_a_chamfer_on_two_edges_whose_rounds_end_on_one_wall_without_meeting_on_it_take_the_value_asked`;
+//!   and three top edges in a row of the hexagonal prism, asked past where
+//!   the outer two's set-backs would cross on the middle edge, take the value
+//!   asked, the middle edge cut away too between them: each two neighbours
+//!   mitred, the outer two meeting nowhere —
+//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_asked_past_where_the_outer_two_would_cross_take_the_value_asked_the_middle_one_named_before_the_last`.
+//!   #698 laid them so with the middle edge named before the last of the
+//!   outer two. The value follows the order the step lays its edges in, as
+//!   the owner decided: two set-backs that would meet on an edge of the list
+//!   laid before the later of the two do not meet, that edge's cut taking
+//!   away the point where they would before the later one is laid. With the
+//!   middle edge named last, #698 declined the three `Unsupported`; they are
+//!   reduced to where the outer two touch on it, a quarter of the side times
+//!   the square root of three, and laid —
+//!   `a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_named_with_the_middle_one_last_asked_past_where_the_outer_two_would_cross_take_the_value_at_which_they_touch`;
+//!   and so are the six top edges named in ring order, which #698 declined
+//!   past that value, the last named laid after both its neighbours —
+//!   `a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_order_asked_past_where_alternate_edges_would_cross_take_the_value_at_which_they_touch`.
+//!   The value taken may so depend on the order of the list; a value that
+//!   does not is left to #822.
 
 use std::collections::BTreeSet;
 use std::f64::consts::{FRAC_1_SQRT_2, PI};
@@ -186,21 +221,22 @@ fn numbers(body: &Body) -> BTreeSet<usize> {
         .collect()
 }
 
-/// Holds that a step on two edges kept every face of the part it was given
-/// and laid one face more for each edge, numbered `laid`, the next step
-/// numbering its own past both.
-fn kept_every_face_and_laid(part: &Body, body: &Body, laid: [usize; 2], what: &str) {
+/// Holds that a step kept every face of the part it was given and laid one
+/// face more for each edge, numbered `laid`, the next step numbering its own
+/// past them all.
+fn kept_every_face_and_laid(part: &Body, body: &Body, laid: &[usize], what: &str) {
     let mut kept_and_laid = numbers(part);
     kept_and_laid.extend(laid);
     assert_eq!(
         numbers(body),
         kept_and_laid,
-        "{what}: every face of the block, and one face laid for each edge, {laid:?}"
+        "{what}: every face of the part, and one face laid for each edge, {laid:?}"
     );
+    let last = laid.iter().max().expect("a face laid");
     assert_eq!(
         body.faces_end(),
-        laid[1] + 1,
-        "{what}: the next step numbers its faces past both laid"
+        last + 1,
+        "{what}: the next step numbers its faces past all those laid"
     );
 }
 
@@ -561,7 +597,7 @@ fn a_fillet_on_two_edges_whose_rounds_would_meet_on_the_wall_one_ends_on_asked_m
             );
         }
         do_not_meet(body, laid, &what);
-        kept_every_face_and_laid(&block, body, laid, &what);
+        kept_every_face_and_laid(&block, body, &laid, &what);
         for (face, corners) in right_wall_and_top(radius) {
             corners_are_or_on(
                 body,
@@ -653,7 +689,7 @@ fn a_chamfer_on_two_edges_whose_flats_would_meet_on_the_wall_one_ends_on_asked_m
             corners_are(body, number, corners, &which);
         }
         do_not_meet(body, laid, &what);
-        kept_every_face_and_laid(&block, body, laid, &what);
+        kept_every_face_and_laid(&block, body, &laid, &what);
         for (face, corners) in right_wall_and_top(distance) {
             corners_are(
                 body,
@@ -717,7 +753,7 @@ fn a_fillet_and_a_chamfer_on_two_edges_whose_rounds_end_on_one_wall_without_meet
         );
     }
     do_not_meet(body, laid, &what);
-    kept_every_face_and_laid(&block, body, laid, &what);
+    kept_every_face_and_laid(&block, body, &laid, &what);
     sound_drawn_within(
         body,
         BLOCK_VOLUME - 2.0 * value * value * (1.0 - PI / 4.0) * LENGTH,
@@ -733,7 +769,7 @@ fn a_fillet_and_a_chamfer_on_two_edges_whose_rounds_end_on_one_wall_without_meet
     taken_as_asked(chamfered.asked, chamfered.taken, value, &what);
     let body = &chamfered.body;
     do_not_meet(body, laid, &what);
-    kept_every_face_and_laid(&block, body, laid, &what);
+    kept_every_face_and_laid(&block, body, &laid, &what);
     let promised = BLOCK_VOLUME - value * value * LENGTH;
     sound_drawn_within(body, promised, EXACT * promised, &what);
 }
@@ -782,20 +818,26 @@ fn hexagon_touching() -> f64 {
 /// side along the bottom, raised [`HEXAGON_HEIGHT`]: its walls numbered from
 /// the front round, two to seven.
 fn hexagonal_prism() -> Body {
-    let half = hexagon_half();
-    let side = HEXAGON_SIDE;
     raised_with(
         &Body::default(),
-        Contour::straight(vec![
-            DVec2::new(-side / 2.0, -half),
-            DVec2::new(side / 2.0, -half),
-            DVec2::new(side, 0.0),
-            DVec2::new(side / 2.0, half),
-            DVec2::new(-side / 2.0, half),
-            DVec2::new(-side, 0.0),
-        ]),
+        Contour::straight(hexagon_corners().to_vec()),
         HEXAGON_HEIGHT,
     )
+}
+
+/// The hexagon's corners, from the front's left end round: wall two runs
+/// from the first to the second, and each wall after it from where the one
+/// before ends.
+fn hexagon_corners() -> [DVec2; 6] {
+    let (half, side) = (hexagon_half(), HEXAGON_SIDE);
+    [
+        DVec2::new(-side / 2.0, -half),
+        DVec2::new(side / 2.0, -half),
+        DVec2::new(side, 0.0),
+        DVec2::new(side / 2.0, half),
+        DVec2::new(-side / 2.0, half),
+        DVec2::new(-side, 0.0),
+    ]
 }
 
 /// The two edges whose set-backs cross on the top, in the order the step
@@ -822,12 +864,18 @@ fn turned(way: DVec3, turn: f64) -> DVec3 {
 /// top meets them, the radius over the square root of three past each; the
 /// second is the same round over the edge alone, between its ends.
 fn hexagon_round(radius: f64, turn: f64) -> [Round; 2] {
-    let half = hexagon_half();
     [
         HEXAGON_SIDE / 2.0 + radius / 3.0f64.sqrt(),
         HEXAGON_SIDE / 2.0,
     ]
-    .map(|past| Round {
+    .map(|past| hexagon_round_to(radius, turn, past))
+}
+
+/// The round of [`hexagon_round`], `past` either side of the middle of its
+/// edge.
+fn hexagon_round_to(radius: f64, turn: f64, past: f64) -> Round {
+    let half = hexagon_half();
+    Round {
         start: turned(
             DVec3::new(-past, radius - half, HEXAGON_HEIGHT - radius),
             turn,
@@ -836,7 +884,7 @@ fn hexagon_round(radius: f64, turn: f64) -> [Round; 2] {
         length: 2.0 * past,
         radius,
         facing: [DVec3::Z, turned(-DVec3::Y, turn)],
-    })
+    }
 }
 
 /// The matter a step of `value` takes off along one top edge of the
@@ -937,7 +985,7 @@ fn a_fillet_on_two_alternate_top_edges_of_a_hexagonal_prism_asked_past_where_the
             );
         }
         do_not_meet(body, laid, &what);
-        kept_every_face_and_laid(&prism, body, laid, &what);
+        kept_every_face_and_laid(&prism, body, &laid, &what);
         corners_are(
             body,
             TOP,
@@ -978,15 +1026,25 @@ fn a_fillet_on_two_alternate_top_edges_of_a_hexagonal_prism_asked_past_where_the
 /// square root of three past each end; facing halfway between the top and
 /// the wall.
 fn hexagon_flat(distance: f64, turn: f64) -> ([DVec3; 4], DVec3) {
-    let (half, reach) = (hexagon_half(), distance / 3.0f64.sqrt());
+    hexagon_flat_to(
+        distance,
+        turn,
+        HEXAGON_SIDE / 2.0 + distance / 3.0f64.sqrt(),
+    )
+}
+
+/// The flat of [`hexagon_flat`], its side on the top `past` either side of
+/// the middle of its edge.
+fn hexagon_flat_to(distance: f64, turn: f64, past: f64) -> ([DVec3; 4], DVec3) {
+    let half = hexagon_half();
     let end = HEXAGON_SIDE / 2.0;
     let top = HEXAGON_HEIGHT;
     (
         [
             DVec3::new(-end, -half, top - distance),
             DVec3::new(end, -half, top - distance),
-            DVec3::new(end + reach, distance - half, top),
-            DVec3::new(-end - reach, distance - half, top),
+            DVec3::new(past, distance - half, top),
+            DVec3::new(-past, distance - half, top),
         ]
         .map(|corner| turned(corner, turn)),
         turned(DVec3::new(0.0, -FRAC_1_SQRT_2, FRAC_1_SQRT_2), turn),
@@ -1033,7 +1091,7 @@ fn a_chamfer_on_two_alternate_top_edges_of_a_hexagonal_prism_asked_past_where_th
             corners_are(body, number, &corners, &which);
         }
         do_not_meet(body, laid, &what);
-        kept_every_face_and_laid(&prism, body, laid, &what);
+        kept_every_face_and_laid(&prism, body, &laid, &what);
         corners_are(
             body,
             TOP,
@@ -1239,7 +1297,7 @@ fn a_fillet_and_a_chamfer_on_two_edges_whose_rounds_would_meet_on_a_leaning_wall
             ),
         );
         do_not_meet(body, laid, &what);
-        kept_every_face_and_laid(&block, body, laid, &what);
+        kept_every_face_and_laid(&block, body, &laid, &what);
         for (face, corners) in leaning_wall_and_top(radius, back) {
             corners_are_or_on(
                 body,
@@ -1318,7 +1376,7 @@ fn a_fillet_and_a_chamfer_on_two_edges_whose_rounds_would_meet_on_a_leaning_wall
             corners_are(body, number, corners, &which);
         }
         do_not_meet(body, laid, &what);
-        kept_every_face_and_laid(&block, body, laid, &what);
+        kept_every_face_and_laid(&block, body, &laid, &what);
         for (face, corners) in leaning_wall_and_top(distance, distance) {
             corners_are(
                 body,
@@ -1332,5 +1390,828 @@ fn a_fillet_and_a_chamfer_on_two_edges_whose_rounds_would_meet_on_a_leaning_wall
         let upright_off = HEIGHT * distance * distance * angle.sin() / 2.0;
         let promised = leaning_volume() - top_front - upright_off;
         sound_drawn_within(body, promised, EXACT * promised, &what);
+    }
+}
+
+/// The round a fillet lays in a concave corner: a cylinder of `radius` about
+/// the line from `start` along `along` for `length`, that line standing in
+/// the air the two faces leave between them. The round turns from facing the
+/// way the edge's first face does to facing the way its second does, and
+/// everywhere faces its axis, a radius away against the way it faces.
+struct Hollow {
+    start: DVec3,
+    along: DVec3,
+    length: f64,
+    radius: f64,
+    facing: [DVec3; 2],
+}
+
+impl Hollow {
+    /// The point of the axis `share` of the way along it.
+    fn axis_at(&self, share: f64) -> DVec3 {
+        self.start + self.along * self.length * share
+    }
+
+    /// The way the round faces `share` of the way round it, from its first
+    /// face's way to its second's.
+    fn facing_at(&self, share: f64) -> DVec3 {
+        let [first, second] = self.facing;
+        let turn = first.dot(second).acos() * share;
+        let across = (second - first * first.dot(second)).normalize();
+        first * turn.cos() + across * turn.sin()
+    }
+
+    /// Whether a point lies on the round: on its cylinder, between its two
+    /// ends, and between its two sides — no further round from the way it
+    /// faces halfway than either side is.
+    fn holds(&self, point: DVec3) -> bool {
+        let off = point - self.start;
+        let along = off.dot(self.along);
+        let toward_the_axis = self.along * along - off;
+        let halfway = self.facing_at(0.5);
+        let least = self.radius * self.facing[0].dot(halfway);
+        (toward_the_axis.length() - self.radius).abs() < PLACE
+            && (-PLACE..=self.length + PLACE).contains(&along)
+            && toward_the_axis.dot(halfway) >= least - PLACE
+    }
+
+    /// The round's area, its turn times its radius times its length.
+    fn area(&self) -> f64 {
+        let [first, second] = self.facing;
+        first.dot(second).acos() * self.radius * self.length
+    }
+}
+
+/// Holds that the face numbered `face` is the hollow round expected: every
+/// corner of its triangles on it, and every ray aimed from its axis, in the
+/// air the round leaves, out to it meeting it first, where it faces back
+/// along the ray.
+fn is_the_hollow(body: &Body, face: usize, hollow: &Hollow, what: &str) {
+    let corners: Vec<DVec3> = body.triangles_of(face).flatten().collect();
+    assert!(!corners.is_empty(), "{what}: the round is drawn");
+    for corner in corners {
+        assert!(
+            hollow.holds(corner),
+            "{what}: the round is drawn through {corner}, off the cylinder of {} about the line \
+             from {} along {}",
+            hollow.radius,
+            hollow.start,
+            hollow.along
+        );
+    }
+    for along in [0.11, 0.47, 0.83] {
+        for share in [0.1, 0.3, 0.5, 0.7, 0.9] {
+            let facing = hollow.facing_at(share);
+            let from = hollow.axis_at(along);
+            let hit = body
+                .ray_hit(from, -facing)
+                .unwrap_or_else(|| panic!("{what}: a ray from {from} on the axis meets nothing"));
+            assert_eq!(
+                hit.face, face,
+                "{what}: a ray from {from} on the axis meets face {} before the round",
+                hit.face
+            );
+            assert!(
+                hit.normal.distance(facing) < PLACE,
+                "{what}: where a ray from {from} meets it, the round faces {}, not {facing}, \
+                 back toward its axis",
+                hit.normal
+            );
+        }
+    }
+}
+
+/// The outline of an L: an arm [`LENGTH`] long and 6 deep along the front,
+/// and at its left end a stem 12 wide reaching back to 20. Raised
+/// [`ELL_HEIGHT`], its walls are numbered from the front round: the front
+/// two, the arm's end three, the arm's back four, the stem's right side
+/// five, the stem's back six and the left seven. The arm's back and the
+/// stem's right side meet inwards, in the L's inner corner.
+const ELL_OUTLINE: [DVec2; 6] = [
+    DVec2::new(0.0, 0.0),
+    DVec2::new(LENGTH, 0.0),
+    DVec2::new(LENGTH, 6.0),
+    DVec2::new(12.0, 6.0),
+    DVec2::new(12.0, 20.0),
+    DVec2::new(0.0, 20.0),
+];
+const ELL_HEIGHT: f64 = 20.0;
+const ARM_END: usize = 3;
+const ARM_BACK: usize = 4;
+const STEM_RIGHT: usize = 5;
+
+/// What is asked of the L's two edges past where they would meet, which
+/// either alone gives: under the arm's back, the stem's right side and the
+/// L's height.
+const ELL_ASKED: f64 = 11.0;
+
+/// The L of [`ELL_OUTLINE`], raised [`ELL_HEIGHT`].
+fn ell() -> Body {
+    raised_with(
+        &Body::default(),
+        Contour::straight(ELL_OUTLINE.to_vec()),
+        ELL_HEIGHT,
+    )
+}
+
+/// The two edges of the L that meet through an end face, in the order the
+/// step names them: the top edge of the arm's end, which ends on the arm's
+/// back, and the L's inner upright, of which the arm's back is a side —
+/// filled in, its faces meeting inwards.
+fn arm_end_top_and_inner_upright(ell: &Body) -> [EdgeName; 2] {
+    [
+        edge_between(ell, TOP, ARM_END),
+        edge_between(ell, ARM_BACK, STEM_RIGHT),
+    ]
+}
+
+/// The value at which the arm's end's round, or flat, and the inner
+/// upright's fill touch at the top of the arm's back: the first sets the
+/// arm's back back from its end by the value, the second fills it in from
+/// the inner corner by as much, and the arm's back runs from one to the
+/// other.
+fn ell_touching() -> f64 {
+    let [_, _, end, corner, _, _] = ELL_OUTLINE;
+    (end.x - corner.x) / 2.0
+}
+
+/// What a step at `value` on the arm's end's top edge and the inner upright
+/// leaves of the arm's back and of the top: the arm's back filled in from
+/// the inner corner and trimmed at its top end, the top set back from the
+/// arm's end and grown into the inner corner, a strip of each left between
+/// the two.
+fn arm_back_and_top(value: f64) -> [(usize, Vec<DVec3>); 2] {
+    let [front, _, end, corner, stem, back] = ELL_OUTLINE;
+    let up = |at: DVec2, z: f64| at.extend(z);
+    let top = ELL_HEIGHT;
+    [
+        (
+            ARM_BACK,
+            vec![
+                up(corner + DVec2::X * value, 0.0),
+                up(end, 0.0),
+                up(end, top - value),
+                up(end - DVec2::X * value, top),
+                up(corner + DVec2::X * value, top),
+            ],
+        ),
+        (
+            TOP,
+            vec![
+                up(front, top),
+                DVec3::new(end.x - value, 0.0, top),
+                up(end - DVec2::X * value, top),
+                up(corner + DVec2::X * value, top),
+                up(corner + DVec2::Y * value, top),
+                up(stem, top),
+                up(back, top),
+            ],
+        ),
+    ]
+}
+
+/// The L's matter: its arm and its stem, raised [`ELL_HEIGHT`].
+fn ell_volume() -> f64 {
+    (LENGTH * 6.0 + 12.0 * 14.0) * ELL_HEIGHT
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_the_top_edge_of_an_l_s_arm_end_and_its_inner_upright_asked_more_than_half_the_arm_s_back_take_the_largest_value_short_of_meeting()
+ {
+    let ell = ell();
+    let names = arm_end_top_and_inner_upright(&ell);
+    let laid = [ell.faces_end(), ell.faces_end() + 1];
+    let touching = ell_touching();
+    let [_, start, end, corner, _, _] = ELL_OUTLINE;
+    let top = ELL_HEIGHT;
+    let filled_less_cut = top - (end.y - start.y);
+
+    for asked in [touching + ONE_HAIR, ELL_ASKED] {
+        alone_each_takes(
+            |name| ell.fillet(name, asked).map(|single| single.taken),
+            &names,
+            asked,
+            &format!("the fillet on the L's arm end's top edge or inner upright, asked {asked}"),
+        );
+
+        let filleted = ell
+            .fillet_edges(&names, asked)
+            .unwrap_or_else(|declined| panic!("the fillet, asked {asked}: declined, {declined:?}"));
+
+        let what =
+            format!("the fillet on the L's arm end's top edge and inner upright, asked {asked}");
+        reduced_to_touching(
+            filleted.asked,
+            filleted.taken,
+            [asked, touching],
+            ONE_HAIR,
+            &what,
+        );
+        let radius = filleted.taken;
+        let body = &filleted.body;
+        let round = Round {
+            start: DVec3::new(end.x - radius, 0.0, top - radius),
+            along: DVec3::Y,
+            length: 6.0,
+            radius,
+            facing: [DVec3::Z, DVec3::X],
+        };
+        let hollow = Hollow {
+            start: (corner + DVec2::splat(radius)).extend(0.0),
+            along: DVec3::Z,
+            length: top,
+            radius,
+            facing: [DVec3::Y, DVec3::X],
+        };
+        is_the_round(
+            body,
+            laid[0],
+            &round,
+            &format!(
+                "{what}: face {}, the arm end's top edge rounded off at {radius}",
+                laid[0]
+            ),
+        );
+        is_the_hollow(
+            body,
+            laid[1],
+            &hollow,
+            &format!(
+                "{what}: face {}, the inner upright filled in at {radius}",
+                laid[1]
+            ),
+        );
+        do_not_meet(body, laid, &what);
+        kept_every_face_and_laid(&ell, body, &laid, &what);
+        for (face, corners) in arm_back_and_top(radius) {
+            corners_are_or_on(
+                body,
+                face,
+                &corners,
+                |corner| round.holds(corner) || hollow.holds(corner),
+                &format!("{what}: face {face}, cut by the round, filled by the fill, a strip left"),
+            );
+        }
+        sound_drawn_within(
+            body,
+            ell_volume() + radius * radius * (1.0 - PI / 4.0) * filled_less_cut,
+            DRAWN * reach_of(&ell) * (round.area() + hollow.area()),
+            &what,
+        );
+    }
+
+    for asked in [touching + ONE_HAIR, ELL_ASKED] {
+        alone_each_takes(
+            |name| ell.chamfer(name, asked).map(|single| single.taken),
+            &names,
+            asked,
+            &format!("the chamfer on the L's arm end's top edge or inner upright, asked {asked}"),
+        );
+
+        let chamfered = ell.chamfer_edges(&names, asked).unwrap_or_else(|declined| {
+            panic!("the chamfer, asked {asked}: declined, {declined:?}")
+        });
+
+        let what =
+            format!("the chamfer on the L's arm end's top edge and inner upright, asked {asked}");
+        reduced_to_touching(
+            chamfered.asked,
+            chamfered.taken,
+            [asked, touching],
+            ONE_HAIR,
+            &what,
+        );
+        let distance = chamfered.taken;
+        let body = &chamfered.body;
+        let filled = corner + DVec2::X * distance;
+        let flats = [
+            (
+                [
+                    DVec3::new(end.x - distance, 0.0, top),
+                    DVec3::new(end.x, 0.0, top - distance),
+                    DVec3::new(end.x, end.y, top - distance),
+                    DVec3::new(end.x - distance, end.y, top),
+                ],
+                DVec3::new(FRAC_1_SQRT_2, 0.0, FRAC_1_SQRT_2),
+            ),
+            (
+                [
+                    filled.extend(0.0),
+                    filled.extend(top),
+                    (corner + DVec2::Y * distance).extend(top),
+                    (corner + DVec2::Y * distance).extend(0.0),
+                ],
+                DVec3::new(FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.0),
+            ),
+        ];
+        for (((corners, facing), number), edge) in flats
+            .iter()
+            .zip(laid)
+            .zip(["arm end's top edge cut off", "inner upright filled in"])
+        {
+            let which = format!("{what}: face {number}, the {edge} at {distance}");
+            faces_toward(body, number, *facing, &which);
+            corners_are(body, number, corners, &which);
+        }
+        do_not_meet(body, laid, &what);
+        kept_every_face_and_laid(&ell, body, &laid, &what);
+        for (face, corners) in arm_back_and_top(distance) {
+            corners_are(
+                body,
+                face,
+                &corners,
+                &format!("{what}: face {face}, cut by one flat, filled by the other, a strip left"),
+            );
+        }
+        let promised = ell_volume() + distance * distance / 2.0 * filled_less_cut;
+        sound_drawn_within(body, promised, EXACT * promised, &what);
+    }
+}
+
+/// Three top edges in a row of the hexagonal prism: the front's, wall
+/// three's and wall four's, each turned about the vertical from the front's
+/// by a sixth of a turn more, and the walls they stand on.
+const IN_A_ROW: [usize; 3] = [HEXAGON_FRONT, HEXAGON_BETWEEN, HEXAGON_ACROSS];
+
+/// What a step at `value` on the three top edges in a row leaves of the
+/// hexagon's top: set back by the value from each, the front's and wall
+/// four's set-backs running on to the walls beyond their outer ends, and
+/// each two of the three meeting in a mitre at the corner they share.
+fn in_a_row_top(value: f64) -> Vec<DVec3> {
+    let (half, reach) = (hexagon_half(), value / 3.0f64.sqrt());
+    let side = HEXAGON_SIDE;
+    [
+        DVec2::new(-side / 2.0 - reach, value - half),
+        DVec2::new(side / 2.0 - reach, value - half),
+        DVec2::new(side - 2.0 * reach, 0.0),
+        DVec2::new(side / 2.0 - 2.0 * reach, half),
+        DVec2::new(-side / 2.0, half),
+        DVec2::new(-side, 0.0),
+    ]
+    .map(|corner| corner.extend(HEXAGON_HEIGHT))
+    .to_vec()
+}
+
+/// What a step at `value` leaves of the wall under one of the three edges,
+/// the edge turned by `turn` from the front's: the wall cut down by the
+/// value along its whole length, between the uprights at its ends.
+fn in_a_row_wall(value: f64, turn: f64) -> Vec<DVec3> {
+    let (half, end) = (hexagon_half(), HEXAGON_SIDE / 2.0);
+    let cut = HEXAGON_HEIGHT - value;
+    [(-end, 0.0), (end, 0.0), (end, cut), (-end, cut)]
+        .map(|(x, z)| turned(DVec3::new(x, -half, z), turn))
+        .to_vec()
+}
+
+/// The matter a step at `value` on the three top edges in a row takes off
+/// the hexagonal prism, a fillet's if `fillet`, a chamfer's if not. At a
+/// height where the cuts stand `w` in from the walls, the section loses a
+/// strip `w` wide along each of the three edges, less, at each of the two
+/// corners where two strips meet in a mitre, the `w² / √3` they share, plus,
+/// at each outer end, the `w² / (2√3)` its strip runs on along the wall
+/// beyond: `3 s w − w² / √3`, for the side `s`. A chamfer stands in by its
+/// rise `t` above where it begins on the walls, which sums up its height to
+/// `3 s d² / 2 − d³ / (3√3)`; a fillet by `r − √(r² − t²)`, whose height
+/// sums `w` to `r² (1 − π / 4)` and `w²` to `r³ (5/3 − π / 2)`.
+fn taken_off_in_a_row(value: f64, fillet: bool) -> f64 {
+    let (side, root) = (HEXAGON_SIDE, 3.0f64.sqrt());
+    let (first, second) = if fillet {
+        (
+            value * value * (1.0 - PI / 4.0),
+            value.powi(3) * (5.0 / 3.0 - PI / 2.0),
+        )
+    } else {
+        (value * value / 2.0, value.powi(3) / 3.0)
+    };
+    3.0 * side * first - second / root
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_asked_past_where_the_outer_two_would_cross_take_the_value_asked_the_middle_one_named_before_the_last()
+ {
+    let prism = hexagonal_prism();
+    let value = HEXAGON_ASKED;
+    let end = HEXAGON_SIDE / 2.0;
+    let mitred = end - value / 3.0f64.sqrt();
+    let run_on = end + value / 3.0f64.sqrt();
+    assert!(
+        value > hexagon_touching() && value < 2.0 * hexagon_touching(),
+        "asked {value}: past where the outer two's set-backs would cross on the middle edge, \
+         {}, and short of where they would cross within the middle one's own set-back, {}",
+        hexagon_touching(),
+        2.0 * hexagon_touching()
+    );
+
+    for order in [[0, 1, 2], [2, 1, 0], [1, 0, 2], [1, 2, 0]] {
+        let names: Vec<EdgeName> = order
+            .iter()
+            .map(|&rank| edge_between(&prism, TOP, IN_A_ROW[rank]))
+            .collect();
+        let laid: Vec<usize> = (0..order.len())
+            .map(|named| prism.faces_end() + named)
+            .collect();
+        let number_of = |rank: usize| {
+            laid[order
+                .iter()
+                .position(|&named| named == rank)
+                .expect("named")]
+        };
+        let turn_of = |rank: usize| rank as f64 * PI / 3.0;
+
+        let filleted = prism
+            .fillet_edges(&names, value)
+            .unwrap_or_else(|declined| {
+                panic!("the fillet, named {order:?}: declined, {declined:?}")
+            });
+        let chamfered = prism
+            .chamfer_edges(&names, value)
+            .unwrap_or_else(|declined| {
+                panic!("the chamfer, named {order:?}: declined, {declined:?}")
+            });
+
+        let what = format!(
+            "the fillet on three top edges in a row of the hexagon, named {order:?}, asked \
+             {value}: the middle one cut too, the outer two never cross on it"
+        );
+        taken_as_asked(filleted.asked, filleted.taken, value, &what);
+        let body = &filleted.body;
+        for (rank, &wall) in IN_A_ROW.iter().enumerate() {
+            let (number, turn) = (number_of(rank), turn_of(rank));
+            let which = format!("{what}: face {number}, wall {wall}'s top edge rounded off");
+            let reach = if rank == 1 { end } else { run_on };
+            drawn_on(body, number, &hexagon_round_to(value, turn, reach), &which);
+            met_from_outside(body, number, &hexagon_round_to(value, turn, mitred), &which);
+            corners_are(
+                body,
+                wall,
+                &in_a_row_wall(value, turn),
+                &format!("{what}: wall {wall}, cut down by the value"),
+            );
+        }
+        do_not_meet(body, [number_of(0), number_of(2)], &what);
+        kept_every_face_and_laid(&prism, body, &laid, &what);
+        corners_are(
+            body,
+            TOP,
+            &in_a_row_top(value),
+            &format!("{what}: the top, set back by the value from all three edges"),
+        );
+        let area = IN_A_ROW.len() as f64 * PI / 2.0 * value * (HEXAGON_SIDE + value);
+        sound_drawn_within(
+            body,
+            hexagon_volume() - taken_off_in_a_row(value, true),
+            DRAWN * reach_of(&prism) * area,
+            &what,
+        );
+
+        let what = format!(
+            "the chamfer on three top edges in a row of the hexagon, named {order:?}, asked \
+             {value}: the middle one cut too, the outer two never cross on it"
+        );
+        taken_as_asked(chamfered.asked, chamfered.taken, value, &what);
+        let body = &chamfered.body;
+        for (rank, &wall) in IN_A_ROW.iter().enumerate() {
+            let (number, turn) = (number_of(rank), turn_of(rank));
+            let which = format!("{what}: face {number}, wall {wall}'s top edge cut off");
+            let (_, facing) = hexagon_flat_to(value, turn, mitred);
+            faces_toward(body, number, facing, &which);
+            corners_are(
+                body,
+                wall,
+                &in_a_row_wall(value, turn),
+                &format!("{what}: wall {wall}, cut down by the value"),
+            );
+        }
+        do_not_meet(body, [number_of(0), number_of(2)], &what);
+        kept_every_face_and_laid(&prism, body, &laid, &what);
+        corners_are(
+            body,
+            TOP,
+            &in_a_row_top(value),
+            &format!("{what}: the top, set back by the value from all three edges"),
+        );
+        let promised = hexagon_volume() - taken_off_in_a_row(value, false);
+        sound_drawn_within(body, promised, EXACT * promised, &what);
+    }
+}
+
+/// Two edges of a part whose rounds would meet, the part, what is asked of
+/// them past it, the value at which a fillet's rounds and a chamfer's flats
+/// touch, and the part's hair.
+type Meeting = (&'static str, [EdgeName; 2], Body, f64, [f64; 2], f64);
+
+/// Every pair this file reduces the value for: through an end face on the
+/// block, on the leaning block and on the L, and across the hexagon's top.
+fn meetings() -> Vec<Meeting> {
+    let block = block();
+    let leaning = leaning_block();
+    let prism = hexagonal_prism();
+    let ell = ell();
+    vec![
+        (
+            "the block's top front edge and right wall's back edge",
+            top_front_and_right_back(&block),
+            block,
+            MORE_THAN_HALF,
+            [TOUCHING, TOUCHING],
+            ONE_HAIR,
+        ),
+        (
+            "the leaning block's top front edge and back upright",
+            top_front_and_right_back(&leaning),
+            leaning,
+            LEANING_ASKED,
+            [leaning_touching(true), leaning_touching(false)],
+            LEANING_HAIR,
+        ),
+        (
+            "the hexagon's front top edge and the top edge two walls round",
+            alternate_top_edges(&prism),
+            prism,
+            HEXAGON_ASKED,
+            [hexagon_touching(), hexagon_touching()],
+            HEXAGON_HAIR,
+        ),
+        (
+            "the L's arm end's top edge and inner upright",
+            arm_end_top_and_inner_upright(&ell),
+            ell,
+            ELL_ASKED,
+            [ell_touching(), ell_touching()],
+            ONE_HAIR,
+        ),
+    ]
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_two_edges_whose_rounds_would_meet_take_the_same_value_whichever_edge_the_step_names_first()
+ {
+    for (pair, [first, second], part, asked, touching, hair) in meetings() {
+        for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+            let step = |names: &[EdgeName]| -> (f64, f64, f64) {
+                let laid = if fillet {
+                    part.fillet_edges(names, asked)
+                        .map(|done| (done.asked, done.taken, done.body.volume()))
+                } else {
+                    part.chamfer_edges(names, asked)
+                        .map(|done| (done.asked, done.taken, done.body.volume()))
+                };
+                laid.unwrap_or_else(|declined| {
+                    panic!("the {kind} on {pair}, asked {asked}: declined, {declined:?}")
+                })
+            };
+            let touching = touching[usize::from(!fillet)];
+
+            let named_first = step(&[first.clone(), second.clone()]);
+            let named_second = step(&[second.clone(), first.clone()]);
+
+            for ((reported, taken, _), order) in [
+                (named_first, "in the order given"),
+                (named_second, "the other way round"),
+            ] {
+                reduced_to_touching(
+                    reported,
+                    taken,
+                    [asked, touching],
+                    hair,
+                    &format!("the {kind} on {pair}, named {order}"),
+                );
+            }
+            assert!(
+                (named_first.1 - named_second.1).abs() < PLACE,
+                "the {kind} on {pair}: took {} named in the order given and {} the other way \
+                 round",
+                named_first.1,
+                named_second.1
+            );
+            assert!(
+                (named_first.2 - named_second.2).abs() <= EXACT * named_first.2,
+                "the {kind} on {pair}: holds {} named in the order given and {} the other way \
+                 round",
+                named_first.2,
+                named_second.2
+            );
+        }
+    }
+}
+
+/// A step on top edges of the hexagonal prism, a fillet's if `fillet`, a
+/// chamfer's if not: the value it reports asked, the one it took, and the
+/// body it laid.
+fn stepped_on_the_hexagon(
+    prism: &Body,
+    names: &[EdgeName],
+    asked: f64,
+    fillet: bool,
+    what: &str,
+) -> (f64, f64, Body) {
+    let laid = if fillet {
+        prism
+            .fillet_edges(names, asked)
+            .map(|done| (done.asked, done.taken, done.body))
+    } else {
+        prism
+            .chamfer_edges(names, asked)
+            .map(|done| (done.asked, done.taken, done.body))
+    };
+    laid.unwrap_or_else(|declined| panic!("{what}: declined, {declined:?}"))
+}
+
+/// Holds that the face numbered `number` is what a step at `value` laid on
+/// the top edge turned by `turn` from the front's: for a fillet, its round,
+/// drawn within `reach` either side of the edge's middle and met by rays
+/// between the mitres; for a chamfer, a flat facing halfway between the top
+/// and the wall.
+fn laid_on_the_top_edge(
+    body: &Body,
+    number: usize,
+    [value, turn, reach]: [f64; 3],
+    fillet: bool,
+    what: &str,
+) {
+    let mitred = HEXAGON_SIDE / 2.0 - value / 3.0f64.sqrt();
+    if fillet {
+        drawn_on(body, number, &hexagon_round_to(value, turn, reach), what);
+        met_from_outside(body, number, &hexagon_round_to(value, turn, mitred), what);
+    } else {
+        let (_, facing) = hexagon_flat_to(value, turn, mitred);
+        faces_toward(body, number, facing, what);
+    }
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_three_top_edges_in_a_row_of_a_hexagonal_prism_named_with_the_middle_one_last_asked_past_where_the_outer_two_would_cross_take_the_value_at_which_they_touch()
+ {
+    let prism = hexagonal_prism();
+    let (asked, touching) = (HEXAGON_ASKED, hexagon_touching());
+    let end = HEXAGON_SIDE / 2.0;
+
+    for order in [[0, 2, 1], [2, 0, 1]] {
+        let names: Vec<EdgeName> = order
+            .iter()
+            .map(|&rank| edge_between(&prism, TOP, IN_A_ROW[rank]))
+            .collect();
+        let laid: Vec<usize> = (0..order.len())
+            .map(|named| prism.faces_end() + named)
+            .collect();
+        let number_of = |rank: usize| {
+            laid[order
+                .iter()
+                .position(|&named| named == rank)
+                .expect("named")]
+        };
+        for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+            let what = format!(
+                "the {kind} on three top edges in a row of the hexagon, named {order:?}, asked \
+                 {asked}: the middle one laid after both outer ones, which would cross on it"
+            );
+
+            let (reported, taken, body) =
+                stepped_on_the_hexagon(&prism, &names, asked, fillet, &what);
+
+            reduced_to_touching(reported, taken, [asked, touching], HEXAGON_HAIR, &what);
+            for (rank, &wall) in IN_A_ROW.iter().enumerate() {
+                let turn = rank as f64 * PI / 3.0;
+                let reach = if rank == 1 {
+                    end
+                } else {
+                    end + taken / 3.0f64.sqrt()
+                };
+                laid_on_the_top_edge(
+                    &body,
+                    number_of(rank),
+                    [taken, turn, reach],
+                    fillet,
+                    &format!("{what}: face {}, wall {wall}'s top edge", number_of(rank)),
+                );
+                corners_are(
+                    &body,
+                    wall,
+                    &in_a_row_wall(taken, turn),
+                    &format!("{what}: wall {wall}, cut down by the value taken"),
+                );
+            }
+            do_not_meet(&body, [number_of(0), number_of(2)], &what);
+            kept_every_face_and_laid(&prism, &body, &laid, &what);
+            corners_are(
+                &body,
+                TOP,
+                &in_a_row_top(taken),
+                &format!("{what}: the top, set back by the value taken from all three edges"),
+            );
+            let promised = hexagon_volume() - taken_off_in_a_row(taken, fillet);
+            let drawn = if fillet {
+                DRAWN * reach_of(&prism) * 3.0 * PI / 2.0 * taken * (HEXAGON_SIDE + taken)
+            } else {
+                EXACT * promised
+            };
+            sound_drawn_within(&body, promised, drawn, &what);
+        }
+    }
+}
+
+/// The numbers of the hexagonal prism's six walls in ring order, from the
+/// front round: the top edge of each turned about the vertical from the
+/// front's by a sixth of a turn for each wall before it.
+const HEXAGON_WALLS: [usize; 6] = [2, 3, 4, 5, 6, 7];
+
+/// What a step at `value` on all six top edges of the hexagonal prism
+/// leaves of its top: the hexagon set back by the value from every edge, a
+/// hexagon of the same middle, its corners mitred by two edges' cuts each.
+fn ring_top(value: f64) -> Vec<DVec3> {
+    let shrink = 1.0 - value / hexagon_half();
+    hexagon_corners()
+        .map(|corner| (corner * shrink).extend(HEXAGON_HEIGHT))
+        .to_vec()
+}
+
+/// The matter a step at `value` on all six top edges takes off the
+/// hexagonal prism, a fillet's if `fillet`, a chamfer's if not. Every edge
+/// cut alike and their cuts mitred, the section at a rise `t` above where
+/// the cuts begin on the walls is the hexagon set back by what the cut
+/// stands in there, δ — `t` for a chamfer, `r − √(r² − t²)` for a fillet —,
+/// of apothem `a − δ` and holding `2√3 (a − δ)²`. Summed up the height the
+/// cuts take and from the hexagon whole there, that leaves
+/// `2√3 (a² d − (a³ − (a − d)³) / 3)` for a chamfer of `d`, and
+/// `2√3 (a² r − (a − r)² r − (a − r) π r² / 2 − 2 r³ / 3)` for a fillet of `r`.
+fn taken_off_the_ring(value: f64, fillet: bool) -> f64 {
+    let (a, v) = (hexagon_half(), value);
+    let root = 2.0 * 3.0f64.sqrt();
+    if fillet {
+        root * (a * a * v
+            - (a - v).powi(2) * v
+            - (a - v) * PI * v * v / 2.0
+            - 2.0 * v.powi(3) / 3.0)
+    } else {
+        root * (a * a * v - (a.powi(3) - (a - v).powi(3)) / 3.0)
+    }
+}
+
+/// Holds that no two of the faces `laid` around a ring, but those next to
+/// each other in it, share an edge: each meets only its neighbours.
+fn only_neighbours_meet(body: &Body, laid: &[usize], what: &str) {
+    for (rank, &one) in laid.iter().enumerate() {
+        for (later, &other) in laid.iter().enumerate().skip(rank + 1) {
+            let apart = later - rank;
+            if apart != 1 && apart != laid.len() - 1 {
+                do_not_meet(body, [one, other], what);
+            }
+        }
+    }
+}
+
+#[test]
+fn a_fillet_and_a_chamfer_on_the_six_top_edges_of_a_hexagonal_prism_in_ring_order_asked_past_where_alternate_edges_would_cross_take_the_value_at_which_they_touch()
+ {
+    let prism = hexagonal_prism();
+    let (asked, touching) = (HEXAGON_ASKED, hexagon_touching());
+    let names: Vec<EdgeName> = HEXAGON_WALLS
+        .iter()
+        .map(|&wall| edge_between(&prism, TOP, wall))
+        .collect();
+    let laid: Vec<usize> = (0..HEXAGON_WALLS.len())
+        .map(|rank| prism.faces_end() + rank)
+        .collect();
+
+    for (kind, fillet) in [("fillet", true), ("chamfer", false)] {
+        let what = format!(
+            "the {kind} on the hexagon's six top edges in ring order, asked {asked}: the last \
+             laid after both its neighbours, which would cross on it"
+        );
+
+        let (reported, taken, body) = stepped_on_the_hexagon(&prism, &names, asked, fillet, &what);
+
+        reduced_to_touching(reported, taken, [asked, touching], HEXAGON_HAIR, &what);
+        for ((rank, &wall), &number) in HEXAGON_WALLS.iter().enumerate().zip(&laid) {
+            let turn = rank as f64 * PI / 3.0;
+            laid_on_the_top_edge(
+                &body,
+                number,
+                [taken, turn, HEXAGON_SIDE / 2.0],
+                fillet,
+                &format!("{what}: face {number}, wall {wall}'s top edge"),
+            );
+            corners_are(
+                &body,
+                wall,
+                &in_a_row_wall(taken, turn),
+                &format!("{what}: wall {wall}, cut down by the value taken"),
+            );
+        }
+        only_neighbours_meet(&body, &laid, &what);
+        kept_every_face_and_laid(&prism, &body, &laid, &what);
+        corners_are(
+            &body,
+            TOP,
+            &ring_top(taken),
+            &format!("{what}: the top, set back by the value taken from every edge"),
+        );
+        let promised = hexagon_volume() - taken_off_the_ring(taken, fillet);
+        let drawn = if fillet {
+            DRAWN * reach_of(&prism) * 6.0 * PI / 2.0 * taken * HEXAGON_SIDE
+        } else {
+            EXACT * promised
+        };
+        sound_drawn_within(&body, promised, drawn, &what);
     }
 }

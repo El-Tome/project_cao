@@ -13,13 +13,14 @@ use crate::brep::{self, Curve, EdgeId};
 /// the edge, square to it along the face, over its set-back of one.
 type Depths = [f64; 2];
 
-/// The most value at which no two of `edges` that do not meet at a corner
-/// set back the faces of their wedges, in `wedges` at their ranks, as far as
-/// one point of a straight edge of the body bounding a face of each, by the
-/// set-back of a value of one `set_back` says. Each cut runs on along its
-/// edge's line, so it sets back its faces everywhere it reaches; two whose
-/// cuts meet do so first on such an edge. For two parallel edges facing each
-/// other across a face they share it is [`super::pairs::bound`]'s.
+/// The least value at which the set-backs of two of `edges` that do not meet
+/// at a corner — of their wedges in `wedges`, at their ranks, by the set-back
+/// of a value of one `set_back` says — reach one point of a straight edge of
+/// the body bounding a face of each. An edge of the list laid before the
+/// later of the two takes that point away first, and bounds nothing for them.
+/// Where a straight edge joins two parallel edges facing each other across a
+/// face, it is [`super::pairs::bound`]'s; across a face whose sides between
+/// them are curved, only that one sees them.
 pub(super) fn bound(
     body: &brep::Body,
     edges: &[EdgeId],
@@ -37,6 +38,7 @@ pub(super) fn bound(
     let eps = body.scale().eps();
     let mut most = f64::INFINITY;
     for (edge, sides) in bounding {
+        let listed = edges.iter().position(|&listed| listed == edge);
         let stretch = body.edge(edge);
         let (Curve::Line(_), Some(ends)) = (body.curve(stretch.curve), stretch.ends) else {
             continue;
@@ -52,7 +54,11 @@ pub(super) fn bound(
         };
         for (index, one) in sides.iter().enumerate() {
             for other in &sides[index + 1..] {
-                if one.0 == other.0 || corners::meet(body, [edges[one.0], edges[other.0]]) {
+                let taken_first = listed.is_some_and(|rank| rank != one.0 && rank < other.0);
+                if one.0 == other.0
+                    || taken_first
+                    || corners::meet(body, [edges[one.0], edges[other.0]])
+                {
                     continue;
                 }
                 if let Some(value) = reached([depths(one), depths(other)], eps) {

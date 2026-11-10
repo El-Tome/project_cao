@@ -8,16 +8,12 @@
 //!   it belongs to the step's operation, not to its place in the history, as a
 //!   sketch's eye does —
 //!   `a_volume_s_visibility_belongs_to_its_operation_not_to_its_place_in_the_history`
-//! - « TOUT LE CORPS » sets every volume at once —
-//!   `choosing_for_the_whole_body_sets_every_volume_at_once`; it is lit on the
-//!   state they all share, and on no segment when they differ —
-//!   `the_whole_body_reads_the_state_every_volume_shares_and_none_once_they_differ`
-//! - a face of the part made by no listed volume takes the last state chosen in
-//!   « TOUT LE CORPS » (opaque at first), even when no segment is lit any more
-//!   — `the_last_whole_body_choice_stays_for_the_faces_no_volume_made_once_the_volumes_differ`;
-//!   asked face by face, a face takes the state of the volume that made it
-//!   (`faces_made_by`), and one no volume made the last whole-body choice —
-//!   `a_face_takes_its_volume_s_state_and_one_no_volume_made_the_last_whole_body_choice`
+//! - « Tout rendre opaque » sets every volume back to opaque, and says
+//!   whether it would do anything — it does nothing when they all are —
+//!   `making_everything_opaque_puts_every_volume_back_to_opaque`
+//! - criteria 4 and 6 as first written, « TOUT LE CORPS » and the faces no
+//!   volume made — no test: both struck on 2026-11-10 by Tom, and the tests
+//!   that held them deleted with them
 
 use cao_part::{ExtrusionMode, PointRef};
 use cao_sketch::WorkPlane;
@@ -90,12 +86,6 @@ fn a_cut_through_the_middle(document: &PartDocument, depth: f64) -> Operation {
     }
 }
 
-const EVERY_STATE: [MatterInFront; 3] = [
-    MatterInFront::Hidden,
-    MatterInFront::SeeThrough,
-    MatterInFront::Opaque,
-];
-
 #[test]
 fn a_volume_s_visibility_cycles_opaque_see_through_invisible_and_round_again() {
     let document = a_block_with_a_hole();
@@ -160,119 +150,28 @@ fn a_volume_s_visibility_belongs_to_its_operation_not_to_its_place_in_the_histor
 }
 
 #[test]
-fn choosing_for_the_whole_body_sets_every_volume_at_once() {
-    let document = a_block_with_a_hole();
-
-    for chosen in EVERY_STATE {
-        let mut state = ViewportState::default();
-        state.next_volume_mode(&document, THE_HOLE);
-
-        state.set_whole_body(chosen);
-
-        assert_eq!(
-            [THE_BLOCK, THE_HOLE].map(|step| state.volume_mode(&document, step)),
-            [chosen; 2],
-            "« TOUT LE CORPS » set to {chosen:?} leaves a volume in another state",
-        );
-    }
-}
-
-#[test]
-fn the_whole_body_reads_the_state_every_volume_shares_and_none_once_they_differ() {
+fn making_everything_opaque_puts_every_volume_back_to_opaque() {
     let document = a_block_with_a_hole();
     let mut state = ViewportState::default();
-    assert_eq!(
-        state.shared_volume_mode(&document),
-        Some(MatterInFront::Opaque),
-        "every volume opens opaque, and « Opaque » is lit",
-    );
-
-    state.next_volume_mode(&document, THE_HOLE);
-    assert_eq!(
-        state.shared_volume_mode(&document),
-        None,
-        "the cut see-through and the block opaque light no segment",
-    );
-
-    state.next_volume_mode(&document, THE_BLOCK);
-    assert_eq!(
-        state.shared_volume_mode(&document),
-        Some(MatterInFront::SeeThrough),
-        "both made see-through one by one light « Transparent »",
-    );
-
-    state.set_whole_body(MatterInFront::Hidden);
-    assert_eq!(
-        state.shared_volume_mode(&document),
-        Some(MatterInFront::Hidden),
-        "« Invisible » chosen is lit",
-    );
-}
-
-#[test]
-fn the_last_whole_body_choice_stays_for_the_faces_no_volume_made_once_the_volumes_differ() {
-    let document = a_block_with_a_hole();
-    let mut state = ViewportState::default();
-    assert_eq!(
-        state.whole_body_choice(),
-        MatterInFront::Opaque,
-        "before any choice, the faces no volume made are opaque",
-    );
-
-    state.set_whole_body(MatterInFront::SeeThrough);
-    state.next_volume_mode(&document, THE_HOLE);
-    assert_eq!(
-        state.shared_volume_mode(&document),
-        None,
-        "the fixture wants the volumes to differ",
-    );
-
-    assert_eq!(
-        state.whole_body_choice(),
-        MatterInFront::SeeThrough,
-        "a volume changed on its own takes the last choice away from the faces no volume made",
-    );
-}
-
-/// A face no step handed out. No part built today has a face that no
-/// extrusion or revolution made, so this number stands in for one.
-const A_FACE_NO_VOLUME_MADE: usize = usize::MAX;
-
-#[test]
-fn a_face_takes_its_volume_s_state_and_one_no_volume_made_the_last_whole_body_choice() {
-    let document = a_block_with_a_hole();
-    let made_by = |step: usize| {
-        let number = document.history.number_at(step).expect("a numbered step");
-        document.faces_made_by(number)
-    };
-    let (block, wall) = (made_by(THE_BLOCK), made_by(THE_HOLE));
     assert!(
-        !block.is_empty() && !wall.is_empty(),
-        "the fixture wants faces made by each volume: {block:?} {wall:?}",
+        state.all_opaque(&document),
+        "a part opens with a volume that is not opaque"
     );
-    let mut state = ViewportState::default();
-    state.set_whole_body(MatterInFront::Hidden);
-    state.next_volume_mode(&document, THE_HOLE);
-    state.next_volume_mode(&document, THE_BLOCK);
-    state.next_volume_mode(&document, THE_BLOCK);
 
-    for face in &block {
-        assert_eq!(
-            state.face_modes(&document).of(Some(*face)),
-            MatterInFront::SeeThrough,
-            "face {face}, made by the block, is not drawn as the block is",
-        );
-    }
-    for face in &wall {
-        assert_eq!(
-            state.face_modes(&document).of(Some(*face)),
-            MatterInFront::Opaque,
-            "face {face}, a wall of the hole, is not drawn as the cut is",
-        );
-    }
-    assert_eq!(
-        state.face_modes(&document).of(Some(A_FACE_NO_VOLUME_MADE)),
-        MatterInFront::Hidden,
-        "a face no volume made is not drawn as « TOUT LE CORPS » last chose",
+    state.next_volume_mode(&document, THE_BLOCK);
+    state.next_volume_mode(&document, THE_HOLE);
+    state.next_volume_mode(&document, THE_HOLE);
+    assert!(
+        !state.all_opaque(&document),
+        "the block see-through and the cut invisible read as all opaque",
     );
+
+    state.make_all_opaque();
+
+    assert_eq!(
+        [THE_BLOCK, THE_HOLE].map(|step| state.volume_mode(&document, step)),
+        [MatterInFront::Opaque; 2],
+        "« Tout rendre opaque » leaves a volume in another state",
+    );
+    assert!(state.all_opaque(&document));
 }

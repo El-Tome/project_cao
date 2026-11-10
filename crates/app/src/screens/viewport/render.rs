@@ -86,7 +86,7 @@ pub(crate) fn build_frame(
     going: Option<&Going>,
     measuring: Option<&Measuring>,
 ) -> SceneFrame {
-    let drawn = super::matter::seen(state, context.editor, context.document.body());
+    let drawn = super::matter::seen(state, context.editor, context.document);
     let shown = (going, measuring, drawn.as_ref());
     frame_of(state, (rect, cube_rect), scale, context, shown)
 }
@@ -185,7 +185,7 @@ pub(crate) fn frame_of(
 
     let mut solids = Vec::new();
     let matter_from = surfaces.len();
-    body::push_matter(&mut solids, &mut surfaces, state, context.document, drawn);
+    body::push_matter(&mut solids, &mut surfaces, state, drawn);
     let veiled_matter = matter_from..surfaces.len();
     section_panel::push_section_plane(&mut surfaces, &mut lines, state, scale, context);
 

@@ -176,6 +176,12 @@ impl Exact {
         })
     }
 
+    /// No matter, counted as this body is: what joining a tool to it would
+    /// number the tool's faces from.
+    pub fn emptied(&self) -> Exact {
+        Exact::of(brep::Body::empty(), self.next, self.pieces, BTreeMap::new())
+    }
+
     pub fn count_past(&mut self, outline: &Contour, holes: &[Contour]) {
         self.next += brep::Body::numbers_raised(outline, holes);
     }

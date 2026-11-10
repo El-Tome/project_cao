@@ -1,15 +1,19 @@
 //! What of the part the canvas shows. A sketch an extrusion or a revolution
 //! was made from steps out of the way, unless its eye was lit; one never used
 //! stays. A row clicked in the tree is lit where it stands, and each volume is
-//! drawn invisible, see-through or opaque, on its own or with the whole body.
+//! drawn invisible, see-through or opaque.
 
+mod shown;
+
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 
 use cao_part::history::StepKind;
-use cao_part::{Operation, PartDocument};
+use cao_part::{Operation, PartDocument, VolumeState};
 use cao_render::MatterInFront;
 use cao_sketch::Sketch;
-use cao_solid::Body;
+
+use shown::Replayed;
 
 use super::ViewportState;
 use crate::screens::SketchContext;
@@ -27,9 +31,9 @@ pub(super) struct Visibility {
     /// The volumes set by hand, by the number of the operation that made
     /// them, as the eyes are.
     volumes: BTreeMap<u32, MatterInFront>,
-    /// The last state chosen for the whole body: what a volume left alone
-    /// reads, and what the faces no volume made are drawn in.
-    whole_body: MatterInFront,
+    /// The part last shown with the volumes' states, and what it was shown
+    /// from.
+    shown: RefCell<Option<Replayed>>,
 }
 
 impl Default for Visibility {
@@ -39,7 +43,7 @@ impl Default for Visibility {
             lit: None,
             hovered: None,
             volumes: BTreeMap::new(),
-            whole_body: MatterInFront::Opaque,
+            shown: RefCell::new(None),
         }
     }
 }
@@ -105,47 +109,14 @@ impl ViewportState {
 }
 
 impl ViewportState {
-    /// How the volume made at that step of the history is drawn.
+    /// How the volume made at that step of the history is drawn: opaque until
+    /// its visibility button is clicked.
     pub(crate) fn volume_mode(&self, document: &PartDocument, step: usize) -> MatterInFront {
         let chosen = document
             .history
             .number_at(step)
             .and_then(|number| self.visibility.volumes.get(&number));
-        chosen.copied().unwrap_or(self.visibility.whole_body)
-    }
-
-    pub(crate) fn whole_body_choice(&self) -> MatterInFront {
-        self.visibility.whole_body
-    }
-
-    /// How each face of the part is drawn: as the volume that made it. Asking
-    /// a step for its faces replays the history, so it is asked only once a
-    /// volume was set apart from the whole body.
-    pub(crate) fn face_modes(&self, document: &PartDocument) -> FaceModes {
-        if self.visibility.volumes.is_empty() {
-            return FaceModes {
-                made: BTreeMap::new(),
-                rest: self.whole_body_choice(),
-            };
-        }
-        let made = volumes(document)
-            .filter_map(|step| {
-                let faces = document.faces_made_by(document.history.number_at(step)?);
-                let mode = self.volume_mode(document, step);
-                Some(faces.into_iter().map(move |face| (face, mode)))
-            })
-            .flatten()
-            .collect();
-        FaceModes {
-            made,
-            rest: self.whole_body_choice(),
-        }
-    }
-
-    /// Whether no face of the part can be drawn at all.
-    pub(crate) fn shows_nothing(&self) -> bool {
-        let hidden = |mode: &MatterInFront| *mode == MatterInFront::Hidden;
-        hidden(&self.visibility.whole_body) && self.visibility.volumes.values().all(hidden)
+        chosen.copied().unwrap_or(MatterInFront::Opaque)
     }
 
     /// Opaque, see-through, invisible, and round again: the volume made at
@@ -157,46 +128,30 @@ impl ViewportState {
         }
     }
 
-    /// Draws every volume, and the faces none of them made, in that state.
-    pub(crate) fn set_whole_body(&mut self, mode: MatterInFront) {
+    /// Whether every volume of the document is opaque.
+    pub(crate) fn all_opaque(&self, document: &PartDocument) -> bool {
+        volumes(document).all(|step| self.volume_mode(document, step) == MatterInFront::Opaque)
+    }
+
+    /// « Tout rendre opaque »: every volume back to opaque.
+    pub(crate) fn make_all_opaque(&mut self) {
         self.visibility.volumes.clear();
-        self.visibility.whole_body = mode;
     }
 
-    /// The state every volume of the history shares, if they share one.
-    pub(crate) fn shared_volume_mode(&self, document: &PartDocument) -> Option<MatterInFront> {
-        let mut modes = volumes(document).map(|step| self.volume_mode(document, step));
-        let first = modes.next().unwrap_or(self.visibility.whole_body);
-        modes.all(|mode| mode == first).then_some(first)
-    }
-}
-
-/// How the faces of the part are drawn, by the number of each.
-pub(crate) struct FaceModes {
-    made: BTreeMap<usize, MatterInFront>,
-    /// What a face no volume made is drawn as.
-    rest: MatterInFront,
-}
-
-impl FaceModes {
-    pub(crate) fn of(&self, face: Option<usize>) -> MatterInFront {
-        let made = face.and_then(|face| self.made.get(&face));
-        made.copied().unwrap_or(self.rest)
-    }
-
-    /// How a face of `drawn` is drawn: a piece a cut or a section parted and
-    /// numbered anew, as the part's own face it was parted from.
-    pub(crate) fn of_piece(&self, drawn: &Body, face: Option<usize>) -> MatterInFront {
-        let mut face = face;
-        while let Some(piece) = face.filter(|face| !self.made.contains_key(face)) {
-            face = drawn.parted_from(piece);
-        }
-        self.of(face)
-    }
-
-    /// Whether a face of `drawn` is drawn, and so met by a ray.
-    pub(crate) fn shows(&self, drawn: &Body, face: usize) -> bool {
-        self.of_piece(drawn, Some(face)) != MatterInFront::Hidden
+    /// Every volume of the document not shown opaque, by the number of its
+    /// operation, as the part's replay names its states.
+    fn volume_states(&self, document: &PartDocument) -> BTreeMap<u32, VolumeState> {
+        volumes(document)
+            .filter_map(|step| {
+                let number = document.history.number_at(step)?;
+                let state = match self.volume_mode(document, step) {
+                    MatterInFront::Opaque => return None,
+                    MatterInFront::SeeThrough => VolumeState::SeeThrough,
+                    MatterInFront::Hidden => VolumeState::Invisible,
+                };
+                Some((number, state))
+            })
+            .collect()
     }
 }
 

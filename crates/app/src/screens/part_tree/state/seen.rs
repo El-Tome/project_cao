@@ -10,13 +10,11 @@ use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
 use crate::wording::part_tree as said;
 
-/// One segment of « TOUT LE CORPS »: the state it sets every volume to, lit
-/// while every volume is in it.
+/// An action the panel offers, and whether it would do anything now.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Segment {
-    pub name: String,
-    pub mode: MatterInFront,
-    pub lit: bool,
+pub struct Offered {
+    pub label: String,
+    pub enabled: bool,
 }
 
 impl PartTree {
@@ -37,20 +35,10 @@ impl PartTree {
             body.visibility_button = said::visibility_button(lang, body.shown);
             body.dimmed = body.shown == MatterInFront::Hidden;
         }
-        let shared = viewport.shared_volume_mode(document);
-        let states = [
-            MatterInFront::Hidden,
-            MatterInFront::SeeThrough,
-            MatterInFront::Opaque,
-        ];
-        tree.whole_body = states
-            .into_iter()
-            .map(|mode| Segment {
-                name: said::whole_body(lang, mode),
-                mode,
-                lit: shared == Some(mode),
-            })
-            .collect();
+        tree.make_all_opaque = (!tree.bodies.is_empty()).then(|| Offered {
+            label: lang.t("part_tree.make_all_opaque"),
+            enabled: !viewport.all_opaque(document),
+        });
         tree
     }
 }

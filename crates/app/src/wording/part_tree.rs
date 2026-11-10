@@ -12,7 +12,6 @@ pub enum Rubric {
     Sketches,
     Volumes,
     Sections,
-    WholeBody,
     Variables,
 }
 
@@ -21,7 +20,6 @@ pub fn rubric(lang: &Catalogue, rubric: Rubric) -> String {
         Rubric::Sketches => "part_tree.rubric.sketches",
         Rubric::Volumes => "part_tree.rubric.volumes",
         Rubric::Sections => "part_tree.rubric.sections",
-        Rubric::WholeBody => "part_tree.rubric.whole_body",
         Rubric::Variables => "part_tree.rubric.variables",
     })
 }
@@ -78,14 +76,5 @@ pub fn visibility_button(lang: &Catalogue, mode: MatterInFront) -> String {
         MatterInFront::Opaque => "part_tree.volume.make_see_through",
         MatterInFront::SeeThrough => "part_tree.volume.make_hidden",
         MatterInFront::Hidden => "part_tree.volume.make_opaque",
-    })
-}
-
-/// A segment of « TOUT LE CORPS », named after the state it sets.
-pub fn whole_body(lang: &Catalogue, mode: MatterInFront) -> String {
-    lang.t(match mode {
-        MatterInFront::Hidden => "part_tree.whole_body.hidden",
-        MatterInFront::SeeThrough => "part_tree.whole_body.see_through",
-        MatterInFront::Opaque => "part_tree.whole_body.opaque",
     })
 }

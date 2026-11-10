@@ -92,30 +92,6 @@ use cao_part::PartDocument;
 use cao_render::{MatterInFront, OrbitCamera};
 use cao_solid::profile::{Contour, Run};
 
-/// A click on a bare body while the section waits for a face. No step of a
-/// part made the body, so each of its faces is drawn as « TOUT LE CORPS »
-/// says.
-fn choose_a_cutting_face(
-    state: &mut ViewportState,
-    body: &Body,
-    clicked: bool,
-    origin: DVec3,
-    direction: DVec3,
-) -> bool {
-    let faces = state.face_modes(&PartDocument::new("part", chrono::Utc::now()));
-    cut_along_a_face(state, (body, &faces), clicked, origin, direction)
-}
-
-/// What a bare body offers to draw on under a ray, every face of it shown.
-fn what_the_part_offers(
-    body: &Body,
-    origin: DVec3,
-    direction: DVec3,
-    screen_up: impl Fn(DVec3) -> DVec3,
-) -> Option<PlaneChoice> {
-    what_is_shown_offers(body, &|_| true, (origin, direction), screen_up)
-}
-
 /// Which way is up on screen once the view has swung onto a face — the same
 /// answer `once_facing` gives, without a viewport to ask.
 fn facing(normal: DVec3) -> DVec3 {
@@ -885,10 +861,25 @@ fn the_section_takes_no_gesture_while_a_sketch_is_edited() {
     );
 }
 
-/// A view with the body drawn `mode`, chosen in « TOUT LE CORPS ».
+/// Where the block of `a_part_holding_a_block` is raised in its history.
+const THE_BLOCK_S_STEP: usize = 2;
+
+/// A view with the block, the part's one volume, drawn `mode`, reached one
+/// click of its visibility button at a time.
 fn with_the_body(mode: MatterInFront) -> ViewportState {
+    let document = a_part_holding_a_block();
     let mut state = ViewportState::default();
-    state.set_whole_body(mode);
+    for _ in 0..3 {
+        if state.volume_mode(&document, THE_BLOCK_S_STEP) == mode {
+            break;
+        }
+        state.next_volume_mode(&document, THE_BLOCK_S_STEP);
+    }
+    assert_eq!(
+        state.volume_mode(&document, THE_BLOCK_S_STEP),
+        mode,
+        "three clicks never reach {mode:?}",
+    );
     state
 }
 
@@ -989,26 +980,34 @@ fn an_invisible_body_offers_nothing_of_itself_to_draw_on() {
 
 #[test]
 fn an_invisible_body_offers_no_face_to_cut_along() {
-    let body = block(10.0, 10.0, 4.0);
-    let mut state = waiting_for_a_face();
-    state.set_whole_body(MatterInFront::Hidden);
-
-    let taken = choose_a_cutting_face(
-        &mut state,
-        &body,
-        true,
-        DVec3::new(50.0, 5.0, 1.0),
-        DVec3::NEG_X,
+    let on_the_top = DVec3::new(5.0, 5.0, 4.0);
+    let clicked_with = |clicks: usize| {
+        let document = a_part_holding_a_block();
+        let mut section = Section::new(WorkPlane::XY);
+        section.offset = 10.0;
+        section.wait_for_a_face();
+        let mut state = ViewportState::default();
+        state.section = Some(section);
+        for _ in 0..clicks {
+            state.next_volume_mode(&document, THE_BLOCK_S_STEP);
+        }
+        a_click_from_above_while_the_section_waits(document, state, on_the_top)
+    };
+    let waiting = |state: &ViewportState| {
+        state
+            .section
+            .as_ref()
+            .expect("the section stays on")
+            .is_waiting_for_a_face()
+    };
+    assert!(
+        !waiting(&clicked_with(0)),
+        "the fixture wants a click on the top of an opaque block to take it as the cutting face",
     );
 
-    let section = state.section.as_ref().expect("the section stays on");
     assert!(
-        !taken,
-        "a click on the side of an invisible block takes it as the cutting face"
-    );
-    assert!(
-        section.is_waiting_for_a_face(),
-        "a click on an invisible block, the panel no longer waits for a face",
+        waiting(&clicked_with(2)),
+        "a click on the top of an invisible block takes it as the cutting face",
     );
 }
 

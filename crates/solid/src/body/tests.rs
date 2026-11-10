@@ -1151,3 +1151,39 @@ fn a_ray_goes_through_the_faces_it_is_not_to_meet_on_either_kernel() {
         );
     }
 }
+
+#[test]
+fn a_face_answering_to_two_numbers_is_met_when_either_is_kept_and_reads_its_first() {
+    let part = block(DVec2::ZERO, DVec2::new(20.0, 10.0), 10.0);
+    let beside = block(DVec2::new(10.0, 0.0), DVec2::new(30.0, 10.0), 10.0);
+    let joined = part.union(&beside).expect("the kernel joins them");
+    let beside_s_top = 6 + TOP;
+    let (origin, down) = (DVec3::new(25.0, 5.0, 50.0), DVec3::NEG_Z);
+
+    for kept in [TOP, beside_s_top] {
+        let hit = joined
+            .ray_hit_among(origin, down, &|face| face == kept)
+            .unwrap_or_else(|| {
+                panic!(
+                    "the top answering to {TOP} and {beside_s_top}, only {kept} kept, is not met"
+                )
+            });
+        assert_eq!(
+            hit.face, TOP,
+            "the top met with only {kept} kept reads {}, not its first number",
+            hit.face,
+        );
+        assert!(
+            (hit.distance - 40.0).abs() < 1e-9,
+            "the top met with only {kept} kept is met {} along",
+            hit.distance,
+        );
+    }
+    let neither = joined
+        .ray_hit_among(origin, down, &|face| face != TOP && face != beside_s_top)
+        .map(|hit| hit.distance);
+    assert!(
+        neither.is_some_and(|distance| (distance - 50.0).abs() < 1e-9),
+        "with neither of the top's numbers kept, the ray stops {neither:?} along, not on the floor",
+    );
+}

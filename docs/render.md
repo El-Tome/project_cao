@@ -45,8 +45,10 @@ is explained in [viewport.md](viewport.md). Everything else goes over the top
 deliberately: a sketch or a dimension buried in a block would be unusable, and
 the orientation cube must never be hidden by the part.
 
-The faces of a volume set « transparente » are matter all the same, and an
-opaque face in front of them must hide them. They travel in `scene_surfaces`
+The see-through matter — the ghost of a volume set « transparente », its raw
+block as `cao_part`'s `PartDocument::shown` hands it, and the matter in front
+of a sketch or a section drawn see-through — is matter all the same, and an
+opaque face in front of it must hide it. It travels in `scene_surfaces`
 — that is where a frame's translucent triangles are read — and
 `SceneFrame::scene_veiled_matter` says which range of that list they hold.
 The renderer draws `scene_surfaces` in three slices, in order: before the

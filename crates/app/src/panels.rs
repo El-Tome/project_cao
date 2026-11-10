@@ -51,7 +51,7 @@ pub(crate) fn beside_the_part(
             screens::part_tree::TreeAction::NextVolumeMode(step) => {
                 viewport.next_volume_mode(doc, step);
             }
-            screens::part_tree::TreeAction::SetWholeBody(mode) => viewport.set_whole_body(mode),
+            screens::part_tree::TreeAction::MakeAllOpaque => viewport.make_all_opaque(),
             screens::part_tree::TreeAction::ToggleSection(section) => {
                 viewport.kept_sections.toggle(section);
             }

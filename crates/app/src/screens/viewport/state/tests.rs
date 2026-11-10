@@ -82,7 +82,7 @@ use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
-use crate::screens::viewport::matter::{drawn_under, shown};
+use crate::screens::viewport::matter::{drawn_under, seen};
 
 /// Who the canvas hands the gesture to, on an empty part.
 fn asked(cube_took_it: bool, setting_up_an_extrusion: bool) -> GestureGoesTo {
@@ -459,10 +459,8 @@ fn under(
     document: &PartDocument,
     (origin, direction): (DVec3, DVec3),
 ) -> Option<DVec3> {
-    let editor = SketchEditor::default();
-    let drawn = shown(state, &editor, document.body());
-    let faces = state.face_modes(document);
-    let (_, hit) = drawn_under(&faces, &drawn, origin, direction)?;
+    let drawn = seen(state, &SketchEditor::default(), document)?;
+    let (_, hit) = drawn_under(&drawn, origin, direction)?;
     Some(origin + direction * hit.distance)
 }
 
@@ -511,23 +509,32 @@ fn a_ray_that_meets_nothing_of_the_part_points_at_nothing() {
 fn a_hidden_body_has_no_point_under_a_ray() {
     let document = a_block_on_the_origin();
     let mut state = ViewportState::default();
+    let the_block = 2;
     assert_eq!(
-        state.whole_body_choice(),
+        state.volume_mode(&document, the_block),
         MatterInFront::Opaque,
-        "the body opens opaque"
+        "the block opens opaque"
     );
     assert!(
         under(&state, &document, FROM_ABOVE).is_some(),
         "an opaque body is met"
     );
 
-    state.set_whole_body(MatterInFront::SeeThrough);
+    state.next_volume_mode(&document, the_block);
+    assert_eq!(
+        state.volume_mode(&document, the_block),
+        MatterInFront::SeeThrough
+    );
     assert!(
         under(&state, &document, FROM_ABOVE).is_some(),
         "a see-through body is drawn, and is met as a plane is chosen on it",
     );
 
-    state.set_whole_body(MatterInFront::Hidden);
+    state.next_volume_mode(&document, the_block);
+    assert_eq!(
+        state.volume_mode(&document, the_block),
+        MatterInFront::Hidden
+    );
     assert_eq!(
         under(&state, &document, FROM_ABOVE),
         None,

@@ -11,7 +11,7 @@ use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
 use crate::ui::icon;
 use crate::ui::question::{Question, ask};
-use crate::ui::segmented::{Segment, segmented};
+use crate::ui::secondary_button::secondary_button;
 use crate::ui::theme::tokens;
 use crate::ui::tree_row::{Eye, TreeRow, folding_row, tree_note, tree_row};
 use crate::wording::part_tree::{self as said, Problem, Rubric};
@@ -78,32 +78,26 @@ fn show(ui: &mut egui::Ui, asked: &mut Asked<'_>, lang: &Catalogue) {
                     for body in &tree.bodies {
                         made_of_matter(ui, body, asked, lang);
                     }
+                    if let Some(offered) = &tree.make_all_opaque {
+                        make_all_opaque(ui, offered, asked);
+                    }
                 }
                 Rubric::Sections => {
                     for kept in &tree.sections {
                         section(ui, kept, asked, lang);
                     }
                 }
-                Rubric::WholeBody => whole_body(ui, &tree.whole_body, asked),
                 Rubric::Variables => variables(ui, &tree.variables, lang),
             }
         }
     });
 }
 
-/// « TOUT LE CORPS »: one segment per state, which sets every volume at once.
-fn whole_body(ui: &mut egui::Ui, segments: &[state::Segment], asked: &mut Asked<'_>) {
-    let segments: Vec<_> = segments
-        .iter()
-        .map(|segment| Segment {
-            name: &segment.name,
-            value: segment.mode,
-            lit: segment.lit,
-        })
-        .collect();
+/// « Tout rendre opaque », under the volumes, greyed while they all are.
+fn make_all_opaque(ui: &mut egui::Ui, offered: &state::Offered, asked: &mut Asked<'_>) {
     ui.add_space(tokens::SPACING_S);
-    if let Some(mode) = segmented(ui, &segments) {
-        asked.action = TreeAction::SetWholeBody(mode);
+    if secondary_button(ui, offered.enabled, &offered.label).clicked() {
+        asked.action = TreeAction::MakeAllOpaque;
     }
 }
 

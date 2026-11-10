@@ -107,14 +107,14 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     // price.
     let measuring = what_is_measured(sketch);
 
-    let drawn = seen(state, sketch.editor, sketch.document.body());
+    let drawn = seen(state, sketch.editor, sketch.document);
     let shown = (going.as_ref(), measuring.as_ref(), drawn.as_ref());
     let mut frame = frame_of(state, (rect, cube_rect), scale, sketch, shown);
     let on_the_part = response
         .hover_pos()
         .filter(|_| sketch.editor.active_sketch().is_none())
         .zip(drawn)
-        .and_then(|(at, drawn)| state.point_of_the_part_at(sketch.document, &drawn, at, rect));
+        .and_then(|(at, drawn)| state.point_of_the_part_at(&drawn, at, rect));
     let now = ui.input(|input| input.time);
     push_blinking_matter(&mut frame.scene_surfaces, state, sketch, now);
     if state.faces_blinking(now).is_some() {

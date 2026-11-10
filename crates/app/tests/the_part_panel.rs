@@ -38,8 +38,10 @@
 //! - a volume row's visibility button cycles opaque → « transparente » →
 //!   invisible, and the state is written on the row's line —
 //!   `clicking_a_volume_s_visibility_button_writes_its_next_state_on_its_row`
-//! - « TOUT LE CORPS » sets every volume at once —
-//!   `clicking_opaque_in_the_whole_body_selector_makes_every_volume_opaque`
+//! - « Tout rendre opaque » sets every volume back to opaque, and is greyed
+//!   while they all are — `clicking_make_everything_opaque_brings_every_row_back_to_opaque`;
+//!   it replaced the « TOUT LE CORPS » selector of criterion 4 as first
+//!   written, struck on 2026-11-10 by Tom, whose test was deleted
 //! - the « Corps » row is gone —
 //!   `the_part_panel_holds_no_body_row_any_more`
 //!
@@ -548,27 +550,6 @@ fn clicking_a_volume_s_visibility_button_writes_its_next_state_on_its_row() {
 }
 
 #[test]
-fn clicking_opaque_in_the_whole_body_selector_makes_every_volume_opaque() {
-    let mut app =
-        driver::a_block("clicking_opaque_in_the_whole_body_selector_makes_every_volume_opaque");
-    driver::click_exactly(&mut app, "Rendre transparente");
-    assert_eq!(
-        state_written_on(&app, "Extrusion 1"),
-        ["transparente"],
-        "the fixture wants the block made see-through first",
-    );
-
-    driver::click_exactly(&mut app, "Opaque");
-
-    assert_eq!(
-        state_written_on(&app, "Extrusion 1"),
-        ["opaque"],
-        "« Opaque » clicked in « TOUT LE CORPS », showing {:?}",
-        driver::on_screen(&app),
-    );
-}
-
-#[test]
 fn the_part_panel_holds_no_body_row_any_more() {
     let app = driver::a_block("the_part_panel_holds_no_body_row_any_more");
     assert!(
@@ -588,4 +569,33 @@ fn the_part_panel_holds_no_body_row_any_more() {
         .collect();
 
     assert!(body_rows.is_empty(), "the panel still reads {body_rows:?}",);
+}
+
+#[test]
+fn clicking_make_everything_opaque_brings_every_row_back_to_opaque() {
+    let mut app =
+        driver::a_block("clicking_make_everything_opaque_brings_every_row_back_to_opaque");
+    assert!(
+        !driver::is_enabled(&app, "Tout rendre opaque"),
+        "every volume opaque, « Tout rendre opaque » is offered as though it would do something",
+    );
+    driver::click_exactly(&mut app, "Rendre transparente");
+    assert_eq!(
+        state_written_on(&app, "Extrusion 1"),
+        ["transparente"],
+        "the fixture wants the block made see-through first",
+    );
+    assert!(
+        driver::is_enabled(&app, "Tout rendre opaque"),
+        "the block see-through, « Tout rendre opaque » is greyed",
+    );
+
+    driver::click_the_button(&mut app, "Tout rendre opaque");
+
+    assert_eq!(
+        state_written_on(&app, "Extrusion 1"),
+        ["opaque"],
+        "« Tout rendre opaque » clicked, showing {:?}",
+        driver::on_screen(&app),
+    );
 }

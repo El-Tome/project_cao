@@ -4,7 +4,9 @@
 
 use glam::DVec3;
 
-use super::{Body, FaceHit, Matter};
+use super::{Body, FaceHit, Flats, Matter};
+use crate::brep::Declined;
+use crate::mesh::Mesh;
 
 impl Body {
     /// The triangles the body is drawn with, each beside the number of the
@@ -27,7 +29,8 @@ impl Body {
     }
 
     /// The face a ray meets first among those `kept` lets through, the ray
-    /// going on through the others as if they were not there.
+    /// going on through the others as if they were not there. A face that
+    /// answers to several numbers is met when one of them is let through.
     pub fn ray_hit_among(
         &self,
         origin: DVec3,
@@ -45,5 +48,19 @@ impl Body {
                 })
             }
         }
+    }
+
+    /// This tool with its faces numbered as joining it to `part` or cutting
+    /// it from `part` would number them, and nothing of `part`: a tool shown
+    /// apart from the part then answers to the numbers its faces have there.
+    pub fn numbered_after(&self, part: &Body) -> Result<Body, Declined> {
+        let emptied = match &part.matter {
+            Matter::Exact(exact) => Matter::Exact(Box::new(exact.emptied())),
+            Matter::Flats(flats) => Matter::Flats(Flats {
+                mesh: Mesh::default(),
+                next: flats.next,
+            }),
+        };
+        Body { matter: emptied }.union(self)
     }
 }

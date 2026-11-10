@@ -57,8 +57,8 @@ impl Drawn {
             .iter()
             .zip(&self.faces)
             .filter(|(_, id)| {
-                let first = body.numbers(**id).first();
-                first.is_some_and(|&number| kept(number as usize))
+                let numbers = body.numbers(**id);
+                numbers.iter().any(|&number| kept(number as usize))
             })
             .filter_map(|(triangle, id)| Some((ray_triangle(origin, direction, *triangle)?, *id)))
             .min_by(|(near, _), (far, _)| near.total_cmp(far))?;

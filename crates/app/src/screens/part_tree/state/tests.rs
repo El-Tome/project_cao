@@ -47,12 +47,13 @@
 //! opened. The bullets the headless driver holds are transcribed again, checked,
 //! in `crates/app/tests/the_part_panel.rs`.
 //! - Sections, top to bottom: « ESQUISSES », « VOLUMES », « COUPES », « TOUT LE
-//!   CORPS », « VARIABLES » —
-//!   `the_panel_reads_its_sketches_volumes_sections_whole_body_then_variables`
+//!   CORPS », « VARIABLES » — since #734 took « TOUT LE CORPS » away, the
+//!   other four in that order —
+//!   `the_panel_reads_its_sketches_volumes_sections_then_variables`
 //! - « TOUT LE CORPS » holds today's « Corps : {mode} » row, unchanged — no
 //!   test: the row's sentence was `wording::part_tree::body`, which this issue
-//!   left alone; #734 has since put a selector in its place, under its own
-//!   block below, and where it sits is held by the order above
+//!   left alone; #734 has since taken the row and its section away, under its
+//!   own block below
 //! - « VARIABLES », read only: the name apart from the value —
 //!   `a_variable_reads_its_name_apart_from_its_value`
 //! - the value on the right and the name in `variable.text` — no test: where a
@@ -164,44 +165,49 @@
 //!   `clicking_a_volume_s_visibility_button_writes_its_next_state_on_its_row`
 //! - criterion 2, an invisible volume's row is dimmed —
 //!   `an_invisible_volume_s_row_is_dimmed`
-//! - criterion 3, a volume's state applies to the faces of the part made by
-//!   that step (`faces_made_by`); for a cut, the walls it dug. On a block with
-//!   a hole cut through it, making the cut « transparente » makes the hole's
-//!   walls see-through and leaves the block opaque — no test: in this file,
-//!   the presenter draws no frame; held in
-//!   `crates/app/src/screens/viewport/render/tests.rs` by
-//!   `a_see_through_cut_draws_the_walls_of_its_hole_see_through_and_leaves_the_block_opaque`
-//!   and `a_hidden_volume_draws_none_of_its_faces`
-//! - criterion 4, « TOUT LE CORPS » is a segmented selector (C6) Invisible /
-//!   Transparent / Opaque that sets every volume at once; it is lit on the
-//!   state they all share, and on no segment when they differ —
-//!   `the_whole_body_selector_lights_the_state_every_volume_shares_and_none_when_they_differ`;
-//!   the setting and the reading, on the canvas's state, in
+//! - criterion 3, each volume is its raw solid: the block its step raised or
+//!   removed, as extruded or revolved, regardless of the steps after it. The
+//!   part shown is the history replayed with each volume's state: an opaque
+//!   step applied as today, so that with every volume opaque the part is
+//!   drawn exactly as before; an invisible addition brings no matter, and
+//!   hiding one of two additions leaves the other whole; a see-through
+//!   addition brings no matter to the opaque part, its raw block drawn as a
+//!   see-through ghost; an invisible cut is not applied, the matter it removed
+//!   coming back; a see-through cut is applied, the raw block it removes drawn
+//!   as a ghost. Reworded on 2026-11-10 by Tom, replacing the faces made by
+//!   the volume — no test: in this file, the presenter replays nothing; the
+//!   replay held in `crates/part/tests/showing_volumes.rs` by
+//!   `with_every_volume_opaque_the_part_shown_is_the_part`,
+//!   `an_invisible_addition_brings_no_matter`,
+//!   `hiding_one_of_two_overlapping_additions_leaves_the_other_whole`,
+//!   `a_see_through_addition_brings_no_matter_and_its_raw_block_is_a_ghost`,
+//!   `an_invisible_cut_is_not_applied_and_the_matter_it_removed_comes_back`,
+//!   `a_see_through_cut_is_applied_and_the_block_it_removes_is_a_ghost` and
+//!   `a_face_of_the_part_shown_answers_to_the_number_it_has_in_the_part`; the
+//!   frame drawing the part shown and its ghosts to come in
+//!   `crates/app/src/screens/viewport/render/tests.rs`, once the canvas is
+//!   wired to the replay
+//! - criterion 4, struck on 2026-11-10 by Tom: there is no « TOUT LE CORPS »
+//!   selector. One action, « Tout rendre opaque », sets every volume back to
+//!   opaque, and does nothing when they all are — the panel offers it, live
+//!   only while a volume is not opaque —
+//!   `the_panel_offers_to_make_everything_opaque_while_a_volume_is_not`; the
+//!   volumes set back, on the canvas's state, in
 //!   `crates/app/src/screens/viewport/visibility/tests.rs` by
-//!   `choosing_for_the_whole_body_sets_every_volume_at_once` and
-//!   `the_whole_body_reads_the_state_every_volume_shares_and_none_once_they_differ`;
-//!   a segment clicked through the whole application, in
-//!   `crates/app/tests/the_part_panel.rs` by
-//!   `clicking_opaque_in_the_whole_body_selector_makes_every_volume_opaque`
-//! - criterion 5, the « Corps » row is gone — no test: in this file, the
-//!   presenter never held that row, which the view drew from
-//!   `ViewportState::body_mode`; held in `crates/app/tests/the_part_panel.rs`
-//!   by `the_part_panel_holds_no_body_row_any_more`
-//! - criterion 6, a face of the part made by no listed volume takes the last
-//!   state chosen in « TOUT LE CORPS » (opaque at first), even when no segment
-//!   is lit any more — no test: in this file, the presenter draws no face;
-//!   the choice kept, on the canvas's state, in
-//!   `crates/app/src/screens/viewport/visibility/tests.rs` by
-//!   `the_last_whole_body_choice_stays_for_the_faces_no_volume_made_once_the_volumes_differ`,
-//!   and the face given that state there, by
-//!   `a_face_takes_its_volume_s_state_and_one_no_volume_made_the_last_whole_body_choice`.
-//!   No frame holds it: no part built today has a face that no extrusion or
-//!   revolution made, so no frame can show one. `faces_made_by` comes back
-//!   empty only from a geometry cached before the faces were noted, and only
-//!   `cao_part` can build that
+//!   `making_everything_opaque_puts_every_volume_back_to_opaque`; clicked
+//!   through the whole application, in `crates/app/tests/the_part_panel.rs`
+//!   by `clicking_make_everything_opaque_brings_every_row_back_to_opaque`
+//! - criterion 5, the « Corps » row is gone, and so is the « TOUT LE CORPS »
+//!   section — the headings, `the_panel_reads_its_sketches_volumes_sections_then_variables`;
+//!   the row, which the presenter never held and the view drew from
+//!   `ViewportState::body_mode`, in `crates/app/tests/the_part_panel.rs` by
+//!   `the_part_panel_holds_no_body_row_any_more`
+//! - criterion 6, struck on 2026-11-10 by Tom with criterion 3's new rule:
+//!   every piece of matter now belongs to a volume — no test: dropped
 //! - criterion 7, nothing breaks: « Matière devant » in a sketch keeps its
 //!   three modes, the section view is unchanged, and a face can still be
-//!   picked to start a sketch on a see-through or opaque volume — no test: in
+//!   picked to start a sketch on a see-through or opaque volume; a hidden
+//!   volume offers no face — no test: in
 //!   this file; « Matière devant » held by
 //!   `the_matter_in_front_menu_offers_hidden_see_through_and_opaque_in_that_order`,
 //!   in `crates/app/src/screens/view_bar/state/tests.rs`, and by
@@ -851,7 +857,7 @@ fn a_part_with_variables_and_a_section() -> PartDocument {
 }
 
 #[test]
-fn the_panel_reads_its_sketches_volumes_sections_whole_body_then_variables() {
+fn the_panel_reads_its_sketches_volumes_sections_then_variables() {
     let lang = french();
     let tree = PartTree::of(&a_part_with_variables_and_a_section(), &lang);
 
@@ -863,13 +869,7 @@ fn the_panel_reads_its_sketches_volumes_sections_whole_body_then_variables() {
 
     assert_eq!(
         headings,
-        [
-            "ESQUISSES",
-            "VOLUMES",
-            "COUPES",
-            "TOUT LE CORPS",
-            "VARIABLES"
-        ],
+        ["ESQUISSES", "VOLUMES", "COUPES", "VARIABLES"],
         "a part with sketches, a body, a section and variables lists them in another order",
     );
 }
@@ -1412,42 +1412,24 @@ fn an_invisible_volume_s_row_is_dimmed() {
 }
 
 #[test]
-fn the_whole_body_selector_lights_the_state_every_volume_shares_and_none_when_they_differ() {
+fn the_panel_offers_to_make_everything_opaque_while_a_volume_is_not() {
     let document = a_block_with_a_hole();
     let mut viewport = ViewportState::default();
-    let segments = |viewport: &ViewportState| -> Vec<(String, MatterInFront, bool)> {
+    let offered = |viewport: &ViewportState| {
         PartTree::seen(&document, &SketchEditor::default(), viewport, &french())
-            .whole_body
-            .into_iter()
-            .map(|segment| (segment.name, segment.mode, segment.lit))
-            .collect()
-    };
-    let lit = |on: Option<MatterInFront>| -> Vec<(String, MatterInFront, bool)> {
-        [
-            ("Invisible", MatterInFront::Hidden),
-            ("Transparent", MatterInFront::SeeThrough),
-            ("Opaque", MatterInFront::Opaque),
-        ]
-        .into_iter()
-        .map(|(name, mode)| (name.to_string(), mode, on == Some(mode)))
-        .collect()
+            .make_all_opaque
+            .map(|offered| (offered.label, offered.enabled))
     };
 
     assert_eq!(
-        segments(&viewport),
-        lit(Some(MatterInFront::Opaque)),
-        "every volume opaque, as (segment, state it sets, lit)",
+        offered(&viewport),
+        Some(("Tout rendre opaque".to_string(), false)),
+        "every volume opaque, as (label, live)",
     );
     viewport.next_volume_mode(&document, THE_HOLE);
     assert_eq!(
-        segments(&viewport),
-        lit(None),
-        "the block opaque and the cut see-through",
-    );
-    viewport.set_whole_body(MatterInFront::Hidden);
-    assert_eq!(
-        segments(&viewport),
-        lit(Some(MatterInFront::Hidden)),
-        "« Invisible » chosen",
+        offered(&viewport),
+        Some(("Tout rendre opaque".to_string(), true)),
+        "the cut see-through, as (label, live)",
     );
 }

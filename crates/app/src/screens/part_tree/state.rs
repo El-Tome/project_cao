@@ -26,7 +26,7 @@ mod clicks;
 mod seen;
 mod volumes;
 pub use clicks::*;
-pub use seen::Segment;
+pub use seen::Offered;
 use volumes::volume;
 
 /// What a line of the tree points at, so that clicking it can find the thing
@@ -119,8 +119,8 @@ pub struct PartTree {
     pub bodies: Vec<Body>,
     pub sketches: Vec<Drawn>,
     pub sections: Vec<Kept>,
-    /// « TOUT LE CORPS », one segment per state.
-    pub whole_body: Vec<Segment>,
+    /// « Tout rendre opaque », offered while the part has volumes.
+    pub make_all_opaque: Option<Offered>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -213,7 +213,6 @@ impl PartTree {
             (Rubric::Sketches, true),
             (Rubric::Volumes, made),
             (Rubric::Sections, !self.sections.is_empty()),
-            (Rubric::WholeBody, made),
             (Rubric::Variables, true),
         ]
         .into_iter()

@@ -20,6 +20,7 @@ use std::collections::{HashMap, HashSet};
 use crate::formula::Formula;
 use crate::history::{History, Operation};
 use crate::outcome::Outcome;
+use crate::showing::Showing;
 use crate::state::PartState;
 use crate::variables::Variables;
 
@@ -75,7 +76,14 @@ impl PartState {
     /// The part a history comes to: replayed once, and again when a value
     /// written from the variables left the drawing under other ones.
     pub fn rebuild(history: &History) -> Self {
-        let once = Self::replayed(history, HashMap::new());
+        Self::rebuild_showing(history, Showing::default())
+    }
+
+    /// The same, the steps of matter applied as `showing` says: for the
+    /// part shown rather than the part.
+    pub(crate) fn rebuild_showing(history: &History, showing: Showing) -> Self {
+        let replayed = |superseded| Self::replayed(history, superseded, showing.clone());
+        let once = replayed(HashMap::new());
         let tried = (!once.replay.refused.is_empty()).then(|| {
             let mut tried = once.frozen(history);
             for set in &once.replay.refused {
@@ -83,13 +91,13 @@ impl PartState {
                     .entry(*set)
                     .or_insert_with(|| table_before(history, set.0));
             }
-            Self::replayed(history, tried)
+            replayed(tried)
         });
         let frozen = tried.as_ref().unwrap_or(&once).frozen(history);
         if frozen.is_empty() {
             return once;
         }
-        Self::replayed(history, frozen)
+        replayed(frozen)
     }
 
     /// Every value that left the drawing, with the table as it stood when it
@@ -113,9 +121,10 @@ impl PartState {
             .collect()
     }
 
-    fn replayed(history: &History, superseded: HashMap<SetBy, Vec<f64>>) -> Self {
+    fn replayed(history: &History, superseded: HashMap<SetBy, Vec<f64>>, showing: Showing) -> Self {
         let mut state = Self::default();
         state.replay.superseded = superseded;
+        state.showing = showing;
         state.read_variables(history);
         if history.first_size_is_off_the_drawing() {
             state.fix_a_unit_at_a_millimetre();

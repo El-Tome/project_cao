@@ -21,15 +21,20 @@ impl Exact {
     /// two set-backs on such a face stop short of crossing. Where they meet,
     /// the face is gone and the two rounds, about one axis, are one full round
     /// — a round bottom where the faces meet inwards — as
-    /// [`Wedge::rounded_with`] lays it, at the radius they meet at. Two edges
-    /// meeting at a convex corner are mitred there, on the ellipse where their
-    /// rounds cross, from where they leave the face the edges share down to the
-    /// corner's third edge, left sharp. Three edges meeting at a convex corner
-    /// are closed there by a piece of sphere of the radius, centred one radius
-    /// from the corner's three faces, meeting each round along the round's end
-    /// section, square to its edge through the centre, and numbered after the
-    /// rounds, as [`rounded_across`] lays it; declined `Undrawn` where the
-    /// kernel cannot draw it. Rounds that would meet anywhere else are not
+    /// [`Wedge::rounded_with`] lays it, at the radius they meet at. Where
+    /// matter lies past an end of an edge rounded off, behind the one flat
+    /// face it runs into there — the inner corner of an L, a pocket's rim, the
+    /// foot of a block standing on another — its round stops flush on that
+    /// face, which grows by the round's end and keeps its number, as
+    /// [`Exact::cut_flush`] stops it. Two edges meeting at a convex corner are
+    /// mitred there, on the ellipse where their rounds cross, from where they
+    /// leave the face the edges share down to the corner's third edge, left
+    /// sharp. Three edges meeting at a convex corner are closed there by a
+    /// piece of sphere of the radius, centred one radius from the corner's
+    /// three faces, meeting each round along the round's end section, square
+    /// to its edge through the centre, and numbered after the rounds, as
+    /// [`rounded_across`] lays it; declined `Undrawn` where the kernel cannot
+    /// draw it. Rounds that would meet anywhere else are not
     /// measured, and declined where they meet until #792. The rounds are
     /// numbered, in the order the names come, where the steps' numbers ended; a
     /// full round answers to both its edges' numbers. Declined `Distance`: a

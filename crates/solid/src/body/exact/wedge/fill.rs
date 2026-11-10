@@ -73,15 +73,16 @@ impl Exact {
             }
         }
         let next = edges.len() as u32;
-        self.filled_by(&Exact { next, ..trimmed }, &corners)
+        self.joined(&Exact { next, ..trimmed })?.merged_at(&corners)
     }
 
-    /// The body joined with the prism `tool` fills a corner with, every face
-    /// of the prism that merged into one of the body's — whatever face of the
-    /// prism it is — answering to the body's numbers alone, a face of the
-    /// prism standing alone keeping its own, and the edges either side of
-    /// each of `corners` made one where they run on in line, drawn again then.
-    fn filled_by(&self, tool: &Exact, corners: &[DVec3]) -> Result<Exact, Declined> {
+    /// The body a step combined with its prism, every face of the prism that
+    /// merged into one of the body's — whatever face of the prism it is —
+    /// answering to the body's numbers alone, a face of the prism standing
+    /// alone keeping its own, past the step's count, and the edges either side
+    /// of each of `corners` made one where they run on in line, drawn again
+    /// then.
+    pub(super) fn merged_at(self, corners: &[DVec3]) -> Result<Exact, Declined> {
         let Exact {
             mut brep,
             next,
@@ -89,7 +90,7 @@ impl Exact {
             roots,
             drawn,
             ..
-        } = self.joined(tool)?;
+        } = self;
         let brought = |number: &u32| (next..PIECES).contains(number);
         let faces: Vec<_> = brep.face_ids().collect();
         for face in faces {
@@ -117,7 +118,7 @@ impl Exact {
 
 /// The one face, but the edge's two, at a corner of the body; none where no
 /// other face or several meet there.
-fn end_face(body: &brep::Body, corner: VertexId, faces: [FaceId; 2]) -> Option<FaceId> {
+pub(super) fn end_face(body: &brep::Body, corner: VertexId, faces: [FaceId; 2]) -> Option<FaceId> {
     let mut met = body.face_ids().filter(|face| {
         !faces.contains(face)
             && body.face(*face).loops.iter().flatten().any(|coedge| {
@@ -194,7 +195,7 @@ fn crossed(
 /// off the plane over the points where the prism's long edges cross it and
 /// its end beyond. Declined as [`crossed`] declines; a box the kernel cannot
 /// raise, as the raise says.
-fn beyond(prism: &Prism, plane: &Plane, outward: DVec3) -> Result<Exact, Declined> {
+pub(super) fn beyond(prism: &Prism, plane: &Plane, outward: DVec3) -> Result<Exact, Declined> {
     let (held, clear) = crossed(prism, plane.origin, outward)?;
     let depth = (held.iter())
         .map(|&at| outward.dot(at - plane.origin))

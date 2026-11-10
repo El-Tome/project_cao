@@ -8,6 +8,7 @@ mod chain;
 mod closing;
 mod corners;
 mod fill;
+mod flush;
 mod pairs;
 mod reach;
 mod reading;
@@ -252,7 +253,10 @@ impl Exact {
 
     /// The body with the edge of `wedge` cut off, or filled in, by the prism
     /// `tool` raises over it for `taken`, its wall numbered where the steps'
-    /// numbers ended, as [`Exact::laid_as`] lays it but for the check.
+    /// numbers ended, as [`Exact::laid_as`] lays it but for the check: a cut
+    /// stopped flush where matter lies past an end of `edge`, as
+    /// [`Exact::cut_flush`] stops it, and carried past both ends where there
+    /// is no `edge`.
     fn cut_or_filled(
         &self,
         edge: Option<EdgeId>,
@@ -272,11 +276,11 @@ impl Exact {
             }),
             ..raised
         };
-        if wedge.inwards {
-            let edge = edge.ok_or(Declined::Unsupported)?;
-            self.filled(&[(edge, wedge)], &prism, tool)
-        } else {
-            self.cut_by(&Exact { next: 1, ..tool })
+        match (edge, wedge.inwards) {
+            (Some(edge), true) => self.filled(&[(edge, wedge)], &prism, tool),
+            (None, true) => Err(Declined::Unsupported),
+            (Some(edge), false) => self.cut_flush(edge, wedge, &prism, tool),
+            (None, false) => self.cut_by(&Exact { next: 1, ..tool }),
         }
     }
 

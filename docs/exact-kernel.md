@@ -206,10 +206,15 @@ It can:
   the faces it meets at its ends. That last one checks what the cut left:
   no face of the prism but its chamfer, the chamfer in one piece, each of
   its corners on one of the edge's faces, and every face the body held
-  still there but the edge's two, which the chamfer may consume. So an
-  edge ending at a concave corner where a flat wall leaves it — an arm's
-  edge running into the stem of an L, a pocket's rim — is declined: the
-  cut carried along the line would run on along that wall. A round leaving
+  still there but the edge's two, which the chamfer may consume. An edge
+  ending where matter lies past it, behind the one flat face it runs into
+  there — an arm's edge running into the stem of an L, a pocket's rim, an
+  upright of a block standing on another — stops flush instead (#801,
+  `Exact::cut_flush` in `body/exact/wedge/flush.rs`): the prism is trimmed
+  on that face's plane as a fill's is, and that face grows by the cut's end
+  section and keeps its number. Where the face it runs into is curved, or
+  is not one face, the cut is carried along the line and the check
+  declines what it takes. A round leaving
   the edge's end at a few degrees inwards trims the chamfer like any other
   end face; one leaving it outwards dips outside the edge's face past the
   end corner, and is covered only while the prism's side, a margin out,

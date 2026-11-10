@@ -296,10 +296,9 @@ impl SceneRenderer {
                 "vs_solid",
                 &solid_layout,
                 None,
-                wgpu::DepthStencilState {
-                    depth_compare: Some(wgpu::CompareFunction::LessEqual),
-                    ..depth_state(false)
-                },
+                // Pulled towards the camera as the grid is: a ghost's face
+                // lying on an opaque face is drawn over it, not through it.
+                hidden_by_the_part.clone(),
             ),
             background_pipeline: make_pipeline(
                 "cao_background_pipeline",

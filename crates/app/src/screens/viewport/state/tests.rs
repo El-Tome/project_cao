@@ -71,9 +71,8 @@
 //! - The cube's corner, size and margin settings —
 //!   `the_cube_keeps_its_corner_size_and_margin_settings`
 
-use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
+use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef, VolumeState};
 use cao_prefs::Command;
-use cao_render::MatterInFront;
 use chrono::Utc;
 use glam::{DVec2, Vec3};
 
@@ -512,7 +511,7 @@ fn a_hidden_body_has_no_point_under_a_ray() {
     let the_block = 2;
     assert_eq!(
         state.volume_mode(&document, the_block),
-        MatterInFront::Opaque,
+        VolumeState::Opaque,
         "the block opens opaque"
     );
     assert!(
@@ -523,7 +522,7 @@ fn a_hidden_body_has_no_point_under_a_ray() {
     state.next_volume_mode(&document, the_block);
     assert_eq!(
         state.volume_mode(&document, the_block),
-        MatterInFront::SeeThrough
+        VolumeState::SeeThrough
     );
     assert!(
         under(&state, &document, FROM_ABOVE).is_some(),
@@ -533,7 +532,7 @@ fn a_hidden_body_has_no_point_under_a_ray() {
     state.next_volume_mode(&document, the_block);
     assert_eq!(
         state.volume_mode(&document, the_block),
-        MatterInFront::Hidden
+        VolumeState::Invisible
     );
     assert_eq!(
         under(&state, &document, FROM_ABOVE),

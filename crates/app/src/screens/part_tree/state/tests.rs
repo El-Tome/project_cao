@@ -182,11 +182,11 @@
 //!   `hiding_one_of_two_overlapping_additions_leaves_the_other_whole`,
 //!   `a_see_through_addition_brings_no_matter_and_its_raw_block_is_a_ghost`,
 //!   `an_invisible_cut_is_not_applied_and_the_matter_it_removed_comes_back`,
-//!   `a_see_through_cut_is_applied_and_the_block_it_removes_is_a_ghost` and
-//!   `a_face_of_the_part_shown_answers_to_the_number_it_has_in_the_part`; the
-//!   frame drawing the part shown and its ghosts to come in
-//!   `crates/app/src/screens/viewport/render/tests.rs`, once the canvas is
-//!   wired to the replay
+//!   `a_see_through_cut_is_applied_and_the_block_it_removes_is_a_ghost`, with
+//!   revolutions and sketches on faces of volumes not shown opaque; the frame
+//!   drawing the part shown opaque and its ghosts see-through held in
+//!   `crates/app/src/screens/viewport/render/tests.rs` under its #734 block,
+//!   and the picking in `crates/app/src/screens/viewport/input/planes/tests.rs`
 //! - criterion 4, struck on 2026-11-10 by Tom: there is no « TOUT LE CORPS »
 //!   selector. One action, « Tout rendre opaque », sets every volume back to
 //!   opaque, and does nothing when they all are — the panel offers it, live
@@ -221,8 +221,8 @@
 //!   `a_hidden_volume_offers_none_of_its_faces_and_the_face_behind_it_is_offered`
 
 use cao_part::VariableChange;
+use cao_part::VolumeState;
 use cao_part::history::{FaceAnchor, PointRef, RevolutionAxis, SectionAsked, SideDrawing};
-use cao_render::MatterInFront;
 use cao_sketch::{
     Constraint, DimensionTarget, Element, PointId, Rule, RulePick, SegmentId, Selection,
     SketchAxis, ToolState, WorkPlane,
@@ -1300,7 +1300,7 @@ type VolumeRow = (
     String,
     ExtrusionMode,
     Option<Problem>,
-    MatterInFront,
+    VolumeState,
     String,
     String,
 );
@@ -1342,7 +1342,7 @@ fn a_volume_row_reads_its_add_or_cut_icon_its_name_its_badge_and_its_state() {
     let block_opaque = row(
         "Extrusion 1",
         ExtrusionMode::Add,
-        MatterInFront::Opaque,
+        VolumeState::Opaque,
         "opaque",
         "Rendre transparente",
     );
@@ -1355,7 +1355,7 @@ fn a_volume_row_reads_its_add_or_cut_icon_its_name_its_badge_and_its_state() {
             row(
                 "Extrusion 2",
                 ExtrusionMode::Cut,
-                MatterInFront::SeeThrough,
+                VolumeState::SeeThrough,
                 "transparente",
                 "Rendre invisible",
             ),
@@ -1372,7 +1372,7 @@ fn a_volume_row_reads_its_add_or_cut_icon_its_name_its_badge_and_its_state() {
             row(
                 "Extrusion 2",
                 ExtrusionMode::Cut,
-                MatterInFront::Hidden,
+                VolumeState::Invisible,
                 "invisible",
                 "Rendre opaque",
             ),

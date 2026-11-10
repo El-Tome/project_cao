@@ -34,7 +34,7 @@ same shader and differ mostly in what they do with that buffer:
 | --- | --- |
 | `solid` | tests and **writes** |
 | `world_line` — axes and grid | tests without writing, pulled a hair towards the camera |
-| `veiled_matter` — the part's see-through faces | tests (`LessEqual`) without writing |
+| `veiled_matter` — the part's see-through faces and its ghosts | tests without writing, pulled a hair towards the camera |
 | `line`, `triangle`, `surface`, `background` | always pass, without writing |
 
 A solid is the only geometry with a volume, and therefore the only one whose
@@ -55,6 +55,9 @@ The renderer draws `scene_surfaces` in three slices, in order: before the
 range with `surface`, the range with `veiled_matter`, after it with `surface`
 again. So the areas chosen for an extrusion and the sketch fills, pushed
 before, and the section's square, pushed after, keep going over everything.
+The pass takes the grid's nudge towards the camera, so that a ghost's face
+lying exactly on an opaque face — the block a see-through cut removes, on the
+walls it leaves — is drawn over that face rather than flickering through it.
 The range is taken around `push_matter` in `frame_of`: **nothing else may be
 pushed into `scene_surfaces` between its two ends**, or it would be hidden by
 the part like the matter.

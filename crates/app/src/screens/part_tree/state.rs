@@ -12,8 +12,8 @@
 //! was drawn, so that replaying it keeps the order it happened in.
 
 use cao_part::PartDocument;
+use cao_part::VolumeState;
 use cao_part::history::{ExtrusionMode, Operation};
-use cao_render::MatterInFront;
 use cao_sketch::{DimensionTarget, Element, Sketch};
 
 use crate::lang::Catalogue;
@@ -79,7 +79,7 @@ pub struct Body {
     pub mode: ExtrusionMode,
     /// How it is drawn, written out on its line, and what a click on its
     /// visibility button makes of it; dimmed while invisible.
-    pub shown: MatterInFront,
+    pub shown: VolumeState,
     pub state: String,
     pub visibility_button: String,
     pub dimmed: bool,

@@ -10,7 +10,6 @@ use std::collections::BTreeMap;
 
 use cao_part::history::StepKind;
 use cao_part::{Operation, PartDocument, VolumeState};
-use cao_render::MatterInFront;
 use cao_sketch::Sketch;
 
 use shown::Replayed;
@@ -30,7 +29,7 @@ pub(super) struct Visibility {
     hovered: Option<Points>,
     /// The volumes set by hand, by the number of the operation that made
     /// them, as the eyes are.
-    volumes: BTreeMap<u32, MatterInFront>,
+    volumes: BTreeMap<u32, VolumeState>,
     /// The part last shown with the volumes' states, and what it was shown
     /// from.
     shown: RefCell<Option<Replayed>>,
@@ -96,10 +95,12 @@ impl ViewportState {
         self.visibility.hovered = row;
     }
 
-    /// Puts the light out and every eye back to its default, once the history
-    /// is numbered anew and no sketch is named the way it was.
-    pub(crate) fn forget_the_sketches(&mut self) {
+    /// Puts the light out, every eye back to its default and every volume
+    /// back to opaque, once the history is numbered anew and no operation is
+    /// named the way it was.
+    pub(crate) fn forget_the_numbers(&mut self) {
         self.visibility.eyes.clear();
+        self.visibility.volumes.clear();
         self.light_out();
     }
 
@@ -111,12 +112,12 @@ impl ViewportState {
 impl ViewportState {
     /// How the volume made at that step of the history is drawn: opaque until
     /// its visibility button is clicked.
-    pub(crate) fn volume_mode(&self, document: &PartDocument, step: usize) -> MatterInFront {
+    pub(crate) fn volume_mode(&self, document: &PartDocument, step: usize) -> VolumeState {
         let chosen = document
             .history
             .number_at(step)
             .and_then(|number| self.visibility.volumes.get(&number));
-        chosen.copied().unwrap_or(MatterInFront::Opaque)
+        chosen.copied().unwrap_or(VolumeState::Opaque)
     }
 
     /// Opaque, see-through, invisible, and round again: the volume made at
@@ -130,7 +131,7 @@ impl ViewportState {
 
     /// Whether every volume of the document is opaque.
     pub(crate) fn all_opaque(&self, document: &PartDocument) -> bool {
-        volumes(document).all(|step| self.volume_mode(document, step) == MatterInFront::Opaque)
+        volumes(document).all(|step| self.volume_mode(document, step) == VolumeState::Opaque)
     }
 
     /// « Tout rendre opaque »: every volume back to opaque.
@@ -139,17 +140,13 @@ impl ViewportState {
     }
 
     /// Every volume of the document not shown opaque, by the number of its
-    /// operation, as the part's replay names its states.
+    /// operation.
     fn volume_states(&self, document: &PartDocument) -> BTreeMap<u32, VolumeState> {
         volumes(document)
             .filter_map(|step| {
                 let number = document.history.number_at(step)?;
-                let state = match self.volume_mode(document, step) {
-                    MatterInFront::Opaque => return None,
-                    MatterInFront::SeeThrough => VolumeState::SeeThrough,
-                    MatterInFront::Hidden => VolumeState::Invisible,
-                };
-                Some((number, state))
+                let state = self.volume_mode(document, step);
+                (state != VolumeState::Opaque).then_some((number, state))
             })
             .collect()
     }
@@ -182,11 +179,11 @@ impl ViewportState {
     }
 }
 
-fn faded(mode: MatterInFront) -> MatterInFront {
+fn faded(mode: VolumeState) -> VolumeState {
     match mode {
-        MatterInFront::Opaque => MatterInFront::SeeThrough,
-        MatterInFront::SeeThrough => MatterInFront::Hidden,
-        MatterInFront::Hidden => MatterInFront::Opaque,
+        VolumeState::Opaque => VolumeState::SeeThrough,
+        VolumeState::SeeThrough => VolumeState::Invisible,
+        VolumeState::Invisible => VolumeState::Opaque,
     }
 }
 

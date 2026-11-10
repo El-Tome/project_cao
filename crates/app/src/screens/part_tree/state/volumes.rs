@@ -1,8 +1,8 @@
 //! The rows of « VOLUMES »: one per step of matter, read off its operation.
 
 use cao_part::PartDocument;
+use cao_part::VolumeState;
 use cao_part::history::{ExtrusionMode, Operation};
-use cao_render::MatterInFront;
 use cao_sketch::Area;
 
 use super::{Body, Points, Row, gravest, numbered};
@@ -58,7 +58,7 @@ pub(super) fn volume(
         unstable,
         areas: standing,
         mode,
-        shown: MatterInFront::Opaque,
+        shown: VolumeState::Opaque,
         state: String::new(),
         visibility_button: String::new(),
         dimmed: false,

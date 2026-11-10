@@ -12,7 +12,7 @@ use crate::screens::SketchContext;
 use crate::screens::sketch::PlaneChoice;
 
 use super::{PICK_PIXELS, ViewScale, ViewportState, plane_half_size, to_ndc};
-use crate::screens::viewport::matter::{drawn_under, seen};
+use crate::screens::viewport::matter::{Met, met_on_the_part, nearness, seen};
 use crate::screens::viewport::navigation::drag_asked;
 use crate::screens::viewport::{DEFAULT_SKETCH_RADIUS, section::Section};
 
@@ -133,10 +133,17 @@ pub(crate) fn point_the_section(
         let Some(drawn) = seen(state, context.editor, context.document) else {
             return true;
         };
-        let met = drawn_under(&drawn, origin, direction);
-        let piece = met.map_or(&*drawn.opaque, |(piece, _)| piece);
-        if choose_a_cutting_face(state, piece, true, origin, direction) {
-            anchor_the_cut(state, piece, body, (origin, direction));
+        let on_the_cut = |at, normal| lies_on_the_cut(state, at, normal);
+        let (piece, hit) = match met_on_the_part(&drawn, body, (origin, direction), on_the_cut) {
+            Some(Met::Part(hit)) => (body, hit),
+            Some(Met::Drawn(piece, hit)) => (piece, hit),
+            None => return true,
+        };
+        // From a hair short of where the face was met, so that the ray meets
+        // it first, whatever of the piece stands before it.
+        let from = origin + direction * (hit.distance - nearness(body));
+        if choose_a_cutting_face(state, piece, true, from, direction) {
+            anchor_the_cut(state, piece, body, (from, direction));
         }
         return true;
     }
@@ -205,10 +212,11 @@ fn plane_under(
         .map(|(_, index)| PlaneChoice::Origin(index))
 }
 
-/// What the part as drawn offers under the ray. A face the cut left in pieces
-/// is offered as the part's own face it was parted from; a face the part does
-/// not have at all is the cut itself, offered as its plane, turned the way the
-/// face met looks.
+/// What the part as drawn offers under the ray: the part's own face where
+/// what is drawn lies on one, found by where the ray meets it; the cut of the
+/// section where the ray meets that, offered as its plane, turned the way the
+/// face met looks. A drawn face the part has nothing of — a ghost's, or the
+/// top an invisible cut fills in — lets the ray go on.
 fn what_is_drawn_offers(
     state: &ViewportState,
     context: &SketchContext<'_>,
@@ -217,11 +225,11 @@ fn what_is_drawn_offers(
 ) -> Option<PlaneChoice> {
     let part = context.document.body();
     let drawn = seen(state, context.editor, context.document)?;
-    let (piece, hit) = drawn_under(&drawn, origin, direction)?;
+    let on_the_cut = |at, normal| lies_on_the_cut(state, at, normal);
     let up = |normal| once_facing(state, normal);
-    match own_face(piece, part, hit.face) {
-        Some(face) => offered_by(part, face, hit.normal, up),
-        None => {
+    match met_on_the_part(&drawn, part, (origin, direction), on_the_cut)? {
+        Met::Part(hit) => offered_by(part, hit.face, hit.normal, up),
+        Met::Drawn(_, hit) => {
             let cut = state.section_shown()?.cutting_plane();
             Some(PlaneChoice::Section(
                 match hit.normal.dot(cut.normal()) > 0.0 {
@@ -232,6 +240,22 @@ fn what_is_drawn_offers(
         }
     }
 }
+
+/// Whether a drawn face met at `at`, facing `normal`, is the cut of the
+/// section shown: square to its normal, and on its plane as nearly as the
+/// kernel lays a cut that far from the origin.
+fn lies_on_the_cut(state: &ViewportState, at: DVec3, normal: DVec3) -> bool {
+    state.section_shown().is_some_and(|section| {
+        let cut = section.cutting_plane();
+        let square = normal.dot(cut.normal()).abs() > 1.0 - 1e-6;
+        let off = cut.normal().dot(at - cut.origin).abs();
+        square && off <= CUT_LAID_WITHIN * (1.0 + at.length())
+    })
+}
+
+/// How far from its plane the kernel may lay a section's cut, as a share of
+/// how far from the origin it is laid.
+const CUT_LAID_WITHIN: f64 = 1e-3;
 
 /// The part's own face a face of `drawn` stands for, or `None` for one the
 /// part does not have.

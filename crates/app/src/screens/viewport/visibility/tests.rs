@@ -15,7 +15,7 @@
 //!   volume made — no test: both struck on 2026-11-10 by Tom, and the tests
 //!   that held them deleted with them
 
-use cao_part::{ExtrusionMode, PointRef};
+use cao_part::{ExtrusionMode, PointRef, VolumeState};
 use cao_sketch::WorkPlane;
 use chrono::Utc;
 use glam::DVec2;
@@ -92,7 +92,7 @@ fn a_volume_s_visibility_cycles_opaque_see_through_invisible_and_round_again() {
     let mut state = ViewportState::default();
     assert_eq!(
         state.volume_mode(&document, THE_HOLE),
-        MatterInFront::Opaque,
+        VolumeState::Opaque,
         "a volume opens opaque",
     );
 
@@ -105,16 +105,16 @@ fn a_volume_s_visibility_cycles_opaque_see_through_invisible_and_round_again() {
     assert_eq!(
         seen,
         [
-            MatterInFront::SeeThrough,
-            MatterInFront::Hidden,
-            MatterInFront::Opaque
+            VolumeState::SeeThrough,
+            VolumeState::Invisible,
+            VolumeState::Opaque
         ],
         "opaque, then see-through, then invisible, then opaque again",
     );
     state.next_volume_mode(&document, THE_HOLE);
     assert_eq!(
         state.volume_mode(&document, THE_BLOCK),
-        MatterInFront::Opaque,
+        VolumeState::Opaque,
         "the cut made see-through takes the block with it",
     );
 }
@@ -126,7 +126,7 @@ fn a_volume_s_visibility_belongs_to_its_operation_not_to_its_place_in_the_histor
     state.next_volume_mode(&document, THE_HOLE);
     assert_eq!(
         state.volume_mode(&document, THE_HOLE),
-        MatterInFront::SeeThrough
+        VolumeState::SeeThrough
     );
 
     document.rewind_to(THE_HOLE);
@@ -144,7 +144,7 @@ fn a_volume_s_visibility_belongs_to_its_operation_not_to_its_place_in_the_histor
     );
     assert_eq!(
         state.volume_mode(&document, THE_HOLE),
-        MatterInFront::Opaque,
+        VolumeState::Opaque,
         "a new cut recorded where an undone one stood inherits its state",
     );
 }
@@ -170,7 +170,7 @@ fn making_everything_opaque_puts_every_volume_back_to_opaque() {
 
     assert_eq!(
         [THE_BLOCK, THE_HOLE].map(|step| state.volume_mode(&document, step)),
-        [MatterInFront::Opaque; 2],
+        [VolumeState::Opaque; 2],
         "« Tout rendre opaque » leaves a volume in another state",
     );
     assert!(state.all_opaque(&document));

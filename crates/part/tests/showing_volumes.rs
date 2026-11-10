@@ -23,18 +23,28 @@
 //!   the cut « transparente » leaves the notched part, the removed block a
 //!   ghost in the notch —
 //!   `a_see_through_cut_is_applied_and_the_block_it_removes_is_a_ghost`
-//! - found while designing the replay: a face of the part shown answers to
-//!   the number it has in the part, so that what is picked on the one is
-//!   anchored on the other —
-//!   `a_face_of_the_part_shown_answers_to_the_number_it_has_in_the_part`; and
-//!   so does a face of a see-through addition's ghost, for a face picked on it
-//!   to anchor on the part —
-//!   `a_face_of_a_ghost_answers_to_the_number_it_has_in_the_part`
+//! - found in review: a sketch laid on a face of a volume shown see-through
+//!   or invisible keeps the plane it has in the part, not the plane it was
+//!   recorded on — `a_sketch_on_a_volume_not_shown_opaque_keeps_the_plane_it_has_in_the_part`
+//! - found in review: a revolution follows the same rules, an invisible
+//!   turned cut giving back its matter —
+//!   `an_invisible_revolved_cut_gives_back_the_matter_it_turned_away` — and a
+//!   see-through turned addition its whole turn as a ghost —
+//!   `a_see_through_revolved_addition_is_a_ghost_of_its_whole_turn`
+//! - a face of the part shown answering to the number it has in the part —
+//!   no test: picking now finds the part's face by where the ray meets it,
+//!   held in `crates/app/src/screens/viewport/input/planes/tests.rs`, so the
+//!   numbering of what is shown no longer matters
 
 use std::collections::BTreeMap;
 
-use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef, Shown, VolumeState};
-use cao_sketch::WorkPlane;
+use std::f64::consts::PI;
+
+use cao_part::history::FaceAnchor;
+use cao_part::{
+    ExtrusionMode, Operation, PartDocument, PointRef, RevolutionAxis, Shown, VolumeState,
+};
+use cao_sketch::{SketchAxis, WorkPlane};
 use cao_solid::Body;
 use chrono::Utc;
 use glam::{DVec2, DVec3};
@@ -287,67 +297,144 @@ fn a_see_through_cut_is_applied_and_the_block_it_removes_is_a_ghost() {
     );
 }
 
-/// Whether the part's own face numbered `face` holds `point`: a triangle it
-/// is drawn with lies through the point and holds it within its outline. A
-/// face of the part may answer to several numbers, and asking by one of them
-/// finds it.
-fn the_part_s_face_holds(document: &PartDocument, face: usize, point: DVec3) -> bool {
-    document.body().triangles_of(face).any(|[a, b, c]| {
-        let normal = (b - a).cross(c - a);
-        let on_the_plane = normal.dot(point - a).abs() <= 1e-9 * normal.length();
-        let inside = [(a, b), (b, c), (c, a)]
-            .iter()
-            .all(|(from, to)| (*to - *from).cross(point - *from).dot(normal) >= -1e-9);
-        on_the_plane && inside
-    })
-}
+/// How tall the block of `a_boss_on_a_block_grown_since` was the day its boss
+/// was sketched on its top, and so where the plane recorded with that sketch
+/// sits.
+const AS_SKETCHED: f64 = 10.0;
 
-/// The face of `shown` a ray meets, and where.
-fn met(shown: &Body, origin: DVec3, direction: DVec3) -> (usize, DVec3) {
-    let hit = shown
-        .ray_hit(origin, direction)
-        .unwrap_or_else(|| panic!("nothing shown along {direction} from {origin}"));
-    (hit.face, origin + direction * hit.distance)
+/// A block 40 by 20 raised 30 from XY, then a sketch on its top recorded at
+/// the height the block had when it was laid, 10, and a boss 10 by 10 raised
+/// 5 from it: in the part the sketch follows its face, and the boss stands
+/// from 30 to 35. The block's number.
+fn a_boss_on_a_block_grown_since() -> (PartDocument, u32) {
+    let mut document = a_part();
+    rectangle(&mut document, DVec2::ZERO, DVec2::new(40.0, 20.0));
+    raised(
+        &mut document,
+        &[DVec2::new(20.0, 10.0)],
+        30.0,
+        ExtrusionMode::Add,
+    );
+    let block = number_of(&document, 2);
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(0.0, 0.0, AS_SKETCHED),
+            u: DVec3::X,
+            v: DVec3::Y,
+        },
+        on: Some(FaceAnchor {
+            face: 1,
+            up: DVec3::Y,
+        }),
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::new(10.0, 5.0)),
+        opposite: PointRef::New(DVec2::new(20.0, 15.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        areas: document.areas_at(1, &[DVec2::new(15.0, 10.0)]),
+        distance: 5.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    assert_bounds(
+        document.body(),
+        DVec3::ZERO,
+        DVec3::new(40.0, 20.0, 35.0),
+        "the block with its boss on its top",
+    );
+    (document, block)
 }
 
 #[test]
-fn a_face_of_the_part_shown_answers_to_the_number_it_has_in_the_part() {
-    let down = DVec3::NEG_Z;
+fn a_sketch_on_a_volume_not_shown_opaque_keeps_the_plane_it_has_in_the_part() {
+    let (document, block) = a_boss_on_a_block_grown_since();
 
-    let (document, _, notch) = a_block_with_a_notch();
-    let shown = shown_with(&document, &[(notch, VolumeState::Invisible)]);
-    let (face, at) = met(&shown.body, DVec3::new(2.0, 2.0, 50.0), down);
-    assert!(
-        the_part_s_face_holds(&document, face, at),
-        "the block's top, its cut invisible, answers to {face}, and the part's face {face} \
-         does not lie at {at}",
-    );
+    for state in [VolumeState::Invisible, VolumeState::SeeThrough] {
+        let shown = shown_with(&document, &[(block, state)]);
 
-    let (document, first, _) = two_overlapping_additions();
-    let shown = shown_with(&document, &[(first, VolumeState::Invisible)]);
-    let (face, at) = met(&shown.body, DVec3::new(12.0, 5.0, 50.0), down);
+        assert_bounds(
+            &shown.body,
+            DVec3::new(10.0, 5.0, 30.0),
+            DVec3::new(20.0, 15.0, 35.0),
+            &format!(
+                "the boss, the block it stands on {state:?}, rather than raised from where \
+                 its sketch was recorded,"
+            ),
+        );
+    }
+}
+
+/// A rectangle 10 by 10 against the sketch's V axis turned a whole turn into
+/// a cylinder of radius 10 and length 10, then a rectangle 4 by 6 inside it,
+/// against the axis too, turned away: a bore of radius 4 and length 6. Its
+/// turned addition and its turned cut.
+fn a_bored_turn() -> (PartDocument, u32, u32) {
+    let about_v = RevolutionAxis::Sketch(SketchAxis::V);
+    let mut document = a_part();
+    rectangle(&mut document, DVec2::ZERO, DVec2::splat(10.0));
+    rectangle(&mut document, DVec2::new(0.0, 2.0), DVec2::new(4.0, 8.0));
+    for (inside, mode) in [
+        (
+            vec![DVec2::new(7.0, 5.0), DVec2::new(2.0, 5.0)],
+            ExtrusionMode::Add,
+        ),
+        (vec![DVec2::new(2.0, 5.0)], ExtrusionMode::Cut),
+    ] {
+        document.apply(Operation::Revolve {
+            sketch: 0,
+            areas: document.areas_at(0, &inside),
+            axis: about_v,
+            angle: 360.0.into(),
+            mode,
+        });
+    }
+    assert_volume(document.body(), (1000.0 - 96.0) * PI, "the bored turn");
+    let turned = |step: usize| {
+        assert!(
+            matches!(
+                document.history.applied_operations().get(step),
+                Some(Operation::Revolve { .. })
+            ),
+            "the fixture wants a revolution at step {step}",
+        );
+        document.history.number_at(step).expect("a step there")
+    };
+    let (addition, cut) = (turned(3), turned(4));
+    (document, addition, cut)
+}
+
+#[test]
+fn an_invisible_revolved_cut_gives_back_the_matter_it_turned_away() {
+    let (document, _, cut) = a_bored_turn();
+
+    let shown = shown_with(&document, &[(cut, VolumeState::Invisible)]);
+
+    assert_volume(&shown.body, 1000.0 * PI, "the turn, its bore invisible");
     assert!(
-        the_part_s_face_holds(&document, face, at),
-        "the second block's top, the first invisible, answers to {face}, and the part's face \
-         {face} does not lie at {at}",
+        shown.ghosts.is_empty(),
+        "an invisible cut is shown as a ghost"
     );
 }
 
 #[test]
-fn a_face_of_a_ghost_answers_to_the_number_it_has_in_the_part() {
-    let (document, _, second) = two_overlapping_additions();
-    let shown = shown_with(&document, &[(second, VolumeState::SeeThrough)]);
-    let ghost = &shown
-        .ghosts
-        .iter()
-        .find(|ghost| ghost.step == second)
-        .expect("the second block's ghost")
-        .body;
+fn a_see_through_revolved_addition_is_a_ghost_of_its_whole_turn() {
+    let (document, addition, _) = a_bored_turn();
 
-    let (face, at) = met(ghost, DVec3::new(50.0, 5.0, 2.0), DVec3::NEG_X);
+    let shown = shown_with(&document, &[(addition, VolumeState::SeeThrough)]);
 
     assert!(
-        the_part_s_face_holds(&document, face, at),
-        "the ghost's far wall answers to {face}, and the part's face {face} does not lie at {at}",
+        shown.body.is_empty(),
+        "the turn see-through, the opaque part still holds {}",
+        shown.body.volume(),
+    );
+    let ghosts: Vec<u32> = shown.ghosts.iter().map(|ghost| ghost.step).collect();
+    assert_eq!(ghosts, [addition], "the ghosts are those of other steps");
+    assert_volume(
+        &shown.ghosts[0].body,
+        1000.0 * PI,
+        "the turn's ghost, the whole cylinder it turned, bore and all",
     );
 }

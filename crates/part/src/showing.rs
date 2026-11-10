@@ -13,6 +13,7 @@
 
 use std::collections::BTreeMap;
 
+use cao_sketch::WorkPlane;
 use cao_solid::Body;
 
 use crate::document::PartDocument;
@@ -35,8 +36,7 @@ pub struct Shown {
     pub ghosts: Vec<Ghost>,
 }
 
-/// The raw block of a volume shown see-through, by the number of its step,
-/// its faces answering to the numbers they have in the part.
+/// The raw block of a volume shown see-through, by the number of its step.
 #[derive(Clone, Debug)]
 pub struct Ghost {
     pub step: u32,
@@ -44,11 +44,12 @@ pub struct Ghost {
 }
 
 /// What a replay of the part shown carries besides the part: each volume's
-/// state, by the number of its step, and the ghosts laid so far. Empty for
-/// the part itself.
+/// state, by the number of its step, the plane each sketch has in the part,
+/// and the ghosts laid so far. Empty for the part itself.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Showing {
     states: BTreeMap<u32, VolumeState>,
+    planes: Vec<WorkPlane>,
     ghosts: Vec<Ghost>,
 }
 
@@ -71,6 +72,7 @@ impl PartDocument {
             &self.history,
             Showing {
                 states,
+                planes: self.sketches().iter().map(|sketch| sketch.plane).collect(),
                 ghosts: Vec::new(),
             },
         );
@@ -82,6 +84,13 @@ impl PartDocument {
 }
 
 impl PartState {
+    /// The plane the sketch of that rank has in the part, for the part shown
+    /// to lay it on where the face it stands on is not shown: a sketch on a
+    /// volume left out stays where it is in the part.
+    pub(crate) fn plane_in_the_part(&self, sketch: usize) -> Option<WorkPlane> {
+        self.showing.planes.get(sketch).copied()
+    }
+
     /// Whether the step of matter being replayed is to be applied, with its
     /// tool: the part itself applies every one, the part shown leaves out an
     /// invisible step and a see-through addition, and keeps the tool of a
@@ -93,8 +102,7 @@ impl PartState {
             Some(VolumeState::Invisible) => false,
             Some(VolumeState::SeeThrough) => {
                 if !tool.is_empty() {
-                    let numbered = tool.numbered_after(&self.body);
-                    let body = numbered.unwrap_or_else(|_| tool.clone());
+                    let body = tool.clone();
                     self.showing.ghosts.push(Ghost { step, body });
                 }
                 mode == ExtrusionMode::Cut

@@ -1,6 +1,6 @@
 use cao_part::PartDocument;
+use cao_part::VolumeState;
 use cao_part::history::ExtrusionMode;
-use cao_render::MatterInFront;
 
 use crate::lang::Catalogue;
 use crate::screens::part_tree::state::{
@@ -165,9 +165,9 @@ fn made_of_matter(ui: &mut egui::Ui, body: &Body, asked: &mut Asked<'_>, lang: &
         ExtrusionMode::Cut => (icon::EXTRUSION_CUT, tokens::VOLUME_CUT),
     };
     let drawn = match body.shown {
-        MatterInFront::Opaque => icon::BODY_OPAQUE,
-        MatterInFront::SeeThrough => icon::BODY_SEE_THROUGH,
-        MatterInFront::Hidden => icon::BODY_HIDDEN,
+        VolumeState::Opaque => icon::BODY_OPAQUE,
+        VolumeState::SeeThrough => icon::BODY_SEE_THROUGH,
+        VolumeState::Invisible => icon::BODY_HIDDEN,
     };
     let heading = TreeRow {
         name: &body.name,

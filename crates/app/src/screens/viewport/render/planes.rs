@@ -2,10 +2,13 @@
 //! world origin, and the face of the part under the cursor.
 
 use cao_sketch::WorkPlane;
+use cao_solid::Body;
+use glam::DVec3;
 
 use super::{tint, tint_at};
 use crate::screens::SketchContext;
 use crate::screens::sketch::PlaneChoice;
+use crate::screens::viewport::matter::{lies_on, nearness, seen};
 use crate::screens::viewport::{ViewportState, plane_half_size};
 use cao_render::{push_plane_outline, push_plane_quad};
 
@@ -24,7 +27,7 @@ pub(crate) fn push_choosable_planes(
 
     match context.editor.hovered_plane {
         Some(PlaneChoice::Face { face, .. }) => {
-            push_hovered_face(surfaces, tint(theme.highlight), context, face);
+            push_what_is_drawn_of(surfaces, tint(theme.highlight), state, context, face);
         }
         Some(PlaneChoice::Curved(face)) => {
             push_hovered_face(surfaces, tint(theme.refused), context, face);
@@ -61,6 +64,33 @@ pub(crate) fn push_choosable_planes(
             outline,
             if hovered { 2.5 } else { 1.5 },
         );
+    }
+}
+
+/// Lights what is drawn of the part's own face `face`, so it is clear what a
+/// click would sketch on: every triangle drawn — of the part shown, of what a
+/// section or the sketch's cut leaves, of a ghost — that lies on that face. A
+/// stretch of the face a volume left out is not drawn, and is not lit.
+fn push_what_is_drawn_of(
+    surfaces: &mut Vec<cao_render::Vertex>,
+    fill: [f32; 4],
+    state: &ViewportState,
+    context: &SketchContext<'_>,
+    face: usize,
+) {
+    let part = context.document.body();
+    let Some(drawn) = seen(state, context.editor, context.document) else {
+        return;
+    };
+    let near = nearness(part);
+    let held: Vec<[DVec3; 3]> = part.triangles_of(face).collect();
+    for [a, b, c] in drawn.pieces().flat_map(Body::triangles) {
+        let centre = (a + b + c) / 3.0;
+        if held.iter().any(|triangle| lies_on(*triangle, centre, near)) {
+            for corner in [a, b, c] {
+                surfaces.push(cao_render::Vertex::solid(corner.as_vec3(), fill));
+            }
+        }
     }
 }
 

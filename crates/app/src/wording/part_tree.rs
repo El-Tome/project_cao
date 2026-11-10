@@ -1,7 +1,7 @@
 //! What the part tree says that is decided by a case rather than read off a
 //! name.
 
-use cao_render::MatterInFront;
+use cao_part::VolumeState;
 
 use crate::lang::Catalogue;
 use crate::wording::dimension::short;
@@ -61,20 +61,20 @@ pub fn eye(lang: &Catalogue, lit: bool) -> String {
 }
 
 /// How a volume is drawn, written on its line.
-pub fn volume_state(lang: &Catalogue, mode: MatterInFront) -> String {
+pub fn volume_state(lang: &Catalogue, mode: VolumeState) -> String {
     lang.t(match mode {
-        MatterInFront::Hidden => "part_tree.volume.hidden",
-        MatterInFront::SeeThrough => "part_tree.volume.see_through",
-        MatterInFront::Opaque => "part_tree.volume.opaque",
+        VolumeState::Invisible => "part_tree.volume.hidden",
+        VolumeState::SeeThrough => "part_tree.volume.see_through",
+        VolumeState::Opaque => "part_tree.volume.opaque",
     })
 }
 
 /// What a click on a volume's visibility button does, given how it is drawn:
 /// opaque, see-through, invisible, and round again.
-pub fn visibility_button(lang: &Catalogue, mode: MatterInFront) -> String {
+pub fn visibility_button(lang: &Catalogue, mode: VolumeState) -> String {
     lang.t(match mode {
-        MatterInFront::Opaque => "part_tree.volume.make_see_through",
-        MatterInFront::SeeThrough => "part_tree.volume.make_hidden",
-        MatterInFront::Hidden => "part_tree.volume.make_opaque",
+        VolumeState::Opaque => "part_tree.volume.make_see_through",
+        VolumeState::SeeThrough => "part_tree.volume.make_hidden",
+        VolumeState::Invisible => "part_tree.volume.make_opaque",
     })
 }

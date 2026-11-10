@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use super::caught::{caught, quietly};
 use super::drawn::Drawn;
-use super::{Body, FaceHit, FacePlane, Flats, Matter};
+use super::{FaceHit, FacePlane};
 use crate::brep::{self, Declined, EdgeName, FaceId, Lost, Surface, Unstable, VertexName};
 use crate::mesh::Mesh;
 use crate::profile::{Contour, Frame};
@@ -176,12 +176,6 @@ impl Exact {
         })
     }
 
-    /// No matter, counted as this body is: what joining a tool to it would
-    /// number the tool's faces from.
-    pub fn emptied(&self) -> Exact {
-        Exact::of(brep::Body::empty(), self.next, self.pieces, BTreeMap::new())
-    }
-
     pub fn count_past(&mut self, outline: &Contour, holes: &[Contour]) {
         self.next += brep::Body::numbers_raised(outline, holes);
     }
@@ -324,22 +318,6 @@ impl Exact {
         self.brep
             .face_ids()
             .filter(move |&id| self.brep.numbers(id).iter().any(|&n| n as usize == face))
-    }
-}
-
-impl Body {
-    /// This tool with its faces numbered as joining it to `part` or cutting
-    /// it from `part` would number them, and nothing of `part`: a tool shown
-    /// apart from the part then answers to the numbers its faces have there.
-    pub fn numbered_after(&self, part: &Body) -> Result<Body, Declined> {
-        let emptied = match &part.matter {
-            Matter::Exact(exact) => Matter::Exact(Box::new(exact.emptied())),
-            Matter::Flats(flats) => Matter::Flats(Flats {
-                mesh: Mesh::default(),
-                next: flats.next,
-            }),
-        };
-        Body { matter: emptied }.union(self)
     }
 }
 

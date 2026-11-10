@@ -34,6 +34,15 @@ pub(crate) struct Drawn<'a> {
     pub(crate) ghosts: Vec<Body>,
 }
 
+impl Drawn<'_> {
+    /// Every piece drawn: opaque, see-through, then the ghosts.
+    pub(crate) fn pieces(&self) -> impl Iterator<Item = &Body> {
+        std::iter::once(&*self.opaque)
+            .chain(self.see_through.as_ref())
+            .chain(&self.ghosts)
+    }
+}
+
 pub(crate) fn drawn<'a>(
     editor: &SketchEditor,
     mode: ViewMode,
@@ -74,18 +83,19 @@ pub(super) fn drawn_under<'a>(
     origin: DVec3,
     direction: DVec3,
 ) -> Option<(&'a Body, FaceHit)> {
-    std::iter::once(&*drawn.opaque)
-        .chain(drawn.see_through.as_ref())
-        .chain(&drawn.ghosts)
+    drawn
+        .pieces()
         .filter_map(|piece| Some((piece, piece.ray_hit(origin, direction)?)))
         .min_by(|(_, a), (_, b)| a.distance.total_cmp(&b.distance))
 }
 
 /// What a frame draws of the part as its volumes' states show it, nothing
-/// when nothing of it is to be seen: worked out once a frame and handed both
-/// to the painting and to the point under the pointer, since a second call
-/// would compare the whole body with the one the section's halves were cut
-/// from, and copy those halves again.
+/// when nothing of it is to be seen. The view works it out once a frame and
+/// hands it both to the painting and to the point under the pointer; a
+/// click, and the light on the face offered to draw on, ask for it again.
+/// Each call compares the whole body with the one the section's halves were
+/// cut from and copies those halves, and copies the part shown out of its
+/// cache while a volume is not opaque, but replays nothing.
 pub(crate) fn seen<'a>(
     state: &ViewportState,
     editor: &SketchEditor,
@@ -293,5 +303,8 @@ fn sketch_plane_in_view(editor: &SketchEditor, mode: ViewMode) -> Option<WorkPla
     })
 }
 
+mod on_the_part;
 #[cfg(test)]
 mod tests;
+
+pub(crate) use on_the_part::{Met, lies_on, met_on_the_part, nearness};

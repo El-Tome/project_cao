@@ -2,7 +2,7 @@
 //! hidden, and how each volume is drawn.
 
 use cao_part::PartDocument;
-use cao_render::MatterInFront;
+use cao_part::VolumeState;
 
 use super::PartTree;
 use crate::lang::Catalogue;
@@ -33,7 +33,7 @@ impl PartTree {
             body.shown = viewport.volume_mode(document, body.step);
             body.state = said::volume_state(lang, body.shown);
             body.visibility_button = said::visibility_button(lang, body.shown);
-            body.dimmed = body.shown == MatterInFront::Hidden;
+            body.dimmed = body.shown == VolumeState::Invisible;
         }
         tree.make_all_opaque = (!tree.bodies.is_empty()).then(|| Offered {
             label: lang.t("part_tree.make_all_opaque"),

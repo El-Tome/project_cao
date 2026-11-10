@@ -219,7 +219,9 @@
 //!   its current choice staying marked —
 //!   `the_current_choice_of_the_view_bar_s_matter_menu_stays_marked`, and on a
 //!   sub-group nested in a chevron menu —
-//!   `a_hovered_sub_group_of_a_chevron_menu_stands_out_from_the_menu`
+//!   `a_hovered_sub_group_of_a_chevron_menu_stands_out_from_the_menu`, and an
+//!   entry of the popup that sub-group opens —
+//!   `a_hovered_entry_of_a_nested_sub_menu_stands_out_from_the_menu`
 //!
 //! Decided on the way. The tree does not change: « Cercle » and the group
 //! `circles` stay two siblings, and a split button is a rule of the drawing —
@@ -1529,8 +1531,9 @@ fn the_current_choice_of_the_view_bar_s_matter_menu_stays_marked() {
     );
 }
 
-#[test]
-fn a_hovered_sub_group_of_a_chevron_menu_stands_out_from_the_menu() {
+/// A sketch under a chevron menu « Cercles » holding the sub-group « Arcs », the
+/// menu open.
+fn a_chevron_menu_holding_a_sub_group(test: &str) -> driver::App {
     use Command as C;
     let settings = bar_of(vec![Item::group(
         "drawing",
@@ -1546,9 +1549,31 @@ fn a_hovered_sub_group_of_a_chevron_menu_stands_out_from_the_menu() {
             ),
         ],
     )]);
-    let mut app = opened("a_hovered_sub_group_stands_out", WIDE, settings);
+    let mut app = opened(test, WIDE, settings);
     driver::start_a_sketch(&mut app);
     driver::click_exactly(&mut app, "Cercles");
+    app
+}
+
+#[test]
+fn a_hovered_entry_of_a_nested_sub_menu_stands_out_from_the_menu() {
+    let mut app = a_chevron_menu_holding_a_sub_group("a_hovered_nested_entry_stands_out");
+    driver::click_exactly(&mut app, "Arcs");
+    let entries = [
+        "Centre, départ et arrivée",
+        "Deux bouts et un point traversé",
+    ]
+    .map(|entry| the_button(&app, entry).rect());
+    let menu = fill_of_the_menu_around(&app, entries[0].union(entries[1]));
+
+    hover_the_row(&mut app, entries[1]);
+
+    assert_the_hovered_row_stands_out(&app, entries[1], menu);
+}
+
+#[test]
+fn a_hovered_sub_group_of_a_chevron_menu_stands_out_from_the_menu() {
+    let mut app = a_chevron_menu_holding_a_sub_group("a_hovered_sub_group_stands_out");
     let row = the_button(&app, "Arcs").rect();
     let menu = fill_of_the_menu_around(
         &app,

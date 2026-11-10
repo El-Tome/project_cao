@@ -125,3 +125,23 @@ fn at_the_exact_angle_of_a_node_of_its_table_a_ruled_meet_is_found_only_where_it
         }
     }
 }
+
+#[test]
+fn at_the_angle_it_comes_back_to_at_its_seam_a_ruled_meet_is_found_at_its_seam() {
+    let (pin, rod) = over_the_rod(45.0);
+    for component in 0..2 {
+        let meet = Meet {
+            first: pin,
+            second: rod,
+            component,
+        };
+        for end in [0.0, TAU] {
+            let angle = meet.seen_on(false, end)[0].x;
+            let found = meet.at_angle(false, angle);
+            assert!(
+                found.iter().any(|&t| t.min(TAU - t) < 1e-9),
+                "lap {component} stands at {angle}, read at {end}, at its seam; found {found:?}"
+            );
+        }
+    }
+}

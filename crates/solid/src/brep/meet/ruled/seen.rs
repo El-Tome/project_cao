@@ -191,7 +191,7 @@ impl Ruled {
                     if start == 0.0 {
                         found.push(from);
                     } else if end == 0.0 {
-                        found.push(to);
+                        found.push(to.rem_euclid(TAU));
                     } else if (start < 0.0) != (end < 0.0) {
                         found.push(halved(off, from, to));
                     }

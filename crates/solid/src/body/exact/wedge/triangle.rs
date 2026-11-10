@@ -3,7 +3,7 @@
 //! the face the two share, the corner cut off flat through them, across the
 //! point the three flats would otherwise meet at. At a concave corner, a
 //! pocket's bottom (#801), the three fills leave a hollow behind that point,
-//! which the same prism fills, joined.
+//! which the same prism fills, joined, cut back into the corner's walls.
 
 use glam::{DVec2, DVec3};
 
@@ -19,12 +19,6 @@ use crate::profile::{Contour, Frame};
 /// that is not.
 const SPREAD: f64 = 3.0;
 
-/// How much wider than the triangle the prism that fills a concave corner
-/// stands: past the triangle it runs into the fills or the corner's faces,
-/// and a prism as wide as [`SPREAD`] makes it would reach as far again into
-/// the matter, out through a wall half the pocket's depth thick.
-const FILLED_SPREAD: f64 = 1.5;
-
 /// How far past the corner that prism reaches, as a share of how high the
 /// corner stands over the triangle.
 const PAST: f64 = 0.125;
@@ -38,7 +32,7 @@ pub(in crate::body::exact) fn cut_across(
     corner: &Corner,
     flats: [u32; 3],
 ) -> Result<Exact, Declined> {
-    let (outline, frame, travel) = across(corner.crossings, corner.at, SPREAD);
+    let (outline, frame, travel) = across(corner.crossings, corner.at);
     let tool = Exact::raised(&outline, &[], frame, travel)?;
     let cut = body.cut_by(&Exact { next: 1, ..tool })?;
     if cut.cut_along(&[], body, 1, &flats, &[]) {
@@ -50,16 +44,22 @@ pub(in crate::body::exact) fn cut_across(
 
 /// The body with a concave corner closed flat through the crossings: the
 /// hollow the three fills leave behind them filled by the prism [`across`]
-/// raises, [`FILLED_SPREAD`] wide, joined, its floor the face it lays.
-/// Declined as [`cut_across`] declines — a face of the prism left standing,
-/// where it comes out through a wall thinner than it reaches into.
+/// raises, cut back as [`Corner::sunk`] keeps it inside the corner's walls,
+/// joined, its floor the face it lays. Declined as [`cut_across`] declines —
+/// a face of the prism left standing, past a wall thinner than the prism is
+/// sunk into it.
 pub(in crate::body::exact) fn joined_across(
     body: &Exact,
     corner: &Corner,
     flats: [u32; 3],
 ) -> Result<Exact, Declined> {
-    let (outline, frame, travel) = across(corner.crossings, corner.at, FILLED_SPREAD);
-    let tool = Exact::raised(&outline, &[], frame, travel)?;
+    let (outline, frame, travel) = across(corner.crossings, corner.at);
+    let reach = (outline.corners.iter())
+        .map(|at| at.length())
+        .fold(0.0, f64::max)
+        + frame.origin.distance(corner.at)
+        + travel.length();
+    let tool = corner.sunk(Exact::raised(&outline, &[], frame, travel)?, reach)?;
     let joined = body.joined(&Exact { next: 1, ..tool })?;
     if joined.cut_along(&[], body, 1, &flats, &[]) {
         Ok(joined)
@@ -70,17 +70,17 @@ pub(in crate::body::exact) fn joined_across(
 
 /// The prism a corner is cut off flat with, or filled flat with, through
 /// `crossings`: raised from their plane toward `corner`, over the triangle
-/// they make spread `spread` times about its middle, to [`PAST`] past the
+/// they make spread [`SPREAD`] times about its middle, to [`PAST`] past the
 /// corner. Its floor lies on that plane; what stands on the corner's side of
 /// it near the corner is the point the three flats meet at.
-fn across(crossings: [DVec3; 3], corner: DVec3, spread: f64) -> Prism {
+fn across(crossings: [DVec3; 3], corner: DVec3) -> Prism {
     let [first, second, third] = crossings;
     let middle = (first + second + third) / 3.0;
     let u = (second - first).normalize();
     let normal = u.cross(third - first).normalize();
     let v = normal.cross(u);
     let outline = crossings.map(|at| {
-        let off = (at - middle) * spread;
+        let off = (at - middle) * SPREAD;
         DVec2::new(off.dot(u), off.dot(v))
     });
     let frame = Frame {

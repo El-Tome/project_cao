@@ -14,13 +14,12 @@
 //! discs that leaves, facing the centre, replaced by the piece of sphere
 //! facing it, the matter outside the ball.
 
-use glam::{DVec2, DVec3};
+use glam::DVec3;
 
-use super::closing::Corner;
+use super::closing::{Corner, slab};
 use crate::body::drawn::Drawn;
 use crate::body::exact::Exact;
 use crate::brep::{self, Coedge, Curve, Declined, Face, FaceId, Sphere, Surface, SurfaceId};
-use crate::profile::{Contour, Frame};
 
 /// The body with the corner closed by a piece of sphere of the value's
 /// radius, numbered where the steps' numbers end, its centre where the
@@ -147,36 +146,12 @@ fn short_of(corner: &Corner, centre: DVec3) -> Result<Exact, Declined> {
     Ok(kept)
 }
 
-/// How far what fills a concave corner reaches into the matter past the
-/// corner's three faces, as a share of the radius: far enough that no face
-/// of it lies nearly flush with theirs, near enough to stay inside a wall.
-const SUNK: f64 = 0.125;
-
 /// What of a concave corner stands on its side of the three planes through
-/// `centre` square to its edges and no further into the matter than
-/// [`SUNK`] past its three faces: what [`short_of`] holds, less what of it
-/// stands deeper.
+/// `centre` square to its edges and no deeper into the matter than
+/// [`Corner::sunk`] keeps it: what [`short_of`] holds, less what of it stands
+/// deeper.
 fn filling(corner: &Corner, centre: DVec3) -> Result<Exact, Declined> {
-    let half = 2.0 * centre.distance(corner.at);
-    let sunk = corner.value * SUNK;
-    let mut kept = short_of(corner, centre)?;
-    for facing in corner.facing {
-        kept = kept.cut_by(&slab(-facing, corner.at - facing * sunk, 2.0 * half)?)?;
-    }
-    Ok(kept)
-}
-
-/// A box standing on the plane through `from` square to `way`, `half` either
-/// side of `from` across it, raised along `way` twice that.
-fn slab(way: DVec3, from: DVec3, half: f64) -> Result<Exact, Declined> {
-    let u = way.any_orthonormal_vector();
-    let frame = Frame {
-        origin: from,
-        u,
-        v: way.cross(u),
-    };
-    let square = Contour::rectangle(DVec2::splat(-half), DVec2::splat(half));
-    Exact::raised(&square, &[], frame, way * 2.0 * half)
+    corner.sunk(short_of(corner, centre)?, 4.0 * centre.distance(corner.at))
 }
 
 /// The faces with a corner at `centre`, within `eps`.

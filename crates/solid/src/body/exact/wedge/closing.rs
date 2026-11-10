@@ -4,12 +4,13 @@
 //! where the three meet outwards and joined, hollow, where they meet inwards,
 //! at a pocket's bottom corner (#801).
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use super::Wedge;
 use super::corners::Three;
 use crate::body::exact::Exact;
 use crate::brep::Declined;
+use crate::profile::{Contour, Frame};
 
 /// What closes a corner three edges meet at, on the body the three were laid
 /// on, the faces they laid numbered as the three numbers say, its own face
@@ -17,9 +18,19 @@ use crate::brep::Declined;
 /// among flats, and [`super::rounded_across`] among rounds.
 pub(in crate::body::exact) type Close = fn(&Exact, &Corner, [u32; 3]) -> Result<Exact, Declined>;
 
-/// What a kind closes a corner with: the first where its three edges meet
-/// outwards, the second where they meet inwards.
-pub(in crate::body::exact) type Closing = [Close; 2];
+/// What a kind closes a corner with: `outwards` where its three edges meet
+/// outwards, `inwards` where they meet inwards.
+#[derive(Clone, Copy)]
+pub(in crate::body::exact) struct Closing {
+    pub outwards: Close,
+    pub inwards: Close,
+}
+
+/// How far what fills a concave corner reaches into the matter past the
+/// corner's three faces, as a share of the value: far enough that no face of
+/// it lies nearly flush with theirs, near enough to stay inside a wall or a
+/// floor thicker than that.
+const SUNK: f64 = 0.125;
 
 /// A corner three edges of a step meet at, read on the body as given: where
 /// it stands; where the set-backs of each two cross on the face the two share
@@ -37,8 +48,8 @@ pub(in crate::body::exact) struct Corner {
 /// Each corner three edges meet at, read as a [`Corner`] for the value
 /// `taken`, each edge set back `set_back` along its faces, with the ranks of
 /// its edges and what of `closing` closes it, by the way its edges meet.
-/// Declined `Unsupported` where two of a corner's edges share no face, or
-/// their set-backs never cross.
+/// Declined `Unsupported` where two of a corner's edges share no face, their
+/// set-backs never cross, or the three do not all meet the same way.
 pub(super) fn closings(
     corners: Vec<Three>,
     wedges: &[Wedge],
@@ -52,7 +63,12 @@ pub(super) fn closings(
             let three = ranks.map(|rank| &wedges[rank]);
             let corner = read((at, along), three, three.map(&set_back), taken)
                 .ok_or(Declined::Unsupported)?;
-            Ok((corner, ranks, closing[usize::from(three[0].inwards)]))
+            let close = match three.map(|wedge| wedge.inwards) {
+                [false, false, false] => closing.outwards,
+                [true, true, true] => closing.inwards,
+                _ => return Err(Declined::Unsupported),
+            };
+            Ok((corner, ranks, close))
         })
         .collect()
 }
@@ -87,6 +103,32 @@ fn read(
         along,
         value,
     })
+}
+
+impl Corner {
+    /// `solid` less what of it stands deeper in the matter than [`SUNK`] of
+    /// the value past the corner's three faces, every point of it within
+    /// `reach` of the corner: what fills a concave corner, kept inside its
+    /// walls.
+    pub fn sunk(&self, solid: Exact, reach: f64) -> Result<Exact, Declined> {
+        let depth = self.value * SUNK;
+        (self.facing.iter()).try_fold(solid, |kept, &facing| {
+            kept.cut_by(&slab(-facing, self.at - facing * depth, reach)?)
+        })
+    }
+}
+
+/// A box standing on the plane through `from` square to `way`, `half` either
+/// side of `from` across it, raised along `way` twice that.
+pub(super) fn slab(way: DVec3, from: DVec3, half: f64) -> Result<Exact, Declined> {
+    let u = way.any_orthonormal_vector();
+    let frame = Frame {
+        origin: from,
+        u,
+        v: way.cross(u),
+    };
+    let square = Contour::rectangle(DVec2::splat(-half), DVec2::splat(half));
+    Exact::raised(&square, &[], frame, way * 2.0 * half)
 }
 
 impl Exact {

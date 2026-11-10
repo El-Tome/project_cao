@@ -8,7 +8,9 @@ mod full_round;
 use glam::DVec3;
 
 use super::Exact;
-use super::wedge::{Meeting, Prism, Together, Wedge, hollowed_across, rounded_across, too_short};
+use super::wedge::{
+    Closing, Meeting, Prism, Together, Wedge, hollowed_across, rounded_across, too_short,
+};
 use crate::brep::{Declined, EdgeName, Scale, Surface};
 
 impl Exact {
@@ -79,7 +81,10 @@ impl Exact {
             Wedge::rounded,
             Meeting {
                 together: Together::Raised(Wedge::rounded_with),
-                closing: [rounded_across, hollowed_across],
+                closing: Closing {
+                    outwards: rounded_across,
+                    inwards: hollowed_across,
+                },
             },
         )?;
         let made = |rank: usize| self.next + rank as u32;

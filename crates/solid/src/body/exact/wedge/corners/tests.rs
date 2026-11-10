@@ -4,9 +4,9 @@
 //! concave edges beside a third concave one, at a pocket's bottom corner; and
 //! no other corner but a convex one. It is the first guard a step's corners
 //! meet: a list it lets through by mistake — a cut and a fill meeting at a
-//! corner, three concave edges — is declined further on all the same, so a
-//! step on the whole body cannot tell which reading declined it. Here the
-//! corner's own answer is held.
+//! corner — is declined further on all the same, so a step on the whole body
+//! cannot tell which reading declined it. Here the corner's own answer is
+//! held.
 
 use glam::{DVec2, DVec3};
 
@@ -242,4 +242,41 @@ fn two_edges_of_a_block_s_convex_corner_are_taken_with_no_corner_beside_a_concav
     let list = [[TOP, front], [TOP, right]];
 
     assert_eq!(admitted(&block(), &list), Ok(Vec::new()));
+}
+
+#[test]
+fn three_edges_at_a_corner_of_mixed_sense_are_declined() {
+    for (part, list, which) in [
+        (
+            ell(),
+            [[TOP, ARM_BACK], [TOP, STEM_RIGHT], [ARM_BACK, STEM_RIGHT]],
+            "the L's two top edges at its inner corner and its inner upright",
+        ),
+        (
+            stacked(),
+            [
+                [TOP, STANDING_FRONT],
+                [TOP, STANDING_RIGHT],
+                [STANDING_FRONT, STANDING_RIGHT],
+            ],
+            "two feet of a standing block and the upright above them",
+        ),
+    ] {
+        assert_eq!(
+            admitted(&part, &list),
+            Err(Declined::Unsupported),
+            "{which}"
+        );
+    }
+}
+
+#[test]
+fn the_three_edges_at_a_pocket_s_bottom_corner_are_taken_with_no_corner_beside_an_edge() {
+    let corner = [
+        [POCKET_FLOOR, POCKET_FRONT],
+        [POCKET_FLOOR, POCKET_RIGHT],
+        [POCKET_FRONT, POCKET_RIGHT],
+    ];
+
+    assert_eq!(admitted(&pocketed(), &corner), Ok(Vec::new()));
 }

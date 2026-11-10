@@ -19,11 +19,12 @@ const PROBES: usize = 64;
 /// from its top on the stock's wall at (0, 20, 10) round the hole to the
 /// parameter `to`, between two vertices; and a wall along Z of `radius`,
 /// inside the stock, touching its wall along the line through the top once
-/// moved `off` away from it.
+/// moved `off` away from it — or, given a `center`, standing about it.
 struct Layout {
     to: f64,
     radius: f64,
     off: f64,
+    center: Option<DVec3>,
     /// The heights a face on the wall stands between, if it holds one.
     faced: Option<[f64; 2]>,
     /// Whether the stock holds a face, from its foot to its top.
@@ -47,6 +48,7 @@ impl Layout {
             to: PI,
             radius,
             off: 0.0,
+            center: None,
             faced: None,
             stock_faced: false,
         }
@@ -63,7 +65,9 @@ impl Layout {
         let ends = [build.vertex(top), build.vertex(meet.point(self.to))];
         let edge = build.meet_edge(meet, Some(ends), FRAC_PI_2, self.to);
         let across = DVec3::new(top.x, top.y, 0.0);
-        let center = across * (1.0 - (self.radius + self.off) / across.length());
+        let center = self
+            .center
+            .unwrap_or(across * (1.0 - (self.radius + self.off) / across.length()));
         let wall = build.cylinder(center, DVec3::Z, self.radius);
         let face = |build: &mut fixtures::Build, on: SurfaceId, [low, high]: [f64; 2]| {
             let (low, high) = (build.circle(on, low, None), build.circle(on, high, None));
@@ -735,4 +739,69 @@ fn a_chord_dipping_into_a_pierced_wall_deeper_than_its_triangles_sag_where_it_is
         cut.is_empty(),
         "the chord to the foot, dipping where the wall is bored away, is cut at {cut:?}"
     );
+}
+
+#[test]
+fn a_chord_dipping_into_a_wall_only_where_the_curve_itself_runs_inside_it_is_left_whole() {
+    let (to, radius) = (FRAC_PI_2 + 0.3 * PI, 3.0);
+    let (sin, cos) = 115f64.to_radians().sin_cos();
+    let laid = Layout {
+        center: Some(DVec3::new(
+            radius * cos,
+            fixtures::STOCK_RADIUS + radius * sin,
+            0.0,
+        )),
+        faced: Some([0.0, fixtures::HEIGHT]),
+        to,
+        ..Layout::quarter(radius)
+    }
+    .laid();
+    let eps = laid.body.scale().eps();
+    let (_, wall) = laid.wall;
+    let meet = laid.meet;
+    let ends = run_of(&laid.body, laid.edge, &[]);
+    assert!(
+        wall.distance(ends[0]).abs() <= eps,
+        "the top stands off the wall"
+    );
+    assert!(
+        wall.distance(ends[1]) > TOLERANCE,
+        "the far end stands within the tolerance of the wall"
+    );
+    let angles = sampled_angles(
+        divisions_in(wall.radius, TOLERANCE, span(&laid.body)),
+        Vec::new(),
+    );
+    assert!(
+        (1..PROBES).any(|part| {
+            let chord = ends[0].lerp(ends[1], part as f64 / PROBES as f64);
+            let sag = sag_at(
+                &angles,
+                wall.radius,
+                wall.parameters(chord).x.rem_euclid(TAU),
+            );
+            -wall.distance(chord) > sag.max(eps)
+        }),
+        "the chord dips no deeper than the wall's triangles sag"
+    );
+    let deeper = deeper_than_the_sag(&meet, &wall, &angles, eps, FRAC_PI_2, to);
+    assert!(
+        deeper <= 0.0,
+        "the chord dips {deeper} deeper than the wall's triangles sag where the curve stands outside"
+    );
+
+    let walls = [laid.wall];
+    let zones = Zones::of(&laid.body, &walls);
+    let contacts = BTreeMap::new();
+    let kept = kept_outside(
+        &laid.body,
+        laid.edge,
+        &meet,
+        &walls,
+        (TOLERANCE, span(&laid.body)),
+        Vec::new(),
+        (&walls, &zones, &contacts),
+    );
+
+    assert_eq!(kept, Vec::new());
 }

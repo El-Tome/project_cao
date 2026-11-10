@@ -15,15 +15,26 @@
 //! the bore's.
 //!
 //! The pass is held beside its code, in
-//! `crates/solid/src/brep/tessellation/sampling/meet/outside/tests.rs`. The
-//! mutants of `outside.rs` those tests leave alive are equivalent:
-//! - `67:23` and `68:30` `>` → `>=`, `151:51` `<` → `<=`, `152:74` `>` →
-//!   `>=`, `165:59` `>` → `>=`: each differs only where a depth or a distance
-//!   equals the kernel's tolerance, the sag or the tolerance asked to the
-//!   last bit, which no probe of a chord between rounded points lands on.
-//! - `103:62` `+` → `-`: the first angle a turn back rather than a turn on
-//!   moves the half step and the cell's middle by a whole turn each, which
-//!   neither cosine sees.
+//! `crates/solid/src/brep/tessellation/sampling/meet/outside/tests.rs`, and
+//! the seam of a ruled meet in `crates/solid/src/brep/meet/tests/ruled.rs`.
+//! The mutants those tests leave alive are equivalent:
+//! - `outside.rs` `122:16` and `123:22` `>` → `>=` in `dips`, `189:89` and
+//!   `204:68` `>` → `>=` in `kept_outside`: each differs only where a depth
+//!   or a distance equals the kernel's tolerance, the sag or the tolerance
+//!   asked to the last bit, which no probe of a chord between rounded points
+//!   lands on.
+//! - `outside.rs` `149:62` `+` → `-` in `sag_at`: the first angle a turn
+//!   back rather than a turn on moves the half step and the cell's middle by
+//!   a whole turn each, which neither cosine sees.
+//! - `ruled/seen.rs` `200:38` and `200:53` `<` → `<=` in `Ruled::at_angle`:
+//!   an end of a window standing exactly at the angle is taken by the
+//!   `== 0.0` arms above, so the sign test never meets a nought.
+//!
+//! Four mutants of `outside.rs` `189`, where the curve is read at the share
+//! a chord dips at — `189:65` `+` → `*`, `189:71` `-` → `+` and `-` → `/`,
+//! `189:79` `*` → `+` — time out rather than fail: read elsewhere, the curve
+//! of a chord running inside the wall stands outside, and every half of it
+//! is halved again, forty levels down.
 //!
 //! Closes #821.
 //! - 354000000011719's shrunk case is pinned and holds through the body with
@@ -55,9 +66,10 @@
 //!   the one rule is held beside its code, in
 //!   `crates/solid/src/brep/tessellation/sampling/meet/outside/tests.rs`, by
 //!   `a_chord_dipping_into_a_pierced_wall_no_deeper_than_its_triangles_sag_is_left_whole`,
-//!   `a_chord_dipping_into_a_wall_deeper_than_its_triangles_sag_is_halved_only_until_it_dips_no_deeper_than_they_sag`
-//!   and
+//!   `a_chord_dipping_into_a_wall_deeper_than_its_triangles_sag_is_halved_only_until_it_dips_no_deeper_than_they_sag`,
 //!   `a_chord_dipping_into_a_pierced_wall_deeper_than_its_triangles_sag_where_it_is_bored_away_is_left_whole`
+//!   and
+//!   `a_chord_dipping_into_a_wall_only_where_the_curve_itself_runs_inside_it_is_left_whole`
 //! - A unit test pins the seam case of point 4, red before — no test: in this
 //!   file; held by
 //!   `at_an_angle_between_the_two_ends_of_its_table_a_ruled_meet_is_found_at_its_seam`,

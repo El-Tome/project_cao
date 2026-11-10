@@ -75,20 +75,27 @@ const CLEAR: f64 = 1e-2;
 /// a flip is wanted for.
 const ROUNDINGS: f64 = 1e3;
 
+/// How many passes in a row may meet as many folds, over the whole body, as
+/// the fewest met so far and still be followed by another: one, the fewest a
+/// campaign found to cure 354000000008162, not a bound on how long a walk stalls.
+const STALLS: usize = 1;
+
 /// Undoes every fold between the faces of `drawn`, as far as a diagonal
 /// standing within `tolerance` of its face's surface, or no further than the
 /// one it replaces, can. A flip cures a fold behind the one being undone as
 /// often as ahead of it, so the faces are passed over again, but only while a
-/// pass takes a flip and meets fewer folds than the one before met: that
-/// number cannot fall for ever, and the passes end.
+/// pass takes a flip and meets fewer folds than the fewest met so far, or as
+/// many no more than `STALLS` times in a row: that number cannot fall for
+/// ever, and the passes end.
 pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64, tolerance: f64) {
     let mut folds = Folds::of(drawn, samples, eps, tolerance);
-    let mut fewest = usize::MAX;
+    let (mut fewest, mut stalled) = (usize::MAX, 0);
     loop {
         let (found, taken) = folds.pass();
-        if !taken || found >= fewest {
+        if !taken || found > fewest || (found == fewest && stalled == STALLS) {
             return;
         }
+        stalled = if found == fewest { stalled + 1 } else { 0 };
         fewest = found;
     }
 }

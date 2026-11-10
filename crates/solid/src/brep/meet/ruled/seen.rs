@@ -187,7 +187,14 @@ impl Ruled {
                 let target = theta + TAU * ((low - theta) / TAU).ceil();
                 if target <= high {
                     let off = |t: f64| angle(t) - target;
-                    found.push(halved(off, from, to));
+                    let (start, end) = (off(from), off(to));
+                    if start == 0.0 {
+                        found.push(from);
+                    } else if end == 0.0 {
+                        found.push(to.rem_euclid(TAU));
+                    } else if (start < 0.0) != (end < 0.0) {
+                        found.push(halved(off, from, to));
+                    }
                 }
             }
             found

@@ -1,0 +1,478 @@
+use std::collections::BTreeMap;
+use std::f64::consts::{FRAC_PI_2, PI, TAU};
+
+use glam::{DVec2, DVec3};
+
+use super::{kept_outside, pierced, sag_at, sampled_angles};
+use crate::brep::curve::{Meet, Wall as Carried};
+use crate::brep::surface::{Cylinder, Surface};
+use crate::brep::tessellation::contact::{Wall, Zones};
+use crate::brep::tessellation::sampling::steps::{divisions_in, span};
+use crate::brep::tessellation::tests::fixtures;
+use crate::brep::topology::{Body, Coedge, EdgeId, SurfaceId};
+
+const TOLERANCE: f64 = 0.02;
+
+const PROBES: usize = 64;
+
+/// The meet of the stock and a hole of radius 5 bored across it along Y,
+/// from its top on the stock's wall at (0, 20, 10) round the hole to the
+/// parameter `to`, between two vertices; and a wall along Z of `radius`,
+/// inside the stock, touching its wall along the line through the top once
+/// moved `off` away from it.
+struct Layout {
+    to: f64,
+    radius: f64,
+    off: f64,
+    /// The heights a face on the wall stands between, if it holds one.
+    faced: Option<[f64; 2]>,
+    /// Whether the stock holds a face, from its foot to its top.
+    stock_faced: bool,
+}
+
+/// What a [`Layout`] builds.
+struct Laid {
+    body: Body,
+    edge: EdgeId,
+    meet: Meet,
+    wall: Wall,
+    stock: Wall,
+}
+
+impl Layout {
+    /// A quarter round the hole, down to (-5, 19.4, 5), beside a wall of
+    /// `radius` touching the stock, neither holding a face.
+    fn quarter(radius: f64) -> Layout {
+        Layout {
+            to: PI,
+            radius,
+            off: 0.0,
+            faced: None,
+            stock_faced: false,
+        }
+    }
+
+    fn laid(self) -> Laid {
+        let mut build = fixtures::Build::new();
+        let stock = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
+        let bore = build.cylinder(DVec3::Z * 5.0, DVec3::Y, fixtures::HOLE_RADIUS);
+        let meet = build
+            .meeting(stock, bore, fixtures::STOCK_RADIUS)
+            .components[0];
+        let top = meet.point(FRAC_PI_2);
+        let ends = [build.vertex(top), build.vertex(meet.point(self.to))];
+        let edge = build.meet_edge(meet, Some(ends), FRAC_PI_2, self.to);
+        let across = DVec3::new(top.x, top.y, 0.0);
+        let center = across * (1.0 - (self.radius + self.off) / across.length());
+        let wall = build.cylinder(center, DVec3::Z, self.radius);
+        let face = |build: &mut fixtures::Build, on: SurfaceId, [low, high]: [f64; 2]| {
+            let (low, high) = (build.circle(on, low, None), build.circle(on, high, None));
+            let use_of = |edge, forward| Coedge { edge, forward };
+            build.face(
+                on,
+                false,
+                vec![vec![use_of(low, true)], vec![use_of(high, false)]],
+            );
+        };
+        if let Some(heights) = self.faced {
+            face(&mut build, wall, heights);
+        }
+        if self.stock_faced {
+            face(&mut build, stock, [0.0, fixtures::HEIGHT]);
+        }
+        let body = build.finish(fixtures::STOCK_RADIUS);
+        let round = |id: SurfaceId| match *body.surface(id) {
+            Surface::Cylinder(cylinder) => (id, cylinder),
+            _ => unreachable!("the walls are round"),
+        };
+        let (wall, stock) = (round(wall), round(stock));
+        Laid {
+            body,
+            edge,
+            meet,
+            wall,
+            stock,
+        }
+    }
+}
+
+fn a_quarter_meet_and_a_wall_touching_the_stock_inside_at_its_top(
+    radius: f64,
+) -> (Body, EdgeId, Meet, Vec<Wall>) {
+    let laid = Layout::quarter(radius).laid();
+    (laid.body, laid.edge, laid.meet, vec![laid.wall])
+}
+
+/// The edge's points from its first end to its last, `between` in the
+/// middle.
+fn run_of(body: &Body, edge: EdgeId, between: &[DVec3]) -> Vec<DVec3> {
+    let ends = body.edge(edge).ends.expect("between two vertices");
+    let mut run = vec![body.vertex(ends[0]).point];
+    run.extend_from_slice(between);
+    run.push(body.vertex(ends[1]).point);
+    run
+}
+
+/// How deep the chord between `start` and `end` passes inside `wall` at its
+/// deepest, probed at [`PROBES`] places along it.
+fn deepest_inside(wall: &Cylinder, start: DVec3, end: DVec3) -> f64 {
+    (1..PROBES)
+        .map(|part| -wall.distance(start.lerp(end, part as f64 / PROBES as f64)))
+        .fold(0.0, f64::max)
+}
+
+#[test]
+fn a_meet_s_chord_passing_inside_a_wall_its_end_stands_on_where_the_curve_stays_outside_is_cut_until_it_stays_outside()
+ {
+    let (body, edge, meet, walls) =
+        a_quarter_meet_and_a_wall_touching_the_stock_inside_at_its_top(10.0);
+    let eps = body.scale().eps();
+    let wall = &walls[0].1;
+    let before = run_of(&body, edge, &[]);
+    assert!(
+        deepest_inside(wall, before[0], before[1]) > 1e3 * eps,
+        "the fixture's chord stays outside the wall"
+    );
+
+    let kept = kept_outside(&body, edge, &meet, &walls, TOLERANCE, Vec::new());
+
+    assert!(!kept.is_empty(), "the chord is left whole");
+    let run = run_of(&body, edge, &kept);
+    let mut last = FRAC_PI_2;
+    for point in &kept {
+        let t = meet.parameter(*point);
+        assert!(
+            (meet.point(t) - *point).length() < 1e-9,
+            "{point} is off the curve"
+        );
+        assert!(last < t && t < PI, "{t} out of order after {last}");
+        last = t;
+    }
+    for pair in run.windows(2) {
+        let depth = deepest_inside(wall, pair[0], pair[1]);
+        assert!(
+            depth <= eps,
+            "the chord from {} to {} passes {depth} inside the wall",
+            pair[0],
+            pair[1]
+        );
+    }
+}
+
+#[test]
+fn a_meet_s_chords_ending_within_the_tolerance_of_a_wall_a_hair_inside_its_own_are_left_alone() {
+    let hair = 1e-3;
+    let (body, edge, meet, walls) = a_quarter_meet_and_a_wall_touching_the_stock_inside_at_its_top(
+        fixtures::STOCK_RADIUS - hair,
+    );
+    let eps = body.scale().eps();
+    let wall = &walls[0].1;
+    let points: Vec<DVec3> = (1..4)
+        .map(|step| meet.point(FRAC_PI_2 + FRAC_PI_2 * step as f64 / 4.0))
+        .collect();
+    let run = run_of(&body, edge, &points);
+    for point in &run {
+        assert!(
+            wall.distance(*point).abs() < TOLERANCE,
+            "{point} stands further than the tolerance from the wall"
+        );
+    }
+    assert!(
+        run.windows(2)
+            .all(|pair| deepest_inside(wall, pair[0], pair[1]) > 1e3 * eps),
+        "a chord of the fixture stays outside the wall"
+    );
+    assert!(
+        run.iter().any(|point| wall.distance(*point) > 1e2 * eps),
+        "the fixture's curve lies on the wall"
+    );
+
+    let kept = kept_outside(&body, edge, &meet, &walls, TOLERANCE, points.clone());
+
+    assert_eq!(kept, points);
+}
+
+#[test]
+fn a_meet_s_own_samples_stand_bit_for_bit_among_those_the_wall_adds() {
+    let (body, edge, meet, walls) =
+        a_quarter_meet_and_a_wall_touching_the_stock_inside_at_its_top(10.0);
+    let points: Vec<DVec3> = [0.25, 0.5, 0.75]
+        .map(|share| meet.point(FRAC_PI_2 + FRAC_PI_2 * share) + DVec3::X * 1e-10)
+        .to_vec();
+
+    let kept = kept_outside(&body, edge, &meet, &walls, TOLERANCE, points.clone());
+
+    assert!(kept.len() > points.len(), "the wall adds no sample");
+    let mut found = kept.iter();
+    for point in &points {
+        assert!(
+            found.any(|kept| kept.to_array() == point.to_array()),
+            "{point} is not kept as it was, in its place"
+        );
+    }
+}
+
+/// How far inside a circle of `radius` the chord between its angles `low`
+/// and `high` stands on the ray at `angle`.
+fn sag_of_the_chord(radius: f64, low: f64, high: f64, angle: f64) -> f64 {
+    let (start, end) = (
+        DVec2::from_angle(low) * radius,
+        DVec2::from_angle(high) * radius,
+    );
+    let along = end - start;
+    radius - start.perp_dot(along) / DVec2::from_angle(angle).perp_dot(along)
+}
+
+#[test]
+fn a_wall_is_sampled_at_every_step_of_its_grid_and_at_every_ray_brought_within_a_turn_in_order() {
+    let angles = sampled_angles(4, vec![-FRAC_PI_2, TAU + 0.1, 1.0]);
+
+    let expected = [
+        0.0,
+        0.1,
+        1.0,
+        FRAC_PI_2,
+        PI,
+        3.0 * FRAC_PI_2,
+        3.0 * FRAC_PI_2,
+    ];
+    assert_eq!(angles.len(), expected.len(), "{angles:?}");
+    for (angle, expected) in angles.iter().zip(expected) {
+        assert!((angle - expected).abs() < 1e-12, "{angles:?}");
+    }
+}
+
+const SAMPLED: [f64; 4] = [0.0, 1.0, 2.5, 4.0];
+
+#[test]
+fn a_wall_s_triangles_stand_on_it_at_every_angle_it_is_sampled_at() {
+    for angle in SAMPLED {
+        let sag = sag_at(&SAMPLED, 10.0, angle);
+        assert!(sag.abs() < 1e-12, "{sag} at {angle}");
+    }
+}
+
+#[test]
+fn halfway_between_two_angles_a_wall_s_triangles_sag_by_its_radius_less_the_cosine_of_half_the_step()
+ {
+    let sag = sag_at(&SAMPLED, 10.0, 1.75);
+
+    assert!((sag - 10.0 * (1.0 - 0.75_f64.cos())).abs() < 1e-12, "{sag}");
+}
+
+#[test]
+fn between_two_angles_a_wall_s_triangles_stand_where_the_chord_between_them_crosses_the_ray() {
+    for angle in [1.2, 2.3] {
+        let sag = sag_at(&SAMPLED, 10.0, angle);
+
+        let expected = sag_of_the_chord(10.0, 1.0, 2.5, angle);
+        assert!(
+            (sag - expected).abs() < 1e-12,
+            "{sag} at {angle}, not {expected}"
+        );
+    }
+}
+
+#[test]
+fn past_the_last_angle_a_wall_s_triangles_sag_as_the_chord_to_the_first_a_turn_on() {
+    let off_the_grid = [0.5, 1.0, 2.5, 4.0];
+    for (angles, angle) in [(SAMPLED, 4.5), (SAMPLED, 6.0), (off_the_grid, 5.0)] {
+        let sag = sag_at(&angles, 10.0, angle);
+
+        let expected = sag_of_the_chord(10.0, 4.0, angles[0] + TAU, angle);
+        assert!(
+            (sag - expected).abs() < 1e-12,
+            "{sag} at {angle}, not {expected}"
+        );
+    }
+}
+
+/// The walls of `walls` a chord of the laid edge between its two ends
+/// pierces, the grid of each cut for `tolerance`.
+fn pierced_in(laid: &Laid, walls: &[Wall], tolerance: f64) -> Vec<Wall> {
+    let zones = Zones::of(&laid.body, walls);
+    let contacts = BTreeMap::new();
+    pierced(
+        &laid.body,
+        laid.edge,
+        &laid.meet,
+        (walls, &zones, &contacts),
+        (tolerance, span(&laid.body)),
+        &[],
+    )
+}
+
+#[test]
+fn a_third_wall_a_meet_s_chord_dips_into_deeper_than_its_triangles_sag_where_it_holds_a_face_is_pierced()
+ {
+    let laid = Layout {
+        faced: Some([0.0, fixtures::HEIGHT]),
+        ..Layout::quarter(10.0)
+    }
+    .laid();
+
+    assert_eq!(pierced_in(&laid, &[laid.wall], TOLERANCE), vec![laid.wall]);
+}
+
+#[test]
+fn a_meet_s_own_wall_is_never_pierced_by_its_chords() {
+    let laid = Layout {
+        stock_faced: true,
+        ..Layout::quarter(10.0)
+    }
+    .laid();
+    let (_, stock) = laid.stock;
+    assert_eq!(laid.meet.first, Carried::Cylinder(stock));
+    let ends = run_of(&laid.body, laid.edge, &[]);
+    assert!(
+        deepest_inside(&stock, ends[0], ends[1]) > 0.1,
+        "the fixture's chord stays near the stock's wall"
+    );
+
+    assert_eq!(pierced_in(&laid, &[laid.stock], TOLERANCE), Vec::new());
+}
+
+#[test]
+fn a_wall_no_end_of_the_edge_lies_on_is_not_pierced() {
+    let laid = Layout {
+        off: 1e-6,
+        faced: Some([0.0, fixtures::HEIGHT]),
+        ..Layout::quarter(10.0)
+    }
+    .laid();
+    let eps = laid.body.scale().eps();
+    let ends = run_of(&laid.body, laid.edge, &[]);
+    assert!(
+        ends.iter()
+            .all(|end| laid.wall.1.distance(*end) > 10.0 * eps)
+    );
+    assert!(deepest_inside(&laid.wall.1, ends[0], ends[1]) > 1e3 * eps);
+
+    assert_eq!(pierced_in(&laid, &[laid.wall], TOLERANCE), Vec::new());
+}
+
+#[test]
+fn a_wall_bored_away_where_the_chord_dips_into_it_is_not_pierced() {
+    let laid = Layout {
+        faced: Some([2.0 * fixtures::HEIGHT, 3.0 * fixtures::HEIGHT]),
+        ..Layout::quarter(10.0)
+    }
+    .laid();
+
+    assert_eq!(pierced_in(&laid, &[laid.wall], TOLERANCE), Vec::new());
+}
+
+#[test]
+fn a_wall_whose_triangles_sag_further_than_the_chord_dips_is_not_pierced() {
+    let coarse = 1.0;
+    let laid = Layout {
+        faced: Some([0.0, fixtures::HEIGHT]),
+        ..Layout::quarter(10.0)
+    }
+    .laid();
+    let eps = laid.body.scale().eps();
+    let (_, wall) = laid.wall;
+    let angles = sampled_angles(
+        divisions_in(wall.radius, coarse, span(&laid.body)),
+        Vec::new(),
+    );
+    let ends = run_of(&laid.body, laid.edge, &[]);
+    assert!(deepest_inside(&wall, ends[0], ends[1]) > 1e3 * eps);
+    for part in 1..PROBES {
+        let chord = ends[0].lerp(ends[1], part as f64 / PROBES as f64);
+        let angle = wall.parameters(chord).x.rem_euclid(TAU);
+        let depth = -wall.distance(chord);
+        assert!(
+            depth <= sag_at(&angles, wall.radius, angle),
+            "the chord dips {depth} at {angle}, below the wall's triangles"
+        );
+    }
+
+    assert_eq!(pierced_in(&laid, &[laid.wall], coarse), Vec::new());
+}
+
+#[test]
+fn a_wall_no_end_of_the_edge_lies_on_keeps_no_chord_of_it_outside() {
+    let laid = Layout {
+        off: 1e-6,
+        ..Layout::quarter(10.0)
+    }
+    .laid();
+    let eps = laid.body.scale().eps();
+    let ends = run_of(&laid.body, laid.edge, &[]);
+    assert!(
+        ends.iter()
+            .all(|end| laid.wall.1.distance(*end) > 10.0 * eps)
+    );
+    assert!(deepest_inside(&laid.wall.1, ends[0], ends[1]) > 1e3 * eps);
+
+    let kept = kept_outside(
+        &laid.body,
+        laid.edge,
+        &laid.meet,
+        &[laid.wall],
+        TOLERANCE,
+        Vec::new(),
+    );
+
+    assert_eq!(kept, Vec::new());
+}
+
+#[test]
+fn a_chord_dipping_into_a_wall_no_deeper_than_the_kernel_s_tolerance_is_left_alone() {
+    let laid = Layout {
+        to: FRAC_PI_2 + 4.733e-4,
+        ..Layout::quarter(10.0)
+    }
+    .laid();
+    let eps = laid.body.scale().eps();
+    let (_, wall) = laid.wall;
+    let ends = run_of(&laid.body, laid.edge, &[]);
+    assert!(deepest_inside(&wall, ends[0], ends[1]) <= eps);
+    assert!(
+        wall.distance(
+            laid.meet
+                .point((FRAC_PI_2 + laid.body.edge(laid.edge).to) / 2.0)
+        ) > eps
+    );
+
+    let kept = kept_outside(
+        &laid.body,
+        laid.edge,
+        &laid.meet,
+        &[laid.wall],
+        0.0,
+        Vec::new(),
+    );
+
+    assert_eq!(kept, Vec::new());
+}
+
+#[test]
+fn a_chord_passing_inside_a_wall_the_curve_itself_runs_along_is_left_alone() {
+    let laid = Layout {
+        to: FRAC_PI_2 + 0.02,
+        ..Layout::quarter(fixtures::STOCK_RADIUS - 1e-3)
+    }
+    .laid();
+    let eps = laid.body.scale().eps();
+    let (_, wall) = laid.wall;
+    let ends = run_of(&laid.body, laid.edge, &[]);
+    assert!(deepest_inside(&wall, ends[0], ends[1]) > 1e3 * eps);
+    for part in 0..=PROBES {
+        let t = FRAC_PI_2 + 0.02 * part as f64 / PROBES as f64;
+        assert!(wall.distance(laid.meet.point(t)).abs() <= eps);
+    }
+    assert!(wall.distance(ends[1]) > 0.0);
+
+    let kept = kept_outside(
+        &laid.body,
+        laid.edge,
+        &laid.meet,
+        &[laid.wall],
+        0.0,
+        Vec::new(),
+    );
+
+    assert_eq!(kept, Vec::new());
+}

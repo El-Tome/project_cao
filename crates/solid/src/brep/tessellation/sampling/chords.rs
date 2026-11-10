@@ -9,7 +9,7 @@ const HALVINGS: u32 = 40;
 
 /// How many equal parts a stretch is cut into to measure its chord from the
 /// curve: the places between them are where the curve is measured.
-const PROBES: usize = 8;
+pub(super) const PROBES: usize = 8;
 
 /// The parameters strictly between `from` and `to` a stretch of the curve
 /// `point` is cut at, in order, pushed onto `places`, so that no chord
@@ -21,24 +21,34 @@ pub(super) fn halved(
     tolerance: f64,
     places: &mut Vec<f64>,
 ) {
-    halve(point, from, to, tolerance, HALVINGS, places);
+    halved_until(
+        &|from, to| straight(point, from, to, tolerance),
+        from,
+        to,
+        places,
+    );
 }
 
-fn halve(
-    point: &dyn Fn(f64) -> DVec3,
+/// The parameters strictly between `from` and `to` a stretch is cut at, in
+/// order, pushed onto `places`, so that `done` holds of every stretch
+/// between two of them.
+pub(super) fn halved_until(
+    done: &dyn Fn(f64, f64) -> bool,
     from: f64,
     to: f64,
-    tolerance: f64,
-    left: u32,
     places: &mut Vec<f64>,
 ) {
-    if left == 0 || straight(point, from, to, tolerance) {
+    halve(done, from, to, HALVINGS, places);
+}
+
+fn halve(done: &dyn Fn(f64, f64) -> bool, from: f64, to: f64, left: u32, places: &mut Vec<f64>) {
+    if left == 0 || done(from, to) {
         return;
     }
     let middle = (from + to) / 2.0;
-    halve(point, from, middle, tolerance, left - 1, places);
+    halve(done, from, middle, left - 1, places);
     places.push(middle);
-    halve(point, middle, to, tolerance, left - 1, places);
+    halve(done, middle, to, left - 1, places);
 }
 
 /// Whether the chord of a stretch stands within `tolerance` of the curve,

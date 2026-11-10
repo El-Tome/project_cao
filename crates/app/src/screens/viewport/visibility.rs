@@ -26,11 +26,9 @@ pub(super) struct Visibility {
     body: MatterInFront,
     /// The volumes set by hand, by the number of the operation that made
     /// them, as the eyes are.
-    #[cfg_attr(not(test), expect(dead_code))]
     volumes: BTreeMap<u32, MatterInFront>,
     /// The last state chosen for the whole body: what a volume left alone
     /// reads, and what the faces no volume made are drawn in.
-    #[cfg_attr(not(test), expect(dead_code))]
     whole_body: MatterInFront,
 }
 
@@ -117,7 +115,6 @@ impl ViewportState {
     }
 }
 
-#[cfg_attr(not(test), expect(dead_code))]
 impl ViewportState {
     /// How the volume made at that step of the history is drawn.
     pub(crate) fn volume_mode(&self, document: &PartDocument, step: usize) -> MatterInFront {
@@ -128,6 +125,35 @@ impl ViewportState {
         chosen.copied().unwrap_or(self.visibility.whole_body)
     }
 
+    pub(crate) fn whole_body_choice(&self) -> MatterInFront {
+        self.visibility.whole_body
+    }
+
+    /// How each face of the part is drawn: as the volume that made it, worked
+    /// out once a frame since asking a step for its faces replays the history.
+    pub(crate) fn face_modes(&self, document: &PartDocument) -> FaceModes {
+        let made = volumes(document)
+            .filter_map(|step| {
+                let faces = document.faces_made_by(document.history.number_at(step)?);
+                let mode = self.volume_mode(document, step);
+                Some(faces.into_iter().map(move |face| (face, mode)))
+            })
+            .flatten()
+            .collect();
+        FaceModes {
+            made,
+            rest: self.whole_body_choice(),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn face_mode(&self, document: &PartDocument, face: usize) -> MatterInFront {
+        self.face_modes(document).of(Some(face))
+    }
+}
+
+#[cfg_attr(not(test), expect(dead_code))]
+impl ViewportState {
     /// Fades the volume made at that step of the history, as the body fades.
     pub(crate) fn next_volume_mode(&mut self, document: &PartDocument, step: usize) {
         let mode = faded(self.volume_mode(document, step));
@@ -144,21 +170,23 @@ impl ViewportState {
 
     /// The state every volume of the history shares, if they share one.
     pub(crate) fn shared_volume_mode(&self, document: &PartDocument) -> Option<MatterInFront> {
-        let operations = document.history.applied_operations().iter().enumerate();
-        let mut modes = operations
-            .filter(|(_, operation)| {
-                matches!(
-                    operation,
-                    Operation::Extrude { .. } | Operation::Revolve { .. }
-                )
-            })
-            .map(|(step, _)| self.volume_mode(document, step));
+        let mut modes = volumes(document).map(|step| self.volume_mode(document, step));
         let first = modes.next().unwrap_or(self.visibility.whole_body);
         modes.all(|mode| mode == first).then_some(first)
     }
+}
 
-    pub(crate) fn whole_body_choice(&self) -> MatterInFront {
-        self.visibility.whole_body
+/// How the faces of the part are drawn, by the number of each.
+pub(crate) struct FaceModes {
+    made: BTreeMap<usize, MatterInFront>,
+    /// What a face no volume made is drawn as.
+    rest: MatterInFront,
+}
+
+impl FaceModes {
+    pub(crate) fn of(&self, face: Option<usize>) -> MatterInFront {
+        let made = face.and_then(|face| self.made.get(&face));
+        made.copied().unwrap_or(self.rest)
     }
 }
 
@@ -196,6 +224,19 @@ fn faded(mode: MatterInFront) -> MatterInFront {
         MatterInFront::SeeThrough => MatterInFront::Hidden,
         MatterInFront::Hidden => MatterInFront::Opaque,
     }
+}
+
+/// Where the volumes stand in the history: its extrusions and revolutions.
+fn volumes(document: &PartDocument) -> impl Iterator<Item = usize> + '_ {
+    let operations = document.history.applied_operations().iter().enumerate();
+    operations
+        .filter(|(_, operation)| {
+            matches!(
+                operation,
+                Operation::Extrude { .. } | Operation::Revolve { .. }
+            )
+        })
+        .map(|(step, _)| step)
 }
 
 fn used(document: &PartDocument, sketch: usize) -> bool {

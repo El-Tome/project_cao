@@ -42,6 +42,7 @@ pub fn of(document: &PartDocument, side: u32) -> SceneFrame {
         scene_background: Vec::new(),
         scene_world_lines: Vec::new(),
         scene_surfaces: Vec::new(),
+        scene_veiled_matter: 0..0,
         scene_solids: solids,
         scene_lines: lines,
         cube_view_projection: glam::Mat4::IDENTITY,

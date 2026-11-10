@@ -184,7 +184,9 @@ pub(crate) fn frame_of(
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
 
     let mut solids = Vec::new();
-    body::push_matter(&mut solids, &mut surfaces, state, drawn);
+    let matter_from = surfaces.len();
+    body::push_matter(&mut solids, &mut surfaces, state, context.document, drawn);
+    let veiled_matter = matter_from..surfaces.len();
     section_panel::push_section_plane(&mut surfaces, &mut lines, state, scale, context);
 
     let mut cube_triangles = Vec::new();
@@ -202,6 +204,7 @@ pub(crate) fn frame_of(
         scene_background: background,
         scene_world_lines: world_lines,
         scene_surfaces: surfaces,
+        scene_veiled_matter: veiled_matter,
         scene_solids: solids,
         scene_lines: lines,
         cube_view_projection: cube::view_projection(camera.rotation()),

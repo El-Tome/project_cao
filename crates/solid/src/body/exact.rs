@@ -310,6 +310,10 @@ impl Exact {
         self.drawn().of_face(&self.brep, face)
     }
 
+    pub fn triangles_by_face(&self) -> Vec<([DVec3; 3], Option<usize>)> {
+        self.drawn().by_face(&self.brep).collect()
+    }
+
     pub fn flats(&self) -> Mesh {
         self.drawn().flats(&self.brep)
     }

@@ -1,7 +1,11 @@
-use bytemuck::{Pod, Zeroable};
+mod uniforms;
+
+use std::ops::Range;
+
 use glam::Mat4;
 
 use crate::geometry::Vertex;
+use uniforms::UniformBinding;
 
 /// A rectangle in physical pixels, as `wgpu`'s viewport expects it.
 #[derive(Clone, Copy, Debug, Default)]
@@ -26,6 +30,9 @@ pub struct SceneFrame {
     /// by it rather than drawn through it.
     pub scene_world_lines: Vec<Vertex>,
     pub scene_surfaces: Vec<Vertex>,
+    /// Which of `scene_surfaces` are matter seen through: hidden by the solid
+    /// in front of them, where every other surface is drawn over it.
+    pub scene_veiled_matter: Range<usize>,
     /// The matter of the part. Unlike everything else here it is a real solid,
     /// so it is the only geometry that writes depth.
     pub scene_solids: Vec<Vertex>,
@@ -34,57 +41,6 @@ pub struct SceneFrame {
     pub cube_triangles: Vec<Vertex>,
     pub cube_edges: Vec<Vertex>,
     pub cube_viewport: ViewportRect,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-struct Uniforms {
-    view_projection: [[f32; 4]; 4],
-    params: [f32; 4],
-}
-
-struct UniformBinding {
-    buffer: wgpu::Buffer,
-    bind_group: wgpu::BindGroup,
-}
-
-impl UniformBinding {
-    fn new(device: &wgpu::Device, layout: &wgpu::BindGroupLayout, label: &str) -> Self {
-        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some(label),
-            size: size_of::<Uniforms>() as u64,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some(label),
-            layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: buffer.as_entire_binding(),
-            }],
-        });
-        Self { buffer, bind_group }
-    }
-
-    fn write(
-        &self,
-        queue: &wgpu::Queue,
-        view_projection: Mat4,
-        viewport: ViewportRect,
-        encode_srgb: bool,
-    ) {
-        let uniforms = Uniforms {
-            view_projection: view_projection.to_cols_array_2d(),
-            params: [
-                if encode_srgb { 1.0 } else { 0.0 },
-                viewport.width,
-                viewport.height,
-                0.0,
-            ],
-        };
-        queue.write_buffer(&self.buffer, 0, bytemuck::bytes_of(&uniforms));
-    }
 }
 
 /// Vertex buffer that grows to fit whatever the frame needs and is reused
@@ -131,11 +87,15 @@ impl DynamicVertexBuffer {
 
     /// Draws the buffer as triangles, one vertex each.
     fn draw_triangles(&self, pass: &mut wgpu::RenderPass<'_>) {
-        if self.len == 0 {
+        self.draw_triangles_in(pass, 0..self.len);
+    }
+
+    fn draw_triangles_in(&self, pass: &mut wgpu::RenderPass<'_>, vertices: Range<u32>) {
+        if vertices.is_empty() {
             return;
         }
         pass.set_vertex_buffer(0, self.buffer.slice(..));
-        pass.draw(0..self.len, 0..1);
+        pass.draw(vertices, 0..1);
     }
 
     /// Draws the buffer as lines: every pair of vertices is one instance, and
@@ -152,19 +112,22 @@ impl DynamicVertexBuffer {
 /// Draws the viewport: the part's matter as shaded solids, the axes, grid and
 /// sketches as lines and flat areas, plus the orientation cube in its corner.
 ///
-/// Only the solids are depth-tested. Everything else is drawn over them on
-/// purpose: a sketch or a dimension buried inside a block would be unusable,
-/// and the orientation cube must never be hidden by the part.
+/// Only the solids and the matter seen through are depth-tested. Everything
+/// else is drawn over them on purpose: a sketch or a dimension buried inside a
+/// block would be unusable, and the orientation cube must never be hidden by
+/// the part.
 pub struct SceneRenderer {
     line_pipeline: wgpu::RenderPipeline,
     triangle_pipeline: wgpu::RenderPipeline,
     surface_pipeline: wgpu::RenderPipeline,
+    veiled_matter_pipeline: wgpu::RenderPipeline,
     background_pipeline: wgpu::RenderPipeline,
     solid_pipeline: wgpu::RenderPipeline,
     world_line_pipeline: wgpu::RenderPipeline,
     scene_uniform: UniformBinding,
     cube_uniform: UniformBinding,
     scene_surfaces: DynamicVertexBuffer,
+    scene_veiled_matter: Range<u32>,
     scene_background: DynamicVertexBuffer,
     scene_solids: DynamicVertexBuffer,
     scene_world_lines: DynamicVertexBuffer,
@@ -328,6 +291,16 @@ impl SceneRenderer {
                 None,
                 depth_state(false),
             ),
+            veiled_matter_pipeline: make_pipeline(
+                "cao_veiled_matter_pipeline",
+                "vs_solid",
+                &solid_layout,
+                None,
+                wgpu::DepthStencilState {
+                    depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                    ..depth_state(false)
+                },
+            ),
             background_pipeline: make_pipeline(
                 "cao_background_pipeline",
                 "vs_screen",
@@ -354,6 +327,7 @@ impl SceneRenderer {
             scene_uniform: UniformBinding::new(device, &uniform_layout, "cao_scene_uniform"),
             cube_uniform: UniformBinding::new(device, &uniform_layout, "cao_cube_uniform"),
             scene_surfaces: DynamicVertexBuffer::new(device, "cao_scene_surfaces"),
+            scene_veiled_matter: 0..0,
             scene_background: DynamicVertexBuffer::new(device, "cao_scene_background"),
             scene_solids: DynamicVertexBuffer::new(device, "cao_scene_solids"),
             scene_world_lines: DynamicVertexBuffer::new(device, "cao_scene_world_lines"),
@@ -380,6 +354,8 @@ impl SceneRenderer {
         );
         self.scene_surfaces
             .upload(device, queue, &frame.scene_surfaces);
+        let veiled = &frame.scene_veiled_matter;
+        self.scene_veiled_matter = veiled.start as u32..veiled.end as u32;
         self.scene_background
             .upload(device, queue, &frame.scene_background);
         self.scene_solids.upload(device, queue, &frame.scene_solids);
@@ -400,8 +376,14 @@ impl SceneRenderer {
         self.scene_solids.draw_triangles(pass);
         pass.set_pipeline(&self.world_line_pipeline);
         self.scene_world_lines.draw_lines(pass);
+        let veiled = self.scene_veiled_matter.clone();
         pass.set_pipeline(&self.surface_pipeline);
-        self.scene_surfaces.draw_triangles(pass);
+        self.scene_surfaces.draw_triangles_in(pass, 0..veiled.start);
+        pass.set_pipeline(&self.veiled_matter_pipeline);
+        self.scene_surfaces.draw_triangles_in(pass, veiled.clone());
+        pass.set_pipeline(&self.surface_pipeline);
+        let len = self.scene_surfaces.len;
+        self.scene_surfaces.draw_triangles_in(pass, veiled.end..len);
         pass.set_pipeline(&self.line_pipeline);
         self.scene_lines.draw_lines(pass);
 

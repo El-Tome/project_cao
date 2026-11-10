@@ -4,7 +4,7 @@
 
 use glam::DVec3;
 
-use super::FaceHit;
+use super::{Body, FaceHit, Matter};
 use crate::brep::{self, FaceId};
 use crate::mesh::{Mesh, ray_triangle};
 
@@ -19,6 +19,27 @@ use crate::mesh::{Mesh, ray_triangle};
 /// small, may be. The eighteen cases of `a_bored_cylinder_on_two_kernels`
 /// are drawn this fine closed and uncrossed, each in a millisecond or two.
 pub(super) const DRAWN: f64 = 2e-4;
+
+impl Body {
+    /// The triangles the body is drawn with, each beside the number of the
+    /// face it was cut from — the first, for a face answering to several —
+    /// so that a face can be drawn apart from the rest.
+    pub fn triangles_by_face(&self) -> Vec<([DVec3; 3], Option<usize>)> {
+        match &self.matter {
+            Matter::Exact(exact) => exact.triangles_by_face(),
+            Matter::Flats(flats) => flats
+                .mesh
+                .polygons
+                .iter()
+                .flat_map(|polygon| {
+                    polygon
+                        .triangles()
+                        .map(|triangle| (triangle, Some(polygon.face)))
+                })
+                .collect(),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 pub(super) struct Drawn {
@@ -94,10 +115,22 @@ impl Drawn {
         &'a self,
         body: &'a brep::Body,
     ) -> impl Iterator<Item = ([DVec3; 3], usize)> + 'a {
+        self.by_face(body)
+            .filter_map(|(triangle, face)| Some((triangle, face?)))
+    }
+
+    /// Every triangle, beside the first number of its face when it has one.
+    pub fn by_face<'a>(
+        &'a self,
+        body: &'a brep::Body,
+    ) -> impl Iterator<Item = ([DVec3; 3], Option<usize>)> + 'a {
         self.triangles
             .iter()
             .zip(&self.faces)
-            .filter_map(|(triangle, id)| Some((*triangle, *body.numbers(*id).first()? as usize)))
+            .map(|(triangle, id)| {
+                let first = body.numbers(*id).first().map(|&number| number as usize);
+                (*triangle, first)
+            })
     }
 }
 

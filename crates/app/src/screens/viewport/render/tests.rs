@@ -247,6 +247,25 @@
 //! - found in review: with the hand on another row of the same closed sketch,
 //!   the trait a click lit stays lit beside the one under the hand —
 //!   `a_trait_a_click_lit_stays_lit_while_the_hand_is_on_another_row_of_its_sketch`
+//!
+//! Closes #734 — the whole transcription is in
+//! `crates/app/src/screens/part_tree/state/tests.rs`; these bullets are the
+//! ones only a frame shows.
+//! - a volume's state applies to the faces of the part made by that step
+//!   (`faces_made_by`); for a cut, the walls it dug. On a block with a hole
+//!   cut through it, making the cut « transparente » makes the hole's walls
+//!   see-through and leaves the block opaque —
+//!   `a_see_through_cut_draws_the_walls_of_its_hole_see_through_and_leaves_the_block_opaque`;
+//!   and an invisible volume's faces are not drawn at all, whichever of the
+//!   two it is — `a_hidden_volume_draws_none_of_its_faces`
+//! - a face made by no listed volume takes the last whole-body choice — no
+//!   test: no part built today has a face that no extrusion or revolution
+//!   made, so no frame can show one; the rule is held, face by face, in
+//!   `crates/app/src/screens/viewport/visibility/tests.rs`
+//! - a see-through wall behind an opaque face is hidden by it — no test: the
+//!   depth test lives in the wgpu pipelines of `crates/render/src/renderer.rs`,
+//!   which no test reaches; the frame only says which layer a triangle goes
+//!   to, so this is checked on screen
 
 use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
 use cao_prefs::config::ViewportConfig;
@@ -2944,5 +2963,139 @@ fn a_trait_a_click_lit_stays_lit_while_the_hand_is_on_another_row_of_its_sketch(
         on(&both, hovered_from, hovered_to),
         on(&hovered_alone, hovered_from, hovered_to),
         "the trait under the hand is not lit while a click lit another of its sketch",
+    );
+}
+
+/// Where the block stands in the history of `a_block_with_a_hole`.
+const THE_BLOCK: usize = 3;
+/// Where the cut that bores the hole stands.
+const THE_HOLE: usize = 4;
+
+/// A block 10 by 20 raised 4 from XY, and a round cut of radius 2 through
+/// it at (5, 10): two volumes, an add and a cut.
+fn a_block_with_a_hole() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(5.0, 10.0)),
+        radius: 2.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(1.0, 1.0), DVec2::new(5.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Cut,
+    });
+    let steps = document.history.applied_operations();
+    assert!(
+        matches!(
+            steps.get(THE_BLOCK),
+            Some(Operation::Extrude {
+                mode: ExtrusionMode::Add,
+                ..
+            })
+        ) && matches!(
+            steps.get(THE_HOLE),
+            Some(Operation::Extrude {
+                mode: ExtrusionMode::Cut,
+                ..
+            })
+        ),
+        "the fixture wants the block then the hole: {steps:?}",
+    );
+    document
+}
+
+/// How far from the hole's circle a corner of its wall may stand once handed
+/// to the GPU in `f32`.
+const ON_THE_WALL: f32 = 1e-3;
+
+/// Whether a triangle is a piece of the hole's wall: every corner on the
+/// circle of radius 2 round (5, 10), and not all of them at one height, which
+/// would be a piece of the top or the bottom round the hole's rim.
+fn on_the_hole_s_wall(triangle: &[&cao_render::Vertex; 3]) -> bool {
+    let on_the_circle = triangle.iter().all(|corner| {
+        let [x, y, _] = corner.position;
+        ((x - 5.0).hypot(y - 10.0) - 2.0).abs() <= ON_THE_WALL
+    });
+    let height = triangle[0].position[2];
+    let upright = triangle
+        .iter()
+        .any(|corner| (corner.position[2] - height).abs() > ON_THE_WALL);
+    on_the_circle && upright
+}
+
+/// How the hole's wall and the rest of the block are drawn, leaving out the
+/// ground its sketch lies on.
+fn the_wall_and_the_block_seen(state: &ViewportState) -> (Seen, Seen) {
+    let frame = a_frame_of(
+        state,
+        &mut a_block_with_a_hole(),
+        &mut SketchEditor::default(),
+    );
+    (
+        how_drawn(&frame, on_the_hole_s_wall),
+        how_drawn(&frame, |triangle| {
+            !lies_at(triangle, 0.0) && !on_the_hole_s_wall(triangle)
+        }),
+    )
+}
+
+#[test]
+fn a_see_through_cut_draws_the_walls_of_its_hole_see_through_and_leaves_the_block_opaque() {
+    let mut state = ViewportState::default();
+    assert_eq!(
+        the_wall_and_the_block_seen(&state),
+        (Seen::Opaque, Seen::Opaque),
+        "the fixture wants the wall and the block found, opaque, as (wall, block)",
+    );
+
+    state.next_volume_mode(&a_block_with_a_hole(), THE_HOLE);
+
+    assert_eq!(
+        the_wall_and_the_block_seen(&state),
+        (Seen::SeeThrough, Seen::Opaque),
+        "the cut « transparente », as (wall, block)",
+    );
+}
+
+#[test]
+fn a_hidden_volume_draws_none_of_its_faces() {
+    let document = a_block_with_a_hole();
+    let hidden = |step: usize| {
+        let mut state = ViewportState::default();
+        state.next_volume_mode(&document, step);
+        state.next_volume_mode(&document, step);
+        assert_eq!(state.volume_mode(&document, step), MatterInFront::Hidden);
+        state
+    };
+
+    assert_eq!(
+        the_wall_and_the_block_seen(&hidden(THE_HOLE)),
+        (Seen::Hidden, Seen::Opaque),
+        "the cut invisible, as (wall, block)",
+    );
+    assert_eq!(
+        the_wall_and_the_block_seen(&hidden(THE_BLOCK)),
+        (Seen::Opaque, Seen::Hidden),
+        "the block invisible, as (wall, block)",
     );
 }

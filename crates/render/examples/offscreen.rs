@@ -191,6 +191,7 @@ fn build_frame(camera: &OrbitCamera, plane: Option<(glam::Vec3, glam::Vec3)>) ->
     let cube_size = 288.0;
     SceneFrame {
         scene_surfaces: Vec::new(),
+        scene_veiled_matter: 0..0,
         scene_view_projection: camera.view_projection(WIDTH as f32 / HEIGHT as f32),
         scene_viewport: ViewportRect {
             x: 0.0,

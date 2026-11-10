@@ -173,6 +173,7 @@
 //!   the presenter draws no frame; held in
 //!   `crates/app/src/screens/viewport/render/tests.rs` by
 //!   `a_see_through_cut_draws_the_walls_of_its_hole_see_through_and_leaves_the_block_opaque`
+//!   and `a_hidden_volume_draws_none_of_its_faces`
 //! - criterion 4, « TOUT LE CORPS » is a segmented selector (C6) Invisible /
 //!   Transparent / Opaque that sets every volume at once; it is lit on the
 //!   state they all share, and on no segment when they differ —
@@ -191,9 +192,13 @@
 //!   is lit any more — no test: in this file, the presenter draws no face;
 //!   the choice kept, on the canvas's state, in
 //!   `crates/app/src/screens/viewport/visibility/tests.rs` by
-//!   `the_last_whole_body_choice_stays_for_the_faces_no_volume_made_once_the_volumes_differ`;
-//!   the face drawn so, in `crates/app/src/screens/viewport/render/tests.rs` by
-//!   `a_face_made_by_no_volume_is_drawn_as_the_last_whole_body_choice`
+//!   `the_last_whole_body_choice_stays_for_the_faces_no_volume_made_once_the_volumes_differ`,
+//!   and the face given that state there, by
+//!   `a_face_takes_its_volume_s_state_and_one_no_volume_made_the_last_whole_body_choice`.
+//!   No frame holds it: no part built today has a face that no extrusion or
+//!   revolution made, so no frame can show one. `faces_made_by` comes back
+//!   empty only from a geometry cached before the faces were noted, and only
+//!   `cao_part` can build that
 //! - criterion 7, nothing breaks: « Matière devant » in a sketch keeps its
 //!   three modes, the section view is unchanged, and a face can still be
 //!   picked to start a sketch on a see-through or opaque volume — no test: in

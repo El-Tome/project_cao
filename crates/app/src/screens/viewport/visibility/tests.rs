@@ -15,7 +15,9 @@
 //! - a face of the part made by no listed volume takes the last state chosen in
 //!   « TOUT LE CORPS » (opaque at first), even when no segment is lit any more
 //!   — `the_last_whole_body_choice_stays_for_the_faces_no_volume_made_once_the_volumes_differ`;
-//!   the face drawn so is held in `crates/app/src/screens/viewport/render/tests.rs`
+//!   asked face by face, a face takes the state of the volume that made it
+//!   (`faces_made_by`), and one no volume made the last whole-body choice —
+//!   `a_face_takes_its_volume_s_state_and_one_no_volume_made_the_last_whole_body_choice`
 
 use cao_part::{ExtrusionMode, PointRef};
 use cao_sketch::WorkPlane;
@@ -229,5 +231,48 @@ fn the_last_whole_body_choice_stays_for_the_faces_no_volume_made_once_the_volume
         state.whole_body_choice(),
         MatterInFront::SeeThrough,
         "a volume changed on its own takes the last choice away from the faces no volume made",
+    );
+}
+
+/// A face no step handed out. No part built today has a face that no
+/// extrusion or revolution made, so this number stands in for one.
+const A_FACE_NO_VOLUME_MADE: usize = usize::MAX;
+
+#[test]
+fn a_face_takes_its_volume_s_state_and_one_no_volume_made_the_last_whole_body_choice() {
+    let document = a_block_with_a_hole();
+    let made_by = |step: usize| {
+        let number = document.history.number_at(step).expect("a numbered step");
+        document.faces_made_by(number)
+    };
+    let (block, wall) = (made_by(THE_BLOCK), made_by(THE_HOLE));
+    assert!(
+        !block.is_empty() && !wall.is_empty(),
+        "the fixture wants faces made by each volume: {block:?} {wall:?}",
+    );
+    let mut state = ViewportState::default();
+    state.set_whole_body(MatterInFront::Hidden);
+    state.next_volume_mode(&document, THE_HOLE);
+    state.next_volume_mode(&document, THE_BLOCK);
+    state.next_volume_mode(&document, THE_BLOCK);
+
+    for face in &block {
+        assert_eq!(
+            state.face_mode(&document, *face),
+            MatterInFront::SeeThrough,
+            "face {face}, made by the block, is not drawn as the block is",
+        );
+    }
+    for face in &wall {
+        assert_eq!(
+            state.face_mode(&document, *face),
+            MatterInFront::Opaque,
+            "face {face}, a wall of the hole, is not drawn as the cut is",
+        );
+    }
+    assert_eq!(
+        state.face_mode(&document, A_FACE_NO_VOLUME_MADE),
+        MatterInFront::Hidden,
+        "a face no volume made is not drawn as « TOUT LE CORPS » last chose",
     );
 }

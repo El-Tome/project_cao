@@ -4,7 +4,9 @@
 //! rounds trim each other in a mitre there. Beside an edge of the other sense
 //! left out of the list (#801) — two cuts beside a concave edge, two fills
 //! beside a convex one — each stops flush and the two run on past the corner
-//! into a mitre. Any other corner is declined.
+//! into a mitre. Two concave edges beside a third concave one, at a pocket's
+//! bottom corner, are each trimmed flush and meet in a valley. Any other
+//! corner is declined.
 
 use std::collections::BTreeMap;
 
@@ -13,20 +15,21 @@ use glam::DVec3;
 use super::Wedge;
 use crate::brep::{self, Declined, EdgeId, VertexId};
 
-/// A corner two edges of a step meet at beside an edge of the other sense,
-/// and the two edges' ranks in the list, the lower first.
+/// A corner two edges of a step meet at beside a third that is not convex
+/// with them, and the two edges' ranks in the list, the lower first.
 pub(super) type Beside = (VertexId, [usize; 2]);
 
-/// Every corner two of `edges` meet at taken or declined, and those beside an
-/// edge of the other sense handed back: three edges ending there, the two of
-/// the list straight between flat faces that meet the same way, and the third,
-/// left out of it, between faces that meet the other way — two meeting
-/// outwards beside one meeting inwards at the inner corner of an L or a
-/// pocket's rim above an upright, two meeting inwards beside one meeting
-/// outwards at the feet of a block standing on another. Every other corner
-/// two of them meet at is to be convex: each edge ending there straight
-/// between two flat faces that meet outwards, whatever those faces hold past
-/// the corner. Declined `Unsupported` where one is neither.
+/// Every corner two of `edges` meet at taken or declined, and those not
+/// convex handed back: three edges ending there, the two of the list straight
+/// between flat faces that meet the same way, and the third, left out of it,
+/// between faces that meet the other way — two meeting outwards beside one
+/// meeting inwards at the inner corner of an L or a pocket's rim above an
+/// upright, two meeting inwards beside one meeting outwards at the feet of a
+/// block standing on another — or, the two meeting inwards, inwards too, at
+/// a pocket's bottom corner. Every other corner two of them meet at is to be
+/// convex: each edge ending there straight between two flat faces that meet
+/// outwards, whatever those faces hold past the corner. Declined
+/// `Unsupported` where one is none of these.
 pub(super) fn admit(body: &brep::Body, edges: &[EdgeId]) -> Result<Vec<Beside>, Declined> {
     let meeting = |edge, inwards| Wedge::faced(body, edge).is_ok_and(|w| w.inwards == inwards);
     let mut beside = Vec::new();
@@ -44,7 +47,8 @@ pub(super) fn admit(body: &brep::Body, edges: &[EdgeId]) -> Result<Vec<Beside>, 
                 if [false, true].into_iter().any(|inwards| {
                     meeting(edges[one], inwards)
                         && meeting(edges[other], inwards)
-                        && (ending.iter().filter(left_out)).all(|&edge| meeting(edge, !inwards))
+                        && (ending.iter().filter(left_out))
+                            .all(|&edge| meeting(edge, !inwards) || inwards && meeting(edge, true))
                 }) =>
             {
                 beside.push((corner, [one, other]));

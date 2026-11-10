@@ -45,11 +45,12 @@ impl Body {
     /// along and are mitred past it on an ellipse, down to the concave edge, no
     /// face laid there, and two filled in beside a convex edge left sharp — two
     /// feet of a block standing on another — are mitred outside it the same
-    /// way; at any other corner where an edge meets inwards they are declined
-    /// `Unsupported`, as is an edge of a full round or a round bottom meeting
-    /// another edge of the list at a corner. Rounds that would meet anywhere
-    /// else are declined `Unsupported`, until #792 measures them. The first
-    /// edge declined declines the step.
+    /// way, and two filled in beside a concave edge left sharp, at a pocket's
+    /// bottom corner, meet in a valley; at any other corner where an edge meets
+    /// inwards they are declined `Unsupported`, as is an edge of a full round
+    /// or a round bottom meeting another edge of the list at a corner. Rounds
+    /// that would meet anywhere else are declined `Unsupported`, until #792
+    /// measures them. The first edge declined declines the step.
     pub fn fillet_edges(&self, edges: &[EdgeName], radius: f64) -> Result<Filleted, Declined> {
         let Matter::Exact(exact) = &self.matter else {
             return Err(Declined::Lost(Lost::Gone));

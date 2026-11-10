@@ -1,7 +1,9 @@
 //! A chamfer and a fillet on concave straight edges of an exact body that
 //! meet at a corner: the feet of a block standing on another, where its walls
-//! meet the lower block's top. Each fill is laid as one fills alone (#778),
-//! trimmed flush at both ends on the planes of the faces its edge runs into.
+//! meet the lower block's top, and the floor edges and uprights of a pocket.
+//! Each fill is laid as one fills alone (#778), trimmed flush at both ends on
+//! the planes of the faces its edge runs into, whether air lies past an end
+//! or matter.
 //! Where two feet meet at a corner whose third edge, the standing block's
 //! upright, meets outwards, the two fill prisms carried past the corner hold
 //! matter in common beyond both walls, and that piece is joined too: the two
@@ -12,8 +14,7 @@
 //! Part of #801, its second slice: two concave edges with a convex one left
 //! sharp. Its first slice, two convex edges beside a concave one, is held in
 //! `a_chamfer_and_a_fillet_stop_and_mitre_beside_a_concave_edge.rs`; its
-//! third, the three concave edges of a pocket's bottom corner, comes on a
-//! branch of its own, and the issue stays open until it lands.
+//! third, the three concave edges of a pocket's bottom corner, below.
 //!
 //! - Two concave edges meeting at a corner whose third edge is convex and
 //!   left sharp leave a closed, sound body when chamfered or filleted at one
@@ -41,7 +42,12 @@
 //!   chamfered the standing block's upright, two corners of 135° beside the
 //!   chamfer's two edges, the three feet round it filled in one step and the
 //!   same body in every order the list names them —
-//!   `a_chamfer_and_a_fillet_on_two_feet_and_the_foot_of_the_chamfered_upright_between_them_fill_them_into_two_mitres_in_every_order`
+//!   `a_chamfer_and_a_fillet_on_two_feet_and_the_foot_of_the_chamfered_upright_between_them_fill_them_into_two_mitres_in_every_order`.
+//!   The same front foot and chamfer's foot without the right foot, at a
+//!   value past `√2/2`, are declined `Unsupported`: mitred with the front
+//!   foot, the chamfer's foot's fill would stand past the right wall where no
+//!   fill meets it —
+//!   `a_chamfer_and_a_fillet_on_a_foot_and_the_chamfered_upright_s_foot_without_the_foot_beyond_are_declined_as_unsupported`
 //! - What must not break: as slice 1 — #699's corner tests, the concave fill
 //!   of one edge (`a_chamfer_and_a_fillet_fill_a_concave_edge`) and slice 1's
 //!   own tests; and the decline test
@@ -49,6 +55,48 @@
 //!   loses the feet, which become the body tests above, and keeps the others
 //!   — no test: each is held by its own file, left as it was but for the
 //!   three lists of feet the decline test gives up
+//!
+//! Part of #801, its third slice: three concave edges, the bottom corner of a
+//! pocket. A fill whose edge ends where matter lies past it, the face there
+//! facing back along the edge, is trimmed flush on that face's plane too; two
+//! fills at a corner whose third edge meets inwards as well overlap there,
+//! and their join is the mitre; three are closed by a patch laid as a fill.
+//!
+//! - A concave straight edge whose corner's other two edges are concave too
+//!   leaves a closed, sound body when chamfered or filleted alone. Its fill
+//!   ends flush on the face it runs into. This holds on a pocket's floor
+//!   edges and uprights. The volume is exact —
+//!   `a_chamfer_and_a_fillet_on_a_pocket_s_floor_edge_alone_fill_it_flush_between_the_walls_at_its_ends`,
+//!   `a_chamfer_and_a_fillet_on_a_pocket_s_upright_alone_fill_it_flush_on_its_floor_and_up_to_its_rim`.
+//!   "Ends flush on the face it runs into" is held as what that face shows:
+//!   the fill's end section lies on it, inside it, and the matter behind
+//!   swallows it, so the face gives that section up — its outline the
+//!   part's with the corner the edge ended at given up for the two set-backs
+//!   — keeping its number, and meeting each of the edge's faces along one
+//!   edge still
+//! - Two of a concave corner's three edges, the third left sharp, meet in a
+//!   mitre, and the third edge ends one value short. This holds on two floor
+//!   edges of a pocket, and on a floor edge and the upright it meets. The
+//!   volume is exact, either order —
+//!   `a_chamfer_and_a_fillet_on_two_edges_of_a_pocket_s_floor_mitre_them_the_upright_above_left_sharp_one_value_short`,
+//!   `a_chamfer_and_a_fillet_on_a_pocket_s_floor_edge_and_the_upright_it_meets_mitre_them_the_floor_edge_beside_left_sharp_one_value_short`
+//! - Three concave edges at a corner, the bottom corner of a pocket, are
+//!   closed: chamfered, by a triangle where each two fills' set-backs cross
+//!   on the face they share; filleted, by a hollow piece of sphere centred
+//!   one radius from the three faces, meeting each fill along its end
+//!   section. Each is laid as a fill and numbered after the edges' faces, as
+//!   #699 numbers its patches. The volume is exact, every order —
+//!   `a_chamfer_on_the_three_edges_of_a_pocket_s_bottom_corner_closes_it_with_a_triangle_where_the_fills_set_backs_cross`,
+//!   `a_fillet_on_the_three_edges_of_a_pocket_s_bottom_corner_closes_it_with_a_hollow_piece_of_sphere_one_radius_from_its_three_faces`.
+//!   The four floor edges and four uprights of a pocket close its four
+//!   bottom corners in one step —
+//!   `a_chamfer_and_a_fillet_on_a_pocket_s_four_floor_edges_and_four_uprights_close_its_four_bottom_corners_in_one_step`
+//! - What must not break: as slice 1, and the decline test
+//!   `a_fillet_and_a_chamfer_on_edges_meeting_at_a_corner_with_a_concave_edge_are_declined_as_unsupported`
+//!   loses the pocket's floor lists, which become the body tests above, and
+//!   keeps the lists of a cut and a fill meeting at a corner, for #829 — no
+//!   test: each is held by its own file, left as it was but for the two
+//!   pocket floor lists the decline test gives up
 //!
 //! The volumes are arithmetic. The lower block is 30 by 20 by 10 and the
 //! block standing on it 10 by 10 by 10, 7000 together. Every foot lies
@@ -107,6 +155,31 @@
 //! both are held in the test, at ½, where the chamfer's foot keeps a fill of
 //! its own, and at 1, where it keeps none. Past 1 the booleans' clipped
 //! prisms would reach beyond the third wall, and are not held there.
+//!
+//! The pocket, 10 by 10 sunk 5 into the block 30 by 20 by 10, leaves 5500.
+//! Its floor edges and uprights each lie between two faces square to each
+//! other, and each ends on faces square to it, so a fill alone adds its
+//! section along its edge's length: `10d²/2` or `10r²(1 − π/4)` on a floor
+//! edge, between the two walls at its ends, and `5d²/2` or `5r²(1 − π/4)` on
+//! an upright, from the floor to the plane of the block's top. Where an end
+//! has matter past it, the fill's end section lies on the face there, inside
+//! it, and the join swallows it: the face gives up that section, its outline
+//! taking the two set-backs in place of the corner the edge ended at, just as
+//! a face with air past it, at an upright's rim, takes them by growing. Held
+//! another way, by the booleans, in the tests themselves.
+//!
+//! Two of a pocket's bottom corner's three edges, each fill trimmed flush,
+//! overlap at the corner, and the body takes their union. Measured from the
+//! corner `c` from the face the two share and `p` and `q` in from the two
+//! other faces, both hold what has `c < d − max(p, q)` among flats and
+//! `c < w(max(p, q))` among rounds, over the square of side the value:
+//! `d³/3` and `r³(5/3 − π/2)`, counted once. Their faces meet where `p = q`,
+//! the valley of the mitre, from where the two set-backs cross on the shared
+//! face to the third edge, which the two fills cover up to the value from
+//! that face. Two floor edges of 10 hold `5500 + 10d² − d³/3` and
+//! `5500 + 20r²(1 − π/4) − r³(5/3 − π/2)`; a floor edge and the upright it
+//! meets, 10 and 5, `5500 + 7.5d² − d³/3` and
+//! `5500 + 15r²(1 − π/4) − r³(5/3 − π/2)`.
 
 use std::collections::BTreeSet;
 use std::f64::consts::PI;
@@ -152,22 +225,33 @@ fn profile(outline: Contour) -> Profile<'static> {
     }
 }
 
-/// An outline drawn on the ground raised from `from` by `height` and joined
-/// to the part as `cao_part` builds a step: the outline's faces numbered past
-/// the part's, its floor first, then its top, then its walls, one for each
-/// run of the outline.
+/// The tool an outline drawn on the ground raises from `from` by `height`,
+/// as `cao_part` raises a step: its faces numbered past the part's, its floor
+/// first, then its top, then its walls, one for each run of the outline.
+fn tool_raised(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    part.tool_raised(
+        &profile(outline),
+        Frame {
+            origin: DVec3::Z * from,
+            ..ground()
+        },
+        DVec3::Z * height,
+    )
+    .expect("the tool raises")
+}
+
+/// The part joined to an outline raised from `from` by `height`, numbered as
+/// [`tool_raised`] numbers it.
 fn joined(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
-    let tool = part
-        .tool_raised(
-            &profile(outline),
-            Frame {
-                origin: DVec3::Z * from,
-                ..ground()
-            },
-            DVec3::Z * height,
-        )
-        .expect("the tool raises");
-    part.union(&tool).expect("the part is built")
+    part.union(&tool_raised(part, outline, from, height))
+        .expect("the part is built")
+}
+
+/// The part less an outline raised from `from` by `height`, numbered as
+/// [`tool_raised`] numbers it.
+fn cut_from(part: &Body, outline: Contour, from: f64, height: f64) -> Body {
+    part.difference(&tool_raised(part, outline, from, height))
+        .expect("the cut is built")
 }
 
 /// A block 30 by 20 by 10 with another, 10 by 10 by 10, standing on the
@@ -1128,9 +1212,10 @@ fn the_same_body(part: &Body, edges: &[Concave], first: &Case, second: &Case) {
 /// - each edge's other face filled up by the value along it, meeting the
 ///   face laid on it in place of the face they share, and the third edge at
 ///   each corner still one sharp edge, ending where the two fills meet it;
-/// - each face an edge runs into at an end not mitred grown by the fill's
-///   end section in place of the corner the edge ended at, and meeting both
-///   the edge's faces along one edge still, for a name to find.
+/// - each face an edge runs into at an end not mitred holding the fill's end
+///   section in place of the corner the edge ended at — grown by it where
+///   air lies past, giving it up where the matter behind swallows it — and
+///   meeting both the edge's faces along one edge still, for a name to find.
 fn mitred(part: &Body, edges: &[Concave], case: &Case, promised: f64) {
     let Case {
         cut,
@@ -1308,8 +1393,8 @@ fn mitred(part: &Body, edges: &[Concave], case: &Case, promised: f64) {
                 &expected,
                 |corner| cut == Cut::Round && edge.on_the_round_s_end(at, value, corner),
                 &format!(
-                    "{what}: face {ended_on}, which {} runs into, grown by the fill's end \
-                     section in place of the corner the edge ended at",
+                    "{what}: face {ended_on}, which {} runs into, its outline taking the \
+                     fill's end section in place of the corner the edge ended at",
                     edge.called
                 ),
             );
@@ -1667,4 +1752,287 @@ fn a_chamfer_and_a_fillet_on_two_feet_and_the_foot_of_the_chamfered_upright_betw
         &ROUND_A_SHORT_EDGE,
         called,
     );
+}
+
+/// A block 30 by 20 by 10 with a pocket 10 by 10 sunk 5 into the middle of
+/// its top, as `cao_part` cuts a step: the pocket's floor numbered six, its
+/// walls, front, right, back and left, eight to eleven, the tool's top,
+/// standing above the block, gone. Its floor's edges and its uprights all
+/// meet inwards; its rim outwards.
+fn pocketed() -> Body {
+    cut_from(
+        &joined(
+            &Body::default(),
+            Contour::rectangle(DVec2::ZERO, DVec2::new(30.0, 20.0)),
+            0.0,
+            10.0,
+        ),
+        Contour::rectangle(DVec2::new(10.0, 5.0), DVec2::new(20.0, 15.0)),
+        5.0,
+        6.0,
+    )
+}
+const POCKETED_VOLUME: f64 = 30.0 * 20.0 * 10.0 - 10.0 * 10.0 * 5.0;
+const POCKET_FLOOR: usize = 6;
+const POCKET_FRONT: usize = 8;
+const POCKET_RIGHT: usize = 9;
+const POCKET_BACK: usize = 10;
+const POCKET_LEFT: usize = 11;
+
+/// The pocket's four floor edges, each running between the two walls beside
+/// its own, with the block's matter past both: the floor first, the wall
+/// second.
+fn pocket_floor_edges() -> [Concave; 4] {
+    let [front_left, front_right, back_right, back_left] = [
+        DVec3::new(10.0, 5.0, 5.0),
+        DVec3::new(20.0, 5.0, 5.0),
+        DVec3::new(20.0, 15.0, 5.0),
+        DVec3::new(10.0, 15.0, 5.0),
+    ];
+    let walled = |at: DVec3, on: usize, facing: DVec3| End {
+        at,
+        on,
+        facing,
+        matter_past: true,
+    };
+    [
+        Concave {
+            called: "the pocket's floor edge on its front wall",
+            between: [POCKET_FLOOR, POCKET_FRONT],
+            facing: [DVec3::Z, DVec3::Y],
+            ends: [
+                walled(front_left, POCKET_LEFT, DVec3::X),
+                walled(front_right, POCKET_RIGHT, -DVec3::X),
+            ],
+        },
+        Concave {
+            called: "the pocket's floor edge on its right wall",
+            between: [POCKET_FLOOR, POCKET_RIGHT],
+            facing: [DVec3::Z, -DVec3::X],
+            ends: [
+                walled(front_right, POCKET_FRONT, DVec3::Y),
+                walled(back_right, POCKET_BACK, -DVec3::Y),
+            ],
+        },
+        Concave {
+            called: "the pocket's floor edge on its back wall",
+            between: [POCKET_FLOOR, POCKET_BACK],
+            facing: [DVec3::Z, -DVec3::Y],
+            ends: [
+                walled(back_right, POCKET_RIGHT, -DVec3::X),
+                walled(back_left, POCKET_LEFT, DVec3::X),
+            ],
+        },
+        Concave {
+            called: "the pocket's floor edge on its left wall",
+            between: [POCKET_FLOOR, POCKET_LEFT],
+            facing: [DVec3::Z, DVec3::X],
+            ends: [
+                walled(back_left, POCKET_BACK, -DVec3::Y),
+                walled(front_left, POCKET_FRONT, DVec3::Y),
+            ],
+        },
+    ]
+}
+
+/// The pocket's four uprights, each running from its floor, which the
+/// block's matter lies past, up to the block's top at the pocket's rim, which
+/// air lies past.
+fn pocket_uprights() -> [Concave; 4] {
+    let upright =
+        |called: &'static str, between: [usize; 2], facing: [DVec3; 2], [x, y]: [f64; 2]| Concave {
+            called,
+            between,
+            facing,
+            ends: [
+                End {
+                    at: DVec3::new(x, y, 5.0),
+                    on: POCKET_FLOOR,
+                    facing: DVec3::Z,
+                    matter_past: true,
+                },
+                End {
+                    at: DVec3::new(x, y, 10.0),
+                    on: TOP,
+                    facing: DVec3::Z,
+                    matter_past: false,
+                },
+            ],
+        };
+    [
+        upright(
+            "the pocket's front right upright",
+            [POCKET_FRONT, POCKET_RIGHT],
+            [DVec3::Y, -DVec3::X],
+            [20.0, 5.0],
+        ),
+        upright(
+            "the pocket's back right upright",
+            [POCKET_RIGHT, POCKET_BACK],
+            [-DVec3::X, -DVec3::Y],
+            [20.0, 15.0],
+        ),
+        upright(
+            "the pocket's back left upright",
+            [POCKET_BACK, POCKET_LEFT],
+            [-DVec3::Y, DVec3::X],
+            [10.0, 15.0],
+        ),
+        upright(
+            "the pocket's front left upright",
+            [POCKET_LEFT, POCKET_FRONT],
+            [DVec3::X, DVec3::Y],
+            [10.0, 5.0],
+        ),
+    ]
+}
+
+/// Holds that each of `edges`, filled alone by a chamfer and a fillet at
+/// every one of [`VALUES`], leaves what [`mitred`] holds of a list of that one
+/// edge, the part holding `volume` before the step and keeping what [`kept`]
+/// says after it, which the booleans give too, [`by_booleans`]. Every edge is
+/// laid before any body is read, so that a decline names every case that
+/// declines.
+fn each_filled_alone(part: &Body, volume: f64, edges: &[Concave], called: &str) {
+    assert!(
+        (part.volume() - volume).abs() <= EXACT * volume,
+        "{called}: the part holds {}, where arithmetic gives {volume}",
+        part.volume()
+    );
+    let mut laid = Vec::new();
+    let mut declined = Vec::new();
+    for (index, edge) in edges.iter().enumerate() {
+        let alone = std::slice::from_ref(edge);
+        let name = edge_between(part, edge.between[0], edge.between[1]);
+        for cut in [Cut::Flat, Cut::Round] {
+            for value in VALUES {
+                let what = format!("the {} of {value} on {}", cut.called(), edge.called);
+                let arithmetic = kept(volume, alone, cut, value);
+                let booleans = by_booleans(part, alone, cut, value);
+                assert!(
+                    (arithmetic - booleans).abs() <= EXACT * volume,
+                    "{what}: the arithmetic keeps {arithmetic}, the booleans {booleans}"
+                );
+                match cut.laid_on(part, std::slice::from_ref(&name), value) {
+                    Ok(step) => laid.push((
+                        index,
+                        Case {
+                            order: &[0],
+                            cut,
+                            value,
+                            step,
+                            what,
+                        },
+                    )),
+                    Err(reason) => declined.push(format!("{what}: {reason:?}")),
+                }
+            }
+        }
+    }
+    assert!(
+        declined.is_empty(),
+        "{called}: each edge filled alone, trimmed flush on the faces at its ends; declined:\n{}",
+        declined.join("\n")
+    );
+    for (index, case) in &laid {
+        let alone = std::slice::from_ref(&edges[*index]);
+        mitred(part, alone, case, kept(volume, alone, case.cut, case.value));
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_pocket_s_floor_edge_alone_fill_it_flush_between_the_walls_at_its_ends()
+ {
+    each_filled_alone(
+        &pocketed(),
+        POCKETED_VOLUME,
+        &pocket_floor_edges(),
+        "the pocket's floor edges",
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_pocket_s_upright_alone_fill_it_flush_on_its_floor_and_up_to_its_rim()
+{
+    each_filled_alone(
+        &pocketed(),
+        POCKETED_VOLUME,
+        &pocket_uprights(),
+        "the pocket's uprights",
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_two_edges_of_a_pocket_s_floor_mitre_them_the_upright_above_left_sharp_one_value_short()
+ {
+    let [front, right, ..] = pocket_floor_edges();
+    mitre_in_every_order(
+        &pocketed(),
+        POCKETED_VOLUME,
+        &[front, right],
+        &BOTH_ORDERS,
+        &[Cut::Flat, Cut::Round],
+        "the pocket's floor edges on its front and right walls, below its front right upright",
+    );
+}
+
+/// The pocket's floor edge on its front wall, read from the wall it shares
+/// with the front right upright: the wall first, the floor second.
+fn front_floor_edge_from_its_wall() -> Concave {
+    Concave {
+        called: "the pocket's floor edge on its front wall",
+        between: [POCKET_FRONT, POCKET_FLOOR],
+        facing: [DVec3::Y, DVec3::Z],
+        ends: [
+            End {
+                at: DVec3::new(10.0, 5.0, 5.0),
+                on: POCKET_LEFT,
+                facing: DVec3::X,
+                matter_past: true,
+            },
+            End {
+                at: DVec3::new(20.0, 5.0, 5.0),
+                on: POCKET_RIGHT,
+                facing: -DVec3::X,
+                matter_past: true,
+            },
+        ],
+    }
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_pocket_s_floor_edge_and_the_upright_it_meets_mitre_them_the_floor_edge_beside_left_sharp_one_value_short()
+ {
+    let [upright, ..] = pocket_uprights();
+    mitre_in_every_order(
+        &pocketed(),
+        POCKETED_VOLUME,
+        &[front_floor_edge_from_its_wall(), upright],
+        &BOTH_ORDERS,
+        &[Cut::Flat, Cut::Round],
+        "the pocket's floor edge on its front wall and its front right upright",
+    );
+}
+
+#[test]
+fn a_chamfer_and_a_fillet_on_a_foot_and_the_chamfered_upright_s_foot_without_the_foot_beyond_are_declined_as_unsupported()
+ {
+    let part = stacked_with_its_upright_chamfered();
+    let names = [
+        edge_between(&part, TOP, STANDING_FRONT),
+        edge_between(&part, TOP, CHAMFERED_UPRIGHT),
+    ];
+    for order in BOTH_ORDERS {
+        let list: Vec<EdgeName> = order.iter().map(|&edge| names[edge].clone()).collect();
+        for cut in [Cut::Flat, Cut::Round] {
+            assert_eq!(
+                cut.laid_on(&part, &list, 1.0).err(),
+                Some(Declined::Unsupported),
+                "the {} of 1 on the standing block's front foot and the chamfered upright's foot, \
+                 named {order:?}, the right foot left out: the two mitred, the chamfer's foot's \
+                 fill would stand past the right wall where nothing meets it",
+                cut.called()
+            );
+        }
+    }
 }

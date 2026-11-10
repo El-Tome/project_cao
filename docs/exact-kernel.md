@@ -378,17 +378,20 @@ It can:
   handed back to the boolean's step 8 as cleared, and the edges either side of
   each are joined. The check is the cut's: one new face, in one piece, its
   corners on the edge's two faces, nothing else of the prism left, and no face
-  of the body gone but those two. Declined `Unsupported`: an end where no face
-  but the edge's two meets the edge, or several do; a flat one facing back
+  of the body gone but those two. A flat face facing back along the edge,
+  matter lying past it — the floor a pocket's upright stands on, the plate's
+  top under a boss's inner corner, a pocket's wall at the end of its floor
+  edge, where three concave edges meet at one corner — trims the fill flush
+  as well (#801): the box stands on its plane in the matter, the fill's end
+  lies on the face, and the join swallows it, the face giving up the fill's
+  section and keeping its number. Declined `Unsupported`: an end where no
+  face but the edge's two meets the edge, or several do; a flat one lying
   along the edge; a round the edge runs into at its end rather than out of,
   or one that turns away short of the fill's reach, or a cone a long edge of
   the prism misses — a drafted slot's round end, the margin sunk into its
-  wall passing outside the cone (#807); and one leaning so far that its plane misses the prism's
-  long edges between the prism's two ends. Facing back along the edge is what
-  the vertical inner corner of a pocket, or of a boss standing on a plate,
-  meets at its foot: the pocket's floor or the plate's top faces up the edge,
-  where three edges meet at one corner, which the chains and the corners
-  (#698, #699) are to take. And a wall too thin for the prism: its sides sink
+  wall passing outside the cone (#807); and one leaning so far that its
+  plane misses the prism's long edges between the prism's two ends. And a
+  wall too thin for the prism: its sides sink
   the margin into the matter — an eighth of the set-back, or the least margin
   where that is larger, and further in where a sharp corner's sunk sides meet
   — so behind a wall thinner than that the prism comes out the other side, a
@@ -402,7 +405,13 @@ It can:
   corner, hold beyond both faces they stop on (`wedge/overlap.rs`), joined
   where the cuts' is cut. The two flats or rounds run on into a mitre outside
   the convex edge, a line among flats and an ellipse among rounds, and no
-  face is laid there.
+  face is laid there. Two fills meeting where the third edge is concave too
+  — two edges of a pocket's floor, or one and the upright it meets — need
+  nothing past the corner: each is trimmed flush into the matter on the face
+  the other runs along, the later read on the body as given, and their join
+  is the valley, a line among flats and an ellipse among rounds, the third
+  edge left sharp and ending one value short. Three such edges listed at one
+  corner are still declined.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
   not verify. A declined step is a broken step: the part stands as before it,
   the screen says so and the tree marks it, and the step still moves the face

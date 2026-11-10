@@ -76,45 +76,47 @@ impl Exact {
     /// set-back of a value of one `set_back` says — each read on the body as
     /// given. Rounds or flats that would meet anywhere else, across a face two
     /// edges share that are not parallel or on a face one of them ends on, are
-    /// not measured: the laying declines them where they meet, until #792.
-    /// The pairs whose set-backs meet across their face that `meeting` lays
-    /// together, the earlier first, are each laid as one, the face they
-    /// shared gone — by the prism it raises, or as one slope at the value
-    /// their set-backs meet at, as [`Exact::sloped`] lays it; every other
-    /// edge is laid alone.
-    /// Two edges meeting at a convex corner are laid in turn as any two
-    /// are, each prism carried past the corner along its edge's line, so that
-    /// the later trims the earlier's face there: two flats or two rounds meet
-    /// in a mitre, and the later edge is laid from its wedge on the body as
-    /// given, its prism cut from what the earlier cuts left, as
+    /// not measured: the laying declines them where they meet, until #792. The
+    /// pairs whose set-backs meet across their face that `meeting` lays
+    /// together, the earlier first, are each laid as one, the face they shared
+    /// gone — by the prism it raises, or as one slope at the value their
+    /// set-backs meet at, as [`Exact::sloped`] lays it; every other edge is
+    /// laid alone. Two edges meeting at a convex corner are laid in turn as any
+    /// two are, each prism carried past the corner along its edge's line, so
+    /// that the later trims the earlier's face there: two flats or two rounds
+    /// meet in a mitre, and the later edge is laid from its wedge on the body
+    /// as given, its prism cut from what the earlier cuts left, as
     /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
     /// goes whatever the order. Two edges of one sense meeting at a corner
     /// beside an edge of the other sense left out of the list, as
     /// [`corners::admit`] admits it — two cuts beside a concave edge, two fills
-    /// beside a convex one — each stop flush there, and the later takes with
-    /// it what both prisms hold past both faces they stop on, as
-    /// [`Flush::beside`] reads it, cut with a cut and joined with a fill:
-    /// their flats or rounds run on into a mitre, down to the third edge or
-    /// outside it, left sharp. A corner three of the edges meet at is closed
-    /// once all are laid, as `meeting` closes it, read where each two's
-    /// set-backs cross on the face they share, as [`Exact::closed`] closes it,
-    /// its face numbered past the edges'. The wall an edge's prism lays is
-    /// numbered where the steps' numbers ended, plus the edge's rank in the
-    /// list; a pair is laid at its later edge's turn, so that every number laid
-    /// before stands below those a prism lays, as [`Exact::cut_along`] reads
-    /// them. A value shorter than the kernel can set a cut back from an edge is
-    /// declined first; a list of no edge `Unsupported`; an edge its name no
-    /// longer finds `Lost`; an edge that is not a wedge, one edge two names
-    /// find, two edges meeting at a corner that is neither convex — every edge
-    /// ending there a wedge whose faces meet outwards — nor two of one sense
-    /// beside an edge of the other left out of the list, more than three edges
-    /// meeting at a corner, or three where another edge ends too, where
-    /// `meeting` lays two together an edge meeting two others, or one of two
-    /// laid together that meets another edge of the list at a corner, a cut or
-    /// a fill that left something else than its one face, as
-    /// [`Exact::cut_along`] reads it, and a face of an overlap no edge
-    /// covered, are declined `Unsupported`; a prism the tool cannot raise, as
-    /// the tool says.
+    /// beside a convex one — each stop flush there, and the later takes with it
+    /// what both prisms hold past both faces they stop on, as [`Flush::beside`]
+    /// reads it, cut with a cut and joined with a fill: their flats or rounds
+    /// run on into a mitre, down to the third edge or outside it, left sharp.
+    /// Two fills meeting where the third edge is concave too, at a pocket's
+    /// bottom corner, are each trimmed flush on the face the other runs along
+    /// and meet in a valley, the third edge left sharp one value short. A
+    /// corner three of the edges meet at is closed once all are laid, as
+    /// `meeting` closes it, read where each two's set-backs cross on the face
+    /// they share, as [`Exact::closed`] closes it, its face numbered past the
+    /// edges'. The wall an edge's prism lays is numbered where the steps'
+    /// numbers ended, plus the edge's rank in the list; a pair is laid at its
+    /// later edge's turn, so that every number laid before stands below those a
+    /// prism lays, as [`Exact::cut_along`] reads them. A value shorter than the
+    /// kernel can set a cut back from an edge is declined first; a list of no
+    /// edge `Unsupported`; an edge its name no longer finds `Lost`; an edge
+    /// that is not a wedge, one edge two names find, two edges meeting at a
+    /// corner that is neither convex — every edge ending there a wedge whose
+    /// faces meet outwards — nor two of one sense beside an edge of the other
+    /// left out of the list, nor two concave beside a third concave, more than
+    /// three edges meeting at a corner, or three where another edge ends too,
+    /// where `meeting` lays two together an edge meeting two others, or one of
+    /// two laid together that meets another edge of the list at a corner, a cut
+    /// or a fill that left something else than its one face, as
+    /// [`Exact::cut_along`] reads it, and a face of an overlap no edge covered,
+    /// are declined `Unsupported`; a prism the tool cannot raise, as the tool
+    /// says.
     pub(super) fn cut_off(
         &self,
         names: &[EdgeName],

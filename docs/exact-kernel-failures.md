@@ -4067,7 +4067,7 @@ contact walls, which are cylinders only, and a list of cone walls does not
 exist yet.
 
 **How it was measured.** The walls and turned sets of #821, on `main`
-(64ddb7a8) and on the branch (82762045), compared seed by seed.
+(64ddb7a8) and on the branch (f691751e), compared seed by seed.
 
 | Set | Exact, `main` | Exact, #840 | Body, `main` | Body, #840 |
 | --- | --- | --- | --- | --- |

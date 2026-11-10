@@ -306,3 +306,6 @@ fn third(corners: [usize; 3], [one, other]: [usize; 2]) -> usize {
         .find(|&corner| corner != one && corner != other)
         .unwrap_or(corners[0])
 }
+
+#[cfg(test)]
+mod tests;

@@ -79,6 +79,9 @@ macro_rules! embedded {
 embedded! {
     ARC_BY_CENTRE = "arc-by-centre";
     ARC_BY_ENDS = "arc-by-ends";
+    BODY_HIDDEN = "body-hidden";
+    BODY_OPAQUE = "body-opaque";
+    BODY_SEE_THROUGH = "body-see-through";
     CHAMFER = "chamfer";
     CHAMFER_ANGLED = "chamfer-angled";
     CHAMFER_EQUAL = "chamfer-equal";

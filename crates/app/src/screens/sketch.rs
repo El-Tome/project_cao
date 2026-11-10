@@ -1,5 +1,5 @@
 use cao_sketch::{DimensionTarget, PointId, Rule, RulePick, Selection, ToolState, WorkPlane};
-use glam::DVec2;
+use glam::{DVec2, DVec3};
 
 mod copy_panel;
 mod live_input;
@@ -83,6 +83,9 @@ pub struct SketchEditor {
     /// re-aligned with it at any time.
     pub plane: Option<WorkPlane>,
     pub hovered_plane: Option<PlaneChoice>,
+    /// The triangles of the drawn face under the cursor, lit while the face
+    /// of the part it lies on is offered to draw on.
+    pub hovered_face_drawn: Vec<[DVec3; 3]>,
     /// Point under the cursor, highlighted so it is clear what a click takes.
     pub hovered_point: Option<PointId>,
     pub hovered: Option<Selection>,
@@ -204,6 +207,7 @@ impl SketchEditor {
         self.tool = Tool::Line;
         self.reset_pending();
         self.hovered_plane = None;
+        self.hovered_face_drawn.clear();
         self.message = None;
     }
 

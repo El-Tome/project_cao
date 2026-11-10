@@ -99,11 +99,14 @@ impl PartState {
                 }
             }
             Operation::CreateSketchOnSection { section, plane } => {
-                let cut = self
-                    .sections
-                    .get(*section)
-                    .and_then(|kept| self.found(*section, kept).cutting_plane())
-                    .map(|cut| facing_as(cut, plane));
+                // The part shown lays it where it is in the part, whatever its
+                // section cuts of the part shown.
+                let cut = self.plane_in_the_part(self.sketches.len()).or_else(|| {
+                    self.sections
+                        .get(*section)
+                        .and_then(|kept| self.found(*section, kept).cutting_plane())
+                        .map(|cut| facing_as(cut, plane))
+                });
                 if cut.is_none() {
                     self.adrift.insert(self.sketches.len());
                 }

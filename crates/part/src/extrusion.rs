@@ -107,6 +107,9 @@ impl PartState {
         if lost {
             self.broke(Broken::Operation(self.replaying));
         }
+        if !self.shows(&tool, mode) {
+            return past_turns(&mut self.body);
+        }
         if let Err(reason) = self.combine(tool, mode) {
             self.declined_with(reason, past_turns);
         }
@@ -185,6 +188,9 @@ impl PartState {
         // size that no longer holds.
         if lost {
             self.broke(Broken::Operation(self.replaying));
+        }
+        if !self.shows(&tool, mode) {
+            return past_raises(&profiles)(&mut self.body);
         }
         if let Err(reason) = self.combine(tool, mode) {
             self.declined_with(reason, past_raises(&profiles));

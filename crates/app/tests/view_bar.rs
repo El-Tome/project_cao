@@ -654,7 +654,7 @@ fn choosing_see_through_in_the_bar_s_menu_makes_the_matter_in_front_see_through(
         "the bar's « Matière devant » opens no menu of the three, showing {:?}",
         driver::on_screen(&app),
     );
-    driver::click_exactly(&mut app, "transparente");
+    driver::click_the_button(&mut app, "transparente");
 
     let reads = the_bar_s_matter_in_front(&app);
     assert!(

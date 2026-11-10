@@ -199,7 +199,7 @@ const LINE_BUDGET: usize = 400;
 
 const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 4] = [
     ("crates/app/src/screens/viewport/input/mod.rs", 440),
-    ("crates/render/src/renderer.rs", 426),
+    ("crates/render/src/renderer.rs", 408),
     ("crates/sketch/src/sketch.rs", 570),
     ("crates/sketch/src/solver.rs", 842),
 ];

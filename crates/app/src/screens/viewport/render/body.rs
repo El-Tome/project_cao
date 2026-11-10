@@ -1,7 +1,7 @@
 //! The part's matter in a frame: what the sketch's cut or the section leaves
-//! of it, drawn opaque, see-through or not at all as the body's mode says.
+//! of the part shown, drawn opaque, and of the ghosts of the volumes shown
+//! see-through, drawn see-through.
 
-use cao_render::MatterInFront;
 use glam::{DVec3, Vec3};
 
 use super::{tint, tint_at};
@@ -20,16 +20,10 @@ pub(super) fn push_matter(
     let Some(drawn) = drawn else {
         return;
     };
-    let opaque_veiled = match state.body_mode() {
-        MatterInFront::SeeThrough => Some(&*drawn.opaque),
-        _ => {
-            let solid = tint(theme.solid);
-            push_body(solids, drawn.opaque.triangles(), solid, camera.forward());
-            None
-        }
-    };
+    let solid = tint(theme.solid);
+    push_body(solids, drawn.opaque.triangles(), solid, camera.forward());
     let eye = camera.eye().as_dvec3();
-    for veiled in opaque_veiled.into_iter().chain(drawn.see_through.as_ref()) {
+    for veiled in drawn.see_through.iter().chain(&drawn.ghosts) {
         // The surface pass culls nothing: a far side left in would be stacked
         // behind the near one.
         let facing = veiled

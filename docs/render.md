@@ -34,6 +34,7 @@ same shader and differ mostly in what they do with that buffer:
 | --- | --- |
 | `solid` | tests and **writes** |
 | `world_line` — axes and grid | tests without writing, pulled a hair towards the camera |
+| `veiled_matter` — the part's see-through faces and its ghosts | tests without writing, pulled a hair towards the camera |
 | `line`, `triangle`, `surface`, `background` | always pass, without writing |
 
 A solid is the only geometry with a volume, and therefore the only one whose
@@ -43,6 +44,23 @@ trait crossing a block would read as an edge of that block; the nudge they get
 is explained in [viewport.md](viewport.md). Everything else goes over the top
 deliberately: a sketch or a dimension buried in a block would be unusable, and
 the orientation cube must never be hidden by the part.
+
+The see-through matter — the ghost of a volume set « transparente », its raw
+block as `cao_part`'s `PartDocument::shown` hands it, and the matter in front
+of a sketch or a section drawn see-through — is matter all the same, and an
+opaque face in front of it must hide it. It travels in `scene_surfaces`
+— that is where a frame's translucent triangles are read — and
+`SceneFrame::scene_veiled_matter` says which range of that list they hold.
+The renderer draws `scene_surfaces` in three slices, in order: before the
+range with `surface`, the range with `veiled_matter`, after it with `surface`
+again. So the areas chosen for an extrusion and the sketch fills, pushed
+before, and the section's square, pushed after, keep going over everything.
+The pass takes the grid's nudge towards the camera, so that a ghost's face
+lying exactly on an opaque face — the block a see-through cut removes, on the
+walls it leaves — is drawn over that face rather than flickering through it.
+The range is taken around `push_matter` in `frame_of`: **nothing else may be
+pushed into `scene_surfaces` between its two ends**, or it would be hidden by
+the part like the matter.
 
 The cube is still drawn last, and it is plain back-face culling that shows only
 its near faces. Its edges are emitted only for the visible faces, otherwise the

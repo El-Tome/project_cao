@@ -118,9 +118,11 @@
 //!   `crates/app/src/screens/part_tree/state/tests.rs`, under its own block
 //! - one display mode for the whole body — invisible, see-through, opaque —
 //!   "opaque by default" — `the_body_is_drawn_opaque_by_default`,
-//!   `the_body_is_drawn_invisible_see_through_or_opaque_as_its_mode_says`; set
-//!   on the « Corps » rubric, a click stepping round the three —
-//!   `the_body_s_mode_steps_round_its_three_states`
+//!   `the_body_is_drawn_invisible_see_through_or_opaque_as_its_mode_says`,
+//!   since #734 the state of the block, the part's one volume. The « Corps »
+//!   rubric whose click stepped round the three is gone with #734: each
+//!   volume now steps round them on its own, held in `crates/app/src/screens/viewport/visibility/tests.rs`
+//!   by `a_volume_s_visibility_cycles_opaque_see_through_invisible_and_round_again`
 //! - the sketch's own cut of #319 and the section of #193 still apply on top —
 //!   `a_see_through_body_keeps_the_matter_in_front_of_the_sketch_cut_away`,
 //!   `a_see_through_body_keeps_the_side_the_section_hides_hidden`; found in
@@ -247,8 +249,38 @@
 //! - found in review: with the hand on another row of the same closed sketch,
 //!   the trait a click lit stays lit beside the one under the hand —
 //!   `a_trait_a_click_lit_stays_lit_while_the_hand_is_on_another_row_of_its_sketch`
+//!
+//! Closes #734 — the whole transcription is in
+//! `crates/app/src/screens/part_tree/state/tests.rs`; these bullets are the
+//! ones only a frame shows.
+//! - criterion 3, each volume its raw solid and the part shown the history
+//!   replayed with each volume's state — the replay held in
+//!   `crates/part/tests/showing_volumes.rs`; the frame drawing the part shown
+//!   opaque and the ghosts see-through: a see-through cut leaves the part with
+//!   its hole opaque, the block it removes see-through in the hole —
+//!   `a_see_through_cut_draws_the_part_it_leaves_opaque_and_the_block_it_removes_see_through`;
+//!   an invisible cut leaves the block whole —
+//!   `an_invisible_cut_draws_the_block_whole_with_no_hole`; a see-through
+//!   addition is its raw block see-through, nothing of it opaque —
+//!   `a_see_through_addition_draws_its_raw_block_see_through_and_nothing_opaque`;
+//!   hiding one of two additions leaves the other whole —
+//!   `hiding_one_of_two_additions_draws_the_other_whole`; under a section,
+//!   the part shown is what is cut —
+//!   `under_a_section_the_part_shown_is_what_is_cut`; and, found in review, a
+//!   see-through volume a section parts is drawn see-through, every piece of
+//!   it — `a_volume_the_section_parts_is_drawn_in_its_own_state_every_piece_of_it`
+//! - criterion 6, a face made by no listed volume — no test: struck on
+//!   2026-11-10 by Tom, every piece of matter now belonging to a volume
+//! - a see-through wall behind an opaque face is hidden by it: the frame hands
+//!   the ghosts and the see-through matter to the pass that tests them
+//!   against the opaque faces, and keeps the areas being chosen and the
+//!   section's square out of it —
+//!   `ghosts_and_see_through_matter_go_to_the_depth_tested_pass_and_nothing_else_does`.
+//!   That the pass hides them behind the opaque faces lives in the wgpu
+//!   pipelines of `crates/render/src/renderer.rs`, which no test reaches, and
+//!   is checked on screen
 
-use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
+use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef, VolumeState};
 use cao_prefs::config::ViewportConfig;
 use cao_render::camera::{OrbitCamera, ViewTransition};
 use cao_render::{CubeFace, CubeZone, MatterInFront};
@@ -262,6 +294,7 @@ use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::part_tree::state::{Points, hover};
 use crate::screens::sketch::SketchEditor;
+use crate::screens::viewport::matter::shown;
 use crate::screens::viewport::section::Section;
 
 const SCREEN: egui::Rect = egui::Rect {
@@ -1310,16 +1343,25 @@ fn an_area_lit_from_the_tree_is_drawn_lit_in_its_closed_sketch() {
     );
 }
 
-/// The view with the body drawn `mode`, reached the way the user reaches it,
-/// one click at a time.
-fn body_drawn(state: &mut ViewportState, mode: MatterInFront) {
+/// Where the block of `a_block` is raised in its history, and in that of
+/// every fixture built on it.
+const THE_BLOCK_S_STEP: usize = 2;
+
+/// The view with the block, the part's one volume, drawn `mode`, reached one
+/// click of its visibility button at a time.
+fn body_drawn(state: &mut ViewportState, mode: VolumeState) {
+    let document = a_block();
     for _ in 0..3 {
-        if state.body_mode() == mode {
+        if state.volume_mode(&document, THE_BLOCK_S_STEP) == mode {
             return;
         }
-        state.next_body_mode();
+        state.next_volume_mode(&document, THE_BLOCK_S_STEP);
     }
-    assert_eq!(state.body_mode(), mode, "three clicks never reach {mode:?}");
+    assert_eq!(
+        state.volume_mode(&document, THE_BLOCK_S_STEP),
+        mode,
+        "three clicks never reach {mode:?}",
+    );
 }
 
 /// How the block's matter is drawn, leaving out the ground its sketch lies on.
@@ -1331,7 +1373,10 @@ fn the_block_seen(frame: &SceneFrame) -> Seen {
 fn the_body_is_drawn_opaque_by_default() {
     let state = ViewportState::default();
 
-    assert_eq!(state.body_mode(), MatterInFront::Opaque);
+    assert_eq!(
+        state.volume_mode(&a_block(), THE_BLOCK_S_STEP),
+        VolumeState::Opaque
+    );
     assert_eq!(
         the_block_seen(&a_view_of_the_block(&state)),
         Seen::Opaque,
@@ -1341,35 +1386,18 @@ fn the_body_is_drawn_opaque_by_default() {
 
 #[test]
 fn the_body_is_drawn_invisible_see_through_or_opaque_as_its_mode_says() {
-    for mode in EVERY_STATE {
+    for (mode, drawn) in [
+        (VolumeState::Invisible, Seen::Hidden),
+        (VolumeState::SeeThrough, Seen::SeeThrough),
+        (VolumeState::Opaque, Seen::Opaque),
+    ] {
         let mut state = ViewportState::default();
         body_drawn(&mut state, mode);
 
         assert_eq!(
             the_block_seen(&a_view_of_the_block(&state)),
-            seen(mode),
+            drawn,
             "the body set {mode:?} is drawn otherwise",
-        );
-    }
-}
-
-#[test]
-fn the_body_s_mode_steps_round_its_three_states() {
-    let mut state = ViewportState::default();
-    let mut met = vec![state.body_mode()];
-    for _ in 0..3 {
-        state.next_body_mode();
-        met.push(state.body_mode());
-    }
-
-    assert_eq!(
-        met[3], met[0],
-        "three clicks do not come back to where they started: {met:?}"
-    );
-    for mode in EVERY_STATE {
-        assert!(
-            met[..3].contains(&mode),
-            "the clicks never reach {mode:?}: {met:?}"
         );
     }
 }
@@ -1377,7 +1405,7 @@ fn the_body_s_mode_steps_round_its_three_states() {
 #[test]
 fn a_see_through_body_keeps_the_matter_in_front_of_the_sketch_cut_away() {
     let frame = a_frame_through_a_block_seen(HALFWAY, 0, |state| {
-        body_drawn(state, MatterInFront::SeeThrough);
+        body_drawn(state, VolumeState::SeeThrough);
     });
 
     assert_eq!(
@@ -1390,7 +1418,7 @@ fn a_see_through_body_keeps_the_matter_in_front_of_the_sketch_cut_away() {
 #[test]
 fn a_see_through_body_keeps_the_side_the_section_hides_hidden() {
     let mut state = sectioned(|_| {});
-    body_drawn(&mut state, MatterInFront::SeeThrough);
+    body_drawn(&mut state, VolumeState::SeeThrough);
 
     assert_eq!(
         sides(&a_view_of_the_block(&state)),
@@ -1414,7 +1442,7 @@ fn a_see_through_body_shows_what_the_section_shows_and_nothing_it_hides() {
                 section.behind = behind;
                 section.in_front = in_front;
             });
-            body_drawn(&mut state, MatterInFront::SeeThrough);
+            body_drawn(&mut state, VolumeState::SeeThrough);
 
             assert_eq!(
                 sides(&a_view_of_the_block(&state)),
@@ -1434,7 +1462,7 @@ fn an_invisible_body_draws_nothing_whatever_the_section_or_the_sketch_shows() {
                 section.behind = behind;
                 section.in_front = in_front;
             });
-            body_drawn(&mut state, MatterInFront::Hidden);
+            body_drawn(&mut state, VolumeState::Invisible);
 
             assert_eq!(
                 sides(&a_view_of_the_block(&state)),
@@ -1446,7 +1474,7 @@ fn an_invisible_body_draws_nothing_whatever_the_section_or_the_sketch_shows() {
     }
     for clicks in 0..3 {
         let frame = a_frame_through_a_block_seen(HALFWAY, clicks, |state| {
-            body_drawn(state, MatterInFront::Hidden);
+            body_drawn(state, VolumeState::Invisible);
         });
 
         assert_eq!(
@@ -2944,5 +2972,525 @@ fn a_trait_a_click_lit_stays_lit_while_the_hand_is_on_another_row_of_its_sketch(
         on(&both, hovered_from, hovered_to),
         on(&hovered_alone, hovered_from, hovered_to),
         "the trait under the hand is not lit while a click lit another of its sketch",
+    );
+}
+
+/// Where the block stands in the history of `a_block_with_a_hole`.
+const THE_BLOCK: usize = 3;
+/// Where the cut that bores the hole stands.
+const THE_HOLE: usize = 4;
+
+/// A block 10 by 20 raised 4 from XY, and a round cut of radius 2 through
+/// it at (5, 10): two volumes, an add and a cut.
+fn a_block_with_a_hole() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(5.0, 10.0)),
+        radius: 2.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(1.0, 1.0), DVec2::new(5.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Cut,
+    });
+    let steps = document.history.applied_operations();
+    assert!(
+        matches!(
+            steps.get(THE_BLOCK),
+            Some(Operation::Extrude {
+                mode: ExtrusionMode::Add,
+                ..
+            })
+        ) && matches!(
+            steps.get(THE_HOLE),
+            Some(Operation::Extrude {
+                mode: ExtrusionMode::Cut,
+                ..
+            })
+        ),
+        "the fixture wants the block then the hole: {steps:?}",
+    );
+    document
+}
+
+/// How far from the hole's circle a corner of its wall may stand once handed
+/// to the GPU in `f32`.
+const ON_THE_WALL: f32 = 1e-3;
+
+/// Whether a triangle is a piece of the hole's wall: every corner on the
+/// circle of radius 2 round (5, 10), and not all of them at one height, which
+/// would be a piece of the top or the bottom round the hole's rim.
+fn on_the_hole_s_wall(triangle: &[&cao_render::Vertex; 3]) -> bool {
+    let on_the_circle = triangle.iter().all(|corner| {
+        let [x, y, _] = corner.position;
+        ((x - 5.0).hypot(y - 10.0) - 2.0).abs() <= ON_THE_WALL
+    });
+    let height = triangle[0].position[2];
+    let upright = triangle
+        .iter()
+        .any(|corner| (corner.position[2] - height).abs() > ON_THE_WALL);
+    on_the_circle && upright
+}
+
+/// Whether a triangle of `layer` lies flat at the height of `point` and holds
+/// it within its outline: whether that place of a flat face is drawn there.
+fn covers(layer: &[cao_render::Vertex], point: DVec3) -> bool {
+    let at = DVec2::new(point.x, point.y);
+    triangles(layer).into_iter().any(|triangle| {
+        let flat = triangle
+            .iter()
+            .all(|corner| (f64::from(corner.position[2]) - point.z).abs() < 1e-3);
+        let [a, b, c] = triangle
+            .map(|corner| DVec2::new(f64::from(corner.position[0]), f64::from(corner.position[1])));
+        let side = |p: DVec2, q: DVec2| (q - p).perp_dot(at - p);
+        let turns = [side(a, b), side(b, c), side(c, a)];
+        flat && (turns.iter().all(|turn| *turn >= -1e-6) || turns.iter().all(|turn| *turn <= 1e-6))
+    })
+}
+
+/// A frame of `document` seen as `state` says, with no sketch open.
+fn the_frame_of(state: &ViewportState, mut document: PartDocument) -> SceneFrame {
+    a_frame_of(state, &mut document, &mut SketchEditor::default())
+}
+
+/// The view with the volume at `step` of `document` clicked `clicks` times
+/// round its states.
+fn clicked(document: &PartDocument, step: usize, clicks: usize) -> ViewportState {
+    let mut state = ViewportState::default();
+    for _ in 0..clicks {
+        state.next_volume_mode(document, step);
+    }
+    state
+}
+
+/// The middle of the hole of `a_block_with_a_hole`, on the block's top.
+const IN_THE_HOLE: DVec3 = DVec3::new(5.0, 10.0, 4.0);
+
+/// A corner of the block's top, well away from the hole.
+const AWAY_FROM_THE_HOLE: DVec3 = DVec3::new(1.0, 1.0, 4.0);
+
+#[test]
+fn a_see_through_cut_draws_the_part_it_leaves_opaque_and_the_block_it_removes_see_through() {
+    let document = a_block_with_a_hole();
+    let state = clicked(&document, THE_HOLE, 1);
+    assert_eq!(
+        state.volume_mode(&document, THE_HOLE),
+        VolumeState::SeeThrough
+    );
+
+    let frame = the_frame_of(&state, document);
+
+    let walls_opaque = triangles(&frame.scene_solids)
+        .into_iter()
+        .filter(on_the_hole_s_wall)
+        .count();
+    assert!(
+        walls_opaque > 0,
+        "the cut « transparente », the walls of the hole it leaves are not drawn opaque",
+    );
+    assert!(
+        covers(&frame.scene_solids, AWAY_FROM_THE_HOLE)
+            && !covers(&frame.scene_solids, IN_THE_HOLE),
+        "the cut « transparente », the opaque part is not the block with its hole",
+    );
+    assert!(
+        covers(&frame.scene_surfaces, IN_THE_HOLE),
+        "the cut « transparente », the block it removes is not drawn see-through in the hole",
+    );
+}
+
+#[test]
+fn an_invisible_cut_draws_the_block_whole_with_no_hole() {
+    let document = a_block_with_a_hole();
+    let state = clicked(&document, THE_HOLE, 2);
+    assert_eq!(
+        state.volume_mode(&document, THE_HOLE),
+        VolumeState::Invisible
+    );
+
+    let frame = the_frame_of(&state, document);
+
+    assert!(
+        covers(&frame.scene_solids, IN_THE_HOLE),
+        "the cut invisible, the block is still drawn with its hole",
+    );
+    let walls = triangles(&frame.scene_solids)
+        .into_iter()
+        .chain(triangles(&frame.scene_surfaces))
+        .filter(on_the_hole_s_wall)
+        .count();
+    assert_eq!(
+        walls, 0,
+        "the cut invisible, {walls} triangles of the hole's walls are drawn"
+    );
+}
+
+#[test]
+fn a_see_through_addition_draws_its_raw_block_see_through_and_nothing_opaque() {
+    let document = a_block_with_a_hole();
+    let state = clicked(&document, THE_BLOCK, 1);
+    assert_eq!(
+        state.volume_mode(&document, THE_BLOCK),
+        VolumeState::SeeThrough
+    );
+
+    let frame = the_frame_of(&state, document);
+
+    let opaque = triangles(&frame.scene_solids)
+        .into_iter()
+        .filter(|triangle| !lies_at(triangle, 0.0))
+        .count();
+    assert_eq!(
+        opaque, 0,
+        "the block « transparente », {opaque} triangles of the part are still drawn opaque",
+    );
+    assert!(
+        covers(&frame.scene_surfaces, AWAY_FROM_THE_HOLE)
+            && covers(&frame.scene_surfaces, IN_THE_HOLE),
+        "the block « transparente » is not drawn see-through whole, as raised, with no hole",
+    );
+}
+
+/// Two blocks 10 by 10 and 4 high raised one after the other from XY, the
+/// second from x = 5, over half the first.
+fn two_overlapping_blocks() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for (corner, opposite) in [
+        (DVec2::ZERO, DVec2::splat(10.0)),
+        (DVec2::new(5.0, 0.0), DVec2::new(15.0, 10.0)),
+    ] {
+        document.apply(Operation::AddRectangle {
+            sketch: 0,
+            corner: PointRef::New(corner),
+            opposite: PointRef::New(opposite),
+            construction: false,
+        });
+    }
+    for inside in [
+        [DVec2::new(2.0, 5.0), DVec2::new(7.0, 5.0)],
+        [DVec2::new(7.0, 5.0), DVec2::new(12.0, 5.0)],
+    ] {
+        document.apply(Operation::Extrude {
+            sketch: 0,
+            areas: document.areas_at(0, &inside),
+            distance: 4.0.into(),
+            mode: ExtrusionMode::Add,
+        });
+    }
+    let steps = document.history.applied_operations();
+    assert!(
+        matches!(steps.get(3), Some(Operation::Extrude { .. }))
+            && matches!(steps.get(4), Some(Operation::Extrude { .. })),
+        "the fixture wants the two blocks raised at steps 3 and 4: {steps:?}",
+    );
+    document
+}
+
+#[test]
+fn hiding_one_of_two_additions_draws_the_other_whole() {
+    let [only_the_first, over_both, only_the_second] =
+        [2.0, 7.5, 12.0].map(|x| DVec3::new(x, 5.0, 4.0));
+    for (hidden, kept, gone, what) in [
+        (
+            3,
+            [over_both, only_the_second],
+            only_the_first,
+            "the first block invisible",
+        ),
+        (
+            4,
+            [only_the_first, over_both],
+            only_the_second,
+            "the second block invisible",
+        ),
+    ] {
+        let document = two_overlapping_blocks();
+        let state = clicked(&document, hidden, 2);
+
+        let frame = the_frame_of(&state, document);
+
+        let drawn = kept.map(|place| covers(&frame.scene_solids, place));
+        assert_eq!(
+            drawn,
+            [true, true],
+            "{what}, the other's top is not drawn whole at {kept:?}",
+        );
+        assert!(
+            !covers(&frame.scene_solids, gone),
+            "{what}, its top is still drawn at {gone}",
+        );
+    }
+}
+
+#[test]
+fn under_a_section_the_part_shown_is_what_is_cut() {
+    let document = a_block_with_a_hole();
+    let mut state = clicked(&document, THE_HOLE, 2);
+    let mut section = Section::new(WorkPlane::XY);
+    section.offset = 2.0;
+    state.section = Some(section);
+
+    let frame = the_frame_of(&state, document);
+
+    let filled = area_lying_at(&frame, 2.0);
+    assert!(
+        (filled - 200.0).abs() < 0.5,
+        "the cut invisible, the section through the block is filled over {filled}, not the \
+         whole 10 by 20 of a block with no hole",
+    );
+}
+
+/// Where the U stands in the history of `a_block_and_a_u_beside_it`.
+const THE_U: usize = 5;
+
+/// How far along Y the section of `a_u_sectioned` cuts: through the U's two
+/// arms, above the bar that joins them.
+const ACROSS_THE_ARMS: f64 = 5.0;
+
+/// A block 10 by 10 and 4 high at the origin, then a U 6 high over x from 20
+/// to 30, its two arms 2 wide standing up along Y from a bar 2 deep: two
+/// volumes. The U is the outer rectangle less the notch drawn over it.
+fn a_block_and_a_u_beside_it() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let rectangle = |document: &mut PartDocument, corner: DVec2, opposite: DVec2| {
+        document.apply(Operation::AddRectangle {
+            sketch: 0,
+            corner: PointRef::New(corner),
+            opposite: PointRef::New(opposite),
+            construction: false,
+        });
+    };
+    rectangle(&mut document, DVec2::ZERO, DVec2::splat(10.0));
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::splat(5.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    rectangle(&mut document, DVec2::new(20.0, 0.0), DVec2::new(30.0, 10.0));
+    rectangle(&mut document, DVec2::new(22.0, 2.0), DVec2::new(28.0, 12.0));
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(21.0, 1.0)]),
+        distance: 6.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    assert!(
+        matches!(
+            document.history.applied_operations().get(THE_U),
+            Some(Operation::Extrude { .. })
+        ),
+        "the fixture wants the U raised at step {THE_U}",
+    );
+    document
+}
+
+/// A view with the section on along XZ, through the U's arms, the side the
+/// arms stand on drawn and the side of the bar hidden.
+fn a_u_sectioned() -> ViewportState {
+    let mut section = Section::new(WorkPlane::XZ);
+    section.offset = -ACROSS_THE_ARMS;
+    let mut state = ViewportState::default();
+    state.section = Some(section);
+    state
+}
+
+/// Whether every corner of a triangle stands over the U, off the cutting plane
+/// where the section's own fill is drawn.
+fn of_the_u(triangle: &[&cao_render::Vertex; 3]) -> bool {
+    let over = triangle
+        .iter()
+        .all(|corner| (19.999..=30.001).contains(&corner.position[0]));
+    let on_the_cut = triangle
+        .iter()
+        .all(|corner| (f64::from(corner.position[1]) - ACROSS_THE_ARMS).abs() < 1e-3);
+    over && !on_the_cut
+}
+
+#[test]
+fn a_volume_the_section_parts_is_drawn_in_its_own_state_every_piece_of_it() {
+    let mut document = a_block_and_a_u_beside_it();
+    let mut state = a_u_sectioned();
+    let drawn = shown(&state, &SketchEditor::default(), document.body());
+    let renumbered: Vec<usize> = drawn
+        .opaque
+        .pieces()
+        .into_iter()
+        .filter(|&piece| {
+            let corners: Vec<DVec3> = drawn.opaque.triangles_of(piece).flatten().collect();
+            !corners.is_empty() && corners.iter().all(|corner| corner.x > 19.999)
+        })
+        .collect();
+    assert!(
+        !renumbered.is_empty(),
+        "the fixture wants the section to part a face of the U and number a piece anew",
+    );
+    state.next_volume_mode(&document, THE_U);
+    assert_eq!(state.volume_mode(&document, THE_U), VolumeState::SeeThrough);
+
+    let frame = a_frame_of(&state, &mut document, &mut SketchEditor::default());
+
+    let opaque = triangles(&frame.scene_solids)
+        .into_iter()
+        .filter(of_the_u)
+        .count();
+    let veiled = triangles(&frame.scene_surfaces)
+        .into_iter()
+        .filter(of_the_u)
+        .count();
+    assert!(
+        veiled > 0,
+        "nothing of the see-through U is drawn see-through"
+    );
+    assert_eq!(
+        opaque, 0,
+        "{opaque} triangles of the see-through U are drawn opaque, as the whole body is, \
+         beside {veiled} drawn see-through",
+    );
+}
+
+/// The triangles of the frame's see-through layer, each with whether it falls
+/// in the range drawn by the pass that tests matter against the opaque faces.
+fn veiled_and_whether_depth_tested(frame: &SceneFrame) -> Vec<([&cao_render::Vertex; 3], bool)> {
+    triangles(&frame.scene_surfaces)
+        .into_iter()
+        .enumerate()
+        .map(|(rank, triangle)| {
+            let first = rank * 3;
+            let tested = frame.scene_veiled_matter.contains(&first)
+                && frame.scene_veiled_matter.contains(&(first + 2));
+            (triangle, tested)
+        })
+        .collect()
+}
+
+/// A frame of `document` as `state` shows it, the first sketch's areas at
+/// `picks` chosen for a new extrusion.
+fn a_frame_choosing(
+    state: &ViewportState,
+    mut document: PartDocument,
+    picks: &[DVec2],
+) -> SceneFrame {
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState {
+        mode: Some(ExtrusionMode::Add),
+        sketch: Some(0),
+        picks: picks.to_vec(),
+        ..ExtrusionState::default()
+    };
+    let lang = Catalogue::french();
+    let millimetres = document.scale();
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let scale = ViewScale::of(
+        &OrbitCamera::default(),
+        SCREEN,
+        1.0,
+        &ViewportConfig::default(),
+        millimetres,
+    );
+    build_frame(state, SCREEN, SCREEN, scale, &context, None, None)
+}
+
+#[test]
+fn ghosts_and_see_through_matter_go_to_the_depth_tested_pass_and_nothing_else_does() {
+    let document = a_block_with_a_hole();
+    let state = clicked(&document, THE_HOLE, 1);
+    let choosing = a_frame_choosing(&state, document, &[DVec2::new(1.0, 1.0)]);
+    let seen = veiled_and_whether_depth_tested(&choosing);
+    let in_the_ghost = |triangle: &[&cao_render::Vertex; 3]| {
+        !lies_at(triangle, 0.0)
+            && triangle.iter().all(|corner| {
+                let [x, y, _] = corner.position;
+                (x - 5.0).hypot(y - 10.0) <= 2.0 + ON_THE_WALL
+            })
+    };
+    let ghost: Vec<bool> = seen
+        .iter()
+        .filter(|(triangle, _)| in_the_ghost(triangle))
+        .map(|(_, tested)| *tested)
+        .collect();
+    let chosen: Vec<bool> = seen
+        .iter()
+        .filter(|(triangle, _)| lies_at(triangle, 0.0))
+        .map(|(_, tested)| *tested)
+        .collect();
+    assert!(
+        !ghost.is_empty() && !chosen.is_empty(),
+        "the fixture wants the cut's ghost and the area being chosen both drawn see-through",
+    );
+    assert!(
+        ghost.iter().all(|tested| *tested),
+        "the cut's ghost is drawn outside the pass that tests it against the opaque faces",
+    );
+    assert!(
+        chosen.iter().all(|tested| !*tested),
+        "the area being chosen is drawn by the pass that hides matter behind the part",
+    );
+
+    let sectioned = a_view_of_the_block(&sectioned(|section| {
+        section.in_front = MatterInFront::SeeThrough;
+    }));
+    let seen = veiled_and_whether_depth_tested(&sectioned);
+    let in_front: Vec<bool> = seen
+        .iter()
+        .filter(|(triangle, _)| stands_over(triangle, MID_HEIGHT))
+        .map(|(_, tested)| *tested)
+        .collect();
+    let on_the_cut: Vec<bool> = seen
+        .iter()
+        .filter(|(triangle, _)| {
+            lies_at(triangle, MID_HEIGHT)
+                && triangle.iter().any(|corner| {
+                    let [x, y, _] = corner.position;
+                    !(-1e-3..=10.001).contains(&x) || !(-1e-3..=10.001).contains(&y)
+                })
+        })
+        .map(|(_, tested)| *tested)
+        .collect();
+    assert!(
+        !in_front.is_empty() && !on_the_cut.is_empty(),
+        "the fixture wants the matter in front of the section see-through and its square \
+         reaching past the block",
+    );
+    assert!(
+        in_front.iter().all(|tested| *tested),
+        "the see-through matter in front of the section is drawn outside the depth-tested pass",
+    );
+    assert!(
+        on_the_cut.iter().all(|tested| !*tested),
+        "the section's square is drawn by the pass that hides matter behind the part",
     );
 }

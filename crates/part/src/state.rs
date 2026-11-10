@@ -11,6 +11,7 @@ use crate::history::{History, Operation, PointRef};
 use crate::outcome::Outcome;
 use crate::replay::Replay;
 use crate::sections::Kept;
+use crate::showing::Showing;
 use crate::variables::Variables;
 
 /// The geometry of a part at a given point in its history.
@@ -81,6 +82,9 @@ pub struct PartState {
     /// steps replay. Kept with the body it numbers, in the cache as well.
     #[serde(default)]
     pub(crate) made: Vec<Range<usize>>,
+    /// Each volume's state, when the replay is of the part shown.
+    #[serde(skip)]
+    pub(crate) showing: Showing,
 }
 
 impl PartState {

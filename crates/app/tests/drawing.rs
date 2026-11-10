@@ -258,7 +258,7 @@ fn reopened_after(rank: usize, test: &str) -> driver::App {
     let mut app = a_sketch_reopened_under_its_own_block(test);
     if rank > 0 {
         driver::click_in_the_bar(&mut app, "Matière devant");
-        driver::click_exactly(&mut app, MATTER_IN_FRONT_IN_THE_MENU[rank]);
+        driver::click_the_button(&mut app, MATTER_IN_FRONT_IN_THE_MENU[rank]);
     }
     app
 }

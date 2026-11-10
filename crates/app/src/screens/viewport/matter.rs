@@ -4,6 +4,7 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 
+use cao_part::PartDocument;
 use cao_render::MatterInFront;
 use cao_sketch::WorkPlane;
 use cao_solid::{Body, FaceHit};
@@ -24,9 +25,22 @@ use crate::screens::sketch::SketchEditor;
 ///
 /// The cut holds only while the view sits on that plane or on one parallel to
 /// it: orbited off it, or landed on a plane across it, the part is seen whole.
+///
+/// A volume shown see-through is drawn as its raw block, its ghost, cut the
+/// same way and drawn see-through whatever side of the cut it stands on.
 pub(crate) struct Drawn<'a> {
     pub(crate) opaque: Cow<'a, Body>,
     pub(crate) see_through: Option<Body>,
+    pub(crate) ghosts: Vec<Body>,
+}
+
+impl Drawn<'_> {
+    /// Every piece drawn: opaque, see-through, then the ghosts.
+    pub(crate) fn pieces(&self) -> impl Iterator<Item = &Body> {
+        std::iter::once(&*self.opaque)
+            .chain(self.see_through.as_ref())
+            .chain(&self.ghosts)
+    }
 }
 
 pub(crate) fn drawn<'a>(
@@ -39,11 +53,13 @@ pub(crate) fn drawn<'a>(
         return Drawn {
             opaque: Cow::Borrowed(body),
             see_through: None,
+            ghosts: Vec::new(),
         };
     };
     Drawn {
         opaque: Cow::Owned(body.behind(cut.towards, cut.offset)),
         see_through: see_through.then(|| body.in_front(cut.towards, cut.offset)),
+        ghosts: Vec::new(),
     }
 }
 
@@ -60,48 +76,55 @@ pub(crate) fn shown<'a>(state: &ViewportState, editor: &SketchEditor, body: &'a 
     }
 }
 
-/// The piece of what is drawn, opaque or see-through, the ray meets first,
-/// and where. Nothing of an invisible body is met.
+/// The piece of what is drawn — opaque, see-through or a ghost — the ray
+/// meets first, and where.
 pub(super) fn drawn_under<'a>(
-    state: &ViewportState,
     drawn: &'a Drawn<'_>,
     origin: DVec3,
     direction: DVec3,
 ) -> Option<(&'a Body, FaceHit)> {
-    if state.body_mode() == MatterInFront::Hidden {
-        return None;
-    }
-    std::iter::once(&*drawn.opaque)
-        .chain(drawn.see_through.as_ref())
+    drawn
+        .pieces()
         .filter_map(|piece| Some((piece, piece.ray_hit(origin, direction)?)))
         .min_by(|(_, a), (_, b)| a.distance.total_cmp(&b.distance))
 }
 
-/// What a frame draws of the part, nothing while the body is hidden: worked
-/// out once a frame and handed both to the painting and to the point under the
-/// pointer, since a second call would compare the whole body with the one the
-/// section's halves were cut from, and copy those halves again.
+/// What a frame draws of the part as its volumes' states show it, nothing
+/// when nothing of it is to be seen. The view works it out once a frame and
+/// hands it both to the painting and to the point under the pointer; a
+/// click, and the light on the face offered to draw on, ask for it again.
+/// Each call compares the whole body with the one the section's halves were
+/// cut from and copies those halves, and copies the part shown out of its
+/// cache while a volume is not opaque, but replays nothing.
 pub(crate) fn seen<'a>(
     state: &ViewportState,
     editor: &SketchEditor,
-    body: &'a Body,
+    document: &'a PartDocument,
 ) -> Option<Drawn<'a>> {
-    (state.body_mode() != MatterInFront::Hidden).then(|| shown(state, editor, body))
+    let Some(part) = state.part_shown(document) else {
+        return Some(shown(state, editor, document.body()));
+    };
+    let drawn = shown(state, editor, &part.body);
+    let ghosts = part
+        .ghosts
+        .iter()
+        .flat_map(|ghost| {
+            let cut = shown(state, editor, &ghost.body);
+            [Some(cut.opaque.into_owned()), cut.see_through]
+        })
+        .flatten()
+        .filter(|piece| !piece.is_empty())
+        .collect();
+    let drawn = Drawn {
+        opaque: Cow::Owned(drawn.opaque.into_owned()),
+        see_through: drawn.see_through,
+        ghosts,
+    };
+    let empty = drawn.opaque.is_empty() && drawn.see_through.is_none() && drawn.ghosts.is_empty();
+    (!empty).then_some(drawn)
 }
 
 impl ViewportState {
-    /// Where a ray first meets the part as a frame draws it.
-    #[cfg(test)]
-    pub(crate) fn point_of_the_part_under(
-        &self,
-        editor: &SketchEditor,
-        body: &Body,
-        origin: DVec3,
-        direction: DVec3,
-    ) -> Option<DVec3> {
-        self.point_met(&shown(self, editor, body), origin, direction)
-    }
-
     /// Where the ray through a place of `canvas` first meets what is drawn.
     pub(super) fn point_of_the_part_at(
         &self,
@@ -110,26 +133,28 @@ impl ViewportState {
         canvas: egui::Rect,
     ) -> Option<DVec3> {
         let (origin, direction) = self.camera.ray(to_ndc(at, canvas), canvas.aspect_ratio());
-        self.point_met(drawn, origin.as_dvec3(), direction.as_dvec3())
-    }
-
-    fn point_met(&self, drawn: &Drawn<'_>, origin: DVec3, direction: DVec3) -> Option<DVec3> {
-        let (_, hit) = drawn_under(self, drawn, origin, direction)?;
+        let (origin, direction) = (origin.as_dvec3(), direction.as_dvec3());
+        let (_, hit) = drawn_under(drawn, origin, direction)?;
         Some(origin + direction * hit.distance)
     }
 }
 
 /// The halves last cut, each handed to every frame until the part, the plane
 /// or the side the eye is on changes: a cut costs the kernel a boolean, which
-/// no frame can afford.
+/// no frame can afford. Kept for each body a frame cuts — the part, and the
+/// ghost of each volume shown see-through — the last asked for last.
 #[derive(Default)]
 pub(crate) struct Sections {
-    last: RefCell<Option<Halves>>,
+    last: RefCell<Vec<Halves>>,
     #[cfg(test)]
     behind_cuts: std::cell::Cell<usize>,
     #[cfg(test)]
     front_cuts: std::cell::Cell<usize>,
 }
+
+/// How many bodies' halves are kept: the part's and as many ghosts as anyone
+/// makes see-through at once.
+const BODIES_KEPT_CUT: usize = 16;
 
 struct Halves {
     cut: Cut,
@@ -153,6 +178,7 @@ impl Sections {
         Drawn {
             opaque: Cow::Owned(behind.unwrap_or_default()),
             see_through: in_front,
+            ghosts: Vec::new(),
         }
     }
 
@@ -179,6 +205,7 @@ impl Sections {
         let mut drawn = Drawn {
             opaque: Cow::Owned(Body::default()),
             see_through: None,
+            ghosts: Vec::new(),
         };
         for (part, state) in parts {
             match state {
@@ -201,8 +228,9 @@ impl Sections {
         let mut last = self.last.borrow_mut();
         // Compared by value: the document keeps no revision of its body, and
         // reading two bodies through costs a fraction of cutting one.
-        let mut halves = match last.take() {
-            Some(halves) if halves.cut == cut && halves.body == *body => halves,
+        let kept = last.iter().position(|halves| halves.body == *body);
+        let mut halves = match kept.map(|rank| last.remove(rank)) {
+            Some(halves) if halves.cut == cut => halves,
             _ => Halves {
                 cut,
                 body: body.clone(),
@@ -230,7 +258,9 @@ impl Sections {
                 })
                 .clone()
         });
-        *last = Some(halves);
+        last.push(halves);
+        let stale = last.len().saturating_sub(BODIES_KEPT_CUT);
+        last.drain(..stale);
         (behind, in_front)
     }
 
@@ -273,5 +303,8 @@ fn sketch_plane_in_view(editor: &SketchEditor, mode: ViewMode) -> Option<WorkPla
     })
 }
 
+mod on_the_part;
 #[cfg(test)]
 mod tests;
+
+pub(crate) use on_the_part::{Met, met_on_the_part, nearness};

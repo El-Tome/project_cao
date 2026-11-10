@@ -56,8 +56,15 @@
 //! - the ribbon's own « Matière devant » stays and keeps cycling —
 //!   `the_matter_in_front_button_moves_the_open_sketch_to_the_next_state`,
 //!   written for #319 and left as it is
+//!
+//! Closes #734 — the whole transcription is in
+//! `crates/app/src/screens/part_tree/state/tests.rs`; this is the bullet a
+//! change to the history answers.
+//! - found in review: compaction puts every volume back to opaque, as it puts
+//!   every eye back to its default, and changes no other —
+//!   `compacting_the_history_puts_every_volume_back_to_opaque`
 
-use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef};
+use cao_part::{ExtrusionMode, Operation, PartDocument, PointRef, VolumeState};
 use cao_prefs::Command;
 use cao_render::MatterInFront;
 use cao_sketch::{DimensionTarget, Element, SegmentId, WorkPlane};
@@ -440,5 +447,57 @@ fn compacting_the_history_puts_every_eye_back_to_its_default() {
     assert!(
         viewport.eye_lit(&document, 1),
         "after a compaction, the sketch never used keeps the eye put out by hand",
+    );
+}
+
+/// Where the volumes stand in the history: its extrusions.
+fn volumes_of(document: &PartDocument) -> Vec<usize> {
+    document
+        .history
+        .applied_operations()
+        .iter()
+        .enumerate()
+        .filter(|(_, operation)| matches!(operation, Operation::Extrude { .. }))
+        .map(|(step, _)| step)
+        .collect()
+}
+
+#[test]
+fn compacting_the_history_puts_every_volume_back_to_opaque() {
+    let mut document = a_raised_block(None);
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::new(20.0, 0.0)),
+        opposite: PointRef::New(DVec2::new(30.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(25.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    let [first, second] = volumes_of(&document)[..] else {
+        panic!("the fixture wants two blocks");
+    };
+    let mut viewport = ViewportState::default();
+    viewport.next_volume_mode(&document, first);
+    viewport.next_volume_mode(&document, first);
+    assert_eq!(
+        [first, second].map(|step| viewport.volume_mode(&document, step)),
+        [VolumeState::Invisible, VolumeState::Opaque],
+        "the fixture wants the first block hidden and the second left opaque",
+    );
+
+    compact_history(&mut document, &mut SketchEditor::default(), &mut viewport);
+
+    let after: Vec<VolumeState> = volumes_of(&document)
+        .into_iter()
+        .map(|step| viewport.volume_mode(&document, step))
+        .collect();
+    assert_eq!(
+        after,
+        [VolumeState::Opaque, VolumeState::Opaque],
+        "after a compaction, the hidden block stays hidden or the opaque one changes",
     );
 }

@@ -588,7 +588,7 @@ fn pick_see_through_from_the_view_bar(
          {:?}",
         driver::said(app),
     );
-    driver::click_exactly(app, "transparente");
+    driver::click_the_button(app, "transparente");
 }
 
 #[test]

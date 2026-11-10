@@ -391,6 +391,8 @@ fn every_token_the_chrome_holds_is_the_design_file_s() {
             "state.warning_background",
         ),
         ("VARIABLE_TEXT", tokens::VARIABLE_TEXT, "variable.text"),
+        ("VOLUME_ADD", tokens::VOLUME_ADD, "volume.add"),
+        ("VOLUME_CUT", tokens::VOLUME_CUT, "volume.cut"),
     ];
     let numbers = [
         (

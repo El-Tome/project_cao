@@ -5,8 +5,8 @@ use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
 
 /// Compacts the history once its warning is confirmed. Every operation is
-/// numbered anew, so no eye switched by hand and no light still names its
-/// sketch: they go back to their defaults.
+/// numbered anew, so no eye switched by hand, no light and no volume's state
+/// still names its operation: they go back to their defaults.
 pub(crate) fn compact_history(
     doc: &mut PartDocument,
     editor: &mut SketchEditor,
@@ -14,5 +14,5 @@ pub(crate) fn compact_history(
 ) {
     doc.compact_history();
     clamp_editor_to_document(editor, doc);
-    viewport.forget_the_sketches();
+    viewport.forget_the_numbers();
 }

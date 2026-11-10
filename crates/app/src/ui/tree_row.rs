@@ -1,6 +1,6 @@
 //! One row of a tree: C10 of `docs/redesign/components.md`. The eye in a
 //! column of its own on the left, then the row itself indented by its depth —
-//! a chevron, its name — and on the right its badge and its value.
+//! a chevron, an icon, its name — and on the right its badge and its value.
 
 use std::ops::RangeInclusive;
 
@@ -10,7 +10,8 @@ use egui::{
 };
 
 use crate::ui::badge::{Level, badge, badge_width};
-use crate::ui::eye::eye;
+use crate::ui::eye::{eye, visibility};
+use crate::ui::icon::{Icon, IconSize};
 use crate::ui::theme::tokens::{
     ACCENT_AMBER_BACKGROUND, ACCENT_AMBER_TEXT, BACKGROUND_HOVER, BORDER_GROUP, RADIUS_BUTTON,
     SPACING_M, SPACING_S, TEXT_PRIMARY, TEXT_QUIET, TYPOGRAPHY_SIZES_BUTTON,
@@ -41,13 +42,26 @@ pub struct TreeRow<'a> {
     pub ink: Option<Color32>,
     pub value: Option<&'a str>,
     pub badge: Option<(&'a str, Level)>,
-    /// Whether the eye is open, and what a click on it does.
-    pub eye: Option<(bool, &'a str)>,
+    /// The button in the eye's column, when the row has one.
+    pub eye: Option<Eye<'a>>,
+    /// A picture before the name, in its own colour.
+    pub icon: Option<(Icon, Color32)>,
     /// A click on it asks nothing: it reads as text, not as a button.
     pub inert: bool,
 }
 
-/// The row as the hand found it, and whether its eye was clicked.
+/// What stands in a row's eye column: C11, in one of its two forms.
+#[derive(Clone, Copy)]
+pub enum Eye<'a> {
+    /// Shown or not: whether the eye is open, and what a click on it does.
+    Open(bool, &'a str),
+    /// Shown more ways than two: the picture of its state, and what a click
+    /// on it does. Lit unless the row is dimmed.
+    Pictured(Icon, &'a str),
+}
+
+/// The row as the hand found it, and whether the button in its eye's column
+/// was clicked.
 pub struct Touched {
     pub row: Response,
     pub eye: bool,
@@ -69,7 +83,7 @@ pub fn tree_row(ui: &mut Ui, row: TreeRow<'_>) -> Touched {
         .layout_no_wrap(row.name.to_string(), name_font(), TEXT_PRIMARY)
         .size()
         .x;
-    let mut kept = start + CHEVRON_BOX + named + SPACING_M;
+    let mut kept = start + CHEVRON_BOX + pictured(&row) + named + SPACING_M;
     let badge_width = row
         .badge
         .map(|(said, _)| badge_width(&inside, said) + SPACING_M);
@@ -104,14 +118,17 @@ pub fn tree_row(ui: &mut Ui, row: TreeRow<'_>) -> Touched {
     paint(&inside, &row, area, &response);
 
     let mut eye_clicked = false;
-    if let Some((lit, said)) = row.eye {
+    if let Some(shown) = row.eye {
         let column = Rect::from_x_y_ranges(line.left()..=line.left() + EYE_COLUMN, line.y_range());
-        inside.scope_builder(
-            UiBuilder::new()
-                .max_rect(column)
-                .layout(Layout::left_to_right(Align::Center)),
-            |ui| eye_clicked = eye(ui, lit, said.to_string()),
-        );
+        let in_the_column = UiBuilder::new()
+            .max_rect(column)
+            .layout(Layout::left_to_right(Align::Center));
+        inside.scope_builder(in_the_column, |ui| {
+            eye_clicked = match shown {
+                Eye::Open(lit, said) => eye(ui, lit, said.to_string()),
+                Eye::Pictured(drawn, said) => visibility(ui, !row.dimmed, drawn, said.to_string()),
+            };
+        });
     }
     Touched {
         row: response,
@@ -149,7 +166,7 @@ fn beside(ui: &mut Ui, line: Rect, room: RangeInclusive<f32>, value: &str) -> f3
         UiBuilder::new()
             .max_rect(laid)
             .layout(Layout::right_to_left(Align::Center)),
-        |ui| ui.add(Label::new(text).truncate()),
+        |ui| ui.add(Label::new(text).truncate().selectable(false)),
     );
     left - SPACING_M
 }
@@ -177,13 +194,27 @@ fn paint(ui: &Ui, row: &TreeRow<'_>, area: Rect, response: &Response) {
             open,
         );
     }
+    if let Some((drawn, color)) = row.icon {
+        let side = IconSize::Small.points();
+        let at = Rect::from_min_size(
+            pos2(area.left() + CHEVRON_BOX, middle - side / 2.0),
+            vec2(side, side),
+        );
+        drawn.image(IconSize::Small).tint(color).paint_at(ui, at);
+    }
     painter.text(
-        pos2(area.left() + CHEVRON_BOX, middle),
+        pos2(area.left() + CHEVRON_BOX + pictured(row), middle),
         egui::Align2::LEFT_CENTER,
         row.name,
         name_font(),
         ink,
     );
+}
+
+/// How far the name stands past the chevron to leave room for the icon.
+fn pictured(row: &TreeRow<'_>) -> f32 {
+    row.icon
+        .map_or(0.0, |_| IconSize::Small.points() + SPACING_S)
 }
 
 fn name_font() -> FontId {

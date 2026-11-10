@@ -1,14 +1,19 @@
 use cao_part::PartDocument;
+use cao_part::VolumeState;
+use cao_part::history::ExtrusionMode;
 
 use crate::lang::Catalogue;
 use crate::screens::part_tree::state::{
-    Body, Drawn, Kept, PartTree, Points, Row, TreeAction, Variable, clickable, clicked, marked,
+    self, Body, Drawn, Kept, PartTree, Points, Row, TreeAction, Variable, clickable, clicked,
+    marked,
 };
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::ViewportState;
+use crate::ui::icon;
 use crate::ui::question::{Question, ask};
+use crate::ui::secondary_button::secondary_button;
 use crate::ui::theme::tokens;
-use crate::ui::tree_row::{TreeRow, folding_row, tree_note, tree_row};
+use crate::ui::tree_row::{Eye, TreeRow, folding_row, tree_note, tree_row};
 use crate::wording::part_tree::{self as said, Problem, Rubric};
 
 /// What the tree reads to mark its rows, and the one thing asked of it.
@@ -73,26 +78,27 @@ fn show(ui: &mut egui::Ui, asked: &mut Asked<'_>, lang: &Catalogue) {
                     for body in &tree.bodies {
                         made_of_matter(ui, body, asked, lang);
                     }
+                    if let Some(offered) = &tree.make_all_opaque {
+                        make_all_opaque(ui, offered, asked);
+                    }
                 }
                 Rubric::Sections => {
                     for kept in &tree.sections {
                         section(ui, kept, asked, lang);
                     }
                 }
-                Rubric::WholeBody => {
-                    let mode = said::body(lang, asked.viewport.body_mode());
-                    let named = TreeRow {
-                        name: &mode,
-                        ..TreeRow::default()
-                    };
-                    if tree_row(ui, named).row.clicked() {
-                        asked.action = TreeAction::NextBodyMode;
-                    }
-                }
                 Rubric::Variables => variables(ui, &tree.variables, lang),
             }
         }
     });
+}
+
+/// « Tout rendre opaque », under the volumes, greyed while they all are.
+fn make_all_opaque(ui: &mut egui::Ui, offered: &state::Offered, asked: &mut Asked<'_>) {
+    ui.add_space(tokens::SPACING_S);
+    if secondary_button(ui, offered.enabled, &offered.label).clicked() {
+        asked.action = TreeAction::MakeAllOpaque;
+    }
 }
 
 /// The variables, read only: the name in the variable colour, the value on
@@ -150,15 +156,33 @@ pub fn section_delete_confirm(ui: &egui::Ui, lang: &Catalogue) -> Option<bool> {
     ask(ui, "section_delete_confirm", &question)
 }
 
+/// One volume: C11's button stepping it round its three states, whether it
+/// adds or cuts, its name, its badge and its state written on the right.
 fn made_of_matter(ui: &mut egui::Ui, body: &Body, asked: &mut Asked<'_>, lang: &Catalogue) {
     let badge = body.badge.map(|found| said::badge(lang, found));
+    let made = match body.mode {
+        ExtrusionMode::Add => (icon::EXTRUSION_ADD, tokens::VOLUME_ADD),
+        ExtrusionMode::Cut => (icon::EXTRUSION_CUT, tokens::VOLUME_CUT),
+    };
+    let drawn = match body.shown {
+        VolumeState::Opaque => icon::BODY_OPAQUE,
+        VolumeState::SeeThrough => icon::BODY_SEE_THROUGH,
+        VolumeState::Invisible => icon::BODY_HIDDEN,
+    };
     let heading = TreeRow {
         name: &body.name,
+        dimmed: body.dimmed,
+        value: Some(&body.state),
         badge: badge.as_deref().zip(body.badge.map(Problem::level)),
+        eye: Some(Eye::Pictured(drawn, &body.visibility_button)),
+        icon: Some(made),
         ..TreeRow::default()
     };
     let id = egui::Id::new(("body", body.step));
     let (touched, open) = folding_row(ui, id, false, heading);
+    if touched.eye {
+        asked.action = TreeAction::NextVolumeMode(body.step);
+    }
     if let Some(said) = &body.unstable {
         touched.row.on_hover_text(said);
     }
@@ -184,7 +208,7 @@ fn drawn(ui: &mut egui::Ui, drawing: &Drawn, asked: &mut Asked<'_>, lang: &Catal
         dimmed: drawing.dimmed,
         value: Some(&drawing.plane),
         badge: badge.as_deref().zip(drawing.badge.map(Problem::level)),
-        eye: Some((lit, &eye)),
+        eye: Some(Eye::Open(lit, &eye)),
         ..TreeRow::default()
     };
     let id = egui::Id::new(("sketch", drawing.step));

@@ -251,12 +251,19 @@
 //! - A value asked above what fits, 4 on the block 6 wide, is reduced to the
 //!   full round's radius, 3, and the end edge is laid at that same value; the
 //!   step reports both —
-//!   `a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_more_than_fits_lays_both_at_the_full_round_s_radius_and_reports_both`.
-//!   A value asked a hair under 3, within what the kernel takes for
+//!   `a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_more_than_fits_lays_both_at_the_full_round_s_radius_and_reports_both`,
+//!   in every order, the end edge alone taking 4 there; green as soon as
+//!   it was written, answered by the change of the first criterion, the
+//!   value the pair bounds the step to being the full round's radius
+//!   exactly. A value asked a hair under 3, within what the kernel takes for
 //!   set-backs that meet, lays the full round at its own radius and the end
 //!   edge at that same radius, so that the two meet at the crown with no
 //!   sliver between them —
-//!   `a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_a_hair_under_the_full_round_s_radius_lays_both_at_that_radius_meeting_at_the_crown`
+//!   `a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_a_hair_under_the_full_round_s_radius_lays_both_at_that_radius_meeting_at_the_crown`,
+//!   in every order, asked 1e-6 and 1e-7 under, the strip of top left two
+//!   of those, under four of the kernel's hairs on this block and over one
+//!   or not, as #698 asks its full round; the step reports the value asked,
+//!   and takes it or the full round's radius, a hair apart
 //! - An end that is not square to the pair: a plate whose end face is cut at
 //!   an angle, seen from above. The same mitre, exact, closed, uncrossed and
 //!   drawn, its volume held by arithmetic or by the booleans, in either
@@ -3746,16 +3753,22 @@ fn every_order(count: usize) -> Vec<Vec<usize>> {
         .collect()
 }
 
-/// Holds that the fillet at [`FULL_ROUND`] on the full round's pair of the
-/// block [`NARROW`] wide and on the top's edges at `ends`, in every order the
-/// list can name them in, mitres each end edge's round against the full
-/// round: the body exact, closed, uncrossed and drawn, holding what the
-/// arithmetic and the booleans promise; the full round answering to both its
-/// edges' numbers and each end edge's round to its own, nothing laid at a
-/// corner; each round drawn on its own cylinder and on its own side of the
-/// mitre, the two meeting by two edges, from the end wall's top corners up to
-/// the crown; and the walls set back by the radius, their uprights sharp.
-fn mitres_each_end_against_the_full_round_whatever_the_order(ends: &[&End]) {
+/// Holds that the fillet asked `asked` on the full round's pair of the block
+/// [`NARROW`] wide and on the top's edges at `ends`, in every order the list
+/// can name them in, reports what `reported` holds of the value asked and the
+/// value taken, and mitres each end edge's round against the full round, both
+/// at [`FULL_ROUND`]: the body exact, closed, uncrossed and drawn, holding
+/// what the arithmetic and the booleans promise; the full round answering to
+/// both its edges' numbers and each end edge's round to its own, the top gone
+/// and nothing laid at a corner; each round drawn on its own cylinder and on
+/// its own side of the mitre, the two meeting by two edges, from the end
+/// wall's top corners up to the crown; and the walls set back by the radius,
+/// their uprights sharp.
+fn mitres_each_end_against_the_full_round_whatever_the_order(
+    ends: &[&End],
+    asked: f64,
+    reported: impl Fn(f64, f64, &str),
+) {
     let r = FULL_ROUND;
     let narrow = block([LENGTH, NARROW, HEIGHT]);
     let start = narrow.faces_end();
@@ -3788,7 +3801,7 @@ fn mitres_each_end_against_the_full_round_whatever_the_order(ends: &[&End]) {
         .iter()
         .map(|order| {
             let names: Vec<EdgeName> = order.iter().map(|&edge| named[edge].0.clone()).collect();
-            narrow.fillet_edges(&names, r)
+            narrow.fillet_edges(&names, asked)
         })
         .collect();
 
@@ -3803,9 +3816,9 @@ fn mitres_each_end_against_the_full_round_whatever_the_order(ends: &[&End]) {
         .collect();
     assert!(
         declined.is_empty(),
-        "the fillet at {r} on the top's front and back edges of a block {NARROW} wide, a full \
-         round, and on the top's edge at {} of its ends mitres each end edge's round against \
-         the full round, whichever edge the list names first; declined:\n{}",
+        "the fillet asked {asked} on the top's front and back edges of a block {NARROW} wide, a \
+         full round, and on the top's edge at {} of its ends mitres each end edge's round \
+         against the full round, whichever edge the list names first; declined:\n{}",
         ends.len(),
         declined.join("\n")
     );
@@ -3813,9 +3826,9 @@ fn mitres_each_end_against_the_full_round_whatever_the_order(ends: &[&End]) {
     let area =
         front_half.area() + back_half.area() + ends.iter().map(|end| end.round.area()).sum::<f64>();
     for (order, laid) in orders.iter().zip(laid) {
-        let what = format!("the fillet at {r} on {}", called(order));
+        let what = format!("the fillet asked {asked} on {}", called(order));
         let filleted = laid.expect("declines are held above");
-        taken_as_asked(filleted.asked, filleted.taken, r, &what);
+        reported(filleted.asked, filleted.taken, &what);
         let body = &filleted.body;
         sound_drawn_within(body, promised, DRAWN * reach_of(&narrow) * area, &what);
         let rank_of = |edge: usize| {
@@ -3996,14 +4009,98 @@ fn mitres_each_end_against_the_full_round_whatever_the_order(ends: &[&End]) {
 fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_mitres_that_edge_s_round_against_the_full_round_whatever_the_order()
  {
     let [right, _] = ends();
-    mitres_each_end_against_the_full_round_whatever_the_order(&[&right]);
+    mitres_each_end_against_the_full_round_whatever_the_order(
+        &[&right],
+        FULL_ROUND,
+        |asked, taken, what| taken_as_asked(asked, taken, FULL_ROUND, what),
+    );
 }
 
 #[test]
 fn a_fillet_on_the_four_top_edges_of_a_block_6_wide_mitres_its_full_round_against_both_end_edges_whatever_the_order()
  {
     let [right, left] = ends();
-    mitres_each_end_against_the_full_round_whatever_the_order(&[&right, &left]);
+    mitres_each_end_against_the_full_round_whatever_the_order(
+        &[&right, &left],
+        FULL_ROUND,
+        |asked, taken, what| taken_as_asked(asked, taken, FULL_ROUND, what),
+    );
+}
+
+/// What is asked of the full round's pair and the edge at its end on the
+/// block [`NARROW`] wide, more than [`FULL_ROUND`], where the pair's
+/// set-backs meet: less than the end edge alone takes.
+const MORE_THAN_FITS: f64 = 4.0;
+
+#[test]
+fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_more_than_fits_lays_both_at_the_full_round_s_radius_and_reports_both()
+ {
+    let [right, _] = ends();
+    let narrow = block([LENGTH, NARROW, HEIGHT]);
+    let alone = narrow
+        .fillet(&right.edge.name(&narrow), MORE_THAN_FITS)
+        .unwrap_or_else(|declined| panic!("the top's right edge alone: declined, {declined:?}"));
+    taken_as_asked(
+        alone.asked,
+        alone.taken,
+        MORE_THAN_FITS,
+        "the fillet on the top's right edge alone, whose round the full round's radius does not \
+         bound",
+    );
+
+    mitres_each_end_against_the_full_round_whatever_the_order(
+        &[&right],
+        MORE_THAN_FITS,
+        |asked, taken, what| {
+            assert!(
+                (asked - MORE_THAN_FITS).abs() < PLACE,
+                "{what}: reports {asked} asked, where {MORE_THAN_FITS} was"
+            );
+            assert!(
+                (taken - FULL_ROUND).abs() < PLACE,
+                "{what}: took {taken}, where the full round's pair gives {FULL_ROUND}, and the \
+                 edge at its end is laid at that one value"
+            );
+        },
+    );
+}
+
+/// One of the kernel's hairs on the block [`LENGTH`] long: twenty
+/// tolerances, a tolerance a billionth of the reach.
+const ONE_HAIR: f64 = 20.0 * 1e-9 * LENGTH;
+
+/// How short a strip left between two set-backs on a face may be and still
+/// read as none to the kernel, on the block [`LENGTH`] long: four of its
+/// hairs.
+const MEETING_HAIR: f64 = 4.0 * ONE_HAIR;
+
+#[test]
+fn a_fillet_on_a_full_round_pair_and_an_edge_meeting_it_at_a_corner_asked_a_hair_under_the_full_round_s_radius_lays_both_at_that_radius_meeting_at_the_crown()
+ {
+    let [right, _] = ends();
+
+    for (under, past_one_hair) in [(1e-6, true), (1e-7, false)] {
+        let asked = FULL_ROUND - under;
+        let strip = NARROW - 2.0 * asked;
+        assert!(
+            strip < MEETING_HAIR && (strip > ONE_HAIR) == past_one_hair,
+            "asked {asked}: the strip of top the pair's rounds leave, {strip}, is shorter than the \
+             kernel keeps, {MEETING_HAIR}, and longer than one of its hairs, {ONE_HAIR}, or not, \
+             as {past_one_hair} says"
+        );
+
+        mitres_each_end_against_the_full_round_whatever_the_order(
+            &[&right],
+            asked,
+            |reported, taken, what| {
+                assert!(
+                    (reported - asked).abs() < PLACE && (taken - asked).abs() <= MEETING_HAIR,
+                    "{what}: asked {reported} and took {taken}, where {asked} is a hair from the \
+                     full round's radius, {FULL_ROUND}"
+                );
+            },
+        );
+    }
 }
 
 /// A block 30 by 10 by 20 with a pocket 20 long, [`NARROW`] wide and

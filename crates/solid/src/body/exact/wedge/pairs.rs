@@ -172,6 +172,26 @@ pub(super) fn met_before(
         })
 }
 
+/// The value the edge of rank `rank` in `edges`, of no pair, is laid at: the
+/// value of the pairs of `pairs` it meets at a corner, the radius their one
+/// prism is raised at, so that its cut meets theirs where they meet across
+/// their face, even where `taken` stands a hair short of it; `taken` where
+/// it meets none.
+pub(super) fn value_at(
+    body: &brep::Body,
+    edges: &[EdgeId],
+    pairs: &[Pair],
+    rank: usize,
+    taken: f64,
+) -> f64 {
+    let meets = |member: usize| corners::meet(body, [edges[member], edges[rank]]);
+    (pairs.iter())
+        .filter(|&&(one, other, _)| meets(one) || meets(other))
+        .map(|&(_, _, value)| value)
+        .reduce(f64::min)
+        .unwrap_or(taken)
+}
+
 impl Exact {
     /// The body with the edges `earlier` and `later` find, whose set-backs
     /// meet across the face they share, cut off as one by the prism `raise`

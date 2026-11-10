@@ -25,9 +25,10 @@ impl Exact {
     /// the face is gone and the two rounds, about one axis, are one full round
     /// — a round bottom where the faces meet inwards — as
     /// [`Wedge::rounded_with`] lays it, at the radius they meet at; the edge
-    /// at its end, on the face that is gone, is rounded and mitred against it
-    /// as against any round meeting it at a convex corner, the two rounds
-    /// meeting on two ellipses up to the crown, where they touch. Where
+    /// at its end, on the face that is gone, is rounded at that same radius
+    /// and mitred against it as against any round meeting it at a convex
+    /// corner, the two rounds meeting on two ellipses up to the crown, where
+    /// they touch. Where
     /// matter lies past an end of an edge rounded off, behind the one flat face
     /// it runs into there — the inner corner of an L, a pocket's rim, the foot
     /// of a block standing on another — its round stops flush on that face,

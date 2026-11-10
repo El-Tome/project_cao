@@ -92,9 +92,10 @@ impl Exact {
     /// [`Exact::laid_as`] lays it, so that the matter of every edge's prism
     /// goes whatever the order — and an edge ending at convex corners on the
     /// face two cuts laid together meet across meets their one prism the same
-    /// way, as [`pairs::cornered`] admits it, the two read on the body as given
-    /// where it was laid before them. Two edges of one sense meeting
-    /// at a corner beside an edge of the other sense left out of the list, as
+    /// way, as [`pairs::cornered`] admits it, at their value, as
+    /// [`pairs::value_at`] reads it, the two read on the body as given where it
+    /// was laid before them. Two edges of one sense meeting at a corner beside
+    /// an edge of the other sense left out of the list, as
     /// [`corners::admit`] admits it — two cuts beside a concave edge, two fills
     /// beside a convex one — each stop flush there, and the later takes with it
     /// what both prisms hold past both faces they stop on, as [`Flush::beside`]
@@ -205,13 +206,14 @@ impl Exact {
                             .map(|earlier| start + earlier as u32)
                             .collect();
                         let open = flush::open(&self.brep, rank, &given, &beside);
+                        let value = pairs::value_at(&self.brep, &edges, &pairs, rank, taken);
                         if mitred.is_empty() {
-                            cut.laid(&names[rank], taken, &tool, &mitred, &open)?
+                            cut.laid(&names[rank], value, &tool, &mitred, &open)?
                         } else {
                             let flush = Flush::beside(
-                                &self.brep, rank, &given, &beside, taken, &set_back, &tool,
+                                &self.brep, rank, &given, &beside, value, &set_back, &tool,
                             )?;
-                            cut.laid_as(&flush, &wedges[rank], taken, &tool, &mitred, &open)?
+                            cut.laid_as(&flush, &wedges[rank], value, &tool, &mitred, &open)?
                         }
                     }
                 };
